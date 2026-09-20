@@ -1102,6 +1102,7 @@ public class Parser : ParserBase<Token, TokenType>
         return new ObjCBlockNode(returnType, parameters, body, l, c);
     }
 
+
     private ASTNode ParsePrimary()
     {
         int l = Cur.Line, c = Cur.Column;

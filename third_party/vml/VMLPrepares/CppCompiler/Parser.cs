@@ -9,9 +9,56 @@ namespace CppCompiler
         private bool _isMCU;
         private List<ClassMember> _pendingMembers = new();
 
+        /// <summary>
+        /// 「结构体别名 → 标签」表（`typedef struct tm tm_t;` ⇒ `tm_t → tm`）。
+        /// 见 <see cref="ParseTypedef"/> 与 <see cref="ParseType"/>：
+        /// 下游是按标签查结构定义的，不换名字的话 `tm_t` 只是个查不到定义的裸类型串。
+        /// </summary>
+        private readonly Dictionary<string, string> _structAliases = new();
+
+        /// <summary>
+        /// 解析过程中产生的**额外顶层声明** —— 目前只有「typedef 里那个结构体定义」。
+        ///
+        /// <para>
+        /// `typedef struct Tag { int x; } Alias;` 会解析出一个 `ClassDecl`，而 `ParseTypedef`
+        /// 只能返回**一个**节点（那是变量占位）。丢掉它的话结构体定义就**从未进过
+        /// `_classes`**（`CodeGenerator.CollectDeclarations` 是从 `program.Declarations` 收的），
+        /// 于是 `Alias v; v.x` 解析不出成员 —— 症状是**静默编错**（两个成员落到同一处地址，
+        /// 读谁都是最后写的那个值），比报错难查得多。实测 `pt_t p; p.x=3; p.y=4;` 打出 `4,4`。
+        /// </para>
+        /// </summary>
+        private readonly List<ASTNode> _pendingDecls = new();
+
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 诊断用的行号 —— **取原文件的行，不取拼接流的行**。
+        ///
+        /// <para>
+        /// `ParserBase` 里这两个是 `=> 0` 的虚方法，不覆写就恒为 0：于是所有解析错的位置
+        /// 都一样，而 `DiagnosticBag` 按「码+文件+行+列+消息」去重 ⇒ **一个文件里的多处
+        /// 同类语法错会被并成一条**（与 C 前端 `Parser.Core.cs` 记的是同一个坑）。
+        /// </para>
+        /// </summary>
+        protected override int GetTokenLine(Token token) => token.OriginalLine > 0 ? token.OriginalLine : token.Line;
+
+        /// <summary>同上 —— 列号。</summary>
+        protected override int GetTokenColumn(Token token) => token.Column;
+
         public Parser(List<Token> tokens, bool isMCU = true) : base(tokens) { _anonCount = 0; _isMCU = isMCU; }
+
+        /// <summary>
+        /// 把当前 token 的位置写成 <c>原文件:原行:列: </c> 前缀（GCC 形态）供 <see cref="Expect"/> 用。
+        ///
+        /// ⚠ 文件必须**真的写出来**：不写的话「报错在头文件里」这件事就丢了，编辑器只能把它
+        ///   当成用户自己文件的错误、按行号硬贴上去（用户报的「第 112 行那个注释被标红」正是这一环）。
+        /// </summary>
+        private string Where(Token t)
+        {
+            var (file, line) = MapOriginal(t.Line);
+            if (file == null) file = FileName ?? "<input>";
+            return $"{file}:{line}:{Math.Max(t.Column, 0)}: ";
+        }
 
         public Program Parse()
         {
@@ -21,12 +68,44 @@ namespace CppCompiler
                 var decl = ParseDeclaration();
                 if (decl != null) program.Declarations.Add(decl);
                 else Advance();
+                // 解析这一条时顺带产出的额外顶层声明（typedef 里的结构体定义）——
+                // 必须**进 program**，否则 `_classes` 里没有它（见 `_pendingDecls` 的说明）。
+                if (_pendingDecls.Count > 0)
+                {
+                    program.Declarations.AddRange(_pendingDecls);
+                    _pendingDecls.Clear();
+                }
             }
             return program;
         }
 
-        // Top-level declarations
+        /// <summary>
+        /// 顶层声明入口 —— 与 <see cref="ParseStatement"/> 同一套路，**顺手记下起点位置**
+        /// （`Line`/`Column`/`OriginalLine`/`OriginalFile`）。
+        ///
+        /// <para>
+        /// 为什么顶层也要盖：全局变量的初始化式出问题（`int g = 没声明的名字;`）报的是
+        /// 「未声明的变量」——不盖位置的话它只能拿到**上一句遗留的行号**（比没有行号更糟，
+        /// 用户会去改一行毫不相干的代码）。判据照旧 `Line == 0` 才盖：精确值不被外层冲掉。
+        /// </para>
+        /// </summary>
         private ASTNode? ParseDeclaration()
+        {
+            int __line = Cur.Line, __col = Cur.Column;
+            var (__file, __originLine) = MapOriginal(__line);
+            var __node = ParseDeclarationCore();
+            if (__node != null && __node.Line == 0)
+            {
+                __node.Line = __line;
+                __node.Column = __col;
+                __node.OriginalLine = __originLine;
+                __node.OriginalFile = __file;
+            }
+            return __node;
+        }
+
+        // Top-level declarations
+        private ASTNode? ParseDeclarationCore()
         {
             // 处理调用约定属性: __cdecl, __stdcall, __fastcall
             CallingConvention? pendingConvention = null;
@@ -106,24 +185,62 @@ namespace CppCompiler
             return new VariableDecl { Type = "friend", Name = "_dummy" };
         }
 
+        /// <summary>
+        /// `typedef` 的**三种**形态（`struct` 那一支）：
+        /// <code>
+        /// ① typedef struct { ... } Alias;        匿名结构体 + 别名
+        /// ② typedef struct Tag { ... } Alias;    结构体定义 + 别名
+        /// ③ typedef struct Tag Alias;            引用**已声明**的结构体（`Lib/c/time.h:31`）
+        /// </code>
+        ///
+        /// ⚠ **②③ 里 `struct` 后面第一个标识符是「标签」、第二个才是「别名」**。
+        /// 老代码把标签当成别名吃掉、紧接着 `Expect(SEMICOLON)`，于是撞在真正的别名上 ——
+        /// 真机上那句 `Expected SEMICOLON but got IDENTIFIER ('tm_t') at line 112:` 就是它
+        /// （`#include &lt;time.h&gt;` 的 C++ 程序一律编不过）。②同理：它连 `}` 都撞不过去。
+        ///
+        /// ⚠ **光把语法吃下去不够，别名必须真的登记**：下游解析结构体成员时是按
+        /// **标签**查 `_classes` 的（`CodeGenerator.ResolveClassOf` → `CleanType(type)`），
+        /// 不登记的话 `tm_t *p; p-&gt;tm_sec` 仍然解析不出结构体 —— 错误只是换个地方冒出来。
+        /// </summary>
         private ASTNode? ParseTypedef()
         {
             // typedef existing_type new_name;
             // typedef struct { ... } new_name;
             if (Match(TokenType.STRUCT))
             {
-                // typedef struct { ... } Name; or typedef struct Name { ... } Alias;
-                var cd = ParseStructLikeBody();
-                if (cd != null)
+                if (Check(TokenType.LBRACE))
                 {
-                    string alias = Expect(TokenType.IDENTIFIER).Value;
+                    // ① 匿名结构体 + 别名（体的名字是 `_anon_N`）
+                    var anon = ParseStructLikeBody();
+                    string anonAlias = Expect(TokenType.IDENTIFIER).Value;
+                    if (anon != null)
+                    {
+                        _pendingDecls.Add(anon);                 // 定义要进 program（见 _pendingDecls）
+                        RegisterStructAlias(anonAlias, anon.Name);
+                    }
                     Expect(TokenType.SEMICOLON);
+                    return new VariableDecl { Type = "typedef", Name = "_dummy" };
                 }
-                else
+
+                // ②③ 都以「标签」打头
+                string tag = Expect(TokenType.IDENTIFIER).Value;
+                if (Check(TokenType.LBRACE) || Check(TokenType.COLON))
                 {
-                    string alias = Expect(TokenType.IDENTIFIER).Value;
-                    Expect(TokenType.SEMICOLON);
+                    // ② 结构体定义 + 别名 —— 成员体走 ParseClassBodyCore（它**不吞**尾随的 `;`，
+                    //    因为这里 `}` 后面跟的是别名而不是分号）
+                    var body = ParseClassBodyCore(tag);
+                    _pendingDecls.Add(body);                     // 定义要进 program（见 _pendingDecls）
+                    string alias2 = Expect(TokenType.IDENTIFIER).Value;
+                    RegisterStructAlias(alias2, tag);
                 }
+                else if (Check(TokenType.IDENTIFIER))
+                {
+                    // ③ 已声明结构体 + 别名（没有被体）
+                    string alias3 = Advance().Value;
+                    RegisterStructAlias(alias3, tag);
+                }
+                // 否则是 `typedef struct Tag;`（只有标签、没有别名）—— 读过标签即可
+                Expect(TokenType.SEMICOLON);
                 return new VariableDecl { Type = "typedef", Name = "_dummy" };
             }
             // typedef existing_type new_name;
@@ -131,6 +248,16 @@ namespace CppCompiler
             string name = Expect(TokenType.IDENTIFIER).Value;
             Expect(TokenType.SEMICOLON);
             return new VariableDecl { Type = "typedef", Name = "_dummy" };
+        }
+
+        /// <summary>
+        /// 登记「结构体别名 → 标签」。`ParseType` 见到别名时换成标签，下游才查得到结构定义
+        /// （成员访问 `aliased.member` 全靠这一条）。
+        /// </summary>
+        private void RegisterStructAlias(string alias, string? tag)
+        {
+            if (string.IsNullOrEmpty(alias) || string.IsNullOrEmpty(tag)) return;
+            _structAliases[alias] = tag;
         }
 
         private ASTNode? ParseStructLike()
@@ -224,6 +351,19 @@ namespace CppCompiler
 
         private ClassDecl ParseClassBody(string name)
         {
+            var cd = ParseClassBodyCore(name);
+            Expect(TokenType.SEMICOLON);
+            return cd;
+        }
+
+        /// <summary>
+        /// 类/结构体的成员体 <c>{ … }</c>，**读到 `}` 为止、不吞尾随的 `;`**。
+        ///
+        /// 分出这一层是因为 `typedef struct Tag { … } Alias;` —— 那里 `}` 后面跟的是
+        /// **别名**而不是分号，用 <see cref="ParseClassBody"/> 会在别名上撞 `Expect(SEMICOLON)`。
+        /// </summary>
+        private ClassDecl ParseClassBodyCore(string name)
+        {
             string? baseClass = null;
             if (Match(TokenType.COLON))
             {
@@ -243,7 +383,6 @@ namespace CppCompiler
                 else Advance();
             }
             Expect(TokenType.RBRACE);
-            Expect(TokenType.SEMICOLON);
             return cd;
         }
 
@@ -870,8 +1009,17 @@ namespace CppCompiler
         public Stmt ParseStatement()
         {
             int __line = Cur.Line, __col = Cur.Column;
+            // 起点同时记下**原文件**行/文件：`Line` 是拼接流的行（产物里 `; N:` 注释按它索引
+            // `SourceLines`），`OriginalLine`/`OriginalFile` 才是报给用户看的（与 C 前端同分工）。
+            var (__file, __originLine) = MapOriginal(__line);
             var __node = ParseStatementCore();
-            if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+            if (__node != null && __node.Line == 0)
+            {
+                __node.Line = __line;
+                __node.Column = __col;
+                __node.OriginalLine = __originLine;
+                __node.OriginalFile = __file;
+            }
             return __node;
         }
 
@@ -1060,10 +1208,20 @@ namespace CppCompiler
 
         private new bool Check(params TokenType[] types) => types.Contains(GetTokenType(Cur));
 
+        /// <summary>
+        /// 期望当前 token 为指定类型，否则报错。
+        ///
+        /// 报文用 **GCC 形态**（<c>原文件:原行:列: error: …</c>），不用从前那句
+        /// `… at line 112:`：后者既没有文件名、行号还是**拼接后**的（`#include` 一展开就整体后移），
+        /// 于是用户看到的是一句「指着他文件里另一行」的报错。
+        /// </summary>
         private new Token Expect(TokenType type, string msg = "")
         {
             if (GetTokenType(Cur) != type)
-                throw Error($"Expected {type} but got {GetTokenType(Cur)} ('{Cur.Value}') at line {Cur.Line}: {msg}");
+            {
+                var detail = string.IsNullOrWhiteSpace(msg) ? "" : $" ({msg})";
+                throw Error($"{Where(Cur)}error: Expected {type} but got {GetTokenType(Cur)} ('{Cur.Value}'){detail}");
+            }
             return Advance();
         }
 

@@ -11,7 +11,22 @@ namespace RustCompiler
         public int Line { get; set; }
         public int Column { get; set; }
         
-        public abstract void Accept(IVisitor visitor);
+        /// <summary>
+        /// 访问入口 —— **单一漏斗**。
+        ///
+        /// 每进入一个节点就把它自己的位置盖上（见 `CodeGeneratorBase.CurrentSourceLine`）：
+        /// 位置要**越往里越精确**，而 `Accept` 是全部节点的共同入口 —— 写在这里自动满足，
+        /// 写在各 `Visit` 里就是本仓头号坑「同一规则多处实现」。
+        /// 与 Python 端的 `ASTNode.Accept` 是同一处置（那边也是访问者模式）。
+        /// </summary>
+        public void Accept(IVisitor visitor)
+        {
+            if (Line > 0) visitor.EnterNode(Line, Column);
+            AcceptCore(visitor);
+        }
+
+        /// <summary>具体分派（原 `Accept`）。</summary>
+        protected abstract void AcceptCore(IVisitor visitor);
     }
     
     /// <summary>
@@ -19,6 +34,8 @@ namespace RustCompiler
     /// </summary>
     public interface IVisitor
     {
+        /// <summary>进入一个节点：把「当前正在生成哪一句」告诉生成器。</summary>
+        void EnterNode(int line, int column);
         void Visit(ProgramNode node);
         void Visit(FunctionNode node);
         void Visit(VariableDeclarationNode node);
@@ -59,7 +76,7 @@ namespace RustCompiler
     {
         public string StructName { get; set; }
         public List<(string Name, ASTNode Value)> Fields { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     /// <summary>
@@ -69,7 +86,7 @@ namespace RustCompiler
     {
         public List<ASTNode> Statements { get; } = new List<ASTNode>();
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -85,7 +102,7 @@ namespace RustCompiler
         public string ReturnType { get; set; }
         public BlockNode Body { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -99,7 +116,7 @@ namespace RustCompiler
         public string Name { get; set; }
         public string Type { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             // 参数节点通常由函数节点处理
         }
@@ -115,7 +132,7 @@ namespace RustCompiler
         public bool IsMutable { get; set; }
         public ASTNode Initializer { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -130,7 +147,7 @@ namespace RustCompiler
         public string Type { get; set; } = "i32"; // 默认类型
         public ASTNode Initializer { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -145,7 +162,7 @@ namespace RustCompiler
         public ASTNode Value { get; set; }
         public ASTNode? Target { get; set; } // 成员访问目标 (p.x = ...)
 
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -160,7 +177,7 @@ namespace RustCompiler
         public ASTNode Left { get; set; }
         public ASTNode Right { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -174,7 +191,7 @@ namespace RustCompiler
         public string Operator { get; set; }
         public ASTNode Operand { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -188,7 +205,7 @@ namespace RustCompiler
         public object Value { get; set; }
         public string Type { get; set; } // "int", "float", "string", "char", "bool"
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -201,7 +218,7 @@ namespace RustCompiler
     {
         public string Name { get; set; } = "";
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -216,7 +233,7 @@ namespace RustCompiler
         public BlockNode ThenBlock { get; set; }
         public ASTNode ElseBlock { get; set; } // 可以是BlockNode或IfStatementNode
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -230,7 +247,7 @@ namespace RustCompiler
         public ASTNode Condition { get; set; }
         public BlockNode Body { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -247,7 +264,7 @@ namespace RustCompiler
         public bool Inclusive { get; set; } // true表示..=，false表示..
         public BlockNode Body { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -260,7 +277,7 @@ namespace RustCompiler
     {
         public ASTNode Value { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -273,7 +290,7 @@ namespace RustCompiler
     {
         public ASTNode Expression { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -286,7 +303,7 @@ namespace RustCompiler
     {
         public List<ASTNode> Statements { get; } = new List<ASTNode>();
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -300,7 +317,7 @@ namespace RustCompiler
         public string FunctionName { get; set; }
         public List<ASTNode> Arguments { get; } = new List<ASTNode>();
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -313,7 +330,7 @@ namespace RustCompiler
     {
         public List<ASTNode> Arguments { get; } = new List<ASTNode>();
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -328,7 +345,7 @@ namespace RustCompiler
         public string Operator { get; set; }  // "+=", "-=", "*=", "/=", "%="
         public ASTNode Value { get; set; }
         
-        public override void Accept(IVisitor visitor)
+        protected override void AcceptCore(IVisitor visitor)
         {
             visitor.Visit(this);
         }
@@ -337,24 +354,24 @@ namespace RustCompiler
     public class LoopStatementNode : ASTNode
     {
         public BlockNode Body { get; set; }
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class BreakStatementNode : ASTNode
     {
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class ContinueStatementNode : ASTNode
     {
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class MatchStatementNode : ASTNode
     {
         public ASTNode Value { get; set; }
         public List<MatchArm> Arms { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class MatchArm
@@ -373,14 +390,14 @@ namespace RustCompiler
     {
         public string Name { get; set; }
         public List<EnumVariant> Variants { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class EnumPatternNode : ASTNode
     {
         public string VariantName { get; set; }
         public string? BindName { get; set; } // the variable to bind payload to
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class IfLetStatementNode : ASTNode
@@ -389,14 +406,14 @@ namespace RustCompiler
         public ASTNode Value { get; set; }
         public BlockNode ThenBlock { get; set; }
         public ASTNode? ElseBlock { get; set; }
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class StructDeclNode : ASTNode
     {
         public string Name { get; set; }
         public List<StructField> Fields { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class StructField
@@ -410,14 +427,14 @@ namespace RustCompiler
         public string StructName { get; set; }
         public string? TraitName { get; set; }
         public List<FunctionNode> Methods { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class TraitDeclNode : ASTNode
     {
         public string Name { get; set; }
         public List<TraitMethod> Methods { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class TraitMethod
@@ -430,27 +447,27 @@ namespace RustCompiler
     public class ArrayLiteralNode : ASTNode
     {
         public List<ASTNode> Elements { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class IndexAccessNode : ASTNode
     {
         public ASTNode Target { get; set; }
         public ASTNode Index { get; set; }
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class ClosureExprNode : ASTNode
     {
         public List<string> Parameters { get; set; } = new();
         public ASTNode Body { get; set; }
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class TupleExprNode : ASTNode
     {
         public List<ASTNode> Elements { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 
     public class MemberAccessNode : ASTNode
@@ -458,6 +475,6 @@ namespace RustCompiler
         public ASTNode Target { get; set; }
         public string Member { get; set; }
         public List<ASTNode> Arguments { get; set; } = new();
-        public override void Accept(IVisitor visitor) { visitor.Visit(this); }
+        protected override void AcceptCore(IVisitor visitor) { visitor.Visit(this); }
     }
 }

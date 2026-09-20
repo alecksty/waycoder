@@ -70,7 +70,23 @@ public partial class CodeGenerator : CodeGeneratorBase {
     /// </summary>
     internal readonly Dictionary<string, int> TopVars = new();
 
+    /// <summary>
+    /// 把「当前正在生成哪个 S 表达式」盖上（语义见 `CodeGeneratorBase.CurrentSourceLine`）。
+    ///
+    /// 位置由 `Parser.ParseExpr` 那个唯一入口写进 `SExpr.Line/Column`，这里只负责把它
+    /// 搬到游标上 —— 于是**每条指令都带得上源码行**（`InstrList.Add` 会把它抄进
+    /// `Instruction.SourceLine`），链接期报「未定义的函数」时才能打出 `<input>:行:`。
+    ///
+    /// 三个漏斗（`GenTopLevel` / `GenCall` / `GenExpr`）覆盖全部生成路径：
+    /// 顶层形式走第一个，函数调用走第二个（取**被调的那个符号**的位置，比取左括号精确），
+    /// 其余表达式走第三个。`Line > 0` 才盖 —— 置 0 会把上一句的正确行号冲成"无位置"。
+    /// </summary>
+    void Stamp(SExpr e) {
+        if (e != null && e.Line > 0) { CurrentSourceLine = e.Line; CurrentSourceColumn = e.Column; }
+    }
+
     void GenTopLevel(SExpr e) {
+        Stamp(e);
         if (e is SList l && l.Items.Count > 0) {
             if (l.Items[0] is SSym s) {
                 if (s.Name == "define" && l.Items.Count >= 3 && l.Items[1] is SList fn) {

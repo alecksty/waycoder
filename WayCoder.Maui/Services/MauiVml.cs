@@ -331,18 +331,24 @@ HALT
     /// 分两处各解析一次就是「同一规则两处实现」，迟早一边改了另一边没改。
     /// 解析不出位置时 <see cref="VmlDiagnostics.Parse"/> 会给一条无锚诊断，
     /// 气泡照常显示内容、只是不画指向某一行的箭头。
+    ///
+    /// <paramref name="filePath"/> = **正在编的那个文件**，一路传给
+    /// <see cref="VmlDiagnostics.Parse"/>：报错文本里混着 `#include` 进来的头文件的错，
+    /// 只有知道"哪个文件是当前文件"才判得出「这条不属于它」——判不出来的话头文件的行号
+    /// 会被硬贴到用户正在看的文件上（真机上就是"第 112 行那句注释被标红"）。
     /// </summary>
-    private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) Fail(string lang, string message)
-        => (null, lang, message, VmlDiagnostics.Parse(message));
+    private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) Fail(
+        string lang, string message, string? filePath)
+        => (null, lang, message, VmlDiagnostics.Parse(message, filePath));
 
     private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) BuildProgram(
         string filePath, CancellationToken ct)
     {
-        if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}");
+        if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}", filePath);
 
         var libRoot = EnsureLibExtracted();
         if (libRoot == null)
-            return Fail("", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。");
+            return Fail("", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。", filePath);
 
         // 静态注册 22 个前端编译器，**绕开 PluginManager 的 Assembly.LoadFrom 反射路径**
         // （那条路在 MAUI 的裁剪/AOT 下不可靠，上游自己也在 StaticLink 模式里绕开了它）。
@@ -358,7 +364,7 @@ HALT
         // 扩展名派发用上游现成的 —— 自己遍历 SupportedExtensions 就是第二份实现
         var compiler = pm.GetCompilerByFileName(Path.GetFileName(filePath));
         if (compiler is not IFrontendCompilerEx ex)
-            return Fail("", $"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。");
+            return Fail("", $"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。", filePath);
 
         var lang = compiler.Name.ToLowerInvariant();
 
@@ -405,7 +411,7 @@ HALT
         // "编译成功、一跑就找不到函数"的程序。
         if (libraryPaths.Count == 0)
             return Fail(lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
-                 + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。");
+                 + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。", filePath);
 
         // 前端编译同样是个静默段（手机上**一分钟起步**）—— 与解压那条提示同一个道理
         OnProgress?.Invoke($"⏳ 正在编译 {Path.GetFileName(filePath)}（前端编译 + 链接标准库，手机上要一两分钟）…");
@@ -449,7 +455,7 @@ HALT
                         // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
                         _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
                         return Fail(lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
-                            + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。");
+                            + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。", filePath);
                     }
                     vmlText = compile.Result;
                 }
@@ -463,7 +469,7 @@ HALT
         catch (OperationCanceledException)
         {
             _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-            return Fail(lang, "⏹ 编译已被停止。");
+            return Fail(lang, "⏹ 编译已被停止。", filePath);
         }
         catch (Exception compileError)
         {
@@ -477,7 +483,16 @@ HALT
             //   不剥的话真机上打出来是 `AggregateException_ctor_DefaultMessage (语法错误 …)`——
             //   前面那段噪音正是用户第一眼看到的东西（真机截图看出来的，构建全绿）。
             var inner = compileError is AggregateException agg ? agg.GetBaseException() : compileError;
-            return Fail(lang, $"⚠️ 编译失败：{inner.Message}");
+            // **异常消息 + 编译期 stderr 一起进诊断**（按逐字段相等性去重，见 `Merge`）。
+            //
+            // 只取异常消息是不够的：**不抛异常的那些诊断**（预处理器打的警告 ——
+            // 比如「找不到头文件 "Windows.h"」）只存在于 stderr 里，而它恰恰解释了
+            // 后面那串「未声明的变量 'STD_OUTPUT_HANDLE'」是**为什么**。
+            // 反过来只取 stderr 也不行：异常消息里那份位置更全。
+            // 两份在链接期错误上是**逐字相同**的，所以必须去重、不能简单相加。
+            return (null, lang, $"⚠️ 编译失败：{inner.Message}",
+                VmlDiagnostics.Merge(VmlDiagnostics.Parse($"⚠️ 编译失败：{inner.Message}", filePath),
+                                     VmlDiagnostics.Parse(compileDiag, filePath)));
         }
 
         // **自检：产物得像 VML 汇编。**
@@ -488,7 +503,7 @@ HALT
             var head = vmlText ?? "(空)";
             return Fail(lang, $"⚠️ 前端编译没有产出 VML 汇编（{compiler.Name}）—— 多半是标准库/include 路径不对，"
                  + $"或源码本身有语法错误。产物前 200 字符：\n"
-                 + head[..Math.Min(200, head.Length)]);
+                 + head[..Math.Min(200, head.Length)], filePath);
         }
 
         // ② 汇编（.include / .macro 解析基准指向解压出来的根，使 "Lib/..." 能解析）
@@ -519,7 +534,10 @@ HALT
         // 取 `Warning` 级别的：错误走的是抛异常那条路（`Fail`），这里是"编过了但有问题"。
         // 这正是用户要的「未使用符号出警告，可以给 IDE 报警示提示用」在手机上的落点：
         // `CompileForEditor` 拿这份列表画气泡，`VmlDiagnostics` 早就把 GCC 风格认全了。
-        var compileWarnings = VmlDiagnostics.Parse(compileDiag)
+        //
+        // ⚠ 同样要传 `filePath`（与 `Fail` 那条出口同一个理由）：编译期的 stderr 里
+        //   头文件产生的警告不在少数，不判文件就会把它们贴到用户文件的行号上。
+        var compileWarnings = VmlDiagnostics.Parse(compileDiag, filePath)
             .Where(d => d.Severity == Severity.Warning)
             .ToList();
         return (prog, lang, null, compileWarnings);

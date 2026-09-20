@@ -937,7 +937,10 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
                     .Set("line", d.Line).Set("col", d.Column)
                     .Set("severity", d.Severity.ToString().ToLowerInvariant())
                     .Set("message", d.Message)
-                    .Set("code", d.Code ?? ""));
+                    .Set("code", d.Code ?? "")
+                    // 来源文件名（空串 = 就是当前文件）。`Line = 0` 且这里非空 = **别的文件**
+                    // （头文件）来的诊断 —— 前端不给它做行锚，界面按"无位置"呈现即可。
+                    .Set("file", d.File ?? ""));
             }
             lines.Set(kv.Key.ToString(), arr);
         }

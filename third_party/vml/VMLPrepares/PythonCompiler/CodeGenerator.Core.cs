@@ -6,9 +6,6 @@ namespace PythonCompiler
 {
     public partial class CodeGenerator
     {
-#pragma warning disable CS0414
-        private int currentLine;
-#pragma warning restore CS0414
         private Dictionary<string, int> localVars;
         private int stackOffset;
         private string currentFunction;
@@ -22,7 +19,6 @@ namespace PythonCompiler
 
         public CodeGenerator() : base()
         {
-            currentLine = 0;
             localVars = new();
             stackOffset = 0;
             currentFunction = "";
@@ -38,6 +34,26 @@ namespace PythonCompiler
         [System.Obsolete("Use Generate(ASTNode) instead", true)]
         public override VmlProgram GenerateCode() => throw new System.NotSupportedException("Use Generate(ASTNode) instead");
 #pragma warning restore CS0809
+
+        /// <summary>
+        /// `ASTNode.Accept` 的**唯一漏斗**：每进入一个节点就把它自己的位置盖上。
+        ///
+        /// 为什么必须走漏斗而不是在 `VisitXxx` 里各写一遍：位置要**越往里越精确**
+        ///（`VisitCall` 里套 `VisitName`，后者的列才是那个名字的列），
+        /// 而 `Accept` 是全部 46 个节点的共同入口 —— 写在这里自动满足，写在各处就是
+        /// 本仓头号坑「同一规则多处实现」。
+        ///
+        /// 修前实测：Python 是 22 门里**唯一**连行号都拿不到的之一 ——
+        /// 它自己的 `currentLine` 字段从声明之后就再没被赋过值（只有构造函数里置 0），
+        /// 而 `InstrList.Add` 读的是基类的 `CurrentSourceLine`（停在初值 -1），
+        /// 于是产物里每条指令的 `SourceLine` 都是 -1 ⇒ 链接期报「未定义的函数」时
+        /// `LibraryLinker` 那句 `ln > 0` 判据落空，用户看到的是**没有 `<input>:行:` 前缀**
+        /// 的一句光杆「未定义的函数 'nosuch'」。
+        /// </summary>
+        public void EnterNode(int line, int column)
+        {
+            if (line > 0) { CurrentSourceLine = line; CurrentSourceColumn = column; }
+        }
 
         private new void Emit(OpCode opcode, List<Operand> operands, string label = "")
         {

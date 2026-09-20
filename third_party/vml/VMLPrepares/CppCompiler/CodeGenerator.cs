@@ -30,6 +30,15 @@ namespace CppCompiler
         private readonly HashSet<string> _definedFunctions = new();
         private readonly Dictionary<string, bool> _isReferenceVar = new();
         private string? _currentClass = null;    // Track current class context for RTTI
+
+        /// <summary>
+        /// 当前语句来自**哪个文件**（`ASTNode.OriginalFile`，由解析器在语句入口盖）。
+        /// 覆写 <see cref="DiagFile"/> 用它 —— **这是头文件里的错能指向头文件的唯一一环**：
+        /// 不区分文件的话，`#include` 进来的声明出问题时报的是"主文件 + 头文件的行号"，
+        /// 宿主只能把这行号贴到用户自己那句根本没问题的代码上。
+        /// </summary>
+        private string? _currentOriginFile;
+
         public CodeGenerator(Program program)
         {
             _program = program;
@@ -101,6 +110,15 @@ namespace CppCompiler
 
         private void GenerateDecl(ASTNode decl)
         {
+            // 顶层声明也把位置交给诊断（语义与 `GenerateStmt` 那句逐字相同）——
+            // 全局初始化式里的「未声明变量」就靠它指向**那一行**，而不是上一句遗留的行号。
+            if (decl.Line > 0)
+            {
+                CurrentSourceLine = decl.Line;
+                CurrentSourceColumn = decl.Column;
+                CurrentSourceOriginalLine = decl.OriginalLine;
+                _currentOriginFile = decl.OriginalFile;
+            }
             switch (decl)
             {
                 case FunctionDecl fd:
@@ -462,11 +480,26 @@ namespace CppCompiler
             }
         }
 
+        /// <summary>
+        /// 诊断该用的文件：**优先当前语句的原文件**（头文件里的错就报头文件），
+        /// 拿不到才退回基类的默认（当前编译的源文件）。
+        /// </summary>
+        protected override string DiagFile => _currentOriginFile ?? base.DiagFile;
+
         private void GenerateStmt(Stmt stmt)
         {
             // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）。
             // 判据 `> 0`：行号是 1-based，没填的节点是 0，置 0 会把上一句的行号冲掉。
-            if (stmt.Line > 0) { CurrentSourceLine = stmt.Line; CurrentSourceColumn = stmt.Column; }
+            if (stmt.Line > 0)
+            {
+                CurrentSourceLine = stmt.Line;
+                CurrentSourceColumn = stmt.Column;
+                // 原文件行号/文件：诊断给人看的位置（见 CodeGeneratorBase.CurrentSourceOriginalLine）。
+                // ⚠ 无条件一起设（不像行号那样判 `> 0`）：换了文件却没换行号，
+                //   就会拿**上一个文件的行号**去配**这个文件的名字**，比不设更糟。
+                CurrentSourceOriginalLine = stmt.OriginalLine;
+                _currentOriginFile = stmt.OriginalFile;
+            }
             switch (stmt)
             {
                 case ExprStmt es:

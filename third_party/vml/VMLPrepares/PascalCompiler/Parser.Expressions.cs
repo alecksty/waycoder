@@ -72,7 +72,24 @@ namespace PascalCompiler
             return left;
         }
 
+        /// <summary>
+        /// **原子表达式的唯一入口** —— 顺手盖上它自己的行列（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与语句入口同一套路，但**粒度细一层**：语句级的列只能给到「这一句从哪开始」，
+        /// 而用户报错时要看到的是**出错的那个标识符**从哪开始。原子（标识符/字面量/调用/括号）
+        /// 是位置信息真正有意义的地方，而全部语句的表达式都是从这里递归产出的
+        /// ⇒ 在这一处包一层就覆盖了整棵树。
+        /// </summary>
         private ExpressionNode ParseFactor()
+        {
+            var __start = Cur;
+            int __line = __start.Line, __col = __start.Column;
+            var __node = ParseFactorCore();
+            if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+            return __node;
+        }
+
+        private ExpressionNode ParseFactorCore()
         {
             Token token = Cur;
 

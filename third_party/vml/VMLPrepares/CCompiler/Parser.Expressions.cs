@@ -834,7 +834,32 @@ namespace CCompiler
             return node;
         }
 
+        /// <summary>
+        /// **原子表达式的唯一入口** —— 顺手盖上它自己的行列（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与语句入口 `ParseStatement` 同一套路，但**粒度细一层**：语句级的列只能给到
+        /// 「这一句从哪开始」（`int` / `return` 那一列），而用户报错时要看到的是
+        /// **出错的那个标识符**从哪开始。原子（标识符、字面量、调用、括号）是位置信息
+        /// 真正有意义的地方，而全部 36 个语句的表达式都是从这里递归产出的 ⇒
+        /// 在这一处包一层就覆盖了整棵树，不必去动 ParseBinary/ParseUnary。
+        ///
+        /// 语义固定为「已填过的不覆盖」：将来若某个更精确的分支自己填了位置，外层不会冲掉。
+        /// </summary>
         private ASTNode ParsePrimary()
+        {
+            var __start = Current();
+            int __line = __start.Line, __origLine = __start.OriginalLine, __col = __start.Column;
+            var __node = ParsePrimaryCore();
+            if (__node != null && __node.Line == 0)
+            {
+                __node.Line = __line;
+                __node.OriginalLine = __origLine;
+                __node.Column = __col;
+            }
+            return __node;
+        }
+
+        private ASTNode ParsePrimaryCore()
         {
             // asm 表达式: asm("SYSCALL #40") 或 return asm("mov r0, ${a}")
             if (Current().Type == TokenType.ASM)

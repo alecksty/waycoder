@@ -77,7 +77,14 @@ namespace CSharpCompiler
         /// </summary>
         private Statement ParseStatement()
         {
-            int __line = Cur.Line, __col = Cur.Column;
+            // ⚠ **必须用本类的 `Peek()`，不能用基类的 `Cur`** ——
+            //   这个解析器自己维护游标（`private int position`，并把 `Peek`/`Advance`/
+            //   `Check`/`IsAtEnd` 全部 `new` 掉了），基类的 `_pos` **从不移动**：
+            //   读 `Cur` 永远拿到 `tokens[0]`（第一行那个 `class`），于是每条语句都被
+            //   盖上 `1:1` —— 症状是「不管错在第几行都报 1:1」，而 `Line > 0` 判据
+            //   完全满足、看不出任何异常。实测本文件里 `Cur` 只有这一处，改这一处即可。
+            var __start = Peek();
+            int __line = __start.Line, __col = __start.Column;
             var __node = ParseStatementCore();
             if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
             return __node;

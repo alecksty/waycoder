@@ -1,4 +1,5 @@
 using Microsoft.Maui.Graphics;
+using WayCoder.UI.Tui.Edit;   // Severity（波浪色/气泡底色的那三档）
 
 namespace WayCoder.Maui.Controls;
 
@@ -239,8 +240,12 @@ internal static class EditorTypography
     private static bool IsDark => Application.Current?.RequestedTheme == AppTheme.Dark;
 
     /// <summary>
-    /// 诊断三色 —— 行下**波浪线**与**气泡底色**共用同一组，气泡底色由它派生
-    /// （<see cref="BubbleFill"/>），所以调色只动这六个常量。
+    /// 诊断三色 —— 行下**波浪线**与**收起态小圆点**共用这一组（<see cref="WaveColor"/> 是
+    /// 唯一的严重度 → 色映射），所以调波浪线/圆点的色只动这六个常量。
+    ///
+    /// ⚠ **气泡底色不在这六个里**（白天档尤其不是）：那是给「在代码底下画一条细线」用的
+    /// **饱和色**，当整块背景铺开就是一块暗底、与白天的深色文字撞成暗底暗字。
+    /// 气泡底色是**白天/夜间两套显式值**，见 <see cref="BubbleFill"/>。
     ///
     /// 三档语义：错误红 / 警告黄 / 其它绿。**必须分主题两套**，原因是它们要压在四种底上
     /// （浅色代码底 <c>#FFFFFF</c>、浅色面板底 <c>#F0F0F3</c>、深色代码底 <c>#121214</c>、
@@ -268,41 +273,140 @@ internal static class EditorTypography
     private static readonly Color InfoWaveDark = Color.FromArgb("#30A46C");
 
     /// <summary>
-    /// 编译诊断气泡的底色：取波浪色、压到接近不透明。
-    /// **派生而不是另抄一份十六进制** —— 否则「改了波浪线颜色、气泡还是旧色」这种
-    /// 半生效的怪状迟早出现。
+    /// 严重度 → 波浪线 / 收起态小圆点用的那一档**饱和色**。**唯一一处映射**
+    /// （波浪线、圆点、以及气泡底色的夜间那一支都从它派生）。
     /// </summary>
-    public static Color BubbleFill(Color wave) => wave.WithAlpha(0.94f);
+    public static Color WaveColor(Severity s) => s switch
+    {
+        Severity.Error => ErrorWave,
+        Severity.Warning => WarnWave,
+        _ => InfoWave,
+    };
 
     /// <summary>
-    /// 气泡正文色 —— **跟随系统主题**（亮色档用深字、暗色档用亮字）。
+    /// 编译诊断气泡的**底色** —— **色相 = 严重度**（错误红 / 警告黄 / 提示绿），
+    /// 每个色相 **白天 / 夜间两档**：
+    /// 白天**中等浓度的浅色调**（配 <see cref="BubbleText"/> 深字）、
+    /// 夜间**一律深色调**（配 <see cref="BubbleTextDark"/> 浅字）。
     ///
-    /// 亮色档用**深色而不是白色**：三种底色里橙黄 (<c>#F5A524</c>) 配白字对比度只有约 1.9
-    /// （几乎读不了），深色则三种都在 4.3 以上 —— 一致性也好，不必给三档各配一种字色。
-    /// 暗色档反过来给亮字，理由同样是「对得上底色」。
+    /// 六个值**全部显式写出来**（照本文件的 `Xxx / XxxDark` 配对惯例），**不用**任何
+    /// 「给一个值、另一个自动反相 / 自动调亮」的推导 —— 那种做法只在灰色上碰巧成立，
+    /// 一旦色相是彩色就会得到谁也想不到的结果（本仓明写过的规矩）。
+    ///
+    /// 为什么不能继续用「波浪色压到 0.94」当底色：那个色是给**在代码底下画一条细线**用的
+    /// **饱和色**，铺成整块背景时白天主题下就是一块**暗底**，而文字是白天的深色 ⇒
+    /// **暗底 + 暗字**（用户真机反馈「白天模式背景也是暗色、文字也是暗色，看着别扭」）。
+    /// 反过来，夜间原来的那一支取的是波浪线的**亮色档**（#FF7B72 等），配夜间浅字只有
+    /// **1.8~2.8:1** —— 同样不是「深色调底」。所以两档都是显式给值，不派生。
+    ///
+    /// ⚠ 波浪线与收起态小圆点**不在这里**（<see cref="WaveColor"/>）：那些是细线 / 小点，
+    /// 饱和色本来就对，本轮的调色一个字都没动它们 —— 所以气泡底色**必须与它同色相**，
+    /// 否则同一个诊断会长出「绿波浪线 + 蓝气泡」这种跨色相的东西。
+    /// **提示那一档因此是绿**（`InfoWave` 本来就是绿），不是蓝。
+    ///
+    /// 取值与实测对比度（WCAG 相对亮度，配 <see cref="BubbleTextColor"/> 那一档
+    /// —— **六格全部 ≥ 4.5:1**，最低是夜间黄的 4.66；每条都由
+    /// <c>SelfTest.Chunk27</c> 钉住）：
+    /// · 红 <c>#F19A9D</c> 8.16:1 ｜ <c>#C4382F</c> 4.74:1
+    /// · 黄 <c>#FACE87</c> 11.80:1 ｜ <c>#996000</c> 4.66:1
+    /// · 绿 <c>#8DCDAE</c> 9.51:1 ｜ <c>#17794A</c> 4.85:1
+    /// 气泡里的 ✕ 与合并列表的 `1.` / `2.` 用的就是正文那一色，所以它们跟着一起达标。
+    /// </summary>
+    public static Color BubbleFill(Severity s) => s switch
+    {
+        Severity.Error => IsDark ? BubbleBgErrorDark : BubbleBgError,
+        Severity.Warning => IsDark ? BubbleBgWarnDark : BubbleBgWarn,
+        _ => IsDark ? BubbleBgInfoDark : BubbleBgInfo,
+    };
+
+    /// <summary>
+    /// 白天档气泡底色 —— **中等浓度的浅色调**：淡红（错误）/ 淡黄（警告）/ 淡绿（提示）。
+    ///
+    /// ⚠ 别往更淡的方向调。上一版是「浅到近乎白」的 `#FDECEA`/`#FFF8E1`/`#E8F5EE`，
+    /// 压在白色的代码底上**只有 1.14 / 1.06 / 1.12:1** —— 那等于没上色（用户真机反馈
+    /// 「看着没底色」，`#FFF8E1` 那个 1.06 尤其明显）。现在这三档对白代码底是
+    /// **2.13 / 1.47 / 1.83:1**（看得见底色了），同时仍是浅色调 ——
+    /// 配 <see cref="BubbleText"/> 深字有 8.2 / 11.8 / 9.5:1。
+    /// </summary>
+    private static readonly Color BubbleBgError = Color.FromArgb("#F19A9D");
+    private static readonly Color BubbleBgWarn = Color.FromArgb("#FACE87");
+    private static readonly Color BubbleBgInfo = Color.FromArgb("#8DCDAE");
+
+    /// <summary>
+    /// 夜间档气泡底色 —— **深红 / 深琥珀 / 深绿**，三档**统一是深色调**
+    /// （它们要配 <see cref="BubbleTextDark"/> 那个浅字，见 <see cref="BubbleTextColor"/>）。
+    ///
+    /// ⚠ 黄色这档曾一度是**亮琥珀** <c>#F5A524</c>（用户当时要「夜间黄要亮」）。后来用户把
+    /// 字色统一成「夜间一律浅字、日间一律深字」之后它就**不成立了** —— 亮琥珀压浅字只有
+    /// **1.82:1**（几乎读不了），所以换成深琥珀。
+    /// 取值是**按对比度算出来的**，不是照着 <c>#F5A524</c> 凭感觉调暗：
+    /// <list type="bullet">
+    /// <item>要 ≥4.5:1，底色的相对亮度上限 L ≤ 0.15843（= <c>(L(浅字)+0.05)/4.5 − 0.05</c>）；</item>
+    /// <item><c>#A36600</c> 实测 L=0.1729 ⇒ 只有 **4.21:1，不达标**（它是「凭感觉调暗」的那一版）；</item>
+    /// <item><c>#996000</c> L=0.1514 ⇒ **4.66:1** ✓ —— 保住「深琥珀」的色相，又留了余量。</item>
+    /// </list>
+    /// ⚠ 这里的「白字」是 <see cref="BubbleTextDark"/> 的 <c>#F2F2F2</c>（近白，不是纯白）：
+    /// 纯白对 <c>#A36600</c> 能到 4.71 而 <c>#F2F2F2</c> 只有 4.21 —— **判据要认实际那个字色**，
+    /// 拿纯白去算会得出相反的结论。
+    ///
+    /// 三档与 `<see cref="ErrorWave"/> / <see cref="WarnWave"/> / <see cref="InfoWave"/>`
+    /// 的**亮色档**（`XxxWaveLight`）里有两个取值相同（红 <c>#C4382F</c>、绿 <c>#17794A</c>，
+    /// 它们本来就是「深色代码底上那条饱和线」= 深色调底）。但**仍然显式写出来**
+    /// （不写成 `ErrorWaveLight` 的引用）：波浪线的调色与气泡的调色是两件事，
+    /// 谁改谁的都不该顺手把对方带走。
+    /// </summary>
+    private static readonly Color BubbleBgErrorDark = Color.FromArgb("#C4382F");
+    private static readonly Color BubbleBgWarnDark = Color.FromArgb("#996000");
+    private static readonly Color BubbleBgInfoDark = Color.FromArgb("#17794A");
+    /// <summary>
+    /// <summary>
+    /// 白天主题下的气泡正文色（与 <see cref="BubbleTextDark"/> 成对）——
+    /// **深字**：白天那三档底色都是浅色调，深字才读得清。
     /// </summary>
     public static readonly Color BubbleText = Color.FromArgb("#1A1A1A");
 
-    /// <summary>暗色主题下的气泡正文色（与 <see cref="BubbleText"/> 成对，命名随本文件的 Xxx/XxxDark 惯例）。</summary>
+    /// <summary>
+    /// 夜间主题下的气泡正文色（与 <see cref="BubbleText"/> 成对，
+    /// 命名随本文件的 Xxx/XxxDark 惯例）—— **浅字**：夜间那三档底色都是深色调。
+    ///
+    /// ⚠ 它是 <c>#F2F2F2</c> 不是纯白 <c>#FFFFFF</c> —— 算对比度时**必须用这个值**：
+    /// 夜间警告底 <c>#A36600</c> 配纯白能到 4.71、配这个只有 4.21（够不够 4.5 的结论会翻）。
+    /// </summary>
     public static readonly Color BubbleTextDark = Color.FromArgb("#F2F2F2");
 
     /// <summary>
-    /// 气泡正文/✕ 的取色 —— **判据只此一处**（亮色档深字、暗色档亮字）。
-    /// 让调用方各挑一份就是「同一规则两处实现」：气泡正文与 ✕ 分属两段绘制代码，
-    /// 迟早一处按主题挑、另一处忘了。
+    /// 气泡正文/✕ 的取色 —— **跟随系统主题**（亮色档深字、暗色档亮字）。
+    ///
+    /// 用户定的：**「气泡文字颜色应该是统一的，夜间都是白色、日间都是黑色，跟随系统」** ——
+    /// 所以字色**不按每个气泡的底色挑**，就是主题那一个。
+    /// 于是**六个底色必须各自与它够对比度**（≥4.5:1，六格全达标，最低 4.66）——
+    /// 这条约束由 <c>SelfTest.Chunk27</c> 守着：谁把某个底色改得偏亮（比如把夜间警告底调回
+    /// 亮琥珀 <c>#F5A524</c>，白字下只有 1.82:1），那条断言当场红。
+    ///
+    /// 判据**只此一处**：让调用方各挑一份就是「同一规则两处实现」—— 气泡正文与 ✕ 分属两段
+    /// 绘制代码，迟早一处按主题挑、另一处忘了。
     /// </summary>
     public static Color BubbleTextColor => IsDark ? BubbleTextDark : BubbleText;
 
     /// <summary>
     /// 气泡的**细描边**色 —— 取主题边框色系（半透明黑/白），**不用纯黑纯白**
     /// （纯色压在饱和底色上像一圈硬边）。
+    ///
+    /// 与底色一样是**白天/夜间两套显式值**：白天那支压在**淡底**上（底色不再是饱和色），
+    /// 原来那条黑 25% 会显得偏重，收到黑 20%。
     /// </summary>
     public static Color BubbleStroke => IsDark ? BubbleStrokeDark : BubbleStrokeLight;
 
-    /// <summary>亮色档描边 = 黑 25%。</summary>
+    /// <summary>
+    /// 白天档描边 = 黑 25%。
+    ///
+    /// ⚠ 白天这一支**不能太淡**：底色换成淡色调之后，「气泡在哪儿」几乎全靠这条线
+    /// （淡底与代码底 #FFFFFF 只差 1.1:1）。25% 叠在淡底上约 #BEB1B0，与代码底 2.1:1 ——
+    /// 一条看得见的细线，又不至于像硬边框；20% 就偏弱了（1.8:1），30% 则开始发灰发重。
+    /// </summary>
     private static readonly Color BubbleStrokeLight = Color.FromArgb("#40000000");
 
-    /// <summary>暗色档描边 = 白 25%（与 <see cref="BarIdleDark"/> 同一档观感）。</summary>
+    /// <summary>夜间档描边 = 白 25%（与 <see cref="BarIdleDark"/> 同一档观感）—— 保持原样。</summary>
     private static readonly Color BubbleStrokeDark = Color.FromArgb("#40FFFFFF");
 
     // ── 诊断气泡的几何 ──────────────────────────────────────────────────────
@@ -341,9 +445,14 @@ internal static class EditorTypography
 
     /// <summary>
     /// **同一个位置上**相邻两个气泡之间的缝（错误/警告各一个气泡，上下挨着摆）。
-    /// 只要有极小一条缝就够 —— 两个圆角矩形贴死会糊成一块，看不出是两条。
+    /// 只要一条缝就够 —— 两个圆角矩形贴死会糊成一块，看不出是两条。
+    ///
+    /// 下限是用户定的**2 个像素**：下面的气泡是块**实心色块**，缝小于 2px 时它几乎贴着
+    /// 上一块，看上去还是一条。上不封顶的那一支（<c>FontSize * 0.15</c>）保持原样，
+    /// 所以**它仍然随字号缩放**（大字号下气泡整体变大，缝也跟着变宽）——
+    /// 别把它写死成常量 <c>2</c>：那样大小字号下缝一样宽，放大后就挤成一条线了。
     /// </summary>
-    public static float BubbleStackGap => MathF.Max(1f, FontSize * 0.15f);
+    public static float BubbleStackGap => MathF.Max(2f, FontSize * 0.15f);
 
     /// <summary>✕ 那个方块（**画出来的**笔迹都在它里面，再内缩三分之一）。</summary>
     public static float BubbleCloseSize => MathF.Max(14f, FontSize * 1.25f);

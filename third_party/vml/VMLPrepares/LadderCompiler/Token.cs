@@ -3,7 +3,7 @@ namespace LadderCompiler
     /// <summary>
     /// 梯形图词法单元
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; set; }
         public string Value { get; set; }

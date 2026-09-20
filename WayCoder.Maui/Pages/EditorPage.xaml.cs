@@ -3257,8 +3257,18 @@ public partial class EditorPage : ContentPage
                 return;
             }
 
-            try { DiagnosticManager.Inject(_relPath, []); } catch { }
-            Canvas.Invalidate();
+            // 成功也要注入**这份列表** —— 编译通过不等于没问题：未使用符号这类**警告**
+            // 正是「编得过但有问题」，它就在 `diags` 里（见 `MauiVml.BuildProgram` 的
+            // `compileWarnings`）。这里曾写死 `Inject(_relPath, [])`，于是「只有错误有效、
+            // 警告不显示」—— 有错时走上面那支注入真表、只有警告时走这支把表清空。
+            // ⚠ 不能写成 `if (diags.Count > 0)`：空表必须照注，否则「上次有警告、这次没了」
+            //   会清不掉（旧气泡留在屏幕上）。
+            try { DiagnosticManager.Inject(_relPath, diags); } catch { }
+            // 用 `InvalidateAll`（与失败那支一致）而不是 `Invalidate`：诊断层其实两者都够
+            // （波浪线与气泡在 `Draw` 里每帧从 `SnapshotDiagnostics()` 现取，不在行缓存里，
+            //   见 CodeCanvasView 的 1371 / 1392 两行），但这里顺带把行排版缓存也丢掉 ——
+            // 一次编译只发生一次，代价可忽略，而「少失效一样东西」正是本仓反复踩的坑。
+            Canvas.InvalidateAll();
             RefreshErrorList();
             UpdateStatus();
             prebuilt = vmlText;

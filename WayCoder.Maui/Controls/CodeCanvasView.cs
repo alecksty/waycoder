@@ -2020,7 +2020,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             MeasurePrefixWidth(line, line.Length) - MeasurePrefixWidth(line, from)));
         float baseY = y + lineH - WaveBaseInset;
 
-        canvas.StrokeColor = WaveColor(worst.Severity);
+        canvas.StrokeColor = EditorTypography.WaveColor(worst.Severity);
         canvas.StrokeSize = 1.2f;
 
         var path = new PathF();
@@ -2349,13 +2349,20 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
             if (!expanded)
             {
-                DrawDot(canvas, spot, WaveColor(spot.Severity), anchored, anchorX, lineTop, lineH,
-                    dotR, inflate, w, h);
+                DrawDot(canvas, spot, EditorTypography.WaveColor(spot.Severity), anchored,
+                    anchorX, lineTop, lineH, dotR, inflate, w, h);
                 continue;
             }
 
             // 同一位置的多组**上下挨着**摆：最上面那个的尖接锚点，下面那些紧挨着它往下排。
             // 只有最上面那个画尖 —— 尖是「指向锚点」的，下面那个的尖会指进上一个气泡里去。
+            //
+            // `y` 记的是**传给 DrawBubble 的那个 tipY**（= 有尖时是尖端、无尖时就是本体上缘）——
+            // 两件事混在一个变量里，所以推进时必须先算出**本体的上缘**再往下走。
+            // 这里曾写成 `y += bodyH + (withTip ? tipH : gap)`，看似等价，实际把「尖高的补偿」
+            // 与「两个气泡之间的缝」混成了一条式子：无尖那一支用的是 gap，可
+            // `BubblePath` 那边又**无条件**加了 tipH ⇒ 叠在下面的气泡被多推了一整个尖高
+            // （13 号字 7.8px、15 号字 9px），而它本意只要 gap。现在两边都按「本体上缘」算。
             float y = tipY;
             for (int i = 0; i < spot.Groups.Count; i++)
             {
@@ -2363,22 +2370,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 bool withTip = i == 0 && anchored;   // 没有锚点的诊断本来也没尖可画
                 float bodyH = g.Lines.Length * lineH + pad * 2f;
 
-                DrawBubble(canvas, spot, g, WaveColor(g.Severity), withTip, anchorX, y,
+                // 底色**按严重度取**（`BubbleFill` 内部再分白天/夜间两套显式值）——
+                // 不再传波浪线那档饱和色：白天要的是同色系的浅色调，不是它。
+                // 字色**跟随主题**（`BubbleTextColor`，夜间浅字/日间深字）—— 六档底色都已按
+                // 「与这一档字色 ≥4.5:1」调过，所以这里不必也不能按单个气泡的底色去挑。
+                DrawBubble(canvas, spot, g, EditorTypography.BubbleFill(g.Severity), withTip, anchorX, y,
                     pad, tipW, tipH, closeW, inflate, bodyW, radius, textColor, lineH, w, h);
 
-                // 下一个的上边缘 = 这个的下边缘（带尖的那个要多让出尖那一段）+ 极小缝
-                y += bodyH + (withTip ? tipH : EditorTypography.BubbleStackGap);
+                // 下一个的本体上缘 = 这个的下边缘 + 一道缝（带尖的那个，本体从 tipY+tipH 起算）
+                float bodyTop = withTip ? y + tipH : y;
+                y = bodyTop + bodyH + EditorTypography.BubbleStackGap;
             }
         }
     }
-
-    /// <summary>严重度 → 波浪线/气泡/圆点那三种色（**唯一一处映射**）。</summary>
-    private static Color WaveColor(Severity s) => s switch
-    {
-        Severity.Error => EditorTypography.ErrorWave,
-        Severity.Warning => EditorTypography.WarnWave,
-        _ => EditorTypography.InfoWave,
-    };
 
     /// <summary>
     /// 展开态的一个气泡：一体路径（最上面那个带尖、被压在下面的用普通圆角矩形）
@@ -2388,7 +2392,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// （尖的用途是「指向锚点」，下面那个的尖会指进上一个气泡里去，不合理）。
     /// 传 false 时 <paramref name="tipY"/> 就是**本体的上边缘**（尖的那段高度不参与）。
     /// </summary>
-    private void DrawBubble(ICanvas canvas, DiagSpot spot, DiagGroup g, Color wave, bool withTip,
+    private void DrawBubble(ICanvas canvas, DiagSpot spot, DiagGroup g, Color fill, bool withTip,
         float bx, float tipY, float pad, float tipW, float tipH, float closeW, float inflate,
         float bodyW, float radius, Color textColor, float lineH, float w, float h)
     {
@@ -2403,7 +2407,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _bubbleRightCodeX = MathF.Max(_bubbleRightCodeX, bx + _scrollX + bodyW);
 
         var path = BubblePath(bx, tipY, bodyW, bodyH, tipW, tipH, radius, withTip);
-        canvas.FillColor = EditorTypography.BubbleFill(wave);
+        canvas.FillColor = fill;
         canvas.FillPath(path);
         // 细描边：把气泡与同色系的代码分开（没它时两者容易糊在一起）。颜色取主题边框色系。
         canvas.StrokeColor = EditorTypography.BubbleStroke;
@@ -2484,13 +2488,24 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// （要么尾巴被裁掉，要么把气泡右移、于是尖端又对不准）。尖是气泡自己的左上顶点，
     /// 气泡只向右展开，天然没有这个问题；顺带还少画一个图形、不会出现「尾巴与气泡对不齐」。
     ///
-    /// <paramref name="withTip"/>=false（诊断没有行列信息）时退化成普通圆角矩形。
+    /// <paramref name="withTip"/>=false（诊断没有行列信息，以及**堆叠时被压在下面那些**）
+    /// 时退化成**普通圆角矩形 —— 四个角都是圆的**。那时 <paramref name="tipY"/> 就是
+    /// **本体的上边缘**（尖的那段高度不参与），与 <see cref="DrawBubble"/> 的契约一致。
+    ///
+    /// ⚠ 无尖那一支曾有两个毛病（都是「以为对方会做」造成的）：
+    /// ① `y0 = tipY + tipH` **无条件**加尖高 —— 而调用方（<see cref="DrawDiagnosticBubbles"/>
+    /// 的堆叠循环）与它自己的注释都假设「无尖时上缘 == tipY」⇒ 叠在下面的气泡**凭空多让出
+    /// 一整个尖高**（13 号字 7.8px、15 号字 9px），而它本意只要 <see cref="EditorTypography.BubbleStackGap"/>；
+    /// ② 左上角**直接从 <c>(x0, y0)</c> 起步**（那句 `MoveTo` 是给尖用的），于是四个角只圆了三个 ——
+    /// 用户真机看到的就是「下面那个气泡左上角是直角」。
     /// </summary>
     private static PathF BubblePath(float tipX, float tipY, float bodyW, float bodyH,
         float tipW, float tipH, float r, bool withTip)
     {
         float x0 = tipX, x1 = tipX + bodyW;
-        float y0 = tipY + tipH, y1 = tipY + tipH + bodyH;
+        // 无尖 ⇒ 本体上缘就是 tipY（尖那一段根本不存在，别加它的高度）
+        float y0 = withTip ? tipY + tipH : tipY;
+        float y1 = y0 + bodyH;
         r = Math.Max(0f, Math.Min(r, Math.Min(bodyW, bodyH) / 2f));
 
         var p = new PathF();
@@ -2510,7 +2525,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         }
         else
         {
-            p.MoveTo(x0, y0);
+            p.MoveTo(x0 + r, y0);                      // 左上角**也**要圆（起点让出半径）
         }
         p.LineTo(x1 - r, y0);                          // 上边缘
         p.QuadTo(x1, y0, x1, y0 + r);                  // 右上角
@@ -2518,7 +2533,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         p.QuadTo(x1, y1, x1 - r, y1);                  // 右下角
         p.LineTo(x0 + r, y1);                          // 下边缘
         p.QuadTo(x0, y1, x0, y1 - r);                  // 左下角
-        p.LineTo(x0, y0);                              // 左边缘（上端与尖相连）
+        if (withTip)
+        {
+            p.LineTo(x0, y0);                          // 左边缘（上端与尖的斜边相连）
+        }
+        else
+        {
+            p.LineTo(x0, y0 + r);                      // 左边缘
+            p.QuadTo(x0, y0, x0 + r, y0);              // 左上角（与另外三角同一份 r）
+        }
         p.Close();
         return p;
     }

@@ -13,6 +13,12 @@ namespace WayCoder.UI.Shared;
 ///
 /// 解析不出来时**不假装成功**：返回一条 <c>Line = 0</c> 的「无锚」诊断，
 /// 气泡照常显示内容、只是不画箭头指向某一行 —— 用户至少能看到编译器到底说了什么。
+///
+/// **「这条错误是哪个文件的」和位置一样重要**：报错文本里既有用户自己文件的错、
+/// 也有 `#include` 进来的头文件里的错，而后者只有行号。不区分的话，头文件的行号会被
+/// **硬贴到用户文件上**（真机症状：第 112 行那句无害的 `/// &lt;summary&gt;` 被标红）。
+/// 所以 <see cref="Parse"/> 收「当前文件」，**别的文件来的诊断一律不做行锚**
+/// （<c>Line = 0</c> + 文件名写进消息正文），它们照旧躺在错误列表里。
 /// </summary>
 internal static class VmlDiagnostics
 {
@@ -97,7 +103,16 @@ internal static class VmlDiagnostics
     /// 解析报错文本。返回的列表**至少有一条**（解析不出位置时给一条无锚诊断），
     /// 除非传进来的本来就是空/纯空白。
     /// </summary>
-    public static List<Diagnostic> Parse(string? errorText)
+    /// <param name="currentFile">
+    /// **正在编的那个文件**（`BuildProgram` 手里的路径）。传了它才能判出
+    /// 「这条诊断属于**别的文件**」—— `#include` 进来的头文件里的错也走同一份报错文本，
+    /// 它只有行号：照旧贴到当前文件上，用户就会看到"编译器指着我这句没问题的代码报错"。
+    ///
+    /// <para>
+    /// 不传（null/空）= 老行为，一个字节都不变 —— 既有调用点与自测不受影响。
+    /// </para>
+    /// </param>
+    public static List<Diagnostic> Parse(string? errorText, string? currentFile = null)
     {
         var list = new List<Diagnostic>();
         if (string.IsNullOrWhiteSpace(errorText)) return list;
@@ -114,8 +129,8 @@ internal static class VmlDiagnostics
         //
         //    ⚠ 注意 `GccNoColRx` 其实**也**能匹配带列的行（它会把 `main.c:12` 吃进"文件名"
         //      那一段），所以两条 `TryGcc` 是互斥而非叠加，这个顺序不能动。
-        bool located = TryGcc(GccRx, text, list, hasCol: true)
-                    || TryGcc(GccNoColRx, text, list, hasCol: false);
+        bool located = TryGcc(GccRx, text, list, hasCol: true, currentFile)
+                    || TryGcc(GccNoColRx, text, list, hasCol: false, currentFile);
         if (!located)
         {
             var cn = CnRx.Match(text);
@@ -165,7 +180,7 @@ internal static class VmlDiagnostics
         return list;
     }
 
-    private static bool TryGcc(Regex rx, string text, List<Diagnostic> list, bool hasCol)
+    private static bool TryGcc(Regex rx, string text, List<Diagnostic> list, bool hasCol, string? currentFile)
     {
         foreach (Match m in rx.Matches(text))
         {
@@ -175,9 +190,73 @@ internal static class VmlDiagnostics
             var raw = m.Groups[hasCol ? 5 : 4].Value.Trim();
             if (line <= 0) continue;
 
-            list.Add(new Diagnostic(line, col, SeverityOf(sevText), StripCode(raw, out var code), code));
+            var msg = StripCode(raw, out var code);
+            // Groups[1] 就是报错里写的那个文件名（两条 GCC 正则都是第 1 组）。
+            // 它属于**别的文件**（头文件）时不给行锚，并把文件名写进消息正文。
+            var file = m.Groups[1].Value.Trim();
+            if (currentFile is { Length: > 0 } && !IsSameFile(file, currentFile))
+            {
+                var name = FileNameOf(file);
+                list.Add(new Diagnostic(0, 0, SeverityOf(sevText), $"「{name}」{msg}", code, name));
+                continue;
+            }
+
+            list.Add(new Diagnostic(line, col, SeverityOf(sevText), msg, code));
         }
         return list.Count > 0;
+    }
+
+    /// <summary>
+    /// 报错里那个文件名是不是**当前正在编的文件**。
+    ///
+    /// <para>
+    /// **比文件名、不比全路径**：同一次编译里两边可能一个是绝对路径、一个是相对路径
+    /// （前端各自的 `FileName` 口径就不一致），比全路径会把当前文件自己的错误误判成别人的。
+    /// </para>
+    ///
+    /// <para>
+    /// **尖括号占位符一律当"当前文件"**：`&lt;input&gt;` / `&lt;unknown&gt;` 是前端在
+    /// 「手里没有真实路径」时用的名字（`CompilerHelper` / `CppCompiler.Compile`），
+    /// 把它们当成别的文件会让**用户自己文件里的错误**也失去行锚（比不判还糟）。
+    /// </para>
+    /// </summary>
+    private static bool IsSameFile(string file, string currentFile)
+    {
+        if (file.Length == 0) return true;                    // 没写文件名 = 就是正在编的这个
+        if (file[0] == '<' && file[^1] == '>') return true;    // <input> / <unknown> 等占位符
+        return string.Equals(FileNameOf(file), FileNameOf(currentFile), StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>取文件名（去目录）。取不到时原样返回 —— 消息正文里总得有东西可显示。</summary>
+    private static string FileNameOf(string path)
+    {
+        var name = Path.GetFileName(path);
+        return string.IsNullOrEmpty(name) ? path : name;
+    }
+
+    /// <summary>
+    /// 把两批诊断并起来，按 <see cref="Diagnostic"/> 的**逐字段相等性**去重（同一条只留第一次出现的）。
+    ///
+    /// <para>
+    /// **为什么需要**：编译失败时，同一段报错会**走两条路**进宿主 —— 异常消息里一份、
+    /// 编译期 stderr 里一份。链接器的未解析清单就是**逐字相同的两份**（实测
+    /// `error: 未定义的函数 'nosuchfn'（引用 1 次）` 两边都打），不去重的话同一个错误
+    /// 会变成两个气泡。
+    /// </para>
+    ///
+    /// <para>
+    /// 而去重**不能靠"只取一份"**：stderr 里还有异常消息里没有的东西 ——
+    /// 比如预处理器那句「找不到头文件 "Windows.h"」（它是**警告**、不抛异常）。
+    /// 只取异常消息就会把「为什么这个变量没声明」的答案一起丢掉。
+    /// </para>
+    /// </summary>
+    public static List<Diagnostic> Merge(List<Diagnostic> first, List<Diagnostic> second)
+    {
+        var result = new List<Diagnostic>(first.Count + second.Count);
+        var seen = new HashSet<Diagnostic>();   // `Diagnostic` 是 record：相等性逐字段
+        foreach (var d in first) if (seen.Add(d)) result.Add(d);
+        foreach (var d in second) if (seen.Add(d)) result.Add(d);
+        return result;
     }
 
     private static Severity SeverityOf(string s) => s switch

@@ -54,7 +54,7 @@ namespace PythonCompiler
     /// <summary>
     /// Python 词法单元
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; }
         public string Value { get; }

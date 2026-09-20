@@ -3,7 +3,7 @@ namespace GoCompiler
     /// <summary>
     /// Go语言词法单元
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; set; }
         public object Value { get; set; }

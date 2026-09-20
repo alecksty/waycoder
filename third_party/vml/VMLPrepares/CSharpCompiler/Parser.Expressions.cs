@@ -301,7 +301,27 @@ namespace CSharpCompiler
             return expr;
         }
         
+        /// <summary>
+        /// **原子表达式的唯一入口** —— 顺手盖上它自己的行列（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与语句入口 `ParseStatement` 同一套路，但**粒度细一层**：语句级的列只能给到
+        /// 「这一句从哪开始」（`int` / `return` 那一列），用户报错时要看到的却是
+        /// **出错的那个标识符**从哪开始。原子（标识符/字面量/调用/括号）是位置信息
+        /// 真正有意义的地方，而全部语句的表达式都是从这里递归产出的。
+        ///
+        /// ⚠ 用本类的 `Peek()` 而不是基类 `Cur` —— 这个解析器自己维护游标
+        /// （`private int position`），基类的 `_pos` 从不移动（见 `ParseStatement` 那段）。
+        /// </summary>
         private Expression ParsePrimary()
+        {
+            var __start = Peek();
+            int __line = __start.Line, __col = __start.Column;
+            var __node = ParsePrimaryCore();
+            if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+            return __node;
+        }
+
+        private Expression ParsePrimaryCore()
         {
             if (Match(TokenType.False)) return new LiteralExpression(false);
             if (Match(TokenType.True)) return new LiteralExpression(true);

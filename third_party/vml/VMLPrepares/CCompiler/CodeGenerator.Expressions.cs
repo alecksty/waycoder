@@ -10,6 +10,23 @@ namespace CCompiler
 {
         private void GenerateExpression(ASTNode node)
         {
+            // 让随后生成的指令/诊断带上**这个表达式自己的**行列（语义见
+            // `CodeGeneratorBase.CurrentSourceLine`/`CurrentSourceColumn`）。
+            //
+            // 与 `GenerateStatement` 那句是同一个道理，但**粒度细一层**：语句入口给出的是
+            // 「这一句从哪开始」，而 `ReportUndefined` 要指的用户真正写错的那个名字。
+            // 表达式生成是递归的 ⇒ 越往里越精确，最后停在**最内层那个节点**上
+            //（`a + b + nosuch` 停在 `nosuch`，而不是 `return`）。
+            //
+            // 判据 `Line > 0`：`ParsePrimary` 只给原子节点盖位置，二元/一元节点的 Line 仍是 0，
+            // 置 0 会把刚盖好的原子位置冲掉（那正是"列回到语句起始"的老毛病）。
+            if (node.Line > 0)
+            {
+                CurrentSourceLine = node.Line;
+                CurrentSourceOriginalLine = node.OriginalLine;
+                CurrentSourceColumn = node.Column;
+            }
+
             // asm 表达式: return asm("SYSCALL #4, ${ch}") → 执行 asm, R0 作为返回值
             if (node is AsmStatement asmExpr)
             {

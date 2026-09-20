@@ -81,12 +81,16 @@ run_probe() {
 EXPECT=$'OUT-STR=abc\nOUT-INT=42\nOUT-PUN=hello, world'
 
 shopt -s nullglob
-# 两个家族：
+# 三个家族：
 #   out.<ext>  —— **共享库**那条路（println_str / println_int，见 Lib/shared/console.vml）
 #   nat.<ext>  —— **这门语言自己的**标准输出函数（C 的 printf / Python 的 print /
 #                 Go 的 println / Kotlin 的 println / JS 的 console.log …）
-# 两条路是两套实现，坏一条不代表另一条好 —— 用户点出来的正是这个：
+#   nat.*.<ext>—— 原生函数那条路上的**专项探针**（`nat.typedef.cpp`：C 头文件里那三种
+#                 `typedef struct …` 形态 + 别名能不能当类型用）。它压的是**解析/别名登记**
+#                 这条链，与"输出能不能用"是两件事 —— 混在 nat.cpp 里，红了分不出哪边坏。
+# 前两条是两套实现，坏一条不代表另一条好 —— 用户点出来的正是这个：
 # 「各语言还要测试自己的标准输出函数，现在只有测试共享库的」。
+# ⚠ 专项探针自带 `<探针>.expect`（默认那三行 OUT-* 期望对它们不成立）。
 files=("$HERE"/langs/out.* "$HERE"/langs/nat.*)
 # ⚠ 排除 *.expect —— 它们是**期望值**不是探针，glob 会一并匹配到
 #   （实测过：nat.go.expect / nat.py.expect 被当成探针去编译）

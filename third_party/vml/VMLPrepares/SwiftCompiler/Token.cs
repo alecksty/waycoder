@@ -157,7 +157,7 @@ namespace SwiftCompiler
     /// <summary>
     /// 令牌
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; set; }
         public string Value { get; set; }

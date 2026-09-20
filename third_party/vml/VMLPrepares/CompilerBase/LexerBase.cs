@@ -23,6 +23,27 @@ public class LexerBase
     /// <summary>GCC 风格诊断收集器（设置后启用新格式）</summary>
     public DiagnosticBag? Diagnostics { get; set; }
 
+    /// <summary>
+    /// 预处理行号映射（`Preprocessor.LineMap` 原样传进来）：第 N 项 = 预处理输出**第 N 行**
+    /// 对应的 <c>(原文件, 原行)</c>。**null = 没有预处理/不用映射**。
+    ///
+    /// <para>
+    /// 为什么必须传：`#include` 是把头文件内容**拼进同一个流**的，于是 `_line` 是
+    /// **拼接后**的行号。用户文件里第 112 行的注释、可能对应拼接流的第 241 行 ——
+    /// 报错照抄拼接行号就等于**指到另一行**上（实测：`#include &lt;stdio.h&gt;` 有 103 行，
+    /// 它后面的代码整体后移，于是报错指到了用户文件里一个毫不相干的 `/// &lt;summary&gt;`）。
+    /// </para>
+    /// </summary>
+    public List<(string, int)>? SourceLineMap { get; set; }
+
+    /// <summary>
+    /// 「预处理拼接后的行号」→「(原文件, 原行)」——转调
+    /// <see cref="CompilerHelper.MapOriginalLine"/>（规则本体在那一处，
+    /// 解析器那边也是转调它，别再各写一份）。
+    /// </summary>
+    public (string? File, int Line) MapOriginal(int processedLine)
+        => CompilerHelper.MapOriginalLine(SourceLineMap, processedLine);
+
     public List<string> Errors { get; } = new();
 
     protected virtual void ReportError(int line, int col, string message)
@@ -49,28 +70,44 @@ public class LexerBase
     /// <summary>GCC 风格错误报告（如果 Diagnostics 设置则收集，否则抛出）</summary>
     protected void GccError(string message, ErrorCode code = ErrorCode.Unknown)
     {
+        // 位置走 `MapOriginal`：报给用户的是**原文件的行**，不是 `#include` 拼接后的行。
+        // 源码行文本仍按拼接流取 —— 它就是要报的那一行的正文（映射是双射）。
+        var (originFile, originLine) = MapOriginal(_line);
         var sourceLine = GetSourceLine(_line);
+        var file = originFile ?? FileName ?? "<input>";
         if (Diagnostics != null)
         {
-            Diagnostics.AddError(FileName ?? "<input>", _line, _col, code, message, sourceLine: sourceLine);
+            Diagnostics.AddError(file, originLine, _col, code, message, sourceLine: sourceLine);
         }
         else
         {
-            throw new ParseException(code, $"{FileName ?? "<input>"}:{_line}:{_col}: error: {message}");
+            throw new ParseException(code, $"{file}:{originLine}:{_col}: error: {message}");
         }
     }
 
     /// <summary>
     /// 统一词法错误报告：抛出 ParseException(携带行/列/错误码)。
+    ///
+    /// <para>
+    /// **没有行号映射时输出与从前逐字相同**（`<see cref="SourceLineMap"/>` 为 null ⇒
+    /// `MapOriginal` 原样退回 `_line`）—— 所以改动对不传映射的那些语言是零影响；
+    /// 而有映射时行号才换成原文件的行。
+    /// </para>
     /// </summary>
-    protected void Error(string message) =>
-        throw new ParseException(ErrorCode.Unknown, $"{FileName ?? "词法错误 在第"}{_line}行{_col}列：{message}");
+    protected void Error(string message) => Error(ErrorCode.Unknown, message);
 
     /// <summary>
     /// 同上，但允许指定错误码。
     /// </summary>
-    protected void Error(ErrorCode code, string message) =>
-        throw new ParseException(code, $"{FileName ?? "词法错误 在第"}{_line}行{_col}列：{message}");
+    protected void Error(ErrorCode code, string message)
+    {
+        var (originFile, originLine) = MapOriginal(_line);
+        // 映射给出了**另一个文件**（错误其实在头文件里）⇒ 只有 GCC 形态写得下文件名；
+        // 没有映射/仍是本文件 ⇒ 保持从前的文案，一个字符都不动。
+        if (originFile != null)
+            throw new ParseException(code, $"{originFile}:{originLine}:{_col}: error: {message}");
+        throw new ParseException(code, $"{FileName ?? "词法错误 在第"}{originLine}行{_col}列：{message}");
+    }
 
     // ---- 位置 ----
     protected char Peek(int offset = 0) =>

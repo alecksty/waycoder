@@ -45,8 +45,21 @@ namespace GoCompiler
             }
         }
 
+        /// <summary>
+        /// 让随后生成的指令/诊断带上**这个表达式自己的**行列（语义见
+        /// `CodeGeneratorBase.CurrentSourceLine`/`CurrentSourceColumn`）。
+        ///
+        /// 与语句入口那句是同一个道理，但**粒度细一层**：语句入口给出的是「这一句从哪开始」，
+        /// 而 `ReportUndefined` 要指的用户真正写错的那个名字。表达式生成是递归的 ⇒
+        /// 越往里越精确，最后停在**最内层那个节点**上（`a + b + nosuch` 停在 `nosuch`）。
+        ///
+        /// 判据 `Line > 0`：位置由解析器的原子入口统一盖（`ParsePrimary`/`ParseFactor`），
+        /// 二元/一元节点的 Line 仍是 0 —— 置 0 会把刚盖好的原子位置冲掉，
+        /// 那正是「列停在语句起始」的老毛病。
+        /// </summary>
         private void GenerateExpression(ASTNode expr)
         {
+        if (expr.Line > 0) { CurrentSourceLine = expr.Line; CurrentSourceColumn = expr.Column; }
             if (expr == null) return;
 
             if (expr is Identifier ident)

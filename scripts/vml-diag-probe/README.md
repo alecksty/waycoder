@@ -69,6 +69,21 @@ scripts/vml-diag-probe/run.sh undef-fn c     # 某组里只跑 .c
 教训：**修一个"名字报错"时如果撞见"不该报的名字也报了"，先怀疑解析器的位置**，
 别急着把报错范围收窄。
 
+### `hdr-loc` —— 头文件里的错必须指到**头文件那一行**
+
+判定与 `undef-*` **完全同形**（编译必须失败 + stderr 里必须出现 `.sym` 里那段文字），
+所以 `run.sh` 里是同一个 `group_undefined` 跑第三遍。区别只在 `.sym` 写什么：
+那两组写**符号名**，本组写 **`<头文件>:<行>:`**。
+
+**为什么非要有这一组**：`#include` 是把头文件内容**拼进同一个流**的，前端拿到的行号是
+**拼接后**的 —— 不映射回原文件，用户文件里就会有一行平白背锅。真机症状：用户报
+「我第 112 行是个无害的 `/// <summary>`，编辑器却在那儿画了个红气泡说 `Expected SEMICOLON
+but got IDENTIFIER ('tm_t') at line 112:`」。
+
+**反证（已验证能红）**：把 `CppCompiler.CompileFile` 里那句 `lineMap = pp.LineMap;`
+改成 `null` ⇒ 本组立刻 FAIL，报错变成 `hdr-loc.cpp:8:20: error: Expected SEMICOLON …`
+（**指到用户文件第 8 行**，而真错在头文件第 1 行）。
+
 ### `undef-var` —— 未声明**变量**必须编译期报错
 
 用户的原话是「没有声明的**变量或者函数**」—— `undef-fn` 只管了后半句。本组是前半句。

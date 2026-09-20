@@ -8,6 +8,12 @@ namespace CppCompiler
         public int Line { get; set; }
         /// <summary>**原文件**行号（1-based）；**0 = 未知**（无预处理时不设，退回 Line）。</summary>
         public int OriginalLine { get; set; }
+        /// <summary>
+        /// **原文件**路径；<c>null</c> = 未知（没有行号映射时）。
+        /// 与 <see cref="OriginalLine"/> 配对 —— 报错时要能说出「这是**哪个文件**的第几行」，
+        /// 只说行号会让头文件里的错被当成用户自己文件的错（见 `Parser.Where`）。
+        /// </summary>
+        public string? OriginalFile { get; set; }
         /// <summary>源码列号（1-based）；**0 = 未知**。</summary>
         public int Column { get; set; }
     }

@@ -35,4 +35,4 @@ public class Lexer(string source) : LexerBase(source) {
     Token ReadNumber(int sl, int sc) { var sb = new System.Text.StringBuilder(); sb.Append(Advance()); while (char.IsDigit(Peek())) sb.Append(Advance()); if (Peek() == '.') { sb.Append('.'); Advance(); while (char.IsDigit(Peek())) sb.Append(Advance()); } return new Token(TokenType.NUMBER, sb.ToString(), sl, sc); }
     Token ReadSymbol(int sl, int sc) { var sb = new System.Text.StringBuilder(); while (!char.IsWhiteSpace(Peek()) && Peek() != '(' && Peek() != ')' && Peek() != '"' && Peek() != ';' && Peek() != '\0') sb.Append(Advance()); return new Token(TokenType.SYMBOL, sb.ToString(), sl, sc); }
 }
-public class Token(TokenType t, string v, int l, int c) { public TokenType Type => t; public string Value => v; public int Line => l; public int Column => c; }
+public class Token(TokenType t, string v, int l, int c) : CompilerBase.ITokenPosition { public TokenType Type => t; public string Value => v; public int Line => l; public int Column => c; }

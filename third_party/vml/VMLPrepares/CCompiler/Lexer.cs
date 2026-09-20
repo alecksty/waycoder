@@ -118,6 +118,8 @@ namespace CCompiler
         public Lexer(string source, List<(string, int)> lineMap = null, string? fileName = null) : base(source, fileName)
         {
             this.lineMap = lineMap;
+            // 基类那份也指同一张表：`GetOriginalFileAndLine` 走 `MapOriginal`（规则唯一实现）
+            SourceLineMap = lineMap;
             Tokens = new List<Token>();
             if (fileName != null) FileName = fileName;
         }
@@ -182,11 +184,10 @@ namespace CCompiler
         /// <returns>原始文件路径和行号</returns>
         private (string, int) GetOriginalFileAndLine(int currentLine)
         {
-            if (lineMap != null && currentLine > 0 && currentLine <= lineMap.Count)
-            {
-                return lineMap[currentLine - 1];
-            }
-            return (null, 0);
+            // 规则本体在 `CompilerHelper.MapOriginalLine`（`LexerBase.MapOriginal` 转调它）——
+            // 这里别自己再写一遍 `lineMap[line - 1]`：本仓的头号坑就是「同一规则两处实现」。
+            var (file, line) = MapOriginal(currentLine);
+            return (file, line);
         }
 
         private new char Peek(int offset = 0)

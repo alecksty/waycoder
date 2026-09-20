@@ -95,5 +95,95 @@ public static partial class SelfTest
             "<input>:3: error: 未定义的函数 'mine'（引用 1 次）\n" +
             "提示: 检查函数名拼写。\n");
         Check("库明细不进气泡", lib.Count == 1 && lib[0].Message.Contains("mine"));
+
+        // ── ⑧ **别的文件**来的诊断不给行锚（用户真机报的「报错位置不对」）────────
+        //
+        // 病根：`#include` 是把头文件内容**拼进同一个流**的，头文件里的错也走同一份报错文本，
+        // 而它只有行号 —— 照旧贴到当前文件上，用户看到的就是"编译器指着我这句没问题的
+        // 代码报错"（真机：第 112 行那句无害的 `/// <summary>` 被标红）。
+        TestForeignFileDiagnostics(Section, Check);
+    }
+
+    /// <summary>
+    /// 「这条诊断属于哪个文件」的判据 —— <see cref="VmlDiagnostics.Parse"/> 的
+    /// <c>currentFile</c> 参数。
+    ///
+    /// **不传 = 老行为**（下面的第一条断言就是钉这个）：既有调用点与既有用例不受影响。
+    /// </summary>
+    private static void TestForeignFileDiagnostics(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("VML 报错解析：别把**头文件**的错贴到当前文件上");
+
+        // ① 不传 currentFile ⇒ 行为与从前逐字相同（行锚照给）
+        var noArg = VmlDiagnostics.Parse("Lib/c/time.h:31:5: error: 未预期的 token");
+        Check("不传当前文件 → 老行为（仍锚在 31 行）", noArg.Count == 1 && noArg[0].Line == 31);
+
+        // ② 头文件里的错，当前文件是 main.cpp ⇒ **不给行锚**（Line=0）、文件名进消息正文
+        var foreign = VmlDiagnostics.Parse(
+            "D:/proj/Lib/c/time.h:31:5: error: 未预期的 token", "D:/proj/main.cpp");
+        Check($"头文件的错 → 一条（实得 {foreign.Count}）", foreign.Count == 1);
+        Check("头文件的错 → Line=0（不画箭头、不画波浪线）", foreign.Count == 1 && foreign[0].Line == 0);
+        Check("头文件的错 → File 字段是头文件名",
+            foreign.Count == 1 && foreign[0].File == "time.h");
+        Check("头文件的错 → 文件名写进消息正文",
+            foreign.Count == 1 && foreign[0].Message.Contains("time.h"));
+
+        // ③ 当前文件自己的错 ⇒ 照旧做行锚，且**不**在正文里啰嗦文件名
+        var own = VmlDiagnostics.Parse("D:/proj/main.cpp:64:5: error: 未声明的变量 'nosuchvar'", "D:/proj/main.cpp");
+        Check("本文件的错 → 锚在 64 行", own.Count == 1 && own[0].Line == 64 && own[0].Column == 5);
+        Check("本文件的错 → File 留空（正文不重复文件名）",
+            own.Count == 1 && own[0].File == null && !own[0].Message.Contains("main.cpp"));
+
+        // ④ **全路径 vs 相对路径必须是同一个文件** —— 前端各自的口径不一致，
+        //    比全路径会把当前文件自己的错误误判成别人的（那比不判更糟：用户看不到行锚了）
+        var rel = VmlDiagnostics.Parse("main.cpp:12:3: error: x", "D:/proj/main.cpp");
+        Check("相对 vs 绝对同名 → 仍认作本文件", rel.Count == 1 && rel[0].Line == 12);
+
+        // ⑤ `<input>` / `<unknown>` 是前端在"没有真实路径"时用的**占位符**，
+        //    必须当当前文件 —— 否则用户自己文件里的错也失去行锚（链接期那批全是 `<input>`）
+        var ph = VmlDiagnostics.Parse("<input>:12: error: 未定义的函数 'aaa'", "main.cpp");
+        Check("占位符 `<input>` → 当当前文件（仍锚 12 行）", ph.Count == 1 && ph[0].Line == 12);
+        var ph2 = VmlDiagnostics.Parse("<unknown>:9:1: error: x", "main.cpp");
+        Check("占位符 `<unknown>` → 当当前文件（仍锚 9 行）", ph2.Count == 1 && ph2[0].Line == 9);
+
+        // ⑥ **级别标签一个字都不能动**（`SeverityOf` 按 warning/note 两个字面量判）：
+        //    头文件来的诊断虽然不锚行，级别必须原样保留 —— 糊成 Error 会让气泡/列表图标全错。
+        var warnForeign = VmlDiagnostics.Parse("other.h:7:1: warning: 未使用的局部变量 'tmp'", "main.cpp");
+        Check("头文件的 warning → 仍是 Warning 级",
+            warnForeign.Count == 1 && warnForeign[0].Severity == Severity.Warning && warnForeign[0].Line == 0);
+        var noteOwn = VmlDiagnostics.Parse("main.cpp:3:1: note: 附注", "main.cpp");
+        Check("本文件的 note → Info 级", noteOwn.Count == 1 && noteOwn[0].Severity == Severity.Info);
+
+        // ⑦ **真机上的路径形态**：Windows 盘符 + 反斜杠。`GccRx` 的 `(.+?):(\d+):` 是**惰性**匹配，
+        //    而 `D:\…` 里那个冒号后面跟的不是数字 ⇒ 它必须继续往后吃、把整个路径留给"文件名"那一组。
+        //    这也顺手钉住"两边路径形态不同也得认出同一个文件"（比的是文件名，不是全路径）。
+        var winOwn = VmlDiagnostics.Parse(
+            @"D:\proj\main.cpp:64:5: error: 未声明的变量 'nosuchvar'",
+            @"D:\proj\main.cpp");
+        Check("反斜杠路径 → 仍锚在 64 行", winOwn.Count == 1 && winOwn[0].Line == 64);
+        var winForeign = VmlDiagnostics.Parse(
+            @"D:\proj\Lib\c\time.h:31:5: error: 未预期的 token",
+            @"D:\proj\main.cpp");
+        Check("反斜杠路径的头文件错 → 不锚行 + 点名前缀",
+            winForeign.Count == 1 && winForeign[0].Line == 0 && winForeign[0].Message.Contains("time.h"));
+
+        // ⑧ **两条路并起来必须去重**（`Merge`）：编译失败时同一段报错既在异常消息里、
+        //    又在编译期 stderr 里（链接器的未解析清单是**逐字相同的两份**），
+        //    简单相加 = 同一个错误两个气泡。
+        var failMsg = VmlDiagnostics.Parse("⚠️ 编译失败：error: 未定义的函数 'nosuchfn'（引用 1 次）", "main.cpp");
+        var stderrDiag = VmlDiagnostics.Parse("error: 未定义的函数 'nosuchfn'（引用 1 次）", "main.cpp");
+        var merged = VmlDiagnostics.Merge(failMsg, stderrDiag);
+        Check($"同一错误两边都有 → 去重成一条（实得 {merged.Count}）", merged.Count == 1);
+        Check("去重后仍是无位置那条", merged.Count == 1 && merged[0].Line == 0 && merged[0].Message.Contains("nosuchfn"));
+
+        // 而 stderr **独有**的（不抛异常的那类诊断，如「找不到头文件」警告）**必须留下来** ——
+        // 这正是不能"只取异常消息"的理由：那行警告解释了后面「未声明」是为什么。
+        var withWarn = VmlDiagnostics.Merge(
+            failMsg,
+            VmlDiagnostics.Parse(@"D:\proj\main.cpp:6: warning: 找不到头文件 ""Windows.h"" [Preprocessor_IncludeNotFound]", "main.cpp"));
+        Check($"stderr 独有的警告要留下（实得 {withWarn.Count}）", withWarn.Count == 2);
+        Check("那条警告锚在 #include 那一行（6 行）",
+            withWarn.Count == 2 && withWarn[1].Line == 6 && withWarn[1].Severity == Severity.Warning);
+        Check("警告的错误码摘进 Code", withWarn.Count == 2 && withWarn[1].Code == "Preprocessor_IncludeNotFound");
     }
 }

@@ -46,6 +46,24 @@ namespace CompilerBase
         /// <summary>GCC 风格诊断收集器（设置后 Error/GccError 将使用新格式）</summary>
         public DiagnosticBag? Diagnostics { get; set; }
 
+        /// <summary>
+        /// 预处理行号映射（与 <see cref="CompilerBase.LexerBase.SourceLineMap"/> 同一份数据）。
+        ///
+        /// <para>
+        /// 解析期诊断的位置必须**映射回原文件**，否则 `#include` 一展开，行号就整体后移 ——
+        /// 用户看到的是「我文件里那一行没问题，编译器却指着它报错」。
+        /// </para>
+        /// </summary>
+        public List<(string, int)>? SourceLineMap { get; set; }
+
+        /// <summary>
+        /// 「预处理拼接行号」→「(原文件, 原行)」——规则本体在
+        /// <see cref="CompilerHelper.MapOriginalLine"/> **一处**（词法器那边也是转调它），
+        /// 别在解析器里再写一遍 `lineMap[line - 1]`。
+        /// </summary>
+        protected (string? File, int Line) MapOriginal(int processedLine)
+            => CompilerHelper.MapOriginalLine(SourceLineMap, processedLine);
+
         /// <summary>是否到达输入末尾（默认停在最后一个 Token 前，因为大多数编译器在末尾放置 EOF 哨兵）</summary>
         protected virtual bool IsAtEnd => _pos >= _tokens.Count - 1;
 
@@ -63,10 +81,23 @@ namespace CompilerBase
 
         protected abstract TTokenType GetTokenType(TToken token);
 
-        /// <summary>获取 Token 的行号（供 GCC 错误格式使用）。子类可覆写以返回真实行号。</summary>
-        protected virtual int GetTokenLine(TToken token) => 0;
-        /// <summary>获取 Token 的列号（供 GCC 错误格式使用）。子类可覆写以返回真实列号。</summary>
-        protected virtual int GetTokenColumn(TToken token) => 0;
+        /// <summary>
+        /// 取 Token 的行号（供 GCC 错误格式使用）。
+        ///
+        /// **默认实现走 <see cref="ITokenPosition"/>**：22 门语言的 `Token` 各自定义了
+        /// `Line`/`Column` 属性，但基类拿不到（`TToken` 是无约束泛型）—— 从前这里返回 0、
+        /// 而那 20 门又没覆写 ⇒ `GccError` 拼出来的位置恒是 `文件:0:0`，于是**语法错误**那条
+        /// 通路只能退化成不带位置的裸消息（见 <see cref="Error"/>）。
+        /// 让 Token 实现一个只有一个契约的小接口，位置就**在基类一处**取得到，
+        /// 不必二十门各写一遍（本仓头号坑：同一规则多处实现）。
+        ///
+        /// C/Cpp 仍覆写它 —— 它们的 Token 有 `OriginalLine`（`#include` 展开前的行号），
+        /// 覆写版的语义更精确，**优先于**这条通用实现。
+        /// </summary>
+        protected virtual int GetTokenLine(TToken token) => token is ITokenPosition p ? p.Line : 0;
+
+        /// <summary>取 Token 的列号（语义见 <see cref="GetTokenLine"/>）。</summary>
+        protected virtual int GetTokenColumn(TToken token) => token is ITokenPosition p ? p.Column : 0;
 
         // ---- 类型检查 ----
 
@@ -118,27 +149,68 @@ namespace CompilerBase
             throw Error($"Expected {type}, but got {got}");
         }
 
-        /// <summary>GCC 风格错误报告（如果 Diagnostics 设置则收集，否则抛出）</summary>
-        protected void GccError(string message, ErrorCode code = ErrorCode.Unknown)
+        /// <summary>
+        /// 当前 Token 该报到哪个位置 —— **全仓唯一的解析期位置判据**。
+        ///
+        /// `GccError`（走 Diagnostics 收集）与 <see cref="Error"/>（直接抛）两条出口
+        /// 从前**各算一遍**：前者拼 `文件:行:列`，后者干脆只给裸消息。
+        /// 结果是同一件事两套答案 —— 20 门语言的**语法错误**（全部走 `Error`）
+        /// 一个位置都拿不到，哪怕 `ParseException` 里明明带着 Token。
+        /// 现在只有这一处算位置，两条出口都从它取。
+        /// </summary>
+        protected (string File, int Line, int Column) ResolveDiagnosticPosition()
         {
             var cur = Cur;
             var line = GetTokenLine(cur);
             var col = GetTokenColumn(cur);
+            // 位置映射回**原文件**（`#include` 展开会把行号整体推后；没有映射时原样退回）
+            var (originFile, originLine) = MapOriginal(line);
+            return (originFile ?? FileName ?? "<input>", originLine, col);
+        }
+
+        /// <summary>GCC 风格错误报告（如果 Diagnostics 设置则收集，否则抛出）</summary>
+        protected void GccError(string message, ErrorCode code = ErrorCode.Unknown)
+        {
+            var (file, line, col) = ResolveDiagnosticPosition();
             if (Diagnostics != null)
             {
-                Diagnostics.AddError(FileName ?? "<input>", line, col, code, message);
+                Diagnostics.AddError(file, line, col, code, message);
             }
             else
             {
-                throw new ParseException(code, $"{FileName ?? "<input>"}:{line}:{col}: error: {message}");
+                throw new ParseException(code, FormatDiagnostic(file, line, col, message));
             }
         }
 
-        /// <summary>创建带当前位置信息的 ParseException。
-        /// 子类可覆写以提供更丰富的行/列信息。</summary>
+        /// <summary>
+        /// 组装一条 GCC 风格报文 `文件:行:列: error: 消息`。
+        ///
+        /// ⚠ **级别词固定 `error`**：宿主侧 `VmlDiagnostics` 的 4 条正则按它判级别、
+        /// 给气泡配色；`vml-diag-probe` 也有按这个子串判"编不过"的用例。改了它，
+        /// 警告会被当成错误、或者反过来 —— 这条**不许动**。
+        /// </summary>
+        private static string FormatDiagnostic(string file, int line, int col, string message)
+            => $"{file}:{line}:{col}: error: {message}";
+
+        /// <summary>
+        /// 创建带当前位置信息的 ParseException。
+        ///
+        /// ⚠ **位置必须拼进 `Message`**：宿主（CLI/MAUI/LSP）拿到的就是 `ex.Message`，
+        /// 它**不读** `ParseException.Token`。从前这里返回的是裸消息
+        ///（`new ParseException(message, Cur)`），于是 20 门语言的语法错误在编辑器里
+        /// **锚不到任何一行** —— 用户看到一句「意外的 token」却不知道在哪。
+        /// 位置信息一直都在（`Cur` 就在手上），只是没往外送。
+        ///
+        /// 列/行取法与 `GccError` 完全同源（<see cref="ResolveDiagnosticPosition"/>）。
+        /// </summary>
         protected virtual ParseException Error(string message)
         {
-            return new ParseException(message, Cur!);
+            var (file, line, col) = ResolveDiagnosticPosition();
+            // **位置用「字段」给，不用「拼好的字符串」给** —— `ParseException` 自己会把
+            // 三段拼进 `Message`，同时把位置与正文各留一份。外层
+            // `CompilerHelper.CompileWithDiagnostics` 要用分开的两份去调 `AddError`，
+            // 直接塞拼好的字符串就会拼出两层前缀（见 `ParseException.BareMessage`）。
+            return new ParseException(ErrorCode.Unknown, message, Cur!, file, line, col);
         }
     }
 }

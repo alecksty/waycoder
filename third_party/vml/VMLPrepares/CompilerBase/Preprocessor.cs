@@ -186,6 +186,8 @@ namespace CompilerBase
                             {
                                 sb.Append(line);
                                 sb.Append('\n');
+                                // 同「真快速路径」：输出一行就要记一条（行连接分支上的那一份）
+                                lineMap.Add((currentFile, currentLine));
                             }
                             else
                             {
@@ -267,6 +269,11 @@ namespace CompilerBase
                             // 真快速路径: 无宏定义，直接复制
                             sb.Append(source, lineStart, lineLen);
                             sb.Append('\n');
+                            // ⚠ **输出了一行就必须记一条映射**：`lineMap[N-1]` 是「输出第 N 行」
+                            //   的约定，漏记一行之后**后面每一行都指向前一行**（整张表错位）。
+                            //   实测形态就是"报错指着用户文件里另一行" —— 而这里漏记之前在
+                            //   这条路径上是**必然**发生的（文件头几行没有宏定义时全走它）。
+                            lineMap.Add((currentFile, currentLine));
                         }
                         else
                         {

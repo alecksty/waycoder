@@ -527,6 +527,17 @@ namespace BasicCompiler
         private void CollectVariablesFromStatement(Statement statement)
         {
             if (statement == null) return;
+            // ⚠ **这一遍（第一遍：收集变量）也要给游标盖位置**。
+            //
+            // 未声明变量的报错**就发生在这一遍**（`GetOrCreateVariable` 是全前端唯一
+            // 「没见过就造一个」的出口，报错判据收在那一处），而第二遍 `GenerateInstructions`
+            // 里那句 `CurrentSourceLine = statement.Line` **根本还没执行到** —— 此前
+            // `CurrentSourceLine` 停在初值 `-1` ⇒ `LocationString` 走降级分支，用户看到的是
+            // `<input>: error: …`，**一个行号都没有**。修前实测：BASIC 是 22 门里唯一
+            // 连行号都拿不到的（`DiagProbe` 的 NOPOS 档）。
+            //
+            // `Line > 0` 才盖：没填行号的节点是 0，置 0 会把上一句的正确行号冲成"无位置"。
+            if (statement.Line > 0) { CurrentSourceLine = statement.Line; CurrentSourceColumn = statement.Column; }
             if (statement is SequenceStatement seq)
             {
                 foreach (var s in seq.Statements)
@@ -951,6 +962,10 @@ namespace BasicCompiler
         private void CollectVariablesFromExpression(Expression expr)
         {
             if (expr == null) return;
+            // 与 `CollectVariablesFromStatement` 同源：本遍也会报「未声明的变量」，
+            // 游标必须跟着**当前正在看的这个表达式节点**走。放在递归入口处 ⇒
+            // 越往里越精确 —— `PRINT nosuch` 报到 `nosuch` 那一列，而不是 `PRINT` 那一列。
+            if (expr.Line > 0) { CurrentSourceLine = expr.Line; CurrentSourceColumn = expr.Column; }
             if (expr is Identifier ident)
             {
                 // Skip compile-time constants

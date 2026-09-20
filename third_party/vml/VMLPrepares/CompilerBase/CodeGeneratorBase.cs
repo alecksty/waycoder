@@ -79,7 +79,7 @@ namespace CompilerBase
             // `CompilerHelper.CurrentSourceFile` 是 `[ThreadStatic]` 的，由
             // `CompileFileStandard` 在进编译器前设好 —— 与 `CompileWithDiagnostics`
             // 取文件名的地方同源。
-            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", DiagLine, CurrentSourceColumn, code,
+            Diags.AddError(DiagFile, DiagLine, CurrentSourceColumn, code,
                 $"未声明的{kind} '{name}'", hint ?? $"先声明它（{kind}要先声明再引用）；名字拼错了也会报这一条。");
         }
 
@@ -95,7 +95,7 @@ namespace CompilerBase
         /// </summary>
         protected void WarnUndefined(string name, ErrorCode code, string kind, string? hint = null)
         {
-            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", DiagLine, CurrentSourceColumn, code,
+            Diags.AddWarning(DiagFile, DiagLine, CurrentSourceColumn, code,
                 $"隐式声明的{kind} '{name}'",
                 hint ?? $"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。");
         }
@@ -112,7 +112,7 @@ namespace CompilerBase
         /// </summary>
         protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, int col = 0, string? hint = null)
         {
-            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>",
+            Diags.AddWarning(DiagFile,
                 line >= 0 ? line : DiagLine,
                 // 显式给了行号时列也一并给（不给就写 0）——**别顺手用 `CurrentSourceColumn`**：
                 // 这个调用通常发生在生成之后的清理段，游标早就不在声明处了，
@@ -172,6 +172,23 @@ namespace CompilerBase
 
         /// <summary>诊断该用的行号：优先原文件行号，没有就退回预处理后的行号。</summary>
         private int DiagLine => CurrentSourceOriginalLine > 0 ? CurrentSourceOriginalLine : CurrentSourceLine;
+
+        /// <summary>
+        /// 诊断该用的**文件**（与 <see cref="DiagLine"/> 配对）。
+        ///
+        /// <para>
+        /// 默认就是"当前编译的源文件"（`CompileFileStandard` 设的 `CurrentSourceFile`），
+        /// 与从前逐字相同 —— 不覆写的 21 门语言行为**零变化**。
+        /// </para>
+        ///
+        /// <para>
+        /// 之所以做成虚属性：**错误其实在头文件里**时，若照旧报「主文件名 + 头文件的行号」，
+        /// 宿主侧只能把这行号硬贴到用户正在看的那个文件上 —— 用户看到的是"编译器指着我
+        /// 这句没问题的代码报错"（实测：`#include &lt;stdio.h&gt;` 之后的错被贴到用户文件
+        /// 第 112 行一句无害的 `/// &lt;summary&gt;` 上）。有 `OriginalFile` 的语言覆写它即可。
+        /// </para>
+        /// </summary>
+        protected virtual string DiagFile => CompilerHelper.CurrentSourceFile ?? "<input>";
 
         /// <summary>
         /// 源码行文本数组（行号 0 对应第 1 行），为 null 时不生成源码注释

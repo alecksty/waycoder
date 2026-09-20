@@ -9,6 +9,46 @@ namespace CompilerBase
     public partial class Preprocessor
     {
         /// <summary>
+        /// 报一条「找不到头文件」的**警告** —— **全仓唯一的措辞与级别**。
+        ///
+        /// 22 门里 C 走自己一份预处理器（`CCompiler/Preprocessor.cs`，它是整份拷贝），
+        /// 其余 21 门走本类 ⇒ 同一句 `#include &lt;Windows.h&gt;` 从前有**两种结局**：
+        /// 写成 `.c` 是**硬失败**（抛 `CompilationException`，编译直接结束），
+        /// 写成 `.cpp` 只是跳过 + 警告。判据其实是同一件事，两处实现必然漂移 ——
+        /// 所以措辞与级别收到这里一处，两边都调它。
+        ///
+        /// <para>
+        /// **为什么定成警告而不是错误**（这一条是量出来的，不是拍的）：
+        /// VML 的真实链接来源是 `#param lib(...)` 与 auto-link，**不是头文件正文** ——
+        /// `scripts/vml-out-probe/langs/nat.c` 在 `stdio.h` 解析不到的环境下照样编过、
+        /// 并跑出逐字节正确的结果。反过来把这一条升成硬错误，实测**直接打挂同一批语料
+        /// 里的 2/30**（`nat.c` 缺 `stdio.h`、`nat.typedef.cpp` 缺 `time.h`，
+        /// 而这两个头文件**就在 `Lib/c/` 下**，只是那个环境下路径没解析到）
+        /// ⇒ 硬失败会把「路径没找对」放大成「整个程序编不了」，而且用户没有任何绕过手段。
+        /// 归因并没有因此变模糊：警告点名了是哪个头文件、哪一行，下游的
+        /// 「未声明的变量/函数」依旧照报（`game17.cpp` 的实测输出就是这样）。
+        /// </para>
+        ///
+        /// <para>
+        /// 报文形态是 GCC 的（`原文件:原行: warning: …`）：
+        /// ① 位置就是 `#include` 那一行（调用点的 `currentFile`/`currentLine` 还指着
+        /// **包含方**文件，没有被拼接流污染，不需要行号映射）；
+        /// ② 级别词必须是 `warning`（宿主侧 `VmlDiagnostics` 按它判级别、给气泡配色）；
+        /// ③ 句尾的 `[Code]` 会被宿主摘进 `Diagnostic.Code`。
+        /// ⚠ 报文里**不要出现 ASCII 的 `error:`**（`vml-diag-probe` 的 dyn-global 组
+        /// 就是按这个子串判"编不过"的）。
+        /// </para>
+        /// </summary>
+        public static void ReportMissingInclude(string file, int line, string includedFile)
+        {
+            Console.Error.WriteLine(
+                $"{file}:{line}: warning: 找不到头文件 \"{includedFile}\" —— "
+                + "它不在 include 搜索路径里（VML 标准库只有 Lib 下那些）；"
+                + "该头文件里声明的东西后面会以「未声明的变量/函数」的形式报出来。"
+                + " [Preprocessor_IncludeNotFound]");
+        }
+
+        /// <summary>
         /// 处理 #include 指令
         /// </summary>
         /// <param name="rest">指令的剩余部分</param>
@@ -85,8 +125,26 @@ namespace CompilerBase
                     }
                     else
                     {
-                        // 静默跳过头文件（与 GCC/Clang 行为一致，缺失的可选头文件不阻止编译）
+                        // 找不到头文件 —— **照旧不阻止编译**（与 GCC/Clang 的"可选头文件"容忍度一致，
+                        // 改它会让一堆靠可选头文件的程序编不过），但**必须说出来**。
+                        //
+                        // ⚠ 原先这里是「静默跳过」（只有 `PrepareLogMode` 才打一行日志），
+                        //   而手机上 `Console.Error` 是一条**看不见的流**、`PrepareLogMode` 也不开
+                        //   ⇒ 用户看到的是一串「未声明的变量 'XXX'」+ 提示"名字拼错了也会报这一条"，
+                        //   而真正的原因（`#include &lt;Windows.h&gt;` 这个头文件这里根本没有）**一个字都没提**。
+                        //   用户的判定标准是「报错必需准确」——**归因错了就等于报错不对**。
+                        //
+                        // 报文形态是 GCC 的（`原文件:原行: warning: …`）：
+                        //   ① 位置就是 `#include` 那一行（`currentFile`/`currentLine` 在进这个函数时
+                        //      还指着**包含方**文件，没有被拼接流污染，不需要行号映射）；
+                        //   ② 级别词必须是 `warning`（宿主侧 `VmlDiagnostics` 按它判级别、给气泡配色）；
+                        //   ③ 句尾的 `[Code]` 会被宿主摘进 `Diagnostic.Code`。
+                        //   ⚠ 报文里**不要出现 ASCII 的 `error:`**（`vml-diag-probe` 的 dyn-global 组
+                        //     就是按这个子串判"编不过"的）。
                         if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #include 跳过(未找到): {includedFile}");
+                        // 措辞与级别收到 `ReportMissingInclude` 一处 —— C 那份预处理器
+                        // 要报同一件事时**也调它**，不许各写一份（见那里的说明）。
+                        ReportMissingInclude(currentFile, currentLine, includedFile);
                     }
                 }
                 else
@@ -98,8 +156,14 @@ namespace CompilerBase
             // 输出尾随内容（头文件名后的代码），确保 #include 同行的代码不被丢弃
             if (!string.IsNullOrWhiteSpace(trailing))
             {
-                processedSource.Append(trailing.TrimStart());
+                var tail = trailing.TrimStart();
+                processedSource.Append(tail);
                 processedSource.Append('\n');
+                // 这一支同样**输出了一行就得记一条映射**（尾随内容里的**字面量 `\n`**
+                // 已被 `GetTrailingAfterInclude` 换成了真换行 ⇒ 可能不止一行，按换行数补）。
+                int tailLines = 1;
+                foreach (char ch in tail) if (ch == '\n') tailLines++;
+                for (int i = 0; i < tailLines; i++) lineMap.Add((currentFile, currentLine));
             }
         }
 

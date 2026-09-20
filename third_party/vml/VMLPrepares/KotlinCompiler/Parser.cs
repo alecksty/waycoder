@@ -538,7 +538,21 @@ public class Parser : ParserBase<Token, TokenType>
         return expr;
     }
 
+    /// <summary>
+    /// **原子表达式的唯一入口** —— 顺手盖上它自己的行列（`ASTNode.Line`/`Column`\uff09。
+    ///
+    /// 语句级的列只能给到「这一句从哪开始」，而用户报错时要看到的是**出错的那个标识符**
+    /// 从哪开始。原子是位置信息真正有意义的地方，而全部表达式都是从这里递归产出的。
+    /// </summary>
     ASTNode ParsePrimary() {
+        var __start = Cur;
+        int __line = __start.Line, __col = __start.Column;
+        var __node = ParsePrimaryCore();
+        if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+        return __node;
+    }
+
+    ASTNode ParsePrimaryCore() {
         if (GetTokenType(Cur) == TokenType.LPAREN) { Advance(); var e = ParseExpr(); int pdepth = 1; while (pdepth > 0 && GetTokenType(Cur) != TokenType.EOF) { if (GetTokenType(Cur) == TokenType.LPAREN) pdepth++; else if (GetTokenType(Cur) == TokenType.RPAREN) pdepth--; if (pdepth > 0) Advance(); } Expect(TokenType.RPAREN, "Expected ')'"); return e; }
         if (GetTokenType(Cur) == TokenType.KEYWORD) {
             string kw = Cur.Value;

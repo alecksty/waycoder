@@ -63,6 +63,21 @@ namespace CppCompiler
 
         public Lexer(string source) : base(source) { }
 
+        /// <summary>
+        /// 带行号映射的构造 —— <paramref name="lineMap"/> 就是 <c>Preprocessor.LineMap</c>
+        /// （第 N 项 = 预处理输出第 N 行的 <c>(原文件, 原行)</c>）。
+        ///
+        /// <para>
+        /// 不传的话 token 只有**拼接后**的行号，报错就会指到用户文件里另一行上
+        /// （实测：`#include &lt;stdio.h&gt;` 有 103 行，它后面所有代码整体后移，
+        /// 报错于是落在用户文件第 112 行那句无害的 `/// &lt;summary&gt;` 上）。
+        /// </para>
+        /// </summary>
+        public Lexer(string source, List<(string, int)>? lineMap, string? fileName = null) : base(source, fileName)
+        {
+            SourceLineMap = lineMap;
+        }
+
         public List<Token> Tokenize()
         {
             while (_pos < _source.Length)
@@ -96,6 +111,17 @@ namespace CppCompiler
                 if (!ReadOperator()) { _pos++; _col++; }
             }
             _tokens.Add(new Token(TokenType.EOF, "", _line, _col));
+
+            // 全部 token 建好后**统一**补「原文件 / 原行」——收在一处比在 8 个 `new Token` 点上
+            // 各映射一次强：漏掉任何一个构造点都是一个"偶发指错行"，而那种 bug 只有真机上看得见。
+            if (SourceLineMap != null)
+                foreach (var t in _tokens)
+                {
+                    var (file, originLine) = MapOriginal(t.Line);
+                    t.OriginalFile = file;
+                    t.OriginalLine = file != null ? originLine : 0;
+                }
+
             return _tokens;
         }
 

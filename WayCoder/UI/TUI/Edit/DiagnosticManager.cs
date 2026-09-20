@@ -12,7 +12,25 @@ public enum Severity { Error, Warning, Info }
 /// <summary>
 /// 单条诊断信息
 /// </summary>
-public record Diagnostic(int Line, int Column, Severity Severity, string Message, string? Code);
+/// <param name="Line">
+/// **当前文件**里的行号（1-based）；<c>0</c> = 无位置（不画气泡箭头、不画波浪线、错误列表里点不动）。
+/// </param>
+/// <param name="File">
+/// 诊断**来源文件**（文件名，不是全路径）；<c>null</c> = 就是当前文件 / 不知道。
+///
+/// <para>
+/// 为什么必须有这个字段：`#include` 进来的**头文件**里的错也会落进同一批诊断，
+/// 而它只有行号、没有文件 —— 宿主只能把这个行号**硬贴到用户正在看的文件上**，
+/// 于是用户看到的是"编译器指着我这句没问题的代码报错"（真机上就是"第 112 行那句
+/// 无害的 `/// &lt;summary&gt;` 被标红"）。有文件就能判出「这条不属于当前文件」，
+/// 从而**不给它做行锚**（见 <c>VmlDiagnostics.Parse</c>）。
+/// </para>
+///
+/// ⚠ 加的是**带默认值的可选参数**：既有 `new Diagnostic(...)` 调用点一个都不用改
+/// （它是跨端共享类型，TUI/Web/GUI/MAUI 的编辑器都在读）。
+/// </param>
+public record Diagnostic(int Line, int Column, Severity Severity, string Message, string? Code,
+                         string? File = null);
 
 /// <summary>
 /// TUI 编辑器 Lint 诊断管理器 —— 保存时运行 lint，解析输出为结构化诊断，

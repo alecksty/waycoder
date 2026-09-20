@@ -5,6 +5,9 @@ namespace SchemeCompiler;
 public partial class CodeGenerator {
     void GenCall(SList l, bool tailPos = false) {
         string op = ((SSym)l.Items[0]).Name;
+        // 位置取**被调用的那个符号**，不是左括号 —— 报「未定义的函数 'nosuch'」时
+        // 用户要看到的是 `nosuch` 那一列。
+        Stamp(l.Items[0]);
         // 尾位置**只有自递归**才能用 GenTailRecursive：它把实参搬进**当前帧**的形参槽、
         // 释放当前帧、再 `jmp <名>_body` —— 整个技巧成立的前提是「被调者与调用者共用同一个帧」。
         // 对别的函数（用户函数也好、库函数也好）那是错的：跳进 `_body` 等于**跳过序言**
@@ -95,6 +98,7 @@ public partial class CodeGenerator {
     }
 
     void GenExpr(SExpr e, bool tailPos = false) {
+        Stamp(e);
         if (e is SInt i) { AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, i.Value)]); }
         else if (e is SBool sb) { AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, sb.Value ? 1 : 0)]); }
         else if (e is SDouble d) {

@@ -1098,12 +1098,17 @@ namespace PascalCompiler
 
         private VariableNode ParseVariable()
         {
+            // ⚠ **位置要在消费这个标识符之前取**：`Expect` 会把游标推到下一个 token，
+            //   照旧写 `Line = Cur.Line, Column = Cur.Column` 取到的是**名字后面那个符号**
+            //   的位置 —— 实测 `WriteLn(nosuch)` 报列 17（那是 `(` 的列），而 `nosuch` 起于 11。
+            //   行号碰巧还对（同一行），所以只有列错，最容易被漏掉。
+            var nameTok = Cur;
             string name = Expect(TokenType.IDENTIFIER, "期望变量名").Value.ToString();
             VariableNode variable = new VariableNode
             {
                 Name = name,
-                Line = Cur.Line,
-                Column = Cur.Column
+                Line = nameTok.Line,
+                Column = nameTok.Column
             };
 
             if (withContext.Count > 0 && GetTokenType(Cur) != TokenType.LBRACKET && GetTokenType(Cur) != TokenType.DOT && GetTokenType(Cur) != TokenType.CARET)

@@ -3,7 +3,7 @@ namespace PascalCompiler
     /// <summary>
     /// Pascal 语言词法单元
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; }
         public object Value { get; }

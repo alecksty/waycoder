@@ -46,7 +46,17 @@ namespace PythonCompiler
             Column = column;
         }
 
-        public abstract void Accept(IASTVisitor visitor);
+        /// <summary>
+        /// 访问入口 —— **单一漏斗**。
+        /// </summary>
+        public void Accept(IASTVisitor visitor)
+        {
+            if (Line > 0) visitor.EnterNode(Line, Column);
+            AcceptCore(visitor);
+        }
+
+        /// <summary>具体分派（原 `Accept`）。</summary>
+        protected abstract void AcceptCore(IASTVisitor visitor);
     }
 
     /// <summary>
@@ -54,6 +64,8 @@ namespace PythonCompiler
     /// </summary>
     public interface IASTVisitor
     {
+        /// <summary>进入一个节点：把“当前正在生成哪一句”告诉生成器（见 ASTNode.Accept）。</summary>
+        void EnterNode(int line, int column);
         void VisitProgram(ProgramNode node);
         void VisitFunctionDef(FunctionDefNode node);
         void VisitClassDef(ClassDefNode node);
@@ -107,7 +119,7 @@ namespace PythonCompiler
     {
         public List<ASTNode> Body { get; }
         public ProgramNode(List<ASTNode> body, int line, int column) : base(ASTNodeType.Program, line, column) { Body = body; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitProgram(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitProgram(this);
     }
 
     public class FunctionDefNode : ASTNode
@@ -118,7 +130,7 @@ namespace PythonCompiler
         public List<ASTNode> Decorators { get; }
         public FunctionDefNode(string name, List<string> args, List<ASTNode> body, int line, int column, List<ASTNode>? decorators = null) : base(ASTNodeType.FunctionDef, line, column)
         { Name = name; Args = args; Body = body; Decorators = decorators ?? new List<ASTNode>(); }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitFunctionDef(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitFunctionDef(this);
     }
 
     public class ClassDefNode : ASTNode
@@ -129,7 +141,7 @@ namespace PythonCompiler
         public List<ASTNode> Decorators { get; }
         public ClassDefNode(string name, List<ASTNode> body, string? parentName, int line, int column, List<ASTNode>? decorators = null) : base(ASTNodeType.ClassDef, line, column)
         { Name = name; Body = body; ParentName = parentName; Decorators = decorators ?? new List<ASTNode>(); }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitClassDef(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitClassDef(this);
     }
 
     public class IfNode : ASTNode
@@ -139,7 +151,7 @@ namespace PythonCompiler
         public List<ASTNode> Orelse { get; }
         public IfNode(ASTNode test, List<ASTNode> body, List<ASTNode> orelse, int line, int column) : base(ASTNodeType.If, line, column)
         { Test = test; Body = body; Orelse = orelse; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitIf(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitIf(this);
     }
 
     public class WhileNode : ASTNode
@@ -149,7 +161,7 @@ namespace PythonCompiler
         public List<ASTNode>? Orelse { get; }
         public WhileNode(ASTNode test, List<ASTNode> body, List<ASTNode>? orelse, int line, int column) : base(ASTNodeType.While, line, column)
         { Test = test; Body = body; Orelse = orelse; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitWhile(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitWhile(this);
     }
 
     public class ForNode : ASTNode
@@ -160,26 +172,26 @@ namespace PythonCompiler
         public List<ASTNode>? Orelse { get; }
         public ForNode(string target, ASTNode iter, List<ASTNode> body, List<ASTNode>? orelse, int line, int column) : base(ASTNodeType.For, line, column)
         { Target = target; Iter = iter; Body = body; Orelse = orelse; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitFor(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitFor(this);
     }
 
     public class BreakNode : ASTNode
     {
         public BreakNode(int line, int column) : base(ASTNodeType.Break, line, column) { }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitBreak(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitBreak(this);
     }
 
     public class ContinueNode : ASTNode
     {
         public ContinueNode(int line, int column) : base(ASTNodeType.Continue, line, column) { }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitContinue(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitContinue(this);
     }
 
     public class ReturnNode : ASTNode
     {
         public ASTNode Value { get; }
         public ReturnNode(ASTNode value, int line, int column) : base(ASTNodeType.Return, line, column) { Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitReturn(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitReturn(this);
     }
 
     public class AssignNode : ASTNode
@@ -191,7 +203,7 @@ namespace PythonCompiler
         { Target = target; Value = value; TargetExpr = null; }
         public AssignNode(ASTNode targetExpr, ASTNode value, int line, int column) : base(ASTNodeType.Assign, line, column)
         { Target = ""; TargetExpr = targetExpr; Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitAssign(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitAssign(this);
     }
 
     public class AugAssignNode : ASTNode
@@ -204,7 +216,7 @@ namespace PythonCompiler
         { Target = target; Op = op; Value = value; TargetExpr = null; }
         public AugAssignNode(ASTNode targetExpr, string op, ASTNode value, int line, int column) : base(ASTNodeType.AugAssign, line, column)
         { Target = ""; TargetExpr = targetExpr; Op = op; Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitAugAssign(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitAugAssign(this);
     }
 
     public class BinOpNode : ASTNode
@@ -214,7 +226,7 @@ namespace PythonCompiler
         public ASTNode Right { get; }
         public BinOpNode(ASTNode left, string op, ASTNode right, int line, int column) : base(ASTNodeType.BinOp, line, column)
         { Left = left; Op = op; Right = right; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitBinOp(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitBinOp(this);
     }
 
     public class UnaryOpNode : ASTNode
@@ -223,7 +235,7 @@ namespace PythonCompiler
         public ASTNode Operand { get; }
         public UnaryOpNode(string op, ASTNode operand, int line, int column) : base(ASTNodeType.UnaryOp, line, column)
         { Op = op; Operand = operand; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitUnaryOp(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitUnaryOp(this);
     }
 
     public class CompareNode : ASTNode
@@ -233,7 +245,7 @@ namespace PythonCompiler
         public ASTNode Right { get; }
         public CompareNode(ASTNode left, string op, ASTNode right, int line, int column) : base(ASTNodeType.Compare, line, column)
         { Left = left; Op = op; Right = right; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitCompare(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitCompare(this);
     }
 
     public class BoolOpNode : ASTNode
@@ -242,7 +254,7 @@ namespace PythonCompiler
         public List<ASTNode> Values { get; }
         public BoolOpNode(string op, List<ASTNode> values, int line, int column) : base(ASTNodeType.BoolOp, line, column)
         { Op = op; Values = values; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitBoolOp(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitBoolOp(this);
     }
 
     public class CallNode : ASTNode
@@ -251,7 +263,7 @@ namespace PythonCompiler
         public List<ASTNode> Args { get; }
         public CallNode(string funcName, List<ASTNode> args, int line, int column) : base(ASTNodeType.Call, line, column)
         { FuncName = funcName; Args = args; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitCall(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitCall(this);
     }
 
     public class AttributeNode : ASTNode
@@ -260,7 +272,7 @@ namespace PythonCompiler
         public string Attr { get; }
         public AttributeNode(ASTNode value, string attr, int line, int column) : base(ASTNodeType.Attribute, line, column)
         { Value = value; Attr = attr; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitAttribute(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitAttribute(this);
     }
 
     public class SubscriptNode : ASTNode
@@ -269,14 +281,14 @@ namespace PythonCompiler
         public ASTNode Index { get; }
         public SubscriptNode(ASTNode value, ASTNode index, int line, int column) : base(ASTNodeType.Subscript, line, column)
         { Value = value; Index = index; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitSubscript(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitSubscript(this);
     }
 
     public class NameNode : ASTNode
     {
         public string Name { get; }
         public NameNode(string name, int line, int column) : base(ASTNodeType.Name, line, column) { Name = name; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitName(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitName(this);
     }
 
     public class ConstantNode : ASTNode
@@ -285,7 +297,7 @@ namespace PythonCompiler
         public string ValueType { get; }
         public ConstantNode(object value, string valueType, int line, int column) : base(ASTNodeType.Constant, line, column)
         { Value = value; ValueType = valueType; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitConstant(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitConstant(this);
     }
 
     public class ListCompNode : ASTNode
@@ -297,41 +309,41 @@ namespace PythonCompiler
         public ListCompNode(ASTNode expr, string varName, ASTNode iter, ASTNode? ifCond, int line, int column)
             : base(ASTNodeType.ListComp, line, column)
         { Expr = expr; VarName = varName; Iter = iter; IfCond = ifCond; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitListComp(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitListComp(this);
     }
 
     public class ListNode : ASTNode
     {
         public List<ASTNode> Elements { get; }
         public ListNode(List<ASTNode> elements, int line, int column) : base(ASTNodeType.List, line, column) { Elements = elements; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitList(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitList(this);
     }
 
     public class DictNode : ASTNode
     {
         public List<(ASTNode key, ASTNode value)> Items { get; }
         public DictNode(List<(ASTNode, ASTNode)> items, int line, int column) : base(ASTNodeType.Dict, line, column) { Items = items; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitDict(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitDict(this);
     }
 
     public class TupleNode : ASTNode
     {
         public List<ASTNode> Elements { get; }
         public TupleNode(List<ASTNode> elements, int line, int column) : base(ASTNodeType.Tuple, line, column) { Elements = elements; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitTuple(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitTuple(this);
     }
 
     public class ExprStmtNode : ASTNode
     {
         public ASTNode Value { get; }
         public ExprStmtNode(ASTNode value, int line, int column) : base(ASTNodeType.ExprStmt, line, column) { Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitExprStmt(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitExprStmt(this);
     }
 
     public class PassNode : ASTNode
     {
         public PassNode(int line, int column) : base(ASTNodeType.Pass, line, column) { }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitPass(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitPass(this);
     }
 
     // ── 新增表达式节点 ───────────────────────────────────────
@@ -341,7 +353,7 @@ namespace PythonCompiler
         public ASTNode Body { get; }
         public LambdaNode(List<string> args, ASTNode body, int line, int column)
             : base(ASTNodeType.Lambda, line, column) { Args = args; Body = body; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitLambda(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitLambda(this);
     }
 
     public class YieldNode : ASTNode
@@ -349,7 +361,7 @@ namespace PythonCompiler
         public ASTNode Value { get; }
         public YieldNode(ASTNode value, int line, int column)
             : base(ASTNodeType.Yield, line, column) { Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitYield(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitYield(this);
     }
 
     public class AwaitNode : ASTNode
@@ -357,7 +369,7 @@ namespace PythonCompiler
         public ASTNode Value { get; }
         public AwaitNode(ASTNode value, int line, int column)
             : base(ASTNodeType.Await, line, column) { Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitAwait(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitAwait(this);
     }
 
     public class SetNode : ASTNode
@@ -365,7 +377,7 @@ namespace PythonCompiler
         public List<ASTNode> Elements { get; }
         public SetNode(List<ASTNode> elements, int line, int column)
             : base(ASTNodeType.Set, line, column) { Elements = elements; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitSet(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitSet(this);
     }
 
     public class SliceNode : ASTNode
@@ -375,7 +387,7 @@ namespace PythonCompiler
         public ASTNode Step { get; }
         public SliceNode(ASTNode lower, ASTNode upper, ASTNode step, int line, int column)
             : base(ASTNodeType.Slice, line, column) { Lower = lower; Upper = upper; Step = step; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitSlice(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitSlice(this);
     }
 
     public class StarredNode : ASTNode
@@ -383,7 +395,7 @@ namespace PythonCompiler
         public ASTNode Value { get; }
         public StarredNode(ASTNode value, int line, int column)
             : base(ASTNodeType.Starred, line, column) { Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitStarred(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitStarred(this);
     }
 
     public class NamedExprNode : ASTNode
@@ -392,7 +404,7 @@ namespace PythonCompiler
         public ASTNode Value { get; }
         public NamedExprNode(string target, ASTNode value, int line, int column)
             : base(ASTNodeType.NamedExpr, line, column) { Target = target; Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitNamedExpr(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitNamedExpr(this);
     }
 
     // ── 新增语句节点 ────────────────────────────────────────
@@ -401,7 +413,7 @@ namespace PythonCompiler
         public string Target { get; }
         public DelNode(string target, int line, int column)
             : base(ASTNodeType.Del, line, column) { Target = target; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitDel(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitDel(this);
     }
 
     public class AssertNode : ASTNode
@@ -410,7 +422,7 @@ namespace PythonCompiler
         public ASTNode Msg { get; }
         public AssertNode(ASTNode test, ASTNode msg, int line, int column)
             : base(ASTNodeType.Assert, line, column) { Test = test; Msg = msg; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitAssert(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitAssert(this);
     }
 
     public class RaiseNode : ASTNode
@@ -418,7 +430,7 @@ namespace PythonCompiler
         public ASTNode Exc { get; }
         public RaiseNode(ASTNode exc, int line, int column)
             : base(ASTNodeType.Raise, line, column) { Exc = exc; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitRaise(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitRaise(this);
     }
 
     public class GlobalNode : ASTNode
@@ -426,7 +438,7 @@ namespace PythonCompiler
         public List<string> Names { get; }
         public GlobalNode(List<string> names, int line, int column)
             : base(ASTNodeType.Global, line, column) { Names = names; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitGlobal(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitGlobal(this);
     }
 
     public class NonlocalNode : ASTNode
@@ -434,7 +446,7 @@ namespace PythonCompiler
         public List<string> Names { get; }
         public NonlocalNode(List<string> names, int line, int column)
             : base(ASTNodeType.Nonlocal, line, column) { Names = names; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitNonlocal(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitNonlocal(this);
     }
 
     public class ImportNode : ASTNode
@@ -443,7 +455,7 @@ namespace PythonCompiler
         public List<(string name, string alias)> Items { get; }
         public ImportNode(List<(string, string)> items, int line, int column, string? moduleName = null)
             : base(ASTNodeType.Import, line, column) { Items = items; ModuleName = moduleName; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitImport(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitImport(this);
     }
 
     public class WithNode : ASTNode
@@ -452,7 +464,7 @@ namespace PythonCompiler
         public List<ASTNode> Body { get; }
         public WithNode(List<(ASTNode, string)> items, List<ASTNode> body, int line, int column)
             : base(ASTNodeType.With, line, column) { Items = items; Body = body; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitWith(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitWith(this);
     }
 
     public class TryNode : ASTNode
@@ -467,7 +479,7 @@ namespace PythonCompiler
                       int line, int column)
             : base(ASTNodeType.Try, line, column)
         { Body = body; Handlers = handlers; Orelse = orelse; Finalbody = finalbody; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitTry(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitTry(this);
     }
 
     public class MatchNode : ASTNode
@@ -476,7 +488,7 @@ namespace PythonCompiler
         public List<CaseNode> Cases { get; }
         public MatchNode(ASTNode subject, List<CaseNode> cases, int line, int column)
             : base(ASTNodeType.Match, line, column) { Subject = subject; Cases = cases; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitMatch(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitMatch(this);
     }
 
     public class CaseNode : ASTNode
@@ -486,7 +498,7 @@ namespace PythonCompiler
         public List<ASTNode> Body { get; }
         public CaseNode(ASTNode pattern, ASTNode guard, List<ASTNode> body, int line, int column)
             : base(ASTNodeType.Case, line, column) { Pattern = pattern; Guard = guard; Body = body; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitCase(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitCase(this);
     }
 
     /// <summary>
@@ -505,7 +517,7 @@ namespace PythonCompiler
             Parts = parts;
         }
 
-        public override void Accept(IASTVisitor visitor) => visitor.VisitFString(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitFString(this);
     }
 
     /// <summary>
@@ -517,7 +529,7 @@ namespace PythonCompiler
         public ASTNode Value { get; }
         public MultiAssignNode(List<string> targets, ASTNode value, int line, int column)
             : base(ASTNodeType.MultiAssign, line, column) { Targets = targets; Value = value; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitMultiAssign(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitMultiAssign(this);
     }
 
     /// <summary>
@@ -530,6 +542,6 @@ namespace PythonCompiler
         public List<ASTNode> Args { get; }
         public MethodCallNode(ASTNode receiver, string method, List<ASTNode> args, int line, int column)
             : base(ASTNodeType.MethodCall, line, column) { Receiver = receiver; Method = method; Args = args; }
-        public override void Accept(IASTVisitor visitor) => visitor.VisitMethodCall(this);
+        protected override void AcceptCore(IASTVisitor visitor) => visitor.VisitMethodCall(this);
     }
 }

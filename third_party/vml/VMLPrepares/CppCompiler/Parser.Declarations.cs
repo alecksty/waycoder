@@ -440,7 +440,24 @@ namespace CppCompiler
             return expr;
         }
 
+        /// <summary>
+        /// **原子表达式的唯一入口** —— 顺手盖上它自己的行列（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与语句入口同一套路，但**粒度细一层**：语句级的列只能给到「这一句从哪开始」，
+        /// 而用户报错时要看到的是**出错的那个标识符**从哪开始。原子（标识符/字面量/调用/括号）
+        /// 是位置信息真正有意义的地方，而全部语句的表达式都是从这里递归产出的
+        /// ⇒ 在这一处包一层就覆盖了整棵树。
+        /// </summary>
         private Expr ParsePrimary()
+        {
+            var __start = Cur;
+            int __line = __start.Line, __origLine = __start.OriginalLine, __col = __start.Column;
+            var __node = ParsePrimaryCore();
+            if (__node != null && __node.Line == 0) { __node.Line = __line; __node.OriginalLine = __origLine; __node.Column = __col; }
+            return __node;
+        }
+
+        private Expr ParsePrimaryCore()
         {
             if (Match(TokenType.NUMBER))
             {
@@ -673,6 +690,12 @@ namespace CppCompiler
             else if (Match(TokenType.IDENTIFIER))
             {
                 type += Previous().Value;
+                // 结构体别名换成**标签**（`typedef struct tm tm_t;` ⇒ `tm_t` 当归于 `tm`）。
+                // 下游按标签查结构定义（`CleanType(type)` → `_classes`），不换就查不到 ——
+                // 症状是 `tm_t *p; p->tm_sec` 解析不出成员（登记了别名才真的"能用"）。
+                // ⚠ 只换**结构体别名**：`typedef unsigned int time_t;` 这类基本类型别名不动，
+                //   免得改动既有程序里的类型串（那是另一件事，收益不明、风险却不小）。
+                if (_structAliases.TryGetValue(type, out var structTag)) type = structTag;
                 // Handle qualified names: std::string → std_string
                 while (Match(TokenType.SCOPE_RESOLVE))
                 {

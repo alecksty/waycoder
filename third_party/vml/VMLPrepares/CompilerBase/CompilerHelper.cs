@@ -19,6 +19,31 @@ namespace CompilerBase
         public static string? CurrentSourceFile;
 
         /// <summary>
+        /// 「预处理拼接后的行号」→「(原文件, 原行)」——这条规则的**唯一实现**
+        /// （`LexerBase.MapOriginal` 与 `ParserBase.MapOriginal` 都只是转调它）。
+        ///
+        /// <para>
+        /// `#include` 是把头文件内容**拼进同一个流**的，所以词法/语法/代码生成拿到的行号
+        /// 是**拼接后**的。要报给用户"原文件第几行"，只有这一张表能换算
+        /// （`Preprocessor.LineMap`，第 N 项 = 输出第 N 行）。
+        /// </para>
+        ///
+        /// <para>
+        /// 越界/没有映射 ⇒ 返回 <c>(null, 传入的行号)</c>：**宁可退回拼接行号，也不能报出别的
+        /// 文件的行** —— 报错指错地方比报不出位置更糟（用户会去改一行根本没问题的代码）。
+        /// </para>
+        /// </summary>
+        public static (string? File, int Line) MapOriginalLine(List<(string, int)>? lineMap, int processedLine)
+        {
+            if (lineMap != null && processedLine > 0 && processedLine <= lineMap.Count)
+            {
+                var e = lineMap[processedLine - 1];
+                return (e.Item1, e.Item2);
+            }
+            return (null, processedLine);
+        }
+
+        /// <summary>
         /// 根据目标语言，将 -D/-U 宏定义注入为语言对应的常量声明。
         /// 返回: 注入后的源代码（C/C++ 使用 #define，其他语言使用对应语法）。
         /// </summary>
@@ -905,7 +930,13 @@ namespace CompilerBase
                 // 把"抛出来的这一条"与"之前已经收集到的若干条"**并成一份**再抛 ——
                 // 原来的写法是二选一（`HasErrors ? FormatAll() : 单条`），
                 // 于是之前收集的那些在"有抛出"的情况下反而不见了。
-                diagnostics.AddError(file, 0, 0, ex.Code, ex.Message);
+                //
+                // ⚠ 位置用 `ex` 上**分开的**三个字段，正文用 `BareMessage` ——
+                //   `AddError` 自己会拼 `文件:行:列: error: `，这里再喂一个拼好的
+                //   `ex.Message` 就会拼成两层（实测：`<input>: error: <input>:4:18: error: …`，
+                //   第一个 `error:` 前面**一个位置都没有**，宿主侧正则锚不到）。
+                //   `ex.Line` 为 0（位置未知）时照旧如实报"无位置"。
+                diagnostics.AddError(ex.File ?? file, ex.Line, ex.Column, ex.Code, ex.BareMessage);
                 throw new CompilationException(ex.Code, diagnostics.FormatAll(), ex);
             }
             catch (CodeGenerationException ex)

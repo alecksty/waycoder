@@ -36,7 +36,7 @@ public enum TokenType
     EOF
 }
 
-public class Token(TokenType type, string value, int line, int column)
+public class Token(TokenType type, string value, int line, int column) : CompilerBase.ITokenPosition
 {
     public TokenType Type { get; } = type;
     public string Value { get; } = value;

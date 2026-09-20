@@ -121,7 +121,7 @@ namespace RustCompiler
     /// <summary>
     /// Token结构
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; }
         public string Value { get; }

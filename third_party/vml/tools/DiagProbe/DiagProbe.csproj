@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>diagprobe</AssemblyName>
+    <RootNamespace>DiagProbe</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 与 GenLib 同一条：编译器工程是 Library，但引用链里含 Exe 输出类型的历史配置，
+         AOT/裁剪下引用校验会误报，这里一并绕过。 -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <NoWarn>$(NoWarn);IL2104;IL2026;IL2055;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../VMLAssembler/VMLAssembler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/CompilerBase/CompilerBase.csproj" />
+    <ProjectReference Include="../../VMLPrepares/BasicCompiler/BasicCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/CCompiler/CCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/CSharpCompiler/CSharpCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/CppCompiler/CppCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/DCompiler/DCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/DartCompiler/DartCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/ForthCompiler/ForthCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/FortranCompiler/FortranCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/GoCompiler/GoCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/JavaCompiler/JavaCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/JavaScriptCompiler/JavaScriptCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/KotlinCompiler/KotlinCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/LadderCompiler/LadderCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/LuaCompiler/LuaCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/ObjCCompiler/ObjCCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/PascalCompiler/PascalCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/PythonCompiler/PythonCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/RCompiler/RCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/RubyCompiler/RubyCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/RustCompiler/RustCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/SchemeCompiler/SchemeCompiler.csproj" />
+    <ProjectReference Include="../../VMLPrepares/SwiftCompiler/SwiftCompiler.csproj" />
+  </ItemGroup>
+</Project>

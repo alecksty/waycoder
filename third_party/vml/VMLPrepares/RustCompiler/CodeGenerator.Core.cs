@@ -24,6 +24,20 @@ namespace RustCompiler
             if (node.Line > 0) { CurrentSourceLine = node.Line; CurrentSourceColumn = node.Column; }
         }
 
+        /// <summary>
+        /// `ASTNode.Accept` 的**唯一漏斗**：每进入一个节点就把它自己的位置盖上。
+        ///
+        /// 与 <see cref="SetCurrentSource"/> 的分工：那个在**语句列表**处调用（粒度到语句），
+        /// 这个在**每个节点**处调用（粒度到标识符）。表达式节点的位置由解析器的原子入口
+        /// `ParsePrimary` 统一盖，所以往里走一层就精确一层 ——
+        /// `let c = a + b + nosuch;` 报错时停在 `nosuch`，而不是 `let`。
+        /// 两者共用同一套判据（`Line > 0` 才盖，置 0 会把上一句的正确位置冲掉）。
+        /// </summary>
+        public void EnterNode(int line, int column)
+        {
+            if (line > 0) { CurrentSourceLine = line; CurrentSourceColumn = column; }
+        }
+
         private readonly Dictionary<string, int> _variables = new Dictionary<string, int>();
         private readonly Dictionary<string, string> _variableTypes = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _variableStructTypes = new Dictionary<string, string>(); // 变量名 -> 结构体名

@@ -130,6 +130,17 @@ group_undefined() {
     [ "$any" -eq 1 ] || echo "（$prefix 组还没有用例）"
 }
 
+# ── 组二·补：hdr-loc（头文件里的错必须指到头文件）────────────────────────────
+#
+# **判定与 `undef-*` 完全同形**（编译必须失败 + stderr 里必须出现 `.sym` 里那段文字），
+# 所以复用同一个函数 —— 本仓头号坑就是「同一规则两处实现」。
+# 区别只在 `.sym` 里写什么：那两组写**符号名**，本组写 **`<头文件>:<行>:`**。
+#
+# 为什么非要有这一组：`#include` 是把头文件内容**拼进同一个流**的，
+# 前端拿到的是**拼接后**的行号 —— 不映射回去，用户文件里就会有一行平白背锅
+# （真机症状：第 112 行那句无害的 `/// <summary>` 被标红，报的还是头文件里的语法错）。
+# 这条判据是**唯一**能自动拦住那种"指错行"的东西。
+
 # ── 组三：dyn-global（动态语言必须**仍然编得过**）────────────────────────────
 # 6 门动态语言（js/lua/py/r/rb/scm）的「未声明即隐式全局」是**合法语义**，
 # 不是缺陷。本组就是那道反向护栏：豁免改错了会在这里变红。
@@ -176,6 +187,7 @@ case "$GROUP" in
     link-clean) group_link_clean "$FILTER" ;;
     undef-fn)   group_undefined undef-fn "$FILTER" ;;
     undef-var)  group_undefined undef-var "$FILTER" ;;
+    hdr-loc)    group_undefined hdr-loc "$FILTER" ;;
     dyn-global) group_dyn_global "$FILTER" ;;
     all)
         echo "── link-clean（正常程序不该有未解析标签）──"
@@ -184,10 +196,12 @@ case "$GROUP" in
         group_undefined undef-fn "$FILTER"
         echo "── undef-var（未声明变量必须编译期报错）──"
         group_undefined undef-var "$FILTER"
+        echo "── hdr-loc（头文件里的错必须指到头文件那一行）──"
+        group_undefined hdr-loc "$FILTER"
         echo "── dyn-global（动态语言的隐式全局必须仍然合法）──"
         group_dyn_global "$FILTER"
         ;;
-    *) echo "✘ 未知的组：$GROUP（可选 link-clean / undef-fn / undef-var / dyn-global）" >&2; exit 2 ;;
+    *) echo "✘ 未知的组：$GROUP（可选 link-clean / undef-fn / undef-var / hdr-loc / dyn-global）" >&2; exit 2 ;;
 esac
 printf '%s\n' "--------------------------------------------------------------"
 echo "通过 $pass / 不符 $fail / **崩溃 $crash**"

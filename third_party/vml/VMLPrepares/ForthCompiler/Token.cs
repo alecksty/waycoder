@@ -168,7 +168,7 @@ namespace ForthCompiler
     /// <summary>
     /// Forth语言Token
     /// </summary>
-    public class Token
+    public class Token : CompilerBase.ITokenPosition
     {
         public TokenType Type { get; }
         public string Value { get; }

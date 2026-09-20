@@ -261,7 +261,17 @@ namespace CCompiler
                     }
                     else
                     {
-                        throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_IncludeNotFound, $"在文件 {currentFile} 第 {currentLine} 行，找不到头文件: {fullPath}");
+                        // 与 `CompilerBase/Preprocessor` **同一个判据、同一份措辞、同一个级别**。
+                        //
+                        // 此前这里抛 `CompilationException`（硬失败），于是同一句
+                        // `#include <Windows.h>`：写成 `.c` 整个编不了、写成 `.cpp` 只是警告。
+                        // 定成警告的依据是量出来的 —— VML 的真实链接来源是 `#param lib(...)`
+                        // 与 auto-link，头文件正文并不参与，所以缺头文件**不是致命错**：
+                        // 实测把共享层那条升成硬错误会打挂 `vml-out-probe` 的 2/30
+                        // （`nat.c` 的 `stdio.h`、`nat.typedef.cpp` 的 `time.h`，而两者都在
+                        // `Lib/c/` 下，只是那个环境没解析到路径）⇒ 硬失败把「路径没找对」
+                        // 放大成「整个程序编不了」。完整论证见 `ReportMissingInclude`。
+                        CompilerBase.Preprocessor.ReportMissingInclude(currentFile, currentLine, includedFile);
                     }
                 }
                 else

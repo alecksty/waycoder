@@ -274,6 +274,13 @@ namespace CSharpCompiler
         
         private void GenerateExpression(Expression expression)
         {
+            // 让随后生成的指令/诊断带上**这个表达式自己的**行列（语义见
+            // `CodeGeneratorBase.CurrentSourceLine`/`CurrentSourceColumn`）。
+            // 与 `GenerateStatement` 那句同一道理、细一层：表达式生成是递归的 ⇒
+            // 越往里越精确，报「未声明的变量」时停在**出错的那个标识符**上。
+            // 判据 `Line > 0`：位置由解析器的原子入口 `ParsePrimary` 统一盖，
+            // 二元/一元节点的 Line 仍是 0 —— 置 0 会把刚盖好的原子位置冲掉。
+            if (expression.Line > 0) { CurrentSourceLine = expression.Line; CurrentSourceColumn = expression.Column; }
             switch (expression)
             {
                 case LiteralExpression literal:
