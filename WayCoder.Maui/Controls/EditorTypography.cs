@@ -285,4 +285,76 @@ internal static class EditorTypography
 
     /// <summary>暗色主题下的气泡正文色（与 <see cref="BubbleText"/> 成对，命名随本文件的 Xxx/XxxDark 惯例）。</summary>
     public static readonly Color BubbleTextDark = Color.FromArgb("#F2F2F2");
+
+    /// <summary>
+    /// 气泡正文/✕ 的取色 —— **判据只此一处**（亮色档深字、暗色档亮字）。
+    /// 让调用方各挑一份就是「同一规则两处实现」：气泡正文与 ✕ 分属两段绘制代码，
+    /// 迟早一处按主题挑、另一处忘了。
+    /// </summary>
+    public static Color BubbleTextColor => IsDark ? BubbleTextDark : BubbleText;
+
+    /// <summary>
+    /// 气泡的**细描边**色 —— 取主题边框色系（半透明黑/白），**不用纯黑纯白**
+    /// （纯色压在饱和底色上像一圈硬边）。
+    /// </summary>
+    public static Color BubbleStroke => IsDark ? BubbleStrokeDark : BubbleStrokeLight;
+
+    /// <summary>亮色档描边 = 黑 25%。</summary>
+    private static readonly Color BubbleStrokeLight = Color.FromArgb("#40000000");
+
+    /// <summary>暗色档描边 = 白 25%（与 <see cref="BarIdleDark"/> 同一档观感）。</summary>
+    private static readonly Color BubbleStrokeDark = Color.FromArgb("#40FFFFFF");
+
+    // ── 诊断气泡的几何 ──────────────────────────────────────────────────────
+    //
+    // 气泡**画在画布上**（代码层之上），不再是叠在编辑器上的一层控件 —— 于是它的每一项尺寸
+    // 都得由字号推导（字号一变，边距/圆角/箭头/✕ 一起等比变），而且**绘制与命中测试读同一份**
+    // （见 <c>CodeCanvasView.BubbleHit</c>：✕ 的「画出来的方块」与「点得中的热区」是两个尺寸，
+    //  也在那里一次算出来，绝不在触摸处理里重算）。
+
+    /// <summary>气泡四周的内边距 —— 用户定的：**半个字号**（上下左右都一样）。</summary>
+    public static float BubblePad => MathF.Max(4f, FontSize * 0.5f);
+
+    /// <summary>
+    /// 气泡**左上角那个尖**：横向张开的宽度（≈ 字号 × 0.9）。
+    ///
+    /// 气泡不是「圆角矩形 + 另画的三角尾巴」，而是**一体路径**：左上角不收圆角、
+    /// 直接收成一个尖，尖端落在锚点（错误那一格的左缘 × 该行下缘）上。
+    /// 这样气泡天生贴着错误位置，也不会出现「尾巴和气泡对不齐」。
+    ///
+    /// ⚠ 宽（本值）与高（<see cref="BubbleTipHeight"/>）**故意不等**：根部太窄像根针、
+    /// 太宽像缺了个角，0.9 : 0.6 是一条顺眼的斜边。两者都随字号缩放。
+    /// </summary>
+    public static float BubbleTipWidth => MathF.Max(8f, FontSize * 0.9f);
+
+    /// <summary>那个尖**高出上边缘**多少（≈ 字号 × 0.6）。</summary>
+    public static float BubbleTipHeight => MathF.Max(6f, FontSize * 0.6f);
+
+    /// <summary>
+    /// 气泡圆角半径（≈ 字号 × 0.6）—— 除左上那个尖之外，其余三个角都用它。
+    /// 太大显胖、太小显硬。
+    /// </summary>
+    public static float BubbleRadius => MathF.Max(4f, FontSize * 0.6f);
+
+    /// <summary>气泡描边宽度（细线，随字号微调）—— 没描边时气泡与同色系的代码容易糊在一起。</summary>
+    public static float BubbleStrokeSize => MathF.Max(1f, FontSize * 0.07f);
+
+    /// <summary>✕ 那个方块（**画出来的**笔迹都在它里面，再内缩三分之一）。</summary>
+    public static float BubbleCloseSize => MathF.Max(14f, FontSize * 1.25f);
+
+    /// <summary>
+    /// **收起态**那个小圆点的半径（气泡收起来时，它替代气泡标在波浪线起点上）。
+    /// 直径 ≈ 字号 × 0.6，随字号缩放，别写死像素。
+    /// </summary>
+    public static float BubbleDotRadius => MathF.Max(3f, FontSize * 0.3f);
+
+    /// <summary>
+    /// 气泡里那些**小目标**（右上角 ✕、收起态的小圆点）命中热区在每个方向的外扩量。
+    ///
+    /// 手指点不中 17dp 的方块、更点不中 8dp 的圆点，所以「画出来的形状」与「点得中的范围」
+    /// **必须是两个尺寸**：外扩 0.75 个字号（14 号 → 10.5dp，热区约 38dp 见方，
+    /// 接近 Material 建议的 48dp 触控目标）。两种目标的绘制矩形与热区都由
+    /// <c>CodeCanvasView</c> 的**同一处**算出来（见 <c>BubbleHit</c>）。
+    /// </summary>
+    public static float BubbleHitInflate => MathF.Max(10f, FontSize * 0.75f);
 }

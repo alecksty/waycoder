@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.Maui.Graphics.Text;
 using WayCoder.Infra;
 using WayCoder.Maui.Markup;
+using WayCoder.Maui.Services;
 using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Maui.Controls;
@@ -280,6 +281,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             _dragBar = Bar.None;
             _dragHandle = 0;
             _selecting = false;
+            _bubbleGrab = false;
             _longPressTimer?.Stop();
 
             // 捏合被系统打断（来电、切走 App、父容器截走触摸）时**必须当成一次正常结束**：
@@ -331,7 +333,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (_isDark == isDark) return;
         _isDark = isDark;
         ClearLineCache();
-        ClearGutterCache();   // 行号的颜色也烘进了 span，换主题必须重建
+        ClearTextCache();   // 行号的颜色也烘进了 span，换主题必须重建
         DisposeEditingRuns();
         Invalidate();
     }
@@ -456,6 +458,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             float w = LineWidth(i, line);
             if (w > maxWidth) maxWidth = w;
         }
+
+        // ⚠ **气泡的右缘也要算进来**。气泡左缘 = 锚点、只向右展开、**不夹进屏幕**（用户定的），
+        // 于是它常常比代码行还宽：不算进来的话，横向最多只能滚到「行尾 + 24」，
+        // 而气泡右上角那个 ✕ 还在更右边 ⇒ **滚不到、也就点不着**（那等于把关闭手段弄丢了）。
+        // 用的是上一帧绘制时记下的**内容坐标**（不含横向滚动），所以不会与 _scrollX 互相追。
+        maxWidth = Math.Max(maxWidth, _bubbleRightCodeX);
         return Math.Max(0, maxWidth - viewW + 24);
     }
 
@@ -480,6 +488,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     /// <summary>本手势抓住的是哪个选区手柄（0 = 没有，1 = 起点，2 = 终点）。</summary>
     private int _dragHandle;
+
+    /// <summary>
+    /// 本手势被诊断气泡吞掉了（点在 ✕ 或气泡正文上）。**必须记下来**：气泡浮在代码上层，
+    /// 手势穿过去的话，点一下气泡就会把光标挪到它底下那一行、甚至开始滚动。
+    /// 也与「点正文不关气泡」配套 —— 只吞不关。
+    /// </summary>
+    private bool _bubbleGrab;
     private float _pinchStartDist;
     private float _pinchStartFontSize;
     private long _downTicks;
@@ -499,6 +514,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _samples.Enqueue((_downTicks, p.Y, p.X));
         StopFling();
         _drawMsPeak = 0;   // 新手势 ⇒ 重新开始记最差帧
+        _bubbleGrab = false;
+
+        // 按在**小目标**上（展开态的 ✕ = 收起这一条 / 收起态的小圆点 = 展开这一条）。
+        // **先于滚动条与手柄判**：它的热区小、必须点得中，而滚动条那条热区有 20pt 宽的外扩，
+        // 排在后面就会被它抢走。
+        if (HitDiagToggle(p.X, p.Y) is { } diagHit)
+        {
+            _dragging = false;
+            _bubbleGrab = true;      // OnEnd 不许再把它当成单击
+            SetDiagExpanded(diagHit.Group, !diagHit.Expanded);
+            Invalidate();
+            return;
+        }
 
         // 按在滚动条上 → 这一手势归滚动条，不当成内容拖拽（也就不会触发惯性/长按选择）。
         // 按在滑块上保持抓取偏移（不跳），按在轨道上视作「跳到此处」。
@@ -529,6 +557,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 _dragging = false;      // 不是内容拖拽：不滚、不惯性
                 return;
             }
+        }
+
+        // 按在气泡**正文**上 → 什么都不做（**只有 ✕ 收起**：正文正是用户要读的东西，长报错尤其容易误触）。
+        // 但手势要**吞掉** —— 不吞就会穿过去把光标挪到气泡底下那一行、或者开始滚动。
+        if (HitBubbleBody(p.X, p.Y))
+        {
+            _dragging = false;
+            _bubbleGrab = true;
+            return;
         }
 
         _longPressTimer ??= Dispatcher.CreateTimer();
@@ -679,6 +716,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private void OnEnd(object? sender, TouchEventArgs e)
     {
         MarkBarActivity();   // 摸屏幕就续命：滚动条 5 秒没交互才淡出
+
+        // 这一手势归诊断气泡（点在 ✕ 或气泡正文上）—— 不当成单击、不进惯性。
+        // ⚠ 少了这道闸，OnStart 里那句 `return` 只挡住了一半：OnEnd 的「单击定位」分支
+        // 不看 `_dragging`，抬手照样会把光标挪到气泡底下那一行去。
+        if (_bubbleGrab)
+        {
+            _bubbleGrab = false;
+            _dragging = false;
+            _longPressTimer?.Stop();
+            return;
+        }
+
         bool wasPinching = _pinchStartDist > 0;
         _pinchStartDist = 0;
         _dragging = false;
@@ -1267,10 +1316,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         // ② 正文（裁剪在行号栏右侧，横向滚动只影响这一层）
         float textX = gutterW + EditorTypography.TextLeftPad - _scrollX;
-        // 本文件有没有诊断 —— **只查一次**。DrawDiagnosticWave 是每行每帧都要查一次表的
+        // 本文件的诊断 —— **只查一次**。DrawDiagnosticWave 是每行每帧都要查一次表的
         // （内部走 LINQ `.Where().ToList()`，没数据时也要分配一个空 List），
-        // 而移动端压根没有诊断数据源（依赖 LintTool，MAUI 里是桩，见 CLAUDE.md）⇒ 整段空跑。
-        bool hasDiags = HasDiagnostics();
+        // 而移动端多数文件压根没有诊断（依赖 LintTool，MAUI 里是桩，见 CLAUDE.md）⇒ 整段空跑。
+        // 气泡层也吃这一份（同一批数据、同一次查询）。
+        var diags = SnapshotDiagnostics();
+        bool hasDiags = diags.Count > 0;
         canvas.SaveState();
         canvas.ClipRectangle(gutterW, 0, Math.Max(0, w - gutterW), h);
 
@@ -1330,9 +1381,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // **行号始终画**（v0.96.141 起）。这里原先有一句「视口在动的这一帧跳过数字」的优化，
         // 判据是「本帧位姿与上帧是否相同」；省下的时间不多，代价却是**数字一直在闪**
         // （用户实测反馈「行号容易闪烁，还是一直显示比较好」）。现在行号与正文共用同一套
-        // **缓存排版**（见 TryDrawGutterCached），一次编译反复绘制 ⇒ 不闪，而且比以前更快。
+        // **缓存排版**（见 TryDrawTextCached），一次编译反复绘制 ⇒ 不闪，而且比以前更快。
         DrawGutter(canvas, first, last, gutterW, h, lineH);
         _tGutter = (float)_drawWatch.Elapsed.TotalMilliseconds - _tBg - _tText;
+
+        // ④ 编译诊断气泡 —— **最上层**（正文 / 波浪线 / 手柄 / 行号栏之后；只有滚动条与调试 HUD
+        //    压在它上面）。它就是代码层的一部分：跟着滚动、跟着缩放，滚出屏幕就看不见。
+        //    无诊断时也要走一次（它只做命中表清空）—— 上一帧的气泡没了却留着命中表，
+        //    那些位置就会继续吃触摸。
+        if (hasDiags) DrawDiagnosticBubbles(canvas, diags, w, h, gutterW, lineH);
+        else _bubbleHits.Clear();
 
 #if DEBUG
         // 调试标尺：在**测量出来的行尾**画一条竖线（仅在调试 HUD 打开时）。
@@ -1669,25 +1727,33 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 是否画行号**数字**。视口正在移动（本帧滚动位置与上帧不同）时传 false ——
     /// 见 <see cref="Draw"/> 里对 <c>_lastDrawnFirstLine</c> 的说明。
     /// </param>
-    private sealed class GutterEntry
+    /// <summary>
+    /// 一行**单色纯文本**的缓存条目 —— **行号栏与诊断气泡共用这一份缓存**。
+    ///
+    /// 两者都是「频繁重绘的单色短文本」，而 Android 的 <c>DrawText</c> 每次都新建一个
+    /// <c>StaticLayout</c>（见 <see cref="TryDrawCachedLayout"/> 的长注释）—— 各建一套缓存
+    /// 就是两份一模一样的机制（本仓库反复记下的「同一规则两处实现」）。
+    /// </summary>
+    private sealed class TextEntry
     {
         public IAttributedText Text = null!;
 #if ANDROID
         public Android.Text.StaticLayout? Layout;
         public Android.Text.SpannableString? Span;
+        /// <summary>这份排版是按哪个字号编的（行号比正文小一号、气泡与正文同号）。</summary>
         public float FontSize;
 #endif
     }
 
 #if ANDROID
-    /// <summary>行号用缓存排版绘制；拿不到原生画布/画不成时返回 false（调用方回退 DrawText）。</summary>
-    private static bool TryDrawGutterCached(ICanvas canvas, GutterEntry entry, float x, float y)
+    /// <summary>用缓存排版画一行单色文本；拿不到原生画布/画不成时返回 false（调用方回退 DrawText）。</summary>
+    private static bool TryDrawTextCached(ICanvas canvas, TextEntry entry, float x, float y, float fontSize)
     {
         if (canvas is not Microsoft.Maui.Graphics.Platform.PlatformCanvas pc) return false;
         var native = pc.Canvas;
         if (native is null) return false;
 
-        float size = EditorTypography.FontSize - 1;   // 行号比正文小一号
+        float size = fontSize;
         if (entry.Layout is null || Math.Abs(entry.FontSize - size) > 0.01f)
         {
             entry.Layout?.Dispose();
@@ -1718,7 +1784,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 行号栏占其中一半。但**代价是数字一直在闪** —— 判据是「本帧视口位姿与上帧是否相同」，
         // 于是惯性滚动期间数字忽有忽无，视觉上比省下的那点时间糟得多（用户实测反馈）。
         // 真正的解法不是「少画」而是「别每帧重排版」：行号字符串高度重复（就那几十个数字），
-        // 现在与正文走**同一套缓存排版**（见 GutterEntry），一次编译反复绘制 ⇒
+        // 现在与正文走**同一套缓存排版**（见 TextEntry），一次编译反复绘制 ⇒
         // 既不闪、又比原来快。
         canvas.FontSize = EditorTypography.FontSize - 1;
         canvas.SaveState();
@@ -1731,24 +1797,40 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             var color = i == _caretLine
                 ? (_isDark ? Colors.White : Colors.Black)
                 : EditorTypography.GutterFg;
-            var entry = GutterEntryFor(label, color);
             // 与正文同一条路：能拿到原生画布就用**缓存好的排版**画，否则回退到 DrawText。
             // （行号也用排版而非 DrawString：两者的 y 语义在平台上并不一致
             //  —— DrawString/Android 是 em 底、iOS 是基线 —— 混用会让行号与代码整体错开。）
-#if ANDROID
-            if (TryDrawGutterCached(canvas, entry, x, y + EditorTypography.TextBaselineOffset)) continue;
-#endif
-#if WINDOWS
-            // Win2D 无 DrawText(IAttributedText) 实现 ⇒ 走 DrawString，y 要补一个字号
-            // （见 Win2DStringY）。行号是单色，直接设 FontColor 即可。
-            canvas.FontColor = color;
-            canvas.DrawString(entry.Text.Text ?? "", x,
-                Win2DStringY(y + EditorTypography.TextBaselineOffset), HorizontalAlignment.Left);
-#else
-            canvas.DrawText(entry.Text, x, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
-#endif
+            // 落笔路径与诊断气泡**共用一个实现**（见 DrawPlainText）。
+            DrawPlainText(canvas, label, color, x, y, lineH, EditorTypography.FontSize - 1);
         }
         canvas.RestoreState();
+    }
+
+    /// <summary>
+    /// 画一行**单色纯文本** —— 行号栏与诊断气泡**共用这一条落笔路径**（平台的差异只在这里一处）。
+    ///
+    /// 为什么不用 <c>DrawString</c> 一把梭：它的 y 语义在平台上并不一致
+    /// （Android 是 em 底、iOS 是基线），而 <c>DrawText</c> 是左上角锚定、两端一致 ——
+    /// 混用会让两处文本整体错开。调用方负责把 <c>canvas.FontSize</c> 设成
+    /// <paramref name="fontSize"/>（只有 Windows 的 <c>DrawString</c> 那条路会读它）。
+    /// </summary>
+    private void DrawPlainText(ICanvas canvas, string text, Color color,
+        float x, float y, float lineH, float fontSize)
+    {
+        if (text.Length == 0) return;
+        var entry = TextEntryFor(text, color, fontSize);
+#if ANDROID
+        if (TryDrawTextCached(canvas, entry, x, y + EditorTypography.TextBaselineOffset, fontSize)) return;
+#endif
+#if WINDOWS
+        // Win2D 无 DrawText(IAttributedText) 实现 ⇒ 走 DrawString，y 要补一个字号
+        // （见 Win2DStringY）。这类文本都是单色，直接设 FontColor 即可。
+        canvas.FontColor = color;
+        canvas.DrawString(text, x, Win2DStringY(y + EditorTypography.TextBaselineOffset),
+            HorizontalAlignment.Left);
+#else
+        canvas.DrawText(entry.Text, x, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
+#endif
     }
 
     /// <summary>
@@ -1839,19 +1921,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.FillPath(bottom);
     }
 
-    private readonly Dictionary<string, GutterEntry> _gutterCache = [];
+    private readonly Dictionary<string, TextEntry> _textCache = [];
 
     /// <summary>
-    /// 行号的带色文本（按「文本+颜色」缓存 —— 行号字符串高度重复，逐帧重建毫无必要），
-    /// Android 上连**平台排版**一起缓存（见 <see cref="TryDrawGutterCached"/>）。
+    /// 单色文本（行号 / 诊断气泡正文）的带色对象，按「文本 + 颜色 + **字号**」缓存 ——
+    /// 这两处的字符串高度重复（行号就那几十个数字、气泡正文只在诊断变化时才变），逐帧重建毫无必要；
+    /// Android 上连**平台排版**一起缓存（见 <see cref="TryDrawTextCached"/>）。
     ///
-    /// ⚠ 缓存里现在**含字号相关的排版** ⇒ 改字号要清（见 <see cref="MeasureAdvances"/>）。
-    /// 在只缓存 `AttributedText` 的年代它是字号无关的，那条注释已经不作数了。
+    /// ⚠ 缓存键**必须带上字号**：排版的编译与字号绑定，而同一个字符串完全可能以两种字号出现
+    /// （行号是「正文 − 1」、气泡与正文同号；一行内容恰好等于某个行号数字时就会撞上）。
+    /// 键里漏了它，那一项就会**每帧重建两次排版**（平台上每次都是一次完整 StaticLayout）——
+    /// 正是本仓「缓存键忘了带上会影响它的那个输入」那类坑。
     /// </summary>
-    private GutterEntry GutterEntryFor(string label, Color color)
+    private TextEntry TextEntryFor(string label, Color color, float fontSize)
     {
-        var key = label + "|" + color.ToHex();
-        if (_gutterCache.TryGetValue(key, out var cached)) return cached;
+        var key = label + "|" + color.ToHex() + "|" + fontSize.ToString("0.##");
+        if (_textCache.TryGetValue(key, out var cached)) return cached;
 
         // ⚠ 这里**不能**写 FontName —— 与正文段同一条铁律（见 BuildLineRuns 的长注释）：
         // run 上写 FontName 会被 MAUI 变成 Android 的 `TypefaceSpan(族名)`，而那个 API 只认
@@ -1859,7 +1944,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 只会**静默回落成平台默认的比例字体** —— 行号数字于是不是等宽的（右对齐的位数会歪）。
         // 不写则布局回落用 `canvas.Font`（= EditorTypography.CanvasFont），走的才是
         // `CreateFromAsset` 分支、能加载打包字体。
-        var entry = new GutterEntry
+        var entry = new TextEntry
         {
             Text = new AttributedText(label,
             [
@@ -1869,17 +1954,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 }),
             ]),
         };
-        if (_gutterCache.Count < 512) _gutterCache[key] = entry;
+        if (_textCache.Count < 512) _textCache[key] = entry;
         return entry;
     }
 
-    /// <summary>清空行号缓存（连排版一起释放）。改字号 / 换主题时调。</summary>
-    private void ClearGutterCache()
+    /// <summary>清空单色文本缓存（连排版一起释放）。改字号 / 换主题时调。</summary>
+    private void ClearTextCache()
     {
 #if ANDROID
-        foreach (var e in _gutterCache.Values) { e.Layout?.Dispose(); e.Span?.Dispose(); }
+        foreach (var e in _textCache.Values) { e.Layout?.Dispose(); e.Span?.Dispose(); }
 #endif
-        _gutterCache.Clear();
+        _textCache.Clear();
     }
 
     /// <summary>尚未加载的行：画一个占位符，绝不在这里等 IO（滚动会被拖成一顿一顿的）。</summary>
@@ -1887,14 +1972,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         => canvas.DrawString("⋯", x, y, HorizontalAlignment.Left);
 
     /// <summary>
-    /// 本文件是否存在诊断 —— 给绘制循环做**整段短路**用（每帧只查一次，而不是每行查一次）。
-    /// 空路径、无数据源（移动端就是这种）、查询异常一律判为「没有」。
+    /// 本文件的诊断快照（**每帧只取一次**，而不是每行查一次）。
+    ///
+    /// 返回的就是 <c>DiagnosticManager</c> 里那份表本身（不复制）—— 那边增删是**整体替换引用**
+    /// （见 <c>DiagnosticManager.CacheDiagnostics</c>），所以拿引用做「变了没有」的比较是成立的
+    /// （气泡内容就是照这个缓存的，见 <see cref="EnsureBubbleGroups"/>）。
+    /// 空路径、查询异常一律判为「没有」。
     /// </summary>
-    private bool HasDiagnostics()
+    private List<Diagnostic> SnapshotDiagnostics()
     {
-        if (_filePath.Length == 0) return false;
-        try { return DiagnosticManager.GetAll(_filePath).Count > 0; }
-        catch { return false; }
+        if (_filePath.Length == 0) return [];
+        try { return DiagnosticManager.GetAll(_filePath); } catch { return []; }
     }
 
     /// <summary>
@@ -1905,6 +1993,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private const float WaveAmplitude = 1.6f;
     private const float WaveStep = 3f;
     private const float WaveMaxWidth = 600f;
+
+    /// <summary>
+    /// 波浪线基线相对「行下缘」的上移量。**收起态那个小圆点也用它** ——
+    /// 圆点要落在波浪线的**起点**上（同一个 x 换算、同一个 y），这里各写一个 3f
+    /// 就是「同一规则两处实现」，改一处就会让圆点与波浪线错开。
+    /// </summary>
+    private const float WaveBaseInset = 3f;
 
     private void DrawDiagnosticWave(ICanvas canvas, long lineIndex, float y, float textX, float lineH)
     {
@@ -1923,7 +2018,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         float x0 = textX + MeasurePrefixWidth(line, from);
         float width = Math.Min(WaveMaxWidth, Math.Max(24f,
             MeasurePrefixWidth(line, line.Length) - MeasurePrefixWidth(line, from)));
-        float baseY = y + lineH - 3f;
+        float baseY = y + lineH - WaveBaseInset;
 
         canvas.StrokeColor = worst.Severity switch
         {
@@ -1942,6 +2037,472 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             up = !up;
         }
         canvas.DrawPath(path);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 编译诊断气泡（**画布绘制层**）
+    //
+    // 数据源**只有 DiagnosticManager**（与行下那条波浪线、页面上的错误列表同一份）——
+    // 所以 ✕ 关掉一个气泡时，波浪线与列表一起消失，不会「两边各说各话」。
+    //
+    // **为什么画在画布上而不是叠一层控件**：它要跟代码一起滚、一起缩放、一起裁剪 ——
+    // 那本来就是画布的坐标系。做成控件就得每帧把「视口坐标」再算一遍搬给布局
+    // （原先 EditorPage 里的 RelayoutBubbles 干的正是这件事），于是同一个位置有了两把尺子。
+    //
+    // **模型：每条诊断一个「展开 / 收起」状态**（不是两套独立机制）：
+    // · **展开** = 画气泡；**收起** = 在波浪线起点画一个小圆点（点圆点又能展开，是可逆的）；
+    // · 设置里的总开关定的是**默认值**（开 = 默认展开、关 = 默认收起），不是「能不能显示」；
+    // · 用户逐条的选择（✕ = 收起、点圆点 = 展开）**覆盖**默认值，且**切总开关时不清空**；
+    // · 诊断换了一批（重新编译 / 换文件 ⇒ `DiagnosticManager.Inject` 整体替换）时逐条状态作废
+    //   —— 那些 (行,列) 已经指向别的地方了。
+    //
+    // 几何规则（用户定的规格，逐条照做）：
+    // ① **可见性看「诊断那一行」**：锚点行与视口无交集 ⇒ 整个跳过，一个像素都不画
+    //    （气泡与收起态的小圆点都一样）。
+    //    判据**不是**「气泡矩形在不在视口里」—— 那样会出现「错误行已经滚出屏幕、
+    //    它的气泡还挂在屏幕上」；
+    // ② **位置只由 (错误行, 错误列) 决定**：永远摆在错误行**正下方**、锚点右侧。
+    //    **不做任何避让** —— 不翻到行上方、不夹进视口、不与别的气泡错开堆叠
+    //    （两条错误行挨得近、气泡互相压住是允许的）；
+    // ③ **同一 (行,列) 合并成一个气泡**，组内多条按 `1. …` `2. …` 往下排；
+    // ④ **宽度固定** = 每行字数（设置里的 `MauiEditorStore.BubbleChars`）× 半角字宽，
+    //    不随屏幕变、也不夹进视口（屏幕能横向滚，用户明确不要为宽度让步）；
+    // ⑤ **高度按内容** = 折行后的行数 × 行高 + 上下内边距（**不设行数上限**）；
+    // ⑥ 收起点那个小圆点画在**波浪线的起点**上（与 `DrawDiagnosticWave` 同一把尺子：
+    //    同一个「起始列 → x」换算、同一个 y），颜色就是那一档的波浪色；
+    // ⑦ 形状是**一体路径**：圆角矩形，但**左上角不收圆角、直接收成一个尖**，
+    //    尖端落在锚点上（不是「圆角矩形 + 另画一个小三角」—— 那要多一个图形、还容易对不齐）；
+    // ⑧ 内边距、圆角、尖、✕、圆点全部由字号推导（见 `EditorTypography` 的气泡几何那一节）。
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>一个 (行,列) 分组 —— 同一位置的多条诊断**合并成一个**气泡。</summary>
+    private sealed class DiagGroup
+    {
+        public int Line;
+        public int Column;
+
+        /// <summary>组内最严重的一档（决定气泡底色）。枚举顺序即严重度：Error &lt; Warning &lt; Info。</summary>
+        public Severity Severity;
+
+        /// <summary>组内的原始诊断（✕ 关闭时按条 <c>Dismiss</c> —— 关掉的就是这**一个气泡**）。</summary>
+        public readonly List<Diagnostic> Items = [];
+
+        /// <summary>已按显示列折好的正文行。</summary>
+        public string[] Lines = [];
+    }
+
+    /// <summary>
+    /// 一条诊断**算好的几何**（展开态 = 气泡、收起态 = 小圆点）—— 绘制与命中测试**共用这一份实例**。
+    ///
+    /// ⚠ 绝不在触摸处理里重算一遍：那是本仓库反复踩的「两把尺子」（看到的 ✕ 与点得中的 ✕ 错开）。
+    /// 那个**小目标**（✕ / 圆点）的「画出来的形状」与「点得中的热区」是两个矩形（热区明显大一圈），
+    /// 也在同一处算出来。
+    /// </summary>
+    private sealed class BubbleHit
+    {
+        public DiagGroup Group = null!;
+
+        /// <summary>本帧画的是展开态（气泡）还是收起态（小圆点）。</summary>
+        public bool Expanded;
+
+        /// <summary>展开态 = 气泡本体（同时是「点正文吞掉手势」的判据）；收起态 = 圆点那一小块。</summary>
+        public RectF Body;
+
+        /// <summary>
+        /// 那个小目标的**命中热区**（比画出来的形状大一圈 —— 手指点不中 17dp 的方块 / 8dp 的圆点）。
+        /// 它是**由画出来的那个矩形就地外扩**得到的（`Inflate(glyph, …)`，见 DrawBubble / DrawDot），
+        /// 所以这里只留结果：绘制矩形与热区出自同一个表达式，不会各算一份而错开。
+        /// </summary>
+        public RectF ToggleTouch;
+    }
+
+    /// <summary>本帧算出的气泡/圆点几何（每帧重算）。触摸命中测试读的就是它。</summary>
+    private readonly List<BubbleHit> _bubbleHits = [];
+
+    /// <summary>
+    /// 本帧所有气泡**最右缘的内容坐标**（不含横向滚动）—— 给横向滚动上限用
+    /// （见 <see cref="ComputeMaxScrollX"/>：不把它算进去，气泡右侧的 ✕ 就永远滚不到）。
+    /// </summary>
+    private float _bubbleRightCodeX;
+
+    /// <summary>
+    /// **用户逐条的展开/收起选择**（值：true = 展开），键是分组键 (行, 列)。
+    ///
+    /// 没进这张表的条目走默认值（设置里的总开关）。**切总开关时不清空这张表**（规格要求：
+    /// 逐条选择覆盖默认值），只在**诊断换了一批**时清（重建分组那一步，见 EnsureBubbleGroups）。
+    /// </summary>
+    private readonly Dictionary<(int Line, int Column), bool> _bubbleOverrides = [];
+
+    // 气泡**内容**的缓存：文本折行与分组只在「诊断变了 / 每行字数变了」时重做。
+    // 诊断表是**整体替换引用**的（见 SnapshotDiagnostics），所以比引用就够。
+    //
+    // ⚠ 键里**故意不含字号**：折行只按「每行几个字符」（`MauiEditorStore.BubbleChars`）算，
+    // 与字号无关；而所有像素级的尺寸都是每帧现读 `EditorTypography` 算的 ⇒
+    // **捏合缩放时不需要重建任何东西**（这正是「画在画布上」比「叠一层控件」好的地方：
+    // 老实现每改一次字号都要 `RebuildBubbles()` 把整批视图重建一遍）。
+    private List<DiagGroup>? _bubbleGroups;
+    private List<Diagnostic>? _bubbleSource;
+    private int _bubbleCols;
+
+    /// <summary>
+    /// 分组 + 折行（**纯内容**，与视口、与字号都无关）。内容没变就复用上一次的结果。
+    /// </summary>
+    private List<DiagGroup> EnsureBubbleGroups(List<Diagnostic> all)
+    {
+        int cols = MauiEditorStore.BubbleChars;
+
+        // 无诊断时每帧拿到的可能都是**新的空表**（DiagnosticManager.GetAll 找不到就返回新 List），
+        // 所以这种情况单独认「上次也是空」——否则每帧都要重建一次空表。
+        bool sameSource = all.Count == 0
+            ? _bubbleGroups is not null && _bubbleGroups.Count == 0 && _bubbleSource is null
+            : ReferenceEquals(_bubbleSource, all);
+        if (_bubbleGroups is not null && sameSource && _bubbleCols == cols) return _bubbleGroups;
+
+        // **诊断换了一批** ⇒ 逐条的展开/收起状态作废：那张表按 (行,列) 记，
+        // 而新的一批诊断里同样的 (行,列) 指的已经是别的东西了（换文件、重新编译都是这条路）。
+        // ⚠ 改「每行字数」**不算**换了一批 —— 那条路要保住用户的选择。
+        if (!sameSource) _bubbleOverrides.Clear();
+
+        _bubbleCols = cols;
+        _bubbleSource = all.Count == 0 ? null : all;
+        _bubbleGroups = BuildBubbleGroups(all, cols);
+        return _bubbleGroups;
+    }
+
+    /// <summary>按 (行,列) 分组并折行。**纯函数**（输入定了输出就定了）。</summary>
+    private static List<DiagGroup> BuildBubbleGroups(List<Diagnostic> all, int cols)
+    {
+        var map = new Dictionary<(int Line, int Column), DiagGroup>();
+        foreach (var d in all)
+        {
+            var key = (d.Line, d.Column);
+            if (!map.TryGetValue(key, out var g))
+            {
+                g = new DiagGroup { Line = d.Line, Column = d.Column, Severity = d.Severity };
+                map[key] = g;
+            }
+            g.Items.Add(d);
+            if (d.Severity < g.Severity) g.Severity = d.Severity;   // 取最严重的那档
+        }
+
+        var groups = new List<DiagGroup>(map.Count);
+        foreach (var kv in map) groups.Add(kv.Value);
+        // 稳定顺序（按行、再按列）：Dictionary 的遍历顺序是实现细节，而绘制顺序应当可预期
+        groups.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
+
+        foreach (var g in groups)
+        {
+            var lines = new List<string>();
+            for (int i = 0; i < g.Items.Count; i++)
+            {
+                var d = g.Items[i];
+                var body = d.Code is { Length: > 0 } code ? $"{d.Message}   [{code}]" : d.Message;
+
+                // 单条 → 保持改造前的观感（带上「第 N 行：」）；多条 → 用户要的 `1. …` / `2. …` 编号。
+                // 编号占掉的列数要从**可用列**里扣掉，否则第一行会顶出气泡宽度
+                // （续行因此比气泡窄几个列宽，宁可短一点也不许顶出去）。
+                string text = g.Items.Count == 1
+                    ? (d.Line > 0 ? $"第 {d.Line} 行：{body}" : body)
+                    : $"{i + 1}. {body}";
+                int prefix = g.Items.Count == 1 ? 0 : $"{i + 1}. ".Length;
+
+                foreach (var ln in WrapByColumns(text, cols - prefix).Split('\n'))
+                    if (ln.Length > 0) lines.Add(ln);   // 原文本里的空行不占高度
+            }
+            g.Lines = lines.Count > 0 ? [.. lines] : [""];
+        }
+        return groups;
+    }
+
+    /// <summary>
+    /// 按**显示列数**硬折行 —— 每行最多 <paramref name="maxCols"/> 列（全角算 2 列）。
+    ///
+    /// 为什么要自己折、而不是交给平台排版：平台的折行是**按控件宽度**算的，
+    /// 而这里要的是**按字符数**（"一行超过 32 字符就换行"）。两者只在字宽恰好均匀时才等价，
+    /// 而气泡里常混着中英文 —— 交给平台折，换行位置会随字号、字体、取整各处漂移，
+    /// 于是"每行 32 字"这条规矩根本立不住。
+    ///
+    /// 宽度真源用 <c>AnsiString.CharWidth</c>（全仓唯一那份，别在这儿另写一张表
+    /// —— 本仓为"同一规则两处实现"付过很多次代价）。
+    /// </summary>
+    private static string WrapByColumns(string text, int maxCols)
+    {
+        if (maxCols < 1 || text.Length == 0) return text;
+        var sb = new StringBuilder(text.Length + 16);
+        int col = 0;
+        // ⚠ 按**码点**遍历（`EnumerateRunes`）而不是 `foreach (char)`：
+        //   emoji / CJK 扩展 B 是 UTF-16 代理对（两个 char），逐 char 走会把它们拆开
+        //   —— 既是本仓明令禁止的（字符串处理一律按 Rune），`CharWidth` 本身也只收 `Rune`。
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (rune.Value == '\n') { sb.Append('\n'); col = 0; continue; }
+            int w = WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(rune);
+            if (col + w > maxCols) { sb.Append('\n'); col = 0; }
+            sb.Append(rune.ToString());
+            col += w;
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 画诊断标记（**展开 = 气泡 / 收起 = 小圆点**）—— 由 <see cref="Draw"/> 在
+    /// **代码、波浪线、手柄、行号栏之后**调用（最上层；只有滚动条与调试 HUD 压在它上面）。
+    ///
+    /// 每条标记的几何只由它自己那条错误行 + 它自己的展开/收起状态决定；
+    /// 本函数顺带把几何记进 <see cref="_bubbleHits"/> 供触摸命中测试使用
+    /// （**同一处算出来**，见 <see cref="BubbleHit"/>）。
+    /// </summary>
+    private void DrawDiagnosticBubbles(ICanvas canvas, List<Diagnostic> all,
+        float w, float h, float gutterW, float lineH)
+    {
+        _bubbleHits.Clear();
+        _bubbleRightCodeX = 0f;
+        var groups = EnsureBubbleGroups(all);
+        if (groups.Count == 0) return;
+
+        // 所有像素尺寸**每帧现读**（全部由 `EditorTypography.FontSize` 推导）⇒ 捏合缩放自动跟随
+        float halfW = Math.Max(1f, _charWidth);          // 半角字宽（与定位同一把尺子）
+        int cols = MauiEditorStore.BubbleChars;
+        float pad = EditorTypography.BubblePad;
+        float tipW = EditorTypography.BubbleTipWidth;
+        float tipH = EditorTypography.BubbleTipHeight;
+        float closeW = EditorTypography.BubbleCloseSize;
+        float dotR = EditorTypography.BubbleDotRadius;
+        float inflate = EditorTypography.BubbleHitInflate;
+        float textW = cols * halfW;
+        float bodyW = textW + pad * 2f + closeW;
+        float radius = EditorTypography.BubbleRadius;
+        var textColor = EditorTypography.BubbleTextColor;
+        // 默认展开还是默认收起由**设置里的总开关**定；用户逐条的选择覆盖它（见 _bubbleOverrides）
+        bool defaultExpanded = MauiEditorStore.DefaultExpandBubbles;
+
+        // 行号栏刚把字号减 1（见 DrawGutter），气泡正文要还原成与代码同号（用户要求「一般大」）
+        canvas.FontSize = EditorTypography.FontSize;
+
+        foreach (var g in groups)
+        {
+            // ── 锚点 + 可见性 ──
+            // ⚠ 不能写成 `bool anchored = cond && TryGetCellAnchor(out …)`：`&&` 的右侧不保证求值，
+            //   编译器会判 out 变量「可能未赋值」（CS0165）。分开写。
+            float anchorX = 0f, lineTop = 0f, tipY;
+            bool anchored = false;
+            if (g.Line > 0)
+                anchored = TryGetCellAnchor(g.Line, g.Column > 0 ? g.Column : 1, out anchorX, out lineTop);
+            if (anchored)
+            {
+                // **可见性判据 = 诊断那一行在不在视口里**（不是气泡/圆点的矩形）：
+                // 错误行滚出屏幕 ⇒ 它的标记一个像素都不画（气泡与小圆点都是一条规矩）。
+                if (lineTop + lineH <= 0f || lineTop >= h) continue;
+                // **永远在错误行正下方**（用户定的）：尖就落在那一行的下缘，绝不翻到上方。
+                tipY = lineTop + lineH;
+            }
+            else
+            {
+                // 解析不出行列的诊断（编译器没给位置）：贴在视口顶部、正文左缘（无尖可指）。
+                // 这类诊断不该因为「没有坐标」就从屏幕上消失（错误列表里还列着它们）。
+                anchorX = gutterW + EditorTypography.TextLeftPad;
+                tipY = 0f;
+            }
+
+            var wave = g.Severity switch
+            {
+                Severity.Error => EditorTypography.ErrorWave,
+                Severity.Warning => EditorTypography.WarnWave,
+                _ => EditorTypography.InfoWave,
+            };
+
+            bool expanded = _bubbleOverrides.TryGetValue((g.Line, g.Column), out var ov)
+                ? ov : defaultExpanded;
+
+            if (expanded) DrawBubble(canvas, g, wave, anchored, anchorX, tipY,
+                pad, tipW, tipH, closeW, inflate, bodyW, radius, textColor, lineH, w, h);
+            else DrawDot(canvas, g, wave, anchored, anchorX, lineTop, lineH,
+                dotR, inflate, w, h);
+        }
+    }
+
+    /// <summary>展开态：一体路径的圆角矩形（左上角收成一个尖）+ 正文 + 右上角的 ✕。</summary>
+    private void DrawBubble(ICanvas canvas, DiagGroup g, Color wave, bool anchored,
+        float bx, float tipY, float pad, float tipW, float tipH, float closeW, float inflate,
+        float bodyW, float radius, Color textColor, float lineH, float w, float h)
+    {
+        float bodyH = g.Lines.Length * lineH + pad * 2f;
+        float bodyTop = tipY + tipH;    // 上边缘（尖在它上面 tipH 处）
+
+        // 一体路径：圆角矩形，**左上角不收圆角、直接收成一个尖**
+        // （不是「圆角矩形 + 另画一个小三角」：那要多一个图形，还要处理两者的对齐/接缝）。
+        // 填充与描边**用同一个 path**（先 fill 再 stroke）—— 两者于是严丝合缝，
+        // 不会出现「描边把尖啃掉一块」那种毛刺。
+        // 记下最右缘（**内容坐标** = 视口坐标 + 横向滚动）供横向滚动上限用 —— 见 _bubbleRightCodeX
+        _bubbleRightCodeX = MathF.Max(_bubbleRightCodeX, bx + _scrollX + bodyW);
+
+        var path = BubblePath(bx, tipY, bodyW, bodyH, tipW, tipH, radius, anchored);
+        canvas.FillColor = EditorTypography.BubbleFill(wave);
+        canvas.FillPath(path);
+        // 细描边：把气泡与同色系的代码分开（没它时两者容易糊在一起）。颜色取主题边框色系。
+        canvas.StrokeColor = EditorTypography.BubbleStroke;
+        canvas.StrokeSize = EditorTypography.BubbleStrokeSize;
+        canvas.StrokeLineCap = LineCap.Round;
+        canvas.DrawPath(path);
+
+        // 正文（字号 = 编辑器字号；颜色跟随主题，见 EditorTypography.BubbleTextColor）
+        float textX = bx + pad;
+        for (int i = 0; i < g.Lines.Length; i++)
+            DrawPlainText(canvas, g.Lines[i], textColor, textX,
+                bodyTop + pad + i * lineH, lineH, EditorTypography.FontSize);
+
+        // ✕（右上角）：画出来的笔迹在 `glyph` 里（内缩三分之一），
+        // 命中热区是它外扩一圈的方块 —— **两者都在这里算**，触摸处理直接用。
+        var glyph = new RectF(bx + bodyW - pad - closeW, bodyTop + pad, closeW, closeW);
+        canvas.StrokeColor = textColor;
+        canvas.StrokeSize = MathF.Max(1.5f, EditorTypography.FontSize * 0.12f);
+        canvas.StrokeLineCap = LineCap.Round;
+        float inset = closeW / 3f;
+        canvas.DrawLine(glyph.X + inset, glyph.Y + inset, glyph.Right - inset, glyph.Bottom - inset);
+        canvas.DrawLine(glyph.Right - inset, glyph.Y + inset, glyph.X + inset, glyph.Bottom - inset);
+
+        _bubbleHits.Add(new BubbleHit
+        {
+            Group = g,
+            Expanded = true,
+            // 本体矩形含左上角那个尖（tipH 那一段），这样「点在尖上」也算点在气泡上
+            Body = new RectF(bx, tipY, bodyW, bodyH + tipH),
+            ToggleTouch = Inflate(glyph, inflate, w, h),
+        });
+    }
+
+    /// <summary>
+    /// 收起态：**一个小圆点，画在波浪线的起点上**。
+    ///
+    /// 「波浪线起点」= 该诊断起始列换算出来的 x（`MeasurePrefixWidth`，与 <see cref="DrawDiagnosticWave"/>
+    /// 同一个换算）与那一条波浪线的 y —— **同一把尺子**，所以圆点正好落在波浪线头上，
+    /// 不会与它错开。颜色就是那一档的波浪色（错误红 / 警告黄 / 提示绿）。
+    /// 点它就把这一条**展开**（可逆 —— 与「彻底删掉这条诊断」不是一回事）。
+    /// </summary>
+    private void DrawDot(ICanvas canvas, DiagGroup g, Color wave, bool anchored,
+        float anchorX, float lineTop, float lineH, float dotR, float inflate, float w, float h)
+    {
+        // y 与 DrawDiagnosticWave **同源**（那边是 `y + lineH - WaveBaseInset`）：
+        // 圆点于是正好落在波浪线的头上。诊断没有位置信息时（anchored=false）它本来也没有
+        // 波浪线可对齐，就贴在视口顶部 —— 总不能让它整个跑到画布外面去、连点都点不着。
+        float cy = anchored ? lineTop + lineH - WaveBaseInset : dotR + 2f;
+
+        // 圆点的右缘也记进内容最右缘（与气泡同理）：锚点列偏右时，横向滚得到才点得着。
+        _bubbleRightCodeX = MathF.Max(_bubbleRightCodeX, anchorX + _scrollX + dotR);
+
+        canvas.FillColor = wave;
+        canvas.FillCircle(anchorX, cy, dotR);
+
+        var box = new RectF(anchorX - dotR, cy - dotR, dotR * 2f, dotR * 2f);
+        _bubbleHits.Add(new BubbleHit
+        {
+            Group = g,
+            Expanded = false,
+            // 收起态没有「本体」可言：那一块就是圆点的热区，点它就是展开
+            Body = Inflate(box, inflate, w, h),
+            ToggleTouch = Inflate(box, inflate, w, h),
+        });
+    }
+
+    /// <summary>把一个小目标的绘制矩形外扩成**命中热区**，并收进画布内。</summary>
+    private static RectF Inflate(RectF r, float inflate, float w, float h)
+        => ClampToCanvas(new RectF(r.X - inflate, r.Y - inflate,
+            r.Width + inflate * 2f, r.Height + inflate * 2f), w, h);
+
+    /// <summary>
+    /// 气泡轮廓 —— 圆角矩形，**左上角不收圆角、直接收成一个尖**（尖端 = <paramref name="tipX"/>,
+    /// <paramref name="tipY"/>），其余三个角照旧圆角。
+    ///
+    /// 为什么要一个「尖」而不是「圆角矩形 + 另画的三角尾巴」：尾巴是**居中挂在气泡边上**的，
+    /// 要向左伸出半个尾巴宽 —— 而错误在第 1 列时锚点已经在正文最左，**没有向左伸的余地**
+    /// （要么尾巴被裁掉，要么把气泡右移、于是尖端又对不准）。尖是气泡自己的左上顶点，
+    /// 气泡只向右展开，天然没有这个问题；顺带还少画一个图形、不会出现「尾巴与气泡对不齐」。
+    ///
+    /// <paramref name="withTip"/>=false（诊断没有行列信息）时退化成普通圆角矩形。
+    /// </summary>
+    private static PathF BubblePath(float tipX, float tipY, float bodyW, float bodyH,
+        float tipW, float tipH, float r, bool withTip)
+    {
+        float x0 = tipX, x1 = tipX + bodyW;
+        float y0 = tipY + tipH, y1 = tipY + tipH + bodyH;
+        r = Math.Max(0f, Math.Min(r, Math.Min(bodyW, bodyH) / 2f));
+
+        var p = new PathF();
+        if (withTip)
+        {
+            float jx = x0 + tipW, jy = y0;             // 斜边与上边缘的交点
+            // 交点处用一小段圆弧过渡（半径取尖高的 40%，并夹在斜边长度内）——
+            // 两条边直接相交会在那儿留一个**折角**，放大字号时看得出来是个毛刺。
+            float diag = MathF.Sqrt(tipW * tipW + tipH * tipH);
+            float rj = MathF.Min(tipH * 0.4f, diag * 0.45f);
+            float ux = diag > 0.01f ? (jx - x0) / diag : 1f;   // 斜边方向单位向量
+            float uy = diag > 0.01f ? (jy - tipY) / diag : 0f;
+
+            p.MoveTo(x0, tipY);                        // 尖端（锚点：错误格左缘 × 该行下缘）
+            p.LineTo(jx - ux * rj, jy - uy * rj);      // 斜边
+            p.QuadTo(jx, jy, jx + rj, jy);             // 交点的圆滑过渡 → 上边缘
+        }
+        else
+        {
+            p.MoveTo(x0, y0);
+        }
+        p.LineTo(x1 - r, y0);                          // 上边缘
+        p.QuadTo(x1, y0, x1, y0 + r);                  // 右上角
+        p.LineTo(x1, y1 - r);                          // 右边缘
+        p.QuadTo(x1, y1, x1 - r, y1);                  // 右下角
+        p.LineTo(x0 + r, y1);                          // 下边缘
+        p.QuadTo(x0, y1, x0, y1 - r);                  // 左下角
+        p.LineTo(x0, y0);                              // 左边缘（上端与尖相连）
+        p.Close();
+        return p;
+    }
+
+    /// <summary>把一个矩形收进画布内（气泡溢出屏幕时，✕ 的热区不该跟到画布外面去）。</summary>
+    private static RectF ClampToCanvas(RectF r, float w, float h)
+    {
+        float x0 = Math.Clamp(r.X, 0f, w), y0 = Math.Clamp(r.Y, 0f, h);
+        float x1 = Math.Clamp(r.Right, 0f, w), y1 = Math.Clamp(r.Bottom, 0f, h);
+        return new RectF(x0, y0, Math.Max(0f, x1 - x0), Math.Max(0f, y1 - y0));
+    }
+
+    /// <summary>
+    /// 按下的点是不是落在某个**小目标**上 —— 展开态的 ✕ / 收起态的小圆点。
+    /// 命中几何来自上一帧绘制（见 <see cref="_bubbleHits"/>），**不在触摸里另算一份**。
+    /// </summary>
+    private BubbleHit? HitDiagToggle(float x, float y)
+    {
+        foreach (var b in _bubbleHits)
+            if (b.ToggleTouch.Contains(x, y)) return b;
+        return null;
+    }
+
+    /// <summary>
+    /// 按下的点是不是落在气泡**正文**上（点正文不切换状态，但手势要吞掉）。
+    ///
+    /// 点正文**不**关气泡：正文正是用户要读的东西，长报错尤其容易误触。
+    /// </summary>
+    private bool HitBubbleBody(float x, float y)
+    {
+        foreach (var b in _bubbleHits)
+            if (b.Expanded && b.Body.Contains(x, y)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 把一条诊断切成展开（气泡）或收起（小圆点）—— **点 ✕ 与点圆点都走这里**，
+    /// 于是「展开/收起」这条规则只有一处实现。
+    ///
+    /// ⚠ 这里**不动** `DiagnosticManager`：那条诊断仍然存在（行下波浪线照画、错误列表照列），
+    /// 只是它在编辑器里的标记换了个形态。这正是「✕ 不是删掉、而是收起来」的落地方式 ——
+    /// 所以它**可逆**（点那一点小圆点就能再展开）。
+    /// </summary>
+    private void SetDiagExpanded(DiagGroup g, bool expanded)
+    {
+        _bubbleOverrides[(g.Line, g.Column)] = expanded;
+
+        // 几何从「气泡」变成「小圆点」（或反过来），命中表必须作废：留着的话紧接着的第二次点击
+        // 会按**旧几何**再切一次（那会儿那块位置可能已经换成了别的诊断）。
+        _bubbleHits.Clear();
     }
 
     // ── 行渲染（带缓存的唯一实现）──
@@ -2880,7 +3441,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _charWidth = lat;
         _wideCharWidth = wide;
         _advanceCache.Clear();   // 字号变了，非打包字体字符的推进量也得重量
-        ClearGutterCache();      // 行号缓存里也挂着按字号编好的排版
+        ClearTextCache();      // 行号/气泡的文本缓存里也挂着按字号编好的排版
     }
 
     /// <summary>

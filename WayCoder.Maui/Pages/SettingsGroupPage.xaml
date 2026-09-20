@@ -242,6 +242,9 @@
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Entry x:Name="EditorBubbleCharsEntry" Keyboard="Numeric" Placeholder="32"
                            Completed="OnEditorBubbleCharsCompleted" Unfocused="OnEditorBubbleCharsCompleted" />
+                    <Label Text="诊断气泡默认展开。关掉之后每条错误**收成一个小圆点**（画在波浪线起点：错误红、警告黄、提示绿），点圆点仍可单独展开那一条；右上角的 ✕ 则把某一条收起来。行下那条波浪线不受这个开关影响（关掉气泡后它照常显示，是仅存的错误指示）。"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Switch x:Name="EditorBubblesSwitch" Toggled="OnEditorBubblesToggled" />
                     <Label Text="源码编辑时自动把全角标点转成半角（，。；：（）等）。中文字符串与注释里的标点保持不变。"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorFullWidthSwitch" Toggled="OnEditorFullWidthToggled" />

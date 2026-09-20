@@ -39,6 +39,26 @@ public static class MauiEditorStore
     /// <summary>气泡每行最多几个字符（按**显示宽度**算：全角算 2）。</summary>
     public static int BubbleChars => _bubbleChars;
 
+    // ── 诊断气泡总开关 ────────────────────────────────────────────────────────
+    //
+    // 模型是**「每条诊断一个展开/收起状态」**（见 `CodeCanvasView`）：展开 = 画气泡，
+    // 收起 = 在波浪线起点画一个小圆点（点圆点又能展开）。本开关定的是**默认值**，不是「能不能显示」：
+    //   · 开 → 默认展开（画气泡）
+    //   · 关 → 默认收起（画小圆点）
+    // 用户逐条的选择（✕ = 收起、点圆点 = 展开）**覆盖**这个默认值，且**切开关时不清空**。
+    //
+    // ⚠ 本开关**只管气泡/圆点**，不管行下那条波浪线 —— 波浪线是既有的独立指示
+    // （`DrawDiagnosticWave`），数据源虽然同一份，但关掉气泡之后**只剩波浪线可以指示错误**。
+
+    /// <summary>是否**默认展开**诊断气泡 —— **缺键 = 开**（老版本升上来的 editor.json 里没有这个键）。</summary>
+    public static bool DefaultExpandBubbles { get; private set; } = true;
+
+    public static void SetDefaultExpandBubbles(bool on)
+    {
+        DefaultExpandBubbles = on;
+        Save();
+    }
+
     /// <summary>把任意值夹进合法区间 —— 纯函数，让"夹取"这条规则只有一处实现。</summary>
     public static int ClampBubbleChars(int n) => Math.Clamp(n, MinBubbleChars, MaxBubbleChars);
 
@@ -158,6 +178,10 @@ public static class MauiEditorStore
             // 再被 Clamp 夹成 16 ⇒ 用户的界面"自己变窄了"，而他根本没改过这项。
             if (root.Has("bubbleChars")) _bubbleChars = ClampBubbleChars((int)root.GetNumber("bubbleChars"));
 
+            // 气泡**默认展开**（总开关）：与 fullWidthToHalf 同理 —— **默认开**，所以「缺键」与
+            // 「键=false」必须分开判：裸 GetBool 会让老配置静默变成「气泡全收起来了」，而用户没关过。
+            DefaultExpandBubbles = !root.Has("defaultExpandBubbles") || root.GetBool("defaultExpandBubbles");
+
             int enc = (int)root.GetNumber("saveEncoding");
             if (enc >= 0 && enc <= (int)SaveEncoding.Oem) SaveAsEncoding = (SaveEncoding)enc;
             int nl = (int)root.GetNumber("saveNewline");
@@ -214,6 +238,7 @@ public static class MauiEditorStore
             root.Set("debugHud", ShowDebugHud);
             root.Set("fullWidthToHalf", FullWidthToHalf);
             root.Set("bubbleChars", _bubbleChars);
+            root.Set("defaultExpandBubbles", DefaultExpandBubbles);
             root.Set("saveEncoding", (int)SaveAsEncoding);
             root.Set("saveNewline", (int)SaveAsNewline);
             Global.WriteAllTextAtomic(StorePath, root.ToJson());

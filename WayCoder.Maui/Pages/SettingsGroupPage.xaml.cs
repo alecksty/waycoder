@@ -115,6 +115,7 @@ public partial class SettingsGroupPage : ContentPage
             EditorLimitPicker.SelectedIndex = idx;
             EditorDebugSwitch.IsToggled = Services.MauiEditorStore.ShowDebugHud;
             EditorBubbleCharsEntry.Text = Services.MauiEditorStore.BubbleChars.ToString();
+            EditorBubblesSwitch.IsToggled = Services.MauiEditorStore.DefaultExpandBubbles;
             EditorFullWidthSwitch.IsToggled = Services.MauiEditorStore.FullWidthToHalf;
 
             EditorEncodingPicker.ItemsSource = EncOptions.Select(o => o.Label).ToList();
@@ -162,6 +163,19 @@ public partial class SettingsGroupPage : ContentPage
     {
         if (_loadingEditorSettings) return;
         Services.MauiEditorStore.SetFullWidthToHalf(e.Value);
+    }
+
+    /// <summary>
+    /// 诊断气泡的**总开关**（全部展开 / 全部收起）—— 它定的是**默认值**，不是「能不能显示」：
+    /// 关掉之后每条错误收成一个小圆点（点圆点仍可单独展开那一条）。
+    ///
+    /// 与 ✕ 的「单独收起」互相独立：这里**不动** `DiagnosticManager` 里任何一条诊断，
+    /// 也不清用户逐条的选择 —— 所以重新打开总开关时，之前用 ✕ 收起的那几条仍然是收起的。
+    /// </summary>
+    private void OnEditorBubblesToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        Services.MauiEditorStore.SetDefaultExpandBubbles(e.Value);
     }
 
     private void OnEditorEncodingChanged(object? sender, EventArgs e)

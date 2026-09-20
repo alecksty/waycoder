@@ -83,9 +83,8 @@ public partial class EditorPage : ContentPage
         {
             UpdateStatus();
             UpdateSelectionBar();
-            // 气泡锚点是**视口坐标**，跟着滚动就失效 —— 每次视口变化都要重摆一次
-            // （与选区操作条同一个道理：不跟就会停在原地，而错误行已经滚走了）
-            RelayoutBubbles();
+            // 诊断气泡**不需要在这里跟**：它是画布自己画的，锚点、可见性全在 Draw 里现算
+            // （滚动本来就带着一次 Invalidate）。这类「页面替画布算坐标」的活就该没有。
             // 编辑中滚动**不挪输入框**：它是全透明的，只用来换出软键盘，
             // 自带光标一概不用 ⇒ 它浮在屏幕哪个位置都不影响观感。
             // 每帧去挪它反而要更新一个原生控件布局，长列表滚动会掉帧。
@@ -494,24 +493,38 @@ public partial class EditorPage : ContentPage
 
 #if DEBUG
     /// <summary>
-    /// 灌一批覆盖三种严重度、含「同一行两条」与「无锚一条」的假诊断 ——
-    /// 气泡的颜色/堆叠/避让/✕/滚动跟随都能靠它验收，不必真的等一次编译。
+    /// 灌一批覆盖三种严重度、含「同一行两条」「无锚一条」以及三个**边界位置**的假诊断 ——
+    /// 气泡的颜色/合并/✕/滚动跟随、以及「尖有没有被裁」都能靠它验收，不必真的等一次编译。
+    ///
+    /// 三个边界是用户点名的（它们正是「尾巴居中挂在气泡边上」那套老做法的死穴）：
+    /// · **第 1 列**：锚点已在正文最左，气泡整体向右展开即可，什么都不该被裁；
+    /// · **第 1 列 + 最后一行**：气泡往下展开会超出内容底部（规格：允许，滚动看得见）；
+    /// · **同一行里最左（第 1 列）与最右（第 200 列）各一条**：两泡各自向右展开、
+    ///   允许互相压住（规格：不做任何避让）。
     /// </summary>
     private void InjectFakeDiagnostics()
     {
         if (_editable == null) { ShowToast("大文件只读，没有可注入的行"); return; }
 
         long mid = Math.Max(1, _editable.LineCount / 2);
+        long last = Math.Max(1, _editable.LineCount);
+        long edge = Math.Max(1, _editable.LineCount / 4);   // 同一行里放「最左 + 最右」两条
         var list = new List<Diagnostic>
         {
             new((int)mid, 1, Severity.Error, "语法错误：未预期的 token（测试用）", "Parser_UnexpectedToken"),
             new((int)mid, 8, Severity.Warning, "变量已声明但未被使用（测试用）", null),
             new((int)Math.Min(_editable.LineCount, mid + 3), 3, Severity.Info, "这里是提示信息（测试用）", null),
-            new(0, 0, Severity.Error, "这条没有位置信息，气泡不画箭头（测试用）", null),
+            // 同一位置两条 —— 必须合并成一个气泡、正文排成 `1. …` / `2. …`
+            new((int)Math.Min(_editable.LineCount, mid + 6), 5, Severity.Error, "同一格的第二条（测试用）", "E2"),
+            new((int)Math.Min(_editable.LineCount, mid + 6), 5, Severity.Warning, "同一格的第三条（测试用）", null),
+            // 边界①第 1 列 / ②第 1 列 + 最后一行 / ③同一行最左与最右
+            new((int)edge, 1, Severity.Error, "第 1 列：气泡尖应贴着正文左缘、不许被裁（测试用）", null),
+            new((int)last, 1, Severity.Warning, "最后一行第 1 列：气泡往下超出内容底部也照画（测试用）", null),
+            new((int)edge, 200, Severity.Info, "同一行最右：气泡向右展开（测试用）", null),
+            new(0, 0, Severity.Error, "这条没有位置信息，气泡不画尖（测试用）", null),
         };
         try { DiagnosticManager.Inject(_relPath, list); } catch { }
         Canvas.InvalidateAll();
-        RebuildBubbles();
         UpdateStatus();
         ShowToast($"已注入 {list.Count} 条测试诊断");
     }
@@ -563,9 +576,9 @@ public partial class EditorPage : ContentPage
         LineEditor.MaximumHeightRequest = 1;
         Canvas.ResetTypography();
 
-        // 气泡要**跟着一起放大缩小**（用户要求）：它的字号、每行字数、行数估算、尾巴尺寸
-        // 全都是从字号算出来的 ⇒ 整体重建比逐项改属性可靠。没有气泡时是一次极便宜的早退。
-        RebuildBubbles();
+        // 气泡也跟着一起放大缩小：它的字号、每行字数、尖的尺寸全是从字号算出来的，
+        // 而 `Canvas.ResetTypography()` 已经触发重绘 ⇒ 下一帧按新字号重算（见 EnsureBubbleGroups
+        // 的缓存键里那个字号）。这里不需要任何收尾。
 
         // 菜单路径弹轻提示（它过 2 秒会自己把状态栏恢复成 UpdateStatus）；
         // 捏合路径没有提示，得自己刷一下状态栏 —— 否则要等下一次光标/滚动事件才看到新字号。
@@ -691,9 +704,9 @@ public partial class EditorPage : ContentPage
 
         bool dark = IsDarkTheme;   // 判据只有一处（见 IsDarkTheme 的说明）
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
-        // 上个文件留下来的气泡必须清掉 —— 那些行号对新文件毫无意义，而它们还会**浮在代码上**
+        // 上个文件留下来的诊断必须清掉 —— 那些行号对新文件毫无意义，而它们还会**画在代码上**
+        // （气泡与波浪线都吃这一份数据；`SetDocument` 已经换了文件路径，画布下一帧自然按新路径读）
         try { DiagnosticManager.Inject(relPath, []); } catch { }
-        RebuildBubbles();
         SetReadOnly(true);   // 打开一律先进只读（对齐旧行为：默认只读，手动解锁编辑）
         // 「预览 / 运行」那一格的图标与可见性 —— 换文件后必须重设（.md → 👁、.c → ▶、.txt → 隐藏）
         ApplyActionButton();
@@ -820,8 +833,7 @@ public partial class EditorPage : ContentPage
     {
         try
         {
-            Canvas.SetDark(IsDarkTheme);
-            RebuildBubbles();
+            Canvas.SetDark(IsDarkTheme);   // 气泡的底色/文字色也在这条路上重建（按需缓存会整体作废）
             // 面板 Tab 的选中态是**代码赋值**的（见 SwitchPanelTab），换主题不会自己变
             SwitchPanelTab(_panelTab);
             // 「没有错误。」那行与各诊断行的颜色也是建的时候取的
@@ -843,6 +855,11 @@ public partial class EditorPage : ContentPage
         // 每次进来都回到「有栏」状态：全屏是靠隐藏导航栏实现的，若带着全屏状态重新进入，
         // 用户第一眼看到的是没有返回箭头的界面，容易以为进了死路。
         if (_fullscreen) SetFullscreen(false);
+
+        // 设置页改的编辑器项（气泡每行字数 / 气泡总开关）要在**回到本页时**生效：
+        // 那些值是在绘制时现读的（见 CodeCanvasView），所以只要重画一帧即可 —— 不重画的话
+        // 屏幕上留着的还是进来之前那张画面，看着就是「设置没生效」。
+        Canvas.Invalidate();
     }
 
     protected override void OnDisappearing()
@@ -1342,49 +1359,11 @@ public partial class EditorPage : ContentPage
         UpdateSelectionBar();
     }
 
-    // ══════════════════════════════════════════════════════════════════
-    // 编译诊断气泡
-    //
-    // 数据源**只有 DiagnosticManager**（与行下那条波浪线同一份）—— 所以关掉气泡，
-    // 波浪线一起消失，不会出现「两边各说各话」。
-    // ══════════════════════════════════════════════════════════════════
-
-    /// <summary>气泡正文最多显示几行（超了截断加省略号）—— 给了上限，高度才算得准。</summary>
-    private const int BubbleMaxLines = 6;
-    private const float BubbleGap = 4f;
-
     /// <summary>
-    /// 气泡里的文字大小 —— **就是编辑器字号**（用户要求「和文字一般大」）。
-    ///
-    /// 跟着缩放一起变：捏合改字号时会重建气泡（见 <c>ApplyFontSize</c>），
-    /// 所以这里读的永远是当前值，不需要另存一份。
-    /// </summary>
-    private static float BubbleFont => EditorTypography.FontSize;
-
-    /// <summary>尾巴尺寸随字号等比缩放 —— 字号放大而箭头不变的话，两者会明显不搭。</summary>
-    private static float BubbleTailSize => MathF.Max(6f, EditorTypography.FontSize * 0.75f);
-
-    /// <summary>
-    /// 当前是不是暗色主题 —— **判据只有这一处**（气泡文字色、打开文件时传给画布的
-    /// <c>dark</c> 都问它）。与 <c>EditorTypography</c> 的 <c>Xxx / XxxDark</c> 配对惯例一致。
+    /// 当前是不是暗色主题 —— **判据只有这一处**（打开文件时传给画布的 <c>dark</c>、面板 Tab
+    /// 的选中态、选区操作条都问它）。与 <c>EditorTypography</c> 的 <c>Xxx / XxxDark</c> 配对惯例一致。
     /// </summary>
     private static bool IsDarkTheme => Application.Current?.RequestedTheme == AppTheme.Dark;
-
-    /// <summary>气泡正文/✕ 的颜色：跟随系统主题（用户要求）。</summary>
-    private static Color BubbleTextColor
-        => IsDarkTheme ? EditorTypography.BubbleTextDark : EditorTypography.BubbleText;
-
-    /// <summary>一条气泡的视图与定位状态。</summary>
-    private sealed class BubbleView
-    {
-        public required Diagnostic Diag { get; init; }
-        public required AbsoluteLayout Root { get; init; }
-        public required Shapes.Polygon Tail { get; init; }
-        public required Border Body { get; init; }
-        public float BodyHeight { get; init; }
-    }
-
-    private readonly List<BubbleView> _bubbles = [];
 
     /// <summary>本文件当前的诊断（读不到就当没有，绝不因为诊断查询把编辑器搞崩）。</summary>
     private List<Diagnostic> DiagnosticsForThisFile()
@@ -1395,297 +1374,14 @@ public partial class EditorPage : ContentPage
     }
 
     /// <summary>
-    /// 按当前诊断**重建**气泡层 —— 只在诊断集合变化时调（换文件、编译完、关掉一条）。
-    /// 滚动走 <see cref="RelayoutBubbles"/> 只挪位置，不重建视图。
-    /// </summary>
-    private void RebuildBubbles()
-    {
-        DiagLayer.Clear();
-        _bubbles.Clear();
-
-        foreach (var d in DiagnosticsForThisFile().OrderBy(x => x.Line).ThenBy(x => x.Column))
-        {
-            var b = BuildBubble(d);
-            _bubbles.Add(b);
-            DiagLayer.Add(b.Root);
-        }
-
-        DiagLayer.IsVisible = _bubbles.Count > 0;
-        RelayoutBubbles();
-    }
-
-    private BubbleView BuildBubble(Diagnostic d)
-    {
-        // 底色**派生自**波浪线那三个常量（不是另抄一份十六进制）—— 调色只动 EditorTypography
-        var fill = EditorTypography.BubbleFill(d.Severity switch
-        {
-            Severity.Error => EditorTypography.ErrorWave,
-            Severity.Warning => EditorTypography.WarnWave,
-            _ => EditorTypography.InfoWave,
-        });
-
-        var text = d.Code is { Length: > 0 } code ? $"{d.Message}   [{code}]" : d.Message;
-        if (d.Line > 0) text = $"第 {d.Line} 行：{text}";
-
-        // **自己折行**（按设置里的列数），所以 `LineBreakMode` 必须是 `NoWrap` ——
-        // 交给平台再折一次的话，我们算好的换行位置会被它按宽度重排，规矩就没了。
-        var wrapped = WrapByColumns(text, Services.MauiEditorStore.BubbleChars);
-
-        var msg = new Label
-        {
-            Text = wrapped,
-            FontSize = BubbleFont,
-            TextColor = BubbleTextColor,
-            LineBreakMode = LineBreakMode.NoWrap,
-            VerticalOptions = LayoutOptions.Center,
-        };
-
-        // ✕ 右上角。**只有它可关**（点正文不关）—— 长报错很容易误触，
-        // 而正文正是用户要读的东西。热区比字形大一圈，手指才点得中。
-        var close = new Label
-        {
-            Text = "✕",
-            FontSize = BubbleFont,
-            TextColor = BubbleTextColor,
-            VerticalOptions = LayoutOptions.Start,
-            Padding = new Thickness(12, 0, 4, 10),
-        };
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => DismissBubble(d);
-        close.GestureRecognizers.Add(tap);
-
-        var inner = new Grid
-        {
-            ColumnDefinitions = [new ColumnDefinition(GridLength.Star), new ColumnDefinition(GridLength.Auto)],
-            Padding = new Thickness(10, 6, 2, 6),
-        };
-        inner.Add(msg);
-        inner.Add(close, 1);
-
-        // **高度按字符数估出来并写死**：MAUI 的 Measure 是异步的，拿不到就别想做「堆叠不重叠」
-        // 的算术。写死高度之后布局完全确定，几十条气泡也不会算错。
-        // 估行高/每行字数都用同一个字号 —— 字号一变，宽度与高度都要跟着重算（见 ApplyFontSize 的重建）
-        // 行数**数真实的换行**，不再按字符数估 —— 折行已经是自己做的，估反而会算错
-        //（中英混排时一行的**字符数**与**列数**不是一回事）。
-        // 超过上限的截断在这里做：`NoWrap` 之后 `MaxLines` 管不住我们插入的 `\n`，
-        // 不截的话文字会溢出边框。
-        var linesArr = wrapped.Split('\n');
-        if (linesArr.Length > BubbleMaxLines)
-        {
-            wrapped = string.Join('\n', linesArr.Take(BubbleMaxLines - 1))
-                      + "\n" + linesArr[BubbleMaxLines - 1] + "…";
-            msg.Text = wrapped;
-            linesArr = wrapped.Split('\n');
-        }
-        int lines = linesArr.Length;
-        float bodyH = lines * (BubbleFont * 1.4f) + 12f;
-
-        var body = new Border
-        {
-            Content = inner,
-            BackgroundColor = fill,
-            StrokeThickness = 0,
-            StrokeShape = new Shapes.RoundRectangle { CornerRadius = 8 },
-            WidthRequest = BubbleWidth,
-            HeightRequest = bodyH,
-        };
-
-        // 尾巴：**真正的三角形**（三个顶点）。
-        //
-        // ⚠ 别用「旋转 45° 的方块」代替 —— 那是想当然：方块要**被气泡裁掉一半**才剩个三角，
-        // 而这里是竖排里**相邻的独立元素**，谁也没裁它，于是整块都看得见 ⇒ 屏幕上就是个**菱形**。
-        // （真机一眼就看出来了。）
-        // **气泡永远摆在错误行「下方」**（用户定的）：摆在**上方**时，一旦错误行靠近屏幕顶端，
-        // 气泡的第一行就顶出可视区、**根本看不见** —— 而第一行恰恰写着"第几行、什么错"。
-        // 所以尾巴尖朝**上**，指着它上面那一行。
-        var tail = new Shapes.Polygon
-        {
-            Points = new PointCollection
-            {
-                new Point(BubbleTailSize / 2f, 0),      // 尖朝上：气泡在下方，箭头指着上面那一行
-                new Point(0, BubbleTailSize),
-                new Point(BubbleTailSize, BubbleTailSize),
-            },
-            Fill = new SolidColorBrush(fill),
-            WidthRequest = BubbleTailSize,
-            HeightRequest = BubbleTailSize,
-            HorizontalOptions = LayoutOptions.Start,
-            VerticalOptions = LayoutOptions.Start,
-        };
-
-        // 容器用 **AbsoluteLayout** 而不是 VerticalStackLayout：
-        // 竖排会把子元素**横向拉伸**，于是那个 10×10 的三角形会被拉成一条几乎看不见的薄边
-        // （真机上看到的就是「气泡顶边是平的、没有箭头」）。绝对定位给出精确坐标，
-        // 尾巴的横向偏移也能直接设布局边界，不必再借 TranslationX。
-        var root = new AbsoluteLayout
-        {
-            WidthRequest = BubbleWidth,
-            HeightRequest = bodyH + BubbleTailSize,
-            InputTransparent = false,   // 覆盖父层那个「整层透明」——否则 ✕ 点不动
-            // ⚠ **Start 不能省**：`DiagLayer` 是个 Grid，而 Grid 会把**没填满单元格**的子元素
-            // **居中**摆放 —— 气泡的 WidthRequest 通常小于屏宽，于是它先被居中、我们算好的
-            // TranslationX 再叠上去，实际位置整体右移半个余量 ⇒ **气泡右边缘超出屏幕、文字被切掉**。
-            // （真机实测：算出来该在 89dp，实际落在 135dp = 居中偏移 46dp + 89dp。）
-            // 同一个理由，`SelectionBar` 也显式写了 Start —— 这不是两处巧合，是 Grid 的默认对齐。
-            HorizontalOptions = LayoutOptions.Start,
-            VerticalOptions = LayoutOptions.Start,
-        };
-        // 尾巴在**上**、气泡在**下**（尾巴尖指着上面那一行）—— 与"气泡放下方"这条规矩配套。
-        // 尾巴的横向位置在 RelayoutBubbles 里按「出错那一列」算。
-        AbsoluteLayout.SetLayoutBounds(tail, new Rect(BubbleTailSize, 0, BubbleTailSize, BubbleTailSize));
-        AbsoluteLayout.SetLayoutBounds(body, new Rect(0, BubbleTailSize, BubbleWidth, bodyH));
-        root.Add(tail);
-        root.Add(body);
-
-        return new BubbleView { Diag = d, Root = root, Tail = tail, Body = body, BodyHeight = bodyH };
-    }
-
-    /// <summary>
-    /// 气泡宽度。**上限是「画布宽 − 16」而不是某个固定值** —— 只有这样才能保证
-    /// 「气泡不超出屏幕」：固定下限（比如 Math.Max(160, …)）会在窄屏上反过来把宽度撑到
-    /// 比可用宽度还大，而那种溢出正是真机上看到「文字被屏幕切掉」的原因。
-    /// </summary>
-    private float BubbleWidth
-    {
-        get
-        {
-            // ⚠ **宽度不再由画布决定**（用户定的规矩：气泡按字数折行，**不用管会不会超出屏幕**
-            //   —— 屏幕本来就能滑动）。改成「每行 N 列 × 半角字宽 + 内边距」：
-            //   字数由设置定死（`MauiEditorStore.BubbleChars`），宽度只是把它换算成像素。
-            //
-            //   这与"不看屏幕"是同一件事的两面：只要宽度还受画布约束，
-            //   "每行 N 字"就随时可能被挤掉 —— 而用户要的正是一个**确定的**折行位置。
-            int cols = Services.MauiEditorStore.BubbleChars;
-            return cols * (BubbleFont * 0.5f) + 40f;   // 40 = 左内边距10 + ✕那列 + 右内边距
-        }
-    }
-
-    /// <summary>
-    /// 按**显示列数**硬折行 —— 每行最多 <paramref name="maxCols"/> 列（全角算 2 列）。
-    ///
-    /// 为什么要自己折、而不是交给 `Label`：MAUI 的折行是**按控件宽度**算的，
-    /// 而用户要的是**按字符数**（"一行超过 32 字符就换行"）。两者只在字宽恰好均匀时才等价，
-    /// 而气泡里常混着中英文 —— 交给平台折，换行位置会随字号、字体、取整各处漂移，
-    /// 于是"每行 32 字"这条规矩根本立不住。
-    ///
-    /// 宽度真源用 <c>AnsiString.CharWidth</c>（全仓唯一那份，别在这儿另写一张表
-    /// —— 本仓为"同一规则两处实现"付过很多次代价）。
-    /// </summary>
-    private static string WrapByColumns(string text, int maxCols)
-    {
-        if (maxCols < 1 || text.Length == 0) return text;
-        var sb = new System.Text.StringBuilder(text.Length + 16);
-        int col = 0;
-        // ⚠ 按**码点**遍历（`EnumerateRunes`）而不是 `foreach (char)`：
-        //   emoji / CJK 扩展 B 是 UTF-16 代理对（两个 char），逐 char 走会把它们拆开
-        //   —— 既是本仓明令禁止的（字符串处理一律按 Rune），`CharWidth` 本身也只收 `Rune`。
-        foreach (var rune in text.EnumerateRunes())
-        {
-            if (rune.Value == '\n') { sb.Append('\n'); col = 0; continue; }
-            int w = WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(rune);
-            if (col + w > maxCols) { sb.Append('\n'); col = 0; }
-            sb.Append(rune.ToString());
-            col += w;
-        }
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// 把所有气泡摆到它那条错误行的旁边。
-    ///
-    /// **位置只由代码坐标决定，与视口无关** —— 用户要的是「和代码的坐标绑死，就像代码的一部分」：
-    /// 它该跟着代码一起滚（包括滚出屏幕），而不是一个总想赖在屏幕里的浮层。所以这里：
-    /// <list type="bullet">
-    /// <item>**不翻面**：永远摆在错误行**上方**、尾巴朝下指着那一行（原来「下方放不下就翻到上方」
-    ///       是在为视口让路 —— 那会让同一个错误在不同滚动位置上显示在代码的不同侧）</item>
-    /// <item>**不做视口避让**：被工具栏/面板/选区条盖住就盖住（那些是**界面外壳**，
-    ///       画在代码层之上；气泡是代码层的一部分）</item>
-    /// <item>**收起前先占位**：位置全部算完之后才决定画不画 —— 否则某个气泡滚出视口时，
-    ///       排在它后面的那些会因为「空出一个位」而整体上移，滚动时看起来就是在跳</item>
-    /// </list>
-    /// 唯一保留的让位是「别压在**另一个气泡**上」：它只取决于各气泡的代码坐标，与视口无关，
-    /// 所以不会破坏「绑死」。
-    /// </summary>
-    private void RelayoutBubbles()
-    {
-        if (_bubbles.Count == 0 || Canvas.Width <= 0) return;
-
-        float lineH = EditorTypography.LineHeight;
-        float viewH = (float)Canvas.Height;
-        var placed = new List<Rect>();
-
-        foreach (var b in _bubbles)
-        {
-            // 无锚诊断（解析不出位置）不画箭头，贴在视口顶部第一行的位置。
-            // ⚠ 不能写成 `bool anchored = cond && Try(out ax, out ay)` —— 短路的右侧不保证执行，
-            //   编译器会判 ax/ay「可能未赋值」（CS0165）。分开写。
-            bool anchored = false;
-            float ax = 8f, ay = 0f;
-            if (b.Diag.Line > 0)
-                anchored = Canvas.TryGetCellAnchor(
-                    b.Diag.Line, b.Diag.Column > 0 ? b.Diag.Column : 1, out ax, out ay);
-
-            float anchorX = anchored ? ax : 8f;
-            float anchorY = anchored ? ay : -lineH;
-
-            float bubbleH = b.BodyHeight + BubbleTailSize;
-            // 横向只做「别整条探出屏幕」这一件事（用户要求过「尽量不要超出屏幕」）：
-            // 夹的是**气泡本体**，尾巴另有自己的偏移，所以箭头仍然指着出错那一列。
-            float bx = Math.Clamp(anchorX, 4f, Math.Max(4f, (float)Canvas.Width - BubbleWidth - 4f));
-            // **永远摆在错误行下方**（用户定的）。原先放上方，理由是"盖住已经读过的那一行、
-            // 不挡接着要读的" —— 但那个理由只在错误行**不在屏幕顶端**时成立：
-            // 行一靠近顶端，`anchorY − 高度` 就把整条气泡顶到可视区之外，**第一行直接看不见**，
-            // 而第一行正是"第几行、什么错"。
-            float by = anchorY + lineH + BubbleGap;
-
-            var rect = new Rect(bx, by, BubbleWidth, bubbleH);
-            int guard = 0;
-            while (placed.Any(p => p.IntersectsWith(rect)) && guard++ < 200)
-            {
-                by += 8f;
-                rect = new Rect(bx, by, BubbleWidth, bubbleH);
-            }
-
-            // 先占位、再判可见 —— 顺序不能反（见方法注释里的「收起前先占位」）
-            placed.Add(rect);
-
-            b.Root.IsVisible = rect.Bottom > -lineH && rect.Y < viewH + lineH;
-            if (!b.Root.IsVisible) continue;
-
-            b.Root.TranslationX = bx;
-            b.Root.TranslationY = by;
-            // 尾巴对准出错的那一列（夹在气泡宽度内）—— 走布局边界而不是 TranslationX，
-            // 这样它既不会被拉伸，也不会与容器的对齐方式纠缠。
-            float tailX = Math.Clamp(anchorX - bx - BubbleTailSize / 2f,
-                2f, Math.Max(2f, BubbleWidth - BubbleTailSize - 2f));
-            AbsoluteLayout.SetLayoutBounds(b.Tail,
-                new Rect(tailX, 0, BubbleTailSize, BubbleTailSize));
-        }
-    }
-
-    /// <summary>
-    /// 关掉一条气泡（右上角 ✕）。
-    /// 数据源是 DiagnosticManager ⇒ 行下那条波浪线**一起消失**；点正文不关（那个手势落在画布上）。
-    /// </summary>
-    private void DismissBubble(Diagnostic d)
-    {
-        try { DiagnosticManager.Dismiss(_relPath, d); } catch { /* 关不掉就算了，别把界面搞崩 */ }
-        Canvas.InvalidateAll();
-        RebuildBubbles();
-        RefreshErrorList();
-        UpdateStatus();
-    }
-
-    /// <summary>
     /// 用户一动手就把这一批诊断清掉 —— 否则改完源码之后，屏幕上还赖着一批**已经不对**的
-    /// 报错气泡，而它们指的行号多半也偏了。
+    /// 报错（气泡与行下波浪线都画在代码上），而它们指的行号多半也偏了。
     /// </summary>
     private void ClearDiagnosticsOnEdit()
     {
-        if (_bubbles.Count == 0) return;
+        if (DiagnosticsForThisFile().Count == 0) return;
         try { DiagnosticManager.Inject(_relPath, []); } catch { }
-        Canvas.InvalidateAll();
-        RebuildBubbles();
+        Canvas.Invalidate();
         RefreshErrorList();      // 三处（气泡/波浪线/错误列表）读同一份，必须一起刷
         UpdateStatus();
     }
@@ -3006,7 +2702,7 @@ public partial class EditorPage : ContentPage
         var text = CurrentEditedText();
 
         // 一动手就把上一轮编译留下的诊断清掉 —— 那些行号多半已经偏了，
-        // 继续浮在代码上等于给用户看假信息（`_bubbles` 为空时是一次极便宜的早退）。
+        // 继续画在代码上等于给用户看假信息（没有诊断时是一次极便宜的早退）。
         ClearDiagnosticsOnEdit();
 
         // 光标可能刚贴上一个括号（也可能刚离开）—— 配对高亮跟着走。
@@ -3554,7 +3250,6 @@ public partial class EditorPage : ContentPage
                 // 失败：诊断**就地显示**（气泡、行下波浪线、错误列表读的是同一份数据）
                 try { DiagnosticManager.Inject(_relPath, diags); } catch { }
                 Canvas.InvalidateAll();
-                RebuildBubbles();
                 RefreshErrorList();
                 UpdateStatus();
                 SwitchPanelTab(PanelTab.Errors);
@@ -3563,7 +3258,7 @@ public partial class EditorPage : ContentPage
             }
 
             try { DiagnosticManager.Inject(_relPath, []); } catch { }
-            RebuildBubbles();
+            Canvas.Invalidate();
             RefreshErrorList();
             UpdateStatus();
             prebuilt = vmlText;
@@ -3674,7 +3369,8 @@ public partial class EditorPage : ContentPage
     {
         OutputPanel.IsVisible = true;
         SwitchPanelTab(tab);
-        RelayoutBubbles();   // 面板占了底部一块，气泡要避开它
+        // 气泡**不为面板让位**（规格：不做任何避让 —— 位置只由错误行决定）。
+        // 面板的 ZIndex 比画布高，本来就压在气泡上面。
     }
 
     /// <summary>
@@ -3706,10 +3402,7 @@ public partial class EditorPage : ContentPage
     private void OnPanelTabOutputClicked(object? sender, EventArgs e) => SwitchPanelTab(PanelTab.Output);
 
     private void OnPanelCloseClicked(object? sender, EventArgs e)
-    {
-        OutputPanel.IsVisible = false;
-        RelayoutBubbles();
-    }
+        => OutputPanel.IsVisible = false;
 
     private void AppendOutput(string text)
         => SetOutput(PanelOutputText.Text is { Length: > 0 } prev ? prev + "\n" + text : text);

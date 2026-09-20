@@ -272,25 +272,15 @@
                 </HorizontalStackLayout>
             </Border>
 
-            <!-- 编译诊断气泡层：**浮在代码之上**，数据从 DiagnosticManager 取
-                 （与行下那条波浪线是同一份，所以关掉气泡时波浪线一起消失）。
-                 下面两个属性**缺一不可**：
-                 · InputTransparent=True —— 整层必须透明，否则它会吃掉画布的触摸（点不动行、滑不动）
-                 · CascadeInputTransparent=False —— MAUI 的 InputTransparent **默认向下级联**，
-                   不关掉的话气泡里的 ✕ 也点不动
-                 气泡各自再设 InputTransparent=False 覆盖回来。
-                 ZIndex 22：高于全屏浮层(21)与选区条(20)，低于打开中/编译中遮罩(30)。 -->
-            <Grid x:Name="DiagLayer"
-                  IsVisible="False"
-                  ZIndex="22"
-                  InputTransparent="True"
-                  CascadeInputTransparent="False"
-                  IsClippedToBounds="True" />
+            <!-- 编译诊断气泡**不在这里** —— 它由画布自己绘制（`CodeCanvasView.DrawDiagnosticBubbles`）：
+                 它要跟着代码一起滚、一起缩放、一起被裁掉，那本来就是画布的坐标系。
+                 原先是这一层 `<Grid x:Name="DiagLayer">`（AbsoluteLayout 里塞 Border + Polygon 尾巴），
+                 每帧还要页面把「视口坐标」算一遍搬给布局 —— 同一个位置于是有两把尺子（已删）。 -->
 
             <!-- 运行面板：**贴在底部**的小窗，两个 Tab（错误列表 / 输出）。
                  有了它，「运行」就不必跳到命令行页 —— 输出、报错都在原地看得见。
                  数据来源与气泡是**同一份**：错误列表读 DiagnosticManager，点一条跳到那一行。
-                 ZIndex 23：压住气泡层(22)，否则气泡会飘在面板上面。 -->
+                 ZIndex 23：压住画布（气泡画在画布上），否则气泡会盖在面板上面。 -->
             <Grid x:Name="OutputPanel"
                   IsVisible="False"
                   ZIndex="23"
