@@ -112,6 +112,7 @@ printf '%-10s %-6s %s\n' "探针" "结果" "输出（ / = 换行）"
 printf '%s\n' "--------------------------------------------------------------------"
 
 for f in "${files[@]}"; do
+    budget_check                 # 全量预算（见 scripts/lib/portable-timeout.sh）
     ext="${f##*.}"
     # 该探针自带期望就用它（各语言的原生 print 语义不同：Go/Python 的 println/print
     # 在操作数间**插一个空格**，Kotlin 的 println 只吃一个实参）—— 统一成一行是错的。
@@ -140,7 +141,7 @@ for f in "${files[@]}"; do
 done
 
 printf '%s\n' "--------------------------------------------------------------------"
-echo "通过 ${pass} / 输出不符 ${fail} / **编译失败 ${err}**（共 ${#files[@]} 条）"
+echo "通过 ${pass} / 输出不符 ${fail} / **编译失败 ${err}**（共 ${#files[@]} 条）    （耗时 $(elapsed_text)）"
 [ $err -gt 0 ] && echo "⚠ 编译期就抛异常的探针（先修探针/前端，还没轮到看输出）：${errored[*]}"
 [ $fail -gt 0 ] && { echo "失败：${failed[*]}"; exit 1; }
 exit 0

@@ -62,6 +62,7 @@ group_link_clean() {
     local files=("$REPO"/scripts/vml-out-probe/langs/out.*)
     shopt -u nullglob
     for f in "${files[@]}"; do
+        budget_check             # 全量预算（见 scripts/lib/portable-timeout.sh）
         [[ "$f" == *.expect ]] && continue
         [[ -n "$filter" && "${f##*.}" != "$filter" ]] && continue
         local errf; errf="$(mktemp)"
@@ -99,6 +100,7 @@ group_undefined() {
     local files=("$HERE"/cases/"$prefix".*)
     shopt -u nullglob
     for f in "${files[@]}"; do
+            budget_check             # 全量预算（见 scripts/lib/portable-timeout.sh）
         # ⚠ `.expect`/`.sym` 是**期望值**不是用例，glob 会一并匹配到
         #   （out-probe 上踩过同一个坑：`nat.py.expect` 被当成探针去编译）。
         [[ "$f" == *.expect || "$f" == *.sym ]] && continue
@@ -149,6 +151,7 @@ group_dyn_global() {
     local files=("$HERE"/cases/dyn-global.*)
     shopt -u nullglob
     for f in "${files[@]}"; do
+            budget_check             # 全量预算（见 scripts/lib/portable-timeout.sh）
         # ⚠ `.expect` 是**期望值**不是用例 —— glob 会一并匹配到（其他两组踩过同一个坑）
         [[ "$f" == *.expect ]] && continue
         [[ -n "$filter" && "${f##*.}" != "$filter" ]] && continue
@@ -202,7 +205,7 @@ case "$GROUP" in
     *) echo "✘ 未知的组：$GROUP（可选 link-clean / undef-fn / undef-var / hdr-loc / dyn-global）" >&2; exit 2 ;;
 esac
 printf '%s\n' "--------------------------------------------------------------"
-echo "通过 $pass / 不符 $fail / **崩溃 $crash**"
+echo "通过 $pass / 不符 $fail / **崩溃 $crash**    （耗时 $(elapsed_text)）"
 [ ${#failed[@]}  -gt 0 ] && echo "不符：${failed[*]}"
 [ ${#crashed[@]} -gt 0 ] && echo "⚠ 仍在运行期/链接期崩（不是干净的编译期诊断）：${crashed[*]}"
 [ $fail -gt 0 ] || [ $crash -gt 0 ] && exit 1

@@ -64,6 +64,7 @@ printf '%-24s %-6s %s\n' "探针" "结果" "输出（截断）"
 printf '%s\n' "------------------------------------------------------------------------"
 
 for p in "${probes[@]}"; do
+    budget_check                 # 全量预算（见 scripts/lib/portable-timeout.sh）
     name="$(basename "$p" .c)"
     out="$(cd "${TMPDIR:-/tmp}" && run_with_timeout "${ABI_SHELL_TIMEOUT:-120}" dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
     # 只看探针自己的 stdout；`VM execution cancelled` 是 CLI 在超时时补的
@@ -79,7 +80,7 @@ done
 printf '%s\n' "------------------------------------------------------------------------"
 # ⚠ `$fail` 后面紧跟中文全角括号会被 bash 当成变量名的一部分（报「未绑定的变量」），
 #    必须写成 `${fail}`。
-echo "通过 ${pass} / 失败 ${fail}（共 ${#probes[@]} 条）"
+echo "通过 ${pass} / 失败 ${fail}（共 ${#probes[@]} 条）    （耗时 $(elapsed_text)）"
 if [[ $fail -gt 0 ]]; then
     echo "失败：${failed_names[*]}"
     exit 1

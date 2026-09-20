@@ -38,43 +38,64 @@ DLL="${VMLCLI:-$REPO/scripts/vmlcli}/bin/Release/net10.0/vmlcli.dll"
 [ -f "$DLL" ] || { echo "✘ 找不到 vmlcli：$DLL" >&2; exit 2; }
 
 ok=0; fail=0; failed=()
+
+# ── 先把要跑的清单一遍（进度要有个分母；**排除规则只此一处**）───────────────
+#
+# ⚠ 这一段**不是装饰**：整轮要起 80+ 次 `dotnet`、跑几分钟，而原先**中途一个字节都不打**
+#   —— 「在跑」和「卡住」在屏幕上完全一样（用户为此问过两次「卡是没有」，
+#   我自己也把它当成挂住过）。长任务必须有可见的状态边界。
+#
+# ⚠ 排除规则**只能写在这里一份**。原来它在循环体里，加进度时我在上面又写了一份 ——
+#   两份过滤器必然漂移（本仓头号坑）。现在循环体里没有任何 `continue` 过滤。
+#
+# 排除的是**已知按设计编不过**的（不是缺陷，是孤儿存根）：
+# `Examples/*/file_io.*`（csharp/java/ruby/r/swift/objc/js）是一组 **SharedLib 演示存根**：
+# `asm("CALL shared_file_test")` + `asm("LOAD R0 #100")` + `asm("SYSCALL 3")`，
+# 靠**内嵌汇编**调一个配套的共享库。两个理由让它们编不过、**都不该修成能编**：
+#   ① 新版**只在 C 类语言保留内嵌汇编**，其余语言取消 ⇒ `asm("…")` 在这些语言上
+#      本来就已经不是支持的能力了，编不过是对的；
+#   ② 被调的 `shared_file_test` **在整个仓库里没有任何地方定义**
+#      （`Examples/SharedLib/` 下只有一个 build 脚本和一个预编好的 `test_mylib_c.vml`）。
+# 结论：它们不是"坏了的例子"，是**已经不成立的例子**。留着当红灯只会训练人去忽略红灯。
+# （`file_io.js` 是后来补进来的：它此前漏在清单外，靠 JS 那条"发一条指向不存在变量的
+#   间接调用"的缺陷**假绿**通过，v0.96.282 把那个静默缺陷改成硬报错之后才现形。）
+targets=()
 for f in "$REPO"/third_party/vml/Examples/*/*; do
     [ -f "$f" ] || continue
-    # ── 已知**按设计**编不过的（不是缺陷，是孤儿存根）───────────────────────────
-    # `Examples/*/file_io.*`（csharp / java / ruby / r / swift / objc）是一组
-    # **SharedLib 演示存根**：内容是 `asm("CALL shared_file_test")` + `asm("LOAD R0 #100")`
-    # + `asm("SYSCALL 3")`，靠**内嵌汇编**去调一个配套的共享库。
-    # 两个理由让它们编不过，**都不该修成能编**：
-    #   ① 新版**只在 C 类语言保留内嵌汇编**，其余语言取消（改为"只能调 C 写好的库"）
-    #      ⇒ `asm("…")` 在这些语言上本来就已经不是支持的能力了，编不过是对的；
-    #   ② 被调的那个 `shared_file_test` **在整个仓库里没有任何地方定义**
-    #      （`Examples/SharedLib/` 下只有一个 build 脚本和一个预编好的 `test_mylib_c.vml`）
-    #      ⇒ 就算把 asm 换成普通调用，也还是缺实现。
-    # 结论：它们不是"坏了的例子"，是**已经不成立的例子**。留着当红灯只会训练人去忽略红灯。
-    # （是重写成"调 C 库"的现代写法、还是删掉，由仓库决定 —— 这里先显式排除。）
     case "$f" in
-        # 非源码
         *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip) continue ;;
-        # ⚠ `file_io.js` 与上面六个**是同一类**（同样是 `asm("CALL shared_file_test")`），
-        #   此前漏在清单外，靠 JS 那条"发一条指向不存在变量的间接调用"的缺陷**假绿**通过 ——
-        #   v0.96.282 把那个静默缺陷改成硬报错之后它才现形。补进排除。
         */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m|*/file_io.js) continue ;;
-        # ⚠ `.vml` 是**已经编好的汇编**，不是源码；喂给前端只会得到"认不出扩展名"
-        #   （`OpenCV/cv_demo.vml` / `SharedLib/test_mylib_c.vml` 就是这么被误报的）
         *.vml) continue ;;
-        # `.gen.vml` 中间产物
         *.gen.vml) continue ;;
     esac
+    targets+=("$f")
+done
+total=${#targets[@]}
+idx=0
+for f in "${targets[@]}"; do
+    budget_check                 # 全量预算（见 scripts/lib/portable-timeout.sh）
+    idx=$((idx + 1))
+    printf '[%3d/%3d] %s\n' "$idx" "$total" "$(echo "$f" | sed 's|.*/Examples/||')"
     # ⚠ 分两步取「输出」与「退出码」—— `$(...)` 会把退出码吃掉，
     #   而**超时必须按退出码判**（被杀掉时输出里没有「编译失败」字样，靠 grep 会读成通过）。
-    out="$(cd "$(dirname "$f")" && run_with_timeout "$EX_TIMEOUT" dotnet "$DLL" "$(basename "$f")" --vml /tmp/_exbuild.vml 2>&1)"
+    # ⚠ 时限**先在父 shell 里算好**（`budget_clamp`），这样报错时才说得出"这一刀实际等了多久"——
+    #   在 `$( … )` 里面算的话那两个变量回不来（子 shell）。
+    to="$(budget_clamp "$EX_TIMEOUT")"
+    out="$(cd "$(dirname "$f")" && run_with_timeout "$to" dotnet "$DLL" "$(basename "$f")" --vml /tmp/_exbuild.vml 2>&1)"
     rc=$?
     if [ "$rc" -eq 124 ]; then
-        printf 'FAIL %s  （**超时**：%s 秒没返回 —— 编译器卡死）\n' \
-            "$(echo "$f" | sed 's|.*/Examples/||')" "$EX_TIMEOUT"
+        if [ "$to" -lt "$EX_TIMEOUT" ]; then
+            printf 'FAIL %s  （**超时**：只给了 %s 秒 —— 是**全量预算**把时限夹小的，不是本用例卡死）\n' \
+                "$(echo "$f" | sed 's|.*/Examples/||')" "$to"
+        else
+            printf 'FAIL %s  （**超时**：%s 秒没返回 —— 编译器卡死）\n' \
+                "$(echo "$f" | sed 's|.*/Examples/||')" "$to"
+        fi
         fail=$((fail+1)); failed+=("$(echo "$f" | sed 's|.*/Examples/||') (超时)")
+        trip_on_timeout          # 连着好几条 = 整体挂了，就地停（见 portable-timeout.sh）
         continue
     fi
+    trip_reset
     err="$(printf '%s' "$out" | grep -a "编译失败\|error:" | head -2)"
     if [ -n "$err" ]; then
         printf 'FAIL %s\n' "$(echo "$f" | sed 's|.*/Examples/||')"
@@ -84,6 +105,6 @@ for f in "$REPO"/third_party/vml/Examples/*/*; do
 done
 
 echo "--------------------------------------------------------------"
-echo "通过 $ok / 失败 $fail"
+echo "通过 $ok / 失败 $fail    （耗时 $(elapsed_text)）"
 [ $fail -gt 0 ] && { echo "失败：${failed[*]}"; exit 1; }
 exit 0
