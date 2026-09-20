@@ -66,13 +66,16 @@ public class Lexer : LexerBase
                 // 词法产出**源码原文**（"&&"/"||"），由代码生成那边与 `and`/`or` 并列识别。
                 case '&':
                     if (Match('&')) { Tokens.Add(new Token(TokenType.And, "&&", _line, _col)); break; }
-                    throw new ParseException(ErrorCode.Lexer_UnknownCharacter,
-                        $"Unexpected char: & at {_line}:{_col}（本前端只支持逻辑 `&&`/`||`，位运算 `& | ^` 尚未实现）");
+                    // 位置交给统一出口；顺带去掉夹在正文里的英文与手写位置。
+                    Error(ErrorCode.Lexer_UnknownCharacter,
+                        "位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）");
+                    break;
                 case '|':
                     if (Match('|')) { Tokens.Add(new Token(TokenType.Or, "||", _line, _col)); break; }
-                    throw new ParseException(ErrorCode.Lexer_UnknownCharacter,
-                        $"Unexpected char: | at {_line}:{_col}（本前端只支持逻辑 `&&`/`||`，位运算 `& | ^` 尚未实现）");
-                default: throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c}（位置 {_line}:{_col}）");
+                    Error(ErrorCode.Lexer_UnknownCharacter,
+                        "位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）");
+                    break;
+                default: Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'"); break;   // 位置交给统一出口
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));
