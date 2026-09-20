@@ -7,6 +7,22 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
+    /// <summary>
+    /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+    ///
+    /// ⚠ R **没有 `Newline` 这个 token**（靠空白分隔语句，换行不是词法单元），
+    /// 所以 `x = 1 +` 结尾撞上的是 **`EOF`** —— `EOF` 必须算进来，
+    /// 否则这条判据在最常见的形态上不生效。
+    /// </summary>
+    protected override bool IsExpressionCloser(Token token) => token.Type
+        is TokenType.RParen or TokenType.RBrace or TokenType.RBracket
+        or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+        or TokenType.EOF;
+
+    /// <summary>语句分隔 —— R 只有 `;`（换行不是 token）。</summary>
+    protected override bool IsStatementSeparator(Token token) => token.Type
+        is TokenType.Semicolon;
+
     protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"R 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
@@ -428,6 +444,10 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        // 位置用 `GapAnchor()`：`x = 1 +` 结尾撞上 **`EOF`**（R 没有换行 token，EOF 标在下一行）
+        // ⇒ 按当前位置报就落到第 5 行，而错在第 4 行。锚定规则见基类 `GapAnchor`。
+        // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀重复，且那份取的是
+        // 预处理后的行列（不查 `#include` 映射），可能与前缀不一致。
+        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
     }
 }
