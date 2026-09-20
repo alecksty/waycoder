@@ -1,3 +1,43 @@
+## v0.96.315 — 标题文本走行内解析 ＋ 行内代码补底色
+
+真机复验 v0.96.314 时用户报「缺少 `text` 这种格式块的渲染」。截图一看：帮助文档「绘图」页
+的标题是 `### \`ui_brush_radial(int color_a, …)\`` 形式，屏上**赫然显示成带一对反引号的大字**。
+
+### 根因：**四端的标题渲染都把 `h.Text` 原样放**，没过行内解析
+
+正文的段落 / 列表 / 表格单元格**早就走行内解析了**，只有标题漏了 ——
+所以现象很迷惑：「同一页正文里的 `` `code` `` 正常，标题里的不正常」。四端一起修：
+
+| 端 | 之前 |
+|---|---|
+| MAUI `MarkdownPreview.RenderHeading` | `Text = h.Text` |
+| MAUI `MarkupToFormattedString` MdHeading | `new Span { Text = h.Text }` |
+| GUI `MarkdownBlocks.Heading` | `new Run(h.Text)` |
+| TUI `TuiMarkdown.RenderHeading` | `(h.Text, color, 0)` |
+
+修完**顺手全仓扫了一遍**同类形态（「原样放 markdown 文本」），确认已无遗漏。
+
+### 行内代码补底色（对齐桌面）
+
+用户指出桌面上反引号内容是「圆角矩形背景 + 换个颜色」。查了实际定义 —— Web 的 `.md-inline`：
+
+```css
+background: var(--panel2); border: 1px solid var(--border);
+border-radius: 5px; padding: 0 5px; font-family: ui-monospace, …;
+```
+
+MAUI 的 `Span` / Avalonia 的 `Inline` **只能给方形底色、没有圆角**（不像 CSS 能给行内框
+`border-radius`）⇒ 做到能力上限（底色 + 等宽），圆角那份差距是**平台限制**，已写进注释。
+TUI 按约定不动。
+
+### 判据
+
+- 桌面自测 6096 → **6097**（0 红）；新钉两条：标题里的行内代码不出字面反引号、内容仍保留
+  （TUI 是四端里**唯一能被桌面自测覆盖**的，所以判据钉在那里）
+- `WayCoder.Maui` / `WayCoder.Gui` 编译 0 错误；真机复验见下
+
+---
+
 ## v0.96.314 — Markdown：四端向共享 AST 收敛 ＋ 补 20 项 CommonMark
 
 起因是「有些格式渲染不对」。查下来根因不是漏了某几个语法，而是**四套互不相干的实现**：
