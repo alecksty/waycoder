@@ -26,12 +26,23 @@ namespace PascalCompiler
         protected override Token Expect(TokenType tokenType, string message)
         {
             if (Check(tokenType)) return Advance();
-            string msg = message ?? VMLPlugins.Strings.ExpectedToken(tokenType.ToString(), GetTokenType(Cur).ToString());
-            throw Error(VMLPlugins.Strings.SyntaxErrorAt(Cur.Line, Cur.Column, msg));
+            // 位置交给**统一出口**（`Error` 拼 `文件:行:列: error:` 并查 `#include` 行号映射）；
+            // 原来那层 `Strings.SyntaxErrorAt(Cur.Line, Cur.Column, msg)` 自己又拼了一遍位置，
+            // 与统一前缀**重复**，且取的是预处理后的行号。
+            throw Error(message ?? VMLPlugins.Strings.ExpectedToken(tokenType.ToString(), GetTokenType(Cur).ToString()));
         }
 
-        protected override ParseException Error(string message)
-            => new ParseException(VMLPlugins.Strings.SyntaxErrorAt(Cur.Line, Cur.Column, message), Cur!);
+        // ⚠ 这里原有 `protected override ParseException Error(string message)
+        //   => new ParseException(Strings.SyntaxErrorAt(Cur.Line, Cur.Column, message), Cur!)`
+        //   —— **已删除、改用基类实现**。它比基类少两件事：
+        //     ① 位置不是宿主认的 `文件:行:列: error:` 形状（`Strings.SyntaxErrorAt` 拼的是
+        //        `… at line N … (col C)`），编辑器按那个形状锚行，锚不到；
+        //     ② 取的是 `Cur.Line` = **预处理后**的行号 ⇒ **不查 `#include` 行号映射**，
+        //        错在头文件里时会报成用户文件的行。
+        //   本门的 `Token` 实现了 `ITokenPosition`，基类那条通用实现取到的行列**与这里手写的同源**
+        //   （同一只 `Cur`），所以删掉只是补上前缀与映射，位置一个字不变。
+        //   （Go 前端那条同类覆写在同一轮里同样删掉了。）
+
 
         public ASTNode Parse()
         {
