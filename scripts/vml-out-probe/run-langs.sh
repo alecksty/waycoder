@@ -68,15 +68,11 @@ TIMEOUT="${TIMEOUT:-30}"
 #   缺了它的表现极具误导性：整条命令行直接 `command not found` ⇒ 抓到空输出 ⇒
 #   **28 条探针一起报 FAIL，而一条真问题都看不出来** —— 比不跑还糟（会让人去"修语言"）。
 #   实测 2026-09-19：手工单跑 out.c 三行全对，走本脚本却 0/28。
-#   有 `timeout` 就用，其次 `gtimeout`（brew coreutils 装的那个），都没有就**不加外壳** ——
-#   vmlcli 自己的 `--timeout` 已经能在 VM 层把跑不完的程序掐掉，外壳只是多一层兜底。
+#   便携超时（唯一实现见 `scripts/lib/portable-timeout.sh`）。vmlcli 自己的 `--timeout`
+#   只在 **VM 层**掐跑不完的**程序** —— 前端**编译**阶段卡死它管不着，所以外壳这层必需。
 #   ⚠ 用函数而不是数组：macOS 自带的是 bash 3.2，空数组配 `set -u` 展开会报 unbound variable。
-if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
-elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
-else TIMEOUT_BIN=""; fi
-run_probe() {
-    if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" $((TIMEOUT + 20)) "$@"; else "$@"; fi
-}
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/portable-timeout.sh"
+run_probe() { run_with_timeout $((TIMEOUT + 20)) "$@"; }
 
 EXPECT=$'OUT-STR=abc\nOUT-INT=42\nOUT-PUN=hello, world'
 

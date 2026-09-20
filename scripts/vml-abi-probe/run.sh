@@ -24,6 +24,10 @@ REPO="$(cd "$HERE/../.." && pwd)"
 VMLCLI="${VMLCLI:-$REPO/scripts/vmlcli}"
 DLL="$VMLCLI/bin/Release/net10.0/vmlcli.dll"
 TIMEOUT=5
+# 便携超时（唯一实现见 `scripts/lib/portable-timeout.sh`）。
+# ⚠ vmlcli 的 `--timeout` 只在 **VM 层**掐跑不完的**程序**；前端**编译**阶段卡死它管不着，
+#   而本套要先编译 7 个探针 —— 所以外壳这层必需（用户要求「编译和测试都要有防卡死机制」）。
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/portable-timeout.sh"
 
 if [[ ! -f "$DLL" ]]; then
     echo "✘ 找不到 vmlcli：$DLL" >&2
@@ -61,7 +65,7 @@ printf '%s\n' "-----------------------------------------------------------------
 
 for p in "${probes[@]}"; do
     name="$(basename "$p" .c)"
-    out="$(cd "${TMPDIR:-/tmp}" && dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
+    out="$(cd "${TMPDIR:-/tmp}" && run_with_timeout "${ABI_SHELL_TIMEOUT:-120}" dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
     # 只看探针自己的 stdout；`VM execution cancelled` 是 CLI 在超时时补的
     if grep -q '^ABI-OK' <<<"$out" && ! grep -q 'VM execution cancelled' <<<"$out"; then
         verdict="PASS"; pass=$((pass + 1))

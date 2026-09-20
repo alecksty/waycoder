@@ -14,11 +14,22 @@
 #
 # 用法：scripts/vml-diag-probe/examples-build.sh
 #
-# ⚠ **别用 `timeout`**：它是 GNU coreutils 的，macOS 默认没有 ⇒ 整条命令
-#   `command not found` ⇒ 输出为空 ⇒ **每个例子都被误判成"通过"**。
-#   写这个脚本时踩过一次：第一版报「通过 90 / 失败 0」，去掉 `timeout` 重跑才看到 14 个失败。
-#   这正是 `vml-out-probe/run-langs.sh` 头部记的那个坑的**第二个变种** ——
-#   那里是"全报错"，这里是"全通过"，后者更危险（它给的是假的信心）。
+# ⚠ 关于 `timeout`（2026-09-20 修订，用户要求「编译和测试都要有防卡死机制」）：
+#
+#   原先这里写的是「**别用** `timeout`」—— 理由是它是 GNU coreutils 的，macOS 默认没有，
+#   缺了会整条命令 `command not found` ⇒ 输出为空 ⇒ **每个例子都被误判成"通过"**
+#   （第一版报「通过 90 / 失败 0」，去掉 `timeout` 重跑才看到 14 个失败）。
+#
+#   那条结论是**半对的**：它诊断对了"缺 timeout ⇒ 假绿"，但开出的方子是"别用超时"，
+#   而**没有超时的下场是把整个套件挂死**——一份让前端空转的源码（本仓真出过，
+#   见 `FRONTEND_DEFECTS.md` 的 Dart 那条）会让这里永远跑不完。
+#   ⇒ 正解是两条都堵上：
+#     · `timeout`/`gtimeout` **有就用**（快、可靠）；
+#     · 没有就用手写的 POSIX 版（`&` + `wait` + 定时 `kill`），**两条路都真会超时**；
+#     · 而且**超时按退出码单独判 FAIL**，不靠 grep 输出 ——
+#       被杀掉时 stderr 里没有「编译失败」字样，靠 grep 只会把它读成"通过"（假绿的老病根）。
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/portable-timeout.sh"
+EX_TIMEOUT="${EX_TIMEOUT:-120}"   # 单个例子的编译时限（秒）。桌面实测最慢几秒，120 足够宽松。
 
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -54,8 +65,17 @@ for f in "$REPO"/third_party/vml/Examples/*/*; do
         # `.gen.vml` 中间产物
         *.gen.vml) continue ;;
     esac
-    err="$(cd "$(dirname "$f")" && dotnet "$DLL" "$(basename "$f")" --vml /tmp/_exbuild.vml 2>&1 \
-           | grep -a "编译失败\|error:" | head -2)"
+    # ⚠ 分两步取「输出」与「退出码」—— `$(...)` 会把退出码吃掉，
+    #   而**超时必须按退出码判**（被杀掉时输出里没有「编译失败」字样，靠 grep 会读成通过）。
+    out="$(cd "$(dirname "$f")" && run_with_timeout "$EX_TIMEOUT" dotnet "$DLL" "$(basename "$f")" --vml /tmp/_exbuild.vml 2>&1)"
+    rc=$?
+    if [ "$rc" -eq 124 ]; then
+        printf 'FAIL %s  （**超时**：%s 秒没返回 —— 编译器卡死）\n' \
+            "$(echo "$f" | sed 's|.*/Examples/||')" "$EX_TIMEOUT"
+        fail=$((fail+1)); failed+=("$(echo "$f" | sed 's|.*/Examples/||') (超时)")
+        continue
+    fi
+    err="$(printf '%s' "$out" | grep -a "编译失败\|error:" | head -2)"
     if [ -n "$err" ]; then
         printf 'FAIL %s\n' "$(echo "$f" | sed 's|.*/Examples/||')"
         printf '%s\n' "$err" | sed 's/^/     /'

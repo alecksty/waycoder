@@ -73,10 +73,14 @@ touch -t 198001010000 "$REF"
 cp -Rp "$VML/Lib" "$TMP/Lib"
 find "$TMP/Lib" -type f -not -path "*/shared/src/*" -exec touch -t 197001010000 {} +
 
-if (cd "$VML" && dotnet run --project tools/GenLib -- -A -r "$TMP") > "$TMP/genlib.log" 2>&1; then
+source "$(dirname "${BASH_SOURCE[0]}")/lib/portable-timeout.sh"
+# ⚠ GenLib 要重编 100 个模块，**这份校验脚本本身也可能卡住**（用户要求
+#   「编译和测试都要有防卡死机制」）。给一个明显大于合法耗时的时限（实测 100 个
+#   模块几十秒，给 600 秒），超时按 124 判 —— 不能让它把校验脚本永久挂住。
+if (cd "$VML" && run_with_timeout "${GENLIB_TIMEOUT:-600}" dotnet run --project tools/GenLib -- -A -r "$TMP") > "$TMP/genlib.log" 2>&1; then
     echo "  ✔ GenLib -A 重生成成功（$(grep -a -m1 '完成:' "$TMP/genlib.log" || echo '')）"
 else
-    echo "  ✘ GenLib -A 重生成失败 —— Lib/ 与它的输入已经对不上了：" >&2
+    echo "  ✘ GenLib -A 重生成失败（或超时 ${GENLIB_TIMEOUT:-600}s）—— Lib/ 与它的输入已经对不上了：" >&2
     tail -15 "$TMP/genlib.log" >&2
     exit 1
 fi

@@ -25,15 +25,13 @@ TIMEOUT="${TIMEOUT:-30}"
 
 [ -f "$DLL" ] || { echo "✘ 找不到 vmlcli：$DLL（先 dotnet build scripts/vmlcli -c Release）" >&2; exit 2; }
 
-# ⚠ `timeout` 是 GNU coreutils 的，macOS 默认没有 —— 缺了它会整条命令行 command not found、
-#   抓到空输出、**所有用例一起报错**，看上去像"全坏了"（`vml-out-probe/run-langs.sh` 上踩过）。
+# 便携超时（唯一实现见 `scripts/lib/portable-timeout.sh`）——
+# ⚠ 这里**必须真的有超时**：没有外壳时一份卡死的前端会让整个套件永不返回。
+#   从前「都没有就**不加外壳**」是错的（macOS 无 coreutils 时就是那条路），
+#   用户要求「编译和测试都要有防卡死机制」之后改成 POSIX 手写兜底。
 #   用函数而不是数组：macOS 自带 bash 3.2，空数组配 `set -u` 展开会报 unbound variable。
-if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
-elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
-else TIMEOUT_BIN=""; fi
-run_probe() {
-    if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" $((TIMEOUT + 20)) "$@"; else "$@"; fi
-}
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/portable-timeout.sh"
+run_probe() { run_with_timeout $((TIMEOUT + 20)) "$@"; }
 
 pass=0; fail=0; crash=0
 failed=(); crashed=()

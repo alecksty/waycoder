@@ -52,11 +52,11 @@ namespace ForthCompiler
             //   `CreateErrorProgram` 的空程序返回 ⇒ `Compile` **永不失败**：
             //   宿主看 `prog != null` 就报"编译成功"，用户拿到一个什么都不做的程序，
             //   而诊断包里那条错（本来带着 `<input>:3:1`）就这么没了。
-            //   现在只把**意外**异常收编成编译错误（带位置、能定位），编译错误原样上抛。
-            catch (Exception ex) when (ex is not CompilationException and not OperationCanceledException)
+            //   现在按 `Classify` 的口径办：该上抛的上抛，只有**意外**异常才收编。
+            catch (Exception ex)
             {
-                throw new CompilationException(ErrorCode.Compilation_InternalError,
-                    $"<input>: 内部错误: {ex.Message}", ex);
+                if (Classify(ex) is { } wrapped) throw wrapped;
+                throw;
             }
             finally { CompilerOptionsContext.Current = savedCtx; }
         }
@@ -115,10 +115,10 @@ namespace ForthCompiler
                 return prog;
             }
             // 同 `Compile`：编译错误不能被换成一份"能跑的空程序"（那等于报告成功）。
-            catch (Exception ex) when (ex is not CompilationException and not OperationCanceledException)
+            catch (Exception ex)
             {
-                throw new CompilationException(ErrorCode.Compilation_InternalError,
-                    $"<input>: 内部错误: {ex.Message}", ex);
+                if (Classify(ex) is { } wrapped) throw wrapped;
+                throw;
             }
             finally { CompilerOptionsContext.Current = savedCtx; }
         }
@@ -130,6 +130,32 @@ namespace ForthCompiler
             => CompilerHelper.BuildCompileFileWithIncludes(
                 CompileFile(filePath, includePaths, null, false),
                 filePath, libraryPaths, autoLinkStdLib, useSharedLibrary, "forth");
+
+        /// <summary>
+        /// 两个 `catch` 共用的**唯一**异常分类点：返回 <c>null</c> 表示「原样上抛」。
+        ///
+        /// <para>
+        /// 分三档，与 `CompilerHelper.CompileWithDiagnostics` 同一口径：
+        /// </para>
+        /// <list type="bullet">
+        /// <item><b>编译错误</b>（<see cref="CompilationException"/>）—— 原样上抛。
+        ///   它已经带着位置，包一层只会把 `文件:行:列: error:` 变成两层。</item>
+        /// <item><b>取消</b>（<see cref="OperationCanceledException"/>）—— 原样上抛。
+        ///   用户按了中断就当用户的中断，不能变成一条"语法错误"。</item>
+        /// <item><b>链接期的未定义函数</b>（<see cref="UnresolvedSymbolException"/>）——
+        ///   **是用户源码的错**，不是内部错误。少了这一支它会落进兜底被标成
+        ///   「内部错误」，用户看到「编译器坏了」而不是「我调了个不存在的函数」（实测踩到）。</item>
+        /// <item><b>其余</b>—— 才是真的内部错误：收编成带位置的编译错误，别让它穿到宿主
+        ///   变成一句 `Object reference not set…`。</item>
+        /// </list>
+        /// </summary>
+        private static CompilationException? Classify(Exception ex) => ex switch
+        {
+            CompilationException => null,
+            OperationCanceledException => null,
+            UnresolvedSymbolException => new CompilationException(ErrorCode.CodeGen_UndefinedFunction, ex.Message, ex),
+            _ => new CompilationException(ErrorCode.Compilation_InternalError, $"<input>: 内部错误: {ex.Message}", ex),
+        };
 
         /// <summary>
         /// 打印帮助信息

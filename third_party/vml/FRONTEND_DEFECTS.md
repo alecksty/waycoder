@@ -420,6 +420,62 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 
 ## 全局（跨语言 / 链接期）
 
+### 🔴 Forth 里**任何** `#param lib(新模块)` 都会让 `builtin` 一族变成未定义（**未修**）
+
+**现象**：Forth 源码里只要写一句 `#param lib("<不是默认集里的模块>")`，
+本该由默认包装器提供的函数（`print_int` 等）就变成**未定义的函数**：
+
+```forth
+#param lib("base64")
+42 . CR
+```
+```
+<file>:2: error: 未定义的函数 'print_int'（引用 1 次）
+```
+
+**已缩小的部分**（都是实测）：
+
+| 输入 | 结果 |
+|---|---|
+| `42 . CR` | 正常 ✓ |
+| `#param lib("math")` + `42 . CR` | 正常 ✓ —— **`math` 本来就在默认集里** |
+| `#param lib("parserexp")` + `42 . CR` | ✘ `print_int` 未定义 |
+| `#param lib("parserexpf" / "base64" / "matrix" / "color")` + `42 . CR` | ✘ 四个**都**报同一个错 |
+
+⇒ **与具体模块无关**：只要 `#param lib(...)` 往 `LinkStandardLibrary` 的
+`libraryPaths` 里**加进一条默认集之外的路径**，就会丢包装器。
+（`math` 那条不坏，正因为它加进去的路径**已经在** `allPaths` 里 —— 集合没变化。）
+
+**为什么这条值得记**：它正是 `Examples/forth/parserexp_demo.fs` 编译失败的原因，
+而那个例程**本来**该用 `#param lib("parserexp")` 表达依赖 —— 也就是说
+**「在 Forth 里声明依赖」这条路本身是坏的**，用户只要声明任何额外库就会掉进这个坑。
+（`Examples/dart/parserexpf_demo.dart` 能过，说明别的语言没这个问题。）
+
+**已证伪的假设（别重走）**：怀疑是 `ForthCompiler.CompileFile` 里那句
+`else if (allLibraryPaths.Count > 0) LibraryLinker.LinkLibraries(prog, allLibraryPaths)`
+抢先用**残缺清单**链了一次、把 `print_int` 判死。**实测把这个分支整个删掉，症状一字不变**
+（`print_int` 仍未定义）⇒ 不相干，已还原。**更奇怪的是**：删掉之后 `#param lib(...)`
+在这条链上就**完全没有作用**了，而症状还在 —— 说明差异产生在**更早**的地方，
+不在 `CompileFile` 对 `#param` 的处理里。
+
+**已经查到的事实**（可直接接着查）：
+
+1. 文件链是 `vmlcli` → 插件 `CompileFileWithIncludes` → `CompilerHelper.BuildCompileFileWithIncludes`，
+   后者把 `GetStandardLibraryIncludes(langName, useSharedLibrary)` 与**调用方给的** `libraryPaths`
+   合成 `includeFiles`，再 `ToVmlTextWithIncludes` 写成 `.linked` 指令。
+   ⇒ **文件里的 `#param lib(...)` 收集在 `CompileFile` 的局部变量里，压根到不了 `includeFiles`**。
+2. 真正决定链哪些库的是**汇编出来的 `.linked` 清单**（`CompilerHelper` 里 `SharedPrefixMap`
+   上方那段注释已经记过这件事：那张映射表在这条链上是死代码）。
+3. 症状与模块无关（parserexp / parserexpf / base64 / matrix / color 五个体感一致），
+   而 `math` 不坏 —— 因为 `Lib/forth/math.vml`**本来就在默认集里**。
+
+⇒ **下一步**：在 `ToVmlTextWithIncludes` 的 `includeFiles` 上打一行（有/无 `#param lib` 各跑一次），
+看那份 `.linked` 清单到底差在哪 —— 差异一定在那里，而不是在 C# 侧的链接调用里。
+位置数字与判据**一个字都不要动** —— 现有探针全在断这个。
+
+**状态**：🔴 未修。**绕过**：Forth 里不要写 `#param lib(...)`；需要额外库就改那门语言的
+默认 `.linked` 清单（`Lib/forth/builtin.vml` 一族）。
+
 ### 🟡 `Lib/` 里两套栈清理约定并存（**已消解**，2026-09-19 复核）
 
 C 前端生成的函数是**调用方清参数**（`move R13 R12; pop R12; pop R15; ret`，

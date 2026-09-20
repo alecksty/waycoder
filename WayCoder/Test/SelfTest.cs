@@ -264,6 +264,7 @@ public static partial class SelfTest
 
             Console.WriteLine(title);
             _secEnabled = filter == null || filter.Any(f => title.StartsWith(f));
+            TouchWatchdog($"{title}（段首，尚未跑出任何测试项）");
         }
 
         void Check(string name, bool condition)
@@ -271,9 +272,64 @@ public static partial class SelfTest
             if (!_secEnabled) return;
             var gap = Lap();
             itemTimes.Add((currentSection, name, gap, condition));
+            TouchWatchdog($"{currentSection} ▸ {name}");
 
             if (condition) { passed++; Report("✅", name, gap); }
             else { failed++; Report("❌", name, gap); }
+        }
+
+        // ── 防卡死看门狗 ────────────────────────────────────────────────────────
+        //
+        // 一条 Check 卡在死循环里，整个 `--test` 就**永远不返回** —— CI 上表现为"跑不完"，
+        // 而输出停在最后一条 ✅ 上，**看不出卡在哪一条**（6133 条里靠肉眼二分是最贵的排查法）。
+        // 用户的要求是「编译和测试都要有防卡死机制」，这是测试那一半。
+        //
+        // ⚠ 为什么是 `Environment.Exit` 而不是抛异常：**卡住的那条线程停不下来**
+        //   （.NET 没有安全的中止线程）。只能把"卡在哪"打出来、把进程结束掉，
+        //   让 CI 拿到非零退出码 + 一条能直接看的信息。
+        // ⚠ 阈值给得很松（180 秒）：实测最慢单条 2.9 秒、全套 32 秒，
+        //   给到 180 秒是为了**慢机器不假红** —— 判据是"卡死"（无限），不是"慢"。
+        //   与手机端那个编译看门狗（同样 180 秒）取同一个数，是有意的。
+        // 阈值可用环境变量压低（默认 180）—— **这是给它自己做验收用的**：
+        // 本仓铁律「不响的自测比没有更糟」，所以这条看门狗必须能被证明会响，
+        // 而等 180 秒去验一次不现实。低于 1 秒一律忽略（防止有人手滑把它变成"必定假红"）。
+        var WatchdogSeconds = double.TryParse(Environment.GetEnvironmentVariable("WAYCODER_SELFTEST_WATCHDOG_SEC"),
+                                              out var wdSec) && wdSec >= 1 ? wdSec : 180;
+        var wdLock = new object();
+        string wdWhere = "(尚未开始)";
+        double wdLastMs = 0;
+        void TouchWatchdog(string where)
+        {
+            lock (wdLock) { wdWhere = where; wdLastMs = sw.Elapsed.TotalMilliseconds; }
+        }
+        var wd = new Thread(() =>
+        {
+            while (true)
+            {
+                Thread.Sleep(5000);
+                string where; double last;
+                lock (wdLock) { where = wdWhere; last = wdLastMs; }
+                if (sw.Elapsed.TotalMilliseconds - last < WatchdogSeconds * 1000) continue;
+                var msg = $"\n⏱ 自测卡死看门狗：已 {(sw.Elapsed.TotalMilliseconds - last) / 1000:F0} 秒没有任何测试项完成"
+                        + $"（阈值 {(int)WatchdogSeconds} 秒）\n"
+                        + $"   最后完成的一项：{where}\n"
+                        + "   ⇒ **卡死的是它后面那一项**。用 `--test <模块>` 缩小到那个 Section 再逐条二分。\n";
+                try { realOut.WriteLine(msg); realOut.Flush(); } catch { /* 真实 stdout 不可写时忽略 */ }
+                Environment.Exit(2);
+            }
+        })
+        { IsBackground = true, Name = "selftest-watchdog" };
+        wd.Start();
+
+        // 验收注入点：`WAYCODER_SELFTEST_HANG=1` 时故意空转，验看门狗真的会响
+        // （配合 `WAYCODER_SELFTEST_WATCHDOG_SEC=3` 用，几秒就能验完）。
+        // 生产路径不看这个变量，自测也不看 —— 只有人为设了才会走到。
+        if (Environment.GetEnvironmentVariable("WAYCODER_SELFTEST_HANG") == "1")
+        {
+            Console.WriteLine("  [验收] 注入空转：看门狗应当几秒后报出「卡在哪」并以退出码 2 结束。");
+            var spin = new Thread(() => { while (true) { } }) { IsBackground = true };
+            spin.Start();
+            spin.Join();
         }
 
         void Fail(string name)
