@@ -22,8 +22,17 @@ namespace ForthCompiler
             throw Error(message);
         }
 
-        protected override ParseException Error(string message)
-            => new ParseException(VMLPlugins.Strings.SyntaxErrorAt(Cur.Line, Cur.Column, message), Cur!);
+        // ⚠ 这里原有 `protected override ParseException Error(string message)
+        //   => new ParseException(Strings.SyntaxErrorAt(Cur.Line, Cur.Column, message), Cur!)`
+        //   —— **已删除、改用基类实现**。它比基类少两件事：
+        //     ① 位置不是宿主认的 `文件:行:列: error:` 形状（`Strings.SyntaxErrorAt` 拼的是
+        //        `… at line N … (col C)`），编辑器按那个形状锚行，锚不到；
+        //     ② 取的是 `Cur.Line` = **预处理后**的行号 ⇒ **不查 `#include` 行号映射**，
+        //        错在头文件里时会报成用户文件的行。
+        //   本门的 `Token` 实现了 `ITokenPosition`，基类那条通用实现取到的行列**与这里手写的同源**
+        //   （同一只 `Cur`），所以删掉只是补上前缀与映射，位置一个字不变。
+        //   （Go 前端那条同类覆写在同一轮里同样删掉了。）
+
 
         private void SkipNewlines()
         {
