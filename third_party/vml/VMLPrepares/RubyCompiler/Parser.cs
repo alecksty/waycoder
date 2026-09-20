@@ -9,6 +9,20 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
+    /// <summary>
+    /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+    /// `Newline` / `EOF` 必须算进来：Ruby 的语句以换行收尾，`x = 1 +` 正是等换行后
+    /// 遇到 `Newline` 才发作。
+    /// </summary>
+    protected override bool IsExpressionCloser(Token token) => token.Type
+        is TokenType.RParen or TokenType.RBrace or TokenType.RBracket
+        or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+        or TokenType.Newline or TokenType.EOF;
+
+    /// <summary>语句分隔 —— `GapAnchor()` 的第二个判据：上一个若是它，缺口在本行行首。</summary>
+    protected override bool IsStatementSeparator(Token token) => token.Type
+        is TokenType.Newline or TokenType.Semicolon;
+
     protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Ruby 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
@@ -421,7 +435,12 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        // 位置用 `GapAnchor()`：`x = 1 +` 的下一个 token 是**下一行**的 `Newline`
+        // ⇒ 按当前位置报就落到第 5 行，而错在第 4 行。锚定规则见基类 `GapAnchor`。
+        // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀 `文件:行:列: error:`
+        // **重复**，且手写那份取的是预处理后的行列（不查 `#include` 映射），
+        // 两份可能不一致。位置由前缀一处给。
+        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
     }
 
     private ASTNode ParseCall(ASTNode? receiver, string method)
