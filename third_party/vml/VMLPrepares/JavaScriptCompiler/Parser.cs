@@ -10,6 +10,19 @@ namespace JavaScriptCompiler
     {
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+        /// `EndOfFile` 必须算进来：`var x = 1 +` 结尾会撞上它。
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RightParen or TokenType.RightBrace or TokenType.RightBracket
+            or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+            or TokenType.EndOfFile;
+
+        /// <summary>语句分隔 —— JS 的 `;`（换行不是本前端的词法单元）。</summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.Semicolon;
+
         public Parser(List<Token> tokens) : base(tokens) { }
 
         /// <summary>
@@ -419,7 +432,9 @@ namespace JavaScriptCompiler
         {
             var body = ParseStatement();
             Expect(TokenType.Keyword, "期望 'while'");
-            if (Previous().Value != "while") throw new ParseException("期望 'while'", Previous());
+            // 位置走统一出口（`ErrorAt` 把位置拼成 `文件:行:列: error:` 并查 `#include` 映射）；
+            // 两参 `new ParseException(msg, token)` **不带位置**（`Line = 0`）⇒ 报出去锚不到行。
+            if (Previous().Value != "while") throw ErrorAt("期望 'while'", Previous());
             Expect(TokenType.LeftParen, "期望 '('");
             var condition = ParseExpression();
             Expect(TokenType.RightParen, "期望 ')'");
@@ -886,7 +901,7 @@ namespace JavaScriptCompiler
                     // super.property
                     return new MemberExpression(new VariableExpression("super"), member);
                 }
-                throw new ParseException("super 仅支持 super()/super.method()/super.property", Cur);
+                throw Error("super 仅支持 super()/super.method()/super.property");
             }
 
             Expression primaryExpr = null;
@@ -1083,14 +1098,16 @@ namespace JavaScriptCompiler
                     }
                     else
                     {
-                        throw new ParseException($"模板字符串中意外的标记: {Cur}", Cur);
+                        // `{Cur}` 会用 `Token.ToString()`，而它自带 `at 行:列` ⇒ 位置混进正文、且不是宿主认的形状。
+                // 换成 `{Cur.Type} '{Cur.Value}'`，位置交给统一前缀一处给。
+                throw ErrorAt($"模板字符串中意外的标记: {Cur.Type} '{Cur.Value}'", GapAnchor());
                     }
                 }
                 Expect(TokenType.Backtick, "期望 '`'");
                 return template;
             }
 
-            throw new ParseException($"意外的标记: {Cur}", Cur);
+            throw ErrorAt($"意外的标记: {Cur.Type} '{Cur.Value}'", GapAnchor());
         }
 
         // 辅助方法
