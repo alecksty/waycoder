@@ -819,6 +819,27 @@ int B[3] = { -5,  7, -9 };       /* 程序实际读到  0  7  0    */
   对齐 ⇒ 同样横向 `ScrollView`（`LineBreakMode.NoWrap` 保留）。⚠ 外层只有一个**竖向** ScrollView
   时，不换行又不横滚的内容右边**既看不见也滚不到**。
 
+- **QBasic 原生图形语句在手机上跑不了，别被它的名字骗了（v0.96.325 勘察）**：
+  VML 的 BASIC 前端**确实**有 `SCREEN`/`LINE`/`CIRCLE`/`PAINT`/`GET`/`PUT`/`PLAY` 这一整套
+  （`VMLPrepares/BasicCompiler/CodeGenerator.Qbasic.Graphics*.cs` + `.SoundIO.cs` + `PcGfx.cs`，约 3100 行），
+  **但它的代码生成是往固定 DOS 内存地址写的**（`SCREEN` 把模式写到 `0x6FF0` 这类约定）——
+  那是 `PcGfx`/DOS 帧缓冲模型，**不是手机那扇窗口**。
+  ⇒ **手机上要画图只能走 `ui_*` 共享库**（`Lib/shared/src/vmlui.c` → `vmlui.vml`），
+  也就是 `Examples/basic/tetris.bas`、`whack.bas`、`Examples/c/tetris.c`、`gomoku.c` 那条路 ——
+  它们全是 `NATIVE SUB/FUNCTION` 声明 `ui_*` 后当普通过程调。
+  **判据是"例子能不能在真机上跑"，不是"语言里有没有这个关键字"**。
+  这条同样适用于移植任何 QBasic/老 BASIC 程序。
+- **QBasic 老程序的移植与版权（v0.96.325，用户拍板）**：官方 `GORILLA.BAS` 是
+  `Copyright (C) Microsoft Corporation 1990`（原件 29,434 字节 / 1135 行，
+  MD5 `3651562e0a058e661e38a1e9e82afadb`，取自 `jefflewis.net` 存档 —— 与 NT4 CD 展开件一致）。
+  **`Examples/` 会被 `make-vml-lib.sh` 打进 `vml_lib.zip` 随 APK 分发**，
+  所以**不能把微软的原件放进去**（QB64 项目当年就为此把 `gor64.bas` 从发行版撤掉了）。
+  用户选定的路线：**只参考玩法规则**（回合制 / 输角度与力度 / 重力+风 / 抛物线 / 命中判定 / 计分），
+  **代码自己写**（结构、变量名、注释、SUB 划分都不抄）。
+  这个选择还顺带省事 —— 原版里真正跑不起来的几处本来就得重写：`DEF SEG`（读写 BIOS 段开 NumLock，
+  x86 专属）、键盘敲数字的输入（手机要改触摸）、`SCREEN 9` 的 640×350 坐标系（手机画布是竖屏）。
+  **移植任何"官方经典程序"前先问一句"它的许可允不允许我随包发"**。
+
 ## 模式体系（三分钟版，竞品对标）
 
 WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**四个正交轴**（完整版见 [docs/模式体系.md](docs/模式体系.md)）：
