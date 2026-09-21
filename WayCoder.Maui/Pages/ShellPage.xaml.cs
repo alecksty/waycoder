@@ -1238,12 +1238,25 @@ public partial class ShellPage : ContentPage
     /// </summary>
     private void PublishTerminalSize()
     {
-        MauiVml.TermCols = EffectiveCols();
+        // ⚠ **自适应档不把自己推导出来的列数当成"终端尺寸"播报**（0 = 未知）。
+        //
+        // 这个数唯一的用途是给**全屏程序**建网格（`MauiVml.RunProgram` 的屏幕分支）。
+        // 而 `nyancat` / `tty-clock` 那批老程序**写死 80 列、根本不会自适应** ——
+        // 告诉它"你的终端只有 50 列"，它照样一行吐 80 个字符 ⇒ **它自己的输出就在网格里折了**，
+        // 画面上表现为整幅图斜切（实测：固定 80×25 档形状完整、自适应档被剪开）。
+        // 播 0 就退回**经典的 80×25**（那个兜底本来就在 `RunProgram` 里）。
+        //
+        // 「行」同一个道理：屏幕高就报高，只会让老程序多画一片空行。
+        //
+        // 用户显式选了固定档时照播不误 —— 那正是"我就要这个尺寸"的意思。
+        var auto = MauiShellStore.Mode == ShellSizeMode.Auto;
+        MauiVml.TermCols = auto ? 0 : EffectiveCols();
+
         var rows = MauiShellStore.Rows;
         var px = ViewportHeight;
         MauiVml.TermRows = rows > 0
             ? rows
-            : (px > 0 ? (int)(px / (MauiShellStore.Font * LineHeightFactor)) : 0);
+            : (auto || px <= 0 ? 0 : (int)(px / (MauiShellStore.Font * LineHeightFactor)));
     }
 
     /// <summary>
