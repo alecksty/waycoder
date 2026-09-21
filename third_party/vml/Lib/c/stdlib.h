@@ -44,9 +44,10 @@ char *getenv(const char *name);
 int abs(int j);
 /* long labs(long j); - 暂不支持long */
 
-/* Random number generation */
+/* Random number generation —— 二者都在 `Lib/shared/src/convert.c` 里。
+   `srand` 收下种子但不施加（本平台随机源由 VM 播种），详见该文件的说明。 */
 int rand(void);
-/* void srand(int seed); - 暂不支持 */
+void srand(int seed);
 
 /* Time functions */
 int get_datetime(void);

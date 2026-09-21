@@ -380,8 +380,38 @@ int getche(void)
     return c;
 }
 
+/* `kbhit()` —— "有没有按键（**不取走**）"。
+ *
+ * ## 这条路线踩过的坑：症状是"动画程序一帧都不画"
+ *
+ * 旧实现只查**自己的行缓冲**，空缓冲就返回 0，还留着一句注释说
+ * "按行的 stdin 无法预知有没有按键" —— **那句是错的**：宿主侧本来就有
+ * `ISystemCallHandler.KeyAvailable()`，而且 `SYSCALL #5` 的 `R0=0` 模式
+ * 就是"非阻塞地取一个字符"（没键返回 0，见 `SyscallNumber` 附近的注释）。
+ *
+ * 后果不是"kbhit 偶尔不准"，而是**一整类动画老程序跑不起来**：
+ * `cmatrix` / `tty-clock` 的主循环都写成
+ *     timeout(0);   …   if ((ch = wgetch(stdscr)) != ERR) {…}
+ * —— 靠"kbhit 说没键"来推进每一帧。旧实现里它恒为 0，于是 `getch`
+ * 每次都**阻塞读一整行**，第一帧都画不出来就卡在那儿（实测：跑满 38 秒
+ * 被超时杀掉，屏幕输出只有 `initscr` 那一句清屏）。
+ *
+ * ## 实现：**非阻塞探一下，取到就存进缓冲**
+ *
+ * 不能直接把 `SYSCALL #5` 的结果返回 —— 那会**把字符取走**，而 kbhit 的
+ * 契约是"看一眼、不动它"。所以取到就压进 `conKb`（`getch` 接着从那里拿），
+ * 缓冲的语义从"一整行"放宽成"待处理的字符"。
+ *
+ * ⚠ 与 `getchar()` 的配合：那边**必须显式 `R0=1`**，否则会继承这里的
+ * `R0=0` 退化成非阻塞（见 `io.c` 里 getchar 的说明）。两处是一对。 */
 int kbhit(void)
 {
+    int c;
     if (conKbPos < conKbLen) return 1;
-    return 0;                            /* 按行的 stdin 无法预知"有没有按键" */
+    c = asm("SYSCALL #5, ${0}");         /* R0=0 ⇒ 非阻塞；没键返回 0 */
+    if (c <= 0) return 0;
+    conKb[0] = (char)c;
+    conKbLen = 1;
+    conKbPos = 0;
+    return 1;
 }

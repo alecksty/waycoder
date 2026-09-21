@@ -755,7 +755,27 @@ internal sealed class CaptureIo : IConsoleIO
 
     public int ReadInt() => int.TryParse(ReadString().Trim(), out var v) ? v : 0;
     public float ReadFloat() => float.TryParse(ReadString().Trim(), out var v) ? v : 0f;
-    public bool KeyAvailable() => _lines is not null;
+    /// <summary>
+    /// "此刻还有没有按键待读" —— `kbhit()` / `nodelay` 模式下 `getch()` 的判据。
+    ///
+    /// ⚠ 原来的实现是 `_lines is not null`，**恒为真**（只要有输入源就真）。
+    /// 那等于告诉程序"永远有键"，而 `read_file` 那条链的下场是：
+    /// `conio.kbhit()` 恒返 1 ⇒ `curses` 的 `wgetch` 在 `timeout(0)` 下**从不
+    /// 返回 `ERR`** ⇒ 老程序（`cmatrix` / `tty-clock` 那类）主循环里
+    /// "没按键就画下一帧"的分支**永远走不到**，第一帧都画不出来就卡在读键上。
+    ///
+    /// 正确语义是**还有没有未消费的字符**：当前行剩的（`_cur`）或者队列里
+    /// 还没取的行（`_lines`）。两处都空了才是"没有键"。
+    /// ⚠ 与手机端 `WayCoder.Maui` 的同名实现是一对，改一处要改另一处。
+    /// </summary>
+    public bool KeyAvailable() => _cur.Length > 0 || _lines is { Count: > 0 };
+
+    /// <summary>
+    /// 脚本化输入读完 ⇒ `true`（`--stdin` 的队列空了、当前行的剩余也吐完了）。
+    /// **交互式**（没有输入源，`_lines == null`）恒 `false` —— 那种情况下"没键"
+    /// 只意味着"用户还没敲"，阻塞读**应该**继续等。见接口上的说明。
+    /// </summary>
+    public bool InputExhausted => _lines is not null && _cur.Length == 0 && _lines.Count == 0;
 }
 
 // 桌面宿主（500–599 号段 + VM 内置的 #57 的真实实现）在 `CliVmlHost.cs`：

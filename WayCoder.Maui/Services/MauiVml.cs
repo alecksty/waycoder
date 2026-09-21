@@ -1020,8 +1020,16 @@ HALT
         public int ReadInt() => int.TryParse(ReadString().Trim(), out var v) ? v : 0;
         public float ReadFloat() => float.TryParse(ReadString().Trim(), out var v) ? v : 0f;
 
-        // 有输入源就恒为 true：让 `while(!KeyAvailable()); getchar()` 这类轮询能推进。
-        // 真正的"还有没有输入"由宿主的输入源自己决定（读完了它自然会给出空行）。
-        public bool KeyAvailable() => _readLine != null;
+        // ⚠ 手机端**预知不了**"下一个键什么时候来"：`_readLine` 是"弹输入框、等用户敲
+        // 一行"的回调，**问一次就消费一次**，没有队列可以窥探。所以这里只能如实回答
+        // **手上还没读完的那几个字符**（`_cur`），输入源还在时就倾向于说"有"。
+        //
+        // 与桌面 `vmlcli`（`scripts/vmlcli/Program.cs`）**有意不同的语义**：那边输入是
+        // 一整条队列（`--stdin`），能如实回答"队列里还有没有"，于是 `conio.kbhit()` /
+        // `curses` 的 `timeout(0)+wgetch` 能真正工作。手机上这条路对**用 curses 的老程序**
+        // 仍会偏保守（`kbhit` 恒真 ⇒ 非阻塞读键退化成阻塞）——已知差距，见
+        // `docs/老程序兼容性.md`。手机上的 VML 游戏走的是 `ui_poll`/`ui_wait` 那套消息
+        // 机制，不经过这里，**不受影响**。
+        public bool KeyAvailable() => _cur.Length > 0 || _readLine != null;
     }
 }

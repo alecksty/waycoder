@@ -48,6 +48,15 @@
    拿到 `stderr`，自己**并不** include <stdio.h>。这里照做。 */
 #include <stdio.h>
 
+/* ⚠ 同理带出 `stdbool.h`：真 ncurses 在 C99 下就是这么做的，于是老程序
+   直接用**小写** `true`/`false` 而不自己 include（实测 cmatrix 第 726/741
+   行就是 `matrix[i][j].is_head = false;`，而它的 include 表里没有
+   stdbool.h）。少了这一句报的是"未声明的变量 'false'"。 */
+#include <stdbool.h>
+
+/* `wchar_t`（`typedef unsigned int`，4 字节）—— `addwstr` 的形参要用。 */
+#include <stddef.h>
+
 /* ── 尺寸（与 conio 同为 80×25；curses 程序常拿它做布局） ── */
 #define LINES 25
 #define COLS  80
@@ -55,6 +64,14 @@
 /* ── 返回值 ── */
 #define OK   0
 #define ERR (-1)
+
+/* ── 布尔 ──
+   ⚠ 真 ncurses 的 `curses.h` 里就有 TRUE/FALSE，老程序**默认它有**
+   （`leaveok(stdscr, TRUE)` 这种写法遍地都是，而它们并不自己 include
+   stdbool.h）—— 实测 cmatrix 第 470 行就是这么写的，报
+   "未声明的变量 'TRUE'"。少这两个宏，凡是拿它们当参数的程序全挂。 */
+#define TRUE  1
+#define FALSE 0
 
 /* ── 属性位（`attron`/`attrset` 用；低位是"修饰"，高位放颜色对号） ── */
 #define A_NORMAL     0
@@ -64,6 +81,17 @@
 #define A_REVERSE    8
 #define A_BLINK      16
 #define A_STANDOUT   A_REVERSE
+
+/* `A_ALTCHARSET`：**替代字符集**（老程序拿它把 `-` `|` `+` 画成线框字符）。
+   ⚠ 本平台**没有这个概念**（终端那边看到什么就是什么），所以这里只给一个
+   **空闲属性位**让程序编得过 —— `sc_sgr` 不认识它就静默忽略，字符按原样画。
+   这正是我们要的退化：cmatrix 的方块在真 ncurses 下是 `ACS_*` 线框字符、
+   换成本平台的普通字符后仍然是个能看的矩阵。
+   ⚠ 值取 32 而不是真 ncurses 的 `0x4000` —— 本实现的属性布局是
+   「低 8 位修饰位 / 高 8 位颜色对号」（见 `COLOR_PAIR`），往高位放会撞上颜色。 */
+#define A_ALTCHARSET 32
+#define A_CHARTEXT   64
+#define A_ATTRIBUTES (A_BOLD|A_DIM|A_UNDERLINE|A_REVERSE|A_BLINK|A_ALTCHARSET|A_CHARTEXT)
 
 /* ── 8 色（curses 的颜色号就是 ANSI 的 0-7 顺序：黑红绿黄蓝品青白） ── */
 #define COLOR_BLACK   0
@@ -114,6 +142,7 @@ int getcurx(WINDOW *w);
 /* ── 输出 ── */
 int addch(int ch);
 int addstr(const char *s);
+int addwstr(const wchar_t *s);  /* 宽字符版：按码点转 UTF-8，见 curses.c 的说明 */
 int mvaddstr(int y, int x, const char *s);
 int mvaddch(int y, int x, int ch);
 int printw(const char *fmt, ...);
@@ -131,6 +160,35 @@ int attrset(int attrs);
 int start_color(void);
 int init_pair(short pair, short f, short b);
 int has_colors(void);           /* 恒 1 */
+
+/* ── 窗口选项（**只记状态** —— 单窗口退化实现下它们没有可观察的效果，
+      但老程序会把它们当"开关"调，收下即可） ── */
+int leaveok(WINDOW *w, int bf);   /* 光标可留在任意位置（光标本来就不由我们管） */
+int scrollok(WINDOW *w, int bf);  /* 到屏底自动滚屏（我们走 conio 那套滚屏） */
+int idlok(WINDOW *w, int bf);     /* 插入/删除行优化（本平台无此概念） */
+int raw(void);                    /* 关掉行缓冲/信号（本平台输入本来就是按行给的） */
+int noraw(void);
+int nonl(void);                   /* 输出不做 NL→CRLF 映射（本平台本就没有这层转换） */
+int savetty(void);                /* 存/恢复终端状态：本平台无此概念，收下返回 OK */
+int resetty(void);
+int timeout(int ms);              /* 读键超时：**只收下**，见 curses.c 的说明 */
+int wtimeout(WINDOW *w, int ms);
+int napms(int ms);                /* 睡 N 毫秒（老程序拿它控帧率） */
+
+/* ── 常用简写（真 ncurses 里就是宏/薄封装，老程序用得极多） ── */
+int standout(void);               /* = attron(A_STANDOUT) */
+int standend(void);               /* = attrset(A_NORMAL) */
+int beep(void);                   /* 响铃：本平台无蜂鸣器，**返回 OK 不报错** */
+int flash(void);                  /* 闪屏：同上 */
+int has_ic(void);                 /* 恒 1：有插入/删除字符的能力（我们是重画整屏） */
+int has_il(void);                 /* 恒 1：有插入/删除行的能力 */
+int wnoutrefresh(WINDOW *w);      /* 延迟刷新 —— 直接做掉（见 curses.c） */
+int doupdate(void);               /* 与 wnoutrefresh 配对，空操作 */
+
+/* ── 窗口几何（照真 ncurses 用宏；本实现只有一个窗口，起点恒 (0,0)） ── */
+#define getmaxyx(w,y,x)  ((y) = (w)->rows, (x) = (w)->cols)
+#define getbegyx(w,y,x)  ((y) = 0, (x) = 0)
+#define getparyx(w,y,x)  ((y) = -1, (x) = -1)
 
 /* ── 输入 ── */
 int getch(void);                /* = conio 的 getch（同一个底层） */

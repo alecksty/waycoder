@@ -870,6 +870,13 @@ namespace VMLRuntime
 
                 if (!blocking) { registers[0] = 0; return; }
 
+                /* 脚本化输入（`vmlcli --stdin` 喂的那一行 / 手机端喂的一行）**已经读完**
+                   ⇒ 按 DOS 语义给"空行"（0x0A）收尾，**别在这里死等**。
+                   没有这一条，`getch()` 等到输入用完那一下会一直转圈，
+                   老程序等的那句"回车确认"永远等不到（实测 `cases/16-conio-key.c`
+                   第 5 次 `getch()` 卡到探针超时）。语义见 `ISystemCallHandler.InputExhausted`。 */
+                if (_consoleIO != null && _consoleIO.InputExhausted) { registers[0] = 0x0A; return; }
+
                 // 超时保护: 与 KeyScript 循环一致
                 if (TimeoutSeconds > 0)
                 {

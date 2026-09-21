@@ -96,6 +96,46 @@ __stdcall int fprintf(int stream, const char* fmt, ...) {
     return n;
 }
 
+/* ── vfprintf：**参数已经装好**的那一版 ──
+   老程序把它包在自己的日志函数里，这是标准写法：
+       void warn(const char* fmt, ...) { va_list ap; va_start(ap, fmt);
+                                          vfprintf(stderr, fmt, ap); va_end(ap); }
+   与 `fprintf` 的唯一差别是**参数从哪来**（那边自己 `va_start`，这边直接用
+   传进来的 `va_list`）—— 正文逐字相同，**别把 `va_start` 抄过来**（对一个
+   已经启动的 `va_list` 再启动一次是未定义行为）。
+   `stdio.h` 早就声明了它（第 63 行），只是一直没有实现。 */
+__stdcall int vfprintf(int stream, const char* fmt, va_list ap) {
+    char buf[512];
+    int vals[16];
+    int i;
+    int nargs;
+    int n;
+
+    (void)stream;
+    nargs = format_arg_count(fmt);
+    if (nargs > 16) nargs = 16;
+    for (i = 0; i < nargs; i++) vals[i] = va_arg(ap, int);
+    n = vsnprintf(buf, fmt, vals, nargs);
+    buf[n] = 0;
+    print_str(buf);
+    return n;
+}
+
+/* ── ttyname / isatty：老程序拿它们判断"我是不是在终端上跑" ──
+   典型写法是 `if (!isatty(1)) { 关掉颜色 }` 或 `ttyname(0) == NULL` ⇒ 走降级分支。
+   本平台**恒为终端**（输出就是发到命令行页那个字符网格上的）⇒ 如实作答：
+   `isatty` 返回 1、`ttyname` 给一个标准设备名。
+   ⚠ **不能返回 NULL** —— 那会让程序把彩色界面关掉，而它明明是能彩色的。 */
+__stdcall int isatty(int fd) {
+    (void)fd;
+    return 1;
+}
+
+__stdcall char* ttyname(int fd) {
+    (void)fd;
+    return "/dev/tty";
+}
+
 /* ── strerror：返回一句人话 ──
    老程序把它拼进错误信息里。本平台没有 errno 表，给个固定的描述即可。 */
 __stdcall char* strerror(int errnum) {
@@ -111,6 +151,27 @@ struct vml_sigaction { void* handler; int mask; int flags; };
 
 __stdcall int sigaction(int sig, void* act, void* old) {
     (void)sig; (void)act; (void)old;
+    return 0;
+}
+
+/* ── signal：**老程序最常用的那个**信号接口（cmatrix 第 473-476 行就是它）──
+   与 sigaction 同一处置：收下、返回成功、处理函数永不触发。
+
+   ⚠ 第二个参数声明成 `void*`、返回值也是 `int`，**不是 C 标准的
+   `void (*signal(int, void (*)(int)))(int)`** —— 那个"返回函数指针"的
+   嵌套声明本 C 前端支持得不好，而老程序**从不使用 signal() 的返回值**
+   （清一色 `signal(SIGX, handler);` 当语句用）。两边声明要对齐：
+   `Lib/c/signal.h` 里写的是同一种形状。 */
+__stdcall int signal(int sig, void* handler) {
+    (void)sig; (void)handler;
+    return 0;
+}
+
+/* `raise(sig)`：自己给自己发信号。本平台没有信号，收下返回 0。
+   注意**不能**改成"直接调 handler" —— 那会让 `raise(SIGSEGV)` 之类的
+   恢复逻辑走进一个本不存在的路径。 */
+__stdcall int raise(int sig) {
+    (void)sig;
     return 0;
 }
 

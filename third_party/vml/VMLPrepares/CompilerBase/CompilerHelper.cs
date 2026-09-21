@@ -831,13 +831,59 @@ namespace CompilerBase
         /// </summary>
         public static Dictionary<string, string> BasePredefinedMacros()
         {
-            return new Dictionary<string, string>
+            var dict = new Dictionary<string, string>
             {
                 ["__VML__"] = "1",
                 ["__VML_VERSION__"] = "\"1.65.170\"",
                 ["__DATE__"] = $"\"{DateTime.Now:MMM dd yyyy}\"",
                 ["__TIME__"] = $"\"{DateTime.Now:HH:mm:ss}\"",
             };
+            ApplyEnvDefines(dict);
+            return dict;
+        }
+
+        /// <summary>
+        /// 把 `VMLTOOL_DEFINE` 环境变量里的宏定义并进字典。
+        ///
+        /// ## 为什么需要它（这是**一整类**缺口，不是某几个宏）
+        ///
+        /// autoconf 时代的老程序，宏常常是**构建系统喂进去的**：
+        ///
+        ///     gcc -DVERSION='"cmatrix 2.0 by abhishek"' -DHAVE_CONFIG_H ...
+        ///
+        /// 而我们是"把源文件直接丢给编译器"、**没有构建系统** ⇒ 这类宏全缺。
+        /// 实测 `cmatrix`：`printf(VERSION, __TIME__, __DATE__)`（第 175 行），
+        /// 缺了它整个程序编不过 —— 而**它不是库缺失**，补头文件补不出来
+        /// （见 `docs/老程序兼容性.md` 第九节"新类别①"）。
+        ///
+        /// ## 格式
+        ///
+        /// 与 `VMLTOOL_INCLUDE` 同一族，但用**换行**分隔多条而**不是分号** ——
+        /// 宏值本身常含分号（`VERSION="a; b"`），用分号当分隔符会歧义。
+        ///
+        ///     VMLTOOL_DEFINE=$'VERSION="cmatrix 2.0"\nPACKAGE="cmatrix"'
+        ///
+        /// 只有名字、没有 `=` 的条目按 C 命令行的惯例取 `1`（即 `-DFOO` 的语义）。
+        ///
+        /// ## 优先级
+        ///
+        /// 这里写进去的会被**显式传入的**宏覆盖 —— `BasePredefinedMacros()` 的
+        /// 产物在各编译器里是当作 `extraDefines` 参数传下去的，而
+        /// `Preprocessor` 是**最后**合并 `extraDefines`（见其构造函数），
+        /// 所以"命令行 > 环境变量 > 内建默认"这个次序是自然成立的。
+        /// </summary>
+        public static void ApplyEnvDefines(Dictionary<string, string> dict)
+        {
+            var env = Environment.GetEnvironmentVariable("VMLTOOL_DEFINE");
+            if (string.IsNullOrEmpty(env)) return;
+            foreach (var raw in env.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var entry = raw.Trim();
+                if (entry.Length == 0) continue;
+                int eq = entry.IndexOf('=');
+                if (eq < 0) dict[entry] = "1";
+                else dict[entry.Substring(0, eq).Trim()] = entry.Substring(eq + 1).Trim();
+            }
         }
 
         /// <summary>

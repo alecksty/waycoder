@@ -274,7 +274,9 @@ namespace CCompiler
                         case 'n': sb.Append('\n'); break;
                         case 't': sb.Append('\t'); break;
                         case 'r': sb.Append('\r'); break;
-                        case '0': sb.Append('\0'); break;
+                        /* ⚠ 这里曾有一句 `case '0': sb.Append('\0'); break;` ——
+                           它把 `\033` 截成 NUL，见 ParseOctalEscape 的说明。
+                           `\0` 由 default 分支的八进制路径接手（值同样是 0）。 */
                         case 'a': sb.Append('\a'); break;
                         case 'b': sb.Append('\b'); break;
                         case 'f': sb.Append('\f'); break;
@@ -297,28 +299,9 @@ namespace CCompiler
                             break;
                         default:
                             if (escapeCh >= '0' && escapeCh <= '7')
-                            {
-                                // 八进制转义: \NNN (最多3位)
-                                int octStart = _pos;
-                                // escapeCh is first octal digit → already consumed; track _pos manually after reading more
-                                int octCount = 1;
-                                while (octCount < 3 && Peek() >= '0' && Peek() <= '7')
-                                {
-                                    Advance();
-                                    octCount++;
-                                }
-                                // reconstruct: escapeCh + subsequent digits
-                                int totalOctLen = 1 + (_pos - octStart);
-                                char[] octChars = new char[totalOctLen];
-                                octChars[0] = escapeCh;
-                                if (totalOctLen > 1)
-                                    _source.CopyTo(octStart, octChars, 1, totalOctLen - 1);
-                                sb.Append((char)System.Convert.ToInt32(new string(octChars), 8));
-                            }
+                                sb.Append((char)ParseOctalEscape(escapeCh));
                             else
-                            {
                                 sb.Append(escapeCh); // 未知转义序列，保留原字符
-                            }
                             break;
                     }
                 }
@@ -379,7 +362,6 @@ namespace CCompiler
                 case 'n': return '\n';
                 case 't': return '\t';
                 case 'r': return '\r';
-                case '0': return '\0';
                 case 'a': return '\a';
                 case 'b': return '\b';
                 case 'f': return '\f';
@@ -398,15 +380,44 @@ namespace CCompiler
                     return System.Convert.ToInt32(hexVal, 16);
                 }
                 default:
-                    if (char.IsDigit(ch))
-                    {
-                        string octVal = ch.ToString();
-                        for (int i = 0; i < 2 && char.IsDigit(Peek()) && Peek() < '8'; i++)
-                            octVal += Advance();
-                        return System.Convert.ToInt32(octVal, 8);
-                    }
+                    /* ⚠ 判据是 `'0'..'7'` 而不是 `char.IsDigit` —— 后者对 `'8'`/`'9'`
+                       也返回 true，而 `Convert.ToInt32("8", 8)` 会**抛异常**。 */
+                    if (ch >= '0' && ch <= '7')
+                        return ParseOctalEscape(ch);
                     return (int)ch;
             }
+        }
+
+        /// <summary>
+        /// 解析八进制转义序列（`\NNN`，最多三位）。
+        /// **第一个八进制数字已经被消费掉了**（由调用方读出并传进来），
+        /// 这里继续读最多两位。
+        ///
+        /// ⚠ 这个方法存在的唯一理由是**收敛**：字符串字面量 / `ParseEscapeSequence`
+        /// / `ReadChar` 三处此前各写了一份八进制逻辑（连循环都逐字相同），
+        /// 而其中**每一份**都有一个 `case '0': … '\0'` 的**抢先分支** ——
+        /// 它把 `\033`（ESC —— 老程序写 ANSI 转义最常见的写法）截成
+        /// **NUL + 字面 "33"**：
+        ///
+        ///     puts("A\033[31mB");   →   实得 `A`（puts 在 NUL 处截断）
+        ///
+        /// **编得过、跑起来才少一大段**，而且症状指不到这里（本仓记过太多次
+        /// 「能编译 ≠ 这条路通了」）。实测判据见 `cases/` 的转义用例。
+        ///
+        /// C 标准里 `\0` **本来就是八进制转义**（值就是 0），所以那个抢先分支
+        /// 纯属多余 —— 删掉它、让八进制路径统一接手，`\0` 与 `\033` 就都对了。
+        /// </summary>
+        private int ParseOctalEscape(char firstDigit)
+        {
+            int value = firstDigit - '0';
+            for (int i = 0; i < 2; i++)
+            {
+                char p = Peek();
+                if (p < '0' || p > '7') break;
+                Advance();
+                value = value * 8 + (p - '0');
+            }
+            return value;
         }
 
         /// <summary>Read a character literal 'x' — returns the character as a string value</summary>
@@ -433,7 +444,6 @@ namespace CCompiler
                     case 'n': value = '\n'; break;
                     case 't': value = '\t'; break;
                     case 'r': value = '\r'; break;
-                    case '0': value = '\0'; break;
                     case 'a': value = '\a'; break;
                     case 'b': value = '\b'; break;
                     case 'f': value = '\f'; break;
@@ -454,21 +464,9 @@ namespace CCompiler
                         break;
                     default:
                         if (escapeCh >= '0' && escapeCh <= '7')
-                        {
-                            // 八进制转义: \NNN (最多3位)
-                            string octVal = escapeCh.ToString();
-                            int octCount = 1;
-                            while (octCount < 3 && Peek() >= '0' && Peek() <= '7')
-                            {
-                                octVal += Advance();
-                                octCount++;
-                            }
-                            value = (char)System.Convert.ToInt32(octVal, 8);
-                        }
+                            value = (char)ParseOctalEscape(escapeCh);
                         else
-                        {
                             value = escapeCh;
-                        }
                         break;
                 }
             }

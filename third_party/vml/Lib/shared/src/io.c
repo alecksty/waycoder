@@ -27,7 +27,13 @@ __stdcall void putchar(char c) {
 __stdcall int getchar(void) {
     /* ⚠ 把 asm 当**表达式**用（规则见 vmlui.c 头部）："先 asm(...) 再
        return c" 会把返回值丢掉 —— 实测 c 恒为垃圾，且不报错。本文件漏改。 */
-    return asm("SYSCALL #5");
+    /* ⚠⚠ **R0 必须显式给 1**：`SYSCALL #5` 用 R0 区分两种语义
+       （`R0=1` 阻塞读、`R0=0` 非阻塞探一下，见 `VMLRuntime.Syscall.cs`
+       的 `ExecuteSyscall5_InputChar`）。不给的话 R0 是**上一句残留的值** ——
+       而 `conio.c` 的 `kbhit()` 恰恰会先把它置 0 ⇒ 紧接着的 `getchar`
+       会退化成"没键就返回 0"，读起来像"输入结束了"。
+       这类"靠残留寄存器碰巧正确"的写法，症状是**时序相关**的难查故障。 */
+    return asm("SYSCALL #5, ${1}");
 }
 
 __stdcall void print_str(const char* str) {

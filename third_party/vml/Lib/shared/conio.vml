@@ -3317,7 +3317,7 @@ kbhit:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 347:     if (conKbPos < conKbLen) return 1;
+; 372:     if (conKbPos < conKbLen) return 1;
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3335,8 +3335,51 @@ _L44560281:
         jmp L_44560282
 sta_44560278:
 sta_44560279:
-; 348:     return 0;                            /* 按行的 stdin 无法预知"有没有按键" */
+; 373:     c = asm("SYSCALL #5, ${0}");         /* R0=0 ⇒ 非阻塞；没键返回 0 */
+        syscall #5
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 374:     if (c <= 0) return 0;
+        move @R0 [@R12-8]
+        push @R0
         move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L44560285
+        move @R0 #0
+        jmp _L44560286
+_L44560285:
+        move @R0 #1
+_L44560286:
+        cmp @R0 #0
+        jz sta_44560283
+        move @R0 #0
+        jmp L_44560282
+sta_44560283:
+sta_44560284:
+; 375:     conKb[0] = (char)c;
+        move @R0 [@R12-8]
+        move @R6 @R0
+        move @R0 conKb
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 #0
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb [@R0] @R6
+; 376:     conKbLen = 1;
+        move @R0 #1
+        move [conKbLen] @R0
+; 377:     conKbPos = 0;
+        move @R0 #0
+        move [conKbPos] @R0
+; 378:     return 1;
+        move @R0 #1
         jmp L_44560282
 L_44560282:
         move @R13 @R12

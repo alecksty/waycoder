@@ -54,6 +54,25 @@ namespace VMLRuntime
         bool KeyAvailable();
 
         /// <summary>
+        /// 输入源是不是**已经给不出东西了** —— 脚本化输入读完为 `true`，
+        /// 交互式（用户在敲）恒为 `false`。默认实现返回 `false`（= 交互式），
+        /// 所以已有的实现不必改。
+        ///
+        /// ⚠ **为什么需要它**：`SYSCALL #5` 的*阻塞*模式在"没键"时是**死等**
+        /// （`Thread.Sleep(10)` 转圈），交互式下这是对的（就该等用户敲），
+        /// 但**脚本化输入**下就成了永久挂起 —— 实测 `cases/16-conio-key.c`
+        /// 第 5 次 `getch()`（等 DOS 语义的"空行确认"）直接卡到超时。
+        ///
+        /// 原先靠 `KeyAvailable()` **恒返回 true** 掩盖了这个洞，代价是
+        /// `conio.kbhit()` 彻底失效 ⇒ `cmatrix` / `tty-clock` 那类
+        /// "`timeout(0)` + 非阻塞 `wgetch`"的老程序**一帧都画不出来**
+        /// （见 `Lib/shared/src/conio.c` 里 kbhit 的说明）。
+        /// 现在把两件事**分开**：`KeyAvailable()` 如实回答"此刻有没有键"，
+        /// 本属性回答"还有没有可能来键"。
+        /// </summary>
+        bool InputExhausted => false;
+
+        /// <summary>
         /// 读取字符
         /// </summary>
         /// <returns>读取的字符</returns>

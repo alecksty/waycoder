@@ -67,6 +67,10 @@ namespace CCompiler
             definitions["__VML_VERSION__"] = "\"1.65.35\"";
             definitions["__DATE__"] = $"\"{now:MMM dd yyyy}\"";
             definitions["__TIME__"] = $"\"{now:HH:mm:ss}\"";
+            /* `VMLTOOL_DEFINE` 环境变量里的宏（老程序的构建系统宏，见
+               `CompilerHelper.ApplyEnvDefines` 的说明）。放在 `extraDefines`
+               **之前**，好让显式传进来的宏仍然能覆盖它。 */
+            CompilerHelper.ApplyEnvDefines(definitions);
             // 合并额外预定义宏 (来自 CompilerBase.PredefinedMacros / -D 标志等)
             if (extraDefines != null)
                 foreach (var kvp in extraDefines)

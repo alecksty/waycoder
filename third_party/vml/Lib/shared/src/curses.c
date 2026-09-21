@@ -33,6 +33,8 @@
 extern int putchar(int c);
 extern int format_arg_count(const char *format);
 extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);
+extern void delay(int ms);   /* util.c —— `napms` 用它，见该处说明 */
+extern int kbhit(void);      /* conio.c —— `wgetch` 的非阻塞探测，见该处说明 */
 
 #define SCR_ROWS 25
 #define SCR_COLS 80
@@ -272,6 +274,12 @@ int addch(int ch)
     sc_at[idx] = at;               /* ✅ int 存 int：颜色对号在高 8 位，截了就全丢 */
     sc_dirty[sc_cy] = 1;
 
+    /* ⚠ UTF-8 **续字节**（`0x80-0xBF`）不推进光标 —— 它是上一个字符的
+       一部分，一个多字节字符整体只该占一列。`addwstr` 正是靠**逐字节**
+       调本函数来输出宽字符的（见那里），没有这一条，一个汉字会占三列、
+       后面所有内容整体错位。 */
+    if ((ch & 0xC0) == 0x80) return 0;
+
     sc_cx = sc_cx + 1;
     if (sc_cx >= SCR_COLS) {
         sc_cx = 0;
@@ -412,7 +420,32 @@ int werase(WINDOW *w)              { (void)w; return erase(); }
 int wclrtoeol(WINDOW *w)           { (void)w; return clrtoeol(); }
 int waddch(WINDOW *w, int ch)      { (void)w; return addch(ch); }
 int waddstr(WINDOW *w, const char *s) { (void)w; return addstr(s); }
-int wprintw(WINDOW *w, const char *fmt, ...) { (void)w; (void)fmt; return 0; }  /* 见下说明 */
+/* ⚠ `wprintw`/`mvwprintw` 此前是**空壳**（`(void)fmt; return 0;`）——
+   编得过、链接得上、**就是什么都不打印**，而且不报错：老程序里
+   `wprintw(win, "...")` 遍地都是，症状是"这个程序界面上没字"。
+   本仓记过太多次「能编译 ≠ 这条路通了」，这就是其中一处。
+   实现与上面的 `printw`/`mvprintw` 逐字同源（差异只在 `w` 参数收下不用）。 */
+int wprintw(WINDOW *w, const char *fmt, ...)
+{
+    char buf[512];
+    va_list ap;
+    (void)w;
+    va_start(ap, fmt);
+    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    va_end(ap);
+    return addstr(buf);
+}
+int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...)
+{
+    char buf[512];
+    va_list ap;
+    (void)w;
+    va_start(ap, fmt);
+    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    va_end(ap);
+    move(y, x);
+    return addstr(buf);
+}
 int mvwaddch(WINDOW *w, int y, int x, int ch) { (void)w; return mvaddch(y, x, ch); }
 int mvwaddstr(WINDOW *w, int y, int x, const char *s) { (void)w; return mvaddstr(y, x, s); }
 
@@ -460,8 +493,36 @@ int box(WINDOW *w, int vch, int hch) {
 int delscreen(void *sp) { (void)sp; return 0; }
 
 /* ── 又一批老程序要的（tty-clock 第二轮） ── */
-int wgetch(WINDOW *w) { (void)w; return getch(); }
-int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...) { (void)w; (void)fmt; return 0; }
+/* `wgetch`：**非阻塞模式下没键要返回 `ERR`**（不是等一整行）。
+   判据是 `nodelay(win, TRUE)` 或 `timeout(0)` 设下的标志 —— 老程序
+   （cmatrix / tty-clock 那一类）把它当帧节拍器用，返回 ERR 就走
+   "这一帧没按键"的分支继续画。见 `conio.c` 的 `kbhit`。 */
+/* ⚠⚠ `wgetch` **必须先刷新窗口** —— 这是 ncurses 的文档化行为：
+ *
+ *     "If the window is not a pad, and it has been moved or modified since
+ *      the last call to wrefresh, wrefresh will be called before another
+ *      character is read."
+ *
+ * **老程序正是靠这一点省掉显式 refresh 的**。实测 cmatrix 的主循环里
+ * **一个 `refresh()` 都没有**（全文只有 3 处，全在 `finish`/`c_die`/
+ * `resize_screen` 里）：它每帧 `addch` 改完屏幕缓冲，接着调
+ * `wgetch(stdscr)`，刷新**全部指望这里**。
+ *
+ * 漏掉这一步的症状极具迷惑性：**程序在跑（进程活着、计时器在走、
+ * `addch` 也在改缓冲）、屏幕上一个字都不出** —— 因为缓冲从来没被
+ * 送到终端。这正是 `cmatrix` / `tty-clock` 那类"画面空"的真根因
+ * （一度怀疑到 `newwin` 的退化实现上，那是错的）。
+ *
+ * 顺序也有讲究：**先 refresh 再判有没有键** —— 不然非阻塞模式下
+ * 第一帧就 `return -1` 走了，永远刷不到。 */
+int wgetch(WINDOW *w) {
+    WINDOW *win = w ? w : stdscr;
+    refresh();
+    if (win && win->nodelay) {
+        if (!kbhit()) return -1;   /* -1 = ERR（本文件不 include curses.h，照 sc_sgr 的字面量风格） */
+    }
+    return getch();
+}
 int mvwin(WINDOW *w, int y, int x) { (void)w; (void)y; (void)x; return 0; }  /* 单窗口：挪不动 */
 int wresize(WINDOW *w, int l, int c) { (void)w; (void)l; (void)c; return 0; }
 
@@ -483,5 +544,141 @@ int wborder(WINDOW *w, int ls, int rs, int ts, int bs, int tl, int tr, int bl, i
     sc_ch[(SCR_ROWS - 1) * SCR_COLS] = (char)bl;
     sc_ch[(SCR_ROWS - 1) * SCR_COLS + SCR_COLS - 1] = (char)br;
     for (i = 0; i < SCR_ROWS; i++) sc_dirty[i] = 1;
+    return 0;
+}
+
+/* ── 窗口选项（cmatrix 第三轮）：**只收下、不记状态** ──
+ *
+ * 这一组在真 ncurses 里是"窗口行为开关"，但在**单窗口 + 自绘缓冲**这个
+ * 退化实现下，它们**没有任何可观察的效果**：
+ *   · `leaveok`  —— "光标可以留在任意位置"：我们的光标本来就不往真实终端上放
+ *   · `scrollok` —— "到屏底自动滚"：滚屏走 conio 那套（`sc_putc` 里判的）
+ *   · `idlok`    —— "插入/删除行优化"：我们是重画整行，没有这个概念
+ *   · `raw`      —— "关掉行缓冲与信号"：本平台输入本来就是按行给的
+ *
+ * 所以**刻意不往 WINDOW 结构体里加字段** —— 记了也没人读，反而多一处
+ * "两个文件的结构体要对齐"的同步点（本仓记过：`Lib/c/` 与 `Lib/shared/src/`
+ * 的实现文件互不 include，全靠人工对齐，是头号坑之一）。
+ * 与 `wresize`/`mvwin` 同一处置。 */
+int leaveok(WINDOW *w, int bf) { (void)w; (void)bf; return 0; }
+int scrollok(WINDOW *w, int bf) { (void)w; (void)bf; return 0; }
+int idlok(WINDOW *w, int bf) { (void)w; (void)bf; return 0; }
+int raw(void) { return 0; }
+int noraw(void) { return 0; }
+
+/* ── 常用简写：这两个是**真实现**（转调属性函数，语义完全等价） ──
+   ⚠ 用字面量而不是 `A_STANDOUT`/`A_NORMAL` 宏 —— 本文件**不 include**
+   `Lib/c/curses.h`，自己再 `#define` 一份就是"同一规则两处实现"
+   （本仓头号坑）。本文件既有的写法也是字面量 + 注释，见 `sc_sgr`。 */
+int standout(void) { return attron(8); }   /* 8 = A_REVERSE = A_STANDOUT */
+int standend(void) { return attrset(0); }  /* 0 = A_NORMAL */
+
+/* ── 响铃/闪屏：**返回 OK，不报错** ──
+   手机没有蜂鸣器，但返回 ERR 会让不少老程序走进"终端不支持"的降级分支、
+   甚至直接退出（见 docs/老程序兼容性.md 第四节那条总原则：能返回成功的
+   就返回成功）。真要做，接的是 `ui_beep`（见 docs/VML宿主接口.md）。 */
+int beep(void)  { return 0; }
+int flash(void) { return 0; }
+
+/* ── 能力查询：恒 1 ──
+   问的是"能不能插入/删除字符与行"。本实现是**重画整屏**，
+   从调用方看结果一样（屏幕正确），所以答"能"。 */
+int has_ic(void) { return 1; }
+int has_il(void) { return 1; }
+
+/* ── 延迟刷新：真 ncurses 是"先攒着、doupdate 时一次上屏" ──
+   本实现的 `refresh()` 已经是"按脏行比对后一次性发出"，没有可攒的东西
+   ⇒ `wnoutrefresh` 直接做掉、`doupdate` 空操作。**两件事都做了**，
+   所以 `wnoutrefresh(w); doupdate();` 这对写法与 `wrefresh(w)` 等价。 */
+int wnoutrefresh(WINDOW *w) { return wrefresh(w); }
+int doupdate(void) { return 0; }
+
+/* ── 又一批（cmatrix 第四轮）：终端状态、输入超时、宽字符串 ── */
+
+/* `savetty`/`resetty`：保存/恢复终端状态（老程序在 `endwin` 前后各调一次）。
+   本平台没有"终端状态"可存 —— 要存的东西就是我们自己那块屏幕缓冲，
+   而它本来就是持久的 ⇒ 收下返回 OK。 */
+int savetty(void) { return 0; }
+int resetty(void) { return 0; }
+
+/* `nonl`：别把输出里的换行再映射成"回车+换行"。本平台发出去的字节原样
+   到达，没有 ONLCR 那层转换 ⇒ 收下即可。 */
+int nonl(void) { return 0; }
+
+/* `timeout(ms)` / `wtimeout(win, ms)`：读键超时（`wtimeout` 是它的窗口版）。
+   ⚠ **本平台输入是按行给的**（见文件头"与 conio 的三处语义相反"），
+   没有"等 N 毫秒没键就返回 ERR"这回事 ⇒ **只收下、不改变行为**。
+   已知的语义差距：老程序写 `timeout(0); ch = getch();` 做非阻塞轮询时，
+   本平台会**阻塞在 getch 上等一整行** —— 不崩溃、按键仍会被处理，
+   只是节奏与 ncurses 不同（这条写在 docs/老程序兼容性.md 的已知差距里）。 */
+/* ⚠ `ms == 0`（**非阻塞**）**必须真的生效** —— 这个参数是老程序主循环的
+   节拍器：`cmatrix` 第 469 行 `timeout(0);`，紧接着主循环
+   `if ((ch = wgetch(stdscr)) != ERR) {…}` 靠"没键"来推进每一帧。
+   早先这里写成"只收下、不改变行为"，后果是整个程序**一帧都画不出来**
+   （第一句 wgetch 就阻塞读一整行）—— 见 `conio.c` 的 `kbhit` 说明。
+   `ms > 0`（等 N 毫秒）本平台做不到：输入按行给，退化成阻塞。 */
+int timeout(int ms) {
+    sc_init();
+    sc_win.nodelay = (ms == 0) ? 1 : 0;
+    return 0;
+}
+int wtimeout(WINDOW *w, int ms) { (void)w; return timeout(ms); }
+
+/* `napms(ms)`：睡 N 毫秒（老程序拿它控动画帧率）。
+   走 `util.c` 的 `delay`（`SYSCALL #52`）—— 与 `dos.h` 的 `delay` 同一个底层。
+   ⚠ **不能调 `sleep`**：那个名字在本仓有**两份语义不同的定义**
+   （`builtins.c` 是"毫秒"，`dos.c` 是"秒"），链接器静默取一个 ⇒ 帧率差 1000 倍。 */
+int napms(int ms) { if (ms > 0) delay(ms); return 0; }
+
+/* `addwstr(ws)`：**宽字符串**版 `addstr`。
+ *
+ * ⚠ 这里踩过一个"看着像、其实完全不同"的坑：`wchar_t` 在本平台是
+ * **4 字节**（`Lib/c/stddef.h`: `typedef unsigned int wchar_t`），
+ * 所以 `wchar_t*` **不是** `char*`。早先图省事写成"转发 addstr"
+ * ⇒ 一个字符的那 4 个字节被当成 4 个字符原样发出，实测 cmatrix 的
+ * 矩阵里出现 `\001\0\0\0` 这样四字节一组的垃圾
+ * （cmatrix 的用法是 `wchar_t ca[2]; ca[0] = val; ca[1] = 0; addwstr(ca);`）。
+ *
+ * 正确的做法是**按码点逐个编码成 UTF-8** —— 本平台的文本出口就是
+ * UTF-8 字节流。这与 ncurses 把宽字符按当前 locale 转多字节是同一件事，
+ * 只是我们的 locale 恒为 UTF-8（见 `locale.h`）。
+ *
+ * 逐字节调 `addch`，靠它对续字节"不推进光标"的那条规则，让一个多字节
+ * 字符整体只占一列（真 ncurses 用 `wcwidth` 区分宽窄，本平台没有那一层）。 */
+int addwstr(const unsigned int *ws)
+{
+    int i;
+    int cp;
+
+    sc_init();
+    for (i = 0; ws[i] != 0; i++) {
+        cp = (int)ws[i];
+        /* ⚠⚠ 临时探针：直接输出 cp 的低两字节，用来定位"读到的到底是什么"。
+           定位完必须删掉。 */
+        if (cp < 0) {
+            cp = 0xFFFD;                       /* 非法码点按替换字符处理 */
+        }
+        addch(cp & 0xFF);
+        addch((cp >> 8) & 0xFF);
+        addch((cp >> 16) & 0xFF);
+        addch((cp >> 24) & 0xFF);
+        if (cp < 0x80) {
+            addch(cp);
+        } else if (cp < 0x800) {
+            addch(0xC0 | (cp >> 6));
+            addch(0x80 | (cp & 0x3F));
+        } else if (cp < 0x10000) {
+            addch(0xE0 | (cp >> 12));
+            addch(0x80 | ((cp >> 6) & 0x3F));
+            addch(0x80 | (cp & 0x3F));
+        } else if (cp <= 0x10FFFF) {
+            addch(0xF0 | (cp >> 18));
+            addch(0x80 | ((cp >> 12) & 0x3F));
+            addch(0x80 | ((cp >> 6) & 0x3F));
+            addch(0x80 | (cp & 0x3F));
+        } else {
+            addch(0xEF); addch(0xBF); addch(0xBD);   /* U+FFFD */
+        }
+    }
     return 0;
 }

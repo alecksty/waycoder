@@ -23,6 +23,13 @@ char *strncat(char *dest, const char *src, size_t n);
 int memcmp(const void *s1, const void *s2, size_t n);
 int strcmp(const char *s1, const char *s2);
 int strncmp(const char *s1, const char *s2, size_t n);
+
+/* 忽略大小写的比较。C 标准把它们放在 `<strings.h>` 里，但那个头本仓没有，
+   而老程序**常常直接就用**（实测 cmatrix 引用了 16 次 `strcasecmp`）——
+   所以放在这里让它"顺手就有"，比逼每个程序自己 include 一个不存在的头强。
+   实现见 `Lib/shared/src/string.c`，只处理 ASCII（本平台只有 C locale）。 */
+int strcasecmp(const char *s1, const char *s2);
+int strncasecmp(const char *s1, const char *s2, size_t n);
 int strcoll(const char *s1, const char *s2);
 size_t strxfrm(char *dest, const char *src, size_t n);
 

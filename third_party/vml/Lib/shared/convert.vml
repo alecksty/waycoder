@@ -15,13 +15,13 @@ itoa:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 7:     int neg = 0;
+; 5:     int neg = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 8:     char* start = dst;
+; 6:     char* start = dst;
         move @R0 [@R12+16]
         move [@R12-12] @R0
-; 9:     if (value < 0) { neg = 1; value = -value; }
+; 7:     if (value < 0) { neg = 1; value = -value; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -43,10 +43,10 @@ _L3230003:
         move [@R12+12] @R0
 sta_3230000:
 sta_3230001:
-; 11:     int pos = 0;
+; 9:     int pos = 0;
         move @R0 #0
         move [@R12-28] @R0
-; 12:     if (value == 0) buf[pos++] = '0';
+; 10:     if (value == 0) buf[pos++] = '0';
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -83,7 +83,7 @@ sta_3230004:
 sta_3230005:
 sta_3230008:
         move @R2 #0
-; 13:     while (value > 0) { buf[pos++] = '0' + (value % 10); value /= 10; }
+; 11:     while (value > 0) { buf[pos++] = '0' + (value % 10); value /= 10; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -135,7 +135,7 @@ _L3230011:
         move [@R12+12] @R0
         jmp sta_3230008
 sta_3230009:
-; 14:     if (neg) buf[pos++] = '-';
+; 12:     if (neg) buf[pos++] = '-';
         move @R0 [@R12-8]
         cmp @R0 #0
         jz sta_3230012
@@ -162,7 +162,7 @@ sta_3230012:
 sta_3230013:
 sta_3230014:
         move @R2 #0
-; 15:     while (pos > 0) *dst++ = buf[--pos];
+; 13:     while (pos > 0) *dst++ = buf[--pos];
         move @R0 [@R12-28]
         push @R0
         move @R0 #0
@@ -202,12 +202,12 @@ _L3230017:
         moveb [@R2] @R0
         jmp sta_3230014
 sta_3230015:
-; 16:     *dst = 0;
+; 14:     *dst = 0;
         move @R0 [@R12+16]
         move @R9 @R0
         move @R0 #0
         moveb [@R9] @R0
-; 17:     return (int)(dst - start);
+; 15:     return (int)(dst - start);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
@@ -232,15 +232,15 @@ atoi:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 22:     int result = 0;
+; 19:     int result = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 23:     int sign = 1;
+; 20:     int sign = 1;
         move @R0 #1
         move [@R12-12] @R0
 sta_3230019:
         move @R2 #0
-; 24:     while (*s == ' ' || *s == '\t') s++;
+; 21:     while (*s == ' ' || *s == '\t') s++;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -286,7 +286,7 @@ _L3230023:
         move @R0 @R1
         jmp sta_3230019
 sta_3230020:
-; 25:     if (*s == '-') { sign = -1; s++; }
+; 22:     if (*s == '-') { sign = -1; s++; }
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -313,7 +313,7 @@ _L3230031:
         move @R0 @R1
         jmp sta_3230029
 sta_3230028:
-; 26:     else if (*s == '+') s++;
+; 23:     else if (*s == '+') s++;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -339,7 +339,7 @@ sta_3230033:
 sta_3230029:
 sta_3230036:
         move @R2 #0
-; 27:     while (*s >= '0' && *s <= '9') {
+; 24:     while (*s >= '0' && *s <= '9') {
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -377,7 +377,7 @@ _L3230038:
 _L3230039:
         cmp @R0 #0
         jz sta_3230037
-; 28:         result = result * 10 + (*s - '0');
+; 25:         result = result * 10 + (*s - '0');
         move @R0 [@R12-8]
         push @R0
         move @R0 #10
@@ -397,7 +397,7 @@ _L3230039:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 29:         s++;
+; 26:         s++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -405,7 +405,7 @@ _L3230039:
         move @R0 @R1
         jmp sta_3230036
 sta_3230037:
-; 31:     return sign * result;
+; 28:     return sign * result;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12-8]
@@ -431,7 +431,7 @@ itoa_hex:
         push @R12
         move @R12 @R13
         sub @R13 #56
-; 36:     char hex[] = "0123456789ABCDEF";
+; 32:     char hex[] = "0123456789ABCDEF";
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -550,16 +550,16 @@ itoa_hex:
         move @R0 #0
         pop @R1
         moveb [@R1] @R0
-; 37:     char* start = dst;
+; 33:     char* start = dst;
         move @R0 [@R12+16]
         move [@R12-28] @R0
-; 39:     int pos = 0;
+; 35:     int pos = 0;
         move @R0 #0
         move [@R12-44] @R0
-; 40:     unsigned int u = (unsigned int)value;
+; 36:     unsigned int u = (unsigned int)value;
         move @R0 [@R12+12]
         move [@R12-48] @R0
-; 41:     if (u == 0) buf[pos++] = '0';
+; 37:     if (u == 0) buf[pos++] = '0';
         move @R0 [@R12-48]
         push @R0
         move @R0 #0
@@ -596,7 +596,7 @@ sta_3230045:
 sta_3230046:
 sta_3230049:
         move @R2 #0
-; 42:     while (u > 0) { buf[pos++] = hex[u & 0xF]; u >>= 4; }
+; 38:     while (u > 0) { buf[pos++] = hex[u & 0xF]; u >>= 4; }
         move @R0 [@R12-48]
         push @R0
         move @R0 #0
@@ -658,7 +658,7 @@ _L3230052:
 sta_3230050:
 sta_3230053:
         move @R2 #0
-; 43:     while (pos > 0) *dst++ = buf[--pos];
+; 39:     while (pos > 0) *dst++ = buf[--pos];
         move @R0 [@R12-44]
         push @R0
         move @R0 #0
@@ -698,12 +698,12 @@ _L3230056:
         moveb [@R10] @R0
         jmp sta_3230053
 sta_3230054:
-; 44:     *dst = 0;
+; 40:     *dst = 0;
         move @R0 [@R12+16]
         move @R7 @R0
         move @R0 #0
         moveb [@R7] @R0
-; 45:     return (int)(dst - start);
+; 41:     return (int)(dst - start);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-28]
@@ -728,12 +728,12 @@ atoi_hex:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 50:     int result = 0;
+; 45:     int result = 0;
         move @R0 #0
         move [@R12-8] @R0
 sta_3230058:
         move @R2 #0
-; 51:     while (*s == ' ' || *s == '\t') s++;
+; 46:     while (*s == ' ' || *s == '\t') s++;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -779,7 +779,7 @@ _L3230062:
         move @R0 @R1
         jmp sta_3230058
 sta_3230059:
-; 52:     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
+; 47:     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -865,12 +865,12 @@ _L3230070:
 sta_3230067:
 sta_3230068:
 sta_3230080:
-; 54:         char c = *s;
+; 49:         char c = *s;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-9] @R0
-; 55:         if (c >= '0' && c <= '9') result = result * 16 + (c - '0');
+; 50:         if (c >= '0' && c <= '9') result = result * 16 + (c - '0');
         moveb @R0 [@R12-9]
         sextb @R0 @R0
         pushb @R0
@@ -926,7 +926,7 @@ _L3230086:
         move [@R12-8] @R0
         jmp sta_3230084
 sta_3230083:
-; 56:         else if (c >= 'A' && c <= 'F') result = result * 16 + (c - 'A' + 10);
+; 51:         else if (c >= 'A' && c <= 'F') result = result * 16 + (c - 'A' + 10);
         moveb @R0 [@R12-9]
         sextb @R0 @R0
         pushb @R0
@@ -987,7 +987,7 @@ _L3230094:
         move [@R12-8] @R0
         jmp sta_3230092
 sta_3230091:
-; 57:         else if (c >= 'a' && c <= 'f') result = result * 16 + (c - 'a' + 10);
+; 52:         else if (c >= 'a' && c <= 'f') result = result * 16 + (c - 'a' + 10);
         moveb @R0 [@R12-9]
         sextb @R0 @R0
         pushb @R0
@@ -1052,7 +1052,7 @@ sta_3230099:
 sta_3230100:
 sta_3230092:
 sta_3230084:
-; 59:         s++;
+; 54:         s++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1061,7 +1061,7 @@ sta_3230084:
 sta_3230081:
         jmp sta_3230080
 sta_3230082:
-; 61:     return result;
+; 56:     return result;
         move @R0 [@R12-8]
         jmp L_3230107
 L_3230107:
@@ -1083,13 +1083,13 @@ ftoa:
         push @R12
         move @R12 @R13
         sub @R13 #56
-; 66:     char* start = dst;
+; 60:     char* start = dst;
         move @R0 [@R12+20]
         move [@R12-8] @R0
-; 67:     int neg = 0;
+; 61:     int neg = 0;
         move @R0 #0
         move [@R12-12] @R0
-; 68:     if (value < 0) { neg = 1; value = -value; }
+; 62:     if (value < 0) { neg = 1; value = -value; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1111,7 +1111,7 @@ _L3230111:
         move [@R12+12] @R0
 sta_3230108:
 sta_3230109:
-; 69:     int int_part = value / scale;
+; 63:     int int_part = value / scale;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -1119,7 +1119,7 @@ sta_3230109:
         div @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 70:     int frac_part = value % scale;
+; 64:     int frac_part = value % scale;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -1127,7 +1127,7 @@ sta_3230109:
         mod @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 71:     if (neg) *dst++ = '-';
+; 65:     if (neg) *dst++ = '-';
         move @R0 [@R12-12]
         cmp @R0 #0
         jz sta_3230112
@@ -1141,7 +1141,7 @@ sta_3230109:
         moveb [@R4] @R0
 sta_3230112:
 sta_3230113:
-; 72:     if (int_part == 0) *dst++ = '0';
+; 66:     if (int_part == 0) *dst++ = '0';
         move @R0 [@R12-16]
         push @R0
         move @R0 #0
@@ -1165,12 +1165,12 @@ _L3230117:
         moveb [@R5] @R0
         jmp sta_3230115
 sta_3230114:
-; 74:         char buf[12]; int p = 0;
+; 68:         char buf[12]; int p = 0;
         move @R0 #0
         move [@R12-36] @R0
 sta_3230118:
         move @R2 #0
-; 75:         while (int_part > 0) { buf[p++] = '0' + (int_part % 10); int_part /= 10; }
+; 69:         while (int_part > 0) { buf[p++] = '0' + (int_part % 10); int_part /= 10; }
         move @R0 [@R12-16]
         push @R0
         move @R0 #0
@@ -1224,7 +1224,7 @@ _L3230121:
 sta_3230119:
 sta_3230122:
         move @R2 #0
-; 76:         while (p > 0) *dst++ = buf[--p];
+; 70:         while (p > 0) *dst++ = buf[--p];
         move @R0 [@R12-36]
         push @R0
         move @R0 #0
@@ -1265,7 +1265,7 @@ _L3230125:
         jmp sta_3230122
 sta_3230123:
 sta_3230115:
-; 78:     if (scale > 1 && frac_part > 0) {
+; 72:     if (scale > 1 && frac_part > 0) {
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -1299,7 +1299,7 @@ _L3230128:
 _L3230129:
         cmp @R0 #0
         jz sta_3230126
-; 79:         *dst++ = '.';
+; 73:         *dst++ = '.';
         move @R0 [@R12+20]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1308,10 +1308,10 @@ _L3230129:
         move @R6 @R0
         move @R0 #46
         moveb [@R6] @R0
-; 80:         int i, max_digits = 6;
+; 74:         int i, max_digits = 6;
         move @R0 #6
         move [@R12-44] @R0
-; 81:         for (i = 0; i < max_digits && frac_part > 0; i++) {
+; 75:         for (i = 0; i < max_digits && frac_part > 0; i++) {
         move @R0 #0
         move [@R12-40] @R0
 sta_3230134:
@@ -1348,7 +1348,7 @@ _L3230137:
 _L3230138:
         cmp @R0 #0
         jz sta_3230136
-; 82:             frac_part *= 10;
+; 76:             frac_part *= 10;
         move @R0 [@R12-20]
         push @R0
         move @R0 #10
@@ -1356,7 +1356,7 @@ _L3230138:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 83:             *dst++ = '0' + (frac_part / scale);
+; 77:             *dst++ = '0' + (frac_part / scale);
         move @R0 [@R12+20]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1375,7 +1375,7 @@ _L3230138:
         add @R1 @R0
         move @R0 @R1
         moveb [@R11] @R0
-; 84:             frac_part %= scale;
+; 78:             frac_part %= scale;
         move @R0 [@R12-20]
         push @R0
         move @R0 [@R12+16]
@@ -1393,12 +1393,12 @@ sta_3230135:
 sta_3230136:
 sta_3230126:
 sta_3230127:
-; 87:     *dst = 0;
+; 81:     *dst = 0;
         move @R0 [@R12+20]
         move @R8 @R0
         move @R0 #0
         moveb [@R8] @R0
-; 88:     return (int)(dst - start);
+; 82:     return (int)(dst - start);
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -1407,6 +1407,72 @@ sta_3230127:
         move @R0 @R1
         jmp L_3230143
 L_3230143:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+rand:
+; -------------------------------------------
+; source   : int rand()
+; function : rand
+; return   : int
+; --------------------------------------------
+rand:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 100:     int v = asm("SYSCALL #50");
+        syscall #50
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 101:     if (v < 0) v = -v;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L3230146
+        move @R0 #0
+        jmp _L3230147
+_L3230146:
+        move @R0 #1
+_L3230147:
+        cmp @R0 #0
+        jz sta_3230144
+        move @R0 [@R12-8]
+        move @R0 [@R12-8]
+        neg @R0 @R0
+        move [@R12-8] @R0
+sta_3230144:
+sta_3230145:
+; 102:     return v % 32768;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #32768
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        jmp L_3230148
+L_3230148:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+srand:
+; -------------------------------------------
+; source   : void srand(int seed)
+; function : srand
+; param   : int seed
+; return   : void
+; --------------------------------------------
+srand:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 111:     (void)seed;
+        move @R0 [@R12+12]
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1423,10 +1489,10 @@ byte_to_hword:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 92: __stdcall int byte_to_hword(unsigned char b) { return (int)b; }
+; 114: __stdcall int byte_to_hword(unsigned char b) { return (int)b; }
         moveb @R0 [@R12+12]
-        jmp L_3230144
-L_3230144:
+        jmp L_3230149
+L_3230149:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1443,10 +1509,10 @@ byte_to_word:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 93: __stdcall int byte_to_word(unsigned char b) { return (int)b; }
+; 115: __stdcall int byte_to_word(unsigned char b) { return (int)b; }
         moveb @R0 [@R12+12]
-        jmp L_3230145
-L_3230145:
+        jmp L_3230150
+L_3230150:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1463,15 +1529,15 @@ hword_to_byte:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 94: __stdcall unsigned char hword_to_byte(int h) { return (unsigned char)(h & 0xFF); }
+; 116: __stdcall unsigned char hword_to_byte(int h) { return (unsigned char)(h & 0xFF); }
         move @R0 [@R12+12]
         push @R0
         move @R0 #255
         pop @R1
         and @R1 @R0
         move @R0 @R1
-        jmp L_3230146
-L_3230146:
+        jmp L_3230151
+L_3230151:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1488,15 +1554,15 @@ hword_to_word:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 95: __stdcall int hword_to_word(int h) { return h & 0xFFFF; }
+; 117: __stdcall int hword_to_word(int h) { return h & 0xFFFF; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #65535
         pop @R1
         and @R1 @R0
         move @R0 @R1
-        jmp L_3230147
-L_3230147:
+        jmp L_3230152
+L_3230152:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1513,15 +1579,15 @@ word_to_byte:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 96: __stdcall unsigned char word_to_byte(int w) { return (unsigned char)(w & 0xFF); }
+; 118: __stdcall unsigned char word_to_byte(int w) { return (unsigned char)(w & 0xFF); }
         move @R0 [@R12+12]
         push @R0
         move @R0 #255
         pop @R1
         and @R1 @R0
         move @R0 @R1
-        jmp L_3230148
-L_3230148:
+        jmp L_3230153
+L_3230153:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1539,15 +1605,15 @@ word_to_hword:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 97: __stdcall int word_to_hword(int w) { return w & 0xFFFF; }
+; 119: __stdcall int word_to_hword(int w) { return w & 0xFFFF; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #65535
         pop @R1
         and @R1 @R0
         move @R0 @R1
-        jmp L_3230149
-L_3230149:
+        jmp L_3230154
+L_3230154:
         move @R13 @R12
         pop @R12
         pop @R15

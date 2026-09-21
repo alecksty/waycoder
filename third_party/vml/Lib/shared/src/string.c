@@ -14,6 +14,39 @@ __stdcall int strcmp(const char* a, const char* b) {
     return ca - cb;
 }
 
+/* ── 忽略大小写的比较（cmatrix 一个程序就引用了 16 次）──
+ * ⚠ 它本该在 `<strings.h>` 里，但那个头本仓根本没有，而老程序**常常
+ * 直接就用**（cmatrix 只在 AUTHORS 里提过 strings.h）—— 所以实现放这里、
+ * 声明也进 `string.h`，让它"顺手就有"。
+ *
+ * ⚠ 自己内联 ASCII 小写转换而**不调 `tolower`**：那会引入对 ctype 模块的
+ * 依赖，而 string 是"默认最小集"里最底层的一个（见 `Lib/c/string.h` 头部
+ * "默认最小集已包含 string+memory"），不该反过来依赖别人。
+ * 只处理 ASCII —— 与 C 标准里这两个函数"行为依赖 locale"的规定一致
+ * （本平台只有 C locale）。
+ *
+ * 返回值沿用 `strcmp` 的符号约定（负/零/正），**不要求恰好差 1**。 */
+static int _vml_lower_ascii(int c) {
+    if (c >= 'A' && c <= 'Z') return c + 32;
+    return c;
+}
+
+__stdcall int strcasecmp(const char* a, const char* b) {
+    while (*a && _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
+        a++; b++;
+    }
+    return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
+}
+
+__stdcall int strncasecmp(const char* a, const char* b, int n) {
+    while (n > 0 && *a &&
+           _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
+        a++; b++; n--;
+    }
+    if (n == 0) return 0;   /* 前 n 个字符全等 */
+    return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
+}
+
 char* strcpy(char* dst, const char* src) {
     char* p = dst;
     while (*src) { *p = *src; p++; src++; }
