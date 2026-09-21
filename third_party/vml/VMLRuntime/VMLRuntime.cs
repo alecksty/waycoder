@@ -443,6 +443,13 @@ namespace VMLRuntime
             labelAddresses.Clear();
             foreach (var label in _program.Labels)
                 labelAddresses[label.Key] = label.Value;
+            /* ⚠ **标签引用的延迟解析表** —— 见循环末尾的补填那一段。
+               数据段是**按遍历序**逐个分配内存的，而某个 `LabelRef` 指向的标签
+               可能在**后面**才登记地址（`labelAddresses[data.Key] = address`
+               在循环末尾）。顺序凑巧对的时候没事，但 `DataSection` 是字典，
+               **不该依赖遍历序**。 */
+            var deferredLabelRefs = new List<(int Address, LabelRef Ref)>();
+
             foreach (var data in _program.DataSection)
             {
                 int address;
@@ -460,8 +467,12 @@ namespace VMLRuntime
                        实测 `WINDOW *stdscr = &sc_win;` 因此恒为 NULL，
                        而 `stdscr` 是老程序最常用的全局对象。 */
                     address = AllocateMemory(4);
-                    int lrAddr = labelAddresses.TryGetValue(singleLabelRef.Name, out int a) ? a : 0;
-                    SetMemory(address, lrAddr);
+                    /* 查得到就当场填；**查不到就记下来稍后补** ——
+                       它指向的标签可能在后面才登记地址（见 `deferredLabelRefs`）。 */
+                    if (labelAddresses.TryGetValue(singleLabelRef.Name, out int lrAddr))
+                        SetMemory(address, lrAddr);
+                    else
+                        deferredLabelRefs.Add((address, singleLabelRef));
                 }
                 else if (data.Value is int[] intArray)
                 {
@@ -559,6 +570,15 @@ namespace VMLRuntime
 
                 // 数据段标签优先使用堆分配地址 (覆盖 code labels 中的同名字段)
                 labelAddresses[data.Key] = address;
+            }
+
+            /* **补填延迟的标签引用** —— 走到这里，**所有**数据段槽位的地址都已
+               登记进 `labelAddresses`，不再受 `DataSection` 遍历序的影响。
+               （这就是"两趟"的等效做法：第一趟分配+登记，第二趟才解析跨槽位引用。） */
+            foreach (var (refAddr, lr) in deferredLabelRefs)
+            {
+                int resolved = labelAddresses.TryGetValue(lr.Name, out int v) ? v : 0;
+                SetMemory(refAddr, resolved);
             }
 
             // SP: prefer VML .stack directive, then config.StackTop, then config.StackSize, then 640K

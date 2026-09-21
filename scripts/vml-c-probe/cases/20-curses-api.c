@@ -132,16 +132,23 @@ int main()
 //      试过在那里改成 `LabelRef`，**但引出了回归**（`02-ptr-ptr.c` 的
 //      `char *rows[] = {"abc","def"}` 全变 NULL），已回退 —— 说明"裸标识符=标签引用"
 //      这个判据**太宽**，把"数组初始化器里的字符串标签"也圈进去了。
-//   ④ **还差**（当前卡点）：链接后的**文本已经全对**
-//      （`lib_curses_stdscr: .word lib_curses_sc_win`），
-//      但运行时 `stdscr` 本身读到 **0**（`S4=0`）——
-//      即那个槽位**被填了 0**。两种可能，下一轮先分清：
-//        (a) `labelAddresses["lib_curses_sc_win"]` 查不到（标签不在表里）
-//        (b) 查得到但**时机不对** —— 数据段是**按 `DataSection` 遍历序**逐个
-//            分配内存的（循环末尾才 `labelAddresses[data.Key] = address`），
-//            若 `stdscr` 排在 `sc_win` **之前**处理，解析 `LabelRef` 时
-//            后者还没登记 ⇒ 取到 0。`curses.vml` 里两者顺序是对的
-//            （`sc_win` 在前），但 `DataSection` 是字典，**不能依赖遍历序**。
-//      正解大概率是**两趟**：先把所有槽位的地址登记齐，再填内容。
-//      判据 `S4`（`(int)stdscr`）就是为分清这两种可能加的。
+//   ④ **真根因找到了：C 前端不认 `extern` 关键字**。
+//      链接产物里**同时**有两个符号：
+//        77:  stdscr: .word 0                        ← **主程序自己生成的**
+//        126: lib_curses_stdscr: .word lib_curses_sc_win   ← 库里真正的定义
+//      `curses.h` 里写的是 `extern WINDOW *stdscr;`（**声明**），
+//      而 `ASTNode` 只有 `IsStatic`、**没有 `IsExtern`**，
+//      `Parser.Statements.cs` 里**全无 `extern` 的处理** ⇒
+//      **前端把它当普通全局变量定义**，于是在**每个使用者的数据段**里
+//      都生成一个 `.word 0`；测试程序读 `[stdscr]` 解析到的正是**这个空的**。
+//
+//      探针实测（`VML_TRACE_DATA=1`，已删）：
+//        `[DATA] key=lib_curses_stdscr ref=lib_curses_sc_win found=1 val=18768`
+//      —— 库那边的**值是对的**（18768），问题纯粹在"读到了另一个符号"。
+//
+//      **修法**（下一轮）：AST 加 `IsExtern` → 解析器认 `extern` →
+//      全局变量生成时**跳过 extern 声明的**（不占数据段槽位）。
+//      影响面远超 curses：**所有用 `extern` 声明跨模块全局变量的 C 代码**。
+//      ⚠ 这条已**独立于 curses**，值得单独一条判据（`extern int x;` 之后
+//      由别处定义、两处读到的必须是同一个）。
 // EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=0|V=0,4|W=-1
