@@ -462,23 +462,6 @@ LABEL python_get_args
     pop @R15
     RET
 
-LABEL python_signal
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL signal
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL python_type_of
     push @R15
     push @R12
@@ -782,12 +765,6 @@ LABEL func_GetArgs
 
 LABEL func_getArgs
     JMP python_get_args
-
-LABEL func_signal
-    JMP python_signal
-
-LABEL func_Signal
-    JMP python_signal
 
 LABEL func_type_of
     JMP python_type_of

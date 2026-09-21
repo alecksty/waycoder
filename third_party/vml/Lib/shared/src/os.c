@@ -210,11 +210,19 @@ int get_args(void* buf) {
 // 信号 (350)
 // ============================================================
 
-__stdcall int signal(int signum, void* handler) {
-    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
-       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
-    return asm("SYSCALL #350");
-}
+/* ⚠ **`signal` 曾经在这里也有一份**，`SYSCALL #350` —— 已删，理由有三条：
+   · `#350` 对**用户程序恒被拒**（`VmlRuntime.Syscall.cs` 的 `case 350` 先过
+     `PrivilegeDenied`，返回 `SYSCALL_PERMISSION_DENIED = -102`；即便放行，
+     下一句也是 `NOT_SUPPORTED`）⇒ 这一份**永远不可能返回 0**。
+   · 而 `Lib/c/signal.h:26` 写的是 **`#param lib("util")`** —— 头文件的**本意**就是
+     `util.c` 那份（`return 0`，收下即成功、处理函数永不触发）。
+   · 两份同名时**谁赢取决于链接顺序**（`globalLabelMapping` 按模块名建表），
+     实测赢的是 `os` ⇒ 老程序的 `signal(SIGINT, h)` 拿到 **-102**，
+     而头文件承诺的是 0。**同一份数据两个实现必然漂移**，删掉多的那份。
+
+   判据：`scripts/vml-c-probe/cases/26-signal-shadowed.c`。
+   搬回 `util.c` 那份的实现见 `Lib/shared/src/util.c` 的 `signal`。 */
+
 
 // ============================================================
 // 反射 (380-381)

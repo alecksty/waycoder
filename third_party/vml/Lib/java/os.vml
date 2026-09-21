@@ -462,23 +462,6 @@ LABEL java_getArgs
     pop @R15
     RET
 
-LABEL java_signal
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL signal
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL java_typeOf
     push @R15
     push @R12
@@ -602,9 +585,6 @@ LABEL Os_SetEnv
 
 LABEL Os_GetArgs
     JMP java_getArgs
-
-LABEL Os_Signal
-    JMP java_signal
 
 LABEL Os_TypeOf
     JMP java_typeOf
@@ -884,12 +864,6 @@ LABEL method_GetArgs
 
 LABEL method_getArgs
     JMP java_getArgs
-
-LABEL method_signal
-    JMP java_signal
-
-LABEL method_Signal
-    JMP java_signal
 
 LABEL method_type_of
     JMP java_typeOf

@@ -653,28 +653,6 @@ L_35560025:
         pop @R12
         pop @R15
         ret
-signal:
-; -------------------------------------------
-; source   : int signal(int signum,void* handler)
-; function : signal
-; param   : int signum
-; param   : void* handler
-; return   : int
-; --------------------------------------------
-signal:
-        push @R15
-        push @R12
-        move @R12 @R13
-        sub @R13 #16
-; 176:     return asm("SYSCALL #350");
-        syscall #350
-        move [@R12-4] @R0
-        jmp L_35560026
-L_35560026:
-        move @R13 @R12
-        pop @R12
-        pop @R15
-        ret
 type_of:
 ; -------------------------------------------
 ; source   : int type_of(void* addr)
@@ -687,11 +665,11 @@ type_of:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 184:     return asm("SYSCALL #380");
+; 190:     return asm("SYSCALL #380");
         syscall #380
         move [@R12-4] @R0
-        jmp L_35560027
-L_35560027:
+        jmp L_35560026
+L_35560026:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -710,11 +688,11 @@ type_name:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 189:     return asm("SYSCALL #381");
+; 195:     return asm("SYSCALL #381");
         syscall #381
         move [@R12-4] @R0
-        jmp L_35560028
-L_35560028:
+        jmp L_35560027
+L_35560027:
         move @R13 @R12
         pop @R12
         pop @R15

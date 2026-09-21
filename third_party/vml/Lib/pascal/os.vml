@@ -462,23 +462,6 @@ LABEL PASCAL_GET_ARGS
     pop @R15
     RET
 
-LABEL PASCAL_SIGNAL
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL signal
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL PASCAL_TYPE_OF
     push @R15
     push @R12

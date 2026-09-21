@@ -1,3 +1,51 @@
+## v0.96.350 — `signal()` 返回 `-102`：同一函数两份实现，赢的那份永远不可能成功
+
+接着上一轮子 Agent 审计的第四条。这条一句话概括：**老程序装 Ctrl+C 处理函数，
+拿回来一个既不是 0 也不是 `SIG_ERR` 的第三种返回值**。
+
+### 一、症状
+
+    r = signal(SIGINT, on_int);   /* 修前 -102，修后 0 */
+
+`Lib/c/signal.h` 的承诺是白纸黑字的「**装处理函数一律返回成功**」，
+`util.c` 的实现也是 `return 0`。**但 `signal` 这个名字在本库里有两份实现**：
+
+    util.c :  int signal(int sig, void* handler) { return 0; }          ← 头文件要的是这份
+    os.c   :  int signal(int signum, void* handler)
+                  { return asm("SYSCALL #350"); }                        ← 实际链上的是这份
+
+而 `SYSCALL #350` 对**用户程序恒被拒**（`case 350` 先过 `PrivilegeDenied`；
+即便放行，下一句也是 `NOT_SUPPORTED`）⇒ **这份永远不可能返回 0**。
+
+### 二、为什么这个返回值最难缠
+
+老程序里两种写法都常见：
+
+    if (signal(SIGINT, on_int) == SIG_ERR) { perror("signal"); exit(1); }
+    if (signal(SIGINT, on_int) != 0)       { 致命错误 }
+
+`-102 ≠ SIG_ERR(-1)` ⇒ **前一半程序静默通过、后一半莫名退出**，
+而两者的源码上完全看不出差别。
+
+### 三、修法：**删掉多的那一份**，不是"把两份改成一样"
+
+`Lib/c/signal.h:26` 写的是 **`#param lib("util")`** —— 头文件的本意就是 `util` 那份；
+`os` 模块列它才是错的。所以：
+
+1. 删 `os.c` 里的 `signal`（留一段说明为什么删、以及它为什么永远不可能成功）
+2. 从 `Lib/modules.json` 的 `os.Functions` 里去掉 `"signal"`
+   （那张表驱动 GenLib 的包装/绑定生成，不移除会留下"虚构条目"）
+3. 重新生成 `Lib/shared/os.vml`
+
+⚠ 这是「**同一份数据两个实现必然漂移**」的又一例，而且**谁赢取决于链接顺序**
+（`globalLabelMapping` 按模块名建表）—— 症状会随链接进去的库不同而变，最难复现。
+
+### 四、判据
+
+- `26-signal-shadowed.c` **全绿**（此前 `A/B/C` 三条红）：
+  `A=0|B=0|C=0|D=0|E=0|F=2,28,20`
+- 全套与基线逐条相同：c-probe **27/0/3**、out 31/31、abi 27/29、diag 61/0/0、basic 23/0/4
+
 ## v0.96.349 — 内置函数少给参数会把编译器**崩掉**（一行 .NET 异常文本）
 
 接着上一轮子 Agent 审计的最后一条。这条一句话概括：**用户写错一个字，
