@@ -138,7 +138,8 @@ public partial class ShellPage : ContentPage
         // Android 侧 ACTION_DOWN 被消费掉 ⇒ **整个输出区再也拖不动**（实测：滑动后
         // 逐像素比对两张截屏，差异只落在底部导航栏，正文一个像素没动）。
         // 挂在内容上是另一条路（事件先给子视图，拖拽仍由 ScrollView 接管）。
-        AddOutputGestures(OutputHost);
+        AddOutputGestures(OutputGrid);
+        OutputGrid.PinchScaled += OnOutputPinchScale;
 
         Append("WayCoder 命令行\n" +
                "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
@@ -759,7 +760,6 @@ public partial class ShellPage : ContentPage
     }
 
     /// <summary>缩放起点字号 —— 捏合过程中 <c>e.Scale</c> 是相对**起点**的累计值。</summary>
-    private double _pinchStartFont;
 
     /// <summary>
     /// 输出区**双指缩放字号** —— **三种尺寸模式下都生效，且是无极（连续）缩放**。
@@ -791,37 +791,45 @@ public partial class ShellPage : ContentPage
         tap.Tapped += (_, _) => CmdEntry.Focus();
         view.GestureRecognizers.Add(tap);
 
-        var pinch = new PinchGestureRecognizer();
-        pinch.PinchUpdated += OnOutputPinch;
-        view.GestureRecognizers.Add(pinch);
+        // ⚠ **不加 `PinchGestureRecognizer`** —— 它在 `ScrollView` 里的自绘画布上
+        //   完全不触发（收不到第二根手指）。缩放走 `TerminalGrid` 自己从
+        //   `GraphicsView` 的 Start/Drag/EndInteraction 里算出来的 `PinchScaled`
+        //   （编辑器就是这么做的）。
     }
 
-    private void OnOutputPinch(object? sender, PinchGestureUpdatedEventArgs e)
+    /// <summary>
+    /// 捏合期间**原地**套用新字号 —— 只改字号、不重建视图树。
+    ///
+    /// ⚠ 重建视图树会让**正在接手势的那个视图**被销毁 ⇒ 手势断掉（"捏一下就没反应"）。
+    /// ⚠ 这一拍**不做折行重排**：`ShellWrap` 折行要把所有行重新切一遍，
+    ///   而缩放是每帧都在变的 —— 留到手指抬起再做，期间让 Label 自己按视口宽排。
+    /// </summary>
+    private void ApplyFontSizeLive()
     {
-        switch (e.Status)
+        // 一个画布：改字号重画一遍就行。**没有控件树要动**，所以手势不会被自己的销毁打断。
+        // ⚠ 这一拍**不做折行重排**（`ShellWrap` 要把所有行重新切一遍，而缩放每帧都在变）——
+        //   留到手指抬起（`Completed` → `RenderOutput`）再做。
+        OutputGrid.SetFontSize(_fontSize);
+    }
+
+    /// <summary>
+    /// 双指缩放 —— 由 `TerminalGrid` 从平台触摸里算好比例回调进来。
+    ///
+    /// ⚠ **边缩边重画、不重建视图**：画布只有一个，"重建"就是它自己重画一遍；
+    ///   折行的重排（`ShellWrap`）留到手指抬起再做（`RenderOutput`），
+    ///   否则每一拍把所有行重切一遍，缩放会顿。
+    /// </summary>
+    private void OnOutputPinchScale(double fontSize)
+    {
+        MauiShellStore.Font = fontSize;          // 钳位在 store 里
+        ApplyDisplaySettings();
+        ApplyFontSizeLive();
+        UpdateSizeButtons();                     // 自适应列数跟着字号变
+        Dispatcher.Dispatch(() =>
         {
-            case GestureStatus.Started:
-                _pinchStartFont = MauiShellStore.Font;
-                break;
-
-            case GestureStatus.Running:
-                MauiShellStore.Font = _pinchStartFont * e.Scale;   // 钳位在 store 里
-                ApplyDisplaySettings();
-                RenderOutput();                                    // 字号变了，折行要重排
-                UpdateSizeButtons();                               // 自适应列数跟着字号变
-
-                // ⚠ 字号一变，**内容像素宽也跟着变** ⇒ 原来装得下的可能装不下了
-                //   （或反过来）。不刷新的话横向滚动条会停在旧判断上：
-                //   放大了却还是没条可拖、或者缩回去之后留着一根永远不需要的条。
-                //   排到下一帧 —— 这一帧 Label 还没按新字号重新测量过。
-                Dispatcher.Dispatch(UpdateScrollBar);
-                break;
-
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                _pinchStartFont = MauiShellStore.Font;             // 落定：下次捏合从当前值起算
-                break;
-        }
+            RenderOutput();                      // 抬起/停止后按新字号重排折行
+            UpdateScrollBar();
+        });
     }
 
     private static void HighlightSizeButton(Button b, bool on)
@@ -843,7 +851,7 @@ public partial class ShellPage : ContentPage
     {
         _lines.Clear();
         _partial = false;
-        OutputHost.Children.Clear();
+        OutputGrid.Clear();
         UpdateScrollBar();
     }
 
@@ -914,7 +922,7 @@ public partial class ShellPage : ContentPage
     /// 顺带说明为什么滚动条滑块也偏大：Slider 长度按 `视口/内容` 算，
     /// 分母虚高 ⇒ 滑块算出来偏短 —— 同一处错误连累两个地方，改这一处就都对了。
     /// </summary>
-    private double ContentHeight => OutputHost.Height;
+    private double ContentHeight => OutputGrid.Height;
 
     /// <summary>
     /// 输出内容的**真实宽度** —— 取 Label 的实测宽度与显式宽度里大的那个。
@@ -927,12 +935,8 @@ public partial class ShellPage : ContentPage
     {
         get
         {
-            var w = OutputHost.Width;
-            var want = 0.0;
-            foreach (var c in OutputHost.Children)
-                if (c is VisualElement ve)
-                    want = Math.Max(want, ve.WidthRequest > 0 ? ve.WidthRequest : ve.Width);
-            return want > w ? want : w;
+            var w = OutputGrid.Width;
+            return OutputGrid.WidthRequest > w ? OutputGrid.WidthRequest : w;
         }
     }
 
@@ -1318,31 +1322,17 @@ public partial class ShellPage : ContentPage
     /// </summary>
     private void RenderOutput()
     {
-        // ⚠ **按块分别渲染**：文本行走 `Label`（要 Markdown），**画面行走自绘网格**。
+        // **整块交给一个自绘画布** —— 文本行与画面行走同一个渲染器。
         //
-        // 画面为什么不能也用 `Label`：平台会**折叠连续空格**（实测边框每行落在不同的 x），
-        // 换 NBSP 也只能绕开一半（行宽仍短 7 个字符）。本仓在移动端编辑器上为同一件事
-        // 折腾过八轮，结论是「**字符网格不许交给平台排版去量**」—— 所以这里自绘。
-        OutputHost.Children.Clear();
-        foreach (var group in GroupByNoWrap(DisplayText()))
-        {
-            if (group.NoWrap)
-            {
-                var grid = new TerminalGrid();
-                grid.SetLines(group.Text.Split('\n'), _fontSize, MauiUi.IsDark);
-                if (_contentWidth > 0) grid.WidthRequest = Math.Max(grid.WidthRequest, _contentWidth);
-                AddOutputGestures(grid);
-                OutputHost.Children.Add(grid);
-                continue;
-            }
-
-            var label = NewTextLabel();
-            label.FormattedText = MarkupToFormattedString.Convert(group.Text, MauiUi.IsDark);
-            AddOutputGestures(label);
-            OutputHost.Children.Add(label);
-        }
+        // 为什么不做成 `Label` + `GraphicsView` 混排（上一版就是这么写的）：
+        //   · 画面用 `Label` 会被平台改写宽度（折叠空格、NBSP 字体回退），实测对不齐；
+        //   · 混排之后"双指缩放"要**逐个子视图挂手势**，而缩放又要重建视图 ⇒
+        //     **正在接手势的那个视图被销毁，手势当场断掉**（用户报的"捏一下没反应"）。
+        // 一个画布同时解决这两条，结构也最简单（用户点名的"结构越简单越好"）。
+        var lines = DisplayText().Select(l => l.Text).ToList();
+        OutputGrid.SetLines(lines, _fontSize, MauiUi.IsDark);
+        if (_contentWidth > 0) OutputGrid.WidthRequest = Math.Max(OutputGrid.WidthRequest, _contentWidth);
     }
-
     /// <summary>建一个文本 Label —— 字号/宽度/折行规则**只在这一处设**。</summary>
     private Label NewTextLabel()
     {

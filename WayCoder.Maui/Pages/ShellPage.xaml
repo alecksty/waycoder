@@ -3,6 +3,7 @@
     x:Class="WayCoder.Maui.Pages.ShellPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:WayCoder.Maui.Controls"
     Title="命令行">
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
@@ -78,16 +79,15 @@
                      MAUI 的 `ScrollView` 在内容小于视口时默认会把内容摆到中间（纵向尤其明显：
                      固定 25 行而内容只有 3 行时，整块输出会飘到屏幕中间）。
                      真终端是**左上角起笔**，缩放字号 / 切固定行列时内容也只该从左上角长出来。 -->
-                <!-- ⚠ **不是单个 `Label`**：内容是"文本行 + 画面块"混排的（见 RenderOutput）。
-                     文本行走 `Label`（要 Markdown 格式），**画面行走自绘的 `TerminalGrid`** ——
-                     画面用 `Label` 渲染过，平台会折叠连续空格、改写度量，
-                     边框每行落在不同的 x（本仓在移动端编辑器上为同一件事折腾过八轮，
-                     结论是"字符网格不许交给平台排版去量"，见 CLAUDE.md）。 -->
-                <VerticalStackLayout
-                    x:Name="OutputHost"
-                    Spacing="0"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Start" />
+                <!-- 输出区**整块是一个自绘画布**（`TerminalGrid`）——
+                     文本行与画面行走同一个渲染器，**没有控件树**。
+                     为什么不做成 `Label` + `GraphicsView` 混排：
+                       · 画面用 `Label` 渲染会被平台改写宽度（折叠空格、字体回退），对不齐；
+                       · 混排之后"双指缩放"要**逐个子视图挂手势**，而缩放又必须重建视图 ⇒
+                         **正在接手势的那个视图被销毁，手势当场断掉**（实测捏一下就没反应）。
+                     一个画布同时解决这两条，结构也最简单。 -->
+                <controls:TerminalGrid
+                    x:Name="OutputGrid" />
             </ScrollView>
 
             <!-- 轨道：贴右边、上下留一点边距。IsVisible 由代码按内容高决定 -->

@@ -45,12 +45,61 @@ public class TerminalGrid : GraphicsView
     private double _fontSize = 12;
     private bool _isDark = true;
 
+    /// <summary>
+    /// 双指缩放的**目标字号**（`字号 = 起始字号 × 两指距离比`）。
+    ///
+    /// ⚠ 为什么**不用 `PinchGestureRecognizer`**：那是照编辑器学的 —— 编辑器用的是
+    ///   `GraphicsView` **自带的** `Start/Drag/EndInteraction`（见它的注释：
+    ///   "触摸走 GraphicsView 自带的 Start/Drag/EndInteraction：它已经把同一批触摸从平台取走了"）。
+    ///   实测症状：把 `PinchGestureRecognizer` 挂在自绘画布上**完全不触发** ——
+    ///   它在 `ScrollView` 里收不到第二根手指（MAUI 的手势识别与滚动容器抢触摸流）。
+    /// </summary>
+    public event Action<double>? PinchScaled;
+
+    private float _pinchStartDist;
+    private double _pinchStartFont = 12;
+
     public TerminalGrid()
     {
         Drawable = _drawable;
         // 画面是自绘的：不要让它被布局居中/拉满（ScrollView 在内容小于视口时会居中）
         HorizontalOptions = LayoutOptions.Start;
         VerticalOptions = LayoutOptions.Start;
+
+        // 触摸走 `GraphicsView` 自带的那三个事件（理由见 `PinchScaled` 的说明）
+        StartInteraction += OnTouchStart;
+        DragInteraction += OnTouchDrag;
+        EndInteraction += OnTouchEnd;
+    }
+
+    private static float Distance(PointF a, PointF b)
+    {
+        float dx = a.X - b.X;
+        float dy = a.Y - b.Y;
+        return MathF.Sqrt(dx * dx + dy * dy);
+    }
+
+    private void OnTouchStart(object? sender, TouchEventArgs e)
+    {
+        if (e.Touches.Length >= 2)
+        {
+            _pinchStartDist = Distance(e.Touches[0], e.Touches[1]);
+            _pinchStartFont = _fontSize;
+        }
+        else _pinchStartDist = 0;
+    }
+
+    private void OnTouchDrag(object? sender, TouchEventArgs e)
+    {
+        if (e.Touches.Length < 2 || _pinchStartDist <= 0) return;
+        float d = Distance(e.Touches[0], e.Touches[1]);
+        if (d <= 0) return;
+        PinchScaled?.Invoke(_pinchStartFont * (d / _pinchStartDist));
+    }
+
+    private void OnTouchEnd(object? sender, TouchEventArgs e)
+    {
+        _pinchStartDist = 0;
     }
 
     /// <summary>格宽（像素）—— 由字号**算**出来，不问平台。</summary>
@@ -83,6 +132,23 @@ public class TerminalGrid : GraphicsView
 
         _drawable.Grid = this;
         Invalidate();
+    }
+
+    /// <summary>清空（`cls` / 切会话时用）。</summary>
+    public void Clear() => SetLines(Array.Empty<string>(), _fontSize, _isDark);
+
+    /// <summary>
+    /// **只改字号、不换内容** —— 双指缩放期间走这条。
+    ///
+    /// ⚠ 与 <see cref="SetLines"/> 分开是必须的：缩放的每一拍都重建视图的话，
+    ///   **正在接手势的那个视图会被销毁**，手势当场断掉（实测：捏一下就没反应了）。
+    ///   内容本来就是缓存着的（`_lines`），重画一遍就行。
+    /// </summary>
+    public void SetFontSize(double fontSize)
+    {
+        if (Math.Abs(_fontSize - fontSize) < 0.01) return;
+        var lines = _lines;
+        SetLines(lines, fontSize, _isDark);
     }
 
     private sealed class GridDrawable : IDrawable
