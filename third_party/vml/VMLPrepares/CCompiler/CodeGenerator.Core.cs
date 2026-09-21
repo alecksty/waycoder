@@ -126,6 +126,9 @@ namespace CCompiler
         private int                                              hiddenReturnPtrOffset; // offset from R12 for hidden struct return pointer (-1 if none)
         private HashSet<string>                                  arrayLocalVars; // 局部数组变量名 → 用于数组到指针退化
         private HashSet<string>                                  globalArrayVars; // 全局数组变量名 → 用于数组到指针退化
+        /// <summary>**指针数组**（`char *rows[]`）的变量名 —— 元素是指针，下标必须按 32 位读。
+        /// 在全局遍历那一刻记录（那里 `IsArray` 与类型串都还完整，见 `DeclaredArrayOfPointers`）。</summary>
+        private readonly HashSet<string>                         arrayOfPointerVars = new();
         private Dictionary<string, List<int?>>                   localArrayDimensions; // 局部数组变量名 → 维度列表
 
         /// <summary>

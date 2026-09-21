@@ -509,27 +509,63 @@ namespace VMLAssembler
             }
         }
 
+        /// <summary>
+        /// 剥掉行内注释（`;` 与 `//`）—— **引号感知**，字符串字面量里的 `;` 不算注释。
+        ///
+        /// ⚠ **本文件里这条规则只许有这一份实现**。此前有三处：`ProcessSingleLine` 那份
+        /// 是引号感知的，而 `ParseLine` 与 `ParseData` 这两份是裸 `IndexOf(";")`
+        /// ⇒ **同一份 `.string` 走哪条路结果不同**，而且症状离现场很远：
+        /// `L_x: .string "B1=AB;CD"` 被截成 `.string "B1=AB`（引号不配对 ⇒
+        /// `ParseValue` 落到"不是字符串"那一支，把**开头那个引号**当内容返回）
+        /// ⇒ 程序运行时打出 `"B1=AB`。
+        ///
+        /// 影响面：**所有带分号的字符串**。最要命的是 **ANSI 转义序列全是分号分隔的**
+        /// （`\x1b[1;31m`、`\x1b[38;5;208m`）⇒ 256 色/真彩**整类失效**，
+        /// 且失败得很安静（只是颜色不对，程序照跑）。
+        ///
+        /// 单引号（字符字面量 `';'`）同样要认：反过来，双引号串里的 `'`
+        /// （如 `"it's"`）不该被当成字符字面量开头，所以两种引号各自独立跟踪。
+        /// </summary>
+        private static string StripLineComment(string line)
+        {
+            bool inString = false;   // 双引号字符串
+            bool inChar   = false;   // 单引号字符字面量
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (inString)
+                {
+                    if (c == '\\') { i++; continue; }   // 转义的下一个字符不参与判定（`\"` 不闭合）
+                    if (c == '"')  inString = false;
+                    continue;
+                }
+                if (inChar)
+                {
+                    if (c == '\\') { i++; continue; }
+                    if (c == '\'') inChar = false;
+                    continue;
+                }
+
+                if (c == '"')  { inString = true; continue; }
+                if (c == '\'') { inChar   = true; continue; }
+                if (c == ';')  return line[..i].TrimEnd();
+                if (c == '/' && i + 1 < line.Length && line[i + 1] == '/')
+                    return line[..i].TrimEnd();
+            }
+            return line;
+        }
+
         public Instruction? ParseLine(string line)
         {
             line = line.Trim();
 
-            // 跳过空行和注释
-            if (string.IsNullOrEmpty(line) || line.StartsWith(";"))
+            // 空行与整行注释（`;` / `//` 在引号外才生效 —— 见 StripLineComment）
+            line = StripLineComment(line);
+            if (string.IsNullOrEmpty(line))
             {
                 return null;
-            }
-
-            // 移除行内注释
-            if (line.Contains(";"))
-            {
-                line = line.Substring(0, line.IndexOf(";"));
-                line = line.Trim();
-            }
-
-            if (line.Contains("//"))
-            {
-                line = line.Substring(0, line.IndexOf("//"));
-                line = line.Trim();
             }
 
             // 检查标签（支持 "label1 label2:" 多标签语法，全部指向同一地址）
@@ -849,18 +885,8 @@ namespace VMLAssembler
         {
             line = line.Trim();
 
-            // 移除行内注释
-            if (line.Contains(";"))
-            {
-                line = line.Substring(0, line.IndexOf(";"));
-                line = line.Trim();
-            }
-
-            if (line.Contains("//"))
-            {
-                line = line.Substring(0, line.IndexOf("//"));
-                line = line.Trim();
-            }
+            // 行内注释（引号感知 —— 见 StripLineComment，`.string "a;b"` 的 `;` 不是注释）
+            line = StripLineComment(line);
 
             // 处理 .data 段开始
             if (line == ".data")
@@ -1419,26 +1445,35 @@ namespace VMLAssembler
             if (string.IsNullOrEmpty(trimmedLine))
                 return index;
 
-            // v1.65.170+: 去除行内注释 — ; 之后的内容视为注释（跳过引号内的分号）
-            int commentIdx = -1;
-            bool inString = false;
-            for (int ci = 0; ci < trimmedLine.Length; ci++)
+            // ── 记住「最近一条 `; N:` 注释里的 N」────────────────────────────────
+            // 前端把源码行号写成 `; 12: <那一行的原文>`（见 `VmlProgram.ToString`），
+            // 汇编器要把它接回来，否则**汇编期/链接期报的错只有函数名、没有行列号**。
+            //
+            // ⚠ **必须在剥注释之前做**：这一段原先挂在函数后半程（`ParseLine` 调用处之前），
+            //   而剥注释的早退就在下面几行 —— 一整行 `; 12: …` 剥完是空串、当场 `return index`，
+            //   于是**那段捕获代码一次都执行不到**（实测：`.code` 里写 `; 12:` 之后，
+            //   指令的 `SourceLine` 恒为 -1）。它读的 `trimmedLine` 那时也早已被剥空了。
+            //
+            // 只认 `^\s*;\s*(\d+):` 这一种形态：`; ----`、`; source : …`、`; 参数说明`
+            // 这些都不匹配，不会被误当成行号。
             {
-                char c = trimmedLine[ci];
-                if (c == '"') inString = !inString;
-                if (c == ';' && !inString)
+                var c = trimmedLine.StartsWith(";") ? trimmedLine[1..].TrimStart() : null;
+                if (c != null)
                 {
-                    commentIdx = ci;
-                    break;
+                    int ci = 0;
+                    while (ci < c.Length && char.IsDigit(c[ci])) ci++;
+                    if (ci > 0 && ci < c.Length && c[ci] == ':' &&
+                        int.TryParse(c[..ci], out var srcLine))
+                        _pendingSourceLine = srcLine;
                 }
             }
 
-            if (commentIdx >= 0)
-            {
-                trimmedLine = trimmedLine.Substring(0, commentIdx).TrimEnd();
-                if (string.IsNullOrEmpty(trimmedLine))
-                    return index;
-            }
+            // v1.65.170+: 去除行内注释 — `;` / `//` 之后视为注释（引号内的不算）。
+            // 判据统一走 `StripLineComment` —— 这里原先自带一份"引号感知"的实现，
+            // 而 `ParseLine` / `ParseData` 那两份是裸 `IndexOf(";")` ⇒ **一字符串两结果**。
+            trimmedLine = StripLineComment(trimmedLine);
+            if (string.IsNullOrEmpty(trimmedLine))
+                return index;
 
             // 处理多行 ASM：ASM 行有开引号但无闭引号，合并后续行
             if (trimmedLine.StartsWith("ASM", StringComparison.OrdinalIgnoreCase))
@@ -1581,24 +1616,9 @@ namespace VMLAssembler
                 _inDataSection = false;
             }
 
-            // ── 记住「最近一条 `; N:` 注释里的 N」────────────────────────────────
-            // 前端把源码行号写成 `; 12: <那一行的原文>`（见 `VmlProgram.ToString`），
-            // 而这里此前把**所有** `;` 行整个 `continue` 掉 ⇒ `Instruction.SourceLine`
-            // 从来没被赋过值（字段在 `Instruction.cs:31`，汇编器里零赋值）。
-            // 后果：链接期/汇编期报的错只能给函数名、给不出**行列号** ——
-            // 而用户要的正是「按标准输出行列号，用来在 IDE 标注错误位置」。
-            //
-            // 只认 `^\s*;\s*(\d+):` 这一种形态：`; ----`、`; source : …`、`; 参数说明`
-            // 这些都不匹配，不会被误当成行号。
-            var comment = trimmedLine.StartsWith(";") ? trimmedLine[1..].TrimStart() : null;
-            if (comment != null)
-            {
-                int ci = 0;
-                while (ci < comment.Length && char.IsDigit(comment[ci])) ci++;
-                if (ci > 0 && ci < comment.Length && comment[ci] == ':' &&
-                    int.TryParse(comment[..ci], out var srcLine))
-                    _pendingSourceLine = srcLine;
-            }
+            // `; N:` 源码行号已在**函数开头**捕获（必须在剥注释之前 —— 见那处注释）。
+            // 这里不再重复一遍：两处实现必然漂移，而其中一处还会因为 `trimmedLine` 已被剥空
+            // 而恒不命中。
 
             var instr = ParseLine(trimmedLine);
             if (instr != null)

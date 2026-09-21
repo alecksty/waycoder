@@ -29,7 +29,16 @@ namespace CCompiler
             }
             else if (node is StringLiteral strLit)
             {
-                result.Add(strLit.Value);
+                // ⚠ **必须给字符串分配一个数据段标签**，数组元素存**标签名**。
+                //
+                // 直接把内容塞进数组的后果是**序列化出 `.word abc`** —— 把字符串内容
+                // 当成了标签名写出去，而 `abc` 这个标签**根本不存在** ⇒ 运行期读到 (null)。
+                // 症状：`char *rows[] = {"abc","def"};` 连**顶层全局**都取不到
+                // （`rows[0]` 是 (null)、`rows[1][1]` 是空），
+                // 而 nyancat 的帧数据、`argv` 那类字符串表全是这个形状。
+                string strLabel = GenerateLabel();
+                dataSection[strLabel] = strLit.Value;
+                result.Add(strLabel);
             }
             else if (node is Identifier idLit)
             {
@@ -132,6 +141,13 @@ namespace CCompiler
                 // 跟踪变量类型
                 variableTypes[varDecl.Name] = StringToExprType(varDecl.Type);
                 variableTypeStrings[varDecl.Name] = varDecl.Type;
+
+                // **指针数组**（`char *rows[]`）要在这里记一笔：`ast.Variables` 里那个同名
+                // 声明的 `IsArray` 是 false、类型串也只是 `"char*"`（维度与 `*` 的关系丢了），
+                // 只有**这一遍遍历里的 `varDecl` 是权威的**（下面数据段那条分支用的就是它）。
+                // 不记的话 `rows[0]` 会被判成 `char` ⇒ 按字节读指针（见 DeclaredArrayOfPointers）。
+                if (varDecl.IsArray && varDecl.Type.Contains('*'))
+                    arrayOfPointerVars.Add(varDecl.Name);
 
                 // 跟踪struct/union类型（含typedef别名）
                 var stType = ResolveStructType(varDecl.Type);

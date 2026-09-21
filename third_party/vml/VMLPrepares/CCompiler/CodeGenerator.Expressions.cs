@@ -900,8 +900,17 @@ namespace CCompiler
                 if (variableTypeStrings.TryGetValue(arrayIdent2.Name, out var typeStr2))
                 {
                     string resolved = ResolveTypeName(typeStr2);
+                    // **指针数组**（`char *rows[]`）：元素**就是那个指针**，步长 = 指针大小（4）。
+                    // ⚠ 不能走下面那条"解一层引用"——`char*` 解出来是 `char`（size 1），
+                    //   于是 `rows[1]` 从偏移 **1** 处读，而不是 4（实测 Q2/Q3/Q4/Q5 全空、
+                    //   只有下标为 0 的 Q1 恰好对）。判据与 `InferExpressionType` 那条**同源**
+                    //   （`DeclaredArrayOfPointers`），别再各写一份。
+                    if (DeclaredArrayOfPointers(arrayIdent2.Name))
+                    {
+                        elementSize = 4;
+                    }
                     // 如果是指针类型，获取指向类型的元素大小
-                    if (resolved.Contains('*'))
+                    else if (resolved.Contains('*'))
                     {
                         string pointedType = resolved.Replace("*", "").Replace("const", "").Replace("volatile", "").Trim();
                         elementSize = GetTypeSizeFromString(pointedType);

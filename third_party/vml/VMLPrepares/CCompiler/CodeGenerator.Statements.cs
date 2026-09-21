@@ -577,7 +577,13 @@ namespace CCompiler
             }
             else if (node is StringLiteral strLit)
             {
-                result.Add(strLit.Value);
+                // 同 `FlattenArrayInitializer`：**给字符串分配数据段标签**，元素存标签名 ——
+                // 直接塞内容会序列化成 `.word abc`（内容当标签名），而那个标签不存在。
+                // 两条路各写一份是**刻意**的：它们写进的是两个不同的数据段，
+                // 但**这条判据必须一模一样**（见 ConstFold.cs 顶部那段说明）。
+                string strLabel = GenerateLabel();
+                dataSection[strLabel] = strLit.Value;
+                result.Add(strLabel);
             }
             // 常量表达式（`-1`、`1+2`…）—— 同 FlattenArrayInitializer，见 ConstFold.cs：
             // 这条没有的话 `static int d[4] = {0,1,0,-1}` 里的负数会被静默当成 0。
@@ -873,6 +879,47 @@ namespace CCompiler
             return resolved == ExprType.Unknown ? ExprType.Int : resolved;
         }
 
+        /// <summary>
+        /// 声明的类型是不是**指针的数组**（`char *rows[]`）—— 这种形状下数组元素**是指针**。
+        ///
+        /// ⚠ 必须看**声明原文**：`ExprType` 已经把维度剥掉了，剥完 `char *rows[]`
+        /// 与 `char *p` 都是 `CharPtr`，再也分不出哪个是数组。
+        ///
+        /// ⚠⚠ **维度有两种存法，缺一不可**：解析器对**带显式长度**的数组把维度写进类型串
+        /// （`int a[4][4]` → `"int[4][4]"`），而对 `char *rows[]` 这种**不带长度的**，
+        /// 类型串只剩 `"char *"`、维度落在 `IsArray` 标志上。只查类型串的话后者判不到
+        /// （实测就是这么白跑一轮：判据没命中，`moveb` 照旧）。
+        /// </summary>
+        private bool DeclaredArrayOfPointers(string name)
+        {
+            // ① **权威来源**：全局遍历那一刻记下的（那里 `IsArray` 与类型串都还完整）。
+            if (arrayOfPointerVars.Contains(name)) return true;
+
+            string? decl = null;
+            bool isArray = false;
+
+            if (variableTypeStrings != null && variableTypeStrings.TryGetValue(name, out var local))
+            {
+                decl = local;
+                isArray = arrayLocalVars.Contains(name);
+            }
+            else
+            {
+                var g = ast.Variables.FirstOrDefault(v => v.Name == name);
+                decl = g?.Type;
+                isArray = g?.IsArray ?? false;
+            }
+
+            if (string.IsNullOrEmpty(decl) || decl.IndexOf('*') < 0) return false;
+
+            // ② 类型串里自带维度（`int *p[4]`）
+            int bracket = decl.IndexOf('[');
+            if (bracket >= 0) return decl.IndexOf('*') < bracket;
+
+            // ③ 兜底：维度落在 IsArray 上（局部变量走这条）
+            return isArray;
+        }
+
         private ExprType InferExpressionType(ASTNode node)
         {
             if (node is CharLiteral)
@@ -1019,7 +1066,20 @@ namespace CCompiler
                 var arrType = GetVarExprType(arrId.Name);
                 if (IsPointerType(arrType))
                 {
-                    // char* → char, int* → int
+                    // ⚠ **指针数组**（`char *rows[]`）：元素**本身就是指针**，就是 `arrType`。
+                    //
+                    // `StringToExprType` 会先把 `[]` 剥掉再看 `*` ⇒ 这种声明的 arrType 已经是
+                    // `CharPtr`，而下面那套是"**解一层引用**"（`char *p; p[0]` 该得 char）——
+                    // 照它走就把元素判成了 `Char`，于是数组下标按**字节**读写
+                    // （`moveb` + `sextb`）：读指针只读到地址的**最低一个字节**。
+                    // 实测症状：`char *rows[]={"abc","def"}` 的 `rows[0]` 得到 `(null)`
+                    // —— 而 nyancat 的帧数组、`argv` 那类全是这个形状。
+                    //
+                    // 判据看**声明的原文**（`*` 是否出现在 `[` 之前），不看已经剥过维度的 ExprType
+                    // —— 剥完就再也分不出 `char *p[]` 与 `char **p` 的区别了。
+                    if (DeclaredArrayOfPointers(arrId.Name)) return arrType;
+
+                    // char* → char, int* → int（单个指针的 `p[i]`）
                     return arrType switch
                     {
                         ExprType.CharPtr => ExprType.Char,

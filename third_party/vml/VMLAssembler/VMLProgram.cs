@@ -835,6 +835,27 @@ namespace VMLAssembler
                         if (minusIdx > 0) usedData.Add(s.Substring(0, minusIdx));
                     }
                 }
+            // ⚠ **数据段内部的引用也要算可达**（传递闭包）。
+            //
+            // 指针表 —— `char *rows[] = {"abc","def"}`、nyancat 的帧数组、`argv` 那类 ——
+            // 里面的字符串**只被别的数据项引用**（序列化成 `.word L_x`），
+            // 在**指令**里一次都不出现。只按指令算可达的话，它们会被整条删掉，
+            // 而 `rows[0]` 读到的是一个不存在的标签 ⇒ `(null)`。
+            // 实测症状：`char *rows[]={"abc","def"}` 连**顶层全局**都取不到。
+            //
+            // 必须走到不动点：表里的标签本身又可能是另一张表（多级指针表）。
+            bool grew = true;
+            while (grew)
+            {
+                grew = false;
+                foreach (var kv in DataSection)
+                {
+                    if (!usedData.Contains(kv.Key)) continue;
+                    foreach (var name in DataRefs(kv.Value))
+                        if (usedData.Add(name)) grew = true;
+                }
+            }
+
             var newData = new Dictionary<string, object>();
             foreach (var kv in DataSection)
                 if (usedData.Contains(kv.Key))
@@ -845,6 +866,20 @@ namespace VMLAssembler
                 foreach (var kv in newData)
                     DataSection[kv.Key] = kv.Value;
             }
+        }
+
+        /// <summary>
+        /// 一个数据项**引用了哪些标签**。
+        ///
+        /// ⚠ 只有 `object[]`（数组 / 指针表）里的字符串是**标签名**；
+        /// 纯 `string` 与 `DataString` 是**内容**（`.string "abc"` 的 `abc` 是正文，
+        /// 不是标签）—— 把内容当标签扫，会把恰好同名的数据项"救活"，那是最难查的一类。
+        /// </summary>
+        static IEnumerable<string> DataRefs(object value)
+        {
+            if (value is not object[] arr) yield break;
+            foreach (var e in arr)
+                if (e is string s && s.Length > 0) yield return s;
         }
 
         #region 私有辅助方法
