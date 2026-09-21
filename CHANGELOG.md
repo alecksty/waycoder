@@ -1,3 +1,84 @@
+## v0.96.346 — `char**` 的双下标读成 4 个字节（`argv`/`getopt`/字符串表的共同底座）
+
+接着 v0.96.345 往下查 `cases/23`。这一版把 **`char**` 的两条路径**都修了 ——
+它们**互不相干**，症状都是"读出来是 4 个字节拼成的数"，而 `%s` 打印**看着正常**
+（`%s` 走地址、不经过元素类型推断）⇒ 只有 `%d`/`%c` 把字符当数读才露馅。
+
+### 一、多级下标要按级数解引用
+
+解析器把 `p[i][j]` 收成**一个** `ArrayAccess` + `Indices=[i,j]`，**不是嵌套节点**
+（只有 `(p[i])[j]` 这种带括号的才分两层 —— 这正好解释了"加一层括号就对"）。
+
+而 `InferExpressionType` 那条分支只看 `Array` 是不是标识符，
+**看不到"外层下标"**：只按"元素是指针"返回 `arrType` ⇒ `pp[0][0]` 被判成 `CharPtr`，
+最后一跳按 4 字节读。实测 `167789121` = `0x0A004241`，正是 `"AB\0\n"` 四个字节。
+
+⚠ **地址那侧一直是对的**（步长先 4 后 1），只有取值宽度错 —— 两边不一致才是这条的特征。
+
+### 二、`*p` 的返回类型
+
+`ExprType` 这一档**表达不了"指针的指针"**（`StringToExprType` 把 `char **` 也归成 `CharPtr`）。
+照 `case CharPtr: return Char` 走，`*p` 被判成 `char` ⇒ 按字节加载，
+`**pp` 读出来是 **0**。判据回到**声明原文的星号数**（`ElementIsPointer`，
+那个函数的注释本就写着"三处共用"—— 这次是第四处）。
+
+**顺带修好了库里的一处真缺陷**：`Lib/shared/string.vml` 重生成后
+`str_split` 里的 `parts[count][len] = '\0';` 从 **4 字节写**变成**字节写**
+（`move` → `moveb`）。`Lib/` 一致性脚本的不一致清单**零新增**。
+
+### 三、`getopt` 全绿：修好 ② 之后才显形的第二处断点
+
+`23` 绿了之后 `22-getopt.c` 仍然红 —— 整条链上有**两处独立断点叠着**，
+所以"改一处没变好"当时并**不能**说明那一处没修对。
+
+第二处是：**`optarg`/`optind`/`optopt` 没有任何地方定义**。
+`util.c` 原先只写三行 `extern`，而"`extern` 声明不占数据段槽位"修好之后它们就**悬空**了
+⇒ 使用者写进去的 `optind` 与 `getopt` 读到的**不是同一块内存**
+（实测 `optind = 1` 之后第一次 `getopt` 直接返回 `'b'`、`optind` 读出来是 **98**）。
+
+已在 `util.c` 里**真正定义**（`optind` 按 POSIX 初值给 **1**），并把
+`Lib/c/unistd.h` 里那几行**定义**（`int optind;`）改成 `extern` —— 否则每个
+include 了它的使用者都会生成一份槽位、把库里那份遮住，**那正是 `stdscr` 当初的形态**。
+
+⚠ 这条也说明：**改完前端要让 `Lib/` 跟着重生成**，否则库里还跑着旧前端编出来的代码。
+`Lib/shared/util.vml` 重生成后 `getopt` 里的 `argv[optind][0]` 才变成字节读。
+
+### 四、⚠ 试过又撤回了：同名函数被库符号静默劫持
+
+`cases/23` 原本把一个形参函数叫 `peek`，而 `builtins` 库里**也有** `peek`
+⇒ `call peek` 被链接器改写成 `call lib_builtins_peek`，**用户那个函数从头到尾没人调用**。
+（症状极具误导性：函数体汇编**逐字正确**、参数读取也对 —— 因为**调用根本没进去**。）
+
+试的修法是「主程序自己定义的名字不许被改写」，**但撤回了**：
+`VmlProgram.Labels` **不是可靠的真源**（只有十几个条目、地址还是前端留的陈旧占位 ——
+实测 `peek = 0`，和一堆字符串标签挤在地址 0 上），而按名字一刀切会**打断 native 声明**：
+JS 前端的 `native function println_str(s) {}` 是 `AddLabel(name)` 之后直接 `return`，
+留一个**空标签**、本来就该让库接管 —— 一刀切之后整个 JavaScript 的输出全废
+（崩在 `PUSH @R0`，SP=FFFFFFFC，一个字都没打出来）。
+
+**所以：这条要修，得先有一个"这个标签是不是真定义"的可信判据**，目前没有，别在链接器里按形状猜。
+已立 **`cases/28-name-shadowed-by-lib.c`（KNOWN-RED）** 把复现钉住。
+`cases/23` 里的函数已改名为 `argfirst`（不冲突），它才测得到本来要测的形参形态。
+
+### 五、判据
+
+- `23-charpp-subscript.c` **全绿**：`A=65|B=65|C=66|D=65|E=65|F=65|G=67`
+- `22-getopt.c` **全绿**（此前整条红）：`A=a,2|B=b,VAL,4|C=-1,4|D=-1,4|E=?,2|F=?,3|G=-1,1`
+- 新增 `28-name-shadowed-by-lib.c`（KNOWN-RED：期望 `A=12345|B=12352`，实得 `A=0|B=48`）
+- 全套与基线逐条相同：c-probe 22/0/6、out 31/31、abi 27/29、diag 61/0/0、basic 23/0/4、
+  `Lib/` 重生成一致性 51 条零新增
+
+### 六、子 Agent 审计的其余缺口（未修，已定位）
+
+- `ioctl(0,TIOCGWINSZ,&ws)`：头文件写 `unsigned long request`、实现是 `int request`
+  ⇒ 64 位参数占 2 个槽，`arg` 读到高位槽 = 0。**排版取终端尺寸的唯一入口**，且返回 0 读不出异常
+- `signal()` 恒返回 `-102`（`SYSCALL_PERMISSION_DENIED`）：`util.c`（`return 0`）与
+  `os.c`（`SYSCALL #350`）各一份，前端路由到了 `os`
+- `graph` 模块一调就崩（`SP=FFFFFFFC`）、`graphics.h`/`gfx.h` 被 `PRUNED.txt` 剪掉且
+  `InitGraph` 不在前端映射表里 —— 三层独立全断
+- 非 UTF-8 字节被 `VmConsoleDevice` 按 UTF-8 解码 ⇒ **CP437 框线字符到不了屏幕**（DOS 程序全变 `�`）
+- `getenv()/setenv()/PEEK()/POKE()` 少参数 ⇒ 编译器抛未处理异常（缺 `Args.Count` 守卫）
+
 ## v0.96.345 — `initscr()` 返回 80 的真根因：**结构体全局只分到 1 个字**
 
 上一版把 `stdscr` 查到「`initscr()` 在调用方拿到 **80**」这一步，判据是 `20-curses-api.c`

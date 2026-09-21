@@ -1043,6 +1043,21 @@ namespace CCompiler
                 // 解引用运算符 *，返回指向的类型
                 if (unaryOp.Op == "*")
                 {
+                    /* ⚠ 操作数是**多星声明**的标识符时（`char **p` / `char *rows[]`），
+                       `ExprType` 这一档**表达不了"指针的指针"** —— `StringToExprType`
+                       把 `char **` 也归成 `CharPtr`。照下面的 `case CharPtr: return Char`
+                       走，`*p` 被判成 `char` ⇒ 按**字节**加载：只读到指针地址的最低一个字节。
+
+                       实测症状（`cases/23` 的 `**pp`）：结果是 **0**，
+                       而 `pp[0][0]` 那条路（走 `Indices`）是对的 ——
+                       同一个 `char **`，两条路径两种结论 ⇒ 判据回到**声明原文的星号数**，
+                       与 `ElementIsPointer` 同源（那个函数记的三处共用里就有这一处）。
+
+                       解一层后**仍是指针**：`char **p` 的 `*p` 是 `char*`，
+                       所以类型档取同一个（`ExprType` 没有两级指针这一档）。 */
+                    if (unaryOp.Operand is Identifier derefId && ElementIsPointer(derefId.Name))
+                        return GetVarExprType(derefId.Name);
+
                     var operandType = InferExpressionType(unaryOp.Operand);
                     switch (operandType)
                     {
@@ -1118,20 +1133,40 @@ namespace CCompiler
                     //
                     // 判据看**声明的原文**（`*` 是否出现在 `[` 之前），不看已经剥过维度的 ExprType
                     // —— 剥完就再也分不出 `char *p[]` 与 `char **p` 的区别了。
-                    if (ElementIsPointer(arrId.Name)) return arrType;
+                    // ⚠ **多级下标要按级数继续解引用。**
+                    //
+                    // 解析器把 `p[i][j]` 收成**一个** `ArrayAccess` + `Indices=[i,j]`
+                    // （不是嵌套节点 —— 见 `Parser.Expressions.cs` 收集 `indices` 那段；
+                    // 只有 `(p[i])[j]` 那种带括号的才会分成两层）。
+                    // 所以这里**看不到"外层下标"**：只按"元素是指针"返回 `arrType` 的话，
+                    // `pp[0][0]` 被判成 `CharPtr` ⇒ 最后一跳按 **4 字节**读。
+                    //
+                    // 症状极具迷惑性：**地址那侧是对的**（步长 4 再 1），只有最后取值的
+                    // 宽度错了 ⇒ `pp[0][0]` 读成 `0x0A004241`（"AB\0\n"）而不是 65。
+                    // 而 `%s` 打印**看着正常**（它走地址、不过元素类型推断）⇒ 只有
+                    // `%d`/`%c` 把字符当数读才露馅。砸掉的是 `argv[i][0]`、`getopt`、
+                    // 一切字符串表 —— 全是老程序的常见写法。
+                    // 判据：`scripts/vml-c-probe/cases/23-charpp-subscript.c`。
+                    var elemTy = ElementIsPointer(arrId.Name)
+                        ? arrType                       // 元素本身就是指针（`char *rows[]` / `char **p`）
+                        // char* → char, int* → int（单个指针的 `p[i]`）
+                        : arrType switch
+                        {
+                            ExprType.CharPtr => ExprType.Char,
+                            ExprType.ShortPtr => ExprType.Short,
+                            ExprType.IntPtr => ExprType.Int,
+                            ExprType.LongPtr => ExprType.Long,
+                            ExprType.FloatPtr => ExprType.Float,
+                            ExprType.DoublePtr => ExprType.Double,
+                            ExprType.VoidPtr => ExprType.Char,
+                            _ => ExprType.Int
+                        };
 
-                    // char* → char, int* → int（单个指针的 `p[i]`）
-                    return arrType switch
-                    {
-                        ExprType.CharPtr => ExprType.Char,
-                        ExprType.ShortPtr => ExprType.Short,
-                        ExprType.IntPtr => ExprType.Int,
-                        ExprType.LongPtr => ExprType.Long,
-                        ExprType.FloatPtr => ExprType.Float,
-                        ExprType.DoublePtr => ExprType.Double,
-                        ExprType.VoidPtr => ExprType.Char,
-                        _ => ExprType.Int
-                    };
+                    // 每多一级下标就再解一层引用（`pp[0][0]`：`CharPtr` → `Char`）。
+                    // 解到不是指针为止 —— `T *p; p[0][0]` 这种越界写法不该再往下解。
+                    for (int k = 1; k < arrAcc.Indices.Count && IsPointerType(elemTy); k++)
+                        elemTy = DerefExprType(elemTy);
+                    return elemTy;
                 }
                 return arrType; // 数组元素类型
             }

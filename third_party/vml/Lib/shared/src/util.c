@@ -385,11 +385,23 @@ __stdcall int nanosleep(void* req, void* rem) {
 __stdcall int atexit(void (*fn)(void)) { (void)fn; return 0; }  /* 本平台不跑退出钩子 */
 
 /* ── getopt / strdup（老程序到处在用） ──
-   `getopt` 的全局变量（optarg/optind/opterr/optopt）在 `Lib/c/unistd.h` 里已声明，
-   这里只补**函数本体**。 */
-extern char* optarg;
-extern int optind;
-extern int optopt;
+
+   ⚠ 这三个全局**必须在这里定义**，不能只写 `extern`。
+
+   原先写的是三行 `extern` —— 在「`extern` 声明不占数据段槽位」修好之后，
+   它们就**没有任何地方定义了**：`getopt` 内部读写的是裸名 `optind`，
+   链接期解析不到本模块的槽位 ⇒ 使用者写进去的 `optind` 与 `getopt` 读到的
+   根本不是同一块内存（实测 `optind = 1` 之后第一次 `getopt` 直接返回 `'b'`、
+   `optind` 读出来是 98）。判据：`scripts/vml-c-probe/cases/22-getopt.c`。
+
+   POSIX 规定 `optind` 初值 **1**（不是 0）—— 顺手按规矩给上。
+
+   头文件那侧（`Lib/c/getopt.h`）写的是 `extern`，与这里配对；
+   ⚠ 但 `Lib/c/unistd.h:9` 写的是 `int optind;`（**定义**，不是 extern）——
+   那个是头文件里的重复定义，见到就要改成 `extern`。 */
+char* optarg;
+int   optind = 1;
+int   optopt;
 
 __stdcall int getopt(int argc, char** argv, const char* optstring) {
     int i;
