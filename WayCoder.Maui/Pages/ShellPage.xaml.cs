@@ -740,8 +740,10 @@ public partial class ShellPage : ContentPage
         InstallVmlProgress();   // 这里是**本页所有 VML 运行**的唯一入口（文件页递的 + 手敲的）
         try
         {
-            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec, ReadLineFromProgram,
-            cts.Token, markup: true));
+            // 两个输入源都给：**程序要哪个由它调的读接口决定**（`ReadString` → 按行、
+            // `ReadChar` → 逐键），不需要它声明什么。
+            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec,
+                ReadLineFromProgram, cts.Token, markup: true, readKey: ReadKeyFromProgram));
         }
         finally
         {
@@ -824,8 +826,165 @@ public partial class ShellPage : ContentPage
         return line;
     }
 
+    // ═══ 逐键直通（交互式程序）═══
+    //
+    // 交互式程序（`vim`/`mc`/`top`）要的是"按一下立刻拿到"，而原来那条路是
+    // **敲满一行按回车**才交出去 —— 于是它们连 `q` 都退不出来。
+    //
+    // 两路输入**天然分开**，不需要程序声明什么：
+    //   · 软键盘 → `TextChanged`（它只产生文字）
+    //   · 外接键盘 → Android `View.KeyPress`（它产生**键码**，方向键/Esc/F1-F12 才有）
+    // 中间统一成**字符流**：特殊键按**终端的老规矩**翻成 ANSI 序列（方向键 = `\x1b[A`），
+    // 与真终端一致，ncurses 那类程序本来就认它。
+
+    /// <summary>程序按键的队列（UI 线程投、VM 线程取）。见 `KeyQueue`。</summary>
+    private readonly KeyQueue _keys = new();
+
+    /// <summary>正在等**一个键**（而不是一行）。`TextChanged` 据此决定要不要投队列。</summary>
+    private bool _keyWaiting;
+
+    /// <summary>防重入：清空 `StdinEntry` 会再触发一次 `TextChanged`。</summary>
+    private bool _clearingStdin;
+
+    /// <summary>
+    /// 取一个键（**阻塞**，VM 线程调）。与 <see cref="ReadLineFromProgram"/> 并列 ——
+    /// 程序要哪个由它调的是 `ReadChar` 还是 `ReadString` 决定。
+    /// </summary>
+    private char ReadKeyFromProgram()
+    {
+        if (!_interactive) return '\0';     // 非交互轮次：给 NUL，绝不死等
+
+        // 队列里已经有就直接拿，不必亮面板
+        if (_keys.TryTake(out var queued)) return queued;
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            _keyWaiting = true;
+            _clearingStdin = true;
+            StdinEntry.Text = "";
+            _clearingStdin = false;
+            StdinEntry.Placeholder = "程序在等按键（按一下就是一下，不用回车）";
+            StdinPanel.IsVisible = true;
+            StdinEntry.Focus();
+            HookHardwareKeyboard();
+        });
+
+        try
+        {
+            return _keys.Take();            // **阻塞 VM 线程**在这里等（这就是"程序在等输入"）
+        }
+        finally
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                _keyWaiting = false;
+                StdinEntry.Placeholder = "程序在等一行输入…";
+            });
+        }
+    }
+
+    /// <summary>软键盘：一个字符一个字符地投（**不等回车**）。</summary>
+    private void OnStdinTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (!_keyWaiting || _clearingStdin) return;
+
+        // 取**新增**的那部分：退格是"变短"，`NewTextValue` 里没有可投的字符。
+        var now = e.NewTextValue ?? "";
+        var prev = e.OldTextValue ?? "";
+        string added = now.Length > prev.Length ? now[prev.Length..] : "";
+
+        foreach (var ch in added) _keys.Post(ch);
+
+        // 清空，让"下一次敲的"永远是一个干净的新增。
+        // ⚠ 清空自身会再触发一次 TextChanged ⇒ 靠 `_clearingStdin` 挡住（否则死循环）。
+        if (added.Length > 0)
+        {
+            _clearingStdin = true;
+            StdinEntry.Text = "";
+            _clearingStdin = false;
+        }
+    }
+
+    /// <summary>
+    /// 外接键盘（Android）。⚠ **软键盘走不到这里** —— 它不产生 `KeyEvent`。
+    ///
+    /// 走 `OnKeyListener`（`View.KeyPress`）的理由与 `EditorPage` 那条相同：
+    /// 这个回调**早于 View 的默认处理** ⇒ 我们能先吃掉，不让它再做焦点导航之类的事。
+    ///
+    /// ⚠ **一律 `Handled = true`**：不这么做的话，按下的字符会同时进 `StdinEntry`，
+    /// 于是 `TextChanged` 再投一遍 —— 一次按键交给程序两个字符。
+    /// </summary>
+    private void HookHardwareKeyboard()
+    {
+#if ANDROID
+        if (StdinEntry.Handler?.PlatformView is not Android.Widget.EditText et) return;
+        et.KeyPress -= OnStdinHardwareKey;
+        et.KeyPress += OnStdinHardwareKey;
+#endif
+    }
+
+#if ANDROID
+    private void OnStdinHardwareKey(object? sender, Android.Views.View.KeyEventArgs e)
+    {
+        var ke = e.Event;
+        if (ke is null) return;
+        // Down 与长按重复(Multiple)都算；Up 忽略，否则一次按键做两遍
+        if (ke.Action != Android.Views.KeyEventActions.Down &&
+            ke.Action != Android.Views.KeyEventActions.Multiple) return;
+
+        e.Handled = true;                       // 见上面那条：否则会与 TextChanged 重复投递
+
+        // ① 能产出字符的（含 Ctrl+字母 —— 那会给出控制码）：原样投
+        int uni = ke.UnicodeChar;
+        if (uni > 0)
+        {
+            // 代理对的情况 Android 会给高/低位两次 UnicodeChar，按 UTF-16 原样投即可
+            _keys.Post((char)uni);
+            return;
+        }
+
+        // ② 不产出字符的（方向键 / Esc / F1-F12 / Del / PgUp…）：按终端老规矩翻成 ANSI
+        foreach (var ch in AnsiForAndroidKey(ke.KeyCode)) _keys.Post(ch);
+    }
+
+    /// <summary>
+    /// Android 键码 → **终端 ANSI 序列**。
+    /// 取值照 xterm 的老约定（方向键 `ESC [ A/B/C/D`、F1-F4 用 SS3 `ESC O P..S`），
+    /// 因为 ncurses 那套本来就认它 —— 自己发明一套编号等于让程序解不出来。
+    /// </summary>
+    private static string AnsiForAndroidKey(Android.Views.Keycode kc) => kc switch
+    {
+        Android.Views.Keycode.Escape      => "\x1b",
+        Android.Views.Keycode.Del         => "\x1b[3~",
+        Android.Views.Keycode.ForwardDel  => "\x1b[3~",
+        Android.Views.Keycode.DpadUp      => "\x1b[A",
+        Android.Views.Keycode.DpadDown    => "\x1b[B",
+        Android.Views.Keycode.DpadRight   => "\x1b[C",
+        Android.Views.Keycode.DpadLeft    => "\x1b[D",
+        Android.Views.Keycode.MoveHome    => "\x1b[H",
+        Android.Views.Keycode.MoveEnd     => "\x1b[F",
+        Android.Views.Keycode.PageUp      => "\x1b[5~",
+        Android.Views.Keycode.PageDown    => "\x1b[6~",
+        Android.Views.Keycode.F1 => "\x1bOP", Android.Views.Keycode.F2 => "\x1bOQ",
+        Android.Views.Keycode.F3 => "\x1bOR", Android.Views.Keycode.F4 => "\x1bOS",
+        Android.Views.Keycode.F5 => "\x1b[15~", Android.Views.Keycode.F6 => "\x1b[17~",
+        Android.Views.Keycode.F7 => "\x1b[18~", Android.Views.Keycode.F8 => "\x1b[19~",
+        Android.Views.Keycode.F9 => "\x1b[20~", Android.Views.Keycode.F10 => "\x1b[21~",
+        Android.Views.Keycode.F11 => "\x1b[23~", Android.Views.Keycode.F12 => "\x1b[24~",
+        _ => "",
+    };
+#endif
+
     private void OnStdinSubmitted(object? sender, EventArgs e)
     {
+        // 逐键模式：回车就是**一个键**（`\r`），不是"交出一行"
+        if (_keyWaiting)
+        {
+            _keys.Post('\r');
+            _clearingStdin = true; StdinEntry.Text = ""; _clearingStdin = false;
+            return;
+        }
+
         var tcs = _stdinTcs;
         if (tcs == null) return;
 

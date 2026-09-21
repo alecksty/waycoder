@@ -144,7 +144,7 @@ HALT
     /// 只在这一处做分色 —— 不拆成两个返回值，免得每一层调用都要多带一个 out。
     /// </param>
     public static string Run(string? source, string? filePath, int timeoutSeconds, Func<string>? readLine = null,
-        CancellationToken ct = default, bool markup = false)
+        CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
     {
         // 给了内联源码 → 一律当 VML 汇编
         if (!string.IsNullOrWhiteSpace(source))
@@ -168,7 +168,7 @@ HALT
         // 在文件页上分开之后要有的那半条路（编译产物应当能被直接跑起来）。
         if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
         {
-            try { return RunProgram(VmlProgram.LoadFromVmbFile(filePath), timeoutSeconds, readLine, ct, markup); }
+            try { return RunProgram(VmlProgram.LoadFromVmbFile(filePath), timeoutSeconds, readLine, ct, markup, readKey); }
             catch (Exception ex) { return $"⚠️ VMB 装载失败：{ex.Message}"; }
         }
 
@@ -231,8 +231,8 @@ HALT
     /// ⚠ 同步阻塞，调用方要自己放后台线程。
     /// </summary>
     public static string RunAssembly(string source, int timeoutSeconds = 10, Func<string>? readLine = null,
-        CancellationToken ct = default, bool markup = false)
-        => RunProgram(new VmlAssembler().Assemble(source), timeoutSeconds, readLine, ct, markup);
+        CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
+        => RunProgram(new VmlAssembler().Assemble(source), timeoutSeconds, readLine, ct, markup, readKey);
 
     /// <summary>
     /// **编译一个高级语言源文件并运行它**（按扩展名自动选编译器，22 种语言）。
@@ -243,12 +243,12 @@ HALT
     /// ⚠ 同步阻塞（前端编译本身就吃 CPU），调用方要自己放后台线程。
     /// </summary>
     public static string CompileAndRun(string filePath, int timeoutSeconds = 30, Func<string>? readLine = null,
-        CancellationToken ct = default, bool markup = false)
+        CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
     {
         // `ct` 对两段都有效：编译段是"带超时地等一个不可取消的编译"（见 BuildProgram 的看门狗），
         // 运行段是"主循环每条指令查一次"。用户按「强制停止」时两段都能停下来。
         var (prog, _, error, _) = BuildProgram(filePath, ct);
-        return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct, markup);
+        return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct, markup, readKey);
     }
 
     /// <summary>
@@ -660,8 +660,13 @@ HALT
     /// <paramref name="ct"/> = **用户按「强制停止」**（ShellPage 上运行中的返回拦截）。
     /// 运行时的主循环**每条指令都查一次**这个 token（`VMLRuntime.cs:681`），所以取消是即时的。
     /// </summary>
+    /// <param name="readKey">
+    /// **逐键输入源**（交互式程序要的"按一下立刻拿到"）。给了它，`ReadChar` 就走它；
+    /// 没给则退回"攒一行再逐字符吐"的老路。两者**天然区分**：VM 调的是哪个读接口，
+    /// 就决定了要哪种输入，不需要程序额外声明什么。
+    /// </param>
     private static string RunProgram(VmlProgram prog, int timeoutSeconds, Func<string>? readLine = null,
-        CancellationToken ct = default, bool markup = false)
+        CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
     {
         // **每次跑之前必须重置单例 DeviceManager**：它跨运行保留状态，
         // 不重置的话第二次运行的 MMIO 地址会和第一次串掉（这是 VML 自带测试里的做法）。
@@ -675,7 +680,7 @@ HALT
         // 流式出口**只在 markup 那条路装**（`markup:true` = 宿主主动运行、有命令行页可以边跑边画）。
         // AI 那条路要的是"最终结果"那一整段，边跑边交出去反而会打乱它的取用方式。
         LastRunStreamed = markup && OnOutputChunk != null;
-        var io = new CaptureIo(readLine, markup ? OnOutputChunk : null);
+        var io = new CaptureIo(readLine, markup ? OnOutputChunk : null, readKey);
 
         // 宿主 UI syscall（对话框 / 窗体绘图 / 输入，号段 500–599，见 UI/Shared/VmlUiProtocol.cs）。
         // 两件事缺一不可：① 把号段加进运行时白名单（否则 mcu 模式下 dispatch 顶部就先拒了，
@@ -1047,11 +1052,15 @@ HALT
         /// <summary>当前这一行**还没吐出去**的剩余（<see cref="ReadChar"/> 逐字符消费它）。</summary>
         private string _cur = "";
 
-        public CaptureIo(Func<string>? readLine = null, Action<string>? sink = null)
+        public CaptureIo(Func<string>? readLine = null, Action<string>? sink = null, Func<char>? readKey = null)
         {
             _readLine = readLine;
             _sink = sink;
+            _readKey = readKey;
         }
+
+        /// <summary>逐键输入源（见 <c>RunProgram</c> 的 readKey 说明）。null = 走按行那条老路。</summary>
+        private readonly Func<char>? _readKey;
 
         /// <summary>把**新增的那部分**交给宿主。null = 不流式（跑完一次性给）。</summary>
         private readonly Action<string>? _sink;
@@ -1128,6 +1137,14 @@ HALT
         /// </summary>
         public char ReadChar()
         {
+            /* **逐键直通**：宿主给了按键源就用它。
+               老路（攒一行再逐字符吐）留着 —— 它对应"程序要的是一行，只是按字符读"的场景，
+               两条路由**VM 调的是哪个接口**天然区分，不需要程序声明。 */
+            if (_readKey != null)
+            {
+                FlushIfDue(force: true);      // 阻塞等键之前，先把画面放出去
+                return _readKey();
+            }
             if (_cur.Length == 0) _cur = ReadString() + "\n";   // ReadString 里已经刷过画面了
             var c = _cur[0];
             _cur = _cur.Substring(1);

@@ -28,6 +28,7 @@ public static partial class SelfTest
         TestShellStreamScan(Section, Check);
         TestShellStreamProbe(Section, Check);
         TestShellStreamChunking(Section, Check);
+        TestKeyQueue(Section, Check);
     }
 
     // ═══ ① `ScreenOutput.Scan` 的 truncated 契约 ═══
@@ -93,6 +94,49 @@ public static partial class SelfTest
         var r3b = s3.Feed(new string('x', 1100));
         Check("ShellStream: 攒够阈值后判线性", r3b is { IsGrid: false });
         Check("ShellStream: 攒着的内容一次性吐出（不丢 red）", r3b?.Text.Contains("red") == true);
+    }
+
+    // ═══ ④ 按键队列（逐键直通的可测那半）═══
+    //
+    // UI 那半（软键盘 / 外接键盘）在 MAUI 里、桌面测不到；**跨线程交接这半必须测到** ——
+    // 出问题时的症状是"按了没反应"或者"程序一直挂着"，两种都极难从现象反推。
+    private static void TestKeyQueue(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[命令行·逐键直通] 按键队列");
+
+        // 投了就取得到（FIFO）
+        var q = new KeyQueue();
+        q.Post('a'); q.Post('b'); q.Post('c');
+        Check("KeyQueue: 先投后取，FIFO", q.Take() == 'a' && q.Take() == 'b' && q.Take() == 'c');
+        Check("KeyQueue: 取空后 Count=0", q.Count == 0);
+
+        // TryTake：没有就 false（不阻塞），有就**拿走**
+        Check("KeyQueue: 空队列 TryTake 返回 false", !q.TryTake(out _));
+        q.Post('z');
+        Check("KeyQueue: TryTake 取得到且消费掉", q.TryTake(out var zc) && zc == 'z' && q.Count == 0);
+
+        /* 阻塞等待：**这是"程序在等输入"的语义本体**。
+           先起一个线程等，另一个线程投 —— 投的那一刻必须当场唤醒。 */
+        var q2 = new KeyQueue();
+        char got = '\0';
+        var waiter = new System.Threading.Thread(() => got = q2.Take());
+        waiter.IsBackground = true;
+        waiter.Start();
+        System.Threading.Thread.Sleep(30);        // 让它先挂上去等
+        q2.Post('键');
+        waiter.Join(2000);                         // 超时 2 秒 ⇒ 挂死时用例会红，不会吊住整套
+        Check("KeyQueue: 有人在等时投递能当场唤醒", got == '键');
+
+        // Clear 必须**唤醒**等待者（给 NUL），否则它会一直挂着 —— 那是"退出后进程还在"
+        var q3 = new KeyQueue();
+        char got3 = 'x';
+        var w3 = new System.Threading.Thread(() => got3 = q3.Take());
+        w3.IsBackground = true;
+        w3.Start();
+        System.Threading.Thread.Sleep(30);
+        q3.Clear();
+        w3.Join(2000);
+        Check("KeyQueue: Clear 唤醒等待者并给 NUL（不留悬挂线程）", got3 == '\0');
     }
 
     // ═══ ③ 分块：流式最典型的回归是"丢字" ═══

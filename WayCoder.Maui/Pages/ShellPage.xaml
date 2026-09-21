@@ -163,6 +163,7 @@
                 IsSpellCheckEnabled="False"
                 IsTextPredictionEnabled="False"
                 ReturnType="Go"
+                TextChanged="OnStdinTextChanged"
                 Completed="OnStdinSubmitted" />
             <Button
                 Grid.Column="2"
