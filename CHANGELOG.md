@@ -1,4 +1,69 @@
-## v0.96.342 — `dos.h`（用量第 2）+ 实测纠正「`#55`/`#56` 是字符串指针，不是打包整数」
+## v0.96.342 — `dos.h` + `curses.h`/`ncurses.h` + 「让真实老程序一行不改跑起来」的环境补齐
+
+三个头文件（`conio.h` 之后的第 2、3 名）加一批**环境缺口**。压这一版的判据不是自写探针，
+而是**一个真实的老程序**：`tty-clock`（689 行，纯 curses）——**源码一个字符都没改**，
+编译并运行通过。缺的东西全在**平台侧**补上，这才是"老程序不用改"的正确形态。
+
+### 一、`dos.h`（含在下一节之前）
+
+### 二、★ `curses.h` + `ncurses.h`（合计 83,712 个 C 文件）
+
+常用子集、**单窗口 `stdscr`**（`newwin` 返回 `stdscr` 而不是 NULL —— 让"顺手 newwin 一下"
+的老程序能跑）。与 `conio.h` **三处语义相反**，头文件里列了表：
+
+| | `conio.h` | `curses.h` |
+|---|---|---|
+| 坐标原点 | **1 起** | **0 起** |
+| 何时上屏 | 写完**立即** | **`refresh()` 才** |
+| 颜色 | DOS 色序（要映射表） | **就是 ANSI 色序**（直接 +30/40，**套映射表反而错**） |
+
+`ncurses.h` 只是转发 —— 两个名字本来就同一套 API，各写一份声明必然漂移。
+
+### 三、★ 拿 tty-clock 压出来的「环境缺口」清单（**程序一行没改**）
+
+真老程序假定 libc 就该有的东西，VML 这边一样都没有。补的全是这类：
+
+- **头**：`ncurses.h`、`locale.h`、`sys/stat.h`、`sys/select.h`
+- **缺的常量**：`LC_TIME`、`A_BLINK`、`KEY_UP/DOWN/RESIZE/…`、`STDIN_FILENO`、`SIGSEGV/SIGPIPE/…`
+- **只有声明没有定义**：`stdin`/`stdout`/`stderr`（`stdio.h` 里是 `extern`）⇒ 链接期缺符号
+- **缺的函数**：`localtime`/`gmtime`/`time`/`strftime`（自己写的日期算法，无时区）、
+  `fprintf`、`strerror`、`getopt`、`strdup`、`atexit`、`nanosleep`、`sigaction`、
+  `select`/`pselect`/`FD_*`、`stat`/`S_ISCHR`
+- **curses 的宽字符变体**：`wattron`/`wattroff`/`wbkgdset`/`waddch`/`wgetch`/`box`/
+  `wborder`/`newterm`/`set_term`/`use_default_colors`/`clearok`/`mvwin`/`wresize`/…
+
+⚠ **`curses.h` 要带出 `stdio.h`** —— 真 ncurses 就是这么做的，而 tty-clock **自己并不**
+include `<stdio.h>`，却用 `stderr`。这条不照抄，第一轮编译就报"未声明的变量 'stderr'"。
+
+⚠ **`sigaction`/`select` 一律返回"成功"**：本平台没有信号、没有 fd 多路复用，
+返回 -1 会让不少老程序当成致命错误直接退出；返回成功它们就正常往下走。
+
+### 四、★ 两处实现上的坑（都是"照抄另一处"抄错的）
+
+1. **属性缓冲得用 `int`，不能照抄 `conio.c` 的 `char`**：conio 的属性是 DOS 那套 **8 位**
+   （高 4 位背景 + 低 4 位前景），一个 `char` 正好；而 curses 的属性是 **16 位**
+   （低 8 位修饰位 + 高 8 位颜色对号 `COLOR_PAIR(n) = n << 8`）—— 用 `char` 存会把颜色对号
+   **整段截掉**，整屏退回"白字黑底"而且**不报错**（实测：`init_pair(1, BLACK, CYAN)`
+   之后标题栏打出来还是 `[37m[40m`）。
+2. **`getch` 只能有一份定义**：curses 的 `getch` 与 conio 的**语义完全相同**，
+   直接用 conio 那份（`curses.vml` 写 `.linked "conio.vml"`）—— 再写一个就是
+   "谁赢不确定"（本仓头号坑）。
+3. **`refresh()` 改成只重发脏行**：整屏 25×80 是两千多个字符，判定/调试都没法看；
+   只画一行再 refresh 就只有 ~90 个字符。顺带让"每秒刷一次"的动画程序少发一大截。
+   ⚠ 首次必须整屏（终端那边可能还是空白）。
+
+### 验证
+
+- 探针 `scripts/vml-c-probe/run.sh`：**19 通过 / 0 失败 / 1 已知红**
+  （新增 `18-dos.c`、`19-curses.c`；后者特意**不调 `refresh()`** —— 用 `getcury/getcurx`
+  读回缓冲光标来钉"坐标 0 起"这条语义）。
+- `Examples/c/dos_demo.c`（时钟 + 进度条 + 五声音阶，音效需真机）、
+  `Examples/c/curses_demo.c`（标题栏/边框/反白菜单/8 色色块）桌面实跑通过。
+- **`tty-clock` 一行不改**：`✔ 编译完成（55435 条指令）✔ 运行完成`。
+  ⚠ 画面仍是空的，正在查（怀疑 `newwin` 退化后它画到了我给的行列之外）。
+- ⚠ **手机端要重装 APK** 才能验到这些（Lib 变了）。
+
+### 五、`dos.h` 详情 + 实测纠正「`#55`/`#56` 是字符串指针，不是打包整数」
 
 `conio.h` 之后的第二个头文件。按同一条规矩排的：含 `#include <dos.h>` 的 C 文件
 **49,792** 个，紧跟 conio 排第 2，而且它与 conio **天然配套**（DOS 文本程序几乎都是

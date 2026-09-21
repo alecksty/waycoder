@@ -12,6 +12,14 @@ extern size_t wcslen(const wchar_t *s);
 extern size_t wcstombs(char *dest, const wchar_t *src, size_t max);
 extern size_t mbstowcs(wchar_t *dest, const char *src, size_t max);
 
+/* 标准流。`stdio.h` 里是 `extern int stdin/stdout/stderr;`（**只有声明**），
+   **定义放在这里** —— 只声明不定义的话链接期缺符号，而老程序到处在用 `stderr`
+   （tty-clock 第一轮编译就报"未声明的变量 'stderr'"）。
+   VML 里 `FILE` 就是个 fd（见 stdio.h），所以取值就是 POSIX 那三个。 */
+int stdin = 0;
+int stdout = 1;
+int stderr = 2;
+
 __stdcall void putchar(char c) {
     asm("SYSCALL #4");
 }
