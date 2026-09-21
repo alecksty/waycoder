@@ -75,12 +75,20 @@ namespace CCompiler
             }
             // 优化：移除未使用的全局变量 (但始终注册类型信息)
             var usedGlobalVariables = FindUsedGlobalVariables();
-            var usedVariables       = ast.Variables.Where(v => usedGlobalVariables.Contains(v.Name)).ToList();
+            /* ⚠ **`extern` 声明的变量不进数据段** —— 它只是声明，存储由别处
+               （另一个翻译单元 / 某个库）定义。此前不过滤，于是**每个 include 了
+               该头的使用者都生成一份 `.word 0`**，把库里那份真定义**遮住**
+               （实测 `curses.h` 的 `extern WINDOW *stdscr;` ⇒ `stdscr` 恒为 NULL）。
+               见 `VariableDecl.IsExtern`。 */
+            var usedVariables       = ast.Variables
+                .Where(v => usedGlobalVariables.Contains(v.Name) && !v.IsExtern)
+                .ToList();
 
             // 确保所有数组变量都被包含（即使在FindUsedGlobalVariables中遗漏）
             // 这很重要：匿名struct/union数组变量在成员访问语法中可能被分析遗漏
             foreach (var v in ast.Variables)
             {
+                if (v.IsExtern) continue;   // 同上：extern 不占数据段槽位
                 if (v.IsArray && !usedVariables.Any(uv => uv.Name == v.Name))
                     usedVariables.Add(v);
             }

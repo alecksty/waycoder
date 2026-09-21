@@ -165,6 +165,26 @@ namespace CCompiler
         public int? ArraySize { get; set; }
         public List<int?> Dimensions { get; set; }
         public bool IsStatic { get; set; }
+
+        /// <summary>
+        /// `extern` 声明的变量 —— 它**只是声明**：存储由**别处**（另一个翻译单元、
+        /// 或某个库）定义，本文件**不该为它分配数据段槽位**。
+        ///
+        /// <para>
+        /// ⚠ 这一条踩过，而且影响面远超当时那个现场：`ASTNode` 此前只有 `IsStatic`，
+        /// `Parser.Statements.cs` 里**全无 `extern` 的处理**（`TokenType.EXTERN`
+        /// 与词法表项一直都在，只是没人用）⇒ `extern` 被当普通定义，
+        /// **每个 include 了该头的使用者都在自己的数据段里生成一个 `.word 0`**。
+        /// </para>
+        ///
+        /// <para>
+        /// 实测：`curses.h` 的 `extern WINDOW *stdscr;` 让链接产物里**同时**出现
+        /// <c>stdscr: .word 0</c>（主程序生成的）与
+        /// <c>lib_curses_stdscr: .word lib_curses_sc_win</c>（库里的真定义），
+        /// 而使用者读到的正是**前者** ⇒ `stdscr` 恒为 NULL。
+        /// </para>
+        /// </summary>
+        public bool IsExtern { get; set; }
         /// <summary>VLA dimensions (runtime expressions) — null if not VLA</summary>
         public List<ASTNode>? VlaDimensions { get; set; }
         /// <summary>True if any dimension is runtime (VLA)</summary>

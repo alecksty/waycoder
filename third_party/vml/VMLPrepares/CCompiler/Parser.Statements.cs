@@ -494,6 +494,10 @@ namespace CCompiler
                         var.Dimensions = dimensions;
                         if (isVLA) var.VlaDimensions = vlaDims;
                         if (storageClassToken?.Type == TokenType.STATIC) var.IsStatic = true;
+                        /* `extern` = **只是声明**，存储由别处定义 —— 见 `VariableDecl.IsExtern`。
+                           ⚠ 此前这里只认 `STATIC`，`extern` 被当普通定义 ⇒ 每个使用者
+                           都在自己数据段里生成一份 `.word 0`（实测 `stdscr` 恒为 NULL）。 */
+                        if (storageClassToken?.Type == TokenType.EXTERN) var.IsExtern = true;
 
                         if (Match(TokenType.ASSIGN))
                         {
@@ -533,6 +537,10 @@ namespace CCompiler
                             var.Initializer = ParseAssignment();
                         }
                         if (storageClassToken?.Type == TokenType.STATIC) var.IsStatic = true;
+                        /* `extern` = **只是声明**，存储由别处定义 —— 见 `VariableDecl.IsExtern`。
+                           ⚠ 此前这里只认 `STATIC`，`extern` 被当普通定义 ⇒ 每个使用者
+                           都在自己数据段里生成一份 `.word 0`（实测 `stdscr` 恒为 NULL）。 */
+                        if (storageClassToken?.Type == TokenType.EXTERN) var.IsExtern = true;
                         variables.Add(var);
                     }
 

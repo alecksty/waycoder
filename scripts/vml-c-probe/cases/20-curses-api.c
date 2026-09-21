@@ -148,6 +148,14 @@ int main()
 //
 //      **修法**（下一轮）：AST 加 `IsExtern` → 解析器认 `extern` →
 //      全局变量生成时**跳过 extern 声明的**（不占数据段槽位）。
+//
+//   ⑤ **上面的修法做了但没生效**（`stdscr: .word 0` 仍在）：
+//      `VariableDecl.IsExtern` 已加、`Parser.Statements.cs` 的存储类捕获**本来就认
+//      `TokenType.EXTERN`**（只是从没人读）、生成侧也过滤了 `!v.IsExtern` ——
+//      三处都对，产物却没变。**下一轮的第一件事**：确认
+//      `ast.Variables` 里那个 `stdscr` 的 `IsExtern` **到底是不是 true**
+//      （在 `CodeGenerator.Functions.cs` 的过滤处打一行），
+//      而不是再猜"哪一环没接上"。
 //      影响面远超 curses：**所有用 `extern` 声明跨模块全局变量的 C 代码**。
 //      ⚠ 这条已**独立于 curses**，值得单独一条判据（`extern int x;` 之后
 //      由别处定义、两处读到的必须是同一个）。
