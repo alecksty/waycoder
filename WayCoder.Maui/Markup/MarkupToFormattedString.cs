@@ -283,7 +283,21 @@ public static class MarkupToFormattedString
     private static void RenderPlainMarkup(string markup, FormattedString fs, bool isDark)
     {
         foreach (var (text, color, bg) in MarkdownParser.ParseMarkupOnly(markup))
-            AddMarkupSpan(fs, text, color, bg, isDark);
+        {
+            // ⚠⚠ **这一支里的空格全部换成不换行空格（U+00A0）** —— 画面能不能对齐全看它。
+            //
+            // 根因（真机逐像素看出来的）：**Android 把连续空格折叠掉**。
+            //   画面的一行是 `|␣␣␣␣␣␣␣␣␣␣␣␣␣␣␣␣|` 这种"用空格撑开的位置"，
+            //   空格一被折叠，**右边的竖线就落到别的 x 上** ——
+            //   实测：`+---+` 上边框的右端在 x≈455，而中间几行的右竖线在 250~300，
+            //   而且**每行还都不一样**（`New`/`Open`/`Save`/`Quit` 长短不同）。
+            //   看着像"字体不是等宽"，其实是**空格宽度被平台改写了**。
+            //
+            // 为什么只在这一支里换：这一支是**画面**（数据），空格是**位置**而不是排版空白；
+            //   而文本那一支要保留可折行的普通空格（否则整段变成"一个超长单词"）。
+            //   NBSP 与普通空格**等宽**，所以画面不会变形。
+            AddMarkupSpan(fs, text.Replace(' ', ' '), color, bg, isDark, keepSpaces: true);
+        }
     }
 
     /// <summary>
@@ -292,7 +306,8 @@ public static class MarkupToFormattedString
     /// ⚠ 抽出来是因为它有两个调用方（Markdown 行内 / 纯标记），
     ///   各写一遍必然漂移（本仓头号坑）。
     /// </summary>
-    private static void AddMarkupSpan(FormattedString fs, string text, int color, int bg, bool isDark)
+    private static void AddMarkupSpan(FormattedString fs, string text, int color, int bg, bool isDark,
+        bool keepSpaces = false)
     {
         var defaultColor = isDark ? DarkDefault : LightDefault;
         var dimColor = isDark ? DarkDim : LightDim;
@@ -317,7 +332,8 @@ public static class MarkupToFormattedString
             span.BackgroundColor = ResolveColor(bg, Colors.Transparent);
             // 带底色的**纯空白段**必须换成不换行空格：Android/MAUI 的 Label 按"词"排版，
             // 行尾空格会被吃掉 ⇒ 整行都是"底色 + 空格"的画面（nyancat 那种）渲染成空白。
-            if (text.AsSpan().Trim().Length == 0)
+            if (keepSpaces) { /* 调用方已经换好了 */ }
+            else if (text.AsSpan().Trim().Length == 0)
                 span.Text = text.Replace(' ', ' ');
         }
 

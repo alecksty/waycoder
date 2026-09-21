@@ -184,6 +184,7 @@ public static partial class SelfTest
         ["[Lint 解析:"] = "system",["[Lint 诊断:"] = "system", ["[配置: EditorLint]"] = "system",
         ["[语法: 诊断背景色]"] = "system",["[诊断: Severity]"] = "system",["[诊断: Diagnostic]"] = "system",
         ["[Doctor]"] = "system", ["[沙箱管理]"] = "system",
+        ["[ZZTMP]"] = "zztmp",
     };
 
     // 模块包含关系（如 tools 测试也跑 git 的工具测试）
@@ -443,6 +444,8 @@ public static partial class SelfTest
         TestChunk27(Section, Check, Fail);
 
         TestChunk28(Section, Check, Fail);
+        TestZzTmp(Section, Check, Fail);
+
 
 
 

@@ -1213,9 +1213,16 @@ public partial class ShellPage : ContentPage
             var pictureCols = 0;
             foreach (var (l, noWrap) in _lines)
                 if (noWrap || ShellWrap.IsPictureLine(l)) pictureCols = Math.Max(pictureCols, ShellWrap.VisibleWidth(l));
-            if (pictureCols > colsNow)
+            if (pictureCols > 0)
             {
-                var wantPic = ShellWrap.WidthForColumns(pictureCols, size);
+                // ⚠ 画面这一档**必须"宁大勿小"** —— 与文本折行那条规矩**正好相反**。
+                //
+                // 文本给窄了只是多折一行；而画面给窄了**整幅图被平台再折一次**，
+                // 形状直接散掉（用户报的"对不齐"，实测右边框整条不见）。
+                // 根子在 `ShellWrap.CharAspect = 0.6` 是**估**的（那份注释自己也写着
+                // 「实测 ≈0.58、取 0.6 略保守」）—— 而保守的方向对文本合适、对画面有害。
+                // 所以这里按 `1.15` 放大给宽：宽了只是多滚一点，窄了就是画面毁掉。
+                var wantPic = ShellWrap.WidthForColumns(pictureCols, size) * 1.15;
                 if (wantPic > want) want = wantPic;
             }
 
