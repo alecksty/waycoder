@@ -1,3 +1,67 @@
+## v0.96.345 — `initscr()` 返回 80 的真根因：**结构体全局只分到 1 个字**
+
+上一版把 `stdscr` 查到「`initscr()` 在调用方拿到 **80**」这一步，判据是 `20-curses-api.c`
+的 `S5=80`（80 正好是 `SCR_COLS`，即 `sc_win` 的第二个字段）。
+这一版把它查到底 —— **根因不在调用方，也不在链接器，而在数据段的分配**。
+
+### 一、★ 根因：多字类型按「1 个字」分配
+
+`Lib/shared/curses.c` 里 `WINDOW` 有 8 个 `int` 字段，但链接产物里：
+
+    lib_curses_sc_win: .word 0                        ← sc_win，**只 1 个字**
+    lib_curses_stdscr: .word lib_curses_sc_win        ← 紧挨着
+    lib_curses_sc_ch:  .word[2000] 0                  ← 再挨着
+
+`sc_win.cols` 落在 `sc_win+4` —— **正好是 `stdscr` 那个槽位**。
+于是 `sc_init()` 里的 `sc_win.cols = 80;` 把 `stdscr` 写成了 **80**：
+`initscr()` 返回的是"`stdscr` 槽里的值"，而那个值被人改过。
+
+`CodeGenerator.Functions.cs` 里结构体分支要求类型串**以 `struct ` 开头**，
+而 `WINDOW` 是**匿名 struct 的 typedef**（`typedef struct {…} WINDOW;`）⇒ 进不去；
+没有初始化器时更是直接落到 `else → 0`（一个 word）。
+
+**修法**：新增一条「非数组 + `GetTypeSizeFromString(类型) > 4` ⇒ 按真实大小分配」，
+位置**必须排在三个标量初始化器之后** —— 详见下面第三节。
+
+### 二、同一条链路上另外两处（都在链接器）
+
+1. **数据段标签被 `+ baseOffset`**：`LibraryLinker` 合并库标签时一律
+   `kvp.Value + baseOffset`（= 已合并的**指令数**）。可 `Labels` 这一张表里混着两种地址 ——
+   代码标签的值是**指令下标**，数据标签的值是**数据地址**。一律加偏移的后果是
+   数据标签被算成一个指向**代码中间**的假地址。
+2. **主程序对库数据符号的裸名引用没人改写**：`extern WINDOW *stdscr;` 在用户程序里
+   求值求到 **0**。数据标签的地址链接期还没定 ⇒ 造不出裸名别名；
+   正解是把引用**改成带前缀的名字**（`lib_curses_stdscr` 在合并后的 `.data` 里有定义）。
+
+### 三、⚠ 我自己在这次改动里引入的一个回归，以及它是怎么被抓到的
+
+第一版把「多字类型」那条分支放在了**最前面**，于是
+`double PI64_D = 3.141592653589793;` 被它截走、按"零初始化"铺了两个空字
+⇒ **字面量值整个丢掉**（`Lib/shared/math64.vml`：`.dword 3.14159…` → 两个空 `.word`）。
+
+**自测一条都没红**（6325 通过 / 1 失败，与基线逐条相同），
+是 `scripts/check-vml-patches.sh` 抓到的 —— 它比对「`Lib/` == f(源码, 前端, GenLib)」。
+⇒ **改数据段分配一定要跑那个脚本**，它在自测的盲区里。
+
+修好后的判据：该脚本的不一致清单**回到基线 51 条、零新增**。
+
+### 四、判据
+
+- `20-curses-api.c`：**27 条全绿**（此前 17 条）。`S`/`T`/`U` 现在读到 `25,80 / 0,0 / -1,-1`。
+  `S4` 从"写死地址 5215"改成**关系判据** `(int)stdscr != (int)&stdscr`
+  —— 地址随编译变化，写死既非"独立推导"也抓不到下次回归。
+- 其余全套逐条与基线相同：out-probe 31/31、abi-probe 27/29（`drift.fth`/`drift.ld` 两条已知）、
+  diag-probe 61/0/0、basic-probe 23/0/4（已用 `git stash` 跑基线逐条对照过）、
+  examples-build 99/100（`forth/parserexp_demo.fs` 缺库函数，前端报的、与本次无关）、
+  桌面自测 6325 通过 / 1 失败。
+
+### 五、子 Agent 审计（同一批，只读、未改生产代码）
+
+新增 `cases/21`–`27` 七个用例（`cprintf` / `getopt` / `char**` 双下标 / `termios`+`ioctl` /
+`sleep`+`delay` / `signal` / `graph`），并把「头文件声明 vs 实际实现」做了端到端对账
+（判据是**真编一次**看链接报不报错，不是搜源码）：106 个函数"声明了但没实现"。
+其中 `char**` 双下标（`argv`/`getopt`/字符串表的共同底座）是下一批的头号目标。
+
 ## v0.96.344 — `stdscr` 的真根因：**C 前端不认 `extern`** + 取址初始化的四段链路
 
 接着上一版查「`stdscr` 在使用方恒为 NULL」。这一版把它**查到底**了 ——

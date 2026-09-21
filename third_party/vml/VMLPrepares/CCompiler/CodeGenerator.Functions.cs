@@ -93,11 +93,15 @@ namespace CCompiler
                     usedVariables.Add(v);
             }
 
-            // `extern` 变量：不进数据段，但**登记名字**供代码生成识别
+            // `extern` 变量：不进数据段，但**登记名字**供代码生成识别。
+            // 数组单独记一份 —— 数组名求值求的是**首地址**，非数组要**解引用**，两者相反。
             externVariables.Clear();
+            externArrayVariables.Clear();
             foreach (var v in ast.Variables)
             {
-                if (v.IsExtern) externVariables.Add(v.Name);
+                if (!v.IsExtern) continue;
+                externVariables.Add(v.Name);
+                if (v.IsArray) externArrayVariables.Add(v.Name);
             }
 
             // 所有全局变量都需要类型信息
@@ -192,21 +196,6 @@ namespace CCompiler
                         dataSection[varDecl.Name] = new int[varDecl.ArraySize ?? 0];
                     }
                 }
-                else if (varDecl.Initializer is ArrayInitializer structInit
-                    && (varDecl.Type.ToLower().StartsWith("struct ") || varDecl.Type.ToLower().StartsWith("union ")))
-                {
-                    // Struct/union 初始化器: {10, 20}
-                    List<object> initValues = new List<object>();
-                    FlattenArrayInitializer(structInit, initValues);
-                    int structSize = GetTypeSizeFromString(varDecl.Type);
-                    int numWords = (structSize + 3) / 4;
-                    object[] structData = new object[numWords];
-                    for (int i = 0; i < Math.Min(initValues.Count, structData.Length); i++)
-                    {
-                        structData[i] = initValues[i];
-                    }
-                    dataSection[varDecl.Name] = structData;
-                }
                 else if (varDecl.Initializer is NumberLiteral numLiteral)
                 {
                     // 数值初始化
@@ -237,6 +226,48 @@ namespace CCompiler
                         dataSection[varDecl.Name] = new LabelRef(addrTarget.Name);
                     else
                         dataSection[varDecl.Name] = 0;
+                }
+                /* **多字类型**（struct / union / double / long long，含 typedef 别名）
+                   必须按**真实大小**分配，**有没有初始化器都一样**。
+
+                   ⚠ 判据：`static WINDOW sc_win;` 原先只分到 **1 个字** ——
+                   结构体分支要求类型串**以 `struct ` 开头**，而 `WINDOW`
+                   是**匿名 struct 的 typedef**（`typedef struct {…} WINDOW;`）⇒ 进不去；
+                   没有初始化器时更是直接落到最后的 `else → 0`（一个 word）。
+                   后果不是"少点内存"，而是**字段写到隔壁变量头上**：
+
+                        lib_curses_sc_win: .word 0              ← sc_win，只 1 个字
+                        lib_curses_stdscr: .word lib_curses_sc_win
+                        lib_curses_sc_ch:  .word[2000] 0
+
+                   `sc_win` 的第二字段 `cols` 落在 `sc_win+4` —— **正好是 `stdscr` 那个槽位**
+                   ⇒ `sc_init()` 里的 `sc_win.cols = 80;` 把 `stdscr` 写成了 **80**。
+                   症状极具误导性：`initscr()` 在调用方拿到 **80**（而不是 `stdscr` 的地址），
+                   而 `initscr` 自己的汇编**看着完全正确**（`move @R0 [lib_curses_stdscr]`）
+                   —— 对着调用方查了两轮都查不出东西，因为错的是**数据段的分配**。
+                   （`GetTypeSizeFromString` 能解 typedef 别名，所以这里用它取大小。）
+
+                   ⚠ **位置必须排在三个标量初始化器之后**。第一版把它放在最前面，
+                   于是 `double PI64_D = 3.14159…;` 被它截走、按"零初始化"铺了两个字
+                   ⇒ **字面量值整个丢掉**（`Lib/shared/math64.vml` 实测：
+                   `.dword 3.141592653589793` 变成两个空 `.word`）。
+                   这种回归自测看不出来 —— 它只在"某个库文件的重生成结果对不上"时现形，
+                   是 `scripts/check-vml-patches.sh` 抓到的。**改数据段分配一定要跑那个脚本。** */
+                else if (!varDecl.IsArray && GetTypeSizeFromString(varDecl.Type) > 4)
+                {
+                    int structSize = GetTypeSizeFromString(varDecl.Type);
+                    int numWords = (structSize + 3) / 4;
+                    object[] structData = new object[numWords];
+                    if (varDecl.Initializer is ArrayInitializer structInit)
+                    {
+                        // Struct/union 初始化器: {10, 20} —— 按字段顺序铺进去，
+                        // 未列出的字段留 0（C 的零初始化语义）。
+                        List<object> initValues = new List<object>();
+                        FlattenArrayInitializer(structInit, initValues);
+                        for (int i = 0; i < Math.Min(initValues.Count, structData.Length); i++)
+                            structData[i] = initValues[i];
+                    }
+                    dataSection[varDecl.Name] = structData;
                 }
                 else
                 {

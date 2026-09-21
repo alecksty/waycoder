@@ -141,9 +141,13 @@ namespace CCompiler
                         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, -arrOffset) }));
                 }
                 else if ((globalArrayVars.Contains(ident.Name) && dataSection.ContainsKey(ident.Name))
-                         || externVariables.Contains(ident.Name))
+                         || externArrayVariables.Contains(ident.Name))
                 {
                     // 全局数组: 加载数据段标签地址 (LABEL 作为立即数地址)
+                    //
+                    // ⚠ 这里**只能**收数组，extern 非数组（`extern WINDOW *stdscr;`）必须
+                    //   落到下面那条"全局变量"分支去**解引用**。判据是
+                    //   `(int)x == (int)&x` —— 相等就说明求成了槽地址而不是槽里的值。
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, ident.Name) }));
                 }
                 else

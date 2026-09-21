@@ -1,11 +1,18 @@
-
 .linked "conio.vml"
 .linked "printf.vml"
 .linked "math.vml"
 .linked "util.vml"
 
 .data
-sc_win: .word 0
+sc_win:
+    .word 
+    .word 
+    .word 
+    .word 
+    .word 
+    .word 
+    .word 
+    .word 
 stdscr: .word sc_win
 sc_ch: .word[2000] 0
 sc_at: .word[2000] 0

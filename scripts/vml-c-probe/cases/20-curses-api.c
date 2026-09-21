@@ -74,11 +74,21 @@ int main()
         printf("\nS=%d,%d", my, mx);
         printf("\nT=%d,%d", by, bx);
         printf("\nU=%d,%d", py, px);
-        /* 诊断：`stdscr` 到底指向哪儿 —— `S` 读成 0,0 说明它的成员全是零 */
+        /* ── `stdscr` 的三条**关系**判据 ──
+
+           ⚠ **不要写死地址**。数据段地址随编译变化（`S4` 一度写成 `5215`，
+           这是"跑出来是什么就写什么"的典型 —— 它既不是"独立推导"的期望值，
+           也抓不到下一次回归）。地址本身没有意义，**关系**才有意义：
+
+             S2  stdscr 非空          —— NULL 时 `wgetch(stdscr)` 会静默退化
+             S3  `initscr()` 的返回值 == stdscr
+             S4  `stdscr` != `&stdscr` —— ← **这条是那个 bug 的指纹**：
+                 相等说明求值求到的是"槽位自己的地址"而不是"槽里的值"，
+                 即少了一层解引用。用户程序里 `wgetch(stdscr)` 传的会是个错指针，
+                 而屏幕上看不出任何异常。 */
         printf("\nS2=%d", (int)stdscr != 0);
         printf("\nS3=%d", (int)w != (int)stdscr);
-        printf("\nS4=%d", (int)stdscr);
-        printf("\nS5=%d", (int)w);
+        printf("\nS4=%d", (int)stdscr != (int)&stdscr);
     }
 
     /* ── ⑦ `addwstr`：**宽字符**，逐码点编码成 UTF-8 落进缓冲 ──
@@ -103,7 +113,11 @@ int main()
         clear();
         move(0, 0);
         addwstr(ws);
-        printf("\nV=%d,%d", getcury(w), getcurx(w));
+        /* ⚠ **判据行必须自带结尾换行**，因为下一条（`wgetch`）会先 `refresh()`
+           再返回 —— 那一下会把整屏 25 行重发一遍，而它是**没有换行**的一长串
+           ESC。少了这个 `\n`，那一大坨就会**粘在 `V=` 的尾巴上**，
+           `V` 的实得值变成 `0,4\e[1;1H…`（本条踩过，EXPECT 里根本没法写）。 */
+        printf("\nV=%d,%d\n", getcury(w), getcurx(w));
     }
 
     /* ── ⑧ **节拍器**：`timeout(0)` 之后 `wgetch` 没键必须返回 ERR(-1) ──
@@ -119,9 +133,24 @@ int main()
     endwin();
     return 0;
 }
-// KNOWN-RED —— 19 条里 **17 条已绿**，卡住的是 ⑥ 那组的 `S`/`S2`/`S3`：
-// `stdscr` 在**使用者那边**读到 NULL（`S2=0`），所以 `getmaxyx` 从它取不到尺寸。
+// **全部已绿**（27 条判据）。`stdscr` 那条链路一共是**五层**，逐层都靠判据定位 ——
+// 记在这里是因为它演示了"一个症状（`stdscr` 不对）能叠着五处独立缺陷"：
 //
+//   ① C 前端：`WINDOW *stdscr = &sc_win;` 的**取址初始化器**不生成代码
+//   ② 前端→汇编：`VmlProgram.Load` 解析 `.word <非数字>` 时**什么都不做**（槽位丢失）
+//   ③ 汇编→链接：`stdscr` 是 `extern` 声明时**存储类根本没被记下来**
+//      （`Parser.Declarations.cs` 读了 `storageClass` 却从来没用）
+//   ④ 数据段分配：**`static WINDOW sc_win;` 只分到 1 个字** —— 结构体分支要求
+//      类型串以 `struct ` 开头，而 `WINDOW` 是**匿名 struct 的 typedef** ⇒ 进不去；
+//      没有初始化器时更是直接落到 `else → 0`。于是 `sc_win.cols = 80` 写进了
+//      **隔壁 `stdscr` 的槽位** ⇒ `initscr()` 在调用方返回 **80**（不是地址）。
+//      ★ 这一层最坑：`initscr` 自己的汇编**逐字正确**，对着调用方查了两轮没查出东西。
+//   ⑤ 链接器：①数据标签被 `+ baseOffset`（指令数）算成了代码地址；
+//      ②主程序里对库数据符号的**裸名引用**没人改写。
+//
+// 教训：**"汇编看着对"不等于"这一层没问题"** —— 数据段的分配也要查。
+//
+// 早先几轮的记录（保留，因为每条都是不同类型的坑）：
 // 已经查清的链路（三段，前两段已修）：
 //   ① `WINDOW *stdscr = &sc_win;` 的**初始化器**本来就没生成代码
 //      （`CodeGenerator.Functions.cs` 的初始化器分支没有"取址"这一支）
@@ -141,12 +170,4 @@ int main()
 //      配套还要**登记 `externVariables`**：extern 变量不占数据段了，但代码生成
 //      查的是 `dataSection` ⇒ 不登记就报「未声明的变量」。
 //
-//   ⑤ **剩下的**（`S`/`S3`/`S5`，与 `extern` 无关，是新问题）：
-//        `S4=5215` 而 `S5=80` —— `initscr()` 在**调用方**拿到的是 **80**
-//        （正好是 `SCR_COLS`，即 `sc_win` 结构体的第二个字段）。
-//      但 `initscr` 的汇编是**对的**：
-//          move @R0 [lib_curses_stdscr]   ← R0 = 5215
-//          move @R13 @R12 / pop @R12 / pop @R15 / ret
-//      `ret` 时 R0 就是 5215 ⇒ **问题在调用侧**（`w = initscr();` 的赋值），
-//      或在链接器对这次调用的处理上。下一轮从这里接，**仍然先打判据**。
-// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=5215|S5=5215|V=0,4|W=-1
+// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=1|V=0,4|W=-1

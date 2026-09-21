@@ -144,6 +144,22 @@ namespace CompilerBase
         /// 见 `VariableDecl.IsExtern`。
         /// </summary>
         protected readonly HashSet<string> externVariables = new();
+        /// <summary>
+        /// `extern` 声明的**数组**变量名（`externVariables` 的子集）。
+        ///
+        /// **必须与 `externVariables` 分开**，因为数组与非数组在表达式里**语义相反**：
+        /// 数组名退化为**首地址**（用标签），而非数组（含指针变量）要**解引用**取值。
+        /// 把两者混成一个集合，只能二选一，必然错一半：
+        ///
+        ///   · `extern char buf[64];` → `buf` 的值是**首地址** ⇒ 标签
+        ///   · `extern WINDOW *stdscr;` → `stdscr` 的值在**槽里** ⇒ 解引用
+        ///
+        /// ⚠ 实测踩过：当初图省事把所有 extern 塞进"全局数组退化"那条分支，
+        /// 于是 `stdscr` 求值求到的是**它自己的槽地址**而不是它指向的 `sc_win`
+        /// ⇒ 用户程序里 `wgetch(stdscr)` 传进去一个错指针，
+        /// 而 `(int)stdscr == (int)&stdscr` 正是它的指纹（见 `cases/20-curses-api.c`）。
+        /// </summary>
+        protected readonly HashSet<string> externArrayVariables = new();
         protected Dictionary<string, object> dataSection;
         protected Dictionary<string, object> constants;
         /// <summary>原始汇编指令行 (如 .skip 0x6000, 0x1000)，直接插入到输出中</summary>

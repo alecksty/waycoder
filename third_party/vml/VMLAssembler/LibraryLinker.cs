@@ -439,6 +439,33 @@ namespace VMLAssembler
                 // 更新主程序中的 ASM 伪指令标签引用
                 UpdateAsmLabelReferences(mainProgram.Instructions, labelMapping);
 
+                /* 主程序里对**库数据符号**的裸名引用，改成带前缀的那个名字。
+
+                   为什么不是造一个裸名别名（`Labels["stdscr"] = …`）：**数据标签的地址
+                   在链接期根本还没定** —— 主程序的数据段是另一套地址空间，合并后由
+                   `.data` 重新分配。硬塞一个数进去只会得到一个**指向代码中间**的假地址
+                   （`A_stdscr=0` 就是这么来的）。
+                   而带前缀的 `lib_curses_stdscr` 在合并后的 `.data` 里**有定义**
+                   ⇒ 直接把引用改过去，地址自然是对的。
+
+                   ⚠ 判据是 `libraryProgram.DataSection`（**数据**标签），不是整个
+                   `labelMapping` —— 后者含函数名，一起改会把 CALL 目标也动掉，
+                   与下面那套 CALL 修正逻辑打架。
+                   ⚠ 也不能改主程序**自己定义**的同名符号（那才该归主程序管）。 */
+                foreach (var instr in mainProgram.Instructions)
+                {
+                    foreach (var operand in instr.Operands)
+                    {
+                        if (operand.Type != OperandType.MEMORY && operand.Type != OperandType.LABEL) continue;
+                        string bare = (operand.Value?.ToString() ?? "").Trim().TrimStart('[').TrimEnd(']').Trim();
+                        if (bare.Length == 0) continue;
+                        if (!libraryProgram.DataSection.ContainsKey(bare)) continue;
+                        if (mainProgram.DataSection.ContainsKey(bare) || mainProgram.Labels.ContainsKey(bare)) continue;
+                        if (labelMapping.TryGetValue(bare, out var prefixed))
+                            operand.Value = prefixed;
+                    }
+                }
+
                 // 合并 .linked 依赖
                 foreach (var dep in libraryProgram.LinkedFiles)
                     if (!mainProgram.LinkedFiles.Contains(dep))
@@ -469,8 +496,24 @@ namespace VMLAssembler
                     Console.WriteLine($"    去重: 跳过 {deduped} 条重复指令");
 
                 // 指令合并完成后再写入标签（地址偏移 = 合并前主程序指令数）
+                //
+                // ⚠ **数据段标签必须跳过**。`Labels` 这一张表里混着**两种地址**：
+                //   · 代码标签 → 值是**指令下标** ⇒ 合并后要加 `baseOffset`
+                //   · 数据标签 → 值是**数据地址**（`VMLAssembler` 在 `.data` 里
+                //     也是往同一张 `labels` 表写 `labels[lbl] = currentAddress`）
+                //     而这个数**在主程序里毫无意义** —— 主程序的数据段是另一套地址空间，
+                //     何况合并后由 `DataSection` 重新分配。
+                // 一律加 `baseOffset` 的后果：数据标签被算成一个**指向代码中间**的地址，
+                // 于是"裸名别名"（下面 v1.66.63 那段 `lib_xxx_name → name`）也跟着错。
+                //
+                // 实测指纹：`extern WINDOW *stdscr;` 在用户程序里求值求到 **0**
+                // （`lib_curses_stdscr` 有 `.data` 定义所以不受影响，而它派生的
+                // 裸别名 `stdscr` 只存在于这张表里 ⇒ 单独坏掉）。
+                // 判据：`(int)x == (int)&x` 或读出来是个莫名其妙的地址。
+                // 数据标签交给下面合并好的 `DataSection` 定义即可，这里一个字都不用写。
                 foreach (var kvp in libraryProgram.Labels)
                 {
+                    if (libraryProgram.DataSection.ContainsKey(kvp.Key)) continue;
                     string libLabel = labelMapping[kvp.Key];
                     if (!mainProgram.Labels.ContainsKey(libLabel))
                         mainProgram.Labels[libLabel] = kvp.Value + baseOffset;
