@@ -1023,7 +1023,7 @@ namespace VMLAssembler
                     FinalizeMultiWordData();
                     var label = parts[0].Trim();
                     var valueStr = parts[1].Trim().Replace(".word", "").Trim();
-                    var value = ParseValue(valueStr);
+                    var value = ParseWordValue(valueStr);
                     if (!labels.ContainsKey(label)) labels[label] = currentAddress;
                     dataSection[label] = value;
                 }
@@ -1032,7 +1032,7 @@ namespace VMLAssembler
                     // Unlabeled .word after a label-only line: add to multi-word list
                     // (v1.66.37 fix: 不覆盖, 加入 _lastDataValues 累积)
                     var valueStr = line.Replace(".word", "").Trim();
-                    var value = ParseValue(valueStr);
+                    var value = ParseWordValue(valueStr);
                     if (!labels.ContainsKey(_lastLabel)) labels[_lastLabel] = currentAddress;
                     if (_lastDataValues != null)
                         _lastDataValues.Add(value);
@@ -1044,7 +1044,7 @@ namespace VMLAssembler
                 {
                     // Unlabeled .word: continuation of multi-word data
                     var valueStr = line.Replace(".word", "").Trim();
-                    var value = ParseValue(valueStr);
+                    var value = ParseWordValue(valueStr);
                     if (value is int iv) _lastDataValues.Add(iv);
                     else if (value != null) _lastDataValues.Add(value);
                 }

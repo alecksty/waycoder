@@ -327,6 +327,30 @@ namespace VMLAssembler
         /// <summary>
         /// 链接单个库文件
         /// </summary>
+        /// <summary>
+        /// 把数据段值里的**标签引用**按链接期的改名表重映射（`sc_win` → `lib_curses_sc_win`）。
+        ///
+        /// <para>
+        /// 只处理 <see cref="LabelRef"/> —— 它**明确知道**自己是标签。
+        /// 不能连 `string` 一起映射：数据段里的字符串混着**真正的字符串常量**
+        /// （`L_xxx: .string "hello"`），盲目改名会把它们的**内容**改掉。
+        /// 这正是当初引入 `LabelRef` 而不是"看名字形状猜"的理由。
+        /// </para>
+        /// </summary>
+        private static object RemapLabelRefs(object value, Dictionary<string, string> mapping)
+        {
+            if (value is LabelRef lr)
+                return mapping.TryGetValue(lr.Name, out var mapped) ? new LabelRef(mapped) : lr;
+            if (value is object[] arr)
+            {
+                var outArr = new object[arr.Length];
+                for (int i = 0; i < arr.Length; i++)
+                    outArr[i] = RemapLabelRefs(arr[i], mapping);
+                return outArr;
+            }
+            return value;
+        }
+
         private static VmlProgram LinkSingleLibrary(VmlProgram mainProgram, string libraryPath, VmlAssembler assembler, Dictionary<string, string> globalLabelMapping, bool debug = false)
         {
             try
@@ -351,7 +375,15 @@ namespace VMLAssembler
                     string mappedKey = labelMapping.TryGetValue(kvp.Key, out var mk) ? mk : kvp.Key;
                     if (!mainProgram.DataSection.ContainsKey(mappedKey))
                     {
-                        mainProgram.DataSection[mappedKey] = kvp.Value;
+                        /* ⚠ **值里的标签引用也要跟着改名**。
+                           库里 `WINDOW *stdscr = &sc_win;` 存的是"sc_win 的地址"，
+                           而这一趟链接把库里的 `sc_win` 改名成了 `lib_curses_sc_win` ——
+                           只改 key 不改值，运行时按 `"sc_win"` 查标签表就**永远查不到**，
+                           于是这个全局指针**恒为 NULL**（`stdscr` 正是这么坏的）。
+
+                           只重映射 `LabelRef`（它**明确知道**自己是标签）——
+                           不能连 `string` 一起映射：那里面混着**真正的字符串常量**。 */
+                        mainProgram.DataSection[mappedKey] = RemapLabelRefs(kvp.Value, labelMapping);
                     }
                 }
 

@@ -451,6 +451,18 @@ namespace VMLRuntime
                     address = AllocateMemory(4);
                     SetMemory(address, intValue);
                 }
+                else if (data.Value is LabelRef singleLabelRef)
+                {
+                    /* 单个**标签引用** —— `T *p = &x;` 这类全局指针的初始化。
+                       与数组那条（`ResolveDataElement`）同一语义：写进去的是
+                       **那个标签的地址**。
+                       ⚠ 不加这一支它会落到最后的 else（"未初始化 ⇒ 0"）——
+                       实测 `WINDOW *stdscr = &sc_win;` 因此恒为 NULL，
+                       而 `stdscr` 是老程序最常用的全局对象。 */
+                    address = AllocateMemory(4);
+                    int lrAddr = labelAddresses.TryGetValue(singleLabelRef.Name, out int a) ? a : 0;
+                    SetMemory(address, lrAddr);
+                }
                 else if (data.Value is int[] intArray)
                 {
                     address = AllocateMemory(intArray.Length * 4);
@@ -588,6 +600,14 @@ namespace VMLRuntime
         {
             if (element is int intVal)
                 return intVal;
+            /* **标签引用**（`.word <标签名>`，即 `T *p = &x;` 落成的形态）——
+               与下面那条 `string` 分支的"解析为标签地址"是**同一件事**，
+               只是这个形态**明确知道自己是标签**（不必先试 int.Parse）。
+               ⚠ 不加这一支它会落到函数末尾的 `return 0` —— 实测那让
+               `char *rows[] = {"abc","def"}` 的元素全变 NULL（回归），
+               也让 `WINDOW *stdscr = &sc_win;` 恒为 NULL。 */
+            if (element is LabelRef labelRef)
+                return labelAddresses.TryGetValue(labelRef.Name, out int lrAddr) ? lrAddr : 0;
             if (element is string strVal)
             {
                 // 先尝试解析为整数
