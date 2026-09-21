@@ -483,6 +483,64 @@
 // CALL zsqr
 // extern fn zsqrt(double* z, double* result) -> void
 // CALL zsqrt
+// extern fn format_arg_count(const char *format) -> int
+// CALL format_arg_count
+// extern fn vsnprintf(char *buf, const char *fmt, const int *args, int nargs) -> int
+// CALL vsnprintf
+// extern fn con_clear_buffer_tail(void) -> oid
+// CALL con_clear_buffer_tail
+// extern fn con_repaint_all(void) -> oid
+// CALL con_repaint_all
+// extern fn con_doscolor(int c) -> nt
+// CALL con_doscolor
+// extern fn con_ensure(void) -> oid
+// CALL con_ensure
+// extern fn con_clear_buffer(void) -> oid
+// CALL con_clear_buffer
+// extern fn con_paint(int x, int y) -> oid
+// CALL con_paint
+// extern fn con_newline(void) -> oid
+// CALL con_newline
+// extern fn clrscr(void) -> void
+// CALL clrscr
+// extern fn clreol(void) -> void
+// CALL clreol
+// extern fn gotoxy(int x, int y) -> void
+// CALL gotoxy
+// extern fn wherex(void) -> int
+// CALL wherex
+// extern fn wherey(void) -> int
+// CALL wherey
+// extern fn textcolor(int color) -> void
+// CALL textcolor
+// extern fn textbackground(int color) -> void
+// CALL textbackground
+// extern fn textattr(int attr) -> void
+// CALL textattr
+// extern fn highvideo(void) -> void
+// CALL highvideo
+// extern fn lowvideo(void) -> void
+// CALL lowvideo
+// extern fn normvideo(void) -> void
+// CALL normvideo
+// extern fn putch(int c) -> void
+// CALL putch
+// extern fn cputs(const char *s) -> void
+// CALL cputs
+// extern fn delline(void) -> void
+// CALL delline
+// extern fn insline(void) -> void
+// CALL insline
+// extern fn con_scan_code(int vml_key) -> nt
+// CALL con_scan_code
+// extern fn getch(void) -> int
+// CALL getch
+// extern fn getche(void) -> int
+// CALL getche
+// extern fn kbhit(void) -> int
+// CALL kbhit
+// extern fn cprintf(const char *fmt, ...) -> void
+// CALL cprintf
 // extern fn puthex(int val) -> void
 // CALL puthex
 // extern fn putfloat(float f) -> void
@@ -1529,10 +1587,6 @@
 // CALL _printf_ftoa
 // extern fn _printf_ftoe(char *buf, float f, int prec, int upper) -> nt
 // CALL _printf_ftoe
-// extern fn vsnprintf(char *buf, const char *fmt, const int *args, int nargs) -> int
-// CALL vsnprintf
-// extern fn format_arg_count(const char *format) -> int
-// CALL format_arg_count
 // extern fn sprintf(char *buf, const char *fmt, ...) -> int
 // CALL sprintf
 // extern fn snprintf(char *buf, unsigned int size, const char *fmt, ...) -> int

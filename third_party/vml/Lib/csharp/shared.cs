@@ -242,6 +242,35 @@ namespace VML {
     // extern double zexp_im(double re, double im);  // CALL zexp_im
     // extern void zsqr(double* a, double* result);  // CALL zsqr
     // extern void zsqrt(double* z, double* result);  // CALL zsqrt
+    // extern int format_arg_count(const char *format);  // CALL format_arg_count
+    // extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);  // CALL vsnprintf
+    // extern oid con_clear_buffer_tail(void);  // CALL con_clear_buffer_tail
+    // extern oid con_repaint_all(void);  // CALL con_repaint_all
+    // extern nt con_doscolor(int c);  // CALL con_doscolor
+    // extern oid con_ensure(void);  // CALL con_ensure
+    // extern oid con_clear_buffer(void);  // CALL con_clear_buffer
+    // extern oid con_paint(int x, int y);  // CALL con_paint
+    // extern oid con_newline(void);  // CALL con_newline
+    // extern void clrscr(void);  // CALL clrscr
+    // extern void clreol(void);  // CALL clreol
+    // extern void gotoxy(int x, int y);  // CALL gotoxy
+    // extern int wherex(void);  // CALL wherex
+    // extern int wherey(void);  // CALL wherey
+    // extern void textcolor(int color);  // CALL textcolor
+    // extern void textbackground(int color);  // CALL textbackground
+    // extern void textattr(int attr);  // CALL textattr
+    // extern void highvideo(void);  // CALL highvideo
+    // extern void lowvideo(void);  // CALL lowvideo
+    // extern void normvideo(void);  // CALL normvideo
+    // extern void putch(int c);  // CALL putch
+    // extern void cputs(const char *s);  // CALL cputs
+    // extern void delline(void);  // CALL delline
+    // extern void insline(void);  // CALL insline
+    // extern nt con_scan_code(int vml_key);  // CALL con_scan_code
+    // extern int getch(void);  // CALL getch
+    // extern int getche(void);  // CALL getche
+    // extern int kbhit(void);  // CALL kbhit
+    // extern void cprintf(const char *fmt, ...);  // CALL cprintf
     // extern void puthex(int val);  // CALL puthex
     // extern void putfloat(float f);  // CALL putfloat
     // extern void print_str_no_nl(const char* str);  // CALL print_str_no_nl
@@ -765,8 +794,6 @@ namespace VML {
     // extern nt sign64(long long v, unsigned int *lo, unsigned int *hi);  // CALL sign64
     // extern nt _printf_ftoa(char *buf, float f, int prec);  // CALL _printf_ftoa
     // extern nt _printf_ftoe(char *buf, float f, int prec, int upper);  // CALL _printf_ftoe
-    // extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);  // CALL vsnprintf
-    // extern int format_arg_count(const char *format);  // CALL format_arg_count
     // extern int sprintf(char *buf, const char *fmt, ...);  // CALL sprintf
     // extern int snprintf(char *buf, unsigned int size, const char *fmt, ...);  // CALL snprintf
     // extern int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4);  // CALL printf4

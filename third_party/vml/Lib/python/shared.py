@@ -1477,6 +1477,141 @@ def zsqrt(a0, a1):
     asm(f"PUSH @R0")  # push a0
     asm("CALL zsqrt")
 
+def format_arg_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL format_arg_count")
+    return r0
+
+def vsnprintf(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL vsnprintf")
+    return r0
+
+def con_clear_buffer_tail():
+    r0 = asm("@R0")
+    asm("CALL con_clear_buffer_tail")
+    return r0
+
+def con_repaint_all():
+    r0 = asm("@R0")
+    asm("CALL con_repaint_all")
+    return r0
+
+def con_doscolor(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_doscolor")
+    return r0
+
+def con_ensure():
+    r0 = asm("@R0")
+    asm("CALL con_ensure")
+    return r0
+
+def con_clear_buffer():
+    r0 = asm("@R0")
+    asm("CALL con_clear_buffer")
+    return r0
+
+def con_paint(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_paint")
+    return r0
+
+def con_newline():
+    r0 = asm("@R0")
+    asm("CALL con_newline")
+    return r0
+
+def clrscr():
+    asm("CALL clrscr")
+
+def clreol():
+    asm("CALL clreol")
+
+def gotoxy(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL gotoxy")
+
+def wherex():
+    r0 = asm("@R0")
+    asm("CALL wherex")
+    return r0
+
+def wherey():
+    r0 = asm("@R0")
+    asm("CALL wherey")
+    return r0
+
+def textcolor(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL textcolor")
+
+def textbackground(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL textbackground")
+
+def textattr(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL textattr")
+
+def highvideo():
+    asm("CALL highvideo")
+
+def lowvideo():
+    asm("CALL lowvideo")
+
+def normvideo():
+    asm("CALL normvideo")
+
+def putch(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL putch")
+
+def cputs(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cputs")
+
+def delline():
+    asm("CALL delline")
+
+def insline():
+    asm("CALL insline")
+
+def con_scan_code(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_scan_code")
+    return r0
+
+def getch():
+    r0 = asm("@R0")
+    asm("CALL getch")
+    return r0
+
+def getche():
+    r0 = asm("@R0")
+    asm("CALL getche")
+    return r0
+
+def kbhit():
+    r0 = asm("@R0")
+    asm("CALL kbhit")
+    return r0
+
+def cprintf(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cprintf")
+
 def puthex(a0):
     asm(f"PUSH @R0")  # push a0
     asm("CALL puthex")
@@ -4680,21 +4815,6 @@ def _printf_ftoe(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL _printf_ftoe")
-    return r0
-
-def vsnprintf(a0, a1, a2, a3):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL vsnprintf")
-    return r0
-
-def format_arg_count(a0):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL format_arg_count")
     return r0
 
 def sprintf(a0, a1, a2):

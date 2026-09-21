@@ -1149,6 +1149,137 @@ func zsqrt(a0 int32, a1 int32) {
     vml.Call("zsqrt")
 }
 
+func format_arg_count(a0 int32) int32 {
+    vml.Call("format_arg_count")
+    return vml.R0()
+}
+
+func vsnprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("vsnprintf")
+    return vml.R0()
+}
+
+func con_clear_buffer_tail() int32 {
+    vml.Call("con_clear_buffer_tail")
+    return vml.R0()
+}
+
+func con_repaint_all() int32 {
+    vml.Call("con_repaint_all")
+    return vml.R0()
+}
+
+func con_doscolor(a0 int32) int32 {
+    vml.Call("con_doscolor")
+    return vml.R0()
+}
+
+func con_ensure() int32 {
+    vml.Call("con_ensure")
+    return vml.R0()
+}
+
+func con_clear_buffer() int32 {
+    vml.Call("con_clear_buffer")
+    return vml.R0()
+}
+
+func con_paint(a0 int32, a1 int32) int32 {
+    vml.Call("con_paint")
+    return vml.R0()
+}
+
+func con_newline() int32 {
+    vml.Call("con_newline")
+    return vml.R0()
+}
+
+func clrscr() {
+    vml.Call("clrscr")
+}
+
+func clreol() {
+    vml.Call("clreol")
+}
+
+func gotoxy(a0 int32, a1 int32) {
+    vml.Call("gotoxy")
+}
+
+func wherex() int32 {
+    vml.Call("wherex")
+    return vml.R0()
+}
+
+func wherey() int32 {
+    vml.Call("wherey")
+    return vml.R0()
+}
+
+func textcolor(a0 int32) {
+    vml.Call("textcolor")
+}
+
+func textbackground(a0 int32) {
+    vml.Call("textbackground")
+}
+
+func textattr(a0 int32) {
+    vml.Call("textattr")
+}
+
+func highvideo() {
+    vml.Call("highvideo")
+}
+
+func lowvideo() {
+    vml.Call("lowvideo")
+}
+
+func normvideo() {
+    vml.Call("normvideo")
+}
+
+func putch(a0 int32) {
+    vml.Call("putch")
+}
+
+func cputs(a0 int32) {
+    vml.Call("cputs")
+}
+
+func delline() {
+    vml.Call("delline")
+}
+
+func insline() {
+    vml.Call("insline")
+}
+
+func con_scan_code(a0 int32) int32 {
+    vml.Call("con_scan_code")
+    return vml.R0()
+}
+
+func getch() int32 {
+    vml.Call("getch")
+    return vml.R0()
+}
+
+func getche() int32 {
+    vml.Call("getche")
+    return vml.R0()
+}
+
+func kbhit() int32 {
+    vml.Call("kbhit")
+    return vml.R0()
+}
+
+func cprintf(a0 int32, a1 int32) {
+    vml.Call("cprintf")
+}
+
 func puthex(a0 int32) {
     vml.Call("puthex")
 }
@@ -3611,16 +3742,6 @@ func _printf_ftoa(a0 int32, a1 int32, a2 int32) int32 {
 
 func _printf_ftoe(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     vml.Call("_printf_ftoe")
-    return vml.R0()
-}
-
-func vsnprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
-    vml.Call("vsnprintf")
-    return vml.R0()
-}
-
-func format_arg_count(a0 int32) int32 {
-    vml.Call("format_arg_count")
     return vml.R0()
 }
 

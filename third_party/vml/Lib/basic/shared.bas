@@ -1147,6 +1147,137 @@ DECLARE SUB zsqrt(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL zsqrt")
 END SUB
 
+DECLARE FUNCTION format_arg_count(a0 AS INTEGER) AS INTEGER
+    asm("CALL format_arg_count")
+    format_arg_count = 0
+END FUNCTION
+
+DECLARE FUNCTION vsnprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL vsnprintf")
+    vsnprintf = 0
+END FUNCTION
+
+DECLARE FUNCTION con_clear_buffer_tail() AS INTEGER
+    asm("CALL con_clear_buffer_tail")
+    con_clear_buffer_tail = 0
+END FUNCTION
+
+DECLARE FUNCTION con_repaint_all() AS INTEGER
+    asm("CALL con_repaint_all")
+    con_repaint_all = 0
+END FUNCTION
+
+DECLARE FUNCTION con_doscolor(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_doscolor")
+    con_doscolor = 0
+END FUNCTION
+
+DECLARE FUNCTION con_ensure() AS INTEGER
+    asm("CALL con_ensure")
+    con_ensure = 0
+END FUNCTION
+
+DECLARE FUNCTION con_clear_buffer() AS INTEGER
+    asm("CALL con_clear_buffer")
+    con_clear_buffer = 0
+END FUNCTION
+
+DECLARE FUNCTION con_paint(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL con_paint")
+    con_paint = 0
+END FUNCTION
+
+DECLARE FUNCTION con_newline() AS INTEGER
+    asm("CALL con_newline")
+    con_newline = 0
+END FUNCTION
+
+DECLARE SUB clrscr()
+    asm("CALL clrscr")
+END SUB
+
+DECLARE SUB clreol()
+    asm("CALL clreol")
+END SUB
+
+DECLARE SUB gotoxy(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL gotoxy")
+END SUB
+
+DECLARE FUNCTION wherex() AS INTEGER
+    asm("CALL wherex")
+    wherex = 0
+END FUNCTION
+
+DECLARE FUNCTION wherey() AS INTEGER
+    asm("CALL wherey")
+    wherey = 0
+END FUNCTION
+
+DECLARE SUB textcolor(a0 AS INTEGER)
+    asm("CALL textcolor")
+END SUB
+
+DECLARE SUB textbackground(a0 AS INTEGER)
+    asm("CALL textbackground")
+END SUB
+
+DECLARE SUB textattr(a0 AS INTEGER)
+    asm("CALL textattr")
+END SUB
+
+DECLARE SUB highvideo()
+    asm("CALL highvideo")
+END SUB
+
+DECLARE SUB lowvideo()
+    asm("CALL lowvideo")
+END SUB
+
+DECLARE SUB normvideo()
+    asm("CALL normvideo")
+END SUB
+
+DECLARE SUB putch(a0 AS INTEGER)
+    asm("CALL putch")
+END SUB
+
+DECLARE SUB cputs(a0 AS INTEGER)
+    asm("CALL cputs")
+END SUB
+
+DECLARE SUB delline()
+    asm("CALL delline")
+END SUB
+
+DECLARE SUB insline()
+    asm("CALL insline")
+END SUB
+
+DECLARE FUNCTION con_scan_code(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_scan_code")
+    con_scan_code = 0
+END FUNCTION
+
+DECLARE FUNCTION getch() AS INTEGER
+    asm("CALL getch")
+    getch = 0
+END FUNCTION
+
+DECLARE FUNCTION getche() AS INTEGER
+    asm("CALL getche")
+    getche = 0
+END FUNCTION
+
+DECLARE FUNCTION kbhit() AS INTEGER
+    asm("CALL kbhit")
+    kbhit = 0
+END FUNCTION
+
+DECLARE SUB cprintf(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL cprintf")
+END SUB
+
 DECLARE SUB puthex(a0 AS INTEGER)
     asm("CALL puthex")
 END SUB
@@ -3610,16 +3741,6 @@ END FUNCTION
 DECLARE FUNCTION _printf_ftoe(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
     asm("CALL _printf_ftoe")
     _printf_ftoe = 0
-END FUNCTION
-
-DECLARE FUNCTION vsnprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
-    asm("CALL vsnprintf")
-    vsnprintf = 0
-END FUNCTION
-
-DECLARE FUNCTION format_arg_count(a0 AS INTEGER) AS INTEGER
-    asm("CALL format_arg_count")
-    format_arg_count = 0
 END FUNCTION
 
 DECLARE FUNCTION sprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
