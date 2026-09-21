@@ -340,7 +340,21 @@ __cdecl void printf(const char *fmt, ...) {
 
 __cdecl int sprintf(char *buf, const char *fmt, ...) {
     int *stack_args = (int*)&fmt + 1;      // 见上面 printf 处的说明
-    return vsnprintf(buf, fmt, stack_args, 8);
+    int n = vsnprintf(buf, fmt, stack_args, 8);
+
+    // ⚠ **必须自己补结尾的 NUL** —— `vsnprintf` 返回的是**长度**（不含结尾符），
+    //   而 C 的 `sprintf` 契约是"写一个以 NUL 结尾的串"。
+    //   此前这里直接 `return vsnprintf(...)`，**一个结尾符都不写** ⇒
+    //   目标缓冲区后面残留什么，串就"长"成什么：
+    //   实测 `strcpy(buf,"abcd"); sprintf(buf,"%d-%d",3,7)` 得到 **`3-7d`**（长度 4 而不是 3）
+    //   —— `d` 正是上一句 `strcpy` 留在 `buf[3]` 的残渣。而**单独**写同一句是对的
+    //   （缓冲区刚分配、后面本来就是 0）⇒ 这条缺陷最坑的形态：**换个上下文就自己变绿**，
+    //   孤立用例永远抓不到（`scripts/vml-c-probe/08-sprintf.c` 就是因此才带着前置字符串操作）。
+    //
+    //   对老程序的影响面：状态栏、日志、`cprintf` 这类"先拼串再输出"的写法**全都会多尾巴**，
+    //   而且多出来的内容**取决于上一次往该缓冲区写过什么** —— 典型的"编得过、跑起来才错"。
+    buf[n] = 0;
+    return n;
 }
 
 // 固定参数版本 (32-bit)

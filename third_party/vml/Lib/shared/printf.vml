@@ -4852,7 +4852,7 @@ sprintf:
         push @R15
         push @R12
         move @R12 @R13
-        sub @R13 #16
+        sub @R13 #24
 ; 318:     int *stack_args = (int*)&fmt + 1;      // 见上面 printf 处的说明
         move @R0 [@R12+16]
         move @R0 @R12
@@ -4864,7 +4864,7 @@ sprintf:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 319:     return vsnprintf(buf, fmt, stack_args, 8);
+; 319:     int n = vsnprintf(buf, fmt, stack_args, 8);
         move @R0 #8
         push @R0
         move @R0 [@R12-8]
@@ -4879,6 +4879,19 @@ sprintf:
         move @R3 [@R13+12]
         call vsnprintf
         add @R13 #16
+        move [@R12-12] @R0
+; 331:     buf[n] = 0;
+        move @R0 #0
+        move @R4 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb [@R0] @R4
+; 332:     return n;
+        move @R0 [@R12-12]
         jmp L_35270531
 L_35270531:
         move @R13 @R12
@@ -4900,7 +4913,7 @@ printf2:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 322: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
+; 335: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
         move @R0 @R12
         sub @R0 #12
         add @R0 #0
@@ -4952,7 +4965,7 @@ printf3:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 323: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
+; 336: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
         move @R0 @R12
         sub @R0 #16
         add @R0 #0
@@ -5012,7 +5025,7 @@ printf4:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 324: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
+; 337: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
         move @R0 @R12
         sub @R0 #20
         add @R0 #0
@@ -5081,7 +5094,7 @@ printf5:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 325: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
+; 338: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
         move @R0 @R12
         sub @R0 #24
         add @R0 #0
