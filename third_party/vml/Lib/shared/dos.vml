@@ -17,11 +17,11 @@ GetDate:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 18:     int d = asm("SYSCALL #55");  // R0 = packed date
+; 21:     char* s = (char*)asm("SYSCALL #55");   /* "YYYY-MM-DD" */
         syscall #55
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 19:     if (year)  *year  = (d >> 16) & 0xFFFF;
+; 22:     if (year)  *year  = atoi(s);           /* 从串首取年 */
         move @R0 [@R12+12]
         cmp @R0 #0
         jz sta_96560000
@@ -29,19 +29,13 @@ GetDate:
         move @R11 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #16
-        pop @R1
-        shr @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 #65535
-        pop @R1
-        and @R1 @R0
-        move @R0 @R1
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R11] @R0
 sta_96560000:
 sta_96560001:
-; 20:     if (month) *month = (d >> 8) & 0xFF;
+; 23:     if (month) *month = atoi(s + 5);       /* 跳过 "YYYY-" */
         move @R0 [@R12+16]
         cmp @R0 #0
         jz sta_96560002
@@ -49,19 +43,18 @@ sta_96560001:
         move @R10 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #8
+        move @R0 #5
         pop @R1
-        shr @R1 @R0
+        add @R1 @R0
         move @R0 @R1
         push @R0
-        move @R0 #255
-        pop @R1
-        and @R1 @R0
-        move @R0 @R1
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R10] @R0
 sta_96560002:
 sta_96560003:
-; 21:     if (day)   *day   = d & 0xFF;
+; 24:     if (day)   *day   = atoi(s + 8);       /* 跳过 "YYYY-MM-" */
         move @R0 [@R12+20]
         cmp @R0 #0
         jz sta_96560004
@@ -69,14 +62,18 @@ sta_96560003:
         move @R9 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #255
+        move @R0 #8
         pop @R1
-        and @R1 @R0
+        add @R1 @R0
         move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R9] @R0
 sta_96560004:
 sta_96560005:
-; 22:     if (wday)  *wday  = 0;
+; 25:     if (wday)  *wday  = 0;                 /* 星期本平台不给，恒 0（占位） */
         move @R0 [@R12+24]
         cmp @R0 #0
         jz sta_96560006
@@ -105,11 +102,11 @@ GetTime:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 25:     int t = asm("SYSCALL #56");  // R0 = packed time
+; 29:     char* s = (char*)asm("SYSCALL #56");   /* "HH:MM:SS" */
         syscall #56
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 26:     if (hour) *hour = (t >> 16) & 0xFF;
+; 30:     if (hour) *hour = atoi(s);
         move @R0 [@R12+12]
         cmp @R0 #0
         jz sta_96560008
@@ -117,19 +114,13 @@ GetTime:
         move @R7 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #16
-        pop @R1
-        shr @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 #255
-        pop @R1
-        and @R1 @R0
-        move @R0 @R1
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R7] @R0
 sta_96560008:
 sta_96560009:
-; 27:     if (min)  *min  = (t >> 8) & 0xFF;
+; 31:     if (min)  *min  = atoi(s + 3);
         move @R0 [@R12+16]
         cmp @R0 #0
         jz sta_96560010
@@ -137,19 +128,18 @@ sta_96560009:
         move @R6 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #8
+        move @R0 #3
         pop @R1
-        shr @R1 @R0
+        add @R1 @R0
         move @R0 @R1
         push @R0
-        move @R0 #255
-        pop @R1
-        and @R1 @R0
-        move @R0 @R1
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R6] @R0
 sta_96560010:
 sta_96560011:
-; 28:     if (sec)  *sec  = t & 0xFF;
+; 32:     if (sec)  *sec  = atoi(s + 6);
         move @R0 [@R12+20]
         cmp @R0 #0
         jz sta_96560012
@@ -157,14 +147,18 @@ sta_96560011:
         move @R5 @R0
         move @R0 [@R12-8]
         push @R0
-        move @R0 #255
+        move @R0 #6
         pop @R1
-        and @R1 @R0
+        add @R1 @R0
         move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
         move [@R5] @R0
 sta_96560012:
 sta_96560013:
-; 29:     if (msec) *msec = 0;
+; 33:     if (msec) *msec = 0;                   /* 本平台不提供百分秒 */
         move @R0 [@R12+24]
         cmp @R0 #0
         jz sta_96560014
@@ -174,6 +168,227 @@ sta_96560013:
         move [@R4] @R0
 sta_96560014:
 sta_96560015:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+sleep:
+; -------------------------------------------
+; source   : void sleep(unsigned seconds)
+; function : sleep
+; param   : unsigned seconds
+; return   : void
+; --------------------------------------------
+sleep:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 42:     delay((int)seconds * 1000);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1000
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call delay
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+sound:
+; -------------------------------------------
+; source   : void sound(unsigned freq)
+; function : sound
+; param   : unsigned freq
+; return   : void
+; --------------------------------------------
+sound:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 48:     asm("SYSCALL #57, ${freq}, ${5000}");
+        move @R0 [@R12+12]
+        syscall #57
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+nosound:
+; -------------------------------------------
+; source   : void nosound()
+; function : nosound
+; return   : void
+; --------------------------------------------
+nosound:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 51:     asm("SYSCALL #542");                   /* AudioStop —— 立刻掐掉正在响的那一段 */
+        syscall #542
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getdate:
+; -------------------------------------------
+; source   : void getdate(struct vml_date* d)
+; function : getdate
+; param   : struct vml_date* d
+; return   : void
+; --------------------------------------------
+getdate:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 54:     char* s = (char*)asm("SYSCALL #55");   /* "YYYY-MM-DD" */
+        syscall #55
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 55:     if (!d) return;
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        test @R0 @R0
+        jz _L96560018
+        move @R0 #0
+        jmp _L96560019
+_L96560018:
+        move @R0 #1
+_L96560019:
+        cmp @R0 #0
+        jz sta_96560016
+        jmp L_96560020
+sta_96560016:
+sta_96560017:
+; 56:     d->da_year = atoi(s);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R3 @R0
+        move @R0 [@R12+12]
+        move [@R0] @R3
+; 57:     d->da_mon  = (char)atoi(s + 5);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #5
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R2 @R0
+        move @R0 [@R12+12]
+        add @R0 #5
+        moveb [@R0] @R2
+; 58:     d->da_day  = (char)atoi(s + 8);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R1 @R0
+        move @R0 [@R12+12]
+        add @R0 #4
+        moveb [@R0] @R1
+L_96560020:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+gettime:
+; -------------------------------------------
+; source   : void gettime(struct vml_time* t)
+; function : gettime
+; param   : struct vml_time* t
+; return   : void
+; --------------------------------------------
+gettime:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 61:     char* s = (char*)asm("SYSCALL #56");   /* "HH:MM:SS" */
+        syscall #56
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 62:     if (!t) return;
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        test @R0 @R0
+        jz _L96560023
+        move @R0 #0
+        jmp _L96560024
+_L96560023:
+        move @R0 #1
+_L96560024:
+        cmp @R0 #0
+        jz sta_96560021
+        jmp L_96560025
+sta_96560021:
+sta_96560022:
+; 63:     t->ti_hour = (unsigned char)atoi(s);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R11 @R0
+        move @R0 [@R12+12]
+        add @R0 #1
+        moveb [@R0] @R11
+; 64:     t->ti_min  = (unsigned char)atoi(s + 3);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #3
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R10 @R0
+        move @R0 [@R12+12]
+        moveb [@R0] @R10
+; 65:     t->ti_sec  = (unsigned char)atoi(s + 6);
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #6
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call atoi
+        add @R13 #4
+        move @R9 @R0
+        move @R0 [@R12+12]
+        add @R0 #3
+        moveb [@R0] @R9
+; 66:     t->ti_hund = 0;
+        move @R0 #0
+        move @R8 @R0
+        move @R0 [@R12+12]
+        add @R0 #2
+        moveb [@R0] @R8
+L_96560025:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -189,10 +404,10 @@ DosVersion:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 33:     return 0x0700;  // 模拟 DOS 7.0
+; 70:     return 0x0700;  // 模拟 DOS 7.0
         move @R0 #1792
-        jmp L_96560016
-L_96560016:
+        jmp L_96560026
+L_96560026:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -209,10 +424,10 @@ DiskFree:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 41:     return 65535;
+; 78:     return 65535;
         move @R0 #65535
-        jmp L_96560017
-L_96560017:
+        jmp L_96560027
+L_96560027:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -229,10 +444,10 @@ DiskSize:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 44:     return 65535;
+; 81:     return 65535;
         move @R0 #65535
-        jmp L_96560018
-L_96560018:
+        jmp L_96560028
+L_96560028:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -251,10 +466,10 @@ FindFirst:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 54:     return 0;  // 简化: 未实现, 返回 0 = no match
+; 91:     return 0;  // 简化: 未实现, 返回 0 = no match
         move @R0 #0
-        jmp L_96560019
-L_96560019:
+        jmp L_96560029
+L_96560029:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -271,10 +486,10 @@ FindNext:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 57:     return 0;
+; 94:     return 0;
         move @R0 #0
-        jmp L_96560020
-L_96560020:
+        jmp L_96560030
+L_96560030:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -306,10 +521,10 @@ EnvCount:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 66:     return 0;  // VML MCU 模式无环境变量
+; 103:     return 0;  // VML MCU 模式无环境变量
         move @R0 #0
-        jmp L_96560021
-L_96560021:
+        jmp L_96560031
+L_96560031:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -326,10 +541,10 @@ EnvStr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 69:     return (char*)0;  // null
+; 106:     return (char*)0;  // null
         move @R0 #0
-        jmp L_96560022
-L_96560022:
+        jmp L_96560032
+L_96560032:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -346,10 +561,10 @@ GetEnv:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 72:     return (char*)0;
+; 109:     return (char*)0;
         move @R0 #0
-        jmp L_96560023
-L_96560023:
+        jmp L_96560033
+L_96560033:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -367,12 +582,12 @@ Exec:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 78:     return -1;  // VML MCU 模式不支持 Exec
+; 115:     return -1;  // VML MCU 模式不支持 Exec
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_96560024
-L_96560024:
+        jmp L_96560034
+L_96560034:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -405,16 +620,16 @@ GetIntVec:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 86:     if (vector) *(void**)vector = 0;
+; 123:     if (vector) *(void**)vector = 0;
         move @R0 [@R12+16]
         cmp @R0 #0
-        jz sta_96560025
+        jz sta_96560035
         move @R0 [@R12+16]
-        move @R3 @R0
+        move @R7 @R0
         move @R0 #0
-        move [@R3] @R0
-sta_96560025:
-sta_96560026:
+        move [@R7] @R0
+sta_96560035:
+sta_96560036:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -448,10 +663,10 @@ DosExitCode:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 95:     return 0;
+; 132:     return 0;
         move @R0 #0
-        jmp L_96560027
-L_96560027:
+        jmp L_96560037
+L_96560037:
         move @R13 @R12
         pop @R12
         pop @R15
