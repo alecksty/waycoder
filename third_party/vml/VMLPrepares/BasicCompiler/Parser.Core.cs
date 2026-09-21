@@ -27,6 +27,24 @@ namespace BasicCompiler
         private Dictionary<string, int> _enumValues = new(); // ENUM 成员→值映射 (v1.66.32+)
 
         /// <summary>
+        /// `CONST 名 = 值` 的值表，**解析期**用。
+        ///
+        /// <para>
+        /// 为什么解析器也得有一张：`DIM a(N) AS INTEGER` 里的维度要在**解析期**变成数字
+        /// —— 数组大小要拿去分配存储。从前那条分支遇到标识符维度直接写死 `lowerBound = 1`
+        /// （占位），注释还写着"实际大小在代码生成阶段算"，而**那个阶段根本没人算** ⇒
+        /// `DIM terr(COLS)`（COLS=30）只分配出 2 格，`terr(c)` 一写就越界
+        /// （LANDER 实测循环变量一路跑到 760、把地形数组和邻居变量一起写花）。
+        /// </para>
+        /// <para>
+        /// ⚠ 只收**字面量**常量（`CONST N = 5`）。`CONST N = M * 2` 这种表达式这里解不了
+        /// —— 那要常量折叠，而前端没有；查不到就退回原来的占位行为（不更糟）。
+        /// 顺序上 `CONST` 必须写在 `DIM` **之前**（QBasic 也是这个要求）。
+        /// </para>
+        /// </summary>
+        private readonly Dictionary<string, int> _constValues = new();
+
+        /// <summary>
         /// 源文件里出现过 `OPTION EXPLICIT` ⇒ **变量必须先声明**，未声明的引用报**错误**；
         /// 没出现则报**警告**（QBasic 默认「未声明即隐式全局、值 0」是合法语义）。
         ///

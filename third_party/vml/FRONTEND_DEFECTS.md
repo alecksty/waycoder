@@ -373,13 +373,33 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 （`GenerateSubStatement` 分派漏了一支 ⇒ 整支不生成）、`DATA`/`READ`（`DATA` 被整条丢弃 +
 4 处 `MOVE` 方向写反）、字符串临时量共用缓冲区（`basic_concat` 只有一块 `_buf3`）。
 
-**仍未修（都有最小复现，在 `scripts/vml-basic-probe/cases/` 或 `.scratch/basprobe/`）**：
+**v0.96.331 又修两条**（同一轮里由 `blackjack.bas` / `lander.bas` 逼出来的）：
 
-- 🔴 **用 CONST 当数组维度不生效**：`DIM a(N) AS INTEGER`（N 是 CONST）之后 `a(4)` 恒为 0；
-  换成字面量 `DIM a(5)` 正常。**这条会静默写穿数组** —— LANDER 实测循环变量一路跑到
-  `c=760`（= `sh` 的值）、把地形数组写花，画面表现为"地形画到天上去了"。
-- 🟡 **无参 `FUNCTION` 返回 0**：`FUNCTION three AS INTEGER / three = 7 / END FUNCTION`
-  之后 `PRINT three` 打 0。带参数的 `FUNCTION` 正常（1 参、2 参都验过）。
+- **`EXIT WHILE` / `EXIT FOR` 在 SUB/FUNCTION 里失效**：`GenerateSubWhileStatement`
+  **从未调 `Sta.PushLoopLabels`**（旁边的 `GenerateSubDoLoopStatement` 一直有），于是
+  `EmitBreak` 见循环栈为空 ⇒ **一条指令都不发、静默空操作**。症状两极：
+  **唯一的出口就是那句 EXIT** 的循环（`WHILE sum > 21`）⇒ **死循环**（BLACKJACK 的
+  `handValue` 实测卡死在自检第一处调用上、整轮超时）；条件也会自己结束的 ⇒
+  **多跑完剩下的圈数**（最小复现 `d5.bas`：`f(4)` 应返回 5、实测 100）。
+  判据：`scripts/vml-basic-probe/cases/26-exitloop.bas`。
+- **用 CONST 当数组维度不生效**：解析 `DIM a(N)` 时标识符维度被写死成 `lowerBound = 1`
+  占位，注释还说"实际大小在代码生成阶段算"——**那个阶段根本没人算** ⇒ 只分 2 格、
+  一写就越界。**这条会静默写穿数组**：LANDER 实测循环变量一路跑到 `c=760`（= `sh` 的值）、
+  把地形数组和邻居变量一起写花，画面表现为"地形画到天上去了"。
+  修法：解析器立一张 `_constValues`（只收字面量 CONST），`DIM` 的维度查它。
+  判据：`cases/27-constdim.bas`。
+
+**仍未修（都有最小复现）**：
+
+- 🟡 **数组形参不支持**：`FUNCTION f(n AS INTEGER, a(12) AS INTEGER)` —— 函数体里的
+  `a(0)` 被当成**函数调用**去链接，报 `未定义的函数 'func_a'`（实测 `d3.bas`）。
+  要根治得让调用点传**数组基址**、被调方按基址索引，是一次 ABI 改动（解析器 + 代码生成
+  + 调用约定三处），评估后**未在本轮做**。现阶段的替代写法：**两个数组合成一个、
+  用偏移区分**（BLACKJACK 的玩家/庄家手牌就是这么放的：`hand(0..11)` / `hand(12..23)`）
+  —— 好处是"算点数"那条规则仍然只有一份。
+- 🟡 **裸名调用无参 FUNCTION 不触发调用**：`FUNCTION three() AS INTEGER` 用**带括号**
+  调用（`three()`）是对的（`A=7`），但裸名 `PRINT three` 会当成**变量**读、得 0。
+  QBasic 里 `PRINT three` 应该触发调用。影响面窄（本仓的游戏一律带括号写），未修。
 - ⚪ **`DIM x AS INTEGER` 一律报「隐式声明的变量」警告**（值是对的，纯噪音）——
   噪音太多会淹掉真警告，值得单独收一次。
 

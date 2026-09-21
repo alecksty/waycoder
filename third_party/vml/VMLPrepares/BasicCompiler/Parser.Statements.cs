@@ -372,9 +372,15 @@ namespace BasicCompiler
                             Advance();
                         }
                     }
-                    // Use 1 as placeholder size for identifier-based dimensions
-                    lowerBound = 1;
-                    // We'll compute actual size from the identifier value during codegen
+                    // 维度是个标识符 —— **查常量表**（v0.96.331 修）。
+                    // ⚠ 从前这里写死 `lowerBound = 1` 当占位，注释说"实际大小在代码生成
+                    //   阶段算"，而那个阶段**根本没人算** ⇒ `DIM terr(COLS)` 只分到 2 格，
+                    //   一写就越界（LANDER 实测循环变量跑到 760、把数组和邻居变量一起写花）。
+                    //   查不到（不是字面量 CONST / 顺序反了）就退回占位行为，不更糟。
+                    if (_constValues.TryGetValue(identVal.ToLower(), out int constDim))
+                        lowerBound = constDim;
+                    else
+                        lowerBound = 1;
                 }
                 else
                 {
@@ -669,7 +675,11 @@ namespace BasicCompiler
             Advance(); // 跳过 =
 
             stmt.Value = ParseExpression();
-            
+            // 记进解析期常量表 —— `DIM a(N)` 的维度要用（见 `_constValues` 的说明）。
+            // 只收字面量：`CONST N = M * 2` 这类表达式这里解不了（没有常量折叠）。
+            if (stmt.Value is NumberLiteral cnum)
+                _constValues[stmt.Name.ToLower()] = (int)cnum.Value;
+
             // Handle comma-separated CONST declarations: CONST a=1, b=2, c=3
             while (Peek().Type == TokenType.COMMA)
             {

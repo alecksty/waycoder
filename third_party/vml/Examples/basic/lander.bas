@@ -19,8 +19,9 @@
 '
 ' ◆ 写法提醒
 '
-'   · 这份**用真数组**存地形（`DIM terr(40) AS INTEGER`）—— 数组、动态下标、
-'     SUB 内读写本轮都已确认可用（判据 `scripts/vml-basic-probe`，20/20）。
+'   · 这份用**真数组**存地形（`DIM terr(COLS)`，维度直接写 CONST）——
+'     数组、动态下标、SUB 内读写、用 CONST 当维度都已确认可用
+'     （判据 `scripts/vml-basic-probe`）。
 '   · 外部过程必须 `NATIVE SUB` / `NATIVE FUNCTION` + 空体。
 '   · **有返回值的必须写 `FUNCTION`**：写成 `SUB … AS INTEGER` 会去链一个 `func_integer`。
 '   · `FUNCTION` 必须用 `END FUNCTION` 收尾（写成 `END SUB` 会让整个解析错位）。
@@ -105,10 +106,9 @@ CONST C_BTN_HOT = &HFF6A5ACD
 DIM sw AS INTEGER
 DIM sh AS INTEGER
 DIM colw AS INTEGER
-' ⚠ 数组维度**必须写字面量**：`DIM terr(COLS) AS INTEGER`（COLS 是 CONST）
-'   目前**不生效** —— 实测 `DIM a(N)` 之后 `a(4)` 恒为 0，而 `DIM a(5)` 正常。
-'   这个维度必须与上面 `CONST COLS = 30` 对上，改一处要改两处。
-DIM terr(30) AS INTEGER
+' 维度用 CONST 写 —— `DIM a(N)` 曾经**不生效**（只分 2 格、写就越界，
+' 让循环变量一路跑到 760），v0.96.331 起解析期会查常量表，现在是对的。
+DIM terr(COLS) AS INTEGER
 DIM padCol AS INTEGER
 DIM hx AS INTEGER
 DIM hy AS INTEGER

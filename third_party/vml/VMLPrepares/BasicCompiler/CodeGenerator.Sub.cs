@@ -1055,6 +1055,17 @@ namespace BasicCompiler
             string loopLabel = GenerateLabel();
             string endLabel = GenerateLabel();
 
+            // ⚠ **必须登记循环标签**（v0.96.331 修）—— 旁边的 `GenerateSubDoLoopStatement`
+            //   一直有这一句，WHILE 这条**漏了**。后果是 SUB/FUNCTION 里的 `EXIT WHILE`
+            //   **一条指令都发不出来**（`EmitBreak` 见循环栈为空 ⇒ 什么都不做 ⇒ 静默空操作），
+            //   循环只能靠条件自己结束。症状极具欺骗性：
+            //   `WHILE sum > 21` 这种**唯一的出口就是那句 EXIT** 的写法 ⇒ **死循环**
+            //   （BLACKJACK 的 `handValue` 实测卡死在自检的第一处调用上、整轮超时）；
+            //   而"条件也会自己结束"的循环则表现为**多跑完剩下的圈数**
+            //   （最小复现 `d5.bas`：`f(4)` 应返回 5，实测 100）。
+            //   顶层 WHILE 一直是对的 —— 又是一次「SUB 体才是重灾区」。
+            Sta.PushLoopLabels(endLabel, loopLabel);
+
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
             GenerateSubExpression(stmt.Condition, 0);
             instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
@@ -1064,6 +1075,7 @@ namespace BasicCompiler
                 GenerateSubStatement(bodyStmt);
 
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
+            Sta.PopLoopLabels();
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
         }
 
