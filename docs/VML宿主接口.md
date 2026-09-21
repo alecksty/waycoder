@@ -593,3 +593,55 @@ double4   = 3002001          ← D0..D3
 | 平台 | `WayCoder.Maui/Services/VmlAudio.cs` 等 | MAUI 没提供的（音频合成）放这里，`#if ANDROID` + 其它平台空实现 |
 | 渲染/输入 | `WayCoder.Maui/Pages/DrawWindowPage.xaml.cs` | 场景出图、触摸/按键投消息 |
 | 示例 | `third_party/vml/Examples/c/*.c` | C 直接 `SYSCALL #nnn`（`Examples/` **不在** sync.sh 的同步范围，本地改动能留住） |
+
+---
+
+## 9. 命令行那条路：终端**输入/输出**契约（v0.96.351/352）
+
+上面 §2 那批号是**绘图窗口**的（保留模式、`ui_*`）。**命令行窗**走的是另一条路 ——
+程序的 `putchar`/`getchar`（`#4`/`#5`）经宿主直接上屏/取键，**一个 syscall 号都不占**。
+它有自己的契约，做新功能（尤其**第三种"电脑屏"窗口**）时要照同一套走。
+
+### 9.1 输出：**边跑边出**，网格是"替换那一块"
+
+    程序 putchar → CaptureIo 攒 → **输出泵**（80ms / 16KB 节流）→ ShellStream → 命令行页
+
+- `ShellStream` 判这段输出是**线性**（往下堆，**追加**）还是**全屏**（一屏一屏画，**替换那一块**）
+- **呈现方式一旦定下就不可逆** ⇒ 探测期**攒着不出**，判定了再一次性决定
+  （所以不需要"已 append 的文本怎么撤回"那套逻辑）
+- ⚠ 判定**必须能区分"确定不是全屏"与"序列被截断、还下不了结论"**
+  （`ScreenOutput.Scan` 的 out 参数就是为此加的）—— 混成一个 `false` 会把全屏程序
+  在块边界上**永久**误判成线性
+
+### 9.2 输入：**逐键**，特殊键 = **ANSI 序列**
+
+程序调 `getchar()`（`#5`）拿到的是**一个键**，不是一行 —— 交互式程序（`vim`/`top`/`mc`）
+就是靠它工作的。**特殊键按 xterm 的老约定翻成 ANSI 序列**（跨语言契约）：
+
+| 键 | 字符流 |
+|---|---|
+| Esc | `\x1b` |
+| 方向键 | `\x1b[A` / `B` / `C` / `D` |
+| Home / End | `\x1b[H` / `\x1b[F` |
+| PgUp / PgDn | `\x1b[5~` / `\x1b[6~` |
+| Delete | `\x1b[3~` |
+| F1–F4 | `\x1bOP` `\x1bOQ` `\x1bOR` `\x1bOS` |
+| F5–F12 | `\x1b[15~` `\x1b[17~` `\x1b[18~` `\x1b[19~` `\x1b[20~` `\x1b[21~` `\x1b[23~` `\x1b[24~` |
+
+**为什么照 xterm 而不自己编号**：ncurses 那套程序本来就认这些序列，
+自己发明一套等于让它们解不出来。附带好处是**软键盘、外接键盘、程序侧只有一种表示**。
+
+⚠ **软键盘产生不了 Esc / 方向键 / F 键** —— 那些只有**外接键盘**才有
+（软键盘只产生文字）。所以 `vim` 这类在手机软键盘上**退不出来**；
+**第三种窗口（电脑屏）要配一排屏幕按键**，正是为了补这个缺口。
+
+⚠ 目前**只有 Android 接了外接键盘**（`View.KeyPress`）；iOS/MacCatalyst/Windows 还没接。
+
+### 9.3 落点
+
+| 层 | 文件 |
+|---|---|
+| 流式判定（纯逻辑、可自测） | `WayCoder/UI/Shared/Terminal/ShellStream.cs` |
+| 按键队列（纯逻辑、可自测） | `WayCoder/UI/Shared/Terminal/KeyQueue.cs` |
+| 输出泵 / 逐键源 | `WayCoder.Maui/Services/MauiVml.cs`（`OnOutputChunk` / `Run(..., readKey:)`） |
+| 命令行页（追加 vs 替换、两路键盘） | `WayCoder.Maui/Pages/ShellPage.xaml.cs` |

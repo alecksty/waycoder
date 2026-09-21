@@ -93,9 +93,13 @@ GitHub 代码搜索（C 文件里含 `#include <…>` 的**文件数**，2026-09
    `move`/`addch`/`addstr`/`refresh`/`getch`/`attron`/`COLOR_PAIR`/`keypad`/`nodelay`/`cbreak`。
 3. **`dos.h`** —— `delay` / `sound` / `nosound` / `geninterrupt` 里能做的那部分
    （`sound` 直接接 `#57 SpeakerBeep`；`geninterrupt` 不做，那是 x86 专属）。
-4. **`graphics.h`（BGI）** —— 老 DOS 图形程序。**最后做**：它的语义是一套独立绘图 API，
-   而 BASIC 那条 `SCREEN`/`LINE`/`CIRCLE` 的 PcGfx 路径**是往固定 DOS 内存地址写**的、
-   不是手机那扇窗口，照搬会得到"能编译但画不出来"。要做就得整体改写成 `ui_*`。
+4. ~~**`graphics.h`（BGI）**~~ —— **已定案不做**（v0.96.351，见
+   [`docs/老程序兼容性.md`](docs/老程序兼容性.md) 第七节）。
+   用户原话：「**所有直接写内存来画图的接口都不需要了，过时了**」「gfx 那套没用，
+   现在是对接手机接口」。画图一律走 `ui_*`（号段 500–599）。
+   ⚠ `Lib/c/graphics.h` 与 `gfx.h` **留在 `third_party/vml/PRUNED.txt` 里，别捞回来**，
+   `graphics.c`/`graph.c`/`graph.vml` 保持现状不动。
+   老程序的图形需求走**第三种窗口（电脑屏）+ `ui_*`**。
 
 ### 判据（怎么算"做到了"）
 
