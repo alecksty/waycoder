@@ -45,6 +45,49 @@ namespace BasicCompiler
         private readonly Dictionary<string, int> _constValues = new();
 
         /// <summary>
+        /// 把一个**常量表达式**折成整数 —— 只认 `字面量` / `已登记的常量名` /
+        /// `+ - * /` 的组合（`PAREN` 由表达式树本身消化了）。
+        ///
+        /// <para>
+        /// 为什么要它：`CONST GCELLS = GW * GH` 这种**引用别的常量**的写法很常见，
+        /// 而只收字面量的话 `GCELLS` 进不了表 ⇒ `DIM bd(GCELLS)` 分不到格子
+        /// （实测只分到 1 格、后面全写越界，表现为"空格数 0、右下角不是墙"）。
+        /// </para>
+        /// <para>
+        /// 折不了就返回 false —— 调用方退回占位行为，**不更糟**。别在这里追求完备：
+        /// 真正需要的是"常见写法能过"，不是实现一个完整的常量折叠。
+        /// </para>
+        /// </summary>
+        private bool TryEvalConst(Expression e, out int value)
+        {
+            value = 0;
+            if (e is NumberLiteral num)
+            {
+                value = (int)num.Value;
+                return true;
+            }
+            if (e is Identifier id)
+                return _constValues.TryGetValue(id.Name.ToLower(), out value);
+            if (e is BinaryExpression bin)
+            {
+                if (!TryEvalConst(bin.Left, out int lv)) return false;
+                if (!TryEvalConst(bin.Right, out int rv)) return false;
+                switch (bin.Operator)
+                {
+                    case "+": value = lv + rv; return true;
+                    case "-": value = lv - rv; return true;
+                    case "*": value = lv * rv; return true;
+                    case "/":
+                        if (rv == 0) return false;
+                        value = lv / rv;
+                        return true;
+                    default: return false;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// 源文件里出现过 `OPTION EXPLICIT` ⇒ **变量必须先声明**，未声明的引用报**错误**；
         /// 没出现则报**警告**（QBasic 默认「未声明即隐式全局、值 0」是合法语义）。
         ///

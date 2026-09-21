@@ -676,9 +676,19 @@ namespace BasicCompiler
 
             stmt.Value = ParseExpression();
             // 记进解析期常量表 —— `DIM a(N)` 的维度要用（见 `_constValues` 的说明）。
-            // 只收字面量：`CONST N = M * 2` 这类表达式这里解不了（没有常量折叠）。
-            if (stmt.Value is NumberLiteral cnum)
-                _constValues[stmt.Name.ToLower()] = (int)cnum.Value;
+            // 用 `TryEvalConst` 而不是 `is NumberLiteral`：`CONST GCELLS = GW * GH`
+            // 这种**引用别的常量**的写法同样要记进去（只收字面量的话它进不了表，
+            // `DIM bd(GCELLS)` 就分不到格子）。
+            if (TryEvalConst(stmt.Value, out int constVal))
+            {
+                _constValues[stmt.Name.ToLower()] = constVal;
+                // ⚠ **就地换成字面量**（v0.96.331）：常量表只有解析期这一张，
+                //   而**代码生成期**用的是它自己那份（从 ConstStatement 的 Value 建的）。
+                //   `CONST GCELLS = GW * GH` 这种表达式进不了那份表 ⇒ 生成期读 `GCELLS`
+                //   得 0（实测：`DIM bd(GCELLS)` 尺寸对了、而 `WHILE i < GCELLS` 一次都不跑）。
+                //   换成字面量之后两边**同源**，不用再让代码生成也实现一遍折叠。
+                stmt.Value = new NumberLiteral(stmt.Value.Line, stmt.Value.Column, constVal);
+            }
 
             // Handle comma-separated CONST declarations: CONST a=1, b=2, c=3
             while (Peek().Type == TokenType.COMMA)
@@ -693,6 +703,8 @@ namespace BasicCompiler
                     break;
                 Advance(); // skip =
                 extraConst.Value = ParseExpression();
+                if (TryEvalConst(extraConst.Value, out int extraVal))
+                    _constValues[extraConst.Name.ToLower()] = extraVal;
                 extraConsts.Add(extraConst);
             }
             

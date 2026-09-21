@@ -28,7 +28,7 @@ if [ ! -f "$CLI" ]; then
 fi
 
 pick=("$@")
-pass=0; fail=0
+pass=0; fail=0; red=0
 for f in "$CASES"/*.bas; do
     name="$(basename "$f")"
     if [ ${#pick[@]} -gt 0 ]; then
@@ -39,6 +39,11 @@ for f in "$CASES"/*.bas; do
     out="$(dotnet "$CLI" "$f" 2>&1)"
     # 用例里带 `' EXPECT:` 注释行给期望值；逐行比对
     exp="$(grep -o "EXPECT:.*" "$f" | sed 's/EXPECT: *//')"
+    # **已知红**：这条判据压的是"已确认、尚未修"的缺陷。留它在套件里的价值是
+    # **钉住症状**（修好那天它会自己变绿），但它不该被算进"通过/失败" ——
+    # 否则「N/N 全绿」这个信号就被一条已知项永久污染了（vml-abi-probe 同款处置）。
+    known_red=0
+    if grep -q "KNOWN-RED" "$f"; then known_red=1; fi
     if [ -z "$exp" ]; then
         printf "  %-16s %s\n" "$name" "$(echo "$out" | grep -E '^[A-Za-z0-9-]+=' | tr '\n' ' ')"
         continue
@@ -47,6 +52,9 @@ for f in "$CASES"/*.bas; do
     if [ "$got" = "$exp" ]; then
         printf "  ✅ %-16s %s\n" "$name" "$got"
         pass=$((pass+1))
+    elif [ "$known_red" = 1 ]; then
+        printf "  ⚠️  %-16s 已知红（缺陷未修）：期望 %s / 实得 %s\n" "$name" "$exp" "$got"
+        red=$((red+1))
     else
         printf "  ❌ %-16s\n     期望 %s\n     实得 %s\n" "$name" "$exp" "$got"
         fail=$((fail+1))
@@ -54,5 +62,5 @@ for f in "$CASES"/*.bas; do
 done
 
 echo "──────────────────────────────────────────────"
-echo "通过 $pass / 失败 $fail"
+echo "通过 $pass / 失败 $fail / 已知红 $red"
 [ "$fail" -eq 0 ]
