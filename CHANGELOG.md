@@ -47,16 +47,40 @@
 说明那个判据**太宽**。`LabelRef` 的价值正在于它**明确知道自己是标签**，
 不必靠名字形状猜。
 
-### 三、按定位做的 `extern` 三步：**没生效**
+### 三、`extern` 支持：**判据先行，一次到位**
 
-`VariableDecl.IsExtern` 已加、解析器的存储类捕获**本来就认 `EXTERN`**（只是没人读）、
-生成侧也过滤了 `!v.IsExtern` —— **三处代码看起来都对，产物却没变**
-（`stdscr: .word 0` 仍在）。
+第一版按「看起来对」改了三处（AST 字段 / 解析器 / 生成过滤），**产物却没变**。
+**没有继续猜第四处**，而是按上一版写下的规矩**先打判据**：
 
-**下一轮的第一件事**：在过滤处打一行，确认 `ast.Variables` 里那个 `stdscr` 的
-`IsExtern` **到底是不是 `true`** —— 而不是再猜「哪一环没接上」。
-**判据优先于推理**：本轮凡是先做判据的地方（`S4` 判据、主机探针日志）都一步定位，
-凡是先推理的地方（「数组赋值丢写内存」「`addwstr` 有多字节 bug」）都绕了远路。
+    [EXT] name=stdscr IsExtern=False used=True inUsedVars=True
+
+`IsExtern=False` ⇒ 问题**在解析侧**，不在生成侧。顺着查下去：
+
+- **`Parser.Statements.cs`** 那条分支读的是 `storageClassToken`，认 `EXTERN` ✓
+- 但 `curses.h` 的顶层声明走的是**另一条路** —— `Parser.Declarations.cs`，
+  它把存储类读进了**局部字符串 `storageClass`**，而**从来没用它**
+  （只用于 typedef 判断）⇒ `extern` 在那条路上**丢了**
+
+补上之后 `IsExtern=True`、`inUsedVars=False` ✓，但立刻冒出**新错**：
+`未声明的变量 'stdscr'` —— 因为代码生成查的是 `dataSection`，而 extern 变量
+**已经不往里放了**。
+
+⇒ 还需要**登记 extern 变量名**（`externVariables`），让代码生成仍能识别它们：
+生成的仍是 `MEMORY(name)`（标签引用），由链接器解析到库里那份定义
+（链接器会给库标签造裸别名）。三处查表点一并加上。
+
+**结果**（20 号用例）：
+
+    之前： S2=0    S4=0        （stdscr 恒为 NULL）
+    现在： S2=1    S4=5207     （真实地址）
+
+⚠ **中途一个自己造的坑**：用脚本批量替换 `dataSection.ContainsKey(x)` 时，
+表达式被写成 `a && b || externVariables.Contains(...)` —— **`&&` 优先级高于 `||`**，
+语义整个变了。已加括号。**脚本改代码必须回读**（本仓的老规矩）。
+
+**剩下的**：`S`（`getmaxyx(w,…)` 读 `w->rows`）与 `S3`（`w != stdscr`）——
+那是**另一个问题**：`initscr()` 的返回值与使用者读到的 `stdscr`
+**不是同一个对象**，与 `extern` 无关。
 
 **判据**：`vml-c-probe` **18 通过 / 0 失败 / 2 已知红**。
 

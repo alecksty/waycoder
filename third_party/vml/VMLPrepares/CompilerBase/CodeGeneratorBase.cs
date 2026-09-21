@@ -136,6 +136,14 @@ namespace CompilerBase
         }
 
         protected Dictionary<string, int> labels;
+        /// <summary>
+        /// `extern` 声明的全局变量名 —— 它们**不占数据段槽位**（存储由别处定义），
+        /// 但代码生成**必须认识这些名字**，否则引用它们会报「未声明的变量」。
+        /// 生成的仍是 `MEMORY(name)`（标签引用），由链接器解析到库里那份定义
+        /// （链接器会给库标签造裸别名）。
+        /// 见 `VariableDecl.IsExtern`。
+        /// </summary>
+        protected readonly HashSet<string> externVariables = new();
         protected Dictionary<string, object> dataSection;
         protected Dictionary<string, object> constants;
         /// <summary>原始汇编指令行 (如 .skip 0x6000, 0x1000)，直接插入到输出中</summary>

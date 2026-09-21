@@ -808,11 +808,22 @@ namespace CCompiler
                             {
                                 // 全局变量（支持逗号分隔的多个变量）
                                 VariableDecl var = ParseVariableDecl(typeName, name);
+                                /* ⚠ **顶层声明这条路也要认 `extern`** ——
+                                   本函数上面（第 94 行一带）早就把存储类读进了**局部字符串**
+                                   `storageClass`，但**从来没用它**（只用于 typedef 判断）；
+                                   而 `Parser.Statements.cs` 里那条同类分支是读 `storageClassToken`
+                                   设 `IsStatic` 的 —— **两条路各写各的**，于是 `extern`
+                                   只在那一条上被认，顶层这条漏掉。
+                                   实测：`curses.h` 的 `extern WINDOW *stdscr;` 正是走**这条**，
+                                   所以 `IsExtern` 一直是 false（判据 `VML_TRACE_EXTERN=1` 打的
+                                   `[EXT] name=stdscr IsExtern=False`）。 */
+                                if (storageClass == "extern") var.IsExtern = true;
                                 program.Variables.Add(var);
                                 while (Match(TokenType.COMMA))
                                 {
                                     name = Expect(TokenType.IDENTIFIER).Value.ToString();
                                     var = ParseVariableDecl(typeName, name);
+                                    if (storageClass == "extern") var.IsExtern = true;
                                     program.Variables.Add(var);
                                 }
                                 Expect(TokenType.SEMICOLON);

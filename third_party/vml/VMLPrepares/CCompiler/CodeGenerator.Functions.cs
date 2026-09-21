@@ -93,6 +93,13 @@ namespace CCompiler
                     usedVariables.Add(v);
             }
 
+            // `extern` 变量：不进数据段，但**登记名字**供代码生成识别
+            externVariables.Clear();
+            foreach (var v in ast.Variables)
+            {
+                if (v.IsExtern) externVariables.Add(v.Name);
+            }
+
             // 所有全局变量都需要类型信息
             foreach (var varDecl in ast.Variables)
             {

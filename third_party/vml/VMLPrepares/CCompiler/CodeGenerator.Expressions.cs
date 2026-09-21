@@ -140,7 +140,8 @@ namespace CCompiler
                     else
                         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, -arrOffset) }));
                 }
-                else if (globalArrayVars.Contains(ident.Name) && dataSection.ContainsKey(ident.Name))
+                else if ((globalArrayVars.Contains(ident.Name) && dataSection.ContainsKey(ident.Name))
+                         || externVariables.Contains(ident.Name))
                 {
                     // 全局数组: 加载数据段标签地址 (LABEL 作为立即数地址)
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, ident.Name) }));
@@ -169,7 +170,7 @@ namespace CCompiler
                         // 枚举常量 → 立即数加载
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, enumVal) }));
                     }
-                    else if (dataSection.ContainsKey(ident.Name))
+                    else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                     {
                         // 全局变量
                         instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, ident.Name) }));
@@ -316,7 +317,7 @@ namespace CCompiler
                     tv = ExpVar.Data(staticLabel, expType);
                 else if (variables.TryGetValue(ident.Name, out int offset))
                     tv = ExpVar.Stack(offset, 12, expType);
-                else if (dataSection.ContainsKey(ident.Name))
+                else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                     tv = ExpVar.Data(ident.Name, expType);
                 else
                     return WrapExpr(node);
@@ -630,7 +631,7 @@ namespace CCompiler
                     // 局部变量
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"{FormatVarOffset(ident.Name)}"), new Operand(OperandType.REGISTER, 0) }));
                 }
-                else if (dataSection.ContainsKey(ident.Name))
+                else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                 {
                     // 全局变量
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, ident.Name), new Operand(OperandType.REGISTER, 0) }));
@@ -758,7 +759,7 @@ namespace CCompiler
                     // static局部数组：用data section标签地址
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, staticLocals[ident.Name]) }));
                 }
-                else if (dataSection.ContainsKey(ident.Name))
+                else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                 {
                     // 全局**指针变量**（`char *s = "…"` / `char **p`）不是数组：下标作用在
                     // 它**指向的对象**上 ⇒ 基址是它的**值**（加载），不是它自己的槽地址（标签）。
@@ -1171,7 +1172,7 @@ namespace CCompiler
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 12) }));
                     }
                 }
-                else if (dataSection.ContainsKey(ident.Name))
+                else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                 {
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, ident.Name) }));
                 }
@@ -1439,7 +1440,7 @@ namespace CCompiler
                         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, offsetVal) }));
                     }
                 }
-                else if (dataSection.ContainsKey(addrIdent.Name))
+                else if (dataSection.ContainsKey(addrIdent.Name) || externVariables.Contains(addrIdent.Name))
                 {
                     // 全局变量地址: 使用标签
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, addrIdent.Name) }));
@@ -1507,7 +1508,7 @@ namespace CCompiler
                         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, offsetVal) }));
                     }
                 }
-                else if (dataSection.ContainsKey(lvalueIdent.Name))
+                else if (dataSection.ContainsKey(lvalueIdent.Name) || externVariables.Contains(lvalueIdent.Name))
                 {
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, lvalueIdent.Name) }));
                 }
