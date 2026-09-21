@@ -112,6 +112,29 @@ public static class VmlUi
     public const int DrawEllipse = 527;
     /// <summary>文字：x y 文本* 颜色 字号 锚点(0左/1中/2右) → 0。</summary>
     public const int DrawText = 528;
+
+    /// <summary>
+    /// 文字（**带竖对齐**）：x y 文本* 颜色 字号 横锚点(0左/1中/2右) **竖对齐**(0顶/1中/2底) **样式位**(1粗 2斜) → 0。
+    ///
+    /// ⚠ 寄存器**排布与老号 <see cref="DrawText"/> 不同**：老号 R6 是样式位，本号 R6 是竖对齐、
+    /// R7 才是样式位。这正是走新号的原因（老程序 R6 里可能是任何东西），但**两条包装函数
+    /// 的参数序要照着各自那行写**，别把一个抄到另一个上。
+    ///
+    /// ## 为什么是**新号**而不是给 <see cref="DrawText"/> 加个参数
+    ///
+    /// 老程序只传前六个参数，**第七只寄存器里是它自己上一句留下的值**（可能是个计数、
+    /// 可能是个指针）—— 宿主无从判断"这是不是真给了"。加参数 = 让老程序的行为
+    /// 变成**未定义的**，而它们本来跑得好好的。这条铁律在本仓记过多次
+    ///（`WIN_OPEN_EX` / `MSG_POLL_EX` / `MSG_WAIT_EX` 当初也是这么分的）。
+    ///
+    /// ## 缺的到底是什么
+    ///
+    /// 原先只有**横**锚点：程序写"横中"时文字确实居中了，**纵向却仍然顶着 `y`**
+    /// ⇒ 摆在方框/按钮正中看着偏上。修之前只能由程序自己按字号估半个行高，
+    /// 每个例子各估一次、还估不准。默认（不传这一位）= **顶对齐 = 老行为**，
+    /// 所以老程序一个像素都不变。
+    /// </summary>
+    public const int DrawTextEx = 581;
     /// <summary>图标：x y 图标名* 尺寸 颜色 → 0（走 emoji 文本，见 <see cref="VmlScene.AddIcon"/>）。</summary>
     public const int DrawIcon = 529;
     /// <summary>图片：x y 路径* w h → 0。</summary>
@@ -1363,6 +1386,30 @@ public sealed class VmlScene
         var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
         Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{bi}");
     }
+
+    /// <summary>
+    /// 带**竖对齐**的文字（<see cref="DrawTextEx"/> 的落点）。
+    /// <paramref name="vAlign"/>：0=顶（= 老行为）1=中 2=底。
+    /// </summary>
+    public void AddTextEx(int x, int y, string text, uint color, int fontSize, int anchor, int vAlign, int style = 0)
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        if (string.IsNullOrEmpty(text)) return;
+        text = CapText(text);
+        fontSize = Dim(fontSize);
+        var w = (style & TextBold) != 0 ? "bold" : "";
+        var i = (style & TextItalic) != 0 ? "italic" : "";
+        var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
+        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}{VAnchorName(vAlign)}{bi}");
+    }
+
+    /// <summary>竖对齐的 DSL 记号 —— **`v` 前缀**，与横锚点的 `middle` 不重名（同名两义只能靠猜）。</summary>
+    private static string VAnchorName(int v) => v switch
+    {
+        1 => " vcenter",
+        2 => " vbottom",
+        _ => "",                       // 0 = 顶 = 老行为：**不写这个词**，产物与从前逐字相同
+    };
 
     /// <summary>当前文字属性（<see cref="SetFont"/> 设、<see cref="Text"/> 用）。宿主侧状态，不占 VML 内存。</summary>
     public int FontSize { get; set; } = 16;

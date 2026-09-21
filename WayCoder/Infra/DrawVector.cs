@@ -189,7 +189,9 @@ public static class DrawVector
             return;
         }
         if ((f.Fill >> 24) == 0) return;
-        var p = f.Transform.Apply(f.Args[0], f.Args[1]);
+        // 竖对齐的偏移**加在局部 y 上**、再走变换 —— 与 SVG / 光栅两条路同源
+        // （`DrawParse.TextVOffset`），别在这里另算一个（那就是"文字盒第三份实现"）。
+        var p = f.Transform.Apply(f.Args[0], f.Args[1] + DrawParse.TextVOffset(f));
         var size = f.FontSize * f.Transform.ScaleFactor;
         var bold = f.FontWeight.Contains("bold", StringComparison.OrdinalIgnoreCase);
         var italic = f.FontStyle.Contains("italic", StringComparison.OrdinalIgnoreCase);

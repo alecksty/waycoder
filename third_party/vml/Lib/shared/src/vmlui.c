@@ -134,6 +134,12 @@ void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int 
     asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${style}");
 }
 
+/* 带**竖对齐**的文字。valign: 0=顶（= 老行为）1=中 2=底；style: 1=粗 2=斜。
+ * 新号 #581 —— 给老号 #528 加参数会让老程序读到自己上一句留下的垃圾值。 */
+void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style) {
+    asm("SYSCALL #581, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${valign}, ${style}");
+}
+
 /* 设置当前文字属性：字号 / 样式位 (1=粗 2=斜) / 颜色 / 锚点。 */
 void ui_set_font(int size, int style, int color, int anchor) {
     asm("SYSCALL #532, ${size}, ${style}, ${color}, ${anchor}");

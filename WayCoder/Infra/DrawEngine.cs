@@ -242,6 +242,17 @@ public sealed class DrawFigure
     public bool Dashed;
     public double FontSize = 14;
     public string Anchor = "start";
+    /// <summary>
+    /// 文字**竖对齐**：`top`（默认）| `center` | `bottom`。
+    ///
+    /// 为什么默认是"顶"：`TextBlockBox` 的 `Y` 本来就等于文字图元的 `y`（盒顶 = `y`），
+    /// 也就是说**老行为就是顶对齐** —— 所以加这一档是**纯增量**，老程序一个像素都不变。
+    ///
+    /// 用户报的问题正是缺这一档：程序写 `text x y "…" … middle`（横锚点=中）时，
+    /// 文字**横向居中了、纵向却仍顶着 y** ⇒ 放在方框/按钮正中时看着偏上。
+    /// 修之前只能靠程序自己估字号、手工减半个行高 —— 每个例子各估一次，还估不准。
+    /// </summary>
+    public string VAnchor = "top";
     public string FontFamily = "sans-serif";
     public string FontWeight = "normal";
     public string FontStyle = "normal";

@@ -62,6 +62,7 @@ void nyan_show(char ** fr)
 {
     int y, x;
     char last = 0;
+    printf("\x1b[H");                  /* 回到原点重画 —— 原版的动画就靠这一句 */
     for (y = 20; y < 43; y++) {
         for (x = 10; x < 50; x++) {
             if (fr[y][x] != last) {
@@ -72,13 +73,19 @@ void nyan_show(char ** fr)
         }
         printf("\n");
     }
-    printf("\x1b[0m\n");
+    printf("\x1b[0m");
 }
 
 int main()
 {
-    nyan_show(frame0);
-    nyan_show(frame1);
-    nyan_show(frame2);
+    int i;
+    /* 原版是 `while (playing)` 无限循环 + `usleep(90000)`。这里跑**有限帧**：
+       手机上"跑完给结果"，无限循环只能靠超时杀。帧数取 3 的倍数，看得到循环。 */
+    for (i = 0; i < 12; i++) {
+        if (i % 3 == 0) nyan_show(frame0);
+        else if (i % 3 == 1) nyan_show(frame1);
+        else nyan_show(frame2);
+    }
+    printf("\n");
     return 0;
 }

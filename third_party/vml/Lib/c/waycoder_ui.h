@@ -92,6 +92,15 @@
 #define VML_ANCHOR_CENTER 1
 #define VML_ANCHOR_RIGHT  2
 
+/* ── 文字**竖对齐**（配 `ui_text_v`；老接口没有这一档）──
+ *
+ * 缺这一档时，程序写"横中"只能得到**横向居中、纵向顶着 y** —— 摆在方框/按钮正中看着偏上。
+ * 修之前每个程序都得自己按字号估半个行高，还估不准。
+ * 默认（TOP）就是老行为，所以老程序一个字都不用改。 */
+#define VML_VANCHOR_TOP    0
+#define VML_VANCHOR_MIDDLE 1
+#define VML_VANCHOR_BOTTOM 2
+
 /* ── 对话框 ── */
 int  ui_dlg_msg(char* title, char* body, int style);
 int  ui_dlg_select(char* title, char* body, char* opts, int n, int def);
@@ -150,6 +159,9 @@ void ui_present(void);
 /* ── 文字 ── */
 void ui_text(int x, int y, char* s, int color, int size, int anchor);
 void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
+/* 带**竖对齐**的文字（新号 #581）—— valign 见 VML_VANCHOR_*，style 见 VML_FONT_*。
+ * ⚠ 与 `ui_text_styled` **参数序不同**（那个第 7 个是 style），别互相照抄。 */
+void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);
 void ui_set_font(int size, int style, int color, int anchor);
 void ui_text_cur(int x, int y, char* s);
 

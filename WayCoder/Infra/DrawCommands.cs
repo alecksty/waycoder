@@ -113,6 +113,24 @@ internal static class DrawParse
     public static (double X, double Y, double W, double H) TextBox(DrawFigure f)
         => DrawGeo.TextBlockBox(f, MeasureLineWidth(f, LongestLine(f.Text)));
 
+    /// <summary>
+    /// 文字块的**竖向偏移**（局部单位），三条后端（SVG / 光栅 / 矢量）**共用这一份**。
+    ///
+    /// 基准盒走 <see cref="TextBox"/> —— 与**文字渐变采样**用的是同一个盒。
+    /// 各算各的就是"文字盒三份实现"，而本仓头号坑正是"同一规则两处实现"。
+    ///
+    /// 三档语义（盒高 = 行距×(行数-1) + 字号）：
+    /// · `top`（默认）= 盒顶落在 `y` —— **就是老行为**，偏移 0；
+    /// · `center` = 盒竖直中心落在 `y` ⇒ 上移半个盒高；
+    /// · `bottom` = 盒底落在 `y` ⇒ 上移一个盒高。
+    /// </summary>
+    public static double TextVOffset(DrawFigure f)
+    {
+        if (f.VAnchor is not ("center" or "bottom")) return 0;
+        var h = TextBox(f).H;
+        return f.VAnchor == "center" ? -h / 2 : -h;
+    }
+
     /// <summary>刷子的 SVG 取值：渐变 → `url(#id)`，纯色 → 十六进制。</summary>
     public static string Paint(string? gradientRef, uint solid)
         => gradientRef != null ? "url(#" + EscapeXml(gradientRef) + ")" : ColorUtil.ToHex(solid);
@@ -864,7 +882,7 @@ internal sealed partial class PathCommand : IDrawCommand
     }
 }
 
-/// <summary>text x y "内容" [size] [color] [anchor] [bold|italic|bolditalic] [fontFamily]</summary>
+/// <summary>text x y "内容" [size] [color] [anchor] [vtop|vcenter|vbottom] [bold|italic|bolditalic] [fontFamily]</summary>
 internal sealed partial class TextCommand : IDrawCommand
 {
     public string Name => "text";
@@ -888,6 +906,13 @@ internal sealed partial class TextCommand : IDrawCommand
             if (Canvas.TryNum(s, out var v)) { f.FontSize = v; continue; }
             var low = s.ToLowerInvariant();
             if (low is "start" or "middle" or "end") { f.Anchor = low; continue; }
+            // 竖对齐：**刻意用 v 前缀**，不与横锚点的 `middle` 重名 —— 同名两义会让
+            // `text … middle` 到底是"横中"还是"竖中"全靠猜（本仓最忌讳的一类）。
+            if (low is "vtop" or "vcenter" or "vbottom")
+            {
+                f.VAnchor = low switch { "vcenter" => "center", "vbottom" => "bottom", _ => "top" };
+                continue;
+            }
             if (low is "bold" or "b") { f.FontWeight = "bold"; continue; }
             if (low is "italic" or "i") { f.FontStyle = "italic"; continue; }
             if (low is "bolditalic" or "bold-italic" or "bi") { f.FontWeight = "bold"; f.FontStyle = "italic"; continue; }
@@ -899,7 +924,7 @@ internal sealed partial class TextCommand : IDrawCommand
     {
         // 多行文字：按 \n 拆分为多个 <tspan>（x 对齐锚点，dy 逐行下移），单行保持原样。
         var lines = (f.Text ?? "").Split('\n');
-        sb.Append("  <text x=\"").Append(DrawParse.F(f.Args[0])).Append("\" y=\"").Append(DrawParse.F(f.Args[1]))
+        sb.Append("  <text x=\"").Append(DrawParse.F(f.Args[0])).Append("\" y=\"").Append(DrawParse.F(f.Args[1] + DrawParse.TextVOffset(f)))
           .Append("\" font-family=\"").Append(DrawParse.EscapeXml(f.FontFamily))
           .Append("\" font-size=\"").Append(DrawParse.F(f.FontSize))
           .Append("\" font-weight=\"").Append(f.FontWeight)
@@ -928,7 +953,9 @@ internal sealed partial class TextCommand : IDrawCommand
     {
         // 变换仅平移锚点，字重/斜体近似；旋转文字不支持（保持轴对齐）。
         // 均匀缩放（含超采样）通过 ScaleFactor 缩放字号，使 PNG 与 SVG 在 scale 下尺寸一致。
-        var p = f.Transform.Apply(f.Args[0], f.Args[1]);
+        // 竖对齐的偏移**加在局部 y 上**、再走变换 —— 与 SVG 那条路同源（`TextVOffset`），
+        // 且在变换之前加，缩放/平移才不会把偏移量算错。
+        var p = f.Transform.Apply(f.Args[0], f.Args[1] + DrawParse.TextVOffset(f));
         double size = f.FontSize * f.Transform.ScaleFactor;
         // 优先 TrueType 系统字体（含字形抗锯齿），找不到则回退 5×7 位图。
         var font = TrueTypeFont.Resolve(f.FontFamily);

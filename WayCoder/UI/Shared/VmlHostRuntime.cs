@@ -330,6 +330,10 @@ public sealed class VmlHostRuntime
                 // 一次性文字：R6=样式位（粗/斜）。**R6 是后加的**，老程序不传就是 0=常规，
                 // 所以加它不破坏既有调用（寄存器默认 0）。
                 case VmlUi.DrawText: Scene()?.AddText(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5], registers[6]); TouchScene(); break;
+                // 带**竖对齐**的文字：多一个第七参数（0顶/1中/2底）。老号 528 语义一字未动。
+                // R6=竖对齐(0顶/1中/2底) R7=样式位(1粗 2斜) —— 与老号的 R6=样式**排布不同**，
+                // 靠号区分（这正是走新号的原因：老程序 R6 里可能是任何东西）。
+                case VmlUi.DrawTextEx: Scene()?.AddTextEx(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5], registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.SetFont: SetFont(registers); break;
                 case VmlUi.Text: Scene()?.AddTextCurrent(registers[0], registers[1], Str(memory, registers[2])); TouchScene(); break;
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;

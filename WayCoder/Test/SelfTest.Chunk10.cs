@@ -54,6 +54,33 @@ public static partial class SelfTest
         Check("注册表含 text", DrawCommandRegistry.Contains("text"));
         Check("注册表含 arrow", DrawCommandRegistry.Contains("arrow"));
         Check("注册表含 polygon", DrawCommandRegistry.Contains("polygon"));
+
+        // ── 文字**竖对齐**（v0.96.336）──
+        // 缺这一档时，程序写"横中"只能得到"横向居中、纵向顶着 y" —— 摆在方框正中看着偏上。
+        // 判据钉在**三后端共用的那一份偏移**上（SVG / 光栅 / 矢量都走它，只有一份）。
+        Section("[Draw.竖对齐]");
+        DrawFigure Txt(string v, int n)
+        {
+            var f = new DrawFigure { Kind = "text", Text = n <= 1 ? "x" : string.Join("\n", Enumerable.Repeat("x", n)), FontSize = 20, VAnchor = v };
+            f.Args.Add(0); f.Args.Add(100);
+            return f;
+        }
+        // 盒高 = 行距(字号×1.3) ×(行数-1) + 字号 ⇒ 单行 20、两行 46
+        Check("VAlign: 顶（默认）= 老行为、偏移 0",
+            DrawParse.TextVOffset(Txt("top", 1)) == 0 && DrawParse.TextVOffset(Txt("top", 2)) == 0);
+        Check("VAlign: 竖中 = 上移半个盒高（单行 20 → -10）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 1)) + 10) < 1e-9);
+        Check("VAlign: 竖中按**行数**算盒高（两行 46 → -23）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 2)) + 23) < 1e-9);
+        Check("VAlign: 底 = 上移一个盒高（两行 46 → -46）",
+            Math.Abs(DrawParse.TextVOffset(Txt("bottom", 2)) + 46) < 1e-9);
+
+        // DSL：`vtop/vcenter/vbottom` 要认，且**不与横锚点的 middle 重名**
+        var vfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vcenter"));
+        Check("VAlign: DSL 认 vcenter", vfig != null && vfig.VAnchor == "center");
+        var hfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 middle"));
+        Check("VAlign: 横锚点的 middle **不**被当成竖中",
+            hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "top");
         Console.WriteLine();
 
         // ── DrawRunner.Parse ──
@@ -955,6 +982,51 @@ public static partial class SelfTest
         TestShellWrap(Section, Check);
         TestShellControls(Section, Check);
         TestShellSize(Section, Check);
+        TestScreenOutput(Section, Check);
+    }
+
+    // ═══ 全屏输出判据：这段输出是"一屏一屏画"还是"一路往下堆" ═══
+    //
+    // 这条判据决定**整块输出的呈现方式**（网格 vs 折行堆叠），选错任何一边都是灾难性的：
+    // 把线性输出判成全屏 ⇒ 编译日志被塞进 80×25 的格子里、前面全丢；
+    // 把全屏判成线性 ⇒ 一屏画面被折行堆成几十屏（正是 nyancat 被"吃掉光标序列"后的样子）。
+    static void TestScreenOutput(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[命令行·全屏输出判据]");
+
+        // ── 认：光标定位 / 擦屏 ──
+        Check("ScreenOut: \\x1b[H（回原点重画）算全屏", ScreenOutput.LooksFullScreen("\x1b[H"));
+        Check("ScreenOut: \\x1b[2J（清屏）算全屏", ScreenOutput.LooksFullScreen("\x1b[2J"));
+        Check("ScreenOut: \\x1b[10;20H（行列定位）算全屏", ScreenOutput.LooksFullScreen("\x1b[10;20H"));
+        Check("ScreenOut: \\x1b[3A（光标上移）算全屏", ScreenOutput.LooksFullScreen("\x1b[3A"));
+        Check("ScreenOut: \\x1b[s（存光标）算全屏", ScreenOutput.LooksFullScreen("\x1b[s"));
+
+        // ── 不认（这几条是"别误伤"的那一侧，比认的那一侧更要紧）──
+        // `ESC[K`（擦到行尾）是 `\r` 进度条的常客 —— 认了会把普通构建输出也拽进网格
+        Check("ScreenOut: \\x1b[K（擦行尾）**不**算全屏（进度条靠它）",
+            !ScreenOutput.LooksFullScreen("progress\x1b[K"));
+        // 纯 SGR（颜色）当然不算：绝大多数输出都带颜色
+        Check("ScreenOut: 纯 SGR 颜色不算全屏",
+            !ScreenOutput.LooksFullScreen("\x1b[31mred\x1b[0m"));
+        Check("ScreenOut: 256 色/真彩 SGR 不算全屏",
+            !ScreenOutput.LooksFullScreen("\x1b[38;5;208mx\x1b[48;2;1;2;3my\x1b[0m"));
+        // 私有模式（隐藏光标）单独出现说明不了什么
+        Check("ScreenOut: 私有模式 \\x1b[?25l 不算全屏",
+            !ScreenOutput.LooksFullScreen("\x1b[?25lhello"));
+        Check("ScreenOut: 纯文本不算全屏", !ScreenOutput.LooksFullScreen("plain text\nline2"));
+        Check("ScreenOut: 空/空串不算全屏",
+            !ScreenOutput.LooksFullScreen("") && !ScreenOutput.LooksFullScreen(null));
+
+        // ⚠ 输出是**按块**拿到的，最后一段可能是半个序列 ⇒ 按"还没定论"处理，
+        //   绝不能把半个序列当成命中（那会让线性输出在分块边界上偶发地变成网格）。
+        Check("ScreenOut: 截断的 \\x1b[ 不算全屏", !ScreenOutput.LooksFullScreen("text\x1b["));
+        Check("ScreenOut: 截断的 \\x1b[10;2 不算全屏", !ScreenOutput.LooksFullScreen("text\x1b[10;2"));
+        // 半个 ESC 同理
+        Check("ScreenOut: 结尾孤立的 \\x1b 不算全屏", !ScreenOutput.LooksFullScreen("text\x1b"));
+
+        // 混合：前面一堆线性输出 + 后面来一次定位 ⇒ 整体按全屏（程序确实在按坐标画）
+        Check("ScreenOut: 线性输出里夹一次定位 ⇒ 算全屏",
+            ScreenOutput.LooksFullScreen("building...\n\x1b[2J\x1b[Hredraw"));
     }
 
     // ═══ 命令行窗口的三个尺寸模式（都不固定 / 横向固定 / 都固定） ═══
