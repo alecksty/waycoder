@@ -4,284 +4,284 @@
 .linked "../shared/color.vml"
 
 LABEL objc_rgb888_to_rgb565
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL rgb888_to_rgb565
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_rgb565_to_r
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL rgb565_to_r
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_rgb565_to_g
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL rgb565_to_g
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_rgb565_to_b
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL rgb565_to_b
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_rgb
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL rgb
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_red
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL red
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_green
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL green
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_blue
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL blue
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_grayscale
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL grayscale
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_blend
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL color_blend
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_brightness
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL color_brightness
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_hsv_to_rgb
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL hsv_to_rgb
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_black
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_black
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_white
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_white
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_red
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_red
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_green
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_green
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_blue
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_blue
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_yellow
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_yellow
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_cyan
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_cyan
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL objc_color_magenta
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL color_magenta
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL func_rgb888_to_rgb565

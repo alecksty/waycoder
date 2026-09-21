@@ -4,147 +4,147 @@
 .linked "../shared/statistics64.vml"
 
 LABEL dart_lmedian64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL lmedian64
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lrange64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL lrange64
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lcount_gt64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL lcount_gt64
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lcount_lt64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL lcount_lt64
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lcount_eq64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL lcount_eq64
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lvariance64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL lvariance64
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_lstd_dev64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL lstd_dev64
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_llinreg_slope64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL llinreg_slope64
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL dart_llinreg_intercept64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL llinreg_intercept64
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL func_lmedian64

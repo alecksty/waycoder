@@ -4,96 +4,96 @@
 .linked "../shared/parserexp.vml"
 
 LABEL scheme_NULL
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL NULL
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_is_hex_digit
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
     CALL is_hex_digit
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_skip_spaces
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL skip_spaces
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_next_token
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL next_token
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_parse_expr
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL parse_expr
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_parse_term
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL parse_term
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_parse_factor
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL parse_factor
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL scheme_parserexp
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL parserexp
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL func_NULL

@@ -26,8 +26,12 @@ namespace VMLRuntime
                 {
                     try
                     {
+                        // ⚠ 传 `_program.Labels`：寄存器形的内容（`R1` / `f1` / `d1`）到底是
+                        //   寄存器还是**同名标签**，只能由标签集裁定 —— 与汇编器
+                        //   `ResolveRegisterShapedNames` 同一条规则，判据必须同源。
+                        //   （本函数在 `labelAddresses` 填充**之前**跑，所以用 `_program.Labels`。）
                         if (op.Type == OperandType.MEMORY && op.Value is string s)
-                            op.Value = ParseMemoryString(s);
+                            op.Value = ParseMemoryString(s, _program.Labels);
                         else if (op.Type == OperandType.INDIRECT && op.Value is string istr)
                             op.Value = ParseIndirectString(istr);
                     }
@@ -48,17 +52,34 @@ namespace VMLRuntime
             return 0;
         }
 
-        private static DecodedMemAddr ParseMemoryString(string raw)
+        /// <param name="labels">
+        /// 本程序的标签表 —— 用来裁定「寄存器形」的名字到底是不是**同名标签**。
+        /// 与汇编器 <c>ResolveRegisterShapedNames</c> 同一条规则：**定义了同名的，就是标签**。
+        /// </param>
+        private static DecodedMemAddr ParseMemoryString(
+            string raw, IReadOnlyDictionary<string, int>? labels = null)
         {
-            var s = raw.Trim('[', ']');
+            // `@` 标记先剥掉（`@R12-8` / `[@R12-8]` / `[@R14-0]`）—— **与汇编器共用同一判据**
+            // （`RegisterSyntax.StripMarker`）。为什么运行时也要认：`@` 是**文本格式**的标记，
+            // 而这里正是运行时唯一按文本读寄存器的地方，若只认裸名，一旦哪条路径把带标记的
+            // 文本递进来（新前端、`.vmb` 往返、手工构造的 `Operand(MEMORY, "@R12-8")`），
+            // 下面那一串 `StartsWith("R")` 会**全部落空**、静默降级成「标签」——
+            // 不报错、不崩，只是地址算错（本仓反复踩过的"静默歧义"）。
+            var s = RegisterSyntax.StripMarker(raw.Trim('[', ']').Trim());
             var d = new DecodedMemAddr();
+
+            // 「这个名字是本程序的标签吗」—— 形状判归属的地方一律先问它。
+            // 不看形状：`R1` 与 `f1` 都可能是变量名（C 里 `int R1; int f1;` 完全合法），
+            // 而**定义**是作者留下的唯一显式信号。
+            bool IsLabel(ReadOnlySpan<char> t) => labels != null && t.Length > 0 && labels.ContainsKey(t.ToString());
 
             // AT&T 风格: -4(R12)
             int paren = s.IndexOf('(');
             if (paren >= 0 && s.EndsWith(")"))
             {
                 var offStr = s.Substring(0, paren).Trim();
-                var regStr = s.Substring(paren + 1).TrimEnd(')').Trim();
+                // AT&T 形态里也可能带标记（`8(@R12)`）—— 它在**括号内**，顶层的剥标记盖不到
+                var regStr = RegisterSyntax.StripMarker(s.Substring(paren + 1).TrimEnd(')').Trim());
                 if (regStr.StartsWith("R") && int.TryParse(regStr.AsSpan(1), out var r))
                 {
                     d.AddrKind = offStr.StartsWith('-') ? DecodedMemAddr.Kind.RegMinusOffset : DecodedMemAddr.Kind.RegPlusOffset;
@@ -74,6 +95,15 @@ namespace VMLRuntime
             {
                 var left = s.AsSpan(0, plus).Trim();
                 var right = s.AsSpan(plus + 1).Trim();
+                // `R1+4`：`R1` 若是本程序定义的标签（`int R1[3];` 的取址就是这个形状），
+                // 它是**标签加偏移**，不是"寄存器 R1 加偏移" —— 同上，先问标签集。
+                if (IsLabel(left))
+                {
+                    d.AddrKind = DecodedMemAddr.Kind.LabelPlusOffset;
+                    d.Label = left.ToString();
+                    d.Offset = ParseOffset(s.AsSpan(plus));
+                    return d;
+                }
                 if (left.StartsWith("R") && int.TryParse(left[1..], out var r))
                 {
                     int off = ParseOffset(right);
@@ -104,6 +134,13 @@ namespace VMLRuntime
             {
                 var left = s.AsSpan(0, minus).Trim();
                 var right = s.AsSpan(minus + 1).Trim();
+                if (IsLabel(left))
+                {
+                    d.AddrKind = DecodedMemAddr.Kind.LabelPlusOffset;
+                    d.Label = left.ToString();
+                    d.Offset = ParseOffset(s.AsSpan(minus));   // 含负号，与文件末尾那条标签分支同一写法
+                    return d;
+                }
                 if (left.StartsWith("R") && int.TryParse(left[1..], out var r))
                 {
                     d.AddrKind = DecodedMemAddr.Kind.RegMinusOffset;
@@ -122,6 +159,17 @@ namespace VMLRuntime
 
             if (s.StartsWith("R") && int.TryParse(s.AsSpan(1), out var rn))
             {
+                // ⚠ 但**同名标签优先**：`int R1;` 之后 `[R1]` 取的是那个**变量**。
+                //   不判这一条，运行时按「寄存器 R1 间接」解 ⇒ 读的是寄存器内容
+                //   （实测程序打印 0 而不是 99）。注意只有 `R` 打头的名字会踩到：
+                //   `F1`/`D1`/`L1` 不以 R 开头，本来就落进下面的标签分支 ⇒
+                //   **同一份源码里一个对一个错**，正是"按形状判归属"这类缺陷的指纹。
+                if (IsLabel(s))
+                {
+                    d.AddrKind = DecodedMemAddr.Kind.Label;
+                    d.Label = s;
+                    return d;
+                }
                 d.AddrKind = DecodedMemAddr.Kind.RegisterIndirect;
                 d.BaseReg = rn;
                 return d;
@@ -152,13 +200,16 @@ namespace VMLRuntime
 
         private static DecodedMemAddr ParseIndirectString(string raw)
         {
-            var s = raw.TrimStart('@');
+            // 剥标记同样走 `RegisterSyntax.StripMarker`（理由见 `ParseMemoryString`）
+            var s = RegisterSyntax.StripMarker(raw.Trim());
             var d = new DecodedMemAddr();
 
             // @[R14-0] 或 @[addr] 格式: 括号内为寄存器偏移或绝对地址
             if (s.StartsWith("[") && s.EndsWith("]"))
             {
-                var inner = s.AsSpan(1, s.Length - 2).Trim();
+                // ⚠ **括号里那一层也要剥**：`[@R14-0]` 顶层剥完是 `[@R14-0]`（`@` 在括号内），
+                //   不剥的话下面 `inner.StartsWith("R")` 落空 ⇒ 静默当成标签名 `@R14-0`。
+                var inner = RegisterSyntax.StripMarker(s.Substring(1, s.Length - 2).Trim()).AsSpan();
 
                 // @[R14-0] 格式: R14-0 → 寄存器偏移
                 int minus = inner.IndexOf('-');

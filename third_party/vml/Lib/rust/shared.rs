@@ -2,21 +2,21 @@
 fn lib(a0: i32) -> i32 {
     asm!("CALL lib")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn len(a0: i32) -> i32 {
     asm!("CALL len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get(a0: i32, a1: i32) -> i32 {
     asm!("CALL get")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -31,21 +31,21 @@ fn sort_bubble(a0: i32) {
 fn indexof(a0: i32, a1: i32) -> i32 {
     asm!("CALL indexof")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn last_indexof(a0: i32, a1: i32) -> i32 {
     asm!("CALL last_indexof")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn contains(a0: i32, a1: i32) -> i32 {
     asm!("CALL contains")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -76,14 +76,14 @@ fn push(a0: i32, a1: i32) {
 fn pop(a0: i32) -> i32 {
     asm!("CALL pop")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn shift(a0: i32) -> i32 {
     asm!("CALL shift")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -98,7 +98,7 @@ fn insert(a0: i32, a1: i32, a2: i32) {
 fn remove(a0: i32, a1: i32) -> i32 {
     asm!("CALL remove")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -109,56 +109,56 @@ fn join_str(a0: i32, a1: i32, a2: i32) {
 fn min(a0: i32) -> i32 {
     asm!("CALL min")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn max(a0: i32) -> i32 {
     asm!("CALL max")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sum(a0: i32) -> i32 {
     asm!("CALL sum")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn startswith(a0: i32, a1: i32) -> i32 {
     asm!("CALL startswith")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn endswith(a0: i32, a1: i32) -> i32 {
     asm!("CALL endswith")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _qs_swap(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _qs_swap")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _qs_partition(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _qs_partition")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _qs_recursive(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _qs_recursive")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -169,21 +169,21 @@ fn sort_quick(a0: i32) {
 fn bsearch(a0: i32, a1: i32) -> i32 {
     asm!("CALL bsearch")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llen64(a0: i32) -> i32 {
     asm!("CALL llen64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lget64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lget64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -198,21 +198,21 @@ fn lsort_bubble64(a0: i32) {
 fn lindexof64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lindexof64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llast_indexof64(a0: i32, a1: i32) -> i32 {
     asm!("CALL llast_indexof64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcontains64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lcontains64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -243,14 +243,14 @@ fn lpush64(a0: i32, a1: i32) {
 fn lpop64(a0: i32) -> i32 {
     asm!("CALL lpop64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lshift64(a0: i32) -> i32 {
     asm!("CALL lshift64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -265,679 +265,679 @@ fn linsert64(a0: i32, a1: i32, a2: i32) {
 fn lremove64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lremove64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmin_val64(a0: i32) -> i32 {
     asm!("CALL lmin_val64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmin_arr64(a0: i32) -> i32 {
     asm!("CALL lmin_arr64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmax_val64(a0: i32) -> i32 {
     asm!("CALL lmax_val64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmax_arr64(a0: i32) -> i32 {
     asm!("CALL lmax_arr64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lsum_val64(a0: i32) -> i32 {
     asm!("CALL lsum_val64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lsum64(a0: i32) -> i32 {
     asm!("CALL lsum64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lstartswith64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lstartswith64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lendswith64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lendswith64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn base64_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL base64_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _b64_decode_char(a0: i32) -> i32 {
     asm!("CALL _b64_decode_char")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn base64_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL base64_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _hex_str(a0: i32, a1: i32) -> i32 {
     asm!("CALL _hex_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_instr(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL basic_instr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_stringN(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_stringN")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_stringS(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_stringS")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_hex(a0: i32) -> i32 {
     asm!("CALL basic_hex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_oct(a0: i32) -> i32 {
     asm!("CALL basic_oct")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_mid3(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL basic_mid3")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_date_str() -> i32 {
     asm!("CALL basic_date_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_time_str() -> i32 {
     asm!("CALL basic_time_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_timer() -> i32 {
     asm!("CALL basic_timer")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_inputN(a0: i32) -> i32 {
     asm!("CALL basic_inputN")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_eof(a0: i32) -> i32 {
     asm!("CALL basic_eof")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_ucase(a0: i32) -> i32 {
     asm!("CALL basic_ucase")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_lcase(a0: i32) -> i32 {
     asm!("CALL basic_lcase")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_len(a0: i32) -> i32 {
     asm!("CALL basic_len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_asc(a0: i32) -> i32 {
     asm!("CALL basic_asc")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_chr(a0: i32) -> i32 {
     asm!("CALL basic_chr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_space(a0: i32) -> i32 {
     asm!("CALL basic_space")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_str_int(a0: i32) -> i32 {
     asm!("CALL basic_str_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_val(a0: i32) -> i32 {
     asm!("CALL basic_val")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_left(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_left")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_right(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_right")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_ltrim(a0: i32) -> i32 {
     asm!("CALL basic_ltrim")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_rtrim(a0: i32) -> i32 {
     asm!("CALL basic_rtrim")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_concat(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_concat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_abs(a0: i32) -> i32 {
     asm!("CALL basic_abs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_sgn(a0: i32) -> i32 {
     asm!("CALL basic_sgn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _sin_lookup(a0: i32) -> i32 {
     asm!("CALL _sin_lookup")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_sin(a0: i32) -> i32 {
     asm!("CALL basic_sin")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_cos(a0: i32) -> i32 {
     asm!("CALL basic_cos")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_tan(a0: i32) -> i32 {
     asm!("CALL basic_tan")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_sqr(a0: i32) -> i32 {
     asm!("CALL basic_sqr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_rnd() -> i32 {
     asm!("CALL basic_rnd")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_exp(a0: i32) -> i32 {
     asm!("CALL basic_exp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_log(a0: i32) -> i32 {
     asm!("CALL basic_log")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_atn(a0: i32) -> i32 {
     asm!("CALL basic_atn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_int(a0: i32) -> i32 {
     asm!("CALL basic_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn basic_point(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_point")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn clear(a0: i32, a1: i32) -> i32 {
     asm!("CALL clear")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn toggle(a0: i32, a1: i32) -> i32 {
     asm!("CALL toggle")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn test(a0: i32, a1: i32) -> i32 {
     asm!("CALL test")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn count(a0: i32) -> i32 {
     asm!("CALL count")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rotate_left(a0: i32, a1: i32) -> i32 {
     asm!("CALL rotate_left")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rotate_right(a0: i32, a1: i32) -> i32 {
     asm!("CALL rotate_right")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lowest_set(a0: i32) -> i32 {
     asm!("CALL lowest_set")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn highest_set(a0: i32) -> i32 {
     asm!("CALL highest_set")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mask(a0: i32) -> i32 {
     asm!("CALL mask")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn extract(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL extract")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_power_of_two(a0: i32) -> i32 {
     asm!("CALL is_power_of_two")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn next_power_of_two(a0: i32) -> i32 {
     asm!("CALL next_power_of_two")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_and(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_and")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_or(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_or")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_xor(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_xor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_not(a0: i32) -> i32 {
     asm!("CALL bit_not")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_shl(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_shl")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_shr(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_shr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rol(a0: i32, a1: i32) -> i32 {
     asm!("CALL rol")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ror(a0: i32, a1: i32) -> i32 {
     asm!("CALL ror")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_set(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_set")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_clear(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_clear")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_toggle(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_toggle")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bit_test(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_test")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_and64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_and64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_or64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_or64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_xor64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_xor64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_not64(a0: i32) -> i32 {
     asm!("CALL lbit_not64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_shl64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_shl64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_shr64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_shr64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lrol64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lrol64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lror64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lror64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_set64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_set64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_clear64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_clear64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_toggle64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_toggle64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lbit_test64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lbit_test64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcount64(a0: i32) -> i32 {
     asm!("CALL lcount64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lrotate_left64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lrotate_left64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lrotate_right64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lrotate_right64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llowest_set64(a0: i32) -> i32 {
     asm!("CALL llowest_set64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lctz64(a0: i32) -> i32 {
     asm!("CALL lctz64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lhighest_set64(a0: i32) -> i32 {
     asm!("CALL lhighest_set64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmask64(a0: i32) -> i32 {
     asm!("CALL lmask64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lextract64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lextract64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lis_power_of_two64(a0: i32) -> i32 {
     asm!("CALL lis_power_of_two64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lnext_power_of_two64(a0: i32) -> i32 {
     asm!("CALL lnext_power_of_two64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cmd_write(a0: i32) -> i32 {
     asm!("CALL cmd_write")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -964,21 +964,21 @@ fn browser_flush() {
 fn array_alloc(a0: i32) -> i32 {
     asm!("CALL array_alloc")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn read_line() -> i32 {
     asm!("CALL read_line")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn peek(a0: i32) -> i32 {
     asm!("CALL peek")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -989,7 +989,7 @@ fn poke(a0: i32, a1: i32) {
 fn peekb(a0: i32) -> i32 {
     asm!("CALL peekb")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1036,14 +1036,14 @@ fn print_bool(a0: i32) {
 fn abs(a0: i32) -> i32 {
     asm!("CALL abs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn random() -> i32 {
     asm!("CALL random")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1054,14 +1054,14 @@ fn sleep(a0: i32) {
 fn get_tick() -> i32 {
     asm!("CALL get_tick")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn alloc(a0: i32) -> i32 {
     asm!("CALL alloc")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1084,98 +1084,98 @@ fn assert(a0: i32, a1: i32) {
 fn clamp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL clamp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sign(a0: i32) -> i32 {
     asm!("CALL sign")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn popcount(a0: i32) -> i32 {
     asm!("CALL popcount")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn clz(a0: i32) -> i32 {
     asm!("CALL clz")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gcd(a0: i32, a1: i32) -> i32 {
     asm!("CALL gcd")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcm(a0: i32, a1: i32) -> i32 {
     asm!("CALL lcm")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn factorial(a0: i32) -> i32 {
     asm!("CALL factorial")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_prime(a0: i32) -> i32 {
     asm!("CALL is_prime")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strcpy(a0: i32, a1: i32) -> i32 {
     asm!("CALL strcpy")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strcat(a0: i32, a1: i32) -> i32 {
     asm!("CALL strcat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strlen(a0: i32) -> i32 {
     asm!("CALL strlen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn memcpy(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memcpy")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn memset(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memset")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn memcmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memcmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1186,7 +1186,7 @@ fn delay_us(a0: i32) {
 fn rand_range(a0: i32, a1: i32) -> i32 {
     asm!("CALL rand_range")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1197,35 +1197,35 @@ fn init(a0: i32, a1: i32, a2: i32) {
 fn update(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL update")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_pressed(a0: i32) -> i32 {
     asm!("CALL is_pressed")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cli_match(a0: i32, a1: i32) -> i32 {
     asm!("CALL cli_match")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cli_parse_int(a0: i32, a1: i32) -> i32 {
     asm!("CALL cli_parse_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cli_next_arg(a0: i32) -> i32 {
     asm!("CALL cli_next_arg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1236,147 +1236,147 @@ fn cli_trim_line(a0: i32) {
 fn cli_tokenize(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL cli_tokenize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rgb888_to_rgb565(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL rgb888_to_rgb565")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rgb565_to_r(a0: i32) -> i32 {
     asm!("CALL rgb565_to_r")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rgb565_to_g(a0: i32) -> i32 {
     asm!("CALL rgb565_to_g")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rgb565_to_b(a0: i32) -> i32 {
     asm!("CALL rgb565_to_b")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rgb(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL rgb")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn red(a0: i32) -> i32 {
     asm!("CALL red")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn green(a0: i32) -> i32 {
     asm!("CALL green")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn blue(a0: i32) -> i32 {
     asm!("CALL blue")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn grayscale(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL grayscale")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_blend(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL color_blend")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_brightness(a0: i32, a1: i32) -> i32 {
     asm!("CALL color_brightness")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn hsv_to_rgb(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL hsv_to_rgb")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_black() -> i32 {
     asm!("CALL color_black")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_white() -> i32 {
     asm!("CALL color_white")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_red() -> i32 {
     asm!("CALL color_red")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_green() -> i32 {
     asm!("CALL color_green")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_blue() -> i32 {
     asm!("CALL color_blue")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_yellow() -> i32 {
     asm!("CALL color_yellow")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_cyan() -> i32 {
     asm!("CALL color_cyan")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn color_magenta() -> i32 {
     asm!("CALL color_magenta")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1399,14 +1399,14 @@ fn cdiv(a0: i32, a1: i32, a2: i32) {
 fn complex_abs(a0: i32) -> i32 {
     asm!("CALL complex_abs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn complex_arg(a0: i32) -> i32 {
     asm!("CALL complex_arg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1421,14 +1421,14 @@ fn cneg(a0: i32, a1: i32) {
 fn cexp_re(a0: i32, a1: i32) -> i32 {
     asm!("CALL cexp_re")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cexp_im(a0: i32, a1: i32) -> i32 {
     asm!("CALL cexp_im")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1459,14 +1459,14 @@ fn zdiv(a0: i32, a1: i32, a2: i32) {
 fn zabs(a0: i32) -> i32 {
     asm!("CALL zabs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn zarg(a0: i32) -> i32 {
     asm!("CALL zarg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1481,14 +1481,14 @@ fn zneg(a0: i32, a1: i32) {
 fn zexp_re(a0: i32, a1: i32) -> i32 {
     asm!("CALL zexp_re")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn zexp_im(a0: i32, a1: i32) -> i32 {
     asm!("CALL zexp_im")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1515,7 +1515,7 @@ fn print_str_no_nl(a0: i32) {
 fn print_str_no_nl_impl(a0: i32) -> i32 {
     asm!("CALL print_str_no_nl_impl")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1530,42 +1530,42 @@ fn clear_screen() {
 fn getchar() -> i32 {
     asm!("CALL getchar")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn input_str() -> i32 {
     asm!("CALL input_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn input_int() -> i32 {
     asm!("CALL input_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn input_float() -> i32 {
     asm!("CALL input_float")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gets() -> i32 {
     asm!("CALL gets")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn kb_hit() -> i32 {
     asm!("CALL kb_hit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1580,315 +1580,315 @@ fn printf3(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn itoa(a0: i32, a1: i32) -> i32 {
     asm!("CALL itoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn int_to_str(a0: i32) -> i32 {
     asm!("CALL int_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn int_to_wstr(a0: i32) -> i32 {
     asm!("CALL int_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn int_to_ustr(a0: i32) -> i32 {
     asm!("CALL int_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atoi(a0: i32) -> i32 {
     asm!("CALL atoi")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_int(a0: i32) -> i32 {
     asm!("CALL str_to_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wstr_to_int(a0: i32) -> i32 {
     asm!("CALL wstr_to_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ustr_to_int(a0: i32) -> i32 {
     asm!("CALL ustr_to_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ltoa(a0: i32, a1: i32) -> i32 {
     asm!("CALL ltoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn long_to_strbuf(a0: i32, a1: i32) -> i32 {
     asm!("CALL long_to_strbuf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn long_to_str(a0: i32) -> i32 {
     asm!("CALL long_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn long_to_wstr(a0: i32) -> i32 {
     asm!("CALL long_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn long_to_ustr(a0: i32) -> i32 {
     asm!("CALL long_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atol(a0: i32) -> i32 {
     asm!("CALL atol")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_long(a0: i32) -> i32 {
     asm!("CALL str_to_long")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wstr_to_long(a0: i32) -> i32 {
     asm!("CALL wstr_to_long")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ustr_to_long(a0: i32) -> i32 {
     asm!("CALL ustr_to_long")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn uint_to_str(a0: i32) -> i32 {
     asm!("CALL uint_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ulong_to_str(a0: i32) -> i32 {
     asm!("CALL ulong_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_uint(a0: i32) -> i32 {
     asm!("CALL str_to_uint")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_ulong(a0: i32) -> i32 {
     asm!("CALL str_to_ulong")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bool_to_str(a0: i32) -> i32 {
     asm!("CALL bool_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_bool(a0: i32) -> i32 {
     asm!("CALL str_to_bool")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn char_to_str(a0: i32) -> i32 {
     asm!("CALL char_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_char(a0: i32) -> i32 {
     asm!("CALL str_to_char")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn byte_to_str(a0: i32) -> i32 {
     asm!("CALL byte_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_byte(a0: i32) -> i32 {
     asm!("CALL str_to_byte")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sbyte_to_str(a0: i32) -> i32 {
     asm!("CALL sbyte_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_sbyte(a0: i32) -> i32 {
     asm!("CALL str_to_sbyte")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn short_to_str(a0: i32) -> i32 {
     asm!("CALL short_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_short(a0: i32) -> i32 {
     asm!("CALL str_to_short")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ushort_to_str(a0: i32) -> i32 {
     asm!("CALL ushort_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_ushort(a0: i32) -> i32 {
     asm!("CALL str_to_ushort")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ftoa(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ftoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn float_to_str(a0: i32) -> i32 {
     asm!("CALL float_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_float(a0: i32) -> i32 {
     asm!("CALL str_to_float")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dtoa(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL dtoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn double_to_str(a0: i32) -> i32 {
     asm!("CALL double_to_str")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_to_double(a0: i32) -> i32 {
     asm!("CALL str_to_double")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn float_to_wstr(a0: i32) -> i32 {
     asm!("CALL float_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn double_to_wstr(a0: i32) -> i32 {
     asm!("CALL double_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bool_to_wstr(a0: i32) -> i32 {
     asm!("CALL bool_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn float_to_ustr(a0: i32) -> i32 {
     asm!("CALL float_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn double_to_ustr(a0: i32) -> i32 {
     asm!("CALL double_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn bool_to_ustr(a0: i32) -> i32 {
     asm!("CALL bool_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -1899,336 +1899,336 @@ fn printf(a0: i32, a1: i32) {
 fn itoa_hex(a0: i32, a1: i32) -> i32 {
     asm!("CALL itoa_hex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atoi_hex(a0: i32) -> i32 {
     asm!("CALL atoi_hex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn byte_to_hword(a0: i32) -> i32 {
     asm!("CALL byte_to_hword")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn byte_to_word(a0: i32) -> i32 {
     asm!("CALL byte_to_word")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn hword_to_byte(a0: i32) -> i32 {
     asm!("CALL hword_to_byte")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn hword_to_word(a0: i32) -> i32 {
     asm!("CALL hword_to_word")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn word_to_byte(a0: i32) -> i32 {
     asm!("CALL word_to_byte")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn word_to_hword(a0: i32) -> i32 {
     asm!("CALL word_to_hword")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ltoa_hex(a0: i32, a1: i32) -> i32 {
     asm!("CALL ltoa_hex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atol_hex(a0: i32) -> i32 {
     asm!("CALL atol_hex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn crc8(a0: i32, a1: i32) -> i32 {
     asm!("CALL crc8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn crc16(a0: i32, a1: i32) -> i32 {
     asm!("CALL crc16")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn crc32(a0: i32, a1: i32) -> i32 {
     asm!("CALL crc32")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn djb2_hash(a0: i32) -> i32 {
     asm!("CALL djb2_hash")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sdbm_hash(a0: i32) -> i32 {
     asm!("CALL sdbm_hash")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fnv1a_hash(a0: i32) -> i32 {
     asm!("CALL fnv1a_hash")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn checksum8(a0: i32, a1: i32) -> i32 {
     asm!("CALL checksum8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn checksum16(a0: i32, a1: i32) -> i32 {
     asm!("CALL checksum16")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn crc64(a0: i32, a1: i32) -> i32 {
     asm!("CALL crc64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fnv1a_hash64(a0: i32) -> i32 {
     asm!("CALL fnv1a_hash64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn djb2_hash64(a0: i32) -> i32 {
     asm!("CALL djb2_hash64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sdbm_hash64(a0: i32) -> i32 {
     asm!("CALL sdbm_hash64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn crc32_64l(a0: i32, a1: i32) -> i32 {
     asm!("CALL crc32_64l")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn add(a0: i32, a1: i32) -> i32 {
     asm!("CALL add")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sub(a0: i32, a1: i32) -> i32 {
     asm!("CALL sub")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mul(a0: i32, a1: i32) -> i32 {
     asm!("CALL mul")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn div_(a0: i32, a1: i32) -> i32 {
     asm!("CALL div_")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mod_(a0: i32, a1: i32) -> i32 {
     asm!("CALL mod_")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn neg_(a0: i32) -> i32 {
     asm!("CALL neg_")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn arr_sum(a0: i32) -> i32 {
     asm!("CALL arr_sum")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn arr_avg(a0: i32) -> i32 {
     asm!("CALL arr_avg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn arr_max(a0: i32) -> i32 {
     asm!("CALL arr_max")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn arr_min(a0: i32) -> i32 {
     asm!("CALL arr_min")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_len(a0: i32) -> i32 {
     asm!("CALL str_len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_cmp(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_cmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_even(a0: i32) -> i32 {
     asm!("CALL is_even")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_odd(a0: i32) -> i32 {
     asm!("CALL is_odd")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ladd64(a0: i32, a1: i32) -> i32 {
     asm!("CALL ladd64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lsub64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lsub64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmul64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lmul64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ldiv64(a0: i32, a1: i32) -> i32 {
     asm!("CALL ldiv64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmod64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lmod64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lneg64(a0: i32) -> i32 {
     asm!("CALL lneg64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn larr_sum64(a0: i32) -> i32 {
     asm!("CALL larr_sum64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn larr_avg64(a0: i32) -> i32 {
     asm!("CALL larr_avg64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmean64(a0: i32) -> i32 {
     asm!("CALL lmean64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn larr_max64(a0: i32) -> i32 {
     asm!("CALL larr_max64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn larr_min64(a0: i32) -> i32 {
     asm!("CALL larr_min64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2255,14 +2255,14 @@ fn CRT_GOTOXY(a0: i32, a1: i32) {
 fn CRT_WHEREX() -> i32 {
     asm!("CALL CRT_WHEREX")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn CRT_WHEREY() -> i32 {
     asm!("CALL CRT_WHEREY")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2281,14 +2281,14 @@ fn CRT_WINDOW(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn CRT_KEYPRESSED() -> i32 {
     asm!("CALL CRT_KEYPRESSED")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn CRT_READKEY() -> i32 {
     asm!("CALL CRT_READKEY")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2343,189 +2343,189 @@ fn CRT_WRITE_STRING(a0: i32) {
 fn is_alpha(a0: i32) -> i32 {
     asm!("CALL is_alpha")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_digit(a0: i32) -> i32 {
     asm!("CALL is_digit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isalnum(a0: i32) -> i32 {
     asm!("CALL isalnum")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isspace(a0: i32) -> i32 {
     asm!("CALL isspace")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isupper(a0: i32) -> i32 {
     asm!("CALL isupper")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn islower(a0: i32) -> i32 {
     asm!("CALL islower")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn to_upper(a0: i32) -> i32 {
     asm!("CALL to_upper")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn to_lower(a0: i32) -> i32 {
     asm!("CALL to_lower")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isxdigit(a0: i32) -> i32 {
     asm!("CALL isxdigit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ispunct(a0: i32) -> i32 {
     asm!("CALL ispunct")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isprint(a0: i32) -> i32 {
     asm!("CALL isprint")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn iscntrl(a0: i32) -> i32 {
     asm!("CALL iscntrl")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_add(a0: i32, a1: i32) -> i32 {
     asm!("CALL demolib_add")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_sub(a0: i32, a1: i32) -> i32 {
     asm!("CALL demolib_sub")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_mul(a0: i32, a1: i32) -> i32 {
     asm!("CALL demolib_mul")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_div(a0: i32, a1: i32) -> i32 {
     asm!("CALL demolib_div")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_fact(a0: i32) -> i32 {
     asm!("CALL demolib_fact")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_fib(a0: i32) -> i32 {
     asm!("CALL demolib_fib")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_square(a0: i32) -> i32 {
     asm!("CALL demolib_square")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn demolib_negate(a0: i32) -> i32 {
     asm!("CALL demolib_negate")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dev_open(a0: i32) -> i32 {
     asm!("CALL dev_open")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dev_close(a0: i32) -> i32 {
     asm!("CALL dev_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dev_read(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL dev_read")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dev_write(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL dev_write")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn dev_control(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL dev_control")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ldev_read64(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ldev_read64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ldev_write64(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ldev_write64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2540,35 +2540,35 @@ fn GetTime(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn DosVersion() -> i32 {
     asm!("CALL DosVersion")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn DiskFree(a0: i32) -> i32 {
     asm!("CALL DiskFree")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn DiskSize(a0: i32) -> i32 {
     asm!("CALL DiskSize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn FindFirst(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL FindFirst")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn FindNext(a0: i32) -> i32 {
     asm!("CALL FindNext")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2579,28 +2579,28 @@ fn FindClose(a0: i32) {
 fn EnvCount() -> i32 {
     asm!("CALL EnvCount")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn EnvStr(a0: i32) -> i32 {
     asm!("CALL EnvStr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn GetEnv(a0: i32) -> i32 {
     asm!("CALL GetEnv")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn Exec(a0: i32, a1: i32) -> i32 {
     asm!("CALL Exec")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2619,371 +2619,371 @@ fn SetIntVec(a0: i32, a1: i32) {
 fn DosExitCode() -> i32 {
     asm!("CALL DosExitCode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf8_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_utf8_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf8_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL encoding_utf8_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf8_strlen(a0: i32) -> i32 {
     asm!("CALL encoding_utf8_strlen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf8_seqlen(a0: i32) -> i32 {
     asm!("CALL encoding_utf8_seqlen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_ascii_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_ascii_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_ascii_is_clean(a0: i32) -> i32 {
     asm!("CALL encoding_ascii_is_clean")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_ascii_isclean(a0: i32) -> i32 {
     asm!("CALL encoding_ascii_isclean")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_latin1_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_latin1_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_latin1_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL encoding_latin1_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf16le_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_utf16le_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_utf16be_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_utf16be_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_gbk_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_gbk_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_gbk_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL encoding_gbk_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_big5_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_big5_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_detect_bom(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL encoding_detect_bom")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_name(a0: i32) -> i32 {
     asm!("CALL encoding_name")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_convert(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
     asm!("CALL encoding_convert")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_detect_bom_1(a0: i32) -> i32 {
     asm!("CALL encoding_detect_bom_1")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_get_name(a0: i32) -> i32 {
     asm!("CALL encoding_get_name")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_convert_utf8_to_latin1(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL encoding_convert_utf8_to_latin1")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_latin1_decode_1(a0: i32) -> i32 {
     asm!("CALL encoding_latin1_decode_1")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_latin1_encode_2(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_latin1_encode_2")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_ascii_decode_1(a0: i32) -> i32 {
     asm!("CALL encoding_ascii_decode_1")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn encoding_gbk_encode_2(a0: i32, a1: i32) -> i32 {
     asm!("CALL encoding_gbk_encode_2")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lutf8_strlen(a0: i32) -> i32 {
     asm!("CALL lutf8_strlen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lutf8_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL lutf8_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lutf8_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lutf8_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fopen(a0: i32, a1: i32) -> i32 {
     asm!("CALL fopen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fclose(a0: i32) -> i32 {
     asm!("CALL fclose")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fread(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL fread")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fwrite(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL fwrite")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fseek(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL fseek")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ftell(a0: i32) -> i32 {
     asm!("CALL ftell")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn fsize(a0: i32) -> i32 {
     asm!("CALL fsize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ftruncate(a0: i32, a1: i32) -> i32 {
     asm!("CALL ftruncate")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn div(a0: i32, a1: i32) -> i32 {
     asm!("CALL div")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn from_int(a0: i32) -> i32 {
     asm!("CALL from_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn to_int(a0: i32) -> i32 {
     asm!("CALL to_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn to_int_round(a0: i32) -> i32 {
     asm!("CALL to_int_round")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn from_float(a0: i32) -> i32 {
     asm!("CALL from_float")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn to_float(a0: i32) -> i32 {
     asm!("CALL to_float")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sqrt(a0: i32) -> i32 {
     asm!("CALL sqrt")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sin(a0: i32) -> i32 {
     asm!("CALL sin")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cos(a0: i32) -> i32 {
     asm!("CALL cos")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atan2(a0: i32, a1: i32) -> i32 {
     asm!("CALL atan2")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_mul64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lfixed_mul64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_div64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lfixed_div64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_from_int64(a0: i32) -> i32 {
     asm!("CALL lfixed_from_int64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_to_int64(a0: i32) -> i32 {
     asm!("CALL lfixed_to_int64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_to_int_round64(a0: i32) -> i32 {
     asm!("CALL lfixed_to_int_round64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_from_double(a0: i32) -> i32 {
     asm!("CALL lfixed_from_double")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfixed_to_double(a0: i32) -> i32 {
     asm!("CALL lfixed_to_double")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -2994,7 +2994,7 @@ fn getfloat() {
 fn transition(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL transition")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3009,21 +3009,21 @@ fn state(a0: i32, a1: i32) {
 fn get_state(a0: i32) -> i32 {
     asm!("CALL get_state")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn event_queue_push(a0: i32, a1: i32) -> i32 {
     asm!("CALL event_queue_push")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn event_queue_pop(a0: i32) -> i32 {
     asm!("CALL event_queue_pop")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3034,35 +3034,35 @@ fn event_queue_init(a0: i32) {
 fn event_queue_available(a0: i32) -> i32 {
     asm!("CALL event_queue_available")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_screen(a0: i32) -> i32 {
     asm!("CALL gfx_screen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_width() -> i32 {
     asm!("CALL gfx_width")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_height() -> i32 {
     asm!("CALL gfx_height")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_depth() -> i32 {
     asm!("CALL gfx_depth")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3073,7 +3073,7 @@ fn gfx_palette(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn gfx_palette_get(a0: i32) -> i32 {
     asm!("CALL gfx_palette_get")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3084,7 +3084,7 @@ fn gfx_pset(a0: i32, a1: i32, a2: i32) {
 fn gfx_point(a0: i32, a1: i32) -> i32 {
     asm!("CALL gfx_point")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3151,28 +3151,28 @@ fn gfx_print_scale(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
 fn gfx_screenshot() -> i32 {
     asm!("CALL gfx_screenshot")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_put_image(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL gfx_put_image")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_get_image(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL gfx_get_image")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_viewport(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL gfx_viewport")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3191,28 +3191,28 @@ fn DetectGraph(a0: i32, a1: i32) {
 fn GetMaxX() -> i32 {
     asm!("CALL GetMaxX")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn GetMaxY() -> i32 {
     asm!("CALL GetMaxY")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn GetDriverName() -> i32 {
     asm!("CALL GetDriverName")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn GetModeName(a0: i32) -> i32 {
     asm!("CALL GetModeName")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3223,7 +3223,7 @@ fn SetColor(a0: i32) {
 fn GetColor() -> i32 {
     asm!("CALL GetColor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3234,7 +3234,7 @@ fn SetBkColor(a0: i32) {
 fn GetBkColor() -> i32 {
     asm!("CALL GetBkColor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3249,7 +3249,7 @@ fn PutPixel(a0: i32, a1: i32, a2: i32) {
 fn GetPixel(a0: i32, a1: i32) -> i32 {
     asm!("CALL GetPixel")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3336,7 +3336,7 @@ fn FloodFill(a0: i32, a1: i32, a2: i32) {
 fn ImageSize(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ImageSize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3351,7 +3351,7 @@ fn PutImage(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn GetPaletteSize() -> i32 {
     asm!("CALL GetPaletteSize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3366,14 +3366,14 @@ fn GetDefaultPalette(a0: i32) {
 fn GraphResult() -> i32 {
     asm!("CALL GraphResult")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn GraphErrorMsg(a0: i32) -> i32 {
     asm!("CALL GraphErrorMsg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3384,77 +3384,77 @@ fn RestoreCrtMode() {
 fn _gfx_refresh_cache() -> i32 {
     asm!("CALL _gfx_refresh_cache")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get_config(a0: i32) -> i32 {
     asm!("CALL get_config")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_fb() -> i32 {
     asm!("CALL gfx_fb")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_w() -> i32 {
     asm!("CALL gfx_w")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn gfx_h() -> i32 {
     asm!("CALL gfx_h")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _putpixel(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _putpixel")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _getpixel(a0: i32, a1: i32) -> i32 {
     asm!("CALL _getpixel")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _putpixel_fast(a0: i32, a1: i32) -> i32 {
     asm!("CALL _putpixel_fast")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcslen(a0: i32) -> i32 {
     asm!("CALL wcslen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcstombs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL wcstombs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mbstowcs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL mbstowcs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3477,28 +3477,28 @@ fn println_wstr(a0: i32) {
 fn wstr_to_utf8(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL wstr_to_utf8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn utf8_to_wstr(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL utf8_to_wstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucs_to_utf8(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ucs_to_utf8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn utf8_to_ucs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL utf8_to_ucs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3509,14 +3509,14 @@ fn print_ustr(a0: i32) {
 fn ustr_to_utf8(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ustr_to_utf8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn utf8_to_ustr(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL utf8_to_ustr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3539,7 +3539,7 @@ fn println_hex_long(a0: i32) {
 fn input_long() -> i32 {
     asm!("CALL input_long")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3554,7 +3554,7 @@ fn println_double(a0: i32, a1: i32) {
 fn pow10(a0: i32) -> i32 {
     asm!("CALL pow10")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3565,133 +3565,133 @@ fn randomize(a0: i32) {
 fn _sin_taylor(a0: i32) -> i32 {
     asm!("CALL _sin_taylor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _cos_taylor(a0: i32) -> i32 {
     asm!("CALL _cos_taylor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atan_approx(a0: i32) -> i32 {
     asm!("CALL atan_approx")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _log_taylor(a0: i32) -> i32 {
     asm!("CALL _log_taylor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn tan(a0: i32) -> i32 {
     asm!("CALL tan")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn asin(a0: i32) -> i32 {
     asm!("CALL asin")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn acos(a0: i32) -> i32 {
     asm!("CALL acos")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn atan(a0: i32) -> i32 {
     asm!("CALL atan")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn exp(a0: i32) -> i32 {
     asm!("CALL exp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn log(a0: i32) -> i32 {
     asm!("CALL log")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn pow(a0: i32, a1: i32) -> i32 {
     asm!("CALL pow")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ipow(a0: i32, a1: i32) -> i32 {
     asm!("CALL ipow")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sin_deg(a0: i32) -> i32 {
     asm!("CALL sin_deg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cos_deg(a0: i32) -> i32 {
     asm!("CALL cos_deg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn tan_deg(a0: i32) -> i32 {
     asm!("CALL tan_deg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ilog2(a0: i32) -> i32 {
     asm!("CALL ilog2")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ceil_div(a0: i32, a1: i32) -> i32 {
     asm!("CALL ceil_div")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn round_div(a0: i32, a1: i32) -> i32 {
     asm!("CALL round_div")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn random_range(a0: i32, a1: i32) -> i32 {
     asm!("CALL random_range")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3702,231 +3702,231 @@ fn random_set_seed(a0: i32) {
 fn lerp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lerp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn map_range(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL map_range")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn clamp_int(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL clamp_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn hypot_int(a0: i32, a1: i32) -> i32 {
     asm!("CALL hypot_int")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn isqrt(a0: i32) -> i32 {
     asm!("CALL isqrt")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn labs64(a0: i32) -> i32 {
     asm!("CALL labs64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmin64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lmin64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmax64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lmax64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lclamp64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lclamp64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lsign64(a0: i32) -> i32 {
     asm!("CALL lsign64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lgcd64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lgcd64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llcm64(a0: i32, a1: i32) -> i32 {
     asm!("CALL llcm64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lisqrt64(a0: i32) -> i32 {
     asm!("CALL lisqrt64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lpow64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lpow64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lfactorial64(a0: i32) -> i32 {
     asm!("CALL lfactorial64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lceil_div64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lceil_div64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lround_div64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lround_div64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lis_prime64(a0: i32) -> i32 {
     asm!("CALL lis_prime64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lrandom64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lrandom64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lclz64(a0: i32) -> i32 {
     asm!("CALL lclz64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lpopcnt64(a0: i32) -> i32 {
     asm!("CALL lpopcnt64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llerp64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL llerp64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmap_range64(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL lmap_range64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lpow10_64(a0: i32) -> i32 {
     asm!("CALL lpow10_64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lhypot64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lhypot64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lilog2_64(a0: i32) -> i32 {
     asm!("CALL lilog2_64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lis_even64(a0: i32) -> i32 {
     asm!("CALL lis_even64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lis_odd64(a0: i32) -> i32 {
     asm!("CALL lis_odd64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _sin_taylor64(a0: i32) -> i32 {
     asm!("CALL _sin_taylor64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _cos_taylor64(a0: i32) -> i32 {
     asm!("CALL _cos_taylor64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sin_deg_d(a0: i32) -> i32 {
     asm!("CALL sin_deg_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cos_deg_d(a0: i32) -> i32 {
     asm!("CALL cos_deg_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn tan_deg_d(a0: i32) -> i32 {
     asm!("CALL tan_deg_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3953,7 +3953,7 @@ fn mat2_scale(a0: i32, a1: i32, a2: i32) {
 fn mat2_det(a0: i32) -> i32 {
     asm!("CALL mat2_det")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3964,7 +3964,7 @@ fn mat2_transpose(a0: i32, a1: i32) {
 fn mat2_inv(a0: i32, a1: i32) -> i32 {
     asm!("CALL mat2_inv")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -3983,7 +3983,7 @@ fn mat3_mul(a0: i32, a1: i32, a2: i32) {
 fn mat3_det(a0: i32) -> i32 {
     asm!("CALL mat3_det")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4030,35 +4030,35 @@ fn mat4_transpose(a0: i32, a1: i32) {
 fn vec2_dot(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec2_dot")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_cross(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec2_cross")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_len(a0: i32) -> i32 {
     asm!("CALL vec2_len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_normalize(a0: i32) -> i32 {
     asm!("CALL vec2_normalize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec3_dot(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec3_dot")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4069,14 +4069,14 @@ fn vec3_cross(a0: i32, a1: i32, a2: i32) {
 fn vec3_len(a0: i32) -> i32 {
     asm!("CALL vec3_len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec3_normalize(a0: i32) -> i32 {
     asm!("CALL vec3_normalize")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4107,7 +4107,7 @@ fn mat2_scale_d(a0: i32, a1: i32, a2: i32) {
 fn mat2_det_d(a0: i32) -> i32 {
     asm!("CALL mat2_det_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4118,7 +4118,7 @@ fn mat2_transpose_d(a0: i32, a1: i32) {
 fn mat2_inv_d(a0: i32, a1: i32) -> i32 {
     asm!("CALL mat2_inv_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4137,7 +4137,7 @@ fn mat3_mul_d(a0: i32, a1: i32, a2: i32) {
 fn mat3_det_d(a0: i32) -> i32 {
     asm!("CALL mat3_det_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4184,35 +4184,35 @@ fn mat4_transpose_d(a0: i32, a1: i32) {
 fn vec2_dot_d(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec2_dot_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_cross_d(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec2_cross_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_len_d(a0: i32) -> i32 {
     asm!("CALL vec2_len_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec2_normalize_d(a0: i32) -> i32 {
     asm!("CALL vec2_normalize_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec3_dot_d(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec3_dot_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4223,14 +4223,14 @@ fn vec3_cross_d(a0: i32, a1: i32, a2: i32) {
 fn vec3_len_d(a0: i32) -> i32 {
     asm!("CALL vec3_len_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vec3_normalize_d(a0: i32) -> i32 {
     asm!("CALL vec3_normalize_d")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4241,56 +4241,56 @@ fn mat4_transform_vec3_d(a0: i32, a1: i32, a2: i32) {
 fn memmove(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memmove")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmemcpy(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmemcpy")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmemset(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmemset")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmemmove(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmemmove")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmemcmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmemcmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn net_connect(a0: i32, a1: i32) -> i32 {
     asm!("CALL net_connect")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn net_send(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL net_send")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn net_recv(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL net_recv")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4301,14 +4301,14 @@ fn net_close(a0: i32) {
 fn net_listen(a0: i32) -> i32 {
     asm!("CALL net_listen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn thread_create(a0: i32, a1: i32) -> i32 {
     asm!("CALL thread_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4319,7 +4319,7 @@ fn thread_exit() {
 fn thread_join(a0: i32) -> i32 {
     asm!("CALL thread_join")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4334,56 +4334,56 @@ fn thread_sleep(a0: i32) {
 fn mutex_create() -> i32 {
     asm!("CALL mutex_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mutex_lock(a0: i32) -> i32 {
     asm!("CALL mutex_lock")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mutex_unlock(a0: i32) -> i32 {
     asm!("CALL mutex_unlock")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cond_create() -> i32 {
     asm!("CALL cond_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cond_wait(a0: i32, a1: i32) -> i32 {
     asm!("CALL cond_wait")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cond_signal(a0: i32) -> i32 {
     asm!("CALL cond_signal")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn cond_broadcast(a0: i32) -> i32 {
     asm!("CALL cond_broadcast")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn exec(a0: i32) -> i32 {
     asm!("CALL exec")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4394,105 +4394,105 @@ fn process_exit(a0: i32) {
 fn get_pid() -> i32 {
     asm!("CALL get_pid")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_create(a0: i32, a1: i32) -> i32 {
     asm!("CALL socket_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_bind(a0: i32, a1: i32) -> i32 {
     asm!("CALL socket_bind")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_listen(a0: i32, a1: i32) -> i32 {
     asm!("CALL socket_listen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_accept(a0: i32) -> i32 {
     asm!("CALL socket_accept")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_connect(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL socket_connect")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_send(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL socket_send")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_recv(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL socket_recv")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn socket_close(a0: i32) -> i32 {
     asm!("CALL socket_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mkdir(a0: i32) -> i32 {
     asm!("CALL mkdir")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn remove_file(a0: i32) -> i32 {
     asm!("CALL remove_file")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rename_file(a0: i32, a1: i32) -> i32 {
     asm!("CALL rename_file")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn read_dir(a0: i32, a1: i32) -> i32 {
     asm!("CALL read_dir")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn file_stat(a0: i32, a1: i32) -> i32 {
     asm!("CALL file_stat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get_env(a0: i32) -> i32 {
     asm!("CALL get_env")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4503,112 +4503,112 @@ fn set_env(a0: i32, a1: i32) {
 fn get_args(a0: i32) -> i32 {
     asm!("CALL get_args")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn signal(a0: i32, a1: i32) -> i32 {
     asm!("CALL signal")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn type_of(a0: i32) -> i32 {
     asm!("CALL type_of")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn type_name(a0: i32, a1: i32) -> i32 {
     asm!("CALL type_name")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn NULL(a0: i32) -> i32 {
     asm!("CALL NULL")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_hex_digit(a0: i32) -> i32 {
     asm!("CALL is_hex_digit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn skip_spaces() -> i32 {
     asm!("CALL skip_spaces")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn next_token() -> i32 {
     asm!("CALL next_token")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_expr() -> i32 {
     asm!("CALL parse_expr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_term() -> i32 {
     asm!("CALL parse_term")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_factor() -> i32 {
     asm!("CALL parse_factor")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parserexp(a0: i32) -> i32 {
     asm!("CALL parserexp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_expr_f() -> i32 {
     asm!("CALL parse_expr_f")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_term_f() -> i32 {
     asm!("CALL parse_term_f")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parse_factor_f() -> i32 {
     asm!("CALL parse_factor_f")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn parserexpf(a0: i32) -> i32 {
     asm!("CALL parserexpf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4619,7 +4619,7 @@ fn set_setpoint(a0: i32, a1: i32) {
 fn compute(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL compute")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4630,112 +4630,112 @@ fn reset(a0: i32) {
 fn emit(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL emit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn pad_char(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL pad_char")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn putsn(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL putsn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn slen(a0: i32) -> i32 {
     asm!("CALL slen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _printf_itoa(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL _printf_itoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _printf_itoa64(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL _printf_itoa64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn out_rev(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL out_rev")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn readLong(a0: i32, a1: i32) -> i32 {
     asm!("CALL readLong")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn readDouble(a0: i32, a1: i32) -> i32 {
     asm!("CALL readDouble")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sign64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sign64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _printf_ftoa(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _printf_ftoa")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _printf_ftoe(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL _printf_ftoe")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vsnprintf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL vsnprintf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sprintf(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sprintf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn printf4(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
     asm!("CALL printf4")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn printf5(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) -> i32 {
     asm!("CALL printf5")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4802,105 +4802,105 @@ fn vml_free(a0: i32) {
 fn vml_alloc(a0: i32) -> i32 {
     asm!("CALL vml_alloc")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn write(a0: i32, a1: i32) -> i32 {
     asm!("CALL write")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn read(a0: i32, a1: i32) -> i32 {
     asm!("CALL read")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn available(a0: i32) -> i32 {
     asm!("CALL available")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_empty(a0: i32) -> i32 {
     asm!("CALL is_empty")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn is_full(a0: i32) -> i32 {
     asm!("CALL is_full")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rle_encode(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL rle_encode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn rle_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL rle_decode")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _count_args(a0: i32) -> i32 {
     asm!("CALL _count_args")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _isspace(a0: i32) -> i32 {
     asm!("CALL _isspace")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn _isdigit(a0: i32) -> i32 {
     asm!("CALL _isdigit")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vsscanf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL vsscanf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn scanf(a0: i32, a1: i32) -> i32 {
     asm!("CALL scanf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sscanf(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sscanf")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn add_task(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL add_task")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4915,42 +4915,42 @@ fn set_period(a0: i32, a1: i32, a2: i32) {
 fn run(a0: i32) -> i32 {
     asm!("CALL run")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get_func(a0: i32, a1: i32) -> i32 {
     asm!("CALL get_func")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn moving_avg_init(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL moving_avg_init")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn moving_avg_update(a0: i32, a1: i32) -> i32 {
     asm!("CALL moving_avg_update")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ema_init(a0: i32) -> i32 {
     asm!("CALL ema_init")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ema_update(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ema_update")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -4961,56 +4961,56 @@ fn kalman_init(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn kalman_update(a0: i32, a1: i32) -> i32 {
     asm!("CALL kalman_update")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lerp_table(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL lerp_table")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn deadband(a0: i32, a1: i32) -> i32 {
     asm!("CALL deadband")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn hysteresis(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL hysteresis")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmoving_avg_init64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmoving_avg_init64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmoving_avg_update64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lmoving_avg_update64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lema_init64(a0: i32) -> i32 {
     asm!("CALL lema_init64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lema_update64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lema_update64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5021,217 +5021,217 @@ fn lkalman_init64(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn lkalman_update64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lkalman_update64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ldeadband64(a0: i32, a1: i32) -> i32 {
     asm!("CALL ldeadband64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lhysteresis64(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL lhysteresis64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mean(a0: i32) -> i32 {
     asm!("CALL mean")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn sum_arr(a0: i32) -> i32 {
     asm!("CALL sum_arr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn min_arr(a0: i32) -> i32 {
     asm!("CALL min_arr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn max_arr(a0: i32) -> i32 {
     asm!("CALL max_arr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn median(a0: i32) -> i32 {
     asm!("CALL median")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn range(a0: i32) -> i32 {
     asm!("CALL range")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn count_gt(a0: i32, a1: i32) -> i32 {
     asm!("CALL count_gt")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn count_lt(a0: i32, a1: i32) -> i32 {
     asm!("CALL count_lt")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn count_eq(a0: i32, a1: i32) -> i32 {
     asm!("CALL count_eq")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn variance(a0: i32) -> i32 {
     asm!("CALL variance")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn std_dev(a0: i32) -> i32 {
     asm!("CALL std_dev")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn linreg_slope(a0: i32, a1: i32) -> i32 {
     asm!("CALL linreg_slope")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn linreg_intercept(a0: i32, a1: i32) -> i32 {
     asm!("CALL linreg_intercept")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lmedian64(a0: i32) -> i32 {
     asm!("CALL lmedian64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lrange64(a0: i32) -> i32 {
     asm!("CALL lrange64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcount_gt64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lcount_gt64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcount_lt64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lcount_lt64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lcount_eq64(a0: i32, a1: i32) -> i32 {
     asm!("CALL lcount_eq64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lvariance64(a0: i32) -> i32 {
     asm!("CALL lvariance64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn lstd_dev64(a0: i32) -> i32 {
     asm!("CALL lstd_dev64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llinreg_slope64(a0: i32, a1: i32) -> i32 {
     asm!("CALL llinreg_slope64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn llinreg_intercept64(a0: i32, a1: i32) -> i32 {
     asm!("CALL llinreg_intercept64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strcmp(a0: i32, a1: i32) -> i32 {
     asm!("CALL strcmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strncmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL strncmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strchr(a0: i32, a1: i32) -> i32 {
     asm!("CALL strchr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strncpy(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL strncpy")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strstr(a0: i32, a1: i32) -> i32 {
     asm!("CALL strstr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn strrev(a0: i32, a1: i32) -> i32 {
     asm!("CALL strrev")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5246,84 +5246,84 @@ fn str_tolower(a0: i32, a1: i32) {
 fn str_repeat(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL str_repeat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_contains(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_contains")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_trim(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_trim")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_substr(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL str_substr")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_indexof(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_indexof")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_split(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL str_split")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_padstart(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL str_padstart")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_padend(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL str_padend")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_charat(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_charat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_startswith(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_startswith")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn str_endswith(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_endswith")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn start(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL start")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5334,21 +5334,21 @@ fn stop(a0: i32, a1: i32) {
 fn tick(a0: i32) -> i32 {
     asm!("CALL tick")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn remaining(a0: i32, a1: i32) -> i32 {
     asm!("CALL remaining")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn getconfig(a0: i32) -> i32 {
     asm!("CALL getconfig")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5359,21 +5359,21 @@ fn srand(a0: i32) {
 fn datetime() -> i32 {
     asm!("CALL datetime")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get_date() -> i32 {
     asm!("CALL get_date")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn get_time() -> i32 {
     asm!("CALL get_time")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5384,77 +5384,77 @@ fn exit(a0: i32) {
 fn ldatetime64() -> i32 {
     asm!("CALL ldatetime64")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn c32tombs(a0: i32, a1: i32) -> i32 {
     asm!("CALL c32tombs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mbtoc32(a0: i32, a1: i32) -> i32 {
     asm!("CALL mbtoc32")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucslen(a0: i32) -> i32 {
     asm!("CALL ucslen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucscmp(a0: i32, a1: i32) -> i32 {
     asm!("CALL ucscmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucsncmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ucsncmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucsspn(a0: i32, a1: i32) -> i32 {
     asm!("CALL ucsspn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucscspn(a0: i32, a1: i32) -> i32 {
     asm!("CALL ucscspn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn umemcmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL umemcmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ucs_to_wcs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ucs_to_wcs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcs_to_ucs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL wcs_to_ucs")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5473,14 +5473,14 @@ fn delay(a0: i32) {
 fn int_pow(a0: i32, a1: i32) -> i32 {
     asm!("CALL int_pow")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn int_sqrt(a0: i32) -> i32 {
     asm!("CALL int_sqrt")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5527,28 +5527,28 @@ fn vml_print_ustr(a0: i32) {
 fn vml_mem_copy(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_mem_copy")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_mem_fill(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_mem_fill")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_mem_compare(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_mem_compare")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_random() -> i32 {
     asm!("CALL vml_random")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5563,28 +5563,28 @@ fn vml_sleep_ms(a0: i32) {
 fn vml_get_tick() -> i32 {
     asm!("CALL vml_get_tick")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_timestamp() -> i32 {
     asm!("CALL vml_get_timestamp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_date() -> i32 {
     asm!("CALL vml_get_date")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_time() -> i32 {
     asm!("CALL vml_get_time")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5595,21 +5595,21 @@ fn vml_beep(a0: i32, a1: i32) {
 fn vml_get_config(a0: i32) -> i32 {
     asm!("CALL vml_get_config")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_info(a0: i32) -> i32 {
     asm!("CALL vml_get_info")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_platform() -> i32 {
     asm!("CALL vml_get_platform")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5628,133 +5628,133 @@ fn vml_assert(a0: i32, a1: i32) {
 fn vml_device_open(a0: i32) -> i32 {
     asm!("CALL vml_device_open")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_device_close(a0: i32) -> i32 {
     asm!("CALL vml_device_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_device_read(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_device_read")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_device_write(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_device_write")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_device_control(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL vml_device_control")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_open(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_file_open")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_close(a0: i32) -> i32 {
     asm!("CALL vml_file_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_read(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_file_read")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_write(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_file_write")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_size(a0: i32) -> i32 {
     asm!("CALL vml_file_size")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_seek(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_file_seek")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_file_tell(a0: i32) -> i32 {
     asm!("CALL vml_file_tell")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_mkdir(a0: i32) -> i32 {
     asm!("CALL vml_mkdir")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_remove(a0: i32) -> i32 {
     asm!("CALL vml_remove")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_rename(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_rename")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_readdir(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_readdir")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_stat(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_stat")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_get_env(a0: i32) -> i32 {
     asm!("CALL vml_get_env")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_set_env(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_set_env")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5765,14 +5765,14 @@ fn vml_exit(a0: i32) {
 fn vml_get_pid() -> i32 {
     asm!("CALL vml_get_pid")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_thread_create(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_thread_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5787,98 +5787,98 @@ fn vml_thread_yield() {
 fn vml_mutex_create() -> i32 {
     asm!("CALL vml_mutex_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_mutex_lock(a0: i32) -> i32 {
     asm!("CALL vml_mutex_lock")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_mutex_unlock(a0: i32) -> i32 {
     asm!("CALL vml_mutex_unlock")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_cond_create() -> i32 {
     asm!("CALL vml_cond_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_cond_wait(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_cond_wait")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_cond_signal(a0: i32) -> i32 {
     asm!("CALL vml_cond_signal")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_cond_broadcast(a0: i32) -> i32 {
     asm!("CALL vml_cond_broadcast")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_exec(a0: i32) -> i32 {
     asm!("CALL vml_exec")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_socket_create(a0: i32, a1: i32) -> i32 {
     asm!("CALL vml_socket_create")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_socket_connect(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_socket_connect")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_socket_send(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_socket_send")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_socket_recv(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL vml_socket_recv")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_socket_close(a0: i32) -> i32 {
     asm!("CALL vml_socket_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn vml_dns_resolve(a0: i32) -> i32 {
     asm!("CALL vml_dns_resolve")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -5889,91 +5889,91 @@ fn vml_screenshot() {
 fn vml_syscall5(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
     asm!("CALL vml_syscall5")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_dlg_msg(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_dlg_msg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn asm(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL asm")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_dlg_select(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_dlg_select")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_dlg_multi(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ui_dlg_multi")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_dlg_input(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ui_dlg_input")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_win_open")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_win_open_ex(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_win_open_ex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_win_close() -> i32 {
     asm!("CALL ui_win_close")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_win_closed() -> i32 {
     asm!("CALL ui_win_closed")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_scr_w() -> i32 {
     asm!("CALL ui_scr_w")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_scr_h() -> i32 {
     asm!("CALL ui_scr_h")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_orientation() -> i32 {
     asm!("CALL ui_orientation")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6024,49 +6024,49 @@ fn ui_text_cur(a0: i32, a1: i32, a2: i32) {
 fn ui_poll(a0: i32) -> i32 {
     asm!("CALL ui_poll")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_wait(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_wait")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_poll_ex(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_poll_ex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_wait_ex(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_wait_ex")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_call_json(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ui_call_json")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_call_json_s(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_call_json_s")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_call_json_len() -> i32 {
     asm!("CALL ui_call_json_len")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6077,56 +6077,56 @@ fn ui_call_json_print() {
 fn ui_call_json_at(a0: i32) -> i32 {
     asm!("CALL ui_call_json_at")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_msg_count() -> i32 {
     asm!("CALL ui_msg_count")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_msg_clear() -> i32 {
     asm!("CALL ui_msg_clear")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_wait_msg(a0: i32) -> i32 {
     asm!("CALL ui_wait_msg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_poll_msg() -> i32 {
     asm!("CALL ui_poll_msg")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_msg_type() -> i32 {
     asm!("CALL ui_msg_type")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_msg_a() -> i32 {
     asm!("CALL ui_msg_a")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_msg_b() -> i32 {
     asm!("CALL ui_msg_b")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6141,7 +6141,7 @@ fn ui_gset(a0: i32, a1: i32) {
 fn ui_gget(a0: i32) -> i32 {
     asm!("CALL ui_gget")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6152,42 +6152,42 @@ fn ui_piece_init() {
 fn _ui_rot90(a0: i32) -> i32 {
     asm!("CALL _ui_rot90")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_piece_cell(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_piece_cell")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_timer_set(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_timer_set")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_timer_kill(a0: i32) -> i32 {
     asm!("CALL ui_timer_kill")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_rand(a0: i32) -> i32 {
     asm!("CALL ui_rand")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_tick() -> i32 {
     asm!("CALL ui_tick")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6226,49 +6226,49 @@ fn ui_circle_grad(a0: i32, a1: i32, a2: i32, a3: i32) {
 fn ui_brush_solid(a0: i32) -> i32 {
     asm!("CALL ui_brush_solid")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_brush_linear(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
     asm!("CALL ui_brush_linear")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_brush_radial(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_brush_radial")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_brush_named(a0: i32) -> i32 {
     asm!("CALL ui_brush_named")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_set_fill(a0: i32) -> i32 {
     asm!("CALL ui_set_fill")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_set_pen(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_set_pen")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn ui_set_text_brush(a0: i32) -> i32 {
     asm!("CALL ui_set_text_brush")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
@@ -6343,84 +6343,84 @@ fn ui_store_set(a0: i32, a1: i32) {
 fn ui_store_get(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_store_get")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn callwithint8(a0: i32) -> i32 {
     asm!("CALL callwithint8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn callwithfloat8(a0: i32) -> i32 {
     asm!("CALL callwithfloat8")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn callwithlong4(a0: i32) -> i32 {
     asm!("CALL callwithlong4")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn callwithdouble4(a0: i32) -> i32 {
     asm!("CALL callwithdouble4")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wctomb(a0: i32, a1: i32) -> i32 {
     asm!("CALL wctomb")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn mbtowc(a0: i32, a1: i32) -> i32 {
     asm!("CALL mbtowc")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcscmp(a0: i32, a1: i32) -> i32 {
     asm!("CALL wcscmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcsncmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL wcsncmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcsspn(a0: i32, a1: i32) -> i32 {
     asm!("CALL wcsspn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wcscspn(a0: i32, a1: i32) -> i32 {
     asm!("CALL wcscspn")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
 fn wmemcmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL wmemcmp")
     let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
+    asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 

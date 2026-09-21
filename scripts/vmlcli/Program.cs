@@ -237,22 +237,24 @@ internal static class Program
             "VML_MODE_MCU",
             $"VML_RAM_{opt.RamSuffix}",
         };
-        var prog = new VmlAssembler().AssembleWithIncludes(vmlText, vmlRoot, langDefines);
-
-        // ③ 链接共享库 ④ 应用导出符号
-        //
-        // ⚠ 这一步与 ② 一起**必须包 try**：有些前端（Pascal / Forth / Ladder / Basic）
-        //   不在自己的 `CompileFileWithIncludes` 里链接 —— 链接是在**这里**做的
-        //   （`MauiVml` 同样是"编译→汇编→链接"三步，那两步也没包 try，一并记着）。
-        //   所以「用户代码调用了不存在的函数」这条编译期错误，对那几门语言是在这一步抛出来的。
+        // ⚠ ② 汇编与 ③ 链接一起**必须包 try**，两条理由：
+        //   ① 有些前端（Pascal / Forth / Ladder / Basic）不在自己的 `CompileFileWithIncludes`
+        //      里链接 —— 链接是在**这里**做的，所以「用户代码调用了不存在的函数」这条编译期
+        //      错误，对那几门语言是在这一步抛出来的；
+        //   ② 汇编器抛的同样是**用户可见的诊断**（未知指令 / 寄存器名越界 / 未找到标签），
+        //      不接住就打穿成 `Unhandled exception` + 一屏堆栈（实测：只留一句
+        //      `寄存器名越界：R99`，看不出是**哪一行**汇编，也看不出这是编译错误）。
+        //   口径与 `MauiVml` 同步 —— 那边也补上了同一层 try（此前它的注释里就记着这个缺口）。
+        VmlProgram prog;
         try
         {
+            prog = new VmlAssembler().AssembleWithIncludes(vmlText, vmlRoot, langDefines);
             LibraryLinker.LinkLibraries(prog, libraryPaths);
             prog.ApplyExports();
         }
-        catch (Exception linkError)
+        catch (Exception asmOrLinkError)
         {
-            return (null, lang, $"⚠️ 编译失败：{linkError.Message}");
+            return (null, lang, $"⚠️ 编译失败：{asmOrLinkError.Message}");
         }
 
         return (prog, lang, null);

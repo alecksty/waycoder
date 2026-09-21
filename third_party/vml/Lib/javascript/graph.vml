@@ -4,1299 +4,1299 @@
 .linked "../shared/graph.vml"
 
 LABEL js_gfxScreen
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL gfx_screen
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxWidth
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gfx_width
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxHeight
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gfx_height
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxDepth
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gfx_depth
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPalette
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_palette
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPaletteGet
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL gfx_palette_get
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPset
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL gfx_pset
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPoint
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL gfx_point
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxCls
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gfx_cls
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxClsColor
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL gfx_cls_color
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxLine
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_line
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxRect
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_rect
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxRectFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_rect_fill
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxCircle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_circle
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxCircleFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_circle_fill
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxEllipse
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_ellipse
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxEllipseFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_ellipse_fill
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxArc
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_arc
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxSector
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_sector
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxSectorFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_sector_fill
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxFloodFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_flood_fill
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPrint
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_print
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPrintScale
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_print_scale
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxScreenshot
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gfx_screenshot
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxPutImage
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_put_image
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxGetImage
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_get_image
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_gfxViewport
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL gfx_viewport
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_initGraph
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL InitGraph
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_closeGraph
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CloseGraph
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_detectGraph
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL DetectGraph
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getMaxX
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetMaxX
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getMaxY
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetMaxY
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getDriverName
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetDriverName
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getModeName
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL GetModeName
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setColor
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL SetColor
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getColor
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetColor
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setBkColor
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL SetBkColor
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getBkColor
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetBkColor
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setRGBPalette
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL SetRGBPalette
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_putPixel
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL PutPixel
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getPixel
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL GetPixel
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_line
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Line
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_lineTo
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL LineTo
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_lineRel
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL LineRel
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_rectangle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Rectangle
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_bar
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Bar
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_bar3D
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Bar3D
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_circle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL Circle
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_fillCircle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL FillCircle
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_ellipse
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Ellipse
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_fillEllipse
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL FillEllipse
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_arc
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL Arc
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_pieSlice
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL PieSlice
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setFillStyle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL SetFillStyle
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setLineStyle
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL SetLineStyle
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_clearDevice
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL ClearDevice
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_clearViewPort
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL ClearViewPort
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_setViewPort
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL SetViewPort
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_outText
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL OutText
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_outTextXY
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL OutTextXY
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_floodFill
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL FloodFill
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_imageSize
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL ImageSize
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getImage
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL GetImage
-    ADD R13 #20
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #20
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_putImage
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL PutImage
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getPaletteSize
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GetPaletteSize
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getPalette
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL GetPalette
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_getDefaultPalette
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL GetDefaultPalette
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_graphResult
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL GraphResult
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_graphErrorMsg
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL GraphErrorMsg
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL js_restoreCrtMode
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL RestoreCrtMode
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL Graph_GfxScreen

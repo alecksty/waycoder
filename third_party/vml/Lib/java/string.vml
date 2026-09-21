@@ -4,438 +4,438 @@
 .linked "../shared/string.vml"
 
 LABEL java_strcpy
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strcpy
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strcat
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strcat
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strlen
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL strlen
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strLen
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL str_len
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strCmp
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_cmp
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strcmp
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strcmp
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strncmp
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL strncmp
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strchr
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strchr
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strncpy
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL strncpy
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strstr
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strstr
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strrev
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL strrev
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strToupper
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_toupper
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strTolower
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_tolower
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strRepeat
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL str_repeat
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strContains
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_contains
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strTrim
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_trim
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strSubstr
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL str_substr
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strIndexof
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_indexof
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strSplit
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL str_split
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strPadstart
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL str_padstart
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strPadend
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL str_padend
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strCharat
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_charat
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strStartswith
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_startswith
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_strEndswith
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL str_endswith
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL String_Strcpy

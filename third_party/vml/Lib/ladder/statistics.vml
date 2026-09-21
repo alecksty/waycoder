@@ -4,157 +4,157 @@
 .linked "../shared/statistics.vml"
 
 LABEL LADDER_MEAN
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL mean
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_MEDIAN
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL median
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_RANGE
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL range
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_COUNT_GT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL count_gt
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_COUNT_LT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL count_lt
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_COUNT_EQ
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL count_eq
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_VARIANCE
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL variance
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_STD_DEV
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL std_dev
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_LINREG_SLOPE
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL linreg_slope
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL LADDER_LINREG_INTERCEPT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL linreg_intercept
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 

@@ -46,10 +46,14 @@ def main():
     opened = False
     while time.time() - t0 < 300:
         time.sleep(3)
-        if d.window_open():
+        # ⚠ **判"窗口开了"必须看见手柄按钮，不能用 driver.window_open 的兜底分支**
+        #   （"命令行页不见了"）—— `uiautomator dump` 偶尔返回空树，那一下就会被读成
+        #   "窗口开了"，于是**在编译期间**就开始转屏（实测踩到，还顺手把 App 转崩了一次）。
+        ns = d.nodes()
+        if any(n["text"] in ("SELECT", "START", "▲ 收起手柄") for n in ns):
             opened = True
             break
-        if "ROT-DONE" in (d.output_label() or ""):
+        if "ROT-DONE" in (d.output_label(ns) or ""):
             break
     print("绘图窗口：%s（%.0fs）" % (opened, time.time() - t0))
     if do_rotate and opened:

@@ -4,287 +4,287 @@
 .linked "../shared/crt.vml"
 
 LABEL java_crtInitMaps
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL _crt_init_maps
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTINIT
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_INIT
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTCLRSCR
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_CLRSCR
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTCLREOL
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_CLREOL
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTGOTOXY
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL CRT_GOTOXY
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTWHEREX
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_WHEREX
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTWHEREY
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_WHEREY
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTTEXTCOLOR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_TEXTCOLOR
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTTEXTBACKGROUND
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_TEXTBACKGROUND
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTWINDOW
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL CRT_WINDOW
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTKEYPRESSED
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_KEYPRESSED
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTREADKEY
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_READKEY
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTDELAY
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_DELAY
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTSOUND
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_SOUND
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTNOSOUND
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_NOSOUND
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTNORMVIDEO
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_NORMVIDEO
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTHIGHVIDEO
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_HIGHVIDEO
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTLOWVIDEO
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_LOWVIDEO
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTINSLINE
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_INSLINE
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTDELLINE
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_DELLINE
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTCURSORON
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_CURSORON
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTCURSOROFF
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL CRT_CURSOROFF
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTWRITECHAR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_WRITE_CHAR
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL java_cRTWRITESTRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL CRT_WRITE_STRING
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL Crt_CrtInitMaps

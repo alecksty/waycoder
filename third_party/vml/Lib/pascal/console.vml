@@ -7,865 +7,865 @@
 .linked "../shared/readline.vml"
 
 LABEL PASCAL_READ_LINE
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL read_line
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PUTCHAR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
     CALL putchar
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_STR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_str
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_INT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_int
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_HEX
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_hex
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_STR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL println_str
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_INT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL println_int
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_FLOAT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    movef @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    movef @13 @R0
+    move @R0 [@R13+0]
     CALL print_float
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_BOOL
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_bool
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PUTHEX
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL puthex
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PUTFLOAT
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    movef @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    movef @13 @R0
+    move @R0 [@R13+0]
     CALL putfloat
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_STR_NO_NL
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_str_no_nl
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_STR_NO_NL_IMPL
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_str_no_nl_impl
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_HEX
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL println_hex
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_CLEAR_SCREEN
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL clear_screen
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_GETCHAR
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL getchar
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_INPUT_STR
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL input_str
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_INPUT_INT
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL input_int
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_INPUT_FLOAT
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL input_float
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_GETS
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL gets
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_KB_HIT
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL kb_hit
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTF2
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL printf2
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTF3
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL printf3
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTF
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL printf
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PUTS
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL puts
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_STRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_string
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_WSTR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_wstr
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_WSTR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL println_wstr
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_USTR
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL print_ustr
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_LONG
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R13+0]
     CALL print_long
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_HEX_LONG
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R13+0]
     CALL print_hex_long
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_LONG
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R13+0]
     CALL println_long
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_HEX_LONG
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    movel @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    movel @13 @R0
+    move @R0 [@R13+0]
     CALL println_hex_long
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_INPUT_LONG
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL input_long
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINT_DOUBLE
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #8
-    moved @13 R0
-    move R0 [R13+0]
-    move R1 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #8
+    moved @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+8]
     CALL print_double
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLN_DOUBLE
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #8
-    moved @13 R0
-    move R0 [R13+0]
-    move R1 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #8
+    moved @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+8]
     CALL println_double
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PUTSN
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL putsn
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_VSNPRINTF
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL vsnprintf
-    ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #16
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_SPRINTF
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL sprintf
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTF4
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL printf4
-    ADD R13 #24
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #24
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTF5
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+36]
-    PUSH R0
-    move R0 [R12+32]
-    PUSH R0
-    move R0 [R12+28]
-    PUSH R0
-    move R0 [R12+24]
-    PUSH R0
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    sub R13 #4
-    moveb @13 R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
-    move R3 [R13+12]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+36]
+    PUSH @R0
+    move @R0 [@R12+32]
+    PUSH @R0
+    move @R0 [@R12+28]
+    PUSH @R0
+    move @R0 [@R12+24]
+    PUSH @R0
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    sub @R13 #4
+    moveb @13 @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
+    move @R3 [@R13+12]
     CALL printf5
-    ADD R13 #28
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #28
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_INT32
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printx_int32
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_INT32
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printlnx_int32
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_STRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printx_string
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_STRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printlnx_string
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_WSTRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printx_wstring
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_WSTRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printlnx_wstring
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_USTRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printx_ustring
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_USTRING
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
     CALL printlnx_ustring
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_FLOAT32
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    movef @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    movef @13 @R0
+    move @R0 [@R13+0]
     CALL printx_float32
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_FLOAT32
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #4
-    movef @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #4
+    movef @13 @R0
+    move @R0 [@R13+0]
     CALL printlnx_float32
-    ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_FLOAT64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    moved @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    moved @13 @R0
+    move @R0 [@R13+0]
     CALL printx_float64
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTLNX_FLOAT64
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+12]
-    sub R13 #8
-    moved @13 R0
-    move R0 [R13+0]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    sub @R13 #8
+    moved @13 @R0
+    move @R0 [@R13+0]
     CALL printlnx_float64
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_INT64_HEX
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL printx_int64_hex
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_PRINTX_NL
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL printx_nl
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_SCANF
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
     CALL scanf
-    ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #8
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 
 LABEL PASCAL_SSCANF
-    push R15
-    push R12
-    move R12 R13
-    move R0 [R12+20]
-    PUSH R0
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
-    move R2 [R13+8]
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+20]
+    PUSH @R0
+    move @R0 [@R12+16]
+    PUSH @R0
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    move @R1 [@R13+4]
+    move @R2 [@R13+8]
     CALL sscanf
-    ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
+    ADD @R13 #12
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 

@@ -132,9 +132,16 @@ namespace CCompiler
                         new Operand(OperandType.REGISTER, regIdx),
                         new Operand(OperandType.MEMORY, memOp) }));
                     // Replace ${varName} with register reference
-                    code = code.Substring(0, dollar) + $"R{regIdx}" + code.Substring(braceEnd + 1);
+                    //
+                    // ⚠ **必须带 `@` 标记**（v0.96.328）：这里是 C 前端**唯一自己拼寄存器文本**的地方，
+                    //   而它拼出来的串会**绕过序列化器**直接进 `asm "..."` 文本（`AddInstruction(OpCode.ASM,
+                    //   Imm(code))`），所以 (c) 规则管不到它。裸写 `R0` 的后果与整个 `@` 方案要治的病同源：
+                    //   同一行里还有别的寄存器时（`MOVEF F0, [${p}]` → `MOVEF F0, [R0]`）读者要靠"形状"
+                    //   去猜谁是谁，而这正是"变量名就叫 f1"那类静默歧义的老路。
+                    //   写 `@R0` 之后，规则 (b) 生效、其余裸 token 由标签集裁定，两边都确定。
+                    code = code.Substring(0, dollar) + $"@R{regIdx}" + code.Substring(braceEnd + 1);
                     regIdx++;
-                    searchStart = dollar + 2; // "R0" is 2 chars
+                    searchStart = dollar + 3; // "@R0" is 3 chars
                 }
                 else
                 {

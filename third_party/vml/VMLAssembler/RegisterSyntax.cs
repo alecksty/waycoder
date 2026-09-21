@@ -29,12 +29,25 @@ namespace VMLAssembler
         /// <summary>
         /// 「这是一个寄存器名」——**裸名**判据（`@` 已剥掉之后用）：
         /// <list type="bullet">
-        /// <item><c>R</c> + 整数：**没有上界**（汇编写法就是如此）⇒ <c>r0</c>/<c>r99</c>/<c>r100</c> 都算</item>
+        /// <item><c>R</c> + 0..31 ⇒ 寄存器号 = n</item>
         /// <item><c>F</c> + 0..15 ⇒ 寄存器号 = n</item>
         /// <item><c>D</c> + 0..7 ⇒ 寄存器号 = n+16（与运行时一致）</item>
         /// <item><c>L</c> + 0..7 ⇒ 寄存器号 = n+24（与运行时一致）</item>
         /// </list>
-        /// 大小写不敏感（<c>OrdinalIgnoreCase</c>，与原实现的四个分支逐条一致）。
+        /// 大小写不敏感（<c>OrdinalIgnoreCase</c>）。
+        ///
+        /// <para>
+        /// ⚠**<c>R</c> 的上界是 31，不是"没有上界"**（v0.96.328 起）。0–31 是**统一编号空间**：
+        /// 0–15 通用、16–23 = D0–D7、24–31 = L0–L7，正是运行时那三个数组
+        /// （<c>int[16]</c> / <c>double[8]</c> / <c>long[8]</c>）的下标范围。序列化器给 D/L 写出来的
+        /// 就是 <c>@R16</c>…<c>@R31</c>（<see cref="Operand.ToString"/> 一律写 <c>R&lt;n&gt;</c>），
+        /// 所以这一档**必须有**；而 R32+ 在运行时**没有对应物**。
+        /// </para>
+        /// <para>
+        /// 旧版对 <c>R</c> 不查上界 ⇒ <c>R99</c> 一路编到底、到运行时才以
+        /// <c>IndexOutOfRangeException</c> 崩（`registers` 只有 16 个）。现在在解析点就拒绝，
+        /// 由调用方按「越界」报错（见 <see cref="OutOfRangeReason"/>）。
+        /// </para>
         /// </summary>
         public static bool TryParseName(string str, out int regNum)
         {
@@ -47,11 +60,56 @@ namespace VMLAssembler
 
             switch (prefix)
             {
-                case 'R': regNum = n; return true;
+                case 'R': if (n < 0 || n > 31) return false; regNum = n; return true;
                 case 'F': if (n < 0 || n > 15) return false; regNum = n; return true;
                 case 'D': if (n < 0 || n > 7) return false; regNum = n + 16; return true;
                 default:  if (n < 0 || n > 7) return false; regNum = n + 24; return true;   // 'L'
             }
+        }
+
+        /// <summary>
+        /// 「**长得**像寄存器名」—— 前缀 ∈ {R,F,D,L} + 后面**全是数字**，**不查范围**。
+        ///
+        /// <para>
+        /// 它**不是**第二条解析路径（判寄存器永远只用 <see cref="TryParseName"/>）——
+        /// 只用来把「越界」与「根本不是寄存器名」分开，好给出可读的报错：
+        /// <c>R99</c> 该报"通用寄存器只有 R0–R31"，而 <c>foo</c> 该按标签/符号走。
+        /// 越界若不走这一条，就会**静默退化成**标签（<c>R99</c> 满足 <c>IsValidLabel</c>！）
+        /// 或内存操作数，那正是这轮要消灭的那类缺陷。
+        /// </para>
+        /// </summary>
+        public static bool HasRegisterShape(string str)
+        {
+            if (string.IsNullOrEmpty(str) || str.Length < 2) return false;
+            char prefix = char.ToUpperInvariant(str[0]);
+            if (prefix != 'R' && prefix != 'F' && prefix != 'D' && prefix != 'L') return false;
+            for (int i = 1; i < str.Length; i++)
+                if (!char.IsDigit(str[i])) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 越界时的报错文案（<c>null</c> = 压根不是"寄存器形"，调用方按别的分支走）。
+        ///
+        /// <para>
+        /// 数字用 <c>long.TryParse</c> 兜底：<c>R99999999999999999999</c> 这种要把
+        /// <c>int.TryParse</c> 溢出当成"越界"报出来，不能让它抛 <c>OverflowException</c>。
+        /// </para>
+        /// </summary>
+        public static string? OutOfRangeReason(string str)
+        {
+            if (!HasRegisterShape(str)) return null;
+            char prefix = char.ToUpperInvariant(str[0]);
+            if (!long.TryParse(str.Substring(1), out long n)) n = long.MaxValue;
+
+            return prefix switch
+            {
+                'R' when n > 31 => $"R{n}：通用寄存器只有 R0–R31（R0–R15 通用 / R16–R23 = D0–D7 / R24–R31 = L0–L7）",
+                'F' when n > 15 => $"F{n}：浮点寄存器只有 F0–F15",
+                'D' when n > 7  => $"D{n}：双精度寄存器只有 D0–D7",
+                'L' when n > 7  => $"L{n}：长整数寄存器只有 L0–L7",
+                _ => null,
+            };
         }
 
         /// <summary>

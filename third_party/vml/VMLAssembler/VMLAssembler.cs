@@ -106,6 +106,29 @@ namespace VMLAssembler
         private List<object>? _lastDataValues;
         private bool _inDataSection;
 
+        /// <summary>待裁定的「寄存器形」操作数来自哪种写法 —— 决定裁定成标签时该变成什么。</summary>
+        private enum RegShapedKind
+        {
+            /// <summary>裸 token：标签 ⇒ <c>LABEL</c>，寄存器 ⇒ <c>REGISTER</c>。</summary>
+            Bare,
+            /// <summary><c>[...]</c> 里的内容：标签 ⇒ <c>MEMORY</c>，寄存器 ⇒ <c>INDIRECT</c>。</summary>
+            Bracket,
+        }
+
+        /// <summary>
+        /// 「寄存器形 token」的**待裁定表** —— 解析到它的当时只知道**形状**，不知道它到底是不是标签
+        /// （标签可以定义在使用点**之后**，前向引用是常态），所以先登记下来，整份文件解析完再定
+        /// （见 <see cref="ResolveRegisterShapedNames"/>）。
+        ///
+        /// <para>
+        /// 为什么要这么绕：**形状判不出归属**。用户完全可以把全局变量叫 <c>f1</c> ——
+        /// 实测那条链是「C 前端为全局标量产出 <c>[f1]</c> → 按形状读成寄存器 F1 → 运行时
+        /// <c>registers[17]</c> 直接 <c>IndexOutOfRangeException</c>」（<c>d1</c> 走 D1 = 17）。
+        /// 真正有信息量的是「**本文件有没有定义同名标签**」。
+        /// </para>
+        /// </summary>
+        private readonly List<(Operand Op, string Name, RegShapedKind Kind, int Address)> _pendingRegShaped = [];
+
         /// <summary>
         /// 初始化汇编器
         /// </summary>
@@ -130,7 +153,11 @@ namespace VMLAssembler
         /// </param>
         /// <returns>解析后的操作数</returns>
         /// <exception cref="ArgumentException">操作数字符串格式错误</exception>
-        public Operand ParseOperand(string operandStr, bool bareTokensAreLabels = false)
+        /// <param name="labelPosition">
+        /// 本操作数处在**标签位置**（CALL / JMP / Jcc / CATCH / LABEL 的操作数）。这类位置的裸 token
+        /// **只能是标签**，不参与「寄存器形」的推迟裁定 —— 见下面那段的说明。
+        /// </param>
+        public Operand ParseOperand(string operandStr, bool bareTokensAreLabels = false, bool labelPosition = false)
         {
             operandStr = operandStr.Trim();
 
@@ -150,13 +177,33 @@ namespace VMLAssembler
                 return new Operand(OperandType.REGISTER, markedReg);
             }
 
-            if (!bareTokensAreLabels)
+            // `@` 打头、长得像寄存器名却**越界**（`@R99` / `@F20`）⇒ 报错。
+            // 不能放它过去：下面那条 `@` 分支会把它当**间接寻址**（`INDIRECT("R99")`）静默收下。
+            if (afterAt != null && RegisterSyntax.OutOfRangeReason(afterAt) is string atReason)
             {
-                // 寄存器：R0-R31 (R0-R15=通用, R16-R23=D0-D7双精度, R24-R31=L0-L7长整数)
-                if (TryParseRegisterName(operandStr, out int regNum))
-                {
-                    return new Operand(OperandType.REGISTER, regNum);
-                }
+                throw new ArgumentException($"寄存器名越界：@{afterAt} —— {atReason}");
+            }
+
+            // ── 寄存器形的**裸** token：归属**推迟裁定** ─────────────────────────────
+            //
+            // 只看形状定不了它是寄存器还是标签：用户完全可以把全局变量叫 `f1` / `d1` ——
+            // C 前端为全局标量产出的就是 `[f1]` 这种标签名，按形状读成寄存器 F1 之后
+            // 运行时读 R1（`d1` 更狠，D1 = 寄存器 17）直接越界崩。
+            // 真正有信息量的是「**本文件有没有定义同名标签**」，而标签可以定义在使用点**之后**
+            // ⇒ 这里只登记形状与位置，等整份文件解析完再定（`ResolveRegisterShapedNames`）。
+            //
+            // ⚠ **标签位置除外**（规则 (a)）：`call f1` 的 `f1` 只能是标签，判不出来就该报
+            //   「未找到标签」，绝不能悄悄变回 `call F1`（间接调用）—— 那正是语法变更前
+            //   那类静默歧义的原始形态。间接调用按新写法写 `call @R0`。
+            if (!labelPosition && RegisterSyntax.HasRegisterShape(operandStr))
+            {
+                // 越界的（`R99`）形状照样登记 —— 裁定完发现它不是标签，才报「越界」；
+                // 若它**是**本文件的标签，那它就是那个标签（`int r99;` 完全合法）。
+                var shaped = TryParseRegisterName(operandStr, out int shapedReg)
+                    ? new Operand(OperandType.REGISTER, shapedReg)
+                    : new Operand(OperandType.REGISTER, 0);
+                _pendingRegShaped.Add((shaped, operandStr, RegShapedKind.Bare, currentAddress));
+                return shaped;
             }
 
             // 立即数：#value 或直接数字
@@ -200,13 +247,21 @@ namespace VMLAssembler
                 // 剥掉之后与裸写法走的是**同一条**路，所以内存表示与改动前逐字相同
                 addrStr = RegisterSyntax.StripMarker(addrStr);
 
-                // 检查是否是寄存器间接寻址: [R0], [R12], [F0], [D0], [L0] 等
-                if (IsRegisterName(addrStr))
+                // 寄存器形的内容（`[R0]` / `[f1]` / `[R99]`）：**归属推迟裁定**，理由与裸 token 同。
+                //
+                // ⚠ 这里**不能**直接按寄存器收下 —— 那正是「全局变量叫 f1」整条链崩掉的入口：
+                //   C 前端为全局标量产出 `[f1]`，`f1` 形状上就是 F1，于是变成 `INDIRECT(1)`，
+                //   运行时拿 R1 里的垃圾当地址。判据只能是「本文件有没有名叫 f1 的标签」，
+                //   而标签集要等整份文件解析完才齐。
+                if (RegisterSyntax.HasRegisterShape(addrStr))
                 {
-                    // ⚠ 这里必须显式按「寄存器」解析：本指令可能处于 (b) 的"裸 token 当标签"模式
-                    //   （`_` 带标记的那种）、那样 `R0` 会被当标签 —— 而括号里这个位置本来就只能是寄存器
-                    return new Operand(OperandType.INDIRECT, ParseOperand(addrStr, false).Value);
+                    var shapedMem = TryParseRegisterName(addrStr, out int innerReg)
+                        ? new Operand(OperandType.INDIRECT, innerReg)
+                        : new Operand(OperandType.INDIRECT, 0);
+                    _pendingRegShaped.Add((shapedMem, addrStr, RegShapedKind.Bracket, currentAddress));
+                    return shapedMem;
                 }
+
                 // 检查是否是标签
                 if (IsValidLabel(addrStr))
                 {
@@ -272,6 +327,57 @@ namespace VMLAssembler
         /// "`move @R, f1` 说明第二个就不是寄存器"。
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 把待裁定的「寄存器形 token」按**本文件是否定义了同名标签**定下来 —— 整份文件解析完之后跑。
+        ///
+        /// <para>
+        /// **规则**：一个不带 `@` 的寄存器形 token（<c>f1</c> / <c>d2</c> / <c>r100</c> / <c>R0</c>）——
+        /// <list type="bullet">
+        /// <item>本文件定义了**同名标签** ⇒ 它是**标签**（这是「变量就叫 f1」能正常工作的全部秘密）；</item>
+        /// <item>否则 ⇒ 它是**寄存器**；越界（<c>R99</c> / <c>F20</c>）则**报错**。</item>
+        /// </list>
+        /// </para>
+        /// <para>
+        /// 为什么由标签集来裁定、而不是按形状猜：形状没有信息量（<c>f1</c> 与浮点寄存器 F1 逐字相同），
+        /// 而**定义**是作者写下的、唯一的显式信号。这也让两条老规则各归其位 ——
+        /// (a) 标签位置仍然是「只能是标签」；(b) 带 `@` 的仍然是「只能是寄存器」，
+        /// 这里的裁定只管**两者都没说的**那些。
+        /// </para>
+        /// <para>
+        /// ⚠ 代价（有意接受）：真定义了名叫 <c>R0</c> 的标签时，那条 <c>[R0]</c> 会变成标签引用 ——
+        /// 要寄存器间接就写 <c>[@R0]</c>（`@` 永远优先）。`R0` 当变量名远比 <c>f1</c>/<c>d1</c>/<c>l1</c>
+        /// 罕见，且**编译器自己产出的寄存器引用一律带 `@`**，所以这条代价只落在手写汇编上。
+        /// </para>
+        /// </summary>
+        private void ResolveRegisterShapedNames()
+        {
+            foreach (var (op, name, kind, addr) in _pendingRegShaped)
+            {
+                if (labels.ContainsKey(name))
+                {
+                    // 同名标签存在 ⇒ 它就是这个标签（`f1` 作变量名 / 函数名的主路径）
+                    op.Type = kind == RegShapedKind.Bracket ? OperandType.MEMORY : OperandType.LABEL;
+                    op.Value = name;
+                    continue;
+                }
+
+                // 不是标签 ⇒ 只能是寄存器。在范围内的，`ParseOperand` 登记时已经写好了号。
+                if (TryParseRegisterName(name, out int reg))
+                {
+                    op.Type = kind == RegShapedKind.Bracket ? OperandType.INDIRECT : OperandType.REGISTER;
+                    op.Value = reg;
+                    continue;
+                }
+
+                // 既不是本文件的标签，又不是合法寄存器 ⇒ 越界，报出来。
+                // （这条路以前是**静默**的：`R99` 满足 `IsValidLabel` ⇒ 悄悄变成标签或内存操作数。）
+                throw new ArgumentException(
+                    $"寄存器名越界：{(kind == RegShapedKind.Bracket ? $"[{name}]" : name)}（地址 {addr}）"
+                    + $"—— {RegisterSyntax.OutOfRangeReason(name)}"
+                    + "（若本意是标签，请在本文件里定义它）");
+            }
+        }
+
         private static bool HasMarkedRegister(List<string> operandStrs)
         {
             foreach (var s in operandStrs)
@@ -298,14 +404,15 @@ namespace VMLAssembler
         private static bool TryParseRegisterName(string str, out int regNum)
             => RegisterSyntax.TryParseName(str, out regNum);
 
-        /// <summary>检查字符串是否是寄存器名 (R0-R31, F0-F15, D0-D7, L0-L7)</summary>
-        private static bool IsRegisterName(string str)
-        {
-            if (string.IsNullOrEmpty(str) || str.Length < 2) return false;
-            char prefix = char.ToUpperInvariant(str[0]);
-            if (prefix != 'R' && prefix != 'F' && prefix != 'D' && prefix != 'L') return false;
-            return int.TryParse(str.Substring(1), out _);
-        }
+        /// <summary>检查字符串是否是寄存器名 (R0-R31, F0-F15, D0-D7, L0-L7)。
+        ///
+        /// <para>
+        /// ⚠ 这里**曾是第二份判据**：前缀 ∈ {R,F,D,L} + <c>int.TryParse</c> 能过，
+        /// **不查任何范围**。于是同一条规则两份口径 —— 顶层判据（<see cref="TryParseRegisterName"/>）
+        /// 拒掉的 <c>F20</c>，在 <c>[...]</c> 里照收；<c>L9</c> 也一样。现在只剩一份。
+        /// </para>
+        /// </summary>
+        private static bool IsRegisterName(string str) => RegisterSyntax.TryParseName(str, out _);
 
         private bool IsValidLabel(string str)
         {
@@ -558,11 +665,14 @@ namespace VMLAssembler
 
                     // 「裸 token 不是寄存器」模式 —— 两条规则（见 `ParseOperand` 的 bareTokensAreLabels），
                     // 判据合在一处，22 个前端/手写汇编走的是同一条路。
-                    bool bareTokensAreLabels = IsLabelPositionOpcode(opcode) || HasMarkedRegister(operandStrs);
+                    // `labelPosition` **单独留一份**：它要传给 `ParseOperand` 做「寄存器形 token
+                    // 推迟裁定」的例外（标签位置只能当标签，见那里的说明）。
+                    bool labelPosition = IsLabelPositionOpcode(opcode);
+                    bool bareTokensAreLabels = labelPosition || HasMarkedRegister(operandStrs);
 
                     foreach (var opStr in operandStrs)
                     {
-                        operands.Add(ParseOperand(opStr, bareTokensAreLabels));
+                        operands.Add(ParseOperand(opStr, bareTokensAreLabels, labelPosition));
                     }
                 }
             }
@@ -1188,6 +1298,9 @@ namespace VMLAssembler
             Reset();
             if (defines != null) SetDefines(defines);
             ProcessVmlLines(source, basePath);
+            // ⚠ 必须在 ProcessVmlLines **之后**：标签可以在使用点之后才定义，
+            //   而「寄存器形 token 是寄存器还是标签」正是拿标签集裁定的。
+            ResolveRegisterShapedNames();
             FinalizeMultiWordData();
             var prog = new VmlProgram(instructions, labels, dataSection, constants)
             {
@@ -1814,6 +1927,7 @@ namespace VMLAssembler
             _lastDataLabel = null;
             _lastDataValues = null;
             _inDataSection = false;
+            _pendingRegShaped.Clear();
             _defines.Clear();
             entryPoint = "main";
             stackTop = 1048576;

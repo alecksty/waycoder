@@ -513,7 +513,25 @@ HALT
             "VML_MODE_MCU",     // 与运行时一致：MCU 模式（见 RunProgram 的安全边界说明）
             "VML_RAM_M",
         };
-        var prog = new VmlAssembler().AssembleWithIncludes(vmlText, libRoot, langDefines);
+        //
+        // ⚠ **汇编器与链接器抛的异常必须在这里接住**（v0.96.328 起）。它们抛的都是**用户可见的
+        //   诊断**，不是内部故障 —— 例如手写 `asm("MOVE @R0 R99")` 的「寄存器名越界：R99…」、
+        //   未知指令、未找到标签。不接住的话它会**穿出本方法**，在手机端落在 `Task.Run` 里
+        //   变成"未观察的任务异常"：界面既不报错也不动，就是**点了没反应** ——
+        //   本仓已经踩过两次同型（见 CLAUDE.md 移动端十三期 ⑨b / ⑲）。
+        //   `Fail` 那条出口与前端编译失败走的是同一条（用户看到的是同一句话式的错误）。
+        VmlProgram prog;
+        try
+        {
+            prog = new VmlAssembler().AssembleWithIncludes(vmlText, libRoot, langDefines);
+        }
+        catch (Exception asmError)
+        {
+            var inner = asmError is AggregateException agg ? agg.GetBaseException() : asmError;
+            return Fail(lang, $"⚠️ 汇编失败：{inner.Message}"
+                + $"\n（前端已产出 VML 汇编，是汇编/链接阶段报错 —— 多半是 `asm()` 里写了越界寄存器名"
+                + $"或未知指令；产物前 200 字符：\n{Head(vmlText)}）", filePath);
+        }
 
         // ③ 链接共享库 ④ 应用导出符号
         //
@@ -541,6 +559,13 @@ HALT
             .Where(d => d.Severity == Severity.Warning)
             .ToList();
         return (prog, lang, null, compileWarnings);
+    }
+
+    /// <summary>产物的前 200 字符（报错时给用户看个开头，够判断「编到哪儿了」）。</summary>
+    private static string Head(string? text)
+    {
+        var s = text ?? "";
+        return s.Length <= 200 ? s : s[..200];
     }
 
     /// <summary>

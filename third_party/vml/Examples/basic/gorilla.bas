@@ -146,10 +146,20 @@ END FUNCTION
 '   20 .. 33    星星 y
 '   100 .. 190  三角函数表：sin(a)*1000，a = 0..90
 '               cos 不另存 —— cos(a) = sin(90-a)，一次查表就够
+'   208 .. 255  弹坑表：每坑 3 格（x, y, r），16 坑见底
+'
+' ⚠ 网格一共 **256** 格（`Lib/shared/src/vmlui.c` 的 `UI_GRID_N`），而
+'   **200 .. 206 是俄罗斯方块的方块掩码**（那里的 `MASK_AT`，跨语言约定）⇒
+'   弹坑表从 208 起、16 坑 ×3 = 48 格到 255 **正好塞满**，一格不越界。
+'   要加坑先算一遍 `G_HOLE + MAXHOLE*3 - 1 <= 255`，越界是**静默丢弃**
+'   （`ui_gset` 越界不报错），表现是"后面的坑不生效"，很难查。
 CONST G_ROOF = 0
 CONST G_STARX = 6
 CONST G_STARY = 20
 CONST G_TRIG = 100
+CONST G_HOLE = 208
+CONST MAXHOLE = 16        ' 一局最多记 16 个坑（环形复用，满了盖最老的）
+CONST HOLE_R = 22         ' 一发炸掉的半径（像素）。楼宽约 63，约 1/3 栋
 
 ' ── 手感数值（都在这儿，改手感只动这一段）────────────────────────────
 CONST S = 16              ' 子像素刻度：1 像素 = 16 个单位
@@ -244,6 +254,16 @@ DIM spd AS INTEGER
 DIM spdN AS INTEGER
 DIM rr AS INTEGER
 
+' 弹坑（楼被打掉的那一块，见 clearHoles/addHole）
+DIM nHole AS INTEGER
+DIM holeNext AS INTEGER
+DIM inHole AS INTEGER
+DIM hitBld AS INTEGER
+DIM hx AS INTEGER
+DIM hy AS INTEGER
+DIM hr AS INTEGER
+DIM hr2 AS INTEGER
+
 DIM pvx AS INTEGER
 DIM pvy AS INTEGER
 DIM pbx AS INTEGER
@@ -292,6 +312,9 @@ DIM groof AS INTEGER
 DIM gstarx AS INTEGER
 DIM gstary AS INTEGER
 DIM gtrig AS INTEGER
+DIM ghole AS INTEGER
+DIM maxHole AS INTEGER
+DIM holeR AS INTEGER
 DIM stepMs AS INTEGER
 DIM idleMs AS INTEGER
 DIM paceMs AS INTEGER
@@ -318,6 +341,9 @@ gtrig = G_TRIG
 stepMs = STEP_MS
 idleMs = IDLE_MS
 paceMs = PACE_MS
+ghole = G_HOLE
+maxHole = MAXHOLE
+holeR = HOLE_R
 
 ' 城市的地形带（都要先算成普通变量，理由同上）
 '   · 楼房：楼顶 y 落在 [topMin, topMax)
@@ -589,13 +615,69 @@ SUB simCheck()
     simShot(45, 68)
     PRINT "  ④ 45度 力度068 -> 命中猿?"; hitFlag
     PRINT "     落点 x/y:"; ebx; eby
+    ' ⚠ `hitBld` 每发都会在 stepFlight 开头清零 ⇒ **必须当场打印**，
+    '   攒到后面再打拿到的是最后一发的值（这里第一版就写错过一次）。
+    PRINT "     打猿不留坑 -> hitBld(应 0):"; hitBld
 
     ' ⑤ 角度 45、力度三成：射程约 135，落在城里某栋楼上
+    '    ⚠ 先清空弹坑：前面 ①② 也都打在楼上、各留了一个坑，
+    '      不清的话下面 `ui_gget(ghole)` 读到的是**最早**那个坑，判据对不上落点。
+    clearHoles()
     simShot(45, 30)
     PRINT "  ⑤ 45度 力度030 -> 命中猿?"; hitFlag
     PRINT "     落点 x/y:"; ebx; eby
 
+    ' ⑥ 弹坑判据：这一段钉的就是用户报的那件事「炸了建筑，炸完又还原了」——
+    '    从前爆炸只是一层特效、楼体数据一个字节没动，所以缺口下一帧就被重画抹平。
+    PRINT "  ⑥ 打楼留坑 -> hitBld(应 1):"; hitBld
+    PRINT "     坑数 nHole(应 1):"; nHole
+    PRINT "     坑 x/y/r(应 = ⑤ 的落点, 22):"
+    PRINT "       "; ui_gget(ghole); ui_gget(ghole + 1); ui_gget(ghole + 2)
+
+    ' ⑦ 同一发**再打一遍**：这一次要从刚才那个缺口里穿过去 ⇒ 落点必然更低。
+    '    这是"楼被打穿"的判据 —— 穿不过去的话新落点会与 ⑤ 逐像素相同。
+    pby = eby
+    simShot(45, 30)
+    PRINT "  ⑦ 再打一发 -> 新落点 y(应 > ⑤ 的 y):"; eby
+    PRINT "     ⑤ 的 y:"; pby
+    PRINT "     坑数 nHole(应 2，穿过去之后又炸了一层):"; nHole
+
+    ' ⑧ 换局要清空：城市都重排了，旧坑的位置毫无意义
+    '    （不清的话上一局的洞会以天空色的圆出现在新楼上，像贴了几块补丁）
+    clearHoles()
+    PRINT "  ⑧ 换局后 nHole(应 0):"; nHole
+
     simMode = 0
+END SUB
+
+' ── 弹坑：楼被炸掉的那一块 ─────────────────────────────────────────────
+'
+' 为什么必须**记成状态**、而不是"爆炸时画一下"：`drawScene` 每帧先 `ui_clear`
+' 再把每栋楼**整栋**重画（见那里的循环），爆炸要是只画在楼上面，下一帧就被
+' 盖回原样 —— 用户看到的正是「猴子炸了建筑，炸完又还原了」。
+' 缺口得跟着这一局留住，所以存进网格，由 `drawBuilding` 之后的那一趟统一涂回去。
+'
+' 存法沿用全仓"没有可靠数组"的惯例（文件头缺陷 ③）：`ui_gget/ui_gset` 的整数网格，
+' 每坑 3 格 x/y/r。**环形复用**（满了从最老的开始盖）—— 这一点是刻意的：
+' 宁可让老坑消失，也不能让"满了之后的新伤害不生效"（那会变成"打不动了"）。
+SUB clearHoles()
+    nHole = 0
+    holeNext = 0
+END SUB
+
+SUB addHole(hx0 AS INTEGER, hy0 AS INTEGER, hr0 AS INTEGER)
+    hi = holeNext * 3
+    hi = ghole + hi
+    ui_gset(hi, hx0)
+    ui_gset(hi + 1, hy0)
+    ui_gset(hi + 2, hr0)
+    holeNext = holeNext + 1
+    IF holeNext >= maxHole THEN
+        holeNext = 0
+    END IF
+    IF nHole < maxHole THEN
+        nHole = nHole + 1
+    END IF
 END SUB
 
 ' 新一局：重排城市、把大猩猩放到两头的楼顶、撒星星、把香蕉放回手上
@@ -631,6 +713,9 @@ SUB newCity()
     boomT = 0
     hitFlag = 0
     ended = 0
+    ' 城市重排了 ⇒ 旧弹坑的位置全无意义，必须清掉
+    ' （不清的话上一局的洞会以天空色的圆出现在新楼上，像贴了几块补丁）
+    clearHoles()
     st = 0
     armBanana()
 END SUB
@@ -670,6 +755,7 @@ SUB stepFlight()
     ty = INT(by / S)
     ended = 0
     hitFlag = 0
+    hitBld = 0
 
     ' ① 左右出界（各留 24 像素余量，飞出去就判脱靶）
     IF bx < -384 THEN
@@ -729,12 +815,52 @@ SUB stepFlight()
         floorY = ui_gget(groof + bi)
     END IF
     IF ty >= floorY THEN
-        ended = 1
+        ' 已经降到自己那一列的楼顶以下了 —— 但若正落在**之前炸出来的缺口**里，
+        ' 那儿是空的，香蕉该穿过去继续飞（这就是"打了几个洞之后能打穿楼"那件事）。
+        inHole = 0
+        i = 0
+        WHILE i < nHole
+            hi = i * 3
+            hi = ghole + hi
+            hx = ui_gget(hi)
+            hy = ui_gget(hi + 1)
+            hr = ui_gget(hi + 2)
+            ' 方形盒判定，与上面猿命中盒同一个理由（SUB 里大整数乘法不可靠）。
+            ' ⚠ 盒子取圆的**内接**正方形（半径 × 7/10 ≈ 0.707），不是外接 ——
+            '   取外接的话香蕉能从缺口的**四个角**穿过去，那看起来就是穿墙；
+            '   取内接最多是"炸点比看到的洞口低一点点"，方向是对的。
+            hr2 = INT(hr * 7 / 10)
+            ddx = tx - hx
+            IF ddx < 0 THEN
+                ddx = 0 - ddx
+            END IF
+            ddy = ty - hy
+            IF ddy < 0 THEN
+                ddy = 0 - ddy
+            END IF
+            IF ddx <= hr2 THEN
+                IF ddy <= hr2 THEN
+                    inHole = 1
+                END IF
+            END IF
+            i = i + 1
+        WEND
+        IF inHole = 0 THEN
+            ended = 1
+            IF bi >= 0 THEN
+                hitBld = 1
+            END IF
+        END IF
     END IF
 
     IF ended = 1 THEN
         ebx = tx
         eby = ty
+        ' 打在楼上 ⇒ 炸出一个缺口（记成状态，见 clearHoles 那段说明）。
+        ' 打在猿身上 / 落在地平线上不算 —— 那些地方本来就没有楼。
+        IF hitBld = 1 THEN
+            addHole(tx, ty, holeR)
+        END IF
         ' simMode = 1 时不发声 —— 开机自检会在真机上连放几炮，
         ' 那几声不该让用户在见到画面之前先听一串蜂鸣。
         IF simMode = 0 THEN
@@ -908,6 +1034,21 @@ SUB drawScene()
         drawBuilding(i)
         i = i + 1
     WEND
+
+    ' ── 弹坑：把炸掉的那块涂回天空色 ──
+    ' 位置很讲究：**必须在画完所有楼之后**（画在楼前面会被下一栋楼盖住，
+    ' 而缺口本来就可能横跨两栋的交界），**必须在地面之前**（否则会把地面啃掉一块）。
+    i = 0
+    WHILE i < nHole
+        hi = i * 3
+        hi = ghole + hi
+        hx = ui_gget(hi)
+        hy = ui_gget(hi + 1)
+        hr = ui_gget(hi + 2)
+        ui_circle(hx, hy, hr, C_SKY, 1, 0)
+        i = i + 1
+    WEND
+
     ui_rect(0, ground, sw, sh - ground, C_GROUND, 1, 0, 0)
 
     ' ── 两只大猩猩 ──

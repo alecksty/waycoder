@@ -4,12 +4,12 @@
 .linked "../shared/sysinfo64.vml"
 
 LABEL PASCAL_LDATETIME64
-    push R15
-    push R12
-    move R12 R13
+    push @R15
+    push @R12
+    move @R12 @R13
     CALL ldatetime64
-    move R13 R12
-    pop R12
-    pop R15
+    move @R13 @R12
+    pop @R12
+    pop @R15
     RET
 

@@ -317,14 +317,14 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
     switch (t)
     {
         case "float":
-            return (new[] { $"    sub R13 #4", $"    movef @13 R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    movef @13 @R{regIdx}" }, 4);
         case "double":
-            return (new[] { $"    sub R13 #8", $"    moved @13 R{regIdx}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    moved @13 @R{regIdx}" }, 8);
         case "long":
         case "long long":
         case "unsigned long":
         case "unsigned long long":
-            return (new[] { $"    sub R13 #8", $"    movel @13 R{regIdx}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    movel @13 @R{regIdx}" }, 8);
         // 1 字节整数: char/signed char/unsigned char
         // 实现体用 moveb 读取 + add R13 #5 清栈, 包装器必须只压 1 字节
         case "char":
@@ -334,7 +334,7 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "uint8_t":
             // ⚠ 统一约定：形参槽一律 4 字节（C 前端 ParamStackBytes），所以**压满一格**。
             // 按自然大小压 1 字节会让后续形参整体错位 —— 与脚本判据 p6（short 形参）同一个病。
-            return (new[] { $"    sub R13 #4", $"    moveb @13 R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    moveb @13 @R{regIdx}" }, 4);
         // 2 字节整数: short/unsigned short
         // 实现体用 moveh 读取 + add R13 #6 清栈, 包装器必须只压 2 字节
         case "short":
@@ -346,9 +346,9 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "int16_t":
         case "uint16_t":
             // ⚠ 同上：short 也压满一格（4 字节），不再按自然大小压 2 字节。
-            return (new[] { $"    sub R13 #4", $"    moveh @13 R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    moveh @13 @R{regIdx}" }, 4);
         default:
-            return (new[] { $"    PUSH R{regIdx}" }, 4);
+            return (new[] { $"    PUSH @R{regIdx}" }, 4);
     }
 }
 
@@ -445,9 +445,9 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             //
             // 现在包装器只认一条规则「实参在栈上、右到左」，不再关心调用方是谁 ——
             // 顺带把那套镜像从「每个前端都要记得做」变成「包装器这一层做一次」。
-            sb.AppendLine("    push R15");
-            sb.AppendLine("    push R12");
-            sb.AppendLine("    move R12 R13");
+            sb.AppendLine("    push @R15");
+            sb.AppendLine("    push @R12");
+            sb.AppendLine("    move @R12 @R13");
 
             // 实参区布局：`[R12+12]` = 第 1 个参数
             //（R12 上方依次是序言存下的 R12、R15，再往上是 CALL 压的返回地址，之后才是实参）
@@ -466,7 +466,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             {
                 string type = i < paramTypes.Length ? paramTypes[i] : "";
                 // 先把第 i 个实参从帧里取到 R0，再复用同一套按类型压栈的指令
-                sb.AppendLine($"    move R0 [R12+{argOff[i]}]");
+                sb.AppendLine($"    move @R0 [@R12+{argOff[i]}]");
                 var (lines, bytes) = EmitPushParam(type, 0);
                 foreach (var line in lines)
                     sb.AppendLine(line);
@@ -480,7 +480,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
                 int off = 0;
                 for (int i = 0; i < pCount && i < 4; i++)
                 {
-                    sb.AppendLine($"    move R{i} [R13+{off}]");
+                    sb.AppendLine($"    move @R{i} [@R13+{off}]");
                     off += EmitPushParam(i < paramTypes.Length ? paramTypes[i] : "", 0).bytes;
                 }
             }
@@ -491,11 +491,11 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             // 那正是 Lib/c/*.vml 里 `PUSH R0 / CALL x / RET` thunk 的成因，
             // 也是「两套栈清理约定并存」那一族缺陷的源头。
             if (totalArgBytes > 0)
-                sb.AppendLine($"    ADD R13 #{totalArgBytes}");
+                sb.AppendLine($"    ADD @R13 #{totalArgBytes}");
             // 拆掉本包装器自己的帧（序言压的 R12/R15）—— 被调方已是裸 `ret`，不弹实参
-            sb.AppendLine("    move R13 R12");
-            sb.AppendLine("    pop R12");
-            sb.AppendLine("    pop R15");
+            sb.AppendLine("    move @R13 @R12");
+            sb.AppendLine("    pop @R12");
+            sb.AppendLine("    pop @R15");
             sb.AppendLine("    RET");
             sb.AppendLine();
         }
@@ -884,9 +884,9 @@ internal class BindingGenerator
                 f.Params.Split(',').Select(p => p.Trim()).Where(p => p.Length > 0).ToList();
             var pnames = string.Join(", ", Enumerable.Range(0, parts.Count).Select(i => $"a{i}"));
             sb.AppendLine($"def {f.Name}({pnames}):");
-            if (f.ReturnType != "void") sb.AppendLine("    r0 = asm(\"R0\")");
+            if (f.ReturnType != "void") sb.AppendLine("    r0 = asm(\"@R0\")");
             for (int i = parts.Count - 1; i >= 0; i--)
-                sb.AppendLine($"    asm(f\"PUSH R0\")  # push a{i}");
+                sb.AppendLine($"    asm(f\"PUSH @R0\")  # push a{i}");
             sb.AppendLine($"    asm(\"CALL {f.Name}\")");
             if (f.ReturnType != "void") sb.AppendLine("    return r0");
             sb.AppendLine();
@@ -904,7 +904,7 @@ internal class BindingGenerator
                 string.Join(", ", Enumerable.Range(0, f.Params.Split(',').Length).Select(i => $"a{i}: i32"));
             sb.AppendLine($"fn {f.Name}({rp}){(f.ReturnType == "void" ? "" : " -> i32")} {{");
             sb.AppendLine($"    asm!(\"CALL {f.Name}\")");
-            if (f.ReturnType != "void") { sb.AppendLine("    let r: i32;"); sb.AppendLine("    asm!(\"MOVE {{0}}, R0\", out(reg) r);"); sb.AppendLine("    r"); }
+            if (f.ReturnType != "void") { sb.AppendLine("    let r: i32;"); sb.AppendLine("    asm!(\"MOVE {{0}}, @R0\", out(reg) r);"); sb.AppendLine("    r"); }
             sb.AppendLine("}\n");
         }
         WriteGen(Path.Combine(dir, "shared.rs"), sb.ToString());

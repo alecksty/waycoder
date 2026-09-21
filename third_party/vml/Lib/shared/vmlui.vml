@@ -3204,7 +3204,7 @@ callwithfloat8:
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F0, [R0]"
+        asm "MOVEF F0, [@R0]"
 ; 604:     p = v + 1; asm("MOVEF F1, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3215,7 +3215,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F1, [R0]"
+        asm "MOVEF F1, [@R0]"
 ; 605:     p = v + 2; asm("MOVEF F2, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3226,7 +3226,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F2, [R0]"
+        asm "MOVEF F2, [@R0]"
 ; 606:     p = v + 3; asm("MOVEF F3, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3237,7 +3237,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F3, [R0]"
+        asm "MOVEF F3, [@R0]"
 ; 607:     p = v + 4; asm("MOVEF F4, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3248,7 +3248,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F4, [R0]"
+        asm "MOVEF F4, [@R0]"
 ; 608:     p = v + 5; asm("MOVEF F5, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3259,7 +3259,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F5, [R0]"
+        asm "MOVEF F5, [@R0]"
 ; 609:     p = v + 6; asm("MOVEF F6, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3270,7 +3270,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F6, [R0]"
+        asm "MOVEF F6, [@R0]"
 ; 610:     p = v + 7; asm("MOVEF F7, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3281,7 +3281,7 @@ callwithfloat8:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEF F7, [R0]"
+        asm "MOVEF F7, [@R0]"
 ; 611:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
@@ -3318,7 +3318,7 @@ callwithlong4:
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEL L0, [R0]"
+        asm "MOVEL L0, [@R0]"
 ; 619:     p = v + 1; asm("MOVEL L1, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3329,7 +3329,7 @@ callwithlong4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEL L1, [R0]"
+        asm "MOVEL L1, [@R0]"
 ; 620:     p = v + 2; asm("MOVEL L2, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3340,7 +3340,7 @@ callwithlong4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEL L2, [R0]"
+        asm "MOVEL L2, [@R0]"
 ; 621:     p = v + 3; asm("MOVEL L3, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3351,7 +3351,7 @@ callwithlong4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVEL L3, [R0]"
+        asm "MOVEL L3, [@R0]"
 ; 622:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
@@ -3389,7 +3389,7 @@ callwithdouble4:
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVED D0, [R0]"
+        asm "MOVED D0, [@R0]"
 ; 630:     p = v + 1; asm("MOVED D1, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3400,7 +3400,7 @@ callwithdouble4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVED D1, [R0]"
+        asm "MOVED D1, [@R0]"
 ; 631:     p = v + 2; asm("MOVED D2, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3411,7 +3411,7 @@ callwithdouble4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVED D2, [R0]"
+        asm "MOVED D2, [@R0]"
 ; 632:     p = v + 3; asm("MOVED D3, [${p}]");
         move @R0 [@R12+12]
         push @R0
@@ -3422,7 +3422,7 @@ callwithdouble4:
         move @R0 @R1
         move [@R12-8] @R0
         move @R0 [@R12-8]
-        asm "MOVED D3, [R0]"
+        asm "MOVED D3, [@R0]"
 ; 633:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
