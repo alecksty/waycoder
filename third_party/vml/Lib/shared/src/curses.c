@@ -253,11 +253,74 @@ int getcurx(WINDOW *w) { (void)w; return sc_cx; }
 
 /* ── 输出 ── */
 
+/* ── 落位原语：`addch` 与 `sc_putwchar` 共用这一对 ──
+   分开成"写一个字节"和"推进一列"两件事，是因为**它们的组合方式不同**：
+   `addch` 是"写一个字节 + 推进"（一次调用 = 一个字符 = 一列），
+   而一个多字节码点是"写 N 个字节 + 推进**一次**"。 */
+
+/* 往**当前单元格**写一个字节，**不推进光标** */
+static void sc_cell_byte(int b)
+{
+    int idx = sc_cy * SCR_COLS + sc_cx;
+    sc_ch[idx] = (char)b;
+    sc_at[idx] = sc_attr;          /* ✅ int 存 int：颜色对号在高 8 位，截了就全丢 */
+    sc_dirty[sc_cy] = 1;
+}
+
+/* 光标推进一列（到行尾则换行） */
+static void sc_advance(void)
+{
+    sc_cx = sc_cx + 1;
+    if (sc_cx >= SCR_COLS) {
+        sc_cx = 0;
+        sc_cy = sc_cy + 1;
+        if (sc_cy >= SCR_ROWS) sc_cy = SCR_ROWS - 1;
+        sc_dirty[sc_cy] = 1;
+    }
+}
+
+int addch(int ch);   /* 定义在本函数之后（下面还要用它，先声明） */
+
+/* 把**一个 Unicode 码点**写进缓冲：编码成 UTF-8、逐字节落位。
+ *
+ * ⚠ 与 `addch` **分家**是有意的。此前这里把"多字节只占一列"做成了 `addch`
+ * 里的一条特例（"UTF-8 续字节 0x80–0xBF 不推进光标"）—— **那条规则放错了层**：
+ * 它改的是 `addch` 这个**公开语义**（ncurses 的契约是"一次 `addch` = 一个字符
+ * = 一列"），代价是**直接**调用 `addch(0xB8)` 的代码被静默吞掉。
+ *
+ * 实测（`addch(0xE4); addch(0xB8); addch(0xAD);`）：第二次与第三次落在**同一个
+ * `sc_cx`** 上 ⇒ `B8` 被 `AD` **覆盖**，host 只收到 `E4` `AD`
+ * （`VML_TRACE_OUT=1` 的日志逐字节可验）。症状是"UTF-8 序列中间少一个字节"，
+ * 而下游（host 的 UTF-8 积攒）拿到孤立续字节只能解成 U+FFFD。 */
+static void sc_putwchar(int cp)
+{
+    /* ⚠ 逐字节走 `addch`（**每个字节都占一格**）—— 这与"一个汉字占一列"的
+       直觉相反，但**我们的屏幕缓冲 `sc_ch` 是字节数组**：`refresh()` 是
+       "把这一行的 N 个字节原样发出去"，终端那边再按 UTF-8 自己合成字形。
+       所以"一个字节 = 一个缓冲位置"才是自洽的。
+       （早先我按"一个码点占一列"写成"三次写同一个格子"，结果是后一个字节
+       覆盖前一个 —— 实测 `addwstr` 传 `0x4E2D` 只发出 `AD`。） */
+    if (cp < 0x80) {
+        addch(cp);
+    } else if (cp < 0x800) {
+        addch(0xC0 | (cp >> 6));
+        addch(0x80 | (cp & 0x3F));
+    } else if (cp < 0x10000) {
+        addch(0xE0 | (cp >> 12));
+        addch(0x80 | ((cp >> 6) & 0x3F));
+        addch(0x80 | (cp & 0x3F));
+    } else if (cp <= 0x10FFFF) {
+        addch(0xF0 | (cp >> 18));
+        addch(0x80 | ((cp >> 12) & 0x3F));
+        addch(0x80 | ((cp >> 6) & 0x3F));
+        addch(0x80 | (cp & 0x3F));
+    } else {
+        addch(0xEF); addch(0xBF); addch(0xBD);   /* U+FFFD */
+    }
+}
+
 int addch(int ch)
 {
-    int at;
-    int idx;
-
     sc_init();
 
     if (ch == 10 || ch == 13) {       /* addch('\n')：回列 0、下一行 */
@@ -268,25 +331,10 @@ int addch(int ch)
         return 0;
     }
 
-    at = sc_attr;
-    idx = sc_cy * SCR_COLS + sc_cx;
-    sc_ch[idx] = (char)ch;
-    sc_at[idx] = at;               /* ✅ int 存 int：颜色对号在高 8 位，截了就全丢 */
-    sc_dirty[sc_cy] = 1;
-
-    /* ⚠ UTF-8 **续字节**（`0x80-0xBF`）不推进光标 —— 它是上一个字符的
-       一部分，一个多字节字符整体只该占一列。`addwstr` 正是靠**逐字节**
-       调本函数来输出宽字符的（见那里），没有这一条，一个汉字会占三列、
-       后面所有内容整体错位。 */
-    if ((ch & 0xC0) == 0x80) return 0;
-
-    sc_cx = sc_cx + 1;
-    if (sc_cx >= SCR_COLS) {
-        sc_cx = 0;
-        sc_cy = sc_cy + 1;
-        if (sc_cy >= SCR_ROWS) sc_cy = SCR_ROWS - 1;
-        sc_dirty[sc_cy] = 1;
-    }
+    /* **一次调用 = 一列**（ncurses 的契约）—— 不再有"续字节不推进"的特例，
+       那条挪去了 `sc_putwchar`，见那里的说明。 */
+    sc_cell_byte(ch);
+    sc_advance();
     return 0;
 }
 
@@ -653,32 +701,14 @@ int addwstr(const unsigned int *ws)
     sc_init();
     for (i = 0; ws[i] != 0; i++) {
         cp = (int)ws[i];
-        /* ⚠⚠ 临时探针：直接输出 cp 的低两字节，用来定位"读到的到底是什么"。
-           定位完必须删掉。 */
         if (cp < 0) {
             cp = 0xFFFD;                       /* 非法码点按替换字符处理 */
         }
-        addch(cp & 0xFF);
-        addch((cp >> 8) & 0xFF);
-        addch((cp >> 16) & 0xFF);
-        addch((cp >> 24) & 0xFF);
-        if (cp < 0x80) {
-            addch(cp);
-        } else if (cp < 0x800) {
-            addch(0xC0 | (cp >> 6));
-            addch(0x80 | (cp & 0x3F));
-        } else if (cp < 0x10000) {
-            addch(0xE0 | (cp >> 12));
-            addch(0x80 | ((cp >> 6) & 0x3F));
-            addch(0x80 | (cp & 0x3F));
-        } else if (cp <= 0x10FFFF) {
-            addch(0xF0 | (cp >> 18));
-            addch(0x80 | ((cp >> 12) & 0x3F));
-            addch(0x80 | ((cp >> 6) & 0x3F));
-            addch(0x80 | (cp & 0x3F));
-        } else {
-            addch(0xEF); addch(0xBF); addch(0xBD);   /* U+FFFD */
-        }
+        /* 逐**码点**落位（不是逐字节调 addch）—— 一个多字节码点占一列，
+           落位规则收在 `sc_putwchar` 一处。 */
+        sc_putwchar(cp);
     }
     return 0;
 }
+
+
