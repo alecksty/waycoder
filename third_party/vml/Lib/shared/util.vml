@@ -3940,7 +3940,7 @@ ioctl:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 400:     if (request == 0x5413 && arg) {          /* TIOCGWINSZ */
+; 409:     if (request == 0x5413 && arg) {          /* TIOCGWINSZ */
         move @R0 [@R12+16]
         push @R0
         move @R0 #21523
@@ -3964,10 +3964,10 @@ _L3860359:
 _L3860360:
         cmp @R0 #0
         jz sta_3860357
-; 401:         unsigned short* ws = (unsigned short*)arg;
+; 410:         unsigned short* ws = (unsigned short*)arg;
         move @R0 [@R12+20]
         move [@R12-8] @R0
-; 402:         ws[0] = 25;                          /* ws_row */
+; 411:         ws[0] = 25;                          /* ws_row */
         move @R0 #25
         move @R10 @R0
         move @R0 [@R12-8]
@@ -3977,7 +3977,7 @@ _L3860360:
         pop @R5
         add @R0 @R5
         moveh [@R0] @R10
-; 403:         ws[1] = 80;                          /* ws_col */
+; 412:         ws[1] = 80;                          /* ws_col */
         move @R0 #80
         move @R6 @R0
         move @R0 [@R12-8]
@@ -3987,7 +3987,7 @@ _L3860360:
         pop @R3
         add @R0 @R3
         moveh [@R0] @R6
-; 404:         ws[2] = 0;                           /* ws_xpixel */
+; 413:         ws[2] = 0;                           /* ws_xpixel */
         move @R0 #0
         move @R2 @R0
         move @R0 [@R12-8]
@@ -3997,7 +3997,7 @@ _L3860360:
         pop @R9
         add @R0 @R9
         moveh [@R0] @R2
-; 405:         ws[3] = 0;                           /* ws_ypixel */
+; 414:         ws[3] = 0;                           /* ws_ypixel */
         move @R0 #0
         move @R7 @R0
         move @R0 [@R12-8]
@@ -4009,9 +4009,9 @@ _L3860360:
         moveh [@R0] @R7
 sta_3860357:
 sta_3860358:
-; 407:     (void)fd;
+; 416:     (void)fd;
         move @R0 [@R12+12]
-; 408:     return 0;
+; 417:     return 0;
         move @R0 #0
         jmp L_3860363
 L_3860363:
@@ -4032,10 +4032,10 @@ tcgetattr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 411:     (void)fd; (void)t;
+; 420:     (void)fd; (void)t;
         move @R0 [@R12+12]
         move @R0 [@R12+16]
-; 412:     return 0;
+; 421:     return 0;
         move @R0 #0
         jmp L_3860364
 L_3860364:
@@ -4057,11 +4057,11 @@ tcsetattr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 415:     (void)fd; (void)actions; (void)t;
+; 424:     (void)fd; (void)actions; (void)t;
         move @R0 [@R12+12]
         move @R0 [@R12+16]
         move @R0 [@R12+20]
-; 416:     return 0;
+; 425:     return 0;
         move @R0 #0
         jmp L_3860365
 L_3860365:
@@ -4081,7 +4081,7 @@ cfmakeraw:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 418: __stdcall void cfmakeraw(void* t) { (void)t; }
+; 427: __stdcall void cfmakeraw(void* t) { (void)t; }
         move @R0 [@R12+12]
         move @R13 @R12
         pop @R12
@@ -4100,7 +4100,7 @@ tcflush:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 419: __stdcall int tcflush(int fd, int queue) { (void)fd; (void)queue; return 0; }
+; 428: __stdcall int tcflush(int fd, int queue) { (void)fd; (void)queue; return 0; }
         move @R0 [@R12+12]
         move @R0 [@R12+16]
         move @R0 #0
@@ -4122,7 +4122,7 @@ cfgetospeed:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 420: __stdcall int cfgetospeed(void* t) { (void)t; return 38400; }
+; 429: __stdcall int cfgetospeed(void* t) { (void)t; return 38400; }
         move @R0 [@R12+12]
         move @R0 #38400
         jmp L_3860367
@@ -4144,7 +4144,7 @@ cfsetospeed:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 421: __stdcall int cfsetospeed(void* t, int speed) { (void)t; (void)speed; return 0; }
+; 430: __stdcall int cfsetospeed(void* t, int speed) { (void)t; (void)speed; return 0; }
         move @R0 [@R12+12]
         move @R0 [@R12+16]
         move @R0 #0
@@ -4168,10 +4168,10 @@ open:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 426:     (void)flags; (void)mode;
+; 435:     (void)flags; (void)mode;
         move @R0 [@R12+16]
         move @R0 [@R12+20]
-; 427:     return (int)path;
+; 436:     return (int)path;
         move @R0 [@R12+12]
         jmp L_3860369
 L_3860369:
@@ -4193,9 +4193,9 @@ creat:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 430:     (void)mode;
+; 439:     (void)mode;
         move @R0 [@R12+16]
-; 431:     return (int)path;
+; 440:     return (int)path;
         move @R0 [@R12+12]
         jmp L_3860370
 L_3860370:

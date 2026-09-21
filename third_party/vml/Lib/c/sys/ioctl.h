@@ -20,6 +20,12 @@ struct winsize {
 #define TIOCNOTTY  0x5422
 #define FIONREAD   0x541B
 
-int ioctl(int fd, unsigned long request, void *arg);
+/* ⚠ `request` 用 **`int`**，不是 POSIX 的 `unsigned long`。
+   本平台 `long` 占**两个参数槽**（8 字节），而实现在 `Lib/shared/src/util.c`
+   里是 `int` —— 两边不一致时**参数会错开一个槽**：`arg` 读成 0、
+   `TIOCGWINSZ` 分支被整个跳过，而函数**返回 0**（成功）。
+   症状是"程序拿到的窗口尺寸恒为 0×0，且看不出任何异常"。
+   改这里就要同时改实现，反之亦然 —— 判据是 `cases/24-termios-ioctl.c`。 */
+int ioctl(int fd, int request, void *arg);
 
 #endif /* _SYS_IOCTL_H */

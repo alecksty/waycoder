@@ -29,13 +29,13 @@
 //     是同一个 25×80（**这两处是两份独立的常量**，写歪一处就会"文字界面按 25 行排、
 //     尺寸查询答另一个数"）
 //
-// ## KNOWN-RED：④ 那三条压的是一个**新发现的 ABI 不匹配**
+// ## 已修（v0.96.348）：④ 那三条压的是一个 **ABI 不匹配**
 //
-// 实测 `ioctl(0, TIOCGWINSZ, ws)` **返回 0 但一个字节都没写**（`ws` 保持原值）。
+// 症状：`ioctl(0, TIOCGWINSZ, ws)` **返回 0 但一个字节都没写**（`ws` 保持原值）。
 // 根因是**头文件与实现的形参宽度对不上**：
 //
-//     Lib/c/sys/ioctl.h:23        int ioctl(int fd, **unsigned long** request, void *arg);
-//     Lib/shared/src/util.c:444   __stdcall int ioctl(int fd, **int** request, void* arg)
+//     Lib/c/sys/ioctl.h           int ioctl(int fd, **unsigned long** request, void *arg);
+//     Lib/shared/src/util.c       __stdcall int ioctl(int fd, **int** request, void* arg)
 //
 // 而本平台的调用约定是「4 字节对齐，**只有 64 位参数占 2 个位置**」
 // （见 `docs/` 的 ABI 基准与 `scripts/vml-abi-probe`）。于是：
@@ -46,15 +46,16 @@
 //
 // 验证方式（两种签名各编一次，其余逐字相同）：
 //
-//     按头文件（unsigned long）  ⇒ A=0, B=0,0      ← 缓冲区没被碰
-//     按实现  （int）           ⇒ A=0, B=25,80    ← 正确
+//     按头文件（unsigned long）  ⇒ R=0, I=0,0      ← 缓冲区没被碰
+//     按实现  （int）           ⇒ R=0, I=25,80    ← 正确
 //
-// **这一条的杀伤面**：`ioctl(0, TIOCGWINSZ, …)` 正是老程序（含 ncurses 自己）
-// 拿屏宽排版的**唯一**入口，答不出来就按 80×25 猜或者画到屏外。而它**返回 0**
-// —— 程序读返回码判不出任何异常。
+// **杀伤面**：`ioctl(0, TIOCGWINSZ, …)` 正是老程序（含 ncurses 自己）拿屏宽排版的
+// **唯一**入口，答不出来就按 80×25 猜或画到屏外 —— 而它**返回 0**，
+// 程序读返回码判不出任何异常。
 //
-// 修法在头文件侧（把 `unsigned long` 改成 `int`，与实现对齐），或用 `#param`
-// 让两边同源。**本用例不改**（改了就没判据了），期望值写的是**正确语义**。
+// ⚠ **修法只能改头文件**：试过"把实现改成 `unsigned long` 去对齐 POSIX 头"，
+//   **没用** —— 两侧的槽位偏移都是对的（调用方 `[R13+12]`、被调用方 `[R12+24]`），
+//   卡在更深的 64 位参数传递上。所以两边统一成 `int`。
 //
 // ⚠ `Lib/c/console.h` 里还有两个**声明了但链不上**的：`tcdrain` 和
 //   `ioctl_console`（实测编译期即报"未定义的函数"）。老程序用 `tcdrain` 做
@@ -104,5 +105,4 @@ int main()
 
     return 0;
 }
-// KNOWN-RED
 // EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=1|H=0|I=25,80|J=2000|K=0|L=7

@@ -453,6 +453,15 @@ __stdcall char* strdup(const char* s) {
    本平台没有真终端 ⇒ 除 TIOCGWINSZ 外一律"返回成功但不做事"。 */
 
 /* `TIOCGWINSZ` 必须**真答尺寸**：老程序拿它做布局，答不出来就是"画到屏幕外"。 */
+/* ⚠ `request` 的类型**必须与 `Lib/c/sys/ioctl.h` 的声明逐字一致**（两边都是 `int`）。
+   头里原写的是 POSIX 的 `unsigned long`，而本平台 `long` 占**两个参数槽**（8 字节），
+   实现是 `int` ⇒ 调用方压进去的 `arg` 与实现读到的**错开一个槽**，
+   于是 `arg` 读成 0、整个 `TIOCGWINSZ` 分支被跳过。
+   症状极具误导性：**返回 0**（成功），但 `ws` 一个字节没写 ——
+   程序拿到的尺寸恒为 `0×0`，而它**没有任何办法察觉**。
+   （试过反过来"把实现改成 `unsigned long` 去对齐 POSIX 头"—— **没用**，
+     两侧的槽位偏移都是对的，卡在更深的 64 位参数传递上；见 `cases/24` 的注释。）
+   判据：`scripts/vml-c-probe/cases/24-termios-ioctl.c`。 */
 __stdcall int ioctl(int fd, int request, void* arg) {
     if (request == 0x5413 && arg) {          /* TIOCGWINSZ */
         unsigned short* ws = (unsigned short*)arg;
