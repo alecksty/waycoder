@@ -32,14 +32,37 @@ public static class ScreenOutput
     /// （输出是按块拿到的，最后一段可能是半个序列）——截断时按"还没定论"处理，
     /// 不能把半个序列当成命中。
     /// </summary>
-    public static bool LooksFullScreen(string? raw)
+    public static bool LooksFullScreen(string? raw) => Scan(raw, out _);
+
+    /// <summary>
+    /// 本判定的**唯一实现**；<see cref="LooksFullScreen"/> 是它的薄包装。
+    ///
+    /// <para>
+    /// 加这个 out 参数是因为**"边跑边判"**那条路（`ShellStream`）：输出是按块拿到的，
+    /// 最后一段可能就是**半截序列**。原来的 `bool` 把"确定不是全屏"和"还下不了结论"
+    /// 混成同一个 `false` —— 流式判定若照它走，**块边界正好落在 `ESC[` 中间时就会把
+    /// 一个全屏程序误判成线性输出**（那一屏从此散成文本，而且不可逆）。
+    /// </para>
+    ///
+    /// <para>
+    /// 之所以做成 out 参数而不是在调用方再扫一遍：**同一规则两处实现必然漂移**
+    /// （本仓头号坑），而这里的规则（私有模式、参数区、截断）细节不少。
+    /// 行为一字未变，只是把原来两处 `return false` 的**原因**取了出来。
+    /// </para>
+    /// </summary>
+    /// <param name="truncated">
+    /// 扫描到结尾时**还没定论** —— 结尾是半个 `ESC` 或没到终结符的序列。
+    /// 出现它时**推迟结论**，把后面的字节拼上再来。
+    /// </param>
+    public static bool Scan(string? raw, out bool truncated)
     {
+        truncated = false;
         if (string.IsNullOrEmpty(raw)) return false;
 
         for (int i = 0; i < raw.Length; i++)
         {
             if (raw[i] != AnsiString.AnsiCharPrefix) continue;
-            if (i + 1 >= raw.Length) return false;            // 半个 ESC，没定论
+            if (i + 1 >= raw.Length) { truncated = true; return false; }   // 半个 ESC，没定论
             if (raw[i + 1] != '[') { i++; continue; }         // OSC / 双字符序列，跳过
 
             // 私有模式（ESC[?…）与扩展协议（ESC[>…）不参与判定
@@ -52,7 +75,7 @@ public static class ScreenOutput
 
             // 参数区：0x30–0x3F；中间区：0x20–0x2F；终结符：0x40–0x7E
             while (j < raw.Length && raw[j] >= '\x20' && raw[j] <= '\x3f') j++;
-            if (j >= raw.Length) return false;                // 序列还没到终结符（被截断）
+            if (j >= raw.Length) { truncated = true; return false; }        // 序列还没到终结符
 
             char final = raw[j];
             if (final >= '@' && final <= '~' && CursorFinals.IndexOf(final) >= 0)

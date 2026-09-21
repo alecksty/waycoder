@@ -78,6 +78,22 @@ public partial class ShellPage : ContentPage
     private int _cursorBaseLine = -1;
     private int _cursorRow;
     private int _cursorCol;
+
+    /* ── 流式输出（命令行窗实时化）──
+     *
+     * 原先程序跑完才刷一次，于是 `top`/`vim`/`mc`/`cmatrix` 这一整类
+     * （"不退出就一直画"）**运行期间屏幕上什么都没有**。
+     *
+     * `_stream` 把边跑边来的原始输出判成"追加文本"还是"整屏网格"（判据在
+     * `ShellStream`，纯逻辑、桌面自测钉过）；这里只负责**落到 `_lines` 上**。
+     *
+     * ⚠ **网格是"替换那一块"不是"往后追加"** —— 这正是实时与整段缓冲最大的区别。
+     *   块的首行就是 `_cursorBaseLine`（与光标那套共用一个基准，不留两份）。 */
+    private ShellStream? _stream;
+    private int _gridRows;
+    private readonly object _chunkGate = new();
+    private readonly List<string> _chunkQueue = [];
+    private bool _chunkScheduled;
     private bool _cursorVisible;
 
     /// <summary>光标在**当前显示列表**里的行号（-1 = 不画）。每次 <see cref="DisplayText"/> 算出来。</summary>
@@ -282,7 +298,7 @@ public partial class ShellPage : ContentPage
         // 路径**缩写成 `~/…`** —— 文件页递过来的是绝对路径，原样打出来要占两行（用户点名要短）。
         // 进度钩子（解压/编译提示）在 ExecVmlAsync 里装。
         => RunWithPromptAsync($"vml run {SandboxFsService.Abbreviate(absPath)}",
-            () => ExecVmlAsync(null, absPath), markupResult: true);
+            () => ExecVmlAsync(null, absPath), markupResult: true, stream: true);
 
     /// <summary>
     /// 把源文件编成下一级产物写到沙箱里（`main.c` → `main.vml`、`main.vml` → `main.vmb`）。
@@ -413,10 +429,19 @@ public partial class ShellPage : ContentPage
     /// <c>«red»</c> 转义成字面量，屏幕上直接打出「«red»」四个字符。
     /// 普通 shell 命令（`ls`/`cd`…）返回的是原始文本，保持默认 false。
     /// </param>
-    private async Task RunWithPromptAsync(string cmdLine, Func<Task<string>> body, bool markupResult = false)
+    /// <param name="stream">
+    /// 边跑边出画面（**只给 VML 运行那条路开**）。
+    ///
+    /// ⚠ 为什么不做成"跟着 `markupResult` 自动开"：另一个 `markupResult:true` 的调用点是
+    /// **VML 编译**，它产出的是"✔ 已生成 xxx.vml"这种短消息，流式对它毫无意义，
+    /// 却要多担一份"输出被交出去两遍"的风险。**显式开关**，只有真正需要的那一处打开。
+    /// </param>
+    private async Task RunWithPromptAsync(string cmdLine, Func<Task<string>> body,
+        bool markupResult = false, bool stream = false)
     {
         Append($"{Prompt} {cmdLine}\n");
         SetBusy(true);
+        if (stream) StartStreaming();
         try
         {
             // ⚠ **画面不折行**：全屏程序的输出是一张"画面"，每一行就是屏幕上的一行。
@@ -424,6 +449,20 @@ public partial class ShellPage : ContentPage
             //   画面里的标题栏/菜单项/状态行**都是有文字的**，逐行猜必然漏
             //   （实测：80 列的网格被按自适应的 46 列折开，标题栏断成两行、边框全错位）。
             var bodyText = (await body()).TrimEnd();
+
+            if (stream)
+            {
+                /* 流式：正文**已经边跑边交出去了**，这里只补两件事 ——
+                   ① 把队列里剩下的块吃掉、并让 `ShellStream` 收尾（末尾没换行的那一截全靠它）；
+                   ② 补**诊断尾巴**（运行时报错 / 被强制停止 / syscall 被拒）。
+                      它是跑完才知道的，而"程序崩了、用户只看到没有输出"正是这个平台反复修过的故障。
+                   ⚠ `bodyText` 在这里**必须丢掉**：它是全量，再 Append 一遍就是整段重复。 */
+                FinishStreaming();
+                if (MauiVml.LastDiagnostics.Length > 0)
+                    Append(MauiVml.LastDiagnostics + "\n", alreadyMarkup: true);
+                return;
+            }
+
             bool isGrid = markupResult && MauiVml.LastOutputWasGrid;
             if (isGrid)
             {
@@ -446,10 +485,126 @@ public partial class ShellPage : ContentPage
         {
             // 顺序要紧：**先刷新 cwd、再置空闲** —— 提示符只在非忙碌时更新（见 RefreshCwd），
             // 反过来的话打印出来的收尾提示符还是旧路径（`cd` 之后就当场打脸）。
+            if (stream) StopStreaming();   // 卸钩子（幂等）—— 漏了会让**下一次**运行的输出重复
             RefreshCwd();
             SetBusy(false);
             Append(Prompt + "\n");   // 收尾的提示符：执行完了，等下一个命令
         }
+    }
+
+    // ═══ 流式输出（命令行窗实时化）═══
+    //
+    // 三个方法分工：`Start/Stop` 管钩子的装与卸，`Finish` 管收尾，
+    // `OnVmlOutputChunk` 是 VM 线程上的入口，`ApplyStreamRender` 是**唯一**决定
+    // "追加还是替换"的地方。
+
+    /// <summary>开始流式：建状态机 + 装钩子。</summary>
+    private void StartStreaming()
+    {
+        // 行列取当前的终端尺寸（自适应档那两处会播 0 ⇒ `ShellStream` 自己退回 25/80，
+        // 与老程序写死的 80×25 一致，见 `PublishTerminalSize` 那段注释）。
+        _stream = new ShellStream(MauiVml.TermRows, MauiVml.TermCols);
+        _gridRows = 0;
+        lock (_chunkGate) { _chunkQueue.Clear(); _chunkScheduled = false; }
+        MauiVml.OnOutputChunk = OnVmlOutputChunk;
+    }
+
+    /// <summary>
+    /// 卸钩子。⚠ **必须在每次运行收尾时调** —— 留着的话下一次运行的输出会被
+    /// 投给一个已经结束的流（而且没人排空队列），表现为"这次跑的输出跑到上次那块去了"。
+    /// </summary>
+    private void StopStreaming()
+    {
+        MauiVml.OnOutputChunk = null;
+        _stream = null;
+        _gridRows = 0;
+        lock (_chunkGate) { _chunkQueue.Clear(); _chunkScheduled = false; }
+    }
+
+    /// <summary>
+    /// 收尾。⚠ **先同步排空队列**再 `Finish()`：队列里的块是靠 `Dispatcher.Dispatch` 排上来的，
+    /// `await body()` 恢复之后它们**不保证**已经跑过 —— 直接 `Finish` 会把它们排到收尾提示符后面去。
+    /// </summary>
+    private void FinishStreaming()
+    {
+        ApplyPendingChunks();
+        if (_stream != null) ApplyStreamRender(_stream.Finish());
+        _stream = null;
+    }
+
+    /// <summary>
+    /// VM 线程上的回调（见 `MauiVml.OnOutputChunk` 的说明）。
+    /// **只入队 + 排一次 UI 更新**，绝不在这个线程上碰 `_lines`。
+    ///
+    /// 把"每次回调都切线程"合并成"一段窗口内切一次"：全屏程序每秒能写几十次，
+    /// 每次都切会把 UI 线程拖死。`_chunkScheduled` 就是那道闸门 —— 已经排了就不再排，
+    /// 等 `ApplyPendingChunks` 把队列吃空、闸门才会重新打开。
+    /// </summary>
+    private void OnVmlOutputChunk(string chunk)
+    {
+        lock (_chunkGate)
+        {
+            _chunkQueue.Add(chunk);
+            if (_chunkScheduled) return;
+            _chunkScheduled = true;
+        }
+        Dispatcher.Dispatch(ApplyPendingChunks);
+    }
+
+    private void ApplyPendingChunks()
+    {
+        string[] chunks;
+        lock (_chunkGate)
+        {
+            if (_chunkQueue.Count == 0) { _chunkScheduled = false; return; }
+            chunks = [.. _chunkQueue];
+            _chunkQueue.Clear();
+            _chunkScheduled = false;   // 先放开闸门：处理期间新来的块要能再排一次
+        }
+        if (_stream == null) return;
+        foreach (var c in chunks) ApplyStreamRender(_stream.Feed(c));
+    }
+
+    /// <summary>
+    /// 把一次呈现请求落到 `_lines` 上 —— **全线唯一决定"追加还是替换"的地方**。
+    /// 追加与替换混了会把画面搅烂（网格是一整屏，追加就是几十屏残影）。
+    /// </summary>
+    private void ApplyStreamRender(ShellRender? r)
+    {
+        if (r == null) return;
+
+        if (!r.IsGrid)
+        {
+            // 线性：往后追加。行为与原来一致，只是**边跑边来**而不是跑完一次来。
+            _cursorBaseLine = -1;      // 线性输出没有"画面光标"，上一块的光标就此作废
+            _gridRows = 0;
+            Append(r.Text, alreadyMarkup: true);   // `Append` 自己会 `RenderOutput`
+            return;
+        }
+
+        // ── 网格：**替换那一块**（这就是"实时"与"整段缓冲"最大的区别）──
+        var rows = r.Text.Length == 0 ? [] : r.Text.Split('\n');
+        if (_cursorBaseLine < 0)
+        {
+            _cursorBaseLine = _lines.Count;    // 这一块从缓冲的第几行开始
+            _gridRows = 0;
+        }
+
+        if (_gridRows > 0 && _cursorBaseLine + _gridRows <= _lines.Count)
+            _lines.RemoveRange(_cursorBaseLine, _gridRows);
+        foreach (var line in rows) _lines.Add((line, true));
+        _gridRows = rows.Length;
+
+        (_cursorRow, _cursorCol, _cursorVisible) = (r.CursorRow, r.CursorCol, r.CursorVisible);
+
+        // ⚠ 回滚裁剪会把块开头的行丢掉，`_cursorBaseLine` 跟着前移（那套逻辑已有），
+        //   但**它不知道 `_gridRows`** —— 不跟着缩，下一帧 `RemoveRange` 就会多删几行正文。
+        int before = _cursorBaseLine;
+        TrimScrollback();
+        if (before >= 0 && _cursorBaseLine >= 0 && before != _cursorBaseLine)
+            _gridRows = Math.Max(0, _gridRows - (before - _cursorBaseLine));
+
+        RenderOutput();
     }
 
     private async void OnRunRequested(object? sender, EventArgs e)

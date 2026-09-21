@@ -38,6 +38,50 @@ internal static class MauiVml
     public static Action<string>? OnProgress;
 
     /// <summary>
+    /// **输出流式出口**：程序还在跑的时候，就把新增的输出一段段交出来。
+    ///
+    /// <para>
+    /// 不装它（null）时走的是老路 —— 跑完拿整段。**装不装由宿主决定**，与
+    /// <see cref="OnProgress"/> 同一条规矩：只在宿主主动发起的运行时装
+    /// （`ShellPage`），AI 调 `vml` 工具那条路保持 null（它要的是"最终结果"那一整段）。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么非有它不可</b>：`top` / `vim` / `mc` / `cmatrix` 这一整类
+    /// （PC/Linux/老 Mac 程序里的绝大多数）是"不退出就一直画"的。整段缓冲的观感是
+    /// **运行期间屏幕上什么都没有**，按 q 也没反应 —— 这一整类一个都跑不起来。
+    /// </para>
+    ///
+    /// <para>
+    /// 回调**在 VM 线程上同步触发**（不是后台线程）—— 正因如此它才不需要锁：
+    /// 刷新的时机全在写输出的那一个线程上（见 `CaptureIo.FlushIfDue` 的说明）。
+    /// 接的人自己负责切回 UI 线程。
+    /// </para>
+    /// </summary>
+    public static Action<string>? OnOutputChunk;
+
+    /// <summary>流式输出的节流间隔（毫秒）。全屏程序每秒重画几十次，不节流会把 UI 拖死。</summary>
+    private const int OutputFlushMs = 80;
+
+    /// <summary>流式输出的节流字节数（攒够这么多立刻刷，不等时间）。</summary>
+    private const int OutputFlushBytes = 16 * 1024;
+
+    /// <summary>
+    /// 最近一次运行的**诊断尾巴**（运行时报错 / 被强制停止 / syscall 被拒），已转 markup。
+    ///
+    /// <para>
+    /// **只在流式那条路上用**：正文已经边跑边交给宿主了，但诊断是**跑完才知道**的
+    /// （`diag`/`diagErr` 在 `vm.Run` 之后的 `finally` 里才读得到），只能补在后面。
+    /// 不这么做的话，流式一开，`内存错误(PC=…)` 那套报错就**全丢了** ——
+    /// 而"程序崩了、用户只看到没有输出"正是这个平台反复修过的那类故障。
+    /// </para>
+    /// </summary>
+    public static string LastDiagnostics = "";
+
+    /// <summary>本次运行走没走流式（= 装没装 <see cref="OnOutputChunk"/>）。宿主据此决定收尾怎么写。</summary>
+    public static bool LastRunStreamed;
+
+    /// <summary>
     /// 内置副本的版本 —— **只是写进 `.lib-version` 给人看的**（排查时一眼知道手机上那份是哪版）。
     /// 判断「要不要重新解压」用的是 <see cref="LibFingerprint"/>（zip 内容指纹），**不是它**。
     ///
@@ -628,7 +672,10 @@ HALT
         // 也在扣超时**。等输入久一点，程序就会在提示符上被超时杀掉，而且报的是"超时"、看不出
         // 是在等人。所以**交互式运行必须把 `timeoutSeconds` 放到足够大**（宿主侧另有看门狗兜底，
         // 见 ShellPage），不能沿用非交互那个 10~30 秒的口径。
-        var io = new CaptureIo(readLine);
+        // 流式出口**只在 markup 那条路装**（`markup:true` = 宿主主动运行、有命令行页可以边跑边画）。
+        // AI 那条路要的是"最终结果"那一整段，边跑边交出去反而会打乱它的取用方式。
+        LastRunStreamed = markup && OnOutputChunk != null;
+        var io = new CaptureIo(readLine, markup ? OnOutputChunk : null);
 
         // 宿主 UI syscall（对话框 / 窗体绘图 / 输入，号段 500–599，见 UI/Shared/VmlUiProtocol.cs）。
         // 两件事缺一不可：① 把号段加进运行时白名单（否则 mcu 模式下 dispatch 顶部就先拒了，
@@ -733,6 +780,9 @@ HALT
                 Console.SetError(prevErr);
                 diag = outSink.ToString();
                 diagErr = errSink.ToString();
+                // ⚠ **收尾必须再刷一次**：末尾那一截如果还在节流窗口里没出去（或者程序写完之后
+                //   再没写过任何东西），不刷就永远看不见了。
+                io.FlushAll();
             }
         }
 
@@ -760,9 +810,10 @@ HALT
             var gridTxt = AnsiMarkup.ToMarkup(string.Join("\n", screen.DumpAnsi())).TrimEnd();
 
             var gridErr = AnsiMarkup.ToMarkup(diag + "\n" + diagErr).TrimEnd();
+            LastDiagnostics = gridErr.Trim().Length == 0 ? "" : "«red»" + gridErr + "«/»";
             return gridErr.Trim().Length == 0
                 ? gridTxt
-                : (gridTxt.Length > 0 ? gridTxt + "\n" : "") + "«red»" + gridErr + "«/»";
+                : (gridTxt.Length > 0 ? gridTxt + "\n" : "") + LastDiagnostics;
         }
 
         // 给人看的：裸 ANSI 翻成标记，stderr 整段套红（内层自带的颜色会盖掉这层红，正是想要的）
@@ -777,9 +828,23 @@ HALT
         var outTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(io.Text)).TrimEnd();
         var midTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diag)).TrimEnd();
         var errTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diagErr)).TrimEnd();
+        // 诊断尾巴收成**一处**：流式那条路要单独拿它（正文已经边跑边出去了，只有它是跑完才知道的）
+        LastDiagnostics = BuildDiagnostics(midTxt, errTxt);
+
         var sb = new StringBuilder();
         if (outTxt.Length > 0) sb.Append(outTxt);
-        if (midTxt.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append(midTxt);
+        if (LastDiagnostics.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append(LastDiagnostics);
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 把两股诊断（`diag` 走 stdout、`diagErr` 走 stderr）拼成一段。
+    /// **只此一份** —— 正序输出与流式的收尾都取它，两处各拼一遍必然漂移。
+    /// </summary>
+    private static string BuildDiagnostics(string midTxt, string errTxt)
+    {
+        var sb = new StringBuilder();
+        if (midTxt.Length > 0) sb.Append(midTxt);
         if (errTxt.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append("«red»").Append(errTxt).Append("«/»");
         return sb.ToString();
     }
@@ -982,19 +1047,70 @@ HALT
         /// <summary>当前这一行**还没吐出去**的剩余（<see cref="ReadChar"/> 逐字符消费它）。</summary>
         private string _cur = "";
 
-        public CaptureIo(Func<string>? readLine = null) => _readLine = readLine;
+        public CaptureIo(Func<string>? readLine = null, Action<string>? sink = null)
+        {
+            _readLine = readLine;
+            _sink = sink;
+        }
+
+        /// <summary>把**新增的那部分**交给宿主。null = 不流式（跑完一次性给）。</summary>
+        private readonly Action<string>? _sink;
+
+        /// <summary>已经交出去的长度（`_sb` 是全量，靠它算增量）。</summary>
+        private int _pumped;
+
+        private long _lastFlushTicks;
+
+        /// <summary>
+        /// 有新增就按节流交出去。<paramref name="force"/> = 无视节流（**读输入之前**与**收尾**用）。
+        ///
+        /// <para>
+        /// ⚠ **读输入之前必须强制刷**：程序打印完提示符就阻塞等键，那一屏如果还在节流窗口里
+        /// 没出去，用户看到的就是"卡住了"—— 而那正是最需要看见画面的一刻。
+        /// </para>
+        /// </summary>
+        private void FlushIfDue(bool force = false)
+        {
+            if (_sink == null) return;
+            int total = _sb.Length;
+            int pending = total - _pumped;
+            if (pending <= 0) return;
+
+            if (!force)
+            {
+                bool bySize = pending >= OutputFlushBytes;
+                bool byTime = Environment.TickCount64 - _lastFlushTicks >= OutputFlushMs;
+                if (!bySize && !byTime) return;
+            }
+
+            string delta = _sb.ToString(_pumped, pending);
+            _pumped = total;
+            _lastFlushTicks = Environment.TickCount64;
+            _sink(delta);
+        }
+
+        /// <summary>收尾：把最后一段也交出去（不这么做的话，末尾没换行的那截会丢）。</summary>
+        public void FlushAll() => FlushIfDue(force: true);
 
         public string Text => _sb.ToString();
 
-        public void WriteString(string str) => _sb.Append(str);
-        public void WriteChar(char ch) => _sb.Append(ch);
-        public void WriteInt(int value) => _sb.Append(value);
-        public void WriteFloat(float value) => _sb.Append(value);
-        public void WriteHex(int value) => _sb.Append(value.ToString("X"));
+        /* ── 流式出口 ──
+           `_sb` 是**累积**的（跑完那条路还要拿全量），`TakeDelta` 只把**新增的**交出去。
+           ⚠ 刷的时机**全在 VM 线程上**：不用定时器 —— 那边读、这边写同一个 `StringBuilder`
+             就是数据竞争。写成"**有新增**才判节流"，程序不写就没有可刷的，天然不需要定时器。 */
+        public void WriteString(string str) { _sb.Append(str); FlushIfDue(); }
+        public void WriteChar(char ch) { _sb.Append(ch); FlushIfDue(); }
+        public void WriteInt(int value) { _sb.Append(value); FlushIfDue(); }
+        public void WriteFloat(float value) { _sb.Append(value); FlushIfDue(); }
+        public void WriteHex(int value) { _sb.Append(value.ToString("X")); FlushIfDue(); }
 
         // 输入侧：全部走同一个 _readLine，按各自的类型转换。
         // 没给输入源时回退成空值/0（AI 工具那条路就是这种，见 VmlTool 的 `stdin` 参数）。
-        public string ReadString() => _readLine?.Invoke() ?? "";
+        public string ReadString()
+        {
+            FlushIfDue(force: true);        // 阻塞等键之前，先把画面放出去（见 FlushIfDue 的说明）
+            return _readLine?.Invoke() ?? "";
+        }
 
         /// <summary>
         /// ⚠ **逐字符吐，一次一个** —— 不能写成"取一行再返回 `line[0]`"。
@@ -1012,7 +1128,7 @@ HALT
         /// </summary>
         public char ReadChar()
         {
-            if (_cur.Length == 0) _cur = ReadString() + "\n";
+            if (_cur.Length == 0) _cur = ReadString() + "\n";   // ReadString 里已经刷过画面了
             var c = _cur[0];
             _cur = _cur.Substring(1);
             return c;
