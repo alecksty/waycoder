@@ -704,9 +704,30 @@ namespace VMLRuntime
         /// - 值 &lt; 256：UTF-8 字节流，缓冲并解码完整多字节序列后输出
         /// - 值 &gt;= 256：Unicode 码点（如 Pascal writeln），直接输出字符
         /// </summary>
+        /// <summary>`VML_TRACE_OUT=1` 时打开输出诊断（见 `ExecuteSyscall4_OutputChar`）。
+        /// 静态只读 ⇒ 只查一次环境变量，热路径上就是一次布尔判断。</summary>
+        private static readonly bool TraceOut =
+            Environment.GetEnvironmentVariable("VML_TRACE_OUT") == "1";
+
         private void ExecuteSyscall4_OutputChar()
         {
             var ch = registers[0];
+            /* 诊断探针：`VML_TRACE_OUT=1` 时把 host **实际收到**的每个字节记到文件。
+               默认（不设该变量）**零开销** —— 缓存一次查询，不进热路径。
+
+               ⚠ 为什么值得常备：排查"输出和我们以为的不一样"时，**唯一可靠的判据是
+               host 收到了什么**。本轮（老程序兼容性）绕了很多轮就是因为只在"写入端"
+               推理 —— 见 `docs/老程序兼容性.md` 第十节。
+
+               ⚠ 两条实现细节：① 写**文件**而不是 `Console.Error` —— `vmlcli` 在
+               `vm.Run()` 期间把 `Console.Out`/`Console.Error` 都换成 `StringWriter`
+               （`CliVmlHost.cs`），写 stderr 会被当成程序输出并到 stdout 上去；
+               ② 路径走 `Path.GetTempPath()`，**macOS 上是 `$TMPDIR` 而不是 `/tmp`**
+               （第一版找 `/tmp` 白找了一轮）。 */
+            if (TraceOut)
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(System.IO.Path.GetTempPath(), "vml_out_trace.log"),
+                    $"[OUT] ch={ch} (0x{ch & 0xFF:X2}) buf=[{string.Join(",", _utf8OutputBuffer)}]\n");
 
             // BEL (0x07) triggers PC speaker
             if (ch == 7)
