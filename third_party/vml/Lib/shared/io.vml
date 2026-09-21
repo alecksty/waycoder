@@ -7,6 +7,7 @@
 .linked "uscanf.vml"
 .linked "wscanf.vml"
 .linked "wstring.vml"
+
 .data
 
 .text
@@ -40,11 +41,9 @@ getchar:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 10:     asm("SYSCALL #5");
+; 11:     return asm("SYSCALL #5");
         syscall #5
         move [@R12-4] @R0
-; 11:     return c;
-        move @R0 [@R12-8]
         jmp L_33660000
 L_33660000:
         move @R13 @R12
@@ -119,11 +118,9 @@ input_str:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 24:     asm("SYSCALL #2");
+; 25:     return asm("SYSCALL #2");
         syscall #2
         move [@R12-4] @R0
-; 25:     return buf;
-        move @R0 [@R12-8]
         jmp L_33660001
 L_33660001:
         move @R13 @R12
@@ -141,11 +138,9 @@ input_int:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 29:     asm("SYSCALL #7");
+; 30:     return asm("SYSCALL #7");
         syscall #7
         move [@R12-4] @R0
-; 30:     return val;
-        move @R0 [@R12-8]
         jmp L_33660002
 L_33660002:
         move @R13 @R12

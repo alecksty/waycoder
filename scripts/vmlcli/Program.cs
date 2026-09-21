@@ -357,7 +357,8 @@ internal static class Program
         // 每次都重置单例 DeviceManager（跨运行保留状态，不重置第二次跑的 MMIO 地址会和第一次串）。
         VMLRuntime.Device.DeviceManager.Instance.Reset();
 
-        var io = new CaptureIo();
+        var io = new CaptureIo(opt.StdinText);
+        CliErr.WriteLine($"[dbg] StdinText={(opt.StdinText is null ? "<null>" : "'" + opt.StdinText + "'")} KeyAvailable={io.KeyAvailable()}");
 
         // **永远只用 "mcu" 模式** —— 这是手机端的安全边界（见 MauiVml 那段长注释：
         // os 模式会放开线程/Socket/mkdir/Exec 等 300–376 号，手机上要么被沙箱挡、要么不该开）。
@@ -562,6 +563,10 @@ internal static class Program
                         消息框：ok/yes（默认）| cancel/no；单选：下标；多选：逗号分隔下标；
                         输入框：任意文本；cancel 一律表示取消
   --store <路径>       键值存档落成 JSON（不给就只在本次进程内，不碰用户目录）
+  --stdin <文本>       脚本化标准输入（给 getchar/getch/scanf 这类读字节的程序）。
+                       换行写成字面 `\n`；没给就"读到的恒为空"。
+                       语义与手机端逐条对齐（一次读一整行、ReadChar 取行首字符）——
+                       见 CaptureIo 的注释：**两边不同源的话这里测出来的代表不了手机**。
 
 重建 Lib 模块（与上面互斥，走单独一条路）：
   --rebuild-lib <源.c> [--out <输出.vml>]
@@ -588,6 +593,12 @@ internal sealed partial class CliOptions
     public string? RebuildLibOut { get; private set; }
     public int TimeoutSeconds { get; private set; } = 30;
     public bool Help { get; private set; }
+
+    /// <summary>
+    /// <c>--stdin</c>：脚本化标准输入。**换行写成字面 `\n`**（命令行里带真换行不好写），
+    /// 由 <see cref="CaptureIo"/> 自己翻译。语义与手机端逐条对齐 —— 见那个类的注释。
+    /// </summary>
+    public string? StdinText { get; private set; }
 
     /// <summary><c>VML_RAM_*</c> 宏的后缀（手机端恒为 M —— 见 <c>MauiVml.BuildProgram</c>）。</summary>
     public string RamSuffix { get; private set; } = "M";
@@ -633,6 +644,10 @@ internal sealed partial class CliOptions
                     o.TimeoutSeconds = secs;
                     break;
 
+                case "--stdin":
+                    o.StdinText = Require(args, ref i, "--stdin");
+                    break;
+
                 case "--profile":
                     var p = Require(args, ref i, "--profile");
                     o.RamSuffix = p switch
@@ -673,9 +688,41 @@ internal sealed class CliArgumentException(string message) : Exception(message);
 /// 把 VML 的输出收进内存（与 <c>MauiVml.CaptureIo</c> 同形）。
 /// 输入侧一律返回空：命令行工具不做交互式 stdin（与手机端命令行页同一模型）。
 /// </summary>
+/// <summary>
+/// 桌面端的 <see cref="IConsoleIO"/>：输出收进内存，输入从 <c>--stdin</c> 来。
+///
+/// **输入侧逐条照抄手机端**（<c>WayCoder.Maui/Services/MauiVml.cs</c> 的 <c>CaptureIo</c>）——
+/// 本工具存在的意义就是「与手机端逐字等价地秒级迭代」，两边一旦不同源，
+/// 这里跑绿（或跑红）**都不能代表手机**，而那是本仓排第一的坑。手机端那三条是：
+///
+///   · <see cref="ReadString"/> 每次取**一整行**（手机端是"在命令行页敲一行、按运行提交"）；
+///   · <see cref="ReadChar"/> 取**那一行的第一个字符** —— 这条最要紧：`conio` 的
+///     `getch()` 是拿 `getchar()` 逐字符攒缓冲的，宿主一次给一行的话能拿到什么，
+///     全由这一行的实现决定；
+///   · <see cref="KeyAvailable"/> 只要**有输入源**就恒为 true（手机端原话：
+///     "让 `while(!KeyAvailable()); getchar()` 这类轮询能推进"）。
+///
+/// ⚠ 与手机端**唯一**的差别在"输入用完之后"：手机端的 <c>_readLine</c> 是**阻塞**的
+/// （等到用户敲下一行为止），桌面跑脚本不能挂在那儿，于是用**空行**代替 ——
+/// 空行在 DOS 语义里是"按了回车"，正是老程序里最常见的确认。
+/// </summary>
 internal sealed class CaptureIo : IConsoleIO
 {
     private readonly StringBuilder _sb = new();
+    private readonly Queue<string>? _lines;
+    /// <summary>当前这一行**还没吐出去**的剩余（<see cref="ReadChar"/> 逐字符消费它）。</summary>
+    private string _cur = "";
+
+    /// <param name="stdin">
+    /// `--stdin` 的原文。**换行写成字面 `\n`**（命令行里带真换行没法写），在这里翻译。
+    /// 传 null = 没有输入源（读到的恒为空）。
+    /// </param>
+    public CaptureIo(string? stdin = null)
+    {
+        if (stdin is null) return;
+        _lines = new Queue<string>(stdin.Replace("\\n", "\n").Split('\n'));
+    }
+
     public string Text => _sb.ToString();
 
     public void WriteString(string str) => _sb.Append(str);
@@ -684,11 +731,31 @@ internal sealed class CaptureIo : IConsoleIO
     public void WriteFloat(float value) => _sb.Append(value);
     public void WriteHex(int value) => _sb.Append(value.ToString("X"));
 
-    public string ReadString() => "";
-    public char ReadChar() => '\0';
-    public int ReadInt() => 0;
-    public float ReadFloat() => 0f;
-    public bool KeyAvailable() => false;
+    public string ReadString() => _lines is { Count: > 0 } q ? q.Dequeue() : "";
+
+    /// <summary>
+    /// ⚠ **逐字符吐，一次一个** —— 不能写成"取一行再返回 `line[0]`"。
+    ///
+    /// 那个写法（本类原来就是）把一行里**除首字符以外的全丢了**，而 `IConsoleIO.ReadChar`
+    /// 的契约明明是"读取一个字符"。后果经过一整条链放大：`conio` 的 `getch()` 是拿
+    /// `getchar()` **循环攒一行**进键盘缓冲的，宿主一次只给一个字符 ⇒ 用户敲的
+    /// `wsad` 只有 `w` 进得了程序，`sad` 消失 —— 玩家那边的观感就是"按下没反应"，
+    /// 而且**不报错**（`scripts/vml-c-probe/cases/16-conio-key.c` 钉的就是这个）。
+    ///
+    /// 行末补一个 `'\n'`：那是"用户按了回车"，正是 `getch()` 循环等的收尾符。
+    /// 队列空了也走同一条路（空行）—— 与手机端一致，见类注释。
+    /// </summary>
+    public char ReadChar()
+    {
+        if (_cur.Length == 0) _cur = ReadString() + "\n";
+        var c = _cur[0];
+        _cur = _cur.Substring(1);
+        return c;
+    }
+
+    public int ReadInt() => int.TryParse(ReadString().Trim(), out var v) ? v : 0;
+    public float ReadFloat() => float.TryParse(ReadString().Trim(), out var v) ? v : 0f;
+    public bool KeyAvailable() => _lines is not null;
 }
 
 // 桌面宿主（500–599 号段 + VM 内置的 #57 的真实实现）在 `CliVmlHost.cs`：

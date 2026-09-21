@@ -13,49 +13,82 @@ GetDate:
 ; return   : void
 ; --------------------------------------------
 GetDate:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 18:     int d = asm("SYSCALL #55");  // R0 = packed date
         syscall #55
-        move [R12-4] R0
-        move R0 #0
-        move R0 [R0]
-        move [R12-8] R0
-        move R0 [R12+12]
-        cmp R0 #0
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 19:     if (year)  *year  = (d >> 16) & 0xFFFF;
+        move @R0 [@R12+12]
+        cmp @R0 #0
         jz sta_96560000
-        asm "STORE R0, _vml_result_int"
-        move R0 [R12+12]
-        move R11 R0
-        move R0 #0
-        move [R11] R0
+        move @R0 [@R12+12]
+        move @R11 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #16
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #65535
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R11] @R0
 sta_96560000:
 sta_96560001:
-        move R0 [R12+12]
-        move R10 R0
-        move R0 #2026
-        move [R10] R0
-        move R0 [R12+16]
-        move R9 R0
-        move R0 #8
-        move [R9] R0
-        move R0 [R12+20]
-        move R8 R0
-        move R0 #1
-        move [R8] R0
-        move R0 [R12+24]
-        cmp R0 #0
+; 20:     if (month) *month = (d >> 8) & 0xFF;
+        move @R0 [@R12+16]
+        cmp @R0 #0
         jz sta_96560002
-        move R0 [R12+24]
-        move R7 R0
-        move R0 #6
-        move [R7] R0
+        move @R0 [@R12+16]
+        move @R10 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R10] @R0
 sta_96560002:
 sta_96560003:
-        move R13 R12
-        pop R12
-        pop R15
+; 21:     if (day)   *day   = d & 0xFF;
+        move @R0 [@R12+20]
+        cmp @R0 #0
+        jz sta_96560004
+        move @R0 [@R12+20]
+        move @R9 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R9] @R0
+sta_96560004:
+sta_96560005:
+; 22:     if (wday)  *wday  = 0;
+        move @R0 [@R12+24]
+        cmp @R0 #0
+        jz sta_96560006
+        move @R0 [@R12+24]
+        move @R8 @R0
+        move @R0 #0
+        move [@R8] @R0
+sta_96560006:
+sta_96560007:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 GetTime:
 ; -------------------------------------------
@@ -68,79 +101,82 @@ GetTime:
 ; return   : void
 ; --------------------------------------------
 GetTime:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 25:     int t = asm("SYSCALL #56");  // R0 = packed time
         syscall #56
-        move [R12-4] R0
-        asm "STORE R0, _vml_result_int"
-        move R0 #0
-        move [R12-8] R0
-        move R0 [R12+12]
-        cmp R0 #0
-        jz sta_96560004
-        move R0 [R12+12]
-        move R6 R0
-        move R0 [R12-8]
-        push R0
-        move R0 #16
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #255
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R6] R0
-sta_96560004:
-sta_96560005:
-        move R0 [R12+16]
-        cmp R0 #0
-        jz sta_96560006
-        move R0 [R12+16]
-        move R5 R0
-        move R0 [R12-8]
-        push R0
-        move R0 #8
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #255
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R5] R0
-sta_96560006:
-sta_96560007:
-        move R0 [R12+20]
-        cmp R0 #0
+        move [@R12-4] @R0
+        move [@R12-8] @R0
+; 26:     if (hour) *hour = (t >> 16) & 0xFF;
+        move @R0 [@R12+12]
+        cmp @R0 #0
         jz sta_96560008
-        move R0 [R12+20]
-        move R4 R0
-        move R0 [R12-8]
-        push R0
-        move R0 #255
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R4] R0
+        move @R0 [@R12+12]
+        move @R7 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #16
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R7] @R0
 sta_96560008:
 sta_96560009:
-        move R0 [R12+24]
-        cmp R0 #0
+; 27:     if (min)  *min  = (t >> 8) & 0xFF;
+        move @R0 [@R12+16]
+        cmp @R0 #0
         jz sta_96560010
-        move R0 [R12+24]
-        move R3 R0
-        move R0 #0
-        move [R3] R0
+        move @R0 [@R12+16]
+        move @R6 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R6] @R0
 sta_96560010:
 sta_96560011:
-        move R13 R12
-        pop R12
-        pop R15
+; 28:     if (sec)  *sec  = t & 0xFF;
+        move @R0 [@R12+20]
+        cmp @R0 #0
+        jz sta_96560012
+        move @R0 [@R12+20]
+        move @R5 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R5] @R0
+sta_96560012:
+sta_96560013:
+; 29:     if (msec) *msec = 0;
+        move @R0 [@R12+24]
+        cmp @R0 #0
+        jz sta_96560014
+        move @R0 [@R12+24]
+        move @R4 @R0
+        move @R0 #0
+        move [@R4] @R0
+sta_96560014:
+sta_96560015:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 DosVersion:
 ; -------------------------------------------
@@ -149,16 +185,17 @@ DosVersion:
 ; return   : int
 ; --------------------------------------------
 DosVersion:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #1792
-        jmp L_96560012
-L_96560012:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 33:     return 0x0700;  // 模拟 DOS 7.0
+        move @R0 #1792
+        jmp L_96560016
+L_96560016:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 DiskFree:
 ; -------------------------------------------
@@ -168,16 +205,17 @@ DiskFree:
 ; return   : int
 ; --------------------------------------------
 DiskFree:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #65535
-        jmp L_96560013
-L_96560013:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 41:     return 65535;
+        move @R0 #65535
+        jmp L_96560017
+L_96560017:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 DiskSize:
 ; -------------------------------------------
@@ -187,16 +225,17 @@ DiskSize:
 ; return   : int
 ; --------------------------------------------
 DiskSize:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #65535
-        jmp L_96560014
-L_96560014:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 44:     return 65535;
+        move @R0 #65535
+        jmp L_96560018
+L_96560018:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 FindFirst:
 ; -------------------------------------------
@@ -208,16 +247,17 @@ FindFirst:
 ; return   : int
 ; --------------------------------------------
 FindFirst:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560015
-L_96560015:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 54:     return 0;  // 简化: 未实现, 返回 0 = no match
+        move @R0 #0
+        jmp L_96560019
+L_96560019:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 FindNext:
 ; -------------------------------------------
@@ -227,16 +267,17 @@ FindNext:
 ; return   : int
 ; --------------------------------------------
 FindNext:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560016
-L_96560016:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 57:     return 0;
+        move @R0 #0
+        jmp L_96560020
+L_96560020:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 FindClose:
 ; -------------------------------------------
@@ -246,13 +287,13 @@ FindClose:
 ; return   : void
 ; --------------------------------------------
 FindClose:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 EnvCount:
 ; -------------------------------------------
@@ -261,16 +302,17 @@ EnvCount:
 ; return   : int
 ; --------------------------------------------
 EnvCount:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560017
-L_96560017:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 66:     return 0;  // VML MCU 模式无环境变量
+        move @R0 #0
+        jmp L_96560021
+L_96560021:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 EnvStr:
 ; -------------------------------------------
@@ -280,16 +322,17 @@ EnvStr:
 ; return   : char*
 ; --------------------------------------------
 EnvStr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560018
-L_96560018:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 69:     return (char*)0;  // null
+        move @R0 #0
+        jmp L_96560022
+L_96560022:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 GetEnv:
 ; -------------------------------------------
@@ -299,16 +342,17 @@ GetEnv:
 ; return   : char*
 ; --------------------------------------------
 GetEnv:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560019
-L_96560019:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 72:     return (char*)0;
+        move @R0 #0
+        jmp L_96560023
+L_96560023:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 Exec:
 ; -------------------------------------------
@@ -319,18 +363,19 @@ Exec:
 ; return   : int
 ; --------------------------------------------
 Exec:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        jmp L_96560020
-L_96560020:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 78:     return -1;  // VML MCU 模式不支持 Exec
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_96560024
+L_96560024:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 SwapVectors:
 ; -------------------------------------------
@@ -339,13 +384,13 @@ SwapVectors:
 ; return   : void
 ; --------------------------------------------
 SwapVectors:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 GetIntVec:
 ; -------------------------------------------
@@ -356,22 +401,23 @@ GetIntVec:
 ; return   : void
 ; --------------------------------------------
 GetIntVec:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 [R12+16]
-        cmp R0 #0
-        jz sta_96560021
-        move R0 [R12+16]
-        move R2 R0
-        move R0 #0
-        move [R2] R0
-sta_96560021:
-sta_96560022:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 86:     if (vector) *(void**)vector = 0;
+        move @R0 [@R12+16]
+        cmp @R0 #0
+        jz sta_96560025
+        move @R0 [@R12+16]
+        move @R3 @R0
+        move @R0 #0
+        move [@R3] @R0
+sta_96560025:
+sta_96560026:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 SetIntVec:
 ; -------------------------------------------
@@ -382,13 +428,13 @@ SetIntVec:
 ; return   : void
 ; --------------------------------------------
 SetIntVec:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 DosExitCode:
 ; -------------------------------------------:
@@ -398,14 +444,15 @@ DosExitCode:
 ; return   : int
 ; --------------------------------------------
 DosExitCode:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R0 #0
-        jmp L_96560023
-L_96560023:
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 95:     return 0;
+        move @R0 #0
+        jmp L_96560027
+L_96560027:
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

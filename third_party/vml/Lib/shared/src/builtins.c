@@ -65,13 +65,16 @@ __stdcall int max(int a, int b) { return a > b ? a : b; }
 
 // ===== 系统调用 (委托 vmlsys.c) =====
 
-__stdcall int random(void) { int r; asm("SYSCALL #50"); return r; }
+/* ⚠ 这几行原来是 `int r; asm("SYSCALL #50"); return r;` —— **返回值会整个丢掉**
+   （`r` 是未初始化的垃圾），且不报错。必须把 asm 当表达式用，见 vmlui.c 头部。
+   判据：`scripts/vml-c-probe/cases/17-syscall-ret.c`。 */
+__stdcall int random(void) { return asm("SYSCALL #50"); }
 __stdcall void sleep(int ms) { asm("SYSCALL #52"); }
-__stdcall int get_tick(void) { int t; asm("SYSCALL #53"); return t; }
+__stdcall int get_tick(void) { return asm("SYSCALL #53"); }
 
 // ===== 内存管理 =====
 
-void* alloc(int size) { void* p; asm("SYSCALL #40"); return p; }
+void* alloc(int size) { return (void*)asm("SYSCALL #40"); }
 __stdcall void free(void* ptr) { asm("SYSCALL #41"); }
 
 // ===== 调试 =====

@@ -19,7 +19,7 @@ __stdcall void* array_alloc(int count)
 {
     int* arr;
     int size = count * 4 + 4;
-    asm("SYSCALL #40");  // malloc(size) → R0
+    arr = (int*)asm("SYSCALL #40");   // malloc(size) → R0
     arr[0] = count;       // STORE count → [arr+0]
     return arr;
 }
@@ -28,7 +28,5 @@ __stdcall void* array_alloc(int count)
 
 __stdcall char* read_line(void)
 {
-    char* buf;
-    asm("SYSCALL #2");   // InputString → R0 = string pointer
-    return buf;
+    return (char*)asm("SYSCALL #2");   // InputString → R0 = string pointer
 }

@@ -16,6 +16,7 @@
 .linked "float.vml"
 .linked "file.vml"
 .linked "os.vml"
+
 .data
 L_94240004: .string "true"
 L_94240005: .string "false"
@@ -422,10 +423,9 @@ random:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 40: __stdcall int random(void) { int r; asm("SYSCALL #50"); return r; }
+; 43: __stdcall int random(void) { return asm("SYSCALL #50"); }
         syscall #50
         move [@R12-4] @R0
-        move @R0 [@R12-8]
         jmp L_94240021
 L_94240021:
         move @R13 @R12
@@ -444,7 +444,7 @@ sleep:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 41: __stdcall void sleep(int ms) { asm("SYSCALL #52"); }
+; 44: __stdcall void sleep(int ms) { asm("SYSCALL #52"); }
         syscall #52
         move [@R12-4] @R0
         move @R13 @R12
@@ -462,10 +462,9 @@ get_tick:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 42: __stdcall int get_tick(void) { int t; asm("SYSCALL #53"); return t; }
+; 45: __stdcall int get_tick(void) { return asm("SYSCALL #53"); }
         syscall #53
         move [@R12-4] @R0
-        move @R0 [@R12-8]
         jmp L_94240022
 L_94240022:
         move @R13 @R12
@@ -484,10 +483,9 @@ alloc:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 44: void* alloc(int size) { void* p; asm("SYSCALL #40"); return p; }
+; 47: void* alloc(int size) { return (void*)asm("SYSCALL #40"); }
         syscall #40
         move [@R12-4] @R0
-        move @R0 [@R12-8]
         jmp L_94240023
 L_94240023:
         move @R13 @R12
@@ -506,7 +504,7 @@ free:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 45: __stdcall void free(void* ptr) { asm("SYSCALL #41"); }
+; 48: __stdcall void free(void* ptr) { asm("SYSCALL #41"); }
         syscall #41
         move [@R12-4] @R0
         move @R13 @R12
@@ -525,7 +523,7 @@ debug_print:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 47: __stdcall void debug_print(const char* msg) { asm("SYSCALL #70"); }
+; 50: __stdcall void debug_print(const char* msg) { asm("SYSCALL #70"); }
         syscall #70
         move [@R12-4] @R0
         move @R13 @R12
@@ -544,7 +542,7 @@ debug_print_int:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 48: __stdcall void debug_print_int(int val) { asm("SYSCALL #71"); }
+; 51: __stdcall void debug_print_int(int val) { asm("SYSCALL #71"); }
         syscall #71
         move [@R12-4] @R0
         move @R13 @R12
@@ -564,7 +562,7 @@ assert:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 49: __stdcall void assert(int cond, const char* msg) { asm("SYSCALL #72"); }
+; 52: __stdcall void assert(int cond, const char* msg) { asm("SYSCALL #72"); }
         syscall #72
         move [@R12-4] @R0
         move @R13 @R12
@@ -585,7 +583,7 @@ clamp:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 52:     if (x < low) return low; if (x > high) return high; return x;
+; 55:     if (x < low) return low; if (x > high) return high; return x;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -639,7 +637,7 @@ sign:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 54: __stdcall int sign(int x) { if (x < 0) return -1; if (x > 0) return 1; return 0; }
+; 57: __stdcall int sign(int x) { if (x < 0) return -1; if (x > 0) return 1; return 0; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -695,7 +693,7 @@ is_power_of_two:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 55: __stdcall int is_power_of_two(int x) { return (x > 0) && ((x & (x - 1)) == 0) ? 1 : 0; }
+; 58: __stdcall int is_power_of_two(int x) { return (x > 0) && ((x & (x - 1)) == 0) ? 1 : 0; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -762,7 +760,7 @@ next_power_of_two:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 57:     if (x <= 0) return 1; x--; x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; return x + 1;
+; 60:     if (x <= 0) return 1; x--; x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; return x + 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -870,7 +868,7 @@ bit_set:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 60: __stdcall int bit_set(int val, int n) { return val | (1 << n); }
+; 63: __stdcall int bit_set(int val, int n) { return val | (1 << n); }
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -901,7 +899,7 @@ bit_clear:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 61: __stdcall int bit_clear(int val, int n) { return val & ~(1 << n); }
+; 64: __stdcall int bit_clear(int val, int n) { return val & ~(1 << n); }
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -933,7 +931,7 @@ bit_toggle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 62: __stdcall int bit_toggle(int val, int n) { return val ^ (1 << n); }
+; 65: __stdcall int bit_toggle(int val, int n) { return val ^ (1 << n); }
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -964,7 +962,7 @@ bit_test:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 63: __stdcall int bit_test(int val, int n) { return (val >> n) & 1; }
+; 66: __stdcall int bit_test(int val, int n) { return (val >> n) & 1; }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -995,7 +993,7 @@ rol:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 64: __stdcall int rol(int val, int bits) { bits &= 31; return (val << bits) | (val >> (32 - bits)); }
+; 67: __stdcall int rol(int val, int bits) { bits &= 31; return (val << bits) | (val >> (32 - bits)); }
         move @R0 [@R12+16]
         push @R0
         move @R0 #31
@@ -1043,7 +1041,7 @@ ror:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 65: __stdcall int ror(int val, int bits) { bits &= 31; return (val >> bits) | (val << (32 - bits)); }
+; 68: __stdcall int ror(int val, int bits) { bits &= 31; return (val >> bits) | (val << (32 - bits)); }
         move @R0 [@R12+16]
         push @R0
         move @R0 #31
@@ -1090,7 +1088,7 @@ popcount:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 66: __stdcall int popcount(int val) { int n=0; while(val){ n++; val&=val-1; } return n; }
+; 69: __stdcall int popcount(int val) { int n=0; while(val){ n++; val&=val-1; } return n; }
         move @R0 #0
         move [@R12-8] @R0
 sta_94240062:
@@ -1136,7 +1134,7 @@ clz:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 67: __stdcall int clz(int val) { int n=32; while(val){ val>>=1; n--; } return n; }
+; 70: __stdcall int clz(int val) { int n=32; while(val){ val>>=1; n--; } return n; }
         move @R0 #32
         move [@R12-8] @R0
 sta_94240065:
@@ -1180,7 +1178,7 @@ gcd:
         sub @R13 #16
 sta_94240068:
         move @R2 #0
-; 69: __stdcall int gcd(int a, int b) { int t; while (b != 0) { t = b; b = a % b; a = t; } return a; }
+; 72: __stdcall int gcd(int a, int b) { int t; while (b != 0) { t = b; b = a % b; a = t; } return a; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -1227,7 +1225,7 @@ lcm:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 70: __stdcall int lcm(int a, int b) { int g = gcd(a, b); if (g == 0) return 0; return (a / g) * b; }
+; 73: __stdcall int lcm(int a, int b) { int g = gcd(a, b); if (g == 0) return 0; return (a / g) * b; }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -1283,7 +1281,7 @@ factorial:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 71: __stdcall int factorial(int n) { int r = 1; if (n < 0) return 0; while (n > 1) { r *= n; n--; } return r; }
+; 74: __stdcall int factorial(int n) { int r = 1; if (n < 0) return 0; while (n > 1) { r *= n; n--; } return r; }
         move @R0 #1
         move [@R12-8] @R0
         move @R0 [@R12+12]
@@ -1351,7 +1349,7 @@ is_prime:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 72: __stdcall int is_prime(int n) { int i; if (n < 2) return 0; for (i = 2; i * i <= n; i++) if (n % i == 0) return 0; return 1; }
+; 75: __stdcall int is_prime(int n) { int i; if (n < 2) return 0; for (i = 2; i * i <= n; i++) if (n % i == 0) return 0; return 1; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -1440,7 +1438,7 @@ strcpy:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 75:     int i = 0; if (!dst || !src) return dst;
+; 78:     int i = 0; if (!dst || !src) return dst;
         move @R0 #0
         move [@R12-8] @R0
         move @R0 [@R12+12]
@@ -1479,7 +1477,7 @@ sta_94240101:
 sta_94240102:
 sta_94240111:
         move @R2 #0
-; 76:     while (src[i]) { dst[i] = src[i]; i++; } dst[i] = 0; return dst;
+; 79:     while (src[i]) { dst[i] = src[i]; i++; } dst[i] = 0; return dst;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -1542,7 +1540,7 @@ strcat:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 79:     int i = 0, j = 0; if (!dst || !src) return dst;
+; 82:     int i = 0, j = 0; if (!dst || !src) return dst;
         move @R0 #0
         move [@R12-8] @R0
         move @R0 #0
@@ -1583,7 +1581,7 @@ sta_94240113:
 sta_94240114:
 sta_94240123:
         move @R2 #0
-; 80:     while (dst[i]) i++; while (src[j]) { dst[i++] = src[j++]; } dst[i] = 0; return dst;
+; 83:     while (dst[i]) i++; while (src[j]) { dst[i++] = src[j++]; } dst[i] = 0; return dst;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1667,7 +1665,7 @@ strlen:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 82: __stdcall int strlen(const char* s) { int n = 0; if (!s) return 0; while (s[n]) n++; return n; }
+; 85: __stdcall int strlen(const char* s) { int n = 0; if (!s) return 0; while (s[n]) n++; return n; }
         move @R0 #0
         move [@R12-8] @R0
         move @R0 [@R12+12]
@@ -1725,12 +1723,12 @@ memcpy:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 91:     char* d = (char*)dst; const char* s = (const char*)src; int i;
+; 94:     char* d = (char*)dst; const char* s = (const char*)src; int i;
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12+16]
         move [@R12-12] @R0
-; 92:     for (i = 0; i < n; i++) d[i] = s[i]; return dst;
+; 95:     for (i = 0; i < n; i++) d[i] = s[i]; return dst;
         move @R0 #0
         move [@R12-16] @R0
 sta_94240134:
@@ -1792,7 +1790,7 @@ memset:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 95:     char* p = (char*)ptr; int i; for (i = 0; i < n; i++) p[i] = (char)val; return ptr;
+; 98:     char* p = (char*)ptr; int i; for (i = 0; i < n; i++) p[i] = (char)val; return ptr;
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 #0
@@ -1849,12 +1847,12 @@ memcmp:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 98:     const char* pa = (const char*)a; const char* pb = (const char*)b; int i;
+; 101:     const char* pa = (const char*)a; const char* pb = (const char*)b; int i;
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12+16]
         move [@R12-12] @R0
-; 99:     for (i = 0; i < n; i++) { if (pa[i] != pb[i]) return (int)(pa[i]) - (int)(pb[i]); } return 0;
+; 102:     for (i = 0; i < n; i++) { if (pa[i] != pb[i]) return (int)(pa[i]) - (int)(pb[i]); } return 0;
         move @R0 #0
         move [@R12-16] @R0
 sta_94240146:
@@ -1948,7 +1946,7 @@ delay_us:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 102: __stdcall void delay_us(int us) { int i; for (i = 0; i < us * 10; i++) { } }
+; 105: __stdcall void delay_us(int us) { int i; for (i = 0; i < us * 10; i++) { } }
         move @R0 #0
         move [@R12-8] @R0
 sta_94240156:
@@ -1996,7 +1994,7 @@ rand_range:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 104:     int r; if (max <= min) return min; asm("SYSCALL #50"); r = r % (max - min + 1); return min + r;
+; 107:     int r; if (max <= min) return min; asm("SYSCALL #50"); r = r % (max - min + 1); return min + r;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]

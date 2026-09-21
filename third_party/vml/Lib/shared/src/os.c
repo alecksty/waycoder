@@ -7,9 +7,9 @@
 // ============================================================
 
 __stdcall int thread_create(void* fn, int stack_size) {
-    int id;
-    asm("SYSCALL #300");
-    return id;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #300");
 }
 
 __stdcall void thread_exit(void) {
@@ -17,9 +17,9 @@ __stdcall void thread_exit(void) {
 }
 
 __stdcall int thread_join(int tid) {
-    int r;
-    asm("SYSCALL #302");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #302");
 }
 
 __stdcall void thread_yield(void) {
@@ -35,21 +35,21 @@ __stdcall void thread_sleep(int ms) {
 // ============================================================
 
 __stdcall int mutex_create(void) {
-    int id;
-    asm("SYSCALL #310");
-    return id;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #310");
 }
 
 __stdcall int mutex_lock(int id) {
-    int r;
-    asm("SYSCALL #311");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #311");
 }
 
 __stdcall int mutex_unlock(int id) {
-    int r;
-    asm("SYSCALL #312");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #312");
 }
 
 // ============================================================
@@ -57,27 +57,27 @@ __stdcall int mutex_unlock(int id) {
 // ============================================================
 
 __stdcall int cond_create(void) {
-    int id;
-    asm("SYSCALL #313");
-    return id;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #313");
 }
 
 __stdcall int cond_wait(int cond, int mutex) {
-    int r;
-    asm("SYSCALL #314");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #314");
 }
 
 __stdcall int cond_signal(int cond) {
-    int r;
-    asm("SYSCALL #315");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #315");
 }
 
 __stdcall int cond_broadcast(int cond) {
-    int r;
-    asm("SYSCALL #316");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #316");
 }
 
 // ============================================================
@@ -85,9 +85,9 @@ __stdcall int cond_broadcast(int cond) {
 // ============================================================
 
 int exec(const char* path) {
-    int pid;
-    asm("SYSCALL #320");
-    return pid;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #320");
 }
 
 void process_exit(int code) {
@@ -95,9 +95,9 @@ void process_exit(int code) {
 }
 
 __stdcall int get_pid(void) {
-    int pid;
-    asm("SYSCALL #322");
-    return pid;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #322");
 }
 
 // ============================================================
@@ -105,51 +105,51 @@ __stdcall int get_pid(void) {
 // ============================================================
 
 __stdcall int socket_create(int domain, int type) {
-    int fd;
-    asm("SYSCALL #330");
-    return fd;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #330");
 }
 
 __stdcall int socket_bind(int fd, int port) {
-    int r;
-    asm("SYSCALL #331");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #331");
 }
 
 __stdcall int socket_listen(int fd, int backlog) {
-    int r;
-    asm("SYSCALL #332");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #332");
 }
 
 __stdcall int socket_accept(int fd) {
-    int client_fd;
-    asm("SYSCALL #333");
-    return client_fd;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #333");
 }
 
 __stdcall int socket_connect(int fd, const char* addr, int port) {
-    int r;
-    asm("SYSCALL #334");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #334");
 }
 
 __stdcall int socket_send(int fd, const void* buf, int len) {
-    int sent;
-    asm("SYSCALL #335");
-    return sent;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #335");
 }
 
 __stdcall int socket_recv(int fd, void* buf, int len) {
-    int received;
-    asm("SYSCALL #336");
-    return received;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #336");
 }
 
 __stdcall int socket_close(int fd) {
-    int r;
-    asm("SYSCALL #337");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #337");
 }
 
 // ============================================================
@@ -157,33 +157,33 @@ __stdcall int socket_close(int fd) {
 // ============================================================
 
 __stdcall int mkdir(const char* path) {
-    int r;
-    asm("SYSCALL #340");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #340");
 }
 
 __stdcall int remove_file(const char* path) {
-    int r;
-    asm("SYSCALL #341");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #341");
 }
 
 __stdcall int rename_file(const char* old, const char* new) {
-    int r;
-    asm("SYSCALL #342");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #342");
 }
 
 int read_dir(const char* path, void* buf) {
-    int count;
-    asm("SYSCALL #343");
-    return count;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #343");
 }
 
 int file_stat(const char* path, void* buf) {
-    int r;
-    asm("SYSCALL #344");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #344");
 }
 
 // ============================================================
@@ -191,9 +191,9 @@ int file_stat(const char* path, void* buf) {
 // ============================================================
 
 char* get_env(const char* name) {
-    char* val;
-    asm("SYSCALL #360");
-    return val;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #360");
 }
 
 __stdcall void set_env(const char* name, const char* val) {
@@ -201,9 +201,9 @@ __stdcall void set_env(const char* name, const char* val) {
 }
 
 int get_args(void* buf) {
-    int count;
-    asm("SYSCALL #362");
-    return count;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #362");
 }
 
 // ============================================================
@@ -211,9 +211,9 @@ int get_args(void* buf) {
 // ============================================================
 
 __stdcall int signal(int signum, void* handler) {
-    int r;
-    asm("SYSCALL #350");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #350");
 }
 
 // ============================================================
@@ -221,13 +221,13 @@ __stdcall int signal(int signum, void* handler) {
 // ============================================================
 
 __stdcall int type_of(void* addr) {
-    int type_id;
-    asm("SYSCALL #380");
-    return type_id;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #380");
 }
 
 __stdcall int type_name(int type_id, char* buf) {
-    int r;
-    asm("SYSCALL #381");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #381");
 }

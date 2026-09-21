@@ -15,27 +15,27 @@ int main()
 
     // ① 定位是 **1 起**（DOS 语义）；左上角 = (1,1)
     gotoxy(10, 5);
-    printf("P1=%d,%d\n", wherex(), wherey());
+    printf("\nP1=%d,%d\n", wherex(), wherey());
 
     // ② 输出推进光标：`cprintf` 4 个字符 ⇒ 列 +4
     textcolor(YELLOW);
     textbackground(BLUE);
     cprintf("menu");
-    printf("P2=%d,%d\n", wherex(), wherey());
+    printf("\nP2=%d,%d\n", wherex(), wherey());
 
     // ③ `cputs` 同理
     cputs("XY");
-    printf("P3=%d,%d\n", wherex(), wherey());
+    printf("\nP3=%d,%d\n", wherex(), wherey());
 
     // ④ 回到左上角
     gotoxy(1, 1);
-    printf("P4=%d,%d\n", wherex(), wherey());
+    printf("\nP4=%d,%d\n", wherex(), wherey());
 
     // ⑤ 越界要**钳制**，不是崩溃也不是回绕（老程序会拿它当"到底了"用）
     gotoxy(200, 200);
-    printf("P5=%d,%d\n", wherex(), wherey());
+    printf("\nP5=%d,%d\n", wherex(), wherey());
     gotoxy(0, 0);
-    printf("P6=%d,%d\n", wherex(), wherey());
+    printf("\nP6=%d,%d\n", wherex(), wherey());
 
     // ⑥ 写到第 80 列后再写一个字符 ⇒ 自动折到下一行**行首**
     //
@@ -45,9 +45,9 @@ int main()
     //   实现里"少折一次"和"多折一次"这两种错都会碰巧对上同一个值，判据就废了。
     gotoxy(80, 1);
     putch('A');
-    printf("P7a=%d,%d\n", wherex(), wherey());
+    printf("\nP7a=%d,%d\n", wherex(), wherey());
     putch('B');
-    printf("P7b=%d,%d\n", wherex(), wherey());
+    printf("\nP7b=%d,%d\n", wherex(), wherey());
 
     // ⑦ 颜色状态机：`textattr` 一个字节里高 4 位背景、低 4 位前景；
     //    `highvideo`/`lowvideo` 只动前景的加亮位（这些读不回来，靠后续输出不崩 + 真机观感）
@@ -55,7 +55,7 @@ int main()
     highvideo();
     lowvideo();
     normvideo();
-    printf("P8=ok\n");
+    printf("\nP8=ok\n");
 
     return 0;
 }

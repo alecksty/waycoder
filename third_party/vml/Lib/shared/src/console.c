@@ -100,37 +100,37 @@ __stdcall void clear_screen(void)
 
 __stdcall char getchar(void)
 {
-    char c;
-    asm("SYSCALL #5");
-    return c;
+    /* asm 必须是表达式（见 vmlui.c 头部）：写成语句 + return 局部变量
+       会把返回值丢掉（局部变量是未初始化的垃圾），且不报错。 */
+    return asm("SYSCALL #5");
 }
 
 __stdcall char* input_str(void)
 {
-    char* buf;
-    asm("SYSCALL #2");
-    return buf;
+    /* asm 必须是表达式（见 vmlui.c 头部）：写成语句 + return 局部变量
+       会把返回值丢掉（局部变量是未初始化的垃圾），且不报错。 */
+    return asm("SYSCALL #2");
 }
 
 __stdcall int input_int(void)
 {
-    int n;
-    asm("SYSCALL #7");
-    return n;
+    /* asm 必须是表达式（见 vmlui.c 头部）：写成语句 + return 局部变量
+       会把返回值丢掉（局部变量是未初始化的垃圾），且不报错。 */
+    return asm("SYSCALL #7");
 }
 
 __stdcall float input_float(void)
 {
-    float f;
-    asm("SYSCALL #9");
-    return f;
+    /* asm 必须是表达式（见 vmlui.c 头部）：写成语句 + return 局部变量
+       会把返回值丢掉（局部变量是未初始化的垃圾），且不报错。 */
+    return asm("SYSCALL #9");
 }
 
 __stdcall char* gets(void)
 {
-    char* buf;
-    asm("SYSCALL #2");
-    return buf;
+    /* asm 必须是表达式（见 vmlui.c 头部）：写成语句 + return 局部变量
+       会把返回值丢掉（局部变量是未初始化的垃圾），且不报错。 */
+    return asm("SYSCALL #2");
 }
 
 __stdcall int kb_hit(void)

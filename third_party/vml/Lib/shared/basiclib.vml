@@ -1,6 +1,7 @@
 
 .linked "math.vml"
 .linked "fixed.vml"
+
 .data
 _buf1: .word[256] 0
 _concats: .word[4096] 0
@@ -1187,11 +1188,9 @@ basic_date_str:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 100:     asm("SYSCALL #55");
+; 101:     return asm("SYSCALL #55");
         syscall #55
         move [@R12-4] @R0
-; 101:     return r;
-        move @R0 [@R12-8]
         jmp L_66490133
 L_66490133:
         move @R13 @R12
@@ -1209,11 +1208,9 @@ basic_time_str:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 106:     asm("SYSCALL #56");
+; 107:     return asm("SYSCALL #56");
         syscall #56
         move [@R12-4] @R0
-; 107:     return r;
-        move @R0 [@R12-8]
         jmp L_66490134
 L_66490134:
         move @R13 @R12
@@ -1231,11 +1228,9 @@ basic_timer:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 112:     asm("SYSCALL #53");
+; 113:     return asm("SYSCALL #53");
         syscall #53
         move [@R12-4] @R0
-; 113:     return t;
-        move @R0 [@R12-8]
         jmp L_66490135
 L_66490135:
         move @R13 @R12
@@ -1373,11 +1368,9 @@ basic_eof:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 134:     asm("SYSCALL #114");
+; 135:     return asm("SYSCALL #114");
         syscall #114
         move [@R12-4] @R0
-; 135:     return r;
-        move @R0 [@R12-8]
         jmp L_66490150
 L_66490150:
         move @R13 @R12
@@ -4359,11 +4352,9 @@ basic_rnd:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 407:     asm("SYSCALL #50");
+; 408:     return asm("SYSCALL #50");
         syscall #50
         move [@R12-4] @R0
-; 408:     return r;
-        move @R0 [@R12-8]
         jmp L_66490478
 L_66490478:
         move @R13 @R12

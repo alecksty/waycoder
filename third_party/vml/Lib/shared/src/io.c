@@ -17,9 +17,9 @@ __stdcall void putchar(char c) {
 }
 
 __stdcall int getchar(void) {
-    int c;
-    asm("SYSCALL #5");
-    return c;
+    /* ⚠ 把 asm 当**表达式**用（规则见 vmlui.c 头部）："先 asm(...) 再
+       return c" 会把返回值丢掉 —— 实测 c 恒为垃圾，且不报错。本文件漏改。 */
+    return asm("SYSCALL #5");
 }
 
 __stdcall void print_str(const char* str) {
@@ -35,15 +35,15 @@ __stdcall void print_hex(int val) {
 }
 
 __stdcall int input_str(void) {
-    int buf;
-    asm("SYSCALL #2");
-    return buf;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #2");
 }
 
 __stdcall int input_int(void) {
-    int val;
-    asm("SYSCALL #7");
-    return val;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #7");
 }
 
 __stdcall void puts(const char* str) {

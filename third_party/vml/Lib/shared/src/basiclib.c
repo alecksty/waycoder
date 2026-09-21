@@ -111,23 +111,23 @@ __stdcall char* basic_mid3(const char* s, int start, int length) {
 
 /// DATE$ — current date "YYYY-MM-DD" (SYSCALL 55)
 __stdcall const char* basic_date_str(void) {
-    const char* r;
-    asm("SYSCALL #55");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #55");
 }
 
 /// TIME$ — current time "HH:MM:SS" (SYSCALL 56)
 __stdcall const char* basic_time_str(void) {
-    const char* r;
-    asm("SYSCALL #56");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #56");
 }
 
 /// TIMER — seconds elapsed (SYSCALL 53 returns ms)
 __stdcall int basic_timer(void) {
-    int t;
-    asm("SYSCALL #53");
-    return t;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #53");
 }
 
 // ============ Input ============
@@ -151,9 +151,9 @@ __stdcall char* basic_inputN(int n) {
 
 /// EOF(filenum) — check end-of-file (SYSCALL 114 FileControl)
 __stdcall int basic_eof(int filenum) {
-    int r;
-    asm("SYSCALL #114");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #114");
 }
 
 // ============ String Manipulation (inline replacements) ============
@@ -450,9 +450,9 @@ __stdcall int basic_sqr(int x) {
 
 /// RND — random integer (SYSCALL #50)
 __stdcall int basic_rnd(void) {
-    int r;
-    asm("SYSCALL #50");
-    return r;
+    /* asm 必须是表达式：写成语句 + return 局部变量会把返回值丢掉
+       （局部变量是未初始化的垃圾），且不报错。见 vmlui.c 头部。 */
+    return asm("SYSCALL #50");
 }
 
 /// EXP(x) — e^x scaled by 10000, Taylor series (avoid div in loop)

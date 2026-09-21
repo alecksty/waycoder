@@ -979,6 +979,9 @@ HALT
         /// </summary>
         private readonly Func<string>? _readLine;
 
+        /// <summary>当前这一行**还没吐出去**的剩余（<see cref="ReadChar"/> 逐字符消费它）。</summary>
+        private string _cur = "";
+
         public CaptureIo(Func<string>? readLine = null) => _readLine = readLine;
 
         public string Text => _sb.ToString();
@@ -992,10 +995,27 @@ HALT
         // 输入侧：全部走同一个 _readLine，按各自的类型转换。
         // 没给输入源时回退成空值/0（AI 工具那条路就是这种，见 VmlTool 的 `stdin` 参数）。
         public string ReadString() => _readLine?.Invoke() ?? "";
+
+        /// <summary>
+        /// ⚠ **逐字符吐，一次一个** —— 不能写成"取一行再返回 `line[0]`"。
+        ///
+        /// 那个写法（本方法原来就是）把用户敲的一行里**除首字符以外的全丢了**，
+        /// 而接口契约明明是"读取一个字符"。后果经一整条链放大：`conio` 的 `getch()`
+        /// 是拿 `getchar()` **循环攒一行**进键盘缓冲的，宿主一次只给一个字符 ⇒
+        /// 用户敲 `wsad` 只有 `w` 进得了程序，`sad` 消失 —— 玩家那边的观感是
+        /// "按键没反应"（游戏里就是"方向键不响应"），而且**不报错**。
+        /// 桌面脚手架 `scripts/vml-c-probe/cases/16-conio-key.c` 钉的就是这一条
+        /// （判据：敲 wsad ⇒ 四次 `getch` 依次拿到 119/115/97/100）。
+        ///
+        /// 行末补 `'\n'` = "用户按了回车"，那正是 `getch()` 循环等的收尾符；
+        /// 没有输入源时 `ReadString()` 给空串 ⇒ 也是 `'\n'` ⇒ DOS 语义的"空行确认"。
+        /// </summary>
         public char ReadChar()
         {
-            var line = ReadString();
-            return line.Length > 0 ? line[0] : '\0';
+            if (_cur.Length == 0) _cur = ReadString() + "\n";
+            var c = _cur[0];
+            _cur = _cur.Substring(1);
+            return c;
         }
         public int ReadInt() => int.TryParse(ReadString().Trim(), out var v) ? v : 0;
         public float ReadFloat() => float.TryParse(ReadString().Trim(), out var v) ? v : 0f;
