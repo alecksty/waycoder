@@ -3548,7 +3548,6 @@ L_3860295:
         pop @R15
         ret
 strdup:
-; -------------------------------------------:
 ; -------------------------------------------
 ; source   : char* strdup(const char* s)
 ; function : strdup
@@ -3682,6 +3681,283 @@ sta_3860342:
         move @R0 [@R12-8]
         jmp L_3860331
 L_3860331:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ioctl:
+; -------------------------------------------
+; source   : int ioctl(int fd,int request,void* arg)
+; function : ioctl
+; param   : int fd
+; param   : int request
+; param   : void* arg
+; return   : int
+; --------------------------------------------
+ioctl:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 338:     if (request == 0x5413 && arg) {          /* TIOCGWINSZ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #21523
+        pop @R1
+        cmp @R1 @R0
+        je _L3860349
+        move @R0 #0
+        jmp _L3860350
+_L3860349:
+        move @R0 #1
+_L3860350:
+        test @R0 @R0
+        jz _L3860347
+        move @R0 [@R12+20]
+        test @R0 @R0
+        jz _L3860347
+        move @R0 #1
+        jmp _L3860348
+_L3860347:
+        move @R0 #0
+_L3860348:
+        cmp @R0 #0
+        jz sta_3860345
+; 339:         unsigned short* ws = (unsigned short*)arg;
+        move @R0 [@R12+20]
+        move [@R12-8] @R0
+; 340:         ws[0] = 25;                          /* ws_row */
+        move @R0 #25
+        move @R3 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        mul @R0 #2
+        pop @R1
+        add @R0 @R1
+        moveh [@R0] @R3
+; 341:         ws[1] = 80;                          /* ws_col */
+        move @R0 #80
+        move @R2 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        mul @R0 #2
+        pop @R9
+        add @R0 @R9
+        moveh [@R0] @R2
+; 342:         ws[2] = 0;                           /* ws_xpixel */
+        move @R0 #0
+        move @R8 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        mul @R0 #2
+        pop @R5
+        add @R0 @R5
+        moveh [@R0] @R8
+; 343:         ws[3] = 0;                           /* ws_ypixel */
+        move @R0 #0
+        move @R11 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #3
+        mul @R0 #2
+        pop @R10
+        add @R0 @R10
+        moveh [@R0] @R11
+sta_3860345:
+sta_3860346:
+; 345:     (void)fd;
+        move @R0 [@R12+12]
+; 346:     return 0;
+        move @R0 #0
+        jmp L_3860351
+L_3860351:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tcgetattr:
+; -------------------------------------------
+; source   : int tcgetattr(int fd,void* t)
+; function : tcgetattr
+; param   : int fd
+; param   : void* t
+; return   : int
+; --------------------------------------------
+tcgetattr:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 349:     (void)fd; (void)t;
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+; 350:     return 0;
+        move @R0 #0
+        jmp L_3860352
+L_3860352:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tcsetattr:
+; -------------------------------------------
+; source   : int tcsetattr(int fd,int actions,void* t)
+; function : tcsetattr
+; param   : int fd
+; param   : int actions
+; param   : void* t
+; return   : int
+; --------------------------------------------
+tcsetattr:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 353:     (void)fd; (void)actions; (void)t;
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+        move @R0 [@R12+20]
+; 354:     return 0;
+        move @R0 #0
+        jmp L_3860353
+L_3860353:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+cfmakeraw:
+; -------------------------------------------
+; source   : void cfmakeraw(void* t)
+; function : cfmakeraw
+; param   : void* t
+; return   : void
+; --------------------------------------------
+cfmakeraw:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 356: __stdcall void cfmakeraw(void* t) { (void)t; }
+        move @R0 [@R12+12]
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tcflush:
+; -------------------------------------------
+; source   : int tcflush(int fd,int queue)
+; function : tcflush
+; param   : int fd
+; param   : int queue
+; return   : int
+; --------------------------------------------
+tcflush:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 357: __stdcall int tcflush(int fd, int queue) { (void)fd; (void)queue; return 0; }
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+        move @R0 #0
+        jmp L_3860354
+L_3860354:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+cfgetospeed:
+; -------------------------------------------
+; source   : int cfgetospeed(void* t)
+; function : cfgetospeed
+; param   : void* t
+; return   : int
+; --------------------------------------------
+cfgetospeed:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 358: __stdcall int cfgetospeed(void* t) { (void)t; return 38400; }
+        move @R0 [@R12+12]
+        move @R0 #38400
+        jmp L_3860355
+L_3860355:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+cfsetospeed:
+; -------------------------------------------
+; source   : int cfsetospeed(void* t,int speed)
+; function : cfsetospeed
+; param   : void* t
+; param   : int speed
+; return   : int
+; --------------------------------------------
+cfsetospeed:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 359: __stdcall int cfsetospeed(void* t, int speed) { (void)t; (void)speed; return 0; }
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+        move @R0 #0
+        jmp L_3860356
+L_3860356:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+open:
+; -------------------------------------------
+; source   : int open(const char* path,int flags,int mode)
+; function : open
+; param   : const char* path
+; param   : int flags
+; param   : int mode
+; return   : int
+; --------------------------------------------
+open:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 364:     (void)flags; (void)mode;
+        move @R0 [@R12+16]
+        move @R0 [@R12+20]
+; 365:     return (int)path;
+        move @R0 [@R12+12]
+        jmp L_3860357
+L_3860357:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+creat:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int creat(const char* path,int mode)
+; function : creat
+; param   : const char* path
+; param   : int mode
+; return   : int
+; --------------------------------------------
+creat:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 368:     (void)mode;
+        move @R0 [@R12+16]
+; 369:     return (int)path;
+        move @R0 [@R12+12]
+        jmp L_3860358
+L_3860358:
         move @R13 @R12
         pop @R12
         pop @R15

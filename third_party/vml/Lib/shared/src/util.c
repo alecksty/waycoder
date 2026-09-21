@@ -375,3 +375,47 @@ __stdcall char* strdup(const char* s) {
     for (i = 0; i <= n; i++) p[i] = s[i];
     return p;
 }
+
+/* ── ioctl / termios（见 Lib/c/sys/ioctl.h、termios.h 的说明） ──
+   本平台没有真终端 ⇒ 除 TIOCGWINSZ 外一律"返回成功但不做事"。 */
+
+/* `TIOCGWINSZ` 必须**真答尺寸**：老程序拿它做布局，答不出来就是"画到屏幕外"。 */
+__stdcall int ioctl(int fd, int request, void* arg) {
+    if (request == 0x5413 && arg) {          /* TIOCGWINSZ */
+        unsigned short* ws = (unsigned short*)arg;
+        ws[0] = 25;                          /* ws_row */
+        ws[1] = 80;                          /* ws_col */
+        ws[2] = 0;                           /* ws_xpixel */
+        ws[3] = 0;                           /* ws_ypixel */
+    }
+    (void)fd;
+    return 0;
+}
+
+__stdcall int tcgetattr(int fd, void* t) {
+    (void)fd; (void)t;
+    return 0;
+}
+
+__stdcall int tcsetattr(int fd, int actions, void* t) {
+    (void)fd; (void)actions; (void)t;
+    return 0;
+}
+
+__stdcall void cfmakeraw(void* t) { (void)t; }
+__stdcall int tcflush(int fd, int queue) { (void)fd; (void)queue; return 0; }
+__stdcall int cfgetospeed(void* t) { (void)t; return 38400; }
+__stdcall int cfsetospeed(void* t, int speed) { (void)t; (void)speed; return 0; }
+
+/* ── fcntl.h 的 open/creat ──
+   本平台的文件访问走既有的 file.* 那层（沙箱根 = 工作区）。这里给最小实现：
+   开了记个句柄号，真正的读写由 `fread`/`fwrite`（file.c）负责。 */
+__stdcall int open(const char* path, int flags, int mode) {
+    (void)flags; (void)mode;
+    return (int)path;
+}
+
+__stdcall int creat(const char* path, int mode) {
+    (void)mode;
+    return (int)path;
+}
