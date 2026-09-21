@@ -60,6 +60,12 @@ public partial class ShellPage : ContentPage
     /// </remarks>
     private readonly List<(string Text, bool NoWrap)> _lines = [];
 
+    /// <summary>输出区字号 —— 文本 Label 与**自绘网格**共用这一个（尺子只有一把）。</summary>
+    private double _fontSize = 12;
+
+    /// <summary>输出区应有的内容宽度（像素）。`-1` = 交给布局。</summary>
+    private double _contentWidth = -1;
+
     /// <summary>缓冲是否停在半行上（上一段没有以 `\n` 收尾）。</summary>
     private bool _partial;
 
@@ -118,7 +124,8 @@ public partial class ShellPage : ContentPage
 
         // 等宽字体取自编辑器那份常量（与自绘编辑器同一个族）——
         // 不在这里另写字面量，否则将来换字体又是一处「同一规则两处实现」。
-        OutputLabel.FontFamily = EditorTypography.FontFamilyName;
+        // 等宽字体取自编辑器那份常量（与自绘编辑器同一个族）——文本 `Label` 与
+        // **自绘网格**（`TerminalGrid`）用的是同一个字号，字体族由各自在创建时套用。
         PromptLabel.FontFamily = EditorTypography.FontFamilyName;
         CmdEntry.FontFamily = EditorTypography.FontFamilyName;
 
@@ -131,15 +138,7 @@ public partial class ShellPage : ContentPage
         // Android 侧 ACTION_DOWN 被消费掉 ⇒ **整个输出区再也拖不动**（实测：滑动后
         // 逐像素比对两张截屏，差异只落在底部导航栏，正文一个像素没动）。
         // 挂在内容上是另一条路（事件先给子视图，拖拽仍由 ScrollView 接管）。
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => CmdEntry.Focus();
-        OutputLabel.GestureRecognizers.Add(tap);
-
-        // 双指缩放字号 —— **同样挂在内容 Label 上**（理由见上面那段：挂 ScrollView 上
-        // 时 Android 会吞掉 ACTION_DOWN，输出区再也拖不动）。
-        var pinch = new PinchGestureRecognizer();
-        pinch.PinchUpdated += OnOutputPinch;
-        OutputLabel.GestureRecognizers.Add(pinch);
+        AddOutputGestures(OutputHost);
 
         Append("WayCoder 命令行\n" +
                "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
@@ -779,6 +778,24 @@ public partial class ShellPage : ContentPage
     /// 走的都是 Canceled，只处理 Completed 的话状态会永远留在"捏合中"
     /// （本仓在移动端编辑器那轮踩过这条）。
     /// </summary>
+    /// <summary>
+    /// 给输出区的**每一个子视图**挂上「点一下聚焦输入框」+「双指缩放字号」。
+    ///
+    /// ⚠ **必须逐个挂，不能只挂在容器（`OutputHost`）上** —— 自绘网格是个
+    ///   `GraphicsView`，它会把落在自己身上的触摸收走，容器那层根本收不到捏合
+    ///   （实测：字号缩不动的真根因）。编辑器也是在自己画布上直接收触摸的。
+    /// </summary>
+    private void AddOutputGestures(View view)
+    {
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (_, _) => CmdEntry.Focus();
+        view.GestureRecognizers.Add(tap);
+
+        var pinch = new PinchGestureRecognizer();
+        pinch.PinchUpdated += OnOutputPinch;
+        view.GestureRecognizers.Add(pinch);
+    }
+
     private void OnOutputPinch(object? sender, PinchGestureUpdatedEventArgs e)
     {
         switch (e.Status)
@@ -826,8 +843,7 @@ public partial class ShellPage : ContentPage
     {
         _lines.Clear();
         _partial = false;
-        OutputLabel.Text = "";
-        OutputLabel.FormattedText = null;
+        OutputHost.Children.Clear();
         UpdateScrollBar();
     }
 
@@ -898,7 +914,7 @@ public partial class ShellPage : ContentPage
     /// 顺带说明为什么滚动条滑块也偏大：Slider 长度按 `视口/内容` 算，
     /// 分母虚高 ⇒ 滑块算出来偏短 —— 同一处错误连累两个地方，改这一处就都对了。
     /// </summary>
-    private double ContentHeight => OutputLabel.Height;
+    private double ContentHeight => OutputHost.Height;
 
     /// <summary>
     /// 输出内容的**真实宽度** —— 取 Label 的实测宽度与显式宽度里大的那个。
@@ -911,8 +927,12 @@ public partial class ShellPage : ContentPage
     {
         get
         {
-            var w = OutputLabel.Width;
-            return OutputLabel.WidthRequest > w ? OutputLabel.WidthRequest : w;
+            var w = OutputHost.Width;
+            var want = 0.0;
+            foreach (var c in OutputHost.Children)
+                if (c is VisualElement ve)
+                    want = Math.Max(want, ve.WidthRequest > 0 ? ve.WidthRequest : ve.Width);
+            return want > w ? want : w;
         }
     }
 
@@ -1189,7 +1209,7 @@ public partial class ShellPage : ContentPage
         // 而缩字号是"让内容塞进屏宽"，两者目的相反。用户点的名：**超出屏宽就横向滚动**。
         // （第一版按显示宽度把 80 列又折了一次，`ls -l` 的列对齐当场就散了。）
         var size = MauiShellStore.Font;
-        if (Math.Abs(OutputLabel.FontSize - size) > 0.01) OutputLabel.FontSize = size;
+        _fontSize = size;
 
         // ── 内容宽度 / 滚动方向 ──
         // 文本已经由 `ShellWrap` 按字符格折好了；这里再给 Label 一个**显式宽度**
@@ -1226,14 +1246,13 @@ public partial class ShellPage : ContentPage
                 if (wantPic > want) want = wantPic;
             }
 
-            if (Math.Abs(OutputLabel.WidthRequest - want) > 0.5) OutputLabel.WidthRequest = want;
+            _contentWidth = want;
         }
-        else if (OutputLabel.WidthRequest > 0)
+        else
         {
-            OutputLabel.WidthRequest = -1;                    // -1 = 交给布局
+            _contentWidth = -1;                               // -1 = 交给布局
         }
-        if (OutputLabel.LineBreakMode != LineBreakMode.WordWrap)
-            OutputLabel.LineBreakMode = LineBreakMode.WordWrap;   // 折行交给 ShellWrap，这里只保证 `\n` 生效
+        // 折行交给 `ShellWrap`；文本 Label 只用 `WordWrap` 保证 `\n` 生效（在 NewTextLabel 里设）
         if (OutputScroll.Orientation != ScrollOrientation.Both)
             OutputScroll.Orientation = ScrollOrientation.Both;
 
@@ -1299,16 +1318,44 @@ public partial class ShellPage : ContentPage
     /// </summary>
     private void RenderOutput()
     {
-        // ⚠ **按块分别渲染**：文本行照常走 Markdown，而**画面行（NoWrap）只解 «» 标记**。
-        //   混在一起渲染过一次，画面就毁了 —— Markdown 的段落收集会**逐行 `Trim()`**，
-        //   行首那一片空格一没，横向位置全丢（实测：画在 20 列的边框贴到了第 1 列）。
-        var fs = new FormattedString();
+        // ⚠ **按块分别渲染**：文本行走 `Label`（要 Markdown），**画面行走自绘网格**。
+        //
+        // 画面为什么不能也用 `Label`：平台会**折叠连续空格**（实测边框每行落在不同的 x），
+        // 换 NBSP 也只能绕开一半（行宽仍短 7 个字符）。本仓在移动端编辑器上为同一件事
+        // 折腾过八轮，结论是「**字符网格不许交给平台排版去量**」—— 所以这里自绘。
+        OutputHost.Children.Clear();
         foreach (var group in GroupByNoWrap(DisplayText()))
         {
-            var part = MarkupToFormattedString.Convert(group.Text, MauiUi.IsDark, markupOnly: group.NoWrap);
-            foreach (var s in part.Spans) fs.Spans.Add(s);
+            if (group.NoWrap)
+            {
+                var grid = new TerminalGrid();
+                grid.SetLines(group.Text.Split('\n'), _fontSize, MauiUi.IsDark);
+                if (_contentWidth > 0) grid.WidthRequest = Math.Max(grid.WidthRequest, _contentWidth);
+                AddOutputGestures(grid);
+                OutputHost.Children.Add(grid);
+                continue;
+            }
+
+            var label = NewTextLabel();
+            label.FormattedText = MarkupToFormattedString.Convert(group.Text, MauiUi.IsDark);
+            AddOutputGestures(label);
+            OutputHost.Children.Add(label);
         }
-        OutputLabel.FormattedText = fs;
+    }
+
+    /// <summary>建一个文本 Label —— 字号/宽度/折行规则**只在这一处设**。</summary>
+    private Label NewTextLabel()
+    {
+        var label = new Label
+        {
+            FontFamily = EditorTypography.FontFamilyName,
+            FontSize = _fontSize,
+            LineBreakMode = LineBreakMode.WordWrap,
+            HorizontalOptions = LayoutOptions.Start,
+            VerticalOptions = LayoutOptions.Start,
+        };
+        if (_contentWidth > 0) label.WidthRequest = _contentWidth;
+        return label;
     }
 
     /// <summary>把折好行的序列按 <c>NoWrap</c> **分成连续段**（同段一起渲染）。</summary>

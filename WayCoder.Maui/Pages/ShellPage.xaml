@@ -78,10 +78,14 @@
                      MAUI 的 `ScrollView` 在内容小于视口时默认会把内容摆到中间（纵向尤其明显：
                      固定 25 行而内容只有 3 行时，整块输出会飘到屏幕中间）。
                      真终端是**左上角起笔**，缩放字号 / 切固定行列时内容也只该从左上角长出来。 -->
-                <Label
-                    x:Name="OutputLabel"
-                    FontSize="12"
-                    LineBreakMode="WordWrap"
+                <!-- ⚠ **不是单个 `Label`**：内容是"文本行 + 画面块"混排的（见 RenderOutput）。
+                     文本行走 `Label`（要 Markdown 格式），**画面行走自绘的 `TerminalGrid`** ——
+                     画面用 `Label` 渲染过，平台会折叠连续空格、改写度量，
+                     边框每行落在不同的 x（本仓在移动端编辑器上为同一件事折腾过八轮，
+                     结论是"字符网格不许交给平台排版去量"，见 CLAUDE.md）。 -->
+                <VerticalStackLayout
+                    x:Name="OutputHost"
+                    Spacing="0"
                     HorizontalOptions="Start"
                     VerticalOptions="Start" />
             </ScrollView>
