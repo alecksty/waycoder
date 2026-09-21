@@ -15,6 +15,20 @@ namespace WayCoder.UI.Shared.Terminal;
         int _curR, _curC;
         int _savedR, _savedC;        // 保存/恢复光标（ESC [ s / ESC [ u）
         int _curFg, _curBg;          // 当前 SGR 状态（用于颜色采集）
+        bool _cursorVisible = true;  // DECTCEM（`ESC[?25h/l`）—— 默认**显示**，与真终端一致
+        bool _altScreen;             // `ESC[?1049h/l`（副屏）；先记下来，渲染侧还没用它
+
+        /// <summary>光标当前所在行（0 起）—— 命令行页据此把光标画出来。</summary>
+        public int CursorRow => _curR;
+
+        /// <summary>光标当前所在列（0 起）。</summary>
+        public int CursorCol => _curC;
+
+        /// <summary>程序有没有要求显示光标（`ESC[?25h` 开、`ESC[?25l` 关，默认开）。</summary>
+        public bool CursorVisible => _cursorVisible;
+
+        /// <summary>程序有没有切到备用屏（`ESC[?1049h`）。**当前只有记录，没有渲染行为**。</summary>
+        public bool AltScreen => _altScreen;
 
         public FrameBuffer(int rows, int cols)
         {
@@ -57,8 +71,28 @@ namespace WayCoder.UI.Shared.Terminal;
                     string param = ansi.Substring(i + 2, j - (i + 2));
                     i = j + 1;
 
-                    // 私有模式（?25h 光标显隐 / ?1049h 备用屏）与扩展协议（>q 等）不影响字符网格
-                    if (param.Length > 0 && (param[0] == '?' || param[0] == '>')) continue;
+                    // ── 私有模式：**光标显隐要认，其余不认** ──
+                    //
+                    // `ESC[?25h` / `ESC[?25l` 是 DECTCEM（显示/隐藏光标），老程序**一定会用**：
+                    // 画完整屏之后把光标藏起来是标准动作。不认它 → 屏幕上永远杵着一个方块
+                    // （用户报的「光标位置也要显示光标，除非指令关闭了光标」，另一半就是这句）。
+                    //
+                    // ⚠ **只认 25**（外加 `?1049h/l` 先记下来待用，见 `_altScreen`）：
+                    //   其余私有模式（鼠标上报 `?1000h`、括号粘贴 `?2004h`、`>q` 这类扩展）
+                    //   对本平台没有对应物，**一律忽略**。放宽成"凡是 ? 开头都当开关"会静默
+                    //   改掉一堆语义（本仓记过：把内置号放宽去吞别的 syscall 是最难查的一类故障）。
+                    if (param.Length > 0 && param[0] == '?')
+                    {
+                        // 私有模式可能是**一串**（`?25;1049h`），逐个看
+                        foreach (var one in param[1..].Split(';'))
+                        {
+                            if (!int.TryParse(one, out var mode)) continue;
+                            if (mode == 25) _cursorVisible = final == 'h';
+                            else if (mode == 1049) _altScreen = final == 'h';
+                        }
+                        continue;
+                    }
+                    if (param.Length > 0 && param[0] == '>') continue;
 
                     var p = param.Split(';');
                     int n1 = 1;

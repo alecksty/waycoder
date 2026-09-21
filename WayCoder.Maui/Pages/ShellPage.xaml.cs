@@ -60,14 +60,28 @@ public partial class ShellPage : ContentPage
     /// </remarks>
     private readonly List<(string Text, bool NoWrap)> _lines = [];
 
-    /// <summary>输出区字号 —— 文本 Label 与**自绘网格**共用这一个（尺子只有一把）。</summary>
-    private double _fontSize = 12;
-
-    /// <summary>输出区应有的内容宽度（像素）。`-1` = 交给布局。</summary>
-    private double _contentWidth = -1;
+    /// <summary>输出区字号 —— 画布的**唯一**尺子（格宽/格高都由它算）。</summary>
+    private double _fontSize = MauiShellStore.DefaultFont;
 
     /// <summary>缓冲是否停在半行上（上一段没有以 `\n` 收尾）。</summary>
     private bool _partial;
+
+    /* ── 全屏程序的光标 ──
+     *
+     * 记的是"**最近一块画面**"的光标（用户点名的：「光标位置也要显示光标，除非指令关闭了光标」）。
+     * `_cursorBaseLine` = 那一块的第一行在 `_lines` 里的下标（-1 = 当前没有画面）；
+     * 光标在缓冲里的行 = `_cursorBaseLine + _cursorRow`。列与显隐直接来自 `FrameBuffer`。
+     *
+     * ⚠ 为什么存"缓冲行号"而不是"显示行号"：折行、行数裁剪、回滚裁剪都会挪显示行号，
+     *   而缓冲行号只在**回滚裁剪**时整体前移（那一处跟着减，见 `TrimScrollback`）。
+     *   到 `DisplayText` 里再翻译成显示行号，只有一处换算。 */
+    private int _cursorBaseLine = -1;
+    private int _cursorRow;
+    private int _cursorCol;
+    private bool _cursorVisible;
+
+    /// <summary>光标在**当前显示列表**里的行号（-1 = 不画）。每次 <see cref="DisplayText"/> 算出来。</summary>
+    private int _cursorDisplayLine = -1;
 
     private readonly List<string> _history = [];
     private int _histIndex;
@@ -132,14 +146,7 @@ public partial class ShellPage : ContentPage
         ApplyDisplaySettings();
 
         // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
-        //
-        // ⚠ **手势必须挂在内容 Label 上，不能挂在 ScrollView 上。**
-        // 挂在 ScrollView 上时，MAUI 会把手势监听装到 ScrollView 自己的平台视图上，
-        // Android 侧 ACTION_DOWN 被消费掉 ⇒ **整个输出区再也拖不动**（实测：滑动后
-        // 逐像素比对两张截屏，差异只落在底部导航栏，正文一个像素没动）。
-        // 挂在内容上是另一条路（事件先给子视图，拖拽仍由 ScrollView 接管）。
         AddOutputGestures(OutputGrid);
-        OutputGrid.PinchScaled += OnOutputPinchScale;
 
         Append("WayCoder 命令行\n" +
                "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
@@ -402,8 +409,19 @@ public partial class ShellPage : ContentPage
             //   标志由产生它的 `MauiVml` 给出（**块级事实**），不在这里逐行猜 ——
             //   画面里的标题栏/菜单项/状态行**都是有文字的**，逐行猜必然漏
             //   （实测：80 列的网格被按自适应的 46 列折开，标题栏断成两行、边框全错位）。
-            Append((await body()).TrimEnd() + "\n\n", alreadyMarkup: markupResult,
-                   noWrap: markupResult && MauiVml.LastOutputWasGrid);
+            var bodyText = (await body()).TrimEnd();
+            bool isGrid = markupResult && MauiVml.LastOutputWasGrid;
+            if (isGrid)
+            {
+                // 全屏程序的**光标**：记下"这一块从缓冲的第几行开始" + 程序报的行列与显隐
+                // （`MauiVml.LastCursor`）。画布据此在网格上画一个光标方块 ——
+                // 用户点名的「光标位置也要显示光标，除非指令关闭了光标」。
+                // ⚠ 必须在 `Append` **之前**记基准行号，否则算出来会偏一整块。
+                _cursorBaseLine = _lines.Count;
+                (_cursorRow, _cursorCol, _cursorVisible) = MauiVml.LastCursor;
+            }
+            else _cursorBaseLine = -1;      // 不是画面：上一块的光标就作废了
+            Append(bodyText + "\n\n", alreadyMarkup: markupResult, noWrap: isGrid);
         }
         catch (Exception ex)
         {
@@ -674,6 +692,69 @@ public partial class ShellPage : ContentPage
         CmdEntry.CursorPosition = CmdEntry.Text.Length;
     }
 
+    /// <summary>
+    /// 顶栏「菜单」—— 常用操作的统一入口（原来是单独一个「清屏」按钮）。
+    ///
+    /// 用 `DisplayActionSheetAsync`（本 App 各页共用的那一套，见 FilesPage / EditorPage）：
+    /// 系统原生弹层，不用自己维护一套浮层控件，返回 `null` = 用户点了「取消」（或返回键关掉）。
+    ///
+    /// ⚠ **字号的加减必须走 `SetFontSize`（落盘 + 重排 + 重画一整套）**，不能只改
+    ///   `OutputGrid` 的字号 —— 那样列数、页宽、尺寸档的联动都会漏掉，
+    ///   表现是"字号看着变了，但换行位置还是按老字号折的"。
+    /// </summary>
+    private async void OnMenuClicked(object? sender, EventArgs e)
+    {
+        var size = MauiShellStore.Font;
+        var choice = await DisplayActionSheetAsync(
+            $"命令行 · 字号 {size:0}", "取消", null,
+            "加大字号", "减小字号", "重置字号", "复制整屏输出", "清空屏幕");
+
+        switch (choice)
+        {
+            case "加大字号": SetFontSize(MauiShellStore.NextFont(size)); break;
+            case "减小字号": SetFontSize(MauiShellStore.PrevFont(size)); break;
+            case "重置字号": SetFontSize(MauiShellStore.DefaultFont); break;
+            case "复制整屏输出": await CopyAllOutputAsync(); break;
+            case "清空屏幕": ClearOutput(); break;
+        }
+    }
+
+    /// <summary>
+    /// **改字号**（菜单 / 捏合结束共用这一条）。
+    ///
+    /// 一次做四件事，少一件都不对：落盘（下次进来还是这个字号）、按新字号重排折行、
+    /// 更新尺寸档按钮的文案（自适应档的列数是跟着字号算的）、重画。
+    /// </summary>
+    private void SetFontSize(double size)
+    {
+        _fontSize = MauiShellStore.ClampFont(size);
+        MauiShellStore.Font = _fontSize;      // 落盘（`Font` 的 setter 里也夹一次范围）
+        ApplyDisplaySettings();
+        ApplyFontSizeLive();
+        UpdateSizeButtons();
+        RenderOutput();
+        // 字号变了，一屏能放下的内容也变了 ⇒ 落点按当前屏幕模式重摆（同上）。
+        // 内容仍然装得下时它算出来就是左上角（两个分支都是），不会把人晃到别处。
+        Dispatcher.Dispatch(AlignOutput);
+    }
+
+    /// <summary>
+    /// 复制整屏输出到剪贴板。
+    ///
+    /// ⚠ **输出区是自绘画布，没有文本选择** —— 这个入口是"把输出拿走"的唯一办法，
+    ///   不是可有可无的便利功能。拷的是**逻辑行**（`_lines`，未经折行）：
+    ///   折行是我们为了排版自己切的，拷出去会把一句话切断。
+    /// ⚠ 中间格式的 `«»` 标记要**剥掉**再拷（`AnsiHelper.StripMarkup`）——
+    ///   那是渲染用的编码，不是内容。
+    /// </summary>
+    private async Task CopyAllOutputAsync()
+    {
+        var text = string.Join("\n", _lines.Select(l => AnsiHelper.StripMarkup(l.Text)));
+        if (text.Length == 0) return;
+        try { await Clipboard.Default.SetTextAsync(text); }
+        catch { /* 剪贴板不可用不该让页面崩 */ }
+    }
+
     private void OnClearClicked(object? sender, EventArgs e) => ClearOutput();
 
     // ── 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）──
@@ -732,7 +813,9 @@ public partial class ShellPage : ContentPage
         ApplyDisplaySettings();
         RenderOutput();
         UpdateSizeButtons();
-        Dispatcher.Dispatch(UpdateScrollBar);
+        // **换档 = 换落点**（用户定的）：固定屏幕贴左上角、滚屏停在最后一屏。
+        // 排到下一拍 —— 此刻画布还没按新内容量完，马上摆会被旧的尺寸算回去。
+        Dispatcher.Dispatch(AlignOutput);
     }
 
     /// <summary>
@@ -779,22 +862,23 @@ public partial class ShellPage : ContentPage
     /// （本仓在移动端编辑器那轮踩过这条）。
     /// </summary>
     /// <summary>
-    /// 给输出区的**每一个子视图**挂上「点一下聚焦输入框」+「双指缩放字号」。
+    /// 输出区的手势接线：**点一下聚焦输入框** + 双指缩放（`PinchScaled`）。
     ///
-    /// ⚠ **必须逐个挂，不能只挂在容器（`OutputHost`）上** —— 自绘网格是个
-    ///   `GraphicsView`，它会把落在自己身上的触摸收走，容器那层根本收不到捏合
-    ///   （实测：字号缩不动的真根因）。编辑器也是在自己画布上直接收触摸的。
+    /// ⚠⚠ **一个 `GestureRecognizer` 都不能挂**（这里原来挂了个 `TapGestureRecognizer`，
+    ///   已删）。理由是本仓实测出来的硬约束：只要给这个 `GraphicsView` 挂上**任何**手势
+    ///   识别器，`StartInteraction`/`DragInteraction`/`EndInteraction` 就**全部不再触发**
+    ///   —— 平台那层触摸被手势系统接走，画布自己那套事件再也收不到。
+    ///   症状是**整块输出区对触摸毫无反应**（滑不动、也捏不动），而界面其它地方一切正常
+    ///   （用户报的就是"好像卡死了"）。反证：编辑器画布一个手势识别器都没挂，它一直是好的。
+    ///
+    ///   所以"点一下"改成**画布自己按位移判**（<see cref="TerminalGrid.Tapped"/>），
+    ///   与编辑器同一套做法。
     /// </summary>
-    private void AddOutputGestures(View view)
+    private void AddOutputGestures(TerminalGrid grid)
     {
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => CmdEntry.Focus();
-        view.GestureRecognizers.Add(tap);
-
-        // ⚠ **不加 `PinchGestureRecognizer`** —— 它在 `ScrollView` 里的自绘画布上
-        //   完全不触发（收不到第二根手指）。缩放走 `TerminalGrid` 自己从
-        //   `GraphicsView` 的 Start/Drag/EndInteraction 里算出来的 `PinchScaled`
-        //   （编辑器就是这么做的）。
+        grid.Tapped += () => CmdEntry.Focus();
+        grid.PinchScaled += OnOutputPinchScale;
+        grid.PinchEnded += OnOutputPinchEnd;
     }
 
     /// <summary>
@@ -813,24 +897,25 @@ public partial class ShellPage : ContentPage
     }
 
     /// <summary>
-    /// 双指缩放 —— 由 `TerminalGrid` 从平台触摸里算好比例回调进来。
+    /// 双指缩放**进行中** —— 由 `TerminalGrid` 从平台触摸里算好比例回调进来。
     ///
-    /// ⚠ **边缩边重画、不重建视图**：画布只有一个，"重建"就是它自己重画一遍；
-    ///   折行的重排（`ShellWrap`）留到手指抬起再做（`RenderOutput`），
-    ///   否则每一拍把所有行重切一遍，缩放会顿。
+    /// ⚠ **这一拍只做"画一遍"**，别的一概留到 <see cref="OnOutputPinchEnd"/>：
+    ///   重排折行（`ShellWrap` 要把所有行重切一遍）与落盘（`MauiShellStore.Font` 走
+    ///   `Preferences.Set`，是**写盘**）都按触摸事件的频率做的话，缩放会又顿又费。
+    ///   `SetFontSize` 已经是"只改字号、不换内容"的那条路（内容缓存着，重画即可），
+    ///   而重画不会销毁正在接手势的视图 —— 捏合不会自己被自己打断。
     /// </summary>
     private void OnOutputPinchScale(double fontSize)
     {
-        MauiShellStore.Font = fontSize;          // 钳位在 store 里
-        ApplyDisplaySettings();
+        _fontSize = MauiShellStore.ClampFont(fontSize);   // 钳位在 store 里（唯一一份范围）
         ApplyFontSizeLive();
-        UpdateSizeButtons();                     // 自适应列数跟着字号变
-        Dispatcher.Dispatch(() =>
-        {
-            RenderOutput();                      // 抬起/停止后按新字号重排折行
-            UpdateScrollBar();
-        });
     }
+
+    /// <summary>
+    /// 捏合**结束**（手指离开 / 手势被打断）—— 收尾与菜单改字号**同一条路**
+    /// （`SetFontSize`：落盘 + 重排 + 重画），免得两条路各做一半、时日一久就漂。
+    /// </summary>
+    private void OnOutputPinchEnd() => SetFontSize(_fontSize);
 
     private static void HighlightSizeButton(Button b, bool on)
     {
@@ -900,187 +985,63 @@ public partial class ShellPage : ContentPage
 
         // 排到下一拍：此刻内容刚换完，**画布还没按新内容重算尺寸** ——
         // 贴底要等它量完，否则滚到的是旧的内容高（差一行）。
-        Dispatcher.Dispatch(() => OutputGrid.ScrollToEnd());
+        Dispatcher.Dispatch(AlignOutput);
     }
 
     /// <summary>
-    /// 输出内容的**真实高度** —— 取 Label 实测高度，**不能用 <c>ScrollView.ContentSize</c>**。
+    /// 输出之后画面停在哪儿 —— **两种屏幕模式两种落点**（用户定的）：
     ///
-    /// 实测（模拟器，1080×2400）：Label 量出来 1750px，而 <c>ContentSize.Height</c> 报 ~3000px。
-    /// 按那个虚高的值滚，就会**滚过内容**：顶部被切掉、底部留一大片空白，
-    /// 而且"贴不贴底"的判据永远为真（因为偏移量正好停在那个虚高的底上），
-    /// 于是每次都往上多滚一截。用户看到的就是"输出是滚着的、但往回翻不动、上面还缺一块"。
+    ///   · **固定屏幕**（`Rows > 0`，行列都钉死）= 老显示器：屏幕就是那一块，
+    ///     画面贴**屏幕左上角**，多出来的用滚动条看；
+    ///   · **行不固定**（滚屏）= 真终端：停在**最后一屏**（贴底跟随）。
     ///
-    /// 顺带说明为什么滚动条滑块也偏大：Slider 长度按 `视口/内容` 算，
-    /// 分母虚高 ⇒ 滑块算出来偏短 —— 同一处错误连累两个地方，改这一处就都对了。
+    /// 内容比视口小时两者的落点自然重合（左上角）—— 见 `ScrollToHome` 的说明。
+    /// 切模式（`ApplyDisplaySettings` 之后）也走这里，所以模式一换落点立刻跟着换。
     /// </summary>
-    private double ContentHeight => OutputGrid.Height;
-
-    /// <summary>
-    /// 输出内容的**真实宽度** —— 取 Label 的实测宽度与显式宽度里大的那个。
-    ///
-    /// 为什么要取 max：固定列数时页面给 Label 设了显式 `WidthRequest`（= 列数 × 字符宽），
-    /// 而布局在某些时刻量出来的 `Width` 会小于它（还在测量中）。拿小的那个判"装不装得下"
-    /// 会让横向滚动条**该出现时不出现** —— 那正是用户唯一需要它的时刻。
-    /// </summary>
-    private double ContentWidth
+    private void AlignOutput()
     {
-        get
-        {
-            var w = OutputGrid.Width;
-            return OutputGrid.WidthRequest > w ? OutputGrid.WidthRequest : w;
-        }
+        if (MauiShellStore.Rows > 0) OutputGrid.ScrollToHome();
+        else OutputGrid.ScrollToEnd();
     }
 
-    // ── 输出区滚动条（**两个轴各一条**）────────────────────────────
-    //
-    // 几何一律走 `ScrollBarMath`（那一份是纯函数、有断言），这里只做"量一下、摆一下"。
-    // **两个轴共用同一条判据**：`ShouldShow` = 内容超出视口才显示 —— 用户的原话是
-    // 「只看能否显示全：显示得全就不显示滚动条，显示不全就显示滚动条」。
-    //
-    // 横轴那条是**横向固定档的必需品**：列钉死之后内容必然比屏幕宽，
-    // 没有它就只能盲划（而且不知道还有多少没看到）。
-
-    /// <summary>滑块当前位置（拖动时作为增量基准）—— 竖轴用 top、横轴用 left。</summary>
-    private double _thumbTop;
-    private double _thumbHeight;
-    private double _panStartTop;
-    private bool _panningThumb;
-
-    private double _hThumbLeft;
-    private double _hThumbWidth;
-    private double _hPanStartLeft;
-    private bool _hPanningThumb;
-
     /// <summary>
-    /// 输出区**真正能显示内容**的尺寸 —— 扣掉 `ScrollView` 自己的内边距。
+    /// 输出区**真正能显示内容**的尺寸 —— 扣掉画布自己的 `Margin`。
     ///
-    /// ⚠ 全页判"装不装得下"、算滑块几何、拖滑块换算滚动偏移，**一律用这两个**：
-    /// 拿外框尺寸当视口的话，那两条内边距（横 28 / 竖 8）会被当成"看得见的区域"，
-    /// 于是内容被切掉一截而滚动条不出现；更隐蔽的是**拖动换算用的视口与显示用的不一致**时，
-    /// 滑块拖到轨道尽头而内容没滚到底。
+    /// ⚠ 判"装不装得下"、上报终端尺寸**一律用这两个**：拿外框尺寸当视口的话，
+    /// 那两条内边距（横 28 / 竖 8）会被当成"看得见的区域"，
+    /// 于是内容被切掉一截而滚动条不出现。
     /// </summary>
     private double ViewportHeight
     {
-        get { var p = OutputScroll.Padding; return OutputScroll.Height - p.Top - p.Bottom; }
+        get { var m = OutputGrid.Margin; return OutputGrid.Height - m.Top - m.Bottom; }
     }
 
     private double ViewportWidth
     {
-        get { var p = OutputScroll.Padding; return OutputScroll.Width - p.Left - p.Right; }
+        get { var m = OutputGrid.Margin; return OutputGrid.Width - m.Left - m.Right; }
     }
 
-    /// <summary>重新量内容/视口，把**两个轴**的滚动条都刷新一遍。</summary>
     /// <summary>
-    /// **空的** —— 滚动条现在由画布自己画（`TerminalGrid.DrawBars`）。
+    /// **空的** —— 滚动条与滚动现在全在画布里（`TerminalGrid` 自己滚、自己画条）。
     ///
-    /// ⚠ 这条链以前是页面自己算的（`ScrollBarMath` + `ScrollTrack`/`HScrollTrack` 两个自绘轨道），
-    ///   缘由写得很对（"系统那条在 Android 上只在滑动时闪一下，长输出完全不知道自己在哪"），
-    ///   但**画布自己滚之后它就必须一起搬进画布** —— 否则几何要在两处各算一遍
-    ///   （本仓头号坑），而且"轨道"和"内容"的坐标系还不一样（一个在视口、一个在内容）。
-    ///   本方法连同那几个轨道控件一起**待删**（保留一个空实现是为了让这一步单独可编译）。
+    /// ⚠ 这条链以前是页面自己算的（`ScrollBarMath` + `ScrollTrack`/`HScrollTrack` 两条自绘轨道
+    ///   + `_thumbTop`/`_panningThumb` 那一组拖拽状态）。理由当初写得很对（"系统那条在 Android 上
+    ///   只在滑动时闪一下，长输出完全不知道自己在哪"），**只是必须跟着内容一起搬进画布**：
+    ///   轨道在**视口**坐标、内容在**内容**坐标，分在两处就是"同一件事两处实现"（本仓头号坑）；
+    ///   而且画布自己滚之后，页面这边拿到的偏移永远是 0（它不再滚了）。
+    ///
+    /// 方法体与那组字段**已删**，只留这个空壳：调用点散在显示设置 / 输出追加 / 缩放好几处，
+    /// 留个空实现比在每处判"要不要刷新"清楚。
     /// </summary>
     private void UpdateScrollBar() { }
-    private void OnOutputScrolled(object? sender, ScrolledEventArgs e)
-    {
-        // 拖自己触发的滚动不用回写（回写会和手指打架）。**两个轴都要判** ——
-        // 只判竖轴的话，横拖期间每一帧都会被回写覆盖，滑块原地抖。
-        if (_panningThumb || _hPanningThumb) return;
-        UpdateScrollBar();
-    }
-
-    /// <summary>拖动滑块。</summary>
-    private void OnScrollThumbPan(object? sender, PanUpdatedEventArgs e)
-    {
-        var track = ScrollTrack.Height;
-        var content = ContentHeight;      // 同上：Label 实测高度
-        var viewport = ViewportHeight;    // 必须与 UpdateScrollBar 同源，否则"拖到头却没到底"
-        if (track <= 0) return;
-
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                _panningThumb = true;
-                _panStartTop = _thumbTop;
-                break;
-
-            case GestureStatus.Running:
-            {
-                var top = _panStartTop + e.TotalY;
-                var offset = ScrollBarMath.OffsetForThumbTop(top, content, viewport, track);
-                try { OutputScroll.ScrollToAsync(0, offset, animated: false); }
-                catch { /* 页面正在销毁 */ }
-
-                // 手指拖出来的位置直接摆上去：不等 Scrolled 回调（拖动时要"跟手"）
-                var (t, h) = ScrollBarMath.Thumb(content, viewport, offset, track);
-                _thumbTop = t;
-                ScrollThumb.HeightRequest = h;
-                ScrollThumb.TranslationY = t;
-                break;
-            }
-
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                _panningThumb = false;
-                UpdateScrollBar();
-                break;
-        }
-    }
-
-    /// <summary>点轨道空白处：翻一屏（不是跳到点击位置 —— 那在细轨道上太跳）。</summary>
-    private void OnScrollTrackTapped(object? sender, TappedEventArgs e)
-    {
-        var viewport = ViewportHeight;
-        try { OutputScroll.ScrollToAsync(0, OutputScroll.ScrollY + viewport * 0.9, animated: true); }
-        catch { /* 页面正在销毁 */ }
-    }
-
-    /// <summary>横向拖动滑块 —— 与竖轴同一套，只是换轴（`TotalX` / `ScrollX`）。</summary>
-    private void OnHScrollThumbPan(object? sender, PanUpdatedEventArgs e)
-    {
-        var track = HScrollTrack.Width;
-        var content = ContentWidth;
-        var viewport = ViewportWidth;     // 同上：与 UpdateScrollBar 同源
-        if (track <= 0) return;
-
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                _hPanningThumb = true;
-                _hPanStartLeft = _hThumbLeft;
-                break;
-
-            case GestureStatus.Running:
-            {
-                var left = _hPanStartLeft + e.TotalX;
-                var offset = ScrollBarMath.OffsetForThumbTop(left, content, viewport, track);
-                try { OutputScroll.ScrollToAsync(offset, OutputScroll.ScrollY, animated: false); }
-                catch { /* 页面正在销毁 */ }
-
-                // 与竖轴同理：手指拖出来的位置直接摆上去，不等 Scrolled 回调（要跟手）
-                var (l, w) = ScrollBarMath.Thumb(content, viewport, offset, track);
-                _hThumbLeft = l;
-                HScrollThumb.WidthRequest = w;
-                HScrollThumb.TranslationX = l;
-                break;
-            }
-
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                _hPanningThumb = false;
-                UpdateScrollBar();
-                break;
-        }
-    }
-
-    /// <summary>点横轴轨道空白处：右翻一屏。</summary>
-    private void OnHScrollTrackTapped(object? sender, TappedEventArgs e)
-    {
-        var viewport = ViewportWidth;
-        try { OutputScroll.ScrollToAsync(OutputScroll.ScrollX + viewport * 0.9, OutputScroll.ScrollY, animated: true); }
-        catch { /* 页面正在销毁 */ }
-    }
-
+    /// 滚动条与滚动**都不在这里了** —— 全在画布里（`TerminalGrid` 自己滚、自己画条）。
+    ///
+    /// 这一整段（`UpdateScrollBar` / `UpdateBar` / `OnOutputScrolled` / 四条轨道的拖拽与点击）
+    /// 连同 XAML 里那两条自绘轨道**已删**。它们当初的理由是对的（"系统那条在 Android 上只在
+    /// 滑动时闪一下，长输出完全不知道自己在哪"），**只是必须跟着内容一起搬进画布**：
+    /// 轨道在**视口**坐标、内容在**内容**坐标，分在两处就是"同一件事两处实现"（本仓头号坑），
+    /// 而且画布自己滚之后，页面这边拿到的偏移永远是对的 0（它不再滚了）。
+    /// </summary>
     private void AddSegment(string segment, bool partial, bool noWrap = false)
     {
         if (_partial)
@@ -1107,13 +1068,32 @@ public partial class ShellPage : ContentPage
         if (rows > 0)
         {
             var keep = Math.Max(rows * 2, 16);
-            if (_lines.Count > keep) _lines.RemoveRange(0, _lines.Count - keep);
+            if (_lines.Count > keep) DropHead(_lines.Count - keep);
             return;
         }
 
         int over = _lines.Count - MauiShellStore.Scrollback;
         if (over <= 0) return;
-        _lines.RemoveRange(0, over);
+        DropHead(over);
+    }
+
+    /// <summary>
+    /// 从**头部**丢掉若干行 —— **回滚缓冲唯一的裁剪出口**。
+    ///
+    /// ⚠ 收成一处的理由很具体：丢头会让所有"按行号记着位置"的东西一起前移，
+    ///   目前是**画面光标**（`_cursorBaseLine`）。以前两处各写一句 `RemoveRange`，
+    ///   加了光标之后就必须两处都记住要减 —— 而漏一处的症状是"光标画到别的行上去"，
+    ///   只在大输出之后才复现（本仓记过的"新加了状态就要找齐所有出口"）。
+    /// </summary>
+    private void DropHead(int count)
+    {
+        if (count <= 0) return;
+        _lines.RemoveRange(0, count);
+        if (_cursorBaseLine >= 0)
+        {
+            _cursorBaseLine -= count;
+            if (_cursorBaseLine + _cursorRow < 0) _cursorBaseLine = -1;   // 连光标那行都被丢掉了
+        }
     }
 
     /// <summary>行高系数（字号 → 行高）。</summary>
@@ -1147,8 +1127,6 @@ public partial class ShellPage : ContentPage
 
     internal void ApplyDisplaySettings()
     {
-        var cols = MauiShellStore.Cols;
-
         // ── 字号 ──
         // 字号**永远由缩放设置决定，不自动缩**。
         //
@@ -1159,59 +1137,30 @@ public partial class ShellPage : ContentPage
         var size = MauiShellStore.Font;
         _fontSize = size;
 
-        // ── 内容宽度 / 滚动方向 ──
-        // 文本已经由 `ShellWrap` 按字符格折好了；这里再给 Label 一个**显式宽度**
-        // （= 列数 × 字符宽），于是：
-        //   · `Label` 不会再按显示宽度**二次折行**（列对齐就这么保住的）
-        //   · 宽度超出视口时由 ScrollView **横向滚动**（固定 80 列、或字号放大到装不下时）
+        // ── 内容宽度**不在这里算**（整块已删）──
         //
-        // ⚠ **别改用 `LineBreakMode.NoWrap` 去"禁止折行"** —— MAUI 的 `NoWrap` 在 Android 上
-        //   会走 `setSingleLine(true)`，**整段只剩第一行**（实测：提示行与提示符全没了）。
-        //   "给显式宽度 + 双向滚动"才是真终端的做法，也不会丢行。
-        var colsNow = EffectiveCols();
-        if (colsNow > 0)
-        {
-            var want = ShellWrap.WidthForColumns(colsNow, size);
-
-            // ⚠ **画面行比这更宽时，Label 必须跟着撑宽** —— 否则 `Label` 会按显示宽度
-            //   把画面行**自己折一次**（上面那句 WidthRequest 管的是"我们折好的宽度"，
-            //   画面行没折、比它宽，于是被平台二次折行 ⇒ 整幅画斜切）。
-            //   撑宽之后由 ScrollView 横向滚 —— 与固定列数那条路同一个做法，
-            //   「内容显示不全就出滚动条」本来就是用户定的规矩。
-            var pictureCols = 0;
-            foreach (var (l, noWrap) in _lines)
-                if (noWrap || ShellWrap.IsPictureLine(l)) pictureCols = Math.Max(pictureCols, ShellWrap.VisibleWidth(l));
-            if (pictureCols > 0)
-            {
-                // ⚠ 画面这一档**必须"宁大勿小"** —— 与文本折行那条规矩**正好相反**。
-                //
-                // 文本给窄了只是多折一行；而画面给窄了**整幅图被平台再折一次**，
-                // 形状直接散掉（用户报的"对不齐"，实测右边框整条不见）。
-                // 根子在 `ShellWrap.CharAspect = 0.6` 是**估**的（那份注释自己也写着
-                // 「实测 ≈0.58、取 0.6 略保守」）—— 而保守的方向对文本合适、对画面有害。
-                // 所以这里按 `1.15` 放大给宽：宽了只是多滚一点，窄了就是画面毁掉。
-                var wantPic = ShellWrap.WidthForColumns(pictureCols, size) * 1.15;
-                if (wantPic > want) want = wantPic;
-            }
-
-            _contentWidth = want;
-        }
-        else
-        {
-            _contentWidth = -1;                               // -1 = 交给布局
-        }
-        // 折行交给 `ShellWrap`；文本 Label 只用 `WordWrap` 保证 `\n` 生效（在 NewTextLabel 里设）
-        if (OutputScroll.Orientation != ScrollOrientation.Both)
-            OutputScroll.Orientation = ScrollOrientation.Both;
+        // 这里原有一大段"给 Label 算一个显式宽度（= 列数 × 字符宽，画面行再 ×1.15）"：
+        // 那是输出区还套在 `ScrollView` 里、内容是个 `Label` 时的做法 —— 宽度得由页面
+        // 告诉平台，好让外面的容器去滚，也免得 `Label` 按显示宽度**二次折行**。
+        //
+        // **画布接管滚动之后这段全成了反向操作**（用户报的"缩放后横向滚动条没出来、
+        // 滚不回去"就是它造成的）：它把**画布视图本身**撑到和内容一样宽，
+        // 于是画布永远"装得下"自己的内容，`TerminalGrid` 算出来的横向可滚距离恒为 0。
+        //
+        // 现在的分工是干净的一条线：
+        //   · **视口宽** = 布局给的（画布 `Fill`，`Margin` 之外全是它）
+        //   · **内容宽** = `TerminalGrid.SetLines` 里按**最长的那一行**算
+        //     （`max(VisibleWidth(行)) × 格宽`）—— 这正是用户要的「按行宽度计算绘制滚动条」
+        //   · **滚动条** = 内容宽 > 视口宽才画（`DrawBars`），两个轴同一个判据
+        //   · **折行** = `ShellWrap` 按 `EffectiveCols()` 切（`DisplayText`）
 
         // ── 固定行数：把输出区高度锁成"正好 N 行"，多出来的走滚动 ──
         // ⚠ 行高按 **字号 × 1.3** 估（平台字体度量拿不到精确行高时的通行做法）——
         //   所以**可见行数是近似的**；列数是精确的（那是按字符格折出来的）。
-        var rows = MauiShellStore.Rows;
-        var wantHeight = rows > 0 ? rows * size * LineHeightFactor : -1;
-        if (Math.Abs(OutputScroll.HeightRequest - wantHeight) > 0.5)
-            OutputScroll.HeightRequest = wantHeight;         // -1 = 交给布局算
-        OutputScroll.VerticalOptions = rows > 0 ? LayoutOptions.Start : LayoutOptions.Fill;
+        // ⚠ **固定行数那一档不再锁高度了** —— 画布现在自己滚（`TerminalGrid`），
+        //   "可见几行"由**视口高 ÷ 格高**自然决定，不需要页面再拿"字号 × 1.3"去估。
+        //   这顺带解掉了原先那条"可见行数是近似的"的老问题：格高是**算**出来的常量
+        //   （`CellHeight = 字号 × 1.2`），可见行数因此是精确的。
 
         PublishTerminalSize();
     }
@@ -1275,46 +1224,23 @@ public partial class ShellPage : ContentPage
         // 一个画布同时解决这两条，结构也最简单（用户点名的"结构越简单越好"）。
         var lines = DisplayText().Select(l => l.Text).ToList();
         OutputGrid.SetLines(lines, _fontSize, MauiUi.IsDark);
-        if (_contentWidth > 0) OutputGrid.WidthRequest = Math.Max(OutputGrid.WidthRequest, _contentWidth);
+        // 光标在 `DisplayText` 里换算成了**显示行号**（`_cursorDisplayLine`），
+        // 列与显隐直接来自程序（见 `_cursorCol` / `_cursorVisible`）。
+        OutputGrid.SetCursor(_cursorDisplayLine, _cursorCol, _cursorVisible);
+        // ⚠⚠ **绝不能再给画布设 `WidthRequest`**（这里原来有这么一句，已删）。
+        //
+        // 那是"输出区还套在 `ScrollView` 里、内容是个 `Label`"时的做法：给 Label 一个
+        // 显式宽度，好让外面的滚动容器去滚。**画布接管滚动之后，这句话的意思完全反了** ——
+        // 它把**画布这个视图本身**撑到和内容一样宽，于是 `Width >= 内容宽`，
+        // `ClampScroll` 算出来的 `maxX = 内容宽 - Width = 0`：横向根本不需要滚，
+        // 滚动条判据 `内容宽 > Width` 也永远为假。
+        // 症状正是用户报的「**缩放后横向滚动条没出来、滚不回去**」——
+        // 内容被父容器（而不是被我们）裁在屏幕外，而画布自认为"全都看得见"。
+        //
+        // 正解：画布的宽度**永远是视口宽度**（布局给的），内容尺寸另有 `_contentW/_contentH`，
+        // 超出的部分由画布**自己**裁剪 + 自己滚（`TerminalGrid.Draw` 里那条 `ClipRectangle`）。
+        // 这两者混用就会得到"视口 = 内容 ⇒ 永远不需要滚动"这个死结。
     }
-    /// <summary>建一个文本 Label —— 字号/宽度/折行规则**只在这一处设**。</summary>
-    private Label NewTextLabel()
-    {
-        var label = new Label
-        {
-            FontFamily = EditorTypography.FontFamilyName,
-            FontSize = _fontSize,
-            LineBreakMode = LineBreakMode.WordWrap,
-            HorizontalOptions = LayoutOptions.Start,
-            VerticalOptions = LayoutOptions.Start,
-        };
-        if (_contentWidth > 0) label.WidthRequest = _contentWidth;
-        return label;
-    }
-
-    /// <summary>把折好行的序列按 <c>NoWrap</c> **分成连续段**（同段一起渲染）。</summary>
-    private static List<(string Text, bool NoWrap)> GroupByNoWrap(List<(string Text, bool NoWrap)> lines)
-    {
-        var outp = new List<(string Text, bool NoWrap)>();
-        var sb = new System.Text.StringBuilder();
-        bool? cur = null;
-        foreach (var (text, noWrap) in lines)
-        {
-            if (cur != null && cur.Value != noWrap)
-            {
-                outp.Add((sb.ToString(), cur.Value));
-                sb.Clear();
-            }
-            if (sb.Length > 0) sb.Append('\n');
-            sb.Append(text);
-            cur = noWrap;
-        }
-        if (cur != null) outp.Add((sb.ToString(), cur.Value));
-        return outp;
-    }
-
-
-
     private List<(string Text, bool NoWrap)> DisplayText()
     {
         var cols = EffectiveCols();
@@ -1326,8 +1252,14 @@ public partial class ShellPage : ContentPage
         else
         {
             wrapped = new List<(string Text, bool NoWrap)>(_lines.Count);
-            foreach (var (line, noWrap) in _lines)
+            // 光标那一行在缓冲里的下标（画面行 1:1 不折，所以它就是块首 + 块内行号）
+            int cursorBufLine = _cursorBaseLine >= 0 ? _cursorBaseLine + _cursorRow : -1;
+            _cursorDisplayLine = -1;
+
+            for (int i = 0; i < _lines.Count; i++)
             {
+                var (line, noWrap) = _lines[i];
+                if (i == cursorBufLine) _cursorDisplayLine = wrapped.Count;   // 这一行将落在显示列表的这里
                 // ⚠ **画面行不折**（见 `ShellWrap.IsPictureLine`）：全屏程序的每一行
                 //   就是屏幕上的一行，折一下整幅画就斜切了 —— 实测「有彩色了，但有点乱」
                 //   正是这么来的（猫的彩虹与身体都在，形状是剪开的）。
@@ -1347,7 +1279,12 @@ public partial class ShellPage : ContentPage
         //   按逻辑行裁会留下 5 倍的内容、照样撑出滚动条。
         var rows = MauiShellStore.Rows;
         if (rows > 0 && wrapped.Count > rows)
+        {
+            // 裁掉的行数要从光标行号里减掉（裁的是**头部**，所以是整体前移）
+            _cursorDisplayLine -= wrapped.Count - rows;
             wrapped = wrapped.GetRange(wrapped.Count - rows, rows);
+        }
+        if (cols <= 0) _cursorDisplayLine = -1;   // 宽度未落定时不折行也没画面，别画
 
         return wrapped;
     }

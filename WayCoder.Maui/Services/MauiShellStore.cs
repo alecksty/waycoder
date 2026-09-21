@@ -37,9 +37,18 @@ public static class MauiShellStore
     /// <summary>回滚行数候选。</summary>
     public static readonly int[] ScrollbackChoices = [256, 500, 1000, 2000, 5000];
 
-    /// <summary>字号范围（与 <see cref="WayCoder.UI.Shared.Terminal.ShellWrap.FontSizeForColumns"/> 的钳位一致）。</summary>
-    public const double MinFont = 7;
-    public const double MaxFont = 22;
+    /// <summary>
+    /// 字号范围（与 <see cref="WayCoder.UI.Shared.Terminal.ShellWrap.FontSizeForColumns"/> 的钳位一致）。
+    ///
+    /// 6~96 是**用户定的**：下限 6 是"想尽量多塞几列"（80 列的报表要能一眼看全），
+    /// 上限 96 是"想放大看清某一行"。别按"好看的默认值"去收窄它 ——
+    /// 命令行页的字号是**无障碍**的一部分，不是排版偏好。
+    /// </summary>
+    public const double MinFont = 6;
+    public const double MaxFont = 96;
+
+    /// <summary>出厂字号（菜单里「重置字号」回到这里；也是首次启动的默认值）。</summary>
+    public const double DefaultFont = 12;
 
     /// <summary>
     /// 当前尺寸模式（持久）。
@@ -104,7 +113,7 @@ public static class MauiShellStore
     {
         get
         {
-            try { return Math.Clamp(Preferences.Get(KeyFont, 12.0), MinFont, MaxFont); }
+            try { return Math.Clamp(Preferences.Get(KeyFont, DefaultFont), MinFont, MaxFont); }
             catch { return 12.0; }
         }
         set
@@ -113,6 +122,13 @@ public static class MauiShellStore
             catch { }
         }
     }
+
+    /// <summary>
+    /// 把字号夹进合法范围 —— **范围只此一处**（`get`/`set` 与捏合路径共用它）。
+    /// 捏合过程中的每一拍也要夹（`TerminalGrid` 会按两指距离比算出 3 或 60 这种值），
+    /// 但那一拍**不该落盘**（写盘留给手势结束），所以需要这个不落盘的入口。
+    /// </summary>
+    public static double ClampFont(double value) => Math.Clamp(value, MinFont, MaxFont);
 
     /// <summary>回滚缓存行上限。</summary>
     public static int Scrollback
@@ -138,8 +154,15 @@ public static class MauiShellStore
         return choices[(i + 1) % choices.Length];
     }
 
-    /// <summary>字号候选（"点一下换一档"）。</summary>
-    public static readonly double[] FontChoices = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22];
+    /// <summary>
+    /// 字号候选（"点一下换一档"）—— 菜单里「加大字号 / 减小字号」走的就是这张表。
+    ///
+    /// 铺满 <see cref="MinFont"/>~<see cref="MaxFont"/> 全程，而且**下半段密、上半段疏**：
+    /// 小字号区差 1 磅就是"多塞一列 / 少塞一列"，大字号区差 1 磅肉眼看不出来。
+    /// 捏合是连续的（不走这张表），它只服务"点一下"那种离散操作。
+    /// </summary>
+    public static readonly double[] FontChoices =
+        [6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 26, 30, 34, 40, 46, 54, 62, 72, 84, 96];
 
     /// <summary>
     /// 常用终端尺寸预设 —— 「固定大小」按钮的可选项。
@@ -165,6 +188,14 @@ public static class MauiShellStore
         foreach (var f in FontChoices)
             if (f > current + 0.01) return f;
         return FontChoices[0];
+    }
+
+    /// <summary>字号循环取上一档 —— 比当前值小的那一档，到头绕回最大。</summary>
+    public static double PrevFont(double current)
+    {
+        for (int i = FontChoices.Length - 1; i >= 0; i--)
+            if (FontChoices[i] < current - 0.01) return FontChoices[i];
+        return FontChoices[^1];
     }
 
     /// <summary>设置项显示文案（"当前没生效"那一档要写清楚，否则用户以为改了没反应）。</summary>

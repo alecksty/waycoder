@@ -44,15 +44,22 @@
                 HeightRequest="34"
                 CornerRadius="8"
                 Clicked="OnFixedSizeClicked" />
+            <!-- 菜单：**常用操作收进一个按钮**（原来是「清屏」单个按钮）。
+                 为什么改成菜单：这一页真正常用的操作不止"清屏"一个 ——
+                 字号加减（捏合不好使时的可靠入口）、重置字号、复制整屏输出。
+                 顶栏就那么宽，一个一个摆按钮会把三个尺寸档挤出去；
+                 而**每加一个操作就加一个按钮**这条路上，顶栏迟早装不下。
+                 「复制整屏输出」还有个非它不可的理由：输出区是**自绘画布**，
+                 没有文本选择 —— 不加这个入口，用户看到一段输出是**拿不走**的。 -->
             <Button
-                x:Name="ClearBtn"
+                x:Name="MenuBtn"
                 Grid.Column="4"
-                Text="清屏"
+                Text="菜单"
                 FontSize="13"
                 Padding="14,4"
                 HeightRequest="34"
                 CornerRadius="8"
-                Clicked="OnClearClicked" />
+                Clicked="OnMenuClicked" />
         </Grid>
 
         <!-- 输出区：**等宽 + 纯文本**，刻意不做富文本着色 ——
@@ -64,82 +71,23 @@
              只在滑动时闪一下，输出长到几十屏时完全不知道自己在哪。它只在内容超出视口时出现
              （判据是 ScrollBarMath.ShouldShow，几何也全在那边，页面里不重算一份）。 -->
         <Grid Grid.Row="1">
-            <!-- ⚠ `ScrollBarVisibility="Never"`（两个轴都要写）是**必须的**，不是样式偏好：
-                 `ScrollView` 自带的那条系统滚动条在 Android 上滑动时会自己闪一条出来，
-                 与我们自绘的那条（ScrollTrack/HScrollTrack）**叠成两层**。
-                 滚动条只留自绘的一层 —— 判据、几何、样式三样都在我们手里，系统那条不受控。
+            <!-- 输出区 = **一块自绘画布**（`TerminalGrid`）：内容、滚动、滚动条都由它自己管
+                 （用户定的原则：「**自己画内容，自己管理滚动条，自己管理光标**」）。
 
-                 ⚠ **但滚动现在整个交给画布自己做了**（`TerminalGrid` 自己滚 + 自己画滚动条），
-                 所以这个 `ScrollView` 只当"容器"用、**不再滚动**：`Orientation="Neither"`
-                 让它彻底不碰触摸流 —— 套着滚动容器时，双指的第二根手指会被容器截走，
-                 自绘画布的捏合收不到（实测）。这也是照编辑器来的：
-                 编辑器正文是个裸 `CodeCanvasView`，外面**没有** `ScrollView`（用户点破的那条）。
-                 上面那句"滚动条只留自绘的一层"仍然成立，只是现在那一层画在画布里。 -->
-            <ScrollView
-                x:Name="OutputScroll"
-                Padding="12,4,16,4"
-                Orientation="Neither"
-                VerticalScrollBarVisibility="Never"
-                HorizontalScrollBarVisibility="Never"
-                Scrolled="OnOutputScrolled">
-                <!-- ⚠ `Start/Start`（左上角）**必须显式写**：内容是我们自绘的（`ShellWrap`
-                     按字符格折好 + 给了显式宽度），所以它**不该被布局居中/拉满** ——
-                     MAUI 的 `ScrollView` 在内容小于视口时默认会把内容摆到中间（纵向尤其明显：
-                     固定 25 行而内容只有 3 行时，整块输出会飘到屏幕中间）。
-                     真终端是**左上角起笔**，缩放字号 / 切固定行列时内容也只该从左上角长出来。 -->
-                <!-- 输出区**整块是一个自绘画布**（`TerminalGrid`）——
-                     文本行与画面行走同一个渲染器，**没有控件树**。
-                     为什么不做成 `Label` + `GraphicsView` 混排：
-                       · 画面用 `Label` 渲染会被平台改写宽度（折叠空格、字体回退），对不齐；
-                       · 混排之后"双指缩放"要**逐个子视图挂手势**，而缩放又必须重建视图 ⇒
-                         **正在接手势的那个视图被销毁，手势当场断掉**（实测捏一下就没反应）。
-                     一个画布同时解决这两条，结构也最简单。 -->
-                <controls:TerminalGrid
-                    x:Name="OutputGrid" />
-            </ScrollView>
+                 ⚠ **外面不套 `ScrollView`**（原本套着，已去掉）—— 两个理由，都不是样式问题：
+                   ① 套着的时候**双指的第二根手指会被滚动容器截走**，画布的捏合根本不触发
+                      （实测"捏不动"）；
+                   ② 画布就不必再"既要内容尺寸、又要视口尺寸" —— 上一版没解开这个结，
+                      量成了 0×0，输出区**一片空白**。
+                 照的是编辑器：它的正文就是个裸 `CodeCanvasView`，外面没有滚动容器。
 
-            <!-- 轨道：贴右边、上下留一点边距。IsVisible 由代码按内容高决定 -->
-            <Grid
-                x:Name="ScrollTrack"
-                IsVisible="False"
-                HorizontalOptions="End"
-                VerticalOptions="Fill"
-                Margin="0,6,3,6"
-                WidthRequest="6">
-                <BoxView
-                    x:Name="ScrollThumb"
-                    Color="{AppThemeBinding Light=#9A9AA0, Dark=#6E6E76}"
-                    HorizontalOptions="Fill"
-                    VerticalOptions="Start"
-                    HeightRequest="40" />
-                <Grid.GestureRecognizers>
-                    <PanGestureRecognizer PanUpdated="OnScrollThumbPan" />
-                    <TapGestureRecognizer Tapped="OnScrollTrackTapped" />
-                </Grid.GestureRecognizers>
-            </Grid>
-
-            <!-- 横轴轨道：贴底边。**横向固定那一档全靠它** —— 列钉死之后内容必然比屏幕宽
-                 （80 列 × 半角宽 ≈ 500~900px），没有这根条就只能盲划。
-                 判据与竖轴**同一条**（`ScrollBarMath.ShouldShow`，内容装得下就不显示），
-                 几何也复用同一份（只是换个轴）—— 页面里不重算一份。 -->
-            <Grid
-                x:Name="HScrollTrack"
-                IsVisible="False"
-                HorizontalOptions="Fill"
-                VerticalOptions="End"
-                Margin="12,0,16,2"
-                HeightRequest="6">
-                <BoxView
-                    x:Name="HScrollThumb"
-                    Color="{AppThemeBinding Light=#9A9AA0, Dark=#6E6E76}"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Fill"
-                    WidthRequest="40" />
-                <Grid.GestureRecognizers>
-                    <PanGestureRecognizer PanUpdated="OnHScrollThumbPan" />
-                    <TapGestureRecognizer Tapped="OnHScrollTrackTapped" />
-                </Grid.GestureRecognizers>
-            </Grid>
+                 ⚠ 这里原本还有两条**页面自绘的滚动轨道**（`ScrollTrack`/`HScrollTrack`）—— 已删。
+                 它们当初的判断是对的（"系统那条在 Android 上只在滑动时闪一下，输出长到几十屏时
+                 完全不知道自己在哪"），只是现在那一层画在**画布**里（`TerminalGrid.DrawBars`）：
+                 滚动条与内容必须是同一套坐标系，分在两处就是"同一件事两处实现"。 -->
+            <controls:TerminalGrid
+                x:Name="OutputGrid"
+                Margin="12,4,16,4" />
         </Grid>
 
         <!-- 输入区：$ 提示符 + 输入框 + 历史 + 运行。

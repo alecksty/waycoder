@@ -756,6 +756,7 @@ HALT
             var cols = TermCols > 0 ? TermCols : 80;
             var screen = new FrameBuffer(rows, cols);
             screen.Apply(io.Text);
+            LastCursor = (screen.CursorRow, screen.CursorCol, screen.CursorVisible);
             var gridTxt = AnsiMarkup.ToMarkup(string.Join("\n", screen.DumpAnsi())).TrimEnd();
 
             var gridErr = AnsiMarkup.ToMarkup(diag + "\n" + diagErr).TrimEnd();
@@ -809,6 +810,21 @@ HALT
     ///   **"这一块是画面"是块级事实，只能由产生它的人（这里）说出来。**
     /// </summary>
     public static bool LastOutputWasGrid { get; private set; }
+
+    /// <summary>
+    /// 上一次全屏输出结束时**光标停在哪**（行/列，0 起；外加程序有没有要求显示它）。
+    ///
+    /// 命令行页据此在网格上画一个光标方块 —— 用户点名的：「光标位置也要显示光标，
+    /// 除非指令关闭了光标」。
+    ///
+    /// 为什么走静态旁路而不是塞进返回的文本：光标不是**内容**，是一层"程序此刻在哪"的
+    /// 状态。混进文本就要发明一种标记（而 `«»` 那套是给颜色/样式用的，塞位置进去
+    /// 会让所有解析方都得认识它）；而静态旁路与 <see cref="LastOutputWasGrid"/> 完全同构 ——
+    /// 理由也一样（**VML 的执行是排他的**，同一时刻只有一次运行在读写它）。
+    ///
+    /// 只在 <see cref="LastOutputWasGrid"/> 为真时有意义；文本输出那条路不设它。
+    /// </summary>
+    public static (int Row, int Col, bool Visible) LastCursor { get; private set; }
     public static int TermCols { get; set; }
 
     /// <inheritdoc cref="TermCols"/>

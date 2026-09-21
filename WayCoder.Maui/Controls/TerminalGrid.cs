@@ -73,35 +73,106 @@ public class TerminalGrid : GraphicsView
     public void ScrollToEnd()
     {
         _scrollY = Math.Max(0, _contentH - ViewportHeight);
+        _scrollX = 0;                     // 纵向跟底时横向**左对齐**（终端语义）
         _followEnd = true;
+        Invalidate();
+    }
+
+    /// <summary>
+    /// 回到**左上角**（内容坐标原点）—— 「固定屏幕」那一档用它。
+    ///
+    /// 用户定的两种屏幕模式的落点（原话）：
+    ///   · **固定屏幕**（行列都钉死）= 老显示器：屏幕就是 <c>行×列</c> 那一块，
+    ///     所以画面要**贴屏幕左上角**对齐，多出来的部分靠滚动条看；
+    ///   · **行列不固定**（滚屏）= 真终端：屏幕跟着内容走，默认停在**最后一屏**。
+    ///
+    /// ⚠ 内容比视口**小**时两种模式落点是同一个：横向左对齐、纵向顶部对齐
+    ///   （用户点名的「只要内容小于窗口，横向左对齐，纵向顶部对齐」）——
+    ///   这在两个方法里都是**自然结果**：`Math.Max(0, …)` 与 `_scrollX = 0`
+    ///   在装得下时都算 0。别为它再写一条特判。
+    /// </summary>
+    public void ScrollToHome()
+    {
+        _scrollX = 0;
+        _scrollY = 0;
+        _followEnd = false;               // 钉在顶上，新内容不该把它拽走
         Invalidate();
     }
 
     /// <summary>
     /// 双指缩放的**目标字号**（`字号 = 起始字号 × 两指距离比`）。
     ///
-    /// ⚠ 为什么**不用 `PinchGestureRecognizer`**：那是照编辑器学的 —— 编辑器用的是
-    ///   `GraphicsView` **自带的** `Start/Drag/EndInteraction`（见它的注释：
-    ///   "触摸走 GraphicsView 自带的 Start/Drag/EndInteraction：它已经把同一批触摸从平台取走了"）。
-    ///   实测症状：把 `PinchGestureRecognizer` 挂在自绘画布上**完全不触发** ——
-    ///   它在 `ScrollView` 里收不到第二根手指（MAUI 的手势识别与滚动容器抢触摸流）。
+    /// ⚠ 不用 `PinchGestureRecognizer` 的理由见 <see cref="Tapped"/>：往这个画布上挂
+    ///   **任何**手势识别器都会让 `Start/Drag/EndInteraction` 集体失效 ⇒ 捏合自然也废。
+    ///   这里从 `DragInteraction` 的**两个触点**自己算距离比（编辑器就是这么做缩放的）。
     /// </summary>
     public event Action<double>? PinchScaled;
 
+    /// <summary>
+    /// **点了一下**（单指、几乎没移动）。
+    ///
+    /// ⚠⚠ **绝不能用 `TapGestureRecognizer` 来实现这件事**（本仓实测踩到的硬约束）：
+    ///   只要往这个 `GraphicsView` 上挂**任何**手势识别器，`StartInteraction` /
+    ///   `DragInteraction` / `EndInteraction` 就**一个都不再触发** —— 平台那一层的触摸
+    ///   被手势系统接走之后，画布自己这套事件就再也收不到，"滑不动、捏不动"就是这么来的。
+    ///   反证：编辑器画布（`CodeCanvasView`）**一个手势识别器都没挂**，它一直是好的；
+    ///   命令行页当初为了"点一下聚焦输入框"给它挂了个 `TapGestureRecognizer`，于是整块画布
+    ///   对触摸**完全没有反应**（看着就像界面卡死 —— 用户报的"好像卡死了"）。
+    ///   要点"点一下"，就在自己的 `EndInteraction` 里按位移判（编辑器也是这么做的）。
+    /// </summary>
+    public event Action? Tapped;
+
+    /// <summary>
+    /// **捏合结束**（手指离开，或手势被系统打断）时触发一次。
+    ///
+    /// 为什么必须有：缩放期间每变一档都要**落盘 + 按新字号重新折行**（`ShellWrap` 要把
+    /// 所有行重切一遍），这两件事都不该跟着每个触摸事件做（Android 上可达 120~240Hz）。
+    /// 而一次性的收尾动作挂在"结束"上时，**"被打断"也是一条结束路径** ——
+    /// 来电 / 切走 App / 父容器截走触摸都要当成正常结束（本仓在移动端编辑器那轮踩过：
+    /// 只清状态不发结束事件，屏幕上的字号明明变了、下次打开又变回去，用户视角是"改了没保存"）。
+    /// </summary>
+    public event Action? PinchEnded;
+
     private float _pinchStartDist;
+    private double _movedDist;
     private double _pinchStartFont = 12;
 
     public TerminalGrid()
     {
         Drawable = _drawable;
-        // 画面是自绘的：不要让它被布局居中/拉满（ScrollView 在内容小于视口时会居中）
-        HorizontalOptions = LayoutOptions.Start;
-        VerticalOptions = LayoutOptions.Start;
+        // ⚠ **必须 Fill**。这里原先写的是 `Start`（= 按自身期望尺寸摆放），那是
+        //   "外面还套着 ScrollView、怕被居中"时的遗留 —— 套着时它还有个内容尺寸，
+        //   去掉之后 `GraphicsView` **没有固有尺寸**（它不 Measure 任何东西）⇒ 期望尺寸 0
+        //   ⇒ 视口 0×0：滚动条不出现（`DrawBars` 在 vw<=0 时早退）、滚动边界算成"内容全高"、
+        //   而内容**照样画得出来**（绘制不依赖 `Width`，且画布不裁剪到自己的范围，
+        //   见 `Draw` 里的 `ClipRectangle`）—— 三个症状各走各的，所以很难一眼归到"尺寸是 0"。
+        HorizontalOptions = LayoutOptions.Fill;
+        VerticalOptions = LayoutOptions.Fill;
+        // 透明底：与编辑器画布一致（不画底，露出页面的主题底色）
+        BackgroundColor = Colors.Transparent;
 
         // 触摸走 `GraphicsView` 自带的那三个事件（理由见 `PinchScaled` 的说明）
         StartInteraction += OnTouchStart;
         DragInteraction += OnTouchDrag;
         EndInteraction += OnTouchEnd;
+        // 手势被系统取消（来电、切走 App、父容器截走触摸…）：**本手势的每一个状态都要清掉**，
+        // 而且捏合被这样打断时**要当成一次正常结束**（理由见 `PinchEnded`）。
+        CancelInteraction += (_, _) =>
+        {
+            bool wasPinching = _pinchStartDist > 0;
+            _pinchStartDist = 0;
+            _dragging = false;
+            if (wasPinching) PinchEnded?.Invoke();
+        };
+    }
+
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        // 视口一变，"能滚多远"就变了（内容尺寸没变）⇒ 边界与滚动条都要重算
+        if (_followEnd) _scrollY = Math.Max(0, _contentH - ViewportHeight);
+        ClampScroll();
+        Invalidate();
     }
 
     private static float Distance(PointF a, PointF b)
@@ -113,29 +184,79 @@ public class TerminalGrid : GraphicsView
 
     private void OnTouchStart(object? sender, TouchEventArgs e)
     {
+        if (e.Touches.Length == 1 && TryHitBar(e.Touches[0], out var bar))
+        {
+            // 按在滚动条的滑块上 = **拖滚动条**（不是拖内容）。
+            // 记下起点与当时的偏移，之后按"滑块走了多少 → 内容该滚多少"线性换算。
+            _barDrag = bar;
+            _barDragStart = e.Touches[0];
+            _barDragStartScroll = bar == BarDrag.Vertical ? _scrollY : _scrollX;
+            _dragging = false;
+            return;
+        }
         if (e.Touches.Length >= 2)
         {
-            _pinchStartDist = Distance(e.Touches[0], e.Touches[1]);
-            _pinchStartFont = _fontSize;
+            // 基准值**不在这里设**（懒设在 `OnTouchDrag` 里，理由见那段注释）——
+            // 这里只把"单指滚动"关掉：缩放期间不许再拿第一根手指当滚动用。
             _dragging = false;
+            // ⚠ **第二根手指落下要撤销"拖滚动条"** —— 第一根手指正好落在滑块上是常事
+            //   （滑块就贴着屏幕右边），不撤销的话下面的 `OnTouchDrag` 会先看 `_barDrag`
+            //   并早退，把整个捏合**劫持成拖滚动条**：用户想缩放，画面却在滚。（实测拦下）
+            _barDrag = BarDrag.None;
         }
         else if (e.Touches.Length == 1)
         {
-            _pinchStartDist = 0;
             _dragLast = e.Touches[0];
+            _movedDist = 0;
             _dragging = true;
         }
     }
 
     private void OnTouchDrag(object? sender, TouchEventArgs e)
     {
+        // 拖滚动条（**优先于一切**：滑块在内容之上，按到它就不该再拖内容）
+        if (_barDrag != BarDrag.None && e.Touches.Length >= 1)
+        {
+            var q = e.Touches[0];
+            if (_barDrag == BarDrag.Vertical)
+            {
+                var (track, thumb) = VerticalBarGeometry();
+                if (track - thumb > 0.5)
+                    _scrollY = _barDragStartScroll
+                             + (q.Y - _barDragStart.Y) * Math.Max(0, _contentH - ViewportHeight) / (track - thumb);
+            }
+            else
+            {
+                var (track, thumb) = HorizontalBarGeometry();
+                if (track - thumb > 0.5)
+                    _scrollX = _barDragStartScroll
+                             + (q.X - _barDragStart.X) * Math.Max(0, _contentW - Width) / (track - thumb);
+            }
+            ClampScroll();
+            _followEnd = false;      // 手动拖过滚动条就不再跟底（同"往上翻过"的规矩）
+            Invalidate();
+            return;
+        }
+
         // 双指 = 缩放（**优先**：缩放的每一拍都在变，不能同时当成滚动）
         if (e.Touches.Length >= 2)
         {
             _dragging = false;
-            if (_pinchStartDist <= 0) return;
             float d = Distance(e.Touches[0], e.Touches[1]);
-            if (d <= 0) return;
+            if (d <= 1) return;
+            // ⚠⚠ **捏合基准必须在这里"懒设"，不能只靠 `StartInteraction`** ——
+            //   这是照编辑器抄的那一条（`CodeCanvasView.OnDrag` 里同一个写法）。
+            //   第二根手指落下时，平台**不一定**再发一次 `StartInteraction`
+            //   （实测：`Start` 只在第一根手指按下时来一次），于是 `_pinchStartDist` 一直是 0，
+            //   下面那句早退就把**每一拍**都吃掉 ⇒ 屏幕上表现就是"**捏不动**"，
+            //   而且不报错、不崩、单指滚动一切正常 —— 最难查的那种。
+            //   所以：第一次看见双指的那一拍只记基准、**不缩放**，之后每拍按距离比算。
+            if (_pinchStartDist <= 0)
+            {
+                _pinchStartDist = d;
+                _pinchStartFont = _fontSize;
+                return;
+            }
             PinchScaled?.Invoke(_pinchStartFont * (d / _pinchStartDist));
             return;
         }
@@ -143,6 +264,7 @@ public class TerminalGrid : GraphicsView
         // 单指 = 滚动（像素跟手；`ScrollView` 没了，这就是唯一的滚动入口）
         if (!_dragging || e.Touches.Length == 0) return;
         var p = e.Touches[0];
+        _movedDist += Math.Abs(p.X - _dragLast.X) + Math.Abs(p.Y - _dragLast.Y);
         _scrollX -= p.X - _dragLast.X;
         _scrollY -= p.Y - _dragLast.Y;
         _dragLast = p;
@@ -154,8 +276,107 @@ public class TerminalGrid : GraphicsView
 
     private void OnTouchEnd(object? sender, TouchEventArgs e)
     {
+        bool wasPinching = _pinchStartDist > 0;
+        bool wasBarDrag = _barDrag != BarDrag.None;
+        // 单指、几乎没动 = 点了一下（**不用 `TapGestureRecognizer`**，理由见 `Tapped`）
+        // 拖滚动条不算"点了一下"（`_dragging` 在 `OnTouchStart` 里就没置位，这里再兜一道）
+        if (_dragging && !wasPinching && !wasBarDrag && _movedDist < 10) Tapped?.Invoke();
         _pinchStartDist = 0;
         _dragging = false;
+        _barDrag = BarDrag.None;
+        if (wasPinching) PinchEnded?.Invoke();
+    }
+
+    // ── 滚动条：**画**与**拖**共用同一份几何 ──────────────────────────
+    //
+    // ⚠ 几何只此一份（`VerticalBarGeometry` / `HorizontalBarGeometry`）：画的时候用、
+    //   命中判定用、拖动换算用，全走它们。分头算的后果本仓记过很多次 ——
+    //   滚动条画在一处、热区在另一处，差几个像素就是"看得见却点不中、点中了却对不上"。
+    //
+    // 条的**可见宽度只有 3**，手指根本按不上去 ⇒ 命中判定要**向外扩一大圈**
+    // （编辑器那条滚动条的热区就是 20pt 宽的外扩，这里照抄那个做法）。
+
+    /// <summary>条宽（可见）。</summary>
+    private const float BarThickness = 3f;
+
+    /// <summary>条与视口边缘的间距。</summary>
+    private const float BarInset = 3f;
+
+    /// <summary>命中判定的外扩量（手指 vs 3 像素的条）。</summary>
+    private const float BarSlop = 22f;
+
+    /// <summary>滑块最短长度 —— 内容再长也要留一个能按住的东西。</summary>
+    private const float BarMinThumb = 24f;
+
+    private enum BarDrag { None, Vertical, Horizontal }
+
+    private BarDrag _barDrag;
+    private PointF _barDragStart;
+    private double _barDragStartScroll;
+
+    /// <summary>竖条的（轨道长，滑块长）—— 内容不超出视口时返回 0。</summary>
+    private (float Track, float Thumb) VerticalBarGeometry()
+    {
+        float vh = (float)Height;
+        if (vh <= 0 || _contentH <= vh) return (0, 0);
+        float track = vh - BarInset * 2;
+        float thumb = Math.Max(BarMinThumb, track * (float)(vh / _contentH));
+        return (track, Math.Min(thumb, track));
+    }
+
+    /// <summary>横条的（轨道长，滑块长）。</summary>
+    private (float Track, float Thumb) HorizontalBarGeometry()
+    {
+        float vw = (float)Width;
+        if (vw <= 0 || _contentW <= vw) return (0, 0);
+        float track = vw - BarInset * 2;
+        float thumb = Math.Max(BarMinThumb, track * (float)(vw / _contentW));
+        return (track, Math.Min(thumb, track));
+    }
+
+    /// <summary>滑块矩形（画与拖都用它）—— 返回 false = 这条不该出现。</summary>
+    private bool VerticalThumbRect(out RectF rect)
+    {
+        var (track, thumb) = VerticalBarGeometry();
+        rect = default;
+        if (track <= 0) return false;
+        float maxScroll = (float)Math.Max(0, _contentH - ViewportHeight);
+        float t = maxScroll <= 0 ? 0 : (float)(_scrollY / maxScroll);
+        // 滑块左缘 = 视口右边内侧；热区另行外扩（见 `TryHitBar`）
+        rect = new RectF((float)Width - BarThickness - BarInset,
+                         BarInset + t * (track - thumb), BarThickness, thumb);
+        return true;
+    }
+
+    /// <summary>横条的滑块矩形。</summary>
+    private bool HorizontalThumbRect(out RectF rect)
+    {
+        var (track, thumb) = HorizontalBarGeometry();
+        rect = default;
+        if (track <= 0) return false;
+        float maxScroll = (float)Math.Max(0, _contentW - Width);
+        float t = maxScroll <= 0 ? 0 : (float)(_scrollX / maxScroll);
+        rect = new RectF(BarInset + t * (track - thumb),
+                         (float)Height - BarThickness - BarInset, thumb, BarThickness);
+        return true;
+    }
+
+    /// <summary>按点在不在滑块（**含外扩热区**）上 —— 在就返回是哪一条。</summary>
+    private bool TryHitBar(PointF p, out BarDrag which)
+    {
+        which = BarDrag.None;
+        // 竖条优先：它贴着右边，横向内容再宽也不会和手指的常规落点打架
+        if (VerticalThumbRect(out var v))
+        {
+            var hot = new RectF(v.X - BarSlop, v.Y - BarSlop / 2, v.Width + BarSlop, v.Height + BarSlop);
+            if (hot.Contains(p)) { which = BarDrag.Vertical; return true; }
+        }
+        if (HorizontalThumbRect(out var h))
+        {
+            var hot = new RectF(h.X - BarSlop / 2, h.Y - BarSlop, h.Width + BarSlop, h.Height + BarSlop);
+            if (hot.Contains(p)) { which = BarDrag.Horizontal; return true; }
+        }
+        return false;
     }
 
     private void ClampScroll()
@@ -165,6 +386,26 @@ public class TerminalGrid : GraphicsView
         _scrollY = Math.Clamp(_scrollY, 0, maxY);
         _scrollX = Math.Clamp(_scrollX, 0, maxX);
     }
+
+    /// <summary>
+    /// 光标：画在**第几行、第几列**（行是显示行号，-1 = 不画）。
+    ///
+    /// 终端里的光标是**程序的状态**，不是内容 —— 全屏程序每帧都会把光标摆到"下一个字符
+    /// 要落在哪"，用户看到它就知道程序停在哪。用户点名的：「光标位置也要显示光标，
+    /// 除非指令关闭了光标」—— 后半句对应 `ESC[?25l`（DECTCEM），由 `FrameBuffer` 解析，
+    /// 结果显示为 <paramref name="visible"/> 为 false。
+    /// </summary>
+    public void SetCursor(int line, int col, bool visible)
+    {
+        int newLine = visible ? line : -1;
+        if (_cursorLine == newLine && _cursorCol == col) return;
+        _cursorLine = newLine;
+        _cursorCol = col;
+        Invalidate();
+    }
+
+    private int _cursorLine = -1;
+    private int _cursorCol;
 
     /// <summary>格宽（像素）—— 由字号**算**出来，不问平台。</summary>
     public double CellWidth => Math.Max(1, _fontSize * CellWFactor);
@@ -246,17 +487,38 @@ public class TerminalGrid : GraphicsView
             canvas.Font = EditorTypography.CanvasFont;
             canvas.FontSize = (float)size;
 
+            // 视口为 0 = 还没布局好，这一帧没什么可画的（**必须早退**：下面按
+            // `_scrollY / ch` 和 `_scrollY + vh` 算可见行区间，`vh == 0` 会让上界算成
+            // 无穷大、`(int)` 溢出成 `int.MinValue` ⇒ 一行都不画；边界值要在这里拦住，
+            // 别留给下面的算式 —— 本仓那条「收口几何计算的辅助函数要把边界守卫一起收进去」）。
+            float vw = (float)g.Width, vh = (float)g.Height;
+            if (vw <= 0 || vh <= 0) return;
+
             // 自己滚：整幅内容按偏移平移（外面没有 `ScrollView` 替我们做这件事）
             canvas.SaveState();
+
+            // ⚠⚠ **必须自己裁剪到自己的范围**，否则内容会画到画布外面去。
+            //   平台**不会**替我们裁：`View.draw` 的 canvas 并不裁到本视图的 bounds
+            //   （Android 只在 `ViewGroup` 那一层裁"子视图超出父容器"的部分，不管子视图
+            //   自己往外画）。实测症状：往上滚之后，**滚出上边的内容压在顶栏那几个按钮上**
+            //   （"自适应 50 列 / 固定 80×25 / 清屏"被一片蓝色盖住一半），
+            //   看着像界面错乱，其实是画布没裁 —— 而它跟"触摸收不到"是**两个**毛病，
+            //   当初把两个症状看成一个，白绕了一圈。
+            canvas.ClipRectangle(0, 0, vw, vh);
+
             canvas.Translate((float)-g._scrollX, (float)-g._scrollY);
 
-            for (int li = 0; li < g._lines.Count; li++)
+            // 视口裁剪：只画**看得见的那几行**。输出动辄几千行，逐行解析 `«»` 标记再交给
+            // 平台排版，全画一遍是纯浪费（编辑器的 `CodeCanvasView` 同理，见它的虚拟滚动）。
+            int first = Math.Max(0, (int)Math.Floor(g._scrollY / ch));
+            int last = Math.Min(g._lines.Count - 1, (int)Math.Ceiling((g._scrollY + vh) / ch));
+
+            for (int li = first; li <= last; li++)
             {
                 double y = li * ch;
                 // ⚠ `DrawString` 的 y 是**基线**位置（本仓在自绘编辑器上踩过：
                 //   第 1 行会被画到画布上方看不见）。这里用 VerticalAlignment.Top 的框式画法，
                 //   把整行框定在 [y, y+ch)，由引擎按框顶对齐，绕开基线补偿那套手工换算。
-                double x = 0;
                 int col = 0;
 
                 foreach (var (text, color, bg) in MarkdownParser.ParseMarkupOnly(g._lines[li]))
@@ -282,8 +544,30 @@ public class TerminalGrid : GraphicsView
                 }
             }
 
+            // 光标：内容之后、裁剪解除之前画（它属于内容坐标系，要跟着一起滚）
+            DrawCursor(canvas, g, cw, ch);
+
             canvas.RestoreState();
             DrawBars(canvas, g);
+        }
+
+        /// <summary>
+        /// 画**光标** —— 一个半透明的方块，盖在它所在的那一格上。
+        ///
+        /// 为什么不画"下划线"或"竖线"：终端的默认光标就是**反白方块**，而反白要交换前后景，
+        /// 我们这边前景/背景都是逐段解析出来的，交换得逐段改（`«»` 标记是纯文本，
+        /// 得重新拼一遍）。半透明方块是等价观感里最省事、也最不会跟内容打架的做法。
+        ///
+        /// ⚠ 画在 `RestoreState` **之前**（即内容坐标系里）—— 它要跟着内容一起滚，
+        ///   不能像滚动条那样钉在视口上。裁剪也还生效着，滚出去的光标自然不画。
+        /// </summary>
+        private static void DrawCursor(ICanvas canvas, TerminalGrid g, double cw, double ch)
+        {
+            if (g._cursorLine < 0 || g._cursorLine >= g._lines.Count) return;
+            canvas.SaveState();
+            canvas.FillColor = g._isDark ? Color.FromRgba(255, 255, 255, 110) : Color.FromRgba(0, 0, 0, 90);
+            canvas.FillRectangle((float)(g._cursorCol * cw), (float)(g._cursorLine * ch), (float)cw, (float)ch);
+            canvas.RestoreState();
         }
 
         /// <summary>
@@ -292,32 +576,21 @@ public class TerminalGrid : GraphicsView
         /// </summary>
         private static void DrawBars(ICanvas canvas, TerminalGrid g)
         {
-            const float barW = 3f;
-            const float margin = 3f;
-            float vw = (float)g.Width, vh = (float)g.Height;
-            if (vh <= 0 || vw <= 0) return;
+            if (g.Width <= 0 || g.Height <= 0) return;
 
+            // 几何**取自外面那几个方法**（`VerticalThumbRect` / `HorizontalThumbRect`）——
+            // 画在这里、命中判定在 `TryHitBar`、拖动换算在 `OnTouchDrag`，三处同源。
+            // 正在拖的那条画成"激活色"（与编辑器同一组配色），手感上能看出抓住了。
             canvas.FillColor = g._isDark ? EditorTypography.BarIdleDark : EditorTypography.BarIdle;
+            if (g.VerticalThumbRect(out var v)) canvas.FillRoundedRectangle(v.X, v.Y, v.Width, v.Height, v.Width / 2);
+            if (g.HorizontalThumbRect(out var h)) canvas.FillRoundedRectangle(h.X, h.Y, h.Width, h.Height, h.Height / 2);
 
-            if (g._contentH > vh)
-            {
-                float trackH = vh - margin * 2;
-                float thumbH = Math.Max(24f, trackH * (float)(vh / g._contentH));
-                float maxScroll = (float)(g._contentH - vh);
-                float t = maxScroll <= 0 ? 0 : (float)(g._scrollY / maxScroll);
-                float y = margin + t * (trackH - thumbH);
-                canvas.FillRoundedRectangle(vw - barW - margin, y, barW, thumbH, barW / 2);
-            }
-
-            if (g._contentW > vw)
-            {
-                float trackW = vw - margin * 2;
-                float thumbW = Math.Max(24f, trackW * (float)(vw / g._contentW));
-                float maxScroll = (float)(g._contentW - vw);
-                float t = maxScroll <= 0 ? 0 : (float)(g._scrollX / maxScroll);
-                float x = margin + t * (trackW - thumbW);
-                canvas.FillRoundedRectangle(x, vh - barW - margin, thumbW, barW, barW / 2);
-            }
+            var active = g._isDark ? EditorTypography.BarActiveDark : EditorTypography.BarActive;
+            canvas.FillColor = active;
+            if (g._barDrag == BarDrag.Vertical && g.VerticalThumbRect(out var av))
+                canvas.FillRoundedRectangle(av.X, av.Y, av.Width, av.Height, av.Width / 2);
+            if (g._barDrag == BarDrag.Horizontal && g.HorizontalThumbRect(out var ah))
+                canvas.FillRoundedRectangle(ah.X, ah.Y, ah.Width, ah.Height, ah.Height / 2);
         }
 
         /// <summary>

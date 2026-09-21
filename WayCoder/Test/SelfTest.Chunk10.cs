@@ -1115,6 +1115,31 @@ public static partial class SelfTest
             .Sum(p => MarkdownParser.ParseInline(p.Text).Count(s => s.Bg >= 30));
         Check($"全屏网格: 带底色的段数与格子数相称（实得 {gridSegs}）", gridSegs >= 100);
 
+        // ── 光标（DECTCEM `ESC[?25h/l`）与光标位置 ──
+        //
+        // 命令行页要"在光标位置画一个光标，除非程序关掉了它"（用户点名的那条）。
+        // 这里钉住三件事：**默认显示**、`?25l` 关得掉、`?25h` 开得回来；
+        // 以及**光标位置**确实跟着 CUP/打印走。
+        // ⚠ `?25` 以前是**整类被忽略**的（`param[0] == '?'` 一律 continue），
+        //   所以这条断言是"改行为"的判据，不是"补一条覆盖"。
+        var curFb = new FrameBuffer(10, 20);
+        Check("FrameBuffer: 光标默认**显示**（真终端也是这样）", curFb.CursorVisible);
+        curFb.Apply("\x1b[3;7H");
+        Check("FrameBuffer: CUP 之后光标位置跟着走（3 行 7 列 → 0 起 2,6）",
+            curFb.CursorRow == 2 && curFb.CursorCol == 6);
+        curFb.Apply("\x1b[?25l");
+        Check("FrameBuffer: `ESC[?25l` 关掉光标", !curFb.CursorVisible);
+        curFb.Apply("\x1b[?25h");
+        Check("FrameBuffer: `ESC[?25h` 打开光标", curFb.CursorVisible);
+        // 私有模式可以是一串：`?25;1049h` 里的 25 也要认（逐个数，不能整串当 25）
+        curFb.Apply("\x1b[?25;1049l");
+        Check("FrameBuffer: `?25;1049l` 串里的 25 也认（不是只认第一个数）", !curFb.CursorVisible);
+        Check("FrameBuffer: 副屏 `?1049l` 被记下来（渲染侧暂未使用）", !curFb.AltScreen);
+        // 其他私有模式**不能**误当成光标开关（鼠标上报、括号粘贴都很常见）
+        var otherFb = new FrameBuffer(4, 4);
+        otherFb.Apply("\x1b[?1000h\x1b[?2004h");
+        Check("FrameBuffer: 别的私有模式不改光标显隐", otherFb.CursorVisible);
+
         // ── 画面行 vs 文本行：折行规则相反 ──
         //
         // 全屏程序"画"的是**底色 + 空格**，每一行就是屏幕上的一行；而文本行（`ls -l`、日志）
@@ -1289,8 +1314,9 @@ public static partial class SelfTest
             Math.Abs(ShellWrap.FontSizeForColumns(480, 80) - 10) < 0.01);
         Check("ShellWrap: 列数为 0（自适应）时不改字号", ShellWrap.FontSizeForColumns(480, 0) == 0);
         Check("ShellWrap: 宽度未落定（<=0）时不改字号", ShellWrap.FontSizeForColumns(0, 80) == 0);
+        // 下限 6（= MauiShellStore.MinFont，用户定的命令行字号范围 6~96）
         Check("ShellWrap: 字号钳在下限（列数太多时不无限缩小）",
-            ShellWrap.FontSizeForColumns(300, 400) == 7);
+            ShellWrap.FontSizeForColumns(300, 400) == 6);
 
         // 自适应列数：按屏宽算，且**硬底线 32 列**（一行至少 32 个字，装不下就横向滚）
         Check("ShellWrap: 自适应列数按屏宽算（393dp / 12 号 ≈ 53 列）",

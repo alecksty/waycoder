@@ -202,7 +202,12 @@ public static class ShellWrap
     /// 就在于格子尺寸固定。留着它是因为 `CharAspect` 那条实测值有价值，
     /// 将来若真的要做"字号自动适配"那一档可以直接用。
     /// </summary>
-    public static double FontSizeForColumns(double availableWidth, int cols, double min = 7, double max = 22)
+    /// <remarks>
+    /// 钳位范围与 <c>MauiShellStore.MinFont/MaxFont</c>（6~96）**必须一致** ——
+    /// 两边不一样的话，将来真接上这条线时会被夹到另一个区间去，
+    /// 而那种"改了没反应"最难查（本仓那条：同一个范围写在两处，迟早漂）。
+    /// </remarks>
+    public static double FontSizeForColumns(double availableWidth, int cols, double min = 6, double max = 96)
     {
         if (cols <= 0 || availableWidth <= 0) return 0;
         var size = availableWidth / (cols * CharAspect);
