@@ -4,6 +4,7 @@ using WayCoder.Maui.Markup;
 using WayCoder.Maui.Services;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.Maui.Pages;
 
@@ -34,7 +35,8 @@ public partial class ShellPage : ContentPage
     /// 为什么按**行**而不是按字符：终端里"滚出去"的单位本来就是行，按字符裁会把一行
     /// 从中间劈开，屏幕上就出现一条断头的半行 —— 看着像渲染坏了。
     /// </summary>
-    private const int MaxScrollbackLines = 256;
+    // 回滚行上限改为**可配置**（见 MauiShellStore.Scrollback，默认值与从前写死的 256 一致）。
+
 
     /// <summary>
     /// 交互式运行的超时（秒）。给得宽是**必须的**：VM 的超时是从 `Run()` 起就走的**墙钟**，
@@ -111,6 +113,8 @@ public partial class ShellPage : ContentPage
         PromptLabel.FontFamily = EditorTypography.FontFamilyName;
         CmdEntry.FontFamily = EditorTypography.FontFamilyName;
 
+        ApplyDisplaySettings();
+
         // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
         //
         // ⚠ **手势必须挂在内容 Label 上，不能挂在 ScrollView 上。**
@@ -121,6 +125,12 @@ public partial class ShellPage : ContentPage
         var tap = new TapGestureRecognizer();
         tap.Tapped += (_, _) => CmdEntry.Focus();
         OutputLabel.GestureRecognizers.Add(tap);
+
+        // 双指缩放字号 —— **同样挂在内容 Label 上**（理由见上面那段：挂 ScrollView 上
+        // 时 Android 会吞掉 ACTION_DOWN，输出区再也拖不动）。
+        var pinch = new PinchGestureRecognizer();
+        pinch.PinchUpdated += OnOutputPinch;
+        OutputLabel.GestureRecognizers.Add(pinch);
 
         Append("WayCoder 命令行\n" +
                "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
@@ -207,6 +217,10 @@ public partial class ShellPage : ContentPage
     {
         base.OnAppearing();
         RefreshCwd();
+        // 显示设置在侧栏改，回到本页时应用（字号 / 固定列数 / 固定行数 / 回滚上限）。
+        ApplyDisplaySettings();
+        RenderOutput();                          // 让新设置立刻反映到已有输出（重算折行/字号）
+        UpdateSizeButtons();                     // 侧栏可能改过尺寸，按钮高亮要跟上
         Dispatcher.Dispatch(UpdateScrollBar);   // 回到本页时量一次（期间可能转过屏）
 
         // 文件页递过来的活：等本页真的显示出来再干（切 Tab 会走这里）。
@@ -323,6 +337,11 @@ public partial class ShellPage : ContentPage
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
+        // 自适应模式的列数是**按屏宽算**的 ⇒ 视口一变就要重算（转屏、折叠屏展开都走这里）。
+        _outputWidth = Math.Max(0, width - OutputAreaChrome);
+        ApplyDisplaySettings();
+        RenderOutput();                          // 列数变了，折行要重排
+        UpdateSizeButtons();
         Dispatcher.Dispatch(UpdateScrollBar);
     }
 
@@ -403,8 +422,16 @@ public partial class ShellPage : ContentPage
         await RunAsync(cmd);
     }
 
-    private Task RunAsync(string cmd) => RunWithPromptAsync(cmd, async () =>
+    private Task RunAsync(string cmd)
     {
+        // ⚠ **输出要不要再过一遍 ANSI 转换，两条分支是相反的**：
+        //   · 本页注册表认识的命令（`vml`）**自己产出 markup** ⇒ 不能再转
+        //   · 交给 shell 的（`ls --color`、`git status`）是**裸 ANSI** ⇒ 必须转
+        // 从前这里没传 `markupResult`（默认 false）⇒ vml 的输出被**转了两遍**，
+        // 屏幕上把 `«red»红«/»` 原样显示出来。判据从注册表取，不在这里写前缀判断。
+        var markup = _commands.ResultIsMarkup(cmd);
+        return RunWithPromptAsync(cmd, async () =>
+        {
         // 页面自己的命令走注册表（`BuildCommandRegistry` 那一处登记）。
         // **只要注册表不认识，就原样交给 shell** —— 分派逻辑只有这一处，
         // 加命令改 `BuildCommandRegistry` 一行，help 列表/用法/参数校验全跟着变。
@@ -416,7 +443,8 @@ public partial class ShellPage : ContentPage
         //   `cd` 的写入传不回线程池之外；现在 CwdContext 存的是「盒子」、就地改内容，
         //   cd 能跨任务边界回传，限制已不存在。）
         return await new BashTool().ExecuteUserShellAsync(cmd);
-    });
+        }, markupResult: markup);
+    }
 
     /// <summary>
     /// 登记本页认识的全部命令 —— **加命令只改这里**。
@@ -457,7 +485,11 @@ public partial class ShellPage : ContentPage
             "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动派发"
             + "（`.vml` 走汇编，`.vmb` 直接装载字节码，`.c`/`.py`/`.rs` 等 22 种语言走各自前端编译器）。"
             + "路径相对下面显示的工作目录解析。",
-            args => RunVmlAsync(string.Join(' ', args.Prepend("vml")))));
+            args => RunVmlAsync(string.Join(' ', args.Prepend("vml"))),
+            // 本命令的返回值**已经是 «» 标记**（`ExecVmlAsync` 走 `MauiVml.Run(markup: true)`，
+            // 编译错误也套了红）⇒ 输出区不能再过一遍 AnsiMarkup，否则 `«` 被转义成 `««`、
+            // 渲染端只还原一层，屏幕上剩下字面的 `«red»…«/»`（实测踩过）。
+            ProducesMarkup: true));
 
         return reg;
     }
@@ -630,6 +662,151 @@ public partial class ShellPage : ContentPage
 
     private void OnClearClicked(object? sender, EventArgs e) => ClearOutput();
 
+    // ── 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）──
+    //
+    // 为什么不是"自动 vs 固定"两档：**横向固定**是独立的一档需求 —— 老程序按 80 列排表格
+    // ⇒ 列必须钉死；而手机屏幕高度各家不同 ⇒ 行没必要钉死（钉死了输出区上下留白）。
+    // 用户点名的原话：「都固定，或者横向固定，或者都不固定」（v0.96.335）。
+    //
+    // 交互约定：**点未生效的 = 切过去；点已生效的 = 换该档的预设**（列数 / 尺寸规格）。
+    // 这样三个按钮就能覆盖"切档 + 选参数"，不必再为"选列数"单开一个入口。
+
+    /// <summary>都不固定 —— 列数与行数都跟着屏幕走。</summary>
+    private void OnAutoSizeClicked(object? sender, EventArgs e)
+    {
+        MauiShellStore.SetMode(ShellSizeMode.Auto);
+        ApplySizeAndRedraw();
+    }
+
+    /// <summary>横向固定 —— 列钉死、行跟着屏幕。重复点换列数。</summary>
+    private void OnWidthFixedClicked(object? sender, EventArgs e)
+    {
+        if (MauiShellStore.Mode == ShellSizeMode.WidthFixed)
+            MauiShellStore.SetColumns(MauiShellStore.Next(MauiShellStore.ColsChoices, MauiShellStore.RawCols));
+        else
+            MauiShellStore.SetMode(ShellSizeMode.WidthFixed);
+        ApplySizeAndRedraw();
+    }
+
+    /// <summary>都固定 —— 弹一列历史终端规格让用户挑（「允许可选」）。重复点重新弹。</summary>
+    private async void OnFixedSizeClicked(object? sender, EventArgs e)
+    {
+        if (MauiShellStore.Mode == ShellSizeMode.Fixed)
+        {
+            var labels = MauiShellStore.SizePresets.Select(p => p.Label).ToArray();
+            var pick = await DisplayActionSheetAsync("固定终端大小", "取消", null, labels);
+            var idx = Array.IndexOf(labels, pick);
+            if (idx < 0) return;                              // 取消 / 点了外面
+            MauiShellStore.SetColumns(MauiShellStore.SizePresets[idx].Cols);
+            MauiShellStore.SetRows(MauiShellStore.SizePresets[idx].Rows);
+        }
+        else
+        {
+            MauiShellStore.SetMode(ShellSizeMode.Fixed);
+            // 首次切进这一档：沿用"横向固定"里已经选好的列数（用户多半是照着它调的），
+            // 行数用默认值 —— 下次再点可以挑历史规格。
+        }
+        ApplySizeAndRedraw();
+    }
+
+    /// <summary>
+    /// 改完尺寸设置后统一收尾：应用（含字号适配）→ **按新列数重画**（历史输出跟着重排，
+    /// 与真终端一致）→ 刷新按钮高亮 → 重算滚动条。
+    /// </summary>
+    private void ApplySizeAndRedraw()
+    {
+        ApplyDisplaySettings();
+        RenderOutput();
+        UpdateSizeButtons();
+        Dispatcher.Dispatch(UpdateScrollBar);
+    }
+
+    /// <summary>
+    /// 三个尺寸按钮的当前态：**生效的那个用主色底 + 白字**，其余回到默认样式。
+    /// 不这样做的话，用户看不出现在是哪一档（三个按钮都长得一样）。
+    ///
+    /// ⚠ 标签取的是 **<see cref="MauiShellStore.RawCols"/>/<see cref="MauiShellStore.RawRows"/>**
+    /// 而不是生效值 `Cols`/`Rows` —— 后者在非对应模式下恒为 0，拿它拼标签会写出一堆
+    /// 「横向固定 0」。**按钮要显示的是"点下去会变成什么"**，那正是各轴记住的那个值。
+    /// </summary>
+    private void UpdateSizeButtons()
+    {
+        var mode = MauiShellStore.Mode;
+
+        // 自适应档把**算出来的列数**也显示出来 —— 否则用户不知道"自适应"到底是几列，
+        // 也就没法判断手上这个老程序该不该切到固定档。
+        var autoCols = ShellWrap.ColumnsForWidth(_outputWidth, MauiShellStore.Font);
+        AutoSizeBtn.Text = autoCols > 0 ? $"自适应 {autoCols} 列" : "大小自适应";
+        WidthFixedBtn.Text = $"横向固定 {MauiShellStore.RawCols}";
+        FixedSizeBtn.Text = $"固定 {MauiShellStore.RawCols}×{MauiShellStore.RawRows}";
+
+        HighlightSizeButton(AutoSizeBtn, mode == ShellSizeMode.Auto);
+        HighlightSizeButton(WidthFixedBtn, mode == ShellSizeMode.WidthFixed);
+        HighlightSizeButton(FixedSizeBtn, mode == ShellSizeMode.Fixed);
+    }
+
+    /// <summary>缩放起点字号 —— 捏合过程中 <c>e.Scale</c> 是相对**起点**的累计值。</summary>
+    private double _pinchStartFont;
+
+    /// <summary>
+    /// 输出区**双指缩放字号** —— **三种尺寸模式下都生效，且是无极（连续）缩放**。
+    ///
+    /// 两条不变量（用户点名要的，别"顺手"改掉）：
+    /// <list type="number">
+    /// <item>**不按模式分档** —— 固定窗口 / 横向固定下缩放照样有效。此时列数钉死，
+    ///   字号一变像素宽度就变 ⇒ 装不下由**横向滚动**兜（这正是"固定大小必然超出屏幕"的由来），
+    ///   而不是回头去改列数。</item>
+    /// <item>**字号一律连续取值，不吸附到整数、不吸附到"档位"** —— 捏合的 <c>e.Scale</c>
+    ///   映射出来是多少就是多少（全仓在这条链上没有任何 <c>Round</c>/取整），
+    ///   与移动端编辑器那次"拒绝只允许偶数号"是同一条诉求。</item>
+    /// </list>
+    ///
+    /// ⚠ <c>Canceled</c> 与 <c>Completed</c> 都要收尾：来电 / 切走 App / 父容器截走触摸
+    /// 走的都是 Canceled，只处理 Completed 的话状态会永远留在"捏合中"
+    /// （本仓在移动端编辑器那轮踩过这条）。
+    /// </summary>
+    private void OnOutputPinch(object? sender, PinchGestureUpdatedEventArgs e)
+    {
+        switch (e.Status)
+        {
+            case GestureStatus.Started:
+                _pinchStartFont = MauiShellStore.Font;
+                break;
+
+            case GestureStatus.Running:
+                MauiShellStore.Font = _pinchStartFont * e.Scale;   // 钳位在 store 里
+                ApplyDisplaySettings();
+                RenderOutput();                                    // 字号变了，折行要重排
+                UpdateSizeButtons();                               // 自适应列数跟着字号变
+
+                // ⚠ 字号一变，**内容像素宽也跟着变** ⇒ 原来装得下的可能装不下了
+                //   （或反过来）。不刷新的话横向滚动条会停在旧判断上：
+                //   放大了却还是没条可拖、或者缩回去之后留着一根永远不需要的条。
+                //   排到下一帧 —— 这一帧 Label 还没按新字号重新测量过。
+                Dispatcher.Dispatch(UpdateScrollBar);
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                _pinchStartFont = MauiShellStore.Font;             // 落定：下次捏合从当前值起算
+                break;
+        }
+    }
+
+    private static void HighlightSizeButton(Button b, bool on)
+    {
+        if (on)
+        {
+            b.BackgroundColor = MauiUi.Res("Primary");
+            b.TextColor = Colors.White;
+        }
+        else
+        {
+            b.ClearValue(Button.BackgroundColorProperty);
+            b.ClearValue(Button.TextColorProperty);
+        }
+    }
+
     /// <summary>清空输出（按钮与 <c>clear</c>/<c>cls</c> 命令共用这一份）。</summary>
     private void ClearOutput()
     {
@@ -650,6 +827,10 @@ public partial class ShellPage : ContentPage
     /// <param name="alreadyMarkup">已经是中间格式，别再转一遍（见 RunWithPromptAsync 的说明）。</param>
     private void Append(string text, bool alreadyMarkup = false)
     {
+        // ⚠ **控制字符必须在 ANSI → 标记转换之前解释**：`\r`/`\t`/`\b` 的语义是"在屏幕上占几格"，
+        // 一旦转成 `«red»` 那种标记，列数就算不出来了（制表位、退格全都会错位）。
+        // 按标准语义处理：`\r` 回行首覆写（进度条）、`\t` 跳制表位（表格）、`\b` 退格（叠打粗体）。
+        text = ShellControls.Apply(text);
         if (!alreadyMarkup) text = AnsiMarkup.ToMarkup(text);
 
         // 按 \n 切段并入缓冲：有换行的段落是**整行**，末尾没换行的那段是**半行**
@@ -674,11 +855,10 @@ public partial class ShellPage : ContentPage
         // 原来是无条件弹到底 —— 一条命令持续吐输出（编译、下载、日志）时，
         // 用户往回翻一屏都做不到：每次新输出都把他拽回最底下。
         // 现在按终端的老规矩：贴底才跟随，一旦往上滚就"脱钩"，让用户安安静静看历史。
-        var follow = ScrollBarMath.IsAtBottom(ContentHeight, OutputScroll.Height, OutputScroll.ScrollY);
+        var follow = ScrollBarMath.IsAtBottom(ContentHeight, ViewportHeight, OutputScroll.ScrollY);
 
         // 走 FormattedText 而不是 Text —— 颜色就靠它（Text 是纯文本，标记会原样显示）
-        OutputLabel.FormattedText = MarkupToFormattedString.Convert(
-            string.Join("\n", _lines), MauiUi.IsDark);
+        RenderOutput();
 
         // 排到下一拍：此刻刚换完 Text，布局还没算，量出来的高度还是旧值
         // （滚动条显不显示、滑块多长、能不能贴底，都得等新布局落定）。
@@ -706,43 +886,119 @@ public partial class ShellPage : ContentPage
     /// </summary>
     private double ContentHeight => OutputLabel.Height;
 
-    // ── 输出区滚动条 ──────────────────────────────────────────────
+    /// <summary>
+    /// 输出内容的**真实宽度** —— 取 Label 的实测宽度与显式宽度里大的那个。
+    ///
+    /// 为什么要取 max：固定列数时页面给 Label 设了显式 `WidthRequest`（= 列数 × 字符宽），
+    /// 而布局在某些时刻量出来的 `Width` 会小于它（还在测量中）。拿小的那个判"装不装得下"
+    /// 会让横向滚动条**该出现时不出现** —— 那正是用户唯一需要它的时刻。
+    /// </summary>
+    private double ContentWidth
+    {
+        get
+        {
+            var w = OutputLabel.Width;
+            return OutputLabel.WidthRequest > w ? OutputLabel.WidthRequest : w;
+        }
+    }
+
+    // ── 输出区滚动条（**两个轴各一条**）────────────────────────────
     //
     // 几何一律走 `ScrollBarMath`（那一份是纯函数、有断言），这里只做"量一下、摆一下"。
+    // **两个轴共用同一条判据**：`ShouldShow` = 内容超出视口才显示 —— 用户的原话是
+    // 「只看能否显示全：显示得全就不显示滚动条，显示不全就显示滚动条」。
+    //
+    // 横轴那条是**横向固定档的必需品**：列钉死之后内容必然比屏幕宽，
+    // 没有它就只能盲划（而且不知道还有多少没看到）。
 
-    /// <summary>滑块当前顶端位置（拖动时作为增量基准）。</summary>
+    /// <summary>滑块当前位置（拖动时作为增量基准）—— 竖轴用 top、横轴用 left。</summary>
     private double _thumbTop;
     private double _thumbHeight;
     private double _panStartTop;
     private bool _panningThumb;
 
-    /// <summary>重新量内容/视口，决定滚动条显不显示、滑块摆在哪。</summary>
+    private double _hThumbLeft;
+    private double _hThumbWidth;
+    private double _hPanStartLeft;
+    private bool _hPanningThumb;
+
+    /// <summary>
+    /// 输出区**真正能显示内容**的尺寸 —— 扣掉 `ScrollView` 自己的内边距。
+    ///
+    /// ⚠ 全页判"装不装得下"、算滑块几何、拖滑块换算滚动偏移，**一律用这两个**：
+    /// 拿外框尺寸当视口的话，那两条内边距（横 28 / 竖 8）会被当成"看得见的区域"，
+    /// 于是内容被切掉一截而滚动条不出现；更隐蔽的是**拖动换算用的视口与显示用的不一致**时，
+    /// 滑块拖到轨道尽头而内容没滚到底。
+    /// </summary>
+    private double ViewportHeight
+    {
+        get { var p = OutputScroll.Padding; return OutputScroll.Height - p.Top - p.Bottom; }
+    }
+
+    private double ViewportWidth
+    {
+        get { var p = OutputScroll.Padding; return OutputScroll.Width - p.Left - p.Right; }
+    }
+
+    /// <summary>重新量内容/视口，把**两个轴**的滚动条都刷新一遍。</summary>
     private void UpdateScrollBar()
     {
-        var content = ContentHeight;      // Label 实测高度，不是 ContentSize（见 ContentHeight 注释）
-        var viewport = OutputScroll.Height;
-
-        // 内容不超屏 → 整条藏起来（用户要的就是"不超屏不显示滚动条"）
-        if (!ScrollBarMath.ShouldShow(content, viewport))
+        // ── 竖轴 ──
+        // ⚠ **固定高度那一档不出竖条**（用户点名："滚动条只有一层，内层没有滚动条"）：
+        //   那一档是老显示器语义 —— 屏幕就 N 行，滚出去的就没了（见 DisplayText），
+        //   即**根本没有可滚回去的内容**，画一根条只会让人以为上面还有。
+        //   顺带绕开一个隐患：固定行高是按 `字号 × 1.3` **估**的（见 ApplyDisplaySettings），
+        //   估算与真实行高差一两像素时，内容会比视口高一丁点 ⇒ 竖条**闪进闪出**。
+        if (MauiShellStore.Rows > 0)
         {
             ScrollTrack.IsVisible = false;
+        }
+        else
+        {
+            // Label 实测高度，不是 ContentSize（见 ContentHeight 注释）
+            UpdateBar(ScrollTrack, ScrollThumb, ContentHeight, ViewportHeight,
+                      OutputScroll.ScrollY, vertical: true, ref _thumbTop, ref _thumbHeight);
+        }
+
+        // ── 横轴 ── 列超出屏宽时**仍然要**（固定列数必然超出，没有它就只能盲划）
+        UpdateBar(HScrollTrack, HScrollThumb, ContentWidth, ViewportWidth,
+                  OutputScroll.ScrollX, vertical: false, ref _hThumbLeft, ref _hThumbWidth);
+    }
+
+    /// <summary>
+    /// 刷一条滚动条。两个轴只差"量哪个方向 / 摆哪个属性"，几何与判据完全共用 ——
+    /// 分开写两份的话，改一处忘一处就是本仓库排第一的坑（同一规则两处实现）。
+    /// </summary>
+    private static void UpdateBar(Grid track, BoxView thumb,
+                                  double content, double viewport, double offset,
+                                  bool vertical, ref double pos, ref double size)
+    {
+        // 内容装得下 → 整条藏起来（用户要的就是"显示得全就不显示滚动条"）
+        if (!ScrollBarMath.ShouldShow(content, viewport))
+        {
+            track.IsVisible = false;
             return;
         }
 
-        ScrollTrack.IsVisible = true;
-        var track = ScrollTrack.Height > 0 ? ScrollTrack.Height : ScrollTrack.HeightRequest;
-        if (track <= 0) return;   // 布局还没量出来，等下一拍
+        // ⚠ 先显示再量：`Height`/`Width` 要可见之后布局才会给值
+        track.IsVisible = true;
+        var trackLen = vertical ? track.Height : track.Width;
+        if (trackLen <= 0) trackLen = vertical ? track.HeightRequest : track.WidthRequest;
+        if (trackLen <= 0) return;   // 布局还没量出来，等下一拍
 
-        var (top, height) = ScrollBarMath.Thumb(content, viewport, OutputScroll.ScrollY, track);
-        _thumbTop = top;
-        _thumbHeight = height;
-        ScrollThumb.HeightRequest = height;
-        ScrollThumb.TranslationY = top;
+        var (p, h) = ScrollBarMath.Thumb(content, viewport, offset, trackLen);
+        pos = p;
+        size = h;
+
+        if (vertical) { thumb.HeightRequest = h; thumb.TranslationY = p; }
+        else          { thumb.WidthRequest  = h; thumb.TranslationX = p; }
     }
 
     private void OnOutputScrolled(object? sender, ScrolledEventArgs e)
     {
-        if (_panningThumb) return;   // 拖自己触发的滚动不用回写（回写会和手指打架）
+        // 拖自己触发的滚动不用回写（回写会和手指打架）。**两个轴都要判** ——
+        // 只判竖轴的话，横拖期间每一帧都会被回写覆盖，滑块原地抖。
+        if (_panningThumb || _hPanningThumb) return;
         UpdateScrollBar();
     }
 
@@ -751,7 +1007,7 @@ public partial class ShellPage : ContentPage
     {
         var track = ScrollTrack.Height;
         var content = ContentHeight;      // 同上：Label 实测高度
-        var viewport = OutputScroll.Height;
+        var viewport = ViewportHeight;    // 必须与 UpdateScrollBar 同源，否则"拖到头却没到底"
         if (track <= 0) return;
 
         switch (e.StatusType)
@@ -787,8 +1043,54 @@ public partial class ShellPage : ContentPage
     /// <summary>点轨道空白处：翻一屏（不是跳到点击位置 —— 那在细轨道上太跳）。</summary>
     private void OnScrollTrackTapped(object? sender, TappedEventArgs e)
     {
-        var viewport = OutputScroll.Height;
+        var viewport = ViewportHeight;
         try { OutputScroll.ScrollToAsync(0, OutputScroll.ScrollY + viewport * 0.9, animated: true); }
+        catch { /* 页面正在销毁 */ }
+    }
+
+    /// <summary>横向拖动滑块 —— 与竖轴同一套，只是换轴（`TotalX` / `ScrollX`）。</summary>
+    private void OnHScrollThumbPan(object? sender, PanUpdatedEventArgs e)
+    {
+        var track = HScrollTrack.Width;
+        var content = ContentWidth;
+        var viewport = ViewportWidth;     // 同上：与 UpdateScrollBar 同源
+        if (track <= 0) return;
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _hPanningThumb = true;
+                _hPanStartLeft = _hThumbLeft;
+                break;
+
+            case GestureStatus.Running:
+            {
+                var left = _hPanStartLeft + e.TotalX;
+                var offset = ScrollBarMath.OffsetForThumbTop(left, content, viewport, track);
+                try { OutputScroll.ScrollToAsync(offset, OutputScroll.ScrollY, animated: false); }
+                catch { /* 页面正在销毁 */ }
+
+                // 与竖轴同理：手指拖出来的位置直接摆上去，不等 Scrolled 回调（要跟手）
+                var (l, w) = ScrollBarMath.Thumb(content, viewport, offset, track);
+                _hThumbLeft = l;
+                HScrollThumb.WidthRequest = w;
+                HScrollThumb.TranslationX = l;
+                break;
+            }
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                _hPanningThumb = false;
+                UpdateScrollBar();
+                break;
+        }
+    }
+
+    /// <summary>点横轴轨道空白处：右翻一屏。</summary>
+    private void OnHScrollTrackTapped(object? sender, TappedEventArgs e)
+    {
+        var viewport = ViewportWidth;
+        try { OutputScroll.ScrollToAsync(OutputScroll.ScrollX + viewport * 0.9, OutputScroll.ScrollY, animated: true); }
         catch { /* 页面正在销毁 */ }
     }
 
@@ -800,13 +1102,157 @@ public partial class ShellPage : ContentPage
     }
 
     /// <summary>
-    /// 超过上限就从**最老的整行**开始丢，一次丢到刚好剩 <see cref="MaxScrollbackLines"/> 行。
+    /// 超过上限就从**最老的整行**开始丢，一次丢到刚好剩上限那么多行
+    /// （上限可配，见 <see cref="MauiShellStore.Scrollback"/>）。
     /// 只按整行丢 ⇒ 不会出现"断头的半行"。
     /// </summary>
     private void TrimScrollback()
     {
-        int over = _lines.Count - MaxScrollbackLines;
+        // **固定高度那一档没有历史**（老显示器语义，见 DisplayText）——
+        // 缓冲也就没必要留着：留着的话切回自适应档，"早就滚没了"的内容会突然复活。
+        // 多留一倍可见行数，免得每来一行都要重算一次裁剪。
+        var rows = MauiShellStore.Rows;
+        if (rows > 0)
+        {
+            var keep = Math.Max(rows * 2, 16);
+            if (_lines.Count > keep) _lines.RemoveRange(0, _lines.Count - keep);
+            return;
+        }
+
+        int over = _lines.Count - MauiShellStore.Scrollback;
         if (over <= 0) return;
         _lines.RemoveRange(0, over);
+    }
+
+    /// <summary>行高系数（字号 → 行高）。</summary>
+    private const double LineHeightFactor = 1.3;
+
+    /// <summary>
+    /// 把命令行显示设置应用到界面（**缩放**字号 / **固定可见行数**）。
+    /// 在构造时调一次，用户改完设置由设置页再调一次。
+    /// </summary>
+    /// <summary>
+    /// 输出区两侧被占掉的宽度（dp）—— ScrollView 的 Padding 12+16、自绘滚动条约 9、再留余量。
+    /// 自适应模式要按它反推"这一屏能放几列"。
+    /// </summary>
+    private const double OutputAreaChrome = 40;
+
+    /// <summary>输出区可用宽度（dp）—— `OnSizeAllocated` 里更新，自适应算列数要用。</summary>
+    private double _outputWidth;
+
+    /// <summary>
+    /// 当前生效的列数。
+    ///
+    /// **固定档**：用户选的那个（80×25 那类，老程序按它排版）。
+    /// **自适应档**：按屏宽与字号**算出来**的 —— "自适应"不是"没有列数"，
+    /// 而是**列数由屏宽推出来**；这样"屏幕上看到几列"与"程序以为终端有几列"是同一个数。
+    /// 宽度还没落定（首次布局前）时返回 0，此时不折行、交给 Label 自己按显示宽度折。
+    /// </summary>
+    private int EffectiveCols()
+        => MauiShellStore.Cols > 0
+            ? MauiShellStore.Cols
+            : ShellWrap.ColumnsForWidth(_outputWidth, MauiShellStore.Font);
+
+    internal void ApplyDisplaySettings()
+    {
+        var cols = MauiShellStore.Cols;
+
+        // ── 字号 ──
+        // 字号**永远由缩放设置决定，不自动缩**。
+        //
+        // 曾经想的是"固定列数时把字号缩到 N 列正好铺满"——**那是把两件事搅在一起了**：
+        // 固定大小的意思是"**字符格真的固定**"（老程序按 80 列排版，格子必须就是 80 个），
+        // 而缩字号是"让内容塞进屏宽"，两者目的相反。用户点的名：**超出屏宽就横向滚动**。
+        // （第一版按显示宽度把 80 列又折了一次，`ls -l` 的列对齐当场就散了。）
+        var size = MauiShellStore.Font;
+        if (Math.Abs(OutputLabel.FontSize - size) > 0.01) OutputLabel.FontSize = size;
+
+        // ── 内容宽度 / 滚动方向 ──
+        // 文本已经由 `ShellWrap` 按字符格折好了；这里再给 Label 一个**显式宽度**
+        // （= 列数 × 字符宽），于是：
+        //   · `Label` 不会再按显示宽度**二次折行**（列对齐就这么保住的）
+        //   · 宽度超出视口时由 ScrollView **横向滚动**（固定 80 列、或字号放大到装不下时）
+        //
+        // ⚠ **别改用 `LineBreakMode.NoWrap` 去"禁止折行"** —— MAUI 的 `NoWrap` 在 Android 上
+        //   会走 `setSingleLine(true)`，**整段只剩第一行**（实测：提示行与提示符全没了）。
+        //   "给显式宽度 + 双向滚动"才是真终端的做法，也不会丢行。
+        var colsNow = EffectiveCols();
+        if (colsNow > 0)
+        {
+            var want = ShellWrap.WidthForColumns(colsNow, size);
+            if (Math.Abs(OutputLabel.WidthRequest - want) > 0.5) OutputLabel.WidthRequest = want;
+        }
+        else if (OutputLabel.WidthRequest > 0)
+        {
+            OutputLabel.WidthRequest = -1;                    // -1 = 交给布局
+        }
+        if (OutputLabel.LineBreakMode != LineBreakMode.WordWrap)
+            OutputLabel.LineBreakMode = LineBreakMode.WordWrap;   // 折行交给 ShellWrap，这里只保证 `\n` 生效
+        if (OutputScroll.Orientation != ScrollOrientation.Both)
+            OutputScroll.Orientation = ScrollOrientation.Both;
+
+        // ── 固定行数：把输出区高度锁成"正好 N 行"，多出来的走滚动 ──
+        // ⚠ 行高按 **字号 × 1.3** 估（平台字体度量拿不到精确行高时的通行做法）——
+        //   所以**可见行数是近似的**；列数是精确的（那是按字符格折出来的）。
+        var rows = MauiShellStore.Rows;
+        var wantHeight = rows > 0 ? rows * size * LineHeightFactor : -1;
+        if (Math.Abs(OutputScroll.HeightRequest - wantHeight) > 0.5)
+            OutputScroll.HeightRequest = wantHeight;         // -1 = 交给布局算
+        OutputScroll.VerticalOptions = rows > 0 ? LayoutOptions.Start : LayoutOptions.Fill;
+
+        // 把当前终端尺寸**告诉 VML 宿主** —— 全屏程序（nyancat / curses 那类）要按这个
+        // 建 `rows×cols` 网格（见 `MauiVml.RunProgram` 的屏幕分支）。
+        // 自适应档行数只能**估**（可见高度 ÷ 行高），估不出来就给 0 = 未知，
+        // 由那边退回 80×25（老程序通用的假设）—— 别在这里编一个数。
+        MauiVml.TermCols = EffectiveCols();
+        var px = ViewportHeight;
+        MauiVml.TermRows = rows > 0
+            ? rows
+            : (px > 0 ? (int)(px / (size * LineHeightFactor)) : 0);
+    }
+
+    /// <summary>
+    /// 要送到输出区的文本 —— **设了固定列数时按字符格硬折**（老程序 80×25 兼容）。
+    ///
+    /// 逐**逻辑行**折再拼回去：回滚缓冲里存的始终是逻辑行（不被折行污染），
+    /// 折行只发生在呈现这一步 —— 改列数时历史输出会跟着重排，与真终端一致。
+    /// 折行的纯逻辑在 <see cref="ShellWrap"/>（桌面有判据）；这里只管拼。
+    /// </summary>
+    /// <summary>
+    /// 只**重画**输出区（不动 <c>_lines</c>）—— 显示设置变了之后用它把折行/字号重算一遍。
+    /// 与 <see cref="Append"/> 末尾那句是同一个出口（走 <see cref="DisplayText"/>），
+    /// 别在这里另拼一份文本。
+    /// </summary>
+    private void RenderOutput()
+        => OutputLabel.FormattedText = MarkupToFormattedString.Convert(DisplayText(), MauiUi.IsDark);
+
+    private string DisplayText()
+    {
+        var cols = EffectiveCols();
+        List<string> wrapped;
+        if (cols <= 0)
+        {
+            wrapped = _lines;                                 // 宽度未落定：交给 Label 折
+        }
+        else
+        {
+            wrapped = new List<string>(_lines.Count);
+            foreach (var line in _lines)
+                wrapped.AddRange(ShellWrap.WrapMarkup(line, cols));
+        }
+
+        // ── 固定高度 = **老显示器**：屏幕就这么多行，滚出去的不再显示 ──
+        //
+        // 用户点名的语义：「固定高度的内容，换行只能内部滚动，滚过了的就没了，和老显示器一致」。
+        // 老 CRT 上**没有回滚缓存**这个概念 —— 屏幕上那 25 行就是全部，被顶上去的就真没了。
+        // （有回滚缓存的是后来的终端模拟器，那是**另一档**的行为 —— 自适应高度那档才有。）
+        //
+        // ⚠ 裁的必须是**折行之后**的行数，不是逻辑行数：一条长命令折成 5 行，
+        //   按逻辑行裁会留下 5 倍的内容、照样撑出滚动条。
+        var rows = MauiShellStore.Rows;
+        if (rows > 0 && wrapped.Count > rows)
+            wrapped = wrapped.GetRange(wrapped.Count - rows, rows);
+
+        return string.Join("\n", wrapped);
     }
 }

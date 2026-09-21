@@ -19,6 +19,18 @@ namespace WayCoder.UI.Shared;
 /// <param name="Run">执行体：拿到参数，返回要追加到输出区的文本。</param>
 /// <param name="MinArgs">最少参数个数。</param>
 /// <param name="MaxArgs">最多参数个数；<c>-1</c> = 不限。</param>
+/// <param name="ProducesMarkup">
+/// 执行体的返回值**是否已经是 «» 中间格式**。
+///
+/// 这个声明是必需的，不是装饰：输出区对「外部命令的裸输出」要做一遍
+/// `AnsiMarkup.ToMarkup`（把 ANSI 转义翻成标记、光标序列吃掉），而**页面自己注册的命令
+/// 往往已经产出标记**（如 `vml` 分支把编译错误套红成 `«red»…«/»`）。
+/// 不声明的话就变成"同一份文本转两遍"——`«` 会被转义成 `««`，渲染端只还原一层，
+/// **屏幕上剩下字面的 `«red»红«/»`**。
+///
+/// 实测踩过（2026-09-21）：命令行页敲 `vml run examples/c/ansi_colors.c`，
+/// 彩色输出全部显示成标记文本，而转换器与解析器的判据全绿 —— 断的就是这一处。
+/// </param>
 public sealed record ShellCommand(
     string Name,
     string ArgsFormat,
@@ -26,7 +38,8 @@ public sealed record ShellCommand(
     string Detail,
     Func<IReadOnlyList<string>, Task<string>> Run,
     int MinArgs = 0,
-    int MaxArgs = -1)
+    int MaxArgs = -1,
+    bool ProducesMarkup = false)
 {
     /// <summary>用法行，如 <c>vml run &lt;文件&gt;</c>。名字与参数格式都来自本记录，不另写一份。</summary>
     public string Usage => string.IsNullOrEmpty(ArgsFormat) ? Name : $"{Name} {ArgsFormat}";
@@ -68,6 +81,22 @@ public sealed class ShellCommandRegistry
     /// <summary>按名字查。查不到返回 null（= 交给 shell）。</summary>
     public ShellCommand? Find(string? name)
         => string.IsNullOrEmpty(name) ? null : _commands.Find(c => c.Name == name);
+
+    /// <summary>
+    /// 这一行命令的**输出**是不是已经是 «» 中间格式（决定调用方要不要再过一遍 ANSI 转换）。
+    ///
+    /// ⚠ 判据与 <see cref="DispatchAsync"/> **同源**（同一张 <c>_commands</c> 表），
+    /// 不要在调用方另写一份"首词是不是 vml"的前缀判断 —— 那就是平行表，
+    /// 而且正是这个 bug 的成因（页面按 `markupResult: false` 一律再转一遍）。
+    /// </summary>
+    public bool ResultIsMarkup(string? cmdLine)
+    {
+        if (string.IsNullOrWhiteSpace(cmdLine)) return false;
+        var s = cmdLine.TrimStart();
+        var end = s.IndexOf(' ');
+        var name = end < 0 ? s : s[..end];
+        return Find(name)?.ProducesMarkup ?? false;
+    }
 
     /// <summary>帮助开关：`-h` / `--help` / `-help` / `/?`。</summary>
     public static bool IsHelpFlag(string? arg)

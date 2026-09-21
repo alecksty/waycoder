@@ -2,6 +2,7 @@ using System.Text;
 using WayCoder.Infra;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder;
 
@@ -951,6 +952,187 @@ public static partial class SelfTest
         TestShellCommands(Section, Check);
         TestScrollBarMath(Section, Check);
         TestAnsiMarkup(Section, Check);
+        TestShellWrap(Section, Check);
+        TestShellControls(Section, Check);
+        TestShellSize(Section, Check);
+    }
+
+    // ═══ 命令行窗口的三个尺寸模式（都不固定 / 横向固定 / 都固定） ═══
+    //
+    // 为什么值得单钉：这两条都是「错了也看不出来」的逻辑 ——
+    // 派生错了表现为「切了档没反应」，迁移错了表现为「升级之后模式莫名其妙变了」。
+    // 而它们又都长在 MAUI 那一侧（`MauiShellStore` 依赖 `Preferences`、桌面自测碰不到），
+    // 所以判据落在 `UI/Shared/Terminal/ShellSize`（纯逻辑、四端同源）。
+    static void TestShellSize(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[命令行·尺寸模式]");
+
+        // ── 三档的派生：**生效值由模式推**，不另存一份 ──
+        // 都不固定：列行都是 0（= 交给布局）
+        Check("ShellSize: 都不固定 → 行列都自适应",
+            ShellSize.EffectiveCols(ShellSizeMode.Auto, 80) == 0
+            && ShellSize.EffectiveRows(ShellSizeMode.Auto, 25) == 0);
+
+        // 横向固定：**列钉死、行自适应** —— 这一档正是原先两档模型里缺的那个组合
+        Check("ShellSize: 横向固定 → 列钉死、行自适应",
+            ShellSize.EffectiveCols(ShellSizeMode.WidthFixed, 80) == 80
+            && ShellSize.EffectiveRows(ShellSizeMode.WidthFixed, 25) == 0);
+
+        // 都固定：两轴都钉死
+        Check("ShellSize: 都固定 → 行列都钉死",
+            ShellSize.EffectiveCols(ShellSizeMode.Fixed, 80) == 80
+            && ShellSize.EffectiveRows(ShellSizeMode.Fixed, 25) == 25);
+
+        // ── 老配置迁移（只有"自动/固定"两档的版本）──
+        // 存了 `0/0` = 老版的"自适应"
+        Check("ShellSize: 老配置 0/0 → 都不固定",
+            ShellSize.Migrate(0, 0) == ShellSizeMode.Auto);
+        // 存了真实行列 = 老版的"固定"
+        Check("ShellSize: 老配置 80/25 → 都固定",
+            ShellSize.Migrate(80, 25) == ShellSizeMode.Fixed);
+        // 只存了列数（不该出现，但读到了要有个确定的去处）⇒ 横向固定
+        Check("ShellSize: 老配置 80/0 → 横向固定",
+            ShellSize.Migrate(80, 0) == ShellSizeMode.WidthFixed);
+
+        // 循环切换要能回到原点（否则有一档永远切不到）
+        var m = ShellSizeMode.Auto;
+        for (int i = 0; i < 3; i++) m = ShellSize.Next(m);
+        Check("ShellSize: 循环切换三档后回到起点", m == ShellSizeMode.Auto);
+
+        // 三档文案互不相同 —— 相同的话用户根本分不出自己在哪一档
+        var texts = new[] { ShellSize.ModeText(ShellSizeMode.Auto),
+                            ShellSize.ModeText(ShellSizeMode.WidthFixed),
+                            ShellSize.ModeText(ShellSizeMode.Fixed) };
+        Check("ShellSize: 三档文案互不相同",
+            texts.Distinct().Count() == 3 && texts.All(t => t.Length > 0));
+    }
+
+    // ═══ 命令行输出里的标准控制字符（\r / \t / \b） ═══
+    //
+    // 这三条是**老 CLI 工具依赖的终端语义**，不是"格式化"：
+    //   进度条靠 `\r` 覆写、表格靠 `\t` 对齐、老手册页的粗体靠 `\b` 叠打。
+    // 不实现的话症状很显眼却容易被当成"程序输出就是这样"：一个 5 步进度条刷出 5 行、
+    // 表格整片歪、正文里冒出可见的退格符。
+    static void TestShellControls(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[命令行·控制字符]");
+
+        // 没有控制字符时原样返回（快路径，也证明不会平白改动正文）
+        Check("ShellCtl: 无控制字符原样返回",
+            ShellControls.Apply("plain text") == "plain text");
+
+        // `\r` 回行首覆写 —— 进度条就是反复 `\r` 打同一行
+        Check("ShellCtl: \\r 覆写本行（进度条只留最后一帧）",
+            ShellControls.Apply("aaa\rbbb") == "bbb");
+        Check("ShellCtl: 连续 \\r 只留最后一段",
+            ShellControls.Apply("1\r2\r3\r4") == "4");
+
+        // ⚠ 行尾的 `\r` 是 CRLF 残留，**不是**回行首（当错了会白丢一整行输出）
+        Check("ShellCtl: 行尾 \\r（CRLF）不清空本行",
+            ShellControls.Apply("hello\r") == "hello");
+
+        // ⚠ 多行输入时 `\r` **只清当前行** —— 不能把前面几行一起清掉。
+        // 实测踩过：`MauiVml` 递进来的是整段多行输出，而本函数原按"单行"写的、
+        // 不结算 `\n`，于是进度条那节把**自己的标题行也吃了**。
+        Check("ShellCtl: 多行输入时 \\r 只清本行（不吃前面的行）",
+            ShellControls.Apply("A\nB\rC") == "A\nC");
+
+        // `\t` 跳到下一个制表位
+        Check("ShellCtl: \\t 补到下一个制表位（8 的整数倍）",
+            ShellControls.Apply("a\tb") == "a       b");
+        Check("ShellCtl: \\t 已对齐时补满一整档",
+            ShellControls.Apply("12345678\tx") == "12345678        x");
+
+        // `\b` 退一格（老手册页的粗体 `X\bX`）
+        Check("ShellCtl: \\b 吃掉前一个字符",
+            ShellControls.Apply("abc\b") == "ab");
+        Check("ShellCtl: 空行上的 \\b 被忽略（不抛、不产生怪字符）",
+            ShellControls.Apply("\b\bx") == "x");
+
+        // ⚠ ANSI 转义序列**零宽**：算进列数的话制表位与退格全会错位
+        Check("ShellCtl: ANSI 序列不计入列宽（\\t 仍跳到第 8 列）",
+            ShellControls.Apply("\x1b[31mab\x1b[0m\tc") == "\x1b[31mab\x1b[0m      c");
+
+        // `\b` 退的是**可见字符**（`c`），ANSI 标记原样留着 —— 这正是"老手册页粗体"的形态。
+        // ⚠ 必须**跳过尾部的转义序列**再退：不跳就退掉 `\x1b[0m` 里的 `m`，
+        //   既没退对字符、又把颜色标记弄坏了（实测踩过）。
+        Check("ShellCtl: \\b 跳过尾部 ANSI 序列、退掉可见字符",
+            ShellControls.Apply("\x1b[31mabc\x1b[0m\b") == "\x1b[31mab\x1b[0m");
+
+        // 折行**不在这里做** —— 那是 `ShellWrap` 在呈现时的活（它要避开 `«»` 标记、
+        // 按显示宽度算）。这里再折一遍就是二次折行，列对齐会散。
+        Check("ShellCtl: 不在这里折行（折行归 ShellWrap）",
+            ShellControls.Apply("abcdef") == "abcdef");
+    }
+
+    // ═══ 命令行输出按固定列数硬折行（老程序 80×25 兼容） ═══
+    static void TestShellWrap(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[命令行·固定列宽折行]");
+
+        // 0 / 负数 = 不折（自适应宽度那条路，交给显示层）
+        Check("ShellWrap: cols<=0 原样返回",
+            ShellWrap.WrapMarkup("abcdefg", 0).Count == 1
+            && ShellWrap.WrapMarkup("abcdefg", -1)[0] == "abcdefg");
+
+        // 基本折行
+        var w = ShellWrap.WrapMarkup("abcdefg", 5);
+        Check("ShellWrap: 按列数折行", w.Count == 2 && w[0] == "abcde" && w[1] == "fg");
+
+        // 全角占 2 格 —— 按**显示宽度**折，不是按字符个数
+        var cjk = ShellWrap.WrapMarkup("中中中", 4);
+        Check("ShellWrap: 全角按 2 格算", cjk.Count == 2 && cjk[0] == "中中" && cjk[1] == "中");
+
+        // ⚠ 绝不能折在 «…» 标签内部 —— 劈开会让渲染端认不出，整段标记原样显示
+        var tag = ShellWrap.WrapMarkup("«red»abcdef«/»", 3);
+        Check("ShellWrap: 标签不被劈开（每行标记自成对）",
+            tag.All(l => CountMarkup(l, '«') == CountMarkup(l, '»')));
+        Check("ShellWrap: 标签不计入宽度（3 列装得下 abc）",
+            tag.Count >= 2 && tag[0].EndsWith("abc", StringComparison.Ordinal));
+
+        // «« / »» 是转义的字面量，占 1 格、不算标签开闭
+        var esc = ShellWrap.WrapMarkup("a««b»»c", 10);
+        Check("ShellWrap: 转义的字面书名号占 1 格且不误判为标签",
+            esc.Count == 1 && esc[0] == "a««b»»c");
+
+        // 空串与刚好一整行
+        Check("ShellWrap: 空串返回一个空行", ShellWrap.WrapMarkup("", 5).Count == 1);
+        Check("ShellWrap: 刚好填满不产生空尾行", ShellWrap.WrapMarkup("abcde", 5).Count == 1);
+
+        // 字号适配：字符推进量按**实测的 0.6 倍字号**算（不是理论值 0.5，见 CharAspect 注释）
+        Check("ShellWrap: 80 列铺满 480dp → 10 号字",
+            Math.Abs(ShellWrap.FontSizeForColumns(480, 80) - 10) < 0.01);
+        Check("ShellWrap: 列数为 0（自适应）时不改字号", ShellWrap.FontSizeForColumns(480, 0) == 0);
+        Check("ShellWrap: 宽度未落定（<=0）时不改字号", ShellWrap.FontSizeForColumns(0, 80) == 0);
+        Check("ShellWrap: 字号钳在下限（列数太多时不无限缩小）",
+            ShellWrap.FontSizeForColumns(300, 400) == 7);
+
+        // 自适应列数：按屏宽算，且**硬底线 32 列**（一行至少 32 个字，装不下就横向滚）
+        Check("ShellWrap: 自适应列数按屏宽算（393dp / 12 号 ≈ 53 列）",
+            ShellWrap.ColumnsForWidth(393, 12) is >= 50 and <= 55);
+        Check("ShellWrap: 自适应列数不为 0（屏够宽时）", ShellWrap.ColumnsForWidth(393, 12) > 0);
+        Check("ShellWrap: 字号放大到装不下时仍保底 32 列（而不是压到十几个字）",
+            ShellWrap.ColumnsForWidth(393, 30) == ShellWrap.MinAdaptiveCols);
+        Check("ShellWrap: 宽度未落定时返回 0（交给显示层，不瞎折）",
+            ShellWrap.ColumnsForWidth(0, 12) == 0);
+
+        // 内容宽度 = 列数 × 字符宽：给 Label 一个**显式宽度**，让它不再按显示宽度二次折行。
+        // ⚠ 不能改用 `LineBreakMode.NoWrap` —— 那在 Android 上会 `setSingleLine(true)`，
+        //   **整段只剩第一行**（实测踩过）。
+        Check("ShellWrap: 内容宽度与列数成正比",
+            Math.Abs(ShellWrap.WidthForColumns(80, 12) - 2 * ShellWrap.WidthForColumns(40, 12)) < 0.01);
+        Check("ShellWrap: 内容宽度随字号缩放（缩放要跟着变）",
+            ShellWrap.WidthForColumns(80, 24) > ShellWrap.WidthForColumns(80, 12));
+        Check("ShellWrap: 列数为 0 时不给宽度（交给布局）",
+            ShellWrap.WidthForColumns(0, 12) == 0);
+    }
+
+    /// <summary>数一个字符在串里出现几次（判"标记有没有被劈开"用）。</summary>
+    static int CountMarkup(string s, char c)
+    {
+        var n = 0;
+        foreach (var ch in s) if (ch == c) n++;
+        return n;
     }
 
     // ═══ 外部命令输出的 ANSI → «» 中间格式 ═══
@@ -1012,6 +1194,35 @@ public static partial class SelfTest
                 .Select(s => s.Text));
             Check($"ANSI 往返: 可见文字不变（{name}）", got == AnsiHelper.StripAnsi(raw));
         }
+
+        // ── 颜色那一半：上面那条往返**只比了文字**（`Select(s => s.Text)` 把颜色丢掉了）──
+        // 「转出来了、颜色丢了」这种半截故障它一条都拦不住。实测手机命令行页正是这样：
+        // `AnsiMarkup` 老老实实转出了 `«red»`，而屏幕上显示的是**字面的标记文本**
+        // （`«black»30 黑«/»`）。断点在「标记 → 带色段」这一段 —— 而它住在 UI/Shared、
+        // 本来就桌面可测，只因为判据把颜色丢了才一直没人发现。
+        var colorCase = MarkdownParser.ParseInline(
+            AnsiMarkup.ToMarkup("\x1b[31m红\x1b[0m 普通 \x1b[1;32m绿\x1b[0m"));
+        var lit = new StringBuilder();
+        var colored = 0;
+        var bolded = 0;
+        foreach (var s in colorCase)
+        {
+            lit.Append(s.Text);
+            if (s.Color != 0) colored++;
+            if ((s.Color & AnsiTty.BoldFlag) != 0) bolded++;
+        }
+        Check("ANSI 颜色存活: 可见文字一字不差", lit.ToString() == "红 普通 绿");
+        Check("ANSI 颜色存活: 至少两段带前景色", colored >= 2);
+        Check("ANSI 颜色存活: 粗体位保留（«bold»+色 的编码位）", bolded >= 1);
+
+        // 命名色是 `AnsiMarkup` 的**特意选择**（走渲染端那张终端标准色表，而不是十六进制），
+        // 所以渲染端必须认识它 —— 认不出就会原样吐出来。
+        var named = MarkdownParser.ParseInline("«bright red»亮红«/»");
+        Check("ANSI 命名色: «bright red» 被认成一段带色文字",
+            named.Count == 1 && named[0].Text == "亮红" && named[0].Color != 0);
+        var namedBg = MarkdownParser.ParseInline("«bg:bright yellow»底«/»");
+        Check("ANSI 命名底色: «bg:bright yellow» 被认成一段带底文字",
+            namedBg.Count == 1 && namedBg[0].Text == "底" && namedBg[0].Bg != 0);
     }
 
     // ═══ VML 手感接口（音效 / 震动 / 持久化）的纯逻辑 ═══
@@ -1099,6 +1310,10 @@ public static partial class SelfTest
             _ => { calls.Add("noop"); return Task.FromResult(""); }, MaxArgs: 0));
         reg.Register(new ShellCommand("any", "[...]", "参数不限", "任意个参数都收。",
             a => { calls.Add("any:" + a.Count); return Task.FromResult("ok"); }));
+        // 模拟 `vml`：**返回值已经是 «» 标记**（见 ProducesMarkup 的说明）
+        reg.Register(new ShellCommand("mark", "", "产出标记", "执行体自己产出 markup。",
+            _ => { calls.Add("mark"); return Task.FromResult("«red»红«/»"); },
+            MaxArgs: 0, ProducesMarkup: true));
         return reg;
     }
 
@@ -1119,6 +1334,22 @@ public static partial class SelfTest
         // 认领边界：**不认识的必须返回 null**，页面据此交给 shell
         Check("ShellCmd: 不认识的命令返回 null（放行给 shell）",
             reg.Find("ls") == null && reg.Find(null) == null);
+
+        // ── 输出要不要再过一遍 ANSI 转换 ──
+        // 两条分支**相反**：注册表命令（`vml`）自己产出 «» 标记 ⇒ 不能再转；
+        // 交给 shell 的（`ls --color`）是裸 ANSI ⇒ 必须转。
+        // 实测踩过（2026-09-21）：命令行页敲 `vml run xx.c`，彩色输出被转了两遍
+        // （`«` 转义成 `««`），渲染端只还原一层，**屏幕上剩下字面的 `«red»红«/»`**。
+        // 断点在 MAUI 页面的调用点、桌面测不到，所以判据钉在这里：**判据本身**。
+        Check("ShellCmd: 未声明产出标记的命令 → 按裸 ANSI 处理",
+            !reg.ResultIsMarkup("help") && !reg.ResultIsMarkup("ls -l --color"));
+        Check("ShellCmd: 声明了 ProducesMarkup 的命令 → 不再转换",
+            reg.ResultIsMarkup("mark") && reg.ResultIsMarkup("mark extra-arg"));
+        Check("ShellCmd: 带前导空格/CJK 参数不影响判定",
+            reg.ResultIsMarkup("  mark") &&
+            !reg.ResultIsMarkup("  ls -l"));
+        Check("ShellCmd: 空与纯空白不算 markup",
+            !reg.ResultIsMarkup(null) && !reg.ResultIsMarkup("") && !reg.ResultIsMarkup("   "));
 
         // 帮助开关
         Check("ShellCmd: 识别 -h / --help / /?",

@@ -7,13 +7,45 @@
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
 
-        <!-- 顶栏：只剩「清屏」。
+        <!-- 顶栏：三个尺寸模式 + 清屏。
              工作目录**改由输入行的提示符表示**（`~/examples>`）—— 它才是"我下一条命令在哪跑"
              的唯一出处；原先这里还有一行 `cwd: …`，和提示符说同一件事，等于同一屏写两遍。 -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,8,8,2">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="6" Padding="12,8,8,2">
+            <!-- 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）——
+                 不是"自动 vs 固定"两档：老程序按 80 列排表格 ⇒ 列必须钉死，
+                 而手机屏幕高度各家不同 ⇒ 行没必要跟着钉死（钉了反而上下留白）。
+                 三态互斥，当前生效那个用主色底高亮（见 UpdateSizeButtons）；
+                 **重复点生效中的那个 = 换预设**（列数 / 尺寸档），省一次弹窗。 -->
+            <Button
+                x:Name="AutoSizeBtn"
+                Grid.Column="0"
+                Text="大小自适应"
+                FontSize="13"
+                Padding="10,4"
+                HeightRequest="34"
+                CornerRadius="8"
+                Clicked="OnAutoSizeClicked" />
+            <Button
+                x:Name="WidthFixedBtn"
+                Grid.Column="1"
+                Text="横向固定"
+                FontSize="13"
+                Padding="10,4"
+                HeightRequest="34"
+                CornerRadius="8"
+                Clicked="OnWidthFixedClicked" />
+            <Button
+                x:Name="FixedSizeBtn"
+                Grid.Column="2"
+                Text="固定 80×25"
+                FontSize="13"
+                Padding="10,4"
+                HeightRequest="34"
+                CornerRadius="8"
+                Clicked="OnFixedSizeClicked" />
             <Button
                 x:Name="ClearBtn"
-                Grid.Column="1"
+                Grid.Column="4"
                 Text="清屏"
                 FontSize="13"
                 Padding="14,4"
@@ -31,14 +63,27 @@
              只在滑动时闪一下，输出长到几十屏时完全不知道自己在哪。它只在内容超出视口时出现
              （判据是 ScrollBarMath.ShouldShow，几何也全在那边，页面里不重算一份）。 -->
         <Grid Grid.Row="1">
+            <!-- ⚠ `ScrollBarVisibility="Never"`（两个轴都要写）是**必须的**，不是样式偏好：
+                 `ScrollView` 自带的那条系统滚动条在 Android 上滑动时会自己闪一条出来，
+                 与我们自绘的那条（ScrollTrack/HScrollTrack）**叠成两层**。
+                 滚动条只留自绘的一层 —— 判据、几何、样式三样都在我们手里，系统那条不受控。 -->
             <ScrollView
                 x:Name="OutputScroll"
                 Padding="12,4,16,4"
+                VerticalScrollBarVisibility="Never"
+                HorizontalScrollBarVisibility="Never"
                 Scrolled="OnOutputScrolled">
+                <!-- ⚠ `Start/Start`（左上角）**必须显式写**：内容是我们自绘的（`ShellWrap`
+                     按字符格折好 + 给了显式宽度），所以它**不该被布局居中/拉满** ——
+                     MAUI 的 `ScrollView` 在内容小于视口时默认会把内容摆到中间（纵向尤其明显：
+                     固定 25 行而内容只有 3 行时，整块输出会飘到屏幕中间）。
+                     真终端是**左上角起笔**，缩放字号 / 切固定行列时内容也只该从左上角长出来。 -->
                 <Label
                     x:Name="OutputLabel"
                     FontSize="12"
-                    LineBreakMode="WordWrap" />
+                    LineBreakMode="WordWrap"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start" />
             </ScrollView>
 
             <!-- 轨道：贴右边、上下留一点边距。IsVisible 由代码按内容高决定 -->
@@ -58,6 +103,29 @@
                 <Grid.GestureRecognizers>
                     <PanGestureRecognizer PanUpdated="OnScrollThumbPan" />
                     <TapGestureRecognizer Tapped="OnScrollTrackTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <!-- 横轴轨道：贴底边。**横向固定那一档全靠它** —— 列钉死之后内容必然比屏幕宽
+                 （80 列 × 半角宽 ≈ 500~900px），没有这根条就只能盲划。
+                 判据与竖轴**同一条**（`ScrollBarMath.ShouldShow`，内容装得下就不显示），
+                 几何也复用同一份（只是换个轴）—— 页面里不重算一份。 -->
+            <Grid
+                x:Name="HScrollTrack"
+                IsVisible="False"
+                HorizontalOptions="Fill"
+                VerticalOptions="End"
+                Margin="12,0,16,2"
+                HeightRequest="6">
+                <BoxView
+                    x:Name="HScrollThumb"
+                    Color="{AppThemeBinding Light=#9A9AA0, Dark=#6E6E76}"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Fill"
+                    WidthRequest="40" />
+                <Grid.GestureRecognizers>
+                    <PanGestureRecognizer PanUpdated="OnHScrollThumbPan" />
+                    <TapGestureRecognizer Tapped="OnHScrollTrackTapped" />
                 </Grid.GestureRecognizers>
             </Grid>
         </Grid>

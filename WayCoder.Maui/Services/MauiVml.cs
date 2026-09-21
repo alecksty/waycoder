@@ -7,6 +7,7 @@ using VMLPlugins.Interfaces;
 using VMLRuntime;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Maui.Services;
@@ -743,10 +744,36 @@ HALT
             return io.Text.Length == 0 ? tail : io.Text.TrimEnd() + "\n" + tail;
         }
 
+        // ── 全屏程序：**按网格渲染**，不是折行往下堆 ──
+        //
+        // `nyancat` / `sl` / `nethack` / 一切 curses 程序都是"一屏一屏画"的：`ESC[H` 回到原点
+        // 重画、`ESC[2J` 清屏。这类输出**折行与回滚缓存都是错的**（折行把画面搅烂、
+        // 堆叠起来就是几十屏残影）。判据在 `ScreenOutput`（纯逻辑、桌面自测钉过）。
+        if (ScreenOutput.LooksFullScreen(io.Text))
+        {
+            var rows = TermRows > 0 ? TermRows : 25;      // 0 = 未知 ⇒ 老程序通用的 80×25
+            var cols = TermCols > 0 ? TermCols : 80;
+            var screen = new FrameBuffer(rows, cols);
+            screen.Apply(io.Text);
+            var gridTxt = AnsiMarkup.ToMarkup(string.Join("\n", screen.DumpAnsi())).TrimEnd();
+
+            var gridErr = AnsiMarkup.ToMarkup(diag + "\n" + diagErr).TrimEnd();
+            return gridErr.Trim().Length == 0
+                ? gridTxt
+                : (gridTxt.Length > 0 ? gridTxt + "\n" : "") + "«red»" + gridErr + "«/»";
+        }
+
         // 给人看的：裸 ANSI 翻成标记，stderr 整段套红（内层自带的颜色会盖掉这层红，正是想要的）
-        var outTxt = AnsiMarkup.ToMarkup(io.Text).TrimEnd();
-        var midTxt = AnsiMarkup.ToMarkup(diag).TrimEnd();
-        var errTxt = AnsiMarkup.ToMarkup(diagErr).TrimEnd();
+        //
+        // ⚠ **控制字符必须在 `ToMarkup` 之前解释**：`AnsiMarkup` 会把 `\r`/`\t`/`\b` 这类
+        //   非 SGR 的控制字节**吃掉**（它只保留颜色与样式），于是：
+        //     · `\r` 没了 ⇒ **进度条的五帧挤成一行**（`progress [1/5]  progress [2/5] …`）
+        //     · `\t` 没了 ⇒ **表格的列全歪**
+        //   放到 `ShellPage.Append` 里做是**来不及的** —— 那边拿到的已经是标记文本，
+        //   控制字符早在这一步就没了（实测：探针程序在命令行页上就是那副样子）。
+        var outTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(io.Text)).TrimEnd();
+        var midTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diag)).TrimEnd();
+        var errTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diagErr)).TrimEnd();
         var sb = new StringBuilder();
         if (outTxt.Length > 0) sb.Append(outTxt);
         if (midTxt.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append(midTxt);
@@ -756,6 +783,20 @@ HALT
 
     /// <summary>串行化 <see cref="RunProgram"/> 里的控制台重定向（见那里的说明）。</summary>
     private static readonly object ConsoleRedirectGate = new();
+
+    /// <summary>
+    /// 命令行页当前的**终端尺寸**（列 / 行）—— 全屏输出按这个尺寸建网格。
+    /// 0 = 未知 ⇒ 退回 **80×25**（老程序通用的假设）。
+    ///
+    /// ⚠ 做成**静态**的依据与 <see cref="OnProgress"/> 那条相同：**VML 的执行是排他的**
+    /// （`VmlTool.ExecutionMode = Exclusive` 加上命令行页的 `_busy` 闸门），
+    /// 同一时刻只可能有一次运行在读它。做成一路透传的参数则要改 6 个签名，而它们
+    /// 全都只为了把这一个数送到最里面 —— 那种"接线"正是本仓库反复踩的漂移来源。
+    /// </summary>
+    public static int TermCols { get; set; }
+
+    /// <inheritdoc cref="TermCols"/>
+    public static int TermRows { get; set; }
 
     /// <summary>
     /// 空设备白名单 + 地址全部归零 = 关掉所有 MMIO 设备（VGA 压到 1x1，手机上没有它的窗口）。

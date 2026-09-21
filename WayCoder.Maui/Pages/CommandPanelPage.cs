@@ -1,6 +1,12 @@
 using Microsoft.Maui.Controls.Shapes;
 using WayCoder.Maui.Services;
 
+// ⚠ 用**别名**而不是 `using WayCoder.UI.Shared.Terminal;`：那个命名空间里也有一个 `Color`
+//   （终端配色那套），全量引入会和 `Microsoft.Maui.Graphics.Color` 撞成 CS0104
+//   （本文件处处在用 `Color`）。
+using ShellSize = WayCoder.UI.Shared.Terminal.ShellSize;
+using ShellSizeMode = WayCoder.UI.Shared.Terminal.ShellSizeMode;
+
 namespace WayCoder.Maui.Pages;
 
 /// <summary>
@@ -86,6 +92,37 @@ public sealed class CommandPanelPage : ContentPage
             () => { PermissionManager.CycleMode(); PersistAndRefresh(); }, main, muted, inputBg));
         _body.Add(Row("💸 经济模式", EconomyName(cfg.EconomyMode),
             () => { cfg.CycleEconomy(); PersistAndRefresh(); }, main, muted, inputBg));
+
+        // ── 命令行显示 ──
+        // 尺寸是**三个正交组合**（都不固定 / 横向固定 / 都固定），不是"自适应 vs 固定"两档 ——
+        // 横向固定那一档专给**假设 80 列的老程序**用（表格/边框/进度条按 80 列排版，
+        // 按手机宽度折会整片错位），而行数没必要跟着钉死。
+        // 改完由命令行页的 OnAppearing 应用 —— 这里只负责落盘 + 本页刷新。
+        _body.Add(Section("命令行显示", muted));
+        _body.Add(Row("🔍 输出字号", $"{MauiShellStore.Font:0.#} 号（可双指无极缩放）",
+            () => { MauiShellStore.Font = MauiShellStore.NextFont(MauiShellStore.Font); PersistAndRefresh(); },
+            main, muted, inputBg));
+        _body.Add(Row("🖥 尺寸模式", ShellSize.ModeText(MauiShellStore.Mode),
+            () =>
+            {
+                MauiShellStore.SetMode(MauiShellStore.Mode switch
+                {
+                    ShellSizeMode.Auto       => ShellSizeMode.WidthFixed,
+                    ShellSizeMode.WidthFixed => ShellSizeMode.Fixed,
+                    _                                       => ShellSizeMode.Auto,
+                });
+                PersistAndRefresh();
+            },
+            main, muted, inputBg));
+        _body.Add(Row("📐 终端列数", MauiShellStore.ColsText(MauiShellStore.RawCols),
+            () => { MauiShellStore.SetColumns(MauiShellStore.Next(MauiShellStore.ColsChoices, MauiShellStore.RawCols)); PersistAndRefresh(); },
+            main, muted, inputBg));
+        _body.Add(Row("📏 终端行数", MauiShellStore.RowsText(MauiShellStore.RawRows),
+            () => { MauiShellStore.SetRows(MauiShellStore.Next(MauiShellStore.RowsChoices, MauiShellStore.RawRows)); PersistAndRefresh(); },
+            main, muted, inputBg));
+        _body.Add(Row("🗃 回滚缓存", MauiShellStore.ScrollbackText(MauiShellStore.Scrollback),
+            () => { MauiShellStore.Scrollback = MauiShellStore.Next(MauiShellStore.ScrollbackChoices, MauiShellStore.Scrollback); PersistAndRefresh(); },
+            main, muted, inputBg));
 
         // ── 其它 ──
         _body.Add(Section("其它", muted));
