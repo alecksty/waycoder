@@ -1,366 +1,295 @@
 /* conio.c —— DOS / Turbo C 文本控制台（常用子集）
  *
- * 设计上三条硬约束（都来自本仓踩过的坑，不是风格偏好）：
+ * ## 它画到哪儿：**命令行页的字符网格**，不弹窗
+ *
+ * 这一条是最初设计错、被用户纠正的地方，写在最前面免得后人再走一遍：
+ * 命令行程序**本来就跑在一个字符界面里**（命令行页那个 80×25 的网格，`nyancat`
+ * 走的就是它）。所以 `conio` 该做的事只有一件 —— **产生一个真终端会产生的那些字节**：
+ *   · 光标定位 `ESC[{行};{列}H`   · 颜色/属性 SGR `ESC[{码}m`   · 字符本身
+ *   · 清屏 `ESC[2J`、擦到行尾 `ESC[K`
+ *
+ * **不发任何绘图指令**（不开窗、不 `ui_rect`/`ui_text`）。第一版就是那么写的，
+ * 后果是三重的：① 弹一个和命令行页抢屏幕的窗口；② 窗口尺寸由宿主决定（实测请求
+ * 200×100 实得 393×225），于是"填满"变成一道无解的算术题，白花了一轮；
+ * ③ 与既有的网格渲染链（全屏检测 + FrameBuffer + 标记 + 命令行页）**成了两套实现**
+ * —— 正是本仓排第一的坑。
+ *
+ * ## 三条约束
  *
  * ① **不做任何"把指针当整数算偏移"的读写**（ROADMAP 第零节的硬规矩）。
- *    屏幕状态就是两个普通数组（字符 + 颜色），下标是普通整数运算。
+ *    屏幕影子就是两个普通数组，下标是普通整数运算。
+ * ② **不另立渲染链** —— 只发 ANSI，交给命令行页那条既有的链去渲染。
+ * ③ **出口只有 `putchar`**（`SYSCALL #4`）：一个字符一个字符发，与真终端一致。
  *
- * ② **不另立一套绘图原语**：全部落在既有的 `ui_*` 上（`ui_win_open` / `ui_clear` /
- *    `ui_rect` / `ui_text` / `ui_present` / `ui_wait` / `ui_poll_ex`）。
- *    自己再写一层"文本绘制"就是本仓排第一的坑 —— 同一规则两处实现。
+ * ## 影子缓冲为什么必要
  *
- * ③ **屏幕上每一个格子都有确切归属**：`conCh` 存字符、`conAt` 存颜色。
- *    `putch` 只重画**它改的那一格**（不整屏重刷）—— 老程序一次输出几个字符是常态，
- *    整屏重刷会让 80×25=2000 次绘图调用砸在每一行输出上。
+ * `delline` / `insline` / `clreol` 要**改动已经画过的内容**，而 ANSI 里能做这事的
+ * `ESC[M`/`ESC[L`（DL/IL）**本平台的网格不支持**（`FrameBuffer` 只认 CUP/CUU/CUD/CUF/CUB/
+ * CHA/VPA/存光标/EL/ED/SGR）。所以自己留一份影子，改完把受影响的行**重新发一遍**。
  */
-#include "waycoder_ui.h"
-
-/* 变参：标准机制（前端内建），与 printf 家族同一份实现 */
 #include "stdarg.h"
 
-/* ⚠ **不引 `<conio.h>`**：那会把 `#param lib("conio")` 也带进来 —— 自己链自己。
-   代价是这一层用不了头文件里的颜色名，所以下面只用 0..15 的**字面值**；
-   颜色名的唯一定义仍在 `Lib/c/conio.h`（那是给用户程序看的公开面）。 */
-
-/* printf 家族导出的两个符号（`Lib/shared/printf.vml`）。
-   ⚠ **不引 `<stdio.h>`**：它把 `vsnprintf` 声明成标准四参形态（含 `va_list`），
-     而实收的是**参数数组** —— 两者对不上（那条要单独理，见 CHANGELOG）。 */
+/* 出口与格式化：都用既有的那一份实现，不另写（`format_arg_count` 的注释见 printf.c） */
+extern int putchar(int c);                    /* SYSCALL #4 —— 唯一的输出口 */
+extern int getchar(void);
 extern int format_arg_count(const char *format);
 extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);
 
 #define CON_ROWS 25
 #define CON_COLS 80
 
-/* ── 屏幕状态（普通数组，无地址算术）── */
+/* 屏幕影子（普通数组，无地址算术） */
 static char conCh[CON_ROWS * CON_COLS];
 static char conAt[CON_ROWS * CON_COLS];      /* 低 4 位前景 / 高 4 位背景 */
 static int  conX;                            /* 光标列 0 起（对外 +1） */
 static int  conY;                            /* 光标行 0 起（对外 +1） */
 static int  conFg;
 static int  conBg;
-static int  conOpen;
-static int  conCellW;
-static int  conCellH;
-static int  conFont;
-static int  conPending;                      /* 扩展键：已取出 0，扫描码待下一次 getch 返回（-1 = 没有） */
+static int  conReady;
 
-/* 前置声明：滚动与整屏重画在 con_newline 里就要用（C 里"先用后声明"必须显式） */
-static void con_clear_buffer_tail(void);
-static void con_repaint_all(void);
-
-/* ── DOS 16 色 → 0xAARRGGBB（实测取的是"DOS 默认调色板"那一档观感）── */
-static int con_doscolor(int c)
+/* ── 出口原语 ── */
+static void con_putc(int c)
 {
-    if (c == 0)  return 0xFF000000;   /* 黑 */
-    if (c == 1)  return 0xFF0000AA;   /* 蓝 */
-    if (c == 2)  return 0xFF00AA00;   /* 绿 */
-    if (c == 3)  return 0xFF00AAAA;   /* 青 */
-    if (c == 4)  return 0xFFAA0000;   /* 红 */
-    if (c == 5)  return 0xFFAA00AA;   /* 品红 */
-    if (c == 6)  return 0xFFAA5500;   /* 棕 */
-    if (c == 7)  return 0xFFAAAAAA;   /* 浅灰 */
-    if (c == 8)  return 0xFF555555;   /* 深灰 */
-    if (c == 9)  return 0xFF5555FF;   /* 亮蓝 */
-    if (c == 10) return 0xFF55FF55;   /* 亮绿 */
-    if (c == 11) return 0xFF55FFFF;   /* 亮青 */
-    if (c == 12) return 0xFFFF5555;   /* 亮红 */
-    if (c == 13) return 0xFFFF55FF;   /* 亮品红 */
-    if (c == 14) return 0xFFFFFF55;   /* 黄 */
-    return 0xFFFFFFFF;                /* 白 */
+    putchar(c);
 }
 
-/* 打开窗口 + 算出字符格尺寸。**只做一次**（惰性：老程序可能先算再打印）。 */
-static void con_ensure(void)
-{
-    int sw;
-    int sh;
-    if (conOpen != 0) return;
-
-    sw = ui_scr_w();
-    sh = ui_scr_h();
-
-    conCellW = sw / CON_COLS;
-    if (conCellW < 2) conCellW = 2;
-    conCellH = conCellW * 2;
-    if (conCellH * CON_ROWS > sh && sh > 0) conCellH = sh / CON_ROWS;   /* 高度优先不超出 */
-    if (conCellH < 4) conCellH = 4;
-    conFont = conCellH - 2;
-    if (conFont < 6) conFont = 6;
-
-    ui_win_open("控制台", conCellW * CON_COLS, conCellH * CON_ROWS);
-    conOpen = 1;
-    conPending = -1;            /* ⚠ 文件作用域 static 初值是 0，而 0 是合法扫描码 —— 必须显式置 -1 */
-    conFg = 7;                  /* = conio.h 的 LIGHTGRAY（DOS 定义的默认前景） */
-    conBg = 0;                  /* = conio.h 的 BLACK */
-    clrscr();
-}
-
-/* 清空内存里的屏幕缓冲（不动窗口） */
-static void con_clear_buffer(void)
+static void con_puts(const char *s)
 {
     int i;
+    for (i = 0; s[i] != 0; i++) con_putc(s[i]);
+}
+
+/* 十进制输出（只为几个数字，不拖进 printf 家族 —— 那会把 conio 与 printf 绑死） */
+static void con_putn(int v)
+{
+    char t[12];
+    int n;
+    if (v < 0) { con_putc('-'); v = -v; }
+    n = 0;
+    if (v == 0) { con_putc('0'); return; }
+    while (v > 0 && n < 11) { t[n] = (char)('0' + (v % 10)); v = v / 10; n++; }
+    while (n > 0) { n--; con_putc(t[n]); }
+}
+
+/* 光标定位（**1 起**，与 DOS 同） */
+static void con_cup(int x, int y)
+{
+    con_putc(27); con_putc('[');
+    con_putn(y + 1); con_putc(';'); con_putn(x + 1); con_putc('H');
+}
+
+/* ── DOS 16 色 → SGR ──
+   0-7 走 30-37 / 40-47；8-15 走**亮色** 90-97 / 100-107（真终端就是这么表达的）。 */
+/* ⚠⚠ **DOS 与 ANSI 的调色板顺序不一样，必须映射** —— 直接拿 DOS 号当 ANSI 号是错的：
+     DOS: 0黑 1蓝 2绿 3青 4红 5紫 6棕 7浅灰
+     ANSI:40黑 41红 42绿 43黄 44蓝 45紫 46青 47白
+   也就是 DOS 的"蓝"(1) 在 ANSI 里是 44，而 ANSI 的 41 是**红**。
+   实测症状：标题栏写的是 `textbackground(CYAN)`，打出来是 `[43m`（**黄**底）——
+   一张 DOS 界面里所有颜色都串了位，而且**不报错**。 */
+static int con_dos2ansi(int c)
+{
+    if (c == 0) return 0;      /* 黑 */
+    if (c == 1) return 4;      /* 蓝 → ANSI 蓝 */
+    if (c == 2) return 2;      /* 绿 */
+    if (c == 3) return 6;      /* 青 → ANSI 青 */
+    if (c == 4) return 1;      /* 红 → ANSI 红 */
+    if (c == 5) return 5;      /* 紫 */
+    if (c == 6) return 3;      /* 棕 → ANSI 黄 */
+    if (c == 7) return 7;      /* 浅灰 */
+    if (c == 8) return 8;      /* 深灰 → ANSI 亮黑 */
+    if (c == 9) return 12;     /* 亮蓝 */
+    if (c == 10) return 10;    /* 亮绿 */
+    if (c == 11) return 14;    /* 亮青 */
+    if (c == 12) return 9;     /* 亮红 */
+    if (c == 13) return 13;    /* 亮紫 */
+    if (c == 14) return 11;    /* 黄 → ANSI 亮黄 */
+    return 15;                 /* 白 */
+}
+
+static void con_sgr_fg(int c)
+{
+    int a;
+    int code;
+    a = con_dos2ansi(c & 15);
+    if (a < 8) code = 30 + a;
+    else       code = 90 + (a - 8);
+    con_putc(27); con_putc('['); con_putn(code); con_putc('m');
+}
+
+static void con_sgr_bg(int c)
+{
+    int a;
+    int code;
+    a = con_dos2ansi(c & 15);
+    if (a < 8) code = 40 + a;
+    else       code = 100 + (a - 8);
+    con_putc(27); con_putc('['); con_putn(code); con_putc('m');
+}
+
+static void con_sgr(int at)
+{
+    con_sgr_fg(at & 15);
+    con_sgr_bg((at >> 4) & 15);
+}
+
+/* 把一行的**某一段**重新发一遍（改过影子之后用它刷新） */
+static void con_redraw_range(int y, int x0, int x1)
+{
+    int x;
     int at;
-    at = (conBg << 4) | conFg;
-    for (i = 0; i < CON_ROWS * CON_COLS; i++) {
-        conCh[i] = ' ';
-        conAt[i] = (char)at;
+    int last;
+
+    if (y < 0 || y >= CON_ROWS) return;
+    if (x0 < 0) x0 = 0;
+    if (x1 > CON_COLS - 1) x1 = CON_COLS - 1;
+
+    last = -1;
+    for (x = x0; x <= x1; x++) {
+        at = conAt[y * CON_COLS + x];
+        if (at != last) { con_cup(x, y); con_sgr(at); last = at; }
+        con_putc(conCh[y * CON_COLS + x]);
     }
 }
 
-/* 画一个格（先铺底色再写字）。**只画这一格** —— 调用方保证它确实变了。 */
-static void con_paint(int x, int y)
+static void con_redraw_all(void)
 {
-    int idx;
-    int at;
-    char one[2];
-    int px;
-    int py;
-
-    if (x < 0 || x >= CON_COLS || y < 0 || y >= CON_ROWS) return;
-    idx = y * CON_COLS + x;
-    at = conAt[idx];
-
-    px = x * conCellW;
-    py = y * conCellH;
-
-    /* 底色：空格也要铺（老程序整屏都是"底色 + 空格"画出来的） */
-    ui_rect(px, py, conCellW, conCellH, con_doscolor((at >> 4) & 15), 1, 0, 0);
-
-    if (conCh[idx] == ' ') return;      /* 空格不必写字 */
-
-    one[0] = conCh[idx];
-    one[1] = 0;
-    ui_text(px, py, one, con_doscolor(at & 15), conFont, VML_ANCHOR_LEFT);
+    int y;
+    for (y = 0; y < CON_ROWS; y++) con_redraw_range(y, 0, CON_COLS - 1);
 }
 
-/* ── 光标推进 / 换行 / 滚屏 ── */
-static void con_newline(void)
-{
-    conX = 0;
-    conY = conY + 1;
-    if (conY >= CON_ROWS) {
-        /* 滚一行：整屏上移（普通数组搬运，无地址算术） */
-        int i;
-        for (i = 0; i < (CON_ROWS - 1) * CON_COLS; i++) {
-            conCh[i] = conCh[i + CON_COLS];
-            conAt[i] = conAt[i + CON_COLS];
-        }
-        con_clear_buffer_tail();
-        conY = CON_ROWS - 1;
-        con_repaint_all();
-    }
-}
-
-/* 只清最后一行（滚屏用） */
-static void con_clear_buffer_tail(void)
-{
-    int i;
-    int at;
-    int base;
-    at = (conBg << 4) | conFg;
-    base = (CON_ROWS - 1) * CON_COLS;
-    for (i = 0; i < CON_COLS; i++) {
-        conCh[base + i] = ' ';
-        conAt[base + i] = (char)at;
-    }
-}
-
-static void con_repaint_all(void)
+static void con_fill(int x0, int y0, int x1, int y1, int ch, int at)
 {
     int x;
     int y;
-    for (y = 0; y < CON_ROWS; y++)
-        for (x = 0; x < CON_COLS; x++)
-            con_paint(x, y);
-    ui_present();
+    for (y = y0; y <= y1; y++)
+        for (x = x0; x <= x1; x++) {
+            conCh[y * CON_COLS + x] = (char)ch;
+            conAt[y * CON_COLS + x] = (char)at;
+        }
+}
+
+static void con_init(void)
+{
+    if (conReady != 0) return;
+    conReady = 1;
+    conFg = 7;                   /* = conio.h 的 LIGHTGRAY（DOS 定义的默认前景） */
+    conBg = 0;                   /* = conio.h 的 BLACK */
+    conX = 0;
+    conY = 0;
+    con_fill(0, 0, CON_COLS - 1, CON_ROWS - 1, ' ', (conBg << 4) | conFg);
 }
 
 /* ── 公开接口 ── */
 
 void clrscr(void)
 {
-    con_ensure();
-    con_clear_buffer();
-    ui_clear(con_doscolor(conBg));
-    ui_present();
+    con_init();
+    con_putc(27); con_puts("[2J");      /* ED：清整屏 */
+    con_sgr((conBg << 4) | conFg);
+    con_cup(0, 0);
+    con_fill(0, 0, CON_COLS - 1, CON_ROWS - 1, ' ', (conBg << 4) | conFg);
     conX = 0;
     conY = 0;
 }
 
 void clreol(void)
 {
-    int x;
-    int at;
-    con_ensure();
-    at = (conBg << 4) | conFg;
-    for (x = conX; x < CON_COLS; x++) {
-        conCh[conY * CON_COLS + x] = ' ';
-        conAt[conY * CON_COLS + x] = (char)at;
-        con_paint(x, conY);
-    }
-    ui_present();
+    con_init();
+    con_cup(conX, conY);
+    con_putc(27); con_puts("[K");       /* EL(0)：擦到行尾 */
+    con_fill(conX, conY, CON_COLS - 1, conY, ' ', (conBg << 4) | conFg);
 }
 
 void gotoxy(int x, int y)
 {
+    con_init();
     conX = x - 1;
     conY = y - 1;
     if (conX < 0) conX = 0;
     if (conX > CON_COLS - 1) conX = CON_COLS - 1;
     if (conY < 0) conY = 0;
     if (conY > CON_ROWS - 1) conY = CON_ROWS - 1;
+    con_cup(conX, conY);
 }
 
 int wherex(void) { return conX + 1; }
 int wherey(void) { return conY + 1; }
 
-void textcolor(int color)
-{
-    conFg = color & 15;
-}
-
-void textbackground(int color)
-{
-    conBg = color & 15;
-}
+void textcolor(int color) { con_init(); conFg = color & 15; }
+void textbackground(int color) { con_init(); conBg = color & 15; }
 
 void textattr(int attr)
 {
+    con_init();
     conFg = attr & 15;
     conBg = (attr >> 4) & 15;
 }
 
-void highvideo(void) { conFg = conFg | 8; }
-void lowvideo(void)  { conFg = conFg & 7; }
-void normvideo(void) { conFg = 7; conBg = 0; }   /* 7/0 = conio.h 的 LIGHTGRAY / BLACK */
+void highvideo(void) { con_init(); conFg = conFg | 8; }
+void lowvideo(void) { con_init(); conFg = conFg & 7; }
+void normvideo(void) { con_init(); conFg = 7; conBg = 0; }   /* 7/0 = LIGHTGRAY / BLACK */
 
 void putch(int c)
 {
+    int at;
     int idx;
-    con_ensure();
+    int y;
+    int x;
 
-    if (c == 10 || c == 13) {          /* \n 与 \r 都当换行（DOS 里 \n 自带 \r） */
-        con_newline();
+    con_init();
+
+    if (c == 10 || c == 13) {           /* 换行：DOS 的 \n 自带回车 */
+        conX = 0;
+        conY = conY + 1;
+        if (conY >= CON_ROWS) {
+            /* 滚一行：影子整体上移，重发整屏（真终端是硬件滚，这里只能重画） */
+            for (y = 0; y < CON_ROWS - 1; y++)
+                for (x = 0; x < CON_COLS; x++) {
+                    conCh[y * CON_COLS + x] = conCh[(y + 1) * CON_COLS + x];
+                    conAt[y * CON_COLS + x] = conAt[(y + 1) * CON_COLS + x];
+                }
+            con_fill(0, CON_ROWS - 1, CON_COLS - 1, CON_ROWS - 1, ' ', (conBg << 4) | conFg);
+            conY = CON_ROWS - 1;
+            con_redraw_all();
+        }
+        con_cup(conX, conY);
         return;
     }
-    if (c == 8) {                      /* 退格 */
+
+    if (c == 8) {                        /* 退格：DOS 的回退**不擦**，只移光标 */
         if (conX > 0) conX = conX - 1;
+        con_cup(conX, conY);
         return;
     }
 
+    at = (conBg << 4) | conFg;
     idx = conY * CON_COLS + conX;
     conCh[idx] = (char)c;
-    conAt[idx] = (char)((conBg << 4) | conFg);
-    con_paint(conX, conY);
-    ui_present();
+    conAt[idx] = (char)at;
+    con_sgr(at);
+    con_putc(c);
 
     conX = conX + 1;
-    if (conX >= CON_COLS) con_newline();
+    if (conX >= CON_COLS) {
+        conX = 0;
+        conY = conY + 1;
+        if (conY >= CON_ROWS) conY = CON_ROWS - 1;
+        con_cup(conX, conY);
+    }
 }
 
 void cputs(const char *s)
 {
     int i;
-    con_ensure();
+    con_init();
     for (i = 0; s[i] != 0; i++) putch(s[i]);
 }
 
-void delline(void)
-{
-    int y;
-    int x;
-    con_ensure();
-    for (y = conY; y < CON_ROWS - 1; y++)
-        for (x = 0; x < CON_COLS; x++) {
-            conCh[y * CON_COLS + x] = conCh[(y + 1) * CON_COLS + x];
-            conAt[y * CON_COLS + x] = conAt[(y + 1) * CON_COLS + x];
-        }
-    con_clear_buffer_tail();
-    con_repaint_all();
-}
-
-void insline(void)
-{
-    int y;
-    int x;
-    int at;
-    con_ensure();
-    at = (conBg << 4) | conFg;
-    for (y = CON_ROWS - 1; y > conY; y--)
-        for (x = 0; x < CON_COLS; x++) {
-            conCh[y * CON_COLS + x] = conCh[(y - 1) * CON_COLS + x];
-            conAt[y * CON_COLS + x] = conAt[(y - 1) * CON_COLS + x];
-        }
-    for (x = 0; x < CON_COLS; x++) {
-        conCh[conY * CON_COLS + x] = ' ';
-        conAt[conY * CON_COLS + x] = (char)at;
-    }
-    con_repaint_all();
-}
-
-/* 方向键：DOS 的**扩展键扫描码**（先返回 0，下一次再返回它） */
-static int con_scan_code(int vml_key)
-{
-    if (vml_key == VML_KEY_UP)    return 72;
-    if (vml_key == VML_KEY_DOWN)  return 80;
-    if (vml_key == VML_KEY_LEFT)  return 75;
-    if (vml_key == VML_KEY_RIGHT) return 77;
-    if (vml_key == VML_KEY_SELECT) return 28;   /* Enter 的扩展码（手柄 SELECT） */
-    if (vml_key == VML_KEY_PAUSE)  return 1;    /* Esc 的扩展码（手柄 PAUSE） */
-    return -1;                                   /* 不是扩展键 */
-}
-
-int getch(void)
-{
-    int msg[4];
-    int k;
-    int sc;
-
-    if (conPending >= 0) {              /* 上一拍取出了 0，扫描码还没交出去 */
-        k = conPending;
-        conPending = -1;
-        return k;
-    }
-
-    ui_wait(msg, 0);                    /* 0 = 一直等 */
-    if (msg[0] != VML_MSG_KEYDOWN) return 0;
-
-    k = msg[1];
-    sc = con_scan_code(k);
-    if (sc >= 0) {                      /* 扩展键：这一拍返回 0，扫描码留给下一次 */
-        conPending = sc;
-        return 0;
-    }
-    return k;
-}
-
-int getche(void)
-{
-    int c;
-    c = getch();
-    if (c != 0) putch(c);
-    return c;
-}
-
-int kbhit(void)
-{
-    int msg[4];
-    if (conPending >= 0) return 1;      /* 扫描码还压着，也算"有按键" */
-
-    if (ui_poll_ex(msg, VML_MSG_KEEP) == 0) return 0;    /* 0 = 队列空 */
-    if (msg[0] != VML_MSG_KEYDOWN) return 0;
-    return 1;
-}
-
-/* `cprintf` 的格式化复用 `sprintf`（与 `printf` 同一套实现，不另写一份格式化）——
-   所以这里只需要一个足够大的缓冲。见 printf.c 的说明。 */
 void cprintf(const char *fmt, ...)
 {
-    /* 格式化**复用 printf 家族的实现**（`format_arg_count` + `vsnprintf`）——
-       不在这里另写一份格式化（"同一规则两处实现"是本仓排第一的坑）。
-       两个符号由 `Lib/shared/printf.vml` 导出，C 程序链接时本来就会带上它（printf 一直在）。
-
-       ⚠ 变参走**标准内建**取，不自己算形参地址（ROADMAP 第零节的硬规矩）。 */
+    /* 格式化**复用 printf 家族那份实现**（`format_arg_count` + `vsnprintf`），
+       不另写一份 —— "同一规则两处实现"是本仓排第一的坑。
+       变参走**标准内建**取，不自己算形参地址（ROADMAP 第零节的硬规矩）。 */
     char buf[512];
     int vals[16];
     int i;
@@ -378,4 +307,81 @@ void cprintf(const char *fmt, ...)
     n = vsnprintf(buf, fmt, vals, nargs);
     buf[n] = 0;
     cputs(buf);
+}
+
+void delline(void)
+{
+    int y;
+    int x;
+    con_init();
+    for (y = conY; y < CON_ROWS - 1; y++)
+        for (x = 0; x < CON_COLS; x++) {
+            conCh[y * CON_COLS + x] = conCh[(y + 1) * CON_COLS + x];
+            conAt[y * CON_COLS + x] = conAt[(y + 1) * CON_COLS + x];
+        }
+    con_fill(0, CON_ROWS - 1, CON_COLS - 1, CON_ROWS - 1, ' ', (conBg << 4) | conFg);
+    for (y = conY; y < CON_ROWS; y++) con_redraw_range(y, 0, CON_COLS - 1);
+    con_cup(conX, conY);
+}
+
+void insline(void)
+{
+    int y;
+    int x;
+    con_init();
+    for (y = CON_ROWS - 1; y > conY; y--)
+        for (x = 0; x < CON_COLS; x++) {
+            conCh[y * CON_COLS + x] = conCh[(y - 1) * CON_COLS + x];
+            conAt[y * CON_COLS + x] = conAt[(y - 1) * CON_COLS + x];
+        }
+    con_fill(0, conY, CON_COLS - 1, conY, ' ', (conBg << 4) | conFg);
+    for (y = conY; y < CON_ROWS; y++) con_redraw_range(y, 0, CON_COLS - 1);
+    con_cup(conX, conY);
+}
+
+/* ── 键盘 ──
+ *
+ * ⚠ **有限兼容**，写在明处：命令行页的 stdin 是**按行**交给程序的
+ *   （用户在输入框敲一行、按「运行」提交），所以拿不到"单键即时"的语义。
+ *   `getch()` 退回"读一行、逐字符吐出来" —— 老程序里 `ch = getch();` 那种写法
+ *   仍然能跑（第一个字符就是这一次按键），但**方向键**要用户自己敲出来
+ *   （菜单那样的程序，这一版只能靠 `w`/`s` 这类字符键）。
+ *   要做到真单键 + 方向键，得让命令行页把每一下按键**原样转发**给程序（待办）。
+ */
+static char conKb[128];
+static int  conKbLen;
+static int  conKbPos;
+
+int getch(void)
+{
+    int c;
+    if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
+
+    conKbLen = 0;
+    conKbPos = 0;
+    while (conKbLen < 126) {
+        c = getchar();
+        if (c <= 0 || c == 10 || c == 13) break;
+        conKb[conKbLen] = (char)c;
+        conKbLen++;
+    }
+    conKbPos = 0;
+    if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
+    c = conKb[conKbPos];
+    conKbPos++;
+    return c;
+}
+
+int getche(void)
+{
+    int c;
+    c = getch();
+    if (c != 0) putch(c);
+    return c;
+}
+
+int kbhit(void)
+{
+    if (conKbPos < conKbLen) return 1;
+    return 0;                            /* 按行的 stdin 无法预知"有没有按键" */
 }

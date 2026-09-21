@@ -58,11 +58,22 @@ public static class MarkupToFormattedString
     /// <see cref="StreamingHighlightMaxChars"/>）—— 那里的代价是 O(长度) 且被
     /// 反复支付，见 ChatPage.ShouldRecomputeFormatted 的注释。
     /// </param>
-    public static FormattedString Convert(string? markup, bool isDark, int maxHighlightChars = DefaultHighlightMaxChars)
+    /// <param name="markupOnly">
+    /// **整段只解 `«»` 标记，完全跳过 Markdown 块级解析**。
+    ///
+    /// 命令行页的**全屏网格**走这一支 —— 那是"一张画面"，不是一篇文章：
+    ///   · 块级解析会**逐行 `Trim()`**（段落收集那句），**行首空格一没，横向位置就全丢了**
+    ///     （实测：DOS 界面画在 20 列的边框，屏幕上贴到了第 1 列）；
+    ///   · 它还会把"左边一片空白 + 一串底色标记"的行判成**缩进代码块**。
+    /// 这些都是"把画面当文档读"带来的错，而不是渲染器坏了。
+    /// </param>
+    public static FormattedString Convert(string? markup, bool isDark, int maxHighlightChars = DefaultHighlightMaxChars,
+        bool markupOnly = false)
     {
         var fs = new FormattedString();
         if (string.IsNullOrEmpty(markup)) return fs;
-        RenderSegments(markup, fs, isDark, maxHighlightChars);
+        if (markupOnly) RenderPlainMarkup(markup, fs, isDark);
+        else RenderSegments(markup, fs, isDark, maxHighlightChars);
         return fs;
     }
 
@@ -268,54 +279,55 @@ public static class MarkupToFormattedString
     /// 基础**色码**（不是 Color）—— 0 表示用主题默认前景。
     /// 块级 `«dim»…«/»` 推理内容走这个：那一整块被外面的标记定性，块内的行内标记再在其上叠加。
     /// </param>
-    private static void RenderInline(string segment, FormattedString fs, bool isDark, int baseColor = 0)
+    /// <summary>整段**只解 `«»` 标记**（不解 Markdown 行内语法）—— 画面/数据走这条。</summary>
+    private static void RenderPlainMarkup(string markup, FormattedString fs, bool isDark)
+    {
+        foreach (var (text, color, bg) in MarkdownParser.ParseMarkupOnly(markup))
+            AddMarkupSpan(fs, text, color, bg, isDark);
+    }
+
+    /// <summary>
+    /// 把一段（文本, 色码, 底色）变成一个 Span —— **三条规则只此一份**：
+    /// 颜色解析（含粗体位掩码）、`bg ≥ 30` 才铺底、**带底色的纯空白段换 NBSP**。
+    /// ⚠ 抽出来是因为它有两个调用方（Markdown 行内 / 纯标记），
+    ///   各写一遍必然漂移（本仓头号坑）。
+    /// </summary>
+    private static void AddMarkupSpan(FormattedString fs, string text, int color, int bg, bool isDark)
     {
         var defaultColor = isDark ? DarkDefault : LightDefault;
         var dimColor = isDark ? DarkDim : LightDim;
+        var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor, isDark) };
 
-        foreach (var (text, color, bg) in MarkdownParser.ParseInline(segment, baseColor))
+        if (color == 1 || (color & WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag) != 0)
+            span.FontAttributes = FontAttributes.Bold;
+        switch (color & ~WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag)
         {
-            var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor, isDark) };
-
-            // 粗体位（AnsiTty.BoldFlag）：«bold»«orange» 这类嵌套解析后是 `色值 | BoldFlag`
-            if (color == 1 || (color & WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag) != 0)
-                span.FontAttributes = FontAttributes.Bold;
-            switch (color & ~WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag)
-            {
-                case 1: span.FontAttributes = FontAttributes.Bold; break;        // bold/bright
-                case 3: span.FontAttributes = FontAttributes.Italic; break;      // italic
-                case 4: span.TextDecorations = TextDecorations.Underline; break;
-                case 9: span.TextDecorations = TextDecorations.Strikethrough; break;
-                case 33:   // 行内代码：与桌面同款「底色方块 + 等宽」（Web 的 .md-inline）
-                    span.FontFamily = MonoFont;
-                    span.BackgroundColor = InlineCodeBg(isDark);
-                    break;
-            }
-
-            if (bg >= 30)
-            {
-                span.BackgroundColor = ResolveColor(bg, Colors.Transparent);
-
-                // ⚠ **带底色的纯空白段必须换成不换行空格（U+00A0）**。
-                //
-                // 为什么：Android/MAUI 的 Label 按"词"排版，**行尾空格会被吃掉** ——
-                // 于是一个"整行都由带底色的空格组成"的画面（nyancat / 一切用色块作画的
-                // 老 TTY 程序就是这么画的：`printf("  ")` 前面挂一个背景色转义）
-                // **渲染成一片空白**。实测：屏幕模式生效、网格 25×50、非空 25 行，
-                // 屏幕上却什么都没有；而 `tty_legacy.c` 那条背景色正常，
-                // 差别只在于它那段里**有文字**。
-                //
-                // NBSP 既不参与折行、也不会被吞，宽度与普通空格一致 ⇒ 画面回来了，
-                // 且不影响任何"有文字"的底色段（那些走原样）。
-                //
-                // ⚠ 只换**整段纯空白**的那种，不做全局替换：带文字的底色段里
-                //   前导/中间空格本来就正常，动它只会白白污染复制粘贴的内容。
-                if (text.AsSpan().Trim().Length == 0)
-                    span.Text = text.Replace(' ', '\u00A0');
-            }
-
-            fs.Spans.Add(span);
+            case 1: span.FontAttributes = FontAttributes.Bold; break;
+            case 3: span.FontAttributes = FontAttributes.Italic; break;
+            case 4: span.TextDecorations = TextDecorations.Underline; break;
+            case 9: span.TextDecorations = TextDecorations.Strikethrough; break;
+            case 33:
+                span.FontFamily = MonoFont;
+                span.BackgroundColor = InlineCodeBg(isDark);
+                break;
         }
+
+        if (bg >= 30)
+        {
+            span.BackgroundColor = ResolveColor(bg, Colors.Transparent);
+            // 带底色的**纯空白段**必须换成不换行空格：Android/MAUI 的 Label 按"词"排版，
+            // 行尾空格会被吃掉 ⇒ 整行都是"底色 + 空格"的画面（nyancat 那种）渲染成空白。
+            if (text.AsSpan().Trim().Length == 0)
+                span.Text = text.Replace(' ', ' ');
+        }
+
+        fs.Spans.Add(span);
+    }
+
+    private static void RenderInline(string segment, FormattedString fs, bool isDark, int baseColor = 0)
+    {
+        foreach (var (text, color, bg) in MarkdownParser.ParseInline(segment, baseColor))
+            AddMarkupSpan(fs, text, color, bg, isDark);
     }
 
     /// <summary>代码块逐行 Tokenize 上色（每行间保留换行）。相邻同色 token 合并成单个 Span，

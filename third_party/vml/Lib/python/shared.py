@@ -1477,6 +1477,11 @@ def zsqrt(a0, a1):
     asm(f"PUSH @R0")  # push a0
     asm("CALL zsqrt")
 
+def getchar():
+    r0 = asm("@R0")
+    asm("CALL getchar")
+    return r0
+
 def format_arg_count(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -1492,42 +1497,82 @@ def vsnprintf(a0, a1, a2, a3):
     asm("CALL vsnprintf")
     return r0
 
-def con_clear_buffer_tail():
-    r0 = asm("@R0")
-    asm("CALL con_clear_buffer_tail")
-    return r0
-
-def con_repaint_all():
-    r0 = asm("@R0")
-    asm("CALL con_repaint_all")
-    return r0
-
-def con_doscolor(a0):
+def con_putc(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
-    asm("CALL con_doscolor")
+    asm("CALL con_putc")
     return r0
 
-def con_ensure():
+def con_puts(a0):
     r0 = asm("@R0")
-    asm("CALL con_ensure")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_puts")
     return r0
 
-def con_clear_buffer():
+def con_putn(a0):
     r0 = asm("@R0")
-    asm("CALL con_clear_buffer")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_putn")
     return r0
 
-def con_paint(a0, a1):
+def con_cup(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
-    asm("CALL con_paint")
+    asm("CALL con_cup")
     return r0
 
-def con_newline():
+def con_dos2ansi(a0):
     r0 = asm("@R0")
-    asm("CALL con_newline")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_dos2ansi")
+    return r0
+
+def con_sgr_fg(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_sgr_fg")
+    return r0
+
+def con_sgr_bg(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_sgr_bg")
+    return r0
+
+def con_sgr(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_sgr")
+    return r0
+
+def con_redraw_range(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_redraw_range")
+    return r0
+
+def con_redraw_all():
+    r0 = asm("@R0")
+    asm("CALL con_redraw_all")
+    return r0
+
+def con_fill(a0, a1, a2, a3, a4, a5):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL con_fill")
+    return r0
+
+def con_init():
+    r0 = asm("@R0")
+    asm("CALL con_init")
     return r0
 
 def clrscr():
@@ -1580,17 +1625,16 @@ def cputs(a0):
     asm(f"PUSH @R0")  # push a0
     asm("CALL cputs")
 
+def cprintf(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cprintf")
+
 def delline():
     asm("CALL delline")
 
 def insline():
     asm("CALL insline")
-
-def con_scan_code(a0):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL con_scan_code")
-    return r0
 
 def getch():
     r0 = asm("@R0")
@@ -1606,11 +1650,6 @@ def kbhit():
     r0 = asm("@R0")
     asm("CALL kbhit")
     return r0
-
-def cprintf(a0, a1):
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL cprintf")
 
 def puthex(a0):
     asm(f"PUSH @R0")  # push a0
@@ -1636,11 +1675,6 @@ def println_hex(a0):
 
 def clear_screen():
     asm("CALL clear_screen")
-
-def getchar():
-    r0 = asm("@R0")
-    asm("CALL getchar")
-    return r0
 
 def input_str():
     r0 = asm("@R0")

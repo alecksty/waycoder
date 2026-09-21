@@ -49,7 +49,16 @@ public partial class ShellPage : ContentPage
     /// 回滚缓冲，**一项 = 一整行**（不含 `\n`）。最后一项可能是"还在写、尚未换行"的半行 ——
     /// 用 <see cref="_partial"/> 记着，下一段写进来时接上去，而不是另起一行。
     /// </summary>
-    private readonly List<string> _lines = [];
+    /// <summary>回滚缓冲的一项 = 一行 + **这一行要不要参与折行**。</summary>
+    /// <remarks>
+    /// 为什么行上要带这个标志：**全屏程序的输出是一张"画面"，不是文本** ——
+    /// 它的每一行就是屏幕上的一行，折一下整幅图就斜切了。
+    ///
+    /// ⚠ 判据必须是**整块**的，不能逐行猜。第一版按"可见字符全是空格"认画面行，
+    ///   而**标题栏、菜单项、状态行都是有文字的**，于是它们照旧被折 ——
+    ///   真机实测：80 列的网格被按自适应的 46 列折开，标题栏断成两行。
+    /// </remarks>
+    private readonly List<(string Text, bool NoWrap)> _lines = [];
 
     /// <summary>缓冲是否停在半行上（上一段没有以 `\n` 收尾）。</summary>
     private bool _partial;
@@ -389,7 +398,12 @@ public partial class ShellPage : ContentPage
         SetBusy(true);
         try
         {
-            Append((await body()).TrimEnd() + "\n\n", alreadyMarkup: markupResult);
+            // ⚠ **画面不折行**：全屏程序的输出是一张"画面"，每一行就是屏幕上的一行。
+            //   标志由产生它的 `MauiVml` 给出（**块级事实**），不在这里逐行猜 ——
+            //   画面里的标题栏/菜单项/状态行**都是有文字的**，逐行猜必然漏
+            //   （实测：80 列的网格被按自适应的 46 列折开，标题栏断成两行、边框全错位）。
+            Append((await body()).TrimEnd() + "\n\n", alreadyMarkup: markupResult,
+                   noWrap: markupResult && MauiVml.LastOutputWasGrid);
         }
         catch (Exception ex)
         {
@@ -825,7 +839,7 @@ public partial class ShellPage : ContentPage
     /// 这样 `ls --color`、`git status` 的颜色在手机上终于是彩色的，而不是被剥成一片灰。
     /// </summary>
     /// <param name="alreadyMarkup">已经是中间格式，别再转一遍（见 RunWithPromptAsync 的说明）。</param>
-    private void Append(string text, bool alreadyMarkup = false)
+    private void Append(string text, bool alreadyMarkup = false, bool noWrap = false)
     {
         // ⚠ **控制字符必须在 ANSI → 标记转换之前解释**：`\r`/`\t`/`\b` 的语义是"在屏幕上占几格"，
         // 一旦转成 `«red»` 那种标记，列数就算不出来了（制表位、退格全都会错位）。
@@ -841,10 +855,10 @@ public partial class ShellPage : ContentPage
             int nl = text.IndexOf('\n', start);
             if (nl < 0)
             {
-                AddSegment(text[start..], partial: true);
+                AddSegment(text[start..], partial: true, noWrap: noWrap);
                 break;
             }
-            AddSegment(text[start..nl], partial: false);
+            AddSegment(text[start..nl], partial: false, noWrap: noWrap);
             start = nl + 1;
         }
 
@@ -1099,10 +1113,15 @@ public partial class ShellPage : ContentPage
         catch { /* 页面正在销毁 */ }
     }
 
-    private void AddSegment(string segment, bool partial)
+    private void AddSegment(string segment, bool partial, bool noWrap = false)
     {
-        if (_partial) _lines[^1] += segment;   // 接上没写完的那半行
-        else _lines.Add(segment);
+        if (_partial)
+        {
+            // 接上没写完的那半行（同一个块，标志一致）
+            var last = _lines[^1];
+            _lines[^1] = (last.Text + segment, last.NoWrap || noWrap);
+        }
+        else _lines.Add((segment, noWrap));
         _partial = partial;
     }
 
@@ -1192,8 +1211,8 @@ public partial class ShellPage : ContentPage
             //   撑宽之后由 ScrollView 横向滚 —— 与固定列数那条路同一个做法，
             //   「内容显示不全就出滚动条」本来就是用户定的规矩。
             var pictureCols = 0;
-            foreach (var l in _lines)
-                if (ShellWrap.IsPictureLine(l)) pictureCols = Math.Max(pictureCols, ShellWrap.VisibleWidth(l));
+            foreach (var (l, noWrap) in _lines)
+                if (noWrap || ShellWrap.IsPictureLine(l)) pictureCols = Math.Max(pictureCols, ShellWrap.VisibleWidth(l));
             if (pictureCols > colsNow)
             {
                 var wantPic = ShellWrap.WidthForColumns(pictureCols, size);
@@ -1272,28 +1291,61 @@ public partial class ShellPage : ContentPage
     /// 别在这里另拼一份文本。
     /// </summary>
     private void RenderOutput()
-        => OutputLabel.FormattedText = MarkupToFormattedString.Convert(DisplayText(), MauiUi.IsDark);
+    {
+        // ⚠ **按块分别渲染**：文本行照常走 Markdown，而**画面行（NoWrap）只解 «» 标记**。
+        //   混在一起渲染过一次，画面就毁了 —— Markdown 的段落收集会**逐行 `Trim()`**，
+        //   行首那一片空格一没，横向位置全丢（实测：画在 20 列的边框贴到了第 1 列）。
+        var fs = new FormattedString();
+        foreach (var group in GroupByNoWrap(DisplayText()))
+        {
+            var part = MarkupToFormattedString.Convert(group.Text, MauiUi.IsDark, markupOnly: group.NoWrap);
+            foreach (var s in part.Spans) fs.Spans.Add(s);
+        }
+        OutputLabel.FormattedText = fs;
+    }
+
+    /// <summary>把折好行的序列按 <c>NoWrap</c> **分成连续段**（同段一起渲染）。</summary>
+    private static List<(string Text, bool NoWrap)> GroupByNoWrap(List<(string Text, bool NoWrap)> lines)
+    {
+        var outp = new List<(string Text, bool NoWrap)>();
+        var sb = new System.Text.StringBuilder();
+        bool? cur = null;
+        foreach (var (text, noWrap) in lines)
+        {
+            if (cur != null && cur.Value != noWrap)
+            {
+                outp.Add((sb.ToString(), cur.Value));
+                sb.Clear();
+            }
+            if (sb.Length > 0) sb.Append('\n');
+            sb.Append(text);
+            cur = noWrap;
+        }
+        if (cur != null) outp.Add((sb.ToString(), cur.Value));
+        return outp;
+    }
 
 
 
-    private string DisplayText()
+    private List<(string Text, bool NoWrap)> DisplayText()
     {
         var cols = EffectiveCols();
-        List<string> wrapped;
+        List<(string Text, bool NoWrap)> wrapped;
         if (cols <= 0)
         {
-            wrapped = _lines;                                 // 宽度未落定：交给 Label 折
+            wrapped = new List<(string, bool)>(_lines);         // 宽度未落定：交给 Label 折
         }
         else
         {
-            wrapped = new List<string>(_lines.Count);
-            foreach (var line in _lines)
+            wrapped = new List<(string Text, bool NoWrap)>(_lines.Count);
+            foreach (var (line, noWrap) in _lines)
             {
                 // ⚠ **画面行不折**（见 `ShellWrap.IsPictureLine`）：全屏程序的每一行
                 //   就是屏幕上的一行，折一下整幅画就斜切了 —— 实测「有彩色了，但有点乱」
                 //   正是这么来的（猫的彩虹与身体都在，形状是剪开的）。
-                if (ShellWrap.IsPictureLine(line)) wrapped.Add(line);
-                else wrapped.AddRange(ShellWrap.WrapMarkup(line, cols));
+                // 标志优先（全屏输出那一整块），次之才是逐行的"纯色块行"判据。
+                if (noWrap || ShellWrap.IsPictureLine(line)) wrapped.Add((line, true));
+                else foreach (var w in ShellWrap.WrapMarkup(line, cols)) wrapped.Add((w, false));
             }
         }
 
@@ -1309,6 +1361,6 @@ public partial class ShellPage : ContentPage
         if (rows > 0 && wrapped.Count > rows)
             wrapped = wrapped.GetRange(wrapped.Count - rows, rows);
 
-        return string.Join("\n", wrapped);
+        return wrapped;
     }
 }

@@ -1149,6 +1149,11 @@ func zsqrt(a0 int32, a1 int32) {
     vml.Call("zsqrt")
 }
 
+func getchar() int32 {
+    vml.Call("getchar")
+    return vml.R0()
+}
+
 func format_arg_count(a0 int32) int32 {
     vml.Call("format_arg_count")
     return vml.R0()
@@ -1159,38 +1164,63 @@ func vsnprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
-func con_clear_buffer_tail() int32 {
-    vml.Call("con_clear_buffer_tail")
+func con_putc(a0 int32) int32 {
+    vml.Call("con_putc")
     return vml.R0()
 }
 
-func con_repaint_all() int32 {
-    vml.Call("con_repaint_all")
+func con_puts(a0 int32) int32 {
+    vml.Call("con_puts")
     return vml.R0()
 }
 
-func con_doscolor(a0 int32) int32 {
-    vml.Call("con_doscolor")
+func con_putn(a0 int32) int32 {
+    vml.Call("con_putn")
     return vml.R0()
 }
 
-func con_ensure() int32 {
-    vml.Call("con_ensure")
+func con_cup(a0 int32, a1 int32) int32 {
+    vml.Call("con_cup")
     return vml.R0()
 }
 
-func con_clear_buffer() int32 {
-    vml.Call("con_clear_buffer")
+func con_dos2ansi(a0 int32) int32 {
+    vml.Call("con_dos2ansi")
     return vml.R0()
 }
 
-func con_paint(a0 int32, a1 int32) int32 {
-    vml.Call("con_paint")
+func con_sgr_fg(a0 int32) int32 {
+    vml.Call("con_sgr_fg")
     return vml.R0()
 }
 
-func con_newline() int32 {
-    vml.Call("con_newline")
+func con_sgr_bg(a0 int32) int32 {
+    vml.Call("con_sgr_bg")
+    return vml.R0()
+}
+
+func con_sgr(a0 int32) int32 {
+    vml.Call("con_sgr")
+    return vml.R0()
+}
+
+func con_redraw_range(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("con_redraw_range")
+    return vml.R0()
+}
+
+func con_redraw_all() int32 {
+    vml.Call("con_redraw_all")
+    return vml.R0()
+}
+
+func con_fill(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
+    vml.Call("con_fill")
+    return vml.R0()
+}
+
+func con_init() int32 {
+    vml.Call("con_init")
     return vml.R0()
 }
 
@@ -1248,17 +1278,16 @@ func cputs(a0 int32) {
     vml.Call("cputs")
 }
 
+func cprintf(a0 int32, a1 int32) {
+    vml.Call("cprintf")
+}
+
 func delline() {
     vml.Call("delline")
 }
 
 func insline() {
     vml.Call("insline")
-}
-
-func con_scan_code(a0 int32) int32 {
-    vml.Call("con_scan_code")
-    return vml.R0()
 }
 
 func getch() int32 {
@@ -1274,10 +1303,6 @@ func getche() int32 {
 func kbhit() int32 {
     vml.Call("kbhit")
     return vml.R0()
-}
-
-func cprintf(a0 int32, a1 int32) {
-    vml.Call("cprintf")
 }
 
 func puthex(a0 int32) {
@@ -1303,11 +1328,6 @@ func println_hex(a0 int32) {
 
 func clear_screen() {
     vml.Call("clear_screen")
-}
-
-func getchar() int32 {
-    vml.Call("getchar")
-    return vml.R0()
 }
 
 func input_str() int32 {

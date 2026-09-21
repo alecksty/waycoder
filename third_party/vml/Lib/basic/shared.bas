@@ -1147,6 +1147,11 @@ DECLARE SUB zsqrt(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL zsqrt")
 END SUB
 
+DECLARE FUNCTION getchar() AS INTEGER
+    asm("CALL getchar")
+    getchar = 0
+END FUNCTION
+
 DECLARE FUNCTION format_arg_count(a0 AS INTEGER) AS INTEGER
     asm("CALL format_arg_count")
     format_arg_count = 0
@@ -1157,39 +1162,64 @@ DECLARE FUNCTION vsnprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS IN
     vsnprintf = 0
 END FUNCTION
 
-DECLARE FUNCTION con_clear_buffer_tail() AS INTEGER
-    asm("CALL con_clear_buffer_tail")
-    con_clear_buffer_tail = 0
+DECLARE FUNCTION con_putc(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_putc")
+    con_putc = 0
 END FUNCTION
 
-DECLARE FUNCTION con_repaint_all() AS INTEGER
-    asm("CALL con_repaint_all")
-    con_repaint_all = 0
+DECLARE FUNCTION con_puts(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_puts")
+    con_puts = 0
 END FUNCTION
 
-DECLARE FUNCTION con_doscolor(a0 AS INTEGER) AS INTEGER
-    asm("CALL con_doscolor")
-    con_doscolor = 0
+DECLARE FUNCTION con_putn(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_putn")
+    con_putn = 0
 END FUNCTION
 
-DECLARE FUNCTION con_ensure() AS INTEGER
-    asm("CALL con_ensure")
-    con_ensure = 0
+DECLARE FUNCTION con_cup(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL con_cup")
+    con_cup = 0
 END FUNCTION
 
-DECLARE FUNCTION con_clear_buffer() AS INTEGER
-    asm("CALL con_clear_buffer")
-    con_clear_buffer = 0
+DECLARE FUNCTION con_dos2ansi(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_dos2ansi")
+    con_dos2ansi = 0
 END FUNCTION
 
-DECLARE FUNCTION con_paint(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL con_paint")
-    con_paint = 0
+DECLARE FUNCTION con_sgr_fg(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_sgr_fg")
+    con_sgr_fg = 0
 END FUNCTION
 
-DECLARE FUNCTION con_newline() AS INTEGER
-    asm("CALL con_newline")
-    con_newline = 0
+DECLARE FUNCTION con_sgr_bg(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_sgr_bg")
+    con_sgr_bg = 0
+END FUNCTION
+
+DECLARE FUNCTION con_sgr(a0 AS INTEGER) AS INTEGER
+    asm("CALL con_sgr")
+    con_sgr = 0
+END FUNCTION
+
+DECLARE FUNCTION con_redraw_range(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL con_redraw_range")
+    con_redraw_range = 0
+END FUNCTION
+
+DECLARE FUNCTION con_redraw_all() AS INTEGER
+    asm("CALL con_redraw_all")
+    con_redraw_all = 0
+END FUNCTION
+
+DECLARE FUNCTION con_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER) AS INTEGER
+    asm("CALL con_fill")
+    con_fill = 0
+END FUNCTION
+
+DECLARE FUNCTION con_init() AS INTEGER
+    asm("CALL con_init")
+    con_init = 0
 END FUNCTION
 
 DECLARE SUB clrscr()
@@ -1246,6 +1276,10 @@ DECLARE SUB cputs(a0 AS INTEGER)
     asm("CALL cputs")
 END SUB
 
+DECLARE SUB cprintf(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL cprintf")
+END SUB
+
 DECLARE SUB delline()
     asm("CALL delline")
 END SUB
@@ -1253,11 +1287,6 @@ END SUB
 DECLARE SUB insline()
     asm("CALL insline")
 END SUB
-
-DECLARE FUNCTION con_scan_code(a0 AS INTEGER) AS INTEGER
-    asm("CALL con_scan_code")
-    con_scan_code = 0
-END FUNCTION
 
 DECLARE FUNCTION getch() AS INTEGER
     asm("CALL getch")
@@ -1273,10 +1302,6 @@ DECLARE FUNCTION kbhit() AS INTEGER
     asm("CALL kbhit")
     kbhit = 0
 END FUNCTION
-
-DECLARE SUB cprintf(a0 AS INTEGER, a1 AS INTEGER)
-    asm("CALL cprintf")
-END SUB
 
 DECLARE SUB puthex(a0 AS INTEGER)
     asm("CALL puthex")
@@ -1302,11 +1327,6 @@ END SUB
 DECLARE SUB clear_screen()
     asm("CALL clear_screen")
 END SUB
-
-DECLARE FUNCTION getchar() AS INTEGER
-    asm("CALL getchar")
-    getchar = 0
-END FUNCTION
 
 DECLARE FUNCTION input_str() AS INTEGER
     asm("CALL input_str")

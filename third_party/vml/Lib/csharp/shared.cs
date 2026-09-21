@@ -242,15 +242,21 @@ namespace VML {
     // extern double zexp_im(double re, double im);  // CALL zexp_im
     // extern void zsqr(double* a, double* result);  // CALL zsqr
     // extern void zsqrt(double* z, double* result);  // CALL zsqrt
+    // extern int getchar(void);  // CALL getchar
     // extern int format_arg_count(const char *format);  // CALL format_arg_count
     // extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);  // CALL vsnprintf
-    // extern oid con_clear_buffer_tail(void);  // CALL con_clear_buffer_tail
-    // extern oid con_repaint_all(void);  // CALL con_repaint_all
-    // extern nt con_doscolor(int c);  // CALL con_doscolor
-    // extern oid con_ensure(void);  // CALL con_ensure
-    // extern oid con_clear_buffer(void);  // CALL con_clear_buffer
-    // extern oid con_paint(int x, int y);  // CALL con_paint
-    // extern oid con_newline(void);  // CALL con_newline
+    // extern oid con_putc(int c);  // CALL con_putc
+    // extern oid con_puts(const char *s);  // CALL con_puts
+    // extern oid con_putn(int v);  // CALL con_putn
+    // extern oid con_cup(int x, int y);  // CALL con_cup
+    // extern nt con_dos2ansi(int c);  // CALL con_dos2ansi
+    // extern oid con_sgr_fg(int c);  // CALL con_sgr_fg
+    // extern oid con_sgr_bg(int c);  // CALL con_sgr_bg
+    // extern oid con_sgr(int at);  // CALL con_sgr
+    // extern oid con_redraw_range(int y, int x0, int x1);  // CALL con_redraw_range
+    // extern oid con_redraw_all(void);  // CALL con_redraw_all
+    // extern oid con_fill(int x0, int y0, int x1, int y1, int ch, int at);  // CALL con_fill
+    // extern oid con_init(void);  // CALL con_init
     // extern void clrscr(void);  // CALL clrscr
     // extern void clreol(void);  // CALL clreol
     // extern void gotoxy(int x, int y);  // CALL gotoxy
@@ -264,20 +270,18 @@ namespace VML {
     // extern void normvideo(void);  // CALL normvideo
     // extern void putch(int c);  // CALL putch
     // extern void cputs(const char *s);  // CALL cputs
+    // extern void cprintf(const char *fmt, ...);  // CALL cprintf
     // extern void delline(void);  // CALL delline
     // extern void insline(void);  // CALL insline
-    // extern nt con_scan_code(int vml_key);  // CALL con_scan_code
     // extern int getch(void);  // CALL getch
     // extern int getche(void);  // CALL getche
     // extern int kbhit(void);  // CALL kbhit
-    // extern void cprintf(const char *fmt, ...);  // CALL cprintf
     // extern void puthex(int val);  // CALL puthex
     // extern void putfloat(float f);  // CALL putfloat
     // extern void print_str_no_nl(const char* str);  // CALL print_str_no_nl
     // extern oid print_str_no_nl_impl(const char* str);  // CALL print_str_no_nl_impl
     // extern void println_hex(int val);  // CALL println_hex
     // extern void clear_screen(void);  // CALL clear_screen
-    // extern char getchar(void);  // CALL getchar
     // extern char* input_str(void);  // CALL input_str
     // extern int input_int(void);  // CALL input_int
     // extern float input_float(void);  // CALL input_float

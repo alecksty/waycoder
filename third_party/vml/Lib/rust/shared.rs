@@ -1507,6 +1507,13 @@ fn zsqrt(a0: i32, a1: i32) {
     asm!("CALL zsqrt")
 }
 
+fn getchar() -> i32 {
+    asm!("CALL getchar")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn format_arg_count(a0: i32) -> i32 {
     asm!("CALL format_arg_count")
     let r: i32;
@@ -1521,50 +1528,85 @@ fn vsnprintf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
-fn con_clear_buffer_tail() -> i32 {
-    asm!("CALL con_clear_buffer_tail")
+fn con_putc(a0: i32) -> i32 {
+    asm!("CALL con_putc")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_repaint_all() -> i32 {
-    asm!("CALL con_repaint_all")
+fn con_puts(a0: i32) -> i32 {
+    asm!("CALL con_puts")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_doscolor(a0: i32) -> i32 {
-    asm!("CALL con_doscolor")
+fn con_putn(a0: i32) -> i32 {
+    asm!("CALL con_putn")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_ensure() -> i32 {
-    asm!("CALL con_ensure")
+fn con_cup(a0: i32, a1: i32) -> i32 {
+    asm!("CALL con_cup")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_clear_buffer() -> i32 {
-    asm!("CALL con_clear_buffer")
+fn con_dos2ansi(a0: i32) -> i32 {
+    asm!("CALL con_dos2ansi")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_paint(a0: i32, a1: i32) -> i32 {
-    asm!("CALL con_paint")
+fn con_sgr_fg(a0: i32) -> i32 {
+    asm!("CALL con_sgr_fg")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
 }
 
-fn con_newline() -> i32 {
-    asm!("CALL con_newline")
+fn con_sgr_bg(a0: i32) -> i32 {
+    asm!("CALL con_sgr_bg")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn con_sgr(a0: i32) -> i32 {
+    asm!("CALL con_sgr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn con_redraw_range(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL con_redraw_range")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn con_redraw_all() -> i32 {
+    asm!("CALL con_redraw_all")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn con_fill(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
+    asm!("CALL con_fill")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn con_init() -> i32 {
+    asm!("CALL con_init")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -1628,19 +1670,16 @@ fn cputs(a0: i32) {
     asm!("CALL cputs")
 }
 
+fn cprintf(a0: i32, a1: i32) {
+    asm!("CALL cprintf")
+}
+
 fn delline() {
     asm!("CALL delline")
 }
 
 fn insline() {
     asm!("CALL insline")
-}
-
-fn con_scan_code(a0: i32) -> i32 {
-    asm!("CALL con_scan_code")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
 }
 
 fn getch() -> i32 {
@@ -1662,10 +1701,6 @@ fn kbhit() -> i32 {
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
-}
-
-fn cprintf(a0: i32, a1: i32) {
-    asm!("CALL cprintf")
 }
 
 fn puthex(a0: i32) {
@@ -1693,13 +1728,6 @@ fn println_hex(a0: i32) {
 
 fn clear_screen() {
     asm!("CALL clear_screen")
-}
-
-fn getchar() -> i32 {
-    asm!("CALL getchar")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
 }
 
 fn input_str() -> i32 {

@@ -751,6 +751,7 @@ HALT
         // 堆叠起来就是几十屏残影）。判据在 `ScreenOutput`（纯逻辑、桌面自测钉过）。
         if (ScreenOutput.LooksFullScreen(io.Text))
         {
+            LastOutputWasGrid = true;
             var rows = TermRows > 0 ? TermRows : 25;      // 0 = 未知 ⇒ 老程序通用的 80×25
             var cols = TermCols > 0 ? TermCols : 80;
             var screen = new FrameBuffer(rows, cols);
@@ -771,6 +772,7 @@ HALT
         //     · `\t` 没了 ⇒ **表格的列全歪**
         //   放到 `ShellPage.Append` 里做是**来不及的** —— 那边拿到的已经是标记文本，
         //   控制字符早在这一步就没了（实测：探针程序在命令行页上就是那副样子）。
+        LastOutputWasGrid = false;       // 非全屏：是文本，照常折行
         var outTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(io.Text)).TrimEnd();
         var midTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diag)).TrimEnd();
         var errTxt = AnsiMarkup.ToMarkup(ShellControls.Apply(diagErr)).TrimEnd();
@@ -793,6 +795,20 @@ HALT
     /// 同一时刻只可能有一次运行在读它。做成一路透传的参数则要改 6 个签名，而它们
     /// 全都只为了把这一个数送到最里面 —— 那种"接线"正是本仓库反复踩的漂移来源。
     /// </summary>
+    /// <summary>
+    /// 上一次 <see cref="RunProgram"/> 的输出**是不是一块全屏网格**（命令行页据此决定
+    /// 要不要给它折行）。
+    ///
+    /// 为什么是静态的：与 <see cref="OnProgress"/> 同一条理由 —— **VML 的执行是排他的**
+    /// （`VmlTool.ExecutionMode = Exclusive` + 命令行页的 `_busy` 闸门），
+    /// 同一时刻只可能有一次运行在读写它。
+    ///
+    /// ⚠ 为什么不能用"逐行猜"代替这个标志：第一版按"可见字符全是空格"认画面行，
+    ///   而全屏画面里的**标题栏、菜单项、状态行都是有文字的** ⇒ 它们照旧被折。
+    ///   真机实测：80 列的网格被按自适应的 46 列折开，标题栏断成两行、边框全错位。
+    ///   **"这一块是画面"是块级事实，只能由产生它的人（这里）说出来。**
+    /// </summary>
+    public static bool LastOutputWasGrid { get; private set; }
     public static int TermCols { get; set; }
 
     /// <inheritdoc cref="TermCols"/>

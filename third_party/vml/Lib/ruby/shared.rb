@@ -483,24 +483,36 @@
 // CALL zsqr
 // extern fn zsqrt(double* z, double* result) -> void
 // CALL zsqrt
+// extern fn getchar(void) -> int
+// CALL getchar
 // extern fn format_arg_count(const char *format) -> int
 // CALL format_arg_count
 // extern fn vsnprintf(char *buf, const char *fmt, const int *args, int nargs) -> int
 // CALL vsnprintf
-// extern fn con_clear_buffer_tail(void) -> oid
-// CALL con_clear_buffer_tail
-// extern fn con_repaint_all(void) -> oid
-// CALL con_repaint_all
-// extern fn con_doscolor(int c) -> nt
-// CALL con_doscolor
-// extern fn con_ensure(void) -> oid
-// CALL con_ensure
-// extern fn con_clear_buffer(void) -> oid
-// CALL con_clear_buffer
-// extern fn con_paint(int x, int y) -> oid
-// CALL con_paint
-// extern fn con_newline(void) -> oid
-// CALL con_newline
+// extern fn con_putc(int c) -> oid
+// CALL con_putc
+// extern fn con_puts(const char *s) -> oid
+// CALL con_puts
+// extern fn con_putn(int v) -> oid
+// CALL con_putn
+// extern fn con_cup(int x, int y) -> oid
+// CALL con_cup
+// extern fn con_dos2ansi(int c) -> nt
+// CALL con_dos2ansi
+// extern fn con_sgr_fg(int c) -> oid
+// CALL con_sgr_fg
+// extern fn con_sgr_bg(int c) -> oid
+// CALL con_sgr_bg
+// extern fn con_sgr(int at) -> oid
+// CALL con_sgr
+// extern fn con_redraw_range(int y, int x0, int x1) -> oid
+// CALL con_redraw_range
+// extern fn con_redraw_all(void) -> oid
+// CALL con_redraw_all
+// extern fn con_fill(int x0, int y0, int x1, int y1, int ch, int at) -> oid
+// CALL con_fill
+// extern fn con_init(void) -> oid
+// CALL con_init
 // extern fn clrscr(void) -> void
 // CALL clrscr
 // extern fn clreol(void) -> void
@@ -527,20 +539,18 @@
 // CALL putch
 // extern fn cputs(const char *s) -> void
 // CALL cputs
+// extern fn cprintf(const char *fmt, ...) -> void
+// CALL cprintf
 // extern fn delline(void) -> void
 // CALL delline
 // extern fn insline(void) -> void
 // CALL insline
-// extern fn con_scan_code(int vml_key) -> nt
-// CALL con_scan_code
 // extern fn getch(void) -> int
 // CALL getch
 // extern fn getche(void) -> int
 // CALL getche
 // extern fn kbhit(void) -> int
 // CALL kbhit
-// extern fn cprintf(const char *fmt, ...) -> void
-// CALL cprintf
 // extern fn puthex(int val) -> void
 // CALL puthex
 // extern fn putfloat(float f) -> void
@@ -553,8 +563,6 @@
 // CALL println_hex
 // extern fn clear_screen(void) -> void
 // CALL clear_screen
-// extern fn getchar(void) -> char
-// CALL getchar
 // extern fn input_str(void) -> char*
 // CALL input_str
 // extern fn input_int(void) -> int
