@@ -68,7 +68,14 @@ rm -f "$TMP"
 #      · gpio                        —— 单片机引脚
 #    ⚠ `device` / `device64` **没排** —— 名字像硬件层，但它可能是 VM 自己的设备抽象
 #      （`ui_*` 那条链上要用），排错会让手机上的绘图/音效失灵。要用先查清调用方再排。
-MOBILE_EXCLUDE=(crt dos vga_text conio graphics graph browser_gfx gpio)
+#    ⚠ **`conio` 已从这张表里移出（2026-09-21）** —— 它当时被排是因为"它是 DOS/PC 的
+#      文本控制台"，而**现在它的实现是原生的**：`Lib/shared/src/conio.c` 全部落在
+#      `ui_*` 上（`ui_win_open`/`ui_rect`/`ui_text`/`ui_present`/`ui_wait`），
+#      与 `crt`/`dos`/`vga_text` 那种"直写 0xB8000 显存"的完全是两回事。
+#      排着它的症状很隐蔽：**手机上编译直接报「未定义的函数 'gotoxy'」**，
+#      而桌面上（`vmlcli`，不走这个 zip）跑得好好的 —— 实测就这么白查了一轮。
+#      ⇒ 加新模块时**必须回来检查这张表**：它是"同一份清单在第二处实现"的典型形态。
+MOBILE_EXCLUDE=(crt dos vga_text graphics graph browser_gfx gpio)
 
 # -X 去掉多余的文件属性（否则同样的内容在 mac/linux 上产出的 zip 字节不同，
 #    指纹会跟着变、白解压一次；虽然不影响正确性，但没必要）
