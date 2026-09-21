@@ -78,6 +78,7 @@ int main()
         printf("\nS2=%d", (int)stdscr != 0);
         printf("\nS3=%d", (int)w != (int)stdscr);
         printf("\nS4=%d", (int)stdscr);
+        printf("\nS5=%d", (int)w);
     }
 
     /* ── ⑦ `addwstr`：**宽字符**，逐码点编码成 UTF-8 落进缓冲 ──
@@ -132,31 +133,20 @@ int main()
 //      试过在那里改成 `LabelRef`，**但引出了回归**（`02-ptr-ptr.c` 的
 //      `char *rows[] = {"abc","def"}` 全变 NULL），已回退 —— 说明"裸标识符=标签引用"
 //      这个判据**太宽**，把"数组初始化器里的字符串标签"也圈进去了。
-//   ④ **真根因找到了：C 前端不认 `extern` 关键字**。
-//      链接产物里**同时**有两个符号：
-//        77:  stdscr: .word 0                        ← **主程序自己生成的**
-//        126: lib_curses_stdscr: .word lib_curses_sc_win   ← 库里真正的定义
-//      `curses.h` 里写的是 `extern WINDOW *stdscr;`（**声明**），
-//      而 `ASTNode` 只有 `IsStatic`、**没有 `IsExtern`**，
-//      `Parser.Statements.cs` 里**全无 `extern` 的处理** ⇒
-//      **前端把它当普通全局变量定义**，于是在**每个使用者的数据段**里
-//      都生成一个 `.word 0`；测试程序读 `[stdscr]` 解析到的正是**这个空的**。
+//   ④ **`extern` 已修好**（判据先行、一次定位）：`Parser.Declarations.cs` 那条
+//      顶层声明路径把存储类读进局部字符串 `storageClass` 却**从来没用**
+//      （`Parser.Statements.cs` 那条是读 `storageClassToken` 的 —— 两条路各写各的）。
+//      补上后 `IsExtern=True`、`inUsedVars=False` ✓，`stdscr` 从"恒为 NULL"
+//      变成**真实地址**（`S2=1`、`S4=5215`）。
+//      配套还要**登记 `externVariables`**：extern 变量不占数据段了，但代码生成
+//      查的是 `dataSection` ⇒ 不登记就报「未声明的变量」。
 //
-//      探针实测（`VML_TRACE_DATA=1`，已删）：
-//        `[DATA] key=lib_curses_stdscr ref=lib_curses_sc_win found=1 val=18768`
-//      —— 库那边的**值是对的**（18768），问题纯粹在"读到了另一个符号"。
-//
-//      **修法**（下一轮）：AST 加 `IsExtern` → 解析器认 `extern` →
-//      全局变量生成时**跳过 extern 声明的**（不占数据段槽位）。
-//
-//   ⑤ **上面的修法做了但没生效**（`stdscr: .word 0` 仍在）：
-//      `VariableDecl.IsExtern` 已加、`Parser.Statements.cs` 的存储类捕获**本来就认
-//      `TokenType.EXTERN`**（只是从没人读）、生成侧也过滤了 `!v.IsExtern` ——
-//      三处都对，产物却没变。**下一轮的第一件事**：确认
-//      `ast.Variables` 里那个 `stdscr` 的 `IsExtern` **到底是不是 true**
-//      （在 `CodeGenerator.Functions.cs` 的过滤处打一行），
-//      而不是再猜"哪一环没接上"。
-//      影响面远超 curses：**所有用 `extern` 声明跨模块全局变量的 C 代码**。
-//      ⚠ 这条已**独立于 curses**，值得单独一条判据（`extern int x;` 之后
-//      由别处定义、两处读到的必须是同一个）。
-// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=0|V=0,4|W=-1
+//   ⑤ **剩下的**（`S`/`S3`/`S5`，与 `extern` 无关，是新问题）：
+//        `S4=5215` 而 `S5=80` —— `initscr()` 在**调用方**拿到的是 **80**
+//        （正好是 `SCR_COLS`，即 `sc_win` 结构体的第二个字段）。
+//      但 `initscr` 的汇编是**对的**：
+//          move @R0 [lib_curses_stdscr]   ← R0 = 5215
+//          move @R13 @R12 / pop @R12 / pop @R15 / ret
+//      `ret` 时 R0 就是 5215 ⇒ **问题在调用侧**（`w = initscr();` 的赋值），
+//      或在链接器对这次调用的处理上。下一轮从这里接，**仍然先打判据**。
+// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=5215|S5=5215|V=0,4|W=-1
