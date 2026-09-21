@@ -350,6 +350,20 @@ public partial class ShellPage : ContentPage
     /// 尺寸变了要重新量：视口变高可能让"本来超屏"变成"不超屏"，滚动条得跟着消失。
     /// （只依赖 Scrolled 是不够的 —— 转屏后没有滚动事件，滚动条会赖着不走。）
     /// </summary>
+    /// <summary>
+    /// 离开本页时**把字号落盘**。
+    ///
+    /// ⚠ 这不是"顺手存一下"：捏合的收尾写在 `PinchEnded` 上，而那个事件**不保证一定来**
+    ///   （手势被别处接走、页面被切走都可能是最后一下）。实测漂过一次：屏幕上字号 96、
+    ///   存储里还是上一次的 6.75 ⇒ 标签按存储算出"自适应 96 列"（而当时代码读的正是存储），
+    ///   重启之后字号还会跳回去。**"一次性的收尾挂在结束事件上"的第三条路就是"离开这一页"。**
+    /// </summary>
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        if (Math.Abs(MauiShellStore.Font - _fontSize) > 0.01) MauiShellStore.Font = _fontSize;
+    }
+
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
@@ -832,7 +846,12 @@ public partial class ShellPage : ContentPage
 
         // 自适应档把**算出来的列数**也显示出来 —— 否则用户不知道"自适应"到底是几列，
         // 也就没法判断手上这个老程序该不该切到固定档。
-        var autoCols = ShellWrap.ColumnsForWidth(_outputWidth, MauiShellStore.Font);
+        // ⚠ 用**页面自己的 `_fontSize`**，不是 `MauiShellStore.Font`：屏幕上有多大是
+        //   `_fontSize` 说了算（它才是喂给画布的那个），存储里的值只是"下次进来用多少"。
+        //   两者**理论上**由 `SetFontSize` 一起写，但捏合的结束事件并不保证一定来
+        //   （实测就这么漂过一次：页面 96、存储 6.75 ⇒ 标签显示"自适应 96 列"而字大得离谱）。
+        //   标签跟着**看得见的那个值**走，漂了至少不会自己骗自己。
+        var autoCols = ShellWrap.ColumnsForWidth(_outputWidth, _fontSize);
         AutoSizeBtn.Text = autoCols > 0 ? $"自适应 {autoCols} 列" : "大小自适应";
         WidthFixedBtn.Text = $"横向固定 {MauiShellStore.RawCols}";
         FixedSizeBtn.Text = $"固定 {MauiShellStore.RawCols}×{MauiShellStore.RawRows}";

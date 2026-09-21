@@ -162,6 +162,8 @@ public class TerminalGrid : GraphicsView
             bool wasPinching = _pinchStartDist > 0;
             _pinchStartDist = 0;
             _dragging = false;
+            _barDrag = BarDrag.None;
+            StopFling();                     // 手势被打断时也别留着惯性在后台滑
             if (wasPinching) PinchEnded?.Invoke();
         };
     }
@@ -184,6 +186,8 @@ public class TerminalGrid : GraphicsView
 
     private void OnTouchStart(object? sender, TouchEventArgs e)
     {
+        StopFling();          // 手一碰就停（惯性期间再按下去 = 接管）
+        _samples.Clear();
         if (e.Touches.Length == 1 && TryHitBar(e.Touches[0], out var bar))
         {
             // 按在滚动条的滑块上 = **拖滚动条**（不是拖内容）。
@@ -268,6 +272,13 @@ public class TerminalGrid : GraphicsView
         _scrollX -= p.X - _dragLast.X;
         _scrollY -= p.Y - _dragLast.Y;
         _dragLast = p;
+
+        // 采样最近 100ms 的触摸点 —— 松手速度只能从这里算（见那组常量的说明）
+        long now = Environment.TickCount64;
+        _samples.Enqueue((now, p.X, p.Y));
+        while (_samples.Count > 1 && (now - _samples.Peek().Ticks > VelocityWindowMs || _samples.Count > 8))
+            _samples.Dequeue();
+
         ClampScroll();
         // 只有**本来就贴着底**才继续跟底：往上翻过之后新内容不该把他拽回去（终端的老规矩）
         _followEnd = _scrollY >= Math.Max(0, _contentH - ViewportHeight) - 1;
@@ -280,11 +291,78 @@ public class TerminalGrid : GraphicsView
         bool wasBarDrag = _barDrag != BarDrag.None;
         // 单指、几乎没动 = 点了一下（**不用 `TapGestureRecognizer`**，理由见 `Tapped`）
         // 拖滚动条不算"点了一下"（`_dragging` 在 `OnTouchStart` 里就没置位，这里再兜一道）
+        bool wasDragging = _dragging;
         if (_dragging && !wasPinching && !wasBarDrag && _movedDist < 10) Tapped?.Invoke();
         _pinchStartDist = 0;
         _dragging = false;
         _barDrag = BarDrag.None;
         if (wasPinching) PinchEnded?.Invoke();
+        // **惯性**：拖过内容、没在捏合、也没在拖滚动条时才滑（"点一下"不滑 —— `_movedDist` 太小，
+        // 速度自然也过不了门槛）。
+        else if (wasDragging && !wasBarDrag) StartFling();
+    }
+
+    // ── 惯性（物理反馈）──────────────────────────────────────────────
+
+    /// <summary>松手 → 按最近 100ms 的速度起滑（低于门槛就不滑，内容停在手指松开的位置）。</summary>
+    private void StartFling()
+    {
+        _velocityX = _velocityY = 0;
+        if (_samples.Count >= 2)
+        {
+            var first = _samples.Peek();
+            var last = _samples.Last();
+            float sec = (last.Ticks - first.Ticks) / 1000f;
+            if (sec > 0.01f)
+            {
+                // 手指上滑 ⇒ 内容上滚（`_scrollY` 增大），与 `OnTouchDrag` 里那个减号同向
+                _velocityY = -(last.Y - first.Y) / sec;
+                _velocityX = -(last.X - first.X) / sec;
+            }
+        }
+        _samples.Clear();
+
+        if (Math.Abs(_velocityY) < MinFlingVelocity && Math.Abs(_velocityX) < MinFlingVelocity)
+        {
+            StopFling();
+            return;
+        }
+
+        // 过了门槛才放大（放在门槛之前等于顺手把门槛降低了）
+        _velocityY *= FlingLaunchGain;
+        _velocityX *= FlingLaunchGain;
+
+        _fling ??= Dispatcher.CreateTimer();
+        _fling.Interval = TimeSpan.FromMilliseconds(16);
+        _fling.Tick -= OnFlingTick;
+        _fling.Tick += OnFlingTick;
+        _fling.Start();
+    }
+
+    private void OnFlingTick(object? sender, EventArgs e)
+    {
+        const double dt = 0.016;        // 16ms 一帧
+        _velocityX *= FlingFriction;
+        _velocityY *= FlingFriction;
+        _scrollX += _velocityX * dt;
+        _scrollY += _velocityY * dt;
+        ClampScroll();
+        Invalidate();
+
+        if (Math.Abs(_velocityX) < FlingStopVelocity && Math.Abs(_velocityY) < FlingStopVelocity) StopFling();
+    }
+
+    /// <summary>
+    /// 停惯性。
+    ///
+    /// ⚠ **收尾要连速度一起清**：只 `Stop()` 的话，下一次 `OnFlingTick`（若定时器又被别处
+    ///   启动）会带着旧速度继续滑。而且 `_samples` 也要清 —— 它记的是**上一次**手势的轨迹。
+    /// </summary>
+    private void StopFling()
+    {
+        _fling?.Stop();
+        _velocityX = _velocityY = 0;
+        _samples.Clear();
     }
 
     // ── 滚动条：**画**与**拖**共用同一份几何 ──────────────────────────
@@ -307,6 +385,29 @@ public class TerminalGrid : GraphicsView
 
     /// <summary>滑块最短长度 —— 内容再长也要留一个能按住的东西。</summary>
     private const float BarMinThumb = 24f;
+
+    /* ── 惯性（"物理反馈"）──
+     *
+     * 用户点名的：「滚动少了物理反馈」—— 手指一松画面就**定住**，真终端/编辑器都是滑一段再停。
+     * 常量与算法**照抄编辑器**（`CodeCanvasView` 的 `StartFling`/`OnFlingTick`）：那组数是
+     * 实测调过两轮的，自己另凑一套只会两边手感不一样。
+     *
+     * ⚠ 三条别改错（编辑器那份注释里记着为什么）：
+     *   · 松手速度 = **最近 100ms 的位移 ÷ 时间**，不是"总位移 × 系数"
+     *     （轻扫位移小 ⇒ 估出≈0 ⇒ 几乎不滑；按住拖很远再松手反而窜出去）；
+     *   · `FlingLaunchGain`（放大初速）与 `FlingFriction`（每帧保留比例）**管的是两件事**：
+     *     前者只管"第一秒滑多远"，后者同时决定"滑多远"与"滑多久"；
+     *   · 放大要**放在起步门槛之后**，否则等于顺手把门槛降低了。
+     */
+    private const long VelocityWindowMs = 100;
+    private const float MinFlingVelocity = 40f;
+    private const float FlingStopVelocity = 60f;
+    private const float FlingLaunchGain = 2.6f;
+    private const float FlingFriction = 0.98f;
+
+    private readonly Queue<(long Ticks, float X, float Y)> _samples = new();
+    private double _velocityX, _velocityY;
+    private IDispatcherTimer? _fling;
 
     private enum BarDrag { None, Vertical, Horizontal }
 
