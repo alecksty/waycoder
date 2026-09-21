@@ -70,6 +70,19 @@ public enum ErrorCode
     CodeGen_UnusedFunction = 1316,
     /// <summary>定义了但从未被引用的局部变量（**警告**）。</summary>
     CodeGen_UnusedVariable = 1317,
+    /// <summary>
+    /// **实参个数不足**（1318）。
+    ///
+    /// 目前只有那几个「前端直接生成指令」的内置函数（`getenv`/`setenv`/`PEEK`/`POKE`…）
+    /// 会报它 —— 它们要在编译期取 `Args[0]`/`Args[1]`，少一个就
+    /// `ArgumentOutOfRangeException` 抛到用户脸上（一行 .NET 异常文本，
+    /// **没有文件名、没有行号、没有诊断码**）。
+    ///
+    /// ⚠ 与普通函数**不一致**，这是已知的：C 前端对 `strlen()` / 用户函数
+    /// **一概不做参数个数检查**（实测少传照样编过）。要统一得先有"声明表"，
+    /// 那是另一件事；这里只保证**内置函数这条路不再是崩溃**。
+    /// </summary>
+    CodeGen_ArgCountMismatch = 1318,
 
     // ---- 通用编译错误 (1400-1499) ----
     Compilation_LibraryNotFound = 1400,

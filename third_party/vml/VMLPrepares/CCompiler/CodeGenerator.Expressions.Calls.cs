@@ -71,6 +71,7 @@ namespace CCompiler
             else if (funcCall.Name == "getenv")
             {
                 // getenv(name) -> SYSCALL 360 (GetEnv)
+                if (funcCall.Args.Count < 1) { ReportArgCount("getenv", 1, funcCall.Args.Count); EmitUndefinedFallback(); return; }
                 GenerateExpression(funcCall.Args[0]); // name string addr -> R0
                 instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 360) }));
                 // Result: R0 = address of value string (or 0 if not found)
@@ -79,6 +80,7 @@ namespace CCompiler
             else if (funcCall.Name == "setenv")
             {
                 // setenv(name, value) -> SYSCALL 361 (SetEnv)
+                if (funcCall.Args.Count < 2) { ReportArgCount("setenv", 2, funcCall.Args.Count); EmitUndefinedFallback(); return; }
                 GenerateExpression(funcCall.Args[0]); // name string addr -> R0
                 GenerateExpression(funcCall.Args[1]); // value string addr -> R1
                 instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 361) }));
@@ -102,6 +104,7 @@ namespace CCompiler
             else if (funcCall.Name == "PEEK")
             {
                 // PEEK(addr) → CALL vml_peek (寄存器约定: R0=addr, 返回值 R0)
+                if (funcCall.Args.Count < 1) { ReportArgCount("PEEK", 1, funcCall.Args.Count); EmitUndefinedFallback(); return; }
                 GenerateExpression(funcCall.Args[0]);
                 instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, "peek") }));
                 return;
@@ -109,6 +112,7 @@ namespace CCompiler
             else if (funcCall.Name == "POKE")
             {
                 // POKE(addr, val) → CALL vml_poke (寄存器约定: R0=val, R1=addr)
+                if (funcCall.Args.Count < 2) { ReportArgCount("POKE", 2, funcCall.Args.Count); EmitUndefinedFallback(); return; }
                 GenerateExpression(funcCall.Args[0]);  // addr → R0
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
                 GenerateExpression(funcCall.Args[1]);  // val → R0

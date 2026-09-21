@@ -88,6 +88,37 @@ for f in "$CASES"/*.c; do
     # `${arr[@]+...}`：bash 3.2（macOS 自带）在 `set -u` 下展开**空数组**会报 unbound variable
     out="$(run_to dotnet "$CLI" "$f" --timeout 60 ${stdin_args[@]+"${stdin_args[@]}"} 2>"$errf" | ansi2txt)"
 
+    # ── `// EXPECT-COMPILE-ERROR: <子串>`：这条用例**应当编译失败** ──
+    #
+    # 加这条约定的理由：**"编译器该报错却崩了/静默通过"这一类此前一条判据都没有**，
+    # 而它们恰恰是最难发现的（编译期就结束，跑不到任何输出）。
+    # 实测 `int main(){ (void)getenv(); }` 报的是
+    # `Index was out of range. Must be non-negative...` —— 一行 .NET 异常文本，
+    # **没有文件名、没有行号、没有诊断码**，而它被当成"正常的编译失败"吞掉了。
+    #
+    # 判据是 **stderr 里出现该子串**（诊断文本从 stderr 出，见脚本开头那三条约定）。
+    # 可以写**多条**（每条都必须出现）—— 用于压"一次要把该报的都报出来"，
+    # 例如 `cases/30` 同时缺 getenv/POKE/setenv 的参数：只报第一个的话，
+    # 用户得改一个编一次、来回好几轮。
+    exp_errs="$(grep -o "EXPECT-COMPILE-ERROR:.*" "$f" | sed 's/EXPECT-COMPILE-ERROR: *//')"
+    if [ -n "$exp_errs" ]; then
+        missing=""
+        while IFS= read -r one; do
+            [ -z "$one" ] && continue
+            grep -qF "$one" "$errf" 2>/dev/null || missing="$missing 「$one」"
+        done <<< "$exp_errs"
+        if [ -z "$missing" ]; then
+            printf "  ✅ %-18s 编译失败且诊断齐备（%s 条断言）\n" "$name" "$(printf '%s\n' "$exp_errs" | wc -l | tr -d ' ')"
+            pass=$((pass+1))
+        else
+            printf "  ❌ %-18s\n     期望编译失败且诊断含%s\n     实得 stderr 尾部 %s\n" \
+                "$name" "$missing" "$(tail -3 "$errf" 2>/dev/null | tr '\n' ' ')"
+            fail=$((fail+1))
+        fi
+        rm -f "$errf"
+        continue
+    fi
+
     # 用例里带 `// EXPECT:` 注释行给期望值；逐行比对
     exp="$(grep -o "EXPECT:.*" "$f" | sed 's/EXPECT: *//')"
     # **已知红**：这条判据压的是"已确认、尚未修"的缺陷。留它在套件里的价值是

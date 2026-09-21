@@ -101,6 +101,23 @@ namespace CompilerBase
         }
 
         /// <summary>
+        /// 报一个「**实参个数不足**」—— 收集，不抛（理由同 <see cref="ReportUndefined"/>：
+        /// 一次多报，且后续生成不级联崩）。
+        ///
+        /// 用在那些「前端**直接生成指令**」的内置函数上（`getenv`/`setenv`/`PEEK`/`POKE`）：
+        /// 它们要在编译期取 `Args[0]`/`Args[1]`，少一个就会
+        /// `ArgumentOutOfRangeException` 抛到用户脸上 —— 一行 .NET 异常文本，
+        /// **没有文件名、没有行号、没有诊断码**。实测 `int main(){ (void)getenv(); }`
+        /// 报的就是 `Index was out of range...`。
+        /// </summary>
+        protected void ReportArgCount(string funcName, int expected, int actual)
+        {
+            Diags.AddError(DiagFile, DiagLine, CurrentSourceColumn, ErrorCode.CodeGen_ArgCountMismatch,
+                $"'{funcName}' 需要 {expected} 个参数，这里只给了 {actual} 个",
+                "它是由编译器直接生成指令的内置函数，参数个数必须在编译期就定下来 —— 少一个就没法生成。");
+        }
+
+        /// <summary>
         /// 报一条「定义了但从未使用」的**警告**（不挡编译）。
         ///
         /// 用户要的：「那些定义了，却没有使用的局部变量或者函数（外部访问不了的），
