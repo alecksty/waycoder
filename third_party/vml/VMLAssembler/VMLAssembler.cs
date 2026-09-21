@@ -29,6 +29,28 @@ namespace VMLAssembler
     }
 
     /// <summary>
+    /// **标签引用** —— 数据段里"这个槽存的是某个标签的**地址**"的表示。
+    /// 序列化成 `.word &lt;标签名&gt;`，由链接器/汇编器把那个名字解析成地址。
+    ///
+    /// ⚠ 为什么不能拿 `string` 顶替：`string` 走的是 `.string "..."` 那条路
+    /// （真正的字符串常量 —— 分配的是**字符数据**）。拿它当标签名会得到
+    /// "内容恰好等于标签名的一段字符串"，而不是那个标签的地址。
+    /// 实测：`WINDOW *stdscr = &sc_win;` 于是恒为 NULL（`curses.h` 里
+    /// `extern WINDOW *stdscr;` 的每个使用者都拿到空指针）。
+    /// </summary>
+    public class LabelRef
+    {
+        public string Name;
+
+        public LabelRef(string name)
+        {
+            Name = name;
+        }
+
+        public override string ToString() => Name;
+    }
+
+    /// <summary>
     /// 宏定义
     /// </summary>
     public class MacroDefinition
@@ -507,6 +529,47 @@ namespace VMLAssembler
                 // 如果不是数字，返回原始字符串
                 return valueStr;
             }
+        }
+
+        /// <summary>
+        /// `.word` 专用取值：与 <see cref="ParseValue"/> 的差别只有一条 ——
+        /// **裸标识符当成"标签引用"**（`LabelRef`）而不是字符串。
+        ///
+        /// <para>
+        /// 为什么必须分开：`.word sc_win` 是**取址初始化**（`T *p = &x;`）落成的形态，
+        /// 它要的是**那个标签的地址**。而 `ParseValue` 对"不是数字"的输入
+        /// **原样返回字符串** —— 那会被序列化成 `.string "sc_win"`，
+        /// 即"一段内容恰好等于标签名的字符数据"，与地址毫无关系。
+        /// 实测：`WINDOW *stdscr = &sc_win;` 因此恒为 NULL，
+        /// 而 `stdscr` 是老程序最常用的全局对象（`cmatrix` 的读键节拍器就靠它）。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 判据要**排除引号**：`ParseValue` 会把 `"abc"` 的引号剥掉再返回，
+        /// 剥完与"裸标识符"长得一样 —— 只看返回值分不出这两种来源，
+        /// 所以这里在调用**之前**就记下"原本带不带引号"。
+        /// </para>
+        /// </summary>
+        private object ParseWordValue(string valueStr)
+        {
+            string t = valueStr.Trim();
+            bool quoted = t.StartsWith("\"") || t.StartsWith("'");
+            object v = ParseValue(t);
+            if (!quoted && v is string s && IsIdentifierLike(s))
+                return new LabelRef(s);
+            return v;
+        }
+
+        /// <summary>是否是"标识符形态"（首字符字母/下划线，其余字母数字下划线）</summary>
+        private static bool IsIdentifierLike(string s)
+        {
+            if (s.Length == 0) return false;
+            if (!(char.IsLetter(s[0]) || s[0] == '_')) return false;
+            for (int i = 1; i < s.Length; i++)
+            {
+                if (!(char.IsLetterOrDigit(s[i]) || s[i] == '_')) return false;
+            }
+            return true;
         }
 
         /// <summary>

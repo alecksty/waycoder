@@ -13,8 +13,11 @@ namespace CCompiler
             while (Match(TokenType.COMMA))
             {
                 ASTNode right = ParseAssignment();
-                // 逗号表达式：返回右边的值
-                expr = right;
+                /* 逗号表达式：**两边都求值**（左边求完丢弃），值取右边。
+                   ⚠ 原来这里写的是 `expr = right;` —— 直接把左边丢掉，
+                   于是左边的**副作用根本不生成代码**（`getmaxyx` 这类宏全靠副作用）。
+                   见 `CommaExpr` 的注释。 */
+                expr = new CommaExpr(expr, right);
             }
             return expr;
         }

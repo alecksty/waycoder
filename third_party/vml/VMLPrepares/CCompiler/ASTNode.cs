@@ -387,6 +387,33 @@ namespace CCompiler
     }
 
     /// <summary>
+    /// 逗号表达式 `（左, 右）`：**两边都求值**（左边求完丢弃），整个表达式的值取**右边**。
+    ///
+    /// ⚠ 这一条踩过，而且症状极隐蔽 —— 因为**"值"是对的**（本来就该取右边），
+    /// 丢的只有**左边的副作用**。早先的解析器写的是 `expr = right;`，
+    /// 把左边整个丢掉，于是左边的赋值/函数调用**根本不生成代码**。
+    ///
+    /// 实测：`curses.h` 的 `getmaxyx(win,y,x)` 展开是
+    /// `((y) = (win)->rows, (x) = (win)->cols)` —— **标准头里这种宏遍地都是**
+    /// （`getbegyx`/`getparyx` 同款）。丢弃左边之后 `y` 拿不到值，
+    /// 调用方读到的**还是自己栈上的哨兵值**（实测 `-9`），
+    /// 而 `x` 恰好是对的 ⇒ "同一句话里一个对、一个错"，是这类缺陷的指纹。
+    ///
+    /// 判据：`scripts/vml-c-probe/cases/20-curses-api.c` 的 `S`/`T`/`U` 三条。
+    /// </summary>
+    public class CommaExpr : ASTNode
+    {
+        public ASTNode Left { get; set; }
+        public ASTNode Right { get; set; }
+
+        public CommaExpr(ASTNode left, ASTNode right)
+        {
+            Left = left;
+            Right = right;
+        }
+    }
+
+    /// <summary>
     /// 一元运算
     /// </summary>
     public class UnaryOp : ASTNode

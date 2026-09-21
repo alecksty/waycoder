@@ -958,6 +958,11 @@ namespace CCompiler
 
         private ExprType InferExpressionType(ASTNode node)
         {
+            /* 逗号表达式的类型 = **右边**的类型（整个表达式的值取右边） */
+            if (node is CommaExpr commaNode)
+            {
+                return InferExpressionType(commaNode.Right);
+            }
             if (node is CharLiteral)
             {
                 return ExprType.Char;

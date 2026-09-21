@@ -202,6 +202,27 @@ namespace CCompiler
                     // 字符串初始化
                     dataSection[varDecl.Name] = strLiteral.Value;
                 }
+                else if (varDecl.Initializer is UnaryOp addrOf && addrOf.Op == "&")
+                {
+                    /* **取址初始化**：`T *p = &target;` ——
+                       写进去的那个名字会被**当作标签引用**（链接器解析成地址），
+                       与 `StringLiteral` 那条同一条通路（注释里说的 `.word abc` 形态
+                       在这里正是想要的）。
+
+                       ⚠ 踩过，而且是**大面积的**：没有这一支时它落到下面的
+                       "未初始化 ⇒ 0"。实测 `curses.c` 的 `WINDOW *stdscr = &sc_win;`
+                       生成的正是 `.word 0` ⇒ **`stdscr` 在每个使用者那边都是 NULL**。
+                       而 `stdscr` 是老程序最常用的全局对象 ——
+                       `cmatrix` 的节拍器 `timeout(0); wgetch(stdscr);` 里，
+                       `wgetch` 的实现是 `win = w ? w : stdscr`，NULL 让
+                       `win->nodelay` 那条判断被跳过 ⇒ **非阻塞读键静默退化成阻塞**
+                       ⇒ 整类动画程序一帧都画不出来。
+                       判据：`scripts/vml-c-probe/cases/20-curses-api.c` 的 `S`/`S2`。 */
+                    if (addrOf.Operand is Identifier addrTarget)
+                        dataSection[varDecl.Name] = new LabelRef(addrTarget.Name);
+                    else
+                        dataSection[varDecl.Name] = 0;
+                }
                 else
                 {
                     // 未初始化

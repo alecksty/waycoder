@@ -6,7 +6,7 @@
 
 .data
 sc_win: .word 0
-stdscr: .word 0
+stdscr: .word sc_win
 sc_ch: .word[2000] 0
 sc_at: .word[2000] 0
 sc_cy: .word 0

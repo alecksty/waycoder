@@ -203,6 +203,16 @@ namespace CCompiler
             {
                 GenerateUnaryOp(unaryOp);
             }
+            else if (node is CommaExpr commaExpr)
+            {
+                /* 逗号表达式：**先求左边（值丢弃，但副作用必须真的发生）**，再求右边 ——
+                   右边的值留在 R0 作为整个表达式的值。
+                   ⚠ 左边**必须真的生成代码**：`getmaxyx(win,y,x)` 这类标准头的宏
+                   （展开是 `((y)=…, (x)=…)`）整套依赖左边赋值的副作用，
+                   只取右边的值等于把那个赋值整个丢掉。 */
+                GenerateExpression(commaExpr.Left);
+                GenerateExpression(commaExpr.Right);
+            }
             else if (node is Assignment assignment)
             {
                 GenerateAssignment(assignment);

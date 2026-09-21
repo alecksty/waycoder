@@ -231,6 +231,16 @@ namespace VMLAssembler
                             {
                                 dataSection[name] = val;
                             }
+                            else
+                            {
+                                /* `.word <标签名>` —— **取址初始化**（`T *p = &x;`）落成的形态。
+                                   解析成 `LabelRef`，序列化时再写回 `.word <名字>`，
+                                   由链接器把那个名字解析成**地址**。
+                                   ⚠ 此前这一支是**空的**：`.word sc_win` 解析不出整数就
+                                   什么都不做 ⇒ `dataSection` 里没这一项 ⇒ 该槽位**丢失**
+                                   （实测 `stdscr` 恒为 NULL，见 `LabelRef` 的注释）。 */
+                                dataSection[name] = new LabelRef(valPart);
+                            }
                         }
                         else if (valueStr.Contains(".string"))
                         {
@@ -425,6 +435,13 @@ namespace VMLAssembler
                 {
                     string escaped = str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
                     sb.Append($"{data.Key}: .string \"{escaped}\"\n");
+                }
+                else if (data.Value is LabelRef labelRef)
+                {
+                    /* **标签引用** ⇒ `.word <标签名>`（汇编器把它解析成那个标签的地址）。
+                       ⚠ 不能省成 `string` 那条分支 —— 那会写成 `.string "sc_win"`
+                       （一段**内容**等于标签名的字符数据），不是地址。见 `LabelRef` 的注释。 */
+                    sb.Append($"{data.Key}: .word {labelRef.Name}\n");
                 }
                 else if (data.Key != null && data.Key.StartsWith("flt_"))
                 {
