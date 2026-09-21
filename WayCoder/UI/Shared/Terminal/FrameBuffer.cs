@@ -199,9 +199,33 @@ namespace WayCoder.UI.Shared.Terminal;
                 else if (code == 49) _curBg = 0;
                 else if (code == 38 || code == 48)
                 {
-                    // 38;5;N / 48;5;N / 38;2;R;G;B —— 跳过后续参数，不做精确记录
-                    if (k + 1 < parts.Length && parts[k + 1] == "5") k += 2;
-                    else if (k + 1 < parts.Length && parts[k + 1] == "2") k += 4;
+                    // 38;5;N / 48;5;N（256 色）与 38;2;R;G;B / 48;2;R;G;B（真彩）。
+                    //
+                    // ⚠ 这里原先**跳过不记**（注释写着"不做精确记录"）⇒ 一切用 256 色 / 真彩
+                    //   作画的程序，网格里**一个颜色都没有**。症状极具误导性：程序跑完了、
+                    //   网格也有那么多行，屏幕上却什么都没有 —— 因为 nyancat 那类程序"画"的是
+                    //   **带背景色的空格**，底色一丢就只剩空格，转成标记后整段被 `TrimEnd` 掉
+                    //   （连"有没有内容"都看不出来，实测 `标记长=0`）。
+                    //
+                    // 表示法**收成真彩一种**：256 色在这里就换算成 RGB（`Xterm256ToRgb`）。
+                    // 一处编码，下游四条（DumpAnsi / AnsiMarkup / MarkupToFormattedString /
+                    // RenderPng 的 `AnsiToRgba`）都不必再认第二种编码。
+                    if (k + 1 < parts.Length && parts[k + 1] == "5"
+                        && k + 2 < parts.Length && int.TryParse(parts[k + 2], out var idx))
+                    {
+                        var (r, g, b) = AnsiTty.Xterm256ToRgb(idx);
+                        var rgb = 0x1000000 | (r << 16) | (g << 8) | b;
+                        if (code == 38) _curFg = rgb; else _curBg = rgb;
+                        k += 2;
+                    }
+                    else if (k + 1 < parts.Length && parts[k + 1] == "2" && k + 4 < parts.Length
+                        && int.TryParse(parts[k + 2], out var tr) && int.TryParse(parts[k + 3], out var tg)
+                        && int.TryParse(parts[k + 4], out var tb))
+                    {
+                        var rgb = 0x1000000 | ((tr & 0xFF) << 16) | ((tg & 0xFF) << 8) | (tb & 0xFF);
+                        if (code == 38) _curFg = rgb; else _curBg = rgb;
+                        k += 4;
+                    }
                 }
                 // 其余（1 粗体 / 2 淡化 / 22 取消粗体 等）不参与 fg/bg 采集
             }
@@ -242,8 +266,8 @@ namespace WayCoder.UI.Shared.Terminal;
                     if (fg != lastFg || bg != lastBg)
                     {
                         sb.Append(AnsiString.AnsiCharPrefix + "[0m");
-                        if (fg > 0) sb.Append($"{AnsiString.AnsiCharPrefix}[{fg}m");
-                        if (bg > 0) sb.Append($"{AnsiString.AnsiCharPrefix}[{bg}m");
+                        if (fg > 0) sb.Append(Sgr(fg, 38));
+                        if (bg > 0) sb.Append(Sgr(bg, 48));
                         lastFg = fg; lastBg = bg;
                     }
                     sb.Append(_cell[r][c]);
@@ -253,6 +277,19 @@ namespace WayCoder.UI.Shared.Terminal;
             while (lines.Count > 0 && lines[^1].TrimEnd(AnsiString.AnsiCharPrefix).Length == 0) lines.RemoveAt(lines.Count - 1);
             return lines;
         }
+
+        /// <summary>
+        /// 把一个色码写成 SGR 片段：16 色 → `ESC[&lt;code&gt;m`；真彩（`≥0x1000000`）
+        /// → `ESC[38;2;r;g;bm` / `ESC[48;2;r;g;bm`（<paramref name="base38or48"/> 定前后景）。
+        ///
+        /// ⚠ **真彩必须走 `38;2`/`48;2` 这个形状**：直接把 `0x1000000|rgb` 当裸码写成
+        /// `ESC[16711680m` 是**另一个意思**（终端会当非法/忽略），颜色就丢了。
+        /// 256 色在 `ApplySgr` 里已经换算成真彩，所以这里只需认两种。
+        /// </summary>
+        static string Sgr(int code, int base38or48)
+            => code >= 0x1000000
+                ? $"{AnsiString.AnsiCharPrefix}[{base38or48};2;{(code >> 16) & 0xFF};{(code >> 8) & 0xFF};{code & 0xFF}m"
+                : $"{AnsiString.AnsiCharPrefix}[{code}m";
 
         /// <summary>把标准 ANSI 色码映射为可读名称（供颜色图例/诊断输出）。</summary>
         static string ColorName(int code)

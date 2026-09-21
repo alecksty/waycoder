@@ -943,6 +943,11 @@ public partial class ShellPage : ContentPage
     /// <summary>重新量内容/视口，把**两个轴**的滚动条都刷新一遍。</summary>
     private void UpdateScrollBar()
     {
+        // 布局落定之后**再播报一次**终端尺寸 —— 构造期那次量到的是 0，
+        // 全屏程序会照着兜底值建网格（见 PublishTerminalSize 的说明）。
+        // 放在这里是因为它本来就在"量视口"的时机被调度，不另开一条触发链。
+        PublishTerminalSize();
+
         // ── 竖轴 ──
         // ⚠ **固定高度那一档不出竖条**（用户点名："滚动条只有一层，内层没有滚动条"）：
         //   那一档是老显示器语义 —— 屏幕就 N 行，滚出去的就没了（见 DisplayText），
@@ -1200,15 +1205,30 @@ public partial class ShellPage : ContentPage
             OutputScroll.HeightRequest = wantHeight;         // -1 = 交给布局算
         OutputScroll.VerticalOptions = rows > 0 ? LayoutOptions.Start : LayoutOptions.Fill;
 
-        // 把当前终端尺寸**告诉 VML 宿主** —— 全屏程序（nyancat / curses 那类）要按这个
-        // 建 `rows×cols` 网格（见 `MauiVml.RunProgram` 的屏幕分支）。
-        // 自适应档行数只能**估**（可见高度 ÷ 行高），估不出来就给 0 = 未知，
-        // 由那边退回 80×25（老程序通用的假设）—— 别在这里编一个数。
+        PublishTerminalSize();
+    }
+
+    /// <summary>
+    /// 把当前终端尺寸**告诉 VML 宿主** —— 全屏程序（nyancat / curses 那类）要按这个
+    /// 建 `rows×cols` 网格（见 `MauiVml.RunProgram` 的屏幕分支）。
+    ///
+    /// ⚠ **必须在"布局落定之后"也调一次**（<see cref="UpdateScrollBar"/> 里）。
+    /// 本函数在**构造期**就会被调用，那时 `OutputScroll` 还没量过 ⇒ `ViewportHeight = 0`、
+    /// `_outputWidth = 0` ⇒ 列数落到自适应下限、行数落到兜底 25。
+    /// 实测后果：nyancat 画在第 20~42 行，而网格只有 25 行 ⇒ **画面大半被裁**，
+    /// 看上去像"什么都没画"。
+    ///
+    /// 自适应档行数只能**估**（可见高度 ÷ 行高），估不出来就给 0 = 未知，
+    /// 由那边退回 80×25（老程序通用的假设）—— 别在这里编一个数。
+    /// </summary>
+    private void PublishTerminalSize()
+    {
         MauiVml.TermCols = EffectiveCols();
+        var rows = MauiShellStore.Rows;
         var px = ViewportHeight;
         MauiVml.TermRows = rows > 0
             ? rows
-            : (px > 0 ? (int)(px / (size * LineHeightFactor)) : 0);
+            : (px > 0 ? (int)(px / (MauiShellStore.Font * LineHeightFactor)) : 0);
     }
 
     /// <summary>

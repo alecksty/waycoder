@@ -1027,6 +1027,50 @@ public static partial class SelfTest
         // 混合：前面一堆线性输出 + 后面来一次定位 ⇒ 整体按全屏（程序确实在按坐标画）
         Check("ScreenOut: 线性输出里夹一次定位 ⇒ 算全屏",
             ScreenOutput.LooksFullScreen("building...\n\x1b[2J\x1b[Hredraw"));
+
+        // ── 色块画面的**上游**必须保留空白 ──
+        //
+        // nyancat 那类程序"画"的是**带背景色的空格**（`printf("  ")` 前挂 `ESC[48;5;Nm`）。
+        // 真机上整屏空白，根因在**平台渲染**（Android 的 Label 吃掉行尾空格 ⇒ 纯空格行
+        // 什么都没画），修法是移动端把这种段换成不换行空格。
+        // 但那条修法成立的前提是**上游一个字都没丢** —— 这里把前提钉住：
+        // 转标记 → 解析回来，必须仍是"两格空格 + 那个背景色"。
+        // 上游真丢了的话，移动端怎么换 NBSP 都没用（那正是本仓"改对一处 ≠ 修好了"）。
+        var ansi = "\x1b[0m\x1b[48;5;17m  \x1b[0m\x1b[48;5;15m  \x1b[0m";
+        var markup = AnsiMarkup.ToMarkup(ansi);
+        var segs = MarkdownParser.ParseInline(markup);
+        var spaceSegs = segs.Where(s => s.Text.Length > 0 && s.Text.Trim().Length == 0).ToList();
+        Check("ScreenOut: 带底色的空格段在标记链上不被丢",
+            spaceSegs.Count == 2 && spaceSegs.All(s => s.Text.Length == 2));
+        Check("ScreenOut: 那些空格段的**背景色**还在（bg ≥ 30 才画得出色块）",
+            spaceSegs.Count == 2 && spaceSegs.All(s => s.Bg >= 30));
+        Check("ScreenOut: 两段背景色**不同**（同色的话两格会并成一块，画面就没形状了）",
+            spaceSegs.Count == 2 && spaceSegs[0].Bg != spaceSegs[1].Bg);
+
+        // ── 网格必须记下 **256 色 / 真彩** ──
+        //
+        // 这条是本轮真机空白的**真根因**：`ApplySgr` 原先对 `38/48;5;N` 与 `38/48;2;…`
+        // **跳过不记**（注释写着"不做精确记录"）⇒ 一切用 256 色作画的程序（nyancat 就是）
+        // 在网格里一个颜色都没有。而它们"画"的是**带背景色的空格**，底色一丢只剩空格，
+        // 转成标记后整段被 TrimEnd 掉 —— 屏幕上什么都没有，连"有没有内容"都看不出来。
+        var fb256 = new FrameBuffer(1, 2);
+        fb256.Apply("\x1b[48;5;17m  ");
+        var d256 = fb256.DumpAnsi()[0];
+        // 17 → xterm256 立方 1 → rgb(0,0,95)，且**必须写成 48;2;0;0;95 这个形状**
+        // （把 0x1000000|rgb 当裸码写出去是另一个意思，颜色会丢）
+        Check("ScreenOut: 256 色背景被记下并转成真彩 SGR（48;2;0;0;95）",
+            d256.Contains("[48;2;0;0;95m"));
+
+        var fbTc = new FrameBuffer(1, 1);
+        fbTc.Apply("\x1b[38;2;1;2;3mX");
+        Check("ScreenOut: 真彩前景原样记下（38;2;1;2;3）",
+            fbTc.DumpAnsi()[0].Contains("[38;2;1;2;3m"));
+
+        // 反方向：16 色**不许**被改写成真彩（否则老程序的配色会漂）
+        var fb16 = new FrameBuffer(1, 1);
+        fb16.Apply("\x1b[41mX");
+        Check("ScreenOut: 16 色背景仍是 41（不被改写成真彩）",
+            fb16.DumpAnsi()[0].Contains("[41m") && !fb16.DumpAnsi()[0].Contains("48;2;"));
     }
 
     // ═══ 命令行窗口的三个尺寸模式（都不固定 / 横向固定 / 都固定） ═══

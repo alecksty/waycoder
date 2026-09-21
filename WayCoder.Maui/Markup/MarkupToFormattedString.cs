@@ -292,7 +292,27 @@ public static class MarkupToFormattedString
                     break;
             }
 
-            if (bg >= 30) span.BackgroundColor = ResolveColor(bg, Colors.Transparent);
+            if (bg >= 30)
+            {
+                span.BackgroundColor = ResolveColor(bg, Colors.Transparent);
+
+                // ⚠ **带底色的纯空白段必须换成不换行空格（U+00A0）**。
+                //
+                // 为什么：Android/MAUI 的 Label 按"词"排版，**行尾空格会被吃掉** ——
+                // 于是一个"整行都由带底色的空格组成"的画面（nyancat / 一切用色块作画的
+                // 老 TTY 程序就是这么画的：`printf("  ")` 前面挂一个背景色转义）
+                // **渲染成一片空白**。实测：屏幕模式生效、网格 25×50、非空 25 行，
+                // 屏幕上却什么都没有；而 `tty_legacy.c` 那条背景色正常，
+                // 差别只在于它那段里**有文字**。
+                //
+                // NBSP 既不参与折行、也不会被吞，宽度与普通空格一致 ⇒ 画面回来了，
+                // 且不影响任何"有文字"的底色段（那些走原样）。
+                //
+                // ⚠ 只换**整段纯空白**的那种，不做全局替换：带文字的底色段里
+                //   前导/中间空格本来就正常，动它只会白白污染复制粘贴的内容。
+                if (text.AsSpan().Trim().Length == 0)
+                    span.Text = text.Replace(' ', '\u00A0');
+            }
 
             fs.Spans.Add(span);
         }
