@@ -752,25 +752,111 @@ namespace VMLRuntime
             // 积累 UTF-8 字节（值 < 256）
             _utf8OutputBuffer.Add((byte)ch);
 
-            int utf8Len = ExpectedUtf8Bytes(_utf8OutputBuffer[0]);
-            if (_utf8OutputBuffer.Count < utf8Len)
-                return;
-
-            // 解码 UTF-8 序列并输出到控制台
-            string decoded;
-            try
-            {
-                decoded = System.Text.Encoding.UTF8.GetString(_utf8OutputBuffer.ToArray());
-            }
-            catch
-            {
-                decoded = "?";
-            }
-            _utf8OutputBuffer.Clear();
-
-            foreach (char c in decoded)
-                OutputChar(c);
+            /* 只要还能推进就继续吐 —— 一次 `putchar` 可能释放**多个**字符。
+               （`C4 C4 C4` 那串：第二个字节到了才判得出"第一个不是合法首字节"，
+                 于是只吐一个、把第二个留着；不循环也能对，只是每次都晚一拍。） */
+            while (TryFlushOneOutputUnit()) { }
         }
+
+        /// <summary>
+        /// 试着从 `_utf8OutputBuffer` **头部**解析出**一个**字符并输出。
+        /// 返回 <c>false</c> = 还需要更多字节（或缓冲已空）。
+        ///
+        /// <para>
+        /// **这里是"老程序框线全变 `�`"的修复点。** 原先的做法是"凑够
+        /// <see cref="ExpectedUtf8Bytes"/> 个字节就整体 `Encoding.UTF8.GetString`"，
+        /// 而**不合法的字节也照样凑够就吞**：DOS 程序的框线字节（`0xC4`=`─`、
+        /// `0xDA`=`┌`、`0xB3`=`│`）落在 UTF-8 的**首字节区间**，解码器会把
+        /// **后面那个字节**当续字节一起吃掉，两个字节换一个 U+FFFD
+        /// ⇒ 框线变 `�` **而且字节数对不上**，整幅画面错位。
+        /// </para>
+        ///
+        /// <para>
+        /// 判据是**先验后吃**：验得过 ⇒ 多字节（中文一字不变）；
+        /// 验不过 ⇒ 这**不是**一个多字节序列的头，而是**一个单字节字符**，
+        /// 只吐**第一个**字节、**绝不吞掉后面那个**。单字节那一个按 CP437 翻译
+        /// （DOS 程序要的就是这个）。
+        /// </para>
+        /// </summary>
+        private bool TryFlushOneOutputUnit()
+        {
+            if (_utf8OutputBuffer.Count == 0) return false;
+
+            if (_legacyOutputEncoding)
+            {
+                // 单字节老编码：**一个字节就是一个字符，不等**。
+                OutputChar(VMLRuntime.Device.Cp437.ToChar(_utf8OutputBuffer[0]));
+                _utf8OutputBuffer.RemoveAt(0);
+                return true;
+            }
+
+            int need = ExpectedUtf8Bytes(_utf8OutputBuffer[0]);
+            if (_utf8OutputBuffer.Count < need) return false;
+
+            if (IsValidUtf8Unit(_utf8OutputBuffer, need))
+            {
+                string decoded = System.Text.Encoding.UTF8.GetString(
+                    _utf8OutputBuffer.GetRange(0, need).ToArray());
+                _utf8OutputBuffer.RemoveRange(0, need);
+                foreach (char c in decoded)
+                    OutputChar(c);
+                return true;
+            }
+
+            /* 解不出来 ⇒ 认定**整个程序**写的是单字节老编码，此后不再回头。
+
+               ⚠ **为什么必须是"粘性"的、而不是"这一个字节走 CP437、下一个再试 UTF-8"**：
+               CP437 的**合法 UTF-8 子串**真实存在，逐字节试会**在框线中间翻车** ——
+               最典型的是 `┌───┐`（`DA C4 C4 C4 BF`）：
+
+                   DA C4 → 不合法 ⇒ `┌` ✓
+                   C4 C4 → 不合法 ⇒ `─` ✓
+                   C4 BF → **合法 UTF-8**（U+013F `Ŀ`）⇒ 吐出一个 `Ŀ` ✗
+
+               双线框更糟：`╔══╗`（`C9 CD CD BB`）的 `CD BB` 也是合法 UTF-8。
+               **光看字节流分不开这两件事** —— 这是信息层面上的歧义，只能靠"这个程序
+               整体是哪一种"来定。判据取"第一个不合法字节"，粘住不再改。
+
+               ⚠ 代价（有意接受）：一个**同时**写中文和 CP437 框线的程序，
+               框线之后的中文会被按单字节解。这种混写实际上不存在
+               （程序要么是 UTF-8 的、要么是 DOS 时代的），而**框线画不出来**
+               是老程序兼容线上真实存在的那一类。 */
+            _legacyOutputEncoding = true;
+            OutputChar(VMLRuntime.Device.Cp437.ToChar(_utf8OutputBuffer[0]));
+            _utf8OutputBuffer.RemoveAt(0);
+            return true;
+        }
+
+        /// <summary>缓冲头部这 <paramref name="n"/> 个字节是不是**合法**的 UTF-8 单元。</summary>
+        private static bool IsValidUtf8Unit(List<byte> buf, int n)
+        {
+            byte b0 = buf[0];
+            switch (n)
+            {
+                case 1:
+                    // ⚠ 只有 ASCII 算"合法的单字节"。`0x80`–`0xBF` 是**续字节**、
+                    //   `0xF8`–`0xFF` 在 UTF-8 里根本不存在 —— 它们都该走 CP437 那条路。
+                    return b0 < 0x80;
+                case 2:
+                    // `0xC0`/`0xC1` 是**过长编码**，UTF-8 明文禁止
+                    return b0 >= 0xC2 && b0 <= 0xDF && IsContinuation(buf[1]);
+                case 3:
+                    if (!IsContinuation(buf[1]) || !IsContinuation(buf[2])) return false;
+                    if (b0 == 0xE0) return buf[1] >= 0xA0;   // 过长
+                    if (b0 == 0xED) return buf[1] <= 0x9F;   // 不许编码代理对
+                    return true;                              // E1–EF
+                case 4:
+                    if (!IsContinuation(buf[1]) || !IsContinuation(buf[2]) || !IsContinuation(buf[3]))
+                        return false;
+                    if (b0 == 0xF0) return buf[1] >= 0x90;   // 过长
+                    if (b0 == 0xF4) return buf[1] <= 0x8F;   // 上界 U+10FFFF
+                    return b0 >= 0xF1 && b0 <= 0xF3;          // F5–F7 超出 Unicode
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsContinuation(byte b) => b >= 0x80 && b <= 0xBF;
 
         private void OutputChar(char c)
         {
@@ -808,13 +894,23 @@ namespace VMLRuntime
             }
         }
 
+        /// <summary>
+        /// 这个字节**声称**后面还跟几个字节（含它自己）。
+        ///
+        /// ⚠ **判据要排除"根本不是首字节"的那些**，否则会白等 —— 而白等就是
+        /// **吞掉后面的字节**（`TryFlushOneOutputUnit` 要凑够才判）。原先写的是
+        /// 位掩码式（`(first & 0xE0) == 0xC0`），把 `0xC0`/`0xC1`（过长编码）
+        /// 也当成了两字节首字节，`0xF5`–`0xF7`（超出 Unicode）也当成了四字节。
+        /// 而 CP437 里 `0xF5`=`⌡`、`0xF6`=`÷`、`0xF7`=`≈` 都是**常用**字符 ——
+        /// 它们每一个都会先吞掉后面三个字节才被吐出来。
+        /// </summary>
         private static int ExpectedUtf8Bytes(byte first)
         {
-            if ((first & 0x80) == 0) return 1;
-            if ((first & 0xE0) == 0xC0) return 2;
-            if ((first & 0xF0) == 0xE0) return 3;
-            if ((first & 0xF8) == 0xF0) return 4;
-            return 1; // 无效字节，当作单字节处理
+            if (first < 0x80) return 1;                        // ASCII
+            if (first >= 0xC2 && first <= 0xDF) return 2;
+            if (first >= 0xE0 && first <= 0xEF) return 3;
+            if (first >= 0xF0 && first <= 0xF4) return 4;
+            return 1;   // 0x80–0xC1 / 0xF5–0xFF：**不是** UTF-8 首字节 ⇒ 单字节
         }
 
         /// <summary>

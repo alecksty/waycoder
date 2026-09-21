@@ -176,6 +176,18 @@ namespace VMLRuntime
         private readonly Dictionary<int, IntPtr> _nativeFuncPtrs = new();
         private int _nextNativeHandle = 1;
         private readonly List<byte> _utf8OutputBuffer = new(4);
+
+        /// <summary>
+        /// 输出字节流是不是**单字节老编码（CP437）**。
+        ///
+        /// <para>
+        /// 开局是 <c>false</c>（按 UTF-8）。遇到**第一个不合法**的字节序列就置位，
+        /// 此后一直按一个字节一个字符走 —— **不回头**。
+        /// 为什么必须粘性、以及 `┌───┐` 那个 `C4 BF` 恰好是合法 UTF-8 的例子，
+        /// 见 <c>VMLRuntime.Syscall.cs</c> 的 <c>TryFlushOneOutputUnit</c>。
+        /// </para>
+        /// </summary>
+        private bool _legacyOutputEncoding;
         private static readonly HashSet<int> UserAllowedSyscalls = SyscallConstants.UserAllowed;
         public bool DebugMode { get; set; } = false;
         public bool TraceMode { get; set; } = false;
