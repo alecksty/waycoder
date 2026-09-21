@@ -45,6 +45,38 @@ public class TerminalGrid : GraphicsView
     private double _fontSize = 12;
     private bool _isDark = true;
 
+    /* ── 滚动：**自己滚**（外面不套 `ScrollView`）──
+     *
+     * 用户点破的那条：「编辑器应该滚动条都是自己画的，所以没使用 scrollview 吧」——
+     * 对，编辑器正文就是一个裸 `CodeCanvasView`。**不套 `ScrollView` 的好处是没人跟画布
+     * 抢触摸流**：套着的时候双指的第二根手指会被滚动容器截走，捏合根本不触发（实测）。
+     * 滚动条也用同一套画笔自己画（`EditorTypography.BarIdle/Active` 那组颜色），
+     * 于是"系统那条叠成两层""轨道几何两处各算一遍"这些问题一并消失。 */
+    private double _scrollX;
+    private double _scrollY;
+    private double _contentW;
+    private double _contentH;
+    private bool _followEnd = true;              // 贴着底时才跟着新内容走（终端的老规矩）
+    private PointF _dragLast;
+    private bool _dragging;
+
+    /// <summary>内容高（像素）—— 滚动边界与滚动条都按它算。</summary>
+    public double ContentHeight => _contentH;
+
+    /// <summary>视口高（像素）。</summary>
+    public double ViewportHeight => Height;
+
+    /// <summary>当前纵向偏移。</summary>
+    public double ScrollY => _scrollY;
+
+    /// <summary>滚到底（贴底跟随时用）。</summary>
+    public void ScrollToEnd()
+    {
+        _scrollY = Math.Max(0, _contentH - ViewportHeight);
+        _followEnd = true;
+        Invalidate();
+    }
+
     /// <summary>
     /// 双指缩放的**目标字号**（`字号 = 起始字号 × 两指距离比`）。
     ///
@@ -85,21 +117,53 @@ public class TerminalGrid : GraphicsView
         {
             _pinchStartDist = Distance(e.Touches[0], e.Touches[1]);
             _pinchStartFont = _fontSize;
+            _dragging = false;
         }
-        else _pinchStartDist = 0;
+        else if (e.Touches.Length == 1)
+        {
+            _pinchStartDist = 0;
+            _dragLast = e.Touches[0];
+            _dragging = true;
+        }
     }
 
     private void OnTouchDrag(object? sender, TouchEventArgs e)
     {
-        if (e.Touches.Length < 2 || _pinchStartDist <= 0) return;
-        float d = Distance(e.Touches[0], e.Touches[1]);
-        if (d <= 0) return;
-        PinchScaled?.Invoke(_pinchStartFont * (d / _pinchStartDist));
+        // 双指 = 缩放（**优先**：缩放的每一拍都在变，不能同时当成滚动）
+        if (e.Touches.Length >= 2)
+        {
+            _dragging = false;
+            if (_pinchStartDist <= 0) return;
+            float d = Distance(e.Touches[0], e.Touches[1]);
+            if (d <= 0) return;
+            PinchScaled?.Invoke(_pinchStartFont * (d / _pinchStartDist));
+            return;
+        }
+
+        // 单指 = 滚动（像素跟手；`ScrollView` 没了，这就是唯一的滚动入口）
+        if (!_dragging || e.Touches.Length == 0) return;
+        var p = e.Touches[0];
+        _scrollX -= p.X - _dragLast.X;
+        _scrollY -= p.Y - _dragLast.Y;
+        _dragLast = p;
+        ClampScroll();
+        // 只有**本来就贴着底**才继续跟底：往上翻过之后新内容不该把他拽回去（终端的老规矩）
+        _followEnd = _scrollY >= Math.Max(0, _contentH - ViewportHeight) - 1;
+        Invalidate();
     }
 
     private void OnTouchEnd(object? sender, TouchEventArgs e)
     {
         _pinchStartDist = 0;
+        _dragging = false;
+    }
+
+    private void ClampScroll()
+    {
+        double maxY = Math.Max(0, _contentH - ViewportHeight);
+        double maxX = Math.Max(0, _contentW - Width);
+        _scrollY = Math.Clamp(_scrollY, 0, maxY);
+        _scrollX = Math.Clamp(_scrollX, 0, maxX);
     }
 
     /// <summary>格宽（像素）—— 由字号**算**出来，不问平台。</summary>
@@ -127,8 +191,13 @@ public class TerminalGrid : GraphicsView
         // 尺寸自己定：宽 = 最宽行的列数 × 格宽，高 = 行数 × 格高。
         // ⚠ 这两个数**必须与绘制用的是同一套尺子**（同一个 `CellWidth/CellHeight`），
         //   否则滚动条会与实际内容对不上（本仓记过："同一件事两处实现"）。
-        WidthRequest = Math.Max(1, cols * CellWidth);
-        HeightRequest = Math.Max(1, markupLines.Count * CellHeight);
+        _contentW = Math.Max(1, cols * CellWidth);
+        _contentH = Math.Max(1, markupLines.Count * CellHeight);
+        // ⚠ 这里**不设 WidthRequest/HeightRequest**（旧版设过）：画布的尺寸由布局给
+        //   （它现在占满输出区），内容尺寸另有 `_contentW/_contentH` —— 两者不是一回事，
+        //   混用会让"视口 = 内容"从而永远不需要滚动。
+        if (_followEnd) _scrollY = Math.Max(0, _contentH - ViewportHeight);
+        ClampScroll();
 
         _drawable.Grid = this;
         Invalidate();
@@ -177,6 +246,10 @@ public class TerminalGrid : GraphicsView
             canvas.Font = EditorTypography.CanvasFont;
             canvas.FontSize = (float)size;
 
+            // 自己滚：整幅内容按偏移平移（外面没有 `ScrollView` 替我们做这件事）
+            canvas.SaveState();
+            canvas.Translate((float)-g._scrollX, (float)-g._scrollY);
+
             for (int li = 0; li < g._lines.Count; li++)
             {
                 double y = li * ch;
@@ -207,6 +280,43 @@ public class TerminalGrid : GraphicsView
 
                     foreach (var r in text.EnumerateRunes()) col += Math.Max(1, AnsiString.CharWidth(r));
                 }
+            }
+
+            canvas.RestoreState();
+            DrawBars(canvas, g);
+        }
+
+        /// <summary>
+        /// 自己画滚动条（**只在内容超出视口时出现**）。
+        /// 颜色取编辑器那一组（`BarIdle`/`BarIdleDark`）—— 同一种东西不要两套配色。
+        /// </summary>
+        private static void DrawBars(ICanvas canvas, TerminalGrid g)
+        {
+            const float barW = 3f;
+            const float margin = 3f;
+            float vw = (float)g.Width, vh = (float)g.Height;
+            if (vh <= 0 || vw <= 0) return;
+
+            canvas.FillColor = g._isDark ? EditorTypography.BarIdleDark : EditorTypography.BarIdle;
+
+            if (g._contentH > vh)
+            {
+                float trackH = vh - margin * 2;
+                float thumbH = Math.Max(24f, trackH * (float)(vh / g._contentH));
+                float maxScroll = (float)(g._contentH - vh);
+                float t = maxScroll <= 0 ? 0 : (float)(g._scrollY / maxScroll);
+                float y = margin + t * (trackH - thumbH);
+                canvas.FillRoundedRectangle(vw - barW - margin, y, barW, thumbH, barW / 2);
+            }
+
+            if (g._contentW > vw)
+            {
+                float trackW = vw - margin * 2;
+                float thumbW = Math.Max(24f, trackW * (float)(vw / g._contentW));
+                float maxScroll = (float)(g._contentW - vw);
+                float t = maxScroll <= 0 ? 0 : (float)(g._scrollX / maxScroll);
+                float x = margin + t * (trackW - thumbW);
+                canvas.FillRoundedRectangle(x, vh - barW - margin, thumbW, barW, barW / 2);
             }
         }
 

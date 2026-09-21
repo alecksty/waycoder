@@ -67,10 +67,18 @@
             <!-- ⚠ `ScrollBarVisibility="Never"`（两个轴都要写）是**必须的**，不是样式偏好：
                  `ScrollView` 自带的那条系统滚动条在 Android 上滑动时会自己闪一条出来，
                  与我们自绘的那条（ScrollTrack/HScrollTrack）**叠成两层**。
-                 滚动条只留自绘的一层 —— 判据、几何、样式三样都在我们手里，系统那条不受控。 -->
+                 滚动条只留自绘的一层 —— 判据、几何、样式三样都在我们手里，系统那条不受控。
+
+                 ⚠ **但滚动现在整个交给画布自己做了**（`TerminalGrid` 自己滚 + 自己画滚动条），
+                 所以这个 `ScrollView` 只当"容器"用、**不再滚动**：`Orientation="Neither"`
+                 让它彻底不碰触摸流 —— 套着滚动容器时，双指的第二根手指会被容器截走，
+                 自绘画布的捏合收不到（实测）。这也是照编辑器来的：
+                 编辑器正文是个裸 `CodeCanvasView`，外面**没有** `ScrollView`（用户点破的那条）。
+                 上面那句"滚动条只留自绘的一层"仍然成立，只是现在那一层画在画布里。 -->
             <ScrollView
                 x:Name="OutputScroll"
                 Padding="12,4,16,4"
+                Orientation="Neither"
                 VerticalScrollBarVisibility="Never"
                 HorizontalScrollBarVisibility="Never"
                 Scrolled="OnOutputScrolled">

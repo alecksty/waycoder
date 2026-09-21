@@ -893,22 +893,14 @@ public partial class ShellPage : ContentPage
         // 原来是无条件弹到底 —— 一条命令持续吐输出（编译、下载、日志）时，
         // 用户往回翻一屏都做不到：每次新输出都把他拽回最底下。
         // 现在按终端的老规矩：贴底才跟随，一旦往上滚就"脱钩"，让用户安安静静看历史。
-        var follow = ScrollBarMath.IsAtBottom(ContentHeight, ViewportHeight, OutputScroll.ScrollY);
+        // 跟底判据改由**画布**给（它自己滚）：贴底才跟随新内容，往上一翻就脱钩
 
         // 走 FormattedText 而不是 Text —— 颜色就靠它（Text 是纯文本，标记会原样显示）
         RenderOutput();
 
-        // 排到下一拍：此刻刚换完 Text，布局还没算，量出来的高度还是旧值
-        // （滚动条显不显示、滑块多长、能不能贴底，都得等新布局落定）。
-        Dispatcher.Dispatch(() =>
-        {
-            if (follow)
-            {
-                try { OutputScroll.ScrollToAsync(0, ContentHeight, animated: false); }
-                catch { /* 页面正在销毁时滚动会抛，忽略 */ }
-            }
-            UpdateScrollBar();
-        });
+        // 排到下一拍：此刻内容刚换完，**画布还没按新内容重算尺寸** ——
+        // 贴底要等它量完，否则滚到的是旧的内容高（差一行）。
+        Dispatcher.Dispatch(() => OutputGrid.ScrollToEnd());
     }
 
     /// <summary>
@@ -979,64 +971,16 @@ public partial class ShellPage : ContentPage
     }
 
     /// <summary>重新量内容/视口，把**两个轴**的滚动条都刷新一遍。</summary>
-    private void UpdateScrollBar()
-    {
-        // 布局落定之后**再播报一次**终端尺寸 —— 构造期那次量到的是 0，
-        // 全屏程序会照着兜底值建网格（见 PublishTerminalSize 的说明）。
-        // 放在这里是因为它本来就在"量视口"的时机被调度，不另开一条触发链。
-        PublishTerminalSize();
-
-        // ── 竖轴 ──
-        // ⚠ **固定高度那一档不出竖条**（用户点名："滚动条只有一层，内层没有滚动条"）：
-        //   那一档是老显示器语义 —— 屏幕就 N 行，滚出去的就没了（见 DisplayText），
-        //   即**根本没有可滚回去的内容**，画一根条只会让人以为上面还有。
-        //   顺带绕开一个隐患：固定行高是按 `字号 × 1.3` **估**的（见 ApplyDisplaySettings），
-        //   估算与真实行高差一两像素时，内容会比视口高一丁点 ⇒ 竖条**闪进闪出**。
-        if (MauiShellStore.Rows > 0)
-        {
-            ScrollTrack.IsVisible = false;
-        }
-        else
-        {
-            // Label 实测高度，不是 ContentSize（见 ContentHeight 注释）
-            UpdateBar(ScrollTrack, ScrollThumb, ContentHeight, ViewportHeight,
-                      OutputScroll.ScrollY, vertical: true, ref _thumbTop, ref _thumbHeight);
-        }
-
-        // ── 横轴 ── 列超出屏宽时**仍然要**（固定列数必然超出，没有它就只能盲划）
-        UpdateBar(HScrollTrack, HScrollThumb, ContentWidth, ViewportWidth,
-                  OutputScroll.ScrollX, vertical: false, ref _hThumbLeft, ref _hThumbWidth);
-    }
-
     /// <summary>
-    /// 刷一条滚动条。两个轴只差"量哪个方向 / 摆哪个属性"，几何与判据完全共用 ——
-    /// 分开写两份的话，改一处忘一处就是本仓库排第一的坑（同一规则两处实现）。
+    /// **空的** —— 滚动条现在由画布自己画（`TerminalGrid.DrawBars`）。
+    ///
+    /// ⚠ 这条链以前是页面自己算的（`ScrollBarMath` + `ScrollTrack`/`HScrollTrack` 两个自绘轨道），
+    ///   缘由写得很对（"系统那条在 Android 上只在滑动时闪一下，长输出完全不知道自己在哪"），
+    ///   但**画布自己滚之后它就必须一起搬进画布** —— 否则几何要在两处各算一遍
+    ///   （本仓头号坑），而且"轨道"和"内容"的坐标系还不一样（一个在视口、一个在内容）。
+    ///   本方法连同那几个轨道控件一起**待删**（保留一个空实现是为了让这一步单独可编译）。
     /// </summary>
-    private static void UpdateBar(Grid track, BoxView thumb,
-                                  double content, double viewport, double offset,
-                                  bool vertical, ref double pos, ref double size)
-    {
-        // 内容装得下 → 整条藏起来（用户要的就是"显示得全就不显示滚动条"）
-        if (!ScrollBarMath.ShouldShow(content, viewport))
-        {
-            track.IsVisible = false;
-            return;
-        }
-
-        // ⚠ 先显示再量：`Height`/`Width` 要可见之后布局才会给值
-        track.IsVisible = true;
-        var trackLen = vertical ? track.Height : track.Width;
-        if (trackLen <= 0) trackLen = vertical ? track.HeightRequest : track.WidthRequest;
-        if (trackLen <= 0) return;   // 布局还没量出来，等下一拍
-
-        var (p, h) = ScrollBarMath.Thumb(content, viewport, offset, trackLen);
-        pos = p;
-        size = h;
-
-        if (vertical) { thumb.HeightRequest = h; thumb.TranslationY = p; }
-        else          { thumb.WidthRequest  = h; thumb.TranslationX = p; }
-    }
-
+    private void UpdateScrollBar() { }
     private void OnOutputScrolled(object? sender, ScrolledEventArgs e)
     {
         // 拖自己触发的滚动不用回写（回写会和手指打架）。**两个轴都要判** ——
