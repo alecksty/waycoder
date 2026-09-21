@@ -77,6 +77,7 @@ int main()
         /* 诊断：`stdscr` 到底指向哪儿 —— `S` 读成 0,0 说明它的成员全是零 */
         printf("\nS2=%d", (int)stdscr != 0);
         printf("\nS3=%d", (int)w != (int)stdscr);
+        printf("\nS4=%d", (int)stdscr);
     }
 
     /* ── ⑦ `addwstr`：**宽字符**，逐码点编码成 UTF-8 落进缓冲 ──
@@ -131,6 +132,16 @@ int main()
 //      试过在那里改成 `LabelRef`，**但引出了回归**（`02-ptr-ptr.c` 的
 //      `char *rows[] = {"abc","def"}` 全变 NULL），已回退 —— 说明"裸标识符=标签引用"
 //      这个判据**太宽**，把"数组初始化器里的字符串标签"也圈进去了。
-//      **下一步**要从"这个 `.word` 到底该当标签还是当字符串"的**来源**上区分，
-//      而不是靠名字形状猜。
-// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|V=0,4|W=-1
+//   ④ **还差**（当前卡点）：链接后的**文本已经全对**
+//      （`lib_curses_stdscr: .word lib_curses_sc_win`），
+//      但运行时 `stdscr` 本身读到 **0**（`S4=0`）——
+//      即那个槽位**被填了 0**。两种可能，下一轮先分清：
+//        (a) `labelAddresses["lib_curses_sc_win"]` 查不到（标签不在表里）
+//        (b) 查得到但**时机不对** —— 数据段是**按 `DataSection` 遍历序**逐个
+//            分配内存的（循环末尾才 `labelAddresses[data.Key] = address`），
+//            若 `stdscr` 排在 `sc_win` **之前**处理，解析 `LabelRef` 时
+//            后者还没登记 ⇒ 取到 0。`curses.vml` 里两者顺序是对的
+//            （`sc_win` 在前），但 `DataSection` 是字典，**不能依赖遍历序**。
+//      正解大概率是**两趟**：先把所有槽位的地址登记齐，再填内容。
+//      判据 `S4`（`(int)stdscr`）就是为分清这两种可能加的。
+// EXPECT: A=1|B=1|C=1|D=0|E=0|F=0|G=0|H=0|I=0|J=0|K=0|L=0|M=0|N=0|O=0|P=0|Q=0|R=0|S=25,80|T=0,0|U=-1,-1|S2=1|S3=0|S4=0|V=0,4|W=-1
