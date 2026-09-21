@@ -262,7 +262,16 @@ public static class MarkdownParser
 
             // 缩进代码块（4 空格 / 1 个 Tab 起头）—— 必须排在各「块起始」判定之后，
             // 否则嵌套列表项（缩进 4 空格的 `- x`）会被这里先吃掉
-            if (line.StartsWith("    ", StringComparison.Ordinal) || line.StartsWith('\t'))
+            //
+            // ⚠ **带 `«»` 标记的行不许走这条**。命令行页的**全屏网格**（nyancat / sl / 一切
+            //   curses 程序）每一行都是"左边一片空格 + 一串 `«bg:#…»  «/»`"，而行首那片空格
+            //   正好够 4 列 ⇒ 整行被判成缩进代码块。代码块是**逐字**文本（走 `Syntax.Tokenize`，
+            //   **不解 `«»`**），于是标记载体会原样打到用户脸上，色块一个都不画。
+            //   实测：nyancat 网格 42 行里第 0 行前导 20 空格，屏幕上那行变成长串字面量。
+            //   合法的 Markdown 缩进代码块里**不会**出现解开的标记 —— 字面量 `«` 由
+            //   `AnsiHelper.Esc` 转义成 `««`，判据认的是真标记，所以这条不会误伤代码块。
+            if ((line.StartsWith("    ", StringComparison.Ordinal) || line.StartsWith('\t'))
+                && !HasDecodedMarkupTag(line))
             {
                 var codeSb = new System.Text.StringBuilder();
                 while (i < lines.Length)
@@ -341,6 +350,25 @@ public static class MarkdownParser
         if (i + 1 >= text.Length) return false;
         if (text[i] == '\xAB' && text[i + 1] == '\xAB') { literal = '\xAB'; consumed = 2; return true; }
         if (text[i] == '\xBB' && text[i + 1] == '\xBB') { literal = '\xBB'; consumed = 2; return true; }
+        return false;
+    }
+
+    /// <summary>
+    /// 这一行里有没有**解开的** `«tag»`（转义字面量 `««` 不算）。
+    ///
+    /// 用途只有一个：把「命令行页的全屏网格」从**缩进代码块**那条分支里救出来
+    /// （见 <see cref="Parse"/> 里缩进代码块那段的长注释）。判据刻意收得很紧 ——
+    /// 只认「`«` + 至少一个非 `»`/非 `«` 字符 + `»`」这一个形状，散文里的零散书名号不会误判。
+    /// </summary>
+    private static bool HasDecodedMarkupTag(string line)
+    {
+        for (int i = 0; i + 2 < line.Length; i++)
+        {
+            if (line[i] != '\xAB') continue;
+            if (line[i + 1] == '\xAB') { i++; continue; }   // 转义的字面 `«`
+            int close = line.IndexOf('\xBB', i + 1);
+            if (close > i + 1) return true;
+        }
         return false;
     }
 

@@ -165,6 +165,8 @@
 // CALL basic_ltrim
 // extern fn basic_rtrim(const char* s) -> char*
 // CALL basic_rtrim
+// extern fn basic_concat_slot(const char* a, const char* b, int slot) -> char*
+// CALL basic_concat_slot
 // extern fn basic_concat(const char* a, const char* b) -> char*
 // CALL basic_concat
 // extern fn basic_abs(int n) -> int
@@ -1947,6 +1949,8 @@
 // CALL ui_text
 // extern fn ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) -> void
 // CALL ui_text_styled
+// extern fn ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style) -> void
+// CALL ui_text_v
 // extern fn ui_set_font(int size, int style, int color, int anchor) -> void
 // CALL ui_set_font
 // extern fn ui_text_cur(int x, int y, char* s) -> void

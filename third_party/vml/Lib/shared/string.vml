@@ -1750,10 +1750,10 @@ _L59030192:
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
-        mul @R0 #1
+        mul @R0 #4
         pop @R8
         add @R0 @R8
-        moveb [@R0] @R6
+        move [@R0] @R6
 ; 172:                 strncpy(parts[count], start, len);
         move @R0 [@R12-20]
         push @R0
@@ -1762,11 +1762,10 @@ _L59030192:
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
-        mul @R0 #1
+        mul @R0 #4
         pop @R5
         add @R0 @R5
-        moveb @R0 [@R0]
-        sextb @R0 @R0
+        move @R0 [@R0]
         push @R0
         move @R0 [@R13+0]
         move @R1 [@R13+4]
@@ -1778,15 +1777,21 @@ _L59030192:
         move @R4 @R0
         move @R0 [@R12+20]
         push @R0
+        pop @R2
+        push @R2
         move @R0 [@R12-8]
+        pop @R2
+        mul @R0 #4
+        add @R2 @R0
+        move @R0 [@R2]
         move @R2 @R0
+        push @R2
         move @R0 [@R12-20]
+        pop @R2
+        mul @R0 #1
         add @R2 @R0
         move @R0 @R2
-        mul @R0 #1
-        pop @R3
-        add @R0 @R3
-        moveb [@R0] @R4
+        move [@R0] @R4
 ; 174:                 count++;
         move @R0 [@R12-8]
         move @R1 @R0
@@ -1857,25 +1862,24 @@ _L59030200:
         move @R0 [@R13+0]
         call vml_alloc
         add @R13 #4
-        move @R1 @R0
+        move @R3 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
-        mul @R0 #1
-        pop @R11
-        add @R0 @R11
-        moveb [@R0] @R1
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move [@R0] @R3
 ; 184:         strcpy(parts[count], start);
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
-        mul @R0 #1
-        pop @R9
-        add @R0 @R9
-        moveb @R0 [@R0]
-        sextb @R0 @R0
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
         push @R0
         move @R0 [@R13+0]
         move @R1 [@R13+4]
@@ -1981,9 +1985,9 @@ _L59030212:
         add @R0 @R0 #1
         move [@R12+12] @R0
         move @R0 @R1
-        move @R10 @R0
+        move @R9 @R0
         move @R0 [@R12+24]
-        moveb [@R10] @R0
+        moveb [@R9] @R0
         jmp sta_59030209
 sta_59030210:
 ; 197:     strcpy(dst, src);
@@ -2093,16 +2097,16 @@ _L59030221:
         add @R0 @R0 #1
         move [@R12+12] @R0
         move @R0 @R1
-        move @R7 @R0
+        move @R10 @R0
         move @R0 [@R12+24]
-        moveb [@R7] @R0
+        moveb [@R10] @R0
         jmp sta_59030218
 sta_59030219:
 ; 209:     *dst = '\0';
         move @R0 [@R12+12]
-        move @R8 @R0
+        move @R7 @R0
         move @R0 #0
-        moveb [@R8] @R0
+        moveb [@R7] @R0
 ; 210:     return dst - len; // return original start
         move @R0 [@R12+12]
         push @R0
@@ -2139,8 +2143,8 @@ sta_59030222:
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
-        pop @R6
-        add @R0 @R6
+        pop @R8
+        add @R0 @R8
         moveb @R0 [@R0]
         sextb @R0 @R0
         test @R0 @R0
@@ -2177,8 +2181,8 @@ sta_59030223:
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
-        pop @R5
-        add @R0 @R5
+        pop @R6
+        add @R0 @R6
         moveb @R0 [@R0]
         sextb @R0 @R0
         jmp L_59030228

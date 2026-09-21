@@ -750,8 +750,14 @@ namespace CCompiler
                 }
                 else if (dataSection.ContainsKey(ident.Name))
                 {
-                    // 全局数组：用标签地址
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, ident.Name) }));
+                    // 全局**指针变量**（`char *s = "…"` / `char **p`）不是数组：下标作用在
+                    // 它**指向的对象**上 ⇒ 基址是它的**值**（加载），不是它自己的槽地址（标签）。
+                    // 数组反过来 —— 标签地址就是数组首地址。
+                    // ⚠ 少了这条，`g_rows[1]` 会拿"存放指针的那个槽"当地址，读出槽里的字节。
+                    if (!globalArrayVars.Contains(ident.Name) && IsPointerDeclName(ident.Name))
+                        GenerateExpression(ident);
+                    else
+                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, ident.Name) }));
                 }
                 else
                 {
@@ -765,8 +771,17 @@ namespace CCompiler
             }
             else if (arrayAccess.Array is ArrayAccess nestedArray)
             {
-                // Nested array access
+                // 多级下标 `x[i][j]`：先取 `x[i]` 的地址，再决定**拿它当地址还是当值**。
                 GenerateArrayAddress(nestedArray);
+
+                // ⚠ 元素是**指针**时（`char **fr` 的 `fr[i]`、`char *rows[]` 的 `rows[i]`），
+                //   外层下标作用在"取出来的那个指针"上 —— 基址得是它的**值**（加载）。
+                //   不加载的话拿的是"存放指针的那个槽"的地址，等于把槽里的字节当字符串读：
+                //   实测 `nyan_show(char ** fr)` 的 `fr[y][x]` 取到的全是空，
+                //   而程序的帧数据明明是对的（三帧只发出三个 ESC）。
+                if (IsPointerType(InferExpressionType(nestedArray)))
+                    instructions.Add(new Instruction(GetLoadInstruction(ExprType.IntPtr),
+                        new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
             }
             else if (arrayAccess.Array is UnaryOp unaryArr && unaryArr.Op == "*")
             {
@@ -822,6 +837,55 @@ namespace CCompiler
             // 对于三维数组 arr[M][N][P]，偏移量 = (i * N + j) * P + k
             // 通用公式：offset = (((i0 * d1 + i1) * d2 + i2) * d3 + ...)
             
+            // ── 多级下标 + 元素是指针：**不能展平** ─────────────────────────────
+            //
+            // `char **fr` 的 `fr[y][x]`、`char *rows[]` 的 `rows[i][j]`：**每一级下标作用在
+            // 另一个对象上** —— 先 `*(base + i*4)` 取出那个指针，再对它做第二个下标。
+            // 展平成一个偏移（`base + (i+j)*4`）在语义上就是错的：`rows[1]` 指向的串与
+            // `rows` 的偏移毫无关系。
+            //
+            // ⚠ 这一段必须排在下面那个「没有维度信息就把下标相加」的兜底**之前** ——
+            //   那是上一版留下的近似（注释里就写着"不正确，但至少不会崩溃"），
+            //   而 nyancat / curses 的帧数组、行缓冲全是这个形状：
+            //   实测 `nyan_show(char ** fr)` 三帧只发出三个 ESC，着色字符一个没读到。
+            if (arrayAccess.Indices.Count >= 2
+                && arrayAccess.Array is Identifier ptrBaseIdent
+                && ElementIsPointer(ptrBaseIdent.Name))
+            {
+                // 元素类型（第 0 级的步长）：指针数组/指针的指针 ⇒ 4
+                var ptrElemTy = GetVarExprType(ptrBaseIdent.Name);
+                // 第 1 级及以后作用在"取出来的那个指针"上；单层指针解一层就是元素本身
+                int innerStride = GetTypeSize(DerefExprType(ptrElemTy));
+
+                int mreg = Regs!.AllocInt(instructions);
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));   // 基地址
+
+                // 第 0 级：base + i0 * 4 → 该槽的地址 → **解引用**取出指针
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
+                GenerateExpression(arrayAccess.Indices[0]);
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
+                instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, mreg), new Operand(OperandType.REGISTER, 0) }));
+                instructions.Add(new Instruction(GetLoadInstruction(ExprType.IntPtr),
+                    new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R{mreg}") }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, mreg), new Operand(OperandType.REGISTER, 0) }));
+
+                // 第 1..n 级：在**指针指向的对象**上继续做下标
+                for (int k = 1; k < arrayAccess.Indices.Count; k++)
+                {
+                    int stride = k == 1 ? innerStride : 4;   // 更深的层级 ExprType 表达不了 ⇒ 按指针走
+                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
+                    GenerateExpression(arrayAccess.Indices[k]);
+                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
+                    instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride) }));
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, mreg), new Operand(OperandType.REGISTER, 0) }));
+                }
+
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, mreg) }));
+                Regs.FreeInt(mreg, instructions);
+                return;                                        // 地址已算完，别再走下面的公共收尾
+            }
+
             // 如果没有维度信息，假设是一维数组
             if (dimensions == null || dimensions.Count < arrayAccess.Indices.Count)
             {
@@ -905,7 +969,7 @@ namespace CCompiler
                     //   于是 `rows[1]` 从偏移 **1** 处读，而不是 4（实测 Q2/Q3/Q4/Q5 全空、
                     //   只有下标为 0 的 Q1 恰好对）。判据与 `InferExpressionType` 那条**同源**
                     //   （`DeclaredArrayOfPointers`），别再各写一份。
-                    if (DeclaredArrayOfPointers(arrayIdent2.Name))
+                    if (ElementIsPointer(arrayIdent2.Name))
                     {
                         elementSize = 4;
                     }
@@ -958,6 +1022,14 @@ namespace CCompiler
                     string innermostType = StripArrayDimensions(resolvedBase);
                     elementSize = GetTypeSizeFromString(innermostType);
                 }
+            }
+            else if (arrayAccess.Array is ArrayAccess)
+            {
+                // 多级下标的**外层**：步长是**最终元素**的大小，不是上面那些"看数组声明"的分支
+                // （它们一个都不匹配，落到默认的 4）。
+                // `char **fr` 的 `fr[y][x]` 是 `char` ⇒ 1；默认 4 会把相邻两格错开 4 字节，
+                // 表现是"格子里的字符跳着取"。
+                elementSize = GetTypeSize(InferExpressionType(arrayAccess));
             }
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, elementSize) }));
 

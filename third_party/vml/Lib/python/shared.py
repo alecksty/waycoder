@@ -511,6 +511,14 @@ def basic_rtrim(a0):
     asm("CALL basic_rtrim")
     return r0
 
+def basic_concat_slot(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL basic_concat_slot")
+    return r0
+
 def basic_concat(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
@@ -6016,6 +6024,17 @@ def ui_text_styled(a0, a1, a2, a3, a4, a5, a6):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_text_styled")
+
+def ui_text_v(a0, a1, a2, a3, a4, a5, a6, a7):
+    asm(f"PUSH @R0")  # push a7
+    asm(f"PUSH @R0")  # push a6
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_text_v")
 
 def ui_set_font(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a3

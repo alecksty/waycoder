@@ -392,6 +392,11 @@ DECLARE FUNCTION basic_rtrim(a0 AS INTEGER) AS INTEGER
     basic_rtrim = 0
 END FUNCTION
 
+DECLARE FUNCTION basic_concat_slot(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL basic_concat_slot")
+    basic_concat_slot = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_concat(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL basic_concat")
     basic_concat = 0
@@ -4599,6 +4604,10 @@ END SUB
 
 DECLARE SUB ui_text_styled(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
     asm("CALL ui_text_styled")
+END SUB
+
+DECLARE SUB ui_text_v(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
+    asm("CALL ui_text_v")
 END SUB
 
 DECLARE SUB ui_set_font(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)

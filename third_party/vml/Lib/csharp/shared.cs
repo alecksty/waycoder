@@ -83,6 +83,7 @@ namespace VML {
     // extern char* basic_right(const char* s, int n);  // CALL basic_right
     // extern char* basic_ltrim(const char* s);  // CALL basic_ltrim
     // extern char* basic_rtrim(const char* s);  // CALL basic_rtrim
+    // extern char* basic_concat_slot(const char* a, const char* b, int slot);  // CALL basic_concat_slot
     // extern char* basic_concat(const char* a, const char* b);  // CALL basic_concat
     // extern int basic_abs(int n);  // CALL basic_abs
     // extern int basic_sgn(int n);  // CALL basic_sgn
@@ -974,6 +975,7 @@ namespace VML {
     // extern void ui_present(void);  // CALL ui_present
     // extern void ui_text(int x, int y, char* s, int color, int size, int anchor);  // CALL ui_text
     // extern void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);  // CALL ui_text_styled
+    // extern void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);  // CALL ui_text_v
     // extern void ui_set_font(int size, int style, int color, int anchor);  // CALL ui_set_font
     // extern void ui_text_cur(int x, int y, char* s);  // CALL ui_text_cur
     // extern int ui_poll(int* msg);  // CALL ui_poll

@@ -87,6 +87,59 @@ public static class ShellWrap
     }
 
     /// <summary>
+    /// 这一行是不是**画面行** —— 整行可见字符**全是空格**，只靠底色作画。
+    ///
+    /// 为什么单立一条判据：命令行页的输出有两类，**排版规则相反**：
+    ///   · 文本行（`ls -l`、日志、表格）—— 按列折行是对的；
+    ///   · **画面行**（nyancat / tetris / 一切全屏程序）—— 每行就是屏幕上的一行像素，
+    ///     **折一下就整幅画散架**（一行变两行、后面的行整体下移，图形被斜切）。
+    /// 实测症状正是「有彩色了，但有点乱」：猫的彩虹与身体都出来了，形状却是剪开的。
+    ///
+    /// 判据取"可见字符**全是空格** + **有 `«…»` 标记**"两条同时成立：
+    ///   · 只有空格没标记 = 空行（该折不该折都无所谓，交给文本那条路）
+    ///   · 有可见字符 = 文本行（`printf("  #")` 那种带字的底色段也走文本，折它没坏处）
+    /// </summary>
+    public static bool IsPictureLine(string line)
+    {
+        bool sawTag = false;
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '\xAB')
+            {
+                if (i + 1 < line.Length && line[i + 1] == '\xAB') { i++; continue; }  // 转义的字面 «
+                int close = line.IndexOf('\xBB', i + 1);
+                if (close > i) { sawTag = true; i = close; continue; }
+            }
+            if (c != ' ') return false;      // 见到任何可见字符 ⇒ 不是画面行
+        }
+        return sawTag;
+    }
+
+    /// <summary>
+    /// 一行的**可见宽度**（字符格，全角算 2）—— 与 <see cref="WrapMarkup"/> 同一把尺子。
+    ///
+    /// 用来给 Label 定"最小不许窄于"的宽度：画面行比屏幕宽时**不能让它折**，
+    /// 得把 Label 撑到画面那么宽、让 ScrollView 横向滚（与固定列数那条路同一个做法）。
+    /// </summary>
+    public static int VisibleWidth(string line)
+    {
+        int w = 0;
+        for (int i = 0; i < line.Length; i++)
+        {
+            char c = line[i];
+            if (c == '\xAB')
+            {
+                if (i + 1 < line.Length && line[i + 1] == '\xAB') { w += 1; i++; continue; }
+                int close = line.IndexOf('\xBB', i + 1);
+                if (close > i) { i = close; continue; }
+            }
+            w += AnsiString.CharWidth(new System.Text.Rune(c));
+        }
+        return w;
+    }
+
+    /// <summary>
     /// 等宽字符的**推进量 ÷ 字号**。
     ///
     /// ⚠ 这里刻意**不取理论值 0.5**（`Sarasa Mono SC` 的设计值确实是 0.5em，见 CLAUDE.md

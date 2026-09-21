@@ -895,20 +895,7 @@ namespace CCompiler
             // ① **权威来源**：全局遍历那一刻记下的（那里 `IsArray` 与类型串都还完整）。
             if (arrayOfPointerVars.Contains(name)) return true;
 
-            string? decl = null;
-            bool isArray = false;
-
-            if (variableTypeStrings != null && variableTypeStrings.TryGetValue(name, out var local))
-            {
-                decl = local;
-                isArray = arrayLocalVars.Contains(name);
-            }
-            else
-            {
-                var g = ast.Variables.FirstOrDefault(v => v.Name == name);
-                decl = g?.Type;
-                isArray = g?.IsArray ?? false;
-            }
+            var (decl, isArray) = DeclaredTypeOf(name);
 
             if (string.IsNullOrEmpty(decl) || decl.IndexOf('*') < 0) return false;
 
@@ -918,6 +905,55 @@ namespace CCompiler
 
             // ③ 兜底：维度落在 IsArray 上（局部变量走这条）
             return isArray;
+        }
+
+        /// <summary>
+        /// 变量声明的**原文**类型串与 <c>IsArray</c> —— 局部/形参看 `variableTypeStrings`，
+        /// 否则回全局声明表。**只此一份**（`DeclaredArrayOfPointers` 与
+        /// <see cref="ElementIsPointer"/> 共用）：两份查法必然漂移，而漂移的症状正是本仓
+        /// 反复出现的「同一规则两处实现」。
+        /// </summary>
+        private (string? Decl, bool IsArray) DeclaredTypeOf(string name)
+        {
+            if (variableTypeStrings != null && variableTypeStrings.TryGetValue(name, out var local))
+                return (local, arrayLocalVars.Contains(name));
+
+            var g = ast.Variables.FirstOrDefault(v => v.Name == name);
+            return (g?.Type, g?.IsArray ?? false);
+        }
+
+        /// <summary>声明是**指针变量而非数组**（`char *s` / `char **p`）—— 用作下标基址时要取它的**值**。</summary>
+        private bool IsPointerDeclName(string name)
+        {
+            var (decl, _) = DeclaredTypeOf(name);
+            return !string.IsNullOrEmpty(decl) && decl.IndexOf('*') >= 0;
+        }
+
+        /// <summary>
+        /// `x[i]` 的**元素是不是指针** —— 「元素类型」的唯一判据，三处共用
+        /// （`InferExpressionType` 定元素类型、`GenerateArrayAddress` 定步长、
+        /// 多级下标的**基址取地址还是取值**）。
+        ///
+        /// 三种形状都算：
+        ///   · `T *x[]`（指针数组）—— 元素就是那个指针（`DeclaredArrayOfPointers`）
+        ///   · `T **x`（指针的指针）—— `x[i]` 解出来仍是指针
+        ///   · `T *x` / `T x[]` / `T x` —— **不是**（`x[i]` 解一层引用就是元素本身）
+        ///
+        /// ⚠ 少了第二条时，`char **fr` 的 `fr[i]` 会被判成 `char` ⇒ 按**字节**读指针
+        /// （`moveb`+`sextb`），只读到地址最低一个字节。实测症状就是
+        /// 「nyancat 的三帧只发出三个 ESC，着色字符一个没读到」——
+        /// 帧数组、`argv`、curses 的行缓冲全是这个形状。
+        /// </summary>
+        private bool ElementIsPointer(string name)
+        {
+            if (DeclaredArrayOfPointers(name)) return true;
+
+            var (decl, _) = DeclaredTypeOf(name);
+            if (string.IsNullOrEmpty(decl)) return false;
+
+            int stars = 0;
+            foreach (var ch in decl) if (ch == '*') stars++;
+            return stars >= 2;                       // `T **x`（`T *x[]` 已被上面那条收走）
         }
 
         private ExprType InferExpressionType(ASTNode node)
@@ -1077,7 +1113,7 @@ namespace CCompiler
                     //
                     // 判据看**声明的原文**（`*` 是否出现在 `[` 之前），不看已经剥过维度的 ExprType
                     // —— 剥完就再也分不出 `char *p[]` 与 `char **p` 的区别了。
-                    if (DeclaredArrayOfPointers(arrId.Name)) return arrType;
+                    if (ElementIsPointer(arrId.Name)) return arrType;
 
                     // char* → char, int* → int（单个指针的 `p[i]`）
                     return arrType switch
@@ -1121,8 +1157,14 @@ namespace CCompiler
             }
             if (node is ArrayAccess arrAcc4 && arrAcc4.Array is ArrayAccess innerArr)
             {
-                // 嵌套下标访问: arr[i][j]
-                return InferExpressionType(innerArr);
+                // 嵌套下标访问 `x[i][j]`：**最后那一层下标解掉的是"内层元素的引用"**。
+                //
+                // ⚠ 不能直接返回内层的类型：内层是**指针**时（`char **fr` 的 `fr[i]`、
+                //   `char *rows[]` 的 `rows[i]`），`fr[i][j]` 是那个指针**指向的**字符，
+                //   而 `fr[i]` 的类型仍是 `CharPtr` ⇒ 拿它去定步长会按 4 走，
+                //   相邻两格错开 4 字节（实测 `rows[1][1]` 直接读到串尾之外，打印成空）。
+                var innerTy = InferExpressionType(innerArr);
+                return IsPointerType(innerTy) ? DerefExprType(innerTy) : innerTy;
             }
             if (node is MemberAccess memberAcc)
             {

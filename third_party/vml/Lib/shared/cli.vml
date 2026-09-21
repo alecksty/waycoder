@@ -1221,10 +1221,10 @@ sta_85920172:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        mul @R0 #1
+        mul @R0 #4
         pop @R11
         add @R0 @R11
-        moveb [@R0] @R1
+        move [@R0] @R1
 sta_85920175:
         move @R2 #0
 ; 92:         while (*p && *p != ' ') p++;

@@ -394,6 +394,11 @@ func basic_rtrim(a0 int32) int32 {
     return vml.R0()
 }
 
+func basic_concat_slot(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("basic_concat_slot")
+    return vml.R0()
+}
+
 func basic_concat(a0 int32, a1 int32) int32 {
     vml.Call("basic_concat")
     return vml.R0()
@@ -4601,6 +4606,10 @@ func ui_text(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
 
 func ui_text_styled(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
     vml.Call("ui_text_styled")
+}
+
+func ui_text_v(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
+    vml.Call("ui_text_v")
 }
 
 func ui_set_font(a0 int32, a1 int32, a2 int32, a3 int32) {

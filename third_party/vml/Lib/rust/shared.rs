@@ -514,6 +514,13 @@ fn basic_rtrim(a0: i32) -> i32 {
     r
 }
 
+fn basic_concat_slot(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL basic_concat_slot")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn basic_concat(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_concat")
     let r: i32;
@@ -6011,6 +6018,10 @@ fn ui_text(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
 
 fn ui_text_styled(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
     asm!("CALL ui_text_styled")
+}
+
+fn ui_text_v(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
+    asm!("CALL ui_text_v")
 }
 
 fn ui_set_font(a0: i32, a1: i32, a2: i32, a3: i32) {

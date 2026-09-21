@@ -1071,6 +1071,75 @@ public static partial class SelfTest
         fb16.Apply("\x1b[41mX");
         Check("ScreenOut: 16 色背景仍是 41（不被改写成真彩）",
             fb16.DumpAnsi()[0].Contains("[41m") && !fb16.DumpAnsi()[0].Contains("48;2;"));
+
+        // ── 全屏网格**过 Markdown 解析**这一层（命令行页的呈现路径）──
+        //
+        // 网格从 `FrameBuffer` 出来后走的是 `AnsiMarkup.ToMarkup` →（命令行页）
+        // `MarkdownParser.Parse` → 渲染。这条链上有一个**静默**的坑：
+        // 网格行是"左边一片空格 + 一串 `«bg:#…»  «/»`"（屏幕左边的空白格），
+        // 行首空格够 4 列就被 Markdown 判成**缩进代码块** —— 而代码块是逐字文本
+        // （走 `Syntax.Tokenize`，**不解 `«»`**）⇒ 标记载体原样打到屏幕上、色块一个不画。
+        // 实测：nyancat 网格 42 行里第 0 行前导 20 空格，那一行变成长串字面量。
+        //
+        // 判据按**用户看得见的东西**收：全屏网格必须解析成**一个段落**、
+        // 带底色的段数必须正比于格子数、且**一个代码块都不能有**。
+        var gridAnsi = new StringBuilder();
+        gridAnsi.Append("\x1b[H");
+        int[] gridPal = [17, 15, 0, 230, 175, 162, 9, 202, 11, 10, 33, 19, 8];
+        for (int gy = 0; gy < 42; gy++)
+        {
+            if (gy < 20) { gridAnsi.Append('\n'); continue; }   // 前 20 行空白（nyancat 的 y<20）
+            char glast = '\0';
+            for (int gx = 0; gx < 50; gx++)
+            {
+                if (gx < 10) { gridAnsi.Append("  "); continue; }  // 左边 10 格空白（x<10）
+                char gc = (char)('a' + ((gy + gx) % gridPal.Length));
+                if (gc != glast) { glast = gc; gridAnsi.Append($"\x1b[48;5;{gridPal[(gy + gx) % gridPal.Length]}m"); }
+                gridAnsi.Append("  ");
+            }
+            gridAnsi.Append('\n');
+        }
+        gridAnsi.Append("\x1b[0m");
+
+        Check("全屏网格: 被认成全屏输出", ScreenOutput.LooksFullScreen(gridAnsi.ToString()));
+
+        var gridFb = new FrameBuffer(42, 50);
+        gridFb.Apply(gridAnsi.ToString());
+        var gridMarkup = AnsiMarkup.ToMarkup(string.Join("\n", gridFb.DumpAnsi())).TrimEnd();
+        var gridNodes = MarkdownParser.Parse(gridMarkup);
+        Check("全屏网格: 解析成**一个段落**（不许被判成缩进代码块）",
+            gridNodes.Count == 1 && gridNodes[0] is MdParagraph);
+        Check("全屏网格: 一个代码块都没有（代码块不解 «» ⇒ 标记会字面显示、色块全丢）",
+            !gridNodes.Any(n => n is MdCodeBlock));
+        var gridSegs = gridNodes.OfType<MdParagraph>()
+            .Sum(p => MarkdownParser.ParseInline(p.Text).Count(s => s.Bg >= 30));
+        Check($"全屏网格: 带底色的段数与格子数相称（实得 {gridSegs}）", gridSegs >= 100);
+
+        // ── 画面行 vs 文本行：折行规则相反 ──
+        //
+        // 全屏程序"画"的是**底色 + 空格**，每一行就是屏幕上的一行；而文本行（`ls -l`、日志）
+        // 按列折是对的。判据错了的症状是「有彩色了，但有点乱」——
+        // 猫的彩虹与身体都在，形状却被折成两截（实测真机就长这样）。
+        Check("画面行: 只有底色块的行认得出来",
+            ShellWrap.IsPictureLine("«bg:#00005f»  «/»«bg:#000000»    «/»"));
+        Check("画面行: 纯空行**不**算（那不该被当画面，交给文本那条路）",
+            !ShellWrap.IsPictureLine("        "));
+        Check("画面行: 带可见字符的底色段算**文本**行",
+            !ShellWrap.IsPictureLine("«bg:#00005f»  hi  «/»"));
+        Check("画面行: 转义的字面 `««` 不算标记 ⇒ 不是画面行",
+            !ShellWrap.IsPictureLine("««x"));
+
+        // 可见宽度：标签零宽、全角算 2（与 WrapMarkup 同一把尺子）
+        Check("画面行: 可见宽度忽略标记",
+            ShellWrap.VisibleWidth("«bg:#00005f»    «/»") == 4);
+        Check("画面行: 可见宽度按显示宽（全角算 2）",
+            ShellWrap.VisibleWidth("中a") == 3);
+
+        // 反方向：**真的** Markdown 缩进代码块仍要照旧判成代码块（别把这条判据放太宽）
+        Check("全屏网格: 真的缩进代码块不受影响",
+            MarkdownParser.Parse("说明：\n\n    int x = 1;\n    x++;\n").Any(n => n is MdCodeBlock));
+        Check("全屏网格: 行内 `«red»` 不带缩进时仍走段落",
+            MarkdownParser.Parse("«red»红«/»").All(n => n is MdParagraph));
     }
 
     // ═══ 命令行窗口的三个尺寸模式（都不固定 / 横向固定 / 都固定） ═══

@@ -1185,6 +1185,21 @@ public partial class ShellPage : ContentPage
         if (colsNow > 0)
         {
             var want = ShellWrap.WidthForColumns(colsNow, size);
+
+            // ⚠ **画面行比这更宽时，Label 必须跟着撑宽** —— 否则 `Label` 会按显示宽度
+            //   把画面行**自己折一次**（上面那句 WidthRequest 管的是"我们折好的宽度"，
+            //   画面行没折、比它宽，于是被平台二次折行 ⇒ 整幅画斜切）。
+            //   撑宽之后由 ScrollView 横向滚 —— 与固定列数那条路同一个做法，
+            //   「内容显示不全就出滚动条」本来就是用户定的规矩。
+            var pictureCols = 0;
+            foreach (var l in _lines)
+                if (ShellWrap.IsPictureLine(l)) pictureCols = Math.Max(pictureCols, ShellWrap.VisibleWidth(l));
+            if (pictureCols > colsNow)
+            {
+                var wantPic = ShellWrap.WidthForColumns(pictureCols, size);
+                if (wantPic > want) want = wantPic;
+            }
+
             if (Math.Abs(OutputLabel.WidthRequest - want) > 0.5) OutputLabel.WidthRequest = want;
         }
         else if (OutputLabel.WidthRequest > 0)
@@ -1246,6 +1261,8 @@ public partial class ShellPage : ContentPage
     private void RenderOutput()
         => OutputLabel.FormattedText = MarkupToFormattedString.Convert(DisplayText(), MauiUi.IsDark);
 
+
+
     private string DisplayText()
     {
         var cols = EffectiveCols();
@@ -1258,7 +1275,13 @@ public partial class ShellPage : ContentPage
         {
             wrapped = new List<string>(_lines.Count);
             foreach (var line in _lines)
-                wrapped.AddRange(ShellWrap.WrapMarkup(line, cols));
+            {
+                // ⚠ **画面行不折**（见 `ShellWrap.IsPictureLine`）：全屏程序的每一行
+                //   就是屏幕上的一行，折一下整幅画就斜切了 —— 实测「有彩色了，但有点乱」
+                //   正是这么来的（猫的彩虹与身体都在，形状是剪开的）。
+                if (ShellWrap.IsPictureLine(line)) wrapped.Add(line);
+                else wrapped.AddRange(ShellWrap.WrapMarkup(line, cols));
+            }
         }
 
         // ── 固定高度 = **老显示器**：屏幕就这么多行，滚出去的不再显示 ──

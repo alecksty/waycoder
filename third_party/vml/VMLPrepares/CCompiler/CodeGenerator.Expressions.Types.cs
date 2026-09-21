@@ -402,6 +402,24 @@ namespace CCompiler
                    type == ExprType.VoidPtr;
         }
 
+        /// <summary>
+        /// 指针类型 → **所指元素**的类型（`char*` → `char`）。非指针原样返回。
+        ///
+        /// 收成一份：同一张对照表此前在 `InferExpressionType` 里手抄了两遍
+        /// （`(*ptr)[i]` 一处、`p[i]` 一处），再多一处就是"同一规则三处实现"。
+        /// </summary>
+        private static ExprType DerefExprType(ExprType type) => type switch
+        {
+            ExprType.CharPtr => ExprType.Char,
+            ExprType.ShortPtr => ExprType.Short,
+            ExprType.IntPtr => ExprType.Int,
+            ExprType.LongPtr => ExprType.Long,
+            ExprType.FloatPtr => ExprType.Float,
+            ExprType.DoublePtr => ExprType.Double,
+            ExprType.VoidPtr => ExprType.Char,
+            _ => type,
+        };
+
         private static bool IsInt64HardLong(ExprType type)
             => (type == ExprType.Long || type == ExprType.UnsignedLong ||
                 type == ExprType.LongLong || type == ExprType.UnsignedLongLong)
