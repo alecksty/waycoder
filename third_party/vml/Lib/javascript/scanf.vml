@@ -3,20 +3,6 @@
 
 .linked "../shared/scanf.vml"
 
-LABEL js_countArgs
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _count_args
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_isspace
     push @R15
     push @R12
@@ -70,9 +56,6 @@ LABEL js_vsscanf
     pop @R15
     RET
 
-LABEL Scanf_CountArgs
-    JMP js_countArgs
-
 LABEL Scanf_Isspace
     JMP js_isspace
 
@@ -81,15 +64,6 @@ LABEL Scanf_Isdigit
 
 LABEL Scanf_Vsscanf
     JMP js_vsscanf
-
-LABEL method__count_args
-    JMP js_countArgs
-
-LABEL method_CountArgs
-    JMP js_countArgs
-
-LABEL method_countArgs
-    JMP js_countArgs
 
 LABEL method__isspace
     JMP js_isspace

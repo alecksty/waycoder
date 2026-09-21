@@ -4725,8 +4725,22 @@ fn vsnprintf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
+fn format_arg_count(a0: i32) -> i32 {
+    asm!("CALL format_arg_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn sprintf(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sprintf")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn snprintf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL snprintf")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -4857,13 +4871,6 @@ fn rle_encode(a0: i32, a1: i32, a2: i32) -> i32 {
 
 fn rle_decode(a0: i32, a1: i32) -> i32 {
     asm!("CALL rle_decode")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn _count_args(a0: i32) -> i32 {
-    asm!("CALL _count_args")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

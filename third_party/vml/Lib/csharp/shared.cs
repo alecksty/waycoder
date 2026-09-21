@@ -766,7 +766,9 @@ namespace VML {
     // extern nt _printf_ftoa(char *buf, float f, int prec);  // CALL _printf_ftoa
     // extern nt _printf_ftoe(char *buf, float f, int prec, int upper);  // CALL _printf_ftoe
     // extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);  // CALL vsnprintf
+    // extern int format_arg_count(const char *format);  // CALL format_arg_count
     // extern int sprintf(char *buf, const char *fmt, ...);  // CALL sprintf
+    // extern int snprintf(char *buf, unsigned int size, const char *fmt, ...);  // CALL snprintf
     // extern int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4);  // CALL printf4
     // extern int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5);  // CALL printf5
     // extern void printx_int32(int val);  // CALL printx_int32
@@ -792,7 +794,6 @@ namespace VML {
     // extern int is_full(int* state);  // CALL is_full
     // extern int rle_encode(const char* data, int len, char* dst);  // CALL rle_encode
     // extern int rle_decode(const char* src, char* dst);  // CALL rle_decode
-    // extern nt _count_args(const char *format);  // CALL _count_args
     // extern nt _isspace(int c);  // CALL _isspace
     // extern nt _isdigit(int c);  // CALL _isdigit
     // extern int vsscanf(char *str, char *format, int *args, int nargs);  // CALL vsscanf

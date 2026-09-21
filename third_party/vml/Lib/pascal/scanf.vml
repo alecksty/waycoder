@@ -3,20 +3,6 @@
 
 .linked "../shared/scanf.vml"
 
-LABEL PASCAL__COUNT_ARGS
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _count_args
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL PASCAL__ISSPACE
     push @R15
     push @R12

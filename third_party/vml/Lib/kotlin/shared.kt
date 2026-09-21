@@ -1531,8 +1531,12 @@
 // CALL _printf_ftoe
 // extern fn vsnprintf(char *buf, const char *fmt, const int *args, int nargs) -> int
 // CALL vsnprintf
+// extern fn format_arg_count(const char *format) -> int
+// CALL format_arg_count
 // extern fn sprintf(char *buf, const char *fmt, ...) -> int
 // CALL sprintf
+// extern fn snprintf(char *buf, unsigned int size, const char *fmt, ...) -> int
+// CALL snprintf
 // extern fn printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) -> int
 // CALL printf4
 // extern fn printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) -> int
@@ -1583,8 +1587,6 @@
 // CALL rle_encode
 // extern fn rle_decode(const char* src, char* dst) -> int
 // CALL rle_decode
-// extern fn _count_args(const char *format) -> nt
-// CALL _count_args
 // extern fn _isspace(int c) -> nt
 // CALL _isspace
 // extern fn _isdigit(int c) -> nt

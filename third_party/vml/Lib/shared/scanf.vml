@@ -3,120 +3,6 @@
 .data
 
 .text
-_count_args:
-; -------------------------------------------
-; source   : int _count_args(const char* format)
-; function : _count_args
-; param   : const char* format
-; return   : int
-; --------------------------------------------
-_count_args:
-        push @R15
-        push @R12
-        move @R12 @R13
-        sub @R13 #24
-; 18:     int n = 0;
-        move @R0 #0
-        move [@R12-8] @R0
-; 19:     const char *p = format;
-        move @R0 [@R12+12]
-        move [@R12-12] @R0
-sta_9530000:
-        move @R2 #0
-; 20:     while (*p) {
-        move @R0 [@R12-12]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        cmp @R0 #0
-        jz sta_9530001
-; 21:         if (*p == '%') {
-        move @R0 [@R12-12]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #37
-        popb @R1
-        cmp @R1 @R0
-        je _L9530004
-        move @R0 #0
-        jmp _L9530005
-_L9530004:
-        move @R0 #1
-_L9530005:
-        cmp @R0 #0
-        jz sta_9530002
-; 22:             p++;
-        move @R0 [@R12-12]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-12] @R0
-        move @R0 @R1
-; 23:             if (*p == '%' || *p == 0) { }
-        move @R0 [@R12-12]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #37
-        popb @R1
-        cmp @R1 @R0
-        je _L9530011
-        move @R0 #0
-        jmp _L9530012
-_L9530011:
-        move @R0 #1
-_L9530012:
-        test @R0 @R0
-        jnz _L9530008
-        move @R0 [@R12-12]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        push @R0
-        move @R0 #0
-        pop @R1
-        cmp @R1 @R0
-        je _L9530013
-        move @R0 #0
-        jmp _L9530014
-_L9530013:
-        move @R0 #1
-_L9530014:
-        test @R0 @R0
-        jz _L9530009
-_L9530008:
-        move @R0 #1
-        jmp _L9530010
-_L9530009:
-        move @R0 #0
-_L9530010:
-        cmp @R0 #0
-        jz sta_9530006
-        jmp sta_9530007
-sta_9530006:
-; 24:             else { n++; }
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-sta_9530007:
-sta_9530002:
-sta_9530003:
-; 26:         p++;
-        move @R0 [@R12-12]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-12] @R0
-        move @R0 @R1
-        jmp sta_9530000
-sta_9530001:
-; 28:     return n;
-        move @R0 [@R12-8]
-        jmp L_9530015
-L_9530015:
-        move @R13 @R12
-        pop @R12
-        pop @R15
-        ret
 _isspace:
 ; -------------------------------------------
 ; source   : int _isspace(int c)
@@ -129,83 +15,83 @@ _isspace:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 33:     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+; 23:     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
         move @R0 [@R12+12]
         push @R0
         move @R0 #32
         pop @R1
         cmp @R1 @R0
-        je _L9530025
+        je _L9530009
         move @R0 #0
-        jmp _L9530026
-_L9530025:
+        jmp _L9530010
+_L9530009:
         move @R0 #1
-_L9530026:
+_L9530010:
         test @R0 @R0
-        jnz _L9530022
+        jnz _L9530006
         move @R0 [@R12+12]
         push @R0
         move @R0 #9
         pop @R1
         cmp @R1 @R0
-        je _L9530027
+        je _L9530011
         move @R0 #0
-        jmp _L9530028
-_L9530027:
+        jmp _L9530012
+_L9530011:
         move @R0 #1
-_L9530028:
+_L9530012:
         test @R0 @R0
-        jz _L9530023
-_L9530022:
+        jz _L9530007
+_L9530006:
         move @R0 #1
-        jmp _L9530024
-_L9530023:
+        jmp _L9530008
+_L9530007:
         move @R0 #0
-_L9530024:
+_L9530008:
         test @R0 @R0
-        jnz _L9530019
+        jnz _L9530003
         move @R0 [@R12+12]
         push @R0
         move @R0 #10
         pop @R1
         cmp @R1 @R0
-        je _L9530029
+        je _L9530013
         move @R0 #0
-        jmp _L9530030
-_L9530029:
+        jmp _L9530014
+_L9530013:
         move @R0 #1
-_L9530030:
+_L9530014:
         test @R0 @R0
-        jz _L9530020
-_L9530019:
+        jz _L9530004
+_L9530003:
         move @R0 #1
-        jmp _L9530021
-_L9530020:
+        jmp _L9530005
+_L9530004:
         move @R0 #0
-_L9530021:
+_L9530005:
         test @R0 @R0
-        jnz _L9530016
+        jnz _L9530000
         move @R0 [@R12+12]
         push @R0
         move @R0 #13
         pop @R1
         cmp @R1 @R0
-        je _L9530031
+        je _L9530015
         move @R0 #0
-        jmp _L9530032
-_L9530031:
+        jmp _L9530016
+_L9530015:
         move @R0 #1
-_L9530032:
-        test @R0 @R0
-        jz _L9530017
 _L9530016:
+        test @R0 @R0
+        jz _L9530001
+_L9530000:
         move @R0 #1
-        jmp _L9530018
-_L9530017:
+        jmp _L9530002
+_L9530001:
         move @R0 #0
-_L9530018:
-        jmp L_9530033
-L_9530033:
+_L9530002:
+        jmp L_9530017
+L_9530017:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -222,40 +108,40 @@ _isdigit:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 38:     return c >= '0' && c <= '9';
+; 28:     return c >= '0' && c <= '9';
         move @R0 [@R12+12]
         push @R0
         move @R0 #48
         pop @R1
         cmp @R1 @R0
-        jge _L9530036
+        jge _L9530020
         move @R0 #0
-        jmp _L9530037
-_L9530036:
+        jmp _L9530021
+_L9530020:
         move @R0 #1
-_L9530037:
+_L9530021:
         test @R0 @R0
-        jz _L9530034
+        jz _L9530018
         move @R0 [@R12+12]
         push @R0
         move @R0 #57
         pop @R1
         cmp @R1 @R0
-        jle _L9530038
+        jle _L9530022
         move @R0 #0
-        jmp _L9530039
-_L9530038:
+        jmp _L9530023
+_L9530022:
         move @R0 #1
-_L9530039:
+_L9530023:
         test @R0 @R0
-        jz _L9530034
+        jz _L9530018
         move @R0 #1
-        jmp _L9530035
-_L9530034:
+        jmp _L9530019
+_L9530018:
         move @R0 #0
-_L9530035:
-        jmp L_9530040
-L_9530040:
+_L9530019:
+        jmp L_9530024
+L_9530024:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -275,27 +161,169 @@ vsscanf:
         push @R12
         move @R12 @R13
         sub @R13 #56
-; 43:     if (!str || !format || !args) return -1;
+; 33:     if (!str || !format || !args) return -1;
         move @R0 [@R12+12]
         move @R0 [@R12+12]
         test @R0 @R0
-        jz _L9530049
+        jz _L9530033
         move @R0 #0
-        jmp _L9530050
+        jmp _L9530034
+_L9530033:
+        move @R0 #1
+_L9530034:
+        test @R0 @R0
+        jnz _L9530030
+        move @R0 [@R12+16]
+        move @R0 [@R12+16]
+        test @R0 @R0
+        jz _L9530035
+        move @R0 #0
+        jmp _L9530036
+_L9530035:
+        move @R0 #1
+_L9530036:
+        test @R0 @R0
+        jz _L9530031
+_L9530030:
+        move @R0 #1
+        jmp _L9530032
+_L9530031:
+        move @R0 #0
+_L9530032:
+        test @R0 @R0
+        jnz _L9530027
+        move @R0 [@R12+20]
+        move @R0 [@R12+20]
+        test @R0 @R0
+        jz _L9530037
+        move @R0 #0
+        jmp _L9530038
+_L9530037:
+        move @R0 #1
+_L9530038:
+        test @R0 @R0
+        jz _L9530028
+_L9530027:
+        move @R0 #1
+        jmp _L9530029
+_L9530028:
+        move @R0 #0
+_L9530029:
+        cmp @R0 #0
+        jz sta_9530025
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_9530039
+sta_9530025:
+sta_9530026:
+; 34:     char *s = str;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+; 35:     int arg_idx = 0;
+        move @R0 #0
+        move [@R12-12] @R0
+; 36:     int count = 0;
+        move @R0 #0
+        move [@R12-16] @R0
+; 37:     char *p = format;
+        move @R0 [@R12+16]
+        move [@R12-20] @R0
+sta_9530040:
+        move @R2 #0
+; 42:     while (*p && *s) {
+        move @R0 [@R12-20]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
+        jz _L9530042
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
+        jz _L9530042
+        move @R0 #1
+        jmp _L9530043
+_L9530042:
+        move @R0 #0
+_L9530043:
+        cmp @R0 #0
+        jz sta_9530041
+; 43:         if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
+        move @R0 [@R12-20]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
+        je _L9530055
+        move @R0 #0
+        jmp _L9530056
+_L9530055:
+        move @R0 #1
+_L9530056:
+        test @R0 @R0
+        jnz _L9530052
+        move @R0 [@R12-20]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #9
+        popb @R1
+        cmp @R1 @R0
+        je _L9530057
+        move @R0 #0
+        jmp _L9530058
+_L9530057:
+        move @R0 #1
+_L9530058:
+        test @R0 @R0
+        jz _L9530053
+_L9530052:
+        move @R0 #1
+        jmp _L9530054
+_L9530053:
+        move @R0 #0
+_L9530054:
+        test @R0 @R0
+        jnz _L9530049
+        move @R0 [@R12-20]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #10
+        popb @R1
+        cmp @R1 @R0
+        je _L9530059
+        move @R0 #0
+        jmp _L9530060
+_L9530059:
+        move @R0 #1
+_L9530060:
+        test @R0 @R0
+        jz _L9530050
 _L9530049:
         move @R0 #1
+        jmp _L9530051
 _L9530050:
+        move @R0 #0
+_L9530051:
         test @R0 @R0
         jnz _L9530046
-        move @R0 [@R12+16]
-        move @R0 [@R12+16]
-        test @R0 @R0
-        jz _L9530051
+        move @R0 [@R12-20]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #13
+        popb @R1
+        cmp @R1 @R0
+        je _L9530061
         move @R0 #0
-        jmp _L9530052
-_L9530051:
+        jmp _L9530062
+_L9530061:
         move @R0 #1
-_L9530052:
+_L9530062:
         test @R0 @R0
         jz _L9530047
 _L9530046:
@@ -304,196 +332,54 @@ _L9530046:
 _L9530047:
         move @R0 #0
 _L9530048:
-        test @R0 @R0
-        jnz _L9530043
-        move @R0 [@R12+20]
-        move @R0 [@R12+20]
-        test @R0 @R0
-        jz _L9530053
-        move @R0 #0
-        jmp _L9530054
-_L9530053:
-        move @R0 #1
-_L9530054:
-        test @R0 @R0
-        jz _L9530044
-_L9530043:
-        move @R0 #1
-        jmp _L9530045
-_L9530044:
-        move @R0 #0
-_L9530045:
         cmp @R0 #0
-        jz sta_9530041
-        move @R0 #1
-        move @R0 #1
-        neg @R0 @R0
-        jmp L_9530055
-sta_9530041:
-sta_9530042:
-; 44:     char *s = str;
-        move @R0 [@R12+12]
-        move [@R12-8] @R0
-; 45:     int arg_idx = 0;
-        move @R0 #0
-        move [@R12-12] @R0
-; 46:     int count = 0;
-        move @R0 #0
-        move [@R12-16] @R0
-; 47:     char *p = format;
-        move @R0 [@R12+16]
-        move [@R12-20] @R0
-sta_9530056:
+        jz sta_9530044
+sta_9530063:
         move @R2 #0
-; 52:     while (*p && *s) {
-        move @R0 [@R12-20]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        test @R0 @R0
-        jz _L9530058
+; 44:             while (*s && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r'))
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         test @R0 @R0
-        jz _L9530058
-        move @R0 #1
-        jmp _L9530059
-_L9530058:
-        move @R0 #0
-_L9530059:
-        cmp @R0 #0
-        jz sta_9530057
-; 53:         if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
-        move @R0 [@R12-20]
+        jz _L9530065
+        move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
         move @R0 #32
         popb @R1
         cmp @R1 @R0
-        je _L9530071
+        je _L9530076
         move @R0 #0
-        jmp _L9530072
-_L9530071:
+        jmp _L9530077
+_L9530076:
         move @R0 #1
-_L9530072:
+_L9530077:
         test @R0 @R0
-        jnz _L9530068
-        move @R0 [@R12-20]
+        jnz _L9530073
+        move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
         move @R0 #9
         popb @R1
         cmp @R1 @R0
-        je _L9530073
+        je _L9530078
         move @R0 #0
-        jmp _L9530074
+        jmp _L9530079
+_L9530078:
+        move @R0 #1
+_L9530079:
+        test @R0 @R0
+        jz _L9530074
 _L9530073:
         move @R0 #1
+        jmp _L9530075
 _L9530074:
-        test @R0 @R0
-        jz _L9530069
-_L9530068:
-        move @R0 #1
-        jmp _L9530070
-_L9530069:
         move @R0 #0
-_L9530070:
-        test @R0 @R0
-        jnz _L9530065
-        move @R0 [@R12-20]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #10
-        popb @R1
-        cmp @R1 @R0
-        je _L9530075
-        move @R0 #0
-        jmp _L9530076
 _L9530075:
-        move @R0 #1
-_L9530076:
         test @R0 @R0
-        jz _L9530066
-_L9530065:
-        move @R0 #1
-        jmp _L9530067
-_L9530066:
-        move @R0 #0
-_L9530067:
-        test @R0 @R0
-        jnz _L9530062
-        move @R0 [@R12-20]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #13
-        popb @R1
-        cmp @R1 @R0
-        je _L9530077
-        move @R0 #0
-        jmp _L9530078
-_L9530077:
-        move @R0 #1
-_L9530078:
-        test @R0 @R0
-        jz _L9530063
-_L9530062:
-        move @R0 #1
-        jmp _L9530064
-_L9530063:
-        move @R0 #0
-_L9530064:
-        cmp @R0 #0
-        jz sta_9530060
-sta_9530079:
-        move @R2 #0
-; 54:             while (*s && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r'))
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        test @R0 @R0
-        jz _L9530081
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #32
-        popb @R1
-        cmp @R1 @R0
-        je _L9530092
-        move @R0 #0
-        jmp _L9530093
-_L9530092:
-        move @R0 #1
-_L9530093:
-        test @R0 @R0
-        jnz _L9530089
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #9
-        popb @R1
-        cmp @R1 @R0
-        je _L9530094
-        move @R0 #0
-        jmp _L9530095
-_L9530094:
-        move @R0 #1
-_L9530095:
-        test @R0 @R0
-        jz _L9530090
-_L9530089:
-        move @R0 #1
-        jmp _L9530091
-_L9530090:
-        move @R0 #0
-_L9530091:
-        test @R0 @R0
-        jnz _L9530086
+        jnz _L9530070
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -501,22 +387,22 @@ _L9530091:
         move @R0 #10
         popb @R1
         cmp @R1 @R0
-        je _L9530096
+        je _L9530080
         move @R0 #0
-        jmp _L9530097
-_L9530096:
+        jmp _L9530081
+_L9530080:
         move @R0 #1
-_L9530097:
+_L9530081:
         test @R0 @R0
-        jz _L9530087
-_L9530086:
+        jz _L9530071
+_L9530070:
         move @R0 #1
-        jmp _L9530088
-_L9530087:
+        jmp _L9530072
+_L9530071:
         move @R0 #0
-_L9530088:
+_L9530072:
         test @R0 @R0
-        jnz _L9530083
+        jnz _L9530067
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -524,47 +410,47 @@ _L9530088:
         move @R0 #13
         popb @R1
         cmp @R1 @R0
-        je _L9530098
+        je _L9530082
         move @R0 #0
-        jmp _L9530099
-_L9530098:
-        move @R0 #1
-_L9530099:
-        test @R0 @R0
-        jz _L9530084
-_L9530083:
-        move @R0 #1
-        jmp _L9530085
-_L9530084:
-        move @R0 #0
-_L9530085:
-        test @R0 @R0
-        jz _L9530081
-        move @R0 #1
-        jmp _L9530082
-_L9530081:
-        move @R0 #0
+        jmp _L9530083
 _L9530082:
+        move @R0 #1
+_L9530083:
+        test @R0 @R0
+        jz _L9530068
+_L9530067:
+        move @R0 #1
+        jmp _L9530069
+_L9530068:
+        move @R0 #0
+_L9530069:
+        test @R0 @R0
+        jz _L9530065
+        move @R0 #1
+        jmp _L9530066
+_L9530065:
+        move @R0 #0
+_L9530066:
         cmp @R0 #0
-        jz sta_9530080
-; 55:                 s++;
+        jz sta_9530064
+; 45:                 s++;
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530079
-sta_9530080:
-; 56:             p++;
+        jmp sta_9530063
+sta_9530064:
+; 46:             p++;
         move @R0 [@R12-20]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-20] @R0
         move @R0 @R1
-        jmp sta_9530056
-sta_9530060:
-sta_9530061:
-; 59:         if (*p != '%') {
+        jmp sta_9530040
+sta_9530044:
+sta_9530045:
+; 49:         if (*p != '%') {
         move @R0 [@R12-20]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -572,15 +458,15 @@ sta_9530061:
         move @R0 #37
         popb @R1
         cmp @R1 @R0
-        jne _L9530102
+        jne _L9530086
         move @R0 #0
-        jmp _L9530103
-_L9530102:
+        jmp _L9530087
+_L9530086:
         move @R0 #1
-_L9530103:
+_L9530087:
         cmp @R0 #0
-        jz sta_9530100
-; 60:             if (*p == *s) { p++; s++; }
+        jz sta_9530084
+; 50:             if (*p == *s) { p++; s++; }
         move @R0 [@R12-20]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -590,14 +476,14 @@ _L9530103:
         sextb @R0 @R0
         popb @R1
         cmp @R1 @R0
-        je _L9530106
+        je _L9530090
         move @R0 #0
-        jmp _L9530107
-_L9530106:
+        jmp _L9530091
+_L9530090:
         move @R0 #1
-_L9530107:
+_L9530091:
         cmp @R0 #0
-        jz sta_9530104
+        jz sta_9530088
         move @R0 [@R12-20]
         move @R1 @R0
         add @R0 @R0 #1
@@ -608,20 +494,20 @@ _L9530107:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530105
-sta_9530104:
-        jmp sta_9530057
-sta_9530105:
-        jmp sta_9530056
-sta_9530100:
-sta_9530101:
-; 64:         p++;
+        jmp sta_9530089
+sta_9530088:
+        jmp sta_9530041
+sta_9530089:
+        jmp sta_9530040
+sta_9530084:
+sta_9530085:
+; 54:         p++;
         move @R0 [@R12-20]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-20] @R0
         move @R0 @R1
-; 65:         if (*p == 0) break;
+; 55:         if (*p == 0) break;
         move @R0 [@R12-20]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -629,88 +515,88 @@ sta_9530101:
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        je _L9530110
+        je _L9530094
         move @R0 #0
-        jmp _L9530111
-_L9530110:
+        jmp _L9530095
+_L9530094:
         move @R0 #1
-_L9530111:
+_L9530095:
         cmp @R0 #0
-        jz sta_9530108
-        jmp sta_9530057
-sta_9530108:
-sta_9530109:
-; 66:         if (arg_idx >= nargs) break;
+        jz sta_9530092
+        jmp sta_9530041
+sta_9530092:
+sta_9530093:
+; 56:         if (arg_idx >= nargs) break;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+24]
         pop @R1
         cmp @R1 @R0
-        jge _L9530114
+        jge _L9530098
         move @R0 #0
-        jmp _L9530115
-_L9530114:
+        jmp _L9530099
+_L9530098:
         move @R0 #1
-_L9530115:
+_L9530099:
         cmp @R0 #0
-        jz sta_9530112
-        jmp sta_9530057
-sta_9530112:
-sta_9530113:
-; 67:         switch (*p) {
+        jz sta_9530096
+        jmp sta_9530041
+sta_9530096:
+sta_9530097:
+; 57:         switch (*p) {
         move @R0 [@R12-20]
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R1 @R0
         push @R1
-; 68:             case 'd':
+; 58:             case 'd':
         move @R0 #100
         pop @R1
         cmp @R0 @R1
-        je sta_9530117
+        je sta_9530101
         push @R1
-; 69:             case 'i':
+; 59:             case 'i':
         move @R0 #105
         pop @R1
         cmp @R0 @R1
-        je sta_9530118
+        je sta_9530102
         push @R1
-; 99:             case 'x':
+; 89:             case 'x':
         move @R0 #120
         pop @R1
         cmp @R0 @R1
-        je sta_9530119
+        je sta_9530103
         push @R1
-; 100:             case 'X':
+; 90:             case 'X':
         move @R0 #88
         pop @R1
         cmp @R0 @R1
-        je sta_9530120
+        je sta_9530104
         push @R1
-; 116:             case 's':
+; 106:             case 's':
         move @R0 #115
         pop @R1
         cmp @R0 @R1
-        je sta_9530121
+        je sta_9530105
         push @R1
-; 125:             case 'c':
+; 115:             case 'c':
         move @R0 #99
         pop @R1
         cmp @R0 @R1
-        je sta_9530122
-        jmp sta_9530116
-sta_9530117:
-sta_9530118:
-; 70:                 val = 0; sign = 1; got = 0;
+        je sta_9530106
+        jmp sta_9530100
+sta_9530101:
+sta_9530102:
+; 60:                 val = 0; sign = 1; got = 0;
         move @R0 #0
         move [@R12-24] @R0
         move @R0 #1
         move [@R12-28] @R0
         move @R0 #0
         move [@R12-32] @R0
-sta_9530123:
+sta_9530107:
         move @R2 #0
-; 71:                 while (*s == ' ' || *s == '\t') s++;
+; 61:                 while (*s == ' ' || *s == '\t') s++;
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -718,14 +604,14 @@ sta_9530123:
         move @R0 #32
         popb @R1
         cmp @R1 @R0
-        je _L9530128
+        je _L9530112
         move @R0 #0
-        jmp _L9530129
-_L9530128:
+        jmp _L9530113
+_L9530112:
         move @R0 #1
-_L9530129:
+_L9530113:
         test @R0 @R0
-        jnz _L9530125
+        jnz _L9530109
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -733,30 +619,30 @@ _L9530129:
         move @R0 #9
         popb @R1
         cmp @R1 @R0
-        je _L9530130
+        je _L9530114
         move @R0 #0
-        jmp _L9530131
-_L9530130:
+        jmp _L9530115
+_L9530114:
         move @R0 #1
-_L9530131:
+_L9530115:
         test @R0 @R0
-        jz _L9530126
-_L9530125:
+        jz _L9530110
+_L9530109:
         move @R0 #1
-        jmp _L9530127
-_L9530126:
+        jmp _L9530111
+_L9530110:
         move @R0 #0
-_L9530127:
+_L9530111:
         cmp @R0 #0
-        jz sta_9530124
+        jz sta_9530108
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530123
-sta_9530124:
-; 72:                 if (*s == '-') { sign = -1; s++; }
+        jmp sta_9530107
+sta_9530108:
+; 62:                 if (*s == '-') { sign = -1; s++; }
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -764,14 +650,14 @@ sta_9530124:
         move @R0 #45
         popb @R1
         cmp @R1 @R0
-        je _L9530134
+        je _L9530118
         move @R0 #0
-        jmp _L9530135
-_L9530134:
+        jmp _L9530119
+_L9530118:
         move @R0 #1
-_L9530135:
+_L9530119:
         cmp @R0 #0
-        jz sta_9530132
+        jz sta_9530116
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
@@ -781,9 +667,9 @@ _L9530135:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530133
-sta_9530132:
-; 73:                 else if (*s == '+') { s++; }
+        jmp sta_9530117
+sta_9530116:
+; 63:                 else if (*s == '+') { s++; }
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -791,23 +677,23 @@ sta_9530132:
         move @R0 #43
         popb @R1
         cmp @R1 @R0
-        je _L9530138
+        je _L9530122
         move @R0 #0
-        jmp _L9530139
-_L9530138:
+        jmp _L9530123
+_L9530122:
         move @R0 #1
-_L9530139:
+_L9530123:
         cmp @R0 #0
-        jz sta_9530136
+        jz sta_9530120
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-sta_9530136:
-sta_9530137:
-sta_9530133:
-; 74:                 if (*s == '0') {
+sta_9530120:
+sta_9530121:
+sta_9530117:
+; 64:                 if (*s == '0') {
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -815,21 +701,21 @@ sta_9530133:
         move @R0 #48
         popb @R1
         cmp @R1 @R0
-        je _L9530142
+        je _L9530126
         move @R0 #0
-        jmp _L9530143
-_L9530142:
+        jmp _L9530127
+_L9530126:
         move @R0 #1
-_L9530143:
+_L9530127:
         cmp @R0 #0
-        jz sta_9530140
-; 75:                     s++;
+        jz sta_9530124
+; 65:                     s++;
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-; 76:                     if (*s == 'x' || *s == 'X') {
+; 66:                     if (*s == 'x' || *s == 'X') {
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -837,14 +723,14 @@ _L9530143:
         move @R0 #120
         popb @R1
         cmp @R1 @R0
-        je _L9530149
+        je _L9530133
         move @R0 #0
-        jmp _L9530150
-_L9530149:
+        jmp _L9530134
+_L9530133:
         move @R0 #1
-_L9530150:
+_L9530134:
         test @R0 @R0
-        jnz _L9530146
+        jnz _L9530130
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -852,42 +738,167 @@ _L9530150:
         move @R0 #88
         popb @R1
         cmp @R1 @R0
-        je _L9530151
+        je _L9530135
+        move @R0 #0
+        jmp _L9530136
+_L9530135:
+        move @R0 #1
+_L9530136:
+        test @R0 @R0
+        jz _L9530131
+_L9530130:
+        move @R0 #1
+        jmp _L9530132
+_L9530131:
+        move @R0 #0
+_L9530132:
+        cmp @R0 #0
+        jz sta_9530128
+; 67:                         s++;
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+sta_9530137:
+        move @R2 #0
+; 68:                         while (*s) {
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
+        jz sta_9530138
+; 69:                             if (*s >= '0' && *s <= '9')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        jge _L9530143
+        move @R0 #0
+        jmp _L9530144
+_L9530143:
+        move @R0 #1
+_L9530144:
+        test @R0 @R0
+        jz _L9530141
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
+        jle _L9530145
+        move @R0 #0
+        jmp _L9530146
+_L9530145:
+        move @R0 #1
+_L9530146:
+        test @R0 @R0
+        jz _L9530141
+        move @R0 #1
+        jmp _L9530142
+_L9530141:
+        move @R0 #0
+_L9530142:
+        cmp @R0 #0
+        jz sta_9530139
+; 70:                                 val = val * 16 + (*s - '0');
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        jmp sta_9530140
+sta_9530139:
+; 71:                             else if (*s >= 'a' && *s <= 'f')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        cmp @R1 @R0
+        jge _L9530151
         move @R0 #0
         jmp _L9530152
 _L9530151:
         move @R0 #1
 _L9530152:
         test @R0 @R0
-        jz _L9530147
-_L9530146:
-        move @R0 #1
-        jmp _L9530148
-_L9530147:
-        move @R0 #0
-_L9530148:
-        cmp @R0 #0
-        jz sta_9530144
-; 77:                         s++;
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-sta_9530153:
-        move @R2 #0
-; 78:                         while (*s) {
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        cmp @R0 #0
-        jz sta_9530154
-; 79:                             if (*s >= '0' && *s <= '9')
+        jz _L9530149
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #48
+        move @R0 #102
+        popb @R1
+        cmp @R1 @R0
+        jle _L9530153
+        move @R0 #0
+        jmp _L9530154
+_L9530153:
+        move @R0 #1
+_L9530154:
+        test @R0 @R0
+        jz _L9530149
+        move @R0 #1
+        jmp _L9530150
+_L9530149:
+        move @R0 #0
+_L9530150:
+        cmp @R0 #0
+        jz sta_9530147
+; 72:                                 val = val * 16 + (*s - 'a' + 10);
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        jmp sta_9530148
+sta_9530147:
+; 73:                             else if (*s >= 'A' && *s <= 'F')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #65
         popb @R1
         cmp @R1 @R0
         jge _L9530159
@@ -902,7 +913,7 @@ _L9530160:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #57
+        move @R0 #70
         popb @R1
         cmp @R1 @R0
         jle _L9530161
@@ -920,7 +931,7 @@ _L9530157:
 _L9530158:
         cmp @R0 #0
         jz sta_9530155
-; 80:                                 val = val * 16 + (*s - '0');
+; 74:                                 val = val * 16 + (*s - 'A' + 10);
         move @R0 [@R12-24]
         push @R0
         move @R0 #16
@@ -932,22 +943,45 @@ _L9530158:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #48
+        move @R0 #65
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         pop @R1
         add @R1 @R0
         move @R0 @R1
         move [@R12-24] @R0
         jmp sta_9530156
 sta_9530155:
-; 81:                             else if (*s >= 'a' && *s <= 'f')
+        jmp sta_9530138
+sta_9530156:
+sta_9530148:
+sta_9530140:
+; 76:                             got = 1; s++;
+        move @R0 #1
+        move [@R12-32] @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_9530137
+sta_9530138:
+        jmp sta_9530129
+sta_9530128:
+sta_9530163:
+        move @R2 #0
+; 79:                         while (*s >= '0' && *s <= '7')
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #97
+        move @R0 #48
         popb @R1
         cmp @R1 @R0
         jge _L9530167
@@ -962,7 +996,7 @@ _L9530168:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #102
+        move @R0 #55
         popb @R1
         cmp @R1 @R0
         jle _L9530169
@@ -979,156 +1013,8 @@ _L9530165:
         move @R0 #0
 _L9530166:
         cmp @R0 #0
-        jz sta_9530163
-; 82:                                 val = val * 16 + (*s - 'a' + 10);
-        move @R0 [@R12-24]
-        push @R0
-        move @R0 #16
-        pop @R1
-        mul @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #97
-        popb @R1
-        sub @R1 @R0
-        moveb @R0 @R1
-        push @R0
-        move @R0 #10
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        move [@R12-24] @R0
-        jmp sta_9530164
-sta_9530163:
-; 83:                             else if (*s >= 'A' && *s <= 'F')
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #65
-        popb @R1
-        cmp @R1 @R0
-        jge _L9530175
-        move @R0 #0
-        jmp _L9530176
-_L9530175:
-        move @R0 #1
-_L9530176:
-        test @R0 @R0
-        jz _L9530173
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #70
-        popb @R1
-        cmp @R1 @R0
-        jle _L9530177
-        move @R0 #0
-        jmp _L9530178
-_L9530177:
-        move @R0 #1
-_L9530178:
-        test @R0 @R0
-        jz _L9530173
-        move @R0 #1
-        jmp _L9530174
-_L9530173:
-        move @R0 #0
-_L9530174:
-        cmp @R0 #0
-        jz sta_9530171
-; 84:                                 val = val * 16 + (*s - 'A' + 10);
-        move @R0 [@R12-24]
-        push @R0
-        move @R0 #16
-        pop @R1
-        mul @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #65
-        popb @R1
-        sub @R1 @R0
-        moveb @R0 @R1
-        push @R0
-        move @R0 #10
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        move [@R12-24] @R0
-        jmp sta_9530172
-sta_9530171:
-        jmp sta_9530154
-sta_9530172:
-sta_9530164:
-sta_9530156:
-; 86:                             got = 1; s++;
-        move @R0 #1
-        move [@R12-32] @R0
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-        jmp sta_9530153
-sta_9530154:
-        jmp sta_9530145
-sta_9530144:
-sta_9530179:
-        move @R2 #0
-; 89:                         while (*s >= '0' && *s <= '7')
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #48
-        popb @R1
-        cmp @R1 @R0
-        jge _L9530183
-        move @R0 #0
-        jmp _L9530184
-_L9530183:
-        move @R0 #1
-_L9530184:
-        test @R0 @R0
-        jz _L9530181
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #55
-        popb @R1
-        cmp @R1 @R0
-        jle _L9530185
-        move @R0 #0
-        jmp _L9530186
-_L9530185:
-        move @R0 #1
-_L9530186:
-        test @R0 @R0
-        jz _L9530181
-        move @R0 #1
-        jmp _L9530182
-_L9530181:
-        move @R0 #0
-_L9530182:
-        cmp @R0 #0
-        jz sta_9530180
-; 90:                             { val = val * 8 + (*s - '0'); got = 1; s++; }
+        jz sta_9530164
+; 80:                             { val = val * 8 + (*s - '0'); got = 1; s++; }
         move @R0 [@R12-24]
         push @R0
         move @R0 #8
@@ -1155,14 +1041,14 @@ _L9530182:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530179
-sta_9530180:
-sta_9530145:
-        jmp sta_9530141
-sta_9530140:
-sta_9530187:
+        jmp sta_9530163
+sta_9530164:
+sta_9530129:
+        jmp sta_9530125
+sta_9530124:
+sta_9530171:
         move @R2 #0
-; 93:                     while (*s >= '0' && *s <= '9')
+; 83:                     while (*s >= '0' && *s <= '9')
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1170,14 +1056,14 @@ sta_9530187:
         move @R0 #48
         popb @R1
         cmp @R1 @R0
-        jge _L9530191
+        jge _L9530175
         move @R0 #0
-        jmp _L9530192
-_L9530191:
+        jmp _L9530176
+_L9530175:
         move @R0 #1
-_L9530192:
+_L9530176:
         test @R0 @R0
-        jz _L9530189
+        jz _L9530173
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1185,22 +1071,22 @@ _L9530192:
         move @R0 #57
         popb @R1
         cmp @R1 @R0
-        jle _L9530193
+        jle _L9530177
         move @R0 #0
-        jmp _L9530194
-_L9530193:
+        jmp _L9530178
+_L9530177:
         move @R0 #1
-_L9530194:
+_L9530178:
         test @R0 @R0
-        jz _L9530189
+        jz _L9530173
         move @R0 #1
-        jmp _L9530190
-_L9530189:
+        jmp _L9530174
+_L9530173:
         move @R0 #0
-_L9530190:
+_L9530174:
         cmp @R0 #0
-        jz sta_9530188
-; 94:                         { val = val * 10 + (*s - '0'); got = 1; s++; }
+        jz sta_9530172
+; 84:                         { val = val * 10 + (*s - '0'); got = 1; s++; }
         move @R0 [@R12-24]
         push @R0
         move @R0 #10
@@ -1227,13 +1113,13 @@ _L9530190:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530187
-sta_9530188:
-sta_9530141:
-; 96:                 if (got) { dest = (int *)args[arg_idx]; *dest = sign * val; count++; }
+        jmp sta_9530171
+sta_9530172:
+sta_9530125:
+; 86:                 if (got) { dest = (int *)args[arg_idx]; *dest = sign * val; count++; }
         move @R0 [@R12-32]
         cmp @R0 #0
-        jz sta_9530195
+        jz sta_9530179
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-12]
@@ -1256,25 +1142,25 @@ sta_9530141:
         add @R0 @R0 #1
         move [@R12-16] @R0
         move @R0 @R1
-sta_9530195:
-sta_9530196:
-; 97:                 arg_idx++;
+sta_9530179:
+sta_9530180:
+; 87:                 arg_idx++;
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_9530116
-sta_9530119:
-sta_9530120:
-; 101:                 val = 0; got = 0;
+        jmp sta_9530100
+sta_9530103:
+sta_9530104:
+; 91:                 val = 0; got = 0;
         move @R0 #0
         move [@R12-24] @R0
         move @R0 #0
         move [@R12-32] @R0
-sta_9530197:
+sta_9530181:
         move @R2 #0
-; 102:                 while (*s == ' ' || *s == '\t') s++;
+; 92:                 while (*s == ' ' || *s == '\t') s++;
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1282,14 +1168,14 @@ sta_9530197:
         move @R0 #32
         popb @R1
         cmp @R1 @R0
-        je _L9530202
+        je _L9530186
         move @R0 #0
-        jmp _L9530203
-_L9530202:
+        jmp _L9530187
+_L9530186:
         move @R0 #1
-_L9530203:
+_L9530187:
         test @R0 @R0
-        jnz _L9530199
+        jnz _L9530183
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1297,43 +1183,168 @@ _L9530203:
         move @R0 #9
         popb @R1
         cmp @R1 @R0
-        je _L9530204
+        je _L9530188
+        move @R0 #0
+        jmp _L9530189
+_L9530188:
+        move @R0 #1
+_L9530189:
+        test @R0 @R0
+        jz _L9530184
+_L9530183:
+        move @R0 #1
+        jmp _L9530185
+_L9530184:
+        move @R0 #0
+_L9530185:
+        cmp @R0 #0
+        jz sta_9530182
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_9530181
+sta_9530182:
+sta_9530190:
+        move @R2 #0
+; 93:                 while (*s) {
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
+        jz sta_9530191
+; 94:                     if (*s >= '0' && *s <= '9')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        jge _L9530196
+        move @R0 #0
+        jmp _L9530197
+_L9530196:
+        move @R0 #1
+_L9530197:
+        test @R0 @R0
+        jz _L9530194
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
+        jle _L9530198
+        move @R0 #0
+        jmp _L9530199
+_L9530198:
+        move @R0 #1
+_L9530199:
+        test @R0 @R0
+        jz _L9530194
+        move @R0 #1
+        jmp _L9530195
+_L9530194:
+        move @R0 #0
+_L9530195:
+        cmp @R0 #0
+        jz sta_9530192
+; 95:                         val = val * 16 + (*s - '0');
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        jmp sta_9530193
+sta_9530192:
+; 96:                     else if (*s >= 'a' && *s <= 'f')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        cmp @R1 @R0
+        jge _L9530204
         move @R0 #0
         jmp _L9530205
 _L9530204:
         move @R0 #1
 _L9530205:
         test @R0 @R0
-        jz _L9530200
-_L9530199:
-        move @R0 #1
-        jmp _L9530201
-_L9530200:
-        move @R0 #0
-_L9530201:
-        cmp @R0 #0
-        jz sta_9530198
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-        jmp sta_9530197
-sta_9530198:
-sta_9530206:
-        move @R2 #0
-; 103:                 while (*s) {
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        cmp @R0 #0
-        jz sta_9530207
-; 104:                     if (*s >= '0' && *s <= '9')
+        jz _L9530202
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #48
+        move @R0 #102
+        popb @R1
+        cmp @R1 @R0
+        jle _L9530206
+        move @R0 #0
+        jmp _L9530207
+_L9530206:
+        move @R0 #1
+_L9530207:
+        test @R0 @R0
+        jz _L9530202
+        move @R0 #1
+        jmp _L9530203
+_L9530202:
+        move @R0 #0
+_L9530203:
+        cmp @R0 #0
+        jz sta_9530200
+; 97:                         val = val * 16 + (*s - 'a' + 10);
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        jmp sta_9530201
+sta_9530200:
+; 98:                     else if (*s >= 'A' && *s <= 'F')
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #65
         popb @R1
         cmp @R1 @R0
         jge _L9530212
@@ -1348,7 +1359,7 @@ _L9530213:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #57
+        move @R0 #70
         popb @R1
         cmp @R1 @R0
         jle _L9530214
@@ -1366,7 +1377,7 @@ _L9530210:
 _L9530211:
         cmp @R0 #0
         jz sta_9530208
-; 105:                         val = val * 16 + (*s - '0');
+; 99:                         val = val * 16 + (*s - 'A' + 10);
         move @R0 [@R12-24]
         push @R0
         move @R0 #16
@@ -1378,151 +1389,26 @@ _L9530211:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
-        move @R0 #48
+        move @R0 #65
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         pop @R1
         add @R1 @R0
         move @R0 @R1
         move [@R12-24] @R0
         jmp sta_9530209
 sta_9530208:
-; 106:                     else if (*s >= 'a' && *s <= 'f')
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #97
-        popb @R1
-        cmp @R1 @R0
-        jge _L9530220
-        move @R0 #0
-        jmp _L9530221
-_L9530220:
-        move @R0 #1
-_L9530221:
-        test @R0 @R0
-        jz _L9530218
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #102
-        popb @R1
-        cmp @R1 @R0
-        jle _L9530222
-        move @R0 #0
-        jmp _L9530223
-_L9530222:
-        move @R0 #1
-_L9530223:
-        test @R0 @R0
-        jz _L9530218
-        move @R0 #1
-        jmp _L9530219
-_L9530218:
-        move @R0 #0
-_L9530219:
-        cmp @R0 #0
-        jz sta_9530216
-; 107:                         val = val * 16 + (*s - 'a' + 10);
-        move @R0 [@R12-24]
-        push @R0
-        move @R0 #16
-        pop @R1
-        mul @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #97
-        popb @R1
-        sub @R1 @R0
-        moveb @R0 @R1
-        push @R0
-        move @R0 #10
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        move [@R12-24] @R0
-        jmp sta_9530217
-sta_9530216:
-; 108:                     else if (*s >= 'A' && *s <= 'F')
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #65
-        popb @R1
-        cmp @R1 @R0
-        jge _L9530228
-        move @R0 #0
-        jmp _L9530229
-_L9530228:
-        move @R0 #1
-_L9530229:
-        test @R0 @R0
-        jz _L9530226
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #70
-        popb @R1
-        cmp @R1 @R0
-        jle _L9530230
-        move @R0 #0
-        jmp _L9530231
-_L9530230:
-        move @R0 #1
-_L9530231:
-        test @R0 @R0
-        jz _L9530226
-        move @R0 #1
-        jmp _L9530227
-_L9530226:
-        move @R0 #0
-_L9530227:
-        cmp @R0 #0
-        jz sta_9530224
-; 109:                         val = val * 16 + (*s - 'A' + 10);
-        move @R0 [@R12-24]
-        push @R0
-        move @R0 #16
-        pop @R1
-        mul @R1 @R0
-        move @R0 @R1
-        push @R0
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #65
-        popb @R1
-        sub @R1 @R0
-        moveb @R0 @R1
-        push @R0
-        move @R0 #10
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        move [@R12-24] @R0
-        jmp sta_9530225
-sta_9530224:
-        jmp sta_9530207
-sta_9530225:
-sta_9530217:
+        jmp sta_9530191
 sta_9530209:
-; 111:                     got = 1; s++;
+sta_9530201:
+sta_9530193:
+; 101:                     got = 1; s++;
         move @R0 #1
         move [@R12-32] @R0
         move @R0 [@R12-8]
@@ -1530,12 +1416,12 @@ sta_9530209:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-        jmp sta_9530206
-sta_9530207:
-; 113:                 if (got) { dest = (int *)args[arg_idx]; *dest = val; count++; }
+        jmp sta_9530190
+sta_9530191:
+; 103:                 if (got) { dest = (int *)args[arg_idx]; *dest = val; count++; }
         move @R0 [@R12-32]
         cmp @R0 #0
-        jz sta_9530232
+        jz sta_9530216
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-12]
@@ -1553,17 +1439,17 @@ sta_9530207:
         add @R0 @R0 #1
         move [@R12-16] @R0
         move @R0 @R1
-sta_9530232:
-sta_9530233:
-; 114:                 arg_idx++;
+sta_9530216:
+sta_9530217:
+; 104:                 arg_idx++;
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_9530116
-sta_9530121:
-; 117:                 dst = (char *)args[arg_idx];
+        jmp sta_9530100
+sta_9530105:
+; 107:                 dst = (char *)args[arg_idx];
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-12]
@@ -1572,9 +1458,9 @@ sta_9530121:
         add @R0 @R7
         move @R0 [@R0]
         move [@R12-36] @R0
-sta_9530234:
+sta_9530218:
         move @R2 #0
-; 118:                 while (*s == ' ' || *s == '\t') s++;
+; 108:                 while (*s == ' ' || *s == '\t') s++;
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1582,99 +1468,99 @@ sta_9530234:
         move @R0 #32
         popb @R1
         cmp @R1 @R0
-        je _L9530239
+        je _L9530223
+        move @R0 #0
+        jmp _L9530224
+_L9530223:
+        move @R0 #1
+_L9530224:
+        test @R0 @R0
+        jnz _L9530220
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #9
+        popb @R1
+        cmp @R1 @R0
+        je _L9530225
+        move @R0 #0
+        jmp _L9530226
+_L9530225:
+        move @R0 #1
+_L9530226:
+        test @R0 @R0
+        jz _L9530221
+_L9530220:
+        move @R0 #1
+        jmp _L9530222
+_L9530221:
+        move @R0 #0
+_L9530222:
+        cmp @R0 #0
+        jz sta_9530219
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_9530218
+sta_9530219:
+; 109:                 n = 0;
+        move @R0 #0
+        move [@R12-44] @R0
+sta_9530227:
+        move @R2 #0
+; 110:                 while (*s && *s != ' ' && *s != '\t' && *s != '\n' && n < 255)
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
+        jz _L9530235
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
+        jne _L9530237
+        move @R0 #0
+        jmp _L9530238
+_L9530237:
+        move @R0 #1
+_L9530238:
+        test @R0 @R0
+        jz _L9530235
+        move @R0 #1
+        jmp _L9530236
+_L9530235:
+        move @R0 #0
+_L9530236:
+        test @R0 @R0
+        jz _L9530233
+        move @R0 [@R12-8]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #9
+        popb @R1
+        cmp @R1 @R0
+        jne _L9530239
         move @R0 #0
         jmp _L9530240
 _L9530239:
         move @R0 #1
 _L9530240:
         test @R0 @R0
-        jnz _L9530236
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #9
-        popb @R1
-        cmp @R1 @R0
-        je _L9530241
-        move @R0 #0
-        jmp _L9530242
-_L9530241:
+        jz _L9530233
         move @R0 #1
-_L9530242:
-        test @R0 @R0
-        jz _L9530237
-_L9530236:
-        move @R0 #1
-        jmp _L9530238
-_L9530237:
+        jmp _L9530234
+_L9530233:
         move @R0 #0
-_L9530238:
-        cmp @R0 #0
-        jz sta_9530235
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-        jmp sta_9530234
-sta_9530235:
-; 119:                 n = 0;
-        move @R0 #0
-        move [@R12-44] @R0
-sta_9530243:
-        move @R2 #0
-; 120:                 while (*s && *s != ' ' && *s != '\t' && *s != '\n' && n < 255)
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
+_L9530234:
         test @R0 @R0
-        jz _L9530251
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #32
-        popb @R1
-        cmp @R1 @R0
-        jne _L9530253
-        move @R0 #0
-        jmp _L9530254
-_L9530253:
-        move @R0 #1
-_L9530254:
-        test @R0 @R0
-        jz _L9530251
-        move @R0 #1
-        jmp _L9530252
-_L9530251:
-        move @R0 #0
-_L9530252:
-        test @R0 @R0
-        jz _L9530249
-        move @R0 [@R12-8]
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        move @R0 #9
-        popb @R1
-        cmp @R1 @R0
-        jne _L9530255
-        move @R0 #0
-        jmp _L9530256
-_L9530255:
-        move @R0 #1
-_L9530256:
-        test @R0 @R0
-        jz _L9530249
-        move @R0 #1
-        jmp _L9530250
-_L9530249:
-        move @R0 #0
-_L9530250:
-        test @R0 @R0
-        jz _L9530247
+        jz _L9530231
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1682,42 +1568,42 @@ _L9530250:
         move @R0 #10
         popb @R1
         cmp @R1 @R0
-        jne _L9530257
+        jne _L9530241
         move @R0 #0
-        jmp _L9530258
-_L9530257:
+        jmp _L9530242
+_L9530241:
         move @R0 #1
-_L9530258:
+_L9530242:
         test @R0 @R0
-        jz _L9530247
+        jz _L9530231
         move @R0 #1
-        jmp _L9530248
-_L9530247:
+        jmp _L9530232
+_L9530231:
         move @R0 #0
-_L9530248:
+_L9530232:
         test @R0 @R0
-        jz _L9530245
+        jz _L9530229
         move @R0 [@R12-44]
         push @R0
         move @R0 #255
         pop @R1
         cmp @R1 @R0
-        jl _L9530259
+        jl _L9530243
         move @R0 #0
-        jmp _L9530260
-_L9530259:
+        jmp _L9530244
+_L9530243:
         move @R0 #1
-_L9530260:
+_L9530244:
         test @R0 @R0
-        jz _L9530245
+        jz _L9530229
         move @R0 #1
-        jmp _L9530246
-_L9530245:
+        jmp _L9530230
+_L9530229:
         move @R0 #0
-_L9530246:
+_L9530230:
         cmp @R0 #0
-        jz sta_9530244
-; 121:                     { *dst = *s; dst++; s++; n++; }
+        jz sta_9530228
+; 111:                     { *dst = *s; dst++; s++; n++; }
         move @R0 [@R12-36]
         move @R6 @R0
         move @R0 [@R12-8]
@@ -1739,14 +1625,14 @@ _L9530246:
         add @R0 @R0 #1
         move [@R12-44] @R0
         move @R0 @R1
-        jmp sta_9530243
-sta_9530244:
-; 122:                 *dst = 0;
+        jmp sta_9530227
+sta_9530228:
+; 112:                 *dst = 0;
         move @R0 [@R12-36]
         move @R5 @R0
         move @R0 #0
         moveb [@R5] @R0
-; 123:                 count++; arg_idx++;
+; 113:                 count++; arg_idx++;
         move @R0 [@R12-16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1757,9 +1643,9 @@ sta_9530244:
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_9530116
-sta_9530122:
-; 126:                 dst = (char *)args[arg_idx];
+        jmp sta_9530100
+sta_9530106:
+; 116:                 dst = (char *)args[arg_idx];
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-12]
@@ -1768,7 +1654,7 @@ sta_9530122:
         add @R0 @R4
         move @R0 [@R0]
         move [@R12-36] @R0
-; 127:                 *dst = *s; dst++; *dst = 0; s++;
+; 117:                 *dst = *s; dst++; *dst = 0; s++;
         move @R0 [@R12-36]
         move @R3 @R0
         move @R0 [@R12-8]
@@ -1789,7 +1675,7 @@ sta_9530122:
         add @R0 @R0 #1
         move [@R12-8] @R0
         move @R0 @R1
-; 128:                 count++; arg_idx++;
+; 118:                 count++; arg_idx++;
         move @R0 [@R12-16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1800,20 +1686,20 @@ sta_9530122:
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_9530116
-sta_9530116:
-; 131:         p++;
+        jmp sta_9530100
+sta_9530100:
+; 121:         p++;
         move @R0 [@R12-20]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-20] @R0
         move @R0 @R1
-        jmp sta_9530056
-sta_9530057:
-; 133:     return count;
+        jmp sta_9530040
+sta_9530041:
+; 123:     return count;
         move @R0 [@R12-16]
-        jmp L_9530055
-L_9530055:
+        jmp L_9530039
+L_9530039:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1830,7 +1716,7 @@ scanf:
         push @R12
         move @R12 @R13
         sub @R13 #336
-; 138:     __builtin_va_start(ap, format);
+; 128:     __builtin_va_start(ap, format);
         move @R0 @R12
         add @R0 #12
         add @R0 #4
@@ -1838,51 +1724,51 @@ scanf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 139:     int nargs = _count_args(format);
+; 129:     int nargs = format_arg_count(format);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
-        call _count_args
+        call format_arg_count
         add @R13 #4
         move [@R12-12] @R0
-; 142:     for (i = 0; i < nargs && i < 12; i++)
+; 132:     for (i = 0; i < nargs && i < 12; i++)
         move @R0 #0
         move [@R12-64] @R0
-sta_9530261:
+sta_9530245:
         move @R0 [@R12-64]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L9530266
+        jl _L9530250
         move @R0 #0
-        jmp _L9530267
-_L9530266:
+        jmp _L9530251
+_L9530250:
         move @R0 #1
-_L9530267:
+_L9530251:
         test @R0 @R0
-        jz _L9530264
+        jz _L9530248
         move @R0 [@R12-64]
         push @R0
         move @R0 #12
         pop @R1
         cmp @R1 @R0
-        jl _L9530268
+        jl _L9530252
         move @R0 #0
-        jmp _L9530269
-_L9530268:
+        jmp _L9530253
+_L9530252:
         move @R0 #1
-_L9530269:
+_L9530253:
         test @R0 @R0
-        jz _L9530264
+        jz _L9530248
         move @R0 #1
-        jmp _L9530265
-_L9530264:
+        jmp _L9530249
+_L9530248:
         move @R0 #0
-_L9530265:
+_L9530249:
         cmp @R0 #0
-        jz sta_9530263
-; 143:         args[i] = __builtin_va_arg(ap, sizeof(int));
+        jz sta_9530247
+; 133:         args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 [@R12-8]
         move @R1 @R0
         move @R2 [@R1]
@@ -1906,75 +1792,75 @@ _L9530265:
         pop @R10
         add @R0 @R10
         move [@R0] @R1
-sta_9530262:
+sta_9530246:
         move @R0 [@R12-64]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-64] @R0
         move @R0 @R1
-        jmp sta_9530261
-sta_9530263:
-; 146:     int i2 = 0;
+        jmp sta_9530245
+sta_9530247:
+; 136:     int i2 = 0;
         move @R0 #0
         move [@R12-324] @R0
-sta_9530270:
+sta_9530254:
         move @R2 #0
-; 148:     while (i2 < 254) {
+; 138:     while (i2 < 254) {
         move @R0 [@R12-324]
         push @R0
         move @R0 #254
         pop @R1
         cmp @R1 @R0
-        jl _L9530272
+        jl _L9530256
         move @R0 #0
-        jmp _L9530273
-_L9530272:
+        jmp _L9530257
+_L9530256:
         move @R0 #1
-_L9530273:
+_L9530257:
         cmp @R0 #0
-        jz sta_9530271
-; 149:         c = getchar();
+        jz sta_9530255
+; 139:         c = getchar();
         call getchar
         move [@R12-328] @R0
-; 150:         if (c <= 0 || c == '\n') break;
+; 140:         if (c <= 0 || c == '\n') break;
         move @R0 [@R12-328]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jle _L9530279
+        jle _L9530263
         move @R0 #0
-        jmp _L9530280
-_L9530279:
+        jmp _L9530264
+_L9530263:
         move @R0 #1
-_L9530280:
+_L9530264:
         test @R0 @R0
-        jnz _L9530276
+        jnz _L9530260
         move @R0 [@R12-328]
         push @R0
         move @R0 #10
         pop @R1
         cmp @R1 @R0
-        je _L9530281
+        je _L9530265
         move @R0 #0
-        jmp _L9530282
-_L9530281:
+        jmp _L9530266
+_L9530265:
         move @R0 #1
-_L9530282:
+_L9530266:
         test @R0 @R0
-        jz _L9530277
-_L9530276:
+        jz _L9530261
+_L9530260:
         move @R0 #1
-        jmp _L9530278
-_L9530277:
+        jmp _L9530262
+_L9530261:
         move @R0 #0
-_L9530278:
+_L9530262:
         cmp @R0 #0
-        jz sta_9530274
-        jmp sta_9530271
-sta_9530274:
-sta_9530275:
-; 151:         buf[i2] = (char)c;
+        jz sta_9530258
+        jmp sta_9530255
+sta_9530258:
+sta_9530259:
+; 141:         buf[i2] = (char)c;
         move @R0 [@R12-328]
         move @R9 @R0
         move @R0 @R12
@@ -1990,15 +1876,15 @@ sta_9530275:
         pop @R7
         add @R0 @R7
         moveb [@R0] @R9
-; 152:         i2++;
+; 142:         i2++;
         move @R0 [@R12-324]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-324] @R0
         move @R0 @R1
-        jmp sta_9530270
-sta_9530271:
-; 154:     buf[i2] = 0;
+        jmp sta_9530254
+sta_9530255:
+; 144:     buf[i2] = 0;
         move @R0 #0
         move @R6 @R0
         move @R0 @R12
@@ -2014,7 +1900,7 @@ sta_9530271:
         pop @R4
         add @R0 @R4
         moveb [@R0] @R6
-; 155:     return vsscanf(buf, format, args, nargs);
+; 145:     return vsscanf(buf, format, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -2031,8 +1917,8 @@ sta_9530271:
         move @R3 [@R13+12]
         call vsscanf
         add @R13 #16
-        jmp L_9530283
-L_9530283:
+        jmp L_9530267
+L_9530267:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2051,7 +1937,7 @@ sscanf:
         push @R12
         move @R12 @R13
         sub @R13 #72
-; 160:     __builtin_va_start(ap, format);
+; 150:     __builtin_va_start(ap, format);
         move @R0 @R12
         add @R0 #16
         add @R0 #4
@@ -2059,51 +1945,51 @@ sscanf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 161:     int nargs = _count_args(format);
+; 151:     int nargs = format_arg_count(format);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
-        call _count_args
+        call format_arg_count
         add @R13 #4
         move [@R12-12] @R0
-; 164:     for (i = 0; i < nargs && i < 12; i++)
+; 154:     for (i = 0; i < nargs && i < 12; i++)
         move @R0 #0
         move [@R12-64] @R0
-sta_9530284:
+sta_9530268:
         move @R0 [@R12-64]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L9530289
+        jl _L9530273
         move @R0 #0
-        jmp _L9530290
-_L9530289:
+        jmp _L9530274
+_L9530273:
         move @R0 #1
-_L9530290:
+_L9530274:
         test @R0 @R0
-        jz _L9530287
+        jz _L9530271
         move @R0 [@R12-64]
         push @R0
         move @R0 #12
         pop @R1
         cmp @R1 @R0
-        jl _L9530291
+        jl _L9530275
         move @R0 #0
-        jmp _L9530292
-_L9530291:
+        jmp _L9530276
+_L9530275:
         move @R0 #1
-_L9530292:
+_L9530276:
         test @R0 @R0
-        jz _L9530287
+        jz _L9530271
         move @R0 #1
-        jmp _L9530288
-_L9530287:
+        jmp _L9530272
+_L9530271:
         move @R0 #0
-_L9530288:
+_L9530272:
         cmp @R0 #0
-        jz sta_9530286
-; 165:         args[i] = __builtin_va_arg(ap, sizeof(int));
+        jz sta_9530270
+; 155:         args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 [@R12-8]
         move @R1 @R0
         move @R2 [@R1]
@@ -2127,15 +2013,15 @@ _L9530288:
         pop @R11
         add @R0 @R11
         move [@R0] @R3
-sta_9530285:
+sta_9530269:
         move @R0 [@R12-64]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-64] @R0
         move @R0 @R1
-        jmp sta_9530284
-sta_9530286:
-; 167:     return vsscanf(str, format, args, nargs);
+        jmp sta_9530268
+sta_9530270:
+; 157:     return vsscanf(str, format, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -2151,8 +2037,8 @@ sta_9530286:
         move @R3 [@R13+12]
         call vsscanf
         add @R13 #16
-        jmp L_9530293
-L_9530293:
+        jmp L_9530277
+L_9530277:
         move @R13 @R12
         pop @R12
         pop @R15

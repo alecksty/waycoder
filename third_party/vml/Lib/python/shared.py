@@ -4691,12 +4691,27 @@ def vsnprintf(a0, a1, a2, a3):
     asm("CALL vsnprintf")
     return r0
 
+def format_arg_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL format_arg_count")
+    return r0
+
 def sprintf(a0, a1, a2):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a2
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL sprintf")
+    return r0
+
+def snprintf(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL snprintf")
     return r0
 
 def printf4(a0, a1, a2, a3, a4, a5):
@@ -4833,12 +4848,6 @@ def rle_decode(a0, a1):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL rle_decode")
-    return r0
-
-def _count_args(a0):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL _count_args")
     return r0
 
 def _isspace(a0):

@@ -766,7 +766,9 @@ extern "C" {
      nt _printf_ftoa(char *buf, float f, int prec);
      nt _printf_ftoe(char *buf, float f, int prec, int upper);
      int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);
+     int format_arg_count(const char *format);
     __cdecl int sprintf(char *buf, const char *fmt, ...);
+    __cdecl int snprintf(char *buf, unsigned int size, const char *fmt, ...);
      int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4);
      int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5);
     __stdcall void printx_int32(int val);
@@ -792,7 +794,6 @@ extern "C" {
     __stdcall int is_full(int* state);
     __stdcall int rle_encode(const char* data, int len, char* dst);
     __stdcall int rle_decode(const char* src, char* dst);
-     nt _count_args(const char *format);
      nt _isspace(int c);
      nt _isdigit(int c);
      int vsscanf(char *str, char *format, int *args, int nargs);

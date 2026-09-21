@@ -10,21 +10,11 @@
 /* ---- 前向声明 ---- */
 int getchar();
 
-/* 统计格式串中变参个数 */
-static int _count_args(const char *format)
-{
-    int n = 0;
-    const char *p = format;
-    while (*p) {
-        if (*p == '%') {
-            p++;
-            if (*p == '%' || *p == 0) { }
-            else { n++; }
-        }
-        p++;
-    }
-    return n;
-}
+/* 统计格式串中变参个数 —— **唯一实现在 `printf.c`**（`format_arg_count`）。
+   ⚠ 这里原先自带一份 static 的。两份的后果不是"代码重复"这么轻：数错一个，
+   变参表就**整体错位一格**，`scanf("%d %s", &n, buf)` 会把整数当地址写 ——
+   而两份判据只要有一处改动没同步就会这样，且**没有任何编译期提示**。 */
+int format_arg_count(const char *format);
 
 /* 判断字符是否为空白 */
 static int _isspace(int c)
@@ -145,7 +135,7 @@ int scanf(const char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    int nargs = _count_args(format);
+    int nargs = format_arg_count(format);
     int args[12];
     int i;
     for (i = 0; i < nargs && i < 12; i++)
@@ -172,7 +162,7 @@ int sscanf(const char *str, const char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    int nargs = _count_args(format);
+    int nargs = format_arg_count(format);
     int args[12];
     int i;
     for (i = 0; i < nargs && i < 12; i++)

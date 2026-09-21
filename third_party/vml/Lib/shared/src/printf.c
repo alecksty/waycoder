@@ -18,6 +18,9 @@
 #param lib("wchar")
 #param lib("uchar")
 
+// 变参一律走标准机制（`va_start` / `va_arg`）—— 实现由前端内建，见下面 printf 处的说明。
+#include "stdarg.h"
+
 extern size_t wcstombs(char *dest, const unsigned short *src, size_t max);
 extern size_t ucs_to_utf8(const unsigned int *src, char *dest, size_t max);
 
@@ -329,18 +332,69 @@ int vsnprintf(char *buf, const char *fmt, const int *args, int nargs) {
 //   实测 `sprintf(b,"s=[%s]","abc")` 打出 `s=[s=[%s]]`（`%s` 读到了格式串自己）、
 //   `sprintf(b,"ab%dcd",9)` 打出 `ab` + 地址的十进制 + `cd`。
 //   转成 `int*` 再加 1 才是「下一个槽」，与形参个数无关。
+/// <summary>
+/// 数一数格式串里有几个**消耗实参**的转换符（`%%` 不算）。
+///
+/// ⚠ 这份判据**只有一处实现**（`scanf.c` 原先自带一份 static 的，已改为调这里）——
+///   "同一规则两处实现"是本仓排第一的坑，而它在这里的后果很具体：
+///   数错一个 ⇒ 变参表**整体错位一格**，`printf("%s %d", …)` 会把整数当指针解引用。
+/// </summary>
+int format_arg_count(const char *format) {
+    int n = 0;
+    const char *p = format;
+    while (*p) {
+        if (*p == '%') {
+            p++;
+            if (*p == '%' || *p == 0) { }
+            else { n++; }
+        }
+        p++;
+    }
+    return n;
+}
+
+// ⚠ **变参一律走 `va_list`，不许拿形参地址自己算偏移**（用户定的硬规矩，
+//   见 ROADMAP 第零节「自接读写地址的代码不要」）。
+//
+//   此前这两处写的是 `int *stack_args = (int*)&fmt + 1;` —— 那是**猜**栈布局：
+//   它假定"变参紧跟 `fmt` 那一槽"，而这既不是语言契约、也与形参个数耦合
+//   （注释里就记着它因此读偏过一次，`sprintf` 多一个 `buf` 形参就整体错位）。
+//   换个前端（Python 等**没有指针**、按另一套约定传参）这条路直接断掉 ——
+//   而共享库存在的意义正是"多语言共用同一份实现"。
+//
+//   `va_start/va_arg` 由**前端的内建**实现（`Lib/c/stdarg.h` → `__builtin_va_*`），
+//   那是标准机制、由编译器负责，不是我们手写的地址算术。`scanf.c` 一直是这么做的。
+#define PRINTF_MAX_ARGS 16
+
 __cdecl void printf(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+
+    int nargs = format_arg_count(fmt);
+    if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
+    int args[PRINTF_MAX_ARGS];
+    int i;
+    for (i = 0; i < nargs; i++) args[i] = va_arg(ap, int);
+    va_end(ap);
+
     char buf[512];
-    int *stack_args = (int*)&fmt + 1;
-    int len = vsnprintf(buf, fmt, stack_args, 8);
+    int len = vsnprintf(buf, fmt, args, nargs);
     buf[len] = 0;
     int dummy = (int)buf;
     asm("SYSCALL #1");
 }
 
 __cdecl int sprintf(char *buf, const char *fmt, ...) {
-    int *stack_args = (int*)&fmt + 1;      // 见上面 printf 处的说明
-    int n = vsnprintf(buf, fmt, stack_args, 8);
+    va_list ap;                            // 见上面 printf 处的说明（不许拿形参地址算偏移）
+    va_start(ap, fmt);
+    int nargs = format_arg_count(fmt);
+    if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
+    int args[PRINTF_MAX_ARGS];
+    int i;
+    for (i = 0; i < nargs; i++) args[i] = va_arg(ap, int);
+    va_end(ap);
+
+    int n = vsnprintf(buf, fmt, args, nargs);
 
     // ⚠ **必须自己补结尾的 NUL** —— `vsnprintf` 返回的是**长度**（不含结尾符），
     //   而 C 的 `sprintf` 契约是"写一个以 NUL 结尾的串"。
@@ -354,6 +408,40 @@ __cdecl int sprintf(char *buf, const char *fmt, ...) {
     //   对老程序的影响面：状态栏、日志、`cprintf` 这类"先拼串再输出"的写法**全都会多尾巴**，
     //   而且多出来的内容**取决于上一次往该缓冲区写过什么** —— 典型的"编得过、跑起来才错"。
     buf[n] = 0;
+    return n;
+}
+
+/// <summary>
+/// `snprintf` —— **此前只有声明没有实现**（`Lib/c/stdio.h:55` 声明了它，全 `Lib/` 里
+/// 搜不到任何定义）⇒ 老程序一用它就**链不上**。而它恰恰是"安全拼串"最常用的那个
+/// （老代码里 `snprintf(buf, sizeof(buf), …)` 遍地都是）。
+///
+/// 返回值按 **C99**：给"**本该**写入的长度"（不含结尾符）—— 调用方靠 `>= size`
+/// 判断有没有被截断。缓冲区本身**一定**以 NUL 结尾（`size > 0` 时）。
+/// </summary>
+__cdecl int snprintf(char *buf, unsigned int size, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int nargs = format_arg_count(fmt);
+    if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
+    int args[PRINTF_MAX_ARGS];
+    int i;
+    for (i = 0; i < nargs; i++) args[i] = va_arg(ap, int);
+    va_end(ap);
+
+    // 先整份格式化到临时缓冲，再按 size 截断 —— `vsnprintf` 收的是"参数数组"、
+    // **不带长度上限**，所以边界只能在搬这一趟时守。临时缓冲与 printf 用同一个尺寸，
+    // 超过就按 printf 的既有行为截断（那条路本来也没有上限）。
+    char tmp[512];
+    int n = vsnprintf(tmp, fmt, args, nargs);
+    tmp[n] = 0;
+
+    int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
+    if (lim > 0) {
+        int k = 0;
+        while (k < lim - 1 && tmp[k] != 0) { buf[k] = tmp[k]; k++; }
+        buf[k] = 0;
+    }
     return n;
 }
 

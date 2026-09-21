@@ -3619,8 +3619,18 @@ func vsnprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
+func format_arg_count(a0 int32) int32 {
+    vml.Call("format_arg_count")
+    return vml.R0()
+}
+
 func sprintf(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("sprintf")
+    return vml.R0()
+}
+
+func snprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("snprintf")
     return vml.R0()
 }
 
@@ -3731,11 +3741,6 @@ func rle_encode(a0 int32, a1 int32, a2 int32) int32 {
 
 func rle_decode(a0 int32, a1 int32) int32 {
     vml.Call("rle_decode")
-    return vml.R0()
-}
-
-func _count_args(a0 int32) int32 {
-    vml.Call("_count_args")
     return vml.R0()
 }
 
