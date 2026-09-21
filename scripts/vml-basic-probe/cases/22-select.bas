@@ -1,0 +1,24 @@
+' 收窄：SELECT CASE
+DIM v AS INTEGER
+v = 2
+SELECT CASE v
+    CASE 1
+        PRINT "SC=1"
+    CASE 2
+        PRINT "SC=2"
+    CASE 3
+        PRINT "SC=3"
+    CASE ELSE
+        PRINT "SCE=1"
+END SELECT
+v = 9
+SELECT CASE v
+    CASE 1
+        PRINT "SC=1b"
+    CASE ELSE
+        PRINT "SCE=1b"
+END SELECT
+IF v = 9 THEN
+    PRINT "IFOK=1"
+END IF
+' EXPECT: SC=2|SCE=1b|IFOK=1

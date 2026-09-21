@@ -373,12 +373,33 @@ namespace BasicCompiler
         // ParseAsmStatement() 已移除 — asm() 仅限 C/ObjC/C++ 语言
         // BASIC 通过 Lib/shared/vmlsys.c 调用系统功能，ChipAsmStatement (chipasm) 保留
 
+        /// <summary>
+        /// <c>Expect</c> 的**本类版本**（`new` 掉基类那个）。
+        ///
+        /// <para>
+        /// 为什么必须 `new`：基类 `ParserBase.Expect` 走的是基类自己的 `_pos`/`_tokens` 游标，
+        /// 而本类把游标做成了自己的 `private int current`（`Peek`/`Advance`/`Previous` 都是
+        /// `new` 出来的，见 `Parser.Expressions.cs`）—— 两条流**互不同步**，基类那个在这里
+        /// 语义完全错位。
+        /// </para>
+        /// <para>
+        /// ⚠ **必须消费**（v0.96.330 修）：从前这里只做断言、**不 `Advance()`**，
+        /// 而调用点写的是「跳过 CASE」—— 两边对不上。后果是 `SELECT CASE v` 后面那个 `CASE`
+        /// 留在流上，紧接着第一轮 `ParseCaseBlock` 把**测试表达式本身**当成了一个 CASE 条件
+        /// ⇒ 多出一个「条件 = 测试值、体为空」的块，而它**永远匹配**（测试值等于它自己）
+        /// ⇒ **SELECT CASE 的任何分支体都不执行**，连 `CASE ELSE` 都到不了。
+        /// 实测症状：`SELECT CASE 33 / CASE 11→A1 / CASE 22→A2 / CASE 33→A3 / CASE ELSE→AE`
+        /// 打出 `AE`；测试表达式换成变量则**一行都不打**。
+        /// （`ParsePokeStatement` 也依赖本方法消费那个逗号。）
+        /// </para>
+        /// </summary>
         private new void Expect(TokenType expected, string errorMessage)
         {
             if (Peek().Type != expected)
             {
                 throw Error($"{errorMessage} (第{Peek().Line}行, 第{Peek().Column}列)");
             }
+            Advance();
         }
 
         private Statement ParseSystemStatement()

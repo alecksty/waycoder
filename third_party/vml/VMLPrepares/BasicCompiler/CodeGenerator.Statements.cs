@@ -716,6 +716,59 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.RET, new List<Operand>()));
         }
 
+        /// <summary>
+        /// FOR 的**循环测试** —— 主程序（<see cref="GenerateForStatement"/>）与 SUB
+        /// （<c>GenerateSubForStatement</c>）两套 FOR 实现**共用这一份**。
+        ///
+        /// <para>
+        /// **越界的哪一侧取决于步长的符号**：正步长是 `i > end` 退出、**负步长是 `i < end` 退出**。
+        /// 从前两处都**无条件发 `JG`** —— 那只对正步长成立，于是
+        /// `FOR i = 10 TO 1 STEP -3` **一次都不执行**（10 > 1 立刻退出）。
+        /// 编译全绿、不报错、静默少跑一个循环 —— 正是本仓最怕的那类缺陷。
+        /// </para>
+        /// <para>
+        /// 这里**在运行期判符号**，而不是编译期看字面量：`STEP 0 - 3` 这种把步长写成表达式的
+        /// 写法同样要认（实测就是这么写才暴露的），而基本语法里没有可依托的常量折叠。
+        /// 代价是每次循环测试多求一次步长表达式 —— BASIC 的 STEP 实际上都是常量，可以接受。
+        /// </para>
+        /// <para>
+        /// 寄存器约定：**R0 = 循环变量（调用方已装载）**、R1 = 结束值、R2 = 步长。
+        /// 求值会覆盖 R1/R2，所以两次求值的顺序不能换。
+        /// </para>
+        /// </summary>
+        private void EmitForLoopTest(Action toR1, Action toR2, string bodyLabel, string endLabel)
+        {
+            string posLabel = GenerateLabel();
+            Instruction Lab(string l) => new(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, l) });
+            Instruction Jump(OpCode op, string l) => new(op, new List<Operand> { new Operand(OperandType.LABEL, l) });
+
+            toR1();
+            toR2();
+
+            // 步长 >= 0 ? 走正步长那一支
+            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> {
+                new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0) }));
+            instructions.Add(Jump(OpCode.JGE, posLabel));
+
+            // ── 负步长：**i < end 就退出**（i >= end 继续）──
+            //    ⚠ 方向别写反：`FOR i = 10 TO 1 STEP -3` 要跑 i = 10,7,4,1 四轮，
+            //      退出条件是 i 掉到 1 **以下**。第一版这里写成"i < end 才继续"，
+            //      于是同一发变成了 0 轮 —— 看着像"没修"，其实是把符号判反了。
+            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> {
+                new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(Jump(OpCode.JL, endLabel));
+            instructions.Add(Jump(OpCode.JMP, bodyLabel));
+
+            instructions.Add(Lab(posLabel));
+
+            // ── 正步长：i <= end 才继续（i > end 就退出）──
+            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> {
+                new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(Jump(OpCode.JG, endLabel));
+
+            instructions.Add(Lab(bodyLabel));
+        }
+
         private void GenerateForStatement(ForStatement stmt)
         {
             // FOR 循环变量强制为整数类型 (QBASIC 兼容, 不受 DEFSNG 影响)
@@ -815,13 +868,13 @@ namespace BasicCompiler
             {
                 EmitLoadVar(0, stmt.Variable.Name);   // 全局段（见 EmitLoadVar）
             }
-            // 每次迭代重新计算结束值（循环体可能破坏 R1）
-            if (currentSubName != null)
-                GenerateSubExpression(stmt.EndValue, 1);
-            else
-                GenerateExpression(stmt.EndValue, 1);
-            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
+            // 循环测试：**按步长符号选跳转**（正步长 `i > end` 退出 / 负步长 `i < end` 退出）。
+            // 每次迭代都重新求一次结束值与步长 —— 循环体可能破坏 R1/R2，而这两句本来就要重算。
+            string bodyLabel = GenerateLabel();
+            EmitForLoopTest(
+                () => { if (currentSubName != null) GenerateSubExpression(stmt.EndValue, 1); else GenerateExpression(stmt.EndValue, 1); },
+                () => { if (currentSubName != null) GenerateSubExpression(stmt.StepValue, 2); else GenerateExpression(stmt.StepValue, 2); },
+                bodyLabel, endLabel);
 
             // 循环体 — 用栈保存/恢复循环变量
             // PUSH 保存变量值 → 执行循环体 → POP 恢复（循环体内 PUSH/POP 自然平衡）

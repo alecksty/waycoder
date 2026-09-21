@@ -320,14 +320,37 @@ __stdcall char* basic_rtrim(const char* s) {
 ///
 /// ⚠ 用 `_buf3` 这块**独立**缓冲，不复用 `_buf1`/`_buf2`：那两个是 `LEFT$/RIGHT$/MID$`
 ///   等函数的返回值暂存处，拼接结果若与参数共用会让 `a$ + LEFT$(a$, 1)` 这类写法自己踩自己。
-__stdcall char* basic_concat(const char* a, const char* b) {
+/// ⚠ **拼接结果必须按"拼接点"分区**（v0.96.330 修）—— 从前只有一块 `_buf3`，
+/// 于是两条拼接先后求值就互相覆盖：`a$ = "AAA" + STR$(1)` 紧跟
+/// `b$ = "BBB" + STR$(2)` 之后，**a 和 b 都等于 "BBB2"**（实测，应 AAA1 / BBB2）。
+/// 字符串在 BASIC 里是**值**，两个同时活着的拼接结果必须各有各的地方。
+///
+/// 分区的办法：前端给**每个拼接点**一个固定槽位（同一处代码每次都写同一槽），
+/// 于是"不同表达式点算出来的串"天然落在不同缓冲区上。
+/// 槽位数 `CONCAT_SLOTS` 是**跨语言契约**，前端 `GenerateStringConcat` 里写着同一个数；
+/// 两边对不上也不会崩 —— `basic_concat_slot` 会把越界槽位夹回 0（退化成从前的行为）。
+#define CONCAT_SLOTS 16
+static char _concats[CONCAT_SLOTS * 256];
+
+__stdcall char* basic_concat_slot(const char* a, const char* b, int slot) {
+    char* out;
     int i, j;
-    if (a == 0) return _buf3;
+    if (slot < 0) slot = 0;
+    if (slot >= CONCAT_SLOTS) slot = 0;
+    slot = slot * 256;
+    out = _concats;
+    out = out + slot;
+    if (a == 0) { out[0] = 0; return out; }
     if (b == 0) b = a;
-    for (i = 0; a[i] && i < 255; i++) _buf3[i] = a[i];
-    for (j = 0; b[j] && i < 255; j++) { _buf3[i] = b[j]; i = i + 1; }
-    _buf3[i] = 0;
-    return _buf3;
+    for (i = 0; a[i] && i < 255; i++) out[i] = a[i];
+    for (j = 0; b[j] && i < 255; j++) { out[i] = b[j]; i = i + 1; }
+    out[i] = 0;
+    return out;
+}
+
+/// 老入口（两个参数）—— 落到槽 0。其它语言/老产物照旧可用。
+__stdcall char* basic_concat(const char* a, const char* b) {
+    return basic_concat_slot(a, b, 0);
 }
 
 /// ABS(n) — absolute value

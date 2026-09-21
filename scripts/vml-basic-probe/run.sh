@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# BASIC 前端**语言特性判据** —— 每个用例一段最小复现，判据是**打印出来的值**。
+#
+# 为什么要单独立一套（与 `vml-out-probe` / `vml-abi-probe` 并列）：
+# 那两套压的是"跨语言输出"与"调用约定"，而**这门语言本身能不能用**在当时没有任何判据 ——
+# `gorilla.bas` 头部记了一串"必须绕开"的写法（数组不能用、SUB 里不能套括号、不能写 AND…），
+# 那些记录来自 v0.96.3xx 期间的实测；本轮逐条重测，发现**绝大多数已经修好**，
+# 而真正还坏着的（FOR 负步长 / CHR$ / SELECT CASE / DATA-READ）当时一条判据都没有。
+#
+# 判据形态：**顶层 vs SUB 内**各来一遍。历史经验是"顶层基本是好的、SUB 体才是重灾区"
+# （同一段表达式在两种位置给不同答案），所以只用顶层写的判据会漏掉一半。
+#
+# 用法：
+#   scripts/vml-basic-probe/run.sh            # 全部
+#   scripts/vml-basic-probe/run.sh 01 06      # 按编号前缀挑
+#
+# 依赖桌面的 `scripts/vmlcli`（与手机端等价的编译+运行流水线）。
+# ⚠ 前置：先 `dotnet build scripts/vmlcli/vmlcli.csproj -c Release`。
+set -u
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+CLI="$ROOT/scripts/vmlcli/bin/Release/net10.0/vmlcli.dll"
+CASES="$ROOT/scripts/vml-basic-probe/cases"
+
+if [ ! -f "$CLI" ]; then
+    echo "✘ 找不到 $CLI —— 先跑： dotnet build scripts/vmlcli/vmlcli.csproj -c Release"
+    exit 2
+fi
+
+pick=("$@")
+pass=0; fail=0
+for f in "$CASES"/*.bas; do
+    name="$(basename "$f")"
+    if [ ${#pick[@]} -gt 0 ]; then
+        hit=0
+        for p in "${pick[@]}"; do [[ "$name" == "$p"* ]] && hit=1; done
+        [ "$hit" = 1 ] || continue
+    fi
+    out="$(dotnet "$CLI" "$f" 2>&1)"
+    # 用例里带 `' EXPECT:` 注释行给期望值；逐行比对
+    exp="$(grep -o "EXPECT:.*" "$f" | sed 's/EXPECT: *//')"
+    if [ -z "$exp" ]; then
+        printf "  %-16s %s\n" "$name" "$(echo "$out" | grep -E '^[A-Za-z0-9-]+=' | tr '\n' ' ')"
+        continue
+    fi
+    got="$(echo "$out" | grep -oE '^[A-Za-z0-9+-]+=.*' | tr '\n' '|' | sed 's/|$//')"
+    if [ "$got" = "$exp" ]; then
+        printf "  ✅ %-16s %s\n" "$name" "$got"
+        pass=$((pass+1))
+    else
+        printf "  ❌ %-16s\n     期望 %s\n     实得 %s\n" "$name" "$exp" "$got"
+        fail=$((fail+1))
+    fi
+done
+
+echo "──────────────────────────────────────────────"
+echo "通过 $pass / 失败 $fail"
+[ "$fail" -eq 0 ]

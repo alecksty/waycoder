@@ -467,6 +467,19 @@ namespace BasicCompiler
             {
                 GenerateSubForStatement(forStmt);
             }
+            // ⚠ **`SELECT CASE` 必须在这里也接一支**（v0.96.330 修）。
+            //   它是 SUB/FUNCTION 分派里**唯一漏掉**的常用语句 —— 而本方法是个
+            //   if/else 链，落到最后就**悄无声息地什么都不生成**（没有 else 兜底、
+            //   不报错、不警告）。症状极具欺骗性：函数**编译得过、也能调用**，
+            //   只是整个 `SELECT CASE` 一条指令都没有 ⇒ 恒等于"一个分支都没进"，
+            //   于是 `FUNCTION f(n)` 里 `f = 10/20/30` 三支全不执行、返回值永远是 0
+            //   （实测 `f(0)/f(1)/f(2)` 都是 0，而同样逻辑写成 IF/ELSE 就对）。
+            //   生成器本身是**共用**的（`GenerateSelectCaseStatement` 里已经按
+            //   `currentSubName` 分了两条路），这里补的只是**入口**。
+            else if (stmt is SelectCaseStatement selectCaseStmt)
+            {
+                GenerateSelectCaseStatement(selectCaseStmt);
+            }
             else if (stmt is WhileStatement whileStmt)
             {
                 GenerateSubWhileStatement(whileStmt);
@@ -997,9 +1010,13 @@ namespace BasicCompiler
             // Load variable and compare with end value
             string loadAddr = GetVarAddr();
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loadAddr) }));
-            GenerateSubExpression(stmt.EndValue, 1);
-            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
+            // 循环测试与主程序**共用一份**（`EmitForLoopTest`）—— 从前两处各写一遍无条件 `JG`，
+            // 于是"负步长一次都不执行"那个 bug 被复制成了两份。判据与说明都在那个方法上。
+            string bodyLabel = GenerateLabel();
+            EmitForLoopTest(
+                () => GenerateSubExpression(stmt.EndValue, 1),
+                () => GenerateSubExpression(stmt.StepValue, 2),
+                bodyLabel, endLabel);
 
             // 循环体前后"保护/恢复循环变量" —— 与主程序的 GenerateForStatement **同一形状**，
             // 两套 FOR 实现不再一个有一个没有。

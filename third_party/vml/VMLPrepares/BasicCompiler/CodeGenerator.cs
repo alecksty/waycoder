@@ -1101,9 +1101,14 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
             // 初始化 DATA 指针 (offset 0 in static area)
+            //
+            // ⚠ **MOVE 是 dest-first**（v0.96.330 修）：`move [mem], reg` 是**存**、
+            //   `move reg, [mem]` 是**取**。这条链上从前**四处**全写反了，方向整片是反的：
+            //   数据指针没被写过、DATA 值也没被写进静态区 ⇒ `READ` 永远读回 0。
+            //   （同一族的坑本仓记过：SUB 内 FOR 的初值/自增两处也是这么反的。）
             AddRI(OpCode.MOVE, 0, 0);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FD0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
 
             // 初始化 DATA 值到动态分配的静态区
             int strPtr = 0;
@@ -1118,7 +1123,9 @@ namespace BasicCompiler
                     AddRI(OpCode.MOVE, 0, dataValues[i]);
                 }
                 EmitStaticAddr(1, STATIC_DATA_OFFSET + i * 4);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+                // ⚠ 这里必须是**存**（dest-first，见上面那段说明）—— 从前写成 `move R0, [R1]`
+                //   是取，于是 DATA 值一个都没落进静态区。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
             }
 
             // 生成语句

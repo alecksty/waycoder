@@ -311,18 +311,37 @@ namespace BasicCompiler
         /// ⚠ 与其它库调用一样要 `EmitSaveRegsExcept`：库函数会把 R0–R5 用掉，
         ///   而这可能发生在另一个表达式求值的中途。
         /// </summary>
+        /// <summary>拼接点 → 结果缓冲区槽位。**每个拼接点（AST 节点）各占一槽**。</summary>
+        private int _concatSlot;
+
+        /// <summary>与库侧 `basiclib.c` 的 `CONCAT_SLOTS` 同值（跨语言契约）。</summary>
+        private const int ConcatSlots = 16;
+
         private bool GenerateStringConcat(BinaryExpression binary, int reg)
         {
             if (binary.Operator != "+") return false;
             if (InferExpressionType(binary.Left) != BasicType.String) return false;
             if (InferExpressionType(binary.Right) != BasicType.String) return false;
 
-            var call = new FunctionCallExpression(binary.Line, binary.Column, "basic_concat");
+            // ⚠ **每个拼接点要自己的结果缓冲区**（v0.96.330 修）。
+            //   从前大家都用库里那块唯一的 `_buf3` ⇒ 两条拼接先后求值互相覆盖：
+            //   `a$ = "AAA" + STR$(1)` 紧跟 `b$ = "BBB" + STR$(2)` 之后
+            //   **a 和 b 都等于 "BBB2"**（实测）。字符串在 BASIC 里是**值**，
+            //   两个同时活着的拼接结果必须各有各的地方。
+            //
+            //   槽位在这里**按代码生成顺序**分配，而代码生成对每个 AST 节点**只跑一次**
+            //   ⇒ 同一处代码（哪怕在循环里）永远用同一槽，不同表达式点天然错开。
+            //   拼接点超过槽位数时绕回，最坏退化成从前那种行为（库侧会把越界夹回 0）。
+            int slot = _concatSlot;
+            _concatSlot = (_concatSlot + 1) % ConcatSlots;
+
+            var call = new FunctionCallExpression(binary.Line, binary.Column, "basic_concat_slot");
             call.Arguments.Add(binary.Left);
             call.Arguments.Add(binary.Right);
+            call.Arguments.Add(new NumberLiteral(binary.Line, binary.Column, slot));
 
             EmitSaveRegsExcept(reg, 0, 1, 2, 3, 4, 5);
-            GenerateLibraryCall("basic_concat", call, reg);
+            GenerateLibraryCall("basic_concat_slot", call, reg);
             EmitRestoreRegsExcept(reg, 0, 1, 2, 3, 4, 5);
             return true;
         }

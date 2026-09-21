@@ -3,7 +3,7 @@
 .linked "fixed.vml"
 .data
 _buf1: .word[256] 0
-_buf3: .word[256] 0
+_concats: .word[4096] 0
 L_66490000: .string "0123456789ABCDEF"
 
 .text
@@ -3261,6 +3261,261 @@ L_66490332:
         pop @R12
         pop @R15
         ret
+basic_concat_slot:
+; -------------------------------------------
+; source   : char* basic_concat_slot(const char* a,const char* b,int slot)
+; function : basic_concat_slot
+; param   : const char* a
+; param   : const char* b
+; param   : int slot
+; return   : char*
+; --------------------------------------------
+basic_concat_slot:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 301:     if (slot < 0) slot = 0;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L66490352
+        move @R0 #0
+        jmp _L66490353
+_L66490352:
+        move @R0 #1
+_L66490353:
+        cmp @R0 #0
+        jz sta_66490350
+        move @R0 #0
+        move [@R12+20] @R0
+sta_66490350:
+sta_66490351:
+; 302:     if (slot >= 16) slot = 0;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #16
+        pop @R1
+        cmp @R1 @R0
+        jge _L66490356
+        move @R0 #0
+        jmp _L66490357
+_L66490356:
+        move @R0 #1
+_L66490357:
+        cmp @R0 #0
+        jz sta_66490354
+        move @R0 #0
+        move [@R12+20] @R0
+sta_66490354:
+sta_66490355:
+; 303:     slot = slot * 256;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #256
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12+20] @R0
+; 304:     out = _concats;
+        move @R0 _concats
+        move [@R12-8] @R0
+; 305:     out = out + slot;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+; 306:     if (a == 0) { out[0] = 0; return out; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L66490360
+        move @R0 #0
+        jmp _L66490361
+_L66490360:
+        move @R0 #1
+_L66490361:
+        cmp @R0 #0
+        jz sta_66490358
+        move @R0 #0
+        move @R10 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R10
+        move @R0 [@R12-8]
+        jmp L_66490362
+sta_66490358:
+sta_66490359:
+; 307:     if (b == 0) b = a;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L66490365
+        move @R0 #0
+        jmp _L66490366
+_L66490365:
+        move @R0 #1
+_L66490366:
+        cmp @R0 #0
+        jz sta_66490363
+        move @R0 [@R12+12]
+        move [@R12+16] @R0
+sta_66490363:
+sta_66490364:
+; 308:     for (i = 0; a[i] && i < 255; i++) out[i] = a[i];
+        move @R0 #0
+        move [@R12-12] @R0
+sta_66490367:
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
+        jz _L66490370
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #255
+        pop @R1
+        cmp @R1 @R0
+        jl _L66490372
+        move @R0 #0
+        jmp _L66490373
+_L66490372:
+        move @R0 #1
+_L66490373:
+        test @R0 @R0
+        jz _L66490370
+        move @R0 #1
+        jmp _L66490371
+_L66490370:
+        move @R0 #0
+_L66490371:
+        cmp @R0 #0
+        jz sta_66490369
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R7 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb [@R0] @R7
+sta_66490368:
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_66490367
+sta_66490369:
+; 309:     for (j = 0; b[j] && i < 255; j++) { out[i] = b[j]; i = i + 1; }
+        move @R0 #0
+        move [@R12-16] @R0
+sta_66490374:
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
+        jz _L66490377
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #255
+        pop @R1
+        cmp @R1 @R0
+        jl _L66490379
+        move @R0 #0
+        jmp _L66490380
+_L66490379:
+        move @R0 #1
+_L66490380:
+        test @R0 @R0
+        jz _L66490377
+        move @R0 #1
+        jmp _L66490378
+_L66490377:
+        move @R0 #0
+_L66490378:
+        cmp @R0 #0
+        jz sta_66490376
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R8 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb [@R0] @R8
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+sta_66490375:
+        move @R0 [@R12-16]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-16] @R0
+        move @R0 @R1
+        jmp sta_66490374
+sta_66490376:
+; 310:     out[i] = 0;
+        move @R0 #0
+        move @R2 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R2
+; 311:     return out;
+        move @R0 [@R12-8]
+        jmp L_66490362
+L_66490362:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
 basic_concat:
 ; -------------------------------------------
 ; source   : char* basic_concat(const char* a,const char* b)
@@ -3273,195 +3528,21 @@ basic_concat:
         push @R15
         push @R12
         move @R12 @R13
-        sub @R13 #24
-; 290:     if (a == 0) return _buf3;
-        move @R0 [@R12+12]
+        sub @R13 #16
+; 315:     return basic_concat_slot(a, b, 0);
+        move @R0 #0
         push @R0
-        move @R0 #0
-        pop @R1
-        cmp @R1 @R0
-        je _L66490352
-        move @R0 #0
-        jmp _L66490353
-_L66490352:
-        move @R0 #1
-_L66490353:
-        cmp @R0 #0
-        jz sta_66490350
-        move @R0 _buf3
-        jmp L_66490354
-sta_66490350:
-sta_66490351:
-; 291:     if (b == 0) b = a;
         move @R0 [@R12+16]
         push @R0
-        move @R0 #0
-        pop @R1
-        cmp @R1 @R0
-        je _L66490357
-        move @R0 #0
-        jmp _L66490358
-_L66490357:
-        move @R0 #1
-_L66490358:
-        cmp @R0 #0
-        jz sta_66490355
-        move @R0 [@R12+12]
-        move [@R12+16] @R0
-sta_66490355:
-sta_66490356:
-; 292:     for (i = 0; a[i] && i < 255; i++) _buf3[i] = a[i];
-        move @R0 #0
-        move [@R12-8] @R0
-sta_66490359:
         move @R0 [@R12+12]
         push @R0
-        move @R0 [@R12-8]
-        mul @R0 #1
-        pop @R10
-        add @R0 @R10
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        test @R0 @R0
-        jz _L66490362
-        move @R0 [@R12-8]
-        push @R0
-        move @R0 #255
-        pop @R1
-        cmp @R1 @R0
-        jl _L66490364
-        move @R0 #0
-        jmp _L66490365
-_L66490364:
-        move @R0 #1
-_L66490365:
-        test @R0 @R0
-        jz _L66490362
-        move @R0 #1
-        jmp _L66490363
-_L66490362:
-        move @R0 #0
-_L66490363:
-        cmp @R0 #0
-        jz sta_66490361
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 [@R12-8]
-        mul @R0 #1
-        pop @R6
-        add @R0 @R6
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        move @R11 @R0
-        move @R0 _buf3
-        push @R0
-        move @R4 #0
-        push @R4
-        move @R0 [@R12-8]
-        pop @R4
-        move @R4 @R0
-        move @R0 @R4
-        mul @R0 #1
-        pop @R7
-        add @R0 @R7
-        moveb [@R0] @R11
-sta_66490360:
-        move @R0 [@R12-8]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-8] @R0
-        move @R0 @R1
-        jmp sta_66490359
-sta_66490361:
-; 293:     for (j = 0; b[j] && i < 255; j++) { _buf3[i] = b[j]; i = i + 1; }
-        move @R0 #0
-        move [@R12-12] @R0
-sta_66490366:
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 [@R12-12]
-        mul @R0 #1
-        pop @R3
-        add @R0 @R3
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        test @R0 @R0
-        jz _L66490369
-        move @R0 [@R12-8]
-        push @R0
-        move @R0 #255
-        pop @R1
-        cmp @R1 @R0
-        jl _L66490371
-        move @R0 #0
-        jmp _L66490372
-_L66490371:
-        move @R0 #1
-_L66490372:
-        test @R0 @R0
-        jz _L66490369
-        move @R0 #1
-        jmp _L66490370
-_L66490369:
-        move @R0 #0
-_L66490370:
-        cmp @R0 #0
-        jz sta_66490368
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 [@R12-12]
-        mul @R0 #1
-        pop @R1
-        add @R0 @R1
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        move @R9 @R0
-        move @R0 _buf3
-        push @R0
-        move @R8 #0
-        push @R8
-        move @R0 [@R12-8]
-        pop @R8
-        move @R8 @R0
-        move @R0 @R8
-        mul @R0 #1
-        pop @R5
-        add @R0 @R5
-        moveb [@R0] @R9
-        move @R0 [@R12-8]
-        push @R0
-        move @R0 #1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        move [@R12-8] @R0
-sta_66490367:
-        move @R0 [@R12-12]
-        move @R1 @R0
-        add @R0 @R0 #1
-        move [@R12-12] @R0
-        move @R0 @R1
-        jmp sta_66490366
-sta_66490368:
-; 294:     _buf3[i] = 0;
-        move @R0 #0
-        move @R2 @R0
-        move @R0 _buf3
-        push @R0
-        move @R10 #0
-        push @R10
-        move @R0 [@R12-8]
-        pop @R10
-        move @R10 @R0
-        move @R0 @R10
-        mul @R0 #1
-        pop @R6
-        add @R0 @R6
-        moveb [@R0] @R2
-; 295:     return _buf3;
-        move @R0 _buf3
-        jmp L_66490354
-L_66490354:
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call basic_concat_slot
+        add @R13 #12
+        jmp L_66490381
+L_66490381:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3478,29 +3559,29 @@ basic_abs:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 299:     return n < 0 ? -n : n;
+; 319:     return n < 0 ? -n : n;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490373
+        jl _L66490382
         move @R0 #0
-        jmp _L66490374
-_L66490373:
+        jmp _L66490383
+_L66490382:
         move @R0 #1
-_L66490374:
+_L66490383:
         test @R0 @R0
-        jz _L66490375
+        jz _L66490384
         move @R0 [@R12+12]
         move @R0 [@R12+12]
         neg @R0 @R0
-        jmp _L66490376
-_L66490375:
+        jmp _L66490385
+_L66490384:
         move @R0 [@R12+12]
-_L66490376:
-        jmp L_66490377
-L_66490377:
+_L66490385:
+        jmp L_66490386
+L_66490386:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3517,48 +3598,48 @@ basic_sgn:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 303:     if (n < 0) return -1;
+; 323:     if (n < 0) return -1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490380
+        jl _L66490389
         move @R0 #0
-        jmp _L66490381
-_L66490380:
+        jmp _L66490390
+_L66490389:
         move @R0 #1
-_L66490381:
+_L66490390:
         cmp @R0 #0
-        jz sta_66490378
+        jz sta_66490387
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_66490382
-sta_66490378:
-sta_66490379:
-; 304:     if (n > 0) return 1;
+        jmp L_66490391
+sta_66490387:
+sta_66490388:
+; 324:     if (n > 0) return 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jg _L66490385
+        jg _L66490394
         move @R0 #0
-        jmp _L66490386
-_L66490385:
+        jmp _L66490395
+_L66490394:
         move @R0 #1
-_L66490386:
+_L66490395:
         cmp @R0 #0
-        jz sta_66490383
+        jz sta_66490392
         move @R0 #1
-        jmp L_66490382
-sta_66490383:
-sta_66490384:
-; 305:     return 0;
+        jmp L_66490391
+sta_66490392:
+sta_66490393:
+; 325:     return 0;
         move @R0 #0
-        jmp L_66490382
-L_66490382:
+        jmp L_66490391
+L_66490391:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3575,38 +3656,38 @@ _sin_lookup:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 312:     if (deg < 0) deg = 0;
+; 332:     if (deg < 0) deg = 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490389
+        jl _L66490398
         move @R0 #0
-        jmp _L66490390
-_L66490389:
+        jmp _L66490399
+_L66490398:
         move @R0 #1
-_L66490390:
+_L66490399:
         cmp @R0 #0
-        jz sta_66490387
+        jz sta_66490396
         move @R0 #0
         move [@R12+12] @R0
-sta_66490387:
-sta_66490388:
-; 313:     if (deg >= 360) deg = deg - (deg / 360) * 360;
+sta_66490396:
+sta_66490397:
+; 333:     if (deg >= 360) deg = deg - (deg / 360) * 360;
         move @R0 [@R12+12]
         push @R0
         move @R0 #360
         pop @R1
         cmp @R1 @R0
-        jge _L66490393
+        jge _L66490402
         move @R0 #0
-        jmp _L66490394
-_L66490393:
+        jmp _L66490403
+_L66490402:
         move @R0 #1
-_L66490394:
+_L66490403:
         cmp @R0 #0
-        jz sta_66490391
+        jz sta_66490400
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+12]
@@ -3624,22 +3705,22 @@ _L66490394:
         sub @R1 @R0
         move @R0 @R1
         move [@R12+12] @R0
-sta_66490391:
-sta_66490392:
-; 314:     if (deg < 0) deg = deg + 360;
+sta_66490400:
+sta_66490401:
+; 334:     if (deg < 0) deg = deg + 360;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490397
+        jl _L66490406
         move @R0 #0
-        jmp _L66490398
-_L66490397:
+        jmp _L66490407
+_L66490406:
         move @R0 #1
-_L66490398:
+_L66490407:
         cmp @R0 #0
-        jz sta_66490395
+        jz sta_66490404
         move @R0 [@R12+12]
         push @R0
         move @R0 #360
@@ -3647,36 +3728,36 @@ _L66490398:
         add @R1 @R0
         move @R0 @R1
         move [@R12+12] @R0
-sta_66490395:
-sta_66490396:
-; 322:     if (deg <= 90) {
+sta_66490404:
+sta_66490405:
+; 342:     if (deg <= 90) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #90
         pop @R1
         cmp @R1 @R0
-        jle _L66490401
+        jle _L66490410
         move @R0 #0
-        jmp _L66490402
-_L66490401:
+        jmp _L66490411
+_L66490410:
         move @R0 #1
-_L66490402:
+_L66490411:
         cmp @R0 #0
-        jz sta_66490399
-; 323:         if (deg <= 15) return 2588 * deg / 15;                            //  0°:0     15°:2588
+        jz sta_66490408
+; 343:         if (deg <= 15) return 2588 * deg / 15;                            //  0°:0     15°:2588
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
         pop @R1
         cmp @R1 @R0
-        jle _L66490405
+        jle _L66490414
         move @R0 #0
-        jmp _L66490406
-_L66490405:
+        jmp _L66490415
+_L66490414:
         move @R0 #1
-_L66490406:
+_L66490415:
         cmp @R0 #0
-        jz sta_66490403
+        jz sta_66490412
         move @R0 #2588
         push @R0
         move @R0 [@R12+12]
@@ -3688,23 +3769,23 @@ _L66490406:
         pop @R1
         div @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490403:
-sta_66490404:
-; 324:         if (deg <= 30) return 2588 + 2412 * (deg - 15) / 15;              // 15°:2588  30°:5000
+        jmp L_66490416
+sta_66490412:
+sta_66490413:
+; 344:         if (deg <= 30) return 2588 + 2412 * (deg - 15) / 15;              // 15°:2588  30°:5000
         move @R0 [@R12+12]
         push @R0
         move @R0 #30
         pop @R1
         cmp @R1 @R0
-        jle _L66490410
+        jle _L66490419
         move @R0 #0
-        jmp _L66490411
-_L66490410:
+        jmp _L66490420
+_L66490419:
         move @R0 #1
-_L66490411:
+_L66490420:
         cmp @R0 #0
-        jz sta_66490408
+        jz sta_66490417
         move @R0 #2588
         push @R0
         move @R0 #2412
@@ -3726,23 +3807,23 @@ _L66490411:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490408:
-sta_66490409:
-; 325:         if (deg <= 45) return 5000 + 2071 * (deg - 30) / 15;              // 30°:5000  45°:7071
+        jmp L_66490416
+sta_66490417:
+sta_66490418:
+; 345:         if (deg <= 45) return 5000 + 2071 * (deg - 30) / 15;              // 30°:5000  45°:7071
         move @R0 [@R12+12]
         push @R0
         move @R0 #45
         pop @R1
         cmp @R1 @R0
-        jle _L66490414
+        jle _L66490423
         move @R0 #0
-        jmp _L66490415
-_L66490414:
+        jmp _L66490424
+_L66490423:
         move @R0 #1
-_L66490415:
+_L66490424:
         cmp @R0 #0
-        jz sta_66490412
+        jz sta_66490421
         move @R0 #5000
         push @R0
         move @R0 #2071
@@ -3764,23 +3845,23 @@ _L66490415:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490412:
-sta_66490413:
-; 326:         if (deg <= 60) return 7071 + 1589 * (deg - 45) / 15;              // 45°:7071  60°:8660
+        jmp L_66490416
+sta_66490421:
+sta_66490422:
+; 346:         if (deg <= 60) return 7071 + 1589 * (deg - 45) / 15;              // 45°:7071  60°:8660
         move @R0 [@R12+12]
         push @R0
         move @R0 #60
         pop @R1
         cmp @R1 @R0
-        jle _L66490418
+        jle _L66490427
         move @R0 #0
-        jmp _L66490419
-_L66490418:
+        jmp _L66490428
+_L66490427:
         move @R0 #1
-_L66490419:
+_L66490428:
         cmp @R0 #0
-        jz sta_66490416
+        jz sta_66490425
         move @R0 #7071
         push @R0
         move @R0 #1589
@@ -3802,23 +3883,23 @@ _L66490419:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490416:
-sta_66490417:
-; 327:         if (deg <= 75) return 8660 + 999 * (deg - 60) / 15;               // 60°:8660  75°:9659
+        jmp L_66490416
+sta_66490425:
+sta_66490426:
+; 347:         if (deg <= 75) return 8660 + 999 * (deg - 60) / 15;               // 60°:8660  75°:9659
         move @R0 [@R12+12]
         push @R0
         move @R0 #75
         pop @R1
         cmp @R1 @R0
-        jle _L66490422
+        jle _L66490431
         move @R0 #0
-        jmp _L66490423
-_L66490422:
+        jmp _L66490432
+_L66490431:
         move @R0 #1
-_L66490423:
+_L66490432:
         cmp @R0 #0
-        jz sta_66490420
+        jz sta_66490429
         move @R0 #8660
         push @R0
         move @R0 #999
@@ -3840,10 +3921,10 @@ _L66490423:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490420:
-sta_66490421:
-; 328:         return 9659 + 341 * (deg - 75) / 15;                              // 75°:9659  90°:10000
+        jmp L_66490416
+sta_66490429:
+sta_66490430:
+; 348:         return 9659 + 341 * (deg - 75) / 15;                              // 75°:9659  90°:10000
         move @R0 #9659
         push @R0
         move @R0 #341
@@ -3865,24 +3946,24 @@ sta_66490421:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_66490407
-sta_66490399:
-sta_66490400:
-; 331:     if (deg <= 180) {
+        jmp L_66490416
+sta_66490408:
+sta_66490409:
+; 351:     if (deg <= 180) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #180
         pop @R1
         cmp @R1 @R0
-        jle _L66490426
+        jle _L66490435
         move @R0 #0
-        jmp _L66490427
-_L66490426:
+        jmp _L66490436
+_L66490435:
         move @R0 #1
-_L66490427:
+_L66490436:
         cmp @R0 #0
-        jz sta_66490424
-; 332:         v = _sin_lookup(180 - deg);
+        jz sta_66490433
+; 352:         v = _sin_lookup(180 - deg);
         move @R0 #180
         push @R0
         move @R0 [@R12+12]
@@ -3894,26 +3975,26 @@ _L66490427:
         call _sin_lookup
         add @R13 #4
         move [@R12-8] @R0
-; 333:         return v;
+; 353:         return v;
         move @R0 [@R12-8]
-        jmp L_66490407
-sta_66490424:
-sta_66490425:
-; 336:     if (deg <= 270) {
+        jmp L_66490416
+sta_66490433:
+sta_66490434:
+; 356:     if (deg <= 270) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #270
         pop @R1
         cmp @R1 @R0
-        jle _L66490430
+        jle _L66490439
         move @R0 #0
-        jmp _L66490431
-_L66490430:
+        jmp _L66490440
+_L66490439:
         move @R0 #1
-_L66490431:
+_L66490440:
         cmp @R0 #0
-        jz sta_66490428
-; 337:         v = _sin_lookup(deg - 180);
+        jz sta_66490437
+; 357:         v = _sin_lookup(deg - 180);
         move @R0 [@R12+12]
         push @R0
         move @R0 #180
@@ -3925,14 +4006,14 @@ _L66490431:
         call _sin_lookup
         add @R13 #4
         move [@R12-8] @R0
-; 338:         return -v;
+; 358:         return -v;
         move @R0 [@R12-8]
         move @R0 [@R12-8]
         neg @R0 @R0
-        jmp L_66490407
-sta_66490428:
-sta_66490429:
-; 341:     v = _sin_lookup(360 - deg);
+        jmp L_66490416
+sta_66490437:
+sta_66490438:
+; 361:     v = _sin_lookup(360 - deg);
         move @R0 #360
         push @R0
         move @R0 [@R12+12]
@@ -3944,12 +4025,12 @@ sta_66490429:
         call _sin_lookup
         add @R13 #4
         move [@R12-8] @R0
-; 342:     return -v;
+; 362:     return -v;
         move @R0 [@R12-8]
         move @R0 [@R12-8]
         neg @R0 @R0
-        jmp L_66490407
-L_66490407:
+        jmp L_66490416
+L_66490416:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3966,22 +4047,22 @@ basic_sin:
         push @R12
         move @R12 @R13
         sub @R13 #16
-sta_66490432:
+sta_66490441:
         move @R2 #0
-; 352:     while (x < 0) x = x + 360;
+; 372:     while (x < 0) x = x + 360;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490434
+        jl _L66490443
         move @R0 #0
-        jmp _L66490435
-_L66490434:
+        jmp _L66490444
+_L66490443:
         move @R0 #1
-_L66490435:
+_L66490444:
         cmp @R0 #0
-        jz sta_66490433
+        jz sta_66490442
         move @R0 [@R12+12]
         push @R0
         move @R0 #360
@@ -3989,24 +4070,24 @@ _L66490435:
         add @R1 @R0
         move @R0 @R1
         move [@R12+12] @R0
-        jmp sta_66490432
-sta_66490433:
-sta_66490436:
+        jmp sta_66490441
+sta_66490442:
+sta_66490445:
         move @R2 #0
-; 353:     while (x >= 360) x = x - 360;
+; 373:     while (x >= 360) x = x - 360;
         move @R0 [@R12+12]
         push @R0
         move @R0 #360
         pop @R1
         cmp @R1 @R0
-        jge _L66490438
+        jge _L66490447
         move @R0 #0
-        jmp _L66490439
-_L66490438:
+        jmp _L66490448
+_L66490447:
         move @R0 #1
-_L66490439:
+_L66490448:
         cmp @R0 #0
-        jz sta_66490437
+        jz sta_66490446
         move @R0 [@R12+12]
         push @R0
         move @R0 #360
@@ -4014,16 +4095,16 @@ _L66490439:
         sub @R1 @R0
         move @R0 @R1
         move [@R12+12] @R0
-        jmp sta_66490436
-sta_66490437:
-; 354:     return _sin_lookup(x);
+        jmp sta_66490445
+sta_66490446:
+; 374:     return _sin_lookup(x);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call _sin_lookup
         add @R13 #4
-        jmp L_66490440
-L_66490440:
+        jmp L_66490449
+L_66490449:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4040,7 +4121,7 @@ basic_cos:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 358:     return basic_sin(x + 90);
+; 378:     return basic_sin(x + 90);
         move @R0 [@R12+12]
         push @R0
         move @R0 #90
@@ -4051,8 +4132,8 @@ basic_cos:
         move @R0 [@R13+0]
         call basic_sin
         add @R13 #4
-        jmp L_66490441
-L_66490441:
+        jmp L_66490450
+L_66490450:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4069,34 +4150,34 @@ basic_tan:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 363:     s = basic_sin(x);
+; 383:     s = basic_sin(x);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call basic_sin
         add @R13 #4
         move [@R12-8] @R0
-; 364:     c = basic_cos(x);
+; 384:     c = basic_cos(x);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call basic_cos
         add @R13 #4
         move [@R12-12] @R0
-; 365:     if (c < 500 && c > -500) {
+; 385:     if (c < 500 && c > -500) {
         move @R0 [@R12-12]
         push @R0
         move @R0 #500
         pop @R1
         cmp @R1 @R0
-        jl _L66490446
+        jl _L66490455
         move @R0 #0
-        jmp _L66490447
-_L66490446:
+        jmp _L66490456
+_L66490455:
         move @R0 #1
-_L66490447:
+_L66490456:
         test @R0 @R0
-        jz _L66490444
+        jz _L66490453
         move @R0 [@R12-12]
         push @R0
         move @R0 #500
@@ -4104,47 +4185,47 @@ _L66490447:
         neg @R0 @R0
         pop @R1
         cmp @R1 @R0
-        jg _L66490448
+        jg _L66490457
         move @R0 #0
-        jmp _L66490449
-_L66490448:
+        jmp _L66490458
+_L66490457:
         move @R0 #1
-_L66490449:
+_L66490458:
         test @R0 @R0
-        jz _L66490444
+        jz _L66490453
         move @R0 #1
-        jmp _L66490445
-_L66490444:
+        jmp _L66490454
+_L66490453:
         move @R0 #0
-_L66490445:
+_L66490454:
         cmp @R0 #0
-        jz sta_66490442
-; 366:         if (s >= 0) return 32767;
+        jz sta_66490451
+; 386:         if (s >= 0) return 32767;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jge _L66490452
+        jge _L66490461
         move @R0 #0
-        jmp _L66490453
-_L66490452:
+        jmp _L66490462
+_L66490461:
         move @R0 #1
-_L66490453:
+_L66490462:
         cmp @R0 #0
-        jz sta_66490450
+        jz sta_66490459
         move @R0 #32767
-        jmp L_66490454
-sta_66490450:
-sta_66490451:
-; 367:         return -32767;
+        jmp L_66490463
+sta_66490459:
+sta_66490460:
+; 387:         return -32767;
         move @R0 #32767
         move @R0 #32767
         neg @R0 @R0
-        jmp L_66490454
-sta_66490442:
-sta_66490443:
-; 369:     return (s * 10000) / c;
+        jmp L_66490463
+sta_66490451:
+sta_66490452:
+; 389:     return (s * 10000) / c;
         move @R0 [@R12-8]
         push @R0
         move @R0 #10000
@@ -4156,8 +4237,8 @@ sta_66490443:
         pop @R1
         div @R1 @R0
         move @R0 @R1
-        jmp L_66490454
-L_66490454:
+        jmp L_66490463
+L_66490463:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4174,63 +4255,63 @@ basic_sqr:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 374:     if (x <= 0) return 0;
+; 394:     if (x <= 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jle _L66490457
+        jle _L66490466
         move @R0 #0
-        jmp _L66490458
-_L66490457:
+        jmp _L66490467
+_L66490466:
         move @R0 #1
-_L66490458:
+_L66490467:
         cmp @R0 #0
-        jz sta_66490455
+        jz sta_66490464
         move @R0 #0
-        jmp L_66490459
-sta_66490455:
-sta_66490456:
-; 375:     r = x;
+        jmp L_66490468
+sta_66490464:
+sta_66490465:
+; 395:     r = x;
         move @R0 [@R12+12]
         move [@R12-8] @R0
-; 376:     for (i = 0; i < 12; i++) {
+; 396:     for (i = 0; i < 12; i++) {
         move @R0 #0
         move [@R12-12] @R0
-sta_66490460:
+sta_66490469:
         move @R0 [@R12-12]
         push @R0
         move @R0 #12
         pop @R1
         cmp @R1 @R0
-        jl _L66490463
+        jl _L66490472
         move @R0 #0
-        jmp _L66490464
-_L66490463:
+        jmp _L66490473
+_L66490472:
         move @R0 #1
-_L66490464:
+_L66490473:
         cmp @R0 #0
-        jz sta_66490462
-; 378:         if (r == 0) return 0;
+        jz sta_66490471
+; 398:         if (r == 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        je _L66490467
+        je _L66490476
         move @R0 #0
-        jmp _L66490468
-_L66490467:
+        jmp _L66490477
+_L66490476:
         move @R0 #1
-_L66490468:
+_L66490477:
         cmp @R0 #0
-        jz sta_66490465
+        jz sta_66490474
         move @R0 #0
-        jmp L_66490459
-sta_66490465:
-sta_66490466:
-; 379:         q = x / r;
+        jmp L_66490468
+sta_66490474:
+sta_66490475:
+; 399:         q = x / r;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -4238,7 +4319,7 @@ sta_66490466:
         div @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 380:         r = (r + q) / 2;
+; 400:         r = (r + q) / 2;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-16]
@@ -4251,18 +4332,18 @@ sta_66490466:
         div @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-sta_66490461:
+sta_66490470:
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_66490460
-sta_66490462:
-; 382:     return r;
+        jmp sta_66490469
+sta_66490471:
+; 402:     return r;
         move @R0 [@R12-8]
-        jmp L_66490459
-L_66490459:
+        jmp L_66490468
+L_66490468:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4278,13 +4359,13 @@ basic_rnd:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 387:     asm("SYSCALL #50");
+; 407:     asm("SYSCALL #50");
         syscall #50
         move [@R12-4] @R0
-; 388:     return r;
+; 408:     return r;
         move @R0 [@R12-8]
-        jmp L_66490469
-L_66490469:
+        jmp L_66490478
+L_66490478:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4301,25 +4382,25 @@ basic_exp:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 393:     if (x > 100000) return 32767;
+; 413:     if (x > 100000) return 32767;
         move @R0 [@R12+12]
         push @R0
         move @R0 #100000
         pop @R1
         cmp @R1 @R0
-        jg _L66490472
+        jg _L66490481
         move @R0 #0
-        jmp _L66490473
-_L66490472:
+        jmp _L66490482
+_L66490481:
         move @R0 #1
-_L66490473:
+_L66490482:
         cmp @R0 #0
-        jz sta_66490470
+        jz sta_66490479
         move @R0 #32767
-        jmp L_66490474
-sta_66490470:
-sta_66490471:
-; 394:     if (x < -100000) return 0;
+        jmp L_66490483
+sta_66490479:
+sta_66490480:
+; 414:     if (x < -100000) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #100000
@@ -4327,42 +4408,42 @@ sta_66490471:
         neg @R0 @R0
         pop @R1
         cmp @R1 @R0
-        jl _L66490477
+        jl _L66490486
         move @R0 #0
-        jmp _L66490478
-_L66490477:
+        jmp _L66490487
+_L66490486:
         move @R0 #1
-_L66490478:
+_L66490487:
         cmp @R0 #0
-        jz sta_66490475
+        jz sta_66490484
         move @R0 #0
-        jmp L_66490474
-sta_66490475:
-sta_66490476:
-; 395:     result = 10000;
+        jmp L_66490483
+sta_66490484:
+sta_66490485:
+; 415:     result = 10000;
         move @R0 #10000
         move [@R12-8] @R0
-; 396:     term = 10000;
+; 416:     term = 10000;
         move @R0 #10000
         move [@R12-12] @R0
-; 397:     for (n = 1; n <= 8; n++) {
+; 417:     for (n = 1; n <= 8; n++) {
         move @R0 #1
         move [@R12-16] @R0
-sta_66490479:
+sta_66490488:
         move @R0 [@R12-16]
         push @R0
         move @R0 #8
         pop @R1
         cmp @R1 @R0
-        jle _L66490482
+        jle _L66490491
         move @R0 #0
-        jmp _L66490483
-_L66490482:
+        jmp _L66490492
+_L66490491:
         move @R0 #1
-_L66490483:
+_L66490492:
         cmp @R0 #0
-        jz sta_66490481
-; 398:         term = term / n;
+        jz sta_66490490
+; 418:         term = term / n;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12-16]
@@ -4370,7 +4451,7 @@ _L66490483:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 399:         term = term * x;
+; 419:         term = term * x;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+12]
@@ -4378,7 +4459,7 @@ _L66490483:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 400:         term = term / 10000;
+; 420:         term = term / 10000;
         move @R0 [@R12-12]
         push @R0
         move @R0 #10000
@@ -4386,7 +4467,7 @@ _L66490483:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 401:         result = result + term;
+; 421:         result = result + term;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
@@ -4394,20 +4475,20 @@ _L66490483:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 402:         if (term < 5 && term > -5) break;
+; 422:         if (term < 5 && term > -5) break;
         move @R0 [@R12-12]
         push @R0
         move @R0 #5
         pop @R1
         cmp @R1 @R0
-        jl _L66490488
+        jl _L66490497
         move @R0 #0
-        jmp _L66490489
-_L66490488:
+        jmp _L66490498
+_L66490497:
         move @R0 #1
-_L66490489:
+_L66490498:
         test @R0 @R0
-        jz _L66490486
+        jz _L66490495
         move @R0 [@R12-12]
         push @R0
         move @R0 #5
@@ -4415,36 +4496,36 @@ _L66490489:
         neg @R0 @R0
         pop @R1
         cmp @R1 @R0
-        jg _L66490490
+        jg _L66490499
         move @R0 #0
-        jmp _L66490491
-_L66490490:
+        jmp _L66490500
+_L66490499:
         move @R0 #1
-_L66490491:
+_L66490500:
         test @R0 @R0
-        jz _L66490486
+        jz _L66490495
         move @R0 #1
-        jmp _L66490487
-_L66490486:
+        jmp _L66490496
+_L66490495:
         move @R0 #0
-_L66490487:
+_L66490496:
         cmp @R0 #0
-        jz sta_66490484
-        jmp sta_66490481
-sta_66490484:
-sta_66490485:
-sta_66490480:
+        jz sta_66490493
+        jmp sta_66490490
+sta_66490493:
+sta_66490494:
+sta_66490489:
         move @R0 [@R12-16]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-16] @R0
         move @R0 @R1
-        jmp sta_66490479
-sta_66490481:
-; 404:     return result;
+        jmp sta_66490488
+sta_66490490:
+; 424:     return result;
         move @R0 [@R12-8]
-        jmp L_66490474
-L_66490474:
+        jmp L_66490483
+L_66490483:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4461,71 +4542,71 @@ basic_log:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 409:     if (x <= 0) return -32767;
+; 429:     if (x <= 0) return -32767;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jle _L66490494
+        jle _L66490503
         move @R0 #0
-        jmp _L66490495
-_L66490494:
+        jmp _L66490504
+_L66490503:
         move @R0 #1
-_L66490495:
+_L66490504:
         cmp @R0 #0
-        jz sta_66490492
+        jz sta_66490501
         move @R0 #32767
         move @R0 #32767
         neg @R0 @R0
-        jmp L_66490496
-sta_66490492:
-sta_66490493:
-; 410:     result = 0;
+        jmp L_66490505
+sta_66490501:
+sta_66490502:
+; 430:     result = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 411:     for (i = 0; i < 5; i++) {
+; 431:     for (i = 0; i < 5; i++) {
         move @R0 #0
         move [@R12-12] @R0
-sta_66490497:
+sta_66490506:
         move @R0 [@R12-12]
         push @R0
         move @R0 #5
         pop @R1
         cmp @R1 @R0
-        jl _L66490500
+        jl _L66490509
         move @R0 #0
-        jmp _L66490501
-_L66490500:
+        jmp _L66490510
+_L66490509:
         move @R0 #1
-_L66490501:
+_L66490510:
         cmp @R0 #0
-        jz sta_66490499
-; 413:         y = basic_exp(result);
+        jz sta_66490508
+; 433:         y = basic_exp(result);
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
         call basic_exp
         add @R13 #4
         move [@R12-16] @R0
-; 414:         if (y == 0) break;
+; 434:         if (y == 0) break;
         move @R0 [@R12-16]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        je _L66490504
+        je _L66490513
         move @R0 #0
-        jmp _L66490505
-_L66490504:
+        jmp _L66490514
+_L66490513:
         move @R0 #1
-_L66490505:
+_L66490514:
         cmp @R0 #0
-        jz sta_66490502
-        jmp sta_66490499
-sta_66490502:
-sta_66490503:
-; 415:         diff = x * 10000;
+        jz sta_66490511
+        jmp sta_66490508
+sta_66490511:
+sta_66490512:
+; 435:         diff = x * 10000;
         move @R0 [@R12+12]
         push @R0
         move @R0 #10000
@@ -4533,7 +4614,7 @@ sta_66490503:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 416:         diff = diff / y;
+; 436:         diff = diff / y;
         move @R0 [@R12-20]
         push @R0
         move @R0 [@R12-16]
@@ -4541,7 +4622,7 @@ sta_66490503:
         div @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 417:         result = result + diff - 10000;
+; 437:         result = result + diff - 10000;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-20]
@@ -4554,18 +4635,18 @@ sta_66490503:
         sub @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-sta_66490498:
+sta_66490507:
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-        jmp sta_66490497
-sta_66490499:
-; 419:     return result;
+        jmp sta_66490506
+sta_66490508:
+; 439:     return result;
         move @R0 [@R12-8]
-        jmp L_66490496
-L_66490496:
+        jmp L_66490505
+L_66490505:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4582,41 +4663,41 @@ basic_atn:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 424:     if (x == 0) return 0;
+; 444:     if (x == 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        je _L66490508
+        je _L66490517
         move @R0 #0
-        jmp _L66490509
-_L66490508:
+        jmp _L66490518
+_L66490517:
         move @R0 #1
-_L66490509:
+_L66490518:
         cmp @R0 #0
-        jz sta_66490506
+        jz sta_66490515
         move @R0 #0
-        jmp L_66490510
-sta_66490506:
-sta_66490507:
-; 425:     sign = 1;
+        jmp L_66490519
+sta_66490515:
+sta_66490516:
+; 445:     sign = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 426:     if (x < 0) { sign = -1; x = -x; }
+; 446:     if (x < 0) { sign = -1; x = -x; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490513
+        jl _L66490522
         move @R0 #0
-        jmp _L66490514
-_L66490513:
+        jmp _L66490523
+_L66490522:
         move @R0 #1
-_L66490514:
+_L66490523:
         cmp @R0 #0
-        jz sta_66490511
+        jz sta_66490520
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
@@ -4625,23 +4706,23 @@ _L66490514:
         move @R0 [@R12+12]
         neg @R0 @R0
         move [@R12+12] @R0
-sta_66490511:
-sta_66490512:
-; 429:     if (x > 20000) {
+sta_66490520:
+sta_66490521:
+; 449:     if (x > 20000) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #20000
         pop @R1
         cmp @R1 @R0
-        jg _L66490517
+        jg _L66490526
         move @R0 #0
-        jmp _L66490518
-_L66490517:
+        jmp _L66490527
+_L66490526:
         move @R0 #1
-_L66490518:
+_L66490527:
         cmp @R0 #0
-        jz sta_66490515
-; 431:         t = 100000000 / x; // 10000*10000/x
+        jz sta_66490524
+; 451:         t = 100000000 / x; // 10000*10000/x
         move @R0 #100000000
         push @R0
         move @R0 [@R12+12]
@@ -4649,14 +4730,14 @@ _L66490518:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 432:         s = basic_atn(t);
+; 452:         s = basic_atn(t);
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R13+0]
         call basic_atn
         add @R13 #4
         move [@R12-16] @R0
-; 433:         return sign * (15708 - s); // PI/2*10000 - atan(1/x)
+; 453:         return sign * (15708 - s); // PI/2*10000 - atan(1/x)
         move @R0 [@R12-8]
         push @R0
         move @R0 #15708
@@ -4668,16 +4749,16 @@ _L66490518:
         pop @R1
         mul @R1 @R0
         move @R0 @R1
-        jmp L_66490510
-sta_66490515:
-sta_66490516:
-; 436:     s = x;
+        jmp L_66490519
+sta_66490524:
+sta_66490525:
+; 456:     s = x;
         move @R0 [@R12+12]
         move [@R12-16] @R0
-; 437:     t = x;
+; 457:     t = x;
         move @R0 [@R12+12]
         move [@R12-12] @R0
-; 438:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10; // -x^3/3 ≈ -x*x^2/30000
+; 458:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10; // -x^3/3 ≈ -x*x^2/30000
         move @R0 [@R12-12]
         push @R0
         move @R0 #10000
@@ -4717,7 +4798,7 @@ sta_66490516:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 439:     s = s + t / 3;
+; 459:     s = s + t / 3;
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-12]
@@ -4730,7 +4811,7 @@ sta_66490516:
         add @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 440:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10;
+; 460:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10;
         move @R0 [@R12-12]
         push @R0
         move @R0 #10000
@@ -4770,7 +4851,7 @@ sta_66490516:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 441:     s = s + t / 5;
+; 461:     s = s + t / 5;
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-12]
@@ -4783,7 +4864,7 @@ sta_66490516:
         add @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 442:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10;
+; 462:     t = -(t / 10000) * (x / 1000) * (x / 1000) / 10;
         move @R0 [@R12-12]
         push @R0
         move @R0 #10000
@@ -4823,7 +4904,7 @@ sta_66490516:
         div @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 443:     s = s + t / 7;
+; 463:     s = s + t / 7;
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-12]
@@ -4836,15 +4917,15 @@ sta_66490516:
         add @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 444:     return sign * s;
+; 464:     return sign * s;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-16]
         pop @R1
         mul @R1 @R0
         move @R0 @R1
-        jmp L_66490510
-L_66490510:
+        jmp L_66490519
+L_66490519:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4861,10 +4942,10 @@ basic_int:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 448:     return x;
+; 468:     return x;
         move @R0 [@R12+12]
-        jmp L_66490519
-L_66490519:
+        jmp L_66490528
+L_66490528:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4883,113 +4964,113 @@ basic_point:
         push @R12
         move @R12 @R13
         sub @R13 #48
-; 458:     p = (char*)0x6FE0;
+; 478:     p = (char*)0x6FE0;
         move @R0 #28640
         move [@R12-32] @R0
-; 459:     width = *((int*)p);
+; 479:     width = *((int*)p);
         move @R0 [@R12-32]
         move @R0 [@R0]
         move [@R12-8] @R0
-; 460:     p = (char*)0x6FE4;
+; 480:     p = (char*)0x6FE4;
         move @R0 #28644
         move [@R12-32] @R0
-; 461:     height = *((int*)p);
+; 481:     height = *((int*)p);
         move @R0 [@R12-32]
         move @R0 [@R0]
         move [@R12-12] @R0
-; 462:     p = (char*)0x6FF3;
+; 482:     p = (char*)0x6FF3;
         move @R0 #28659
         move [@R12-32] @R0
-; 463:     bpp = (int)*p;
+; 483:     bpp = (int)*p;
         move @R0 [@R12-32]
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-16] @R0
-; 465:     if (x < 0 || x >= width || y < 0 || y >= height)
+; 485:     if (x < 0 || x >= width || y < 0 || y >= height)
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490531
+        jl _L66490540
         move @R0 #0
-        jmp _L66490532
-_L66490531:
+        jmp _L66490541
+_L66490540:
         move @R0 #1
-_L66490532:
+_L66490541:
         test @R0 @R0
-        jnz _L66490528
+        jnz _L66490537
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         pop @R1
         cmp @R1 @R0
-        jge _L66490533
+        jge _L66490542
         move @R0 #0
-        jmp _L66490534
-_L66490533:
+        jmp _L66490543
+_L66490542:
         move @R0 #1
-_L66490534:
+_L66490543:
         test @R0 @R0
-        jz _L66490529
-_L66490528:
+        jz _L66490538
+_L66490537:
         move @R0 #1
-        jmp _L66490530
-_L66490529:
+        jmp _L66490539
+_L66490538:
         move @R0 #0
-_L66490530:
+_L66490539:
         test @R0 @R0
-        jnz _L66490525
+        jnz _L66490534
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L66490535
+        jl _L66490544
         move @R0 #0
+        jmp _L66490545
+_L66490544:
+        move @R0 #1
+_L66490545:
+        test @R0 @R0
+        jz _L66490535
+_L66490534:
+        move @R0 #1
         jmp _L66490536
 _L66490535:
-        move @R0 #1
+        move @R0 #0
 _L66490536:
         test @R0 @R0
-        jz _L66490526
-_L66490525:
-        move @R0 #1
-        jmp _L66490527
-_L66490526:
-        move @R0 #0
-_L66490527:
-        test @R0 @R0
-        jnz _L66490522
+        jnz _L66490531
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jge _L66490537
+        jge _L66490546
         move @R0 #0
-        jmp _L66490538
-_L66490537:
+        jmp _L66490547
+_L66490546:
         move @R0 #1
-_L66490538:
+_L66490547:
         test @R0 @R0
-        jz _L66490523
-_L66490522:
+        jz _L66490532
+_L66490531:
         move @R0 #1
-        jmp _L66490524
-_L66490523:
+        jmp _L66490533
+_L66490532:
         move @R0 #0
-_L66490524:
+_L66490533:
         cmp @R0 #0
-        jz sta_66490520
-; 466:         return -1;
+        jz sta_66490529
+; 486:         return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_66490539
-sta_66490520:
-sta_66490521:
-; 468:     offset = (y * width + x) * bpp;
+        jmp L_66490548
+sta_66490529:
+sta_66490530:
+; 488:     offset = (y * width + x) * bpp;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -5007,7 +5088,7 @@ sta_66490521:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-24] @R0
-; 469:     fb = (char*)(0xA0000 + offset);
+; 489:     fb = (char*)(0xA0000 + offset);
         move @R0 #655360
         push @R0
         move @R0 [@R12-24]
@@ -5015,12 +5096,12 @@ sta_66490521:
         add @R1 @R0
         move @R0 @R1
         move [@R12-36] @R0
-; 470:     pixel_B = *fb;
+; 490:     pixel_B = *fb;
         move @R0 [@R12-36]
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-25] @R0
-; 471:     fb = fb + 1;
+; 491:     fb = fb + 1;
         move @R0 [@R12-36]
         push @R0
         move @R0 #1
@@ -5028,12 +5109,12 @@ sta_66490521:
         add @R1 @R0
         move @R0 @R1
         move [@R12-36] @R0
-; 472:     pixel_G = *fb;
+; 492:     pixel_G = *fb;
         move @R0 [@R12-36]
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-26] @R0
-; 473:     fb = fb + 1;
+; 493:     fb = fb + 1;
         move @R0 [@R12-36]
         push @R0
         move @R0 #1
@@ -5041,32 +5122,32 @@ sta_66490521:
         add @R1 @R0
         move @R0 @R1
         move [@R12-36] @R0
-; 474:     pixel_R = *fb;
+; 494:     pixel_R = *fb;
         move @R0 [@R12-36]
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-27] @R0
-; 476:     p = (char*)0x9F000;
+; 496:     p = (char*)0x9F000;
         move @R0 #651264
         move [@R12-32] @R0
-; 477:     for (i = 0; i < 16; i++) {
+; 497:     for (i = 0; i < 16; i++) {
         move @R0 #0
         move [@R12-20] @R0
-sta_66490540:
+sta_66490549:
         move @R0 [@R12-20]
         push @R0
         move @R0 #16
         pop @R1
         cmp @R1 @R0
-        jl _L66490543
+        jl _L66490552
         move @R0 #0
-        jmp _L66490544
-_L66490543:
+        jmp _L66490553
+_L66490552:
         move @R0 #1
-_L66490544:
+_L66490553:
         cmp @R0 #0
-        jz sta_66490542
-; 478:         offset = i * bpp;
+        jz sta_66490551
+; 498:         offset = i * bpp;
         move @R0 [@R12-20]
         push @R0
         move @R0 [@R12-16]
@@ -5074,13 +5155,13 @@ _L66490544:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-24] @R0
-; 479:         if (p[offset] == pixel_B && p[offset + 1] == pixel_G && p[offset + 2] == pixel_R)
+; 499:         if (p[offset] == pixel_B && p[offset + 1] == pixel_G && p[offset + 2] == pixel_R)
         move @R0 [@R12-32]
         push @R0
         move @R0 [@R12-24]
         mul @R0 #1
-        pop @R4
-        add @R0 @R4
+        pop @R10
+        add @R0 @R10
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
@@ -5088,52 +5169,19 @@ _L66490544:
         sextb @R0 @R0
         popb @R1
         cmp @R1 @R0
-        je _L66490551
+        je _L66490560
         move @R0 #0
-        jmp _L66490552
-_L66490551:
+        jmp _L66490561
+_L66490560:
         move @R0 #1
-_L66490552:
+_L66490561:
         test @R0 @R0
-        jz _L66490549
+        jz _L66490558
         move @R0 [@R12-32]
         push @R0
         move @R0 [@R12-24]
         push @R0
         move @R0 #1
-        pop @R1
-        add @R1 @R0
-        move @R0 @R1
-        mul @R0 #1
-        pop @R7
-        add @R0 @R7
-        moveb @R0 [@R0]
-        sextb @R0 @R0
-        pushb @R0
-        moveb @R0 [@R12-26]
-        sextb @R0 @R0
-        popb @R1
-        cmp @R1 @R0
-        je _L66490553
-        move @R0 #0
-        jmp _L66490554
-_L66490553:
-        move @R0 #1
-_L66490554:
-        test @R0 @R0
-        jz _L66490549
-        move @R0 #1
-        jmp _L66490550
-_L66490549:
-        move @R0 #0
-_L66490550:
-        test @R0 @R0
-        jz _L66490547
-        move @R0 [@R12-32]
-        push @R0
-        move @R0 [@R12-24]
-        push @R0
-        move @R0 #2
         pop @R1
         add @R1 @R0
         move @R0 @R1
@@ -5143,44 +5191,77 @@ _L66490550:
         moveb @R0 [@R0]
         sextb @R0 @R0
         pushb @R0
+        moveb @R0 [@R12-26]
+        sextb @R0 @R0
+        popb @R1
+        cmp @R1 @R0
+        je _L66490562
+        move @R0 #0
+        jmp _L66490563
+_L66490562:
+        move @R0 #1
+_L66490563:
+        test @R0 @R0
+        jz _L66490558
+        move @R0 #1
+        jmp _L66490559
+_L66490558:
+        move @R0 #0
+_L66490559:
+        test @R0 @R0
+        jz _L66490556
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
         moveb @R0 [@R12-27]
         sextb @R0 @R0
         popb @R1
         cmp @R1 @R0
-        je _L66490555
+        je _L66490564
         move @R0 #0
-        jmp _L66490556
-_L66490555:
+        jmp _L66490565
+_L66490564:
         move @R0 #1
-_L66490556:
+_L66490565:
         test @R0 @R0
-        jz _L66490547
+        jz _L66490556
         move @R0 #1
-        jmp _L66490548
-_L66490547:
+        jmp _L66490557
+_L66490556:
         move @R0 #0
-_L66490548:
+_L66490557:
         cmp @R0 #0
-        jz sta_66490545
-; 480:             return i;
+        jz sta_66490554
+; 500:             return i;
         move @R0 [@R12-20]
-        jmp L_66490539
-sta_66490545:
-sta_66490546:
-sta_66490541:
+        jmp L_66490548
+sta_66490554:
+sta_66490555:
+sta_66490550:
         move @R0 [@R12-20]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-20] @R0
         move @R0 @R1
-        jmp sta_66490540
-sta_66490542:
-; 482:     return -1;
+        jmp sta_66490549
+sta_66490551:
+; 502:     return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_66490539
-L_66490539:
+        jmp L_66490548
+L_66490548:
         move @R13 @R12
         pop @R12
         pop @R15

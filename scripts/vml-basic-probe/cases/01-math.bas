@@ -1,0 +1,15 @@
+' 缺陷 ①：SIN / COS / SQR —— 顶层 vs SUB 内
+PRINT "T-SQR="; SQR(16)
+PRINT "T-SIN="; SIN(30)
+PRINT "T-COS="; COS(60)
+PRINT "T-ABS="; ABS(0 - 7)
+PRINT "T-SGN="; SGN(0 - 3)
+SUB inSub()
+    PRINT "S-SQR="; SQR(16)
+    PRINT "S-SIN="; SIN(30)
+    PRINT "S-COS="; COS(60)
+    PRINT "S-ABS="; ABS(0 - 7)
+    PRINT "S-SGN="; SGN(0 - 3)
+END SUB
+inSub()
+' EXPECT: T-SQR=4|T-SIN=5000|T-COS=5000|T-ABS=7|T-SGN=-1|S-SQR=4|S-SIN=5000|S-COS=5000|S-ABS=7|S-SGN=-1

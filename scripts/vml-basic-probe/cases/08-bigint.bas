@@ -1,0 +1,8 @@
+' 缺陷 ②(d)：SUB 里的大整数运算（十万以上）
+SUB inSub()
+    PRINT "S-BIG1="; 900000 - 100000
+    PRINT "S-BIG2="; 123456 * 2
+    PRINT "S-BIG3="; 900000 - 100000 * 2
+END SUB
+inSub()
+' EXPECT: S-BIG1=800000|S-BIG2=246912|S-BIG3=700000

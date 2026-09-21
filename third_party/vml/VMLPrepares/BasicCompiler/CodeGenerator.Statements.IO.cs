@@ -91,19 +91,26 @@ namespace BasicCompiler
                     EmitStoreVar(varName, 1);
                 }
                 // Increment data pointer
+                // ⚠ 最后一句必须是**存**（dest-first）—— 从前写成 `move R2, [R0]` 是取，
+                //   于是指针**永远不前进**：连续两个 `READ` 会读到同一个值。
                 AddRI(OpCode.MOVE, 0, 0x6FD0);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R0") }));
                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R0") }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 2) }));
             }
         }
 
         private void GenerateRestoreStatement()
         {
             // Reset data pointer to 0
+            //
+            // ⚠ 从前这里两处都不对（v0.96.330 修）：目标寄存器写成了 **R14**（那是 SUB 里的
+            //   局部变量基址、在主程序里根本不是数据指针），而且 `move R0, [R14]` 是**取**
+            //   不是存 —— 等于把 R14 指向的东西读进 R0，指针一格没动。改成与初始化同形：
+            //   把 0 写进 0x6FD0 那个槽。
             AddRI(OpCode.MOVE, 0, 0);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FD0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R14") }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
         }
 
         private void GenerateSleepStatement(SleepStatement stmt)
@@ -189,11 +196,27 @@ namespace BasicCompiler
                          (funcCall.FunctionName.ToLowerInvariant() == "chr$" ||
                           funcCall.FunctionName.ToLowerInvariant() == "chr"))
                 {
-                    // CHR$(n): 直接输出字符码
-                    if (currentSubName != null)
-                        GenerateSubExpression(expr, 0);
+                    // CHR$(n): 直接输出字符码。
+                    //
+                    // ⚠ **要取的是参数，不是这个调用**（v0.96.330 修）。
+                    //   从前这里把整个 `CHR$(n)` 当表达式求值 —— 那会去 `CALL basic_chr`，
+                    //   而它返回的是**字符串指针**；紧接着 `EmitPrintChar()`（SYSCALL #4）
+                    //   把这个**指针**当**字符码**打出去。
+                    //   症状极有误导性：`CHR$(65)` 与 `CHR$(97)` 打出的是**同一个**字符
+                    //   （都是那个静态缓冲区的地址），看着像"编码坏了"，其实是取错了值。
+                    //   `c$ = CHR$(65)` 那种"当值用"的路走 Expressions/Sub 里的 `basic_chr`，
+                    //   那条是对的，别一起改。
+                    if (funcCall.Arguments.Count > 0)
+                    {
+                        if (currentSubName != null)
+                            GenerateSubExpression(funcCall.Arguments[0], 0);
+                        else
+                            GenerateExpression(funcCall.Arguments[0], 0);
+                    }
                     else
-                        GenerateExpression(expr, 0);
+                    {
+                        AddRI(OpCode.MOVE, 0, 0);
+                    }
                     EmitPrintChar();
                 }
                 else

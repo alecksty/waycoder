@@ -1,0 +1,9 @@
+' 数值输出与拼接
+DIM n AS INTEGER
+n = 7
+PRINT "N="; n
+PRINT "STR="; STR$(n)
+PRINT "CMP="; 3 < 5
+PRINT "NOT="; NOT 0
+PRINT "EXP="; 2 ^ 10
+' EXPECT: N=7|STR=7|CMP=1|NOT=1|EXP=1024

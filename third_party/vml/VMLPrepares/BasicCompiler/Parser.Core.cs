@@ -337,10 +337,17 @@ namespace BasicCompiler
                 // ON ERROR GOTO
                 case TokenType.ON:
                     return ParseOnErrorStatement();
-                // DATA 数据语句 — 编译期跳过，运行时由 READ 读取
+                // DATA 数据语句 —— **必须进 AST**（v0.96.330 修）。
+                //
+                // ⚠ 从前这里是 `SkipToNextLine(); return null;`，注释写着"编译期跳过、
+                //   运行时由 READ 读取" —— 但"跳过"的是**整条语句**：值从来没进过 AST，
+                //   于是 `CollectVariablesAndLabels` 收集到的 `dataValues` 永远是空的，
+                //   序言里那句"把 DATA 值写进静态区"的循环一次都不执行 ⇒ READ 读到的是
+                //   未初始化内存（恒为 0）。而真正的实现 `ParseDataStatement()` 就在
+                //   `Parser.Qbasic.cs` 里、**一个调用点都没有**，是死代码。
+                //   实测：`DATA 11,22` + `READ a,b` 打出 `0 0`。
                 case TokenType.DATA:
-                    SkipToNextLine();
-                    return null;
+                    return ParseDataStatement();
                 // READ/RESTORE/RESUME
                 case TokenType.READ_KW:
                     return ParseReadStatement();

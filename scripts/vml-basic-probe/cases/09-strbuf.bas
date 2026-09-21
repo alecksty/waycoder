@@ -1,0 +1,7 @@
+DIM a AS STRING
+DIM b AS STRING
+a = "AAA" + STR$(1)
+b = "BBB" + STR$(2)
+PRINT "A="; a
+PRINT "B="; b
+' EXPECT: A=AAA1|B=BBB2
