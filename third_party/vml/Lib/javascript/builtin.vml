@@ -19,6 +19,7 @@
 .linked "math.vml"
 .linked "system.vml"
 .linked "convert.vml"
+.linked "convert64.vml"
 .linked "conv.vml"
 .linked "string.vml"
 .linked "io.vml"

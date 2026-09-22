@@ -640,7 +640,17 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
         //   **只有调用点、没有定义**，运行期抛「未找到标签: PrintlnStr」
         //   （实测 `out.cs` 链的 43~51 个模块里始终没有任何 console 模块）。
         //   `File.Exists` 兜着 —— 没有该模块的语言不会被多链。
-        foreach (var mod in new[] { "math", "system", "convert", "conv",
+        // ⚠ **`convert64` 必须在列** —— 它与上面的 `console` 是**同一个缺陷形态**：
+        //   `convert64.vml` 提供 `ltoa` / `atol` / `dtoa` / `atod`，而 **`conv.c` 里
+        //   `atol` 只是一句前置声明**（`long atol(const char* s);`，注释写明"依赖
+        //   convert64.vml"）⇒ 清单里没有它，C 程序一旦调 `atol` 就是**只有调用点、
+        //   没有定义**，链接期报「未定义的函数 'atol'」。
+        //   2026-09-22 老程序兼容性体检实测：`tty-clock`（689 行）因此编不过，
+        //   6 行探针一次问清 —— `atol` / `putc` / `fflush` / `feof` / `tolower` /
+        //   `difftime` 六个全报未定义，而 `atol` 的"头文件声明 + 映射表条目 + .vml 标签"
+        //   三者其实都在，**卡的就是这一张清单**（`CompilerHelper.SharedPrefixMap` 那张表
+        //   不决定链接，本文件上方那段注释已经写明）。
+        foreach (var mod in new[] { "math", "system", "convert", "convert64", "conv",
             "string", "io", "printf", "scanf", "ctype", "bitops", "util", "float",
             "console",
             "file", "time", "encoding", "memory", "network", "os" })
