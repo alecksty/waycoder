@@ -14,6 +14,16 @@ namespace CppCompiler
         private readonly Dictionary<string, int> _variables = new();
         private readonly Dictionary<string, string> _varTypes = new();
         private readonly Dictionary<string, bool> _isArrayVar = new();
+
+        /// <summary>
+        /// **全局/静态数组**的名字。
+        ///
+        /// ⚠ 必须与 <see cref="_isArrayVar"/> **分开**：那张表是**局部**变量的，
+        ///   而 `GenerateFunction` 一进门就把它 `Clear()` 掉（每个函数一份局部作用域）。
+        ///   全局数组登记在那边的话，**进第一个函数就被抹掉** ——
+        ///   症状是"登记了、也判了，就是不生效"，实测踩过一次。
+        /// </summary>
+        private readonly HashSet<string> _globalArrays = new();
         private readonly Dictionary<string, int> _arrayTotalSizes = new();
         private readonly Dictionary<string, int> _arrayInnerDim = new(); // 最内层维度大小 (用于多维数组stride计算)
         private int _currentFuncReturnLabel = -1;
@@ -202,7 +212,7 @@ namespace CppCompiler
             Vars?.ResetLocals();
             _stackOffset = 0;
             _variables.Clear();
-            _isArrayVar.Clear();
+            _isArrayVar.Clear();      // ⚠ 只是**局部**那张；全局数组在 `_globalArrays`，别加进来
             _arrayTotalSizes.Clear();
             _classVars.Clear();
             _classVarScopes.Clear();
@@ -362,11 +372,33 @@ namespace CppCompiler
             //   BGI 兼容层里那张 16 色调色板（`static int _bgi_pal[16] = {…}`）——
             //   它变成全 0 之后**所有颜色都成黑的**，于是所有 graphics.h 老程序
             //   都是"跑完了、什么都不报、屏幕一片黑"（v0.96.379 那轮查了半天的那个）。
-            if (vd.Initializer is InitializerListExpr listInit)
+            if (vd.IsArray || vd.Initializer is InitializerListExpr)
             {
                 var flat = new List<object>();
-                FlattenInitList(listInit, flat);
-                dataSection[label] = flat.ToArray();
+                if (vd.Initializer is InitializerListExpr listInit) FlattenInitList(listInit, flat);
+
+                // 补足到声明的元素个数（`int g[4] = {1,2};` 后面两个是 0）
+                int declared = vd.ArraySize is IntLiteral sz ? sz.Value : flat.Count;
+                while (flat.Count < declared) flat.Add(0);
+
+                // ⚠ **必须补那个 4 字节长度头**。C++ 前端的数组布局是
+                //   `[长度(4B)][元素…]` —— 见 `GenerateLocalVar` 的注释
+                //   "VML array layout: 4 bytes header (length) + elements"，
+                //   而 `[]` 的代码生成也会 `+4` 跳过它。数据段不补的话，
+                //   **读到的"第一个元素"其实是长度头**，后面全部错位。
+                //   （C 前端是**另一套**布局：没有头、`[]` 也不 `+4` ——
+                //    两边各自自洽，别按 C 那边照抄。）
+                var withHeader = new List<object> { declared };
+                withHeader.AddRange(flat);
+                dataSection[label] = withHeader.ToArray();
+
+                // ⚠ **登记成数组**。`IdentExpr` 里有一条"数组要返回**地址**而不是值"的分支
+                //   （`CodeGenerator.Expressions.cs` 的 `_isArrayVar` 那一支），
+                //   而此前**只有 `GenerateLocalVar` 登记**、全局数组一个都没登记
+                //   ⇒ 全局数组走"普通变量"那条 ⇒ 取出来的是**第一个元素的值**，
+                //   再拿它当地址加下标 ⇒ 读到的永远是垃圾。
+                //   这是"助手已经写好了、调用点绕过去了"的又一例。
+                _globalArrays.Add(vd.Name);
                 return;
             }
 
@@ -392,6 +424,15 @@ namespace CppCompiler
                     };
                     Add(storeOp, label, "R0");
                 }
+            }
+            else if (vd.IsArray)
+            {
+                // 未初始化的全局数组：同样要有 `[长度][元素…]`（见上面那段说明）
+                int declared = vd.ArraySize is IntLiteral sz0 ? sz0.Value : 0;
+                var zeros = new List<object> { declared };
+                for (int i = 0; i < declared; i++) zeros.Add(0);
+                dataSection[label] = zeros.ToArray();
+                _globalArrays.Add(vd.Name);
             }
             else
             {
@@ -457,6 +498,17 @@ namespace CppCompiler
             return false;
         }
 
+        /// <summary>
+        /// ⚠ **本方法当前没有任何调用点（死代码）** —— 全仓 grep 只有注释提到它。
+        ///
+        /// 局部变量声明实际走的是 <c>CodeGenerator.Expressions.cs</c> 里
+        /// 「<c>ae.Target is IdentExpr &amp;&amp; ae.ArraySize &gt; 0</c>」那一支（连标量也走那儿），
+        /// 全局的走 <see cref="GenerateGlobalVar"/>（有调用点，见 <c>CodeGenerator.cs:141/144</c>）。
+        ///
+        /// 保留它是因为里面的类/模板/引用等分支可能还会被接回去；但**改数组初始化时别只改这里** ——
+        /// 改在这儿不会影响任何产物，实测不出来也验证不了（本仓最忌讳的"说不清效果的改动"）。
+        /// 真要修，改那两条活路径，并各自加判据。
+        /// </summary>
         private void GenerateLocalVar(VariableDecl vd)
         {
             // Try template instantiation for unknown class-like types
@@ -510,6 +562,24 @@ namespace CppCompiler
                 // Initialize array header with element count
                 Add(OpCode.MOVE, "R0", $"#{arrSize.Value}");
                 Add(OpCode.MOVE, Vars?.FormatOffset(firstWordOff) ?? $"R14-{firstWordOff}", "R0");
+
+                // ⚠ **初始值要逐个存进去**（布局与 `[]` 的 `+4` 对齐：头在 `firstWordOff`，
+                //   元素从 `+4` 起、每格 4 字节）。
+                //   ⚠⚠ 但**这段目前不生效**：本方法没有调用点（见方法头注释）。局部数组实际走
+                //   `CodeGenerator.Expressions.cs` 的 `ArraySize > 0` 那一支 —— 真正的修复在那边。
+                if (vd.Initializer is InitializerListExpr locInit)
+                {
+                    var flat = new List<object>();
+                    FlattenInitList(locInit, flat);
+                    for (int i = 0; i < flat.Count && i < arrSize.Value; i++)
+                    {
+                        // 值是 int 就给立即数，否则是 `FlattenInitList` 分配的**数据段标签**
+                        //（字符串那种），直接 `MOVE` 标签地址即可。
+                        Add(OpCode.MOVE, "R0", flat[i] is int iv ? $"#{iv}" : flat[i].ToString()!);
+                        int off = firstWordOff + 4 + i * 4;
+                        Add(OpCode.MOVE, Vars?.FormatOffset(off) ?? $"R14-{off}", "R0");
+                    }
+                }
             }
             else if (isClass)
             {

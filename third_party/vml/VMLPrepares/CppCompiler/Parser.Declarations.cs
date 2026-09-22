@@ -457,11 +457,71 @@ namespace CppCompiler
             return __node;
         }
 
+        /// <summary>
+        /// 是不是「按进制的整数字面量」—— `0x1F` / `0b1010` / `010`。
+        ///
+        /// 判据只看**字面量的形状**，不猜类型：C++ 里 `0x` / `0b` / 前导 `0` 开头的
+        /// **必定是整数**，`0.5` 这类因为含 `.` 天然落不进来（`All(char.IsDigit)` 拦住）。
+        /// </summary>
+        private static bool IsRadixLiteral(string s)
+        {
+            if (s.Length < 2 || s[0] != '0') return false;
+            char c = s[1];
+            if (c == 'x' || c == 'X' || c == 'b' || c == 'B') return true;
+            // 八进制：前导 0 + 全是八进制数字（`08` 不是合法八进制，落回十进制即可）
+            for (int i = 1; i < s.Length; i++)
+                if (s[i] < '0' || s[i] > '7') return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 解析按进制的整数字面量。
+        ///
+        /// **一律回 <see cref="IntLiteral"/>（unchecked 32 位）**，不回 LongLiteral：
+        /// VML 是 32 位 VM，而超出 int 范围的十六进制字面量在真实代码里几乎都是**位掩码**
+        /// （`0xFFFFFFFF` 要的就是全 1 那个位型，= -1），按位截断正是 C 的语义。
+        /// 后缀（`u`/`U`/`l`/`L`）由词法器一并带进来，这里剥掉。
+        /// </summary>
+        private static int ParseRadixLiteral(string s)
+        {
+            if (s.Length < 2 || s[0] != '0') return 0;
+            char c = s[1];
+            int radix, start;
+            if (c == 'x' || c == 'X') { radix = 16; start = 2; }
+            else if (c == 'b' || c == 'B') { radix = 2; start = 2; }
+            else { radix = 8; start = 1; }
+
+            // 逐位累加（`uint` 自然回绕 ⇒ 只留低 32 位），**不用 Convert.***：
+            // `Convert.ToUInt32` 碰到超过 8 位的十六进制（`0xFFFFFFFFFFFFFFFF`）会抛
+            // OverflowException，而那种写法的本意就是「取低位当掩码」，抛异常反而更错。
+            uint acc = 0;
+            for (int i = start; i < s.Length; i++)
+            {
+                char ch = s[i];
+                int d = ch >= '0' && ch <= '9' ? ch - '0'
+                      : ch >= 'a' && ch <= 'f' ? ch - 'a' + 10
+                      : ch >= 'A' && ch <= 'F' ? ch - 'A' + 10
+                      : -1;
+                if (d < 0 || d >= radix) break;   // 后缀 u/U/l/L 从这里退出
+                acc = acc * (uint)radix + (uint)d;
+            }
+            return unchecked((int)acc);
+        }
+
         private Expr ParsePrimaryCore()
         {
             if (Match(TokenType.NUMBER))
             {
                 string val = Previous().Value;
+                // ⚠ 按进制的字面量必须在浮点判定**之前**分流，两条 C++ 前端的老缺陷都在这条缝里：
+                //   ① 浮点判据里的 `val.EndsWith("F")` 会把 **`0xFFFFFF`** 当成浮点后缀
+                //      （`val.Contains('e')` 同理会误伤 `0xE5`）⇒ 整个字面量变成 FloatLiteral；
+                //   ② 侥幸没中这两条的（如 `0x000000`）继续往下走 `int.TryParse("0x000000")` ——
+                //      那个重载**不认 `0x` 前缀**，一律失败 ⇒ 落到本块末尾的 `new IntLiteral { Value = 0 }`，
+                //      **静默变成 0**。
+                //   两条合起来 = C++ 的十六进制字面量从来没有一个是解析对的（C 前端一直是好的）。
+                //   症状见 `Lib/c/graphics.h` 的 BGI 调色板：`0xAA5500` 全变 0 ⇒ 画面全黑。
+                if (IsRadixLiteral(val)) return new IntLiteral { Value = ParseRadixLiteral(val) };
                 if (val.Contains('.') || val.Contains('e') || val.Contains('E') || val.EndsWith("f") || val.EndsWith("F"))
                 {
                     bool hasFSuffix = val.EndsWith("f") || val.EndsWith("F");

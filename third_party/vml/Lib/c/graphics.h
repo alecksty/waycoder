@@ -155,7 +155,11 @@ static int _bgi_fill_pat = SOLID_FILL;
 static int _bgi_line_w   = NORM_WIDTH;
 static int _bgi_pen_x    = 0;       /* moveto/lineto 的当前点 */
 static int _bgi_pen_y    = 0;
-static int _bgi_txt_size = 16;      /* settextstyle 的字号 */
+/* BGI 的 charsize 是**放大倍数**（1 = 8×8 基本字形），不是像素高度。
+ * 本平台 `ui_text` 收的是**像素字号** ⇒ 两者之间要换算，基准就是"1 倍"对应的像素数。
+ * ⚠ 这个常数与 `_bgi_txt_size` 的默认值必须是同一个 —— 默认字号 = 1 倍字号。 */
+#define _BGI_CHAR_BASE 16
+static int _bgi_txt_size = _BGI_CHAR_BASE;   /* 像素字号（= BGI 倍数 × _BGI_CHAR_BASE）*/
 static int _bgi_txt_just = LEFT_TEXT;
 static int _bgi_maxx     = 639;     /* getmaxx/getmaxy */
 static int _bgi_maxy     = 479;
@@ -295,10 +299,14 @@ void setlinestyle(int style, unsigned pattern, int thickness)
     (void)style; (void)pattern;
     _bgi_line_w = (thickness == THICK_WIDTH) ? 3 : 1;
 }
+/* ⚠ 第三个参数是**字符放大倍数**，不是像素高度 —— 直接把倍数当像素传下去，
+ * `settextstyle(0, HORIZ_DIR, 1)` 会把字号设成 **1 像素**，于是**一个字都看不见**。
+ * 老程序里这一句极其常见（实测 `userinput2.cpp` 因此整屏空白，而它旁边不带这句的
+ * 最小复现是好的），所以这里必须换算：像素 = 倍数 × `_BGI_CHAR_BASE`。 */
 void settextstyle(int font, int dir, int size)
 {
     (void)font; (void)dir;
-    if (size > 0) _bgi_txt_size = size;
+    if (size > 0) _bgi_txt_size = size * _BGI_CHAR_BASE;
 }
 void settextjustify(int horiz, int vert)
 {

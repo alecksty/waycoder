@@ -242,10 +242,16 @@ namespace CppCompiler
         private new string ReadNumber()
         {
             int start = _pos;
-            bool isHex = false;
+            bool isHex = false, isBin = false;
             if (Peek() == '0' && (Peek(1) == 'x' || Peek(1) == 'X')) { _pos += 2; _col += 2; isHex = true; }
-            while (_pos < _source.Length && (isHex ? LexerHelper.IsHexDigit(Peek()) : char.IsDigit(Peek()))) { _pos++; _col++; }
-            if (!isHex && Peek() == '.') { _pos++; _col++; while (_pos < _source.Length && char.IsDigit(Peek())) { _pos++; _col++; } }
+            // `0b1010`（C++14 二进制字面量）。**要求第三位真的是 0/1** 才认 —— 否则
+            // `0bX` 这类会被当成「数字 0 + 标识符 bX」，那才是别的东西（收紧判据而不是放宽）。
+            else if (Peek() == '0' && (Peek(1) == 'b' || Peek(1) == 'B') && (Peek(2) == '0' || Peek(2) == '1'))
+            { _pos += 2; _col += 2; isBin = true; }
+            while (_pos < _source.Length && (isHex ? LexerHelper.IsHexDigit(Peek())
+                                                 : isBin ? (Peek() == '0' || Peek() == '1')
+                                                         : char.IsDigit(Peek()))) { _pos++; _col++; }
+            if (!isHex && !isBin && Peek() == '.') { _pos++; _col++; while (_pos < _source.Length && char.IsDigit(Peek())) { _pos++; _col++; } }
             // 读取整数/浮点后缀: f/F/l/L/u/U/ll/LL/ul/uL/Ul/UL/ull/ULL 等
             char c = Peek();
             while (c == 'f' || c == 'F' || c == 'l' || c == 'L' || c == 'u' || c == 'U')

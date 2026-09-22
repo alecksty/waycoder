@@ -83,11 +83,21 @@ int main()
     printf("\nI=%d", lmin <= 59);
     printf("\nJ=%d", lsec <= 60);
 
-    /* ⑤ 本平台没有时区 ⇒ `gmtime` 与 `localtime` 同年同月同日
-          （读的是上一步的**副本**，不是被覆盖后的缓冲） */
+    /* ⑤ `localtime` 按宿主时区偏移、`gmtime` 是 UTC ⇒ 两者**最多差一天**
+          （时区落在 -12..+14 小时，跨日只可能跨一天），不可能差更多。
+          （读的是上一步的**副本**，不是被覆盖后的缓冲）
+
+          ⚠ 这条判据原来写的是"同年同月同日"，**它随挂钟时刻变红**：
+          本机 CST(+8)，本地 00:00–08:00 整段里 UTC 与本地分属两天
+          （实测 UTC 09-22 16:52 / 本地 09-23 00:52 ⇒ `L=0`），
+          而那时**代码一个字没改**。判据依赖"当前几点"就不是判据 —— 改成"最多差一天"：
+          同月比日号差，跨月则必须有一边是 1 号（时区差不足一天，跨月只可能跨这一天）。 */
     gt = gmtime(&now);
     printf("\nK=%d", gt->tm_year == ly);
-    printf("\nL=%d", gt->tm_mday == ld);
+    int dayGap = gt->tm_mday - ld;
+    if (dayGap < 0) dayGap = -dayGap;
+    int sameMonth = (gt->tm_year == ly) && (gt->tm_mon == lm);
+    printf("\nL=%d", sameMonth ? (dayGap <= 1) : (ld == 1 || gt->tm_mday == 1));
 
     return 0;
 }

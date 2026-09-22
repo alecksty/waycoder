@@ -198,7 +198,10 @@ namespace CppCompiler
                         Add(OpCode.MOVE, "R0", $"#{enumVal}");
                         return;
                     }
-                    if (_isArrayVar.TryGetValue(id.Name, out bool isArr) && isArr)
+                    // ⚠ 判据要**同时**看两张表：`_isArrayVar` 是局部的（每进一个函数就被清），
+                    //   `_globalArrays` 是全局的。只看前者的话全局数组永远走不进这一支。
+                    if ((_isArrayVar.TryGetValue(id.Name, out bool isArr) && isArr)
+                        || _globalArrays.Contains(id.Name))
                     {
                         // Array variables: return the ADDRESS, not the value
                         if (_variables.TryGetValue(id.Name, out int arrOff))
@@ -1616,6 +1619,37 @@ namespace CppCompiler
                             // 初始化 header: length = total elements
                             Add(OpCode.MOVE, "R1", $"#{ae.ArraySize}");
                             Add(OpCode.MOVE, label, "R1");
+
+                            // ⚠ **初始值要逐个写进去**。此前这里只有长度头，元素一个都没写
+                            //   ⇒ `int loc[3] = {1,2,3};` 读到的是数据段里的 0（实测）。
+                            //   数组初始化一共两处**活**的代码：这里（局部，含 C++ 的"栈上数组"）
+                            //   与全局的 `GenerateGlobalVar` —— 两处都犯过同一个毛病，改的时候一起看。
+                            //   （`GenerateLocalVar` 里也有一段同样的逻辑，但那个方法**没有调用点**，
+                            //   改它不会影响任何产物，见它的方法头注释。）
+                            //   布局：头在 `label`，元素从 `+4` 起、每格 4 字节（与 `[]` 的 `+4` 对齐）。
+                            if (ae.Value is InitializerListExpr locInit2)
+                            {
+                                var flat2 = new List<object>();
+                                FlattenInitList(locInit2, flat2);
+                                for (int i = 0; i < flat2.Count && i < ae.ArraySize; i++)
+                                {
+                                    Add(OpCode.MOVE, "R0", flat2[i] is int iv2 ? $"#{iv2}" : flat2[i].ToString()!);
+                                    Add(OpCode.MOVE, "R1", "R0");
+                                    // ⚠ 这里要的是**地址**（LABEL），不是那个标签处的**内容**（MEMORY）。
+                                    //   走 `Add(OpCode, string…)` 的话 `label`（形如 `var_a`）会被
+                                    //   字面规则判成 MEMORY（见 `CodeGenerator.Add` 的 `StartsWith("var_")`）
+                                    //   ⇒ 编出 `move @R0 [var_a]`，取到的是**长度头 3**，
+                                    //   再 `+4` = 地址 7，于是三个元素全写到了地址 7 上（实测恒读到 0）。
+                                    //   表达式路径取数组地址用的就是 LABEL 操作数（见本文件 IdentExpr 的
+                                    //   `_globalArrays` 那一支），这里与它对齐。
+                                    instructions.Add(new Instruction(OpCode.MOVE, [
+                                        new(OperandType.REGISTER, 0),
+                                        new(OperandType.LABEL, label)
+                                    ]));
+                                    Add(OpCode.ADD, "R0", $"#{4 + i * 4}");
+                                    Add(OpCode.MOVE, "(R0)", "R1");
+                                }
+                            }
                         }
                         else
                             dataSection[label] = 0;
