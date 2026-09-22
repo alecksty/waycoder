@@ -3,6 +3,10 @@ using System.Text;
 // 直接 using 会和 `System.IO.Path` 撞成 CS0104（本文件大量用 Path.xxx）。别名只把
 // 我们要的那个类型引进作用域，不牵连别的。
 using Shapes = Microsoft.Maui.Controls.Shapes;
+// ⚠ **别名**而不是 using：`WayCoder.UI.Shared.Terminal` 里也有一个 `Color`（终端色码那条链的
+// 类型），直接 using 会与本文件大量使用的 `Microsoft.Maui.Graphics.Color` 撞成 CS0104
+// （命令行页那块控件上踩过同一个坑）。别名只把要用的几个类型引进作用域。
+using Term = WayCoder.UI.Shared.Terminal;
 using WayCoder.Infra;
 using WayCoder.UI.Shared;          // TextEditAssist：自动缩进与括号配对的纯逻辑（可自测）
 using WayCoder.Maui.Controls;
@@ -103,6 +107,23 @@ public partial class EditorPage : ContentPage
         //    字号**连续可取**：定位走的是平台实测推进量，不是「列号 × 半列宽」，
         //    所以小数号也能做到渲染与光标逐字对齐（见 CodeCanvasView.MeasureAdvances）。
         Canvas.PinchZoomed += size => ApplyFontSize(size, persist: false, toast: false);
+        // 输出小窗（自绘命令行网格）的两条接线：
+        //   · 捏合 = 缩字号 —— 面板窄而老程序写死 80 列，不缩小就只能横向滚着看半行；
+        //     宽度一变要重折（`TerminalGrid` 自己滚，视口一变"能放几列"就变了）。
+        //     ⚠ 这里**不落盘**：面板字号是"临时看清这一屏"的取景动作，不该被记住。
+        //
+        // ⚠ 捏合**分两拍做**（照命令行页）：手势进行中只换字号、**不重折** ——
+        //   重折要遍历缓冲里每一行的每个 rune，而触摸事件在 Android 上可达 120~240Hz，
+        //   每一拍都重折等于把 UI 线程占满（命令行页那边还实测过"捏一下就没反应了"）。
+        //   松手（含被系统打断，`TerminalGrid` 会补发 `PinchEnded`）才重折一次。
+        PanelOutputGrid.PinchScaled += size =>
+        {
+            _panelFont = MauiShellStore.ClampFont(size);
+            PanelOutputGrid.SetFontSize(_panelFont);   // 只换字号，内容不动
+        };
+        PanelOutputGrid.PinchEnded += () => RenderPanelOutput();   // 松手：按新字号重折一次
+        PanelOutputGrid.SizeChanged += (_, _) => RefoldPanelOutput();
+        _panelChunkHook = OnPanelChunk;    // 装/摘钩子都用这一个实例（见 StopPanelStream）
         Canvas.PinchEnded += () =>
         {
             // 正在编辑时缩放 ⇒ 松手就把字号对齐到整数（见 SnapFontSizeForEditing）。
@@ -836,6 +857,9 @@ public partial class EditorPage : ContentPage
             Canvas.SetDark(IsDarkTheme);   // 气泡的底色/文字色也在这条路上重建（按需缓存会整体作废）
             // 面板 Tab 的选中态是**代码赋值**的（见 SwitchPanelTab），换主题不会自己变
             SwitchPanelTab(_panelTab);
+            // 输出小窗的正文色/底色也是**烘进去的**（`SetLines` 收一个 `isDark`，行缓存按它取色）
+            // —— 与画布同一条理由：不重放一次，换了主题要重新打开这个文件才变色。
+            RenderPanelOutput();
             // 「没有错误。」那行与各诊断行的颜色也是建的时候取的
             RefreshErrorList();
         }
@@ -3224,6 +3248,15 @@ public partial class EditorPage : ContentPage
         CommitEditingLine();
         if (_fullPath.Length == 0) return;
 
+        // **一次只跑一件事**。原来没有这道闸门，而流式输出把代价放大了：连点两次「运行」，
+        // 第二次会把 `MauiVml.OnOutputChunk` 这个**静态槽**指向新的流，第一次那趟的输出于是
+        // 投给一个已经换掉的缓冲（画面互相踩）。编译同样占着这个位置（`_compileCts` 非空）。
+        if (_runActive || _compileCts != null)
+        {
+            ShowToast("正在运行/编译中，先停止再试");
+            return;
+        }
+
         // 有未保存改动 → 先落盘（用户确认的行为：自动保存 + 提示）。
         // 不保存就跑的必然是**旧代码**，那种「改了没生效」比多等一会儿难查得多。
         if (_modified)
@@ -3233,7 +3266,7 @@ public partial class EditorPage : ContentPage
         }
 
         ShowPanel(PanelTab.Output);
-        PanelOutputText.Text = "";
+        ClearPanelOutput();
         AppendOutput($"▶ {_relPath}");
 
         string? prebuilt = null;
@@ -3292,17 +3325,40 @@ public partial class EditorPage : ContentPage
         PanelStopBtn.IsVisible = true;
         SwitchPanelTab(PanelTab.Output);
         AppendOutput("（运行中…）");
+        // ⚠ **必须在 `MauiVml.Run` 之前装钩子** —— `LastRunStreamed` 是"装没装"的判据，
+        // 跑完再装等于没流式。装钩子这件事同时决定了 `MauiVml` 会不会把输出边跑边交出来。
+        StartPanelStream();
 
         try
         {
             // 编好的产物直接喂 `MauiVml.Run(source:)`（命令行页的 `vml test` 走的就是这条），
             // 省掉第二次前端编译；没有产物（.vml/.vmb/大文件）就按路径派发。
+            //
+            // `markup: true` = **按命令行页那一档来**：裸 ANSI 翻成 `«»` 标记、stderr 整段套红、
+            // 控制字符（`\r`/`\t`/`\b`）先解释掉、全屏程序给成网格而不是折行往下堆。
+            // 默认的 `false` 是给 AI 那条路的（它要的是"最终结果那一整段纯文本"）。
             var output = await Task.Run(() =>
                 prebuiltVml is { Length: > 0 }
-                    ? MauiVml.Run(prebuiltVml, null, RunTimeoutSec, ReadLineFromProgram, cts.Token)
-                    : MauiVml.Run(null, _fullPath, RunTimeoutSec, ReadLineFromProgram, cts.Token));
+                    ? MauiVml.Run(prebuiltVml, null, RunTimeoutSec, ReadLineFromProgram, cts.Token, markup: true)
+                    : MauiVml.Run(null, _fullPath, RunTimeoutSec, ReadLineFromProgram, cts.Token, markup: true));
 
-            SetOutput(output.TrimEnd());
+            if (MauiVml.LastRunStreamed)
+            {
+                // 正文**已经边跑边交出去了**，这里只补两件事：
+                //   ① 排空队列 + `Finish()`（末尾没换行的那一截全靠它）；
+                //   ② 补**诊断尾巴**（运行时报错 / 被强制停止 / syscall 被拒）—— 它是跑完才知道的，
+                //      而"程序崩了、用户只看到没有输出"正是这个平台反复修过的故障。
+                // ⚠ `output` 在这里**必须丢掉**：它是全量，再放一遍就是整段重复
+                //   （命令行页同款，注释也写着这一条）。
+                FinishPanelStream();
+                if (MauiVml.LastDiagnostics.Length > 0)
+                    AppendOutputMarkup(MauiVml.LastDiagnostics);
+            }
+            else
+            {
+                // 兜底那条路（钩子没装上时）：整段呈现 —— 全屏程序连光标一起接。
+                SetPanelOutput(output.TrimEnd());
+            }
             AppendOutput("（已结束）");
         }
         catch (OperationCanceledException)
@@ -3318,6 +3374,7 @@ public partial class EditorPage : ContentPage
         }
         finally
         {
+            StopPanelStream();              // 幂等：流式那支已经收过尾，这里兜"抛异常提前退出"
             _runActive = false;
             _runCts = null;
             cts.Dispose();
@@ -3402,9 +3459,13 @@ public partial class EditorPage : ContentPage
         _panelTab = tab;
         bool errs = tab == PanelTab.Errors;
         PanelErrorsScroll.IsVisible = errs;
-        PanelOutputScroll.IsVisible = !errs;
+        PanelOutputArea.IsVisible = !errs;
         PanelTabErrors.TextColor = errs ? PanelTabActive : PanelTabIdle;
         PanelTabOutput.TextColor = errs ? PanelTabIdle : PanelTabActive;
+        // 输出区在隐藏期间**不被布局**（`Width` 停在 0 ⇒ 折行列数算成 0）⇒ 刚亮出来时
+        // 要按现在的宽度重折一次。不重折的话，第一次运行看到的是"整行横向滚"而不是折行，
+        // 得等下一次 `SizeChanged` 才对 —— 而那一次不一定会来。
+        if (!errs) RefoldPanelOutput();
     }
 
     private void OnPanelTabErrorsClicked(object? sender, EventArgs e) => SwitchPanelTab(PanelTab.Errors);
@@ -3414,10 +3475,334 @@ public partial class EditorPage : ContentPage
     private void OnPanelCloseClicked(object? sender, EventArgs e)
         => OutputPanel.IsVisible = false;
 
-    private void AppendOutput(string text)
-        => SetOutput(PanelOutputText.Text is { Length: > 0 } prev ? prev + "\n" + text : text);
+    // ═══ 面板输出：**自绘命令行网格**（`TerminalGrid`）═══
+    //
+    // 这一块与命令行页的 `ShellPage` 是**兄弟实现**：同一块画布、同一套规则
+    // （`ShellStream` 判"这一块是追加还是整屏替换"、`ShellWrap` 折行、`AnsiMarkup` 把裸 ANSI
+    // 翻成 `«»` 标记）。规则**一处都没在这里重写** —— 这里只有"缓冲与呈现"这层簿记，
+    // 而簿记的写法照 `ShellPage` 抄（各写一套的结果是两边观感不一样，本仓头号坑）。
+    //
+    // 与命令行页**有意**不同的只有三点，都是"面板本来就没有那个概念"：
+    //   · 没有尺寸档（固定 80×25 / 横向固定 / 自适应那一套）⇒ 列数一律按面板实际宽度算；
+    //   · 没有回滚行数的设置项 ⇒ 用 `PanelScrollback` 常量兜底；
+    //   · 全屏程序的网格尺寸沿用宿主的 `MauiVml.TermRows/TermCols`（与命令行页同一个来源），
+    //     面板不另立一个 —— 否则同一段输出在两个页面会被判成不同形状的画面。
 
-    private void SetOutput(string text) => PanelOutputText.Text = text;
+    /// <summary>面板缓冲：markup 文本 + 「这一行折不折」—— 与 `ShellPage._lines` 同形。</summary>
+    private readonly List<(string Text, bool NoWrap)> _panelLines = [];
+
+    /// <summary>上一段停在**半行**上（没以 `\n` 收尾）—— 下一段要接上去而不是另起一行。</summary>
+    private bool _panelPartial;
+
+    /// <summary>
+    /// 面板网格字号 —— 捏合可改（会话内有效，**不落盘**：那是"临时看清这一屏"的取景动作，
+    /// 与编辑器正文字号各管各的）。
+    ///
+    /// 为什么面板需要它：面板只有两百来 dp 高、几十 dp 宽，而老程序写死 80 列 ——
+    /// 不缩小就只能横向滚着看半行。
+    /// </summary>
+    private double _panelFont = MauiShellStore.DefaultFont;
+
+    /// <summary>上次折行用的列数（面板宽度一变就得重折，`SizeChanged` 里比对）。</summary>
+    private int _panelCols = -1;
+
+    /// <summary>回滚上限（行）—— 长跑程序（日志刷屏那种）不至于把缓冲吃爆。</summary>
+    private const int PanelScrollback = 2000;
+
+    /// <summary>竖直滚动条压在内容上的宽度（`TerminalGrid.BarThickness + BarInset`）。</summary>
+    private const double PanelBarChrome = 8;
+
+    /* ── 全屏程序的光标 ──
+       与命令行页同一套：记"最近一块画面"的光标。`_panelCursorBase` = 那一块的第一行在
+       `_panelLines` 里的下标（-1 = 当前没有画面）；到 `RenderPanelOutput` 里再翻译成**显示行号**
+       （折行会挪行号，只有一处换算才不会错位）。 */
+    private int _panelCursorBase = -1;
+    private int _panelCursorRow;
+    private int _panelCursorCol;
+    private bool _panelCursorVisible;
+    private int _panelCursorDisplay = -1;
+
+    /// <summary>清空面板输出（每次运行 / 编译开始时调）。</summary>
+    private void ClearPanelOutput()
+    {
+        _panelLines.Clear();
+        _panelPartial = false;
+        _panelCursorBase = -1;
+        _panelCursorDisplay = -1;
+        RenderPanelOutput();
+    }
+
+    /// <summary>
+    /// **一行自己的话**（进度、提示、错误尾巴）—— 不是程序输出，所以按普通文本转标记。
+    /// 编译进度那几行走的就是这里。
+    ///
+    /// ⚠ 两处与"程序输出"不同的处理，都是**必须**的：
+    ///   · **自己补一个换行**：这些调用给的都是"一整句话"（`（运行中…）`），不带 `\n`。
+    ///     不补的话下一句会被当成**半行的延续**接到它后面（`（运行中…）（已结束）`）。
+    ///   · **先把半行收尾**：程序末尾那半行（`printf` 没换行就崩了）还挂着 `_panelPartial`，
+    ///     不收拾就轮到我们的提示被粘在它屁股后面。
+    /// </summary>
+    private void AppendOutput(string text)
+    {
+        ClosePendingLine();
+        AppendPanelText(text + "\n", noWrap: false, alreadyMarkup: false);
+    }
+
+    /// <summary>同上，但内容**已经是 markup**（`MauiVml.LastDiagnostics` 就是）。</summary>
+    private void AppendOutputMarkup(string markup)
+    {
+        ClosePendingLine();
+        AppendPanelText(markup + "\n", noWrap: false, alreadyMarkup: true);
+    }
+
+    /// <summary>给"没以换行收尾的那半行"补一个结尾（没有半行时什么都不做）。</summary>
+    private void ClosePendingLine()
+    {
+        // 空串追加到已存在的最后一行 = 只是把 `_panelPartial` 摘掉，**不新增行**
+        if (_panelPartial) AddPanelSegment("", partial: false, noWrap: false);
+    }
+
+    /// <summary>
+    /// **整段替换**（运行结束时把完整输出放进来）。
+    ///
+    /// ⚠ 全屏程序要连**光标基准**一起记：`LastCursor` 报的是画面内的行列，基准行号必须在
+    ///   放内容**之前**取（放在之后取会偏一整块）—— 这一条命令行页那边踩过，注释也写着。
+    /// </summary>
+    private void SetPanelOutput(string markupText)
+    {
+        _panelLines.Clear();
+        _panelPartial = false;
+        bool grid = MauiVml.LastOutputWasGrid;
+        _panelCursorBase = grid ? 0 : -1;
+        if (grid) (_panelCursorRow, _panelCursorCol, _panelCursorVisible) = MauiVml.LastCursor;
+        AppendPanelText(markupText, noWrap: grid, alreadyMarkup: true);
+        RenderPanelOutput();     // 空输出（程序一个字都没打）也要走一遍，把清空落到屏上
+    }
+
+    /// <summary>追加一段文本（按 `\n` 切段，末尾没换行的那截算半行）。</summary>
+    private void AppendPanelText(string text, bool noWrap, bool alreadyMarkup)
+    {
+        if (text.Length == 0) return;
+        if (!alreadyMarkup) text = AnsiMarkup.ToMarkup(text);
+
+        int start = 0;
+        while (start < text.Length)
+        {
+            int nl = text.IndexOf('\n', start);
+            if (nl < 0)
+            {
+                AddPanelSegment(text[start..], partial: true, noWrap: noWrap);
+                break;
+            }
+            AddPanelSegment(text[start..nl], partial: false, noWrap: noWrap);
+            start = nl + 1;
+        }
+
+        TrimPanelScrollback();
+        RenderPanelOutput();
+    }
+
+    private void AddPanelSegment(string segment, bool partial, bool noWrap)
+    {
+        if (_panelPartial && _panelLines.Count > 0)
+        {
+            var last = _panelLines[^1];
+            _panelLines[^1] = (last.Text + segment, last.NoWrap || noWrap);
+        }
+        else _panelLines.Add((segment, noWrap));
+        _panelPartial = partial;
+    }
+
+    /// <summary>面板实际能放几列（宽度没落定前返回 0 = 不折，交给画布横向滚）。</summary>
+    private int PanelCols()
+    {
+        double w = PanelOutputGrid.Width - PanelBarChrome;
+        return w <= 0 ? 0 : Term.ShellWrap.ColumnsForWidth(w, _panelFont);
+    }
+
+    /// <summary>宽度变了要重折（折行是**呈现**这一层的事，缓冲里存的始终是逻辑行）。</summary>
+    private void RefoldPanelOutput()
+    {
+        if (PanelCols() != _panelCols) RenderPanelOutput();
+    }
+
+    /// <summary>
+    /// 把缓冲呈现到画布上 —— **唯一的呈现出口**（折行、光标换算、字号都只在这里落一次）。
+    /// </summary>
+    private void RenderPanelOutput()
+    {
+        int cols = PanelCols();
+        _panelCols = cols;
+
+        var display = new List<string>(_panelLines.Count);
+        _panelCursorDisplay = -1;
+
+        if (cols <= 0)
+        {
+            // 宽度还没落定：原样放进去（画布自己横向滚），光标也不画 —— 此刻"画面"还没有形状
+            foreach (var (text, _) in _panelLines) display.Add(text);
+        }
+        else
+        {
+            int cursorBuf = _panelCursorBase >= 0 ? _panelCursorBase + _panelCursorRow : -1;
+            for (int i = 0; i < _panelLines.Count; i++)
+            {
+                var (line, noWrap) = _panelLines[i];
+                if (i == cursorBuf) _panelCursorDisplay = display.Count;
+                // ⚠ **画面行不折**（`ShellWrap.IsPictureLine`）：全屏程序的每一行就是屏幕上的一行，
+                //   折一下整幅画就斜切了。标志优先（全屏输出那一整块），次之才是逐行的判据。
+                if (noWrap || Term.ShellWrap.IsPictureLine(line)) display.Add(line);
+                else display.AddRange(Term.ShellWrap.WrapMarkup(line, cols));
+            }
+        }
+
+        PanelOutputGrid.SetLines(display, _panelFont, IsDarkTheme);
+        PanelOutputGrid.SetCursor(_panelCursorDisplay, _panelCursorCol, _panelCursorVisible);
+    }
+
+    private void TrimPanelScrollback()
+    {
+        int over = _panelLines.Count - PanelScrollback;
+        if (over > 0) DropPanelHead(over);
+    }
+
+    /// <summary>
+    /// 从**头部**丢掉若干行 —— 面板缓冲唯一的裁剪出口。
+    ///
+    /// ⚠ 收成一处的理由与命令行页同款：丢头会让所有"按行号记着位置"的东西一起前移，
+    ///   眼下是**画面光标**。两处各写一句 `RemoveRange` 的话，加了光标之后就得两处都记住要减，
+    ///   漏一处的症状是"光标画到别的行上去"，只在大输出之后才复现。
+    /// </summary>
+    private void DropPanelHead(int count)
+    {
+        if (count <= 0) return;
+        _panelLines.RemoveRange(0, count);
+        if (_panelCursorBase >= 0)
+        {
+            _panelCursorBase -= count;
+            if (_panelCursorBase + _panelCursorRow < 0) _panelCursorBase = -1;   // 连光标那行都丢了
+        }
+    }
+
+    // ── 流式：**边跑边画**（同一块画布，规则在 `ShellStream`）──
+    //
+    // 为什么面板也要流式：`top`/`sl`/`cmatrix` 那一整类**不退出就一直画**。整段缓冲的话，
+    // 屏幕上要等到程序结束（或超时）才出现东西 —— 而"在编辑器里跑自己写的游戏"正是面板的用途。
+    // 命令行页那两个版本（v0.96.351/352）解决的就是这件事，这里走的是**同一个** `ShellStream`。
+
+    private Term.ShellStream? _stream;
+
+    /// <summary>当前画面块的行数（整屏替换时按它 `RemoveRange`）。</summary>
+    private int _panelGridRows;
+
+    private readonly object _chunkGate = new();
+    private readonly List<string> _chunkQueue = [];
+    private bool _chunkScheduled;
+
+    /// <summary>本页装上去的那个钩子（`StopPanelStream` 靠它判断"现在挂的还是不是我的"）。</summary>
+    private readonly Action<string> _panelChunkHook;
+
+    private void StartPanelStream()
+    {
+        // 网格尺寸**取自宿主那对静态量**（命令行页在播报它们）——与"整段"那条路
+        // （`RunProgram` 里建 `FrameBuffer` 的同一对值）同源，两条路不会给出不同形状的画面。
+        _stream = new Term.ShellStream(MauiVml.TermRows, MauiVml.TermCols);
+        _panelGridRows = 0;
+        lock (_chunkGate) { _chunkQueue.Clear(); _chunkScheduled = false; }
+        MauiVml.OnOutputChunk = _panelChunkHook;
+    }
+
+    /// <summary>
+    /// 摘钩子。⚠ **每次运行收尾都必须调** —— 留着的话下一次运行的输出会被投给一个已经结束的流
+    /// （而且没人排空队列），表现是"这次跑的输出跑到上次那块去了"。
+    ///
+    /// ⚠ 摘之前**先确认挂着的还是自己那个**。`MauiVml.OnOutputChunk` 是**单个静态槽**，
+    ///   命令行页也在用（两页各自的"正在运行"闸门只挡得住自己那一页，挡不住对方）——
+    ///   无条件清掉的话，本页收尾会把命令行页正在用的钩子一并摘掉，那边表现为"画面停住不再刷新"。
+    ///   （同一条纪律也适用于 `MauiVml.OnProgress`，那里是"谁用谁负责摘"。）
+    /// </summary>
+    private void StopPanelStream()
+    {
+        if (MauiVml.OnOutputChunk == _panelChunkHook) MauiVml.OnOutputChunk = null;
+        _stream = null;
+        _panelGridRows = 0;
+        lock (_chunkGate) { _chunkQueue.Clear(); _chunkScheduled = false; }
+    }
+
+    /// <summary>
+    /// 收尾。⚠ **先同步排空队列**再 `Finish()`：队列里的块是靠 `Dispatcher.Dispatch` 排上来的，
+    /// `await` 恢复之后它们**不保证**已经跑过 —— 直接 `Finish` 会把它们排到收尾提示后面去。
+    /// </summary>
+    private void FinishPanelStream()
+    {
+        ApplyPanelChunks();
+        if (_stream != null) ApplyPanelStreamRender(_stream.Finish());
+        StopPanelStream();
+    }
+
+    /// <summary>
+    /// VM 线程上的回调（`MauiVml.OnOutputChunk`）。**只入队 + 排一次 UI 更新**，
+    /// 绝不在这个线程上碰 `_panelLines`（画布是 UI 线程的东西）。
+    ///
+    /// `_chunkScheduled` 是那道闸门：全屏程序每秒能写几十次，每次都切线程会把 UI 拖死。
+    /// </summary>
+    private void OnPanelChunk(string chunk)
+    {
+        lock (_chunkGate)
+        {
+            _chunkQueue.Add(chunk);
+            if (_chunkScheduled) return;
+            _chunkScheduled = true;
+        }
+        Dispatcher.Dispatch(ApplyPanelChunks);
+    }
+
+    private void ApplyPanelChunks()
+    {
+        string[] chunks;
+        lock (_chunkGate)
+        {
+            if (_chunkQueue.Count == 0) { _chunkScheduled = false; return; }
+            chunks = [.. _chunkQueue];
+            _chunkQueue.Clear();
+            _chunkScheduled = false;   // 先放开闸门：处理期间新来的块要能再排一次
+        }
+        if (_stream == null) return;
+        foreach (var c in chunks) ApplyPanelStreamRender(_stream.Feed(c));
+    }
+
+    /// <summary>
+    /// 把一次呈现请求落到 `_panelLines` 上 —— **全线唯一决定"追加还是替换"的地方**
+    /// （追加与替换混了会把画面搅烂：网格是一整屏，追加就是几十屏残影）。
+    /// </summary>
+    private void ApplyPanelStreamRender(Term.ShellRender? r)
+    {
+        if (r == null) return;
+
+        if (!r.IsGrid)
+        {
+            _panelCursorBase = -1;      // 线性输出没有"画面光标"，上一块的就此作废
+            _panelGridRows = 0;
+            AppendPanelText(r.Text, noWrap: false, alreadyMarkup: true);
+            return;
+        }
+
+        // ── 网格：**替换那一块**（这就是"实时"与"整段缓冲"最大的区别）──
+        var rows = r.Text.Length == 0 ? [] : r.Text.Split('\n');
+        if (_panelCursorBase < 0)
+        {
+            _panelCursorBase = _panelLines.Count;
+            _panelGridRows = 0;
+        }
+        if (_panelGridRows > 0 && _panelCursorBase + _panelGridRows <= _panelLines.Count)
+            _panelLines.RemoveRange(_panelCursorBase, _panelGridRows);
+        foreach (var line in rows) _panelLines.Add((line, true));
+        _panelGridRows = rows.Length;
+
+        (_panelCursorRow, _panelCursorCol, _panelCursorVisible) = (r.CursorRow, r.CursorCol, r.CursorVisible);
+        TrimPanelScrollback();
+        RenderPanelOutput();
+    }
 
     /// <summary>
     /// 重建错误列表。数据源与气泡、行下波浪线**是同一份**（`DiagnosticManager`）——

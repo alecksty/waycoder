@@ -320,21 +320,40 @@
                     <VerticalStackLayout x:Name="PanelErrorsList" Padding="8,2" Spacing="4" />
                 </ScrollView>
 
-                <!-- 输出：程序写到控制台的东西（含运行时崩溃的寄存器 dump） -->
-                <ScrollView Grid.Row="1" x:Name="PanelOutputScroll" IsVisible="False">
-                    <VerticalStackLayout Padding="8,2" Spacing="6">
-                        <Label x:Name="PanelOutputText" FontSize="11"
-                               TextColor="{AppThemeBinding Light=#1A1A1A, Dark=#DDDDDD}"
-                               LineBreakMode="WordWrap" />
-                        <!-- stdin 输入行：只在程序真的读输入时亮出来（与命令行页同一个语义） -->
-                        <Grid x:Name="PanelStdinRow" IsVisible="False" ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                            <Entry x:Name="PanelStdinEntry" Placeholder="输入后回车…" FontSize="12"
-                                   Completed="OnPanelStdinSubmitted" />
-                            <Button Grid.Column="1" Text="发送" FontSize="12" Padding="10,4"
-                                    Clicked="OnPanelStdinSendClicked" />
-                        </Grid>
-                    </VerticalStackLayout>
-                </ScrollView>
+                <!-- 输出小窗 = **自绘的命令行网格**（`TerminalGrid`，与命令行页同一块控件）。
+                     用户点的名：「编辑器页面下面的命令行小窗，控件是旧的，换成最新的」。
+                     ⚠ 原先这里是个 `ScrollView` + `Label` —— 那正是「显示命令行输出」最不该用的组合
+                     （本仓为这三条各交过一次学费）：
+                       · **连续空格被平台的排版器折叠** ⇒ 全屏程序的边框与列对齐全散；
+                       · **裸 ANSI 原样漏进文本** ⇒ 颜色没有、还多出转义字符；
+                       · 大输出拆 Span ⇒ 滚动卡死（移动端编辑器那轮踩过）。
+                     自绘网格把这三条一次解决：列宽自己算、`«»` 标记上色、滚动条与光标也自己画
+                     —— 与命令行页**同一个观感、同一把尺子**（规则在 `UI/Shared/Terminal/`，
+                     两边调的是同一份；页面只做"缓冲与呈现"那层簿记）。
+
+                     它**自己滚**（外面不套 `ScrollView`）：套着的话双指的第二根手指会被滚动容器
+                     截走，捏合根本不触发（命令行页实测踩过同一个坑）。 -->
+                <Grid
+                    x:Name="PanelOutputArea"
+                    Grid.Row="1"
+                    IsVisible="False"
+                    RowDefinitions="*,Auto"
+                    Padding="6,2,6,2"
+                    RowSpacing="4">
+                    <ctl:TerminalGrid x:Name="PanelOutputGrid" />
+                    <!-- stdin 输入行：只在程序真的读输入时亮出来（与命令行页同一个语义） -->
+                    <Grid
+                        x:Name="PanelStdinRow"
+                        Grid.Row="1"
+                        IsVisible="False"
+                        ColumnDefinitions="*,Auto"
+                        ColumnSpacing="6">
+                        <Entry x:Name="PanelStdinEntry" Placeholder="输入后回车…" FontSize="12"
+                               Completed="OnPanelStdinSubmitted" />
+                        <Button Grid.Column="1" Text="发送" FontSize="12" Padding="10,4"
+                                Clicked="OnPanelStdinSendClicked" />
+                    </Grid>
+                </Grid>
             </Grid>
 
             <!-- ═══ 浮动代码辅助输入条 ═══
