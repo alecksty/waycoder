@@ -590,6 +590,21 @@ namespace CCompiler
             {
                 FindUsedFunctionsInStatement(labeledStmt.Statement, usedFunctions);
             }
+            /* **裸的复合语句** `{ … }` —— 它自己就是一个 `Block` 语句节点。
+               ⚠ 漏了这一支的后果不是"少收集一个函数"，而是**级联的**：
+                 可达性分析看不到块里的调用 ⇒ 那个函数被判「定义了但从未使用」
+                 ⇒ 从 AST 里**剔除** ⇒ 调用点随后解析不到，报
+                 「未定义的函数 'x'（引用 N 次）」—— 而报错指向的是**调用**，
+                 定义也在、看着哪儿都没错，非常难反推。
+
+               实测最小复现（`{ char t[4]; helper(t); }`，见
+               `scripts/vml-c-probe/cases/31-nested-block-call.c`）：
+               块里只要**同时有变量声明和调用**就会撞上 —— 而"在块里声明临时量再算"
+               是最普通的写法。 */
+            else if (statement is Block nestedBlock)
+            {
+                FindUsedFunctionsInBlock(nestedBlock, usedFunctions);
+            }
             else if (statement is AsmStatement asmStmt)
             {
                 // 内联汇编可能包含 CALL label，提取标签名
