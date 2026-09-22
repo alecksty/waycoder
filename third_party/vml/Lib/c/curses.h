@@ -176,6 +176,42 @@ int mvaddch(int y, int x, int ch);
 int printw(const char *fmt, ...);
 int mvprintw(int y, int x, const char *fmt, ...);
 
+/* ── 窗口版 `w*` 与"带窗口参数的移动版" `mvw*` ──
+ *
+ * 本实现只有一个窗口（`stdscr`，见文件头），所以这一族**全部转发**到上面那批
+ * 不带窗口的函数，`w` 参数收下不用 —— 与 `newwin()` 返回 `stdscr` 是同一个退化。
+ *
+ * ⚠⚠ **必须有原型，这不是"为了让编译器别抱怨"**：实现在 `shared/src/curses.c` 里
+ *   一直都有（90 个老程序要调），但本头文件此前**一条都没声明** ⇒ 实测后果是
+ *   **整屏一个字符都画不出来**：
+ *
+ *     · 非变参的那几个（`mvwaddstr`/`mvwaddch`/`box`/`werase`…）**照样能画**；
+ *     · **变参的那两个（`wprintw`/`mvwprintw`）会把参数传错**，
+ *       程序在 `refresh()` **之前**就崩掉了 ⇒ 屏幕上一个字都没有
+ *       （而屏上什么都没有，看起来就像"这个程序不兼容"）。
+ *
+ *   实测 `tty-clock`（689 行）：通篇只用 `mvwaddstr` / `mvwprintw` / `mvwaddch` /
+ *   `werase` / `box` / `wattron` 这一族 ⇒ 修前全屏 4000 个空格、一个字符都没有。
+ *   判据：`scripts/vml-c-probe/cases/35-window-api.c`。
+ *
+ *   教训与 `usleep` 那条同源、但**更隐蔽**：那次是"没实现 ⇒ 报未定义的函数"，
+ *   这次是"实现了、没声明 ⇒ 不报错、只是画不出来"。 */
+int wattron(WINDOW *w, int attrs);
+int wattroff(WINDOW *w, int attrs);
+int wattrset(WINDOW *w, int attrs);
+int wclear(WINDOW *w);
+int werase(WINDOW *w);
+int wclrtoeol(WINDOW *w);
+int waddch(WINDOW *w, int ch);
+int waddstr(WINDOW *w, const char *s);
+int wprintw(WINDOW *w, const char *fmt, ...);
+int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...);
+int mvwaddch(WINDOW *w, int y, int x, int ch);
+int mvwaddstr(WINDOW *w, int y, int x, const char *s);
+int box(WINDOW *w, int vch, int hch);
+int wborder(WINDOW *w, int ls, int rs, int ts, int bs, int tl, int tr, int bl, int br);
+int mvwin(WINDOW *w, int y, int x);
+
 /* ── 擦除 ── */
 int clear(void);                /* 清空**缓冲**（要 refresh 才看得见） */
 int erase(void);
