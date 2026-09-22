@@ -1,3 +1,179 @@
+## v0.96.375 — 拿 6 个真程序压 BGI 垫层，撞出**两条静默的前端缺陷**
+
+用户要「下载一些用 graphics 库的老程序，让它在手机上跑起来」。BGI → `ui_*` 的转接
+**早就实现了**（`Lib/c/graphics.h`，373 行，把 BGI 的函数名原样接到 `ui_*`，
+`initgraph` 落到**电脑屏窗口**）。所以这一轮的价值全在**拿真程序压它**：
+
+从 `ullaskunder3/Solution-to-graphics.h` 取了 6 个（饼图 / 柱状图 / 笑脸 / 小屋 / 同心圆 /
+图形函数集），**全部编译失败** —— 而失败的原因**两条都不在 BGI 垫层里**。
+
+### 一、⚠ `#include<graphics.h>` 写成没有空格 ⇒ **整行被静默丢掉**
+
+    #include<graphics.h>                      ← 这一行整个消失（不报错、不警告）
+    int main(){ int gd = DETECT, gm; … }      ← 于是 DETECT 未声明
+
+报的是「未声明的变量 'DETECT'」，位置指着 `main` 里那一行 ——
+**没有任何线索指向 include**，会去查 DETECT 怎么没定义。
+
+根因在 `ProcessDirective`：指令名是按**空白**切的，不是按**标识符**扫的。
+
+    "#include<graphics.h>".Substring(1).Trim().Split(new[]{' ','\t'}, 2)
+      ⇒ ["include<graphics.h>"]      ← 没有空白 ⇒ 整行一段
+    dir = "include<graphics.h>"      ⇒ 匹配不上任何 case ⇒ 丢掉
+
+同一族的 `#if(x)` / `#define(x,y)` 一起中招。**22 门语言全走这条路**，
+而且**两条预处理器实现**（`CompilerBase/` 与 `CCompiler/`）都得改 —— 两处都改了。
+
+⚠ **为什么一直没暴露**：`#include<stdio.h>` 无空格看不出问题（stdio 本来就被自动提供，
+丢一行 include 也照样能编），**把 bug 盖住了**。所以判据
+`cases/46-include-no-space.c` **刻意不用 stdio**，改用 `graphics.h`（它不在自动提供的集合里）。
+
+⚠ 而实测 **6 个下载来的程序全都写的是 `#include<graphics.h>`** —— 老代码里这个写法很常见。
+
+### 二、C++ 前端不认**省略返回类型**的函数定义（`main() { … }`）
+
+`smile.cpp` 开头就是 `main()`（Turbo C 时代遍地都是）。C 前端**本来认**
+（`Parser.Declarations.cs` 的隐式 int 分支），C++ 前端不认 —— 报
+「期望 IDENTIFIER，实际得到 LPAREN ('(')」，位置指着 `main` 后面那个 `(`，
+**看不出是"少写了返回类型"**。
+
+根因：`ParseDeclarationCore` 认出 `IDENT (` 之后调 `ParseFunction()` 时
+**没把已经读到的名字传下去** ⇒ 它自己去 `ParseType()`（把 `main` 当类型名吃掉）
+再 `Expect(IDENTIFIER)` 撞上 `(`。修法是照 C 前端的语义取 **C89 的「隐式 int」**，
+并把光标停在 `(` 之后直接进函数体（`Match(LPAREN)` 已经吃过 `(`，再回退会让它要第二次）。
+
+### 三、补齐 `graphics.h` 缺的东西（真程序压出来的缺口）
+
+| 补什么 | 为什么 |
+|---|---|
+| `NULL` | 老程序普遍只 `#include <graphics.h>` 就拿它当空指针用（Turbo C 时代由 BGI 头间接带进来） |
+| `DEFAULT_FONT`…`BOLD_FONT` 11 个字体常量 | `settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2)` 极常见，不收常量整份源码一个字都编不过 |
+| `arc` / `pieslice` / `sector` | 饼图靠它们（语料里 `pieslice` 用了 3 次、`arc` 2 次）。走**另一套**刷子接口 `ui_set_fill`/`ui_set_pen` + `ui_draw_pie`，因为颜色当参数的老接口画不了扇形。⚠ `ui_set_fill(0)` = 不填充（`arc` 的轮廓靠它），且**画完必须复位**（刷子是全局状态，不复位会串给后面的图元） |
+| `initwindow(w,h,title)` | WinBGIm 的入口，语义就是"开一个指定大小的图形窗口" |
+
+### 结果
+
+    ✅ 6 个里 4 个编译干净：barChart / Concentric / pie / smile
+    ❌ 剩下 2 个卡在**同一族能力**上：floodfill(10 次) + getimage/putimage/imagesize/XOR_PUT
+       —— 都是**像素读回 / 位图块**。场景是保留模式的，要做得上宿主侧光栅化读回，
+       那是**架构决定**不是补个垫层（`graphics.h` 的注释里本来就写着这几个不做）。
+
+自测 **6419/6419**；C 探针 **41/0/4**（已知红不变）+ 新增 `46-include-no-space.c`。
+
+## v0.96.376 — VML 工程文件 `.vmk` + `vml make` + Makefile 导入 + `-D`/`-I`
+
+VML 此前只有「把一个源文件丢给编译器」这一种用法。这件事在兼容性战役里已经撞到过
+（`docs/老程序兼容性.md`）：`cmatrix` 报的 `VERSION` **不是库缺失**，是 Makefile 里
+`-DVERSION="..."` 传进来的 —— 而"把源文件丢给 `vml run`"没有构建系统，这类宏全缺，
+**补头文件补不出来**。当时的应急修法是 `VMLTOOL_DEFINE` 环境变量：能用，
+但**一个项目的构建描述不该待在环境变量里**。
+
+### 一、先补 `-D` / `-I`（`.vmk` 的前提）
+
+```
+vmlcli -D VERSION=1.2 -D DEBUG -I src -I ../inc examples/c/tetris.c
+```
+
+两条通路**落点完全不同**，这是最容易做错的地方：
+
+| 选项 | 怎么生效 |
+|---|---|
+| `-I <dir>` | 加进 `CompileFileWithIncludes` 的 `includePaths` 参数 |
+| `-D <名>[=<值>]` | **`cb.SetConfig("defines", list)`**（上游 `Program.Compile.cs:127-149` 那条） |
+
+⚠ **`-D` 不能拿 `VMLTOOL_DEFINE` 凑合**：多数前端的 `PredefinedMacros` 是
+`static readonly` + `new(BasePredefinedMacros())`，**静态初始化只跑一次** ⇒
+环境变量在"第一次用到该编译器"时就被快照、之后改了不生效；只有 C 因为每次构造都重读
+才碰巧是对的。**两套行为不一致，不能建立在"碰巧"上。**
+
+### 二、`.vmk`：只放**项目级**的东西
+
+```xml
+<VMLProject Version="1">
+  <Name>tetris</Name>
+  <Entry>src/tetris.c</Entry>
+  <Output Kind="exe" Format="vml">build/tetris.vml</Output>
+  <Includes><Dir>src</Dir></Includes>
+  <Defines><Define Name="VERSION" Value="1.2"/><Define Name="DEBUG"/></Defines>
+</VMLProject>
+```
+
+**不放编译器选项**（`Mode`/`Float64`/`GcSections`…）—— 那些归 `vmltool.config.xml`。
+同一个值能写两处正是本仓最反复踩的坑。
+
+### 三、⚠ 一条查出来的硬约束，决定了整个格式的形状
+
+**VML 没有跨编译单元的链接。** `CompilerProgramBase` 的多文件模式明确拒绝 `-o`，
+只是把每个 `.c` **各编成同名的 `.vml`**，没有符号合并；`CompileFileWithIncludes`
+的签名也是单入口的。
+
+⇒ **`<Entry>` 是单数**。写成 `SRCS` 列表会**许下一个做不到的承诺**。
+多文件靠 `#include`（老 C 的单 TU 写法）。
+
+### 四、Makefile 导入：一次性转换
+
+`vmlcli make --import Makefile` 读一遍、生成 `.vmk`，**此后以 `.vmk` 为准**。
+（不选"每次构建动态读"：两处真源必然漂移，症状是"改了 Makefile 却不生效"。）
+
+**四条硬约定**：
+
+① **多 `SRCS` 必须报出来** —— 静默取第一个的后果是"编过了、少了半个程序"，
+   正是本仓最怕的失败形状。报的时候连"要它们进来只能改成 `#include`"一起说；
+② **两种引号语义相反**：`-DVERSION=\"1.2\"`（转义）⇒ 值是**带引号**的 `"1.2"`
+   （老程序拿它当字符串字面量用）；`-DFOO="bar"`（裸引号）⇒ 值是 `bar`（shell 吃掉了）。
+   处理顺序反了会得到光秃秃的 `1.2`，编译时报错位置离 `-D` 十万八千里；
+③ **拒绝而不是糊弄**：纯转发式（`$(MAKE) -C sub`）与 IDE 生成的 `.mk`
+   （`-include` 递归依赖）—— **报错说明原因**，不导出空清单；
+④ 变量替换只做**一层**（`$(VAR)`、`$(SRCS:.c=.o)`）。
+
+### 五、为"以后加更多格式"定的形状
+
+用户点明 `.vmk` 是**枢纽格式**：以后会有更多构建格式导入进来（CMake/MSBuild/…），
+也要能出多种产物。所以这一版先把**扩展点**留出来：
+
+* **导入侧**：`IProjectImporter` + `ProjectImporters` 注册表 ——
+  加一种格式 = **加一个类 + 注册一行**，CLI 与手机端都不用动；
+* **产物侧**：`<Output Kind="exe|lib" Format="…">`。
+  已实现 `vml` / `vmb`；`bin`/`rom`/`elf`/`hex`/`s19`/`exe`/`dll`/`class` 是**预留的名字**
+  （转译后端在 `VMLTranslators/` 里已有，还没接过来）。
+  ⚠ 认得出名字但没实现的 ⇒ 报**「还没做」**；压根不认识的 ⇒ 报**「不认得」**——
+  两句**故意分开**（前者是排期、后者多半是拼错）。**绝不静默退回 `.vml`**
+  （用户会以为转译完了，手上却是个烧不进芯片的文件）。
+
+### 六、⚠ 落点：三个文件放 `UI/Shared/`，不是 `third_party/vml/VMLTool/`
+
+桌面（`WayCoder`）**不引用** VMLTool（那会把 18 个后端翻译器一起拖进来），
+而 `UI/Shared` 是**桌面自测 / `scripts/vmlcli` / 手机端三方都能编到**的唯一目录
+（`vmlcli` 用 `<Compile Include="../../WayCoder/UI/Shared/…">` 直接编同一份源码）。
+放 VMLTool 里就只有 CLI 用得上，另外两边各得再抄一份 —— 本仓头号坑。
+
+顺带：跨平台路径不再自己写一份，改调 `PathText.Normalize`（同目录、带自测）。
+
+### 七、顺带确认两条**已经过期**的结论
+
+* **`NormalizeLongConstants` 那个绕行可以退休了** —— 它是给"`ToVmbBytes()` 数据段
+  不认 `long`"打的补丁，而缺口**已在 `VMLProgram.cs:1247` 修掉**（注释还留着
+  "原来这里直接抛"）。桌面 `make` 出 `.vmb` 时**刻意不带它**，等于每次都在反证那个修复；
+* **「`.vmb` 读回来这一半还断着」也不成立了** —— 实测编译器产物（49031 条指令）
+  写出的 `.vmb` 能装载并**正确运行**（打出 `VERSION=1.2` / `ver.h=ok`）。
+
+顺带补了 `vmlcli` 的 **`.vmb` 直通**（`MauiVml.Run` 一直是认的，桌面不认 ——
+桌面/手机流水线的又一处缺口，与之前补的 `.vml` 同源）。
+
+### 八、验收
+
+桌面端到端 + **四条反证**（闸门要能响）：
+
+    ✅ make --import → .vmk；make → .vml
+    ✅ 产物与直接编译（`-D`/`-I` 同一组参数）**逐字节相同**
+    ✅ 多源文件 ⇒ 报「只取了含 main 的那个，其余不会进来」
+    ✅ 转发式 Makefile ⇒ 拒绝并说明原因
+    ✅ .vmk 元素名拼错 ⇒ 报错（不是静默忽略）
+    ✅ 入口文件不存在 ⇒ 报错
+    ✅ Format="hex" ⇒ 报「还没做」；Format="vml2" ⇒ 报「不认得」
+
+自测 **6460/6460**（新增 `TestChunk32` 41 条）；C 探针 41/0/4（已知红不变）。
+
 ## v0.96.374 — 新指令的**汇编级单元测试**（号段 113–125）+ vmlcli 直通 `.vml`
 
 今天往 ISA 里加了 **13 条无符号指令**（`ZEXTL` / `DIVU` / `MODU` / `SHRU` /

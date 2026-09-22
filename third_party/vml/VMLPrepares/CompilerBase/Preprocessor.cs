@@ -370,10 +370,23 @@ namespace CompilerBase
         private bool ProcessDirective(string directiveLine, StringBuilder processedSource)
         {
             // 解析指令名和参数 (如 "#define FOO bar" → dir="define", rest="FOO bar")
-            // 注意: 某些源文件使用 tab 而非空格分隔，需同时处理
-            string[] parts = directiveLine.Substring(1).Trim().Split(new[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
-            string dir = parts[0].ToLower();
-            string rest = parts.Length > 1 ? parts[1].Trim() : "";
+            //
+            // ⚠ **指令名是"标识符"，不是"第一段空白之前的东西"** —— 不能按空格/tab 切。
+            //
+            //   `#include<graphics.h>` / `#if(x)` / `#define(x,y)` 这类**名字与参数之间
+            //   没有空白**的写法在老代码里很常见（实测：6 个经典 BGI 程序**全都**写的是
+            //   `#include<graphics.h>`）。按空白切时整行切成一段 ⇒ `dir` 成了
+            //   `"include<graphics.h>"` ⇒ **匹配不上任何 case** ⇒ 这一行被**静默丢掉**：
+            //   不报错、不警告，只是那个头文件没进来 —— 随后以"未声明的变量 'DETECT'"
+            //   这种**指向别处**的错误现形（用户会去查 DETECT，而问题在 include 那一行）。
+            //
+            //   顺带也解决了 tab 分隔：扫描标识符天然不分隔符。
+            string body = directiveLine.Substring(1).Trim();
+            int nameEnd = 0;
+            while (nameEnd < body.Length && (char.IsLetterOrDigit(body[nameEnd]) || body[nameEnd] == '_'))
+                nameEnd++;
+            string dir = body.Substring(0, nameEnd).ToLowerInvariant();
+            string rest = body.Substring(nameEnd).Trim();
             switch (dir)
             {
                 case "include":

@@ -106,6 +106,32 @@
 #define HORIZ_DIR     0
 #define VERT_DIR      1
 
+/* 字体（settextstyle 的第一个参数）。
+ * ⚠ 本平台**只有一种字形**，这些常量收下来只是为了"编得过"——
+ *   按字体名切换字形的能力没有，字号（第三个参数）是**认的**（见 settextstyle）。
+ *   老程序里 `settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2)` 这种写法极常见，
+ *   不收常量的话整份源码一个字都编不过（实测：6 个经典 BGI 程序里有 2 个中招）。 */
+#define DEFAULT_FONT        0
+#define TRIPLEX_FONT        1
+#define SMALL_FONT          2
+#define SANS_SERIF_FONT     3
+#define GOTHIC_FONT         4
+#define SCRIPT_FONT         5
+#define SIMPLEX_FONT        6
+#define TRIPLEX_SCR_FONT    7
+#define COMPLEX_FONT        8
+#define EUROPEAN_FONT       9
+#define BOLD_FONT           10
+
+/* `NULL`：老程序普遍只 `#include <graphics.h>` 就拿它当空指针用（Turbo C 时代
+ * 它由 BGI 的头**间接**带进来）。真去 `#include <stdlib.h>` 会连带牵进一大堆本平台
+ * 用不着的东西，所以这里直接兜一个。
+ * ⚠ 只兜"没定义过"的情形 —— 谁先定过就用谁的，避免重复定义（C 里 `#define` 重定义
+ *   只在**展开后不同**时才报警，而 `((void*)0)` 与别的写法展开不同，会有警告刷屏）。 */
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
+
 /* ── 内部状态（每个程序一份；本文件是头文件，用 static 隔离）────── */
 static int _bgi_fg       = WHITE;   /* 当前前景（调色板索引）*/
 static int _bgi_bg       = BLACK;   /* 当前背景 */
@@ -191,6 +217,30 @@ void _bgi_initgraph(int *gd, int *gm, char *path, char *file)
 
 /* 包一层的唯一目的：让 `__FILE__` 在**调用点**展开（见上面的 ⚠） */
 #define initgraph(gd, gm, path)  _bgi_initgraph((gd), (gm), (path), __FILE__)
+
+/* `initwindow` 是 **WinBGIm**（BGI 的 Windows 移植）的入口，语义就是"开一个指定大小的
+ * 图形窗口"，不收 `gd`/`gm`：
+ *
+ *     initwindow(640, 480, "标题");
+ *
+ * 老程序里两条路都有（DOS 时代的用 `initgraph`，Windows 时代的用 `initwindow`），
+ * 收下它一条程序都不用改。⚠ 窗口标题照 WinBGIm 的**第三参**给，不再拿源文件名兜
+ * —— 这条与 `initgraph` 不同（那个的确不设标题）。
+ *
+ * ⚠ 同样要包一层宏：`__FILE__` 写在头文件里会展开成 `graphics.h` 自己。 */
+void _bgi_initwindow(int w, int h, char *title, char *file)
+{
+    if (w <= 0) w = 640;
+    if (h <= 0) h = 480;
+    ui_win_open_pc((title != 0 && title[0] != 0) ? title : _bgi_basename(file),
+                   w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
+    _bgi_maxx   = w - 1;
+    _bgi_maxy   = h - 1;
+    _bgi_opened = 1;
+    cleardevice();
+}
+
+#define initwindow(w, h, title)  _bgi_initwindow((w), (h), (title), __FILE__)
 
 void closegraph(void)
 {
@@ -313,6 +363,44 @@ void putpixel(int x, int y, int color)
 {
     ui_pixel(x, y, _bgi_rgb(color));
 }
+
+/* ── 扇形 / 弧（`arc` / `pieslice` / `sector`）──────────────────
+ *
+ * 老程序画**饼图**就靠这三个（`Examples` 语料里 `pieslice` 用了 3 次、`arc` 2 次）。
+ *
+ * ## 为什么这三个走的是**另一套**绘图接口
+ *
+ * 上面那些图元用的是"颜色当参数"的老接口（`ui_circle(x,y,r,色,…)`）—— 那一套
+ * **画不了扇形**（只能画整圈）。平台侧能画扇形的是新的刷子接口
+ * `ui_draw_pie(cx, cy, r, a0, a1)`，它的颜色来自**当前刷子**而不是参数。
+ * 所以这里先 `ui_set_fill`/`ui_set_pen` 设好再画。
+ *
+ * ## 两条硬约定
+ *
+ * ① **`ui_set_fill(0)` = 不填充**（宿主侧 `_fill = brush == 0 ? null : …`）——
+ *    `arc` 要的正是"只有轮廓"，靠它表达；`pieslice`/`sector` 才填色。
+ * ② **刷子是全局状态，画完必须复位** —— 不复位的话，这把刷子会**漏给后面的图元**
+ *    （上一条 `pieslice` 的填充色粘到下一个 `rectangle` 上），而这类串色在画面上
+ *    看着像"某个颜色配错了"，极难反查到是扇形留下的。
+ *
+ * ⚠ `sector` 在 BGI 里收的是**两个半径**（可画椭圆扇形），而平台侧只有单半径的
+ *   `ui_draw_pie` ⇒ 这里按 `xr` 画**圆**扇形，椭圆扇形没做。这条是**能力缺口**，
+ *   不是"忘了"：真遇到了要往宿主加一个椭圆扇形图元。
+ */
+static void _bgi_pie(int x, int y, int st, int en, int r, int filled)
+{
+    ui_set_fill(filled ? _bgi_rgb(_bgi_fill_col) : 0);
+    ui_set_pen(_bgi_rgb(_bgi_fg), _bgi_line_w, 0, 0, 0);
+    ui_draw_pie(x, y, r, st, en);
+
+    /* 复位：不留状态给后面的图元（见上面第 ② 条）*/
+    ui_set_fill(0);
+    ui_set_pen(_bgi_rgb(_bgi_fg), NORM_WIDTH, 0, 0, 0);
+}
+
+void arc(int x, int y, int st, int en, int r)              { _bgi_pie(x, y, st, en, r, 0); }
+void pieslice(int x, int y, int st, int en, int r)         { _bgi_pie(x, y, st, en, r, 1); }
+void sector(int x, int y, int st, int en, int xr, int yr)  { (void)yr; _bgi_pie(x, y, st, en, xr, 1); }
 
 /* ── 文字 ──────────────────────────────────────────────────── */
 

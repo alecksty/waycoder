@@ -133,7 +133,24 @@ namespace CppCompiler
                 int save = _pos;
                 string name = Cur.Value;
                 Advance();
-                if (Match(TokenType.LPAREN)) { _pos = save; result = ParseFunction(); }
+                // `名字(` —— **省略返回类型的函数定义**（`main() { … }`）。
+                //
+                // ⚠ 这里**必须把已知的名字与类型传下去**。裸调 `ParseFunction()` 时它会自己
+                //   先 `ParseType()` 再 `Expect(IDENTIFIER)`：`ParseType` 会把 `main` **当成
+                //   类型名吃掉**，紧接着 `Expect(IDENTIFIER)` 撞上 `(` ⇒ 报
+                //   「期望 IDENTIFIER，实际得到 LPAREN ('(')」—— 报错位置指着 `(`，
+                //   而问题在"少写了返回类型"，从错误信息完全看不出来。
+                //
+                // 语义取 **C89 / Turbo C 的「隐式 int」**：老代码里 `main() {…}`、
+                // `void draw()` 混着写遍地都是（实测 6 个经典 BGI 程序里有 1 个是这么写的）。
+                // **C 前端本来就认**（`CCompiler/Parser.Declarations.cs` 的隐式 int 分支，
+                // 「标识符后跟 `(`」同一判据）—— 这里是补齐两边的不一致。
+                // ⚠ **不要 `_pos = save` 回退**：上面的 `Match(LPAREN)` 已经把 `(` 吃掉了，
+                //   回退会让 `ParseFunction` 里的 `Expect(LPAREN)` 再要一次 —— 而它此时
+                //   看到的是 `main`（`knownName` 已给 ⇒ 它不会自己去消费名字）
+                //   ⇒ 报「期望 LPAREN，实际得到 IDENTIFIER 'main'」。直接进函数体即可
+                //   （`ParseFunctionBody` 的约定正是"光标停在 `(` 之后"）。
+                if (Match(TokenType.LPAREN)) { result = ParseFunctionBody("int", name); }
                 else if (Match(TokenType.SCOPE_RESOLVE))
                 {
                     _pos = save;

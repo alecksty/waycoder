@@ -151,9 +151,22 @@ namespace CCompiler
         /// <returns>是否成功处理了指令</returns>
         private bool ProcessDirective(string directiveLine, StringBuilder processedSource)
         {
-            string[] parts     = directiveLine.Substring(1).Trim().Split(new[] { ' ' }, 2);
-            string   directive = parts[0].ToLower();
-            string   rest      = parts.Length > 1 ? parts[1].Trim() : "";
+            // ⚠ **指令名是"标识符"，不能按空格切** —— 与 `CompilerBase/Preprocessor.cs`
+            //   同一处判据（**改一处就要改另一处**：这 22 门前端里有两条预处理器实现，
+            //   本仓头号坑就是"同一规则两处实现、只修了其中一处"）。
+            //
+            //   `#include<graphics.h>`（名字与参数之间没有空白）按空格切时整行是一段 ⇒
+            //   `directive` 成 `"include<graphics.h>"` ⇒ **匹配不上任何 case** ⇒
+            //   整行被**静默丢掉**：不报错，只是头文件没进来，随后以
+            //   "未声明的变量 'DETECT'" 这种指向别处的错误现形。
+            //   实测：6 个经典 BGI 程序**全都**是这么写的（这类老代码很常见）。
+            //   顺带解决了 tab 分隔 —— 扫描标识符天然不挑分隔符（原来这份只切 `' '`）。
+            string body = directiveLine.Substring(1).Trim();
+            int nameEnd = 0;
+            while (nameEnd < body.Length && (char.IsLetterOrDigit(body[nameEnd]) || body[nameEnd] == '_'))
+                nameEnd++;
+            string directive = body.Substring(0, nameEnd).ToLowerInvariant();
+            string rest      = body.Substring(nameEnd).Trim();
 
             switch (directive)
             {
