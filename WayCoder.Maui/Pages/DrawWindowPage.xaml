@@ -24,7 +24,7 @@
          而且中间任何一步让 `CanvasHost` 量到 0 就会连锁失败。
          原来那层 `PadArea` 就是为了竖屏"一整排"，现在由 `RootGrid` 自己的
          `ColumnDefinitions="Auto,*,Auto"` + 各块自己的 Padding 还原同样的排布。 -->
-    <Grid x:Name="RootGrid" RowDefinitions="*,Auto,Auto" ColumnDefinitions="Auto,*,Auto"
+    <Grid x:Name="RootGrid" RowDefinitions="*,Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto"
           ColumnSpacing="6" Padding="0">
 
         <!-- 画布：**`GraphicsView` 就地重绘**，不是 `<Image>` 换 `Source`。
@@ -125,6 +125,29 @@
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
             </Grid>
             <!-- (1,0) 空着 = 横屏时 START 的落点（右键盘区**左下角**）。理由同左区。 -->
+        </Grid>
+
+        <!-- ═══ **屏幕键盘**（电脑屏窗口用，`WIN_OPEN_PC` 的 R4 决定显不显示）═══
+
+             ⚠ **它占自己的一行（row 3），不盖在画布上** —— 与手柄区同一种做法：
+             键盘是**页面 chrome**，chrome 让画布变小，而不是压在画布上面。
+
+             一开始做成了浮层（`Grid.Row="0"` + `VerticalOptions="End"`），理由是
+             "不动 `ApplyOrientation` 的行列定义 + 画布尺寸不变"。那是**错的** ——
+             用户一句话就点破了：**键盘盖住了画面底部**，而老程序的状态行、命令行、
+             提示语恰恰都画在底部（`pcscreen.c` 的 `KEY`/`MOUSE` 两行当场看不见了）。
+             画面被遮住是**用户直接看得见的功能缺失**，而"多摆一个控件进
+             `ApplyOrientation`"只是实现上麻烦一点 —— 拿前者换后者不划算。
+
+             `Auto` 行 ⇒ 收起时高度自然塌成 0（只留那个 26dp 的开关），画布立刻吃回来。
+             键位表在 code-behind 的 `PcKeyboardRows`（一处数据，不散在 XAML 里）。 -->
+        <Grid x:Name="PcKeyboard" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
+              IsVisible="False" Padding="4,0,4,4" RowSpacing="2"
+              RowDefinitions="Auto,Auto">
+            <Button x:Name="PcKeyToggle" Grid.Row="0" Text="⌨ 收起键盘"
+                    FontSize="11" HeightRequest="26" Padding="0" CornerRadius="8"
+                    Clicked="OnTogglePcKeyboard" />
+            <VerticalStackLayout x:Name="PcKeyRows" Grid.Row="1" Spacing="3" />
         </Grid>
     </Grid>
 </ContentPage>

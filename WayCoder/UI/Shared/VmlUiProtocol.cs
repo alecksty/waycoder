@@ -947,6 +947,52 @@ public static class VmlKeys
     public const int Start = Enter;   // 13
     public const int Select = 16;     // VK_SHIFT
     public const int Pause = 19;      // VK_PAUSE
+
+    /* ── 电脑屏窗口的**屏幕键盘**要用的键 ──
+     *
+     * 取值一律照 **Win32 虚拟键码**（与上面那批同源）。理由和"手柄映射到自然键"一样：
+     * 程序里写 `key == VML_KEY_F1` 拿到的必须与 PC 上真按 F1 一致，
+     * 否则同一份老程序在手机和电脑上要写两套判断。
+     *
+     * ⚠ 这里只列**屏幕键盘上画得出来的**。老程序用得到的键远不止这些
+     *   （`VK_OEM_*` 那一堆标点、多媒体键…），缺的走**外接物理键盘**那条路，
+     *   不必也不该把所有 VK 都塞进一张手机键盘。
+     */
+    public const int Tab = 9;
+    public const int Ctrl = 17;       // VK_CONTROL
+    public const int Alt = 18;        // VK_MENU
+    public const int PageUp = 33;
+    public const int PageDown = 34;
+    public const int End = 35;
+    public const int Home = 36;
+    public const int Insert = 45;
+    public const int Delete = 46;
+    public const int F1 = 112;        // VK_F1 … VK_F12 = 112..123（连号）
+    public const int F12 = 123;
+
+    /// <summary>F1–F12 的键码（连号 112..123）—— 键盘布局表按序号取。</summary>
+    public static int F(int n) => F1 + (n - 1);
+
+    /* ── 标点键：**Win32 的 OEM 码**（不是 ASCII）──
+     *
+     * ⚠ 这一点很容易想当然：屏幕键盘发的是**虚拟键码**（与 PC 上真按键一致），
+     * 不是字符。所以 `-` 是 **189** 不是 `'-'`(45)，`;` 是 186 不是 59。
+     * 程序要拿到字符得自己映射（就像 Win32 里 `WM_KEYDOWN` 与 `WM_CHAR` 是两条消息）。
+     *
+     * 字母数字**恰好**与 ASCII 大写重合（`VK_A` = 65 = `'A'`），所以那部分看不出来 ——
+     * 只有标点会暴露这条约定，**别照着字母那半边的巧合去推标点**。
+     */
+    public const int OemMinus = 189;      // -
+    public const int OemPlus = 187;       // =
+    public const int OemOpenBracket = 219;   // [
+    public const int OemCloseBracket = 221;  // ]
+    public const int OemBackslash = 220;     // \
+    public const int OemSemicolon = 186;     // ;
+    public const int OemQuotes = 222;        // '
+    public const int OemComma = 188;         // ,
+    public const int OemPeriod = 190;        // .
+    public const int OemQuestion = 191;      // /
+    public const int OemTilde = 192;         // `
 }
 
 /// <summary>

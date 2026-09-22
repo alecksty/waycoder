@@ -294,8 +294,13 @@ public partial class DrawWindowPage : ContentPage
         _needGamepad = scene.NeedGamepad;
         _rotation = scene.Rotation;
         _kind = scene.Kind;
+        _needKeyboard = scene.NeedKeyboard;
+        _keyboardCollapsed = false;      // 新的一局重置收起状态（页面实例被复用）
+        _pcDownKey = 0;                  // 上一局按到一半的键别留给下一局
         ApplyOrientationLock(_rotation);
         ApplyPadVisibility();
+        ApplyKeyboard();
+        InstallHardwareKeyboard();
         // **首帧同步渲染**：异步那条路要等 40ms 的定时器，而实测「窗口一闪而过、什么也没看到」
         // —— 程序若很快调 WIN_CLOSE（或退出），异步首帧根本来不及出。这里就地把第一帧出掉，
         // 之后的变化再走定时器。画布小（几百像素见方），同步编码的代价可以接受。
@@ -522,6 +527,7 @@ public partial class DrawWindowPage : ContentPage
         {
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));   // 0 手柄 + 画布
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));   // 1 折叠条
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));   // 2 屏幕键盘
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 0 左手柄
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));   // 1 画布
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 2 右手柄
@@ -529,6 +535,9 @@ public partial class DrawWindowPage : ContentPage
             PutInGrid(CanvasHost, 0, 1);
             PutInGrid(PadLeftArea, 0, 0);
             PutInGrid(PadRightArea, 0, 2);
+            // 键盘横跨三列（它在自己的行上，不会碰到左右手柄区）—— 屏幕键多，宽度就是可读性
+            PutInGrid(PcKeyboard, 2, 0);
+            Grid.SetColumnSpan(PcKeyboard, 3);
             // 折叠条只占**画布那一列**：两条细线不会横穿两侧手柄区。
             PutInGrid(CollapseBar, 1, 1);
             // ⚠ 跨列**两个方向都要显式重置**：竖屏置过 3，横屏不写回 1 就会从画布列
@@ -548,12 +557,15 @@ public partial class DrawWindowPage : ContentPage
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));   // 3 屏幕键盘
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
             PutInGrid(CanvasHost, 0, 0);
             Grid.SetColumnSpan(CanvasHost, 3);
+            PutInGrid(PcKeyboard, 3, 0);
+            Grid.SetColumnSpan(PcKeyboard, 3);
             PutInGrid(CollapseBar, 1, 0);
             Grid.SetColumnSpan(CollapseBar, 3);
             PutInGrid(PadLeftArea, 2, 0);
@@ -570,6 +582,7 @@ public partial class DrawWindowPage : ContentPage
         }
 
         ApplyPadVisibility();
+        ApplyKeyboard();
     }
 
     /// <summary>
@@ -614,6 +627,218 @@ public partial class DrawWindowPage : ContentPage
         PadToggleBtn.Text = _padCollapsed ? "▼ 展开手柄" : "▲ 收起手柄";
     }
 
+    // ── 屏幕键盘（电脑屏窗口专用）────────────────────────────────────────
+    //
+    // ## 为什么电脑屏要键盘而图形窗口不要
+    //
+    // 图形窗口是给**手机游戏**用的，输入是"触摸 + 手柄"；电脑屏窗口是给**PC/Linux 老程序**
+    // 用的，那些程序的输入就是键盘。手机上不给键盘，这类程序在真机上根本没法操作。
+    // 所以键盘**跟着窗口种类走**：`_needKeyboard` 来自 `WIN_OPEN_PC` 的 R4 声明，
+    // 图形窗口恒为 false（不占那一块屏幕）。
+    //
+    // ## 为什么走 `PostInput` 消息而不是 `getch()` 那条命令行输入队列
+    //
+    // 两类窗口对应**两条输入路径**，别混：
+    //   · conio/curses 那类老程序**跑在命令行页**（它们不画窗口），键盘走 `ShellPage._keys`
+    //     → `MauiVml.CaptureIo.ReadChar`（逐字符、带行编辑语义）；
+    //   · 调 `ui_win_open_pc` 的程序**自己有窗口**，输入就是 `VML_MSG_KEYDOWN` 消息，
+    //     与手柄走的是同一条路（`PostKeyDown`）。
+    // 把键盘做在绘图页、却往命令行页的队列里投，就是"按了没反应"最常见的那种错法。
+    //
+    // ## 键位表是**一处数据**
+    //
+    // 值一律照 Win32 虚拟键码（`VmlKeys` 是唯一真源），布局照 PC 键盘 —— 老程序作者
+    // 脑子里那张键盘就长这样，标签对得上比好看重要。
+
+    /// <summary>
+    /// 屏幕键盘的键位表：每行一组 `(标签, 键码, 占几格)`。
+    ///
+    /// ⚠ 每行**格数合计**决定这一行被切成几列（`Grid` 的星号列），所以行与行之间
+    ///   只要格数一致，左右就是对齐的 —— 这正是"看起来像一张键盘"的全部要求。
+    /// </summary>
+    private static readonly (string Label, int Key, int Span)[][] PcKeyboardRows =
+    [
+        // 功能键行（老程序的重启/帮助/退出常挂在 F 键上）
+        [("Esc", VmlKeys.Escape, 1),
+         ("F1", VmlKeys.F(1), 1),   ("F2", VmlKeys.F(2), 1),   ("F3", VmlKeys.F(3), 1),
+         ("F4", VmlKeys.F(4), 1),   ("F5", VmlKeys.F(5), 1),   ("F6", VmlKeys.F(6), 1),
+         ("F7", VmlKeys.F(7), 1),   ("F8", VmlKeys.F(8), 1),   ("F9", VmlKeys.F(9), 1),
+         ("F10", VmlKeys.F(10), 1), ("F11", VmlKeys.F(11), 1), ("F12", VmlKeys.F(12), 1)],
+
+        // 数字行
+        [("`", VmlKeys.OemTilde, 1),
+         ("1", '1', 1), ("2", '2', 1), ("3", '3', 1), ("4", '4', 1), ("5", '5', 1),
+         ("6", '6', 1), ("7", '7', 1), ("8", '8', 1), ("9", '9', 1), ("0", '0', 1),
+         ("-", VmlKeys.OemMinus, 1), ("=", VmlKeys.OemPlus, 1), ("⌫", VmlKeys.Backspace, 1)],
+
+        // QWERTY 行
+        [("Tab", VmlKeys.Tab, 1),
+         ("q", 'Q', 1), ("w", 'W', 1), ("e", 'E', 1), ("r", 'R', 1), ("t", 'T', 1),
+         ("y", 'Y', 1), ("u", 'U', 1), ("i", 'I', 1), ("o", 'O', 1), ("p", 'P', 1),
+         ("[", VmlKeys.OemOpenBracket, 1), ("]", VmlKeys.OemCloseBracket, 1),
+         ("\\", VmlKeys.OemBackslash, 1)],
+
+        // ASDF 行
+        [("Ctrl", VmlKeys.Ctrl, 1),
+         ("a", 'A', 1), ("s", 'S', 1), ("d", 'D', 1), ("f", 'F', 1), ("g", 'G', 1),
+         ("h", 'H', 1), ("j", 'J', 1), ("k", 'K', 1), ("l", 'L', 1),
+         (";", VmlKeys.OemSemicolon, 1), ("'", VmlKeys.OemQuotes, 1),
+         ("Enter", VmlKeys.Enter, 1)],
+
+        // ZXCV 行
+        [("Shift", VmlKeys.Select, 1),
+         ("z", 'Z', 1), ("x", 'X', 1), ("c", 'C', 1), ("v", 'V', 1), ("b", 'B', 1),
+         ("n", 'N', 1), ("m", 'M', 1), (",", VmlKeys.OemComma, 1),
+         (".", VmlKeys.OemPeriod, 1), ("/", VmlKeys.OemQuestion, 1),
+         ("Shift", VmlKeys.Select, 2)],
+
+        // 底行：修饰键 + 方向键（老程序的方向键用得极多）
+        [("Ctrl", VmlKeys.Ctrl, 2), ("Alt", VmlKeys.Alt, 2), ("空格", VmlKeys.Space, 5),
+         ("Alt", VmlKeys.Alt, 2), ("←", VmlKeys.Left, 1), ("↑", VmlKeys.Up, 1),
+         ("↓", VmlKeys.Down, 1), ("→", VmlKeys.Right, 1)],
+
+        // 编辑/翻页键（curses 类程序翻页、跳行靠这一排）
+        [("Ins", VmlKeys.Insert, 2), ("Del", VmlKeys.Delete, 2), ("Home", VmlKeys.Home, 2),
+         ("End", VmlKeys.End, 2), ("PgUp", VmlKeys.PageUp, 3), ("PgDn", VmlKeys.PageDown, 3)],
+    ];
+
+    /// <summary>上一次按下的屏幕键盘键 —— 手指滑走时旧键的 `Released` 会丢，靠它补一条 `KeyUp`。</summary>
+    private int _pcDownKey;
+
+    /// <summary>
+    /// 按需建出屏幕键盘（**只建一次**：页面实例被 Shell 复用，每局重建会越堆越多）。
+    ///
+    /// 布局是"每行一个 `Grid`、按格数切星号列"，所以行内对齐、行间也大体对齐；
+    /// 按钮的 `Pressed`/`Released` 与手柄同一套语义（按住不放要能连发）。
+    /// </summary>
+    private void BuildPcKeyboard()
+    {
+        if (_pcKbBuilt) return;
+        _pcKbBuilt = true;
+
+        foreach (var row in PcKeyboardRows)
+        {
+            var grid = new Grid { ColumnSpacing = 3 };
+            int cols = 0;
+            foreach (var k in row) cols += k.Span;
+            for (int i = 0; i < cols; i++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+            int col = 0;
+            foreach (var k in row)
+            {
+                var b = new Button
+                {
+                    Text = k.Label,
+                    FontSize = 11,
+                    HeightRequest = 30,
+                    Padding = 0,
+                    CornerRadius = 6,
+                };
+                int key = k.Key;
+                b.Pressed  += (_, _) => OnPcKeyPressed(key);
+                b.Released += (_, _) => OnPcKeyReleased(key);
+                Grid.SetColumn(b, col);
+                Grid.SetColumnSpan(b, k.Span);
+                grid.Add(b);
+                col += k.Span;
+            }
+            PcKeyRows.Add(grid);
+        }
+    }
+
+    /// <summary>
+    /// 按下：发 `VmlMsgType.KeyDown`。
+    ///
+    /// ⚠ 与手柄同款的那条补丁：手指从 A 键滑到 B 键时，Android 只发 B 的 `Pressed`、
+    ///   A 的 `Released` **永远不来** ⇒ 不补一条 `KeyUp` 的话程序以为两个键同时按着
+    ///   （`Ctrl`/`Shift` 这类修饰键尤其致命：之后每个键都变成组合键）。
+    /// </summary>
+    private void OnPcKeyPressed(int key)
+    {
+        if (_pcDownKey != 0 && _pcDownKey != key) PostKeyUp(_pcDownKey);
+        _pcDownKey = key;
+        PostKeyDown(key);
+    }
+
+    private void OnPcKeyReleased(int key)
+    {
+        if (_pcDownKey == key) _pcDownKey = 0;
+        PostKeyUp(key);
+    }
+
+    /// <summary>收起/展开屏幕键盘。收起来画布就整块露出来（键盘是**浮在画布上**的，不占布局）。</summary>
+    private void OnTogglePcKeyboard(object? sender, EventArgs e)
+    {
+        _keyboardCollapsed = !_keyboardCollapsed;
+        ApplyKeyboard();
+    }
+
+    /// <summary>
+    /// 接上物理键盘（Android 的 Activity 级键分发，见 `Services/HardwareKeys`）。
+    ///
+    /// ⚠ **只有电脑屏窗口接**（图形窗口的输入契约是"触摸 + 手柄"，照旧不动它）——
+    ///   而且是**按窗口种类**接、不是按 `_needKeyboard`：
+    ///   那两个参数管的是**两件事** —— 种类决定"这类程序的输入是键盘"，R4 只是说
+    ///   "别把屏幕键盘画出来"（程序想要那块屏幕高度）。声明了不要屏幕键盘的程序，
+    ///   接个蓝牙键盘照样该能用。
+    /// </summary>
+    private void InstallHardwareKeyboard()
+    {
+#if ANDROID
+        if (_kind != VmlWinKind.PcScreen) { Services.HardwareKeys.Sink = null; return; }
+        Services.HardwareKeys.Sink = (vk, down) =>
+        {
+            if (down) PostKeyDown(vk); else PostKeyUp(vk);
+        };
+#endif
+    }
+
+    private static void UninstallHardwareKeyboard()
+    {
+#if ANDROID
+        Services.HardwareKeys.Sink = null;
+#endif
+    }
+
+    /// <summary>
+    /// 屏幕键盘的显隐。
+    ///
+    /// <para>
+    /// 键盘在 `RootGrid` 里**占自己的一行**（竖屏 row 3 / 横屏 row 2），与手柄区同一种做法 ——
+    /// **chrome 让画布变小，而不是压在画布上面**。这一条是用户定的，理由也直白：
+    /// 老程序的状态行、命令行、提示语都画在**底部**，被盖住就是"这个程序用不了"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 把 `PcKeyRows` 置不可见之后，那一行是 `Auto` ⇒ 高度塌成 0，
+    /// 画布立刻把空间吃回来（只留那个 26dp 的开关，好让用户再展开）。
+    /// **不要**改成 `VerticalOptions="End"` 的浮层去"省得动 `ApplyOrientation`" ——
+    /// 那正是第一版的做法，代价是画面底部永远被压掉一块。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 画布变矮 ⇒ `PublishViewport` 记进 `MeasuredViewport` 的值也跟着变，
+    /// 而它是个**静态**值。对电脑屏窗口本身没有影响（那个窗口永不 `ResizeScene`，
+    /// 场景尺寸就是程序声明的分辨率），但**下一局别的程序**可能照这个矮尺寸开窗。
+    /// 这是**既有**行为（收手柄、转屏都走同一条路，`WindowResize` 会纠正能纠正的程序），
+    /// 不是这里新引入的；真要根治得让 `MeasuredViewport` 区分"含 chrome"与"不含"。
+    /// </para>
+    /// </summary>
+    private void ApplyKeyboard()
+    {
+        if (!_needKeyboard)
+        {
+            PcKeyboard.IsVisible = false;
+            return;
+        }
+
+        BuildPcKeyboard();
+        PcKeyboard.IsVisible = true;
+        PcKeyRows.IsVisible = !_keyboardCollapsed;
+        PcKeyToggle.Text = _keyboardCollapsed ? "⌨ 展开键盘" : "⌨ 收起键盘";
+    }
+
     /// <summary>这个窗口要不要屏幕手柄区（`ui_win_open_ex` 的 R4）；老接口一律 true。</summary>
     private bool _needGamepad = true;
 
@@ -623,6 +848,15 @@ public partial class DrawWindowPage : ContentPage
     /// 把一次点击当两次输入）。
     /// </summary>
     private VmlWinKind _kind = VmlWinKind.Graphic;
+
+    /// <summary>要不要屏幕键盘（`WIN_OPEN_PC` 的 R4）。图形窗口恒为 false。</summary>
+    private bool _needKeyboard;
+
+    /// <summary>用户把键盘收起来了（与手柄一样，是**用户**的选择，不写回场景）。</summary>
+    private bool _keyboardCollapsed;
+
+    /// <summary>键位表只建一次（页面实例会被 Shell 复用）。</summary>
+    private bool _pcKbBuilt;
 
     /// <summary>这个窗口的转屏声明（`ui_win_open_ex` 的 R3）；老接口一律 <see cref="WindowRotation.Legacy"/>。</summary>
     private WindowRotation _rotation = WindowRotation.Legacy;
@@ -731,6 +965,10 @@ public partial class DrawWindowPage : ContentPage
         // 页面走了，按住的那个手柄键不可能再收到 Released —— 补一条 KeyUp，
         // 否则程序里那条"按住连发"会一直挂着（虽然马上要终止了，但日志里会留个假象）。
         if (_padDownKey != 0) { PostKeyUp(_padDownKey); _padDownKey = 0; }
+        if (_pcDownKey != 0) { PostKeyUp(_pcDownKey); _pcDownKey = 0; }
+        // 物理键盘的"路由口"必须**跟着页面走**：留着的话，退出这个窗口之后
+        // 整个 App 的按键还会继续被投给一个已经关掉的程序（换页、打字全都不对劲）。
+        UninstallHardwareKeyboard();
         VmlAudio.StopAll();   // 退出窗口就别再响了（BGM 留着比不响更糟）
         _timer?.Stop();
         _timer = null;
@@ -1155,6 +1393,7 @@ public partial class DrawWindowPage : ContentPage
     {
         _padCollapsed = !_padCollapsed;
         ApplyPadVisibility();
+        ApplyKeyboard();
     }
 
     private static void PostKeyDown(int code)

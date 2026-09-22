@@ -16,4 +16,17 @@ namespace WayCoder.Maui;
         | ConfigChanges.Keyboard | ConfigChanges.KeyboardHidden)]
 public class MainActivity : MauiAppCompatActivity
 {
+    // **物理键盘的路由口**（电脑屏窗口用）。
+    //
+    // 为什么在 Activity 这一层拦：VML 窗口页是一整块自绘画布、**没有输入框**，
+    // 而那条"给 EditText 挂 KeyPress"的老路（命令行页在用）要求有焦点控件。
+    // 键事件本来就是 Activity 级的，在源头上接，页面谁都不用假装是个输入框。
+    //
+    // 返回 true = 这个键已被 VML 窗口吃掉、不再往下传；认不出的键（返回键/音量键）
+    // 照常走 base —— **返回键必须放行**，否则用户退不出绘图窗口。
+    public override bool DispatchKeyEvent(Android.Views.KeyEvent? e)
+    {
+        if (e != null && Services.HardwareKeys.TryDispatch(e)) return true;
+        return base.DispatchKeyEvent(e);
+    }
 }

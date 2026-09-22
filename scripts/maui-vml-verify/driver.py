@@ -184,6 +184,24 @@ class Driver:
                 return n
         return None
 
+    def tap_text(self, label, cls="android.widget.Button", ns=None):
+        """按**文本**点一个控件（找不到返回 False）。
+
+        比按坐标点稳：屏幕键盘那几十个键的坐标随屏宽/横竖屏变，
+        而标签是稳定的（键位表在 code-behind 里，一处数据）。
+        """
+        for n in (ns if ns is not None else self.nodes()):
+            if n["cls"] == cls and n["text"] == label:
+                x, y = self._center(n)
+                self.sh("shell", "input", "tap", str(x), str(y))
+                return True
+        return False
+
+    def button_labels(self, ns=None):
+        """页面上所有 Button 的文本（屏幕键盘的键位表就在这一堆里）。"""
+        return [n["text"] for n in (ns if ns is not None else self.nodes())
+                if n["cls"] == "android.widget.Button"]
+
     def run_button(self, ns=None):
         return self._button(ns if ns is not None else self.nodes(), ("运行", "…"))
 
