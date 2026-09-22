@@ -126,6 +126,14 @@ namespace VMLAssembler
         private string? _lastLabel;
         private string? _lastDataLabel;
         private List<object>? _lastDataValues;
+        /// <summary>
+        /// 当前累积的多行数据段用的是**哪条指令**（`.byte` / `.halfword` / `.word`）——
+        /// `FinalizeMultiWordData` 靠它决定折成 `byte[]` / `short[]` / `int[]`。
+        /// ⚠ 少了它，`char t[3]` 那种「三行 `.byte`」会被折成 `int[]` ⇒ 每元素又变回 4 字节，
+        /// 而**文本里明明写着 `.byte`** —— 症状就是本仓那个老坑：存储 4 字节 / 下标 1 字节。
+        /// 只记**块内第一条**（同一标签下混用不同宽度的指令本来就是畸形写法）。
+        /// </summary>
+        private string? _lastDataDirective;
         private bool _inDataSection;
 
         /// <summary>待裁定的「寄存器形」操作数来自哪种写法 —— 决定裁定成标签时该变成什么。</summary>
@@ -994,11 +1002,17 @@ namespace VMLAssembler
             //   要做得再多动一处编码。C 前端的 `int a[N]` 正好是 4 字节字，够用。
             // ⚠ **兼容性**：`.word[N]` 是新写法，**旧版汇编器读不懂**（会退化成把 `[1024] 0`
             //   当值解析、静默变 0）。回灌上游时这条要一起说清楚。
-            if (TryParseCompactData(line, out var compactLabel, out var compactCount, out var compactValue))
+            if (TryParseCompactData(line, out var compactLabel, out var compactCount, out var compactValue, out var compactKind))
             {
                 FinalizeMultiWordData();
-                var compactArr = new int[compactCount];
-                for (var ci = 0; ci < compactCount; ci++) compactArr[ci] = compactValue;
+                /* 元素宽度由**指令名**决定（`.byte[N]` → `byte[]` …），别一律发 `int[]`：
+                   那正是"文本写着 .byte、存下去是 4 字节"的老坑。 */
+                object compactArr = compactKind switch
+                {
+                    "byte" => (object)BuildFilled<byte>(compactCount, (byte)compactValue),
+                    "halfword" => BuildFilled<short>(compactCount, (short)compactValue),
+                    _ => BuildFilled<int>(compactCount, compactValue),
+                };
                 if (compactLabel.Length > 0)
                 {
                     if (!labels.ContainsKey(compactLabel)) labels[compactLabel] = currentAddress;
@@ -1211,11 +1225,12 @@ namespace VMLAssembler
         /// 分隔符**（判据是"冒号在方括号之前才算 label"）；② 数量要钳一下，
         /// `[999999999]` 会在这一行直接分配 4GB。
         /// </summary>
-        private static bool TryParseCompactData(string line, out string label, out int count, out int value)
+        private static bool TryParseCompactData(string line, out string label, out int count, out int value, out string kind)
         {
             label = "";
             count = 0;
             value = 0;
+            kind = "word";
 
             var s = (line ?? "").Trim();
             var bracket = s.IndexOf('[');
@@ -1227,21 +1242,36 @@ namespace VMLAssembler
                 s = s[(colon + 1)..].Trim();
             }
 
+            /* 别名：`.word`/`.int`/`.long`/`.dword` 都是 4 字节字；
+               `.byte` = 1 字节、`.halfword`/`.hword` = 2 字节。
+               ⚠ 判据是**指令名**，不是"元素个数" —— 同名不同宽度的批量数据必须分开折
+               （`char buf[256] = {0}` 折成 `.byte[256] 0` 才是 256 字节，不是 1KB）。 */
             var m = System.Text.RegularExpressions.Regex.Match(s,
-                @"^\.?(?:word|int|long|dword)\s*\[\s*(\d+)\s*\]\s*:?\s*(-?[0-9A-Fa-fxX]*)\s*$",
+                @"^\.?(word|int|long|dword|byte|halfword|hword)\s*\[\s*(\d+)\s*\]\s*:?\s*(-?[0-9A-Fa-fxX]*)\s*$",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (!m.Success) return false;
 
-            if (!int.TryParse(m.Groups[1].Value, out count) || count <= 0) return false;
+            string d = m.Groups[1].Value.ToLowerInvariant();
+            kind = d switch { "byte" => "byte", "halfword" or "hword" => "halfword", _ => "word" };
+
+            if (!int.TryParse(m.Groups[2].Value, out count) || count <= 0) return false;
             if (count > 1 << 20) return false;          // 400 万字节的表已经不合理了，多半是写错
 
-            var def = m.Groups[2].Value;
+            var def = m.Groups[3].Value;
             if (def.Length > 0)
             {
                 var parsed = ParseValueStatic(def);
                 value = parsed is int iv ? iv : 0;
             }
             return true;
+        }
+
+        /// <summary>造一个「N 个同值」的数组（`byte[]` / `short[]` / `int[]`）。</summary>
+        private static T[] BuildFilled<T>(int count, T value)
+        {
+            var arr = new T[count];
+            for (var i = 0; i < count; i++) arr[i] = value;
+            return arr;
         }
 
         /// <summary>`ParseValue` 的静态版（批量数据在静态辅助里解析，拿不到实例）。</summary>
@@ -1266,8 +1296,16 @@ namespace VMLAssembler
         {
             if (_lastDataLabel != null && _lastDataValues != null && _lastDataValues.Count > 0)
             {
-                // Convert to int[] if all elements are ints (v1.66.37 fix)
-                if (_lastDataValues.All(v => v is int))
+                bool allInt = _lastDataValues.All(v => v is int);
+                /* 折成哪种数组由**指令宽度**决定（`_lastDataDirective`）：
+                   `.byte` → `byte[]`、`.halfword`/`.hword` → `short[]`、其余 → `int[]`。
+                   ⚠ 这里若一律折 `int[]`，`char t[3]` 会在**下标按 1 字节走**的同时被存成
+                   4 字节/元素 —— 也就是本轮要修的那个 bug 换个地方复现。 */
+                if (allInt && _lastDataDirective is ".byte")
+                    dataSection[_lastDataLabel] = _lastDataValues.Select(v => (byte)(int)v).ToArray();
+                else if (allInt && (_lastDataDirective is ".halfword" or ".hword"))
+                    dataSection[_lastDataLabel] = _lastDataValues.Select(v => (short)(int)v).ToArray();
+                else if (allInt)
                     dataSection[_lastDataLabel] = _lastDataValues.Select(v => (int)v).ToArray();
                 else
                     dataSection[_lastDataLabel] = _lastDataValues.ToArray();
@@ -1275,6 +1313,7 @@ namespace VMLAssembler
 
             _lastDataLabel = null;
             _lastDataValues = null;
+            _lastDataDirective = null;
         }
 
         /// <summary>
@@ -1326,6 +1365,18 @@ namespace VMLAssembler
 
             object finalValue = values.Count == 1 ? values[0] : values;
 
+            /* 单行多值的 `.byte 1,2,3` / `.halfword 1,2,3` 要折成**对应宽度的数组**。
+               ⚠ 不折的话它是个 `List<object>` —— 既不是 `int[]` 也不是 `object[]`，
+               文本层会写出 `x: .word System.Collections.Generic.List\`1[System.Object]`，
+               装载侧又会把 `ToString()` 的结果当**字符串**写进内存：
+               编译不报错、跑起来数据全错（本轮调查实测到的既有静默坑）。 */
+            if (values.Count > 1 && values.All(v => v is int) && directive is ".byte" or ".halfword" or ".hword")
+            {
+                finalValue = directive == ".byte"
+                    ? (object)values.Select(v => (byte)(int)v).ToArray()
+                    : values.Select(v => (short)(int)v).ToArray();
+            }
+
             // .dword 必须是 64 位：int→long, float→double 保证运行时分配 8 字节
             if (directive == ".dword")
             {
@@ -1350,6 +1401,9 @@ namespace VMLAssembler
             else if (_lastDataLabel != null && _lastDataValues != null)
             {
                 // 多字数据续行: 追加到 _lastDataValues
+                /* 记下**块内第一条**指令的名字：`FinalizeMultiWordData` 靠它决定折成
+                   哪种宽度的数组（见 `_lastDataDirective` 的说明）。 */
+                if (_lastDataDirective == null) _lastDataDirective = directive;
                 foreach (var v in values)
                     _lastDataValues.Add(v);
             }

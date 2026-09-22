@@ -409,6 +409,33 @@ namespace VMLAssembler
                             sb.Append($"    .word {elem}\n");
                     }
                 }
+                /* ── 1 / 2 字节元素的数组（`char[]` / `short[]`）──
+                   ⚠ 这两支是**必须有**的：少了它们 `byte[]`/`short[]` 会掉进最后那个
+                   `else`，被写成一句 `ToString()`（`x: .word System.Byte[]`）——
+                   编译不报错、运行期当字符串写进内存。C 前端从 v0.96.370 起会对
+                   带初始化器的 char/short 数组产出这两个类型（判据 `cases/39`）。 */
+                else if (data.Value is byte[] byteArr)
+                {
+                    if (byteArr.Length > 0 && TryUniform(byteArr, out var onlyByte))
+                        sb.Append($"{data.Key}: .byte[{byteArr.Length}] {onlyByte}\n");
+                    else
+                    {
+                        sb.Append($"{data.Key}:\n");
+                        foreach (var elem in byteArr)
+                            sb.Append($"    .byte {elem}\n");
+                    }
+                }
+                else if (data.Value is short[] shortArr)
+                {
+                    if (shortArr.Length > 0 && TryUniform(shortArr, out var onlyShort))
+                        sb.Append($"{data.Key}: .halfword[{shortArr.Length}] {onlyShort}\n");
+                    else
+                    {
+                        sb.Append($"{data.Key}:\n");
+                        foreach (var elem in shortArr)
+                            sb.Append($"    .halfword {elem}\n");
+                    }
+                }
                 else if (data.Value is object[] objArr)
                 {
                     if (TryUniform(objArr, out var onlyObj))
@@ -1145,11 +1172,16 @@ namespace VMLAssembler
         {
             only = null;
             if (list.Count < 2) return false;
-            if (list[0] is not int) return false;       // 只压 4 字节字（与 `.word[N]` 的语义对齐）
             only = list[0];
+            /* 只压**整数字面量**，且**同一种**宽度（与 `.word[N]` / `.halfword[N]` / `.byte[N]`
+               的语义对齐）：浮点、字符串、标签引用一律不压。
+               ⚠ 要求 `GetType()` 相同是必要的 —— `object[]` 可能混装，混装压成
+               `.word[N] v` 会把每元素宽度悄悄统一掉。 */
+            if (only is not int && only is not byte && only is not short) return false;
             for (var i = 1; i < list.Count; i++)
             {
-                if (list[i] is not int) return false;
+                if (list[i] is not int && list[i] is not byte && list[i] is not short) return false;
+                if (list[i]!.GetType() != only.GetType()) return false;
                 if (!Equals(list[i], only)) return false;
             }
             return true;
@@ -1201,6 +1233,23 @@ namespace VMLAssembler
                     // 那一步已经不是必需的（留着不影响 —— 两条路产出的字节完全一致）。
                     writer.Write((byte)0x10);
                     writer.Write(longVal);
+                }
+                /* ── 1 / 2 字节元素的数组：**紧凑载荷**（tag 0x41/0x42）──
+                   ⚠ 必须排在下面那条 `IList` 之前 —— `byte[]`/`short[]` **也**是 IList，
+                   掉进去会按"每元素一个 0x04 tag + 4 字节"编码，等于宽度又回到 4
+                   （而 C 前端的下标按 1/2 字节走 ⇒ 两边又分家）。
+                   载荷 = `uint32 个数 + 原始字节`，与 `0x20`（字符串的紧凑字节）同一思路。 */
+                else if (kvp.Value is byte[] byteArr)
+                {
+                    writer.Write((byte)0x41);
+                    writer.Write((uint)byteArr.Length);
+                    writer.Write(byteArr);
+                }
+                else if (kvp.Value is short[] shortArr)
+                {
+                    writer.Write((byte)0x42);
+                    writer.Write((uint)shortArr.Length);
+                    foreach (var s in shortArr) writer.Write(s);
                 }
                 else if (kvp.Value is System.Collections.IList objList)
                 {
@@ -1514,7 +1563,25 @@ namespace VMLAssembler
                                     default: throw new InvalidDataException("Unknown list element tag");
                                 }
                             }
-                            result[name] = list;
+                            /* ⚠ 还原成 **`object[]`** 而不是 `List<object>` ——
+                               `VmRuntime.LoadProgram` 只认 `int[]`/`object[]`，
+                               `List<object>` 会掉进它的最后那个 `else`（`ToString()` 当字符串写），
+                               即"`.vmb` 路径进来的数组全是垃圾"（调查时实测到的既有缺口）。 */
+                            result[name] = list.ToArray();
+                        }
+                        break;
+                    case 0x41:
+                        {
+                            var n = (int)reader.ReadUInt32();
+                            result[name] = reader.ReadBytes(n);
+                        }
+                        break;
+                    case 0x42:
+                        {
+                            var n = (int)reader.ReadUInt32();
+                            var arr = new short[n];
+                            for (var k = 0; k < n; k++) arr[k] = reader.ReadInt16();
+                            result[name] = arr;
                         }
                         break;
                     default:

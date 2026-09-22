@@ -73,6 +73,11 @@ prog.DataSection["dStr"] = "hello";
 prog.DataSection["dArr"] = new List<object> { 1, 2, 3 };
 prog.DataSection["dArrLong"] = new List<object> { 1L, 2L };
 prog.DataSection["dArrMix"] = new List<object> { 1, 1.5f, 2.5d };
+/* 1 / 2 字节元素的数组（tag 0x41/0x42，v0.96.370 新增）。
+   ⚠ 少了这两条，这条往返判据对"紧凑字节载荷"是**零覆盖** ——
+   而它正是最容易被写错宽度的那一档。 */
+prog.DataSection["dBytes"] = new byte[] { 7, 8, 9, 250 };
+prog.DataSection["dShorts"] = new short[] { 100, -200, 300 };
 
 var before = prog.Instructions.Select(i => i.ToString()).ToList();
 byte[] bytes;
@@ -114,6 +119,10 @@ foreach (var kv in prog.DataSection)
         double d => BitConverter.GetBytes(d),
         int i => BitConverter.GetBytes(i),
         float f => BitConverter.GetBytes(f),
+        /* ⚠ 这两条必须有：不给它们的话会掉进下面 `ToString()` 那条，比的是
+           **数值的 ASCII 写法**（`250` → `"250"`）而不是**字节** —— 宽度写错也照样"通过"。 */
+        byte b => new[] { b },
+        short sh => BitConverter.GetBytes(sh),
         _ => System.Text.Encoding.UTF8.GetBytes(v.ToString() ?? ""),
     };
     static IEnumerable<byte> ListBits(object v)

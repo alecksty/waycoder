@@ -183,12 +183,10 @@ namespace CCompiler
                         FlattenArrayInitializer(arrayInit, initValues);
                         // 确保数组大小匹配（ArraySize 为 null 时从初始化器推断）
                         int arraySize = varDecl.ArraySize ?? initValues.Count;
-                        object[] arrayData = new object[arraySize];
-                        for (int i = 0; i < Math.Min(initValues.Count, arrayData.Length); i++)
-                        {
-                            arrayData[i] = initValues[i];
-                        }
-                        dataSection[varDecl.Name] = arrayData;
+                        /* 元素宽度交给 `BuildArrayData`（它按 `ArrayElemSize` 决定
+                           `byte[]`/`short[]`/`object[]`）—— **别在这里自己再判一遍类型**，
+                           那正是"存储宽度与下标步长各算一份"的老坑。 */
+                        dataSection[varDecl.Name] = BuildArrayData(varDecl.Type, initValues, arraySize);
                     }
                     else
                     {

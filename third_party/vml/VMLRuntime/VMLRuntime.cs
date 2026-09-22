@@ -506,6 +506,26 @@ namespace VMLRuntime
                             memory[address + i * 4 + j] = bytes[j];
                     }
                 }
+                /* 1 / 2 字节元素的数组：按**真实宽度**分配与铺字节。
+                   ⚠ 少了这两支，`byte[]`/`short[]` 会掉到最后那个 `else`
+                   （`ToString()` 当字符串写）—— 而 C 前端的下标算术是按 1/2 字节走的，
+                   两边必须同源（判据 `scripts/vml-c-probe/cases/39-array-elem-width.c`）。 */
+                else if (data.Value is byte[] byteArray)
+                {
+                    address = AllocateMemory(byteArray.Length);
+                    for (var i = 0; i < byteArray.Length; i++)
+                        memory[address + i] = byteArray[i];
+                }
+                else if (data.Value is short[] shortArray)
+                {
+                    address = AllocateMemory(shortArray.Length * 2);
+                    for (var i = 0; i < shortArray.Length; i++)
+                    {
+                        var bytes = BitConverter.GetBytes(shortArray[i]);
+                        memory[address + i * 2] = bytes[0];
+                        memory[address + i * 2 + 1] = bytes[1];
+                    }
+                }
                 else if (data.Value is object[] objArray)
                 {
                     // 对象数组：每个元素 4 字节，字符串元素解析为标签地址

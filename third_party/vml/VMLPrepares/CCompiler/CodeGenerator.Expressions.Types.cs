@@ -9,6 +9,144 @@ namespace CCompiler
 {
     public partial class CodeGenerator
     {
+        /// <summary>
+        /// 全局 / 静态数组在数据段里的**元素宽度** —— 它同时也是下标算术的**步长**。
+        ///
+        /// <para>⚠ **必须只有这一处**：存储侧（数据段怎么排）与访问侧（`arr[i]` 走多远）
+        /// 各算一遍就是本仓头号坑「同一规则两处实现」，而症状是
+        /// **读出来的值是错的、但不报错**（实测 `char t[300]` 的 `t[100]` 读出 **25** ——
+        /// 100/4，正是"按 1 字节走、按 4 字节存"的指纹）。</para>
+        ///
+        /// <para>数值来自**实测**（`.scratch/_stride.c`：`&a[1]-&a`）而不是推断：
+        /// `char`=1、`short`=2、**`bool`=4**。bool 不是笔误 —— 本编译器的 bool 是
+        /// **4 字节模型**（`sizeof(bool[4])==16`、步长 4，两边自洽），
+        /// 把它按 1 字节打包会让"存储 1 / 下标 4"重新变成两把尺子。
+        /// 其余类型（struct/union/指针/浮点）一律交给 <see cref="GetTypeSizeFromString"/>。</para>
+        /// </summary>
+        private int ArrayElemSize(string declaredType)
+        {
+            if (string.IsNullOrEmpty(declaredType)) return 4;
+            string t = declaredType.ToLower().Trim();
+            t = t.Replace("const", "").Replace("volatile", "").Replace("restrict", "")
+                 .Replace("static", "").Replace("extern", "").Trim();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+            int b = t.IndexOf('[');                       /* 去数组维度，只留元素类型 */
+            if (b >= 0) t = t.Substring(0, b).Trim();
+            if (t.Contains("*")) return 4;                /* 指针 / 指针数组 */
+
+            switch (t)
+            {
+                case "char": case "signed char": case "unsigned char":
+                    return 1;
+                case "short": case "signed short": case "unsigned short":
+                case "short int": case "signed short int": case "unsigned short int":
+                    return 2;
+                /* ⚠ 必须显式列出：`GetTypeSizeFromString("bool")` 会给出 **1**
+                   （它经 `StringToExprType` → `ExprType.Bool` → `GetTypeSize` 那条），
+                   而**实际步长是 4**。照那个值打包就会把 bool 数组弄坏。 */
+                case "bool": case "_bool":
+                    return 4;
+            }
+            return GetTypeSizeFromString(declaredType);
+        }
+
+        /// <summary>
+        /// 把摊平后的数组初始化值装进数据段：**宽度由 <see cref="ArrayElemSize"/> 定**
+        /// （1 ⇒ <c>byte[]</c>、2 ⇒ <c>short[]</c>、其余沿用 4 字节的 <c>object[]</c>）。
+        /// 值按元素宽度**截断**（C 语义：`char t[] = {300}` 存 44）。
+        ///
+        /// <para>⚠ **只用于"带初始化器"的数组**：没有初始化器的 char/short 数组
+        /// （`char buf[256];` 这类字符串暂存）今天已经是自洽的 —— 存储 4N 字节、
+        /// 而 `buf[i]` 与 `strcpy` 都按字节走，读到的就是第 i 个字节 ✓。
+        /// 把它们的存储缩到 N 会把"偷用那 4 倍余量"从**静默容忍**变成**真越界**
+        /// （`Examples/c/` 里一批 `char nbuf[16]` 就是这种用法），而收益是零 —— 不动。</para>
+        /// </summary>
+        private object BuildArrayData(string declType, List<object> initValues, int arraySize)
+        {
+            int elemSize = ArrayElemSize(declType);
+
+            /* ── 浮点数组：元素存成**位模式的 int**（4 字节槽正好装一个 float）──
+               读取端本来就用 `MOVEF` 去解释那 4 字节（装载侧 `ResolveDataElement` 对
+               `float` 也走 `SingleToInt32Bits`）⇒ 位模式原样过去就对了。
+
+               ⚠ 不这么做的后果是**整表读到 0**：初始化器里的浮点字面量是 `double`，
+               落文本会写成 `.word 0.0174…`（一个十进制），而 `ResolveDataElement`
+               **不认 `double`** ⇒ 每个元素都 `return 0`。实测 `math.c` 的
+               `static const float sin_table[361]` 就是这样 —— 三角函数表一直是**零表**。
+               判据 `scripts/vml-c-probe/cases/41-float-array.c`。 */
+            if (elemSize == 4 && IsFloatScalarType(declType))
+            {
+                object[] floatBits = new object[arraySize];
+                for (int i = 0; i < initValues.Count && i < arraySize; i++)
+                    floatBits[i] = BitConverter.SingleToInt32Bits((float)ToDoubleInitValue(initValues[i]));
+                return floatBits;
+            }
+            if (elemSize == 1)
+            {
+                byte[] bytes = new byte[arraySize];
+                for (int i = 0; i < initValues.Count && i < arraySize; i++)
+                    bytes[i] = (byte)ToIntInitValue(initValues[i]);
+                return bytes;
+            }
+            if (elemSize == 2)
+            {
+                short[] shorts = new short[arraySize];
+                for (int i = 0; i < initValues.Count && i < arraySize; i++)
+                    shorts[i] = (short)ToIntInitValue(initValues[i]);
+                return shorts;
+            }
+            /* 4 字节及以上：沿用原来的 `object[]`（字符串标签、浮点等都走这条）。
+               ⚠ **原样保留**，**不要**在这里把 `double` 截成 `int`：`float t[361]` 那种表
+               会被整表截成 0（`math.vml` 的 `sin_table` 实测就是 —— 一截整张表都成了 0）。
+               浮点数组本身还有一条**既有**缺陷（元素以 `double` 落文本 ⇒ `ResolveDataElement`
+               不认 double ⇒ 运行期读到 0），那是**另一件事**，见 CHANGELOG；
+               本轮不把它一起改，免得"修宽度"和"修浮点存储"两件事混在一个判据里。 */
+            object[] wide = new object[arraySize];
+            for (int i = 0; i < initValues.Count && i < arraySize; i++)
+                wide[i] = initValues[i];
+            return wide;
+        }
+
+        /// <summary>元素类型是不是 4 字节浮点（`float`）—— 与 <see cref="ArrayElemSize"/> 同一套字符串规则。</summary>
+        private static bool IsFloatScalarType(string declaredType)
+        {
+            if (string.IsNullOrEmpty(declaredType)) return false;
+            string t = declaredType.ToLower().Trim();
+            t = t.Replace("const", "").Replace("volatile", "").Replace("restrict", "")
+                 .Replace("static", "").Replace("extern", "").Trim();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+            int b = t.IndexOf('[');
+            if (b >= 0) t = t.Substring(0, b).Trim();
+            if (t.Contains("*")) return false;
+            return t is "float" or "signed float";
+        }
+
+        /// <summary>初始化器里的一个值 → <c>double</c>（浮点数组的初始化器用）。</summary>
+        private static double ToDoubleInitValue(object v)
+        {
+            if (v is double d) return d;
+            if (v is float f) return f;
+            if (v is int i) return i;
+            if (v is short sh) return sh;
+            if (v is byte by) return by;
+            if (v is bool bo) return bo ? 1 : 0;
+            if (v is long l) return l;
+            return 0;
+        }
+
+        /// <summary>初始化器里的一个值 → <c>int</c>（字符串/标签引用转不了数值 ⇒ 0）。</summary>
+        private static int ToIntInitValue(object v)
+        {
+            if (v is int i) return i;
+            if (v is short sh) return sh;
+            if (v is byte by) return by;
+            if (v is bool bo) return bo ? 1 : 0;
+            if (v is long l) return (int)l;
+            if (v is double d) return (int)d;
+            if (v is float f) return (int)f;
+            return 0;
+        }
+
         private int GetTypeSize(ExprType type)
         {
             switch (type)

@@ -541,25 +541,10 @@ namespace CCompiler
             var initValues = new List<object>();
             FlattenArrayInitValues(arrayInit, initValues);
             int arraySize = varDecl.ArraySize ?? initValues.Count;
-            object[] arrayData = new object[arraySize];
-            // Determine element type for proper value conversion
-            bool isShort = varDecl.Type.Contains("short");
-            bool isChar = varDecl.Type.Contains("char") && !varDecl.Type.Contains("char*");
-            for (int i = 0; i < Math.Min(initValues.Count, arrayData.Length); i++)
-            {
-                if (initValues[i] is double d)
-                {
-                    // Store as int (VML native word) for proper 4-byte access
-                    // short/char arrays also use 4-byte storage since data section
-                    // serializes object[] elements as typed (int=0x04, float=0x08, double=0x10)
-                    arrayData[i] = (int)d;
-                }
-                else
-                {
-                    arrayData[i] = initValues[i];
-                }
-            }
-            dataSection[label] = arrayData;
+            /* 与全局数组**同一个构造器**（`BuildArrayData` → `ArrayElemSize`）。
+               ⚠ 这里原先算出来的 `isShort`/`isChar` 是**死变量**（注释还写着
+               "short/char 也按 4 字节存"）—— 那正是"存储 4 字节 / 下标 1 字节"的成因。 */
+            dataSection[label] = BuildArrayData(varDecl.Type, initValues, arraySize);
         }
 
         private void FlattenArrayInitValues(ASTNode node, List<object> result)

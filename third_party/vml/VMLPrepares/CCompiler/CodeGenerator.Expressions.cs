@@ -1044,8 +1044,13 @@ namespace CCompiler
                     }
                     else
                     {
+                        /* ⚠ 与**数据段的存储宽度**共用 `ArrayElemSize` —— 这两处算的是
+                           同一件事（一个元素占几字节），各写一遍就是本仓头号坑
+                           「同一规则两处实现」。实测坏法：`char t[300]` 存储按 4 字节、
+                           下标按 1 字节 ⇒ `t[100]` 读出 **25**（= 第 100 个字节）。
+                           判据 `scripts/vml-c-probe/cases/39-array-elem-width.c`。 */
                         string baseType = StripArrayDimensions(resolved);
-                        elementSize = GetTypeSizeFromString(baseType);
+                        elementSize = ArrayElemSize(baseType);
                     }
                 }
                 // 对于 struct 数组，优先用 GetTypeSizeFromString 获取实际大小

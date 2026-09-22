@@ -1,3 +1,84 @@
+## v0.96.370 — `char`/`short` 数组：**数据段按真实宽度打包**（存储与下标终于同源）
+
+`char t[300] = {…}` 的 `t[100]` 读出 **25** —— 100/4。原因是数据段给**每个**数组元素都发一个
+`.word`（4 字节），而下标的步长按元素真实宽度走（`char`=1、`short`=2）。两边只在 `int`（4）上
+重合，所以 **`int`/`bool` 一直是对的、`char`/`short` 才露**。`sizeof` 报的一直是真实宽度
+（`sizeof(char[3]) == 3`）⇒ 分配与访问自相矛盾，**不是"故意按 4 字节模型"**。
+
+受害者是**字节表**：`Lib/shared/src/graphics.c` 的
+`static const unsigned char font8x16[1520]`（字模点阵）按 `font8x16[char_offset + row]` 取值 ——
+今天读到的是**第 k 个字节**，所以字模是**乱的**；顺带它一直占着 6080 字节（应为 1520）。
+
+### 一、修法：五层都补上"1/2 字节"这一档，而宽度**只有一个真源**
+
+| 层 | 改动 |
+|---|---|
+| C 前端 | 新增 `ArrayElemSize(type)`（**唯一真源**）+ `BuildArrayData`；**存储与下标共用它** |
+| 文本 | `VmlProgram.ToString` 发 `.byte` / `.halfword`（等值数组压成 `.byte[N] v`） |
+| 汇编器 | `.byte`/`.halfword` **按指令名**折成 `byte[]`/`short[]`；紧凑写法与多值写法都认宽度 |
+| VMB | 新 tag `0x41`（紧凑字节载荷）/`0x42`（int16）；**必须排在 `IList` 那支之前** |
+| 装载 | `byte[]`/`short[]` 按真实宽度 `AllocateMemory` 与铺字节 |
+
+⚠ **三条判据纪律（都踩过）**：
+
+1. **宽度必须实测，不能按类型名推断**：`GetTypeSize` 说 `Bool` = 1，而**实际步长是 4**
+   （本编译器的 bool 是 **4 字节模型**：`sizeof(bool[4]) == 16`、`&b[1]-&b == 4`，两边自洽）。
+   照 `GetTypeSize` 打包会把 bool 数组弄坏 ⇒ `ArrayElemSize` 里 bool 显式写 4，
+   并由 `cases/39` 的 bool 断言钉住。（数值来自 `.scratch/_stride.c` 的 `&a[1]-&a` 实测。）
+2. **只打包"带初始化器"的数组**：没有初始化器的 `char buf[256]`（`Examples/c/` 里一批字符串暂存）
+   今天已经是"存储 4N 字节 / 按字节访问"自洽的，把存储缩到 N 会把"偷用那 4 倍余量"从
+   **静默容忍**变成**真越界**，而收益是零 —— 不动。
+3. **判据里的期望值自己也会错**：`cases/39` 我第一版把 `bs[299]` 期望成 39，而那张表只写了
+   **296 个初值**、数组声明的是 **300** ⇒ 后 4 个应**零填充**。`B295=39|B299=0` 才对 ——
+   **修的是期望、不是代码**（顺带把"初值少于声明尺寸"这条路径也钉住了）。
+
+### 二、同批修好：**浮点数组整表读到 0**（三角函数的零表）
+
+`float` 数组的初始化器里是 `double` 字面量，落文本成 `.word 0.0174…`（一个十进制），
+而装载侧 `ResolveDataElement` **不认 `double`** ⇒ 每个元素都 `return 0`。
+受害者是 `Lib/shared/src/math.c` 的 `static const float sin_table[361]` ——
+**三角函数表一直是零表**：`sin_deg` / `cos_deg` / `tan_deg` 全返回 0，编译链接全绿、算出来是 0。
+
+修法**只动一处**：元素存成**位模式的 int**（4 字节槽正好装一个 `float`），
+而读取端本来就用 `MOVEF` 解释那 4 字节（`ResolveDataElement` 对 `float` 也走
+`SingleToInt32Bits`）⇒ 位模式原样过去就对了，五层一层都不用改。
+判据 `cases/41`（实测 `sin_deg(30)==0.5`、`sin_deg(90)==1`、`cos_deg(60)==0.5`，
+修前全是 0）。
+
+⚠ `char`/`short` 那条与这条是**两件不同的事**（一个是"宽度与步长不一致"、
+一个是"浮点字面量的类型在数据段里丢了"），所以分开压两条判据，别混。
+`double` 数组**没修**（元素 8 字节，而数据段的 `object[]` 通道按 4 字节/元素写死，
+要单独一条 8 字节路径）—— 已按 KNOWN-RED 钉在 `cases/42`；全语料**零处**用到它。
+
+### 三、顺带收掉调查中发现的既有静默坑
+
+- `HandleDataDirective` 的**多值写法**（`.byte 1,2,3`）存成 `List<object>` ——
+  既不是 `int[]` 也不是 `object[]` ⇒ 文本层写出
+  `x: .word System.Collections.Generic.List\`1[System.Object]`、装载侧把 `ToString()` 的结果
+  **当字符串写进内存**：编译不报错、跑起来数据全错。现在按指令名折成 `byte[]`/`short[]`。
+- `.vmb` 读回的数组同样是 `List<object>` ⇒ 走 `.vmb` 路径进来的数组全落进装载侧最后一个
+  `else`（当字符串写）。读回改成 `object[]`。
+
+### 四、判据
+
+- `cases/39-array-elem-width.c`：**KNOWN-RED 转绿**（1 维 / 2 维 / int 对照 / 300 项字节表 +
+  零填充）。扩了 300 项那张表是因为"小表可能错得刚好看不出"。
+- `scripts/vml-vmb-check`：语料补 `byte[]`/`short[]`，并把 `Bits()` 补上 `byte`/`short`
+  —— 原先它们会掉进 `ToString()` 那条，比的是**数值的 ASCII 写法**而不是字节，宽度写错也照样绿。
+- 全量 C 探针 **35 通过 / 2 失败 / 5 已知红**（`cases/39` 与 `cases/41` 双双转绿、
+  `cases/42` 新增为 KNOWN-RED）；`vml-abi-probe` 7/7；
+- **`Lib/` 全量重生成**（`touch Lib/shared/src/*.c` + `GenLib -b`，108 编译/0 跳过）：
+  diff 只落在两个模块 —— `math.vml`（`sin_table` 变成位模式）与
+  `graphics.vml`（字模 **1520 个 `.word` → 1520 个 `.byte`**，6080 字节缩到 1520）；
+- `Examples/c/` 里 7 个用 `char buf[N]` 暂存的（tetris/mario/pacman/calc/plane/starfall/
+  draw_colors）逐个编译+运行通过（"不打包无初始化器数组"那个决定站住了）。
+
+> ⚠ 本版仍**没有**重打 APK（与 v0.96.368/369 同一批）。
+> **改动面**：`VMLPrepares/CCompiler/`（4 文件）、`VMLAssembler/{VMLAssembler,VMLProgram}.cs`、
+> `VMLRuntime/VMLRuntime.cs`、`scripts/vml-vmb-check/Program.cs`、重生成的 `Lib/`。
+
+---
+
 ## v0.96.369 — `localtime` 不是"本地"时间：**新增 `#61 GetUtcOffset`**
 
 `tty-clock` 出钟之后（v0.96.368）还有个刺眼的错：**小时差整整 8 小时**（本地 19:11 显示成 11:11），
