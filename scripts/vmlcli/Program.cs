@@ -54,6 +54,9 @@ internal static class Program
         if (opt.RebuildLibSource is not null)
             return RebuildLibModule(opt);
 
+        // ── 模式三：`make`（VML 工程文件 `.vmk`）──────────────────────────────────
+        if (opt.MakeMode)
+            return MakeProject(opt);
 
         if (opt.SourcePath is null)
         {
@@ -170,6 +173,17 @@ internal static class Program
             catch (Exception asmError) { return (null, "vml", $"⚠️ 汇编失败：{asmError.Message}"); }
         }
 
+        // ── `.vmb` = **编译产物（字节码）**，直接装载，既不该过前端也不该过汇编器 ──
+        //
+        // 与 `.vml` 同一个理由（见上）：`MauiVml.Run` 一直是认的，桌面 CLI 之前不认 ——
+        // 桌面/手机流水线的又一处缺口。「文件页编译出的产物应当能被直接跑起来」正是
+        // 手机端分开「编译」与「运行」两个动作之后要有的那半条路。
+        if (Path.GetExtension(filePath).Equals(".vmb", StringComparison.OrdinalIgnoreCase))
+        {
+            try { return (VmlProgram.LoadFromVmbFile(filePath), "vmb", null); }
+            catch (Exception vmbError) { return (null, "vmb", $"⚠️ VMB 装载失败：{vmbError.Message}"); }
+        }
+
         // 扩展名派发用上游现成的（`--lang` 显式指定时按名字查，等价于上游 CLI 的 -l）
         var compiler = opt.Lang is not null
             ? pm.GetFrontendCompiler(opt.Lang)
@@ -196,7 +210,19 @@ internal static class Program
         //     ConvertLibraryPathsToIncludes 把该目录下每一个 .vml 都挂上去再全量链接
         //     （实测同一个 hello.c：给目录 93423 条指令、给库文件 36261 条）。
         var libConfig = VmlToolConfig.Load(Path.Combine(vmlRoot, "vmltool.config.xml"));
-        var includePaths = new[] { Path.Combine(vmlRoot, "Lib") }.Where(Directory.Exists).ToList();
+
+        // `-I` 给的目录**排在**内置那条之前（用户的头该能覆盖库里的同名头）。
+        var includePaths = new List<string>();
+        foreach (var dir in opt.IncludeDirs)
+        {
+            var full = Path.GetFullPath(dir);
+            if (!Directory.Exists(full))
+                return (null, lang, $"⚠️ `-I` 指的目录不存在：{dir}");
+            includePaths.Add(full);
+        }
+        var builtinLib = Path.Combine(vmlRoot, "Lib");
+        if (Directory.Exists(builtinLib)) includePaths.Add(builtinLib);
+
         var libraryPaths = libConfig.ResolveLibs(lang, vmlRoot);
 
         if (libraryPaths.Count == 0)
@@ -215,6 +241,16 @@ internal static class Program
         //
         // `autoLinkStdLib: true, useSharedLibrary: true` —— 与 MauiVml 完全一致
         //   （上游 CLI 还多一道「没有 main 就不自动链」的自动识别，MauiVml 没做，这里也不做）。
+        // `-D` 走 **`SetConfig("defines", …)`**，判据与上游 `Program.Compile.cs:127-149` 同款。
+        //
+        // ⚠ **不能拿 `VMLTOOL_DEFINE` 环境变量凑合**：多数编译器的 `PredefinedMacros` 是
+        //   `static readonly` + `new(BasePredefinedMacros())`，**静态初始化只跑一次** ⇒
+        //   环境变量在"第一次用到该编译器"时就被快照、之后改了不生效。只有 C 因为
+        //   `CCompiler/Preprocessor.cs:73` 每次构造都重读才碰巧是对的 ——
+        //   **两套行为不一致，不能建立在"碰巧"上**（同一个进程里换宏更是直接失效）。
+        if (compiler is CompilerBase.CompilerBase cb && opt.Defines.Count > 0)
+            cb.SetConfig("defines", opt.Defines);
+
         string vmlText;
         try
         {
@@ -289,6 +325,189 @@ internal static class Program
     /// 源文件所在目录加进去（`CCompiler.cs` 的 `sourceDir`），`Lib/shared/src/*.c` 的
     /// `#include "shared_decls.h"` 就是靠这条解析到的。
     /// </summary>
+    private static int MakeProject(CliOptions opt)
+    {
+        // ── ① `--import <Makefile>`：一次性转换（此后以 `.vmk` 为准）──────────────
+        if (opt.ImportMakefile is not null)
+        {
+            // 派发走注册表（`ProjectImporters`）而不是直接 new 一个导入器 ——
+            // 将来加 CMake/MSBuild 是"加一个类 + 注册一行"，CLI 与手机端都不用动。
+            var importer = ProjectImporters.Resolve(opt.ImportMakefile);
+            if (importer is null)
+            {
+                Console.Error.WriteLine($"✘ 认不出这种构建文件：{Path.GetFileName(opt.ImportMakefile)}。"
+                    + $"目前支持：{ProjectImporters.SupportedNames}。");
+                return 2;
+            }
+
+            ProjectImportResult r;
+            try
+            {
+                r = importer.Import(opt.ImportMakefile, opt.EntryHint);
+            }
+            catch (VmlProjectException ex)
+            {
+                Console.Error.WriteLine($"✘ {ex.Message}");
+                return 2;
+            }
+
+            var mkFull = Path.GetFullPath(opt.ImportMakefile);
+            var outPath = opt.OutPath ?? Path.ChangeExtension(mkFull, ".vmk");
+
+            var header = $"由 {Path.GetFileName(mkFull)}（{importer.Name} 格式）导入生成（{DateTime.Now:yyyy-MM-dd}）——"
+                       + "此后**以本文件为准**，Makefile 不再参与构建。";
+            try
+            {
+                File.WriteAllText(outPath, r.Project.ToXml(header), new UTF8Encoding(false));
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"✘ 写不出 {outPath}：{ex.Message}");
+                return 2;
+            }
+
+            var p = r.Project;
+            Console.Error.WriteLine($"✔ 已读 {Path.GetFileName(mkFull)}："
+                + $"入口 {p.Entry}；宏 {p.Defines.Count} 个；头文件路径 {p.Includes.Count} 个");
+
+            // ⚠ 这些**不是错误但必须看到**（最要紧的是"多个源文件只取了一个"）。
+            //   静默丢掉几个 `.c` 的后果是"编过了、少了半个程序"——本仓最怕的失败形状。
+            foreach (var n in r.Notes)
+                Console.Error.WriteLine($"⚠️  {n}");
+
+            Console.Error.WriteLine($"✔ 已写出 {Path.GetFullPath(outPath)}");
+            return 0;
+        }
+
+        // ── ② `make <项目.vmk>`：按工程文件编译，产物写 <Output> ────────────────────
+        if (opt.MakeTarget is null)
+        {
+            Console.Error.WriteLine("✘ `make` 后面要跟一个工程文件：`vmlcli make proj.vmk`；"
+                + "或 `vmlcli make --import Makefile` 从 Makefile 生成。");
+            return 2;
+        }
+
+        VmlProject proj;
+        try
+        {
+            proj = VmlProject.Load(opt.MakeTarget);
+        }
+        catch (VmlProjectException ex)
+        {
+            Console.Error.WriteLine($"✘ {ex.Message}");
+            return 2;
+        }
+
+        var entry = proj.EntryPath;
+        if (!File.Exists(entry))
+        {
+            Console.Error.WriteLine($"✘ 找不到入口源文件：{entry}"
+                + $"（工程文件里写的是 <Entry>{proj.Entry}</Entry>）");
+            return 2;
+        }
+
+        var vmlRoot = opt.VmlHome ?? FindVmlRoot(entry);
+        if (vmlRoot is null)
+        {
+            Console.Error.WriteLine("✘ 没找到 vendored 的 third_party/vml（含 Lib/ 与 vmltool.config.xml 的那一层）。"
+                + "用 --vml-home <路径> 显式指定。");
+            return 2;
+        }
+        Environment.SetEnvironmentVariable("VML_HOME", vmlRoot);
+
+        // 工程里的 `-I`/`-D` 并进选项，与命令行给的那份**同一处消费**（BuildProgram 里只有一份实现）。
+        // 覆盖方向刻意相反，与各自的语义对齐：
+        //   · `-I` 是"按序取第一个命中的" ⇒ **命令行的排前面**，临时指一个头目录能盖住工程里的；
+        //   · `-D` 是"后者覆盖前者"       ⇒ **命令行的排后面**，临时改一个宏不用动工程文件。
+        opt.IncludeDirs.AddRange(proj.IncludePaths);
+        opt.Defines.InsertRange(0, proj.DefineArgs);
+
+        var sw = Stopwatch.StartNew();
+        var compileLogBuf = new StringBuilder();
+        VmlProgram? prog;
+        string lang;
+        string? error;
+        lock (ConsoleGate)
+        {
+            var prevOut = Console.Out;
+            var prevErr = Console.Error;
+            try
+            {
+                Console.SetOut(new StringWriter(compileLogBuf));
+                Console.SetError(new StringWriter(compileLogBuf));
+                (prog, lang, error) = BuildProgram(entry, vmlRoot, opt);
+            }
+            finally
+            {
+                Console.SetOut(prevOut);
+                Console.SetError(prevErr);
+            }
+        }
+        if (compileLogBuf.Length > 0) Console.Error.Write(compileLogBuf.ToString());
+
+        if (prog is null)
+        {
+            Console.Error.WriteLine($"✘ 编译失败（{lang}）：{error}");
+            return 1;
+        }
+        Console.Error.WriteLine($"✔ 编译完成（{lang}，{sw.ElapsedMilliseconds} ms，{prog.Instructions?.Count ?? 0} 条指令）");
+
+        // ⚠ `ToString()` 会**就地**做死代码消除（`VmlProgram.cs:339`），调用后这个 prog 不能再跑 ——
+        //   `make` 的职责就是出产物，写完就结束，正好不冲突。
+        var outp = proj.OutputPath;
+        try
+        {
+            var dir = Path.GetDirectoryName(outp);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"✘ 建不出目录 {outp}：{ex.Message}");
+            return 2;
+        }
+
+        // **型别**：`lib` ⇒ 不删"没人调用"的函数（库本来就是给别人调的），也不要求有 main。
+        if (proj.OutputKind == VmlProject.KindLib) prog.IsLibrary = true;
+
+        // **格式**：目前只做了这两种。其余（bin/rom/elf/hex/s19/exe/dll/class）在
+        // `VMLTranslators/` 里已经有后端，但**还没接到这条路**上 ——
+        // ⚠ 这里必须**明确报错**，绝不能静默退回 `.vml`：用户写了 `Format="hex"`
+        //   却拿到一个 `.vml`，会以为"转译完了"，而手上是个根本烧不进芯片的文件。
+        try
+        {
+            switch (proj.OutputFormat)
+            {
+                case VmlProject.FormatVml:
+                    File.WriteAllText(outp, prog.ToString(), new UTF8Encoding(false));
+                    break;
+
+                case VmlProject.FormatVmb:
+                    // ⚠ **不调用 `NormalizeLongConstants`**（手机端 `MauiVml` 里那个绕行）。
+                    //   它是给"`ToVmbBytes()` 数据段不认 long"打的补丁，而那个缺口
+                    //   **已经在 `VMLProgram.cs:1247` 修掉了**（注释还留着"原来这里直接抛"）。
+                    //   这里刻意不加，等于**每次跑 `make` 都在反证那个修复仍然有效** ——
+                    //   真回归了会当场炸成 `Unsupported data type: System.Int64`。
+                    File.WriteAllBytes(outp, prog.ToVmbBytes());
+                    break;
+
+                default:
+                    Console.Error.WriteLine(
+                        $"✘ 产物格式 `{proj.OutputFormat}` 还没做（预留的名字之一）。"
+                        + $"现在能出的是：{string.Join("、", VmlProject.ImplementedFormats)}。"
+                        + "改 <Output Format=\"…\"> 或去掉那个属性。");
+                    return 2;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"✘ 写不出 {outp}：{ex.Message}");
+            return 2;
+        }
+
+        Console.Error.WriteLine($"✔ 已写出 {outp}（{proj.OutputKind}/{proj.OutputFormat}）");
+        return 0;
+    }
+
     private static int RebuildLibModule(CliOptions opt)
     {
         var src = Path.GetFullPath(opt.RebuildLibSource!);
@@ -591,6 +810,12 @@ internal static class Program
                         消息框：ok/yes（默认）| cancel/no；单选：下标；多选：逗号分隔下标；
                         输入框：任意文本；cancel 一律表示取消
   --store <路径>       键值存档落成 JSON（不给就只在本次进程内，不碰用户目录）
+  -D <名>[=<值>]       喂给预处理器的宏（可重复；不给 =值 时取 1，同 C 惯例）
+                       老程序的宏常由构建系统喂进来（`gcc -DVERSION=\"1.2\" …`），
+                       少了它整个程序编不过，而**补头文件补不出来**。
+  -I <目录>            追加头文件搜索路径（可重复）。**排在** VML 内置 `Lib` 之前 ——
+                       与 gcc 的 -I 语义一致（用户的头可以覆盖库里的同名头）。
+
   --stdin <文本>       脚本化标准输入（给 getchar/getch/scanf 这类读字节的程序）。
                        换行写成字面 `\n`；没给就"读到的恒为空"。
                        语义与手机端逐条对齐（一次读一整行、ReadChar 取行首字符）——
@@ -635,6 +860,52 @@ internal sealed partial class CliOptions
     public bool Help { get; private set; }
 
     /// <summary>
+    /// <c>-D &lt;名&gt;[=&lt;值&gt;]</c>：喂给前端预处理器的宏（**可重复**，按出现顺序累加）。
+    ///
+    /// <para>
+    /// 不加 `=值` 时取 `1` —— 与 C 命令行惯例一致（`-DFOO` 就是 `FOO=1`）。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么必需</b>：autoconf 时代的老程序，宏常常是**构建系统喂进去的**
+    /// （`gcc -DVERSION='"cmatrix 2.0"' -DHAVE_CONFIG_H …`），而我们是"把源文件直接丢给
+    /// 编译器" ⇒ 这类宏全缺，且**补头文件补不出来**。见 `docs/老程序兼容性.md` 第九节。
+    /// 在此之前只能用 `VMLTOOL_DEFINE` 环境变量 —— 它能用，但不是个正经的构建描述载体。
+    /// </para>
+    /// </summary>
+    public List<string> Defines { get; } = new();
+
+    /// <summary>
+    /// <c>-I &lt;目录&gt;</c>：追加的头文件搜索路径（**可重复**）。
+    ///
+    /// ⚠ 顺序有讲究：用户给的**排在** VML 内置的 <c>&lt;VML_HOME&gt;/Lib</c> **之前** ——
+    /// `ResolveIncludePath` 按序取第一个存在的（`CCompiler/Preprocessor.cs:364`），
+    /// 用户的头该能覆盖库里的同名头，与 gcc 的 `-I` 语义一致。
+    /// </summary>
+    public List<string> IncludeDirs { get; } = new();
+
+    // ── `make` 模式（VML 工程文件）──────────────────────────────────────────
+    //
+    // 形态是**子命令**而不是旗标（`vmlcli make proj.vmk`）—— 与用户敲的
+    // `vml run x.c` / 手机端 `vml make` 是同一套说法。但要落到这个旗标式的解析器里，
+    // 实现上是"首参是 `make` 就切到另一套解析"，下面 Parse 里看得到。
+
+    /// <summary>首参是 `make` ⇒ 走工程文件模式。</summary>
+    public bool MakeMode { get; private set; }
+
+    /// <summary>`make <项目.vmk>` 里的那个路径。</summary>
+    public string? MakeTarget { get; private set; }
+
+    /// <summary>`--import <Makefile>`：从 Makefile 一次性转换成 `.vmk`。</summary>
+    public string? ImportMakefile { get; private set; }
+
+    /// <summary>`--out <路径>`：`--import` 生成的 `.vmk` 写到哪里（默认与 Makefile 同名）。</summary>
+    public string? OutPath { get; private set; }
+
+    /// <summary>`--entry <源文件>`：`--import` 时显式指定入口（默认自动找含 main 的那个）。</summary>
+    public string? EntryHint { get; private set; }
+
+    /// <summary>
     /// <c>--stdin</c>：脚本化标准输入。**换行写成字面 `\n`**（命令行里带真换行不好写），
     /// 由 <see cref="CaptureIo"/> 自己翻译。语义与手机端逐条对齐 —— 见那个类的注释。
     /// </summary>
@@ -647,7 +918,15 @@ internal sealed partial class CliOptions
     {
         var o = new CliOptions();
 
-        for (int i = 0; i < args.Length; i++)
+        // `make` 子命令：首参是它就切到工程文件模式，其余照常解析。
+        int start = 0;
+        if (args.Length > 0 && args[0] == "make")
+        {
+            o.MakeMode = true;
+            start = 1;
+        }
+
+        for (int i = start; i < args.Length; i++)
         {
             var a = args[i];
             switch (a)
@@ -674,7 +953,10 @@ internal sealed partial class CliOptions
                     break;
 
                 case "--out":
-                    o.RebuildLibOut = Require(args, ref i, "--out");
+                    // ⚠ 两个模式各有各的产物，别混：重建 Lib 是 `.vml`、make --import 是 `.vmk`。
+                    //   同一个旗标在两种模式下指向不同字段 —— 写反了会「参数收了、文件没变」。
+                    if (o.MakeMode) o.OutPath = Require(args, ref i, "--out");
+                    else o.RebuildLibOut = Require(args, ref i, "--out");
                     break;
 
                 case "--timeout":
@@ -682,6 +964,26 @@ internal sealed partial class CliOptions
                     if (!int.TryParse(t, out var secs) || secs <= 0)
                         throw new CliArgumentException($"--timeout 需要一个正整数，收到 `{t}`");
                     o.TimeoutSeconds = secs;
+                    break;
+
+                case "--import":
+                    if (!o.MakeMode)
+                        throw new CliArgumentException("`--import` 只在 `make` 模式下有意义：vmlcli make --import <Makefile>");
+                    o.ImportMakefile = Require(args, ref i, "--import");
+                    break;
+
+                case "--entry":
+                    o.EntryHint = Require(args, ref i, "--entry");
+                    break;
+
+                case "-D":
+                case "--define":
+                    o.Defines.Add(Require(args, ref i, a));
+                    break;
+
+                case "-I":
+                case "--include":
+                    o.IncludeDirs.Add(Require(args, ref i, a));
                     break;
 
                 case "--arg":
@@ -709,6 +1011,13 @@ internal sealed partial class CliOptions
                     if (o.TryParseHostOption(a, args, ref i)) break;
                     if (a.StartsWith('-'))
                         throw new CliArgumentException($"未知选项 `{a}`");
+                    if (o.MakeMode)
+                    {
+                        if (o.MakeTarget is not null)
+                            throw new CliArgumentException($"多余的参数 `{a}`（make 只接受一个工程文件）");
+                        o.MakeTarget = a;
+                        break;
+                    }
                     if (o.SourcePath is not null)
                         throw new CliArgumentException($"多余的参数 `{a}`（只接受一个源文件路径）");
                     o.SourcePath = a;

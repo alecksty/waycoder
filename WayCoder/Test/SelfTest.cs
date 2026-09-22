@@ -449,6 +449,8 @@ public static partial class SelfTest
     TestChunk30(Section, Check, Fail);
 
     TestChunk31(Section, Check, Fail);
+
+    TestChunk32(Section, Check, Fail);
 
 
 

@@ -83,6 +83,16 @@
     <Compile Include="../../WayCoder/UI/Shared/VmlUiProtocol.cs" Link="VmlUiProtocol.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlCallRegistry.cs" Link="VmlCallRegistry.cs" />
 
+    <!-- VML 工程文件（.vmk）+ 导入器：与桌面自测、手机端**编同一份源码**。
+         ⚠ 放在 `WayCoder/UI/Shared/` 而不是 `third_party/vml/VMLTool/` 是有原因的：
+         `WayCoder`（桌面）**不引用** VMLTool（那会把 18 个后端翻译器一起拖进来），
+         而 `UI/Shared` 是三方都能编到的**唯一**目录 —— 放 VMLTool 里就只有这个 CLI 用得上，
+         桌面自测和手机端各得再抄一份（本仓头号坑）。 -->
+    <Compile Include="../../WayCoder/UI/Shared/PathText.cs" Link="PathText.cs" />
+    <Compile Include="../../WayCoder/UI/Shared/VmlProject.cs" Link="VmlProject.cs" />
+    <Compile Include="../../WayCoder/UI/Shared/VmlProjectImport.cs" Link="VmlProjectImport.cs" />
+    <Compile Include="../../WayCoder/UI/Shared/VmlMakefileImporter.cs" Link="VmlMakefileImporter.cs" />
+
     <!-- 宿主 syscall（500–599 + VM 内置的 #57）的**共享实现**。
          逻辑全在这一份里：坐标钳位、字符串读取、消息队列语义、定时器暂停、刷子/样式状态机…
          两端的差别（弹框/开窗/存档/音频/屏幕）走 IVmlHost 接口，各给一个实现
