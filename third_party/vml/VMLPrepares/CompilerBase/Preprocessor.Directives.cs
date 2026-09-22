@@ -371,6 +371,17 @@ namespace CompilerBase
         /// <summary>
         /// 去除 C 风格注释 (// ... 和 /* ... */)，用于清理宏定义值
         /// </summary>
+        /// <remarks>
+        /// ⚠ **必须认得字符串与字符字面量** —— 原先那份说明（C99 翻译阶段 3：注释在宏展开前删除）
+        /// 只说对了一半：**阶段 3 删注释之前，字面量已经被识别出来了**，所以 `"a//b"` 里的 `//`
+        /// **不是注释**。不认字面量就会把 `#define M "a//b"` 截成 `"a`，宏展开后表现为
+        /// 「未结束的字符串」—— 同一个根因还会顺带报出「未知字符：\」「未声明的变量」等
+        /// 一串**长得完全不同的错**，这正是它长期没被认出来的原因。
+        ///
+        /// 发现于 2026-09-22 老程序兼容性体检：`sl`（mtoyoda/sl，295 行）整个编不过，
+        /// 因为 `sl.h` 里 `#define LWHL22 "//// \\_/      \\_/    "` 正是这一形态。
+        /// 最小复现：`#define M "a//b"` 再使用 M（**同一个字符串直接写进代码反而没事**）。
+        /// </remarks>
         private string StripComments(string s)
         {
             if (string.IsNullOrEmpty(s)) return s;
@@ -378,9 +389,33 @@ namespace CompilerBase
             int i = 0;
             while (i < s.Length)
             {
-                if (i + 1 < s.Length && s[i] == '/' && s[i + 1] == '/')
+                char c = s[i];
+
+                // 字符串 / 字符字面量：整段照抄（含转义），里面的 // 与 /* 都不算注释
+                if (c == '"' || c == '\'')
+                {
+                    char quote = c;
+                    sb.Append(c);
+                    i++;
+                    while (i < s.Length)
+                    {
+                        if (s[i] == '\\' && i + 1 < s.Length)
+                        {
+                            sb.Append(s[i]).Append(s[i + 1]); // 转义：连下一个字符一起抄
+                            i += 2;
+                            continue;
+                        }
+                        sb.Append(s[i]);
+                        bool closed = s[i] == quote;
+                        i++;
+                        if (closed) break; // 收尾引号
+                    }
+                    continue;
+                }
+
+                if (i + 1 < s.Length && c == '/' && s[i + 1] == '/')
                     break; // 行尾注释，丢弃剩余部分
-                if (i + 1 < s.Length && s[i] == '/' && s[i + 1] == '*')
+                if (i + 1 < s.Length && c == '/' && s[i + 1] == '*')
                 {
                     i += 2;
                     while (i + 1 < s.Length && !(s[i] == '*' && s[i + 1] == '/'))
@@ -388,7 +423,7 @@ namespace CompilerBase
                     i += 2; // 跳过 */
                     continue;
                 }
-                sb.Append(s[i]);
+                sb.Append(c);
                 i++;
             }
             return sb.ToString().Trim();
