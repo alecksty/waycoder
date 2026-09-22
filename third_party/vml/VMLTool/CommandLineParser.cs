@@ -415,7 +415,10 @@ namespace VMLTool
             else if (parser.HasFlag("no-float") || parser.HasFlag("nf"))
                 options.Float32Mode = VMLPlugins.Float32Mode.None;
 
-            // --float64 (64位浮点模式: hard/soft/none, 默认soft)
+            // --float64 (64位浮点模式: hard/soft/none, **默认 hard**)
+            // ⚠ 认不出来的值走**默认档**（Hard），不是 `Soft` —— 此前写的是 `Soft`，
+            //   于是 `--float64 hart`（打错一个字母）会**静默切到另一个模式**，
+            //   而那个模式在本平台没有库支持。打错字至少该落回默认，不该落向反面。
             var f64 = parser.GetArgument("float64");
             if (!string.IsNullOrEmpty(f64))
             {
@@ -424,11 +427,12 @@ namespace VMLTool
                     "hard" => VMLPlugins.Float64Mode.Hard,
                     "soft" => VMLPlugins.Float64Mode.Soft,
                     "none" or "off" => VMLPlugins.Float64Mode.None,
-                    _ => VMLPlugins.Float64Mode.Soft,
+                    _ => VMLPlugins.Float64Mode.Hard,
                 };
             }
 
-            // --int64 (64位整数模式: hard/soft/none, 默认soft)
+            // --int64 (64位整数模式: hard/soft/none, **默认 hard**)
+            // ⚠ 兜底同上：认不出的值落回默认档 Hard，不落向 Soft。
             var i64 = parser.GetArgument("int64");
             if (!string.IsNullOrEmpty(i64))
             {
@@ -437,7 +441,7 @@ namespace VMLTool
                     "hard" or "native" => VMLPlugins.Int64Mode.Hard,
                     "soft" or "library" => VMLPlugins.Int64Mode.Soft,
                     "none" or "off" => VMLPlugins.Int64Mode.None,
-                    _ => VMLPlugins.Int64Mode.Soft,
+                    _ => VMLPlugins.Int64Mode.Hard,
                 };
             }
 

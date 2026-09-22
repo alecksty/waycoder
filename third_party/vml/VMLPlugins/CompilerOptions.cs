@@ -65,11 +65,25 @@ namespace VMLPlugins
     /// <summary>32位浮点处理模式 (hard/soft/none)</summary>
     public Float32Mode Float32Mode { get; set; } = Float32Mode.Hard;
 
-    /// <summary>64位浮点处理模式 (hard/soft/none) — 默认软模拟</summary>
-    public Float64Mode Float64Mode { get; set; } = Float64Mode.Soft;
+    /// <summary>
+    /// 64位浮点处理模式 (hard/soft/none) —— **默认 Hard**（硬件双精度：DADD/DSUB/DMUL/DDIV）。
+    ///
+    /// ⚠ 这里原本是 `Soft`，而 `VMLPrepares/CompilerBase/CompilerConfig.cs` 是 `Hard`，
+    ///   **两处默认值不一致**：走 `CompilerConfig.SyncToContext()` 的路径（22 个前端全都走）
+    ///   拿到的其实是 Hard，只有**直接 new `CompilerOptions`** 的调用方才吃到 Soft。
+    ///   两套默认值等于"同一件事两处实现"。现按用户 2026-09-22 的决定**统一为 Hard**。
+    ///   软模拟那条路要靠 `softdouble.vml`，本平台本来就没链它。
+    /// </summary>
+    public Float64Mode Float64Mode { get; set; } = Float64Mode.Hard;
 
-    /// <summary>64位整数处理模式 (hard/soft/none) — 默认库模拟</summary>
-    public Int64Mode Int64Mode { get; set; } = Int64Mode.Soft;
+    /// <summary>
+    /// 64位整数处理模式 (hard/soft/none) —— **默认 Hard**（硬件 64 位：ADDL/SUBL/MULL/DIVL/MODL）。
+    ///
+    /// ⚠ 理由同 <see cref="Float64Mode"/>：与 `CompilerConfig` 的默认值统一。
+    ///   实测 Hard 这条路**本来就是好的**（`long` 的加/减/乘/除、比较、窄化全对），
+    ///   而 Soft 那条要靠 `softint64.vml` —— 本平台没链它。**默认选那条走不通的路没有道理。**
+    /// </summary>
+    public Int64Mode Int64Mode { get; set; } = Int64Mode.Hard;
 
     /// <summary>是否在生成的 VML 汇编中包含源码行注释（默认开启）</summary>
     public bool SourceComment { get; set; } = true;

@@ -46,7 +46,7 @@ namespace VMLPlugins
     {
         /// <summary>硬件双精度 — 使用 DADD/DSUB/DMUL/DDIV 指令</summary>
         Hard = 0,
-        /// <summary>软双精度（默认）— 使用 softdouble.vml 库函数模拟</summary>
+        /// <summary>软双精度 — 使用 softdouble.vml 库函数模拟（⚠ 本平台没链那个库；默认已是 Hard）</summary>
         Soft = 1,
         /// <summary>关闭双精度 — 遇到 double 代码降级或报错</summary>
         None = 2,
@@ -59,7 +59,7 @@ namespace VMLPlugins
     {
         /// <summary>硬件 64 位 — 使用 ADDL/SUBL/MULL/DIVL/MODL 指令</summary>
         Hard = 0,
-        /// <summary>库模拟（默认）— 使用 softint64.vml 库函数</summary>
+        /// <summary>库模拟 — 使用 softint64.vml 库函数（⚠ 本平台没链那个库；默认已是 Hard）</summary>
         Soft = 1,
         /// <summary>关闭 64 位 — 遇到 64 位类型降级为 32 位</summary>
         None = 2,
