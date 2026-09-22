@@ -293,6 +293,7 @@ public partial class DrawWindowPage : ContentPage
         // 程序接下来会照它排版 —— 晚一步就是"先按小画布排一次、再收到 resize 重排"。
         _needGamepad = scene.NeedGamepad;
         _rotation = scene.Rotation;
+        _kind = scene.Kind;
         ApplyOrientationLock(_rotation);
         ApplyPadVisibility();
         // **首帧同步渲染**：异步那条路要等 40ms 的定时器，而实测「窗口一闪而过、什么也没看到」
@@ -615,6 +616,13 @@ public partial class DrawWindowPage : ContentPage
 
     /// <summary>这个窗口要不要屏幕手柄区（`ui_win_open_ex` 的 R4）；老接口一律 true。</summary>
     private bool _needGamepad = true;
+
+    /// <summary>
+    /// 窗口种类（见 `VmlUi.KindOfWinOpen`）。**触摸策略按它分支** ——
+    /// 电脑屏窗口只发鼠标（老程序处理的是鼠标，同时再收一对触摸会让它们
+    /// 把一次点击当两次输入）。
+    /// </summary>
+    private VmlWinKind _kind = VmlWinKind.Graphic;
 
     /// <summary>这个窗口的转屏声明（`ui_win_open_ex` 的 R3）；老接口一律 <see cref="WindowRotation.Legacy"/>。</summary>
     private WindowRotation _rotation = WindowRotation.Legacy;
@@ -1055,19 +1063,24 @@ public partial class DrawWindowPage : ContentPage
         var x = scene.X;
         var y = scene.Y;
 
+        /* **两对消息里发哪一对，由窗口种类决定**（判据收在 `VmlUi.SuppressTouch` 一处）。
+           图形窗口：两对都发（老行为一字不改）。
+           电脑屏窗口：**只发鼠标** —— 老程序处理的是鼠标；同时收到一对触摸
+           会把一次点击算成两次输入，症状是"点一下动两下"。 */
+        bool wantTouch = !VmlUi.SuppressTouch(_kind);
         if (down)
         {
-            calls.PostInput(VmlMsgType.TouchDown, x, y);
+            if (wantTouch) calls.PostInput(VmlMsgType.TouchDown, x, y);
             calls.PostInput(VmlMsgType.MouseDown, x, y);
         }
         if (move)
         {
-            calls.PostInput(VmlMsgType.TouchMove, x, y);
+            if (wantTouch) calls.PostInput(VmlMsgType.TouchMove, x, y);
             calls.PostInput(VmlMsgType.MouseMove, x, y);
         }
         if (up)
         {
-            calls.PostInput(VmlMsgType.TouchUp, x, y);
+            if (wantTouch) calls.PostInput(VmlMsgType.TouchUp, x, y);
             calls.PostInput(VmlMsgType.MouseUp, x, y);
         }
 
