@@ -323,7 +323,7 @@ _L87720035:
         push @R0
         move @R0 #1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #-306674912
@@ -336,7 +336,7 @@ _L87720036:
         push @R0
         move @R0 #1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
 _L87720037:
         move [@R12-8] @R0
@@ -737,7 +737,7 @@ sta_87720061:
         push @R0
         move @R0 #16
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         cmp @R0 #0
         jz sta_87720062
@@ -752,7 +752,7 @@ sta_87720061:
         push @R0
         move @R0 #16
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         add @R1 @R0

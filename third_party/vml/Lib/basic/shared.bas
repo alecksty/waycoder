@@ -312,6 +312,11 @@ DECLARE FUNCTION basic_date_str() AS INTEGER
     basic_date_str = 0
 END FUNCTION
 
+DECLARE FUNCTION asm(a0 AS INTEGER) AS INTEGER
+    asm("CALL asm")
+    asm = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_time_str() AS INTEGER
     asm("CALL basic_time_str")
     basic_time_str = 0
@@ -1600,6 +1605,15 @@ DECLARE FUNCTION atoi_hex(a0 AS INTEGER) AS INTEGER
     atoi_hex = 0
 END FUNCTION
 
+DECLARE FUNCTION rand() AS INTEGER
+    asm("CALL rand")
+    rand = 0
+END FUNCTION
+
+DECLARE SUB srand(a0 AS INTEGER)
+    asm("CALL srand")
+END SUB
+
 DECLARE FUNCTION byte_to_hword(a0 AS INTEGER) AS INTEGER
     asm("CALL byte_to_hword")
     byte_to_hword = 0
@@ -1990,6 +2004,415 @@ DECLARE FUNCTION iscntrl(a0 AS INTEGER) AS INTEGER
     iscntrl = 0
 END FUNCTION
 
+DECLARE SUB delay(a0 AS INTEGER)
+    asm("CALL delay")
+END SUB
+
+DECLARE FUNCTION sc_putc(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_putc")
+    sc_putc = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_puts(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_puts")
+    sc_puts = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_putn(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_putn")
+    sc_putn = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_cup(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL sc_cup")
+    sc_cup = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_fill(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL sc_fill")
+    sc_fill = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_sgr(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_sgr")
+    sc_sgr = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_init() AS INTEGER
+    asm("CALL sc_init")
+    sc_init = 0
+END FUNCTION
+
+DECLARE FUNCTION endwin() AS INTEGER
+    asm("CALL endwin")
+    endwin = 0
+END FUNCTION
+
+DECLARE FUNCTION refresh() AS INTEGER
+    asm("CALL refresh")
+    refresh = 0
+END FUNCTION
+
+DECLARE FUNCTION wrefresh(a0 AS INTEGER) AS INTEGER
+    asm("CALL wrefresh")
+    wrefresh = 0
+END FUNCTION
+
+DECLARE FUNCTION move(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL move")
+    move = 0
+END FUNCTION
+
+DECLARE FUNCTION wmove(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL wmove")
+    wmove = 0
+END FUNCTION
+
+DECLARE FUNCTION getcury(a0 AS INTEGER) AS INTEGER
+    asm("CALL getcury")
+    getcury = 0
+END FUNCTION
+
+DECLARE FUNCTION getcurx(a0 AS INTEGER) AS INTEGER
+    asm("CALL getcurx")
+    getcurx = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_cell_byte(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_cell_byte")
+    sc_cell_byte = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_advance() AS INTEGER
+    asm("CALL sc_advance")
+    sc_advance = 0
+END FUNCTION
+
+DECLARE FUNCTION addch(a0 AS INTEGER) AS INTEGER
+    asm("CALL addch")
+    addch = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_putwchar(a0 AS INTEGER) AS INTEGER
+    asm("CALL sc_putwchar")
+    sc_putwchar = 0
+END FUNCTION
+
+DECLARE FUNCTION addstr(a0 AS INTEGER) AS INTEGER
+    asm("CALL addstr")
+    addstr = 0
+END FUNCTION
+
+DECLARE FUNCTION mvaddch(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL mvaddch")
+    mvaddch = 0
+END FUNCTION
+
+DECLARE FUNCTION mvaddstr(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL mvaddstr")
+    mvaddstr = 0
+END FUNCTION
+
+DECLARE FUNCTION sc_vformat(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL sc_vformat")
+    sc_vformat = 0
+END FUNCTION
+
+DECLARE FUNCTION printw(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL printw")
+    printw = 0
+END FUNCTION
+
+DECLARE FUNCTION mvprintw(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL mvprintw")
+    mvprintw = 0
+END FUNCTION
+
+DECLARE FUNCTION erase() AS INTEGER
+    asm("CALL erase")
+    erase = 0
+END FUNCTION
+
+DECLARE FUNCTION clrtoeol() AS INTEGER
+    asm("CALL clrtoeol")
+    clrtoeol = 0
+END FUNCTION
+
+DECLARE FUNCTION attron(a0 AS INTEGER) AS INTEGER
+    asm("CALL attron")
+    attron = 0
+END FUNCTION
+
+DECLARE FUNCTION attroff(a0 AS INTEGER) AS INTEGER
+    asm("CALL attroff")
+    attroff = 0
+END FUNCTION
+
+DECLARE FUNCTION attrset(a0 AS INTEGER) AS INTEGER
+    asm("CALL attrset")
+    attrset = 0
+END FUNCTION
+
+DECLARE FUNCTION start_color() AS INTEGER
+    asm("CALL start_color")
+    start_color = 0
+END FUNCTION
+
+DECLARE FUNCTION has_colors() AS INTEGER
+    asm("CALL has_colors")
+    has_colors = 0
+END FUNCTION
+
+DECLARE FUNCTION init_pair(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL init_pair")
+    init_pair = 0
+END FUNCTION
+
+DECLARE FUNCTION cbreak() AS INTEGER
+    asm("CALL cbreak")
+    cbreak = 0
+END FUNCTION
+
+DECLARE FUNCTION nocbreak() AS INTEGER
+    asm("CALL nocbreak")
+    nocbreak = 0
+END FUNCTION
+
+DECLARE FUNCTION noecho() AS INTEGER
+    asm("CALL noecho")
+    noecho = 0
+END FUNCTION
+
+DECLARE FUNCTION echo() AS INTEGER
+    asm("CALL echo")
+    echo = 0
+END FUNCTION
+
+DECLARE FUNCTION keypad(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL keypad")
+    keypad = 0
+END FUNCTION
+
+DECLARE FUNCTION nodelay(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL nodelay")
+    nodelay = 0
+END FUNCTION
+
+DECLARE FUNCTION curs_set(a0 AS INTEGER) AS INTEGER
+    asm("CALL curs_set")
+    curs_set = 0
+END FUNCTION
+
+DECLARE FUNCTION initscr() AS INTEGER
+    asm("CALL initscr")
+    initscr = 0
+END FUNCTION
+
+DECLARE FUNCTION use_default_colors() AS INTEGER
+    asm("CALL use_default_colors")
+    use_default_colors = 0
+END FUNCTION
+
+DECLARE FUNCTION wattron(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL wattron")
+    wattron = 0
+END FUNCTION
+
+DECLARE FUNCTION wattroff(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL wattroff")
+    wattroff = 0
+END FUNCTION
+
+DECLARE FUNCTION wattrset(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL wattrset")
+    wattrset = 0
+END FUNCTION
+
+DECLARE FUNCTION wbkgdset(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL wbkgdset")
+    wbkgdset = 0
+END FUNCTION
+
+DECLARE FUNCTION wclear(a0 AS INTEGER) AS INTEGER
+    asm("CALL wclear")
+    wclear = 0
+END FUNCTION
+
+DECLARE FUNCTION werase(a0 AS INTEGER) AS INTEGER
+    asm("CALL werase")
+    werase = 0
+END FUNCTION
+
+DECLARE FUNCTION wclrtoeol(a0 AS INTEGER) AS INTEGER
+    asm("CALL wclrtoeol")
+    wclrtoeol = 0
+END FUNCTION
+
+DECLARE FUNCTION waddch(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL waddch")
+    waddch = 0
+END FUNCTION
+
+DECLARE FUNCTION waddstr(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL waddstr")
+    waddstr = 0
+END FUNCTION
+
+DECLARE FUNCTION wprintw(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL wprintw")
+    wprintw = 0
+END FUNCTION
+
+DECLARE FUNCTION mvwprintw(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL mvwprintw")
+    mvwprintw = 0
+END FUNCTION
+
+DECLARE FUNCTION mvwaddch(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL mvwaddch")
+    mvwaddch = 0
+END FUNCTION
+
+DECLARE FUNCTION mvwaddstr(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL mvwaddstr")
+    mvwaddstr = 0
+END FUNCTION
+
+DECLARE FUNCTION clearok(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL clearok")
+    clearok = 0
+END FUNCTION
+
+DECLARE FUNCTION box(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL box")
+    box = 0
+END FUNCTION
+
+DECLARE FUNCTION delscreen(a0 AS INTEGER) AS INTEGER
+    asm("CALL delscreen")
+    delscreen = 0
+END FUNCTION
+
+DECLARE FUNCTION wgetch(a0 AS INTEGER) AS INTEGER
+    asm("CALL wgetch")
+    wgetch = 0
+END FUNCTION
+
+DECLARE FUNCTION mvwin(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL mvwin")
+    mvwin = 0
+END FUNCTION
+
+DECLARE FUNCTION wresize(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL wresize")
+    wresize = 0
+END FUNCTION
+
+DECLARE FUNCTION wborder(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER, a8 AS INTEGER) AS INTEGER
+    asm("CALL wborder")
+    wborder = 0
+END FUNCTION
+
+DECLARE FUNCTION leaveok(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL leaveok")
+    leaveok = 0
+END FUNCTION
+
+DECLARE FUNCTION scrollok(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL scrollok")
+    scrollok = 0
+END FUNCTION
+
+DECLARE FUNCTION idlok(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL idlok")
+    idlok = 0
+END FUNCTION
+
+DECLARE FUNCTION raw() AS INTEGER
+    asm("CALL raw")
+    raw = 0
+END FUNCTION
+
+DECLARE FUNCTION noraw() AS INTEGER
+    asm("CALL noraw")
+    noraw = 0
+END FUNCTION
+
+DECLARE FUNCTION standout() AS INTEGER
+    asm("CALL standout")
+    standout = 0
+END FUNCTION
+
+DECLARE FUNCTION standend() AS INTEGER
+    asm("CALL standend")
+    standend = 0
+END FUNCTION
+
+DECLARE FUNCTION beep() AS INTEGER
+    asm("CALL beep")
+    beep = 0
+END FUNCTION
+
+DECLARE FUNCTION flash() AS INTEGER
+    asm("CALL flash")
+    flash = 0
+END FUNCTION
+
+DECLARE FUNCTION has_ic() AS INTEGER
+    asm("CALL has_ic")
+    has_ic = 0
+END FUNCTION
+
+DECLARE FUNCTION has_il() AS INTEGER
+    asm("CALL has_il")
+    has_il = 0
+END FUNCTION
+
+DECLARE FUNCTION wnoutrefresh(a0 AS INTEGER) AS INTEGER
+    asm("CALL wnoutrefresh")
+    wnoutrefresh = 0
+END FUNCTION
+
+DECLARE FUNCTION doupdate() AS INTEGER
+    asm("CALL doupdate")
+    doupdate = 0
+END FUNCTION
+
+DECLARE FUNCTION savetty() AS INTEGER
+    asm("CALL savetty")
+    savetty = 0
+END FUNCTION
+
+DECLARE FUNCTION resetty() AS INTEGER
+    asm("CALL resetty")
+    resetty = 0
+END FUNCTION
+
+DECLARE FUNCTION nonl() AS INTEGER
+    asm("CALL nonl")
+    nonl = 0
+END FUNCTION
+
+DECLARE FUNCTION timeout(a0 AS INTEGER) AS INTEGER
+    asm("CALL timeout")
+    timeout = 0
+END FUNCTION
+
+DECLARE FUNCTION wtimeout(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL wtimeout")
+    wtimeout = 0
+END FUNCTION
+
+DECLARE FUNCTION napms(a0 AS INTEGER) AS INTEGER
+    asm("CALL napms")
+    napms = 0
+END FUNCTION
+
+DECLARE FUNCTION addwstr(a0 AS INTEGER) AS INTEGER
+    asm("CALL addwstr")
+    addwstr = 0
+END FUNCTION
+
 DECLARE FUNCTION demolib_add(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL demolib_add")
     demolib_add = 0
@@ -2071,6 +2494,22 @@ END SUB
 
 DECLARE SUB GetTime(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
     asm("CALL GetTime")
+END SUB
+
+DECLARE SUB sound(a0 AS INTEGER)
+    asm("CALL sound")
+END SUB
+
+DECLARE SUB nosound()
+    asm("CALL nosound")
+END SUB
+
+DECLARE SUB getdate(a0 AS INTEGER)
+    asm("CALL getdate")
+END SUB
+
+DECLARE SUB gettime(a0 AS INTEGER)
+    asm("CALL gettime")
 END SUB
 
 DECLARE FUNCTION DosVersion() AS INTEGER
@@ -2794,6 +3233,11 @@ END FUNCTION
 DECLARE FUNCTION mbstowcs(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL mbstowcs")
     mbstowcs = 0
+END FUNCTION
+
+DECLARE FUNCTION fflush(a0 AS INTEGER) AS INTEGER
+    asm("CALL fflush")
+    fflush = 0
 END FUNCTION
 
 DECLARE SUB puts(a0 AS INTEGER)
@@ -3615,11 +4059,6 @@ DECLARE FUNCTION get_args(a0 AS INTEGER) AS INTEGER
     get_args = 0
 END FUNCTION
 
-DECLARE FUNCTION signal(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL signal")
-    signal = 0
-END FUNCTION
-
 DECLARE FUNCTION type_of(a0 AS INTEGER) AS INTEGER
     asm("CALL type_of")
     type_of = 0
@@ -4129,6 +4568,21 @@ DECLARE FUNCTION strcmp(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     strcmp = 0
 END FUNCTION
 
+DECLARE FUNCTION _vml_lower_ascii(a0 AS INTEGER) AS INTEGER
+    asm("CALL _vml_lower_ascii")
+    _vml_lower_ascii = 0
+END FUNCTION
+
+DECLARE FUNCTION strcasecmp(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL strcasecmp")
+    strcasecmp = 0
+END FUNCTION
+
+DECLARE FUNCTION strncasecmp(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL strncasecmp")
+    strncasecmp = 0
+END FUNCTION
+
 DECLARE FUNCTION strncmp(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL strncmp")
     strncmp = 0
@@ -4241,10 +4695,6 @@ DECLARE FUNCTION getconfig(a0 AS INTEGER) AS INTEGER
     getconfig = 0
 END FUNCTION
 
-DECLARE SUB srand(a0 AS INTEGER)
-    asm("CALL srand")
-END SUB
-
 DECLARE FUNCTION datetime() AS INTEGER
     asm("CALL datetime")
     datetime = 0
@@ -4327,10 +4777,6 @@ DECLARE SUB uscanf(a0 AS INTEGER)
     asm("CALL uscanf")
 END SUB
 
-DECLARE SUB delay(a0 AS INTEGER)
-    asm("CALL delay")
-END SUB
-
 DECLARE FUNCTION int_pow(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL int_pow")
     int_pow = 0
@@ -4339,6 +4785,182 @@ END FUNCTION
 DECLARE FUNCTION int_sqrt(a0 AS INTEGER) AS INTEGER
     asm("CALL int_sqrt")
     int_sqrt = 0
+END FUNCTION
+
+DECLARE FUNCTION setlocale(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL setlocale")
+    setlocale = 0
+END FUNCTION
+
+DECLARE FUNCTION localeconv() AS INTEGER
+    asm("CALL localeconv")
+    localeconv = 0
+END FUNCTION
+
+DECLARE FUNCTION fprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL fprintf")
+    fprintf = 0
+END FUNCTION
+
+DECLARE FUNCTION vfprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL vfprintf")
+    vfprintf = 0
+END FUNCTION
+
+DECLARE FUNCTION isatty(a0 AS INTEGER) AS INTEGER
+    asm("CALL isatty")
+    isatty = 0
+END FUNCTION
+
+DECLARE FUNCTION ttyname(a0 AS INTEGER) AS INTEGER
+    asm("CALL ttyname")
+    ttyname = 0
+END FUNCTION
+
+DECLARE FUNCTION strerror(a0 AS INTEGER) AS INTEGER
+    asm("CALL strerror")
+    strerror = 0
+END FUNCTION
+
+DECLARE FUNCTION sigaction(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL sigaction")
+    sigaction = 0
+END FUNCTION
+
+DECLARE FUNCTION signal(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL signal")
+    signal = 0
+END FUNCTION
+
+DECLARE FUNCTION raise(a0 AS INTEGER) AS INTEGER
+    asm("CALL raise")
+    raise = 0
+END FUNCTION
+
+DECLARE FUNCTION _ts_to_tm(a0 AS INTEGER) AS INTEGER
+    asm("CALL _ts_to_tm")
+    _ts_to_tm = 0
+END FUNCTION
+
+DECLARE FUNCTION localtime(a0 AS INTEGER) AS INTEGER
+    asm("CALL localtime")
+    localtime = 0
+END FUNCTION
+
+DECLARE FUNCTION gmtime(a0 AS INTEGER) AS INTEGER
+    asm("CALL gmtime")
+    gmtime = 0
+END FUNCTION
+
+DECLARE FUNCTION _sf_put2(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL _sf_put2")
+    _sf_put2 = 0
+END FUNCTION
+
+DECLARE FUNCTION _sf_puts(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL _sf_puts")
+    _sf_puts = 0
+END FUNCTION
+
+DECLARE FUNCTION strftime(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL strftime")
+    strftime = 0
+END FUNCTION
+
+DECLARE FUNCTION time(a0 AS INTEGER) AS INTEGER
+    asm("CALL time")
+    time = 0
+END FUNCTION
+
+DECLARE SUB _vml_fd_zero(a0 AS INTEGER)
+    asm("CALL _vml_fd_zero")
+END SUB
+
+DECLARE SUB _vml_fd_set(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL _vml_fd_set")
+END SUB
+
+DECLARE SUB _vml_fd_clr(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL _vml_fd_clr")
+END SUB
+
+DECLARE FUNCTION _vml_fd_isset(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL _vml_fd_isset")
+    _vml_fd_isset = 0
+END FUNCTION
+
+DECLARE FUNCTION select(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL select")
+    select = 0
+END FUNCTION
+
+DECLARE FUNCTION pselect(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER) AS INTEGER
+    asm("CALL pselect")
+    pselect = 0
+END FUNCTION
+
+DECLARE FUNCTION nanosleep(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL nanosleep")
+    nanosleep = 0
+END FUNCTION
+
+DECLARE FUNCTION atexit(a0 AS INTEGER) AS INTEGER
+    asm("CALL atexit")
+    atexit = 0
+END FUNCTION
+
+DECLARE FUNCTION getopt(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL getopt")
+    getopt = 0
+END FUNCTION
+
+DECLARE FUNCTION strdup(a0 AS INTEGER) AS INTEGER
+    asm("CALL strdup")
+    strdup = 0
+END FUNCTION
+
+DECLARE FUNCTION ioctl(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ioctl")
+    ioctl = 0
+END FUNCTION
+
+DECLARE FUNCTION tcgetattr(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL tcgetattr")
+    tcgetattr = 0
+END FUNCTION
+
+DECLARE FUNCTION tcsetattr(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL tcsetattr")
+    tcsetattr = 0
+END FUNCTION
+
+DECLARE SUB cfmakeraw(a0 AS INTEGER)
+    asm("CALL cfmakeraw")
+END SUB
+
+DECLARE FUNCTION tcflush(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL tcflush")
+    tcflush = 0
+END FUNCTION
+
+DECLARE FUNCTION cfgetospeed(a0 AS INTEGER) AS INTEGER
+    asm("CALL cfgetospeed")
+    cfgetospeed = 0
+END FUNCTION
+
+DECLARE FUNCTION cfsetospeed(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL cfsetospeed")
+    cfsetospeed = 0
+END FUNCTION
+
+DECLARE FUNCTION open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL open")
+    open = 0
+END FUNCTION
+
+DECLARE FUNCTION creat(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL creat")
+    creat = 0
 END FUNCTION
 
 DECLARE SUB vga_text_putchar(a0 AS INTEGER)
@@ -4661,11 +5283,6 @@ DECLARE FUNCTION ui_dlg_msg(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTE
     ui_dlg_msg = 0
 END FUNCTION
 
-DECLARE FUNCTION asm(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
-    asm("CALL asm")
-    asm = 0
-END FUNCTION
-
 DECLARE FUNCTION ui_dlg_select(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
     asm("CALL ui_dlg_select")
     ui_dlg_select = 0
@@ -4689,6 +5306,11 @@ END FUNCTION
 DECLARE FUNCTION ui_win_open_ex(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
     asm("CALL ui_win_open_ex")
     ui_win_open_ex = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_open_pc(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL ui_win_open_pc")
+    ui_win_open_pc = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_win_close() AS INTEGER

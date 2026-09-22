@@ -16,6 +16,20 @@ LABEL go_read_line
     pop @R15
     RET
 
+LABEL go_fflush
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    CALL fflush
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
+    RET
+
 LABEL go_putchar
     push @R15
     push @R12
@@ -872,6 +886,9 @@ LABEL go_sscanf
 LABEL fmt_ReadLine
     JMP go_read_line
 
+LABEL fmt_Fflush
+    JMP go_fflush
+
 LABEL fmt_Putchar
     JMP go_putchar
 
@@ -1048,6 +1065,12 @@ LABEL func_ReadLine
 
 LABEL func_readLine
     JMP go_read_line
+
+LABEL func_fflush
+    JMP go_fflush
+
+LABEL func_Fflush
+    JMP go_fflush
 
 LABEL func_putchar
     JMP go_putchar

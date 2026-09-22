@@ -32,7 +32,7 @@ mul:
         pushl @R0
         move @R0 #16
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
         jmp L_57480000
@@ -78,7 +78,7 @@ sta_57480002:
         pushl @R0
         move @R0 #16
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 12:     return (int)(aa / b);

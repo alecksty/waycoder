@@ -18,7 +18,7 @@ uscanf:
         move @R12 @R13
         sub @R13 #1040
 ; 8:     ucs_to_utf8(ufmt, buf, sizeof(buf) - 1);
-        move @R0 #1
+        move @R0 #1024
         push @R0
         move @R0 #1
         pop @R1

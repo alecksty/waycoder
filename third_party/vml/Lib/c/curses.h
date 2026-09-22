@@ -44,6 +44,30 @@
 
 #param lib("curses")
 
+/* ⚠ 下面这几条**必须写在这个头文件里** —— `#param lib("库")` 的规矩就是
+   「**用到了这个头文件，就连这个库**；不 include 就不连」。写在别处都不对：
+     · 写在生成物 `Lib/shared/curses.vml` 上 ⇒ 下次 `GenLib` 一跑就**静默抹掉**
+       （2026-09-22 实测：那次全量重生成把 `.linked "conio.vml"` 抹掉后，
+        症状是编译 `20-curses-api.c` 报「未找到标签: kbhit」，而根因隔了几周）；
+     · 写在实现体 `Lib/shared/src/curses.c` 里 ⇒ 语义也不对，那是**实现依赖**，
+       不该由"C 程序 include 了什么头"来决定。
+   `.linked` 列表**自动去重**，所以与 `conio.h` 里那条重复完全无害。
+
+   各条的来由（**别删**）：
+     conio  —— `getch`/`kbhit`/`gotoxy`/`cprintf` 的实现都在 conio.c 那一份
+               （同名函数只能有一份定义，curses 这边绝不自己再写一个）
+     printf —— `vsnprintf`/`format_arg_count`，`printw` 家族要
+     util   —— `delay`，`napms` 要
+     math   —— 实现体用到
+
+   ⚠ `#param` 是**按行**解析的：这一行后面**不能挂跨行的块注释**
+     （续行不再算注释，全角括号会让词法器报「未知字符」）。所以注释单独成块。 */
+#param lib("conio")
+#param lib("printf")
+#param lib("util")
+#param lib("math")
+
+
 /* ⚠ 真 ncurses 会把 stdio.h 带出来 —— 老程序（如 tty-clock）就靠这一点
    拿到 `stderr`，自己**并不** include <stdio.h>。这里照做。 */
 #include <stdio.h>

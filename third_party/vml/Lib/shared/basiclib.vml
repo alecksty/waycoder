@@ -1,7 +1,6 @@
 
 .linked "math.vml"
 .linked "fixed.vml"
-
 .data
 _buf1: .word[256] 0
 _concats: .word[4096] 0

@@ -41,7 +41,7 @@ lbit_and64:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         jmp L_81630000
 L_81630000:
@@ -67,7 +67,7 @@ lbit_or64:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         jmp L_81630001
 L_81630001:
@@ -93,7 +93,7 @@ lbit_xor64:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         jmp L_81630002
 L_81630002:
@@ -182,7 +182,7 @@ sta_81630010:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         jmp L_81630008
 L_81630008:
@@ -253,7 +253,7 @@ sta_81630019:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         jmp L_81630017
 L_81630017:
@@ -282,7 +282,7 @@ lrol64:
         pushl @R0
         move @R0 #63
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel [@R12+20] @R0
 ; 23:     return (long)((uval << bits) | (uval >> (64 - bits)));
@@ -290,7 +290,7 @@ lrol64:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
@@ -302,10 +302,10 @@ lrol64:
         popl @R1
         subl @R0 @R1 @R0
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         jmp L_81630022
 L_81630022:
@@ -334,7 +334,7 @@ lror64:
         pushl @R0
         move @R0 #63
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel [@R12+20] @R0
 ; 29:     return (long)((uval >> bits) | (uval << (64 - bits)));
@@ -342,7 +342,7 @@ lror64:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
@@ -354,10 +354,10 @@ lror64:
         popl @R1
         subl @R0 @R1 @R0
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         jmp L_81630023
 L_81630023:
@@ -430,10 +430,10 @@ sta_81630025:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         jmp L_81630033
 L_81630033:
@@ -506,11 +506,11 @@ sta_81630036:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         not @R0
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         jmp L_81630044
 L_81630044:
@@ -583,10 +583,10 @@ sta_81630047:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         jmp L_81630055
 L_81630055:
@@ -657,12 +657,12 @@ sta_81630058:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #1
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         jmp L_81630066
 L_81630066:
@@ -692,12 +692,12 @@ lcount64:
         pushl @R0
         move @R0 #1
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [i64_81630067]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         popl @R1
         subl @R0 @R1 @R0
@@ -707,19 +707,19 @@ lcount64:
         pushl @R0
         movel @R0 [i64_81630068]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #2
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [i64_81630069]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         popl @R1
         addl @R0 @R1 @R0
@@ -731,14 +731,14 @@ lcount64:
         pushl @R0
         move @R0 #4
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
         addl @R0 @R1 @R0
         pushl @R0
         movel @R0 [i64_81630070]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 58:     v = (v * 0x0101010101010101UL) >> 56;
@@ -750,7 +750,7 @@ lcount64:
         pushl @R0
         move @R0 #56
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 59:     return (long)v;
@@ -781,27 +781,27 @@ lreverse64:
         pushl @R0
         movel @R0 [i64_81630073]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #1
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [i64_81630074]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #1
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 65:     v = ((v & 0xCCCCCCCCCCCCCCCCUL) >> 2) | ((v & 0x3333333333333333UL) << 2);
@@ -809,27 +809,27 @@ lreverse64:
         pushl @R0
         movel @R0 [i64_81630075]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #2
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [i64_81630076]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #2
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 66:     v = ((v & 0xF0F0F0F0F0F0F0F0UL) >> 4) | ((v & 0x0F0F0F0F0F0F0F0FUL) << 4);
@@ -837,27 +837,27 @@ lreverse64:
         pushl @R0
         movel @R0 [i64_81630077]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #4
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [i64_81630078]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #4
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 67:     v = ((v & 0xFF00FF00FF00FF00UL) >> 8) | ((v & 0x00FF00FF00FF00FFUL) << 8);
@@ -865,27 +865,27 @@ lreverse64:
         pushl @R0
         movel @R0 [i64_81630079]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #8
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [i64_81630080]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #8
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 68:     v = ((v & 0xFFFF0000FFFF0000UL) >> 16) | ((v & 0x0000FFFF0000FFFFUL) << 16);
@@ -893,27 +893,27 @@ lreverse64:
         pushl @R0
         movel @R0 [i64_81630081]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #16
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [i64_81630082]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #16
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 69:     v = (v >> 32) | (v << 32);
@@ -921,17 +921,17 @@ lreverse64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #32
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 70:     return (long)v;
@@ -1096,7 +1096,7 @@ sta_81630092:
         pushl @R0
         move @R0 #63
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
 sta_81630097:
@@ -1109,13 +1109,13 @@ sta_81630097:
         pushl @R0
         movel @R0 [@R12-28]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [@R12-28]
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         test @R0 @R0
         jz _L81630101
@@ -1142,7 +1142,7 @@ _L81630100:
         pushl @R0
         move @R0 #1
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
         jmp sta_81630097
@@ -1216,7 +1216,7 @@ sta_81630109:
         pushl @R0
         movel @R0 [@R12+12]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #1
@@ -1321,7 +1321,7 @@ sta_81630114:
         pushl @R0
         movel @R0 [@R12+20]
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12+28]
@@ -1331,7 +1331,7 @@ sta_81630114:
         call lmask64
         add @R13 #8
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         jmp L_81630127
 L_81630127:
@@ -1437,7 +1437,7 @@ sta_81630129:
         pushl @R0
         movel @R0 [@R12+28]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 109:     return (value & ~mask) | ((field & lmask64(len)) << start);
@@ -1446,7 +1446,7 @@ sta_81630129:
         movel @R0 [@R12-12]
         not @R0
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12+20]
@@ -1458,15 +1458,15 @@ sta_81630129:
         call lmask64
         add @R13 #8
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12+28]
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         jmp L_81630142
 L_81630142:
@@ -1512,7 +1512,7 @@ _L81630146:
         popl @R1
         subl @R0 @R1 @R0
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #0
@@ -1589,10 +1589,10 @@ sta_81630151:
         pushl @R0
         move @R0 #1
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
         movel @R0 [@R12-12]
@@ -1601,10 +1601,10 @@ sta_81630151:
         pushl @R0
         move @R0 #2
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
         movel @R0 [@R12-12]
@@ -1613,10 +1613,10 @@ sta_81630151:
         pushl @R0
         move @R0 #4
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 120:     v |= v >> 8; v |= v >> 16; v |= v >> 32;
@@ -1626,10 +1626,10 @@ sta_81630151:
         pushl @R0
         move @R0 #8
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
         movel @R0 [@R12-12]
@@ -1638,10 +1638,10 @@ sta_81630151:
         pushl @R0
         move @R0 #16
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
         movel @R0 [@R12-12]
@@ -1650,10 +1650,10 @@ sta_81630151:
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 121:     return (long)(v + 1);

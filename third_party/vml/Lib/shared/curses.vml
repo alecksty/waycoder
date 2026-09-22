@@ -1,7 +1,3 @@
-.linked "conio.vml"
-.linked "printf.vml"
-.linked "math.vml"
-.linked "util.vml"
 
 .data
 sc_win:

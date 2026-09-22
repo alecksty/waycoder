@@ -20,7 +20,7 @@ ldatetime64:
         move [@R12-8] @R0
 ; 6:     return (long)(unsigned int)now32;
         move @R0 [@R12-8]
-        i2l @R0 @R0
+        zextl @R0 @R0
         jmp L_34490000
 L_34490000:
         move @R13 @R12

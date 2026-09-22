@@ -16,6 +16,20 @@ LABEL java_readLine
     pop @R15
     RET
 
+LABEL java_fflush
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    CALL fflush
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
+    RET
+
 LABEL java_putchar
     push @R15
     push @R12
@@ -872,6 +886,9 @@ LABEL java_sscanf
 LABEL Console_ReadLine
     JMP java_readLine
 
+LABEL Console_Fflush
+    JMP java_fflush
+
 LABEL Console_Putchar
     JMP java_putchar
 
@@ -1048,6 +1065,12 @@ LABEL method_ReadLine
 
 LABEL method_readLine
     JMP java_readLine
+
+LABEL method_fflush
+    JMP java_fflush
+
+LABEL method_Fflush
+    JMP java_fflush
 
 LABEL method_putchar
     JMP java_putchar

@@ -16,6 +16,20 @@ LABEL PASCAL_READ_LINE
     pop @R15
     RET
 
+LABEL PASCAL_FFLUSH
+    push @R15
+    push @R12
+    move @R12 @R13
+    move @R0 [@R12+12]
+    PUSH @R0
+    move @R0 [@R13+0]
+    CALL fflush
+    ADD @R13 #4
+    move @R13 @R12
+    pop @R12
+    pop @R15
+    RET
+
 LABEL PASCAL_PUTCHAR
     push @R15
     push @R12

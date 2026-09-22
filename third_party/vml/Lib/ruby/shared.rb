@@ -133,6 +133,8 @@
 // CALL basic_mid3
 // extern fn basic_date_str(void) -> const char*
 // CALL basic_date_str
+// extern fn asm("SYSCALL #55") -> return
+// CALL asm
 // extern fn basic_time_str(void) -> const char*
 // CALL basic_time_str
 // extern fn basic_timer(void) -> int
@@ -673,6 +675,10 @@
 // CALL itoa_hex
 // extern fn atoi_hex(const char* s) -> int
 // CALL atoi_hex
+// extern fn rand(void) -> int
+// CALL rand
+// extern fn srand(int seed) -> void
+// CALL srand
 // extern fn byte_to_hword(unsigned char b) -> int
 // CALL byte_to_hword
 // extern fn byte_to_word(unsigned char b) -> int
@@ -837,6 +843,170 @@
 // CALL isprint
 // extern fn iscntrl(int c) -> int
 // CALL iscntrl
+// extern fn delay(int ms) -> void
+// CALL delay
+// extern fn sc_putc(int c) -> oid
+// CALL sc_putc
+// extern fn sc_puts(const char *s) -> oid
+// CALL sc_puts
+// extern fn sc_putn(int v) -> oid
+// CALL sc_putn
+// extern fn sc_cup(int x, int y) -> oid
+// CALL sc_cup
+// extern fn sc_fill(int ch, int at) -> oid
+// CALL sc_fill
+// extern fn sc_sgr(int at) -> oid
+// CALL sc_sgr
+// extern fn sc_init(void) -> oid
+// CALL sc_init
+// extern fn endwin(void) -> int
+// CALL endwin
+// extern fn refresh(void) -> int
+// CALL refresh
+// extern fn wrefresh(WINDOW *w) -> int
+// CALL wrefresh
+// extern fn move(int y, int x) -> int
+// CALL move
+// extern fn wmove(stdscr, y, x) -> return
+// CALL wmove
+// extern fn getcury(WINDOW *w) -> int
+// CALL getcury
+// extern fn getcurx(WINDOW *w) -> int
+// CALL getcurx
+// extern fn sc_cell_byte(int b) -> oid
+// CALL sc_cell_byte
+// extern fn sc_advance(void) -> oid
+// CALL sc_advance
+// extern fn addch(int ch) -> int
+// CALL addch
+// extern fn sc_putwchar(int cp) -> oid
+// CALL sc_putwchar
+// extern fn addstr(const char *s) -> int
+// CALL addstr
+// extern fn mvaddch(int y, int x, int ch) -> int
+// CALL mvaddch
+// extern fn mvaddstr(int y, int x, const char *s) -> int
+// CALL mvaddstr
+// extern fn sc_vformat(char *buf, const char *fmt, va_list ap, int nargs) -> oid
+// CALL sc_vformat
+// extern fn printw(const char *fmt, ...) -> int
+// CALL printw
+// extern fn mvprintw(int y, int x, const char *fmt, ...) -> int
+// CALL mvprintw
+// extern fn erase(void) -> int
+// CALL erase
+// extern fn clrtoeol(void) -> int
+// CALL clrtoeol
+// extern fn attron(int attrs) -> int
+// CALL attron
+// extern fn attroff(int attrs) -> int
+// CALL attroff
+// extern fn attrset(int attrs) -> int
+// CALL attrset
+// extern fn start_color(void) -> int
+// CALL start_color
+// extern fn has_colors(void) -> int
+// CALL has_colors
+// extern fn init_pair(short pair, short f, short b) -> int
+// CALL init_pair
+// extern fn cbreak(void) -> int
+// CALL cbreak
+// extern fn nocbreak(void) -> int
+// CALL nocbreak
+// extern fn noecho(void) -> int
+// CALL noecho
+// extern fn echo(void) -> int
+// CALL echo
+// extern fn keypad(WINDOW *w, int bf) -> int
+// CALL keypad
+// extern fn nodelay(WINDOW *w, int bf) -> int
+// CALL nodelay
+// extern fn curs_set(int visibility) -> int
+// CALL curs_set
+// extern fn initscr() -> return
+// CALL initscr
+// extern fn use_default_colors(void) -> int
+// CALL use_default_colors
+// extern fn wattron(WINDOW *w, int attrs) -> int
+// CALL wattron
+// extern fn wattroff(WINDOW *w, int attrs) -> int
+// CALL wattroff
+// extern fn wattrset(WINDOW *w, int attrs) -> int
+// CALL wattrset
+// extern fn wbkgdset(WINDOW *w, int ch) -> int
+// CALL wbkgdset
+// extern fn wclear(WINDOW *w) -> int
+// CALL wclear
+// extern fn werase(WINDOW *w) -> int
+// CALL werase
+// extern fn wclrtoeol(WINDOW *w) -> int
+// CALL wclrtoeol
+// extern fn waddch(WINDOW *w, int ch) -> int
+// CALL waddch
+// extern fn waddstr(WINDOW *w, const char *s) -> int
+// CALL waddstr
+// extern fn wprintw(WINDOW *w, const char *fmt, ...) -> int
+// CALL wprintw
+// extern fn mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...) -> int
+// CALL mvwprintw
+// extern fn mvwaddch(WINDOW *w, int y, int x, int ch) -> int
+// CALL mvwaddch
+// extern fn mvwaddstr(WINDOW *w, int y, int x, const char *s) -> int
+// CALL mvwaddstr
+// extern fn clearok(WINDOW *w, int bf) -> int
+// CALL clearok
+// extern fn box(WINDOW *w, int vch, int hch) -> int
+// CALL box
+// extern fn delscreen(void *sp) -> int
+// CALL delscreen
+// extern fn wgetch(WINDOW *w) -> int
+// CALL wgetch
+// extern fn mvwin(WINDOW *w, int y, int x) -> int
+// CALL mvwin
+// extern fn wresize(WINDOW *w, int l, int c) -> int
+// CALL wresize
+// extern fn wborder(WINDOW *w, int ls, int rs, int ts, int bs, int tl, int tr, int bl, int br) -> int
+// CALL wborder
+// extern fn leaveok(WINDOW *w, int bf) -> int
+// CALL leaveok
+// extern fn scrollok(WINDOW *w, int bf) -> int
+// CALL scrollok
+// extern fn idlok(WINDOW *w, int bf) -> int
+// CALL idlok
+// extern fn raw(void) -> int
+// CALL raw
+// extern fn noraw(void) -> int
+// CALL noraw
+// extern fn standout(void) -> int
+// CALL standout
+// extern fn standend(void) -> int
+// CALL standend
+// extern fn beep(void) -> int
+// CALL beep
+// extern fn flash(void) -> int
+// CALL flash
+// extern fn has_ic(void) -> int
+// CALL has_ic
+// extern fn has_il(void) -> int
+// CALL has_il
+// extern fn wnoutrefresh(WINDOW *w) -> int
+// CALL wnoutrefresh
+// extern fn doupdate(void) -> int
+// CALL doupdate
+// extern fn savetty(void) -> int
+// CALL savetty
+// extern fn resetty(void) -> int
+// CALL resetty
+// extern fn nonl(void) -> int
+// CALL nonl
+// extern fn timeout(int ms) -> int
+// CALL timeout
+// extern fn wtimeout(WINDOW *w, int ms) -> int
+// CALL wtimeout
+// extern fn napms(int ms) -> int
+// CALL napms
+// extern fn addwstr(const unsigned int *ws) -> int
+// CALL addwstr
 // extern fn demolib_add(int a, int b) -> int
 // CALL demolib_add
 // extern fn demolib_sub(int a, int b) -> int
@@ -871,6 +1041,14 @@
 // CALL GetDate
 // extern fn GetTime(int* hour, int* min, int* sec, int* msec) -> void
 // CALL GetTime
+// extern fn sound(unsigned freq) -> void
+// CALL sound
+// extern fn nosound(void) -> void
+// CALL nosound
+// extern fn getdate(struct vml_date* d) -> void
+// CALL getdate
+// extern fn gettime(struct vml_time* t) -> void
+// CALL gettime
 // extern fn DosVersion(void) -> int
 // CALL DosVersion
 // extern fn DiskFree(int drive) -> int
@@ -1183,6 +1361,8 @@
 // CALL wcstombs
 // extern fn mbstowcs(wchar_t *dest, const char *src, size_t max) -> size_t
 // CALL mbstowcs
+// extern fn fflush(int *stream) -> int
+// CALL fflush
 // extern fn puts(const char* str) -> void
 // CALL puts
 // extern fn print_string(const char* str) -> void
@@ -1535,8 +1715,6 @@
 // CALL set_env
 // extern fn get_args(void* buf) -> int
 // CALL get_args
-// extern fn signal(int signum, void* handler) -> int
-// CALL signal
 // extern fn type_of(void* addr) -> int
 // CALL type_of
 // extern fn type_name(int type_id, char* buf) -> int
@@ -1749,6 +1927,12 @@
 // CALL llinreg_intercept64
 // extern fn strcmp(const char* a, const char* b) -> int
 // CALL strcmp
+// extern fn _vml_lower_ascii(int c) -> nt
+// CALL _vml_lower_ascii
+// extern fn strcasecmp(const char* a, const char* b) -> int
+// CALL strcasecmp
+// extern fn strncasecmp(const char* a, const char* b, int n) -> int
+// CALL strncasecmp
 // extern fn strncmp(const char* a, const char* b, int n) -> int
 // CALL strncmp
 // extern fn strchr(const char* s, int c) -> const char*
@@ -1795,8 +1979,6 @@
 // CALL remaining
 // extern fn getconfig(int type) -> int
 // CALL getconfig
-// extern fn srand(int seed) -> void
-// CALL srand
 // extern fn datetime(void) -> int
 // CALL datetime
 // extern fn get_date(void) -> const char*
@@ -1831,12 +2013,82 @@
 // CALL uprintf
 // extern fn uscanf(const unsigned int *ufmt) -> void
 // CALL uscanf
-// extern fn delay(int ms) -> void
-// CALL delay
 // extern fn int_pow(int base, int exp) -> int
 // CALL int_pow
 // extern fn int_sqrt(int n) -> int
 // CALL int_sqrt
+// extern fn setlocale(int category, const char* locale) -> char*
+// CALL setlocale
+// extern fn localeconv(void) -> void*
+// CALL localeconv
+// extern fn fprintf(int stream, const char* fmt, ...) -> int
+// CALL fprintf
+// extern fn vfprintf(int stream, const char* fmt, va_list ap) -> int
+// CALL vfprintf
+// extern fn isatty(int fd) -> int
+// CALL isatty
+// extern fn ttyname(int fd) -> char*
+// CALL ttyname
+// extern fn strerror(int errnum) -> char*
+// CALL strerror
+// extern fn sigaction(int sig, void* act, void* old) -> int
+// CALL sigaction
+// extern fn signal(int sig, void* handler) -> int
+// CALL signal
+// extern fn raise(int sig) -> int
+// CALL raise
+// extern fn _ts_to_tm(int ts) -> vml_tm*
+// CALL _ts_to_tm
+// extern fn localtime(int* t) -> vml_tm*
+// CALL localtime
+// extern fn gmtime(int* t) -> vml_tm*
+// CALL gmtime
+// extern fn _sf_put2(char* s, int* n, int max, int v) -> oid
+// CALL _sf_put2
+// extern fn _sf_puts(char* s, int* n, int max, const char* t) -> oid
+// CALL _sf_puts
+// extern fn strftime(char* s, int max, const char* fmt, struct vml_tm* tm) -> int
+// CALL strftime
+// extern fn time(int* t) -> int
+// CALL time
+// extern fn _vml_fd_zero(void* p) -> void
+// CALL _vml_fd_zero
+// extern fn _vml_fd_set(int n, void* p) -> void
+// CALL _vml_fd_set
+// extern fn _vml_fd_clr(int n, void* p) -> void
+// CALL _vml_fd_clr
+// extern fn _vml_fd_isset(int n, void* p) -> int
+// CALL _vml_fd_isset
+// extern fn select(int nfds, void* r, void* w, void* e, void* timeout) -> int
+// CALL select
+// extern fn pselect(int nfds, void* r, void* w, void* e, void* timeout, void* mask) -> int
+// CALL pselect
+// extern fn nanosleep(void* req, void* rem) -> int
+// CALL nanosleep
+// extern fn atexit(void (*fn) -> int
+// CALL atexit
+// extern fn getopt(int argc, char** argv, const char* optstring) -> int
+// CALL getopt
+// extern fn strdup(const char* s) -> char*
+// CALL strdup
+// extern fn ioctl(int fd, int request, void* arg) -> int
+// CALL ioctl
+// extern fn tcgetattr(int fd, void* t) -> int
+// CALL tcgetattr
+// extern fn tcsetattr(int fd, int actions, void* t) -> int
+// CALL tcsetattr
+// extern fn cfmakeraw(void* t) -> void
+// CALL cfmakeraw
+// extern fn tcflush(int fd, int queue) -> int
+// CALL tcflush
+// extern fn cfgetospeed(void* t) -> int
+// CALL cfgetospeed
+// extern fn cfsetospeed(void* t, int speed) -> int
+// CALL cfsetospeed
+// extern fn open(const char* path, int flags, int mode) -> int
+// CALL open
+// extern fn creat(const char* path, int mode) -> int
+// CALL creat
 // extern fn vga_text_putchar(int c) -> void
 // CALL vga_text_putchar
 // extern fn vga_text_newline(void) -> void
@@ -1973,8 +2225,6 @@
 // CALL vml_syscall5
 // extern fn ui_dlg_msg(char* title, char* body, int style) -> int
 // CALL ui_dlg_msg
-// extern fn asm("SYSCALL #500, ${title}, ${body}, ${style}") -> return
-// CALL asm
 // extern fn ui_dlg_select(char* title, char* body, char* opts, int n, int def) -> int
 // CALL ui_dlg_select
 // extern fn ui_dlg_multi(char* title, char* body, char* opts, int n) -> int
@@ -1985,6 +2235,8 @@
 // CALL ui_win_open
 // extern fn ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad) -> int
 // CALL ui_win_open_ex
+// extern fn ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard) -> int
+// CALL ui_win_open_pc
 // extern fn ui_win_close(void) -> int
 // CALL ui_win_close
 // extern fn ui_win_closed(void) -> int

@@ -149,7 +149,7 @@ wcsncmp:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L70320014
         move @R0 #0
         jmp _L70320015
@@ -313,8 +313,8 @@ sta_70320030:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L70320035
+        cmpu @R1 @R0
+        jb _L70320035
         move @R0 #0
         jmp _L70320036
 _L70320035:
@@ -379,8 +379,8 @@ sta_70320039:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L70320042
+        cmpu @R1 @R0
+        jb _L70320042
         move @R0 #0
         jmp _L70320043
 _L70320042:
@@ -524,8 +524,8 @@ sta_70320054:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L70320058
+        cmpu @R1 @R0
+        jb _L70320058
         move @R0 #0
         jmp _L70320059
 _L70320058:
@@ -621,7 +621,7 @@ sta_70320063:
         pushh @R0
         moveh @R0 [@R12+16]
         poph @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L70320067
         move @R0 #0
         jmp _L70320068
@@ -696,7 +696,7 @@ sta_70320074:
         pushh @R0
         moveh @R0 [@R12+16]
         poph @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L70320078
         move @R0 #0
         jmp _L70320079

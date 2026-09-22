@@ -23,14 +23,14 @@ lfixed_mul64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
         movel @R0 [@R12+12]
         pushl @R0
         move @R0 #-1
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel [@R12-20] @R0
 ; 7:     long bh = b >> 32, bl = b & 0xFFFFFFFF;
@@ -38,14 +38,14 @@ lfixed_mul64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
         movel @R0 [@R12+20]
         pushl @R0
         move @R0 #-1
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         movel [@R12-36] @R0
 ; 8:     long mid = ah * bl + al * bh;
@@ -72,7 +72,7 @@ lfixed_mul64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-20]
@@ -90,7 +90,7 @@ lfixed_mul64:
         popl @R1
         addl @R0 @R1 @R0
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         movel [@R12-52] @R0
 ; 10:     return result;
@@ -217,7 +217,7 @@ _L49580018:
         pushl @R0
         move @R0 #1
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12-16] @R0
         movel @R0 [@R12+12]
@@ -245,7 +245,7 @@ _L49580022:
         pushl @R0
         move @R0 #1
         popl @R1
-        or @R1 @R0
+        orl @R1 @R0
         movel @R0 @R1
         movel [@R12-16] @R0
 sta_49580019:
@@ -254,7 +254,7 @@ sta_49580020:
         pushl @R0
         move @R0 #1
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12+12] @R0
 sta_49580015:
@@ -295,7 +295,7 @@ lfixed_from_int64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         jmp L_49580023
 L_49580023:
@@ -320,7 +320,7 @@ lfixed_to_int64:
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         jmp L_49580024
 L_49580024:
@@ -347,14 +347,14 @@ lfixed_to_int_round64:
         pushl @R0
         move @R0 #31
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
         addl @R0 @R1 @R0
         pushl @R0
         move @R0 #32
         popl @R1
-        shr @R1 @R0
+        shrl @R1 @R0
         movel @R0 @R1
         jmp L_49580026
 L_49580026:
@@ -381,7 +381,7 @@ lfixed_from_double:
         pushl @R0
         move @R0 #32
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         l2d @R0 @R0
         dpop @R1
@@ -414,7 +414,7 @@ lfixed_to_double:
         pushl @R0
         move @R0 #32
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         l2d @R0 @R0
         dpop @R1

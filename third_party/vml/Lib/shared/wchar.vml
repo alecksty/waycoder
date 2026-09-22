@@ -151,7 +151,7 @@ wcsncmp:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L13730014
         move @R0 #0
         jmp _L13730015
@@ -315,8 +315,8 @@ sta_13730030:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L13730035
+        cmpu @R1 @R0
+        jb _L13730035
         move @R0 #0
         jmp _L13730036
 _L13730035:
@@ -382,8 +382,8 @@ sta_13730039:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L13730042
+        cmpu @R1 @R0
+        jb _L13730042
         move @R0 #0
         jmp _L13730043
 _L13730042:
@@ -529,8 +529,8 @@ sta_13730054:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L13730058
+        cmpu @R1 @R0
+        jb _L13730058
         move @R0 #0
         jmp _L13730059
 _L13730058:
@@ -637,7 +637,7 @@ _L13730066:
         pushh @R0
         moveh @R0 [@R12+16]
         poph @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L13730069
         move @R0 #0
         jmp _L13730070
@@ -724,7 +724,7 @@ _L13730079:
         pushh @R0
         moveh @R0 [@R12+16]
         poph @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L13730082
         move @R0 #0
         jmp _L13730083
@@ -1810,8 +1810,8 @@ _L13730182:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jge _L13730183
+        cmpu @R1 @R0
+        jae _L13730183
         move @R0 #0
         jmp _L13730184
 _L13730183:
@@ -1895,8 +1895,8 @@ sta_13730175:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L13730192
+        cmpu @R1 @R0
+        jb _L13730192
         move @R0 #0
         jmp _L13730193
 _L13730192:
@@ -1958,8 +1958,8 @@ sta_13730195:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        cmp @R1 @R0
-        jl _L13730199
+        cmpu @R1 @R0
+        jb _L13730199
         move @R0 #0
         jmp _L13730200
 _L13730199:
@@ -2027,8 +2027,8 @@ sta_13730196:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L13730207
+        cmpu @R1 @R0
+        jb _L13730207
         move @R0 #0
         jmp _L13730208
 _L13730207:

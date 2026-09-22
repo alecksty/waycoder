@@ -50,9 +50,15 @@ Lib/basic/font8x16.bas
 Lib/pascal/vga.pas
 
 # PC 专有头：写死 0xB8000 文本缓冲、0x6000 调色板、0x60/0x64 键盘端口、BIOS 中断向量
-Lib/c/conio.h
-Lib/c/curses.h
-Lib/c/graphics.h
+#
+# ⚠ `Lib/c/conio.h` / `Lib/c/curses.h` / `Lib/c/graphics.h` **已从本清单移出**（2026-09-22）——
+#    它们被「老程序兼容性」那条线**重写过**，目标已经从「PC 内存映射」换成
+#    「命令行页的字符网格 / VM 的 BGI 那一层」：`conio.h` 发 ANSI 光标记定位、
+#    `curses.h` 是 ncurses 单窗口子集、`graphics.h` 走 VML 的绘图 syscall。
+#    ⇒ **三条剪枝理由（0xB8000/调色板端口/BIOS 向量）对它们不再成立**，
+#      而清单留着它们会让 `scripts/check-vml-patches.sh` 判据②**长期报红**
+#      （「清单说已剪枝、磁盘上却还有」）—— 红得太久就没人看了。
+#    实测这三份头是 tty-clock / cmatrix / sl / worm 那批**真老程序**能编过的前提。
 Lib/c/gfx.h
 Lib/d/conio.h
 Lib/objc/conio.h

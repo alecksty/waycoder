@@ -402,6 +402,13 @@ fn basic_date_str() -> i32 {
     r
 }
 
+fn asm(a0: i32) -> i32 {
+    asm!("CALL asm")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn basic_time_str() -> i32 {
     asm!("CALL basic_time_str")
     let r: i32;
@@ -2106,6 +2113,17 @@ fn atoi_hex(a0: i32) -> i32 {
     r
 }
 
+fn rand() -> i32 {
+    asm!("CALL rand")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn srand(a0: i32) {
+    asm!("CALL srand")
+}
+
 fn byte_to_hword(a0: i32) -> i32 {
     asm!("CALL byte_to_hword")
     let r: i32;
@@ -2620,6 +2638,577 @@ fn iscntrl(a0: i32) -> i32 {
     r
 }
 
+fn delay(a0: i32) {
+    asm!("CALL delay")
+}
+
+fn sc_putc(a0: i32) -> i32 {
+    asm!("CALL sc_putc")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_puts(a0: i32) -> i32 {
+    asm!("CALL sc_puts")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_putn(a0: i32) -> i32 {
+    asm!("CALL sc_putn")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_cup(a0: i32, a1: i32) -> i32 {
+    asm!("CALL sc_cup")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_fill(a0: i32, a1: i32) -> i32 {
+    asm!("CALL sc_fill")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_sgr(a0: i32) -> i32 {
+    asm!("CALL sc_sgr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_init() -> i32 {
+    asm!("CALL sc_init")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn endwin() -> i32 {
+    asm!("CALL endwin")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn refresh() -> i32 {
+    asm!("CALL refresh")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wrefresh(a0: i32) -> i32 {
+    asm!("CALL wrefresh")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn move(a0: i32, a1: i32) -> i32 {
+    asm!("CALL move")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wmove(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL wmove")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getcury(a0: i32) -> i32 {
+    asm!("CALL getcury")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getcurx(a0: i32) -> i32 {
+    asm!("CALL getcurx")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_cell_byte(a0: i32) -> i32 {
+    asm!("CALL sc_cell_byte")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_advance() -> i32 {
+    asm!("CALL sc_advance")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn addch(a0: i32) -> i32 {
+    asm!("CALL addch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_putwchar(a0: i32) -> i32 {
+    asm!("CALL sc_putwchar")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn addstr(a0: i32) -> i32 {
+    asm!("CALL addstr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvaddch(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL mvaddch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvaddstr(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL mvaddstr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sc_vformat(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL sc_vformat")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn printw(a0: i32, a1: i32) -> i32 {
+    asm!("CALL printw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvprintw(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL mvprintw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn erase() -> i32 {
+    asm!("CALL erase")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn clrtoeol() -> i32 {
+    asm!("CALL clrtoeol")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn attron(a0: i32) -> i32 {
+    asm!("CALL attron")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn attroff(a0: i32) -> i32 {
+    asm!("CALL attroff")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn attrset(a0: i32) -> i32 {
+    asm!("CALL attrset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn start_color() -> i32 {
+    asm!("CALL start_color")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn has_colors() -> i32 {
+    asm!("CALL has_colors")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn init_pair(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL init_pair")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn cbreak() -> i32 {
+    asm!("CALL cbreak")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn nocbreak() -> i32 {
+    asm!("CALL nocbreak")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn noecho() -> i32 {
+    asm!("CALL noecho")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn echo() -> i32 {
+    asm!("CALL echo")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn keypad(a0: i32, a1: i32) -> i32 {
+    asm!("CALL keypad")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn nodelay(a0: i32, a1: i32) -> i32 {
+    asm!("CALL nodelay")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn curs_set(a0: i32) -> i32 {
+    asm!("CALL curs_set")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn initscr() -> i32 {
+    asm!("CALL initscr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn use_default_colors() -> i32 {
+    asm!("CALL use_default_colors")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wattron(a0: i32, a1: i32) -> i32 {
+    asm!("CALL wattron")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wattroff(a0: i32, a1: i32) -> i32 {
+    asm!("CALL wattroff")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wattrset(a0: i32, a1: i32) -> i32 {
+    asm!("CALL wattrset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wbkgdset(a0: i32, a1: i32) -> i32 {
+    asm!("CALL wbkgdset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wclear(a0: i32) -> i32 {
+    asm!("CALL wclear")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn werase(a0: i32) -> i32 {
+    asm!("CALL werase")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wclrtoeol(a0: i32) -> i32 {
+    asm!("CALL wclrtoeol")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn waddch(a0: i32, a1: i32) -> i32 {
+    asm!("CALL waddch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn waddstr(a0: i32, a1: i32) -> i32 {
+    asm!("CALL waddstr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wprintw(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL wprintw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvwprintw(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL mvwprintw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvwaddch(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL mvwaddch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvwaddstr(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL mvwaddstr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn clearok(a0: i32, a1: i32) -> i32 {
+    asm!("CALL clearok")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn box(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL box")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn delscreen(a0: i32) -> i32 {
+    asm!("CALL delscreen")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wgetch(a0: i32) -> i32 {
+    asm!("CALL wgetch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn mvwin(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL mvwin")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wresize(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL wresize")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wborder(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32, a8: i32) -> i32 {
+    asm!("CALL wborder")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn leaveok(a0: i32, a1: i32) -> i32 {
+    asm!("CALL leaveok")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn scrollok(a0: i32, a1: i32) -> i32 {
+    asm!("CALL scrollok")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn idlok(a0: i32, a1: i32) -> i32 {
+    asm!("CALL idlok")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn raw() -> i32 {
+    asm!("CALL raw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn noraw() -> i32 {
+    asm!("CALL noraw")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn standout() -> i32 {
+    asm!("CALL standout")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn standend() -> i32 {
+    asm!("CALL standend")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn beep() -> i32 {
+    asm!("CALL beep")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn flash() -> i32 {
+    asm!("CALL flash")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn has_ic() -> i32 {
+    asm!("CALL has_ic")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn has_il() -> i32 {
+    asm!("CALL has_il")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wnoutrefresh(a0: i32) -> i32 {
+    asm!("CALL wnoutrefresh")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn doupdate() -> i32 {
+    asm!("CALL doupdate")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn savetty() -> i32 {
+    asm!("CALL savetty")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn resetty() -> i32 {
+    asm!("CALL resetty")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn nonl() -> i32 {
+    asm!("CALL nonl")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn timeout(a0: i32) -> i32 {
+    asm!("CALL timeout")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn wtimeout(a0: i32, a1: i32) -> i32 {
+    asm!("CALL wtimeout")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn napms(a0: i32) -> i32 {
+    asm!("CALL napms")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn addwstr(a0: i32) -> i32 {
+    asm!("CALL addwstr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn demolib_add(a0: i32, a1: i32) -> i32 {
     asm!("CALL demolib_add")
     let r: i32;
@@ -2731,6 +3320,22 @@ fn GetDate(a0: i32, a1: i32, a2: i32, a3: i32) {
 
 fn GetTime(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL GetTime")
+}
+
+fn sound(a0: i32) {
+    asm!("CALL sound")
+}
+
+fn nosound() {
+    asm!("CALL nosound")
+}
+
+fn getdate(a0: i32) {
+    asm!("CALL getdate")
+}
+
+fn gettime(a0: i32) {
+    asm!("CALL gettime")
 }
 
 fn DosVersion() -> i32 {
@@ -3649,6 +4254,13 @@ fn wcstombs(a0: i32, a1: i32, a2: i32) -> i32 {
 
 fn mbstowcs(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL mbstowcs")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn fflush(a0: i32) -> i32 {
+    asm!("CALL fflush")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -4703,13 +5315,6 @@ fn get_args(a0: i32) -> i32 {
     r
 }
 
-fn signal(a0: i32, a1: i32) -> i32 {
-    asm!("CALL signal")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
 fn type_of(a0: i32) -> i32 {
     asm!("CALL type_of")
     let r: i32;
@@ -5389,6 +5994,27 @@ fn strcmp(a0: i32, a1: i32) -> i32 {
     r
 }
 
+fn _vml_lower_ascii(a0: i32) -> i32 {
+    asm!("CALL _vml_lower_ascii")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn strcasecmp(a0: i32, a1: i32) -> i32 {
+    asm!("CALL strcasecmp")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn strncasecmp(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL strncasecmp")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn strncmp(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL strncmp")
     let r: i32;
@@ -5541,10 +6167,6 @@ fn getconfig(a0: i32) -> i32 {
     r
 }
 
-fn srand(a0: i32) {
-    asm!("CALL srand")
-}
-
 fn datetime() -> i32 {
     asm!("CALL datetime")
     let r: i32;
@@ -5655,10 +6277,6 @@ fn uscanf(a0: i32) {
     asm!("CALL uscanf")
 }
 
-fn delay(a0: i32) {
-    asm!("CALL delay")
-}
-
 fn int_pow(a0: i32, a1: i32) -> i32 {
     asm!("CALL int_pow")
     let r: i32;
@@ -5668,6 +6286,246 @@ fn int_pow(a0: i32, a1: i32) -> i32 {
 
 fn int_sqrt(a0: i32) -> i32 {
     asm!("CALL int_sqrt")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn setlocale(a0: i32, a1: i32) -> i32 {
+    asm!("CALL setlocale")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn localeconv() -> i32 {
+    asm!("CALL localeconv")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn fprintf(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL fprintf")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn vfprintf(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL vfprintf")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn isatty(a0: i32) -> i32 {
+    asm!("CALL isatty")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ttyname(a0: i32) -> i32 {
+    asm!("CALL ttyname")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn strerror(a0: i32) -> i32 {
+    asm!("CALL strerror")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn sigaction(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL sigaction")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn signal(a0: i32, a1: i32) -> i32 {
+    asm!("CALL signal")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn raise(a0: i32) -> i32 {
+    asm!("CALL raise")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _ts_to_tm(a0: i32) -> i32 {
+    asm!("CALL _ts_to_tm")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn localtime(a0: i32) -> i32 {
+    asm!("CALL localtime")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn gmtime(a0: i32) -> i32 {
+    asm!("CALL gmtime")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _sf_put2(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL _sf_put2")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _sf_puts(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL _sf_puts")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn strftime(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL strftime")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn time(a0: i32) -> i32 {
+    asm!("CALL time")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _vml_fd_zero(a0: i32) {
+    asm!("CALL _vml_fd_zero")
+}
+
+fn _vml_fd_set(a0: i32, a1: i32) {
+    asm!("CALL _vml_fd_set")
+}
+
+fn _vml_fd_clr(a0: i32, a1: i32) {
+    asm!("CALL _vml_fd_clr")
+}
+
+fn _vml_fd_isset(a0: i32, a1: i32) -> i32 {
+    asm!("CALL _vml_fd_isset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn select(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL select")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn pselect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
+    asm!("CALL pselect")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn nanosleep(a0: i32, a1: i32) -> i32 {
+    asm!("CALL nanosleep")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn atexit(a0: i32) -> i32 {
+    asm!("CALL atexit")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getopt(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL getopt")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn strdup(a0: i32) -> i32 {
+    asm!("CALL strdup")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ioctl(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ioctl")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tcgetattr(a0: i32, a1: i32) -> i32 {
+    asm!("CALL tcgetattr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tcsetattr(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL tcsetattr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn cfmakeraw(a0: i32) {
+    asm!("CALL cfmakeraw")
+}
+
+fn tcflush(a0: i32, a1: i32) -> i32 {
+    asm!("CALL tcflush")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn cfgetospeed(a0: i32) -> i32 {
+    asm!("CALL cfgetospeed")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn cfsetospeed(a0: i32, a1: i32) -> i32 {
+    asm!("CALL cfsetospeed")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn open(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL open")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn creat(a0: i32, a1: i32) -> i32 {
+    asm!("CALL creat")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -6089,13 +6947,6 @@ fn ui_dlg_msg(a0: i32, a1: i32, a2: i32) -> i32 {
     r
 }
 
-fn asm(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
-    asm!("CALL asm")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
 fn ui_dlg_select(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_dlg_select")
     let r: i32;
@@ -6126,6 +6977,13 @@ fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
 
 fn ui_win_open_ex(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_win_open_ex")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_win_open_pc(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL ui_win_open_pc")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

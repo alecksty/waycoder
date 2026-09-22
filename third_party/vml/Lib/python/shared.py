@@ -415,6 +415,12 @@ def basic_date_str():
     asm("CALL basic_date_str")
     return r0
 
+def asm(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL asm")
+    return r0
+
 def basic_time_str():
     r0 = asm("@R0")
     asm("CALL basic_time_str")
@@ -2009,6 +2015,15 @@ def atoi_hex(a0):
     asm("CALL atoi_hex")
     return r0
 
+def rand():
+    r0 = asm("@R0")
+    asm("CALL rand")
+    return r0
+
+def srand(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL srand")
+
 def byte_to_hword(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -2468,6 +2483,527 @@ def iscntrl(a0):
     asm("CALL iscntrl")
     return r0
 
+def delay(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL delay")
+
+def sc_putc(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_putc")
+    return r0
+
+def sc_puts(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_puts")
+    return r0
+
+def sc_putn(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_putn")
+    return r0
+
+def sc_cup(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_cup")
+    return r0
+
+def sc_fill(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_fill")
+    return r0
+
+def sc_sgr(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_sgr")
+    return r0
+
+def sc_init():
+    r0 = asm("@R0")
+    asm("CALL sc_init")
+    return r0
+
+def endwin():
+    r0 = asm("@R0")
+    asm("CALL endwin")
+    return r0
+
+def refresh():
+    r0 = asm("@R0")
+    asm("CALL refresh")
+    return r0
+
+def wrefresh(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wrefresh")
+    return r0
+
+def move(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL move")
+    return r0
+
+def wmove(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wmove")
+    return r0
+
+def getcury(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL getcury")
+    return r0
+
+def getcurx(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL getcurx")
+    return r0
+
+def sc_cell_byte(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_cell_byte")
+    return r0
+
+def sc_advance():
+    r0 = asm("@R0")
+    asm("CALL sc_advance")
+    return r0
+
+def addch(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL addch")
+    return r0
+
+def sc_putwchar(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_putwchar")
+    return r0
+
+def addstr(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL addstr")
+    return r0
+
+def mvaddch(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvaddch")
+    return r0
+
+def mvaddstr(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvaddstr")
+    return r0
+
+def sc_vformat(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sc_vformat")
+    return r0
+
+def printw(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL printw")
+    return r0
+
+def mvprintw(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvprintw")
+    return r0
+
+def erase():
+    r0 = asm("@R0")
+    asm("CALL erase")
+    return r0
+
+def clrtoeol():
+    r0 = asm("@R0")
+    asm("CALL clrtoeol")
+    return r0
+
+def attron(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL attron")
+    return r0
+
+def attroff(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL attroff")
+    return r0
+
+def attrset(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL attrset")
+    return r0
+
+def start_color():
+    r0 = asm("@R0")
+    asm("CALL start_color")
+    return r0
+
+def has_colors():
+    r0 = asm("@R0")
+    asm("CALL has_colors")
+    return r0
+
+def init_pair(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL init_pair")
+    return r0
+
+def cbreak():
+    r0 = asm("@R0")
+    asm("CALL cbreak")
+    return r0
+
+def nocbreak():
+    r0 = asm("@R0")
+    asm("CALL nocbreak")
+    return r0
+
+def noecho():
+    r0 = asm("@R0")
+    asm("CALL noecho")
+    return r0
+
+def echo():
+    r0 = asm("@R0")
+    asm("CALL echo")
+    return r0
+
+def keypad(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL keypad")
+    return r0
+
+def nodelay(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL nodelay")
+    return r0
+
+def curs_set(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL curs_set")
+    return r0
+
+def initscr():
+    r0 = asm("@R0")
+    asm("CALL initscr")
+    return r0
+
+def use_default_colors():
+    r0 = asm("@R0")
+    asm("CALL use_default_colors")
+    return r0
+
+def wattron(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wattron")
+    return r0
+
+def wattroff(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wattroff")
+    return r0
+
+def wattrset(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wattrset")
+    return r0
+
+def wbkgdset(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wbkgdset")
+    return r0
+
+def wclear(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wclear")
+    return r0
+
+def werase(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL werase")
+    return r0
+
+def wclrtoeol(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wclrtoeol")
+    return r0
+
+def waddch(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL waddch")
+    return r0
+
+def waddstr(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL waddstr")
+    return r0
+
+def wprintw(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wprintw")
+    return r0
+
+def mvwprintw(a0, a1, a2, a3, a4):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvwprintw")
+    return r0
+
+def mvwaddch(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvwaddch")
+    return r0
+
+def mvwaddstr(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvwaddstr")
+    return r0
+
+def clearok(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL clearok")
+    return r0
+
+def box(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL box")
+    return r0
+
+def delscreen(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL delscreen")
+    return r0
+
+def wgetch(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wgetch")
+    return r0
+
+def mvwin(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvwin")
+    return r0
+
+def wresize(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wresize")
+    return r0
+
+def wborder(a0, a1, a2, a3, a4, a5, a6, a7, a8):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a8
+    asm(f"PUSH @R0")  # push a7
+    asm(f"PUSH @R0")  # push a6
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wborder")
+    return r0
+
+def leaveok(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL leaveok")
+    return r0
+
+def scrollok(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL scrollok")
+    return r0
+
+def idlok(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL idlok")
+    return r0
+
+def raw():
+    r0 = asm("@R0")
+    asm("CALL raw")
+    return r0
+
+def noraw():
+    r0 = asm("@R0")
+    asm("CALL noraw")
+    return r0
+
+def standout():
+    r0 = asm("@R0")
+    asm("CALL standout")
+    return r0
+
+def standend():
+    r0 = asm("@R0")
+    asm("CALL standend")
+    return r0
+
+def beep():
+    r0 = asm("@R0")
+    asm("CALL beep")
+    return r0
+
+def flash():
+    r0 = asm("@R0")
+    asm("CALL flash")
+    return r0
+
+def has_ic():
+    r0 = asm("@R0")
+    asm("CALL has_ic")
+    return r0
+
+def has_il():
+    r0 = asm("@R0")
+    asm("CALL has_il")
+    return r0
+
+def wnoutrefresh(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wnoutrefresh")
+    return r0
+
+def doupdate():
+    r0 = asm("@R0")
+    asm("CALL doupdate")
+    return r0
+
+def savetty():
+    r0 = asm("@R0")
+    asm("CALL savetty")
+    return r0
+
+def resetty():
+    r0 = asm("@R0")
+    asm("CALL resetty")
+    return r0
+
+def nonl():
+    r0 = asm("@R0")
+    asm("CALL nonl")
+    return r0
+
+def timeout(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL timeout")
+    return r0
+
+def wtimeout(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL wtimeout")
+    return r0
+
+def napms(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL napms")
+    return r0
+
+def addwstr(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL addwstr")
+    return r0
+
 def demolib_add(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
@@ -2589,6 +3125,21 @@ def GetTime(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL GetTime")
+
+def sound(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sound")
+
+def nosound():
+    asm("CALL nosound")
+
+def getdate(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL getdate")
+
+def gettime(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL gettime")
 
 def DosVersion():
     r0 = asm("@R0")
@@ -3576,6 +4127,12 @@ def mbstowcs(a0, a1, a2):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL mbstowcs")
+    return r0
+
+def fflush(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL fflush")
     return r0
 
 def puts(a0):
@@ -4651,13 +5208,6 @@ def get_args(a0):
     asm("CALL get_args")
     return r0
 
-def signal(a0, a1):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL signal")
-    return r0
-
 def type_of(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -5350,6 +5900,27 @@ def strcmp(a0, a1):
     asm("CALL strcmp")
     return r0
 
+def _vml_lower_ascii(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _vml_lower_ascii")
+    return r0
+
+def strcasecmp(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL strcasecmp")
+    return r0
+
+def strncasecmp(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL strncasecmp")
+    return r0
+
 def strncmp(a0, a1, a2):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a2
@@ -5516,10 +6087,6 @@ def getconfig(a0):
     asm("CALL getconfig")
     return r0
 
-def srand(a0):
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL srand")
-
 def datetime():
     r0 = asm("@R0")
     asm("CALL datetime")
@@ -5625,10 +6192,6 @@ def uscanf(a0):
     asm(f"PUSH @R0")  # push a0
     asm("CALL uscanf")
 
-def delay(a0):
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL delay")
-
 def int_pow(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
@@ -5640,6 +6203,255 @@ def int_sqrt(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
     asm("CALL int_sqrt")
+    return r0
+
+def setlocale(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL setlocale")
+    return r0
+
+def localeconv():
+    r0 = asm("@R0")
+    asm("CALL localeconv")
+    return r0
+
+def fprintf(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL fprintf")
+    return r0
+
+def vfprintf(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL vfprintf")
+    return r0
+
+def isatty(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL isatty")
+    return r0
+
+def ttyname(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ttyname")
+    return r0
+
+def strerror(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL strerror")
+    return r0
+
+def sigaction(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL sigaction")
+    return r0
+
+def signal(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL signal")
+    return r0
+
+def raise(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL raise")
+    return r0
+
+def _ts_to_tm(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _ts_to_tm")
+    return r0
+
+def localtime(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL localtime")
+    return r0
+
+def gmtime(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL gmtime")
+    return r0
+
+def _sf_put2(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _sf_put2")
+    return r0
+
+def _sf_puts(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _sf_puts")
+    return r0
+
+def strftime(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL strftime")
+    return r0
+
+def time(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL time")
+    return r0
+
+def _vml_fd_zero(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _vml_fd_zero")
+
+def _vml_fd_set(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _vml_fd_set")
+
+def _vml_fd_clr(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _vml_fd_clr")
+
+def _vml_fd_isset(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _vml_fd_isset")
+    return r0
+
+def select(a0, a1, a2, a3, a4):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL select")
+    return r0
+
+def pselect(a0, a1, a2, a3, a4, a5):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL pselect")
+    return r0
+
+def nanosleep(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL nanosleep")
+    return r0
+
+def atexit(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL atexit")
+    return r0
+
+def getopt(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL getopt")
+    return r0
+
+def strdup(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL strdup")
+    return r0
+
+def ioctl(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ioctl")
+    return r0
+
+def tcgetattr(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tcgetattr")
+    return r0
+
+def tcsetattr(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tcsetattr")
+    return r0
+
+def cfmakeraw(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cfmakeraw")
+
+def tcflush(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tcflush")
+    return r0
+
+def cfgetospeed(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cfgetospeed")
+    return r0
+
+def cfsetospeed(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL cfsetospeed")
+    return r0
+
+def open(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL open")
+    return r0
+
+def creat(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL creat")
     return r0
 
 def vga_text_putchar(a0):
@@ -6037,15 +6849,6 @@ def ui_dlg_msg(a0, a1, a2):
     asm("CALL ui_dlg_msg")
     return r0
 
-def asm(a0, a1, a2, a3):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL asm")
-    return r0
-
 def ui_dlg_select(a0, a1, a2, a3, a4):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a4
@@ -6090,6 +6893,16 @@ def ui_win_open_ex(a0, a1, a2, a3, a4):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_win_open_ex")
+    return r0
+
+def ui_win_open_pc(a0, a1, a2, a3, a4):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_win_open_pc")
     return r0
 
 def ui_win_close():

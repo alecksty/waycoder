@@ -67,6 +67,7 @@ namespace VML {
     // extern char* basic_oct(int val);  // CALL basic_oct
     // extern char* basic_mid3(const char* s, int start, int length);  // CALL basic_mid3
     // extern const char* basic_date_str(void);  // CALL basic_date_str
+    // extern return asm("SYSCALL #55");  // CALL asm
     // extern const char* basic_time_str(void);  // CALL basic_time_str
     // extern int basic_timer(void);  // CALL basic_timer
     // extern char* basic_inputN(int n);  // CALL basic_inputN
@@ -337,6 +338,8 @@ namespace VML {
     // extern void printf(const char* fmt, ...);  // CALL printf
     // extern int itoa_hex(int value, char* dst);  // CALL itoa_hex
     // extern int atoi_hex(const char* s);  // CALL atoi_hex
+    // extern int rand(void);  // CALL rand
+    // extern void srand(int seed);  // CALL srand
     // extern int byte_to_hword(unsigned char b);  // CALL byte_to_hword
     // extern int byte_to_word(unsigned char b);  // CALL byte_to_word
     // extern unsigned char hword_to_byte(int h);  // CALL hword_to_byte
@@ -419,6 +422,88 @@ namespace VML {
     // extern int ispunct(int c);  // CALL ispunct
     // extern int isprint(int c);  // CALL isprint
     // extern int iscntrl(int c);  // CALL iscntrl
+    // extern void delay(int ms);  // CALL delay
+    // extern oid sc_putc(int c);  // CALL sc_putc
+    // extern oid sc_puts(const char *s);  // CALL sc_puts
+    // extern oid sc_putn(int v);  // CALL sc_putn
+    // extern oid sc_cup(int x, int y);  // CALL sc_cup
+    // extern oid sc_fill(int ch, int at);  // CALL sc_fill
+    // extern oid sc_sgr(int at);  // CALL sc_sgr
+    // extern oid sc_init(void);  // CALL sc_init
+    // extern int endwin(void);  // CALL endwin
+    // extern int refresh(void);  // CALL refresh
+    // extern int wrefresh(WINDOW *w);  // CALL wrefresh
+    // extern int move(int y, int x);  // CALL move
+    // extern return wmove(stdscr, y, x);  // CALL wmove
+    // extern int getcury(WINDOW *w);  // CALL getcury
+    // extern int getcurx(WINDOW *w);  // CALL getcurx
+    // extern oid sc_cell_byte(int b);  // CALL sc_cell_byte
+    // extern oid sc_advance(void);  // CALL sc_advance
+    // extern int addch(int ch);  // CALL addch
+    // extern oid sc_putwchar(int cp);  // CALL sc_putwchar
+    // extern int addstr(const char *s);  // CALL addstr
+    // extern int mvaddch(int y, int x, int ch);  // CALL mvaddch
+    // extern int mvaddstr(int y, int x, const char *s);  // CALL mvaddstr
+    // extern oid sc_vformat(char *buf, const char *fmt, va_list ap, int nargs);  // CALL sc_vformat
+    // extern int printw(const char *fmt, ...);  // CALL printw
+    // extern int mvprintw(int y, int x, const char *fmt, ...);  // CALL mvprintw
+    // extern int erase(void);  // CALL erase
+    // extern int clrtoeol(void);  // CALL clrtoeol
+    // extern int attron(int attrs);  // CALL attron
+    // extern int attroff(int attrs);  // CALL attroff
+    // extern int attrset(int attrs);  // CALL attrset
+    // extern int start_color(void);  // CALL start_color
+    // extern int has_colors(void);  // CALL has_colors
+    // extern int init_pair(short pair, short f, short b);  // CALL init_pair
+    // extern int cbreak(void);  // CALL cbreak
+    // extern int nocbreak(void);  // CALL nocbreak
+    // extern int noecho(void);  // CALL noecho
+    // extern int echo(void);  // CALL echo
+    // extern int keypad(WINDOW *w, int bf);  // CALL keypad
+    // extern int nodelay(WINDOW *w, int bf);  // CALL nodelay
+    // extern int curs_set(int visibility);  // CALL curs_set
+    // extern return initscr();  // CALL initscr
+    // extern int use_default_colors(void);  // CALL use_default_colors
+    // extern int wattron(WINDOW *w, int attrs);  // CALL wattron
+    // extern int wattroff(WINDOW *w, int attrs);  // CALL wattroff
+    // extern int wattrset(WINDOW *w, int attrs);  // CALL wattrset
+    // extern int wbkgdset(WINDOW *w, int ch);  // CALL wbkgdset
+    // extern int wclear(WINDOW *w);  // CALL wclear
+    // extern int werase(WINDOW *w);  // CALL werase
+    // extern int wclrtoeol(WINDOW *w);  // CALL wclrtoeol
+    // extern int waddch(WINDOW *w, int ch);  // CALL waddch
+    // extern int waddstr(WINDOW *w, const char *s);  // CALL waddstr
+    // extern int wprintw(WINDOW *w, const char *fmt, ...);  // CALL wprintw
+    // extern int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...);  // CALL mvwprintw
+    // extern int mvwaddch(WINDOW *w, int y, int x, int ch);  // CALL mvwaddch
+    // extern int mvwaddstr(WINDOW *w, int y, int x, const char *s);  // CALL mvwaddstr
+    // extern int clearok(WINDOW *w, int bf);  // CALL clearok
+    // extern int box(WINDOW *w, int vch, int hch);  // CALL box
+    // extern int delscreen(void *sp);  // CALL delscreen
+    // extern int wgetch(WINDOW *w);  // CALL wgetch
+    // extern int mvwin(WINDOW *w, int y, int x);  // CALL mvwin
+    // extern int wresize(WINDOW *w, int l, int c);  // CALL wresize
+    // extern int wborder(WINDOW *w, int ls, int rs, int ts, int bs, int tl, int tr, int bl, int br);  // CALL wborder
+    // extern int leaveok(WINDOW *w, int bf);  // CALL leaveok
+    // extern int scrollok(WINDOW *w, int bf);  // CALL scrollok
+    // extern int idlok(WINDOW *w, int bf);  // CALL idlok
+    // extern int raw(void);  // CALL raw
+    // extern int noraw(void);  // CALL noraw
+    // extern int standout(void);  // CALL standout
+    // extern int standend(void);  // CALL standend
+    // extern int beep(void);  // CALL beep
+    // extern int flash(void);  // CALL flash
+    // extern int has_ic(void);  // CALL has_ic
+    // extern int has_il(void);  // CALL has_il
+    // extern int wnoutrefresh(WINDOW *w);  // CALL wnoutrefresh
+    // extern int doupdate(void);  // CALL doupdate
+    // extern int savetty(void);  // CALL savetty
+    // extern int resetty(void);  // CALL resetty
+    // extern int nonl(void);  // CALL nonl
+    // extern int timeout(int ms);  // CALL timeout
+    // extern int wtimeout(WINDOW *w, int ms);  // CALL wtimeout
+    // extern int napms(int ms);  // CALL napms
+    // extern int addwstr(const unsigned int *ws);  // CALL addwstr
     // extern int demolib_add(int a, int b);  // CALL demolib_add
     // extern int demolib_sub(int a, int b);  // CALL demolib_sub
     // extern int demolib_mul(int a, int b);  // CALL demolib_mul
@@ -436,6 +521,10 @@ namespace VML {
     // extern int ldev_write64(int handle, const void* buf, long offset, long count);  // CALL ldev_write64
     // extern void GetDate(int* year, int* month, int* day, int* wday);  // CALL GetDate
     // extern void GetTime(int* hour, int* min, int* sec, int* msec);  // CALL GetTime
+    // extern void sound(unsigned freq);  // CALL sound
+    // extern void nosound(void);  // CALL nosound
+    // extern void getdate(struct vml_date* d);  // CALL getdate
+    // extern void gettime(struct vml_time* t);  // CALL gettime
     // extern int DosVersion(void);  // CALL DosVersion
     // extern int DiskFree(int drive);  // CALL DiskFree
     // extern int DiskSize(int drive);  // CALL DiskSize
@@ -592,6 +681,7 @@ namespace VML {
     // extern size_t wcslen(const wchar_t *s);  // CALL wcslen
     // extern size_t wcstombs(char *dest, const wchar_t *src, size_t max);  // CALL wcstombs
     // extern size_t mbstowcs(wchar_t *dest, const char *src, size_t max);  // CALL mbstowcs
+    // extern int fflush(int *stream);  // CALL fflush
     // extern void puts(const char* str);  // CALL puts
     // extern void print_string(const char* str);  // CALL print_string
     // extern void print_wstr(const wchar_t* wstr);  // CALL print_wstr
@@ -768,7 +858,6 @@ namespace VML {
     // extern char* get_env(const char* name);  // CALL get_env
     // extern void set_env(const char* name, const char* val);  // CALL set_env
     // extern int get_args(void* buf);  // CALL get_args
-    // extern int signal(int signum, void* handler);  // CALL signal
     // extern int type_of(void* addr);  // CALL type_of
     // extern int type_name(int type_id, char* buf);  // CALL type_name
     // extern define NULL((void*);  // CALL NULL
@@ -875,6 +964,9 @@ namespace VML {
     // extern long llinreg_slope64(long* x, long* y);  // CALL llinreg_slope64
     // extern long llinreg_intercept64(long* x, long* y);  // CALL llinreg_intercept64
     // extern int strcmp(const char* a, const char* b);  // CALL strcmp
+    // extern nt _vml_lower_ascii(int c);  // CALL _vml_lower_ascii
+    // extern int strcasecmp(const char* a, const char* b);  // CALL strcasecmp
+    // extern int strncasecmp(const char* a, const char* b, int n);  // CALL strncasecmp
     // extern int strncmp(const char* a, const char* b, int n);  // CALL strncmp
     // extern const char* strchr(const char* s, int c);  // CALL strchr
     // extern char* strncpy(char* dst, const char* src, int n);  // CALL strncpy
@@ -898,7 +990,6 @@ namespace VML {
     // extern int tick(int* timers);  // CALL tick
     // extern int remaining(int* timers, int timer_id);  // CALL remaining
     // extern int getconfig(int type);  // CALL getconfig
-    // extern void srand(int seed);  // CALL srand
     // extern int datetime(void);  // CALL datetime
     // extern const char* get_date(void);  // CALL get_date
     // extern const char* get_time(void);  // CALL get_time
@@ -916,9 +1007,44 @@ namespace VML {
     // extern size_t wcs_to_ucs(const wchar_t *src, char32_t *dest, size_t max);  // CALL wcs_to_ucs
     // extern void uprintf(const unsigned int *ufmt);  // CALL uprintf
     // extern void uscanf(const unsigned int *ufmt);  // CALL uscanf
-    // extern void delay(int ms);  // CALL delay
     // extern int int_pow(int base, int exp);  // CALL int_pow
     // extern int int_sqrt(int n);  // CALL int_sqrt
+    // extern char* setlocale(int category, const char* locale);  // CALL setlocale
+    // extern void* localeconv(void);  // CALL localeconv
+    // extern int fprintf(int stream, const char* fmt, ...);  // CALL fprintf
+    // extern int vfprintf(int stream, const char* fmt, va_list ap);  // CALL vfprintf
+    // extern int isatty(int fd);  // CALL isatty
+    // extern char* ttyname(int fd);  // CALL ttyname
+    // extern char* strerror(int errnum);  // CALL strerror
+    // extern int sigaction(int sig, void* act, void* old);  // CALL sigaction
+    // extern int signal(int sig, void* handler);  // CALL signal
+    // extern int raise(int sig);  // CALL raise
+    // extern vml_tm* _ts_to_tm(int ts);  // CALL _ts_to_tm
+    // extern vml_tm* localtime(int* t);  // CALL localtime
+    // extern vml_tm* gmtime(int* t);  // CALL gmtime
+    // extern oid _sf_put2(char* s, int* n, int max, int v);  // CALL _sf_put2
+    // extern oid _sf_puts(char* s, int* n, int max, const char* t);  // CALL _sf_puts
+    // extern int strftime(char* s, int max, const char* fmt, struct vml_tm* tm);  // CALL strftime
+    // extern int time(int* t);  // CALL time
+    // extern void _vml_fd_zero(void* p);  // CALL _vml_fd_zero
+    // extern void _vml_fd_set(int n, void* p);  // CALL _vml_fd_set
+    // extern void _vml_fd_clr(int n, void* p);  // CALL _vml_fd_clr
+    // extern int _vml_fd_isset(int n, void* p);  // CALL _vml_fd_isset
+    // extern int select(int nfds, void* r, void* w, void* e, void* timeout);  // CALL select
+    // extern int pselect(int nfds, void* r, void* w, void* e, void* timeout, void* mask);  // CALL pselect
+    // extern int nanosleep(void* req, void* rem);  // CALL nanosleep
+    // extern int atexit(void (*fn);  // CALL atexit
+    // extern int getopt(int argc, char** argv, const char* optstring);  // CALL getopt
+    // extern char* strdup(const char* s);  // CALL strdup
+    // extern int ioctl(int fd, int request, void* arg);  // CALL ioctl
+    // extern int tcgetattr(int fd, void* t);  // CALL tcgetattr
+    // extern int tcsetattr(int fd, int actions, void* t);  // CALL tcsetattr
+    // extern void cfmakeraw(void* t);  // CALL cfmakeraw
+    // extern int tcflush(int fd, int queue);  // CALL tcflush
+    // extern int cfgetospeed(void* t);  // CALL cfgetospeed
+    // extern int cfsetospeed(void* t, int speed);  // CALL cfsetospeed
+    // extern int open(const char* path, int flags, int mode);  // CALL open
+    // extern int creat(const char* path, int mode);  // CALL creat
     // extern void vga_text_putchar(int c);  // CALL vga_text_putchar
     // extern void vga_text_newline(void);  // CALL vga_text_newline
     // extern void vml_print_str(const char* s);  // CALL vml_print_str
@@ -987,12 +1113,12 @@ namespace VML {
     // extern void vml_screenshot(void);  // CALL vml_screenshot
     // extern int vml_syscall5(int num, int a0, int a1, int a2, int a3, int a4);  // CALL vml_syscall5
     // extern int ui_dlg_msg(char* title, char* body, int style);  // CALL ui_dlg_msg
-    // extern return asm("SYSCALL #500, ${title}, ${body}, ${style}");  // CALL asm
     // extern int ui_dlg_select(char* title, char* body, char* opts, int n, int def);  // CALL ui_dlg_select
     // extern int ui_dlg_multi(char* title, char* body, char* opts, int n);  // CALL ui_dlg_multi
     // extern int ui_dlg_input(char* title, char* prompt, char* buf, int cap);  // CALL ui_dlg_input
     // extern int ui_win_open(char* title, int w, int h);  // CALL ui_win_open
     // extern int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);  // CALL ui_win_open_ex
+    // extern int ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard);  // CALL ui_win_open_pc
     // extern int ui_win_close(void);  // CALL ui_win_close
     // extern int ui_win_closed(void);  // CALL ui_win_closed
     // extern int ui_scr_w(void);  // CALL ui_scr_w

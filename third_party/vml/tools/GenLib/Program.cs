@@ -280,8 +280,26 @@ static void BuildShared(string sharedSrc, string sharedDir)
             var lines = prog.ToString().Split('\n')
                 .Where(l => !l.TrimStart().StartsWith(".entry") && !l.TrimStart().StartsWith(".stack") && !l.TrimStart().StartsWith(".vectors"))
                 .ToArray();
+            // ⚠ 「手写在生成物上的 `.linked` 会被这次重生成抹掉」必须当场喊出来。
+            //
+            // `.linked` 是**编译器产物**：`Lib/shared/src/<模块>.c` 开头写几行
+            // `#param lib("x")`，C 前端就产出对应的 `.linked "x.vml"`（见 `array.c` 前三行）。
+            // ⇒ **手写在生成物上的 `.linked` 每次重生成都会消失**，而症状隔得极远：
+            //   2026-09-22 实测 `Lib/shared/curses.vml` 上被手加了
+            //   `.linked "conio.vml"`（`kbhit` 的唯一来源），一次全量重生成把它抹掉后，
+            //   表现为**编译 `20-curses-api.c` 时报「未找到标签: kbhit」** ——
+            //   没人会想到根因在几周前的一次 GenLib。
+            // 判据只管「少了」：多出来的 `.linked` 是正常的（源码新加了 `#param lib`）。
+            // ⚠ 正解是**把 `#param lib("库")` 写进头文件**（用户 2026-09-22 定的规矩）：
+            //   「用到了这个头文件，就连这个库；不 include 就不连」。写在实现体的 `.c` 里
+            //   语义也不对 —— 那是**实现依赖**，不该由「C 程序 include 了什么头」决定。
+            //   `curses.h` 就是照这条改的（原先那 4 条 `.linked` 手写在生成物上）。
+            //   `.linked` 列表**自动去重**，所以头文件与 `conio.h` 里重复声明完全无害。
+            var lostLinks = LostLinkDirectives(vml, lines);
             WriteGen(vml, string.Join('\n', lines));
-            Console.WriteLine("OK");
+            Console.WriteLine(lostLinks.Count > 0
+                ? $"OK ⚠ 抹掉 {lostLinks.Count} 条原有 .linked（手写在生成物上的？`#param lib` 要写进**头文件**）: {string.Join(", ", lostLinks)}"
+                : "OK");
             compiled++;
         }
         catch (Exception ex)
@@ -291,6 +309,31 @@ static void BuildShared(string sharedSrc, string sharedDir)
     }
 
     Console.WriteLine($"完成: {compiled} 编译, {skipped} 跳过");
+}
+
+/// <summary>
+/// 列出「生成前那份 `.vml` 有、这次要写进去的内容里没有」的 `.linked` 指令。
+/// 用途：把「手写在生成物上的 `.linked` 被重生成静默抹掉」变成一行看得见的警告
+/// （2026-09-22 的 `curses.vml` / `kbhit` 就是这么坏掉的）。
+/// </summary>
+static List<string> LostLinkDirectives(string vmlPath, string[] newLines)
+{
+    var lost = new List<string>();
+    if (!File.Exists(vmlPath)) return lost;
+
+    var fresh = new HashSet<string>(StringComparer.Ordinal);
+    foreach (var l in newLines)
+    {
+        var t = l.Trim();
+        if (t.StartsWith(".linked")) fresh.Add(t);
+    }
+
+    foreach (var l in File.ReadAllLines(vmlPath))
+    {
+        var t = l.Trim();
+        if (t.StartsWith(".linked") && !fresh.Contains(t)) lost.Add(t);
+    }
+    return lost;
 }
 
 static int ParamCount(string ps) =>

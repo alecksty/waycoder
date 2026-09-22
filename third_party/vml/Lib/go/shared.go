@@ -314,6 +314,11 @@ func basic_date_str() int32 {
     return vml.R0()
 }
 
+func asm(a0 int32) int32 {
+    vml.Call("asm")
+    return vml.R0()
+}
+
 func basic_time_str() int32 {
     vml.Call("basic_time_str")
     return vml.R0()
@@ -1602,6 +1607,15 @@ func atoi_hex(a0 int32) int32 {
     return vml.R0()
 }
 
+func rand() int32 {
+    vml.Call("rand")
+    return vml.R0()
+}
+
+func srand(a0 int32) {
+    vml.Call("srand")
+}
+
 func byte_to_hword(a0 int32) int32 {
     vml.Call("byte_to_hword")
     return vml.R0()
@@ -1992,6 +2006,415 @@ func iscntrl(a0 int32) int32 {
     return vml.R0()
 }
 
+func delay(a0 int32) {
+    vml.Call("delay")
+}
+
+func sc_putc(a0 int32) int32 {
+    vml.Call("sc_putc")
+    return vml.R0()
+}
+
+func sc_puts(a0 int32) int32 {
+    vml.Call("sc_puts")
+    return vml.R0()
+}
+
+func sc_putn(a0 int32) int32 {
+    vml.Call("sc_putn")
+    return vml.R0()
+}
+
+func sc_cup(a0 int32, a1 int32) int32 {
+    vml.Call("sc_cup")
+    return vml.R0()
+}
+
+func sc_fill(a0 int32, a1 int32) int32 {
+    vml.Call("sc_fill")
+    return vml.R0()
+}
+
+func sc_sgr(a0 int32) int32 {
+    vml.Call("sc_sgr")
+    return vml.R0()
+}
+
+func sc_init() int32 {
+    vml.Call("sc_init")
+    return vml.R0()
+}
+
+func endwin() int32 {
+    vml.Call("endwin")
+    return vml.R0()
+}
+
+func refresh() int32 {
+    vml.Call("refresh")
+    return vml.R0()
+}
+
+func wrefresh(a0 int32) int32 {
+    vml.Call("wrefresh")
+    return vml.R0()
+}
+
+func move(a0 int32, a1 int32) int32 {
+    vml.Call("move")
+    return vml.R0()
+}
+
+func wmove(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("wmove")
+    return vml.R0()
+}
+
+func getcury(a0 int32) int32 {
+    vml.Call("getcury")
+    return vml.R0()
+}
+
+func getcurx(a0 int32) int32 {
+    vml.Call("getcurx")
+    return vml.R0()
+}
+
+func sc_cell_byte(a0 int32) int32 {
+    vml.Call("sc_cell_byte")
+    return vml.R0()
+}
+
+func sc_advance() int32 {
+    vml.Call("sc_advance")
+    return vml.R0()
+}
+
+func addch(a0 int32) int32 {
+    vml.Call("addch")
+    return vml.R0()
+}
+
+func sc_putwchar(a0 int32) int32 {
+    vml.Call("sc_putwchar")
+    return vml.R0()
+}
+
+func addstr(a0 int32) int32 {
+    vml.Call("addstr")
+    return vml.R0()
+}
+
+func mvaddch(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("mvaddch")
+    return vml.R0()
+}
+
+func mvaddstr(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("mvaddstr")
+    return vml.R0()
+}
+
+func sc_vformat(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("sc_vformat")
+    return vml.R0()
+}
+
+func printw(a0 int32, a1 int32) int32 {
+    vml.Call("printw")
+    return vml.R0()
+}
+
+func mvprintw(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("mvprintw")
+    return vml.R0()
+}
+
+func erase() int32 {
+    vml.Call("erase")
+    return vml.R0()
+}
+
+func clrtoeol() int32 {
+    vml.Call("clrtoeol")
+    return vml.R0()
+}
+
+func attron(a0 int32) int32 {
+    vml.Call("attron")
+    return vml.R0()
+}
+
+func attroff(a0 int32) int32 {
+    vml.Call("attroff")
+    return vml.R0()
+}
+
+func attrset(a0 int32) int32 {
+    vml.Call("attrset")
+    return vml.R0()
+}
+
+func start_color() int32 {
+    vml.Call("start_color")
+    return vml.R0()
+}
+
+func has_colors() int32 {
+    vml.Call("has_colors")
+    return vml.R0()
+}
+
+func init_pair(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("init_pair")
+    return vml.R0()
+}
+
+func cbreak() int32 {
+    vml.Call("cbreak")
+    return vml.R0()
+}
+
+func nocbreak() int32 {
+    vml.Call("nocbreak")
+    return vml.R0()
+}
+
+func noecho() int32 {
+    vml.Call("noecho")
+    return vml.R0()
+}
+
+func echo() int32 {
+    vml.Call("echo")
+    return vml.R0()
+}
+
+func keypad(a0 int32, a1 int32) int32 {
+    vml.Call("keypad")
+    return vml.R0()
+}
+
+func nodelay(a0 int32, a1 int32) int32 {
+    vml.Call("nodelay")
+    return vml.R0()
+}
+
+func curs_set(a0 int32) int32 {
+    vml.Call("curs_set")
+    return vml.R0()
+}
+
+func initscr() int32 {
+    vml.Call("initscr")
+    return vml.R0()
+}
+
+func use_default_colors() int32 {
+    vml.Call("use_default_colors")
+    return vml.R0()
+}
+
+func wattron(a0 int32, a1 int32) int32 {
+    vml.Call("wattron")
+    return vml.R0()
+}
+
+func wattroff(a0 int32, a1 int32) int32 {
+    vml.Call("wattroff")
+    return vml.R0()
+}
+
+func wattrset(a0 int32, a1 int32) int32 {
+    vml.Call("wattrset")
+    return vml.R0()
+}
+
+func wbkgdset(a0 int32, a1 int32) int32 {
+    vml.Call("wbkgdset")
+    return vml.R0()
+}
+
+func wclear(a0 int32) int32 {
+    vml.Call("wclear")
+    return vml.R0()
+}
+
+func werase(a0 int32) int32 {
+    vml.Call("werase")
+    return vml.R0()
+}
+
+func wclrtoeol(a0 int32) int32 {
+    vml.Call("wclrtoeol")
+    return vml.R0()
+}
+
+func waddch(a0 int32, a1 int32) int32 {
+    vml.Call("waddch")
+    return vml.R0()
+}
+
+func waddstr(a0 int32, a1 int32) int32 {
+    vml.Call("waddstr")
+    return vml.R0()
+}
+
+func wprintw(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("wprintw")
+    return vml.R0()
+}
+
+func mvwprintw(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("mvwprintw")
+    return vml.R0()
+}
+
+func mvwaddch(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("mvwaddch")
+    return vml.R0()
+}
+
+func mvwaddstr(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("mvwaddstr")
+    return vml.R0()
+}
+
+func clearok(a0 int32, a1 int32) int32 {
+    vml.Call("clearok")
+    return vml.R0()
+}
+
+func box(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("box")
+    return vml.R0()
+}
+
+func delscreen(a0 int32) int32 {
+    vml.Call("delscreen")
+    return vml.R0()
+}
+
+func wgetch(a0 int32) int32 {
+    vml.Call("wgetch")
+    return vml.R0()
+}
+
+func mvwin(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("mvwin")
+    return vml.R0()
+}
+
+func wresize(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("wresize")
+    return vml.R0()
+}
+
+func wborder(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32, a8 int32) int32 {
+    vml.Call("wborder")
+    return vml.R0()
+}
+
+func leaveok(a0 int32, a1 int32) int32 {
+    vml.Call("leaveok")
+    return vml.R0()
+}
+
+func scrollok(a0 int32, a1 int32) int32 {
+    vml.Call("scrollok")
+    return vml.R0()
+}
+
+func idlok(a0 int32, a1 int32) int32 {
+    vml.Call("idlok")
+    return vml.R0()
+}
+
+func raw() int32 {
+    vml.Call("raw")
+    return vml.R0()
+}
+
+func noraw() int32 {
+    vml.Call("noraw")
+    return vml.R0()
+}
+
+func standout() int32 {
+    vml.Call("standout")
+    return vml.R0()
+}
+
+func standend() int32 {
+    vml.Call("standend")
+    return vml.R0()
+}
+
+func beep() int32 {
+    vml.Call("beep")
+    return vml.R0()
+}
+
+func flash() int32 {
+    vml.Call("flash")
+    return vml.R0()
+}
+
+func has_ic() int32 {
+    vml.Call("has_ic")
+    return vml.R0()
+}
+
+func has_il() int32 {
+    vml.Call("has_il")
+    return vml.R0()
+}
+
+func wnoutrefresh(a0 int32) int32 {
+    vml.Call("wnoutrefresh")
+    return vml.R0()
+}
+
+func doupdate() int32 {
+    vml.Call("doupdate")
+    return vml.R0()
+}
+
+func savetty() int32 {
+    vml.Call("savetty")
+    return vml.R0()
+}
+
+func resetty() int32 {
+    vml.Call("resetty")
+    return vml.R0()
+}
+
+func nonl() int32 {
+    vml.Call("nonl")
+    return vml.R0()
+}
+
+func timeout(a0 int32) int32 {
+    vml.Call("timeout")
+    return vml.R0()
+}
+
+func wtimeout(a0 int32, a1 int32) int32 {
+    vml.Call("wtimeout")
+    return vml.R0()
+}
+
+func napms(a0 int32) int32 {
+    vml.Call("napms")
+    return vml.R0()
+}
+
+func addwstr(a0 int32) int32 {
+    vml.Call("addwstr")
+    return vml.R0()
+}
+
 func demolib_add(a0 int32, a1 int32) int32 {
     vml.Call("demolib_add")
     return vml.R0()
@@ -2073,6 +2496,22 @@ func GetDate(a0 int32, a1 int32, a2 int32, a3 int32) {
 
 func GetTime(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("GetTime")
+}
+
+func sound(a0 int32) {
+    vml.Call("sound")
+}
+
+func nosound() {
+    vml.Call("nosound")
+}
+
+func getdate(a0 int32) {
+    vml.Call("getdate")
+}
+
+func gettime(a0 int32) {
+    vml.Call("gettime")
 }
 
 func DosVersion() int32 {
@@ -2795,6 +3234,11 @@ func wcstombs(a0 int32, a1 int32, a2 int32) int32 {
 
 func mbstowcs(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("mbstowcs")
+    return vml.R0()
+}
+
+func fflush(a0 int32) int32 {
+    vml.Call("fflush")
     return vml.R0()
 }
 
@@ -3617,11 +4061,6 @@ func get_args(a0 int32) int32 {
     return vml.R0()
 }
 
-func signal(a0 int32, a1 int32) int32 {
-    vml.Call("signal")
-    return vml.R0()
-}
-
 func type_of(a0 int32) int32 {
     vml.Call("type_of")
     return vml.R0()
@@ -4131,6 +4570,21 @@ func strcmp(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
+func _vml_lower_ascii(a0 int32) int32 {
+    vml.Call("_vml_lower_ascii")
+    return vml.R0()
+}
+
+func strcasecmp(a0 int32, a1 int32) int32 {
+    vml.Call("strcasecmp")
+    return vml.R0()
+}
+
+func strncasecmp(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("strncasecmp")
+    return vml.R0()
+}
+
 func strncmp(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("strncmp")
     return vml.R0()
@@ -4243,10 +4697,6 @@ func getconfig(a0 int32) int32 {
     return vml.R0()
 }
 
-func srand(a0 int32) {
-    vml.Call("srand")
-}
-
 func datetime() int32 {
     vml.Call("datetime")
     return vml.R0()
@@ -4329,10 +4779,6 @@ func uscanf(a0 int32) {
     vml.Call("uscanf")
 }
 
-func delay(a0 int32) {
-    vml.Call("delay")
-}
-
 func int_pow(a0 int32, a1 int32) int32 {
     vml.Call("int_pow")
     return vml.R0()
@@ -4340,6 +4786,182 @@ func int_pow(a0 int32, a1 int32) int32 {
 
 func int_sqrt(a0 int32) int32 {
     vml.Call("int_sqrt")
+    return vml.R0()
+}
+
+func setlocale(a0 int32, a1 int32) int32 {
+    vml.Call("setlocale")
+    return vml.R0()
+}
+
+func localeconv() int32 {
+    vml.Call("localeconv")
+    return vml.R0()
+}
+
+func fprintf(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("fprintf")
+    return vml.R0()
+}
+
+func vfprintf(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("vfprintf")
+    return vml.R0()
+}
+
+func isatty(a0 int32) int32 {
+    vml.Call("isatty")
+    return vml.R0()
+}
+
+func ttyname(a0 int32) int32 {
+    vml.Call("ttyname")
+    return vml.R0()
+}
+
+func strerror(a0 int32) int32 {
+    vml.Call("strerror")
+    return vml.R0()
+}
+
+func sigaction(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("sigaction")
+    return vml.R0()
+}
+
+func signal(a0 int32, a1 int32) int32 {
+    vml.Call("signal")
+    return vml.R0()
+}
+
+func raise(a0 int32) int32 {
+    vml.Call("raise")
+    return vml.R0()
+}
+
+func _ts_to_tm(a0 int32) int32 {
+    vml.Call("_ts_to_tm")
+    return vml.R0()
+}
+
+func localtime(a0 int32) int32 {
+    vml.Call("localtime")
+    return vml.R0()
+}
+
+func gmtime(a0 int32) int32 {
+    vml.Call("gmtime")
+    return vml.R0()
+}
+
+func _sf_put2(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("_sf_put2")
+    return vml.R0()
+}
+
+func _sf_puts(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("_sf_puts")
+    return vml.R0()
+}
+
+func strftime(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("strftime")
+    return vml.R0()
+}
+
+func time(a0 int32) int32 {
+    vml.Call("time")
+    return vml.R0()
+}
+
+func _vml_fd_zero(a0 int32) {
+    vml.Call("_vml_fd_zero")
+}
+
+func _vml_fd_set(a0 int32, a1 int32) {
+    vml.Call("_vml_fd_set")
+}
+
+func _vml_fd_clr(a0 int32, a1 int32) {
+    vml.Call("_vml_fd_clr")
+}
+
+func _vml_fd_isset(a0 int32, a1 int32) int32 {
+    vml.Call("_vml_fd_isset")
+    return vml.R0()
+}
+
+func select(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("select")
+    return vml.R0()
+}
+
+func pselect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
+    vml.Call("pselect")
+    return vml.R0()
+}
+
+func nanosleep(a0 int32, a1 int32) int32 {
+    vml.Call("nanosleep")
+    return vml.R0()
+}
+
+func atexit(a0 int32) int32 {
+    vml.Call("atexit")
+    return vml.R0()
+}
+
+func getopt(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("getopt")
+    return vml.R0()
+}
+
+func strdup(a0 int32) int32 {
+    vml.Call("strdup")
+    return vml.R0()
+}
+
+func ioctl(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ioctl")
+    return vml.R0()
+}
+
+func tcgetattr(a0 int32, a1 int32) int32 {
+    vml.Call("tcgetattr")
+    return vml.R0()
+}
+
+func tcsetattr(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("tcsetattr")
+    return vml.R0()
+}
+
+func cfmakeraw(a0 int32) {
+    vml.Call("cfmakeraw")
+}
+
+func tcflush(a0 int32, a1 int32) int32 {
+    vml.Call("tcflush")
+    return vml.R0()
+}
+
+func cfgetospeed(a0 int32) int32 {
+    vml.Call("cfgetospeed")
+    return vml.R0()
+}
+
+func cfsetospeed(a0 int32, a1 int32) int32 {
+    vml.Call("cfsetospeed")
+    return vml.R0()
+}
+
+func open(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("open")
+    return vml.R0()
+}
+
+func creat(a0 int32, a1 int32) int32 {
+    vml.Call("creat")
     return vml.R0()
 }
 
@@ -4663,11 +5285,6 @@ func ui_dlg_msg(a0 int32, a1 int32, a2 int32) int32 {
     return vml.R0()
 }
 
-func asm(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
-    vml.Call("asm")
-    return vml.R0()
-}
-
 func ui_dlg_select(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     vml.Call("ui_dlg_select")
     return vml.R0()
@@ -4690,6 +5307,11 @@ func ui_win_open(a0 int32, a1 int32, a2 int32) int32 {
 
 func ui_win_open_ex(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     vml.Call("ui_win_open_ex")
+    return vml.R0()
+}
+
+func ui_win_open_pc(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("ui_win_open_pc")
     return vml.R0()
 }
 

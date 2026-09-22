@@ -44,7 +44,7 @@ sta_50740001:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L50740007
         move @R0 #0
         jmp _L50740008

@@ -59,15 +59,15 @@ _L16180004:
         pushl @R0
         move @R0 #255
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #56
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
 ; 10:         for (bit = 0; bit < 8; bit++) {
@@ -112,12 +112,12 @@ _L16180013:
         pushl @R0
         move @R0 #1
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [i64_16180014]
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
         jmp sta_16180011
@@ -127,7 +127,7 @@ sta_16180010:
         pushl @R0
         move @R0 #1
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         movel [@R12-28] @R0
 sta_16180011:
@@ -154,7 +154,7 @@ sta_16180002:
         move @R0 #1
         neg @R0 @R0
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         jmp L_16180015
 L_16180015:
@@ -204,9 +204,9 @@ sta_16180017:
         add @R0 @R9
         moveb @R0 [@R0]
         sextb @R0 @R0
-        i2l @R0 @R0
+        zextl @R0 @R0
         popl @R1
-        xor @R1 @R0
+        xorl @R1 @R0
         movel @R0 @R1
         movel [@R12-12] @R0
 ; 24:         hash *= 0x100000001B3L; /* FNV prime 64-bit */
@@ -277,7 +277,7 @@ _L16180024:
         pushl @R0
         move @R0 #5
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         pushl @R0
         movel @R0 [@R12-12]
@@ -347,13 +347,13 @@ _L16180029:
         jz sta_16180027
 ; 46:         hash = (long)(unsigned char)c + (hash << 6) + (hash << 16) - hash;
         move @R0 [@R12-16]
-        i2l @R0 @R0
+        zextl @R0 @R0
         pushl @R0
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #6
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
         addl @R0 @R1 @R0
@@ -362,7 +362,7 @@ _L16180029:
         pushl @R0
         move @R0 #16
         popl @R1
-        shl @R1 @R0
+        shll @R1 @R0
         movel @R0 @R1
         popl @R1
         addl @R0 @R1 @R0

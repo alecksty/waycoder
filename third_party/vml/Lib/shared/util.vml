@@ -1,8 +1,5 @@
 
-.linked "conio.vml"
-.linked "printf.vml"
 .linked "math.vml"
-
 .data
 _lconv: .word 0
 _tm_buf:

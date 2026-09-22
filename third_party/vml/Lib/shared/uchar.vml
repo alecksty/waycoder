@@ -179,7 +179,7 @@ ucsncmp:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L43310022
         move @R0 #0
         jmp _L43310023
@@ -371,8 +371,8 @@ sta_43310046:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310051
+        cmpu @R1 @R0
+        jb _L43310051
         move @R0 #0
         jmp _L43310052
 _L43310051:
@@ -436,8 +436,8 @@ sta_43310055:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310058
+        cmpu @R1 @R0
+        jb _L43310058
         move @R0 #0
         jmp _L43310059
 _L43310058:
@@ -580,8 +580,8 @@ sta_43310070:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310074
+        cmpu @R1 @R0
+        jb _L43310074
         move @R0 #0
         jmp _L43310075
 _L43310074:
@@ -684,7 +684,7 @@ _L43310082:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L43310085
         move @R0 #0
         jmp _L43310086
@@ -710,7 +710,7 @@ sta_43310080:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L43310088
         move @R0 #0
         jmp _L43310089
@@ -769,7 +769,7 @@ _L43310095:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L43310098
         move @R0 #0
         jmp _L43310099
@@ -795,7 +795,7 @@ sta_43310093:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L43310100
         move @R0 #0
         jmp _L43310101
@@ -1437,8 +1437,8 @@ c32tombs:
         push @R0
         move @R0 #128
         pop @R1
-        cmp @R1 @R0
-        jl _L43310174
+        cmpu @R1 @R0
+        jb _L43310174
         move @R0 #0
         jmp _L43310175
 _L43310174:
@@ -1466,8 +1466,8 @@ sta_43310172:
         push @R0
         move @R0 #2048
         pop @R1
-        cmp @R1 @R0
-        jl _L43310179
+        cmpu @R1 @R0
+        jb _L43310179
         move @R0 #0
         jmp _L43310180
 _L43310179:
@@ -1482,7 +1482,7 @@ _L43310180:
         push @R0
         move @R0 #6
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1525,8 +1525,8 @@ sta_43310177:
         push @R0
         move @R0 #65536
         pop @R1
-        cmp @R1 @R0
-        jl _L43310183
+        cmpu @R1 @R0
+        jb _L43310183
         move @R0 #0
         jmp _L43310184
 _L43310183:
@@ -1541,7 +1541,7 @@ _L43310184:
         push @R0
         move @R0 #12
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1561,7 +1561,7 @@ _L43310184:
         push @R0
         move @R0 #6
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63
@@ -1611,7 +1611,7 @@ sta_43310181:
         push @R0
         move @R0 #18
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1631,7 +1631,7 @@ sta_43310181:
         push @R0
         move @R0 #12
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63
@@ -1656,7 +1656,7 @@ sta_43310181:
         push @R0
         move @R0 #6
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63
@@ -2059,8 +2059,8 @@ _L43310210:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jge _L43310211
+        cmpu @R1 @R0
+        jae _L43310211
         move @R0 #0
         jmp _L43310212
 _L43310211:
@@ -2144,8 +2144,8 @@ sta_43310203:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310220
+        cmpu @R1 @R0
+        jb _L43310220
         move @R0 #0
         jmp _L43310221
 _L43310220:
@@ -2206,8 +2206,8 @@ sta_43310223:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        cmp @R1 @R0
-        jl _L43310227
+        cmpu @R1 @R0
+        jb _L43310227
         move @R0 #0
         jmp _L43310228
 _L43310227:
@@ -2275,8 +2275,8 @@ sta_43310224:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310235
+        cmpu @R1 @R0
+        jb _L43310235
         move @R0 #0
         jmp _L43310236
 _L43310235:
@@ -2336,8 +2336,8 @@ sta_43310238:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        cmp @R1 @R0
-        jl _L43310242
+        cmpu @R1 @R0
+        jb _L43310242
         move @R0 #0
         jmp _L43310243
 _L43310242:
@@ -2399,8 +2399,8 @@ sta_43310244:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        cmp @R1 @R0
-        jge _L43310250
+        cmpu @R1 @R0
+        jae _L43310250
         move @R0 #0
         jmp _L43310251
 _L43310250:
@@ -2427,7 +2427,7 @@ sta_43310249:
         push @R0
         move @R0 #10
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -2482,8 +2482,8 @@ sta_43310239:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310254
+        cmpu @R1 @R0
+        jb _L43310254
         move @R0 #0
         jmp _L43310255
 _L43310254:
@@ -2545,8 +2545,8 @@ sta_43310257:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        cmp @R1 @R0
-        jl _L43310261
+        cmpu @R1 @R0
+        jb _L43310261
         move @R0 #0
         jmp _L43310262
 _L43310261:
@@ -2794,8 +2794,8 @@ sta_43310258:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L43310289
+        cmpu @R1 @R0
+        jb _L43310289
         move @R0 #0
         jmp _L43310290
 _L43310289:

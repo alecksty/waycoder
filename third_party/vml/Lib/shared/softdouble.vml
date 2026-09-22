@@ -1264,8 +1264,8 @@ _L96590104:
         push @R0
         move @R0 [@R12-32]
         pop @R1
-        cmp @R1 @R0
-        jl _L96590107
+        cmpu @R1 @R0
+        jb _L96590107
         move @R0 #0
         jmp _L96590108
 _L96590107:

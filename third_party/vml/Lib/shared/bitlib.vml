@@ -306,7 +306,7 @@ count:
         push @R0
         move @R0 #1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #1431655765
@@ -329,7 +329,7 @@ count:
         push @R0
         move @R0 #2
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #858993459
@@ -347,7 +347,7 @@ count:
         push @R0
         move @R0 #4
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         add @R1 @R0
@@ -365,7 +365,7 @@ count:
         push @R0
         move @R0 #8
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         add @R1 @R0
@@ -378,7 +378,7 @@ count:
         push @R0
         move @R0 #16
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         add @R1 @R0
@@ -422,7 +422,7 @@ reverse:
         push @R0
         move @R0 #1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -450,7 +450,7 @@ reverse:
         push @R0
         move @R0 #2
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -478,7 +478,7 @@ reverse:
         push @R0
         move @R0 #4
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -506,7 +506,7 @@ reverse:
         push @R0
         move @R0 #8
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -529,7 +529,7 @@ reverse:
         push @R0
         move @R0 #16
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -588,7 +588,7 @@ rotate_left:
         sub @R1 @R0
         move @R0 @R1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -628,7 +628,7 @@ rotate_right:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 [@R12-8]
@@ -779,7 +779,7 @@ sta_78960058:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L78960060
         move @R0 #0
         jmp _L78960061
@@ -962,7 +962,7 @@ sta_78960072:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #1
@@ -1235,7 +1235,7 @@ sta_78960111:
         push @R0
         move @R0 #1
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1247,7 +1247,7 @@ sta_78960111:
         push @R0
         move @R0 #2
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1259,7 +1259,7 @@ sta_78960111:
         push @R0
         move @R0 #4
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1272,7 +1272,7 @@ sta_78960111:
         push @R0
         move @R0 #8
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0
@@ -1284,7 +1284,7 @@ sta_78960111:
         push @R0
         move @R0 #16
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         pop @R1
         or @R1 @R0

@@ -564,7 +564,7 @@ itoa_hex:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3230047
         move @R0 #0
         jmp _L3230048
@@ -601,8 +601,8 @@ sta_3230049:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
-        jg _L3230051
+        cmpu @R1 @R0
+        ja _L3230051
         move @R0 #0
         jmp _L3230052
 _L3230051:
@@ -651,7 +651,7 @@ _L3230052:
         push @R0
         move @R0 #4
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         move [@R12-48] @R0
         jmp sta_3230049

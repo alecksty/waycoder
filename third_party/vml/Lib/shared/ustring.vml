@@ -177,7 +177,7 @@ ucsncmp:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3300022
         move @R0 #0
         jmp _L3300023
@@ -369,8 +369,8 @@ sta_3300046:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L3300051
+        cmpu @R1 @R0
+        jb _L3300051
         move @R0 #0
         jmp _L3300052
 _L3300051:
@@ -433,8 +433,8 @@ sta_3300055:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L3300058
+        cmpu @R1 @R0
+        jb _L3300058
         move @R0 #0
         jmp _L3300059
 _L3300058:
@@ -575,8 +575,8 @@ sta_3300070:
         push @R0
         move @R0 [@R12+20]
         pop @R1
-        cmp @R1 @R0
-        jl _L3300074
+        cmpu @R1 @R0
+        jb _L3300074
         move @R0 #0
         jmp _L3300075
 _L3300074:
@@ -668,7 +668,7 @@ sta_3300079:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3300083
         move @R0 #0
         jmp _L3300084
@@ -693,7 +693,7 @@ sta_3300080:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3300086
         move @R0 #0
         jmp _L3300087
@@ -741,7 +741,7 @@ sta_3300090:
         push @R0
         move @R0 [@R12+16]
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3300094
         move @R0 #0
         jmp _L3300095
@@ -766,7 +766,7 @@ sta_3300091:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
+        cmpu @R1 @R0
         je _L3300096
         move @R0 #0
         jmp _L3300097

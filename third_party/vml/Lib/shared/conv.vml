@@ -991,8 +991,8 @@ uint_to_str:
         push @R0
         move @R0 #2147483647
         pop @R1
-        cmp @R1 @R0
-        jle _L95080051
+        cmpu @R1 @R0
+        jbe _L95080051
         move @R0 #0
         jmp _L95080052
 _L95080051:
@@ -1026,7 +1026,7 @@ sta_95080054:
         push @R0
         move @R0 #10
         pop @R1
-        mod @R1 @R0
+        modu @R1 @R0
         move @R0 @R1
         pop @R1
         add @R1 @R0
@@ -1052,7 +1052,7 @@ sta_95080054:
         push @R0
         move @R0 #10
         pop @R1
-        div @R1 @R0
+        divu @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
 sta_95080055:
@@ -1060,8 +1060,8 @@ sta_95080055:
         push @R0
         move @R0 #0
         pop @R1
-        cmp @R1 @R0
-        jg _L95080056
+        cmpu @R1 @R0
+        ja _L95080056
         move @R0 #0
         jmp _L95080057
 _L95080056:
@@ -1214,8 +1214,8 @@ ulong_to_str:
         pushl @R0
         movel @R0 [i64_95080065]
         popl @R1
-        cmpl @R1 @R0
-        jle _L95080066
+        cmpul @R1 @R0
+        jbe _L95080066
         move @R0 #0
         i2l @R0 @R0
         jmp _L95080067
@@ -1254,7 +1254,7 @@ sta_95080069:
         move @R0 #10
         i2l @R0 @R0
         popl @R1
-        modl @R0 @R1 @R0
+        modul @R0 @R1 @R0
         popl @R1
         addl @R0 @R1 @R0
         move @R9 @R0
@@ -1279,7 +1279,7 @@ sta_95080069:
         move @R0 #10
         i2l @R0 @R0
         popl @R1
-        divl @R0 @R1 @R0
+        divul @R0 @R1 @R0
         movel [@R12-16] @R0
 sta_95080070:
         movel @R0 [@R12-16]
@@ -1287,8 +1287,8 @@ sta_95080070:
         move @R0 #0
         i2l @R0 @R0
         popl @R1
-        cmpl @R1 @R0
-        jg _L95080071
+        cmpul @R1 @R0
+        ja _L95080071
         move @R0 #0
         i2l @R0 @R0
         jmp _L95080072

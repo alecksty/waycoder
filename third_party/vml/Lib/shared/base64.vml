@@ -151,7 +151,7 @@ sta_42090010:
         push @R0
         move @R0 #18
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63
@@ -182,7 +182,7 @@ sta_42090010:
         push @R0
         move @R0 #12
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63
@@ -226,7 +226,7 @@ _L42090014:
         push @R0
         move @R0 #6
         pop @R1
-        shr @R1 @R0
+        shru @R1 @R0
         move @R0 @R1
         push @R0
         move @R0 #63

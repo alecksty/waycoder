@@ -544,12 +544,12 @@ _L19190050:
         pushl @R0
         move @R0 [@R12-28]
         popl @R1
-        shr @R1 @R0
+        shrul @R1 @R0
         movel @R0 @R1
         pushl @R0
         move @R0 #15
         popl @R1
-        and @R1 @R0
+        andl @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
         move [@R12-32] @R0

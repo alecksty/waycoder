@@ -16,7 +16,6 @@
 .linked "float.vml"
 .linked "file.vml"
 .linked "os.vml"
-
 .data
 L_94240004: .string "true"
 L_94240005: .string "false"
