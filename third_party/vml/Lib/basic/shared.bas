@@ -2083,6 +2083,11 @@ DECLARE FUNCTION getcurx(a0 AS INTEGER) AS INTEGER
     getcurx = 0
 END FUNCTION
 
+DECLARE FUNCTION mvcur(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL mvcur")
+    mvcur = 0
+END FUNCTION
+
 DECLARE FUNCTION sc_cell_byte(a0 AS INTEGER) AS INTEGER
     asm("CALL sc_cell_byte")
     sc_cell_byte = 0
@@ -4907,6 +4912,11 @@ END FUNCTION
 DECLARE FUNCTION nanosleep(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL nanosleep")
     nanosleep = 0
+END FUNCTION
+
+DECLARE FUNCTION usleep(a0 AS INTEGER) AS INTEGER
+    asm("CALL usleep")
+    usleep = 0
 END FUNCTION
 
 DECLARE FUNCTION atexit(a0 AS INTEGER) AS INTEGER

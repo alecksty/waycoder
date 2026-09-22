@@ -603,6 +603,10 @@ namespace CompilerBase
             // 但老程序的进度条几乎都写 `printf(...); fflush(stdout);`，
             // 少了这张映射前端就报「未定义的函数 'fflush'」（引用 2 次）⇒ 直接编不过。
             ["fflush"] = "io",
+            // 睡眠家族 —— `usleep`/`nanosleep` 实现在 `util.c`（同为 C 标准库裸名）。
+            // 少了这两条，`sl` 会卡在「未定义的函数 'usleep'（引用 1 次）」——
+            // 而动画类老程序**几乎每帧都调它**（控帧率），漏一个就是整条编译过不去。
+            ["usleep"] = "util", ["nanosleep"] = "util",
             ["printf"] = "printf",
             ["sprintf"] = "printf", ["snprintf"] = "printf", ["vsnprintf"] = "printf",
             ["fprintf"] = "printf", ["scanf"] = "printf", ["sscanf"] = "util",

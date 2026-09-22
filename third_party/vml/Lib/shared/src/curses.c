@@ -251,6 +251,25 @@ int wmove(WINDOW *w, int y, int x)
 int getcury(WINDOW *w) { (void)w; return sc_cy; }
 int getcurx(WINDOW *w) { (void)w; return sc_cx; }
 
+/* ncurses 的 `mvcur`：**立即**把**真实终端**的光标挪过去 —— 不走缓冲、不需要 `refresh()`。
+ *
+ * 与 `move()`/`wmove()` 的区别正是它存在的理由：那两个只改**缓冲里**的光标
+ * （要 `refresh()` 才上屏），而 `mvcur` 作用于**物理光标**。
+ * 所以这里**不碰** `sc_ch`/`sc_at` 那两块屏幕影子，也不改 `sc_cy`/`sc_cx`
+ * —— 与 ncurses 的契约一致（`getcury()` 反映的是窗口缓冲的光标，不是物理光标）。
+ *
+ * ⚠ 参数序是 `(oldrow, oldcol, newrow, newcol)`，而内部原语 `sc_cup` 收的是
+ * `(x, y)` —— **行列要倒过来传**，写反了不报错、只是光标跑到镜像位置。
+ * 老程序（`sl` 就是）真的会直接调它。
+ */
+int mvcur(int oldrow, int oldcol, int newrow, int newcol) {
+    (void)oldrow;
+    (void)oldcol;
+    if (newrow < 0 || newrow >= SCR_ROWS || newcol < 0 || newcol >= SCR_COLS) return -1;
+    sc_cup(newcol, newrow);
+    return 0;
+}
+
 /* ── 输出 ── */
 
 /* ── 落位原语：`addch` 与 `sc_putwchar` 共用这一对 ──

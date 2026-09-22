@@ -2579,6 +2579,15 @@ def getcurx(a0):
     asm("CALL getcurx")
     return r0
 
+def mvcur(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mvcur")
+    return r0
+
 def sc_cell_byte(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -6376,6 +6385,12 @@ def nanosleep(a0, a1):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL nanosleep")
+    return r0
+
+def usleep(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL usleep")
     return r0
 
 def atexit(a0):

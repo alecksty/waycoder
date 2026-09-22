@@ -438,6 +438,7 @@ namespace VML {
     // extern return wmove(stdscr, y, x);  // CALL wmove
     // extern int getcury(WINDOW *w);  // CALL getcury
     // extern int getcurx(WINDOW *w);  // CALL getcurx
+    // extern int mvcur(int oldrow, int oldcol, int newrow, int newcol);  // CALL mvcur
     // extern oid sc_cell_byte(int b);  // CALL sc_cell_byte
     // extern oid sc_advance(void);  // CALL sc_advance
     // extern int addch(int ch);  // CALL addch
@@ -1034,6 +1035,7 @@ namespace VML {
     // extern int select(int nfds, void* r, void* w, void* e, void* timeout);  // CALL select
     // extern int pselect(int nfds, void* r, void* w, void* e, void* timeout, void* mask);  // CALL pselect
     // extern int nanosleep(void* req, void* rem);  // CALL nanosleep
+    // extern int usleep(unsigned int usec);  // CALL usleep
     // extern int atexit(void (*fn);  // CALL atexit
     // extern int getopt(int argc, char** argv, const char* optstring);  // CALL getopt
     // extern char* strdup(const char* s);  // CALL strdup

@@ -371,7 +371,7 @@ __stdcall int pselect(int nfds, void* r, void* w, void* e, void* timeout, void* 
     return select(nfds, r, w, e, timeout);
 }
 
-/* ── nanosleep / atexit ── */
+/* ── nanosleep / usleep / atexit ── */
 __stdcall int nanosleep(void* req, void* rem) {
     int sec;
     int nsec;
@@ -379,6 +379,25 @@ __stdcall int nanosleep(void* req, void* rem) {
     sec = 0; nsec = 0;
     if (req) { sec = ((int*)req)[0]; nsec = ((int*)req)[1]; }
     delay(sec * 1000 + nsec / 1000000);
+    return 0;
+}
+
+/* POSIX `usleep`（微秒级睡眠）—— **动画类老程序控帧率就靠它**
+   （`sl` 的每一帧、`tty-clock` 的每秒重绘都用它；`sl` 缺了它整条编译过不去）。
+ *
+ * ⚠ 两条不能省：
+ *   ① 内核单位是**毫秒**（`SYSCALL 52` = Sleep），所以要 `/1000`；
+ *   ② **不足 1ms 的请求至少睡 1ms** —— 否则 `usleep(500)` 会退化成忙等，
+ *      在手机上就是白烧电与发热（而旧程序里 `usleep(500)` 这种写法到处都是）。
+ */
+__stdcall int usleep(unsigned int usec) {
+    int ms;
+    ms = (int)(usec / 1000);
+    if (usec > 0 && ms == 0) ms = 1;
+    if (ms > 0) {
+        asm("MOVE R0 ms");      /* 首参本来就在 R0，这里显式写一遍更稳 */
+        asm("SYSCALL 52");
+    }
     return 0;
 }
 

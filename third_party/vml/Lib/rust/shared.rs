@@ -2747,6 +2747,13 @@ fn getcurx(a0: i32) -> i32 {
     r
 }
 
+fn mvcur(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL mvcur")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn sc_cell_byte(a0: i32) -> i32 {
     asm!("CALL sc_cell_byte")
     let r: i32;
@@ -6452,6 +6459,13 @@ fn pselect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
 
 fn nanosleep(a0: i32, a1: i32) -> i32 {
     asm!("CALL nanosleep")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn usleep(a0: i32) -> i32 {
+    asm!("CALL usleep")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

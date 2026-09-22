@@ -438,6 +438,7 @@ extern "C" {
      return wmove(stdscr, y, x);
      int getcury(WINDOW *w);
      int getcurx(WINDOW *w);
+     int mvcur(int oldrow, int oldcol, int newrow, int newcol);
      oid sc_cell_byte(int b);
      oid sc_advance(void);
      int addch(int ch);
@@ -1034,6 +1035,7 @@ extern "C" {
     __stdcall int select(int nfds, void* r, void* w, void* e, void* timeout);
     __stdcall int pselect(int nfds, void* r, void* w, void* e, void* timeout, void* mask);
     __stdcall int nanosleep(void* req, void* rem);
+    __stdcall int usleep(unsigned int usec);
     __stdcall int atexit(void (*fn);
     __stdcall int getopt(int argc, char** argv, const char* optstring);
     __stdcall char* strdup(const char* s);

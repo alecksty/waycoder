@@ -2085,6 +2085,11 @@ func getcurx(a0 int32) int32 {
     return vml.R0()
 }
 
+func mvcur(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("mvcur")
+    return vml.R0()
+}
+
 func sc_cell_byte(a0 int32) int32 {
     vml.Call("sc_cell_byte")
     return vml.R0()
@@ -4908,6 +4913,11 @@ func pselect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
 
 func nanosleep(a0 int32, a1 int32) int32 {
     vml.Call("nanosleep")
+    return vml.R0()
+}
+
+func usleep(a0 int32) int32 {
+    vml.Call("usleep")
     return vml.R0()
 }
 

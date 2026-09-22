@@ -159,6 +159,10 @@ int wrefresh(WINDOW *w);
 
 /* ── 光标（**0 起**） ── */
 int move(int y, int x);
+/* `mvcur`：**立即**挪**真实终端**的光标（`move()` 只改缓冲里的，要 `refresh()` 才上屏）。
+   ⚠ 参数序是 `(oldrow, oldcol, newrow, newcol)` —— 与 `move(y, x)` **相反**，
+   老程序（`sl`）真的会直接调它。 */
+int mvcur(int oldrow, int oldcol, int newrow, int newcol);
 int wmove(WINDOW *w, int y, int x);
 int getcury(WINDOW *w);
 int getcurx(WINDOW *w);

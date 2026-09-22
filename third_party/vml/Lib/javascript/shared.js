@@ -875,6 +875,8 @@
 // CALL getcury
 // extern fn getcurx(WINDOW *w) -> int
 // CALL getcurx
+// extern fn mvcur(int oldrow, int oldcol, int newrow, int newcol) -> int
+// CALL mvcur
 // extern fn sc_cell_byte(int b) -> oid
 // CALL sc_cell_byte
 // extern fn sc_advance(void) -> oid
@@ -2067,6 +2069,8 @@
 // CALL pselect
 // extern fn nanosleep(void* req, void* rem) -> int
 // CALL nanosleep
+// extern fn usleep(unsigned int usec) -> int
+// CALL usleep
 // extern fn atexit(void (*fn) -> int
 // CALL atexit
 // extern fn getopt(int argc, char** argv, const char* optstring) -> int
