@@ -1,14 +1,15 @@
 ﻿# ═══════════════════════════════════════════════════════════════
 # WayCoder 清除编译垃圾（PowerShell 版）
-# 用法: .\scripts\clean.ps1 [-DryRun] [-NoGc]
+# 用法: .\scripts\clean.ps1 [-DryRun] [-NoGc] [-Scratch]
 #
 # 覆盖的工程：
 #   WayCoder/            主 CLI + TUI          —— bin/obj + 旁路输出 bin2/obj2
 #   WayCoder.Gui/        Avalonia GUI          —— bin/obj
 #   WayCoder.Maui/       .NET MAUI (Android/iOS) —— bin/obj、.gradle、*.apk/*.aab
 #   WayCoder.Preview/    预览宿主              —— bin/obj
-#   third_party/vml/     vendored VML 的 6 个 C# 工程 —— bin/obj
-#                        （**不**动它 Lib/ 下已跟踪的 .vml，见下方「刻意不碰」）
+#   third_party/vml/     vendored VML 的 35 个 C# 工程 —— bin/obj
+#                        + 本地中间产物 *.gen.vml / *.vmb
+#                        （**不**动它 Lib/ 下已跟踪的 2041 个 .vml，见下方「刻意不碰」）
 #   vscode-extension/    VS Code 扩展 (TS)     —— node_modules、out/、*.vsix
 #   WayCoder/3d-game/    零构建前端游戏         —— 无构建产物（仅 __pycache__）
 #
@@ -16,15 +17,31 @@
 #       *.user/*.suo/*.binlog 用户配置、node_modules 依赖、StarGo 五子棋的 MSVC 产物、
 #       独立 publish 目录、MAUI 的 .gradle 与 *.apk/*.aab、Python 的 __pycache__/*.pyc/.venv/venv、
 #       vscode-extension 的 out/ 与 *.vsix、TestResults / BenchmarkDotNet.Artifacts / AppPackages /
-#       .store / verify_build / stress-test-output 测试产物、dist/ 下的陈旧发布产物。
+#       .store / verify_build / stress-test-output 测试产物、dist/ 下的陈旧发布产物、
+#       **VML 本地中间产物 *.gen.vml / *.vmb**。
 #
 #       关于 bin2/obj2：主 bin/ 被运行中的 exe 锁住时，构建会改用 -p:OutputPath=bin2/
 #       落到这里（见 .gitignore），属构建产物，一并清理。
 #
+#       关于 VML 中间产物：判据是「没有任何构建把它们当源读」——
+#       *.gen.vml 被 .gitignore 明写，且 make-vml-lib.sh 与 vml-diag-probe/examples-build.sh
+#       都显式把它排除出遍历（不然会被当成待编译的例子）；*.vmb 是 VMLTool 的编译终点
+#       （Program.Compile.cs「→ VML 二进制 → 停止」）。这两个 pattern 已用
+#       `git ls-files '*.gen.vml' '*.vmb'` 验证过「已跟踪 0 个」，脚本里还留了同一句做闸门。
+#
+#       关于 -Scratch：.gitignore 把 .scratch/ 定义为「草稿区：验证截图、一次性探针源码、
+#       交接草稿」——是**有意保留**的本地材料（CLAUDE.md 多处验证脚手架就在这儿，如
+#       .scratch/vmlround 的 --play/--lines/--best），故默认不动，要清得显式给 -Scratch。
+#
 # 刻意不碰（防误伤，勿加进来）：
-#   third_party/vml/Lib/**/*.vml  —— 2224 个文件是**已跟踪**的 vendored 源。vml 自带的
+#   third_party/vml/Lib/**/*.vml  —— 2041 个文件是**已跟踪**的 vendored 源。vml 自带的
 #                                    Lib/cleanup.sh 会删掉它们（那是上游仓库的语义，
-#                                    在我们这边等于删源码并弄脏 git 状态）
+#                                    在我们这边等于删源码并弄脏 git 状态）。
+#                                    ⚠ 同理**绝不用 `*.vml` 通配**：Examples/ 下还有 2 个
+#                                    .vml 是例子源码，且 `vmlcli --rebuild-lib` 会往
+#                                    Lib/<语言>/ 写 .vml —— 那些是**产物但已跟踪**，
+#                                    删了就是删源码，只能让 git 报 dirty，不能靠 clean 清。
+#   .scratch/                     —— 草稿区，有意保留的本地材料（-Scratch 才清）
 #   WayCoder/works/、WayCoder/saves/  —— 智能体工作区与存档，是用户数据不是垃圾
 #   logs/、.waycoder/、dist/.waycoder/、.claude/、.crush/、.codex/  —— 运行时与 AI 工具状态
 #   WayCoder.Maui/Resources/Raw/vml_lib.zip、WayCoder/UI/WEB/WebAssets.Generated.cs
@@ -35,7 +52,8 @@
 # ═══════════════════════════════════════════════════════════════
 param(
     [switch]$DryRun,
-    [switch]$NoGc
+    [switch]$NoGc,
+    [switch]$Scratch
 )
 
 $ErrorActionPreference = 'Stop'
@@ -64,6 +82,20 @@ Write-Host '── C# 构建产物 bin/obj（含旁路 bin2/obj2）──'
 Get-ChildItem -Path . -Recurse -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -in @('bin', 'obj', 'bin2', 'obj2') -and $_.FullName -notmatch '\\\.git\\|\\node_modules\\' } |
     ForEach-Object { $targets.Add($_.FullName) }
+
+# VML 本地中间产物 —— *.gen.vml（Examples/ 下跑出来的汇编）+ *.vmb（编译终点）
+# 闸门：这两个 pattern 一旦命中 git 已跟踪文件，就整体跳过 —— 说明 pattern 写错了
+# （比如误写成 *.vml），此时删下去等于删源码（Lib/ 下 2041 个 .vml 是 vendored 源）。
+Write-Host '── VML 本地中间产物 (*.gen.vml / *.vmb) ──'
+$vmlTracked = @(git ls-files -- '*.gen.vml' '*.vmb' 2>$null | Where-Object { $_ })
+if ($vmlTracked.Count -gt 0) {
+    Write-Host '  ✘ 已跳过：清理 pattern 命中了 git 已跟踪文件（先修 pattern，别删）'
+    $vmlTracked | ForEach-Object { Write-Host "      $_" }
+} else {
+    Get-ChildItem -Path . -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Where-Object { ($_.Name -like '*.gen.vml' -or $_.Name -like '*.vmb') -and $_.FullName -notmatch '\\\.git\\' } |
+        ForEach-Object { $targets.Add($_.FullName) }
+}
 
 # IDE 缓存 .vs（.vs 是隐藏目录，必须 -Force 才能枚举到）
 Write-Host '── IDE 缓存 .vs ──'
@@ -145,6 +177,16 @@ Get-ChildItem -Path . -Recurse -Directory -ErrorAction SilentlyContinue |
                    $_.FullName -notmatch '\\\.git\\|\\bin\\|\\obj\\' } |
     ForEach-Object { $targets.Add($_.FullName) }
 
+# 草稿区 .scratch/ —— 默认保留（.gitignore 定义为有意保留的本地草稿材料），-Scratch 才清
+if ($Scratch) {
+    Write-Host '── 草稿区 .scratch/（-Scratch 显式开启）──'
+    Get-ChildItem -Path . -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq '.scratch' -and $_.FullName -notmatch '\\\.git\\' } |
+        ForEach-Object { $targets.Add($_.FullName) }
+} else {
+    Write-Host '── 草稿区 .scratch/（默认保留，要清加 -Scratch）──'
+}
+
 # dist/ 陈旧发布产物（保留 .waycoder 用户数据）
 Write-Host '── dist/ 陈旧发布产物（保留 .waycoder 用户数据）──'
 if (Test-Path dist) {
@@ -188,5 +230,6 @@ if ($DryRun) {
     Write-Host "✅ 清理完成，释放约 $freedMB MB。"
     Write-Host '   （需重建：dotnet build 重新生成 bin/obj；扩展开发再 npm install）'
     Write-Host '   保留：third_party/vml/Lib/**/*.vml（已跟踪的 vendored 源）、'
-    Write-Host '         WayCoder/works|saves、logs/、.waycoder/、dist/.waycoder、*.keystore'
+    Write-Host '         WayCoder/works|saves、logs/、.waycoder/、dist/.waycoder、*.keystore、'
+    Write-Host '         .scratch/（草稿区，-Scratch 才清）'
 }
