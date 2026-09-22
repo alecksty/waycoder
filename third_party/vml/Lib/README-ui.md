@@ -33,6 +33,8 @@
 | 号 | 名称 | 参数 | 返回 |
 |---|---|---|---|
 | 520 | `WIN_OPEN` | R0=标题* R1=宽 R2=高 | 句柄(1)，失败 -1 |
+| 570 | `WIN_OPEN_EX` | R0=标题* R1=宽 R2=高 R3=可旋转 R4=要手柄 | 句柄(1)，失败 -1 |
+| 582 | `WIN_OPEN_PC` | R0=标题* R1=宽 R2=高 R3=方向声明 R4=要屏幕键盘 | 句柄(1)，失败 -1 |
 | 521 | `WIN_CLOSE` | R0=句柄 | 0 |
 | 522 | `DRAW_CLEAR` | R0=颜色 | 0 |
 | 523 | `DRAW_PIXEL` | x y 颜色 | 0 |
@@ -44,6 +46,19 @@
 | 529 | `DRAW_ICON` | x y 图标名* 尺寸 颜色 | 0 |
 | 530 | `DRAW_IMAGE` | x y 路径* w h | 0 |
 | 531 | `DRAW_PRESENT` | — | 0（帧边界标记；宿主定时器也会刷） |
+
+#### 什么时候用 `WIN_OPEN_EX` / `WIN_OPEN_PC`
+
+- **`ui_win_open(t,w,h)`**（`#520`）：老接口，一个字的声明都不用给。
+  跟随旋转但**坐标系不动**（宿主等比缩放着显示）—— 老程序走这条。
+- **`ui_win_open_ex(t,w,h,rot,pad)`**（`#570`）：要**声明**转屏策略与要不要手柄区。
+  `rot` 三选一（`VML_WIN_PORTRAIT`/`ROTATABLE`/`LANDSCAPE`），`pad` 用
+  `VML_WIN_NEED_GAMEPAD`/`NO_GAMEPAD`。⚠ 只有 `ROTATABLE` 那一档会**换坐标系**
+  （程序得按 `WINDOWRESIZE` 重排版）。
+- **`ui_win_open_pc(t,w,h,rot,kbd)`**（`#582`）：**电脑屏窗口**，给老程序用。
+  坐标系**固定**为 `(w,h)` 永不重排、触摸**只当鼠标**、第 5 个参数是**屏幕键盘**
+  （`VML_WIN_NEED_KEYBOARD`/`NO_KEYBOARD`）。这里的 `rot` **没有 `ROTATABLE` 那一档**，
+  只决定锁不锁方向。画图照旧走 `ui_*`。
 
 ### 输入（统一消息队列）
 
