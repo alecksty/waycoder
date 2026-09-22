@@ -347,6 +347,29 @@ namespace CppCompiler
         private void GenerateGlobalVar(VariableDecl vd)
         {
             string label = $"var_{vd.Name}";
+
+            // ── 数组 / 聚合初始化：`int g[4] = {10,20,30,40}` ─────────────────────
+            //
+            // ⚠ 这一段长期**整个缺失**，是本仓那个"能编、能跑、结果错、不报错"的典型：
+            //   `InitializerListExpr` 落到下面的 `EvaluateConstant` 永远返回 false
+            //   ⇒ 走 else 分支 ⇒ `dataSection[label] = 0`（**一个 word**），
+            //   数组的初始值**全部丢掉而且一声不响**。
+            //
+            //   实测最小复现：`int g[4] = {10,20,30,40};` —— C 编出来 `G=10203040`，
+            //   C++ 编出来 `G=0000`。
+            //
+            //   影响面极大：**任何带全局数组初始化的 C++ 程序**。最扎眼的一个是
+            //   BGI 兼容层里那张 16 色调色板（`static int _bgi_pal[16] = {…}`）——
+            //   它变成全 0 之后**所有颜色都成黑的**，于是所有 graphics.h 老程序
+            //   都是"跑完了、什么都不报、屏幕一片黑"（v0.96.379 那轮查了半天的那个）。
+            if (vd.Initializer is InitializerListExpr listInit)
+            {
+                var flat = new List<object>();
+                FlattenInitList(listInit, flat);
+                dataSection[label] = flat.ToArray();
+                return;
+            }
+
             if (vd.Initializer != null)
             {
                 // Try compile-time constant evaluation for data section
@@ -373,6 +396,50 @@ namespace CppCompiler
             else
             {
                 dataSection[label] = 0;
+            }
+        }
+
+        /// <summary>
+        /// 把初始化列表摊平成一维的值数组（与 C 前端 `FlattenArrayInitializer` **同一套语义**，
+        /// 只是那边用的是 `ArrayInitializer`/`NumberLiteral`、这边是
+        /// `InitializerListExpr`/`IntLiteral` —— 两门前端的 AST 类型名不同，规则是一样的）。
+        /// </summary>
+        private void FlattenInitList(InitializerListExpr list, List<object> result)
+        {
+            foreach (var elem in list.Elements)
+            {
+                switch (elem)
+                {
+                    case InitializerListExpr nested:
+                        FlattenInitList(nested, result);
+                        break;
+                    case IntLiteral i: result.Add(i.Value); break;
+                    case BoolLiteral b: result.Add(b.Value ? 1 : 0); break;
+                    case CharLiteral c: result.Add((int)c.Value); break;
+
+                    // ⚠ **字符串必须给它分配一个数据段标签，数组元素存标签名**。
+                    //   把内容直接塞进数组的后果是序列化出 `.word abc`（拿内容当标签名），
+                    //   而那个标签根本不存在 ⇒ 运行期读到 (null)。
+                    //   症状：`char *rows[] = {"abc","def"};` 连顶层全局都取不到。
+                    //   **C 前端在同一个地方踩过同一个坑**（那里的注释记着），
+                    //   所以这里照它的处置写。
+                    case StringLiteral sl:
+                        var strLabel = NewLabel();
+                        dataSection[strLabel] = sl.Value;
+                        result.Add(strLabel);
+                        break;
+
+                    default:
+                        // 认不出的（表达式、变量引用、函数调用…）**报出来再给 0**。
+                        // 「静默当 0」正是本仓反复记的最坏形态：编译成功、程序照跑、结果是错的。
+                        Diags.AddError(DiagFile, CurrentSourceLine, CurrentSourceColumn,
+                            ErrorCode.Parser_SyntaxError,
+                            $"全局数组的初始化里暂不支持这种写法（{elem?.GetType().Name ?? "空元素"}）",
+                            "目前只支持字面量（整数/字符/布尔/字符串）与嵌套的 {…}；"
+                            + "需要算出来的值请在 main 里赋值。");
+                        result.Add(0);
+                        break;
+                }
             }
         }
 
