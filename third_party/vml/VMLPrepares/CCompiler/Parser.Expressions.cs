@@ -991,6 +991,18 @@ namespace CCompiler
             VariableDecl var = new VariableDecl(name, typeName);
 
             // 检查是否为数组声明（支持多维）
+            //
+            // ⚠ **总元素数（`ArraySize`）用局部累加，循环结束才写回** ——
+            // 不能在循环里"见 null 就赋值"，因为 `ArraySize == null` 同时是
+            // "还没算"与"**某一维未知**"两种状态。混在一起的后果很实在：
+            // `T a[][N] = {{…},…}` 先见 `[]`（不动 ArraySize、仍是 null），
+            // 再见 `N` 时判成"还没算"⇒ **ArraySize = N**（而不是整块的元素数），
+            // 于是数据段只发**第一行**、其余行读到的全是隔壁变量。
+            // 实测 `const bool number[][15]`（tty-clock 的数字点阵）只写出 15 个字，
+            // `number[1][k]` 读到字符串区的字节 ⇒ 表盘只画得出一个数字。
+            // 判据：`scripts/vml-c-probe/cases/37-mdim-infer-first.c`。
+            int? sizeProduct = 1;
+            bool sizeUnknown = false;
             while (Match(TokenType.LBRACKET))
             {
                 var.IsArray = true;
@@ -1000,6 +1012,7 @@ namespace CCompiler
                 if (Current().Type == TokenType.RBRACKET)
                 {
                     var.Dimensions.Add(null);
+                    sizeUnknown = true;      // 这一维靠初始化器推 ⇒ 整块元素数未知
                 }
                 else
                 {
@@ -1013,8 +1026,8 @@ namespace CCompiler
                     // `int a[-1]` 让栈指针反向移动，此前都是静默的）。
                     if (TryConstDim(dimExpr, out var dim))
                     {
-                        if (var.ArraySize == null) var.ArraySize = dim;
-                        else var.ArraySize = MulArraySize(var.ArraySize.Value, dim);
+                        if (sizeUnknown || sizeProduct == null) sizeProduct = null;
+                        else sizeProduct = MulArraySize(sizeProduct.Value, dim);
                         var.Dimensions.Add(dim);
                     }
                     else
@@ -1023,12 +1036,17 @@ namespace CCompiler
                         var.VlaDimensions ??= new List<ASTNode>();
                         var.VlaDimensions.Add(dimExpr);
                         var.Dimensions.Add(null); // 占位
+                        sizeUnknown = true;
                     }
                 }
 
                 Expect(TokenType.RBRACKET); // 期望 ]
             }
-            
+            // 只有真是数组才写回 —— 没有方括号时 sizeProduct 还是初值 1，
+            // 写回去会让**标量**凭空变成"1 个元素的数组"。
+            if (var.IsArray)
+                var.ArraySize = sizeUnknown ? null : sizeProduct;
+
             if (Match(TokenType.ASSIGN))
             {
                 if (Current().Type == TokenType.LBRACE)

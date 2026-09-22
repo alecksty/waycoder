@@ -492,6 +492,201 @@ namespace CCompiler
             }
         }
 
+        // ── 匿名 struct/union 当成员（`struct { … } name;`）────────────────────────────
+        //
+        // 这段逻辑原先在 **7 处**解析循环里各抄了一遍，而且**每一处都漏了同一件事**：
+        // 内层成员被"拍平"进外层成员表（偏移按外层绝对值算），而中间那个 `name`
+        // 成员**从没登记** ⇒ `s.name.field` 找不到 `name`、基址从 0 起算。
+        // tty-clock 的 `ttyclock.option.color` 因此恒指到结构体开头（`running` 那一格），
+        // 于是 `nsdelay = …` 一写就把 color/date 冲成 0，钟面画不出来。
+        //
+        // 收成两份：正文**一律按相对偏移累积**，去向再另判 ——
+        // 这也是"相对谁归一化"只做一次的地方：两个分支各自把 anonBase 加回去一次，
+        // 若"既登记成员、又保留拍平"就会加两遍（翻倍）。
+
+        /// <summary>
+        /// 解析匿名的 <c>{ … }</c> 成员表（调用时当前 token 是 <c>{</c>，返回时已消费 <c>}</c>）。
+        /// **成员偏移一律相对本结构体（从 0 起）**，整块尺寸见 <see cref="StructDecl.Size"/>。
+        /// 支援位域、数组、函数指针、以及任意深度的嵌套匿名 struct/union。
+        /// </summary>
+        private StructDecl ParseAnonStructBody(bool isUnion)
+        {
+            Expect(TokenType.LBRACE);
+            var body = new StructDecl("");
+            int offset = 0;
+            int maxSize = 0;
+
+            while (Current().Type != TokenType.RBRACE && Current().Type != TokenType.EOF)
+            {
+                var typeToken = Expect(AllTypeTokens);
+                string typeName = typeToken.Value.ToString();
+                bool anonKeyword = typeToken.Type == TokenType.STRUCT || typeToken.Type == TokenType.UNION;
+                if (anonKeyword && Current().Type == TokenType.IDENTIFIER)
+                    typeName += " " + Advance().Value.ToString();
+                while (IsTypeModifier())
+                {
+                    string m = Advance().Value.ToString();
+                    typeName += " " + m;
+                    if ((m == "struct" || m == "union") && Current().Type == TokenType.IDENTIFIER)
+                    {
+                        typeName += " " + Advance().Value.ToString();
+                        anonKeyword = true;
+                    }
+                }
+                if (Current().Type == TokenType.IDENTIFIER && program.TypeDefs.ContainsKey(Current().Value.ToString()))
+                    typeName += " " + Advance().Value.ToString();
+                while (Current().Type == TokenType.CONST || Current().Type == TokenType.VOLATILE)
+                    typeName += " " + Advance().Value.ToString();
+
+                // 匿名 struct/union 当成员（可继续嵌套）
+                if (Current().Type == TokenType.LBRACE && anonKeyword)
+                {
+                    bool subIsUnion = typeToken.Type == TokenType.UNION;
+                    var sub = ParseAnonStructBody(subIsUnion);
+                    int bytes = AttachAnonStructMember(sub, subIsUnion, body.Members, isUnion ? 0 : offset);
+                    if (isUnion) { if (bytes > maxSize) maxSize = bytes; } else offset += bytes;
+                    continue;   // Attach 已吃掉 `;`
+                }
+
+                int pointerLevel = 0;
+                while (Current().Type == TokenType.STAR) { pointerLevel++; Advance(); }
+                do
+                {
+                    // 每个逗号分隔的成员可以有自己的指针: int *a, b;（b 不是指针）
+                    int ptr = pointerLevel;
+                    while (Current().Type == TokenType.STAR) { ptr++; Advance(); }
+                    string memberName;
+                    bool isBitfield = false;
+                    if (Current().Type == TokenType.LPAREN && Peek(1).Type == TokenType.STAR)
+                    {
+                        Advance(); Match(TokenType.STAR); ptr++;
+                        memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                        Expect(TokenType.RPAREN);
+                        if (Match(TokenType.LPAREN))
+                        { int d = 1; while (d > 0 && Current().Type != TokenType.EOF) { if (Current().Type == TokenType.LPAREN) d++; else if (Current().Type == TokenType.RPAREN) { d--; if (d == 0) { Advance(); break; } } Advance(); } }
+                    }
+                    else if (Current().Type == TokenType.COLON)
+                    {
+                        memberName = ""; isBitfield = true; Advance();
+                        if (Current().Type == TokenType.NUMBER) Advance();
+                        else while (Current().Type != TokenType.COMMA && Current().Type != TokenType.SEMICOLON && Current().Type != TokenType.EOF) Advance();
+                    }
+                    else memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                    if (!isBitfield && Current().Type == TokenType.COLON)
+                    {
+                        // 位宽照旧**不入 StructMember** —— 全仓没有任何一处写过 BitWidth，
+                        // 只在这里写会让"匿名正文里的位域"与别处行为不一致，另开一轮统一改。
+                        isBitfield = true; Advance();
+                        if (Current().Type == TokenType.NUMBER) Advance();
+                        else while (Current().Type != TokenType.COMMA && Current().Type != TokenType.SEMICOLON && Current().Type != TokenType.EOF) Advance();
+                    }
+                    bool isArr = false; int? arrSize = null; var dims = new List<int?>();
+                    while (Match(TokenType.LBRACKET))
+                    {
+                        isArr = true;
+                        if (Current().Type == TokenType.NUMBER && Peek(1).Type == TokenType.RBRACKET)
+                        { int dim = Convert.ToInt32(Current().Value); if (arrSize == null) arrSize = dim; else arrSize *= dim; dims.Add(dim); Advance(); }
+                        else
+                        { dims.Add(null); int d2 = 1; while (d2 > 0 && Current().Type != TokenType.EOF) { if (Current().Type == TokenType.LBRACKET) d2++; else if (Current().Type == TokenType.RBRACKET) { d2--; if (d2 == 0) break; } Advance(); } }
+                        Expect(TokenType.RBRACKET);
+                    }
+                    string effType = typeName + new string('*', ptr);
+                    var member = new StructMember(memberName, effType, isArr, arrSize);
+                    member.Offset = isUnion ? 0 : offset;
+                    member.Dimensions = dims;
+                    member.PointerLevel = ptr;
+                    member.IsBitfield = isBitfield;
+                    body.Members.Add(member);
+                    int ms = GetMemberSize(effType, isArr, arrSize);
+                    if (isUnion) { if (ms > maxSize) maxSize = ms; } else offset += ms;
+                } while (Match(TokenType.COMMA));
+                Expect(TokenType.SEMICOLON);
+            }
+            Expect(TokenType.RBRACE);
+            body.Size = isUnion ? maxSize : offset;
+            return body;
+        }
+
+        /// <summary>
+        /// 把 <see cref="ParseAnonStructBody"/> 的结果登记进外层成员表。
+        /// 进入时当前 token 在 <c>}</c> 之后；返回时已消费 <c>;</c>，返回值是该成员占用的字节数。
+        ///
+        /// <para>**有名字**（<c>} option;</c>）：整块登记成一张独立类型，外层只加**一条** <c>option</c>
+        /// 成员、偏移 = anonBase —— 成员**不再**拍平进外层（C 里 <c>struct { … } name;</c>
+        /// 的成员本就不提升）。</para>
+        /// <para>**没名字**（<c>};</c>，C11 匿名成员）：把成员**提升**进外层，各自偏移 + anonBase。</para>
+        /// </summary>
+        private int AttachAnonStructMember(StructDecl body, bool isUnion, List<StructMember> outerMembers, int anonBase)
+        {
+            int pointerLevel = 0;
+            while (Current().Type == TokenType.STAR) { pointerLevel++; Advance(); }
+
+            string memberName = null;
+            if (Current().Type == TokenType.IDENTIFIER) memberName = Advance().Value.ToString();
+
+            bool isArr = false; int? arrSize = null; var dims = new List<int?>();
+            while (Match(TokenType.LBRACKET))
+            {
+                isArr = true;
+                if (Current().Type == TokenType.NUMBER && Peek(1).Type == TokenType.RBRACKET)
+                { int dim = Convert.ToInt32(Current().Value); if (arrSize == null) arrSize = dim; else arrSize *= dim; dims.Add(dim); Advance(); }
+                else
+                { dims.Add(null); int d2 = 1; while (d2 > 0 && Current().Type != TokenType.EOF) { if (Current().Type == TokenType.LBRACKET) d2++; else if (Current().Type == TokenType.RBRACKET) { d2--; if (d2 == 0) break; } Advance(); } }
+                Expect(TokenType.RBRACKET);
+            }
+            Expect(TokenType.SEMICOLON);
+
+            if (memberName != null)
+            {
+                string tag = MakeAnonTag(memberName);
+                body.Name = tag;
+                if (isUnion)
+                {
+                    var ud = new UnionDecl(tag);
+                    ud.Members = body.Members;
+                    ud.Size = body.Size;
+                    program.Unions[tag] = ud;
+                }
+                else program.Structs[tag] = body;
+
+                var member = new StructMember(memberName,
+                    (isUnion ? "union " : "struct ") + tag + new string('*', pointerLevel), isArr, arrSize);
+                member.Offset = anonBase;   // ← 基址只在这里加这一次
+                member.Dimensions = dims;
+                member.PointerLevel = pointerLevel;
+                outerMembers.Add(member);
+
+                if (pointerLevel > 0) return 4;
+                if (isArr && arrSize.HasValue) return body.Size * arrSize.Value;
+                return body.Size;
+            }
+
+            foreach (var inner in body.Members)
+            {
+                var promoted = new StructMember(inner.Name, inner.Type, inner.IsArray, inner.ArraySize);
+                promoted.Offset = inner.Offset + anonBase;   // ← 内层偏移本就相对，这里才加基址
+                promoted.Dimensions = inner.Dimensions;
+                promoted.PointerLevel = inner.PointerLevel;
+                promoted.IsBitfield = inner.IsBitfield;
+                promoted.BitWidth = inner.BitWidth;
+                promoted.BitOffset = inner.BitOffset;
+                outerMembers.Add(promoted);
+            }
+            return body.Size;
+        }
+
+        /// <summary>给匿名 struct/union 合成一个类型名（<c>_anon_&lt;成员名&gt;</c>，重名时加序号）。</summary>
+        private string MakeAnonTag(string memberName)
+        {
+            string tag = "_anon_" + memberName;
+            if (program.Structs.ContainsKey(tag) || program.Unions.ContainsKey(tag))
+            {
+                int ctr = 0;
+                while (program.Structs.ContainsKey(tag + "_" + ctr) || program.Unions.ContainsKey(tag + "_" + ctr)) ctr++;
+                tag = tag + "_" + ctr;
+            }
+            return tag;
+        }
         private int GetMemberSize(string typeName, bool isArray, int? arraySize)
         {
             int baseSize = GetBaseTypeSize(typeName);

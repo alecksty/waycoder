@@ -52,6 +52,7 @@ typedef struct {
     int nodelay;
     int keypad;
     int scr;
+    int bg;      /* `wbkgdset` 设的**窗口背景属性**：该窗口每次写入都带上它 */
 } WINDOW;
 
 static WINDOW sc_win;
@@ -80,10 +81,14 @@ static int  sc_ready;
 static int  sc_dirty[SCR_ROWS];
 static int  sc_full = 1;
 
-/* 颜色对表：`init_pair(p, f, b)` 存进来，`COLOR_PAIR(p)` 在属性高 8 位带着 p */
+/* 颜色对表：`init_pair(p, f, b)` 存进来，`COLOR_PAIR(p)` 在属性高 8 位带着 p。
+   ⚠ `pair_set[]` 是**必需的第三张表**，不能拿 `pair_fg[p] == -1` 当"没登记"：
+   `-1` 是 `use_default_colors()` 之后的**合法颜色值**（"用终端默认色"），
+   两者混淆的后果见 `sc_sgr`。 */
 #define PAIR_MAX 64
 static int pair_fg[PAIR_MAX];
 static int pair_bg[PAIR_MAX];
+static int pair_set[PAIR_MAX];
 
 /* ── 出口原语（与 conio.c 同款，只是这边坐标 0 起、且不查 DOS 映射表）── */
 static void sc_putc(int c) { putchar(c); }
@@ -131,12 +136,12 @@ static void sc_sgr(int at)
     int bg;
 
     pair = (at >> 8) & 0xFF;
-    if (pair < PAIR_MAX && pair_fg[pair] >= 0) {
+    if (pair < PAIR_MAX && pair_set[pair]) {
         fg = pair_fg[pair];
         bg = pair_bg[pair];
     } else {
-        fg = 7;                    /* 没配色对 ⇒ 默认"白字黑底" */
-        bg = 0;
+        fg = -1;                   /* 没配色对 ⇒ 交回终端默认色 */
+        bg = -1;
     }
 
     sc_puts("\033[0m");            /* 先清掉上一段的修饰位，免得 A_BOLD 之类粘住 */
@@ -145,8 +150,15 @@ static void sc_sgr(int at)
     if (at & 4) sc_puts("\033[4m");      /* A_UNDERLINE */
     if (at & 8) sc_puts("\033[7m");      /* A_REVERSE */
 
-    sc_putc(27); sc_putc('['); sc_putn(30 + (fg & 7)); sc_putc('m');
-    sc_putc(27); sc_putc('['); sc_putn(40 + (bg & 7)); sc_putc('m');
+    /* ⚠ `-1` 必须当成**一种颜色**（终端默认，`39`/`49`），不能当成"没配色对"。
+       老程序的写法正是 `use_default_colors()` + `init_pair(1, -1, COLOR_GREEN)`
+       （`tty-clock` 的表盘数字就是这个：默认前景 + 绿底）。此前判据写的是
+       `pair_fg[pair] >= 0`，于是 `-1` 被读成"这个颜色对没登记"，整块退回
+       `[37m[40m` 白字黑底 ⇒ **数字一个都看不见**，而返回值、链接、运行全正常。 */
+    if (fg < 0) sc_puts("\033[39m");
+    else { sc_putc(27); sc_putc('['); sc_putn(30 + (fg & 7)); sc_putc('m'); }
+    if (bg < 0) sc_puts("\033[49m");
+    else { sc_putc(27); sc_putc('['); sc_putn(40 + (bg & 7)); sc_putc('m'); }
 }
 
 static void sc_init(void)
@@ -154,7 +166,7 @@ static void sc_init(void)
     int i;
     if (sc_ready != 0) return;
     sc_ready = 1;
-    for (i = 0; i < PAIR_MAX; i++) { pair_fg[i] = -1; pair_bg[i] = -1; }
+    for (i = 0; i < PAIR_MAX; i++) { pair_fg[i] = -1; pair_bg[i] = -1; pair_set[i] = 0; }
     sc_cy = 0;
     sc_cx = 0;
     sc_attr = 0;
@@ -166,6 +178,7 @@ static void sc_init(void)
     sc_win.nodelay = 0;
     sc_win.keypad = 0;
     sc_win.scr = 0;
+    sc_win.bg = 0;
     sc_fill(' ', 0);
 }
 
@@ -454,6 +467,7 @@ int init_pair(short pair, short f, short b)
     if (pair < 0 || pair >= PAIR_MAX) return -1;
     pair_fg[pair] = f;
     pair_bg[pair] = b;
+    pair_set[pair] = 1;
     return 0;
 }
 
@@ -501,16 +515,64 @@ WINDOW *set_term(WINDOW *w) { return w ? w : stdscr; }
 int use_default_colors(void) { return 0; }
 
 /* ── 宽字符变体（`w*`）：本实现只有一块屏，`w` 参数收下不用 ──
-   老程序（tty-clock 等）混用 `attron`/`wattron`，两套都得在。 */
+   老程序（tty-clock 等）混用 `attron`/`wattron`，两套都得在。
+
+   ⚠ **但 `wbkgdset` 的 `w` 不能"收下不用"** —— 它是 ncurses 里
+   "**用空格 + 背景色画图**"那套写法的唯一入口：
+
+       wbkgdset(win, COLOR_PAIR(1));      // 这一格的底色
+       mvwaddch(win, y, x, ' ');          // 画一个"没有字形"的色块
+
+   `tty-clock` 的秒数/数字**整个都是这么画的**。此前 `wbkgdset` 写成
+   `(void)w; (void)ch; return 0;`（注释还写着"背景字符：忽略"），于是每一格都按
+   默认属性落位，`refresh` 只发 `[37m[40m` ⇒ **整块表盘是黑的**（不是"颜色不好看"，
+   是**什么都没有**），而链接、运行、`waddch` 的返回值**全都正常**。
+
+   ⚠ 本注释里**不能出现内嵌的块注释定界符**（我写第一版时犯过）：它会把外层注释
+   提前闭合，后面那段带反引号的散文就被当成代码 ⇒ 词法错误「未知字符：`」，
+   而 GenLib 只会打一行「失败: 词法错误」**然后跳过这个模块**，产物保持旧版。 */
 int wattron(WINDOW *w, int attrs)  { (void)w; return attron(attrs); }
 int wattroff(WINDOW *w, int attrs) { (void)w; return attroff(attrs); }
 int wattrset(WINDOW *w, int attrs) { (void)w; return attrset(attrs); }
-int wbkgdset(WINDOW *w, int ch)    { (void)w; (void)ch; return 0; }   /* 背景字符：忽略 */
+
+int wbkgdset(WINDOW *w, int ch)
+{
+    sc_init();
+    if (w != 0) w->bg = ch;
+    return 0;
+}
+
 int wclear(WINDOW *w)              { (void)w; return clear(); }
 int werase(WINDOW *w)              { (void)w; return erase(); }
 int wclrtoeol(WINDOW *w)           { (void)w; return clrtoeol(); }
-int waddch(WINDOW *w, int ch)      { (void)w; return addch(ch); }
-int waddstr(WINDOW *w, const char *s) { (void)w; return addstr(s); }
+
+int waddch(WINDOW *w, int ch)
+{
+    int save;
+    sc_init();
+    save = sc_attr;
+    /* 带上该窗口 `wbkgdset` 设的背景（低 8 位的 A_BOLD/A_BLINK… 留给 attron，颜色对号由背景给）。
+       ⚠ 这段**刻意写成两处内联**、不抽成一个 `sc_write_attr()` 助手 ——
+       `GenLib -A` 会把 curses.c 里的**函数**（连 `static` 的也算）导出成
+       22 份 `<语言>/shared.*` 绑定，于是内部助手会变成对外接口
+       （实测生成出 `nt sc_write_attr(WINDOW *w);` —— 返回类型还被截断成 `nt`）。
+       内部细节不该出现在跨语言契约里。 */
+    if (w != 0 && w->bg != 0) sc_attr = (sc_attr & 0x00FF) | w->bg;
+    addch(ch);
+    sc_attr = save;
+    return 0;
+}
+
+int waddstr(WINDOW *w, const char *s)
+{
+    int save;
+    sc_init();
+    save = sc_attr;
+    if (w != 0 && w->bg != 0) sc_attr = (sc_attr & 0x00FF) | w->bg;
+    addstr(s);
+    sc_attr = save;
+    return 0;
+}
 /* ⚠ `wprintw`/`mvwprintw` 此前是**空壳**（`(void)fmt; return 0;`）——
    编得过、链接得上、**就是什么都不打印**，而且不报错：老程序里
    `wprintw(win, "...")` 遍地都是，症状是"这个程序界面上没字"。
@@ -520,25 +582,35 @@ int wprintw(WINDOW *w, const char *fmt, ...)
 {
     char buf[512];
     va_list ap;
-    (void)w;
     va_start(ap, fmt);
     sc_vformat(buf, fmt, ap, format_arg_count(fmt));
     va_end(ap);
-    return addstr(buf);
+    return waddstr(w, buf);
 }
 int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...)
 {
     char buf[512];
     va_list ap;
-    (void)w;
     va_start(ap, fmt);
     sc_vformat(buf, fmt, ap, format_arg_count(fmt));
     va_end(ap);
     move(y, x);
-    return addstr(buf);
+    return waddstr(w, buf);
 }
-int mvwaddch(WINDOW *w, int y, int x, int ch) { (void)w; return mvaddch(y, x, ch); }
-int mvwaddstr(WINDOW *w, int y, int x, const char *s) { (void)w; return mvaddstr(y, x, s); }
+
+/* ⚠ 这两个走 `waddch`/`waddstr`（**不是** `mvaddch`/`mvaddstr`）——
+   否则 `wbkgdset` 的背景在这一路被漏掉，而那正是 `tty-clock` 画表盘用的调用
+   （`mvwaddch(win, y, x, ' ')`）。越界不画、返回 -1，语义与 `mvaddch` 一致。 */
+int mvwaddch(WINDOW *w, int y, int x, int ch)
+{
+    if (move(y, x) < 0) return -1;
+    return waddch(w, ch);
+}
+int mvwaddstr(WINDOW *w, int y, int x, const char *s)
+{
+    if (move(y, x) < 0) return -1;
+    return waddstr(w, s);
+}
 
 /* `clearok(win, TRUE)`：下次 refresh 整屏重画。
    本实现的 refresh 本来就按行比对脏标记，语义上"整屏重画"= 全部标脏 ⇒ 这样实现。 */

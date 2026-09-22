@@ -393,73 +393,14 @@ namespace CCompiler
                         typeName += " " + Advance().Value.ToString();
                     string effectiveTypeName = typeName;
                     while (Current().Type == TokenType.STAR) { effectiveTypeName += "*"; Advance(); }
-                    // 匿名 struct/union (C11): union { ... } 或 struct { ... }
+                    // 匿名 struct/union 当成员：struct { … } name;  或 C11 匿名成员 struct { … };
+                    // 正文按**相对偏移**解析，去向交给 AttachAnonStructMember —— 有名字就登记成
+                    // 一张独立类型（外层只加一条 `name` 成员），没名字才把成员提升进外层。
                     if (Current().Type == TokenType.LBRACE && (typeToken.Type == TokenType.STRUCT || typeToken.Type == TokenType.UNION))
                     {
                         bool anonIsUnion = typeToken.Type == TokenType.UNION;
-                        Advance(); // {
-                        int anonBase = offset;
-                        int anonMaxSize = 0;
-                        while (Current().Type != TokenType.RBRACE && Current().Type != TokenType.EOF)
-                        {
-                            Token innerType = Expect(TokenType.INT, TokenType.CHAR, TokenType.FLOAT, TokenType.DOUBLE, TokenType.SHORT, TokenType.VOID, TokenType.LONG, TokenType.SIGNED, TokenType.UNSIGNED, TokenType.CONST, TokenType.VOLATILE, TokenType.VOID, TokenType.IDENTIFIER, TokenType.STRUCT, TokenType.UNION, TokenType.INT8, TokenType.INT16, TokenType.INT32, TokenType.INT64, TokenType.UINT8, TokenType.UINT16, TokenType.UINT32, TokenType.UINT64, TokenType.INTPTR_T, TokenType.UINTPTR_T, TokenType.WCHAR_T, TokenType.CHAR32_T, TokenType.SIZE_T, TokenType.SSIZE_T, TokenType.PTRDIFF_T, TokenType.BOOL);
-                            string innerTypeName = innerType.Value.ToString();
-                            if (innerType.Type == TokenType.STRUCT || innerType.Type == TokenType.UNION)
-                            {
-                                if (Current().Type == TokenType.IDENTIFIER)
-                                    innerTypeName += " " + Advance().Value.ToString();
-                            }
-                            while (Current().Type == TokenType.LONG || Current().Type == TokenType.SIGNED || Current().Type == TokenType.UNSIGNED || Current().Type == TokenType.CONST || Current().Type == TokenType.VOLATILE || Current().Type == TokenType.VOID || Current().Type == TokenType.CHAR || Current().Type == TokenType.INT || Current().Type == TokenType.FLOAT || Current().Type == TokenType.DOUBLE || Current().Type == TokenType.SHORT || Current().Type == TokenType.INT8 || Current().Type == TokenType.INT16 || Current().Type == TokenType.INT32 || Current().Type == TokenType.INT64 || Current().Type == TokenType.UINT8 || Current().Type == TokenType.UINT16 || Current().Type == TokenType.UINT32 || Current().Type == TokenType.UINT64 || Current().Type == TokenType.INTPTR_T || Current().Type == TokenType.UINTPTR_T || Current().Type == TokenType.WCHAR_T || Current().Type == TokenType.CHAR32_T || Current().Type == TokenType.SIZE_T || Current().Type == TokenType.SSIZE_T || Current().Type == TokenType.PTRDIFF_T || Current().Type == TokenType.BOOL)
-                                innerTypeName += " " + Advance().Value.ToString();
-                            if (Current().Type == TokenType.IDENTIFIER && program.TypeDefs.ContainsKey(Current().Value.ToString()))
-                                innerTypeName += " " + Advance().Value.ToString();
-                            string effInnerType = innerTypeName;
-                            while (Current().Type == TokenType.STAR) { effInnerType += "*"; Advance(); }
-                            do {
-                                while (Current().Type == TokenType.STAR) { effInnerType += "*"; Advance(); }
-                                // 嵌套匿名 struct/union
-                                if (Current().Type == TokenType.LBRACE && (innerType.Type == TokenType.STRUCT || innerType.Type == TokenType.UNION))
-                                { Advance(); int nd=1; while(nd>0&&Current().Type!=TokenType.EOF){if(Current().Type==TokenType.LBRACE)nd++;else if(Current().Type==TokenType.RBRACE){nd--;if(nd==0)break;}Advance();}
-                                  Expect(TokenType.RBRACE); while(Current().Type==TokenType.STAR) Advance();
-                                  if(Current().Type==TokenType.IDENTIFIER) Advance(); Expect(TokenType.SEMICOLON); continue; }
-                                string innerMemberName;
-                                bool innerBF = false; int bitWidth = 0;
-                                if (Current().Type == TokenType.LPAREN && Peek(1).Type == TokenType.STAR)
-                                {
-                                    Advance(); Match(TokenType.STAR);
-                                    effInnerType += "*";
-                                    innerMemberName = Expect(TokenType.IDENTIFIER).Value.ToString();
-                                    Expect(TokenType.RPAREN);
-                                    if (Match(TokenType.LPAREN)) { int d = 1; while (d > 0 && Current().Type != TokenType.EOF) { if (Current().Type == TokenType.LPAREN) d++; else if (Current().Type == TokenType.RPAREN) { d--; if (d == 0) { Advance(); break; } } Advance(); } }
-                                }
-                                else if (Current().Type == TokenType.COLON)
-                                { innerMemberName = ""; innerBF = true; Advance(); if (Current().Type == TokenType.NUMBER) { bitWidth = Convert.ToInt32(Current().Value); Advance(); } else while (Current().Type != TokenType.COMMA && Current().Type != TokenType.SEMICOLON && Current().Type != TokenType.EOF) Advance(); }
-                                else
-                                { innerMemberName = Expect(TokenType.IDENTIFIER).Value.ToString(); }
-                                if (!innerBF && Current().Type == TokenType.COLON)
-                                { innerBF = true; Advance(); if (Current().Type == TokenType.NUMBER) { bitWidth = Convert.ToInt32(Current().Value); Advance(); } else while (Current().Type != TokenType.COMMA && Current().Type != TokenType.SEMICOLON && Current().Type != TokenType.EOF) Advance(); }
-                                bool isArr = false; int? arrSize = null; List<int?> dims = new List<int?>();
-                                if (Match(TokenType.LBRACKET))
-                                { isArr = true;
-                                    if (Current().Type == TokenType.NUMBER && Peek(1).Type == TokenType.RBRACKET) { int dim = Convert.ToInt32(Current().Value); if (arrSize == null) arrSize = dim; else arrSize *= dim; dims.Add(dim); Advance(); }
-                                    else { int d2=1; while(d2>0&&Current().Type!=TokenType.EOF){if(Current().Type==TokenType.LBRACKET)d2++;else if(Current().Type==TokenType.RBRACKET){d2--;if(d2==0)break;}Advance();} }
-                                    Expect(TokenType.RBRACKET); }
-                                var im = new StructMember(innerMemberName, effInnerType, isArr, arrSize);
-                                im.Offset = anonIsUnion ? anonBase : offset;
-                                im.Dimensions = dims; im.IsBitfield = innerBF;
-                                structDecl.Members.Add(im);
-                                int ms = GetMemberSize(effInnerType, isArr, arrSize);
-                                if (anonIsUnion) { if (ms > anonMaxSize) anonMaxSize = ms; }
-                                else { offset += ms; }
-                            } while (Match(TokenType.COMMA));
-                            Expect(TokenType.SEMICOLON);
-                        }
-                        Expect(TokenType.RBRACE);
-                        if (anonIsUnion) offset = anonBase + anonMaxSize;
-                        // Handle pointers after anonymous struct: } *name; or } **name;
-                        while (Current().Type == TokenType.STAR) Advance();
-                        if (Current().Type == TokenType.IDENTIFIER) Advance();
-                        Expect(TokenType.SEMICOLON);
+                        var anonBody = ParseAnonStructBody(anonIsUnion);
+                        offset += AttachAnonStructMember(anonBody, anonIsUnion, structDecl.Members, offset);
                         continue;
                     }
                     do {

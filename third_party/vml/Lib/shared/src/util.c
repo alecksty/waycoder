@@ -297,6 +297,31 @@ __stdcall int strftime(char* s, int max, const char* fmt, struct vml_tm* tm) {
             continue;
         }
         if (fmt[i] == 'y') { _sf_put2(s, &n, max - 1, (tm->tm_year + 1900) % 100); continue; }
+        /* 复合转换（`%F` = `%Y-%m-%d`、`%T` = `%H:%M:%S`、`%R` = `%H:%M`）。
+           ⚠ **少了它不报错、只是把 `%F` 原样打出来** —— `tty-clock` 的默认日期格式
+           正是 `"%F"`（`strncpy(ttyclock.option.format, "%F", …)`），症状是钟面下面
+           那一行显示成字面的 `%F`，看起来像"程序没跑对"，其实是这里没认。 */
+        if (fmt[i] == 'F') {
+            v = tm->tm_year + 1900;
+            if (n + 10 < max) {
+                s[n] = (char)('0' + (v / 1000) % 10); n++;
+                s[n] = (char)('0' + (v / 100) % 10);  n++;
+                s[n] = (char)('0' + (v / 10) % 10);   n++;
+                s[n] = (char)('0' + v % 10);          n++;
+                s[n] = '-'; n++;
+                s[n] = (char)('0' + ((tm->tm_mon + 1) / 10) % 10); n++;
+                s[n] = (char)('0' + (tm->tm_mon + 1) % 10);        n++;
+                s[n] = '-'; n++;
+                s[n] = (char)('0' + (tm->tm_mday / 10) % 10); n++;
+                s[n] = (char)('0' + tm->tm_mday % 10);        n++;
+            }
+            continue;
+        }
+        if (fmt[i] == 'T') { _sf_put2(s, &n, max - 1, tm->tm_hour); if (n + 1 < max) { s[n] = ':'; n++; }
+                             _sf_put2(s, &n, max - 1, tm->tm_min);  if (n + 1 < max) { s[n] = ':'; n++; }
+                             _sf_put2(s, &n, max - 1, tm->tm_sec);  continue; }
+        if (fmt[i] == 'R') { _sf_put2(s, &n, max - 1, tm->tm_hour); if (n + 1 < max) { s[n] = ':'; n++; }
+                             _sf_put2(s, &n, max - 1, tm->tm_min);  continue; }
         if (fmt[i] == 'a') { _sf_puts(s, &n, max - 1, _sf_day[tm->tm_wday % 7]); continue; }
         if (fmt[i] == 'b' || fmt[i] == 'h') { _sf_puts(s, &n, max - 1, _sf_mon[tm->tm_mon % 12]); continue; }
         if (fmt[i] == 'p') { _sf_puts(s, &n, max - 1, tm->tm_hour < 12 ? "AM" : "PM"); continue; }

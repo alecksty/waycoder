@@ -18,7 +18,8 @@ namespace CCompiler
             TokenType.INT8, TokenType.INT16, TokenType.INT32, TokenType.INT64,
             TokenType.UINT8, TokenType.UINT16, TokenType.UINT32, TokenType.UINT64,
             TokenType.INTPTR_T, TokenType.UINTPTR_T, TokenType.WCHAR_T, TokenType.CHAR32_T,
-            TokenType.SIZE_T, TokenType.SSIZE_T, TokenType.PTRDIFF_T
+            TokenType.SIZE_T, TokenType.SSIZE_T, TokenType.PTRDIFF_T,
+            TokenType.BOOL
         };
 
         /// <summary>类型修饰符 Token（可跟在类型开头的 Token 之后）</summary>
@@ -30,7 +31,8 @@ namespace CCompiler
             TokenType.INT8, TokenType.INT16, TokenType.INT32, TokenType.INT64,
             TokenType.UINT8, TokenType.UINT16, TokenType.UINT32, TokenType.UINT64,
             TokenType.INTPTR_T, TokenType.UINTPTR_T, TokenType.WCHAR_T, TokenType.CHAR32_T,
-            TokenType.SIZE_T, TokenType.SSIZE_T, TokenType.PTRDIFF_T
+            TokenType.SIZE_T, TokenType.SSIZE_T, TokenType.PTRDIFF_T,
+            TokenType.BOOL
         };
 
         /// <summary>检查当前 Token 是否匹配给定类型之一</summary>

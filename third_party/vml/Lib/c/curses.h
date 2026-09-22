@@ -144,6 +144,7 @@ typedef struct {
     int nodelay;   /* 只记状态：本平台输入本来就是"按行"的 */
     int keypad;
     int scr;       /* 保留：屏幕号（本实现恒 0） */
+    int bg;        /* `wbkgdset` 设的窗口背景属性（用空格 + 底色画图靠它） */
 } WINDOW;
 
 /* `SCREEN` —— **不透明类型**（真 ncurses 里它是「一整屏」的句柄，`newterm()` 返回它）。
