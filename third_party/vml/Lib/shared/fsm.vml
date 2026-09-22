@@ -182,22 +182,26 @@ _L16960018:
 ; 16:             state[0] = to;
         move @R0 [@R12-28]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R6
         move [@R0] @R6
 ; 17:             state[1] = 0; // 清除事件
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R4
         move [@R0] @R4
 ; 18:             return to;
         move @R0 [@R12-28]
@@ -255,12 +259,14 @@ sta_16960024:
 ; 26:     state[1] = event;
         move @R0 [@R12+16]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R2
         move [@R0] @R2
 L_16960027:
         move @R13 @R12
@@ -300,22 +306,26 @@ sta_16960029:
 ; 31:     state[0] = new_state;
         move @R0 [@R12+16]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 32:     state[1] = 0;
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 L_16960032:
         move @R13 @R12
@@ -451,6 +461,7 @@ sta_16960044:
 ; 47:     queue[2 + head] = event;
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -462,16 +473,19 @@ sta_16960044:
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R3
         move [@R0] @R3
 ; 48:     queue[0] = next;
         move @R0 [@R12-16]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R1
         move [@R0] @R1
 ; 49:     return 1;
         move @R0 #1
@@ -578,12 +592,14 @@ sta_16960053:
         mod @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R9
         move [@R0] @R9
 ; 59:     return event;
         move @R0 [@R12-16]
@@ -625,22 +641,26 @@ sta_16960057:
 ; 64:     queue[0] = 0; // head
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R5
         move [@R0] @R5
 ; 65:     queue[1] = 0; // tail
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R4
         move [@R0] @R4
 L_16960060:
         move @R13 @R12

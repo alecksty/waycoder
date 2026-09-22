@@ -66,21 +66,25 @@ _L19190007:
         jz sta_19190004
         move @R0 #48
         move @R11 @R0
+        push @R11
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R11
         moveb [@R0] @R11
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R9
         moveb [@R0] @R9
         move @R0 #1
         jmp L_19190008
@@ -119,6 +123,7 @@ _L19190012:
         add @R1 @R0
         moveb @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -129,6 +134,7 @@ _L19190012:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R7
         moveb [@R0] @R7
 ; 12:         value /= 10;
         movel @R0 [@R12+12]
@@ -146,6 +152,7 @@ sta_19190010:
         jz sta_19190013
         move @R0 #45
         move @R5 @R0
+        push @R5
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -156,18 +163,21 @@ sta_19190010:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R5
         moveb [@R0] @R5
 sta_19190013:
 sta_19190014:
 ; 15:     dst[i] = 0;
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R3
         moveb [@R0] @R3
 ; 17:     for (j = 0; j < i / 2; j++) {
         move @R0 #0
@@ -220,16 +230,19 @@ _L19190019:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-12]
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R11
         moveb [@R0] @R11
         moveb @R0 [@R12-17]
         sextb @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -246,6 +259,7 @@ _L19190019:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R9
         moveb [@R0] @R9
 sta_19190016:
         move @R0 [@R12-12]
@@ -634,6 +648,7 @@ _L19190065:
         move @R0 @R1
 _L19190066:
         move @R8 @R0
+        push @R8
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -644,6 +659,7 @@ _L19190066:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R8
         moveb [@R0] @R8
 ; 49:             started = 1;
         move @R0 #1
@@ -664,12 +680,14 @@ sta_19190048:
 ; 52:     dst[i] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R6
         moveb [@R0] @R6
 ; 53:     return i;
         move @R0 [@R12-8]
@@ -1100,6 +1118,7 @@ _L19190120:
         jz sta_19190117
         move @R0 #45
         move @R10 @R0
+        push @R10
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
@@ -1110,6 +1129,7 @@ _L19190120:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R10
         moveb [@R0] @R10
         moved @R0 [@R12+12]
         moved @R0 [@R12+12]
@@ -1151,6 +1171,7 @@ _L19190124:
         jz sta_19190121
         move @R0 #48
         move @R8 @R0
+        push @R8
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
@@ -1161,6 +1182,7 @@ _L19190124:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R8
         moveb [@R0] @R8
         jmp sta_19190122
 sta_19190121:
@@ -1199,6 +1221,7 @@ _L19190128:
         add @R1 @R0
         moveb @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
@@ -1209,6 +1232,7 @@ _L19190128:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R6
         moveb [@R0] @R6
         movel @R0 [@R12-20]
         pushl @R0
@@ -1261,22 +1285,26 @@ _L19190132:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R2 @R0
+        push @R2
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-36]
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R2
         moveb [@R0] @R2
         moveb @R0 [@R12-41]
         sextb @R0 @R0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-40]
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R1
         moveb [@R0] @R1
         move @R0 [@R12-36]
         move @R1 @R0
@@ -1308,6 +1336,7 @@ _L19190136:
 ; 92:         dst[i++] = '.';
         move @R0 #46
         move @R10 @R0
+        push @R10
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
@@ -1318,6 +1347,7 @@ _L19190136:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R10
         moveb [@R0] @R10
 ; 94:         for (p = 0; p < precision && p < 15; p++) {
         move @R0 #0
@@ -1375,6 +1405,7 @@ _L19190141:
         add @R1 @R0
         moveb @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
@@ -1385,6 +1416,7 @@ _L19190141:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R8
         moveb [@R0] @R8
 ; 98:             frac -= (double)digit;
         moved @R0 [@R12-28]
@@ -1407,12 +1439,14 @@ sta_19190134:
 ; 101:     dst[i] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R6
         moveb [@R0] @R6
 ; 102:     return i;
         move @R0 [@R12-8]

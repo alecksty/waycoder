@@ -58,42 +58,50 @@ sta_90750001:
 ; 13:     state[0] = (int)buffer;
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 14:     state[1] = size;
         move @R0 [@R12+16]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 15:     state[2] = 0;  // read_idx
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+20]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 16:     state[3] = 0;  // write_idx
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+20]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 L_90750009:
         move @R13 @R12
@@ -211,6 +219,7 @@ sta_90750016:
 ; 27:     buffer[write_idx & mask] = value;
         move @R0 [@R12+16]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-16]
@@ -222,6 +231,7 @@ sta_90750016:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R11
         move [@R0] @R11
 ; 28:     state[3] = (write_idx + 1) & mask;
         move @R0 [@R12-16]
@@ -236,12 +246,14 @@ sta_90750016:
         and @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R9
         move [@R0] @R9
 ; 29:     return 1;
         move @R0 #1
@@ -399,12 +411,14 @@ sta_90750030:
         and @R1 @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R8
         move [@R0] @R8
 ; 40:     return 1;
         move @R0 #1
@@ -774,22 +788,26 @@ sta_90750062:
 ; 68:     state[2] = 0;
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R9
         move [@R0] @R9
 ; 69:     state[3] = 0;
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 L_90750065:
         move @R13 @R12

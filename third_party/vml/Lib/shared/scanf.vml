@@ -1779,6 +1779,7 @@ _L9530249:
         move [@R0] @R1
         move @R0 @R2
         move @R1 @R0
+        push @R1
         move @R0 @R12
         sub @R0 #60
         push @R0
@@ -1791,6 +1792,7 @@ _L9530249:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 sta_9530246:
         move @R0 [@R12-64]
@@ -1863,6 +1865,7 @@ sta_9530259:
 ; 141:         buf[i2] = (char)c;
         move @R0 [@R12-328]
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #320
         push @R0
@@ -1875,6 +1878,7 @@ sta_9530259:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 ; 142:         i2++;
         move @R0 [@R12-324]
@@ -1887,6 +1891,7 @@ sta_9530255:
 ; 144:     buf[i2] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 @R12
         sub @R0 #320
         push @R0
@@ -1899,6 +1904,7 @@ sta_9530255:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R6
         moveb [@R0] @R6
 ; 145:     return vsscanf(buf, format, args, nargs);
         move @R0 [@R12-12]
@@ -2000,6 +2006,7 @@ _L9530272:
         move [@R0] @R1
         move @R0 @R2
         move @R3 @R0
+        push @R3
         move @R0 @R12
         sub @R0 #60
         push @R0
@@ -2012,6 +2019,7 @@ _L9530272:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R3
         move [@R0] @R3
 sta_9530269:
         move @R0 [@R12-64]

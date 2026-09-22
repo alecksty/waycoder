@@ -92,12 +92,14 @@ _L7690013:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R10 @R0
+        push @R10
         move @R0 [@R12-8]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R10
         moveb [@R0] @R10
 sta_7690010:
         movel @R0 [@R12-20]
@@ -143,12 +145,14 @@ _L7690018:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12-8]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R7
         moveb [@R0] @R7
 sta_7690015:
         movel @R0 [@R12-20]
@@ -206,12 +210,14 @@ _L7690024:
         jz sta_7690022
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-8]
         push @R0
         movel @R0 [@R12-16]
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R5
         moveb [@R0] @R5
 sta_7690021:
         movel @R0 [@R12-16]

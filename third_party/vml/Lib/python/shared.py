@@ -6305,6 +6305,12 @@ def gmtime(a0):
     asm("CALL gmtime")
     return r0
 
+def mktime(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL mktime")
+    return r0
+
 def _sf_put2(a0, a1, a2, a3):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a3

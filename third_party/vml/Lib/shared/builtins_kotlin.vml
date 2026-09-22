@@ -46,12 +46,14 @@ array_alloc:
 ; 9:     arr[0] = count;       // STORE count → [arr+0]
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 10:     return arr;
         move @R0 [@R12-8]

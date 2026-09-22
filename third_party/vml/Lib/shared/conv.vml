@@ -103,6 +103,7 @@ sta_95080001:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R7 @R0
+        push @R7
         move @R0 _wbuf
         push @R0
         move @R6 #0
@@ -114,6 +115,7 @@ sta_95080001:
         mul @R0 #2
         pop @R5
         add @R0 @R5
+        pop @R7
         moveh [@R0] @R7
 sta_95080002:
         move @R0 [@R12-8]
@@ -126,6 +128,7 @@ sta_95080003:
 ; 34:     _wbuf[strlen(_buf)] = 0;
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 _wbuf
         push @R0
         move @R3 #0
@@ -141,6 +144,7 @@ sta_95080003:
         mul @R0 #2
         pop @R2
         add @R0 @R2
+        pop @R4
         moveh [@R0] @R4
 ; 35:     return _wbuf;
         move @R0 _wbuf
@@ -204,6 +208,7 @@ sta_95080005:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R8 @R0
+        push @R8
         move @R0 _ubuf
         push @R0
         move @R6 #0
@@ -215,6 +220,7 @@ sta_95080005:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R8
         move [@R0] @R8
 sta_95080006:
         move @R0 [@R12-8]
@@ -227,6 +233,7 @@ sta_95080007:
 ; 41:     _ubuf[strlen(_buf)] = 0;
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 _ubuf
         push @R0
         move @R3 #0
@@ -242,6 +249,7 @@ sta_95080007:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R7
         move [@R0] @R7
 ; 42:     return _ubuf;
         move @R0 _ubuf
@@ -331,6 +339,7 @@ _L95080013:
         moveh @R0 [@R0]
         sexth @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -343,6 +352,7 @@ _L95080013:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R11
         moveb [@R0] @R11
         move @R0 [@R12-72]
         move @R1 @R0
@@ -353,6 +363,7 @@ _L95080013:
 sta_95080011:
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -365,6 +376,7 @@ sta_95080011:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R6
         moveb [@R0] @R6
 ; 53:     return atoi(tmp);
         move @R0 @R12
@@ -433,6 +445,7 @@ _L95080020:
         add @R0 @R2
         move @R0 [@R0]
         move @R7 @R0
+        push @R7
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -445,6 +458,7 @@ _L95080020:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R7
         moveb [@R0] @R7
         move @R0 [@R12-72]
         move @R1 @R0
@@ -455,6 +469,7 @@ _L95080020:
 sta_95080018:
         move @R0 #0
         move @R10 @R0
+        push @R10
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -467,6 +482,7 @@ sta_95080018:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R10
         moveb [@R0] @R10
 ; 57:     return atoi(tmp);
         move @R0 @R12
@@ -595,6 +611,7 @@ sta_95080026:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R2 @R0
+        push @R2
         move @R0 _wbuf
         push @R0
         move @R4 #0
@@ -606,6 +623,7 @@ sta_95080026:
         mul @R0 #2
         pop @R1
         add @R0 @R1
+        pop @R2
         moveh [@R0] @R2
 sta_95080027:
         move @R0 [@R12-8]
@@ -618,6 +636,7 @@ sta_95080028:
 ; 75:     _wbuf[strlen(_buf)] = 0;
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 _wbuf
         push @R0
         move @R9 #0
@@ -633,6 +652,7 @@ sta_95080028:
         mul @R0 #2
         pop @R11
         add @R0 @R11
+        pop @R7
         moveh [@R0] @R7
 ; 76:     return _wbuf;
         move @R0 _wbuf
@@ -697,6 +717,7 @@ sta_95080030:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R3 @R0
+        push @R3
         move @R0 _ubuf
         push @R0
         move @R4 #0
@@ -708,6 +729,7 @@ sta_95080030:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R3
         move [@R0] @R3
 sta_95080031:
         move @R0 [@R12-8]
@@ -720,6 +742,7 @@ sta_95080032:
 ; 82:     _ubuf[strlen(_buf)] = 0;
         move @R0 #0
         move @R2 @R0
+        push @R2
         move @R0 _ubuf
         push @R0
         move @R9 #0
@@ -735,6 +758,7 @@ sta_95080032:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R2
         move [@R0] @R2
 ; 83:     return _ubuf;
         move @R0 _ubuf
@@ -824,6 +848,7 @@ _L95080038:
         moveh @R0 [@R0]
         sexth @R0 @R0
         move @R5 @R0
+        push @R5
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -836,6 +861,7 @@ _L95080038:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R5
         moveb [@R0] @R5
         move @R0 [@R12-72]
         move @R1 @R0
@@ -846,6 +872,7 @@ _L95080038:
 sta_95080036:
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -858,6 +885,7 @@ sta_95080036:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R4
         moveb [@R0] @R4
 ; 94:     return atol(tmp);
         move @R0 @R12
@@ -926,6 +954,7 @@ _L95080045:
         add @R0 @R11
         move @R0 [@R0]
         move @R2 @R0
+        push @R2
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -938,6 +967,7 @@ _L95080045:
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R2
         moveb [@R0] @R2
         move @R0 [@R12-72]
         move @R1 @R0
@@ -948,6 +978,7 @@ _L95080045:
 sta_95080043:
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -960,6 +991,7 @@ sta_95080043:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R8
         moveb [@R0] @R8
 ; 98:     return atol(tmp);
         move @R0 @R12
@@ -1032,6 +1064,7 @@ sta_95080054:
         add @R1 @R0
         move @R0 @R1
         move @R1 @R0
+        push @R1
         move @R0 _buf
         push @R0
         move @R3 #0
@@ -1047,6 +1080,7 @@ sta_95080054:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R1
         moveb [@R0] @R1
         move @R0 [@R12-12]
         push @R0
@@ -1072,6 +1106,7 @@ _L95080057:
 ; 111:     _buf[pos] = 0;
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 _buf
         push @R0
         move @R11 #0
@@ -1083,6 +1118,7 @@ _L95080057:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 ; 113:     for (int i = 0; i < pos / 2; i++) { char t = _buf[i]; _buf[i] = _buf[pos-1-i]; _buf[pos-1-i] = t; }
         move @R0 #0
@@ -1144,6 +1180,7 @@ _L95080062:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R8 @R0
+        push @R8
         move @R0 _buf
         push @R0
         move @R3 #0
@@ -1155,10 +1192,12 @@ _L95080062:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R8
         moveb [@R0] @R8
         moveb @R0 [@R12-17]
         sextb @R0 @R0
         move @R1 @R0
+        push @R1
         move @R0 _buf
         push @R0
         move @R11 #0
@@ -1180,6 +1219,7 @@ _L95080062:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R1
         moveb [@R0] @R1
 sta_95080059:
         move @R0 [@R12-16]
@@ -1258,6 +1298,7 @@ sta_95080069:
         popl @R1
         addl @R0 @R1 @R0
         move @R9 @R0
+        push @R9
         move @R0 _buf
         push @R0
         move @R10 #0
@@ -1273,6 +1314,7 @@ sta_95080069:
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R9
         moveb [@R0] @R9
         movel @R0 [@R12-16]
         pushl @R0
@@ -1301,6 +1343,7 @@ _L95080072:
 ; 122:     _buf[pos] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 _buf
         push @R0
         move @R5 #0
@@ -1312,6 +1355,7 @@ _L95080072:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R6
         moveb [@R0] @R6
 ; 123:     for (int i = 0; i < pos / 2; i++) { char t = _buf[i]; _buf[i] = _buf[pos-1-i]; _buf[pos-1-i] = t; }
         move @R0 #0
@@ -1373,6 +1417,7 @@ _L95080077:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R1 @R0
+        push @R1
         move @R0 _buf
         push @R0
         move @R10 #0
@@ -1384,10 +1429,12 @@ _L95080077:
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R1
         moveb [@R0] @R1
         moveb @R0 [@R12-21]
         sextb @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 _buf
         push @R0
         move @R5 #0
@@ -1409,6 +1456,7 @@ _L95080077:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R9
         moveb [@R0] @R9
 sta_95080074:
         move @R0 [@R12-20]
@@ -1492,6 +1540,7 @@ bool_to_str:
         jz sta_95080080
         move @R0 #116
         move @R6 @R0
+        push @R6
         move @R0 _buf
         push @R0
         move @R4 #0
@@ -1503,9 +1552,11 @@ bool_to_str:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R6
         moveb [@R0] @R6
         move @R0 #114
         move @R11 @R0
+        push @R11
         move @R0 _buf
         push @R0
         move @R7 #0
@@ -1517,9 +1568,11 @@ bool_to_str:
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R11
         moveb [@R0] @R11
         move @R0 #117
         move @R2 @R0
+        push @R2
         move @R0 _buf
         push @R0
         move @R1 #0
@@ -1531,9 +1584,11 @@ bool_to_str:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R2
         moveb [@R0] @R2
         move @R0 #101
         move @R3 @R0
+        push @R3
         move @R0 _buf
         push @R0
         move @R9 #0
@@ -1545,9 +1600,11 @@ bool_to_str:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R3
         moveb [@R0] @R3
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 _buf
         push @R0
         move @R6 #0
@@ -1559,12 +1616,14 @@ bool_to_str:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R8
         moveb [@R0] @R8
         jmp sta_95080081
 sta_95080080:
 ; 140:     else   { _buf[0]='f'; _buf[1]='a'; _buf[2]='l'; _buf[3]='s'; _buf[4]='e'; _buf[5]=0; }
         move @R0 #102
         move @R10 @R0
+        push @R10
         move @R0 _buf
         push @R0
         move @R11 #0
@@ -1576,9 +1635,11 @@ sta_95080080:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R10
         moveb [@R0] @R10
         move @R0 #97
         move @R5 @R0
+        push @R5
         move @R0 _buf
         push @R0
         move @R2 #0
@@ -1590,9 +1651,11 @@ sta_95080080:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R5
         moveb [@R0] @R5
         move @R0 #108
         move @R4 @R0
+        push @R4
         move @R0 _buf
         push @R0
         move @R3 #0
@@ -1604,9 +1667,11 @@ sta_95080080:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R4
         moveb [@R0] @R4
         move @R0 #115
         move @R7 @R0
+        push @R7
         move @R0 _buf
         push @R0
         move @R8 #0
@@ -1618,9 +1683,11 @@ sta_95080080:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R7
         moveb [@R0] @R7
         move @R0 #101
         move @R1 @R0
+        push @R1
         move @R0 _buf
         push @R0
         move @R10 #0
@@ -1632,9 +1699,11 @@ sta_95080080:
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R1
         moveb [@R0] @R1
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 _buf
         push @R0
         move @R5 #0
@@ -1646,6 +1715,7 @@ sta_95080080:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R9
         moveb [@R0] @R9
 sta_95080081:
 ; 141:     return _buf;
@@ -1822,6 +1892,7 @@ char_to_str:
         moveb @R0 [@R12+12]
         sextb @R0 @R0
         move @R10 @R0
+        push @R10
         move @R0 _buf
         push @R0
         move @R2 #0
@@ -1833,9 +1904,11 @@ char_to_str:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R10
         moveb [@R0] @R10
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 _buf
         push @R0
         move @R3 #0
@@ -1847,6 +1920,7 @@ char_to_str:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R5
         moveb [@R0] @R5
         move @R0 _buf
         jmp L_95080107
@@ -2130,6 +2204,7 @@ _L95080124:
 ; 188:         _buf[0] = '-'; f = -f;
         move @R0 #45
         move @R8 @R0
+        push @R8
         move @R0 _buf
         push @R0
         move @R11 #0
@@ -2141,6 +2216,7 @@ _L95080124:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R8
         moveb [@R0] @R8
         movef @R0 [@R12+12]
         movef @R0 [@R12+12]
@@ -2850,6 +2926,7 @@ _L95080213:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 _wbuf
         push @R0
         move @R7 #0
@@ -2861,6 +2938,7 @@ _L95080213:
         mul @R0 #2
         pop @R8
         add @R0 @R8
+        pop @R11
         moveh [@R0] @R11
 sta_95080210:
         move @R0 [@R12-12]
@@ -2935,6 +3013,7 @@ _L95080219:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R10 @R0
+        push @R10
         move @R0 _wbuf
         push @R0
         move @R3 #0
@@ -2946,6 +3025,7 @@ _L95080219:
         mul @R0 #2
         pop @R9
         add @R0 @R9
+        pop @R10
         moveh [@R0] @R10
 sta_95080216:
         move @R0 [@R12-12]
@@ -3019,6 +3099,7 @@ _L95080225:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R4 @R0
+        push @R4
         move @R0 _wbuf
         push @R0
         move @R7 #0
@@ -3030,6 +3111,7 @@ _L95080225:
         mul @R0 #2
         pop @R8
         add @R0 @R8
+        pop @R4
         moveh [@R0] @R4
 sta_95080222:
         move @R0 [@R12-12]
@@ -3104,6 +3186,7 @@ _L95080231:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R1 @R0
+        push @R1
         move @R0 _ubuf
         push @R0
         move @R3 #0
@@ -3115,6 +3198,7 @@ _L95080231:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R1
         move [@R0] @R1
 sta_95080228:
         move @R0 [@R12-12]
@@ -3189,6 +3273,7 @@ _L95080237:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R6 @R0
+        push @R6
         move @R0 _ubuf
         push @R0
         move @R7 #0
@@ -3200,6 +3285,7 @@ _L95080237:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R6
         move [@R0] @R6
 sta_95080234:
         move @R0 [@R12-12]
@@ -3274,6 +3360,7 @@ _L95080243:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R2 @R0
+        push @R2
         move @R0 _ubuf
         push @R0
         move @R3 #0
@@ -3285,6 +3372,7 @@ _L95080243:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R2
         move [@R0] @R2
 sta_95080240:
         move @R0 [@R12-12]

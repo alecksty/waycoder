@@ -76,12 +76,14 @@ zadd:
         dpop @R1
         dadd @R0 @R1 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R9
         moved [@R0] @R9
         move @R0 [@R12+12]
         push @R0
@@ -101,12 +103,14 @@ zadd:
         dpop @R1
         dadd @R0 @R1 @R0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R5
         moved [@R0] @R5
         move @R13 @R12
         pop @R12
@@ -145,12 +149,14 @@ zsub:
         dpop @R1
         dsub @R0 @R1 @R0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R11
         add @R0 @R11
+        pop @R1
         moved [@R0] @R1
         move @R0 [@R12+12]
         push @R0
@@ -170,12 +176,14 @@ zsub:
         dpop @R1
         dsub @R0 @R1 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R9
         moved [@R0] @R9
         move @R13 @R12
         pop @R12
@@ -234,12 +242,14 @@ zmul:
         dpop @R1
         dsub @R0 @R1 @R0
         move @R2 @R0
+        push @R2
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R11
         add @R0 @R11
+        pop @R2
         moved [@R0] @R2
 ; 11:     result[1] = a[0]*b[1] + a[1]*b[0];
         move @R0 [@R12+12]
@@ -280,12 +290,14 @@ zmul:
         dpop @R1
         dadd @R0 @R1 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R9
         moved [@R0] @R9
         move @R13 @R12
         pop @R12
@@ -360,21 +372,25 @@ _L92980004:
         jz sta_92980000
         moved @R0 [dbl_92980005]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R1
         add @R0 @R1
+        pop @R2
         moved [@R0] @R2
         moved @R0 [dbl_92980006]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R10
         moved [@R0] @R10
         jmp L_92980007
 sta_92980000:
@@ -422,12 +438,14 @@ sta_92980001:
         dpop @R1
         ddiv @R0 @R1 @R0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R5
         moved [@R0] @R5
 ; 17:     result[1] = (a[1]*b[0] - a[0]*b[1]) / denom;
         move @R0 [@R12+12]
@@ -472,12 +490,14 @@ sta_92980001:
         dpop @R1
         ddiv @R0 @R1 @R0
         move @R10 @R0
+        push @R10
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R10
         moved [@R0] @R10
 L_92980007:
         move @R13 @R12
@@ -1109,12 +1129,14 @@ zconj:
         add @R0 @R8
         moved @R0 [@R0]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R7
         moved [@R0] @R7
         move @R0 [@R12+12]
         push @R0
@@ -1132,12 +1154,14 @@ zconj:
         moved @R0 [@R0]
         dneg @R0 @R0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R4
         moved [@R0] @R4
         move @R13 @R12
         pop @R12
@@ -1173,12 +1197,14 @@ zneg:
         moved @R0 [@R0]
         dneg @R0 @R0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R2
         add @R0 @R2
+        pop @R1
         moved [@R0] @R1
         move @R0 [@R12+12]
         push @R0
@@ -1196,12 +1222,14 @@ zneg:
         moved @R0 [@R0]
         dneg @R0 @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         moved [@R0] @R7
         move @R13 @R12
         pop @R12
@@ -1609,12 +1637,14 @@ zsqr:
         dpop @R1
         dsub @R0 @R1 @R0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R2
         add @R0 @R2
+        pop @R11
         moved [@R0] @R11
 ; 81:     result[1] = 2.0 * a[0] * a[1];
         moved @R0 [dbl_92980141]
@@ -1639,12 +1669,14 @@ zsqr:
         dpop @R1
         dmul @R0 @R1 @R0
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R10
         moved [@R0] @R10
         move @R13 @R12
         pop @R12
@@ -1687,21 +1719,25 @@ _L92980146:
         jz sta_92980142
         moved @R0 [dbl_92980147]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R9
         add @R0 @R9
+        pop @R7
         moved [@R0] @R7
         moved @R0 [dbl_92980148]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R3
         moved [@R0] @R3
         jmp L_92980149
 sta_92980142:
@@ -1856,12 +1892,14 @@ sta_92980166:
 ; 92:     result[0] = g;
         moved @R0 [@R12-36]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R1
         add @R0 @R1
+        pop @R11
         moved [@R0] @R11
 ; 93:     if (z[1] < 0) result[0] = -result[0];
         move @R0 [@R12+12]
@@ -1900,12 +1938,14 @@ _L92980177:
         moved @R0 [@R0]
         dneg @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R9
         moved [@R0] @R9
 sta_92980174:
 sta_92980175:
@@ -1926,12 +1966,14 @@ _L92980181:
         jz sta_92980178
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R4
         moved [@R0] @R4
         jmp L_92980149
 sta_92980178:
@@ -2008,12 +2050,14 @@ sta_92980186:
 ; 96:     result[1] = g;
         moved @R0 [@R12-36]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R2
         add @R0 @R2
+        pop @R5
         moved [@R0] @R5
 L_92980149:
         move @R13 @R12

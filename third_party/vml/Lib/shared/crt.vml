@@ -28,6 +28,7 @@ _crt_init_maps:
 ; 19:     _ansi_fg[0]=30; _ansi_bg[0]=40;  // Black
         move @R0 #30
         move @R11 @R0
+        push @R11
         move @R0 _ansi_fg
         push @R0
         move @R10 #0
@@ -39,9 +40,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R11
         move [@R0] @R11
         move @R0 #40
         move @R8 @R0
+        push @R8
         move @R0 _ansi_bg
         push @R0
         move @R7 #0
@@ -53,10 +56,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R8
         move [@R0] @R8
 ; 20:     _ansi_fg[1]=34; _ansi_bg[1]=44;  // Blue
         move @R0 #34
         move @R5 @R0
+        push @R5
         move @R0 _ansi_fg
         push @R0
         move @R4 #0
@@ -68,9 +73,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R5
         move [@R0] @R5
         move @R0 #44
         move @R2 @R0
+        push @R2
         move @R0 _ansi_bg
         push @R0
         move @R1 #0
@@ -82,10 +89,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R2
         move [@R0] @R2
 ; 21:     _ansi_fg[2]=32; _ansi_bg[2]=42;  // Green
         move @R0 #32
         move @R9 @R0
+        push @R9
         move @R0 _ansi_fg
         push @R0
         move @R11 #0
@@ -97,9 +106,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R9
         move [@R0] @R9
         move @R0 #42
         move @R6 @R0
+        push @R6
         move @R0 _ansi_bg
         push @R0
         move @R8 #0
@@ -111,10 +122,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R6
         move [@R0] @R6
 ; 22:     _ansi_fg[3]=36; _ansi_bg[3]=46;  // Cyan
         move @R0 #36
         move @R3 @R0
+        push @R3
         move @R0 _ansi_fg
         push @R0
         move @R5 #0
@@ -126,9 +139,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R3
         move [@R0] @R3
         move @R0 #46
         move @R10 @R0
+        push @R10
         move @R0 _ansi_bg
         push @R0
         move @R2 #0
@@ -140,10 +155,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R10
         move [@R0] @R10
 ; 23:     _ansi_fg[4]=31; _ansi_bg[4]=41;  // Red
         move @R0 #31
         move @R7 @R0
+        push @R7
         move @R0 _ansi_fg
         push @R0
         move @R9 #0
@@ -155,9 +172,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R7
         move [@R0] @R7
         move @R0 #41
         move @R4 @R0
+        push @R4
         move @R0 _ansi_bg
         push @R0
         move @R6 #0
@@ -169,10 +188,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 ; 24:     _ansi_fg[5]=35; _ansi_bg[5]=45;  // Magenta
         move @R0 #35
         move @R1 @R0
+        push @R1
         move @R0 _ansi_fg
         push @R0
         move @R3 #0
@@ -184,9 +205,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R1
         move [@R0] @R1
         move @R0 #45
         move @R11 @R0
+        push @R11
         move @R0 _ansi_bg
         push @R0
         move @R10 #0
@@ -198,10 +221,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R11
         move [@R0] @R11
 ; 25:     _ansi_fg[6]=33; _ansi_bg[6]=43;  // Brown/Yellow
         move @R0 #33
         move @R8 @R0
+        push @R8
         move @R0 _ansi_fg
         push @R0
         move @R7 #0
@@ -213,9 +238,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R8
         move [@R0] @R8
         move @R0 #43
         move @R5 @R0
+        push @R5
         move @R0 _ansi_bg
         push @R0
         move @R4 #0
@@ -227,10 +254,12 @@ _crt_init_maps:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R5
         move [@R0] @R5
 ; 26:     _ansi_fg[7]=37; _ansi_bg[7]=47;  // LightGray/White
         move @R0 #37
         move @R2 @R0
+        push @R2
         move @R0 _ansi_fg
         push @R0
         move @R1 #0
@@ -242,9 +271,11 @@ _crt_init_maps:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R2
         move [@R0] @R2
         move @R0 #47
         move @R9 @R0
+        push @R9
         move @R0 _ansi_bg
         push @R0
         move @R11 #0
@@ -256,6 +287,7 @@ _crt_init_maps:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R9
         move [@R0] @R9
         move @R13 @R12
         pop @R12

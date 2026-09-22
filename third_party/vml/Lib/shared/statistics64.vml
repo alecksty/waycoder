@@ -502,6 +502,7 @@ _L52150057:
         add @R0 @R9
         movel @R0 [@R0]
         move @R8 @R0
+        push @R8
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -514,6 +515,7 @@ _L52150057:
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R8
         movel [@R0] @R8
 sta_52150054:
         movel @R0 [@R12-540]
@@ -635,6 +637,7 @@ _L52150071:
         add @R0 @R9
         movel @R0 [@R0]
         move @R7 @R0
+        push @R7
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -647,9 +650,11 @@ _L52150071:
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R7
         movel [@R0] @R7
         movel @R0 [@R12-556]
         move @R5 @R0
+        push @R5
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -662,6 +667,7 @@ _L52150071:
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R5
         movel [@R0] @R5
 sta_52150068:
 sta_52150069:

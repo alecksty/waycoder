@@ -229,6 +229,7 @@ sta_3930021:
 ; 17:     arr[index + 1] = value;
         move @R0 [@R12+20]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -240,6 +241,7 @@ sta_3930021:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 L_3930034:
         move @R13 @R12
@@ -378,6 +380,7 @@ _L3930053:
 ; 29:                 arr[j + 2] = b;
         move @R0 [@R12-24]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -389,10 +392,12 @@ _L3930053:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R2
         move [@R0] @R2
 ; 30:                 arr[j + 3] = a;
         move @R0 [@R12-20]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -404,6 +409,7 @@ _L3930053:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 sta_3930050:
 sta_3930051:
@@ -770,6 +776,7 @@ _L3930096:
         add @R0 @R3
         move @R0 [@R0]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -781,10 +788,12 @@ _L3930096:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R1
         move [@R0] @R1
 ; 66:         arr[n - i] = tmp;
         move @R0 [@R12-16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -796,6 +805,7 @@ _L3930096:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R10
         move [@R0] @R10
 sta_3930093:
         move @R0 [@R12-12]
@@ -866,6 +876,7 @@ _L3930106:
 ; 74:         arr[i + 1] = value;
         move @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -877,6 +888,7 @@ _L3930106:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R8
         move [@R0] @R8
 sta_3930103:
         move @R0 [@R12-8]
@@ -954,12 +966,14 @@ sta_3930108:
 ; 83:     dst[0] = n;
         move @R0 [@R12-12]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 84:     for (i = 0; i < n; i++) dst[i + 1] = src[i + 1];
         move @R0 #0
@@ -991,6 +1005,7 @@ _L3930121:
         add @R0 @R3
         move @R0 [@R0]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -1002,6 +1017,7 @@ _L3930121:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R2
         move [@R0] @R2
 sta_3930118:
         move @R0 [@R12-8]
@@ -1112,12 +1128,14 @@ _L3930139:
         jz sta_3930136
         move @R0 #0
         move @R10 @R0
+        push @R10
         move @R0 [@R12+24]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R10
         move [@R0] @R10
         jmp L_3930131
 sta_3930136:
@@ -1153,12 +1171,14 @@ sta_3930141:
 ; 93:     dst[0] = count;
         move @R0 [@R12+20]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+24]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R6
         move [@R0] @R6
 ; 95:     for (i = 0; i < count; i++) dst[i + 1] = src[start + i + 1];
         move @R0 #0
@@ -1195,6 +1215,7 @@ _L3930148:
         add @R0 @R7
         move @R0 [@R0]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-12]
@@ -1206,6 +1227,7 @@ _L3930148:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 sta_3930145:
         move @R0 [@R12-12]
@@ -1318,12 +1340,14 @@ sta_3930150:
         add @R1 @R0
         move @R0 @R1
         move @R2 @R0
+        push @R2
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R2
         move [@R0] @R2
 ; 103:     for (i = 0; i < na; i++) dst[i + 1] = a[i + 1];
         move @R0 #0
@@ -1355,6 +1379,7 @@ _L3930168:
         add @R0 @R9
         move @R0 [@R0]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-16]
@@ -1366,6 +1391,7 @@ _L3930168:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R10
         move [@R0] @R10
 sta_3930165:
         move @R0 [@R12-16]
@@ -1405,6 +1431,7 @@ _L3930173:
         add @R0 @R6
         move @R0 [@R0]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -1421,6 +1448,7 @@ _L3930173:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R7
         move [@R0] @R7
 sta_3930170:
         move @R0 [@R12-16]
@@ -1477,6 +1505,7 @@ sta_3930175:
 ; 110:     arr[n + 1] = value;
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1488,6 +1517,7 @@ sta_3930175:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R3
         move [@R0] @R3
 ; 111:     arr[0] = n + 1;
         move @R0 [@R12-8]
@@ -1497,12 +1527,14 @@ sta_3930175:
         add @R1 @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R11
         move [@R0] @R11
 L_3930178:
         move @R13 @R12
@@ -1592,12 +1624,14 @@ sta_3930180:
         sub @R1 @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R6
         move [@R0] @R6
 ; 119:     return val;
         move @R0 [@R12-12]
@@ -1712,12 +1746,14 @@ _L3930203:
         add @R0 @R3
         move @R0 [@R0]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R2
         move [@R0] @R2
 sta_3930200:
         move @R0 [@R12-16]
@@ -1735,12 +1771,14 @@ sta_3930201:
         sub @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 129:     return val;
         move @R0 [@R12-12]
@@ -1814,6 +1852,7 @@ _L3930213:
         add @R0 @R5
         move @R0 [@R0]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -1825,6 +1864,7 @@ _L3930213:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R6
         move [@R0] @R6
 sta_3930210:
         move @R0 [@R12-12]
@@ -1837,12 +1877,14 @@ sta_3930211:
 ; 137:     arr[1] = value;
         move @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R4
         move [@R0] @R4
 ; 138:     arr[0] = n + 1;
         move @R0 [@R12-8]
@@ -1852,12 +1894,14 @@ sta_3930211:
         add @R1 @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R3
         move [@R0] @R3
 L_3930208:
         move @R13 @R12
@@ -1970,6 +2014,7 @@ _L3930231:
         add @R0 @R8
         move @R0 [@R0]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -1981,6 +2026,7 @@ _L3930231:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R9
         move [@R0] @R9
 sta_3930228:
         move @R0 [@R12-12]
@@ -1993,6 +2039,7 @@ sta_3930229:
 ; 148:     arr[index + 1] = value;
         move @R0 [@R12+20]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -2004,6 +2051,7 @@ sta_3930229:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R5
         move [@R0] @R5
 ; 149:     arr[0] = n + 1;
         move @R0 [@R12-8]
@@ -2013,12 +2061,14 @@ sta_3930229:
         add @R1 @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R6
         move [@R0] @R6
 L_3930218:
         move @R13 @R12
@@ -2162,6 +2212,7 @@ _L3930251:
         add @R0 @R2
         move @R0 [@R0]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -2173,6 +2224,7 @@ _L3930251:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R8
         move [@R0] @R8
 sta_3930248:
         move @R0 [@R12-16]
@@ -2190,12 +2242,14 @@ sta_3930249:
         sub @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R9
         move [@R0] @R9
 ; 159:     return val;
         move @R0 [@R12-12]
@@ -2344,6 +2398,7 @@ _L3930274:
         jz sta_3930271
         move @R0 #48
         move @R6 @R0
+        push @R6
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -2360,6 +2415,7 @@ _L3930274:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R6
         moveb [@R0] @R6
 sta_3930271:
 sta_3930272:
@@ -2391,6 +2447,7 @@ _L3930278:
         add @R1 @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -2407,6 +2464,7 @@ _L3930278:
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R3
         moveb [@R0] @R3
         move @R0 [@R12-20]
         push @R0
@@ -2423,6 +2481,7 @@ sta_3930276:
         jz sta_3930279
         move @R0 #45
         move @R8 @R0
+        push @R8
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -2439,6 +2498,7 @@ sta_3930276:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R8
         moveb [@R0] @R8
 sta_3930279:
 sta_3930280:
@@ -3302,6 +3362,7 @@ _qs_swap:
         add @R0 @R6
         move @R0 [@R0]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -3313,9 +3374,11 @@ _qs_swap:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R2
         move [@R0] @R2
         move @R0 [@R12-8]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+20]
@@ -3327,6 +3390,7 @@ _qs_swap:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R3
         move [@R0] @R3
         move @R13 @R12
         pop @R12

@@ -228,6 +228,7 @@ _L94550017:
         add @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #16
         push @R0
@@ -240,6 +241,7 @@ _L94550017:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
         move @R0 [@R12+12]
         push @R0
@@ -398,6 +400,7 @@ _L94550030:
 ; 116:         sc_ch[i] = (char)ch;
         move @R0 [@R12+12]
         move @R4 @R0
+        push @R4
         move @R0 sc_ch
         push @R0
         move @R3 #0
@@ -409,10 +412,12 @@ _L94550030:
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R4
         moveb [@R0] @R4
 ; 117:         sc_at[i] = at;
         move @R0 [@R12+16]
         move @R1 @R0
+        push @R1
         move @R0 sc_at
         push @R0
         move @R11 #0
@@ -424,6 +429,7 @@ _L94550030:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 sta_94550027:
         move @R0 [@R12-8]
@@ -452,6 +458,7 @@ _L94550035:
         jz sta_94550033
         move @R0 #1
         move @R8 @R0
+        push @R8
         move @R0 sc_dirty
         push @R0
         move @R7 #0
@@ -463,6 +470,7 @@ _L94550035:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R8
         move [@R0] @R8
 sta_94550032:
         move @R0 [@R12-8]
@@ -809,6 +817,7 @@ _L94550074:
         move @R0 #1
         neg @R0 @R0
         move @R10 @R0
+        push @R10
         move @R0 pair_fg
         push @R0
         move @R1 #0
@@ -820,11 +829,13 @@ _L94550074:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R10
         move [@R0] @R10
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 pair_bg
         push @R0
         move @R8 #0
@@ -836,9 +847,11 @@ _L94550074:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R9
         move [@R0] @R9
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 pair_set
         push @R0
         move @R3 #0
@@ -850,6 +863,7 @@ _L94550074:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R5
         move [@R0] @R5
 sta_94550071:
         move @R0 [@R12-8]
@@ -1151,6 +1165,7 @@ sta_94550087:
 ; 208:         sc_dirty[y] = 0;
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 sc_dirty
         push @R0
         move @R7 #0
@@ -1162,6 +1177,7 @@ sta_94550087:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 ; 209:         last = -1;
         move @R0 #1
@@ -1669,6 +1685,7 @@ sc_cell_byte:
 ; 266:     sc_ch[idx] = (char)b;
         move @R0 [@R12+12]
         move @R2 @R0
+        push @R2
         move @R0 sc_ch
         push @R0
         move @R5 #0
@@ -1680,10 +1697,12 @@ sc_cell_byte:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R2
         moveb [@R0] @R2
 ; 267:     sc_at[idx] = sc_attr;          /* ✅ int 存 int：颜色对号在高 8 位，截了就全丢 */
         move @R0 [sc_attr]
         move @R11 @R0
+        push @R11
         move @R0 sc_at
         push @R0
         move @R7 #0
@@ -1695,10 +1714,12 @@ sc_cell_byte:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 268:     sc_dirty[sc_cy] = 1;
         move @R0 #1
         move @R1 @R0
+        push @R1
         move @R0 sc_dirty
         push @R0
         move @R8 #0
@@ -1710,6 +1731,7 @@ sc_cell_byte:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R1
         move [@R0] @R1
         move @R13 @R12
         pop @R12
@@ -1785,6 +1807,7 @@ sta_94550153:
 ; 278:         sc_dirty[sc_cy] = 1;
         move @R0 #1
         move @R9 @R0
+        push @R9
         move @R0 sc_dirty
         push @R0
         move @R3 #0
@@ -1796,6 +1819,7 @@ sta_94550153:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R9
         move [@R0] @R9
 sta_94550148:
 sta_94550149:
@@ -2154,6 +2178,7 @@ sta_94550182:
 ; 326:         sc_dirty[sc_cy] = 1;
         move @R0 #1
         move @R4 @R0
+        push @R4
         move @R0 sc_dirty
         push @R0
         move @R2 #0
@@ -2165,6 +2190,7 @@ sta_94550182:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R4
         move [@R0] @R4
 ; 327:         return 0;
         move @R0 #0
@@ -2417,6 +2443,7 @@ _L94550210:
         move [@R0] @R1
         move @R0 @R2
         move @R8 @R0
+        push @R8
         move @R0 @R12
         sub @R0 #68
         push @R0
@@ -2429,6 +2456,7 @@ _L94550210:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R8
         move [@R0] @R8
 sta_94550207:
         move @R0 [@R12-72]
@@ -2458,12 +2486,14 @@ sta_94550208:
 ; 375:     buf[n] = 0;
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-76]
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R3
         moveb [@R0] @R3
         move @R13 @R12
         pop @R12
@@ -2669,6 +2699,7 @@ _L94550219:
         jz sta_94550217
         move @R0 #32
         move @R9 @R0
+        push @R9
         move @R0 sc_ch
         push @R0
         move @R2 #0
@@ -2690,6 +2721,7 @@ _L94550219:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 sta_94550216:
         move @R0 [@R12-8]
@@ -2702,6 +2734,7 @@ sta_94550217:
 ; 404:     sc_dirty[sc_cy] = 1;
         move @R0 #1
         move @R4 @R0
+        push @R4
         move @R0 sc_dirty
         push @R0
         move @R10 #0
@@ -2713,6 +2746,7 @@ sta_94550217:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R4
         move [@R0] @R4
 ; 405:     return 0;
         move @R0 #0
@@ -2904,6 +2938,7 @@ sta_94550227:
         moveh @R0 [@R12+16]
         sexth @R0 @R0
         move @R6 @R0
+        push @R6
         move @R0 pair_fg
         push @R0
         move @R1 #0
@@ -2916,11 +2951,13 @@ sta_94550227:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R6
         move [@R0] @R6
 ; 418:     pair_bg[pair] = b;
         moveh @R0 [@R12+20]
         sexth @R0 @R0
         move @R5 @R0
+        push @R5
         move @R0 pair_bg
         push @R0
         move @R3 #0
@@ -2933,10 +2970,12 @@ sta_94550227:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R5
         move [@R0] @R5
 ; 419:     pair_set[pair] = 1;
         move @R0 #1
         move @R7 @R0
+        push @R7
         move @R0 pair_set
         push @R0
         move @R9 #0
@@ -2949,6 +2988,7 @@ sta_94550227:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R7
         move [@R0] @R7
 ; 420:     return 0;
         move @R0 #0
@@ -3857,6 +3897,7 @@ _L94550305:
         jz sta_94550303
         move @R0 #1
         move @R8 @R0
+        push @R8
         move @R0 sc_dirty
         push @R0
         move @R6 #0
@@ -3868,6 +3909,7 @@ _L94550305:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R8
         move [@R0] @R8
 sta_94550302:
         move @R0 [@R12-8]
@@ -3949,6 +3991,7 @@ _L94550311:
 ; 565:         sc_ch[y0 * 80 + i] = (char)hch;
         move @R0 [@R12+20]
         move @R2 @R0
+        push @R2
         move @R0 sc_ch
         push @R0
         move @R5 #0
@@ -3970,10 +4013,12 @@ _L94550311:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R2
         moveb [@R0] @R2
 ; 566:         sc_ch[y1 * 80 + i] = (char)hch;
         move @R0 [@R12+20]
         move @R10 @R0
+        push @R10
         move @R0 sc_ch
         push @R0
         move @R7 #0
@@ -3995,6 +4040,7 @@ _L94550311:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R10
         moveb [@R0] @R10
 sta_94550308:
         move @R0 [@R12-8]
@@ -4029,6 +4075,7 @@ _L94550316:
 ; 569:         sc_ch[i * 80 + x0] = (char)vch;
         move @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 sc_ch
         push @R0
         move @R1 #0
@@ -4050,10 +4097,12 @@ _L94550316:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R4
         moveb [@R0] @R4
 ; 570:         sc_ch[i * 80 + x1] = (char)vch;
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 sc_ch
         push @R0
         move @R8 #0
@@ -4075,6 +4124,7 @@ _L94550316:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R3
         moveb [@R0] @R3
 sta_94550313:
         move @R0 [@R12-8]
@@ -4087,6 +4137,7 @@ sta_94550314:
 ; 572:     sc_ch[y0 * 80 + x0] = (char)hch;   /* 四角 */
         move @R0 [@R12+20]
         move @R9 @R0
+        push @R9
         move @R0 sc_ch
         push @R0
         move @R2 #0
@@ -4108,10 +4159,12 @@ sta_94550314:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 ; 573:     sc_ch[y0 * 80 + x1] = (char)hch;
         move @R0 [@R12+20]
         move @R11 @R0
+        push @R11
         move @R0 sc_ch
         push @R0
         move @R10 #0
@@ -4133,10 +4186,12 @@ sta_94550314:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R11
         moveb [@R0] @R11
 ; 574:     sc_ch[y1 * 80 + x0] = (char)hch;
         move @R0 [@R12+20]
         move @R6 @R0
+        push @R6
         move @R0 sc_ch
         push @R0
         move @R4 #0
@@ -4158,10 +4213,12 @@ sta_94550314:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R6
         moveb [@R0] @R6
 ; 575:     sc_ch[y1 * 80 + x1] = (char)hch;
         move @R0 [@R12+20]
         move @R5 @R0
+        push @R5
         move @R0 sc_ch
         push @R0
         move @R3 #0
@@ -4183,6 +4240,7 @@ sta_94550314:
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R5
         moveb [@R0] @R5
 ; 576:     for (i = 0; i < 25; i++) sc_dirty[i] = 1;   /* 整屏都可能变了 */
         move @R0 #0
@@ -4203,6 +4261,7 @@ _L94550321:
         jz sta_94550319
         move @R0 #1
         move @R7 @R0
+        push @R7
         move @R0 sc_dirty
         push @R0
         move @R9 #0
@@ -4214,6 +4273,7 @@ _L94550321:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R7
         move [@R0] @R7
 sta_94550318:
         move @R0 [@R12-8]
@@ -4419,6 +4479,7 @@ _L94550341:
 ; 620:         sc_ch[0 * 80 + i] = (char)ts;
         move @R0 [@R12+24]
         move @R1 @R0
+        push @R1
         move @R0 sc_ch
         push @R0
         move @R11 #0
@@ -4440,10 +4501,12 @@ _L94550341:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R1
         moveb [@R0] @R1
 ; 621:         sc_ch[(25 - 1) * 80 + i] = (char)bs;
         move @R0 [@R12+28]
         move @R8 @R0
+        push @R8
         move @R0 sc_ch
         push @R0
         move @R6 #0
@@ -4470,6 +4533,7 @@ _L94550341:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R8
         moveb [@R0] @R8
 sta_94550338:
         move @R0 [@R12-8]
@@ -4504,6 +4568,7 @@ _L94550346:
 ; 624:         sc_ch[i * 80 + 0] = (char)ls;
         move @R0 [@R12+16]
         move @R2 @R0
+        push @R2
         move @R0 sc_ch
         push @R0
         move @R5 #0
@@ -4520,10 +4585,12 @@ _L94550346:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R2
         moveb [@R0] @R2
 ; 625:         sc_ch[i * 80 + 80 - 1] = (char)rs;
         move @R0 [@R12+20]
         move @R10 @R0
+        push @R10
         move @R0 sc_ch
         push @R0
         move @R7 #0
@@ -4550,6 +4617,7 @@ _L94550346:
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R10
         moveb [@R0] @R10
 sta_94550343:
         move @R0 [@R12-8]
@@ -4562,6 +4630,7 @@ sta_94550344:
 ; 627:     sc_ch[0] = (char)tl;
         move @R0 [@R12+32]
         move @R4 @R0
+        push @R4
         move @R0 sc_ch
         push @R0
         move @R1 #0
@@ -4573,10 +4642,12 @@ sta_94550344:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R4
         moveb [@R0] @R4
 ; 628:     sc_ch[80 - 1] = (char)tr;
         move @R0 [@R12+36]
         move @R3 @R0
+        push @R3
         move @R0 sc_ch
         push @R0
         move @R8 #0
@@ -4593,10 +4664,12 @@ sta_94550344:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R3
         moveb [@R0] @R3
 ; 629:     sc_ch[(25 - 1) * 80] = (char)bl;
         move @R0 [@R12+40]
         move @R9 @R0
+        push @R9
         move @R0 sc_ch
         push @R0
         move @R2 #0
@@ -4618,10 +4691,12 @@ sta_94550344:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 ; 630:     sc_ch[(25 - 1) * 80 + 80 - 1] = (char)br;
         move @R0 [@R12+44]
         move @R11 @R0
+        push @R11
         move @R0 sc_ch
         push @R0
         move @R10 #0
@@ -4653,6 +4728,7 @@ sta_94550344:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R11
         moveb [@R0] @R11
 ; 631:     for (i = 0; i < 25; i++) sc_dirty[i] = 1;
         move @R0 #0
@@ -4673,6 +4749,7 @@ _L94550351:
         jz sta_94550349
         move @R0 #1
         move @R6 @R0
+        push @R6
         move @R0 sc_dirty
         push @R0
         move @R4 #0
@@ -4684,6 +4761,7 @@ _L94550351:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R6
         move [@R0] @R6
 sta_94550348:
         move @R0 [@R12-8]

@@ -686,6 +686,7 @@ _L86370086:
         add @R0 @R2
         move @R0 [@R0]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -697,10 +698,12 @@ _L86370086:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R1
         move [@R0] @R1
 ; 47:                 arr[j + 2] = tmp;
         move @R0 [@R12-20]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -712,6 +715,7 @@ _L86370086:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R10
         move [@R0] @R10
 sta_86370083:
 sta_86370084:

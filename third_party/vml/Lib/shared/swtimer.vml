@@ -51,6 +51,7 @@ _L56310009:
 ; 10:         timers[i * 4 + 0] = 0;   // period
         move @R0 #0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -62,10 +63,12 @@ _L56310009:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 11:         timers[i * 4 + 1] = 0;   // remaining
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -82,10 +85,12 @@ _L56310009:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 12:         timers[i * 4 + 2] = 0;   // flags
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -102,10 +107,12 @@ _L56310009:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 13:         timers[i * 4 + 3] = 0;   // callback_id
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -122,6 +129,7 @@ _L56310009:
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 sta_56310006:
         move @R0 [@R12-8]
@@ -253,6 +261,7 @@ _L56310028:
 ; 24:             timers[i * 4 + 0] = period;
         move @R0 [@R12+16]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -264,10 +273,12 @@ _L56310028:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R2
         move [@R0] @R2
 ; 25:             timers[i * 4 + 1] = period;
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -284,6 +295,7 @@ _L56310028:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R10
         move [@R0] @R10
 ; 26:             timers[i * 4 + 2] = 1 | (repeat ? 2 : 0);  // active + repeat
         move @R0 #1
@@ -300,6 +312,7 @@ _L56310030:
         or @R1 @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -316,10 +329,12 @@ _L56310030:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R8
         move [@R0] @R8
 ; 27:             timers[i * 4 + 3] = callback_id;
         move @R0 [@R12+24]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -336,6 +351,7 @@ _L56310030:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R6
         move [@R0] @R6
 ; 28:             return i;
         move @R0 [@R12-8]
@@ -435,6 +451,7 @@ sta_56310032:
 ; 36:     timers[timer_id * 4 + 2] = 0;  // clear flags
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -451,6 +468,7 @@ sta_56310032:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 L_56310045:
         move @R13 @R12
@@ -615,6 +633,7 @@ sta_56310062:
 ; 56:                     timers[i * 4 + 2] = 0;
         move @R0 #0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -631,6 +650,7 @@ sta_56310062:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 sta_56310063:
 sta_56310058:
@@ -638,6 +658,7 @@ sta_56310059:
 ; 59:             timers[i * 4 + 1] = remaining;
         move @R0 [@R12-20]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -654,6 +675,7 @@ sta_56310059:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 sta_56310056:
 sta_56310057:

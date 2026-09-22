@@ -1024,6 +1024,7 @@ namespace VML {
     // extern vml_tm* _ts_to_tm(int ts);  // CALL _ts_to_tm
     // extern vml_tm* localtime(int* t);  // CALL localtime
     // extern vml_tm* gmtime(int* t);  // CALL gmtime
+    // extern int mktime(struct vml_tm* tp);  // CALL mktime
     // extern oid _sf_put2(char* s, int* n, int max, int v);  // CALL _sf_put2
     // extern oid _sf_puts(char* s, int* n, int max, const char* t);  // CALL _sf_puts
     // extern int strftime(char* s, int max, const char* fmt, struct vml_tm* tm);  // CALL strftime

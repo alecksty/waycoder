@@ -37,52 +37,62 @@ sta_77580001:
 ; 7:     state[0] = debounce_ms;  // 消抖时间(ms)
         move @R0 [@R12+16]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 8:     state[1] = hold_ms;      // 长按时间(ms)
         move @R0 [@R12+20]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 9:     state[2] = 0;            // 计数器
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 10:     state[3] = 1;            // 上次状态 (1=释放)
         move @R0 #1
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 11:     state[4] = 0;            // 事件标志
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R3
         move [@R0] @R3
 L_77580004:
         move @R13 @R12
@@ -214,12 +224,14 @@ _L77580021:
 ; 26:                 state[4] = 0; // 清除长按标志
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R9
         move [@R0] @R9
         jmp sta_77580019
 sta_77580018:
@@ -350,12 +362,14 @@ _L77580037:
 ; 40:             state[4] = 2;
         move @R0 #2
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R5
         move [@R0] @R5
 sta_77580034:
 sta_77580035:
@@ -369,22 +383,26 @@ sta_77580011:
 ; 45:     state[2] = counter;
         move @R0 [@R12-16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R3
         move [@R0] @R3
 ; 46:     state[3] = last;
         move @R0 [@R12-20]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R10
         move [@R0] @R10
 ; 47:     return result;
         move @R0 [@R12-24]

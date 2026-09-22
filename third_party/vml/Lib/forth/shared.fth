@@ -2047,6 +2047,8 @@
 // CALL localtime
 // extern fn gmtime(int* t) -> vml_tm*
 // CALL gmtime
+// extern fn mktime(struct vml_tm* tp) -> int
+// CALL mktime
 // extern fn _sf_put2(char* s, int* n, int max, int v) -> oid
 // CALL _sf_put2
 // extern fn _sf_puts(char* s, int* n, int max, const char* t) -> oid

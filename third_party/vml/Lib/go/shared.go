@@ -4864,6 +4864,11 @@ func gmtime(a0 int32) int32 {
     return vml.R0()
 }
 
+func mktime(a0 int32) int32 {
+    vml.Call("mktime")
+    return vml.R0()
+}
+
 func _sf_put2(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     vml.Call("_sf_put2")
     return vml.R0()

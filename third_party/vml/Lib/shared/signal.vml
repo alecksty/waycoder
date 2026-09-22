@@ -74,12 +74,14 @@ _L79280014:
         jz sta_79280012
         move @R0 #0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 sta_79280011:
         move @R0 [@R12-8]
@@ -92,52 +94,62 @@ sta_79280012:
 ; 11:     state[0] = 0;  // sum
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 12:     state[1] = 0;  // count
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 13:     state[2] = (int)buffer;
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+20]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 14:     state[3] = window_size;
         move @R0 [@R12+12]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+20]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R3
         move [@R0] @R3
 ; 15:     state[4] = 0;  // write_idx
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+20]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 ; 16:     return 1;
         move @R0 #1
@@ -239,12 +251,14 @@ _L79280023:
 ; 27:         buffer[idx] = new_value;
         move @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-24]
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 ; 28:         sum += new_value;
         move @R0 [@R12-8]
@@ -263,22 +277,26 @@ _L79280023:
 ; 30:         state[0] = sum;
         move @R0 [@R12-8]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R2
         move [@R0] @R2
 ; 31:         state[1] = count;
         move @R0 [@R12-12]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R10
         move [@R0] @R10
 ; 32:         state[4] = (idx + 1) % window;
         move @R0 [@R12-24]
@@ -293,12 +311,14 @@ _L79280023:
         mod @R1 @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R11
         move [@R0] @R11
 ; 33:         return sum / count;
         move @R0 [@R12-8]
@@ -332,22 +352,26 @@ sta_79280021:
 ; 37:     buffer[idx] = new_value;
         move @R0 [@R12+16]
         move @R6 @R0
+        push @R6
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-24]
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R6
         move [@R0] @R6
 ; 38:     state[0] = sum;
         move @R0 [@R12-8]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 39:     state[4] = (idx + 1) % window;
         move @R0 [@R12-24]
@@ -362,12 +386,14 @@ sta_79280021:
         mod @R1 @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R3
         move [@R0] @R3
 ; 40:     return sum / window;
         move @R0 [@R12-8]
@@ -415,12 +441,14 @@ sta_79280025:
 ; 48:     state[0] = 0;
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 ; 49:     return 1;
         move @R0 #1
@@ -502,12 +530,14 @@ sta_79280030:
 ; 57:     state[0] = result;
         move @R0 [@R12-12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R11
         move [@R0] @R11
 ; 58:     return result;
         move @R0 [@R12-12]
@@ -552,42 +582,50 @@ sta_79280035:
 ; 66:     state[0] = initial_value;  // x: 估计值
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 67:     state[1] = 1000;           // p: 初始估计误差(缩放)
         move @R0 #1000
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 ; 68:     state[2] = process_noise;  // q: 过程噪声
         move @R0 [@R12+20]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R2
         move [@R0] @R2
 ; 69:     state[3] = measure_noise;  // r: 测量噪声
         move @R0 [@R12+24]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R10
         move [@R0] @R10
 L_79280038:
         move @R13 @R12
@@ -748,22 +786,26 @@ sta_79280045:
 ; 88:     state[0] = x;
         move @R0 [@R12-8]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R7
         move [@R0] @R7
 ; 89:     state[1] = p;
         move @R0 [@R12-12]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R4
         move [@R0] @R4
 ; 90:     return x;
         move @R0 [@R12-8]
@@ -1202,12 +1244,14 @@ _L79280100:
         jz sta_79280097
         move @R0 #1
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
         jmp sta_79280098
 sta_79280097:
@@ -1227,12 +1271,14 @@ _L79280104:
         jz sta_79280101
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R8
         move [@R0] @R8
 sta_79280101:
 sta_79280102:

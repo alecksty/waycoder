@@ -6251,6 +6251,7 @@ sta_69550378:
 ; 684:     _flood_sx[sp] = x;
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 _flood_sx
         push @R0
         move @R6 #0
@@ -6262,10 +6263,12 @@ sta_69550378:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R7
         move [@R0] @R7
 ; 685:     _flood_sy[sp] = y;
         move @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 _flood_sy
         push @R0
         move @R3 #0
@@ -6277,6 +6280,7 @@ sta_69550378:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R4
         move [@R0] @R4
 ; 686:     sp++;
         move @R0 [@R12-8]
@@ -6497,6 +6501,7 @@ _L69550421:
         add @R1 @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 _flood_sx
         push @R0
         move @R6 #0
@@ -6508,9 +6513,11 @@ _L69550421:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R8
         move [@R0] @R8
         move @R0 [@R12-28]
         move @R7 @R0
+        push @R7
         move @R0 _flood_sy
         push @R0
         move @R3 #0
@@ -6522,6 +6529,7 @@ _L69550421:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R7
         move [@R0] @R7
         move @R0 [@R12-8]
         move @R1 @R0
@@ -6536,6 +6544,7 @@ _L69550421:
         sub @R1 @R0
         move @R0 @R1
         move @R4 @R0
+        push @R4
         move @R0 _flood_sx
         push @R0
         move @R1 #0
@@ -6547,9 +6556,11 @@ _L69550421:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R4
         move [@R0] @R4
         move @R0 [@R12-28]
         move @R10 @R0
+        push @R10
         move @R0 _flood_sy
         push @R0
         move @R9 #0
@@ -6561,6 +6572,7 @@ _L69550421:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R10
         move [@R0] @R10
         move @R0 [@R12-8]
         move @R1 @R0
@@ -6570,6 +6582,7 @@ _L69550421:
 ; 697:             _flood_sx[sp] = px; _flood_sy[sp] = py + 1; sp++;
         move @R0 [@R12-24]
         move @R5 @R0
+        push @R5
         move @R0 _flood_sx
         push @R0
         move @R8 #0
@@ -6581,6 +6594,7 @@ _L69550421:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R5
         move [@R0] @R5
         move @R0 [@R12-28]
         push @R0
@@ -6589,6 +6603,7 @@ _L69550421:
         add @R1 @R0
         move @R0 @R1
         move @R2 @R0
+        push @R2
         move @R0 _flood_sy
         push @R0
         move @R7 #0
@@ -6600,6 +6615,7 @@ _L69550421:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R2
         move [@R0] @R2
         move @R0 [@R12-8]
         move @R1 @R0
@@ -6609,6 +6625,7 @@ _L69550421:
 ; 698:             _flood_sx[sp] = px; _flood_sy[sp] = py - 1; sp++;
         move @R0 [@R12-24]
         move @R11 @R0
+        push @R11
         move @R0 _flood_sx
         push @R0
         move @R4 #0
@@ -6620,6 +6637,7 @@ _L69550421:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R11
         move [@R0] @R11
         move @R0 [@R12-28]
         push @R0
@@ -6628,6 +6646,7 @@ _L69550421:
         sub @R1 @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 _flood_sy
         push @R0
         move @R10 #0
@@ -6639,6 +6658,7 @@ _L69550421:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R6
         move [@R0] @R6
         move @R0 [@R12-8]
         move @R1 @R0

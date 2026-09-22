@@ -48,12 +48,14 @@ emit:
         moveb @R0 [@R12+20]
         sextb @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+16]
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R11
         moveb [@R0] @R11
 sta_35270000:
 sta_35270001:
@@ -374,6 +376,7 @@ _L35270038:
         move @R0 @R1
 _L35270036:
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -384,6 +387,7 @@ _L35270036:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R9
         moveb [@R0] @R9
         move @R0 [@R12+16]
         push @R0
@@ -739,6 +743,7 @@ _L35270079:
         move @R0 @R1
 _L35270077:
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -749,6 +754,7 @@ _L35270077:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R7
         moveb [@R0] @R7
 ; 72:         uv_hi = q_hi; uv_lo = q_lo;
         move @R0 [@R12-20]
@@ -773,6 +779,7 @@ _L35270083:
         jz sta_35270080
         move @R0 #48
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -783,6 +790,7 @@ _L35270083:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R5
         moveb [@R0] @R5
 sta_35270080:
 sta_35270081:
@@ -957,6 +965,7 @@ readDouble:
         add @R0 @R10
         move @R0 [@R0]
         move @R11 @R0
+        push @R11
         move @R0 @R12
         sub @R0 #12
         push @R0
@@ -969,6 +978,7 @@ readDouble:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R11
         move [@R0] @R11
 ; 102:     pair[1] = args[ai + 1];    // hi32（VML 是小端，低字在前）
         move @R0 [@R12+12]
@@ -984,6 +994,7 @@ readDouble:
         add @R0 @R6
         move @R0 [@R0]
         move @R7 @R0
+        push @R7
         move @R0 @R12
         sub @R0 #12
         push @R0
@@ -996,6 +1007,7 @@ readDouble:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R7
         move [@R0] @R7
 ; 103:     double *dp = (double*)pair;
         move @R0 @R12
@@ -1136,6 +1148,7 @@ _L35270102:
         jz sta_35270098
         move @R0 #45
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1146,6 +1159,7 @@ _L35270102:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R8
         moveb [@R0] @R8
         movef @R0 [@R12+16]
         movef @R0 [@R12+16]
@@ -1247,6 +1261,7 @@ _L35270111:
 ; 129:         buf[len++] = '.';
         move @R0 #46
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1257,6 +1272,7 @@ _L35270111:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R11
         moveb [@R0] @R11
 ; 130:         frac = f - (float)((int)f); if (frac < 0) frac = -frac;
         movef @R0 [@R12+16]
@@ -1377,6 +1393,7 @@ _L35270126:
         jz sta_35270124
         move @R0 #48
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1387,6 +1404,7 @@ _L35270126:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R4
         moveb [@R0] @R4
 sta_35270123:
         move @R0 [@R12-56]
@@ -1468,6 +1486,7 @@ _L35270132:
         jz sta_35270128
         move @R0 #45
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1478,6 +1497,7 @@ _L35270132:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R7
         moveb [@R0] @R7
         movef @R0 [@R12+16]
         movef @R0 [@R12+16]
@@ -1623,6 +1643,7 @@ sta_35270138:
         add @R1 @R0
         move @R0 @R1
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1633,6 +1654,7 @@ sta_35270138:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R2
         moveb [@R0] @R2
 ; 150:     if (prec > 0) {
         move @R0 [@R12+20]
@@ -1651,6 +1673,7 @@ _L35270167:
 ; 151:         buf[len++] = '.';
         move @R0 #46
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1661,6 +1684,7 @@ _L35270167:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R10
         moveb [@R0] @R10
 ; 152:         float frac = f - (float)ip;
         movef @R0 [@R12+16]
@@ -1701,6 +1725,7 @@ _L35270172:
         add @R1 @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1711,6 +1736,7 @@ _L35270172:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R8
         moveb [@R0] @R8
         movef @R0 [@R12-20]
         fpush @R0
@@ -1740,6 +1766,7 @@ _L35270174:
         move @R0 #101
 _L35270175:
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1750,6 +1777,7 @@ _L35270175:
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R11
         moveb [@R0] @R11
 ; 156:     if (exp < 0) { buf[len++] = '-'; exp = -exp; }
         move @R0 [@R12-12]
@@ -1767,6 +1795,7 @@ _L35270179:
         jz sta_35270176
         move @R0 #45
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1777,6 +1806,7 @@ _L35270179:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R4
         moveb [@R0] @R4
         move @R0 [@R12-12]
         move @R0 [@R12-12]
@@ -1787,6 +1817,7 @@ sta_35270176:
 ; 157:     else         { buf[len++] = '+'; }
         move @R0 #43
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1797,6 +1828,7 @@ sta_35270176:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R7
         moveb [@R0] @R7
 sta_35270177:
 ; 158:     if (exp < 10) buf[len++] = '0';
@@ -1815,6 +1847,7 @@ _L35270183:
         jz sta_35270180
         move @R0 #48
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1825,6 +1858,7 @@ _L35270183:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R2
         moveb [@R0] @R2
 sta_35270180:
 sta_35270181:
@@ -4959,6 +4993,7 @@ _L35270555:
         move [@R0] @R1
         move @R0 @R2
         move @R5 @R0
+        push @R5
         move @R0 @R12
         sub @R0 #76
         push @R0
@@ -4971,6 +5006,7 @@ _L35270555:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R5
         move [@R0] @R5
 sta_35270552:
         move @R0 [@R12-80]
@@ -5001,6 +5037,7 @@ sta_35270553:
 ; 360:     buf[len] = 0;
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 @R12
         sub @R0 #592
         push @R0
@@ -5013,6 +5050,7 @@ sta_35270553:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R4
         moveb [@R0] @R4
 ; 361:     int dummy = (int)buf;
         move @R0 @R12
@@ -5098,6 +5136,7 @@ _L35270564:
         move [@R0] @R1
         move @R0 @R2
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #76
         push @R0
@@ -5110,6 +5149,7 @@ _L35270564:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R9
         move [@R0] @R9
 sta_35270561:
         move @R0 [@R12-80]
@@ -5139,12 +5179,14 @@ sta_35270562:
 ; 385:     buf[n] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-84]
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R6
         moveb [@R0] @R6
 ; 386:     return n;
         move @R0 [@R12-84]
@@ -5228,6 +5270,7 @@ _L35270574:
         move [@R0] @R1
         move @R0 @R2
         move @R11 @R0
+        push @R11
         move @R0 @R12
         sub @R0 #76
         push @R0
@@ -5240,6 +5283,7 @@ _L35270574:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R11
         move [@R0] @R11
 sta_35270571:
         move @R0 [@R12-80]
@@ -5270,6 +5314,7 @@ sta_35270572:
 ; 410:     tmp[n] = 0;
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 @R12
         sub @R0 #592
         push @R0
@@ -5282,6 +5327,7 @@ sta_35270572:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R1
         moveb [@R0] @R1
 ; 411:     int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
         move @R0 [@R12+16]
@@ -5372,12 +5418,14 @@ _L35270582:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-604]
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R6
         moveb [@R0] @R6
         move @R0 [@R12-604]
         move @R1 @R0
@@ -5389,12 +5437,14 @@ sta_35270580:
 ; 415:         buf[k] = 0;
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-604]
         mul @R0 #1
         pop @R11
         add @R0 @R11
+        pop @R5
         moveb [@R0] @R5
 sta_35270575:
 sta_35270576:

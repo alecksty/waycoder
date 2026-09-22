@@ -224,6 +224,7 @@ sta_64520005:
 ; 26:         buf[i++] = (char)c;
         move @R0 [@R12-44]
         move @R11 @R0
+        push @R11
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -240,12 +241,14 @@ sta_64520005:
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R11
         moveb [@R0] @R11
         jmp sta_64520000
 sta_64520001:
 ; 28:     buf[i] = 0;
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -258,6 +261,7 @@ sta_64520001:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R8
         moveb [@R0] @R8
 ; 29:     return atol(buf);
         move @R0 @R12

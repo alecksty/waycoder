@@ -1308,6 +1308,7 @@ _L2170052:
         jz sta_2170050
         move @R0 #0
         move @R10 @R0
+        push @R10
         move @R0 _ui_grid
         push @R0
         move @R9 #0
@@ -1319,6 +1320,7 @@ _L2170052:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R10
         move [@R0] @R10
 sta_2170049:
         move @R0 [@R12-8]
@@ -1383,6 +1385,7 @@ _L2170056:
         jz sta_2170053
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 _ui_grid
         push @R0
         move @R6 #0
@@ -1394,6 +1397,7 @@ _L2170056:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R7
         move [@R0] @R7
 sta_2170053:
 sta_2170054:
@@ -1577,6 +1581,7 @@ ui_piece_init:
 ; 338:     _ui_piece_rot[0] = 200 + 0;
         move @R0 #200
         move @R2 @R0
+        push @R2
         move @R0 _ui_piece_rot
         push @R0
         move @R1 #0
@@ -1588,6 +1593,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R2
         move [@R0] @R2
 ; 339:     _ui_piece_rot[1] = 200 + 1;
         move @R0 #200
@@ -1597,6 +1603,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 _ui_piece_rot
         push @R0
         move @R8 #0
@@ -1608,6 +1615,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R9
         move [@R0] @R9
 ; 340:     _ui_piece_rot[2] = 200 + 2;
         move @R0 #200
@@ -1617,6 +1625,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 _ui_piece_rot
         push @R0
         move @R5 #0
@@ -1628,6 +1637,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R6
         move [@R0] @R6
 ; 341:     _ui_piece_rot[3] = 200 + 3;
         move @R0 #200
@@ -1637,6 +1647,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R4 @R0
+        push @R4
         move @R0 _ui_piece_rot
         push @R0
         move @R3 #0
@@ -1648,6 +1659,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R4
         move [@R0] @R4
 ; 342:     _ui_piece_rot[4] = 200 + 4;
         move @R0 #200
@@ -1657,6 +1669,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 _ui_piece_rot
         push @R0
         move @R2 #0
@@ -1668,6 +1681,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R11
         move [@R0] @R11
 ; 343:     _ui_piece_rot[5] = 200 + 5;
         move @R0 #200
@@ -1677,6 +1691,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 _ui_piece_rot
         push @R0
         move @R9 #0
@@ -1688,6 +1703,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R10
         move [@R0] @R10
 ; 344:     _ui_piece_rot[6] = 200 + 6;
         move @R0 #200
@@ -1697,6 +1713,7 @@ ui_piece_init:
         add @R1 @R0
         move @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 _ui_piece_rot
         push @R0
         move @R6 #0
@@ -1708,6 +1725,7 @@ ui_piece_init:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R7
         move [@R0] @R7
         move @R13 @R12
         pop @R12

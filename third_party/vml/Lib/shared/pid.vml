@@ -42,82 +42,98 @@ sta_9870001:
 ; 8:     state[0] = kp;       // Kp * 1000
         move @R0 [@R12+16]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 9:     state[1] = ki;       // Ki * 1000
         move @R0 [@R12+20]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 10:     state[2] = kd;       // Kd * 1000
         move @R0 [@R12+24]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 11:     state[3] = setpoint; // 目标值
         move @R0 [@R12+28]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 12:     state[4] = 0;        // 积分累加
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R3
         move [@R0] @R3
 ; 13:     state[5] = 0;        // 上次误差
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R1
         move [@R0] @R1
 ; 14:     state[6] = out_min;  // 输出下限
         move @R0 [@R12+32]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #6
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R11
         move [@R0] @R11
 ; 15:     state[7] = out_max;  // 输出上限
         move @R0 [@R12+36]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 #7
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R9
         move [@R0] @R9
 L_9870004:
         move @R13 @R12
@@ -157,32 +173,38 @@ sta_9870006:
 ; 20:     state[3] = setpoint;
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R7
         move [@R0] @R7
 ; 21:     state[4] = 0;  // 复位积分
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R5
         move [@R0] @R5
 ; 22:     state[5] = 0;  // 复位上次误差
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R3
         move [@R0] @R3
 L_9870009:
         move @R13 @R12
@@ -476,22 +498,26 @@ sta_9870032:
 ; 54:     state[4] = integral;
         move @R0 [@R12-24]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R5
         move [@R0] @R5
 ; 55:     state[5] = error;
         move @R0 [@R12-40]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
         mul @R0 #4
         pop @R1
         add @R0 @R1
+        pop @R3
         move [@R0] @R3
 ; 56:     return output;
         move @R0 [@R12-64]
@@ -534,22 +560,26 @@ sta_9870036:
 ; 61:     state[4] = 0;
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R8
         move [@R0] @R8
 ; 62:     state[5] = 0;
         move @R0 #0
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R6
         move [@R0] @R6
 L_9870039:
         move @R13 @R12

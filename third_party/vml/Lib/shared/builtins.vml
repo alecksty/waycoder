@@ -1496,12 +1496,14 @@ sta_94240111:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R9
         moveb [@R0] @R9
         move @R0 [@R12-8]
         move @R1 @R0
@@ -1512,12 +1514,14 @@ sta_94240111:
 sta_94240112:
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R7
         moveb [@R0] @R7
         move @R0 [@R12+12]
         jmp L_94240110
@@ -1623,6 +1627,7 @@ sta_94240125:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1633,17 +1638,20 @@ sta_94240125:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R2
         moveb [@R0] @R2
         jmp sta_94240125
 sta_94240126:
         move @R0 #0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R10
         add @R0 @R10
+        pop @R11
         moveb [@R0] @R11
         move @R0 [@R12+12]
         jmp L_94240122
@@ -1753,12 +1761,14 @@ _L94240138:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R6 @R0
+        push @R6
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-16]
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R6
         moveb [@R0] @R6
 sta_94240135:
         move @R0 [@R12-16]
@@ -1810,12 +1820,14 @@ _L94240144:
         jz sta_94240142
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R5
         moveb [@R0] @R5
 sta_94240141:
         move @R0 [@R12-12]

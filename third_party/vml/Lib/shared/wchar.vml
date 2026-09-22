@@ -361,12 +361,14 @@ _L13730034:
         moveh @R0 [@R0]
         sexth @R0 @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #2
         pop @R6
         add @R0 @R6
+        pop @R7
         moveh [@R0] @R7
 sta_13730031:
         move @R0 [@R12-8]
@@ -394,12 +396,14 @@ _L13730043:
 ; 40:         dest[i] = 0;
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #2
         pop @R4
         add @R0 @R4
+        pop @R5
         moveh [@R0] @R5
 sta_13730040:
         move @R0 [@R12-8]
@@ -1410,12 +1414,14 @@ _L13730155:
 ; 161:         dest[0] = (char)wc;
         moveh @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R4
         moveb [@R0] @R4
 ; 162:         return 1;
         move @R0 #1
@@ -1449,12 +1455,14 @@ _L13730160:
         or @R1 @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R3
         moveb [@R0] @R3
 ; 167:         dest[1] = (char)(0x80 | (wc & 0x3F));
         move @R0 #128
@@ -1469,12 +1477,14 @@ _L13730160:
         or @R1 @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R11
         moveb [@R0] @R11
 ; 168:         return 2;
         move @R0 #2
@@ -1494,12 +1504,14 @@ sta_13730157:
         or @R1 @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #1
         pop @R9
         add @R0 @R9
+        pop @R10
         moveb [@R0] @R10
 ; 173:         dest[1] = (char)(0x80 | ((wc >> 6) & 0x3F));
         move @R0 #128
@@ -1519,12 +1531,14 @@ sta_13730157:
         or @R1 @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R8
         moveb [@R0] @R8
 ; 174:         dest[2] = (char)(0x80 | (wc & 0x3F));
         move @R0 #128
@@ -1539,12 +1553,14 @@ sta_13730157:
         or @R1 @R0
         move @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #1
         pop @R5
         add @R0 @R5
+        pop @R7
         moveb [@R0] @R7
 ; 175:         return 3;
         move @R0 #3
@@ -1863,6 +1879,7 @@ _L13730189:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1873,6 +1890,7 @@ _L13730189:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R5
         moveb [@R0] @R5
 sta_13730186:
         move @R0 [@R12-20]
@@ -1906,12 +1924,14 @@ _L13730193:
         jz sta_13730190
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #1
         pop @R2
         add @R0 @R2
+        pop @R4
         moveb [@R0] @R4
 sta_13730190:
 sta_13730191:
@@ -2038,12 +2058,14 @@ _L13730208:
         jz sta_13730205
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #2
         pop @R9
         add @R0 @R9
+        pop @R3
         moveh [@R0] @R3
 sta_13730205:
 sta_13730206:

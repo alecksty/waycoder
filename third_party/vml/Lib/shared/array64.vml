@@ -173,6 +173,7 @@ _L38170014:
         jz sta_38170011
         movel @R0 [@R12+24]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12+16]
@@ -184,6 +185,7 @@ _L38170014:
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         movel [@R0] @R7
 sta_38170011:
 sta_38170012:
@@ -300,21 +302,25 @@ _L38170032:
         add @R0 @R1
         movel @R0 [@R0]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R11
         movel [@R0] @R11
         movel @R0 [@R12-36]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-28]
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R9
         movel [@R0] @R9
 sta_38170029:
 sta_38170030:
@@ -669,15 +675,18 @@ _L38170067:
         add @R0 @R11
         movel @R0 [@R0]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #8
         pop @R9
         add @R0 @R9
+        pop @R8
         movel [@R0] @R8
         movel @R0 [@R12-28]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-12]
@@ -693,6 +702,7 @@ _L38170067:
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R6
         movel [@R0] @R6
 sta_38170064:
         movel @R0 [@R12-20]
@@ -747,12 +757,14 @@ _L38170072:
         jz sta_38170070
         movel @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-12]
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R4
         movel [@R0] @R4
 sta_38170069:
         movel @R0 [@R12-12]
@@ -813,12 +825,14 @@ _L38170077:
         add @R0 @R1
         movel @R0 [@R0]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         push @R0
         movel @R0 [@R12-12]
         mul @R0 #8
         pop @R11
         add @R0 @R11
+        pop @R10
         movel [@R0] @R10
 sta_38170074:
         movel @R0 [@R12-12]
@@ -916,12 +930,14 @@ sta_38170083:
 ; 47:     dst[0] = count;
         movel @R0 [@R12+24]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+32]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         movel [@R0] @R7
 ; 48:     for (i = start; i < start + count; i++) dst[++j] = src[i + 1];
         movel @R0 [@R12+16]
@@ -959,6 +975,7 @@ _L38170090:
         add @R0 @R5
         movel @R0 [@R0]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+32]
         push @R0
         movel @R0 [@R12-20]
@@ -968,6 +985,7 @@ _L38170090:
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R3
         movel [@R0] @R3
 sta_38170087:
         movel @R0 [@R12-12]
@@ -1014,12 +1032,14 @@ lconcat64:
         popl @R1
         addl @R0 @R1 @R0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R11
         movel [@R0] @R11
 ; 53:     for (i = 1; i <= a[0]; i++) dst[i] = a[i];
         move @R0 #1
@@ -1055,12 +1075,14 @@ _L38170095:
         add @R0 @R8
         movel @R0 [@R0]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+20]
         push @R0
         movel @R0 [@R12-12]
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R6
         movel [@R0] @R6
 sta_38170092:
         movel @R0 [@R12-12]
@@ -1104,6 +1126,7 @@ _L38170100:
         add @R0 @R4
         movel @R0 [@R0]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+12]
@@ -1120,6 +1143,7 @@ _L38170100:
         mul @R0 #8
         pop @R1
         add @R0 @R1
+        pop @R3
         movel [@R0] @R3
 sta_38170097:
         movel @R0 [@R12-12]
@@ -1163,6 +1187,7 @@ lpush64:
 ; 58:     arr[arr[0]] = value;
         movel @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+12]
@@ -1175,6 +1200,7 @@ lpush64:
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R8
         movel [@R0] @R8
         move @R13 @R12
         pop @R12
@@ -1343,12 +1369,14 @@ _L38170115:
         add @R0 @R6
         movel @R0 [@R0]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #8
         pop @R5
         add @R0 @R5
+        pop @R8
         movel [@R0] @R8
 sta_38170112:
         movel @R0 [@R12-20]
@@ -1427,6 +1455,7 @@ _L38170120:
         add @R0 @R1
         movel @R0 [@R0]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-12]
@@ -1438,6 +1467,7 @@ _L38170120:
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R9
         movel [@R0] @R9
 sta_38170117:
         movel @R0 [@R12-12]
@@ -1450,12 +1480,14 @@ sta_38170118:
 ; 76:     arr[1] = value;
         movel @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         movel [@R0] @R7
 ; 77:     arr[0]++;
         move @R0 [@R12+12]
@@ -1576,6 +1608,7 @@ _L38170135:
         add @R0 @R11
         movel @R0 [@R0]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-12]
@@ -1587,6 +1620,7 @@ _L38170135:
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R1
         movel [@R0] @R1
 sta_38170132:
         movel @R0 [@R12-12]
@@ -1599,6 +1633,7 @@ sta_38170133:
 ; 83:     arr[index + 1] = value;
         movel @R0 [@R12+24]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12+16]
@@ -1610,6 +1645,7 @@ sta_38170133:
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R9
         movel [@R0] @R9
 ; 84:     arr[0]++;
         move @R0 [@R12+12]
@@ -1750,12 +1786,14 @@ _L38170150:
         add @R0 @R11
         movel @R0 [@R0]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #8
         pop @R1
         add @R0 @R1
+        pop @R10
         movel [@R0] @R10
 sta_38170147:
         movel @R0 [@R12-20]

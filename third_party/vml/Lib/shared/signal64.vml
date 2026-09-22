@@ -19,40 +19,48 @@ lmoving_avg_init64:
 ; 4:     state[0] = window_size; state[1] = 0; state[2] = 0; state[3] = (long)buffer;
         movel @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+24]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R11
         movel [@R0] @R11
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+24]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R9
         movel [@R0] @R9
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+24]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         movel [@R0] @R7
         move @R0 [@R12+20]
         i2l @R0 @R0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+24]
         push @R0
         move @R0 #3
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R5
         movel [@R0] @R5
 ; 6:     for (i = 0; i < window_size && i < 64; i++) buffer[i] = 0;
         move @R0 #0
@@ -99,12 +107,14 @@ _L67100004:
         jz sta_67100002
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+20]
         push @R0
         movel @R0 [@R12-12]
         mul @R0 #8
         pop @R2
         add @R0 @R2
+        pop @R3
         movel [@R0] @R3
 sta_67100001:
         movel @R0 [@R12-12]
@@ -186,12 +196,14 @@ lmoving_avg_update64:
 ; 14:     buf[idx] = new_value;
         movel @R0 [@R12+16]
         move @R6 @R0
+        push @R6
         move @R0 [@R12-32]
         push @R0
         movel @R0 [@R12-20]
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R6
         movel [@R0] @R6
 ; 15:     sum += new_value;
         movel @R0 [@R12-28]
@@ -262,21 +274,25 @@ sta_67100011:
 ; 18:     state[1] = idx; state[2] = sum;
         movel @R0 [@R12-20]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R1
         movel [@R0] @R1
         movel @R0 [@R12-28]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R11
         movel [@R0] @R11
 ; 19:     long count = state[3 + 1];
         move @R0 [@R12+12]
@@ -340,21 +356,25 @@ lema_init64:
 ; 24: __stdcall long lema_init64(long* state) { state[0] = 0; state[1] = 0; return 1; }
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R6
         add @R0 @R6
+        pop @R7
         movel [@R0] @R7
         move @R0 #0
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R2
         add @R0 @R2
+        pop @R4
         movel [@R0] @R4
         move @R0 #1
         jmp L_67100019
@@ -409,12 +429,14 @@ lema_update64:
 ; 29:     state[0] = result;
         movel @R0 [@R12-20]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R10
         add @R0 @R10
+        pop @R5
         movel [@R0] @R5
 ; 30:     return result;
         movel @R0 [@R12-20]
@@ -442,39 +464,47 @@ lkalman_init64:
 ; 34:     state[0] = initial_value; state[1] = 1000; state[2] = process_noise; state[3] = measure_noise;
         movel @R0 [@R12+16]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R8
         add @R0 @R8
+        pop @R1
         movel [@R0] @R1
         move @R0 #1000
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R9
         add @R0 @R9
+        pop @R11
         movel [@R0] @R11
         movel @R0 [@R12+24]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R6
         movel [@R0] @R6
         movel @R0 [@R12+32]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R2
         movel [@R0] @R2
         move @R13 @R12
         pop @R12
@@ -609,21 +639,25 @@ _L67100024:
 ; 43:     state[0] = estimate; state[1] = p;
         movel @R0 [@R12-12]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R9
         add @R0 @R9
+        pop @R1
         movel [@R0] @R1
         movel @R0 [@R12-20]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R7
         add @R0 @R7
+        pop @R11
         movel [@R0] @R11
 ; 44:     return estimate;
         movel @R0 [@R12-12]
@@ -732,12 +766,14 @@ _L67100038:
         jz sta_67100035
         move @R0 #1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R4
         add @R0 @R4
+        pop @R6
         movel [@R0] @R6
         move @R0 #1
         jmp L_67100039
@@ -761,12 +797,14 @@ _L67100043:
         jz sta_67100040
         move @R0 #0
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R3
         add @R0 @R3
+        pop @R2
         movel [@R0] @R2
         move @R0 #0
         jmp L_67100039

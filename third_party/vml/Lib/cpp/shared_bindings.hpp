@@ -1024,6 +1024,7 @@ extern "C" {
      vml_tm* _ts_to_tm(int ts);
      vml_tm* localtime(int* t);
      vml_tm* gmtime(int* t);
+    __stdcall int mktime(struct vml_tm* tp);
      oid _sf_put2(char* s, int* n, int max, int v);
      oid _sf_puts(char* s, int* n, int max, const char* t);
     __stdcall int strftime(char* s, int max, const char* fmt, struct vml_tm* tm);

@@ -266,6 +266,75 @@ __stdcall struct vml_tm* gmtime(int* t) {
     return _ts_to_tm((int)asm("SYSCALL 54"));
 }
 
+/* `mktime` = **结构体 → epoch 秒**，也就是 `localtime` 的**逆** ——
+   所以这里要**减去** `#61` 的偏移（`localtime` 是加、`gmtime` 是不加）。
+
+   C 标准还要求它把 `*tp` 的字段**归一化后写回**，老程序正是靠这一条做日期加减：
+
+       t.tm_mday += 1;  mktime(&t);      ← 明天（跨月、跨年都对）
+
+   ⚠ 这里**不能**再写一对 C 注释符号 —— 块注释**不嵌套**，里面那对会把本段提前关掉，
+   后面的正文就漏进词法器了（实测形态：`未知字符：⚠`，报在注释中间那一行，看着莫名其妙）。
+
+   ⚠ 归一化**不逐字段判边界**，而是把整件事化成一次"自 1970-01-01 起的秒数"运算：
+   先折月/年，再把 `(tm_mday - 1)` 天与 时/分/秒 一律按秒相加 ⇒ `tm_mday=32`、
+   `tm_mon=13`、`tm_sec=3600` 这些写法**自动**滚到正确位置，一个边界 `if` 都不用写。
+
+   ⚠ `_days_from_civil`（civil_from_days 的逆）**刻意内联**、不抽成助手 —— 与 `localtime`
+   里内联偏移同一个理由：`GenLib -A` 会把本文件的函数（**连 `static` 的也算**）导出成
+   22 份 `<语言>/shared.*` 绑定，内部细节不该进跨语言契约。
+
+   ⚠ 回填走 `_ts_to_tm`，而它写的是 `_tm_buf`（`localtime`/`gmtime` 共用的那个缓冲）——
+   **先把调用方的字段读进局部量再转调**，否则 `mktime(localtime(&t))` 会一边读一边写
+   同一个缓冲。 */
+__stdcall int mktime(struct vml_tm* tp) {
+    int y;
+    int m;
+    int days;
+    int ts;
+    int off;
+    int era;
+    int yoe;
+    int doy;
+    int doe;
+    struct vml_tm* n;
+
+    if (!tp) return -1;
+
+    y = tp->tm_year + 1900;
+    m = tp->tm_mon + 1;                  /* 折成 1 起 */
+    if (m > 12 || m < 1) {
+        y = y + (m - 1) / 12;            /* C 的除法向零取整：负数月份这里对不上，下面补 */
+        m = (m - 1) % 12 + 1;
+        if (m < 1) { m = m + 12; y = y - 1; }
+    }
+
+    /* 该月 1 号是第几天（Howard Hinnant 的 days_from_civil，整数、无循环） */
+    y = y - (m <= 2 ? 1 : 0);
+    era = y / 400;
+    if (y % 400 < 0) era = era - 1;
+    yoe = y - era * 400;
+    doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + tp->tm_mday - 1;
+    doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    days = era * 146097 + doe - 719468;
+
+    off = (int)asm("SYSCALL 61");        /* #61 GetUtcOffset（秒，东为正） */
+    ts = days * 86400 + tp->tm_hour * 3600 + tp->tm_min * 60 + tp->tm_sec - off;
+
+    /* 归一化后的字段写回（C 标准：连 `tm_wday`/`tm_yday` 一并由 mktime 设置） */
+    n = _ts_to_tm(ts + off);
+    tp->tm_sec   = n->tm_sec;
+    tp->tm_min   = n->tm_min;
+    tp->tm_hour  = n->tm_hour;
+    tp->tm_mday  = n->tm_mday;
+    tp->tm_mon   = n->tm_mon;
+    tp->tm_year  = n->tm_year;
+    tp->tm_wday  = n->tm_wday;
+    tp->tm_yday  = n->tm_yday;
+    tp->tm_isdst = 0;                    /* 本平台没有夏令时（与 `_ts_to_tm` 同口径） */
+    return ts;
+}
+
 /* ── strftime：时间程序都靠它把 struct tm 拼成字符串 ──
    只做老程序真正常用的那些转换；不认识的 `%x` 原样保留（比输出空白好查）。 */
 static void _sf_put2(char* s, int* n, int max, int v) {

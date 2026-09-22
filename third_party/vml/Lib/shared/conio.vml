@@ -206,6 +206,7 @@ _L44560017:
         add @R1 @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #16
         push @R0
@@ -218,6 +219,7 @@ _L44560017:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
         move @R0 [@R12+12]
         push @R0
@@ -1170,6 +1172,7 @@ _L44560136:
 ; 155:             conCh[y * 80 + x] = (char)ch;
         move @R0 [@R12+28]
         move @R11 @R0
+        push @R11
         move @R0 conCh
         push @R0
         move @R10 #0
@@ -1191,10 +1194,12 @@ _L44560136:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R11
         moveb [@R0] @R11
 ; 156:             conAt[y * 80 + x] = (char)at;
         move @R0 [@R12+32]
         move @R7 @R0
+        push @R7
         move @R0 conAt
         push @R0
         move @R9 #0
@@ -1216,6 +1221,7 @@ _L44560136:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R7
         moveb [@R0] @R7
 sta_44560133:
         move @R0 [@R12-8]
@@ -1978,6 +1984,7 @@ _L44560184:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R3 @R0
+        push @R3
         move @R0 conCh
         push @R0
         move @R2 #0
@@ -1999,6 +2006,7 @@ _L44560184:
         mul @R0 #1
         pop @R1
         add @R0 @R1
+        pop @R3
         moveb [@R0] @R3
 ; 226:                     conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
         move @R0 conAt
@@ -2030,6 +2038,7 @@ _L44560184:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 conAt
         push @R0
         move @R9 #0
@@ -2051,6 +2060,7 @@ _L44560184:
         mul @R0 #1
         pop @R6
         add @R0 @R6
+        pop @R11
         moveb [@R0] @R11
 sta_44560181:
         move @R0 [@R12-20]
@@ -2216,6 +2226,7 @@ sta_44560187:
 ; 242:     conCh[idx] = (char)c;
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 conCh
         push @R0
         move @R5 #0
@@ -2227,10 +2238,12 @@ sta_44560187:
         mul @R0 #1
         pop @R4
         add @R0 @R4
+        pop @R7
         moveb [@R0] @R7
 ; 243:     conAt[idx] = (char)at;
         move @R0 [@R12-8]
         move @R2 @R0
+        push @R2
         move @R0 conAt
         push @R0
         move @R1 #0
@@ -2242,6 +2255,7 @@ sta_44560187:
         mul @R0 #1
         pop @R3
         add @R0 @R3
+        pop @R2
         moveb [@R0] @R2
 ; 244:     con_sgr(at);
         move @R0 [@R12-8]
@@ -2461,6 +2475,7 @@ _L44560215:
         move [@R0] @R1
         move @R0 @R2
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #580
         push @R0
@@ -2473,6 +2488,7 @@ _L44560215:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R9
         move [@R0] @R9
 sta_44560212:
         move @R0 [@R12-584]
@@ -2503,6 +2519,7 @@ sta_44560213:
 ; 277:     buf[n] = 0;
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 @R12
         sub @R0 #516
         push @R0
@@ -2515,6 +2532,7 @@ sta_44560213:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R5
         moveb [@R0] @R5
 ; 278:     cputs(buf);
         move @R0 @R12
@@ -2609,6 +2627,7 @@ _L44560225:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R2 @R0
+        push @R2
         move @R0 conCh
         push @R0
         move @R10 #0
@@ -2630,6 +2649,7 @@ _L44560225:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R2
         moveb [@R0] @R2
 ; 288:             conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
         move @R0 conAt
@@ -2661,6 +2681,7 @@ _L44560225:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R9 @R0
+        push @R9
         move @R0 conAt
         push @R0
         move @R4 #0
@@ -2682,6 +2703,7 @@ _L44560225:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R9
         moveb [@R0] @R9
 sta_44560222:
         move @R0 [@R12-12]
@@ -2879,6 +2901,7 @@ _L44560240:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R3 @R0
+        push @R3
         move @R0 conCh
         push @R0
         move @R10 #0
@@ -2900,6 +2923,7 @@ _L44560240:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R3
         moveb [@R0] @R3
 ; 302:             conAt[y * 80 + x] = conAt[(y - 1) * 80 + x];
         move @R0 conAt
@@ -2931,6 +2955,7 @@ _L44560240:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move @R11 @R0
+        push @R11
         move @R0 conAt
         push @R0
         move @R4 #0
@@ -2952,6 +2977,7 @@ _L44560240:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R11
         moveb [@R0] @R11
 sta_44560237:
         move @R0 [@R12-12]
@@ -3192,6 +3218,7 @@ sta_44560256:
 ; 329:         conKb[conKbLen] = (char)c;
         move @R0 [@R12-8]
         move @R1 @R0
+        push @R1
         move @R0 conKb
         push @R0
         move @R10 #0
@@ -3203,6 +3230,7 @@ sta_44560256:
         mul @R0 #1
         pop @R8
         add @R0 @R8
+        pop @R1
         moveb [@R0] @R1
 ; 330:         conKbLen++;
         move @R0 [conKbLen]
@@ -3360,6 +3388,7 @@ sta_44560284:
 ; 375:     conKb[0] = (char)c;
         move @R0 [@R12-8]
         move @R6 @R0
+        push @R6
         move @R0 conKb
         push @R0
         move @R4 #0
@@ -3371,6 +3400,7 @@ sta_44560284:
         mul @R0 #1
         pop @R7
         add @R0 @R7
+        pop @R6
         moveb [@R0] @R6
 ; 376:     conKbLen = 1;
         move @R0 #1

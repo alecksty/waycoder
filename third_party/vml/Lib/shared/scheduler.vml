@@ -52,6 +52,7 @@ _L4690009:
 ; 10:         tasks[i * 5 + 0] = 0;  // period
         move @R0 #0
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -63,10 +64,12 @@ _L4690009:
         mul @R0 #4
         pop @R10
         add @R0 @R10
+        pop @R11
         move [@R0] @R11
 ; 11:         tasks[i * 5 + 1] = 0;  // remaining
         move @R0 #0
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -83,10 +86,12 @@ _L4690009:
         mul @R0 #4
         pop @R8
         add @R0 @R8
+        pop @R9
         move [@R0] @R9
 ; 12:         tasks[i * 5 + 2] = 0;  // func_addr
         move @R0 #0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -103,10 +108,12 @@ _L4690009:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 ; 13:         tasks[i * 5 + 3] = 0;  // state_ptr
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -123,10 +130,12 @@ _L4690009:
         mul @R0 #4
         pop @R4
         add @R0 @R4
+        pop @R5
         move [@R0] @R5
 ; 14:         tasks[i * 5 + 4] = 0;  // priority (0=stopped)
         move @R0 #0
         move @R3 @R0
+        push @R3
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -143,6 +152,7 @@ _L4690009:
         mul @R0 #4
         pop @R2
         add @R0 @R2
+        pop @R3
         move [@R0] @R3
 sta_4690006:
         move @R0 [@R12-8]
@@ -264,6 +274,7 @@ _L4690028:
 ; 23:             tasks[i * 5 + 0] = period;
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -275,10 +286,12 @@ _L4690028:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R10
         move [@R0] @R10
 ; 24:             tasks[i * 5 + 1] = 0;     // 立即到期
         move @R0 #0
         move @R8 @R0
+        push @R8
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -295,10 +308,12 @@ _L4690028:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R8
         move [@R0] @R8
 ; 25:             tasks[i * 5 + 2] = func_addr;
         move @R0 [@R12+24]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -315,10 +330,12 @@ _L4690028:
         mul @R0 #4
         pop @R7
         add @R0 @R7
+        pop @R6
         move [@R0] @R6
 ; 26:             tasks[i * 5 + 3] = state_ptr;
         move @R0 [@R12+28]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -335,10 +352,12 @@ _L4690028:
         mul @R0 #4
         pop @R5
         add @R0 @R5
+        pop @R4
         move [@R0] @R4
 ; 27:             tasks[i * 5 + 4] = priority;
         move @R0 [@R12+20]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -355,6 +374,7 @@ _L4690028:
         mul @R0 #4
         pop @R3
         add @R0 @R3
+        pop @R2
         move [@R0] @R2
 ; 28:             return i;
         move @R0 [@R12-8]
@@ -454,6 +474,7 @@ sta_4690030:
 ; 36:     tasks[task_id * 5 + 4] = 0;  // priority=0 → stopped
         move @R0 #0
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -470,6 +491,7 @@ sta_4690030:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R1
         move [@R0] @R1
 L_4690043:
         move @R13 @R12
@@ -573,6 +595,7 @@ sta_4690045:
 ; 41:     tasks[task_id * 5 + 0] = period;
         move @R0 [@R12+20]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -584,6 +607,7 @@ sta_4690045:
         mul @R0 #4
         pop @R9
         add @R0 @R9
+        pop @R10
         move [@R0] @R10
 ; 42:     if (tasks[task_id * 5 + 1] > period)
         move @R0 [@R12+12]
@@ -618,6 +642,7 @@ _L4690067:
 ; 43:         tasks[task_id * 5 + 1] = period;
         move @R0 [@R12+20]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -634,6 +659,7 @@ _L4690067:
         mul @R0 #4
         pop @R6
         add @R0 @R6
+        pop @R7
         move [@R0] @R7
 sta_4690064:
 sta_4690065:
@@ -811,6 +837,7 @@ sta_4690087:
 ; 60:             tasks[i * 5 + 1] = remaining;
         move @R0 [@R12-20]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -827,6 +854,7 @@ sta_4690087:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R2
         move [@R0] @R2
 sta_4690078:
 sta_4690079:

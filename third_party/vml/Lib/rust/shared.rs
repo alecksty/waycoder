@@ -6396,6 +6396,13 @@ fn gmtime(a0: i32) -> i32 {
     r
 }
 
+fn mktime(a0: i32) -> i32 {
+    asm!("CALL mktime")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn _sf_put2(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL _sf_put2")
     let r: i32;

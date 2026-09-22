@@ -1214,6 +1214,7 @@ sta_85920172:
 ; 90:         argv[argc++] = p;
         move @R0 [@R12-12]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -1224,6 +1225,7 @@ sta_85920172:
         mul @R0 #4
         pop @R11
         add @R0 @R11
+        pop @R1
         move [@R0] @R1
 sta_85920175:
         move @R2 #0

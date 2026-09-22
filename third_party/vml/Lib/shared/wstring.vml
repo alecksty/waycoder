@@ -358,12 +358,14 @@ _L70320034:
         moveh @R0 [@R0]
         sexth @R0 @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #2
         pop @R6
         add @R0 @R6
+        pop @R7
         moveh [@R0] @R7
 sta_70320031:
         move @R0 [@R12-8]
@@ -390,12 +392,14 @@ _L70320043:
         jz sta_70320041
         move @R0 #0
         move @R5 @R0
+        push @R5
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
         mul @R0 #2
         pop @R4
         add @R0 @R4
+        pop @R5
         moveh [@R0] @R5
 sta_70320040:
         move @R0 [@R12-8]
