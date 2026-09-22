@@ -956,6 +956,51 @@ namespace CCompiler
             return stars >= 2;                       // `T **x`（`T *x[]` 已被上面那条收走）
         }
 
+        /// <summary>
+        /// 声明的**数组维度数**（`char *bs[2][3]` → 2；`char *rows[]` → 1；**不是数组** → 0）。
+        ///
+        /// ## 为什么需要它：**数组的下标不解引用，指针的下标才解**
+        ///
+        /// `InferExpressionType` 里那条"多级下标要按级数继续解引用"的规则，原本是照
+        /// `T **p` 写的（`p[i]` 解一层、`p[i][j]` 再解一层）。但**数组不是指针**：
+        /// `char *bs[2][3]` 的 `bs[i]` 走掉一个**维度**（`vml` 里是 +i*4 的地址运算），
+        /// 元素类型始终是 `char *`；照指针那条规则再解一层，`bs[i][j]` 就被判成 `char`
+        /// ⇒ **最后一个取值按 1 字节读，而且基址取成了"元素里存的那个指针"**。
+        ///
+        /// 实测（`probe3.c`，本仓 `scripts/vml-c-probe/cases/33-mdim-pointer-array.c`）：
+        /// `static char *bs[2][3] = {{"a1","a2","a3"},{"b1","b2","b3"}};` 读 `bs[0][0]`
+        /// 得到 **97（`'a'`）** 而不是那个指针；`%s` 打印出来是**空串**。
+        /// 一维的 `char *rows[]` 一直是对的（它只解一层，恰好落在正确的一侧），
+        /// **二维才露馅** —— 而老程序里的字符串表（`sl` 的整车图形、菜单、`argv` 那类）
+        /// 大量是二维的。
+        ///
+        /// 三种形状都要能答对，所以按"**有几个下标走维度**"算：
+        ///   · `char *bs[2][3]`：dims=2，`bs[i][j]` 的参数数(2) 不超出维度 ⇒ **不解引用**
+        ///   · `char *rows[]`（dims=1）与一维下标：dims 已经把第一个下标吃掉 ⇒ 不解引用
+        ///   · `char **p`（dims=0，是指针不是数组）：每个下标解一层 ⇒ 参数数减 1 层
+        /// </summary>
+        private int DeclaredArrayDims(string name)
+        {
+            // ① 局部数组：解析时按类型串抽出来的维度（`localArrayDimensions`）
+            if (localArrayDimensions.TryGetValue(name, out var localDims) && localDims is { Count: > 0 })
+                return localDims.Count;
+
+            // ② 全局数组：**声明节点上的 `Dimensions` 才是权威的** ——
+            //    `ParseVariableDecl` 把维度记在这里，而**不写进类型串**
+            //    （`char *bs[2][3]` 的 `Type` 只有 `"char *"`，看 `[` 是数不出来的）。
+            var global = ast.Variables.FirstOrDefault(v => v.Name == name);
+            if (global?.Dimensions is { Count: > 0 }) return global.Dimensions.Count;
+
+            // ③ 兜底：类型串里带维度的写法（`int *p[4]`）
+            var (decl, isArray) = DeclaredTypeOf(name);
+            int fromText = 0;
+            if (!string.IsNullOrEmpty(decl))
+                foreach (var ch in decl) if (ch == '[') fromText++;
+            if (fromText > 0) return fromText;
+
+            return isArray ? 1 : 0;      // 不带长度的数组（`char *rows[]`）维度落在 IsArray 上
+        }
+
         private ExprType InferExpressionType(ASTNode node)
         {
             /* 逗号表达式的类型 = **右边**的类型（整个表达式的值取右边） */
@@ -1164,7 +1209,18 @@ namespace CCompiler
 
                     // 每多一级下标就再解一层引用（`pp[0][0]`：`CharPtr` → `Char`）。
                     // 解到不是指针为止 —— `T *p; p[0][0]` 这种越界写法不该再往下解。
-                    for (int k = 1; k < arrAcc.Indices.Count && IsPointerType(elemTy); k++)
+                    //
+                    // ⚠⚠ **"多一级"要扣掉数组自己的维度数**：数组的下标走**维度**、不解引用，
+                    //   只有**指针**的下标才解。按"下标数 - 1"一刀切，二维指针数组
+                    //   （`char *bs[2][3]`）会被多解一层 ⇒ `bs[i][j]` 判成 `char`
+                    //   ⇒ 末次取值按 1 字节读、且基址取成"元素里那个指针"。
+                    //   实测 `bs[0][0]` 读出 `97`（`'a'`）、`%s` 打出空串 ——
+                    //   而**一维的 `char *rows[]` 恰好落在正确的一侧**，所以这个缺陷
+                    //   只在二维上冒头（`sl` 的整车图形表、菜单表、`argv` 那类全是二维）。
+                    //   判据：`scripts/vml-c-probe/cases/33-mdim-pointer-array.c`。
+                    int dims = DeclaredArrayDims(arrId.Name);
+                    int extraDerefs = arrAcc.Indices.Count - (dims > 0 ? dims : 1);
+                    for (int k = 0; k < extraDerefs && IsPointerType(elemTy); k++)
                         elemTy = DerefExprType(elemTy);
                     return elemTy;
                 }

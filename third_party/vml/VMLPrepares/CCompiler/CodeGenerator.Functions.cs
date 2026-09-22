@@ -1029,6 +1029,31 @@ namespace CCompiler
                         var stType3 = ResolveStructType(varDecl.Type);
                         if (stType3 != null)
                             variableStructTypes[varDecl.Name] = stType3;
+
+                        // ⚠⚠ **数组的簿记一条都不能少**（下面非 static 那条路做了同样几件事）。
+                        //   这里原来 `return` 得**太早**：静态数组不进 `arrayLocalVars`，
+                        //   于是 `DeclaredArrayOfPointers` 的兜底答"不是数组" ⇒
+                        //   元素被判成 `char`（`char *tab[]` 的元素本该是指针）⇒
+                        //   **按 1 字节读指针**、`%s` 打出空串。
+                        //   实测：函数内 `static char *b[3] = {"aa","bb","cc"};` 三项全是 NULL，
+                        //   而非 static 的 `char *d[2] = {"zz","yy"};` 正常 ——
+                        //   差别就在这几行簿记。老程序里"函数内静态查表"（整车图形、字模、
+                        //   菜单、CRC 表）几乎都是这个形状。
+                        //   判据：`scripts/vml-c-probe/cases/33-mdim-pointer-array.c` 的 B/C。
+                        // ⚠ 判据要**两种信号都认**：`IsArray` 标志与 `Dimensions` 列表
+                        //   （解析器有两条声明路径，各自只填其中一样 —— 只看 `IsArray`
+                        //   时 `static char *s1[2]` 这种恰好两边都不满足，簿记原地落空）。
+                        if (varDecl.IsArray || varDecl.Dimensions is { Count: > 0 })
+                        {
+                            arrayLocalVars.Add(varDecl.Name);
+                            if (varDecl.Dimensions is { Count: > 0 })
+                                localArrayDimensions[varDecl.Name] = new List<int?>(varDecl.Dimensions);
+                            // 元素是指针的（`char *rows[]` / `char *tab[2][3]`）单独记一笔 ——
+                            // `arrayLocalVars` 只答得出"是数组"，答不出"元素是指针"
+                            if (varDecl.Type.Contains('*'))
+                                arrayOfPointerVars.Add(varDecl.Name);
+                            arrayElemSize[varDecl.Name] = GetTypeSizeFromString(varDecl.Type);
+                        }
                         return; // 不计数到localIndex, 不分配栈空间
                     }
                     // 局部变量偏移: 使用 VarMemManager 按类型实际大小分配

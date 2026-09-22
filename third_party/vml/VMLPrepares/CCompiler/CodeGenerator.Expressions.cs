@@ -903,9 +903,17 @@ namespace CCompiler
             //   那是上一版留下的近似（注释里就写着"不正确，但至少不会崩溃"），
             //   而 nyancat / curses 的帧数组、行缓冲全是这个形状：
             //   实测 `nyan_show(char ** fr)` 三帧只发出三个 ESC，着色字符一个没读到。
+            // ⚠⚠ **数组自己还有维度没走完时，不许走这一条** —— 这条是照 `T **p` 写的
+            //   （"第 0 级取指针、第 1 级在它指向的对象上继续下标"），而
+            //   `char *bs[2][3]` 的 `bs[i][j]` 两级下标**都作用在同一个二维数组上**：
+            //   行优先展平 `base + (i*3 + j)*4` 才对，"先解引用再下标"会多读一层 ——
+            //   实测 `bs[0][0]` 取出的"指针"是 `0x61003161`（= 字符串 "a1" 的头四个字节
+            //   `a 1 \0 a`），随后的取值直接**内存错误**。
+            //   判据：`scripts/vml-c-probe/cases/33-mdim-pointer-array.c`。
             if (arrayAccess.Indices.Count >= 2
                 && arrayAccess.Array is Identifier ptrBaseIdent
-                && ElementIsPointer(ptrBaseIdent.Name))
+                && ElementIsPointer(ptrBaseIdent.Name)
+                && DeclaredArrayDims(ptrBaseIdent.Name) < arrayAccess.Indices.Count)
             {
                 // 元素类型（第 0 级的步长）：指针数组/指针的指针 ⇒ 4
                 var ptrElemTy = GetVarExprType(ptrBaseIdent.Name);
