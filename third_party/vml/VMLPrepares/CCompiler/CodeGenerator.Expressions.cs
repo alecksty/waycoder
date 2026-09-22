@@ -145,7 +145,22 @@ namespace CCompiler
             else if (node is Identifier ident)
             {
                 // 数组变量退化为指针: 生成地址而非加载内容
-                if (arrayLocalVars.Contains(ident.Name) && variables.ContainsKey(ident.Name))
+                //
+                // ⚠ **函数内 `static` 数组必须排在最前**：它虽然登记进了 `arrayLocalVars`
+                //   （见 `CodeGenerator.Functions.cs` 那段簿记），却**不在栈上** ——
+                //   下面那条要求 `variables.ContainsKey(name)`（栈变量表），对它恒为假
+                //   ⇒ 它会掉进再下面那条"`staticLocals` ⇒ 取值"，生成 `move @R0 [f__tbl]`
+                //   （**取值**而不是取地址）。
+                //   后果：`(int)tbl` 恒为 0 —— `[<数据标签>]` 这种写法在运行期解析不到
+                //   （`Memory.ParseMemoryString` 只查 `Labels`，数据标签不在里面），
+                //   于是"函数内静态查表"（字模、菜单、CRC 表、`sl` 的整车图形）整类失效。
+                //   判据：`scripts/vml-c-probe/cases/34-static-local-array.c`。
+                if (arrayLocalVars.Contains(ident.Name) && staticLocals.ContainsKey(ident.Name))
+                {
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, staticLocals[ident.Name]) }));
+                }
+                else if (arrayLocalVars.Contains(ident.Name) && variables.ContainsKey(ident.Name))
                 {
                     // ⚠ 这条**不走 `FormatVarOffset`**（它自己拿 `variables[...]` 算偏移）——
                     //   不在这里补记一笔的话，`int a[10]; a[0]=1;` 会被误报成"未使用的局部变量"。

@@ -338,6 +338,7 @@ namespace VMLAssembler
             // 应用模式：执行死代码消除
             RemoveUnusedFunctions();
 
+
             var sb = new StringBuilder();
 
             if (!IsLibrary)
@@ -921,9 +922,33 @@ namespace VMLAssembler
         /// </summary>
         static IEnumerable<string> DataRefs(object value)
         {
+            /* **单个 `LabelRef`**（`char *p = "…";` / `T *p = &x;` 落成的形态）也算引用。
+               ⚠ 漏了这一支，指针变量的字符串会被"没人引用"删掉 —— 数据段里只剩
+               `p: .word L_x`，而 `L_x` 不存在 ⇒ 运行期 `p` 是 NULL
+               （实测 `static char *msg = "INTACT";` 打 `(null)`，`cases/44` 抓到的就是它）。 */
+            if (value is LabelRef single)
+            {
+                if (single.Name.Length > 0) yield return single.Name;
+                yield break;
+            }
             if (value is not object[] arr) yield break;
             foreach (var e in arr)
-                if (e is string s && s.Length > 0) yield return s;
+            {
+                /* ⚠ **两种形态都要认**：C 前端放进去的是**标签名字符串**，
+                   而走一趟文本（`.vml` 往返 / `.vmb`）之后元素变成 `LabelRef`。
+                   只认 `string` 时，**第二次** `ToString` 会把指针表里的字符串
+                   整批当"没人引用"删掉 —— 数据段里只剩 `.word L_x`，
+                   而 `L_x` 退化成 `.text` 里一个**空标签**（`x: .word L_y` 照旧原样
+                   输出，所以看起来"数据都在"、只有内容是空的）。
+                   实测：`--vml` 导出的文本里 `"aa"` 一个字都没有。
+                   判据 `scripts/vml-c-probe/cases/34-static-local-array.c`。 */
+                if (e is LabelRef lr)
+                {
+                    if (lr.Name.Length > 0) yield return lr.Name;
+                }
+                else if (e is string s && s.Length > 0)
+                    yield return s;
+            }
         }
 
         #region 私有辅助方法

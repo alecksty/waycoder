@@ -182,15 +182,40 @@ namespace CCompiler
                 (typeName.StartsWith("struct") || typeName.Contains(" struct") ||
                  typeName.StartsWith("union") || typeName.Contains(" union")))
             {
-                Advance(); // {
-                int depth = 1;
-                while (depth > 0 && Current().Type != TokenType.EOF)
+                /* ⚠ **不能只把成员体跳过去** —— 这里原来是 `depth` 计数跳过整块，
+                   于是"函数内定义的结构体类型"**从未登记进类型表**：元素尺寸查不到
+                   （回落 4）、成员偏移也不对。实测（`sl` 的
+                   `static struct { int y, x, ptrn, kind; } S[1000];`）：`S[i]` 的步长
+                   成了 **4**（应 16）⇒ `S[0].kind` 压在被当作 `S[1].ptrn` 的那 4 字节上，
+                   读出来的字段是**别的元素的值**（最小复现：`S[1]` 打出 `400 400 400 400`），
+                   最后把 `Eraser[]` 那串空格字符串当指针用（崩在地址 `0x20202020`）。
+                   现在按真解析走：解析出成员表 → **登记进类型表** → 变量类型串保持/改成
+                   带标签的形状（匿名的合成一个标签，与匿名成员那条路同一套做法）。
+                   判据 `scripts/vml-c-probe/cases/44-local-struct-array.c`。 */
+                bool localIsUnion = typeName.StartsWith("union") || typeName.Contains(" union");
+                var localBody = ParseAnonStructBody(localIsUnion);
+
+                string localTag = null;
+                int sp = typeName.IndexOf(' ');
+                if (sp > 0) localTag = typeName.Substring(sp + 1).Trim();
+                if (string.IsNullOrEmpty(localTag))
                 {
-                    if (Current().Type == TokenType.LBRACE) depth++;
-                    else if (Current().Type == TokenType.RBRACE) { depth--; if (depth == 0) break; }
-                    Advance();
+                    // 匿名体（`struct { … } v;`）：合成标签，并把变量类型串也改成
+                    // `struct <标签>` —— 否则代码生成侧拿 "struct" 查不到任何东西。
+                    localTag = MakeAnonTag("local");
+                    typeName = (localIsUnion ? "union " : "struct ") + localTag;
                 }
-                Expect(TokenType.RBRACE); // }
+                localBody.Name = localTag;
+                if (localIsUnion)
+                {
+                    // `ParseAnonStructBody` 一律返回 `StructDecl`，union 那张表要 `UnionDecl`
+                    // （与匿名成员那条路同一处置，别指望它自己认类型）。
+                    var lu = new UnionDecl(localTag);
+                    lu.Members.AddRange(localBody.Members);
+                    lu.Size = localBody.Size;
+                    program.Unions[localTag] = lu;
+                }
+                else program.Structs[localTag] = localBody;
             }
 
             if (typeName != null ||
@@ -458,16 +483,28 @@ namespace CCompiler
                             }
                             else
                             {
-                                // 常量表达式或 VLA: 运行时维度 (如 int arr[n] 或 int arr[MAX+8])
+                                /* 常量表达式 vs VLA —— **一律共用 `TryConstDim`（唯一真源）**。
+                                   ⚠ 这里原先是**第二套判据**：「NUMBER 紧跟 `]`」才算编译期维度，
+                                   其余全当 VLA。那个形状只认**裸字面量**，于是 `[H + 1]`、
+                                   `[2 * 5]` 都被判成运行时维度，顺着 VLA 那条路走下去 ——
+                                   而 `GenerateVariableDecl` 的 VLA 分支**第一句就 return**
+                                   （"VLA 不支持初始化器"）⇒ **初始化器整个被丢掉**，数据段只剩
+                                   预扫描留下的 `.word 0`：编译不报错、元素全读到 0。
+                                   同一个表达式写在**顶层**或**非 static 局部**上却正常，因为那两条
+                                   路走的是 `Parser.Expressions` 的 `TryConstDim` ——
+                                   「同一个表达式换个位置就坏」正是**两套判据**的指纹。
+                                   （负数维度由 `TryConstDim` 报错，与那条完全同源，
+                                     不再在这里重复判一遍。）
+                                   判据 `scripts/vml-c-probe/cases/34-static-local-array.c` 的
+                                   MACRO / EXPR 两行。 */
                                 var dimExpr = ParseExpression();
-                                // 能折成常量的**负数维度**要在这里就报错：`int a[-1]` 此前落进
-                                // VLA 分支，运行时算出负的分配量 ⇒ 生成 `sub R13, R1` 而 R1 为负，
-                                // 栈指针**反向移动**，编译不报错（v0.96.187 / patches/0018）。
-                                if (TryConstInt(dimExpr, out var constDim) && constDim < 0)
-                                    throw Error(ErrorCode.Parser_UnexpectedToken,
-                                        $"数组维度不能为负数：{DescribeConstExpr(dimExpr)} = {constDim}");
-                                vlaDims ??= new List<ASTNode>();
-                                vlaDims.Add(dimExpr);
+                                if (TryConstDim(dimExpr, out var constDim))
+                                    size = constDim;
+                                else
+                                {
+                                    vlaDims ??= new List<ASTNode>();
+                                    vlaDims.Add(dimExpr);
+                                }
                             }
                         }
                         Expect(TokenType.RBRACKET);

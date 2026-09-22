@@ -545,6 +545,7 @@ namespace CCompiler
                ⚠ 这里原先算出来的 `isShort`/`isChar` 是**死变量**（注释还写着
                "short/char 也按 4 字节存"）—— 那正是"存储 4 字节 / 下标 1 字节"的成因。 */
             dataSection[label] = BuildArrayData(varDecl.Type, initValues, arraySize);
+
         }
 
         private void FlattenArrayInitValues(ASTNode node, List<object> result)
@@ -568,6 +569,7 @@ namespace CCompiler
                 // 但**这条判据必须一模一样**（见 ConstFold.cs 顶部那段说明）。
                 string strLabel = GenerateLabel();
                 dataSection[strLabel] = strLit.Value;
+
                 result.Add(strLabel);
             }
             // 常量表达式（`-1`、`1+2`…）—— 同 FlattenArrayInitializer，见 ConstFold.cs：

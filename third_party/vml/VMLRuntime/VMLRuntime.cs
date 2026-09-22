@@ -528,14 +528,29 @@ namespace VMLRuntime
                 }
                 else if (data.Value is object[] objArray)
                 {
-                    // 对象数组：每个元素 4 字节，字符串元素解析为标签地址
+                    /* 对象数组：每个元素 4 字节，标签型元素写**标签地址**。
+                       ⚠ **标签型元素必须和上面那条单个 `LabelRef` 一样延后补填**：
+                         数据段是按遍历序逐个分配、并在**循环末尾**才 `labelAddresses[key] = address`，
+                         而数组元素指向的标签（`char *rows[] = {"abc","def"}` 里的字符串、
+                         多级指针表）完全可能排在**后面**才登记 ⇒ 边遍历边解析就读到 0。
+                         实测：函数内 `static char *stat[2] = {"aa","bb"};` 两项恒 NULL，
+                         而顶层同样形状的 `g[2]` 恰好顺序凑巧、正常 ——
+                         「同一个形状，放函数里就坏、放顶层就好」正是**遍历序**的指纹。
+                         判据 `scripts/vml-c-probe/cases/34-static-local-array.c`。 */
                     address = AllocateMemory(objArray.Length * 4);
                     for (var i = 0; i < objArray.Length; i++)
                     {
-                        int val = ResolveDataElement(objArray[i]);
-                        var bytes = BitConverter.GetBytes(val);
-                        for (var j = 0; j < 4; j++)
-                            memory[address + i * 4 + j] = bytes[j];
+                        int slot = address + i * 4;
+                        string? refName = objArray[i] switch
+                        {
+                            LabelRef lr => lr.Name,
+                            string s when s.Length > 0 && !int.TryParse(s, out _) => s,
+                            _ => null
+                        };
+                        if (refName is not null)
+                            deferredLabelRefs.Add((slot, new LabelRef(refName)));
+                        else
+                            SetMemory(slot, ResolveDataElement(objArray[i]));
                     }
                 }
                 else if (data.Value is float floatValue)
@@ -641,6 +656,24 @@ namespace VMLRuntime
                 sp = 640 * 1024; // fallback default
             }
 
+            /* ⚠⚠ **栈顶必须落在堆高水位之上** —— 数据段是逐个 `AllocateMemory` 分配的，
+               堆从 `DataBase`（0x400）往上长，而上面那几条给的是**栈顶**（栈往下长）。
+               两者重叠时最先脏掉的是**帧上方那几个槽**：C 的调用约定把参数放在
+               `[R12+12]`/`[R12+16]`，而 `R12` 就在初始 SP 之下 —— 于是 `main` 的
+               `argc`/`argv` 恰好落在初始 SP **之上**，被堆的数据写脏。
+               实测（`sl`，heapTop=67342 > sp=65536）：
+                 · `argc` 读出 **897988541** —— 那是 0x358637BD，某个浮点常量 `1e-6` 的位模式；
+                 · `argv[1]` 指向数据段里的一段字符串，于是
+                   `for (i = 1; i < argc; ++i) if (*argv[i] == '-')` **一进循环就崩**
+                   （报"内存越界，地址＝MK1\r"这类**字符串正文**当地址的错误）。
+               症状之所以难认：**同一个程序在小数据量下完全正常**（那个最小例 heapTop=22746），
+               只有"数据段 + 堆超过 64K"的老程序才翻车 —— 而 `.stack 0`（C 前端默认发的就是它）
+               会退到 `config.StackSize`（**64K**），越过它一点也不难
+               （`sl` 的全部图案表 + curses 的 300×25 双缓冲 + 库自己的那些缓冲区）。
+               判据 `scripts/vml-c-probe/cases/43-stack-heap-collision.c`。 */
+            if (sp <= memoryAllocPtr)
+                sp = memory.Length - 4;   // 退到内存顶端（构造函数本来就用这个默认值）
+
             registers[12] = sp;
             registers[13] = sp;
             registers[14] = sp;
@@ -722,28 +755,48 @@ namespace VMLRuntime
 
             try
             {
-                // OS模式: 设置 argc/argv 传递给 main(参数从右到左压栈)
-                if (privilegeLevel == 0 && CommandLineArgs.Count > 0)
+                /* ── `main` 的帧要**自己搭好**，不论有没有命令行参数 ────────────────────
+                   C 的调用约定里 `call` 会把**返回地址**压栈，参数落在它**之上** —— 被调用方
+                   读参数的位置因此是 `[R12+12]`（第一个）、`[R12+16]`（第二个）……
+                   （`main` 的序言是 `push R15 / push R12 / move R12 R13` ⇒ R12 在初始 SP 之下 8 字节。）
+                   此前这段**两处都不对**：
+                     · 只在 `CommandLineArgs.Count > 0` 时才搭 ⇒ 无参数时 `main` 的 `[R12+12]`
+                       落在**初始 SP 之上**、读到没写过的内存。实测 `sl`：`argc` 读出
+                       **897988541**（= 0x358637BD，某个浮点常量 `1e-6` 的位模式），
+                       于是 `for (i = 1; i < argc; ++i) if (*argv[i] == '-')` 一进循环就崩
+                       （报"内存越界，地址＝MK1\r"这类**字符串正文当指针**的错误）。
+                     · 少压了**返回地址槽** ⇒ 有参数时 `argc` 读到的是 argv、`argv` 读到垃圾。
+                   所以无条件搭三格，**顺序 argv、argc、返回地址**（返回地址最后压、落在最低
+                   地址，正好对上"`call` 压 RA"的布局）。
+                   ⚠ 返回地址给 **0**：`ExecuteRet` 把 `returnAddress <= 0` 当"从入口返回"⇒
+                     结束程序、退出码取 R0 —— 这正是 `main` 正常 `return` 的语义。
+                   ⚠ `argc` **至少 1**、`argv[0]` 一定可读（没有参数时给空串）：C 保证 `argc >= 1`，
+                     老程序常拿 `argv[0]` 打用法/取程序名，给 NULL 就是替它们埋一个空指针。
+                   判据 `scripts/vml-c-probe/cases/43-stack-heap-collision.c`。
+                   ⚠⚠ **不要**给这段加 `privilegeLevel == 0` 的门 —— 这里原来就有，而
+                     `privilegeLevel` **默认是 1**（MCU 模式）⇒ 整段**从来没执行过**。
+                     帧布局是 **ABI** 的事、与特权级无关：前端不论哪种模式都按 `[R12+12]` 读 `argc`。
+                     （特权级管的是**系统调用**能不能用，见 `DeniedByPrivilege`。） */
                 {
-                    int argc = CommandLineArgs.Count;
-                    // 分配 argv 指针数组 + 字符串
+                    int argc = CommandLineArgs.Count > 0 ? CommandLineArgs.Count : 1;
                     int argvPtr = AllocateMemory((argc + 1) * 4);
                     for (int i = 0; i < argc; i++)
                     {
-                        string arg = CommandLineArgs[i];
+                        string arg = i < CommandLineArgs.Count ? CommandLineArgs[i] : "";
                         int strAddr = AllocateMemory(arg.Length + 1);
                         for (int j = 0; j < arg.Length; j++)
                             memory[strAddr + j] = (byte)arg[j];
                         memory[strAddr + arg.Length] = 0;
                         SetMemory(argvPtr + i * 4, strAddr);
                     }
+                    SetMemory(argvPtr + argc * 4, 0); // NULL 终止
 
-                    SetMemory(argvPtr + argc * 4, 0); // NULL终止
-                    // 按VML调用约定压栈: 先压argv, 再压argc
                     sp -= 4;
-                    SetMemory(sp, argvPtr); // push argv
+                    SetMemory(sp, argvPtr); // argv
                     sp -= 4;
-                    SetMemory(sp, argc); // push argc
+                    SetMemory(sp, argc);    // argc
+                    sp -= 4;
+                    SetMemory(sp, 0);       // 返回地址槽：0 = 从 main 返回即结束程序
                     registers[13] = sp;
                     // R0 = argc, R1 = argv (方便直接访问)
                     registers[0] = argc;

@@ -61,6 +61,33 @@ namespace CCompiler
         /// 把它们的存储缩到 N 会把"偷用那 4 倍余量"从**静默容忍**变成**真越界**
         /// （`Examples/c/` 里一批 `char nbuf[16]` 就是这种用法），而收益是零 —— 不动。</para>
         /// </summary>
+        /// <summary>
+        /// 数组在数据段里的**占位值**：按**真实元素宽度**开够。
+        ///
+        /// ⚠ 这里原来（调用点）是 `new int[N]`（= 4 字节/元素）：对 `int` 恰好对，
+        /// 对**结构体数组就是 1/4 大** —— `struct smokes S[8]`（元素 16 字节）只开 32 字节，
+        /// 于是 `S[7].y = …` 落到紧邻的数据上：实测把后面的格式串踩成 `\t`
+        /// （最小复现：`for (i=0;i<3;++i) S[i].y = i*10;` 之后第一个 `printf` 打出制表符，
+        ///   `scripts/vml-c-probe/cases/43-stack-heap-collision.c` 同批钉住）；
+        /// `sl` 的 `static struct { … } S[1000]` 更狠 —— 写到 16000 字节之外，
+        /// 表现为"读到的指针是一串空格"（`0x20202020`）的那种崩溃。
+        ///
+        /// ⚠ `char`/`short` 数组**仍然保持 4 字节/元素**（`Math.Max(4, …)`）：那是既有行为，
+        /// `Examples/` 里一批 `char buf[N]` 靠它偷余量（见 CHANGELOG v0.96.370 的判据纪律 2），
+        /// 缩到真实宽度会把"静默容忍"变成"真越界"。
+        ///
+        /// 有初始化器的数组不走这里（`BuildArrayData` 自己按类型打包），
+        /// 本函数只给**没有初始化器**的数组一个正确的尺寸。
+        /// </summary>
+        private object AllocArrayData(VariableDecl varDecl)
+        {
+            if (!varDecl.IsArray && varDecl.Dimensions is not { Count: > 0 }) return 0;
+            int n = varDecl.ArraySize ?? 0;
+            if (n <= 0) return 0;   // `[]` 靠初始化器推断 ⇒ 没有初始化器就没有可开的地
+            int elemBytes = Math.Max(4, GetTypeSizeFromString(varDecl.Type));
+            return new int[n * ((elemBytes + 3) / 4)];
+        }
+
         private object BuildArrayData(string declType, List<object> initValues, int arraySize)
         {
             int elemSize = ArrayElemSize(declType);

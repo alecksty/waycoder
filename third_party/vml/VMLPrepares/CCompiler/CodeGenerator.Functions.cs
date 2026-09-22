@@ -191,7 +191,7 @@ namespace CCompiler
                     else
                     {
                         // 未初始化的数组
-                        dataSection[varDecl.Name] = new int[varDecl.ArraySize ?? 0];
+                        dataSection[varDecl.Name] = AllocArrayData(varDecl);
                     }
                 }
                 else if (varDecl.Initializer is NumberLiteral numLiteral)
@@ -201,8 +201,22 @@ namespace CCompiler
                 }
                 else if (varDecl.Initializer is StringLiteral strLiteral)
                 {
-                    // 字符串初始化
-                    dataSection[varDecl.Name] = strLiteral.Value;
+                    /* `char buf[] = "…";` 要的是**正文**；`char *p = "…";` 要的是**地址**。
+                       ⚠ 不分这两种、一律塞正文的话，指针变量里躺着的是那 4 个字符本身：
+                       实测 `static char *msg = "INTACT";` 读出 **0x41544E49**（"INTA"）
+                       当指针用 ⇒ 崩在取址那一步（`cases/44` 抓到的就是这个）。
+                       指针这条先给正文分配一个标签，再把变量记成指向它的 `LabelRef` ——
+                       与下面 `T *p = &x;` 那条**同一条通路**（链接器把名字解析成地址）。 */
+                    if (varDecl.Type.Contains('*'))
+                    {
+                        string strLitLabel = GenerateLabel();
+                        dataSection[strLitLabel] = strLiteral.Value;
+                        dataSection[varDecl.Name] = new LabelRef(strLitLabel);
+                    }
+                    else
+                    {
+                        dataSection[varDecl.Name] = strLiteral.Value;
+                    }
                 }
                 else if (varDecl.Initializer is UnaryOp addrOf && addrOf.Op == "&")
                 {
@@ -1021,7 +1035,11 @@ namespace CCompiler
                         // static局部变量: 存储在data section, 不使用栈空间
                         string staticLabel = $"{CurrentFunction.Name}__{varDecl.Name}";
                         staticLocals[varDecl.Name] = staticLabel;
-                        dataSection[staticLabel] = 0; // 默认初始值
+                        /* ⚠ **数组不能只写一个 `0`（4 字节）** —— 见 `AllocArrayData`。
+                           `static struct { int y, x, ptrn, kind; } S[1000];` 需要 16KB，
+                           写 `S[i]` 就直接踩到后面所有数据上（实测把 `Eraser`/`Smoke`
+                           那串空格字符串踩坏 ⇒ 读出来的"指针"是 `0x20202020`）。 */
+                        dataSection[staticLabel] = AllocArrayData(varDecl);
                         variableTypes[varDecl.Name] = StringToExprType(varDecl.Type);
                         variableTypeStrings[varDecl.Name] = varDecl.Type;
                         var stType3 = ResolveStructType(varDecl.Type);
@@ -1051,6 +1069,7 @@ namespace CCompiler
                             if (varDecl.Type.Contains('*'))
                                 arrayOfPointerVars.Add(varDecl.Name);
                             arrayElemSize[varDecl.Name] = GetTypeSizeFromString(varDecl.Type);
+
                         }
                         return; // 不计数到localIndex, 不分配栈空间
                     }

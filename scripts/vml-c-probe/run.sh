@@ -136,13 +136,7 @@ for f in "$CASES"/*.c; do
         rm -f "$errf"; continue
     fi
     got="$(echo "$out" | grep -oE '^[A-Za-z0-9+-]+=.*' | tr '\n' '|' | sed 's/|$//')"
-    if [ "$got" = "$exp" ]; then
-        printf "  ✅ %-18s %s\n" "$name" "$got"
-        pass=$((pass+1))
-    elif [ "$known_red" = 1 ]; then
-        printf "  ⚠️  %-18s 已知红（缺陷未修）：期望 %s / 实得 %s\n" "$name" "$exp" "$got"
-        red=$((red+1))
-    else
+    if [ "$got" != "$exp" ] && [ "$known_red" = 0 ]; then
         printf "  ❌ %-18s\n     期望 %s\n     实得 %s\n" "$name" "$exp" "$got"
         # 实得为空十有八九是**编译/链接就失败了**（这类噪音全在 stderr）——
         # 不把 stderr 尾巴带出来，看到的就只是"空的"，没法往下查。
@@ -150,6 +144,48 @@ for f in "$CASES"/*.c; do
             printf "     （stderr 尾部）%s\n" "$(tail -3 "$errf" | tr '\n' ' ')"
         fi
         fail=$((fail+1))
+        rm -f "$errf"
+        continue
+    fi
+
+    # ── `// EXPECT-VML: <子串>`：**产物文本**里必须出现该子串 ──────────────────
+    #
+    # 为什么要有这条（它是唯一一条不跑程序、只看产物的）：
+    # 「**数据只在别的数据里被引用**」这一类东西（指针表 `char *t[] = {"abc"}` 的字符串、
+    # 多级指针表、`argv` 那种），在**运行路径**上活着，在**文本路径**上却会被
+    # 死代码消除整批删掉 —— 因为判"谁被引用"的那段只认**标签名字符串**，
+    # 而文本往返一趟之后元素变成了 `LabelRef`。
+    # 症状非常隐蔽：数据段里 `.word L_x` **照旧原样输出**，只是 `L_x` 退化成
+    # `.text` 里的一个**空标签** —— 看起来"数据都在"，只有内容是空的。
+    # 用户侧的后果是**手机「VML 编译」出来的 `.vml` 跑起来指针全 NULL**
+    #（那条路正是 `ToString()` → 存盘 → 独立汇编运行）。
+    # 判据只能是"产物里有没有那段正文"—— 运行路径跑一百遍也照不出来。
+    # 实测（2026-09-22）：修前 `grep -c '"aa"' out.vml` == 0，修后 == 1。
+    vml_expects="$(grep -o '^// EXPECT-VML: .*' "$f" | head -1 | sed 's|^// EXPECT-VML: *||')"
+    if [ -n "$vml_expects" ]; then
+        vml_out="$(mktemp)"
+        run_to dotnet "$CLI" "$f" --vml "$vml_out" >/dev/null 2>&1
+        vml_missing=""
+        while IFS= read -r one; do
+            [ -z "$one" ] && continue
+            grep -qF "$one" "$vml_out" 2>/dev/null || vml_missing="$vml_missing 「$one」"
+        done <<< "$vml_expects"
+        rm -f "$vml_out"
+        if [ -n "$vml_missing" ]; then
+            printf "  ❌ %-18s\n     产物文本里缺%s（只被别的数据引用的东西被死代码消除删掉了）\n" \
+                "$name" "$vml_missing"
+            fail=$((fail+1))
+            rm -f "$errf"
+            continue
+        fi
+    fi
+
+    if [ "$got" = "$exp" ]; then
+        printf "  ✅ %-18s %s\n" "$name" "$got"
+        pass=$((pass+1))
+    elif [ "$known_red" = 1 ]; then
+        printf "  ⚠️  %-18s 已知红（缺陷未修）：期望 %s / 实得 %s\n" "$name" "$exp" "$got"
+        red=$((red+1))
     fi
     rm -f "$errf"
 done
