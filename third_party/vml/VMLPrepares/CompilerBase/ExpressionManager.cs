@@ -87,12 +87,28 @@ namespace CompilerBase
             return byteSize switch { 1 => OpCode.MOVEB, 2 => OpCode.MOVEH, _ => OpCode.MOVE };
         }
 
-        public static OpCode SelectArithmeticOp(string op, bool isFloat, bool isDouble = false, bool isLong = false)
+        /// <param name="isUnsigned">
+        /// 无符号类型 —— **只影响三处**：`/` `%` 走无符号变体、`>>` 走逻辑右移、
+        /// `&amp;`/`|`/`^`/`&lt;&lt;` 与符号无关（原样）。浮点忽略此参数。
+        /// </param>
+        public static OpCode SelectArithmeticOp(string op, bool isFloat, bool isDouble = false, bool isLong = false, bool isUnsigned = false)
         {
-            if (isLong) return op switch { "+" => OpCode.ADDL, "-" => OpCode.SUBL, "*" => OpCode.MULL, "/" => OpCode.DIVL, "%" => OpCode.MODL, _ => SelectBitwiseOp(op) };
+            if (isLong) return op switch
+            {
+                "+" => OpCode.ADDL, "-" => OpCode.SUBL, "*" => OpCode.MULL,
+                "/" => isUnsigned ? OpCode.DIVUL : OpCode.DIVL,
+                "%" => isUnsigned ? OpCode.MODUL : OpCode.MODL,
+                _   => SelectBitOp(op, isLong: true, isUnsigned)
+            };
             if (isDouble) return op switch { "+" => OpCode.DADD, "-" => OpCode.DSUB, "*" => OpCode.DMUL, "/" => OpCode.DDIV, "%" => OpCode.MOD, _ => SelectBitwiseOp(op) };
             if (isFloat)  return op switch { "+" => OpCode.FADD, "-" => OpCode.FSUB, "*" => OpCode.FMUL, "/" => OpCode.FDIV, "%" => OpCode.MOD, _ => SelectBitwiseOp(op) };
-            return op switch { "+" => OpCode.ADD, "-" => OpCode.SUB, "*" => OpCode.MUL, "/" => OpCode.DIV, "%" => OpCode.MOD, _ => SelectBitwiseOp(op) };
+            return op switch
+            {
+                "+" => OpCode.ADD, "-" => OpCode.SUB, "*" => OpCode.MUL,
+                "/" => isUnsigned ? OpCode.DIVU : OpCode.DIV,
+                "%" => isUnsigned ? OpCode.MODU : OpCode.MOD,
+                _   => SelectBitOp(op, isLong: false, isUnsigned)
+            };
         }
 
         public static OpCode SelectArithOp(string op, int byteSize, bool isFloat, bool isDouble = false, bool isLong = false)
@@ -105,6 +121,16 @@ namespace CompilerBase
             if (isFloat) return OpCode.FCMP;
             return OpCode.CMP;
         }
+
+        /// <summary>
+        /// **无符号**比较指令 —— `CMPU`（32 位）/ `CMPUL`（64 位）。
+        ///
+        /// ⚠ 它置的是**独立标志 `uf`**，与 `CMP`/`CMPL` 的 `sf`/`cf` 互不干扰：
+        /// `JG`/`JGE` 把 `cf` 当**溢出位**用（`JG = !zf &amp;&amp; sf == cf`），
+        /// 把无符号借位塞进 `cf` 会让有符号跳转全错（`3 > 5` 时 `sf` 与借位同时为真）。
+        /// 所以「无符号比较」必须与「无符号跳转」配套使用（`JA`/`JB`/`JAE`/`JBE`）。
+        /// </summary>
+        public static OpCode SelectUnsignedCompareOp(bool isLong) => isLong ? OpCode.CMPUL : OpCode.CMPU;
 
         public static OpCode SelectNegOp(bool isFloat, bool isDouble = false, bool isLong = false)
         {
@@ -218,9 +244,36 @@ namespace CompilerBase
             if (a.IsPtr() && b.IsPtr()) return ExpType.I32;
             if (a == ExpType.F64 || b == ExpType.F64) return ExpType.F64;
             if (a == ExpType.F32 || b == ExpType.F32) return ExpType.F32;
-            if (a == ExpType.I64 || b == ExpType.I64 || a == ExpType.U64 || b == ExpType.U64) return ExpType.I64;
-            return ExpType.I32; // 默认
+
+            // ── 整数：按 **C 的整数提升规则**（2026-09-22 修）──
+            //
+            // ⚠ 这里此前是 `U64 → I64`、**其余一律 `I32`** —— 于是 `unsigned int >> 4`
+            //   被并成 `I32`、`IsUnsigned()` 变假、发**算术** `SHR`（实测得
+            //   -184217296 而不是 250000000）。**同一个"无符号被丢掉"的毛病，
+            //   在 `CTypeToExpType` 之外还有这一处。**
+            //
+            // 规则（够用且与 C 一致）：
+            //   ① 等级不同 ⇒ 取**等级高**的那个类型（`U64` 胜 `I32`、`I64` 胜 `U32`）；
+            //   ② 等级相同 ⇒ **无符号赢**（C：同等级时无符号的类型胜出）。
+            //      `U32`+`I32` → `U32` ✓；`U64`+`I64` → `U64` ✓。
+            int ra = IntRank(a), rb = IntRank(b);
+            ExpType winner = ra >= rb ? a : b;
+            bool unsigned = ra == rb ? (a.IsUnsigned() || b.IsUnsigned()) : winner.IsUnsigned();
+            int rank = Math.Max(ra, rb);
+            if (rank >= 4) return unsigned ? ExpType.U64 : ExpType.I64;
+            if (rank == 3) return unsigned ? ExpType.U32 : ExpType.I32;
+            if (rank == 2) return unsigned ? ExpType.U16 : ExpType.I16;
+            return unsigned ? ExpType.U8 : ExpType.I8;
         }
+
+        /// <summary>整数类型的"等级"（1=8位 … 4=64位）—— 仅供 <see cref="WidenType"/> 的提升规则用。</summary>
+        private static int IntRank(ExpType t) => t switch
+        {
+            ExpType.I8 or ExpType.U8  => 1,
+            ExpType.I16 or ExpType.U16 => 2,
+            ExpType.I64 or ExpType.U64 => 4,
+            _ => 3,   // I32/U32/以及落到这里的其它
+        };
 
         // ====== ExpVar：一元运算 ======
 
@@ -256,6 +309,55 @@ namespace CompilerBase
             "<<" => OpCode.SHL, ">>" => OpCode.SHR,
             _ => OpCode.AND
         };
+
+        /// <summary>
+        /// **64 位版**的位运算/移位选择器 —— 与 <see cref="SelectBitwiseOp"/> 一一对应。
+        ///
+        /// <para>
+        /// ⚠ **必须是独立的一张表，不能改 <see cref="SelectBitwiseOp"/> 本身**：
+        /// 那个函数是**类型盲**的静态函数（它只拿到一个 `string op`），
+        /// 三个调用点里**只有 `EmitBitOp` 手上有类型**（它算出来的 `l`）。
+        /// 上次就是在那个函数里直接换 `SHLL` 而翻的车 —— 32 位路径被一起改掉，
+        /// 症状是 `1<<4/8/16/32` **全部变成常量 2**（改一处坏一片，且与本次要修的地方无关）。
+        /// </para>
+        ///
+        /// <para>
+        /// 这条修复的判据是 `EmitBitOp` 里的 `l`：它此前**已经算出来了**，
+        /// 而且 `SelectPushOp`/`SelectPopOp`/`SelectMoveOp` 三个都用了它 ——
+        /// **只有中间那句位运算把 `l` 丢了**，于是 64 位移位被编成 32 位 `SHL`：
+        /// 实测 `long x = 1; x << 4` 得 1（移位根本没发生）、`x << 40` 得 1。
+        /// ISA/VM/汇编器三层本来就齐（`OpCode.SHLL`=105/`SHRL`=106、VM 逐条实现、
+        /// 汇编器 `Enum.TryParse` 泛化认名），缺的只是这一句。
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// **统一的**位运算/移位选择器 —— 两个维度：`isLong`（字长）× `isUnsigned`（符号性）。
+        ///
+        /// 此前只有 <see cref="SelectBitwiseOp"/>（**类型盲**，只认 `string op`），
+        /// 于是 64 位移位被编成 32 位 `SHL`、无符号 `>>` 被编成**算术** `SHR`。
+        /// 合并成一份的理由与 `IsUnsigned` 同源：**同一规则两处实现必然漂移**
+        /// （`EmitBitOp` 与 `SelectArithmeticOp` 的兜底都走这里）。
+        ///
+        /// ⚠ `&amp;`/`|`/`^`/`&lt;&lt;` 与符号性**无关**（32 位原样、64 位换成 L 变体）；
+        ///   只有 `>>` 分符号性（逻辑 vs 算术）。
+        /// </summary>
+        public static OpCode SelectBitOp(string op, bool isLong, bool isUnsigned)
+        {
+            if (isLong) return op switch
+            {
+                "&"  => OpCode.ANDL, "|" => OpCode.ORL, "^" => OpCode.XORL,
+                "<<" => OpCode.SHLL,
+                ">>" => isUnsigned ? OpCode.SHRUL : OpCode.SHRL,
+                _    => OpCode.ANDL
+            };
+            return op switch
+            {
+                "&"  => OpCode.AND, "|" => OpCode.OR, "^" => OpCode.XOR,
+                "<<" => OpCode.SHL,
+                ">>" => isUnsigned ? OpCode.SHRU : OpCode.SHR,
+                _    => OpCode.AND
+            };
+        }
 
         /// <summary>按位与 left &amp; right</summary>
         public ExpVar EmitBitAnd(ExpVar left, ExpVar right)
@@ -296,7 +398,7 @@ namespace CompilerBase
             EmitLoad(right);
             _emit(SelectPopOp(s, false, false, l), [R(1)]);
 
-            var bitOp = SelectBitwiseOp(op);
+            var bitOp = SelectBitOp(op, l, resultType.IsUnsigned());
             _emit(bitOp, [R(1), R(0)]);
             _emit(SelectMoveOp(s, false, false, l), [R(0), R(1)]);
             return ExpVar.Reg(0, resultType);
@@ -356,7 +458,7 @@ namespace CompilerBase
             EmitLoad(v);
             var op = SelectConversionOp(v.ByteSize, v.IsFloat, v.IsDouble,
                                          targetType.ByteSize(), targetType.IsFloat(), targetType.IsDouble(),
-                                         v.IsLong, targetType.IsLong());
+                                         v.IsLong, targetType.IsLong(), v.Type.IsUnsigned());
             if (op != null)
                 _emit(op.Value, [R(0), R(0)]);
             return ExpVar.Reg(0, targetType);
@@ -416,8 +518,10 @@ namespace CompilerBase
             // 计算 — 位运算和算术运算分别处理
             if (op == "&" || op == "|" || op == "^" || op == "<<" || op == ">>")
             {
-                // 位运算：使用 SelectBitwiseOp (VML AND/OR/XOR/SHL/SHR)
-                var bitOp = SelectBitwiseOp(op);
+                // 位运算：走**统一**的 SelectBitOp（词长 × 符号性两维）
+                // ⚠ 此前用的是类型盲的 `SelectBitwiseOp` ⇒ 64 位移位发 32 位 `SHL`、
+                //   无符号 `>>` 发**算术** `SHR`。
+                var bitOp = SelectBitOp(op, l, resultType2.IsUnsigned());
                 if (_threeOpInt)
                     _emit(bitOp, [R(0), R(1), R(0)]);
                 else
@@ -428,7 +532,7 @@ namespace CompilerBase
             }
             else
             {
-                var arithOp = SelectArithmeticOp(op, f, d, l);
+                var arithOp = SelectArithmeticOp(op, f, d, l, resultType2.IsUnsigned());
                 if (f || d || l)
                     _emit(arithOp, [R(0), R(1), R(0)]);
                 else if (_threeOpInt)
@@ -461,15 +565,22 @@ namespace CompilerBase
             EmitConvertRaw(right.Type, resultType);
             _emit(SelectPopOp(s, f, d, l), [R(1)]);
 
-            _emit(SelectCompareOp(f, d, l), [R(1), R(0)]);
+            /* 无符号比较：换比较指令 + 换四条跳转（`==`/`!=` 与符号无关，不动）。
+               映射与有符号**一一对应**（`<`→JB、`<=`→JBE、`>`→JA、`>=`→JAE）——
+               因为上面那条比较永远是 `CMP/CMPU R1, R0`，即"R1 − R0"，而
+               `CMPU` 置的是 `uf = (R1 < R0 无符号)`，方向与 `CMP` 的 sf 同向。 */
+            bool u = resultType.IsUnsigned();
+            _emit(u ? SelectUnsignedCompareOp(l) : SelectCompareOp(f, d, l), [R(1), R(0)]);
 
             string trueLabel = _newLabel();
             string endLabel = _newLabel();
             OpCode jmpOp = cmpOp switch
             {
                 "==" => OpCode.JE, "!=" => OpCode.JNE,
-                "<" => OpCode.JL, "<=" => OpCode.JLE,
-                ">" => OpCode.JG, ">=" => OpCode.JGE,
+                "<"  => u ? OpCode.JB  : OpCode.JL,
+                "<=" => u ? OpCode.JBE : OpCode.JLE,
+                ">"  => u ? OpCode.JA  : OpCode.JG,
+                ">=" => u ? OpCode.JAE : OpCode.JGE,
                 _ => OpCode.JMP
             };
             _emit(jmpOp, [Lbl(trueLabel)]);
@@ -640,13 +751,19 @@ namespace CompilerBase
         /// <summary>获取从 from 转到 to 所需的转换指令，无需转换返回 null</summary>
         public static OpCode? SelectConversionOp(int fromSize, bool fromFloat, bool fromDouble,
                                                   int toSize,   bool toFloat,   bool toDouble,
-                                                  bool fromLong = false, bool toLong = false)
+                                                  bool fromLong = false, bool toLong = false,
+                                                  bool fromUnsigned = false)
         {
             bool fromF = fromFloat || fromDouble;
             bool toF = toFloat || toDouble;
             // Long conversions
             if (fromLong && !toLong && !toF) return OpCode.L2I;
-            if (!fromLong && !fromF && toLong) return OpCode.I2L;
+            // ⚠ **无符号的 int → long 必须零扩展**（`I2L` 是**符号**扩展）：
+            //   实测 `(long)4000000000u` 走 `I2L` 得 **-294967296**。
+            //   这是无符号 64 位运算的前提 —— `DIVUL`/`CMPUL`/`SHRUL` 都要求操作数
+            //   在 64 位里是**零**扩展过的正值（零扩展后非负 ⇒ 有符号 64 位运算
+            //   与无符号 32 位运算同结果）。
+            if (!fromLong && !fromF && toLong) return fromUnsigned ? OpCode.ZEXTL : OpCode.I2L;
             if (fromLong && toFloat) return OpCode.L2F;
             if (fromFloat && toLong) return OpCode.F2L;
             if (fromLong && toDouble) return OpCode.L2D;

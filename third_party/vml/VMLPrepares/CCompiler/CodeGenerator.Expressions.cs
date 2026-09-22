@@ -271,9 +271,16 @@ namespace CCompiler
                 bool toLong = targetType == ExprType.Long || targetType == ExprType.UnsignedLong
                               || targetType == ExprType.LongLong || targetType == ExprType.UnsignedLongLong;
 
+                // ⚠ **必须传"源是不是无符号"**：`(long)4000000000u` 要 `ZEXTL`（零扩展）
+                //   而不是 `I2L`（符号扩展，实测得 -294967296）。这是无符号 64 位运算的前提。
+                bool fromUnsigned = currentType == ExprType.UnsignedChar
+                                 || currentType == ExprType.UnsignedShort
+                                 || currentType == ExprType.UnsignedInt
+                                 || currentType == ExprType.UnsignedLong
+                                 || currentType == ExprType.UnsignedLongLong;
                 var convOp = ExpressionManager.SelectConversionOp(fromSize, fromFloat, fromDouble,
                                                                    toSize, toFloat, toDouble,
-                                                                   fromLong, toLong);
+                                                                   fromLong, toLong, fromUnsigned);
                 if (convOp != null)
                     instructions.Add(new Instruction(convOp.Value, new List<Operand> {
                         new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
@@ -294,15 +301,31 @@ namespace CCompiler
             if ((t == ExprType.Long || t == ExprType.UnsignedLong ||
                  t == ExprType.LongLong || t == ExprType.UnsignedLongLong)
                 && VMLPlugins.CompilerOptionsContext.Current.Int64Mode == VMLPlugins.Int64Mode.Hard)
-                return ExpType.I64;
+                // 无符号 long 走 U64（`IsLong()` 两者都认 ⇒ L 指令族照用；
+                // 区别只在 `/` `%` `>>` 比较 与升宽的 `ZEXTL`）
+                return t == ExprType.UnsignedLong || t == ExprType.UnsignedLongLong
+                       ? ExpType.U64 : ExpType.I64;
 
+            // ⚠ **无符号必须映到 `U*`**（2026-09-22 修）。
+            //
+            // 这里是**「无符号」进入共享层的唯一入口** —— 此前把 `UnsignedChar/Short/Int`
+            // 与对应的有符号类型**写在同一个 case 里**（`Char or UnsignedChar => I8` …），
+            // 符号性在这一行被丢掉，于是共享层里所有 `IsUnsigned()` 恒为假：
+            // 实测 `4000000000u % 10` 走有符号 MOD 得 **-6**、`a > b` 高位为 1 时判反、
+            // `(long)4000000000u` 走 `I2L` 得 **-294967296**。
+            //
+            // 共享层早就准备好了（`ExpType.U8..U64`、`ByteSize`、`IsLong` 都认无符号），
+            // **缺的就是这一张表**。改完 `/` `%` `>>` 比较 升宽 四条路一起生效。
             return t switch
             {
-                ExprType.Char or ExprType.UnsignedChar => ExpType.I8,
-                ExprType.Short or ExprType.UnsignedShort => ExpType.I16,
-                ExprType.Int or ExprType.UnsignedInt => ExpType.I32,
-                ExprType.Long or ExprType.UnsignedLong
-                    or ExprType.LongLong or ExprType.UnsignedLongLong => ExpType.I32,
+                ExprType.Char           => ExpType.I8,
+                ExprType.UnsignedChar   => ExpType.U8,
+                ExprType.Short          => ExpType.I16,
+                ExprType.UnsignedShort  => ExpType.U16,
+                ExprType.Int            => ExpType.I32,
+                ExprType.UnsignedInt    => ExpType.U32,
+                ExprType.Long or ExprType.LongLong                    => ExpType.I32,
+                ExprType.UnsignedLong or ExprType.UnsignedLongLong    => ExpType.U32,
                 ExprType.Float => ExpType.F32,
                 ExprType.Double => ExpType.F64,
                 ExprType.CharPtr or ExprType.ShortPtr or ExprType.IntPtr or ExprType.LongPtr

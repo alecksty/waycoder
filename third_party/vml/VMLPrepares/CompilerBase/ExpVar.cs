@@ -25,6 +25,17 @@ namespace CompilerBase
 
         public static bool IsFloat(this ExpType t) => t is ExpType.F32 or ExpType.F64;
         public static bool IsLong(this ExpType t) => t is ExpType.I64 or ExpType.U64;
+
+        /// <summary>
+        /// 是不是**无符号**类型 —— 决定 `/` `%` `>>` 比较发哪条指令。
+        ///
+        /// 与 <see cref="IsLong"/> 并列放这里（而不是各发射器各判一次）：
+        /// 「无符号」此前在**所有**发射器里都是一个不存在的维度
+        /// （`ExprType`/`ExpType` 早就带着 `U8..U64`，但没人读它），
+        /// 于是 `4000000000u % 10` 走有符号 MOD 得 **-6**。
+        /// 收成一份谓词，将来加类型只需改这里。
+        /// </summary>
+        public static bool IsUnsigned(this ExpType t) => t is ExpType.U8 or ExpType.U16 or ExpType.U32 or ExpType.U64;
         public static bool IsDouble(this ExpType t) => t == ExpType.F64;
 
         /// <summary>指针类型只能做加减运算</summary>
