@@ -54,13 +54,42 @@ export，而且没地方记「入口是哪个文件、头在哪、要链哪些�
 | 元素 | 必填 | 说明 |
 |---|---|---|
 | `<Name>` | 否 | 只用于显示；缺省取入口文件名 |
-| `<Entry>` | **是** | **唯一入口**源文件（含 `main` 的那个），相对本文件所在目录 |
+| `<Entry>` | **是** | **入口**源文件（含 `main` 的那个），相对本文件所在目录 |
+| `<Sources><File>` | 否 | **其余编译单元**（见下节）。老程序大多是**多文件**的 |
+| `<ObjDir>` | 否 | 中间产物目录；缺省 `<.vmk 目录>/.vmk-obj/` |
 | `<Output>` | 否 | 产物路径；缺省 = 入口换 `.vml` 后缀 |
 | `<Includes><Dir>` | 否 | 追加的头文件搜索路径（`-I`）。**排在** VML 内置 `Lib` 之前，与 gcc 的 `-I` 语义一致 |
 | `<Defines><Define>` | 否 | 宏（`-D`）。没有 `Value` 属性时取 `1` |
 | `<Libs><Lib>` | 否 | 额外要挂的库模块名 |
 
 **只有这六个顶层元素。** 多一个不认识的，`vml make` 会**报错**（见第五节）。
+
+### 多文件程序
+
+老程序**大多是多个 `.c`**，而这正是 `.vmk` 存在的理由之一。
+
+```xml
+<Entry>src/main.c</Entry>
+<Sources>
+  <File>src/util.c</File>
+  <File>src/render.c</File>
+</Sources>
+```
+
+**`<Entry>` 是含 `main` 的那个，其余进 `<Sources>`。** `vml make` 会：
+
+1. 把 `<Sources>` 里每个文件编成**目标文件**（不挂标准库）；
+2. 再把它们链进 `<Entry>`。
+
+> **为什么非要两步**：VML 并没有"多文件编译"这个功能
+> （`CompilerProgramBase` 的多文件模式只是把每个 `.c` **各写成一个 `.vml`**，不链接）。
+> 但**库那条路是通的** —— `LinkLibraries` 会把库里的数据标签**重映射**后再合并，
+> 两个单元的同名 `static` 因此互不干扰。
+>
+> ⚠ 少了第一步的代价不只是"大"：**结果是错的**。实测两个文件直接链 ——
+> 98080 条指令（正好两倍），而且 `helper(20)` 该得 43、实得 **102944**
+> （同名函数被两份实现各定义一次，链接器的重映射指到了错的那份）。
+> 走目标文件：目标文件 20 条、总计 49070 条、**结果正确**。
 
 ### 产物类型与格式
 
@@ -131,7 +160,18 @@ vmlcli make proj.vmk
 
 ```bash
 vmlcli -D VERSION=1.2 -D DEBUG -I src -I ../inc examples/c/tetris.c
+
+# 优化开关（默认 -O0 = 不优化）
+vmlcli make -O2 proj.vmk
 ```
+
+⚠ **`-O` 的位置**：`make` 在前、旗标在后（`vmlcli make -O2 proj.vmk`）。
+写成 `vmlcli -O2 make proj.vmk` 会把 `make` 当成源文件路径 —— 与 `git` 的子命令位置约定一致。
+
+⚠ **优化目前实际等于没优化**：`-O1` 起确实会跑汇编器的优化流水线，但上游把除
+**NOP 消除**外的 pass **全部显式关掉**了（注释写明"实验性""有标签损坏 bug"，
+见 `Program.Compile.cs:230`）。实测量一个 49070 条指令的程序：`-O1` 后仍是 49070。
+**开关是通的，优化器还很空** —— 别指望 `-O2` 能把程序变小。
 
 ⚠ **`-D` 走的是 `SetConfig("defines", …)`，不是 `VMLTOOL_DEFINE` 环境变量。**
 后者在多数前端里是**静态快照**（`PredefinedMacros` 是 `static readonly`，
@@ -218,7 +258,9 @@ public static readonly IReadOnlyList<IProjectImporter> All = new IProjectImporte
 | `WayCoder/UI/Shared/VmlProjectImport.cs` | `IProjectImporter` + 注册表 |
 | `WayCoder/UI/Shared/VmlMakefileImporter.cs` | Makefile 导入器 |
 | `WayCoder/Test/SelfTest.Chunk32.cs` | 判据（32 条） |
-| `scripts/vmlcli/Program.cs` | `make` 子命令 + `-D`/`-I` |
+| `scripts/vmlcli/Program.cs` | `make` 子命令 + `-D`/`-I`/`-O`/`--lib` |
+| `WayCoder.Maui/Services/MauiVml.cs` | `MakeProject`（与桌面同一条 `BuildProgram`） |
+| `WayCoder.Maui/Pages/ShellPage.xaml.cs` | `vml make` 子命令 |
 
 ⚠ 这三个文件住在 **`UI/Shared/`** 而不是 `third_party/vml/VMLTool/`，是**有原因的**：
 桌面（`WayCoder`）**不引用** VMLTool（那会把 18 个后端翻译器一起拖进来），

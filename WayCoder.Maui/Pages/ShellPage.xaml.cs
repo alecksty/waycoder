@@ -681,11 +681,13 @@ public partial class ShellPage : ContentPage
 
         // vml：不走 shell，转交进程内的虚拟机（iOS 没有 shell；Android 也不该为编译起进程）
         reg.Register(new ShellCommand(
-            "vml", "test | run <文件> | help",
+            "vml", "test | run <文件> | make <工程.vmk> | help",
             "跑 VML 程序：`test` 跑内置自检，`run` 按扩展名派发（.vml 汇编 / .vmb 装载 / 其余 22 种语言编译）",
             "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动派发"
             + "（`.vml` 走汇编，`.vmb` 直接装载字节码，`.c`/`.py`/`.rs` 等 22 种语言走各自前端编译器）。"
-            + "路径相对下面显示的工作目录解析。",
+            + "路径相对下面显示的工作目录解析。"
+            + "`vml make <工程.vmk>` 按 VML 工程文件编译（入口、头文件搜索路径、宏都写在 .vmk 里），"
+            + "**只出产物不运行**。",
             args => RunVmlAsync(string.Join(' ', args.Prepend("vml"))),
             // 本命令的返回值**已经是 «» 标记**（`ExecVmlAsync` 走 `MauiVml.Run(markup: true)`，
             // 编译错误也套了红）⇒ 输出区不能再过一遍 AnsiMarkup，否则 `«` 被转义成 `««`、
@@ -713,13 +715,69 @@ public partial class ShellPage : ContentPage
             // 路径在进后台线程**之前**解析（CwdContext 是 AsyncLocal）
             return await ExecVmlAsync(null, CwdContext.Resolve(rest[4..].Trim()));
 
+        // `vml make <工程.vmk>` —— 按工程文件编译（入口/头文件路径/宏都写在 .vmk 里）。
+        // ⚠ 与 `run` 一样：**路径必须在进后台线程之前解析**（CwdContext 是 AsyncLocal）。
+        if (rest.StartsWith("make ", StringComparison.Ordinal))
+            return await MakeVmlAsync(CwdContext.Resolve(rest[5..].Trim()));
+
         return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
     }
 
     private const string VmlUsage =
         "用法：\n  vml test            跑内置的自检程序\n"
       + "  vml run <文件>      .vml 走汇编、.vmb 直接装载，"
-      + "其余按扩展名自动选编译器（22 种语言）";
+      + "其余按扩展名自动选编译器（22 种语言）\n"
+      + "  vml make <工程.vmk> 按工程文件编译，**只出产物不运行**";
+
+    /// <summary>
+    /// **按工程文件编译**（`vml make <工程.vmk>`）—— 产物是 `.vml` 汇编（或 `.vmb`），**不运行**。
+    ///
+    /// <para>
+    /// 与「编译」和「运行」分开是同一个道理（见 `CompileArtifactAsync`）：`make` 是**构建**，
+    /// 要跑再敲 `vml run <产物>`。混成一步的话，批量/CI 场景里没法只编不跑。
+    /// </para>
+    ///
+    /// <para>
+    /// 编译体在 <see cref="MauiVml.MakeProject"/>（全端唯一的编译入口 `MauiVml` 上），
+    /// 这里只管：装进度钩子、放后台线程、把结果摆到屏幕上。
+    /// </para>
+    /// </summary>
+    private async Task<string> MakeVmlAsync(string absPath)
+    {
+        InstallVmlProgress();   // 首次编译会卡在解压标准库上，一样要报状态
+        await RunWithPromptAsync($"vml make {SandboxFsService.Abbreviate(absPath)}", async () =>
+        {
+            // 取消源：前端编译在手机上**一分多钟**，用户随时按返回该能停下
+            //（停的是"等待"，那个编译线程本身没法中止 —— 见 MauiVml.BuildProgram 的看门狗说明）
+            _runCts = new CancellationTokenSource();
+            var cts = _runCts;
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _runDone = done;
+            try
+            {
+                // 同步阻塞（前端编译吃 CPU），必须离开 UI 线程
+                var r = await Task.Run(() => MauiVml.MakeProject(absPath, cts.Token));
+
+                if (r.Error != null) return r.Error;
+
+                var sb = new System.Text.StringBuilder();
+                sb.Append($"✔ 已写出 «bold»{r.OutRel}«/»（{r.SizeNote}）");
+                // ⚠ 这些不是错误但**必须显示** —— 最要紧的是"多个源文件只取了一个"，
+                //   静默丢掉几个 .c 的后果是"编过了、少了半个程序"。
+                foreach (var n in r.Notes) sb.Append("\n«yellow»⚠️  ").Append(n).Append("«/»");
+                return sb.ToString();
+            }
+            finally
+            {
+                done.TrySetResult();
+                _runCts = null;
+            }
+        }, markupResult: true);
+
+        // 结果已经由 `RunWithPromptAsync` 写进输出区了 ⇒ 这里返回空串，
+        // 免得同一段提示被渲染两遍（`ExecVmlAsync` 之外的命令都是这个约定）。
+        return "";
+    }
 
     /// <summary>
     /// 真正跑一段 VML —— <c>vml run/test</c> 命令与文件页的「VML 运行」**共用这一份**

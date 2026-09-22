@@ -251,6 +251,123 @@ HALT
         return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct, markup, readKey);
     }
 
+    /// <summary>`vml make <工程.vmk>` 的结果。</summary>
+    public sealed record MakeOutcome(string? OutRel, string? SizeNote, List<string> Notes, string? Error);
+
+    /// <summary>
+    /// **按工程文件（`.vmk`）编译** —— `vml make proj.vmk` 走这条。
+    ///
+    /// <para>
+    /// 工程文件本身是纯逻辑（`VmlProject`，在 `UI/Shared/` —— 桌面自测、`vmlcli`、
+    /// 手机端**编同一份源码**），这里只负责：拿它给出的入口 / 头文件路径 / 宏，
+    /// 走**同一条** <see cref="BuildProgram"/>，再把产物落到沙箱里。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **不在这里自己拼编译链**：`MauiVml` 是全端唯一的编译入口，
+    /// 多一条"顺便编译"的路 = 两处实现迟早漂（见本文件顶部那段说明）。
+    /// 所以这里只给 <see cref="BuildProgram"/> 多传两个参数（`extraIncludes`/`extraDefines`）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **未实现的产物格式必须明确拒绝**（与桌面 `vmlcli` 同一口径）——
+    /// 用户写了 `Format="hex"` 却拿到一个 `.vml`，会以为"转译完了"，
+    /// 而手上是个**根本烧不进芯片**的文件。
+    /// </para>
+    /// </summary>
+    /// <param name="vmkAbsPath">**已解析好的**工程文件绝对路径（沙箱内）</param>
+    public static MakeOutcome MakeProject(string vmkAbsPath, CancellationToken ct = default)
+    {
+        VmlProject proj;
+        try
+        {
+            proj = VmlProject.Load(vmkAbsPath);
+        }
+        catch (VmlProjectException ex)
+        {
+            return new(null, null, [], $"⚠️ {ex.Message}");
+        }
+
+        var entry = proj.EntryPath;
+        if (!File.Exists(entry))
+            return new(null, null, [],
+                $"⚠️ 找不到入口源文件：{SandboxFsService.Abbreviate(entry)}"
+                + $"（工程文件里写的是 <Entry>{proj.Entry}</Entry>）");
+
+        // ⚠ 认得出名字但**还没实现**的格式 —— 拒绝，**绝不静默退回 .vml**（见方法注释）
+        if (proj.OutputFormat is not (VmlProject.FormatVml or VmlProject.FormatVmb))
+            return new(null, null, [],
+                $"⚠️ 产物格式 `{proj.OutputFormat}` 还没做（预留的名字之一）。"
+                + $"现在能出的是：{string.Join("、", VmlProject.ImplementedFormats)}。");
+
+        var outAbs = proj.OutputPath;
+        var rel = SandboxFsService.ToRelative(outAbs);
+        if (rel is null)
+            return new(null, null, [], $"⚠️ 产物路径在工作区外，写不了：{outAbs}");
+
+        // ── 多文件：附加编译单元各编成**目标文件**，再链进入口 ──
+        //
+        // 见 `BuildProgram(asObject:)` 的注释：不这么做的话标准库会被链 N 遍，
+        // 而且**结果是错的**（同名函数被两份实现各定义一次）。
+        // 中间产物放 `<.vmk 目录>/.vmk-obj/`（每次构建重生成，不脏源码树）。
+        var extraLibs = new List<string>();
+        if (proj.SourcePaths.Count > 0)
+        {
+            var objDir = proj.ObjDirPath;
+            try { Directory.CreateDirectory(objDir); }
+            catch (Exception ex) { return new(null, null, [], $"⚠️ 建不出中间产物目录：{ex.Message}"); }
+
+            foreach (var src in proj.SourcePaths)
+            {
+                if (!File.Exists(src))
+                    return new(null, null, [], $"⚠️ <Sources> 里的文件不存在：{SandboxFsService.Abbreviate(src)}");
+
+                var (objProg, _, objErr, _) = BuildProgram(src, ct,
+                    proj.IncludePaths, proj.DefineArgs, asObject: true);
+                if (objProg is null)
+                    return new(null, null, [], $"⚠️ 编译 `{Path.GetFileName(src)}` 失败：{objErr}");
+
+                var objPath = Path.Combine(objDir, Path.GetFileNameWithoutExtension(src) + ".vml");
+                try
+                {
+                    File.WriteAllText(objPath, objProg.ToString(), new System.Text.UTF8Encoding(false));
+                }
+                catch (Exception ex) { return new(null, null, [], $"⚠️ 写目标文件失败：{ex.Message}"); }
+
+                extraLibs.Add(objPath);
+            }
+        }
+
+        // 入口：（目标文件就位之后）带上它们一起编 —— `--lib` 那条路的等价物
+        var (prog, _, error, _) = BuildProgram(entry, ct, proj.IncludePaths, proj.DefineArgs,
+            asObject: false, extraLibs: extraLibs);
+        if (prog is null) return new(null, null, [], error);
+
+        // 库型别：不删"没人调用"的函数（库本来就是给别人调的）
+        if (proj.OutputKind == VmlProject.KindLib) prog.IsLibrary = true;
+
+        try
+        {
+            if (proj.OutputFormat == VmlProject.FormatVmb)
+            {
+                var bytes = prog.ToVmbBytes();
+                SandboxFsService.WriteBytesAtomic(rel, bytes);
+                return new(rel, $"{bytes.Length:#,0} 字节", [], null);
+            }
+
+            // ⚠ `ToString()` 会**就地**做死代码消除 —— `make` 只出产物、不跑，正好不冲突。
+            //   原子写 + UTF-8 **不带 BOM**：产物几十万字符，写一半崩掉会留下半截文件；
+            //   带 BOM 则会让汇编器认不出首行的 `.entry`（与文件页「VML 编译」同一口径）。
+            var text = prog.ToString();
+            SandboxFsService.WriteTextAtomic(rel, text, new System.Text.UTF8Encoding(false), crlf: false);
+            return new(rel, $"{text.Length:#,0} 字符", [], null);
+        }
+        catch (Exception ex)
+        {
+            return new(null, null, [], $"⚠️ 写入失败：{ex.Message}");
+        }
+    }
+
     /// <summary>
     /// **把源文件编译成自包含的 VML 汇编文本**（文件页的「VML 编译」用它，产物落成 <c>main.vml</c>）。
     ///
@@ -386,8 +503,33 @@ HALT
         string lang, string message, string? filePath)
         => (null, lang, message, VmlDiagnostics.Parse(message, filePath));
 
+    /// <param name="extraIncludes">
+    /// 工程文件（`.vmk`）带来的**追加**头文件搜索路径（对应 `vml make`）。
+    /// **排在** VML 内置 `Lib` 之前 —— 用户的头该能覆盖库里的同名头，与 gcc 的 `-I` 一致。
+    /// </param>
+    /// <param name="extraDefines">
+    /// 工程文件带来的宏（`名=值`）。**不是**走 `VMLTOOL_DEFINE` 环境变量 ——
+    /// 多数前端的 `PredefinedMacros` 是 `static readonly`、**只读一次**，
+    /// 环境变量在"第一次用到该编译器"时就被快照，同一个进程里换宏不生效
+    /// （桌面 `vmlcli` 同处注释记了完整的理由）。走 `SetConfig("defines", …)` 才是对的。
+    /// </param>
+    /// <param name="asObject">
+    /// 把这一份编成**目标文件**（多文件程序用）：**不挂任何库**、并标成库。
+    ///
+    /// <para>
+    /// ⚠ 这是多文件能不能用的**关键**。每个附加编译单元若按普通程序编，会把**整份标准库**
+    /// 一起编进去（实测 49030 条指令）—— 两个文件直接链就是 **98080 条 = 正好两倍**，
+    /// 而且**结果是错的**（同名函数被两份实现各定义一次，链接器的重映射会指到错的那份：
+    /// 实测 `helper(20)` 该得 43、实得 102944）。按目标文件编只有 **20~28 条**
+    /// （用户代码本身），链进入口后总计 49070 条。
+    /// </para>
+    /// </param>
     private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) BuildProgram(
-        string filePath, CancellationToken ct)
+        string filePath, CancellationToken ct,
+        IReadOnlyList<string>? extraIncludes = null,
+        IReadOnlyList<string>? extraDefines = null,
+        bool asObject = false,
+        IReadOnlyList<string>? extraLibs = null)
     {
         if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}", filePath);
 
@@ -448,13 +590,29 @@ HALT
         //   绝大部分是 CLI 的东西，且依赖一堆 VMLTool Exe 侧的类型，手机端只用得到这两件事。）
         var libConfig = VmlLibConfig.Load(Path.Combine(libRoot, "vmltool.config.xml"));
 
-        var includePaths = new[] { Path.Combine(libRoot, "Lib") }.Where(Directory.Exists).ToList();
-        var libraryPaths = libConfig?.ResolveLibs(lang, libRoot) ?? [];
+        // 工程文件给的 `-I` **排在**内置那条之前（用户的头可以覆盖库里的同名头）
+        var includePaths = new List<string>();
+        if (extraIncludes is not null)
+            foreach (var d in extraIncludes)
+                if (Directory.Exists(d)) includePaths.Add(d);
+        var builtinLib = Path.Combine(libRoot, "Lib");
+        if (Directory.Exists(builtinLib)) includePaths.Add(builtinLib);
+
+        // ⚠ **编目标文件时库清单必须是空的** —— 把库挂上去的话，即使 `autoLinkStdLib: false`
+        //   也仍然会把库内联进来（实测 39916 条指令 vs 20 条），而且链出来的程序**结果会错**。
+        var libraryPaths = asObject ? new List<string>() : (libConfig?.ResolveLibs(lang, libRoot) ?? []);
+
+        // 多文件：把别的编译单元的目标文件并进库清单（链接器会做数据标签重映射，
+        // 所以两个单元的同名 `static` 互不干扰 —— 这是整条路能成立的前提）。
+        if (!asObject && extraLibs is not null)
+            foreach (var l in extraLibs)
+                if (!libraryPaths.Contains(l)) libraryPaths.Add(l);
 
         // `LinkLibraries` 第一行就是 `if (libraryPaths.Count == 0) return mainProgram;` ——
         // 空清单等于**静默不链接**。所以库清单为空必须当失败处理，不能让用户拿到一个
         // "编译成功、一跑就找不到函数"的程序。
-        if (libraryPaths.Count == 0)
+        // （目标文件本来就不该有库清单，见上面那条 —— 别把它判成错误。）
+        if (libraryPaths.Count == 0 && !asObject)
             return Fail(lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
                  + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。", filePath);
 
@@ -471,8 +629,12 @@ HALT
         // ⚠ 说清楚代价：超时之后**那个编译线程还在跑**（.NET 没法中止线程），会一直烧一个核，
         // 直到它自己结束或 App 退出。所以这只是"把控制权还给用户"，不是"杀掉编译" ——
         // 在手机上没有 fork/exec 可用，这是唯一做得到的形态。
+        // 工程文件给的宏 —— 判据与桌面 `vmlcli` 逐字相同（**不是**环境变量，理由见参数注释）
+        if (extraDefines is { Count: > 0 } && compiler is CompilerBase.CompilerBase cb)
+            cb.SetConfig("defines", extraDefines.ToList());
+
         var compile = Task.Run(() => ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
-            autoLinkStdLib: true, useSharedLibrary: true), ct);
+            autoLinkStdLib: !asObject, useSharedLibrary: true), ct);
 
         string vmlText;
         // **编译期的 stderr 也要接住** —— 此前只接了运行期（`RunProgram` 那段），
@@ -590,6 +752,10 @@ HALT
         // 递归链上 `builtins.vml` → `string/math/io/printf/...` 整个标准库。
         LibraryLinker.LinkLibraries(prog, libraryPaths);
         prog.ApplyExports();
+
+        // 目标文件：标成库 ⇒ 后面 `ToString()` 的**死代码消除不会删掉"没人调用"的函数**
+        //（它本来就是给别人调的 —— 入口那边才是唯一知道谁被调了的地方）。
+        if (asObject) prog.IsLibrary = true;
 
         // ⑤ 交出去：编完就跑的走 RunProgram，编完存文件的走 prog.ToString()（见 CompileToVml）
         //

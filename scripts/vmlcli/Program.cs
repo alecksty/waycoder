@@ -149,8 +149,19 @@ internal static class Program
     // 编译：与 MauiVml.BuildProgram 逐步对齐
     // ══════════════════════════════════════════════════════════════════════════════
 
+    /// <param name="asObject">
+    /// 把这一份编成**目标文件**（多文件程序用）：不自动链标准库、并标成库。
+    ///
+    /// <para>
+    /// ⚠ 这一条是多文件能不能用的**关键**。每个附加编译单元若按普通程序编，
+    /// 会把**整份标准库**一起编进去（实测 49030 条指令）—— 两个文件直接链就是
+    /// **98080 条 = 正好两倍**。按目标文件编只有 **28 条**（用户代码本身），
+    /// 链进入口后总计 49070 条。做法与 `--rebuild-lib` 逐字相同
+    /// （`autoLinkStdLib: false` + `IsLibrary = true`），只是产物不落盘。
+    /// </para>
+    /// </param>
     private static (VmlProgram? Prog, string Lang, string? Error) BuildProgram(
-        string filePath, string vmlRoot, CliOptions opt)
+        string filePath, string vmlRoot, CliOptions opt, bool asObject = false)
     {
         // 静态注册 22 个前端编译器（绕开 PluginManager 的 Assembly.LoadFrom 反射路径 ——
         // 上游自己在 StaticLink 模式里也绕开了它；见 MauiVml 同处注释）。
@@ -223,9 +234,25 @@ internal static class Program
         var builtinLib = Path.Combine(vmlRoot, "Lib");
         if (Directory.Exists(builtinLib)) includePaths.Add(builtinLib);
 
-        var libraryPaths = libConfig.ResolveLibs(lang, vmlRoot);
+        // ⚠ **编目标文件时库清单必须是空的** —— 与 `--rebuild-lib` 逐字相同
+        //   （它调的是 `CompileFile(src, [], null, false)`）。
+        //   把 `libraryPaths` 传进去的话，**即使 `autoLinkStdLib: false` 也仍然会把库内联进来**：
+        //   实测同一个 util.c —— 空清单 28 条指令，带清单 39916 条。
+        //   后果不只是"大"：**链出来的程序结果是错的**（`helper(20)` 该得 43，实得 102944），
+        //   因为同一个函数被两份实现各定义了一次，链接器的重映射把调用指到了错的那份。
+        var libraryPaths = asObject ? new List<string>() : libConfig.ResolveLibs(lang, vmlRoot);
 
-        if (libraryPaths.Count == 0)
+        // `--lib` 给的**用户编译单元**追加在后面（多文件程序靠它，见 ExtraLibs 的注释）
+        foreach (var extra in opt.ExtraLibs)
+        {
+            var full = Path.GetFullPath(extra);
+            if (!File.Exists(full))
+                return (null, lang, $"⚠️ `--lib` 指的文件不存在：{extra}");
+            if (!libraryPaths.Contains(full)) libraryPaths.Add(full);
+        }
+
+        // 目标文件**本来就不该有库清单**（见上面那条），别在这里把它判成错误
+        if (libraryPaths.Count == 0 && !asObject)
             return (null, lang, "⚠️ 标准库清单为空 —— `vmltool.config.xml` 没读到或路径不对。"
                 + "没有它 `LinkLibraries` 会直接早退（等于静默不链接）。");
 
@@ -255,7 +282,7 @@ internal static class Program
         try
         {
             vmlText = ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
-                autoLinkStdLib: true, useSharedLibrary: true);
+                autoLinkStdLib: !asObject, useSharedLibrary: true);
         }
         catch (Exception compileError)
         {
@@ -303,6 +330,31 @@ internal static class Program
             prog = new VmlAssembler().AssembleWithIncludes(vmlText, vmlRoot, langDefines);
             LibraryLinker.LinkLibraries(prog, libraryPaths);
             prog.ApplyExports();
+
+            // 优化流水线（`-O1` 起）。位置与上游一致：**链接之后**跑。
+            //
+            // ⚠ **开关列表逐字照抄上游** `Program.Compile.cs:230-240` —— 那里把好几个 pass
+            //   显式关掉了并注明原因（常量折叠/跳转链接/死代码/死存储/复写传播/窥孔
+            //   都标着"实验性"或"有标签损坏 bug"）。**不要"顺手打开"**：
+            //   那些注释是踩过的坑，不是保守。
+            if (opt.OptimizationLevel > 0)
+            {
+                var optOptions = new OptimizationOptions
+                {
+                    OptimizationLevel = opt.OptimizationLevel,
+                    EnableNopElimination = opt.OptimizationLevel >= 1,
+                    EnableConstantFolding = false,        // 实验性
+                    EnableJumpChaining = false,           // 实验性, 有标签损坏 bug
+                    EnableDeadCodeElimination = false,    // 实验性, 链接库程序误删除代码
+                    EnableDeadStoreElimination = false,   // O2 有标签丢失 bug
+                    EnableCopyPropagation = false,        // O2 有标签丢失 bug
+                    EnablePeepholeOptimization = false,   // O2+ 实验性, 有输出损坏 bug
+                };
+                var before = prog.Instructions?.Count ?? 0;
+                prog = OptimizationPipeline.CreateDefault().Run(prog, optOptions);
+                Console.Error.WriteLine($"✔ 优化 O{opt.OptimizationLevel}：{before} → "
+                    + $"{prog.Instructions?.Count ?? 0} 条指令");
+            }
         }
         catch (Exception asmOrLinkError)
         {
@@ -421,6 +473,60 @@ internal static class Program
         //   · `-D` 是"后者覆盖前者"       ⇒ **命令行的排后面**，临时改一个宏不用动工程文件。
         opt.IncludeDirs.AddRange(proj.IncludePaths);
         opt.Defines.InsertRange(0, proj.DefineArgs);
+
+        // ⚠ **多文件那段必须在这里做完**（在编入口之前）—— 它往 `opt.ExtraLibs` 里塞目标文件，
+        //   而入口那次编译要带上它们。顺序反了的话 `ExtraLibs` 还是空的，链出来少一半符号
+        //   （症状是「未定义的函数 'helper'」，看着像源码写错了）。
+
+        // ── ① 附加编译单元：各编成**目标文件**（多文件程序的两段式第一步）──
+        //
+        // 见 `BuildProgram(asObject:)` 的注释：不这么做的话标准库会被链 N 遍
+        // （两个文件实测 98080 条 = 正好两倍）。
+        if (proj.SourcePaths.Count > 0)
+        {
+            try { Directory.CreateDirectory(proj.ObjDirPath); }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"✘ 建不出中间产物目录 {proj.ObjDirPath}：{ex.Message}");
+                return 2;
+            }
+
+            foreach (var src in proj.SourcePaths)
+            {
+                if (!File.Exists(src))
+                {
+                    Console.Error.WriteLine($"✘ <Sources> 里的文件不存在：{src}");
+                    return 2;
+                }
+
+                var objLog = new StringBuilder();
+                VmlProgram? objProg; string objLang; string? objErr;
+                lock (ConsoleGate)
+                {
+                    var po = Console.Out; var pe = Console.Error;
+                    try
+                    {
+                        Console.SetOut(new StringWriter(objLog));
+                        Console.SetError(new StringWriter(objLog));
+                        (objProg, objLang, objErr) = BuildProgram(src, vmlRoot, opt, asObject: true);
+                    }
+                    finally { Console.SetOut(po); Console.SetError(pe); }
+                }
+
+                if (objProg is null)
+                {
+                    Console.Error.WriteLine($"✘ 编译 `{Path.GetFileName(src)}` 失败（{objLang}）：{objErr}");
+                    return 1;
+                }
+
+                var objPath = Path.Combine(proj.ObjDirPath,
+                    Path.GetFileNameWithoutExtension(src) + ".vml");
+                File.WriteAllText(objPath, objProg.ToString(), new UTF8Encoding(false));
+                opt.ExtraLibs.Add(objPath);   // 交给后面那一次编译链进去
+                Console.Error.WriteLine($"  · 目标文件 {Path.GetFileName(objPath)}"
+                    + $"（{objProg.Instructions?.Count ?? 0} 条指令）");
+            }
+        }
 
         var sw = Stopwatch.StartNew();
         var compileLogBuf = new StringBuilder();
@@ -816,6 +922,9 @@ internal static class Program
   -I <目录>            追加头文件搜索路径（可重复）。**排在** VML 内置 `Lib` 之前 ——
                        与 gcc 的 -I 语义一致（用户的头可以覆盖库里的同名头）。
 
+  -O<0|1|2|s>          优化级别（默认 0 = 不优化）
+  --lib <路径.vml>     额外要链进来的 VML 汇编文件（多文件程序用）
+
   --stdin <文本>       脚本化标准输入（给 getchar/getch/scanf 这类读字节的程序）。
                        换行写成字面 `\n`；没给就"读到的恒为空"。
                        语义与手机端逐条对齐（一次读一整行、ReadChar 取行首字符）——
@@ -884,6 +993,35 @@ internal sealed partial class CliOptions
     /// </summary>
     public List<string> IncludeDirs { get; } = new();
 
+    /// <summary>
+    /// <c>--lib &lt;路径.vml&gt;</c>：额外要链进来的 VML 汇编文件（**不是目录**）。
+    ///
+    /// <para>
+    /// 用途是**多文件程序**：VML 没有"编译多个 .c 再链接"（见 `CompilerProgramBase`
+    /// 的多文件模式 —— 它只是把每个 `.c` 各写成一个 `.vml`），但**库那条路是通的**：
+    /// 把别的编译单元先编成 `.vml`，再作为库链进来，链接器会做标签重映射。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **只能给文件，不能给目录** —— 给目录会让 `ConvertLibraryPathsToIncludes`
+    /// 把该目录下每一个 `.vml` 都挂上去再全量链接（实测同一个 hello.c：
+    /// 给目录 93423 条指令、给解析好的库文件 36261 条）。
+    /// </para>
+    /// </summary>
+    public List<string> ExtraLibs { get; } = new();
+
+    /// <summary>
+    /// <c>-O&lt;0|1|2|s&gt;</c>：**优化级别**。0 = 不优化（默认）。
+    ///
+    /// <para>
+    /// ⚠ 在补上它之前，这条链**从来没有跑过优化** —— `vmltool.config.xml` 里那个
+    /// `OptimizationLevel` 只被**上游 CLI** 读，而 `vmlcli` 与手机端都不读它，
+    /// 所以两边恒为 0。汇编器里的 `OptimizationPipeline` / `LoopOptimizationPass` /
+    /// `DataFlowAnalysisPass` 一直是**写了但没被调用**的状态。
+    /// </para>
+    /// </summary>
+    public int OptimizationLevel { get; private set; }
+
     // ── `make` 模式（VML 工程文件）──────────────────────────────────────────
     //
     // 形态是**子命令**而不是旗标（`vmlcli make proj.vmk`）—— 与用户敲的
@@ -913,6 +1051,15 @@ internal sealed partial class CliOptions
 
     /// <summary><c>VML_RAM_*</c> 宏的后缀（手机端恒为 M —— 见 <c>MauiVml.BuildProgram</c>）。</summary>
     public string RamSuffix { get; private set; } = "M";
+
+    /// <summary>`0`/`1`/`2`/`s` → 优化级别。`s`（省尺寸）按上游口径等于 2。`-O` 单写就是 `-O1`。</summary>
+    private static int ParseOptimization(string spec) => spec.Trim().ToLowerInvariant() switch
+    {
+        "" or "1" => 1,
+        "0" => 0,
+        "2" or "s" => 2,
+        _ => throw new CliArgumentException($"-O 只认 0/1/2/s，收到 `{spec}`"),
+    };
 
     public static CliOptions Parse(string[] args)
     {
@@ -985,6 +1132,23 @@ internal sealed partial class CliOptions
                 case "--include":
                     o.IncludeDirs.Add(Require(args, ref i, a));
                     break;
+
+                case "--lib":
+                    o.ExtraLibs.Add(Require(args, ref i, "--lib"));
+                    break;
+
+                // `-O0` / `-O1` / `-O2` / `-Os` 连写（与 gcc 同形），也认分开的 `-O 2`
+                case "-O":
+                    o.OptimizationLevel = ParseOptimization(Require(args, ref i, "-O"));
+                    break;
+
+                // `-O0/-O1/-O2/-Os` 连写形态。⚠ 只能**逐个列出** —— switch **语句**的
+                // `default` 不接受 `when` 守卫（那是 switch 表达式的语法），
+                // 写成 `default when …` 直接是语法错误。
+                case "-O0": o.OptimizationLevel = 0; break;
+                case "-O1": o.OptimizationLevel = 1; break;
+                case "-O2":
+                case "-Os": o.OptimizationLevel = 2; break;
 
                 case "--arg":
                     o.Args.Add(Require(args, ref i, "--arg"));

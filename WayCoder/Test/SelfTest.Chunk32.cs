@@ -202,8 +202,24 @@ public static partial class SelfTest
                 """);
             var r2 = new MakefileImporter().Import(Path.Combine(dir, "Makefile.multi"));
             Check("多源文件：入口取含 main 的那个", r2.Project.Entry.Replace('\\', '/') == "src/main.c");
-            Check("多源文件：**必须有提示**（静默取第一个 = 编过了、少了半个程序）",
-                r2.Notes.Count == 1 && r2.Notes[0].Contains("util.c"));
+            // ⚠ 其余源文件进 `<Sources>`（**一起编进同一个程序**），不是"只取一个"的警告。
+            //   一开始这里断言的是"必须报少了半个程序" —— 那是我对 VML 能力的**误判**，
+            //   实测两个编译单元能链成一个程序（见 VmlProject.Sources 的注释）。
+            Check("多源文件：其余进 <Sources>（能一起编，不是被丢掉）",
+                r2.Project.Sources.Count == 1 && r2.Project.Sources[0].Replace('\\', '/') == "src/util.c");
+            Check("多源文件：不该再报「少了半个程序」",
+                !r2.Notes.Any(n => n.Contains("不会") || n.Contains("少了")));
+
+            // 两个文件都含 main ⇒ 必须报出来（挑错入口的后果是"编过了、少了半个程序"）
+            File.WriteAllText(Path.Combine(dir, "src", "main2.c"), "int main(void){return 1;}\n");
+            File.WriteAllText(Path.Combine(dir, "Makefile.two-main"), """
+                SRCS = src/main.c src/main2.c
+                prog: $(SRCS)
+                	gcc -o prog $(SRCS)
+                """);
+            var r2b = new MakefileImporter().Import(Path.Combine(dir, "Makefile.two-main"));
+            Check("两个 main ⇒ **必须提示**（挑错入口 = 编过了、少了半个程序）",
+                r2b.Notes.Any(n => n.Contains("main")));
 
             // ③ `$(MAKE)` 转发式 —— 拒绝并说明原因
             File.WriteAllText(Path.Combine(dir, "Makefile.fwd"), "all:\n\t$(MAKE) -C sub\n");

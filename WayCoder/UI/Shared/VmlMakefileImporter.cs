@@ -40,12 +40,14 @@ namespace WayCoder.UI.Shared;
 /// </list>
 ///
 /// <para>
-/// ## ⚠ 多个源文件**必须报出来**
+/// ## 多文件：收进 `<Sources>`，**一起编进同一个程序**
 ///
-/// VML **没有跨编译单元的链接**（`CompilerProgramBase` 的多文件模式明确拒绝 `-o`，
-/// 只是把每个 `.c` 各编成同名的 `.vml`）。所以导入器只能取**一个**入口 ——
-/// 而"静默取第一个"的后果是**编过了、少了半个程序**，正是本仓最怕的失败形状。
-/// 发现多个 `.c` 时要在 <see cref="ProjectImportResult.Notes"/> 里说清楚。
+/// 老程序大多是**多文件**的，而这正是 `.vmk` 存在的理由之一。
+/// 导入的写法是：取**含 `main` 的那个**当 `<Entry>`，其余的进 `<Sources>` ——
+/// 由 `make` 先各编成目标文件、再链进入口（机制见 <see cref="VmlProject.Sources"/>）。
+///
+/// ⚠ **哪个是入口必须说清楚**：挑错了（比如两个文件都有 `main`）要**报出来**，
+/// 不能默默选一个 —— 静默的后果是"编过了、少了半个程序"。
 /// </para>
 /// </summary>
 public sealed class MakefileImporter : IProjectImporter
@@ -183,21 +185,24 @@ public sealed class MakefileImporter : IProjectImporter
         else
         {
             var withMain = sources.Where(HasMain).ToList();
+            if (withMain.Count > 1)
+                notes.Add(
+                    $"有 {withMain.Count} 个源文件都含 `main`，取了 `{Rel(baseDir, withMain[0])}` 当入口：\n"
+                    + string.Join("\n", withMain.Skip(1).Select(m => "        " + Rel(baseDir, m)))
+                    + "\n      （多个 main 多半是 Makefile 里混了多个独立程序，"
+                    + "或者有文件用 `main` 当普通函数名 —— 请核对。）");
             entry = withMain.Count > 0 ? withMain[0] : sources[0];
         }
 
-        // ⚠ 多个源文件**必须报出来**（见类注释）
+        // 其余源文件收进 <Sources> —— **它们能一起编进同一个程序**。
+        //
+        // ⚠ 别把这里写成"只取了一个、其余不会进来"的警告：那是我一开始的判断，
+        //   而**实测证明多文件做得到** —— 每个附加编译单元先编成**目标文件**
+        //   （`autoLinkStdLib: false` + `IsLibrary`，实测 28 条指令而不是 49030），
+        //   再作为库链进入口（`LinkLibraries` 会做数据标签重映射，同名 `static` 互不干扰）。
+        //   **两个文件直接链会让标准库被链两遍**（实测 98080 条 = 正好两倍），
+        //   走目标文件是 49070 条。完整机制见 `VmlProject.Sources` 的注释。
         var others = sources.Where(s => !string.Equals(s, entry, StringComparison.Ordinal)).ToList();
-        if (others.Count > 0)
-        {
-            notes.Add(
-                $"这个 Makefile 有 {sources.Count} 个源文件，但 VML **没有跨文件的链接** —— "
-                + $"只取了入口 `{Rel(baseDir, entry)}`。\n"
-                + "      其余这些的符号**不会**进程序：\n"
-                + string.Join("\n", others.Select(o => "        " + Rel(baseDir, o)))
-                + "\n      要它们进来，只能改成 `#include \"xxx.c\"`（老 C 的单编译单元写法），"
-                + "或者手工合并成一个文件。");
-        }
 
         // ── ⑤ 抽 -D / -I（从所有变量值与命令行里扫）──
         var defines = new List<(string, string)>();
@@ -216,6 +221,7 @@ public sealed class MakefileImporter : IProjectImporter
             Name = Path.GetFileName(baseDir.TrimEnd('/', '\\')),
             Entry = Rel(baseDir, entry),
         };
+        foreach (var o in others) project.Sources.Add(Rel(baseDir, o));
         foreach (var d in includes) project.Includes.Add(d);
         foreach (var (n, v) in defines) project.Defines.Add((n, v));
 

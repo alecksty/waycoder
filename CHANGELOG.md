@@ -1,64 +1,85 @@
-## v0.96.375 — 拿 6 个真程序压 BGI 垫层，撞出**两条静默的前端缺陷**
+## v0.96.377 — ⚠ **多文件程序**（`.vmk` 的真正目的）+ 手机端接线 + 优化开关
 
-用户要「下载一些用 graphics 库的老程序，让它在手机上跑起来」。BGI → `ui_*` 的转接
-**早就实现了**（`Lib/c/graphics.h`，373 行，把 BGI 的函数名原样接到 `ui_*`，
-`initgraph` 落到**电脑屏窗口**）。所以这一轮的价值全在**拿真程序压它**：
+用户点破了 `.vmk` 的**真正目的**：
 
-从 `ullaskunder3/Solution-to-graphics.h` 取了 6 个（饼图 / 柱状图 / 笑脸 / 小屋 / 同心圆 /
-图形函数集），**全部编译失败** —— 而失败的原因**两条都不在 BGI 垫层里**。
+> 加 vmk 的原因是为了适配老程序的 makefile 文件，**老程序很多都是多文件的**，
+> vml 编译器没办法只编译一个文件来运行。
 
-### 一、⚠ `#include<graphics.h>` 写成没有空格 ⇒ **整行被静默丢掉**
+**我上一版把这件事判错了。** 我把 `.vmk` 做成单入口，理由是"VML 没有跨编译单元的链接"
+（`CompilerProgramBase` 的多文件模式明确拒绝 `-o`），并让导入器**报出**多文件而不是解决它。
+**实测证明多文件做得到** —— 走的是**库那条路**。
 
-    #include<graphics.h>                      ← 这一行整个消失（不报错、不警告）
-    int main(){ int gd = DETECT, gm; … }      ← 于是 DETECT 未声明
+### 一、多文件怎么做到的
 
-报的是「未声明的变量 'DETECT'」，位置指着 `main` 里那一行 ——
-**没有任何线索指向 include**，会去查 DETECT 怎么没定义。
+`LinkLibraries` 合并库时会**重映射数据标签**（`LibraryLinker.LinkSingleLibrary` 的
+`labelMapping`），两个编译单元的同名 `static` 因此互不干扰。所以"多文件"是**两步**：
 
-根因在 `ProcessDirective`：指令名是按**空白**切的，不是按**标识符**扫的。
+| 步骤 | 做法 | 产物 |
+|---|---|---|
+| ① 每个附加编译单元 → **目标文件** | `autoLinkStdLib: false` + **库清单为空** + `IsLibrary = true` | 实测 **20~28 条指令** |
+| ② 目标文件链进 `<Entry>` | 并进 `libraryPaths` | 49070 条（单文件 49030） |
 
-    "#include<graphics.h>".Substring(1).Trim().Split(new[]{' ','\t'}, 2)
-      ⇒ ["include<graphics.h>"]      ← 没有空白 ⇒ 整行一段
-    dir = "include<graphics.h>"      ⇒ 匹配不上任何 case ⇒ 丢掉
+⚠ **少了①的代价不只是"大"，是结果错**：两个文件直接链 —— 98080 条（正好两倍），
+而且 `helper(20)` 该得 **43**、实得 **102944**（同名函数被两份实现各定义一次，
+链接器的重映射指到了错的那份）。
 
-同一族的 `#if(x)` / `#define(x,y)` 一起中招。**22 门语言全走这条路**，
-而且**两条预处理器实现**（`CompilerBase/` 与 `CCompiler/`）都得改 —— 两处都改了。
+⚠ **目标文件那次编译必须给空库清单**：把 `libraryPaths` 传进去的话，**即使
+`autoLinkStdLib: false` 也仍然会把库内联进来**（实测同一个 `util.c`：空清单 28 条，
+带清单 39916 条）。
 
-⚠ **为什么一直没暴露**：`#include<stdio.h>` 无空格看不出问题（stdio 本来就被自动提供，
-丢一行 include 也照样能编），**把 bug 盖住了**。所以判据
-`cases/46-include-no-space.c` **刻意不用 stdio**，改用 `graphics.h`（它不在自动提供的集合里）。
+### 二、`.vmk` 加了 `<Sources>`
 
-⚠ 而实测 **6 个下载来的程序全都写的是 `#include<graphics.h>`** —— 老代码里这个写法很常见。
+```xml
+<Entry>src/main.c</Entry>        <!-- 含 main 的那个 -->
+<Sources>
+  <File>src/util.c</File>
+</Sources>
+<ObjDir>.vmk-obj</ObjDir>        <!-- 选填，中间产物放哪 -->
+```
 
-### 二、C++ 前端不认**省略返回类型**的函数定义（`main() { … }`）
+Makefile 导入器同步改：多源文件**收进 `<Sources>`**（不再是"只取一个"的警告）。
+⚠ 两个文件都含 `main` 时**必须报出来**（挑错入口 = 编过了、少了半个程序）。
 
-`smile.cpp` 开头就是 `main()`（Turbo C 时代遍地都是）。C 前端**本来认**
-（`Parser.Declarations.cs` 的隐式 int 分支），C++ 前端不认 —— 报
-「期望 IDENTIFIER，实际得到 LPAREN ('(')」，位置指着 `main` 后面那个 `(`，
-**看不出是"少写了返回类型"**。
+### 三、手机端接线
 
-根因：`ParseDeclarationCore` 认出 `IDENT (` 之后调 `ParseFunction()` 时
-**没把已经读到的名字传下去** ⇒ 它自己去 `ParseType()`（把 `main` 当类型名吃掉）
-再 `Expect(IDENTIFIER)` 撞上 `(`。修法是照 C 前端的语义取 **C89 的「隐式 int」**，
-并把光标停在 `(` 之后直接进函数体（`Match(LPAREN)` 已经吃过 `(`，再回退会让它要第二次）。
+`MauiVml.MakeProject` + `ShellPage` 的 `vml make` 子命令，与桌面**共用同一条
+`BuildProgram`**（不另写编译链）。三个 `.vmk` 文件住在 `UI/Shared/`，
+所以手机端**自动就编得到** —— 这一版只补"接一条命令"。
 
-### 三、补齐 `graphics.h` 缺的东西（真程序压出来的缺口）
+### 四、优化开关 `-O0/-O1/-O2/-Os`
 
-| 补什么 | 为什么 |
-|---|---|
-| `NULL` | 老程序普遍只 `#include <graphics.h>` 就拿它当空指针用（Turbo C 时代由 BGI 头间接带进来） |
-| `DEFAULT_FONT`…`BOLD_FONT` 11 个字体常量 | `settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2)` 极常见，不收常量整份源码一个字都编不过 |
-| `arc` / `pieslice` / `sector` | 饼图靠它们（语料里 `pieslice` 用了 3 次、`arc` 2 次）。走**另一套**刷子接口 `ui_set_fill`/`ui_set_pen` + `ui_draw_pie`，因为颜色当参数的老接口画不了扇形。⚠ `ui_set_fill(0)` = 不填充（`arc` 的轮廓靠它），且**画完必须复位**（刷子是全局状态，不复位会串给后面的图元） |
-| `initwindow(w,h,title)` | WinBGIm 的入口，语义就是"开一个指定大小的图形窗口" |
+在此之前这条链**从来没跑过优化**：`vmltool.config.xml` 里那个 `OptimizationLevel`
+只被**上游 CLI** 读，`vmlcli` 与手机端都不读它 ⇒ 恒为 0。汇编器里的
+`OptimizationPipeline` / `LoopOptimizationPass` / `DataFlowAnalysisPass`
+一直是"写了但没被调用"。
 
-### 结果
+现在 `-O1` 起会跑流水线，**开关列表逐字照抄上游**（那几个 pass 被显式关掉并注明
+"实验性""有标签损坏 bug"—— 那是踩过的坑，不是保守，**别顺手打开**）。
 
-    ✅ 6 个里 4 个编译干净：barChart / Concentric / pie / smile
-    ❌ 剩下 2 个卡在**同一族能力**上：floodfill(10 次) + getimage/putimage/imagesize/XOR_PUT
-       —— 都是**像素读回 / 位图块**。场景是保留模式的，要做得上宿主侧光栅化读回，
-       那是**架构决定**不是补个垫层（`graphics.h` 的注释里本来就写着这几个不做）。
+⚠ **如实说**：接上之后实测一个 49070 条指令的程序，`-O1`/`-O2` 后**仍是 49070**
+—— 因为唯一开着的是 **NOP 消除**，而这个程序没有 NOP 可消。
+**开关是通的，优化器还很空。**
 
-自测 **6419/6419**；C 探针 **41/0/4**（已知红不变）+ 新增 `46-include-no-space.c`。
+⚠ `-O` 的位置是 `make -O2 proj.vmk`（子命令在前）。写成 `-O2 make …` 会把 `make`
+当成源文件路径。这一条我自己踩过一次：三档对比跑出来的"结果一致"其实是
+**三次都跑了同一个旧产物**（前三次调用全部解析失败打了用法）。
+
+### 五、顺带补的 `--lib`
+
+`--lib <路径.vml>` 把额外编译单元链进来（多文件的底层机制，也让上一条能被手工验证）。
+⚠ 只能给**文件**不能给目录 —— 给目录会让 `ConvertLibraryPathsToIncludes` 把该目录下
+每个 `.vml` 都挂上再全量链接（实测同一个 hello.c：给目录 93423 条指令、
+给库文件 36261 条）。
+
+### 六、验收
+
+    ✅ 多文件端到端：make → 目标文件 20 条 + 入口链成 49070 条 → **跑出 helper=43|seed=100**
+       （两个编译单元的**同名 static 互不干扰**，这是整条路能成立的关键证据）
+    ✅ 反证：不带 --lib 编 main.c ⇒ 报「未定义的函数 'helper'」
+    ✅ 反证：-O3 ⇒ 报「未知选项」
+    ✅ 导入器：两个 main ⇒ 报出来
+
+自测 **6462/6462**（Chunk32 的判据按新语义改过：多文件不再是"必须是警告"）。
 
 ## v0.96.376 — VML 工程文件 `.vmk` + `vml make` + Makefile 导入 + `-D`/`-I`
 
@@ -173,6 +194,68 @@ vmlcli -D VERSION=1.2 -D DEBUG -I src -I ../inc examples/c/tetris.c
     ✅ Format="hex" ⇒ 报「还没做」；Format="vml2" ⇒ 报「不认得」
 
 自测 **6460/6460**（新增 `TestChunk32` 41 条）；C 探针 41/0/4（已知红不变）。
+
+## v0.96.375 — 拿 6 个真程序压 BGI 垫层，撞出**两条静默的前端缺陷**
+
+用户要「下载一些用 graphics 库的老程序，让它在手机上跑起来」。BGI → `ui_*` 的转接
+**早就实现了**（`Lib/c/graphics.h`，373 行，把 BGI 的函数名原样接到 `ui_*`，
+`initgraph` 落到**电脑屏窗口**）。所以这一轮的价值全在**拿真程序压它**：
+
+从 `ullaskunder3/Solution-to-graphics.h` 取了 6 个（饼图 / 柱状图 / 笑脸 / 小屋 / 同心圆 /
+图形函数集），**全部编译失败** —— 而失败的原因**两条都不在 BGI 垫层里**。
+
+### 一、⚠ `#include<graphics.h>` 写成没有空格 ⇒ **整行被静默丢掉**
+
+    #include<graphics.h>                      ← 这一行整个消失（不报错、不警告）
+    int main(){ int gd = DETECT, gm; … }      ← 于是 DETECT 未声明
+
+报的是「未声明的变量 'DETECT'」，位置指着 `main` 里那一行 ——
+**没有任何线索指向 include**，会去查 DETECT 怎么没定义。
+
+根因在 `ProcessDirective`：指令名是按**空白**切的，不是按**标识符**扫的。
+
+    "#include<graphics.h>".Substring(1).Trim().Split(new[]{' ','\t'}, 2)
+      ⇒ ["include<graphics.h>"]      ← 没有空白 ⇒ 整行一段
+    dir = "include<graphics.h>"      ⇒ 匹配不上任何 case ⇒ 丢掉
+
+同一族的 `#if(x)` / `#define(x,y)` 一起中招。**22 门语言全走这条路**，
+而且**两条预处理器实现**（`CompilerBase/` 与 `CCompiler/`）都得改 —— 两处都改了。
+
+⚠ **为什么一直没暴露**：`#include<stdio.h>` 无空格看不出问题（stdio 本来就被自动提供，
+丢一行 include 也照样能编），**把 bug 盖住了**。所以判据
+`cases/46-include-no-space.c` **刻意不用 stdio**，改用 `graphics.h`（它不在自动提供的集合里）。
+
+⚠ 而实测 **6 个下载来的程序全都写的是 `#include<graphics.h>`** —— 老代码里这个写法很常见。
+
+### 二、C++ 前端不认**省略返回类型**的函数定义（`main() { … }`）
+
+`smile.cpp` 开头就是 `main()`（Turbo C 时代遍地都是）。C 前端**本来认**
+（`Parser.Declarations.cs` 的隐式 int 分支），C++ 前端不认 —— 报
+「期望 IDENTIFIER，实际得到 LPAREN ('(')」，位置指着 `main` 后面那个 `(`，
+**看不出是"少写了返回类型"**。
+
+根因：`ParseDeclarationCore` 认出 `IDENT (` 之后调 `ParseFunction()` 时
+**没把已经读到的名字传下去** ⇒ 它自己去 `ParseType()`（把 `main` 当类型名吃掉）
+再 `Expect(IDENTIFIER)` 撞上 `(`。修法是照 C 前端的语义取 **C89 的「隐式 int」**，
+并把光标停在 `(` 之后直接进函数体（`Match(LPAREN)` 已经吃过 `(`，再回退会让它要第二次）。
+
+### 三、补齐 `graphics.h` 缺的东西（真程序压出来的缺口）
+
+| 补什么 | 为什么 |
+|---|---|
+| `NULL` | 老程序普遍只 `#include <graphics.h>` 就拿它当空指针用（Turbo C 时代由 BGI 头间接带进来） |
+| `DEFAULT_FONT`…`BOLD_FONT` 11 个字体常量 | `settextstyle(SANS_SERIF_FONT, HORIZ_DIR, 2)` 极常见，不收常量整份源码一个字都编不过 |
+| `arc` / `pieslice` / `sector` | 饼图靠它们（语料里 `pieslice` 用了 3 次、`arc` 2 次）。走**另一套**刷子接口 `ui_set_fill`/`ui_set_pen` + `ui_draw_pie`，因为颜色当参数的老接口画不了扇形。⚠ `ui_set_fill(0)` = 不填充（`arc` 的轮廓靠它），且**画完必须复位**（刷子是全局状态，不复位会串给后面的图元） |
+| `initwindow(w,h,title)` | WinBGIm 的入口，语义就是"开一个指定大小的图形窗口" |
+
+### 结果
+
+    ✅ 6 个里 4 个编译干净：barChart / Concentric / pie / smile
+    ❌ 剩下 2 个卡在**同一族能力**上：floodfill(10 次) + getimage/putimage/imagesize/XOR_PUT
+       —— 都是**像素读回 / 位图块**。场景是保留模式的，要做得上宿主侧光栅化读回，
+       那是**架构决定**不是补个垫层（`graphics.h` 的注释里本来就写着这几个不做）。
+
+自测 **6419/6419**；C 探针 **41/0/4**（已知红不变）+ 新增 `46-include-no-space.c`。
 
 ## v0.96.374 — 新指令的**汇编级单元测试**（号段 113–125）+ vmlcli 直通 `.vml`
 

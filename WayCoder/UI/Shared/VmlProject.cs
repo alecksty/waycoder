@@ -107,6 +107,38 @@ public sealed class VmlProject
         _ => ".vml",   // 认不出的格式后面会被挡下来，这里不给它一个新的失败点
     };
 
+    /// <summary>
+    /// **其余的编译单元**（除了 <see cref="Entry"/> 之外的 `.c`）。老程序大多是**多文件**的，
+    /// 这一项就是为它们准备的。
+    ///
+    /// <para>
+    /// ## 怎么做到的（VML 并没有"多文件编译"这个功能）
+    ///
+    /// `CompilerProgramBase` 的多文件模式只是把每个 `.c` **各写成一个 `.vml`**，不链接。
+    /// 但**库那条路是通的** —— `LinkLibraries` 会把库里的数据标签**重映射**后再合并
+    /// （`LibraryLinker.LinkSingleLibrary` 的 `labelMapping`），两个编译单元的同名
+    /// `static` 因此互不干扰。
+    /// </para>
+    ///
+    /// <para>
+    /// 所以"多文件"在这里是**两步**：每个附加编译单元先编成**目标文件**
+    /// （`autoLinkStdLib: false` + `IsLibrary = true` ⇒ 只有用户代码，实测 28 条指令），
+    /// 再把它们作为库链进入口。**不这么做的话标准库会被链 N 遍** ——
+    /// 实测两个文件直接链：98080 条指令（正好两倍），走目标文件：49070 条。
+    /// </para>
+    /// </summary>
+    public List<string> Sources { get; } = new();
+
+    /// <summary>
+    /// 中间产物（目标文件 `.vml`）放哪。留空 = `<.vmk 所在目录>/.vmk-obj/`。
+    ///
+    /// <para>
+    /// 单独放一个目录而不是写在源文件旁边：中间产物**每次构建都重生成**，
+    /// 混在源码树里既脏又容易被误提交（老项目的 `.gitignore` 可不会认我们的东西）。
+    /// </para>
+    /// </summary>
+    public string ObjDir { get; set; } = "";
+
     /// <summary>追加的头文件搜索路径（对应 `-I`）。</summary>
     public List<string> Includes { get; } = new();
 
@@ -127,7 +159,7 @@ public sealed class VmlProject
 
     /// <summary>认识的所有顶层元素 —— 用来把**拼错的**标签报出来（见 <see cref="Parse"/>）。</summary>
     private static readonly string[] KnownRoots =
-        { "Name", "Entry", "Output", "Includes", "Defines", "Libs" };
+        { "Name", "Entry", "Output", "ObjDir", "Sources", "Includes", "Defines", "Libs" };
 
     /// <summary>
     /// 从 `.vmk` 文本解析。**出错就抛**（带人话），不返回半个工程。
@@ -198,6 +230,13 @@ public sealed class VmlProject
                     + $"{string.Join("、", ImplementedFormats)}；预留了 "
                     + $"{string.Join("、", ReservedFormats)}。");
             p.OutputFormat = fmt;
+        }
+
+        p.ObjDir = Val(root, "ObjDir");
+        foreach (var e in root.Element("Sources")?.Elements("File") ?? Enumerable.Empty<XElement>())
+        {
+            var v = e.Value?.Trim();
+            if (!string.IsNullOrEmpty(v)) p.Sources.Add(v);
         }
 
         foreach (var e in root.Element("Includes")?.Elements("Dir") ?? Enumerable.Empty<XElement>())
@@ -296,6 +335,15 @@ public sealed class VmlProject
         ? Path.ChangeExtension(EntryPath, ExtensionFor(OutputFormat))
         : Path.GetFullPath(Path.Combine(BaseDir, Norm(Output)));
 
+    /// <summary>附加编译单元的**绝对路径**列表。</summary>
+    public List<string> SourcePaths =>
+        Sources.Select(f => Path.GetFullPath(Path.Combine(BaseDir, Norm(f)))).ToList();
+
+    /// <summary>中间产物目录的**绝对路径**（没写 `<ObjDir>` 时用 `.vmk-obj/`）。</summary>
+    public string ObjDirPath => string.IsNullOrWhiteSpace(ObjDir)
+        ? Path.Combine(BaseDir, ".vmk-obj")
+        : Path.GetFullPath(Path.Combine(BaseDir, Norm(ObjDir)));
+
     /// <summary>`-I` 用的绝对路径列表。</summary>
     public List<string> IncludePaths =>
         Includes.Select(d => Path.GetFullPath(Path.Combine(BaseDir, Norm(d)))).ToList();
@@ -328,6 +376,14 @@ public sealed class VmlProject
         if (!string.IsNullOrWhiteSpace(Output) || kindAttr.Length > 0 || fmtAttr.Length > 0)
             sb.Append("  <Output").Append(kindAttr).Append(fmtAttr).Append('>')
               .Append(Esc(Norm(Output))).Append("</Output>\n");
+
+        if (Sources.Count > 0)
+        {
+            sb.Append("  <!-- 其余编译单元：先各编成目标文件，再链进入口 -->\n");
+            sb.Append("  <Sources>\n");
+            foreach (var f in Sources) sb.Append("    <File>").Append(Esc(Norm(f))).Append("</File>\n");
+            sb.Append("  </Sources>\n");
+        }
 
         if (Includes.Count > 0)
         {
