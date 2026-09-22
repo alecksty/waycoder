@@ -140,6 +140,30 @@ void ui_present(void) {
     asm("SYSCALL #531");
 }
 
+/* ── 像素读回（583–585）────────────────────────────────────────────────
+ *
+ * 老 graphics.h 程序做**填充**与**精灵**绕不开读像素，而场景是保留模式的
+ * ⇒ 宿主侧要先光栅化一次。三个号的分工见 `waycoder_ui.h` 的同名声明。
+ *
+ * ⚠ **多参数必须写在同一个 `asm()` 里**：每个 `${}` 展开都会先载入 R0，
+ *   拆成多个 `asm()` 会互相覆盖寄存器（本仓记过这个坑）。
+ */
+
+/* 从 (x,y) 灌色，碰到 border 色停。返回落笔的矩形条数（0 = 没填）。 */
+int ui_flood_fill(int x, int y, int color, int border) {
+    return asm("SYSCALL #583, ${x}, ${y}, ${color}, ${border}");
+}
+
+/* 存一块画面 → 句柄（≥1），失败 0。 */
+int ui_get_image(int x, int y, int w, int h) {
+    return asm("SYSCALL #584, ${x}, ${y}, ${w}, ${h}");
+}
+
+/* 把句柄那块贴到 (x,y)。mode：0=COPY 直接贴 / 1=XOR 异或。返回 1 成功。 */
+int ui_put_image(int x, int y, int handle, int mode) {
+    return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
+}
+
 /* ── 文字 ───────────────────────────────────────────────── */
 
 /* 一次性画一行字。anchor: 0=左 1=中 2=右；style: 1=粗 2=斜。 */

@@ -57,6 +57,9 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         // 两端各写一份迟早分叉，而分叉的症状是"手机上对、桌面上错"）。
         VmlCallRegistry.RegisterDefaults(VmlCallRegistry.HostMobile);
 
+        // 宿主要回头问运行时"当前场景是什么"（像素读回 583–585 用）——
+        // 这是一个环（运行时持有宿主、宿主又要问运行时），所以用回调在**建好之后**接上。
+        _mauiHost.SceneOfRuntime = () => _rt.Scene();
         _rt = new VmlHostRuntime(_mauiHost);
         // 手机端那个"入参诊断"脚手架（真机实测"对话框字符串大多是空的"时，唯一能分清
         // "程序没把指针放进寄存器"还是"宿主读错了内存"的办法）—— 挂在共享层的钩子上。
@@ -321,6 +324,15 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     /// </summary>
     private sealed class MauiVmlHost : IVmlHost
     {
+        /// <summary>
+        /// 取当前场景 —— 由外层建宿主时回填。
+        ///
+        /// ⚠ 为什么要绕这一道：`Scene` 是**外层** `VmlUiCalls` 的属性，而这个宿主是
+        /// **嵌套类**，静态地取不到外层的实例成员（CS0120）。宿主与运行时是互相引用的
+        /// （运行时持有宿主、宿主又要回头问运行时），所以只能用这个回调把环解开。
+        /// </summary>
+        public Func<VmlScene?>? SceneOfRuntime { get; set; }
+
         public (int Width, int Height) ScreenArea() => ScrArea();
 
         public int Orientation() => ScreenOrientation();
@@ -423,6 +435,68 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 try { DeviceDisplay.KeepScreenOn = on; }
                 catch (Exception ex) { ErrorLog.Error("VmlUi", "设置常亮失败", ex); }
             });
+
+        // ── 像素读回（583–585）──────────────────────────────────────────────
+        //
+        // 与桌面**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
+        // 逻辑逐字相同，差别只有临时图落哪。
+        //
+        // ⚠ 这两个方法**不碰 View**（只读场景 + 写文件），所以按本类的尺子
+        //   **不需要 marshal 回主线程**（见 `KeepScreenOn` 上面那段说明）。
+
+        /// <summary>光栅化当前场景的一块区域（RGBA 行优先）。没开过窗就返回 false。</summary>
+        public bool Rasterize(int x, int y, int w, int h, byte[] dest)
+        {
+            // `Scene` 是**外层** `VmlUiCalls` 的属性，嵌在里面的本类取不到 ⇒ 走运行时。
+            var scene = SceneOfRuntime?.Invoke();
+            if (scene is null || w <= 0 || h <= 0 || dest.Length < w * h * 4) return false;
+            try
+            {
+                var canvas = DrawRunner.Rasterize(DrawRunner.Parse(scene.BuildDsl()));
+                for (int row = 0; row < h; row++)
+                {
+                    int sy = y + row;
+                    if (sy < 0 || sy >= canvas.Height) continue;
+                    for (int col = 0; col < w; col++)
+                    {
+                        int sx = x + col;
+                        if (sx < 0 || sx >= canvas.Width) continue;
+                        int si = (sy * canvas.Width + sx) * 4;
+                        int di = (row * w + col) * 4;
+                        dest[di] = canvas.Pixels[si];
+                        dest[di + 1] = canvas.Pixels[si + 1];
+                        dest[di + 2] = canvas.Pixels[si + 2];
+                        dest[di + 3] = canvas.Pixels[si + 3];
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("VmlUi", "像素读回失败", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 把一块像素编成 PNG 落到**缓存目录**（`putimage` 靠它复用场景的 image 图元）。
+        /// ⚠ 用 `CacheDirectory` 而不是私有目录：这些是**用完即弃**的中间产物，
+        ///   系统在空间紧张时该能直接清掉，而且不该出现在用户的文件列表里。
+        /// </summary>
+        public string? SaveTempImage(int w, int h, byte[] rgba)
+        {
+            try
+            {
+                var path = Path.Combine(FileSystem.CacheDirectory, $"vmlput-{Guid.NewGuid():N}.png");
+                File.WriteAllBytes(path, PngEncoder.Encode(w, h, rgba));
+                return path;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("VmlUi", "存临时图失败", ex);
+                return null;
+            }
+        }
 
         /// <summary>沙箱相对 → 绝对：`CwdContext` 与文件工具同一把尺子。</summary>
         public string ResolvePath(string relative) => CwdContext.Resolve(relative);

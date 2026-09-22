@@ -7003,6 +7003,33 @@ def ui_ellipse(a0, a1, a2, a3, a4, a5, a6):
 def ui_present():
     asm("CALL ui_present")
 
+def ui_flood_fill(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_flood_fill")
+    return r0
+
+def ui_get_image(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_get_image")
+    return r0
+
+def ui_put_image(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_put_image")
+    return r0
+
 def ui_text(a0, a1, a2, a3, a4, a5):
     asm(f"PUSH @R0")  # push a5
     asm(f"PUSH @R0")  # push a4
@@ -7435,6 +7462,19 @@ def ui_store_get(a0, a1, a2):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_store_get")
+    return r0
+
+def ui_argc():
+    r0 = asm("@R0")
+    asm("CALL ui_argc")
+    return r0
+
+def ui_arg(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_arg")
     return r0
 
 def callwithint8(a0):

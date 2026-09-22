@@ -397,6 +397,74 @@ internal sealed class CliVmlHost : IVmlHost
 
     public void KeepScreenOn(bool on) => CliErr.WriteLine($"[vml-host] keep-screen-on={on}");
 
+    // ── 像素读回（583–585）──────────────────────────────────────────────────
+    //
+    // 桌面端与手机端**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
+    // 所以这两个方法在两端是同一份逻辑，差别只有"临时文件放哪"。
+
+    /// <summary>光栅化当前场景的一块区域（RGBA 行优先）。没开过窗就返回 false。</summary>
+    public bool Rasterize(int x, int y, int w, int h, byte[] dest)
+    {
+        // ⚠ 读回要的是**当前场景**（`BuildDsl`），**不是** `PresentedDsl` 那张快照 ——
+        //   程序刚画完一笔就调 `floodfill`，那一笔必须已经在里面。
+        //   （`RenderFrame` 用快照是另一回事：出图要的是"最后一次 ui_present 定下的那一帧"。）
+        var scene = Runtime?.Scene();
+        if (scene is null || w <= 0 || h <= 0 || dest.Length < w * h * 4) return false;
+        try
+        {
+            var canvas = DrawRunner.Rasterize(DrawRunner.Parse(scene.BuildDsl()));
+            for (int row = 0; row < h; row++)
+            {
+                int sy = y + row;
+                if (sy < 0 || sy >= canvas.Height) continue;
+                for (int col = 0; col < w; col++)
+                {
+                    int sx = x + col;
+                    if (sx < 0 || sx >= canvas.Width) continue;
+                    int si = (sy * canvas.Width + sx) * 4;
+                    int di = (row * w + col) * 4;
+                    dest[di] = canvas.Pixels[si];
+                    dest[di + 1] = canvas.Pixels[si + 1];
+                    dest[di + 2] = canvas.Pixels[si + 2];
+                    dest[di + 3] = canvas.Pixels[si + 3];
+                }
+            }
+            return true;
+        }
+        catch (Exception ex)
+        {
+            CliErr.WriteLine($"[vml-host] 像素读回失败：{ex.GetType().Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>把一块像素编成 PNG 落到临时目录（`putimage` 靠它复用场景的 image 图元）。</summary>
+    public string? SaveTempImage(int w, int h, byte[] rgba)
+    {
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"vmlput-{Guid.NewGuid():N}.png");
+            File.WriteAllBytes(path, PngEncoder.Encode(w, h, rgba));
+            _tempImages.Add(path);
+            return path;
+        }
+        catch (Exception ex)
+        {
+            CliErr.WriteLine($"[vml-host] 存临时图失败：{ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>`putimage` 落的临时图 —— 退出时清掉（不清理会在临时目录里越堆越多）。</summary>
+    private readonly List<string> _tempImages = new();
+
+    /// <summary>删掉本次运行落的所有临时图。</summary>
+    public void CleanupTempImages()
+    {
+        foreach (var f in _tempImages) { try { File.Delete(f); } catch { } }
+        _tempImages.Clear();
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // 杂项
     // ══════════════════════════════════════════════════════════════════════

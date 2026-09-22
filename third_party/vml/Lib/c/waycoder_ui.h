@@ -174,6 +174,25 @@ void ui_icon(int x, int y, char* name, int size, int color);
 void ui_image(int x, int y, char* path, int w, int h);
 void ui_present(void);
 
+/* ── 像素读回（583–585）────────────────────────────────────────────────
+ *
+ * 场景是**保留模式**的（只有图元、没有像素缓冲），所以这三个号在宿主侧都会先
+ * **光栅化一次**。老 graphics.h 程序要靠它们做填充与精灵。
+ */
+
+/* 从 (x,y) 灌色，**碰到 `border` 色就停**（四连通）。返回落笔的矩形条数，
+   0 = 没填（种子点本身就在边界色上时是这样 —— 老程序「点在线上」很常见，不是错误）。 */
+int ui_flood_fill(int x, int y, int color, int border);
+
+/* 存一块画面 → **句柄**（≥1），失败 0。
+   ⚠ 句柄由宿主保管，不是 VML 内存里的缓冲区（与 ui_brush/ui_gradient 同一套）。
+   老程序的 `p = malloc(imagesize(...))` 照写不误，只是那块内存我们不用。 */
+int ui_get_image(int x, int y, int w, int h);
+
+/* 把句柄那块贴到 (x,y)。`mode`：0=COPY 直接贴 / 1=XOR 异或。返回 1 成功、0 失败。
+   ⚠ XOR 必须**先读目的像素**（异或要拿它算），所以比 COPY 多一次光栅化 + 一次编码。 */
+int ui_put_image(int x, int y, int handle, int mode);
+
 /* ── 文字 ── */
 void ui_text(int x, int y, char* s, int color, int size, int anchor);
 void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);

@@ -89,6 +89,7 @@
          而 `UI/Shared` 是三方都能编到的**唯一**目录 —— 放 VMLTool 里就只有这个 CLI 用得上，
          桌面自测和手机端各得再抄一份（本仓头号坑）。 -->
     <Compile Include="../../WayCoder/UI/Shared/PathText.cs" Link="PathText.cs" />
+    <Compile Include="../../WayCoder/UI/Shared/FloodFill.cs" Link="FloodFill.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProject.cs" Link="VmlProject.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProjectImport.cs" Link="VmlProjectImport.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlMakefileImporter.cs" Link="VmlMakefileImporter.cs" />

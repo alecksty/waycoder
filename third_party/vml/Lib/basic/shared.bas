@@ -5381,6 +5381,21 @@ DECLARE SUB ui_present()
     asm("CALL ui_present")
 END SUB
 
+DECLARE FUNCTION ui_flood_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_flood_fill")
+    ui_flood_fill = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_get_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_get_image")
+    ui_get_image = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_put_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_put_image")
+    ui_put_image = 0
+END FUNCTION
+
 DECLARE SUB ui_text(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
     asm("CALL ui_text")
 END SUB
@@ -5665,6 +5680,16 @@ END SUB
 DECLARE FUNCTION ui_store_get(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL ui_store_get")
     ui_store_get = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_argc() AS INTEGER
+    asm("CALL ui_argc")
+    ui_argc = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_arg(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_arg")
+    ui_arg = 0
 END FUNCTION
 
 DECLARE FUNCTION callwithint8(a0 AS INTEGER) AS INTEGER

@@ -2267,6 +2267,12 @@
 // CALL ui_ellipse
 // extern fn ui_present(void) -> void
 // CALL ui_present
+// extern fn ui_flood_fill(int x, int y, int color, int border) -> int
+// CALL ui_flood_fill
+// extern fn ui_get_image(int x, int y, int w, int h) -> int
+// CALL ui_get_image
+// extern fn ui_put_image(int x, int y, int handle, int mode) -> int
+// CALL ui_put_image
 // extern fn ui_text(int x, int y, char* s, int color, int size, int anchor) -> void
 // CALL ui_text
 // extern fn ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) -> void
@@ -2396,6 +2402,10 @@
 // CALL ui_store_set
 // extern fn ui_store_get(char* key, char* buf, int cap) -> int
 // CALL ui_store_get
+// extern fn ui_argc(void) -> int
+// CALL ui_argc
+// extern fn ui_arg(int i, char* buf, int cap) -> int
+// CALL ui_arg
 // extern fn callwithint8(int* v) -> int
 // CALL callwithint8
 // extern fn callwithfloat8(float* v) -> float

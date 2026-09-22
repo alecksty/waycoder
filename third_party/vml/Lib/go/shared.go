@@ -5383,6 +5383,21 @@ func ui_present() {
     vml.Call("ui_present")
 }
 
+func ui_flood_fill(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_flood_fill")
+    return vml.R0()
+}
+
+func ui_get_image(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_get_image")
+    return vml.R0()
+}
+
+func ui_put_image(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_put_image")
+    return vml.R0()
+}
+
 func ui_text(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
     vml.Call("ui_text")
 }
@@ -5666,6 +5681,16 @@ func ui_store_set(a0 int32, a1 int32) {
 
 func ui_store_get(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("ui_store_get")
+    return vml.R0()
+}
+
+func ui_argc() int32 {
+    vml.Call("ui_argc")
+    return vml.R0()
+}
+
+func ui_arg(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_arg")
     return vml.R0()
 }
 

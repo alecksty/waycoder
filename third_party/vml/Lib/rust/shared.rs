@@ -7073,6 +7073,27 @@ fn ui_present() {
     asm!("CALL ui_present")
 }
 
+fn ui_flood_fill(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_flood_fill")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_get_image(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_get_image")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_put_image(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_put_image")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_text(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
     asm!("CALL ui_text")
 }
@@ -7414,6 +7435,20 @@ fn ui_store_set(a0: i32, a1: i32) {
 
 fn ui_store_get(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_store_get")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_argc() -> i32 {
+    asm!("CALL ui_argc")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_arg(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_arg")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

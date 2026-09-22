@@ -1134,6 +1134,9 @@ extern "C" {
      void ui_circle(int cx, int cy, int r, int color, int fill, int lw);
      void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);
      void ui_present(void);
+     int ui_flood_fill(int x, int y, int color, int border);
+     int ui_get_image(int x, int y, int w, int h);
+     int ui_put_image(int x, int y, int handle, int mode);
      void ui_text(int x, int y, char* s, int color, int size, int anchor);
      void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
      void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);
@@ -1199,6 +1202,8 @@ extern "C" {
      void ui_keep_on(int on);
      void ui_store_set(char* key, char* value);
      int ui_store_get(char* key, char* buf, int cap);
+     int ui_argc(void);
+     int ui_arg(int i, char* buf, int cap);
      int callwithint8(int* v);
      float callwithfloat8(float* v);
      long callwithlong4(long* v);

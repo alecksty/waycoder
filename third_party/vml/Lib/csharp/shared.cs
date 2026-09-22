@@ -1134,6 +1134,9 @@ namespace VML {
     // extern void ui_circle(int cx, int cy, int r, int color, int fill, int lw);  // CALL ui_circle
     // extern void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);  // CALL ui_ellipse
     // extern void ui_present(void);  // CALL ui_present
+    // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
+    // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
+    // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image
     // extern void ui_text(int x, int y, char* s, int color, int size, int anchor);  // CALL ui_text
     // extern void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);  // CALL ui_text_styled
     // extern void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);  // CALL ui_text_v
@@ -1199,6 +1202,8 @@ namespace VML {
     // extern void ui_keep_on(int on);  // CALL ui_keep_on
     // extern void ui_store_set(char* key, char* value);  // CALL ui_store_set
     // extern int ui_store_get(char* key, char* buf, int cap);  // CALL ui_store_get
+    // extern int ui_argc(void);  // CALL ui_argc
+    // extern int ui_arg(int i, char* buf, int cap);  // CALL ui_arg
     // extern int callwithint8(int* v);  // CALL callwithint8
     // extern float callwithfloat8(float* v);  // CALL callwithfloat8
     // extern long callwithlong4(long* v);  // CALL callwithlong4

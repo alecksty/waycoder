@@ -1,12 +1,4 @@
 
-.linked "builtins.vml"
-.linked "wchar.vml"
-.linked "uchar.vml"
-.linked "ctype.vml"
-.linked "printf.vml"
-.linked "uscanf.vml"
-.linked "wscanf.vml"
-.linked "wstring.vml"
 .data
 
 .text

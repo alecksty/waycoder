@@ -120,6 +120,39 @@ public static class VmlUi
     /// </summary>
     public const int WinOpenPc = 582;
 
+    // ── 像素读回（583–585）────────────────────────────────────────────────
+    //
+    // 老 graphics.h 程序要做**填充**与**精灵**就绕不开读像素：
+    //   · `floodfill(x, y, border)` —— 从种子点灌色，碰到边界色停；
+    //   · `getimage` / `putimage`   —— 存一块画面 / 贴回去（精灵保存-恢复）。
+    // 而场景是**保留模式**的（只有图元、没有像素缓冲），所以这三个号在宿主侧
+    // 都要先**光栅化一次**才能回答"这个像素是什么颜色"。
+    //
+    // ⚠ **`FloodFill` 的返回值不是像素数，是"落了多少条游程"** —— 消费者是场景，
+    //   而场景只有图元：逐像素输出意味着一次填充塞几十万个 `ui_pixel`。
+    //   扫描线填充天生按行产出段，**一段 = 一个矩形**（见 `FloodFill.Runs`）。
+
+    /// <summary>`FLOOD_FILL`：R0=x R1=y R2=填充色(0xAARRGGBB) R3=边界色 → R0=落了几个矩形（0=没填）。</summary>
+    public const int FloodFill = 583;
+
+    /// <summary>
+    /// `GET_IMAGE`：R0=x R1=y R2=w R3=h → R0=**图像句柄**（≥1），失败 0。
+    ///
+    /// 句柄由**宿主**保管（不是 VML 内存里的缓冲区）—— 与 `ui_brush`/`ui_gradient`
+    /// 同一套思路。老程序的 `p = malloc(imagesize(...))` 照写不误，只是那块内存
+    /// 我们不用（BGI 的 `imagesize` 返回 `4 + 2*w*h` 这类字节数，程序只拿它喂 malloc）。
+    /// </summary>
+    public const int GetImage = 584;
+
+    /// <summary>
+    /// `PUT_IMAGE`：R0=x R1=y R2=句柄 R3=模式（0=COPY 直接贴 / 1=XOR 异或）→ R0=1 成功、0 失败。
+    ///
+    /// ⚠ 两种模式**实现代价差很多**：COPY 只要把存下的图元贴上去；
+    /// **XOR 必须先光栅化目的区域**（异或要读目的像素），再算、再编码。精灵动画
+    /// （每帧一次 getimage + 两次 putimage）走 XOR 时这笔开销是实打实的。
+    /// </summary>
+    public const int PutImage = 585;
+
     /// <summary>`WIN_OPEN_EX` 的 R4：显示屏幕手柄（默认）。</summary>
     public const int NeedGamepad = 1;
     /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
@@ -734,6 +767,8 @@ public static class VmlUi
         // 窗体与绘图 520–533
         WinOpen, WinClose, DrawClear, DrawPixel, DrawLine, DrawRect, DrawCircle, DrawEllipse,
         DrawText, DrawIcon, DrawImage, DrawPresent, SetFont, Text,
+        // 像素读回 583–585
+        FloodFill, GetImage, PutImage,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
@@ -1620,6 +1655,23 @@ public sealed class VmlScene
             return;
         }
         Add($"text {x} {y} \"{ch}\" {size} {Hex(color)} start");
+    }
+
+    /// <summary>
+    /// 一条**实心水平游程** —— 种子填充（`FLOOD_FILL`）的落笔方式。
+    ///
+    /// <para>
+    /// 与 <see cref="AddShape"/> 走当前样式不同，这里**把颜色写死在这一行里**：
+    /// 填充算出来的每条游程颜色都一样，但**不该受"当前填充刷子"影响** ——
+    /// 老程序的 `floodfill(x,y,border)` 灌的是 `setfillstyle` 设的那个色，
+    /// 而那条状态在共享层已经解析成了具体颜色传下来，再走一次样式反而会串。
+    /// </para>
+    /// </summary>
+    public void AddFilledRun(int x, int y, int w, int h, uint color)
+    {
+        if (w <= 0 || h <= 0) return;
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        Add($"rect {x} {y} {Dim(w)} {Dim(h)} {Hex(color)}");
     }
 
     public void AddImage(int x, int y, string path, int w, int h)

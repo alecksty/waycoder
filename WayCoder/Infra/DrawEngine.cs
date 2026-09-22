@@ -703,6 +703,32 @@ public static class DrawRunner
         return 1;
     }
 
+    /// <summary>
+    /// **把文档光栅化到像素缓冲**（不编 PNG）—— 供**像素读回**用
+    /// （`getpixel` / `floodfill` / `getimage` 那一族）。
+    ///
+    /// <para>
+    /// 与 <see cref="ToPng"/> 走**同一条光栅路径**（同一个 <c>Canvas</c> + 同一批
+    /// <c>Rasterize</c>），只差最后那一步编码。读回要的是像素，编成 PNG 再解开是纯浪费
+    /// —— 本仓在绘图窗口那条链上刚因为同样的事吃过一次亏（每帧编 333KB PNG 又立刻解开）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **刻意不开抗锯齿**：超采样会把画布放大 s² 倍再缩回来，读回的像素经过平均后
+    /// **不再是程序画的那个颜色**（1px 的线会被摊成一片灰）。而 `floodfill` 判的正是
+    /// "这个像素是不是边界色" —— 颜色被平均过就判错了。所以读回一律**原尺寸**。
+    /// </para>
+    /// </summary>
+    public static Canvas Rasterize(DrawDocument doc)
+    {
+        if (doc.Width <= 0 || doc.Height <= 0 || (long)doc.Width * doc.Height > MaxCanvasPixels)
+            throw new InvalidOperationException("画布尺寸非法或过大");
+        var canvas = new Canvas(doc.Width, doc.Height, doc.Background);
+        foreach (var f in doc.Figures)
+            DrawCommandRegistry.Get(f.Kind)?.Rasterize(canvas, f);
+        return canvas;
+    }
+
     static byte[] RenderPng(DrawDocument doc, int w, int h)
     {
         var canvas = new Canvas(w, h, doc.Background);

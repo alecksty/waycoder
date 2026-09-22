@@ -37,9 +37,18 @@
  *
  * ## 覆盖范围
  *
- * 收的是**用得最多**的那些（用户定的规矩：只管大多数）。没做的（`getimage`/`putimage`
- * 位图块、`registerbgidriver`、字体文件、`floodfill` 的种子填充）**不假装支持** ——
+ * 收的是**用得最多**的那些（用户定的规矩：只管大多数）。没做的
+ * （`registerbgidriver`、字体文件、`setviewport`/`textwidth` 那几样）**不假装支持** ——
  * 缺了就是编译期找不到符号，比"编得过、跑起来什么也没有"好排查。
+ *
+ * ## 像素读回是**平台新做的**（v0.96.379）
+ *
+ * `floodfill` / `getimage` / `putimage` 一开始列为"不做"，理由是"场景没有像素缓冲"。
+ * 但它们恰恰是老图形程序**填充**与**精灵**的两条命脉（实测语料里 `floodfill` 出现
+ * 10 次），所以后来按用户的意见做成了三个 syscall（583–585）：
+ * 宿主**当场光栅化一次**来回答"这个像素是什么颜色"，再把结果落回场景。
+ * ⚠ 三者的实现代价不同：`floodfill` / `putimage(XOR)` 各要一次光栅化，
+ *   `putimage(COPY)` 不用 —— 精灵动画每帧两次 putimage，这个差别是实打实的。
  */
 #ifndef _GRAPHICS_H
 #define _GRAPHICS_H
@@ -96,6 +105,12 @@
 #define DASHED_LINE   3
 #define NORM_WIDTH    1
 #define THICK_WIDTH   3
+
+/* 位运算模式（`putimage` 的第四个参数）。
+ * ⚠ 只实现这两个 —— BGI 还有 OR_PUT/AND_PUT/NOT_PUT 等，平台上没有对应物，
+ *   **不假装支持**（做成"当 COPY 处理"会让程序画出错的东西还不报错）。 */
+#define COPY_PUT      0
+#define XOR_PUT       1
 
 /* 文字对齐（settextjustify）*/
 #define LEFT_TEXT     0
@@ -167,11 +182,18 @@ static int _bgi_pal[16] = {
     0xFFFFFF   /* 15 白   */
 };
 
+/* 调色板索引 → 本平台的颜色（**0xAARRGGBB**）。
+ *
+ * ⚠ **必须补上不透明的 alpha（0xFF）**。`_bgi_pal` 里存的是 24 位 RGB，
+ *   高 8 位是 0，而平台的落笔是 `if (a == 0) return; // 全透明 = 不画`
+ *   —— 不补的话**所有颜色都是全透明**：程序照常跑、`floodfill` 照常算、
+ *   一个错误都不报，**屏幕上却什么都没有**（实测踩到：BGI 程序出帧全黑）。
+ *   这也是"BGI 的屏幕是不透明的"这句常识在代码上的落点。 */
 int _bgi_rgb(int idx)
 {
     if (idx < 0) idx = 0;
     if (idx > 15) idx = 15;
-    return _bgi_pal[idx];
+    return _bgi_pal[idx] | 0xFF000000;
 }
 
 /* ── 生命周期 ──────────────────────────────────────────────── */
@@ -401,6 +423,82 @@ static void _bgi_pie(int x, int y, int st, int en, int r, int filled)
 void arc(int x, int y, int st, int en, int r)              { _bgi_pie(x, y, st, en, r, 0); }
 void pieslice(int x, int y, int st, int en, int r)         { _bgi_pie(x, y, st, en, r, 1); }
 void sector(int x, int y, int st, int en, int xr, int yr)  { (void)yr; _bgi_pie(x, y, st, en, xr, 1); }
+
+/* ── 填充与图像块（老程序的"灌色"与"精灵"）────────────────────
+ *
+ * 这四个在**平台侧是新做的**（`ui_flood_fill` / `ui_get_image` / `ui_put_image`，
+ * 583–585）—— 场景是保留模式的，宿主要先光栅化一次才知道"这个像素是什么颜色"。
+ *
+ * ## `floodfill(x, y, border)` —— 注意参数不是"填充色"
+ *
+ * BGI 的签名里**没有填充色**：填什么色由 `setfillstyle` 决定，第三个参数是**边界色**
+ * （"碰到它就停"）。所以这里要把当前填充色从 `_bgi_fill_col` 翻成 RGB 传下去。
+ */
+void floodfill(int x, int y, int border)
+{
+    ui_flood_fill(x, y, _bgi_rgb(_bgi_fill_col), _bgi_rgb(border));
+}
+
+/* `imagesize` 返回**这块图像要多少字节** —— 老程序拿它去 `malloc`：
+ *
+ *     area = imagesize(l, t, r, b);
+ *     p    = malloc(area);
+ *     getimage(l, t, r, b, p);
+ *
+ * ⚠ 那块内存**我们不用**（句柄在宿主侧保管，见 `ui_get_image`），但**必须给个像样的数**：
+ *   返回 0 的话 `malloc(0)` 可能返回 NULL，后面的 `putimage` 就被程序自己跳过了。
+ *   按 BGI 的算法给（4 字节头 + 每像素 2 字节的位平面估算）。 */
+int imagesize(int l, int t, int r, int b)
+{
+    int w = r - l + 1;
+    int h = b - t + 1;
+    if (w <= 0 || h <= 0) return 0;
+    return 4 + w * h * 2;
+}
+
+/* 老程序的 `p`（那个 malloc 出来的缓冲区）我们**收下但不解引用** —— 真正的内容在
+ * 宿主侧的句柄里。所以这里必须**按地址存一份映射**，好让 `putimage(p)` 找回来。
+ *
+ * ⚠ 为什么不能拿 `p` 当地址直接用：本平台下 `(int)p` 不是宿主的句柄，
+ *   而句柄是**运行时才产生**的（每次 getimage 一个新的）。
+ *   所以用一张**按指针索引**的小表把两者对上。表大小取常见的精灵数量（BGI 程序
+ *   一般同时也就几个），满了就**覆盖最旧的一条**并且不再增长 —— 老程序里的
+ *   `p` 是 malloc 出来的、地址稳定，覆盖最旧不影响正在用的那些。 */
+#define BGI_IMG_SLOTS 16
+static void *_bgi_img_ptr[BGI_IMG_SLOTS];
+static int   _bgi_img_h[BGI_IMG_SLOTS];
+static int   _bgi_img_next = 0;
+
+void getimage(int l, int t, int r, int b, void *p)
+{
+    int h = ui_get_image(l, t, r - l + 1, b - t + 1);
+    if (h <= 0 || p == 0) return;
+
+    /* 先看这个指针是不是已经登记过（同一块缓冲区反复 getimage 很常见）*/
+    int i;
+    for (i = 0; i < BGI_IMG_SLOTS; i++) {
+        if (_bgi_img_ptr[i] == p) { _bgi_img_h[i] = h; return; }
+    }
+    i = _bgi_img_next;
+    _bgi_img_next = (i + 1) % BGI_IMG_SLOTS;
+    _bgi_img_ptr[i] = p;
+    _bgi_img_h[i] = h;
+}
+
+/* `op`：BGI 的 COPY_PUT / XOR_PUT（见上面的 #define）。 */
+void putimage(int l, int t, void *p, int op)
+{
+    int i;
+    int handle = 0;
+    for (i = 0; i < BGI_IMG_SLOTS; i++) {
+        if (_bgi_img_ptr[i] == p && _bgi_img_h[i] != 0) { handle = _bgi_img_h[i]; break; }
+    }
+    /* 没登记过（程序自己编了个 p 就调 putimage）⇒ 什么都不做。
+       ⚠ **不要拿 p 当句柄碰运气** —— 那会贴出一块谁也说不清的像素。 */
+    if (handle == 0) return;
+
+    ui_put_image(l, t, handle, op == XOR_PUT ? 1 : 0);
+}
 
 /* ── 文字 ──────────────────────────────────────────────────── */
 

@@ -26,6 +26,7 @@ public static partial class SelfTest
     {
         TestVmlMessageQueue(Section, Check, Fail);
         TestVmlHostDispatch(Section, Check, Fail);
+        TestVmlPixelReadback(Section, Check, Fail);
         TestVmlMemoryAccess(Section, Check, Fail);
     }
 
@@ -114,6 +115,56 @@ public static partial class SelfTest
         public bool OpenResult = true;
 
         public bool OpenWindow(VmlScene scene) { Opened = scene; return OpenResult; }
+
+        /// <summary>光栅化时落过的临时图（自测结束要删）。</summary>
+        public readonly List<string> TempImages = new();
+
+        /// <summary>
+        /// **真光栅化**（不是记一笔就算）—— 走的是与两端宿主完全相同的那条路
+        /// （`DrawRunner.Parse` + `Rasterize`）。
+        ///
+        /// <para>
+        /// 假宿主只在**平台答案**上假（屏幕尺寸、对话框、音效…），而"把场景画成像素"
+        /// 这件事**没有平台差异**，用真的才能把 floodfill / getimage / putimage
+        /// 这三个号测透 —— 记一笔的假实现在这里等于什么都没测。
+        /// </para>
+        /// </summary>
+        public bool Rasterize(int x, int y, int w, int h, byte[] dest)
+        {
+            if (Opened is null || w <= 0 || h <= 0 || dest.Length < w * h * 4) return false;
+            var canvas = DrawRunner.Rasterize(DrawRunner.Parse(Opened.BuildDsl()));
+
+            for (int row = 0; row < h; row++)
+            {
+                int sy = y + row;
+                if (sy < 0 || sy >= canvas.Height) continue;
+                for (int col = 0; col < w; col++)
+                {
+                    int sx = x + col;
+                    if (sx < 0 || sx >= canvas.Width) continue;
+                    int si = (sy * canvas.Width + sx) * 4;
+                    int di = (row * w + col) * 4;
+                    dest[di] = canvas.Pixels[si];
+                    dest[di + 1] = canvas.Pixels[si + 1];
+                    dest[di + 2] = canvas.Pixels[si + 2];
+                    dest[di + 3] = canvas.Pixels[si + 3];
+                }
+            }
+            return true;
+        }
+
+        /// <summary>真编码成 PNG 落临时目录（用完由用例删）。</summary>
+        public string? SaveTempImage(int w, int h, byte[] rgba)
+        {
+            try
+            {
+                var path = Path.Combine(Path.GetTempPath(), $"vmlhost-{Guid.NewGuid():N}.png");
+                File.WriteAllBytes(path, PngEncoder.Encode(w, h, rgba));
+                TempImages.Add(path);
+                return path;
+            }
+            catch { return null; }
+        }
         public void CloseWindow() => CloseCount++;
         public void SceneChanged(VmlScene scene) => SceneChangedCount++;
 
@@ -357,6 +408,110 @@ public static partial class SelfTest
     }
 
     /// <summary>把 C 串写进内存，返回**它自己的偏移**（当作指针用）。</summary>
+    /// <summary>
+    /// **像素读回**（583–585）：`floodfill` / `getimage` / `putimage`。
+    ///
+    /// <para>
+    /// 这一批是**老 graphics.h 程序的命脉** —— 填充与精灵都绕不开读像素
+    /// （实测语料里 `floodfill` 出现 10 次、`getimage`/`putimage` 8 次）。
+    /// 而场景是**保留模式**的（只有图元、没有像素缓冲），所以三个号在宿主侧都要
+    /// **先光栅化一次**才能回答"这个像素是什么颜色"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 判据必须落到**像素**上，不能只看"调用返回了 1"：`floodfill` 最容易出的错是
+    /// **填错地方**（种子点判错、边界色比错、游程坐标算反），而那几种错法**返回值都正常**。
+    /// 所以这里用假宿主的**真光栅化**（`DrawRunner`，与两端宿主同一条路）把画面读回来逐点比。
+    /// </para>
+    /// </summary>
+    private static void TestVmlPixelReadback(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VML 宿主：像素读回（floodfill / getimage / putimage）");
+
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var regs = new int[32];
+        var mem = new byte[4096];
+
+        // 开一个 16×16 的窗（走真实 syscall 路径，场景由运行时建）
+        regs[0] = WriteCStr(mem, 0, "readback");
+        regs[1] = 16; regs[2] = 16; regs[3] = 0; regs[4] = 0;
+        rt.HandleSyscall(VmlUi.WinOpen, regs, mem);
+        var scene = rt.Scene();
+        if (scene is null) { Check("开窗拿到场景", false); return; }
+        scene.Width = 16; scene.Height = 16;
+
+        const uint BORDER = 0xFFFF0000;   // 红边
+        const uint FILL = 0xFF00FF00;     // 绿填充
+
+        // 沿四边铺一圈红色 —— 中间 14×14 是"里面"
+        scene.AddFilledRun(0, 0, 16, 1, BORDER);
+        scene.AddFilledRun(0, 15, 16, 1, BORDER);
+        scene.AddFilledRun(0, 1, 1, 14, BORDER);
+        scene.AddFilledRun(15, 1, 1, 14, BORDER);
+
+        // ── floodfill ────────────────────────────────────────────────────────
+        regs[0] = 8; regs[1] = 8;                       // 种子点（框内）
+        regs[2] = unchecked((int)FILL);                 // 填充色
+        regs[3] = unchecked((int)BORDER);               // 边界色
+        Check("FLOOD_FILL 被宿主认领", rt.HandleSyscall(VmlUi.FloodFill, regs, mem));
+        Check($"框内 14×14 落成 14 条游程（实得 {regs[0]}）", regs[0] == 14);
+
+        // **像素判据**：重新光栅化，逐点看框内是不是填成了绿色、框上还是红的
+        var buf = new byte[16 * 16 * 4];
+        if (!host.Rasterize(0, 0, 16, 16, buf))
+        {
+            Check("假宿主能光栅化（自测装置本身）", false);
+        }
+        else
+        {
+            bool InsideGreen(int x, int y)
+            {
+                int i = (y * 16 + x) * 4;
+                return buf[i] == 0x00 && buf[i + 1] == 0xFF && buf[i + 2] == 0x00;
+            }
+            bool EdgeRed(int x, int y)
+            {
+                int i = (y * 16 + x) * 4;
+                return buf[i] == 0xFF && buf[i + 1] == 0x00 && buf[i + 2] == 0x00;
+            }
+
+            Check("框内被填成填充色（逐像素）",
+                InsideGreen(8, 8) && InsideGreen(1, 1) && InsideGreen(14, 14));
+            Check("边界**没有被越过**（框上仍是边框色）",
+                EdgeRed(0, 0) && EdgeRed(8, 0) && EdgeRed(0, 8) && EdgeRed(15, 15));
+        }
+
+        // 种子点在边界色上 ⇒ BGI 语义是"什么都不做"（不是错误）
+        regs[0] = 0; regs[1] = 0; regs[2] = unchecked((int)FILL); regs[3] = unchecked((int)BORDER);
+        rt.HandleSyscall(VmlUi.FloodFill, regs, mem);
+        Check("种子点在边界上 ⇒ 不填（返回 0）", regs[0] == 0);
+
+        // ── getimage / putimage ─────────────────────────────────────────────
+        regs[0] = 0; regs[1] = 0; regs[2] = 4; regs[3] = 4;
+        rt.HandleSyscall(VmlUi.GetImage, regs, mem);
+        int handle = regs[0];
+        Check($"GET_IMAGE 返回句柄（实得 {handle}）", handle >= 1);
+
+        int figuresBefore = scene.FigureCount;
+        regs[0] = 4; regs[1] = 4; regs[2] = handle; regs[3] = 0;    // COPY
+        rt.HandleSyscall(VmlUi.PutImage, regs, mem);
+        Check("PUT_IMAGE(COPY) 成功并在场景里落了一笔", regs[0] == 1 && scene.FigureCount > figuresBefore);
+
+        // 句柄不认识 ⇒ 必须失败（**不能拿别的块碰运气贴上去**）
+        regs[0] = 4; regs[1] = 4; regs[2] = 9999; regs[3] = 0;
+        rt.HandleSyscall(VmlUi.PutImage, regs, mem);
+        Check("不认识的句柄 ⇒ 返回 0 且不落笔", regs[0] == 0);
+
+        // 尺寸非法 ⇒ GET_IMAGE 返回 0（不是崩）
+        regs[0] = 0; regs[1] = 0; regs[2] = 0; regs[3] = -1;
+        rt.HandleSyscall(VmlUi.GetImage, regs, mem);
+        Check("GET_IMAGE 尺寸非法 ⇒ 返回 0、不抛", regs[0] == 0);
+
+        // 清理假宿主落的临时图（不清理会在临时目录里越堆越多）
+        foreach (var f in host.TempImages) { try { File.Delete(f); } catch { } }
+    }
+
     private static int WriteCStr(byte[] mem, int offset, string s)
     {
         var bytes = System.Text.Encoding.UTF8.GetBytes(s);

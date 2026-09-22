@@ -107,6 +107,33 @@ public interface IVmlHost
     /// <summary>玩游戏时别熄屏。</summary>
     void KeepScreenOn(bool on);
 
+    // ── 像素读回（583–585：floodfill / getimage / putimage）──────────────────
+    //
+    // 场景是**保留模式**的（只有图元、没有像素缓冲），所以"这个像素是什么颜色"
+    // 只能靠**当场光栅化**一次来回答。光栅器两端都有
+    // （`DrawRunner.Rasterize`，桌面与手机编的是同一份 `Infra/`），
+    // 但**放在宿主接口上**而不是共享层直接调：渲染是宿主的职责
+    //（`IVmlHost.OpenWindow(VmlScene)` 已经是这个分工）。
+
+    /// <summary>
+    /// 把当前场景的一块区域光栅化成像素，写进 <paramref name="dest"/>
+    /// （**RGBA 行优先**，长度须为 w*h*4）。返回 false = 这一端没有光栅化能力。
+    /// </summary>
+    bool Rasterize(int x, int y, int w, int h, byte[] dest);
+
+    /// <summary>
+    /// 把一块像素存成宿主的一个**临时图片文件**，返回路径（供场景的 `image` 图元引用）。
+    /// 失败返回 null。
+    ///
+    /// <para>
+    /// ⚠ **为什么要经过文件**：场景与宿主之间的契约是**一段 DSL 文本**
+    /// （`ui_image` 走的也是 `image x y "路径" w h`）。把几万像素塞进文本不现实，
+    /// 而复用现成的 image 图元连渲染器都不用改。代价是每次 `putimage` 编一次 PNG
+    /// —— 精灵动画（每帧两次）会实打实吃到这笔开销。
+    /// </para>
+    /// </summary>
+    string? SaveTempImage(int w, int h, byte[] rgba);
+
     // ── 杂项 ────────────────────────────────────────────────────────────────
 
     /// <summary>把程序给的相对路径解析成绝对路径（沙箱规则各端不同：
@@ -393,6 +420,11 @@ public sealed class VmlHostRuntime
                 case VmlUi.StoreGet: registers[0] = StoreGet(registers, memory); break;
                 case VmlUi.StoreDel: registers[0] = StoreDel(registers, memory); break;
                 case VmlUi.ScreenKeepOn: _host.KeepScreenOn(registers[0] != 0); registers[0] = 0; break;
+
+                // 像素读回（583–585）—— 详见各方法上的注释
+                case VmlUi.FloodFill: registers[0] = DoFloodFill(registers); TouchScene(); break;
+                case VmlUi.GetImage:  registers[0] = DoGetImage(registers); break;
+                case VmlUi.PutImage:  registers[0] = DoPutImage(registers) ? 1 : 0; TouchScene(); break;
 
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
@@ -1062,4 +1094,106 @@ public sealed class VmlHostRuntime
         mem[dst + n] = 0;
         return bytes.Length <= cap - 1 ? n : -1;
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 像素读回（583–585）：floodfill / getimage / putimage
+    //
+    // 老 graphics.h 程序做**填充**与**精灵**绕不开读像素，而场景是保留模式的
+    // ⇒ 三个号在宿主侧都要先**光栅化一次**。三条硬约定：
+    //
+    //   ① **坐标同源**：光栅化的画布尺寸就是场景自己的 `W×H`（DSL 里 `canvas W H`
+    //      那一条），所以程序给的坐标**直接用**，不做任何换算。
+    //   ② **alpha 一律补 255**：BGI 的屏幕是不透明的，而 XOR 会把 alpha 也异或成 0
+    //      ⇒ 那一块会变成全透明、贴上去什么都看不见。读回与异或之后都强制不透明。
+    //   ③ **句柄由宿主保管**：老程序的 `p = malloc(imagesize(...))` 照写不误，
+    //      只是那块内存我们不用 —— 与 `ui_brush`/`ui_gradient` 同一套思路。
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>一块存下来的画面。<see cref="Rgba"/> 行优先、长度 = W*H*4。</summary>
+    private sealed record ImageBlock(int W, int H, byte[] Rgba);
+
+    private readonly Dictionary<int, ImageBlock> _images = new();
+    private int _nextImageHandle = 1;
+
+    /// <summary>
+    /// `FLOOD_FILL`（BGI 的 `floodfill`）—— 从种子点灌色，碰到边界色停。
+    ///
+    /// 光栅化一次 → 扫描线求游程 → **每条游程落成一个矩形**（见 `FloodFill.Runs`）。
+    /// 返回落笔了几条（0 = 没填，例如种子点本身就在边界上）。
+    /// </summary>
+    private int DoFloodFill(int[] r)
+    {
+        var scene = Scene();
+        if (scene is null || scene.Width <= 0 || scene.Height <= 0) return 0;
+
+        int x = r[0], y = r[1], fill = r[2], border = r[3];
+        var rgba = new byte[scene.Width * scene.Height * 4];
+        if (!_host.Rasterize(0, 0, scene.Width, scene.Height, rgba)) return 0;
+
+        var px = RgbaToArgb(rgba);
+        var runs = FloodFill.Runs(px, scene.Width, scene.Height, x, y, border);
+        foreach (var run in runs)
+            scene.AddFilledRun(run.X, run.Y, run.W, 1, (uint)fill);
+        return runs.Count;
+    }
+
+    /// <summary>`GET_IMAGE` → 句柄（≥1），失败 0。</summary>
+    private int DoGetImage(int[] r)
+    {
+        int x = r[0], y = r[1], w = r[2], h = r[3];
+        if (w <= 0 || h <= 0) return 0;
+
+        var buf = new byte[w * h * 4];
+        if (!_host.Rasterize(x, y, w, h, buf)) return 0;
+
+        Opaque(buf);                       // 见上面第 ② 条
+        int handle = _nextImageHandle++;
+        _images[handle] = new ImageBlock(w, h, buf);
+        return handle;
+    }
+
+    /// <summary>`PUT_IMAGE`（0=COPY 直贴 / 1=XOR 异或）。</summary>
+    private bool DoPutImage(int[] r)
+    {
+        var scene = Scene();
+        if (scene is null) return false;
+
+        int x = r[0], y = r[1], handle = r[2], mode = r[3];
+        if (!_images.TryGetValue(handle, out var blk)) return false;
+
+        var pixels = blk.Rgba;
+
+        if (mode != 0)
+        {
+            // **XOR 必须先读目的像素** —— 这是它比 COPY 贵的地方（多一次光栅化 + 一次编码）。
+            // 老程序拿它做"画上去再画一次就还原"（精灵保存-恢复）。
+            var dst = new byte[blk.W * blk.H * 4];
+            if (!_host.Rasterize(x, y, blk.W, blk.H, dst)) return false;
+            for (int i = 0; i < pixels.Length; i++) pixels[i] ^= dst[i];
+            Opaque(pixels);                // ⚠ 异或也会把 alpha 打成 0 ⇒ 必须补回来（第 ② 条）
+        }
+
+        var path = _host.SaveTempImage(blk.W, blk.H, pixels);
+        if (path is null) return false;
+
+        scene.AddImage(x, y, path, blk.W, blk.H);
+        return true;
+    }
+
+    /// <summary>RGBA 字节流 → `0xAARRGGBB` 的 int 数组（`FloodFill` 要的形态）。</summary>
+    private static int[] RgbaToArgb(byte[] rgba)
+    {
+        var px = new int[rgba.Length / 4];
+        for (int i = 0; i < px.Length; i++)
+            px[i] = (rgba[i * 4 + 3] << 24) | (rgba[i * 4] << 16)
+                  | (rgba[i * 4 + 1] << 8) | rgba[i * 4 + 2];
+        return px;
+    }
+
+    /// <summary>把 alpha 一律置 255（BGI 的屏幕不透明；异或之后尤其要补，否则整块透明）。</summary>
+    private static void Opaque(byte[] rgba)
+    {
+        for (int i = 3; i < rgba.Length; i += 4) rgba[i] = 255;
+    }
+
 }
