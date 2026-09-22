@@ -77,10 +77,57 @@ public static class VmlUi
     public const int Rotatable = 1;
     /// <summary>`WIN_OPEN_EX` 的 R3：**只支持横屏**（把屏幕锁在横屏）。</summary>
     public const int LandscapeOnly = 2;
+    /// <summary>
+    /// 开**电脑屏窗口**：R0=标题* R1=宽 R2=高 R3=方向声明 R4=要屏幕键盘 → 句柄，失败 -1。
+    ///
+    /// <para>
+    /// 给**老程序**（DOS / 早期 PC 那种"固定分辨率 + 键盘 + 鼠标"的程序）用的第三种窗口。
+    /// 与 <see cref="WinOpenEx"/> 的差别是**三件**：
+    /// </para>
+    ///
+    /// <list type="number">
+    /// <item>**坐标系固定**为程序声明的 `w×h`，**永不**跟随旋转重排 ——
+    ///   老程序按固定分辨率排的版，换空间就会画到框外；</item>
+    /// <item>触摸**只发鼠标消息**（`MouseDown/Move/Up`），**不发** `TouchDown/Move/Up` ——
+    ///   老程序处理的是鼠标，收到触摸事件反而会乱；</item>
+    /// <item>带**屏幕键盘**（PC 布局）而不是手柄区。</item>
+    /// </list>
+    ///
+    /// <para>
+    /// ⚠ **为什么不给 <see cref="WinOpenEx"/> 的 R3 再加一档**：R3 是**转屏声明**，
+    /// 加一档就是给同一只寄存器第二语义 —— "一个值两个含义"正是本仓反复踩的那类；
+    /// 而且三档窗口的**实现根本不在同一层**（图形 = 开页 + 场景；电脑屏 = 固定坐标系 +
+    /// 不同输入 + 键盘）。新能力一律走新号。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **命名里的 `Pc` 是"电脑屏"，与 PC 喇叭（`#57`）无关。**
+    /// </para>
+    ///
+    /// ## R3 方向声明（语义与 <see cref="WinOpenEx"/> 同）
+    /// 只是这里**没有 Rotatable 那一档** —— 电脑屏的坐标系**固定**为程序声明的 `w×h`，
+    /// 永远不重排。所以：
+    /// · `0` / `VML_WIN_PORTRAIT` = 锁在竖屏；· `2` / `VML_WIN_LANDSCAPE` = 锁在横屏；
+    /// · `1` / 其它 = **不锁**（跟着设备转，但**坐标系不动**，宿主等比缩放着显示）。
+    ///
+    /// ## R4 要屏幕键盘（<see cref="NeedKeyboard"/> / <see cref="NoKeyboard"/>）
+    /// 电脑屏的输入是**键盘 + 鼠标**，所以这一位管的是**屏幕键盘**而不是手柄 ——
+    /// 位置与 <see cref="WinOpenEx"/> 的 R4 对称（那里是手柄）。默认要（=1）。
+    /// 只做鼠标交互的程序可以关掉它，画布就吃满整屏。
+    ///
+    /// ⚠ **参数布局与 <see cref="WinOpenEx"/> 逐位对齐，但 R3/R4 的含义各自定义** ——
+    /// 宿主**分开读**（老号不读 R3/R4，见那边的说明），不是同一套 switch。
+    /// </summary>
+    public const int WinOpenPc = 582;
+
     /// <summary>`WIN_OPEN_EX` 的 R4：显示屏幕手柄（默认）。</summary>
     public const int NeedGamepad = 1;
     /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
     public const int NoGamepad = 0;
+    /// <summary>`WIN_OPEN_PC` 的 R4：显示屏幕键盘（默认）。取值与 <see cref="NeedGamepad"/> 同。</summary>
+    public const int NeedKeyboard = 1;
+    /// <summary>`WIN_OPEN_PC` 的 R4：不要屏幕键盘（只做鼠标交互的程序），画布吃满整屏。</summary>
+    public const int NoKeyboard = 0;
     /// <summary>
     /// **全能接口**：R0=函数名* R1=参数 JSON* R2=输出缓冲 R3=缓冲容量 → 写入字节数，失败 -1。
     ///
@@ -266,6 +313,46 @@ public static class VmlUi
     /// </summary>
     public static int OrientationOf(double width, double height)
         => width > height ? Landscape : Portrait;
+
+    /// <summary>
+    /// **开窗号 → 窗口种类**。
+    ///
+    /// <para>
+    /// 种类**由走的哪个号决定，不是参数**：`WIN_OPEN_PC`(#582) 开出来的**就是**电脑屏，
+    /// 别的号（#520/#570）开出来的一律是图形窗口。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **为什么不做一个统一的"种类"参数**（即让一个号承担三种）：三种窗口的**实现
+    /// 根本不在同一层**（图形 = 开页 + 场景；电脑屏 = 固定坐标系 + 不同输入 + 键盘），
+    /// 用一个号绑住三者，等于把"分类"永久写进跨语言契约，以后加第四种又要动所有人。
+    /// 而且 R1–R4 已经占满，再塞一个种类位就得扩参数 —— 那正是"新能力一律走新号"要避免的。
+    /// </para>
+    ///
+    /// <para>
+    /// 认不出来的号一律当 <see cref="VmlWinKind.Graphic"/>：那是**老窗口那一档**，
+    /// 认错时退回到"能跑"的行为，而不是让程序撞进一个它没写过的模式
+    /// （与 `WIN_OPEN_EX` 的 R3 "认不出的转屏值当 Follow" 是同一方向）。
+    /// </para>
+    /// </summary>
+    public static VmlWinKind KindOfWinOpen(int syscall)
+        => syscall == WinOpenPc ? VmlWinKind.PcScreen : VmlWinKind.Graphic;
+
+    /// <summary>
+    /// 这种窗口要不要**抑制触摸消息**。
+    ///
+    /// <para>
+    /// 电脑屏窗口只发鼠标（`Mouse*`）—— 老程序处理的是鼠标事件，同时再收到一对
+    /// `Touch*` 会让它们把每一次触摸当两次输入（点一下动两下）。
+    /// **不是"不发消息"，是"换一种消息"**：触摸本身照常当鼠标用。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 放在这里而不是写进页面：页面里那几个 `#if ANDROID` 之外的地方桌面测不到，
+    /// 而这一条是**纯逻辑**，一个断言就能钉住。
+    /// </para>
+    /// </summary>
+    public static bool SuppressTouch(VmlWinKind kind) => kind == VmlWinKind.PcScreen;
 
     /// <summary>
     /// 一块**实测视口**（宽高）是不是当前方向下量出来的。
@@ -656,6 +743,12 @@ public static class VmlUi
         MsgPoll, MsgWait, MsgCount, TimerSet, TimerKill, WinClosed, ScrW, ScrH, MsgClear, ScrOrient,
         // 扩展 570–573
         WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
+        // ⚠ `DrawTextEx = 581` 是**补进来的**（v0.96.353）：它早就定义了，
+        //   却一直没进这张表 —— 正是上面那段注释警告的"护栏形同虚设"。
+        //   没有它，581 与别的号撞了也查不出来（症状是一个功能静默变成另一个功能）。
+        DrawTextEx,
+        // 电脑屏窗口（第三种窗口）
+        WinOpenPc,
         // 绘图扩展 574–576（一个号 + 操作码，见 VmlShape / VmlBrushKind / VmlStyleSlot）
         DrawShape, Brush, SetStyle,
         // 通用宿主调用口 577–580（带类型快通道，见 VmlCallRegistry）
@@ -1051,6 +1144,29 @@ public enum WindowRotation
 }
 
 /// <summary>
+/// **窗口种类** —— 宿主拿它决定"这一扇窗要按哪套规矩来"。
+///
+/// <para>
+/// ⚠ **跨语言契约，只能末尾追加**（与 <see cref="VmlShape"/> 同规矩）：改值或插队
+/// 会让已经编出来的程序行为漂移。C 侧对应 `waycoder_ui.h` 的 `VML_WINKIND_*`。
+/// </para>
+/// </summary>
+public enum VmlWinKind
+{
+    /// <summary>
+    /// **图形窗口**（默认）：触摸 + 手柄，画布自适应缩放、可跟随旋转。
+    /// `WIN_OPEN`(#520) / `WIN_OPEN_EX`(#570) 开出来的都是这一种。
+    /// </summary>
+    Graphic = 0,
+
+    /// <summary>
+    /// **电脑屏窗口**：坐标系固定为程序声明的分辨率（永不重排）、触摸只当鼠标、
+    /// 带屏幕键盘代替手柄区。由 `WIN_OPEN_PC`(#582) 开出来。
+    /// </summary>
+    PcScreen = 1,
+}
+
+/// <summary>
 /// 一个 VML 绘图窗口的场景（保留模式）。
 ///
 /// **保留**是关键：程序把图元一条条追加进来，宿主按帧把整份场景渲染出来。
@@ -1078,6 +1194,18 @@ public sealed class VmlScene
 
     /// <summary>是否需要屏幕手柄区（`WIN_OPEN_EX` 的 R4；默认 true = 今天的行为）。</summary>
     public bool NeedGamepad { get; set; } = true;
+
+    /// <summary>
+    /// 窗口种类（见 <see cref="VmlWinKind"/>）。默认 <see cref="VmlWinKind.Graphic"/> ——
+    /// **老窗口开出来就是它**，行为一字不改。
+    /// </summary>
+    public VmlWinKind Kind { get; set; } = VmlWinKind.Graphic;
+
+    /// <summary>
+    /// 要不要**屏幕键盘**（`WIN_OPEN_PC` 的 R4）。默认 false ——
+    /// 只有电脑屏窗口会把它置上，图形窗口那条路一个字都不变。
+    /// </summary>
+    public bool NeedKeyboard { get; set; } = false;
 
     /// <summary>
     /// 换一块坐标空间（转屏 / 收起手柄之后宿主调用）。

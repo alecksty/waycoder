@@ -320,6 +320,7 @@ public sealed class VmlHostRuntime
 
                 case VmlUi.WinOpen: registers[0] = WinOpen(registers, memory, ex: false); break;
                 case VmlUi.WinOpenEx: registers[0] = WinOpen(registers, memory, ex: true); break;
+                case VmlUi.WinOpenPc: registers[0] = WinOpenPc(registers, memory); break;
                 case VmlUi.WinClose: registers[0] = WinClose(); break;
                 case VmlUi.DrawClear: Scene()?.Clear((uint)registers[0]); TouchScene(); break;
                 case VmlUi.DrawPixel: Scene()?.AddPixel(registers[0], registers[1], (uint)registers[2]); TouchScene(); break;
@@ -590,6 +591,50 @@ public sealed class VmlHostRuntime
                 _ => WindowRotation.Follow,
             },
             NeedGamepad = !ex || r[4] != VmlUi.NoGamepad,
+        };
+        _scene = scene;
+        _windowClosed = false;
+        return _host.OpenWindow(scene) ? 1 : -1;
+    }
+
+    /// <summary>
+    /// 开**电脑屏窗口**（`WIN_OPEN_PC` #582，第三种窗口）—— 给老程序用的。
+    ///
+    /// <para>
+    /// 与 <see cref="WinOpen"/> 的差别只有三处，都在 <see cref="VmlScene"/> 上表达：
+    /// **种类**（`PcScreen`）、**不要手柄**、**要屏幕键盘**。
+    /// 页面的行为分支（固定坐标系 / 触摸只当鼠标 / 显示键盘）全按这几个字段走。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **`Rotation` 取不到 `Follow`**：电脑屏的坐标系**固定**为程序声明的 `w×h`，
+    /// 老程序按那个分辨率排的版，换空间就会画到框外。所以 R3 在这里**只决定锁不锁方向**，
+    /// "不锁"那一档落到 <see cref="WindowRotation.Legacy"/>（跟随旋转但**坐标系不动**，
+    /// 宿主等比缩放着显示）—— 那正是我们要的语义，也是老窗口一直在用的那一档。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **参数分开读**（与 `#570` 各读各的）：这一批 R3/R4 的含义是
+    /// "方向声明 / 要屏幕键盘"，而 `#570` 是"方向声明 / 要手柄" —— 位置对称、语义不同。
+    /// </para>
+    /// </summary>
+    private int WinOpenPc(int[] r, byte[] mem)
+    {
+        var scene = new VmlScene
+        {
+            Title = Str(mem, r[0]) is { Length: > 0 } t ? t : "VML",
+            // 兜底取 PC 上最眼熟的那一档（老程序不传尺寸时用）
+            Width = r[1] > 0 ? r[1] : 640,
+            Height = r[2] > 0 ? r[2] : 480,
+            Kind = VmlWinKind.PcScreen,
+            Rotation = r[3] switch
+            {
+                VmlUi.PortraitOnly => WindowRotation.PortraitOnly,
+                VmlUi.LandscapeOnly => WindowRotation.LandscapeOnly,
+                _ => WindowRotation.Legacy,     // 不锁：跟着转，但坐标系不动
+            },
+            NeedGamepad = false,                // 电脑屏的输入是键盘 + 鼠标，没有手柄区
+            NeedKeyboard = r[4] != VmlUi.NoKeyboard,
         };
         _scene = scene;
         _windowClosed = false;
