@@ -58,8 +58,9 @@ namespace CCompiler
                     }
                 }
 
-                // 词法分析
-                Lexer lexer = new Lexer(processedSource, finalLineMap, filePath);
+                // 词法分析（先剥掉 `__attribute__` 这类属性注解 —— 见 AttributeStrip 的说明：
+                // 它们能出现在十来种语法位置，在解析器里逐个认就是把同一条规则实现十来遍）
+                Lexer lexer = new Lexer(AttributeStrip.Apply(processedSource), finalLineMap, filePath);
                 lexer.Diagnostics = diagnostics;
                 if (VMLPlugins.CompilerOptionsContext.Current.DumpMode)
                     lexer.DumpMode = true;
@@ -174,8 +175,8 @@ namespace CCompiler
             //   与 `Compile` 同口径——同一个东西不该两条路两种行为。
             var parseDiagnostics = new DiagnosticBag();
 
-            // 词法分析
-            Lexer lexer = new Lexer(processedSource, lineMap, filePath);
+            // 词法分析（与 `Compile` 同口径 —— 同样先剥属性注解，同一个东西不该两条路两种行为）
+            Lexer lexer = new Lexer(AttributeStrip.Apply(processedSource), lineMap, filePath);
             lexer.Diagnostics = parseDiagnostics;
             if (VMLPlugins.CompilerOptionsContext.Current.DumpMode)
                 lexer.DumpMode = true;
