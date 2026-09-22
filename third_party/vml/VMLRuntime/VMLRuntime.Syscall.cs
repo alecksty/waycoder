@@ -36,6 +36,10 @@ namespace VMLRuntime
                 case 3: ExitCode = registers[0]; pc = -1; break;     // Exit( R0 )
                 case 4: Syscall_PrintChar(); break;
                 case 5: Syscall_ReadChar(); break;
+                /* #14 = 与 #5 同语义，**唯一区别**：输入源耗尽时给 EOF(-1) 而不是空行。
+                   老程序最标准的那句 `while ((c = getchar()) != EOF)` 靠它收尾（见
+                   ExecuteSyscall5_InputChar 的 eofOnExhausted 说明）。 */
+                case 14: Syscall_ReadCharEof(); break;
                 case 6: Syscall_PrintInt(); break;
                 case 7: Syscall_ReadInt(); break;
                 case 8: Syscall_PrintFloat(); break;
@@ -916,7 +920,21 @@ namespace VMLRuntime
         /// <summary>
         /// 输入字符（向后兼容）
         /// </summary>
-        private void ExecuteSyscall5_InputChar()
+        /// <param name="eofOnExhausted">
+        /// 脚本化输入**读完**时给什么：`false` 给"空行"（`0x0A`，DOS 里最常见的"确认"），
+        /// `true` 给 **`EOF`(-1)**。
+        ///
+        /// **为什么要分成两个号**：`#5` 的"空行"语义是给 `conio.getch()` 那类**单键**读用的
+        /// （`getch` 的循环 `if (c &lt;= 0 || c == 10 || c == 13) break;` 三条都收，
+        /// 回落到 `return 13` 的"空行确认"）—— 而对 **stdio 的 `getchar()`**，
+        /// 耗尽必须给 EOF，否则老程序最标准的那句 `while ((c = getchar()) != EOF)`
+        /// **永远不结束**（实测：一直转到宿主超时被掐掉，输出 `VM execution cancelled`）。
+        ///
+        /// ⚠ **不能直接改 `#5` 去给 EOF**：`Lib/shared/src/readline.c` 的 `read_line`
+        /// 靠 `c == '\n'` 收尾，`#5` 一旦改给 -1 它就再也不会返回。
+        /// 老号语义一字不动，EOF 语义由新号 `#14` 承载（房规：新能力一律走新号）。
+        /// </param>
+        private void ExecuteSyscall5_InputChar(bool eofOnExhausted = false)
         {
             // R0=0 (or unset): non-blocking (INKEY$/KBGETCH)
             // R0=1: blocking (INPUT) — wait until key available
@@ -992,7 +1010,12 @@ namespace VMLRuntime
                    没有这一条，`getch()` 等到输入用完那一下会一直转圈，
                    老程序等的那句"回车确认"永远等不到（实测 `cases/16-conio-key.c`
                    第 5 次 `getch()` 卡到探针超时）。语义见 `ISystemCallHandler.InputExhausted`。 */
-                if (_consoleIO != null && _consoleIO.InputExhausted) { registers[0] = 0x0A; return; }
+                if (_consoleIO != null && _consoleIO.InputExhausted)
+                {
+                    /* `#14` 给 EOF(-1)，`#5` 给空行（0x0A）—— 见本方法的 eofOnExhausted 说明 */
+                    registers[0] = eofOnExhausted ? -1 : 0x0A;
+                    return;
+                }
 
                 // 超时保护: 与 KeyScript 循环一致
                 if (TimeoutSeconds > 0)
@@ -1765,6 +1788,9 @@ namespace VMLRuntime
         private void Syscall_ReadString() => ExecuteSyscall2_InputString();
         private void Syscall_PrintChar() => ExecuteSyscall4_OutputChar();
         private void Syscall_ReadChar() => ExecuteSyscall5_InputChar();
+
+        /// <summary>`#14` —— 与 `#5` 同，但**输入源耗尽时给 EOF(-1)**（stdio 的 `getchar` 用）。</summary>
+        private void Syscall_ReadCharEof() => ExecuteSyscall5_InputChar(eofOnExhausted: true);
         private void Syscall_PrintInt() => ExecuteSyscall6_OutputInt();
         private void Syscall_ReadInt() => ExecuteSyscall7_InputInt();
         private void Syscall_PrintFloat() => ExecuteSyscall8_OutputFloat();

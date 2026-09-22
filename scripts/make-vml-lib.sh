@@ -13,12 +13,13 @@
 # ⚠ **示例要打进去，光是放进 `Examples/` 目录不够** —— 这个脚本原先只打 Lib 与配置，
 #    于是 `EnsureExamples()` 一个条目都找不到、手机上没有示例（而桌面看目录一切正常）。
 #
-# ⚠ **示例只收两层，绝不递归整棵树。** 上游 `Examples/` 底下挂着 stb / stm32 那种整套工程
-#    （128 个条目里 107 个是它们），而 `EnsureExamples()` 是**平铺**解包的（丢掉目录），
-#    递归进来就是上千个文件糊进 `examples/` 一个目录、还有重名互相覆盖。
-#    收的是 `Examples/README.md`（第 1 层）与 `Examples/<语言>/<文件>`（第 2 层）——
-#    第 2 层正好等于"平铺后还能一一对应"的那一层，也就是示例的约定存放位置。
-#    ⇒ **以后加示例/游戏，直接放 `Examples/<语言>/` 下，别建子目录**（子目录不会进包）。
+# ⚠ **示例只收 1~3 层，绝不递归整棵树。** 上游 `Examples/` 底下曾挂着 stb / stm32 那种整套工程，
+#    递归进来就是上千个文件（那批现在已按 `PRUNED.txt` 清掉，但仍不该放开递归）。
+#    收三层，实测量过代价很小（第 1 层 1 个、第 2 层 116 个、第 3 层 **21 个**）：
+#      `Examples/README.md` / `Examples/<语言>/<文件>` / `Examples/<语言>/<子目录>/<文件>`
+#    第 3 层是 2026-09-22 加的 —— 此前只到第 2 层，于是 `Examples/c/old/*.c`
+#    这种"按类型分目录"的老程序**静默不进包**，而桌面直接读仓库、看不出来。
+#    （`EnsureExamples()` 早已改成**按 zip 条目保留目录结构**解包，所以三层不会互相覆盖。）
 #
 # ⚠ `*.gen.vml` 是本地跑出来的中间产物（每个几十 KB），不进包。
 #
@@ -93,7 +94,8 @@ if command -v zip >/dev/null 2>&1; then
     ( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml "${ZIP_EX[@]}" )
     ( cd "$VML" && zip -q -X "$TMP" \
         $(find Examples -maxdepth 1 -type f ! -name '*.gen.vml') \
-        $(find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml') )
+        $(find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml') \
+        $(find Examples -mindepth 3 -maxdepth 3 -type f ! -name '*.gen.vml') )
 else
     # 没有 `zip` 的机器（例如 Windows Git Bash 默认不带）走 Python —— 用**固定时间戳**
     # 保证同样的内容每次产出同样的字节（与 `zip -X` 的意图一致）。
@@ -104,7 +106,11 @@ root, out = sys.argv[1], sys.argv[2]
 exclude = set(sys.argv[3:])   # 移动端不需要的模块名（见脚本头部的 MOBILE_EXCLUDE）
 
 def examples_files():
-    """示例只收第 1 层（README）与第 2 层（<语言>/<文件>），见脚本头部注释。"""
+    """示例收第 1..3 层：`README.md` / `<语言>/<文件>` / `<语言>/<子目录>/<文件>`（见脚本头部注释）。
+
+    ⚠ 第 3 层是 2026-09-22 加的：此前只到第 2 层，于是「按类型分目录的老程序」
+      （`Examples/c/old/*.c` 这种）**静默不进包** —— 而桌面直接读仓库、完全看不出来，
+      与 `vml_lib.zip` 漂移那条是同一种"只在手机上才暴露"的形态。"""
     base = os.path.join(root, "Examples")
     for name in sorted(os.listdir(base)):
         full = os.path.join(base, name)
@@ -112,8 +118,13 @@ def examples_files():
             yield "Examples/" + name
         elif os.path.isdir(full):
             for sub in sorted(os.listdir(full)):
-                if os.path.isfile(os.path.join(full, sub)):
+                subfull = os.path.join(full, sub)
+                if os.path.isfile(subfull):
                     yield "Examples/" + name + "/" + sub
+                elif os.path.isdir(subfull):
+                    for leaf in sorted(os.listdir(subfull)):
+                        if os.path.isfile(os.path.join(subfull, leaf)):
+                            yield "Examples/" + name + "/" + sub + "/" + leaf
 
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     def add(rel):

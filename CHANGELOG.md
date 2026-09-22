@@ -1,3 +1,160 @@
+## v0.96.359 — 老程序兼容性第二轮：BGI 图形层、`getchar` 的 EOF、以及「一行不改就能编能跑」的 16 个判据
+
+上一轮（v0.96.358）修的是「明明有、到不了程序手里」。这一轮把标准提到用户定的那条线 ——
+**老程序尽量一行不改就能编译运行** —— 于是**先立判据**（16 个按类型分的老程序），
+再逐个把挡路的缺口补掉。**16/16 编译+链接通过，非交互的全部实跑通过。**
+
+### 一、`Lib/c/graphics.h` —— BGI 图形层：老图形程序 `initgraph()` 一行不改
+
+DOS 时代的老图形程序几乎都这么开场：
+
+```c
+int gd = DETECT, gm;
+initgraph(&gd, &gm, "");
+line(0, 0, 100, 100);
+circle(200, 200, 50);
+getch();
+closegraph();
+```
+
+这一套（BGI / Borland Graphics Interface）现在**原样能编、能画** ——
+`initgraph` / `closegraph` / `cleardevice` / `setcolor` / `setbkcolor` / `setfillstyle` /
+`setlinestyle` / `settextstyle` / `settextjustify` / `line` / `moveto` / `lineto` / `linerel` /
+`rectangle` / `bar` / `bar3d` / `circle` / `ellipse` / `fillellipse` / `drawpoly` / `fillpoly` /
+`putpixel` / `outtext` / `outtextxy` / `getmaxx` / `getmaxy` / `delay` / `kbhit` / `getch` /
+`getmouse`，外加 DETECT/VGA/EGA/CGA 与 16 色的常量名。
+
+**三条设计要点**：
+
+1. **与「显存/BGI 一整套不做」那条定案不矛盾，是澄清** —— 定案反对的是**直接操作内存**
+   （往 `0xA0000` 直写、靠 BIOS 中断设模式、`DEF SEG`）；这里做的是**转接**：
+   **函数名与语义原样保留，落笔换成 `ui_*`**。要改的是"怎么画"，不改的是"程序怎么写"。
+2. **落 `ui_win_open_pc`（电脑屏窗口）**：固定坐标系、不随旋转重排 —— 老程序按 640×480
+   排的版，换空间就画到框外。
+3. ⚠ **颜色是调色板索引，不是 RGB**。`setcolor(4)` 是「红」，不是 `0x000004` —
+   不做这层翻译，老程序画面会**整片黑**（索引 0..15 当 RGB 用几乎全黑）。
+   头文件里带 CGA/VGA 标准 16 色表，`_bgi_rgb()` 是唯一换算口。
+
+⚠ **弹窗标题用 `__FILE__`**：老程序 `initgraph(&gd,&gm,"")` 不设标题，拿源文件名当标题最好认。
+而 `__FILE__` **不能写在头文件里**（那是文本替换，写在那儿会展开成 `graphics.h` 自己），
+所以 `initgraph` 是一个宏，在**调用点**展开、把调用者的 `__FILE__` 传进去 ——
+实测标题正确显示成 `old_gfx_bgi.c`。
+
+### 二、`getchar()` 收不到 `EOF` —— 老 C **最标准那句**读循环收不了尾
+
+```c
+while ((c = getchar()) != EOF) { ... }     /* 老程序里到处都是 */
+```
+
+这一句在本平台**永远不结束**：`getchar` 一直返回值、从不给 `EOF`，
+程序一直转到宿主超时被掐（`VM execution cancelled`）。
+
+**真根因不在宿主"不给 EOF"，而在它从没被问到。** `io.c` 的 `getchar` 写的是
+`return asm("SYSCALL #5, ${1}");`，注释还写着"R0 必须显式给 1" ——
+而 asm 模板里的 `${...}` 是**变量替换**（`${ch}` → 该变量所在的寄存器），
+**`${1}` 不是变量名，于是什么都不生成**。实测生成出来的函数体里 `syscall` 前面
+**一行都没有**（`git show HEAD:.../io.vml` 的 `getchar` 可查）。
+后果是 `getchar` 一直走**非阻塞**分支（`bool blocking = registers[0] == 1;` 为假）：
+输入一空就返回 `0` —— **"读到的字符是 0"看起来就像"没有 EOF 这个信号"**，
+而宿主里那条 `InputExhausted` 分支**根本走不到**。
+
+⚠ 那句注释是**代码从未实现过的意图**，而且**不报错**。`conio.c` 里
+`asm("SYSCALL #5, ${0}")` 与"R0=0 ⇒ 非阻塞"是同一个错法（靠 R0 的**残留值**
+碰巧非阻塞）。**凡是靠残留寄存器碰巧正确的东西，症状都是时序相关、最难查的那一类。**
+
+**修法（三处，缺一不可）**：
+- `io.c` 的 `getchar` 改**字面指令** `asm("MOVE R0 #1")`（照 `builtins.c` 的写法）
+  + 走**新号 `SYSCALL #14`**；
+- `#14` = 与 `#5` **同语义**，唯一区别是"输入源耗尽时给什么"：`#5` 给**空行**
+  （`0x0A`，那是给 `conio.getch()` 的单键读用的），`#14` 给 **`EOF`(-1)**；
+- 新号必须登记进 `SyscallConstants.UserAllowed` —— 用户态只放行本表，漏了会打
+  `Permission denied: syscall 14 requires kernel mode` 并把 R0 置成错误码
+  （表现同样是"读到的字符全是垃圾"）。
+
+⚠ **不能直接改 `#5` 去给 EOF**：`Lib/shared/src/readline.c` 的 `read_line` 靠
+`c == '\n'` 收尾，`#5` 一给 -1 它就再也不会返回。老号语义一字不动，EOF 由新号承载
+（房规：**新能力一律走新号**）。
+
+**顺带理清 `IConsoleIO.InputExhausted` 的契约**：它现在有**两个需求相反的消费者**，
+靠"谁在问"区分 —— `#14` 把 `true` 当 EOF、`#5` 把 `true` 当空行。
+于是"**压根没有输入源**"必须报 `true`（报 `false` 会让阻塞读**空转到超时**，
+而那时**没有任何输入会到来**，正确语义就是 EOF）。桌面 `vmlcli` 照此改；
+手机端**两个源都没有才报 `true`**（它有真的交互终端，`_readLine`/`_readKey` 任一在就不算耗尽）。
+
+**判据**（`.scratch/stdin_min.c`，就是那句原样的读循环）：`--stdin 'ab'` → `[97][98][10]` 后
+`N=3` 就停；`--stdin 'ab\n'` → `N=4`；《老程序兼容性.md》第九节「已解决③」记全过程。
+
+### 三、`fflush` 缺失 —— 老程序进度条的标准写法直接编不过
+
+```c
+printf("...%d%%", p); fflush(stdout);      /* 老进度条几乎都这么写 */
+```
+
+报 `<input>:145: error: 未定义的函数 'fflush'（引用 2 次）`。缺的是**两处登记**，缺一不可：
+① 前端的「函数名 → 模块」表（`CompilerBase/CompilerHelper.cs`，`["puts"]="io"` 那一行附近）；
+② `Lib/shared/io.vml` 里的标签（由 `Lib/shared/src/io.c` 经 **GenLib `-b`** 生成）。
+
+⚠ 排查时踩过一个**生成物路径**的坑：`vmlcli --rebuild-lib` 会把产物写在**源文件旁边**
+（`Lib/shared/src/io.vml`），而规范位置是**上一级**（`Lib/shared/io.vml`）——
+于是"重建了却没生效"。**重新生成库一律走 `GenLib -b`**，它按 `modules.json` 的约定路径走。
+
+实现本身是**语义正确的空实现**：本平台输出**无缓冲**（`putchar` 直接 `SYSCALL #4` 落笔），
+所以 `fflush` 不需要真的刷，但**必须存在**。
+
+### 四、`sizeof(<数组>)` 返回的是**元素大小**而不是总大小
+
+老程序那句 `memset(a, 0, sizeof(a))` 全靠它 —— 返回元素大小的话，等于只清了头几个字节。
+矩阵实测（修前）：全局 `char[8/100/10000]` → 一律 `4`；局部 `char[8/100]` → 一律 `1`。
+
+根因：`sizeof` 处理走的是 `GetTypeSize(InferExpressionType(...))` ——
+而 `InferExpressionType` 对数组名给出的是**元素类型**。
+修法是声明时另记一份 `arrayElemSize`（数组名 → 元素大小），
+`sizeof` 时用 `元素数 × 元素大小`，只有**非数组**才回落到 `InferExpressionType`。
+修后矩阵全对，`Examples/c/old/old_std_primes.c` 里那句**原样的** `sizeof(flags)` 也能用了。
+
+### 五、扩展关键字与宏引擎的字面量缺陷（用户定的两条原则）
+
+用户定的原则：**「难兼容的关键字按透明的空白处理」**、**「只管大多数，变态的复杂宏放弃」**。
+
+- `Lib/c/vml_compat.h`（**空宏**，由 `stdio.h`/`stdlib.h` 包含 ⇒ 所有代码都拿得到）：
+  `__attribute__(x)` / `__declspec(x)` / `__extension__` / `__inline__` / `__restrict` /
+  `restrict` / `far` / `near` / `huge`。
+  ⚠ **刻意不做**（记录在头文件里）：`_AX`/`asm`/`__emit__`/显存/`interrupt`/`_pascal` ——
+  那是**直接操作汇编与内存**，属于用户定的「不支持，或改掉才能支持」那一档。
+- 顺带修掉一个**挡住宏方案**的引擎缺陷：**类函数宏会吞掉字符串字面量**
+  （`#define ATTR(x)` + `"ATTR(keep)"` → `[]`），而类对象宏是尊重字面量的。
+  根因是 `Preprocessor.Expressions.cs` 里四处处理字面量的地方**有两处漏了**；
+  抽成单一判据 `BuildCodeMask`（一个地方说了算）后一并修好。
+  原先那条 `AttributeStrip.cs` 路子（175 行）随之**删掉** —— 宏方案更短、也更贴用户要的形态。
+
+### 六、16 个判据示例 + 打包支持第 3 层
+
+`Examples/c/old/`：**std 5**（`calc`/`guess`/`hanoi`/`primes`/`wc`）、
+**tty 5**（`ansi`/`box`/`progress`/`conio`/`curses`）、**graphic 6**（`lines`/`shapes`/`palette`/
+`plot`/`anim`/`bgi`）。每一个都按老程序的原貌写（不用 C99 之后的语法、变量在函数开头声明、
+颜色写调色板索引），**判据就是"它能不能一行不改地编过、跑出东西"**。
+
+⚠ **打包脚本原来只收 `Examples/` 的 1~2 层** ⇒ `Examples/c/old/*.c` 这种
+「按类型分目录的老程序」**静默不进包** —— 而桌面直接读仓库、完全看不出来
+（与 `vml_lib.zip` 漂移是同一种"只在手机上才暴露"的形态）。已扩到**第 3 层**（zip 与
+Python 两条分支都改），并写进 CLAUDE.md 的打包规则。
+
+**图形示例有个坑**：`ui_present()` 之后**立刻** `ui_win_close()` 的话，
+快照还没拍就被关了 ⇒ 「场景是空的」。正确收尾是
+`ui_present(); while (!ui_win_closed()) ui_wait(&msg, 0); ui_win_close();`。
+
+### 七、仍未修（记在台账里，等下一轮）
+
+- **`%ld` / `%lu` 打印 0**（`long` 打印全废）—— 实测 `printf("%ld", 42L)` 也是 `0`，
+  而存储是对的（`(int)big` = `1234567`）。根因在 `Lib/shared/src/printf.c` 的
+  64 位数字转换循环**依赖 64 位移位**（`rem << 1`），而本前端的 64 位移位不发 `L` 变体。
+  ⚠ 试过改 `SelectBitwiseOp` 让移位发 `SHLL`/`SHRL`，结果**更糟且换了个错法**
+  （`1<<4/8/16/32` 全变成常量 2），已回退 —— 这条**要单独一轮**认真做。
+- `feof`/`putc`/`tolower`/`difftime` 等仍有缺实现；UDP 的 `ProtocolType` 硬编码成 `Tcp`；
+  没有 BSD/POSIX socket 名字（`socket()`/`connect()`/`gethostbyname()` 那一套）。
+
+---
+
 ## v0.96.358 — 老程序兼容性体检第一轮：两个「明明有、到不了程序手里」的缺陷、一个会伪造大回归的脚手架坑，以及「难兼容关键字按透明处理」这条原则
 
 拿真程序跑了一轮兼容性体检（`sl` / `tty-clock` / `nyancat` / `kilo` / `cmatrix`，

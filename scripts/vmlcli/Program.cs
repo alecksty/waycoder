@@ -771,11 +771,22 @@ internal sealed class CaptureIo : IConsoleIO
     public bool KeyAvailable() => _cur.Length > 0 || _lines is { Count: > 0 };
 
     /// <summary>
-    /// 脚本化输入读完 ⇒ `true`（`--stdin` 的队列空了、当前行的剩余也吐完了）。
-    /// **交互式**（没有输入源，`_lines == null`）恒 `false` —— 那种情况下"没键"
-    /// 只意味着"用户还没敲"，阻塞读**应该**继续等。见接口上的说明。
+    /// 输入源**已经给不出东西了** ⇒ `true`。两种情形：
+    /// ① `--stdin` 的队列空了、当前行的剩余也吐完了；
+    /// ② **压根没有输入源**（`_lines == null`）—— 那意味着"以后也不会再有"。
+    ///
+    /// ⚠ ②原来返回 `false`（注释写的是"交互式就该继续等"），但**桌面 `vmlcli` 没有交互终端**
+    /// —— 它是个脚本运行器，问不到用户。把"没有输入源"当成"还没敲"的后果是
+    /// `getchar()` **空转到 `TimeoutSeconds`**（实测 5 秒上限下每次读键耗 5 秒、
+    /// 最后 `VM execution cancelled`），而它真正的语义是 **EOF**。
+    /// 改成"没有源 = 耗尽"之后：stdio 的 `getchar` 立刻拿到 `EOF`（老程序正常收尾），
+    /// `conio` 的 `getch` 立刻拿到空行（DOS 的"确认"语义）。两边都对。
+    ///
+    /// ⚠ **手机端不能照抄这一条**：那边的"没有 `_readLine`"与"用户还没敲"是两件事，
+    /// 它有真的交互终端（见 `WayCoder.Maui/Services/MauiVml.cs` 的同名实现）。
     /// </summary>
-    public bool InputExhausted => _lines is not null && _cur.Length == 0 && _lines.Count == 0;
+    public bool InputExhausted =>
+        _lines is null || (_cur.Length == 0 && _lines.Count == 0);
 }
 
 // 桌面宿主（500–599 号段 + VM 内置的 #57 的真实实现）在 `CliVmlHost.cs`：

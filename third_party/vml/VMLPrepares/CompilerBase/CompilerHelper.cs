@@ -599,6 +599,10 @@ namespace CompilerBase
             ["atol"] = "convert64", ["atod"] = "convert64",
             // C stdio 裸名映射 (puts/getchar/putchar → io, printf系列 → printf)
             ["puts"] = "io", ["getchar"] = "io", ["putchar"] = "io",
+            // fflush —— 本平台输出无缓冲（putchar 直接落笔），所以它是**语义正确的空实现**；
+            // 但老程序的进度条几乎都写 `printf(...); fflush(stdout);`，
+            // 少了这张映射前端就报「未定义的函数 'fflush'」（引用 2 次）⇒ 直接编不过。
+            ["fflush"] = "io",
             ["printf"] = "printf",
             ["sprintf"] = "printf", ["snprintf"] = "printf", ["vsnprintf"] = "printf",
             ["fprintf"] = "printf", ["scanf"] = "printf", ["sscanf"] = "util",

@@ -1164,5 +1164,22 @@ HALT
         // `docs/老程序兼容性.md`。手机上的 VML 游戏走的是 `ui_poll`/`ui_wait` 那套消息
         // 机制，不经过这里，**不受影响**。
         public bool KeyAvailable() => _cur.Length > 0 || _readLine != null;
+
+        /// <summary>
+        /// 输入源**再也给不出东西** ⇒ `true`：只有"两个源都没有"才算
+        /// （`_readLine == null && _readKey == null`）。
+        ///
+        /// ⚠ **不能写成"没有 `_readLine` 就算耗尽"** —— 手机上的 `_readKey`
+        /// （逐键直通）与 `_readLine`（弹输入框等一行）是**两个不同的源**，
+        /// 给其中一个也算有源。而**有源时**这一条必须是 `false`：
+        /// `getchar` 现在是**阻塞**的（`io.c` 里 `MOVE R0 #1` + `SYSCALL #14`），
+        /// 说成"耗尽"会让每个交互程序一读键就拿到 `EOF` 直接退出。
+        ///
+        /// 为什么"两个源都没有"要给 `true`：那种情况下**没有输入会到来**
+        /// （AI 工具那条路就是它，见 `VmlTool` 的 `stdin` 参数），
+        /// 给 `false` 会让阻塞读**空转到超时**，而正确语义是 `EOF`
+        /// —— 程序照样能跑完、能打印结果，只是输入部分为空。
+        /// </summary>
+        public bool InputExhausted => _readLine is null && _readKey is null;
     }
 }

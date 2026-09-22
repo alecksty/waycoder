@@ -24,16 +24,49 @@ __stdcall void putchar(char c) {
     asm("SYSCALL #4");
 }
 
+/* fflush —— 本平台的输出**无缓冲**（`putchar` 直接 `SYSCALL #4` 落笔），
+ * 所以这里不需要真的"刷"，是个**语义正确**的空实现。
+ *
+ * ⚠ 但**必须存在**：老程序的进度条几乎都写
+ *   `printf("...%d%%", p); fflush(stdout);` —— 少了这个符号就直接编不过
+ *   （实测 `Examples/c/old/old_tty_progress.c` 报「未定义的函数 'fflush'」）。
+ *
+ * 返回 0 = 成功，与 C 标准一致；`fflush(NULL)`（刷全部流）传 0 也照收。
+ * 参数写 `int *` 是为了与 `stdio.h` 的 `int fflush(FILE *stream)`（`FILE` = int）
+ * 对得上 —— 本文件没有 include stdio.h，用不了 `FILE` 这个名字。 */
+int fflush(int *stream) {
+    (void)stream;
+    return 0;
+}
+
 __stdcall int getchar(void) {
     /* ⚠ 把 asm 当**表达式**用（规则见 vmlui.c 头部）："先 asm(...) 再
        return c" 会把返回值丢掉 —— 实测 c 恒为垃圾，且不报错。本文件漏改。 */
-    /* ⚠⚠ **R0 必须显式给 1**：`SYSCALL #5` 用 R0 区分两种语义
-       （`R0=1` 阻塞读、`R0=0` 非阻塞探一下，见 `VMLRuntime.Syscall.cs`
-       的 `ExecuteSyscall5_InputChar`）。不给的话 R0 是**上一句残留的值** ——
-       而 `conio.c` 的 `kbhit()` 恰恰会先把它置 0 ⇒ 紧接着的 `getchar`
-       会退化成"没键就返回 0"，读起来像"输入结束了"。
-       这类"靠残留寄存器碰巧正确"的写法，症状是**时序相关**的难查故障。 */
-    return asm("SYSCALL #5, ${1}");
+    /* ⚠⚠ **R0 必须显式给 1 —— 而且必须写成 `MOVE R0 #1` 这条指令**：
+       `SYSCALL #14`（与 `#5` 同）用 R0 区分两种语义：`R0=1` 阻塞读、
+       其他值（含 `R0=0`）非阻塞探一下（见 `VMLRuntime.Syscall.cs` 的
+       `ExecuteSyscall5_InputChar` 的 `bool blocking = registers[0] == 1;`）。
+
+       本文件这里原来写的是 `asm("SYSCALL #5, ${1}")`，注释还写着"R0 必须显式给 1"
+       —— **那是错的，而且不报错**：asm 模板里的 `${...}` 是**变量替换**
+       （`${ch}` → 该变量所在的寄存器，见 `CodeGenerator.Statements.cs`），
+       `${1}` 不是变量名，于是**什么都不生成**。实测生成出来的函数体里
+       `syscall` 前面**一行都没有**（`git show HEAD:.../io.vml` 的 getchar 可查），
+       ⇒ `getchar` 一直是**非阻塞**的：输入一空就 `if (!blocking) { R0 = 0; return; }`，
+       程序读到的"字符"是 0，而下面那条 `InputExhausted` 分支**根本走不到**。
+
+       这条正是「EOF 收不到」的真根因 —— 不是宿主不给 EOF，是**它从没被问到**。
+       （`conio.c` 的 `kbhit` 里 `asm("SYSCALL #5, ${0}")` 与那句"R0=0 ⇒ 非阻塞"
+       是同一个错法：它靠 R0 残留值"碰巧"非阻塞，而不是靠那行 asm。） */
+    asm("MOVE R0 #1");              /* 阻塞读（字面指令，见 `builtins.c` 的同类写法） */
+    /* ⚠ **走 `#14` 而不是 `#5`** —— 两者只差"输入源耗尽时给什么"：
+       `#5` 给空行（0x0A，那是给 `conio.getch()` 的单键读用的），`#14` 给 **EOF(-1)**。
+       stdio 的 `getchar` 必须是后者，否则老程序**最标准的那句**
+           while ((c = getchar()) != EOF) { ... }
+       **永远不结束**（实测：一直转到宿主超时被掐，输出 `VM execution cancelled`）。
+       这一条是「老程序一行不改」的关键 —— 用 EOF 收尾的读法比哨兵字符常见得多。
+       `fgetc(stdin)` / `getc(stdin)` 那几个也落在本函数上，同样受益。 */
+    return asm("SYSCALL #14");
 }
 
 __stdcall void print_str(const char* str) {
