@@ -252,7 +252,46 @@ public static partial class SelfTest
             try { Directory.Delete(dir, true); } catch { }
         }
 
-        // ══ 五、导入器注册表（"以后加格式"的落点）══
+        // ══ 五、种子填充（BGI 的 floodfill）══
+        Section("种子填充 FloodFill（老图形程序的「灌色」）");
+
+        // 画一个 10×10，中间用 border 画一个 4×4 的框，框内是「里面」
+        const int W = 10, H = 10, BORDER = unchecked((int)0xFFFF0000);
+        const int INSIDE = unchecked((int)0xFF000000);
+        var px = new int[W * H];
+        for (int i = 0; i < px.Length; i++) px[i] = INSIDE;
+        for (int x = 3; x <= 6; x++) { px[3 * W + x] = BORDER; px[6 * W + x] = BORDER; }
+        for (int y = 3; y <= 6; y++) { px[y * W + 3] = BORDER; px[y * W + 6] = BORDER; }
+
+        var runs = FloodFill.Runs(px, W, H, 4, 4, BORDER);
+        int covered = runs.Sum(r => r.W);
+        Check($"框内 2×2 被填满（实得 {covered} 像素）", covered == 4);
+        Check("游程数 = 2（每个填充行一段，不是逐像素）", runs.Count == 2);
+        Check("被填的都在框内（x∈[4,5]、y∈[4,5]）",
+            runs.All(r => r.X == 4 && r.W == 2 && r.Y >= 4 && r.Y <= 5));
+
+        // ⚠ 种子点在边界色上 ⇒ **什么都不做**（BGI 语义，不是错误）
+        Check("种子点在边界上 ⇒ 不填（老程序「点在线上」是常见写法）",
+            FloodFill.Runs(px, W, H, 3, 3, BORDER).Count == 0);
+
+        // 没有边界 ⇒ 整个画面连通，应该全填
+        var open = new int[W * H];
+        var all = FloodFill.Runs(open, W, H, 0, 0, BORDER);
+        Check($"没有边界 ⇒ 全填（实得 {all.Sum(r => r.W)}）", all.Sum(r => r.W) == W * H);
+
+        // 越界种子不炸
+        Check("种子点在画面外 ⇒ 返回空、不抛",
+            FloodFill.Runs(px, W, H, -1, 0, BORDER).Count == 0
+            && FloodFill.Runs(px, W, H, W, 0, BORDER).Count == 0);
+
+        // ⚠ **游程必须是水平段**：这是它能落到保留模式场景上的前提
+        //   （每段一个矩形；逐像素的话一次填充要几十万个图元）。
+        var wide = new int[40 * 3];
+        var wideRuns = FloodFill.Runs(wide, 40, 3, 20, 1, BORDER);
+        Check("整行连通 ⇒ 每行一段 40 宽（不是 120 段 1 宽）",
+            wideRuns.Count == 3 && wideRuns.All(r => r.W == 40));
+
+        // ══ 六、导入器注册表（"以后加格式"的落点）══
         Section("导入器注册表");
 
         Check("Makefile 认得", ProjectImporters.Resolve("Makefile")?.Name == "make");
