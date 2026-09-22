@@ -449,45 +449,66 @@ namespace CompilerBase
         }
 
         /// <summary>
-        /// Replace macro name with value, skipping content inside string and char literals.
+        /// 标出这一行里哪些下标**不在**字符串/字符字面量内（= "代码区"）。
+        ///
+        /// **这是全文件唯一的字面量判据** —— 宏展开的四处都查它，不再各写一份状态机：
+        /// <see cref="ReplaceOutsideLiterals"/>（对象式宏替换）、<see cref="SplitMacroArgs"/>
+        /// （实参切分）、<see cref="FindMatchingParen"/>（配对括号）、
+        /// <see cref="ExpandFunctionMacros"/>（函数式宏替换）。
+        ///
+        /// ⚠ 2026-09-22 修的那次缺陷正是"**四份实现里两份漏了**这条判据"：
+        /// 对象式宏与实参切分认字面量，而函数式宏的**找名**与**配对括号**不认
+        /// ⇒ `printf("%s", "MAX(x,y)")` 会被 `#define MAX(a,b)` 啃成 `printf("%s", ")")`，
+        /// 而 `F(")")` 会在字符串里那个 `)` 上提前收尾。收成一处之后不会再各漏各的。
+        ///
+        /// ⚠ 只处理**同行内**的字面量 —— 宏展开本来就是逐行做的（跨行字面量在 C 里非法）。
+        /// </summary>
+        private static bool[] BuildCodeMask(string line)
+        {
+            var code = new bool[line.Length];
+            bool inString = false, inChar = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (inString)
+                {
+                    if (c == '\\') { i++; continue; }   // 转义：连下一个字符一起算字面量
+                    if (c == '"') inString = false;
+                    continue;
+                }
+                if (inChar)
+                {
+                    if (c == '\\') { i++; continue; }
+                    if (c == '\'') inChar = false;
+                    continue;
+                }
+                if (c == '"') { inString = true; continue; }
+                if (c == '\'') { inChar = true; continue; }
+                code[i] = true;
+            }
+            return code;
+        }
+
+        /// <summary>
+        /// 把整词 <paramref name="macroName"/> 替换成 <paramref name="macroValue"/>，
+        /// **跳过字符串/字符字面量内的内容**（判据见 <see cref="BuildCodeMask"/>）。
         /// </summary>
         private static string ReplaceOutsideLiterals(string line, string macroName, string macroValue)
         {
-            var sb = new StringBuilder();
-            bool inString = false;
-            bool inChar = false;
+            var code = BuildCodeMask(line);
+            var sb = new StringBuilder(line.Length);
             int i = 0;
-
             while (i < line.Length)
             {
-                if (inString)
-                {
-                    if (line[i] == '\\') { sb.Append(line[i]); i++; if (i < line.Length) sb.Append(line[i]); }
-                    else if (line[i] == '"') { inString = false; sb.Append(line[i]); }
-                    else sb.Append(line[i]);
-                    i++;
-                }
-                else if (inChar)
-                {
-                    if (line[i] == '\\') { sb.Append(line[i]); i++; if (i < line.Length) sb.Append(line[i]); }
-                    else if (line[i] == '\'') { inChar = false; sb.Append(line[i]); }
-                    else sb.Append(line[i]);
-                    i++;
-                }
-                else if (line[i] == '"') { inString = true; sb.Append(line[i]); i++; }
-                else if (line[i] == '\'') { inChar = true; sb.Append(line[i]); i++; }
-                else if (IsWordAt(line, i, macroName))
+                if (code[i] && IsWordAt(line, i, macroName))
                 {
                     sb.Append(macroValue);
                     i += macroName.Length;
+                    continue;
                 }
-                else
-                {
-                    sb.Append(line[i]);
-                    i++;
-                }
+                sb.Append(line[i]);
+                i++;
             }
-
             return sb.ToString();
         }
 
@@ -518,11 +539,21 @@ namespace CompilerBase
                     continue;
 
                 // Match macroName immediately followed by '(' (with optional whitespace)
+                bool[]? code = null;                     // 字面量判据；行被改写后作废，下次迭代重建
                 int start = 0;
                 while (start < line.Length)
                 {
+                    code ??= BuildCodeMask(line);
                     int nameIdx = IndexOfWord(line, macroName, start);
                     if (nameIdx < 0) break;
+
+                    // ⚠ 字面量里的宏名**不是调用** —— 跳过它。否则
+                    //   `printf("%s", "MAX(x,y)")` 会被 `#define MAX(a,b)` 啃成 `printf("%s", ")")`
+                    if (!code[nameIdx])
+                    {
+                        start = nameIdx + macroName.Length;
+                        continue;
+                    }
 
                     // Check for '(' after name (allow whitespace)
                     int parenStart = nameIdx + macroName.Length;
@@ -535,7 +566,7 @@ namespace CompilerBase
                     }
 
                     // Found macroName( — parse argument list
-                    int closeParen = FindMatchingParen(line, parenStart);
+                    int closeParen = FindMatchingParen(line, parenStart, code);
                     if (closeParen < 0)
                     {
                         start = parenStart + 1;
@@ -605,6 +636,7 @@ namespace CompilerBase
                     // Replace the entire invocation
                     line = line.Substring(0, nameIdx) + replacement + line.Substring(closeParen + 1);
                     start = nameIdx; // re-expand from same position
+                    code  = null;    // 行已被改写 ⇒ 字面量判据作废，下次迭代重建
                 }
             }
 
@@ -614,12 +646,19 @@ namespace CompilerBase
         /// <summary>
         /// Find the matching closing parenthesis for an opening paren at the given index.
         /// </summary>
-        private static int FindMatchingParen(string s, int openIdx)
+        /// <summary>
+        /// 找与 <paramref name="openIdx"/> 处 `(` 配对的 `)` 的下标（找不到返回 -1）。
+        /// <paramref name="code"/> 是 <see cref="BuildCodeMask"/> 的结果：
+        /// **字面量里的括号不计数** —— 否则 `F(")")` 会在字符串里那个 `)` 上提前收尾，
+        /// 后面的参数与语句被一并吞掉。
+        /// </summary>
+        private static int FindMatchingParen(string s, int openIdx, bool[] code)
         {
             if (openIdx < 0 || openIdx >= s.Length || s[openIdx] != '(') return -1;
             int depth = 1;
             for (int i = openIdx + 1; i < s.Length; i++)
             {
+                if (!code[i]) continue;              // 字面量内的括号不算
                 if (s[i] == '(') depth++;
                 else if (s[i] == ')')
                 {
@@ -636,27 +675,17 @@ namespace CompilerBase
         /// </summary>
         private static List<string> SplitMacroArgs(string args)
         {
+            // 判据统一走 BuildCodeMask：**字面量里的逗号与括号都不算**
+            // （`F("a,b", ")")` 是**两个**实参，不是一个也不是三个）
+            var code = BuildCodeMask(args);
             var result = new List<string>();
             int depth = 0;
             int start = 0;
-            bool inString = false;
-            bool inChar = false;
             for (int i = 0; i < args.Length; i++)
             {
+                if (!code[i]) continue;
                 char c = args[i];
-                if (inString)
-                {
-                    if (c == '\\') i++; // skip escaped char
-                    else if (c == '"') inString = false;
-                }
-                else if (inChar)
-                {
-                    if (c == '\\') i++;
-                    else if (c == '\'') inChar = false;
-                }
-                else if (c == '"') inString = true;
-                else if (c == '\'') inChar = true;
-                else if (c == '(') depth++;
+                if (c == '(') depth++;
                 else if (c == ')') depth--;
                 else if (c == ',' && depth == 0)
                 {

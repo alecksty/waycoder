@@ -9,6 +9,8 @@
 #param lib("builtins")
 
 #include <stddef.h>
+/* 兼容层（同 stdio.h）：`__attribute__` 这类扩展关键字按空宏抹掉 */
+#include <vml_compat.h>
 
 /* Numeric conversion functions - simplified */
 int atoi(const char *nptr);

@@ -310,7 +310,8 @@ namespace CompilerBase
             {
                 // Function-style macro: #define name(params) body
                 string macroName = trimmed.Substring(0, parenIdx).Trim();
-                int closeParen = FindMatchingParen(trimmed, parenIdx);
+                // 形参表里的括号要按「代码区」判（`#define F(x) ")"` 这类体里带括号的不会影响形参表）
+                int closeParen = FindMatchingParen(trimmed, parenIdx, BuildCodeMask(trimmed));
                 if (closeParen < 0)
                     throw new CompilationException(ErrorCode.Preprocessor_MacroMissingParen, $"{currentFile}:{currentLine}: error: 函数式宏缺少右括号: {macroName} [Preprocessor_MacroMissingParen]");
 

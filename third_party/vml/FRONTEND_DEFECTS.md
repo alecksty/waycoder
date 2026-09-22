@@ -219,6 +219,39 @@ printf("[%s]\n", "http://example.com/x");    /* ✅ 通过 */
 **验证**：`sl` 的词法错误清零（从「编不过」降级为「缺 `usleep`/`mvcur` 两个库」）；
 C 探针 31 例 26/2/3、自测 6394 项全绿，均与基线逐项相同。
 
+### 🟡 函数式宏把**字符串字面量**里的同名文字也展开掉（**已修**）
+
+**发现**：同一天，原本是想验证「能不能用空宏 `#define __attribute__(x)` 抹掉扩展关键字」，
+结果这条路**被它挡住** —— `#define ATTR(x)` + `printf("%s", "ATTR(keep)")` **输出 `[]`**，
+字符串里的内容被啃掉了。于是先修它，再回去用空宏。
+
+**最小复现**：
+```c
+#include <stdio.h>
+#define ATTR(x)
+int main(void) { printf("[%s]\n", "ATTR(keep)"); return 0; }   /* 实测 []，应 [ATTR(keep)] */
+```
+对照：**对象宏那条路认得字面量** —— `#define FOO 42` 配 `"FOO stays literal"` 输出正确。
+
+**真身**：`CompilerBase/Preprocessor.Expressions.cs` 里**四处**都要处理字面量，**两份漏了**：
+
+| 位置 | 认字面量？ |
+|---|---|
+| `ReplaceOutsideLiterals`（对象式宏替换） | ✅ |
+| `SplitMacroArgs`（实参切分） | ✅ |
+| `FindMatchingParen`（配对括号） | ✘ **漏** |
+| `ExpandFunctionMacros`（函数式宏找名/替换） | ✘ **漏** |
+
+后果不止"字符串被啃"：`F(")")` 会在字符串里那个 `)` 上**提前收尾**，
+把后面的实参与语句一并吞掉。**影响面**：任何函数式宏 × 字符串里出现同名文字即中招
+（`#define MAX(a,b)` 会把 `"MAX(x,y)"` 啃掉）。
+
+**修法**：判据收成**一处** `BuildCodeMask(line)`（标出哪些下标在"代码区"），四处都查它 ——
+不再各写一份状态机。行被改写后判据作废（`code = null`，下次迭代重建）。
+
+**验证**：`litmac2` / `litmac3` 现在输出正确（`[ATTR(keep)]` 与 `V=9 [far __attribute__((x)) literal]`）；
+C 探针 26/2/3、自测 6394/0、Examples 全量编译检查全绿 —— 均与基线逐项相同。
+
 ---
 
 ## Ruby

@@ -18,6 +18,10 @@
 
 #include <stddef.h>
 #include <stdarg.h>
+/* 兼容层：把 `__attribute__`/`__inline__`/`far` 这类「位置难兼容」的扩展关键字
+ * 按空宏抹掉。放在这里是因为**几乎所有真实程序都会包含 stdio.h**，而本前端对
+ * 源文件里没有 `#` 的文件会跳过预处理（详见 vml_compat.h 的说明）。 */
+#include <vml_compat.h>
 
 /* File type - 使用 int 代替 FILE* 以避免编译器限制 */
 typedef int FILE;     /* FILE is file descriptor number */
