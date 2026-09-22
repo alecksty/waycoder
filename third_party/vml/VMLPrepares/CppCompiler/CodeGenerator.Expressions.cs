@@ -375,7 +375,15 @@ namespace CppCompiler
                     break;
                 case SizeofExpr so:
                     int size = 4;
-                    if (so.TypeName == "char") size = 1;
+                    // （`SizeOfExprValue` 见本文件末尾；**它绝不抛**，查不到就退 4。）
+                    // ⚠ `sizeof(表达式)` 走的是**另一条路**（解析器把 `sizeof(a)` 收成
+                    //   `SizeofExpr { Expression = … }`，`TypeName` 是 **null**），
+                    //   而这里原样只读 `TypeName` ⇒ 走到下面那行 `.Contains("*")` 直接
+                    //   **NullReferenceException**：编译器崩掉，而且报错里**连行列都没有**
+                    //   （实测：`int a=0; sizeof(a);` 只回一句 "Object reference not set…"）。
+                    //   `sizeof(arr)` / `sizeof(a)` 在老程序里很常见（`memcpy(…, sizeof(x))`）。
+                    if (so.TypeName == null) size = SizeOfExprValue(so.Expression);
+                    else if (so.TypeName == "char") size = 1;
                     else if (so.TypeName == "short") size = 2;
                     else if (so.TypeName == "int" || so.TypeName == "float" || so.TypeName == "long") size = 4;
                     else if (so.TypeName == "double" || so.TypeName == "long long") size = 8;
@@ -387,6 +395,15 @@ namespace CppCompiler
                         GenerateExpr(il.Elements[0]);
                     else
                         Add(OpCode.MOVE, "R0", "#0");
+                    break;
+                case CommaExpr ce:
+                    // 逗号表达式：**先求左边**（值丢弃，但副作用必须真的生成代码），
+                    // 再求右边 —— 右边的值留在 R0 作为整个表达式的值。
+                    // ⚠ 左边那一句不能省：老程序写 `sprintf(…), settextstyle(…), outtextxy(…)`
+                    //   靠的就是**每一条都执行**；只取最后一个等于把前两个调用丢掉。
+                    //   （C 前端当初就写成 `expr = right;`，`getmaxyx` 这类宏的副作用整段消失。）
+                    GenerateExpr(ce.Left);
+                    GenerateExpr(ce.Right);
                     break;
                 default:
                     Add(OpCode.MOVE, "R0", "#0");
@@ -1703,6 +1720,48 @@ namespace CppCompiler
                 Add(OpCode.MOVE, "(R0)", "R2");
                 Add(OpCode.MOVE, "R0", "R2");
             }
+        }
+
+        /// <summary>
+        /// `sizeof(表达式)` 的取值。
+        ///
+        /// **绝不抛**：查不到就给 4 —— 编译器崩掉（`NullReferenceException`、报错里没有行列）
+        /// 比给一个宽一点的值糟得多，而 `sizeof` 在这里本来就是**尽力而为**：
+        /// 真实的类型信息在这个前端里散在 `_varTypes`（名字 → 类型串）与数据段里，
+        /// 没有一份"表达式的类型"。
+        ///
+        /// 数组按 **C 的语义**给**总字节数**（`int a[4]` → 16、`double d[3]` → 24）：
+        /// 元素个数不用另建表 —— 数据段里那份声明就是 `int[1 + N]`（**多一个长度头**，
+        /// 见数组声明那条路），`Length - 1` 就是 N。
+        /// </summary>
+        private int SizeOfExprValue(Expr? e)
+        {
+            if (e is IdentExpr id)
+            {
+                string tn = _varTypes.TryGetValue(id.Name, out var t) && t != null ? t : "int";
+                int elem = GetTypeSizeByEnum((int)MapToCppType(tn));
+
+                bool isArr = (_isArrayVar.TryGetValue(id.Name, out var ia) && ia)
+                             || _globalArrays.Contains(id.Name);
+                if (isArr)
+                {
+                    string lbl = $"var_{id.Name}";
+                    if (dataSection.TryGetValue(lbl, out var v))
+                    {
+                        // ⚠ 两种元素类型都要认：**局部**数组存的是 `int[]`
+                        //   （`new int[1 + N]`），而**全局**数组存的是 `object[]`
+                        //   （`withHeader.ToArray()`，因为元素可能是字符串标签等）。
+                        //   只认 `int[]` 的话全局数组会静默退回"一个元素" ——
+                        //   实测就是 `sizeof(g)` 给 4 而不是 24。
+                        int? len = v switch { int[] a1 => a1.Length, object[] a2 => a2.Length, _ => null };
+                        if (len is int n && n > 0) return elem * (n - 1);
+                    }
+                    // 数组但查不到声明（例如来自别处的别名）：退回"一个元素"，不猜
+                }
+                return elem;
+            }
+            if (e is StringLiteral sl) return sl.Value.Length + 1;   // 字面量含结尾 NUL
+            return 4;
         }
     }
 }

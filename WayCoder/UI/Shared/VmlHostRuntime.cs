@@ -795,6 +795,32 @@ public sealed class VmlHostRuntime
             return JNode.Object().Set("w", cols * size / 2).Set("h", size);
         });
 
+        // `pixel`：**单个像素的颜色**（BGI 的 `getpixel` 走它）。
+        //
+        // 为什么不占一个 syscall 号：这是"加一个能力"，而 CALLJSON 就是为这种事建的
+        // （见 `VmlJsonApi` 的类注释）—— 占号还要加 C 包装、重生成 22 份绑定。
+        //
+        // ⚠ 返回的是 **0xRRGGBB**，不是 BGI 的调色板索引 —— 场景里存的就是 RGB，
+        //   而"RGB 反查索引"要靠**垫层那张 `_bgi_pal`**（真源在 `graphics.h`，
+        //   这里再抄一张表就是本仓头号坑）。所以这一步分工是：
+        //   **宿主给颜色，垫层给索引**。
+        //
+        // ⚠ 每次调用要**光栅化一次**（场景是保留模式的，没有像素缓冲，与
+        //   `getimage` 同源）。所以它不适合放进每帧的密集循环 ——
+        //   老程序里 `getpixel` 一般也就几次（碰撞检测 / 判断某格是否已占）。
+        VmlJsonApi.Register("pixel", args =>
+        {
+            var x = (int)(args?.GetNumber("x") ?? -1);
+            var y = (int)(args?.GetNumber("y") ?? -1);
+            if (x < 0 || y < 0) return JNode.Object().Set("rgb", -1);
+
+            var buf = new byte[4];
+            if (!_host.Rasterize(x, y, 1, 1, buf)) return JNode.Object().Set("rgb", -1);
+            // ⚠ 缓冲是 **RGBA**（见 IVmlHost.Rasterize 的约定），别按 BGRA 读
+            var rgb = (buf[0] << 16) | (buf[1] << 8) | buf[2];
+            return JNode.Object().Set("rgb", rgb);
+        });
+
         // `screen`：与 `SCR_W`/`SCR_H`/`SCR_ORIENT` **同源**（就调宿主那几个函数），
         // 免得出现"JSON 里报的尺寸和 syscall 报的不一样"这种最难查的分叉。
         VmlJsonApi.Register("screen", _ =>

@@ -332,4 +332,23 @@ namespace CppCompiler
     {
         public List<Expr> Elements { get; } = new();
     }
+
+    /// <summary>
+    /// **逗号表达式**：`a, b, c` —— 依次求值、**值取最后一个**。
+    ///
+    /// 老程序里很常见，Turbo C 时代常把几条语句挤一行：
+    ///
+    ///     sprintf(buf, "%d", t), settextstyle(3,0,4), outtextxy(305,200,buf);
+    ///
+    /// ⚠ **左边必须真的求值**（值丢弃、副作用保留）—— 只取右边的值等于把左边的
+    /// 调用整个丢掉。C 前端当初就踩过这个（`ASTNode.cs` 的 `CommaExpr` 注释里记着：
+    /// 一度写成 `expr = right;`，于是 `getmaxyx` 这类宏的副作用整段消失）。
+    /// 这里是照 C 那份补的 —— **C 一直支持、C++ 一直不支持**，
+    /// 实测两个经典 BGI 游戏（Snake / DX Ball）都卡在这一句上。
+    /// </summary>
+    public class CommaExpr : Expr
+    {
+        public Expr Left { get; set; } = null!;
+        public Expr Right { get; set; } = null!;
+    }
 }

@@ -86,7 +86,12 @@ namespace CppCompiler
 
         private Stmt ParseExprStmt()
         {
-            var expr = ParseExpression();
+            // ⚠ 这里是**逗号表达式**唯一真正常出现的地方（`a(), b(), c();`），
+            //   所以用 `ParseCommaExpression` 而不是 `ParseExpression` —— 后者
+            //   把逗号留给"实参分隔符"语义，用它在这里会直接报「期望 SEMICOLON，
+            //   实际得到 COMMA」。实测两个经典 BGI 游戏都这么写（Turbo C 时代
+            //   把几条语句挤一行的习惯）。
+            var expr = ParseCommaExpression();
             Expect(TokenType.SEMICOLON);
             return new ExprStmt { Expression = expr };
         }
@@ -152,7 +157,7 @@ namespace CppCompiler
             Stmt? init = null;
             bool hasVarDecl = false;
             if (IsVarDecl()) { init = ParseVarDeclStmt(); hasVarDecl = true; }
-            else if (!Check(TokenType.SEMICOLON)) { init = new ExprStmt { Expression = ParseExpression() }; Expect(TokenType.SEMICOLON); }
+            else if (!Check(TokenType.SEMICOLON)) { init = new ExprStmt { Expression = ParseCommaExpression() }; Expect(TokenType.SEMICOLON); }
             else { Advance(); }
             Expr? cond = null;
             if (!hasVarDecl)
@@ -167,7 +172,7 @@ namespace CppCompiler
                 Expect(TokenType.SEMICOLON);
             }
             Expr? incr = null;
-            if (!Check(TokenType.RPAREN)) incr = ParseExpression();
+            if (!Check(TokenType.RPAREN)) incr = ParseCommaExpression();   /* `for(;;i++,j--)` 合法 */
             Expect(TokenType.RPAREN);
             return new ForStmt { Initializer = init, Condition = cond, Increment = incr, Body = ParseStatement() };
         }
@@ -226,12 +231,35 @@ namespace CppCompiler
         private Stmt ParseReturn()
         {
             Expr? val = null;
-            if (!Check(TokenType.SEMICOLON)) val = ParseExpression();
+            if (!Check(TokenType.SEMICOLON)) val = ParseCommaExpression();
             Expect(TokenType.SEMICOLON);
             return new ReturnStmt { Value = val };
         }
 
         // Expression parsing (precedence climbing)
+
+        /// <summary>
+        /// **赋值的父级**：`ParseExpression()` 保持原语义（**逗号是分隔符**），
+        /// 本函数才是"逗号表达式"那一层。
+        ///
+        /// ⚠ 两者必须分开，不能像 C 前端那样直接让 `ParseExpression` 吃掉逗号 ——
+        ///   本文件的 `ParseExpression()` **被当参数解析用**
+        ///   （`call.Arguments.Add(ParseExpression())`，见 `ParsePostfix`），
+        ///   逗号在那里是**实参分隔符**，吃掉它会把 `f(a, b)` 解析成"一个逗号表达式参数"。
+        ///   所以只在"这里不可能有分隔符语义"的地方改用本函数：
+        ///   表达式语句、`for` 的初始化/步进、`return` 的值。
+        /// </summary>
+        private Expr ParseCommaExpression()
+        {
+            var expr = ParseAssignment();
+            while (Match(TokenType.COMMA))
+            {
+                var right = ParseAssignment();
+                expr = new CommaExpr { Left = expr, Right = right };
+            }
+            return expr;
+        }
+
         public Expr ParseExpression() => ParseAssignment();
 
         private Expr ParseAssignment()
@@ -592,7 +620,10 @@ namespace CppCompiler
                 }
                 // Not a cast — parse as parenthesized expression
                 _pos = savePos;
-                var expr = ParseExpression();
+                // ⚠ 括号里**逗号不是分隔符**（函数实参是 `ParsePostfix` 那条路单独解析的），
+                //   所以用逗号表达式那一层。漏了它 `x = (a, b);` 报
+                //   「期望 RPAREN，实际得到 COMMA」——与语句级那个缺口是同一件事的两半。
+                var expr = ParseCommaExpression();
                 Expect(TokenType.RPAREN);
                 return expr;
             }
@@ -636,6 +667,15 @@ namespace CppCompiler
             if (Match(TokenType.IDENTIFIER))
             {
                 string name = Previous().Value;
+                // `true` / `false` 是 C++ 的**关键字**（bool 字面量），不是标识符。
+                // ⚠ 词法器不认识它们 ⇒ 落到这里被当成变量名 ⇒ 报「未声明的变量 'true'」。
+                //   实测老程序撞得很直接：DX Ball（BGI 打砖块）第 6 行就 `bool … = true;`。
+                //   判据放在**解析器**而不是词法器：`#define true 1` 这类老写法会先被
+                //   预处理器替换掉，走到这里的一定是真的字面量；而如果反过来在词法层
+                //   把它定成关键字，`#define true 1` 之后的 `1` 仍然是数字，不受影响，
+                //   但用户拿 `true` 当变量名的（C 里合法）会被无声改语义。
+                if (name == "true") return new BoolLiteral { Value = true };
+                if (name == "false") return new BoolLiteral { Value = false };
                 // 处理限定名: Math::square → Math_square
                 while (Match(TokenType.SCOPE_RESOLVE))
                 {
@@ -648,6 +688,10 @@ namespace CppCompiler
             }
             if (Match(TokenType.LPAREN))
             {
+                // ⚠ **这条分支是死的**：括号在 `ParsePrimaryCore` 更靠上的
+                //   "Parenthesized expression or C-style cast" 那一支就已经被吃掉了。
+                //   留着它是因为不确定还有没有别的调用路径会走到这儿；改括号语义
+                //   请改**上面那一支**（实测：改了这里 `(a, b)` 照旧报错）。
                 var expr = ParseExpression();
                 Expect(TokenType.RPAREN);
                 return expr;
@@ -746,14 +790,28 @@ namespace CppCompiler
             //     `"int*"` 形态不一致，下游按字符串比类型就会漏。）
             if (Match(TokenType.LONG))
             {
-                type += "long ";
-                if (Match(TokenType.LONG)) type += "long ";
+                bool isLongLong = Match(TokenType.LONG);      // `long long`
+                // ⚠ `long int` / `long double` 这**第二个关键字必须吃掉，但不能拼进类型串**。
+                //   上面那段注释担心的事（"拼成 long int 会让 8 字节悄悄变 4 字节"）
+                //   **方向要反过来看**：本平台的宽度表里 `long` 是 **4 字节**，
+                //   而兜底那条是 `baseType.Contains("int") → 8 字节` ——
+                //   所以拼成 "long int" 是**悄悄变宽**，比不解析更糟（不解析至少报错）。
+                //   正解：C++ 里 `long int` 与 `long` **是同一个类型** ⇒ 吃掉 `int`、
+                //   类型串仍是 `long` ⇒ 走宽度表里那条 4 字节 ✓。
+                //   实测来自老 BGI 游戏（`long int score=0;`）。
+                if (!isLongLong && Match(TokenType.INT)) { /* long int ≡ long */ }
+                // `long double`：宽度表里没有这一档，按 `double`（8 字节）算 ——
+                // 比落进兜底的 4 字节对。
+                if (!isLongLong && Match(TokenType.DOUBLE)) type = "double";
+                else type += isLongLong ? "long long" : "long";
                 type = type.TrimEnd();
                 while (Match(TokenType.STAR)) type += "*";
                 return type;
             }
             if (Match(TokenType.SHORT))
             {
+                // `short int` ≡ `short`，同理（宽度表里两串都列着，统一成短的）
+                Match(TokenType.INT);
                 type += "short ";
                 type = type.TrimEnd();
                 while (Match(TokenType.STAR)) type += "*";

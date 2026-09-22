@@ -120,7 +120,15 @@ namespace CppCompiler
             else if (Match(TokenType.CLASS)) result = ParseClass();
             else if (Match(TokenType.STRUCT)) result = ParseStructLike(); // struct also
             else if (Match(TokenType.ENUM)) result = ParseEnum();
-            else if (Match(TokenType.UNION)) result = ParseUnion();
+            // `union` 有两种形态，**先看形状再决定走哪条**：
+            //   ① **定义**  `union U { … };`
+            //   ② **声明**  `union U a, b;`  —— 类型是别处定义好的
+            // 原先无条件走 `ParseUnion`（只认 ①），于是 ② 报
+            // 「期望 LBRACE，实际得到 IDENTIFIER ('a') (Union)」。
+            // 判据只看一个 token：`union [名字]` 之后是不是 `{`。
+            // 实测来自老 BGI 游戏（`union REGS in, out;` —— Turbo C 的 DOS 中断结构体），
+            // 而 C 前端一直是好的（又一次"C++ 比 C 弱"）。
+            else if (Check(TokenType.UNION) && IsUnionDefinition()) { Advance(); result = ParseUnion(); }
             else if (Match(TokenType.CONSTEXPR)) { result = ParseDeclaration(); }
             else if (Match(TokenType.STATIC_ASSERT)) { SkipTo(TokenType.SEMICOLON); if (Check(TokenType.SEMICOLON)) Advance(); result = null; }
             else if (Match(TokenType.NOEXCEPT)) { result = ParseDeclaration(); } // skip noexcept specifier
@@ -737,6 +745,20 @@ namespace CppCompiler
             Expect(TokenType.RBRACE);
             Expect(TokenType.SEMICOLON);
             return ed;
+        }
+
+        /// <summary>
+        /// 当前 token 是 `UNION` 时：判断它是**定义**（`union U { … }`）还是**声明**
+        /// （`union U a, b;`）。只向后看两个 token（名字可有可无），不动游标。
+        /// </summary>
+        private bool IsUnionDefinition()
+        {
+            int save = _pos;
+            Advance();                                   // union
+            if (Check(TokenType.IDENTIFIER)) Advance();  // 可选的名字
+            bool isDef = Check(TokenType.LBRACE);
+            _pos = save;
+            return isDef;
         }
 
         private ASTNode ParseUnion()

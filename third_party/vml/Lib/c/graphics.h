@@ -630,6 +630,56 @@ int textheight(char *s)
     return h;
 }
 
+/* ── `getpixel`：读一个像素的**颜色索引** ─────────────────────
+ *
+ * ⚠ 它放在这里（文字量测旁边）而不是紧挨着 `putpixel`，是因为它要复用上面那套
+ *   JSON 垫层（`ui_call_json` + `_bgi_json_int`）—— C 不认"后面才定义"。
+ *
+ * ⚠ **分工**：宿主回 **0xRRGGBB**（场景里存的就是 RGB），
+ *   "RGB → 调色板索引"这一步在**这里**做，因为 `_bgi_pal` 的真源就在本文件。
+ *   在宿主再抄一张索引表就是"同一规则两处实现"。
+ *
+ * ⚠ 每次调用宿主都要**光栅化一次**（保留模式的场景没有像素缓冲，与 `getimage` 同源）
+ *   ⇒ 别放进每帧的密集循环。老程序用它一般是碰撞检测 / 判断某格是否已占。
+ */
+int getpixel(int x, int y)
+{
+    char args[64];
+    char out[96];
+    char fn[] = "pixel";
+    int n = 0, i, len, v;
+
+    /* 拼 `{"x":X,"y":Y}`（十进制自己拼，理由同 `_bgi_measure`：绕开 itoa 那条链） */
+    args[n++] = '{'; args[n++] = '"'; args[n++] = 'x'; args[n++] = '"'; args[n++] = ':';
+    for (i = 0; i < 2; i++) {
+        int val = (i == 0) ? x : y;
+        char num[12];
+        int k = 0, neg = 0;
+        if (val < 0) { neg = 1; val = -val; }
+        if (val == 0) num[k++] = '0';
+        while (val > 0 && k < 11) { num[k++] = (char)('0' + val % 10); val /= 10; }
+        if (neg) args[n++] = '-';
+        while (k > 0) args[n++] = num[--k];
+        if (i == 0) { args[n++] = ','; args[n++] = '"'; args[n++] = 'y'; args[n++] = '"'; args[n++] = ':'; }
+    }
+    args[n++] = '}';
+    args[n] = 0;
+
+    len = ui_call_json(fn, args, out, 96);
+    if (len <= 0) return 0;
+
+    v = _bgi_json_int(out, "rgb");
+    if (v < 0) return 0;
+    v = v & 0xFFFFFF;
+
+    for (i = 0; i < 16; i++) {
+        if (_bgi_pal[i] == v) return i;
+    }
+    /* 不在 16 色里的（渐变、抗锯齿边缘等）退回黑 —— BGI 本来也只有 16 色，
+       给个确定的值比给垃圾好；老程序拿它多是判"这一格是不是背景色"。 */
+    return 0;
+}
+
 /* ── 刷新与等待 ────────────────────────────────────────────── */
 
 /* BGI 是**立即出图**（每画一笔就上屏），本平台是**保留模式**（改完调 present 才上屏）。
