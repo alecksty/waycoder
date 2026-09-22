@@ -1030,7 +1030,15 @@ namespace VMLRuntime
         private void ExecuteShlL(List<Operand> operands)
         {
             long src1 = GetLongValue(operands.Count > 2 ? operands[1] : operands[0]);
-            int src2 = (int)GetLongValue(operands.Count > 1 ? operands[^1] : operands[0]);
+            /* ⚠ **移位次数必须按 32 位读，不能用 `GetLongValue`** ——
+               次数是个 `int`，前端用 32 位 `MOVE` 写进 `registers[]`；
+               而 `GetLongValue` 对 `R0-R7` 读的是**另一份** `longRegisters[]`
+               （见它那里的分派），于是读到的是**上一个 64 位值**。
+               实测症状极具指纹性：`long v = 1; v << 4 / v << 32 / v << 40`
+               **一律得 2** —— 因为 `longRegisters[0]` 正好还留着上一个长整数值 1，
+               次次都变成"移 1 位"。这条也是"改前端把 32 位移位一起改坏"那次
+               真正的拦路石（前端确实漏了 `l`，但底下还压着这一条）。 */
+            int src2 = GetRegisterOrImmediate(operands.Count > 1 ? operands[^1] : operands[0]);
             SetLongValue(operands[0], src1 << src2);
         }
 
@@ -1038,8 +1046,145 @@ namespace VMLRuntime
         private void ExecuteShrL(List<Operand> operands)
         {
             long src1 = GetLongValue(operands.Count > 2 ? operands[1] : operands[0]);
-            int src2 = (int)GetLongValue(operands.Count > 1 ? operands[^1] : operands[0]);
+            int src2 = GetRegisterOrImmediate(operands.Count > 1 ? operands[^1] : operands[0]);   /* 同 ExecuteShlL：次数按 32 位读 */
             SetLongValue(operands[0], src1 >> src2);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // 无符号语义（号段 113–125，2026-09-22 用户批准新增）
+        //
+        // 语义与"为什么另起一个 `uf` 标志"见 `VMLAssembler/OpCode.cs` 那一节与
+        // `VMLRuntime.uf` 的说明。这里只记**实现层的两条硬规矩**：
+        //   ① 32 位的量一律用 `GetRegisterOrImmediate`（读 `registers[]`），
+        //      **绝不能**用 `GetLongValue` —— 后者对 R0-R7 读的是另一份
+        //      `longRegisters[]`（`ExecuteShlL` 的移位次数就栽在这上面）；
+        //   ② 无符号比较**只置 `uf`/`zf`**，不碰 `sf`/`cf`。
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// `ZEXTL Rd, Rs` —— **零扩展** int32 → long64。
+        ///
+        /// **为什么必须有它**：`I2L` 是**符号**扩展（实测 `(long)4000000000u`
+        /// 得 -294967296）。无符号要把 int 升成 64 位（再去走 `DIVL`/`CMPL`/`SHRL`）
+        /// 就必须零扩展，没有它每处都得补一句 `ANDL #0xFFFFFFFF`。
+        /// </summary>
+        private void ExecuteZextL(List<Operand> operands)
+        {
+            int src = GetRegisterOrImmediate(operands.Count > 1 ? operands[^1] : operands[0]);
+            SetLongValue(operands[0], (long)(uint)src);
+        }
+
+        /// <summary>`DIVU Rd, Rs1, Rs2` —— 无符号 32 位除法（`DIV` 是有符号）。</summary>
+        private void ExecuteDivU(List<Operand> operands)
+        {
+            var dest = operands[0];
+            int ia = operands.Count >= 3 ? GetRegisterOrImmediate(operands[1])
+                 : (dest.Type == OperandType.REGISTER ? registers[(int)dest.Value] : 0);
+            uint b = (uint)GetRegisterOrImmediate(operands[Count2(operands)]);
+            if (b == 0) throw new VmlRuntimeException("无符号除零");
+            StoreInt(dest, (int)((uint)ia / b));
+        }
+
+        /// <summary>`MODU Rd, Rs1, Rs2` —— 无符号 32 位取模。</summary>
+        private void ExecuteModU(List<Operand> operands)
+        {
+            var dest = operands[0];
+            int ia = operands.Count >= 3 ? GetRegisterOrImmediate(operands[1])
+                 : (dest.Type == OperandType.REGISTER ? registers[(int)dest.Value] : 0);
+            uint b = (uint)GetRegisterOrImmediate(operands[Count2(operands)]);
+            if (b == 0) throw new VmlRuntimeException("无符号取模除零");
+            StoreInt(dest, (int)((uint)ia % b));
+        }
+
+        /// <summary>`SHRU Rd, Rs1, Rs2` —— **逻辑**右移 32 位（高位补 0）。`SHR` 是算术右移（实测 `-16 >> 1 = -8`）。</summary>
+        private void ExecuteShrU(List<Operand> operands)
+        {
+            var dest = operands[0];
+            int ia = operands.Count >= 3 ? GetRegisterOrImmediate(operands[1])
+                 : (dest.Type == OperandType.REGISTER ? registers[(int)dest.Value] : 0);
+            int sh = GetRegisterOrImmediate(operands[Count2(operands)]) & 31;   /* 32 位：次数按 5 位取模（与 C# 的 int 语义一致） */
+            StoreInt(dest, (int)((uint)ia >> sh));
+        }
+
+        /// <summary>`DIVUL Rd, Rs1, Rs2` —— 无符号 64 位除法。</summary>
+        private void ExecuteDivUL(List<Operand> operands)
+        {
+            ulong a = (ulong)GetLongValue(operands.Count > 2 ? operands[1] : operands[0]);
+            ulong b = (ulong)GetLongValue(operands[Count2(operands)]);
+            if (b == 0) throw new VmlRuntimeException("无符号长整数除零");
+            SetLongValue(operands[0], (long)(a / b));
+        }
+
+        /// <summary>`MODUL Rd, Rs1, Rs2` —— 无符号 64 位取模。</summary>
+        private void ExecuteModUL(List<Operand> operands)
+        {
+            ulong a = (ulong)GetLongValue(operands.Count > 2 ? operands[1] : operands[0]);
+            ulong b = (ulong)GetLongValue(operands[Count2(operands)]);
+            if (b == 0) throw new VmlRuntimeException("无符号长整数取模除零");
+            SetLongValue(operands[0], (long)(a % b));
+        }
+
+        /// <summary>`SHRUL Rd, Rs1, Rs2` —— **逻辑**右移 64 位（`SHRL` 是算术右移，实测负数 `>>1` 得 -8）。</summary>
+        private void ExecuteShrUL(List<Operand> operands)
+        {
+            ulong a = (ulong)GetLongValue(operands.Count > 2 ? operands[1] : operands[0]);
+            int sh = GetRegisterOrImmediate(operands[Count2(operands)]) & 63;   /* 64 位：次数按 6 位取模 */
+            SetLongValue(operands[0], (long)(a >> sh));
+        }
+
+        /// <summary>
+        /// `CMPU`/`CMPUL` —— 无符号比较：置 **`uf`**（a &lt; b 按无符号）与 **`zf`**（a == b）。
+        ///
+        /// ⚠ **刻意不碰 `sf`/`cf`** —— 它们归有符号跳转（`JG = !zf &amp;&amp; sf == cf`，
+        /// 其中 `cf` 被当**溢出位**用）。若这里顺手改了 `cf`，任何"无符号比较 +
+        /// 有符号跳转"的混用都会悄悄错，而且错得不明显。
+        /// </summary>
+        private void ExecuteCmpU(List<Operand> operands, bool longForm)
+        {
+            if (longForm)
+            {
+                ulong a = (ulong)GetLongValue(operands[0]);
+                ulong b = (ulong)GetLongValue(operands[1]);
+                zf = a == b;
+                uf = a < b;
+            }
+            else
+            {
+                uint a = (uint)GetRegisterOrImmediate(operands[0]);
+                uint b = (uint)GetRegisterOrImmediate(operands[1]);
+                zf = a == b;
+                uf = a < b;
+            }
+        }
+
+        /// <summary>
+        /// `JA`/`JB`/`JAE`/`JBE` —— 无符号条件跳转，读 **`uf`/`zf`**（不是 `cf`/`sf`）。
+        /// 与有符号那四条一一对应：`>`→JA、`&lt;`→JB、`>=`→JAE、`&lt;=`→JBE。
+        /// </summary>
+        private void ExecuteJumpU(List<Operand> operands, string cmp)
+        {
+            bool take = cmp switch
+            {
+                ">"  => !uf && !zf,
+                "<"  => uf,
+                ">=" => !uf,
+                "<=" => uf || zf,
+                _    => false,
+            };
+            if (take) ExecuteJmp(operands);
+        }
+
+        /// <summary>32 位运算的"第二个源操作数"下标：3 操作数取 `[2]`，2 操作数取 `[1]`。</summary>
+        private static int Count2(List<Operand> operands) => operands.Count > 2 ? 2 : 1;
+
+        /// <summary>把 32 位结果写回（与 32 位算术的规范写法一致：只认寄存器，并同步 R13=sp）。</summary>
+        private void StoreInt(Operand dest, int result)
+        {
+            if (dest.Type == OperandType.REGISTER)
+            {
+                registers[(int)dest.Value] = result;
+                if ((int)dest.Value == 13) sp = result;
+            }
         }
     }
 }

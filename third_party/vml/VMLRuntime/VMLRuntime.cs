@@ -46,6 +46,16 @@ namespace VMLRuntime
         private bool zf;
         private bool cf;
         private bool sf;
+        /// <summary>
+        /// **无符号借位**（`a &lt; b` 按无符号比）—— 只由 `CMPU`/`CMPUL` 置位，
+        /// 只有 `JA`/`JB`/`JAE`/`JBE` 读它。
+        ///
+        /// ⚠ **刻意与 `cf` 分开**：`cf` 被 `JG`/`JGE` 当**溢出位**用
+        /// （`JG = !zf &amp;&amp; sf == cf`），而 `CMP` 刻意不传 carry ⇒ `cf` 恒 false。
+        /// 把 `cf` 改成真借位会让有符号跳转全错（`3 > 5` 也会跳），
+        /// 所以无符号比较另起一位，两边互不干扰。
+        /// </summary>
+        private bool uf;
 
         public bool ZF
         {
