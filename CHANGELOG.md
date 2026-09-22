@@ -1,3 +1,51 @@
+## v0.96.362 — `gets`/`usleep`/`mvcur` 三个真缺口 + `sl` 从编不过到能跑；「编译非确定性」结案
+
+### 一、`gets` 修好 —— 根因是 `modules.json` 里 `console` 漏了**自己的实现体**
+
+```json
+"console": { "Includes": ["io.vml","printf.vml","scanf.vml","readline.vml"] }  ← 漏了 console.vml
+```
+`Lib/c/console.vml` 于是**只链依赖、不链实现体**，而 `gets` 只在 `shared/console.vml` 里定义
+⇒ 链接期报「未定义的函数 'gets'」。**影响面远不止 `gets`**：凡只在 `shared/src/console.c`
+里实现的函数（`input_float`、`print_str_no_nl_impl`…）此前对 C 程序**全都不可用**。
+另修签名撞车：零参 `gets(void)` 改名 `read_string`，新增标准 `gets(char* s)`
+（走 `SYSCALL #14` 拿 EOF、去 `
+`、忽略 ``）。新增判据 `32-gets.c`。
+
+### 二、`usleep` / `mvcur`（老程序高频，此前**完全没有**）
+
+| 函数 | 要点 |
+|---|---|
+| `usleep` | 走 `SYSCALL 52`（**内核单位是毫秒** ⇒ `/1000`），**不足 1ms 至少睡 1ms** —— 否则 `usleep(500)` 退化成忙等、手机上白烧电。声明进 `Lib/c/unistd.h` + `#param lib("util")` + 映射表 — **四处缺一不可** |
+| `mvcur` | **立即**挪**物理光标**（复用 `sc_cup`），不碰屏幕影子、不改 `sc_cy/sc_cx`（与 ncurses 契约一致）。声明进 `curses.h` |
+
+### 三、`sl` 从"整条编不过"到"能跑"（**画面仍空，下一项**）
+
+失败真因**不是编译器**：样本目录 `cat2/sl.c` **漏了它的头文件 `sl.h`**，
+而 `C51PATTERNS`/`C51FUNNEL`/`LOGOLENGTH` 这些**数组尺寸宏定义在 `sl.h` 里**
+⇒ 29 个"未声明的变量"。补上后一次全消；`sl` 现在编译成功（55390 条指令）并跑完，
+但**画面是空的**（去 ANSI 后只剩被超时掐断的提示）—— 与当初 `tty-clock`"画面空"同类。
+
+### 四、「编译的非确定性」结案：**不是编译器缺陷**
+
+用 `--vml` 落盘逐字节比：`sl.c` 连编 6 次 **md5 全同**；`cmatrix.c` 连编 4 次
+md5 各异但**字节数全同**，两两 diff **只有一处** —— 是 `cmatrix.c:175` 的
+`__TIME__`/`__DATE__`（它要显示时间，编进产物**正当**）。`sl.c` 里 0 处 ⇒ 故逐字节相同。
+⇒ **编译器是确定的**；当初的观察是"样本漏头文件"+"时间宏"两件事被读成了非确定性。
+
+### 五、其余
+
+· `Examples/c/matrix_rain.c`：自研字符矩阵雨（`cmatrix` 是 GPL-3.0 **不能进包**，
+  按 gorilla.bas 那条路"只参考玩法、代码自己写"）；
+· `GenLib` 加护栏：`BuildShared` 覆盖前比出「原有但新内容里没有」的 `.linked` 并告警
+  （上岗第一次就抓出第二处 `util.vml`）；
+· 规矩定案：**`#param lib("库")` 写进头文件**（用了这个头就链、不 include 就不链；
+  `.linked` 自动去重）—— 见 `third_party/vml/FORK.md`；
+· ISA 文档补上 13 条无符号指令 + `scripts/check-asm-doc.sh` 机械护栏（**反证过会响**）。
+
+**判据**：C 探针 **27 通过 / 2 失败 / 3 已知红**（= 基线 + `32-gets`）、
+abi-probe 全绿、`check-vml-patches.sh` 判据①②③ 全绿。
+
 ## v0.96.361 — `#param lib("库")` 的归宿是**头文件**：一次全量重生成抹掉手写 `.linked` 的根因
 
 用户定了一条规矩，这一版就是照它把一处**静默失效**修到底：
