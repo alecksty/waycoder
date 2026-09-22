@@ -48,6 +48,7 @@ VMLAssembler 支持 100+ 个操作码（详见 [OpCode.cs](OpCode.cs) 和 [VML_A
 | 位运算 | AND, OR, XOR, NOT, SHL, SHR, SHLV, SHRV, ZERO |
 | 64位位运算 | ANDL, ORL, XORL, NOTL, SHLL, SHRL |
 | 比较/跳转 | CMP, TEST, JMP, JZ/JNZ, JE/JNE, JG/JL, JGE/JLE |
+| **无符号运算** | **ZEXTL, DIVU, MODU, SHRU, DIVUL, MODUL, SHRUL, CMPU, CMPUL, JA, JB, JAE, JBE**（号段 113–125，走独立标志 `uf`；详见规范里「无符号指令」一节） |
 | 调用 | CALL, RET, ENTER, LEAVE |
 | 浮点 | FADD, FSUB, FMUL, FDIV, FCMP, FNEG, FPUSH/FPOP, I2F, F2I, F2D, D2F |
 | 双精度 | DADD, DSUB, DMUL, DDIV, DCMP, DNEG, DPUSH/DPOP, I2D, D2I |
@@ -134,8 +135,24 @@ end:
 6. **生成程序**：生成 VMLProgram 对象（指令列表 + 数据段 + 标签表 + 元数据）
 
 ## 相关文档
-- [VML_ASSEMBLY_SPEC.md](VML_ASSEMBLY_SPEC.md) — VML 汇编语言完整规范
-- [OpCode.cs](OpCode.cs) — 操作码枚举定义（指令集唯一权威定义）
-- [docs/VML_ISA_SPEC.md](../docs/VML_ISA_SPEC.md) — VML 指令集架构规范
-- [docs/SYSCALL_SPEC.md](../docs/SYSCALL_SPEC.md) — 系统调用规范
-- [docs/VMB_FORMAT_SPEC.md](../docs/VMB_FORMAT_SPEC.md) — VMB 二进制格式规范
+- [VML_ASSEMBLY_SPEC.md](VML_ASSEMBLY_SPEC.md) — **VML 汇编语言完整规范（指令集的唯一说明文件）**
+- [OpCode.cs](OpCode.cs) — 操作码枚举定义（**编号的唯一权威**）
+- [../FORK.md](../FORK.md) — 本副本与上游分家的原因、生成物规则
+
+> ⚠ 这里原先是三行 `../docs/*.md` 链接（`VML_ISA_SPEC.md` / `SYSCALL_SPEC.md` /
+> `VMB_FORMAT_SPEC.md`）—— **那三个文件在本副本里根本不存在**（`docs/` 目录
+> 在整个 git 历史里都没有过，不是被剪枝删掉的）。留着死链的代价不只是点不开：
+> 它会让人以为"指令集另有一份规范"，于是**去写第二份**，而两份真源必然漂移
+> —— 那是本仓的头号坑。指令集就一份：上面那个 `VML_ASSEMBLY_SPEC.md`。
+
+### 改了 ISA 一定要跑这条（否则文档会静默落后）
+
+```bash
+scripts/check-asm-doc.sh     # 机械比对 OpCode.cs 的每个操作码在规范里出现过没有
+```
+
+来由：v0.96.360 往 ISA 里加了 **13 条无符号指令**，代码/VM/汇编器/前端全接好了、
+端到端也验过，**唯独文档一个字没写** —— 而"指令集少了说明"**没有任何编译器会报错**，
+于是它可以一直烂着。这条判据把那种静默变成一次退出码 1。
+（它只证明**名字在**；语义对不对仍然要人读，所以**别为了让它变绿硬塞名字**。）
+
