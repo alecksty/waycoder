@@ -132,6 +132,24 @@ int  ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);
      VML_WIN_NEED_GAMEPAD —— 显示（默认）。 */
 #define VML_WIN_NEED_GAMEPAD 1
 #define VML_WIN_NO_GAMEPAD   0
+
+/* ── 第三种窗口：电脑屏（给老程序用）─────────────────────────────────────
+ *
+ *   int ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard);
+ *
+ * 与 ui_win_open_ex 的三点差别：
+ *   ① **坐标系固定**为 (w,h)、永不重排 ⇒ 这里的 rotatable **没有"支持旋转"那一档**，
+ *      它只决定锁不锁方向：VML_WIN_PORTRAIT 锁竖 / VML_WIN_LANDSCAPE 锁横 /
+ *      其它（含 VML_WIN_ROTATABLE）= 不锁（跟着设备转，但坐标系不动）。
+ *   ② 触摸**只当鼠标**（发 MouseDown/Move/Up，不发 Touch*）。
+ *   ③ 带**屏幕键盘**而不是手柄区 ⇒ 第 5 个参数是 keyboard 而不是 gamepad：
+ *        VML_WIN_NEED_KEYBOARD(1) 显示（默认） / VML_WIN_NO_KEYBOARD(0) 关掉、画布吃满整屏。
+ *
+ * 画图照旧走 ui_*（ui_clear / ui_rect / ui_line / ui_text …）—— **不碰显存**。 */
+#define VML_WIN_NEED_KEYBOARD 1
+#define VML_WIN_NO_KEYBOARD   0
+int  ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard);
+
 int  ui_win_close(void);
 int  ui_win_closed(void);
 int  ui_scr_w(void);

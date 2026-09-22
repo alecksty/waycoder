@@ -113,8 +113,13 @@ internal sealed class CliVmlHost : IVmlHost
     public bool OpenWindow(VmlScene scene)
     {
         WindowOpened = true;
+        /* ⚠ **种类也要打出来**：桌面没有真窗口，这一行就是"新号解码对不对"的
+           唯一判据 —— 电脑屏窗口（`WIN_OPEN_PC` #582）在桌面上与图形窗口**看起来
+           完全一样**（都是"开窗 + 场景"），不打这一笔，`Kind`/`NeedKeyboard`
+           错了在桌面**一点都看不出来**，要等到真机才知道。 */
         CliErr.WriteLine($"[vml-host] 开窗：\"{scene.Title}\" {scene.Width}×{scene.Height}"
-            + $"（转屏={scene.Rotation}，手柄={(scene.NeedGamepad ? "要" : "不要")}）");
+            + $"（种类={scene.Kind}，转屏={scene.Rotation}，"
+            + $"手柄={(scene.NeedGamepad ? "要" : "不要")}，键盘={(scene.NeedKeyboard ? "要" : "不要")}）");
         return true;
     }
 

@@ -66,6 +66,23 @@ int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad) {
     return asm("SYSCALL #570, ${title}, ${w}, ${h}, ${rotatable}, ${gamepad}");
 }
 
+/* 开**电脑屏窗口**（第三种窗口，给老程序用）。
+ *
+ * 与 ui_win_open_ex 的差别是**三件事**，都在宿主那侧表达：
+ *   ① 坐标系**固定**为 (w,h)，**永不**跟随旋转重排 —— 老程序按固定分辨率排的版，
+ *      换空间就会画到框外。所以这里的 rotatable **没有"支持旋转"那一档**，
+ *      它只决定**锁不锁方向**：PORTRAIT 锁竖 / LANDSCAPE 锁横 / 其它 = 不锁。
+ *   ② 触摸**只发鼠标消息**（不发触摸消息）—— 老程序处理的是鼠标。
+ *   ③ 带**屏幕键盘**（PC 布局）而不是手柄区；keyboard=0 可以关掉它吃满整屏。
+ *
+ * 画图照旧走 ui_*（`ui_clear`/`ui_rect`/`ui_line`/`ui_text`…）——
+ * **不碰显存**，那是另一套已经不做的东西。
+ *
+ * ⚠ 默认分辨率 640×480（PC 上最眼熟那一档）由**宿主**兜底，这里不写第二遍。 */
+int ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard) {
+    return asm("SYSCALL #582, ${title}, ${w}, ${h}, ${rotatable}, ${keyboard}");
+}
+
 int ui_win_close(void) {
     return asm("SYSCALL #521");
 }
