@@ -38,8 +38,12 @@
  * ## 覆盖范围
  *
  * 收的是**用得最多**的那些（用户定的规矩：只管大多数）。没做的
- * （`registerbgidriver`、字体文件、`setviewport`/`textwidth` 那几样）**不假装支持** ——
+ * （`registerbgidriver`、字体文件、`setviewport` 那几样）**不假装支持** ——
  * 缺了就是编译期找不到符号，比"编得过、跑起来什么也没有"好排查。
+ *
+ * ⚠ `textwidth`/`textheight` 原先也在这张"不做"的名单里，**后来收进来了**：
+ *   它们不是"做不了"，而是**必须与渲染同源**才算得对（老程序拿它居中排版）。
+ *   做法是问宿主注册的 `text` JSON 函数，见下面「文字量测」那一节。
  *
  * ## 像素读回是**平台新做的**（v0.96.379）
  *
@@ -525,6 +529,105 @@ void outtextxy(int x, int y, char *s)
 void outtext(char *s)
 {
     outtextxy(_bgi_pen_x, _bgi_pen_y, s);
+}
+
+/* ── 文字量测（`textwidth` / `textheight`）────────────────────
+ *
+ * 老程序拿它做**居中排版**，这是标准写法：
+ *
+ *     outtextxy((getmaxx() - textwidth(s)) / 2, y, s);
+ *
+ * ⚠ **宽度不在这里算** —— 问宿主注册的 `text` JSON 函数（`ui_call_json`）。
+ *   它内部用的是全仓唯一的宽度判据（`AnsiString.CharWidth`：半角 1 列 / 全角 2 列 /
+ *   列宽 = 字号÷2）。在本文件里另写一张 CJK 区间表就是"同一规则两处实现"，
+ *   而居中最怕的就是"差几像素"—— 屏幕上看就是"没居中"，却谁也说不清差在哪。
+ *
+ * ⚠ 代价：一次调用要过两趟 JSON。**别放进每帧的循环里**
+ *   （BGI 程序本来也几乎只在排版时调它一次）。
+ */
+
+/* 从 JSON 里读一个整数键。**只服务于下面那一个小信封**，不做通用解析：
+ * 回应形如 `{"ok":true,"result":{"w":40,"h":16}}`，找 `"键":` 再读十进制数。
+ * 找不到回 -1（调用方据此回退），不是 0 —— 0 是**合法宽度**，分不开。 */
+static int _bgi_json_int(char *json, char *key)
+{
+    int i, j;
+    for (i = 0; json[i] != 0; i++) {
+        if (json[i] != '"') continue;
+        for (j = 0; key[j] != 0 && json[i + 1 + j] == key[j]; j++) { }
+        if (key[j] != 0) continue;                 /* 键名没对上 */
+        if (json[i + 1 + j] != '"' || json[i + 2 + j] != ':') continue;
+        j = i + 3 + j;
+        while (json[j] == ' ') j++;
+        {
+            int sign = 1, v = 0, seen = 0;
+            if (json[j] == '-') { sign = -1; j++; }
+            while (json[j] >= '0' && json[j] <= '9') {
+                v = v * 10 + (json[j] - '0'); j++; seen = 1;
+            }
+            if (seen) return v * sign;
+        }
+    }
+    return -1;
+}
+
+/* 问宿主："这段字在当前字号下占多少像素"。返回 1 成功、0 失败（w/h 退回估算）。 */
+static int _bgi_measure(char *s, int *pw, int *ph)
+{
+    char args[256];
+    char out[160];
+    char fn[] = "text";      /* 不用字面量直传：`ui_call_json` 收的是 `char*`，
+                                而本垫层会被 C++ 程序 `#include`（老 BGI 程序多是 .cpp），
+                                字面量转 `char*` 在 C++ 里是弃用转换。 */
+    int n = 0, i, len, v, k;
+    char num[12];
+
+    *pw = 0;
+    *ph = _bgi_txt_size;
+
+    /* 组装 `{"s":"…","size":N}`。只转义 `"` 与 `\` —— 老程序传的是字面量，
+       不做完整 JSON 转义也够用；真出了问题（字面量带反斜杠），宿主会回 ok:false。 */
+    args[n++] = '{'; args[n++] = '"'; args[n++] = 's'; args[n++] = '"'; args[n++] = ':';
+    args[n++] = '"';
+    for (i = 0; s[i] != 0 && n < 200; i++) {
+        if (s[i] == '"' || s[i] == '\\') args[n++] = '\\';
+        args[n++] = s[i];
+    }
+    args[n++] = '"'; args[n++] = ',';
+    args[n++] = '"'; args[n++] = 's'; args[n++] = 'i'; args[n++] = 'z'; args[n++] = 'e';
+    args[n++] = '"'; args[n++] = ':';
+    /* 自己拼十进制，**不用 `itoa`**：库里那份是 `itoa(int, char*)`（注意参数序与
+       stdlib 的相反），而且链接期有一条按后缀匹配的重定向专门坑它（见 CHANGELOG v0.96.208）。 */
+    v = _bgi_txt_size > 0 ? _bgi_txt_size : 1;
+    k = 0;
+    while (v > 0 && k < 11) { num[k++] = (char)('0' + v % 10); v /= 10; }
+    while (k > 0) args[n++] = num[--k];
+    args[n++] = '}';
+    args[n] = 0;
+
+    len = ui_call_json(fn, args, out, 160);
+    if (len <= 0) return 0;
+
+    *pw = _bgi_json_int(out, "w");
+    v   = _bgi_json_int(out, "h");
+    if (*pw < 0) { *pw = 0; return 0; }
+    *ph = v > 0 ? v : _bgi_txt_size;
+    return 1;
+}
+
+int textwidth(char *s)
+{
+    int w, h;
+    _bgi_measure(s, &w, &h);
+    return w;
+}
+
+int textheight(char *s)
+{
+    int w, h;
+    _bgi_measure(s, &w, &h);        /* BGI 的签名收字符串，但高度只与字号有关；
+                                       仍然走同一个入口，免得两条路各算各的 */
+    return h;
 }
 
 /* ── 刷新与等待 ────────────────────────────────────────────── */

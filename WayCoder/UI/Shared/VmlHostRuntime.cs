@@ -772,6 +772,29 @@ public sealed class VmlHostRuntime
             VmlJsonApi.Register("echo", args => args ?? JNode.Null());
         }
 
+        // `text`：**文字量测**（BGI 的 `textwidth`/`textheight` 走它）。
+        //
+        // ⚠ **宽度必须与渲染同源** —— 这里用的是 `Terminal.AnsiString.CharWidth`，
+        //   全仓唯一的宽度判据（半角 1 列、全角 2 列、零宽 0），列宽 = 字号/2，
+        //   与移动端编辑器那套网格是同一份规则。
+        //   在前端（`graphics.h`）里自己写一张 CJK 区间表就是"同一规则两处实现"，
+        //   而老程序拿 `textwidth` 干的是**居中排版**
+        //   （`outtextxy((getmaxx() - textwidth(s)) / 2, y, s)` 是标准写法）——
+        //   差几个像素在屏幕上就是"看着不在中间"，而那种偏差最难归因。
+        //
+        // 参数：`{"s":"HELLO","size":16}` ⇒ `{"w":40,"h":16}`。`size` 缺省/非法取 16
+        // （与前端 `_BGI_CHAR_BASE` 同值；字号非法时回一个能用的值，比回 0 好排查）。
+        VmlJsonApi.Register("text", args =>
+        {
+            var s = args?.GetString("s") ?? "";
+            var size = (int)(args?.GetNumber("size") ?? 0);
+            if (size <= 0) size = 16;
+
+            var cols = 0;
+            foreach (var rune in s.EnumerateRunes()) cols += CharMetrics.Width(rune);
+            return JNode.Object().Set("w", cols * size / 2).Set("h", size);
+        });
+
         // `screen`：与 `SCR_W`/`SCR_H`/`SCR_ORIENT` **同源**（就调宿主那几个函数），
         // 免得出现"JSON 里报的尺寸和 syscall 报的不一样"这种最难查的分叉。
         VmlJsonApi.Register("screen", _ =>

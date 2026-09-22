@@ -707,7 +707,18 @@ namespace CCompiler
                 OpCode storeOp = GetStoreInstruction(elemType);
                 int valReg = Regs!.AllocInt(instructions);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, valReg), new Operand(OperandType.REGISTER, 0) }));
+                // ⚠ **值的寄存器要先压栈保命**：`GenerateArrayAddress` 内部有**硬编码的 R1**
+                //   （见它里面那句"用栈保存基地址，避免与硬编码寄存器（R1）冲突"），而
+                //   `AllocInt` 是从空闲表里取的 —— R1 恰好空闲时它就会把 `valReg` 发成 R1，
+                //   于是下标计算一路把值踩掉，最后存下去的是**当时的 `n`**。
+                //   实测形状是教科书式的 `for (i=0; s[i]; i++) dst[n++] = s[i];` 之后再写数组：
+                //   `a[n++]='B'` 存进去的是 6（那一刻的 n），而 A/C/D/z 全对
+                //   （它们的 valReg 落在 R4/R9/R5，没被踩）—— 见判据 `47-array-store-regclobber.c`。
+                //   压栈而不是 `ReserveInt(1)`：对"下标路径到底用哪几个寄存器"不敏感，
+                //   将来那边多硬编码一个 R2 也不会再坏一次。
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, valReg) }));
                 GenerateArrayAddress(arrayAccess);
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, valReg) }));
                 instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, valReg) }));
                 Regs.FreeInt(valReg, instructions);
             }

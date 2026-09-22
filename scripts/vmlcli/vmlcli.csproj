@@ -89,6 +89,13 @@
          而 `UI/Shared` 是三方都能编到的**唯一**目录 —— 放 VMLTool 里就只有这个 CLI 用得上，
          桌面自测和手机端各得再抄一份（本仓头号坑）。 -->
     <Compile Include="../../WayCoder/UI/Shared/PathText.cs" Link="PathText.cs" />
+    <!-- `CharMetrics.Width` 是**全仓唯一的字符宽度判据**（半角 1 列 / 全角 2 列）。
+         `VmlHostRuntime` 注册的 `text` JSON 函数（BGI 的 `textwidth` 走它）要用它 ——
+         在这里另写一张 CJK 区间表就是"同一规则两处实现"，而居中最怕差几像素。
+         ⚠ 这张表原先是 `UI/Shared/Terminal/AnsiString.cs` 的一部分，而**那个文件不自足**
+         （引用 `AnsiTty` → `RenderBuffer`/`Terminal` 一整条终端链，本工程是白名单式编译、
+         拖不进来）⇒ 把判定表下沉成这个自足文件，`AnsiString.CharWidth` 转调它。 -->
+    <Compile Include="../../WayCoder/UI/Shared/CharMetrics.cs" Link="CharMetrics.cs" />
     <Compile Include="../../WayCoder/UI/Shared/FloodFill.cs" Link="FloodFill.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProject.cs" Link="VmlProject.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProjectImport.cs" Link="VmlProjectImport.cs" />
