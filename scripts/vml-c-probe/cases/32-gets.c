@@ -20,7 +20,8 @@
 // 所以 `C=` 必须是 `NULL`：若实现退回 `#5`，第三次调用会读到"空行"而返回 `""`，
 // 本判据当场变红。
 //
-// STDIN: hello\nworld\n
+// ⚠ STDIN **故意不带末尾换行** —— 见下面「脚手架的一个缺陷」。
+// STDIN: hello\nworld
 // EXPECT: A=hello|B=world|C=NULL|OK=1
 
 #include <stdio.h>
