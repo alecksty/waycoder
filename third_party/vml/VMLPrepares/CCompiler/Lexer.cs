@@ -745,8 +745,18 @@ namespace CCompiler
                 }
                 else if (suffix.Contains('L'))
                 {
-                    // 长整型常量 → int32 (MCU模式)
-                    return new Token(TokenType.NUMBER, int.Parse(value), startLine, startCol, intSourceLine, intOriginalFile, intOriginalLine);
+                    // 长整型常量
+                    //
+                    // ⚠ **不能一律 `int.Parse`**：超出 int 的值会抛 `OverflowException`，
+                    //   而下面那个 catch 把它兜成 **`double`** ⇒ 字面量**根本不是 64 位整数**。
+                    //   实测 `long long a = 5000000000LL;` 读到 **0**、
+                    //   `3000000000LL` 读到**上一个字面量的残留值**（都不是"截断"，是"没落地"）。
+                    //   对照：同一批测试里**不带后缀**的 `5000000000` 反而是对的。
+                    //   改法**保住既有行为** —— 能装进 int 的仍按原来的 int32 返回，
+                    //   只有装不下时才给 `long`（`U && L` 那条分支本来就返回 long，这条路是通的）。
+                    if (int.TryParse(value, out int l32))
+                        return new Token(TokenType.NUMBER, l32, startLine, startCol, intSourceLine, intOriginalFile, intOriginalLine);
+                    return new Token(TokenType.NUMBER, long.Parse(value), startLine, startCol, intSourceLine, intOriginalFile, intOriginalLine);
                 }
                 else
                 {
