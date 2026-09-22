@@ -1,3 +1,52 @@
+## v0.96.367 — `tty-clock` 画面空：根因是**匿名嵌套结构体当字段时被解析器整个丢掉**
+
+### 一、根因（已定位到行，**尚未修**）
+
+`Parser.Structs.cs:322-329` 的「嵌套匿名 struct/union」分支：
+
+```csharp
+if (Current().Type == LBRACE && (innerType.Type == STRUCT || UNION))
+{
+    Advance(); …跳到匹配的 RBRACE…
+    Expect(RBRACE); while (STAR) Advance();
+    if (Current().Type == IDENTIFIER) Advance();   // ← 把成员名（option / geo）吃掉
+    Expect(SEMICOLON); continue;                    // ← 既没加进 Members，也没推进 offset
+}
+```
+
+`ttyclock_t` 里 `option` / `geo` / `date` **三个全是**这种写法 ⇒ 它们既不是外层结构体的成员、
+`offset` 也没往前走 ⇒ **该结构体在它们之后的所有字段读写全落在偏移 0 上**。
+
+### 二、现象逐条对上（都是量出来的）
+
+| 观测（探针） | 解释 |
+|---|---|
+| `&bg - &ttyclock = 12` ✅ | `bg` 在第一个匿名嵌套**之前**，偏移正常 |
+| `&option.color/-delay/-nsdelay`、`&geo` **全 = 0** | 那三个成员根本没登记 ⇒ `GetMemberOffset` 恒 0 |
+| 写 `option.color=2` 读回 **1** | 读写都落在 offset 0；后写的 `option.date=true` 把那里写成 1 |
+| `option.nsdelay = 0` 之后整组归零 | 8 字节的零又砸在 offset 0 上 |
+| `tty-clock` 屏上 **4000 个空格** | 那些写把 offset 0（= `running`）清成 0 ⇒ `while(ttyclock.running)` **一次都不进** ⇒ 只剩 `init()` 两次 refresh 的空格 |
+| `probe14`（手抄的简化结构体）**不复现** | 手抄的那份没有"匿名嵌套结构体当字段" ⇒ 差的就是这一点 |
+
+**为什么值钱**：`struct { … } option;` 是老 C 里极常见的写法；一旦中招，
+**该结构体在它之后的所有字段读写全错**，而且**不报错**。
+
+### 三、修法（两步，缺一不可）与判据
+
+1. **解析器**：那个 `continue` 分支要真的登记 `StructMember`（名 = `option`，大小 = 内层结构体的大小）并推进 `offset`；
+2. **成员查找**：`s.option.color` 要能算成 `offset(option) + offset(color)`（递归登记内层类型，或把内层成员拍平成带点名的条目）。
+
+**判据**：探针 `probe16` 的 `OC/OD/ON/OG` 从 0 变成非 0 且互不相同 → `probe15` 的 `P1..P4` 全 201
+→ `tty-clock` 出钟。（两个探针都用 tty-clock 自己的 `ttyclock.h`，是 GPL 样本，只留在
+`.scratch` 里跑，**不进 `Examples/`**。）
+
+### 四、同批（**未验证**）：`curses.h` 补了 `typedef void SCREEN;`
+
+真 ncurses 有这个不透明类型、我们没有；`tty-clock` 拿它当结构体字段的类型用。
+**它没有解决这个问题**（补完偏移量还是 0），只是顺手把"类型缺失"这个隐患补上 —— 留与否待定。
+
+---
+
 ## v0.96.366 — 老程序兼容：**窗口版 curses API 少了一整族声明**（`tty-clock` 画面空的第一个根因）
 
 ### 一、修好：`w*` / `mvw*` 那一族「有实现、没声明」

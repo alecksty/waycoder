@@ -146,6 +146,13 @@ typedef struct {
     int scr;       /* 保留：屏幕号（本实现恒 0） */
 } WINDOW;
 
+/* `SCREEN` —— **不透明类型**（真 ncurses 里它是「一整屏」的句柄，`newterm()` 返回它）。
+   本实现单窗口退化：它只是个占位类型。⚠ **但它必须存在** —— 老程序（`tty-clock`）
+   把它当结构体字段的类型用（`SCREEN *ttyscr;`），而**未定义的类型会让整个结构体
+   后面的字段偏移全算错**：实测 `option.color` 的地址算成结构体首地址、
+   `nsdelay = 0` 写到别的字段上 ⇒ `running` 读成 0 ⇒ 主循环一次都不进 ⇒ 画面全空。 */
+typedef void SCREEN;
+
 extern WINDOW *stdscr;
 
 /* ── 生命周期 ── */
