@@ -84,6 +84,15 @@ for f in "$CASES"/*.c; do
     stdin_args=()
     [ -n "$stdin_spec" ] && stdin_args=(--stdin "$stdin_spec")
 
+    # 用例可以用 `// ARGS: -l foo` 给程序喂命令行参数（**按空白切分**，不做引号解析 ——
+    # 与 `vmlcli --arg` 的语义一致：要带空格的参数就整段当一个值给）。
+    # 同样必须锚行首：注释里提到这个形状的地方不能被当成声明（STDIN 那条踩过）。
+    args_spec="$(grep -o '^// ARGS: .*' "$f" | head -1 | sed 's|^// ARGS: *||')"
+    arg_args=()
+    if [ -n "$args_spec" ]; then
+        for one in $args_spec; do arg_args+=(--arg "$one"); done
+    fi
+
     # ⚠ 用**裸 `mktemp`**，不要 `-t vmlprobe` —— `-t <模板>` 是 BSD/macOS 的写法，
     #   GNU coreutils 要求模板里至少 3 个 X，于是 Windows(Git Bash)/Linux 上直接
     #   `mktemp: too few X's in template 'vmlprobe'` ⇒ errf 为空 ⇒ **整套用例全报
@@ -91,7 +100,7 @@ for f in "$CASES"/*.c; do
     #   其实是脚手架没跑起来）。本目录其他脚本用的都是裸 `mktemp`，照那个写。
     errf="$(mktemp)"
     # `${arr[@]+...}`：bash 3.2（macOS 自带）在 `set -u` 下展开**空数组**会报 unbound variable
-    out="$(run_to dotnet "$CLI" "$f" --timeout 60 ${stdin_args[@]+"${stdin_args[@]}"} 2>"$errf" | ansi2txt)"
+    out="$(run_to dotnet "$CLI" "$f" --timeout 60 ${stdin_args[@]+"${stdin_args[@]}"} ${arg_args[@]+"${arg_args[@]}"} 2>"$errf" | ansi2txt)"
 
     # ── `// EXPECT-COMPILE-ERROR: <子串>`：这条用例**应当编译失败** ──
     #

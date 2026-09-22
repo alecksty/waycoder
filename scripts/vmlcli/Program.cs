@@ -352,6 +352,14 @@ internal static class Program
     // 运行：与 MauiVml.RunProgram 逐步对齐（去掉 MAUI 专有的 UI 部分）
     // ══════════════════════════════════════════════════════════════════════════════
 
+    /// <summary>`argv`：`[0]` = 程序名（源文件名），其后依次是 `--arg` 给的值。</summary>
+    private static List<string> BuildArgv(string sourcePath, List<string> args)
+    {
+        var argv = new List<string> { Path.GetFileName(sourcePath) };
+        argv.AddRange(args);
+        return argv;
+    }
+
     private static string RunProgram(VmlProgram prog, string sourcePath, CliOptions opt)
     {
         // 每次都重置单例 DeviceManager（跨运行保留状态，不重置第二次跑的 MMIO 地址会和第一次串）。
@@ -372,6 +380,10 @@ internal static class Program
             SystemCallHandler = uiCalls,
             // 文件沙箱根 = 源文件所在目录（手机上等价物是 CwdContext.Root = workspace）。
             FileSystemRoot = Path.GetDirectoryName(sourcePath) ?? Directory.GetCurrentDirectory(),
+            /* 命令行参数：`argv[0]` = **程序名**（源文件名），其后依次是 `--arg` 给的值。
+               两边都保证 `argc >= 1`（C 的语义）—— 宿主给了就按宿主的，
+               宿主一个都不给时运行时会补一个空串。 */
+            CommandLineArgs = BuildArgv(sourcePath, opt.Args),
         };
         uiCalls.Vm = vm;
 
@@ -592,6 +604,18 @@ internal sealed partial class CliOptions
     /// <summary>`--out`：重建模式的输出路径（默认与源文件同名的 .vml）。</summary>
     public string? RebuildLibOut { get; private set; }
     public int TimeoutSeconds { get; private set; } = 30;
+
+    /// <summary>
+    /// <c>--arg &lt;值&gt;</c>：给程序传一个命令行参数（**可重复**，按出现顺序累加）。
+    ///
+    /// ⚠ **刻意不做引号解析**：本仓踩过"命令按空白切分、路径带空格就断成两截"
+    /// （见 `ShellCommandRegistry.Split`）。要带空格的参数就整段当一个值给：
+    /// <c>--arg "hello world"</c>。
+    ///
+    /// `argv[0]` 由我们补成**源文件名**（C 的语义：`argv[0]` 是程序名），
+    /// 所以 `--arg` 给的值从 `argv[1]` 开始 —— 宿主一个都不给时 `argc` 就是 1。
+    /// </summary>
+    public List<string> Args { get; } = new();
     public bool Help { get; private set; }
 
     /// <summary>
@@ -642,6 +666,10 @@ internal sealed partial class CliOptions
                     if (!int.TryParse(t, out var secs) || secs <= 0)
                         throw new CliArgumentException($"--timeout 需要一个正整数，收到 `{t}`");
                     o.TimeoutSeconds = secs;
+                    break;
+
+                case "--arg":
+                    o.Args.Add(Require(args, ref i, "--arg"));
                     break;
 
                 case "--stdin":

@@ -313,6 +313,14 @@ void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 
 void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
 int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
 
+/* ── 命令行参数 ──
+   参数由宿主喂（桌面 `vmlcli prog.c --arg -l`、手机 `vml run prog.c -l`）。
+   `argv[0]` 是程序名、恒存在 ⇒ 用户给的第一个参数是 `ui_arg(1,…)`。
+   ⚠ `int main(int argc, char **argv)` 的程序**不需要**它们（入口帧直接给），
+      这两个是给 `int main(void)` 的程序和非 C 语言绑定用的。 */
+int  ui_argc(void);                          /* 参数个数（含程序名，恒 ≥ 1） */
+int  ui_arg(int i, char* buf, int cap);      /* 拷第 i 个进 buf；返回长度，越界 -1 */
+
 /* ── 通用宿主调用口（577–580，v0.96.326）──────────────────────────────
  *
  * 这四个函数让程序**按数字 id 调宿主的函数**：参数直接躺在寄存器里、返回值直接

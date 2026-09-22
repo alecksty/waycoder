@@ -276,8 +276,20 @@ namespace VMLRuntime
             set => _consoleIO = value;
         }
 
-        /// <summary>OS模式下传递给 main 的命令行参数</summary>
+        /// <summary>宿主传进来的命令行参数（**不含** `argv[0]`；那一项由运行时补）</summary>
         public List<string> CommandLineArgs { get; set; } = new();
+
+        /// <summary>
+        /// 生效的 `argv`：**入口帧与 `#62`/`#63` 共用的唯一真源**。
+        ///
+        /// `[0]` 恒存在 —— 宿主没给参数时补一个（C 保证 `argc >= 1`，
+        /// 而且老程序常拿 `argv[0]` 打用法/取程序名，给 NULL 就是替它们埋一个空指针）。
+        /// 宿主给了参数时 `[0]` 由宿主决定（`vmlcli` 放源文件名）。
+        ///
+        /// **入口帧与 `#62`/`#63` 都读这一份** —— 两处各算一份就是
+        /// "`main` 拿到的和 `ui_arg` 拿到的不是一回事"这种最难查的分叉。
+        /// </summary>
+        private List<string> _argvStrings = new();
 
         /// <summary>
         /// 初始化虚拟机运行时
@@ -778,11 +790,15 @@ namespace VMLRuntime
                      帧布局是 **ABI** 的事、与特权级无关：前端不论哪种模式都按 `[R12+12]` 读 `argc`。
                      （特权级管的是**系统调用**能不能用，见 `DeniedByPrivilege`。） */
                 {
-                    int argc = CommandLineArgs.Count > 0 ? CommandLineArgs.Count : 1;
+                    /* 生效的 argv（**唯一真源**：入口帧照它铺，`#62`/`#63` 按序号读它）。 */
+                    _argvStrings = CommandLineArgs.Count > 0
+                        ? new List<string>(CommandLineArgs)
+                        : new List<string> { "" };
+                    int argc = _argvStrings.Count;
                     int argvPtr = AllocateMemory((argc + 1) * 4);
                     for (int i = 0; i < argc; i++)
                     {
-                        string arg = i < CommandLineArgs.Count ? CommandLineArgs[i] : "";
+                        string arg = _argvStrings[i];
                         int strAddr = AllocateMemory(arg.Length + 1);
                         for (int j = 0; j < arg.Length; j++)
                             memory[strAddr + j] = (byte)arg[j];

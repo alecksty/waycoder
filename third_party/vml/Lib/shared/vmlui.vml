@@ -3157,6 +3157,52 @@ L_2170139:
         pop @R12
         pop @R15
         ret
+ui_argc:
+; -------------------------------------------
+; source   : int ui_argc()
+; function : ui_argc
+; return   : int
+; --------------------------------------------
+ui_argc:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 602:     return asm("SYSCALL #62");
+        syscall #62
+        move [@R12-4] @R0
+        jmp L_2170140
+L_2170140:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ui_arg:
+; -------------------------------------------
+; source   : int ui_arg(int i,char* buf,int cap)
+; function : ui_arg
+; param   : int i
+; param   : char* buf
+; param   : int cap
+; return   : int
+; --------------------------------------------
+ui_arg:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 608:     return asm("SYSCALL #63, ${i}, ${buf}, ${cap}");
+        move @R0 [@R12+12]
+        move @R1 [@R12+16]
+        move @R2 [@R12+20]
+        syscall #63
+        move [@R12-4] @R0
+        jmp L_2170141
+L_2170141:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
 callwithint8:
 ; -------------------------------------------
 ; source   : int callwithint8(int* v)
@@ -3169,7 +3215,7 @@ callwithint8:
         push @R12
         move @R12 @R13
         sub @R13 #48
-; 616:     int a0 = v[0]; int a1 = v[1]; int a2 = v[2]; int a3 = v[3];
+; 638:     int a0 = v[0]; int a1 = v[1]; int a2 = v[2]; int a3 = v[3];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3202,7 +3248,7 @@ callwithint8:
         add @R0 @R9
         move @R0 [@R0]
         move [@R12-20] @R0
-; 617:     int a4 = v[4]; int a5 = v[5]; int a6 = v[6]; int a7 = v[7];
+; 639:     int a4 = v[4]; int a5 = v[5]; int a6 = v[6]; int a7 = v[7];
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -3235,7 +3281,7 @@ callwithint8:
         add @R0 @R3
         move @R0 [@R0]
         move [@R12-36] @R0
-; 618:     return asm("SYSCALL #577, ${a0}, ${a1}, ${a2}, ${a3}, ${a4}, ${a5}, ${a6}, ${a7}");
+; 640:     return asm("SYSCALL #577, ${a0}, ${a1}, ${a2}, ${a3}, ${a4}, ${a5}, ${a6}, ${a7}");
         move @R0 [@R12-8]
         move @R1 [@R12-12]
         move @R2 [@R12-16]
@@ -3246,8 +3292,8 @@ callwithint8:
         move @R7 [@R12-36]
         syscall #577
         move [@R12-4] @R0
-        jmp L_2170140
-L_2170140:
+        jmp L_2170142
+L_2170142:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3264,12 +3310,12 @@ callwithfloat8:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 624:     p = v;     asm("MOVEF F0, [${p}]");
+; 646:     p = v;     asm("MOVEF F0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F0, [@R0]"
-; 625:     p = v + 1; asm("MOVEF F1, [${p}]");
+; 647:     p = v + 1; asm("MOVEF F1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -3280,7 +3326,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F1, [@R0]"
-; 626:     p = v + 2; asm("MOVEF F2, [${p}]");
+; 648:     p = v + 2; asm("MOVEF F2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3291,7 +3337,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F2, [@R0]"
-; 627:     p = v + 3; asm("MOVEF F3, [${p}]");
+; 649:     p = v + 3; asm("MOVEF F3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -3302,7 +3348,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F3, [@R0]"
-; 628:     p = v + 4; asm("MOVEF F4, [${p}]");
+; 650:     p = v + 4; asm("MOVEF F4, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -3313,7 +3359,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F4, [@R0]"
-; 629:     p = v + 5; asm("MOVEF F5, [${p}]");
+; 651:     p = v + 5; asm("MOVEF F5, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
@@ -3324,7 +3370,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F5, [@R0]"
-; 630:     p = v + 6; asm("MOVEF F6, [${p}]");
+; 652:     p = v + 6; asm("MOVEF F6, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #6
@@ -3335,7 +3381,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F6, [@R0]"
-; 631:     p = v + 7; asm("MOVEF F7, [${p}]");
+; 653:     p = v + 7; asm("MOVEF F7, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #7
@@ -3346,7 +3392,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F7, [@R0]"
-; 632:     id = (int)v[0];
+; 654:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3356,12 +3402,12 @@ callwithfloat8:
         movef @R0 [@R0]
         f2i @R0 @R0
         move [@R12-12] @R0
-; 633:     return asm("SYSCALL #578, ${id}");
+; 655:     return asm("SYSCALL #578, ${id}");
         move @R0 [@R12-12]
         syscall #578
         move [@R12-4] @R0
-        jmp L_2170141
-L_2170141:
+        jmp L_2170143
+L_2170143:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3378,12 +3424,12 @@ callwithlong4:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 639:     p = v;     asm("MOVEL L0, [${p}]");
+; 661:     p = v;     asm("MOVEL L0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L0, [@R0]"
-; 640:     p = v + 1; asm("MOVEL L1, [${p}]");
+; 662:     p = v + 1; asm("MOVEL L1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -3394,7 +3440,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L1, [@R0]"
-; 641:     p = v + 2; asm("MOVEL L2, [${p}]");
+; 663:     p = v + 2; asm("MOVEL L2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3405,7 +3451,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L2, [@R0]"
-; 642:     p = v + 3; asm("MOVEL L3, [${p}]");
+; 664:     p = v + 3; asm("MOVEL L3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -3416,7 +3462,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L3, [@R0]"
-; 643:     id = (int)v[0];
+; 665:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3426,12 +3472,12 @@ callwithlong4:
         movel @R0 [@R0]
         l2i @R0 @R0
         move [@R12-12] @R0
-; 644:     return asm("SYSCALL #579, ${id}");
+; 666:     return asm("SYSCALL #579, ${id}");
         move @R0 [@R12-12]
         syscall #579
         move [@R12-4] @R0
-        jmp L_2170142
-L_2170142:
+        jmp L_2170144
+L_2170144:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3449,12 +3495,12 @@ callwithdouble4:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 650:     p = v;     asm("MOVED D0, [${p}]");
+; 672:     p = v;     asm("MOVED D0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D0, [@R0]"
-; 651:     p = v + 1; asm("MOVED D1, [${p}]");
+; 673:     p = v + 1; asm("MOVED D1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -3465,7 +3511,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D1, [@R0]"
-; 652:     p = v + 2; asm("MOVED D2, [${p}]");
+; 674:     p = v + 2; asm("MOVED D2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3476,7 +3522,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D2, [@R0]"
-; 653:     p = v + 3; asm("MOVED D3, [${p}]");
+; 675:     p = v + 3; asm("MOVED D3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -3487,7 +3533,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D3, [@R0]"
-; 654:     id = (int)v[0];
+; 676:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3497,12 +3543,12 @@ callwithdouble4:
         moved @R0 [@R0]
         d2i @R0 @R0
         move [@R12-12] @R0
-; 655:     return asm("SYSCALL #580, ${id}");
+; 677:     return asm("SYSCALL #580, ${id}");
         move @R0 [@R12-12]
         syscall #580
         move [@R12-4] @R0
-        jmp L_2170143
-L_2170143:
+        jmp L_2170145
+L_2170145:
         move @R13 @R12
         pop @R12
         pop @R15

@@ -177,6 +177,35 @@ namespace VMLRuntime
                 case 59: // GetInfo(TypeId) -> R0=string_addr
                     ExecuteGetInfo();
                     break;
+                /* 命令行参数（宿主喂、程序取）。见 `SyscallNumber.ArgCount` 那段注释。
+                   ⚠ 两条读的是**同一份** `_argvAddrs`（入口帧也是照它铺的）——
+                     分成两处各算一份就是"`main` 拿到的和 `ui_arg` 拿到的不是一回事"
+                     这种最难查的分叉。 */
+                case 62: // ArgCount -> R0 = 参数个数（含 argv[0]）
+                    registers[0] = _argvStrings.Count;
+                    break;
+                case 63: // ArgGet(R0=序号, R1=缓冲区, R2=容量) -> R0=写入字节数（不含 NUL），失败 -1
+                {
+                    /* **写进调用方给的缓冲区**，与 `ui_store_get`/`ui_call_json` 同一套 ——
+                       宿主没有能"交还"的堆；更要紧的是：拷贝逻辑放在**运行时一处**，
+                       22 门语言的绑定就都是一行 syscall，不必各自写一个拷贝循环
+                       （本仓头号坑就是"同一规则两处实现"）。 */
+                    int argIdx = registers[0];
+                    int dst = registers[1];
+                    int cap = registers[2];
+                    if (dst <= 0 || cap <= 0 || argIdx < 0 || argIdx >= _argvStrings.Count)
+                    {
+                        registers[0] = -1;
+                        break;
+                    }
+                    string argText = _argvStrings[argIdx];
+                    int n = Math.Min(argText.Length, cap - 1);
+                    for (int j = 0; j < n; j++)
+                        memory[dst + j] = (byte)argText[j];
+                    memory[dst + n] = 0;
+                    registers[0] = n;
+                    break;
+                }
                 case 70: // DebugPrint(R0=string)
                 {
                     int addr = registers[0];

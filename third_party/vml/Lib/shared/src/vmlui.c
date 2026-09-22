@@ -713,6 +713,30 @@ int ui_store_get(char* key, char* buf, int cap) {
     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
 }
 
+/* ── 命令行参数（#62/#63，v0.96.371）────────────────────────────
+ *
+ * 参数由**宿主**喂：桌面上是 `vmlcli prog.c --arg -l --arg foo`，
+ * 手机上是 `vml run examples/c/tetris.c -l`（多出来的 token 全部当参数）。
+ * 编译产物里**不含**参数 ⇒ 同一个 `.vml` 可以带不同参数跑。
+ *
+ * `argv[0]` 是**程序名**（宿主决定；宿主一个参数都不给时它也一定在 ——
+ * C 保证 `argc >= 1`，而老程序常拿 `argv[0]` 打用法）。所以用户给的第一个参数是 `ui_arg(1,…)`。
+ *
+ * ⚠ `int main(int argc, char **argv)` 的程序**不需要**这两个函数（入口帧直接给），
+ *   它们是给 `int main(void)` 的程序、以及非 C 语言的绑定用的。
+ *
+ * 判据：`scripts/vml-c-probe/cases/45-argv-pass.c`（**两条路取到同一份**）。 */
+int ui_argc(void) {
+    return asm("SYSCALL #62");
+}
+
+/* 把第 i 个参数拷进调用方缓冲区（与 `ui_store_get` 同一套：宿主没有能"交还"的堆），
+   返回**写入的字节数**（不含结尾 NUL）；i 越界 / 缓冲区无效返回 -1。
+   容量不够就**截断**（照 C 的 `strncpy` 语义，一定补 NUL）。 */
+int ui_arg(int i, char* buf, int cap) {
+    return asm("SYSCALL #63, ${i}, ${buf}, ${cap}");
+}
+
 /* ── 通用宿主调用口（577–580，v0.96.326）──
  *
  * 四个函数的结构完全一样：**把数组的元素装进寄存器 + 发一条 syscall**。
