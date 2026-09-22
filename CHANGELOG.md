@@ -1,3 +1,82 @@
+## v0.96.358 — 老程序兼容性体检第一轮：两个"明明有、到不了程序手里"的缺陷 + 一个会伪造大回归的脚手架坑
+
+拿真程序跑了一轮兼容性体检（`sl` / `tty-clock` / `nyancat` / `kilo` / `cmatrix`，
+外加 NetBSD 那批老游戏）。**5 个程序修前 0 个跑通**，但卡点分四类、性质完全不同 ——
+这一版修掉其中最值钱的两个、外加脚手架自己那个。
+
+### 一、`//` 出现在**宏体**里就被当成行注释（C 前端）
+
+`#define M "a//b"` 再使用 M ⇒ `词法错误：未结束的字符串`；
+**同一个字符串直接写进代码反而没事**。
+
+真实受害程序 `sl`（mtoyoda/sl，295 行）整个编不过 —— `sl.h` 里
+`#define LWHL22 "//// \\_/      \\_/    "` 正是这一形态。
+`docs/老程序兼容性.md` 原先记的「偶尔词法错误（未结）」，实测是**确定性失败**（连跑 4 次全挂）。
+
+真身：`CompilerBase/Preprocessor.Directives.cs` 的 `StripComments` 从宏体里剥 `//` / `/*`。
+那句注释「C99 翻译阶段 3：注释在宏展开前删除」**本身没错，错在漏了同一阶段里字面量已经被识别**
+⇒ `"a//b"` 被截成 `"a`，宏展开后就是未结束的字符串。同一个根因还会顺带报出
+「未知字符：`\`」「未声明的变量 'X'」等**一串长得完全不同的错** —— 这正是它长期没被认出来的原因。
+
+⚠ 顺带查明：**C 有两个 `Preprocessor`** —— `CCompiler/Preprocessor.cs` 是整份拷贝，
+只有独立 CLI（`CCompiler/Program.cs`）走它；库入口（vmlcli/VMLTool 走的 `CCompiler.Compile`）
+走 `CompilerBase`。**只有后者削宏体注释** ⇒ 两个入口行为本来就不一致，改动必须落在 `CompilerBase` 那个。
+
+### 二、`convert64` 没进链接清单 —— `atol` / `ltoa` / `dtoa` / `atod` 对 C 一律不可用
+
+`tty-clock`（689 行）报 `未定义的函数 'atol'（引用 6 次）`。但它的
+**头文件声明、映射表条目、`.vml` 标签三者其实都在** —— 缺的是**链接清单**：
+`Lib/c/builtin.vml` 的 `.linked` 里没有 `convert64.vml`（有 `convert`、`printf`、`io`……）。
+而 `conv.c` 里 `atol` **只是一句前置声明**（注释写明"依赖 convert64.vml"）
+⇒ 库函数一旦调 `atol`，永远是只有调用点、没有定义。
+
+⚠ **决定链接的是前端产出的 `.linked`，不是 `SharedPrefixMap` 那张表** ——
+`CompilerHelper.cs` 里那段注释早已写明"往下面这张表里加条目加了不生效"（Forth 的
+`parserexp` 试过）。所以修的是 GenLib 里一张**写死的模块清单**，不是映射表。
+
+⚠ 这与 `console` 是**同一形态**：清单上方那段注释记着上一次 —— `console` 漏了 ⇒
+C# 的 `PrintlnStr` 只有调用点、运行期抛「未找到标签: PrintlnStr」。`convert64` 就是下一个。
+
+**实际价值**：`tty-clock` 修后**跑起来了** —— 退出码 0、5164 字节 ANSI 输出
+（`ESC[2J` 清屏 + 光标归位 + 逐行上色，真在画表盘）。
+
+### 三、体检脚手架自己会**伪造一次大回归**
+
+`scripts/vml-c-probe/run.sh` 里 `errf="$(mktemp -t vmlprobe)"` —— `-t <模板>` 是
+BSD/macOS 写法，GNU coreutils 要求模板里至少 3 个 X ⇒ Windows(Git Bash)/Linux 上直接
+`mktemp: too few X's in template 'vmlprobe'`，errf 为空 ⇒ **每条用例都报「实得 」
+而没有任何一条真正跑过**。修复前报 `通过 0 / 失败 27`，看着像满屏回归，其实是脚手架没起来。
+改成本目录其他脚本早就在用的**裸 `mktemp`**。
+
+⚠ 这类"跑不起来"比跑红更糟：它会让人照着假回归去查代码。
+
+### 四、体检结果矩阵（下一轮的排期依据）
+
+| 程序 | 类别 | 修前 | 修后 | 归属 |
+|---|---|---|---|---|
+| `sl` | 彩色 tty | ✘ 词法错误 | ✘ 缺 `usleep`/`mvcur` | **缺实现** |
+| `tty-clock` | 彩色 tty | ✘ 缺 `atol` | ✅ **跑通** | 已修（见二） |
+| `nyancat` | 彩色 tty | ✘ | 缺 11 个函数 + `setjmp.h` | 缺实现 + 缺头 |
+| `kilo` | 彩色 tty | ✘ | `__attribute__((unused))` 不解析 | **前端缺陷** |
+| `cmatrix` | 彩色 tty | ✘ | `VERSION`（来自 Makefile `-D`） | 需要宏注入入口 |
+| NetBSD 老游戏 | 命令行 | ✘ | 缺 `sys/cdefs.h`/`err.h`/`pathnames.h` | 环境缺口 |
+| 老图形程序 | 图形 | 未测 | 无 `graphics.h`（BGI 定案不做） | 按设计 |
+
+⚠ **区分两种"未定义函数"很值钱**：`atol` 是**有实现、没链接**（改一行清单），
+而 `putc` / `feof` / `fflush` / `tolower` / `difftime` 是**真缺实现**
+（`.vml` 标签与 C 实现体都没有）。判据是分别查 `.vml` 标签与 C 实现体在不在 ——
+别一律当成"缺库"，那会把一行清单的活估成"实现 6 个函数"。
+
+### 验证
+
+- 最小复现：`#define M "a//b"` 现输出 `[a//b]`；逐字节等同 `LWHL22` 的输出 `[//// \_/      \_/    ]`
+- C 探针 31 例 **26 通过 / 2 失败 / 3 已知红**，与**暂存改动后重跑的基线逐项相同**
+  （那 2 个失败是非 ASCII 文本比对 —— `┌───┐` 与中文诊断在 GBK 控制台下必然对不上，属环境）
+- 自测 **通过 6394 / 失败 0**
+- `sl` 的词法错误清零 —— 从「前端缺陷」降级为「缺 2 个库」
+- ⚠ 记一笔：`dotnet run -- --test` **只在 Debug 存在**（`#if WAYCODER_TEST`，见 csproj），
+  `-c Release` 会报「未知选项: --test」
+
 ## v0.96.357 — 电脑屏窗口的键盘：屏幕上那 81 个键 + 外接物理键盘
 
 老程序的输入就是键盘。上一版把电脑屏窗口（第三种窗口）接通之后，`pcscreen.c`
