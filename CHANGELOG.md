@@ -1,3 +1,30 @@
+## v0.96.365 — `matrix_rain.c` 放错树了：**它从来没进过包，手机上自然没有**
+
+用户点的名：「新增的正确的老程序要加入手机的例程」。
+
+**根因是个位置问题**，不是漏了打包：`scripts/make-vml-lib.sh` 打的是
+**`third_party/vml/Examples/`**（它 `cd "$VML"` 之后再 `find Examples …`），
+而我当初把自研的 `matrix_rain.c` 写在了**仓库根**的 `Examples/c/` 下 ——
+于是桌面看目录一切正常、`git` 里也躺着一份，**唯独进不了 `vml_lib.zip`**。
+
+⇒ 已 `git mv` 到 `third_party/vml/Examples/c/matrix_rain.c`（与 `nyancat.c` 并排），
+**删掉根目录那棵 `Examples/` 树**（它是个诱饵：两份同名文件、只有一份会被打包，
+留着下次还会踩）。
+
+**为什么单独立一条**：这条链上有**两个各自成立的判据**，任何一个不对都表现为
+"手机上少个文件"，而两边的现场完全不同：
+
+| 判据 | 谁在管 | 这次的症状 |
+|---|---|---|
+| 文件在不在**被打包的那棵树**里 | `make-vml-lib.sh` 的 `find Examples` | ← **这次就是它**（文件在，但不在那棵树里） |
+| 内容变了要不要**重新解包到手机** | `EnsureExamples()` 比 `Global.Version` | 只比版本、**不看内容指纹** ⇒ **改示例必须同时升版本号** |
+
+所以本次**一并**：升 `Global.Version` → v0.96.365、重跑 `make-vml-lib.sh`（zip 与
+`vml_lib.hash` 一起更新）、重打 APK。判据：`unzip -l` 里出现
+`Examples/c/matrix_rain.c`（3929 字节）、`Examples/c/old/` 仍是 16 条。
+
+---
+
 ## v0.96.364 — 老程序兼容：**二维指针数组的元素多解了一层引用**（修好 `sl` 三个缺陷里的第一个）
 
 `sl`「能跑但画面空」这一条，靠**在 `sl.c` 的副本里插桩**（把循环变量、字符串指针、
