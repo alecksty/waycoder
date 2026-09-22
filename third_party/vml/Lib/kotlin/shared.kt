@@ -571,7 +571,9 @@
 // CALL input_int
 // extern fn input_float(void) -> float
 // CALL input_float
-// extern fn gets(void) -> char*
+// extern fn read_string(void) -> char*
+// CALL read_string
+// extern fn gets(char* s) -> char*
 // CALL gets
 // extern fn kb_hit(void) -> int
 // CALL kb_hit

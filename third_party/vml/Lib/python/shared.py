@@ -1697,8 +1697,14 @@ def input_float():
     asm("CALL input_float")
     return r0
 
-def gets():
+def read_string():
     r0 = asm("@R0")
+    asm("CALL read_string")
+    return r0
+
+def gets(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
     asm("CALL gets")
     return r0
 

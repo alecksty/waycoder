@@ -286,7 +286,8 @@ namespace VML {
     // extern char* input_str(void);  // CALL input_str
     // extern int input_int(void);  // CALL input_int
     // extern float input_float(void);  // CALL input_float
-    // extern char* gets(void);  // CALL gets
+    // extern char* read_string(void);  // CALL read_string
+    // extern char* gets(char* s);  // CALL gets
     // extern int kb_hit(void);  // CALL kb_hit
     // extern void printf2(const char* fmt, int a1, int a2);  // CALL printf2
     // extern void printf3(const char* fmt, int a1, int a2, int a3);  // CALL printf3

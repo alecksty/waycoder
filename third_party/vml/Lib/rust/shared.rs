@@ -1758,7 +1758,14 @@ fn input_float() -> i32 {
     r
 }
 
-fn gets() -> i32 {
+fn read_string() -> i32 {
+    asm!("CALL read_string")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn gets(a0: i32) -> i32 {
     asm!("CALL gets")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);

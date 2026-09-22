@@ -1348,7 +1348,12 @@ DECLARE FUNCTION input_float() AS INTEGER
     input_float = 0
 END FUNCTION
 
-DECLARE FUNCTION gets() AS INTEGER
+DECLARE FUNCTION read_string() AS INTEGER
+    asm("CALL read_string")
+    read_string = 0
+END FUNCTION
+
+DECLARE FUNCTION gets(a0 AS INTEGER) AS INTEGER
     asm("CALL gets")
     gets = 0
 END FUNCTION

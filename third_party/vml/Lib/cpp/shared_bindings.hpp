@@ -286,7 +286,8 @@ extern "C" {
     __stdcall char* input_str(void);
     __stdcall int input_int(void);
     __stdcall float input_float(void);
-    __stdcall char* gets(void);
+    __stdcall char* read_string(void);
+    __stdcall char* gets(char* s);
     __stdcall int kb_hit(void);
     __stdcall void printf2(const char* fmt, int a1, int a2);
     __stdcall void printf3(const char* fmt, int a1, int a2, int a3);

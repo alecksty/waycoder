@@ -1350,7 +1350,12 @@ func input_float() int32 {
     return vml.R0()
 }
 
-func gets() int32 {
+func read_string() int32 {
+    vml.Call("read_string")
+    return vml.R0()
+}
+
+func gets(a0 int32) int32 {
     vml.Call("gets")
     return vml.R0()
 }

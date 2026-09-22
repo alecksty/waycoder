@@ -401,22 +401,144 @@ L_3590008:
         pop @R12
         pop @R15
         ret
+read_string:
+; -------------------------------------------
+; source   : char* read_string()
+; function : read_string
+; return   : char*
+; --------------------------------------------
+read_string:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 121:     return asm("SYSCALL #2");
+        syscall #2
+        move [@R12-4] @R0
+        jmp L_3590009
+L_3590009:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
 gets:
 ; -------------------------------------------
-; source   : char* gets()
+; source   : char* gets(char* s)
 ; function : gets
+; param   : char* s
 ; return   : char*
 ; --------------------------------------------
 gets:
         push @R15
         push @R12
         move @R12 @R13
-        sub @R13 #16
-; 111:     return asm("SYSCALL #2");
-        syscall #2
+        sub @R13 #24
+; 138:     char* p = s;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+sta_3590010:
+; 141:         asm("MOVE R0 #1");        /* 阻塞读（字面指令，见 io.c 的 getchar 说明） */
+        asm "MOVE R0 #1"
+; 142:         c = asm("SYSCALL #14");   /* 带 EOF 语义：输入耗尽给 -1 */
+        syscall #14
         move [@R12-4] @R0
-        jmp L_3590009
-L_3590009:
+        move [@R12-12] @R0
+; 143:         if (c == -1) {
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L3590015
+        move @R0 #0
+        jmp _L3590016
+_L3590015:
+        move @R0 #1
+_L3590016:
+        cmp @R0 #0
+        jz sta_3590013
+; 145:             if (p == s) return 0;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        cmp @R1 @R0
+        je _L3590019
+        move @R0 #0
+        jmp _L3590020
+_L3590019:
+        move @R0 #1
+_L3590020:
+        cmp @R0 #0
+        jz sta_3590017
+        move @R0 #0
+        jmp L_3590021
+sta_3590017:
+sta_3590018:
+        jmp sta_3590012
+sta_3590013:
+sta_3590014:
+; 148:         if (c == '\n') break;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
+        je _L3590024
+        move @R0 #0
+        jmp _L3590025
+_L3590024:
+        move @R0 #1
+_L3590025:
+        cmp @R0 #0
+        jz sta_3590022
+        jmp sta_3590012
+sta_3590022:
+sta_3590023:
+; 149:         if (c == '\r') continue;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
+        je _L3590028
+        move @R0 #0
+        jmp _L3590029
+_L3590028:
+        move @R0 #1
+_L3590029:
+        cmp @R0 #0
+        jz sta_3590026
+        jmp sta_3590011
+sta_3590026:
+sta_3590027:
+; 150:         *p = (char)c;
+        move @R0 [@R12-8]
+        move @R11 @R0
+        move @R0 [@R12-12]
+        moveb [@R11] @R0
+; 151:         p = p + 1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+sta_3590011:
+        jmp sta_3590010
+sta_3590012:
+; 153:     *p = 0;
+        move @R0 [@R12-8]
+        move @R10 @R0
+        move @R0 #0
+        moveb [@R10] @R0
+; 154:     return s;
+        move @R0 [@R12+12]
+        jmp L_3590021
+L_3590021:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -432,12 +554,12 @@ kb_hit:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 119:     return -1;
+; 162:     return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_3590010
-L_3590010:
+        jmp L_3590030
+L_3590030:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -456,15 +578,15 @@ printf2:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 125:     asm("MOVE R0 fmt");
+; 168:     asm("MOVE R0 fmt");
         asm "MOVE R0 fmt"
-; 126:     asm("MOVE R1 a1");
+; 169:     asm("MOVE R1 a1");
         asm "MOVE R1 a1"
-; 127:     asm("MOVE R2 a2");
+; 170:     asm("MOVE R2 a2");
         asm "MOVE R2 a2"
-; 128:     asm("CALL printf2");
+; 171:     asm("CALL printf2");
         asm "CALL printf2"
-; 129:     asm("ADD R13 #12");
+; 172:     asm("ADD R13 #12");
         asm "ADD R13 #12"
         move @R13 @R12
         pop @R12
@@ -486,17 +608,17 @@ printf3:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 133:     asm("MOVE R0 fmt");
+; 176:     asm("MOVE R0 fmt");
         asm "MOVE R0 fmt"
-; 134:     asm("MOVE R1 a1");
+; 177:     asm("MOVE R1 a1");
         asm "MOVE R1 a1"
-; 135:     asm("MOVE R2 a2");
+; 178:     asm("MOVE R2 a2");
         asm "MOVE R2 a2"
-; 136:     asm("MOVE R3 a3");
+; 179:     asm("MOVE R3 a3");
         asm "MOVE R3 a3"
-; 137:     asm("CALL printf3");
+; 180:     asm("CALL printf3");
         asm "CALL printf3"
-; 138:     asm("ADD R13 #16");
+; 181:     asm("ADD R13 #16");
         asm "ADD R13 #16"
         move @R13 @R12
         pop @R12
