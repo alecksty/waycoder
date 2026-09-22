@@ -1,4 +1,5 @@
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder;
 
@@ -28,6 +29,7 @@ public static partial class SelfTest
         TestWinKindContract(Section, Check);
         TestWinKindDecode(Section, Check);
         TestWinOpenPcDispatch(Section, Check);
+        TestViewTransform(Section, Check);
         _ = Fail;
     }
 
@@ -133,5 +135,79 @@ public static partial class SelfTest
         rt.HandleSyscall(VmlUi.WinOpen, regs, mem);
         Check("回归：老号照旧 Graphic + 不读 R3/R4 + 不要键盘",
             host.Opened is { Kind: VmlWinKind.Graphic, Rotation: WindowRotation.Legacy, NeedKeyboard: false });
+    }
+
+    // ═══ ④ 显示变换（双指缩放 / 单指平移）═══
+    //
+    // ⚠ 这套换算**错了的症状是"点哪儿偏哪儿"**，而且偏得不单调（缩放比越大偏得越多）——
+    //   从现象几乎反推不出来。所以在这里钉密一点：居中、往返、锚点不动、边界钳制。
+    private static void TestViewTransform(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[第三种窗口] 显示变换");
+
+        // ── 基准：等比缩放 + 居中（**只缩一个维度必然把另一个切掉**）──
+        var t = new VmlViewTransform();
+        t.Fit(viewW: 400, viewH: 800, sceneW: 640, sceneH: 480);
+        // min(400/640, 800/480) = min(0.625, 1.667) = 0.625 ⇒ 显示 400×300，垂直居中
+        Check("Fit: 取两方向里小的那个（0.625）", Math.Abs(t.Scale - 0.625) < 1e-9);
+        Check("Fit: 装得下的方向居中（OffsetY=250）", Math.Abs(t.OffsetY - 250) < 1e-9);
+        Check("Fit: 正好铺满的方向贴边（OffsetX=0）", Math.Abs(t.OffsetX) < 1e-9);
+        Check("Fit: 初始 Zoom=1（看全貌）", Math.Abs(t.Zoom - 1) < 1e-9);
+
+        // ── 往返：两把尺子必须互为逆 —— 这条是"点哪儿偏哪儿"的直接护栏 ──
+        var v = t.ToView(320, 240);            // 场景正中
+        var back = t.ToScene(v.X, v.Y);
+        Check("往返：ToScene(ToView(场景正中)) 回到原地",
+            back is { } b && Math.Abs(b.X - 320) < 1e-6 && Math.Abs(b.Y - 240) < 1e-6);
+
+        var v2 = t.ToView(600, 400);
+        var back2 = t.ToScene(v2.X, v2.Y);
+        Check("往返：任意一点也回得来（不是只有正中凑巧对）",
+            back2 is { } b2 && Math.Abs(b2.X - 600) < 1e-6 && Math.Abs(b2.Y - 400) < 1e-6);
+
+        // ── 图外返回 null：触摸落在黑边上不该当成"点了 (0,0)" ──
+        Check("图外：负坐标返回 null", t.ToScene(-10, -10) is null);
+        Check("图外：黑边那一侧返回 null", t.ToScene(10, 10) is null);   // y=10 落在上下黑边里
+
+        // ── 锚点不动：双指捏合时，两指中间那块内容不该跑 ──
+        var anchorX = 200.0; var anchorY = 400.0;
+        var beforeScene = t.ToScene(anchorX, anchorY);
+        t.ZoomAt(anchorX, anchorY, 2.0);
+        var afterScene = t.ToScene(anchorX, anchorY);
+        Check("ZoomAt: 锚点底下的场景内容**保持不动**",
+            beforeScene is { } bs && afterScene is { } as_ &&
+            Math.Abs(bs.X - as_.X) < 1e-6 && Math.Abs(bs.Y - as_.Y) < 1e-6);
+        Check("ZoomAt: 缩放比真的变了（2 倍）", Math.Abs(t.Zoom - 2) < 1e-9);
+
+        // ── 放大后的平移：内容**始终盖满视口**（两头都不露白）──
+        t.Pan(10000, 10000);                   // 往右下猛推
+        Check("平移：(0,0) 侧不露白（OffsetX<=0）", t.OffsetX <= 1e-9);
+        Check("平移：右下侧不露白（内容右缘盖住视口）", t.OffsetX + 640 * t.Scale >= 400 - 1e-9);
+        t.Pan(-10000, -10000);                 // 往左上猛推
+        Check("平移：反方向也不露白", t.OffsetX >= 400 - 640 * t.Scale - 1e-9);
+
+        // ── 缩放钳位：两端都要夹住（不夹的话会缩到看不见 / 放到溢出）──
+        t.ZoomAt(200, 400, 1000);
+        Check("缩放上限被钳在 MaxZoom", Math.Abs(t.Zoom - VmlViewTransform.MaxZoom) < 1e-9);
+        t.ZoomAt(200, 400, 0.0001);
+        Check("缩放下限被钳在 MinZoom（不会缩到比看全貌还小）",
+            Math.Abs(t.Zoom - VmlViewTransform.MinZoom) < 1e-9);
+
+        // ── 复位：双指双击回到看全貌 ──
+        t.ZoomAt(200, 400, 4);
+        t.Reset();
+        Check("Reset: 回到 Zoom=1", Math.Abs(t.Zoom - 1) < 1e-9);
+        Check("Reset: 且居中（不是停在放大时的偏移上）",
+            Math.Abs(t.OffsetY - 250) < 1e-6 && Math.Abs(t.OffsetX) < 1e-6);
+
+        /* ── 换视口**保持缩放比**：程序转屏/收键盘换了视口时，
+              用户刚放大到看细节的那一档不该被扔掉 ── */
+        var t2 = new VmlViewTransform();
+        t2.Fit(400, 800, 640, 480);
+        t2.ZoomAt(200, 400, 2);
+        t2.Fit(800, 400, 640, 480);            // 视口变了
+        Check("换视口保持 Zoom（不把用户放大的一档扔掉）", Math.Abs(t2.Zoom - 2) < 1e-9);
+        Check("换视口后仍不露白",
+            t2.OffsetX <= 1e-9 && t2.OffsetX + 640 * t2.Scale >= 800 - 1e-9);
     }
 }
