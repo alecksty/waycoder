@@ -23,7 +23,7 @@ namespace VMLRuntime
         Alloc = 40,
         Free = 41,
 
-        // === 随机数/时间 (50-58) ===
+        // === 随机数/时间 (50-58, 61) ===
         Random = 50,
         Seed = 51,
         Sleep = 52,
@@ -33,6 +33,14 @@ namespace VMLRuntime
         GetTimeString = 56,
         SpeakerBeep = 57,    // R0=freq_hz, R1=duration_ms
         SetRTC = 58,         // R0=unix_timestamp → R0=0 success
+        /* 本地时区偏移（秒，**东为正**；UTC 为 0）。
+           ⚠ 为什么要有它：`#54` 给的是 **Unix 时间戳**，那是**与地区无关**的，
+           而库里把它拆成 `struct tm` 的那段（`util.c` 的 `_ts_to_tm`）**是纯 UTC 换算**
+           —— 于是 `localtime()` 与 `gmtime()` 一模一样，钟面小时差 8 小时
+           （分/秒/日期都对，因为 UTC+8 是整小时 ⇒ 只错小时这一项，最容易看成"程序算错了"）。
+           ⚠ **不动 `#54` 的语义**（它是时间戳，本来就该与地区无关），按本仓规矩
+           「新能力一律走新号」另开一个号。 */
+        GetUtcOffset = 61,
 
         // === 系统信息 (59) ===
         GetInfo = 59,        // R0=TypeId → R0=string_addr (0=不支持)
@@ -153,7 +161,7 @@ namespace VMLRuntime
                `Permission denied: syscall 14 requires kernel mode` 并把 R0 置成错误码
                —— 表现是 `getchar()` 恒返一个负数、老程序读到的"字符"全是垃圾。 */
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-            40, 41, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 70, 71, 72,
+            40, 41, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 70, 71, 72,
             100, 101, 102, 103, 104, 106, 107,
             110, 111, 112, 113, 114,
             200, 201, 202, 203,

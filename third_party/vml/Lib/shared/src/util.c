@@ -177,7 +177,11 @@ __stdcall int raise(int sig) {
 
 /* ── localtime / gmtime ──
    ⚠ 字段顺序必须与 `Lib/c/time.h` 的 `struct tm` **逐字对齐**（实现文件不 include 头，
-   靠约定 —— 与 curses 那条同源的风险）。本平台没有时区/夏令时，两者结果相同。 */
+   靠约定 —— 与 curses 那条同源的风险）。
+
+   ⚠ 这两者此前**结果相同**（原文就写着"本平台没有时区/夏令时"），而 `localtime` 因此
+   名不符实：`tty-clock` 的钟面小时差 8 小时（分/秒/日期全对，因为 UTC+8 是整小时）。
+   现在 `_ts_to_tm` 仍是**纯 UTC** 换算，本地化只发生在 `localtime` 那一层（加 `#61`）。 */
 struct vml_tm {
     int tm_sec;
     int tm_min;
@@ -241,13 +245,25 @@ static struct vml_tm* _ts_to_tm(int ts)
     return &_tm_buf;
 }
 
+/* `localtime` = **本地**时间：`_ts_to_tm` 本身是纯 UTC 换算，这里加上本地时区偏移（`#61`）。
+   ⚠ 偏移那一段**刻意内联**、不抽成 `_vml_utc_offset()` 助手 —— `GenLib -A` 会把本文件里的
+   函数（连 `static` 的也算）导出成 22 份 `<语言>/shared.*` 绑定，内部细节不该进跨语言契约
+   （curses.c 那条踩过：生成出 `nt sc_write_attr(WINDOW *w);`，返回类型还被截断成 `nt`）。 */
 __stdcall struct vml_tm* localtime(int* t) {
-    if (t) return _ts_to_tm(*t);
-    return _ts_to_tm((int)asm("SYSCALL 54"));   /* 不给就用当前时间（#54 GetDateTime） */
+    int ts;
+    int off;
+    if (t) ts = *t;
+    else ts = (int)asm("SYSCALL 54");           /* 不给就用当前时间（#54 GetDateTime） */
+    off = (int)asm("SYSCALL 61");               /* #61 GetUtcOffset（秒，东为正） */
+    return _ts_to_tm(ts + off);
 }
 
+/* `gmtime` = **纯 UTC**：同一个时间戳，**不加**偏移。
+   ⚠ 此前它直接转调 `localtime`（注释写着"本平台无时区，两者相同"）—— 有了 `#61` 之后
+   那句话就不成立了，两个函数必须分开，否则"用哪个都一样"会把这个号的意义抹掉。 */
 __stdcall struct vml_tm* gmtime(int* t) {
-    return localtime(t);                        /* 本平台无时区，两者相同 */
+    if (t) return _ts_to_tm(*t);
+    return _ts_to_tm((int)asm("SYSCALL 54"));
 }
 
 /* ── strftime：时间程序都靠它把 struct tm 拼成字符串 ──

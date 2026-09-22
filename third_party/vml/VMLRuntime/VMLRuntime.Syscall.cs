@@ -115,6 +115,15 @@ namespace VMLRuntime
                     registers[0] = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
                     break;
                 case 55: registers[0] = AllocStr(DateTime.Now.ToString("yyyy-MM-dd")); break;
+                /* 61 GetUtcOffset -> R0 = 本地时区偏移（秒，东为正）
+                   ⚠ 用 `Now - UtcNow` 而不是 `TimeZoneInfo.Local`：前者只依赖平台给的
+                   本地时间（Android/iOS/桌面都直接有），后者要走时区数据库
+                   （`InvariantGlobalization=true` 的宿主上会退化成 UTC，症状是"修了没生效"）。
+                   ⚠ **必须取整到分钟**：两次读时钟之间会跨毫秒，直取 `.TotalSeconds`
+                   实测得到 **28799**（而不是 28800）—— 症状是 `localtime` 整体偏 1 秒
+                   （`tm_sec` 少 1），而所有"整小时"假设都还成立、极难看出。
+                   （现实时区的偏移都是整分钟；秒级偏移只存在于 1900 年前的史料里。） */
+                case 61: registers[0] = (int)(Math.Round((DateTime.Now - DateTime.UtcNow).TotalMinutes) * 60); break;
                 case 60: // GetConfig(type) -> R0 = address/value
                     registers[0] = registers[0] switch
                     {
