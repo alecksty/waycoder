@@ -1042,6 +1042,7 @@ namespace CCompiler
                         vlaVariables.Add(varDecl.Name);
                         arrayLocalVars.Add(varDecl.Name);
                         localArrayDimensions[varDecl.Name] = new List<int?>();  // empty marker = VLA
+                        arrayElemSize[varDecl.Name] = elementSize;              // sizeof 用（VLA 只算得出元素大小）
                     }
                     // 检测 typedef 数组类型 (varDecl.IsArray 为 false 但类型含 [N])
                     // 需要先解析 typedef 链，因为 varDecl.Type 可能是未解析的别名
@@ -1067,6 +1068,7 @@ namespace CCompiler
                         else
                             allocSize = ((ArrayInitializer)varDecl.Initializer).Elements.Count * typeSize;
                         arrayLocalVars.Add(varDecl.Name);
+                        arrayElemSize[varDecl.Name] = elementSize;   // sizeof 用（元素个数另查维度表）
                         if (varDecl.Dimensions != null && varDecl.Dimensions.Count > 0)
                             localArrayDimensions[varDecl.Name] = new List<int?>(varDecl.Dimensions);
                     }
@@ -1078,6 +1080,7 @@ namespace CCompiler
                         allocSize = GetTypeSizeFromString(varDecl.Type);
                         arrayLocalVars.Add(varDecl.Name);
                         localArrayDimensions[varDecl.Name] = typeDims;
+                        arrayElemSize[varDecl.Name] = elementSize;   // sizeof 用
                     }
                     else
                     {

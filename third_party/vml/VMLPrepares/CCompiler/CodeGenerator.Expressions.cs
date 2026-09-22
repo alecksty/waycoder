@@ -119,7 +119,24 @@ namespace CCompiler
                 if (sizeOfNode.TypeName != null)
                     size = GetTypeSizeFromString(sizeOfNode.TypeName);
                 else if (sizeOfNode.Expression != null)
-                    size = GetTypeSize(InferExpressionType(sizeOfNode.Expression));
+                {
+                    // ⚠ **数组的 `sizeof` 是总大小**（元素个数 × 元素大小），不是元素大小。
+                    //   老程序那句 `memset(a, 0, sizeof(a))` 全靠它 —— 只给元素大小
+                    //   就会**静默只清前几个字节**（程序照跑、结果全错），
+                    //   而 `for (i = 0; i < sizeof(a); i++)` 同样中招。
+                    //   最小复现与实测矩阵见 FRONTEND_DEFECTS 的「`sizeof(<数组>)` 返回元素大小」。
+                    //
+                    //   元素大小查 `arrayElemSize`（声明处写入）—— **不能**用
+                    //   `InferExpressionType`：实测它对局部 `char[]` 给 1（对），
+                    //   对全局 `char[]` 给 4（错）。只有非数组表达式才退回推断。
+                    int elemSize = TryGetArrayElemSize(sizeOfNode.Expression, out int es)
+                                 ? es
+                                 : GetTypeSize(InferExpressionType(sizeOfNode.Expression));
+
+                    size = TryGetArrayElementCount(sizeOfNode.Expression, out int count)
+                         ? count * elemSize
+                         : elemSize;
+                }
                 else
                     size = 4;
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, size) }));

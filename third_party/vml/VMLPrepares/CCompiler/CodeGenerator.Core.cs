@@ -131,6 +131,54 @@ namespace CCompiler
         private readonly HashSet<string>                         arrayOfPointerVars = new();
         private Dictionary<string, List<int?>>                   localArrayDimensions; // 局部数组变量名 → 维度列表
 
+        /// <summary>数组变量名 → **元素大小**（全局与局部都记，声明处写入）。
+        ///
+        /// 为什么要单独记：`sizeof(<数组>)` 要算**总大小** = 元素个数 × 元素大小，
+        /// 而元素个数靠 `localArrayDimensions`（局部）/ `dataSection`（全局）拿得到，
+        /// 元素大小却**不能靠 `InferExpressionType` 推断** —— 实测它对局部 `char[]`
+        /// 给 1（对），对**全局** `char[]` 给 4（错，见 FRONTEND_DEFECTS 那条
+        /// 「`sizeof(<数组>)` 返回元素大小」的实测矩阵）。声明处的类型串才是可信来源。</summary>
+        private readonly Dictionary<string, int>                 arrayElemSize = new();
+
+        /// <summary>表达式是数组变量时给出它的**元素大小**（见 <see cref="arrayElemSize"/>）。</summary>
+        private bool TryGetArrayElemSize(ASTNode expr, out int elemSize)
+        {
+            elemSize = 0;
+            return expr is Identifier id && arrayElemSize.TryGetValue(id.Name, out elemSize);
+        }
+
+        /// <summary>表达式是数组变量时给出它的**元素个数**（供 `sizeof` 求总大小）。
+        ///
+        /// 局部查 <see cref="localArrayDimensions"/>（多维取各维乘积；VLA 登记的是**空列表**
+        /// ⇒ 算不出、返回 false 交给调用方退回元素大小）；
+        /// 全局查 `dataSection`（数组已在那里落地，`Length` 就是元素个数）。</summary>
+        private bool TryGetArrayElementCount(ASTNode expr, out int count)
+        {
+            count = 0;
+            if (expr is not Identifier id) return false;
+
+            if (localArrayDimensions != null
+                && localArrayDimensions.TryGetValue(id.Name, out var dims) && dims.Count > 0)
+            {
+                int total = 1;
+                foreach (var d in dims)
+                {
+                    if (d == null) return false;        // 维度不完整（`[]` 没推断出来）⇒ 算不出
+                    total *= d.Value;
+                }
+                count = total;
+                return count > 0;
+            }
+
+            if (dataSection != null
+                && dataSection.TryGetValue(id.Name, out var data) && data is Array arr)
+            {
+                count = arr.Length;
+                return count > 0;
+            }
+            return false;
+        }
+
         /// <summary>
         /// 初始化代码生成器
         /// </summary>
@@ -168,7 +216,11 @@ namespace CCompiler
             foreach (var varDecl in ast.Variables)
             {
                 if (varDecl.IsArray)
+                {
                     globalArrayVars.Add(varDecl.Name);
+                    // 元素大小按**声明处的类型串**记（别靠 InferExpressionType：全局 char[] 会推成 4）
+                    arrayElemSize[varDecl.Name] = GetTypeSizeFromString(varDecl.Type);
+                }
             }
 
             // 处理类型定义
