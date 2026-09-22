@@ -364,8 +364,32 @@ int addstr(const char *s)
     return 0;
 }
 
-int mvaddch(int y, int x, int ch) { move(y, x); return addch(ch); }
-int mvaddstr(int y, int x, const char *s) { move(y, x); return addstr(s); }
+/* ⚠ **越界必须返回 ERR，而且不能画** —— 这是 ncurses 的契约（`wmove` 越界即失败）。
+ *
+ * 本实现原先写的是 `move(y, x); return addch(ch);` —— `move` 越界会失败，
+ * 但这里**把它的返回值丢了**，于是照样 `addch`：它写在 `move` 失败后**残留的旧位置**
+ * 上，而且永远返回 0。后果是**越界字符悄悄写进别的格子**（画面既不对、又看不出
+ * 错在哪），而不是被裁掉。
+ *
+ * ⚠ 纠正一处**我一度写错的说法**：曾以为 `sl` 是靠 `mvaddch` 越界返回 ERR 来收尾的。
+ * 读了源码才知道不是 —— `add_D51` 自己判 `if (x < - D51LENGTH) return ERR;`，
+ * 而 `my_mvaddstr(...)` 的返回值**根本没被检查**。
+ * 所以这条修的是**裁剪语义**（越界不画），不是某个程序的收尾条件。 */
+/* ⚠ 这里写 `-1` 而不是 `ERR`：**本文件照惯例不 include `curses.h`**（实现体不要那个头），
+   所以 `ERR` 在这个翻译单元里根本没定义 —— 写成 `ERR` 会**编不过**，而 GenLib 只会打一行
+   「失败: ... 未声明的变量 'ERR'」然后**跳过这个模块**，产物保持旧版 ⇒ 症状是
+   "改了没生效"，而日志末尾照样是"完成"。`ERR` 的值就是 `-1`，两者等价。 */
+int mvaddch(int y, int x, int ch)
+{
+    if (move(y, x) < 0) return -1;   /* 越界：不画，返回 ERR(-1) */
+    return addch(ch);
+}
+
+int mvaddstr(int y, int x, const char *s)
+{
+    if (move(y, x) < 0) return -1;
+    return addstr(s);
+}
 
 /* 格式化**复用 printf 家族那份实现**，不另写一份（同 conio 的 cprintf）。 */
 static void sc_vformat(char *buf, const char *fmt, va_list ap, int nargs)
