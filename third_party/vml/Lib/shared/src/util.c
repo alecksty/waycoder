@@ -8,9 +8,18 @@ __stdcall void delay(int ms) {
     asm("SYSCALL #52");
 }
 
-__stdcall int sscanf(const char* s, const char* fmt, void* ptr) {
-    return 0;
-}
+// ⚠ 这里原本还有一份 `sscanf` —— **已删**。它是个**返回 0 的桩**
+//   （`{ return 0; }`，签名还是定参的 `(const char*, const char*, void*)`），
+//   而 `scanf.c` 里有一份**真的**（变参 → `vsscanf`）。
+//   两份同时被链接时，重名标签**谁赢取决于链接顺序** ⇒ 实测生效的是**这个桩**，
+//   于是 `sscanf("12 hello", "%d %s", &v, w)` **一个变量都不写回**、返回 0 ——
+//   判据 `scripts/vml-c-probe/cases/12-sscanf.c` 压的就是这个（`F=0||n=0`）。
+//
+//   这与本文件下面那条 `atoi`（曾有三份）是**同一个毛病**：**静默不写**比报错难查得多，
+//   调用方只看到"变量还是老值"。处置也一样 —— **相同函数只留一份**，
+//   唯一的实现留在 `scanf.c`（它的绑定本来就是从那儿导出的：
+//   `Lib/c/shared_bindings.h` 里 `int sscanf(const char *str, const char *format, ...)`，
+//   证明 GenLib 导得出变参函数，不需要这个定参桩来"顶绑定"）。
 
 // ⚠ 这里原本还有一份 `atoi` —— **已删**。全库曾有**三份** `atoi`：
 //   `convert.c`（跳空白 + 认 +/-）、`util.c`（**不跳空白、不认 +、只认 -**）、
