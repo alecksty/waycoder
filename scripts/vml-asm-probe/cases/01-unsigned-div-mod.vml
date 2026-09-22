@@ -1,0 +1,77 @@
+; 无符号 32 位除法 / 取模（`DIVU` #114 / `MODU` #115）
+;
+; ## 为什么这一组必须钉住
+;
+; 加这组指令**之前**，ISA 里没有任何无符号表示 —— `DIV`/`MOD` 一律按有符号算。
+; 实测的原始症状（`OpCode.cs` 里记着）：`4000000000u % 10` 得 **-6**（应 0）、
+; `2147483648u % 10` 得 **-8**（应 8）。**能编、能跑、结果错、不报错** ——
+; 正是本仓最怕的那类失败。
+;
+; 所以用例刻意挑**有符号与无符号结果不同**的值：若哪天有人把 `DIVU` 接回 `DIV`，
+; 这一条当场就红（而挑 `100/7` 那种两边同值的用例，改了也看不出来）。
+;
+; 判据 = 打印出来的数值，**期望值是我自己算的**，不从被测实现里推导。
+; EXPECT: 2147483647 0 8 429496729 14 2
+
+.entry main
+.data
+
+.text
+main:
+        ; ① 0xFFFFFFFF / 2
+        ;    无符号：4294967295 / 2 = 2147483647
+        ;    有符号：-1 / 2 = 0  ← 接错成 DIV 时这里会是 0
+        LOAD R1 #-1
+        LOAD R2 #2
+        DIVU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ② 4000000000 % 10 = 0（有符号给 -6 —— 就是那个原始症状）
+        LOAD R1 #4000000000
+        LOAD R2 #10
+        MODU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ③ 2147483648 % 10 = 8（有符号给 -8）
+        LOAD R1 #2147483648
+        LOAD R2 #10
+        MODU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ④ 0xFFFFFFFF / 10 = 429496729
+        LOAD R1 #-1
+        LOAD R2 #10
+        DIVU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ⑤⑥ 平凡值当对照：100/7 与 100%7 两边同值，证明新指令没把普通情形弄坏
+        LOAD R1 #100
+        LOAD R2 #7
+        DIVU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        LOAD R1 #100
+        LOAD R2 #7
+        MODU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #10
+        SYSCALL #4
+
+        LOAD R0 #0
+        SYSCALL #3

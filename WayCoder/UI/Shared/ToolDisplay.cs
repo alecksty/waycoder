@@ -47,18 +47,12 @@ public static class ToolDisplay
         var p = path.Trim();
 
         // 绝对路径：盘符（C:\ / C:/）、UNC（\\srv\share）、Unix（/…）
-        bool absolute = p[0] is '/' or '\\' || (p.Length > 1 && p[1] == ':');
-        if (absolute) return FileNameOf(p);
+        // 判据收在 PathText —— "什么算绝对路径""哪两种分隔符"只许有一份实现
+        if (PathText.IsAbsoluteShaped(p)) return PathText.FileNameOf(p);
 
-        var segs = p.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var segs = PathText.Segments(p);
         if (segs.Length <= 3) return p;
         return "…/" + segs[^2] + "/" + segs[^1];
-    }
-
-    private static string FileNameOf(string p)
-    {
-        var i = Math.Max(p.LastIndexOf('/'), p.LastIndexOf('\\'));
-        return i >= 0 && i + 1 < p.Length ? p[(i + 1)..] : p;
     }
 
     /// <summary>

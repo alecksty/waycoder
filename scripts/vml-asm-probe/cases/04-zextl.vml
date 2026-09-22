@@ -1,0 +1,62 @@
+; 零扩展 int32 → long64（`ZEXTL` #113）
+;
+; ## 它和 `I2L` 的差别只在**高位补什么**
+;
+; `I2L` 是**符号**扩展（实测 `(long)4000000000u` 得 -294967296），
+; `ZEXTL` 高位补 0。无符号 int 要升成 64 位再去走 `DIVUL`/`CMPUL`/`SHRL`
+; 就必须走 `ZEXTL`，否则每处都得自己补一句 `ANDL #0xFFFFFFFF`。
+;
+; ## 判据：看**高 32 位**
+;
+; `ZEXTL` 与 `I2L` 的结果**低 32 位永远相同**（都来自同一个 int），差别只在高位。
+; 所以唯一能分辨的判据是高位：
+;
+;   取高位的办法：`SHRL L1, L0, 32`（算术右移 32 位把高位挪到低位）
+;     · ZEXTL 正确 → 高 32 位 = 0    ⇒ 移位后 = 0
+;     · 接成 I2L   → 高 32 位 = 全 1 ⇒ 移位后 = -1
+;
+; 第一列（低 32 位）故意留着当**对照**：它两边都对，证明"整个值没被写坏"，
+; 只有第二列才是有判别力的那一个。
+;
+; EXPECT: -1 0 2147483647 0
+
+.entry main
+.data
+
+.text
+main:
+        ; ── ① R5 = 0xFFFFFFFF（-1）──
+        LOAD R5 #-1
+        ZEXTL L0, R5
+
+        ; 低 32 位：-1（两种扩展都一样，对照用）
+        L2I  R0, L0
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; 高 32 位：ZEXTL 给 0；I2L 会给 -1
+        LOAD R6 #32
+        SHRL L1, L0, R6
+        L2I  R0, L1
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ── ② R5 = 0x7FFFFFFF（正数）── 高 32 位同样是 0，低 32 位是它自己
+        LOAD R5 #2147483647
+        ZEXTL L0, R5
+        L2I  R0, L0
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        LOAD R6 #32
+        SHRL L1, L0, R6
+        L2I  R0, L1
+        SYSCALL #6
+        LOAD R0 #10
+        SYSCALL #4
+
+        LOAD R0 #0
+        SYSCALL #3

@@ -227,12 +227,25 @@ internal static class VmlDiagnostics
         return string.Equals(FileNameOf(file), FileNameOf(currentFile), StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>取文件名（去目录）。取不到时原样返回 —— 消息正文里总得有东西可显示。</summary>
-    private static string FileNameOf(string path)
-    {
-        var name = Path.GetFileName(path);
-        return string.IsNullOrEmpty(name) ? path : name;
-    }
+    /// <summary>
+    /// 取文件名（去目录）。取不到时原样返回 —— 消息正文里总得有东西可显示。
+    ///
+    /// <para>
+    /// ⚠ **不能用 `Path.GetFileName`**：它按**当前平台**的分隔符切，而这里要处理的是
+    /// **编译器吐出来的路径**，形态由**产出它的那台机器**决定，不由我们运行在哪台机器决定。
+    /// Unix 上 `\` 不是分隔符 ⇒ `D:\proj\main.cpp` 会被**原样返回**，与 `currentFile`
+    /// 一比就"不是同一个文件"，于是 <see cref="IsSameFile"/> 判成"别的文件的诊断"
+    /// —— 后果是**行锚被丢掉**（`Line = 0`，编辑器里不再画箭头），而气泡本身照常出现，
+    /// 所以从界面上看只是"位置没了"，很难联想到分隔符。
+    /// </para>
+    ///
+    /// <para>
+    /// 实测：`SelfTest` 里"真机上的路径形态（Windows 盘符 + 反斜杠）"那一组在 Windows 上
+    /// 全绿、在 macOS/Linux 上**必红一条**（`那条警告锚在 #include 那一行（6 行）`）——
+    /// 两条反斜杠的用例互相抵消看不出来，出问题的正是"一边反斜杠、一边相对名"的那条。
+    /// </para>
+    /// </summary>
+    private static string FileNameOf(string path) => PathText.FileNameOf(path);
 
     /// <summary>
     /// 把两批诊断并起来，按 <see cref="Diagnostic"/> 的**逐字段相等性**去重（同一条只留第一次出现的）。

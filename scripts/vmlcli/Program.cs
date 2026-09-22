@@ -154,6 +154,22 @@ internal static class Program
         var pm = new PluginManager();
         RegisterFrontendCompilers(pm);
 
+        // ── `.vml` = **已经是汇编**，根本不进前端注册表 ──
+        //
+        // 那 22 个前端里没有 `.vml`，落到下面只会得到"认不出这个扩展名"。
+        // 派发规则照抄 `MauiVml.Run`（上游 `VMLTool/Program.Compile.cs:34` 也是这么分的：
+        // `.vml` 直接当汇编，其余交给 `PluginManager.GetCompilerByFileName`）。
+        //
+        // ⚠ 走的实现也**必须与 `MauiVml.RunAssembly` 同一份** —— 它用的是
+        //   `new VmlAssembler().Assemble(text)`（**不解析 `.include`、不链标准库**），
+        //   不是下面 ② 那条 `AssembleWithIncludes` + `LinkLibraries`。
+        //   要 `.include`/`.linked` 的用例得自己写出来 —— 两边不一样就不是等价。
+        if (Path.GetExtension(filePath).Equals(".vml", StringComparison.OrdinalIgnoreCase))
+        {
+            try { return (new VmlAssembler().Assemble(File.ReadAllText(filePath)), "vml", null); }
+            catch (Exception asmError) { return (null, "vml", $"⚠️ 汇编失败：{asmError.Message}"); }
+        }
+
         // 扩展名派发用上游现成的（`--lang` 显式指定时按名字查，等价于上游 CLI 的 -l）
         var compiler = opt.Lang is not null
             ? pm.GetFrontendCompiler(opt.Lang)

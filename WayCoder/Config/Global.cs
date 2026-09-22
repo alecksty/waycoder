@@ -126,7 +126,7 @@ public static class Global
     /// ApplicationDisplayVersion / ApplicationVersion 也由本字段推导（见那个 csproj 里的说明）。
     /// **发版只改这一处**，别再去 csproj 里手写一遍。
     /// </summary>
-    public const string Version = "v0.96.372";
+    public const string Version = "v0.96.373";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 

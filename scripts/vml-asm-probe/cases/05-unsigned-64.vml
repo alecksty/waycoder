@@ -1,0 +1,76 @@
+; 无符号 64 位：`DIVUL` #117 / `MODUL` #118 / `SHRUL` #119 / `CMPUL` #121
+;
+; ## 为什么和 32 位那几条分开写
+;
+; 它们是**各自独立的实现**（`ExecuteDivUL` / `ExecuteModUL` / `ExecuteShrUL`
+; 与 32 位那三个不是一个方法），32 位全绿**证明不了** 64 位那半边。
+;
+; ## 判据一律取**低 32 位**（`L2I` 截断）
+;
+; 打印用的是 `print_int`（32 位），所以看的是结果的低半截。被测值取
+; `L1 = 0xFFFFFFFFFFFFFFFF`（全 1），它**有符号是 -1、无符号是 2^64-1**——
+; 两种解释相差极大，于是：
+;
+;   · `DIVUL(全1, 2)`  无符号 = 2^63-1 = 0x7FFF…FFFF → 低 32 位 **-1**
+;                      有符号 DIVL = -1/2 = 0        → 低 32 位 **0**   ← 判别式
+;   · `MODUL(全1, 10)` 无符号 = (2^64-1)%10 = 5      → **5**
+;                      有符号 MODL = -1%10 = -1      → **-1**          ← 判别式
+;   · `SHRUL(全1, 33)` 逻辑 = 0x000000007FFFFFFF     → 低 32 位 **2147483647**
+;                      算术 = 全 1（一直补符号位）   → **-1**          ← 判别式
+;   · `CMPUL(全1, 1)`  无符号 全1 > 1 ⇒ `JA` 跳；有符号 -1 > 1 为假
+;
+; ⚠ `SHRUL` 的次数**必须大于 32** 才有判别力：挪 1 位时逻辑与算术的低 32 位
+;   恰好相同（符号位还在高半截里），看不出区别 —— 这条是被实测逼出来的。
+;
+; EXPECT: -1 5 2147483647 1
+
+.entry main
+.data
+
+.text
+main:
+        ; L1 = 0xFFFFFFFFFFFFFFFF：先 -1 再 I2L（符号扩展正好得到全 1）
+        LOAD R5 #-1
+        I2L  L1, R5
+
+        ; ── ① DIVUL：无符号 (2^64-1)/2 = 0x7FFFFFFFFFFFFFFF，低 32 位 = -1 ──
+        LOAD R6 #2
+        I2L  L2, R6
+        DIVUL L0, L1, L2
+        L2I  R0, L0
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ── ② MODUL：无符号 (2^64-1)%10 = 5（有符号给 -1）──
+        LOAD R6 #10
+        I2L  L2, R6
+        MODUL L0, L1, L2
+        L2I  R0, L0
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ── ③ SHRUL：逻辑右移 33 位 ⇒ 0x000000007FFFFFFF，低 32 位 = 2147483647 ──
+        LOAD R6 #33
+        SHRUL L0, L1, R6
+        L2I  R0, L0
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ── ④ CMPUL：无符号 全1 > 1 ⇒ JA 跳（有符号 -1 > 1 为假，用 JG 就漏了）──
+        LOAD R6 #1
+        I2L  L3, R6
+        CMPUL L1, L3
+        JA   OK
+        LOAD R9 #0
+        JMP  DONE
+OK:     LOAD R9 #1
+DONE:   MOVE R0 R9
+        SYSCALL #6
+        LOAD R0 #10
+        SYSCALL #4
+
+        LOAD R0 #0
+        SYSCALL #3

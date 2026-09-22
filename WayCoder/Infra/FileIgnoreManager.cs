@@ -59,10 +59,14 @@ public static class FileIgnoreManager
 
         // 标准化路径
         var absPath = Path.IsPathRooted(path) ? path : Path.GetFullPath(Path.Combine(baseDir, path));
-        var normalized = absPath.Replace('\\', '/');
 
         // 检查文件名是否含始终忽略的目录
-        var parts = normalized.Split('/');
+        // ⚠ 切分走 `PathText.Segments`（两种分隔符都认）而不是本地 `Split('/')` ——
+        //   传进来的路径可能是 **Windows 形态**的（配置/会话里存下来的、或用户贴进来的），
+        //   在 Unix 上按 `/` 切会得到**一整段**，于是 `build`/`node_modules` 这类
+        //   永远忽略的目录一个都拦不住（后果是遍历进这些目录，慢而不报错）。
+        var normalized = WayCoder.UI.Shared.PathText.Normalize(absPath);
+        var parts = WayCoder.UI.Shared.PathText.Segments(absPath);
         foreach (var part in parts)
         {
             if (AlwaysIgnoreDirs.Contains(part))

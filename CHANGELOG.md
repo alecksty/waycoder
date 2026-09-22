@@ -1,3 +1,63 @@
+## v0.96.373 — 取文件名必须**正反斜杠都认**（一条只在 macOS/Linux 上红的自测）
+
+拉取最新代码后跑自测：**6399/6400**，红的是这一条 ——
+
+    ❌ 那条警告锚在 #include 那一行（6 行）
+
+它在 Windows 上**全绿**，在 macOS/Linux 上**必红**。根因不在那条用例，在
+`VmlDiagnostics.FileNameOf` 用了 **`Path.GetFileName`**。
+
+### 一、`Path.GetFileName` 按**当前平台**的分隔符切
+
+Windows 上 `\` 与 `/` 都算，**Unix 上只有 `/` 算**。而这里处理的是**编译器吐出来的路径**，
+形态由**产出它的那台机器**决定，不由我们运行在哪台机器决定：
+
+    Path.GetFileName(@"D:\proj\main.cpp")
+      Windows → "main.cpp"
+      macOS   → "D:\proj\main.cpp"   ← 原样返回
+
+于是 `IsSameFile` 判成"这是**别的文件**的诊断" ⇒ **行锚丢掉**（`Line = 0`，
+编辑器里不再画箭头）。气泡本身照常出现，所以从界面上看只是"位置没了"，
+**根本联想不到分隔符**。
+
+⚠ 同一组用例里另外两条反斜杠的用例**互相抵消**看不出来（两边都是反斜杠形态，
+`FileNameOf` 对两边返回同一个字符串 ⇒ 判等成立），出问题的正是
+「**一边反斜杠、一边相对名**」那一条。这也是它藏得住的原因。
+
+### 二、收敛到 `UI/Shared/PathText`（新）
+
+这条规则在仓里已经散着写过三处，其中一处（`ToolDisplay`）是对的、另两处各写一半：
+
+| 处 | 原来 | 现在 |
+|---|---|---|
+| `VmlDiagnostics.FileNameOf` | `Path.GetFileName` ← **错** | `PathText.FileNameOf` |
+| `ToolDisplay.ShortPath` | 自己写 `Math.Max(LastIndexOf('/'), LastIndexOf('\\'))` | 同上（那份写法是对的，收敛进来） |
+| `FileIgnoreManager.IsIgnored` | `Split('/')`（先 `Replace` 归一化） | `PathText.Segments` |
+| `SessionManager.NormalizeSessionId` | 自己 `Replace('\\','/').Split('/')` | 不动（那份本来就对，且带安全语义） |
+
+`PathText` 放 **`UI/Shared/`**（MAUI 也编译那一份，见本仓跨端纯逻辑的既定要求），
+提供三件事：`Normalize` / `FileNameOf` / `Segments` / `IsAbsoluteShaped`。
+
+⚠ **判据是"这个路径从哪来"，不是"哪个 API 更保险"**：本进程自己
+`Directory.GetFiles` 出来的路径用 `System.IO.Path` 是对的（分隔符一定与平台一致），
+不必为了统一去改那些地方 —— 那个类注释里写清楚了这条分界。
+
+### 三、`TestChunk31`：把规则钉住（+19 条判据）
+
+两层都要：
+
+* **本组**直接钉 `PathText` 自己的契约（两种分隔符、空段、绝对路径形态、以分隔符结尾不返空串）；
+* **端到端**再钉一次（`VmlDiagnostics.Parse` 的 Windows 形态路径仍锚在第 6 行）。
+
+只钉低层的话，"调用点又绕回 `Path.GetFileName`"抓不到；只钉端到端的话，出了红
+也定位不到是哪条规则错。
+
+⚠ 这一组**必须同时在 macOS/Linux 与 Windows 上跑**才有意义 —— 反斜杠那几条在
+Windows 上**用 `Path.GetFileName` 也能过**（那边 `\` 本就是分隔符），
+所以"在 Windows 上全绿"证明不了任何事。
+
+自测 **6400/6400**。
+
 ## v0.96.372 — **命令行参数**：三层落地（宿主喂 / VM 两个新号 / C 绑定）
 
 勘察时的事实很干脆：**只有 C/C++ 前端认识 `argv`**（`grep -rn argv VMLPrepares/*/` 只命中

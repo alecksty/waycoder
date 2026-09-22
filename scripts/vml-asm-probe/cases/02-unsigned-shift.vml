@@ -1,0 +1,66 @@
+; 无符号逻辑右移（`SHRU` #116）
+;
+; ## `SHR` 是**算术**右移（补符号位），`SHRU` 才是逻辑右移（补 0）
+;
+; 这一对最容易混：数是无符号时**必须**用 `SHRU`，否则 `0x80000000u >> 1`
+; 得到 `0xC0000000`（-1073741824）而不是 `0x40000000`（1073741824）——
+; 又是"不报错、只是数不对"。
+;
+; 判据同 01：挑两边结果**不同**的值，接错就红。
+; EXPECT: 1073741824 268435455 4 1 3
+
+.entry main
+.data
+
+.text
+main:
+        ; ① 0x80000000 >> 1
+        ;    逻辑：1073741824（0x40000000）   算术：-1073741824（0xC0000000）
+        LOAD R1 #-2147483648
+        LOAD R2 #1
+        SHRU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ② 0xFFFFFFFF >> 4 = 0x0FFFFFFF = 268435455（算术给 -1）
+        LOAD R1 #-1
+        LOAD R2 #4
+        SHRU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ③ 对照：正数右移两边同值（16 >> 2 = 4），证明没把普通情形弄坏
+        LOAD R1 #16
+        LOAD R2 #2
+        SHRU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ④ **移位跨过符号位**：0xFFFFFFFF >> 31
+        ;    逻辑：1（只剩最高位挪到最低位）   算术：-1（一直补符号位）
+        ;    这条比 ①② 更狠 —— 结果只差最后一位，任何"补符号位"的实现都躲不过
+        LOAD R1 #-1
+        LOAD R2 #31
+        SHRU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ⑤ 移 0 位：值是原样（顺带证明没有"移动次数被吃掉"这类边角）
+        LOAD R1 #3
+        LOAD R2 #0
+        SHRU R3, R1, R2
+        MOVE R0 R3
+        SYSCALL #6
+        LOAD R0 #10
+        SYSCALL #4
+
+        LOAD R0 #0
+        SYSCALL #3

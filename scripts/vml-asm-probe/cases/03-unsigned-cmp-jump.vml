@@ -1,0 +1,164 @@
+; 无符号比较与四条跳转（`CMPU` #120 / `JA` #122 / `JB` #123 / `JAE` #124 / `JBE` #125）
+;
+; ## 为什么无符号比较要**另起一套跳转**
+;
+; 有符号的 `JG`/`JL`/`JGE`/`JLE` 读的是 `sf`/`cf`，而 `cf` 在这套 ISA 里被
+; **当溢出位用**（`JG = !zf && sf == cf`）⇒ 拿它们判无符号数会**静默出错**
+; （不报错、只是跳错了分支 —— 最坏的那种 bug）。
+;
+; 所以 `CMPU` 只置 **`uf`**（a &lt; b 按无符号）与 **`zf`**，四条跳转读它：
+;   `JA` = `!uf && !zf`、`JB` = `uf`、`JAE` = `!uf`、`JBE` = `uf || zf`
+;
+; ## ⚠ 写这个用例时踩的坑：**标志位是全局的，只能活到下一句**
+;
+; 第一版把四跳串在一次 `CMPU` 后面，中间用 `ADD R8 #1` 记"跳了没有"——
+; 结果 `JBE` 那一格永远是 0。根因**不在实现**：`ADD` 自己也会置标志，
+; 它把 `CMPU` 刚写的 `zf` 冲掉了（实测：`JAE` 那一支的 `ADD` 之后 `zf` 已经是
+; `6 != 0` 的那个 `zf`）。而 `JA`/`JB` 不受影响是因为它们只读 `uf`，`ADD` 不碰它 ——
+; 于是"三条绿、一条红"，看着像 `JBE` 有问题。
+;
+; ⇒ **每条跳转前面都要重新 `CMPU` 一次**。这不是啰嗦：跳转的判据本来就该
+;   在"刚比较完"的状态下评，中间隔着别的指令去考它，考的是别的东西。
+;
+; ## 判据怎么读
+;
+; 每组打印 **4 个数**，位序固定是 `JA JB JAE JBE`（跳了就 1）。
+; 三组输入刻意覆盖"有符号与无符号**结论相反**"的情形 —— 那才是判别式：
+;
+;   (1, 0xFFFFFFFF)  无符号 1 < 大数  ⇒ `0 1 0 1`
+;                    有符号 1 < -1 **假** ⇒ 拿有符号跳转做会得 `1 0 1 0`（正好相反）
+;   (5, 5)           相等           ⇒ `0 0 1 1`
+;   (0xFFFFFFFF, 1)  无符号 大 > 小  ⇒ `1 0 1 0`
+;
+; EXPECT: 0 1 0 1 0 0 1 1 1 0 1 0
+
+.entry main
+.data
+
+.text
+main:
+        ; ══ 组 1：(a=1, b=0xFFFFFFFF) ══
+        LOAD R1 #1
+        LOAD R2 #-1
+        LOAD R8 #0
+        LOAD R9 #0
+        LOAD R10 #0
+        LOAD R11 #0
+
+        CMPU R1, R2
+        JA   G1A
+        JMP  G1A2
+G1A:    ADD  R8 #1
+G1A2:   CMPU R1, R2
+        JB   G1B
+        JMP  G1B2
+G1B:    ADD  R9 #1
+G1B2:   CMPU R1, R2
+        JAE  G1C
+        JMP  G1C2
+G1C:    ADD  R10 #1
+G1C2:   CMPU R1, R2
+        JBE  G1D
+        JMP  G1D2
+G1D:    ADD  R11 #1
+G1D2:   MOVE R0 R8
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R9
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R10
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R11
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ══ 组 2：相等（`zf` 起作用，`uf` 必须为 0）══ 期望 0 0 1 1
+        LOAD R1 #5
+        LOAD R2 #5
+        LOAD R8 #0
+        LOAD R9 #0
+        LOAD R10 #0
+        LOAD R11 #0
+
+        CMPU R1, R2
+        JA   G2A
+        JMP  G2A2
+G2A:    ADD  R8 #1
+G2A2:   CMPU R1, R2
+        JB   G2B
+        JMP  G2B2
+G2B:    ADD  R9 #1
+G2B2:   CMPU R1, R2
+        JAE  G2C
+        JMP  G2C2
+G2C:    ADD  R10 #1
+G2C2:   CMPU R1, R2
+        JBE  G2D
+        JMP  G2D2
+G2D:    ADD  R11 #1
+G2D2:   MOVE R0 R8
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R9
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R10
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R11
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+
+        ; ══ 组 3：(a=0xFFFFFFFF, b=1) ══ 期望 1 0 1 0
+        LOAD R1 #-1
+        LOAD R2 #1
+        LOAD R8 #0
+        LOAD R9 #0
+        LOAD R10 #0
+        LOAD R11 #0
+
+        CMPU R1, R2
+        JA   G3A
+        JMP  G3A2
+G3A:    ADD  R8 #1
+G3A2:   CMPU R1, R2
+        JB   G3B
+        JMP  G3B2
+G3B:    ADD  R9 #1
+G3B2:   CMPU R1, R2
+        JAE  G3C
+        JMP  G3C2
+G3C:    ADD  R10 #1
+G3C2:   CMPU R1, R2
+        JBE  G3D
+        JMP  G3D2
+G3D:    ADD  R11 #1
+G3D2:   MOVE R0 R8
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R9
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R10
+        SYSCALL #6
+        LOAD R0 #32
+        SYSCALL #4
+        MOVE R0 R11
+        SYSCALL #6
+        LOAD R0 #10
+        SYSCALL #4
+
+        LOAD R0 #0
+        SYSCALL #3
