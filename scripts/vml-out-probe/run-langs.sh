@@ -29,6 +29,10 @@
 #      · **拿别的语言的换行/分隔语义套这一门**（Go/Python 的 println/print 在操作数间插空格、
 #        Kotlin 的 println 只吃一个实参）⇒ 各语言的原生 print 语义不同，期望必须分开：
 #        探针旁边放一份 `<探针>.expect` 覆盖默认期望。
+#
+#        ⚠ **已知缺陷**的专项探针在**探针文件里**写 `// KNOWN-RED`：它**不计入
+#          「通过/失败」**，只钉住症状（修好那天自己变绿）。与 `vml-c-probe` 同一套约定
+#          —— 不这么分的话，「N/N 全绿」这个信号会被一条已知项永久污染。
 #      · **忘记整数实参从 args[0] 起**（自己写用例时也踩过：期望按 args[2] 写）。
 #    ⇒ **runner 现在把「编译期抛异常」与「跑完输出不对」分成两档报**（ERR / FAIL）——
 #      早先一律 2>/dev/null，5 个编译失败被报成「输出为空」，害得"修编译器"和
@@ -107,7 +111,7 @@ shopt -u nullglob
 
 [ ${#files[@]} -gt 0 ] || { echo "✘ 没有匹配的探针" >&2; exit 2; }
 
-pass=0; fail=0; err=0; failed=(); errored=()
+pass=0; fail=0; err=0; failed=(); errored=(); red=0
 printf '%-10s %-6s %s\n' "探针" "结果" "输出（ / = 换行）"
 printf '%s\n' "--------------------------------------------------------------------"
 
@@ -130,6 +134,12 @@ for f in "${files[@]}"; do
         brief="编译期抛异常：$(grep -aoE '[A-Za-z]+Exception' "$errf" | head -1)"
     elif [[ "$got" == "$exp" ]]; then
         verdict="PASS"; pass=$((pass + 1))
+    elif grep -qa "KNOWN-RED" "$f"; then
+        # **已知缺陷**（探针里写着 `// KNOWN-RED`）：不计入"通过/失败"，只钉住症状 ——
+        # 修好那天它会自己变绿。与 `vml-c-probe` 同一套约定。
+        # 不这么分的话，「N/N 全绿」这个信号会被一条已知项永久污染，
+        # 而"永久红"和"永久绿"一样没用：没人会去看一条一直在红的判据。
+        verdict="已知红"; red=$((red + 1))
     else
         verdict="FAIL"; fail=$((fail + 1)); failed+=("$(basename "$f")")
     fi
@@ -141,7 +151,7 @@ for f in "${files[@]}"; do
 done
 
 printf '%s\n' "--------------------------------------------------------------------"
-echo "通过 ${pass} / 输出不符 ${fail} / **编译失败 ${err}**（共 ${#files[@]} 条）    （耗时 $(elapsed_text)）"
+echo "通过 ${pass} / 输出不符 ${fail} / 已知红 ${red} / **编译失败 ${err}**（共 ${#files[@]} 条）    （耗时 $(elapsed_text)）"
 [ $err -gt 0 ] && echo "⚠ 编译期就抛异常的探针（先修探针/前端，还没轮到看输出）：${errored[*]}"
 [ $fail -gt 0 ] && { echo "失败：${failed[*]}"; exit 1; }
 exit 0
