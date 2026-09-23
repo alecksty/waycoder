@@ -65,6 +65,41 @@ namespace PascalCompiler
                     }));
                     return;
                 }
+                /* **单元声明的无参函数，裸写**（`GetMaxX div 2`、`ErrorCode := GraphResult;`、
+                 * `if KeyPressed then`）。
+                 *
+                 * Pascal 里"无参函数"和"变量"在**语法上就是同一个形状**（都不带括号），
+                 * 所以只能靠**声明**分：这个名字在某个 `uses` 单元的 interface 里是个
+                 * 零参子程序 ⇒ 它是一次调用。表由 `PascalCompiler.RegisterUnitFunctions`
+                 * 从单元文件里读出来，**不是**在 C# 里硬编码一张 BGI 名字表。
+                 *
+                 * ⚠ 标签用**声明里的那个大小写**（`sub.Name`）而不是源码里的 ——
+                 *   Pascal 不区分大小写（`Getmaxx` 合法），而 VML 的标签表**区分**
+                 *   ⇒ 不归一的话，写法少一个大写字母就是"未解析标签"。 */
+                if (variable.Indices.Count == 0
+                    && UnitSubprograms.TryGetValue(variable.Name.ToLower(), out var bareUnitSub)
+                    && bareUnitSub.Parameters.Count == 0)
+                {
+                    instructions.Add(new Instruction(OpCode.CALL, new List<Operand>
+                    {
+                        new Operand(OperandType.LABEL, bareUnitSub.Name)
+                    }));
+                    return;
+                }
+                /* Crt 里那些"名字与生成目标不同"的裸写标准函数（见 BareStdCalls 的注释）。
+                 *
+                 * ⚠ 走 `EmitCallBuiltin` 而**不是**裸 `CALL`：这两个是 **Crt 内建**，
+                 *   而内建的调用约定是"参数镜像占 4 个槽"（`BuiltinArgSlots`）——
+                 *   上面那条 `name == "readkey"` 的分支就是这么发的。
+                 *   两条路发同一条 CALL 却是两种栈约定，正是本仓记过的"同一件事两处实现"。
+                 *   （上面**单元函数**那条相反：库函数按普通调用约定传参、0 参就不压栈，
+                 *    与带括号的写法一致 —— 两者不是同一种东西，别顺手统一。） */
+                if (variable.Indices.Count == 0
+                    && BareStdCalls.TryGetValue(variable.Name, out string? bareStdLabel))
+                {
+                    EmitCallBuiltin(bareStdLabel);
+                    return;
+                }
                 // 检查是否是浮点常量 (在 dataSection 中以 int bits 存储)
                 if (constants.ContainsKey(variable.Name) && constants[variable.Name] is double doubleVal)
                 {
@@ -241,6 +276,38 @@ namespace PascalCompiler
                     {
                         if (!dataSection.ContainsKey(variable.Name))
                         {
+                            /* ── 最后一站：**单元 interface 常量** 与 **System 预定义常量** ──
+                             *
+                             * 位置是刻意的：放在**所有"这个文件自己声明的东西"之后**
+                             * （局部量 / 形参 / 全局量 / 本文件的 const 都在前面处理掉了），
+                             * 所以程序自己写的 `Brown`、`Red` 之类**永远压过**库里的同名常量 ——
+                             * 老程序里 `Red`/`Green`/`White` 既是 BGI 颜色又是极常见的变量名，
+                             * 顺序反了就会"用户的变量被库常量悄悄顶掉"，而那种错查不出来。
+                             *
+                             * ① 单元常量（`uses graph` 给的 `Detect`/`grOk`/`SolidFill`…）：
+                             *    登记处见 `PascalCompiler.RegisterUnitFunctions`。
+                             * ② `Pi`/`MaxInt`：Pascal 的 `System` 单元**不用 uses 就在作用域内**，
+                             *    而它是语言的一部分、没有相应的库文件可挂 ⇒ 在这里内建。
+                             *    老程序裸写它们（语料里 `Pi` 60 处、24 个文件），
+                             *    从前一律报"未声明的变量"。 */
+                            if (variable.Field == null)
+                            {
+                                if (UnitConstInts.TryGetValue(variable.Name.ToLower(), out int unitConst))
+                                {
+                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                                    {
+                                        new Operand(OperandType.REGISTER, 0),
+                                        new Operand(OperandType.IMMEDIATE, unitConst)
+                                    }));
+                                    return;
+                                }
+                                if (StdConsts.TryGetValue(variable.Name.ToLower(), out object? stdConst))
+                                {
+                                    EmitLoadConstant(stdConst);
+                                    return;
+                                }
+                            }
+
                             // 局部集合 / 局部变量 / 形参三个分支都没命中，`dataSection` 里也没有
                             // ⇒ 这个名字**从未声明过**。此前这里静默建个初值 0 的槽就当它是全局，
                             // 于是 `WriteLn(nosuch);` 编得过、运行期打出一个 0。

@@ -373,10 +373,83 @@ void cleardevice(void)
 int getmaxx(void) { return _bgi_maxx; }
 int getmaxy(void) { return _bgi_maxy; }
 
+/* `getmaxcolor` 是 BGI 里**画随机色**的标准写法的一半：
+ *
+ *     setcolor(random(getmaxcolor() + 1));
+ *
+ * 收进来是因为此前**漏了**（语料里 8 处、`Examples/c/test_bgi.c` 也没盖到），
+ * 而它的实现就是本平台唯一的答案：**只有 16 色调色板** ⇒ 恒 `MAXCOLORS`。
+ * ⚠ 别按"当前视频模式"去查表 —— 本平台的模式表（`_bgi_mode_size`）只管**分辨率**，
+ *   高档模式（EGA/VGA 的暗色档）并不真的多出颜色。 */
+int getmaxcolor(void) { return MAXCOLORS; }
+
+/* ── 错误码（`graphresult` / `grapherrormsg`）──────────────────
+ *
+ * 老程序的标准开场是**先开窗、再看错误**：
+ *
+ *     gd := Detect; InitGraph(gd, gm, '');
+ *     ErrorCode := GraphResult;
+ *     if ErrorCode <> grOk then begin Writeln(GraphErrorMsg(ErrorCode)); Halt; end;
+ *
+ * 语料里 `graphresult` 21 处、`grapherrormsg` 16 处 —— **这两个不做，几乎每一份
+ * 老 Pascal 图形程序都编不过**（链接期"未解析标签"，而那是致命的）。
+ *
+ * 本平台上开窗**不会失败**（`ui_win_open_pc` 要么开出窗口、要么根本没有宿主），
+ * 所以 `graphresult` 恒回 `grOk`(0) —— 如实表达"没有错误"，而不是编一个假错误码
+ * （编一个的话老程序会去走它那条 `Halt` 分支，反而更难排查）。
+ * `grapherrormsg` 仍然收下（老程序要拿它写日志），按 Borland 的原文回字符串。 */
+
+#define grOk              0
+#define grNoInitGraph    (-1)
+#define grNotDetected    (-2)
+#define grFileNotFound   (-3)
+#define grInvalidDriver  (-4)
+#define grNoLoadMem      (-5)
+#define grNoScanMem      (-6)
+#define grNoFloodMem     (-7)
+#define grFontNotFound   (-8)
+#define grNoFontMem      (-9)
+#define grInvalidMode   (-10)
+#define grError         (-11)
+#define grIOerror       (-12)
+#define grInvalidFont   (-13)
+#define grInvalidFontNum (-14)
+#define grInvalidVersion (-18)
+
+int graphresult(void) { return grOk; }
+
+char *grapherrormsg(int code)
+{
+    if (code == grOk)             return "No error";
+    if (code == grNoInitGraph)    return "BGI graphics not installed (use InitGraph)";
+    if (code == grNotDetected)    return "Graphics hardware not detected";
+    if (code == grFileNotFound)   return "Device driver file not found";
+    if (code == grInvalidDriver)  return "Invalid device driver file";
+    if (code == grNoLoadMem)      return "Not enough memory to load driver";
+    if (code == grNoScanMem)      return "Out of memory in scan fill";
+    if (code == grNoFloodMem)     return "Out of memory in flood fill";
+    if (code == grFontNotFound)   return "Font file not found";
+    if (code == grNoFontMem)      return "Not enough memory to load font";
+    if (code == grInvalidMode)    return "Invalid graphics mode for selected driver";
+    if (code == grError)          return "Graphics error";
+    if (code == grIOerror)        return "Graphics I/O error";
+    if (code == grInvalidFont)    return "Invalid font file";
+    if (code == grInvalidFontNum) return "Invalid font number";
+    if (code == grInvalidVersion) return "Invalid version of file";
+    return "Unknown graphics error";
+}
+
 /* ── 设置 ──────────────────────────────────────────────────── */
 
 void setcolor(int c)       { _bgi_fg = c; }
 void setbkcolor(int c)     { _bgi_bg = c; }
+/* `getcolor`/`getbkcolor` 是上面两个的**读回**。老程序拿它做"画一笔再还原"：
+ *
+ *     old = getcolor(); setcolor(RED); …; setcolor(old);
+ *
+ * 收进来同 `getmaxcolor`：此前漏了（语料里 3 处），而实现就是"当前状态"本身。 */
+int  getcolor(void)        { return _bgi_fg; }
+int  getbkcolor(void)      { return _bgi_bg; }
 void setfillstyle(int pattern, int color)
 {
     (void)pattern;

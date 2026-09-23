@@ -1,0 +1,7069 @@
+
+.linked "conio.vml"
+.data
+_bgi_fg: .word 15
+_bgi_bg: .word 0
+_bgi_fill_col: .word 15
+_bgi_fill_pat: .word 1
+_bgi_line_w: .word 1
+_bgi_pen_x: .word 0
+_bgi_pen_y: .word 0
+_bgi_txt_size: .word 16
+_bgi_txt_just: .word 0
+_bgi_maxx: .word 639
+_bgi_maxy: .word 479
+_bgi_opened: .word 0
+_bgi_driver: .word 9
+_bgi_mode: .word 2
+_bgi_title: .word 0
+_bgi_pal:
+    .word 0
+    .word 170
+    .word 43520
+    .word 43690
+    .word 11141120
+    .word 11141290
+    .word 11162880
+    .word 11184810
+    .word 5592405
+    .word 5592575
+    .word 5635925
+    .word 5636095
+    .word 16733525
+    .word 16733695
+    .word 16777045
+    .word 16777215
+_bgi_img_ptr: .word[16] 0
+_bgi_img_h: .word[16] 0
+_bgi_img_next: .word 0
+_bgi_pending_scan: .word 0
+L_74760041: .string ""
+L_74760100: .string ""
+L_74760111: .string "No error"
+L_74760117: .string "BGI graphics not installed (use InitGraph)"
+L_74760122: .string "Graphics hardware not detected"
+L_74760127: .string "Device driver file not found"
+L_74760132: .string "Invalid device driver file"
+L_74760137: .string "Not enough memory to load driver"
+L_74760142: .string "Out of memory in scan fill"
+L_74760147: .string "Out of memory in flood fill"
+L_74760152: .string "Font file not found"
+L_74760157: .string "Not enough memory to load font"
+L_74760162: .string "Invalid graphics mode for selected driver"
+L_74760167: .string "Graphics error"
+L_74760172: .string "Graphics I/O error"
+L_74760177: .string "Invalid font file"
+L_74760182: .string "Invalid font number"
+L_74760187: .string "Invalid version of file"
+L_74760188: .string "Unknown graphics error"
+L_74760352: .string "w"
+L_74760353: .string "h"
+L_74760404: .string "rgb"
+L_74760508: .string ""
+L_74760509: .string ""
+L_74760510: .string ""
+L_74760511: .string ""
+
+.text
+_bgi_mode_size:
+; -------------------------------------------
+; source   : void _bgi_mode_size(int gd,int gm,int* pw,int* ph)
+; function : _bgi_mode_size
+; param   : int gd
+; param   : int gm
+; param   : int* pw
+; param   : int* ph
+; return   : void
+; --------------------------------------------
+_bgi_mode_size:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 552:     int w = 640, h = 480;                 /* 默认 = 9 640×480（老程序最熟的那一档） */
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #480
+        move [@R12-12] @R0
+; 553:     if (gd == 3) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        pop @R1
+        cmp @R1 @R0
+        je _L74760002
+        move @R0 #0
+        jmp _L74760003
+_L74760002:
+        move @R0 #1
+_L74760003:
+        cmp @R0 #0
+        jz sta_74760000
+; 554:         if (gm == 4) { w = 640; h = 200; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        cmp @R1 @R0
+        je _L74760006
+        move @R0 #0
+        jmp _L74760007
+_L74760006:
+        move @R0 #1
+_L74760007:
+        cmp @R0 #0
+        jz sta_74760004
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #200
+        move [@R12-12] @R0
+        jmp sta_74760005
+sta_74760004:
+; 555:         else             { w = 320; h = 200; }   /* 0..C3：320×200 */
+        move @R0 #320
+        move [@R12-8] @R0
+        move @R0 #200
+        move [@R12-12] @R0
+sta_74760005:
+        jmp sta_74760001
+sta_74760000:
+; 556:     } else if (gd == 5) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #5
+        pop @R1
+        cmp @R1 @R0
+        je _L74760010
+        move @R0 #0
+        jmp _L74760011
+_L74760010:
+        move @R0 #1
+_L74760011:
+        cmp @R0 #0
+        jz sta_74760008
+; 557:         if (gm == 1) { w = 640; h = 350; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760014
+        move @R0 #0
+        jmp _L74760015
+_L74760014:
+        move @R0 #1
+_L74760015:
+        cmp @R0 #0
+        jz sta_74760012
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #350
+        move [@R12-12] @R0
+        jmp sta_74760013
+sta_74760012:
+; 558:         else             { w = 640; h = 200; }   /* 0 */
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #200
+        move [@R12-12] @R0
+sta_74760013:
+        jmp sta_74760009
+sta_74760008:
+; 559:     } else if (gd == 9) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #9
+        pop @R1
+        cmp @R1 @R0
+        je _L74760018
+        move @R0 #0
+        jmp _L74760019
+_L74760018:
+        move @R0 #1
+_L74760019:
+        cmp @R0 #0
+        jz sta_74760016
+; 560:         if (gm == 2)      { w = 640; h = 480; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
+        je _L74760022
+        move @R0 #0
+        jmp _L74760023
+_L74760022:
+        move @R0 #1
+_L74760023:
+        cmp @R0 #0
+        jz sta_74760020
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #480
+        move [@R12-12] @R0
+        jmp sta_74760021
+sta_74760020:
+; 561:         else if (gm == 1){ w = 640; h = 350; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760026
+        move @R0 #0
+        jmp _L74760027
+_L74760026:
+        move @R0 #1
+_L74760027:
+        cmp @R0 #0
+        jz sta_74760024
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #350
+        move [@R12-12] @R0
+        jmp sta_74760025
+sta_74760024:
+; 562:         else                  { w = 640; h = 200; }   /* 0 */
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #200
+        move [@R12-12] @R0
+sta_74760025:
+sta_74760021:
+sta_74760016:
+sta_74760017:
+sta_74760009:
+sta_74760001:
+; 565:     *pw = w;
+        move @R0 [@R12+20]
+        move @R11 @R0
+        push @R11
+        move @R0 [@R12-8]
+        pop @R11
+        move [@R11] @R0
+; 566:     *ph = h;
+        move @R0 [@R12+24]
+        move @R10 @R0
+        push @R10
+        move @R0 [@R12-12]
+        pop @R10
+        move [@R10] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_rgb:
+; -------------------------------------------
+; source   : int _bgi_rgb(int idx)
+; function : _bgi_rgb
+; param   : int idx
+; return   : int
+; --------------------------------------------
+_bgi_rgb:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 597:     if (idx < 0) idx = 0;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760030
+        move @R0 #0
+        jmp _L74760031
+_L74760030:
+        move @R0 #1
+_L74760031:
+        cmp @R0 #0
+        jz sta_74760028
+        move @R0 #0
+        move [@R12+12] @R0
+sta_74760028:
+sta_74760029:
+; 598:     if (idx > 15) idx = 15;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #15
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760034
+        move @R0 #0
+        jmp _L74760035
+_L74760034:
+        move @R0 #1
+_L74760035:
+        cmp @R0 #0
+        jz sta_74760032
+        move @R0 #15
+        move [@R12+12] @R0
+sta_74760032:
+sta_74760033:
+; 599:     return _bgi_pal[idx] | 0xFF000000;
+        move @R0 _bgi_pal
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12+12]
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move @R0 [@R0]
+        push @R0
+        move @R0 #-16777216
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        jmp L_74760036
+L_74760036:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_basename:
+; -------------------------------------------
+; source   : char* _bgi_basename(char* p)
+; function : _bgi_basename
+; param   : char* p
+; return   : char*
+; --------------------------------------------
+_bgi_basename:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 606:     char *last = p;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+; 607:     char *q    = p;
+        move @R0 [@R12+12]
+        move [@R12-12] @R0
+; 608:     if (p == 0) return "";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760039
+        move @R0 #0
+        jmp _L74760040
+_L74760039:
+        move @R0 #1
+_L74760040:
+        cmp @R0 #0
+        jz sta_74760037
+        move @R0 L_74760041
+        jmp L_74760042
+sta_74760037:
+sta_74760038:
+sta_74760043:
+        move @R2 #0
+; 609:     while (*q) {
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
+        jz sta_74760044
+; 610:         if (*q == '/' || *q == '\\') last = q + 1;
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #47
+        popb @R1
+        cmp @R1 @R0
+        je _L74760050
+        move @R0 #0
+        jmp _L74760051
+_L74760050:
+        move @R0 #1
+_L74760051:
+        test @R0 @R0
+        jnz _L74760047
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #92
+        popb @R1
+        cmp @R1 @R0
+        je _L74760052
+        move @R0 #0
+        jmp _L74760053
+_L74760052:
+        move @R0 #1
+_L74760053:
+        test @R0 @R0
+        jz _L74760048
+_L74760047:
+        move @R0 #1
+        jmp _L74760049
+_L74760048:
+        move @R0 #0
+_L74760049:
+        cmp @R0 #0
+        jz sta_74760045
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+sta_74760045:
+sta_74760046:
+; 611:         q++;
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_74760043
+sta_74760044:
+; 613:     return last;
+        move @R0 [@R12-8]
+        jmp L_74760042
+L_74760042:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_initgraph:
+; -------------------------------------------
+; source   : void _bgi_initgraph(int* gd,int* gm,char* path,char* file)
+; function : _bgi_initgraph
+; param   : int* gd
+; param   : int* gm
+; param   : char* path
+; param   : char* file
+; return   : void
+; --------------------------------------------
+_bgi_initgraph:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 624:     int w = 640, h = 480;          /* 9 默认 */
+        move @R0 #640
+        move [@R12-8] @R0
+        move @R0 #480
+        move [@R12-12] @R0
+; 625:     (void)path;
+        move @R0 [@R12+20]
+; 631:     if (gd != 0 && *gd == 0) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760058
+        move @R0 #0
+        jmp _L74760059
+_L74760058:
+        move @R0 #1
+_L74760059:
+        test @R0 @R0
+        jz _L74760056
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760060
+        move @R0 #0
+        jmp _L74760061
+_L74760060:
+        move @R0 #1
+_L74760061:
+        test @R0 @R0
+        jz _L74760056
+        move @R0 #1
+        jmp _L74760057
+_L74760056:
+        move @R0 #0
+_L74760057:
+        cmp @R0 #0
+        jz sta_74760054
+; 632:         *gd = 9;                       /* 驱动与模式都由库来挑（本平台只有 16 色调色板） */
+        move @R0 [@R12+12]
+        move @R7 @R0
+        push @R7
+        move @R0 #9
+        pop @R7
+        move [@R7] @R0
+; 633:         if (gm != 0) *gm = 2;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760064
+        move @R0 #0
+        jmp _L74760065
+_L74760064:
+        move @R0 #1
+_L74760065:
+        cmp @R0 #0
+        jz sta_74760062
+        move @R0 [@R12+16]
+        move @R6 @R0
+        push @R6
+        move @R0 #2
+        pop @R6
+        move [@R6] @R0
+sta_74760062:
+sta_74760063:
+sta_74760054:
+sta_74760055:
+; 635:     _bgi_driver = (gd != 0) ? *gd : 9;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760066
+        move @R0 #0
+        jmp _L74760067
+_L74760066:
+        move @R0 #1
+_L74760067:
+        test @R0 @R0
+        jz _L74760068
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        jmp _L74760069
+_L74760068:
+        move @R0 #9
+_L74760069:
+        move [_bgi_driver] @R0
+; 636:     _bgi_mode   = (gm != 0) ? *gm : 2;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760070
+        move @R0 #0
+        jmp _L74760071
+_L74760070:
+        move @R0 #1
+_L74760071:
+        test @R0 @R0
+        jz _L74760072
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        jmp _L74760073
+_L74760072:
+        move @R0 #2
+_L74760073:
+        move [_bgi_mode] @R0
+; 638:     if (gm != 0) *gm = _bgi_mode;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760076
+        move @R0 #0
+        jmp _L74760077
+_L74760076:
+        move @R0 #1
+_L74760077:
+        cmp @R0 #0
+        jz sta_74760074
+        move @R0 [@R12+16]
+        move @R5 @R0
+        push @R5
+        move @R0 [_bgi_mode]
+        pop @R5
+        move [@R5] @R0
+sta_74760074:
+sta_74760075:
+; 641:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+        move @R0 [@R12-12]
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R0 [@R12-8]
+        move @R0 @R12
+        sub @R0 #8
+        push @R0
+        move @R0 [_bgi_mode]
+        push @R0
+        move @R0 [_bgi_driver]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_mode_size
+        add @R13 #16
+; 644:     _bgi_title = _bgi_basename(file);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_basename
+        add @R13 #4
+        move [_bgi_title] @R0
+; 645:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_bgi_title]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_win_open_pc
+        add @R13 #20
+; 646:     _bgi_maxx   = w - 1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxx] @R0
+; 647:     _bgi_maxy   = h - 1;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxy] @R0
+; 648:     _bgi_opened = 1;
+        move @R0 #1
+        move [_bgi_opened] @R0
+; 649:     cleardevice();
+        call cleardevice
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_initwindow:
+; -------------------------------------------
+; source   : void _bgi_initwindow(int w,int h,char* title,char* file)
+; function : _bgi_initwindow
+; param   : int w
+; param   : int h
+; param   : char* title
+; param   : char* file
+; return   : void
+; --------------------------------------------
+_bgi_initwindow:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 664:     if (w <= 0) w = 640;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760080
+        move @R0 #0
+        jmp _L74760081
+_L74760080:
+        move @R0 #1
+_L74760081:
+        cmp @R0 #0
+        jz sta_74760078
+        move @R0 #640
+        move [@R12+12] @R0
+sta_74760078:
+sta_74760079:
+; 665:     if (h <= 0) h = 480;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760084
+        move @R0 #0
+        jmp _L74760085
+_L74760084:
+        move @R0 #1
+_L74760085:
+        cmp @R0 #0
+        jz sta_74760082
+        move @R0 #480
+        move [@R12+16] @R0
+sta_74760082:
+sta_74760083:
+; 666:     _bgi_title = (title != 0 && title[0] != 0) ? title : _bgi_basename(file);
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760088
+        move @R0 #0
+        jmp _L74760089
+_L74760088:
+        move @R0 #1
+_L74760089:
+        test @R0 @R0
+        jz _L74760086
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760090
+        move @R0 #0
+        jmp _L74760091
+_L74760090:
+        move @R0 #1
+_L74760091:
+        test @R0 @R0
+        jz _L74760086
+        move @R0 #1
+        jmp _L74760087
+_L74760086:
+        move @R0 #0
+_L74760087:
+        test @R0 @R0
+        jz _L74760092
+        move @R0 [@R12+20]
+        jmp _L74760093
+_L74760092:
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_basename
+        add @R13 #4
+_L74760093:
+        move [_bgi_title] @R0
+; 667:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_bgi_title]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_win_open_pc
+        add @R13 #20
+; 668:     _bgi_maxx   = w - 1;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxx] @R0
+; 669:     _bgi_maxy   = h - 1;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxy] @R0
+; 670:     _bgi_opened = 1;
+        move @R0 #1
+        move [_bgi_opened] @R0
+; 671:     cleardevice();
+        call cleardevice
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+setgraphmode:
+; -------------------------------------------
+; source   : void setgraphmode(int mode)
+; function : setgraphmode
+; param   : int mode
+; return   : void
+; --------------------------------------------
+setgraphmode:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 682:     _bgi_mode = mode;
+        move @R0 [@R12+12]
+        move [_bgi_mode] @R0
+; 683:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+        move @R0 [@R12-12]
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R0 [@R12-8]
+        move @R0 @R12
+        sub @R0 #8
+        push @R0
+        move @R0 [_bgi_mode]
+        push @R0
+        move @R0 [_bgi_driver]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_mode_size
+        add @R13 #16
+; 684:     if (_bgi_opened) ui_win_close();
+        move @R0 [_bgi_opened]
+        cmp @R0 #0
+        jz sta_74760094
+        call ui_win_close
+sta_74760094:
+sta_74760095:
+; 685:     ui_win_open_pc(_bgi_title != 0 ? _bgi_title : "", w, h, 1, 1);
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_bgi_title]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760096
+        move @R0 #0
+        jmp _L74760097
+_L74760096:
+        move @R0 #1
+_L74760097:
+        test @R0 @R0
+        jz _L74760098
+        move @R0 [_bgi_title]
+        jmp _L74760099
+_L74760098:
+        move @R0 L_74760100
+_L74760099:
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_win_open_pc
+        add @R13 #20
+; 686:     _bgi_maxx   = w - 1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxx] @R0
+; 687:     _bgi_maxy   = h - 1;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [_bgi_maxy] @R0
+; 688:     _bgi_opened = 1;
+        move @R0 #1
+        move [_bgi_opened] @R0
+; 689:     cleardevice();
+        call cleardevice
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+closegraph:
+; -------------------------------------------
+; source   : void closegraph()
+; function : closegraph
+; return   : void
+; --------------------------------------------
+closegraph:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 693:     if (_bgi_opened) {
+        move @R0 [_bgi_opened]
+        cmp @R0 #0
+        jz sta_74760101
+; 694:         ui_win_close();
+        call ui_win_close
+; 695:         _bgi_opened = 0;
+        move @R0 #0
+        move [_bgi_opened] @R0
+sta_74760101:
+sta_74760102:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+cleardevice:
+; -------------------------------------------
+; source   : void cleardevice()
+; function : cleardevice
+; return   : void
+; --------------------------------------------
+cleardevice:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 700:     ui_clear(_bgi_rgb(_bgi_bg));
+        move @R0 [_bgi_bg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R13+0]
+        call ui_clear
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getmaxx:
+; -------------------------------------------
+; source   : int getmaxx()
+; function : getmaxx
+; return   : int
+; --------------------------------------------
+getmaxx:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 702: int getmaxx(void) { return _bgi_maxx; }
+        move @R0 [_bgi_maxx]
+        jmp L_74760103
+L_74760103:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getmaxy:
+; -------------------------------------------
+; source   : int getmaxy()
+; function : getmaxy
+; return   : int
+; --------------------------------------------
+getmaxy:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 703: int getmaxy(void) { return _bgi_maxy; }
+        move @R0 [_bgi_maxy]
+        jmp L_74760104
+L_74760104:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getmaxcolor:
+; -------------------------------------------
+; source   : int getmaxcolor()
+; function : getmaxcolor
+; return   : int
+; --------------------------------------------
+getmaxcolor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 712: int getmaxcolor(void) { return 15; }
+        move @R0 #15
+        jmp L_74760105
+L_74760105:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+graphresult:
+; -------------------------------------------
+; source   : int graphresult()
+; function : graphresult
+; return   : int
+; --------------------------------------------
+graphresult:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 728: int graphresult(void) { return 0; }
+        move @R0 #0
+        jmp L_74760106
+L_74760106:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+grapherrormsg:
+; -------------------------------------------
+; source   : char* grapherrormsg(int code)
+; function : grapherrormsg
+; param   : int code
+; return   : char*
+; --------------------------------------------
+grapherrormsg:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 731:     if (code == 0)             return "No error";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760109
+        move @R0 #0
+        jmp _L74760110
+_L74760109:
+        move @R0 #1
+_L74760110:
+        cmp @R0 #0
+        jz sta_74760107
+        move @R0 L_74760111
+        jmp L_74760112
+sta_74760107:
+sta_74760108:
+; 732:     if (code == (-1))    return "BGI graphics not installed (use InitGraph)";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760115
+        move @R0 #0
+        jmp _L74760116
+_L74760115:
+        move @R0 #1
+_L74760116:
+        cmp @R0 #0
+        jz sta_74760113
+        move @R0 L_74760117
+        jmp L_74760112
+sta_74760113:
+sta_74760114:
+; 733:     if (code == (-2))    return "Graphics hardware not detected";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        move @R0 #2
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760120
+        move @R0 #0
+        jmp _L74760121
+_L74760120:
+        move @R0 #1
+_L74760121:
+        cmp @R0 #0
+        jz sta_74760118
+        move @R0 L_74760122
+        jmp L_74760112
+sta_74760118:
+sta_74760119:
+; 734:     if (code == (-3))   return "Device driver file not found";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        move @R0 #3
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760125
+        move @R0 #0
+        jmp _L74760126
+_L74760125:
+        move @R0 #1
+_L74760126:
+        cmp @R0 #0
+        jz sta_74760123
+        move @R0 L_74760127
+        jmp L_74760112
+sta_74760123:
+sta_74760124:
+; 735:     if (code == (-4))  return "Invalid device driver file";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        move @R0 #4
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760130
+        move @R0 #0
+        jmp _L74760131
+_L74760130:
+        move @R0 #1
+_L74760131:
+        cmp @R0 #0
+        jz sta_74760128
+        move @R0 L_74760132
+        jmp L_74760112
+sta_74760128:
+sta_74760129:
+; 736:     if (code == (-5))      return "Not enough memory to load driver";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #5
+        move @R0 #5
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760135
+        move @R0 #0
+        jmp _L74760136
+_L74760135:
+        move @R0 #1
+_L74760136:
+        cmp @R0 #0
+        jz sta_74760133
+        move @R0 L_74760137
+        jmp L_74760112
+sta_74760133:
+sta_74760134:
+; 737:     if (code == (-6))      return "Out of memory in scan fill";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #6
+        move @R0 #6
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760140
+        move @R0 #0
+        jmp _L74760141
+_L74760140:
+        move @R0 #1
+_L74760141:
+        cmp @R0 #0
+        jz sta_74760138
+        move @R0 L_74760142
+        jmp L_74760112
+sta_74760138:
+sta_74760139:
+; 738:     if (code == (-7))     return "Out of memory in flood fill";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #7
+        move @R0 #7
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760145
+        move @R0 #0
+        jmp _L74760146
+_L74760145:
+        move @R0 #1
+_L74760146:
+        cmp @R0 #0
+        jz sta_74760143
+        move @R0 L_74760147
+        jmp L_74760112
+sta_74760143:
+sta_74760144:
+; 739:     if (code == (-8))   return "Font file not found";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #8
+        move @R0 #8
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760150
+        move @R0 #0
+        jmp _L74760151
+_L74760150:
+        move @R0 #1
+_L74760151:
+        cmp @R0 #0
+        jz sta_74760148
+        move @R0 L_74760152
+        jmp L_74760112
+sta_74760148:
+sta_74760149:
+; 740:     if (code == (-9))      return "Not enough memory to load font";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #9
+        move @R0 #9
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760155
+        move @R0 #0
+        jmp _L74760156
+_L74760155:
+        move @R0 #1
+_L74760156:
+        cmp @R0 #0
+        jz sta_74760153
+        move @R0 L_74760157
+        jmp L_74760112
+sta_74760153:
+sta_74760154:
+; 741:     if (code == (-10))    return "Invalid graphics mode for selected driver";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #10
+        move @R0 #10
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760160
+        move @R0 #0
+        jmp _L74760161
+_L74760160:
+        move @R0 #1
+_L74760161:
+        cmp @R0 #0
+        jz sta_74760158
+        move @R0 L_74760162
+        jmp L_74760112
+sta_74760158:
+sta_74760159:
+; 742:     if (code == (-11))          return "Graphics error";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #11
+        move @R0 #11
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760165
+        move @R0 #0
+        jmp _L74760166
+_L74760165:
+        move @R0 #1
+_L74760166:
+        cmp @R0 #0
+        jz sta_74760163
+        move @R0 L_74760167
+        jmp L_74760112
+sta_74760163:
+sta_74760164:
+; 743:     if (code == (-12))        return "Graphics I/O error";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #12
+        move @R0 #12
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760170
+        move @R0 #0
+        jmp _L74760171
+_L74760170:
+        move @R0 #1
+_L74760171:
+        cmp @R0 #0
+        jz sta_74760168
+        move @R0 L_74760172
+        jmp L_74760112
+sta_74760168:
+sta_74760169:
+; 744:     if (code == (-13))    return "Invalid font file";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #13
+        move @R0 #13
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760175
+        move @R0 #0
+        jmp _L74760176
+_L74760175:
+        move @R0 #1
+_L74760176:
+        cmp @R0 #0
+        jz sta_74760173
+        move @R0 L_74760177
+        jmp L_74760112
+sta_74760173:
+sta_74760174:
+; 745:     if (code == (-14)) return "Invalid font number";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #14
+        move @R0 #14
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760180
+        move @R0 #0
+        jmp _L74760181
+_L74760180:
+        move @R0 #1
+_L74760181:
+        cmp @R0 #0
+        jz sta_74760178
+        move @R0 L_74760182
+        jmp L_74760112
+sta_74760178:
+sta_74760179:
+; 746:     if (code == (-18)) return "Invalid version of file";
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #18
+        move @R0 #18
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760185
+        move @R0 #0
+        jmp _L74760186
+_L74760185:
+        move @R0 #1
+_L74760186:
+        cmp @R0 #0
+        jz sta_74760183
+        move @R0 L_74760187
+        jmp L_74760112
+sta_74760183:
+sta_74760184:
+; 747:     return "Unknown graphics error";
+        move @R0 L_74760188
+        jmp L_74760112
+L_74760112:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+setcolor:
+; -------------------------------------------
+; source   : void setcolor(int c)
+; function : setcolor
+; param   : int c
+; return   : void
+; --------------------------------------------
+setcolor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 750: void setcolor(int c)       { _bgi_fg = c; }
+        move @R0 [@R12+12]
+        move [_bgi_fg] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+setbkcolor:
+; -------------------------------------------
+; source   : void setbkcolor(int c)
+; function : setbkcolor
+; param   : int c
+; return   : void
+; --------------------------------------------
+setbkcolor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 751: void setbkcolor(int c)     { _bgi_bg = c; }
+        move @R0 [@R12+12]
+        move [_bgi_bg] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getcolor:
+; -------------------------------------------
+; source   : int getcolor()
+; function : getcolor
+; return   : int
+; --------------------------------------------
+getcolor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 757: int  getcolor(void)        { return _bgi_fg; }
+        move @R0 [_bgi_fg]
+        jmp L_74760189
+L_74760189:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getbkcolor:
+; -------------------------------------------
+; source   : int getbkcolor()
+; function : getbkcolor
+; return   : int
+; --------------------------------------------
+getbkcolor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 758: int  getbkcolor(void)      { return _bgi_bg; }
+        move @R0 [_bgi_bg]
+        jmp L_74760190
+L_74760190:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+setfillstyle:
+; -------------------------------------------
+; source   : void setfillstyle(int pattern,int color)
+; function : setfillstyle
+; param   : int pattern
+; param   : int color
+; return   : void
+; --------------------------------------------
+setfillstyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 761:     (void)pattern;
+        move @R0 [@R12+12]
+; 762:     _bgi_fill_pat = pattern;
+        move @R0 [@R12+12]
+        move [_bgi_fill_pat] @R0
+; 763:     _bgi_fill_col = color;
+        move @R0 [@R12+16]
+        move [_bgi_fill_col] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+setlinestyle:
+; -------------------------------------------
+; source   : void setlinestyle(int style,unsigned pattern,int thickness)
+; function : setlinestyle
+; param   : int style
+; param   : unsigned pattern
+; param   : int thickness
+; return   : void
+; --------------------------------------------
+setlinestyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 767:     (void)style; (void)pattern;
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+; 768:     _bgi_line_w = (thickness == 3) ? 3 : 1;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #3
+        pop @R1
+        cmp @R1 @R0
+        je _L74760191
+        move @R0 #0
+        jmp _L74760192
+_L74760191:
+        move @R0 #1
+_L74760192:
+        test @R0 @R0
+        jz _L74760193
+        move @R0 #3
+        jmp _L74760194
+_L74760193:
+        move @R0 #1
+_L74760194:
+        move [_bgi_line_w] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+settextstyle:
+; -------------------------------------------
+; source   : void settextstyle(int font,int dir,int size)
+; function : settextstyle
+; param   : int font
+; param   : int dir
+; param   : int size
+; return   : void
+; --------------------------------------------
+settextstyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 776:     (void)font; (void)dir;
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+; 777:     if (size > 0) _bgi_txt_size = size * 16;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760197
+        move @R0 #0
+        jmp _L74760198
+_L74760197:
+        move @R0 #1
+_L74760198:
+        cmp @R0 #0
+        jz sta_74760195
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [_bgi_txt_size] @R0
+sta_74760195:
+sta_74760196:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+settextjustify:
+; -------------------------------------------
+; source   : void settextjustify(int horiz,int vert)
+; function : settextjustify
+; param   : int horiz
+; param   : int vert
+; return   : void
+; --------------------------------------------
+settextjustify:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 781:     (void)vert;
+        move @R0 [@R12+16]
+; 782:     _bgi_txt_just = horiz;
+        move @R0 [@R12+12]
+        move [_bgi_txt_just] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+line:
+; -------------------------------------------
+; source   : void line(int x1,int y1,int x2,int y2)
+; function : line
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
+line:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 787:     ui_line(x1, y1, x2, y2, _bgi_rgb(_bgi_fg), _bgi_line_w);
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_line
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+moveto:
+; -------------------------------------------
+; source   : void moveto(int x,int y)
+; function : moveto
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+moveto:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 789: void moveto(int x, int y) { _bgi_pen_x = x; _bgi_pen_y = y; }
+        move @R0 [@R12+12]
+        move [_bgi_pen_x] @R0
+        move @R0 [@R12+16]
+        move [_bgi_pen_y] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+lineto:
+; -------------------------------------------
+; source   : void lineto(int x,int y)
+; function : lineto
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+lineto:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 792:     line(_bgi_pen_x, _bgi_pen_y, x, y);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_bgi_pen_y]
+        push @R0
+        move @R0 [_bgi_pen_x]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+; 793:     _bgi_pen_x = x;
+        move @R0 [@R12+12]
+        move [_bgi_pen_x] @R0
+; 794:     _bgi_pen_y = y;
+        move @R0 [@R12+16]
+        move [_bgi_pen_y] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+linerel:
+; -------------------------------------------
+; source   : void linerel(int dx,int dy)
+; function : linerel
+; param   : int dx
+; param   : int dy
+; return   : void
+; --------------------------------------------
+linerel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 798:     lineto(_bgi_pen_x + dx, _bgi_pen_y + dy);
+        move @R0 [_bgi_pen_y]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_bgi_pen_x]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call lineto
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+rectangle:
+; -------------------------------------------
+; source   : void rectangle(int l,int t,int r,int b)
+; function : rectangle
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : void
+; --------------------------------------------
+rectangle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 804:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fg), 0, _bgi_line_w, 0);
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_rect
+        add @R13 #32
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+bar:
+; -------------------------------------------
+; source   : void bar(int l,int t,int r,int b)
+; function : bar
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : void
+; --------------------------------------------
+bar:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 808:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fill_col), 1, 1, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [_bgi_fill_col]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_rect
+        add @R13 #32
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+bar3d:
+; -------------------------------------------
+; source   : void bar3d(int l,int t,int r,int b,int depth,int topflag)
+; function : bar3d
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; param   : int depth
+; param   : int topflag
+; return   : void
+; --------------------------------------------
+bar3d:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 812:     bar(l, t, r, b);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call bar
+        add @R13 #16
+; 813:     rectangle(l, t, r, b);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call rectangle
+        add @R13 #16
+; 814:     if (topflag) {
+        move @R0 [@R12+32]
+        cmp @R0 #0
+        jz sta_74760199
+; 815:         line(l, t, l + depth, t - depth);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+; 816:         line(r, t, r + depth, t - depth);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+; 817:         line(l + depth, t - depth, r + depth, t - depth);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+; 818:         line(r, b, r + depth, b - depth);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+; 819:         line(r + depth, b - depth, r + depth, t - depth);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+sta_74760199:
+sta_74760200:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+circle:
+; -------------------------------------------
+; source   : void circle(int x,int y,int r)
+; function : circle
+; param   : int x
+; param   : int y
+; param   : int r
+; return   : void
+; --------------------------------------------
+circle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 824:     ui_circle(x, y, r, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_circle
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+fillellipse:
+; -------------------------------------------
+; source   : void fillellipse(int x,int y,int xr,int yr)
+; function : fillellipse
+; param   : int x
+; param   : int y
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+fillellipse:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 828:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fill_col), 1, 1);
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [_bgi_fill_col]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_ellipse
+        add @R13 #28
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ellipse:
+; -------------------------------------------
+; source   : void ellipse(int x,int y,int st,int en,int xr,int yr)
+; function : ellipse
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+ellipse:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 832:     (void)st; (void)en;      /* 本平台的椭圆是整圈；起始/终止角暂不支持 */
+        move @R0 [@R12+20]
+        move @R0 [@R12+24]
+; 833:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_ellipse
+        add @R13 #28
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+drawpoly:
+; -------------------------------------------
+; source   : void drawpoly(int numpoints,int* polypoints)
+; function : drawpoly
+; param   : int numpoints
+; param   : int* polypoints
+; return   : void
+; --------------------------------------------
+drawpoly:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 839:     ui_polyline(polypoints, numpoints, _bgi_rgb(_bgi_fg), _bgi_line_w, 0);
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_polyline
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+fillpoly:
+; -------------------------------------------
+; source   : void fillpoly(int numpoints,int* polypoints)
+; function : fillpoly
+; param   : int numpoints
+; param   : int* polypoints
+; return   : void
+; --------------------------------------------
+fillpoly:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 844:                _bgi_line_w, 0);
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_line_w]
+        push @R0
+; 843:     ui_polygon(polypoints, numpoints, _bgi_rgb(_bgi_fill_col), _bgi_rgb(_bgi_fg),
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [_bgi_fill_col]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_polygon
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+putpixel:
+; -------------------------------------------
+; source   : void putpixel(int x,int y,int color)
+; function : putpixel
+; param   : int x
+; param   : int y
+; param   : int color
+; return   : void
+; --------------------------------------------
+putpixel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 848:     ui_pixel(x, y, _bgi_rgb(color));
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call ui_pixel
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_pie:
+; -------------------------------------------
+; source   : void _bgi_pie(int x,int y,int st,int en,int r,int filled)
+; function : _bgi_pie
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int r
+; param   : int filled
+; return   : void
+; --------------------------------------------
+_bgi_pie:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 875:     ui_set_fill(filled ? _bgi_rgb(_bgi_fill_col) : 0);
+        move @R0 [@R12+32]
+        test @R0 @R0
+        jz _L74760201
+        move @R0 [_bgi_fill_col]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        jmp _L74760202
+_L74760201:
+        move @R0 #0
+_L74760202:
+        push @R0
+        move @R0 [@R13+0]
+        call ui_set_fill
+        add @R13 #4
+; 876:     ui_set_pen(_bgi_rgb(_bgi_fg), _bgi_line_w, 0, 0, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 [_bgi_line_w]
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_set_pen
+        add @R13 #20
+; 877:     ui_draw_pie(x, y, r, st, en);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_draw_pie
+        add @R13 #20
+; 879:     ui_set_fill(0);
+        move @R0 #0
+        push @R0
+        move @R0 [@R13+0]
+        call ui_set_fill
+        add @R13 #4
+; 880:     ui_set_pen(_bgi_rgb(_bgi_fg), 1, 0, 0, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_set_pen
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+arc:
+; -------------------------------------------
+; source   : void arc(int x,int y,int st,int en,int r)
+; function : arc
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int r
+; return   : void
+; --------------------------------------------
+arc:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 882: void arc(int x, int y, int st, int en, int r)              { _bgi_pie(x, y, st, en, r, 0); }
+        move @R0 #0
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_pie
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+pieslice:
+; -------------------------------------------
+; source   : void pieslice(int x,int y,int st,int en,int r)
+; function : pieslice
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int r
+; return   : void
+; --------------------------------------------
+pieslice:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 883: void pieslice(int x, int y, int st, int en, int r)         { _bgi_pie(x, y, st, en, r, 1); }
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_pie
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+sector:
+; -------------------------------------------
+; source   : void sector(int x,int y,int st,int en,int xr,int yr)
+; function : sector
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+sector:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 884: void sector(int x, int y, int st, int en, int xr, int yr)  { (void)yr; _bgi_pie(x, y, st, en, xr, 1); }
+        move @R0 [@R12+32]
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_pie
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+floodfill:
+; -------------------------------------------
+; source   : void floodfill(int x,int y,int border)
+; function : floodfill
+; param   : int x
+; param   : int y
+; param   : int border
+; return   : void
+; --------------------------------------------
+floodfill:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 897:     ui_flood_fill(x, y, _bgi_rgb(_bgi_fill_col), _bgi_rgb(border));
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [_bgi_fill_col]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_flood_fill
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+imagesize:
+; -------------------------------------------
+; source   : int imagesize(int l,int t,int r,int b)
+; function : imagesize
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : int
+; --------------------------------------------
+imagesize:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 910:     int w = r - l + 1;
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+; 911:     int h = b - t + 1;
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+; 912:     if (w <= 0 || h <= 0) return 0;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760208
+        move @R0 #0
+        jmp _L74760209
+_L74760208:
+        move @R0 #1
+_L74760209:
+        test @R0 @R0
+        jnz _L74760205
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760210
+        move @R0 #0
+        jmp _L74760211
+_L74760210:
+        move @R0 #1
+_L74760211:
+        test @R0 @R0
+        jz _L74760206
+_L74760205:
+        move @R0 #1
+        jmp _L74760207
+_L74760206:
+        move @R0 #0
+_L74760207:
+        cmp @R0 #0
+        jz sta_74760203
+        move @R0 #0
+        jmp L_74760212
+sta_74760203:
+sta_74760204:
+; 913:     return 4 + w * h * 2;
+        move @R0 #4
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        jmp L_74760212
+L_74760212:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getimage:
+; -------------------------------------------
+; source   : void getimage(int l,int t,int r,int b,void* p)
+; function : getimage
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; param   : void* p
+; return   : void
+; --------------------------------------------
+getimage:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 928:     int h = ui_get_image(l, t, r - l + 1, b - t + 1);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_get_image
+        add @R13 #16
+        move [@R12-8] @R0
+; 929:     if (h <= 0 || p == 0) return;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760218
+        move @R0 #0
+        jmp _L74760219
+_L74760218:
+        move @R0 #1
+_L74760219:
+        test @R0 @R0
+        jnz _L74760215
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760220
+        move @R0 #0
+        jmp _L74760221
+_L74760220:
+        move @R0 #1
+_L74760221:
+        test @R0 @R0
+        jz _L74760216
+_L74760215:
+        move @R0 #1
+        jmp _L74760217
+_L74760216:
+        move @R0 #0
+_L74760217:
+        cmp @R0 #0
+        jz sta_74760213
+        jmp L_74760222
+sta_74760213:
+sta_74760214:
+; 932:     for (i = 0; i < 16; i++) {
+        move @R0 #0
+        move [@R12-12] @R0
+sta_74760223:
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #16
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760226
+        move @R0 #0
+        jmp _L74760227
+_L74760226:
+        move @R0 #1
+_L74760227:
+        cmp @R0 #0
+        jz sta_74760225
+; 933:         if (_bgi_img_ptr[i] == p) { _bgi_img_h[i] = h; return; }
+        move @R0 _bgi_img_ptr
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-12]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
+        je _L74760230
+        move @R0 #0
+        jmp _L74760231
+_L74760230:
+        move @R0 #1
+_L74760231:
+        cmp @R0 #0
+        jz sta_74760228
+        move @R0 [@R12-8]
+        move @R1 @R0
+        push @R1
+        move @R0 _bgi_img_h
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-12]
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        pop @R1
+        move [@R0] @R1
+        jmp L_74760222
+sta_74760228:
+sta_74760229:
+sta_74760224:
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_74760223
+sta_74760225:
+; 935:     i = _bgi_img_next;
+        move @R0 [_bgi_img_next]
+        move [@R12-12] @R0
+; 936:     _bgi_img_next = (i + 1) % 16;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #16
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        move [_bgi_img_next] @R0
+; 937:     _bgi_img_ptr[i] = p;
+        move @R0 [@R12+28]
+        move @R9 @R0
+        push @R9
+        move @R0 _bgi_img_ptr
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-12]
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        pop @R9
+        move [@R0] @R9
+; 938:     _bgi_img_h[i] = h;
+        move @R0 [@R12-8]
+        move @R6 @R0
+        push @R6
+        move @R0 _bgi_img_h
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-12]
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        pop @R6
+        move [@R0] @R6
+L_74760222:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+putimage:
+; -------------------------------------------
+; source   : void putimage(int l,int t,void* p,int op)
+; function : putimage
+; param   : int l
+; param   : int t
+; param   : void* p
+; param   : int op
+; return   : void
+; --------------------------------------------
+putimage:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 944:     int handle = 0;
+        move @R0 #0
+        move [@R12-12] @R0
+; 945:     for (i = 0; i < 16; i++) {
+        move @R0 #0
+        move [@R12-8] @R0
+sta_74760232:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #16
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760235
+        move @R0 #0
+        jmp _L74760236
+_L74760235:
+        move @R0 #1
+_L74760236:
+        cmp @R0 #0
+        jz sta_74760234
+; 946:         if (_bgi_img_ptr[i] == p && _bgi_img_h[i] != 0) { handle = _bgi_img_h[i]; break; }
+        move @R0 _bgi_img_ptr
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-8]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
+        je _L74760241
+        move @R0 #0
+        jmp _L74760242
+_L74760241:
+        move @R0 #1
+_L74760242:
+        test @R0 @R0
+        jz _L74760239
+        move @R0 _bgi_img_h
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-8]
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760243
+        move @R0 #0
+        jmp _L74760244
+_L74760243:
+        move @R0 #1
+_L74760244:
+        test @R0 @R0
+        jz _L74760239
+        move @R0 #1
+        jmp _L74760240
+_L74760239:
+        move @R0 #0
+_L74760240:
+        cmp @R0 #0
+        jz sta_74760237
+        move @R0 _bgi_img_h
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-8]
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move @R0 [@R0]
+        move [@R12-12] @R0
+        jmp sta_74760234
+sta_74760237:
+sta_74760238:
+sta_74760233:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_74760232
+sta_74760234:
+; 950:     if (handle == 0) return;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760247
+        move @R0 #0
+        jmp _L74760248
+_L74760247:
+        move @R0 #1
+_L74760248:
+        cmp @R0 #0
+        jz sta_74760245
+        jmp L_74760249
+sta_74760245:
+sta_74760246:
+; 951:     ui_put_image(l, t, handle, op == 1 ? 1 : 0);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760250
+        move @R0 #0
+        jmp _L74760251
+_L74760250:
+        move @R0 #1
+_L74760251:
+        test @R0 @R0
+        jz _L74760252
+        move @R0 #1
+        jmp _L74760253
+_L74760252:
+        move @R0 #0
+_L74760253:
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_put_image
+        add @R13 #16
+L_74760249:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_anchor:
+; -------------------------------------------
+; source   : int _bgi_anchor()
+; function : _bgi_anchor
+; return   : int
+; --------------------------------------------
+_bgi_anchor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 956:     if (_bgi_txt_just == 1) return 1;
+        move @R0 [_bgi_txt_just]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760256
+        move @R0 #0
+        jmp _L74760257
+_L74760256:
+        move @R0 #1
+_L74760257:
+        cmp @R0 #0
+        jz sta_74760254
+        move @R0 #1
+        jmp L_74760258
+sta_74760254:
+sta_74760255:
+; 957:     if (_bgi_txt_just == 2)  return 2;
+        move @R0 [_bgi_txt_just]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
+        je _L74760261
+        move @R0 #0
+        jmp _L74760262
+_L74760261:
+        move @R0 #1
+_L74760262:
+        cmp @R0 #0
+        jz sta_74760259
+        move @R0 #2
+        jmp L_74760258
+sta_74760259:
+sta_74760260:
+; 958:     return 0;
+        move @R0 #0
+        jmp L_74760258
+L_74760258:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+outtextxy:
+; -------------------------------------------
+; source   : void outtextxy(int x,int y,char* s)
+; function : outtextxy
+; param   : int x
+; param   : int y
+; param   : char* s
+; return   : void
+; --------------------------------------------
+outtextxy:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 962:     ui_text(x, y, s, _bgi_rgb(_bgi_fg), _bgi_txt_size, _bgi_anchor());
+        call _bgi_anchor
+        push @R0
+        move @R0 [_bgi_txt_size]
+        push @R0
+        move @R0 [_bgi_fg]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_rgb
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_text
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+outtext:
+; -------------------------------------------
+; source   : void outtext(char* s)
+; function : outtext
+; param   : char* s
+; return   : void
+; --------------------------------------------
+outtext:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 966:     outtextxy(_bgi_pen_x, _bgi_pen_y, s);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_bgi_pen_y]
+        push @R0
+        move @R0 [_bgi_pen_x]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call outtextxy
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_json_int:
+; -------------------------------------------
+; source   : int _bgi_json_int(char* json,char* key)
+; function : _bgi_json_int
+; param   : char* json
+; param   : char* key
+; return   : int
+; --------------------------------------------
+_bgi_json_int:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
+; 988:     for (i = 0; json[i] != 0; i++) {
+        move @R0 #0
+        move [@R12-8] @R0
+sta_74760263:
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760266
+        move @R0 #0
+        jmp _L74760267
+_L74760266:
+        move @R0 #1
+_L74760267:
+        cmp @R0 #0
+        jz sta_74760265
+; 989:         if (json[i] != '"') continue;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #34
+        popb @R1
+        cmp @R1 @R0
+        jne _L74760270
+        move @R0 #0
+        jmp _L74760271
+_L74760270:
+        move @R0 #1
+_L74760271:
+        cmp @R0 #0
+        jz sta_74760268
+        jmp sta_74760264
+sta_74760268:
+sta_74760269:
+; 990:         for (j = 0; key[j] != 0 && json[i + 1 + j] == key[j]; j++) { }
+        move @R0 #0
+        move [@R12-12] @R0
+sta_74760272:
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760277
+        move @R0 #0
+        jmp _L74760278
+_L74760277:
+        move @R0 #1
+_L74760278:
+        test @R0 @R0
+        jz _L74760275
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        popb @R1
+        cmp @R1 @R0
+        je _L74760279
+        move @R0 #0
+        jmp _L74760280
+_L74760279:
+        move @R0 #1
+_L74760280:
+        test @R0 @R0
+        jz _L74760275
+        move @R0 #1
+        jmp _L74760276
+_L74760275:
+        move @R0 #0
+_L74760276:
+        cmp @R0 #0
+        jz sta_74760274
+sta_74760273:
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_74760272
+sta_74760274:
+; 991:         if (key[j] != 0) continue;                 /* 键名没对上 */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760283
+        move @R0 #0
+        jmp _L74760284
+_L74760283:
+        move @R0 #1
+_L74760284:
+        cmp @R0 #0
+        jz sta_74760281
+        jmp sta_74760264
+sta_74760281:
+sta_74760282:
+; 992:         if (json[i + 1 + j] != '"' || json[i + 2 + j] != ':') continue;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #34
+        popb @R1
+        cmp @R1 @R0
+        jne _L74760290
+        move @R0 #0
+        jmp _L74760291
+_L74760290:
+        move @R0 #1
+_L74760291:
+        test @R0 @R0
+        jnz _L74760287
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #58
+        popb @R1
+        cmp @R1 @R0
+        jne _L74760292
+        move @R0 #0
+        jmp _L74760293
+_L74760292:
+        move @R0 #1
+_L74760293:
+        test @R0 @R0
+        jz _L74760288
+_L74760287:
+        move @R0 #1
+        jmp _L74760289
+_L74760288:
+        move @R0 #0
+_L74760289:
+        cmp @R0 #0
+        jz sta_74760285
+        jmp sta_74760264
+sta_74760285:
+sta_74760286:
+; 993:         j = i + 3 + j;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #3
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+sta_74760294:
+        move @R2 #0
+; 994:         while (json[j] == ' ') j++;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
+        je _L74760296
+        move @R0 #0
+        jmp _L74760297
+_L74760296:
+        move @R0 #1
+_L74760297:
+        cmp @R0 #0
+        jz sta_74760295
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_74760294
+sta_74760295:
+; 996:             int sign = 1, v = 0, seen = 0;
+        move @R0 #1
+        move [@R12-16] @R0
+        move @R0 #0
+        move [@R12-20] @R0
+        move @R0 #0
+        move [@R12-24] @R0
+; 997:             if (json[j] == '-') { sign = -1; j++; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #45
+        popb @R1
+        cmp @R1 @R0
+        je _L74760300
+        move @R0 #0
+        jmp _L74760301
+_L74760300:
+        move @R0 #1
+_L74760301:
+        cmp @R0 #0
+        jz sta_74760298
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        move [@R12-16] @R0
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+sta_74760298:
+sta_74760299:
+sta_74760302:
+        move @R2 #0
+; 998:             while (json[j] >= '0' && json[j] <= '9') {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        jge _L74760306
+        move @R0 #0
+        jmp _L74760307
+_L74760306:
+        move @R0 #1
+_L74760307:
+        test @R0 @R0
+        jz _L74760304
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
+        jle _L74760308
+        move @R0 #0
+        jmp _L74760309
+_L74760308:
+        move @R0 #1
+_L74760309:
+        test @R0 @R0
+        jz _L74760304
+        move @R0 #1
+        jmp _L74760305
+_L74760304:
+        move @R0 #0
+_L74760305:
+        cmp @R0 #0
+        jz sta_74760303
+; 999:                 v = v * 10 + (json[j] - '0'); j++; seen = 1;
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #10
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        move @R0 #1
+        move [@R12-24] @R0
+        jmp sta_74760302
+sta_74760303:
+; 1001:             if (seen) return v * sign;
+        move @R0 [@R12-24]
+        cmp @R0 #0
+        jz sta_74760310
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        jmp L_74760312
+sta_74760310:
+sta_74760311:
+sta_74760264:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_74760263
+sta_74760265:
+; 1004:     return -1;
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_74760312
+L_74760312:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_measure:
+; -------------------------------------------
+; source   : int _bgi_measure(char* s,int* pw,int* ph)
+; function : _bgi_measure
+; param   : char* s
+; param   : int* pw
+; param   : int* ph
+; return   : int
+; --------------------------------------------
+_bgi_measure:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #472
+; 1011:     char fn[] = "text";      /* 不用字面量直传：`ui_call_json` 收的是 `char*`，
+        move @R0 @R12
+        sub @R0 #428
+        push @R0
+        move @R0 #116
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #428
+        add @R0 #1
+        push @R0
+        move @R0 #101
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #428
+        add @R0 #2
+        push @R0
+        move @R0 #120
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #428
+        add @R0 #3
+        push @R0
+        move @R0 #116
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #428
+        add @R0 #4
+        push @R0
+        move @R0 #0
+        pop @R1
+        moveb [@R1] @R0
+; 1014:     int n = 0, i, len, v, k;
+        move @R0 #0
+        move [@R12-432] @R0
+; 1016:     *pw = 0;
+        move @R0 [@R12+16]
+        move @R5 @R0
+        push @R5
+        move @R0 #0
+        pop @R5
+        move [@R5] @R0
+; 1017:     *ph = _bgi_txt_size;
+        move @R0 [@R12+20]
+        move @R4 @R0
+        push @R4
+        move @R0 [_bgi_txt_size]
+        pop @R4
+        move [@R4] @R0
+; 1020:     args[n++] = '{'; args[n++] = '"'; args[n++] = 's'; args[n++] = '"'; args[n++] = ':';
+        move @R0 #123
+        move @R6 @R0
+        push @R6
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        pop @R6
+        moveb [@R0] @R6
+        move @R0 #34
+        move @R11 @R0
+        push @R11
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        pop @R11
+        moveb [@R0] @R11
+        move @R0 #115
+        move @R8 @R0
+        push @R8
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R8
+        moveb [@R0] @R8
+        move @R0 #34
+        move @R5 @R0
+        push @R5
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        pop @R5
+        moveb [@R0] @R5
+        move @R0 #58
+        move @R2 @R0
+        push @R2
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        pop @R2
+        moveb [@R0] @R2
+; 1021:     args[n++] = '"';
+        move @R0 #34
+        move @R1 @R0
+        push @R1
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        pop @R1
+        moveb [@R0] @R1
+; 1022:     for (i = 0; s[i] != 0 && n < 200; i++) {
+        move @R0 #0
+        move [@R12-436] @R0
+sta_74760313:
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-436]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760318
+        move @R0 #0
+        jmp _L74760319
+_L74760318:
+        move @R0 #1
+_L74760319:
+        test @R0 @R0
+        jz _L74760316
+        move @R0 [@R12-432]
+        push @R0
+        move @R0 #200
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760320
+        move @R0 #0
+        jmp _L74760321
+_L74760320:
+        move @R0 #1
+_L74760321:
+        test @R0 @R0
+        jz _L74760316
+        move @R0 #1
+        jmp _L74760317
+_L74760316:
+        move @R0 #0
+_L74760317:
+        cmp @R0 #0
+        jz sta_74760315
+; 1023:         if (s[i] == '"' || s[i] == '\\') args[n++] = '\\';
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-436]
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #34
+        popb @R1
+        cmp @R1 @R0
+        je _L74760327
+        move @R0 #0
+        jmp _L74760328
+_L74760327:
+        move @R0 #1
+_L74760328:
+        test @R0 @R0
+        jnz _L74760324
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-436]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #92
+        popb @R1
+        cmp @R1 @R0
+        je _L74760329
+        move @R0 #0
+        jmp _L74760330
+_L74760329:
+        move @R0 #1
+_L74760330:
+        test @R0 @R0
+        jz _L74760325
+_L74760324:
+        move @R0 #1
+        jmp _L74760326
+_L74760325:
+        move @R0 #0
+_L74760326:
+        cmp @R0 #0
+        jz sta_74760322
+        move @R0 #92
+        move @R3 @R0
+        push @R3
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        pop @R3
+        moveb [@R0] @R3
+sta_74760322:
+sta_74760323:
+; 1024:         args[n++] = s[i];
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-436]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R2 @R0
+        push @R2
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        pop @R2
+        moveb [@R0] @R2
+sta_74760314:
+        move @R0 [@R12-436]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-436] @R0
+        move @R0 @R1
+        jmp sta_74760313
+sta_74760315:
+; 1026:     args[n++] = '"'; args[n++] = ',';
+        move @R0 #34
+        move @R1 @R0
+        push @R1
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        pop @R1
+        moveb [@R0] @R1
+        move @R0 #44
+        move @R4 @R0
+        push @R4
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        pop @R4
+        moveb [@R0] @R4
+; 1027:     args[n++] = '"'; args[n++] = 's'; args[n++] = 'i'; args[n++] = 'z'; args[n++] = 'e';
+        move @R0 #34
+        move @R3 @R0
+        push @R3
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        pop @R3
+        moveb [@R0] @R3
+        move @R0 #115
+        move @R7 @R0
+        push @R7
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R7
+        moveb [@R0] @R7
+        move @R0 #105
+        move @R8 @R0
+        push @R8
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        pop @R8
+        moveb [@R0] @R8
+        move @R0 #122
+        move @R6 @R0
+        push @R6
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        pop @R6
+        moveb [@R0] @R6
+        move @R0 #101
+        move @R11 @R0
+        push @R11
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        pop @R11
+        moveb [@R0] @R11
+; 1028:     args[n++] = '"'; args[n++] = ':';
+        move @R0 #34
+        move @R9 @R0
+        push @R9
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        pop @R9
+        moveb [@R0] @R9
+        move @R0 #58
+        move @R5 @R0
+        push @R5
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        pop @R5
+        moveb [@R0] @R5
+; 1031:     v = _bgi_txt_size > 0 ? _bgi_txt_size : 1;
+        move @R0 [_bgi_txt_size]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760331
+        move @R0 #0
+        jmp _L74760332
+_L74760331:
+        move @R0 #1
+_L74760332:
+        test @R0 @R0
+        jz _L74760333
+        move @R0 [_bgi_txt_size]
+        jmp _L74760334
+_L74760333:
+        move @R0 #1
+_L74760334:
+        move [@R12-444] @R0
+; 1032:     k = 0;
+        move @R0 #0
+        move [@R12-448] @R0
+sta_74760335:
+        move @R2 #0
+; 1033:     while (v > 0 && k < 11) { num[k++] = (char)('0' + v % 10); v /= 10; }
+        move @R0 [@R12-444]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760339
+        move @R0 #0
+        jmp _L74760340
+_L74760339:
+        move @R0 #1
+_L74760340:
+        test @R0 @R0
+        jz _L74760337
+        move @R0 [@R12-448]
+        push @R0
+        move @R0 #11
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760341
+        move @R0 #0
+        jmp _L74760342
+_L74760341:
+        move @R0 #1
+_L74760342:
+        test @R0 @R0
+        jz _L74760337
+        move @R0 #1
+        jmp _L74760338
+_L74760337:
+        move @R0 #0
+_L74760338:
+        cmp @R0 #0
+        jz sta_74760336
+        move @R0 #48
+        push @R0
+        move @R0 [@R12-444]
+        push @R0
+        move @R0 #10
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move @R10 @R0
+        push @R10
+        move @R0 @R12
+        sub @R0 #460
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-448]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-448] @R0
+        move @R0 @R1
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        pop @R10
+        moveb [@R0] @R10
+        move @R0 [@R12-444]
+        push @R0
+        move @R0 #10
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-444] @R0
+        jmp sta_74760335
+sta_74760336:
+sta_74760343:
+        move @R2 #0
+; 1034:     while (k > 0) args[n++] = num[--k];
+        move @R0 [@R12-448]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760345
+        move @R0 #0
+        jmp _L74760346
+_L74760345:
+        move @R0 #1
+_L74760346:
+        cmp @R0 #0
+        jz sta_74760344
+        move @R0 @R12
+        sub @R0 #460
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 [@R12-448]
+        move @R0 [@R12-448]
+        sub @R0 @R0 #1
+        move [@R12-448] @R0
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R7 @R0
+        push @R7
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R7
+        moveb [@R0] @R7
+        jmp sta_74760343
+sta_74760344:
+; 1035:     args[n++] = '}';
+        move @R0 #125
+        move @R8 @R0
+        push @R8
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-432]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-432] @R0
+        move @R0 @R1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        pop @R8
+        moveb [@R0] @R8
+; 1036:     args[n] = 0;
+        move @R0 #0
+        move @R6 @R0
+        push @R6
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-432]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        pop @R6
+        moveb [@R0] @R6
+; 1037:     len = ui_call_json(fn, args, out, 160);
+        move @R0 #160
+        push @R0
+        move @R0 @R12
+        sub @R0 #420
+        push @R0
+        move @R0 @R12
+        sub @R0 #260
+        push @R0
+        move @R0 @R12
+        sub @R0 #428
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_call_json
+        add @R13 #16
+        move [@R12-440] @R0
+; 1038:     if (len <= 0) return 0;
+        move @R0 [@R12-440]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760349
+        move @R0 #0
+        jmp _L74760350
+_L74760349:
+        move @R0 #1
+_L74760350:
+        cmp @R0 #0
+        jz sta_74760347
+        move @R0 #0
+        jmp L_74760351
+sta_74760347:
+sta_74760348:
+; 1039:     *pw = _bgi_json_int(out, "w");
+        move @R0 [@R12+16]
+        move @R2 @R0
+        push @R2
+        move @R0 L_74760352
+        push @R0
+        move @R0 @R12
+        sub @R0 #420
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _bgi_json_int
+        add @R13 #8
+        pop @R2
+        move [@R2] @R0
+; 1040:     v   = _bgi_json_int(out, "h");
+        move @R0 L_74760353
+        push @R0
+        move @R0 @R12
+        sub @R0 #420
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _bgi_json_int
+        add @R13 #8
+        move [@R12-444] @R0
+; 1041:     if (*pw < 0) { *pw = 0; return 0; }
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760356
+        move @R0 #0
+        jmp _L74760357
+_L74760356:
+        move @R0 #1
+_L74760357:
+        cmp @R0 #0
+        jz sta_74760354
+        move @R0 [@R12+16]
+        move @R11 @R0
+        push @R11
+        move @R0 #0
+        pop @R11
+        move [@R11] @R0
+        move @R0 #0
+        jmp L_74760351
+sta_74760354:
+sta_74760355:
+; 1042:     *ph = v > 0 ? v : _bgi_txt_size;
+        move @R0 [@R12+20]
+        move @R1 @R0
+        push @R1
+        move @R0 [@R12-444]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760358
+        move @R0 #0
+        jmp _L74760359
+_L74760358:
+        move @R0 #1
+_L74760359:
+        test @R0 @R0
+        jz _L74760360
+        move @R0 [@R12-444]
+        jmp _L74760361
+_L74760360:
+        move @R0 [_bgi_txt_size]
+_L74760361:
+        pop @R1
+        move [@R1] @R0
+; 1043:     return 1;
+        move @R0 #1
+        jmp L_74760351
+L_74760351:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+textwidth:
+; -------------------------------------------
+; source   : int textwidth(char* s)
+; function : textwidth
+; param   : char* s
+; return   : int
+; --------------------------------------------
+textwidth:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 1048:     _bgi_measure(s, &w, &h);
+        move @R0 [@R12-12]
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R0 [@R12-8]
+        move @R0 @R12
+        sub @R0 #8
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call _bgi_measure
+        add @R13 #12
+; 1049:     return w;
+        move @R0 [@R12-8]
+        jmp L_74760362
+L_74760362:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+textheight:
+; -------------------------------------------
+; source   : int textheight(char* s)
+; function : textheight
+; param   : char* s
+; return   : int
+; --------------------------------------------
+textheight:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 1054:     _bgi_measure(s, &w, &h);        /* BGI 的签名收字符串，但高度只与字号有关；
+        move @R0 [@R12-12]
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R0 [@R12-8]
+        move @R0 @R12
+        sub @R0 #8
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call _bgi_measure
+        add @R13 #12
+; 1056:     return h;
+        move @R0 [@R12-12]
+        jmp L_74760363
+L_74760363:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getpixel:
+; -------------------------------------------
+; source   : int getpixel(int x,int y)
+; function : getpixel
+; param   : int x
+; param   : int y
+; return   : int
+; --------------------------------------------
+getpixel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #224
+; 1074:     char fn[] = "pixel";
+        move @R0 @R12
+        sub @R0 #172
+        push @R0
+        move @R0 #112
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #172
+        add @R0 #1
+        push @R0
+        move @R0 #105
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #172
+        add @R0 #2
+        push @R0
+        move @R0 #120
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #172
+        add @R0 #3
+        push @R0
+        move @R0 #101
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #172
+        add @R0 #4
+        push @R0
+        move @R0 #108
+        pop @R1
+        moveb [@R1] @R0
+        move @R0 @R12
+        sub @R0 #172
+        add @R0 #5
+        push @R0
+        move @R0 #0
+        pop @R1
+        moveb [@R1] @R0
+; 1075:     int n = 0, i, len, v;
+        move @R0 #0
+        move [@R12-176] @R0
+; 1077:     args[n++] = '{'; args[n++] = '"'; args[n++] = 'x'; args[n++] = '"'; args[n++] = ':';
+        move @R0 #123
+        move @R9 @R0
+        push @R9
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        pop @R9
+        moveb [@R0] @R9
+        move @R0 #34
+        move @R5 @R0
+        push @R5
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        pop @R5
+        moveb [@R0] @R5
+        move @R0 #120
+        move @R10 @R0
+        push @R10
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        pop @R10
+        moveb [@R0] @R10
+        move @R0 #34
+        move @R11 @R0
+        push @R11
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        pop @R11
+        moveb [@R0] @R11
+        move @R0 #58
+        move @R4 @R0
+        push @R4
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        pop @R4
+        moveb [@R0] @R4
+; 1078:     for (i = 0; i < 2; i++) {
+        move @R0 #0
+        move [@R12-180] @R0
+sta_74760364:
+        move @R0 [@R12-180]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760367
+        move @R0 #0
+        jmp _L74760368
+_L74760367:
+        move @R0 #1
+_L74760368:
+        cmp @R0 #0
+        jz sta_74760366
+; 1079:         int val = (i == 0) ? x : y;
+        move @R0 [@R12-180]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760369
+        move @R0 #0
+        jmp _L74760370
+_L74760369:
+        move @R0 #1
+_L74760370:
+        test @R0 @R0
+        jz _L74760371
+        move @R0 [@R12+12]
+        jmp _L74760372
+_L74760371:
+        move @R0 [@R12+16]
+_L74760372:
+        move [@R12-192] @R0
+; 1081:         int k = 0, neg = 0;
+        move @R0 #0
+        move [@R12-208] @R0
+        move @R0 #0
+        move [@R12-212] @R0
+; 1082:         if (val < 0) { neg = 1; val = -val; }
+        move @R0 [@R12-192]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760375
+        move @R0 #0
+        jmp _L74760376
+_L74760375:
+        move @R0 #1
+_L74760376:
+        cmp @R0 #0
+        jz sta_74760373
+        move @R0 #1
+        move [@R12-212] @R0
+        move @R0 [@R12-192]
+        move @R0 [@R12-192]
+        neg @R0 @R0
+        move [@R12-192] @R0
+sta_74760373:
+sta_74760374:
+; 1083:         if (val == 0) num[k++] = '0';
+        move @R0 [@R12-192]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760379
+        move @R0 #0
+        jmp _L74760380
+_L74760379:
+        move @R0 #1
+_L74760380:
+        cmp @R0 #0
+        jz sta_74760377
+        move @R0 #48
+        move @R3 @R0
+        push @R3
+        move @R0 @R12
+        sub @R0 #204
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-208]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-208] @R0
+        move @R0 @R1
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        pop @R3
+        moveb [@R0] @R3
+sta_74760377:
+sta_74760378:
+sta_74760381:
+        move @R2 #0
+; 1084:         while (val > 0 && k < 11) { num[k++] = (char)('0' + val % 10); val /= 10; }
+        move @R0 [@R12-192]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760385
+        move @R0 #0
+        jmp _L74760386
+_L74760385:
+        move @R0 #1
+_L74760386:
+        test @R0 @R0
+        jz _L74760383
+        move @R0 [@R12-208]
+        push @R0
+        move @R0 #11
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760387
+        move @R0 #0
+        jmp _L74760388
+_L74760387:
+        move @R0 #1
+_L74760388:
+        test @R0 @R0
+        jz _L74760383
+        move @R0 #1
+        jmp _L74760384
+_L74760383:
+        move @R0 #0
+_L74760384:
+        cmp @R0 #0
+        jz sta_74760382
+        move @R0 #48
+        push @R0
+        move @R0 [@R12-192]
+        push @R0
+        move @R0 #10
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move @R2 @R0
+        push @R2
+        move @R0 @R12
+        sub @R0 #204
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-208]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-208] @R0
+        move @R0 @R1
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        pop @R2
+        moveb [@R0] @R2
+        move @R0 [@R12-192]
+        push @R0
+        move @R0 #10
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-192] @R0
+        jmp sta_74760381
+sta_74760382:
+; 1085:         if (neg) args[n++] = '-';
+        move @R0 [@R12-212]
+        cmp @R0 #0
+        jz sta_74760389
+        move @R0 #45
+        move @R7 @R0
+        push @R7
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R7
+        moveb [@R0] @R7
+sta_74760389:
+sta_74760390:
+sta_74760391:
+        move @R2 #0
+; 1086:         while (k > 0) args[n++] = num[--k];
+        move @R0 [@R12-208]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760393
+        move @R0 #0
+        jmp _L74760394
+_L74760393:
+        move @R0 #1
+_L74760394:
+        cmp @R0 #0
+        jz sta_74760392
+        move @R0 @R12
+        sub @R0 #204
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-208]
+        move @R0 [@R12-208]
+        sub @R0 @R0 #1
+        move [@R12-208] @R0
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R5 @R0
+        push @R5
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        pop @R5
+        moveb [@R0] @R5
+        jmp sta_74760391
+sta_74760392:
+; 1087:         if (i == 0) { args[n++] = ','; args[n++] = '"'; args[n++] = 'y'; args[n++] = '"'; args[n++] = ':'; }
+        move @R0 [@R12-180]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L74760397
+        move @R0 #0
+        jmp _L74760398
+_L74760397:
+        move @R0 #1
+_L74760398:
+        cmp @R0 #0
+        jz sta_74760395
+        move @R0 #44
+        move @R10 @R0
+        push @R10
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        pop @R10
+        moveb [@R0] @R10
+        move @R0 #34
+        move @R11 @R0
+        push @R11
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        pop @R11
+        moveb [@R0] @R11
+        move @R0 #121
+        move @R8 @R0
+        push @R8
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        pop @R8
+        moveb [@R0] @R8
+        move @R0 #34
+        move @R3 @R0
+        push @R3
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        pop @R3
+        moveb [@R0] @R3
+        move @R0 #58
+        move @R2 @R0
+        push @R2
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R2
+        moveb [@R0] @R2
+sta_74760395:
+sta_74760396:
+sta_74760365:
+        move @R0 [@R12-180]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-180] @R0
+        move @R0 @R1
+        jmp sta_74760364
+sta_74760366:
+; 1089:     args[n++] = '}';
+        move @R0 #125
+        move @R7 @R0
+        push @R7
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-176]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-176] @R0
+        move @R0 @R1
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        pop @R7
+        moveb [@R0] @R7
+; 1090:     args[n] = 0;
+        move @R0 #0
+        move @R6 @R0
+        push @R6
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-176]
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        pop @R6
+        moveb [@R0] @R6
+; 1091:     len = ui_call_json(fn, args, out, 96);
+        move @R0 #96
+        push @R0
+        move @R0 @R12
+        sub @R0 #164
+        push @R0
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R0 @R12
+        sub @R0 #172
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_call_json
+        add @R13 #16
+        move [@R12-184] @R0
+; 1092:     if (len <= 0) return 0;
+        move @R0 [@R12-184]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760401
+        move @R0 #0
+        jmp _L74760402
+_L74760401:
+        move @R0 #1
+_L74760402:
+        cmp @R0 #0
+        jz sta_74760399
+        move @R0 #0
+        jmp L_74760403
+sta_74760399:
+sta_74760400:
+; 1093:     v = _bgi_json_int(out, "rgb");
+        move @R0 L_74760404
+        push @R0
+        move @R0 @R12
+        sub @R0 #164
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _bgi_json_int
+        add @R13 #8
+        move [@R12-188] @R0
+; 1094:     if (v < 0) return 0;
+        move @R0 [@R12-188]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760407
+        move @R0 #0
+        jmp _L74760408
+_L74760407:
+        move @R0 #1
+_L74760408:
+        cmp @R0 #0
+        jz sta_74760405
+        move @R0 #0
+        jmp L_74760403
+sta_74760405:
+sta_74760406:
+; 1095:     v = v & 0xFFFFFF;
+        move @R0 [@R12-188]
+        push @R0
+        move @R0 #16777215
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-188] @R0
+; 1096:     for (i = 0; i < 16; i++) {
+        move @R0 #0
+        move [@R12-180] @R0
+sta_74760409:
+        move @R0 [@R12-180]
+        push @R0
+        move @R0 #16
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760412
+        move @R0 #0
+        jmp _L74760413
+_L74760412:
+        move @R0 #1
+_L74760413:
+        cmp @R0 #0
+        jz sta_74760411
+; 1097:         if (_bgi_pal[i] == v) return i;
+        move @R0 _bgi_pal
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-180]
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12-188]
+        pop @R1
+        cmp @R1 @R0
+        je _L74760416
+        move @R0 #0
+        jmp _L74760417
+_L74760416:
+        move @R0 #1
+_L74760417:
+        cmp @R0 #0
+        jz sta_74760414
+        move @R0 [@R12-180]
+        jmp L_74760403
+sta_74760414:
+sta_74760415:
+sta_74760410:
+        move @R0 [@R12-180]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-180] @R0
+        move @R0 @R1
+        jmp sta_74760409
+sta_74760411:
+; 1101:     return 0;
+        move @R0 #0
+        jmp L_74760403
+L_74760403:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_flush:
+; -------------------------------------------
+; source   : void _bgi_flush()
+; function : _bgi_flush
+; return   : void
+; --------------------------------------------
+_bgi_flush:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1107: void _bgi_flush(void) { ui_present(); }
+        call ui_present
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+delay:
+; -------------------------------------------
+; source   : void delay(int ms)
+; function : delay
+; param   : int ms
+; return   : void
+; --------------------------------------------
+delay:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1111:     int t0 = ui_tick();
+        call ui_tick
+        move [@R12-8] @R0
+sta_74760418:
+        move @R2 #0
+; 1112:     while (ui_tick() - t0 < ms) {
+        call ui_tick
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        cmp @R1 @R0
+        jl _L74760420
+        move @R0 #0
+        jmp _L74760421
+_L74760420:
+        move @R0 #1
+_L74760421:
+        cmp @R0 #0
+        jz sta_74760419
+; 1117:         if (ui_win_closed() == 1) break;
+        call ui_win_closed
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760424
+        move @R0 #0
+        jmp _L74760425
+_L74760424:
+        move @R0 #1
+_L74760425:
+        cmp @R0 #0
+        jz sta_74760422
+        jmp sta_74760419
+sta_74760422:
+sta_74760423:
+        jmp sta_74760418
+sta_74760419:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+kbhit:
+; -------------------------------------------
+; source   : int kbhit()
+; function : kbhit
+; return   : int
+; --------------------------------------------
+kbhit:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1123: int kbhit(void) { return ui_poll_msg() > 0; }
+        call ui_poll_msg
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L74760426
+        move @R0 #0
+        jmp _L74760427
+_L74760426:
+        move @R0 #1
+_L74760427:
+        jmp L_74760428
+L_74760428:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_bgi_scan_code:
+; -------------------------------------------
+; source   : int _bgi_scan_code(int vk)
+; function : _bgi_scan_code
+; param   : int vk
+; return   : int
+; --------------------------------------------
+_bgi_scan_code:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1158:     if (vk == 0x25) return 0x4B;              /* ← */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #37
+        pop @R1
+        cmp @R1 @R0
+        je _L74760431
+        move @R0 #0
+        jmp _L74760432
+_L74760431:
+        move @R0 #1
+_L74760432:
+        cmp @R0 #0
+        jz sta_74760429
+        move @R0 #75
+        jmp L_74760433
+sta_74760429:
+sta_74760430:
+; 1159:     if (vk == 0x26) return 0x48;              /* ↑ */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #38
+        pop @R1
+        cmp @R1 @R0
+        je _L74760436
+        move @R0 #0
+        jmp _L74760437
+_L74760436:
+        move @R0 #1
+_L74760437:
+        cmp @R0 #0
+        jz sta_74760434
+        move @R0 #72
+        jmp L_74760433
+sta_74760434:
+sta_74760435:
+; 1160:     if (vk == 0x27) return 0x4D;              /* → */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #39
+        pop @R1
+        cmp @R1 @R0
+        je _L74760440
+        move @R0 #0
+        jmp _L74760441
+_L74760440:
+        move @R0 #1
+_L74760441:
+        cmp @R0 #0
+        jz sta_74760438
+        move @R0 #77
+        jmp L_74760433
+sta_74760438:
+sta_74760439:
+; 1161:     if (vk == 0x28) return 0x50;              /* ↓ */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #40
+        pop @R1
+        cmp @R1 @R0
+        je _L74760444
+        move @R0 #0
+        jmp _L74760445
+_L74760444:
+        move @R0 #1
+_L74760445:
+        cmp @R0 #0
+        jz sta_74760442
+        move @R0 #80
+        jmp L_74760433
+sta_74760442:
+sta_74760443:
+; 1162:     if (vk == 0x24) return 0x47;              /* Home */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #36
+        pop @R1
+        cmp @R1 @R0
+        je _L74760448
+        move @R0 #0
+        jmp _L74760449
+_L74760448:
+        move @R0 #1
+_L74760449:
+        cmp @R0 #0
+        jz sta_74760446
+        move @R0 #71
+        jmp L_74760433
+sta_74760446:
+sta_74760447:
+; 1163:     if (vk == 0x23) return 0x4F;              /* End  */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #35
+        pop @R1
+        cmp @R1 @R0
+        je _L74760452
+        move @R0 #0
+        jmp _L74760453
+_L74760452:
+        move @R0 #1
+_L74760453:
+        cmp @R0 #0
+        jz sta_74760450
+        move @R0 #79
+        jmp L_74760433
+sta_74760450:
+sta_74760451:
+; 1164:     if (vk == 0x21) return 0x49;              /* PgUp */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #33
+        pop @R1
+        cmp @R1 @R0
+        je _L74760456
+        move @R0 #0
+        jmp _L74760457
+_L74760456:
+        move @R0 #1
+_L74760457:
+        cmp @R0 #0
+        jz sta_74760454
+        move @R0 #73
+        jmp L_74760433
+sta_74760454:
+sta_74760455:
+; 1165:     if (vk == 0x22) return 0x51;              /* PgDn */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #34
+        pop @R1
+        cmp @R1 @R0
+        je _L74760460
+        move @R0 #0
+        jmp _L74760461
+_L74760460:
+        move @R0 #1
+_L74760461:
+        cmp @R0 #0
+        jz sta_74760458
+        move @R0 #81
+        jmp L_74760433
+sta_74760458:
+sta_74760459:
+; 1166:     if (vk == 0x2D) return 0x52;              /* Ins  */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #45
+        pop @R1
+        cmp @R1 @R0
+        je _L74760464
+        move @R0 #0
+        jmp _L74760465
+_L74760464:
+        move @R0 #1
+_L74760465:
+        cmp @R0 #0
+        jz sta_74760462
+        move @R0 #82
+        jmp L_74760433
+sta_74760462:
+sta_74760463:
+; 1167:     if (vk == 0x2E) return 0x53;              /* Del  */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #46
+        pop @R1
+        cmp @R1 @R0
+        je _L74760468
+        move @R0 #0
+        jmp _L74760469
+_L74760468:
+        move @R0 #1
+_L74760469:
+        cmp @R0 #0
+        jz sta_74760466
+        move @R0 #83
+        jmp L_74760433
+sta_74760466:
+sta_74760467:
+; 1168:     if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #112
+        pop @R1
+        cmp @R1 @R0
+        jge _L74760474
+        move @R0 #0
+        jmp _L74760475
+_L74760474:
+        move @R0 #1
+_L74760475:
+        test @R0 @R0
+        jz _L74760472
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #121
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760476
+        move @R0 #0
+        jmp _L74760477
+_L74760476:
+        move @R0 #1
+_L74760477:
+        test @R0 @R0
+        jz _L74760472
+        move @R0 #1
+        jmp _L74760473
+_L74760472:
+        move @R0 #0
+_L74760473:
+        cmp @R0 #0
+        jz sta_74760470
+        move @R0 #59
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #112
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        jmp L_74760433
+sta_74760470:
+sta_74760471:
+; 1169:     if (vk == 0x7A) return 0x57;              /* F11 */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #122
+        pop @R1
+        cmp @R1 @R0
+        je _L74760480
+        move @R0 #0
+        jmp _L74760481
+_L74760480:
+        move @R0 #1
+_L74760481:
+        cmp @R0 #0
+        jz sta_74760478
+        move @R0 #87
+        jmp L_74760433
+sta_74760478:
+sta_74760479:
+; 1170:     if (vk == 0x7B) return 0x58;              /* F12 */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #123
+        pop @R1
+        cmp @R1 @R0
+        je _L74760484
+        move @R0 #0
+        jmp _L74760485
+_L74760484:
+        move @R0 #1
+_L74760485:
+        cmp @R0 #0
+        jz sta_74760482
+        move @R0 #88
+        jmp L_74760433
+sta_74760482:
+sta_74760483:
+; 1171:     return 0;
+        move @R0 #0
+        jmp L_74760433
+L_74760433:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getch:
+; -------------------------------------------
+; source   : int getch()
+; function : getch
+; return   : int
+; --------------------------------------------
+getch:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
+; 1181:     _bgi_flush();
+        call _bgi_flush
+; 1182:     if (_bgi_pending_scan != 0)
+        move @R0 [_bgi_pending_scan]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760488
+        move @R0 #0
+        jmp _L74760489
+_L74760488:
+        move @R0 #1
+_L74760489:
+        cmp @R0 #0
+        jz sta_74760486
+; 1184:         sc = _bgi_pending_scan;
+        move @R0 [_bgi_pending_scan]
+        move [@R12-24] @R0
+; 1185:         _bgi_pending_scan = 0;
+        move @R0 #0
+        move [_bgi_pending_scan] @R0
+; 1186:         return sc;
+        move @R0 [@R12-24]
+        jmp L_74760490
+sta_74760486:
+sta_74760487:
+sta_74760491:
+; 1190:         if (ui_wait(msg, 0) <= 0) return 0;
+        move @R0 #0
+        push @R0
+        move @R0 @R12
+        sub @R0 #16
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call ui_wait
+        add @R13 #8
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L74760496
+        move @R0 #0
+        jmp _L74760497
+_L74760496:
+        move @R0 #1
+_L74760497:
+        cmp @R0 #0
+        jz sta_74760494
+        move @R0 #0
+        jmp L_74760490
+sta_74760494:
+sta_74760495:
+; 1191:         if (msg[0] == 1) break;
+        move @R0 @R12
+        sub @R0 #16
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 #0
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move @R0 [@R0]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L74760500
+        move @R0 #0
+        jmp _L74760501
+_L74760500:
+        move @R0 #1
+_L74760501:
+        cmp @R0 #0
+        jz sta_74760498
+        jmp sta_74760493
+sta_74760498:
+sta_74760499:
+sta_74760492:
+        jmp sta_74760491
+sta_74760493:
+; 1193:     vk = msg[1];
+        move @R0 @R12
+        sub @R0 #16
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 #1
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
+        move [@R12-20] @R0
+; 1194:     sc = _bgi_scan_code(vk);
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        call _bgi_scan_code
+        add @R13 #4
+        move [@R12-24] @R0
+; 1195:     if (sc != 0)
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L74760504
+        move @R0 #0
+        jmp _L74760505
+_L74760504:
+        move @R0 #1
+_L74760505:
+        cmp @R0 #0
+        jz sta_74760502
+; 1197:         _bgi_pending_scan = sc;
+        move @R0 [@R12-24]
+        move [_bgi_pending_scan] @R0
+; 1198:         return 0;
+        move @R0 #0
+        jmp L_74760490
+sta_74760502:
+sta_74760503:
+; 1200:     return vk;
+        move @R0 [@R12-20]
+        jmp L_74760490
+L_74760490:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+getmouse:
+; -------------------------------------------
+; source   : void getmouse(int* x,int* y,int* buttons)
+; function : getmouse
+; param   : int* x
+; param   : int* y
+; param   : int* buttons
+; return   : void
+; --------------------------------------------
+getmouse:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1204:     (void)x; (void)y;
+        move @R0 [@R12+12]
+        move @R0 [@R12+16]
+; 1205:     if (buttons) *buttons = 0;
+        move @R0 [@R12+20]
+        cmp @R0 #0
+        jz sta_74760506
+        move @R0 [@R12+20]
+        move @R4 @R0
+        push @R4
+        move @R0 #0
+        pop @R4
+        move [@R4] @R0
+sta_74760506:
+sta_74760507:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+InitGraph:
+; -------------------------------------------
+; source   : void InitGraph(int* driver,int* mode,char* path)
+; function : InitGraph
+; param   : int* driver
+; param   : int* mode
+; param   : char* path
+; return   : void
+; --------------------------------------------
+InitGraph:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1211: void InitGraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
+        move @R0 L_74760508
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_initgraph
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+initgraph:
+; -------------------------------------------
+; source   : void initgraph(int* driver,int* mode,char* path)
+; function : initgraph
+; param   : int* driver
+; param   : int* mode
+; param   : char* path
+; return   : void
+; --------------------------------------------
+initgraph:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1212: void initgraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
+        move @R0 L_74760509
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_initgraph
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+InitWindow:
+; -------------------------------------------
+; source   : void InitWindow(int w,int h,char* title)
+; function : InitWindow
+; param   : int w
+; param   : int h
+; param   : char* title
+; return   : void
+; --------------------------------------------
+InitWindow:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1214: void InitWindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
+        move @R0 L_74760510
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_initwindow
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+initwindow:
+; -------------------------------------------
+; source   : void initwindow(int w,int h,char* title)
+; function : initwindow
+; param   : int w
+; param   : int h
+; param   : char* title
+; return   : void
+; --------------------------------------------
+initwindow:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1215: void initwindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
+        move @R0 L_74760511
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call _bgi_initwindow
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetGraphMode:
+; -------------------------------------------
+; source   : void SetGraphMode(int mode)
+; function : SetGraphMode
+; param   : int mode
+; return   : void
+; --------------------------------------------
+SetGraphMode:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1216: void SetGraphMode(int mode) { setgraphmode(mode); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call setgraphmode
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+CloseGraph:
+; -------------------------------------------
+; source   : void CloseGraph()
+; function : CloseGraph
+; return   : void
+; --------------------------------------------
+CloseGraph:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1217: void CloseGraph(void)       { closegraph(); }
+        call closegraph
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ClearDevice:
+; -------------------------------------------
+; source   : void ClearDevice()
+; function : ClearDevice
+; return   : void
+; --------------------------------------------
+ClearDevice:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1218: void ClearDevice(void)      { cleardevice(); }
+        call cleardevice
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetMaxX:
+; -------------------------------------------
+; source   : int GetMaxX()
+; function : GetMaxX
+; return   : int
+; --------------------------------------------
+GetMaxX:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1219: int  GetMaxX(void)          { return getmaxx(); }
+        call getmaxx
+        jmp L_74760512
+L_74760512:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetMaxY:
+; -------------------------------------------
+; source   : int GetMaxY()
+; function : GetMaxY
+; return   : int
+; --------------------------------------------
+GetMaxY:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1220: int  GetMaxY(void)          { return getmaxy(); }
+        call getmaxy
+        jmp L_74760513
+L_74760513:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetMaxColor:
+; -------------------------------------------
+; source   : int GetMaxColor()
+; function : GetMaxColor
+; return   : int
+; --------------------------------------------
+GetMaxColor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1221: int  GetMaxColor(void)      { return getmaxcolor(); }
+        call getmaxcolor
+        jmp L_74760514
+L_74760514:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GraphResult:
+; -------------------------------------------
+; source   : int GraphResult()
+; function : GraphResult
+; return   : int
+; --------------------------------------------
+GraphResult:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1224: int  GraphResult(void)              { return graphresult(); }
+        call graphresult
+        jmp L_74760515
+L_74760515:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GraphErrorMsg:
+; -------------------------------------------
+; source   : char* GraphErrorMsg(int code)
+; function : GraphErrorMsg
+; param   : int code
+; return   : char*
+; --------------------------------------------
+GraphErrorMsg:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1225: char *GraphErrorMsg(int code)       { return grapherrormsg(code); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call grapherrormsg
+        add @R13 #4
+        jmp L_74760516
+L_74760516:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetColor:
+; -------------------------------------------
+; source   : void SetColor(int c)
+; function : SetColor
+; param   : int c
+; return   : void
+; --------------------------------------------
+SetColor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1227: void SetColor(int c)             { setcolor(c); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call setcolor
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetBkColor:
+; -------------------------------------------
+; source   : void SetBkColor(int c)
+; function : SetBkColor
+; param   : int c
+; return   : void
+; --------------------------------------------
+SetBkColor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1228: void SetBkColor(int c)           { setbkcolor(c); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call setbkcolor
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetColor:
+; -------------------------------------------
+; source   : int GetColor()
+; function : GetColor
+; return   : int
+; --------------------------------------------
+GetColor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1229: int  GetColor(void)              { return getcolor(); }
+        call getcolor
+        jmp L_74760517
+L_74760517:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetBkColor:
+; -------------------------------------------
+; source   : int GetBkColor()
+; function : GetBkColor
+; return   : int
+; --------------------------------------------
+GetBkColor:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1230: int  GetBkColor(void)            { return getbkcolor(); }
+        call getbkcolor
+        jmp L_74760518
+L_74760518:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetFillStyle:
+; -------------------------------------------
+; source   : void SetFillStyle(int p,int c)
+; function : SetFillStyle
+; param   : int p
+; param   : int c
+; return   : void
+; --------------------------------------------
+SetFillStyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1231: void SetFillStyle(int p, int c)  { setfillstyle(p, c); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call setfillstyle
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetLineStyle:
+; -------------------------------------------
+; source   : void SetLineStyle(int s,int p,int t)
+; function : SetLineStyle
+; param   : int s
+; param   : int p
+; param   : int t
+; return   : void
+; --------------------------------------------
+SetLineStyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1232: void SetLineStyle(int s, int p, int t) { setlinestyle(s, p, t); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call setlinestyle
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetTextStyle:
+; -------------------------------------------
+; source   : void SetTextStyle(int f,int d,int s)
+; function : SetTextStyle
+; param   : int f
+; param   : int d
+; param   : int s
+; return   : void
+; --------------------------------------------
+SetTextStyle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1233: void SetTextStyle(int f, int d, int s) { settextstyle(f, d, s); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call settextstyle
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+SetTextJustify:
+; -------------------------------------------
+; source   : void SetTextJustify(int h,int v)
+; function : SetTextJustify
+; param   : int h
+; param   : int v
+; return   : void
+; --------------------------------------------
+SetTextJustify:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1234: void SetTextJustify(int h, int v)      { settextjustify(h, v); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call settextjustify
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Line:
+; -------------------------------------------
+; source   : void Line(int x1,int y1,int x2,int y2)
+; function : Line
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
+Line:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1236: void Line(int x1, int y1, int x2, int y2) { line(x1, y1, x2, y2); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call line
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+MoveTo:
+; -------------------------------------------
+; source   : void MoveTo(int x,int y)
+; function : MoveTo
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+MoveTo:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1237: void MoveTo(int x, int y)                 { moveto(x, y); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call moveto
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+LineTo:
+; -------------------------------------------
+; source   : void LineTo(int x,int y)
+; function : LineTo
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+LineTo:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1238: void LineTo(int x, int y)                 { lineto(x, y); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call lineto
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+LineRel:
+; -------------------------------------------
+; source   : void LineRel(int dx,int dy)
+; function : LineRel
+; param   : int dx
+; param   : int dy
+; return   : void
+; --------------------------------------------
+LineRel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1239: void LineRel(int dx, int dy)              { linerel(dx, dy); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call linerel
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Rectangle:
+; -------------------------------------------
+; source   : void Rectangle(int l,int t,int r,int b)
+; function : Rectangle
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : void
+; --------------------------------------------
+Rectangle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1240: void Rectangle(int l, int t, int r, int b) { rectangle(l, t, r, b); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call rectangle
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Bar:
+; -------------------------------------------
+; source   : void Bar(int l,int t,int r,int b)
+; function : Bar
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : void
+; --------------------------------------------
+Bar:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1241: void Bar(int l, int t, int r, int b)      { bar(l, t, r, b); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call bar
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Bar3D:
+; -------------------------------------------
+; source   : void Bar3D(int l,int t,int r,int b,int depth,int topflag)
+; function : Bar3D
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; param   : int depth
+; param   : int topflag
+; return   : void
+; --------------------------------------------
+Bar3D:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1242: void Bar3D(int l, int t, int r, int b, int depth, int topflag) { bar3d(l, t, r, b, depth, topflag); }
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call bar3d
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Circle:
+; -------------------------------------------
+; source   : void Circle(int x,int y,int r)
+; function : Circle
+; param   : int x
+; param   : int y
+; param   : int r
+; return   : void
+; --------------------------------------------
+Circle:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1243: void Circle(int x, int y, int r)          { circle(x, y, r); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call circle
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+FillEllipse:
+; -------------------------------------------
+; source   : void FillEllipse(int x,int y,int xr,int yr)
+; function : FillEllipse
+; param   : int x
+; param   : int y
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+FillEllipse:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1244: void FillEllipse(int x, int y, int xr, int yr) { fillellipse(x, y, xr, yr); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call fillellipse
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Ellipse:
+; -------------------------------------------
+; source   : void Ellipse(int x,int y,int st,int en,int xr,int yr)
+; function : Ellipse
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+Ellipse:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1245: void Ellipse(int x, int y, int st, int en, int xr, int yr) { ellipse(x, y, st, en, xr, yr); }
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ellipse
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+DrawPoly:
+; -------------------------------------------
+; source   : void DrawPoly(int numpoints,int* polypoints)
+; function : DrawPoly
+; param   : int numpoints
+; param   : int* polypoints
+; return   : void
+; --------------------------------------------
+DrawPoly:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1246: void DrawPoly(int numpoints, int *polypoints) { drawpoly(numpoints, polypoints); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call drawpoly
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+FillPoly:
+; -------------------------------------------
+; source   : void FillPoly(int numpoints,int* polypoints)
+; function : FillPoly
+; param   : int numpoints
+; param   : int* polypoints
+; return   : void
+; --------------------------------------------
+FillPoly:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1247: void FillPoly(int numpoints, int *polypoints) { fillpoly(numpoints, polypoints); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call fillpoly
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+PutPixel:
+; -------------------------------------------
+; source   : void PutPixel(int x,int y,int color)
+; function : PutPixel
+; param   : int x
+; param   : int y
+; param   : int color
+; return   : void
+; --------------------------------------------
+PutPixel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1248: void PutPixel(int x, int y, int color)    { putpixel(x, y, color); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call putpixel
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Arc:
+; -------------------------------------------
+; source   : void Arc(int x,int y,int st,int en,int r)
+; function : Arc
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int r
+; return   : void
+; --------------------------------------------
+Arc:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1249: void Arc(int x, int y, int st, int en, int r)   { arc(x, y, st, en, r); }
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call arc
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+PieSlice:
+; -------------------------------------------
+; source   : void PieSlice(int x,int y,int st,int en,int r)
+; function : PieSlice
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int r
+; return   : void
+; --------------------------------------------
+PieSlice:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1250: void PieSlice(int x, int y, int st, int en, int r) { pieslice(x, y, st, en, r); }
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call pieslice
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+Sector:
+; -------------------------------------------
+; source   : void Sector(int x,int y,int st,int en,int xr,int yr)
+; function : Sector
+; param   : int x
+; param   : int y
+; param   : int st
+; param   : int en
+; param   : int xr
+; param   : int yr
+; return   : void
+; --------------------------------------------
+Sector:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1251: void Sector(int x, int y, int st, int en, int xr, int yr) { sector(x, y, st, en, xr, yr); }
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call sector
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+FloodFill:
+; -------------------------------------------
+; source   : void FloodFill(int x,int y,int border)
+; function : FloodFill
+; param   : int x
+; param   : int y
+; param   : int border
+; return   : void
+; --------------------------------------------
+FloodFill:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1252: void FloodFill(int x, int y, int border)  { floodfill(x, y, border); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call floodfill
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ImageSize:
+; -------------------------------------------
+; source   : int ImageSize(int l,int t,int r,int b)
+; function : ImageSize
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; return   : int
+; --------------------------------------------
+ImageSize:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1253: int  ImageSize(int l, int t, int r, int b) { return imagesize(l, t, r, b); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call imagesize
+        add @R13 #16
+        jmp L_74760519
+L_74760519:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetImage:
+; -------------------------------------------
+; source   : void GetImage(int l,int t,int r,int b,void* p)
+; function : GetImage
+; param   : int l
+; param   : int t
+; param   : int r
+; param   : int b
+; param   : void* p
+; return   : void
+; --------------------------------------------
+GetImage:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1254: void GetImage(int l, int t, int r, int b, void *p) { getimage(l, t, r, b, p); }
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call getimage
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+PutImage:
+; -------------------------------------------
+; source   : void PutImage(int l,int t,void* p,int op)
+; function : PutImage
+; param   : int l
+; param   : int t
+; param   : void* p
+; param   : int op
+; return   : void
+; --------------------------------------------
+PutImage:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1255: void PutImage(int l, int t, void *p, int op)       { putimage(l, t, p, op); }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call putimage
+        add @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+OutTextXY:
+; -------------------------------------------
+; source   : void OutTextXY(int x,int y,char* s)
+; function : OutTextXY
+; param   : int x
+; param   : int y
+; param   : char* s
+; return   : void
+; --------------------------------------------
+OutTextXY:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1257: void OutTextXY(int x, int y, char *s) { outtextxy(x, y, s); }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call outtextxy
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+OutText:
+; -------------------------------------------
+; source   : void OutText(char* s)
+; function : OutText
+; param   : char* s
+; return   : void
+; --------------------------------------------
+OutText:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1258: void OutText(char *s)                 { outtext(s); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call outtext
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+TextWidth:
+; -------------------------------------------
+; source   : int TextWidth(char* s)
+; function : TextWidth
+; param   : char* s
+; return   : int
+; --------------------------------------------
+TextWidth:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1259: int  TextWidth(char *s)               { return textwidth(s); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call textwidth
+        add @R13 #4
+        jmp L_74760520
+L_74760520:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+TextHeight:
+; -------------------------------------------
+; source   : int TextHeight(char* s)
+; function : TextHeight
+; param   : char* s
+; return   : int
+; --------------------------------------------
+TextHeight:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1260: int  TextHeight(char *s)              { return textheight(s); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call textheight
+        add @R13 #4
+        jmp L_74760521
+L_74760521:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+GetPixel:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int GetPixel(int x,int y)
+; function : GetPixel
+; param   : int x
+; param   : int y
+; return   : int
+; --------------------------------------------
+GetPixel:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 1262: int GetPixel(int x, int y) { return getpixel(x, y); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call getpixel
+        add @R13 #8
+        jmp L_74760522
+L_74760522:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret

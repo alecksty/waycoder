@@ -371,6 +371,22 @@ namespace PascalCompiler
             {
                 EmitCallBuiltin("CRT_CLRSCR");
             }
+            /* `Randomize`：**无参过程**，老程序一律裸写（不带括号，语料 15 份程序用）。
+             * 表达式那边（`CodeGenerator.Expressions.cs`）早就有这一条，语句这边漏了 ——
+             * 于是 `Randomize;` 落进 `GenerateUserDefinedProcedureCall` 发一条 `CALL Randomize`，
+             * 而 `Lib/` 里没有这个名字 ⇒ 链接期"未解析标签"。 */
+            else if (call.Name.ToLower() == "randomize")
+            {
+                EmitCallBuiltin("lib_randomize");
+            }
+            /* `ReadKey`（**无参函数**，但老程序常把它**当语句**用：`ReadKey;` 就是"等一下"）。
+             * 表达式那边有它（`Ch := ReadKey;`），语句这边漏了 —— 于是裸写 `ReadKey;`
+             * 落进 `GenerateUserDefinedProcedureCall` 发 `CALL ReadKey`，
+             * 而 `Lib/` 里没有这个标签 ⇒ 链接期"未定义的函数"。 */
+            else if (call.Name.ToLower() == "readkey")
+            {
+                EmitCallBuiltin("CRT_READKEY");
+            }
             // Crt单元过程
             else if (call.Name.ToLower() == "gotoxy")
             {

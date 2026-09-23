@@ -40,6 +40,62 @@ namespace PascalCompiler
         private HashSet<string> functionNames = new(); // 函数名集合,用于识别无括号函数调用
         public static Dictionary<string, string> ExternalFuncTypes = new(); // 外部函数返回类型 (v1.66.46)
 
+        /* ── `uses` 单元的 interface 符号（登记处见 `PascalCompiler.RegisterUnitFunctions`）──
+         *
+         * 这三张表让**单元文件成为声明的唯一真源**：`Lib/pascal/graph.pas` 里写
+         * `function GetMaxX: integer;` / `const Detect = 0;`，前端就认得出该发什么指令。
+         * 好处是**不必为某个库在 C# 里再写一张名字表**（本仓头号坑：同一份清单两处维护），
+         * 换个库只要加一个 `.pas`。
+         *
+         * ⚠ 三张表都是 **static**（沿用它上面 `ExternalFuncTypes` 的形状），
+         *   `PascalCompiler.CompileFile` 在入口清空它们 —— 理由见那里的注释。 */
+        public static Dictionary<string, int> UnitConstInts = new();                        // interface 整数常量
+        public static Dictionary<string, SubprogramDeclarationNode> UnitSubprograms = new(); // interface 子程序头
+
+        /// <summary>
+        /// Pascal 的 <c>System</c> 单元里**不用 <c>uses</c> 就在作用域内**的预定义常量。
+        ///
+        /// <para>
+        /// 它们是**语言的一部分**（`System` 由编译器隐式 `uses`），所以没有相应的库文件可挂，
+        /// 只能内建。老程序裸写它们 —— 语料里 <c>Pi</c> 出现 60 次、分布在 24 个文件
+        /// （`T := -Pi;`、`T := T + Pi/2;`），从前一律报"未声明的变量 'Pi'"。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 值走 <see cref="CodeGeneratorBase.EmitLoadConstant"/>：`Pi` 是 <c>float</c>
+        /// （Pascal 的 `Real` 是 32 位单精度，**不能**写 `double` —— 那会发出一条 `MOVED`，
+        /// 而程序那边按 32 位读同一个槽，等于读到双精度的高半截）。
+        /// </para>
+        /// </summary>
+        public static readonly Dictionary<string, object> StdConsts = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["pi"]     = (float)Math.PI,
+            ["maxint"] = 2147483647,
+        };
+
+        /// <summary>
+        /// `Crt` 里那些**裸写**（不带括号）就能用的标准函数 → 生成目标。
+        ///
+        /// <para>
+        /// 与 <see cref="CodeGenerator.Misc"/> 里那两张 Crt 名字表**同源**：这些名字
+        /// 在"带括号"的分支里早就有了（`clrscr`/`gotoxy`/`keypressed`…），
+        /// 而 Turbo Pascal 里它们本来就是**无参函数**，老程序一律裸写 ——
+        /// `if KeyPressed then`、`Until Keypressed or (K &gt; 50);`、`Ch := ReadKey;`。
+        /// 裸写会解析成 `VariableNode`（不是 `FunctionCallNode`），于是落进"未声明的变量"。
+        /// </para>
+        ///
+        /// <para>
+        /// 语料统计：`keypressed` 46 份程序用、`readkey` 231 次 —— 不收这两个，
+        /// 老 Pascal 程序**基本都编不过**。这里只收"名字与目标不同"的两个：
+        /// 名字恰好等于目标标签的那些走 <see cref="UnitSubprograms"/>（单元声明）。
+        /// </para>
+        /// </summary>
+        private static readonly Dictionary<string, string> BareStdCalls = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["keypressed"] = "CRT_KEYPRESSED",
+            ["readkey"]    = "CRT_READKEY",
+        };
+
         public CodeGenerator(ProgramNode ast) : base()
         {
             this.astNode = ast;
@@ -184,9 +240,23 @@ namespace PascalCompiler
                     AllocateVariable(varDecl);
             }
 
-            // 生成interface子程序
+            // 生成 interface 子程序
+            //
+            // ⚠ **interface 里的声明不该生成任何代码**（`IsForward` 由解析器在
+            // `ParseSubprogramHeader` 里统一置上，因为 interface 段只解析得到子程序头）。
+            //
+            // 从前这里无条件 `GenerateSubprogram(sub)`，而它会给每个声明发一个**只有
+            // `exit_<名>` 的空壳标签**（`Subprogram.GenerateSubprogram` 一开头就
+            // `AddLabel(subprogram.Name)`）。后果不是"多几条指令"，而是**静默劫持**：
+            // 单元自己定义了标签 ⇒ 主程序里 `CALL GetMaxX` 解析到**这个空壳**、
+            // 而不是库里的实现 ⇒ 返回 R0 里的垃圾值、**一个错都不报**。
+            // 实测（改之前）：一个 `unit testv; interface function ExtFoo(x: integer): integer;`
+            // 的单元 + `uses testv` 的主程序，产物里 `ExtFoo:` 后面只有
+            // `enter #4 / exit_ExtFoo: / move R0,[R12-4] / leave / ret`。
+            //
+            // 这正是"单元声明 + 库实现"这套结构成立的前提：**声明归声明，实现归库**。
             foreach (var sub in ast.InterfaceSubprograms)
-                GenerateSubprogram(sub);
+                if (!sub.IsForward) GenerateSubprogram(sub);
             // 生成implementation子程序
             foreach (var sub in ast.ImplementationSubprograms)
                 GenerateSubprogram(sub);
