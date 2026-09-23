@@ -85,14 +85,35 @@ namespace CCompiler
             return left;
         }
 
+        /// <summary>
+        /// `cond ? a : b`。**两个分支的语法档位不同**，照 C 的文法抄：
+        ///
+        /// <code>
+        /// conditional-expression: logical-or-expression
+        ///                       | logical-or-expression ? expression : conditional-expression
+        /// </code>
+        ///
+        /// ⚠ 第三个操作数是 **conditional-expression**（不含逗号运算符），第二个才是
+        ///   `expression`（含逗号）。此前**两边都写成 `ParseExpression()`** ——
+        ///   后果不是"多解析了点什么"，而是**把后面的实参整个吃进第三个分支**：
+        ///
+        ///     ui_win_open_pc(标题?标题:"", w, h, ROT, KBD);
+        ///
+        ///   被解析成**一个**实参 `标题 ? 标题 : ("", w, h, ROT, KBD)` ⇒ 那四个实参
+        ///   既不压栈也不传递（它们的求值代码还在，只是没人 push），调用点只剩一条 `push`。
+        ///   症状：`setgraphmode` 开出来的窗是**上一次那片栈上的垃圾尺寸**，
+        ///   而程序的返回值、模式判断**全都正常**（一个错误都不报）。
+        ///
+        /// 实测最小复现（`f(a ? b : c, d, e)`）：C 下 d/e 传出去是垃圾、C++ 下正确。
+        /// </summary>
         private ASTNode ParseConditional()
         {
             ASTNode expr = ParseOr();
             if (Match(TokenType.QUESTION))
             {
-                ASTNode trueExpr = ParseExpression();
+                ASTNode trueExpr = ParseExpression();          // 按文法：可含逗号
                 Expect(TokenType.COLON);
-                ASTNode falseExpr = ParseExpression();
+                ASTNode falseExpr = ParseConditional();        // 按文法：**不含**逗号
                 return new ConditionalOp(expr, trueExpr, falseExpr);
             }
             return expr;

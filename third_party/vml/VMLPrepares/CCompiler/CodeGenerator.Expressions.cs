@@ -639,11 +639,28 @@ namespace CCompiler
                 GenerateExpression(derefTarget.Operand);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
                     new(OperandType.REGISTER, addrReg), new(OperandType.REGISTER, 0) }));
+                // ⚠ **地址必须同时压栈**：右边那个表达式的求值**可能包含函数调用**，
+                //   而被调方（也是本前端生成的）会拿 R0–R11 当临时寄存器、**不保存**它们
+                //   （`RegisterManager` 的池就是 R1–R11；生成的函数体里满是
+                //   `push @R0 / move @R0 … / pop @R11` 这种取临时值的写法）。
+                //   ⇒ 只把地址放在寄存器里跨过调用，回来时那个寄存器**可能已经是别人的值**，
+                //   于是 `*p = f()` 把结果写到一个谁也不知道的地方（实测：写丢了，
+                //   调用方读到的仍是初值 0，**一个错误都不报**）。
+                //
+                //   实测最小复现（C，`Lib/c/graphics.h` 的 `textwidth`）：
+                //   `*pw = _bgi_json_int(out, "w");` —— `textwidth("ABC")` 恒返回 **0**
+                //   （同一份代码在 C++ 下返回 18/24：那边这条路径不受影响）。
+                //   而 `int v = _bgi_json_int(out,"w"); *pw = v;` 是对的 ⇒ 判据收在这里。
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
+                    new(OperandType.REGISTER, addrReg) }));
                 // 再计算右侧值 → R0
                 GenerateExpression(assignment.Value);
                 var rhsType = InferExpressionType(assignment.Value);
                 // 类型转换 — 使用 SelectConversionOp 处理所有组合
                 EmitTypeConversion(rhsType, targetType);
+                // 取回地址（压栈位置在实参区**之上**，被调方读 `R12+12+4i` 够不到它）
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> {
+                    new(OperandType.REGISTER, addrReg) }));
                 // 使用类型对应的存储指令
                 var storeOp = GetStoreInstruction(targetType);
                 instructions.Add(new Instruction(storeOp, new List<Operand> {

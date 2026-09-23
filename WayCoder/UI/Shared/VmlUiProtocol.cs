@@ -1796,7 +1796,14 @@ public sealed class VmlScene
         if (!InCoordRange(x) || !InCoordRange(y)) return;
         w = Dim(w); h = Dim(h);
         if (w == 0 || h == 0) return;                 // 0 尺寸画不出东西，直接丢（也挡住退化调用）
-        Add($"image {x} {y} \"{Escape(path)}\" {w} {h}");
+        // ⚠ **字段序是 `x y w h "路径"`**（尺寸在路径**前**）—— 以 `ImageCommand.Parse`
+        //   与它在 `DrawCommands.cs` 的头注释为准（自测 `SelfTest.Chunk10/23` 也按这个序写）。
+        //   此前这里发的是 `x y "路径" w h`，与解析侧**对不上** ⇒ `Parse` 在第 3 个字段上
+        //   读到字符串、`DrawParse.Num` 返回 NaN ⇒ 返回 null ⇒ **这张图静默消失**，
+        //   只在 stderr 留一行"这一帧的 DSL 有解析问题"。
+        //   实测：BGI 的 `getimage`/`putimage`（精灵保存-贴回）画面上什么都不出，
+        //   而 `imagesize` 返回正常、`getpixel` 也读得到原位置 —— 一个错误都不报。
+        Add($"image {x} {y} {w} {h} \"{Escape(path)}\"");
     }
 
     private void Add(string line)

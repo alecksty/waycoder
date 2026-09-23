@@ -608,6 +608,10 @@ namespace CppCompiler
                 if (Check(TokenType.LBRACE)) init = ParseInitializerList();
                 else init = ParseExpression();
             }
+            // `[]`（不给维度）⇒ 从初始化器推断元素个数（C 的语义，见 InferArrayElements）。
+            // 推断不出来时**保持 null**（老行为：`GenerateGlobalVar` 自己会看实际情况）。
+            if (isArray && arraySize == null && init is InitializerListExpr or StringLiteral)
+                arraySize = new IntLiteral { Value = InferArrayElements(init) };
             return new VariableDecl { Type = type, Name = name, Initializer = init, ArraySize = arraySize, IsArray = isArray, Dimensions = dimensions, IsReference = isReference };
         }
 
@@ -620,6 +624,32 @@ namespace CppCompiler
                 else total *= 1;
             }
             return total;
+        }
+
+        /// <summary>
+        /// `T a[] = …;`（**不给维度**）的元素个数推断 —— **与 C 同一套语义**。
+        ///
+        /// ⚠ 此前这个位置一律给 **1**（`isArray ? 1 : 0`），后果不是"少点内存"而是
+        /// **静默丢数据**：`int a[] = {1,2,3};` 落成 `int[1+1]`，从第三个元素起全没了；
+        /// `char s[] = "hello";` 同理（且它是字符串，少了内容就等于空串）。
+        /// 实测最小复现：C++ 里 `int a[] = {1,2,3}; a[0]+a[1]+a[2]` 读到的是垃圾。
+        ///
+        /// 数的是**叶子**（嵌套 `{{1,2},{3,4}}` 记 4）—— 与 `FlattenInitList` /
+        /// `FlattenArrayInitializer` 的摊平结果对齐，两份数出来必须一致。
+        /// 认不出的写法退回 1（保持老行为，不猜）。
+        /// </summary>
+        private static int InferArrayElements(Expr? init)
+        {
+            switch (init)
+            {
+                // `char s[] = "abc"` 的数组长度是 **4**（含结尾 NUL）—— 与 C 一致
+                case StringLiteral sl: return (sl.Value?.Length ?? 0) + 1;
+                case InitializerListExpr il:
+                    int n = 0;
+                    foreach (var e in il.Elements) n += InferArrayElements(e);
+                    return n > 0 ? n : 1;
+                default: return 1;
+            }
         }
 
         private ASTNode ParseFunction(string? knownType = null, string? knownName = null)

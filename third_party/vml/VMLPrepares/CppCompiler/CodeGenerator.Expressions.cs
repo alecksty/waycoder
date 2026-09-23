@@ -40,14 +40,45 @@ namespace CppCompiler
         /// <summary>获取 [] 操作的元素字节大小 (char*→1, short*→2, default→4)</summary>
         private int GetElementSize(Expr e)
         {
-            if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt) && vt.Contains("*"))
-                return GetPointerStepSize(vt);
+            if (e is IdentExpr ie)
+            {
+                // ⚠ 字节数组（`char x[]`）要排在指针之前判 —— 它的 `_varTypes` 里是 `char`
+                //   （不带 `*`），走下面那条会拿到默认的 4（见 `_byteArrays` 的注释）。
+                if (_byteArrays.Contains(ie.Name)) return 1;
+                if (_varTypes.TryGetValue(ie.Name, out var vt0) && vt0.Contains("*"))
+                    return GetPointerStepSize(vt0);
+            }
             return 4; // 默认 int / 数组元素
         }
         private static int ElemShift(int size) => size switch { 1 => 0, 2 => 1, _ => 2 };
         /// <summary>表达式是否是简单指针解引用 (char*/int*/float*等, 非VML数组, 无需+4 header)</summary>
         private bool IsPointerDeref(Expr e) => e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt)
             && vt.Contains("*") && !vt.Contains("[") && !vt.Contains("(");
+
+        /// <summary>
+        /// `[]` 寻址要用的**两个参数**：元素字节数、有没有那个 4 字节长度头。
+        ///
+        /// 抽成一个方法的理由：这件事在**四处**都要用（读 `a[i]`、写 `a[i]=v`、
+        /// 取址 `&a[i]`、成员基址 `a[i].f`），各写一份必然漂移 —— 本仓头号坑。
+        /// 四处的判据必须同源，否则会出现"读对了、写错了"这种最难查的分叉。
+        ///
+        /// 字节数组（`char x[]`）是**唯一**没有长度头的一类：它就是一段 C 字符串
+        /// （见 `CodeGenerator._byteArrays`）。
+        /// </summary>
+        private (int ElemSize, bool HasHeader) ArrayIndexInfo(Expr baseExpr, bool isNested)
+        {
+            if (!isNested && baseExpr is IdentExpr bid && _byteArrays.Contains(bid.Name))
+                return (1, false);
+            return (GetElementSize(baseExpr), !IsPointerDeref(baseExpr) || isNested);
+        }
+
+        /// <summary>按元素宽度选**读取**指令（1 字节 → `MOVEB`、2 字节 → `MOVEH`、其余 → `MOVE`）。</summary>
+        private static OpCode LoadOpFor(int elemSize)
+            => elemSize == 1 ? OpCode.MOVEB : elemSize == 2 ? OpCode.MOVEH : OpCode.MOVE;
+
+        /// <summary>按元素宽度选**存储**指令。见 <see cref="LoadOpFor"/>。</summary>
+        private static OpCode StoreOpFor(int elemSize)
+            => elemSize == 1 ? OpCode.MOVEB : elemSize == 2 ? OpCode.MOVEH : OpCode.MOVE;
 
         /// <summary>获取指针步长: 根据变量类型字符串返回 sizeof(*ptr)</summary>
         private int GetPointerStepSize(string? varTypeStr)
@@ -560,10 +591,9 @@ namespace CppCompiler
                     Add(OpCode.POP, "R0");
                     // R0 = base address, R1 = index
                     bool isNestedArray = be.Left is BinaryExpr inner && inner.Op == "[]";
-                    // 获取元素大小: 从表达式类型推断 (char*=1, short*=2, int*=4, 默认4)
-                    int elemSize = GetElementSize(be.Left);
-                    // 指针无header, 数组(含多维)有header
-                    bool hasHeader = !IsPointerDeref(be.Left) || isNestedArray;
+                    // 元素字节数 / 有没有长度头 —— **四处 `[]` 共用同一套判据**
+                    //（读、写、取址、成员基址），见 `ArrayIndexInfo`。
+                    var (elemSize, hasHeader) = ArrayIndexInfo(be.Left, isNestedArray);
                     // 获取内层维度用于 stride (如 arr[2][3] 的内层维度为3)
                     int innerDim = 1;
                     if (!isNestedArray && be.Left is IdentExpr arrId && _arrayInnerDim.TryGetValue(arrId.Name, out int idim))
@@ -572,16 +602,14 @@ namespace CppCompiler
                     {
                         Add(OpCode.MOVE, "R2", $"#{innerDim}");
                         Add(OpCode.MUL, "R1", "R1", "R2");
-                        if (elemSize != 1) Add(OpCode.SHL, "R1", $"#{ElemShift(elemSize)}");
-                        else if (elemSize != 1) { } // char: no shift needed
+                        if (elemSize > 1) Add(OpCode.SHL, "R1", $"#{ElemShift(elemSize)}");
                         if (hasHeader) Add(OpCode.ADD, "R1", "#4");
                         Add(OpCode.ADD, "R0", "R0", "R1");
                     }
                     else
                     {
-                        if (elemSize == 1) { /* char: 无需乘 */ }
-                        else if (elemSize == 2) Add(OpCode.SHL, "R1", "#1");
-                        else Add(OpCode.SHL, "R1", "#2");      // default: *4
+                        if (elemSize == 2) Add(OpCode.SHL, "R1", "#1");
+                        else if (elemSize > 2) Add(OpCode.SHL, "R1", "#2");   // default: *4
                         if (hasHeader && !isNestedArray)
                             Add(OpCode.ADD, "R1", "#4");
                         Add(OpCode.ADD, "R1", "R0");
@@ -699,9 +727,12 @@ namespace CppCompiler
                 GenerateExpr(be.Right);          // R0 = index
                 Add(OpCode.MOVE, "R1", "R0");
                 Add(OpCode.POP, "R0");           // R0 = base
-                Add(OpCode.SHL, "R1", "#2");     // index * 4
-                Add(OpCode.ADD, "R1", "#4");     // +4 (skip header)
-                Add(OpCode.ADD, "R0", "R1");     // R0 = base + index*4 + 4
+                // 与读/写**同一套判据**（见 `ArrayIndexInfo`）—— 字节数组没有长度头、步长 1
+                var (aElemSize, aHasHeader) = ArrayIndexInfo(be.Left, isNested: false);
+                if (aElemSize == 2) Add(OpCode.SHL, "R1", "#1");
+                else if (aElemSize > 2) Add(OpCode.SHL, "R1", "#2");   // index * 4
+                if (aHasHeader) Add(OpCode.ADD, "R1", "#4");           // +4 (skip header)
+                Add(OpCode.ADD, "R0", "R1");     // R0 = base + index*elemSize (+ header)
             }
             else if (expr is MemberExpr me)
             {
@@ -1435,7 +1466,9 @@ namespace CppCompiler
                 Add(OpCode.POP, "R0");     // R0 = base
                 // Determine element stride
                 int stride = 4;
-                if (be.Left is IdentExpr arrId && _varTypes.TryGetValue(arrId.Name, out var arrType))
+                if (be.Left is IdentExpr arrId0 && _byteArrays.Contains(arrId0.Name))
+                    stride = 1;                                        // 字节数组（见 ArrayIndexInfo）
+                else if (be.Left is IdentExpr arrId && _varTypes.TryGetValue(arrId.Name, out var arrType))
                 {
                     if (_classes.TryGetValue(CleanType(arrType), out var arrCls))
                         stride = arrCls.Members.Count(m => !m.IsMethod) * 4;
@@ -1443,7 +1476,9 @@ namespace CppCompiler
                 if (stride == 4) Add(OpCode.SHL, "R1", "#2");
                 else if (stride == 8) Add(OpCode.SHL, "R1", "#3");
                 else { Add(OpCode.MOVE, "R2", $"#{stride}"); Add(OpCode.MUL, "R1", "R1", "R2"); }
-                Add(OpCode.ADD, "R1", "#4");  // +4 (skip VML array length header)
+                // 与读/写**同一套判据**（见 `ArrayIndexInfo`）：字节数组没有长度头
+                if (ArrayIndexInfo(be.Left, isNested: false).HasHeader)
+                    Add(OpCode.ADD, "R1", "#4");  // +4 (skip VML array length header)
                 Add(OpCode.ADD, "R0", "R1");  // R0 = &arr[i]
             }
             else if (obj is UnaryExpr ue && ue.Op == "*")
@@ -1576,6 +1611,26 @@ namespace CppCompiler
                 string label = $"var_{ie2.Name}";
                 if (!string.IsNullOrEmpty(ae.DeclType) && !_varTypes.ContainsKey(ie2.Name))
                     _varTypes[ie2.Name] = ae.DeclType;
+
+                // ── 字节数组（`char s[] = "…"` / `char buf[N]`）───────────────────
+                //
+                // 见 `CodeGenerator._byteArrays` 的类注释：字符数组**不是** VML 那套
+                // `[4 字节长度头][每格 4 字节]` 的数组，而是一段 C 字符串。
+                //
+                // ⚠ 此前 `char lbuf[] = "LOCAL";` 在这里被当成普通数组：数据段落成
+                //   `int[2]`（头 + 一格），随后那句 `Add(varStoreOp, label, "R0")` 又把
+                //   **字符串常量的地址**写进长度头那一格 ⇒ 传出去的是"长度头所在处的地址"，
+                //   宿主按 C 字符串读它，读到的正是那个地址的低字节 ——
+                //   屏幕上是**一个乱字符**（用户报的"就输出一个字符就没了，而且是乱字符"）。
+                if (ae.ArraySize > 0 && IsByteArrayDecl(ae.DeclType, isArray: true))
+                {
+                    if (!dataSection.ContainsKey(label))
+                        dataSection[label] = BuildByteArrayData(ae.Value, new IntLiteral { Value = ae.ArraySize });
+                    _isArrayVar[ie2.Name] = true;
+                    _byteArrays.Add(ie2.Name);
+                    return;
+                }
+
                 string? structType = ae.DeclType;
                 if (string.IsNullOrEmpty(structType)) _varTypes.TryGetValue(ie2.Name, out structType);
                 if (!string.IsNullOrEmpty(structType) && _classes.TryGetValue(CleanType(structType), out var allocCls))
@@ -1697,6 +1752,9 @@ namespace CppCompiler
                 Add(OpCode.MOVE, "R0", "R2");
                 // 多维数组 stride
                 bool isNestedArr = be2.Left is BinaryExpr inner2 && inner2.Op == "[]";
+                // 与读取那条**同一套判据**（见 `ArrayIndexInfo`）：
+                // 写错一处就是"读对了、写错了"，而那种分叉最难查。
+                var (wElemSize, wHasHeader) = ArrayIndexInfo(be2.Left, isNestedArr);
                 int innerDimW = 1;
                 if (!isNestedArr && be2.Left is IdentExpr arrIdW && _arrayInnerDim.TryGetValue(arrIdW.Name, out int idimW))
                     innerDimW = idimW;
@@ -1705,11 +1763,13 @@ namespace CppCompiler
                     Add(OpCode.MOVE, "R2", $"#{innerDimW}");
                     Add(OpCode.MUL, "R0", "R0", "R2");   // index * innerDim
                 }
-                Add(OpCode.SHL, "R0", "#2");            // * 4 → 字节偏移
-                if (!isNestedArr)
+                if (wElemSize == 2) Add(OpCode.SHL, "R0", "#1");
+                else if (wElemSize > 2) Add(OpCode.SHL, "R0", "#2");   // * 4 → 字节偏移
+                if (wHasHeader && !isNestedArr)
                     Add(OpCode.ADD, "R0", "#4");         // +4 header
                 Add(OpCode.ADD, "R0", "R1");             // + base
-                Add(OpCode.MOVE, "(R0)", "R3");
+                // 存储指令同样按元素宽度选（字节数组 → `MOVEB`，只写一格）
+                Add(StoreOpFor(wElemSize), "(R0)", "R3");
                 Add(OpCode.MOVE, "R0", "R3");
             }
             else if (ae.Target is MemberExpr me)
@@ -1753,6 +1813,9 @@ namespace CppCompiler
                         //   （`withHeader.ToArray()`，因为元素可能是字符串标签等）。
                         //   只认 `int[]` 的话全局数组会静默退回"一个元素" ——
                         //   实测就是 `sizeof(g)` 给 4 而不是 24。
+                        // 字节数组（`char x[]`）是**第三**种：数据段里就是 `byte[N]`、
+                        // **没有长度头**，所以直接就是 N 个字节（见 `_byteArrays`）。
+                        if (v is byte[] barr) return barr.Length;
                         int? len = v switch { int[] a1 => a1.Length, object[] a2 => a2.Length, _ => null };
                         if (len is int n && n > 0) return elem * (n - 1);
                     }

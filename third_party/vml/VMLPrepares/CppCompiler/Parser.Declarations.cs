@@ -74,7 +74,12 @@ namespace CppCompiler
                     while (Match(TokenType.COMMA)) { }
                     Expect(TokenType.RPAREN);
                 }
-                int totalElems = arraySize is IntLiteral il ? il.Value : (isArray ? 1 : 0);
+                // `[]`（不给维度）时**从初始化器推断元素个数**（C 的语义）。
+                // ⚠ 此前一律给 1 ⇒ `int a[] = {1,2,3};` 只分到 `int[2]`（头 + 1 个元素），
+                //   后两个元素**静默丢掉**；`char s[] = "abc"` 同理（见 InferArrayElements）。
+                int totalElems = arraySize is IntLiteral il
+                    ? il.Value
+                    : (isArray ? InferArrayElements(init) : 0);
                 stmts.Add(new AssignExpr { Target = new IdentExpr { Name = name }, Value = init ?? new IntLiteral { Value = 0 }, DeclType = type, ArraySize = totalElems, Dimensions = dimValues });
             } while (Match(TokenType.COMMA));
             Expect(TokenType.SEMICOLON);
