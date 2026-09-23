@@ -73,6 +73,25 @@
 #define CGA           3
 #define IBM8514       6
 
+/* ── 图形模式表（Borland BGI 的标准分辨率）────────────────────────────
+ *
+ * 老程序 `initgraph(&gd, &gm, "")` 里那个 `gm` 决定**分辨率**，而手机端画布是按
+ * 可用区缩放的 ⇒ **拿到正确的宽高比**，按 640×350 排的版才不会被拉高变形
+ * （塞进 640×480 会被纵向拉伸）。从前这里只实现了 VGA 640×480 一种。
+ *
+ * 模式号是**每驱动各自编号**的（CGA 的 0 与 EGA 的 0 不是一回事）⇒ 必须 (驱动, 模式) 成对查。
+ * 查不到的组合退回 VGA 640×480（老程序不写模式时的默认）。 */
+#define CGAC0    0
+#define CGAC1    1
+#define CGAC2    2
+#define CGAC3    3
+#define CGAHI    4
+#define EGALO    0
+#define EGAHI    1
+#define VGALO    0
+#define VGAMED   1
+#define VGAHI    2
+
 #define MAXCOLORS     15
 
 /* 16 色调色板索引（BGI 的常量名就是数字，这里给几个常用的别名） */
@@ -177,25 +196,6 @@ static int _bgi_opened   = 0;
 static int _bgi_driver   = VGA;     /* 当前驱动（setgraphmode 要按它查表） */
 static int _bgi_mode     = VGAHI;   /* 当前模式 */
 static char *_bgi_title  = 0;       /* 开窗时定的标题 —— setgraphmode 重开窗要用同一个 */
-
-/* ── 图形模式表（Borland BGI 的标准分辨率）────────────────────────────
- *
- * 老程序 `initgraph(&gd, &gm, "")` 里那个 `gm` 决定**分辨率**，而手机端画布是按
- * 可用区缩放的 ⇒ **拿到正确的宽高比**，按 640×350 排的版才不会被拉高变形
- * （塞进 640×480 会被纵向拉伸）。从前这里只实现了 VGA 640×480 一种。
- *
- * 模式号是**每驱动各自编号**的（CGA 的 0 与 EGA 的 0 不是一回事）⇒ 必须 (驱动, 模式) 成对查。
- * 查不到的组合退回 VGA 640×480（老程序不写模式时的默认）。 */
-#define CGAC0    0
-#define CGAC1    1
-#define CGAC2    2
-#define CGAC3    3
-#define CGAHI    4
-#define EGALO    0
-#define EGAHI    1
-#define VGALO    0
-#define VGAMED   1
-#define VGAHI    2
 
 static void _bgi_mode_size(int gd, int gm, int *pw, int *ph)
 {

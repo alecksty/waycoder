@@ -484,6 +484,15 @@ public partial class ShellPage : ContentPage
                 FinishStreaming();
                 if (MauiVml.LastDiagnostics.Length > 0)
                     Append(MauiVml.LastDiagnostics + "\n", alreadyMarkup: true);
+                // ⚠ **VM 压根没跑起来**（编译失败 / 标准库清单为空 / 解压失败 …）
+                //   ⇒ 一个字都没流出去，`bodyText` 就是**唯一**的一份。丢掉它 =
+                //   屏幕上什么都没有 = 用户说的「点了没反应、没弹窗就结束了」
+                //   （真机实测：BGI 程序编译报错，界面停在「正在编译…」，一个字都不显示）。
+                //   判据 `LastRunStreamed` 在 `RunProgram` 里才置位 —— 编译失败那条早退路
+                //   到不了它，而它每轮开头由 `MauiVml.ResetRunState()` 复位。
+                //   与编辑器页 `RunInEditorAsync` 同一口径（那边一直是对的，这边漏了这支）。
+                if (!MauiVml.LastRunStreamed && bodyText.Length > 0)
+                    Append(bodyText + "\n\n");
                 return;
             }
 

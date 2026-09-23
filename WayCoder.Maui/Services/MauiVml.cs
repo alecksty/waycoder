@@ -143,9 +143,34 @@ HALT
     /// 两个流的**先后顺序与老行为完全一致**（stdout 在前、诊断在后），
     /// 只在这一处做分色 —— 不拆成两个返回值，免得每一层调用都要多带一个 out。
     /// </param>
+    /// <summary>
+    /// 复位「上一次运行」留下的状态。**每次 <see cref="Run"/> 进来第一件事就是它**。
+    ///
+    /// <para>
+    /// 为什么非要有：这几个字段是**静态**的（各端共用一份 <see cref="MauiVml"/>），
+    /// 而调用方拿它们判断「这一轮到底跑到哪一步了」。编译失败那条路**早退**，
+    /// 根本走不到 <see cref="RunProgram"/>（`LastRunStreamed` 在那里才被赋值的），
+    /// 于是页面读到的就是**上一轮**的值 —— 上一轮若跑过流式，它就是 `true`，
+    /// 命令行页据此认定「正文已经交出去了」而把这一轮的返回文本丢掉，
+    /// 结果**编译错误一个字都不显示**（真机实测的「点了没反应」）。
+    /// </para>
+    /// <para>
+    /// 同一类坑本仓记过多次（「上一轮量到的值用之前先问它还算不算数」）：
+    /// 跨轮次复用的静态状态，**要么每轮复位、要么别拿它当本轮判据**。
+    /// </para>
+    /// </summary>
+    private static void ResetRunState()
+    {
+        LastRunStreamed = false;
+        LastOutputWasGrid = false;
+        LastDiagnostics = "";
+        LastCursor = default;
+    }
+
     public static string Run(string? source, string? filePath, int timeoutSeconds, Func<string>? readLine = null,
         CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
     {
+        ResetRunState();
         // 给了内联源码 → 一律当 VML 汇编
         if (!string.IsNullOrWhiteSpace(source))
             return RunAssembly(source!, timeoutSeconds, readLine, ct, markup);
