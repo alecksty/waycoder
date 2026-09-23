@@ -164,6 +164,90 @@ int ui_put_image(int x, int y, int handle, int mode) {
     return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
 }
 
+/* ── 老 BASIC 的精灵位图（`DATA` 手打包 + `PUT`）────────────────── */
+
+/* 读一个像素的颜色 → **0xRRGGBB**（越界返回 -1）。异或擦除要用。
+ * ⚠ 每次调用宿主都要**光栅化一次**（场景是保留模式的），别放进密集大循环。 */
+int ui_get_pixel(int x, int y) {
+    return asm("SYSCALL #587, ${x}, ${y}");
+}
+
+/* 把一块**手打包在 `DATA` 里的 QBasic 位图**贴到 (x,y)。
+ *
+ * ## 为什么要它
+ *
+ * 老 BASIC 游戏的精灵**不是 GET 抓下来的**，而是把位图按 QBasic 的 GET/PUT
+ * 数组格式**手打进 `DATA`**、`READ` 进一个长整型数组，再 `PUT (x,y), 数组, PSET/XOR`。
+ * （GORILLA.BAS 的 `LBan&` 就是 —— `LBan&(0) = 458758`。）
+ * 宿主那套 `ui_put_image` 只认 `ui_get_image` 给的**句柄**，所以这类精灵
+ * **一个都画不出来**，而且程序侧一个错都不报。
+ *
+ * ## 块格式（**实测定的，不是猜的**）
+ *
+ *   arr[0]（4 字节头）：**低字 = 宽、高字 = 高**（就是宽高本身，**不是减一**）
+ *   arr[1] 起          ：像素，**逐行**；每行里**按平面依次**放
+ *                        `ceil(宽/8)` 个字节；字节的**最高位是最左像素**
+ *   颜色               ：`color = p0 | p1<<1 | p2<<2 | p3<<3`（EGA 模式 9 四个平面）
+ *
+ * 判据：把 GORILLA.BAS 那四个香蕉解出来渲染成点阵 —— 左/右互为**水平镜像**、
+ * 上/下互为**垂直镜像**，而且四条都能看出香蕉的弯月形状。四张图都对上了才算数。
+ *
+ * ## 两个刻意的取舍（都说清楚，免得下次有人以为漏了）
+ *
+ * ① **颜色 0 的像素跳过**（不画）。QBasic 的 XOR 本来就是这个语义（0 异或 d = d）；
+ *    PSET 严格说会把 0 写上去（= 黑），但那样精灵罩住的背景会被一起涂黑 ——
+ *    精灵贴在天际线/太阳上时就露馅。跳过后"画一次再擦一次"仍精确还原。
+ * ② **XOR 按调色板索引做**（不是按 RGB）。宿主只回 0xRRGGBB，所以这里拿它到
+ *    `pal` 里反查索引（16 项）。这一步非做不可 —— 异或的是**索引**正是
+ *    "PSET 画、XOR 擦能还原"的全部依据：精灵用索引 14，擦时 14^14 = 0 = 背景色；
+ *    按 RGB 异或会得到 #FFFFAA 这种新颜色，画面上留下一串擦不掉的痕迹。
+ *    反查不到（宿主自己画的、不在调色板里的颜色）就退回 RGB 异或，不假装。
+ */
+void ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action) {
+    int hdr, w, h, bprow, row, col, p, color, src, dst, off, b;
+    char* data;
+
+    hdr = arr[0];
+    w = hdr & 65535;
+    h = (hdr >> 16) & 65535;
+    if (w <= 0 || h <= 0) return;
+    if (planes <= 0) return;
+
+    data = (char*)arr + 4;          /* 跳过那 4 字节头 */
+    bprow = (w + 7) / 8;
+
+    for (row = 0; row < h; row++) {
+        for (col = 0; col < w; col++) {
+            color = 0;
+            for (p = 0; p < planes; p++) {
+                off = (row * planes + p) * bprow + (col >> 3);
+                b = data[off] & 255;
+                if (b & (128 >> (col & 7))) color = color | (1 << p);
+            }
+            if (color != 0) {
+                src = pal[color & 15];
+                if (action == 1) {
+                    dst = ui_get_pixel(x + col, y + row);
+                    if (dst >= 0) {
+                        /* 按**调色板索引**异或，不是按 RGB —— 这是 QBasic 的语义，
+                         * 也是"PSET 画、XOR 擦能还原"的全部依据：
+                         * 精灵用的是索引 14，擦的时候 14^14 = 0 = 背景色 ⇒ 精确还原。
+                         * RGB 异或做不到这件事（#FFFF00 ^ #0000AA = #FFFFAA，是个新颜色）。
+                         * 目的色反查索引：拿宿主回的 RGB 在调色板里找（16 项，够快）。
+                         * 找不到（宿主自己画的颜色，不在调色板里）就退回 RGB 异或 —— 不假装。 */
+                        int idx = -1, k;
+                        for (k = 0; k < 16; k++)
+                            if ((pal[k] & 0xFFFFFF) == (dst & 0xFFFFFF)) { idx = k; break; }
+                        if (idx >= 0) src = pal[(idx ^ color) & 15];
+                        else src = 0xFF000000 | ((src ^ dst) & 0xFFFFFF);
+                    }
+                }
+                ui_pixel(x + col, y + row, src);
+            }
+        }
+    }
+}
+
 /* ── 文字 ───────────────────────────────────────────────── */
 
 /* 一次性画一行字。anchor: 0=左 1=中 2=右；style: 1=粗 2=斜。 */

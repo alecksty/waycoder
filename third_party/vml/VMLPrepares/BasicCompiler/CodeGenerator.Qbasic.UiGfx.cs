@@ -951,34 +951,20 @@ public partial class CodeGenerator
             return;
         }
 
-        // ── 来源数组**从没被本程序的 GET 写过** ⇒ 它装的不是句柄，这条 PUT 画不出东西 ──────
+        // ── 来源数组**从没被本程序的 GET 写过** ⇒ 它装的不是句柄，而是**手打包的位图** ──────
         //
         // 判据是**静态的、在生成期维护的一张表**（`_uiGetArrays`，`UiEmitGetStatement` 往里记）。
-        // 它挡不住"先 PUT 后 GET"这种乱序写法（那种情况这里不告警，行为与从前一样是"不画"），
+        // 它挡不住"先 PUT 后 GET"这种乱序写法（那种情况这里当位图处理，与从前一样不画），
         // 但**能挡住真正会踩的那一类**：老 BASIC 游戏把精灵位图**手打包在 `DATA` 里**、
         // 用 `READ` 灌进数组，然后直接 `PUT` —— 数组里第 0 项是那份 QBasic 位图块的首字
         // （GORILLA.BAS 的 `LBan&(0) = 458758`），**根本不是** `ui_get_image` 给的句柄。
-        // 宿主按句柄查不到就什么都不画，而**一个错都不报** —— 实测整个游戏的香蕉全程不见，
-        // 猩猩却好好的（它们走 `LINE` 画 + 真 `GET`/`PUT`）。
         //
-        // 为什么不在这条路里顺手把"手工位图"解码画出来：那要在宿主侧认 **QBasic 的
-        // GET/PUT 块格式**（EGA 逐位平面、每行 `ceil(w/8)*4` 字节、4 字节头两个 word 是
-        // 宽高减一），并把它接成一个**新 syscall**（老号加参数就是静默的未定义行为）。
-        // 那是另一件事，本轮没做 —— 所以这里**响亮地说出来**，不假装画了。
+        // 这条路上画得出来 ✅ —— 解码在 `Lib/shared/src/vmlui.c` 的 `ui_put_qb_bitmap`
+        // 里（块格式与两条取舍都写在那个函数的注释里）。此前是"响亮告警 + 不画"，
+        // 于是整个 GORILLA.BAS 的香蕉全程不见、猩猩却好好的（猩猩走 `LINE` 画 + 真 `GET`/`PUT`）。
         if (!_uiGetArrays.Contains(stmt.ArrayName.ToLowerInvariant()))
         {
-            if (!_uiPutNotFromGetWarned.Contains(stmt.ArrayName.ToLowerInvariant()))
-            {
-                _uiPutNotFromGetWarned.Add(stmt.ArrayName.ToLowerInvariant());
-                Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
-                    $"PUT 的来源 '{stmt.ArrayName}' 在本程序里**没有**被 GET 写过 ⇒ 它里面不是图像句柄。"
-                    + "宿主 ui_put_image 只认 GET 给的句柄（本平台没有 DOS 显存，块内容在宿主侧保管），"
-                    + "所以这一条 PUT **不会画出任何东西**。"
-                    + "若这个数组是 `DATA` 里手打包的位图（老 BASIC 游戏的精灵写法），"
-                    + "本平台暂不支持该格式 —— 请改用 GET/PUT 保存-贴回，或用 ui_rect 逐块画。");
-            }
-            WarnUnimplemented($"PUT 的来源 '{stmt.ArrayName}' 不是 GET 得到的句柄 —— 这一条 PUT 不会有任何画面"
-                + "（宿主只认 ui_get_image 的返回值）");
+            UiEmitPutBitmapStatement(stmt);
             return;
         }
 
@@ -1019,13 +1005,150 @@ public partial class CodeGenerator
         UiLeave();
     }
 
+    /// <summary>
+    /// `PUT (x,y), arr [,action]` —— **来源是 `DATA` 里手打包的 QBasic 位图**（老游戏的精灵写法）。
+    ///
+    /// <para>
+    /// 解码本身在 <c>Lib/shared/src/vmlui.c</c> 的 <c>ui_put_qb_bitmap</c> 里
+    /// （块格式、以及"颜色 0 跳过""XOR 在 RGB 上做"这两条取舍都写在那个函数的注释里）。
+    /// 这里只负责把四样东西凑齐：**数组基址、调色板基址、平面数、方式**。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么解码不在这里生成</b>：那是十来层嵌套的位移/掩码循环，
+    /// 用这套发射器写出来又长又难核对；写成 C 之后它还能被单独编译、单独看汇编。
+    /// </para>
+    /// </summary>
+    void UiEmitPutBitmapStatement(PutStatement stmt)
+    {
+        string action = (stmt.Action ?? "").ToUpperInvariant();
+        int mode;
+        switch (action)
+        {
+            case "":
+            case "PSET":
+                mode = 0;                       // 直接贴
+                break;
+            case "XOR":
+                mode = 1;                       // 读目的像素再异或（擦除靠它）
+                break;
+            default:
+                UiWarnPutActionUnsupported(action);
+                return;
+        }
+
+        UiEnsurePalette();
+        UiEnter();
+
+        int rArr = Regs.AllocInt(instructions);
+        if (!GenerateArrayBaseAddr(stmt.ArrayName, rArr))
+        {
+            // 不是已知数组：调用方已经就"数组不认识"告过警了 —— 这里不画，也不重复报。
+            Regs.FreeInt(rArr, instructions);
+            UiLeave();
+            return;
+        }
+
+        int rPal = Regs.AllocInt(instructions);
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.REGISTER, rPal), new Operand(OperandType.LABEL, UiPaletteLabel)]));
+
+        int rPlanes = Regs.AllocInt(instructions);
+        EmitUiBitmapPlanes(rPlanes);
+
+        UiCall("ui_put_qb_bitmap",
+            UiEval(stmt.X),
+            UiEval(stmt.Y),
+            () => AddRR(OpCode.MOVE, 0, rArr),
+            () => AddRR(OpCode.MOVE, 0, rPal),
+            () => AddRR(OpCode.MOVE, 0, rPlanes),
+            UiConst(mode));
+
+        Regs.FreeInt(rPlanes, instructions);
+        Regs.FreeInt(rPal, instructions);
+        Regs.FreeInt(rArr, instructions);
+        UiLeave();
+    }
+
+    /// <summary>
+    /// 当前屏幕模式下 QBasic 位图数组的**平面数** → <paramref name="reg"/>。
+    ///
+    /// <para>
+    /// 平面数决定位图的解码方式（EGA 是"每行每平面 `ceil(宽/8)` 字节、每像素每平面 1 位"），
+    /// 而它**随程序选的模式变**：EGA 16 色 4 个平面、EGA 4 色 2 个、CGA 1 个。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>这里必须按运行期来</b>：老程序普遍是 `Mode = 9` 然后 `SCREEN Mode`
+    /// —— 传给 `SCREEN` 的是**变量**，编译期那个常量表里没有它。
+    /// 照编译期常量来判的话 GORILLA.BAS 会落到"模式未知"，而那正是要跑的那个。
+    /// 所以读 <c>SCREEN</c> 语句存下的那个字节（<see cref="UiModeAddr"/>）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>模式 1（CGA 4 色）解不对，如实记在这里</b>：它是"1 个平面、每像素 2 位"，
+    /// 与"每平面 1 位"的解码不同。真要为它再写一套分支，得先有程序踩到（现在一个都没有）。
+    /// 模式 13（256 色）同理。
+    /// </para>
+    /// </summary>
+    void EmitUiBitmapPlanes(int reg)
+    {
+        // 编译期能把模式定死 ⇒ 直接用常量，一条比较都不用发
+        if (_uiOpenedKnownAtCompileTime && _uiMode >= 0)
+        {
+            AddRI(OpCode.MOVE, reg, UiPlanesForMode(_uiMode));
+            return;
+        }
+
+        int t = Regs.AllocInt(instructions);
+        // 静态地址取字节：先 MOVE 地址再 MOVEB 间接读（同 `EmitLoadScreenWidth`）。
+        // ⚠ 这条读的是 **SCREEN 语句写下的那个字节**，不是"当前窗口的模式"。
+        AddRI(OpCode.MOVE, t, UiModeAddr);
+        instructions.Add(new Instruction(OpCode.MOVEB,
+            [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{t}")]));
+
+        string cga = newLabel(), two = newLabel(), done = newLabel();
+
+        // 模式 10（EGA 4 色）= 2 个平面
+        AddRI(OpCode.MOVE, t, 10);
+        instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, t)]));
+        instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, two)]));
+
+        // CGA（1/2/3/11）与文本模式（0）= 1 个平面
+        AddRI(OpCode.MOVE, t, 3);
+        instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, t)]));
+        instructions.Add(new Instruction(OpCode.JLE, [new Operand(OperandType.LABEL, cga)]));
+        AddRI(OpCode.MOVE, t, 11);
+        instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, t)]));
+        instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, cga)]));
+
+        // 其余（EGA/VGA 16 色：7/8/9/12）= 4 个平面
+        AddRI(OpCode.MOVE, reg, 4);
+        instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
+
+        instructions.Add(new Instruction(OpCode.LABEL, [new Operand(OperandType.LABEL, cga)]));
+        AddRI(OpCode.MOVE, reg, 1);
+        instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
+
+        instructions.Add(new Instruction(OpCode.LABEL, [new Operand(OperandType.LABEL, two)]));
+        AddRI(OpCode.MOVE, reg, 2);
+
+        instructions.Add(new Instruction(OpCode.LABEL, [new Operand(OperandType.LABEL, done)]));
+        Regs.FreeInt(t, instructions);
+    }
+
+    /// <summary>模式 → 平面数（编译期已知时用；与 <see cref="EmitUiBitmapPlanes"/> 的分支同表）。</summary>
+    static int UiPlanesForMode(int mode) => mode switch
+    {
+        10 => 2,
+        <= 3 or 11 => 1,
+        _ => 4,
+    };
+
     bool _uiPutActionWarned;
 
     /// <summary>被本程序的 `GET` 写过的数组名（小写）—— `PUT` 的"来源是不是句柄"判据。</summary>
     readonly HashSet<string> _uiGetArrays = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>已经就"来源不是 GET 句柄"告过警的数组名（每个数组只说一次）。</summary>
-    readonly HashSet<string> _uiPutNotFromGetWarned = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>PUT 的 AND/OR/PRESET 方式：宿主只认 COPY/XOR ⇒ 告警 + 不画（不猜一个近似的）。</summary>
     void UiWarnPutActionUnsupported(string action)

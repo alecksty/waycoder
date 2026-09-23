@@ -403,6 +403,8 @@ public sealed class VmlHostRuntime
                 case VmlUi.WinClose: registers[0] = WinClose(); break;
                 case VmlUi.DrawClear: Scene()?.Clear((uint)registers[0]); TouchScene(); break;
                 case VmlUi.DrawPixel: Scene()?.AddPixel(registers[0], registers[1], (uint)registers[2]); TouchScene(); break;
+                // 读像素（BASIC 的 `PUT …, XOR` 要用）。**与 CALLJSON 的 `pixel` 同一个实现**。
+                case VmlUi.DrawGetPixel: registers[0] = ReadPixelRgb(registers[0], registers[1]); break;
                 case VmlUi.DrawLine: Scene()?.AddLine(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5]); TouchScene(); break;
                 case VmlUi.DrawRect: Scene()?.AddRect(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.DrawCircle: Scene()?.AddCircle(registers[0], registers[1], registers[2], (uint)registers[3], registers[4] != 0, registers[5]); TouchScene(); break;
@@ -880,13 +882,7 @@ public sealed class VmlHostRuntime
         {
             var x = (int)(args?.GetNumber("x") ?? -1);
             var y = (int)(args?.GetNumber("y") ?? -1);
-            if (x < 0 || y < 0) return JNode.Object().Set("rgb", -1);
-
-            var buf = new byte[4];
-            if (!_host.Rasterize(x, y, 1, 1, buf)) return JNode.Object().Set("rgb", -1);
-            // ⚠ 缓冲是 **RGBA**（见 IVmlHost.Rasterize 的约定），别按 BGRA 读
-            var rgb = (buf[0] << 16) | (buf[1] << 8) | buf[2];
-            return JNode.Object().Set("rgb", rgb);
+            return JNode.Object().Set("rgb", ReadPixelRgb(x, y));
         });
 
         // `screen`：与 `SCR_W`/`SCR_H`/`SCR_ORIENT` **同源**（就调宿主那几个函数），
@@ -901,6 +897,31 @@ public sealed class VmlHostRuntime
                 .Set("orientation", orient)
                 .Set("landscape", orient == VmlUi.Landscape);
         });
+    }
+
+    /// <summary>
+    /// 读一个像素的颜色 → **0xRRGGBB**（越界 / 光栅化失败返回 -1）。
+    ///
+    /// <para>
+    /// **两条调用路径共用这一份**：CALLJSON 的 <c>pixel</c>（BGI 的 <c>getpixel</c> 走它）
+    /// 与 <see cref="VmlUi.DrawGetPixel"/> 号（BASIC 的 <c>PUT …, XOR</c> 走它）。
+    /// 两处各写一遍必然漂，而这里漂的后果是"同一次读、两条路给出不同的颜色"，
+    /// 属于最难查的那一类。返回**RGB 而非索引**也是刻意的：场景里存的就是 RGB，
+    /// "反查调色板索引"归各自的垫层（真源分别在 `graphics.h` 与 BASIC 的调色板表）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 每次调用**光栅化一次**（场景是保留模式的，没有像素缓冲，与 <c>getimage</c> 同源）
+    /// ⇒ 别放进每帧的密集循环。
+    /// </para>
+    /// </summary>
+    private int ReadPixelRgb(int x, int y)
+    {
+        if (x < 0 || y < 0) return -1;
+        var buf = new byte[4];
+        if (!_host.Rasterize(x, y, 1, 1, buf)) return -1;
+        // ⚠ 缓冲是 **RGBA**（见 IVmlHost.Rasterize 的约定），别按 BGRA 读
+        return (buf[0] << 16) | (buf[1] << 8) | buf[2];
     }
 
     /// <summary>

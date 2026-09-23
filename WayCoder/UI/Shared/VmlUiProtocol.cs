@@ -136,6 +136,28 @@ public static class VmlUi
     public const int FloodFill = 583;
 
     /// <summary>
+    /// 读一个像素的颜色：R0=x R1=y → R0=**0xRRGGBB**（越界或光栅化失败返回 -1）。
+    ///
+    /// <para>
+    /// <b>为什么要有它</b>：老 BASIC 游戏的精灵动画靠 <c>PUT …, XOR</c> 擦除 ——
+    /// 异或要**先读目的像素**。宿主原先只有"写像素"（<see cref="DrawPixel"/>）
+    /// 与"整块句柄"（<see cref="GetImage"/>）两条路，逐像素的异或做不出来。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>每次调用要光栅化一次</b>（场景是保留模式的，没有像素缓冲，与
+    /// <see cref="GetImage"/> 同源）⇒ **别放进每帧的密集大循环**。精灵只有几十个像素，
+    /// 老程序那种"每帧两次 PUT"的量级没问题；真要做像素级碰撞检测要另想办法。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 返回的是 **RGB 不是调色板索引** —— 与 CALLJSON 的 <c>pixel</c> 同一个实现
+    /// （见 <c>VmlHostRuntime.ReadPixelRgb</c>），"RGB 反查索引"那一步归各自的垫层。
+    /// </para>
+    /// </summary>
+    public const int DrawGetPixel = 587;
+
+    /// <summary>
     /// `GET_IMAGE`：R0=x R1=y R2=w R3=h → R0=**图像句柄**（≥1），失败 0。
     ///
     /// 句柄由**宿主**保管（不是 VML 内存里的缓冲区）—— 与 `ui_brush`/`ui_gradient`
@@ -787,8 +809,8 @@ public static class VmlUi
         // 窗体与绘图 520–533
         WinOpen, WinClose, DrawClear, DrawPixel, DrawLine, DrawRect, DrawCircle, DrawEllipse,
         DrawText, DrawIcon, DrawImage, DrawPresent, SetFont, Text,
-        // 像素读回 583–585
-        FloodFill, GetImage, PutImage,
+        // 像素读回 583–585、587
+        FloodFill, GetImage, PutImage, DrawGetPixel,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
