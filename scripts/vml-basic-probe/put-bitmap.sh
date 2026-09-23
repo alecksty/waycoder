@@ -6,11 +6,18 @@
 # 因为它的历史故障形态正是"**编得过、跑得动、什么都看不见、一个错都不报**"
 # （宿主按句柄查不到就什么都不画）。
 #
-# 判据表（坐标由 `put_bitmap.bas` 里那份 EGA 左香蕉的位图推出来）：
+# 两组用例：
+#
+# ① `put_bitmap.bas` —— 解码与三种方式的落笔
 #   (104,100) 月牙内部 → 香蕉色（索引 14 = 黄 #FFFF00）
 #   (100,100) 月牙外面 → 背景色（索引 1  = 蓝 #0000AA）
 #   (304,100) XOR 一次 → **白**（蓝 1 ^ 香蕉 14 = 索引 15）—— 「按索引异或」的签名
-#   (504,100) XOR 两次 → 背景色（异或自逆 ⇒ 精确还原，"擦除"靠的就是它）
+#   (504,100) XOR 两次 → 背景色（异或自逆 ⇒ 精确还原）
+#
+# ② `put_bitmap_flight.bas` —— **游戏真正用到的那套用法**（GORILLAS.BAS:377 的 DrawBan）：
+#   沿斜线飞 40 步，每步「先 XOR 擦旧位置、再 PSET 画新位置」，判据是**有没有拖尾**
+#   （路径上早先走过的点必须回到天空色）。这条决定画面是"香蕉飞过去"还是"拖出一条黄带"——
+#   而这两种在静态截图上都"看着有香蕉"，所以只能在路径上采点。
 #
 # 用法： scripts/vml-basic-probe/put-bitmap.sh
 # 依赖： scripts/vmlcli（先 `dotnet build scripts/vmlcli/vmlcli.csproj -c Release`）
@@ -113,11 +120,26 @@ for x, y, want, desc in cases:
 sys.exit(1 if bad else 0)
 PY
 rc=$?
-if [ $rc -eq 0 ]; then
-    echo "──────────────────────────────────────────────"
-    echo "✅ PUT 手打包位图：4/4"
-else
-    echo "──────────────────────────────────────────────"
-    echo "❌ PUT 手打包位图：有判据没过"
+if [ $rc -ne 0 ]; then
+    echo "❌ PUT 手打包位图：① 解码/落笔 有判据没过"
+    exit 1
 fi
-exit $rc
+
+# ── ② 飞行用例：PSET 画 + XOR 擦，判据是**不留拖尾** ────────────────────────
+dotnet "$CLI" "$ROOT/scripts/vml-basic-probe/put_bitmap_flight.bas" \
+    --timeout 15 --frame "$TMP/flight.png" >/dev/null 2>"$TMP/err2.txt"
+if [ ! -s "$TMP/flight.png" ]; then
+    echo "❌ 飞行用例没抓到帧"
+    tail -5 "$TMP/err2.txt"
+    exit 1
+fi
+
+python3 "$ROOT/scripts/vml-basic-probe/check_flight.py" "$TMP/flight.png"
+rc2=$?
+echo "──────────────────────────────────────────────"
+if [ $rc2 -eq 0 ]; then
+    echo "✅ PUT 手打包位图：① 解码/落笔 4/4 ＋ ② 飞行不留拖尾 4/4"
+else
+    echo "❌ PUT 手打包位图：② 飞行用例有判据没过"
+fi
+exit $rc2
