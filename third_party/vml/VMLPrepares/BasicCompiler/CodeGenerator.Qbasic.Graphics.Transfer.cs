@@ -59,35 +59,35 @@ public partial class CodeGenerator
             GenerateExpression(stmt.Cols, 0);
             GenerateExpression(stmt.Rows, 1);
         }
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FF6) }));
+        SysAddr(2, Sys.TextCols);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R2") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FFA) }));
+        SysAddr(2, Sys.TextRows);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
     }
     void GenerateDrawStatement(DrawStatement stmt)
     {
         // Generate inline VML code that parses the DRAW command string at runtime
-        // Store draw state at fixed addresses:
-        //   0x6FA0: current X
-        //   0x6FA4: current Y
-        //   0x6FA8: current color
-        //   0x6FAC: scale factor
-        //   0x6FB0: angle
+        // Store draw state in the系统全局变量（见 SysVars）:
+        //   Sys.DrawX: current X
+        //   Sys.DrawY: current Y
+        //   Sys.DrawColor: current color
+        //   Sys.DrawScale: scale factor
+        //   Sys.DrawAngle: angle
 
         // Initialize draw state
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FA0) }));
+        SysAddr(1, Sys.DrawX);
         AddRI(OpCode.MOVE, 0, 160); // X center
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FA4) }));
+        SysAddr(1, Sys.DrawY);
         AddRI(OpCode.MOVE, 0, 100); // Y center
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FA8) }));
+        SysAddr(1, Sys.DrawColor);
         AddRI(OpCode.MOVE, 0, 15); // white
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FAC) }));
+        SysAddr(1, Sys.DrawScale);
         AddRI(OpCode.MOVE, 0, 1); // scale = 1
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FB0) }));
+        SysAddr(1, Sys.DrawAngle);
         AddRI(OpCode.MOVE, 0, 0); // angle = 0
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
@@ -147,15 +147,15 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawNumLoop) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawNumEnd) }));
 
-        // Apply scale factor from 0x6FAC
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0x6FAC) }));
+        // Apply scale factor from Sys.DrawScale
+        SysAddr(4, Sys.DrawScale);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 4) }));
 
         // Save current X, Y for drawing line
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0x6FA0) }));
+        SysAddr(4, Sys.DrawX);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") })); // oldX
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0x6FA4) }));
+        SysAddr(5, Sys.DrawY);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R5") })); // oldY
         // Save old position for line drawing (R4,R5 will be modified by dispatch)
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 4) })); // oldX backup
@@ -235,7 +235,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
         // C: set color
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawC) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, 0x6FA8) }));
+        SysAddr(6, Sys.DrawColor);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R6") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
         // M: absolute move (x,y)
@@ -272,11 +272,11 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
 
         // Draw line from (oldX, oldY) to (newX, newY)
-        // Load oldX, oldY from R4, R5; newX, newY from 0x6FA0, 0x6FA4
+        // Load oldX, oldY from R4, R5; newX, newY from Sys.DrawX, Sys.DrawY
         // Store newX, newY
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FA0) }));
+        SysAddr(1, Sys.DrawX);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FA4) }));
+        SysAddr(1, Sys.DrawY);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R1") }));
 
         // Draw line from old(R6,R7) to new(R4,R5) with R1 steps
@@ -316,14 +316,14 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, drEnd) }));
 
-        // Compute VRAM addr for (R6=x, R7=y): addr = VgaBase + (R7*width + R6)*bpp
+        // Compute VRAM addr for (R6=x, R7=y): addr = 帧缓冲基址 + (R7*width + R6)*bpp
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 7) })); // y
         EmitLoadScreenWidth(1);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 6) })); // +x
         EmitLoadScreenBpp(1);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, VgaBase) }));
+        FbBase(1);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
         // Write white RGB pixel (3 bytes)
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 255) }));
@@ -367,15 +367,15 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 4) }));
-        // Check mode: if mode 13 (bpp == 1), use QB_PALETTE13_ADDR; else use QB_PALETTE_ADDR
+        // Check mode: if mode 13 (bpp == 1), use Sys.Palette256; else use Sys.Palette16
         string palMode13 = newLabel();
         string palEnd = newLabel();
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(4, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 1) }));
         instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, palMode13) }));
-        // Non-mode-13: store at QB_PALETTE_ADDR
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, QB_PALETTE_ADDR) }));
+        // Non-mode-13: 颜色表基址 = Sys.Palette16
+        SysAddr(4, Sys.Palette16);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 3) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 0) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R4") }));
@@ -384,9 +384,9 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 1) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R4") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, palEnd) }));
-        // Mode 13: store at QB_PALETTE13_ADDR
+        // Mode 13: 颜色表基址 = Sys.Palette256
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, palMode13) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, QB_PALETTE13_ADDR) }));
+        SysAddr(4, Sys.Palette256);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 3) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 0) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R4") }));
@@ -461,7 +461,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, getXLoop) }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, getXEnd) }));
-        // addr = VgaBase + ((y1+row)*width + (x1+col)) * bpp
+        // addr = 帧缓冲基址 + ((y1+row)*width + (x1+col)) * bpp
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 9) })); // y1
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 7) }));
         EmitLoadScreenWidth(3);
@@ -470,7 +470,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 10) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 3) }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 1) })); // *bpp
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, VgaBase) }));
+        FbBase(3);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 3) }));
         // Read pixel: if bpp==3 read 3 bytes and pack RGB, else read 1 byte
         string getDoneLbl = newLabel(), getRgbLbl = newLabel();
@@ -543,7 +543,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, putXEnd) }));
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.MEMORY, "R2") }));
-        // Compute addr: VgaBase + ((y+row)*width + (x+col)) * bpp
+        // Compute addr: 帧缓冲基址 + ((y+row)*width + (x+col)) * bpp
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 9) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 7) }));
         EmitLoadScreenWidth(6);
@@ -552,7 +552,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 10) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 6) }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 1) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, VgaBase) }));
+        FbBase(6);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 6) }));
         // Write pixel by bpp
         string putDoneLbl = newLabel(), putRgbLbl = newLabel();
@@ -591,24 +591,24 @@ public partial class CodeGenerator
         EmitRestoreRegisters(3, 6, 8, 9, 12);
     }
 
-    /// <summary>Emit code to load actual screen width from SCREEN-set variable (0x6FE0) into register reg</summary>
+    /// <summary>Emit code to load actual screen width from the SCREEN-set variable (Sys.ScreenWidth) into register reg</summary>
     private void EmitLoadScreenWidth(int reg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(reg, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
     }
 
-    /// <summary>Emit code to load actual screen height from SCREEN-set variable (0x6FE4) into register reg</summary>
+    /// <summary>Emit code to load actual screen height from the SCREEN-set variable (Sys.ScreenHeight) into register reg</summary>
     private void EmitLoadScreenHeight(int reg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(reg, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
     }
 
-    /// <summary>Emit code to load bytes-per-pixel (BPP) from SCREEN-set variable (0x6FF3) into register reg</summary>
+    /// <summary>Emit code to load bytes-per-pixel (BPP) from the SCREEN-set variable (Sys.ScreenBpp) into register reg</summary>
     private void EmitLoadScreenBpp(int reg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(reg, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
     }
 }

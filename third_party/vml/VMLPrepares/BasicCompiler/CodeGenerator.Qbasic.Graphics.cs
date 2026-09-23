@@ -28,13 +28,13 @@ public partial class CodeGenerator
                 GenerateExpression(stmt.Mode, 0);
         }
         // Store mode at fixed address (byte value)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(1, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
-        // 运行时模式: 如果模式是变量, 从 0x6FF0 重新加载
+        // 运行时模式: 如果模式是变量, 从 Sys.ScreenMode 重新加载
         if (screenMode < 0)
         {
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+            SysAddr(1, Sys.ScreenMode);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         }
 
@@ -45,21 +45,21 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, notMode13) }));
 
         // === Mode 13 setup ===
-        // Set width = 320 at 0x6FE0
+        // Set width = 320 进 Sys.ScreenWidth
         AddRI(OpCode.MOVE, 0, 320);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(1, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        // Set height = 200 at 0x6FE4
+        // Set height = 200 进 Sys.ScreenHeight
         AddRI(OpCode.MOVE, 0, 200);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        // Set vga_mode = 13 (VGA 256-color) at 0x6FF0
+        // Set vga_mode = 13 (VGA 256-color) 进 Sys.ScreenMode
         AddRI(OpCode.MOVE, 0, 13);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(1, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        // Set bpp = 1 at 0x6FF3
+        // Set bpp = 1 进 Sys.ScreenBpp
         AddRI(OpCode.MOVE, 0, 1);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(1, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // Clear framebuffer
         GenerateClearFramebuffer13();
@@ -67,10 +67,10 @@ public partial class CodeGenerator
         GenerateInitPalette256();
         // Set default text dimensions: 40 cols, 25 rows (320/8=40, 200/8=25)
         AddRI(OpCode.MOVE, 0, 40);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF6) }));
+        SysAddr(1, Sys.TextCols);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 25);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FFA) }));
+        SysAddr(1, Sys.TextRows);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, endScreen) }));
@@ -85,32 +85,32 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, notMode0) }));
         // Mode 0: text mode
         AddRI(OpCode.MOVE, 0, 80);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(1, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 25);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 2);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(1, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // Set default text dimensions: 80 cols, 25 rows
         AddRI(OpCode.MOVE, 0, 80);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF6) }));
+        SysAddr(1, Sys.TextCols);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 25);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FFA) }));
+        SysAddr(1, Sys.TextRows);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, endScreen) }));
 
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, notMode0) }));
         // Modes 1-12: graphics modes, set bpp=1 (索引色, 1字节/像素)
         AddRI(OpCode.MOVE, 0, 1);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(1, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // Resolution table by SCREEN mode:
         // Mode 1,7: 320x200 | Mode 2,8: 640x200 | Mode 9,10: 640x350 | Mode 11,12: 640x480
         string mode7or13 = newLabel(), mode2or8 = newLabel(), mode9up = newLabel(), setDim = newLabel();
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(1, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // If mode >= 9: high-res
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 9) }));
@@ -123,58 +123,58 @@ public partial class CodeGenerator
         // Modes 1,7: 320x200
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode7or13) }));
         AddRI(OpCode.MOVE, 0, 320);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(1, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 200);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, setDim) }));
         // Modes 2,8: 640x200
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode2or8) }));
         AddRI(OpCode.MOVE, 0, 640);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(1, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 200);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, setDim) }));
         // Modes 9+: determine height by mode
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode9up) }));
         AddRI(OpCode.MOVE, 0, 640);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(1, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // Reload mode to check height: mode 11,12 → 480; mode 9,10 → 350
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(1, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 11) }));
         string mode11up = newLabel();
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, mode11up) }));
         // Modes 9,10: 640x350
         AddRI(OpCode.MOVE, 0, 350);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, setDim) }));
         // Modes 11,12: 640x480
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode11up) }));
         AddRI(OpCode.MOVE, 0, 480);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(1, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         // Set default text dimensions: 40 cols, 25 rows (320/8=40, 200/8=25)
         AddRI(OpCode.MOVE, 0, 40);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF6) }));
+        SysAddr(1, Sys.TextCols);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 25);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FFA) }));
+        SysAddr(1, Sys.TextRows);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, setDim) }));
         GenerateInitPalette();
 
         // 初始化默认前景色 15 (亮白) 和背景色 0 (黑)
         AddRI(OpCode.MOVE, 0, 15);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FFC) }));
+        SysAddr(1, Sys.FgIndex);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         AddRI(OpCode.MOVE, 0, 0);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FFD) }));
+        SysAddr(1, Sys.BgIndex);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, endScreen) }));
@@ -184,26 +184,26 @@ public partial class CodeGenerator
     {
         if (UiGfx) { UiEmitClsStatement(); return; }
         // CLS: clear screen based on current mode
-        // Check screen mode from 0x6FF0
+        // Check screen mode from Sys.ScreenMode
         string clsText = newLabel();
         string clsEnd = newLabel();
 
-        AddRI(OpCode.MOVE, 0, 0x6FF0);
+        SysAddr(0, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, clsText) }));
 
-        // Graphics mode: clear framebuffer at 0xA0000
-        // R0 = 0 (fill value), R1 = 0xA0000 (start), R2 = size
+        // Graphics mode: clear framebuffer（基址见 FbBase / Sys.Framebuffer）
+        // R0 = 0 (fill value), R1 = 帧缓冲基址, R2 = size
         AddRI(OpCode.MOVE, 0, 0);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0xA0000) }));
+        FbBase(1);
         // Size = width * height * bpp, load from config
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FE0) }));
+        SysAddr(2, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") })); // width
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0x6FE4) }));
+        SysAddr(3, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R3") })); // height
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) })); // width*height
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0x6FF3) }));
+        SysAddr(3, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R3") })); // bpp
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) })); // total bytes
         // Clear loop
@@ -237,15 +237,18 @@ public partial class CodeGenerator
 
         for (int i = 0; i < 16; i++)
         {
-            int addr = QB_PALETTE_ADDR + i * 3;
+            // 表项地址 = 调色板基址 + i*3。基址是**标签**（`.data` 段），所以先取址再 ADD 偏移
+            // —— `ADD reg, #<标签>` 运行时不认（见 SysVars 的说明）。
+            int off = i * 3;
             AddRI(OpCode.MOVE, 0, pr[i]);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, addr) }));
+            SysAddr(1, Sys.Palette16);
+            if (off != 0) AddRI(OpCode.ADD, 1, off);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             AddRI(OpCode.MOVE, 0, pg[i]);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, addr + 1) }));
+            AddRI(OpCode.ADD, 1, 1);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             AddRI(OpCode.MOVE, 0, pb[i]);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, addr + 2) }));
+            AddRI(OpCode.ADD, 1, 1);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
         }
     }
@@ -256,7 +259,7 @@ public partial class CodeGenerator
 string loop = newLabel();
         string loopEnd = newLabel();
         AddRI(OpCode.MOVE, 0, 0);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, VgaBase) }));
+        FbBase(1);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loop) }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 64000) }));
@@ -294,9 +297,11 @@ string loop = newLabel();
                 int gray = (i - 232) * 11 + 8;
                 r = gray; g = gray; b = gray;
             }
-            int addr = QB_PALETTE13_ADDR + i * 3;
+            // 与 `GenerateInitPalette` 同形：基址取标签，偏移用 ADD 加。
+            int off = i * 3;
             AddRI(OpCode.MOVE, 0, r);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, addr) }));
+            SysAddr(1, Sys.Palette256);
+            if (off != 0) AddRI(OpCode.ADD, 1, off);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             AddRI(OpCode.MOVE, 0, g);
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) }));
@@ -338,10 +343,10 @@ string loop = newLabel();
         // No coordinate scaling — PSET coordinates are already in native resolution.
         // (Scaling was only needed for adapted games using SCREEN 9 coords in SCREEN 7.)
 
-            // Look up color in palette: addr = QB_PALETTE_ADDR + color_index * 3
+            // Look up color in palette: addr = 调色板基址 + color_index * 3
             EmitLoadScreenBpp(5);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, QB_PALETTE_ADDR) }));
+        SysAddr(5, Sys.Palette16);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
 
         // Load R, G, B from palette
@@ -352,23 +357,22 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R2") }));
 
-        // Write pixel: VgaBase + (y * 320 + x) * 3
-        int vgaBase = VgaBase;
-        int fbEnd = vgaBase + 1024 * 1024; // 1MB safe limit for any resolution
-
+        // Write pixel: 帧缓冲基址 + (y * 320 + x) * 3
+        // path: R6 是这一带的临时寄存器（刚做完 bpp 的乘法，已经用完了）—— 复用它装基址。
         EmitLoadScreenWidth(6);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
             EmitLoadScreenBpp(6);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, vgaBase) }));
+        FbBase(6);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
 
         // Bounds check: skip pixel write if address outside framebuffer
         string psetSkip = newLabel();
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, vgaBase) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
         instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, psetSkip) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, fbEnd) }));
+        FbBasePlus(6, 1024 * 1024);   // 上界（老代码是「固定地址 + 1MB」）
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, psetSkip) }));
 
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R1") }));
@@ -383,11 +387,10 @@ string loop = newLabel();
 
         // === Mode 13 path: write 1 byte (color index), no scaling ===
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode13Label) }));
-        int vgaBase13 = VgaBase;
             EmitLoadScreenWidth(5);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 5) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, vgaBase13) }));
+        FbBase(5);   // R5 是上面那个乘法的临时寄存器，用完即取基址
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 5) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R1") }));
 
@@ -457,7 +460,7 @@ string loop = newLabel();
         EmitGfxCheckBpp(qbLineMode13Label, 5);
 
         // For high-res modes (SCREEN 9+, native 640+ wide), skip coordinate scaling
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(5, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R5") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 9) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, qbLineHighResLabel) }));
@@ -523,8 +526,6 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, lineEnd) }));
 
         // Compute current point: x = x1 + (x2-x1) * step / steps, y = y1 + (y2-y1) * step / steps
-        int vgaBaseLine = VgaBase;
-        int fbEndLine = vgaBaseLine + 1024 * 1024; // 1MB safe for any resolution
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 2) }));
         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 11) }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 4) }));
@@ -553,14 +554,15 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.CMP, [new(OperandType.REGISTER, 6), new(OperandType.REGISTER, 0)]));
         instructions.Add(new Instruction(OpCode.JGE, [new(OperandType.LABEL, lineSkipPx)]));
 
-        // Compute VRAM address: addr = vgaBase + (cy * width + cx) * bpp
+        // Compute VRAM address: addr = 帧缓冲基址 + (cy * width + cx) * bpp
         instructions.Add(new Instruction(OpCode.MOVE, [new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 6)])); // R0 = cy
         EmitLoadScreenWidth(1);
         instructions.Add(new Instruction(OpCode.MUL, [new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 1)]));
         instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 5)])); // +cx
         EmitLoadScreenBpp(1);
         instructions.Add(new Instruction(OpCode.MUL, [new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 1)]));
-        instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, vgaBaseLine)]));
+        FbBase(1);   // R1 是上面那两个乘法的临时寄存器，用完即取基址
+        instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 1)]));
 
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.MEMORY, "R0") })); // bpp=1: 1 byte per pixel
 
@@ -633,12 +635,12 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 8) }));
         instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 7) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
-        // Write 1 byte at VgaBase + cy*320 + cx
+        // Write 1 byte at 帧缓冲基址 + cy*320 + cx
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 6) }));
             EmitLoadScreenWidth(10);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 10) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 5) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.IMMEDIATE, VgaBase) }));
+        FbBase(10);
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 10) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R0") }));
         // Increment step
@@ -656,8 +658,6 @@ string loop = newLabel();
         // Draw 4 edges of a box: top, bottom, left, right
         // Coordinates already scaled: R0=x1, R1=y1, R2=x2, R3=y2
         // Colors in R8=R, R9=G, R10=B
-        int vgaBase = VgaBase;
-        int fbEnd = vgaBase + 1024 * 1024; // 1MB safe for any resolution
 
         // Helper: draw one pixel at (x_reg, y_reg) to framebuffer
         void EmitBoxPixel(int xReg, int yReg)
@@ -684,7 +684,8 @@ string loop = newLabel();
             instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 6), new(OperandType.REGISTER, 0)]));
             EmitLoadScreenBpp(7);
             instructions.Add(new Instruction(OpCode.MUL, [new(OperandType.REGISTER, 6), new(OperandType.REGISTER, 7)]));
-            instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 6), new(OperandType.IMMEDIATE, vgaBase)]));
+            FbBase(7);   // R7 是上面两个乘法的临时寄存器，用完即取基址
+            instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 6), new(OperandType.REGISTER, 7)]));
             instructions.Add(new Instruction(OpCode.MOVEB, [new(OperandType.REGISTER, 8), new(OperandType.MEMORY, "R6")]));
             instructions.Add(new Instruction(OpCode.POP, [new(OperandType.REGISTER, 0)])); // restore R0 saved at top
 

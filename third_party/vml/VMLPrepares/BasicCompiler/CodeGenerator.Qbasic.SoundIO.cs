@@ -22,7 +22,7 @@ public partial class CodeGenerator
             EmitGetTick();
         }
         // Store seed at RNG seed address
-        AddRI(OpCode.MOVE, 1, 0x9E000);
+        SysAddr(1, Sys.RngSeed);
         AddInstruction(OpCode.MOVE, Reg(0), Mem("R1"));
     }
     void GenerateInkeyExpression(InkeyExpression expr, int reg)

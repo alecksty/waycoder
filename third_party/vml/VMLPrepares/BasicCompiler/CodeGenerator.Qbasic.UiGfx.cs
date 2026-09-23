@@ -21,16 +21,39 @@ namespace BasicCompiler;
 /// <para>**屏幕状态**（模式 / 前景背景色 / 是否已开窗）编译期跟着走：
 /// <see cref="_uiMode"/> 记当前 SCREEN 模式，<c>-1</c> = 运行期才知道。运行期模式那一路
 /// （GORILLA.BAS 就是 <c>SCREEN Mode</c>，Mode 是变量）用一段运行期比较链选分辨率，
-/// 并把"已经开出的窗口模式"存在 <see cref="UiOpenedModeAddr"/>，同模式重复 SCREEN 不重复开窗。</para>
+/// 并把"已经开出的窗口模式"存在 <see cref="UiOpenedModeLabel"/>，同模式重复 SCREEN 不重复开窗。</para>
 /// </summary>
 public partial class CodeGenerator
 {
-    // ── 运行期状态地址（沿用这一批已有的固定暂存区 0x6FA0~0x6FFF）──────────────
-    /// <summary>已经开出的绘图窗口的 SCREEN 模式；0 = 还没开窗（0 本身是文本模式，不占语义）</summary>
-    const int UiOpenedModeAddr = 0x6FE8;   // 注意：0x6FE8 在 PcGfx 里是 VGA_FONT_MODE，只有 pcgfx 后端用
-    const int UiModeAddr       = 0x6FF0;   // SCREEN 模式字节（沿用既有的那个地址，CLS 等运行期分支读它）
-    const int UiFgAddr         = 0x6FFC;   // 前景色索引（沿用既有的）
-    const int UiBgAddr         = 0x6FFD;   // 背景色索引（沿用既有的）
+    // ── 运行期状态：**放本前端自己的 `.data` 段，不占固定地址** ─────────────────
+    //
+    // ⚠ **为什么从固定地址改过来**（用户 2026-09-24 定的规矩：**除汇编与 C 外，
+    //   不允许直接使用固定地址**）。原先这三个字节写在 `0x6FF0/0x6FFC/0x6FFD`
+    //   —— 那是 PcGfx 时代"DOS 暂存区"的约定，本平台没有那块内存的语义，
+    //   而且**同一份产物在别的宿主上会读到别的程序留下的残留**。
+    //
+    // 换法不是新发明：**调色板表当初就是这么改过来的**（见 `UiPaletteLabel` 的注释 ——
+    // 它第一版写死在 `0x9F000`，结果整张表读出全 0；放进 `.data` 由链接器分配、
+    // 由初值表装载才是对的）。`UiOpenedModeLabel` 更早一步已经迁过。
+    //
+    // 指令序列一个字都不用改：`MOVE reg, <标签>` 取的**就是地址**，
+    // 后面那句 `MOVEB reg, [reg]` 照旧（写回是 `MOVEB [reg], reg`）。
+    //
+    // ⚠ 初值 0 = 文本模式，语义正好（没 `SCREEN` 过的程序就该走文本那条路）。
+    const string UiModeLabel = "_ui_screen_mode";   // SCREEN 模式字节（CLS 等运行期分支读它）
+    const string UiFgLabel   = "_ui_fg_index";      // 前景色索引
+    const string UiBgLabel   = "_ui_bg_index";      // 背景色索引
+
+    /// <summary>
+    /// 把运行期状态字节**登记进 `.data` 段**（只登记一次，初值 0）。
+    /// 与 <see cref="UiEnsurePalette"/> 同一个套路：懒发射，用到才建。
+    /// </summary>
+    void UiEnsureStateSlots()
+    {
+        if (!dataSection.ContainsKey(UiModeLabel)) dataSection[UiModeLabel] = 0;
+        if (!dataSection.ContainsKey(UiFgLabel))   dataSection[UiFgLabel]   = 0;
+        if (!dataSection.ContainsKey(UiBgLabel))   dataSection[UiBgLabel]   = 0;
+    }
 
     /// <summary>默认窗口标题（写进 data section，只分配一次）</summary>
     const string UiTitleLabel = "ui_win_title_basic";
@@ -279,7 +302,7 @@ public partial class CodeGenerator
             AddRI(OpCode.MOVE, 0, constMode);
         else
             EvalIntCoord(stmt.Mode, 0);
-        AddRI(OpCode.MOVE, 1, UiModeAddr);
+        UiStateAddr(1, UiModeLabel);
         instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
 
         _uiMode = constMode;
@@ -299,13 +322,13 @@ public partial class CodeGenerator
             {
                 _uiOpenedConstMode = constMode;
                 EmitWindowOpen(constMode);
-                UiCall("ui_clear", UiConstIndexed(UiBgAddr));
+                UiCall("ui_clear", UiConstIndexed(UiBgLabel));
             }
             else
             {
                 // 同一模式重复 SCREEN：不开窗，只清屏（QBasic 的 SCREEN 本来就会清屏）
                 UiEnsurePalette();
-                UiCall("ui_clear", UiConstIndexed(UiBgAddr));
+                UiCall("ui_clear", UiConstIndexed(UiBgLabel));
             }
             return;
         }
@@ -374,7 +397,7 @@ public partial class CodeGenerator
         // 同模式重复 SCREEN：QBasic 的 SCREEN 会清屏，这里保持
         AddLabel(sameMode);
         UiEnsurePalette();
-        UiCall("ui_clear", UiConstIndexed(UiBgAddr));
+        UiCall("ui_clear", UiConstIndexed(UiBgLabel));
 
         AddLabel(done);
     }
@@ -458,10 +481,21 @@ public partial class CodeGenerator
     Action UiConstLabel(string label) => () =>
         instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, label)]));
 
-    /// <summary>参数：读一个**运行期字节**（如当前背景色索引）→ 翻成 ARGB</summary>
-    Action UiConstIndexed(int addr) => () =>
+    /// <summary>
+    /// 取一个**运行期状态字节**的地址进 <paramref name="reg"/>（`.data` 段标签，不是固定地址）。
+    /// 后面照旧用 `MOVEB reg, [reg]` 读、`MOVEB [reg], reg` 写。
+    /// </summary>
+    void UiStateAddr(int reg, string label)
     {
-        AddRI(OpCode.MOVE, 0, addr);
+        UiEnsureStateSlots();
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, label)]));
+    }
+
+    /// <summary>参数：读一个**运行期字节**（如当前背景色索引）→ 翻成 ARGB</summary>
+    Action UiConstIndexed(string label) => () =>
+    {
+        UiStateAddr(0, label);
         instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
         UiTranslateColorInR0();
     };
@@ -512,7 +546,7 @@ public partial class CodeGenerator
         // 所以这里与老代码同构地判一次 0x6FF0。
         string gfx = newLabel();
         string done = newLabel();
-        AddRI(OpCode.MOVE, 0, UiModeAddr);
+        UiStateAddr(0, UiModeLabel);
         instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
         instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
         instructions.Add(new Instruction(OpCode.JNE, [new Operand(OperandType.LABEL, gfx)]));
@@ -523,7 +557,7 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
 
         AddLabel(gfx);
-        UiCall("ui_clear", UiConstIndexed(UiBgAddr));
+        UiCall("ui_clear", UiConstIndexed(UiBgLabel));
         // QBasic 的 CLS 会把光标归位（1,1）—— 文本光标与窗口光标都要；这里只做窗口那个
         UiTextResetCursor();
         AddLabel(done);
@@ -736,12 +770,12 @@ public partial class CodeGenerator
         // 运行期写回索引（老路也读这两个字节，所以无论如何都要写）
         // ⚠ 操作数顺序：`MOVEB [R1], R0` 才是"存"（见 SCREEN 那处的长注释）
         UiEnter();
-        AddRI(OpCode.MOVE, 1, UiFgAddr);
+        UiStateAddr(1, UiFgLabel);
         EvalIntCoord(stmt.Foreground, 0);
         instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
         if (stmt.HasBackground)
         {
-            AddRI(OpCode.MOVE, 1, UiBgAddr);
+            UiStateAddr(1, UiBgLabel);
             EvalIntCoord(stmt.Background, 0);
             instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
         }
@@ -1082,7 +1116,7 @@ public partial class CodeGenerator
     /// ⚠ <b>这里必须按运行期来</b>：老程序普遍是 `Mode = 9` 然后 `SCREEN Mode`
     /// —— 传给 `SCREEN` 的是**变量**，编译期那个常量表里没有它。
     /// 照编译期常量来判的话 GORILLA.BAS 会落到"模式未知"，而那正是要跑的那个。
-    /// 所以读 <c>SCREEN</c> 语句存下的那个字节（<see cref="UiModeAddr"/>）。
+    /// 所以读 <c>SCREEN</c> 语句存下的那个字节（<see cref="UiModeLabel"/>）。
     /// </para>
     ///
     /// <para>
@@ -1103,7 +1137,7 @@ public partial class CodeGenerator
         int t = Regs.AllocInt(instructions);
         // 静态地址取字节：先 MOVE 地址再 MOVEB 间接读（同 `EmitLoadScreenWidth`）。
         // ⚠ 这条读的是 **SCREEN 语句写下的那个字节**，不是"当前窗口的模式"。
-        AddRI(OpCode.MOVE, t, UiModeAddr);
+        UiStateAddr(t, UiModeLabel);
         instructions.Add(new Instruction(OpCode.MOVEB,
             [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{t}")]));
 

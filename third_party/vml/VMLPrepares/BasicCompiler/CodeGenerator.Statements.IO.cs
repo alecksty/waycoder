@@ -8,34 +8,34 @@ namespace BasicCompiler
 
         private void GenerateOnErrorStatement(OnErrorStatement stmt)
         {
-            // Store error handler address at 0x6FC0
+            // Store error handler address at Sys.ErrorHandler
             // 0 = no handler, otherwise store a label reference
             if (stmt.DisableHandler)
             {
                 // ON ERROR GOTO 0: disable handler
                 AddRI(OpCode.MOVE, 0, 0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC0) }));
+                SysAddr(1, Sys.ErrorHandler);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
             else if (stmt.ResumeNext)
             {
                 // ON ERROR RESUME NEXT: store -1 as flag for "skip and continue"
                 AddRI(OpCode.MOVE, 0, -1);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC0) }));
+                SysAddr(1, Sys.ErrorHandler);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
             else if (!string.IsNullOrEmpty(stmt.ErrorHandlerLabel))
             {
-                // ON ERROR GOTO label: store the label address at 0x6FC0
+                // ON ERROR GOTO label: store the label address at Sys.ErrorHandler
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, stmt.ErrorHandlerLabel.ToLower()) }));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC0) }));
+                SysAddr(1, Sys.ErrorHandler);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
             else if (stmt.ErrorHandlerLine > 0)
             {
                 // ON ERROR GOTO line_number: store the line label
                 AddRI(OpCode.MOVE, 0, 0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC0) }));
+                SysAddr(1, Sys.ErrorHandler);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
         }
@@ -45,17 +45,17 @@ namespace BasicCompiler
             if (stmt.ResumeNext)
             {
                 // RESUME NEXT: jump to next line
-                // Store -2 flag at 0x6FC4 to indicate RESUME NEXT was executed
+                // Store -2 flag at Sys.ResumeFlag to indicate RESUME NEXT was executed
                 AddRI(OpCode.MOVE, 0, -2);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC4) }));
+                SysAddr(1, Sys.ResumeFlag);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
             else
             {
                 // RESUME: return from error handler (jump back to error address)
-                // Store -3 flag at 0x6FC4 to indicate RESUME was executed
+                // Store -3 flag at Sys.ResumeFlag to indicate RESUME was executed
                 AddRI(OpCode.MOVE, 0, -3);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FC4) }));
+                SysAddr(1, Sys.ResumeFlag);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
         }
@@ -76,7 +76,7 @@ namespace BasicCompiler
                     continue;
                 }
 
-                // Load data pointer from 0x6FD0
+                // Load data pointer from Sys.DataPointer
                 EmitReadNextDataValueTo(1);
 
                 // Store to variable
@@ -106,7 +106,7 @@ namespace BasicCompiler
         /// </summary>
         private void EmitReadNextDataValueTo(int destReg)
         {
-            AddRI(OpCode.MOVE, 0, 0x6FD0);
+            SysAddr(0, Sys.DataPointer);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
             // Compute address: dynamic_base + ptr * 4
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
@@ -124,7 +124,7 @@ namespace BasicCompiler
         /// </summary>
         private void EmitAdvanceDataPointer()
         {
-            AddRI(OpCode.MOVE, 0, 0x6FD0);
+            SysAddr(0, Sys.DataPointer);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R0") }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 2) }));
@@ -137,9 +137,9 @@ namespace BasicCompiler
             // ⚠ 从前这里两处都不对（v0.96.330 修）：目标寄存器写成了 **R14**（那是 SUB 里的
             //   局部变量基址、在主程序里根本不是数据指针），而且 `move R0, [R14]` 是**取**
             //   不是存 —— 等于把 R14 指向的东西读进 R0，指针一格没动。改成与初始化同形：
-            //   把 0 写进 0x6FD0 那个槽。
+            //   把 0 写进 Sys.DataPointer 那个槽。
             AddRI(OpCode.MOVE, 0, 0);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FD0) }));
+            SysAddr(1, Sys.DataPointer);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
         }
 

@@ -11,14 +11,10 @@ public partial class CodeGenerator
     // ═══════════════════════════════════════════════════
     //  VGA 常量
     // ═══════════════════════════════════════════════════
-    protected const int VGA_BASE = 0xA0000;
-    protected const int VGA_WIDTH_ADDR   = 0x6FE0;
-    protected const int VGA_HEIGHT_ADDR  = 0x6FE4;
-    protected const int VGA_BPP_ADDR     = 0x6FF3;
-    protected const int VGA_FONT_MODE    = 0x6FE8; // 字库模式: 0=8x8,32bit/row; 1=8x16,byte/row
-    protected const int VGA_FONT_WIDTH   = 0x6FE9; // 字宽(像素)
-    protected const int VGA_FONT_HEIGHT  = 0x6FEA; // 字高(像素)
-    protected const int VGA_FONT_ADDR    = 0x6FEC; // 字库基址(32-bit)
+    // ⚠ **这一组固定地址已经全部拿掉**（用户 2026-09-24 定的规矩：除汇编与 C 外不允许
+    //   直接使用固定地址）。它们原先分别是 VGA 帧缓冲（0xA0000）与那几个"DOS 暂存字节"
+    //   （宽/高/bpp/字库模式/字宽/字高/字库基址）。现在一律走 `SysVars` 登记表里的
+    //   `.data` 槽 —— 见 `CodeGenerator.Qbasic.SysVars.cs`。
 
     // ═══════════════════════════════════════════════════
     //  0. 字库配置 — 从 MMIO 寄存器加载字库参数
@@ -27,28 +23,28 @@ public partial class CodeGenerator
     /// <summary>加载字库基址到 dstReg (从 FONT_ADDR 寄存器, 32-bit)</summary>
     public void EmitGfxLoadFontAddr(int dstReg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.IMMEDIATE, VGA_FONT_ADDR) }));
+        SysAddr(dstReg, Sys.FontAddr);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.MEMORY, $"R{dstReg}") }));
     }
 
     /// <summary>加载字库高度到 dstReg (从 FONT_HEIGHT 寄存器, 1字节)</summary>
     public void EmitGfxLoadFontHeight(int dstReg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.IMMEDIATE, VGA_FONT_HEIGHT) }));
+        SysAddr(dstReg, Sys.FontHeight);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.MEMORY, $"R{dstReg}") }));
     }
 
     /// <summary>加载字库模式到 dstReg (从 FONT_MODE 寄存器, 1字节)</summary>
     public void EmitGfxLoadFontMode(int dstReg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.IMMEDIATE, VGA_FONT_MODE) }));
+        SysAddr(dstReg, Sys.FontMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.MEMORY, $"R{dstReg}") }));
     }
 
     /// <summary>加载字库宽度到 dstReg (从 FONT_WIDTH 寄存器, 1字节)</summary>
     public void EmitGfxLoadFontWidth(int dstReg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.IMMEDIATE, VGA_FONT_WIDTH) }));
+        SysAddr(dstReg, Sys.FontWidth);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, dstReg), new(OperandType.MEMORY, $"R{dstReg}") }));
     }
 
@@ -73,34 +69,36 @@ public partial class CodeGenerator
     }
 
     // ═══════════════════════════════════════════════════
-    //  2. VRAM 地址计算 — addr = VGA_BASE + y*width + x
+    //  2. VRAM 地址计算 — addr = 帧缓冲基址 + y*width + x
     // ═══════════════════════════════════════════════════
 
-    /// <summary>将 R0 设为 VGA VRAM 地址: VGA_BASE + R(Y)*width + R(X)</summary>
+    /// <summary>将 R0 设为 VGA VRAM 地址: 帧缓冲基址 + R(Y)*width + R(X)</summary>
     protected void EmitGfxComputeAddr(int yReg, int xReg, int tmpReg = 10)
     {
-        // addr = VGA_BASE + y * width + x
+        // addr = 帧缓冲基址 + y * width + x
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, yReg) }));
         EmitGfxLoadWidth(tmpReg);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, tmpReg) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, xReg) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        FbBase(tmpReg);   // tmpReg 刚做完宽度乘法，用完即取基址
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, tmpReg) }));
     }
 
-    /// <summary>将指定寄存器设为 VGA VRAM 地址: VGA_BASE + R(yReg)*width + R(xReg)。不硬编码 R0。</summary>
+    /// <summary>将指定寄存器设为 VGA VRAM 地址: 帧缓冲基址 + R(yReg)*width + R(xReg)。不硬编码 R0。</summary>
     protected void EmitGfxComputeAddrTo(int resultReg, int yReg, int xReg, int tmpReg = 10)
     {
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, resultReg), new(OperandType.REGISTER, yReg) }));
         EmitGfxLoadWidth(tmpReg);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new(OperandType.REGISTER, resultReg), new(OperandType.REGISTER, tmpReg) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, resultReg), new(OperandType.REGISTER, xReg) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, resultReg), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        FbBase(tmpReg);   // tmpReg 刚做完宽度乘法，用完即取基址
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, resultReg), new(OperandType.REGISTER, tmpReg) }));
     }
 
     /// <summary>加载 BPP，若 bpp==1 跳到 mode13Label。用 tmpReg 作为临时寄存器。</summary>
     protected void EmitGfxCheckBpp(string mode13Label, int tmpReg = 5)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, tmpReg), new(OperandType.IMMEDIATE, VGA_BPP_ADDR) }));
+        SysAddr(tmpReg, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, tmpReg), new(OperandType.MEMORY, $"R{tmpReg}") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, tmpReg), new(OperandType.IMMEDIATE, 1) }));
         instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new(OperandType.LABEL, mode13Label) }));
@@ -195,13 +193,13 @@ public partial class CodeGenerator
 
     protected void EmitGfxLoadWidth(int reg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, reg), new(OperandType.IMMEDIATE, VGA_WIDTH_ADDR) }));
+        SysAddr(reg, Sys.ScreenWidth);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, reg), new(OperandType.MEMORY, $"R{reg}") }));
     }
 
     protected void EmitGfxLoadHeight(int reg)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, reg), new(OperandType.IMMEDIATE, VGA_HEIGHT_ADDR) }));
+        SysAddr(reg, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, reg), new(OperandType.MEMORY, $"R{reg}") }));
     }
 
@@ -246,14 +244,14 @@ public partial class CodeGenerator
         EmitGfxPushCoord(y);        // PUSH Y
         instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new(OperandType.REGISTER, 2) })); // Y
         instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new(OperandType.REGISTER, 1) })); // X
-        // Save fill index at 0x6DF0 BEFORE any other code clobbers R0
+        // Save fill index (Sys.FillIndex) BEFORE any other code clobbers R0
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 0) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 8), new(OperandType.IMMEDIATE, 0x6DF0) }));
+        SysAddr(8, Sys.FillIndex);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.MEMORY, "R8") }));
         if (hasBorder && border != null)
         {
             GenerateExpr(border, 6); // R6 = border index
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 8), new(OperandType.IMMEDIATE, 0x6DF1) }));
+            SysAddr(8, Sys.BorderIndex);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 6), new(OperandType.MEMORY, "R8") }));
         }
     }
@@ -265,7 +263,7 @@ public partial class CodeGenerator
     /// <summary>如果 SCREEN 模式是 13，跳到 mode13Label。R5 被用作临时寄存器。</summary>
     protected void EmitGfxCheckMode13(string mode13Label)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(5, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.MEMORY, "R5") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.IMMEDIATE, 13) }));
         instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new(OperandType.LABEL, mode13Label) }));
@@ -274,7 +272,7 @@ public partial class CodeGenerator
     /// <summary>如果 SCREEN 模式是 0 (文本模式)，跳到 textModeLabel。R5 被用作临时寄存器。</summary>
     protected void EmitGfxCheckMode0(string textModeLabel)
     {
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.IMMEDIATE, 0x6FF0) }));
+        SysAddr(5, Sys.ScreenMode);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.MEMORY, "R5") }));
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 5), new(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new(OperandType.LABEL, textModeLabel) }));
@@ -290,11 +288,11 @@ public partial class CodeGenerator
         string clsText = newLabel(), clsEnd = newLabel();
         EmitGfxCheckMode0(clsText); // 文本模式 → 跳转到文本清屏
 
-        // Graphics mode: fill VGA_BASE with zeros
+        // Graphics mode: fill the framebuffer with zeros
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, 0) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 1), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        FbBase(1);
         EmitGfxLoadWidth(2);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 3), new(OperandType.IMMEDIATE, VGA_HEIGHT_ADDR) }));
+        SysAddr(3, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 3), new(OperandType.MEMORY, "R3") }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new(OperandType.REGISTER, 2), new(OperandType.REGISTER, 3) }));
         string gfxClsLoop = newLabel(), gfxClsEnd = newLabel();
@@ -311,7 +309,7 @@ public partial class CodeGenerator
         // Text mode: fill with spaces
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new(OperandType.LABEL, clsText) }));
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, 0x20) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 1), new(OperandType.IMMEDIATE, 0xB8000) }));
+        SysAddr(1, Sys.TextBuffer);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 2), new(OperandType.IMMEDIATE, 4000) }));
         string txtClsLoop = newLabel(), txtClsEnd = newLabel();
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new(OperandType.LABEL, txtClsLoop) }));
@@ -335,9 +333,9 @@ public partial class CodeGenerator
     private void ResetCursor()
     {
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, 0) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 1), new(OperandType.IMMEDIATE, 0x6FF4) }));
+        SysAddr(1, Sys.TextCurRow);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.MEMORY, "R1") }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 1), new(OperandType.IMMEDIATE, 0x6FF8) }));
+        SysAddr(1, Sys.TextCurCol);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.MEMORY, "R1") }));
     }
 
@@ -383,18 +381,20 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 6), new(OperandType.REGISTER, 2) }));
         instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new(OperandType.LABEL, xEnd) }));
 
-        // VRAM addr: R7 = VGA_BASE + R5*width + R6
+        // VRAM addr: R7 = 帧缓冲基址 + R5*width + R6
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 5) }));
         EmitGfxLoadWidth(4);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 6) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        FbBase(4);   // R4 刚做完宽度乘法，用完即取基址（下面两条比较也用它）
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 4) }));
 
         // Bounds check + write
         string skip = newLabel();
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new(OperandType.LABEL, skip) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.IMMEDIATE, VGA_BASE + 0x100000) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 4), new(OperandType.IMMEDIATE, 0x100000) })); // 上界 = 基址 + 1MB
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new(OperandType.REGISTER, 7), new(OperandType.REGISTER, 4) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new(OperandType.LABEL, skip) }));
 
         EmitGfxWritePixel(8, 7);  // STOREB R8, [R7]; R7+=1 (not used after)
@@ -488,7 +488,8 @@ public partial class CodeGenerator
         EmitGfxLoadWidth(1);
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 1) }));
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 5) })); // +x
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.IMMEDIATE, VGA_BASE) }));
+        FbBase(1);   // R1 刚做完宽度乘法，用完即取基址
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 1) }));
 
         EmitGfxWritePixel(8, 0);  // STOREB R8, [R0]; R0+=1
 

@@ -4,9 +4,10 @@ namespace BasicCompiler;
 
 public partial class CodeGenerator
 {
-    // Palette addresses — fixed safe locations below VGA (0xA0000), above heap
-    const int QB_PALETTE_ADDR    = 0x9F000; // 16-color EGA palette (48 bytes)
-    const int QB_PALETTE13_ADDR  = 0x9F100; // 256-color palette (768 bytes)
+    // 调色板表原先写死在 0x9F000 / 0x9F100（"VGA 之下、堆之上的安全位置"）——
+    // **已经全部拿掉**，改走 `SysVars` 登记表里的 `.data` 槽
+    // （`Sys.Palette16` 48 字节 / `Sys.Palette256` 768 字节）。
+    // ⚠ 那次的实测教训就记在 `UiPaletteLabel` 的注释里：写死在固定地址时**整张表读出全 0**。
 
     string newLabel() => GenerateLabel();
 }

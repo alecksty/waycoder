@@ -186,9 +186,10 @@ namespace BasicCompiler
             {
                 // 将文件句柄存入变量(使用文件号作为变量名)
                 GenerateExpression(stmt.FileNumber, 1); // 获取文件号
-                // 使用文件号*4+0x9D000作为文件句柄存储地址
+                // 使用文件号*4 + 句柄表基址（Sys.FileHandles）作为文件句柄存储地址
                 instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x9D000) }));
+                SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
             }
         }
@@ -201,7 +202,8 @@ namespace BasicCompiler
                 // 获取文件句柄
                 GenerateExpression(stmt.FileNumber, 1);
                 instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x9D000) }));
+                SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
                 
                 // SYSCALL 101 (DeviceClose)
@@ -215,7 +217,8 @@ namespace BasicCompiler
             // 获取文件句柄
             GenerateExpression(stmt.FileNumber, 1);
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x9D000) }));
+            SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
             // R1 = 文件句柄
             
@@ -283,7 +286,8 @@ namespace BasicCompiler
             // 获取文件句柄
             GenerateExpression(stmt.FileNumber, 1);
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x9D000) }));
+            SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
             // R1 = 文件句柄
             
@@ -570,8 +574,8 @@ namespace BasicCompiler
         private string EmitScreenCheckForVga()
         {
             string skipLabel = newLabel();
-            // Load screen mode from 0x6FF0
-            AddRI(OpCode.MOVE, 5, 0x6FF0);
+            // Load screen mode from Sys.ScreenMode
+            SysAddr(5, Sys.ScreenMode);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
                 new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R5") }));
             // Check SCREEN 255 (disable VGA)
@@ -600,7 +604,7 @@ namespace BasicCompiler
         ///         文本模式 = 原来的 TTY #400，图形模式 = 攒进绘图窗口的行缓冲。
         ///         见 <c>CodeGenerator.Qbasic.UiGfx.Text.cs</c>。</item>
         ///   <item><b>pcgfx 后端</b>（老路）—— CRT 模式 → TTY (#400)，否则 → stdout (#4)
-        ///         + 往 0xB8000 写 VGA 文本帧缓冲。**一个字没改。**</item>
+        ///         + 往文本帧缓冲（<c>Sys.TextBuffer</c>，原 <c>0xB8000</c>）写 VGA 文本。**一个字没改。**</item>
         /// </list>
         /// </summary>
         internal new void EmitPrintChar()
@@ -632,11 +636,11 @@ namespace BasicCompiler
             }
         }
 
-        // ===== VGA text mode output — write char to 0xB8000 framebuffer =====
+        // ===== VGA text mode output — write char to the text buffer (Sys.TextBuffer) =====
 
         private void EmitVgaTextChar()
         {
-            // Write character (in R0) to VGA text framebuffer at 0xB8000
+            // Write character (in R0) to the VGA text framebuffer (Sys.TextBuffer)
             // 保留内联实现: BASIC PRINT 与整数→字符串转换紧密耦合，寄存器约定与C库不兼容
             // 增强的 vga_text_putchar C库可供其他语言(Pascal/C等)使用
 
@@ -647,18 +651,19 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 3) }));
 
             // Load cursor row (R1) and col (R2), attr (R3) from MMIO
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF4) }));
+            SysAddr(1, Sys.TextCurRow);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FF8) }));
+            SysAddr(2, Sys.TextCurCol);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0x6FFC) }));
+            SysAddr(3, Sys.FgIndex);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R3") }));
 
-            // Compute VGA addr: 0xB8000 + (row*80+col)*2
+            // Compute VGA addr: 文本缓冲基址 + (row*80+col)*2
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 80) }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 2) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0xB8000) }));
+            SysAddr(2, Sys.TextBuffer);   // R2（刚才的列号）已经用完了，拿来装文本帧缓冲基址
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
 
             // Store char and attr byte
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
@@ -666,20 +671,20 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R1") }));
 
             // Advance cursor with wrap
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF8) }));
+            SysAddr(1, Sys.TextCurCol);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) }));
             string noWrap = newLabel();
             instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 80) }));
             instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, noWrap) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FF4) }));
+            SysAddr(2, Sys.TextCurRow);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0x6FF4) }));
+            SysAddr(3, Sys.TextCurRow);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R3") }));
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, noWrap) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FF8) }));
+            SysAddr(2, Sys.TextCurCol);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
 
             // Restore registers (reverse order)
@@ -809,18 +814,18 @@ namespace BasicCompiler
 
         private void EmitGfxPrintChar()
         {
-            // Render character glyph using configurable font (registers at 0x6FE8-0x6FEF)
-            //   FONT_MODE (0x6FE8): 0=8x8,32bit/row (char-32)*32+row*4; 1=8x16,byte/row char*16+row
-            //   FONT_WIDTH (0x6FE9): font width (default 8)
-            //   FONT_HEIGHT (0x6FEA): font height (default 8 or 16)
-            //   FONT_ADDR (0x6FEC): font base address (32-bit)
+            // Render character glyph using configurable font (Sys.FontMode/Width/Height/Addr)
+            //   Sys.FontMode:   0=8x8,32bit/row (char-32)*32+row*4; 1=8x16,byte/row char*16+row
+            //   Sys.FontWidth:  font width
+            //   Sys.FontHeight: font height
+            //   Sys.FontAddr:   font base address (32-bit)
 
             // Save registers R0-R10
             for (int r = 0; r <= 10; r++)
                 instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, r) }));
 
             // Check bpp: skip if text mode (bpp==2)
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, VGA_BPP_ADDR) }));
+            SysAddr(2, Sys.ScreenBpp);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") }));
             string gfxSkip = newLabel();
             instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 2) }));
@@ -831,10 +836,10 @@ namespace BasicCompiler
             EmitGfxLoadFontHeight(9);  // R9 = font height (rows per glyph)
             EmitGfxLoadFontMode(10);   // R10 = font mode (0=word/row, 1=byte/row)
 
-            // Load cursor: R1=row (0x6FF4), R2=col (0x6FF8)
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FF4) }));
+            // Load cursor: R1=row (Sys.TextCurRow), R2=col (Sys.TextCurCol)
+            SysAddr(1, Sys.TextCurRow);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") })); // R1 = cursor row
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0x6FF8) }));
+            SysAddr(2, Sys.TextCurCol);
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") })); // R2 = cursor col
 
             // y = row*16 + (16-font_height)/2  (center glyph in standard 16px cell), x = col*8
@@ -847,7 +852,7 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8) })); // R2 = x_left
 
             // Load screen width into R5
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, VGA_WIDTH_ADDR) }));
+            SysAddr(5, Sys.ScreenWidth);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R5") })); // R5 = width
 
             // Font lookup: check if char in printable range 32-126
@@ -909,12 +914,13 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, rowDone) }));
 
-            // Compute VRAM addr: R6 = 0xA0000 + (y+row)*width + x
+            // Compute VRAM addr: R6 = 帧缓冲基址 + (y+row)*width + x
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 0) })); // y+row
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 5) })); // *width
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 2) })); // +x
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, VGA_BASE) })); // R6 = VRAM addr
+            FbBase(11);   // R11 在本函数里没有被用到（只 PUSH 了 R0-R10），拿它装基址
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 11) })); // R6 = VRAM addr
 
             // For each of 8 columns: test bit 7..0, write white (15) if set
             for (int gx = 0; gx < 8; gx++)

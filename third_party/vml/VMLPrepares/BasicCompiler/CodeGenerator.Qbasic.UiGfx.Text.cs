@@ -315,7 +315,7 @@ public partial class CodeGenerator
         string done = newLabel();
 
         // 文本模式 → 老路（CRT_GOTOXY(col, row)）
-        AddRI(OpCode.MOVE, 2, UiModeAddr);
+        UiStateAddr(2, UiModeLabel);
         instructions.Add(new Instruction(OpCode.MOVEB,
             [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2")]));
         instructions.Add(new Instruction(OpCode.CMP,
@@ -424,7 +424,7 @@ public partial class CodeGenerator
     {
         AddLabel(entryLabel);
         UiTxtPrologue();
-        Ins(OpCode.MOVE, UiReg(1), UiImm(UiModeAddr));
+        UiStateAddr(1, UiModeLabel);
         Ins(OpCode.MOVEB, UiReg(1), UiMem("R1"));
         Ins(OpCode.CMP, UiReg(1), UiImm(0));
         string uiPath = newLabel();
@@ -594,7 +594,7 @@ public partial class CodeGenerator
 
         string done = newLabel();
 
-        Ins(OpCode.MOVE, UiReg(1), UiImm(UiModeAddr));
+        UiStateAddr(1, UiModeLabel);
         Ins(OpCode.MOVEB, UiReg(1), UiMem("R1"));
         Ins(OpCode.CMP, UiReg(1), UiImm(0));
         Ins(OpCode.JE, UiLabelOp(done));
@@ -621,7 +621,7 @@ public partial class CodeGenerator
         Ins(OpCode.PUSH, UiReg(0));
         Ins(OpCode.MOVE, UiReg(0), UiImm(1));
         Ins(OpCode.PUSH, UiReg(0));
-        Ins(OpCode.MOVE, UiReg(0), UiImm(UiBgAddr));
+        UiStateAddr(0, UiBgLabel);
         Ins(OpCode.MOVEB, UiReg(0), UiMem("R0"));
         UiTranslateColorInR0(8);                 // R8 = 暂存（我们自己的固定编号）
         Ins(OpCode.PUSH, UiReg(0));
@@ -654,7 +654,7 @@ public partial class CodeGenerator
         Ins(OpCode.MOVE, UiReg(0), UiImm(0));       // anchor = 左
         Ins(OpCode.PUSH, UiReg(0));
         Ins(OpCode.PUSH, UiReg(7));                 // size = cellh
-        Ins(OpCode.MOVE, UiReg(0), UiImm(UiFgAddr));
+        UiStateAddr(0, UiFgLabel);
         Ins(OpCode.MOVEB, UiReg(0), UiMem("R0"));
         UiTranslateColorInR0(8);
         Ins(OpCode.PUSH, UiReg(0));

@@ -109,29 +109,30 @@ namespace BasicCompiler
         private static string SymbolKey(string name) => BasicSymbol(name).ToLowerInvariant();
 
         // 动态分配的静态数据区 — 程序启动时通过 SYSCALL #40 分配
-        // 基址存储在 0x6FD4，所有 StaticBase 引用改为 LOAD R1, [0x6FD4]; ADD R1, #offset
-        // 布局: [0x0000:DATA] [0x3000:Palette] [0x3800:Palette13] [0x4000:Sound]
-        public const int STATIC_DATA_OFFSET   = 0x0000; // DATA area (was StaticBase - 0x3000)
-        public const int STATIC_FILE_OFFSET   = 0x1000; // File handles (was StaticBase - 0x1000)
+        //
+        // ⚠ **基址槽不再是固定地址**（v0.96.331）：原先它写在 `0x6FD4`，本次按用户定的规矩
+        //   （**除汇编与 C 外不允许直接使用固定地址**）改成 `.data` 段里的 `Sys.StaticBase`
+        //   （见 `CodeGenerator.Qbasic.SysVars.cs`）。读法一字未变，只是地址从立即数换成标签：
+        //   `MOVE reg, <标签>` 取的**就是地址**，紧接着那句 `MOVE reg, [reg]` 照旧是取基址。
+        //
+        //   下面那六个 `STATIC_*_OFFSET` 是**相对基址的偏移**，不是绝对地址 —— 按规矩原样留着。
+        // 布局: [0x0000:DATA] [0x1000:文件句柄] [0x2000:字符串缓冲] [0x3000:Palette]
+        //       [0x3800:Palette13] [0x4000:Sound] [0x5000..:全局变量]
+        public const int STATIC_DATA_OFFSET   = 0x0000; // DATA area
+        public const int STATIC_FILE_OFFSET   = 0x1000; // File handles
         public const int STATIC_STRING_OFFSET = 0x2000; // String buffer
-        public const int STATIC_PAL_OFFSET    = 0x3000; // EGA palette (was StaticBase - 0x100)
-        public const int STATIC_PAL13_OFFSET  = 0x3800; // VGA 256 palette (was StaticBase + 0x800)
-        public const int STATIC_SOUND_OFFSET  = 0x4000; // Sound buffer (was StaticBase + 0x2000)
+        public const int STATIC_PAL_OFFSET    = 0x3000; // EGA palette
+        public const int STATIC_PAL13_OFFSET  = 0x3800; // VGA 256 palette
+        public const int STATIC_SOUND_OFFSET  = 0x4000; // Sound buffer
         // 全局变量区：**追加在现有硬编码分区之后**（0x0000 DATA / 0x1000 文件句柄 / 0x3000 调色板
         // / 0x3800 VGA 调色板 / 0x4000 声音），不动它们，免得重新编号引入新错。
         public const int STATIC_GLOBALS_OFFSET = 0x5000;
         public const int STATIC_TOTAL_SIZE    = 0x7000; // 原 0x5000；尾部 8KB(≈2048 个 int) 给全局变量
-        public const int STATIC_BASE_ADDR     = 0x6FD4; // where the dynamic base pointer is stored
-
-        // Backward-compat property for code that still uses StaticBase directly
-        // Returns the dynamic base address via runtime lookup (0x6FD4)
-        public int StaticBase => STATIC_BASE_ADDR; // flag value: use dynamic base
 
         /// <summary>Emit code to load dynamic static base address into reg</summary>
         private void EmitStaticBase(int reg)
         {
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                new(OperandType.REGISTER, reg), new(OperandType.IMMEDIATE, STATIC_BASE_ADDR) }));
+            SysAddr(reg, Sys.StaticBase);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
                 new(OperandType.REGISTER, reg), new(OperandType.MEMORY, $"R{reg}") }));
         }
@@ -144,10 +145,6 @@ namespace BasicCompiler
                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
                     new(OperandType.REGISTER, reg), new(OperandType.IMMEDIATE, offset) }));
         }
-
-        // VGA 帧缓冲基址（可通过 SYSCALL 60/GetConfig 动态获取，默认 0xA0000）
-        private int _vgaBase = 0xA0000;
-        public int VgaBase { get => _vgaBase; set => _vgaBase = value; }
 
         /// <summary>当前 BASIC 方言 (v1.66.32+)</summary>
         private VMLPlugins.BasicDialect CurrentDialect =>
@@ -189,12 +186,32 @@ namespace BasicCompiler
         /// <summary>模块级变量（含 DIM SHARED）—— 放静态区的全局段，主程序与 SUB 共用同一份内存。</summary>
         private HashSet<string> _globalVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>获取变量的内存引用字符串。SHARED 变量使用绝对地址, 普通变量使用 BP+offset</summary>
+        /// <summary>
+        /// 这个变量走**静态区的全局段**吗？
+        ///
+        /// <para>两个集合要**一起判**：主程序里的变量全部进 <see cref="_globalVars"/>
+        /// （见 <c>GetOrCreateVariable</c>），而 `SUB` 体里的 `DIM SHARED` 只进
+        /// <see cref="_sharedVariables"/> —— 但它要的同样是"主程序与 SUB 共用同一份内存"，
+        /// 与全局变量是**同一件事**。此前那条路走 <see cref="VarMemRef"/> 的绝对数值寻址分支，
+        /// 编出来的是 `MEMORY "&lt;固定地址+8+偏移&gt;"`：那个固定地址（<c>0x6FD4</c>）
+        /// 随本次"去固定地址"改造被拿掉了，而且它**本来就指不到全局段**
+        /// （全局段在 `基址 + 0x5000`，不是 `0x6FD4 + 8`）。收进来之后，"SHARED = 全局"只有一条路。
+        /// </para>
+        /// </summary>
+        private bool IsGlobalVar(string name)
+            => _globalVars.Contains(name) || _sharedVariables.Contains(name);
+
+        /// <summary>
+        /// 变量的内存引用字符串。
+        ///
+        /// <para>⚠ 全局变量**不走这里**（见 <see cref="IsGlobalVar"/> 与 <see cref="EmitLoadVar"/>）——
+        /// 它们要用 <see cref="EmitStaticAddr"/> 现算"基址 + 全局段偏移"，而基址是运行期才知道的
+        /// （存在 <c>Sys.StaticBase</c> 那个槽里），**编不出一个绝对的数值串**。
+        /// 这里只剩 `R12` 相对寻址那一种形态。</para>
+        /// </summary>
         private string VarMemRef(string varName)
         {
             int offset = GetVarByteOffset(varName);
-            if (_sharedVariables.Contains(varName))
-                return $"{StaticBase + 8 + offset}";
             return $"R12+{8 + offset}";
         }
 
@@ -208,7 +225,7 @@ namespace BasicCompiler
         /// </summary>
         private void EmitLoadVar(int reg, string name)
         {
-            if (_globalVars.Contains(name))
+            if (IsGlobalVar(name))
             {
                 EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
                 // ⚠ 读也要**按类型**（MOVEF/MOVED/MOVEL）—— 与 EmitStoreVar 的
@@ -234,7 +251,7 @@ namespace BasicCompiler
         /// </summary>
         private void EmitStoreVar(string name, int srcReg)
         {
-            if (_globalVars.Contains(name))
+            if (IsGlobalVar(name))
             {
                 EmitStaticAddr(2, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
                 instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
@@ -1334,6 +1351,11 @@ namespace BasicCompiler
             EmitAlloc();
             EmitStaticBase(1);
 
+            // 堆缓冲（帧缓冲 / PAINT 泛洪栈）的运行期分配**要插在这个位置**
+            // （见 HeapBufNoteAllocSite 的说明）—— 此刻还定不下来用不用得上，
+            // 语句全部生成完由 HeapBufEmitAllocs 决定插哪几块。
+            HeapBufNoteAllocSite();
+
             // 把**全局变量区清 0** —— BASIC 语义里"未初始化的变量是 0"，
             // 而这块是 EmitAlloc 出来的裸内存（不保证是零）。清的范围只有全局段，
             // DATA 区等由各自的初始化逻辑负责，不碰。
@@ -1367,7 +1389,7 @@ namespace BasicCompiler
             //   数据指针没被写过、DATA 值也没被写进静态区 ⇒ `READ` 永远读回 0。
             //   （同一族的坑本仓记过：SUB 内 FOR 的初值/自增两处也是这么反的。）
             AddRI(OpCode.MOVE, 0, 0);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0x6FD0) }));
+            SysAddr(1, Sys.DataPointer);
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
 
             // 初始化 DATA 值到动态分配的静态区
@@ -1457,6 +1479,9 @@ namespace BasicCompiler
             // **必须在所有 SUB/FUNCTION 之后**：它们由 CALL 进入、只被前面的语句引用，
             // 放这里就不用管"SUB 里的 PRINT 也得能调到"这件事。
             UiTextEmitHelpers();
+
+            // 堆缓冲：程序用过哪几块就补哪几段的运行期分配（插回序言里记下的那个位置）。
+            HeapBufEmitAllocs();
 
             // vga_text_putchar 无操作存根（链接共享库时会被覆盖）
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, "vga_text_putchar") }));
