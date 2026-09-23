@@ -1349,6 +1349,20 @@ namespace BasicCompiler
             // 动态分配静态数据区 (替代固定地址 StaticBase)
             AddRI(OpCode.MOVE, 0, STATIC_TOTAL_SIZE);
             EmitAlloc();
+
+            // ⚠ **分配结果必须存进基址槽** —— `EmitAlloc`（SYSCALL 40）把地址放在 **R0**，
+            //   而 `Sys.StaticBase` 那个槽此前**只有读、从来没有写**：`EmitStaticBase` 只是
+            //   把它的值读进寄存器。少了这一句，基址**恒为 0** ⇒ 所有"全局变量"都被
+            //   按**绝对偏移** 0x5000.. 访问，与别的内存撞车 ——
+            //   实测症状：GORILLA.BAS 里 `x`/`y` 读出来是一串**全局槽地址**
+            //   （0x5000 / 0x5004 / 0x5008…，见 `vmlcli --trace-draw`），
+            //   于是楼画成黑色、精灵贴到 (20480, 20488) 这种坐标上。
+            //   它是**老大难**：本仓此前那条"清全局区"的循环还会顺手把基址槽一起抹掉
+            //   （见下面 zeroLoop 的注释），两件事叠加让这个槽长期是 0。
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                new(OperandType.MEMORY, Sys.StaticBase),
+                new(OperandType.REGISTER, 0) }));
+
             EmitStaticBase(1);
 
             // 堆缓冲（帧缓冲 / PAINT 泛洪栈）的运行期分配**要插在这个位置**
