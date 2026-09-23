@@ -41,6 +41,12 @@ public static class HardwareKeys
     public static Action<int, bool>? Sink;
 
     /// <summary>
+    /// 当前**按着没放**的键。用来分辨"只收到 Up"（输入法吞了 Down）与正常的一按一放。
+    /// 只在 UI 线程用（`DispatchKeyEvent` 本来就在主线程）。
+    /// </summary>
+    private static readonly HashSet<int> _down = new();
+
+    /// <summary>
     /// Activity 把每个键事件递进来。返回 true = **已被吃掉**（不再往下传）。
     ///
     /// 吃掉的范围**只限认得出的 VML 键**：返回键（`Keycode.Back`）、音量键、Home 键
@@ -67,7 +73,33 @@ public static class HardwareKeys
 
         int vk = VirtualKey(e);
         if (vk == 0) return false;          // 认不出 ⇒ 不动它，交给系统
-        sink(vk, down);
+
+        if (down)
+        {
+            _down.Add(vk);
+            sink(vk, true);
+        }
+        else if (_down.Remove(vk))
+        {
+            sink(vk, false);                // 正常：先 Down 后 Up
+        }
+        else
+        {
+            /* ⚠ **只收到 Up** —— 这是真机实测出来的最常见形态，必须补一次合成的 KeyDown。
+             *
+             * 原因：**输入法在场时 Android 会把 ACTION_DOWN 交给 IME**（它要用 Down 生成字符），
+             * 只有 ACTION_UP 会落到 Activity。实测（模拟器 logcat，`WCKEY`）：
+             * 敲一整条命令 32 个键事件，**`action=Down` 一条都没有**。
+             *
+             * 只发 KeyUp 的后果很隐蔽：VML 那边的 `getch()` 只认 `KEYDOWN`（KeyUp 一律跳过，
+             * 因为返回 0 会被老程序当成"窗口关了"）⇒ **按了完全没反应**，
+             * 而"按键确实到了应用"这一点在日志里又看得见，查起来格外绕。
+             *
+             * 这里补一次 Down 再补一次 Up：对程序而言就是**干干净净地按了一下**，
+             * 且不影响正常路径（有 Down 的时候走上面那条分支，不会重复发）。 */
+            sink(vk, true);
+            sink(vk, false);
+        }
         return true;
     }
 
