@@ -43,6 +43,27 @@ internal static class Program
 
         if (opt.Help) { Usage(); return 0; }
 
+        if (opt.ShowVersion)
+        {
+            // ⚠ vmlcli **不引用 WayCoder 主工程**（只引用 vendored 的 third_party/vml），
+            //   所以拿不到 `Global.Version`。这里如实说明，**不编一个看起来像版本号的数字**。
+            var vmlAsm = typeof(CompilerBase.CompilerBase).Assembly.GetName();
+            Console.WriteLine("vmlcli —— WayCoder 的桌面 VML 宿主（编译 → 汇编 → 链接 → 运行）");
+            Console.WriteLine($"  VML 前端程序集：{vmlAsm.Name} {vmlAsm.Version}");
+            Console.WriteLine("  WayCoder 整体版本：见 WayCoder/Config/Global.cs 的 Global.Version");
+            return 0;
+        }
+
+        if (opt.ListPlugins)
+        {
+            var pmp = new PluginManager();
+            RegisterFrontendCompilers(pmp);
+            Console.WriteLine("已注册的前端编译器（名字 / 支持的扩展名）：");
+            foreach (var c in pmp.GetAllFrontendCompilers().OrderBy(c => c.Name, StringComparer.Ordinal))
+                Console.WriteLine($"  {c.Name,-12} {c.SupportedExtensions}");
+            return 0;
+        }
+
         // ── 模式二：重建 Lib 模块 ─────────────────────────────────────────────────
         // 把 Lib/shared/src/<模块>.c 编成 Lib/shared/<模块>.vml，**等价上游 CCompiler 的
         // `--no-link`**（`dotnet run --project CCompiler -- --no-link <src> -o <out>`）。
@@ -275,8 +296,20 @@ internal static class Program
         //   环境变量在"第一次用到该编译器"时就被快照、之后改了不生效。只有 C 因为
         //   `CCompiler/Preprocessor.cs:73` 每次构造都重读才碰巧是对的 ——
         //   **两套行为不一致，不能建立在"碰巧"上**（同一个进程里换宏更是直接失效）。
-        if (compiler is CompilerBase.CompilerBase cb && opt.Defines.Count > 0)
-            cb.SetConfig("defines", opt.Defines);
+        // 编译器旋钮的**唯一应用点** —— 新旋钮一律加在这里，别散到调用点各处。
+        // 散开的下场见上面 `-D` 那段长注释：`PredefinedMacros` 静态快照、环境变量改了不生效，
+        // 而"某一条路碰巧对"正是本仓反复吃亏的模式（同一规则两处实现）。
+        // 键名以 `CompilerConfig.SetConfig` 的 switch 为准（defines/undefines/targetmode/
+        // stacksize/ram/int64/float32/float64 …）。
+        if (compiler is CompilerBase.CompilerBase cb)
+        {
+            if (opt.Defines.Count > 0) cb.SetConfig("defines", opt.Defines);
+            if (opt.Undefines.Count > 0) cb.SetConfig("undefines", opt.Undefines);
+            if (opt.TargetMode != "mcu") cb.SetConfig("targetmode", opt.TargetMode);
+            if (opt.StackSize is int stackBytes) cb.SetConfig("stacksize", stackBytes);
+            if (opt.RamLevel is not null) cb.SetConfig("ram", opt.RamLevel);
+            foreach (var (numKey, numMode) in opt.NumberModes) cb.SetConfig(numKey, numMode);
+        }
 
         string vmlText;
         try
@@ -313,7 +346,10 @@ internal static class Program
         var langDefines = new List<string>
         {
             $"VML_{compiler.Name.ToUpperInvariant()}",
-            "VML_MODE_MCU",
+            // ⚠ 目标模式**两处都要跟着改**：前端认 `CompilerConfig.TargetMode`（上面 SetConfig
+            //   那一处），汇编/链接期认这个宏。只改一处就是"半接线" —— 程序按 os 编出来、
+            //   却按 mcu 汇编（或反过来），而且**两边都不报错**。
+            opt.TargetMode == "os" ? "VML_MODE_OS" : "VML_MODE_MCU",
             $"VML_RAM_{opt.RamSuffix}",
         };
         // ⚠ ② 汇编与 ③ 链接一起**必须包 try**，两条理由：
@@ -921,9 +957,25 @@ internal static class Program
                        少了它整个程序编不过，而**补头文件补不出来**。
   -I <目录>            追加头文件搜索路径（可重复）。**排在** VML 内置 `Lib` 之前 ——
                        与 gcc 的 -I 语义一致（用户的头可以覆盖库里的同名头）。
+  -U <名>              取消宏定义（可重复）。与 -D 成对，写法也一样是分离式。
 
   -O<0|1|2|s>          优化级别（默认 0 = 不优化）
   --lib <路径.vml>     额外要链进来的 VML 汇编文件（多文件程序用）
+
+目标 / 内存 / 数值（照 `vmltool` 的命令行面补的；上游那套 `-c/-a/-T/-e/-i` 等**操作模式**
+没搬 —— vmlcli 的用法是"给一个源文件就编译+运行"，那些是另一个产品的入口）：
+  -m, --mode, --target <mcu|os>
+                       目标模式（默认 mcu，与手机端一致）。**前端与汇编宏一起改**。
+  --stack-size <字节>  显式栈大小（不给就按内存档位自动分配）。递归深的程序要它。
+  --ram <k|m|g>        内存档位。与 --profile 是同一件事，但**连前端 MemoryLevel 一起设**
+                       （--profile 只驱动汇编期 `VML_RAM_*` 宏 —— 半接线，见 ApplyKnobs 注释）。
+  --int64 <hard|soft|none>
+  --float32 <hard|soft|none>
+  --float64 <hard|soft|none>
+                       数值模式。⚠ soft 在本平台**不可用**（要链 softfloat/softdouble，
+                       Lib 里没有）—— 给了会直接报错，而不是产出一个跑不起来的程序。
+  -v, -V, --version    版本
+  -P, --plugins        列出已注册的前端编译器及其扩展名
 
   --stdin <文本>       脚本化标准输入（给 getchar/getch/scanf 这类读字节的程序）。
                        换行写成字面 `\n`；没给就"读到的恒为空"。
@@ -1052,6 +1104,40 @@ internal sealed partial class CliOptions
     /// <summary><c>VML_RAM_*</c> 宏的后缀（手机端恒为 M —— 见 <c>MauiVml.BuildProgram</c>）。</summary>
     public string RamSuffix { get; private set; } = "M";
 
+    /// <summary>
+    /// <c>-m/--mode/--target mcu|os</c>：编译目标模式（默认 <c>mcu</c>，与手机端一致）。
+    /// 它**同时**管两处：前端 <c>CompilerConfig.TargetMode</c>，以及汇编期那个
+    /// <c>VML_MODE_MCU</c> 宏 —— 只改一处就是"半接线"，两边对不上比不改更糟。
+    /// </summary>
+    public string TargetMode { get; private set; } = "mcu";
+
+    /// <summary><c>--stack-size &lt;字节&gt;</c>：显式栈大小（不给就按 RAM 档位自动分配）。</summary>
+    public int? StackSize { get; private set; }
+
+    /// <summary>
+    /// <c>--ram k|m|g</c>：内存档位。与 <c>--profile 大/中/小</c> 是**同一件事**，
+    /// 但两者口径不同 —— <c>--profile</c> 只驱动汇编期 <c>VML_RAM_*</c> 宏，
+    /// 本参数把前端 <c>MemoryLevel</c> 也一起设上（见 <c>ApplyKnobs</c> 的注释）。
+    /// </summary>
+    public string? RamLevel { get; private set; }
+
+    /// <summary><c>-U &lt;宏&gt;</c>：取消宏定义（可重复）。与 <c>-D</c> 成对喂给前端的 Undefines。</summary>
+    public List<string> Undefines { get; } = new();
+
+    /// <summary>
+    /// <c>--int64/--float32/--float64 &lt;hard|soft|none&gt;</c>：数值模式（MCU 场景用）。
+    /// ⚠ 只给显式三态，**不抄 vmltool 的 <c>--soft-float</c>/<c>--no-float</c> 简写** ——
+    /// Soft 档要链 <c>softfloat.vml</c>/<c>softdouble.vml</c>，而本平台**没链那两个库**
+    /// （枚举注释里写着"本平台没链那个库"）⇒ 一个 `--soft-float` 会安静地产出跑不起来的程序。
+    /// </summary>
+    public List<(string Key, string Mode)> NumberModes { get; } = new();
+
+    /// <summary><c>-v/--version</c>：打印版本后退出。</summary>
+    public bool ShowVersion { get; private set; }
+
+    /// <summary><c>-P/--plugins</c>：列出已注册的前端编译器（名字 + 支持的扩展名）后退出。</summary>
+    public bool ListPlugins { get; private set; }
+
     /// <summary>`0`/`1`/`2`/`s` → 优化级别。`s`（省尺寸）按上游口径等于 2。`-O` 单写就是 `-O1`。</summary>
     private static int ParseOptimization(string spec) => spec.Trim().ToLowerInvariant() switch
     {
@@ -1167,6 +1253,63 @@ internal sealed partial class CliOptions
                         "小" or "small" or "tiny" or "k" => "K",
                         _ => throw new CliArgumentException($"--profile 只认 大/中/小，收到 `{p}`"),
                     };
+                    break;
+
+                // ── 以下这批是照 `vmltool` 的命令行面补的（见 usage 里那段说明）──
+                case "-v":
+                case "-V":
+                case "--version":
+                    o.ShowVersion = true;
+                    break;
+
+                case "-P":
+                case "--plugins":
+                    o.ListPlugins = true;
+                    break;
+
+                case "-m":
+                case "--mode":
+                case "--target":
+                    var tm = Require(args, ref i, "--mode").ToLowerInvariant();
+                    if (tm is not ("mcu" or "os"))
+                        throw new CliArgumentException($"--mode 只认 mcu|os，收到 `{tm}`");
+                    o.TargetMode = tm;
+                    break;
+
+                case "--stack-size":
+                case "-ss":
+                    var ssSpec = Require(args, ref i, "--stack-size");
+                    if (!int.TryParse(ssSpec, out var ssBytes) || ssBytes <= 0)
+                        throw new CliArgumentException($"--stack-size 需要正整数字节数，收到 `{ssSpec}`");
+                    o.StackSize = ssBytes;
+                    break;
+
+                case "--ram":
+                    var rl = Require(args, ref i, "--ram").ToLowerInvariant();
+                    if (rl is not ("k" or "m" or "g"))
+                        throw new CliArgumentException($"--ram 只认 k|m|g，收到 `{rl}`");
+                    o.RamLevel = rl;
+                    o.RamSuffix = rl.ToUpperInvariant();   // 一处输入 → 两处消费都跟着走
+                    break;
+
+                case "-U":
+                    // 与 `-D` **对称**：只要分离式（`-U FOO`）。
+                    // ⚠ 连写（GCC 的 `-UFOO`/`-DFOO`）两种都不支持 —— 别只给一个参数开连写口子：
+                    //   那是不对称，而"同一个规则两处不一致"正是本仓排第一的坑（我第一版就是这么写的）。
+                    o.Undefines.Add(Require(args, ref i, "-U"));
+                    break;
+
+                case "--int64":
+                case "--float32":
+                case "--float64":
+                    var nm = Require(args, ref i, a).ToLowerInvariant();
+                    if (nm is not ("hard" or "soft" or "none"))
+                        throw new CliArgumentException($"{a} 只认 hard|soft|none，收到 `{nm}`");
+                    if (nm == "soft")
+                        throw new CliArgumentException(
+                            $"{a} soft 在本平台不可用 —— Soft 档要链 softfloat/softdouble 库，"
+                            + "而本平台的 Lib 里没有它们（会产出跑不起来的程序）。hard 或 none 可以。");
+                    o.NumberModes.Add((a[2..], nm));
                     break;
 
                 default:
