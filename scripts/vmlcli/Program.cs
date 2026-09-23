@@ -458,6 +458,16 @@ internal static class Program
             return 2;
         }
 
+        // ⚠ **产物格式在编译之前判** —— 它是纯工程文件校验，与源码一个字都没关系。
+        //   原先这个判据长在下面"写产物"那一段里，代价是：写错一个格式名也要先把整个程序
+        //   编完链完才报，实测一个 C 程序白烧 2.5 秒（批量/CI 里每个工程文件都来一次）。
+        //   判据本身与手机端 `MauiVml.MakeProject` **共用** `VmlProject.DescribeFormatProblem`。
+        if (VmlProject.DescribeFormatProblem(proj.OutputFormat) is { } fmtProblem)
+        {
+            Console.Error.WriteLine($"✘ {fmtProblem}");
+            return 2;
+        }
+
         var vmlRoot = opt.VmlHome ?? FindVmlRoot(entry);
         if (vmlRoot is null)
         {
@@ -597,11 +607,11 @@ internal static class Program
                     break;
 
                 default:
-                    Console.Error.WriteLine(
-                        $"✘ 产物格式 `{proj.OutputFormat}` 还没做（预留的名字之一）。"
-                        + $"现在能出的是：{string.Join("、", VmlProject.ImplementedFormats)}。"
-                        + "改 <Output Format=\"…\"> 或去掉那个属性。");
-                    return 2;
+                    // 走到这里说明**上面那句前置校验与这个 switch 不同步了**（新增了格式却忘了
+                    // 在这里加写法，或者反过来）。宁可炸也别静默写出一份格式不对的产物 ——
+                    // 用户写的 `Format="hex"` 拿到的却是个 `.vml` 是最坏的那种"看着成功"。
+                    throw new UnreachableException(
+                        $"产物格式 `{proj.OutputFormat}` 通过了前置校验，却没有对应的写法");
             }
         }
         catch (Exception ex)

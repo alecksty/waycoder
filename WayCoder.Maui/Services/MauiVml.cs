@@ -294,11 +294,11 @@ HALT
                 $"⚠️ 找不到入口源文件：{SandboxFsService.Abbreviate(entry)}"
                 + $"（工程文件里写的是 <Entry>{proj.Entry}</Entry>）");
 
-        // ⚠ 认得出名字但**还没实现**的格式 —— 拒绝，**绝不静默退回 .vml**（见方法注释）
-        if (proj.OutputFormat is not (VmlProject.FormatVml or VmlProject.FormatVmb))
-            return new(null, null, [],
-                $"⚠️ 产物格式 `{proj.OutputFormat}` 还没做（预留的名字之一）。"
-                + $"现在能出的是：{string.Join("、", VmlProject.ImplementedFormats)}。");
+        // ⚠ 认得出名字但**还没实现**的格式 —— 拒绝，**绝不静默退回 .vml**（见方法注释）。
+        //   判据与桌面 `vmlcli make` **共用一份**（`VmlProject.DescribeFormatProblem`）：
+        //   两边各写一句必然漂，而漂的后果是"同一个 .vmk 在两端的说法不一样"。
+        if (VmlProject.DescribeFormatProblem(proj.OutputFormat) is { } fmtProblem)
+            return new(null, null, [], $"⚠️ {fmtProblem}");
 
         var outAbs = proj.OutputPath;
         var rel = SandboxFsService.ToRelative(outAbs);

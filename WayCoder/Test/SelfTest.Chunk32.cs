@@ -148,6 +148,24 @@ public static partial class SelfTest
         Check(@"预留格式 hex 认得（留给 make 报「还没做」而不是「拼错了」）",
             hex.OutputFormat == "hex");
 
+        // ⚠ 「预留但还没做」的判据**只有一份**（`DescribeFormatProblem`）：
+        //   桌面 `vmlcli make` 与手机 `MauiVml.MakeProject` 都调它 —— 两处各写一句必然漂，
+        //   而这里漂的后果是"同一个 .vmk 在两端的说法不一样"。
+        //   它另有一个**时序**上的要求：必须在**编译之前**问（纯工程文件校验，与源码无关）——
+        //   vmlcli 原先把它放在"写产物"那一段里，实测写错一个格式名要白烧 2.5 秒编译。
+        Check("已实现的格式没有问题可报（vml / vmb）",
+            VmlProject.DescribeFormatProblem(VmlProject.FormatVml) is null
+            && VmlProject.DescribeFormatProblem(VmlProject.FormatVmb) is null);
+        Check(@"`hex` 报得出「还没做」，且带上现在能做的清单",
+            VmlProject.DescribeFormatProblem("hex") is { } s1
+            && s1.Contains("还没做") && s1.Contains(VmlProject.FormatVml));
+        // 表驱动：将来往 ReservedFormats 里加名字，这条会跟着守住
+        //（"没实现"与"报得出来"必须一一对应，否则就退化成静默退回 .vml）
+        Check("每个没实现的预留格式都报得出来（新增预留名时不会漏）",
+            VmlProject.ReservedFormats.All(f =>
+                VmlProject.ImplementedFormats.Contains(f)
+                || VmlProject.DescribeFormatProblem(f) is not null));
+
         // 压根不认识的名字要报错（多半是拼错）
         CheckThrows(Check, Fail, @"Format=""vml2""（拼错）要报错",
             () => VmlProject.Parse("<VMLProject><Entry>a.c</Entry><Output Format=\"vml2\"/></VMLProject>", "/p"));

@@ -72,7 +72,7 @@ public static class HelpCatalog
         new("cli", "命令行", "💻",
         [
             new("cli/shell", "命令行页", "真 shell，`cd` 会改工作目录"),
-            new("cli/vml", "vml 命令", "vml run / vml test，扩展名自动识别"),
+            new("cli/vml", "vml 命令", "vml run / vml make / vml test，扩展名自动识别"),
         ]),
 
         new("files", "文件与会话", "📁",

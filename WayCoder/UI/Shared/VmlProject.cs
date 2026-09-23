@@ -94,6 +94,32 @@ public sealed class VmlProject
     public static readonly string[] ReservedFormats =
         { "bin", "rom", "elf", "hex", "s19", "exe", "dll", "class" };
 
+    /// <summary>
+    /// **名字认得出、但还没做**的格式，报出原因；能用就返回 <c>null</c>。
+    ///
+    /// <para>
+    /// 抽成一份是因为调用方有**两个**（桌面 <c>vmlcli make</c> 与手机 <c>MauiVml.MakeProject</c>），
+    /// 各自写一句必然漂 —— 而这里漂的后果是"两边对同一个 `.vmk` 说法不同"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>判据要在**编译之前**用</b>：它与源码一个字都没关系，纯粹是工程文件的字段校验。
+    /// 放在编译之后的话，写错一个格式名也要先把整个程序编完链完 —— 实测一个 C 程序白烧 2.5 秒，
+    /// 批量/CI 里每个工程文件都要这么来一次。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>绝不静默退回 <c>.vml</c></b>：写了 <c>Format="hex"</c> 却拿到一个 <c>.vml</c>，
+    /// 用户会以为"转译完了"，而手上是个根本烧不进芯片的文件。
+    /// </para>
+    /// </summary>
+    public static string? DescribeFormatProblem(string format) =>
+        ImplementedFormats.Contains(format)
+            ? null
+            : $"产物格式 `{format}` 还没做（预留的名字之一）。"
+              + $"现在能出的是：{string.Join("、", ImplementedFormats)}。"
+              + "改 <Output Format=\"…\"> 或去掉那个属性。";
+
     /// <summary>格式 → 默认后缀（`<Output>` 没写时用）。</summary>
     public static string ExtensionFor(string format) => format.ToLowerInvariant() switch
     {
