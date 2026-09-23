@@ -65,22 +65,67 @@ public static partial class SelfTest
             f.Args.Add(0); f.Args.Add(100);
             return f;
         }
-        // 盒高 = 行距(字号×1.3) ×(行数-1) + 字号 ⇒ 单行 20、两行 46
-        Check("VAlign: 顶（默认）= 老行为、偏移 0",
-            DrawParse.TextVOffset(Txt("top", 1)) == 0 && DrawParse.TextVOffset(Txt("top", 2)) == 0);
-        Check("VAlign: 竖中 = 上移半个盒高（单行 20 → -10）",
-            Math.Abs(DrawParse.TextVOffset(Txt("center", 1)) + 10) < 1e-9);
-        Check("VAlign: 竖中按**行数**算盒高（两行 46 → -23）",
-            Math.Abs(DrawParse.TextVOffset(Txt("center", 2)) + 23) < 1e-9);
-        Check("VAlign: 底 = 上移一个盒高（两行 46 → -46）",
-            Math.Abs(DrawParse.TextVOffset(Txt("bottom", 2)) + 46) < 1e-9);
+        // 契约：`y` 是**基线**（三条后端统一）；四档 = 把盒子的哪个部位摆到 y 上。
+        // 盒高 = 行距(字号×1.3) ×(行数-1) + 字号 ⇒ 单行 20、两行 46；上升 = 字号×0.8 = 16
+        // ⚠ 默认（不设竖对齐）必须是**基线档**（偏移 0 = 老行为）—— `DrawFigure.VAnchor`
+        //   的默认值因此从 `"top"` 改成了 `"base"`：不改的话，新模型里 `top` = 下移一个上升
+        //   ⇒ 所有既有文字整体下移 0.8×字号（这条判据就是用来钉住它的）。
+        Check("VAlign: 基线（默认）= 老行为、偏移 0",
+            DrawParse.TextVOffset(Txt("base", 1)) == 0);
+        // 直接验**字段默认值**本身就是基线档（改错成 "top" 的话既有文字会整体下移 0.8×字号）
+        // ⚠ 手工构造的 figure **必须补上 Args**（x/y）—— `TextBlockBox` 要读 `f.Args[0]`，
+        //   不补就是 IndexOutOfRange（第一版这么写把整轮自测崩掉了）。
+        var dflt = new DrawFigure { Kind = "text", Text = "x", FontSize = 20 };
+        dflt.Args.Add(0);
+        dflt.Args.Add(100);
+        Check("VAlign: DrawFigure.VAnchor 默认就是 base",
+            dflt.VAnchor == "base" && DrawParse.TextVOffset(dflt) == 0);
+        Check("VAlign: 顶 = 盒顶落在 y（单行 → 下移一个上升 +16）",
+            Math.Abs(DrawParse.TextVOffset(Txt("top", 1)) - 16) < 1e-9);
+        Check("VAlign: 竖中按**基线**算（单行 20 → +6）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 1)) - 6) < 1e-9);
+        Check("VAlign: 竖中按**行数**算盒高（两行 46 → -7）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 2)) + 7) < 1e-9);
+        Check("VAlign: 底 = 盒底落在 y（两行 46 → -30）",
+            Math.Abs(DrawParse.TextVOffset(Txt("bottom", 2)) + 30) < 1e-9);
+        // 判据的**不变式**：竖中时"盒中心"必须正好落在 y 上
+        //   （偏移 + 盒高/2 = 上升 ⇒ 基线在 y + 上升 − h/2，盒中心 = 基线 − 上升 + h/2 = y）
+        Check("VAlign: 竖中的盒中心正好落在 y（不变式）",
+            Math.Abs((DrawParse.TextVOffset(Txt("center", 1)) + 20.0 / 2) - DrawParse.TextAscentRatio * 20) < 1e-9);
+        Check("VAlign: 竖底的盒底正好落在 y（不变式）",
+            Math.Abs((DrawParse.TextVOffset(Txt("bottom", 1)) + 20.0) - DrawParse.TextAscentRatio * 20) < 1e-9);
+        Check("VAlign: 竖顶的盒顶正好落在 y（不变式）",
+            Math.Abs(DrawParse.TextVOffset(Txt("top", 1)) - DrawParse.TextAscentRatio * 20) < 1e-9);
 
         // DSL：`vtop/vcenter/vbottom` 要认，且**不与横锚点的 middle 重名**
         var vfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vcenter"));
         Check("VAlign: DSL 认 vcenter", vfig != null && vfig.VAnchor == "center");
         var hfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 middle"));
-        Check("VAlign: 横锚点的 middle **不**被当成竖中",
-            hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "top");
+        Check("VAlign: 横锚点的 middle **不**被当成竖中（竖档保持默认 = 基线）",
+            hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "base");
+        var bfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vbase"));
+        Check("VAlign: DSL 认 vbase", bfig != null && bfig.VAnchor == "base");
+
+        // ── 文字解码：UTF-8 合法就用它，不合法按 CP437 兜（DOS 老程序）──
+        //
+        // 背景（2026-09-23 真机报的）：老 BGI 程序的字符串是 **CP437 字节**（框线 C4、重音 E9…），
+        // 而绘图侧按 UTF-8 硬解 ⇒ 屏幕上一串问号（U+FFFD）。控制台那条路**一直在用 CP437**
+        // （`VMLRuntime.Syscall.cs` 的 `OutputChar`）⇒ 同一个程序 `print` 是好的、`outtextxy`
+        // 画到窗口上却是问号 —— 两条路对同一份字节两套规则。
+        // ⚠ 兜底解码器是**注入**的：本工程（桌面主工程）**不引用 VML 程序集**，所以这里注入一个假的
+        //   （真表只有一份，在 `VMLRuntime.Device.Cp437`，由手机与 CLI 两个宿主接上）。
+        Section("[VML.文字解码] UTF-8 / CP437 兜底");
+        var raw = new byte[16];
+        raw[0] = (byte)'A'; raw[1] = 0xC4; raw[2] = (byte)'B'; raw[3] = 0;
+        VmlHostRuntime.NonUtf8ByteDecoder = b => b == 0xC4 ? '─' : (char)b;
+        Check("Str: 非 UTF-8 → 按注入的 CP437 表解码", VmlHostRuntime.Str(raw, 0) == "A─B");
+        var u8 = Encoding.UTF8.GetBytes("象棋");
+        var m8 = new byte[16];
+        Array.Copy(u8, m8, u8.Length);
+        Check("Str: UTF-8 合法 → 原样解（现代程序一字不变）", VmlHostRuntime.Str(m8, 0) == "象棋");
+        VmlHostRuntime.NonUtf8ByteDecoder = null;
+        Check("Str: 没人注入 → 退回老行为（坏字节变 U+FFFD，不静默变样）",
+            VmlHostRuntime.Str(raw, 0).Contains('�'));
         Console.WriteLine();
 
         // ── DrawRunner.Parse ──
@@ -968,6 +1013,31 @@ public static partial class SelfTest
             t1?.Type == VmlMsgType.KeyDown && t2?.Type == VmlMsgType.KeyUp);
         q2.Clear();
         Check("VmlMessageQueue: Clear 后为空且不残留信号量", q2.Count == 0 && q2.Take(5) == null);
+
+        // ── 阻塞读的**取消**（"强制终止"能不能落地的判据）──
+        //
+        // 背景（2026-09-23 用户真机报的）：旧 BGI 程序结尾是 `getch()`，就停在宿主的
+        // **无限等消息**上；而 VM 的取消令牌只"每条指令查一次" —— 程序此刻不执行指令，
+        // 于是关窗口 / 强制停止都叫不醒它，表现是「退出弹窗后程序还没结束」。
+        // 修法：让阻塞等待认令牌（`VmlMessageQueue.WaitPostOrCancel`）。
+        // 这条用例钉住那个行为：**令牌一响，阻塞读必须当场抛**，不是等超时。
+        var q3 = new VmlMessageQueue();
+        using (var cts = new CancellationTokenSource())
+        {
+            var blocked = Task.Run(() =>
+            {
+                try { q3.Take(0, cts.Token); return "returned"; }       // 0 = 无限等
+                catch (OperationCanceledException) { return "cancelled"; }
+            });
+            Thread.Sleep(50);                                            // 让它真的进到等待里
+            cts.Cancel();
+            var got = blocked.Wait(2000) && blocked.Result == "cancelled";
+            Check("VmlMessageQueue: 令牌取消能打断阻塞读（否则强制终止无效）", got);
+        }
+        // 反向判据：**不给令牌时一个字都不改**（老路径仍能正常取到消息）
+        var q4 = new VmlMessageQueue();
+        q4.Post(new VmlMessage(VmlMsgType.KeyDown, 7, 0, 0));
+        Check("VmlMessageQueue: 不带令牌仍走老路径", q4.Take(50)?.A == 7);
 
         // ── 键码约定（跨端唯一来源：绘制窗口的屏幕按键与包装库都引用它）──
         Check("VmlKeys: 沿用 Win32 虚拟键值",

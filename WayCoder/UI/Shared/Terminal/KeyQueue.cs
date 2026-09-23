@@ -44,8 +44,11 @@ public sealed class KeyQueue
 
     /// <summary>
     /// 取一个按键（VM 线程）。**没有就阻塞** —— 这正是"程序在等输入"的语义。
+    /// <paramref name="ct"/> 一响就抛 <see cref="OperationCanceledException"/>：程序卡在
+    /// "等按键"上时不执行指令，VM 的令牌检查够不着它 —— 不给取消入口就等于停不掉它
+    /// （与消息队列、对话框是同一个道理）。不传 = 老行为（一直等）。
     /// </summary>
-    public char Take()
+    public char Take(CancellationToken ct = default)
     {
         TaskCompletionSource<char> tcs;
         lock (_gate)
@@ -54,6 +57,11 @@ public sealed class KeyQueue
             tcs = new TaskCompletionSource<char>(TaskCreationOptions.RunContinuationsAsynchronously);
             _waiter = tcs;      // 覆盖前一个等待者（见类注释：VM 单线程，正常不会有两个）
         }
+        if (!ct.CanBeCanceled) return tcs.Task.GetAwaiter().GetResult();
+        // ⚠ `Task.Wait(token)` 在"任务自己失败"时抛的是 AggregateException，与原来的
+        //   `GetAwaiter().GetResult()`（抛内层真实异常）不同 ⇒ 那种情况放行到下面那句。
+        try { tcs.Task.Wait(ct); }
+        catch (AggregateException) { }
         return tcs.Task.GetAwaiter().GetResult();
     }
 

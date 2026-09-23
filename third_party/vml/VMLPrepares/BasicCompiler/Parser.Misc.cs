@@ -14,11 +14,20 @@ namespace BasicCompiler
                 return new Identifier(arrayNameToken.Line, arrayNameToken.Column, arrayNameToken.Value);
             }
             Advance(); // 跳过 '('
-            
-            // 解析索引表达式 (支持逗号分隔的多维)
+
+            // `arr()` = **整个数组**（没有下标）—— 例如 `CALL MakeCityScape(BCoor())`。
+            // 必须在解析下标**之前**判：`ParseExpression()` 碰到 `)` 会返回 null，
+            // 于是 `Indices` 里躺着一个 null、读起来与"漏写下标的元素访问"分不开。
+            // 记成 `IsWholeArray` 之后，代码生成给的是**数组基址**（`GenerateVariableAddress`）。
             ArrayAccessExpression arrayAccess = new ArrayAccessExpression(arrayNameToken.Line, arrayNameToken.Column);
             arrayAccess.ArrayName = arrayNameToken.Value;
-            
+            if (Peek().Type == TokenType.RPAREN)
+            {
+                Advance(); // 跳过 ')'
+                arrayAccess.IsWholeArray = true;
+                return arrayAccess;
+            }
+
             while (true)
             {
                 Expression indexExpr = ParseExpression();
@@ -185,7 +194,11 @@ namespace BasicCompiler
                 else if (Peek().Type == TokenType.END)
                 {
                     // 只当 END 后跟 SELECT 时才表示 END SELECT
-                    if (current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SELECT)
+                    //
+                    // ⚠ 还要**同一个源行**（`IsEndOfBlock`）：只看"下一个 token 是 SELECT"
+                    //   的话，一条独立的 `END` 后面接一条 `SELECT CASE …` 会被当成 END SELECT
+                    //   ——与 `Parser.Core.cs` 的 `IsCompoundEnd` 是同一个坑，判据共用一处。
+                    if (IsEndOfBlock(current, TokenType.SELECT))
                         break;
                     // 其他 END (如 END IF / END SUB) 属于嵌套块，跳过并继续
                     Advance();
@@ -201,7 +214,12 @@ namespace BasicCompiler
             while (Peek().Type == TokenType.COLON) Advance();
 
             // 期望 END SELECT
-            if (Peek().Type == TokenType.END)
+            //
+            // ⚠ 这里此前**无条件**吃掉一个 END（再"有 SELECT 就吃"），于是 `SELECT CASE`
+            //   块后面那条独立的 `END`（主程序最常见的那一条）会被它吞掉 ——
+            //   程序编得过，但**不再停止执行**，一路顺着往下跑进第一个子程序。
+            //   判据同样收敛到 `IsEndOfBlock`（同一个源行的 `END SELECT`）。
+            if (IsEndOfBlock(current, TokenType.SELECT))
             {
                 Advance(); // 跳过 END
                 while (Peek().Type == TokenType.COLON) Advance();

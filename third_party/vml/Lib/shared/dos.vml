@@ -27,11 +27,13 @@ GetDate:
         jz sta_96560000
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R11
         move [@R11] @R0
 sta_96560000:
 sta_96560001:
@@ -41,6 +43,7 @@ sta_96560001:
         jz sta_96560002
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12-8]
         push @R0
         move @R0 #5
@@ -51,6 +54,7 @@ sta_96560001:
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R10
         move [@R10] @R0
 sta_96560002:
 sta_96560003:
@@ -60,6 +64,7 @@ sta_96560003:
         jz sta_96560004
         move @R0 [@R12+20]
         move @R9 @R0
+        push @R9
         move @R0 [@R12-8]
         push @R0
         move @R0 #8
@@ -70,6 +75,7 @@ sta_96560003:
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R9
         move [@R9] @R0
 sta_96560004:
 sta_96560005:
@@ -79,7 +85,9 @@ sta_96560005:
         jz sta_96560006
         move @R0 [@R12+24]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         move [@R8] @R0
 sta_96560006:
 sta_96560007:
@@ -112,11 +120,13 @@ GetTime:
         jz sta_96560008
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R7
         move [@R7] @R0
 sta_96560008:
 sta_96560009:
@@ -126,6 +136,7 @@ sta_96560009:
         jz sta_96560010
         move @R0 [@R12+16]
         move @R6 @R0
+        push @R6
         move @R0 [@R12-8]
         push @R0
         move @R0 #3
@@ -136,6 +147,7 @@ sta_96560009:
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R6
         move [@R6] @R0
 sta_96560010:
 sta_96560011:
@@ -145,6 +157,7 @@ sta_96560011:
         jz sta_96560012
         move @R0 [@R12+20]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-8]
         push @R0
         move @R0 #6
@@ -155,6 +168,7 @@ sta_96560011:
         move @R0 [@R13+0]
         call atoi
         add @R13 #4
+        pop @R5
         move [@R5] @R0
 sta_96560012:
 sta_96560013:
@@ -164,7 +178,9 @@ sta_96560013:
         jz sta_96560014
         move @R0 [@R12+24]
         move @R4 @R0
+        push @R4
         move @R0 #0
+        pop @R4
         move [@R4] @R0
 sta_96560014:
 sta_96560015:
@@ -211,7 +227,9 @@ sound:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 48:     asm("SYSCALL #57, ${freq}, ${5000}");
+; 50:     asm("MOVE R1 #5000");
+        asm "MOVE R1 #5000"
+; 51:     asm("SYSCALL #57, ${freq}");
         move @R0 [@R12+12]
         syscall #57
         move [@R12-4] @R0
@@ -230,7 +248,7 @@ nosound:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 51:     asm("SYSCALL #542");                   /* AudioStop —— 立刻掐掉正在响的那一段 */
+; 54:     asm("SYSCALL #542");                   /* AudioStop —— 立刻掐掉正在响的那一段 */
         syscall #542
         move [@R12-4] @R0
         move @R13 @R12
@@ -249,11 +267,11 @@ getdate:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 54:     char* s = (char*)asm("SYSCALL #55");   /* "YYYY-MM-DD" */
+; 57:     char* s = (char*)asm("SYSCALL #55");   /* "YYYY-MM-DD" */
         syscall #55
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 55:     if (!d) return;
+; 58:     if (!d) return;
         move @R0 [@R12+12]
         move @R0 [@R12+12]
         test @R0 @R0
@@ -268,7 +286,7 @@ _L96560019:
         jmp L_96560020
 sta_96560016:
 sta_96560017:
-; 56:     d->da_year = atoi(s);
+; 59:     d->da_year = atoi(s);
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
@@ -277,7 +295,7 @@ sta_96560017:
         move @R3 @R0
         move @R0 [@R12+12]
         move [@R0] @R3
-; 57:     d->da_mon  = (char)atoi(s + 5);
+; 60:     d->da_mon  = (char)atoi(s + 5);
         move @R0 [@R12-8]
         push @R0
         move @R0 #5
@@ -292,7 +310,7 @@ sta_96560017:
         move @R0 [@R12+12]
         add @R0 #5
         moveb [@R0] @R2
-; 58:     d->da_day  = (char)atoi(s + 8);
+; 61:     d->da_day  = (char)atoi(s + 8);
         move @R0 [@R12-8]
         push @R0
         move @R0 #8
@@ -324,11 +342,11 @@ gettime:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 61:     char* s = (char*)asm("SYSCALL #56");   /* "HH:MM:SS" */
+; 64:     char* s = (char*)asm("SYSCALL #56");   /* "HH:MM:SS" */
         syscall #56
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 62:     if (!t) return;
+; 65:     if (!t) return;
         move @R0 [@R12+12]
         move @R0 [@R12+12]
         test @R0 @R0
@@ -343,7 +361,7 @@ _L96560024:
         jmp L_96560025
 sta_96560021:
 sta_96560022:
-; 63:     t->ti_hour = (unsigned char)atoi(s);
+; 66:     t->ti_hour = (unsigned char)atoi(s);
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
@@ -353,7 +371,7 @@ sta_96560022:
         move @R0 [@R12+12]
         add @R0 #1
         moveb [@R0] @R11
-; 64:     t->ti_min  = (unsigned char)atoi(s + 3);
+; 67:     t->ti_min  = (unsigned char)atoi(s + 3);
         move @R0 [@R12-8]
         push @R0
         move @R0 #3
@@ -367,7 +385,7 @@ sta_96560022:
         move @R10 @R0
         move @R0 [@R12+12]
         moveb [@R0] @R10
-; 65:     t->ti_sec  = (unsigned char)atoi(s + 6);
+; 68:     t->ti_sec  = (unsigned char)atoi(s + 6);
         move @R0 [@R12-8]
         push @R0
         move @R0 #6
@@ -382,7 +400,7 @@ sta_96560022:
         move @R0 [@R12+12]
         add @R0 #3
         moveb [@R0] @R9
-; 66:     t->ti_hund = 0;
+; 69:     t->ti_hund = 0;
         move @R0 #0
         move @R8 @R0
         move @R0 [@R12+12]
@@ -404,7 +422,7 @@ DosVersion:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 70:     return 0x0700;  // 模拟 DOS 7.0
+; 73:     return 0x0700;  // 模拟 DOS 7.0
         move @R0 #1792
         jmp L_96560026
 L_96560026:
@@ -424,7 +442,7 @@ DiskFree:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 78:     return 65535;
+; 81:     return 65535;
         move @R0 #65535
         jmp L_96560027
 L_96560027:
@@ -444,7 +462,7 @@ DiskSize:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 81:     return 65535;
+; 84:     return 65535;
         move @R0 #65535
         jmp L_96560028
 L_96560028:
@@ -466,7 +484,7 @@ FindFirst:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 91:     return 0;  // 简化: 未实现, 返回 0 = no match
+; 94:     return 0;  // 简化: 未实现, 返回 0 = no match
         move @R0 #0
         jmp L_96560029
 L_96560029:
@@ -486,7 +504,7 @@ FindNext:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 94:     return 0;
+; 97:     return 0;
         move @R0 #0
         jmp L_96560030
 L_96560030:
@@ -521,7 +539,7 @@ EnvCount:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 103:     return 0;  // VML MCU 模式无环境变量
+; 106:     return 0;  // VML MCU 模式无环境变量
         move @R0 #0
         jmp L_96560031
 L_96560031:
@@ -541,7 +559,7 @@ EnvStr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 106:     return (char*)0;  // null
+; 109:     return (char*)0;  // null
         move @R0 #0
         jmp L_96560032
 L_96560032:
@@ -561,7 +579,7 @@ GetEnv:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 109:     return (char*)0;
+; 112:     return (char*)0;
         move @R0 #0
         jmp L_96560033
 L_96560033:
@@ -582,7 +600,7 @@ Exec:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 115:     return -1;  // VML MCU 模式不支持 Exec
+; 118:     return -1;  // VML MCU 模式不支持 Exec
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
@@ -620,13 +638,15 @@ GetIntVec:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 123:     if (vector) *(void**)vector = 0;
+; 126:     if (vector) *(void**)vector = 0;
         move @R0 [@R12+16]
         cmp @R0 #0
         jz sta_96560035
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 #0
+        pop @R7
         move [@R7] @R0
 sta_96560035:
 sta_96560036:
@@ -663,7 +683,7 @@ DosExitCode:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 132:     return 0;
+; 135:     return 0;
         move @R0 #0
         jmp L_96560037
 L_96560037:

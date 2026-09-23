@@ -12,21 +12,30 @@ namespace BasicCompiler
 
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
             {
-                // 遇到下一行的行号则终止（行号与 PRINT 不在同一行）
-                if (Peek().Type == TokenType.NUMBER && Peek().Line > token.Line)
+                // **换行 = 这条 PRINT 说完了**（见 `LineEnded`：逗号/分号在行尾时不能把
+                //  下一行的语句当列表项吃掉 —— GORILLA 的 `Kbd$ = INKEY$` 就是这么没的）
+                if (LineEnded(token.Line))
                     break;
                 // Stop if next token can't start an expression
                 if (!IsExpressionStart(Peek()))
                     break;
                 Expression expr = ParseExpression();
-                if (expr != null)
+                bool hasExpr = expr != null;
+                if (hasExpr)
                     stmt.Expressions.Add(expr);
                 if (Peek().Type == TokenType.COMMA || Peek().Type == TokenType.SEMICOLON)
                 {
+                    // ⚠ **分隔符要记下来，不能只是跳过** —— 它决定"这一项打完之后换不换行"
+                    //   （`;` 紧接、`,` 跳打印区、到语句末尾则换行）。从前这里直接丢，
+                    //   代码生成侧只好无条件补换行，见 `PrintStatement.Separators` 的说明。
+                    //   `Separators` 与 `Expressions` **必须等长**（生成侧按下标配对取用），
+                    //   所以表达式的那个 `null` 分支（理论上不该发生）也一并跳过记账。
+                    if (hasExpr) stmt.Separators.Add(Peek().Type == TokenType.COMMA ? ',' : ';');
                     Advance(); // 跳过逗号或分号
                 }
                 else
                 {
+                    if (hasExpr) stmt.Separators.Add('\0');   // 语句在这里结束 ⇒ 这一项之后换行
                     break;
                 }
             }
@@ -39,8 +48,38 @@ namespace BasicCompiler
             Token token = Advance(); // 跳过 INPUT
             InputStatement stmt = new InputStatement(token.Line, token.Column);
 
+            // ⚠ **提示串与分隔符必须先吃掉**。
+            //
+            //   `INPUT "Name"; s$` 是最普通的写法，而此前这里直接从"变量名"开始收：
+            //   `"Name"` 不是 IDENTIFIER ⇒ 立刻 break，`"Name"; s$` 整段留在 token 流上。
+            //   后果分两档，**都不报错**（所以一直没被发现）：
+            //     · `; s$` 里的 `s$` 落到「名字后面不是 `=`」的兜底分支编成 `CALL func_s$`，
+            //       链接器的"裸名别名"把 `func_s$` 兜到同名全局变量上 ⇒ **编得过**，
+            //       运行期跳进数据段、整个程序崩掉；
+            //     · 而带 `$` 的变量（`func_player1$` → 别名查 `player1` 查不到）才会
+            //       响亮地报「未定义的函数」—— GORILLA.BAS 的 `GetInputs` 正是这一档
+            //       （`INPUT "…"; grav$` / `LINE INPUT "…"; Player1$`，一次报 4 个）。
+            //   提示串在 `InputStatement` 里**没有对应字段**（本后端的 INPUT 提示是固定文案），
+            //   所以这里只是收掉它、不留信息 —— 要的是"别把它漏给语句层"。
+            if (Peek().Type == TokenType.STRING)
+            {
+                Advance(); // skip 提示串
+                if (Peek().Type == TokenType.SEMICOLON || Peek().Type == TokenType.COMMA)
+                    Advance();
+            }
+            else if (Peek().Type == TokenType.HASH)
+            {
+                // `INPUT #1, var` —— 文件号
+                Advance(); // skip #
+                ParseExpression();
+                if (Peek().Type == TokenType.COMMA) Advance();
+            }
+
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
             {
+                // 行尾结束（同 `LineEnded`）：`INPUT a,` 的尾逗号不能吃掉下一行
+                if (LineEnded(token.Line))
+                    break;
                 if (Peek().Type == TokenType.IDENTIFIER)
                 {
                     stmt.Variables.Add(new Identifier(Peek().Line, Peek().Column, Peek().Value));
@@ -111,8 +150,9 @@ namespace BasicCompiler
             while (!AtEnd())
             {
                 if (Peek().Type == TokenType.ELSEIF || Peek().Type == TokenType.ELSE) break;
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count
-                    && tokens[current + 1].Type == TokenType.IF) break;
+                // `END IF` 判据走 `IsEndOfBlock`（**同一个源行**）—— 一条独立的 `END`
+                // 后面接一条新的 `IF` 不是 END IF（见 `Parser.Core.cs` 的 `IsCompoundEnd`）。
+                if (IsEndOfBlock(current, TokenType.IF)) break;
                 if (Peek().Type == TokenType.COLON || Peek().Type == TokenType.NUMBER)
                 {
                     Advance();
@@ -221,7 +261,22 @@ namespace BasicCompiler
             }
 
             // Consume END IF if present
-            if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.IF)
+            //
+            // ⚠ 判据是「同一个源行的 `END IF`」（见 `Parser.Core.cs` 的 `IsCompoundEnd` 长注释）：
+            //   从前只看"END 后面跟 IF"，于是 **IF 块后面那一条独立的 `END`**（主程序收尾那条，
+            //   若紧跟的下一句恰好以 IF 开头）会被当成 END IF 吃掉，程序于是不再停止执行。
+            //
+            // ⚠⚠ 还必须是 `blockForm`：**单行 IF 没有 `END IF`**（`IF 1 > 2 THEN y = 0`），
+            //   无条件去找一个来吃，吃的必然是**外层块式 IF 的那个**。后果不是"少一个 END IF"
+            //   这么轻 —— 外层块体少收尾之后 `ParseBlockBody` 会**顺着块外面的语句继续吃**
+            //   （它只认 ELSEIF/ELSE/END IF 三个边界，`LOOP`/`NEXT` 都不认），
+            //   一路吃到 `LOOP UNTIL n <> 3` 那一行，把 `n` 当成一次裸调用编成 `CALL func_n`
+            //   —— 报的错是「未定义的函数 'func_n'」，而**真正出错的那一行里一个函数都没有**。
+            //   修前最小复现（`.scratch/t_min.bas`，5 行）：
+            //     `DO / IF n THEN / IF 1 > 2 THEN y = 0 / END IF / LOOP UNTIL n <> 3`
+            //   实测这就是 GORILLA.BAS 里 `PlotShot` 吞掉其后**全部** SUB/FUNCTION 的那一条
+            //   （报 `func_dosun` / `func_impact` / `func_lookx` 未定义，而它们都定义得好好的）。
+            if (blockForm && IsEndOfBlock(current, TokenType.IF))
             {
                 Advance(); // skip END
                 Advance(); // skip IF
@@ -334,6 +389,13 @@ namespace BasicCompiler
             {
                 stmt.VariableName = varName;
                 stmt.Size = 1;
+                // ⚠ **不能在这里直接 return** —— `DIM SHARED A, B`（不带括号的逗号列表）
+                //   是合法写法，直接返回就把 `, B` 留在了 token 流上：语句层不认识逗号，
+                //   `B` 于是落到 `case TokenType.IDENTIFIER` 的兜底分支、编成 `CALL func_b`，
+                //   链接期报「未定义的函数 'func_b'」。实测最小复现：
+                //     `DIM SHARED A, B / A = 1 / B = 2 / PRINT A; B` ⇒ `func_b` 未定义。
+                //   走下面那个逗号循环把它们吃掉（与带括号那条路**同一份**代码）。
+                ConsumeDimExtraNames();
                 return stmt;
             }
             Advance(); // 跳过(
@@ -417,6 +479,7 @@ namespace BasicCompiler
                 int dimSize = upperBound - lowerBound + 1;
                 if (dimSize < 1) dimSize = 1;
                 stmt.Dimensions.Add(dimSize);
+                stmt.LowerBounds.Add(lowerBound);   // 下界要留着：下标 → 槽位的换算要用
                 
                 // 检查是逗号还是右括号
                 if (Peek().Type == TokenType.COMMA)
@@ -460,12 +523,33 @@ namespace BasicCompiler
             }
             
             // Consume comma-separated DIM vars: DIM SHARED a(n), b(m), c AS Type
+            ConsumeDimExtraNames();
+
+            return stmt;
+        }
+
+        /// <summary>
+        /// 吃掉 `DIM a, b, c` / `DIM a(3), b(4)` 里**第一个名字之后**的那些名字。
+        ///
+        /// <para>
+        /// 两条路（带括号的数组、不带括号的简单变量）都要调它 —— 判据只有一份，
+        /// 分开写必然漂移（不带括号那条此前就是漏的，见调用点的长注释）。
+        /// </para>
+        /// <para>
+        /// ⚠ 这里**只跳不记**：`DimStatement` 只能装一个名字。数组那一路靠解析器
+        /// 第一遍的 `declaredArrays` token 扫描拿到全部名字（`Parser.Core.cs`），
+        /// 简单变量那一路靠后续赋值/引用时 `GetOrCreateVariable` 建出来 ——
+        /// 两者都能工作，所以这里不必（也不能）把名字塞进这条语句。
+        /// 要的是"别把 `, b` 漏给语句层"。
+        /// </para>
+        /// </summary>
+        private void ConsumeDimExtraNames()
+        {
             while (Peek().Type == TokenType.COMMA)
             {
                 Advance(); // skip comma
                 if (Peek().Type == TokenType.IDENTIFIER)
                 {
-                    var extraName = Peek().Value;
                     Advance(); // skip name
                     // Skip array dimensions if present: ident(size) or ident(low TO high)
                     if (Peek().Type == TokenType.LPAREN)
@@ -490,8 +574,6 @@ namespace BasicCompiler
                     }
                 }
             }
-
-            return stmt;
         }
 
         private ForStatement ParseForStatement()

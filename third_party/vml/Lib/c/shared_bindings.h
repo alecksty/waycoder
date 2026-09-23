@@ -1293,6 +1293,7 @@ __stdcall void vga_text_newline(void);
  void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
  void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);
  void ui_set_font(int size, int style, int color, int anchor);
+ void ui_set_valign(int valign);
  void ui_text_cur(int x, int y, char* s);
  int ui_poll(int* msg);
  int ui_wait(int* msg, int timeout_ms);

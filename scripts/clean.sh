@@ -75,7 +75,20 @@ else
     BEFORE=$(du -sk . 2>/dev/null | awk '{print $1}')
 fi
 
+SKIPPED_SCRATCH=0
 del() {
+    # ── .scratch/ 统一闸门（放在这个唯一删除出口，别散到上面各段各加一条 -not -path）──
+    # 文件头把 .scratch/ 定义为「有意保留的本地草稿材料」（--scratch 才清），但上面各段是按
+    # **目录名 / 扩展名**全树匹配的，会伸进 .scratch 内部。2026-09-23 实测踩到：
+    #   · bin/obj 那一段删掉了 .scratch/oldprogs/src/number/ 下 **70 个 NetBSD 源码目录** ——
+    #     NetBSD 的 bin/ 里放的是**源码**（external/bsd/flex/bin、external/apache2/llvm/bin…），
+    #     不是构建产物；obj/ 同理。
+    #   · *.user 那段删掉了 unbound 的**测试夹具** external/bsd/unbound/dist/…/bad.user。
+    # ⚠ 收口在这里：漏一处就是这个坑重演（本仓头号教训 —— 规则要收口成唯一实现）。
+    if [[ "$SCRATCH" -ne 1 && "$1" == *"/.scratch/"* ]]; then
+        SKIPPED_SCRATCH=$((SKIPPED_SCRATCH + 1))
+        return
+    fi
     if [[ "$DRY_RUN" -eq 1 ]]; then
         echo "  [将删] $1"
     else
@@ -210,6 +223,11 @@ else
     else
         echo "  (无 .git 仓库)"
     fi
+fi
+
+if [[ "$SKIPPED_SCRATCH" -gt 0 ]]; then
+    echo "── .scratch/ 闸门 ──"
+    echo "  .scratch/ 下 ${SKIPPED_SCRATCH} 项按约定保留（要清加 --scratch）"
 fi
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

@@ -224,13 +224,23 @@ public partial class Parser : ParserBase<Token, TokenType>
         s.Expressions = new List<Expression>();
         while (Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
         {
+            // 行尾结束（同 `ParsePrintStatement` / `LineEnded`）
+            if (LineEnded(t.Line)) break;
             if (!IsExpressionStart(Peek())) break;
             Expression expr = ParseExpression();
-            if (expr != null) s.Expressions.Add(expr);
+            bool hasExpr = expr != null;
+            if (hasExpr) s.Expressions.Add(expr);
+            // 分隔符记账 —— 与 `ParsePrintStatement` 同一口径（见 `PrintStatement.Separators`）
             if (Peek().Type == TokenType.COMMA || Peek().Type == TokenType.SEMICOLON)
+            {
+                if (hasExpr) s.Separators.Add(Peek().Type == TokenType.COMMA ? ',' : ';');
                 Advance();
+            }
             else
+            {
+                if (hasExpr) s.Separators.Add('\0');
                 break;
+            }
         }
         return s;
     }
@@ -243,6 +253,9 @@ public partial class Parser : ParserBase<Token, TokenType>
         var s = new DataStatement(t.Line, t.Column);
         while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON && Peek().Type != TokenType.DATA)
         {
+            // 行尾结束（同 `LineEnded`）：`DATA 1,` 的尾逗号不能吃掉下一行
+            if (LineEnded(t.Line))
+                break;
             s.Values.Add(ParseExpression());
             if (Peek().Type == TokenType.COMMA)
                 Advance();
@@ -258,10 +271,41 @@ public partial class Parser : ParserBase<Token, TokenType>
         var s = new ReadStatement(t.Line, t.Column);
         while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
         {
+            // 行尾结束（同 `LineEnded`）：`READ a,` 的尾逗号不能吃掉下一行
+            if (LineEnded(t.Line))
+                break;
             if (Peek().Type == TokenType.IDENTIFIER)
             {
-                s.Variables.Add(new Identifier(Peek().Line, Peek().Column, Peek().Value));
+                var id = new Identifier(Peek().Line, Peek().Column, Peek().Value);
                 Advance();
+                // ⚠ `READ a(i)` —— 数组元素。**下标必须一起吃掉**。
+                //
+                //   从前这里只 Add 一个 Identifier 就完事，`(i)` 留在 token 流上：
+                //   `(` 被语句层跳过、`i` 落到「名字后面不是 `=`」的兜底分支编成 `CALL func_i`，
+                //   链接期报「未定义的函数 'func_i'」——**报错的名字与真实缺陷（数组元素读）
+                //   毫无关联**，而且链接器还会把 `func_i` 兜到同名全局变量上，
+                //   于是它**不报错也能"跑"**、只在运行期崩。
+                //   实测最小复现：`FOR i = 0 TO 2 / READ arr(i) / NEXT i` ⇒ func_i；
+                //   GORILLA.BAS 的 `READ LBan&(i)`（8 个循环）就是这一条。
+                if (Peek().Type == TokenType.LPAREN)
+                {
+                    Advance(); // skip (
+                    var acc = new ArrayAccessExpression(id.Line, id.Column) { ArrayName = id.Name };
+                    while (!AtEnd() && Peek().Type != TokenType.RPAREN && Peek().Type != TokenType.COLON)
+                    {
+                        if (Peek().Type == TokenType.COMMA) { Advance(); continue; }
+                        var idx = ParseExpression();
+                        if (idx == null) break;
+                        acc.Indices.Add(idx);
+                    }
+                    if (Peek().Type == TokenType.RPAREN) Advance(); // skip )
+                    if (acc.Indices.Count > 0) acc.Index = acc.Indices[0];
+                    s.Variables.Add(acc);
+                }
+                else
+                {
+                    s.Variables.Add(id);
+                }
             }
             if (Peek().Type == TokenType.COMMA)
                 Advance();
@@ -384,24 +428,40 @@ public partial class Parser : ParserBase<Token, TokenType>
             s.Preserve = true;
         }
 
-        // 读取数组名
-        if (Peek().Type != TokenType.IDENTIFIER)
-            return null;
-        s.ArrayName = Peek().Value.ToLower();
-        Advance();
+        // 读取**一个或多个** `数组名(大小)`，逗号分隔。
+        //
+        // ⚠ 这里原来只读**第一个**就 return，于是 `REDIM a(8), b(8)` 里
+        //   `, b(8)` 被留在行上、由语句分派器当成新语句 —— 而行首是一个
+        //   未声明标识符时会走「裸调用」那条路，编出 `CALL func_b`。后果不是
+        //   "少 redim 一个数组"，而是**后面的 FOR/NEXT 整段被误解析**（实测 GORILLA.BAS 报
+        //   `未定义的函数 'func_i'（引用 8 次）`，真因就在这一行）。
+        //   老 QBasic 里多数组 REDIM 很常见，故按 QBasic 语义收下：AST 的 `RedimStatement`
+        //   仍然一个数组一个，多个包成 `SequenceStatement` —— 语句层两条路
+        //   （主程序 / SUB 体）都已经有 SequenceStatement 的生成分支，不用改 AST。
+        var seq = new SequenceStatement(t.Line, t.Column);
+        while (true)
+        {
+            if (Peek().Type != TokenType.IDENTIFIER)
+                return seq.Statements.Count > 0 ? seq : null;
+            var one = new RedimStatement(t.Line, t.Column) { Preserve = s.Preserve };
+            one.ArrayName = Peek().Value.ToLower();
+            Advance();
 
-        // 解析 (newsize)
-        if (Peek().Type != TokenType.LPAREN)
-            return null;
-        Advance(); // skip (
+            // 解析 (newsize)
+            if (Peek().Type != TokenType.LPAREN)
+                return null;
+            Advance(); // skip (
+            one.NewSize = ParseExpression();
+            if (Peek().Type != TokenType.RPAREN)
+                return null;
+            Advance(); // skip )
+            seq.Statements.Add(one);
 
-        s.NewSize = ParseExpression();
+            if (Peek().Type != TokenType.COMMA) break;
+            Advance(); // skip ,
+        }
 
-        if (Peek().Type != TokenType.RPAREN)
-            return null;
-        Advance(); // skip )
-
-        return s;
+        return seq.Statements.Count == 1 ? seq.Statements[0] : seq;
     }
 
     // ==================== LINE INPUT ====================
@@ -489,6 +549,14 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             s.ArrayName = Peek().Value.ToLower();
             Advance();
+            // `, buf()` —— QBasic 的**整数组**写法就是带一对空括号。
+            // 不吃掉的话 `(` 留在 token 流里被语句层当垃圾跳过，
+            // 后面那半个语句就变成一次莫名的 `func_xxx` 调用（链接期报错的还是别的名字）。
+            if (Peek().Type == TokenType.LPAREN)
+            {
+                Advance();
+                if (Peek().Type == TokenType.RPAREN) Advance();
+            }
         }
         return s;
     }
@@ -508,8 +576,17 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             s.ArrayName = Peek().Value.ToLower();
             Advance();
+            // `, buf()` —— 整数组写法（同 GET 那处，理由见那里）
+            if (Peek().Type == TokenType.LPAREN)
+            {
+                Advance();
+                if (Peek().Type == TokenType.RPAREN) Advance();
+            }
         }
-        // Optional action: PSET, PRESET, AND, OR, XOR (PSET is NOT an IDENTIFIER — it has its own token type)
+        // Optional action: PSET, PRESET, AND, OR, XOR
+        //（PSET/AND/OR 有自己的 token 类型；`XOR` 词法表里没有 ⇒ 是 IDENTIFIER。
+        //  三种都要认，漏一个的后果是它被**当成下一条语句** —— 实测 `PUT …, buf(), XOR`
+        //  报「未定义的函数 'func_xor'」，而那条 PUT 其实已经解析完了、只是动作没吃掉。）
         if (Peek().Type == TokenType.COMMA)
         {
             Advance();

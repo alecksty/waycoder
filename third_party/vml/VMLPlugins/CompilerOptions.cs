@@ -11,6 +11,22 @@ namespace VMLPlugins
         Oberon,      // Oberon (Wirth)
     }
 
+    /// <summary>
+    /// BASIC 图形语句（SCREEN / PSET / LINE / CIRCLE / PAINT / CLS / COLOR / PALETTE / GET / PUT）
+    /// 的**后端**。
+    ///
+    /// 老路是把像素写进 DOS 显存 `0xA0000`，而**所有现有宿主都不渲染那一段内存**
+    /// （桌面 vmlcli 与 MAUI 手机端都没有 0xA0000 的呈现），所以老路 = 画进虚空。
+    /// 默认因此选 <see cref="Ui"/>：路由到宿主的 `ui_*` 图元，也就是那扇绘图窗口。
+    /// </summary>
+    public enum BasicGraphics
+    {
+        /// <summary>默认 —— 图形语句走宿主 `ui_*` 图元（手机/桌面都能真看见）</summary>
+        Ui,
+        /// <summary>老路 —— 写 DOS 显存 `0xA0000`；本平台没有任何宿主渲染它</summary>
+        PcGfx,
+    }
+
     /// <summary>BASIC 方言枚举</summary>
     public enum BasicDialect
     {
@@ -89,6 +105,8 @@ namespace VMLPlugins
     public bool SourceComment { get; set; } = true;
     /// <summary>BASIC 语言方言 (默认 QBasic)</summary>
     public BasicDialect BasicDialect { get; set; } = BasicDialect.QBasic;
+    /// <summary>BASIC 图形语句的后端（默认 Ui = 宿主 ui_* 图元；PcGfx = 老的 DOS 显存写法）</summary>
+    public BasicGraphics BasicGraphics { get; set; } = BasicGraphics.Ui;
     /// <summary>Pascal 语言方言 (默认 Turbo Pascal)</summary>
     public PascalDialect PascalDialect { get; set; } = PascalDialect.Turbo;
     }

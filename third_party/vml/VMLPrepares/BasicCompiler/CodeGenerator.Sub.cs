@@ -12,19 +12,26 @@ namespace BasicCompiler
                 return;
 
             Regs.Reset();
-            string subLabel = "sub_" + subDecl.Name.ToLower();
+            string subLabel = SubLabel(subDecl.Name);
             currentSubName = subDecl.Name;
-            currentLocalVars = new Dictionary<string, int>();
-            currentLocalVarCount = 0;
+            ResetLocalVars();
             currentParamCount = subDecl.Parameters.Count;
 
             // 形参声明为 STRING（`SUB f(s AS STRING)`）⇒ 登记成字符串类型。
             // 不登记的话 `GetVariableType("s")` 走"无后缀 ⇒ Integer"那条默认，
             // 于是 `PRINT s` 把**字符串指针**当整数打出来 —— 实测打出 `1024`（一个地址），
             // 一个字都不像"字符串坏了"的样子。
+            //
+            // **数组形参的类型名**（`BCoor() AS XYPoint`）同样要登记进 `dimAsVariables` ——
+            // 那是"字段偏移从哪张表查"的唯一入口，`BCoor(i).XCoor` 在 SUB 体里要靠它。
+            // 不登记的话字段访问会退化成"记录类型未知" ⇒ 返回 0（静默，不报错）。
             foreach (var pDecl in subDecl.Parameters)
+            {
                 if (pDecl.IsString)
                     variableTypes[pDecl.Name.ToLower()] = BasicType.String;
+                if (pDecl.IsArray && !string.IsNullOrEmpty(pDecl.TypeName))
+                    dimAsVariables[pDecl.Name.ToLower()] = pDecl.TypeName.ToLower();
+            }
 
             // Collect local variables from body
             foreach (var stmt in subDecl.Body)
@@ -61,11 +68,15 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.ENTER, new List<Operand> { new Operand(OperandType.IMMEDIATE, subLocalSize) }));
 
             // Initialize local variables to 0 (negative offsets from BP)
+            //   ⚠ 按各自**字节数**清零（8 字节的写两下）—— 与 `LocalVarOffset` 同源，
+            //     免得留半个 double 在高位里。见 `DeclareLocal` 的说明。
             foreach (var kv in currentLocalVars)
             {
-                int offset = -(kv.Value + 1) * 4;
+                int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                if (LocalVarSize(kv.Key) >= 8)
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
             }
 
             // Generate body
@@ -89,19 +100,22 @@ namespace BasicCompiler
                 return;
 
             Regs.Reset();
-            string funcLabel = "func_" + funcDecl.Name.ToLower();
+            string funcLabel = FunctionLabel(funcDecl.Name);
             currentSubName = funcDecl.Name;
-            currentLocalVars = new Dictionary<string, int>();
-            currentLocalVarCount = 0;
+            ResetLocalVars();
             currentParamCount = funcDecl.Parameters.Count;
 
             // 形参声明为 STRING ⇒ 登记成字符串类型（同 SUB 那处，理由见那里）
             foreach (var pDecl in funcDecl.Parameters)
+            {
                 if (pDecl.IsString)
                     variableTypes[pDecl.Name.ToLower()] = BasicType.String;
+                if (pDecl.IsArray && !string.IsNullOrEmpty(pDecl.TypeName))
+                    dimAsVariables[pDecl.Name.ToLower()] = pDecl.TypeName.ToLower();
+            }
 
             // The function name is a special local variable for the return value
-            currentLocalVars[funcDecl.Name.ToLower()] = currentLocalVarCount++;
+            DeclareLocal(funcDecl.Name.ToLower());
 
             // Collect local variables from body
             foreach (var stmt in funcDecl.Body)
@@ -143,11 +157,14 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.ENTER, new List<Operand> { new Operand(OperandType.IMMEDIATE, funcLocalSize) }));
 
             // Initialize local variables to 0 (use negative offsets from BP)
+            //   ⚠ 与 SUB 序言**同一口径**（按字节数清零、地址走 `LocalVarOffset`）。
             foreach (var kv in currentLocalVars)
             {
-                int offset = -(kv.Value + 1) * 4; // Local vars below BP
+                int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                if (LocalVarSize(kv.Key) >= 8)
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
             }
 
             // Generate body
@@ -158,7 +175,7 @@ namespace BasicCompiler
             }
 
             // Load return value into R0 (the function name variable)
-            int retValOffset = -(currentLocalVars[funcDecl.Name.ToLower()] + 1) * 4;
+            int retValOffset = LocalVarOffset(funcDecl.Name.ToLower());
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-retValOffset}") }));
 
             // Epilogue: LEAVE; RET
@@ -171,7 +188,7 @@ namespace BasicCompiler
         private bool IsStaticVariable(string varName)
         {
             if (currentSubName == null) return false;
-            string scopedName = $"{currentSubName.ToLower()}__{varName.ToLower()}";
+            string scopedName = $"{SymbolKey(currentSubName)}__{varName.ToLower()}";
             return variables.ContainsKey(scopedName);
         }
 
@@ -185,14 +202,24 @@ namespace BasicCompiler
         ///
         /// 模块级变量在 <c>variables</c> 里是**裸名**，STATIC 是 `子程序名__变量名`，
         /// 用键的形状就能分开（见 <see cref="IsStaticVariable"/>）。
+        ///
+        /// ⚠ **例外见 <see cref="CollectLocalVariables"/> 的 `ForStatement` 分支**（循环计数器
+        /// 不许跨 SUB 共享）—— 那一条**不**走本判据。
         /// </summary>
         private bool IsModuleVariable(string varName)
         {
             if (string.IsNullOrEmpty(varName)) return false;
             string key = varName.ToLower();
-            if (currentSubName != null && key == currentSubName.ToLower()) return false;
+            if (currentSubName != null && key == SymbolKey(currentSubName)) return false;
             return variables.ContainsKey(key);
         }
+
+        /// <summary>
+        /// `DIM SHARED` 过的模块级变量（才允许**跨 SUB 共享一个循环计数器**）。
+        /// 见 <see cref="CollectLocalVariables"/> 的 `ForStatement` 分支。
+        /// </summary>
+        private bool IsSharedVariable(string varName)
+            => !string.IsNullOrEmpty(varName) && _sharedVariables.Contains(varName.ToLower());
 
         private void CollectLocalVariables(Statement stmt)
         {
@@ -213,7 +240,7 @@ namespace BasicCompiler
                         !IsStaticVariable(ident.Name.ToLower()) &&
                         !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                     {
-                        currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                        DeclareLocal(ident.Name.ToLower());
                     }
                 }
                 CollectLocalVariablesFromExpr(letStmt.Expression);
@@ -231,12 +258,34 @@ namespace BasicCompiler
             }
             else if (stmt is ForStatement forStmt)
             {
+                // ⚠ **循环计数器是个例外：不认"模块级变量"这一条，只有 `DIM SHARED` 才共享。**
+                //
+                // 判据若照抄下面那几条（`!IsModuleVariable`），代价是**两个毫不相干的 SUB
+                // 会共用同一个循环计数器**：GORILLA.BAS 的模块体里（`GOSUB InitVars` 那段
+                // 就写在顶层）有一个 `FOR i = 0 TO 8`，于是 `i` 成了模块级变量；接着
+                // `PlayGame` 的 `FOR i = 1 TO NumGames`、`MakeCityScape` 的
+                // `FOR i = BHeight - 3 TO 7`、`VictoryDance` 的 `FOR i# = 1 TO 4`
+                // **全都是同一个 `i`** —— 内层循环跑完把外层的计数冲成内层的收尾值，
+                // 外层循环当场提前退出。实测：第一局命中之后 `PlayGame` 的 `i` 已经是 3
+                // ⇒ `FOR i = 1 TO 3` 第一局就结束（比分只来得及 +1 就进了 GAME OVER 画面）。
+                //
+                // 为什么这里可以对"模块级变量"破例：**循环计数器是循环自己的实现细节**，
+                // 把它当跨 SUB 的共享状态从来不是程序的本意；而"SUB 读模块级标量"那条
+                // （`t4` / `tetris.bas` 依赖的语义）**不受影响** —— 本分支只决定
+                // 「`FOR x` 的那个 `x` 用哪个槽」，SUB 里其它地方读 `x` 时仍然按
+                // 模块级变量走（`IsModuleVariable` 一个字没改）。
+                // 想真的共享计数器就写 `DIM SHARED k`（这时 `IsSharedVariable` 为真，不建局部）。
+                //
+                // 最小复现（顶层 FOR + SUB 内同名 FOR）：
+                //     FOR i = 1 TO 3 : PRINT "outer"; i : CALL S : NEXT : END
+                //     SUB S : FOR i = 1 TO 2 : PRINT " i="; i : NEXT : END SUB
+                // 修前只打一轮外层就退出，修后 3 轮各带 2 次内层。
                 if (!currentLocalVars.ContainsKey(forStmt.Variable.Name.ToLower()) &&
                     !IsParameter(forStmt.Variable.Name.ToLower()) &&
                     !IsStaticVariable(forStmt.Variable.Name.ToLower()) &&
-                    !IsModuleVariable(forStmt.Variable.Name))   // 模块级变量不许被局部遮蔽
+                    !IsSharedVariable(forStmt.Variable.Name))
                 {
-                    currentLocalVars[forStmt.Variable.Name.ToLower()] = currentLocalVarCount++;
+                    DeclareLocal(forStmt.Variable.Name.ToLower());
                 }
                 CollectLocalVariablesFromExpr(forStmt.InitialValue);
                 CollectLocalVariablesFromExpr(forStmt.EndValue);
@@ -274,20 +323,32 @@ namespace BasicCompiler
                 if (!arrayVariables.ContainsKey(dimStmt.VariableName))
                 {
                     int arrSize = dimStmt.Size > 0 ? dimStmt.Size : 1;
+                    // UDT 数组：元素占整个记录的字节数（与模块级那处同一口径，见 ArrayElementSlots）。
+                    // GORILLA 的 `DIM BCoor(0 TO 30) AS XYPoint` 写在 `SUB PlayGame` 里，走的就是这条。
+                    int elemSlots = ArrayElementSlots(dimStmt.TypeName);
                     arrayVariables[dimStmt.VariableName] = new ArrayInfo
                     {
                         Size = arrSize,
                         Offset = variableCount,
+                        ElementBytes = elemSlots * 4,
                         Dimensions = dimStmt.Dimensions.Count > 0
                             ? new List<int>(dimStmt.Dimensions)
-                            : new List<int> { arrSize }
+                            : new List<int> { arrSize },
+                        LowerBounds = dimStmt.LowerBounds.Count > 0
+                            ? new List<int>(dimStmt.LowerBounds)
+                            : new List<int> { 0 }
                     };
                     for (int i = 0; i < arrSize; i++)
                     {
                         string elementName = $"{dimStmt.VariableName}({i})";
-                        if (!variables.ContainsKey(elementName))
+                        for (int s = 0; s < elemSlots; s++)
                         {
-                            variables[elementName] = variableCount++;
+                            string slotName = s == 0 ? elementName : $"{elementName}_slot_{s}";
+                            if (!variables.ContainsKey(slotName))
+                            {
+                                variables[slotName] = variableCount++;
+                                varByteSizes[slotName] = 4;
+                            }
                         }
                     }
                 }
@@ -302,7 +363,7 @@ namespace BasicCompiler
                     string varName = varIdent.Name.ToLower();
                     if (!currentLocalVars.ContainsKey(varName) && !IsParameter(varName))
                     {
-                        currentLocalVars[varName] = currentLocalVarCount++;
+                        DeclareLocal(varName);
                     }
                 }
             }
@@ -313,7 +374,7 @@ namespace BasicCompiler
                 {
                     string varName = varIdent.Name.ToLower();
                     // Static vars are allocated in global scope with a unique prefix
-                    string scopedName = $"{currentSubName.ToLower()}__{varName}";
+                    string scopedName = $"{SymbolKey(currentSubName)}__{varName}";
                     if (!variables.ContainsKey(scopedName))
                     {
                         variables[scopedName] = variableCount++;
@@ -346,12 +407,19 @@ namespace BasicCompiler
                     {
                         string slotName = s == 0 ? varName : $"{varName}_slot_{s}";
                         if (!currentLocalVars.ContainsKey(slotName) && !IsParameter(slotName))
-                            currentLocalVars[slotName] = currentLocalVarCount++;
+                        {
+                            // UDT 局部量按 **4 字节槽**排（字段偏移以 4 字节为单位），
+                            // 所以这里**不走 `DeclareLocal`**（那个按类型可能给 8 字节）。
+                            // ⚠ 大小仍要在这里记下 —— 地址走 `LocalVarOffset`，两处必须一致。
+                            currentLocalVars[slotName] = currentLocalVarCount;
+                            localVarSizes[slotName] = 4;
+                            currentLocalVarCount++;
+                        }
                     }
                 }
                 else if (!currentLocalVars.ContainsKey(varName) && !IsParameter(varName))
                 {
-                    currentLocalVars[varName] = currentLocalVarCount++;
+                    DeclareLocal(varName);
                 }
 
                 // `DIM s AS STRING` / `DIM n AS INTEGER` —— **类型名要接上**。
@@ -390,15 +458,15 @@ namespace BasicCompiler
 
         private bool IsParameter(string name)
         {
-            if (subMap.ContainsKey(currentSubName.ToLower()))
+            if (subMap.ContainsKey(SymbolKey(currentSubName)))
             {
-                var sub = subMap[currentSubName.ToLower()];
+                var sub = subMap[SymbolKey(currentSubName)];
                 foreach (var p in sub.Parameters)
                     if (p.Name.ToLower() == name) return true;
             }
-            if (funcMap.ContainsKey(currentSubName.ToLower()))
+            if (funcMap.ContainsKey(SymbolKey(currentSubName)))
             {
-                var func = funcMap[currentSubName.ToLower()];
+                var func = funcMap[SymbolKey(currentSubName)];
                 foreach (var p in func.Parameters)
                     if (p.Name.ToLower() == name) return true;
             }
@@ -415,7 +483,7 @@ namespace BasicCompiler
                     !IsStaticVariable(ident.Name.ToLower()) &&
                     !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                 {
-                    currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                    DeclareLocal(ident.Name.ToLower());
                 }
             }
             else if (expr is BinaryExpression binary)
@@ -497,8 +565,7 @@ namespace BasicCompiler
                     string varName = varIdent.Name.ToLower();
                     if (currentLocalVars.ContainsKey(varName))
                     {
-                        int slot = currentLocalVars[varName];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(varName);
                         AddRI(OpCode.MOVE, 0, 0);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
                     }
@@ -710,8 +777,7 @@ namespace BasicCompiler
                 var varName = varIdent.Name;
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(varName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
                 }
                 else
@@ -752,18 +818,62 @@ namespace BasicCompiler
             int srcReg = isFloat ? 0 : 1;
             OpCode storeOp = isFloat ? OpCode.MOVEF : OpCode.MOVE;
 
+            /* ⚠ 存目标的**类型**才决定搬运指令：`MOVEF` 只搬单精度那一组，
+               **双精度必须用 `MOVED`**（D 寄存器组）。这里原来一律 `MOVEF`，
+               于是 `SclX# = ScrWidth / 320`（`/` 在 BASIC 里是整数除？不 —— 是整数表达式的
+               结果是整数 ⇒ `isFloat` 为假 ⇒ `MOVE`）写进去的是**整数位型**，
+               而读侧按变量类型走 `MOVED` ⇒ 读出来是垃圾。
+               GORILLA.BAS 的 `FUNCTION Scl (n!) = CINT(n! / 2 * SclX#)` 就靠它算
+               太阳半径/大猩猩肢体尺寸 —— 实测太阳半径成了天文数字，
+               紧接着 `PAINT (x,y), SUNATTR` 从圆心灌满了**整个屏幕**。
+               （模块级那条路走 `EmitStoreVar` → 按类型选，本来是好的；
+                 这里是 SUB/局部/形参那条，漏了。） */
+            if (stmt.Variable is Identifier tid
+                && !(currentSubName != null && SymbolKey(tid.Name) == SymbolKey(currentSubName)))
+            {
+                // ⚠ **函数的返回值变量除外**：`FUNCTION GetNum#` 的返回槽就是那个
+                //   与函数同名的局部量，而本前端的函数返回约定是**整数**（`R0`，
+                //   见 `GenerateFunctionDeclaration` 的尾声）。按名字后缀把它当双精度存
+                //   （MOVED + I2D）会让尾声的整数读拿到半截位型 —— 实测直接跑飞。
+                //   双精度返回值本前端不支持（如实如此，不是这里能顺手补的）。
+                BasicType destT = GetVariableType(tid.Name);
+                if (destT == BasicType.Double || destT == BasicType.Long)
+                {
+                    // 目标 64 位浮点：搬运用 MOVED，而且**整数值必须先转成双精度**
+                    // （`SclX# = 640 / 320` 的右边是整数 2 —— 直接把 2 的位型交给 MOVED
+                    //  写进去的是 3e-323，后面按双精度读出来就是垃圾）。
+                    storeOp = OpCode.MOVED;
+                    if (exprType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, srcReg), new Operand(OperandType.REGISTER, srcReg) }));
+                    else if (exprType != BasicType.Double && exprType != BasicType.Long)
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, srcReg), new Operand(OperandType.REGISTER, srcReg) }));
+                }
+            }
+
             if (stmt.Variable is Identifier ident)
             {
-                // Track variable type for float
+                // 记录浮点变量的类型（让后续的读用 MOVEF/MOVED 而不是 MOVE）。
+                //
+                // ⚠ 三个条件缺一不可，这里与**模块级那处**（`Statements.cs` 的
+                //   `GenerateLetStatement`）是同一口径：
+                //     · `isFloat`    —— 只有浮点表达式才提升类型；
+                //     · `!ContainsKey` —— 已经记过的不覆盖；
+                //     · `!HasExplicitDefType` —— **`gravity#` 这类写了后缀的不能被改写**。
+                //   少了第三条的后果不是"精度差一点"：`gravity# = VAL(grav$)`（VAL 返回 Single）
+                //   会把 `gravity#` 的类型从 Double 改成 Single ⇒ 它的字节数 8→4 ⇒
+                //   **它之后所有全局变量的偏移全少 4**，而主程序那份地址早已编进指令里
+                //   ⇒ 主程序与 SUB 对"全局变量在哪"各执一词。实测 GORILLA.BAS：
+                //   `Mode` 在主程序里读 `#21988`、在 `MakeCityScape` 里读 `#21984`（别人的槽）
+                //   ⇒ `IF Mode = 9` 走 else 分支 ⇒ `BottomLine` 335→190、`HtInc` 10→6
+                //   ⇒ 整座城市画到屏幕外，**一个错都不报**。
                 string varName = ident.Name.ToLower();
-                if (isFloat && !variableTypes.ContainsKey(varName))
+                if (isFloat && !variableTypes.ContainsKey(varName) && !HasExplicitDefType(varName))
                     variableTypes[varName] = exprType;
 
                 // Try local variable first
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(varName);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, srcReg) }));
                 }
                 else
@@ -774,17 +884,17 @@ namespace BasicCompiler
                     {
                         // Check if parameter is BYREF
                         bool isByRef = false;
-                        if (subMap.ContainsKey(currentSubName.ToLower()))
+                        if (subMap.ContainsKey(SymbolKey(currentSubName)))
                         {
-                            var sub = subMap[currentSubName.ToLower()];
+                            var sub = subMap[SymbolKey(currentSubName)];
                             if (paramIdx < sub.Parameters.Count)
                             {
                                 isByRef = sub.Parameters[paramIdx].IsByRef;
                             }
                         }
-                        else if (funcMap.ContainsKey(currentSubName.ToLower()))
+                        else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
                         {
-                            var func = funcMap[currentSubName.ToLower()];
+                            var func = funcMap[SymbolKey(currentSubName)];
                             if (paramIdx < func.Parameters.Count)
                             {
                                 isByRef = func.Parameters[paramIdx].IsByRef;
@@ -872,9 +982,8 @@ namespace BasicCompiler
 
                     if (string.IsNullOrEmpty(recName) || !dimAsVariables.ContainsKey(recName) || !typeDefinitions.ContainsKey(dimAsVariables[recName]))
                     {
-                        // Unknown type — store to offset 0 via R2
-                        GenerateSubExpression(fieldAccess.RecordExpression, 2);
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
+                        // 类型未知 ⇒ 按字段偏移 0 写（与模块级那处同一兜底）
+                        EmitFieldStore(fieldAccess.RecordExpression, 0, srcReg, storeOp);
                         return;
                     }
 
@@ -893,10 +1002,13 @@ namespace BasicCompiler
                     if (!fnd)
                         throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'");
 
-                    GenerateSubExpression(fieldAccess.RecordExpression, 2);
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, fOff) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R3") }));
+                    // ⚠ 这里从前是**一条读指令**（`MOVE R1, [R3]`）：SUB 体内的
+                    //   `BCoor(i).XCoor = x` 除了算出个地址之外什么都没干，值根本没写进去
+                    //   —— 而 `b(i).F = v` 是 GORILLA 建整座城市最核心的一句
+                    //   （`MakeCityScape` 的每座楼都要写 XCoor/YCoor），写不进去 =
+                    //   "跑到 PlayGame 但画面只有底色"。
+                    //   正解：**取地址**（不是取值，见 `EmitRecordBaseAddr`）+ 按 storeOp 往里写。
+                    EmitFieldStore(fieldAccess.RecordExpression, fOff, srcReg, storeOp);
                     return;
                 }
 
@@ -907,8 +1019,7 @@ namespace BasicCompiler
                     // Unknown type — treat field access as plain var access (offset 0)
                     if (currentLocalVars.ContainsKey(recordName))
                     {
-                        int slot = currentLocalVars[recordName];
-                        int baseOffset = -(slot + 1) * 4;
+                        int baseOffset = LocalVarOffset(recordName);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset) }));
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
@@ -940,8 +1051,7 @@ namespace BasicCompiler
                 // In SUB context, check locals first
                 if (currentLocalVars.ContainsKey(recordName))
                 {
-                    int slot = currentLocalVars[recordName];
-                    int baseOffset = -(slot + 1) * 4;
+                    int baseOffset = LocalVarOffset(recordName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset + fieldOffset) }));
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
@@ -979,37 +1089,71 @@ namespace BasicCompiler
             string endLabel = GenerateLabel();
 
             // Helper: get store target address for variable
+            //
+            // ⚠ **返回值只在"紧接着的那一条访问指令"之前有效** —— 模块级变量那一路是把地址
+            //   **算进 R3**（`EmitStaticAddr` 只会算到寄存器，不会返回一个稳定的地址串），
+            //   而 R3 是本前端最常用的临时寄存器（数组赋值把值先落 R3、图形/数组码到处在用）。
+            //   所以**不要**把它存进一个变量、夹几条别的语句之后再用 —— 那读/写的是 R3 里的残留值。
+            //   实测（GORILLA.BAS）：`SUB PlaceGorillas` 里 `FOR i = 1 TO 2` 的 `i` 是模块级变量，
+            //   循环体跑完再用这句地址去读循环变量 ⇒ 地址是循环体留下的垃圾（浮点位型），
+            //   当场「内存错误(PC=…): MOVE @R0, @3 — 地址=C00000xx」，且**每次跑值都不同**。
+            //   要"算完再用"必须**重新调用一次**，或者用下面那两个组合助手。
             string GetVarAddr()
             {
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    return $"R12-{(slot + 1) * 4}";
+                    return LocalVarMemRef(varName);
                 }
                 if (IsStaticVariable(varName))
                 {
-                    string staticName = $"{currentSubName.ToLower()}__{varName}";
+                    string staticName = $"{SymbolKey(currentSubName)}__{varName}";
                     int varOffset = variables[staticName] * 4;
                     return $"R12+{8 + varOffset}";
+                }
+                // 模块级变量（含 `DIM SHARED`）：按本前端既有的设计用**静态区的全局段**
+                //（`_globalVars`——"主程序与 SUB 共用同一份内存"，见 `EmitLoadVar`）。
+                //
+                // ⚠ 这里原来是 `throw 未定义`，而 SUB 内部的预扫又刻意**不**把"                模块级变量"登记成局部
+                //   （`CollectLocalVariables` 里的 `!IsModuleVariable` 守卫"模块级变量不许被局部遮蔽"）
+                //   ⇒ 只要一个名字在顶层当过循环变量（`i` 这种），
+                //   SUB 里再用同名循环就当场报错。GORILLA.BAS 就是这么挂的。
+                if (IsModuleVariable(stmt.Variable.Name))
+                {
+                    // 地址算进 R3（理由与"只能紧接着用"的约束见上面那段）。
+                    EmitStaticAddr(3, STATIC_GLOBALS_OFFSET + GetVarByteOffset(varName));
+                    return "R3";
                 }
                 throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"FOR 变量 '{stmt.Variable.Name}' 未定义");
             }
 
+            // 「算地址 + 立刻访问」的**组合助手** —— 循环变量的读/写一律走它们。
+            //
+            // 把两者绑在一起，是为了让上面那条约束**不可能被后来的改动破坏**：
+            // 单独调 `GetVarAddr()` 之后随手插一条别的语句，就会踩回那个崩溃。
+            void EmitLoadLoopVarToR0()
+            {
+                string addr = GetVarAddr();
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, addr) }));
+            }
+            void EmitStoreR0ToLoopVar()
+            {
+                string addr = GetVarAddr();
+                // ⚠ 操作数顺序：MOVE 是 **dest-first**（`move [mem], reg` 是"存"、`move reg, [mem]` 是"取"）。
+                //   这里原来写成 [REGISTER 0, MEMORY addr] —— 那是**取**不是存（`move R0 [R12-4]`），
+                //   于是 `FOR i = 0 TO 3` 的初值根本没写进去；自增那处同样写反 ⇒ 循环变量永不推进，
+                //   实测就是"10 秒跑 10 亿条指令"的死循环（t10）。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, addr), new Operand(OperandType.REGISTER, 0) }));
+            }
+
             GenerateSubExpression(stmt.InitialValue, 0);
-            string initAddr = GetVarAddr();
-            // ⚠ 操作数顺序：MOVE 是 **dest-first**（`move [mem], reg` 是"存"、`move reg, [mem]` 是"取"）。
-            //   这里原来写成 [REGISTER 0, MEMORY addr] —— 那是**取**不是存（`move R0 [R12-4]`），
-            //   于是 `FOR i = 0 TO 3` 的初值根本没写进去；自增那处同样写反 ⇒ 循环变量永不推进，
-            //   实测就是"10 秒跑 10 亿条指令"的死循环（t10）。两处都改成 [MEMORY addr, REGISTER 0]。
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, initAddr), new Operand(OperandType.REGISTER, 0) }));
+            EmitStoreR0ToLoopVar();
 
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 
             Sta.PushLoopLabels(endLabel, loopLabel);
 
             // Load variable and compare with end value
-            string loadAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loadAddr) }));
+            EmitLoadLoopVarToR0();
             // 循环测试与主程序**共用一份**（`EmitForLoopTest`）—— 从前两处各写一遍无条件 `JG`，
             // 于是"负步长一次都不执行"那个 bug 被复制成了两份。判据与说明都在那个方法上。
             string bodyLabel = GenerateLabel();
@@ -1027,22 +1171,24 @@ namespace BasicCompiler
             //   它唯一的效果是让 R0 跨循环体保持一致，而自增的第一句又会重新装载 R0 ⇒ 可观测行为为零。
             //   照抄而不"改进"的理由：BASIC 里循环体内给循环变量赋值是合法的（应当生效），
             //   写成"从栈里写回"反而会把体内对循环变量的修改吞掉 —— 那是改语义，不是修 bug。
-            string loopVarAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            EmitLoadLoopVarToR0();
             instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
 
             foreach (var bodyStmt in stmt.Body)
                 GenerateSubStatement(bodyStmt);
 
             instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            // ⚠ 这里曾经复用循环体**之前**取回的地址（模块级变量 ⇒ 那是"R3"）——
+            //   而循环体整个跑在中间，R3 早被踩烂。这行本身就是冗余的（自增第一句又会重新读），
+            //   但**冗余不等于可以不安全**：它会以垃圾为地址读 4 字节，直接崩。
+            EmitLoadLoopVarToR0();
 
             // Increment
-            string incAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, incAddr) }));
+            EmitLoadLoopVarToR0();
             GenerateSubExpression(stmt.StepValue, 1);
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, incAddr), new Operand(OperandType.REGISTER, 0) }));
+            // ⚠ 同理：step 求值（`GenerateSubExpression`）可能改掉 R3，存回去之前必须**重算地址**。
+            EmitStoreR0ToLoopVar();
 
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 
@@ -1137,8 +1283,11 @@ namespace BasicCompiler
             {
                 if (string.IsNullOrEmpty(strLit.Value))
                 {
-                    // 空字符串在比较上下文中直接返回 0
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
+                    // ⚠ 空串**不再是整数 0**，而是**全前端唯一那个空串地址**
+                    //   （`EmptyStringLabel`）—— 理由见那里的长注释：字符串比较就是指针比较，
+                    //   `INKEY$ <> ""` 这种写法要求"所有空串是同一个地址"，
+                    //   而 0 / `str_data_N` / `INKEY$` 的返回地址三者互不相等 ⇒ 死循环。
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, EmptyStringLabel) }));
                 }
                 else
                 {
@@ -1153,9 +1302,45 @@ namespace BasicCompiler
             {
                 GenerateInkeyExpression(inkey, reg);
             }
+            // ⚠ **`TIMER` / `DATE$` / `TIME$` 必须与顶层那条路一样有三档分支**。
+            //
+            //   它们此前**只**挂在 `GenerateExpression`（顶层表达式）上，而 SUB/FUNCTION 体内
+            //   走的是本方法 ⇒ 落到方法末尾那个**没有 else 的兜底**（静默什么都不生成），
+            //   `reg` 里留着上一条语句的残值 —— 不报错、不崩，只是值不对。
+            //
+            //   实测（GORILLA.BAS 的 `SUB Rest (t#)`）：`s# = TIMER` 编成 `R1 = R0`
+            //   （R0 是刚清零的局部量），`TIMER - s#` 于是恒为常数、`LOOP UNTIL` 永不成立
+            //   —— 转屏/等待全变成死循环；`PlotShot` 里同一个 `Rest` 就在主循环里。
+            //
+            //   判据与 Inkey 同源：**这一类"没有参数的内置函数"在两条路上必须各有一档**，
+            //   加新内置函数时两处一起加（`GenerateExpression` 的那一组是清单）。
+            else if (expr is TimerFunctionExpression)
+            {
+                GenerateTimerFunction(reg);
+            }
+            else if (expr is DateFunctionExpression)
+            {
+                GenerateDateFunction(reg);
+            }
+            else if (expr is TimeFunctionExpression)
+            {
+                GenerateTimeFunction(reg);
+            }
             else if (expr is NumberLiteral numLiteral)
             {
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, (int)numLiteral.Value) }));
+                // ⚠ 带小数点的字面量必须**发 MOVEF（浮点立即数）**，原来一律
+                //   `MOVE reg, #(int)值` —— `0.5` 被截成 `0`。于是 SUB 体内
+                //   `INT(0.5 * 1000)` 得 **0**（该 500）、任何浮点常量在 SUB 里都是 0，
+                //   而且**不报错**。判据与顶层（`CodeGenerator.Expressions.cs` 的
+                //   NumberLiteral 分支）逐字一致：整数放得下走 MOVE，否则走 MOVEF。
+                double litValue = numLiteral.Value;
+                if (litValue == (int)litValue && litValue >= int.MinValue && litValue <= int.MaxValue)
+                    AddRI(OpCode.MOVE, reg, (int)litValue);
+                else
+                {
+                    instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, (float)litValue) }));
+                    _lastExprFloatType = BasicType.Single;
+                }
             }
             else if (expr is Identifier ident)
             {
@@ -1176,9 +1361,17 @@ namespace BasicCompiler
                 // Try local variable first (negative offsets from BP)
                 if (currentLocalVars.ContainsKey(ident.Name.ToLower()))
                 {
-                    int slot = currentLocalVars[ident.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                    // ⚠ **按类型取指令**（`MOVED`/`MOVEL`/`MOVEF`/`MOVE`），与写回那条路
+                    //   （`GenerateSubVariableStore` 的 `GetStoreInstruction`）**对称**。
+                    //   这里原来是死写 `MOVE`（4 字节），而双精度局部量是用 `MOVED` 写的
+                    //   8 字节 ⇒ 读回来只剩低半字（1.5 的低 4 字节 = 0），
+                    //   于是 `S# = S# + T2#` 恒等于"加 0"。实测 `.scratch/gor/mre_dcmp.bas`：
+                    //   `SUB` 里 `A# = 1.5 + 2.25` 判成 `A# <= 3.5`。
+                    string localName = ident.Name.ToLower();
+                    int offset = LocalVarOffset(localName);
+                    instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(localName)), new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                    BasicType lt = GetVariableType(localName);
+                    if (lt == BasicType.Single || lt == BasicType.Double) _lastExprFloatType = lt;
                 }
                 else
                 {
@@ -1190,33 +1383,38 @@ namespace BasicCompiler
                         
                         // 检查参数是否为BYREF
                         bool isByRef = false;
-                        if (subMap.ContainsKey(currentSubName.ToLower()))
+                        if (subMap.ContainsKey(SymbolKey(currentSubName)))
                         {
-                            var sub = subMap[currentSubName.ToLower()];
+                            var sub = subMap[SymbolKey(currentSubName)];
                             if (paramIdx < sub.Parameters.Count)
                             {
                                 isByRef = sub.Parameters[paramIdx].IsByRef;
                             }
                         }
-                        else if (funcMap.ContainsKey(currentSubName.ToLower()))
+                        else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
                         {
-                            var func = funcMap[currentSubName.ToLower()];
+                            var func = funcMap[SymbolKey(currentSubName)];
                             if (paramIdx < func.Parameters.Count)
                             {
                                 isByRef = func.Parameters[paramIdx].IsByRef;
                             }
                         }
                         
+                        // ⚠ 取值要**按形参类型**（MOVEF/MOVED）—— 原来两条路都硬写 `MOVE`，
+                        //   于是 `FUNCTION Scl (n!)` 里的 `n!` 被当成**整数**读：
+                        //   实参 12 的位型按单精度解释是 1.7e-44 ⇒ 算出来是 0（且不报错）。
+                        //   GORILLA 的太阳半径/大猩猩肢体全靠它。
+                        OpCode loadOp = GetLoadInstruction(GetVariableType(ident.Name));
                         if (isByRef)
                         {
                             // BYREF参数: [R12+offset] 包含地址，需要通过地址加载值
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
+                            instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
                         }
                         else
                         {
                             // BYVAL参数: 直接加载值
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
+                            instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
                         }
                     }
                     // Check STATIC variable (scoped in globals)
@@ -1291,23 +1489,54 @@ namespace BasicCompiler
                 // 字符串拼接**先分叉**（与顶层 GenerateExpression 同一条判据、同一个库函数）
                 if (GenerateStringConcat(binary, reg)) return;
 
-                GenerateSubExpression(binary.Left, 1);
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
-                GenerateSubExpression(binary.Right, 1);
-                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
-
                 // ⚠ 运算符要**大小写无关**地比：操作数文本取自 token 的 `Value`（保留源码大小写），
                 //   所以 `mod` / `Mod` / `MOD` 是三个不同的字符串。顶层那套按 `"MOD"` 精确比，
                 //   小写 mod 同样编不出代码（同一个坑，只是这边顺手一起兜住）。
                 string op = binary.Operator.ToUpperInvariant();
 
+                /* ── 浮点分岔（v0.96.4xx）─────────────────────────────────────────
+                   SUB/FUNCTION 体内的算术**原来只有整数一条路**：`RND(1) * x`、
+                   `COS(a) * v` 这类表达式会把**浮点位型当整数去乘**，结果是无意义的
+                   大数而且**一个错都不报**（实测 `DEF FnRan (x) = INT(RND(1) * x) + 1`
+                   —— 老 BASIC 里"取 1..x 随机数"的通用写法 —— 恒等于 1）。
+
+                   判据与顶层**完全同源**（`InferExpressionType` + `WidenType`），
+                   寄存器也沿用这条路的 R1/R2 约定（浮点寄存器与整数寄存器共用编号，
+                   `SetFloatValue` 会同步 `registers[]`，所以 `PUSH R1/POP R2` 对浮点同样有效）。
+
+                   只接 **Single**：Double 走的是另一组寄存器（D0-D7）与另一套转换
+                   （`I2D`/`D2F`），混进来会把两套约定搅在一起 —— 那种表达式**维持原样**
+                   （它本来也是坏的，只是不归这一次改）。`\`/MOD/AND/OR/^ 按 BASIC 语义
+                   就是整数运算 ⇒ 也走原路。 */
+                ExpType subLeftT = InferExpType(binary.Left);
+                ExpType subRightT = InferExpType(binary.Right);
+                ExpType subResultT = ExpressionManager.WidenType(subLeftT, subRightT);
+                bool subDouble = subResultT.IsDouble();
+                bool subFloat = (subResultT.IsFloat() || subDouble)
+                    && op is "+" or "-" or "*" or "/" or "=" or "<>" or "<" or "<=" or ">" or ">=";
+
+                // 左值要跨过"右操作数的求值"活下来。整数路用 PUSH/POP，浮点路必须用
+                // **FPUSH/FPOP**：运行时 `ExecutePop` 只写 `registers[]`、
+                // **不同步 `floatRegisters[]`**（同步只在 `SetFloatValue` 里做，即反向那半边），
+                // 于是 `POP R2` 之后 `MOVEF F0,F2` 读到的是**上一次留在 F2 里的旧值**
+                // —— 实测 `INT(0.5 * 1000)` 在 SUB 里恒为 0。FPUSH/FPOP 走的是
+                // `GetFloatValue`/`SetFloatValue`，两头都是浮点语义，没有这个缺口。
+                OpCode pushOp = subDouble ? OpCode.DPUSH : subFloat ? OpCode.FPUSH : OpCode.PUSH;
+                OpCode popOp = subDouble ? OpCode.DPOP : subFloat ? OpCode.FPOP : OpCode.POP;
+
+                // 操作数先统一到结果类型（整数 → I2F/I2D，单精度 → F2D）
+                EmitSubOperand(binary.Left, subLeftT, subDouble, subFloat);
+                instructions.Add(new Instruction(pushOp, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                EmitSubOperand(binary.Right, subRightT, subDouble, subFloat);
+                instructions.Add(new Instruction(popOp, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
+
                 // 算术与位运算：都满足 `reg = 左 OP 右`
                 OpCode? arithOp = op switch
                 {
-                    "+" => OpCode.ADD,
-                    "-" => OpCode.SUB,
-                    "*" => OpCode.MUL,
-                    "/" => OpCode.DIV,
+                    "+" => subDouble ? OpCode.DADD : subFloat ? OpCode.FADD : OpCode.ADD,
+                    "-" => subDouble ? OpCode.DSUB : subFloat ? OpCode.FSUB : OpCode.SUB,
+                    "*" => subDouble ? OpCode.DMUL : subFloat ? OpCode.FMUL : OpCode.MUL,
+                    "/" => subDouble ? OpCode.DDIV : subFloat ? OpCode.FDIV : OpCode.DIV,
                     "\\" => OpCode.DIV,        // BASIC 的整除：VML 的 DIV 对整数就是整除
                     "MOD" => OpCode.MOD,
                     "AND" => OpCode.AND,
@@ -1319,7 +1548,28 @@ namespace BasicCompiler
                 {
                     // reg == 1 时结果寄存器**就是右操作数所在的寄存器**，`MOVE reg, R2` 会把它冲掉；
                     // 改为在 R2（左值）上就地累加、最后搬回 R1。
-                    if (reg == 1)
+                    if (subFloat)
+                    {
+                        /* ⚠ 浮点算术**必须用三操作数形式** `FOP dst, a, b`（Double 同理，用 DPUSH/DPOP 与 D 组指令）：运行时
+                           `ExecuteFadd/Fsub/Fmul` 开头就是 `if (operands.Count < 3) return;`
+                           —— **两操作数形式是个静默空操作**。整数那边
+                           （`ExecuteAdd`）两种形式都认，所以照抄整数路的
+                           `MOVEF reg,R2` + `FMUL reg,R1` 形状不会报错、只是"什么也没算"：
+                           实测 `INT(0.5 * 1000)` 在 SUB 里恒为 0（顶层同一条是 500）。
+                           左值在 R2、右值在 R1 ⇒ `FOP reg, R2, R1`。 */
+                        OpCode fop = arithOp.Value;
+                        if (reg == 1)
+                        {
+                            // reg == 1 就是**右操作数**的寄存器，直接写它会自毁 ⇒ 先做进 R2 再搬
+                            instructions.Add(new Instruction(fop, new List<Operand> { Reg(2), Reg(2), Reg(1) }));
+                            instructions.Add(new Instruction(subDouble ? OpCode.MOVED : OpCode.MOVEF, new List<Operand> { Reg(1), Reg(2) }));
+                        }
+                        else
+                        {
+                            instructions.Add(new Instruction(fop, new List<Operand> { Reg(reg), Reg(2), Reg(1) }));
+                        }
+                    }
+                    else if (reg == 1)
                     {
                         AddRR(arithOp.Value, 2, 1);
                         AddRR(OpCode.MOVE, 1, 2);
@@ -1350,7 +1600,7 @@ namespace BasicCompiler
                 {
                     // 比较：左在 R2、右在 R1 —— 跳转指令的**条件**与原来一字不差，
                     // 只是把 `CMP R1, R2` 换成 `CMP R2, R1`（操作数次序本来就在 CMP 里）。
-                    AddRR(OpCode.CMP, 2, 1);
+                    AddRR(subDouble ? OpCode.DCMP : subFloat ? OpCode.FCMP : OpCode.CMP, 2, 1);
                     string falseLabel = GenerateLabel();
                     string endLabel = GenerateLabel();
                     // 「不满足」时跳到 falseLabel
@@ -1404,7 +1654,7 @@ namespace BasicCompiler
             }
             else if (expr is ArrayAccessExpression arrayAccess)
             {
-                GenerateArrayAccess(arrayAccess, reg, false);
+                GenerateArrayAccess(arrayAccess, reg);
             }
             else if (expr is FieldAccessExpression fieldAccess)
             {
@@ -1420,18 +1670,18 @@ namespace BasicCompiler
                 return -1;
             }
             
-            if (subMap.ContainsKey(currentSubName.ToLower()))
+            if (subMap.ContainsKey(SymbolKey(currentSubName)))
             {
-                var sub = subMap[currentSubName.ToLower()];
+                var sub = subMap[SymbolKey(currentSubName)];
                 for (int i = 0; i < sub.Parameters.Count; i++)
                 {
                     if (sub.Parameters[i].Name.ToLower() == paramName)
                         return i;
                 }
             }
-            if (funcMap.ContainsKey(currentSubName.ToLower()))
+            if (funcMap.ContainsKey(SymbolKey(currentSubName)))
             {
-                var func = funcMap[currentSubName.ToLower()];
+                var func = funcMap[SymbolKey(currentSubName)];
                 for (int i = 0; i < func.Parameters.Count; i++)
                 {
                     if (func.Parameters[i].Name.ToLower() == paramName)
@@ -1442,10 +1692,66 @@ namespace BasicCompiler
         }
 
         /// <summary>
+        /// 当前 SUB/FUNCTION 里第 <paramref name="idx"/> 个形参的声明（没有就 null）。
+        ///
+        /// <para>与 <see cref="FindParameterIndex"/> 是一对：一个由名字找下标、一个由下标找声明。
+        /// 数组形参的判据（`IsArray`）与类型名（`TypeName`）都只在这份声明上，
+        /// 而代码生成两头都要用（元素寻址要判"是不是数组形参"，字段访问要类型）。</para>
+        /// </summary>
+        private ParameterNode FindParameterDecl(int idx)
+        {
+            if (currentSubName == null || idx < 0) return null;
+            string key = SymbolKey(currentSubName);
+            if (subMap.TryGetValue(key, out var sub) && idx < sub.Parameters.Count)
+                return sub.Parameters[idx];
+            if (funcMap.TryGetValue(key, out var func) && idx < func.Parameters.Count)
+                return func.Parameters[idx];
+            return null;
+        }
+
+        /// <summary>
         /// 生成变量地址到指定寄存器
         /// </summary>
         private void GenerateVariableAddress(Expression expr, int reg)
         {
+            // `arr()`（整个数组）当实参 —— 传出去的是**数组基址**。
+            //
+            // 判据在解析期就定下了（`ArrayAccessExpression.IsWholeArray`），这里只管取地址；
+            // 与标量 BYREF 实参**同一个约定**（槽里放"实参的地址"），所以被调方那边
+            // 数组形参的读法就是"槽里的值 = 基址"（见 `GenerateArrayElementAddr`）。
+            if (expr is ArrayAccessExpression wholeArray && wholeArray.IsWholeArray)
+            {
+                if (!GenerateArrayBaseAddr(wholeArray.ArrayName, reg))
+                {
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
+                }
+                return;
+            }
+
+            // `arr(i)`（数组元素）当实参 —— 元素地址本身就能当左值（QBasic 的 BYREF 语义），
+            // `SUB t(a) / a = 5` + `t arr(1)` 必须把 arr(1) 改掉。
+            if (expr is ArrayAccessExpression elem && !elem.IsWholeArray)
+            {
+                if (GenerateArrayElementAddr(elem, reg, addressOnly: true)) return;
+            }
+
+            // `记录.字段` 当实参（`pts(2).XCoor`）：字段地址同样是左值。
+            if (expr is FieldAccessExpression fa)
+            {
+                int fieldOff = ResolveFieldOffset(fa);
+                if (fieldOff >= 0)
+                {
+                    EmitRecordBaseAddr(fa.RecordExpression, reg);
+                    if (fieldOff != 0)
+                    {
+                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+                            new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, fieldOff) }));
+                    }
+                    return;
+                }
+            }
+
+
             if (expr is Identifier ident)
             {
                 // 在SUB/FUNCTION内部
@@ -1454,8 +1760,7 @@ namespace BasicCompiler
                     // 检查是否为局部变量
                     if (currentLocalVars.ContainsKey(ident.Name.ToLower()))
                     {
-                        int slot = currentLocalVars[ident.Name.ToLower()];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(ident.Name.ToLower());
                         // 计算局部变量地址: R12 + offset
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
@@ -1517,8 +1822,7 @@ namespace BasicCompiler
         {
             if (currentLocalVars.ContainsKey(varName))
             {
-                int slot = currentLocalVars[varName];
-                int offset = -(slot + 1) * 4;
+                int offset = LocalVarOffset(varName);
                 BasicType varType = GetVariableType(varName);
                 OpCode storeOp = GetStoreInstruction(varType);
                 instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, valueReg) }));
@@ -1551,7 +1855,7 @@ namespace BasicCompiler
         {
             // 获取SUB声明以检查参数是否为BYREF + native
             SubDeclaration subDecl = null;
-            subMap.TryGetValue(stmt.SubName.ToLower(), out subDecl);
+            subMap.TryGetValue(SymbolKey(stmt.SubName), out subDecl);
 
             // 裸调用也可能落在**函数**上（`ui_win_open "T", 10, 20`，丢弃返回值）——
             // 函数声明在 `funcMap` 而不是 `subMap`，此前这里只查 subMap ⇒ `subDecl == null`
@@ -1559,14 +1863,13 @@ namespace BasicCompiler
             // （`GenerateSubFunctionCall`）保持一致：native 用**裸名**、否则 `func_` 前缀。
             FunctionDeclaration funcDecl = null;
             if (subDecl == null)
-                funcMap.TryGetValue(stmt.SubName.ToLower(), out funcDecl);
+                funcMap.TryGetValue(SymbolKey(stmt.SubName), out funcDecl);
 
             // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)
             bool isNative = (subDecl?.IsNative ?? false) || (funcDecl?.IsNative ?? false);
-            string prefix = subDecl != null ? "sub_" : "func_";
             string subLabel = isNative
-                ? stmt.SubName.ToLower()
-                : prefix + stmt.SubName.ToLower();
+                ? SymbolKey(stmt.SubName)
+                : (subDecl != null ? SubLabel(stmt.SubName) : FunctionLabel(stmt.SubName));
 
             // BYREF 判据对 SUB / FUNCTION 两种声明都成立
             int declParamCount = subDecl?.Parameters.Count ?? funcDecl?.Parameters.Count ?? 0;
@@ -1574,29 +1877,10 @@ namespace BasicCompiler
                 (subDecl != null ? subDecl.Parameters[i].IsByRef : funcDecl!.Parameters[i].IsByRef);
 
             // Push arguments (right-to-left)
-            for (int i = stmt.Arguments.Count - 1; i >= 0; i--)
-            {
-                bool isByRef = IsByRefAt(i);
-
-                if (isByRef)
-                {
-                    // BYREF: 传递变量地址
-                    GenerateVariableAddress(stmt.Arguments[i], 0);
-                }
-                else
-                {
-                    // BYVAL: 传递值
-                    if (currentSubName != null)
-                    {
-                        GenerateSubExpression(stmt.Arguments[i], 0);
-                    }
-                    else
-                    {
-                        GenerateExpression(stmt.Arguments[i], 0);
-                    }
-                }
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            }
+            int argBytes = EmitCallArguments(stmt.Arguments, IsByRefAt, currentSubName != null,
+                i => declParamCount > i
+                    ? ParamDeclaredType(subDecl != null ? subDecl.Parameters[i] : funcDecl!.Parameters[i])
+                    : BasicType.Integer);
 
             // 在 CALL 之前保存活跃的寄存器，调用后恢复
             var (saveInstrs, restoreInstrs) = Regs.SaveForCall();
@@ -1611,11 +1895,183 @@ namespace BasicCompiler
                 instructions.Add(ri);
 
             // Clean up stack (caller cleans)
-            if (stmt.Arguments.Count > 0)
+            if (argBytes > 0)
             {
-                int stackCleanup = stmt.Arguments.Count * 4;
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, stackCleanup) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argBytes) }));
             }
+        }
+
+        /// <summary>
+        /// 一次调用的实参发射 —— **三条调用路径共用这一份实现**
+        /// （语句位 `CALL x` / 表达式里的 `f(…)` / SUB 体内表达式里的 `f(…)`）。
+        /// 各写一份必然漂移，本仓已经吃过这个亏。
+        /// </summary>
+        /// <param name="isByRefAt">形参 i 是不是 BYREF（NATIVE 声明已在 CodeGenerator 里被强制 BYVAL）。</param>
+        /// <param name="subScope">当前是否在 SUB/FUNCTION 体内（决定用 GenerateSubExpression 还是 GenerateExpression）。</param>
+        /// <returns>调用方要清掉的栈字节数。</returns>
+        private int EmitCallArguments(IReadOnlyList<Expression> args, Func<int, bool> isByRefAt, bool subScope,
+                                      Func<int, BasicType> paramTypeAt = null)
+        {
+            int n = args.Count;
+
+            /* ① **先压"非左值 BYREF 实参"的临时量**，而且必须压在**实参块之外**。
+               理由：被调方按 `[R12+12+4i]` 的**固定步长 4** 取形参，每个实参只能占一格；
+               把"值"那一格插进实参块里会把后面所有形参整体错位。
+               所以临时量统一压在最上面（高地址），实参槽里放它的地址。
+               语义：QBasic 对"非左值实参"就是造个临时量，被调方写它写进临时量、出去即丢。 */
+            var tempIndex = new Dictionary<int, int>();   // 实参下标 → 临时量序号（0 = 最先压的）
+            for (int i = n - 1; i >= 0; i--)
+            {
+                if (!isByRefAt(i) || IsAddressableArg(args[i])) continue;
+                EmitArgValue(args[i], 0, subScope);
+                // ⚠ 临时量里要放**形参类型**的那几个字节：形参是单精度而表达式是整数时，
+                //   直接压整数位型、被调方按 `MOVEF` 读 ⇒ 读出来是 1e-44 那种垃圾
+                //   （实测 `FUNCTION Scl (n!)` 恒返回 0）。整数 ⇒ 先 I2F（F 组与整数组共用
+                //   编号，`SetFloatValue` 会同步 `registers[]`，所以接着 `PUSH R0` 压的就是浮点字节）。
+                if (paramTypeAt != null && paramTypeAt(i) == BasicType.Single)
+                {
+                    BasicType srcT = InferExpressionType(args[i]);
+                    if (srcT != BasicType.Single && srcT != BasicType.Double)
+                        AddRR(OpCode.I2F, 0, 0);
+                }
+                AddInstruction(OpCode.PUSH, Reg(0));
+                tempIndex[i] = tempIndex.Count;
+            }
+            int temps = tempIndex.Count;
+
+            // ② 压实参（右到左）：左值 = 取地址，非左值 BYREF = 占位（③ 回填），BYVAL = 值
+            for (int i = n - 1; i >= 0; i--)
+            {
+                if (isByRefAt(i))
+                {
+                    if (tempIndex.ContainsKey(i)) AddRI(OpCode.MOVE, 0, 0);
+                    else GenerateVariableAddress(args[i], 0);
+                }
+                else
+                {
+                    EmitArgValue(args[i], 0, subScope);
+                }
+                AddInstruction(OpCode.PUSH, Reg(0));
+            }
+
+            /* ③ 回填临时量地址。压完之后 R13 正好指向实参块底（= 实参 0 的槽），
+               于是：实参 i 的槽在 R13+4i，临时量 j 在 R13+4*(temps+n-j-1)。 */
+            foreach (var kv in tempIndex)
+            {
+                AddInstruction(OpCode.MOVE, Reg(0), Reg(13));
+                AddRI(OpCode.ADD, 0, 4 * (temps + n - kv.Value - 1));
+                AddInstruction(OpCode.MOVE, new Operand(OperandType.MEMORY, $"R13+{4 * kv.Key}"), Reg(0));
+            }
+
+            return (temps + n) * 4;
+        }
+
+        /// <summary>
+        /// SUB/FUNCTION 体内"二元运算的一个操作数"：求值到寄存器 1，并按结果类型做类型提升。
+        /// 整数 → `I2F`/`I2D`；单精度 → `F2D`（往双精度提升时）；已经是目标类型的原样不动。
+        /// </summary>
+        private void EmitSubOperand(Expression operand, ExpType operandType, bool targetDouble, bool floatPath)
+        {
+            GenerateSubExpression(operand, 1);
+            if (!floatPath) return;
+            if (targetDouble)
+            {
+                // ⚠ **顺序不能反**：`ExpType.IsFloat()` 对 `F32` **和** `F64` 都为真
+                //   （见 `ExpTypeExtensions.IsFloat`），所以原来先判 `IsFloat` 的分支
+                //   会把**已经是双精度**的操作数也送进 `F2D` ——
+                //   把 double 的位型当 float 再转一次 double，值当场变成垃圾。
+                //   实测 `.scratch/gor/mre_dcmp.bas`：`SUB` 里 `A# = 1.5 + 2.25`
+                //   算成 `A# <= 3.5`（顶层同一段是对的，因为顶层那条路的判断顺序是对的）。
+                if (operandType.IsDouble())
+                {
+                    // 已经是双精度：原样
+                }
+                else if (operandType.IsFloat())
+                    instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+                else
+                    instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+            }
+            else
+            {
+                if (!operandType.IsFloat() && !operandType.IsDouble())
+                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+            }
+        }
+
+        /// <summary>
+        /// 形参声明的类型 —— 名字后缀优先（`n!` → Single、`x#` → Double），
+        /// 其次 `AS STRING`，其余按整数。给"实参临时量要按形参类型填字节"用
+        /// （见 <see cref="EmitCallArguments"/> 里那条 I2F）。
+        /// </summary>
+        private static BasicType ParamDeclaredType(ParameterNode p)
+        {
+            string n = p?.Name ?? "";
+            if (p != null && p.IsString) return BasicType.String;
+            if (n.EndsWith("$", StringComparison.Ordinal)) return BasicType.String;
+            if (n.EndsWith("!", StringComparison.Ordinal)) return BasicType.Single;
+            if (n.EndsWith("#", StringComparison.Ordinal)) return BasicType.Double;
+            if (n.EndsWith("&", StringComparison.Ordinal)) return BasicType.Integer;
+            if (n.EndsWith("%", StringComparison.Ordinal)) return BasicType.Byte;
+            return BasicType.Integer;
+        }
+
+        /// <summary>按当前是否在 SUB 体内选表达式发射路径。</summary>
+        private void EmitArgValue(Expression e, int reg, bool subScope)
+        {
+            if (subScope) GenerateSubExpression(e, reg);
+            else GenerateExpression(e, reg);
+        }
+
+        /// <summary>
+        /// 实参能不能"取地址后交给被调方读写"。
+        ///
+        /// <list type="bullet">
+        /// <item><description><b>标量变量</b>：能（`ident` 的地址）。</description></item>
+        /// <item><description><b>数组元素</b>（`arr(i)`）：**能** —— 元素地址本身就是合法的左值，
+        /// `SUB t(a) / a = 5` + `t arr(1)` 必须把 `arr(1)` 改掉（QBasic 就是这样）。</description></item>
+        /// <item><description><b>整个数组</b>（`arr()`）：能，取的是**基址**
+        /// （`CALL MakeCityScape(BCoor())` 要的就是这个）。</description></item>
+        /// <item><description><b>常量</b>：不能 —— 把 `DoSun SUNHAPPY`（`CONST SUNHAPPY = FALSE`）
+        /// 当左值传地址，被调方一写就把常量区改了（QBasic 会造临时量）。</description></item>
+        /// <item><description>SUB/FUNCTION 名、认不出的数组：不能（走临时量，被调方的写不回流）。</description></item>
+        /// </list>
+        /// </summary>
+        private bool IsAddressableArg(Expression e)
+        {
+            // 数组（整数组 / 元素）：只要是**已知**的数组（DIM 出来的，或是数组形参）就能取地址。
+            // 判"认不认得"这一步不能省：认不出时 `GenerateVariableAddress` 会给 0，
+            // 而那等于把一个野地址交给被调方去写。
+            if (e is ArrayAccessExpression acc)
+                return IsKnownArray(acc.ArrayName);
+
+            // 记录字段（`pts(2).XCoor` / `p.X`）：字段偏移查得到就能取地址
+            // （查不到就还是走临时量 —— 给个 0 当地址会让被调方写到野地址上）
+            if (e is FieldAccessExpression fa)
+                return ResolveFieldOffset(fa) >= 0;
+
+            if (e is not Identifier id) return false;
+            string key = id.Name.ToLower();
+            if (constants.ContainsKey(key)) return false;
+            if (arrayVariables.ContainsKey(key)) return false;
+            if (subMap.ContainsKey(SymbolKey(id.Name))) return false;
+            if (funcMap.ContainsKey(SymbolKey(id.Name))) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// <paramref name="arrayName"/> 是不是一个**已知数组** —— 模块级/SUB 内 `DIM` 出来的，
+        /// 或者当前 SUB/FUNCTION 的**数组形参**。判据只有这一份（`GenerateArrayElementAddr`
+        /// 与 `GenerateArrayBaseAddr` 用的也是它）。大小写不敏感（`arrayVariables` 的键按书写
+        /// 原样存，`BCoor` 与 `bcoord` 要都能查到）。
+        /// </summary>
+        private bool IsKnownArray(string arrayName)
+        {
+            if (arrayVariables.ContainsKey(arrayName)) return true;
+            if (currentSubName == null) return false;
+            int pIdx = FindParameterIndex(arrayName.ToLower());
+            if (pIdx < 0) return false;
+            var pDecl = FindParameterDecl(pIdx);
+            return pDecl != null && pDecl.IsArray;
         }
 
         private void GenerateSubFunctionCall(FunctionCallExpression funcCall, int reg)
@@ -1633,7 +2089,11 @@ namespace BasicCompiler
                 case "fix":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_int", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "rnd":
-                    EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_rnd", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
+                    // `RND(1)` —— 见 `GenerateRndValue`：库给的是原始随机整数，
+                    // 要换算成 QBasic 语义的 [0,1) 单精度分数，**两处内置表都要走它**
+                    // （这一处与 `CodeGenerator.Expressions.cs` 的 `GenerateMainFunctionCall`
+                    // 是同一个 switch 的两份，本仓的老毛病）。
+                    EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateRndValue(reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "sin":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_sin", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "cos":
@@ -1718,6 +2178,60 @@ namespace BasicCompiler
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_timer", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "input$":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_inputN", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
+                // === 类型转换函数（直接生成转换 opcode）===
+                //
+                // ⚠ 这四条**在主程序那张表里有、在这张表里漏了** —— 于是同一个
+                //   `CINT(x)`「写在主程序里能编、写在 SUB/FUNCTION 里报
+                //   未定义的函数 'func_cint'」。实测最小复现：
+                //     `FUNCTION Scl (n!) / Scl = CINT(n! / 2 + .1) / END FUNCTION`
+                //   GORILLA.BAS 的 `Scl`/`GetNum#` 全是这个形状（`Scl` 被引用 107 次）。
+                //   两张表的分工见 `CodeGenerator.Expressions.cs` 的 `GenerateMainFunctionCall`
+                //   —— **两边是同一个 switch 的两份**，加/改内置函数必须同时改两处
+                //   （本仓头号坑「同一规则两处实现」的又一例）。
+                case "csng":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Double)
+                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Single;
+                    return;
+                }
+                case "cdbl":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Double;
+                    return;
+                }
+                case "clng":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Double;
+                    return;
+                }
+                case "cint":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Double)
+                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = null;
+                    return;
+                }
                 case "lof":
                 case "eof":
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
@@ -1727,26 +2241,25 @@ namespace BasicCompiler
             }
             
             // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)
-            funcMap.TryGetValue(funcCall.FunctionName.ToLower(), out var fd);
+            funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var fd);
             string funcLabel = (fd != null && fd.IsNative)
-                ? funcCall.FunctionName.ToLower()
-                : "func_" + funcCall.FunctionName.ToLower();
+                ? SymbolKey(funcCall.FunctionName)
+                : FunctionLabel(funcCall.FunctionName);
 
-            // Push arguments (right-to-left)
-            for (int i = funcCall.Arguments.Count - 1; i >= 0; i--)
-            {
-                GenerateSubExpression(funcCall.Arguments[i], 0);
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            }
+            // Push arguments (right-to-left) —— 与另外两条调用路径共用同一份实现
+            int argBytes = EmitCallArguments(funcCall.Arguments,
+                i => fd != null && i < fd.Parameters.Count && fd.Parameters[i].IsByRef,
+                true,
+                i => fd != null && i < fd.Parameters.Count
+                        ? ParamDeclaredType(fd.Parameters[i]) : BasicType.Integer);
 
             // CALL
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcLabel) }));
 
             // Clean up stack
-            if (funcCall.Arguments.Count > 0)
+            if (argBytes > 0)
             {
-                int stackCleanup = funcCall.Arguments.Count * 4;
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, stackCleanup) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argBytes) }));
             }
 
             // Return value is in R0

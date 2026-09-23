@@ -165,9 +165,18 @@ namespace PascalCompiler
         private void GenerateUserDefinedProcedureCall(ProcedureCallNode call)
         {
             // 需要知道被调用过程的参数声明来判断哪些是var参数
-            // 查找对应的过程声明
+            // 查找对应的过程声明：先找**本文件**的，再找 `uses` 单元的 interface 声明。
+            //
+            // ⚠ 第二处查找不是锦上添花，而是**库函数的地址传递**能不能成立的全部：
+            //   `DrawPoly(4, Poly)` / `GetImage(l,t,r,b,Buf)` / `PutImage(l,t,Buf,0)` 在 BGI 里
+            //   收的是**数组地址**（BGI 的形参是 untyped `var`），而"压地址还是压值"这个判断
+            //   只能来自形参声明。单元声明看不见的话，`Poly` 会被当成一个普通变量**压它的值**
+            //   ⇒ 库那边拿一个随机地址去读，程序照跑、画面全错、一个错都不报。
             SubprogramDeclarationNode? targetSubprogram = FindSubprogram(call.Name);
-            
+            if (targetSubprogram == null
+                && UnitSubprograms.TryGetValue(call.Name.ToLower(), out var unitSub))
+                targetSubprogram = unitSub;
+
             // 参数传递: 从右到左压栈
             for (int i = call.Arguments.Count - 1; i >= 0; i--)
             {
@@ -177,7 +186,7 @@ namespace PascalCompiler
                 {
                     isVarParam = targetSubprogram.Parameters[i].IsVarParameter;
                 }
-                
+
                 if (isVarParam && call.Arguments[i] is VariableNode varArg)
                 {
                     // var参数: 压入变量地址
@@ -197,11 +206,17 @@ namespace PascalCompiler
                     }));
                 }
             }
-            
+
             // CALL过程
+            //
+            // 标签用**声明里的那个大小写**：Pascal 不区分大小写（`Initgraph`/`INITGRAPH`
+            // 都合法），而 VML 的标签表**区分** ⇒ 照源码原样发出去的话，
+            // 写法与库里差一个字母就是"未解析标签"（致命），而这对用户毫无提示价值。
+            string callLabel = UnitSubprograms.TryGetValue(call.Name.ToLower(), out var decl)
+                ? decl.Name : call.Name;
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand>
             {
-                new Operand(OperandType.LABEL, call.Name)
+                new Operand(OperandType.LABEL, callLabel)
             }));
             
             // 清理参数栈(调用者清理)

@@ -197,6 +197,29 @@ if (Test-Path dist) {
     Write-Host '  (无 dist 目录)'
 }
 
+# ── .scratch/ 统一闸门（放这里，别散到上面各段去）─────────────────────────
+# 文件头把 .scratch/ 定义为「有意保留的本地草稿材料」（-Scratch 才清），但上面各段是按
+# **目录名 / 扩展名**全树匹配的，会伸进 .scratch 内部。2026-09-23 实测踩到：
+#   · bin/obj 那一段删掉了 .scratch/oldprogs/src/number/ 下 **70 个 NetBSD 源码目录** ——
+#     NetBSD 的 bin/ 里放的是**源码**（external/bsd/flex/bin、external/apache2/llvm/bin…），
+#     不是构建产物；同理 obj/（那些树里也有同名源码目录）。
+#   · *.user 那一段删掉了 unbound 的**测试夹具** external/bsd/unbound/dist/…/bad.user。
+# ⚠ 闸门放在**收集之后统一过滤**，而不是给上面 14 个扫描各补一条 -notmatch：漏一处就是
+#    这个坑重演（本仓头号教训 —— 规则要收口成唯一实现，别指望调用点各自记得）。
+if (-not $Scratch) {
+    $kept = New-Object System.Collections.Generic.List[string]
+    foreach ($t in $targets) {
+        if ($t -match '\\\.scratch\\') { continue }
+        $kept.Add($t)
+    }
+    $skippedScratch = $targets.Count - $kept.Count
+    if ($skippedScratch -gt 0) {
+        Write-Host '── .scratch/ 闸门 ──'
+        Write-Host "  .scratch/ 下 $skippedScratch 项按约定保留（要清加 -Scratch）"
+    }
+    $targets = $kept
+}
+
 foreach ($t in $targets) { Remove-Target $t }
 
 # Git 仓库压缩（gc --aggressive + prune）

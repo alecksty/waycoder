@@ -95,12 +95,19 @@ void CRT_GOTOXY(int x, int y) {
 int CRT_WHEREX();  int CRT_WHEREX()  { return _crt_x; }
 int CRT_WHEREY();  int CRT_WHEREY()  { return _crt_y; }
 
+/* ⚠ 这几个 CRT_* 是**寄存器传参**入口（BASIC 的 EmitCallBuiltin 只把实参放进 R0-R3），
+   所以**绝不可给形参赋值**：C 编译器把「形参赋值」编成对 `[R12+12+4i]` 的写，而
+   寄存器传参的调用方**没有分配那个实参槽** —— 写下去就落到调用方的栈上。
+   实测（GORILLA.BAS）：CRT_TEXTCOLOR 把 `c = 7` 写成调用方保存的 BP，
+   于是调用方 `leave` 后 R12=7，下一条 `[R12-12]` 立刻内存错误。
+   一律用显式局部量承接。 */
 void CRT_TEXTCOLOR(int c);
 void CRT_TEXTCOLOR(int c) {
+    int v;
     asm("MOVE [_crt_tmp1], R0");
-    c = _crt_tmp1 & 15;
-    _crt_fg = c & 7;
-    if (c > 7) {
+    v = _crt_tmp1 & 15;
+    _crt_fg = v & 7;
+    if (v > 7) {
         asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm("MOVE R0, #49"); asm("SYSCALL 400");
@@ -125,9 +132,10 @@ void CRT_TEXTCOLOR(int c) {
 
 void CRT_TEXTBACKGROUND(int c);
 void CRT_TEXTBACKGROUND(int c) {
+    int v;
     asm("MOVE [_crt_tmp1], R0");
-    c = _crt_tmp1 & 7;
-    _crt_bg = c;
+    v = _crt_tmp1 & 7;
+    _crt_bg = v;
     asm("MOVE R0, #27"); asm("SYSCALL 400");
     asm("MOVE R0, #91"); asm("SYSCALL 400");
     asm("MOVE R1, _ansi_bg");
@@ -141,25 +149,27 @@ void CRT_TEXTBACKGROUND(int c) {
 
 void CRT_WINDOW(int x1, int y1, int x2, int y2);
 void CRT_WINDOW(int x1, int y1, int x2, int y2) {
+    /* 同 CRT_TEXTCOLOR：形参一个字都不能写（见上方长注释），一律用局部量 */
+    int a1, a2, a3, a4;
     asm("MOVE [_crt_tmp1], R0");
     asm("MOVE [_crt_tmp2], R1");
-    x1 = _crt_tmp1; y1 = _crt_tmp2;
+    a1 = _crt_tmp1; a2 = _crt_tmp2;
     asm("MOVE [_crt_tmp1], R2");
     asm("MOVE [_crt_tmp2], R3");
-    x2 = _crt_tmp1; y2 = _crt_tmp2;
-    if (x1 < 1) x1 = 1; if (x1 > x2) x1 = 1;
-    if (x2 > 80) x2 = 80;
-    if (y1 < 1) y1 = 1; if (y1 > y2) y1 = 1;
-    if (y2 > 25) y2 = 25;
-    _crt_wx1 = x1; _crt_wy1 = y1;
-    _crt_wx2 = x2; _crt_wy2 = y2;
+    a3 = _crt_tmp1; a4 = _crt_tmp2;
+    if (a1 < 1) a1 = 1; if (a1 > a3) a1 = 1;
+    if (a3 > 80) a3 = 80;
+    if (a2 < 1) a2 = 1; if (a2 > a4) a2 = 1;
+    if (a4 > 25) a4 = 25;
+    _crt_wx1 = a1; _crt_wy1 = a2;
+    _crt_wx2 = a3; _crt_wy2 = a4;
     asm("MOVE R0, #27"); asm("SYSCALL 400");
     asm("MOVE R0, #91"); asm("SYSCALL 400");
     asm("MOVE R0, [_crt_wy1]"); asm("SYSCALL 402");
     asm("MOVE R0, #59"); asm("SYSCALL 400");
     asm("MOVE R0, [_crt_wy2]"); asm("SYSCALL 402");
     asm("MOVE R0, #114"); asm("SYSCALL 400");  /* 'r' = 114 */
-    CRT_GOTOXY(x1, y1);
+    CRT_GOTOXY(a1, a2);
 }
 
 int CRT_KEYPRESSED();
@@ -241,14 +251,16 @@ void CRT_CURSOROFF() {
 
 void CRT_WRITE_CHAR(int ch);
 void CRT_WRITE_CHAR(int ch) {
+    /* 同 CRT_TEXTCOLOR：形参不能写 */
+    int v;
     asm("MOVE [_crt_tmp1], R0");
-    ch = _crt_tmp1;
-    if (ch == 10) {
+    v = _crt_tmp1;
+    if (v == 10) {
         _crt_y++; _crt_x = _crt_wx1;
         if (_crt_y > _crt_wy2) _crt_y = _crt_wy2;
-    } else if (ch == 13) {
+    } else if (v == 13) {
         _crt_x = _crt_wx1;
-    } else if (ch >= 32) {
+    } else if (v >= 32) {
         asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 400");
         _crt_x++;
         if (_crt_x > _crt_wx2) { _crt_x = _crt_wx1; _crt_y++; }

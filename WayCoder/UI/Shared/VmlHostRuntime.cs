@@ -263,6 +263,13 @@ public sealed class VmlHostRuntime
     public int BlockingWaitLimitMs { get; set; }
 
     /// <summary>
+    /// 本次运行的取消令牌。**宿主里所有阻塞等待都要认它** —— 只靠 VM 的"每条指令查一次"
+    /// 拦不住卡在宿主里的程序（它那时在执行等待，不是在执行指令）。
+    /// 不设（default）= 老行为：等待不可取消（桌面自测与老调用点保持原样）。
+    /// </summary>
+    public CancellationToken RunToken { get; set; }
+
+    /// <summary>
     /// 每一条 syscall 进来时的观察钩子（**可选**，平台自己接）。
     ///
     /// 手机端有一个"入参诊断"脚手架（真机实测"对话框字符串大多是空的"时，唯一能分清
@@ -337,6 +344,44 @@ public sealed class VmlHostRuntime
             return true;
         }
 
+        // **老接口的「字符输入」（SYSCALL 5：`INKEY$` / `getch()`）：接到窗口的消息队列上。**
+        //
+        // 这一条解决的是"老程序卡在等按键"：`INKEY$` 走的是 CRT 通道（SYSCALL 5），
+        // 而窗口的键盘事件走的是 ui 消息队列 —— 两条路**互不相通** ⇒ 手机上手柄/屏幕键盘
+        // 按下去，`DO WHILE Char$ = "": Char$ = INKEY$: LOOP` 永远出不去
+        //（GORILLA.BAS 的 `SparklePause` / `GorillaIntro` 两处都是这个形状）。
+        //
+        // ⚠ **只在开过绘图窗口的程序里截**（`_windowOpened`）：否则会把普通控制台程序
+        //   的 `getch()`（`vmlcli --stdin` 那一套、`cases/16-conio-key.c`）一并改道，
+        //   而那些程序根本没有窗口、队列永远是空的。不开窗口 ⇒ 原样交给运行时。
+        //
+        // ⚠ 只取 **KeyDown**（`TryTakeWhere`）：直接取队头会把排在键盘前面的定时器/鼠标
+        //   消息一起吃掉（那些消息的消费者是 `ui_poll_msg`），症状是"定时器偶尔不响"。
+        if (syscallNumber == 5)
+        {
+            VmlMessage? keyMsg = _queue.TryTakeWhere(m => m.Type == VmlMsgType.KeyDown);
+            if (keyMsg is null && registers[0] == 1)
+            {
+                // 阻塞模式（`INPUT` 逐字符读、`getch()`）：等一片。上限沿用 UI 等待那套
+                // （`BlockingWaitLimitMs`，桌面脚手架 = `--timeout` 的毫秒数）——
+                // **等不到就原样交回运行时**，不是在这里返回 0：`--stdin` 那套
+                // "没有 UI 输入源、只有脚本喂的一行文本"的程序仍要能读到它的输入。
+                var deadline = Environment.TickCount64 + Math.Max(1000, BlockingWaitLimitMs);
+                while (keyMsg is null && Environment.TickCount64 < deadline && !RunToken.IsCancellationRequested)
+                {
+                    System.Threading.Thread.Sleep(10);
+                    keyMsg = _queue.TryTakeWhere(m => m.Type == VmlMsgType.KeyDown);
+                }
+            }
+            if (keyMsg is { } km)
+            {
+                registers[0] = VmlKeys.ToChar(km.A);
+                return true;
+            }
+            // 队列里没有按键 ⇒ **落到下面交给运行时**（控制台 / `--stdin` 那条老路）。
+            // 「窗口开着没键」与「没有窗口」在这里是同一种情形，不必分开判。
+        }
+
         if (!VmlUi.Handles(syscallNumber)) return false; // 不认识必须放行，否则吞掉内置 syscall
 
         OnSyscall?.Invoke(syscallNumber, registers, memory);
@@ -370,6 +415,16 @@ public sealed class VmlHostRuntime
                 // 靠号区分（这正是走新号的原因：老程序 R6 里可能是任何东西）。
                 case VmlUi.DrawTextEx: Scene()?.AddTextEx(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5], registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.SetFont: SetFont(registers); break;
+                // 竖对齐是**状态式**的（与 ui_set_font 同一套）：设一次，之后 ui_text_cur 都用它。
+                // 四档：顶 / 中 / 底 / 基线。夹到合法区间 —— 老程序可能传来没初始化的值。
+                case VmlUi.SetVAlign:
+                    // ⚠ 上界要写**编号最大的那一档**（现在是 `VAlignTop` = 3）。
+                    //   第一版照着"名字看起来像边界"写成了 `VAlignBase` —— 而重排编号后
+                    //   `VAlignBase` = 0 ⇒ `Clamp(x, 0, 0)` 把**所有档位钉死在基线**，
+                    //   症状是"设了中/底都没反应"。三条判据当场抓出来的。
+                    if (Scene() is { } vsc)
+                        vsc.FontVAlign = Math.Clamp(registers[0], VmlScene.VAlignBase, VmlScene.VAlignTop);
+                    break;
                 case VmlUi.Text: Scene()?.AddTextCurrent(registers[0], registers[1], Str(memory, registers[2])); TouchScene(); break;
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;
                 case VmlUi.DrawImage: Scene()?.AddImage(registers[0], registers[1], Str(memory, registers[2]), registers[3], registers[4]); TouchScene(); break;
@@ -746,7 +801,11 @@ public sealed class VmlHostRuntime
         // 宿主没设上限时一个字不改，仍是"一直等"。
         var timeout = r[1];
         if (timeout <= 0 && BlockingWaitLimitMs > 0) timeout = BlockingWaitLimitMs;
-        var msg = ex ? _queue.Read(timeout, r[2] == VmlUi.Keep) : _queue.Take(timeout);
+        // ⚠ 令牌一起传下去：**这是"强制终止"能不能落地的关键一步** ——
+        //   卡在这里等消息的程序不执行指令，VM 的令牌检查够不着它（见 WaitPostOrCancel）。
+        var msg = ex
+            ? _queue.Read(timeout, r[2] == VmlUi.Keep, RunToken)
+            : _queue.Take(timeout, RunToken);
         if (msg is not { } m) return 0;
         m.WriteTo(mem, r[0]);
         return (int)m.Type;
@@ -1121,7 +1180,56 @@ public sealed class VmlHostRuntime
         if (address < 0 || address >= memory.Length) return "";
         var end = address;
         while (end < memory.Length && memory[end] != 0) end++;
-        return Encoding.UTF8.GetString(memory, address, end - address);
+        var len = end - address;
+        if (len <= 0) return "";
+
+        // UTF-8 合法 → 直接用（我们自己的例子、现代程序都走这一支，行为与从前逐字相同）
+        if (IsValidUtf8(memory, address, len))
+            return Encoding.UTF8.GetString(memory, address, len);
+
+        // 不合法 → **按 CP437 兜底**：DOS 时代的老程序（BGI 那一批）字符串里是 CP437 字节
+        // （框线 C4、重音 E9…），按 UTF-8 硬解会整片变成 U+FFFD，屏幕上就是**一串问号**。
+        //
+        // ⚠ **为什么要跟控制台那条路对齐**：`VMLRuntime.Syscall.cs` 的 `OutputChar` 早就在用
+        //   `Cp437.ToChar` —— 于是同一个程序 `print` 出来是好的、`outtextxy` 画到窗口上却是
+        //   问号（用户真机报的正是这个）。两条路对同一份字节用两套规则 = 本仓最忌的
+        //   "同一规则两处实现"，所以这里补上，判据也钉住它。
+        // ⚠ 兜底解码器是**注入**的（见 <see cref="NonUtf8ByteDecoder"/>）：本文件被三个工程
+        //   编译，其中一个**不引用 VML 程序集**，直接写 `Cp437.ToChar` 会在那边 CS0103。
+        // ⚠ 已知边界：GBK（中文 DOS）的双字节**常常恰好是合法 UTF-8** ⇒ 会走上面那一支、
+        //   被静静地解成别的字。真遇到中文 DOS 老程序，得由**窗口/程序声明**字符集，
+        //   而不是靠"猜"（本仓在输入侧吃过同一个亏，见 `WindowsCharSource` 的注释）。
+        if (NonUtf8ByteDecoder is { } decode)
+        {
+            var sb = new StringBuilder(len);
+            for (var i = 0; i < len; i++) sb.Append(decode(memory[address + i]));
+            return sb.ToString();
+        }
+        // 没人注入 ⇒ **老行为**（坏字节变 U+FFFD）。没接的宿主等于没这个能力，不静默变样。
+        return Encoding.UTF8.GetString(memory, address, len);
+    }
+
+    /// <summary>
+    /// 非 UTF-8 字节的兜底解码器（DOS 老程序的 CP437）。**由宿主注入** —— 表只有一份
+    /// （`VMLRuntime.Device.Cp437`），真正的两个宿主（手机 `MauiVml` / 桌面 CLI `CliVmlHost`）
+    /// 启动时各接一行；本文件被三个工程编译，其中桌面主工程不引用 VML 程序集，所以不能直接调它。
+    /// </summary>
+    public static Func<byte, char>? NonUtf8ByteDecoder { get; set; }
+
+    /// <summary>严格 UTF-8 校验：非法字节序列**抛异常**的那种解码器试一次。</summary>
+    private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
+
+    private static bool IsValidUtf8(byte[] memory, int offset, int length)
+    {
+        try
+        {
+            StrictUtf8.GetString(memory, offset, length);
+            return true;
+        }
+        catch (DecoderFallbackException)
+        {
+            return false;
+        }
     }
 
     /// <summary>读「选项块」：<paramref name="count"/> 个 \0 分隔的字符串。</summary>

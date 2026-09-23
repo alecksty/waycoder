@@ -7138,6 +7138,10 @@ fn ui_set_font(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL ui_set_font")
 }
 
+fn ui_set_valign(a0: i32) {
+    asm!("CALL ui_set_valign")
+}
+
 fn ui_text_cur(a0: i32, a1: i32, a2: i32) {
     asm!("CALL ui_text_cur")
 }

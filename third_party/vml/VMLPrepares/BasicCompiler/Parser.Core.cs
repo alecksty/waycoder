@@ -125,51 +125,55 @@ namespace BasicCompiler
             // First pass: collect SUB/FUNCTION/DIM/DEF FN declarations
             for (int i = 0; i < tokens.Count; i++)
             {
-                if (tokens[i].Type == TokenType.DIM && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER)
+                if (tokens[i].Type == TokenType.DIM && i + 1 < tokens.Count)
                 {
-                    string arrName = tokens[i + 1].Value;
-                    declaredArrays.Add(arrName);
-                    // Scan forward for AS TypeName (handles DIM arr(size) AS TypeName and DIM arr(TO) AS TypeName)
-                    int parenDepth = 0;
-                    for (int j = i + 2; j < tokens.Count && j < i + 100; j++)
+                    // `DIM [SHARED] 名[(维度)] [AS 类型] [, 名…] …`
+                    //
+                    // ⚠⚠ **只扫本行**（`tokens[].Line` 相同）。词法里没有换行 token，
+                    //   而这里从前是「从 `DIM` 后面一路扫到下一个 `:` 或 EOF」——
+                    //   也就是**扫到文件尾**（BASIC 里很少写 `:`）。于是 `DIM SHARED r(3)`
+                    //   后面**整个文件的每个标识符**都被登记成"数组"：子过程名、形参名、
+                    //   局部变量名全在内。
+                    //   后果是**顺序相关**的怪病：`SUB t (Rec(), n)` 写在 `DIM SHARED r(3)`
+                    //   **之前**时 `Rec` 没被登记 ⇒ 读侧 `Rec(n)` 被当成函数调用、
+                    //   报「未定义的函数 'func_rec'」；写在**之后**反而"好了"——
+                    //   靠的是扫描越界误打误撞把 `Rec` 收进了数组表。
+                    //   实测 GORILLA.BAS 的 `SUB UpdateScores (Record(), …)` 就是这一条。
+                    //
+                    //   括号深度也要跟：`DIM SHARED LBan&(x), …` 里的 `x` 是**维度表达式**
+                    //   里引用的常量，不是被声明的名字（从前它也被收进 declaredArrays）。
+                    bool isShared = tokens[i + 1].Type == TokenType.SHARED;
+                    int nameStart = isShared ? i + 2 : i + 1;
+                    int dimLine = tokens[i].Line;
+                    if (nameStart < tokens.Count && tokens[nameStart].Type == TokenType.IDENTIFIER)
                     {
-                        if (tokens[j].Type == TokenType.LPAREN) parenDepth++;
-                        else if (tokens[j].Type == TokenType.RPAREN) parenDepth--;
-                        else if (parenDepth == 0 && tokens[j].Type == TokenType.AS && j + 1 < tokens.Count && IsTypeNameToken(tokens[j + 1]))
+                        int parenDepth = 0;
+                        for (int j = nameStart; j < tokens.Count; j++)
                         {
-                            declaredArrayTypes[arrName] = tokens[j + 1].Value;
-                            break;
-                        }
-                        if (parenDepth == 0 && (tokens[j].Type == TokenType.COLON || tokens[j].Type == TokenType.EOF))
-                            break;
-                    }
-                }
-                else if (tokens[i].Type == TokenType.DIM && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.SHARED)
-                {
-                    // DIM SHARED var, var2(n), var3 AS TYPE — collect following identifiers
-                    for (int j = i + 2; j < tokens.Count; j++)
-                    {
-                        if (tokens[j].Type == TokenType.IDENTIFIER)
-                        {
+                            if (tokens[j].Line != dimLine) break;              // 换行 = DIM 语句结束
+                            if (tokens[j].Type == TokenType.COLON) break;      // 同行冒号 = 语句分隔
+                            if (tokens[j].Type == TokenType.LPAREN) { parenDepth++; continue; }
+                            if (tokens[j].Type == TokenType.RPAREN) { if (parenDepth > 0) parenDepth--; continue; }
+                            if (tokens[j].Type != TokenType.IDENTIFIER || parenDepth > 0) continue;
+
                             string arrName = tokens[j].Value;
                             declaredArrays.Add(arrName);
-                            // Scan forward for AS TypeName (handles DIM SHARED arr(size) AS TypeName)
-                            int parenDepth = 0;
-                            for (int k = j + 1; k < tokens.Count && k < j + 100; k++)
+
+                            // 向后找 `AS 类型名`（同样收在本行、且必须在括号之外）
+                            int depth2 = 0;
+                            for (int k = j + 1; k < tokens.Count && tokens[k].Line == dimLine; k++)
                             {
-                                if (tokens[k].Type == TokenType.LPAREN) parenDepth++;
-                                else if (tokens[k].Type == TokenType.RPAREN) parenDepth--;
-                                else if (parenDepth == 0 && tokens[k].Type == TokenType.AS && k + 1 < tokens.Count && IsTypeNameToken(tokens[k + 1]))
+                                if (tokens[k].Type == TokenType.LPAREN) depth2++;
+                                else if (tokens[k].Type == TokenType.RPAREN) depth2--;
+                                else if (tokens[k].Type == TokenType.COLON && depth2 == 0) break;
+                                else if (depth2 == 0 && tokens[k].Type == TokenType.AS
+                                         && k + 1 < tokens.Count && IsTypeNameToken(tokens[k + 1]))
                                 {
                                     declaredArrayTypes[arrName] = tokens[k + 1].Value;
                                     break;
                                 }
-                                if (parenDepth == 0 && (tokens[k].Type == TokenType.COLON || tokens[k].Type == TokenType.EOF))
-                                    break;
                             }
                         }
-                        if (tokens[j].Type == TokenType.COLON)
-                            break;
                     }
                 }
                 // ⚠ `SUB <名>` 必须先排除 `END SUB` —— 词法里没有换行 token，
@@ -181,25 +185,34 @@ namespace BasicCompiler
                 //   症状极具误导性：**报错的那一行本身完全合法**，删掉它就"修好了"，
                 //   而真凶是前面那个 END（实测：只要 END SUB 与 `q = 1` 之间**夹任意一条语句**
                 //   就一切正常 —— 那只是因为夹的那条先被消费掉了）。
+                //
+                // ⚠⚠ 但「前一个 token 是 END」**不等于**「这是 END SUB」—— 见
+                //   `IsCompoundEnd` 的长注释：QBasic 的标准写法是主程序 `END` + 之后
+                //   全部子程序，那时 `SUB <名>` 的前一个 token **正是那个独立的 END**。
+                //   所以判据必须带上**行号**（`END SUB` 写在同一行）。
                 else if (tokens[i].Type == TokenType.SUB && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER
-                         && (i == 0 || tokens[i - 1].Type != TokenType.END))
+                         && !IsCompoundEnd(i - 1))
                 {
                     declaredSubs.Add(tokens[i + 1].Value);
+                    CollectArrayParams(i + 2);
                 }
                 else if (tokens[i].Type == TokenType.FUNCTION && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER
-                         && (i == 0 || tokens[i - 1].Type != TokenType.END))
+                         && !IsCompoundEnd(i - 1))
                 {
                     declaredFunctions.Add(tokens[i + 1].Value);
+                    CollectArrayParams(i + 2);
                 }
                 else if (tokens[i].Type == TokenType.DECLARE && i + 1 < tokens.Count)
                 {
                     if (tokens[i + 1].Type == TokenType.SUB && i + 2 < tokens.Count && tokens[i + 2].Type == TokenType.IDENTIFIER)
                     {
                         declaredSubs.Add(tokens[i + 2].Value);
+                        CollectArrayParams(i + 3);
                     }
                     else if (tokens[i + 1].Type == TokenType.FUNCTION && i + 2 < tokens.Count && tokens[i + 2].Type == TokenType.IDENTIFIER)
                     {
                         declaredFunctions.Add(tokens[i + 2].Value);
+                        CollectArrayParams(i + 3);
                     }
                 }
                 else if (tokens[i].Type == TokenType.ENUM_KW && i + 1 < tokens.Count)
@@ -305,6 +318,104 @@ namespace BasicCompiler
                 Advance();
         }
 
+        /// <summary>
+        /// `tokens[endIdx]` 是不是一个**复合结束语句**（`END SUB` / `END FUNCTION` /
+        /// `END IF` / `END SELECT` / `END TYPE` / `END CLASS`）的开头。
+        ///
+        /// <para>
+        /// <b>为什么需要行号这个维度</b>：BASIC 的词法器**不产出换行 token**，于是
+        /// 「这一行的 `END` 后面紧跟着下一个 token」在 token 流里**与「跨行的 END 后面
+        /// 跟别的东西」完全同形**。只看 token 相邻的判据会把这两种情况混为一谈，
+        /// 而 QBasic 程序里**恰恰**到处都是第二种写法 —— 主程序以一条独立的 `END`
+        /// 收尾，**全部 SUB/FUNCTION 与 DATA 都写在它后面**（微软官方的
+        /// `GORILLA.BAS` 就是这个形状）。
+        /// </para>
+        ///
+        /// <para>
+        /// 混起来的后果（修前实测，`--lang basic` 一个 7 行的最小复现）：
+        /// `<c>PRINT f(2) / END / FUNCTION f(x) … END FUNCTION</c>` 里的 `FUNCTION`
+        /// 被这条 END 吃掉 ⇒ ① `f` 进不了 <c>declaredFunctions</c>，
+        /// 调用点编成 `CALL func_f` ⇒ 链接期报「未定义的函数 'func_f'」；
+        /// ② 函数体那几行被当成了**主程序的普通语句**，`FUNCTION f(x)` 那行
+        /// 甚至被编成一次对 `f` 的自调用 ⇒ **主程序顺着往下跑进子程序**。
+        /// 修前那份产物的 `.text` 里 `main:` 与 `func_f:` 是**同一个地址**
+        /// （`Labels["func_f"]` 从未被填过，被链接器的"裸名别名"兜到了变量 `f` 的 0 号地址），
+        /// 运行时 `call func_f` 跳回 main 自己 ⇒ 无限递归、报「内存不足，无法分配」。
+        /// </para>
+        ///
+        /// <para>
+        /// 判据取「同一个源行」：`END SUB` / `END IF` 在 QBasic 里本就是**一条**语句，
+        /// 不允许拆成两行写；而独立 `END` 与它后面的语句**必然不在同一行**
+        /// （同一行要写成 `END : FUNCTION f(x)` 才是合法的同一行序列，那时也确实
+        /// 应该按"同行"处理）。所以这个判据与 QBasic 的语法边界一致，不是启发式。
+        /// </para>
+        ///
+        /// <para>越界（<paramref name="endIdx"/> 落在范围外 / 其后无 token）一律返回 false。</para>
+        /// </summary>
+        private bool IsCompoundEnd(int endIdx)
+        {
+            return IsEndOfBlock(endIdx, TokenType.IF) || IsEndOfBlock(endIdx, TokenType.SELECT)
+                || IsEndOfBlock(endIdx, TokenType.SUB) || IsEndOfBlock(endIdx, TokenType.FUNCTION)
+                || IsEndOfBlock(endIdx, TokenType.TYPE_KW) || IsEndOfBlock(endIdx, TokenType.CLASS_KW);
+        }
+
+        /// <summary>
+        /// `tokens[endIdx]` 与 `tokens[endIdx+1]` 是不是同一个源行上的 `END &lt;关键字&gt;`。
+        /// 这是「`END X` 是一条复合语句」的**唯一判据**（`IsCompoundEnd` 与各处
+        /// `END SUB`/`END FUNCTION` 的体循环共用它 —— 判据写两份必然漂移）。
+        /// </summary>
+        /// <summary>
+        /// 把 `SUB`/`FUNCTION`/`DECLARE …` **形参表里带 `()` 的参数**登记成数组。
+        ///
+        /// <para>
+        /// 判据：形参表（括号深度 ≥ 1 的范围内）里**紧跟着 `(`** 的那个标识符就是数组形参
+        /// （`SUB t (BCoor(), n)` / `SUB UpdateScores (Record(), PlayerNum, Results)`）。
+        /// </para>
+        /// <para>
+        /// <b>为什么必须有这一步</b>：`declaredArrays` 此前**只从 `DIM` 语句收**，而数组
+        /// 形参根本不是 `DIM` 出来的 ⇒ 它在体内被读到时（`Record(n) = Record(n) + 1`
+        /// 的**读侧**）会被当成**函数调用**、链接期报「未定义的函数 'func_record'」。
+        /// 而写侧（`= ` 左边）走的是 `HasTopLevelEqualsOnLine` 那条路，能正常编成数组访问
+        /// ——于是症状是「**同一行里，写进去对、读出来报错**」，很容易被当成"数组读坏了"。
+        /// GORILLA.BAS 的 `SUB UpdateScores (Record(), …)` 就是这一条。
+        /// </para>
+        /// <para>
+        /// （此前它只是"碰巧"能编：`DIM SHARED` 那条扫描越界，把后面**整个文件**的
+        /// 标识符都收进了 `declaredArrays`，`Record` 顺带被收进去 —— 于是还呈**顺序相关**：
+        /// 声明写在 `DIM SHARED` 之前就报错、写在之后反而"正常"。那个越界扫描已修，见上。）
+        /// </para>
+        /// </summary>
+        private void CollectArrayParams(int openParenIdx)
+        {
+            if (openParenIdx >= tokens.Count || tokens[openParenIdx].Type != TokenType.LPAREN) return;
+            int depth = 0;
+            for (int j = openParenIdx; j < tokens.Count; j++)
+            {
+                if (tokens[j].Type == TokenType.LPAREN)
+                {
+                    // `名(` 就是数组形参（返回类型/类型名后面不会直接跟 `(`）。
+                    if (depth >= 1 && j > 0 && tokens[j - 1].Type == TokenType.IDENTIFIER)
+                        declaredArrays.Add(tokens[j - 1].Value);
+                    depth++;
+                    continue;
+                }
+                if (tokens[j].Type == TokenType.RPAREN)
+                {
+                    depth--;
+                    if (depth <= 0) break;   // 形参表结束
+                }
+                if (tokens[j].Type == TokenType.EOF) break;
+            }
+        }
+
+        private bool IsEndOfBlock(int endIdx, TokenType keyword)
+        {
+            if (endIdx < 0 || endIdx + 1 >= tokens.Count) return false;
+            if (tokens[endIdx].Type != TokenType.END || tokens[endIdx + 1].Type != keyword) return false;
+            // 行号是 1-based；两个 token 的行号相同 = 同一个源行。
+            return tokens[endIdx + 1].Line == tokens[endIdx].Line;
+        }
+
         private Statement ParseStatement()
         {
             Token token = Peek();
@@ -337,19 +448,17 @@ namespace BasicCompiler
                     return ParseDoLoopStatement();
                 case TokenType.END:
                     // 处理 END IF/SELECT/SUB — 同时消耗 END 和后续关键字
-                    if (current + 1 < tokens.Count)
+                    //
+                    // ⚠ **必须判"同一个源行"**（`IsCompoundEnd` 的长注释记着完整来龙去脉）。
+                    //   只看"下一个 token 是 SUB/FUNCTION"的话，QBasic 最标准的那个形状
+                    //   —— 主程序一条独立的 `END` 收尾、**全部子程序写在它后面** ——
+                    //   会被整片吃掉：`FUNCTION` 被当成了 `END FUNCTION` 的后半截，
+                    //   于是函数体变成主程序的一部分、函数名进不了 declaredFunctions。
+                    if (IsCompoundEnd(current))
                     {
-                        if (tokens[current + 1].Type == TokenType.IF ||
-                            tokens[current + 1].Type == TokenType.SELECT ||
-                            tokens[current + 1].Type == TokenType.SUB ||
-                            tokens[current + 1].Type == TokenType.FUNCTION ||
-                            tokens[current + 1].Type == TokenType.TYPE_KW ||
-                            tokens[current + 1].Type == TokenType.CLASS_KW)
-                        {
-                            Advance(); // skip END
-                            Advance(); // skip IF/SELECT/SUB/FUNCTION/TYPE
-                            return null;
-                        }
+                        Advance(); // skip END
+                        Advance(); // skip IF/SELECT/SUB/FUNCTION/TYPE/CLASS
+                        return null;
                     }
                     return ParseEndStatement();
                 case TokenType.STDCALL:
@@ -536,7 +645,20 @@ namespace BasicCompiler
                     return ParseImplicitCallStatement();
                 // QBASIC 图形/硬件关键字
                 case TokenType.PSET:        return ParsePsetStatement();
-                case TokenType.QB_LINE:     return ParseQbLineStatement();
+                case TokenType.QB_LINE:
+                    // ⚠ `LINE` 这个词法是**图形语句**（`LINE (x1,y1)-(x2,y2)`），
+                    //   但 `LINE INPUT "prompt"; v$` 是**输入语句** —— 两者共用同一个 token。
+                    //   不在这里分开的话，`LINE INPUT …` 会走图形解析器：`INPUT` 被当成
+                    //   一个表达式啃掉、后面的变量留在流上，编出 `CALL func_v$`
+                    //   （GORILLA.BAS 的 `GetInputs` 就是这条，一次 4 个报错）。
+                    //   判据只看下一个 token 是不是 `INPUT`，与图形 LINE 不冲突
+                    //   （图形 LINE 后面只可能跟 `(` 或坐标/`STEP`）。
+                    if (current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.INPUT)
+                    {
+                        Advance(); // skip LINE
+                        return ParseInputStatement();   // 与裸 INPUT **同一份实现**
+                    }
+                    return ParseQbLineStatement();
                 case TokenType.QB_CIRCLE:   return ParseQbCircleStatement();
                 case TokenType.PAINT:       return ParseQbPaintStatement();
                 case TokenType.LOCATE:      return ParseLocateStatement();

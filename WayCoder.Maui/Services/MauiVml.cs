@@ -143,9 +143,34 @@ HALT
     /// 两个流的**先后顺序与老行为完全一致**（stdout 在前、诊断在后），
     /// 只在这一处做分色 —— 不拆成两个返回值，免得每一层调用都要多带一个 out。
     /// </param>
+    /// <summary>
+    /// 复位「上一次运行」留下的状态。**每次 <see cref="Run"/> 进来第一件事就是它**。
+    ///
+    /// <para>
+    /// 为什么非要有：这几个字段是**静态**的（各端共用一份 <see cref="MauiVml"/>），
+    /// 而调用方拿它们判断「这一轮到底跑到哪一步了」。编译失败那条路**早退**，
+    /// 根本走不到 <see cref="RunProgram"/>（`LastRunStreamed` 在那里才被赋值的），
+    /// 于是页面读到的就是**上一轮**的值 —— 上一轮若跑过流式，它就是 `true`，
+    /// 命令行页据此认定「正文已经交出去了」而把这一轮的返回文本丢掉，
+    /// 结果**编译错误一个字都不显示**（真机实测的「点了没反应」）。
+    /// </para>
+    /// <para>
+    /// 同一类坑本仓记过多次（「上一轮量到的值用之前先问它还算不算数」）：
+    /// 跨轮次复用的静态状态，**要么每轮复位、要么别拿它当本轮判据**。
+    /// </para>
+    /// </summary>
+    private static void ResetRunState()
+    {
+        LastRunStreamed = false;
+        LastOutputWasGrid = false;
+        LastDiagnostics = "";
+        LastCursor = default;
+    }
+
     public static string Run(string? source, string? filePath, int timeoutSeconds, Func<string>? readLine = null,
         CancellationToken ct = default, bool markup = false, Func<char>? readKey = null)
     {
+        ResetRunState();
         // 给了内联源码 → 一律当 VML 汇编
         if (!string.IsNullOrWhiteSpace(source))
             return RunAssembly(source!, timeoutSeconds, readLine, ct, markup);
@@ -855,6 +880,19 @@ HALT
         VmlUiCalls.EnsureReservedSyscallsAllowed();
         var uiCalls = new VmlUiCalls();
         uiCalls.Reset(); // 清上一轮的消息/定时器/场景
+
+        // **把运行令牌交给宿主** —— 这一句就是"能不能强制终止"的分水岭。
+        // 没有它：VM 的令牌检查只在**执行指令**时生效，而程序卡在宿主里等消息/等弹框答案时
+        // 根本不执行指令 ⇒ 关窗口、点强制停止都叫不醒它（用户实测：「旧 BGI 程序，
+        // 退出弹窗后程序还没结束」—— 那类程序结尾是 `getch()`，就停在宿主的等待上）。
+        // 有了它：令牌一响，宿主的阻塞等待当场抛 `OperationCanceledException`，
+        // 穿出宿主、终止整次运行。
+        uiCalls.SetRunToken(ct);
+
+        // **DOS 老程序的字符串是 CP437 字节**（框线 C4、重音 E9…），而绘图侧原先按 UTF-8
+        // 硬解 ⇒ 全是 U+FFFD（用户真机看到的"一串问号"）。控制台那条路早就在用 CP437，
+        // 这里把**同一张表**（只有一份，在 VM 里）接给共享层，两条路从此一致。
+        WayCoder.UI.Shared.VmlHostRuntime.NonUtf8ByteDecoder ??= VMLRuntime.Device.Cp437.ToChar;
 
         // ⚠ **永远只用 "mcu" 模式，这是手机端的安全边界，不是默认值凑巧。**
         //

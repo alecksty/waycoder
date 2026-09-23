@@ -497,8 +497,7 @@ namespace BasicCompiler
                     if (currentLocalVars.ContainsKey(varKey))
                     {
                         // 局部变量
-                        int slot = currentLocalVars[varKey];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(varKey);
                         BasicType varType = GetVariableType(varKey);
                         OpCode storeOp = GetStoreInstruction(varType);
                         instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, storeSrcReg) }));
@@ -511,17 +510,17 @@ namespace BasicCompiler
                         {
                             // 检查参数是否为BYREF
                             bool isByRef = false;
-                            if (subMap.ContainsKey(currentSubName.ToLower()))
+                            if (subMap.ContainsKey(SymbolKey(currentSubName)))
                             {
-                                var sub = subMap[currentSubName.ToLower()];
+                                var sub = subMap[SymbolKey(currentSubName)];
                                 if (paramIdx < sub.Parameters.Count)
                                 {
                                     isByRef = sub.Parameters[paramIdx].IsByRef;
                                 }
                             }
-                            else if (funcMap.ContainsKey(currentSubName.ToLower()))
+                            else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
                             {
-                                var func = funcMap[currentSubName.ToLower()];
+                                var func = funcMap[SymbolKey(currentSubName)];
                                 if (paramIdx < func.Parameters.Count)
                                 {
                                     isByRef = func.Parameters[paramIdx].IsByRef;
@@ -590,13 +589,8 @@ namespace BasicCompiler
 
                     if (string.IsNullOrEmpty(recName) || !dimAsVariables.ContainsKey(recName) || !typeDefinitions.ContainsKey(dimAsVariables[recName]))
                     {
-                        // Unknown type — store to offset 0
-                        if (variables.ContainsKey(recName))
-                        {
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), new Operand(OperandType.REGISTER, storeSrcReg) }));
-                        }
+                        // 类型未知 ⇒ 按字段偏移 0 写（原样保留这条兜底）
+                        EmitFieldStore(fieldAccess.RecordExpression, 0, storeSrcReg, OpCode.MOVE);
                         return;
                     }
 
@@ -618,13 +612,8 @@ namespace BasicCompiler
                         throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'");
                     }
 
-                    // Generate the record expression to get base address (in R2)
-                    GenerateExpression(fieldAccess.RecordExpression, 2);
-                    // Add field offset to R2
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, fOff) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                    // Store value (R1) to computed address (R3)
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), new Operand(OperandType.REGISTER, storeSrcReg) }));
+                    // 记录基址 + 字段偏移 → 写值（唯一实现，见 EmitFieldStore）
+                    EmitFieldStore(fieldAccess.RecordExpression, fOff, storeSrcReg, OpCode.MOVE);
                     return;
                 }
 
@@ -796,8 +785,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
                     OpCode storeOp = GetStoreInstruction(varType);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
@@ -844,8 +832,7 @@ namespace BasicCompiler
             {
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{offset}") }));
                 }
                 else
@@ -881,8 +868,7 @@ namespace BasicCompiler
             string loopVarAddr;
             if (currentSubName != null && currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
             {
-                int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                loopVarAddr = $"R14+{-(slot + 1) * 4}";
+                loopVarAddr = $"R14+{LocalVarOffset(stmt.Variable.Name.ToLower())}";
             }
             else
             {
@@ -925,8 +911,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{offset}") }));
                 }
                 else
@@ -972,8 +957,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
                     OpCode storeOp = GetStoreInstruction(varType);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
@@ -1152,8 +1136,17 @@ namespace BasicCompiler
                     }
                     else if (targetType == BasicType.Double)
                     {
-                        // 单精度浮点转双精度浮点
-                        instructions.Add(new Instruction(OpCode.MOVED, new List<Operand> { new Operand(OperandType.REGISTER, reg), Mem($"R{reg}") }));
+                        // 单精度浮点转双精度浮点 —— **F2D**。
+                        //
+                        // ⚠ 这里原来是 `MOVED reg, [reg]`：把**寄存器当地址去读内存**。
+                        //   `reg` 里躺着的是 float 的**位型**（`3.5!` = 0x40600000），
+                        //   于是运行期报「内存越界：40600000」—— 而且报的位置是**下一条**
+                        //   用到它的指令（实测 `dcmp`），跟真因（这一条转换）错开一格，
+                        //   照报错位置反查会查到"双精度比较"上去。
+                        //   实测最小复现 `.scratch/gor/mre_dcmp.bas`：`IF S# > 3.5 THEN`。
+                        //   同一件事在赋值那条路上是对的（`movef @R0 #1.5; f2d @R0 @R0`），
+                        //   这里漏了 —— 两条路各写一份的老毛病。
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
                     }
                     break;
 
@@ -1277,6 +1270,21 @@ namespace BasicCompiler
             {
                 return BasicType.String;
             }
+            // ── 这几个**专用表达式**也是**字符串**结果，但它们的名字不带 `$`
+            //   （`$` 是词法的一部分，被吃进 token 了），所以上面那条 `EndsWith("$")`
+            //   够不到它们 —— 落到函数末尾的 `default: Integer`。
+            //
+            // ⚠ 代价是**比较**整条走错：`INKEY$ = ""` 被当成**整数比较**（拿字符串指针
+            //   比字面量地址），于是 `=` 与 `<>` **同时**为假/真各半，
+            //   `WHILE INKEY$ <> "": WEND`（QBasic 里清键盘缓冲的标准写法）**永远出不去**。
+            //   实测最小复现：`IF INKEY$ = "" THEN PRINT "eq" ELSE PRINT "ne"` 打出 `ne`，
+            //   而 `c$ = INKEY$ : IF c$ = "" …`（走过 `$` 后缀那条路）打出 `eq` ——
+            //   **同一个值、两种结论**，差别只在有没有先落进一个带 `$` 的变量。
+            //   GORILLA.BAS 的 `SparklePause` 正是踩在这一条上（引子画面卡住不闪）。
+            else if (expr is InkeyExpression || expr is DateFunctionExpression || expr is TimeFunctionExpression)
+            {
+                return BasicType.String;
+            }
             else if (expr is FunctionCallExpression funcCall)
             {
                 // Functions ending with $ return strings
@@ -1300,8 +1308,13 @@ namespace BasicCompiler
                     return BasicType.Single;
                 if (name == "cdbl" || name == "clng")
                     return BasicType.Double;
-                // RND/INT/CINT/FIX 返回整数
-                if (name == "rnd" || name == "int" || name == "cint" || name == "fix")
+                // RND 返回 **[0,1) 的单精度分数**（QBasic 语义）——
+                // 见 `GenerateRndValue`：库函数给的是原始随机整数，换算在前端做。
+                // 类型必须是 Single，否则 `RND(1) * x` 会按大整数去乘。
+                if (name == "rnd")
+                    return BasicType.Single;
+                // INT/CINT/FIX 返回整数
+                if (name == "int" || name == "cint" || name == "fix")
                     return BasicType.Integer;
                 // 其他函数默认返回整数
                 return BasicType.Integer;

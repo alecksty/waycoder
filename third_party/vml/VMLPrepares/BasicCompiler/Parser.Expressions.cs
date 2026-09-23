@@ -235,6 +235,32 @@ namespace BasicCompiler
                             expr = new Identifier(token.Line, token.Column, token.Value);
                         }
                     }
+                    // **无参函数的「裸名调用」**（没写括号）——
+                    //   QBasic 里 `X = CalcDelay` 与 `X = CalcDelay()` 等价（无参函数
+                    //   的括号可有可无），而这里此前一律落到"普通标识符" ⇒ 取的是**同名变量**
+                    //   （多半从没被赋过值 = 0），**一个错都不报**。
+                    //
+                    //   实测（GORILLA.BAS）：`MachSpeed = CalcDelay` 拿到 0 ⇒
+                    //   `SUB Rest` 里 `t2# = MachSpeed * t# / SPEEDCONST` 恒为 0 ⇒
+                    //   `LOOP UNTIL TIMER - s# > t2#` 退化成"等到下一秒"，
+                    //   香蕉每走一步都卡将近 1 秒 —— 画面看上去就是"射出去之后不动了"。
+                    //
+                    //   ⚠ 判据用 `declaredFunctions`（`DECLARE FUNCTION` / 函数体都往里登记），
+                    //   与"带括号那条路"同一个表；`X(...)` 的数组/函数歧义在这里不存在
+                    //   （裸名没有括号，只可能是无参调用）。
+                    //   ⚠ 紧跟着 `=` 的**不算**：那是"这条名字是赋值目标"（`ParseLetStatement`
+                    //   也用 `ParsePrimary` 取左值），当调用就会把 `F = 7` 编成一次丢弃返回值的
+                    //   调用 —— 实测直接把 `FUNCTION F () / F = 7 / END FUNCTION` 编成恒返回 0。
+                    else if (Peek().Type != TokenType.EQUALS
+                             && ResolveDeclaredFunction(token.Value) is { } bareFn)
+                    {
+                        //   ⚠ 名字要**按登记时的原名**去调：`DECLARE FUNCTION CalcDelay! ()`
+                        //   登记的是带 `!` 的名字，而 GORILLA 的调用点写的是 `CalcDelay`
+                        //   （不带后缀）。用裸名编出来的标签是 `func_calcaldelay`… 而真正的
+                        //   函数标签带 `_sng`（`BasicSymbol` 把 `!` 转义）—— 直接用裸名会
+                        //   链接报「未定义的函数」。
+                        expr = new FunctionCallExpression(token.Line, token.Column, bareFn);
+                    }
                     else
                     {
                         expr = new Identifier(token.Line, token.Column, token.Value);

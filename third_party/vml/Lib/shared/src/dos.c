@@ -54,7 +54,10 @@ __stdcall void sleep(unsigned seconds) {
    本平台的音效原语是"响固定时长"（宿主上限 5000ms）⇒ 这里取最长的 5 秒近似。
    老程序那种 `sound(440); delay(100); nosound();` 的写法听感与 DOS 完全一致。 */
 __stdcall void sound(unsigned freq) {
-    asm("SYSCALL #57, ${freq}, ${5000}");
+    /* ⚠ 时长**必须字面 `MOVE`**：`${5000}` 是字面量，asm 模板只认变量名
+       ⇒ 一行都不生成，R1 残留上一个值，响多久全看运气（同 `conio.c` 那三处）。 */
+    asm("MOVE R1 #5000");
+    asm("SYSCALL #57, ${freq}");
 }
 
 __stdcall void nosound(void) {

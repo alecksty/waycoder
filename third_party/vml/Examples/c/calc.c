@@ -342,8 +342,13 @@ void draw_key(int i)
         return;
     }
 
+    /* 按键标签：**用 MIDDLE 档居中**，不再靠"再减 16% 高度"手工凑。
+       从前 `y` 被当基线（手机端的实际语义），要把字摆到按键正中就只能手动往上抬一截 ——
+       而那个数字是**量出来的**、换个字号或按键高度就不准了。现在竖对齐有档位（#586），
+       让宿主按字体度量去算，程序只给"按键中心"。 */
     ui_set_font(h * 34 / 100, VML_FONT_BOLD, tcol, VML_ANCHOR_CENTER);
-    ui_text_cur(x + w / 2, y + h / 2 - h * 16 / 100 + dy, label_of(keyCode[i]));
+    ui_set_valign(VML_VANCHOR_MIDDLE);
+    ui_text_cur(x + w / 2, y + h / 2 + dy, label_of(keyCode[i]));
 }
 
 void draw_display(void)
@@ -354,6 +359,10 @@ void draw_display(void)
     ui_gradient("glass", 0, PANEL, 0x11FFFFFF, 0, 0, 0, 1000);
     ui_rect_grad(px, py, pw, ph, "glass", 18);
     ui_rect(px, py, pw, ph, PANEL_EDGE, 0, 2, 18);
+
+    /* ⚠ 显示区这两行的坐标是照**基线档（老行为）**量出来的 ⇒ 显式声明 BASE，
+       不靠"上一个 draw 设过什么"残留（按键那边设的是 MIDDLE）。 */
+    ui_set_valign(VML_VANCHOR_BASE);
 
     /* 算式行（小、暗、右对齐） */
     if (exprLen > 0) {

@@ -67,6 +67,17 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     }
 
     /// <summary>
+    /// 设本次运行的取消令牌 —— **一处入口，两处消费**：共享层（消息/输入等待）
+    /// 与手机宿主实现（对话框 / 问答等待）。只设一边的话，另一边照样把 VM 线程挂着，
+    /// 而"同一规则两处实现"正是本仓排第一的坑（这里把两侧收在一个方法里，免得日后漏改）。
+    /// </summary>
+    public void SetRunToken(CancellationToken ct)
+    {
+        _rt.RunToken = ct;
+        _mauiHost.RunToken = ct;
+    }
+
+    /// <summary>
     /// `VmRuntime` —— **通用宿主调用口（577–580）需要它**。
     ///
     /// 为什么光有 `int[] registers` 不够：那四个口里 `float8`/`long4`/`double4` 的参数躺在
@@ -333,6 +344,31 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         /// </summary>
         public Func<VmlScene?>? SceneOfRuntime { get; set; }
 
+        /// <summary>
+        /// 本次运行的取消令牌（由 <see cref="VmlUiCalls.SetRunToken"/> 与共享层**一起**设上）。
+        ///
+        /// 对话框 / 问答这类"等用户作答"的调用**必须认它**：窗口一关，这个答案**永远不会来了**，
+        /// 不认令牌就等于把 VM 线程永久挂在一个等不到的弹框上 —— 用户实测的
+        /// 「旧 BGI 程序，退出弹窗后程序还没结束」正是这条。默认 default = 老行为（不可取消）。
+        /// </summary>
+        public CancellationToken RunToken { get; set; }
+
+        /// <summary>
+        /// 等一个"要用户作答"的任务，但**令牌一响就不再等**（抛 <see cref="OperationCanceledException"/>
+        /// 往上走，让整次运行真正结束）。
+        ///
+        /// ⚠ 不能再用 `.GetAwaiter().GetResult()` 一把梭 —— 它**没有取消入口**，是这次故障的现场。
+        /// ⚠ `task.Wait(token)` 在"任务自己失败"时抛的是 `AggregateException`，与原来的
+        ///   `GetAwaiter().GetResult()`（抛内层真实异常）语义不同，所以那种情况放行到下面那句抛出。
+        /// </summary>
+        private T AwaitOrCancel<T>(Task<T> task)
+        {
+            if (!RunToken.CanBeCanceled) return task.GetAwaiter().GetResult();
+            try { task.Wait(RunToken); }
+            catch (AggregateException) { /* 任务自己失败：交给下面那句抛真实异常 */ }
+            return task.GetAwaiter().GetResult();
+        }
+
         public (int Width, int Height) ScreenArea() => ScrArea();
 
         public int Orientation() => ScreenOrientation();
@@ -360,8 +396,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             var bridge = UxHelper.WebInteraction;
             if (bridge == null) return 0;
             // 询问样式走「是/否」，其余走「确定」—— 用同一个确认框，就不再新造一个只有 OK 的原生弹框
-            var code = bridge.ConfirmAsync(title, body, allowAll: false, timeoutMs: 0)
-                .GetAwaiter().GetResult();
+            var code = AwaitOrCancel(bridge.ConfirmAsync(title, body, allowAll: false, timeoutMs: 0));
             return code == 2 ? 1 : 0;
         }
 
@@ -370,7 +405,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             var bridge = UxHelper.WebInteraction;
             if (bridge == null) return -1;
             var list = options.ToList();
-            var picked = bridge.SelectAsync(title, list, timeoutMs: 0).GetAwaiter().GetResult();
+            var picked = AwaitOrCancel(bridge.SelectAsync(title, list, timeoutMs: 0));
             // 原生桥回的是 label（可能重复），取**第一个**匹配的下标 —— 与选项表顺序一致
             return picked == null ? -1 : list.IndexOf(picked);
         }
@@ -380,7 +415,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             var bridge = UxHelper.WebInteraction;
             if (bridge == null) return -1;
             var list = options.ToList();
-            var picked = bridge.MultiSelectAsync(title, list, timeoutMs: 0).GetAwaiter().GetResult();
+            var picked = AwaitOrCancel(bridge.MultiSelectAsync(title, list, timeoutMs: 0));
             if (picked == null) return -1;
             var mask = 0;
             foreach (var p in picked)
@@ -395,7 +430,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         {
             var bridge = UxHelper.WebInteraction;
             if (bridge == null) return null;
-            return bridge.AskAsync(prompt, null, timeoutMs: 0).GetAwaiter().GetResult();
+            return AwaitOrCancel(bridge.AskAsync(prompt, null, timeoutMs: 0));
         }
 
         public void Tone(int hz, int ms, int wave, int volume) => VmlAudio.Tone(hz, ms, wave);

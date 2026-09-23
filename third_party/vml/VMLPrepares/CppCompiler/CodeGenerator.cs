@@ -24,6 +24,28 @@ namespace CppCompiler
         ///   症状是"登记了、也判了，就是不生效"，实测踩过一次。
         /// </summary>
         private readonly HashSet<string> _globalArrays = new();
+
+        /// <summary>
+        /// **字节数组**（`char x[]` / `char buf[N]` / `unsigned char` / `bool`）的名字。
+        ///
+        /// 这门前端的数组默认是 VML 那套「`[4 字节长度头][元素，每格 4 字节]`」的布局，
+        /// 而**字符数组不能是那个布局** —— 它要当 C 字符串用（`outtextxy` / `strlen` /
+        /// `ui_text` 收的都是「一串以 NUL 结尾的字节」）。
+        /// 拿带长度头的 4 字节格数组去当 C 字符串，读到的第一个"字符"是**长度头**、
+        /// 第二个字节是 0 ⇒ 屏幕上只剩**一个乱字符**。
+        /// 实测（`Examples/bgi/barChart.cpp` 那条路）：`char title[] = "Bar Chart";`
+        /// 画出来是 2 个豆腐块；`hut.cpp` 的 `char stringData1[] = "Home Sweet Home";`
+        /// 整串画不出来。
+        ///
+        /// ⇒ 这里给字符数组**一条自己的布局**：**元素 1 字节、没有长度头**（与 C 一致），
+        ///   数据段存 `byte[]`，下标步长 1、不加 `+4`。
+        ///   `[]` 的读/写/取址三处都要按这张表走（见 `ArrayIndexInfo`）。
+        ///
+        /// ⚠ 与 <see cref="_globalArrays"/> 一样**不随函数清空** —— 它记的是"这个名字是
+        ///   什么布局"，名字在整份程序里唯一。
+        /// </summary>
+        private readonly HashSet<string> _byteArrays = new();
+
         private readonly Dictionary<string, int> _arrayTotalSizes = new();
         private readonly Dictionary<string, int> _arrayInnerDim = new(); // 最内层维度大小 (用于多维数组stride计算)
         private int _currentFuncReturnLabel = -1;
@@ -354,9 +376,106 @@ namespace CppCompiler
             _currentFuncReturnLabel = savedReturnLabel;
         }
 
+        /// <summary>
+        /// 声明的**元素类型**是不是「1 字节宽」（`char` / `signed char` / `unsigned char` / `bool`）。
+        /// 传进来的是类型串，可能带修饰（`const char`）与指针（`char*`）—— 指针一律**不算**
+        /// （`char *rows[]` 是指针表，元素 4 字节）。
+        /// </summary>
+        private static bool IsCharLikeType(string? type)
+        {
+            if (string.IsNullOrEmpty(type) || type.Contains('*')) return false;
+            var t = type.Replace("const", " ").Replace("volatile", " ").Trim().ToLowerInvariant();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+            return t is "char" or "signed char" or "unsigned char" or "bool" or "_bool" or "char8_t";
+        }
+
+        /// <summary>
+        /// 这条声明是不是一个**字节数组**（`char x[]` / `char buf[N]`，见 <see cref="_byteArrays"/>）。
+        /// 指针数组（`char *rows[]`）**不是** —— 它的元素是指针。
+        /// </summary>
+        private static bool IsByteArrayDecl(string? type, bool isArray)
+            => isArray && IsCharLikeType(type);
+
+        /// <summary>
+        /// 字节数组的**数据段内容**：字符串字面量取正文、初始化列表取各元素、
+        /// 其余（无初始化器）全 0；长度按声明的元素个数，没给就按内容长度
+        /// （字符串含结尾 NUL）。
+        ///
+        /// ⚠ **不能**像普通数组那样套 `[长度头][元素]` 的布局 —— 它不是 VML 数组，
+        ///   是一段 C 字符串（见 <see cref="_byteArrays"/>）。
+        /// </summary>
+        private static byte[] BuildByteArrayData(Expr? init, IntLiteral? declaredSize)
+        {
+            var bytes = new List<byte>();
+            switch (init)
+            {
+                case StringLiteral sl:
+                    foreach (var ch in sl.Value ?? "") bytes.Add((byte)(ch & 0xFF));
+                    bytes.Add(0);                        // C 字符串的结尾 NUL
+                    break;
+                case InitializerListExpr il:
+                    var flat = new List<object>();
+                    FlattenInitListStatic(il, flat);
+                    foreach (var e in flat)
+                        bytes.Add(e is int iv ? (byte)(iv & 0xFF)
+                                : e is string lbl ? (byte)0      // 元素是字符串标签 ⇒ 认不出，给 0
+                                : (byte)0);
+                    break;
+                default:
+                    break;                               // 无初始化器 ⇒ 全 0
+            }
+            int declared = declaredSize?.Value ?? bytes.Count;
+            if (declared < 1) declared = 1;
+            while (bytes.Count < declared) bytes.Add(0);
+            if (bytes.Count > declared) bytes.RemoveRange(declared, bytes.Count - declared);
+            return bytes.ToArray();
+        }
+
+        /// <summary>
+        /// `FlattenInitList` 的**静态**版本（同一套语义，只是不需要实例）。
+        ///
+        /// ⚠ 两份实现是不得已：`FlattenInitList` 在模板解析失败时要往 `Diags` 报错，
+        ///   而这里（数据段的静态构造）拿不到诊断上下文。**规则本身必须一致** ——
+        ///   只认字面量、嵌套列表摊平、认不出的给 0。
+        /// </summary>
+        private static void FlattenInitListStatic(InitializerListExpr list, List<object> result)
+        {
+            foreach (var elem in list.Elements)
+            {
+                switch (elem)
+                {
+                    case InitializerListExpr nested: FlattenInitListStatic(nested, result); break;
+                    case IntLiteral i: result.Add(i.Value); break;
+                    case BoolLiteral b: result.Add(b.Value ? 1 : 0); break;
+                    case CharLiteral c: result.Add((int)c.Value); break;
+                    case StringLiteral sl: result.Add(sl.Value ?? ""); break;
+                    default: result.Add(0); break;
+                }
+            }
+        }
+
         private void GenerateGlobalVar(VariableDecl vd)
         {
             string label = $"var_{vd.Name}";
+
+            // ── 字节数组（`char x[] = "…"` / `char buf[N]`）──────────────────────
+            //
+            // ⚠ **必须排在下面那条"数组 / 聚合初始化"之前**：那条给所有数组都套
+            //   `[长度头][每格 4 字节]` 的布局，而字符数组要的是**一段 C 字符串**。
+            //   排在后面 = 永远走不到（`vd.IsArray` 先命中）。
+            //
+            //   实测（用户报的）：`barChart.cpp` 的 `char title[] = "Bar Chart";`
+            //   画出来是**两个豆腐块**；`Hut.cpp` 的 `char stringData1[] = "Home Sweet Home";`
+            //   整串画不出来。原因就是这条路径此前对 `char[] = "字面量"` **什么都不做**：
+            //   `vd.Initializer` 是 `StringLiteral`（不是 `InitializerListExpr`）⇒ 摊平结果是空
+            //   ⇒ 数组长度按 0 算、正文一个字节都不落盘。
+            if (IsByteArrayDecl(vd.Type, vd.IsArray))
+            {
+                dataSection[label] = BuildByteArrayData(vd.Initializer, vd.ArraySize as IntLiteral);
+                _globalArrays.Add(vd.Name);
+                _byteArrays.Add(vd.Name);
+                return;
+            }
 
             // ── 数组 / 聚合初始化：`int g[4] = {10,20,30,40}` ─────────────────────
             //
@@ -408,6 +527,23 @@ namespace CppCompiler
                 if (EvaluateConstant(vd.Initializer, out int constVal))
                 {
                     dataSection[label] = constVal;
+                }
+                // ── 指针 = 字符串字面量：`char *p = "…";` ────────────────────────
+                //
+                // ⚠ 此前它落到下面的 else：`GenerateExpr(StringLiteral)` 发一条 `MOVE R0, str_N`、
+                //   再发一条 `MOVE [var_p], R0`。这两条**落在顶层指令流里**（不是任何函数体内），
+                //   而顶层那一段**根本不会被执行**（前面刚 `ret` 过）⇒
+                //   `var_p` 永远是 0 ⇒ 程序拿到空指针、**一个字都画不出来，也不报错**。
+                //   实测：`char *gp = "GPOINT"; outtextxy(10,10,gp);` C 正确、C++ 一片空白。
+                //
+                // 正解是**不生成任何运行期代码**：把"指向那段字符串"这件事直接写进数据段
+                //   （`LabelRef` ⇒ 序列化成 `.word str_N`，链接器解析成地址）——
+                //   与 C 前端 `CodeGenerator.Functions.cs` 那条**同一条通路**。
+                else if (vd.Initializer is StringLiteral strPtrInit && vd.Type.Contains('*'))
+                {
+                    string strLitLabel = NewLabel();
+                    dataSection[strLitLabel] = strPtrInit.Value ?? "";
+                    dataSection[label] = new LabelRef(strLitLabel);
                 }
                 else
                 {

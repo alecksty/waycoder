@@ -29,6 +29,8 @@ public static partial class SelfTest
         TestWinKindContract(Section, Check);
         TestWinKindDecode(Section, Check);
         TestWinOpenPcDispatch(Section, Check);
+
+        TestSetVAlignDispatch(Section, Check);
         TestViewTransform(Section, Check);
         _ = Fail;
     }
@@ -94,6 +96,76 @@ public static partial class SelfTest
     // 上面两条钉的是常量与谓词；这一条是**端到端**：走完整的 syscall 分派，
     // 看 `VmlScene` 上落下来的字段对不对。它用的是 Chunk28 那个假宿主，
     // 所以不需要 MAUI、也不需要真 VM。
+    /// <summary>
+    /// 文字**竖对齐**做成状态式之后的判据（`ui_set_valign` #586）：设一次，之后
+    /// `ui_text_cur`（#533）就用它 —— 四档 = 顶 / 中 / 底 / **基线**。
+    ///
+    /// 判据一路查到**产出的 DSL**：只查"状态设上了"不够，得证明它真的落到了那条
+    /// `text` 命令上（`vbase`/`vcenter`/`vbottom` 记号）—— 这正是"设了没生效"最容易漏的一段。
+    /// </summary>
+    private static void TestSetVAlignDispatch(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[文字竖对齐] 状态式设置（#586）");
+
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var regs = new int[32];
+        var mem = new byte[4096];
+
+        // ⚠ **场景是"开窗"时才建的** —— 不开窗 `Scene()` 是 null，断言会全部落空
+        //   （第一版就是这么红的：六条判据全挂，因为查的是一个还不存在的场景）。
+        regs[0] = WriteCStr(mem, 0, "对齐"); regs[1] = 320; regs[2] = 480;
+        regs[3] = 1; regs[4] = 1;
+        rt.HandleSyscall(VmlUi.WinOpenPc, regs, mem);
+
+        Check("默认 = 基线（0 = 老行为）", rt.Scene()?.FontVAlign == VmlScene.VAlignBase);
+
+        regs[0] = VmlScene.VAlignBase;
+        Check("设「基线」生效", rt.HandleSyscall(VmlUi.SetVAlign, regs, mem)
+            && rt.Scene()?.FontVAlign == VmlScene.VAlignBase);
+
+        // 状态必须真的落到 `ui_text_cur` 产出的那条 text 命令上。
+        // ⚠ **基线档刻意不写记号**（`VAnchorName(0)` 返回空串）：它是老行为，
+        //   产物必须与从前**逐字相同** —— 所以这里断言的是"没有竖档记号"，不是"有 vbase"。
+        regs[0] = 10; regs[1] = 20; regs[2] = WriteCStr(mem, 100, "字");
+        rt.HandleSyscall(VmlUi.Text, regs, mem);
+        var dsl = rt.Scene()?.BuildDsl() ?? "";
+        Check("基线档不写竖档记号（产物与老版本逐字相同）",
+            !dsl.Contains(" vbase") && !dsl.Contains(" vtop")
+            && !dsl.Contains(" vcenter") && !dsl.Contains(" vbottom"));
+
+        regs[0] = VmlScene.VAlignMiddle;
+        rt.HandleSyscall(VmlUi.SetVAlign, regs, mem);
+        regs[0] = 10; regs[1] = 20; regs[2] = WriteCStr(mem, 100, "字");
+        rt.HandleSyscall(VmlUi.Text, regs, mem);
+        var dsl2 = rt.Scene()?.BuildDsl() ?? "";
+        Check("中档产出的 text 命令带 `vcenter`", dsl2.Contains(" vcenter"));
+
+        // 越界值要夹住（老程序可能传来没初始化的寄存器）。上界 = **编号最大的那一档**（顶）。
+        regs[0] = 99;
+        rt.HandleSyscall(VmlUi.SetVAlign, regs, mem);
+        Check("越界值夹到上界（顶，不落到未定义档）", rt.Scene()?.FontVAlign == VmlScene.VAlignTop);
+
+        regs[0] = -7;
+        rt.HandleSyscall(VmlUi.SetVAlign, regs, mem);
+        Check("负值夹到下界（基线）", rt.Scene()?.FontVAlign == VmlScene.VAlignBase);
+
+        /* **状态跟随窗口**（用户定的语义）：字体属性 / 竖对齐 / 默认色 / 画图参数都挂在
+           **场景**上（`VmlScene`）—— 开窗建场景、关窗销毁 ⇒ 新窗口自然回到默认值。
+           判据钉住这条链：设过 → 关窗 → 再开窗必须又是默认。 */
+        regs[0] = VmlScene.VAlignBottom;
+        rt.HandleSyscall(VmlUi.SetVAlign, regs, mem);
+        Check("（前置）设过之后是「底」", rt.Scene()?.FontVAlign == VmlScene.VAlignBottom);
+
+        rt.HandleSyscall(VmlUi.WinClose, regs, mem);
+        Check("关窗后场景销毁（状态不跨窗口留着）", rt.Scene() == null);
+
+        regs[0] = WriteCStr(mem, 0, "再来"); regs[1] = 320; regs[2] = 480;
+        regs[3] = 1; regs[4] = 1;
+        rt.HandleSyscall(VmlUi.WinOpenPc, regs, mem);
+        Check("新窗口 = 默认值（竖对齐回到基线）", rt.Scene()?.FontVAlign == VmlScene.VAlignBase);
+    }
+
     private static void TestWinOpenPcDispatch(Action<string> Section, Action<string, bool> Check)
     {
         Section("[第三种窗口] 开窗分派（#582）");

@@ -252,7 +252,16 @@ public sealed class DrawFigure
     /// 文字**横向居中了、纵向却仍顶着 y** ⇒ 放在方框/按钮正中时看着偏上。
     /// 修之前只能靠程序自己估字号、手工减半个行高 —— 每个例子各估一次，还估不准。
     /// </summary>
-    public string VAnchor = "top";
+    /// <summary>
+    /// 竖对齐（见 `DrawParse.TextVOffset`）：`base` = 基线落在 y（**默认 = 老行为**）、
+    /// `center` / `bottom` / `top`。
+    ///
+    /// ⚠ 默认值**必须是 `base`**：它对应"偏移 0"＝既有程序的渲染结果。
+    ///   这个字段原先默认 `"top"`，而新模型里 `top` = 盒顶落在 y = 基线**下移一个上升**
+    ///   ⇒ 一旦默认值不动，**所有没设竖对齐的文字会整体下移 0.8×字号**（真机上是"字都跑到框下面去了"）。
+    ///   是自测里的 VAlign 判据抓出来的。
+    /// </summary>
+    public string VAnchor = "base";
     public string FontFamily = "sans-serif";
     public string FontWeight = "normal";
     public string FontStyle = "normal";

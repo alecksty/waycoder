@@ -5434,6 +5434,10 @@ func ui_set_font(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("ui_set_font")
 }
 
+func ui_set_valign(a0 int32) {
+    vml.Call("ui_set_valign")
+}
+
 func ui_text_cur(a0 int32, a1 int32, a2 int32) {
     vml.Call("ui_text_cur")
 }

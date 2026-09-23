@@ -41,6 +41,12 @@ namespace CompilerBase
         public Int64Mode Int64Mode { get; set; } = Int64Mode.Hard;
         public bool SourceComment { get; set; } = true;
 
+        /// <summary>
+        /// BASIC 图形语句的后端：Ui（默认，宿主 ui_* 图元）/ PcGfx（老的 DOS 显存 0xA0000）。
+        /// 旋钮键名 `basicgfx`；CLI 是 `--basicgfx`、配置文件是 `&lt;BasicGraphics&gt;`。
+        /// </summary>
+        public BasicGraphics BasicGraphics { get; set; } = BasicGraphics.Ui;
+
         // ====== 库链接选项 ======
         public bool AutoLinkStdLib { get; set; } = false;
         public bool UseSharedLibrary { get; set; } = true;
@@ -120,6 +126,11 @@ namespace CompilerBase
                 case "sourcecomment":
                     SourceComment = Convert.ToBoolean(value);
                     break;
+                case "basicgfx":
+                case "basicgraphics":
+                    if (value is BasicGraphics bg) BasicGraphics = bg;
+                    else if (value is string sbg && Enum.TryParse<BasicGraphics>(sbg, true, out var pbg)) BasicGraphics = pbg;
+                    break;
                 case "autolinkstdlib":
                     AutoLinkStdLib = Convert.ToBoolean(value);
                     break;
@@ -195,6 +206,7 @@ namespace CompilerBase
                 Float64Mode = Float64Mode,
                 Int64Mode = Int64Mode,
                 SourceComment = SourceComment,
+                BasicGraphics = BasicGraphics,
             };
         }
     }

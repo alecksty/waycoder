@@ -6,6 +6,10 @@ public partial class CodeGenerator
 {
     void GenerateLocateStatement(LocateStatement stmt)
     {
+        // UI 图形后端：图形模式下 LOCATE 改的是**窗口里那个光标**，文本模式仍是 CRT_GOTOXY。
+        // 判据是运行期的 SCREEN 模式字节（`SCREEN Mode` 的 Mode 可以是变量），见那个实现。
+        if (UiGfx) { UiEmitLocateStatement(stmt); return; }
+
         CrtMode = true;  // 激活 CRT 模式
         // LOCATE: ANSI CRT terminal — CRT_GOTOXY(col, row), both 1-based
         if (currentSubName != null)
@@ -23,6 +27,7 @@ public partial class CodeGenerator
 
     void GenerateQbColorStatement(QbColorStatement stmt)
     {
+        if (UiGfx) { UiEmitColorStatement(stmt); return; }
         CrtMode = true;  // 激活 CRT 模式
         // COLOR: ANSI CRT terminal — CRT_TEXTCOLOR(fg) + CRT_TEXTBACKGROUND(bg)
         if (currentSubName != null)
@@ -341,6 +346,7 @@ public partial class CodeGenerator
     }
     void GeneratePaletteStatement(PaletteStatement stmt)
     {
+        if (UiGfx) { UiEmitPaletteStatement(stmt); return; }
         // PALETTE color_index, red, green, blue (0-63 each)
         if (currentSubName != null)
         {
@@ -395,6 +401,7 @@ public partial class CodeGenerator
 
     void GenerateGetStatement(GetStatement stmt)
     {
+        if (UiGfx) { UiEmitGetStatement(stmt); return; }
         // GET (x1,y1)-(x2,y2), arrayname
         // Store pixel data to array: arr(0)=width, arr(1)=height, arr(2+)=pixels
         if (string.IsNullOrEmpty(stmt.ArrayName)) return;
@@ -500,6 +507,7 @@ public partial class CodeGenerator
 
     void GeneratePutStatement(PutStatement stmt)
     {
+        if (UiGfx) { UiEmitPutStatement(stmt); return; }
         // PUT (x,y), arrayname, action — bpp-aware pixel write
         // 保护 BP、坐标寄存器、临时寄存器
         EmitSaveRegisters(3, 6, 8, 9, 12);

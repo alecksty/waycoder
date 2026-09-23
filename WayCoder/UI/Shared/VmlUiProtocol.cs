@@ -153,6 +153,16 @@ public static class VmlUi
     /// </summary>
     public const int PutImage = 585;
 
+    /// <summary>
+    /// `ui_set_valign` —— 设**当前文字**的竖对齐（见 <see cref="VmlScene.VAlignTop"/> 等四档）。
+    ///
+    /// 为什么是新号而不是给 <see cref="SetFont"/>（#532）加第 5 个参数：**给老 syscall 加参数
+    /// 就是静默的未定义行为** —— 宿主从 `registers[n]` 读，而只传前几个参数的老程序，
+    /// 后面那只寄存器里是**它自己上一句留下的值**（可能是个指针），宿主无从判断"这是不是真给了"。
+    /// 与 `WIN_OPEN_EX` / `MSG_POLL_EX` / `CALLJSON` 同一处置。
+    /// </summary>
+    public const int SetVAlign = 586;
+
     /// <summary>`WIN_OPEN_EX` 的 R4：显示屏幕手柄（默认）。</summary>
     public const int NeedGamepad = 1;
     /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
@@ -1038,6 +1048,27 @@ public static class VmlKeys
     public const int OemPeriod = 190;        // .
     public const int OemQuestion = 191;      // /
     public const int OemTilde = 192;         // `
+
+    /// <summary>
+    /// 虚拟键码 → 它代表的**字符**（给 `INKEY$` / `getch()` 这类"字符输入"接口用）；
+    /// 没有可打印字符的键（方向键、功能键、Shift/Ctrl…）返回 <c>'\0'</c>。
+    ///
+    /// <para>
+    /// ⚠ 这张表**只在"消息 → 老接口"这一处**用，且刻意只覆盖常用键。它与
+    /// 「程序侧 `WM_KEYDOWN` 拿到的 keycode」是**两件事**（后者是虚拟键码、标点是 OEM 码，
+    /// 见上面 `OemMinus` 那段说明）。老程序写 `INKEY$` 要的是**字符**，
+    /// 所以这里做这一层映射；不想在这层做映射的程序应当直接用 `ui_poll_msg`。
+    /// </para>
+    /// </summary>
+    public static char ToChar(int vk)
+    {
+        if (vk >= 32 && vk <= 126) return (char)vk;   // 字母数字与标点（字母恰好与 ASCII 大写重合）
+        if (vk == Enter) return '\r';
+        if (vk == Backspace) return '\b';
+        if (vk == Tab) return '\t';
+        if (vk == Escape) return (char)27;
+        return '\0';
+    }
 }
 
 /// <summary>
@@ -1169,11 +1200,45 @@ public sealed class VmlMessageQueue
     public VmlMessage? TryTake() => TryRead(keep: false);
 
     /// <summary>
+    /// 非阻塞取**第一条满足条件**的消息（消费），其余消息保持原顺序不动；没有则返回 null。
+    ///
+    /// <para>
+    /// 用途只有一个：老的 BASIC「字符输入」接口（`INKEY$` / `getch()`）要的是**键盘**那一路，
+    /// 而不是"队头那一条"。直接 <see cref="TryTake"/> 会把排在键盘前面的**定时器/鼠标**消息
+    /// 一起吃掉 —— 那些消息的程序侧消费者（`ui_poll_msg`）再也看不到，
+    /// 表现是"装好的定时器偶尔不响"，而排查时会先去怀疑程序。
+    /// </para>
+    /// <para>
+    /// ⚠ 许可（<see cref="_signal"/>）的账：**取走一条就 `Wait(0)` 一次**，与
+    /// <see cref="TryRead"/> 同一条不变量（许可数与队列长度一一对应，见 <see cref="Post"/>）。
+    /// 被跳过的消息不消费许可 —— 它们还在队列里，许可数就该还留着。
+    /// </para>
+    /// </summary>
+    public VmlMessage? TryTakeWhere(Func<VmlMessage, bool> predicate)
+    {
+        lock (_lock)
+        {
+            int n = _queue.Count;
+            if (n == 0) return null;
+            VmlMessage? found = null;
+            for (int i = 0; i < n; i++)
+            {
+                var msg = _queue.Dequeue();
+                if (found is null && predicate(msg)) { found = msg; continue; }
+                _queue.Enqueue(msg);
+            }
+            if (found is null) return null;
+            _signal.Wait(0);
+            return found;
+        }
+    }
+
+    /// <summary>
     /// 阻塞读一条，最多等 <paramref name="timeoutMs"/> 毫秒（0 = 无限等）。
     /// 超时返回 null。**阻塞方是 VM 线程**，不要从 UI 线程调。
     /// <paramref name="keep"/> 见 <see cref="TryRead"/>。
     /// </summary>
-    public VmlMessage? Read(int timeoutMs, bool keep)
+    public VmlMessage? Read(int timeoutMs, bool keep, CancellationToken ct = default)
     {
         // 先看队列：有就直接拿走，不走信号量（比等一趟再醒更省）
         if (TryRead(keep) is { } first) return first;
@@ -1185,17 +1250,45 @@ public sealed class VmlMessageQueue
         var deadline = timeoutMs <= 0 ? long.MaxValue : Environment.TickCount64 + timeoutMs;
         while (true)
         {
+            ct.ThrowIfCancellationRequested();
             var remaining = timeoutMs <= 0
                 ? Timeout.Infinite
                 : (int)Math.Max(0, deadline - Environment.TickCount64);
             if (remaining == 0) return null;
-            if (!_signal.Wait(remaining)) return null;
+            if (!WaitPostOrCancel(remaining, ct)) return null;
             if (TryRead(keep) is { } msg) return msg;
         }
     }
 
+    /// <summary>
+    /// 等一条消息被投递（最多 <paramref name="timeoutMs"/> 毫秒；&lt;=0 表示无限），
+    /// **同时盯着取消令牌** —— 令牌一响就抛 <see cref="OperationCanceledException"/>。
+    /// 返回 true = 信号量到手，false = 超时。
+    ///
+    /// ⚠ 为什么不能只写 `_signal.Wait(remaining)`：**令牌响了它也不知道**。VM 的令牌检查是
+    ///   **每条指令一次**，而此刻 VM 线程根本不在执行指令 —— 它正睡在这里等消息。
+    ///   于是"取消一个卡在宿主等待里的程序"完全无效：用户实测就是
+    ///   「旧 BGI 程序，退出弹窗后程序还没结束」—— 那类程序结尾是 `getch()`，
+    ///   就停在这个等待上，关窗口 / 强制停止都叫不醒它。`WaitAny` 把令牌一起等，
+    ///   取消才能真正落地（抛出去 → 穿出宿主 → 终止整个运行）。
+    /// </summary>
+    private bool WaitPostOrCancel(int timeoutMs, CancellationToken ct)
+    {
+        // 没有令牌时**一个字都不改**（老路径：桌面自测、非取消场景）
+        if (!ct.CanBeCanceled) return _signal.Wait(timeoutMs);
+        // ⚠ `SemaphoreSlim` **不是** `WaitHandle`（CS0826：两者没有公共隐式类型）——
+        //   能进 `WaitAny` 的是它的 `AvailableWaitHandle`（计数 > 0 时有信号，且**不消费计数**）。
+        //   这里等它、再由上面的 `TryRead` 用 `_signal.Wait(0)` 消费一个许可，语义与老路径一致。
+        var idx = WaitHandle.WaitAny(new[] { _signal.AvailableWaitHandle, ct.WaitHandle }, timeoutMs);
+        if (idx == WaitHandle.WaitTimeout) return false;
+        // idx==1 = 取消令牌那一头醒了。CancellationToken 的等待句柄只在真的取消时才置位，
+        // 所以这里直接抛 —— 不要"当成可能来消息了回去再看"，那会变成自旋。
+        if (idx == 1) throw new OperationCanceledException(ct);
+        return true;
+    }
+
     /// <summary>阻塞取一条（消费），最多等 <paramref name="timeoutMs"/> 毫秒。超时返回 null。</summary>
-    public VmlMessage? Take(int timeoutMs) => Read(timeoutMs, keep: false);
+    public VmlMessage? Take(int timeoutMs, CancellationToken ct = default) => Read(timeoutMs, keep: false, ct);
 
     /// <summary>清空（每次 VML 运行开始前调用，避免上一轮的消息串到这一轮）。</summary>
     public void Clear()
@@ -1594,7 +1687,7 @@ public sealed class VmlScene
     /// 把 `uint` 换成 `string` 是**破坏性改动**。重载之后两边都留得下：
     /// 传 `uint` 的落老的那个，传 `string` 的落这个。
     /// </summary>
-    public void AddText(int x, int y, string text, string colorToken, int fontSize, int anchor, int style = 0)
+    public void AddText(int x, int y, string text, string colorToken, int fontSize, int anchor, int style = 0, int vAlign = 0)
     {
         if (!InCoordRange(x) || !InCoordRange(y)) return;
         if (string.IsNullOrEmpty(text)) return;
@@ -1603,7 +1696,7 @@ public sealed class VmlScene
         var w = (style & TextBold) != 0 ? "bold" : "";
         var i = (style & TextItalic) != 0 ? "italic" : "";
         var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
-        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{bi}");
+        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{VAnchorName(vAlign)}{bi}");
     }
 
     /// <summary>
@@ -1611,23 +1704,17 @@ public sealed class VmlScene
     /// <paramref name="vAlign"/>：0=顶（= 老行为）1=中 2=底。
     /// </summary>
     public void AddTextEx(int x, int y, string text, uint color, int fontSize, int anchor, int vAlign, int style = 0)
-    {
-        if (!InCoordRange(x) || !InCoordRange(y)) return;
-        if (string.IsNullOrEmpty(text)) return;
-        text = CapText(text);
-        fontSize = Dim(fontSize);
-        var w = (style & TextBold) != 0 ? "bold" : "";
-        var i = (style & TextItalic) != 0 ? "italic" : "";
-        var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
-        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}{VAnchorName(vAlign)}{bi}");
-    }
+        // 落 `AddText` 那条（它管 DSL 拼装）—— 粗/斜体的记号拼装**只有那一份**，
+        // 从前这里抄了一份，两边迟早会不同步（本仓头号坑）。
+        => AddText(x, y, text, Hex(color), fontSize, anchor, style, vAlign);
 
     /// <summary>竖对齐的 DSL 记号 —— **`v` 前缀**，与横锚点的 `middle` 不重名（同名两义只能靠猜）。</summary>
     private static string VAnchorName(int v) => v switch
     {
         1 => " vcenter",
         2 => " vbottom",
-        _ => "",                       // 0 = 顶 = 老行为：**不写这个词**，产物与从前逐字相同
+        3 => " vtop",                  // 盒顶落在 y（要显式写：它与 0 的渲染相差一个"上升"）
+        _ => "",                       // 0 = 基线 = 老行为：**不写这个词**，产物与从前逐字相同
     };
 
     /// <summary>当前文字属性（<see cref="SetFont"/> 设、<see cref="Text"/> 用）。宿主侧状态，不占 VML 内存。</summary>
@@ -1639,11 +1726,31 @@ public sealed class VmlScene
     /// <summary>当前文字锚点（0=左 1=中 2=右）。</summary>
     public int FontAnchor { get; set; }
 
+    /// <summary>
+    /// 当前文字**竖对齐**（见 <see cref="VAlignTop"/> 等）—— 由 `ui_set_valign` 设（号段 #586）。
+    /// 与 <see cref="FontSize"/> 那几个同一套：状态式，`ui_text_cur` 用。
+    /// </summary>
+    public int FontVAlign { get; set; }
+
+    // 四档的编号是**跨语言契约**（C 头文件 `VML_VANCHOR_*` 与各语言绑定都按这几个数写死）。
+    // 编号按"历史行为优先"排：**0 留给老行为**，新档位往后加 —— 这样任何不设它的老程序
+    // 渲染逐字不变（改 0 的含义 = 悄悄挪动所有既有程序的文字，那是不可接受的）。
+    /// <summary>竖对齐：**y 就是基线**（字形坐在基线上）。**默认 = 老行为**（手机端一直如此渲染）。</summary>
+    public const int VAlignBase = 0;
+    /// <summary>竖对齐：盒竖直中心落在 y（"在方框/圆里居中"用这一档）。</summary>
+    public const int VAlignMiddle = 1;
+    /// <summary>竖对齐：盒底落在 y。</summary>
+    public const int VAlignBottom = 2;
+    /// <summary>竖对齐：盒顶落在 y（与基线相差一个"上升"，≈0.8×字号）。</summary>
+    public const int VAlignTop = 3;
+
     /// <summary>按当前属性画一行字（<see cref="Text"/> 号段的实现体，放这里便于自测）。</summary>
     public void AddTextCurrent(int x, int y, string text)
+        // 颜色走**颜色 token**（纯色 `#AARRGGBB` 或刷子的 `@渐变id`）⇒ 落 `AddText` 那个
+        // 字符串重载，不是收 `uint` 的 `AddTextEx`（两者不通用）。
         => AddText(x, y, text,
             _hasTextBrush && _textToken != null ? _textToken : Hex(FontColor),
-            FontSize, FontAnchor, FontStyle);
+            FontSize, FontAnchor, FontStyle, FontVAlign);
 
     /// <summary>文字样式位：粗体。</summary>
     public const int TextBold = 1;
@@ -1689,7 +1796,14 @@ public sealed class VmlScene
         if (!InCoordRange(x) || !InCoordRange(y)) return;
         w = Dim(w); h = Dim(h);
         if (w == 0 || h == 0) return;                 // 0 尺寸画不出东西，直接丢（也挡住退化调用）
-        Add($"image {x} {y} \"{Escape(path)}\" {w} {h}");
+        // ⚠ **字段序是 `x y w h "路径"`**（尺寸在路径**前**）—— 以 `ImageCommand.Parse`
+        //   与它在 `DrawCommands.cs` 的头注释为准（自测 `SelfTest.Chunk10/23` 也按这个序写）。
+        //   此前这里发的是 `x y "路径" w h`，与解析侧**对不上** ⇒ `Parse` 在第 3 个字段上
+        //   读到字符串、`DrawParse.Num` 返回 NaN ⇒ 返回 null ⇒ **这张图静默消失**，
+        //   只在 stderr 留一行"这一帧的 DSL 有解析问题"。
+        //   实测：BGI 的 `getimage`/`putimage`（精灵保存-贴回）画面上什么都不出，
+        //   而 `imagesize` 返回正常、`getpixel` 也读得到原位置 —— 一个错误都不报。
+        Add($"image {x} {y} {w} {h} \"{Escape(path)}\"");
     }
 
     private void Add(string line)

@@ -262,6 +262,11 @@ public partial class DrawWindowPage : ContentPage
         CanvasHost.SizeChanged -= OnCanvasHostSizeChanged;
         CanvasHost.SizeChanged += OnCanvasHostSizeChanged;
 
+        // 浮层面板在转屏 / 画布长高之后可能落到屏幕外 ⇒ 尺寸一变就重新夹一次。
+        // 挂在**面板自己**上（不是 RootGrid）：它的新尺寸一定已经落定，夹取才拿得到真实值。
+        PcKeyboard.SizeChanged -= OnPcKeyboardSizeChanged;
+        PcKeyboard.SizeChanged += OnPcKeyboardSizeChanged;
+
         // ⚠ **清掉上一次留下的画布尺寸请求**。
         //
         // Shell 导航会**复用页面实例**（本仓自己在 SettingsGroupPage 的注释里记过这条），
@@ -296,6 +301,7 @@ public partial class DrawWindowPage : ContentPage
         _kind = scene.Kind;
         _needKeyboard = scene.NeedKeyboard;
         _keyboardCollapsed = false;      // 新的一局重置收起状态（页面实例被复用）
+        _kbFloating = false;             // 连同拖动留下的浮层位置一起复位（`ApplyKeyboardPanelPlacement`）
         _pcDownKey = 0;                  // 上一局按到一半的键别留给下一局
         ApplyOrientationLock(_rotation);
         ApplyPadVisibility();
@@ -774,6 +780,135 @@ public partial class DrawWindowPage : ContentPage
         ApplyKeyboard();
     }
 
+    // ── 面板拖动（拖动一开始就"浮层化"）────────────────────────────────
+    //
+    // ## 为什么拖一下要换成浮层
+    //
+    // 面板平时**停靠在自己那一行**（`RootGrid` 最后一个 `Auto` 行）—— 那是刻意的：
+    // chrome 让画布变小，而不是压在画布上面（老程序的状态行、提示语都画在**底部**）。
+    // 但"让画布变小"就意味着它**天生顶不开**：只做平移的话那一行的高度还在，
+    // 面板拖上去了、底下留一条空带，画面一点没多出来 —— 拖了等于白拖。
+    // 所以拖动一开始就把面板改成**跨整页、贴底**的浮层：只改 `Grid` 附加属性，
+    // **不搬控件**（父子关系自始至终不变，理由见 `ApplyOrientation` 的注释：
+    // 运行时先摘再挂撞过 `IllegalStateException`，也让 `CanvasHost` 量到过 0）。
+    // 换过去的那一刻位置**一模一样**（停靠时它就在页面最底部，浮层贴底也在那儿），
+    // 所以看不到跳变；差别只有一条：空掉的那一行塌下来，画布当场长高。
+    //
+    // ## 为什么不给容器挂手势识别器
+    //
+    // 本仓记过这条：给**容器**挂 `PanGestureRecognizer` 会把它子控件的按压/点击
+    // 整个吃掉（真机表现是"按钮看着在、按下去没反应"）。所以手势只挂在
+    // `PcKeyGrip` 那一个 `Label` 上 —— 它没有子控件，拖它碰不到任何按键。
+    //
+    // ## 夹取
+    //
+    // 拖出屏幕就找不回来。夹取只用**两个尺寸**算（`RootGrid` 与面板自己的），
+    // 不读 `X/Y`：面板的布局矩形是确定的 —— 全宽、贴底（`VerticalOptions=End`，
+    // 无 `Margin`），所以基准位就是 `(0, 网格高 − 面板高)`。
+    // 全宽 ⇒ 横向余量恒为 0（这是键盘全宽的自然结果，不是夹取写错了）；
+    // 纵向可以从"贴底"一路推到"顶到屏幕最上沿"。
+
+    /// <summary>面板已经脱离布局行、变成可拖动的浮层。</summary>
+    private bool _kbFloating;
+
+    /// <summary>浮层的平移量（相对"全宽贴底"的基准位）。</summary>
+    private double _kbTx;
+    private double _kbTy;
+
+    /// <summary>本次拖动开始时的平移量（`PanUpdated` 的 `TotalX/TotalY` 是**累计**值）。</summary>
+    private double _kbDragBaseX;
+    private double _kbDragBaseY;
+
+    private void OnPcKeyPan(object? sender, PanUpdatedEventArgs e)
+    {
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                BeginKeyboardFloat();
+                _kbDragBaseX = _kbTx;
+                _kbDragBaseY = _kbTy;
+                break;
+
+            case GestureStatus.Running:
+                // `Started` 不是所有平台都发（手势要越过触摸阈值才开始 pan），
+                // 所以这里再兜一次 —— 幂等。
+                BeginKeyboardFloat();
+                SetKeyboardOffset(_kbDragBaseX + e.TotalX, _kbDragBaseY + e.TotalY);
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                // 收尾再夹一次：拖动过程中的夹取用的是"那一刻"的尺寸，
+                // 而结束这一拍布局可能已经落定成新值（转屏 / 键盘收起都会变）。
+                ClampKeyboardPanel();
+                break;
+        }
+    }
+
+    /// <summary>第一次拖动时才真的换布局 —— 没拖过的用户看到的与从前一字不差。</summary>
+    private void BeginKeyboardFloat()
+    {
+        if (_kbFloating) return;
+        _kbFloating = true;
+        ApplyKeyboardPanelPlacement();
+        ClampKeyboardPanel();
+    }
+
+    private void SetKeyboardOffset(double tx, double ty)
+    {
+        _kbTx = tx;
+        _kbTy = ty;
+        ClampKeyboardPanel();
+    }
+
+    /// <summary>
+    /// 按当前状态把面板摆回停靠行 / 切成整页浮层（**只改附加属性**）。
+    ///
+    /// 停靠态**不在这里设行号** —— 竖屏是第 3 行、横屏是第 2 行，那是
+    /// <see cref="ApplyOrientation"/> 的事，两处各设一份必然漂移。
+    /// 本方法只负责"复位"与"浮层"两件事。
+    /// </summary>
+    private void ApplyKeyboardPanelPlacement()
+    {
+        if (!_kbFloating)
+        {
+            PcKeyboard.ZIndex = 0;
+            PcKeyboard.VerticalOptions = LayoutOptions.Fill;
+            PcKeyboard.TranslationX = 0;
+            PcKeyboard.TranslationY = 0;
+            _kbTx = 0;
+            _kbTy = 0;
+            return;
+        }
+
+        Grid.SetRow(PcKeyboard, 0);
+        Grid.SetRowSpan(PcKeyboard, RootGrid.RowDefinitions.Count);
+        Grid.SetColumn(PcKeyboard, 0);
+        Grid.SetColumnSpan(PcKeyboard, RootGrid.ColumnDefinitions.Count);
+        PcKeyboard.VerticalOptions = LayoutOptions.End;
+        // 盖在画布/手柄之上：浮层的全部意义就是"能拖到别处去"。
+        PcKeyboard.ZIndex = 20;
+    }
+
+    private void OnPcKeyboardSizeChanged(object? sender, EventArgs e) => ClampKeyboardPanel();
+
+    /// <summary>把平移量夹到「整块面板都还在页面里」。</summary>
+    private void ClampKeyboardPanel()
+    {
+        double pw = PcKeyboard.Width;
+        double ph = PcKeyboard.Height;
+        double gw = RootGrid.Width;
+        double gh = RootGrid.Height;
+        // 还没量出来就这一拍不动（布局期会被调到，别拿半成品尺寸去夹）。
+        if (pw <= 0 || ph <= 0 || gw <= 0 || gh <= 0) return;
+
+        double by = gh - ph;                                    // 基准位：全宽、贴底
+        _kbTx = Math.Clamp(_kbTx, 0, Math.Max(0, gw - pw));
+        _kbTy = Math.Clamp(_kbTy, -by, 0);
+        PcKeyboard.TranslationX = _kbTx;
+        PcKeyboard.TranslationY = _kbTy;
+    }
+
     /// <summary>
     /// 接上物理键盘（Android 的 Activity 级键分发，见 `Services/HardwareKeys`）。
     ///
@@ -837,6 +972,9 @@ public partial class DrawWindowPage : ContentPage
         PcKeyboard.IsVisible = true;
         PcKeyRows.IsVisible = !_keyboardCollapsed;
         PcKeyToggle.Text = _keyboardCollapsed ? "⌨ 展开键盘" : "⌨ 收起键盘";
+        // 停靠/浮层的附加属性在这里重放一次：`ApplyOrientation` 刚刚设过行号，
+        // 而浮层态要把它们整个换掉（也就这里能保证"竖屏 3 行 / 横屏 2 行"仍由那一处说了算）。
+        ApplyKeyboardPanelPlacement();
     }
 
     /// <summary>这个窗口要不要屏幕手柄区（`ui_win_open_ex` 的 R4）；老接口一律 true。</summary>
@@ -942,9 +1080,12 @@ public partial class DrawWindowPage : ContentPage
     /// 为什么要宽限：正常程序收到 `WindowClose` 后会在下一帧退出主循环（那是**优雅退出**，
     /// 该让它自己走完，比如落盘存档）。但程序**可以不理这条消息**（卡在自己的循环里/死循环），
     /// 那时它就一直在后台烧 CPU —— 用户按了返回却什么都没停掉，这是不可接受的。
-    /// 1.5 秒足够任何守规矩的程序反应，又短到用户察觉不出"卡了一下"。
+    ///
+    /// ⚠ 1.5 秒实测**偏长**（用户按返回后能感觉到"卡了一下"）⇒ 收到反馈后改成 **0.5 秒**。
+    ///   代价：收场动作超过半秒的程序会被强制终止（落盘那种毫秒级的不受影响）。
+    ///   这个值只影响"关窗口"这条路径；"强制停止"按钮是立刻生效的（不等宽限）。
     /// </summary>
-    private const int CloseGraceMs = 1500;
+    private const int CloseGraceMs = 500;
 
     private IDispatcherTimer? _closeWatchdog;
 

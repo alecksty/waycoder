@@ -33,6 +33,81 @@ namespace BasicCompiler
         // 字符串缓冲区（data section 分配，链接器解析地址，非固定地址）
         public const string StringBufferLabel = "__strbuf";
 
+        /// <summary>
+        /// **空串的规范表示**（长度 0 的 data 常量）—— 全前端**只有这一个空串地址**。
+        ///
+        /// <para>
+        /// 为什么必须"唯一"：本前端的字符串比较就是**指针比较**（`cmp`），所以
+        /// 「两个空串相等」只有靠"它们是同一个地址"才成立。
+        /// 从前有**三种**表示并存 —— 主路径给 `""` 各建一个 `str_data_N` 标签、
+        /// SUB 路径把 `""` 编成**整数 0**、而 `INKEY$` 无键时又返回另一个地址 ——
+        /// 于是 `WHILE INKEY$ <> "": WEND`（QBasic 清键盘缓冲的标准写法）里
+        /// 三个空串两两不等，**循环永远出不去**。
+        /// 实测最小复现（SUB 内）：`SUB SP() / WHILE INKEY$ <> "": WEND / PRINT "drained" / END SUB`
+        /// —— 修前 `drained` 一个字都不打。
+        /// </para>
+        /// </summary>
+        public const string EmptyStringLabel = "__empty_str";
+
+        /// <summary>
+        /// BASIC 名字 → VML 符号名的**唯一换算**（声明侧与调用侧共用）。
+        ///
+        /// <para>
+        /// <b>为什么必须有它</b>：声明侧与调用侧对同一个函数名**做过两次不同的处理**，
+        /// 于是 `FUNCTION g$(n)` 定出来的是 `func_g`、而 `PRINT g$(3)` 调的是 `func_g$`
+        /// —— 链接期报「未定义的函数 'func_g$'」，而两处各自看都"没错"。
+        /// </para>
+        /// <para>
+        /// 声明侧的那一次在<b>解析器</b>里（`Parser.Functions.cs` 的
+        /// `ParseFunctionDeclaration`）：名字带 `$` 后缀时把 `$` 摘掉、同时置
+        /// `IsStringFunction`。所以这里的换算对<b>已经摘过</b>的名字是幂等的，
+        /// 两种来源（`funcDecl.Name` / 调用点的原始标识符文本）都能安全地过一遍。
+        /// </para>
+        /// <para>
+        /// ⚠ `$` **摘掉**（解析器对函数名已经摘过一次，这里幂等），`% ! # &amp;`
+        /// **转义成 `_pct`/`_sng`/`_dbl`/`_lng`**：不转义的话符号名里带着 `#`
+        /// （`func_getnum#`），而 `VMLAssembler.IsValidLabel` 不认 `#` ⇒ 那个 CALL 被当成
+        /// 立即数、运行期 `ExecuteCall` 抛 `InvalidCastException`（详见下面的实现说明）。
+        /// 转义而不是删除，是为了让 `FUNCTION f` 与 `FUNCTION f%` 仍是两个符号。
+        /// </para>
+        /// <para>
+        /// <b>它是 subMap/funcMap 的**唯一**键</b>（声明侧与查表侧都走它）——
+        /// 从前声明侧写 `.ToLower()`、查表侧写 `SymbolKey()`，名字里带 `$`/`#` 时
+        /// 两边不是同一个键 ⇒ 查不到声明 ⇒ **形参的 BYREF 判据失效**
+        /// （调用方按值传、被调方按地址读，实测 `FUNCTION G#(a,b)` 恒返回 0）。
+        /// </para>
+        /// </summary>
+        private static string BasicSymbol(string name)
+        {
+            string symbol = name.EndsWith("$", StringComparison.Ordinal) ? name.Substring(0, name.Length - 1) : name;
+
+            /* ⚠ 名字里剩下的 `% ! # &` 必须**转义**，否则汇编层认不出它是标签。
+               `VMLAssembler.IsValidLabel` 只接受「字母/数字/`_`/`$`」，于是
+               `func_getnum#`（`FUNCTION GetNum#` 的符号名）走到"不是标签"那一支、
+               被当成**立即数**收下（`Operand(IMMEDIATE, "func_getnum#")`），
+               运行期 `ExecuteCall` 一 `(int)operand.Value` 就抛
+               `InvalidCastException: Unable to cast 'System.String' to 'System.Int32'`
+               —— 而且**只在真的调到那个函数时才炸**（实测 GORILLA.BAS：
+               前面全跑得动，走到 `DoShot` 里的 `GetNum#(2, …)` 才崩）。
+
+               映射成固定后缀而不是直接删掉：`FUNCTION f` 与 `FUNCTION f%` 在 BASIC 里
+               是两个不同的函数，删掉后缀会让它们撞成同一个符号。 */
+            return symbol
+                .Replace("%", "_pct")
+                .Replace("!", "_sng")
+                .Replace("#", "_dbl")
+                .Replace("&", "_lng");
+        }
+
+        /// <summary>`FUNCTION` 的符号名（`func_&lt;名&gt;`），见 <see cref="BasicSymbol"/>。</summary>
+        private static string FunctionLabel(string name) => "func_" + BasicSymbol(name).ToLowerInvariant();
+
+        /// <summary>`SUB` 的符号名（`sub_&lt;名&gt;`），见 <see cref="BasicSymbol"/>。</summary>
+        private static string SubLabel(string name) => "sub_" + BasicSymbol(name).ToLowerInvariant();
+
+        /// <summary>`SUB`/`FUNCTION` 声明表的查表键（小写、已按 <see cref="BasicSymbol"/> 归一）。</summary>
+        private static string SymbolKey(string name) => BasicSymbol(name).ToLowerInvariant();
+
         // 动态分配的静态数据区 — 程序启动时通过 SYSCALL #40 分配
         // 基址存储在 0x6FD4，所有 StaticBase 引用改为 LOAD R1, [0x6FD4]; ADD R1, #offset
         // 布局: [0x0000:DATA] [0x3000:Palette] [0x3800:Palette13] [0x4000:Sound]
@@ -90,6 +165,26 @@ namespace BasicCompiler
         private Dictionary<string, int> variables;
         private Dictionary<string, BasicType> variableTypes;
         private Dictionary<string, ArrayInfo> arrayVariables;
+
+        /// <summary>
+        /// 变量**分配时定下的字节数**（槽数 × 4）—— 地址计算只认这一份，之后永不改变。
+        ///
+        /// <para>
+        /// <b>为什么必须有它</b>：`GetVarByteOffset` 原来是现算的
+        /// （`GetVarByteSize(GetVariableType(名))`），而 `GetVariableType` 会被**后续的赋值**
+        /// 改写（`Sub.cs` 的 `GenerateSubLetStatement`：`gravity# = VAL(grav$)` ⇒
+        /// `variableTypes["gravity#"] = Single`）。于是同一个全局变量，在**主程序**里是
+        /// 8 字节（`#` 后缀 ⇒ Double）、在**后面生成的 SUB** 里变成 4 字节
+        /// ⇒ 它之后所有全局变量的字节偏移在两边**各差 4**，而主程序那份地址早已编进指令里了。
+        /// </para>
+        /// <para>
+        /// 实测症状（GORILLA.BAS）：`Mode` 在主程序里读 `#21988`、在 `MakeCityScape` 里读
+        /// `#21984`（= 主程序里 `ScrWidth` 的槽）⇒ `IF Mode = 9` 走进 else 分支，
+        /// `BottomLine` 从 335 变成 190、`HtInc` 6 ⇒ 整座城市画到屏幕外/尺寸全错，
+        /// **一个错都不报**。这类"同一份数据两处算法"正是本仓的头号坑。
+        /// </para>
+        /// </summary>
+        private Dictionary<string, int> varByteSizes;
         private HashSet<string> _sharedVariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         /// <summary>模块级变量（含 DIM SHARED）—— 放静态区的全局段，主程序与 SUB 共用同一份内存。</summary>
         private HashSet<string> _globalVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -208,17 +303,119 @@ namespace BasicCompiler
         private int GetVarByteSize(BasicType t) => GetTypeInfo(t).byteSize;
 
         /// <summary>根据变量索引计算实际字节偏移 (考虑 Double/Long 的 8 字节宽度)</summary>
+        /// <summary>
+        /// `DIM arr(n) AS Type` 里**每个元素占几个 4 字节槽**（标量数组 = 1）。
+        ///
+        /// <para>与 <c>DIM x AS Type</c> 那处（`CodeGenerator.Sub.cs` 的 `DimAsStatement`
+        /// 分支、`CodeGenerator.cs` 的同名分支）**同一口径**：用户自定义类型按
+        /// `TotalSize` 向上取整到 4 的倍数 —— 元素槽与元素地址步长必须同源，
+        /// 否则 UDT 数组的元素会互相重叠（实测 `b(0).XCoor` 与 `b(1).XCoor` 读到同一个值）。</para>
+        /// </summary>
+        private int ArrayElementSlots(string typeName)
+        {
+            if (!string.IsNullOrEmpty(typeName) && typeDefinitions.TryGetValue(typeName.ToLower(), out var td))
+                return Math.Max(1, (td.TotalSize + 3) / 4);
+            return 1;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  SUB / FUNCTION 的**栈上局部量**：槽位大小与地址
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>局部量**分配时定下的字节数**（4 或 8）—— 与 `varByteSizes` 同一口径。</summary>
+        private Dictionary<string, int> localVarSizes;
+
+        /// <summary>
+        /// 登记一个局部量：记下它的**字节数**、推进帧内计数，返回它的槽序（4 字节为单位）。
+        ///
+        /// <para>
+        /// <b>为什么局部量也要按字节数分配</b>：局部量的读写走
+        /// <c>GetLoadInstruction/GetStoreInstruction(类型)</c> —— `Double`/`Long` 是
+        /// **8 字节**的 `MOVED`/`MOVEL`。而槽位原来是"一个局部一个 4 字节槽"
+        /// （地址 `R12-(slot+1)*4`、帧大小 `count*4`）⇒ 一个 `?` 局部写出 8 字节，
+        /// 多出来的 4 字节**正好盖在帧头 [R12+0] 上**（`ENTER` 存进来的调用方 BP；
+        /// [R12+4] 还存着返回地址）。本函数返回时 `LEAVE` 把那个被覆盖的值弹回 BP。
+        /// </para>
+        /// <para>
+        /// 实测（GORILLA.BAS 的 `SUB Rest (t#)`，只有 `s#`/`t2#` 两个局部）：
+        /// 反汇编是 <c>moved [@R12-4] @R1</c>（`s#` 落在第一个槽），写 8 字节 ⇒
+        /// 帧头里躺下这个 double 的**高半字**；返回后 `LEAVE` 把 BP 恢复成
+        /// `40000000`（2.0 的高半字），紧接着的 `MOVE @R0,[@R12+12]` 报
+        /// 「内存越界：地址=4000000C」。
+        /// 症状还会**随数据变**（跑出来是 1.0 的高半字 `3FF00000`，另一次是 2.0），
+        /// 所以光看"地址是垃圾"很容易误判成"某个寄存器被踩了"。
+        /// </para>
+        /// <para>
+        /// ⚠ **4 字节的局部地址一个字节都没变**（`slot*4 + 4` = 原来的 `(slot+1)*4`）——
+        /// 不含 `#`/`&` 局部的程序生成结果**逐字节相同**，这条是刻意的：
+        /// 免得为了修一个 double 局部去动全仓基本盘的地址布局。
+        /// </para>
+        /// </summary>
+        private int DeclareLocal(string name)
+        {
+            name = name.ToLower();
+            if (currentLocalVars.TryGetValue(name, out int existing)) return existing;
+
+            int size = Math.Max(4, GetVarByteSize(GetVariableType(name)));
+            currentLocalVars[name] = currentLocalVarCount;
+            localVarSizes[name] = size;
+            currentLocalVarCount += size / 4;      // 4 字节 = 1 槽，8 字节 = 2 槽
+            return currentLocalVars[name];
+        }
+
+        /// <summary>局部量的**字节数**（分配时定下，之后不随类型改写而变）。</summary>
+        private int LocalVarSize(string name)
+            => localVarSizes.TryGetValue(name.ToLower(), out int s) ? s : 4;
+
+        /// <summary>
+        /// 局部量在帧内的**字节偏移**（负数，相对 R12）—— 全前端**唯一**的算法。
+        ///
+        /// <para>
+        /// 局部区从 `R12` 往下长：第 i 个局部（`currentLocalVars[名]` = i，单位是 4 字节槽）
+        /// 占 <c>[R12-(i*4+size), R12-i*4)</c>，`size` 是它自己的字节数。
+        /// 于是 8 字节的局部**正好压在两个槽里**、不会碰到帧头。
+        /// </para>
+        /// <para>
+        /// ⚠ 别再在别处现算 `-(slot+1)*4` —— 那正是本仓的头号坑
+        /// （同一规则两处实现，有 8 字节类型时就漂）。本文件下面的
+        /// <see cref="LocalVarMemRef"/> 与各调用点全部走这一个函数。
+        /// </para>
+        /// </summary>
+        private int LocalVarOffset(string name)
+        {
+            name = name.ToLower();
+            int units = currentLocalVars.TryGetValue(name, out int u) ? u : 0;
+            return -(units * 4 + LocalVarSize(name));
+        }
+
+        /// <summary>局部量的内存引用串（<c>R12-&lt;n&gt;</c>）—— 与 <see cref="LocalVarOffset"/> 同源。</summary>
+        private string LocalVarMemRef(string name) => $"R12-{-LocalVarOffset(name)}";
+
+        /// <summary>一次新的 SUB/FUNCTION 生成开始：清空局部量表（地址与大小**必须一起清**）。</summary>
+        private void ResetLocalVars()
+        {
+            currentLocalVars = new Dictionary<string, int>();
+            localVarSizes = new Dictionary<string, int>();
+            currentLocalVarCount = 0;
+        }
+
         private int GetVarByteOffset(string varName)
         {
             int idx = variables[varName];
             int offset = 0;
-            // 按索引顺序累加每个变量的字节宽度
+            // 按索引顺序累加每个变量的字节宽度。
+            //
+            // ⚠ **用分配时记下的那个字节数**（`varByteSizes`），不要现算
+            //   `GetVarByteSize(GetVariableType(名))` —— 类型会被后续赋值改写，
+            //   而这是"算地址"的路（主程序早把地址编进指令里了），改了就是
+            //   "同一个全局变量在主程序和 SUB 里地址不同"，见 `varByteSizes` 的说明。
             foreach (var kv in variables)
             {
                 if (kv.Value < idx)
                 {
-                    var t = GetVariableType(kv.Key);
-                    offset += GetVarByteSize(t);
+                    offset += varByteSizes.TryGetValue(kv.Key, out var size)
+                        ? size
+                        : GetVarByteSize(GetVariableType(kv.Key));
                 }
             }
             return offset;
@@ -265,6 +462,17 @@ namespace BasicCompiler
             public int Size { get; set; }
             public int Offset { get; set; }
             public List<int> Dimensions { get; set; }
+
+            /// <summary>每一维的**下界**（`DIM a(1 TO 2)` → `[1]`；`DIM a(10)` → `[0]`）。
+            /// 下标 → 槽位的换算要用它：`下标 - 下界` 才是槽位号。</summary>
+            public List<int> LowerBounds { get; set; } = new List<int>();
+
+            /// <summary>
+            /// **每个元素的字节数**（标量数组 = 4）。用户自定义类型数组是整个记录的
+            /// `TotalSize` 向上取整到 4 —— 元素地址的步长必须与元素槽的分配一致，
+            /// 否则 `BCoor(1).XCoor` 会落在 `BCoor(0).YCoor` 上（实测两个元素读出同一对数）。
+            /// </summary>
+            public int ElementBytes { get; set; } = 4;
         }
 
         public CodeGenerator(BasicProgram program)
@@ -274,7 +482,12 @@ namespace BasicCompiler
             Regs = new RegisterManager();
             variables = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             variableTypes = new Dictionary<string, BasicType>();
-            arrayVariables = new Dictionary<string, ArrayInfo>();
+            // ⚠ **大小写不敏感**：BASIC 里 `BCoor` 与 `bcoord` 是同一个数组。
+            //   原来是默认的区分大小写比较器，于是 DIM 写成 `B(0 TO 3)`、用的时候写 `b(i)`
+            //   就"找不到这个数组"（静默 0 / 不生成代码）；`variables` 那张表**本来就是
+            //   不敏感的**，两张表口径不同只会制造"有时对有时不对"。
+            arrayVariables = new Dictionary<string, ArrayInfo>(StringComparer.OrdinalIgnoreCase);
+            varByteSizes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             variableCount = 0;
 
             lineLabels = new Dictionary<int, int>();
@@ -334,6 +547,11 @@ namespace BasicCompiler
                 BasicType varType = GetVariableType(name);
                 int slots = (varType == BasicType.Double || varType == BasicType.Long) ? 2 : 1;
                 variableCount += slots;
+                // **字节数在这里定下**（= 槽数 × 4），之后 `GetVarByteOffset` 只认它。
+                // 注意是"槽数×4"而不是 `GetVarByteSize(类型)`：分配永远是按 4 字节槽走的
+                // （`Byte`/`Boolean` 也占一格），用类型算出来的 1 字节会让后面的变量
+                // 与它重叠 3 个字节。
+                varByteSizes[name] = slots * 4;
             }
             return variables[name];
         }
@@ -370,6 +588,9 @@ namespace BasicCompiler
 
             // 创建数据段（字符串缓冲区由链接器解析，无固定地址）
             this.dataSection[StringBufferLabel] = 0;
+            // **空串的规范表示**（见 EmptyStringLabel）：所有 `""` 与 `INKEY$` 无键
+            // 都指向这一个地址 —— 指针比较才判得出"两个空串相等"。
+            this.dataSection[EmptyStringLabel] = new DataString("");
 
             // 创建数据段（合并类字段中的字符串数据）
             foreach (var variable in variables)
@@ -409,12 +630,12 @@ namespace BasicCompiler
                 if (statement is SubDeclaration subDecl)
                 {
                     subDeclarations.Add(subDecl);
-                    subMap[subDecl.Name.ToLower()] = subDecl;
+                    subMap[SymbolKey(subDecl.Name)] = subDecl;
                 }
                 else if (statement is FunctionDeclaration funcDecl)
                 {
                     funcDeclarations.Add(funcDecl);
-                    funcMap[funcDecl.Name.ToLower()] = funcDecl;
+                    funcMap[SymbolKey(funcDecl.Name)] = funcDecl;
                 }
                 else if (statement is DefFnStatement defFn)
                 {
@@ -433,7 +654,7 @@ namespace BasicCompiler
                     defFuncDecl.IsStringFunction = false;
 
                     funcDeclarations.Add(defFuncDecl);
-                    funcMap[defFnName.ToLower()] = defFuncDecl;
+                    funcMap[SymbolKey(defFnName)] = defFuncDecl;
                 }
             }
             
@@ -441,6 +662,20 @@ namespace BasicCompiler
             foreach (var statement in program.Statements)
             {
                 CollectTypeDeclarations(statement);
+            }
+
+            /* **NATIVE 声明的形参强制 BYVAL。**
+               形参默认改成 BYREF（QBasic 语义）之后必须同时钉住这一条：NATIVE SUB/FUNCTION
+               没有函数体，实参是被 `Lib/**` 里那个 VML 包装函数按 **`[R12+12+4i]` 的值**读的
+               （`ui_rect(x, y, w, …)` 就是这个约定）。传地址过去，包装函数会拿地址当坐标画。
+               放在这里是因为 `IsNative` 是**解析完之后**才由 `Parser.Core` 回填的
+               （`_pendingNative`），解析形参那一刻还不知道。 */
+            foreach (var d in subMap.Values) if (d.IsNative) ForceByVal(d.Parameters);
+            foreach (var d in funcMap.Values) if (d.IsNative) ForceByVal(d.Parameters);
+
+            static void ForceByVal(List<ParameterNode> ps)
+            {
+                foreach (var p in ps) p.IsByRef = false;
             }
 
             // Phase 2: 将 CLASS 方法合成为 SUB 声明
@@ -459,7 +694,7 @@ namespace BasicCompiler
                         subDecl.Parameters.Add(new ParameterNode(method.Line, method.Column, pName, false, false));
                     subDecl.Body = method.Body;
                     subDeclarations.Add(subDecl);
-                    subMap[methodName.ToLower()] = subDecl;
+                    subMap[SymbolKey(methodName)] = subDecl;
                     methodSubs.Add(methodName.ToLower());
                 }
                 // Constructor → SubDeclaration
@@ -470,7 +705,7 @@ namespace BasicCompiler
                     ctorSub.Parameters.Add(new ParameterNode(classDecl.Line, classDecl.Column, "this", false, false));
                     ctorSub.Body = classDecl.ConstructorBody;
                     subDeclarations.Add(ctorSub);
-                    subMap[ctorName.ToLower()] = ctorSub;
+                    subMap[SymbolKey(ctorName)] = ctorSub;
                     methodSubs.Add(ctorName.ToLower());
                 }
                 // Destructor → SubDeclaration (v1.66.32+)
@@ -481,7 +716,7 @@ namespace BasicCompiler
                     dtorSub.Parameters.Add(new ParameterNode(classDecl.Line, classDecl.Column, "this", false, false));
                     dtorSub.Body = classDecl.DestructorBody;
                     subDeclarations.Add(dtorSub);
-                    subMap[dtorName.ToLower()] = dtorSub;
+                    subMap[SymbolKey(dtorName)] = dtorSub;
                 }
             }
 
@@ -616,20 +851,33 @@ namespace BasicCompiler
                     // 数组变量信息
                     if (!arrayVariables.ContainsKey(dimStmt.VariableName))
                     {
+                        // 用户自定义类型数组：**每个元素占整个记录的字节数**，不是一个 4 字节槽。
+                        // 判据与寻址必须同源：`GenerateArrayElementAddr` 的步长用的就是这个数。
+                        int elemSlots = ArrayElementSlots(dimStmt.TypeName);
                         arrayVariables[dimStmt.VariableName] = new ArrayInfo
                         {
                             Size = dimStmt.Size,
                             Offset = variableCount,
-                            Dimensions = dimStmt.Dimensions.Count > 0 ? new List<int>(dimStmt.Dimensions) : new List<int> { dimStmt.Size }
+                            ElementBytes = elemSlots * 4,
+                            Dimensions = dimStmt.Dimensions.Count > 0 ? new List<int>(dimStmt.Dimensions) : new List<int> { dimStmt.Size },
+                            LowerBounds = dimStmt.LowerBounds.Count > 0 ? new List<int>(dimStmt.LowerBounds) : new List<int> { 0 }
                         };
 
-                        // 为数组元素分配变量槽位
+                        // 为数组元素分配变量槽位（UDT 元素 → 一个元素 = `elemSlots` 个槽，
+                        // 紧跟在该元素后面，命名沿用 `DIM x AS T` 那处的 `_slot_N` 约定）。
                         for (int i = 0; i < dimStmt.Size; i++)
                         {
                             string elementName = $"{dimStmt.VariableName}({i})";
-                            if (!variables.ContainsKey(elementName))
+                            for (int s = 0; s < elemSlots; s++)
                             {
-                                GetOrCreateVariable(elementName);
+                                string slotName = s == 0 ? elementName : $"{elementName}_slot_{s}";
+                                if (!variables.ContainsKey(slotName))
+                                {
+                                    GetOrCreateVariable(slotName);
+                                }
+                                // 元素槽的字节数也**定死**（`Byte` 等也占一格 4 字节），
+                                // 否则 `GetVarByteOffset` 现算类型会与分配脱钩。
+                                varByteSizes[slotName] = 4;
                             }
                         }
                     }
@@ -709,12 +957,24 @@ namespace BasicCompiler
             else if (statement is ReadStatement readStmt)
             {
                 // Collect variables used in READ
-                foreach (var varIdent in readStmt.Variables)
+                foreach (var target in readStmt.Variables)
                 {
-                    if (!variables.ContainsKey(varIdent.Name))
+                    // 数组元素（`READ a(i)`）登记的是**数组名**，下标里的变量由
+                    // `CollectVariablesFromExpression` 那一遍收（这里只保证数组名在表里）。
+                    string readName = target switch
                     {
-                        GetOrCreateVariable(varIdent.Name);
+                        Identifier ri => ri.Name,
+                        ArrayAccessExpression ra => ra.ArrayName,
+                        _ => null!,
+                    };
+                    if (string.IsNullOrEmpty(readName)) continue;
+                    if (!variables.ContainsKey(readName))
+                    {
+                        GetOrCreateVariable(readName);
                     }
+                    if (target is ArrayAccessExpression rae)
+                        foreach (var ix in rae.Indices)
+                            CollectVariablesFromExpression(ix);
                 }
             }
             else if (statement is ConstStatement constStmt)
@@ -1192,6 +1452,11 @@ namespace BasicCompiler
             {
                 GenerateFunctionDeclaration(funcDecl);
             }
+
+            // UI 后端的文本子程序（PRINT/LOCATE 攒行 → ui_text）。
+            // **必须在所有 SUB/FUNCTION 之后**：它们由 CALL 进入、只被前面的语句引用，
+            // 放这里就不用管"SUB 里的 PRINT 也得能调到"这件事。
+            UiTextEmitHelpers();
 
             // vga_text_putchar 无操作存根（链接共享库时会被覆盖）
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, "vga_text_putchar") }));

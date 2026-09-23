@@ -137,6 +137,32 @@ public static partial class SelfTest
         q3.Clear();
         w3.Join(2000);
         Check("KeyQueue: Clear 唤醒等待者并给 NUL（不留悬挂线程）", got3 == '\0');
+
+        /* **取消令牌**必须能打断"等键"。
+           与 `VmlMessageQueue` 那条同一个理由：程序卡在等键上时**不执行指令**，
+           VM 的令牌检查够不着它 ⇒ 等待不认令牌就等于"强制终止"停不掉这类程序
+           （2026-09-23 用户真机报的 BGI 程序退出后没结束，就是这一族问题）。 */
+        var q4 = new KeyQueue();
+        var cancelled = false;
+        using (var cts = new CancellationTokenSource())
+        {
+            var w4 = new System.Threading.Thread(() =>
+            {
+                try { q4.Take(cts.Token); }
+                catch (OperationCanceledException) { cancelled = true; }
+            });
+            w4.IsBackground = true;
+            w4.Start();
+            System.Threading.Thread.Sleep(30);
+            cts.Cancel();
+            w4.Join(2000);
+        }
+        Check("KeyQueue: 令牌取消能打断等键（否则强制终止无效）", cancelled);
+
+        // 反向：**不传令牌时一个字都不改**（已有键照样立刻取到）
+        var q5 = new KeyQueue();
+        q5.Post('k');
+        Check("KeyQueue: 不带令牌仍走老路径", q5.Take() == 'k');
     }
 
     // ═══ ③ 分块：流式最典型的回归是"丢字" ═══

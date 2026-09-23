@@ -258,6 +258,7 @@ namespace VMLTool
         public bool DumpLink { get; set; }                        // --dump-link
         public string? LanguageStandard { get; set; }              // -std=
         public string? BasicType { get; set; }                    // --basictype (qbasic/turbobasic/...)
+        public string? BasicGfx { get; set; }                     // --basicgfx (ui/pcgfx) —— BASIC 图形语句的后端
         public string? PascalType { get; set; }                   // --pascaltype (turbo/delphi/...)
         public bool StaticLink { get; set; }                      // -static
         public bool SharedLink { get; set; }                      // -shared
@@ -316,6 +317,7 @@ namespace VMLTool
             // -std=...
             options.LanguageStandard = parser.GetArgument("std");
             options.BasicType = parser.GetArgument("basictype");
+            options.BasicGfx = parser.GetArgument("basicgfx");
             options.PascalType = parser.GetArgument("pascaltype");
 
             // -D name[=value] 宏定义

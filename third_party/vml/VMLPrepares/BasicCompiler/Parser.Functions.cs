@@ -23,7 +23,14 @@ namespace BasicCompiler
                 Advance(); // 跳过 (
                 while (Peek().Type != TokenType.RPAREN && !AtEnd())
                 {
-                    bool isByRef = false;  // 默认 BYVAL (MCU 模式下字面量参数无法传引用)
+                    /* **默认按引用**（QBasic 语义：形参默认 BYREF，要传值写 `BYVAL`）。
+                       早先默认 BYVAL 的理由是"MCU 模式下字面量参数无法传引用"——那是个**真问题**，
+                       但正解不是改语义，而是调用方给非左值实参**造一个临时量再传它的地址**
+                       （见 `CodeGenerator.EmitCallArguments`）。语义错了会静默丢结果：
+                       `SUB GetInputs (…, NumGames)` 里 `NumGames = 3` 传不回调用方 ⇒ 调用方
+                       读到 0 ⇒ `FOR i = 1 TO NumGames` 一次都不跑（GORILLA.BAS 的 PlayGame
+                       因此整局不画一个像素）。 */
+                    bool isByRef = true;  // 默认 BYREF（QBasic 语义）；NATIVE 声明在 CodeGenerator 里被强制回 BYVAL
                     if (Peek().Type == TokenType.BYREF)
                     {
                         isByRef = true;
@@ -55,8 +62,16 @@ namespace BasicCompiler
                     Advance();
 
                     // Skip array parens: sammy() or Record()
+                    //
+                    // ⚠ **跳过之余必须记一笔**（`IsArray`）—— 这个 `()` 是"数组形参"的
+                    //   唯一记号，不记的话体内 `a(i)` 与一个没声明过的数组长得一样，
+                    //   而代码生成对后者是「静默生成 0 / 不生成代码」。
+                    //   GORILLA.BAS 的 `SUB MakeCityScape (BCoor() AS XYPoint)` 整座城市
+                    //   画不出来就是这一条（见 `GenerateArrayElementAddr`）。
+                    bool isArray = false;
                     if (Peek().Type == TokenType.LPAREN)
                     {
+                        isArray = true;
                         Advance(); // skip (
                         int pdepth = 1;
                         while (!AtEnd() && pdepth > 0)
@@ -70,14 +85,21 @@ namespace BasicCompiler
                     }
 
                     bool isString = false;
+                    string typeName = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
                         if (IsTypeNameToken(Peek()))
                         {
-                            var typeName = Peek().Value.ToUpper();
-                            if (typeName == "STRING")
+                            var tName = Peek().Value.ToUpper();
+                            if (tName == "STRING")
                                 isString = true;
+                            // 用户自定义类型的名字要留下来（数组形参解析 `a(i).Field` 用它）。
+                            // 内置类型名（INTEGER/LONG/SINGLE/DOUBLE/ANY…）不记 —— 它们
+                            // 由 `GetVariableType` 从后缀 / DEFtype 判出来，记进来只是多一张要同步的表。
+                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
+                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                                typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
                         else
@@ -106,7 +128,11 @@ namespace BasicCompiler
                         isString = true;
                     }
 
-                    sub.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));
+                    sub.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString)
+                    {
+                        IsArray = isArray,
+                        TypeName = typeName,
+                    });
 
                     if (Peek().Type == TokenType.COMMA)
                     {
@@ -139,7 +165,7 @@ namespace BasicCompiler
 
             if (_pendingNative)
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SUB)
+                if (IsEndOfBlock(current, TokenType.SUB))
                 {
                     Advance(); // skip END
                     Advance(); // skip SUB
@@ -151,7 +177,11 @@ namespace BasicCompiler
             while (!AtEnd())
             {
                 // Check for END SUB (two-token sequence)
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SUB)
+                //
+                // ⚠ 判据走 `IsEndOfBlock`（**同一个源行**的 `END SUB`）而不是「END 后面是 SUB」：
+                //   一个体里出现独立的 `END` 之后跟一条新语句是合法形状，只按 token 相邻判
+                //   会把它错当成体结束（同一个坑在 `Parser.Core.cs` 的 `IsCompoundEnd` 有完整记录）。
+                if (IsEndOfBlock(current, TokenType.SUB))
                 {
                     Advance(); // skip END
                     Advance(); // skip SUB
@@ -201,7 +231,14 @@ namespace BasicCompiler
                 Advance(); // 跳过 (
                 while (Peek().Type != TokenType.RPAREN && !AtEnd())
                 {
-                    bool isByRef = false;  // 默认 BYVAL (MCU 模式下字面量参数无法传引用)
+                    /* **默认按引用**（QBasic 语义：形参默认 BYREF，要传值写 `BYVAL`）。
+                       早先默认 BYVAL 的理由是"MCU 模式下字面量参数无法传引用"——那是个**真问题**，
+                       但正解不是改语义，而是调用方给非左值实参**造一个临时量再传它的地址**
+                       （见 `CodeGenerator.EmitCallArguments`）。语义错了会静默丢结果：
+                       `SUB GetInputs (…, NumGames)` 里 `NumGames = 3` 传不回调用方 ⇒ 调用方
+                       读到 0 ⇒ `FOR i = 1 TO NumGames` 一次都不跑（GORILLA.BAS 的 PlayGame
+                       因此整局不画一个像素）。 */
+                    bool isByRef = true;  // 默认 BYREF（QBasic 语义）；NATIVE 声明在 CodeGenerator 里被强制回 BYVAL
                     if (Peek().Type == TokenType.BYREF)
                     {
                         isByRef = true;
@@ -232,9 +269,11 @@ namespace BasicCompiler
                     string paramName = Peek().Value;
                     Advance();
 
-                    // Skip array parens: sammy() or Record()
+                    // Skip array parens: sammy() or Record() —— 同 SUB 那处，跳过但**记一笔**
+                    bool isArray = false;
                     if (Peek().Type == TokenType.LPAREN)
                     {
+                        isArray = true;
                         Advance(); // skip (
                         int pdepth = 1;
                         while (!AtEnd() && pdepth > 0)
@@ -248,14 +287,18 @@ namespace BasicCompiler
                     }
 
                     bool isString = false;
+                    string typeName = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
                         if (IsTypeNameToken(Peek()))
                         {
-                            var typeName = Peek().Value.ToUpper();
-                            if (typeName == "STRING")
+                            var tName = Peek().Value.ToUpper();
+                            if (tName == "STRING")
                                 isString = true;
+                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
+                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                                typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
                         else
@@ -282,7 +325,11 @@ namespace BasicCompiler
                         isString = true;
                     }
 
-                    func.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));
+                    func.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString)
+                    {
+                        IsArray = isArray,
+                        TypeName = typeName,
+                    });
 
                     if (Peek().Type == TokenType.COMMA)
                     {
@@ -347,7 +394,7 @@ namespace BasicCompiler
 
             if (_pendingNative)
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.FUNCTION)
+                if (IsEndOfBlock(current, TokenType.FUNCTION))
                 {
                     Advance(); // skip END
                     Advance(); // skip FUNCTION
@@ -358,7 +405,8 @@ namespace BasicCompiler
             // 解析函数体直到 END FUNCTION
             while (!AtEnd())
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.FUNCTION)
+                // ⚠ 同 SUB 那处：判据是 `IsEndOfBlock`（同一个源行的 `END FUNCTION`）。
+                if (IsEndOfBlock(current, TokenType.FUNCTION))
                 {
                     Advance(); // skip END
                     Advance(); // skip FUNCTION
@@ -466,10 +514,20 @@ namespace BasicCompiler
             string name = Peek().Value;
             Token token = Advance(); // consume SUB name
             CallStatement call = new CallStatement(token.Line, token.Column, name);
+            int startLine = token.Line;
 
             // Parse comma-separated arguments until we hit a statement boundary
             while (!AtEnd() && Peek().Type != TokenType.COLON)
             {
+                // ⚠ **不许跨行**：QBasic 的裸调用实参只在**同一行**上
+                //   （续行要写显式的 `_`）。没有这条时 `ui_present`
+                //   （无参、独占一行）会把**下一行整句**当成它的实参：
+                //   实测 `ui_present` 后跟 `MODE = 9` 被解析成 `ui_present (MODE = 9)`，
+                //   于是 `MODE = 9` 这个赋值**凭空消失**。
+                //   GORILLA.BAS 报的 `未定义的函数 'func_i'` 与
+                //   `FOR 变量 'i' 未定义` 两条，根因都在这里。
+                if (Peek().Line != startLine) break;
+
                 // Stop if next token is a statement-level keyword
                 if (IsStatementBoundary(Peek()))
                     break;

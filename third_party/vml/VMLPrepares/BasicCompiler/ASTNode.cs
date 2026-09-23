@@ -54,10 +54,25 @@ namespace BasicCompiler
     {
         public List<Expression> Expressions { get; set; }
 
+        /// <summary>
+        /// **每个表达式后面那个分隔符**（与 <see cref="Expressions"/> 一一对应）：
+        /// <c>';'</c> = 紧跟其后不换行、<c>','</c> = 跳到下一个打印区、<c>'\0'</c> = 此处结束（要换行）。
+        ///
+        /// <para>**为什么必须记进 AST**：QBasic 的换行语义完全由**末尾分隔符**决定 ——
+        /// <c>PRINT "a";</c> 不换行、<c>PRINT "a"</c> 换行。而解析器从前只是
+        /// `Advance(); // 跳过逗号或分号`，信息当场丢掉；代码生成那边只好**无条件补一个换行**
+        /// ⇒ `PRINT "Angle:";</c>` 之后紧跟的输入回显被顶到下一行。要在生成侧补救就得反推
+        /// 源码，那是猜 —— 这里记下来才是唯一可靠的地方。</para>
+        ///
+        /// <para>长度与 <see cref="Expressions"/> 相同；<c>PRINT</c> 无参时为空表（= 只换行）。</para>
+        /// </summary>
+        public List<char> Separators { get; set; }
+
         public PrintStatement(int line, int column)
             : base(line, column)
         {
             Expressions = new List<Expression>();
+            Separators = new List<char>();
         }
     }
 
@@ -421,6 +436,18 @@ namespace BasicCompiler
         public string VariableName { get; set; }
         public int Size { get; set; }
         public List<int> Dimensions { get; set; }
+
+        /// <summary>
+        /// 每一维的**下界**（`DIM a(1 TO 2)` → `[1]`；`DIM a(10)` → `[0]`）。
+        ///
+        /// <para>⚠ 下界**只影响下标 → 槽位的换算**，不影响 `Dimensions`（那是元素个数）：
+        /// `DIM GorillaX(1 TO 2)` 有 2 个元素、合法下标是 1..2 ⇒ 下标 2 落在**第 2 个槽**、
+        /// 不是第 3 个。丢掉下界的后果是"下标 2 越界 ⇒ 赋值被跳过（读回 0）"，
+        /// 而且是**静默**的 —— GORILLA.BAS 的两只大猩猩位置 `GorillaX(1)`/`GorillaX(2)`
+        /// 与比分 `TotalWins(1 TO 2)` 都踩在这一条上（实测 `PUTG i=2 gx=0 gy=0`）。</para>
+        /// </summary>
+        public List<int> LowerBounds { get; set; }
+
         public bool IsStringArray { get; set; }
         public string TypeName { get; set; }  // For DIM arr(size) AS TypeName
         public bool IsShared { get; set; }
@@ -429,6 +456,7 @@ namespace BasicCompiler
             : base(line, column)
         {
             Dimensions = new List<int>();
+            LowerBounds = new List<int>();
         }
     }
 
@@ -440,6 +468,17 @@ namespace BasicCompiler
         public string ArrayName { get; set; }
         public Expression Index { get; set; }
         public List<Expression> Indices { get; set; }
+
+        /// <summary>
+        /// `arr()` —— **括号里没有下标**，指的是"整个数组"（QBasic 用它把整个数组
+        /// 作为实参传给 `SUB f (a() AS …)`，见 `EmitCallArguments` / `GenerateVariableAddress`）。
+        ///
+        /// 不记这个标志的话，`arr()` 与"一个漏写下标的元素访问"**长得一模一样**
+        /// （`Indices` 都是空），而两者的代码生成完全不同：前者要的是**数组基址**、
+        /// 后者什么都不该生成。塞一个 `null` 当下标去走元素那条路是本仓踩过的形状
+        /// （实测 `CALL fill(arr())` 会把 R0=0 的东西当元素地址、写进地址 0）。
+        /// </summary>
+        public bool IsWholeArray { get; set; }
 
         public ArrayAccessExpression(int line, int column)
             : base(line, column)
@@ -456,6 +495,26 @@ namespace BasicCompiler
         public string Name { get; set; }
         public bool IsByRef { get; set; }
         public bool IsString { get; set; }
+
+        /// <summary>
+        /// `SUB f (a() AS INTEGER)` —— **数组形参**。
+        ///
+        /// <para>
+        /// 判据是形参名后面直接跟着 `()`（解析器第一遍的 `CollectArrayParams` 用的是同一条
+        /// 判据，见 `Parser.Core.cs`）。记下它，代码生成才知道 `a(i)` 该走
+        /// **"基址在形参槽里的间接寻址"**（`GenerateArrayElementAddr`）而不是当成
+        /// 一个没声明过的数组（那会静默生成"值 0 / 不生成代码"）。
+        /// </para>
+        /// </summary>
+        public bool IsArray { get; set; }
+
+        /// <summary>
+        /// `AS XYPoint` 里的类型名（小写，只对**用户自定义类型**有意义；`AS STRING`/
+        /// `AS INTEGER` 这类内置类型名不记）。数组形参要靠它才能解析
+        /// `a(i).Field` 的字段偏移 —— 类型信息本来就只在 `dimAsVariables` 里，
+        /// 而形参从来没被登记进去过。
+        /// </summary>
+        public string TypeName { get; set; }
 
         public ParameterNode(int line, int column, string name, bool isByRef = false, bool isString = false)
             : base(line, column)
@@ -908,10 +967,22 @@ namespace BasicCompiler
     /// <summary>READ var1, var2, ... - 从数据区读取到变量</summary>
     public class ReadStatement : Statement
     {
-        public List<Identifier> Variables { get; set; }
+        /// <summary>
+        /// READ 的目标列表。元素是 <see cref="Identifier"/>（简单变量 / 整个数组）
+        /// 或 <see cref="ArrayAccessExpression"/>（数组元素，`READ a(i)`）。
+        ///
+        /// <para>
+        /// ⚠ 从前这里是 `List&lt;Identifier&gt;`，于是 `READ a(i)` 只吃下 `a`、
+        /// 把 `(i)` 留在 token 流上 —— `i` 落到「名字后面不是 `=`」的兜底分支、
+        /// 编成 `CALL func_i`，链接期报「未定义的函数 'func_i'」（数值全写进 a(0)）。
+        /// GORILLA.BAS 的香蕉位图加载（`FOR i = 0 TO 8 / READ LBan&amp;(i) / NEXT i`）
+        /// 就是这个形状，8 个循环正好 8 次报错。
+        /// </para>
+        /// </summary>
+        public List<Expression> Variables { get; set; }
         public ReadStatement(int line, int column) : base(line, column)
         {
-            Variables = new List<Identifier>();
+            Variables = new List<Expression>();
         }
     }
 

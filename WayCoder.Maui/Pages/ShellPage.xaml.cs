@@ -126,6 +126,30 @@ public partial class ShellPage : ContentPage
     private static CancellationTokenSource? _runCts;
 
     /// <summary>
+    /// 本次运行的令牌，**专供交互输入的两个回调用**（`ReadLineFromProgram` / `ReadKeyFromProgram`）。
+    /// 它们是 `Func<…>` 形参、拿不到 `ExecVmlAsync` 里的局部 `cts`，所以从这里过一道。
+    /// </summary>
+    private CancellationToken _programIoToken;
+
+    /// <summary>
+    /// 等一个"要用户输入"的任务，但**令牌一响就不再等**（抛 <see cref="OperationCanceledException"/>
+    /// 往上走，让整次运行真正结束）。
+    ///
+    /// ⚠ 为什么不能只用 `.GetAwaiter().GetResult()`：程序卡在"等输入"上时**不执行指令**，
+    /// 而 VM 的令牌检查是"每条指令一次" ⇒ 取消够不着它，强制停止停不掉它。
+    /// 这与消息队列（`VmlMessageQueue`）、对话框（`MauiVmlHost.AwaitOrCancel`）是同一条理由，
+    /// 三处必须一起认令牌 —— 漏一处就是"某类程序停不掉"。
+    /// </summary>
+    private T AwaitIoOrCancel<T>(Task<T> task)
+    {
+        var ct = _programIoToken;
+        if (!ct.CanBeCanceled) return task.GetAwaiter().GetResult();
+        try { task.Wait(ct); }
+        catch (AggregateException) { /* 任务自己失败：交给下面那句抛真实异常 */ }
+        return task.GetAwaiter().GetResult();
+    }
+
+    /// <summary>
     /// 这次操作**彻底收干净**的信号（在 `ExecVmlAsync` / `CompileArtifactAsync` 的 `finally` 最末尾置位）。
     ///
     /// 为什么不是直接 `await` 那个运行 Task：它和调用处那句 `await task`
@@ -460,6 +484,15 @@ public partial class ShellPage : ContentPage
                 FinishStreaming();
                 if (MauiVml.LastDiagnostics.Length > 0)
                     Append(MauiVml.LastDiagnostics + "\n", alreadyMarkup: true);
+                // ⚠ **VM 压根没跑起来**（编译失败 / 标准库清单为空 / 解压失败 …）
+                //   ⇒ 一个字都没流出去，`bodyText` 就是**唯一**的一份。丢掉它 =
+                //   屏幕上什么都没有 = 用户说的「点了没反应、没弹窗就结束了」
+                //   （真机实测：BGI 程序编译报错，界面停在「正在编译…」，一个字都不显示）。
+                //   判据 `LastRunStreamed` 在 `RunProgram` 里才置位 —— 编译失败那条早退路
+                //   到不了它，而它每轮开头由 `MauiVml.ResetRunState()` 复位。
+                //   与编辑器页 `RunInEditorAsync` 同一口径（那边一直是对的，这边漏了这支）。
+                if (!MauiVml.LastRunStreamed && bodyText.Length > 0)
+                    Append(bodyText + "\n\n");
                 return;
             }
 
@@ -793,6 +826,9 @@ public partial class ShellPage : ContentPage
         _interactive = true;
         _runCts = new CancellationTokenSource();
         var cts = _runCts;
+        // 交互输入的等待也要认这个令牌（见 AwaitIoOrCancel）—— 两个读取回调是
+        // `Func<…>` 形参、拿不到局部 `cts`，所以过一道字段。
+        _programIoToken = cts.Token;
         var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _runDone = done;
         InstallVmlProgress();   // 这里是**本页所有 VML 运行**的唯一入口（文件页递的 + 手敲的）
@@ -807,6 +843,7 @@ public partial class ShellPage : ContentPage
         {
             _interactive = false;
             _runCts = null;
+            _programIoToken = default;   // 令牌跟着这一轮走，别留给下一轮
             cts.Dispose();
             MauiVml.OnProgress = null;
             StdinPanel.IsVisible = false;
@@ -872,14 +909,24 @@ public partial class ShellPage : ContentPage
 
         // **阻塞 VM 线程**在这里等 —— 这正是"程序在等输入"的语义。
         // 注意它同时也在扣 VM 的墙钟超时，所以 InteractiveTimeoutSec 给得很宽。
-        var line = tcs.Task.GetAwaiter().GetResult();
-
-        MainThread.BeginInvokeOnMainThread(() =>
+        // ⚠ 必须**认运行令牌**：否则程序卡在这一句上时，强制停止叫不醒它
+        //   （用户报的"退出后程序还没结束"就是这一类；见 AwaitIoOrCancel）。
+        string line;
+        try
         {
-            _stdinTcs = null;
-            StdinPanel.IsVisible = false;
-            Append(line + "\n");             // 回显，像真终端
-        });
+            line = AwaitIoOrCancel(tcs.Task);
+        }
+        finally
+        {
+            // 被取消时也要把输入行收回去 —— 不然面板会留在屏上、`_stdinTcs` 也悬着。
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                _stdinTcs = null;
+                StdinPanel.IsVisible = false;
+            });
+        }
+
+        MainThread.BeginInvokeOnMainThread(() => Append(line + "\n"));   // 回显，像真终端
 
         return line;
     }
@@ -929,7 +976,9 @@ public partial class ShellPage : ContentPage
 
         try
         {
-            return _keys.Take();            // **阻塞 VM 线程**在这里等（这就是"程序在等输入"）
+            // **阻塞 VM 线程**在这里等（这就是"程序在等输入"）—— 同样要认令牌，
+            // 否则逐键程序（vim/mc 那类）卡在等键上时停不掉。
+            return _keys.Take(_programIoToken);
         }
         finally
         {

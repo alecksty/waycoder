@@ -12,6 +12,41 @@ static char _buf1[256];
 static char _buf2[256];
 static char _buf3[256];   // 字符串拼接（`a$ + b$`）的结果缓冲，见 basic_concat
 
+/* ── 字符串返回值的**轮转缓冲** ─────────────────────────────────
+ *
+ * ⚠ 从前这些函数一律 `return _buf1`（**一块**共享静态缓冲）⇒ **同一个表达式里
+ *   两次字符串函数调用的结果会互相同化**：参数从右往左求值，右操作数先算、
+ *   左操作数一算就把它冲掉。实测 `STR$(T(1)) + ">" + STR$(T(2))`（T=11/22）打出 **`11>11`**；
+ *   GORILLA.BAS 的比分就是这条形状：
+ *     `Center 23, LTRIM$(STR$(TotalWins(1))) + ">Score<" + LTRIM$(STR$(TotalWins(2)))`
+ *   ⇒ **比分永远显示成 `0>Score<0`**（内部真的变了，屏幕上一动不动）。
+ *   另一条同源症状：`A$ = STR$(11)` / `B$ = STR$(22)` / `C$ = STR$(33)` 三者全打 33。
+ *
+ * 修法：返回值改从**轮转池**里取（每次调用换一块），个数取 8 —— 够覆盖
+ * "一个表达式里几次字符串调用 / 连续赋值几个字符串变量" 这两类常见形状。
+ * 超过 8 个同时活着的返回值仍会互相覆盖（QBasic 的临时串没有上限，
+ * 我们按"够用且确定"取舍，写在这里不假装无上限）。
+ */
+#define STRBUF_SLOTS 8
+static char _strbuf[STRBUF_SLOTS * 256];
+static int  _strbuf_next = 0;
+
+static char* _strbuf_next_slot(void) {
+    char* p = _strbuf + _strbuf_next * 256;
+    _strbuf_next = _strbuf_next + 1;
+    if (_strbuf_next >= STRBUF_SLOTS) _strbuf_next = 0;
+    return p;
+}
+
+/* `_bufN` 的内容 → 下一块轮转槽（作为返回值）。**所有返回字符串的函数都要走它。** */
+static char* _strbuf_commit(const char* src) {
+    char* p = _strbuf_next_slot();
+    int i = 0;
+    if (src) { while (src[i] && i < 255) { p[i] = src[i]; i = i + 1; } }
+    p[i] = 0;
+    return p;
+}
+
 static void _hex_str(int val, char* buf) {
     const char* h = "0123456789ABCDEF";
     char tmp[9];
@@ -51,7 +86,7 @@ __stdcall char* basic_stringN(int n, int ch) {
         i = i + 1;
     }
     _buf1[n] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// STRING$(n, string$) — repeat first char of string N times
@@ -67,13 +102,13 @@ __stdcall char* basic_stringS(int n, const char* s) {
         i = i + 1;
     }
     _buf1[n] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// HEX$(number) — integer to uppercase hex string
 __stdcall char* basic_hex(int val) {
     _hex_str(val, _buf1);
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// OCT$(number) — integer to octal string
@@ -82,17 +117,17 @@ __stdcall char* basic_oct(int val) {
     int i;
     p = _buf1 + 10;
     *p = 0;
-    if (val == 0) { _buf1[0] = '0'; _buf1[1] = 0; return _buf1; }
+    if (val == 0) { _buf1[0] = '0'; _buf1[1] = 0; return _strbuf_commit(_buf1); }
     while (val > 0 && p > _buf1) { *--p = (char)('0' + (val & 7)); val >>= 3; }
     for (i = 0; p[i]; i++) _buf1[i] = p[i];
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// MID$(string$, start, length) — substring using _buf1
 __stdcall char* basic_mid3(const char* s, int start, int length) {
     int i;
-    if (!s) { _buf1[0] = 0; return _buf1; }
+    if (!s) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     if (start < 1) start = 1;
     if (length < 0) length = 255;
     if (length > 255) length = 255;
@@ -104,7 +139,7 @@ __stdcall char* basic_mid3(const char* s, int start, int length) {
         start = start + 1;
     }
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 // ============ Date/Time Functions ============
@@ -144,7 +179,7 @@ __stdcall char* basic_inputN(int n) {
         _buf1[i] = (char)ch;
     }
     _buf1[n] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 // ============ EOF ============
@@ -161,7 +196,7 @@ __stdcall int basic_eof(int filenum) {
 /// UCASE$(string$) — convert to uppercase
 __stdcall char* basic_ucase(const char* s) {
     int i = 0;
-    if (!s) { _buf1[0] = 0; return _buf1; }
+    if (!s) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     while (s[i] && i < 255) {
         char c = s[i];
         if (c >= 'a' && c <= 'z') c -= 32;
@@ -169,13 +204,13 @@ __stdcall char* basic_ucase(const char* s) {
         i++;
     }
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// LCASE$(string$) — convert to lowercase
 __stdcall char* basic_lcase(const char* s) {
     int i = 0;
-    if (!s) { _buf1[0] = 0; return _buf1; }
+    if (!s) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     while (s[i] && i < 255) {
         char c = s[i];
         if (c >= 'A' && c <= 'Z') c += 32;
@@ -183,7 +218,7 @@ __stdcall char* basic_lcase(const char* s) {
         i++;
     }
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// LEN(string$) — return length
@@ -204,7 +239,7 @@ __stdcall int basic_asc(const char* s) {
 __stdcall char* basic_chr(int n) {
     _buf1[0] = (char)(n & 0xFF);
     _buf1[1] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// SPACE$(n) — n spaces (inline to avoid nested CALL stack cleanup issues)
@@ -218,14 +253,14 @@ __stdcall char* basic_space(int n) {
         i = i + 1;
     }
     _buf1[n] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// STR$(number) — integer to decimal string (no division, pure subtraction)
 __stdcall char* basic_str_int(int val) {
     int d, n, i, j, digit;
     char t;
-    if (val == 0) { _buf1[0] = '0'; _buf1[1] = 0; return _buf1; }
+    if (val == 0) { _buf1[0] = '0'; _buf1[1] = 0; return _strbuf_commit(_buf1); }
     if (val < 0) { _buf1[0] = '-'; val = -val; i = 1; } else i = 0;
     // Find largest power of 10 <= val using multiplication
     d = 1;
@@ -242,7 +277,7 @@ __stdcall char* basic_str_int(int val) {
         { int count = 0; int tmp = d; while (tmp >= 10) { tmp = tmp - 10; count = count + 1; } d = count; }
     }
     _buf1[j] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// VAL(string$) — string to integer
@@ -268,13 +303,13 @@ __stdcall char* basic_left(const char* s, int n) {
     i = 0;
     if (n < 0) n = 0;
     if (n > 255) n = 255;
-    if (s == 0) { _buf1[0] = 0; return _buf1; }
+    if (s == 0) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     for (i = 0; i < n; i++) {
         if (s[i] == 0) break;
         _buf1[i] = s[i];
     }
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// RIGHT$(string$, n) — right N characters
@@ -282,34 +317,34 @@ __stdcall char* basic_right(const char* s, int n) {
     int len, start, i;
     if (n < 0) n = 0;
     if (n > 255) n = 255;
-    if (s == 0) { _buf1[0] = 0; return _buf1; }
+    if (s == 0) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     len = 0; for (len = 0; s[len]; len++);
     start = len - n;
     if (start < 0) start = 0;
     for (i = 0; s[start]; i++) { _buf1[i] = s[start]; start = start + 1; }
     _buf1[i] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// LTRIM$(string$) — remove leading spaces
 __stdcall char* basic_ltrim(const char* s) {
     int i;
     i = 0;
-    if (s == 0) { _buf1[0] = 0; return _buf1; }
+    if (s == 0) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     for (i = 0; s[i] == ' '; i++);
     { int j = 0; for (j = 0; s[i]; j++) { _buf1[j] = s[i]; i = i + 1; } _buf1[j] = 0; }
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// RTRIM$(string$) — remove trailing spaces
 __stdcall char* basic_rtrim(const char* s) {
     int len, i;
-    if (s == 0) { _buf1[0] = 0; return _buf1; }
+    if (s == 0) { _buf1[0] = 0; return _strbuf_commit(_buf1); }
     len = 0; for (len = 0; s[len]; len++);
     for (; len > 0 && s[len - 1] == ' '; len--);
     for (i = 0; i < len; i++) _buf1[i] = s[i];
     _buf1[len] = 0;
-    return _buf1;
+    return _strbuf_commit(_buf1);
 }
 
 /// 字符串拼接 `a$ + b$` —— 返回一个**静态缓冲区**里的结果（QBasic 约定）。

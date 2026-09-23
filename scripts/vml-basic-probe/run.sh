@@ -19,7 +19,9 @@
 set -u
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CLI="$ROOT/scripts/vmlcli/bin/Release/net10.0/vmlcli.dll"
+# CLI 可以被 `VMLCLI=<路径>` 覆盖 —— 用来跑**另一份构建**（例如自测用的
+# 旁路输出目录 `.scratch/vc/`：主输出目录常年被别的进程/别的 agent 占着锁）。
+CLI="${VMLCLI:-$ROOT/scripts/vmlcli/bin/Release/net10.0/vmlcli.dll}"
 CASES="$ROOT/scripts/vml-basic-probe/cases"
 
 if [ ! -f "$CLI" ]; then

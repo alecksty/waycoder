@@ -15,7 +15,8 @@ namespace WayCoder.Maui.Services;
 ///
 /// · **抗锯齿**：平台做，比"3× 超采样再降采样"更好看（斜线/圆角/文字边缘）；
 /// · **文字**：用平台字体（比手搓 TrueType 好看），但**度量不同** —— 我们那条路 `y` 是基线，
-///   这里要换算成文本框顶端（`基线 − 上升`）。用 0.8×字号 估，属于已知的细微差异；
+///   这里要换算成文本框顶端（`基线 − 上升`）。上升**问平台要**（见 `Ascent`）：从前拿
+///   0.8×字号 估，实测差 0.245×字号，真机上表现为"文字靠下、不居中"；
 /// · **渐变**：平台刷子按绝对几何铺，与光栅侧归一化采样的结果在小尺寸上可能差一两个色阶；
 /// · **虚线**：平台按 `StrokeDashPattern` 走，相位从路径起点算 —— 与光栅的逐段绘制
 ///   在长折线上可能有半个周期的差。
@@ -151,8 +152,10 @@ internal sealed class MauiVectorTarget : IVectorTarget
         _canvas.FontColor = Col(color);
 
         // 我方约定 `y` 是**基线**，而平台 `DrawString` 的 y 是文本框顶端 ⇒ 上移一个"上升"。
-        // 0.8×字号 是常见字体的上升比例；这条差异在自测里用抽样比对兜着（见类注释）。
-        var top = y - size * 0.8;
+        // ⚠ **上升要问平台要**（见 `Ascent`）：共享层那个 0.8 是给**自绘**（光栅/SVG）用的
+        //   近似值，与平台字体并不相同 —— 实测差 0.245×字号（76px 的算盘按键上差 19px，
+        //   肉眼一眼看出"靠下"）。两处都用同一个近似值**并不能**互相抵消，只会把误差留在结果里。
+        var top = y - Ascent(size, bold || italic);
         var align = anchor switch
         {
             "middle" => HorizontalAlignment.Center,
@@ -166,6 +169,51 @@ internal sealed class MauiVectorTarget : IVectorTarget
         var boxH = (float)Math.Max(1, size * 2);
         _canvas.DrawString(text, (float)boxX, (float)top, (float)boxW, boxH, align, VerticalAlignment.Top);
     }
+
+    /// <summary>
+    /// 文字**上升**（盒顶 = 基线 − 本值）。**优先问平台要真实字体度量**。
+    ///
+    /// <para>
+    /// ⚠ 为什么不直接用共享层那个 <see cref="WayCoder.Infra.DrawParse.TextAscentRatio"/>（0.8）：
+    /// 那是给**自绘**两条路（光栅 TrueType / SVG）用的近似值，而这里是**平台字体** ——
+    /// 两者的真实上升并不相同。实测（真机 1080×2400，字号 76px 的算盘按键）：
+    /// 用 0.8 换算会让文字整体**偏低约 0.245×字号（19px）**，用户看到的就是「文字靠下、不居中」。
+    /// </para>
+    ///
+    /// <para>
+    /// 而竖对齐偏移（<c>TextVOffset</c>）也是拿 0.8 算的 ⇒ 两处一比，误差正好留在结果里：
+    /// `基线 = y + (0.8s − 0.5s) − 0.8s + A·s = y + (A − 0.5)s`。
+    /// 换成**真实上升 A** 之后 A 项相消 ⇒ `基线 = y + 0.3s`，正是 MIDDLE 档的本意。
+    /// （所以这是"把近似换成实测"，而不是再补一个人工偏移 —— 后者换个字号就不准了。）
+    /// </para>
+    ///
+    /// <para>
+    /// 非 Android 退回共享常量：那是**有意**的（iOS 要用 CoreText 的对应度量，没验过就不假装）。
+    /// 判据同本仓一贯口径 —— 改这里要在**真机上量**，构建通过证明不了什么。
+    /// </para>
+    /// </summary>
+    private double Ascent(double size, bool bold)
+    {
+#if ANDROID
+        try
+        {
+            _metricsProbe ??= new Android.Graphics.Paint();
+            // ⚠ 绑定里 `Paint.Typeface` 是**只读**属性，只能走 SetTypeface（实测 CS0200）
+            _metricsProbe.SetTypeface((bold ? GFont.DefaultBold : GFont.Default).ToTypeface());
+            _metricsProbe.TextSize = (float)Math.Max(1, size);
+            var m = _metricsProbe.GetFontMetrics();
+            // Android 的 `Ascent` 是**负值**（基线以上的距离取负），故取反
+            if (m is not null && m.Ascent < 0) return -m.Ascent;
+        }
+        catch { /* 取不到度量就退回近似值，绝不因此不画字 */ }
+#endif
+        return size * DrawParse.TextAscentRatio;
+    }
+
+#if ANDROID
+    /// <summary>量字体度量用的画笔（只读度量，不落笔）。</summary>
+    private Android.Graphics.Paint? _metricsProbe;
+#endif
 
     public void DrawImage(string? path, double x, double y, double w, double h,
         double srcX, double srcY, double srcW, double srcH, double cornerRadius, bool transformed)
