@@ -1050,6 +1050,15 @@ namespace BasicCompiler
             string endLabel = GenerateLabel();
 
             // Helper: get store target address for variable
+            //
+            // ⚠ **返回值只在"紧接着的那一条访问指令"之前有效** —— 模块级变量那一路是把地址
+            //   **算进 R3**（`EmitStaticAddr` 只会算到寄存器，不会返回一个稳定的地址串），
+            //   而 R3 是本前端最常用的临时寄存器（数组赋值把值先落 R3、图形/数组码到处在用）。
+            //   所以**不要**把它存进一个变量、夹几条别的语句之后再用 —— 那读/写的是 R3 里的残留值。
+            //   实测（GORILLA.BAS）：`SUB PlaceGorillas` 里 `FOR i = 1 TO 2` 的 `i` 是模块级变量，
+            //   循环体跑完再用这句地址去读循环变量 ⇒ 地址是循环体留下的垃圾（浮点位型），
+            //   当场「内存错误(PC=…): MOVE @R0, @3 — 地址=C00000xx」，且**每次跑值都不同**。
+            //   要"算完再用"必须**重新调用一次**，或者用下面那两个组合助手。
             string GetVarAddr()
             {
                 if (currentLocalVars.ContainsKey(varName))
@@ -1072,30 +1081,41 @@ namespace BasicCompiler
                 //   SUB 里再用同名循环就当场报错。GORILLA.BAS 就是这么挂的。
                 if (IsModuleVariable(stmt.Variable.Name))
                 {
-                    // 地址得算进一个寄存器（`EmitStaticAddr` 是"算到寄存器"而不是返回字符串）。
-                    // 用 R3：四个调用点都是"算完地址 ⇒ 紧跟一条访问"，
-                    // 而 FOR 自己只用 R0/R1/R2（见 `EmitForLoopTest`）。
+                    // 地址算进 R3（理由与"只能紧接着用"的约束见上面那段）。
                     EmitStaticAddr(3, STATIC_GLOBALS_OFFSET + GetVarByteOffset(varName));
                     return "R3";
                 }
                 throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"FOR 变量 '{stmt.Variable.Name}' 未定义");
             }
 
+            // 「算地址 + 立刻访问」的**组合助手** —— 循环变量的读/写一律走它们。
+            //
+            // 把两者绑在一起，是为了让上面那条约束**不可能被后来的改动破坏**：
+            // 单独调 `GetVarAddr()` 之后随手插一条别的语句，就会踩回那个崩溃。
+            void EmitLoadLoopVarToR0()
+            {
+                string addr = GetVarAddr();
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, addr) }));
+            }
+            void EmitStoreR0ToLoopVar()
+            {
+                string addr = GetVarAddr();
+                // ⚠ 操作数顺序：MOVE 是 **dest-first**（`move [mem], reg` 是"存"、`move reg, [mem]` 是"取"）。
+                //   这里原来写成 [REGISTER 0, MEMORY addr] —— 那是**取**不是存（`move R0 [R12-4]`），
+                //   于是 `FOR i = 0 TO 3` 的初值根本没写进去；自增那处同样写反 ⇒ 循环变量永不推进，
+                //   实测就是"10 秒跑 10 亿条指令"的死循环（t10）。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, addr), new Operand(OperandType.REGISTER, 0) }));
+            }
+
             GenerateSubExpression(stmt.InitialValue, 0);
-            string initAddr = GetVarAddr();
-            // ⚠ 操作数顺序：MOVE 是 **dest-first**（`move [mem], reg` 是"存"、`move reg, [mem]` 是"取"）。
-            //   这里原来写成 [REGISTER 0, MEMORY addr] —— 那是**取**不是存（`move R0 [R12-4]`），
-            //   于是 `FOR i = 0 TO 3` 的初值根本没写进去；自增那处同样写反 ⇒ 循环变量永不推进，
-            //   实测就是"10 秒跑 10 亿条指令"的死循环（t10）。两处都改成 [MEMORY addr, REGISTER 0]。
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, initAddr), new Operand(OperandType.REGISTER, 0) }));
+            EmitStoreR0ToLoopVar();
 
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 
             Sta.PushLoopLabels(endLabel, loopLabel);
 
             // Load variable and compare with end value
-            string loadAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loadAddr) }));
+            EmitLoadLoopVarToR0();
             // 循环测试与主程序**共用一份**（`EmitForLoopTest`）—— 从前两处各写一遍无条件 `JG`，
             // 于是"负步长一次都不执行"那个 bug 被复制成了两份。判据与说明都在那个方法上。
             string bodyLabel = GenerateLabel();
@@ -1113,22 +1133,24 @@ namespace BasicCompiler
             //   它唯一的效果是让 R0 跨循环体保持一致，而自增的第一句又会重新装载 R0 ⇒ 可观测行为为零。
             //   照抄而不"改进"的理由：BASIC 里循环体内给循环变量赋值是合法的（应当生效），
             //   写成"从栈里写回"反而会把体内对循环变量的修改吞掉 —— 那是改语义，不是修 bug。
-            string loopVarAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            EmitLoadLoopVarToR0();
             instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
 
             foreach (var bodyStmt in stmt.Body)
                 GenerateSubStatement(bodyStmt);
 
             instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            // ⚠ 这里曾经复用循环体**之前**取回的地址（模块级变量 ⇒ 那是"R3"）——
+            //   而循环体整个跑在中间，R3 早被踩烂。这行本身就是冗余的（自增第一句又会重新读），
+            //   但**冗余不等于可以不安全**：它会以垃圾为地址读 4 字节，直接崩。
+            EmitLoadLoopVarToR0();
 
             // Increment
-            string incAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, incAddr) }));
+            EmitLoadLoopVarToR0();
             GenerateSubExpression(stmt.StepValue, 1);
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, incAddr), new Operand(OperandType.REGISTER, 0) }));
+            // ⚠ 同理：step 求值（`GenerateSubExpression`）可能改掉 R3，存回去之前必须**重算地址**。
+            EmitStoreR0ToLoopVar();
 
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 

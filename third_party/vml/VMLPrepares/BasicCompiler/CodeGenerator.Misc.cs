@@ -325,113 +325,147 @@ namespace BasicCompiler
             {
                 GenerateExpression(stmt.TestExpression, 0);
             }
-            
+
             // PUSH 保护测试值 → 保存到 R10
             instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 0) }));
-            
+
+            // ══════════════════════════════════════════════════════════════════════
+            // 测试值是**字符串**时，条件比较必须比**内容**，不能用 `CMP`。
+            //
+            // WHY：BASIC 的字符串是「1 字符串指针」，`CMP R10, R1` 比的是**指针** ——
+            //   指针的大小/相等与内容毫无关系，于是
+            //     · `CASE "0" TO "9"` 对 `K$ = "4"` **恒不匹配**（指针不在两个字面量地址之间）；
+            //     · `CASE CHR$(13)` 反而**恒匹配** —— `INKEY$` 与 `CHR$()` 都走
+            //       `basic_chr` 的同一个 1 字符串缓冲区，两个指针**恰好相等**。
+            //   实测（`.scratch/gor/mre_scase.bas`）：喂 '4' 一路掉到 `CASE CHR$(13)` 分支。
+            //   GORILLA.BAS 的 `GetNum#`（角度/力度输入）正是 `CASE "0" TO "9"` +
+            //   `CASE CHR$(13)` 这个形状 —— 于是"按任意数字都被当成回车"，输入永远读不到。
+            //
+            // 判据与 `GenerateStringConcat` 同源：`InferExpressionType` 说是 String 才算字符串。
+            // 比较走库里现成的 `strcmp`（`Lib/shared/src/string.c`，`__stdcall`，
+            //   返回 三向 符号），**别在这里自己写逐字节循环** —— 那又是一份"同一规则两处实现"。
+            // ══════════════════════════════════════════════════════════════════════
+            bool testIsString = InferExpressionType(stmt.TestExpression) == BasicType.String;
+
+            // 求值一个 CASE 操作数，把「它与测试值的关系」**统一成"与 0 比"的标志位**：
+            //   · 整数：`CMP R10, R1`（R10 − R1 的符号）
+            //   · 字符串：`strcmp(测试值, 值)` → R0，再 `CMP R0, #0`
+            // 于是**调用点那几条 `JL`/`JG`/`JE`/`JNE` 两条路逐字相同** ——
+            // 这正是"同一件事只写一遍"：判据（怎么算三向）收在这里，判跳转（三向怎么用）只有一份。
+            // 调用前后 **R10（测试值）不变**。
+            void EmitCaseOperandCompare(Expression valueExpr)
+            {
+                // 整数：`CMP R10, R1` 之后直接用标志位（R0 不参与）
+                if (!testIsString)
+                {
+                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
+                    if (currentSubName != null) GenerateSubExpression(valueExpr, 1);
+                    else GenerateExpression(valueExpr, 1);
+                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
+                    instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 1) }));
+                    return;
+                }
+
+                // 字符串：测试值先落栈（求值可能改 R10），求值完弹回来，再按
+                // **右到左**压实参（与 `GenerateLibraryCall` 同一约定：先第 2 个，再第 1 个）。
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
+                if (currentSubName != null) GenerateSubExpression(valueExpr, 1);
+                else GenerateExpression(valueExpr, 1);
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
+
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
+                instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, "strcmp") }));
+                // 调用方清栈（约定见 `GenerateLibraryCall`）
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+                {
+                    new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 8)
+                }));
+                // ⚠ `strcmp` 是编译出来的 C 函数，**R10 会被它改掉** —— 上面的
+                //   PUSH/POP 就是为这个（`CMP R10,R1` 的整数那条路同样怕求值改 R10）。
+                instructions.Add(new Instruction(OpCode.CMP, new List<Operand>
+                {
+                    new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)
+                }));
+            }
+
+            // `CASE IS <op> x`：**一张跳转表**，整数与字符串两条路都走它，免得改一处漏一处。
+            // 语义 = "比较**不成立**就跳到下一个条件"。
+            void EmitCompareIs0Jump(TokenType op, string nextLabel)
+            {
+                switch (op)
+                {
+                    case TokenType.EQUALS:
+                        instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                    case TokenType.NOT_EQUAL:
+                        instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                    case TokenType.LESS:
+                        instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                    case TokenType.GREATER:
+                        instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                    case TokenType.LESS_EQUAL:
+                        instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                    case TokenType.GREATER_EQUAL:
+                        instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, nextLabel) }));
+                        break;
+                }
+            }
+
             // 生成CASE块的结束标签
             string endLabel = GenerateLabel();
-            
+
             // 处理每个CASE块
             foreach (var caseBlock in stmt.CaseBlocks)
             {
                 // 为当前CASE块生成标签
                 string caseEndLabel = GenerateLabel();
                 bool hasCondition = false;
-                
+
                 // 为当前CASE块生成跳过标签（如果所有条件都不匹配，跳到这里）
                 string skipCaseLabel = GenerateLabel();
-                
+
                 // 生成条件检查
                 foreach (var condition in caseBlock.Conditions)
                 {
                     hasCondition = true;
                     string nextConditionLabel = GenerateLabel();
-                    
+
                     switch (condition.Type)
                     {
                         case CaseCondition.ConditionType.Value:
-                            // CASE 5: 检查是否等于特定值
-                            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            if (currentSubName != null)
-                            {
-                                GenerateSubExpression(condition.Value, 1);
-                            }
-                            else
-                            {
-                                GenerateExpression(condition.Value, 1);
-                            }
-                            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 1) }));
+                            // CASE 5: 检查是否等于特定值（字符串比内容）
+                            EmitCaseOperandCompare(condition.Value);
                             instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
                             break;
-                            
+
                         case CaseCondition.ConditionType.Range:
                             // CASE 1 TO 10: 检查是否在范围内
-                            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            if (currentSubName != null)
-                            {
-                                GenerateSubExpression(condition.FromValue, 1);
-                                GenerateSubExpression(condition.ToValue, 2);
-                            }
-                            else
-                            {
-                                GenerateExpression(condition.FromValue, 1);
-                                GenerateExpression(condition.ToValue, 2);
-                            }
-                            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            // 检查是否 >= from
-                            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 1) }));
+                            //
+                            // ⚠ 字符串那条路**必须一个一个来**：`strcmp` 会把 R2 用掉，
+                            //   像整数那样"先把 from/to 都算进 R1/R2"是保不住的。
+                            EmitCaseOperandCompare(condition.FromValue);
                             instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                            // 检查是否 <= to
-                            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 2) }));
+                            EmitCaseOperandCompare(condition.ToValue);
                             instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
                             break;
-                            
+
                         case CaseCondition.ConditionType.Comparison:
                             // CASE IS > 5: 检查比较条件
-                            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            if (currentSubName != null)
-                            {
-                                GenerateSubExpression(condition.CompareValue, 1);
-                            }
-                            else
-                            {
-                                GenerateExpression(condition.CompareValue, 1);
-                            }
-                            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 1) }));
-                            
-                            // 根据比较运算符生成跳转
-                            switch (condition.ComparisonOp)
-                            {
-                                case TokenType.EQUALS:
-                                    instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                                case TokenType.NOT_EQUAL:
-                                    instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                                case TokenType.LESS:
-                                    instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                                case TokenType.GREATER:
-                                    instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                                case TokenType.LESS_EQUAL:
-                                    instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                                case TokenType.GREATER_EQUAL:
-                                    instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
-                                    break;
-                            }
+                            EmitCaseOperandCompare(condition.CompareValue);
+                            EmitCompareIs0Jump(condition.ComparisonOp, nextConditionLabel);
                             break;
-                            
+
                         case CaseCondition.ConditionType.Else:
                             // CASE ELSE: 总是匹配
                             break;
                     }
-                    
+
                     // 如果条件匹配，跳转到CASE块体
                     instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, caseEndLabel) }));
                     instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, nextConditionLabel) }));
