@@ -1,4 +1,5 @@
 using WayCoder.Maui.Services;
+using WayCoder.UI.Shared;
 
 namespace WayCoder.Maui.Pages;
 
@@ -41,27 +42,99 @@ public partial class FilesPage : ContentPage
     private void Refresh()
     {
         FileList.ItemsSource = SandboxFsService.ListDir(_currentDir);
-        PathLabel.Text = "/" + _currentDir.TrimStart('/');
+        UpdatePathLabel();
     }
 
-    private void OnUpClicked(object? sender, EventArgs e)
+    /// <summary>
+    /// 路径行 = 当前目录（+ 编辑模式提示）。
+    ///
+    /// 显示形态走 <see cref="SandboxPath.Display"/>，**不在这里拼 `/`** ——
+    /// 此前这一行文本在「刷新」与「开关编辑模式」两处各拼了一遍，尾部多余的分隔符
+    /// 只在其中一处被清掉，于是同一个目录在两个时刻显示成两种样子。
+    /// </summary>
+    private void UpdatePathLabel()
     {
-        if (string.IsNullOrEmpty(_currentDir)) return; // 已到根
-        var idx = _currentDir.TrimEnd('/').LastIndexOf('/');
-        _currentDir = idx <= 0 ? "" : _currentDir[..idx];
+        var path = SandboxPath.Display(_currentDir);
+        PathLabel.Text = _editMode ? path + "（编辑模式：点目录/文件可删除/改名/打包）" : path;
+    }
+
+    /// <summary>
+    /// 退到上一级目录。**返回键与「↩ 上级」按钮共用这一份**。
+    ///
+    /// 已经在根（没有上一级）时返回 false，**由调用方决定「到根了」该怎么办**：
+    /// 按钮什么都不做，返回键则问一句要不要退出应用 —— 路径计算只有一份，
+    /// 两个入口各自保留自己的收尾语义。
+    /// </summary>
+    private bool TryGoUp()
+    {
+        if (SandboxPath.ParentOf(_currentDir) is not { } parent) return false;   // 已在工作区根
+        _currentDir = parent;
         Refresh();
+        return true;
+    }
+
+    private void OnUpClicked(object? sender, EventArgs e) => TryGoUp();
+
+    /// <summary>
+    /// 系统返回键（硬件键 / 手势）—— 文件页的两级语义：
+    ///
+    ///   ① 不在工作区根 ⇒ 退一层目录（与「↩ 上级」按钮**同一条路径计算**）；
+    ///   ② 已经在工作区根 ⇒ 问一句是否退出应用，确认才退。
+    ///
+    /// 两条都返回 true（这一次返回由我们接管）：交给系统的话，本页是个 Tab 根页、
+    /// 没有上一层可退，系统会直接**退出应用** —— 而用户此时多半只是想退一层目录，
+    /// 一次误触就把 App 关掉。
+    ///
+    /// ⚠ 只对文件页 Tab 生效：Shell 只把返回键交给**当前可见页**
+    /// （`Shell.OnBackButtonPressed` → `GetVisiblePage().SendBackButtonPressed()`），
+    /// 别的 Tab 的返回行为一个字没动。
+    /// </summary>
+    protected override bool OnBackButtonPressed()
+    {
+        // 耗时操作（删除 / 打包）进行中：那块遮罩是**模态**的，返回键一并挡住 ——
+        // 否则「退一层」会让列表在删除途中换成别的目录，「退出应用」更狠，
+        // 直接把跑了一半的递归删打断（进程没了）。
+        if (_busy) return true;
+
+        if (TryGoUp()) return true;
+
+        _ = ConfirmExitAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// 已经在工作区根时再按返回 ⇒ 问一句是否退出。
+    ///
+    /// **确认才退**（`Application.Current.Quit()`；Android 上落成
+    /// `FinishAndRemoveTask()` + `Exit(0)`，见 MAUI 的 `ApplicationHandler.MapTerminate`），
+    /// 「取消」原地不动。
+    ///
+    /// 不做「再按一次返回就退出」那套双击确认：那是隐藏手势、屏幕上没有任何提示，
+    /// 用户只会觉得「第一次按了没反应」。
+    /// </summary>
+    private async Task ConfirmExitAsync()
+    {
+        try
+        {
+            if (await DisplayAlertAsync("退出应用", "已到工作区根目录，确定要退出吗？", "退出", "取消"))
+                Application.Current?.Quit();
+        }
+        catch (Exception ex)
+        {
+            // 这个任务是用 `_ =` 起的（`OnBackButtonPressed` 是同步的），
+            // 抛出去没人接、只会变成一条「未观察的任务异常」。
+            ErrorLog.Warning("FilesPage", "退出确认弹框失败", ex);
+        }
     }
 
     /// <summary>编辑模式：开启后点任意项弹删除/改名/打包菜单，正常点击不进入目录/打开文件。</summary>
     private bool _editMode;
 
-    private async void OnEditModeClicked(object? sender, EventArgs e)
+    private void OnEditModeClicked(object? sender, EventArgs e)
     {
         _editMode = !_editMode;
         EditBtn.Text = _editMode ? "✔ 完成" : "✏️ 编辑";
-        PathLabel.Text = _editMode
-            ? "/" + _currentDir.TrimStart('/') + "（编辑模式：点目录/文件可删除/改名/打包）"
-            : "/" + _currentDir.TrimStart('/');
+        UpdatePathLabel();
     }
 
     /// <summary>
