@@ -493,8 +493,7 @@ namespace BasicCompiler
                     if (currentLocalVars.ContainsKey(variable.Name.ToLower()))
                     {
                         // 局部变量
-                        int slot = currentLocalVars[variable.Name.ToLower()];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(variable.Name.ToLower());
                         instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
                     }
                     else

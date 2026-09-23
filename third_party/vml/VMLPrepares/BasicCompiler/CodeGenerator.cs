@@ -318,6 +318,87 @@ namespace BasicCompiler
             return 1;
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        //  SUB / FUNCTION 的**栈上局部量**：槽位大小与地址
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>局部量**分配时定下的字节数**（4 或 8）—— 与 `varByteSizes` 同一口径。</summary>
+        private Dictionary<string, int> localVarSizes;
+
+        /// <summary>
+        /// 登记一个局部量：记下它的**字节数**、推进帧内计数，返回它的槽序（4 字节为单位）。
+        ///
+        /// <para>
+        /// <b>为什么局部量也要按字节数分配</b>：局部量的读写走
+        /// <c>GetLoadInstruction/GetStoreInstruction(类型)</c> —— `Double`/`Long` 是
+        /// **8 字节**的 `MOVED`/`MOVEL`。而槽位原来是"一个局部一个 4 字节槽"
+        /// （地址 `R12-(slot+1)*4`、帧大小 `count*4`）⇒ 一个 `?` 局部写出 8 字节，
+        /// 多出来的 4 字节**正好盖在帧头 [R12+0] 上**（`ENTER` 存进来的调用方 BP；
+        /// [R12+4] 还存着返回地址）。本函数返回时 `LEAVE` 把那个被覆盖的值弹回 BP。
+        /// </para>
+        /// <para>
+        /// 实测（GORILLA.BAS 的 `SUB Rest (t#)`，只有 `s#`/`t2#` 两个局部）：
+        /// 反汇编是 <c>moved [@R12-4] @R1</c>（`s#` 落在第一个槽），写 8 字节 ⇒
+        /// 帧头里躺下这个 double 的**高半字**；返回后 `LEAVE` 把 BP 恢复成
+        /// `40000000`（2.0 的高半字），紧接着的 `MOVE @R0,[@R12+12]` 报
+        /// 「内存越界：地址=4000000C」。
+        /// 症状还会**随数据变**（跑出来是 1.0 的高半字 `3FF00000`，另一次是 2.0），
+        /// 所以光看"地址是垃圾"很容易误判成"某个寄存器被踩了"。
+        /// </para>
+        /// <para>
+        /// ⚠ **4 字节的局部地址一个字节都没变**（`slot*4 + 4` = 原来的 `(slot+1)*4`）——
+        /// 不含 `#`/`&` 局部的程序生成结果**逐字节相同**，这条是刻意的：
+        /// 免得为了修一个 double 局部去动全仓基本盘的地址布局。
+        /// </para>
+        /// </summary>
+        private int DeclareLocal(string name)
+        {
+            name = name.ToLower();
+            if (currentLocalVars.TryGetValue(name, out int existing)) return existing;
+
+            int size = Math.Max(4, GetVarByteSize(GetVariableType(name)));
+            currentLocalVars[name] = currentLocalVarCount;
+            localVarSizes[name] = size;
+            currentLocalVarCount += size / 4;      // 4 字节 = 1 槽，8 字节 = 2 槽
+            return currentLocalVars[name];
+        }
+
+        /// <summary>局部量的**字节数**（分配时定下，之后不随类型改写而变）。</summary>
+        private int LocalVarSize(string name)
+            => localVarSizes.TryGetValue(name.ToLower(), out int s) ? s : 4;
+
+        /// <summary>
+        /// 局部量在帧内的**字节偏移**（负数，相对 R12）—— 全前端**唯一**的算法。
+        ///
+        /// <para>
+        /// 局部区从 `R12` 往下长：第 i 个局部（`currentLocalVars[名]` = i，单位是 4 字节槽）
+        /// 占 <c>[R12-(i*4+size), R12-i*4)</c>，`size` 是它自己的字节数。
+        /// 于是 8 字节的局部**正好压在两个槽里**、不会碰到帧头。
+        /// </para>
+        /// <para>
+        /// ⚠ 别再在别处现算 `-(slot+1)*4` —— 那正是本仓的头号坑
+        /// （同一规则两处实现，有 8 字节类型时就漂）。本文件下面的
+        /// <see cref="LocalVarMemRef"/> 与各调用点全部走这一个函数。
+        /// </para>
+        /// </summary>
+        private int LocalVarOffset(string name)
+        {
+            name = name.ToLower();
+            int units = currentLocalVars.TryGetValue(name, out int u) ? u : 0;
+            return -(units * 4 + LocalVarSize(name));
+        }
+
+        /// <summary>局部量的内存引用串（<c>R12-&lt;n&gt;</c>）—— 与 <see cref="LocalVarOffset"/> 同源。</summary>
+        private string LocalVarMemRef(string name) => $"R12-{-LocalVarOffset(name)}";
+
+        /// <summary>一次新的 SUB/FUNCTION 生成开始：清空局部量表（地址与大小**必须一起清**）。</summary>
+        private void ResetLocalVars()
+        {
+            currentLocalVars = new Dictionary<string, int>();
+            localVarSizes = new Dictionary<string, int>();
+            currentLocalVarCount = 0;
+        }
+
         private int GetVarByteOffset(string varName)
         {
             int idx = variables[varName];

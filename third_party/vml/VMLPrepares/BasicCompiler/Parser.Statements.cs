@@ -12,8 +12,9 @@ namespace BasicCompiler
 
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
             {
-                // 遇到下一行的行号则终止（行号与 PRINT 不在同一行）
-                if (Peek().Type == TokenType.NUMBER && Peek().Line > token.Line)
+                // **换行 = 这条 PRINT 说完了**（见 `LineEnded`：逗号/分号在行尾时不能把
+                //  下一行的语句当列表项吃掉 —— GORILLA 的 `Kbd$ = INKEY$` 就是这么没的）
+                if (LineEnded(token.Line))
                     break;
                 // Stop if next token can't start an expression
                 if (!IsExpressionStart(Peek()))
@@ -76,6 +77,9 @@ namespace BasicCompiler
 
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
             {
+                // 行尾结束（同 `LineEnded`）：`INPUT a,` 的尾逗号不能吃掉下一行
+                if (LineEnded(token.Line))
+                    break;
                 if (Peek().Type == TokenType.IDENTIFIER)
                 {
                     stmt.Variables.Add(new Identifier(Peek().Line, Peek().Column, Peek().Value));

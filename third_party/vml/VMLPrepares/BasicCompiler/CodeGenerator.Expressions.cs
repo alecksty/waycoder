@@ -1059,8 +1059,7 @@ namespace BasicCompiler
                 // In SUB context
                 if (currentLocalVars.ContainsKey(recordName))
                 {
-                    int slot = currentLocalVars[recordName];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(recordName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset + fieldOffset) }));
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 14) }));
                 }

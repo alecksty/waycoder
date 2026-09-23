@@ -224,6 +224,8 @@ public partial class Parser : ParserBase<Token, TokenType>
         s.Expressions = new List<Expression>();
         while (Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
         {
+            // 行尾结束（同 `ParsePrintStatement` / `LineEnded`）
+            if (LineEnded(t.Line)) break;
             if (!IsExpressionStart(Peek())) break;
             Expression expr = ParseExpression();
             bool hasExpr = expr != null;
@@ -251,6 +253,9 @@ public partial class Parser : ParserBase<Token, TokenType>
         var s = new DataStatement(t.Line, t.Column);
         while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON && Peek().Type != TokenType.DATA)
         {
+            // 行尾结束（同 `LineEnded`）：`DATA 1,` 的尾逗号不能吃掉下一行
+            if (LineEnded(t.Line))
+                break;
             s.Values.Add(ParseExpression());
             if (Peek().Type == TokenType.COMMA)
                 Advance();
@@ -266,6 +271,9 @@ public partial class Parser : ParserBase<Token, TokenType>
         var s = new ReadStatement(t.Line, t.Column);
         while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
         {
+            // 行尾结束（同 `LineEnded`）：`READ a,` 的尾逗号不能吃掉下一行
+            if (LineEnded(t.Line))
+                break;
             if (Peek().Type == TokenType.IDENTIFIER)
             {
                 var id = new Identifier(Peek().Line, Peek().Column, Peek().Value);

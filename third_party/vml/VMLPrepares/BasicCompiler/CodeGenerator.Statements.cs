@@ -497,8 +497,7 @@ namespace BasicCompiler
                     if (currentLocalVars.ContainsKey(varKey))
                     {
                         // 局部变量
-                        int slot = currentLocalVars[varKey];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(varKey);
                         BasicType varType = GetVariableType(varKey);
                         OpCode storeOp = GetStoreInstruction(varType);
                         instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, storeSrcReg) }));
@@ -786,8 +785,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
                     OpCode storeOp = GetStoreInstruction(varType);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
@@ -834,8 +832,7 @@ namespace BasicCompiler
             {
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{offset}") }));
                 }
                 else
@@ -871,8 +868,7 @@ namespace BasicCompiler
             string loopVarAddr;
             if (currentSubName != null && currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
             {
-                int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                loopVarAddr = $"R14+{-(slot + 1) * 4}";
+                loopVarAddr = $"R14+{LocalVarOffset(stmt.Variable.Name.ToLower())}";
             }
             else
             {
@@ -915,8 +911,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{offset}") }));
                 }
                 else
@@ -962,8 +957,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(stmt.Variable.Name.ToLower()))
                 {
                     // 局部变量
-                    int slot = currentLocalVars[stmt.Variable.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(stmt.Variable.Name.ToLower());
                     BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
                     OpCode storeOp = GetStoreInstruction(varType);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
@@ -1142,8 +1136,17 @@ namespace BasicCompiler
                     }
                     else if (targetType == BasicType.Double)
                     {
-                        // 单精度浮点转双精度浮点
-                        instructions.Add(new Instruction(OpCode.MOVED, new List<Operand> { new Operand(OperandType.REGISTER, reg), Mem($"R{reg}") }));
+                        // 单精度浮点转双精度浮点 —— **F2D**。
+                        //
+                        // ⚠ 这里原来是 `MOVED reg, [reg]`：把**寄存器当地址去读内存**。
+                        //   `reg` 里躺着的是 float 的**位型**（`3.5!` = 0x40600000），
+                        //   于是运行期报「内存越界：40600000」—— 而且报的位置是**下一条**
+                        //   用到它的指令（实测 `dcmp`），跟真因（这一条转换）错开一格，
+                        //   照报错位置反查会查到"双精度比较"上去。
+                        //   实测最小复现 `.scratch/gor/mre_dcmp.bas`：`IF S# > 3.5 THEN`。
+                        //   同一件事在赋值那条路上是对的（`movef @R0 #1.5; f2d @R0 @R0`），
+                        //   这里漏了 —— 两条路各写一份的老毛病。
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
                     }
                     break;
 

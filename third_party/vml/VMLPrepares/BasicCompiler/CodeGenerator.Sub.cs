@@ -14,8 +14,7 @@ namespace BasicCompiler
             Regs.Reset();
             string subLabel = SubLabel(subDecl.Name);
             currentSubName = subDecl.Name;
-            currentLocalVars = new Dictionary<string, int>();
-            currentLocalVarCount = 0;
+            ResetLocalVars();
             currentParamCount = subDecl.Parameters.Count;
 
             // 形参声明为 STRING（`SUB f(s AS STRING)`）⇒ 登记成字符串类型。
@@ -69,11 +68,15 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.ENTER, new List<Operand> { new Operand(OperandType.IMMEDIATE, subLocalSize) }));
 
             // Initialize local variables to 0 (negative offsets from BP)
+            //   ⚠ 按各自**字节数**清零（8 字节的写两下）—— 与 `LocalVarOffset` 同源，
+            //     免得留半个 double 在高位里。见 `DeclareLocal` 的说明。
             foreach (var kv in currentLocalVars)
             {
-                int offset = -(kv.Value + 1) * 4;
+                int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                if (LocalVarSize(kv.Key) >= 8)
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
             }
 
             // Generate body
@@ -99,8 +102,7 @@ namespace BasicCompiler
             Regs.Reset();
             string funcLabel = FunctionLabel(funcDecl.Name);
             currentSubName = funcDecl.Name;
-            currentLocalVars = new Dictionary<string, int>();
-            currentLocalVarCount = 0;
+            ResetLocalVars();
             currentParamCount = funcDecl.Parameters.Count;
 
             // 形参声明为 STRING ⇒ 登记成字符串类型（同 SUB 那处，理由见那里）
@@ -113,7 +115,7 @@ namespace BasicCompiler
             }
 
             // The function name is a special local variable for the return value
-            currentLocalVars[funcDecl.Name.ToLower()] = currentLocalVarCount++;
+            DeclareLocal(funcDecl.Name.ToLower());
 
             // Collect local variables from body
             foreach (var stmt in funcDecl.Body)
@@ -155,11 +157,14 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.ENTER, new List<Operand> { new Operand(OperandType.IMMEDIATE, funcLocalSize) }));
 
             // Initialize local variables to 0 (use negative offsets from BP)
+            //   ⚠ 与 SUB 序言**同一口径**（按字节数清零、地址走 `LocalVarOffset`）。
             foreach (var kv in currentLocalVars)
             {
-                int offset = -(kv.Value + 1) * 4; // Local vars below BP
+                int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                if (LocalVarSize(kv.Key) >= 8)
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
             }
 
             // Generate body
@@ -170,7 +175,7 @@ namespace BasicCompiler
             }
 
             // Load return value into R0 (the function name variable)
-            int retValOffset = -(currentLocalVars[funcDecl.Name.ToLower()] + 1) * 4;
+            int retValOffset = LocalVarOffset(funcDecl.Name.ToLower());
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-retValOffset}") }));
 
             // Epilogue: LEAVE; RET
@@ -225,7 +230,7 @@ namespace BasicCompiler
                         !IsStaticVariable(ident.Name.ToLower()) &&
                         !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                     {
-                        currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                        DeclareLocal(ident.Name.ToLower());
                     }
                 }
                 CollectLocalVariablesFromExpr(letStmt.Expression);
@@ -248,7 +253,7 @@ namespace BasicCompiler
                     !IsStaticVariable(forStmt.Variable.Name.ToLower()) &&
                     !IsModuleVariable(forStmt.Variable.Name))   // 模块级变量不许被局部遮蔽
                 {
-                    currentLocalVars[forStmt.Variable.Name.ToLower()] = currentLocalVarCount++;
+                    DeclareLocal(forStmt.Variable.Name.ToLower());
                 }
                 CollectLocalVariablesFromExpr(forStmt.InitialValue);
                 CollectLocalVariablesFromExpr(forStmt.EndValue);
@@ -326,7 +331,7 @@ namespace BasicCompiler
                     string varName = varIdent.Name.ToLower();
                     if (!currentLocalVars.ContainsKey(varName) && !IsParameter(varName))
                     {
-                        currentLocalVars[varName] = currentLocalVarCount++;
+                        DeclareLocal(varName);
                     }
                 }
             }
@@ -370,12 +375,19 @@ namespace BasicCompiler
                     {
                         string slotName = s == 0 ? varName : $"{varName}_slot_{s}";
                         if (!currentLocalVars.ContainsKey(slotName) && !IsParameter(slotName))
-                            currentLocalVars[slotName] = currentLocalVarCount++;
+                        {
+                            // UDT 局部量按 **4 字节槽**排（字段偏移以 4 字节为单位），
+                            // 所以这里**不走 `DeclareLocal`**（那个按类型可能给 8 字节）。
+                            // ⚠ 大小仍要在这里记下 —— 地址走 `LocalVarOffset`，两处必须一致。
+                            currentLocalVars[slotName] = currentLocalVarCount;
+                            localVarSizes[slotName] = 4;
+                            currentLocalVarCount++;
+                        }
                     }
                 }
                 else if (!currentLocalVars.ContainsKey(varName) && !IsParameter(varName))
                 {
-                    currentLocalVars[varName] = currentLocalVarCount++;
+                    DeclareLocal(varName);
                 }
 
                 // `DIM s AS STRING` / `DIM n AS INTEGER` —— **类型名要接上**。
@@ -439,7 +451,7 @@ namespace BasicCompiler
                     !IsStaticVariable(ident.Name.ToLower()) &&
                     !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                 {
-                    currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                    DeclareLocal(ident.Name.ToLower());
                 }
             }
             else if (expr is BinaryExpression binary)
@@ -521,8 +533,7 @@ namespace BasicCompiler
                     string varName = varIdent.Name.ToLower();
                     if (currentLocalVars.ContainsKey(varName))
                     {
-                        int slot = currentLocalVars[varName];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(varName);
                         AddRI(OpCode.MOVE, 0, 0);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
                     }
@@ -734,8 +745,7 @@ namespace BasicCompiler
                 var varName = varIdent.Name;
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(varName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
                 }
                 else
@@ -831,8 +841,7 @@ namespace BasicCompiler
                 // Try local variable first
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    int offset = -(slot + 1) * 4;
+                    int offset = LocalVarOffset(varName);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, srcReg) }));
                 }
                 else
@@ -978,8 +987,7 @@ namespace BasicCompiler
                     // Unknown type — treat field access as plain var access (offset 0)
                     if (currentLocalVars.ContainsKey(recordName))
                     {
-                        int slot = currentLocalVars[recordName];
-                        int baseOffset = -(slot + 1) * 4;
+                        int baseOffset = LocalVarOffset(recordName);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset) }));
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
@@ -1011,8 +1019,7 @@ namespace BasicCompiler
                 // In SUB context, check locals first
                 if (currentLocalVars.ContainsKey(recordName))
                 {
-                    int slot = currentLocalVars[recordName];
-                    int baseOffset = -(slot + 1) * 4;
+                    int baseOffset = LocalVarOffset(recordName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset + fieldOffset) }));
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
@@ -1063,8 +1070,7 @@ namespace BasicCompiler
             {
                 if (currentLocalVars.ContainsKey(varName))
                 {
-                    int slot = currentLocalVars[varName];
-                    return $"R12-{(slot + 1) * 4}";
+                    return LocalVarMemRef(varName);
                 }
                 if (IsStaticVariable(varName))
                 {
@@ -1264,6 +1270,30 @@ namespace BasicCompiler
             {
                 GenerateInkeyExpression(inkey, reg);
             }
+            // ⚠ **`TIMER` / `DATE$` / `TIME$` 必须与顶层那条路一样有三档分支**。
+            //
+            //   它们此前**只**挂在 `GenerateExpression`（顶层表达式）上，而 SUB/FUNCTION 体内
+            //   走的是本方法 ⇒ 落到方法末尾那个**没有 else 的兜底**（静默什么都不生成），
+            //   `reg` 里留着上一条语句的残值 —— 不报错、不崩，只是值不对。
+            //
+            //   实测（GORILLA.BAS 的 `SUB Rest (t#)`）：`s# = TIMER` 编成 `R1 = R0`
+            //   （R0 是刚清零的局部量），`TIMER - s#` 于是恒为常数、`LOOP UNTIL` 永不成立
+            //   —— 转屏/等待全变成死循环；`PlotShot` 里同一个 `Rest` 就在主循环里。
+            //
+            //   判据与 Inkey 同源：**这一类"没有参数的内置函数"在两条路上必须各有一档**，
+            //   加新内置函数时两处一起加（`GenerateExpression` 的那一组是清单）。
+            else if (expr is TimerFunctionExpression)
+            {
+                GenerateTimerFunction(reg);
+            }
+            else if (expr is DateFunctionExpression)
+            {
+                GenerateDateFunction(reg);
+            }
+            else if (expr is TimeFunctionExpression)
+            {
+                GenerateTimeFunction(reg);
+            }
             else if (expr is NumberLiteral numLiteral)
             {
                 // ⚠ 带小数点的字面量必须**发 MOVEF（浮点立即数）**，原来一律
@@ -1299,9 +1329,17 @@ namespace BasicCompiler
                 // Try local variable first (negative offsets from BP)
                 if (currentLocalVars.ContainsKey(ident.Name.ToLower()))
                 {
-                    int slot = currentLocalVars[ident.Name.ToLower()];
-                    int offset = -(slot + 1) * 4;
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                    // ⚠ **按类型取指令**（`MOVED`/`MOVEL`/`MOVEF`/`MOVE`），与写回那条路
+                    //   （`GenerateSubVariableStore` 的 `GetStoreInstruction`）**对称**。
+                    //   这里原来是死写 `MOVE`（4 字节），而双精度局部量是用 `MOVED` 写的
+                    //   8 字节 ⇒ 读回来只剩低半字（1.5 的低 4 字节 = 0），
+                    //   于是 `S# = S# + T2#` 恒等于"加 0"。实测 `.scratch/gor/mre_dcmp.bas`：
+                    //   `SUB` 里 `A# = 1.5 + 2.25` 判成 `A# <= 3.5`。
+                    string localName = ident.Name.ToLower();
+                    int offset = LocalVarOffset(localName);
+                    instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(localName)), new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                    BasicType lt = GetVariableType(localName);
+                    if (lt == BasicType.Single || lt == BasicType.Double) _lastExprFloatType = lt;
                 }
                 else
                 {
@@ -1690,8 +1728,7 @@ namespace BasicCompiler
                     // 检查是否为局部变量
                     if (currentLocalVars.ContainsKey(ident.Name.ToLower()))
                     {
-                        int slot = currentLocalVars[ident.Name.ToLower()];
-                        int offset = -(slot + 1) * 4;
+                        int offset = LocalVarOffset(ident.Name.ToLower());
                         // 计算局部变量地址: R12 + offset
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
@@ -1753,8 +1790,7 @@ namespace BasicCompiler
         {
             if (currentLocalVars.ContainsKey(varName))
             {
-                int slot = currentLocalVars[varName];
-                int offset = -(slot + 1) * 4;
+                int offset = LocalVarOffset(varName);
                 BasicType varType = GetVariableType(varName);
                 OpCode storeOp = GetStoreInstruction(varType);
                 instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, valueReg) }));
@@ -1908,9 +1944,19 @@ namespace BasicCompiler
             if (!floatPath) return;
             if (targetDouble)
             {
-                if (operandType.IsFloat())
+                // ⚠ **顺序不能反**：`ExpType.IsFloat()` 对 `F32` **和** `F64` 都为真
+                //   （见 `ExpTypeExtensions.IsFloat`），所以原来先判 `IsFloat` 的分支
+                //   会把**已经是双精度**的操作数也送进 `F2D` ——
+                //   把 double 的位型当 float 再转一次 double，值当场变成垃圾。
+                //   实测 `.scratch/gor/mre_dcmp.bas`：`SUB` 里 `A# = 1.5 + 2.25`
+                //   算成 `A# <= 3.5`（顶层同一段是对的，因为顶层那条路的判断顺序是对的）。
+                if (operandType.IsDouble())
+                {
+                    // 已经是双精度：原样
+                }
+                else if (operandType.IsFloat())
                     instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
-                else if (!operandType.IsDouble())
+                else
                     instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
             }
             else

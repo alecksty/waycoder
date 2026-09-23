@@ -499,9 +499,13 @@ namespace VMLRuntime
             fzf = (Math.Abs(src1 - src2) < float.Epsilon);
             fsf = (floatCmpResult < 0);
 
-            // 同时设置整数标志（用于条件跳转）
+            // 同时设置整数标志（用于条件跳转）—— `JL/JLE/JG/JGE` 读的就是这三个
+            //   （本 ISA **没有**浮点专用跳转）。`cf` 原来漏搬 ⇒ `sf != cf` 里的 `cf`
+            //   还是上一条指令的残留，四个有序跳转全靠 `sf` 恰好对才碰巧成立。
+            //   这里照搬 `fcf`（有序 = false、NaN = true，与上面几个分支同源）。
             zf = fzf;
             sf = fsf;
+            cf = fcf;
         }
 
         private void ExecuteI2f(List<Operand> operands)
@@ -723,11 +727,32 @@ namespace VMLRuntime
             {
                 TriggerFloatException("invalid");
                 fzf = false; fsf = false; fcf = true;
+                zf = false; sf = false; cf = true;   // 无序：按"小于"（与 Fcmp 同）
                 return;
             }
             fzf = (Math.Abs(src1 - src2) < double.Epsilon);
             fsf = (src1 < src2);
             fcf = (src1 > src2);
+
+            // ⚠ **同时设置整数标志**（条件跳转读的是它们）——与 `ExecuteFcmp` 同一处置。
+            //
+            //   本 ISA **没有**浮点专用的跳转指令：`JL/JLE/JG/JGE/JE/JNE` 读的都是
+            //   `zf/sf/cf`，所以比较完之后**必须把浮点标志搬过去**。
+            //   `Fcmp` 搬了（见那里的"同时设置整数标志"）、`Dcmp` 原来**没搬** ⇒
+            //   `dcmp` 之后的跳转读的是**上一条整数比较留下的** `zf/sf/cf`：
+            //   结果时对时错、还取决于上一条指令是什么 —— 最难查的那种。
+            //
+            //   实测（`.scratch/gor/mre_dcmp.bas`）：同一段 `A# = 1.5 + 2.25` 之后
+            //   `IF A# > 3.5`，顶层判对（GT）、SUB 里判错（LE），而**两边生成的 dcmp
+            //   操作数顺序完全一样** —— 差别只在"前一条指令留下的整数标志"。
+            //
+            //   `cf` 取 **false**（有序比较没有"借位"）—— **不要**照搬本函数的 `fcf`：
+            //   那个的含义是"第一个操作数更大"（见上面 `fcf = (src1 > src2)`），
+            //   与 `Fcmp` 里 `fcf` = "无序" 不是一回事。取错这一位症状极有指向性：
+            //   四个有序跳转一起反过来（3.75 > 3.5 被判成"小于等于"）。
+            zf = fzf;
+            sf = fsf;
+            cf = false;
         }
 
         private void ExecuteDpush(List<Operand> operands)
