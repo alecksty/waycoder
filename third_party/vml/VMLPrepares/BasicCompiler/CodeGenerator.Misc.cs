@@ -28,7 +28,13 @@ namespace BasicCompiler
 
         private void GenerateBuiltInPeek(FunctionCallExpression funcCall, int reg)
         {
-            string runtimeFn = "vml_" + funcCall.FunctionName.ToLower();
+            // ⚠ 名字**不加 `vml_` 前缀**：`peek`/`peekb` 是 `Lib/shared/builtins.vml` 里的
+            //   **`__stdcall` 函数**（`asm("MOVE [@R0] R0")` —— 地址走 R0、不走栈），
+            //   lib 里的标签就叫 `peek` / `peekb`。从前拼成 `vml_peek`，
+            //   链接期报「未定义的函数 'vml_peek'」（GORILLA.BAS 的 `PEEK(1047)` 就是这条）。
+            //   ⚠ 别顺手加 `vml_` 又别顺手改成 `basic_`：全仓只有 `Lib/shared/*.vml`
+            //   里那几个 `vml_xxx` 是真带前缀的，`peek` 不在其中。
+            string runtimeFn = funcCall.FunctionName.ToLower();
             GenerateExpr(funcCall.Arguments[0], reg);  // addr → R0
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, runtimeFn) }));
         }

@@ -908,10 +908,22 @@ namespace BasicCompiler
     /// <summary>READ var1, var2, ... - 从数据区读取到变量</summary>
     public class ReadStatement : Statement
     {
-        public List<Identifier> Variables { get; set; }
+        /// <summary>
+        /// READ 的目标列表。元素是 <see cref="Identifier"/>（简单变量 / 整个数组）
+        /// 或 <see cref="ArrayAccessExpression"/>（数组元素，`READ a(i)`）。
+        ///
+        /// <para>
+        /// ⚠ 从前这里是 `List&lt;Identifier&gt;`，于是 `READ a(i)` 只吃下 `a`、
+        /// 把 `(i)` 留在 token 流上 —— `i` 落到「名字后面不是 `=`」的兜底分支、
+        /// 编成 `CALL func_i`，链接期报「未定义的函数 'func_i'」（数值全写进 a(0)）。
+        /// GORILLA.BAS 的香蕉位图加载（`FOR i = 0 TO 8 / READ LBan&amp;(i) / NEXT i`）
+        /// 就是这个形状，8 个循环正好 8 次报错。
+        /// </para>
+        /// </summary>
+        public List<Expression> Variables { get; set; }
         public ReadStatement(int line, int column) : base(line, column)
         {
-            Variables = new List<Identifier>();
+            Variables = new List<Expression>();
         }
     }
 

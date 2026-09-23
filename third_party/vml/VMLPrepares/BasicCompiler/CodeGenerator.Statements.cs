@@ -1277,6 +1277,21 @@ namespace BasicCompiler
             {
                 return BasicType.String;
             }
+            // ── 这几个**专用表达式**也是**字符串**结果，但它们的名字不带 `$`
+            //   （`$` 是词法的一部分，被吃进 token 了），所以上面那条 `EndsWith("$")`
+            //   够不到它们 —— 落到函数末尾的 `default: Integer`。
+            //
+            // ⚠ 代价是**比较**整条走错：`INKEY$ = ""` 被当成**整数比较**（拿字符串指针
+            //   比字面量地址），于是 `=` 与 `<>` **同时**为假/真各半，
+            //   `WHILE INKEY$ <> "": WEND`（QBasic 里清键盘缓冲的标准写法）**永远出不去**。
+            //   实测最小复现：`IF INKEY$ = "" THEN PRINT "eq" ELSE PRINT "ne"` 打出 `ne`，
+            //   而 `c$ = INKEY$ : IF c$ = "" …`（走过 `$` 后缀那条路）打出 `eq` ——
+            //   **同一个值、两种结论**，差别只在有没有先落进一个带 `$` 的变量。
+            //   GORILLA.BAS 的 `SparklePause` 正是踩在这一条上（引子画面卡住不闪）。
+            else if (expr is InkeyExpression || expr is DateFunctionExpression || expr is TimeFunctionExpression)
+            {
+                return BasicType.String;
+            }
             else if (expr is FunctionCallExpression funcCall)
             {
                 // Functions ending with $ return strings

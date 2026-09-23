@@ -344,6 +344,44 @@ public sealed class VmlHostRuntime
             return true;
         }
 
+        // **老接口的「字符输入」（SYSCALL 5：`INKEY$` / `getch()`）：接到窗口的消息队列上。**
+        //
+        // 这一条解决的是"老程序卡在等按键"：`INKEY$` 走的是 CRT 通道（SYSCALL 5），
+        // 而窗口的键盘事件走的是 ui 消息队列 —— 两条路**互不相通** ⇒ 手机上手柄/屏幕键盘
+        // 按下去，`DO WHILE Char$ = "": Char$ = INKEY$: LOOP` 永远出不去
+        //（GORILLA.BAS 的 `SparklePause` / `GorillaIntro` 两处都是这个形状）。
+        //
+        // ⚠ **只在开过绘图窗口的程序里截**（`_windowOpened`）：否则会把普通控制台程序
+        //   的 `getch()`（`vmlcli --stdin` 那一套、`cases/16-conio-key.c`）一并改道，
+        //   而那些程序根本没有窗口、队列永远是空的。不开窗口 ⇒ 原样交给运行时。
+        //
+        // ⚠ 只取 **KeyDown**（`TryTakeWhere`）：直接取队头会把排在键盘前面的定时器/鼠标
+        //   消息一起吃掉（那些消息的消费者是 `ui_poll_msg`），症状是"定时器偶尔不响"。
+        if (syscallNumber == 5)
+        {
+            VmlMessage? keyMsg = _queue.TryTakeWhere(m => m.Type == VmlMsgType.KeyDown);
+            if (keyMsg is null && registers[0] == 1)
+            {
+                // 阻塞模式（`INPUT` 逐字符读、`getch()`）：等一片。上限沿用 UI 等待那套
+                // （`BlockingWaitLimitMs`，桌面脚手架 = `--timeout` 的毫秒数）——
+                // **等不到就原样交回运行时**，不是在这里返回 0：`--stdin` 那套
+                // "没有 UI 输入源、只有脚本喂的一行文本"的程序仍要能读到它的输入。
+                var deadline = Environment.TickCount64 + Math.Max(1000, BlockingWaitLimitMs);
+                while (keyMsg is null && Environment.TickCount64 < deadline && !RunToken.IsCancellationRequested)
+                {
+                    System.Threading.Thread.Sleep(10);
+                    keyMsg = _queue.TryTakeWhere(m => m.Type == VmlMsgType.KeyDown);
+                }
+            }
+            if (keyMsg is { } km)
+            {
+                registers[0] = VmlKeys.ToChar(km.A);
+                return true;
+            }
+            // 队列里没有按键 ⇒ **落到下面交给运行时**（控制台 / `--stdin` 那条老路）。
+            // 「窗口开着没键」与「没有窗口」在这里是同一种情形，不必分开判。
+        }
+
         if (!VmlUi.Handles(syscallNumber)) return false; // 不认识必须放行，否则吞掉内置 syscall
 
         OnSyscall?.Invoke(syscallNumber, registers, memory);

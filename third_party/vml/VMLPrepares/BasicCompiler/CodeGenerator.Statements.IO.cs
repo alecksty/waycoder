@@ -64,18 +64,23 @@ namespace BasicCompiler
         {
             foreach (var variable in stmt.Variables)
             {
+                // 数组元素目标（`READ a(i)`）：先把数据值读进 R1，再用**赋值那条路**
+                // 算元素地址写进去 —— 判据/寻址只有一份（`GenerateArrayAssignment`），
+                // 不在这里另拼一套 `基址 + 下标*4`（同一件事两处算法必然漂）。
+                if (variable is ArrayAccessExpression readTarget)
+                {
+                    // 载入数据指针 → R0，取数据值 → R1（与下面整变量目标同源的三句）
+                    EmitReadNextDataValueTo(1);
+                    GenerateArrayAssignment(readTarget, 1);
+                    EmitAdvanceDataPointer();
+                    continue;
+                }
+
                 // Load data pointer from 0x6FD0
-                AddRI(OpCode.MOVE, 0, 0x6FD0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
-                // Compute address: dynamic_base + ptr * 4
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-                instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-                EmitStaticAddr(1, STATIC_DATA_OFFSET);
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-                // Load data value into R1
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R0") }));
+                EmitReadNextDataValueTo(1);
+
                 // Store to variable
-                string varName = variable.Name;
+                string varName = ((Identifier)variable).Name;
                 BasicType varType = GetVariableType(varName);
                 if (currentSubName != null)
                 {
@@ -91,13 +96,38 @@ namespace BasicCompiler
                     EmitStoreVar(varName, 1);
                 }
                 // Increment data pointer
-                // ⚠ 最后一句必须是**存**（dest-first）—— 从前写成 `move R2, [R0]` 是取，
-                //   于是指针**永远不前进**：连续两个 `READ` 会读到同一个值。
-                AddRI(OpCode.MOVE, 0, 0x6FD0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R0") }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 2) }));
+                EmitAdvanceDataPointer();
             }
+        }
+
+        /// <summary>
+        /// 把「数据指针当前指向的那个 DATA 值」取进 <paramref name="destReg"/>。
+        /// 寻址 = 动态基址 + 数据指针 × 4 + DATA 段偏移（`STATIC_DATA_OFFSET`）。
+        /// </summary>
+        private void EmitReadNextDataValueTo(int destReg)
+        {
+            AddRI(OpCode.MOVE, 0, 0x6FD0);
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
+            // Compute address: dynamic_base + ptr * 4
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            EmitStaticAddr(1, STATIC_DATA_OFFSET);
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, "R0") }));
+        }
+
+        /// <summary>
+        /// 数据指针 +1（下一次 `READ` 取下一条 DATA）。
+        ///
+        /// ⚠ 最后一句必须是**存**（dest-first）—— 从前写成 `move R2, [R0]` 是取，
+        ///   于是指针**永远不前进**：连续两个 `READ` 会读到同一个值。
+        /// </summary>
+        private void EmitAdvanceDataPointer()
+        {
+            AddRI(OpCode.MOVE, 0, 0x6FD0);
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R0") }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 2) }));
         }
 
         private void GenerateRestoreStatement()

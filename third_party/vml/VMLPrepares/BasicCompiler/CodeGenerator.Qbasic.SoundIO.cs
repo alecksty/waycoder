@@ -27,9 +27,50 @@ public partial class CodeGenerator
     }
     void GenerateInkeyExpression(InkeyExpression expr, int reg)
     {
-        // INKEY$: SYSCALL 5 (get key). R0=0 非阻塞模式，无按键返回 0
+        // INKEY$: SYSCALL 5 (get key)。R0=0 ⇒ 非阻塞（没按键就返回 0）。
         AddRI(OpCode.MOVE, 0, 0);
         EmitInputChar();
+
+        // ── `INKEY$` 是**字符串函数** ─────────────────────────────────────────────
+        //
+        // ⚠ 它此前把 SYSCALL 5 返回的**字符码**直接当结果交给调用方，而调用方拿它当
+        //   **字符串指针**用（`Char$ = INKEY$` 存进字符串变量、`UCASE$(Char$) = "V"`
+        //   去解引用）。于是 `Char$` 里躺着的是 86 这种小整数：
+        //     · `Char$ = ""` 恒不成立（拿 86 当地址解引用）⇒ GORILLA 的
+        //       `DO WHILE Char$ = "": Char$ = INKEY$: LOOP` **永远出不去**；
+        //     · 按了键也认不出来（`UCASE$` 读的是零页里的字节，不是那个字符）。
+        //   两个症状都不报错 —— 表现就是"程序卡在等按键"。
+        //
+        //   现在按 QBasic 语义补齐两条：
+        //     ① **没按键 → 空串 `""`**（不是 0）；
+        //     ② 有按键 → 走 `basic_chr` 变成**真正的 1 字符串**（与 `CHR$()` 同一条路，
+        //        不在这里另造一个字符串构造 —— 那种"同一件事两处实现"迟早漂）。
+        string noKeyLabel = GenerateLabel();
+        string doneLabel = GenerateLabel();
+
+        AddRI(OpCode.CMP, 0, 0);
+        instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, noKeyLabel) }));
+
+        // 没按键：给一个长度 0 的常量串
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 0),
+            new Operand(OperandType.LABEL, EmptyStringLabel)
+        }));
+        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, doneLabel) }));
+
+        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, noKeyLabel) }));
+        // 有按键：字符码 → 字符串（库函数，调用方清那一个实参槽）
+        instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, "basic_chr") }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 13),
+            new Operand(OperandType.IMMEDIATE, 4)
+        }));
+
+        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, doneLabel) }));
+
         if (reg != 0)
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
     }

@@ -6,6 +6,8 @@ public partial class CodeGenerator
 {
     void GenerateScreenStatement(ScreenStatement stmt)
     {
+        // UI 后端：整条换掉（两条分派路自动同时生效，见 CodeGenerator.Qbasic.UiGfx.cs）
+        if (UiGfx) { UiEmitScreenStatement(stmt); return; }
         // Extract screen mode value directly for reliable code generation
         int screenMode = -1;
         if (stmt.Mode is NumberLiteral nl)
@@ -180,6 +182,7 @@ public partial class CodeGenerator
 
     void GenerateClsStatement()
     {
+        if (UiGfx) { UiEmitClsStatement(); return; }
         // CLS: clear screen based on current mode
         // Check screen mode from 0x6FF0
         string clsText = newLabel();
@@ -306,6 +309,7 @@ string loop = newLabel();
 
     void GeneratePsetStatement(PsetStatement stmt)
     {
+        if (UiGfx) { UiEmitPsetStatement(stmt); return; }
         // Default color to bright white (15) if not specified
         int colorIndex = 15;
         if (stmt.Color is NumberLiteral cnl)
@@ -392,6 +396,7 @@ string loop = newLabel();
 
     void GenerateQbLineStatement(QbLineStatement stmt)
     {
+        if (UiGfx) { UiEmitLineStatement(stmt); return; }
         // Eval+PUSH coords onto stack, then POP to R0-R3, then eval color into R4.
         // Critical: POP coords BEFORE color eval (color eval may use R1-R3 as temps).
         int r0 = Regs.AllocInt(instructions);

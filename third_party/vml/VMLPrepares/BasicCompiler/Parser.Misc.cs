@@ -185,7 +185,11 @@ namespace BasicCompiler
                 else if (Peek().Type == TokenType.END)
                 {
                     // 只当 END 后跟 SELECT 时才表示 END SELECT
-                    if (current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SELECT)
+                    //
+                    // ⚠ 还要**同一个源行**（`IsEndOfBlock`）：只看"下一个 token 是 SELECT"
+                    //   的话，一条独立的 `END` 后面接一条 `SELECT CASE …` 会被当成 END SELECT
+                    //   ——与 `Parser.Core.cs` 的 `IsCompoundEnd` 是同一个坑，判据共用一处。
+                    if (IsEndOfBlock(current, TokenType.SELECT))
                         break;
                     // 其他 END (如 END IF / END SUB) 属于嵌套块，跳过并继续
                     Advance();
@@ -201,7 +205,12 @@ namespace BasicCompiler
             while (Peek().Type == TokenType.COLON) Advance();
 
             // 期望 END SELECT
-            if (Peek().Type == TokenType.END)
+            //
+            // ⚠ 这里此前**无条件**吃掉一个 END（再"有 SELECT 就吃"），于是 `SELECT CASE`
+            //   块后面那条独立的 `END`（主程序最常见的那一条）会被它吞掉 ——
+            //   程序编得过，但**不再停止执行**，一路顺着往下跑进第一个子程序。
+            //   判据同样收敛到 `IsEndOfBlock`（同一个源行的 `END SELECT`）。
+            if (IsEndOfBlock(current, TokenType.SELECT))
             {
                 Advance(); // 跳过 END
                 while (Peek().Type == TokenType.COLON) Advance();

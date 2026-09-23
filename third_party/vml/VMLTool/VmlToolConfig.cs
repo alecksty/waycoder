@@ -52,6 +52,8 @@ public class VmlToolConfig
     // ═══ 语言标准 / 方言 ═══
     public string LanguageStandard { get; set; } = "";
     public string BasicDialect { get; set; } = "qbasic";
+    /// <summary>BASIC 图形语句后端：ui（默认，宿主 ui_* 图元）/ pcgfx（老的写 DOS 显存 0xA0000）</summary>
+    public string BasicGraphics { get; set; } = "ui";
     public string PascalDialect { get; set; } = "turbo";
     public List<string> CIncludePaths { get; set; } = new();
 
@@ -135,6 +137,7 @@ public class VmlToolConfig
         c.OutputPath = Val(root, "OutputPath");
         c.LanguageStandard = Val(root, "LanguageStandard");
         c.BasicDialect = Val(root, "BasicDialect", "qbasic");
+        c.BasicGraphics = Val(root, "BasicGraphics", "ui");
         c.PascalDialect = Val(root, "PascalDialect", "turbo");
 
         // 列表元素
@@ -236,6 +239,9 @@ public class VmlToolConfig
             options.LanguageStandard = LanguageStandard;
         if (string.IsNullOrEmpty(options.BasicType) && !string.IsNullOrEmpty(BasicDialect))
             options.BasicType = BasicDialect;
+        // BASIC 图形后端：命令行 --basicgfx 优先，其次配置文件 <BasicGraphics>，默认 ui
+        if (string.IsNullOrEmpty(options.BasicGfx) && !string.IsNullOrEmpty(BasicGraphics))
+            options.BasicGfx = BasicGraphics;
         if (string.IsNullOrEmpty(options.PascalType) && !string.IsNullOrEmpty(PascalDialect))
             options.PascalType = PascalDialect;
 

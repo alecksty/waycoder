@@ -139,7 +139,7 @@ namespace BasicCompiler
 
             if (_pendingNative)
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SUB)
+                if (IsEndOfBlock(current, TokenType.SUB))
                 {
                     Advance(); // skip END
                     Advance(); // skip SUB
@@ -151,7 +151,11 @@ namespace BasicCompiler
             while (!AtEnd())
             {
                 // Check for END SUB (two-token sequence)
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SUB)
+                //
+                // ⚠ 判据走 `IsEndOfBlock`（**同一个源行**的 `END SUB`）而不是「END 后面是 SUB」：
+                //   一个体里出现独立的 `END` 之后跟一条新语句是合法形状，只按 token 相邻判
+                //   会把它错当成体结束（同一个坑在 `Parser.Core.cs` 的 `IsCompoundEnd` 有完整记录）。
+                if (IsEndOfBlock(current, TokenType.SUB))
                 {
                     Advance(); // skip END
                     Advance(); // skip SUB
@@ -347,7 +351,7 @@ namespace BasicCompiler
 
             if (_pendingNative)
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.FUNCTION)
+                if (IsEndOfBlock(current, TokenType.FUNCTION))
                 {
                     Advance(); // skip END
                     Advance(); // skip FUNCTION
@@ -358,7 +362,8 @@ namespace BasicCompiler
             // 解析函数体直到 END FUNCTION
             while (!AtEnd())
             {
-                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.FUNCTION)
+                // ⚠ 同 SUB 那处：判据是 `IsEndOfBlock`（同一个源行的 `END FUNCTION`）。
+                if (IsEndOfBlock(current, TokenType.FUNCTION))
                 {
                     Advance(); // skip END
                     Advance(); // skip FUNCTION
@@ -466,10 +471,20 @@ namespace BasicCompiler
             string name = Peek().Value;
             Token token = Advance(); // consume SUB name
             CallStatement call = new CallStatement(token.Line, token.Column, name);
+            int startLine = token.Line;
 
             // Parse comma-separated arguments until we hit a statement boundary
             while (!AtEnd() && Peek().Type != TokenType.COLON)
             {
+                // ⚠ **不许跨行**：QBasic 的裸调用实参只在**同一行**上
+                //   （续行要写显式的 `_`）。没有这条时 `ui_present`
+                //   （无参、独占一行）会把**下一行整句**当成它的实参：
+                //   实测 `ui_present` 后跟 `MODE = 9` 被解析成 `ui_present (MODE = 9)`，
+                //   于是 `MODE = 9` 这个赋值**凭空消失**。
+                //   GORILLA.BAS 报的 `未定义的函数 'func_i'` 与
+                //   `FOR 变量 'i' 未定义` 两条，根因都在这里。
+                if (Peek().Line != startLine) break;
+
                 // Stop if next token is a statement-level keyword
                 if (IsStatementBoundary(Peek()))
                     break;

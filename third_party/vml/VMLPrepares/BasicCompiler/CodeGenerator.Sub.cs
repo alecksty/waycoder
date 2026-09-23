@@ -12,7 +12,7 @@ namespace BasicCompiler
                 return;
 
             Regs.Reset();
-            string subLabel = "sub_" + subDecl.Name.ToLower();
+            string subLabel = SubLabel(subDecl.Name);
             currentSubName = subDecl.Name;
             currentLocalVars = new Dictionary<string, int>();
             currentLocalVarCount = 0;
@@ -89,7 +89,7 @@ namespace BasicCompiler
                 return;
 
             Regs.Reset();
-            string funcLabel = "func_" + funcDecl.Name.ToLower();
+            string funcLabel = FunctionLabel(funcDecl.Name);
             currentSubName = funcDecl.Name;
             currentLocalVars = new Dictionary<string, int>();
             currentLocalVarCount = 0;
@@ -992,6 +992,21 @@ namespace BasicCompiler
                     int varOffset = variables[staticName] * 4;
                     return $"R12+{8 + varOffset}";
                 }
+                // 模块级变量（含 `DIM SHARED`）：按本前端既有的设计用**静态区的全局段**
+                //（`_globalVars`——"主程序与 SUB 共用同一份内存"，见 `EmitLoadVar`）。
+                //
+                // ⚠ 这里原来是 `throw 未定义`，而 SUB 内部的预扫又刻意**不**把"                模块级变量"登记成局部
+                //   （`CollectLocalVariables` 里的 `!IsModuleVariable` 守卫"模块级变量不许被局部遮蔽"）
+                //   ⇒ 只要一个名字在顶层当过循环变量（`i` 这种），
+                //   SUB 里再用同名循环就当场报错。GORILLA.BAS 就是这么挂的。
+                if (IsModuleVariable(stmt.Variable.Name))
+                {
+                    // 地址得算进一个寄存器（`EmitStaticAddr` 是"算到寄存器"而不是返回字符串）。
+                    // 用 R3：四个调用点都是"算完地址 ⇒ 紧跟一条访问"，
+                    // 而 FOR 自己只用 R0/R1/R2（见 `EmitForLoopTest`）。
+                    EmitStaticAddr(3, STATIC_GLOBALS_OFFSET + GetVarByteOffset(varName));
+                    return "R3";
+                }
                 throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"FOR 变量 '{stmt.Variable.Name}' 未定义");
             }
 
@@ -1137,8 +1152,11 @@ namespace BasicCompiler
             {
                 if (string.IsNullOrEmpty(strLit.Value))
                 {
-                    // 空字符串在比较上下文中直接返回 0
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
+                    // ⚠ 空串**不再是整数 0**，而是**全前端唯一那个空串地址**
+                    //   （`EmptyStringLabel`）—— 理由见那里的长注释：字符串比较就是指针比较，
+                    //   `INKEY$ <> ""` 这种写法要求"所有空串是同一个地址"，
+                    //   而 0 / `str_data_N` / `INKEY$` 的返回地址三者互不相等 ⇒ 死循环。
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, EmptyStringLabel) }));
                 }
                 else
                 {
@@ -1551,7 +1569,7 @@ namespace BasicCompiler
         {
             // 获取SUB声明以检查参数是否为BYREF + native
             SubDeclaration subDecl = null;
-            subMap.TryGetValue(stmt.SubName.ToLower(), out subDecl);
+            subMap.TryGetValue(SymbolKey(stmt.SubName), out subDecl);
 
             // 裸调用也可能落在**函数**上（`ui_win_open "T", 10, 20`，丢弃返回值）——
             // 函数声明在 `funcMap` 而不是 `subMap`，此前这里只查 subMap ⇒ `subDecl == null`
@@ -1559,14 +1577,13 @@ namespace BasicCompiler
             // （`GenerateSubFunctionCall`）保持一致：native 用**裸名**、否则 `func_` 前缀。
             FunctionDeclaration funcDecl = null;
             if (subDecl == null)
-                funcMap.TryGetValue(stmt.SubName.ToLower(), out funcDecl);
+                funcMap.TryGetValue(SymbolKey(stmt.SubName), out funcDecl);
 
             // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)
             bool isNative = (subDecl?.IsNative ?? false) || (funcDecl?.IsNative ?? false);
-            string prefix = subDecl != null ? "sub_" : "func_";
             string subLabel = isNative
-                ? stmt.SubName.ToLower()
-                : prefix + stmt.SubName.ToLower();
+                ? SymbolKey(stmt.SubName)
+                : (subDecl != null ? SubLabel(stmt.SubName) : FunctionLabel(stmt.SubName));
 
             // BYREF 判据对 SUB / FUNCTION 两种声明都成立
             int declParamCount = subDecl?.Parameters.Count ?? funcDecl?.Parameters.Count ?? 0;
@@ -1718,6 +1735,60 @@ namespace BasicCompiler
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_timer", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "input$":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_inputN", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
+                // === 类型转换函数（直接生成转换 opcode）===
+                //
+                // ⚠ 这四条**在主程序那张表里有、在这张表里漏了** —— 于是同一个
+                //   `CINT(x)`「写在主程序里能编、写在 SUB/FUNCTION 里报
+                //   未定义的函数 'func_cint'」。实测最小复现：
+                //     `FUNCTION Scl (n!) / Scl = CINT(n! / 2 + .1) / END FUNCTION`
+                //   GORILLA.BAS 的 `Scl`/`GetNum#` 全是这个形状（`Scl` 被引用 107 次）。
+                //   两张表的分工见 `CodeGenerator.Expressions.cs` 的 `GenerateMainFunctionCall`
+                //   —— **两边是同一个 switch 的两份**，加/改内置函数必须同时改两处
+                //   （本仓头号坑「同一规则两处实现」的又一例）。
+                case "csng":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Double)
+                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Single;
+                    return;
+                }
+                case "cdbl":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Double;
+                    return;
+                }
+                case "clng":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Integer)
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = BasicType.Double;
+                    return;
+                }
+                case "cint":
+                {
+                    GenerateSubExpression(funcCall.Arguments[0], reg);
+                    BasicType argType = InferExpressionType(funcCall.Arguments[0]);
+                    if (argType == BasicType.Single)
+                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    else if (argType == BasicType.Double)
+                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                    _lastExprFloatType = null;
+                    return;
+                }
                 case "lof":
                 case "eof":
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
@@ -1727,10 +1798,10 @@ namespace BasicCompiler
             }
             
             // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)
-            funcMap.TryGetValue(funcCall.FunctionName.ToLower(), out var fd);
+            funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var fd);
             string funcLabel = (fd != null && fd.IsNative)
-                ? funcCall.FunctionName.ToLower()
-                : "func_" + funcCall.FunctionName.ToLower();
+                ? SymbolKey(funcCall.FunctionName)
+                : FunctionLabel(funcCall.FunctionName);
 
             // Push arguments (right-to-left)
             for (int i = funcCall.Arguments.Count - 1; i >= 0; i--)

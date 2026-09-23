@@ -33,6 +33,54 @@ namespace BasicCompiler
         // 字符串缓冲区（data section 分配，链接器解析地址，非固定地址）
         public const string StringBufferLabel = "__strbuf";
 
+        /// <summary>
+        /// **空串的规范表示**（长度 0 的 data 常量）—— 全前端**只有这一个空串地址**。
+        ///
+        /// <para>
+        /// 为什么必须"唯一"：本前端的字符串比较就是**指针比较**（`cmp`），所以
+        /// 「两个空串相等」只有靠"它们是同一个地址"才成立。
+        /// 从前有**三种**表示并存 —— 主路径给 `""` 各建一个 `str_data_N` 标签、
+        /// SUB 路径把 `""` 编成**整数 0**、而 `INKEY$` 无键时又返回另一个地址 ——
+        /// 于是 `WHILE INKEY$ <> "": WEND`（QBasic 清键盘缓冲的标准写法）里
+        /// 三个空串两两不等，**循环永远出不去**。
+        /// 实测最小复现（SUB 内）：`SUB SP() / WHILE INKEY$ <> "": WEND / PRINT "drained" / END SUB`
+        /// —— 修前 `drained` 一个字都不打。
+        /// </para>
+        /// </summary>
+        public const string EmptyStringLabel = "__empty_str";
+
+        /// <summary>
+        /// BASIC 名字 → VML 符号名的**唯一换算**（声明侧与调用侧共用）。
+        ///
+        /// <para>
+        /// <b>为什么必须有它</b>：声明侧与调用侧对同一个函数名**做过两次不同的处理**，
+        /// 于是 `FUNCTION g$(n)` 定出来的是 `func_g`、而 `PRINT g$(3)` 调的是 `func_g$`
+        /// —— 链接期报「未定义的函数 'func_g$'」，而两处各自看都"没错"。
+        /// </para>
+        /// <para>
+        /// 声明侧的那一次在<b>解析器</b>里（`Parser.Functions.cs` 的
+        /// `ParseFunctionDeclaration`）：名字带 `$` 后缀时把 `$` 摘掉、同时置
+        /// `IsStringFunction`。所以这里的换算对<b>已经摘过</b>的名字是幂等的，
+        /// 两种来源（`funcDecl.Name` / 调用点的原始标识符文本）都能安全地过一遍。
+        /// </para>
+        /// <para>
+        /// ⚠ 只摘 `$`，**不碰** `% ! # &amp;` —— 那四个在解析器里从来没被摘过，
+        /// 声明与调用两侧本来一致；顺手一起摘反而会让 `FUNCTION f` 与 `FUNCTION f%`
+        /// 撞成同一个符号（本来是两个不同的函数）。
+        /// </para>
+        /// </summary>
+        private static string BasicSymbol(string name)
+            => name.EndsWith("$", StringComparison.Ordinal) ? name.Substring(0, name.Length - 1) : name;
+
+        /// <summary>`FUNCTION` 的符号名（`func_&lt;名&gt;`），见 <see cref="BasicSymbol"/>。</summary>
+        private static string FunctionLabel(string name) => "func_" + BasicSymbol(name).ToLowerInvariant();
+
+        /// <summary>`SUB` 的符号名（`sub_&lt;名&gt;`），见 <see cref="BasicSymbol"/>。</summary>
+        private static string SubLabel(string name) => "sub_" + BasicSymbol(name).ToLowerInvariant();
+
+        /// <summary>`SUB`/`FUNCTION` 声明表的查表键（小写、已按 <see cref="BasicSymbol"/> 归一）。</summary>
+        private static string SymbolKey(string name) => BasicSymbol(name).ToLowerInvariant();
+
         // 动态分配的静态数据区 — 程序启动时通过 SYSCALL #40 分配
         // 基址存储在 0x6FD4，所有 StaticBase 引用改为 LOAD R1, [0x6FD4]; ADD R1, #offset
         // 布局: [0x0000:DATA] [0x3000:Palette] [0x3800:Palette13] [0x4000:Sound]
@@ -370,6 +418,9 @@ namespace BasicCompiler
 
             // 创建数据段（字符串缓冲区由链接器解析，无固定地址）
             this.dataSection[StringBufferLabel] = 0;
+            // **空串的规范表示**（见 EmptyStringLabel）：所有 `""` 与 `INKEY$` 无键
+            // 都指向这一个地址 —— 指针比较才判得出"两个空串相等"。
+            this.dataSection[EmptyStringLabel] = new DataString("");
 
             // 创建数据段（合并类字段中的字符串数据）
             foreach (var variable in variables)
@@ -709,12 +760,24 @@ namespace BasicCompiler
             else if (statement is ReadStatement readStmt)
             {
                 // Collect variables used in READ
-                foreach (var varIdent in readStmt.Variables)
+                foreach (var target in readStmt.Variables)
                 {
-                    if (!variables.ContainsKey(varIdent.Name))
+                    // 数组元素（`READ a(i)`）登记的是**数组名**，下标里的变量由
+                    // `CollectVariablesFromExpression` 那一遍收（这里只保证数组名在表里）。
+                    string readName = target switch
                     {
-                        GetOrCreateVariable(varIdent.Name);
+                        Identifier ri => ri.Name,
+                        ArrayAccessExpression ra => ra.ArrayName,
+                        _ => null!,
+                    };
+                    if (string.IsNullOrEmpty(readName)) continue;
+                    if (!variables.ContainsKey(readName))
+                    {
+                        GetOrCreateVariable(readName);
                     }
+                    if (target is ArrayAccessExpression rae)
+                        foreach (var ix in rae.Indices)
+                            CollectVariablesFromExpression(ix);
                 }
             }
             else if (statement is ConstStatement constStmt)

@@ -23,6 +23,7 @@ public partial class CodeGenerator
 
     void GenerateQbColorStatement(QbColorStatement stmt)
     {
+        if (UiGfx) { UiEmitColorStatement(stmt); return; }
         CrtMode = true;  // 激活 CRT 模式
         // COLOR: ANSI CRT terminal — CRT_TEXTCOLOR(fg) + CRT_TEXTBACKGROUND(bg)
         if (currentSubName != null)
@@ -341,6 +342,7 @@ public partial class CodeGenerator
     }
     void GeneratePaletteStatement(PaletteStatement stmt)
     {
+        if (UiGfx) { UiEmitPaletteStatement(stmt); return; }
         // PALETTE color_index, red, green, blue (0-63 each)
         if (currentSubName != null)
         {
@@ -395,6 +397,7 @@ public partial class CodeGenerator
 
     void GenerateGetStatement(GetStatement stmt)
     {
+        if (UiGfx) { UiWarnGetPutUnsupported("GET"); return; }
         // GET (x1,y1)-(x2,y2), arrayname
         // Store pixel data to array: arr(0)=width, arr(1)=height, arr(2+)=pixels
         if (string.IsNullOrEmpty(stmt.ArrayName)) return;
@@ -500,6 +503,7 @@ public partial class CodeGenerator
 
     void GeneratePutStatement(PutStatement stmt)
     {
+        if (UiGfx) { UiWarnGetPutUnsupported("PUT"); return; }
         // PUT (x,y), arrayname, action — bpp-aware pixel write
         // 保护 BP、坐标寄存器、临时寄存器
         EmitSaveRegisters(3, 6, 8, 9, 12);

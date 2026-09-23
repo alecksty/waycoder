@@ -1048,6 +1048,27 @@ public static class VmlKeys
     public const int OemPeriod = 190;        // .
     public const int OemQuestion = 191;      // /
     public const int OemTilde = 192;         // `
+
+    /// <summary>
+    /// 虚拟键码 → 它代表的**字符**（给 `INKEY$` / `getch()` 这类"字符输入"接口用）；
+    /// 没有可打印字符的键（方向键、功能键、Shift/Ctrl…）返回 <c>'\0'</c>。
+    ///
+    /// <para>
+    /// ⚠ 这张表**只在"消息 → 老接口"这一处**用，且刻意只覆盖常用键。它与
+    /// 「程序侧 `WM_KEYDOWN` 拿到的 keycode」是**两件事**（后者是虚拟键码、标点是 OEM 码，
+    /// 见上面 `OemMinus` 那段说明）。老程序写 `INKEY$` 要的是**字符**，
+    /// 所以这里做这一层映射；不想在这层做映射的程序应当直接用 `ui_poll_msg`。
+    /// </para>
+    /// </summary>
+    public static char ToChar(int vk)
+    {
+        if (vk >= 32 && vk <= 126) return (char)vk;   // 字母数字与标点（字母恰好与 ASCII 大写重合）
+        if (vk == Enter) return '\r';
+        if (vk == Backspace) return '\b';
+        if (vk == Tab) return '\t';
+        if (vk == Escape) return (char)27;
+        return '\0';
+    }
 }
 
 /// <summary>
@@ -1177,6 +1198,40 @@ public sealed class VmlMessageQueue
 
     /// <summary>非阻塞取一条（消费）；无消息返回 null。</summary>
     public VmlMessage? TryTake() => TryRead(keep: false);
+
+    /// <summary>
+    /// 非阻塞取**第一条满足条件**的消息（消费），其余消息保持原顺序不动；没有则返回 null。
+    ///
+    /// <para>
+    /// 用途只有一个：老的 BASIC「字符输入」接口（`INKEY$` / `getch()`）要的是**键盘**那一路，
+    /// 而不是"队头那一条"。直接 <see cref="TryTake"/> 会把排在键盘前面的**定时器/鼠标**消息
+    /// 一起吃掉 —— 那些消息的程序侧消费者（`ui_poll_msg`）再也看不到，
+    /// 表现是"装好的定时器偶尔不响"，而排查时会先去怀疑程序。
+    /// </para>
+    /// <para>
+    /// ⚠ 许可（<see cref="_signal"/>）的账：**取走一条就 `Wait(0)` 一次**，与
+    /// <see cref="TryRead"/> 同一条不变量（许可数与队列长度一一对应，见 <see cref="Post"/>）。
+    /// 被跳过的消息不消费许可 —— 它们还在队列里，许可数就该还留着。
+    /// </para>
+    /// </summary>
+    public VmlMessage? TryTakeWhere(Func<VmlMessage, bool> predicate)
+    {
+        lock (_lock)
+        {
+            int n = _queue.Count;
+            if (n == 0) return null;
+            VmlMessage? found = null;
+            for (int i = 0; i < n; i++)
+            {
+                var msg = _queue.Dequeue();
+                if (found is null && predicate(msg)) { found = msg; continue; }
+                _queue.Enqueue(msg);
+            }
+            if (found is null) return null;
+            _signal.Wait(0);
+            return found;
+        }
+    }
 
     /// <summary>
     /// 阻塞读一条，最多等 <paramref name="timeoutMs"/> 毫秒（0 = 无限等）。

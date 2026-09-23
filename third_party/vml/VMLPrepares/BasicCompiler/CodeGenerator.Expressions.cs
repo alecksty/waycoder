@@ -91,10 +91,19 @@ namespace BasicCompiler
             }
             else if (expr is StringLiteral strLit)
             {
-                // Store string in data section, emit LEA to load address into reg
-                string strLabel = $"str_data_{GenerateLabel()}";
-                dataSection[strLabel] = new DataString(strLit.Value);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, strLabel) }));
+                if (string.IsNullOrEmpty(strLit.Value))
+                {
+                    // 空串走**唯一那个空串地址**（见 `CodeGenerator.EmptyStringLabel`）：
+                    // 字符串比较是指针比较，`s$ = ""` 只有在"两边都是同一个空串地址"时才成立。
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, EmptyStringLabel) }));
+                }
+                else
+                {
+                    // Store string in data section, emit LEA to load address into reg
+                    string strLabel = $"str_data_{GenerateLabel()}";
+                    dataSection[strLabel] = new DataString(strLit.Value);
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.LABEL, strLabel) }));
+                }
             }
             else if (expr is Identifier ident)
             {
@@ -486,12 +495,12 @@ namespace BasicCompiler
             }
             
             // 获取函数声明以检查参数是否为 BYREF + native
-            funcMap.TryGetValue(funcCall.FunctionName.ToLower(), out var funcDecl);
+            funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var funcDecl);
 
             // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)
             string funcLabel = (funcDecl != null && funcDecl.IsNative)
-                ? funcCall.FunctionName.ToLower()
-                : "func_" + funcCall.FunctionName.ToLower();
+                ? SymbolKey(funcCall.FunctionName)
+                : FunctionLabel(funcCall.FunctionName);
 
             for (int i = funcCall.Arguments.Count - 1; i >= 0; i--)
             {

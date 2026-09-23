@@ -167,6 +167,7 @@ namespace VMLTool
                         Int64Mode = options.Int64Mode,
                         SourceComment = options.SourceComment,
                         BasicDialect = ParseBasicDialect(options.BasicType),
+                        BasicGraphics = ParseBasicGraphics(options.BasicGfx),
                         PascalDialect = ParsePascalDialect(options.PascalType),
                     };
                     LibraryLinker.DebugOutput = copts.DebugMode || options.DumpCall || options.DumpLink;
@@ -1045,6 +1046,15 @@ namespace VMLTool
                 _ => VMLPlugins.BasicDialect.QBasic
             };
         }
+
+        /// <summary>
+        /// BASIC 图形语句的后端：`ui`（默认，走宿主 ui_* 图元）/ `pcgfx`（老的写 DOS 显存）。
+        /// 认不出来一律回默认 ui —— 老路在所有宿主上都是空操作（画进虚空），不该是"拼错就走它"。
+        /// </summary>
+        private static VMLPlugins.BasicGraphics ParseBasicGraphics(string? gfx)
+            => string.Equals(gfx, "pcgfx", StringComparison.OrdinalIgnoreCase)
+                ? VMLPlugins.BasicGraphics.PcGfx
+                : VMLPlugins.BasicGraphics.Ui;
 
         /// <summary>在指定超时时间内执行操作（防编译器卡死）</summary>
         private static T RunWithTimeout<T>(Func<T> action, int timeoutSeconds, string description)

@@ -140,6 +140,7 @@ public partial class CodeGenerator
 
     void GenerateQbCircleStatement(QbCircleStatement stmt)
     {
+        if (UiGfx) { UiEmitCircleStatement(stmt); return; }
         // Evaluate: x, y, radius, color_index
         if (currentSubName != null)
         {
@@ -501,6 +502,7 @@ public partial class CodeGenerator
 
     void GenerateQbPaintStatement(QbPaintStatement stmt)
     {
+        if (UiGfx) { UiEmitPaintStatement(stmt); return; }
         // PAINT flood fill 鈥?stack-based iterative flood fill
         int vgaBase = VgaBase;
         int stackBase = 0x90000; // flood fill stack buffer (above StaticBase 0x80000) [x,y pairs] (safe: above StaticBase 0x7000)

@@ -309,6 +309,7 @@ internal static class Program
             if (opt.StackSize is int stackBytes) cb.SetConfig("stacksize", stackBytes);
             if (opt.RamLevel is not null) cb.SetConfig("ram", opt.RamLevel);
             foreach (var (numKey, numMode) in opt.NumberModes) cb.SetConfig(numKey, numMode);
+            if (opt.BasicGfx is not null) cb.SetConfig("basicgfx", opt.BasicGfx);
         }
 
         string vmlText;
@@ -931,6 +932,9 @@ internal static class Program
   --lang <名字>        强制指定前端编译器（c/python/lua/java/forth/…；默认按扩展名派发）
   --profile <大|中|小> 内存档位 → VML_RAM_G / VML_RAM_M / VML_RAM_K（默认 中 = RAM_M，与手机端一致）
   --timeout <秒>       运行超时（默认 30，上限 600）
+  --basicgfx <ui|pcgfx>
+                       BASIC 图形语句的后端（默认 ui = 宿主 ui_* 图元/绘图窗口；
+                        pcgfx = 老的写 DOS 显存 0xA0000，本平台没有宿主渲染它）
   --vml-home <路径>    显式指定 vendored VML 根（含 Lib/ 与 vmltool.config.xml 的那一层）
   --vml <路径>         把链接之后的 VML 汇编写出到文件（只编不跑）
   -h, --help           显示本帮助
@@ -1131,6 +1135,8 @@ internal sealed partial class CliOptions
     /// （枚举注释里写着"本平台没链那个库"）⇒ 一个 `--soft-float` 会安静地产出跑不起来的程序。
     /// </summary>
     public List<(string Key, string Mode)> NumberModes { get; } = new();
+    /// <summary>`--basicgfx ui|pcgfx` —— BASIC 图形语句的后端（默认 ui）。</summary>
+    public string? BasicGfx { get; private set; }
 
     /// <summary><c>-v/--version</c>：打印版本后退出。</summary>
     public bool ShowVersion { get; private set; }
@@ -1310,6 +1316,9 @@ internal sealed partial class CliOptions
                             $"{a} soft 在本平台不可用 —— Soft 档要链 softfloat/softdouble 库，"
                             + "而本平台的 Lib 里没有它们（会产出跑不起来的程序）。hard 或 none 可以。");
                     o.NumberModes.Add((a[2..], nm));
+                    break;
+                case "--basicgfx":
+                    o.BasicGfx = Require(args, ref i, "--basicgfx");
                     break;
 
                 default:
