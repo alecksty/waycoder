@@ -494,6 +494,20 @@ namespace BasicCompiler
                 CollectTypeDeclarations(statement);
             }
 
+            /* **NATIVE 声明的形参强制 BYVAL。**
+               形参默认改成 BYREF（QBasic 语义）之后必须同时钉住这一条：NATIVE SUB/FUNCTION
+               没有函数体，实参是被 `Lib/**` 里那个 VML 包装函数按 **`[R12+12+4i]` 的值**读的
+               （`ui_rect(x, y, w, …)` 就是这个约定）。传地址过去，包装函数会拿地址当坐标画。
+               放在这里是因为 `IsNative` 是**解析完之后**才由 `Parser.Core` 回填的
+               （`_pendingNative`），解析形参那一刻还不知道。 */
+            foreach (var d in subMap.Values) if (d.IsNative) ForceByVal(d.Parameters);
+            foreach (var d in funcMap.Values) if (d.IsNative) ForceByVal(d.Parameters);
+
+            static void ForceByVal(List<ParameterNode> ps)
+            {
+                foreach (var p in ps) p.IsByRef = false;
+            }
+
             // Phase 2: 将 CLASS 方法合成为 SUB 声明
             foreach (var kv in classDefinitions)
             {

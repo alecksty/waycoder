@@ -502,34 +502,15 @@ namespace BasicCompiler
                 ? SymbolKey(funcCall.FunctionName)
                 : FunctionLabel(funcCall.FunctionName);
 
-            for (int i = funcCall.Arguments.Count - 1; i >= 0; i--)
-            {
-                bool isByRef = false;
-                if (funcDecl != null && i < funcDecl.Parameters.Count)
-                    isByRef = funcDecl.Parameters[i].IsByRef;
-
-                if (isByRef && funcCall.Arguments[i] is Identifier)
-                {
-                    // BYREF: 传递变量地址
-                    GenerateVariableAddress(funcCall.Arguments[i], 0);
-                }
-                else if (currentSubName != null)
-                {
-                    GenerateSubExpression(funcCall.Arguments[i], 0);
-                }
-                else
-                {
-                    GenerateExpression(funcCall.Arguments[i], 0);
-                }
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            }
+            int argBytes = EmitCallArguments(funcCall.Arguments,
+                i => funcDecl != null && i < funcDecl.Parameters.Count && funcDecl.Parameters[i].IsByRef,
+                currentSubName != null);
 
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcLabel) }));
 
-            if (funcCall.Arguments.Count > 0)
+            if (argBytes > 0)
             {
-                int stackCleanup = funcCall.Arguments.Count * 4;
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, stackCleanup) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argBytes) }));
             }
 
             if (reg != 0)

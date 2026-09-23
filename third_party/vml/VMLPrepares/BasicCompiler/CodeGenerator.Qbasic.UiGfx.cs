@@ -199,9 +199,32 @@ public partial class CodeGenerator
     // `EmitSaveRegisters(4,5,...,14)` 再说，这里照做，省得"某个语句悄悄踩了循环变量"。
     static readonly int[] UiClobbered = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14];
 
-    /// <summary>UI 语句两端成对使用：{ EmitSaveRegisters(UiClobbered) … EmitRestoreRegisters(UiClobbered) }</summary>
+    /// <summary>UI 语句两端成对使用：{ EmitSaveRegisters(UiClobbered) … UiLeave() }</summary>
     void UiEnter() => EmitSaveRegisters(UiClobbered);
-    void UiLeave() => EmitRestoreRegisters(UiClobbered);
+
+    /// <summary>
+    /// 语句收尾：**先 <c>ui_present()</c> 再恢复寄存器**（顺序不能反 —— present 自己也会
+    /// 用寄存器，恢复放在它前面等于没恢复）。
+    ///
+    /// <para>
+    /// **为什么要在这里 present**：QBasic 是**立即模式** —— 一条图形语句执行完，屏幕上
+    /// 就该看到它。<c>ui_*</c> 图元只改场景，真正"上屏"靠 <c>ui_present()</c>；
+    /// C 程序都是自己每帧末尾调一次，而 BASIC **没有任何语句能表达它** ⇒ 一个不写
+    /// <c>NATIVE SUB ui_present()</c> 的 BASIC 图形程序**永远不出图**：设备上窗口一直空着
+    /// （GORILLA.BAS 就是这样，场景里 512 个图元、窗口上 0 个像素），`vmlcli --frame`
+    /// 也拿不到帧（它只认 present 拍下的快照）。所以由编译器在每条图形语句末尾补一次。
+    /// </para>
+    ///
+    /// <para>
+    /// 代价可控：设备侧渲染挂在 40ms 定时器上比对 <c>PresentVersion</c>，
+    /// 一串语句里的多次 present 会被合并成一次渲染（见 <c>VmlScene.Present</c> 的注释）。
+    /// </para>
+    /// </summary>
+    void UiLeave()
+    {
+        UiCall("ui_present");
+        EmitRestoreRegisters(UiClobbered);
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     //  SCREEN

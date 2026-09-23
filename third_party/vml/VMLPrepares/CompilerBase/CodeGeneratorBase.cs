@@ -1125,9 +1125,31 @@ namespace CompilerBase
         protected void AddCall(string label) =>
             AddInstruction(OpCode.CALL, LabelOp(label));
 
-        /// <summary>CALL 到 builtins.vml 中的共享函数，替代内联生成</summary>
-        protected void EmitCallBuiltin(string name) =>
+        /// <summary>
+        /// CALL 到 builtins.vml 中的共享函数，替代内联生成。
+        /// <para>
+        /// 实参走 <b>R0-R3 寄存器</b>（调用方自己放好），这里**额外压 4 个空实参槽**
+        /// —— 被调方是 C 编译出来的函数，按 C ABI 读 <c>[R12+12+4i]</c>；
+        /// 一旦函数里出现「给形参赋值」（或取形参地址），编译器就会写那块槽。
+        /// 不分配就是写到调用方的栈上，实测把调用方保存的 BP 写坏：
+        /// GORILLA.BAS 里 <c>CRT_TEXTCOLOR</c> 写 <c>c = 7</c> ⇒ 调用方 <c>leave</c> 后
+        /// <c>R12=7</c> ⇒ 下一条 <c>[R12-12]</c> 内存错误（PC=045B）。
+        /// </para>
+        /// <para>
+        /// 4 = R0-R3 镜像的最大宽度（也是这些内置函数的最大形参个数，如 <c>CRT_WINDOW</c>）。
+        /// 压的是哑值：这类函数一律从 R0-R3 取实参，槽里放什么不影响结果。
+        /// </para>
+        /// </summary>
+        protected void EmitCallBuiltin(string name)
+        {
+            for (int i = 0; i < BuiltinArgSlots; i++)
+                AddInstruction(OpCode.PUSH, Reg(0));
             AddInstruction(OpCode.CALL, LabelOp(name));
+            AddInstruction(OpCode.ADD, Reg(13), Imm(BuiltinArgSlots * 4));
+        }
+
+        /// <summary><see cref="EmitCallBuiltin"/> 压的实参槽数（= R0-R3 镜像宽度）。</summary>
+        private const int BuiltinArgSlots = 4;
 
         /// <summary>断言: emitCondition 结果非0通过, 0触发SYSCALL #7</summary>
         /// <param name="emitCondition">条件表达式放入R0的委托</param>

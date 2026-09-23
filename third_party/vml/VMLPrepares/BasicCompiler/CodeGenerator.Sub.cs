@@ -1591,29 +1591,7 @@ namespace BasicCompiler
                 (subDecl != null ? subDecl.Parameters[i].IsByRef : funcDecl!.Parameters[i].IsByRef);
 
             // Push arguments (right-to-left)
-            for (int i = stmt.Arguments.Count - 1; i >= 0; i--)
-            {
-                bool isByRef = IsByRefAt(i);
-
-                if (isByRef)
-                {
-                    // BYREF: 传递变量地址
-                    GenerateVariableAddress(stmt.Arguments[i], 0);
-                }
-                else
-                {
-                    // BYVAL: 传递值
-                    if (currentSubName != null)
-                    {
-                        GenerateSubExpression(stmt.Arguments[i], 0);
-                    }
-                    else
-                    {
-                        GenerateExpression(stmt.Arguments[i], 0);
-                    }
-                }
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            }
+            int argBytes = EmitCallArguments(stmt.Arguments, IsByRefAt, currentSubName != null);
 
             // 在 CALL 之前保存活跃的寄存器，调用后恢复
             var (saveInstrs, restoreInstrs) = Regs.SaveForCall();
@@ -1628,11 +1606,90 @@ namespace BasicCompiler
                 instructions.Add(ri);
 
             // Clean up stack (caller cleans)
-            if (stmt.Arguments.Count > 0)
+            if (argBytes > 0)
             {
-                int stackCleanup = stmt.Arguments.Count * 4;
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, stackCleanup) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argBytes) }));
             }
+        }
+
+        /// <summary>
+        /// 一次调用的实参发射 —— **三条调用路径共用这一份实现**
+        /// （语句位 `CALL x` / 表达式里的 `f(…)` / SUB 体内表达式里的 `f(…)`）。
+        /// 各写一份必然漂移，本仓已经吃过这个亏。
+        /// </summary>
+        /// <param name="isByRefAt">形参 i 是不是 BYREF（NATIVE 声明已在 CodeGenerator 里被强制 BYVAL）。</param>
+        /// <param name="subScope">当前是否在 SUB/FUNCTION 体内（决定用 GenerateSubExpression 还是 GenerateExpression）。</param>
+        /// <returns>调用方要清掉的栈字节数。</returns>
+        private int EmitCallArguments(IReadOnlyList<Expression> args, Func<int, bool> isByRefAt, bool subScope)
+        {
+            int n = args.Count;
+
+            /* ① **先压"非左值 BYREF 实参"的临时量**，而且必须压在**实参块之外**。
+               理由：被调方按 `[R12+12+4i]` 的**固定步长 4** 取形参，每个实参只能占一格；
+               把"值"那一格插进实参块里会把后面所有形参整体错位。
+               所以临时量统一压在最上面（高地址），实参槽里放它的地址。
+               语义：QBasic 对"非左值实参"就是造个临时量，被调方写它写进临时量、出去即丢。 */
+            var tempIndex = new Dictionary<int, int>();   // 实参下标 → 临时量序号（0 = 最先压的）
+            for (int i = n - 1; i >= 0; i--)
+            {
+                if (!isByRefAt(i) || IsAddressableArg(args[i])) continue;
+                EmitArgValue(args[i], 0, subScope);
+                AddInstruction(OpCode.PUSH, Reg(0));
+                tempIndex[i] = tempIndex.Count;
+            }
+            int temps = tempIndex.Count;
+
+            // ② 压实参（右到左）：左值 = 取地址，非左值 BYREF = 占位（③ 回填），BYVAL = 值
+            for (int i = n - 1; i >= 0; i--)
+            {
+                if (isByRefAt(i))
+                {
+                    if (tempIndex.ContainsKey(i)) AddRI(OpCode.MOVE, 0, 0);
+                    else GenerateVariableAddress(args[i], 0);
+                }
+                else
+                {
+                    EmitArgValue(args[i], 0, subScope);
+                }
+                AddInstruction(OpCode.PUSH, Reg(0));
+            }
+
+            /* ③ 回填临时量地址。压完之后 R13 正好指向实参块底（= 实参 0 的槽），
+               于是：实参 i 的槽在 R13+4i，临时量 j 在 R13+4*(temps+n-j-1)。 */
+            foreach (var kv in tempIndex)
+            {
+                AddInstruction(OpCode.MOVE, Reg(0), Reg(13));
+                AddRI(OpCode.ADD, 0, 4 * (temps + n - kv.Value - 1));
+                AddInstruction(OpCode.MOVE, new Operand(OperandType.MEMORY, $"R13+{4 * kv.Key}"), Reg(0));
+            }
+
+            return (temps + n) * 4;
+        }
+
+        /// <summary>按当前是否在 SUB 体内选表达式发射路径。</summary>
+        private void EmitArgValue(Expression e, int reg, bool subScope)
+        {
+            if (subScope) GenerateSubExpression(e, reg);
+            else GenerateExpression(e, reg);
+        }
+
+        /// <summary>
+        /// 实参能不能"取地址后交给被调方读写"。
+        ///
+        /// 只认**标量变量**：常量、数组（含数组元素）、SUB/FUNCTION 名都不是。
+        /// 常量尤其要紧 —— 把 `DoSun SUNHAPPY`（`CONST SUNHAPPY = FALSE`）当左值传地址，
+        /// 被调方一写就把常量区改了（QBasic 会造临时量）。
+        /// 数组元素/整数组走临时量是**保守**的：被调方的写不回流（今天本来也不回流）。
+        /// </summary>
+        private bool IsAddressableArg(Expression e)
+        {
+            if (e is not Identifier id) return false;
+            string key = id.Name.ToLower();
+            if (constants.ContainsKey(key)) return false;
+            if (arrayVariables.ContainsKey(key)) return false;
+            if (subMap.ContainsKey(SymbolKey(id.Name))) return false;
+            if (funcMap.ContainsKey(SymbolKey(id.Name))) return false;
+            return true;
         }
 
         private void GenerateSubFunctionCall(FunctionCallExpression funcCall, int reg)
@@ -1803,21 +1860,18 @@ namespace BasicCompiler
                 ? SymbolKey(funcCall.FunctionName)
                 : FunctionLabel(funcCall.FunctionName);
 
-            // Push arguments (right-to-left)
-            for (int i = funcCall.Arguments.Count - 1; i >= 0; i--)
-            {
-                GenerateSubExpression(funcCall.Arguments[i], 0);
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            }
+            // Push arguments (right-to-left) —— 与另外两条调用路径共用同一份实现
+            int argBytes = EmitCallArguments(funcCall.Arguments,
+                i => fd != null && i < fd.Parameters.Count && fd.Parameters[i].IsByRef,
+                true);
 
             // CALL
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcLabel) }));
 
             // Clean up stack
-            if (funcCall.Arguments.Count > 0)
+            if (argBytes > 0)
             {
-                int stackCleanup = funcCall.Arguments.Count * 4;
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, stackCleanup) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argBytes) }));
             }
 
             // Return value is in R0

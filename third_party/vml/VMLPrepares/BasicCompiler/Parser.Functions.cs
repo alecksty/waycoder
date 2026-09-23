@@ -23,7 +23,14 @@ namespace BasicCompiler
                 Advance(); // 跳过 (
                 while (Peek().Type != TokenType.RPAREN && !AtEnd())
                 {
-                    bool isByRef = false;  // 默认 BYVAL (MCU 模式下字面量参数无法传引用)
+                    /* **默认按引用**（QBasic 语义：形参默认 BYREF，要传值写 `BYVAL`）。
+                       早先默认 BYVAL 的理由是"MCU 模式下字面量参数无法传引用"——那是个**真问题**，
+                       但正解不是改语义，而是调用方给非左值实参**造一个临时量再传它的地址**
+                       （见 `CodeGenerator.EmitCallArguments`）。语义错了会静默丢结果：
+                       `SUB GetInputs (…, NumGames)` 里 `NumGames = 3` 传不回调用方 ⇒ 调用方
+                       读到 0 ⇒ `FOR i = 1 TO NumGames` 一次都不跑（GORILLA.BAS 的 PlayGame
+                       因此整局不画一个像素）。 */
+                    bool isByRef = true;  // 默认 BYREF（QBasic 语义）；NATIVE 声明在 CodeGenerator 里被强制回 BYVAL
                     if (Peek().Type == TokenType.BYREF)
                     {
                         isByRef = true;
@@ -205,7 +212,14 @@ namespace BasicCompiler
                 Advance(); // 跳过 (
                 while (Peek().Type != TokenType.RPAREN && !AtEnd())
                 {
-                    bool isByRef = false;  // 默认 BYVAL (MCU 模式下字面量参数无法传引用)
+                    /* **默认按引用**（QBasic 语义：形参默认 BYREF，要传值写 `BYVAL`）。
+                       早先默认 BYVAL 的理由是"MCU 模式下字面量参数无法传引用"——那是个**真问题**，
+                       但正解不是改语义，而是调用方给非左值实参**造一个临时量再传它的地址**
+                       （见 `CodeGenerator.EmitCallArguments`）。语义错了会静默丢结果：
+                       `SUB GetInputs (…, NumGames)` 里 `NumGames = 3` 传不回调用方 ⇒ 调用方
+                       读到 0 ⇒ `FOR i = 1 TO NumGames` 一次都不跑（GORILLA.BAS 的 PlayGame
+                       因此整局不画一个像素）。 */
+                    bool isByRef = true;  // 默认 BYREF（QBasic 语义）；NATIVE 声明在 CodeGenerator 里被强制回 BYVAL
                     if (Peek().Type == TokenType.BYREF)
                     {
                         isByRef = true;
