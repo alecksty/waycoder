@@ -421,6 +421,18 @@ namespace BasicCompiler
         public string VariableName { get; set; }
         public int Size { get; set; }
         public List<int> Dimensions { get; set; }
+
+        /// <summary>
+        /// 每一维的**下界**（`DIM a(1 TO 2)` → `[1]`；`DIM a(10)` → `[0]`）。
+        ///
+        /// <para>⚠ 下界**只影响下标 → 槽位的换算**，不影响 `Dimensions`（那是元素个数）：
+        /// `DIM GorillaX(1 TO 2)` 有 2 个元素、合法下标是 1..2 ⇒ 下标 2 落在**第 2 个槽**、
+        /// 不是第 3 个。丢掉下界的后果是"下标 2 越界 ⇒ 赋值被跳过（读回 0）"，
+        /// 而且是**静默**的 —— GORILLA.BAS 的两只大猩猩位置 `GorillaX(1)`/`GorillaX(2)`
+        /// 与比分 `TotalWins(1 TO 2)` 都踩在这一条上（实测 `PUTG i=2 gx=0 gy=0`）。</para>
+        /// </summary>
+        public List<int> LowerBounds { get; set; }
+
         public bool IsStringArray { get; set; }
         public string TypeName { get; set; }  // For DIM arr(size) AS TypeName
         public bool IsShared { get; set; }
@@ -429,6 +441,7 @@ namespace BasicCompiler
             : base(line, column)
         {
             Dimensions = new List<int>();
+            LowerBounds = new List<int>();
         }
     }
 
@@ -440,6 +453,17 @@ namespace BasicCompiler
         public string ArrayName { get; set; }
         public Expression Index { get; set; }
         public List<Expression> Indices { get; set; }
+
+        /// <summary>
+        /// `arr()` —— **括号里没有下标**，指的是"整个数组"（QBasic 用它把整个数组
+        /// 作为实参传给 `SUB f (a() AS …)`，见 `EmitCallArguments` / `GenerateVariableAddress`）。
+        ///
+        /// 不记这个标志的话，`arr()` 与"一个漏写下标的元素访问"**长得一模一样**
+        /// （`Indices` 都是空），而两者的代码生成完全不同：前者要的是**数组基址**、
+        /// 后者什么都不该生成。塞一个 `null` 当下标去走元素那条路是本仓踩过的形状
+        /// （实测 `CALL fill(arr())` 会把 R0=0 的东西当元素地址、写进地址 0）。
+        /// </summary>
+        public bool IsWholeArray { get; set; }
 
         public ArrayAccessExpression(int line, int column)
             : base(line, column)
@@ -456,6 +480,26 @@ namespace BasicCompiler
         public string Name { get; set; }
         public bool IsByRef { get; set; }
         public bool IsString { get; set; }
+
+        /// <summary>
+        /// `SUB f (a() AS INTEGER)` —— **数组形参**。
+        ///
+        /// <para>
+        /// 判据是形参名后面直接跟着 `()`（解析器第一遍的 `CollectArrayParams` 用的是同一条
+        /// 判据，见 `Parser.Core.cs`）。记下它，代码生成才知道 `a(i)` 该走
+        /// **"基址在形参槽里的间接寻址"**（`GenerateArrayElementAddr`）而不是当成
+        /// 一个没声明过的数组（那会静默生成"值 0 / 不生成代码"）。
+        /// </para>
+        /// </summary>
+        public bool IsArray { get; set; }
+
+        /// <summary>
+        /// `AS XYPoint` 里的类型名（小写，只对**用户自定义类型**有意义；`AS STRING`/
+        /// `AS INTEGER` 这类内置类型名不记）。数组形参要靠它才能解析
+        /// `a(i).Field` 的字段偏移 —— 类型信息本来就只在 `dimAsVariables` 里，
+        /// 而形参从来没被登记进去过。
+        /// </summary>
+        public string TypeName { get; set; }
 
         public ParameterNode(int line, int column, string name, bool isByRef = false, bool isString = false)
             : base(line, column)

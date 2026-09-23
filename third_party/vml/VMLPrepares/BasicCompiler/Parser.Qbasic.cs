@@ -533,6 +533,14 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             s.ArrayName = Peek().Value.ToLower();
             Advance();
+            // `, buf()` —— QBasic 的**整数组**写法就是带一对空括号。
+            // 不吃掉的话 `(` 留在 token 流里被语句层当垃圾跳过，
+            // 后面那半个语句就变成一次莫名的 `func_xxx` 调用（链接期报错的还是别的名字）。
+            if (Peek().Type == TokenType.LPAREN)
+            {
+                Advance();
+                if (Peek().Type == TokenType.RPAREN) Advance();
+            }
         }
         return s;
     }
@@ -552,8 +560,17 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             s.ArrayName = Peek().Value.ToLower();
             Advance();
+            // `, buf()` —— 整数组写法（同 GET 那处，理由见那里）
+            if (Peek().Type == TokenType.LPAREN)
+            {
+                Advance();
+                if (Peek().Type == TokenType.RPAREN) Advance();
+            }
         }
-        // Optional action: PSET, PRESET, AND, OR, XOR (PSET is NOT an IDENTIFIER — it has its own token type)
+        // Optional action: PSET, PRESET, AND, OR, XOR
+        //（PSET/AND/OR 有自己的 token 类型；`XOR` 词法表里没有 ⇒ 是 IDENTIFIER。
+        //  三种都要认，漏一个的后果是它被**当成下一条语句** —— 实测 `PUT …, buf(), XOR`
+        //  报「未定义的函数 'func_xor'」，而那条 PUT 其实已经解析完了、只是动作没吃掉。）
         if (Peek().Type == TokenType.COMMA)
         {
             Advance();

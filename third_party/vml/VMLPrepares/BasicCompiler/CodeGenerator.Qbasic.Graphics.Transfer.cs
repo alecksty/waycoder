@@ -397,7 +397,7 @@ public partial class CodeGenerator
 
     void GenerateGetStatement(GetStatement stmt)
     {
-        if (UiGfx) { UiWarnGetPutUnsupported("GET"); return; }
+        if (UiGfx) { UiEmitGetStatement(stmt); return; }
         // GET (x1,y1)-(x2,y2), arrayname
         // Store pixel data to array: arr(0)=width, arr(1)=height, arr(2+)=pixels
         if (string.IsNullOrEmpty(stmt.ArrayName)) return;
@@ -503,7 +503,7 @@ public partial class CodeGenerator
 
     void GeneratePutStatement(PutStatement stmt)
     {
-        if (UiGfx) { UiWarnGetPutUnsupported("PUT"); return; }
+        if (UiGfx) { UiEmitPutStatement(stmt); return; }
         // PUT (x,y), arrayname, action — bpp-aware pixel write
         // 保护 BP、坐标寄存器、临时寄存器
         EmitSaveRegisters(3, 6, 8, 9, 12);

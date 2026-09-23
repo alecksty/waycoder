@@ -64,13 +64,40 @@ namespace BasicCompiler
         /// 两种来源（`funcDecl.Name` / 调用点的原始标识符文本）都能安全地过一遍。
         /// </para>
         /// <para>
-        /// ⚠ 只摘 `$`，**不碰** `% ! # &amp;` —— 那四个在解析器里从来没被摘过，
-        /// 声明与调用两侧本来一致；顺手一起摘反而会让 `FUNCTION f` 与 `FUNCTION f%`
-        /// 撞成同一个符号（本来是两个不同的函数）。
+        /// ⚠ `$` **摘掉**（解析器对函数名已经摘过一次，这里幂等），`% ! # &amp;`
+        /// **转义成 `_pct`/`_sng`/`_dbl`/`_lng`**：不转义的话符号名里带着 `#`
+        /// （`func_getnum#`），而 `VMLAssembler.IsValidLabel` 不认 `#` ⇒ 那个 CALL 被当成
+        /// 立即数、运行期 `ExecuteCall` 抛 `InvalidCastException`（详见下面的实现说明）。
+        /// 转义而不是删除，是为了让 `FUNCTION f` 与 `FUNCTION f%` 仍是两个符号。
+        /// </para>
+        /// <para>
+        /// <b>它是 subMap/funcMap 的**唯一**键</b>（声明侧与查表侧都走它）——
+        /// 从前声明侧写 `.ToLower()`、查表侧写 `SymbolKey()`，名字里带 `$`/`#` 时
+        /// 两边不是同一个键 ⇒ 查不到声明 ⇒ **形参的 BYREF 判据失效**
+        /// （调用方按值传、被调方按地址读，实测 `FUNCTION G#(a,b)` 恒返回 0）。
         /// </para>
         /// </summary>
         private static string BasicSymbol(string name)
-            => name.EndsWith("$", StringComparison.Ordinal) ? name.Substring(0, name.Length - 1) : name;
+        {
+            string symbol = name.EndsWith("$", StringComparison.Ordinal) ? name.Substring(0, name.Length - 1) : name;
+
+            /* ⚠ 名字里剩下的 `% ! # &` 必须**转义**，否则汇编层认不出它是标签。
+               `VMLAssembler.IsValidLabel` 只接受「字母/数字/`_`/`$`」，于是
+               `func_getnum#`（`FUNCTION GetNum#` 的符号名）走到"不是标签"那一支、
+               被当成**立即数**收下（`Operand(IMMEDIATE, "func_getnum#")`），
+               运行期 `ExecuteCall` 一 `(int)operand.Value` 就抛
+               `InvalidCastException: Unable to cast 'System.String' to 'System.Int32'`
+               —— 而且**只在真的调到那个函数时才炸**（实测 GORILLA.BAS：
+               前面全跑得动，走到 `DoShot` 里的 `GetNum#(2, …)` 才崩）。
+
+               映射成固定后缀而不是直接删掉：`FUNCTION f` 与 `FUNCTION f%` 在 BASIC 里
+               是两个不同的函数，删掉后缀会让它们撞成同一个符号。 */
+            return symbol
+                .Replace("%", "_pct")
+                .Replace("!", "_sng")
+                .Replace("#", "_dbl")
+                .Replace("&", "_lng");
+        }
 
         /// <summary>`FUNCTION` 的符号名（`func_&lt;名&gt;`），见 <see cref="BasicSymbol"/>。</summary>
         private static string FunctionLabel(string name) => "func_" + BasicSymbol(name).ToLowerInvariant();
@@ -138,6 +165,26 @@ namespace BasicCompiler
         private Dictionary<string, int> variables;
         private Dictionary<string, BasicType> variableTypes;
         private Dictionary<string, ArrayInfo> arrayVariables;
+
+        /// <summary>
+        /// 变量**分配时定下的字节数**（槽数 × 4）—— 地址计算只认这一份，之后永不改变。
+        ///
+        /// <para>
+        /// <b>为什么必须有它</b>：`GetVarByteOffset` 原来是现算的
+        /// （`GetVarByteSize(GetVariableType(名))`），而 `GetVariableType` 会被**后续的赋值**
+        /// 改写（`Sub.cs` 的 `GenerateSubLetStatement`：`gravity# = VAL(grav$)` ⇒
+        /// `variableTypes["gravity#"] = Single`）。于是同一个全局变量，在**主程序**里是
+        /// 8 字节（`#` 后缀 ⇒ Double）、在**后面生成的 SUB** 里变成 4 字节
+        /// ⇒ 它之后所有全局变量的字节偏移在两边**各差 4**，而主程序那份地址早已编进指令里了。
+        /// </para>
+        /// <para>
+        /// 实测症状（GORILLA.BAS）：`Mode` 在主程序里读 `#21988`、在 `MakeCityScape` 里读
+        /// `#21984`（= 主程序里 `ScrWidth` 的槽）⇒ `IF Mode = 9` 走进 else 分支，
+        /// `BottomLine` 从 335 变成 190、`HtInc` 6 ⇒ 整座城市画到屏幕外/尺寸全错，
+        /// **一个错都不报**。这类"同一份数据两处算法"正是本仓的头号坑。
+        /// </para>
+        /// </summary>
+        private Dictionary<string, int> varByteSizes;
         private HashSet<string> _sharedVariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         /// <summary>模块级变量（含 DIM SHARED）—— 放静态区的全局段，主程序与 SUB 共用同一份内存。</summary>
         private HashSet<string> _globalVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -256,17 +303,38 @@ namespace BasicCompiler
         private int GetVarByteSize(BasicType t) => GetTypeInfo(t).byteSize;
 
         /// <summary>根据变量索引计算实际字节偏移 (考虑 Double/Long 的 8 字节宽度)</summary>
+        /// <summary>
+        /// `DIM arr(n) AS Type` 里**每个元素占几个 4 字节槽**（标量数组 = 1）。
+        ///
+        /// <para>与 <c>DIM x AS Type</c> 那处（`CodeGenerator.Sub.cs` 的 `DimAsStatement`
+        /// 分支、`CodeGenerator.cs` 的同名分支）**同一口径**：用户自定义类型按
+        /// `TotalSize` 向上取整到 4 的倍数 —— 元素槽与元素地址步长必须同源，
+        /// 否则 UDT 数组的元素会互相重叠（实测 `b(0).XCoor` 与 `b(1).XCoor` 读到同一个值）。</para>
+        /// </summary>
+        private int ArrayElementSlots(string typeName)
+        {
+            if (!string.IsNullOrEmpty(typeName) && typeDefinitions.TryGetValue(typeName.ToLower(), out var td))
+                return Math.Max(1, (td.TotalSize + 3) / 4);
+            return 1;
+        }
+
         private int GetVarByteOffset(string varName)
         {
             int idx = variables[varName];
             int offset = 0;
-            // 按索引顺序累加每个变量的字节宽度
+            // 按索引顺序累加每个变量的字节宽度。
+            //
+            // ⚠ **用分配时记下的那个字节数**（`varByteSizes`），不要现算
+            //   `GetVarByteSize(GetVariableType(名))` —— 类型会被后续赋值改写，
+            //   而这是"算地址"的路（主程序早把地址编进指令里了），改了就是
+            //   "同一个全局变量在主程序和 SUB 里地址不同"，见 `varByteSizes` 的说明。
             foreach (var kv in variables)
             {
                 if (kv.Value < idx)
                 {
-                    var t = GetVariableType(kv.Key);
-                    offset += GetVarByteSize(t);
+                    offset += varByteSizes.TryGetValue(kv.Key, out var size)
+                        ? size
+                        : GetVarByteSize(GetVariableType(kv.Key));
                 }
             }
             return offset;
@@ -313,6 +381,17 @@ namespace BasicCompiler
             public int Size { get; set; }
             public int Offset { get; set; }
             public List<int> Dimensions { get; set; }
+
+            /// <summary>每一维的**下界**（`DIM a(1 TO 2)` → `[1]`；`DIM a(10)` → `[0]`）。
+            /// 下标 → 槽位的换算要用它：`下标 - 下界` 才是槽位号。</summary>
+            public List<int> LowerBounds { get; set; } = new List<int>();
+
+            /// <summary>
+            /// **每个元素的字节数**（标量数组 = 4）。用户自定义类型数组是整个记录的
+            /// `TotalSize` 向上取整到 4 —— 元素地址的步长必须与元素槽的分配一致，
+            /// 否则 `BCoor(1).XCoor` 会落在 `BCoor(0).YCoor` 上（实测两个元素读出同一对数）。
+            /// </summary>
+            public int ElementBytes { get; set; } = 4;
         }
 
         public CodeGenerator(BasicProgram program)
@@ -322,7 +401,12 @@ namespace BasicCompiler
             Regs = new RegisterManager();
             variables = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             variableTypes = new Dictionary<string, BasicType>();
-            arrayVariables = new Dictionary<string, ArrayInfo>();
+            // ⚠ **大小写不敏感**：BASIC 里 `BCoor` 与 `bcoord` 是同一个数组。
+            //   原来是默认的区分大小写比较器，于是 DIM 写成 `B(0 TO 3)`、用的时候写 `b(i)`
+            //   就"找不到这个数组"（静默 0 / 不生成代码）；`variables` 那张表**本来就是
+            //   不敏感的**，两张表口径不同只会制造"有时对有时不对"。
+            arrayVariables = new Dictionary<string, ArrayInfo>(StringComparer.OrdinalIgnoreCase);
+            varByteSizes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             variableCount = 0;
 
             lineLabels = new Dictionary<int, int>();
@@ -382,6 +466,11 @@ namespace BasicCompiler
                 BasicType varType = GetVariableType(name);
                 int slots = (varType == BasicType.Double || varType == BasicType.Long) ? 2 : 1;
                 variableCount += slots;
+                // **字节数在这里定下**（= 槽数 × 4），之后 `GetVarByteOffset` 只认它。
+                // 注意是"槽数×4"而不是 `GetVarByteSize(类型)`：分配永远是按 4 字节槽走的
+                // （`Byte`/`Boolean` 也占一格），用类型算出来的 1 字节会让后面的变量
+                // 与它重叠 3 个字节。
+                varByteSizes[name] = slots * 4;
             }
             return variables[name];
         }
@@ -460,12 +549,12 @@ namespace BasicCompiler
                 if (statement is SubDeclaration subDecl)
                 {
                     subDeclarations.Add(subDecl);
-                    subMap[subDecl.Name.ToLower()] = subDecl;
+                    subMap[SymbolKey(subDecl.Name)] = subDecl;
                 }
                 else if (statement is FunctionDeclaration funcDecl)
                 {
                     funcDeclarations.Add(funcDecl);
-                    funcMap[funcDecl.Name.ToLower()] = funcDecl;
+                    funcMap[SymbolKey(funcDecl.Name)] = funcDecl;
                 }
                 else if (statement is DefFnStatement defFn)
                 {
@@ -484,7 +573,7 @@ namespace BasicCompiler
                     defFuncDecl.IsStringFunction = false;
 
                     funcDeclarations.Add(defFuncDecl);
-                    funcMap[defFnName.ToLower()] = defFuncDecl;
+                    funcMap[SymbolKey(defFnName)] = defFuncDecl;
                 }
             }
             
@@ -524,7 +613,7 @@ namespace BasicCompiler
                         subDecl.Parameters.Add(new ParameterNode(method.Line, method.Column, pName, false, false));
                     subDecl.Body = method.Body;
                     subDeclarations.Add(subDecl);
-                    subMap[methodName.ToLower()] = subDecl;
+                    subMap[SymbolKey(methodName)] = subDecl;
                     methodSubs.Add(methodName.ToLower());
                 }
                 // Constructor → SubDeclaration
@@ -535,7 +624,7 @@ namespace BasicCompiler
                     ctorSub.Parameters.Add(new ParameterNode(classDecl.Line, classDecl.Column, "this", false, false));
                     ctorSub.Body = classDecl.ConstructorBody;
                     subDeclarations.Add(ctorSub);
-                    subMap[ctorName.ToLower()] = ctorSub;
+                    subMap[SymbolKey(ctorName)] = ctorSub;
                     methodSubs.Add(ctorName.ToLower());
                 }
                 // Destructor → SubDeclaration (v1.66.32+)
@@ -546,7 +635,7 @@ namespace BasicCompiler
                     dtorSub.Parameters.Add(new ParameterNode(classDecl.Line, classDecl.Column, "this", false, false));
                     dtorSub.Body = classDecl.DestructorBody;
                     subDeclarations.Add(dtorSub);
-                    subMap[dtorName.ToLower()] = dtorSub;
+                    subMap[SymbolKey(dtorName)] = dtorSub;
                 }
             }
 
@@ -681,20 +770,33 @@ namespace BasicCompiler
                     // 数组变量信息
                     if (!arrayVariables.ContainsKey(dimStmt.VariableName))
                     {
+                        // 用户自定义类型数组：**每个元素占整个记录的字节数**，不是一个 4 字节槽。
+                        // 判据与寻址必须同源：`GenerateArrayElementAddr` 的步长用的就是这个数。
+                        int elemSlots = ArrayElementSlots(dimStmt.TypeName);
                         arrayVariables[dimStmt.VariableName] = new ArrayInfo
                         {
                             Size = dimStmt.Size,
                             Offset = variableCount,
-                            Dimensions = dimStmt.Dimensions.Count > 0 ? new List<int>(dimStmt.Dimensions) : new List<int> { dimStmt.Size }
+                            ElementBytes = elemSlots * 4,
+                            Dimensions = dimStmt.Dimensions.Count > 0 ? new List<int>(dimStmt.Dimensions) : new List<int> { dimStmt.Size },
+                            LowerBounds = dimStmt.LowerBounds.Count > 0 ? new List<int>(dimStmt.LowerBounds) : new List<int> { 0 }
                         };
 
-                        // 为数组元素分配变量槽位
+                        // 为数组元素分配变量槽位（UDT 元素 → 一个元素 = `elemSlots` 个槽，
+                        // 紧跟在该元素后面，命名沿用 `DIM x AS T` 那处的 `_slot_N` 约定）。
                         for (int i = 0; i < dimStmt.Size; i++)
                         {
                             string elementName = $"{dimStmt.VariableName}({i})";
-                            if (!variables.ContainsKey(elementName))
+                            for (int s = 0; s < elemSlots; s++)
                             {
-                                GetOrCreateVariable(elementName);
+                                string slotName = s == 0 ? elementName : $"{elementName}_slot_{s}";
+                                if (!variables.ContainsKey(slotName))
+                                {
+                                    GetOrCreateVariable(slotName);
+                                }
+                                // 元素槽的字节数也**定死**（`Byte` 等也占一格 4 字节），
+                                // 否则 `GetVarByteOffset` 现算类型会与分配脱钩。
+                                varByteSizes[slotName] = 4;
                             }
                         }
                     }

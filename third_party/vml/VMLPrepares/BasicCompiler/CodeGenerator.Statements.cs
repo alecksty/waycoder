@@ -511,17 +511,17 @@ namespace BasicCompiler
                         {
                             // 检查参数是否为BYREF
                             bool isByRef = false;
-                            if (subMap.ContainsKey(currentSubName.ToLower()))
+                            if (subMap.ContainsKey(SymbolKey(currentSubName)))
                             {
-                                var sub = subMap[currentSubName.ToLower()];
+                                var sub = subMap[SymbolKey(currentSubName)];
                                 if (paramIdx < sub.Parameters.Count)
                                 {
                                     isByRef = sub.Parameters[paramIdx].IsByRef;
                                 }
                             }
-                            else if (funcMap.ContainsKey(currentSubName.ToLower()))
+                            else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
                             {
-                                var func = funcMap[currentSubName.ToLower()];
+                                var func = funcMap[SymbolKey(currentSubName)];
                                 if (paramIdx < func.Parameters.Count)
                                 {
                                     isByRef = func.Parameters[paramIdx].IsByRef;
@@ -590,13 +590,8 @@ namespace BasicCompiler
 
                     if (string.IsNullOrEmpty(recName) || !dimAsVariables.ContainsKey(recName) || !typeDefinitions.ContainsKey(dimAsVariables[recName]))
                     {
-                        // Unknown type — store to offset 0
-                        if (variables.ContainsKey(recName))
-                        {
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), new Operand(OperandType.REGISTER, storeSrcReg) }));
-                        }
+                        // 类型未知 ⇒ 按字段偏移 0 写（原样保留这条兜底）
+                        EmitFieldStore(fieldAccess.RecordExpression, 0, storeSrcReg, OpCode.MOVE);
                         return;
                     }
 
@@ -618,13 +613,8 @@ namespace BasicCompiler
                         throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'");
                     }
 
-                    // Generate the record expression to get base address (in R2)
-                    GenerateExpression(fieldAccess.RecordExpression, 2);
-                    // Add field offset to R2
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, fOff) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                    // Store value (R1) to computed address (R3)
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), new Operand(OperandType.REGISTER, storeSrcReg) }));
+                    // 记录基址 + 字段偏移 → 写值（唯一实现，见 EmitFieldStore）
+                    EmitFieldStore(fieldAccess.RecordExpression, fOff, storeSrcReg, OpCode.MOVE);
                     return;
                 }
 
@@ -1315,8 +1305,13 @@ namespace BasicCompiler
                     return BasicType.Single;
                 if (name == "cdbl" || name == "clng")
                     return BasicType.Double;
-                // RND/INT/CINT/FIX 返回整数
-                if (name == "rnd" || name == "int" || name == "cint" || name == "fix")
+                // RND 返回 **[0,1) 的单精度分数**（QBasic 语义）——
+                // 见 `GenerateRndValue`：库函数给的是原始随机整数，换算在前端做。
+                // 类型必须是 Single，否则 `RND(1) * x` 会按大整数去乘。
+                if (name == "rnd")
+                    return BasicType.Single;
+                // INT/CINT/FIX 返回整数
+                if (name == "int" || name == "cint" || name == "fix")
                     return BasicType.Integer;
                 // 其他函数默认返回整数
                 return BasicType.Integer;

@@ -62,8 +62,16 @@ namespace BasicCompiler
                     Advance();
 
                     // Skip array parens: sammy() or Record()
+                    //
+                    // ⚠ **跳过之余必须记一笔**（`IsArray`）—— 这个 `()` 是"数组形参"的
+                    //   唯一记号，不记的话体内 `a(i)` 与一个没声明过的数组长得一样，
+                    //   而代码生成对后者是「静默生成 0 / 不生成代码」。
+                    //   GORILLA.BAS 的 `SUB MakeCityScape (BCoor() AS XYPoint)` 整座城市
+                    //   画不出来就是这一条（见 `GenerateArrayElementAddr`）。
+                    bool isArray = false;
                     if (Peek().Type == TokenType.LPAREN)
                     {
+                        isArray = true;
                         Advance(); // skip (
                         int pdepth = 1;
                         while (!AtEnd() && pdepth > 0)
@@ -77,14 +85,21 @@ namespace BasicCompiler
                     }
 
                     bool isString = false;
+                    string typeName = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
                         if (IsTypeNameToken(Peek()))
                         {
-                            var typeName = Peek().Value.ToUpper();
-                            if (typeName == "STRING")
+                            var tName = Peek().Value.ToUpper();
+                            if (tName == "STRING")
                                 isString = true;
+                            // 用户自定义类型的名字要留下来（数组形参解析 `a(i).Field` 用它）。
+                            // 内置类型名（INTEGER/LONG/SINGLE/DOUBLE/ANY…）不记 —— 它们
+                            // 由 `GetVariableType` 从后缀 / DEFtype 判出来，记进来只是多一张要同步的表。
+                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
+                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                                typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
                         else
@@ -113,7 +128,11 @@ namespace BasicCompiler
                         isString = true;
                     }
 
-                    sub.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));
+                    sub.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString)
+                    {
+                        IsArray = isArray,
+                        TypeName = typeName,
+                    });
 
                     if (Peek().Type == TokenType.COMMA)
                     {
@@ -250,9 +269,11 @@ namespace BasicCompiler
                     string paramName = Peek().Value;
                     Advance();
 
-                    // Skip array parens: sammy() or Record()
+                    // Skip array parens: sammy() or Record() —— 同 SUB 那处，跳过但**记一笔**
+                    bool isArray = false;
                     if (Peek().Type == TokenType.LPAREN)
                     {
+                        isArray = true;
                         Advance(); // skip (
                         int pdepth = 1;
                         while (!AtEnd() && pdepth > 0)
@@ -266,14 +287,18 @@ namespace BasicCompiler
                     }
 
                     bool isString = false;
+                    string typeName = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
                         if (IsTypeNameToken(Peek()))
                         {
-                            var typeName = Peek().Value.ToUpper();
-                            if (typeName == "STRING")
+                            var tName = Peek().Value.ToUpper();
+                            if (tName == "STRING")
                                 isString = true;
+                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
+                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                                typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
                         else
@@ -300,7 +325,11 @@ namespace BasicCompiler
                         isString = true;
                     }
 
-                    func.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));
+                    func.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString)
+                    {
+                        IsArray = isArray,
+                        TypeName = typeName,
+                    });
 
                     if (Peek().Type == TokenType.COMMA)
                     {

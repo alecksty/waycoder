@@ -467,6 +467,7 @@ namespace BasicCompiler
                 int dimSize = upperBound - lowerBound + 1;
                 if (dimSize < 1) dimSize = 1;
                 stmt.Dimensions.Add(dimSize);
+                stmt.LowerBounds.Add(lowerBound);   // 下界要留着：下标 → 槽位的换算要用
                 
                 // 检查是逗号还是右括号
                 if (Peek().Type == TokenType.COMMA)

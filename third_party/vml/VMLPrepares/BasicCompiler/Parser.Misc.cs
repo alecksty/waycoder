@@ -14,11 +14,20 @@ namespace BasicCompiler
                 return new Identifier(arrayNameToken.Line, arrayNameToken.Column, arrayNameToken.Value);
             }
             Advance(); // 跳过 '('
-            
-            // 解析索引表达式 (支持逗号分隔的多维)
+
+            // `arr()` = **整个数组**（没有下标）—— 例如 `CALL MakeCityScape(BCoor())`。
+            // 必须在解析下标**之前**判：`ParseExpression()` 碰到 `)` 会返回 null，
+            // 于是 `Indices` 里躺着一个 null、读起来与"漏写下标的元素访问"分不开。
+            // 记成 `IsWholeArray` 之后，代码生成给的是**数组基址**（`GenerateVariableAddress`）。
             ArrayAccessExpression arrayAccess = new ArrayAccessExpression(arrayNameToken.Line, arrayNameToken.Column);
             arrayAccess.ArrayName = arrayNameToken.Value;
-            
+            if (Peek().Type == TokenType.RPAREN)
+            {
+                Advance(); // 跳过 ')'
+                arrayAccess.IsWholeArray = true;
+                return arrayAccess;
+            }
+
             while (true)
             {
                 Expression indexExpr = ParseExpression();

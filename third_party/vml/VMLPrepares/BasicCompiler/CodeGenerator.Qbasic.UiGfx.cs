@@ -684,7 +684,15 @@ public partial class CodeGenerator
 
     bool _uiArcWarned;
 
-    /// <summary>PAINT (x, y), color [, border] → <c>ui_flood_fill(x, y, color, border)</c></summary>
+    /// <summary>
+    /// `PAINT (x, y), color [, border]` → <c>ui_flood_fill(x, y, color, border)</c>。
+    ///
+    /// <para>⚠ **省掉 border 时，界色取"填充色"，不是前景色**。这条是"画一个闭合图形
+    /// 再灌色"这个惯用法的关键：图形是用 `color` 画的、灌的也是 `color`
+    /// （GORILLA 的太阳就是 `CIRCLE (x,y), r, SUNATTR` + `PAINT (x,y), SUNATTR`），
+    /// 界色若取前景色（那份程序里是 7），填充会**穿过图形轮廓漫过整个屏幕**
+    /// ——实测天空被灌成 SUNATTR 色、整屏只剩一个颜色，而"一个错都不报"。</para>
+    /// </summary>
     void UiEmitPaintStatement(QbPaintStatement stmt)
     {
         UiEnter();
@@ -692,7 +700,8 @@ public partial class CodeGenerator
             UiEval(stmt.X),
             UiEval(stmt.Y),
             UiEvalColor(stmt.Color, _uiFg),
-            stmt.HasBorder ? UiEvalColor(stmt.Border, _uiFg) : UiEvalColor(null, _uiFg));
+            stmt.HasBorder ? UiEvalColor(stmt.Border, _uiFg)
+                           : UiEvalColor(stmt.Color, _uiFg));   // 省略 border ⇒ 界色 = 填充色
         UiLeave();
     }
 
@@ -848,6 +857,136 @@ public partial class CodeGenerator
     }
 
     bool _uiGetPutWarned;
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  GET / PUT —— 宿主**图像句柄**那一套（syscall 584/585）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// `GET (x1,y1)-(x2,y2), arr` → <c>ui_get_image</c>，**句柄号存进 <c>arr(0)</c>**。
+    ///
+    /// <para><b>为什么是"存进数组"而不是"数组就是像素"</b>：QBasic 的 GET 把像素塞进一个
+    /// 整型数组（<c>arr(0)=宽, arr(1)=高, arr(2+)=像素</c>），而宿主那套是**句柄**
+    /// （`ui_get_image` 把那块光栅化结果存起来、返回一个 ≥1 的号）。两者无法逐字对应，
+    /// 但用户看得见的那件事 —— "GET 下来、PUT 回去" —— 可以：把句柄当成"那块像素的唯一
+    /// 标识"放进数组的第一个元素，PUT 再取出来。</para>
+    /// <para>代价说清楚：<b>数组里除了 <c>arr(0)</c> 之外没有像素数据</b>。老程序若自己去看
+    /// <c>arr(1)</c>/<c>arr(k)</c>（GORILLA.BAS 只看句柄），读到的是 0 —— 这是"不逐字等价"
+    /// 的地方；所以它只在 UI 后端生效，`--basicgfx pcgfx` 仍走老的显存那条。</para>
+    /// </summary>
+    void UiEmitGetStatement(GetStatement stmt)
+    {
+        if (string.IsNullOrEmpty(stmt.ArrayName)) return;
+        if (!IsKnownArray(stmt.ArrayName) && !variables.ContainsKey(stmt.ArrayName))
+        {
+            // 数组本身不认识 ⇒ 没有地方放句柄。响亮说一句，别静默丢掉。
+            Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UndefinedArray,
+                $"GET 的目标 '{stmt.ArrayName}' 不是已知数组 —— 这一条 GET 没有任何效果。");
+            return;
+        }
+
+        UiEnter();
+        // x = min(x1,x2)、y = min(y1,y2)、w = |x2-x1|+1、h = |y2-y1|+1
+        //（QBasic 的 (x1,y1)-(x2,y2) 含两端 ⇒ 宽高 +1；反向画的那一维由 min/abs 兜住）
+        int x1 = Regs.AllocInt(instructions);
+        EvalIntCoord(stmt.X1, x1);
+        int y1 = Regs.AllocInt(instructions);
+        EvalIntCoord(stmt.Y1, y1);
+        int x2 = Regs.AllocInt(instructions);
+        EvalIntCoord(stmt.X2, x2);
+        int y2 = Regs.AllocInt(instructions);
+        EvalIntCoord(stmt.Y2, y2);
+        int tmp = Regs.AllocInt(instructions);
+        UiCall("ui_get_image",
+            () => { EmitMin(tmp, x1, x2); AddRR(OpCode.MOVE, 0, tmp); },
+            () => { EmitMin(tmp, y1, y2); AddRR(OpCode.MOVE, 0, tmp); },
+            () => { EmitAbsDiff(tmp, x1, x2); AddRR(OpCode.MOVE, 0, tmp); },
+            () => { EmitAbsDiff(tmp, y1, y2); AddRR(OpCode.MOVE, 0, tmp); });
+
+        // 句柄在 R0 —— 先挪到 tmp（`EmitStaticAddr` 会借 R2），再写进 arr(0)
+        AddRR(OpCode.MOVE, tmp, 0);
+        if (GenerateArrayBaseAddr(stmt.ArrayName, 2))
+        {
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, tmp) }));
+        }
+
+        Regs.FreeInt(tmp, instructions);
+        Regs.FreeInt(y2, instructions);
+        Regs.FreeInt(x2, instructions);
+        Regs.FreeInt(y1, instructions);
+        Regs.FreeInt(x1, instructions);
+        UiLeave();
+    }
+
+    /// <summary>
+    /// `PUT (x,y), arr [,action]` → <c>ui_put_image(x, y, handle, mode)</c>，
+    /// 句柄取自 <c>arr(0)</c>（= 上一次对同一数组做的 GET）。
+    ///
+    /// <para>方式映射：<c>PSET</c>（或缺省）→ COPY(0)；<c>XOR</c> → XOR(1)；
+    /// <c>AND</c>/<c>OR</c>/<c>PRESET</c> → **响亮告警 + 不画**（宿主没有对应语义，
+    /// 而"随便挑一个"会画出**错的画面** —— 那比不画更难查）。</para>
+    /// </summary>
+    void UiEmitPutStatement(PutStatement stmt)
+    {
+        if (string.IsNullOrEmpty(stmt.ArrayName)) return;
+        if (!IsKnownArray(stmt.ArrayName) && !variables.ContainsKey(stmt.ArrayName))
+        {
+            Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UndefinedArray,
+                $"PUT 的来源 '{stmt.ArrayName}' 不是已知数组 —— 这一条 PUT 没有任何效果。");
+            return;
+        }
+
+        string action = (stmt.Action ?? "").ToUpperInvariant();
+        int mode;
+        switch (action)
+        {
+            case "":
+            case "PSET":
+                mode = 0;                       // COPY：直接贴
+                break;
+            case "XOR":
+                mode = 1;                       // 宿主原生支持（读目的像素做异或）
+                break;
+            default:
+                // PRESET / AND / OR：宿主图元里没有对应语义。
+                UiWarnPutActionUnsupported(action);
+                return;
+        }
+
+        UiEnter();
+        int handle = Regs.AllocInt(instructions);
+        if (GenerateArrayBaseAddr(stmt.ArrayName, 2))
+        {
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                new Operand(OperandType.REGISTER, handle), new Operand(OperandType.MEMORY, "R2") }));
+        }
+        else
+        {
+            AddRI(OpCode.MOVE, handle, 0);
+        }
+        UiCall("ui_put_image",
+            UiEval(stmt.X),
+            UiEval(stmt.Y),
+            () => AddRR(OpCode.MOVE, 0, handle),
+            UiConst(mode));
+        Regs.FreeInt(handle, instructions);
+        UiLeave();
+    }
+
+    bool _uiPutActionWarned;
+
+    /// <summary>PUT 的 AND/OR/PRESET 方式：宿主只认 COPY/XOR ⇒ 告警 + 不画（不猜一个近似的）。</summary>
+    void UiWarnPutActionUnsupported(string action)
+    {
+        WarnUnimplemented($"PUT 的 {action} 方式 —— 宿主 ui_put_image 只有 COPY/XOR，本语句无任何效果");
+        if (_uiPutActionWarned) return;
+        _uiPutActionWarned = true;
+        Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
+            $"PUT 的 {action} 方式本平台不支持：宿主 ui_put_image 只实现了 COPY（PSET）与 XOR 两种。"
+            + "AND/OR/PRESET 需要逐位合成语义，乱挑一个会画出**错的画面**（比不画更难查），"
+            + "所以这一条 PUT 被跳过并在此明确告警。");
+    }
 
     // ══════════════════════════════════════════════════════════════════════
     //  取编译期常量

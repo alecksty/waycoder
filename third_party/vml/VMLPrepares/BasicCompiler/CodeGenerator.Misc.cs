@@ -87,6 +87,46 @@ namespace BasicCompiler
             }
         }
 
+        /// <summary>
+        /// `RND(1)` → **单精度 [0,1) 的分数**，放进浮点寄存器 <paramref name="reg"/>。
+        ///
+        /// <para>
+        /// <b>为什么要前端自己换算</b>：库里的 <c>basic_rnd</c> 是
+        /// <c>return asm("SYSCALL #50")</c> —— 返回的是**原始 32 位随机整数**
+        /// （`VMLRuntime` 的 `#50` 就是 `random.Next()`，0 .. 2³¹-1），而 QBasic 的
+        /// `RND` 是 **[0,1) 的单精度分数**。不换算的话
+        /// `INT(RND(1) * x) + 1`（本仓老 BASIC 里"取 1..x 的随机数"的**通用写法**，
+        /// GORILLA.BAS 的 `DEF FnRan (x) = INT(RND(1) * x) + 1` 就是它）会按大整数去乘，
+        /// 再经过对整数恒等的 `INT`（`basic_int(int x) { return x; }`）
+        /// ⇒ 得到天文数字。实测 `i = INT(RND(1))` 打出 **1143039323**，
+        /// 而那个数正是"楼房宽度/高度"的来源 ⇒ 城市天际线一个像素都画不出来。
+        /// </para>
+        /// <para>
+        /// 归一化用**乘 2⁻³¹**（不是除）：除法在 VML 里要走 DIV 的整除语义、
+        /// 而浮点乘法与整数的 `I2F` 都是现成的单指令。精度上单精度 24 位尾数
+        /// 本来就装不下 31 位随机数，这正是 QBasic 的行为（它也只有单精度）。
+        /// </para>
+        /// </summary>
+        private void GenerateRndValue(int reg)
+        {
+            instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, "basic_rnd") }));
+            // R0 = 原始随机整数 → 单精度
+            instructions.Add(new Instruction(OpCode.I2F, new List<Operand> {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+            int scale = Regs.AllocFloat(instructions);
+            instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand> {
+                new Operand(OperandType.REGISTER, scale),
+                new Operand(OperandType.IMMEDIATE, (float)(1.0 / 2147483648.0)) }));
+            instructions.Add(new Instruction(OpCode.FMUL, new List<Operand> {
+                new Operand(OperandType.REGISTER, reg),
+                new Operand(OperandType.REGISTER, reg),
+                new Operand(OperandType.REGISTER, scale) }));
+            Regs.FreeFloat(scale, instructions);
+
+            // 让外层（`INT(...)` 的 `EvalIntCoord`、赋值）知道这是浮点结果
+            _lastExprFloatType = BasicType.Single;
+        }
+
         private void GenerateCommand(FunctionCallExpression funcCall, int reg)
         {
             // COMMAND$ — 获取命令行参数 (SYSCALL 362)
