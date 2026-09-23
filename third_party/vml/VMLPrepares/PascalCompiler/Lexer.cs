@@ -312,10 +312,79 @@ namespace PascalCompiler
             return new Token(TokenType.STRING_LITERAL, value.ToString(), startLine, startCol);
         }
 
-        private Token ReadPascalString()
+        /// <summary>
+        /// Pascal **字面量**：一段 `'…'` 与若干个 `#nn` 是**同一个**字面量，要拼起来。
+        ///
+        /// <para>
+        /// `'text'#13#10` / `#13#10` / `#219#219` 是 Turbo Pascal 最常见的三种写法
+        /// （换行、制表、制表符画框），而此前词法器**每段各吐一个 token** ——
+        /// 语法分析拿到 `STRING_LITERAL` 后面紧跟一个 `CHAR_LITERAL`，只能报
+        /// `期望 ')'`（实测 `Write(#219#219)` 报的就是它）。语料里
+        /// `'This line is blinking…'#10#13#10#13`、`#219#219#219` 都是这个形态。
+        /// </para>
+        /// <para>
+        /// 合并规则照 Turbo Pascal：**只拼紧挨着的**（中间有空白就算两个独立字面量，
+        /// 那在 Pascal 里本来就是语法错，不该被我们"修好"）。全部拼完长度为 1
+        /// 仍是 <see cref="TokenType.CHAR_LITERAL"/>（单个 `'a'` / 单个 `#13` 的旧行为一字不变），
+        /// 否则是 <see cref="TokenType.STRING_LITERAL"/>。
+        /// </para>
+        /// </summary>
+        private Token ReadPascalLiteral()
         {
             int startLine = _line;
             int startCol = _col;
+            var value = new StringBuilder();
+
+            if (Peek() == '#')
+                value.Append(ReadCharEscapeValue());
+            else
+                value.Append(ReadPascalStringCore());
+
+            // 紧跟其后的 `#nn` / `'…'` 段继续拼（`#` 与 `'` 两种起始都走这里）
+            while (true)
+            {
+                if (Peek() == '#') value.Append(ReadCharEscapeValue());
+                else if (Peek() == '\'') value.Append(ReadPascalStringCore());
+                else break;
+            }
+
+            if (value.Length == 1)
+                return new Token(TokenType.CHAR_LITERAL, value[0], startLine, startCol);
+            return new Token(TokenType.STRING_LITERAL, value.ToString(), startLine, startCol);
+        }
+
+        /// <summary>`#nn` 字符常量 —— 十进制 `#65` 与十六进制 `#$FF` 两种写法都认
+        /// （`#$FF` 是 Turbo Pascal 的写法，语料里 `g7iles_mario.pas` 一份就用了 2209 处）。</summary>
+        private char ReadCharEscapeValue()
+        {
+            Advance(); // 跳过'#'字符
+
+            bool hex = Peek() == '$';
+            if (hex) Advance();
+
+            StringBuilder value = new StringBuilder();
+            while (hex ? LexerHelper.IsHexDigit(Peek()) : char.IsDigit(Peek()))
+            {
+                value.Append(Advance());
+            }
+
+            if (value.Length == 0)
+            {
+                Error("字符转义需要数字");
+            }
+
+            int charCode = Convert.ToInt32(value.ToString(), hex ? 16 : 10);
+            if (charCode < 0 || charCode > 255)
+            {
+                Error($"无效的字符代码: {charCode}");
+            }
+
+            return (char)charCode;
+        }
+
+        /// <summary>读一段 `'…'`（不含 `#nn`），返回其正文。`''` = 一个转义的单引号。</summary>
+        private string ReadPascalStringCore()
+        {
             Advance(); // 跳过起始单引号
             StringBuilder value = new StringBuilder();
 
@@ -339,64 +408,21 @@ namespace PascalCompiler
                     break;
                 }
 
-                // 处理转义字符（Pascal中通常不支持转义，但我们可以支持基本转义）
-                if (ch == '\\')
-                {
-                    Advance();
-                    char escapeCh = Advance();
-                    switch (escapeCh)
-                    {
-                        case 'n': value.Append('\n'); break;
-                        case 't': value.Append('\t'); break;
-                        case 'r': value.Append('\r'); break;
-                        case '\\': value.Append('\\'); break;
-                        case '\'': value.Append('\''); break;
-                        default: value.Append(escapeCh); break;
-                    }
-                }
-                else
-                {
-                    value.Append(ch);
-                    Advance();
-                }
+                // ⚠ **Pascal 字符串里没有反斜杠转义** —— `\` 就是一个普普通通的字符。
+                //   此前这里有一整套 `\n`/`\t`/`\'` 的处理（注释还写着"Pascal中通常不支持
+                //   转义，但我们可以支持基本转义"），代价是**把老程序编坏**：
+                //   `'d:\turbo\tp\'`（语料 `swag_graphics_0069.pas` 里就有）里的 `\'`
+                //   被当成"转义的单引号"⇒ 字符串**从那里继续往下吃**，本该结束的字符串
+                //   再也没结束，后面第一个 `{` 也不再是注释 —— 于是报出一串
+                //   `未知字符: !` / `未知字符: ?` / `未知字符: }`，**错误位置离病根十万八千里**
+                //   （`avc_file_select.pas` 报在 753 行，病根是 178 行的 `'d:\'`）。
+                //   这正是一整类「语言前端替用户发明语法」的坑：作者以为在帮忙，
+                //   实际是让本来正确的老代码编译不过。
+                value.Append(ch);
+                Advance();
             }
 
-            // 如果字符串长度为1，则视为字符字面量
-            if (value.Length == 1)
-            {
-                return new Token(TokenType.CHAR_LITERAL, value[0], startLine, startCol);
-            }
-            else
-            {
-                return new Token(TokenType.STRING_LITERAL, value.ToString(), startLine, startCol);
-            }
-        }
-
-        private Token ReadCharEscape()
-        {
-            int startLine = _line;
-            int startCol = _col;
-            Advance(); // 跳过'#'字符
-            
-            // 读取数字
-            StringBuilder value = new StringBuilder();
-            while (char.IsDigit(Peek()))
-            {
-                value.Append(Advance());
-            }
-            
-            if (value.Length == 0)
-            {
-                Error("字符转义需要数字");
-            }
-            
-            int charCode = int.Parse(value.ToString());
-            if (charCode < 0 || charCode > 255)
-            {
-                Error($"无效的字符代码: {charCode}");
-            }
-            
-            return new Token(TokenType.CHAR_LITERAL, (char)charCode, startLine, startCol);
+            return value.ToString();
         }
 
         private new void Error(string message)
@@ -444,10 +470,10 @@ namespace PascalCompiler
                     continue;
                 }
 
-                // Pascal字符转义（#数字）
+                // Pascal字符常量（#十进制 / #$十六进制）—— 与紧邻的字符串段合并
                 if (current == '#')
                 {
-                    tokens.Add(ReadCharEscape());
+                    tokens.Add(ReadPascalLiteral());
                     continue;
                 }
 
@@ -465,10 +491,10 @@ namespace PascalCompiler
                     continue;
                 }
 
-                // Pascal 字符串（使用单引号）
+                // Pascal 字符串（使用单引号）—— 后面紧跟的 `#nn` 段一并拼进来
                 if (current == '\'')
                 {
-                    tokens.Add(ReadPascalString());
+                    tokens.Add(ReadPascalLiteral());
                     continue;
                 }
 

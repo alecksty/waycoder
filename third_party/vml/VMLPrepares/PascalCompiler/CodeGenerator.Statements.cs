@@ -880,14 +880,30 @@ namespace PascalCompiler
                 }
                 else
                 {
-                    // 多维数组支持
+                    // ⚠ **基址必须先存进 R2** —— 单下标那条路在开头就 `MOVE R2, R0`，
+                    //   多维这条路从前没有，而循环里的下标求值**一定会用掉 R0**
+                    //   ⇒ 末尾那句 `ADD R2, R0` 加的是**最后一个下标**，不是数组地址
+                    //   （实测 `g[i,j] := …` 写到了 `j` 附近的内存上，报「内存访问越界」）。
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                    {
+                        new Operand(OperandType.REGISTER, 2),
+                        new Operand(OperandType.REGISTER, 0)
+                    }));
+
+                    // 多维数组支持 —— 行主序地址：`Σ (下标_d − 下界_d) × 步长_d`
+                    //
+                    // ⚠ 这里从前**把每一维各算各的、最后只留最后一维**：循环里
+                    //   d=0 算出 `(i-l0)*s0`，d≥1 先 `PUSH R0` 存起来、算完新维度再 `POP R1`
+                    //   —— 那个 R1 **从头到尾没有任何人读**（下一个动作就是 SUB/MUL，都写在 R0 上）。
+                    //   于是 `g[1,2]` 求出的偏移只有 `(2-0)*4 = 8`，`(1-0)*16` 那一项凭空消失。
+                    //   表现是「编译过、读写不报错、值就是不对」（实测 `g[1,2] := 7` 读回来是 0）。
+                    //   正确做法：拿 R0 当**累加器**，每算完一维就 `R0 += 该维偏移`。
                     var bounds = arrayBounds.TryGetValue(variable.Name, out var bl) ? bl : null;
                     int elemSize = 4;
                     for (int d = 0; d < variable.Indices.Count; d++)
                     {
                         int dimLower = (bounds != null && d < bounds.Count) ? bounds[d].lower : 1;
                         int dimUpper = (bounds != null && d < bounds.Count) ? bounds[d].upper : 10;
-                        int dimSize = dimUpper - dimLower + 1;
 
                         // 计算后续维度的总大小
                         int stride = elemSize;
@@ -898,23 +914,32 @@ namespace PascalCompiler
                             stride *= (ku - kl + 1);
                         }
 
-                        // 生成此维度的索引表达式
-                        if (d == 0)
-                            GenerateExpression(variable.Indices[d]);
-                        else
-                        {
-                            // 暂存当前R0，计算下一个索引
-                            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
-                            GenerateExpression(variable.Indices[d]);
-                            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));
-                            // R0 = index, R1 = accumulated
-                        }
+                        // ⚠ **累加器只能用 R3，不能用 R1** —— `GenerateAssignment` 把
+                        //   右值**存在 R1 里**、然后才调 `GenerateVariableAddress`、最后
+                        //   `MOVE [R0], R1` 落盘。地址计算一旦动了 R1，**存进去的就是地址的零头**
+                        //   （实测 `g[1,2] := 42` 之后读回 16 —— 那正是第 0 维的偏移）。
+                        //   R3 是这条路上既有的"下标临时寄存器"（单下标分支也用它），
+                        //   并在求值下标表达式期间**压栈保护**（表达式里可能嵌套另一次下标）。
+                        if (d > 0)
+                            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 3)]));
+
+                        GenerateExpression(variable.Indices[d]);
 
                         // 减去下限
                         instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, dimLower)]));
                         // 乘以步长
                         if (stride > 1)
                             instructions.Add(new Instruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride)]));
+
+                        // 累加：R0 = 本维偏移 + 之前各维偏移之和
+                        if (d > 0)
+                        {
+                            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 3)]));
+                            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 3)]));
+                        }
+                        // 留给下一维：还在中间维度上才需要把累加值带过去
+                        if (d < variable.Indices.Count - 1)
+                            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0)]));
                     }
                     // 同上：多维路径也是"基址 + 偏移"，不是减
                     instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));

@@ -22,23 +22,14 @@ namespace PascalCompiler
         private void GenerateExpression(ExpressionNode expr)
         {
         if (expr.Line > 0) { CurrentSourceLine = expr.Line; CurrentSourceColumn = expr.Column; }
+            if (expr is TypeCastNode cast)
+            {
+                GenerateTypeCast(cast);
+                return;
+            }
             if (expr is SetExpressionNode setExpr)
             {
-                // 集合字面量: OR所有元素值 [e1, e2, ...] → e1 | e2 | ...
-                if (setExpr.Elements.Count > 0)
-                {
-                    GenerateExpression(setExpr.Elements[0]); // R0 = first
-                    for (int i = 1; i < setExpr.Elements.Count; i++)
-                    {
-                        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)])); // save acc
-                        GenerateExpression(setExpr.Elements[i]); // R0 = next elem
-                        instructions.Add(new Instruction(OpCode.POP, [Reg(1)])); // R1 = acc
-                        instructions.Add(new Instruction(OpCode.OR,
-                            [Reg(0), Reg(0), Reg(1)])); // R0 = elem | acc
-                    }
-                }
-                else
-                    AddRI(OpCode.MOVE, 0, 0);
+                EmitSetLiteral(setExpr);
                 return;
             }
             if (expr is LiteralNode literal)

@@ -376,8 +376,31 @@ namespace PascalCompiler
         public List<ExpressionNode> Arguments { get; set; } = new List<ExpressionNode>();
     }
 
+    /// <summary>
+    /// **类型转换** `T(x)` —— Pascal 里 `Char(i)` / `Integer(c)` / `Byte(n)` / `Word(n)` /
+    /// `Real(i)` 这些写法到处都是（语料 112 份里 22 份用到）。
+    /// </summary>
+    public class TypeCastNode : ExpressionNode
+    {
+        /// <summary>目标类型名（原文大小写）。</summary>
+        public string TypeName { get; set; } = "";
+        public ExpressionNode Operand { get; set; } = new LiteralNode();
+    }
+
     public class SetExpressionNode : ExpressionNode
     {
+        /// <summary>集合字面量里的成员，元素类型是 <see cref="ExpressionNode"/> 或 <see cref="SetRangeNode"/>。</summary>
         public List<ExpressionNode> Elements { get; set; } = new List<ExpressionNode>();
+    }
+
+    /// <summary>
+    /// 集合字面量里的**区间成员** `['a'..'z']` / `[1..6]` —— Pascal 里这是最常见的集合写法
+    /// （`if Ch in ['a'..'z']`、`if Key in [#13,#27]`），此前解析器只认逗号分隔的单个元素，
+    /// 见到 `..` 就报 `期望 ']'`。
+    /// </summary>
+    public class SetRangeNode : ExpressionNode
+    {
+        public ExpressionNode Low { get; set; } = new LiteralNode();
+        public ExpressionNode High { get; set; } = new LiteralNode();
     }
 }

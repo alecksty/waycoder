@@ -25,6 +25,43 @@ namespace CompilerBase
         /// <summary>当前 #include 嵌套深度 (用于进度输出)</summary>
         public int IncludeDepth = 0;
 
+        /// <summary>
+        /// `#` 后面**不是标识符开头**时，这一行**算不算**预处理指令 —— 默认算（C/C++ 的既有语义）。
+        ///
+        /// <para>
+        /// Pascal 要把它设成 <c>true</c>：`#65` / `#$FF` 在 Pascal 里是**字符常量**，
+        /// 而老程序的书写习惯是把 `Case` 标签写在行首 —— `#75: Begin {Left}`。
+        /// 本 `Preprocessor` 是 C 风格的那一层，Pascal 只要源码里出现任何一个 `#`
+        /// 就会被它过一遍（`PascalCompiler` 那条 `source.Contains('#')`）——
+        /// 于是 `#75: Begin` 被当成一条**认不出来的指令**，而"认不出来"的处理是
+        /// **整行丢掉**（下面的 `if (ProcessDirective(...)) … continue;` 没有 else 分支）。
+        /// 表现是「编译过、`case` 却永远不匹配」或一句指向别处的 `期望 ':'` ——
+        /// 实测 `g7iles_asteroid.pas` 的 `Case ReadKey of #0: Case ReadKey of #75:` 就是它。
+        /// </para>
+        ///
+        /// <para>
+        /// 判据是「C 指令名一定是标识符」：`#include` / `#define` / `#if` 都以字母开头，
+        /// 而 `#65` / `#$FF` / `#13#10` 以数字或 `$` 开头。设了之后这些行**原样当普通文本**，
+        /// Python / BASIC / shell 那些把 `#` 当注释的语言也不受影响
+        /// （它们的词法器本来就会把这行当注释跳掉，而此前是靠在预处理这一层丢掉）。
+        /// </para>
+        /// </summary>
+        public bool HashNeedsIdentifier = false;
+
+        /// <summary>
+        /// `#` 开头的这一行算不算预处理指令 —— **两条路径（行连接 `segments` 那条与快速路径）
+        /// 共用这一份判据**，别各写一遍（本仓库头号坑就是"同一规则两处实现"）。
+        /// 参数是**已 TrimStart 的**那一行。
+        /// </summary>
+        private bool IsDirectiveStart(string trimmedLine)
+        {
+            if (trimmedLine.Length == 0 || trimmedLine[0] != '#') return false;
+            if (!HashNeedsIdentifier) return true;
+            if (trimmedLine.Length == 1) return true;      // 光秃秃的 `#`（下面按"认不出"处理）
+            char c = trimmedLine[1];
+            return char.IsLetter(c) || c == '_' || char.IsWhiteSpace(c);
+        }
+
         private static readonly string CompileDate = DateTime.Now.ToString("MMM dd yyyy", System.Globalization.CultureInfo.InvariantCulture);
         private static readonly string CompileTime = DateTime.Now.ToString("HH:mm:ss");
 
@@ -177,7 +214,7 @@ namespace CompilerBase
                     // 快速路径：非 # 行直接输出（但需要宏展开）
                     // 注意：需跳过前导空白，处理缩进的 # 指令（如 "\t#ifdef"）
                     string trimmedForCheck = line.TrimStart();
-                    bool isDirective = trimmedForCheck.Length > 0 && trimmedForCheck[0] == '#';
+                    bool isDirective = IsDirectiveStart(trimmedForCheck);
                     if (line.Length == 0 || !isDirective)
                     {
                         if (IsActiveBlock())
@@ -226,7 +263,7 @@ namespace CompilerBase
                         }
                     }
 
-                    if (trimmedLine.StartsWith("#"))
+                    if (IsDirectiveStart(trimmedLine))
                     {
                         string[] dirParts = trimmedLine.Substring(1).Trim().Split(new[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
                         string directive = dirParts[0].ToLower();
@@ -258,7 +295,8 @@ namespace CompilerBase
                 int checkPos = lineStart;
                 while (checkPos < lineStart + lineLen && (source[checkPos] == ' ' || source[checkPos] == '\t'))
                     checkPos++;
-                bool isDirectiveLine = (checkPos < lineStart + lineLen && source[checkPos] == '#');
+                bool isDirectiveLine = checkPos < lineStart + lineLen
+                    && IsDirectiveStart(source.Substring(checkPos, lineStart + lineLen - checkPos));
 
                 if (lineLen == 0 || !isDirectiveLine)
                 {

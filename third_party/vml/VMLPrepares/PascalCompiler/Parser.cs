@@ -60,16 +60,30 @@ namespace PascalCompiler
             };
 
             // program 标识符 [(参数列表)] ;
-            Expect(TokenType.PROGRAM, "期望 'program'");
-            program.Name = Expect(TokenType.IDENTIFIER, "期望程序名").Value.ToString();
-            // 跳过可选的程序参数 (input, output) — ISO Pascal 标准语法
-            if (GetTokenType(Cur) == TokenType.LPAREN)
+            //
+            // ⚠ **`program` 头是可选的** —— Turbo Pascal 起就允许源码直接从
+            //   `uses` / `const` / `type` / `var` / `begin` 开始（写库函数、贴代码片段的
+            //   老程序几乎都不写这一行）。此前无条件 `Expect(PROGRAM)`，于是那批文件
+            //   在**第一个词**上就报 `期望 'program'` —— 语料 112 份里 19 份卡在这一条，
+            //   是当前最大的一类。
+            if (GetTokenType(Cur) == TokenType.PROGRAM)
             {
-                while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
-                    Advance();
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Advance();
+                program.Name = Expect(TokenType.IDENTIFIER, "期望程序名").Value.ToString();
+                // 跳过可选的程序参数 (input, output) — ISO Pascal 标准语法
+                if (GetTokenType(Cur) == TokenType.LPAREN)
+                {
+                    while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
+                        Advance();
+                    Expect(TokenType.RPAREN, "期望 ')'");
+                }
+                Expect(TokenType.SEMICOLON, "期望 ';'");
             }
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            else
+            {
+                // 没有头：名字用占位（入口标签恒为 `main`，与程序名无关）
+                program.Name = "main";
+            }
 
             // 解析 uses 子句（可选）
             ParseUsesClause();
@@ -363,34 +377,43 @@ namespace PascalCompiler
                 ExpressionNode lowerBound = ParseExpression();
                 Expect(TokenType.RANGE, "期望 '..'");
                 ExpressionNode upperBound = ParseExpression();
-                // 多维数组: array[a..b, c..d, ...] → 展平为 1D (v1.66.33)
+                // 多维数组: `array[a..b, c..d] of T`
+                //
+                // ⚠ **不能展平成一维**（此前是 `[1 .. (b-a+1)*(d-c+1)]`）：
+                //   展平**把每一维的上下界扔了**，而 `A[i, j]` 的地址要按
+                //   `(i-a)*stride0 + (j-c)*elemSize` 算 —— 少了两端的下界就用不上，
+                //   代码生成那边只能退回默认的 `[1..10]`（实测 `array[0..3,0..3]` 的
+                //   第 0 维步长被算成 4×10=40，且 `i` 被减了 1）。
+                //   建成**嵌套的一维数组**之后，`CollectArrayBounds` 天然收到每一维的界，
+                //   槽位数（`GetVariableSlots` 递归相乘）与展平时完全一致。
+                var dims = new List<(ExpressionNode Lo, ExpressionNode Hi)>
+                {
+                    (lowerBound, upperBound)
+                };
                 while (Match(TokenType.COMMA))
                 {
                     ExpressionNode lb2 = ParseExpression();
                     Expect(TokenType.RANGE, "期望 '..'");
                     ExpressionNode ub2 = ParseExpression();
-                    // 展平: size1 = (upper - lower + 1), size2 = (ub2 - lb2 + 1), total = size1 * size2
-                    var one1 = new LiteralNode { Value = 1, Type = TokenType.INTEGER_LITERAL, Line = token.Line, Column = token.Column };
-                    var one2 = new LiteralNode { Value = 1, Type = TokenType.INTEGER_LITERAL, Line = token.Line, Column = token.Column };
-                    var size1 = new BinaryOpNode { Left = upperBound, Operator = TokenType.MINUS, Right = lowerBound, Line = token.Line, Column = token.Column };
-                    size1 = new BinaryOpNode { Left = size1, Operator = TokenType.PLUS, Right = one1, Line = token.Line, Column = token.Column };
-                    var size2 = new BinaryOpNode { Left = ub2, Operator = TokenType.MINUS, Right = lb2, Line = token.Line, Column = token.Column };
-                    size2 = new BinaryOpNode { Left = size2, Operator = TokenType.PLUS, Right = one2, Line = token.Line, Column = token.Column };
-                    upperBound = new BinaryOpNode { Left = size1, Operator = TokenType.STAR, Right = size2, Line = token.Line, Column = token.Column };
-                    lowerBound = new LiteralNode { Value = 1, Type = TokenType.INTEGER_LITERAL, Line = token.Line, Column = token.Column };
+                    dims.Add((lb2, ub2));
                 }
                 Expect(TokenType.RBRACKET, "期望 ']'");
                 Expect(TokenType.OF, "期望 'of'");
                 TypeNode elementType = ParseType();
 
-                return new ArrayTypeNode
+                // 由内向外包：`a..b, c..d of T` ⇒ `array[a..b] of array[c..d] of T`
+                for (int d = dims.Count - 1; d >= 0; d--)
                 {
-                    LowerBound = lowerBound,
-                    UpperBound = upperBound,
-                    ElementType = elementType,
-                    Line = token.Line,
-                    Column = token.Column
-                };
+                    elementType = new ArrayTypeNode
+                    {
+                        LowerBound = dims[d].Lo,
+                        UpperBound = dims[d].Hi,
+                        ElementType = elementType,
+                        Line = token.Line,
+                        Column = token.Column
+                    };
+                }
+                return elementType;
             }
             else if (Match(TokenType.CARET))
             {
@@ -839,7 +862,19 @@ namespace PascalCompiler
                 // ⚠ **不能返回 null**：语句列表是 `block.Statements.Add(ParseStatement())`、
                 //   代码生成侧 `foreach (var stmt in …) GenerateStatement(stmt)` **没有 null 判据**
                 //   ⇒ null 进去就是另一处 NRE，把真正的错盖掉。
+                //
+                // ⚠ **必须吃掉一个 token 再返回**（与上面 GOTO 那一支同一个理由）：
+                //   `GccError` 在**接了诊断收集器**的路径上是"收集并继续"、不抛异常，
+                //   而所有语句循环的写法都是 `while (Cur != 结束标记) ParseStatement();`
+                //   —— 一个 token 都不动的话下一轮还是同一个 token、同一个位置，
+                //   于是**空转到进展守卫的百万次阈值**，用户拿到的是一句
+                //   「解析未收敛…这是编译器内部缺陷，请把这段输入报告给开发者」，
+                //   而真正的原因（这里有个不认识的记号）**一个字都没报出来**。
+                //   实测语料里 10 份程序是这么挂的，其中 `g7iles_life.pas` 的
+                //   调用栈在 `ParseRepeatStatement` 的 `while` 上原地打转。
                 GccError("期望语句", ErrorCode.Parser_SyntaxError);
+                if (GetTokenType(Cur) != TokenType.EOF)
+                    Advance();
                 return new CompoundStatementNode { Line = token.Line, Column = token.Column };
             }
         }
@@ -1155,9 +1190,22 @@ namespace PascalCompiler
             }
 
             // 处理数组索引
+            //
+            // ⚠ **`A[i, j]` 是 Turbo Pascal 唯一的"多维下标"写法**（`A[i][j]` 那种
+            //   嵌套方括号是老程序里几乎不会出现的写法）。此前这里只收一个表达式，
+            //   见到逗号就报 `期望 ']'` —— 语料里 `Grid[i,j]` / `points[loop1,1]` /
+            //   `Bricks[J,I]` 一大批都卡在这一条上（15 个 `期望 ']'` 里有 11 个是它）。
+            //   逗号在 `[…]` 里面**只可能**是维度分隔（集合字面量走的是解析器的
+            //   另一条路 `ParseFactorCore`，不会走到这里），所以按逗号拆开即可，
+            //   每个下标依次进 `Indices` —— 下游 `GenerateVariableAddress` 的多维分支
+            //   本来就是按"扁平的下标表 + 各维步长"算地址的。
             while (Match(TokenType.LBRACKET))
             {
-                variable.Indices.Add(ParseExpression());
+                do
+                {
+                    variable.Indices.Add(ParseExpression());
+                }
+                while (Match(TokenType.COMMA));
                 Expect(TokenType.RBRACKET, "期望 ']'");
             }
 
@@ -1176,7 +1224,11 @@ namespace PascalCompiler
                 variable.DereferenceCount++;
                 while (Match(TokenType.LBRACKET))
                 {
-                    variable.Indices.Add(ParseExpression());
+                    do
+                    {
+                        variable.Indices.Add(ParseExpression());
+                    }
+                    while (Match(TokenType.COMMA));
                     Expect(TokenType.RBRACKET, "期望 ']'");
                 }
                 while (Match(TokenType.DOT))

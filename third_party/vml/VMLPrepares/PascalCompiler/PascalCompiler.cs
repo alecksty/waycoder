@@ -106,7 +106,7 @@ namespace PascalCompiler
             List<(string, int)> ppLineMap = null;
             if (source.Contains('#'))
             {
-                var pp = new Preprocessor(source, null, PredefinedMacros);
+                var pp = new Preprocessor(source, null, PredefinedMacros) { HashNeedsIdentifier = true };
                 source = pp.Process();
                 ppLineMap = pp.LineMap;
             }
@@ -164,7 +164,7 @@ namespace PascalCompiler
             List<(string, int)> ppLineMap = null;
             if (source.Contains('#'))
             {
-                pp = new Preprocessor(source, includePaths, PredefinedMacros);
+                pp = new Preprocessor(source, includePaths, PredefinedMacros) { HashNeedsIdentifier = true };
                 source = pp.Process(filePath);
                 ppLineMap = pp.LineMap;
             }

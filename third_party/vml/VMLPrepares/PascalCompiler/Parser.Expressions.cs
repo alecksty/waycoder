@@ -89,17 +89,87 @@ namespace PascalCompiler
             return __node;
         }
 
+        /// <summary>能当**类型转换**用的类型名（判据还要再加上"紧跟 `(`"，见调用点）。</summary>
+        private static readonly HashSet<string> CastTypeNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "byte", "word", "longint", "shortint", "smallint", "cardinal", "int64", "qword",
+            "single", "double", "extended", "comp", "currency",
+            "ansichar", "widechar", "pchar", "text",
+        };
+
+        /// <summary>`Cur` 是不是"类型转换"的开头（类型名那一半，括号那一半由调用点判）。</summary>
+        private bool IsTypeCastStart()
+        {
+            switch (GetTokenType(Cur))
+            {
+                case TokenType.INTEGER:
+                case TokenType.CHAR:
+                case TokenType.BOOLEAN:
+                case TokenType.REAL:
+                case TokenType.STRING:
+                    return true;
+                case TokenType.IDENTIFIER:
+                    return CastTypeNames.Contains(Cur.Value.ToString());
+                default:
+                    return false;
+            }
+        }
+
         private ExpressionNode ParseFactorCore()
         {
             Token token = Cur;
 
-            // Pascal set 字面量: [1, 3, 5]
+            // Pascal set 字面量: [1, 3, 5] / ['a'..'z'] / [#13, #27]
+            //
+            // ⚠ **区间成员 `a..b` 是这条语法里最常出现的那一半** ——
+            //   `if Ch in ['a'..'z']` 是 Pascal 里判断"是不是字母"的标准写法，
+            //   语料里 `g7iles_*`/`gcorail_*`/`gmsdos_*` 一大批例程都这么写。
+            //   此前只认逗号分隔的单个元素，见到 `..` 就报 `期望 ']'`
+            //   （报的位置正好落在 `..` 上）。
+            // Pascal **类型转换** `T(x)` —— `Char(i)` / `Integer(c)` / `Byte(n)` / `Word(n)` / `Real(i)`。
+            //
+            // ⚠ 这条语法里那些 T 全是**关键字或类型名**，在表达式位置**一个都不是合法起点**
+            //   （`Char`/`Integer`/`Real` 是关键字，`Byte`/`Word`/`LongInt` 在前端里也不是函数名）
+            //   ⇒ 老程序一写就报 `期望表达式`，而位置指向**它后面那个 `(`**，
+            //   看不出是"类型转换不支持"。语料 112 份里 22 份用到。
+            //   判据必须是「类型名 + 紧跟 `(`」两者同时成立 —— 只看名字会把
+            //   叫 `Word` 的普通变量一起吃进去。
+            if (IsTypeCastStart() && Peek(1).Type == TokenType.LPAREN)
+            {
+                string castType = Advance().Value.ToString();
+                Advance(); // '('
+                ExpressionNode operand = ParseExpression();
+                Expect(TokenType.RPAREN, "期望 ')'");
+                return new TypeCastNode
+                {
+                    TypeName = castType,
+                    Operand = operand,
+                    Line = token.Line,
+                    Column = token.Column
+                };
+            }
+
             if (Match(TokenType.LBRACKET))
             {
                 var setExpr = new SetExpressionNode { Line = token.Line, Column = token.Column };
                 if (GetTokenType(Cur) != TokenType.RBRACKET)
                 {
-                    do { setExpr.Elements.Add(ParseExpression()); }
+                    do
+                    {
+                        ExpressionNode element = ParseExpression();
+                        if (GetTokenType(Cur) == TokenType.RANGE)
+                        {
+                            Advance(); // 跳过 `..`
+                            element = new SetRangeNode
+                            {
+                                Low = element,
+                                High = ParseExpression(),
+                                Line = element.Line,
+                                Column = element.Column,
+                            };
+                        }
+                        setExpr.Elements.Add(element);
+                    }
                     while (Match(TokenType.COMMA));
                 }
                 Expect(TokenType.RBRACKET, "期望 ']'");
@@ -423,7 +493,13 @@ namespace PascalCompiler
 
         private void ParseParameterList(List<ParameterNode> parameters)
         {
-            while (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.VAR)
+            // `var` / `const` 两个修饰符 —— **`const` 参数在 Turbo Pascal 里是"只读值参"**，
+            // 老代码里到处都是（`Function Path2Dir(Const Path:String):String;`）。
+            // 此前只认 `var`，见到 `const` 直接跳出参数循环、紧接着报 `期望 ')'`，
+            // 而报的位置指向参数名，很容易被误判成"类型写错了"。
+            // 语义上按**值参**处理（与 `var` 的引用传参相对），只读性不影响本前端的正确性。
+            while (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.VAR
+                   || GetTokenType(Cur) == TokenType.CONST)
             {
                 bool isVar = false;
                 if (GetTokenType(Cur) == TokenType.VAR)
@@ -431,7 +507,11 @@ namespace PascalCompiler
                     isVar = true;
                     Advance();
                 }
-                
+                else if (GetTokenType(Cur) == TokenType.CONST)
+                {
+                    Advance();
+                }
+
                 // 解析参数名列表
                 var names = new List<string>();
                 names.Add(Cur.Value.ToString());

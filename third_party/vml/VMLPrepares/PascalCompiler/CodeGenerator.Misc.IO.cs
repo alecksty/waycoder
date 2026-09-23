@@ -285,6 +285,10 @@ namespace PascalCompiler
 
         private string GetExpressionPascalType(ExpressionNode expr)
         {
+            // `T(x)` 类型转换的**结果类型就是 T** —— 否则 `Write(Char(n))` 会被
+            // 当成整数打（实测 `Char(66)` 打出 `66` 而不是 `B`：值是对的、**按什么打**是错的）。
+            if (expr is TypeCastNode cast)
+                return cast.TypeName.ToUpperInvariant();
             if (expr is LiteralNode literal)
             {
                 return literal.Type switch
@@ -304,6 +308,13 @@ namespace PascalCompiler
                     var (_, fieldType) = ResolveFieldChain(varNode.Name, varNode.Field, varNode.Fields);
                     return ResolveTypeName(fieldType);
                 }
+                // ⚠ **字符串常量要先认出来** —— `const S = 'hello'; WriteLn(S);`
+                //   是一条极常见的写法，而常量不是 `var` 声明出来的，`GetVariableType`
+                //   查不到它、于是回落成 INTEGER ⇒ 打出来的是**那个字符串在数据段里的地址**
+                //   （实测 `WriteLn('NOHDR-OK' 这个常量)` 打出 `1024`：地址对、语义全错，
+                //    而且不报任何错）。
+                if (constNames.Contains(varNode.Name) && dataSection.TryGetValue(varNode.Name, out var cv) && cv is string)
+                    return "STRING";
                 return GetVariableType(varNode.Name);
             }
             if (expr is BinaryOpNode binaryOp)
@@ -387,8 +398,65 @@ namespace PascalCompiler
             return "INTEGER";
         }
 
+        /// <summary>目标类型名是不是浮点（`Real` / `Single` / `Double` / `Extended` / `Comp`）。</summary>
+        private static bool IsFloatTypeName(string typeName) => typeName.ToUpperInvariant() switch
+        {
+            "REAL" or "SINGLE" or "DOUBLE" or "EXTENDED" or "COMP" or "CURRENCY" => true,
+            _ => false,
+        };
+
+        /// <summary>
+        /// `T(x)` 类型转换。
+        ///
+        /// <para>
+        /// 语义按"值不变形、只在**必要的两种情形**上动一手"来定：
+        /// <list type="bullet">
+        /// <item>目标是浮点、操作数是整数 ⇒ `I2F`（整转浮）；</item>
+        /// <item>目标是整数、操作数是浮点 ⇒ `F2I`（截断，与 Pascal 的 `Trunc` 同向）；</item>
+        /// <item><c>Byte</c>/<c>Char</c>/<c>AnsiChar</c> ⇒ 取低 8 位；<c>Word</c> ⇒ 取低 16 位。
+        /// 这三条是 Pascal 的**真实语义**（`Byte(300)` 就是 44），不做的话越界值会一路错下去；</item>
+        /// <item>其余（<c>Integer</c>/<c>LongInt</c>/<c>Boolean</c>…）**原样透传** ——
+        /// 本前端的整型与布尔本来就共用同一个槽位表示。</item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        private void GenerateTypeCast(TypeCastNode cast)
+        {
+            GenerateExpression(cast.Operand);
+
+            bool targetIsFloat = IsFloatTypeName(cast.TypeName);
+            bool operandIsFloat = IsFloatExpression(cast.Operand);
+
+            if (targetIsFloat && !operandIsFloat)
+            {
+                instructions.Add(new Instruction(OpCode.I2F, [Reg(0), Reg(0)]));
+            }
+            else if (!targetIsFloat && operandIsFloat)
+            {
+                instructions.Add(new Instruction(OpCode.F2I, [Reg(0), Reg(0)]));
+            }
+            else if (!targetIsFloat)
+            {
+                switch (cast.TypeName.ToUpperInvariant())
+                {
+                    case "BYTE":
+                    case "CHAR":
+                    case "ANSICHAR":
+                        instructions.Add(new Instruction(OpCode.AND,
+                            [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 255)]));
+                        break;
+                    case "WORD":
+                        instructions.Add(new Instruction(OpCode.AND,
+                            [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 65535)]));
+                        break;
+                }
+            }
+        }
+
         private bool IsFloatExpression(ExpressionNode expr)
         {
+            if (expr is TypeCastNode cast)
+                return IsFloatTypeName(cast.TypeName);
             if (expr is LiteralNode literal)
                 return literal.Type == TokenType.REAL_LITERAL;
             if (expr is VariableNode variable)
@@ -854,14 +922,30 @@ namespace PascalCompiler
                 new Operand(OperandType.REGISTER, 0)
             }));
             
-            // 加载集合的相应槽位到R0
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+            // 加载集合的相应槽位到 R0：`R0 = [R2 + R3]`
+            //
+            // ⚠ **`MOVE` 只有两个操作数** —— VML 的 `ExecuteMove` 只看 `operands[0]`/`operands[1]`，
+            //   第三个数**被静默忽略**（判据：`VMLRuntime.Instructions.cs` 的 `ExecuteMove`，
+            //   以及 `VML_ASSEMBLY_SPEC.md` 的 MOVE 表只有"寄存器复制/内存加载/内存存储/取标签地址"
+            //   四种两操作数语义，没有"基址+寄存器偏移"那一栏）。
+            //   这里从前写的是 `MOVE R0, R2, R3`，实际执行的是 **`R0 = R2`**（把集合的**地址**
+            //   当成了集合的内容）—— 于是 `x in S` 变成
+            //   「(S 的地址 & (1<<x)) != 0」，**结果只取决于数据段里那块常数落在哪个地址上**：
+            //   实测 `[1,5,9]` 里 `5 in …` 判真、`1 in …` 和 `9 in …` 判假，而程序里
+            //   每个字都不是这个意思 —— 这种"时对时错"最难查。
+            //   正确写法：先算地址，再用 `[Rx]` 取字。
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
             {
-                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.REGISTER, 2),
                 new Operand(OperandType.REGISTER, 2),
                 new Operand(OperandType.REGISTER, 3)
             }));
-            
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, 0),
+                Mem("R2")
+            }));
+
             // 创建位掩码：R5 = 1 << 位偏移
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
             {
@@ -957,6 +1041,81 @@ namespace PascalCompiler
                 }));
             }
         }
+
+        // ── 集合字面量 ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 集合字面量 `[a, b, c..d]` —— 编译成**数据段里的一块只读位图**，`R0` 得到它的**地址**。
+        ///
+        /// <para>
+        /// ## 为什么不是"算个值"
+        ///
+        /// 从前这里是 `OR` 起所有元素的值（`['a','b','c']` → `'a'|'b'|'c'` = `0x63`），
+        /// 而集合的**每一个消费方要的都是地址**：`GenerateInOperation`（`x in S`）拿到 R0
+        /// 就当**表基址**用（`[R0 + (x/32)*4]` 取字、`1 << (x%32)` 取位）；
+        /// 集合赋值那条块复制也是从 `[R0+i*4]` 逐字读。
+        /// ⇒ 把 `0x63` 当地址读，**读到的是程序自己的代码/数据**，结果是
+        /// 「`'b' in ['a','b','c']` 时对时错、取决于那 4 个字节里恰好有什么」——
+        /// 实测最坏情况是全 0（永远不匹配），所以这类 bug 看起来像"功能没实现"。
+        /// </para>
+        ///
+        /// <para>
+        /// ## 大小为什么至少 8 个字
+        ///
+        /// 8 个 4 字节字 = 256 位 = `set of char`，Pascal 里占绝对多数的那种；
+        /// 而集合赋值那条路是按**目标变量**的槽数逐字读的
+        ///（`GetVariableSlotsForVariable`，`set of char` = 8）——
+        /// 位图比目标小就会被读出界。元素下标更大时（`[0..1000]`）按元素上界再往上取。
+        /// </para>
+        /// </summary>
+        private void EmitSetLiteral(SetExpressionNode setExpr)
+        {
+            var members = new List<int>();
+            int maxBit = 0;
+            foreach (var element in setExpr.Elements)
+            {
+                if (element is SetRangeNode range)
+                {
+                    if (!IsConstantExpr(range.Low) || !IsConstantExpr(range.High))
+                        Error("集合区间 `a..b` 的两端必须是编译期常量");
+                    int lo = EvaluateConstantExpr(range.Low);
+                    int hi = EvaluateConstantExpr(range.High);
+                    for (int v = lo; v <= hi; v++) members.Add(v);
+                    maxBit = Math.Max(maxBit, hi);
+                }
+                else
+                {
+                    // ⚠ 非恒量元素**必须报错**，不能"算不出就当 0" ——
+                    //   那会静默地把 `[x]` 编成"只含 0 的集合"，用户查半天也查不到。
+                    if (!IsConstantExpr(element))
+                        Error("集合字面量的成员必须是编译期常量（暂不支持变量成员）");
+                    int v = EvaluateConstantExpr(element);
+                    members.Add(v);
+                    maxBit = Math.Max(maxBit, v);
+                }
+            }
+
+            int words = Math.Max(8, maxBit / 32 + 1);
+            var bitmap = new int[words];
+            foreach (int v in members)
+            {
+                if (v < 0 || v / 32 >= words) continue;
+                bitmap[v / 32] |= 1 << (v % 32);
+            }
+
+            string label = $"__setlit_{labelCounter++}";
+            dataSection[label] = bitmap;
+            AddInstruction(OpCode.MOVE, Reg(0), new Operand(OperandType.LABEL, label));
+        }
+
+        /// <summary>是不是编译期常量表达式（`EmitSetLiteral` 的判据，与 `EvaluateConstantExpr` 认的节点一一对应）。</summary>
+        private static bool IsConstantExpr(ExpressionNode expr) => expr switch
+        {
+            LiteralNode => true,
+            UnaryOpNode u => IsConstantExpr(u.Operand),
+            BinaryOpNode b => IsConstantExpr(b.Left) && IsConstantExpr(b.Right),
+            _ => false,
+        };
 
         private void Error(string message)
         {
