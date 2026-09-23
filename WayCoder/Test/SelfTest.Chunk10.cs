@@ -969,6 +969,31 @@ public static partial class SelfTest
         q2.Clear();
         Check("VmlMessageQueue: Clear 后为空且不残留信号量", q2.Count == 0 && q2.Take(5) == null);
 
+        // ── 阻塞读的**取消**（"强制终止"能不能落地的判据）──
+        //
+        // 背景（2026-09-23 用户真机报的）：旧 BGI 程序结尾是 `getch()`，就停在宿主的
+        // **无限等消息**上；而 VM 的取消令牌只"每条指令查一次" —— 程序此刻不执行指令，
+        // 于是关窗口 / 强制停止都叫不醒它，表现是「退出弹窗后程序还没结束」。
+        // 修法：让阻塞等待认令牌（`VmlMessageQueue.WaitPostOrCancel`）。
+        // 这条用例钉住那个行为：**令牌一响，阻塞读必须当场抛**，不是等超时。
+        var q3 = new VmlMessageQueue();
+        using (var cts = new CancellationTokenSource())
+        {
+            var blocked = Task.Run(() =>
+            {
+                try { q3.Take(0, cts.Token); return "returned"; }       // 0 = 无限等
+                catch (OperationCanceledException) { return "cancelled"; }
+            });
+            Thread.Sleep(50);                                            // 让它真的进到等待里
+            cts.Cancel();
+            var got = blocked.Wait(2000) && blocked.Result == "cancelled";
+            Check("VmlMessageQueue: 令牌取消能打断阻塞读（否则强制终止无效）", got);
+        }
+        // 反向判据：**不给令牌时一个字都不改**（老路径仍能正常取到消息）
+        var q4 = new VmlMessageQueue();
+        q4.Post(new VmlMessage(VmlMsgType.KeyDown, 7, 0, 0));
+        Check("VmlMessageQueue: 不带令牌仍走老路径", q4.Take(50)?.A == 7);
+
         // ── 键码约定（跨端唯一来源：绘制窗口的屏幕按键与包装库都引用它）──
         Check("VmlKeys: 沿用 Win32 虚拟键值",
             VmlKeys.Left == 37 && VmlKeys.Up == 38 && VmlKeys.Right == 39 && VmlKeys.Down == 40

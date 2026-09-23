@@ -1173,7 +1173,7 @@ public sealed class VmlMessageQueue
     /// 超时返回 null。**阻塞方是 VM 线程**，不要从 UI 线程调。
     /// <paramref name="keep"/> 见 <see cref="TryRead"/>。
     /// </summary>
-    public VmlMessage? Read(int timeoutMs, bool keep)
+    public VmlMessage? Read(int timeoutMs, bool keep, CancellationToken ct = default)
     {
         // 先看队列：有就直接拿走，不走信号量（比等一趟再醒更省）
         if (TryRead(keep) is { } first) return first;
@@ -1185,17 +1185,45 @@ public sealed class VmlMessageQueue
         var deadline = timeoutMs <= 0 ? long.MaxValue : Environment.TickCount64 + timeoutMs;
         while (true)
         {
+            ct.ThrowIfCancellationRequested();
             var remaining = timeoutMs <= 0
                 ? Timeout.Infinite
                 : (int)Math.Max(0, deadline - Environment.TickCount64);
             if (remaining == 0) return null;
-            if (!_signal.Wait(remaining)) return null;
+            if (!WaitPostOrCancel(remaining, ct)) return null;
             if (TryRead(keep) is { } msg) return msg;
         }
     }
 
+    /// <summary>
+    /// 等一条消息被投递（最多 <paramref name="timeoutMs"/> 毫秒；&lt;=0 表示无限），
+    /// **同时盯着取消令牌** —— 令牌一响就抛 <see cref="OperationCanceledException"/>。
+    /// 返回 true = 信号量到手，false = 超时。
+    ///
+    /// ⚠ 为什么不能只写 `_signal.Wait(remaining)`：**令牌响了它也不知道**。VM 的令牌检查是
+    ///   **每条指令一次**，而此刻 VM 线程根本不在执行指令 —— 它正睡在这里等消息。
+    ///   于是"取消一个卡在宿主等待里的程序"完全无效：用户实测就是
+    ///   「旧 BGI 程序，退出弹窗后程序还没结束」—— 那类程序结尾是 `getch()`，
+    ///   就停在这个等待上，关窗口 / 强制停止都叫不醒它。`WaitAny` 把令牌一起等，
+    ///   取消才能真正落地（抛出去 → 穿出宿主 → 终止整个运行）。
+    /// </summary>
+    private bool WaitPostOrCancel(int timeoutMs, CancellationToken ct)
+    {
+        // 没有令牌时**一个字都不改**（老路径：桌面自测、非取消场景）
+        if (!ct.CanBeCanceled) return _signal.Wait(timeoutMs);
+        // ⚠ `SemaphoreSlim` **不是** `WaitHandle`（CS0826：两者没有公共隐式类型）——
+        //   能进 `WaitAny` 的是它的 `AvailableWaitHandle`（计数 > 0 时有信号，且**不消费计数**）。
+        //   这里等它、再由上面的 `TryRead` 用 `_signal.Wait(0)` 消费一个许可，语义与老路径一致。
+        var idx = WaitHandle.WaitAny(new[] { _signal.AvailableWaitHandle, ct.WaitHandle }, timeoutMs);
+        if (idx == WaitHandle.WaitTimeout) return false;
+        // idx==1 = 取消令牌那一头醒了。CancellationToken 的等待句柄只在真的取消时才置位，
+        // 所以这里直接抛 —— 不要"当成可能来消息了回去再看"，那会变成自旋。
+        if (idx == 1) throw new OperationCanceledException(ct);
+        return true;
+    }
+
     /// <summary>阻塞取一条（消费），最多等 <paramref name="timeoutMs"/> 毫秒。超时返回 null。</summary>
-    public VmlMessage? Take(int timeoutMs) => Read(timeoutMs, keep: false);
+    public VmlMessage? Take(int timeoutMs, CancellationToken ct = default) => Read(timeoutMs, keep: false, ct);
 
     /// <summary>清空（每次 VML 运行开始前调用，避免上一轮的消息串到这一轮）。</summary>
     public void Clear()

@@ -263,6 +263,13 @@ public sealed class VmlHostRuntime
     public int BlockingWaitLimitMs { get; set; }
 
     /// <summary>
+    /// 本次运行的取消令牌。**宿主里所有阻塞等待都要认它** —— 只靠 VM 的"每条指令查一次"
+    /// 拦不住卡在宿主里的程序（它那时在执行等待，不是在执行指令）。
+    /// 不设（default）= 老行为：等待不可取消（桌面自测与老调用点保持原样）。
+    /// </summary>
+    public CancellationToken RunToken { get; set; }
+
+    /// <summary>
     /// 每一条 syscall 进来时的观察钩子（**可选**，平台自己接）。
     ///
     /// 手机端有一个"入参诊断"脚手架（真机实测"对话框字符串大多是空的"时，唯一能分清
@@ -746,7 +753,11 @@ public sealed class VmlHostRuntime
         // 宿主没设上限时一个字不改，仍是"一直等"。
         var timeout = r[1];
         if (timeout <= 0 && BlockingWaitLimitMs > 0) timeout = BlockingWaitLimitMs;
-        var msg = ex ? _queue.Read(timeout, r[2] == VmlUi.Keep) : _queue.Take(timeout);
+        // ⚠ 令牌一起传下去：**这是"强制终止"能不能落地的关键一步** ——
+        //   卡在这里等消息的程序不执行指令，VM 的令牌检查够不着它（见 WaitPostOrCancel）。
+        var msg = ex
+            ? _queue.Read(timeout, r[2] == VmlUi.Keep, RunToken)
+            : _queue.Take(timeout, RunToken);
         if (msg is not { } m) return 0;
         m.WriteTo(mem, r[0]);
         return (int)m.Type;
