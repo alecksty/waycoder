@@ -1145,6 +1145,7 @@ namespace VML {
     // extern void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);  // CALL ui_text_styled
     // extern void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);  // CALL ui_text_v
     // extern void ui_set_font(int size, int style, int color, int anchor);  // CALL ui_set_font
+    // extern void ui_set_valign(int valign);  // CALL ui_set_valign
     // extern void ui_text_cur(int x, int y, char* s);  // CALL ui_text_cur
     // extern int ui_poll(int* msg);  // CALL ui_poll
     // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait

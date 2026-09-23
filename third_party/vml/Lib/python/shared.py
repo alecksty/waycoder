@@ -7089,6 +7089,10 @@ def ui_set_font(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_set_font")
 
+def ui_set_valign(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_set_valign")
+
 def ui_text_cur(a0, a1, a2):
     asm(f"PUSH @R0")  # push a2
     asm(f"PUSH @R0")  # push a1

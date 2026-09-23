@@ -864,6 +864,11 @@ HALT
         // 穿出宿主、终止整次运行。
         uiCalls.SetRunToken(ct);
 
+        // **DOS 老程序的字符串是 CP437 字节**（框线 C4、重音 E9…），而绘图侧原先按 UTF-8
+        // 硬解 ⇒ 全是 U+FFFD（用户真机看到的"一串问号"）。控制台那条路早就在用 CP437，
+        // 这里把**同一张表**（只有一份，在 VM 里）接给共享层，两条路从此一致。
+        WayCoder.UI.Shared.VmlHostRuntime.NonUtf8ByteDecoder ??= VMLRuntime.Device.Cp437.ToChar;
+
         // ⚠ **永远只用 "mcu" 模式，这是手机端的安全边界，不是默认值凑巧。**
         //
         // 切到 "os"（privilegeLevel=0）会放开 syscall 300-376：线程/互斥量、Socket/DNS、

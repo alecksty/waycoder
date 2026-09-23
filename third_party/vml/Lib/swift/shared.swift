@@ -2289,6 +2289,8 @@
 // CALL ui_text_v
 // extern fn ui_set_font(int size, int style, int color, int anchor) -> void
 // CALL ui_set_font
+// extern fn ui_set_valign(int valign) -> void
+// CALL ui_set_valign
 // extern fn ui_text_cur(int x, int y, char* s) -> void
 // CALL ui_text_cur
 // extern fn ui_poll(int* msg) -> int

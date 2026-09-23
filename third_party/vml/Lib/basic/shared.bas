@@ -5432,6 +5432,10 @@ DECLARE SUB ui_set_font(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEG
     asm("CALL ui_set_font")
 END SUB
 
+DECLARE SUB ui_set_valign(a0 AS INTEGER)
+    asm("CALL ui_set_valign")
+END SUB
+
 DECLARE SUB ui_text_cur(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL ui_text_cur")
 END SUB

@@ -105,6 +105,27 @@ public static partial class SelfTest
             hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "base");
         var bfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vbase"));
         Check("VAlign: DSL 认 vbase", bfig != null && bfig.VAnchor == "base");
+
+        // ── 文字解码：UTF-8 合法就用它，不合法按 CP437 兜（DOS 老程序）──
+        //
+        // 背景（2026-09-23 真机报的）：老 BGI 程序的字符串是 **CP437 字节**（框线 C4、重音 E9…），
+        // 而绘图侧按 UTF-8 硬解 ⇒ 屏幕上一串问号（U+FFFD）。控制台那条路**一直在用 CP437**
+        // （`VMLRuntime.Syscall.cs` 的 `OutputChar`）⇒ 同一个程序 `print` 是好的、`outtextxy`
+        // 画到窗口上却是问号 —— 两条路对同一份字节两套规则。
+        // ⚠ 兜底解码器是**注入**的：本工程（桌面主工程）**不引用 VML 程序集**，所以这里注入一个假的
+        //   （真表只有一份，在 `VMLRuntime.Device.Cp437`，由手机与 CLI 两个宿主接上）。
+        Section("[VML.文字解码] UTF-8 / CP437 兜底");
+        var raw = new byte[16];
+        raw[0] = (byte)'A'; raw[1] = 0xC4; raw[2] = (byte)'B'; raw[3] = 0;
+        VmlHostRuntime.NonUtf8ByteDecoder = b => b == 0xC4 ? '─' : (char)b;
+        Check("Str: 非 UTF-8 → 按注入的 CP437 表解码", VmlHostRuntime.Str(raw, 0) == "A─B");
+        var u8 = Encoding.UTF8.GetBytes("象棋");
+        var m8 = new byte[16];
+        Array.Copy(u8, m8, u8.Length);
+        Check("Str: UTF-8 合法 → 原样解（现代程序一字不变）", VmlHostRuntime.Str(m8, 0) == "象棋");
+        VmlHostRuntime.NonUtf8ByteDecoder = null;
+        Check("Str: 没人注入 → 退回老行为（坏字节变 U+FFFD，不静默变样）",
+            VmlHostRuntime.Str(raw, 0).Contains('�'));
         Console.WriteLine();
 
         // ── DrawRunner.Parse ──

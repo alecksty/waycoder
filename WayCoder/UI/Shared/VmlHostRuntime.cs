@@ -1142,7 +1142,56 @@ public sealed class VmlHostRuntime
         if (address < 0 || address >= memory.Length) return "";
         var end = address;
         while (end < memory.Length && memory[end] != 0) end++;
-        return Encoding.UTF8.GetString(memory, address, end - address);
+        var len = end - address;
+        if (len <= 0) return "";
+
+        // UTF-8 合法 → 直接用（我们自己的例子、现代程序都走这一支，行为与从前逐字相同）
+        if (IsValidUtf8(memory, address, len))
+            return Encoding.UTF8.GetString(memory, address, len);
+
+        // 不合法 → **按 CP437 兜底**：DOS 时代的老程序（BGI 那一批）字符串里是 CP437 字节
+        // （框线 C4、重音 E9…），按 UTF-8 硬解会整片变成 U+FFFD，屏幕上就是**一串问号**。
+        //
+        // ⚠ **为什么要跟控制台那条路对齐**：`VMLRuntime.Syscall.cs` 的 `OutputChar` 早就在用
+        //   `Cp437.ToChar` —— 于是同一个程序 `print` 出来是好的、`outtextxy` 画到窗口上却是
+        //   问号（用户真机报的正是这个）。两条路对同一份字节用两套规则 = 本仓最忌的
+        //   "同一规则两处实现"，所以这里补上，判据也钉住它。
+        // ⚠ 兜底解码器是**注入**的（见 <see cref="NonUtf8ByteDecoder"/>）：本文件被三个工程
+        //   编译，其中一个**不引用 VML 程序集**，直接写 `Cp437.ToChar` 会在那边 CS0103。
+        // ⚠ 已知边界：GBK（中文 DOS）的双字节**常常恰好是合法 UTF-8** ⇒ 会走上面那一支、
+        //   被静静地解成别的字。真遇到中文 DOS 老程序，得由**窗口/程序声明**字符集，
+        //   而不是靠"猜"（本仓在输入侧吃过同一个亏，见 `WindowsCharSource` 的注释）。
+        if (NonUtf8ByteDecoder is { } decode)
+        {
+            var sb = new StringBuilder(len);
+            for (var i = 0; i < len; i++) sb.Append(decode(memory[address + i]));
+            return sb.ToString();
+        }
+        // 没人注入 ⇒ **老行为**（坏字节变 U+FFFD）。没接的宿主等于没这个能力，不静默变样。
+        return Encoding.UTF8.GetString(memory, address, len);
+    }
+
+    /// <summary>
+    /// 非 UTF-8 字节的兜底解码器（DOS 老程序的 CP437）。**由宿主注入** —— 表只有一份
+    /// （`VMLRuntime.Device.Cp437`），真正的两个宿主（手机 `MauiVml` / 桌面 CLI `CliVmlHost`）
+    /// 启动时各接一行；本文件被三个工程编译，其中桌面主工程不引用 VML 程序集，所以不能直接调它。
+    /// </summary>
+    public static Func<byte, char>? NonUtf8ByteDecoder { get; set; }
+
+    /// <summary>严格 UTF-8 校验：非法字节序列**抛异常**的那种解码器试一次。</summary>
+    private static readonly Encoding StrictUtf8 = new UTF8Encoding(false, throwOnInvalidBytes: true);
+
+    private static bool IsValidUtf8(byte[] memory, int offset, int length)
+    {
+        try
+        {
+            StrictUtf8.GetString(memory, offset, length);
+            return true;
+        }
+        catch (DecoderFallbackException)
+        {
+            return false;
+        }
     }
 
     /// <summary>读「选项块」：<paramref name="count"/> 个 \0 分隔的字符串。</summary>

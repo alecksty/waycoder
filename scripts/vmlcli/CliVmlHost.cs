@@ -844,6 +844,10 @@ internal sealed class CliUiCalls : ISystemCallHandler
 
         _rt = new VmlHostRuntime(_host) { BlockingWaitLimitMs = Math.Max(1, cfg.TimeoutSeconds) * 1000 };
         _host.Runtime = _rt;
+
+        // DOS 老程序（BGI 那一批）的字符串是 CP437 字节，绘图侧原先按 UTF-8 硬解 ⇒ 一串问号。
+        // 把 VM 里那张表（只有一份）接给共享层 —— 与手机端**同一行**，见 NonUtf8ByteDecoder 注释。
+        VmlHostRuntime.NonUtf8ByteDecoder ??= VMLRuntime.Device.Cp437.ToChar;
     }
 
     /// <summary>桌面宿主（`Program.cs` 用它出图 / 装输入脚本）。</summary>

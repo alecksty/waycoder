@@ -171,9 +171,52 @@ static int _bgi_pen_y    = 0;
 #define _BGI_CHAR_BASE 16
 static int _bgi_txt_size = _BGI_CHAR_BASE;   /* 像素字号（= BGI 倍数 × _BGI_CHAR_BASE）*/
 static int _bgi_txt_just = LEFT_TEXT;
-static int _bgi_maxx     = 639;     /* getmaxx/getmaxy */
+static int _bgi_maxx     = 639;     /* getmaxx/getmaxy —— 跟着当前图形模式走 */
 static int _bgi_maxy     = 479;
 static int _bgi_opened   = 0;
+static int _bgi_driver   = VGA;     /* 当前驱动（setgraphmode 要按它查表） */
+static int _bgi_mode     = VGAHI;   /* 当前模式 */
+static char *_bgi_title  = 0;       /* 开窗时定的标题 —— setgraphmode 重开窗要用同一个 */
+
+/* ── 图形模式表（Borland BGI 的标准分辨率）────────────────────────────
+ *
+ * 老程序 `initgraph(&gd, &gm, "")` 里那个 `gm` 决定**分辨率**，而手机端画布是按
+ * 可用区缩放的 ⇒ **拿到正确的宽高比**，按 640×350 排的版才不会被拉高变形
+ * （塞进 640×480 会被纵向拉伸）。从前这里只实现了 VGA 640×480 一种。
+ *
+ * 模式号是**每驱动各自编号**的（CGA 的 0 与 EGA 的 0 不是一回事）⇒ 必须 (驱动, 模式) 成对查。
+ * 查不到的组合退回 VGA 640×480（老程序不写模式时的默认）。 */
+#define CGAC0    0
+#define CGAC1    1
+#define CGAC2    2
+#define CGAC3    3
+#define CGAHI    4
+#define EGALO    0
+#define EGAHI    1
+#define VGALO    0
+#define VGAMED   1
+#define VGAHI    2
+
+static void _bgi_mode_size(int gd, int gm, int *pw, int *ph)
+{
+    int w = 640, h = 480;                 /* 默认 = VGA 640×480（老程序最熟的那一档） */
+
+    if (gd == CGA) {
+        if (gm == CGAHI) { w = 640; h = 200; }
+        else             { w = 320; h = 200; }   /* CGAC0..C3：320×200 */
+    } else if (gd == EGA) {
+        if (gm == EGAHI) { w = 640; h = 350; }
+        else             { w = 640; h = 200; }   /* EGALO */
+    } else if (gd == VGA) {
+        if (gm == VGAHI)      { w = 640; h = 480; }
+        else if (gm == VGAMED){ w = 640; h = 350; }
+        else                  { w = 640; h = 200; }   /* VGALO */
+    }
+    /* IBM8514 等其它驱动：保持 640×480（本平台只有 16 色调色板，高档模式也画不出更多色） */
+
+    *pw = w;
+    *ph = h;
+}
 
 /* CGA/VGA 标准 16 色调色板：BGI 的索引 → 本平台的 0xRRGGBB
  * ⚠ 不做这层翻译，`setcolor(4)` 会被当成 RGB 0x000004 ⇒ 画面几乎全黑。 */
@@ -238,12 +281,29 @@ void _bgi_initgraph(int *gd, int *gm, char *path, char *file)
     int w = 640, h = 480;          /* VGA 默认 */
 
     (void)path;
-    if (gd != 0 && *gd == VGA) { w = 640; h = 480; }
-    if (gm != 0) *gm = VGA;
+    /* ⚠ **`DETECT`(=0) 只是 `gd` 的取值，不是模式的**：BGI 里 `gm` 是**出参**
+     *   （老程序的标准写法是 `int gd = DETECT, gm; initgraph(&gd, &gm, "");` ——
+     *   `gm` 根本不初始化），而模式 0 是**合法模式**：`VGALO`/`CGAC0`/`EGALO` 都等于 0。
+     *   把"模式 == 0"也当成 DETECT 去改写，会让 `initgraph(&VGA, &VGALO)` **静默变成
+     *   640×480**（探针实测：VGALO 那条红）。 */
+    if (gd != 0 && *gd == DETECT) {
+        *gd = VGA;                       /* 驱动与模式都由库来挑（本平台只有 16 色调色板） */
+        if (gm != 0) *gm = VGAHI;
+    }
 
-    /* ⚠ 用**电脑屏窗口**：固定坐标系、不随旋转重排 —— 老程序按 640×480 排的版
+    _bgi_driver = (gd != 0) ? *gd : VGA;
+    _bgi_mode   = (gm != 0) ? *gm : VGAHI;
+    /* 回填给调用方的是**模式**。⚠ 从前这里错写成 `*gm = VGA`（把驱动号塞进模式出参）。 */
+    if (gm != 0) *gm = _bgi_mode;
+
+    /* **分辨率由 (驱动, 模式) 查表**（CGA 320×200 / EGA 640×350 / VGA 640×480 …）——
+     * 从前只有 640×480 一种，按 640×350 排版的老程序会被拉高。 */
+    _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+
+    /* ⚠ 用**电脑屏窗口**：固定坐标系、不随旋转重排 —— 老程序按固定分辨率排的版
      *   换空间就会画到框外。第 5 个参数是要不要屏幕键盘（老图形程序常要按键）。*/
-    ui_win_open_pc(_bgi_basename(file), w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
+    _bgi_title = _bgi_basename(file);
+    ui_win_open_pc(_bgi_title, w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
 
     _bgi_maxx   = w - 1;
     _bgi_maxy   = h - 1;
@@ -268,8 +328,27 @@ void _bgi_initwindow(int w, int h, char *title, char *file)
 {
     if (w <= 0) w = 640;
     if (h <= 0) h = 480;
-    ui_win_open_pc((title != 0 && title[0] != 0) ? title : _bgi_basename(file),
-                   w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
+    _bgi_title = (title != 0 && title[0] != 0) ? title : _bgi_basename(file);
+    ui_win_open_pc(_bgi_title, w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
+    _bgi_maxx   = w - 1;
+    _bgi_maxy   = h - 1;
+    _bgi_opened = 1;
+    cleardevice();
+}
+
+/* `setgraphmode(mode)`：切到**当前驱动的另一个模式**（BGI 的语义是"清屏 + 换模式"）。
+ * 老程序用它在游戏内换分辨率（低分辨率跑得快 / 高分辨率看得清）。
+ *
+ * ⚠ 电脑屏窗口的坐标系是**开窗时定死**的（`VmlWinKind.PcScreen` 正是为"按固定分辨率
+ *   排好版的老程序"准备的）⇒ 换模式只能**关掉重开**：新窗口 = 新坐标系。
+ *   这与 `initgraph` 同一套语义，老程序看不出来（它本来也要清屏重画）。 */
+void setgraphmode(int mode)
+{
+    int w, h;
+    _bgi_mode = mode;
+    _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+    if (_bgi_opened) ui_win_close();
+    ui_win_open_pc(_bgi_title != 0 ? _bgi_title : "", w, h, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
     _bgi_maxx   = w - 1;
     _bgi_maxy   = h - 1;
     _bgi_opened = 1;
