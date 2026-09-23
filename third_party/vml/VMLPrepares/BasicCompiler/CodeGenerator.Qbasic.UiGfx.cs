@@ -896,6 +896,9 @@ public partial class CodeGenerator
             return;
         }
 
+        // 记下"这个数组装的是句柄"—— `PUT` 的"来源是不是句柄"判据要用（见 `UiEmitPutStatement`）。
+        _uiGetArrays.Add(stmt.ArrayName.ToLowerInvariant());
+
         UiEnter();
         // x = min(x1,x2)、y = min(y1,y2)、w = |x2-x1|+1、h = |y2-y1|+1
         //（QBasic 的 (x1,y1)-(x2,y2) 含两端 ⇒ 宽高 +1；反向画的那一维由 min/abs 兜住）
@@ -948,6 +951,37 @@ public partial class CodeGenerator
             return;
         }
 
+        // ── 来源数组**从没被本程序的 GET 写过** ⇒ 它装的不是句柄，这条 PUT 画不出东西 ──────
+        //
+        // 判据是**静态的、在生成期维护的一张表**（`_uiGetArrays`，`UiEmitGetStatement` 往里记）。
+        // 它挡不住"先 PUT 后 GET"这种乱序写法（那种情况这里不告警，行为与从前一样是"不画"），
+        // 但**能挡住真正会踩的那一类**：老 BASIC 游戏把精灵位图**手打包在 `DATA` 里**、
+        // 用 `READ` 灌进数组，然后直接 `PUT` —— 数组里第 0 项是那份 QBasic 位图块的首字
+        // （GORILLA.BAS 的 `LBan&(0) = 458758`），**根本不是** `ui_get_image` 给的句柄。
+        // 宿主按句柄查不到就什么都不画，而**一个错都不报** —— 实测整个游戏的香蕉全程不见，
+        // 猩猩却好好的（它们走 `LINE` 画 + 真 `GET`/`PUT`）。
+        //
+        // 为什么不在这条路里顺手把"手工位图"解码画出来：那要在宿主侧认 **QBasic 的
+        // GET/PUT 块格式**（EGA 逐位平面、每行 `ceil(w/8)*4` 字节、4 字节头两个 word 是
+        // 宽高减一），并把它接成一个**新 syscall**（老号加参数就是静默的未定义行为）。
+        // 那是另一件事，本轮没做 —— 所以这里**响亮地说出来**，不假装画了。
+        if (!_uiGetArrays.Contains(stmt.ArrayName.ToLowerInvariant()))
+        {
+            if (!_uiPutNotFromGetWarned.Contains(stmt.ArrayName.ToLowerInvariant()))
+            {
+                _uiPutNotFromGetWarned.Add(stmt.ArrayName.ToLowerInvariant());
+                Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
+                    $"PUT 的来源 '{stmt.ArrayName}' 在本程序里**没有**被 GET 写过 ⇒ 它里面不是图像句柄。"
+                    + "宿主 ui_put_image 只认 GET 给的句柄（本平台没有 DOS 显存，块内容在宿主侧保管），"
+                    + "所以这一条 PUT **不会画出任何东西**。"
+                    + "若这个数组是 `DATA` 里手打包的位图（老 BASIC 游戏的精灵写法），"
+                    + "本平台暂不支持该格式 —— 请改用 GET/PUT 保存-贴回，或用 ui_rect 逐块画。");
+            }
+            WarnUnimplemented($"PUT 的来源 '{stmt.ArrayName}' 不是 GET 得到的句柄 —— 这一条 PUT 不会有任何画面"
+                + "（宿主只认 ui_get_image 的返回值）");
+            return;
+        }
+
         string action = (stmt.Action ?? "").ToUpperInvariant();
         int mode;
         switch (action)
@@ -986,6 +1020,12 @@ public partial class CodeGenerator
     }
 
     bool _uiPutActionWarned;
+
+    /// <summary>被本程序的 `GET` 写过的数组名（小写）—— `PUT` 的"来源是不是句柄"判据。</summary>
+    readonly HashSet<string> _uiGetArrays = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>已经就"来源不是 GET 句柄"告过警的数组名（每个数组只说一次）。</summary>
+    readonly HashSet<string> _uiPutNotFromGetWarned = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>PUT 的 AND/OR/PRESET 方式：宿主只认 COPY/XOR ⇒ 告警 + 不画（不猜一个近似的）。</summary>
     void UiWarnPutActionUnsupported(string action)

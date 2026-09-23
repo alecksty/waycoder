@@ -202,6 +202,9 @@ namespace BasicCompiler
         ///
         /// 模块级变量在 <c>variables</c> 里是**裸名**，STATIC 是 `子程序名__变量名`，
         /// 用键的形状就能分开（见 <see cref="IsStaticVariable"/>）。
+        ///
+        /// ⚠ **例外见 <see cref="CollectLocalVariables"/> 的 `ForStatement` 分支**（循环计数器
+        /// 不许跨 SUB 共享）—— 那一条**不**走本判据。
         /// </summary>
         private bool IsModuleVariable(string varName)
         {
@@ -210,6 +213,13 @@ namespace BasicCompiler
             if (currentSubName != null && key == SymbolKey(currentSubName)) return false;
             return variables.ContainsKey(key);
         }
+
+        /// <summary>
+        /// `DIM SHARED` 过的模块级变量（才允许**跨 SUB 共享一个循环计数器**）。
+        /// 见 <see cref="CollectLocalVariables"/> 的 `ForStatement` 分支。
+        /// </summary>
+        private bool IsSharedVariable(string varName)
+            => !string.IsNullOrEmpty(varName) && _sharedVariables.Contains(varName.ToLower());
 
         private void CollectLocalVariables(Statement stmt)
         {
@@ -248,10 +258,32 @@ namespace BasicCompiler
             }
             else if (stmt is ForStatement forStmt)
             {
+                // ⚠ **循环计数器是个例外：不认"模块级变量"这一条，只有 `DIM SHARED` 才共享。**
+                //
+                // 判据若照抄下面那几条（`!IsModuleVariable`），代价是**两个毫不相干的 SUB
+                // 会共用同一个循环计数器**：GORILLA.BAS 的模块体里（`GOSUB InitVars` 那段
+                // 就写在顶层）有一个 `FOR i = 0 TO 8`，于是 `i` 成了模块级变量；接着
+                // `PlayGame` 的 `FOR i = 1 TO NumGames`、`MakeCityScape` 的
+                // `FOR i = BHeight - 3 TO 7`、`VictoryDance` 的 `FOR i# = 1 TO 4`
+                // **全都是同一个 `i`** —— 内层循环跑完把外层的计数冲成内层的收尾值，
+                // 外层循环当场提前退出。实测：第一局命中之后 `PlayGame` 的 `i` 已经是 3
+                // ⇒ `FOR i = 1 TO 3` 第一局就结束（比分只来得及 +1 就进了 GAME OVER 画面）。
+                //
+                // 为什么这里可以对"模块级变量"破例：**循环计数器是循环自己的实现细节**，
+                // 把它当跨 SUB 的共享状态从来不是程序的本意；而"SUB 读模块级标量"那条
+                // （`t4` / `tetris.bas` 依赖的语义）**不受影响** —— 本分支只决定
+                // 「`FOR x` 的那个 `x` 用哪个槽」，SUB 里其它地方读 `x` 时仍然按
+                // 模块级变量走（`IsModuleVariable` 一个字没改）。
+                // 想真的共享计数器就写 `DIM SHARED k`（这时 `IsSharedVariable` 为真，不建局部）。
+                //
+                // 最小复现（顶层 FOR + SUB 内同名 FOR）：
+                //     FOR i = 1 TO 3 : PRINT "outer"; i : CALL S : NEXT : END
+                //     SUB S : FOR i = 1 TO 2 : PRINT " i="; i : NEXT : END SUB
+                // 修前只打一轮外层就退出，修后 3 轮各带 2 次内层。
                 if (!currentLocalVars.ContainsKey(forStmt.Variable.Name.ToLower()) &&
                     !IsParameter(forStmt.Variable.Name.ToLower()) &&
                     !IsStaticVariable(forStmt.Variable.Name.ToLower()) &&
-                    !IsModuleVariable(forStmt.Variable.Name))   // 模块级变量不许被局部遮蔽
+                    !IsSharedVariable(forStmt.Variable.Name))
                 {
                     DeclareLocal(forStmt.Variable.Name.ToLower());
                 }

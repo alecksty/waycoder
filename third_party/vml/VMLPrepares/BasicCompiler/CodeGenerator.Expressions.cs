@@ -161,8 +161,43 @@ namespace BasicCompiler
 
                 // 生成左操作数
                 GenerateExpressionWithType(binary.Left, leftReg, basicResultType);
+
+                // ── 左值必须跨过"右操作数的求值"活下来（v0.96.4xx 修）────────────────
+                //
+                // 浮点路的两个寄存器是**固定窗口** `{reg, (reg+4)%8}`：节点自己用 reg 装左值，
+                // 右操作数被求值到 `(reg+4)%8` —— 而**右操作数内部的嵌套节点又会用回 reg**
+                // （它自己的窗口是 `{它的reg, 它的reg+4}`，而它的 reg 正是我们的 `(reg+4)%8`，
+                // 加 4 取模 8 又回到 reg）。于是"求右操作数"这一步会把刚算好的左值踩掉，
+                // **两个方向都会**：
+                //   `(A# + B#) * (B# + 1)` —— 外层的左积被右侧的 `+ 1` 冲掉（实测 4.0*3.5 得 3.5）；
+                //   `IF B# >= A# AND B# <= A# + 2` —— 第一个比较的 0/1 被第二个比较的
+                //     `A# + 2` 冲成 `A#+2`，`2 AND 1` 恒为 0 ⇒ 条件恒假
+                //     （就是 GORILLA 的 `IF (x# >= …) OR (x# <= 3) OR (y# >= …)` 那条，
+                //      香蕉第一步就被判成"出屏"；判据 `cases/46-double-and-or.bas`）。
+                //
+                // 修法与 SUB 体那条路（`CodeGenerator.Sub.cs` 的 `pushOp`）**同源**：
+                // 左值压栈保管，右操作数求值期间寄存器随它用，算完再弹回来。
+                // 不需要寄存器分配器、也不引入任何跨语句状态 —— 一对平衡的 PUSH/POP。
+                //
+                // ⚠ **压栈用哪一组指令要按"值实际活在哪个寄存器视图里"挑**，不能一律 DPUSH：
+                //   逻辑/位运算（AND/OR/XOR）的操作数是**比较产出的 0/1 真值**，它们由整数
+                //   `MOVE reg, #1/#0` 写出来 ⇒ 只在 `registers[]` 里，而 `doubleRegisters[]`
+                //   那一半还是**上一次留下的陈旧值**。用 DPUSH/DPOP 会把陈旧值存进去、
+                //   再把真值覆盖掉 —— 那正好又变回"条件恒假"。所以这三条走整数 PUSH/POP。
+                OpCode pushOp = binary.Operator is "AND" or "OR" or "XOR" || basicResultType == BasicType.Integer
+                    ? OpCode.PUSH
+                    : basicResultType == BasicType.Double ? OpCode.DPUSH : OpCode.FPUSH;
+                OpCode popOp = pushOp == OpCode.DPUSH ? OpCode.DPOP
+                    : pushOp == OpCode.FPUSH ? OpCode.FPOP : OpCode.POP;
+
+                // 整数路的两个寄存器来自 `AllocInt`（互不重叠、且不在右操作数的可用池里），
+                // 本来就不会互相踩 ⇒ 只在浮点路补这一对，少发两条指令。
+                if (isFloat) instructions.Add(new Instruction(pushOp, new List<Operand> { new Operand(OperandType.REGISTER, leftReg) }));
+
                 // 生成右操作数
                 GenerateExpressionWithType(binary.Right, rightReg, basicResultType);
+
+                if (isFloat) instructions.Add(new Instruction(popOp, new List<Operand> { new Operand(OperandType.REGISTER, leftReg) }));
 
                 // 根据结果类型选择运算指令
                 switch (binary.Operator)

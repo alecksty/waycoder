@@ -18,14 +18,100 @@ namespace PascalCompiler
             ["__PASCAL__"] = "1",
         };
 
+        /// <summary>
+        /// Pascal **条件编译符号**的初值 —— **默认为空**（`{$IFDEF FPC}` / `{$IFDEF WINDOWS}`
+        /// 都判假，于是 `{$ELSE}` 那支 Turbo Pascal 写法胜出，见 `PascalDirectives` 的类注释）。
+        ///
+        /// <para>
+        /// 唯一的来源是 `-d SYM`（`CompilerOptions.Defines`）—— 于是
+        /// `vmlcli foo.pas -d FPC` 就能编 FPC 那一支；`-U SYM` 从符号集里去掉。
+        /// 这正是「把符号集暴露成参数」那条：**不做任何隐式定义**。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ `CompilerOptions.PascalDialect`（默认 `Turbo`）看上去是更自然的挂点，但**故意没接**：
+        /// 一接上，任何把方言设成 `FreePascal` 的调用方就会**自动**编进 FPC 分支，
+        /// 而那批代码引用的是 `PtcGraph`/`SysUtils` 这些本平台没有的东西 ——
+        /// 得到的是一串指向别处的错误，而不是一句"已切到 FPC 方言"。
+        /// 要 FPC 分支就显式 `-d FPC`。
+        /// </para>
+        /// </summary>
+        private static List<string> DirectiveSymbols()
+        {
+            var list = new List<string>();
+            var opts = CompilerOptionsContext.Current;
+            if (opts == null) return list;
+            foreach (var d in opts.Defines)
+            {
+                if (string.IsNullOrWhiteSpace(d)) continue;
+                var t = d.Trim();
+                int eq = t.IndexOf('=');
+                if (eq >= 0) t = t.Substring(0, eq).Trim();
+                if (t.Length > 0) list.Add(t);
+            }
+            foreach (var u in opts.Undefines)
+            {
+                if (string.IsNullOrWhiteSpace(u)) continue;
+                list.RemoveAll(s => string.Equals(s, u.Trim(), StringComparison.OrdinalIgnoreCase));
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// 把「指令预处理的行号映射」与「`#` 预处理的行号映射」**组合**成一张，投递给
+        /// 词法器/解析器/代码生成器（`CompilerHelper.TrackPreprocessedOutput`，判据是
+        /// **引用相等** —— 所以传进来的 <paramref name="finalSource"/> 正是要交给
+        /// `new Lexer(...)` 的那个字符串实例）。
+        ///
+        /// <para>
+        /// 组合规则：`ppMap` 的第 N 项 = 「`#` 预处理输出第 N 行」来自
+        /// `(文件, 指令预处理输出第 M 行)`。`文件` 是主文件时，那一行**经过了我们的改动**，
+        /// 于是再查一次 <paramref name="directiveMap"/> 拿回真正的原文件行号；
+        /// 不是主文件（= `#include` 进来的头文件）时，它的行号**本来就是原文件的**，
+        /// 原样保留即可（那张头文件根本没经过指令预处理）。
+        /// </para>
+        /// </summary>
+        private static void RegisterLineMap(string finalSource, string ppMainName,
+            List<(string, int)> directiveMap, List<(string, int)> ppMap)
+        {
+            if (directiveMap == null || directiveMap.Count == 0) return;   // 没映射就别去盖掉别人的
+            if (ppMap == null || ppMap.Count == 0)
+            {
+                CompilerHelper.TrackPreprocessedOutput(finalSource, directiveMap);
+                return;
+            }
+
+            var composed = new List<(string, int)>(ppMap.Count);
+            foreach (var (file, line) in ppMap)
+            {
+                if (line >= 1 && line <= directiveMap.Count &&
+                    string.Equals(file, ppMainName, StringComparison.Ordinal))
+                    composed.Add(directiveMap[line - 1]);
+                else
+                    composed.Add((file, line));
+            }
+            CompilerHelper.TrackPreprocessedOutput(finalSource, composed);
+        }
+
         public static VmlProgram Compile(string source, List<(string, int)> lineMap = null)
         {
             source = CompilerHelper.InjectDefines(source, "c", CompilerOptionsContext.Current);
+
+            // 内存编译这条路（`CompileFile` 之外的那条）同样要过一遍编译器指令 ——
+            // 手机端 `MauiVml` 的「打开 .pas 直接跑」走的就是它。没有文件路径，
+            // 所以 `{$I …}` 解析不了（会记一条告警），条件编译照常工作。
+            var directives = new PascalDirectives(DirectiveSymbols());
+            source = directives.Process(source, null);
+
+            List<(string, int)> ppLineMap = null;
             if (source.Contains('#'))
             {
                 var pp = new Preprocessor(source, null, PredefinedMacros);
                 source = pp.Process();
+                ppLineMap = pp.LineMap;
             }
+            if (directives.Changed)
+                RegisterLineMap(source, CompilerHelper.UnknownFilePlaceholder, directives.LineMap, ppLineMap);
             return CompilerHelper.CompileWithDiagnostics(null, diagnostics =>
             {
                 Lexer lexer = new Lexer(source) { FileName = "<input>", Diagnostics = diagnostics };
@@ -55,13 +141,37 @@ namespace PascalCompiler
             string source = CompilerHelper.ReadSourceFile(filePath);
             string sourceDir = Path.GetDirectoryName(Path.GetFullPath(filePath));
 
-            // 预处理
+            var diagnostics = new DiagnosticBag();
+
+            // ── ① Pascal **编译器指令**（`{$IFDEF …}` / `{$ELSE}` / `{$I …}`）─────────
+            //
+            // ⚠ **必须排在 `#` 预处理之前**：不活跃的 `{$IFDEF}` 分支里可能有
+            // `#include`、也可能有一整段为别的编译器写的代码，先让 `#` 预处理过一遍
+            // 会为一段**本来就不该被编译**的文本报错（"找不到 xxx.h"）。
+            //
+            // 这一层从前**根本没有**：`Lexer.SkipComment` 只特判了 `{$param …}`，
+            // 其余 `{$…}` 全当注释丢掉，而**两个分支的代码都留在流里** ——
+            // `{$IFDEF FPC} PtcGraph {$ELSE} Graph {$ENDIF}` 于是把两边一起编进去。
+            // 语料 112 份 Pascal 老程序里 64 份带指令（`{$IFDEF FPC}` 99 处），
+            // 这是它们编不过的最大单一原因。
+            var directives = new PascalDirectives(DirectiveSymbols());
+            source = directives.Process(source, filePath);
+            foreach (var (wFile, wLine, wMsg) in directives.Warnings)
+                diagnostics.AddWarning(wFile, wLine, 1, ErrorCode.Unknown, wMsg);
+
+            // ── ② C 风格 `#` 预处理（本来就有的那一步，判据一字未改）──────────────
             Preprocessor pp = null;
+            List<(string, int)> ppLineMap = null;
             if (source.Contains('#'))
             {
                 pp = new Preprocessor(source, includePaths, PredefinedMacros);
                 source = pp.Process(filePath);
+                ppLineMap = pp.LineMap;
             }
+
+            // ── ③ 把两层预处理的行号映射**组合**后投递（见 `RegisterLineMap`）──────
+            if (directives.Changed)
+                RegisterLineMap(source, filePath, directives.LineMap, ppLineMap);
 
             // ⚠ **必须把诊断收集器接给词法器与解析器** —— 这一条是"一次多报多个错误"的前提。
             //
@@ -72,7 +182,7 @@ namespace PascalCompiler
             // `GccError` 见 `Diagnostics == null` 只能**抛**（它没有地方可收），
             // 于是文件里后面的错全部看不到 —— 实测一份有两个错的文件只报出第一条。
             // 接上收集器之后，能继续的错误才会走"收集 + 恢复"，一路报到底。
-            var diagnostics = new DiagnosticBag();
+            // （`diagnostics` 在方法开头就建好了 —— 上面那层指令预处理也要往里报告警。）
             Lexer lexer = new Lexer(source) { FileName = filePath, Diagnostics = diagnostics };
             var tokens = lexer.Tokenize();
 
@@ -315,8 +425,20 @@ namespace PascalCompiler
     /// </summary>
     private static void RegisterUnitFunctions(string unitPath)
         {
+            /* ⚠ **这里会把"生效中的行号映射"抹掉** —— `LexerBase` 的构造函数每次都会
+               `SetActiveLineMap(这份源码对应的表)`，而单元文件是一份**另外的源码**，
+               认不到 ⇒ 写成 null。于是**它后面**的代码生成（`DiagPosition` 读的就是那张表）
+               失去映射，「未定义的函数」这类错会退回预处理后的行号。
+               从前无害（Pascal 大多没有映射，写 null 与原来一样），加上指令预处理之后就
+               真的会掉位置了 ⇒ 就地存/恢复。
+               ⚠ 这个"谁最后构造谁赢"的形状**不是**本次引入的，`LexerBase` 那条
+               `RefreshLineMap` 本来就是无栈的全局认领；这里只是保住本方法不越权改它。 */
+            var savedMap = CompilerHelper.ActiveLineMap;
             try {
                 string s = File.ReadAllText(unitPath);
+                // 单元文件里的 `{$IFDEF}` 同样要处理 —— 否则两个分支的 `interface` 声明
+                // 会一起进 `UnitSubprograms`，调用点拿到的是哪个取决于遍历顺序。
+                s = new PascalDirectives(DirectiveSymbols()).Process(s, unitPath);
                 var lx = new Lexer(s); var up = new Parser(lx.Tokenize()); var ast = up.Parse();
                 if (ast is UnitNode un)
                 {
@@ -351,6 +473,7 @@ namespace PascalCompiler
                     }
                 }
             } catch { }
+            finally { CompilerHelper.SetActiveLineMap(savedMap); }
         }
 
         private static void AutoLinkUnit(Parser parser, VmlProgram prog, string unitName, string libFile, string desc, string sourceDir)

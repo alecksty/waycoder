@@ -422,8 +422,27 @@ static int _con_getch_window(void)
 
     for (;;)
     {
-        /* #561 = ui_wait(msg, 0)：0 是**无限等**，不是不阻塞 */
-        if ((int)asm("SYSCALL #561, ${msg}, ${0}") <= 0) return 0;
+        /* #561 = ui_wait(msg, 0)：0 是**无限等**，不是不阻塞。
+         *
+         * ⚠⚠ **超时必须用一条字面 `MOVE` 显式写进 R1 —— 不能写成 `${0}`。**
+         *   asm 模板的 `${...}` 只做**变量替换**（`${msg}` → msg 所在的寄存器），
+         *   **字面量根本不认**：`${0}` 在展开时**一行都不生成**（见
+         *   `CodeGenerator.Statements.cs` 的 `else searchStart = braceEnd + 1;`），
+         *   于是 `syscall #561` 前面只有 `move @R0, [msg]`。
+         *   后果不是"用不上默认值"，而是 **R1 保留上一次留下的值**。
+         *
+         *   实测（真机 + 桌面，同一个根因）：按一下键之后 R1 残留着**上一条消息的类型**
+         *   （KeyUp = 2）⇒ 下一次 `ui_wait` 的"无限等"变成 **2 毫秒**、立刻返回 0
+         *   ⇒ `getch()` **凭空吐一个 0**。而老程序对 0 的约定是"扩展键前缀"
+         *   （`if (ch == 0) ch = getch();`）⇒ 它把**下一个真按键当成扫描码吃掉**。
+         *   用户看到的现象就是「按了没反应 / 输入无效」。
+         *
+         *   设备上更早中招：开窗那一刻宿主先发 `WindowResize`(11) —— 那一条就让 R1 = 11。
+         *   桌面看不出来只是因为桌面脚手架不投那条消息（第一拍 R1 恰好还是 0）。
+         *
+         *   同族错法在 `io.c` 的 `getchar`（那边是 `R0`）已经修过一次，修法一样。 */
+        asm("MOVE R1 #0");
+        if ((int)asm("SYSCALL #561, ${msg}") <= 0) return 0;
         /* ⚠ 只认按下：KeyUp / 触摸 / 尺寸变化一律跳过 ——
            返回 0 会被老程序当成"窗口没了"，返回别的又会把"按一下"变成"两下"。 */
         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
@@ -513,13 +532,21 @@ int kbhit(void)
            永远轮不到 ⇒ 症状是"按了没反应，按第二下才行"。 */
         for (;;)
         {
-            if ((int)asm("SYSCALL #571, ${msg}, ${1}") <= 0) return 0;   /* 队列空 */
+            /* R1=1 = `VmlUi.Keep`（只看队头、不取走）。⚠ 同样是**字面 `MOVE`**：
+               `${1}` 不生成任何东西 ⇒ R1 残留上一个值，而 R1≠Keep 时宿主会把那条
+               消息**取走**（`_queue.Read(timeout, keep: false, …)`）——
+               `kbhit` 的契约却是"只看一眼、不动它"，于是它会把定时器/鼠标消息吃掉。 */
+            asm("MOVE R1 #1");
+            if ((int)asm("SYSCALL #571, ${msg}") <= 0) return 0;   /* 队列空 */
             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
         }
     }
 
-    c = asm("SYSCALL #5, ${0}");         /* R0=0 ⇒ 非阻塞；没键返回 0 */
+    /* R0=0 ⇒ 非阻塞；没键返回 0。⚠ **必须字面 `MOVE`**：写成 `${0}` 是同一个错法
+       （那边靠 R0 残留值"碰巧"非阻塞，而不是靠这行 asm）—— `io.c` 的 `getchar` 已修。 */
+    asm("MOVE R0 #0");
+    c = asm("SYSCALL #5");
     if (c <= 0) return 0;
     conKb[0] = (char)c;
     conKbLen = 1;

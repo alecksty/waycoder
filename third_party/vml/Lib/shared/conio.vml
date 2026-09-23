@@ -3429,7 +3429,9 @@ _L44560307:
 sta_44560304:
 sta_44560305:
 sta_44560309:
-; 386:         if ((int)asm("SYSCALL #561, ${msg}, ${0}") <= 0) return 0;
+; 404:         asm("MOVE R1 #0");
+        asm "MOVE R1 #0"
+; 405:         if ((int)asm("SYSCALL #561, ${msg}") <= 0) return 0;
         move @R0 [@R12-24]
         syscall #561
         move [@R12-4] @R0
@@ -3449,7 +3451,7 @@ _L44560315:
         jmp L_44560308
 sta_44560312:
 sta_44560313:
-; 389:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
+; 408:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
         move @R0 [@R12-24]
         push @R0
         move @R0 #0
@@ -3475,7 +3477,7 @@ sta_44560317:
 sta_44560310:
         jmp sta_44560309
 sta_44560311:
-; 391:     vk = msg[1];
+; 410:     vk = msg[1];
         move @R0 [@R12-24]
         push @R0
         move @R0 #1
@@ -3484,14 +3486,14 @@ sta_44560311:
         add @R0 @R5
         move @R0 [@R0]
         move [@R12-28] @R0
-; 392:     sc = _con_scan_code(vk);
+; 411:     sc = _con_scan_code(vk);
         move @R0 [@R12-28]
         push @R0
         move @R0 [@R13+0]
         call _con_scan_code
         add @R13 #4
         move [@R12-32] @R0
-; 393:     if (sc != 0)
+; 412:     if (sc != 0)
         move @R0 [@R12-32]
         push @R0
         move @R0 #0
@@ -3505,15 +3507,15 @@ _L44560322:
 _L44560323:
         cmp @R0 #0
         jz sta_44560320
-; 395:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
+; 414:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
         move @R0 [@R12-32]
         move [_con_pending_scan] @R0
-; 396:         return 0;
+; 415:         return 0;
         move @R0 #0
         jmp L_44560308
 sta_44560320:
 sta_44560321:
-; 398:     return vk;                               /* 普通键：虚拟键码 == ASCII */
+; 417:     return vk;                               /* 普通键：虚拟键码 == ASCII */
         move @R0 [@R12-28]
         jmp L_44560308
 L_44560308:
@@ -3532,7 +3534,7 @@ getch:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 403:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
+; 422:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3569,7 +3571,7 @@ _L44560327:
         jmp L_44560328
 sta_44560324:
 sta_44560325:
-; 406:     if (_con_win_state() == 0) return _con_getch_window();
+; 425:     if (_con_win_state() == 0) return _con_getch_window();
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3587,15 +3589,15 @@ _L44560332:
         jmp L_44560328
 sta_44560329:
 sta_44560330:
-; 407:     conKbLen = 0;
+; 426:     conKbLen = 0;
         move @R0 #0
         move [conKbLen] @R0
-; 408:     conKbPos = 0;
+; 427:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
 sta_44560333:
         move @R2 #0
-; 409:     while (conKbLen < 126) {
+; 428:     while (conKbLen < 126) {
         move @R0 [conKbLen]
         push @R0
         move @R0 #126
@@ -3609,10 +3611,10 @@ _L44560335:
 _L44560336:
         cmp @R0 #0
         jz sta_44560334
-; 410:         c = getchar();
+; 429:         c = getchar();
         call getchar
         move [@R12-8] @R0
-; 411:         if (c <= 0 || c == 10 || c == 13) break;
+; 430:         if (c <= 0 || c == 10 || c == 13) break;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3671,7 +3673,7 @@ _L44560341:
         jmp sta_44560334
 sta_44560337:
 sta_44560338:
-; 412:         conKb[conKbLen] = (char)c;
+; 431:         conKb[conKbLen] = (char)c;
         move @R0 [@R12-8]
         move @R8 @R0
         push @R8
@@ -3688,7 +3690,7 @@ sta_44560338:
         add @R0 @R2
         pop @R8
         moveb [@R0] @R8
-; 413:         conKbLen++;
+; 432:         conKbLen++;
         move @R0 [conKbLen]
         move @R1 @R0
         add @R0 @R0 #1
@@ -3696,10 +3698,10 @@ sta_44560338:
         move @R0 @R1
         jmp sta_44560333
 sta_44560334:
-; 415:     conKbPos = 0;
+; 434:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 416:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
+; 435:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
         move @R0 [conKbLen]
         push @R0
         move @R0 #0
@@ -3717,7 +3719,7 @@ _L44560354:
         jmp L_44560328
 sta_44560351:
 sta_44560352:
-; 417:     c = conKb[conKbPos];
+; 436:     c = conKb[conKbPos];
         move @R0 conKb
         push @R0
         move @R6 #0
@@ -3732,13 +3734,13 @@ sta_44560352:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-8] @R0
-; 418:     conKbPos++;
+; 437:     conKbPos++;
         move @R0 [conKbPos]
         move @R1 @R0
         add @R0 @R0 #1
         move [conKbPos] @R0
         move @R0 @R1
-; 419:     return c;
+; 438:     return c;
         move @R0 [@R12-8]
         jmp L_44560328
 L_44560328:
@@ -3757,10 +3759,10 @@ getche:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 424:     c = getch();
+; 443:     c = getch();
         call getch
         move [@R12-8] @R0
-; 425:     if (c != 0) putch(c);
+; 444:     if (c != 0) putch(c);
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3781,7 +3783,7 @@ _L44560358:
         add @R13 #4
 sta_44560355:
 sta_44560356:
-; 426:     return c;
+; 445:     return c;
         move @R0 [@R12-8]
         jmp L_44560359
 L_44560359:
@@ -3801,11 +3803,11 @@ kbhit:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 456:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
+; 475:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
         move @R0 @R12
         sub @R0 #24
         move [@R12-28] @R0
-; 457:     if (conKbPos < conKbLen) return 1;
+; 476:     if (conKbPos < conKbLen) return 1;
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3823,7 +3825,7 @@ _L44560363:
         jmp L_44560364
 sta_44560360:
 sta_44560361:
-; 460:     if (_con_win_state() == 0)
+; 479:     if (_con_win_state() == 0)
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3838,7 +3840,9 @@ _L44560368:
         cmp @R0 #0
         jz sta_44560365
 sta_44560369:
-; 469:             if ((int)asm("SYSCALL #571, ${msg}, ${1}") <= 0) return 0;   /* 队列空 */
+; 492:             asm("MOVE R1 #1");
+        asm "MOVE R1 #1"
+; 493:             if ((int)asm("SYSCALL #571, ${msg}") <= 0) return 0;   /* 队列空 */
         move @R0 [@R12-28]
         syscall #571
         move [@R12-4] @R0
@@ -3858,7 +3862,7 @@ _L44560375:
         jmp L_44560364
 sta_44560372:
 sta_44560373:
-; 470:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
+; 494:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
         move @R0 [@R12-28]
         push @R0
         move @R0 #0
@@ -3882,7 +3886,7 @@ _L44560379:
         jmp L_44560364
 sta_44560376:
 sta_44560377:
-; 471:             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
+; 495:             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
         move @R0 [@R12-28]
         syscall #560
         move [@R12-4] @R0
@@ -3891,11 +3895,13 @@ sta_44560370:
 sta_44560371:
 sta_44560365:
 sta_44560366:
-; 474:     c = asm("SYSCALL #5, ${0}");         /* R0=0 ⇒ 非阻塞；没键返回 0 */
+; 500:     asm("MOVE R0 #0");
+        asm "MOVE R0 #0"
+; 501:     c = asm("SYSCALL #5");
         syscall #5
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 475:     if (c <= 0) return 0;
+; 502:     if (c <= 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3913,7 +3919,7 @@ _L44560383:
         jmp L_44560364
 sta_44560380:
 sta_44560381:
-; 476:     conKb[0] = (char)c;
+; 503:     conKb[0] = (char)c;
         move @R0 [@R12-8]
         move @R11 @R0
         push @R11
@@ -3930,13 +3936,13 @@ sta_44560381:
         add @R0 @R5
         pop @R11
         moveb [@R0] @R11
-; 477:     conKbLen = 1;
+; 504:     conKbLen = 1;
         move @R0 #1
         move [conKbLen] @R0
-; 478:     conKbPos = 0;
+; 505:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 479:     return 1;
+; 506:     return 1;
         move @R0 #1
         jmp L_44560364
 L_44560364:

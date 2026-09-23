@@ -140,13 +140,32 @@
              `ApplyOrientation`"只是实现上麻烦一点 —— 拿前者换后者不划算。
 
              `Auto` 行 ⇒ 收起时高度自然塌成 0（只留那个 26dp 的开关），画布立刻吃回来。
-             键位表在 code-behind 的 `PcKeyboardRows`（一处数据，不散在 XAML 里）。 -->
+             键位表在 code-behind 的 `PcKeyboardRows`（一处数据，不散在 XAML 里）。
+
+             ⚠⚠ **`PanGestureRecognizer` 只挂在 `PcKeyGrip` 这一个 `Label` 上，绝不挂到
+             `PcKeyboard` 容器上** —— 本仓记过这条：给**容器**挂手势识别器会把它子控件的
+             按压/点击整个吃掉（真机表现就是"按钮看着在、按下去没反应"）。
+             `Label` 自身没有子控件，拖它不影响任何按键。
+
+             ⚠ 把柄在**收起键盘时也留着**（`PcKeyRows` 隐不隐藏与它无关）——
+             收起之后面板只剩这一行，用户仍然拖得动它。 -->
         <Grid x:Name="PcKeyboard" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
               IsVisible="False" Padding="4,0,4,4" RowSpacing="2"
               RowDefinitions="Auto,Auto">
-            <Button x:Name="PcKeyToggle" Grid.Row="0" Text="⌨ 收起键盘"
-                    FontSize="11" HeightRequest="26" Padding="0" CornerRadius="8"
-                    Clicked="OnTogglePcKeyboard" />
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                <!-- 拖拽把柄。文案里带上"拖动"两个字，否则一个 ⠿ 符号得先拖一次才知道是干什么的。 -->
+                <Label x:Name="PcKeyGrip" Grid.Column="0" Text="⠿ 拖动"
+                       FontSize="11" HeightRequest="26" Padding="10,0" LineHeight="1"
+                       HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                       BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
+                    <Label.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnPcKeyPan" />
+                    </Label.GestureRecognizers>
+                </Label>
+                <Button x:Name="PcKeyToggle" Grid.Column="1" Text="⌨ 收起键盘"
+                        FontSize="11" HeightRequest="26" Padding="0" CornerRadius="8"
+                        Clicked="OnTogglePcKeyboard" />
+            </Grid>
             <VerticalStackLayout x:Name="PcKeyRows" Grid.Row="1" Spacing="3" />
         </Grid>
     </Grid>
