@@ -74,9 +74,14 @@ namespace BasicCompiler
             {
                 int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                // ⚠ **操作数顺序：`[内存] = R0` 才是"存"** —— 这里此前写成了
+                //   `R0 = [内存]`（一个**读**），于是"把局部变量清零"**一次都没发生**：
+                //   帧是复用的，读到的是上一次调用留下的残值（里面常躺着别处算出来的**地址**）。
+                //   实测形态见 `vmlcli --trace-draw` 抓到的 GORILLA 坐标：
+                //   `x`/`y` 读出的是"变量自己的地址"，因为它们的槽里就存着那个地址。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, 0) }));
                 if (LocalVarSize(kv.Key) >= 8)
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset + 4}"), new Operand(OperandType.REGISTER, 0) }));
             }
 
             // Generate body
@@ -162,9 +167,14 @@ namespace BasicCompiler
             {
                 int offset = LocalVarOffset(kv.Key);
                 AddRI(OpCode.MOVE, 0, 0);
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset}") }));
+                // ⚠ **操作数顺序：`[内存] = R0` 才是"存"** —— 这里此前写成了
+                //   `R0 = [内存]`（一个**读**），于是"把局部变量清零"**一次都没发生**：
+                //   帧是复用的，读到的是上一次调用留下的残值（里面常躺着别处算出来的**地址**）。
+                //   实测形态见 `vmlcli --trace-draw` 抓到的 GORILLA 坐标：
+                //   `x`/`y` 读出的是"变量自己的地址"，因为它们的槽里就存着那个地址。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, 0) }));
                 if (LocalVarSize(kv.Key) >= 8)
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{-offset + 4}") }));
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset + 4}"), new Operand(OperandType.REGISTER, 0) }));
             }
 
             // Generate body
