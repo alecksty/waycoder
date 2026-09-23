@@ -1109,6 +1109,11 @@ HALT
             var stamp = $"{LibVersion}:{LibFingerprint()}";
 
             var root = Path.Combine(FileSystem.AppDataDirectory, "vml");
+#if ANDROID
+            // ⚠ **临时探针**（2026-09-23）：设备上"按键行为像是旧库"，要确认它到底选了哪个根、
+            //   标记与包里的指纹各是什么。查清后删掉。
+            Android.Util.Log.Info("WCKEY", $"EnsureLib: stamp={stamp} appData={root} home={WayCoder.Global.Home}");
+#endif
             if (IsUsableLibRoot(root, stamp)) return root;   // 已经解压过且内容一致 → 不解压
 
             // **老位置兼容**：老版本解压到 `<Global.Home>/vml`。已经在那儿解压过、且内容对得上的
@@ -1117,7 +1122,12 @@ HALT
             var legacy = Path.Combine(WayCoder.Global.Home, "vml");
             if (!string.Equals(legacy, root, StringComparison.OrdinalIgnoreCase)
                 && IsUsableLibRoot(legacy, stamp))
+            {
+#if ANDROID
+                Android.Util.Log.Info("WCKEY", $"EnsureLib: 用**老位置** {legacy}");
+#endif
                 return legacy;
+            }
 
             Directory.CreateDirectory(root);
 
@@ -1139,6 +1149,9 @@ HALT
             Directory.Move(tmp, root);
 
             File.WriteAllText(Path.Combine(root, ".lib-version"), stamp);
+#if ANDROID
+            Android.Util.Log.Info("WCKEY", $"EnsureLib: **刚解压**到 {root}，写入标记 {stamp}");
+#endif
             OnProgress?.Invoke("✔ 标准库解压完成。");
             return root;
         }
