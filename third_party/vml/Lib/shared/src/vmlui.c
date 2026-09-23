@@ -181,9 +181,18 @@ void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valig
     asm("SYSCALL #581, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${valign}, ${style}");
 }
 
-/* 设置当前文字属性：字号 / 样式位 (1=粗 2=斜) / 颜色 / 锚点。 */
+/* 设置当前文字属性：字号 / 样式位 (1=粗 2=斜) / 颜色 / 锚点。
+ * ⚠ 竖对齐**不在这里**（见下面的 ui_set_valign）—— 给这个号加第 5 个参数会让只传四个的
+ *   老程序读到自己上一句留下的垃圾值。 */
 void ui_set_font(int size, int style, int color, int anchor) {
     asm("SYSCALL #532, ${size}, ${style}, ${color}, ${anchor}");
+}
+
+/* 设"当前文字"的竖对齐（状态式，配 ui_text_cur 用）：
+ * 0=顶（默认，盒顶落在 y）/ 1=中 / 2=底 / 3=**基线**（y 就是基线）。
+ * 新号 #586 —— 理由同 ui_set_font 上面那条。 */
+void ui_set_valign(int valign) {
+    asm("SYSCALL #586, ${valign}");
 }
 
 /* 用**当前文字属性**画一行字（属性由 ui_set_font 设定）。 */

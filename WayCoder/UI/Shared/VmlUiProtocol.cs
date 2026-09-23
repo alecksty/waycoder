@@ -153,6 +153,16 @@ public static class VmlUi
     /// </summary>
     public const int PutImage = 585;
 
+    /// <summary>
+    /// `ui_set_valign` —— 设**当前文字**的竖对齐（见 <see cref="VmlScene.VAlignTop"/> 等四档）。
+    ///
+    /// 为什么是新号而不是给 <see cref="SetFont"/>（#532）加第 5 个参数：**给老 syscall 加参数
+    /// 就是静默的未定义行为** —— 宿主从 `registers[n]` 读，而只传前几个参数的老程序，
+    /// 后面那只寄存器里是**它自己上一句留下的值**（可能是个指针），宿主无从判断"这是不是真给了"。
+    /// 与 `WIN_OPEN_EX` / `MSG_POLL_EX` / `CALLJSON` 同一处置。
+    /// </summary>
+    public const int SetVAlign = 586;
+
     /// <summary>`WIN_OPEN_EX` 的 R4：显示屏幕手柄（默认）。</summary>
     public const int NeedGamepad = 1;
     /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
@@ -1622,7 +1632,7 @@ public sealed class VmlScene
     /// 把 `uint` 换成 `string` 是**破坏性改动**。重载之后两边都留得下：
     /// 传 `uint` 的落老的那个，传 `string` 的落这个。
     /// </summary>
-    public void AddText(int x, int y, string text, string colorToken, int fontSize, int anchor, int style = 0)
+    public void AddText(int x, int y, string text, string colorToken, int fontSize, int anchor, int style = 0, int vAlign = 0)
     {
         if (!InCoordRange(x) || !InCoordRange(y)) return;
         if (string.IsNullOrEmpty(text)) return;
@@ -1631,7 +1641,7 @@ public sealed class VmlScene
         var w = (style & TextBold) != 0 ? "bold" : "";
         var i = (style & TextItalic) != 0 ? "italic" : "";
         var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
-        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{bi}");
+        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{VAnchorName(vAlign)}{bi}");
     }
 
     /// <summary>
@@ -1639,23 +1649,17 @@ public sealed class VmlScene
     /// <paramref name="vAlign"/>：0=顶（= 老行为）1=中 2=底。
     /// </summary>
     public void AddTextEx(int x, int y, string text, uint color, int fontSize, int anchor, int vAlign, int style = 0)
-    {
-        if (!InCoordRange(x) || !InCoordRange(y)) return;
-        if (string.IsNullOrEmpty(text)) return;
-        text = CapText(text);
-        fontSize = Dim(fontSize);
-        var w = (style & TextBold) != 0 ? "bold" : "";
-        var i = (style & TextItalic) != 0 ? "italic" : "";
-        var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
-        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}{VAnchorName(vAlign)}{bi}");
-    }
+        // 落 `AddText` 那条（它管 DSL 拼装）—— 粗/斜体的记号拼装**只有那一份**，
+        // 从前这里抄了一份，两边迟早会不同步（本仓头号坑）。
+        => AddText(x, y, text, Hex(color), fontSize, anchor, style, vAlign);
 
     /// <summary>竖对齐的 DSL 记号 —— **`v` 前缀**，与横锚点的 `middle` 不重名（同名两义只能靠猜）。</summary>
     private static string VAnchorName(int v) => v switch
     {
         1 => " vcenter",
         2 => " vbottom",
-        _ => "",                       // 0 = 顶 = 老行为：**不写这个词**，产物与从前逐字相同
+        3 => " vtop",                  // 盒顶落在 y（要显式写：它与 0 的渲染相差一个"上升"）
+        _ => "",                       // 0 = 基线 = 老行为：**不写这个词**，产物与从前逐字相同
     };
 
     /// <summary>当前文字属性（<see cref="SetFont"/> 设、<see cref="Text"/> 用）。宿主侧状态，不占 VML 内存。</summary>
@@ -1667,11 +1671,31 @@ public sealed class VmlScene
     /// <summary>当前文字锚点（0=左 1=中 2=右）。</summary>
     public int FontAnchor { get; set; }
 
+    /// <summary>
+    /// 当前文字**竖对齐**（见 <see cref="VAlignTop"/> 等）—— 由 `ui_set_valign` 设（号段 #586）。
+    /// 与 <see cref="FontSize"/> 那几个同一套：状态式，`ui_text_cur` 用。
+    /// </summary>
+    public int FontVAlign { get; set; }
+
+    // 四档的编号是**跨语言契约**（C 头文件 `VML_VANCHOR_*` 与各语言绑定都按这几个数写死）。
+    // 编号按"历史行为优先"排：**0 留给老行为**，新档位往后加 —— 这样任何不设它的老程序
+    // 渲染逐字不变（改 0 的含义 = 悄悄挪动所有既有程序的文字，那是不可接受的）。
+    /// <summary>竖对齐：**y 就是基线**（字形坐在基线上）。**默认 = 老行为**（手机端一直如此渲染）。</summary>
+    public const int VAlignBase = 0;
+    /// <summary>竖对齐：盒竖直中心落在 y（"在方框/圆里居中"用这一档）。</summary>
+    public const int VAlignMiddle = 1;
+    /// <summary>竖对齐：盒底落在 y。</summary>
+    public const int VAlignBottom = 2;
+    /// <summary>竖对齐：盒顶落在 y（与基线相差一个"上升"，≈0.8×字号）。</summary>
+    public const int VAlignTop = 3;
+
     /// <summary>按当前属性画一行字（<see cref="Text"/> 号段的实现体，放这里便于自测）。</summary>
     public void AddTextCurrent(int x, int y, string text)
+        // 颜色走**颜色 token**（纯色 `#AARRGGBB` 或刷子的 `@渐变id`）⇒ 落 `AddText` 那个
+        // 字符串重载，不是收 `uint` 的 `AddTextEx`（两者不通用）。
         => AddText(x, y, text,
             _hasTextBrush && _textToken != null ? _textToken : Hex(FontColor),
-            FontSize, FontAnchor, FontStyle);
+            FontSize, FontAnchor, FontStyle, FontVAlign);
 
     /// <summary>文字样式位：粗体。</summary>
     public const int TextBold = 1;

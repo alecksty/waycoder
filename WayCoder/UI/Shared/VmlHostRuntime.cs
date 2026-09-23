@@ -377,6 +377,16 @@ public sealed class VmlHostRuntime
                 // 靠号区分（这正是走新号的原因：老程序 R6 里可能是任何东西）。
                 case VmlUi.DrawTextEx: Scene()?.AddTextEx(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5], registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.SetFont: SetFont(registers); break;
+                // 竖对齐是**状态式**的（与 ui_set_font 同一套）：设一次，之后 ui_text_cur 都用它。
+                // 四档：顶 / 中 / 底 / 基线。夹到合法区间 —— 老程序可能传来没初始化的值。
+                case VmlUi.SetVAlign:
+                    // ⚠ 上界要写**编号最大的那一档**（现在是 `VAlignTop` = 3）。
+                    //   第一版照着"名字看起来像边界"写成了 `VAlignBase` —— 而重排编号后
+                    //   `VAlignBase` = 0 ⇒ `Clamp(x, 0, 0)` 把**所有档位钉死在基线**，
+                    //   症状是"设了中/底都没反应"。三条判据当场抓出来的。
+                    if (Scene() is { } vsc)
+                        vsc.FontVAlign = Math.Clamp(registers[0], VmlScene.VAlignBase, VmlScene.VAlignTop);
+                    break;
                 case VmlUi.Text: Scene()?.AddTextCurrent(registers[0], registers[1], Str(memory, registers[2])); TouchScene(); break;
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;
                 case VmlUi.DrawImage: Scene()?.AddImage(registers[0], registers[1], Str(memory, registers[2]), registers[3], registers[4]); TouchScene(); break;

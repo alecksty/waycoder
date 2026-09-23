@@ -126,10 +126,38 @@ internal static class DrawParse
     /// </summary>
     public static double TextVOffset(DrawFigure f)
     {
-        if (f.VAnchor is not ("center" or "bottom")) return 0;
+        // 统一契约：**`y` 是基线**（三条后端一起看这件事，见 `TextAscentRatio` 的注释）。
+        // 四档就是"把盒子的哪个部位摆到 y 上"：
+        //   base（默认，偏移 0）= 基线落在 y —— 也就是**老行为**（手机上一直是这么渲染的）
+        //   center = 盒竖直中心落在 y
+        //   bottom = 盒底落在 y
+        //   top    = 盒顶落在 y
+        // 盒顶 = 基线 − 上升，所以四档都能由"上升"和盒高推出来。
+        //
+        // ⚠ 历史坑（2026-09-23 真机）：从前这里按"盒顶"算（center → −h/2），而手机那条
+        //   矢量路把 `y` 当**基线** ⇒ `vcenter` 被解释两遍，整体再上移 0.8×字号 ——
+        //   用户看到的是「象棋的字都靠上、不居中」。
+        // ⚠ 桌面光栅那条路原先把 `y` 当**顶线**（`TrueTypeFont.Render(yTop)`），现已改成
+        //   也走基线（`TextCommand.Rasterize` 里减一个上升）—— 否则四档在桌面上全部错位，
+        //   而"桌面看着对、上手机才发现"正是本仓最贵的一类故障。
+        var ascent = f.FontSize * TextAscentRatio;
         var h = TextBox(f).H;
-        return f.VAnchor == "center" ? -h / 2 : -h;
+        return f.VAnchor switch
+        {
+            "top" => ascent,
+            "center" => ascent - h / 2,
+            "bottom" => ascent - h,
+            _ => 0,                     // base / null = 老行为
+        };
     }
+
+    /// <summary>
+    /// 文字**上升占字号的比例**（盒顶 = 基线 − 字号×本值）。
+    /// 本值只在两处用：本文件的 <see cref="TextVOffset"/> 与手机侧 `MauiVectorTarget.DrawText`
+    /// 的"基线 → 平台框顶"换算。**两处必须同源** —— 各写一个字面量 0.8 就是
+    /// "同一规则两处实现"，而这条规则的偏差在真机上表现为"文字不居中"。
+    /// </summary>
+    public const double TextAscentRatio = 0.8;
 
     /// <summary>刷子的 SVG 取值：渐变 → `url(#id)`，纯色 → 十六进制。</summary>
     public static string Paint(string? gradientRef, uint solid)
@@ -908,9 +936,15 @@ internal sealed partial class TextCommand : IDrawCommand
             if (low is "start" or "middle" or "end") { f.Anchor = low; continue; }
             // 竖对齐：**刻意用 v 前缀**，不与横锚点的 `middle` 重名 —— 同名两义会让
             // `text … middle` 到底是"横中"还是"竖中"全靠猜（本仓最忌讳的一类）。
-            if (low is "vtop" or "vcenter" or "vbottom")
+            if (low is "vtop" or "vcenter" or "vbottom" or "vbase")
             {
-                f.VAnchor = low switch { "vcenter" => "center", "vbottom" => "bottom", _ => "top" };
+                f.VAnchor = low switch
+                {
+                    "vcenter" => "center",
+                    "vbottom" => "bottom",
+                    "vbase" => "base",      // y 就是基线（与 vtop 的**渲染**不同：那一个的 y 是盒顶）
+                    _ => "top",
+                };
                 continue;
             }
             if (low is "bold" or "b") { f.FontWeight = "bold"; continue; }
@@ -987,11 +1021,17 @@ internal sealed partial class TextCommand : IDrawCommand
         for (int i = 0; i < lines.Length; i++)
         {
             double y = p.Y + lineH * i;
+            // ⚠ `y` 是**基线**（与矢量 / SVG 同一个契约），而这里两条字体路径都按**顶线**落笔
+            //   （`TrueTypeFont.Render(…, yTop, …)`；5×7 那条是 `py = y + r*scale`）⇒
+            //   交给它们之前减一个"上升"。不减的后果：桌面 PNG 的文字比手机**整体低 0.8×字号**，
+            //   于是"桌面看着对、上手机才发现"（四档竖对齐在桌面上会全部错位）。
+            //   上升比例取共享常量，与 `TextVOffset` / `MauiVectorTarget` 同一个值。
+            double yTop = y - size * DrawParse.TextAscentRatio;
             if (font != null)
-                font.Render(c, lines[i], p.X, y, size, f.Fill, f.Anchor,
+                font.Render(c, lines[i], p.X, yTop, size, f.Fill, f.Anchor,
                     f.FontWeight == "bold", f.FontStyle == "italic", sample);
             else
-                c.DrawText(p.X, y, lines[i], size, f.Fill, f.Anchor,
+                c.DrawText(p.X, yTop, lines[i], size, f.Fill, f.Anchor,
                     f.FontWeight == "bold", f.FontStyle == "italic", sample);
         }
     }

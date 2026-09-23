@@ -97,9 +97,11 @@
  * 缺这一档时，程序写"横中"只能得到**横向居中、纵向顶着 y** —— 摆在方框/按钮正中看着偏上。
  * 修之前每个程序都得自己按字号估半个行高，还估不准。
  * 默认（TOP）就是老行为，所以老程序一个字都不用改。 */
-#define VML_VANCHOR_TOP    0
-#define VML_VANCHOR_MIDDLE 1
-#define VML_VANCHOR_BOTTOM 2
+/* 编号是**跨语言契约**：0 留给老行为，新档位往后加（改 0 的含义 = 悄悄挪动所有既有程序）。 */
+#define VML_VANCHOR_BASE   0   /* `y` **就是基线**（字形坐在基线上）—— **默认**，也是老行为 */
+#define VML_VANCHOR_MIDDLE 1   /* 盒竖直中心落在 `y`（"在方框/圆里居中"用这一档） */
+#define VML_VANCHOR_BOTTOM 2   /* 盒底落在 `y` */
+#define VML_VANCHOR_TOP    3   /* 盒顶落在 `y`（与基线相差一个"上升"，≈0.8×字号） */
 
 /* ── 对话框 ── */
 int  ui_dlg_msg(char* title, char* body, int style);
@@ -200,6 +202,10 @@ void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int 
  * ⚠ 与 `ui_text_styled` **参数序不同**（那个第 7 个是 style），别互相照抄。 */
 void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);
 void ui_set_font(int size, int style, int color, int anchor);
+/* 设"当前文字"的**竖对齐**（状态式，配 ui_text_cur 用）：VML_VANCHOR_TOP/MIDDLE/BOTTOM/BASE。
+   ⚠ 是**新号 #586**，没有并进 ui_set_font —— 给老 syscall 加参数会让只传前几个参数的
+     老程序读到自己上一句留下的垃圾值（宿主没法判断"这是不是真给了"）。 */
+void ui_set_valign(int valign);
 void ui_text_cur(int x, int y, char* s);
 
 /* ── 全能接口（#573）：两个字符串进、一个 JSON 字符串出 ──

@@ -942,9 +942,12 @@ public partial class DrawWindowPage : ContentPage
     /// 为什么要宽限：正常程序收到 `WindowClose` 后会在下一帧退出主循环（那是**优雅退出**，
     /// 该让它自己走完，比如落盘存档）。但程序**可以不理这条消息**（卡在自己的循环里/死循环），
     /// 那时它就一直在后台烧 CPU —— 用户按了返回却什么都没停掉，这是不可接受的。
-    /// 1.5 秒足够任何守规矩的程序反应，又短到用户察觉不出"卡了一下"。
+    ///
+    /// ⚠ 1.5 秒实测**偏长**（用户按返回后能感觉到"卡了一下"）⇒ 收到反馈后改成 **0.5 秒**。
+    ///   代价：收场动作超过半秒的程序会被强制终止（落盘那种毫秒级的不受影响）。
+    ///   这个值只影响"关窗口"这条路径；"强制停止"按钮是立刻生效的（不等宽限）。
     /// </summary>
-    private const int CloseGraceMs = 1500;
+    private const int CloseGraceMs = 500;
 
     private IDispatcherTimer? _closeWatchdog;
 

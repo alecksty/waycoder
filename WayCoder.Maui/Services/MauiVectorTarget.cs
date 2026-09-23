@@ -151,8 +151,10 @@ internal sealed class MauiVectorTarget : IVectorTarget
         _canvas.FontColor = Col(color);
 
         // 我方约定 `y` 是**基线**，而平台 `DrawString` 的 y 是文本框顶端 ⇒ 上移一个"上升"。
-        // 0.8×字号 是常见字体的上升比例；这条差异在自测里用抽样比对兜着（见类注释）。
-        var top = y - size * 0.8;
+        // ⚠ 上升比例**取共享层那个常量**（`DrawParse.TextAscentRatio` —— 竖对齐偏移
+        //   `TextVOffset` 用的是同一个值）：各写一个字面量 0.8 就是"同一规则两处实现"，
+        //   而这条规则的偏差在真机上表现为"文字不居中"（象棋那次就是这么暴露的）。
+        var top = y - size * WayCoder.Infra.DrawParse.TextAscentRatio;
         var align = anchor switch
         {
             "middle" => HorizontalAlignment.Center,

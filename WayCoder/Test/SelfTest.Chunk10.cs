@@ -65,22 +65,46 @@ public static partial class SelfTest
             f.Args.Add(0); f.Args.Add(100);
             return f;
         }
-        // 盒高 = 行距(字号×1.3) ×(行数-1) + 字号 ⇒ 单行 20、两行 46
-        Check("VAlign: 顶（默认）= 老行为、偏移 0",
-            DrawParse.TextVOffset(Txt("top", 1)) == 0 && DrawParse.TextVOffset(Txt("top", 2)) == 0);
-        Check("VAlign: 竖中 = 上移半个盒高（单行 20 → -10）",
-            Math.Abs(DrawParse.TextVOffset(Txt("center", 1)) + 10) < 1e-9);
-        Check("VAlign: 竖中按**行数**算盒高（两行 46 → -23）",
-            Math.Abs(DrawParse.TextVOffset(Txt("center", 2)) + 23) < 1e-9);
-        Check("VAlign: 底 = 上移一个盒高（两行 46 → -46）",
-            Math.Abs(DrawParse.TextVOffset(Txt("bottom", 2)) + 46) < 1e-9);
+        // 契约：`y` 是**基线**（三条后端统一）；四档 = 把盒子的哪个部位摆到 y 上。
+        // 盒高 = 行距(字号×1.3) ×(行数-1) + 字号 ⇒ 单行 20、两行 46；上升 = 字号×0.8 = 16
+        // ⚠ 默认（不设竖对齐）必须是**基线档**（偏移 0 = 老行为）—— `DrawFigure.VAnchor`
+        //   的默认值因此从 `"top"` 改成了 `"base"`：不改的话，新模型里 `top` = 下移一个上升
+        //   ⇒ 所有既有文字整体下移 0.8×字号（这条判据就是用来钉住它的）。
+        Check("VAlign: 基线（默认）= 老行为、偏移 0",
+            DrawParse.TextVOffset(Txt("base", 1)) == 0);
+        // 直接验**字段默认值**本身就是基线档（改错成 "top" 的话既有文字会整体下移 0.8×字号）
+        // ⚠ 手工构造的 figure **必须补上 Args**（x/y）—— `TextBlockBox` 要读 `f.Args[0]`，
+        //   不补就是 IndexOutOfRange（第一版这么写把整轮自测崩掉了）。
+        var dflt = new DrawFigure { Kind = "text", Text = "x", FontSize = 20 };
+        dflt.Args.Add(0);
+        dflt.Args.Add(100);
+        Check("VAlign: DrawFigure.VAnchor 默认就是 base",
+            dflt.VAnchor == "base" && DrawParse.TextVOffset(dflt) == 0);
+        Check("VAlign: 顶 = 盒顶落在 y（单行 → 下移一个上升 +16）",
+            Math.Abs(DrawParse.TextVOffset(Txt("top", 1)) - 16) < 1e-9);
+        Check("VAlign: 竖中按**基线**算（单行 20 → +6）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 1)) - 6) < 1e-9);
+        Check("VAlign: 竖中按**行数**算盒高（两行 46 → -7）",
+            Math.Abs(DrawParse.TextVOffset(Txt("center", 2)) + 7) < 1e-9);
+        Check("VAlign: 底 = 盒底落在 y（两行 46 → -30）",
+            Math.Abs(DrawParse.TextVOffset(Txt("bottom", 2)) + 30) < 1e-9);
+        // 判据的**不变式**：竖中时"盒中心"必须正好落在 y 上
+        //   （偏移 + 盒高/2 = 上升 ⇒ 基线在 y + 上升 − h/2，盒中心 = 基线 − 上升 + h/2 = y）
+        Check("VAlign: 竖中的盒中心正好落在 y（不变式）",
+            Math.Abs((DrawParse.TextVOffset(Txt("center", 1)) + 20.0 / 2) - DrawParse.TextAscentRatio * 20) < 1e-9);
+        Check("VAlign: 竖底的盒底正好落在 y（不变式）",
+            Math.Abs((DrawParse.TextVOffset(Txt("bottom", 1)) + 20.0) - DrawParse.TextAscentRatio * 20) < 1e-9);
+        Check("VAlign: 竖顶的盒顶正好落在 y（不变式）",
+            Math.Abs(DrawParse.TextVOffset(Txt("top", 1)) - DrawParse.TextAscentRatio * 20) < 1e-9);
 
         // DSL：`vtop/vcenter/vbottom` 要认，且**不与横锚点的 middle 重名**
         var vfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vcenter"));
         Check("VAlign: DSL 认 vcenter", vfig != null && vfig.VAnchor == "center");
         var hfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 middle"));
-        Check("VAlign: 横锚点的 middle **不**被当成竖中",
-            hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "top");
+        Check("VAlign: 横锚点的 middle **不**被当成竖中（竖档保持默认 = 基线）",
+            hfig != null && hfig.Anchor == "middle" && hfig.VAnchor == "base");
+        var bfig = DrawCommandRegistry.Get("text")!.Parse(DrawTokenizer.Tokenize("text 5 6 \"hi\" 20 vbase"));
+        Check("VAlign: DSL 认 vbase", bfig != null && bfig.VAnchor == "base");
         Console.WriteLine();
 
         // ── DrawRunner.Parse ──
