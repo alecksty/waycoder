@@ -695,6 +695,8 @@ internal sealed partial class CliOptions
 {
     /// <summary>`--frame <路径>`：运行结束后把最新呈现帧渲成 PNG 写到这里。</summary>
     public string? FramePath { get; private set; }
+    /// <summary>`--trace-draw <路径>`：把程序的**绘制调用**逐条写进文件（排查"画面为什么不对"）。</summary>
+    public string? TraceDrawPath { get; private set; }
     /// <summary>`--frames <目录>`：每个 `ui_present` 落一帧（看动画用）。</summary>
     public string? FramesDir { get; private set; }
     /// <summary>`--frames-max N`：帧数上限（默认 120，防死循环程序写满磁盘）。</summary>
@@ -718,6 +720,9 @@ internal sealed partial class CliOptions
         {
             case "--frame":
                 FramePath = Require(args, ref i, "--frame");
+                return true;
+            case "--trace-draw":
+                TraceDrawPath = Require(args, ref i, "--trace-draw");
                 return true;
             case "--frames":
                 FramesDir = Require(args, ref i, "--frames");
@@ -775,6 +780,7 @@ internal sealed partial class CliOptions
             ScreenWidth = ScreenWidth,
             ScreenHeight = ScreenHeight,
             FramePath = FramePath,
+            TraceDrawPath = TraceDrawPath,
             FramesDir = FramesDir,
             FramesMax = FramesMax,
             StorePath = StorePath,
@@ -797,6 +803,8 @@ internal sealed class CliHostConfig
     public int ScreenHeight = 640;
     /// <summary>`--frame <路径>`：运行结束后把最新呈现帧落成 PNG。</summary>
     public string? FramePath;
+    /// <summary>`--trace-draw <路径>`：绘制调用逐条落文件。</summary>
+    public string? TraceDrawPath;
     /// <summary>`--frames <目录>`：每个 `ui_present` 落一帧（看动画用）。</summary>
     public string? FramesDir;
     /// <summary>`--frames-max N`：帧数上限（防一个死循环程序写满磁盘）。</summary>
@@ -844,6 +852,34 @@ internal sealed class CliUiCalls : ISystemCallHandler
 
         _rt = new VmlHostRuntime(_host) { BlockingWaitLimitMs = Math.Max(1, cfg.TimeoutSeconds) * 1000 };
         _host.Runtime = _rt;
+
+        // `--trace-draw`：把**绘制调用**逐条写进文件。
+        //
+        // 为什么要有：`--frame` 只给"最后一帧"，而"画面为什么不对"分不清「没画」与「画错了」——
+        // 逐条日志能直接看出**是谁把哪儿涂成了什么颜色**。本仓查 BGI / BASIC 的画面问题时
+        // 靠肉眼盯截图绕了好几轮，这个开关把它变成可读的证据。
+        //
+        // 刻意**不记 `DrawPresent`**（每条语句都发一次，会淹掉日志）。
+        if (cfg.TraceDrawPath is { Length: > 0 } tracePath)
+        {
+            var tw = new StreamWriter(tracePath, append: false) { AutoFlush = true };
+            _rt.OnSyscall = (n, r, _) =>
+            {
+                string? line = n switch
+                {
+                    VmlUi.DrawClear   => $"clear   color=0x{r[0]:X8}",
+                    VmlUi.DrawPixel   => $"pixel   ({r[0]},{r[1]}) 0x{r[2]:X8}",
+                    VmlUi.DrawLine    => $"line    ({r[0]},{r[1]})-({r[2]},{r[3]}) 0x{r[4]:X8} w={r[5]}",
+                    VmlUi.DrawRect    => $"rect    ({r[0]},{r[1]}) {r[2]}x{r[3]} 0x{r[4]:X8} fill={r[5]} lw={r[6]} r={r[7]}",
+                    VmlUi.DrawCircle  => $"circle  ({r[0]},{r[1]}) r={r[2]} 0x{r[3]:X8} fill={r[4]} lw={r[5]}",
+                    VmlUi.DrawEllipse => $"ellipse ({r[0]},{r[1]}) {r[2]}x{r[3]} 0x{r[4]:X8} fill={r[5]}",
+                    VmlUi.FloodFill   => $"fill    ({r[0]},{r[1]}) 0x{r[2]:X8}",
+                    VmlUi.PutImage    => $"putimg  ({r[0]},{r[1]}) handle={r[2]} mode={r[3]}",
+                    _ => null,
+                };
+                if (line is not null) tw.WriteLine($"{n,4} {line}");
+            };
+        }
 
         // DOS 老程序（BGI 那一批）的字符串是 CP437 字节，绘图侧原先按 UTF-8 硬解 ⇒ 一串问号。
         // 把 VM 里那张表（只有一份）接给共享层 —— 与手机端**同一行**，见 NonUtf8ByteDecoder 注释。

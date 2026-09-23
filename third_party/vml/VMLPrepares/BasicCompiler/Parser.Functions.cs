@@ -8,9 +8,23 @@ namespace BasicCompiler
         private SubDeclaration ParseSubDeclaration()
         {
             Token token = Advance(); // 跳过 SUB
-            if (Peek().Type != TokenType.IDENTIFIER)
+
+            // ⚠ **SUB 名也接受关键字 token**（取它的文本当名字）—— 与下面形参那条同一个道理。
+            //
+            // 要求 IDENTIFIER 的后果是**整条声明被静默丢掉**（`return null` 在调用方只表示
+            // "这条语句没解析出来"），而 `CALL` 那边照样按名字发调用 ⇒ 运行期**什么也不执行**、
+            // **一个错都不报**。实测（v0.96.404）：
+            //     SUB Draw / LINE / CIRCLE / PAINT / PLAY / SCREEN / COLOR / DATA / READ /
+            //     INPUT / PRINT  —— 这些名字的 SUB **体一个字都不跑**；
+            //     改成 DrawX / CircleX / PlayX 立刻正常；`Rest`（不是关键字）也正常。
+            // 真 QBasic 里这么写本来就该报语法错，但**我们的错法不能说都不能说** ——
+            // 静默接受 + 静默不执行是本仓最忌讳的那一种。
+            // 判据与下面形参那条**同一句话**：「这个 token 的文本能不能当名字」，
+            // 与它是不是关键字无关。缺名字是**错误**（`SUB` 已经吃掉了），不是"这条语句不解析" ——
+            // 用 `return null` 表达错误的代价是整条声明被静默丢掉（见上面那段长注释）。
+            if (Peek().Type == TokenType.EOF || string.IsNullOrEmpty(Peek().Value))
             {
-                return null;
+                throw Error($"SUB 名缺失（第 {Peek().Line} 行）");
             }
             string name = Peek().Value;
             Advance();
@@ -435,9 +449,15 @@ namespace BasicCompiler
         private CallStatement ParseCallStatement()
         {
             Token token = Advance(); // 跳过 CALL
-            if (Peek().Type != TokenType.IDENTIFIER)
+
+            // ⚠ 这里与 `ParseSubDeclaration` 是**同一处病**：要求 IDENTIFIER 的话，
+            //   `CALL` 一个**名字是关键字**的 SUB 会 `return null` ⇒ **整条调用被静默丢掉**。
+            //   声明侧修好之后调用侧不修，症状一模一样（SUB 体一个字都不跑）——
+            //   实测就是这么发现的：只修声明侧，11 个关键字名全部照旧不执行。
+            //   判据同形参那条：「这个 token 的文本能不能当名字」。
+            if (Peek().Type == TokenType.EOF || string.IsNullOrEmpty(Peek().Value))
             {
-                return null;
+                throw Error($"CALL 后面缺少子程序名（第 {Peek().Line} 行）");
             }
             string name = Peek().Value;
             Advance();

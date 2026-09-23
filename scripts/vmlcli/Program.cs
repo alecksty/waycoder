@@ -954,6 +954,8 @@ internal static class Program
                        （判据是 ui_present 拍下的快照，不是"此刻的场景"—— 见 VmlScene.Present）
   --frames <目录>      每个 ui_present 落一帧（看动画用，文件名 frame_0000.png …）
   --frames-max <N>     帧数上限（默认 120，防死循环程序写满磁盘）
+  --trace-draw <路径>  把**绘制调用**逐条写进文件：谁在什么位置画了什么颜色。
+                       排查"画面为什么不对"用它 —— 只看截图分不清「没画」与「画错了」。
   --screen <宽x高>     可用绘图区 / SCR_W、SCR_H 报的数（默认 480x640）
 
 交互（UI 程序靠 ui_wait_msg / ui_poll 取输入，桌面没有输入源就要脚本喂）：
