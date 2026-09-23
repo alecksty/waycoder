@@ -212,76 +212,97 @@ namespace BasicCompiler
 
         private void GeneratePrintStatement(PrintStatement stmt)
         {
-            foreach (var expr in stmt.Expressions)
+            // 无参 `PRINT` = 只换行
+            if (stmt.Expressions.Count == 0)
             {
-                if (expr is StringLiteral strLiteral)
+                UiTextEmitSeparator('\0');
+                return;
+            }
+
+            for (int i = 0; i < stmt.Expressions.Count; i++)
+            {
+                GeneratePrintItem(stmt.Expressions[i]);
+                // 分隔符语义由 AST 带着（`;` 紧接 / `,` 跳打印区 / 末尾换行）——
+                // **不能再无条件补换行**：`PRINT "Angle:";` 之后紧跟输入回显，补了就把回显顶到下一行。
+                // `Separators` 与 `Expressions` 等长；取不到时按"语句结束"处理（LPRINT 那条老路）。
+                char sep = i < stmt.Separators.Count ? stmt.Separators[i] : '\0';
+                UiTextEmitSeparator(sep);
+            }
+        }
+
+        /// <summary>
+        /// 打印**一个**表达式（字面量 / CHR$ / 其它求值），不带任何分隔符。
+        ///
+        /// <para>与 <see cref="GeneratePrintStatement"/> 拆开是因为"分隔符"是语句级的语义、
+        /// 而这里只管"把一个值变成屏幕上的字符"——两条关心的事不同，混在一起就会像从前那样
+        /// 顺手在末尾补一个换行。</para>
+        /// </summary>
+        private void GeneratePrintItem(Expression expr)
+        {
+            if (expr is StringLiteral strLiteral)
                 {
-                    // 字符串字面量: 始终 stdout + 条件 VGA
-                    string strLabel = $"str_data_{GenerateLabel()}";
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, strLabel) }, instructions.Count));
-                    EmitPrintString();
-                    dataSection[strLabel] = new DataString(strLiteral.Value);
+                // 字符串字面量: 始终 stdout + 条件 VGA
+                string strLabel = $"str_data_{GenerateLabel()}";
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, strLabel) }, instructions.Count));
+                EmitPrintString();
+                dataSection[strLabel] = new DataString(strLiteral.Value);
                 }
                 else if (expr is FunctionCallExpression funcCall &&
-                         (funcCall.FunctionName.ToLowerInvariant() == "chr$" ||
-                          funcCall.FunctionName.ToLowerInvariant() == "chr"))
+                     (funcCall.FunctionName.ToLowerInvariant() == "chr$" ||
+                      funcCall.FunctionName.ToLowerInvariant() == "chr"))
                 {
-                    // CHR$(n): 直接输出字符码。
-                    //
-                    // ⚠ **要取的是参数，不是这个调用**（v0.96.330 修）。
-                    //   从前这里把整个 `CHR$(n)` 当表达式求值 —— 那会去 `CALL basic_chr`，
-                    //   而它返回的是**字符串指针**；紧接着 `EmitPrintChar()`（SYSCALL #4）
-                    //   把这个**指针**当**字符码**打出去。
-                    //   症状极有误导性：`CHR$(65)` 与 `CHR$(97)` 打出的是**同一个**字符
-                    //   （都是那个静态缓冲区的地址），看着像"编码坏了"，其实是取错了值。
-                    //   `c$ = CHR$(65)` 那种"当值用"的路走 Expressions/Sub 里的 `basic_chr`，
-                    //   那条是对的，别一起改。
-                    if (funcCall.Arguments.Count > 0)
-                    {
-                        if (currentSubName != null)
-                            GenerateSubExpression(funcCall.Arguments[0], 0);
-                        else
-                            GenerateExpression(funcCall.Arguments[0], 0);
-                    }
+                // CHR$(n): 直接输出字符码。
+                //
+                // ⚠ **要取的是参数，不是这个调用**（v0.96.330 修）。
+                //   从前这里把整个 `CHR$(n)` 当表达式求值 —— 那会去 `CALL basic_chr`，
+                //   而它返回的是**字符串指针**；紧接着 `EmitPrintChar()`（SYSCALL #4）
+                //   把这个**指针**当**字符码**打出去。
+                //   症状极有误导性：`CHR$(65)` 与 `CHR$(97)` 打出的是**同一个**字符
+                //   （都是那个静态缓冲区的地址），看着像"编码坏了"，其实是取错了值。
+                //   `c$ = CHR$(65)` 那种"当值用"的路走 Expressions/Sub 里的 `basic_chr`，
+                //   那条是对的，别一起改。
+                if (funcCall.Arguments.Count > 0)
+                {
+                    if (currentSubName != null)
+                        GenerateSubExpression(funcCall.Arguments[0], 0);
                     else
-                    {
-                        AddRI(OpCode.MOVE, 0, 0);
-                    }
-                    EmitPrintChar();
+                        GenerateExpression(funcCall.Arguments[0], 0);
                 }
                 else
                 {
-                    // Compute expression, detect if it returns a string
-                    BasicType exprType = InferExpressionType(expr);
-                    if (currentSubName != null)
-                        GenerateSubExpression(expr, 0);
-                    else
-                        GenerateExpression(expr, 0);
-
-                    if (exprType == BasicType.String)
-                    {
-                        // R0 = string pointer — 始终 stdout + 条件 VGA
-                        EmitPrintString();
-                    }
-                    else
-                    {
-                        // 浮点/双精度 → 整数转换（GenerateIntegerToString 从整数寄存器读取）
-                        if (exprType == BasicType.Double || exprType == BasicType.Long)
-                        {
-                            instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
-                        }
-                        else if (exprType == BasicType.Single)
-                        {
-                            instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
-                        }
-                        // 整数→字符串并输出
-                        GenerateIntegerToString(0);
-                    }
+                    AddRI(OpCode.MOVE, 0, 0);
                 }
-            }
-            // 输出换行符: 始终 stdout + 条件 VGA
-            AddRI(OpCode.MOVE, 0, 10);
-            EmitPrintChar();
+                EmitPrintChar();
+                }
+                else
+                {
+                // Compute expression, detect if it returns a string
+                BasicType exprType = InferExpressionType(expr);
+                if (currentSubName != null)
+                    GenerateSubExpression(expr, 0);
+                else
+                    GenerateExpression(expr, 0);
+
+                if (exprType == BasicType.String)
+                {
+                    // R0 = string pointer — 始终 stdout + 条件 VGA
+                    EmitPrintString();
+                }
+                else
+                {
+                    // 浮点/双精度 → 整数转换（GenerateIntegerToString 从整数寄存器读取）
+                    if (exprType == BasicType.Double || exprType == BasicType.Long)
+                    {
+                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                    }
+                    else if (exprType == BasicType.Single)
+                    {
+                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                    }
+                    // 整数→字符串并输出
+                    GenerateIntegerToString(0);
+                }
+                }
         }
 
         private void GenerateIntegerToString(int reg)

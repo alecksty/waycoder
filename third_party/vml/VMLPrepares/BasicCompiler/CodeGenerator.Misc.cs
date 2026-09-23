@@ -558,11 +558,20 @@ namespace BasicCompiler
         internal bool CrtMode;
 
         /// <summary>
-        /// 输出字符：CRT 模式 → TTY (#400)，否则 → stdout (#4)。
-        /// 调用前 R0 必须包含字符码。
+        /// 输出字符。调用前 R0 必须包含字符码。
+        ///
+        /// <list type="bullet">
+        ///   <item><b>UI 图形后端</b>（<c>--basicgfx ui</c>，默认）—— 走
+        ///         <c>basic_ui_text_putc</c>，由它**运行期**按 SCREEN 模式分派：
+        ///         文本模式 = 原来的 TTY #400，图形模式 = 攒进绘图窗口的行缓冲。
+        ///         见 <c>CodeGenerator.Qbasic.UiGfx.Text.cs</c>。</item>
+        ///   <item><b>pcgfx 后端</b>（老路）—— CRT 模式 → TTY (#400)，否则 → stdout (#4)
+        ///         + 往 0xB8000 写 VGA 文本帧缓冲。**一个字没改。**</item>
+        /// </list>
         /// </summary>
         internal new void EmitPrintChar()
         {
+            if (UiGfx) { UiTextEmitPutChar(); return; }
             instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> {
                 new Operand(OperandType.IMMEDIATE, CrtMode ? 400 : 4) }));
             if (!CrtMode)
@@ -574,11 +583,11 @@ namespace BasicCompiler
         }
 
         /// <summary>
-        /// 输出字符串：CRT 模式 → TTY (#401)，否则 → stdout (#1)。
-        /// 调用前 R0 必须包含字符串地址。
+        /// 输出字符串。调用前 R0 必须包含字符串地址。分派规则同 <see cref="EmitPrintChar"/>。
         /// </summary>
         internal new void EmitPrintString()
         {
+            if (UiGfx) { UiTextEmitPutString(); return; }
             instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> {
                 new Operand(OperandType.IMMEDIATE, CrtMode ? 401 : 1) }));
             if (!CrtMode)

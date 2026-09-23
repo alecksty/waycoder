@@ -226,11 +226,19 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             if (!IsExpressionStart(Peek())) break;
             Expression expr = ParseExpression();
-            if (expr != null) s.Expressions.Add(expr);
+            bool hasExpr = expr != null;
+            if (hasExpr) s.Expressions.Add(expr);
+            // 分隔符记账 —— 与 `ParsePrintStatement` 同一口径（见 `PrintStatement.Separators`）
             if (Peek().Type == TokenType.COMMA || Peek().Type == TokenType.SEMICOLON)
+            {
+                if (hasExpr) s.Separators.Add(Peek().Type == TokenType.COMMA ? ',' : ';');
                 Advance();
+            }
             else
+            {
+                if (hasExpr) s.Separators.Add('\0');
                 break;
+            }
         }
         return s;
     }

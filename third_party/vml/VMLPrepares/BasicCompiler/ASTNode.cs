@@ -54,10 +54,25 @@ namespace BasicCompiler
     {
         public List<Expression> Expressions { get; set; }
 
+        /// <summary>
+        /// **每个表达式后面那个分隔符**（与 <see cref="Expressions"/> 一一对应）：
+        /// <c>';'</c> = 紧跟其后不换行、<c>','</c> = 跳到下一个打印区、<c>'\0'</c> = 此处结束（要换行）。
+        ///
+        /// <para>**为什么必须记进 AST**：QBasic 的换行语义完全由**末尾分隔符**决定 ——
+        /// <c>PRINT "a";</c> 不换行、<c>PRINT "a"</c> 换行。而解析器从前只是
+        /// `Advance(); // 跳过逗号或分号`，信息当场丢掉；代码生成那边只好**无条件补一个换行**
+        /// ⇒ `PRINT "Angle:";</c>` 之后紧跟的输入回显被顶到下一行。要在生成侧补救就得反推
+        /// 源码，那是猜 —— 这里记下来才是唯一可靠的地方。</para>
+        ///
+        /// <para>长度与 <see cref="Expressions"/> 相同；<c>PRINT</c> 无参时为空表（= 只换行）。</para>
+        /// </summary>
+        public List<char> Separators { get; set; }
+
         public PrintStatement(int line, int column)
             : base(line, column)
         {
             Expressions = new List<Expression>();
+            Separators = new List<char>();
         }
     }
 

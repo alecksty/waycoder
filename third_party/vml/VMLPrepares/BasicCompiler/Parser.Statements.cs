@@ -19,14 +19,22 @@ namespace BasicCompiler
                 if (!IsExpressionStart(Peek()))
                     break;
                 Expression expr = ParseExpression();
-                if (expr != null)
+                bool hasExpr = expr != null;
+                if (hasExpr)
                     stmt.Expressions.Add(expr);
                 if (Peek().Type == TokenType.COMMA || Peek().Type == TokenType.SEMICOLON)
                 {
+                    // ⚠ **分隔符要记下来，不能只是跳过** —— 它决定"这一项打完之后换不换行"
+                    //   （`;` 紧接、`,` 跳打印区、到语句末尾则换行）。从前这里直接丢，
+                    //   代码生成侧只好无条件补换行，见 `PrintStatement.Separators` 的说明。
+                    //   `Separators` 与 `Expressions` **必须等长**（生成侧按下标配对取用），
+                    //   所以表达式的那个 `null` 分支（理论上不该发生）也一并跳过记账。
+                    if (hasExpr) stmt.Separators.Add(Peek().Type == TokenType.COMMA ? ',' : ';');
                     Advance(); // 跳过逗号或分号
                 }
                 else
                 {
+                    if (hasExpr) stmt.Separators.Add('\0');   // 语句在这里结束 ⇒ 这一项之后换行
                     break;
                 }
             }

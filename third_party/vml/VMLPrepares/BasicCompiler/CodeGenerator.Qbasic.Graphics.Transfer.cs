@@ -6,6 +6,10 @@ public partial class CodeGenerator
 {
     void GenerateLocateStatement(LocateStatement stmt)
     {
+        // UI 图形后端：图形模式下 LOCATE 改的是**窗口里那个光标**，文本模式仍是 CRT_GOTOXY。
+        // 判据是运行期的 SCREEN 模式字节（`SCREEN Mode` 的 Mode 可以是变量），见那个实现。
+        if (UiGfx) { UiEmitLocateStatement(stmt); return; }
+
         CrtMode = true;  // 激活 CRT 模式
         // LOCATE: ANSI CRT terminal — CRT_GOTOXY(col, row), both 1-based
         if (currentSubName != null)

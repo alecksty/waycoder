@@ -174,11 +174,15 @@ public partial class CodeGenerator
     ///
     /// <para>**索引超界一律掩到 15**：模式 13 的 256 色没做（见 <see cref="UiDefaultPalette"/>）。
     /// 与其假装支持，不如让 16 色以上落到表里那一项 —— 行为是确定的、可解释的。</para>
+    ///
+    /// <para><paramref name="pinned">≥0</paramref> 时用**调用方指定的**暂存寄存器、且不归还有关池
+    /// —— 文本子程序（<c>CodeGenerator.Qbasic.UiGfx.Text.cs</c>）里全程用固定寄存器编号，
+    /// 不能借 <see cref="Regs"/>（它的池从 R1 开始，正好和那边要保护的值撞上）。</para>
     /// </summary>
-    void UiTranslateColorInR0()
+    void UiTranslateColorInR0(int pinned = -1)
     {
         UiEnsurePalette();
-        int t = Regs.AllocInt(instructions);
+        int t = pinned >= 0 ? pinned : Regs.AllocInt(instructions);
         AddRI(OpCode.MOVE, t, 15);
         AddRR(OpCode.AND, 0, t);                      // R0 = 索引 & 15
         AddRI(OpCode.MOVE, t, 4);
@@ -187,7 +191,7 @@ public partial class CodeGenerator
         AddRR(OpCode.ADD, 0, t);                      // R0 = 表项地址
         instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, t), new Operand(OperandType.MEMORY, "R0")]));
         AddRR(OpCode.MOVE, 0, t);                     // R0 = ARGB
-        Regs.FreeInt(t, instructions);
+        if (pinned < 0) Regs.FreeInt(t, instructions);
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -356,8 +360,10 @@ public partial class CodeGenerator
         // 编译期就知道模式时不需要这段（`EmitWindowOpen` 直接按模式取表）。
         UiEmitCgaPaletteFixup();
 
-        // 记住已开窗模式（刚 POP 回来）+ 清屏
+        // 记住已开窗模式（刚 POP 回来）+ 文本网格（模式还在 R0，网格链正需要它）+ 清屏
         UiEmitStoreOpenedMode(() => instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 0)])));
+        UiTextEmitGridChain();
+        UiTextResetCursor();
         instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, sameMode)]));
 
         // 文本模式：把"已开窗模式"清零（下次图形 SCREEN 会重新开窗）
@@ -443,6 +449,9 @@ public partial class CodeGenerator
             dataSection[UiTitleLabel] = "BASIC";
         UiCall("ui_win_open_ex", UiConstLabel(UiTitleLabel), UiConst(w), UiConst(h), UiConst(0), UiConst(1));
         UiEnsurePalette();
+        // 文本网格（列数/行数/格高）与光标 —— 开窗是唯一"知道这次窗口多大"的地方
+        UiTextApplyGridConst(mode);
+        UiTextResetCursor();
     }
 
     /// <summary>MOVE R0, &lt;标签&gt; —— 取字符串常量地址</summary>
@@ -515,6 +524,8 @@ public partial class CodeGenerator
 
         AddLabel(gfx);
         UiCall("ui_clear", UiConstIndexed(UiBgAddr));
+        // QBasic 的 CLS 会把光标归位（1,1）—— 文本光标与窗口光标都要；这里只做窗口那个
+        UiTextResetCursor();
         AddLabel(done);
     }
 

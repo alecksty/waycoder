@@ -1372,6 +1372,11 @@ namespace BasicCompiler
                 GenerateFunctionDeclaration(funcDecl);
             }
 
+            // UI 后端的文本子程序（PRINT/LOCATE 攒行 → ui_text）。
+            // **必须在所有 SUB/FUNCTION 之后**：它们由 CALL 进入、只被前面的语句引用，
+            // 放这里就不用管"SUB 里的 PRINT 也得能调到"这件事。
+            UiTextEmitHelpers();
+
             // vga_text_putchar 无操作存根（链接共享库时会被覆盖）
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, "vga_text_putchar") }));
             instructions.Add(new Instruction(OpCode.RET, new List<Operand>()));
