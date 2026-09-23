@@ -274,6 +274,9 @@ extern "C" {
      void cprintf(const char *fmt, ...);
      void delline(void);
      void insline(void);
+     nt _con_win_state(void);
+     nt _con_scan_code(int vk);
+     nt _con_getch_window(void);
      int getch(void);
      int getche(void);
      int kbhit(void);

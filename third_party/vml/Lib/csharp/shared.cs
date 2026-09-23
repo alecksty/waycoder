@@ -274,6 +274,9 @@ namespace VML {
     // extern void cprintf(const char *fmt, ...);  // CALL cprintf
     // extern void delline(void);  // CALL delline
     // extern void insline(void);  // CALL insline
+    // extern nt _con_win_state(void);  // CALL _con_win_state
+    // extern nt _con_scan_code(int vk);  // CALL _con_scan_code
+    // extern nt _con_getch_window(void);  // CALL _con_getch_window
     // extern int getch(void);  // CALL getch
     // extern int getche(void);  // CALL getche
     // extern int kbhit(void);  // CALL kbhit

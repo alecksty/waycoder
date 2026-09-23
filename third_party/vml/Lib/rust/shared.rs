@@ -1689,6 +1689,27 @@ fn insline() {
     asm!("CALL insline")
 }
 
+fn _con_win_state() -> i32 {
+    asm!("CALL _con_win_state")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _con_scan_code(a0: i32) -> i32 {
+    asm!("CALL _con_scan_code")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _con_getch_window() -> i32 {
+    asm!("CALL _con_getch_window")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn getch() -> i32 {
     asm!("CALL getch")
     let r: i32;

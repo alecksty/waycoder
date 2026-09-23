@@ -1293,6 +1293,21 @@ DECLARE SUB insline()
     asm("CALL insline")
 END SUB
 
+DECLARE FUNCTION _con_win_state() AS INTEGER
+    asm("CALL _con_win_state")
+    _con_win_state = 0
+END FUNCTION
+
+DECLARE FUNCTION _con_scan_code(a0 AS INTEGER) AS INTEGER
+    asm("CALL _con_scan_code")
+    _con_scan_code = 0
+END FUNCTION
+
+DECLARE FUNCTION _con_getch_window() AS INTEGER
+    asm("CALL _con_getch_window")
+    _con_getch_window = 0
+END FUNCTION
+
 DECLARE FUNCTION getch() AS INTEGER
     asm("CALL getch")
     getch = 0

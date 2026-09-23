@@ -352,10 +352,101 @@ static char conKb[128];
 static int  conKbLen;
 static int  conKbPos;
 
+/* ── 绘图窗口那条输入路（BGI 老程序靠它活着）──────────────────
+ *
+ * ## 为什么必须有这一条
+ *
+ * BGI 老程序**必然同时 include `<graphics.h>` 与 `<conio.h>`**（Turbo C 里 `getch`
+ * 本来就归 conio，BGI 只管画），主循环写成 `ch = getch();` 靠**单键**控制游戏。
+ * 而上面那条"按行读 stdin"的路在图形窗口下**永远等不到** —— 窗口的按键走的是
+ * `ui_wait` 消息队列，stdin 那边一个字节都没有 ⇒ **游戏一按键就卡死**
+ * （实测：键盘游戏在窗口里按下方向键，程序一动不动，最后被超时杀掉）。
+ *
+ * ⚠ 而且这里**必须**是唯一实现：`graphics.h` 里曾另有一份读窗口消息的 `getch`，
+ *   两份同名同时存在时**链接器会把 `call getch` 重定向到库里这一份**
+ *   （即已知红 `28-name-shadowed-by-lib` 那个"库函数静默劫持"的病）
+ *   ⇒ 那份从来没生效过。现在 `graphics.h` 的那份**已删**，只留这里一份。
+ *
+ * ## 判据：`ui_win_closed()` 的**三值**
+ *
+ *   0 = 窗口开着（**走消息**）／1 = 被用户关掉／**2 = 从来没开过窗口**（走按行 stdin）。
+ *   只有 0/1 两档的话，"从没开过窗口"与"窗口正开着"都报 0、分不出来 ——
+ *   控制台程序就会被误判成图形程序，`getch` 于是去等一个永远不来的消息。
+ */
+static int _con_win_state(void)
+{
+    return (int)asm("SYSCALL #565");     /* ui_win_closed()：0 开着 / 1 关了 / 2 没开过 */
+}
+
+/* DOS 那个"两段式"的后半段（扩展键先返回 0、下一次返回扫描码）。 */
+static int _con_pending_scan = 0;
+
+/* Win32 虚拟键 → DOS 扫描码。只列**扩展键**；普通键的虚拟键码就等于 ASCII，
+ * 不走这条路。 */
+static int _con_scan_code(int vk)
+{
+    if (vk == 0x25) return 0x4B;              /* ← */
+    if (vk == 0x26) return 0x48;              /* ↑ */
+    if (vk == 0x27) return 0x4D;              /* → */
+    if (vk == 0x28) return 0x50;              /* ↓ */
+    if (vk == 0x24) return 0x47;              /* Home */
+    if (vk == 0x23) return 0x4F;              /* End  */
+    if (vk == 0x21) return 0x49;              /* PgUp */
+    if (vk == 0x22) return 0x51;              /* PgDn */
+    if (vk == 0x2D) return 0x52;              /* Ins  */
+    if (vk == 0x2E) return 0x53;              /* Del  */
+    if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
+    if (vk == 0x7A) return 0x57;              /* F11 */
+    if (vk == 0x7B) return 0x58;              /* F12 */
+    return 0;
+}
+
+/* 等一个**窗口按键**。返回 0 = 窗口关了（与原来的契约一致）。 */
+static int _con_getch_window(void)
+{
+    int buf[4];
+    int* msg = buf;          /* ⚠ 必须用**指针变量**：`asm` 里的 `${msg}` 展开的是
+                                "这个标识符的值" —— 数组名给的是元素而不是地址
+                                （实测：写成 `int msg[4]` 直接传，`ui_wait` 收到的是垃圾地址，
+                                 消息永远等不来 ⇒ getch 卡死）。`vmlui.c` 里那份能跑，
+                                正是因为它的形参本来就是 `int*`。 */
+    int vk;
+    int sc;
+
+    if (_con_pending_scan != 0)
+    {
+        sc = _con_pending_scan;
+        _con_pending_scan = 0;
+        return sc;
+    }
+
+    for (;;)
+    {
+        /* #561 = ui_wait(msg, 0)：0 是**无限等**，不是不阻塞 */
+        if ((int)asm("SYSCALL #561, ${msg}, ${0}") <= 0) return 0;
+        /* ⚠ 只认按下：KeyUp / 触摸 / 尺寸变化一律跳过 ——
+           返回 0 会被老程序当成"窗口没了"，返回别的又会把"按一下"变成"两下"。 */
+        if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
+    }
+
+    vk = msg[1];
+    sc = _con_scan_code(vk);
+    if (sc != 0)
+    {
+        _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
+        return 0;
+    }
+    return vk;                               /* 普通键：虚拟键码 == ASCII */
+}
+
 int getch(void)
 {
     int c;
     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
+
+    /* ⚠ 有绘图窗口就走窗口消息（见上面那一段）——
+       少了这一句，所有 BGI 游戏的按键都是死的。 */
+    if (_con_win_state() == 0) return _con_getch_window();
 
     conKbLen = 0;
     conKbPos = 0;
@@ -407,7 +498,27 @@ int getche(void)
 int kbhit(void)
 {
     int c;
+    int buf[4];
+    int* msg = buf;          /* 同上：指针变量，不是数组名 */
     if (conKbPos < conKbLen) return 1;
+
+    /* ⚠ 有绘图窗口时看**窗口消息队列**（与 `getch` 同一条路，否则图形程序里
+       `getch` 等窗口、`kbhit` 看 stdin，两边永远对不上）。 */
+    if (_con_win_state() == 0)
+    {
+        /* 队头**是**按键 ⇒ "有按键"，而且**不取走**（#571 = ui_poll_ex + KEEP，
+           kbhit 的契约就是"只看一眼、不动它"）。
+           ⚠ 队头**不是**按键时（KeyUp / 触摸 / 尺寸变化…）必须**吃掉它**再往下看 ——
+           只用"看一眼"的话，那条非按键消息会**一直堵在队头**，它后面的按键
+           永远轮不到 ⇒ 症状是"按了没反应，按第二下才行"。 */
+        for (;;)
+        {
+            if ((int)asm("SYSCALL #571, ${msg}, ${1}") <= 0) return 0;   /* 队列空 */
+            if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
+            asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
+        }
+    }
+
     c = asm("SYSCALL #5, ${0}");         /* R0=0 ⇒ 非阻塞；没键返回 0 */
     if (c <= 0) return 0;
     conKb[0] = (char)c;

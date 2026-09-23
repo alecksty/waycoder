@@ -547,6 +547,12 @@
 // CALL delline
 // extern fn insline(void) -> void
 // CALL insline
+// extern fn _con_win_state(void) -> nt
+// CALL _con_win_state
+// extern fn _con_scan_code(int vk) -> nt
+// CALL _con_scan_code
+// extern fn _con_getch_window(void) -> nt
+// CALL _con_getch_window
 // extern fn getch(void) -> int
 // CALL getch
 // extern fn getche(void) -> int

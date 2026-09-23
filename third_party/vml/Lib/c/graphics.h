@@ -59,6 +59,12 @@
 
 #include <vml_compat.h>      /* `far`/`near` 这类扩展关键字按空宏抹掉 */
 #include <waycoder_ui.h>     /* 落笔走 ui_* */
+/* `getch` / `kbhit` 从 conio 来 —— **本文件不再自己定义它们**。
+ * ⚠ 这一行是**必须的**：老程序里既有 `#include <conio.h>` 的（多数），
+ *   也有**只 include `<graphics.h>`** 的（如 `Hut.cpp`）—— 后者原先靠本文件
+ *   自带的那份 getch，删掉之后不加这一行就**没有 getch 了**（编译不报错、
+ *   链接期才炸，或者退化成隐式声明）。 */
+#include <conio.h>
 
 /* ── 模式与常量（老程序里到处在用）───────────────────────────── */
 #define DETECT        0
@@ -692,7 +698,11 @@ void delay(int ms)
     /* 老程序用 delay 做动画节拍；这里用 tick 轮询实现（不占宿主线程）*/
     int t0 = ui_tick();
     while (ui_tick() - t0 < ms) {
-        if (ui_win_closed()) break;
+        /* ⚠ 判据是 `== 1`（**被关掉**），不是"非 0"：
+           `ui_win_closed()` 现在是**三值**（0 开着 / 1 关掉了 / **2 从没开过窗口**，
+           见 `VmlUi.WinClosed`）。写成"非 0 就 break"的话，**没开窗口的控制台程序**
+           会让 `delay()` 立刻返回 —— 那正是 `25-dos-sleep-time` 压的东西。 */
+        if (ui_win_closed() == 1) break;
     }
 }
 
@@ -701,14 +711,90 @@ void delay(int ms)
  *   会把 kbhit 变成一个卡死的调用（本平台已经踩过一次，见 CHANGELOG）。 */
 int kbhit(void) { return ui_poll_msg() > 0; }
 
-/* getch：等一个键。`ui_wait_msg` 的 timeout 0 是**无限等**（不是不阻塞）。
- * 返回 0 表示窗口被关了 —— 老程序一般不看返回值，所以这里保证不返回负值。*/
+/* ── 按键：`getch` ────────────────────────────────────────────
+ *
+ * ⚠⚠ **这个函数被定义了两次**（这里一份、`Lib/shared/src/conio.c` 一份），
+ *   而这不是偷懒 —— 是**工具链逼出来的**，两条路各有各的用处：
+ *
+ *   · **C 程序**走 conio 那份：`Lib/c/conio.h` 里有 `#param lib("conio")`，
+ *     前端会发 `.linked "conio.vml"` ⇒ `call getch` 解析到 `lib_conio_getch`（实测 ✓）。
+ *   · **C++ 程序压根链不到 conio**：C++ 前端**不处理** `c/conio.h` 的 `#param`
+ *     （实测：一个 .cpp 只 include `<conio.h>` 时，产物里的 `.linked` 列表
+ *      没有任何 conio），而 `Lib/cpp/` 下**没有 conio.h**、`Lib/cpp/builtin.vml`
+ *      里也没有 conio ⇒ `getch` 对 C++ 来说就是"未定义的函数"。
+ *     而**老 BGI 程序几乎都是 .cpp**（Turbo C++ 时代）⇒ 这里这份是它们的唯一来源。
+ *
+ * ⚠ 两份同名实现同时存在时，**链接器会把 `call getch` 重定向到库里那份**
+ *   （即已知红 `28-name-shadowed-by-lib` 那个"库函数静默劫持"）—— 所以
+ *   **两份都必须是"对窗口友好"的实现**，否则用户看到的是"按了没反应"。
+ *   conio 那份（`Lib/shared/src/conio.c`）已同步改成同一套语义。
+ *
+ * 真正的根治办法（还没做）：让 C++ 前端也认 `c/conio.h` 的 `#param`，
+ * 或者往 `Lib/cpp/builtin.vml` 里补 `.linked "conio.vml"` —— 那之后这里就能删掉。
+ *
+ * ## 语义
+ *
+ * DOS 的 `getch()` 约定：**普通键返回 ASCII；扩展键先返回 0、下一次返回扫描码**：
+ *
+ *     ch = getch();
+ *     if (ch == 0) { ch = getch(); switch (ch) { case 0x4B: …  左 … } }
+ *
+ * 而本平台的按键是 **Win32 虚拟键**（方向键 37–40、F1–F12 112–123），
+ * 不翻译的话老程序里的方向键**永远按不动**（它们等的是 0 + 扫描码）。
+ * 普通键不用翻译：A–Z / 0–9 的虚拟键码**就等于** ASCII。 */
+
+static int _bgi_pending_scan = 0;   /* 非 0 = 下次 getch 立刻吐出的扫描码（两段式的后半段） */
+
+static int _bgi_scan_code(int vk)
+{
+    if (vk == 0x25) return 0x4B;              /* ← */
+    if (vk == 0x26) return 0x48;              /* ↑ */
+    if (vk == 0x27) return 0x4D;              /* → */
+    if (vk == 0x28) return 0x50;              /* ↓ */
+    if (vk == 0x24) return 0x47;              /* Home */
+    if (vk == 0x23) return 0x4F;              /* End  */
+    if (vk == 0x21) return 0x49;              /* PgUp */
+    if (vk == 0x22) return 0x51;              /* PgDn */
+    if (vk == 0x2D) return 0x52;              /* Ins  */
+    if (vk == 0x2E) return 0x53;              /* Del  */
+    if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
+    if (vk == 0x7A) return 0x57;              /* F11 */
+    if (vk == 0x7B) return 0x58;              /* F12 */
+    return 0;
+}
+
+/* 等一个键。`ui_wait` 的 timeout 0 是**无限等**（不是不阻塞）。
+ * 返回 0 表示窗口被关了 —— 老程序一般不看返回值，所以这里保证不返回负值。
+ * ⚠ 只认 `KEYDOWN`：KeyUp / 触摸 / 尺寸变化一律跳过。 */
 int getch(void)
 {
-    int m;
+    int msg[3];
+    int vk;
+    int sc;
+
     _bgi_flush();
-    if (ui_wait(&m, 0) <= 0) return 0;
-    return m;
+
+    if (_bgi_pending_scan != 0)
+    {
+        sc = _bgi_pending_scan;
+        _bgi_pending_scan = 0;
+        return sc;
+    }
+
+    for (;;)
+    {
+        if (ui_wait(msg, 0) <= 0) return 0;
+        if (msg[0] == VML_MSG_KEYDOWN) break;
+    }
+
+    vk = msg[1];
+    sc = _bgi_scan_code(vk);
+    if (sc != 0)
+    {
+        _bgi_pending_scan = sc;
+        return 0;
+    }
+    return vk;
 }
 
 void getmouse(int *x, int *y, int *buttons)

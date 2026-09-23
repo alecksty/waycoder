@@ -202,6 +202,13 @@ public sealed class VmlHostRuntime
     /// <summary>用户是否已关闭窗口（点返回箭头，或程序自己调了 `ui_win_close`）。</summary>
     private volatile bool _windowClosed;
 
+    /// <summary>
+    /// **有没有开过**绘图窗口。与 <see cref="_windowClosed"/> 一起构成
+    /// <see cref="VmlUi.WinClosed"/> 的三值语义（0 开着 / 1 关掉了 / 2 从没开过）——
+    /// `conio` 的 `getch()` 靠它区分"图形程序按键"与"控制台程序按行读 stdin"。
+    /// </summary>
+    private volatile bool _windowOpened;
+
     /// <summary>当前场景（供宿主查询，比如"程序画完了没有"）。没开窗时为 null。</summary>
     public VmlScene? Scene() => _scene;
 
@@ -436,7 +443,7 @@ public sealed class VmlHostRuntime
                 case VmlUi.MsgClear: _queue.Clear(); registers[0] = 0; break;
                 case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
                 case VmlUi.TimerKill: registers[0] = TimerKill(registers); break;
-                case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : 0; break;
+                case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : (_windowOpened ? 0 : 2); break;
                 case VmlUi.CallJson: registers[0] = CallJson(registers, memory); break;
 
                 // 通用宿主调用口（577–580）：**整批交给 UI/Shared 的注册表**
@@ -625,6 +632,7 @@ public sealed class VmlHostRuntime
             NeedGamepad = !ex || r[4] != VmlUi.NoGamepad,
         };
         _scene = scene;
+        _windowOpened = true;
         _windowClosed = false;
         return _host.OpenWindow(scene) ? 1 : -1;
     }
@@ -669,6 +677,7 @@ public sealed class VmlHostRuntime
             NeedKeyboard = r[4] != VmlUi.NoKeyboard,
         };
         _scene = scene;
+        _windowOpened = true;
         _windowClosed = false;
         return _host.OpenWindow(scene) ? 1 : -1;
     }

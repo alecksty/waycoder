@@ -1295,6 +1295,21 @@ func insline() {
     vml.Call("insline")
 }
 
+func _con_win_state() int32 {
+    vml.Call("_con_win_state")
+    return vml.R0()
+}
+
+func _con_scan_code(a0 int32) int32 {
+    vml.Call("_con_scan_code")
+    return vml.R0()
+}
+
+func _con_getch_window() int32 {
+    vml.Call("_con_getch_window")
+    return vml.R0()
+}
+
 func getch() int32 {
     vml.Call("getch")
     return vml.R0()

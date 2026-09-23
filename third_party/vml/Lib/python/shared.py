@@ -1642,6 +1642,22 @@ def delline():
 def insline():
     asm("CALL insline")
 
+def _con_win_state():
+    r0 = asm("@R0")
+    asm("CALL _con_win_state")
+    return r0
+
+def _con_scan_code(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _con_scan_code")
+    return r0
+
+def _con_getch_window():
+    r0 = asm("@R0")
+    asm("CALL _con_getch_window")
+    return r0
+
 def getch():
     r0 = asm("@R0")
     asm("CALL getch")

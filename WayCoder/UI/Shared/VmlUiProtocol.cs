@@ -284,7 +284,17 @@ public static class VmlUi
     public const int TimerSet = 563;
     /// <summary>删定时器：R0=id → 0。</summary>
     public const int TimerKill = 564;
-    /// <summary>窗口是否被用户关掉（返回箭头）：R0=句柄 → 1/0。程序据此退出主循环。</summary>
+    /// <summary>
+    /// 窗口状态 —— **三值**，不是布尔：`0` 开着 / `1` 被关掉（返回箭头）/ `2` **从来没开过窗口**。
+    ///
+    /// ⚠ `2` 这一档是后加的，**必须有**：`conio` 的 `getch()` 要靠它判断"这次按键该等
+    /// 窗口消息还是读 stdin"（见 `Lib/shared/src/conio.c`）。只有 0/1 两档的话，
+    /// "程序从没开过窗口"与"窗口正开着"都报 0，**分不出来** —— 于是图形程序的按键
+    /// 会去读命令行页的按行 stdin（永远等不到"按一下"）。
+    ///
+    /// 老的两值用法（`while (ui_win_closed() == 0)`）不受影响：从没开过窗口的程序
+    /// 本来也不会写这个循环。
+    /// </summary>
     public const int WinClosed = 565;
 
     /// <summary>
