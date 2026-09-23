@@ -1,0 +1,56 @@
+10 KEY OFF: KEY 1, "": KEY 2, "": KEY 3, "": KEY 4, "": KEY 5, "": KEY 6, "": KEY 7, ""
+20 KEY 8, "": KEY 9, "": KEY 10, ""
+30 SCREEN 0: COLOR 15, 1: CLS : COLOR , 3: LOCATE 1, 1: PRINT SPACE$(80)
+40 A$ = "MATH TABLES"
+50 LOCATE 1, ((80 - LEN(A$)) / 2)
+60 COLOR 14, 3: PRINT A$
+70 A$ = "³ FARHAN ALI QURESHI"
+80 LOCATE 1, 60: COLOR 15, 3: PRINT A$
+90 A$ = "Program by Farhan Ali Qureshi."
+100 LOCATE 3, ((80 - LEN(A$)) / 2)
+110 COLOR 10, 1: PRINT A$
+120 A$ = "Enter a number from 1 to 20 to disply table."
+130 B$ = "OR enter QUIT and press Enter to Exit to DOS."
+140 LOCATE 9, ((80 - LEN(A$)) / 2)
+150 COLOR 14, 1: PRINT A$
+160 LOCATE 10, ((80 - LEN(B$)) / 2)
+170 COLOR 14, 1: PRINT B$
+180 C$ = "Enter your choice :   "
+190 LOCATE 12, ((80 - LEN(C$)) / 2)
+200 INPUT "Enter your choice : ", D$
+210 IF D$ = "quit" THEN GOTO 240
+220 IF D$ = "QUIT" THEN GOTO 240
+230 GOTO 280
+240 COLOR 7, 0: CLS : COLOR 14, 0: PRINT "Thank you for using MATH TABLE."
+250 PRINT : COLOR 11, 0: PRINT "Program by Farhan Ali Qureshi."
+260 COLOR 7, 0: PRINT : SYSTEM
+270 IF LEN(A$) >= 5 THEN A = 0: GOTO 290
+280 A = VAL(D$)
+290 IF A <= 0 THEN BEEP: LOCATE 12, 49: PRINT SPACE$(31): GOTO 180
+300 IF A >= 21 THEN A = 0: GOTO 290
+310 FOR X = 9 TO 12: LOCATE X, 1: PRINT SPACE$(79); : NEXT X
+320 REM *** Display Table and wait for a key.
+330 FOR X = 1 TO 10
+340 LOCATE X + 5, 20
+350 PRINT USING "##"; A;
+360 PRINT " x ";
+370 PRINT USING "##"; X;
+380 PRINT " = ";
+390 PRINT USING "###"; A * X
+400 NEXT X
+410 FOR X = 11 TO 20
+420 LOCATE X - 5, 45
+430 PRINT USING "##"; A;
+440 PRINT " x ";
+450 PRINT USING "##"; X;
+460 PRINT " = ";
+470 PRINT USING "###"; A * X
+480 NEXT X
+490 COLOR 1, 7: LOCATE 25, 1: PRINT SPACE$(80); : LOCATE 1, 1
+500 A1$ = "Press any key to continue.": LOCATE 25, ((80 - LEN(A1$)) / 2): PRINT A1$;
+510 LOCATE 1, 1: WHILE INKEY$ <> "": WEND
+520 WHILE INKEY$ = "": WEND
+530 COLOR 15, 1
+540 FOR X = 6 TO 16: LOCATE X, 1: PRINT SPACE$(80); : NEXT X
+550 LOCATE 25, 1: PRINT SPACE$(80);
+560 GOTO 120

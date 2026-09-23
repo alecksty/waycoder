@@ -84,7 +84,11 @@ plane-war/
 WayCoder/UI/WEB/WebAssets.Generated.cs
 
 # 实验目录与构建产物（勿提交）
-QBasic/
+# ⚠ 必须**锚定根目录**：不加前导 `/` 时这条会匹配任意深度的同名目录 ——
+#   实测把 `Examples/basic/qbasic/`（第三方例程的落地目录）**整个静默 ignore**：
+#   文件在磁盘上、ls 看得见，git 与打包都看不到。正是本仓常记的
+#   「构建全绿、只有装到手机上才发现」那一类。
+/QBasic/
 *.deb
 
 
