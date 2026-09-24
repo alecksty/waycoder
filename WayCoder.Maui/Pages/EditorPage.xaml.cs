@@ -246,6 +246,10 @@ public partial class EditorPage : ContentPage
 
         // 键盘遮挡 → 压矮内容区。Handler 同样是懒创建的。
         Canvas.HandlerChanged += (_, _) => HookImeInsets();
+
+        // 面板拖动条：Android 上**必须走原生触摸**（拿屏幕绝对坐标），
+        // 不能用 MAUI 的 `PanGestureRecognizer` —— 理由见 `HookPanelDragBar` 的长注释。
+        PanelDragBar.HandlerChanged += (_, _) => HookPanelDragBar();
 #endif
     }
 
@@ -3504,6 +3508,12 @@ public partial class EditorPage : ContentPage
 
     private void OnPanelDragPanUpdated(object sender, PanUpdatedEventArgs e)
     {
+#if ANDROID
+        // Android 走原生触摸（见 `HookPanelDragBar`）—— 这里直接让位。
+        // 一句话理由：MAUI 的 `TotalY` 是**相对视图**的坐标，而面板一变高、拖动条自己就在上移
+        // ⇒ 反馈回路，量级恒偏小且来回抖（实测手指移 152dp、`TotalY` 只报 74.7dp）。
+        return;
+#endif
         switch (e.StatusType)
         {
             case GestureStatus.Started:
@@ -3538,6 +3548,65 @@ public partial class EditorPage : ContentPage
                 break;
         }
     }
+
+#if ANDROID
+    // ── Android：拖动条走**原生触摸**，用屏幕绝对坐标 ──────────────────────────
+    //
+    // **为什么不能用 MAUI 的 `PanGestureRecognizer`**：它给的 `TotalY` 是**相对视图**的
+    // 坐标变化，而这段交互恰恰是"用位移去改这个视图自己的高度" —— 面板一变高，拖动条
+    // （连同整个面板）就往上升。设手指上移 `ΔF`、拖动条上移 `ΔH`（都取上移为正）：
+    //
+    //     相对坐标的变化  TotalY = ΔF − ΔH      （手指远离了视图，但视图也迎上来了）
+    //     而我们想要的     ΔH = ΔF
+    //     代进去           ΔF = ΔF − ΔH  ⇒  **只有 ΔH ≡ 0 才成立**
+    //
+    // 即「用相对坐标驱动自身尺寸」是个**会自己抵消自己的回路** —— 实测手指移 152dp、
+    // `TotalY` 只报 74.7dp（约一半，正是被 ΔH 抵消掉的那部分），而且中途来回抖
+    // （`-38.5 → -32.7`）。用户报的「**来回抖动** + **位置错位**」两条都是它。
+    //
+    // **正解：脱离视图坐标系**，用 `MotionEvent.RawY`（屏幕绝对坐标）—— 手指的绝对位移
+    // 与视图怎么动无关 ⇒ 回路断开，`ΔH = ΔF` 严格成立。
+    private float _dragRawStartY;
+    private double _dragRawStartH;
+
+    private void HookPanelDragBar()
+    {
+        if (PanelDragBar.Handler?.PlatformView is not Android.Views.View v) return;
+        v.Touch -= OnPanelDragBarTouch;   // Handler 可能重建，防重复挂
+        v.Touch += OnPanelDragBarTouch;
+    }
+
+    private void OnPanelDragBarTouch(object sender, Android.Views.View.TouchEventArgs e)
+    {
+        var ev = e.Event;
+        if (ev == null) return;
+        switch (ev.ActionMasked)
+        {
+            case Android.Views.MotionEventActions.Down:
+                _dragRawStartY = ev.RawY;
+                _dragRawStartH = OutputPanel.Height > 0
+                    ? OutputPanel.Height
+                    : ClampPanelHeight(MauiEditorStore.PanelHeight);
+                e.Handled = true;
+                break;
+
+            case Android.Views.MotionEventActions.Move:
+                // `RawY` 是**屏幕像素**，而 `HeightRequest` 是**设备无关单位** ⇒ 除密度换算。
+                double movedPx = _dragRawStartY - ev.RawY;      // 上移为正
+                double density = DeviceDisplay.MainDisplayInfo.Density;
+                double movedDp = density > 0 ? movedPx / density : movedPx;
+                OutputPanel.HeightRequest = ClampPanelHeight(_dragRawStartH + movedDp);
+                e.Handled = true;
+                break;
+
+            case Android.Views.MotionEventActions.Up:
+            case Android.Views.MotionEventActions.Cancel:
+                MauiEditorStore.SetPanelHeight(OutputPanel.HeightRequest);
+                e.Handled = true;
+                break;
+        }
+    }
+#endif
 
     /// <summary>
     /// 面板 Tab 的「选中 / 未选中」文字色。**必须跟随主题**。
