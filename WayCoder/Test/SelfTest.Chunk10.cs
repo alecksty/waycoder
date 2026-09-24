@@ -601,6 +601,22 @@ public static partial class SelfTest
         Check("防护: 图元数封顶（漏 ui_clear 也拖不垮宿主）",
             capped.BuildDsl().Split('\n').Count(l => l.StartsWith("rect ")) == VmlScene.MaxFigures);
 
+        // 消息队列封顶 —— 投递方是定时器回调与 UI 事件（都在别的线程上，**不看程序读得多快**），
+        // 程序慢一点就会堆。这是宿主兜底，判据三条：条数封顶、**丢的是最旧的**、
+        // 以及**许可账仍然对得上**（封顶时丢一条就要吃掉它那份许可，
+        // 否则会造出"计数 > 0 而队列为空"的假信号 —— 那正是 `Post` 注释里记过的坑）。
+        var capQ = new VmlMessageQueue();
+        for (var i = 0; i < VmlMessageQueue.MaxMessages + 100; i++)
+            capQ.Post(new VmlMessage(VmlMsgType.KeyDown, i, 0, 0));
+        Check("防护: 消息队列封顶", capQ.Count == VmlMessageQueue.MaxMessages);
+        Check("防护: 队列满时丢最旧、保最新（后到的才是当下手指的位置）",
+            capQ.TryTake()?.A == 100);
+
+        var drained = 0;
+        for (var m = capQ.TryTake(); m != null; m = capQ.TryTake()) drained++;
+        Check("防护: 封顶丢消息后许可账仍对得上（不空唤醒）",
+            drained == VmlMessageQueue.MaxMessages - 1);
+
         // 文本封顶且**按码点**截断 —— 切碎代理对会在渲染端变成 U+FFFD
         var longText = new string('a', VmlScene.MaxTextLength - 1) + "😀" + new string('b', 200);
         var tscene = new VmlScene();

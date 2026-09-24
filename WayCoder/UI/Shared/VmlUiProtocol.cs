@@ -1319,9 +1319,30 @@ public readonly record struct VmlMessage(VmlMsgType Type, int A, int B, int Time
 /// </summary>
 public sealed class VmlMessageQueue
 {
+    /// <summary>
+    /// 队列上限。
+    ///
+    /// <para><b>为什么要有它（v0.96.433）</b>：这个队列原来**没有上限** —— 一条 `Queue`，
+    /// 投递方是定时器回调与 UI 事件（都在别的线程上跑，**不看程序读得多快**），
+    /// 消费方是 VML 程序自己（`ui_wait_msg` / `ui_poll`）。一旦程序某段时间读得慢
+    /// （比如正在跑一段长循环、或被模态弹框挡住），投递就会一直堆：
+    /// **内存涨、每条消息的处理开销也跟着涨**，而且**程序那边完全看不出**
+    /// （它只会觉得"消息怎么越读越多"）。</para>
+    ///
+    /// <para>**挑大值、丢最旧**：4096 条在日常（键盘/触摸/定时器）根本到不了 ——
+    /// 真到了就说明程序已经不正常了，这时**保新的**比保旧的更有用
+    /// （输入类消息里，后到的那个才是"现在的手指在哪"）。</para>
+    ///
+    /// <para>⚠ **丢一条必须同时把它的许可吃掉**，否则就破坏了本类反复强调的那条不变量
+    /// 「许可数 == 队列长度」（见 <see cref="Post"/> 的注释）—— 那会造出"计数 &gt; 0
+    /// 而队列为空"的假信号，让 `ui_wait_msg` 空转。做法与 <see cref="TryRead"/> 一致。</para>
+    /// </summary>
+    public const int MaxMessages = 4096;
+
     private readonly Queue<VmlMessage> _queue = new();
     private readonly Lock _lock = new();
     private readonly SemaphoreSlim _signal = new(0);
+    private bool _overflowWarned;
 
     /// <summary>当前待处理条数。</summary>
     public int Count
@@ -1345,7 +1366,25 @@ public sealed class VmlMessageQueue
     /// </summary>
     public void Post(VmlMessage msg)
     {
-        lock (_lock) _queue.Enqueue(msg);
+        lock (_lock)
+        {
+            // 到顶了就**丢最旧的一条**再进新的 —— 见 `MaxMessages` 的说明。
+            // ⚠ 丢弃必须连着吃掉它的许可：队列长度减一，许可也得减一，不然就破了
+            //   「许可数 == 队列长度」这条不变量（下面 Post 的注释与 TryRead 都在守它）。
+            if (_queue.Count >= MaxMessages)
+            {
+                _queue.Dequeue();
+                _signal.Wait(0);
+                if (!_overflowWarned)
+                {
+                    _overflowWarned = true;
+                    ErrorLog.Warning("VmlMessageQueue",
+                        $"消息队列已达上限 {MaxMessages} 条，最旧的被丢弃 —— " +
+                        "程序很可能有一段时间没在取消息（长循环 / 模态弹框 / 卡住）");
+                }
+            }
+            _queue.Enqueue(msg);
+        }
         _signal.Release();
     }
 
@@ -2000,10 +2039,27 @@ public sealed class VmlScene
         Version++;
     }
 
+    /// <summary>
+    /// 拼 DSL 用的**复用缓冲区**。
+    ///
+    /// <para><b>为什么要有它（v0.96.433）</b>：真机 logcat 实测**每 ~200ms 就一次
+    /// `Explicit concurrent mark compact GC`**（每次回收 ~350KB，约 1.75MB/s 的分配速率），
+    /// 而每帧的渲染耗时只有 1ms —— 分配全在这个函数里。
+    /// 原来每帧 `new StringBuilder()`（默认容量 16）再一路拼到 ~7KB，
+    /// **中间要反复扩容 16→32→…→8192**，那些中间 `char[]` 全是要 GC 的垃圾。
+    /// 现在容量一次给足并跨帧复用：**一帧只分配最后那一个字符串**。</para>
+    ///
+    /// <para>⚠ 只在 <see cref="_figures"/> 那把锁里用（`BuildDsl` 已经持有它）——
+    /// 复用的缓冲区**不是线程安全的**，多线程同时拼会互相踩内容。</para>
+    /// </summary>
+    private readonly StringBuilder _dslBuf = new(64 * 1024);
+
     /// <summary>把场景翻成绘图 DSL（首行是 <c>canvas</c> 头）。宿主把它交给 DrawRunner 出图。</summary>
     public string BuildDsl()
     {
-        var sb = new StringBuilder();
+        // 复用缓冲区 —— 见 `_dslBuf` 的说明（跨帧不 new，省掉扩容产生的中间数组）
+        var sb = _dslBuf;
+        sb.Clear();
 
         // **必须开抗锯齿。** 光栅器本身支持（`DrawDocument.Antialias` → 3× 超采样再盒式降采样），
         // 但**默认是关的**，得由 DSL 显式打开。不开的后果全在"斜的、圆的、细的"东西上：
