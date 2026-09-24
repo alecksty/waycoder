@@ -270,7 +270,19 @@ void ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action) 
 
 /* 一次性画一行字。anchor: 0=左 1=中 2=右；style: 1=粗 2=斜。 */
 void ui_text(int x, int y, char* s, int color, int size, int anchor) {
-    asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}");
+    /* ⚠ **必须显式把 R6（样式位）压成 0** —— 这是真机上抓到的 bug：
+     *   `#528` 把 R6 当样式位读（bit0 粗 / bit1 斜），而**这个 6 参数的版本不碰 R6**
+     *   ⇒ 程序上一条指令留在 R6 里的值会被当成样式。
+     *   最典型的触发：先 `ui_rect(..., lw, radius)`（8 个参数，**线宽落在 R6**），
+     *   再 `ui_text(...)` ⇒ 线宽 6 = `110b` ⇒ **斜体位开着**，之后所有文字都变斜。
+     *   实测：设备日志 `#528 regs=[...,6,0]`，截图里字全斜、屏幕上却"粗而不斜"
+     *   （两条渲染路径对 italic 的处理还不同，于是两端还不一致）。
+     *
+     *   `${}` 只认**局部变量**，所以先落到一个局部量再当第 7 个占位符传下去 ——
+     *   写死在 asm 文本里的字面量**不会**被装配进寄存器（本仓记过这个坑）。 */
+    int no_style;
+    no_style = 0;
+    asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${no_style}");
 }
 
 void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) {

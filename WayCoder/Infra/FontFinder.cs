@@ -45,6 +45,27 @@ public static class FontFinder
                 dirs.Add(Path.Combine(home, "vml", "fonts"));
             }
         }
+        else if (OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() || OperatingSystem.IsTvOS())
+        {
+            // ⚠ **Apple 系也必须单列一支**，理由与上面 Android 那条**一模一样**：
+            //   `OperatingSystem.IsMacOS()` 在 iOS / MacCatalyst 上返回 **false**
+            //   （它们是各自独立的平台标识，不是 macOS），于是会掉进下面的 Linux 分支
+            //   只找 `/usr/share/fonts` —— 那个目录在 iOS 上不存在 ⇒
+            //   **一个系统字体都找不到** ⇒ 光栅器退回内置 5×7 点阵：
+            //   中文变豆腐块、粗/斜/字号这些**特征全丢**。
+            //
+            // ⚠ 这一支是**按 Android 的同型故障推出来的**（那次的现场结论就写在上面），
+            //   **尚未在 iOS 真机上实测过**（手上没有设备）。要证实很简单：
+            //   在 iOS 上跑 `ui_screenshot`，看中文是不是方块。
+            dirs.Add("/System/Library/Fonts");
+            dirs.Add("/System/Library/Fonts/Core");
+            dirs.Add("/System/Library/Fonts/AppFonts");
+            if (!string.IsNullOrEmpty(home))
+            {
+                dirs.Add(Path.Combine(home, "fonts"));
+                dirs.Add(Path.Combine(home, "vml", "fonts"));
+            }
+        }
         else // Linux / 其它
         {
             dirs.Add("/usr/share/fonts");

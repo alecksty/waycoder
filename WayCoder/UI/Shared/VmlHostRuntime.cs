@@ -1434,17 +1434,21 @@ public sealed class VmlHostRuntime
             return -1;
         }
 
-        // 走 **`Rasterize`**（= `DrawRunner` 那套共享光栅器）而不是任何平台截屏 API。
+        // 走 **`Rasterize`**（= `DrawRunner` 那套共享光栅器）把画布重画一遍。
         //
-        // ⚠ 这是被真机否掉一版之后定下来的：第一版在 Android 上走
-        //   `DecorView.Draw(canvas)` 想要"整窗"（含手柄与标题栏），真机实测
-        //   **标题栏正常、画布整块纯黑** —— `View.Draw` 是软件绘制，而 MAUI 的
-        //   `GraphicsView` 内容在硬件加速的 RenderNode 上，压根不参与。
+        // ⚠ **出图与屏幕不是逐像素相同，这是已知且接受的**：屏幕走
+        //   `MauiVectorTarget`（MAUI `ICanvas` + 平台系统字体），这里走
+        //   `DrawRunner` + `TrueTypeFont`（我们自己的光栅器 + `FontFinder` 找的字体文件）
+        //   —— 两个引擎、两条字体来源。
         //
-        // 换成光栅化场景之后：四端**逐字同一份代码**（`DrawRunner` 在共享 `Infra/`），
-        // 没有平台分支、没有权限、也没有"某一端画不出来"的可能；
-        // 代价是只出**画布**（不含屏幕手柄与标题栏）—— 那正是要的：
-        // 拿来当战绩图/分享图，干净的画面比带一圈 UI 更好。
+        // 试过、**被真机否掉**的"以显示屏为准"三条（都拿不到画布内容）：
+        //   ① `DecorView.Draw()` 软件绘制 ⇒ 画布整块黑；
+        //   ② MAUI `VisualDiagnostics.CaptureAsPngAsync(画布视图)` ⇒ 不透明黑；
+        //   ③ `PixelCopy`(窗口) ⇒ 不透明黑（alpha=255 ⇒ 窗口那张表面在画布位置本来就是黑的）
+        //   ⇒ 画布内容是从**另一层**合成上去的，应用层这三种抓法都到不了；
+        //     能到的是显示合成，而应用要拿它得走 `MediaProjection`（要用户授权弹框）。
+        // 结论：**选"多端共用一份重画"**，代价是样式细节与屏幕有差（用户拍板接受），
+        // 换来的是零权限、四端同一份代码、且**特征都要画出来**（粗/斜/竖对齐/锚点/中文）。
         var buf = new byte[sw * sh * 4];
         if (!_host.Rasterize(0, 0, sw, sh, buf))
         {
@@ -1458,7 +1462,6 @@ public sealed class VmlHostRuntime
         // 建目录在这里是安全的：`rel` 已经过 SanitizeShotPath，不会有回退段。
         var dir = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
         File.WriteAllBytes(full, png);
         return png.Length;
     }

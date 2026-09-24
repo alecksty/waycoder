@@ -696,6 +696,71 @@ public static partial class SelfTest
             rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
             Check("子目录里的图也能落盘", File.Exists(Path.Combine(dir, "shots", "1.png")));
 
+            // ── 特征要保留：粗体 / 斜体 在出图里必须**真的画出来** ─────────────
+            // 用户定的口径是"允许与屏幕不同，但**特征不许丢**"，所以这条钉的是出图本身。
+            // 用两行 `IIII`（竖笔画串）：斜体是 0.25 切变 ⇒ "斜没斜"**可量化**，不靠肉眼。
+            // ⚠ 量法用**墨迹质心**漂移，不用"每行最左一列"——后者是单像素统计，
+            //   抗锯齿抖一两像素就能报出 ±0.15 的假斜度（网格体检那一版就误报过）。
+            var sPtr = WriteCStr(mem, 512, "IIII");
+            void DrawStyled(int x, int y, int style)
+            {
+                var rr = new int[32];
+                rr[0] = x; rr[1] = y; rr[2] = sPtr;
+                rr[3] = unchecked((int)0xFFFFFFFFu); rr[4] = 20; rr[5] = 0;
+                rr[6] = style; rr[7] = 0;
+                rt.HandleSyscall(VmlUi.DrawText, rr, mem);
+            }
+            // ⚠ 场景尺寸要先放大 —— 上面那个用例把场景改成了 4×4，不放大什么都画不进去。
+            scene.Width = 48; scene.Height = 48;
+
+            // **一图一行**：每次清屏后只画一行，再对**整张图**量斜度。
+            // ⚠ 别在**同一张图**里按 y 划带来分别量 —— `#528` 的 `y` 是**基线**
+            //   （不是顶线），按顶线猜带边界必然错位（实测就错了两轮）。
+            //   少一个假设，就少一处会错的地方。
+            double SlantOfOneLine(int style, string file)
+            {
+                regs[0] = unchecked((int)0xFF000000u);   // 清成黑底：白字才好判"是不是墨迹"
+                rt.HandleSyscall(VmlUi.DrawClear, regs, mem);
+                DrawStyled(4, 40, style);                // y=基线 ⇒ 字形落在 y≈20..40
+
+                regs[0] = WriteCStr(mem, 640, file);
+                rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+
+                var path = Path.Combine(dir, file);
+                if (!File.Exists(path)) return double.NaN;
+                var img = PngDecoder.Decode(File.ReadAllBytes(path));
+
+                var rows = new List<(int Y, double Cx, int N)>();
+                for (int y = 0; y < img.Height; y++)
+                {
+                    double sx2 = 0; int n = 0;
+                    for (int x = 0; x < img.Width; x++)
+                    {
+                        int o = (y * img.Width + x) * 4;
+                        // 墨迹 = **白字**（三个通道都亮）。⚠ 别按单通道判：
+                        // 底色若不是黑，`R>110` 会把底色一并算进来 ⇒ 质心恒居中 ⇒ 斜度恒 0（踩过）
+                        if (img.Rgba[o] > 110 && img.Rgba[o + 1] > 110 && img.Rgba[o + 2] > 110)
+                        { sx2 += x; n++; }
+                    }
+                    if (n > 0) rows.Add((y, sx2 / n, n));
+                }
+                if (rows.Count < 4) return double.NaN;
+                var solid = rows.Where(t => t.N >= 2).ToList();
+                if (solid.Count < 4) solid = rows;
+                int k = Math.Max(1, solid.Count / 3);
+                double dy = solid[^1].Y - solid[0].Y;
+                return dy <= 0 ? double.NaN
+                    : (solid.Skip(solid.Count - k).Average(t => t.Cx)
+                       - solid.Take(k).Average(t => t.Cx)) / dy;
+            }
+
+            double upright = SlantOfOneLine(0, "feat_upright.png");
+            double italic = SlantOfOneLine(2, "feat_italic.png");
+            Check($"常规文字出图**不斜**（斜度 {upright:+0.00;-0.00;0.00}）",
+                !double.IsNaN(upright) && Math.Abs(upright) < 0.10);
+            Check($"斜体文字出图**真的斜**（斜度 {italic:+0.00;-0.00;0.00}，应 ≈0.25）",
+                !double.IsNaN(italic) && italic > 0.15);
+
             // 没给路径（空串）⇒ 自动命名 `shot/<标题>_<日期>_<时间>.png`
             regs[0] = WriteCStr(mem, 256, "");
             rt.HandleSyscall(VmlUi.Screenshot, regs, mem);

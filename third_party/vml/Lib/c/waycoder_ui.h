@@ -217,6 +217,10 @@ int ui_put_image(int x, int y, int handle, int mode);
 int ui_screenshot(char* path);
 
 /* ── 文字 ── */
+/* ⚠ `ui_text` 会**显式把样式位置 0**（常规）。
+   曾经不是这样，于是有个很难查的 bug：程序先 `ui_rect(..., 线宽, 圆角)`（线宽落在 R6），
+   再 `ui_text(...)`，残留的线宽就被当成样式位 ⇒ **之后的文字随机变粗/变斜**。
+   要粗/斜请用下面的 `ui_text_styled`（它显式给第 7 个参数）。 */
 void ui_text(int x, int y, char* s, int color, int size, int anchor);
 void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
 /* 带**竖对齐**的文字（新号 #581）—— valign 见 VML_VANCHOR_*，style 见 VML_FONT_*。
