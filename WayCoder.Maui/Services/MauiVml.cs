@@ -837,8 +837,51 @@ HALT
         //
         // 它内部会把 `Lib/c/builtin.vml` 这类相对 `.linked` 解析出来（靠上面设的 `VML_HOME`），
         // 递归链上 `builtins.vml` → `string/math/io/printf/...` 整个标准库。
-        LibraryLinker.LinkLibraries(prog, libraryPaths);
-        prog.ApplyExports();
+        // ⚠ **链接器的 stderr 也必须接住** —— 上面那段 `Console.SetError` 的捕获区**只包了前端编译**
+        //   （`compile.Wait`），而链接发生在它之外，于是**链接器报的 `error: 未定义的函数 …`
+        //   直接落到真实 stderr 上**：手机上那是看不见的流，诊断表里也一条都没有。
+        //   实测（22 门逐门跑）：**只有 Forth 是 0 条** —— 它的 `test_error.fth` 唯一那条错
+        //   就是链接器报的（`<input>:11: error: 未定义的函数 'word_undefined_word'`），
+        //   而**链接照跑、构建算成功** ⇒ 成功出口 + 未被捕获 ⇒ 编辑器上一个字都没有。
+        //   ⚠ 别把 `LinkLibraries` 挪进上面那个 lock：那里持锁的时长已经是一两分钟
+        //     （前端编译本来就久），再并进来只是把锁拉得更长，两段各自持锁更短。
+        string linkDiag;
+        lock (ConsoleRedirectGate)
+        {
+            var prevErr = Console.Error;
+            var errSink = new StringWriter();
+            try
+            {
+                Console.SetError(errSink);
+                try
+                {
+                    LibraryLinker.LinkLibraries(prog, libraryPaths);
+                    prog.ApplyExports();
+                }
+                catch (Exception linkError)
+                {
+                    // ⚠ **链接器抛的异常也必须走失败出口** —— 与①同型：它原先不在任何 try 里，
+                    //   一抛就穿出 `BuildProgram`，`Fail`/`FailWith` 一个都没走 ⇒ `LastDiags` 恒空。
+                    //   实测 22 门逐门跑：**只有 Forth 是 0 条**，而它的错恰恰是链接器报的
+                    //   （`<input>:11: error: 未定义的函数 'word_undefined_word'`）。
+                    //   捕获区的 stderr 此刻已经写完（`errSink` 里有那份清单），一并并进消息与诊断。
+                    var innerLink = linkError is AggregateException ag ? ag.GetBaseException() : linkError;
+                    var sink = errSink.ToString();
+                    return FailWith(lang, $"⚠️ 链接失败：{innerLink.Message}"
+                        + (sink.Trim().Length > 0 ? "\n" + sink.Trim() : ""), filePath,
+                        VmlDiagnostics.Merge(
+                            VmlDiagnostics.Parse($"⚠️ 链接失败：{innerLink.Message}", filePath),
+                            VmlDiagnostics.Parse(sink, filePath)));
+                }
+            }
+            finally
+            {
+                Console.SetError(prevErr);
+                linkDiag = errSink.ToString();
+            }
+        }
+        if (linkDiag.Length > 0)
+            compileDiag = compileDiag.Length == 0 ? linkDiag : compileDiag + "\n" + linkDiag;
 
         // 目标文件：标成库 ⇒ 后面 `ToString()` 的**死代码消除不会删掉"没人调用"的函数**
         //（它本来就是给别人调的 —— 入口那边才是唯一知道谁被调了的地方）。
@@ -853,9 +896,20 @@ HALT
         //
         // ⚠ 同样要传 `filePath`（与 `Fail` 那条出口同一个理由）：编译期的 stderr 里
         //   头文件产生的警告不在少数，不判文件就会把它们贴到用户文件的行号上。
-        var compileWarnings = VmlDiagnostics.Parse(compileDiag, filePath)
+        var compileDiags = VmlDiagnostics.Parse(compileDiag, filePath);
+        var compileWarnings = compileDiags
             .Where(d => d.Severity == Severity.Warning)
             .ToList();
+        // ⚠ **成功出口也要留下结构化诊断**（与 `FailWith` 那条一样）—— 不设的话有两类诊断
+        //   永远到不了编辑器（实测 22 门逐门跑下来，只有 Forth 是 0 条）：
+        //     ① 「编过了但有警告」：未使用符号、找不到头文件（预处理器默认就发）；
+        //     ② **链接器报了 `error: 未定义的函数 …` 但链接照跑**（`.linked` 解析不到时是
+        //        一条 warning、链接继续）—— Forth 的 `test_error.fth` 正是这一类：
+        //        桌面端报 2 条错误，应用里注入 **0 条**，编辑器上什么都不显示。
+        //   注意上面那个 `Where(仅 Warning)` 是**交给 `CompileForEditor` 画气泡用的**
+        //   （它只要"编过了但有问题"那些），**不能拿它当 `LastDiags`** —— 那会把 error 全滤掉。
+        LastDiags = compileDiags;
+        LastDiagsFile = filePath ?? "";
         return (prog, lang, null, compileWarnings);
     }
 
