@@ -117,6 +117,83 @@ namespace PascalCompiler
                             new Operand(OperandType.LABEL, variable.Name)
                         }));
                     }
+                    else if (dataSection[variable.Name] is Array)
+                    {
+                        // **常量数组**（`const Pal: array[0..3] of Integer = (10,20,30,40);`）。
+                        //
+                        // ⚠ 这块末尾有 `return;`（常量名不进后面的变量/下标路径），所以**必须在这里
+                        //   把"取元素"整套做完** —— 只发一个地址就走人的话，下标会被整个忽略。
+                        //   （我第一版正是只发了地址：`x := Pal[2]` 打出 **1024**，那正是标签地址。）
+                        //
+                        // ⚠ 而完全不做也不行：`int[]` 既不 `is string` 也不 `is int`，两个分支都不命中
+                        //   ⇒ **一条指令都不发**，调用方拿着上一条指令残留的 R0 去取值 ⇒ 读到垃圾。
+                        //   实测修前 `x := Pal[2]` 打出 `1`（应 30）、`Writeln(Pal[i])` 的实参
+                        //   **根本没被求值**（那句读被甩到循环之外成了死代码）。
+                        //   ⚠ 这条与「数组赋值的右值被下标求值踩掉」是**两回事**，别混。
+                        if (variable.Indices.Count == 0)
+                        {
+                            // 不带下标地引用一个常量数组 = 取它的地址（数据段里那个标签）
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.LABEL, variable.Name)
+                            }));
+                        }
+                        else if (variable.Indices[0] is LiteralNode { Type: TokenType.INTEGER_LITERAL } litIdx
+                                 && dataSection[variable.Name] is int[] constArr)
+                        {
+                            // **常量下标 ⇒ 编译期直接折叠成值**（最稳，也不用管下界/步长）：
+                            //   常量数组的元素在编译期就是已知的，没有任何理由留到运行期去算。
+                            int idx = Convert.ToInt32(litIdx.Value);
+                            int lo = arrayBounds.TryGetValue(variable.Name, out var ab0) && ab0.Count > 0 ? ab0[0].lower : 0;
+                            int off = idx - lo;
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.IMMEDIATE,
+                                    (off >= 0 && off < constArr.Length) ? constArr[off] : 0)   // 越界给 0，不编出界外读
+                            }));
+                        }
+                        else
+                        {
+                            // 运行期下标：地址 + (i - 下界) * 4，再解引用取值（与其它路径同形）
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.LABEL, variable.Name)
+                            }));
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 2),
+                                new Operand(OperandType.REGISTER, 0)
+                            }));
+                            GenerateExpression(variable.Indices[0]);
+                            int lo = arrayBounds.TryGetValue(variable.Name, out var ab1) && ab1.Count > 0 ? ab1[0].lower : 0;
+                            if (lo != 0)
+                                instructions.Add(new Instruction(OpCode.SUB, new List<Operand>
+                                {
+                                    new Operand(OperandType.REGISTER, 0),
+                                    new Operand(OperandType.IMMEDIATE, lo)
+                                }));
+                            instructions.Add(new Instruction(OpCode.MUL, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.IMMEDIATE, 4)
+                            }));
+                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                new Operand(OperandType.REGISTER, 2),
+                                new Operand(OperandType.REGISTER, 0)
+                            }));
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                            {
+                                new Operand(OperandType.REGISTER, 0),
+                                Mem("R0")
+                            }));
+                        }
+                    }
                     else if (dataSection[variable.Name] is int intVal)
                     {
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
