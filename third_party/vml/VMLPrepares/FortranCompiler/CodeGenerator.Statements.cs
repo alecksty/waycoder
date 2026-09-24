@@ -401,7 +401,23 @@ public partial class CodeGenerator
         }
 
         EmitPrintArgs(node.Expressions.Count,
-            i => GenerateExpression(node.Expressions[i]),
+            i =>
+            {
+                GenerateExpression(node.Expressions[i]);
+                /* 双精度**先降成单精度**再打。
+                 *
+                 * 为什么不直接调 `print_double`：它是 **stdcall 栈传参**
+                 * （`move @R0 [@R12+12]` 取 val、`[@R12+20]` 取 precision —— 两个形参），
+                 * 而本路径（以及 `print_float`）是**值在 R0** 的寄存器约定
+                 * （`print_float` 的函数体就是一句 `SYSCALL 8`，只看 R0）。
+                 * 两个约定不一致 —— 直接 `CALL print_double` 而不压栈的话，
+                 * `precision` 读到的是寄存器里的垃圾，**屏幕上什么都没有**（实测：
+                 * 换成 print_double 之后 double 一个字都不打）。
+                 * 仓里 Swift 前端对同一问题的处置就是这个（`CodeGenerator.cs:790`
+                 * 的注释写着同一个理由）—— 照它走，别再发明第二条路。 */
+                if (GetExprType(node.Expressions[i]) == ExpType.F64)
+                    EmitD2F();
+            },
             i => node.Expressions[i] is LiteralNode lit && lit.Value is string
                 || (node.Expressions[i] is CallNode call && IsStringReturningFunc(call.Name))
                 || (node.Expressions[i] is FuncCallNode fcall && IsStringReturningFunc(fcall.Name)),
@@ -411,11 +427,7 @@ public partial class CodeGenerator
             //   `print *, 2.5` 打出 `1075838976`（= 0x40200000，2.5f 的位模式；
             //   值本身是对的，只是被当成整数解释了）。实测 `print *, x * 4.0`
             //   （x 是 `real :: x = 2.5`）打出 `1092616192` = 0x41200000 = 10.0f。
-            isArgFloat: i =>
-            {
-                var t = GetExprType(node.Expressions[i]);
-                return t == ExpType.F32 || t == ExpType.F64;
-            });
+            isArgFloat: i => GetExprType(node.Expressions[i]) is ExpType.F32 or ExpType.F64);
     }
 
     private void GenerateAllocate(AllocateNode node)

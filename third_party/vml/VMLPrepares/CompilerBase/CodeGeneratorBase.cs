@@ -833,10 +833,15 @@ namespace CompilerBase
             instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "print_long")]));
         }
 
-        /// <summary>统一的打印参数输出 — 求值后 CALL print_str 或 print_int</summary>
+        /// <summary>统一的打印参数输出 — 求值后 CALL print_str / print_int / print_float / print_double</summary>
         /// <param name="emitExpr">求值表达式，结果在 R0</param>
         /// <param name="isString">true=CALL print_str, false=CALL print_int</param>
-        /// <param name="isFloat">true=CALL print_float</param>
+        /// <param name="isFloat">
+        /// true=CALL print_float。
+        /// ⚠ 传**双精度**之前要先 `EmitD2F()` 降成 32 位 —— `print_double` 是
+        /// **stdcall 栈传参**（两个形参：val、precision），与本方法"值在 R0"的
+        /// 寄存器约定不一致，直接调它屏幕上什么都没有（实测）。
+        /// </param>
         protected void EmitPrintArg(Action emitExpr, bool isString = false, bool isFloat = false)
         {
             emitExpr();

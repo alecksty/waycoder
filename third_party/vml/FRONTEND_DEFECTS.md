@@ -520,13 +520,24 @@ print *, x * 4.0        ! x 是 real=2.5 ⇒ 1092616192（应 10.0）
 才不用赌这一层）；Fortran 的 `GeneratePrint` 用现成的
 `GetExprType(...) == ExpType.F32/F64` 传进去；字符串优先（`isFlt && !isStr`）。
 
+⚠ **双精度那一半绕了一圈，记下来别再走**：第一版把 F64 也一起送进 `print_float`，
+打出的是垃圾；换 `print_double` 之后**屏幕上什么都没有** —— 因为
+`print_double` 是 **stdcall 栈传参**（`move @R0 [@R12+12]` 取 val、`[@R12+20]` 取
+**precision**，两个形参），而本路径是"值在 R0"的寄存器约定
+（`print_float` 的函数体就是一句 `SYSCALL 8`，只看 R0）—— 约定不一致，
+不压栈就直接调，`precision` 读到寄存器里的垃圾。
+**最终按 Swift 前端的既有处置办**（`SwiftCompiler/CodeGenerator.cs:790` 的注释写着
+同一个理由）：**F64 先 `EmitD2F()` 降成 32 位再走 `print_float`**。仓里已经有一条
+现成的路，别再发明第二条。
+
 **判据**：`print *, 2.5` ⇒ `2.5`、`print *, x * 4.0` ⇒ `10`、
-`print *, 'text', n, 'ok'` ⇒ `text 7 ok`（整数与字符串不受影响）；
+`print *, 'text', n, 'ok'` ⇒ `text 7 ok`（整数与字符串不受影响）、
+`print *, 1.25d0` ⇒ `1.25`（`double precision` 走 D2F）；
 `Examples/fortran/demo_std.f90` 的逐字节期望输出已相应改成直接打 `2.5 * 4.0 = 10`。
 
 ---
 
-### 🔴 `double precision` 的 **`d0` 后缀字面量恒为 0**（**未修**）
+### 🟡 `double precision` 的 **`d0` 后缀字面量恒为 0**（**已修**）
 
 ```fortran
 double precision :: d
@@ -539,11 +550,29 @@ d = 1.25
 print *, d             ! ⇒ 1.25  ✅ 不带后缀的十进制字面量是好的
 ```
 ⇒ **凡是带 `d0`/`d` 后缀的双精度字面量都等于 0**，而不带后缀的同值字面量正常。
-**绕过**：双精度字面量别写 `d0` 后缀。
 
-（另有一条与它相邻、但**互相独立**的观察：`d = 3.75d0` 在**另一个**程序里
-曾经打出过 `3.75` —— 那次 `d` 前面还有 `x = 3.75` 且 `x` 是 `real`。
-是不是"两个变量共用了同一个双精度临时槽"没查，别把这条当成 `d0` 已修的证据。）
+**真身**：词法器把字面量**原样**存进 token（`Lexer.ReadNumber` 把扫到的字符直接塞进
+StringBuilder ⇒ `1.25d0` 的 `Value` 就是 `"1.25d0"`），而解析那一句是
+```csharp
+double.TryParse(t.Value, NumberStyles.Float, InvariantCulture, out double dv);
+return new LiteralNode(dv, "double", l, c);
+```
+`double.TryParse("1.25d0")` **解析失败** —— 失败只把 `out` 参数置 0，
+**返回的那个 `false` 原代码里没人看** ⇒ 该字面量就是 **0**，一个错都不报。
+
+**已修**：加 `Parser.NormalizeRealText`（① 指数标记 `d`/`D` → `e`/`E`；
+② 去掉 kind 后缀 `_8` 之类 —— 词法器在 `_` 分支里也把它们收进文本了），
+两个解析点都用它；并且把 `TryParse` 的失败**改成抛错**而不是再给一个 0
+（"有错即报"，别再留一个静默的 0）。
+
+**判据**：`print *, 1.25d0` ⇒ `1.25`、`d = 9.5d0` + `print *, d` ⇒ `9.5`、
+`1.25d0 * 2.0d0` ⇒ `2.5`；而不带后缀的 `1.25` 与 `real` 一路照旧。
+既有例子 `Examples/fortran/{sysinfo,bench,sokoban}.f90` 与全部 15 份 `demo_*` 复跑通过。
+
+⚠ **同族还剩一条没查清**：在**一个程序里同时**有 `real` 与 `double precision`
+变量、且既给 double 赋**字面量**又赋 **real 值**时，后者读回来是 0
+（`demo` 里没用到这条路径，`d = 1.25` 单独写是好的）。疑似共享临时槽，
+**没缩小到判据，别当成已修**。
 
 ---
 
