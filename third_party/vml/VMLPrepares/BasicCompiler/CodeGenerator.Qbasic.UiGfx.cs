@@ -63,6 +63,7 @@ public partial class CodeGenerator
     int  _uiFg          = 15;    // COLOR 设的前景色索引
     int  _uiBg          = 0;     // COLOR 设的背景色索引（CLS 用它）
     bool _uiPaletteReady;        // 调色板是否已经初始化过（懒发射，只发一次）
+    bool _uiEga64Ready;          // EGA 64 色号查表是否已经发射过（同上）
     int  _uiOpenedConstMode = -1;// 编译期已知"已经开出窗口"的那个模式（-1 = 没有）
     bool _uiOpenedKnownAtCompileTime = true;  // 出现过运行期 SCREEN 之后置 false
 
@@ -134,10 +135,59 @@ public partial class CodeGenerator
     /// </summary>
     const string UiPaletteLabel = "_ui_palette_argb";
 
+    /// <summary>`PALETTE idx, color` 里那个 **64 色号** → ARGB 的查表（见 <see cref="UiEga64Argb"/>）。</summary>
+    const string UiEga64Label = "_ui_ega64_argb";
+
     /// <summary>标准 EGA 16 色（与 <c>GenerateInitPalette</c> 的 pr/pg/pb 是同一张表的 0-255 值）</summary>
     static readonly int[] UiEgaR = [0, 0, 0, 0, 170, 170, 170, 170, 85, 85, 85, 85, 255, 255, 255, 255];
     static readonly int[] UiEgaG = [0, 0, 170, 170, 0, 0, 85, 170, 85, 85, 255, 255, 85, 85, 255, 255];
     static readonly int[] UiEgaB = [0, 170, 0, 170, 0, 170, 0, 170, 85, 255, 85, 255, 85, 255, 0, 255];
+
+    /// <summary>
+    /// `PALETTE idx, color` 里那个**颜色号**（EGA 模式 0–63）→ 单通道强度档位。
+    ///
+    /// <para>⚠ **这个映射是非单调的，别"顺手改成" `档位 × 85`**：
+    /// 档 1（<b>次级</b>位单独出现）是 **170**，档 2（<b>主级</b>位单独出现）只有 **85**。
+    /// 这正是 EGA 调色板寄存器那套 6 位编码最容易搞错的一处 —— 网上流传的
+    /// "默认寄存器值表"就是照 `档位×85` 写的，于是自相矛盾
+    /// （属性 1 = `000001` 要求解成蓝、属性 6 = `000110` 要求解成棕，同一套位布局不可能两立；
+    /// 棕的寄存器真值是 **20** = `010100` 不是 6）。</para>
+    ///
+    /// <para><b>它是怎么被验出来的</b>：把 <see cref="UiEgaDefaultRegisters"/> 逐项喂进
+    /// <see cref="UiEga64Argb"/>，得到的 RGB 与上面 <see cref="UiEgaR"/>/<see cref="UiEgaG"/>/
+    /// <see cref="UiEgaB"/> 那张表**逐项相同 —— 16 条里对 15 条**。
+    /// 唯一对不上的是**属性 14（黄）的蓝分量**：默认寄存器 62 = `111110` 解出 B = 85，
+    /// 即 `#FFFF55`（EGA 硬件的黄），而前端那张表写的是 `#FFFF00`（VGA 十六色习惯）。
+    /// **两边都不算错**，是"EGA 硬件默认"与"通用十六色"的差别；这条差别**有意留着**
+    /// （改表会动到全部 BASIC 程序的配色），闸门里如实钉住。</para>
+    ///
+    /// <para>端到端判据在 `scripts/vml-basic-probe/palette.sh`（跑 `PALETTE i, REG[i]`
+    /// 画十六格，逐格比色）。</para>
+    /// </summary>
+    static int UiEgaLevel(int level) => level switch { 0 => 0, 1 => 170, 2 => 85, _ => 255 };
+
+    /// <summary>
+    /// EGA 64 色号 → `0xAARRGGBB`。位布局：**bit0/1/2 = 蓝/绿/红「次级」、
+    /// bit3/4/5 = 蓝/绿/红「主级」**，每通道 2 bit 合成档位 0–3，再走
+    /// <see cref="UiEgaLevel"/>。`0` = 黑、`63` = 白。
+    /// </summary>
+    static int UiEga64Argb(int v)
+    {
+        int r = UiEgaLevel((((v >> 5) & 1) << 1) | ((v >> 2) & 1));
+        int g = UiEgaLevel((((v >> 4) & 1) << 1) | ((v >> 1) & 1));
+        int b = UiEgaLevel((((v >> 3) & 1) << 1) | (v & 1));
+        return unchecked((int)(0xFF000000u | ((uint)r << 16) | ((uint)g << 8) | (uint)b));
+    }
+
+    /// <summary>
+    /// 标准 EGA **默认调色板寄存器**值 —— 属性 0–15 各自指向哪个 64 色号。
+    ///
+    /// <para>它**不是** 0..15：正因为如此，"`PALETTE idx, color` = 复制第 color 项"
+    /// 那种实现才会错。最要紧的两个：属性 6（棕）的寄存器是 **20**、属性 8（暗灰）是 **56**。
+    /// 这张表只用来**验证** <see cref="UiEga64Argb"/>（见它的说明），不参与代码生成。</para>
+    /// </summary>
+    static readonly int[] UiEgaDefaultRegisters =
+        [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
 
     /// <summary>
     /// 取"这个模式下的调色板初值"（16 项 ARGB）。
@@ -185,6 +235,19 @@ public partial class CodeGenerator
         if (_uiPaletteReady) return;
         _uiPaletteReady = true;
         dataSection[UiPaletteLabel] = UiDefaultPalette(_uiMode);
+    }
+
+    /// <summary>
+    /// 懒发射 **EGA 64 色号 → ARGB** 的查表（同一次编译只发一次）。
+    /// `PALETTE idx, color` 的第二个参数就查它（见 <see cref="UiEmitPaletteStatement"/>）。
+    /// </summary>
+    void UiEnsureEga64()
+    {
+        if (_uiEga64Ready) return;
+        _uiEga64Ready = true;
+        var t = new int[64];
+        for (int i = 0; i < 64; i++) t[i] = UiEga64Argb(i);
+        dataSection[UiEga64Label] = t;
     }
 
     /// <summary>
@@ -825,15 +888,28 @@ public partial class CodeGenerator
 
         if (stmt.Green == null && stmt.Blue == null)
         {
-            // 两参形式：PALETTE idx, color —— QBasic 语义是"把显示色 color 赋给属性 idx"，
-            // 也就是**把第 color 项复制到第 idx 项**（GORILLA.BAS 的 `PALETTE 4, 0` 就是它）。
+            // 两参形式：`PALETTE idx, color` —— QBasic 语义是"把**显示色 color** 赋给属性 idx"。
+            //
+            // ⚠ **color 是「颜色号」不是「属性号」**（v0.96.408 修）。原来这里是
+            //   "把第 `color & 15` 项**复制**到第 idx 项"，把第二个参数当成了属性下标：
+            //   颜色号 0–15 恰好蒙对（默认调色板是恒等映射），**16–63 静默串到 `& 15` 那一项上**。
+            //   实测 GORILLA.BAS 的 `PALETTE 1, 46` 因此把大猩猩画成了**黄**（46 & 15 = 14）、
+            //   `PALETTE 3, 54` 把太阳画成了**棕**（54 & 15 = 6），而且**一个错都不报**。
+            //
+            //   而且 GORILLA 是**动态**用它的 —— 同一个属性 1 在"天空色"与"物体色"之间来回改
+            //   （`GORILLAS.BAS:604/614` 的 `PALETTE OBJECTCOLOR, BackColor` / `, 46`），
+            //   所以串色不是"某块颜色不对"，是**整屏一个色**。
+            //
+            //   正解：颜色号查 EGA 64 色表（`UiEga64Argb`，位布局与验证见那里）。
+            //   `color & 63` 是刻意的：EGA 模式的颜色号就是 0–63，越界掩到表内比读飞好。
             int val = Regs.AllocInt(instructions);
             EvalIntCoord(stmt.Red, val);
-            AddRI(OpCode.MOVE, tmp, 15);
+            UiEnsureEga64();
+            AddRI(OpCode.MOVE, tmp, 63);
             AddRR(OpCode.AND, val, tmp);
             AddRI(OpCode.MOVE, tmp, 4);
             AddRR(OpCode.MUL, val, tmp);
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, tmp), new Operand(OperandType.LABEL, UiPaletteLabel)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, tmp), new Operand(OperandType.LABEL, UiEga64Label)]));
             AddRR(OpCode.ADD, val, tmp);
             instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, val), new Operand(OperandType.MEMORY, $"R{val}")]));
             instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R{addr}"), new Operand(OperandType.REGISTER, val)]));
