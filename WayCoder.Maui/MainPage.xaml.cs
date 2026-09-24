@@ -36,8 +36,8 @@ public partial class MainPage : ContentPage
     private async void OnSettingsClicked(object? sender, EventArgs e)
         => await Shell.Current.GoToAsync("//settings");
 
-    private async void OnAboutClicked(object? sender, EventArgs e)
-        => await Shell.Current.GoToAsync("about");
+    // 「关于」那个按钮已从首页撤掉（入口在设置页 / `/about` / 侧栏命令页），
+    // 处理函数一并删掉 —— 留着就是"没有调用点的死代码"，下一个人还会以为首页有它。
 
     private async void OnModelsClicked(object? sender, EventArgs e)
         => await Shell.Current.GoToAsync("models");

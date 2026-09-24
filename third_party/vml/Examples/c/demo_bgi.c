@@ -50,14 +50,21 @@ int main(void)
     /* ── 3. 标题（索引色 14 = 黄，字号 3 = 3×16 像素）── */
     setcolor(YELLOW);
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 3);
-    settextjustify(CENTER_TEXT, 0);
+    /* ⚠ 竖档必须写 `TOP_TEXT`（**盒顶**落在 y），**不能写 0** —— 0 是 `BOTTOM_TEXT`
+     *   （盒**底**落在 y）。字号 3 的盒高是 48px，写 0 的话整块标题被顶到屏幕外、
+     *   只剩底部十来行可见（`outtextxy` 的 y 是**盒顶**，这是 BGI 的缺省对齐）。 */
+    settextjustify(CENTER_TEXT, TOP_TEXT);
     outtextxy(getmaxx() / 2, 12, "BGI 传统图形接口 / demo_bgi.c");
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 1);
+    /* `0` = `BOTTOM_TEXT`：正文行按"盒底贴着 y"排。
+     * ⚠ **别改成 `TOP_TEXT`** —— 那会把下面每一行整体再下移约 0.8×字号（16px 字号 ≈ 13px），
+     *   底部的 `putpixel / getcolor` 会被顶出画布。 */
     settextjustify(LEFT_TEXT, 0);
 
-    /* 一行说明：屏幕尺寸是**开窗时定死的**，程序照着它排的版 */
+    /* 一行说明：屏幕尺寸是**开窗时定死的**，程序照着它排的版。
+     * y 取 74（不是 62）：上面那行标题按 TOP 排时盒子占到 y=60，得给它让出位置。 */
     setcolor(LIGHTGRAY);
-    outtextxy(20, 62, "fixed resolution 640x480, 16-color indexed palette (setcolor(0..15))");
+    outtextxy(20, 74, "fixed resolution 640x480, 16-color indexed palette (setcolor(0..15))");
 
     /* ── 4. 16 色色带 —— 这一层「索引色」最直观的一张图 ──
      * 每一格用 `setfillstyle(SOLID_FILL, i)` + `bar()`，色号就是 BGI 的索引。 */
@@ -68,8 +75,8 @@ int main(void)
     setcolor(WHITE);
     rectangle(VBAR_X - 1, VBAR_Y - 1, VBAR_X + 16 * 34 + 1, VBAR_Y + 35);
     setcolor(LIGHTGRAY);
-    outtextxy(VBAR_X, VBAR_Y + 42, "0 black  1 blue  2 green  3 cyan  4 red  5 magenta  6 brown  7 lightgray");
-    outtextxy(VBAR_X, VBAR_Y + 58, "8 darkgray  9 lightblue  10 lightgreen  11 lightcyan  12 lightred  13 lightmagenta  14 yellow  15 white");
+    outtextxy(VBAR_X, VBAR_Y + 50, "0 black  1 blue  2 green  3 cyan  4 red  5 magenta  6 brown  7 lightgray");
+    outtextxy(VBAR_X, VBAR_Y + 66, "8 darkgray  9 lightblue  10 lightgreen  11 lightcyan  12 lightred  13 lightmagenta  14 yellow  15 white");
 
     /* ── 5. 直线与折线（`moveto` + `lineto` / `linerel` 是老程序画的常规姿势）── */
     setcolor(LIGHTGREEN);

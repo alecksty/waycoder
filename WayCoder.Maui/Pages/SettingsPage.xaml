@@ -22,7 +22,8 @@
                         <Label Text="模型" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="ModelSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -43,7 +44,8 @@
                         <Label Text="参数" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="ParamsSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -64,7 +66,8 @@
                         <Label Text="权限" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="PermSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -85,7 +88,8 @@
                         <Label Text="存储" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="StorageSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -108,7 +112,8 @@
                         <Label Text="编辑器" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="EditorSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -129,7 +134,8 @@
                         <Label Text="语音" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="VoiceSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
@@ -150,7 +156,8 @@
                         <Label Text="关于" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="AboutSummary" FontSize="12"
-                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
                     </VerticalStackLayout>
                     <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />

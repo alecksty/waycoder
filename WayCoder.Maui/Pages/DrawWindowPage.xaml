@@ -142,26 +142,24 @@
              `Auto` 行 ⇒ 收起时高度自然塌成 0（只留那个 26dp 的开关），画布立刻吃回来。
              键位表在 code-behind 的 `PcKeyboardRows`（一处数据，不散在 XAML 里）。
 
-             ⚠⚠ **`PanGestureRecognizer` 只挂在 `PcKeyGrip` 这一个 `Label` 上，绝不挂到
-             `PcKeyboard` 容器上** —— 本仓记过这条：给**容器**挂手势识别器会把它子控件的
-             按压/点击整个吃掉（真机表现就是"按钮看着在、按下去没反应"）。
-             `Label` 自身没有子控件，拖它不影响任何按键。
-
-             ⚠ 把柄在**收起键盘时也留着**（`PcKeyRows` 隐不隐藏与它无关）——
-             收起之后面板只剩这一行，用户仍然拖得动它。 -->
+             ⚠ **键盘不再可拖动**（用户定的）。拖动本来是为"把面板挪开、把画布让出来"，
+             而那件事**收起键盘**（`PcKeyToggle`）已经包了；代价却是一直挂着的手势 +
+             一整套"浮层化 / 夹取"的状态机 + 一个 26dp 的把柄。去掉之后面板恒定停靠在自己
+             那一行，画布尺寸只由"显示 / 收起"决定 —— 少一个能拖丢的浮层。
+             （**不能**给 `PcKeyboard` 容器挂手势：给容器挂会把它子控件的按压整个吃掉，
+              本仓记过这条，真机表现就是"按钮看着在、按下去没反应"。） -->
         <Grid x:Name="PcKeyboard" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3"
               IsVisible="False" Padding="4,0,4,4" RowSpacing="2"
               RowDefinitions="Auto,Auto">
             <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="6">
-                <!-- 拖拽把柄。文案里带上"拖动"两个字，否则一个 ⠿ 符号得先拖一次才知道是干什么的。 -->
-                <Label x:Name="PcKeyGrip" Grid.Column="0" Text="⠿ 拖动"
-                       FontSize="11" HeightRequest="26" Padding="10,0" LineHeight="1"
-                       HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
-                       BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
-                    <Label.GestureRecognizers>
-                        <PanGestureRecognizer PanUpdated="OnPcKeyPan" />
-                    </Label.GestureRecognizers>
-                </Label>
+                <!-- **三态合并行的切换键**（用户定：原来分开的那三行 —— `Esc/F1–F12`、数字行、
+                     `Ins/Del/Home/End/PgUp/PgDn` —— 合并成一行，一个按钮循环切；键盘因此**少两行高**）。
+                     放在表头而不是塞进键位行：键位行本来就挤着 13~14 个键，再插一格会把每个键
+                     压得更窄；而表头这一行**本来就在**（原来放拖拽把柄的位置，把柄删了正好空出来）。
+                     按钮上的字就是**当前那一页**（`Fn` / `8` / `Ins`），见 `ApplyPcKeyPage`。 -->
+                <Button x:Name="PcKeyModeBtn" Grid.Column="0" Text="Fn"
+                        FontSize="11" HeightRequest="26" Padding="12,0" CornerRadius="8"
+                        Clicked="OnCyclePcKeyPage" />
                 <Button x:Name="PcKeyToggle" Grid.Column="1" Text="⌨ 收起键盘"
                         FontSize="11" HeightRequest="26" Padding="0" CornerRadius="8"
                         Clicked="OnTogglePcKeyboard" />

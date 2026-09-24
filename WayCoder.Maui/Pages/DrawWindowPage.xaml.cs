@@ -262,10 +262,8 @@ public partial class DrawWindowPage : ContentPage
         CanvasHost.SizeChanged -= OnCanvasHostSizeChanged;
         CanvasHost.SizeChanged += OnCanvasHostSizeChanged;
 
-        // 浮层面板在转屏 / 画布长高之后可能落到屏幕外 ⇒ 尺寸一变就重新夹一次。
-        // 挂在**面板自己**上（不是 RootGrid）：它的新尺寸一定已经落定，夹取才拿得到真实值。
-        PcKeyboard.SizeChanged -= OnPcKeyboardSizeChanged;
-        PcKeyboard.SizeChanged += OnPcKeyboardSizeChanged;
+        // （原先这里还挂着一个 `PcKeyboard.SizeChanged` → 夹取浮层位置。键盘改成
+        //   **不可拖动**之后那套没有了，接线一并删掉。）
 
         // ⚠ **清掉上一次留下的画布尺寸请求**。
         //
@@ -301,7 +299,7 @@ public partial class DrawWindowPage : ContentPage
         _kind = scene.Kind;
         _needKeyboard = scene.NeedKeyboard;
         _keyboardCollapsed = false;      // 新的一局重置收起状态（页面实例被复用）
-        _kbFloating = false;             // 连同拖动留下的浮层位置一起复位（`ApplyKeyboardPanelPlacement`）
+        _pcKeyPage = 0;                  // 三态那一行也回到第一页（`Fn`），理由同上
         _pcDownKey = 0;                  // 上一局按到一半的键别留给下一局
         ApplyOrientationLock(_rotation);
         ApplyPadVisibility();
@@ -657,26 +655,16 @@ public partial class DrawWindowPage : ContentPage
     // 脑子里那张键盘就长这样，标签对得上比好看重要。
 
     /// <summary>
-    /// 屏幕键盘的键位表：每行一组 `(标签, 键码, 占几格)`。
+    /// 屏幕键盘的**固定行**：每行一组 `(标签, 键码, 占几格)`。
     ///
     /// ⚠ 每行**格数合计**决定这一行被切成几列（`Grid` 的星号列），所以行与行之间
     ///   只要格数一致，左右就是对齐的 —— 这正是"看起来像一张键盘"的全部要求。
+    ///
+    /// 这里只剩字母/修饰那四行 —— 原先排在最前的 `Esc+F1–F12` 与数字行、以及排在最后的
+    /// 编辑/翻页行，已经合并成**一格三态**（见 <see cref="PcKeyPages"/>）。
     /// </summary>
     private static readonly (string Label, int Key, int Span)[][] PcKeyboardRows =
     [
-        // 功能键行（老程序的重启/帮助/退出常挂在 F 键上）
-        [("Esc", VmlKeys.Escape, 1),
-         ("F1", VmlKeys.F(1), 1),   ("F2", VmlKeys.F(2), 1),   ("F3", VmlKeys.F(3), 1),
-         ("F4", VmlKeys.F(4), 1),   ("F5", VmlKeys.F(5), 1),   ("F6", VmlKeys.F(6), 1),
-         ("F7", VmlKeys.F(7), 1),   ("F8", VmlKeys.F(8), 1),   ("F9", VmlKeys.F(9), 1),
-         ("F10", VmlKeys.F(10), 1), ("F11", VmlKeys.F(11), 1), ("F12", VmlKeys.F(12), 1)],
-
-        // 数字行
-        [("`", VmlKeys.OemTilde, 1),
-         ("1", '1', 1), ("2", '2', 1), ("3", '3', 1), ("4", '4', 1), ("5", '5', 1),
-         ("6", '6', 1), ("7", '7', 1), ("8", '8', 1), ("9", '9', 1), ("0", '0', 1),
-         ("-", VmlKeys.OemMinus, 1), ("=", VmlKeys.OemPlus, 1), ("⌫", VmlKeys.Backspace, 1)],
-
         // QWERTY 行
         [("Tab", VmlKeys.Tab, 1),
          ("q", 'Q', 1), ("w", 'W', 1), ("e", 'E', 1), ("r", 'R', 1), ("t", 'T', 1),
@@ -702,11 +690,43 @@ public partial class DrawWindowPage : ContentPage
         [("Ctrl", VmlKeys.Ctrl, 2), ("Alt", VmlKeys.Alt, 2), ("空格", VmlKeys.Space, 5),
          ("Alt", VmlKeys.Alt, 2), ("←", VmlKeys.Left, 1), ("↑", VmlKeys.Up, 1),
          ("↓", VmlKeys.Down, 1), ("→", VmlKeys.Right, 1)],
-
-        // 编辑/翻页键（curses 类程序翻页、跳行靠这一排）
-        [("Ins", VmlKeys.Insert, 2), ("Del", VmlKeys.Delete, 2), ("Home", VmlKeys.Home, 2),
-         ("End", VmlKeys.End, 2), ("PgUp", VmlKeys.PageUp, 3), ("PgDn", VmlKeys.PageDown, 3)],
     ];
+
+    /// <summary>
+    /// **一格三态的那一行**（用户定的）：原先分开的三行 ——
+    /// `Esc/F1–F12`（功能键，老程序的重启/帮助/退出常挂在 F 键上）、
+    /// `1234567890-=⌫`（数字行）、`Ins/Del/Home/End/PgUp/PgDn`（curses 类的翻页/跳行）——
+    /// 合并成**同一行**，用表头那个按钮循环切（`Fn` → `8` → `Ins`）。**键盘因此少两行高**。
+    ///
+    /// 合并的依据是用户点破的：这三行**很少同时要用**，却各占一行高度；
+    /// 而手机屏幕的纵向空间要留给画面（老程序的状态行/提示语都画在底部）。
+    ///
+    /// ⚠ 三页**各自是独立的 `Grid`**（格数 13 / 14 / 14 不同），叠在 `PcKeyRows` 的同一个
+    ///   下标位置、只显当前那一页 ⇒ 换页不会把下面几行挤动，键盘高度是恒定的。
+    /// ⚠ 页序即切换序，别只改数组不改 `PcKeyModeBtn` 的初始文案（`ApplyPcKeyPage` 是唯一出口）。
+    /// </summary>
+    private static readonly (string Name, (string Label, int Key, int Span)[] Keys)[] PcKeyPages =
+    [
+        ("Fn", [("Esc", VmlKeys.Escape, 1),
+                ("F1", VmlKeys.F(1), 1),   ("F2", VmlKeys.F(2), 1),   ("F3", VmlKeys.F(3), 1),
+                ("F4", VmlKeys.F(4), 1),   ("F5", VmlKeys.F(5), 1),   ("F6", VmlKeys.F(6), 1),
+                ("F7", VmlKeys.F(7), 1),   ("F8", VmlKeys.F(8), 1),   ("F9", VmlKeys.F(9), 1),
+                ("F10", VmlKeys.F(10), 1), ("F11", VmlKeys.F(11), 1), ("F12", VmlKeys.F(12), 1)]),
+
+        ("8",  [("`", VmlKeys.OemTilde, 1),
+                ("1", '1', 1), ("2", '2', 1), ("3", '3', 1), ("4", '4', 1), ("5", '5', 1),
+                ("6", '6', 1), ("7", '7', 1), ("8", '8', 1), ("9", '9', 1), ("0", '0', 1),
+                ("-", VmlKeys.OemMinus, 1), ("=", VmlKeys.OemPlus, 1), ("⌫", VmlKeys.Backspace, 1)]),
+
+        ("Ins", [("Ins", VmlKeys.Insert, 2), ("Del", VmlKeys.Delete, 2), ("Home", VmlKeys.Home, 2),
+                 ("End", VmlKeys.End, 2), ("PgUp", VmlKeys.PageUp, 3), ("PgDn", VmlKeys.PageDown, 3)]),
+    ];
+
+    /// <summary>三态那一行的三块（建一次、只翻可见性），下标即 <see cref="PcKeyPages"/> 的页序。</summary>
+    private readonly Grid?[] _pcKeyPageGrids = new Grid?[PcKeyPages.Length];
+
+    /// <summary>当前显示的是第几页（`Fn` / `8` / `Ins`）。</summary>
+    private int _pcKeyPage;
 
     /// <summary>上一次按下的屏幕键盘键 —— 手指滑走时旧键的 `Released` 会丢，靠它补一条 `KeyUp`。</summary>
     private int _pcDownKey;
@@ -722,35 +742,79 @@ public partial class DrawWindowPage : ContentPage
         if (_pcKbBuilt) return;
         _pcKbBuilt = true;
 
-        foreach (var row in PcKeyboardRows)
+        // **三态那一行排在最前** —— 原来最前面就是 `Esc/F1–F12`，换了内容不换位置。
+        //
+        // ⚠ 三页要装在**一个容器 `Grid` 里叠着**，**不能**各自 `PcKeyRows.Add(...)`：
+        //   那样它们就是三个**并列的兄弟**（三个下标），而 `PcKeyRows` 是带
+        //   `Spacing="3"` 的 `VerticalStackLayout` —— 不可见的兄弟究竟还占不占那 3dp
+        //   间距，取决于 StackLayout 的实现细节，**键盘高度会因此随页数漂**。
+        //   装进一个单格 `Grid` 之后，这一行的高度 = 当前可见那一页的高度，**与页数无关**；
+        //   下面的字母与修饰四行也因此**位置一个像素都不动**（键盘最忌字母行乱跑）。
+        var pageHost = new Grid();
+        for (int i = 0; i < PcKeyPages.Length; i++)
         {
-            var grid = new Grid { ColumnSpacing = 3 };
-            int cols = 0;
-            foreach (var k in row) cols += k.Span;
-            for (int i = 0; i < cols; i++)
-                grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
-
-            int col = 0;
-            foreach (var k in row)
-            {
-                var b = new Button
-                {
-                    Text = k.Label,
-                    FontSize = 11,
-                    HeightRequest = 30,
-                    Padding = 0,
-                    CornerRadius = 6,
-                };
-                int key = k.Key;
-                b.Pressed  += (_, _) => OnPcKeyPressed(key);
-                b.Released += (_, _) => OnPcKeyReleased(key);
-                Grid.SetColumn(b, col);
-                Grid.SetColumnSpan(b, k.Span);
-                grid.Add(b);
-                col += k.Span;
-            }
-            PcKeyRows.Add(grid);
+            var page = BuildPcKeyRow(PcKeyPages[i].Keys);
+            page.IsVisible = i == 0;
+            _pcKeyPageGrids[i] = page;
+            pageHost.Add(page);
         }
+        PcKeyRows.Add(pageHost);
+
+        foreach (var row in PcKeyboardRows)
+            PcKeyRows.Add(BuildPcKeyRow(row));
+
+        ApplyPcKeyPage();
+    }
+
+    /// <summary>按 `(标签, 键码, 占几格)` 建一行键 —— 格数合计决定这一行切成几列。</summary>
+    private Grid BuildPcKeyRow((string Label, int Key, int Span)[] row)
+    {
+        var grid = new Grid { ColumnSpacing = 3 };
+        int cols = 0;
+        foreach (var k in row) cols += k.Span;
+        for (int i = 0; i < cols; i++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+        int col = 0;
+        foreach (var k in row)
+        {
+            var b = new Button
+            {
+                Text = k.Label,
+                FontSize = 11,
+                HeightRequest = 30,
+                Padding = 0,
+                CornerRadius = 6,
+            };
+            int key = k.Key;
+            b.Pressed  += (_, _) => OnPcKeyPressed(key);
+            b.Released += (_, _) => OnPcKeyReleased(key);
+            Grid.SetColumn(b, col);
+            Grid.SetColumnSpan(b, k.Span);
+            grid.Add(b);
+            col += k.Span;
+        }
+        return grid;
+    }
+
+    /// <summary>切换三态那一行：`Fn` → `8` → `Ins` → `Fn`。</summary>
+    private void OnCyclePcKeyPage(object? sender, EventArgs e)
+    {
+        _pcKeyPage = (_pcKeyPage + 1) % PcKeyPages.Length;
+        ApplyPcKeyPage();
+    }
+
+    /// <summary>
+    /// 把三态那一行与切换按钮摆成当前页 —— **唯一出口**
+    /// （建表时、切换时、新开一局复位时都走它，别在别处再推一次页序）。
+    ///
+    /// ⚠ 键盘的**总高度不随页变**（三块叠着、只翻可见性），所以换页不会让画布抖一下。
+    /// </summary>
+    private void ApplyPcKeyPage()
+    {
+        for (int i = 0; i < _pcKeyPageGrids.Length; i++)
+            if (_pcKeyPageGrids[i] is { } g) g.IsVisible = i == _pcKeyPage;
+        PcKeyModeBtn.Text = PcKeyPages[_pcKeyPage].Name;
     }
 
     /// <summary>
@@ -778,135 +842,6 @@ public partial class DrawWindowPage : ContentPage
     {
         _keyboardCollapsed = !_keyboardCollapsed;
         ApplyKeyboard();
-    }
-
-    // ── 面板拖动（拖动一开始就"浮层化"）────────────────────────────────
-    //
-    // ## 为什么拖一下要换成浮层
-    //
-    // 面板平时**停靠在自己那一行**（`RootGrid` 最后一个 `Auto` 行）—— 那是刻意的：
-    // chrome 让画布变小，而不是压在画布上面（老程序的状态行、提示语都画在**底部**）。
-    // 但"让画布变小"就意味着它**天生顶不开**：只做平移的话那一行的高度还在，
-    // 面板拖上去了、底下留一条空带，画面一点没多出来 —— 拖了等于白拖。
-    // 所以拖动一开始就把面板改成**跨整页、贴底**的浮层：只改 `Grid` 附加属性，
-    // **不搬控件**（父子关系自始至终不变，理由见 `ApplyOrientation` 的注释：
-    // 运行时先摘再挂撞过 `IllegalStateException`，也让 `CanvasHost` 量到过 0）。
-    // 换过去的那一刻位置**一模一样**（停靠时它就在页面最底部，浮层贴底也在那儿），
-    // 所以看不到跳变；差别只有一条：空掉的那一行塌下来，画布当场长高。
-    //
-    // ## 为什么不给容器挂手势识别器
-    //
-    // 本仓记过这条：给**容器**挂 `PanGestureRecognizer` 会把它子控件的按压/点击
-    // 整个吃掉（真机表现是"按钮看着在、按下去没反应"）。所以手势只挂在
-    // `PcKeyGrip` 那一个 `Label` 上 —— 它没有子控件，拖它碰不到任何按键。
-    //
-    // ## 夹取
-    //
-    // 拖出屏幕就找不回来。夹取只用**两个尺寸**算（`RootGrid` 与面板自己的），
-    // 不读 `X/Y`：面板的布局矩形是确定的 —— 全宽、贴底（`VerticalOptions=End`，
-    // 无 `Margin`），所以基准位就是 `(0, 网格高 − 面板高)`。
-    // 全宽 ⇒ 横向余量恒为 0（这是键盘全宽的自然结果，不是夹取写错了）；
-    // 纵向可以从"贴底"一路推到"顶到屏幕最上沿"。
-
-    /// <summary>面板已经脱离布局行、变成可拖动的浮层。</summary>
-    private bool _kbFloating;
-
-    /// <summary>浮层的平移量（相对"全宽贴底"的基准位）。</summary>
-    private double _kbTx;
-    private double _kbTy;
-
-    /// <summary>本次拖动开始时的平移量（`PanUpdated` 的 `TotalX/TotalY` 是**累计**值）。</summary>
-    private double _kbDragBaseX;
-    private double _kbDragBaseY;
-
-    private void OnPcKeyPan(object? sender, PanUpdatedEventArgs e)
-    {
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                BeginKeyboardFloat();
-                _kbDragBaseX = _kbTx;
-                _kbDragBaseY = _kbTy;
-                break;
-
-            case GestureStatus.Running:
-                // `Started` 不是所有平台都发（手势要越过触摸阈值才开始 pan），
-                // 所以这里再兜一次 —— 幂等。
-                BeginKeyboardFloat();
-                SetKeyboardOffset(_kbDragBaseX + e.TotalX, _kbDragBaseY + e.TotalY);
-                break;
-
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                // 收尾再夹一次：拖动过程中的夹取用的是"那一刻"的尺寸，
-                // 而结束这一拍布局可能已经落定成新值（转屏 / 键盘收起都会变）。
-                ClampKeyboardPanel();
-                break;
-        }
-    }
-
-    /// <summary>第一次拖动时才真的换布局 —— 没拖过的用户看到的与从前一字不差。</summary>
-    private void BeginKeyboardFloat()
-    {
-        if (_kbFloating) return;
-        _kbFloating = true;
-        ApplyKeyboardPanelPlacement();
-        ClampKeyboardPanel();
-    }
-
-    private void SetKeyboardOffset(double tx, double ty)
-    {
-        _kbTx = tx;
-        _kbTy = ty;
-        ClampKeyboardPanel();
-    }
-
-    /// <summary>
-    /// 按当前状态把面板摆回停靠行 / 切成整页浮层（**只改附加属性**）。
-    ///
-    /// 停靠态**不在这里设行号** —— 竖屏是第 3 行、横屏是第 2 行，那是
-    /// <see cref="ApplyOrientation"/> 的事，两处各设一份必然漂移。
-    /// 本方法只负责"复位"与"浮层"两件事。
-    /// </summary>
-    private void ApplyKeyboardPanelPlacement()
-    {
-        if (!_kbFloating)
-        {
-            PcKeyboard.ZIndex = 0;
-            PcKeyboard.VerticalOptions = LayoutOptions.Fill;
-            PcKeyboard.TranslationX = 0;
-            PcKeyboard.TranslationY = 0;
-            _kbTx = 0;
-            _kbTy = 0;
-            return;
-        }
-
-        Grid.SetRow(PcKeyboard, 0);
-        Grid.SetRowSpan(PcKeyboard, RootGrid.RowDefinitions.Count);
-        Grid.SetColumn(PcKeyboard, 0);
-        Grid.SetColumnSpan(PcKeyboard, RootGrid.ColumnDefinitions.Count);
-        PcKeyboard.VerticalOptions = LayoutOptions.End;
-        // 盖在画布/手柄之上：浮层的全部意义就是"能拖到别处去"。
-        PcKeyboard.ZIndex = 20;
-    }
-
-    private void OnPcKeyboardSizeChanged(object? sender, EventArgs e) => ClampKeyboardPanel();
-
-    /// <summary>把平移量夹到「整块面板都还在页面里」。</summary>
-    private void ClampKeyboardPanel()
-    {
-        double pw = PcKeyboard.Width;
-        double ph = PcKeyboard.Height;
-        double gw = RootGrid.Width;
-        double gh = RootGrid.Height;
-        // 还没量出来就这一拍不动（布局期会被调到，别拿半成品尺寸去夹）。
-        if (pw <= 0 || ph <= 0 || gw <= 0 || gh <= 0) return;
-
-        double by = gh - ph;                                    // 基准位：全宽、贴底
-        _kbTx = Math.Clamp(_kbTx, 0, Math.Max(0, gw - pw));
-        _kbTy = Math.Clamp(_kbTy, -by, 0);
-        PcKeyboard.TranslationX = _kbTx;
-        PcKeyboard.TranslationY = _kbTy;
     }
 
     /// <summary>
@@ -972,9 +907,8 @@ public partial class DrawWindowPage : ContentPage
         PcKeyboard.IsVisible = true;
         PcKeyRows.IsVisible = !_keyboardCollapsed;
         PcKeyToggle.Text = _keyboardCollapsed ? "⌨ 展开键盘" : "⌨ 收起键盘";
-        // 停靠/浮层的附加属性在这里重放一次：`ApplyOrientation` 刚刚设过行号，
-        // 而浮层态要把它们整个换掉（也就这里能保证"竖屏 3 行 / 横屏 2 行"仍由那一处说了算）。
-        ApplyKeyboardPanelPlacement();
+        // 三态那一行也摆一次（新开一局时 `_pcKeyPage` 已被复位，这里把可见性与按钮文案落下去）。
+        ApplyPcKeyPage();
     }
 
     /// <summary>这个窗口要不要屏幕手柄区（`ui_win_open_ex` 的 R4）；老接口一律 true。</summary>

@@ -126,7 +126,7 @@ public partial class ShellPage : ContentPage
     /// </summary>
     /// <summary>
     /// 当前活着的页面实例 —— 只为了让**静态的** <see cref="_runCts"/> 变化时能去刷新
-    /// 那个「⏹ 停止」按钮的显隐（按钮是实例控件，而 `_runCts` 是静态字段）。
+    /// 那个「运行 / 停止」按钮（按钮是实例控件，而 `_runCts` 是静态字段）。
     /// </summary>
     private static ShellPage? _live;
 
@@ -148,17 +148,45 @@ public partial class ShellPage : ContentPage
             _runCtsField = value;
             var page = _live;
             if (page is null) return;
-            MainThread.BeginInvokeOnMainThread(page.RefreshStopButton);
+            MainThread.BeginInvokeOnMainThread(page.RefreshRunButton);
         }
     }
 
-    private void RefreshStopButton()
+    /// <summary>
+    /// 「运行 / 停止」按钮的**唯一状态推导** —— <see cref="SetBusy"/> 与 <see cref="_runCts"/>
+    /// 的 setter 都调它，**别在别处再摆一份**。
+    ///
+    /// <para>
+    /// **为什么合成一个按钮**（用户定的）：原先「⏹ 停止」是顶栏上单独一个按钮，位置尴尬、
+    /// 还占一格宽度；而「运行」与「停止」本来就是**同一个动作的两态**，摆在同一个位置上
+    /// 最省地方、也最不用找（它就在手指刚敲完命令的那个地方）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **判据是"能不能停"（`_runCts` 非空），不是"忙不忙"（`_busy`）**：普通 shell 命令
+    /// **没有中断入口**，给它显示一个停不掉的「停止」是骗人。这与
+    /// <see cref="OnBackButtonPressed"/> 只拦 VML 运行是同一条口径（`_runCts is null` 就放行）。
+    /// 所以三态：能停 → 「⏹ 停止」可点且标红；忙但停不掉 → 「…」置灰（原样）；空闲 → 「运行」。
+    /// </para>
+    /// </summary>
+    private void RefreshRunButton()
     {
-        var show = _runCtsField is not null;
-        if (StopBtn.IsVisible != show) StopBtn.IsVisible = show;
+        if (_runCtsField is not null)
+        {
+            RunBtn.Text = "⏹ 停止";
+            // **必须可点** —— 这个按钮就是那条唯一的可见出口
+            //（出口本来就有：返回键 → 「强制停止」，但**它不可见**，卡在等输入的程序
+            //  在用户眼里就是一个死界面 —— 用户原话：「不知道怎么结束这个程序」）。
+            RunBtn.IsEnabled = true;
+            SetButtonEmphasis(RunBtn, MauiUi.Res("DangerBg"), Colors.White);
+        }
+        else
+        {
+            RunBtn.Text = _busy ? "…" : "运行";
+            RunBtn.IsEnabled = !_busy;
+            SetButtonEmphasis(RunBtn, null, null);
+        }
     }
-
-    private void OnStopClicked(object? sender, EventArgs e) => CancelRunningVml();
 
     /// <summary>
     /// 本次运行的令牌，**专供交互输入的两个回调用**（`ReadLineFromProgram` / `ReadKeyFromProgram`）。
@@ -209,7 +237,7 @@ public partial class ShellPage : ContentPage
     {
         InitializeComponent();
 
-        // 让静态的取消源变化时够得着这个实例（去刷新「⏹ 停止」按钮的显隐）。
+        // 让静态的取消源变化时够得着这个实例（去刷新「运行 / 停止」那个按钮）。
         _live = this;
 
         _commands = BuildCommandRegistry();
@@ -222,6 +250,12 @@ public partial class ShellPage : ContentPage
         CmdEntry.FontFamily = EditorTypography.FontFamilyName;
 
         ApplyDisplaySettings();
+
+        // 顶栏那格「尺寸」要报**实际行列数**，而行数得等输出区量完才算得出来
+        // （`ViewportHeight` 在布局落定之前是 0）⇒ 由**变化**驱动补一次。
+        // ⚠ 不补的话冷启动那一屏会一直停在退化文案上：实测切到命令行页看到的是一格「—」，
+        //   而页面的 `OnSizeAllocated` 早在那之前就跑完了（那时网格还没量过）。
+        OutputGrid.SizeChanged += (_, _) => UpdateSizeButtons();
 
         // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
         AddOutputGestures(OutputGrid);
@@ -731,6 +765,10 @@ public partial class ShellPage : ContentPage
 
     private async void OnRunRequested(object? sender, EventArgs e)
     {
+        // **同一个按钮的两态**（见 `RefreshRunButton`）：跑着的时候它是「⏹ 停止」，
+        // 点它就是停 —— 走返回键那条路的**同一个出口** `CancelRunningVml()`，不新开机制。
+        if (_runCtsField is not null) { CancelRunningVml(); return; }
+
         if (_busy) return;
 
         var cmd = (CmdEntry.Text ?? "").Trim();
@@ -1208,8 +1246,12 @@ public partial class ShellPage : ContentPage
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        RunBtn.IsEnabled = !busy;
-        RunBtn.Text = busy ? "…" : "运行";
+        // 按钮那三样（文本 / 可用性 / 配色）**只有 `RefreshRunButton` 一处推导**。
+        // ⚠ 别在这儿再写一遍 `RunBtn.Text = "…"`：`_busy` 与 `_runCts` 的**设置顺序**
+        //   并不固定（`ExecVmlAsync` 是先建 CTS 再置忙），各写一份就会互相覆盖 ——
+        //   后写的把「⏹ 停止」刷成「…」，按钮当场变成不可点的死键。
+        //   所以 `_busy` 必须先赋值，`RefreshRunButton` 才读得到新值。
+        RefreshRunButton();
         CmdEntry.IsEnabled = !busy;
         PromptLabel.Text = busy ? "⋯" : Prompt;
     }
@@ -1289,49 +1331,64 @@ public partial class ShellPage : ContentPage
 
     private void OnClearClicked(object? sender, EventArgs e) => ClearOutput();
 
-    // ── 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）──
+    // ── 尺寸：**两个正交轴**（都不固定 / 横向固定 / 都固定）──
     //
     // 为什么不是"自动 vs 固定"两档：**横向固定**是独立的一档需求 —— 老程序按 80 列排表格
     // ⇒ 列必须钉死；而手机屏幕高度各家不同 ⇒ 行没必要钉死（钉死了输出区上下留白）。
     // 用户点名的原话：「都固定，或者横向固定，或者都不固定」（v0.96.335）。
     //
-    // 交互约定：**点未生效的 = 切过去；点已生效的 = 换该档的预设**（列数 / 尺寸规格）。
-    // 这样三个按钮就能覆盖"切档 + 选参数"，不必再为"选列数"单开一个入口。
+    // 交互（v0.96.426 重做，用户定的）：顶栏是 `[模式][尺寸]` 两格 ——
+    //   · **左格点一下循环三档**（自适应 → 定宽 → 固定 → 自适应），
+    //     原来三个按钮各占一格、还各带一块高亮底色，用户嫌"太多了"；
+    //     合并之后当前是哪一档**由文字自己说**，高亮态整个不需要了。
+    //   · **右格才是"挑数值"的地方**：定宽档挑常用列数、固定档挑常用行列规格；
+    //     自动档没有可挑的东西 ⇒ 它退化成"当前实际行列数"的读数并**置灰不可按**。
+    // 判据只有 `UpdateSizeButtons` 一处，别在 XAML 里写死 Text。
 
-    /// <summary>都不固定 —— 列数与行数都跟着屏幕走。</summary>
-    private void OnAutoSizeClicked(object? sender, EventArgs e)
+    /// <summary>尺寸模式**一格循环**：自适应 → 定宽 → 固定 → 自适应。</summary>
+    private void OnSizeModeClicked(object? sender, EventArgs e)
     {
-        MauiShellStore.SetMode(ShellSizeMode.Auto);
+        MauiShellStore.SetMode(MauiShellStore.Mode switch
+        {
+            ShellSizeMode.Auto       => ShellSizeMode.WidthFixed,
+            ShellSizeMode.WidthFixed => ShellSizeMode.Fixed,
+            _                        => ShellSizeMode.Auto,
+        });
         ApplySizeAndRedraw();
     }
 
-    /// <summary>横向固定 —— 列钉死、行跟着屏幕。重复点换列数。</summary>
-    private void OnWidthFixedClicked(object? sender, EventArgs e)
+    /// <summary>
+    /// 尺寸预设 —— 定宽档挑常用列数、固定档挑常用行列规格。
+    ///
+    /// 都走 `DisplayActionSheetAsync`（本 App 各页共用的那一套系统原生弹层）。
+    /// 自动档**直接返回**：那一档下这个按钮是禁用的，这里只是兜底
+    /// （真让它弹出个空列表，用户会以为程序坏了）。
+    /// </summary>
+    private async void OnSizePresetClicked(object? sender, EventArgs e)
     {
-        if (MauiShellStore.Mode == ShellSizeMode.WidthFixed)
-            MauiShellStore.SetColumns(MauiShellStore.Next(MauiShellStore.ColsChoices, MauiShellStore.RawCols));
-        else
-            MauiShellStore.SetMode(ShellSizeMode.WidthFixed);
-        ApplySizeAndRedraw();
-    }
-
-    /// <summary>都固定 —— 弹一列历史终端规格让用户挑（「允许可选」）。重复点重新弹。</summary>
-    private async void OnFixedSizeClicked(object? sender, EventArgs e)
-    {
-        if (MauiShellStore.Mode == ShellSizeMode.Fixed)
+        switch (MauiShellStore.Mode)
         {
-            var labels = MauiShellStore.SizePresets.Select(p => p.Label).ToArray();
-            var pick = await DisplayActionSheetAsync("固定终端大小", "取消", null, labels);
-            var idx = Array.IndexOf(labels, pick);
-            if (idx < 0) return;                              // 取消 / 点了外面
-            MauiShellStore.SetColumns(MauiShellStore.SizePresets[idx].Cols);
-            MauiShellStore.SetRows(MauiShellStore.SizePresets[idx].Rows);
-        }
-        else
-        {
-            MauiShellStore.SetMode(ShellSizeMode.Fixed);
-            // 首次切进这一档：沿用"横向固定"里已经选好的列数（用户多半是照着它调的），
-            // 行数用默认值 —— 下次再点可以挑历史规格。
+            case ShellSizeMode.WidthFixed:
+            {
+                var labels = MauiShellStore.ColsChoices.Select(c => $"{c} 列").ToArray();
+                var pick = await DisplayActionSheetAsync("固定列数", "取消", null, labels);
+                var idx = Array.IndexOf(labels, pick);
+                if (idx < 0) return;                          // 取消 / 点了外面
+                MauiShellStore.SetColumns(MauiShellStore.ColsChoices[idx]);
+                break;
+            }
+            case ShellSizeMode.Fixed:
+            {
+                var labels = MauiShellStore.SizePresets.Select(p => p.Label).ToArray();
+                var pick = await DisplayActionSheetAsync("固定终端大小", "取消", null, labels);
+                var idx = Array.IndexOf(labels, pick);
+                if (idx < 0) return;
+                MauiShellStore.SetColumns(MauiShellStore.SizePresets[idx].Cols);
+                MauiShellStore.SetRows(MauiShellStore.SizePresets[idx].Rows);
+                break;
+            }
+            default:
+                return;                                       // 自动档：没有可挑的
         }
         ApplySizeAndRedraw();
     }
@@ -1362,21 +1419,48 @@ public partial class ShellPage : ContentPage
     {
         var mode = MauiShellStore.Mode;
 
-        // 自适应档把**算出来的列数**也显示出来 —— 否则用户不知道"自适应"到底是几列，
-        // 也就没法判断手上这个老程序该不该切到固定档。
-        // ⚠ 用**页面自己的 `_fontSize`**，不是 `MauiShellStore.Font`：屏幕上有多大是
-        //   `_fontSize` 说了算（它才是喂给画布的那个），存储里的值只是"下次进来用多少"。
-        //   两者**理论上**由 `SetFontSize` 一起写，但捏合的结束事件并不保证一定来
-        //   （实测就这么漂过一次：页面 96、存储 6.75 ⇒ 标签显示"自适应 96 列"而字大得离谱）。
-        //   标签跟着**看得见的那个值**走，漂了至少不会自己骗自己。
-        var autoCols = ShellWrap.ColumnsForWidth(_outputWidth, _fontSize);
-        AutoSizeBtn.Text = autoCols > 0 ? $"自适应 {autoCols} 列" : "大小自适应";
-        WidthFixedBtn.Text = $"横向固定 {MauiShellStore.RawCols}";
-        FixedSizeBtn.Text = $"固定 {MauiShellStore.RawCols}×{MauiShellStore.RawRows}";
+        // **左格 = 模式**。当前是哪一档由文字自己说，所以不需要高亮态了
+        //（原来三个按钮互斥高亮，合并成一格之后那个高亮态整个失去意义）。
+        SizeModeBtn.Text = mode switch
+        {
+            ShellSizeMode.WidthFixed => "定宽",
+            ShellSizeMode.Fixed      => "固定",
+            _                        => "自适应",
+        };
 
-        HighlightSizeButton(AutoSizeBtn, mode == ShellSizeMode.Auto);
-        HighlightSizeButton(WidthFixedBtn, mode == ShellSizeMode.WidthFixed);
-        HighlightSizeButton(FixedSizeBtn, mode == ShellSizeMode.Fixed);
+        // **右格 = 尺寸**，随档位变脸。
+        if (mode == ShellSizeMode.Auto)
+        {
+            // 自动档把**算出来的行列数**显示出来 —— 否则用户不知道"自适应"到底是多大，
+            // 也就没法判断手上这个老程序该不该切到固定档。
+            // ⚠ 用**页面自己的 `_fontSize`**，不是 `MauiShellStore.Font`：屏幕上有多大是
+            //   `_fontSize` 说了算（它才是喂给画布的那个），存储里的值只是"下次进来用多少"。
+            //   两者**理论上**由 `SetFontSize` 一起写，但捏合的结束事件并不保证一定来
+            //   （实测就这么漂过一次：页面 96、存储 6.75 ⇒ 标签显示"自适应 96 列"而字大得离谱）。
+            //   标签跟着**看得见的那个值**走，漂了至少不会自己骗自己。
+            //
+            // ⚠ 行数也**不能**取 `MauiShellStore.Rows`：`EffectiveRows` 在非"都固定"档下
+            //   恒返回 0（0 = 自适应高度），拿它拼标签会写成「75×0」。
+            //   现算一份与 `ApplyVmlTerminalSize` 同一个式子（`px / (字号 × 行高因子)`）。
+            var cols = ShellWrap.ColumnsForWidth(_outputWidth, _fontSize);
+            var px = ViewportHeight;
+            var rows = px > 0 ? (int)(px / (_fontSize * LineHeightFactor)) : 0;
+            // 行数还量不出来时**退回只报列数**（旧的「自适应 N 列」就是这么说）——
+            // 别写 `—`：那看着像出错，而这一刻其实什么错都没有，只是布局还没走完。
+            SizePresetBtn.Text = rows > 0 ? $"{cols}×{rows}" : (cols > 0 ? $"{cols} 列" : "—");
+            // **不可按**：自动档没有可挑的东西，这一格只是个读数（用户定的）。
+            SizePresetBtn.IsEnabled = false;
+        }
+        else if (mode == ShellSizeMode.WidthFixed)
+        {
+            SizePresetBtn.Text = $"{MauiShellStore.RawCols} 列";
+            SizePresetBtn.IsEnabled = true;
+        }
+        else
+        {
+            SizePresetBtn.Text = $"{MauiShellStore.RawCols}×{MauiShellStore.RawRows}";
+            SizePresetBtn.IsEnabled = true;
+        }
     }
 
     /// <summary>缩放起点字号 —— 捏合过程中 <c>e.Scale</c> 是相对**起点**的累计值。</summary>
@@ -1454,18 +1538,28 @@ public partial class ShellPage : ContentPage
     /// </summary>
     private void OnOutputPinchEnd() => SetFontSize(_fontSize);
 
-    private static void HighlightSizeButton(Button b, bool on)
+    /// <summary>
+    /// 把一个按钮切成「强调态」/ 还原成主题默认态 —— **唯一实现**
+    /// （尺寸档高亮与「运行 / 停止」按钮共用这一处）。
+    ///
+    /// ⚠ **还原必须走 `ClearValue`**（把本地值摘掉、让主题/样式里的值回来）。
+    /// 写成 `b.BackgroundColor = 某个默认色` 等于把**当时那一档**的颜色记死 ——
+    /// 换个主题、或者样式表调了色，按钮就跟其它按钮不是一套了，而且不报错。
+    /// </summary>
+    /// <param name="bg">强调底色；传 null = 还原（此时 <paramref name="fg"/> 一并忽略）。</param>
+    // ⚠ `Color` 在这里**必须全限定**：本文件同时 using 了 `WayCoder.UI.Shared.Terminal`
+    //   （它也有一个 `Color`），只写 `Color` 会 CS0104 不明确。
+    private static void SetButtonEmphasis(Button b,
+        Microsoft.Maui.Graphics.Color? bg, Microsoft.Maui.Graphics.Color? fg)
     {
-        if (on)
-        {
-            b.BackgroundColor = MauiUi.Res("Primary");
-            b.TextColor = Colors.White;
-        }
-        else
+        if (bg is null || fg is null)
         {
             b.ClearValue(Button.BackgroundColorProperty);
             b.ClearValue(Button.TextColorProperty);
+            return;
         }
+        b.BackgroundColor = bg;
+        b.TextColor = fg;
     }
 
     /// <summary>清空输出（按钮与 <c>clear</c>/<c>cls</c> 命令共用这一份）。</summary>

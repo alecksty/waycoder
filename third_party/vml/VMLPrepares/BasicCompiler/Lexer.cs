@@ -164,6 +164,17 @@ namespace BasicCompiler
             // PowerBASIC keywords (v1.66.32+)
             { "THREADED", TokenType.THREADED },
             { "FASTPROC", TokenType.FASTPROC },
+            // 老程序兼容 —「接受并空转」的语句关键字。
+            //
+            // ⚠ 这三个此前**不是关键字**，于是 `PCOPY 0, 1` 里的 `PCOPY` 走
+            //   「名字后面不是 `=` ⇒ 当裸调用」那条路，编出 `CALL func_pcopy` ⇒
+            //   链接期报「未定义的函数 'func_pcopy'」。报的名字与"这一行是干什么的"
+            //   毫无关系，靠它猜不到是"语句没实现"。收成关键字后由语句层明确空转。
+            //   收成关键字的代价是它们不能再当变量名 —— 实测语料（`Examples/` 全量 +
+            //   `thirdparty/` 28 份）里没有任何一处把这三个词当标识符用。
+            { "PCOPY", TokenType.PCOPY },
+            { "SHELL", TokenType.SHELL },
+            { "WRITE", TokenType.WRITE_KW },
             // VisualBasic keywords (v1.66.32+) — 映射到已有实现
             { "Private", TokenType.PRIVATE_KW },
             { "Public", TokenType.PUBLIC_KW },
@@ -205,7 +216,61 @@ namespace BasicCompiler
                 {
                     SkipWhitespace();
                 }
-                else if (char.IsLetter(current) || IsChineseChar(current))
+                // ── 行首 `$` 元命令（QB / QBJS 方言）──────────────────────────────
+                //
+                // `$INCLUDE: 'x.bi'` / `$DYNAMIC` / `$STATIC` / QBJS 的 `$TouchMouse`
+                // 都是**编译指示**，不是语句。此前它们落到最下面的"未知字符"分支变成
+                // ERROR token，紧跟其后的名字随即被当成**表达式开头** ⇒ 编出
+                // `CALL func_touchmouse`、链接期报「未定义的函数 'func_touchmouse'」
+                // （`Examples/basic/thirdparty/qbjs_paint.bas` 第 1 行就是这一档）。
+                //
+                // 判据是"`$` **根本没被 ReadIdentifier 吃掉**"：合法的 `$` 只有
+                // 变量名后缀（`a$`），而那种写法一定在 ReadIdentifier 里被消费掉。
+                // 别写成"判行首"—— 那种判据要多维护一份行首状态，而本判据不需要。
+                // 整行按注释吃掉（`$INCLUDE` 的目标文件由 `#include` 那条路负责）。
+                else if (current == '$')
+                {
+                    while (_pos < _source.Length && _source[_pos] != '\n')
+                    {
+                        _pos++;
+                        _col++;
+                    }
+                }
+                // ── `!` 注释（TrueBasic 方言）────────────────────────────────────
+                //
+                // 同一条判据：`!` 作为 SINGLE 类型后缀（`n!`）**一定**被 ReadIdentifier
+                // 消费掉，能走到主循环的 `!` 只可能是注释。
+                // 此前它变成 ERROR token，于是 `! TrueBasic — SOUND demo` 这一行把
+                // 后面的 `TrueBasic` 编成 `CALL func_truebasic`
+                // （`Examples/basic/truebasic/sound.bas` 第 1 行）。
+                // ⚠ 唯独要放过**数值字面量的后缀**（`PRINT 1!` / `x = 1.5!`）：
+                //   ReadNumber 不吃后缀，那个 `!` 前面紧挨着一个数字。别把它当注释，
+                //   否则 `PRINT 1!; 2` 静默只剩一半输出。判据是"前一个源字符是不是
+                //   数字/标识符字符"，不是"是不是行首"—— 后者会把这一档一起吃掉。
+                else if (current == '!' &&
+                         !(_pos > 0 && (char.IsLetterOrDigit(_source[_pos - 1]) || _source[_pos - 1] == '_')))
+                {
+                    while (_pos < _source.Length && _source[_pos] != '\n')
+                    {
+                        _pos++;
+                        _col++;
+                    }
+                }
+                // ── 标识符起始：字母 / 汉字 / **下划线** ────────────────────────────
+                //
+                // ⚠ `_` 这一支**从前没有**，因为 `char.IsLetter('_')` 是 **false**
+                //   —— 而 ReadIdentifier 内部是**认** `_` 的（`Peek() == '_'` 就在它的
+                //   循环条件里）。两头不一致的后果：`_NEWIMAGE` 在词法层被劈成
+                //   ERROR(`_`) + IDENTIFIER(`NEWIMAGE`)，`_` 被丢掉之后名字变成
+                //   `NEWIMAGE` ⇒ 编出 `CALL func_newimage`、链接期报「未定义的函数」。
+                //   QB64 那一整套 `_*` 扩展（`_NEWIMAGE`/`_MOUSEX`/`_RGB`/`_DISPLAY`…）
+                //   因此**一个都用不了**，而报的名字里 `_` 不见了，看不出是词法层的锅。
+                //
+                // ⚠ 只在 `_` **后面还跟着标识符字符**时才收它：VB 的行继续符是行尾一个
+                //   孤立的 ` _`，那种写法要维持原状（落 ERROR token、被语句层忽略），
+                //   收成标识符反而会编出一次 `CALL func__`。
+                else if (char.IsLetter(current) || IsChineseChar(current)
+                         || (current == '_' && _pos + 1 < _source.Length && IsIdentChar(_source[_pos + 1])))
                 {
                     Token tok = ReadIdentifier();
                     if (tok.Type == TokenType.REM)
@@ -375,12 +440,15 @@ namespace BasicCompiler
         }
 
 
+        /// <summary>标识符字符：字母 / 数字 / `_` / 汉字 —— 与 <see cref="ReadIdentifier"/> 的循环条件同一口径。</summary>
+        private bool IsIdentChar(char c) => char.IsLetterOrDigit(c) || c == '_' || IsChineseChar(c);
+
         private new Token ReadIdentifier()
         {
             StringBuilder sb = new StringBuilder();
             int startColumn = _col;
 
-            while (_pos < _source.Length && (char.IsLetterOrDigit(Peek()) || Peek() == '_' || IsChineseChar(Peek())))
+            while (_pos < _source.Length && IsIdentChar(Peek()))
             {
                 sb.Append(Advance());
             }

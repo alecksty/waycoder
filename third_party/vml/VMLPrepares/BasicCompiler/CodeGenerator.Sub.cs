@@ -1945,6 +1945,24 @@ namespace BasicCompiler
             SubDeclaration subDecl = null;
             subMap.TryGetValue(SymbolKey(stmt.SubName), out subDecl);
 
+            // ── QB64 的 `_*` 扩展：裸名语句位（`_MOUSEHIDE` / `_DISPLAY` / `_LIMIT 60`）空转 ──
+            //
+            // 这是 `_*` 规则的**第三条入口**（另两条：表达式位在
+            // `CodeGenerator.Expressions.cs`、SUB 体内的表达式位在 `CodeGenerator.Sub.cs`
+            // 的 `GenerateSubFunctionCall`）。三条都要有 —— 实测过只补前两条的样子：
+            // `SCREEN _NEWIMAGE(...)` 编过了，下一行的 `_MOUSEHIDE` 照旧报
+            // 「未定义的函数 'func__mousehide'」。
+            //
+            // 判据与前两条一致：名字以 `_` 开头 **且** 没有对应声明（用户自己写的
+            // `SUB _foo` 仍然走正常调用）。实参**不求值直接丢**（本平台没有这些扩展，
+            // 语料里的实参要么没有、要么是字面量）。
+            if (subDecl == null && stmt.SubName.StartsWith("_")
+                && !subMap.ContainsKey(SymbolKey(stmt.SubName))
+                && !funcMap.ContainsKey(SymbolKey(stmt.SubName)))
+            {
+                return;
+            }
+
             // 裸调用也可能落在**函数**上（`ui_win_open "T", 10, 20`，丢弃返回值）——
             // 函数声明在 `funcMap` 而不是 `subMap`，此前这里只查 subMap ⇒ `subDecl == null`
             // ⇒ 标签被编成 `sub_ui_win_open`（永远解析不到）。判据与表达式路径
@@ -2396,9 +2414,27 @@ namespace BasicCompiler
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
                     return;
                 default:
+                    // ── QB64 的 `_*` 扩展：**当语句用**（`_MOUSEHIDE` / `_DISPLAY` / `_LIMIT 60`）
+                    //    也一律空转 ─────────────────────────────────────────────────
+                    //
+                    // ⚠ 与 `CodeGenerator.Expressions.cs` 里那一处是**同一条规则的两个入口**：
+                    //   表达式位置（`x = _MOUSEX`）走那边，语句位置（`_MOUSEHIDE` 单独一行）
+                    //   走这里。只补一边的后果实测过 —— `SCREEN _NEWIMAGE(...)` 好了，
+                    //   紧接着 `_MOUSEHIDE` 又报「未定义的函数 'func__mousehide'」。
+                    //   两处判据必须一致：名字以 `_` 开头 **且** 没有对应声明。
+                    //
+                    // 参数**不求值直接丢**：本平台这些扩展一个都不存在，而求值会引入
+                    // "压了栈谁清"的约定问题（`EmitCallArguments` 是按被调方形参表算字节数的，
+                    // 这里没有形参表）。实测语料里这些语句的实参要么没有、要么是字面量
+                    // （`_LIMIT 60`），丢掉不改变可观测行为。
+                    if (funcCall.FunctionName.StartsWith("_")
+                        && !funcMap.ContainsKey(SymbolKey(funcCall.FunctionName)))
+                    {
+                        return;
+                    }
                     break;
             }
-            
+
             // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)，**且保留声明处的大小写**（外部符号）
             funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var fd);
             string funcLabel = (fd != null && fd.IsNative)

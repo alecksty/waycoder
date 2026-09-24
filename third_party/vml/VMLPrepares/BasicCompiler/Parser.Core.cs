@@ -1,3 +1,4 @@
+using System.Text;
 using CompilerBase;
 using System.Collections.Generic;
 
@@ -103,6 +104,32 @@ namespace BasicCompiler
         private readonly Dictionary<string, int> _constValues = new();
 
         /// <summary>
+        /// **点名常量**：`AppSettings.cols = 8` ⇒ `"appsettings.cols" → 8`。
+        ///
+        /// <para>
+        /// 只为 `DIM` 的维度服务。老程序把数组尺寸写在记录字段里是常见写法：
+        /// <c>DIM SHARED Terrain(AppSettings.cols, AppSettings.rows) AS TerrainType</c>
+        /// （`thirdparty/w84d_spaceship.bas` / `w84d_desert_rally.bas`）。解析器解不了
+        /// 运行期的字段值，但那个值在**同一份源码里以字面量赋过一次**，扫一遍就得到了。
+        /// </para>
+        /// <para>
+        /// ⚠ **先到先得**（后面的同字面量赋值不覆盖）：拿到的应当是初始化那一句，
+        /// 而不是循环体里的 `AppSettings.cols = i`。这是个**启发式**，判据只是
+        /// "比拿不到强" —— 拿不到的后果是数组只分到 2 格、一写就越界。
+        /// 扫不到就退回原来的占位行为，不更糟（与 `_constValues` 同一约定）。
+        /// </para>
+        /// </summary>
+        private readonly Dictionary<string, int> _fieldConstValues = new();
+
+        /// <summary>`DIM` 维度取值的唯一入口：先查 `CONST` 常量表，再查点名表。</summary>
+        private bool TryLookupConstValue(string name, out int value)
+        {
+            string key = name.ToLowerInvariant();
+            return _constValues.TryGetValue(key, out value)
+                || _fieldConstValues.TryGetValue(key, out value);
+        }
+
+        /// <summary>
         /// 把一个**常量表达式**折成整数 —— 只认 `字面量` / `已登记的常量名` /
         /// `+ - * /` 的组合（`PAREN` 由表达式树本身消化了）。
         ///
@@ -178,8 +205,49 @@ namespace BasicCompiler
             declaredFnFunctions = new HashSet<string>();
         }
 
+        /// <summary>
+        /// 预扫一遍 token 流，把 `点名 = 字面量` 这一种赋值收进 <see cref="_fieldConstValues"/>。
+        ///
+        /// <para>
+        /// 之所以是**预扫**而不是"解析到赋值时顺手记"：`DIM` 与那句赋值**谁先谁后都有可能**
+        /// （实测两份语料里 `AppSettings.cols = 8` 在前、但那是巧合，不能依赖顺序）。
+        /// </para>
+        /// <para>
+        /// ⚠ 判据要**整条点名连起来**再看等号：只看 `a . b` 三个 token 的话，
+        /// <c>IF a.b &lt;&gt; 8 THEN</c> 之类的比较也会被当成赋值。
+        /// 只认**字面量**右值（`= 8`），认不出的不记 —— 与 `_constValues` 同一约定。
+        /// </para>
+        /// </summary>
+        private void CollectFieldConstants()
+        {
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type != TokenType.IDENTIFIER) continue;
+                if (i + 2 >= tokens.Count) break;
+                if (tokens[i + 1].Type != TokenType.DOT || tokens[i + 2].Type != TokenType.IDENTIFIER) continue;
+
+                var sb = new StringBuilder(tokens[i].Value.ToLowerInvariant());
+                int j = i;
+                while (j + 2 < tokens.Count
+                       && tokens[j + 1].Type == TokenType.DOT && tokens[j + 2].Type == TokenType.IDENTIFIER)
+                {
+                    sb.Append('.').Append(tokens[j + 2].Value.ToLowerInvariant());
+                    j += 2;
+                }
+
+                if (j + 2 < tokens.Count && tokens[j + 1].Type == TokenType.EQUALS
+                    && tokens[j + 2].Type == TokenType.NUMBER
+                    && int.TryParse(tokens[j + 2].Value, out int v))
+                {
+                    _fieldConstValues.TryAdd(sb.ToString(), v);   // 先到先得
+                }
+            }
+        }
+
         public BasicProgram Parse()
         {
+            CollectFieldConstants();
+
             // First pass: collect SUB/FUNCTION/DIM/DEF FN declarations
             for (int i = 0; i < tokens.Count; i++)
             {
@@ -363,6 +431,25 @@ namespace BasicCompiler
                 else if (t.Type == TokenType.RPAREN) { if (depth > 0) depth--; }
             }
             return false;
+        }
+
+        /// <summary>
+        /// 跳过**当前语句**剩余的所有 token —— 到 `:`（同行还有下一条语句）或换行/EOF 为止。
+        ///
+        /// <para>
+        /// 与 <see cref="SkipToNextLine"/> 的差别只有 `:` 这一条，而它要紧：老 BASIC 里
+        /// `PCOPY 0, 1: PRINT "x"` / `SHELL "cmd": END` 这种同行接续很常见。按"整行"
+        /// 跳会把冒号后面那条**真实语句**一起吃掉，而跳掉的又是我们本来就没实现的东西
+        /// ⇒ 症状是"程序少做了一件事"，且一声不响（与本文件里反复记的
+        /// 「语句层对 null 是静默跳过」同一个坑）。
+        /// </para>
+        /// </summary>
+        private void SkipRestOfStatement()
+        {
+            if (AtEnd()) return;
+            int currentLine = Peek().Line;
+            while (!AtEnd() && Peek().Line == currentLine && Peek().Type != TokenType.COLON)
+                Advance();
         }
 
         /// <summary>
@@ -583,6 +670,41 @@ namespace BasicCompiler
                     return ParseRestoreStatement();
                 case TokenType.RESUME:
                     return ParseResumeStatement();
+                // ── 老程序兼容：「接受并空转」的语句 ──────────────────────────────
+                //
+                // 判据是**本平台没有这个东西的语义**，而不是"懒得实现"：
+                //   · `PCOPY a, b` —— 视频页复制。本平台没有分页显存，复制到哪一页
+                //     都不会改变屏幕上的东西（tty/BGI 两条路都是直接落屏）。
+                //   · `SHELL "cmd"` —— 起子进程。运行期不给子进程，空转是唯一安全的答复。
+                //   · `WRITE` —— 与 `PRINT #n` 同形（见 `ParsePrintStatement` 的 `#` 分支），
+                //     交给同一份输出实现，别各自再写一遍。
+                //
+                // 关键是**必须把剩余 token 吃掉**：`PCOPY 0, 1` 里的 `0, 1` 如果留在流上，
+                // 语句层会把它们当新语句，而 `0` 恰好落进「NUMBER 开头的行号」那条分支，
+                // 编出一段莫名其妙的跳转。空转 = 收掉这一条语句，不是"什么都不做"。
+                case TokenType.PCOPY:
+                    Advance();              // skip PCOPY
+                    SkipRestOfStatement();
+                    return null;
+                case TokenType.SHELL:
+                    Advance();              // skip SHELL
+                    SkipRestOfStatement();
+                    return null;
+                case TokenType.WRITE_KW:
+                    // `WRITE #n, …` 与 `PRINT #n, …` 同形 ⇒ 复用同一份解析，
+                    // 输出到本平台的常规输出通道（`#n` 无独立流语义，与 INPUT 一致）。
+                    return ParsePrintStatement();
+                // `TIMER ON` / `TIMER OFF` —— 定时器中断开关。本平台没有定时器中断
+                // （`ON TIMER` 那侧同样空转），开关与否都不改变行为。
+                // ⚠ 只在**语句位置**收它：`TIMER` 还是表达式里的取秒函数（`TIMER_FUNC`），
+                //   表达式那条路由 `ParsePrimary` 走，不经过这里。
+                case TokenType.TIMER_FUNC:
+                    Advance();              // skip TIMER
+                    // 后面无论是 `ON` / `OFF` / `= n`，本平台一律空转 —— 一次收干净，
+                    // 不去认那三种尾巴（`OFF` 在本词法器里根本没有专属 token，是个
+                    // 普通标识符，逐种认反而会漏）。
+                    SkipRestOfStatement();
+                    return null;
                 // REDIM
                 case TokenType.REDIM:
                     return ParseRedimStatement();
@@ -624,7 +746,18 @@ namespace BasicCompiler
                     return null;
                 case TokenType.NUMBER:
                     // 记录 BASIC 行号 (老式行号 BASIC)，供 GOTO/GOSUB 目标标签生成
-                    int basicLineNumber = int.Parse(token.Value);
+                    //
+                    // ⚠ **只有整数才是行号**。`int.Parse` 对 `0.02` / `1.5` 这类 token
+                    //   会抛 FormatException，而这里**没有 try** ⇒ 整个编译器挂掉，
+                    //   用户只看到 `The input string '0.02' was not in a correct format.`
+                    //   （实测触发点是 `ON TIMER(0.02) …` 的尾巴重新落回语句层）。
+                    //   非整数一律**丢掉这一个 token 继续**：这种输入本来就语法有误，
+                    //   编译器该做的是尽量往下走、把问题报在别处，而不是当场炸掉。
+                    if (!int.TryParse(token.Value, out int basicLineNumber))
+                    {
+                        Advance();   // 不是行号 ⇒ 当无意义 token 吃掉
+                        return null;
+                    }
                     Advance();
                     var numberedStmt = ParseStatement(); // 递归解析行号后的语句
                     if (numberedStmt != null)

@@ -17,7 +17,7 @@ public partial class Parser : ParserBase<Token, TokenType>
     {
         var t = Advance();
         var s = new PsetStatement(t.Line, t.Column);
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y = ParseExpression();
@@ -31,18 +31,52 @@ public partial class Parser : ParserBase<Token, TokenType>
         return s;
     }
 
+    /// <summary>
+    /// 图形坐标组的**可选前缀**：`STEP`（相对坐标）+ `(`。
+    ///
+    /// <para>
+    /// QBasic 的图形语句（`LINE` / `CIRCLE` / `PSET` / `PAINT` / `GET` / `PUT` / `POINT`）
+    /// 坐标都可以带 `STEP`，位置在 `(` **之前**：`CIRCLE STEP(5, 5), 3`。
+    /// 这些解析器从前一律只写 `if (Peek().Type == LPAREN) Advance();` ⇒ 碰到 `STEP`
+    /// 时那个 `(` 没被吃掉，`ParseExpression` 从 `STEP` 这个关键字 token 开始啃 ——
+    /// 啃不出东西，后面的 `(RND * 4, RND * 4)` 就以"半个表达式"的形态漏下去，
+    /// 编出一串莫名的 `CALL func_rnd`（实测 `w84d_mouse_cursor.bas:26` 一次报 2 个）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ `STEP` 在这里**只被收掉、不留信息**（当绝对坐标处理）。要真做对，
+    /// 得让每条语句在执行期知道"当前图形光标在哪"，那是另一件事；
+    /// 而"收下来"与"收不下来"之间的差别是**能跑**与**编不过**，先要前者。
+    /// 唯一的例外是 `LINE (x1,y1)-STEP(dx,dy)` —— 那个的相对基准是同一个语句里的
+    /// 前一个点、不需要光标，所以 `ParseQbLineStatement` 里**单独**把它算对了。
+    /// </para>
+    /// </summary>
+    void SkipStepAndOpenParen()
+    {
+        if (Peek().Type == TokenType.STEP) Advance();   // STEP（相对坐标）
+        if (Peek().Type == TokenType.LPAREN) Advance(); // (
+    }
+
     Statement ParseQbLineStatement()
     {
         var t = Advance();
         var s = new QbLineStatement(t.Line, t.Column);
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X1 = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y1 = ParseExpression();
         if (Peek().Type == TokenType.RPAREN) Advance();
         // Expect '-'
         if (Peek().Type == TokenType.MINUS) Advance();
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        // `LINE (x1,y1)-STEP(dx,dy)` —— 这一个 STEP **能算对**（见 `SkipStepAndOpenParen`）：
+        // 它的相对基准是**同一条语句里的前一个点**，不需要运行期光标。记下标志，
+        // 由代码生成在取出坐标之后补两条加法。
+        if (Peek().Type == TokenType.STEP)
+        {
+            s.StepX2 = true;
+            s.StepY2 = true;
+        }
+        SkipStepAndOpenParen();
         s.X2 = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y2 = ParseExpression();
@@ -74,7 +108,7 @@ public partial class Parser : ParserBase<Token, TokenType>
     {
         var t = Advance();
         var s = new QbCircleStatement(t.Line, t.Column);
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y = ParseExpression();
@@ -114,7 +148,7 @@ public partial class Parser : ParserBase<Token, TokenType>
     {
         var t = Advance();
         var s = new QbPaintStatement(t.Line, t.Column);
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y = ParseExpression();
@@ -329,11 +363,28 @@ public partial class Parser : ParserBase<Token, TokenType>
     Statement ParseOnErrorStatement()
     {
         var t = Advance(); // skip ON
-        var s = new OnErrorStatement(t.Line, t.Column);
 
-        // Expect ERROR
+        // ── `ON` 的**非 ERROR** 家族（老程序里的常规写法）────────────────────────
+        //
+        // `ON TIMER(0.02) DRAWMOUSE` / `ON KEY(1) GOSUB …` / `ON PLAY(…)` / `ON STRIG(…)` /
+        // `ON PEN` / `ON COM(…)` —— 都是**事件中断挂接**，本平台没有这套机制。
+        //
+        // ⚠ 这里必须**把整条语句吃掉再返回 null**。
+        //   从前是 `if (Peek().Type != ERROR_KW) return null;` —— `ON` 消费了、**尾巴原样留着**。
+        //   于是 `ON TIMER(0.02) DRAWMOUSE` 的 `TIMER(0.02)` 被当成新语句重新解析：
+        //   `TIMER` 走 default 分支被丢，轮到 `0.02` 时语句分派 `case TokenType.NUMBER`
+        //   会做 `int.Parse("0.02")` ⇒ **未捕获的 FormatException 把整个编译器打挂**，
+        //   用户看到的只有一句 `The input string '0.02' was not in a correct format.`
+        //   （`thirdparty/w84d_app_template.bas`、`w84d_mouse_cursor.bas` 都是这一档，
+        //    两行 `ON TIMER` 各炸一次，与"定时器"二字毫无关联）。
+        //   空转之后那两份程序里"每 20ms 画一次鼠标"变成"不画"，但程序能编能跑。
         if (Peek().Type != TokenType.ERROR_KW)
+        {
+            SkipRestOfStatement();
             return null;
+        }
+
+        var s = new OnErrorStatement(t.Line, t.Column);
         Advance(); // skip ERROR
 
         // Expect GOTO or RESUME
@@ -516,7 +567,7 @@ public partial class Parser : ParserBase<Token, TokenType>
     {
         Advance(); // skip POINT
         // POINT(x, y) — return 0 (no pixel read support)
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         ParseExpression(); // x
         if (Peek().Type == TokenType.COMMA) Advance();
         ParseExpression(); // y
@@ -533,13 +584,13 @@ public partial class Parser : ParserBase<Token, TokenType>
         var t = Advance();
         var s = new GetStatement(t.Line, t.Column);
         // GET (x1,y1)-(x2,y2), array
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X1 = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y1 = ParseExpression();
         if (Peek().Type == TokenType.RPAREN) Advance();
         if (Peek().Type == TokenType.MINUS) Advance();
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X2 = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y2 = ParseExpression();
@@ -566,7 +617,7 @@ public partial class Parser : ParserBase<Token, TokenType>
         var t = Advance();
         var s = new PutStatement(t.Line, t.Column);
         // PUT (x,y), array [, action]
-        if (Peek().Type == TokenType.LPAREN) Advance();
+        SkipStepAndOpenParen();
         s.X = ParseExpression();
         if (Peek().Type == TokenType.COMMA) Advance();
         s.Y = ParseExpression();

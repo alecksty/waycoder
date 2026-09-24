@@ -134,6 +134,37 @@
         </Setter>
     </Style>
 
+    <!-- 顶栏的**扁平芯片**（命令行页的「尺寸档 / 尺寸」两格）—— 用户要的「去掉背景和边框」。
+         ⚠ 命名样式**不会**继承隐式样式（没有 `BasedOn` 就各是一套）⇒ 字体/字色/内边距/最小尺寸
+           都得自己写一遍，别以为隐式样式会兜底。
+         ⚠⚠ **Disabled 态必须一起覆写**：隐式 Button 的 Disabled 会把底色设成 Gray200/Gray600，
+           那个灰块正好把"去掉背景"顶回来 —— 而且**只在禁用时才出现**，搭界面的时候看不出来
+           （命令行的「尺寸」格在自适应档下就是禁用的，必踩）。 -->
+    <Style x:Key="FlatChip" TargetType="Button">
+        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="BorderWidth" Value="0" />
+        <Setter Property="FontFamily" Value="OpenSansRegular" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="MinimumHeightRequest" Value="0" />
+        <Setter Property="MinimumWidthRequest" Value="0" />
+        <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource ButtonTextLight}, Dark={StaticResource ButtonTextDark}}" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup x:Name="CommonStates">
+                    <VisualState x:Name="Normal" />
+                    <VisualState x:Name="Disabled">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor" Value="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}" />
+                            <Setter Property="BackgroundColor" Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+                    <VisualState x:Name="PointerOver" />
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
     <Style TargetType="ImageButton">
         <Setter Property="Opacity" Value="1" />
         <Setter Property="BorderColor" Value="Transparent"/>

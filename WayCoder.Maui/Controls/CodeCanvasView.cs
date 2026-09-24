@@ -1389,7 +1389,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         //    压在它上面）。它就是代码层的一部分：跟着滚动、跟着缩放，滚出屏幕就看不见。
         //    无诊断时也要走一次（它只做命中表清空）—— 上一帧的气泡没了却留着命中表，
         //    那些位置就会继续吃触摸。
-        if (hasDiags) DrawDiagnosticBubbles(canvas, diags, w, h, gutterW, lineH);
+        if (hasDiags) DrawDiagnosticBubbles(canvas, diags, w, h, lineH);
         else _bubbleHits.Clear();
 
 #if DEBUG
@@ -2291,7 +2291,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// （**同一处算出来**，见 <see cref="BubbleHit"/>）。
     /// </summary>
     private void DrawDiagnosticBubbles(ICanvas canvas, List<Diagnostic> all,
-        float w, float h, float gutterW, float lineH)
+        float w, float h, float lineH)
     {
         _bubbleHits.Clear();
         _bubbleRightCodeX = 0f;
@@ -2319,28 +2319,31 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         foreach (var spot in spots)
         {
-            // ── 锚点 + 可见性 ──
+            // ── 锚点 ──
+            // **锚不上就一个像素都不画**（用户 2026-09-24 定的两条，合起来把「锚不上」收干净了）：
+            //   · 「没有位置的（行列都没有的），不要显示气泡」；
+            //   · 「假如错误或警告超出范围，也不要显示，比如程序就 10 行，报错 -1 行或者 100 行，
+            //      就不要显示气泡了，完全就是胡说八道的」。
+            //
+            // 理由是一样的：气泡上那个尖的**全部意义就是指向某一行**。指不到任何一行时，
+            // 画出来的只能是一块**贴在视口顶部的浮层** —— 挡在代码上，却和它说的那句话毫无关系。
+            // 实测触发形态：链接器那条「库代码里有 N 个未解析标签」，一个 7 行、编得过跑得动的
+            // Pascal 程序上顶着盖住第 1~3 行的黄框。越界那条更没得辩（10 行的文件报 100 行）。
+            //
+            // ⚠ 它们**照旧留在编辑器的「错误列表」里**（那是文字行、不遮挡代码），所以
+            //   「编译器到底说了什么」并没有丢 —— 那正是这里从前有一支「贴到顶部」兜底的理由。
+            //
             // ⚠ 不能写成 `bool anchored = cond && TryGetCellAnchor(out …)`：`&&` 的右侧不保证求值，
             //   编译器会判 out 变量「可能未赋值」（CS0165）。分开写。
-            float anchorX = 0f, lineTop = 0f, tipY;
-            bool anchored = false;
-            if (spot.Line > 0)
-                anchored = TryGetCellAnchor(spot.Line, spot.Column > 0 ? spot.Column : 1, out anchorX, out lineTop);
-            if (anchored)
-            {
-                // **可见性判据 = 诊断那一行在不在视口里**（不是气泡/圆点的矩形）：
-                // 错误行滚出屏幕 ⇒ 它的标记一个像素都不画（气泡与小圆点都是一条规矩）。
-                if (lineTop + lineH <= 0f || lineTop >= h) continue;
-                // **永远在错误行正下方**（用户定的）：尖就落在那一行的下缘，绝不翻到上方。
-                tipY = lineTop + lineH;
-            }
-            else
-            {
-                // 解析不出行列的诊断（编译器没给位置）：贴在视口顶部、正文左缘（无尖可指）。
-                // 这类诊断不该因为「没有坐标」就从屏幕上消失（错误列表里还列着它们）。
-                anchorX = gutterW + EditorTypography.TextLeftPad;
-                tipY = 0f;
-            }
+            float anchorX = 0f, lineTop = 0f;
+            if (spot.Line <= 0 ||
+                !TryGetCellAnchor(spot.Line, spot.Column > 0 ? spot.Column : 1, out anchorX, out lineTop))
+                continue;
+            // **可见性判据 = 诊断那一行在不在视口里**（不是气泡/圆点的矩形）：
+            // 错误行滚出屏幕 ⇒ 它的标记一个像素都不画（气泡与小圆点都是一条规矩）。
+            if (lineTop + lineH <= 0f || lineTop >= h) continue;
+            // **永远在错误行正下方**（用户定的）：尖就落在那一行的下缘，绝不翻到上方。
+            float tipY = lineTop + lineH;
 
             // 展开/收起是**整个位置共用**的（用户定的）⇒ 一个位置上要么全是气泡、要么只有一个小圆点；
             // 圆点的颜色取该位置**最严重**的那一档（错误优先红）。
@@ -2349,7 +2352,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
             if (!expanded)
             {
-                DrawDot(canvas, spot, EditorTypography.WaveColor(spot.Severity), anchored,
+                DrawDot(canvas, spot, EditorTypography.WaveColor(spot.Severity),
                     anchorX, lineTop, lineH, dotR, inflate, w, h);
                 continue;
             }
@@ -2367,7 +2370,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             for (int i = 0; i < spot.Groups.Count; i++)
             {
                 var g = spot.Groups[i];
-                bool withTip = i == 0 && anchored;   // 没有锚点的诊断本来也没尖可画
+                // 锚不上的诊断走不到这里（上面就 `continue` 了）⇒ 最上面那个恒带尖。
+                bool withTip = i == 0;
                 float bodyH = g.Lines.Length * lineH + pad * 2f;
 
                 // 底色**按严重度取**（`BubbleFill` 内部再分白天/夜间两套显式值）——
@@ -2449,13 +2453,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 不会与它错开。颜色就是那一档的波浪色（错误红 / 警告黄 / 提示绿）。
     /// 点它就把这一条**展开**（可逆 —— 与「彻底删掉这条诊断」不是一回事）。
     /// </summary>
-    private void DrawDot(ICanvas canvas, DiagSpot spot, Color wave, bool anchored,
+    private void DrawDot(ICanvas canvas, DiagSpot spot, Color wave,
         float anchorX, float lineTop, float lineH, float dotR, float inflate, float w, float h)
     {
         // y 与 DrawDiagnosticWave **同源**（那边是 `y + lineH - WaveBaseInset`）：
-        // 圆点于是正好落在波浪线的头上。诊断没有位置信息时（anchored=false）它本来也没有
-        // 波浪线可对齐，就贴在视口顶部 —— 总不能让它整个跑到画布外面去、连点都点不着。
-        float cy = anchored ? lineTop + lineH - WaveBaseInset : dotR + 2f;
+        // 圆点于是正好落在波浪线的头上。
+        // ⚠ 这里**不再有** `anchored ? … : 贴视口顶部` 那一支：锚不上的诊断根本走不到这儿
+        //   （`DrawDiagnosticBubbles` 在取锚点时就 `continue` 掉了），所以 `lineTop` 恒可信。
+        float cy = lineTop + lineH - WaveBaseInset;
 
         // 圆点的右缘也记进内容最右缘（与气泡同理）：锚点列偏右时，横向滚得到才点得着。
         _bubbleRightCodeX = MathF.Max(_bubbleRightCodeX, anchorX + _scrollX + dotR);

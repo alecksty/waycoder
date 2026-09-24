@@ -415,6 +415,14 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.POP, [new(OperandType.REGISTER, 2)])); // X2
         instructions.Add(new Instruction(OpCode.POP, [new(OperandType.REGISTER, 1)])); // Y1
         instructions.Add(new Instruction(OpCode.POP, [new(OperandType.REGISTER, 0)])); // X1
+        // `LINE (x1,y1)-STEP(dx,dy)` —— 第二个点是**相对前一个点**，在这里补两条加法。
+        // ⚠ 放在 POP **之后、`GenerateExpr(stmt.Color, …)` 之前**：后面的分派
+        //   （box mode 13 / 描边 / 填充）全都读 R2/R3，这里改完它们自然跟着对；
+        //   而再往后 R0–R3 会被颜色求值当成临时寄存器用，改不动了。
+        if (stmt.StepX2)
+            instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 2), new(OperandType.REGISTER, 0)]));
+        if (stmt.StepY2)
+            instructions.Add(new Instruction(OpCode.ADD, [new(OperandType.REGISTER, 3), new(OperandType.REGISTER, 1)]));
         // Now evaluate color into R4 (R0-R3 already have coords)
         GenerateExpr(stmt.Color, 4);
 

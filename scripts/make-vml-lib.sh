@@ -23,6 +23,9 @@
 #
 # ⚠ `*.gen.vml` 是本地跑出来的中间产物（每个几十 KB），不进包。
 #
+# ⚠ **第三方 Pascal 老程序语料不进包**（`Examples/pascal/` 下的 8 类前缀，
+#    见下面 `EXAMPLES_PASCAL_CORPUS_RE`）—— 它们**留在仓库里**，只是不随包分发。
+#
 # ⚠ `vmltool.config.xml` 必须打进去，少它整个链接阶段会被跳过（见 MauiVml 注释）。
 #
 # ⚠ 改完这个 zip 不用去改 `MauiVml.LibVersion` —— 那边用**内容指纹**判断要不要重新解压
@@ -84,6 +87,63 @@ rm -f "$TMP"
 #        ⇒ 加新模块时**必须回来检查这张表**：它是"同一份清单在第二处实现"的典型形态。
 MOBILE_EXCLUDE=(dos vga_text graphics graph browser_gfx gpio)
 
+# ── 示例文件清单：**只在这里算一次**，两条打包路径共用 ─────────────────────────
+#
+# ⚠⚠ 这里是本仓头号坑（「同一规则两处实现」）的重点防守位。
+#
+#   本脚本有**两条打包路径**（有 `zip` 走 Info-ZIP；没有则走 Python `zipfile` ——
+#   Windows Git Bash 默认不带 zip，**本机走的就是 Python 那条**）。而「收哪些示例」
+#   这条规则原先在两边**各写了一遍**：shell 里三个 `find`、Python 里 `examples_files()`
+#   三层 `os.listdir`。⇒ 层数、排除项这类规则只要改一处忘另一处，两条路径就会产出
+#   **不同的包**，而「本机走哪条」只取决于有没有 `zip` —— 本地验过的与别人机器上打出来的
+#   不是同一个包，且**一个字节的报错都没有**。
+#
+#   选的是「让第二条实现**不复存在**」，而不是「两处引用同一个变量」：
+#   清单在这里算好、落进一个临时文件，两条路径都只是**消费**它 —— Python 侧那份目录遍历
+#   （`examples_files()`）已随本次改动删除。少一份实现就少一处能漂移的地方，
+#   那比「记得同步」可靠。（若将来必须在某条路径上再写一遍遍历，那就说明该把它抽成
+#   一个独立脚本、两边都调它，而不是在两条路径里各写一份。）
+#
+#   排除判据按**文件名前缀**（这批语料带得很整齐）：
+EXAMPLES_PASCAL_CORPUS_RE='^Examples/pascal/(avc_|g7iles_|gcorail_|gmsdos_|gnc_|ktp_|swag_|tpdem_)'
+#
+#   为什么排它们：`Examples/pascal/` 下这 8 类是**真实存在的老 Pascal 程序原文**
+#   （SWAG 语料、Turbo Pascal 示例盘、各类 DOS 工具与老游戏）。它们是「老程序兼容性」
+#   这条线的**判据来源**（目标原话是"拿真实存在的老程序原文，一个字符都不改，编译+运行"）
+#   ⇒ **仓库里一份都不能删**（`scripts/vml-diag-probe/examples-build*.sh`、
+#   `scripts/vml-out-probe/` 等也都引用 `Examples/pascal/`）。
+#   但它们在手机上**基本编不过**（实测这一批只有个位数能编过），随包发出去 =
+#   用户在示例列表里看到一片点开就报错的东西（**要的是"不进包"，不是"删掉"**）。
+#   保留的好示例（`demo_*.pas` / `catch.pas` / `sysinfo.pas`）照旧进包。
+#
+#   ⚠ 这 8 个前缀在 `docs/老程序兼容性.md` §十七 里**也列了一份**（连同语料来源、
+#     许可证与逐条缺陷档案）。那**是说明文档、不参与打包**，本文件这一行才是"进不进包"
+#     的可执行真源；两边都改的场合只有"语料增删了"一种，改完顺手把文档那行也对一下。
+#
+#   ⚠ 改这个正则 = 改「手机上能见到哪些 Pascal 示例」，改完**必须重跑本脚本**：
+#     `vml_lib.zip` 是签入的生成物，不重跑则手机侧的内容指纹不变、改动会被静默吞掉。
+EX_LIST="$(mktemp)"
+{
+    cd "$VML"
+    find Examples -maxdepth 1 -type f ! -name '*.gen.vml'
+    find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml'
+    find Examples -mindepth 3 -maxdepth 3 -type f ! -name '*.gen.vml'
+} | sort | grep -Ev "$EXAMPLES_PASCAL_CORPUS_RE" > "$EX_LIST" || true
+# （`|| true` 是**为了把话说清楚**，不是为了放行：`grep` 一行都没匹配上时返回 1，
+#   而 `set -e` 会抢在下面那条检查之前就退出 —— 结果是一个**没有理由的退出码 1**。
+#   现在三条失败路径（grep 无匹配 / `find` 出错 / 排除规则写过头）都汇到下面这一句话。）
+[ -s "$EX_LIST" ] || { echo "✘ 示例清单为空：$EX_LIST（find/grep 出错？或排除规则写过头了）" >&2; exit 1; }
+# **反方向检查**：必须保留的好示例一份都不能少。
+# ⚠ 这条不是冗余 —— 上面那个"排除正则"改过头时（比如把 `^Examples/pascal/` 整个排掉），
+#   清单会**合法地**变小、后面"包里的条目数 vs 清单"那道自查也照样通过，
+#   只有手机上的示例列表才看得出来。这里钉住这几份**用户点名要留的**（尤其 `demo_*`）。
+for must in Examples/pascal/demo_std.pas Examples/pascal/demo_tty.pas \
+            Examples/pascal/demo_bgi.pas Examples/pascal/demo_ui.pas \
+            Examples/pascal/catch.pas Examples/pascal/sysinfo.pas; do
+    grep -qxF "$must" "$EX_LIST" || {
+        echo "✘ 该保留的示例被排掉了：$must（排除规则写过头了）" >&2; exit 1; }
+done
+
 # -X 去掉多余的文件属性（否则同样的内容在 mac/linux 上产出的 zip 字节不同，
 #    指纹会跟着变、白解压一次；虽然不影响正确性，但没必要）
 if command -v zip >/dev/null 2>&1; then
@@ -98,39 +158,18 @@ if command -v zip >/dev/null 2>&1; then
     #   `zip error: Invalid command arguments (nothing to select from)`。
     #   （`MOBILE_EXCLUDE` 为空时 `-x` 根本不出现，所以这个 bug 只在加了排除项之后才暴露。）
     ( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml "${ZIP_EX[@]}" )
-    ( cd "$VML" && zip -q -X "$TMP" \
-        $(find Examples -maxdepth 1 -type f ! -name '*.gen.vml') \
-        $(find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml') \
-        $(find Examples -mindepth 3 -maxdepth 3 -type f ! -name '*.gen.vml') )
+    # 示例：吃上面那份**算好的清单**（`-@` = 从 stdin 读要打包的文件名）。
+    # ⚠ 不能用 `zip -X "$TMP" $(cat "$EX_LIST")`：那是靠 word-splitting 传参，
+    #   文件名一带空格就断成两截（`Examples/...` 目前没有这种名字，但没必要留这个雷）。
+    ( cd "$VML" && zip -q -X "$TMP" -@ < "$EX_LIST" )
 else
     # 没有 `zip` 的机器（例如 Windows Git Bash 默认不带）走 Python —— 用**固定时间戳**
     # 保证同样的内容每次产出同样的字节（与 `zip -X` 的意图一致）。
     echo "ℹ 未找到 zip，改用 Python zipfile"
-    "$PYTHON" - "$VML" "$TMP" "${MOBILE_EXCLUDE[@]}" <<'PY'
+    "$PYTHON" - "$VML" "$TMP" "$EX_LIST" "${MOBILE_EXCLUDE[@]}" <<'PY'
 import os, sys, zipfile
-root, out = sys.argv[1], sys.argv[2]
-exclude = set(sys.argv[3:])   # 移动端不需要的模块名（见脚本头部的 MOBILE_EXCLUDE）
-
-def examples_files():
-    """示例收第 1..3 层：`README.md` / `<语言>/<文件>` / `<语言>/<子目录>/<文件>`（见脚本头部注释）。
-
-    ⚠ 第 3 层是 2026-09-22 加的：此前只到第 2 层，于是「按类型分目录的老程序」
-      （`Examples/c/old/*.c` 这种）**静默不进包** —— 而桌面直接读仓库、完全看不出来，
-      与 `vml_lib.zip` 漂移那条是同一种"只在手机上才暴露"的形态。"""
-    base = os.path.join(root, "Examples")
-    for name in sorted(os.listdir(base)):
-        full = os.path.join(base, name)
-        if os.path.isfile(full):
-            yield "Examples/" + name
-        elif os.path.isdir(full):
-            for sub in sorted(os.listdir(full)):
-                subfull = os.path.join(full, sub)
-                if os.path.isfile(subfull):
-                    yield "Examples/" + name + "/" + sub
-                elif os.path.isdir(subfull):
-                    for leaf in sorted(os.listdir(subfull)):
-                        if os.path.isfile(os.path.join(subfull, leaf)):
-                            yield "Examples/" + name + "/" + sub + "/" + leaf
+root, out, ex_list = sys.argv[1], sys.argv[2], sys.argv[3]
+exclude = set(sys.argv[4:])   # 移动端不需要的模块名（见脚本头部的 MOBILE_EXCLUDE）
 
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     def add(rel):
@@ -152,12 +191,32 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
             z.writestr(info, f.read())
     add("Lib")
     add("vmltool.config.xml")
-    for rel in examples_files():
-        if rel.endswith(".gen.vml"):
-            continue
-        add(rel)
+    # 示例：**清单由 shell 侧算好传进来**（`$EX_LIST`，见脚本上半段那段注释）——
+    # 这里刻意**不做任何目录遍历**：一旦这里再走一遍 `os.listdir`，
+    # 「收哪些示例」就又变回两处实现，而两条路径"本机走哪条"只取决于有没有 `zip`。
+    with open(ex_list, encoding="utf-8") as fh:
+        for rel in (ln.strip() for ln in fh):
+            if rel and not rel.endswith(".gen.vml"):
+                add(rel)
 PY
 fi
+
+# ── 自查：包里 `Examples/` 条目数必须与**清单逐条对上** ────────────────────────
+#
+# ⚠ 这条不是装饰。`zip` 那条路**在某些机器上根本跑不到**（本机 Windows Git Bash 不带 zip
+#    ⇒ 走的是 Python 那条），而"打包语句写坏了"的表现是**包里少一批示例**、
+#    而整个脚本**退出码仍是 0、指纹照算** —— 只有在手机上打开示例列表才看得出来。
+#    这里拿清单当分母当场对一次，**两条路径在同一处被验到**（这正是上面把清单抽出来的红利：
+#    有了唯一的一份"应该有啥"，才可能回头验"实际有啥"）。
+EX_WANT="$(wc -l < "$EX_LIST" | tr -d '[:space:]')"
+EX_GOT="$("$PYTHON" -c '
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    print(sum(1 for n in z.namelist() if n.startswith("Examples/")))
+' "$TMP")"
+[ "$EX_GOT" = "$EX_WANT" ] || {
+    echo "✘ 包里的示例条目（$EX_GOT）与清单（$EX_WANT）对不上 —— 打包那条路径出错了" >&2; exit 1; }
+rm -f "$EX_LIST"
 
 # ── Help/：把 App 内置的说明文档也打进包 ────────────────────────────────
 #

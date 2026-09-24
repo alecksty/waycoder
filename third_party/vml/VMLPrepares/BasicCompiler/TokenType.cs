@@ -199,6 +199,11 @@ namespace BasicCompiler
         REGISTER_KW,   // REGISTER
         FASTPROC,      // FASTPROC
 
+        // 老程序兼容 —「接受并空转」的语句（本平台没有对应语义，见 `Parser.Core.cs` 那几条 case）
+        PCOPY,         // PCOPY a, b          视频页复制（本平台不分页）
+        SHELL,         // SHELL "cmd"         起子进程（本平台不提供）
+        WRITE_KW,      // WRITE #n, a, b      带引号的输出（与 PRINT #n 同形）
+
         // VisualBasic (v1.66.32+)
         PRIVATE_KW,    // Private
         PUBLIC_KW,     // Public

@@ -141,10 +141,29 @@
 #define COPY_PUT      0
 #define XOR_PUT       1
 
-/* 文字对齐（settextjustify）*/
+/* 文字对齐（settextjustify）—— **横竖两个轴共用同一套名字与编号**，与 Borland
+ * 的 graphics.h 一致（缺省是 `LEFT_TEXT, TOP_TEXT`）。
+ *
+ *    横档：LEFT_TEXT=0   CENTER_TEXT=1   RIGHT_TEXT=2
+ *    竖档：BOTTOM_TEXT=0 CENTER_TEXT=1   TOP_TEXT=2      ← CENTER_TEXT 两轴共用
+ *
+ * ⚠ **`BOTTOM_TEXT` / `TOP_TEXT` 从前根本没有** ⇒ 老程序里最常见的那句
+ *   `settextjustify(LEFT_TEXT, TOP_TEXT)` **连编译都过不去**（不是渲染错，是编不过）。
+ *
+ * ⚠⚠ **BGI 的编号不是宿主的编号，两套不能互抄**：
+ *     这里（BGI）   竖档 BOTTOM=0 / CENTER=1 / TOP=2
+ *     宿主 `VML_VANCHOR_*`（`waycoder_ui.h`）BASE=0 / MIDDLE=1 / BOTTOM=2 / TOP=3
+ *   宿主那边 **0 是"基线"**（字形坐在基线上）而**不是"盒底"** —— 而且那是老行为、
+ *   不许改（改 0 的含义 = 悄悄挪动所有既有程序的文字）。
+ *   ⇒ BGI 的 `BOTTOM_TEXT`(0) 要落到 `VML_VANCHOR_BOTTOM`(**2**)，`TOP_TEXT`(2) 落到
+ *     `VML_VANCHOR_TOP`(**3**) —— 照抄编号就是错。
+ *   两套编号的对照**只在下方的 `_bgi_vanchor()` 一处**做，别在别处再推一遍
+ *   （本仓头号坑是"同一规则两处实现"）。 */
 #define LEFT_TEXT     0
 #define CENTER_TEXT   1
 #define RIGHT_TEXT    2
+#define BOTTOM_TEXT   0
+#define TOP_TEXT      2
 
 /* 文字方向 */
 #define HORIZ_DIR     0
@@ -189,7 +208,14 @@ static int _bgi_pen_y    = 0;
  * ⚠ 这个常数与 `_bgi_txt_size` 的默认值必须是同一个 —— 默认字号 = 1 倍字号。 */
 #define _BGI_CHAR_BASE 16
 static int _bgi_txt_size = _BGI_CHAR_BASE;   /* 像素字号（= BGI 倍数 × _BGI_CHAR_BASE）*/
-static int _bgi_txt_just = LEFT_TEXT;
+static int _bgi_txt_just  = LEFT_TEXT;  /* 横档（settextjustify 第 1 个参数） */
+/* 竖档（settextjustify 第 2 个参数）。
+ * **默认 `TOP_TEXT`** —— 这是 BGI 的缺省文字对齐（`LEFT_TEXT, TOP_TEXT`）：
+ * `outtextxy(x, y, s)` 的 `(x, y)` 指的是字符串的**左上角**，文字从 `y` **往下**排。
+ * ⚠ 从前这一档**整个丢了**（`settextjustify` 把第 2 个参数 `(void)vert` 掉），
+ *   而 `outtextxy` 走的是不带宽度的老号 #528（默认 = 基线）⇒ 字坐在基线上、
+ *   大半落在 `y` **上方** —— 用户看到的就是"文字整体靠上"。 */
+static int _bgi_txt_vjust = TOP_TEXT;
 static int _bgi_maxx     = 639;     /* getmaxx/getmaxy —— 跟着当前图形模式走 */
 static int _bgi_maxy     = 479;
 static int _bgi_opened   = 0;
@@ -470,10 +496,16 @@ void settextstyle(int font, int dir, int size)
     (void)font; (void)dir;
     if (size > 0) _bgi_txt_size = size * _BGI_CHAR_BASE;
 }
+/* ⚠ **两个参数都要存** —— 从前这里只有 `_bgi_txt_just = horiz;`，第 2 个参数被
+ *   `(void)vert` 掉了 ⇒ 程序显式要"垂直居中"（`settextjustify(CENTER_TEXT, CENTER_TEXT)`）
+ *   完全没反应（横竖用的是同一个常量名，于是症状看起来像"设了没用"）。
+ *
+ * 取值不做严格校验：与横档同样的口径 —— **认得出的就认，认不出的落回默认档**
+ * （老程序可能传来没初始化的值；BGI 自己也只认 0/1/2 这三档）。 */
 void settextjustify(int horiz, int vert)
 {
-    (void)vert;
-    _bgi_txt_just = horiz;
+    _bgi_txt_just  = horiz;
+    _bgi_txt_vjust = vert;
 }
 
 /* ── 画图 ──────────────────────────────────────────────────── */
@@ -679,9 +711,32 @@ int _bgi_anchor(void)
     return VML_ANCHOR_LEFT;
 }
 
+/* 竖档：**BGI 编号 → 宿主编号**的唯一对照处（理由与编号陷阱见 `TOP_TEXT` 那段注释）。
+ * 认不出的值落回 `TOP`（= BGI 的缺省档），与横档"认不出就落 LEFT"同一口径。 */
+int _bgi_vanchor(void)
+{
+    if (_bgi_txt_vjust == BOTTOM_TEXT) return VML_VANCHOR_BOTTOM;  /* BGI 0 → 宿主 2 */
+    if (_bgi_txt_vjust == CENTER_TEXT) return VML_VANCHOR_MIDDLE;  /* BGI 1 → 宿主 1 */
+    return VML_VANCHOR_TOP;                                        /* BGI 2 → 宿主 3 */
+}
+
+/* `outtextxy(x, y, s)`：(x, y) 是字符串的**左上角**（BGI 缺省对齐 `LEFT_TEXT, TOP_TEXT`）。
+ *
+ * ⚠ **必须走 `ui_text_v`（#581）显式要"顶对齐"，不能走 `ui_text`（#528）**：
+ *   #528 不带竖对齐、落的是 `VML_VANCHOR_BASE`(0) —— 那档的语义是"**`y` 就是基线**"，
+ *   字形坐在基线上 ⇒ 大半落在 `y` **上方**（用户报的"靠上"就是这个）。
+ *   **不能去改 0 档的含义**：那是老行为，改了会悄悄挪动**所有**既有程序的文字；
+ *   也不能给老号 #528 加第 8 个参数（老程序只传 6 个，读到的会是它自己上一句留下的垃圾）。
+ *   `VML_VANCHOR_TOP` 与基线相差一个"上升"（≈0.8×字号），正好补回那段偏移。
+ *
+ * ⚠ `ui_text_v` 与 `ui_text_styled` **参数序不同**（前者的第 7 个是 valign，后者的第 7 个
+ *   是 style），别互相照抄。这里的 style 传 0 = 不加粗不斜（`outtext` 本来就没有样式参数）。
+ *
+ * 笔位置与此无关：`outtext` 用的是 `_bgi_pen_x/y`，本函数不改笔位置（BGI 的
+ * `outtextxy` 也不改 CP）。 */
 void outtextxy(int x, int y, char *s)
 {
-    ui_text(x, y, s, _bgi_rgb(_bgi_fg), _bgi_txt_size, _bgi_anchor());
+    ui_text_v(x, y, s, _bgi_rgb(_bgi_fg), _bgi_txt_size, _bgi_anchor(), _bgi_vanchor(), 0);
 }
 
 void outtext(char *s)

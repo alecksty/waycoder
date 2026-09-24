@@ -821,6 +821,13 @@ namespace BasicCompiler
         public Expression Color { get; set; }
         public bool Box { get; set; }
         public bool Fill { get; set; }
+        /// <summary>
+        /// 第二个点是 `STEP(dx,dy)` 形式 —— **相对前一个点**（不是相对图形光标）。
+        /// 代码生成在取出 X1/Y1/X2/Y2 之后做 `X2 += X1; Y2 += Y1`。
+        /// 见 `Parser.Qbasic.cs` 的 `SkipStepAndOpenParen`。
+        /// </summary>
+        public bool StepX2 { get; set; }
+        public bool StepY2 { get; set; }
         public QbLineStatement(int line, int column) : base(line, column) { }
     }
 

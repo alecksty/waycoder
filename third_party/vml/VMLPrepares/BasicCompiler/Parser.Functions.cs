@@ -578,6 +578,48 @@ namespace BasicCompiler
                     && !nextVal.EndsWith("#") && !nextVal.EndsWith("&"))
                     break;
 
+                // ── 坐标**元组**实参：`(x, y)` ──────────────────────────────────
+                //
+                // QBasic/QB64 的一批语句把"一个点"写成**一对**括号里的两个数：
+                // `_PUTIMAGE (0, 0), img, dst`、`_MAPTRIANGLE (…)`、`DRAW …` 等。
+                // 而 `(0, 0)` 在表达式语法里**不是一个表达式** —— `ParseExpression`
+                // 只肯吃到 `0`，随即停在那个人逗号上，于是 `, 0), img, dst` 整段漏给
+                // 语句层，`img`/`dst` 被当成新语句编成 `CALL func_img` / `CALL func_dst`
+                // （实测 `w84d_app_template.bas:59` 一次报 4 个未定义函数，
+                //   而报的名字里没有一个指向"这一行是个绘图调用"）。
+                //
+                // 判据是"括号里**顶层**有没有逗号"：有 ⇒ 这是坐标元组，取**第一个**
+                // 子表达式当这一项的值（下面那些语句本来也只用得上一个位置值），
+                // 剩下的连同 `)` 一起吃掉；没有 ⇒ 就是个普通括号表达式，照旧交给
+                // `ParseExpression`（别抢它的活，否则 `f((a+b))` 这类写法会走样）。
+                // `STEP` 前缀同理（`_PUTIMAGE STEP(0,0), …`）。
+                if (Peek().Type == TokenType.STEP && current + 1 < tokens.Count
+                    && tokens[current + 1].Type == TokenType.LPAREN)
+                {
+                    Advance(); // skip STEP（相对坐标 —— 这里当绝对坐标处理，见 Parser.Qbasic.cs）
+                }
+                if (Peek().Type == TokenType.LPAREN && HasTopLevelCommaInParens())
+                {
+                    Advance();                  // skip (
+                    Expression first = ParseExpression();
+                    if (first != null) call.Arguments.Add(first);
+                    // 吃掉元组剩余部分（含配对的 `)`）
+                    int depth = 1;
+                    while (!AtEnd() && depth > 0)
+                    {
+                        if (Peek().Type == TokenType.LPAREN) depth++;
+                        else if (Peek().Type == TokenType.RPAREN) depth--;
+                        else if (Peek().Line != startLine) break;   // 别跨行
+                        Advance();
+                    }
+                    if (Peek().Type == TokenType.COMMA)
+                    {
+                        Advance(); // consume comma
+                        continue;
+                    }
+                    break;
+                }
+
                 if (!IsExpressionStart(Peek())) break;
                 Expression arg = ParseExpression();
                 if (arg != null) call.Arguments.Add(arg);
@@ -589,6 +631,27 @@ namespace BasicCompiler
             }
 
             return call;
+        }
+
+        /// <summary>
+        /// 当前位置是 `(`，且**括号内顶层有逗号**（即 `(a, b)` 这种坐标元组）——
+        /// 只看不消费。见 <see cref="ParseImplicitCallStatement"/> 里那段说明。
+        /// </summary>
+        private bool HasTopLevelCommaInParens()
+        {
+            if (Peek().Type != TokenType.LPAREN) return false;
+            int j = current + 1;
+            int depth = 1;
+            while (j < tokens.Count)
+            {
+                var t = tokens[j];
+                if (t.Type == TokenType.EOF) return false;
+                if (t.Type == TokenType.LPAREN) depth++;
+                else if (t.Type == TokenType.RPAREN) { depth--; if (depth == 0) return false; }
+                else if (t.Type == TokenType.COMMA && depth == 1) return true;
+                j++;
+            }
+            return false;
         }
 
         /// <summary>

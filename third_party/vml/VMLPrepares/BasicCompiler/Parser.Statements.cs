@@ -10,6 +10,24 @@ namespace BasicCompiler
             Token token = Advance(); // 跳过 PRINT
             PrintStatement stmt = new PrintStatement(token.Line, token.Column);
 
+            // `PRINT #1, x` —— 文件号前缀，**必须先吃掉**。
+            //
+            // ⚠ 与 `INPUT #1, x` 是同一个写法，而那条路早就处理了（见 `ParseInputStatement`），
+            //   这条路没有 ⇒ `#` 不是表达式开头，循环**第一圈就 break**：`PRINT` 成了一条
+            //   空语句，`#1, x$` 整段漏给语句层。`x$` 于是落到「名字后面不是 `=`」的兜底
+            //   分支、编成 `CALL func_x$` ⇒ 链接期报「未定义的函数 'func_x'」
+            //   （`Examples/basic/thirdparty/maze.bas` 的 `PRINT #1, mazname$` 就是这一档；
+            //   报的名字里连 `$` 都不带，靠它根本猜不到是 `PRINT #`）。
+            //
+            // 本平台的 `#n` 没有独立文件流语义（OPEN 走的是别的实现），所以这里**只是
+            // 收掉它**，让后面的输出项照常打进控制台 —— 与 INPUT 那条路同一口径。
+            if (Peek().Type == TokenType.HASH)
+            {
+                Advance();                      // skip #
+                ParseExpression();              // 文件号
+                if (Peek().Type == TokenType.COMMA) Advance();
+            }
+
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
             {
                 // **换行 = 这条 PRINT 说完了**（见 `LineEnded`：逗号/分号在行尾时不能把
@@ -413,8 +431,23 @@ namespace BasicCompiler
                 {
                     // Identifier (could be a constant like MAXSNAKELENGTH)
                     // For now, record it as a dimension expression (store as 0 and note that it's non-numeric)
+                    //
+                    // ⚠ **点名也要收**（`AppSettings.cols`）。从前这里 Advance 一次就完事，
+                    //   于是紧接着那个 `.` 让下面「是逗号还是右括号」的判定两者都不成立、
+                    //   **整个 DIM 返回 null**，而语句层对 null 是**静默跳过**
+                    //   ⇒ `DIM SHARED Terrain(AppSettings.cols, AppSettings.rows) AS TerrainType`
+                    //   这一行消失不算，`Terrain` 从此不是数组，后面每次 `Terrain(x,y)`
+                    //   都编成函数调用（实测报出 `func_cols` / `func_appsettings` /
+                    //   `func_rows` / `func_terraintype` 四个未定义函数，全在**同一行**上）。
                     string identVal = Peek().Value;
                     Advance();
+                    while (Peek().Type == TokenType.DOT
+                           && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.IDENTIFIER)
+                    {
+                        Advance();                                   // 吃掉 `.`
+                        identVal += "." + Peek().Value;              // 与 `_fieldConstValues` 同一拼法
+                        Advance();                                   // 吃掉字段名
+                    }
                     // Check if there's arithmetic after identifier
                     if (Peek().Type == TokenType.MINUS || Peek().Type == TokenType.PLUS ||
                         Peek().Type == TokenType.MULTIPLY || Peek().Type == TokenType.DIVIDE)
@@ -436,7 +469,9 @@ namespace BasicCompiler
                     //   阶段算"，而那个阶段**根本没人算** ⇒ `DIM terr(COLS)` 只分到 2 格，
                     //   一写就越界（LANDER 实测循环变量跑到 760、把数组和邻居变量一起写花）。
                     //   查不到（不是字面量 CONST / 顺序反了）就退回占位行为，不更糟。
-                    if (_constValues.TryGetValue(identVal.ToLower(), out int constDim))
+                    //   点名（`AppSettings.cols`）另有一张表 —— 见 `_fieldConstValues`：
+                    //   它的值来自"`a.b = 8` 这种初始化赋值"，同样只认字面量。
+                    if (TryLookupConstValue(identVal, out int constDim))
                         lowerBound = constDim;
                     else
                         lowerBound = 1;
@@ -1121,6 +1156,14 @@ namespace BasicCompiler
                 if (Peek().Type != TokenType.IDENTIFIER) break;
                 stmt.Variables.Add(new Identifier(Peek().Line, Peek().Column, Peek().Value));
                 Advance();
+                // `name()` = 动态数组声明，吃掉这一对空括号（理由同 `ParseCommonStatement`：
+                // 留在流上会被当成下一条语句，`()` 走表达式路、后面的名字走裸调用路）。
+                if (Peek().Type == TokenType.LPAREN && current + 1 < tokens.Count
+                    && tokens[current + 1].Type == TokenType.RPAREN)
+                {
+                    Advance(); // skip (
+                    Advance(); // skip )
+                }
                 // 跳过 AS type
                 if (Peek().Type == TokenType.AS)
                 {
@@ -1139,6 +1182,7 @@ namespace BasicCompiler
             Token token = Advance(); // skip COMMON
             CommonStatement stmt = new CommonStatement(token.Line, token.Column);
             // COMMON var1, var2, var3 ...
+            // COMMON SHARED var1, var2 ...            ← 这个修饰词从前**没认**
             // COMMON /blockname/ var1, var2 (skip block name if present)
             if (Peek().Type == TokenType.DIVIDE)
             {
@@ -1148,11 +1192,29 @@ namespace BasicCompiler
                 if (Peek().Type == TokenType.DIVIDE)
                     Advance(); // skip closing /
             }
+            // `COMMON SHARED …` 是**最常见**的写法（老程序里几乎只有这一种）。
+            // ⚠ 不认这个修饰词的后果不是"少个词"：`SHARED` 留在流上，语句层接着按
+            //   `case TokenType.SHARED` 再走一遍 `ParseSharedStatement`，而那条路
+            //   对 `名字()` 形式的收不动 —— 于是 `()` 与后半串名单漏给语句层
+            //   （实测 `COMMON SHARED PieceData%(), CurrentColor%(), …` 报的是
+            //    「未定义的函数 'func_currentcolor_pct'」，而 `_pct` 是 `%` 的
+            //     内部转义名，靠报错根本看不出是 COMMON 这一行）。
+            if (Peek().Type == TokenType.SHARED)
+                Advance(); // skip SHARED
             while (true)
             {
                 if (Peek().Type != TokenType.IDENTIFIER) break;
                 stmt.VariableNames.Add(Peek().Value);
                 Advance();
+                // `name()` = 动态数组声明。**必须吃掉这一对括号** ——
+                // `()` 里是空的（VB 风格"声明为数组"），留着就会被当成"下一条语句"。
+                // 带维度的写法（`name(10)`）在 COMMON 里不合法，故只认空括号。
+                if (Peek().Type == TokenType.LPAREN && current + 1 < tokens.Count
+                    && tokens[current + 1].Type == TokenType.RPAREN)
+                {
+                    Advance(); // skip (
+                    Advance(); // skip )
+                }
                 if (Peek().Type != TokenType.COMMA) break;
                 Advance(); // skip comma
             }

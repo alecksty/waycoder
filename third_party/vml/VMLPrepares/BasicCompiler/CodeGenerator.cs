@@ -598,9 +598,30 @@ namespace BasicCompiler
                 }
 
                 variables[name] = variableCount;
-                // **模块级创建的变量就是全局变量** —— 放静态区全局段。SUB 的局部/参数在
-                // currentLocalVars 里、本来就不进 variables，所以不受影响。
-                if (currentSubName == null) _globalVars.Add(name);
+                // **进了 `variables` 就是全局变量** —— 放静态区全局段。
+                //
+                // ⚠ 这里从前是 `if (currentSubName == null) _globalVars.Add(name);`
+                //   —— 也就是"只有在主程序里第一次见到的名字才算全局"。
+                //   后果是**只在 SUB 里用过的变量**（QB64 的 `_MOUSEX` 这类内置量、
+                //   或任何忘了 DIM 的名字）既不进 `_globalVars`，又**不在
+                //   `currentLocalVars`**（局部表由 `DIM`/形参建立），于是
+                //   `EmitLoadVar` 的 `else` 分支把它编成 `R12 + 8 + GetVarByteOffset(名)`：
+                //   拿**全局段的字节偏移**去配 **SUB 自己的 R12**。
+                //
+                //   症状取决于偏移大小 —— 这正是它一直没被发现的原因：
+                //     · 偏移小（变量总数少）时那个地址**恰好落在当前帧里**，
+                //       读写的是一块没人用的帧内存，程序"看起来是对的"；
+                //     · 偏移大（变量多的程序）直接冲出栈顶，报
+                //       `内存错误 … [BaseReg=12 Offset=1300 …]`（实测
+                //       `thirdparty/w84d_spaceship.bas`：`_MOUSEX` 落在 `R12+1300`，
+                //       而 `sub_drawmouse` 的帧只有 `enter #4`）。
+                //   本仓对"同一变量在主程序与 SUB 里地址不同"已经栽过一次（见
+                //   `varByteSizes` 那段注释），这里是同族的另一半。
+                //
+                // 判据与 `GetOrCreateVariable` 上面那条警告文案一致："未声明即隐式全局"。
+                // 真正的 SUB 局部走 `currentLocalVars`（`DIM` / 形参），**根本不会进这里**，
+                // 所以这条改动不会把局部量变成全局。
+                _globalVars.Add(name);
                 // Double 和 Long 类型需要 8 字节，分配 2 个槽位
                 BasicType varType = GetVariableType(name);
                 int slots = (varType == BasicType.Double || varType == BasicType.Long) ? 2 : 1;

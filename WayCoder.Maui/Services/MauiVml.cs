@@ -516,8 +516,9 @@ HALT
     ///
     /// 两件事都做而不是二选一：命令行页要的是那句话，编辑器气泡要的是行列。
     /// 分两处各解析一次就是「同一规则两处实现」，迟早一边改了另一边没改。
-    /// 解析不出位置时 <see cref="VmlDiagnostics.Parse"/> 会给一条无锚诊断，
-    /// 气泡照常显示内容、只是不画指向某一行的箭头。
+    /// 解析不出位置时 <see cref="VmlDiagnostics.Parse"/> 会给一条无锚诊断（**这里是失败出口，
+    /// 所以托底那条要留着**）——它进错误列表，但**画布上不画气泡**（指不到行，见
+    /// `CodeCanvasView.DrawDiagnosticBubbles`）；命令行页那句话才是用户看原因的地方。
     ///
     /// <paramref name="filePath"/> = **正在编的那个文件**，一路传给
     /// <see cref="VmlDiagnostics.Parse"/>：报错文本里混着 `#include` 进来的头文件的错，
@@ -896,7 +897,11 @@ HALT
         //
         // ⚠ 同样要传 `filePath`（与 `Fail` 那条出口同一个理由）：编译期的 stderr 里
         //   头文件产生的警告不在少数，不判文件就会把它们贴到用户文件的行号上。
-        var compileDiags = VmlDiagnostics.Parse(compileDiag, filePath);
+        //    ⚠ `atLeastOne: false` —— **成功出口不许补造诊断**。手上这份是**编译期日志**
+        //      （前端 stderr + 链接器 stderr），编过了却一条都没解析出来 = 日志里本来就没有诊断；
+        //      按默认值补一条的话会凭空造出一个 `Severity.Error`（链接器那条「库内部」提示
+        //      改成 `[库内部]` 前缀之后就会走到这里，实测表现是「编得过跑得动，错误列表里却有一条红错」）。
+        var compileDiags = VmlDiagnostics.Parse(compileDiag, filePath, atLeastOne: false);
         var compileWarnings = compileDiags
             .Where(d => d.Severity == Severity.Warning)
             .ToList();

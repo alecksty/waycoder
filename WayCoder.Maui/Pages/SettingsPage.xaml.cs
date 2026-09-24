@@ -28,10 +28,16 @@ public partial class SettingsPage : ContentPage
         var cfg = Config.Instance;
 
         // ── 模型：大/小 + Key 有没有配（没配 Key 是最常见的「不工作」原因，摘要里必须看得见）
+        //
+        // ⚠ **必须是一行**（用户定的：详情行只显示一行、多余的省略）。这里原来有个**写死的 `\n`**
+        //   把「小模型」独立成第二行 ⇒ 这一张卡比别的都高，整页高矮不齐就是它造成的。
+        //   合成一行后**放不下的会被截断**（`SettingsPage.xaml` 的摘要行有 `MaxLines=1`），
+        //   所以**顺序按重要性排**：大模型 + 它的 Key 状态在最前，小模型跟在后
+        //   （小模型默认就是跟随大模型，看不全不致命；点进二级页有全部）。
         var bigKey = DescribeKey(cfg.Provider);
         var smallKey = DescribeKey(cfg.SmallProvider);
         var small = string.IsNullOrEmpty(cfg.SmallModel) ? "未设（跟随大模型）" : cfg.SmallModel;
-        ModelSummary.Text = $"{cfg.Provider} · {cfg.Model}　{bigKey}\n小模型 {small}　{smallKey}";
+        ModelSummary.Text = $"{cfg.Provider} · {cfg.Model}　{bigKey} · 小模型 {small}　{smallKey}";
 
         // ── 参数
         var ctx = cfg.MaxContextTokens > 0 ? $"{cfg.MaxContextTokens / 1024}K" : "默认";

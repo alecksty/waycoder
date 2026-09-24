@@ -34,7 +34,10 @@
             <Button Text="⚙️  配置" Clicked="OnSettingsClicked" />
             <Button Text="🗂  模型" Clicked="OnModelsClicked" />
             <Button Text="🔄  同步" Clicked="OnGitSyncClicked" />
-            <Button Text="ℹ️  关于" Clicked="OnAboutClicked" />
+            <!-- 「关于」**不在这儿** —— 首页摆的是"要去哪儿干活"的入口，
+                 而「关于」是"看看这个 App 是什么"，属于设置那一类。
+                 它已经在「设置」页里（`SettingsPage.xaml` 的「关于」行），
+                 另有一条 `/about` 斜杠命令、以及侧栏命令页的「ℹ️ 关于」，入口不缺。 -->
 
         </VerticalStackLayout>
     </ScrollView>

@@ -602,6 +602,28 @@ namespace BasicCompiler
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
                     return;
                 default:
+                    // ── QB64 的 `_*` 函数家族：一律返回 0 ────────────────────────────
+                    //
+                    // `_NEWIMAGE` / `_MOUSEX` / `_MOUSEY` / `_RGB` / `_DISPLAY` / `_LIMIT` …
+                    // 是 QB64 引入的一整套扩展（图形/鼠标/定时/颜色）。本平台一个都没有，
+                    // 而它们在**表达式位置**使用（`SCREEN _NEWIMAGE(w,h,32)`、
+                    // `_RGB(_MOUSEX/3, …)`），所以"当语句空转"那一招在这里不适用 ——
+                    // 只能给一个值。按用户定的规则：「实现不了的直接返 0 做空函数」。
+                    //
+                    // 判据是**名字前缀 `_`**（QB64 的扩展函数全在这个命名空间里，
+                    // 用户自定义函数不这么起名）。⚠ 放在 `funcMap` 查询**之前**，
+                    // 而且不查表：库里的 `_*` 本来就不存在，让它走链接器只会得到
+                    // 「未定义的函数 'func__newimage'」这种无从下手的报错。
+                    //
+                    // 副作用是"看起来能跑但画面是黑的"（`_RGB(…)` 全 0 = 黑、
+                    // `_NEWIMAGE` 的宽高为 0）。这是**有意**的取舍：编不过 / 编过但
+                    // 画面不对，后者至少能让人把程序跑起来看到别处有没有问题。
+                    if (funcCall.FunctionName.StartsWith("_")
+                        && !funcMap.ContainsKey(SymbolKey(funcCall.FunctionName)))
+                    {
+                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
+                        return;
+                    }
                     break;
             }
             

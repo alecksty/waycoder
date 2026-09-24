@@ -47,7 +47,11 @@
             <Tab.Icon>
                 <FontImageSource Glyph="⚙️" />
             </Tab.Icon>
-            <ShellContent ContentTemplate="{DataTemplate pages:SettingsPage}" Route="settings" Shell.NavBarIsVisible="False" />
+            <!-- ⚠ **只有这一页留着标题栏**（用户要的：顶端显示「设置」二字）。
+                 其余 Tab 一律 `NavBarIsVisible="False"` 是为了把纵向空间全留给内容
+                 —— 列表 / 终端 / 聊天那些页确实一屏都嫌少。而设置页是**一串卡片**，
+                 顶上留一条标题栏既点明"这是哪儿"、也不挤掉什么。 -->
+            <ShellContent ContentTemplate="{DataTemplate pages:SettingsPage}" Route="settings" />
         </Tab>
     </TabBar>
 </Shell>

@@ -101,4 +101,10 @@
     <Color x:Key="ButtonSelectedBgDark">#F2F2F4</Color>
     <Color x:Key="ButtonSelectedTextLight">#FFFFFF</Color>
     <Color x:Key="ButtonSelectedTextDark">#111111</Color>
+
+    <!-- 「停止」态（命令行页那个运行按钮在跑的时候）—— 破坏性动作的强调色。
+         **单一色，不分亮/暗成对**，与 `Primary` 同一处置：它是个**实心按钮**（配白字），
+         自身的对比度由「白字 vs 这个底」保证，不依赖它压在哪种页面底色上。
+         ⚠ 别再写成散在 XAML/C# 里的字面量 —— 那正是这次要收掉的东西。 -->
+    <Color x:Key="DangerBg">#B3261E</Color>
 </ResourceDictionary>

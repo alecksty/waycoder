@@ -38,11 +38,17 @@
             <Setter Property="BackgroundColor" Value="Transparent" />
             <Setter Property="TextColor" Value="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}" />
         </Style>
-        <Style x:Key="PanelChip" TargetType="Button">
+        <!-- 面板芯片 = **命令栏那两格的同一条规则**（无背景 / 无边框 / 禁用只淡字），
+             所以 `BasedOn` 到全局的 `FlatChip`，这里只留"这一页的尺寸"，不再各写一份。
+             ⚠ 原先它还自己写了一遍 `BackgroundColor=Transparent` 与一套 `TextColor`：
+               背景那份是重复；字色那份是历史遗留（`#1A1A1A` 与全局的 `#111111` 肉眼无差），
+               一并交回全局 —— **重复的第二份迟早各改各的**。
+             ⚠ 更实的收益：它此前**没有覆写 `Disabled` 态**，而隐式 Button 样式的禁用态会把底色
+               设成 Gray200/Gray600 —— 那个灰块正好与"无背景"矛盾，只是这一页恰好没禁用过才没露。
+               继承 `FlatChip` 之后这条路一并堵上。 -->
+        <Style x:Key="PanelChip" TargetType="Button" BasedOn="{StaticResource FlatChip}">
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="12,6" />
-            <Setter Property="BackgroundColor" Value="Transparent" />
-            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}" />
         </Style>
     </ContentPage.Resources>
 

@@ -11,11 +11,16 @@
  * ## 规则部分与界面部分是**分开的**
  *
  * 上面那一半（`can_move` / `in_check` / `legal_move` / `gen_moves` / `has_legal` /
- * `ai_pick`）**一次都不碰 ui_\***，因此可以在桌面被一个探针 `#include` 进来单测
- * （`#ifndef CHESS_LIB_ONLY` 包住 main 就是为这个）—— 象棋的规则漏洞（蹩马腿、
+ * `ai_pick`）**没有一处开窗、画图或读输入**，因此可以在桌面被一个探针 `#include`
+ * 进来单测（`#ifndef CHESS_LIB_ONLY` 包住 main 就是为这个）—— 象棋的规则漏洞（蹩马腿、
  * 塞象眼、炮翻山、将帅照面）在手机上靠点屏幕是**测不完**的，必须有可跑的判据。
  * 判据里最硬的一条：**开局红方合法着法恰好 44 步**（象棋 perft(1) 的标准值），
  * 数不对就是走法生成器错了。
+ *
+ * ⚠ 唯一的例外是 `ai_pick` 末尾那句 `ui_rand(9)`（同分抖动）—— 它**不是**开窗/绘图，
+ *   落到 VM 的 `#50` 号 syscall 上，所以探针里照样调得动（实测：
+ *   `.scratch/chessprobe/aiprobe.c` 直接调 `ai_pick` 断言它该不该吃白送的子）。
+ *   真要在没有 `ui_*` 号段的宿主上复用这一半，把那句换成常量即可。
  *
  * ## 为什么不用全局变量
  *
@@ -511,7 +516,6 @@ int ai_pick(int* b, int me) {
     int best;
     int bm;
     int opp;
-    int gain;
     int worst;
 
     opp = 1 - me;
@@ -539,16 +543,27 @@ int ai_pick(int* b, int me) {
             if (has_legal(trial, opp) == 0) return m[i];   /* 将死 / 困毙：立刻走 */
         }
 
-        /* 对方能吃回多少（只看吃子，且要合法）—— 白送子会被这一项扣掉 */
+        /* 对方能吃回多少 —— **只算"吃我这一步落的这个子"**。
+         *
+         * 原来是"对方在这个**新局面**里最好的一口"（在整盘上找最大的吃），
+         * 那会把**与我这一步无关**的既有威胁一并算进来：开局时红炮正照着黑马
+         * （隔着黑炮当炮架），于是"随便走一步"和"炮打马"都要扣掉那 400 ——
+         * 两者都扣 = 等于没扣，两台候选剩下的差别就只有"炮打马多赚 400"，
+         * 电脑于是**见马就换炮**（拿 450 的炮去吃 400 的马，白亏 50），
+         * 正好与它上面那句注释"不会白送子"相反。实测（`.scratch/chessprobe/aiscore.c`
+         * 把 44 个候选的评分逐项打出来）：26 个"随便走"全是 −358 上下，
+         * 而两处"炮打马"是 −1 —— 于是每一步都挑炮打马。桌面上头一局就是这么开的。
+         *
+         * 判据收在**落点**上才是那个"吃**回**"：对方能不能吃掉我刚落的这个子。
+         * 于是"把子送进对方嘴里"被扣分（本意），而"我这步与那口无关的旧账"不再重复计。 */
         worst = 0;
         on = gen_moves(trial, opp, om);
         for (j = 0; j < on; j = j + 1) {
-            if (trial[(om[j] % 100)] == 0) continue;       /* 落点没子 = 不是吃 */
-            gain = piece_value(trial[om[j] % 100] % 10);
-            if (gain <= worst) continue;
+            if (om[j] % 100 != ty * BW + tx) continue;   /* 落点以外的吃子与我这一步无关 */
             f = om[j] / 100;
-            t = om[j] % 100;
-            if (legal_move(trial, f % BW, f / BW, t % BW, t / BW) == 1) worst = gain;
+            if (legal_move(trial, f % BW, f / BW, tx, ty) == 0) continue;
+            worst = piece_value(trial[ty * BW + tx] % 10);   /* 送掉的就是刚走的这个子 */
+            break;
         }
         sc = sc - worst * 9 / 10;
         sc = sc + ui_rand(9);                   /* 同分抖动，免得每局一样 */
@@ -828,7 +843,23 @@ int main(void) {
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
-        if (t != VML_MSG_TOUCHDOWN && t != VML_MSG_MOUSEDOWN) continue;
+
+        /* ⚠ **只认 TOUCHDOWN，绝不把 MOUSEDOWN 一起认** —— 这一条是本程序"完全下不了"的根因。
+         *
+         * 手机上一个物理点按会投出**两条**消息：先一条触摸、紧跟一条**坐标相同**的鼠标
+         * （`DrawWindowPage.PostTouch` 里那个 `calls.PostInput(MouseDown…)` 在
+         *  `if (wantTouch)` **之外**，凡是图形窗口两族都发；`VmlUi.SuppressTouch` 只对
+         *  电脑屏窗口抑制触摸）。桌面脚手架下我按 `touchdown`+`mousedown` 成对投进去复现了：
+         * 一次点按只听到 760 那一声（选中），选中位随即被抹掉 —— 因为第二次进到
+         * `else if (idx == sel) sel = -1;` 那条分支，把刚选中的子**取消**掉了。
+         *
+         * 五子棋同样是"两族都认"，却看不出来：它落子后 `if (b[idx] != EMPTY) continue;`
+         * 天然幂等，重复那一下是空操作。**本程序是"先选子、再点落点"的两步状态机，
+         * 对同一个点重复输入不幂等**，于是「点自己的子」永远只闪一下、根本选不中。
+         *
+         * 鼠标那条不认即可 —— 它已经被这次 `ui_wait` 取走，不会留在队列里变成下一次点按。
+         * 约定与 `calc.c` 一致（它也只认 TOUCHDOWN），`waycoder_ui.h` 头部的示例同样如此。 */
+        if (t != VML_MSG_TOUCHDOWN) continue;
 
         x = msg[1];
         y = msg[2];

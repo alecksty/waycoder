@@ -8,75 +8,49 @@
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
 
-        <!-- 顶栏：三个尺寸模式 + 清屏。
+        <!-- 顶栏：`[模式][尺寸] ………………………………[菜单图标]`
              工作目录**改由输入行的提示符表示**（`~/examples>`）—— 它才是"我下一条命令在哪跑"
-             的唯一出处；原先这里还有一行 `cwd: …`，和提示符说同一件事，等于同一屏写两遍。 -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="6" Padding="12,8,8,2">
-            <!-- 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）——
-                 不是"自动 vs 固定"两档：老程序按 80 列排表格 ⇒ 列必须钉死，
-                 而手机屏幕高度各家不同 ⇒ 行没必要跟着钉死（钉了反而上下留白）。
-                 三态互斥，当前生效那个用主色底高亮（见 UpdateSizeButtons）；
-                 **重复点生效中的那个 = 换预设**（列数 / 尺寸档），省一次弹窗。 -->
+             的唯一出处；原先这里还有一行 `cwd: …`，和提示符说同一件事，等于同一屏写两遍。
+
+             尺寸那一块原来是**三个按钮各占一格、还各带一块高亮底色**，用户嫌"太多了" ⇒
+             合并成**两个扁平格**（用户定的形态就是 `[模式][行×列]`）：
+               · 左格 = 模式，**点它循环** 自适应 → 定宽 → 固定 → 自适应；
+                 当前是哪一档**由文字自己说**，不再需要高亮态。
+               · 右格 = 尺寸，**随档位变脸**：自动档下是"当前实际行列数"的读数（不可按，
+                 因为那一档没有可挑的东西）；定宽/固定档下点它挑预设。
+             ⚠ 两格的文案与可用性**只有 `UpdateSizeButtons` 一处推导**，别在这儿写死 Text。
+             ⚠ 这两格用**普通按钮风格**（隐式 `Button` 样式：有底、有框、44 高的标准触控区）——
+               一度改成过无底无框的 `FlatChip`（"不占地方"），用户看过之后要求改回来：
+               扁平之后**看不出能不能点**，而这两格恰恰有一格（自适应档下的尺寸格）是禁用的，
+               靠文字变灰来区分太弱。⇒ **能点与否要靠按钮本身的样子说**。
+               （右边那个菜单图标**保持无底无框**，用户另行指定 —— 它是纯图标，不存在这个歧义。） -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10" Padding="12,8,8,2">
             <Button
-                x:Name="AutoSizeBtn"
+                x:Name="SizeModeBtn"
                 Grid.Column="0"
-                Text="大小自适应"
-                FontSize="13"
-                Padding="10,4"
-                HeightRequest="34"
-                CornerRadius="8"
-                Clicked="OnAutoSizeClicked" />
+                Clicked="OnSizeModeClicked"
+                SemanticProperties.Hint="切换尺寸模式（自适应 / 定宽 / 固定）" />
             <Button
-                x:Name="WidthFixedBtn"
+                x:Name="SizePresetBtn"
                 Grid.Column="1"
-                Text="横向固定"
-                FontSize="13"
-                Padding="10,4"
-                HeightRequest="34"
-                CornerRadius="8"
-                Clicked="OnWidthFixedClicked" />
-            <Button
-                x:Name="FixedSizeBtn"
-                Grid.Column="2"
-                Text="固定 80×25"
-                FontSize="13"
-                Padding="10,4"
-                HeightRequest="34"
-                CornerRadius="8"
-                Clicked="OnFixedSizeClicked" />
+                Clicked="OnSizePresetClicked"
+                SemanticProperties.Hint="选择常用尺寸" />
             <!-- 菜单：**常用操作收进一个按钮**（原来是「清屏」单个按钮）。
-                 为什么改成菜单：这一页真正常用的操作不止"清屏"一个 ——
+                 为什么是菜单：这一页真正常用的操作不止"清屏"一个 ——
                  字号加减（捏合不好使时的可靠入口）、重置字号、复制整屏输出。
-                 顶栏就那么宽，一个一个摆按钮会把三个尺寸档挤出去；
+                 顶栏就那么宽，一个一个摆按钮会把尺寸那两格挤出去；
                  而**每加一个操作就加一个按钮**这条路上，顶栏迟早装不下。
                  「复制整屏输出」还有个非它不可的理由：输出区是**自绘画布**，
-                 没有文本选择 —— 不加这个入口，用户看到一段输出是**拿不走**的。 -->
-            <!-- 「⏹ 停止」：**只在有 VML 程序在跑的时候出现**。
-                 ⚠ 为什么要这个按钮：出口本来就有（返回键 → 「强制停止」），但**它不可见** ——
-                 一个卡在等输入的程序，用户看到的就是一个死界面，不会想到去按返回。
-                 用户原话：「有些程序在命令行不停的要输入，**不知道怎么结束这个程序**」。
-                 这里不新开机制，走的就是返回键那条路的同一个出口 `CancelRunningVml()`。 -->
-            <Button
-                x:Name="StopBtn"
-                Grid.Column="4"
-                Text="⏹ 停止"
-                FontSize="13"
-                Padding="12,4"
-                HeightRequest="34"
-                CornerRadius="8"
-                BackgroundColor="#B3261E"
-                TextColor="White"
-                IsVisible="False"
-                Clicked="OnStopClicked" />
-            <Button
+                 没有文本选择 —— 不加这个入口，用户看到一段输出是**拿不走**的。
+                 图标化（`icon_menu`）+ 无背景无边框：用户要的（原先是带框的「菜单」二字）。 -->
+            <ImageButton
                 x:Name="MenuBtn"
-                Grid.Column="5"
-                Text="菜单"
-                FontSize="13"
-                Padding="14,4"
-                HeightRequest="34"
-                CornerRadius="8"
-                Clicked="OnMenuClicked" />
+                Grid.Column="3"
+                Source="icon_menu.png"
+                BackgroundColor="Transparent"
+                Padding="10,6"
+                Clicked="OnMenuClicked"
+                SemanticProperties.Hint="命令行菜单" />
         </Grid>
 
         <!-- 输出区：**等宽 + 纯文本**，刻意不做富文本着色 ——

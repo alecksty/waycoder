@@ -833,7 +833,20 @@ namespace VMLAssembler
 
             if (libMiss.Count > 0)
             {
-                Console.Error.WriteLine($"警告: 库代码里有 {libMiss.Count} 个未解析标签 (该路径一旦被执行就会崩):");
+                // ⚠ **表头不能以 `警告:` / `warning:` / `错误:` / `error:` 开头。**
+                //
+                // 那四个词是宿主 `VmlDiagnostics.BareErrRx` 认「这是一条编译诊断」的判据，
+                // 而这一行**不是诊断**：它说的是**库内部**的历史遗留死包装器，用户改不了、
+                // 也与他的源码无关（只对用户代码抛的 `UnresolvedSymbolException` 才是）。
+                //
+                // 写成 `警告:` 的后果实测过（用户 2026-09-24 报的）：一个 7 行的 Pascal 程序
+                // **编得过、跑得动**，编辑器上却顶着一块**没有位置**的黄框，正盖在代码第 1~3 行上，
+                // 错误列表里也挂着一条 `（无位置）：库代码里有 21 个未解析标签…`。
+                //
+                // 下面那些缩进的明细行（`  print_long (引用 1 次)`）本来就匹配不上那个正则
+                // （它要求**行首**就是那四个词），唯独这行表头会 —— 换成 `[库内部]` 即整段退出诊断。
+                // 桌面 CLI 照旧打在 stderr 上：能对这条动手的人，正是跑 CLI 的人。
+                Console.Error.WriteLine($"[库内部] 库代码里有 {libMiss.Count} 个未解析标签 (该路径一旦被执行就会崩):");
                 int shown = 0;
                 foreach (var kv in libMiss)
                 {

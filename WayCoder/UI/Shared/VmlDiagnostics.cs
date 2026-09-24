@@ -100,8 +100,7 @@ internal static class VmlDiagnostics
     }
 
     /// <summary>
-    /// 解析报错文本。返回的列表**至少有一条**（解析不出位置时给一条无锚诊断），
-    /// 除非传进来的本来就是空/纯空白。
+    /// 解析报错文本。
     /// </summary>
     /// <param name="currentFile">
     /// **正在编的那个文件**（`BuildProgram` 手里的路径）。传了它才能判出
@@ -112,7 +111,25 @@ internal static class VmlDiagnostics
     /// 不传（null/空）= 老行为，一个字节都不变 —— 既有调用点与自测不受影响。
     /// </para>
     /// </param>
-    public static List<Diagnostic> Parse(string? errorText, string? currentFile = null)
+    /// <param name="atLeastOne">
+    /// 一条都解析不出来时，**要不要补一条无锚诊断**。默认 `true` = 老行为。
+    ///
+    /// <para>
+    /// **失败出口用默认值**：那儿手上就是「为什么编不过」，哪怕一条都解析不出来，
+    /// 也得让用户看到编译器到底说了什么 —— 那正是这支兜底存在的理由
+    /// （当初就是为「明明有报错、编辑器里什么都不显示」加的）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **成功出口必须传 `false`**：那儿手上是**编译期的日志**（前端 stderr + 链接器 stderr），
+    /// 编过了却一条都没解析出来 = **这段日志里本来就没有诊断**，此时补一条等于
+    /// **凭空造一个错误**——而且造出来的还是 `Severity.Error`（比原来的警告更吓人）。
+    /// 实测踩到：把链接器那条「库内部」提示改成 `[库内部]` 前缀（不再匹配 `BareErrRx`）之后，
+    /// 一个 7 行、编得过跑得动的 Pascal 程序，编辑器错误列表里冒出一条**红色错误**。
+    /// </para>
+    /// </param>
+    public static List<Diagnostic> Parse(string? errorText, string? currentFile = null,
+                                         bool atLeastOne = true)
     {
         var list = new List<Diagnostic>();
         if (string.IsNullOrWhiteSpace(errorText)) return list;
@@ -174,8 +191,10 @@ internal static class VmlDiagnostics
         AppendUnlocated(text, list);
 
         // ③ 一条都没解析出来（汇编阶段的「未知指令」、标准库路径不对、超时…）——
-        //    仍然给一条，只是没有锚点，气泡不画箭头。
-        if (list.Count == 0)
+        //    失败出口**仍然给一条**，只是没有锚点。
+        //    ⚠ 成功出口不许补（`atLeastOne: false`）—— 那里「解析不出来」= 日志里本来就没有诊断，
+        //      补一条等于凭空造一个红色错误，见参数说明。
+        if (list.Count == 0 && atLeastOne)
             list.Add(new Diagnostic(0, 0, Severity.Error, FirstLine(text), null));
         return list;
     }
