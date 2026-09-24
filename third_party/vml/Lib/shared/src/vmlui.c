@@ -164,6 +164,46 @@ int ui_put_image(int x, int y, int handle, int mode) {
     return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
 }
 
+/* ── 矢量图块（589–592）────────────────────────────────────────────────
+ *
+ * 与上面那对 ui_get_image / ui_put_image 是**两条并存的路**：
+ *   像素路：存光栅像素（w×h×4 字节）—— 老程序的 GET/PUT 用它；放大要重采样、转不了。
+ *   矢量路：存**绘图指令** —— 放大不糊、旋转免费、内存与图块尺寸无关。
+ *
+ * 用法：
+ *     h = ui_create_block(32, 32, 0);
+ *     ui_rect(0, 0, 32, 32, 0xFF0000, 1, 0, 0);
+ *     ...
+ *     ui_end_block();
+ *     ui_draw_block(h, 200, 300, 1000, 1000, 45);   // 中心在 (200,300)、原尺寸、转 45°
+ *
+ * ⚠ 块表**不随 ui_clear 清** —— 造一次、之后一直贴。每帧 create 一遍会在 128 帧后拿不到句柄。
+ * ⚠ 块里要用渐变/刷子，就在 ui_create_block **之后**建（理由见 waycoder_ui.h）。
+ */
+
+/* 开始录一个图块。w×h 是尺寸声明（中心版贴图要用它算中心）；color 是**保留位** ——
+ * 图块永远**透明叠加**，传什么都没有区别。
+ * 返回句柄（≥1）；0 = 失败（已经在录了 / 块表满 128）。 */
+int ui_create_block(int w, int h, int color) {
+    return asm("SYSCALL #589, ${w}, ${h}, ${color}");
+}
+
+/* 结束录制。返回句柄（与 ui_create_block 给的那个一致）；0 = 没在录制。 */
+int ui_end_block(void) {
+    return asm("SYSCALL #590");
+}
+
+/* 贴图块：**(x,y) 是图块中心，绕中心旋转**。
+ * sx/sy 用**千分比**（1000 = 原尺寸、2000 = 两倍），rot 用**度**。返回 1 成功 / 0 失败。 */
+int ui_draw_block(int block, int x, int y, int sx, int sy, int rot) {
+    return asm("SYSCALL #591, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+}
+
+/* 同上，但 **(x,y) 是图块左上角、绕左上角旋转**。 */
+int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) {
+    return asm("SYSCALL #592, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+}
+
 /* ── 老 BASIC 的精灵位图（`DATA` 手打包 + `PUT`）────────────────── */
 
 /* 读一个像素的颜色 → **0xRRGGBB**（越界返回 -1）。异或擦除要用。

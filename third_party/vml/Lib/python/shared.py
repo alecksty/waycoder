@@ -7424,6 +7424,41 @@ def ui_put_image(a0, a1, a2, a3):
     asm("CALL ui_put_image")
     return r0
 
+def ui_create_block(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_create_block")
+    return r0
+
+def ui_end_block():
+    r0 = asm("@R0")
+    asm("CALL ui_end_block")
+    return r0
+
+def ui_draw_block(a0, a1, a2, a3, a4, a5):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_draw_block")
+    return r0
+
+def ui_draw_block_at(a0, a1, a2, a3, a4, a5):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_draw_block_at")
+    return r0
+
 def ui_get_pixel(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1

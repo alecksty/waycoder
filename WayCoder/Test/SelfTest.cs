@@ -145,6 +145,9 @@ public static partial class SelfTest
         ["[导入源解析"] = "config",
         ["[工具清单跨端同步"] = "tools",
         ["[VML 前端编译器清单"] = "tools",
+        // ⚠ `[VML UI 协议]` 此前**没登记**（那是一段 VML 场景/协议的重头用例）——
+        //   不登记不会报错，只是 `--test ui` 会把整段跳过、只在全量跑时才执行。
+        ["[VML UI 协议]"] = "ui",
         ["[视觉列换算"] = "ui",
         ["[MCP 状态图标"] = "tools",
         ["[任务列表"] = "tools",
@@ -453,7 +456,7 @@ public static partial class SelfTest
     TestChunk32(Section, Check, Fail);
 
     TestChunk33(Section, Check, Fail);
-
+
 
 
         // 清理 ConnectConfig 测试隔离

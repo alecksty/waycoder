@@ -5721,6 +5721,26 @@ DECLARE FUNCTION ui_put_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     ui_put_image = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_create_block(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_create_block")
+    ui_create_block = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_end_block() AS INTEGER
+    asm("CALL ui_end_block")
+    ui_end_block = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_draw_block(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER) AS INTEGER
+    asm("CALL ui_draw_block")
+    ui_draw_block = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_draw_block_at(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER) AS INTEGER
+    asm("CALL ui_draw_block_at")
+    ui_draw_block_at = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_get_pixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL ui_get_pixel")
     ui_get_pixel = 0

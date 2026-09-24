@@ -1207,6 +1207,10 @@ namespace VML {
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
     // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image
+    // extern int ui_create_block(int w, int h, int color);  // CALL ui_create_block
+    // extern int ui_end_block(void);  // CALL ui_end_block
+    // extern int ui_draw_block(int block, int x, int y, int sx, int sy, int rot);  // CALL ui_draw_block
+    // extern int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot);  // CALL ui_draw_block_at
     // extern int ui_get_pixel(int x, int y);  // CALL ui_get_pixel
     // extern int ui_screenshot(char* path);  // CALL ui_screenshot
     // extern void ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action);  // CALL ui_put_qb_bitmap

@@ -5723,6 +5723,26 @@ func ui_put_image(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
+func ui_create_block(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_create_block")
+    return vml.R0()
+}
+
+func ui_end_block() int32 {
+    vml.Call("ui_end_block")
+    return vml.R0()
+}
+
+func ui_draw_block(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
+    vml.Call("ui_draw_block")
+    return vml.R0()
+}
+
+func ui_draw_block_at(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
+    vml.Call("ui_draw_block_at")
+    return vml.R0()
+}
+
 func ui_get_pixel(a0 int32, a1 int32) int32 {
     vml.Call("ui_get_pixel")
     return vml.R0()

@@ -2413,6 +2413,14 @@
 // CALL ui_get_image
 // extern fn ui_put_image(int x, int y, int handle, int mode) -> int
 // CALL ui_put_image
+// extern fn ui_create_block(int w, int h, int color) -> int
+// CALL ui_create_block
+// extern fn ui_end_block(void) -> int
+// CALL ui_end_block
+// extern fn ui_draw_block(int block, int x, int y, int sx, int sy, int rot) -> int
+// CALL ui_draw_block
+// extern fn ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) -> int
+// CALL ui_draw_block_at
 // extern fn ui_get_pixel(int x, int y) -> int
 // CALL ui_get_pixel
 // extern fn ui_screenshot(char* path) -> int

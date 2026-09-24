@@ -188,6 +188,33 @@ public static class VmlUi
     /// </summary>
     public const int Screenshot = 588;
 
+    // ── 矢量图块 589–592 ────────────────────────────────────────────────────
+    //
+    // 把一串绘图指令**录制成图块**，之后带变换反复贴。与像素那层
+    // （`GetImage`/`PutImage`）是**两条并存的路**：那层存光栅像素（老程序用），
+    // 这层存指令 —— 放大不糊、旋转免费、内存与图块尺寸无关。
+
+    /// <summary>
+    /// `ui_create_block(w, h, color)` —— 开始录制后续绘图指令。→ 句柄（≥1），失败 0。
+    ///
+    /// <para>**`color` 是保留位**：图块永远透明叠加，传什么都没有区别。</para>
+    /// <para>`ui_clear` 在录制期 = **从零开始录**（只清录制缓冲，不动场景）。</para>
+    /// </summary>
+    public const int CreateBlock = 589;
+
+    /// <summary>`ui_end_block()` —— 结束录制。→ 句柄（与 create 给的一致）；没在录时 0。</summary>
+    public const int EndBlock = 590;
+
+    /// <summary>
+    /// `ui_draw_block(block, x, y, sx, sy, rot)` —— 贴图块。**(x, y) 是图块中心，绕中心转。**
+    ///
+    /// 缩放千分比（1000 = 原尺寸）、角度用度。→ 1 成功 / 0 失败。
+    /// </summary>
+    public const int DrawBlock = 591;
+
+    /// <summary>`ui_draw_block_at(block, x, y, sx, sy, rot)` —— 同上，但 **(x, y) 是左上角、绕左上角转**。</summary>
+    public const int DrawBlockAt = 592;
+
     /// <summary><see cref="Screenshot"/>(#588) 没给路径时，图落在工作区里的这个子目录。</summary>
     public const string DefaultShotDir = "shot";
 
@@ -961,8 +988,13 @@ public static class VmlUi
         // 窗体与绘图 520–533
         WinOpen, WinClose, DrawClear, DrawPixel, DrawLine, DrawRect, DrawCircle, DrawEllipse,
         DrawText, DrawIcon, DrawImage, DrawPresent, SetFont, Text,
-        // 像素读回 583–585、587 + 主动截屏 588
-        FloodFill, GetImage, PutImage, DrawGetPixel, Screenshot,
+        // 像素读回 583–585、587 + 竖对齐 586 + 主动截屏 588
+        // ⚠ `SetVAlign`(586) 此前**漏在这张表外**（上面这行注释也把它跳过去了）——
+        //   漏登记**不报错**，只是查重网漏掉它（那张网查"重复/越界"，**查不出"少一个"**）。
+        //   与 `DrawTextEx`(581) 那次是同一个坑，见下面那段注释。
+        FloodFill, GetImage, PutImage, SetVAlign, DrawGetPixel, Screenshot,
+        // 矢量图块 589–592
+        CreateBlock, EndBlock, DrawBlock, DrawBlockAt,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
@@ -1676,13 +1708,30 @@ public sealed class VmlScene
         return d;
     }
 
-    /// <summary>清屏：清空图元并置背景色。</summary>
+    /// <summary>
+    /// 清屏：清空图元并置背景色。
+    ///
+    /// <para><b>录制期（`ui_create_block` 之后、`ui_end_block` 之前）的语义 = 「从零开始录」</b>：
+    /// 只清录制缓冲，**不动场景**。理由：图块是**透明底叠加**，块里那句 clear 若在贴出时
+    /// 执行就会擦掉整幅帧 —— 那不是任何人的意图。唯一合理的读法就是"重录"。
+    /// ⚠ 反过来说，**录制期清场景**是这条路上最毒的一种错：用户在"开始录一个块"时
+    /// 会看到**整幅画面消失**，`ui_end_block` 之后只重画增量 ⇒ 少一整层背景。</para>
+    /// </summary>
     public void Clear(uint background)
     {
-        lock (_figures) _figures.Clear();
-        _overflowWarned = false;                  // 新的一帧，超限告警重新计
+        bool recording;
+        lock (_figures)
+        {
+            recording = _recording is not null;
+            if (recording) { _recording!.Clear(); _recordingWarned = false; }
+            else           { _figures.Clear(); _overflowWarned = false; }
+        }
+        var bgChanged = Background != background;
         Background = background;
-        Version++;
+        // 录制期画面**没变** ⇒ 不动 `Version`；唯一例外是背景色真的换了 ——
+        // 那是看得见的变化，而老程序（不调 `ui_present`）的出图判据就是 `Version`，
+        // 不涨的话"开窗 → 录制期换底 → 从不贴块"的程序会永远停在旧底色上。
+        if (!recording || bgChanged) Version++;
     }
 
     // ── 参数防护 ──────────────────────────────────────────────────────────
@@ -1714,6 +1763,77 @@ public sealed class VmlScene
     /// 这条边界要求本值**远小于 0x01000000**；改大到那个量级就会开始把颜色误判成句柄。
     /// </summary>
     public const int MaxBrushes = 128;
+
+    // ── 矢量图块（ui_create_block / ui_end_block / ui_draw_block[_at]）──────────
+    //
+    // 图块 = **录制下来的一串绘图指令**（不是像素）。贴的时候用 DSL 的
+    // `push/translate/rotate/scale` 套一层变换重放 ⇒ 放大不糊、旋转免费、
+    // 内存与图块尺寸无关。像素那层（GET_IMAGE/PUT_IMAGE）保留给老程序，两者并存。
+
+    /// <summary>
+    /// 图块表上限（<see cref="CreateBlock"/> 录出来的句柄）。
+    ///
+    /// 与 <see cref="MaxBrushes"/> 同值**不是巧合**：句柄都是"小整数、0 = 没有"，
+    /// 同值让这条约定只有一处解释。块比刷子重（一个块 = N 行字符串），
+    /// 但 128 个精灵对游戏绰绰有余。
+    ///
+    /// ⚠ **块表不随 `ui_clear` 清**（与匿名刷子同族）。所以"每帧 create 一遍"的程序
+    /// 会在 128 帧后拿不到句柄 —— 那正是这道上限要挡的形状。告警文案里点明了这一条，
+    /// 否则用户只看到"超过上限 128"而不知道病根。
+    /// </summary>
+    public const int MaxBlocks = 128;
+
+    /// <summary>
+    /// 单个图块能录多少行。
+    ///
+    /// <para><b>这是防呆，不是预算</b>：录了忘了 `ui_end_block` 会让录制缓冲**无上限地涨**，
+    /// 而 `_figures` 那道 <see cref="MaxFigures"/> 兜底**根本管不到它**（录制期不走那条分支）。
+    /// 2048 行够画复杂精灵，且"2048 行 × 贴 5 次"正好落在图元预算边缘、能被软阈值提醒到。</para>
+    /// </summary>
+    public const int MaxBlockLines = 2_048;
+
+    /// <summary>
+    /// 缩放上限（千分比）。1000 = 原尺寸，本值 = 100 倍。
+    ///
+    /// 3000 的翻转：**下限不是 1 而是"必须 &gt; 0"** —— `scale 0` 会让矢量后端的
+    /// `TryAxisScale`（要求 `A&gt;0 &amp;&amp; D&gt;0`）失败而掉进逐像素的慢路径，
+    /// 所以 `≤0` 直接判为"不画"并返回失败码，让程序自己能看见。
+    /// </summary>
+    public const int MaxBlockScalePerMille = 100_000;
+
+    /// <summary>
+    /// 一个录好的图块：块内 DSL 行 + 两个用于预警的缓存位。**句柄 = 下标 + 1**（0 = 没有）。
+    ///
+    /// 行是 `string` 引用、贴 N 次只花 N 个指针（不是 N 份拷贝）—— 所以"贴 200 次"的
+    /// 内存代价是 200×8 字节，不是 200×N 行。
+    /// </summary>
+    private sealed class Block
+    {
+        public string[] Lines = [];
+
+        /// <summary>块尺寸（`ui_create_block` 给的）—— **中心版贴图要用它算 `-w/2 -h/2`**。</summary>
+        public int W;
+        public int H;
+
+        /// <summary>块里有没有 `image` 图元 —— 见 <see cref="DrawBlock"/> 里那条预警。</summary>
+        public bool HasImage;
+    }
+
+    private readonly List<Block> _blocks = new();
+
+    /// <summary>正在录制的内容（非 null = 处于录制期）。见 <see cref="Add"/> 的分流。</summary>
+    private List<string>? _recording;
+
+    /// <summary>本次录制的图块尺寸（`EndBlock` 时才连同内容一起落表）。</summary>
+    private int _recordingW;
+    private int _recordingH;
+
+    private bool _recordingWarned;       // 录制缓冲超限
+    private bool _blockOverflowWarned;   // 块表满
+    private bool _nestedBlockWarned;     // 录制期又开了一个
+    private bool _orphanEndWarned;       // 没在录就 end
+    private bool _blockBudgetWarned;     // 本帧图元预算被贴块占满
+    private bool _blockImageWarned;      // 旋转贴含 image 的块（会掉出矢量后端）
 
     /// <summary>单条文本 / 路径串的长度上限（DSL 文本随它线性膨胀）。</summary>
     public const int MaxTextLength = 4_096;
@@ -2023,6 +2143,26 @@ public sealed class VmlScene
     {
         lock (_figures)
         {
+            // ── 录制期：行进**录制缓冲**，不进场景、**也不 `Version++`** ─────────────
+            //
+            // 这是整个矢量图块功能**唯一**的侵入点。选这里是因为 `_figures.Add` 全文件
+            // 只出现一次，而所有 `AddXxx`（`AddRect`/`AddCircle`/`AddText`/`AddImage`…）
+            // 都经它 —— 在这一个地方分流，**全部绘图指令自动支持录制**，既有逻辑一行不改。
+            //
+            // ⚠ **不能 `Version++`**：`Version` 是"画面变了"的判据（老程序不调 `ui_present`
+            //   时宿主的出图信号）。录制期画的东西**没有上屏**，涨了会让宿主白刷几十次
+            //   —— 表现为闪烁 + 耗电，而 `FigureCount` 一切正常、**没有任何断言抓得到**。
+            //
+            // ⚠ 录制期**不做** `MaxFigures` 那道检查：那条数的是场景图元，与录制缓冲无关。
+            //   录制缓冲有自己的上限（`MaxBlockLines`），否则"开了录却忘了 end"会让它无上限地涨，
+            //   而 `_figures` 那道兜底**根本管不到它**。
+            if (_recording is not null)
+            {
+                if (_recording.Count >= MaxBlockLines) { WarnRecordingOverflow(); return; }
+                _recording.Add(line);
+                return;
+            }
+
             // **宿主侧兜底**：程序漏了 `ui_clear` 时图元只增不减，不能让它把宿主拖垮。
             if (_figures.Count >= MaxFigures)
             {
@@ -2239,6 +2379,188 @@ public sealed class VmlScene
         if (_brushOverflowWarned) return;
         _brushOverflowWarned = true;
         ErrorLog.Warning("VmlScene", $"刷子数超过上限 {MaxBrushes}，后续 BRUSH 返回 0（句柄 0 = 没有刷子）。");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 矢量图块：录制 / 重放
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// `ui_create_block(w, h, color)` —— **开始录制**后续绘图指令。返回句柄（≥1），失败 0。
+    ///
+    /// <para>**`color` 是保留位**：图块永远**透明叠加**（只画你画的东西，没画到的地方透出背景）。
+    /// 传什么都没有区别 —— 不铺底是有意的，块要能叠在任何东西上面。</para>
+    ///
+    /// <para>失败两种情况：**已经在录了**（嵌套 create，返回 0，已录的内容不打断）、
+    /// **块表满**（<see cref="MaxBlocks"/>）。</para>
+    /// </summary>
+    public int CreateBlock(int w, int h, uint color)
+    {
+        w = Dim(w); h = Dim(h);
+        lock (_figures)
+        {
+            if (_recording is not null) { WarnNestedBlock(); return 0; }
+            if (_blocks.Count >= MaxBlocks) { WarnBlockOverflow(); return 0; }
+            _recording = new List<string>();
+            _recordingW = w;
+            _recordingH = h;
+            _recordingWarned = false;
+            // 句柄**先占好**（= 下一个下标 + 1），`EndBlock` 时才连同内容落表 ——
+            // 这样程序可以拿着句柄立刻传给别的函数，而表里不会出现"半成品块"。
+            return _blocks.Count + 1;
+        }
+    }
+
+    /// <summary>`ui_end_block()` —— 结束录制。返回句柄（与 create 给的一致）；没在录时返回 0。</summary>
+    public int EndBlock()
+    {
+        lock (_figures)
+        {
+            if (_recording is null) { WarnOrphanEnd(); return 0; }
+            var lines = _recording;
+            _recording = null;
+            // 记下"块里有没有 image" —— 旋转/非等比贴它会让整个窗口掉出矢量后端，
+            // 那件事没有别的时机能发现（见 `Stamp` 里那条预警）。
+            var hasImage = false;
+            foreach (var l in lines)
+                if (l.StartsWith("image ", StringComparison.Ordinal)) { hasImage = true; break; }
+            _blocks.Add(new Block
+            {
+                Lines = lines.ToArray(),
+                W = _recordingW,
+                H = _recordingH,
+                HasImage = hasImage,
+            });
+            return _blocks.Count;    // = 下标 + 1，与 `CreateBlock` 返回的那个一致
+        }
+    }
+
+    /// <summary>
+    /// `ui_draw_block(block, x, y, sx, sy, rot)` —— 贴图块。**(x, y) 是图块中心，绕中心旋转。**
+    ///
+    /// 缩放用**千分比**（1000 = 原尺寸、2000 = 两倍），角度用**度**。成功 1 / 失败 0。
+    /// </summary>
+    public bool DrawBlock(int block, int x, int y, int sx, int sy, int rotate)
+        => Stamp(block, x, y, sx, sy, rotate, center: true);
+
+    /// <summary>
+    /// `ui_draw_block_at(block, x, y, sx, sy, rot)` —— 同上，但 **(x, y) 是图块左上角、绕左上角转**。
+    ///
+    /// 与 <see cref="DrawBlock"/> 的差别只在多一条平移（把"局部原点在左上角"挪成"原点在中心"），
+    /// 见 `Stamp` 里的推导。
+    /// </summary>
+    public bool DrawBlockAt(int block, int x, int y, int sx, int sy, int rotate)
+        => Stamp(block, x, y, sx, sy, rotate, center: false);
+
+    /// <summary>
+    /// 贴图块的共同实现。
+    ///
+    /// <para><b>变换序列（顺序不能改，改了在非等比缩放下才显形）</b>：</para>
+    /// <code>
+    /// 左上角版：  push / translate X Y / rotate R / scale SX SY / …块内行… / pop
+    /// 中心版  ：  push / translate X Y / rotate R / scale SX SY / translate -W/2 -H/2 / …块内行… / pop
+    /// </code>
+    /// <para>解析器是 `current = current.Compose(X)`（最后发的最外层），所以行序就是"从外到内"。
+    /// 中心版那条额外平移把"局部左上角原点"挪到中心：局部 `(W/2, H/2)` 经它变成 `(0,0)`，
+    /// 于是缩放旋转都不动它，最终正好落在 `(X,Y)` —— 这才是"绕中心转"。</para>
+    ///
+    /// <para>⚠ **不能用 3 参的 `rotate deg px py`**：它作用在**缩放之前**的那个中心上，
+    /// `sx == sy` 时碰巧对，`sx != sy` 时绕错点 —— 而画面看起来只是"整体偏了一点"，
+    /// 最容易被当成"程序坐标算错了"。</para>
+    ///
+    /// <para>⚠ **必须"先缩后转"**（`T∘R∘S`）：反过来是"沿旋转后的轴缩放"，
+    /// `sx != sy` 时会把精灵拉成**平行四边形（错切）**。</para>
+    /// </summary>
+    private bool Stamp(int block, int x, int y, int sx, int sy, int rotate, bool center)
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return false;
+        // `scale 0` 会让矢量后端的 `TryAxisScale`（要求 A>0 && D>0）失败而掉进逐像素慢路径；
+        // "缩到看不见"直接判失败，让程序自己能看见（见 MaxBlockScalePerMille 的说明）。
+        if (sx <= 0 || sy <= 0) return false;
+        sx = Math.Min(sx, MaxBlockScalePerMille);
+        sy = Math.Min(sy, MaxBlockScalePerMille);
+        rotate = ((rotate % 360) + 360) % 360;
+
+        int need;
+        Block blk;
+        lock (_figures)
+        {
+            // 句柄 0 / 越界 ⇒ **静默 no-op**（与"句柄 0 = 没有刷子"同一套：不为它告警）
+            if (block <= 0 || block > _blocks.Count) return false;
+            blk = _blocks[block - 1];
+
+            // **整块原子化**：先算这次要占多少行，超预算就整块不贴。
+            // 逐行 `Add` 到顶会出现「`push` 进了、`pop` 被丢」的**悬空 push** ——
+            // 今天看不出来纯属巧合（到顶后所有 `Add` 都被丢），一旦将来给 `Add` 加了
+            // "到顶兜底"，悬空 push 会让**后面所有图元继承块的局部变换**（画面整体歪掉）。
+            need = blk.Lines.Length + (center ? 6 : 5);
+            if (_figures.Count + need > MaxFigures) { WarnBlockBudget(); return false; }
+        }
+
+        if (blk.HasImage && (rotate != 0 || sx != sy)) WarnRotatedImageBlock();
+
+        // 缩放换算**只在这一处**（千分比 → 倍数）。别在别处再写一遍 ——
+        // `AddGradient` 那段注释记的就是"两端各写一次换算"的血账。
+        Add("push");
+        Add($"translate {Num(x)} {Num(y)}");
+        if (rotate != 0) Add($"rotate {Num(rotate)}");
+        Add($"scale {Num(sx / 1000.0)} {Num(sy / 1000.0)}");
+        // ⚠ `W/2.0` 不能写成整数除法：W = 101 时整数给 -50，中心偏 0.5px
+        if (center) Add($"translate {Num(-blk.W / 2.0)} {Num(-blk.H / 2.0)}");
+        foreach (var l in blk.Lines) Add(l);
+        Add("pop");
+        return true;
+    }
+
+    private void WarnRecordingOverflow()
+    {
+        if (_recordingWarned) return;
+        _recordingWarned = true;
+        ErrorLog.Warning("VmlScene",
+            $"图块录制超过上限 {MaxBlockLines} 行，后续绘制被丢弃 —— 很可能忘了 ui_end_block()。");
+    }
+
+    private void WarnBlockOverflow()
+    {
+        if (_blockOverflowWarned) return;
+        _blockOverflowWarned = true;
+        ErrorLog.Warning("VmlScene",
+            $"图块数超过上限 {MaxBlocks}，后续 ui_create_block 返回 0。"
+            + "⚠ 图块表**不随 ui_clear 清** —— 若程序是每帧 create 一遍，请改成造一次、之后一直贴。");
+    }
+
+    private void WarnNestedBlock()
+    {
+        if (_nestedBlockWarned) return;
+        _nestedBlockWarned = true;
+        ErrorLog.Warning("VmlScene",
+            "已经在录制一个图块时又调了 ui_create_block —— 本次返回 0，原来的录制不受影响。");
+    }
+
+    private void WarnOrphanEnd()
+    {
+        if (_orphanEndWarned) return;
+        _orphanEndWarned = true;
+        ErrorLog.Warning("VmlScene", "没在录制时调了 ui_end_block —— 返回 0。");
+    }
+
+    private void WarnBlockBudget()
+    {
+        if (_blockBudgetWarned) return;
+        _blockBudgetWarned = true;
+        ErrorLog.Warning("VmlScene",
+            $"本帧贴图块已占满图元预算（上限 {MaxFigures}），这一块整块未贴 —— "
+            + "把块做小一点，或减少同屏数量。");
+    }
+
+    private void WarnRotatedImageBlock()
+    {
+        if (_blockImageWarned) return;
+        _blockImageWarned = true;
+        ErrorLog.Warning("VmlScene",
+            "旋转或非等比缩放一个**含图片（image）**的图块：矢量后端不支持这个组合，"
+            + "整个窗口会**永久回退光栅后端**（帧耗时约 1ms → 80ms）。"
+            + "要旋转的精灵请用矢量图元拼，或预先生成多角度贴图。");
     }
 
     /// <summary>

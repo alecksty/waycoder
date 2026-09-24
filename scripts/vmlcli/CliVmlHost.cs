@@ -876,6 +876,12 @@ internal sealed class CliUiCalls : ISystemCallHandler
                     VmlUi.DrawEllipse => $"ellipse ({r[0]},{r[1]}) {r[2]}x{r[3]} 0x{r[4]:X8} fill={r[5]}",
                     VmlUi.FloodFill   => $"fill    ({r[0]},{r[1]}) 0x{r[2]:X8}",
                     VmlUi.PutImage    => $"putimg  ({r[0]},{r[1]}) handle={r[2]} mode={r[3]}",
+                    // 矢量图块（589–592）。⚠ `OnSyscall` 在宿主 switch **之前**触发，
+                    // 拿不到返回值 ⇒ `blkend` 记不到句柄（想核句柄就看 `--frame` 的画面）。
+                    VmlUi.CreateBlock => $"blknew  {r[0]}x{r[1]} color=0x{r[2]:X8}",
+                    VmlUi.EndBlock    => "blkend  (录制结束)",
+                    VmlUi.DrawBlock   => $"blkdraw handle={r[0]} 中心({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
+                    VmlUi.DrawBlockAt => $"blkdraw handle={r[0]} 左上({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
                     _ => null,
                 };
                 if (line is not null) tw.WriteLine($"{n,4} {line}");

@@ -550,6 +550,79 @@ public static partial class SelfTest
 
         var dsl = scene.BuildDsl();
         Check("VmlScene: canvas 头带尺寸与背景", dsl.StartsWith("canvas 100 80 #FF112233"));
+
+        // ── 矢量图块：录制 / 重放 ──
+        var bs = new VmlScene { Width = 200, Height = 200 };
+        var bh = bs.CreateBlock(40, 40, 0);
+        Check("块: create 返回句柄 1", bh == 1);
+        bs.AddRect(0, 0, 40, 40, 0xFFFF0000, filled: true, width: 0, radius: 0);
+        Check("块: 录制期场景不涨（行进的是录制缓冲）", bs.FigureCount == 0);
+        var bh2 = bs.EndBlock();
+        Check("块: end 返回同一个句柄", bh2 == bh);
+        Check("块: 贴图成功", bs.DrawBlock(bh, 120, 120, 1000, 1000, 0));
+        Check("块: 贴完场景有行", bs.FigureCount > 0);
+
+        // ── 变换的**数学**判据（不查字符串）──
+        // 把"局部点落到哪"算出来钉死。⚠ 一律用**非等比**缩放（1500/2500）+ 90° 跑 ——
+        // 这一条同时挡住两个**只在非等比下显形**的坑：
+        //   ① 用 3 参 `rotate deg px py` 绕错点（等比时碰巧对）；
+        //   ② 先转后缩 ⇒ 变成沿旋转轴的缩放 = **错切**（等比时两者等价）。
+        VmlScene MkScene(int w, int h)
+        {
+            var s = new VmlScene { Width = 300, Height = 300 };
+            var hh = s.CreateBlock(w, h, 0);
+            s.AddRect(0, 0, w, h, 0xFFFF0000, filled: true, width: 0, radius: 0);
+            s.EndBlock();
+            return s;
+        }
+        var sceneAt = MkScene(40, 20);
+        sceneAt.DrawBlockAt(1, 100, 150, 1500, 2500, 90);
+        var figAt = DrawRunner.Parse(sceneAt.BuildDsl()).Figures[^1];
+        var (atX, atY) = figAt.Transform.Apply(0, 0);
+        Check("块: 左上角版把局部(0,0) 放在 (x,y)（非等比+90°）",
+            Math.Abs(atX - 100) < 0.01 && Math.Abs(atY - 150) < 0.01);
+
+        var sceneC = MkScene(40, 20);
+        sceneC.DrawBlock(1, 100, 150, 1500, 2500, 90);
+        var figC = DrawRunner.Parse(sceneC.BuildDsl()).Figures[^1];
+        var (cX, cY) = figC.Transform.Apply(20, 10);   // 局部中心 = (w/2, h/2)
+        Check("块: 中心版把局部中心放在 (x,y)（非等比+90°）",
+            Math.Abs(cX - 100) < 0.01 && Math.Abs(cY - 150) < 0.01);
+
+        // 缩放换算：千分比 → 倍数，别差 1000 倍（`AddGradient` 记过这类"两端各写一次换算"）。
+        var sceneS = MkScene(40, 20);
+        sceneS.DrawBlock(1, 100, 150, 1500, 2500, 0);
+        Check("块: 千分比换算成倍数（1500/2500 → 1.5 2.5）",
+            sceneS.BuildDsl().Contains("scale 1.5 2.5"));
+
+        // 中心平移**必须用浮点**：w=101 时整数除法给 -50，中心偏 0.5px。
+        var sceneF = MkScene(101, 51);
+        sceneF.DrawBlock(1, 100, 150, 1000, 1000, 0);
+        Check("块: 奇数尺寸的中心平移带小数（-50.5 -25.5）",
+            sceneF.BuildDsl().Contains("translate -50.5 -25.5"));
+
+        // 录制期不能涨 `Version`（画面真的没变；涨了会让不调 ui_present 的老程序白刷）。
+        var vs = new VmlScene();
+        var v0 = vs.Version;
+        vs.CreateBlock(10, 10, 0);
+        vs.AddRect(0, 0, 5, 5, 0xFFFF0000, filled: true, width: 0, radius: 0);
+        Check("块: 录制期 Version 不变", vs.Version == v0);
+        vs.EndBlock();
+        vs.DrawBlock(1, 50, 50, 1000, 1000, 0);
+        Check("块: 贴图才算画面变了（Version 涨）", vs.Version > v0);
+
+        // 失败码
+        var fs = new VmlScene();
+        Check("块: 没在录时 end 返回 0", fs.EndBlock() == 0);
+        Check("块: 句柄越界时贴图返回 0", !fs.DrawBlock(9, 10, 10, 1000, 1000, 0));
+        Check("块: 句柄 0 静默失败", !fs.DrawBlock(0, 10, 10, 1000, 1000, 0));
+        Check("块: 缩放到 0 判失败（scale 0 会掉进逐像素慢路）", !fs.DrawBlockAt(0, 10, 10, 0, 1000, 0));
+        var ns = new VmlScene();
+        ns.CreateBlock(10, 10, 0);
+        Check("块: 录制期再 create 返回 0（不打断已录的）", ns.CreateBlock(10, 10, 0) == 0);
+        Check("块: 嵌套失败后仍能正常 end", ns.EndBlock() == 1);
+
+
         Check("VmlScene: line 带颜色与线宽", dsl.Contains("line 1 2 3 4 #FFAABBCC 3"));
         // DSL 的样式规则是「第一个颜色=填充，第二个=描边」，所以空心图形必须先给一个全透明填充，
         // 否则描边色会被解析成填充 → 画出一个"实心但颜色像描边"的图形

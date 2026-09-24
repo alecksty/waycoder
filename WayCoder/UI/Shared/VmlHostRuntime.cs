@@ -493,6 +493,28 @@ public sealed class VmlHostRuntime
                 // 不包 WithTimersPaused：它不是"等用户"，只是抓一帧，没有积压风险。
                 case VmlUi.Screenshot: registers[0] = Screenshot(registers, memory); break;
 
+                // 矢量图块（589–592）—— 录制/重放，实现在 VmlScene 的四个方法上。
+                //
+                // ⚠ `CreateBlock` / `EndBlock` **不 `TouchScene()`**：它们只动"块表"，
+                //   一个图元都没往场景里放（与 `DrawPresent` 那条同一个判断口径）。
+                //   涨了 `SceneChanged` 只会让宿主白刷一帧。真正贴图元的是 `DrawBlock*`。
+                case VmlUi.CreateBlock:
+                    registers[0] = Scene()?.CreateBlock(registers[0], registers[1], (uint)registers[2]) ?? 0;
+                    break;
+                case VmlUi.EndBlock:
+                    registers[0] = Scene()?.EndBlock() ?? 0;
+                    break;
+                case VmlUi.DrawBlock:
+                    registers[0] = (Scene()?.DrawBlock(registers[0], registers[1], registers[2],
+                                                      registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
+                    TouchScene();
+                    break;
+                case VmlUi.DrawBlockAt:
+                    registers[0] = (Scene()?.DrawBlockAt(registers[0], registers[1], registers[2],
+                                                        registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
+                    TouchScene();
+                    break;
+
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
                 case VmlUi.MsgPollEx: registers[0] = Poll(registers, memory, ex: true); break;
