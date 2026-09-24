@@ -417,6 +417,11 @@ DECLARE FUNCTION basic_concat(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     basic_concat = 0
 END FUNCTION
 
+DECLARE FUNCTION basic_strcmp(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL basic_strcmp")
+    basic_strcmp = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_abs(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_abs")
     basic_abs = 0
@@ -4864,6 +4869,219 @@ DECLARE FUNCTION ldatetime64() AS INTEGER
     ldatetime64 = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_win_open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_win_open")
+    ui_win_open = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_close() AS INTEGER
+    asm("CALL ui_win_close")
+    ui_win_close = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_closed() AS INTEGER
+    asm("CALL ui_win_closed")
+    ui_win_closed = 0
+END FUNCTION
+
+DECLARE SUB ui_rect(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
+    asm("CALL ui_rect")
+END SUB
+
+DECLARE SUB ui_text_v(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
+    asm("CALL ui_text_v")
+END SUB
+
+DECLARE SUB ui_present()
+    asm("CALL ui_present")
+END SUB
+
+DECLARE FUNCTION ui_poll(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_poll")
+    ui_poll = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_wait(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_wait")
+    ui_wait = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_msg_type() AS INTEGER
+    asm("CALL ui_msg_type")
+    ui_msg_type = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_main_attr() AS INTEGER
+    asm("CALL _tty_main_attr")
+    _tty_main_attr = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_scr_w() AS INTEGER
+    asm("CALL ui_scr_w")
+    ui_scr_w = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_scr_h() AS INTEGER
+    asm("CALL ui_scr_h")
+    ui_scr_h = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_auto_cols() AS INTEGER
+    asm("CALL _tty_auto_cols")
+    _tty_auto_cols = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_auto_rows() AS INTEGER
+    asm("CALL _tty_auto_rows")
+    _tty_auto_rows = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_idx(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL _tty_idx")
+    _tty_idx = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_alt_clear() AS INTEGER
+    asm("CALL _tty_alt_clear")
+    _tty_alt_clear = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_alt_putc(a0 AS INTEGER) AS INTEGER
+    asm("CALL _tty_alt_putc")
+    _tty_alt_putc = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_alt_bg_row(a0 AS INTEGER) AS INTEGER
+    asm("CALL _tty_alt_bg_row")
+    _tty_alt_bg_row = 0
+END FUNCTION
+
+DECLARE FUNCTION _tty_alt_fg_row(a0 AS INTEGER) AS INTEGER
+    asm("CALL _tty_alt_fg_row")
+    _tty_alt_fg_row = 0
+END FUNCTION
+
+DECLARE SUB tty_refresh()
+    asm("CALL tty_refresh")
+END SUB
+
+DECLARE FUNCTION tty_init(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL tty_init")
+    tty_init = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_alt_open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL tty_alt_open")
+    tty_alt_open = 0
+END FUNCTION
+
+DECLARE SUB tty_alt_close()
+    asm("CALL tty_alt_close")
+END SUB
+
+DECLARE FUNCTION tty_alt_is_open() AS INTEGER
+    asm("CALL tty_alt_is_open")
+    tty_alt_is_open = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_width() AS INTEGER
+    asm("CALL tty_width")
+    tty_width = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_height() AS INTEGER
+    asm("CALL tty_height")
+    tty_height = 0
+END FUNCTION
+
+DECLARE SUB tty_cls()
+    asm("CALL tty_cls")
+END SUB
+
+DECLARE SUB tty_clreol()
+    asm("CALL tty_clreol")
+END SUB
+
+DECLARE SUB tty_goto(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL tty_goto")
+END SUB
+
+DECLARE FUNCTION tty_wherex() AS INTEGER
+    asm("CALL tty_wherex")
+    tty_wherex = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_wherey() AS INTEGER
+    asm("CALL tty_wherey")
+    tty_wherey = 0
+END FUNCTION
+
+DECLARE SUB tty_color(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL tty_color")
+END SUB
+
+DECLARE SUB tty_attr(a0 AS INTEGER)
+    asm("CALL tty_attr")
+END SUB
+
+DECLARE FUNCTION tty_getfg() AS INTEGER
+    asm("CALL tty_getfg")
+    tty_getfg = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_getbg() AS INTEGER
+    asm("CALL tty_getbg")
+    tty_getbg = 0
+END FUNCTION
+
+DECLARE SUB tty_putc(a0 AS INTEGER)
+    asm("CALL tty_putc")
+END SUB
+
+DECLARE SUB tty_puts(a0 AS INTEGER)
+    asm("CALL tty_puts")
+END SUB
+
+DECLARE SUB tty_put_int(a0 AS INTEGER)
+    asm("CALL tty_put_int")
+END SUB
+
+DECLARE SUB tty_print_at(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL tty_print_at")
+END SUB
+
+DECLARE SUB tty_hline(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL tty_hline")
+END SUB
+
+DECLARE SUB tty_vline(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL tty_vline")
+END SUB
+
+DECLARE FUNCTION _tty_boxchar(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL _tty_boxchar")
+    _tty_boxchar = 0
+END FUNCTION
+
+DECLARE SUB tty_box(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL tty_box")
+END SUB
+
+DECLARE FUNCTION tty_key() AS INTEGER
+    asm("CALL tty_key")
+    tty_key = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_wait() AS INTEGER
+    asm("CALL tty_wait")
+    tty_wait = 0
+END FUNCTION
+
+DECLARE FUNCTION tty_closed() AS INTEGER
+    asm("CALL tty_closed")
+    tty_closed = 0
+END FUNCTION
+
 DECLARE FUNCTION c32tombs(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL c32tombs")
     c32tombs = 0
@@ -5453,11 +5671,6 @@ DECLARE FUNCTION ui_dlg_input(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     ui_dlg_input = 0
 END FUNCTION
 
-DECLARE FUNCTION ui_win_open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
-    asm("CALL ui_win_open")
-    ui_win_open = 0
-END FUNCTION
-
 DECLARE FUNCTION ui_win_open_ex(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
     asm("CALL ui_win_open_ex")
     ui_win_open_ex = 0
@@ -5466,26 +5679,6 @@ END FUNCTION
 DECLARE FUNCTION ui_win_open_pc(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
     asm("CALL ui_win_open_pc")
     ui_win_open_pc = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_win_close() AS INTEGER
-    asm("CALL ui_win_close")
-    ui_win_close = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_win_closed() AS INTEGER
-    asm("CALL ui_win_closed")
-    ui_win_closed = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_scr_w() AS INTEGER
-    asm("CALL ui_scr_w")
-    ui_scr_w = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_scr_h() AS INTEGER
-    asm("CALL ui_scr_h")
-    ui_scr_h = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_orientation() AS INTEGER
@@ -5505,20 +5698,12 @@ DECLARE SUB ui_line(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, 
     asm("CALL ui_line")
 END SUB
 
-DECLARE SUB ui_rect(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
-    asm("CALL ui_rect")
-END SUB
-
 DECLARE SUB ui_circle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
     asm("CALL ui_circle")
 END SUB
 
 DECLARE SUB ui_ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
     asm("CALL ui_ellipse")
-END SUB
-
-DECLARE SUB ui_present()
-    asm("CALL ui_present")
 END SUB
 
 DECLARE FUNCTION ui_flood_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
@@ -5558,10 +5743,6 @@ DECLARE SUB ui_text_styled(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS IN
     asm("CALL ui_text_styled")
 END SUB
 
-DECLARE SUB ui_text_v(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
-    asm("CALL ui_text_v")
-END SUB
-
 DECLARE SUB ui_set_font(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
     asm("CALL ui_set_font")
 END SUB
@@ -5573,16 +5754,6 @@ END SUB
 DECLARE SUB ui_text_cur(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL ui_text_cur")
 END SUB
-
-DECLARE FUNCTION ui_poll(a0 AS INTEGER) AS INTEGER
-    asm("CALL ui_poll")
-    ui_poll = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_wait(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL ui_wait")
-    ui_wait = 0
-END FUNCTION
 
 DECLARE FUNCTION ui_poll_ex(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL ui_poll_ex")
@@ -5636,11 +5807,6 @@ END FUNCTION
 DECLARE FUNCTION ui_poll_msg() AS INTEGER
     asm("CALL ui_poll_msg")
     ui_poll_msg = 0
-END FUNCTION
-
-DECLARE FUNCTION ui_msg_type() AS INTEGER
-    asm("CALL ui_msg_type")
-    ui_msg_type = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_msg_a() AS INTEGER

@@ -8,6 +8,64 @@ namespace BasicCompiler
         protected override TokenType GetTokenType(Token token) => token.Type;
 
         /// <summary>
+        /// 吃掉一个**名字**：`name` / `name.part` / `a.b.c`，返回**小写、`.` 已换成 `_`** 的整体名。
+        ///
+        /// <para>
+        /// 为什么要有这一条：**老 BASIC 的标签名允许含 `.`** —— QBasic/QuickBASIC 的
+        /// `Examples/basic/thirdparty/maze.bas` 整篇都是这种写法：
+        /// <c>begin.of.editor:</c> / <c>GOSUB editor.newmaze</c> / <c>GOTO begin.of.editor</c>。
+        /// 原来这三个地方各自只吃**一个** `IDENTIFIER`：
+        /// </para>
+        /// <list type="bullet">
+        /// <item>标签定义认不出来（判据是"下一个 token 是 `:`"，而这里是 `.`）⇒
+        /// <c>begin.of.editor:</c> 整行落进"未知语句"那条路，编成一次
+        /// <c>CALL func_begin</c>；</item>
+        /// <item>GOTO/GOSUB 只取到 `begin` ⇒ 又一处指向不存在的 `func_begin`。</item>
+        /// </list>
+        /// <para>
+        /// 两者的共同后果是**链接期**报「未定义的函数 'func_begin'（引用 N 次）」——
+        /// 那条消息指不到真正的行，也没说出"这是个标签名"。收成这一个方法之后，
+        /// "什么算一个名字"只有一份实现，定义端与引用端不可能漂。
+        /// </para>
+        /// <para>
+        /// ⚠ **`.` 换成 `_` 是刻意的**：VML 的 `.` 是**伪指令前缀**（`.string` / `.linked`），
+        /// 带点的标签交给汇编器是一颗雷（"`a.b:`" 会被切成 `a` + 未知伪指令 `.b`）。
+        /// 定义端与引用端都走这一个方法 ⇒ 换出来的名字必然一致。
+        /// 代价：`a.b` 与 `a_b` 两个标签会撞名（老程序里几乎不会同时出现，认了）。
+        /// </para>
+        /// </summary>
+        private string? TryParseDottedName()
+        {
+            if (AtEnd() || Peek().Type != TokenType.IDENTIFIER) return null;
+            var sb = new System.Text.StringBuilder(Advance().Value.ToLowerInvariant());
+            while (current + 1 < tokens.Count
+                   && tokens[current].Type == TokenType.DOT
+                   && tokens[current + 1].Type == TokenType.IDENTIFIER)
+            {
+                Advance();                                              // 吃掉 `.`
+                sb.Append('_').Append(Advance().Value.ToLowerInvariant());
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 当前位置是不是一个**标签定义**：`name` / `a.b.c` 后面紧跟 `:`。
+        ///
+        /// 只看不消费（`TryParseDottedName` 的预读版）—— 调它之后位置不变。
+        /// 与 `TryParseDottedName` 是同一套判据的两半，改一处必须改另一处。
+        /// </summary>
+        private bool DottedNameIsLabel()
+        {
+            if (AtEnd() || Peek().Type != TokenType.IDENTIFIER) return false;
+            int j = current + 1;
+            while (j + 1 < tokens.Count
+                   && tokens[j].Type == TokenType.DOT
+                   && tokens[j + 1].Type == TokenType.IDENTIFIER)
+                j += 2;
+            return j < tokens.Count && tokens[j].Type == TokenType.COLON;
+        }
+
+        /// <summary>
         /// 诊断取位置用**本文本解析器自己的**当前 Token。
         ///
         /// ⚠ 不覆写这一条，`ParserBase.ResolveDiagnosticPosition` 会读基类的 `Cur` ——
@@ -583,10 +641,14 @@ namespace BasicCompiler
                     return ParseSystemStatement();
                 case TokenType.IDENTIFIER:
                     // Check if it's a line label (identifier followed by ':')
-                    if (current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.COLON)
+                    //
+                    // ⚠ 名字可以**带点**（`begin.of.editor:`）—— 见 `TryParseDottedName`。
+                    //   判据要**先按整条点名往前扫**再看向的是不是 `:`：只看紧邻那一个 token
+                    //   的话，`a.b:` 会被判成"不是标签"，而 `rec.f = 1`（记录字段赋值）
+                    //   又必须继续落到赋值那条路 —— 两者的区别正是"点号链后面是 `:` 还是 `=`"。
+                    if (DottedNameIsLabel())
                     {
-                        string labelName = token.Value.ToLower();
-                        Advance(); // consume identifier
+                        string labelName = TryParseDottedName()!;
                         Advance(); // consume ':'
                         Statement body = null;
                         if (current < tokens.Count && Peek().Type != TokenType.EOF)

@@ -240,8 +240,36 @@ namespace LadderCompiler
                 }, 1, 0);
                 return;
             }
-            // 算术/位运算 — 使用基类 EmitBinaryOp
-            EmitBinaryOp(() => Visit(node.Left), () => Visit(node.Right), op.ToLower());
+            /* 算术/位运算 — 使用基类 EmitBinaryOp。
+             *
+             * ⚠ **操作符名必须先归一到基类那张表认得的样子**（就是 C 风格那几个符号）。
+             * 基类 `CodeGeneratorBase.EmitBinaryOp`（`CodeGeneratorBase.cs:905`）的 switch
+             * 只认 `+ - * / % & | ^` 与 `and/or/xor`，**其余一律走
+             * `default: break; // 未知操作符，R0保持右值`** —— 也就是**静默地什么也不算**，
+             * 结果只剩右操作数。
+             *
+             * Ladder 的算术有两种写法：符号式（`+ - * /`）与**关键字式**（IEC 的
+             * `ADD/SUB/MUL/DIV/MOD`，见 `LADDER_LANGUAGE_SPEC.md` 的「算术」一节）。
+             * 关键字式经 `op.ToLower()` 变成 `"mod"`/`"add"`…，**表里一个都没有**
+             * ⇒ 全部落进 default。实测：`X := 17 MOD 5` 编出来是
+             * `move @R0 #17 / push / move @R0 #5 / pop @R1` 之后**一条算术指令都没有**，
+             * 直接把 R0(=5) 存进 X ⇒ 打出 5 而不是 2（`100 MOD 7` 打出 7 同理）。
+             *
+             * 归一成符号之后：`"%"` 走 `MOD R1, R0; MOVE R0, R1`，而 `ExecuteMod`
+             * 的两操作数语义是 `dest = dest % src`（R1 = 左，R0 = 右）⇒ 左 % 右，正确。 */
+            string binOp = op switch
+            {
+                "MOD" => "%",
+                "ADD" => "+",
+                "SUB" => "-",
+                "MUL" => "*",
+                "DIV" => "/",
+                "AND" => "&",
+                "OR"  => "|",
+                "XOR" => "^",
+                _ => op.ToLower()
+            };
+            EmitBinaryOp(() => Visit(node.Left), () => Visit(node.Right), binOp);
         }
 
         private void GenerateCompare(BinaryExpressionNode node, OpCode jumpOp, int leftReg, int rightReg)

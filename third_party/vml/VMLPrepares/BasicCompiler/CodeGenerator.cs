@@ -108,6 +108,31 @@ namespace BasicCompiler
         /// <summary>`SUB`/`FUNCTION` 声明表的查表键（小写、已按 <see cref="BasicSymbol"/> 归一）。</summary>
         private static string SymbolKey(string name) => BasicSymbol(name).ToLowerInvariant();
 
+        /// <summary>
+        /// **外部符号**（`NATIVE SUB` / `NATIVE FUNCTION`）的 `CALL` 目标名 —— 保留声明时的**大小写**。
+        ///
+        /// <para>
+        /// BASIC 的关键字与自己的标识符**不分大小写**，但 <c>NATIVE</c> 声明的那个名字是
+        /// **别人的符号**（多半是 C 写的外部接口 / 共享库函数），链接器按**逐字节**匹配 ——
+        /// 大小写一改就找不到。此前这三处调用点一律走 <see cref="SymbolKey"/>（**全部小写**），
+        /// 于是 `NATIVE FUNCTION MyCFunc (...)` 编出 `CALL mycfunc`，链接期报
+        /// 「未定义的函数 'mycfunc'」—— 消息里的名字与源码里写的不是同一个，
+        /// 查的人只能靠猜。
+        /// </para>
+        /// <para>
+        /// ⚠ 取的是**声明处**的拼写（`funcDecl.Name`），不是调用处的：同一个外部函数
+        /// 在程序里可能被写成 `MyCFunc` / `mycfunc` / `MYCFUNC`，**外部符号只有一个**，
+        /// 定义它的那一处才是权威（与 `Lib/c/waycoder_ui.h` 里的拼写对齐）。
+        /// 调用处找不到声明时（没写 `NATIVE FUNCTION` 那行）退回调用处的拼写 —— 那是
+        /// 唯一能拿到的信息，比擅自改成小写好。
+        /// </para>
+        /// <para>
+        /// `%`/`!`/`#`/`&` 的转义一并保留（<see cref="BasicSymbol"/>）：外部符号本来
+        /// 不会有这些字符，但"转义规则只有一份"比"少调一次函数"值钱。
+        /// </para>
+        /// </summary>
+        private static string NativeLabel(string declaredName) => BasicSymbol(declaredName);
+
         // 动态分配的静态数据区 — 程序启动时通过 SYSCALL #40 分配
         //
         // ⚠ **基址槽不再是固定地址**（v0.96.331）：原先它写在 `0x6FD4`，本次按用户定的规矩

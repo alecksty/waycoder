@@ -853,13 +853,24 @@ namespace CompilerBase
         /// <param name="isArgString">判断第 i 个参数是否为字符串类型的委托</param>
         /// <param name="addSpace">参数间是否添加空格（默认 true）</param>
         /// <param name="addNewline">末尾是否添加换行（默认 true）</param>
+        /// <param name="isArgFloat">
+        /// 判断第 i 个参数是否为**浮点**的委托（默认 null = 一律当整数）。
+        /// ⚠ **不传它就永远打不出浮点**：本方法此前只把 `isArgString` 转给
+        /// <see cref="EmitPrintArg"/>，而 `isFloat` 走的是默认值 `false` ⇒
+        /// 每个实参都 `CALL print_int`。浮点值于是按**整数**打出来 ——
+        /// 而 R0 里装的是浮点的**位模式**，屏幕上就是 `2.5` 打成 `1075838976`
+        /// （= 0x40200000，实测 Fortran 的 `print *, 2.5`）。
+        /// 它是**追加在最后**的可选参数，所以老调用点的位置参数一个都不用动。
+        /// </param>
         protected void EmitPrintArgs(int argCount, Action<int> emitArg, Func<int, bool> isArgString,
-            bool addSpace = true, bool addNewline = true)
+            bool addSpace = true, bool addNewline = true, Func<int, bool>? isArgFloat = null)
         {
             for (int i = 0; i < argCount; i++)
             {
                 bool isStr = isArgString(i);
-                EmitPrintArg(() => emitArg(i), isStr);
+                bool isFlt = isArgFloat is not null && isArgFloat(i);
+                // 字符串优先：`print *, 'abc'` 不该因为类型推断的边角走到浮点分支
+                EmitPrintArg(() => emitArg(i), isStr, isFlt && !isStr);
                 if (addSpace && i < argCount - 1)
                 {
                     AddInstruction(OpCode.MOVE, Reg(0), Imm(32));

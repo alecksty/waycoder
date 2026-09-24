@@ -129,7 +129,18 @@ namespace BasicCompiler
             { "PTR", TokenType.PTR_KW },
             { "CAST", TokenType.CAST_KW },
             { "EXTENDS", TokenType.EXTENDS_KW },
-            { "OPERATOR", TokenType.OPERATOR_KW },
+            // ⚠ **`OPERATOR` 不当关键字**（v0.96.4xx）：
+            //  它是 FreeBasic/PureBasic 的**运算符重载**语法（`OPERATOR + ...`），
+            //  而 QBasic **没有**这个词 —— 老 BASIC 程序里 `operator` 是一个很自然、
+            //  很常见的**变量名**（`Examples/basic/thirdparty/ex_calc.bas`：
+            //  `DIM operator AS STRING`）。
+            //  占着这个关键字时，`DIM operator AS INTEGER` 会被切坏、落到表达式那条路，
+            //  编出一次 `CALL func_integer` ⇒ 链接期报「未定义的函数 'func_integer'」
+            //  —— 消息指不到 `operator`，也指不到那一行。
+            //  全仓（`Examples/` / 各语言 `_selftest/` / `test_shared/`）**没有任何**
+            //  用例使用运算符重载 ⇒ 摘掉这个映射不损失任何能力（解析器里那条
+            //  `case TokenType.OPERATOR_KW` 本来就只做"跳过并返回 AllocStatement"，
+            //  对运算符重载也不成立）。
             { "ENUM", TokenType.ENUM_KW },
             // PureBasic keywords (v1.66.32+) — 映射到已有实现
             { "PROCEDURE", TokenType.SUB },          // PROCEDURE → SUB

@@ -388,6 +388,28 @@ __stdcall char* basic_concat(const char* a, const char* b) {
     return basic_concat_slot(a, b, 0);
 }
 
+/// 字符串比较：`a$ OP b$`（OP ∈ = <> < <= > >=）—— 返回三向符号。
+///
+/// **比内容，不是比指针**，而且**把 NULL 当空串**。两条都是老程序能不能跑的关键：
+///
+///   · **指针比较在 BASIC 里没有任何意义**：字面量 `"V"` 与 `UCASE$(c$)` 的返回值
+///     是两个不同地址，按指针比**永远不等**；
+///   · **NULL 必须当空串**：前端把未初始化的字符串变量初始化成 0，而 QBasic 里
+///     未初始化的字符串变量就是 `""` ⇒ `Char$ = ""` 必须成立，否则
+///     `DO WHILE Char$ = "": Char$ = INKEY$: LOOP`（老 BASIC 等按键的**标准写法**）
+///     循环体一次都不执行、程序当场卡在"等按键"上（实测 GORILLA.BAS 的 `GorillaIntro`）。
+///
+/// ⚠ **不复用 `string.c` 的 `strcmp`**：那是给 C 程序用的标准函数，传 NULL 进去
+///   在 C 里本就是未定义行为、不该让通用库去容忍；"NULL 当空串"是 **BASIC 的语义**，
+///   归 BASIC 的库。前端两条表达式路径（顶层与 SUB 体）共用本函数，
+///   见 `CodeGenerator.GenerateStringComparison`。
+__stdcall int basic_strcmp(const char* a, const char* b) {
+    if (a == 0) a = "";
+    if (b == 0) b = "";
+    while (*a && *a == *b) { a = a + 1; b = b + 1; }
+    return (int)(signed char)*a - (int)(signed char)*b;
+}
+
 /// ABS(n) — absolute value
 __stdcall int basic_abs(int n) {
     return n < 0 ? -n : n;

@@ -499,6 +499,103 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 
 ---
 
+### 🟡 `print` 浮点打出的是**位模式**（**已修**）
+
+**现象**：写 `Examples/fortran/demo_std.f90` 时踩到。
+
+```fortran
+print *, 2.5            ! ⇒ 1075838976   （应 2.5）
+print *, x * 4.0        ! x 是 real=2.5 ⇒ 1092616192（应 10.0）
+```
+1075838976 = `0x40200000` = 2.5f 的位模式、1092616192 = `0x41200000` = 10.0f 的。
+**值算对了**（浮点运算没问题），只是 `print` 一律走**整数格式**那条路 ⇒
+`print_float` 从来没被调用过。
+
+**真身**：`CompilerBase/CodeGeneratorBase.EmitPrintArgs` 只把 `isArgString` 转给
+`EmitPrintArg`，而 **`isFloat` 走的是默认值 `false`** —— 也就是**每个实参都 `CALL print_int`**。
+（`EmitPrintArg` 本身是有 `isFloat` 形参的，形状齐全、就是没人传。）
+
+**已修**：给 `EmitPrintArgs` **追加**一个可选参数 `isArgFloat`（追加在**末尾**，
+老调用点的位置参数一个都不用动 —— 全仓只有 Fortran 一个调用点，但按可选参数追加
+才不用赌这一层）；Fortran 的 `GeneratePrint` 用现成的
+`GetExprType(...) == ExpType.F32/F64` 传进去；字符串优先（`isFlt && !isStr`）。
+
+**判据**：`print *, 2.5` ⇒ `2.5`、`print *, x * 4.0` ⇒ `10`、
+`print *, 'text', n, 'ok'` ⇒ `text 7 ok`（整数与字符串不受影响）；
+`Examples/fortran/demo_std.f90` 的逐字节期望输出已相应改成直接打 `2.5 * 4.0 = 10`。
+
+---
+
+### 🔴 `double precision` 的 **`d0` 后缀字面量恒为 0**（**未修**）
+
+```fortran
+double precision :: d
+print *, 1.25d0        ! ⇒ 0     （应 1.25）
+print *, 3.75d0        ! ⇒ 0
+print *, 2.5d0         ! ⇒ 0
+d = 9.5d0
+print *, d             ! ⇒ 0     （应 9.5）
+d = 1.25
+print *, d             ! ⇒ 1.25  ✅ 不带后缀的十进制字面量是好的
+```
+⇒ **凡是带 `d0`/`d` 后缀的双精度字面量都等于 0**，而不带后缀的同值字面量正常。
+**绕过**：双精度字面量别写 `d0` 后缀。
+
+（另有一条与它相邻、但**互相独立**的观察：`d = 3.75d0` 在**另一个**程序里
+曾经打出过 `3.75` —— 那次 `d` 前面还有 `x = 3.75` 且 `x` 是 `real`。
+是不是"两个变量共用了同一个双精度临时槽"没查，别把这条当成 `d0` 已修的证据。）
+
+---
+
+### 🔴 `contains` 里的内部子程序**传不进实参、也看不见宿主变量**（**未修**）
+
+```fortran
+program t
+  call show(97)
+contains
+  subroutine show(v)
+    integer, intent(in) :: v
+    print *, v            ! ⇒ 0     （应 97）
+  end subroutine show
+end program t
+```
+- 去掉 `intent(in)` 一样是 0；传**变量**（不传字面量）一样是 0。
+- **读宿主程序的变量**同样读到 0：
+  ```fortran
+  program t
+    integer :: gx
+    gx = 97
+    call show()
+  contains
+    subroutine show()
+      print *, gx     ! ⇒ 0
+    end subroutine
+  end program t
+  ```
+- **外部子程序**（不在 `contains` 里的）则直接编译错：`未定义的函数 'show'`。
+
+⇒ 子程序在 Fortran 这边**没法用**（既不能传参、也不能共享状态）。
+`Examples/fortran/demo_ui.f90` 与 `demo_tty.f90` 因此全部内联展开 —— 不是风格偏好。
+
+**判据**：`Examples/fortran/demo_tty.f90` 里那 100 多行 `putchar` 就是这条的产物。
+
+---
+
+### 🔴 `character` 变量存不住字符串；`character(len=N)` 直接编译错（**未修**）
+
+```fortran
+character(len=20) :: s      ! ⇒ error: Fortran 解析错误: 期望变量名（得到 LParen）
+
+character :: s              ! 这个编得过
+s = 'AB'
+print *, s                  ! ⇒ 0
+```
+⇒ 字符串只能以**字面量**形式直接用在语句里（`print *, 'abc'` 可以），
+**没有任何可用的字符串变量**。这也是 `demo_ui.f90` 里"方向那一行只能 if/else
+各写一份字面量"的原因。
+
+---
+
 ## Pascal
 
 ### 🟡 注释是 `{ }` 不是 `//`（**已修**）
@@ -510,6 +607,32 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 ### 🟡 注释里只能写 ASCII（**已过时**）
 
 **2026-09-19 复测：好了** —— `{ 中文注释 —— 破折号、逗号都在这儿 }` 正常编译。
+
+### 🔴 字符串的 `+` **不是拼接**，是**两个地址相加**（**未修**）
+
+**现象**：写 `Examples/pascal/demo_std.pas` 时踩到。
+
+```pascal
+writeln('a' + 'b');          { ⇒ 195 }        { 应 "ab" }
+s := 'xy' + 'zw';
+writeln('concat=[', s, ']'); { ⇒ concat=[] }  { 应 concat=[xyzw] }
+```
+195 = `'a'` 的首地址 + `'b'` 的首地址（两个字面量在数据段里挨着）。
+`s := 'xy'`（**不拼**）是好的，`writeln(s)` 打出 `xy` —— 所以**只有 `+` 这一条路坏**。
+
+**绕过**：要拼就把几个值分别写进同一个 `writeln` 实参表
+（`writeln('a', b, 'c')` 那条路是好的，本平台打出来是连着的）。
+
+**判据**：`Examples/pascal/demo_std.pas` 里**一处字符串拼接都没有**，注释里写着理由。
+
+### 🔴 `Str(42, s)`（整数转串）没有（**未修**）
+
+```
+error: 未定义的函数 'Str'（引用 1 次）
+```
+标准 Pascal 的 `Str(v, s)` 在本前端不存在。配合上一条（`+` 不能拼串），
+Pascal 这边**没有"拼一句带数字的话"的路** ⇒ `Examples/pascal/demo_ui.pas` 的
+状态一律用形状与固定标签表达（与 `Examples/fortran/sokoban.f90` 同一取舍）。
 
 ---
 
@@ -616,6 +739,49 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 2. **同一个 bug 常被复制成两份**：`FOR` 负步长在主程序与 SUB 两套实现里各写了一遍
    （两边都无条件 `JG`）。**修的时候要顺手合成一份共用实现**，别再复制第三遍。
 
+**2026-09-24 写 `Examples/basic/demo_*.bas` 时新踩到的三条**（都**未修**；
+⚠ `VMLPrepares/BasicCompiler/` 当时有另一位在改，这里只登记不动手）：
+
+### 🔴 浮点变量读回来**恒为 0**；`PRINT` 浮点按整数截断；`/` 是整除（**未修**）
+
+```basic
+DIM x AS SINGLE
+x = 4.75
+PRINT "float-var: "; x * 100     ' ⇒ 0      （应 475）
+PRINT "float-lit: "; 4.75        ' ⇒ 4      （应 4.75）
+PRINT "div: "; 10 / 4            ' ⇒ 2      （QBasic 的 / 是浮点除，应 2.5）
+```
+**三条里第一条最要命**：`SINGLE` / `DOUBLE` 都一样 —— **浮点字面量赋给变量就丢值**。
+对照：`PRINT 4.75 * 100` ⇒ **475** ✅（字面量直接参与运算那条路是好的，
+`4.75` 单独打却按整数截断成 4）。
+⇒ `Examples/basic/demo_std.bas` 因此只演示"字面量直接运算"这一条能走通的路径。
+
+### 🔴 用了 `COLOR` 之后，非 ASCII 文本全碎（**未修**）
+
+```basic
+PRINT "中文ABC"                 ' ⇒ 正确的 GBK 中文 ✅
+COLOR 7, 0 : PRINT "中文ABC"    ' ⇒ ??-???ABC        ❌
+```
+**真身**：BASIC 一旦 `COLOR`/`CLS`/`LOCATE`（前端切进 CrtMode），`PRINT` 就走
+**`SYSCALL 400 TTY_WriteChar`**，而那条路的实现是
+`Console.Write((char)registers[0])` —— **按字节当码点**，不解码 UTF-8；
+stdout 那条路走的是会解码的 `OutputChar()`。
+⇒ 所以**彩色控制台程序在手机上也打不出中文**（MAUI 没有重写 #400）。
+`Examples/basic/demo_tty.bas` 的正文因此**刻意只用 ASCII**，理由写在文件头。
+
+**修法**：`#400` 的处理器按 UTF-8 组装码点再 `Console.Write`（与 `OutputChar` 同一份逻辑）。
+⚠ 该文件（`VMLRuntime/VMLRuntime.Syscall.cs`）**当时正被别人改**，故本条目只登记。
+另外 **给老 syscall 加"它能自己解码"这件事不算加参数**，不违反「新能力一律走新号」。
+
+### ⚪ `key` 是关键字，不能当变量名（**未修**，纯噪音但会让人绕远）
+
+```basic
+DIM key AS INTEGER      ' ⇒ <input>:67: error: 未定义的函数 'func_integer'
+```
+报的是 **`func_integer`** —— 完全看不出病根在"变量名撞了关键字"
+（`KEY` 是 QBasic 的 `KEY ON/OFF` 语句）。同类还有 `on`（台账里已有一条）。
+**判据**：`Examples/basic/demo_ui.bas` 里那个计数用的变量叫 `kc`。
+
 ---
 
 ## Scheme
@@ -712,9 +878,232 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 没有「带字符串参数的函数调用」这种语法 ⇒ UI 那整套接口一个都调不到。
 只能用「编译与运行」本身。
 
+**2026-09-24 补精确的机制**（写 `Examples/ladder/demo_ui.ld` 时实测）——
+**卡的其实不是"字符串"这一条**，而是**函数名会对不上**：
+
+前端把任何非内建的调用编成 **`CALL LADDER_<名字>`**（`CodeGenerator.Networks.cs`
+的 `EmitCallWithRegSave(name.StartsWith("LADDER_") ? name : $"LADDER_{name}")`），
+而 `Lib/ladder/gfx.ld` 里定义的是**裸标签** `[GFX_LINE]` / `[GFX_RECT]` …
+⇒ 两边差一个 `LADDER_` 前缀，**一个都链不上**。判据：
+
+```
+PROGRAM P
+BEGIN
+  R := ui_win_open("x", 320, 240);
+END_PROGRAM
+```
+```
+<input>:3: error: 未定义的函数 'LADDER_UI_WIN_OPEN'（引用 1 次）
+```
+
+而且 `Lib/ladder/gfx.ld` 里绝大多数块**整个块体就是一个 `RET`**（`GFX_SCREEN` /
+`GFX_LINE` / `GFX_CIRCLE` / `GFX_FLOOD_FILL` … 全是空实现），有 `SYSCALL` 的那几个
+（`VGA_CLEAR`=80 / `VGA_PUTCHAR`=81 / `VGA_PUTS`=82）用的又是 **DOS 时代的老号**、
+不是宿主那套 `ui_*`（500–599）。**两层原因各自都足以让图形层不可达。**
+
+⇒ Ladder 实际可用的只有：四条裸打印语句（`PRINT_STR/INT/FLOAT/CHAR`）+
+`PRINT_CHAR` 自己发 ANSI。所以它只到 `demo_std` / `demo_tty` 两层。
+
 ---
 
-## 全局（跨语言 / 链接期）
+### 🟡 关键字式算术（`MOD` 等）**编成"只取右操作数"**（`MOD` 已修）
+
+**现象**：`X := 17 MOD 5` ⇒ X = **5**（应 2）；`X := 100 MOD 7` ⇒ 7；`PRINT_INT 17 MOD 5` ⇒ 5。
+
+**真身**：Ladder 的 `Visit(BinaryExpressionNode)` 一律
+`EmitBinaryOp(..., op.ToLower())`，而基类
+`CompilerBase/CodeGeneratorBase.EmitBinaryOp`（`CodeGeneratorBase.cs:905`）的 switch
+只认 C 风格那几个符号（`+ - * / % & | ^` 与 `and/or/xor`），**其余走
+`default: break; // 未知操作符，R0保持右值`** —— 也就是**静默地什么也不算**。
+IEC 的关键字式算术经 `ToLower()` 变成 `"mod"`/`"add"`/`"sub"`/`"mul"`/`"div"`，
+**表里一个都没有** ⇒ 全落进 default。
+
+生成的汇编（`--vml` 看得到）是决定性判据：
+```
+move @R0 #17
+push @R0
+move @R0 #5
+pop @R1           ← 之后**一条算术指令都没有**，直接把 R0(=5) 存进 X
+moveh [X] @R0
+```
+对照 `17 - 5` 是 `sub @R1 @R0 / move @R0 @R1`（正常）。
+
+**已修**：在 Ladder 侧把操作符**归一到基类那张表认得的样子**
+（`MOD→%`、`ADD→+`、`SUB→-`、`MUL→*`、`DIV→/`、`AND→&`、`OR→|`、`XOR→^`）。
+`"%"` 走 `MOD R1, R0; MOVE R0, R1`，而 `ExecuteMod` 的两操作数语义是
+`dest = dest % src`（R1=左、R0=右）⇒ 左 % 右，正确。
+**判据**：`X := 17 MOD 5` ⇒ 2、`X := 100 MOD 7` ⇒ 2，且 `17 - 5 * 2`=7 / `17 / 5`=3
+（整数四则）与 `demo_std.ld` / `demo_tty.ld` 全部照旧。
+
+⚠ **同一处还埋着一条更宽的**：基类那个 `default: break` 是**静默失败**的典型 ——
+任何语言只要传进一个表里没有的操作符，它不报错、只是**少算一步**，
+现象就是"结果是右操作数"。**加操作符时两处（前端映射 + 基类表）都要看。**
+
+---
+
+### 🔴 REAL 的二元运算用的是**整数操作码**（**未修**）
+
+```iec
+VAR R : REAL; END_VAR
+R := 2.0 * 9.0;      PRINT_FLOAT R   ! ⇒ 9    （应 18）
+R := 2.0 - 9.0;      PRINT_FLOAT R   ! ⇒ 9    （应 -7）
+R := 2.0 / 9.0;      PRINT_FLOAT R   ! ⇒ 9    （应 0.222…）
+```
+**先排除了"右操作数"这个误判**：先把 R 置成哨兵 `7.0`，表达式执行后打出来是 9
+（不是 7、也不是垃圾）⇒ 确实**存进去了**，存的是**右操作数**。
+
+**真身**：`EmitBinaryOp` 只看操作符字符串、**完全不看操作数类型** ——
+它永远发整数那套 `MUL/SUB/DIV`。而 REAL 的值在寄存器里是**浮点位模式**，
+拿整数指令去乘它得到的是两个位模式的整数积。生成的汇编：
+```
+movef @R0 #2
+push @R0
+movef @R0 #9
+pop @R1
+mul @R0 @R1        ← 整数乘（应该是浮点乘）
+movef [R] @R0
+```
+（`mul` 用位模式算出来的是 `0`：`0x41100000 × 0x40000000 mod 2^32 = 0`。
+而实测 R 最后是 9 —— 说明这条路径上 R0 **并没有被 `mul` 改掉**，
+与手写 `.vml` 里同一序列的表现不一致。**这一层没查清，别当成已定位**。）
+
+**修法方向**（没做）：Ladder 已经有 `_varTypes`（`LadderTypeEnum.Real/LReal`）
+与 `GetLadderTypeEnum`，字面量侧 `movef`/`move` 的选择也已经有判据 ——
+要做的是在 `Visit(BinaryExpressionNode)` 里判定"操作数里有浮点"，
+再走 `ExpressionManager.SelectArithmeticOp(op, isFloat, isDouble, …)` 那张表
+（C 前端就是这么做的），而不是无条件走整数分支。
+
+**绕过**：REAL 只赋**字面量**、不做二元运算（`Examples/ladder/demo_std.ld` 就是
+按这条写的：浮点只打 `PRINT_FLOAT 2.5`）。
+
+---
+
+### 🔴 标签（`LBL_x:`）会**吃掉它后面的语句**（**未修**）
+
+**最小复现**（两行之差）：
+```iec
+S := 7;                        PRINT_INT S;   (* ⇒ 打出 7      ✅ *)
+S := 7;  LBL_A:               PRINT_INT S;   (* ⇒ 什么都不打  ❌ *)
+```
+**判据**：`Examples/ladder/demo_std.ld` 的注释里记着这条；
+`demo_tty.ld` 因此是**16 条手工展开**的彩色行（本该用循环）。
+
+### 🔴 `IF … THEN … END_IF` 的**块体不执行**（**未修**）
+
+条件写 `S = 1`（且 `S := 1`）或写布尔量 `B`（且 `B := TRUE`）都试过：
+**块内语句一条都没跑**，块**之后**的语句照常跑。
+```iec
+IF S = 1 THEN
+  PRINT_STR "if-taken";     (* ⇒ 从不执行 *)
+  PRINT_CHAR 10;
+END_IF;
+PRINT_STR "after-if";       (* ⇒ 执行 *)
+```
+⇒ 与上一条合起来：**Ladder 里写不出循环、也写不出分支**，
+凡是要重复的只能手工展开。
+
+---
+
+## Forth
+
+### 🟡 `MOD` 编成了**加法**（**已修**）
+
+**现象**：写 `Examples/forth/demo_std.fth` 时踩到。
+
+```
+10 3 MOD   ⇒ 13      （应 1）
+100 7 MOD  ⇒ 107     （应 2）
+17 5 MOD   ⇒ 22      （应 2）
+```
+13 = 10+3、107 = 100+7 —— **正好是和**，一个错都不报。
+
+**真身**：`ForthCompiler/CodeGenerator.Operations.cs` 把 `TokenType.MOD` 映射成
+**字符串 `"MOD"`**，而它要去查的那张表认的是 C 风格的 **`"%"`** ——
+`TypedCodeGen.GetArithmeticInstruction(op, type)`（`TypedCodeGen.cs:85`）先看
+`op is "+" or "-" or "*" or "/" or "%"`，不是就落到
+`_ => OpCode.ADD`；`CodeGeneratorBase.GetArithmeticInstruction` 那份同样只认 `"%"`。
+⇒ 两边都不匹配 ⇒ **乘法之外的每一个"未知操作符"都会变成加法**。
+
+**判据（生成的汇编）**：`10 3 MOD .` 编出来是
+```
+move @R0 #10
+push @R0
+move @R0 #3
+pop @R1
+pop @R0
+add @R0 @R1        ← 这里应该是 mod
+```
+**已修**：把映射改成 `"%"`
+（`MOD R0, R1` 的语义是 `R0 = R0 % R1`，见 `VMLRuntime.Instructions.cs:639` 的
+`ExecuteMod`；与 Forth 侧"先弹 b 进 R1、再弹 a 进 R0"的顺序正好吻合）。
+
+**判据**：`17 5 MOD`=2、`10 3 MOD`=1、`100 7 MOD`=2，且 `+ - * /` 四个一字未变
+（`17+5`=22 / `17-5`=12 / `7*6`=42 / `17 5 /`=3）。
+
+---
+
+### 🔴 库/词的调用约定：**只正确传第一个实参，返回值拿不到**（**未修**）
+
+**这是 Forth 的 `bgi` / `ui` 两层整层不可达的根因**，也是写
+`Examples/forth/demo_std.fth` 时逼出来的一条。
+
+**① 词的调用序列**（`ForthCompiler/CodeGenerator.Words.cs`）：
+```
+pop  R1        ; 栈顶那个实参
+push R15       ; ← 问题就在这一句：它插在"实参"与"call"之间
+push R1
+call <词>
+pop  R1        ; 结果
+pop  R15
+push R1
+```
+C 侧被调方的 ABI 是**从机器栈上取实参**（`move @R0 [@R12+12]` / `+16` / `+20` …）。
+而调用方压进去的是 `[R15][arg]` 两个槽 ⇒ 被调方读到的是
+**arg0 = 栈顶实参 ✅、arg1 = 保存下来的 R15 ❌、arg2 = 第二个实参 ❌** ——
+**从第二个实参起整体错位一格**。
+
+**判据（三档实测）**：
+
+| 输入 | 实际 | 应为 |
+|---|---|---|
+| `100 440 ui_beep` | `hz=440 ms=1`（第二个实参是 R15） | `hz=440 ms=100` |
+| `240 400 S" T" DROP ui_win_open DROP` | 开窗 **320×400** | 400×240 |
+| `: ADD2 ( a b -- c ) + ;  5 7 ADD2 .` | **7** | 12 |
+| `: SQ ( n -- n2 ) DUP * ;  6 SQ .` | 36 ✅（**一参的**是对的） | 36 |
+
+⇒ **0 参 / 1 参的词是好的**（这解释了为什么 `SUM10` / `FAC10` 这类一参词一直正常）。
+
+**② 返回值也不对**：`pop R1 … push R1` 压回去的是**调用前那个实参**，
+从头到尾**没有读过 R0** —— 而被调方（C 编译出来的库函数）是在 R0 里返回的。
+```
+100 ui_rand .   ⇒ 100     （把实参原样吐了回来）
+```
+⇒ 库函数的**返回值一个都拿不到**。
+
+**③ `asm()` 在这个前端不可用**（所以没有"自己写垫层"这条退路）：
+```
+: VGA-CLEAR ( -- ) asm("SYSCALL 80") ;
+```
+```
+<input>:1: error: 未定义的函数 'word_asm'（引用 1 次）
+```
+（`Lib/forth/gfx.fth` 与 `Lib/forth/sys.fth` 里**通篇**是这个写法 —— 它们不是给
+这个前端用的产物。而且 `Lib/forth/gfx.fth` 里 `GFX-*` 那一族**词体是空的**，
+`VGA-*` 那几个才是 `asm(...)`；就算能编，图形层也落不到宿主 `ui_*` 上。）
+
+**结论**：Forth 只到 `demo_std` / `demo_tty` 两层（`."` 与 `.`，以及用 `EMIT`
+自己发 ANSI）。**没有写空壳** —— 见 `Examples/forth/` 只有两份 demo。
+
+**修法方向**（没做，风险也明确）：要么去掉那个插在实参之间的 `push R15`
+（但 R15 是 Forth 自己的词内返回地址寄存器，`GenerateWordDefinition` 靠它返回，
+动了它要连带改词序言/尾声），要么给库调用单独走一条"只压实参"的路径。
+**两条都得先把"Forth 词"与"C 库函数"两种被调方分开**再谈 ——
+现在它们是同一条代码路径。
+
+⚠ 同一条 `Lib/forth/` 上的老问题见下面「全局」节的
+`#param lib(新模块)` 那条（**仍未修**）。
+
+---
 
 ### 🔴 Forth 里**任何** `#param lib(新模块)` 都会让 `builtin` 一族变成未定义（**未修**）
 

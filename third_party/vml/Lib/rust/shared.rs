@@ -549,6 +549,13 @@ fn basic_concat(a0: i32, a1: i32) -> i32 {
     r
 }
 
+fn basic_strcmp(a0: i32, a1: i32) -> i32 {
+    asm!("CALL basic_strcmp")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn basic_abs(a0: i32) -> i32 {
     asm!("CALL basic_abs")
     let r: i32;
@@ -6386,6 +6393,277 @@ fn ldatetime64() -> i32 {
     r
 }
 
+fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_win_open")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_win_close() -> i32 {
+    asm!("CALL ui_win_close")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_win_closed() -> i32 {
+    asm!("CALL ui_win_closed")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_rect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
+    asm!("CALL ui_rect")
+}
+
+fn ui_text_v(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
+    asm!("CALL ui_text_v")
+}
+
+fn ui_present() {
+    asm!("CALL ui_present")
+}
+
+fn ui_poll(a0: i32) -> i32 {
+    asm!("CALL ui_poll")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_wait(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_wait")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_msg_type() -> i32 {
+    asm!("CALL ui_msg_type")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_main_attr() -> i32 {
+    asm!("CALL _tty_main_attr")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_scr_w() -> i32 {
+    asm!("CALL ui_scr_w")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_scr_h() -> i32 {
+    asm!("CALL ui_scr_h")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_auto_cols() -> i32 {
+    asm!("CALL _tty_auto_cols")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_auto_rows() -> i32 {
+    asm!("CALL _tty_auto_rows")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_idx(a0: i32, a1: i32) -> i32 {
+    asm!("CALL _tty_idx")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_alt_clear() -> i32 {
+    asm!("CALL _tty_alt_clear")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_alt_putc(a0: i32) -> i32 {
+    asm!("CALL _tty_alt_putc")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_alt_bg_row(a0: i32) -> i32 {
+    asm!("CALL _tty_alt_bg_row")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _tty_alt_fg_row(a0: i32) -> i32 {
+    asm!("CALL _tty_alt_fg_row")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_refresh() {
+    asm!("CALL tty_refresh")
+}
+
+fn tty_init(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL tty_init")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_alt_open(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL tty_alt_open")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_alt_close() {
+    asm!("CALL tty_alt_close")
+}
+
+fn tty_alt_is_open() -> i32 {
+    asm!("CALL tty_alt_is_open")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_width() -> i32 {
+    asm!("CALL tty_width")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_height() -> i32 {
+    asm!("CALL tty_height")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_cls() {
+    asm!("CALL tty_cls")
+}
+
+fn tty_clreol() {
+    asm!("CALL tty_clreol")
+}
+
+fn tty_goto(a0: i32, a1: i32) {
+    asm!("CALL tty_goto")
+}
+
+fn tty_wherex() -> i32 {
+    asm!("CALL tty_wherex")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_wherey() -> i32 {
+    asm!("CALL tty_wherey")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_color(a0: i32, a1: i32) {
+    asm!("CALL tty_color")
+}
+
+fn tty_attr(a0: i32) {
+    asm!("CALL tty_attr")
+}
+
+fn tty_getfg() -> i32 {
+    asm!("CALL tty_getfg")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_getbg() -> i32 {
+    asm!("CALL tty_getbg")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_putc(a0: i32) {
+    asm!("CALL tty_putc")
+}
+
+fn tty_puts(a0: i32) {
+    asm!("CALL tty_puts")
+}
+
+fn tty_put_int(a0: i32) {
+    asm!("CALL tty_put_int")
+}
+
+fn tty_print_at(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL tty_print_at")
+}
+
+fn tty_hline(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL tty_hline")
+}
+
+fn tty_vline(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL tty_vline")
+}
+
+fn _tty_boxchar(a0: i32, a1: i32) -> i32 {
+    asm!("CALL _tty_boxchar")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_box(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL tty_box")
+}
+
+fn tty_key() -> i32 {
+    asm!("CALL tty_key")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_wait() -> i32 {
+    asm!("CALL tty_wait")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn tty_closed() -> i32 {
+    asm!("CALL tty_closed")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn c32tombs(a0: i32, a1: i32) -> i32 {
     asm!("CALL c32tombs")
     let r: i32;
@@ -7169,13 +7447,6 @@ fn ui_dlg_input(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
-fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
-    asm!("CALL ui_win_open")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
 fn ui_win_open_ex(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_win_open_ex")
     let r: i32;
@@ -7185,34 +7456,6 @@ fn ui_win_open_ex(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
 
 fn ui_win_open_pc(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_win_open_pc")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_win_close() -> i32 {
-    asm!("CALL ui_win_close")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_win_closed() -> i32 {
-    asm!("CALL ui_win_closed")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_scr_w() -> i32 {
-    asm!("CALL ui_scr_w")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_scr_h() -> i32 {
-    asm!("CALL ui_scr_h")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -7237,20 +7480,12 @@ fn ui_line(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
     asm!("CALL ui_line")
 }
 
-fn ui_rect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
-    asm!("CALL ui_rect")
-}
-
 fn ui_circle(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
     asm!("CALL ui_circle")
 }
 
 fn ui_ellipse(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
     asm!("CALL ui_ellipse")
-}
-
-fn ui_present() {
-    asm!("CALL ui_present")
 }
 
 fn ui_flood_fill(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
@@ -7300,10 +7535,6 @@ fn ui_text_styled(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32)
     asm!("CALL ui_text_styled")
 }
 
-fn ui_text_v(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
-    asm!("CALL ui_text_v")
-}
-
 fn ui_set_font(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL ui_set_font")
 }
@@ -7314,20 +7545,6 @@ fn ui_set_valign(a0: i32) {
 
 fn ui_text_cur(a0: i32, a1: i32, a2: i32) {
     asm!("CALL ui_text_cur")
-}
-
-fn ui_poll(a0: i32) -> i32 {
-    asm!("CALL ui_poll")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_wait(a0: i32, a1: i32) -> i32 {
-    asm!("CALL ui_wait")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
 }
 
 fn ui_poll_ex(a0: i32, a1: i32) -> i32 {
@@ -7399,13 +7616,6 @@ fn ui_wait_msg(a0: i32) -> i32 {
 
 fn ui_poll_msg() -> i32 {
     asm!("CALL ui_poll_msg")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn ui_msg_type() -> i32 {
-    asm!("CALL ui_msg_type")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

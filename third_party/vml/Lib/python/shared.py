@@ -543,6 +543,13 @@ def basic_concat(a0, a1):
     asm("CALL basic_concat")
     return r0
 
+def basic_strcmp(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL basic_strcmp")
+    return r0
+
 def basic_abs(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -6291,6 +6298,264 @@ def ldatetime64():
     asm("CALL ldatetime64")
     return r0
 
+def ui_win_open(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_win_open")
+    return r0
+
+def ui_win_close():
+    r0 = asm("@R0")
+    asm("CALL ui_win_close")
+    return r0
+
+def ui_win_closed():
+    r0 = asm("@R0")
+    asm("CALL ui_win_closed")
+    return r0
+
+def ui_rect(a0, a1, a2, a3, a4, a5, a6, a7):
+    asm(f"PUSH @R0")  # push a7
+    asm(f"PUSH @R0")  # push a6
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_rect")
+
+def ui_text_v(a0, a1, a2, a3, a4, a5, a6, a7):
+    asm(f"PUSH @R0")  # push a7
+    asm(f"PUSH @R0")  # push a6
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_text_v")
+
+def ui_present():
+    asm("CALL ui_present")
+
+def ui_poll(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_poll")
+    return r0
+
+def ui_wait(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_wait")
+    return r0
+
+def ui_msg_type():
+    r0 = asm("@R0")
+    asm("CALL ui_msg_type")
+    return r0
+
+def _tty_main_attr():
+    r0 = asm("@R0")
+    asm("CALL _tty_main_attr")
+    return r0
+
+def ui_scr_w():
+    r0 = asm("@R0")
+    asm("CALL ui_scr_w")
+    return r0
+
+def ui_scr_h():
+    r0 = asm("@R0")
+    asm("CALL ui_scr_h")
+    return r0
+
+def _tty_auto_cols():
+    r0 = asm("@R0")
+    asm("CALL _tty_auto_cols")
+    return r0
+
+def _tty_auto_rows():
+    r0 = asm("@R0")
+    asm("CALL _tty_auto_rows")
+    return r0
+
+def _tty_idx(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _tty_idx")
+    return r0
+
+def _tty_alt_clear():
+    r0 = asm("@R0")
+    asm("CALL _tty_alt_clear")
+    return r0
+
+def _tty_alt_putc(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _tty_alt_putc")
+    return r0
+
+def _tty_alt_bg_row(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _tty_alt_bg_row")
+    return r0
+
+def _tty_alt_fg_row(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _tty_alt_fg_row")
+    return r0
+
+def tty_refresh():
+    asm("CALL tty_refresh")
+
+def tty_init(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_init")
+    return r0
+
+def tty_alt_open(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_alt_open")
+    return r0
+
+def tty_alt_close():
+    asm("CALL tty_alt_close")
+
+def tty_alt_is_open():
+    r0 = asm("@R0")
+    asm("CALL tty_alt_is_open")
+    return r0
+
+def tty_width():
+    r0 = asm("@R0")
+    asm("CALL tty_width")
+    return r0
+
+def tty_height():
+    r0 = asm("@R0")
+    asm("CALL tty_height")
+    return r0
+
+def tty_cls():
+    asm("CALL tty_cls")
+
+def tty_clreol():
+    asm("CALL tty_clreol")
+
+def tty_goto(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_goto")
+
+def tty_wherex():
+    r0 = asm("@R0")
+    asm("CALL tty_wherex")
+    return r0
+
+def tty_wherey():
+    r0 = asm("@R0")
+    asm("CALL tty_wherey")
+    return r0
+
+def tty_color(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_color")
+
+def tty_attr(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_attr")
+
+def tty_getfg():
+    r0 = asm("@R0")
+    asm("CALL tty_getfg")
+    return r0
+
+def tty_getbg():
+    r0 = asm("@R0")
+    asm("CALL tty_getbg")
+    return r0
+
+def tty_putc(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_putc")
+
+def tty_puts(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_puts")
+
+def tty_put_int(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_put_int")
+
+def tty_print_at(a0, a1, a2, a3, a4):
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_print_at")
+
+def tty_hline(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_hline")
+
+def tty_vline(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_vline")
+
+def _tty_boxchar(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _tty_boxchar")
+    return r0
+
+def tty_box(a0, a1, a2, a3, a4):
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL tty_box")
+
+def tty_key():
+    r0 = asm("@R0")
+    asm("CALL tty_key")
+    return r0
+
+def tty_wait():
+    r0 = asm("@R0")
+    asm("CALL tty_wait")
+    return r0
+
+def tty_closed():
+    r0 = asm("@R0")
+    asm("CALL tty_closed")
+    return r0
+
 def c32tombs(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
@@ -7069,14 +7334,6 @@ def ui_dlg_input(a0, a1, a2, a3):
     asm("CALL ui_dlg_input")
     return r0
 
-def ui_win_open(a0, a1, a2):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ui_win_open")
-    return r0
-
 def ui_win_open_ex(a0, a1, a2, a3, a4):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a4
@@ -7095,26 +7352,6 @@ def ui_win_open_pc(a0, a1, a2, a3, a4):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_win_open_pc")
-    return r0
-
-def ui_win_close():
-    r0 = asm("@R0")
-    asm("CALL ui_win_close")
-    return r0
-
-def ui_win_closed():
-    r0 = asm("@R0")
-    asm("CALL ui_win_closed")
-    return r0
-
-def ui_scr_w():
-    r0 = asm("@R0")
-    asm("CALL ui_scr_w")
-    return r0
-
-def ui_scr_h():
-    r0 = asm("@R0")
-    asm("CALL ui_scr_h")
     return r0
 
 def ui_orientation():
@@ -7141,17 +7378,6 @@ def ui_line(a0, a1, a2, a3, a4, a5):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_line")
 
-def ui_rect(a0, a1, a2, a3, a4, a5, a6, a7):
-    asm(f"PUSH @R0")  # push a7
-    asm(f"PUSH @R0")  # push a6
-    asm(f"PUSH @R0")  # push a5
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ui_rect")
-
 def ui_circle(a0, a1, a2, a3, a4, a5):
     asm(f"PUSH @R0")  # push a5
     asm(f"PUSH @R0")  # push a4
@@ -7170,9 +7396,6 @@ def ui_ellipse(a0, a1, a2, a3, a4, a5, a6):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_ellipse")
-
-def ui_present():
-    asm("CALL ui_present")
 
 def ui_flood_fill(a0, a1, a2, a3):
     r0 = asm("@R0")
@@ -7242,17 +7465,6 @@ def ui_text_styled(a0, a1, a2, a3, a4, a5, a6):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_text_styled")
 
-def ui_text_v(a0, a1, a2, a3, a4, a5, a6, a7):
-    asm(f"PUSH @R0")  # push a7
-    asm(f"PUSH @R0")  # push a6
-    asm(f"PUSH @R0")  # push a5
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ui_text_v")
-
 def ui_set_font(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a3
     asm(f"PUSH @R0")  # push a2
@@ -7269,19 +7481,6 @@ def ui_text_cur(a0, a1, a2):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_text_cur")
-
-def ui_poll(a0):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ui_poll")
-    return r0
-
-def ui_wait(a0, a1):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ui_wait")
-    return r0
 
 def ui_poll_ex(a0, a1):
     r0 = asm("@R0")
@@ -7347,11 +7546,6 @@ def ui_wait_msg(a0):
 def ui_poll_msg():
     r0 = asm("@R0")
     asm("CALL ui_poll_msg")
-    return r0
-
-def ui_msg_type():
-    r0 = asm("@R0")
-    asm("CALL ui_msg_type")
     return r0
 
 def ui_msg_a():

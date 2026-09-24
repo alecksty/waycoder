@@ -300,16 +300,15 @@ namespace BasicCompiler
                 stmt.LineNumber = int.Parse(Peek().Value);
                 Advance();
             }
-            else if (Peek().Type == TokenType.IDENTIFIER)
-            {
-                // Will be converted to a label reference during codegen
-                stmt.Label = Peek().Value.ToLower();
-                stmt.IsLabel = true;
-                Advance();
-            }
             else
             {
-                return null;
+                // 名字可以带点（`GOTO begin.of.editor`）—— 见 `TryParseDottedName`。
+                // 取法与标签定义端**同一个方法**，否则定义/引用两边换算出来的标签名不同，
+                // 症状是链接期「未定义的函数 'func_begin'」。
+                string? label = TryParseDottedName();
+                if (label is null) return null;
+                stmt.Label = label;
+                stmt.IsLabel = true;
             }
 
             return stmt;
@@ -325,15 +324,13 @@ namespace BasicCompiler
                 stmt.LineNumber = int.Parse(Peek().Value);
                 Advance();
             }
-            else if (Peek().Type == TokenType.IDENTIFIER)
-            {
-                stmt.Label = Peek().Value.ToLower();
-                stmt.IsLabel = true;
-                Advance();
-            }
             else
             {
-                return null;
+                // 与 GOTO 同源（`GOSUB editor.newmaze`）
+                string? label = TryParseDottedName();
+                if (label is null) return null;
+                stmt.Label = label;
+                stmt.IsLabel = true;
             }
 
             return stmt;

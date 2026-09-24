@@ -404,7 +404,18 @@ public partial class CodeGenerator
             i => GenerateExpression(node.Expressions[i]),
             i => node.Expressions[i] is LiteralNode lit && lit.Value is string
                 || (node.Expressions[i] is CallNode call && IsStringReturningFunc(call.Name))
-                || (node.Expressions[i] is FuncCallNode fcall && IsStringReturningFunc(fcall.Name)));
+                || (node.Expressions[i] is FuncCallNode fcall && IsStringReturningFunc(fcall.Name)),
+            // ⚠ 第 4 个位置参数是 `addSpace`，浮点判据必须**具名**传到最后一个参数上
+            //   （`isArgFloat` 是追加在末尾的可选参数，见 `CodeGeneratorBase.EmitPrintArgs`）。
+            //   不传它 ⇒ 每个实参都 `CALL print_int` ⇒ **浮点按整数打**：
+            //   `print *, 2.5` 打出 `1075838976`（= 0x40200000，2.5f 的位模式；
+            //   值本身是对的，只是被当成整数解释了）。实测 `print *, x * 4.0`
+            //   （x 是 `real :: x = 2.5`）打出 `1092616192` = 0x41200000 = 10.0f。
+            isArgFloat: i =>
+            {
+                var t = GetExprType(node.Expressions[i]);
+                return t == ExpType.F32 || t == ExpType.F64;
+            });
     }
 
     private void GenerateAllocate(AllocateNode node)

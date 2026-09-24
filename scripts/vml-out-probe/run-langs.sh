@@ -121,7 +121,13 @@ for f in "${files[@]}"; do
     # 该探针自带期望就用它（各语言的原生 print 语义不同：Go/Python 的 println/print
     # 在操作数间**插一个空格**，Kotlin 的 println 只吃一个实参）—— 统一成一行是错的。
     exp="$EXPECT"
-    [[ -f "$f.expect" ]] && exp="$(cat "$f.expect")"
+    # ⚠ **`.expect` 要掐掉行尾的 `\r`**：本仓工作区是 CRLF，而下面比的是
+    #   `got`（已 `sed 's/[[:space:]]*$//'` 归一）与 `exp`（**没归一**）。
+    #   `.expect` 存成 CRLF 时 `exp` 每行都带一个 `\r` ⇒ **逐字节比必然不等**，
+    #   于是"输出其实一模一样"的探针被报成 FAIL。实测 2026-09-24：`nat.array.cpp` /
+    #   `nat.syntax.cpp` 两条的输出与 `.expect` **逐行相同**却一直红着 ——
+    #   这正是"假红淹没真红"（本套件里最贵的一种噪声）。
+    [[ -f "$f.expect" ]] && exp="$(tr -d '\r' < "$f.expect")"
     # ⚠ stderr 要**单独接住**：编译期抛异常与「跑完输出不对」是两回事。
     #   早先一律 2>/dev/null，把 5 个**编译失败**报成了「输出为空」，
     #   于是「修编译器」和「修探针注释前缀」混在一起看不出来（实测踩过）。

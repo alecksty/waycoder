@@ -766,6 +766,33 @@ public class Parser : ParserBase<Token, TokenType>
         return ParsePrimary();
     }
 
+    /// <summary>
+    /// 把 Fortran 的实数字面量文本转成 .NET 认得的十进制写法。
+    ///
+    /// ⚠ **不转就会静默变成 0**：词法器把字面量**原样**存进 token
+    /// （`Lexer.ReadNumber` 把扫到的字符直接塞进 StringBuilder —— `1.25d0` 的
+    /// `Value` 就是 `"1.25d0"`、`1.0_8` 就是 `"1.0_8"`），而
+    /// `double.TryParse("1.25d0")` **解析失败**：失败只会把 `out` 参数置 0、
+    /// 返回的那个 `false` **原代码里没人看** ⇒ 该字面量就是 **0**，一个错都不报。
+    /// 实测（2026-09-24）：`print *, 1.25d0` / `3.75d0` / `2.5d0` **全是 0**，
+    /// 而同样值的 `print *, 1.25` 正确 —— 差别只在那个后缀。
+    ///
+    /// 要做两件事：
+    ///   ① **指数标记 `d`/`D` → `e`/`E`**（Fortran 用 D 写双精度指数，.NET 不认）；
+    ///   ② **去掉 kind 后缀**（`_8` / `_REAL64` / `_KIND(...)` 之类，
+    ///      词法器在 `_` 分支里把它们也原样收进文本了）。
+    ///
+    /// 判据：`print *, 1.25d0` ⇒ `1.25`、`d = 9.5d0` ⇒ `9.5`；
+    /// 真转不出来的（真有病的那种）**抛错**而不是再给一个 0 —— 见调用点的 `throw`。
+    /// </summary>
+    private static string NormalizeRealText(string text)
+    {
+        string s = text;
+        int us = s.IndexOf('_');
+        if (us >= 0) s = s.Substring(0, us);
+        return s.Replace('d', 'e').Replace('D', 'E');
+    }
+
     private ASTNode ParsePrimary()
     {
         int l = Cur.Line, c = Cur.Column;
@@ -779,19 +806,21 @@ public class Parser : ParserBase<Token, TokenType>
         if (Check(TokenType.RealLiteral))
         {
             var t = Advance();
-            double.TryParse(t.Value,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out double fv);
+            if (!double.TryParse(NormalizeRealText(t.Value),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double fv))
+                throw Error($"看不懂的实数字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）");
             return new LiteralNode((float)fv, "real", l, c);
         }
         if (Check(TokenType.DoubleLiteral))
         {
             var t = Advance();
-            double.TryParse(t.Value,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out double dv);
+            if (!double.TryParse(NormalizeRealText(t.Value),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out double dv))
+                throw Error($"看不懂的双精度字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）");
             return new LiteralNode(dv, "double", l, c);
         }
         if (Check(TokenType.StringLiteral))

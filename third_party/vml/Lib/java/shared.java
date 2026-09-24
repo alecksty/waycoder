@@ -175,6 +175,8 @@
 // CALL basic_concat_slot
 // extern fn basic_concat(const char* a, const char* b) -> char*
 // CALL basic_concat
+// extern fn basic_strcmp(const char* a, const char* b) -> int
+// CALL basic_strcmp
 // extern fn basic_abs(int n) -> int
 // CALL basic_abs
 // extern fn basic_sgn(int n) -> int
@@ -2051,6 +2053,98 @@
 // CALL exit
 // extern fn ldatetime64(void) -> long
 // CALL ldatetime64
+// extern fn ui_win_open(char *title, int w, int h) -> int
+// CALL ui_win_open
+// extern fn ui_win_close(void) -> int
+// CALL ui_win_close
+// extern fn ui_win_closed(void) -> int
+// CALL ui_win_closed
+// extern fn ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius) -> void
+// CALL ui_rect
+// extern fn ui_text_v(int x, int y, char *s, int color, int size, int anchor, int valign, int style) -> void
+// CALL ui_text_v
+// extern fn ui_present(void) -> void
+// CALL ui_present
+// extern fn ui_poll(int *msg) -> int
+// CALL ui_poll
+// extern fn ui_wait(int *msg, int timeout_ms) -> int
+// CALL ui_wait
+// extern fn ui_msg_type(void) -> int
+// CALL ui_msg_type
+// extern fn _tty_main_attr(void) -> oid
+// CALL _tty_main_attr
+// extern fn ui_scr_w(void) -> int
+// CALL ui_scr_w
+// extern fn ui_scr_h(void) -> int
+// CALL ui_scr_h
+// extern fn _tty_auto_cols(void) -> nt
+// CALL _tty_auto_cols
+// extern fn _tty_auto_rows(void) -> nt
+// CALL _tty_auto_rows
+// extern fn _tty_idx(int x, int y) -> nt
+// CALL _tty_idx
+// extern fn _tty_alt_clear(void) -> oid
+// CALL _tty_alt_clear
+// extern fn _tty_alt_putc(int ch) -> oid
+// CALL _tty_alt_putc
+// extern fn _tty_alt_bg_row(int y) -> oid
+// CALL _tty_alt_bg_row
+// extern fn _tty_alt_fg_row(int y) -> oid
+// CALL _tty_alt_fg_row
+// extern fn tty_refresh(void) -> void
+// CALL tty_refresh
+// extern fn tty_init(int width, int height, int clear) -> int
+// CALL tty_init
+// extern fn tty_alt_open(int width, int height, char *title, int clear) -> int
+// CALL tty_alt_open
+// extern fn tty_alt_close(void) -> void
+// CALL tty_alt_close
+// extern fn tty_alt_is_open(void) -> int
+// CALL tty_alt_is_open
+// extern fn tty_width(void) -> int
+// CALL tty_width
+// extern fn tty_height(void) -> int
+// CALL tty_height
+// extern fn tty_cls(void) -> void
+// CALL tty_cls
+// extern fn tty_clreol(void) -> void
+// CALL tty_clreol
+// extern fn tty_goto(int x, int y) -> void
+// CALL tty_goto
+// extern fn tty_wherex(void) -> int
+// CALL tty_wherex
+// extern fn tty_wherey(void) -> int
+// CALL tty_wherey
+// extern fn tty_color(int fg, int bg) -> void
+// CALL tty_color
+// extern fn tty_attr(int attr) -> void
+// CALL tty_attr
+// extern fn tty_getfg(void) -> int
+// CALL tty_getfg
+// extern fn tty_getbg(void) -> int
+// CALL tty_getbg
+// extern fn tty_putc(int ch) -> void
+// CALL tty_putc
+// extern fn tty_puts(char *s) -> void
+// CALL tty_puts
+// extern fn tty_put_int(int v) -> void
+// CALL tty_put_int
+// extern fn tty_print_at(int x, int y, char *s, int fg, int bg) -> void
+// CALL tty_print_at
+// extern fn tty_hline(int x, int y, int len, int ch) -> void
+// CALL tty_hline
+// extern fn tty_vline(int x, int y, int len, int ch) -> void
+// CALL tty_vline
+// extern fn _tty_boxchar(int style, int which) -> oid
+// CALL _tty_boxchar
+// extern fn tty_box(int x1, int y1, int x2, int y2, int style) -> void
+// CALL tty_box
+// extern fn tty_key(void) -> int
+// CALL tty_key
+// extern fn tty_wait(void) -> int
+// CALL tty_wait
+// extern fn tty_closed(void) -> int
+// CALL tty_closed
 // extern fn c32tombs(char *dest, char32_t uc) -> int
 // CALL c32tombs
 // extern fn mbtoc32(char32_t *dest, const char *src) -> int
@@ -2297,20 +2391,10 @@
 // CALL ui_dlg_multi
 // extern fn ui_dlg_input(char* title, char* prompt, char* buf, int cap) -> int
 // CALL ui_dlg_input
-// extern fn ui_win_open(char* title, int w, int h) -> int
-// CALL ui_win_open
 // extern fn ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad) -> int
 // CALL ui_win_open_ex
 // extern fn ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard) -> int
 // CALL ui_win_open_pc
-// extern fn ui_win_close(void) -> int
-// CALL ui_win_close
-// extern fn ui_win_closed(void) -> int
-// CALL ui_win_closed
-// extern fn ui_scr_w(void) -> int
-// CALL ui_scr_w
-// extern fn ui_scr_h(void) -> int
-// CALL ui_scr_h
 // extern fn ui_orientation(void) -> int
 // CALL ui_orientation
 // extern fn ui_clear(int color) -> void
@@ -2319,14 +2403,10 @@
 // CALL ui_pixel
 // extern fn ui_line(int x1, int y1, int x2, int y2, int color, int lw) -> void
 // CALL ui_line
-// extern fn ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius) -> void
-// CALL ui_rect
 // extern fn ui_circle(int cx, int cy, int r, int color, int fill, int lw) -> void
 // CALL ui_circle
 // extern fn ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw) -> void
 // CALL ui_ellipse
-// extern fn ui_present(void) -> void
-// CALL ui_present
 // extern fn ui_flood_fill(int x, int y, int color, int border) -> int
 // CALL ui_flood_fill
 // extern fn ui_get_image(int x, int y, int w, int h) -> int
@@ -2343,18 +2423,12 @@
 // CALL ui_text
 // extern fn ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) -> void
 // CALL ui_text_styled
-// extern fn ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style) -> void
-// CALL ui_text_v
 // extern fn ui_set_font(int size, int style, int color, int anchor) -> void
 // CALL ui_set_font
 // extern fn ui_set_valign(int valign) -> void
 // CALL ui_set_valign
 // extern fn ui_text_cur(int x, int y, char* s) -> void
 // CALL ui_text_cur
-// extern fn ui_poll(int* msg) -> int
-// CALL ui_poll
-// extern fn ui_wait(int* msg, int timeout_ms) -> int
-// CALL ui_wait
 // extern fn ui_poll_ex(int* msg, int keep) -> int
 // CALL ui_poll_ex
 // extern fn ui_wait_ex(int* msg, int timeout_ms, int keep) -> int
@@ -2377,8 +2451,6 @@
 // CALL ui_wait_msg
 // extern fn ui_poll_msg(void) -> int
 // CALL ui_poll_msg
-// extern fn ui_msg_type(void) -> int
-// CALL ui_msg_type
 // extern fn ui_msg_a(void) -> int
 // CALL ui_msg_a
 // extern fn ui_msg_b(void) -> int

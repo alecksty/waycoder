@@ -63,7 +63,10 @@ targets=()
 for f in "$REPO"/third_party/vml/Examples/*/*; do
     [ -f "$f" ] || continue
     case "$f" in
-        *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip) continue ;;
+        # `*.bi` = BASIC 的**头文件**（`'$INCLUDE: 'x.bi'` 拉进来的声明表，
+        # 见 `Examples/basic/waycoder_ui.bi`）。它不是程序，`vmlcli` 认不出这个扩展名
+        # （会报「认不出这个扩展名（.bi）」），而**那正是它该有的样子**。
+        *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip|*.bi) continue ;;
         */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m|*/file_io.js) continue ;;
         # `_selftest/test_error.*` 是**刻意编不过**的诊断用例（22 门语言各一份）：
         # 它们的作用是让「错误/警告 → 错误列表 / 行下波浪线 / 编译气泡」这条链**有东西可显示**

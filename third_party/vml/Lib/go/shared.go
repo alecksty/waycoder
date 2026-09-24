@@ -419,6 +419,11 @@ func basic_concat(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
+func basic_strcmp(a0 int32, a1 int32) int32 {
+    vml.Call("basic_strcmp")
+    return vml.R0()
+}
+
 func basic_abs(a0 int32) int32 {
     vml.Call("basic_abs")
     return vml.R0()
@@ -4866,6 +4871,219 @@ func ldatetime64() int32 {
     return vml.R0()
 }
 
+func ui_win_open(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_win_open")
+    return vml.R0()
+}
+
+func ui_win_close() int32 {
+    vml.Call("ui_win_close")
+    return vml.R0()
+}
+
+func ui_win_closed() int32 {
+    vml.Call("ui_win_closed")
+    return vml.R0()
+}
+
+func ui_rect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
+    vml.Call("ui_rect")
+}
+
+func ui_text_v(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
+    vml.Call("ui_text_v")
+}
+
+func ui_present() {
+    vml.Call("ui_present")
+}
+
+func ui_poll(a0 int32) int32 {
+    vml.Call("ui_poll")
+    return vml.R0()
+}
+
+func ui_wait(a0 int32, a1 int32) int32 {
+    vml.Call("ui_wait")
+    return vml.R0()
+}
+
+func ui_msg_type() int32 {
+    vml.Call("ui_msg_type")
+    return vml.R0()
+}
+
+func _tty_main_attr() int32 {
+    vml.Call("_tty_main_attr")
+    return vml.R0()
+}
+
+func ui_scr_w() int32 {
+    vml.Call("ui_scr_w")
+    return vml.R0()
+}
+
+func ui_scr_h() int32 {
+    vml.Call("ui_scr_h")
+    return vml.R0()
+}
+
+func _tty_auto_cols() int32 {
+    vml.Call("_tty_auto_cols")
+    return vml.R0()
+}
+
+func _tty_auto_rows() int32 {
+    vml.Call("_tty_auto_rows")
+    return vml.R0()
+}
+
+func _tty_idx(a0 int32, a1 int32) int32 {
+    vml.Call("_tty_idx")
+    return vml.R0()
+}
+
+func _tty_alt_clear() int32 {
+    vml.Call("_tty_alt_clear")
+    return vml.R0()
+}
+
+func _tty_alt_putc(a0 int32) int32 {
+    vml.Call("_tty_alt_putc")
+    return vml.R0()
+}
+
+func _tty_alt_bg_row(a0 int32) int32 {
+    vml.Call("_tty_alt_bg_row")
+    return vml.R0()
+}
+
+func _tty_alt_fg_row(a0 int32) int32 {
+    vml.Call("_tty_alt_fg_row")
+    return vml.R0()
+}
+
+func tty_refresh() {
+    vml.Call("tty_refresh")
+}
+
+func tty_init(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("tty_init")
+    return vml.R0()
+}
+
+func tty_alt_open(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("tty_alt_open")
+    return vml.R0()
+}
+
+func tty_alt_close() {
+    vml.Call("tty_alt_close")
+}
+
+func tty_alt_is_open() int32 {
+    vml.Call("tty_alt_is_open")
+    return vml.R0()
+}
+
+func tty_width() int32 {
+    vml.Call("tty_width")
+    return vml.R0()
+}
+
+func tty_height() int32 {
+    vml.Call("tty_height")
+    return vml.R0()
+}
+
+func tty_cls() {
+    vml.Call("tty_cls")
+}
+
+func tty_clreol() {
+    vml.Call("tty_clreol")
+}
+
+func tty_goto(a0 int32, a1 int32) {
+    vml.Call("tty_goto")
+}
+
+func tty_wherex() int32 {
+    vml.Call("tty_wherex")
+    return vml.R0()
+}
+
+func tty_wherey() int32 {
+    vml.Call("tty_wherey")
+    return vml.R0()
+}
+
+func tty_color(a0 int32, a1 int32) {
+    vml.Call("tty_color")
+}
+
+func tty_attr(a0 int32) {
+    vml.Call("tty_attr")
+}
+
+func tty_getfg() int32 {
+    vml.Call("tty_getfg")
+    return vml.R0()
+}
+
+func tty_getbg() int32 {
+    vml.Call("tty_getbg")
+    return vml.R0()
+}
+
+func tty_putc(a0 int32) {
+    vml.Call("tty_putc")
+}
+
+func tty_puts(a0 int32) {
+    vml.Call("tty_puts")
+}
+
+func tty_put_int(a0 int32) {
+    vml.Call("tty_put_int")
+}
+
+func tty_print_at(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("tty_print_at")
+}
+
+func tty_hline(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("tty_hline")
+}
+
+func tty_vline(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("tty_vline")
+}
+
+func _tty_boxchar(a0 int32, a1 int32) int32 {
+    vml.Call("_tty_boxchar")
+    return vml.R0()
+}
+
+func tty_box(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("tty_box")
+}
+
+func tty_key() int32 {
+    vml.Call("tty_key")
+    return vml.R0()
+}
+
+func tty_wait() int32 {
+    vml.Call("tty_wait")
+    return vml.R0()
+}
+
+func tty_closed() int32 {
+    vml.Call("tty_closed")
+    return vml.R0()
+}
+
 func c32tombs(a0 int32, a1 int32) int32 {
     vml.Call("c32tombs")
     return vml.R0()
@@ -5455,11 +5673,6 @@ func ui_dlg_input(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
-func ui_win_open(a0 int32, a1 int32, a2 int32) int32 {
-    vml.Call("ui_win_open")
-    return vml.R0()
-}
-
 func ui_win_open_ex(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     vml.Call("ui_win_open_ex")
     return vml.R0()
@@ -5467,26 +5680,6 @@ func ui_win_open_ex(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
 
 func ui_win_open_pc(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     vml.Call("ui_win_open_pc")
-    return vml.R0()
-}
-
-func ui_win_close() int32 {
-    vml.Call("ui_win_close")
-    return vml.R0()
-}
-
-func ui_win_closed() int32 {
-    vml.Call("ui_win_closed")
-    return vml.R0()
-}
-
-func ui_scr_w() int32 {
-    vml.Call("ui_scr_w")
-    return vml.R0()
-}
-
-func ui_scr_h() int32 {
-    vml.Call("ui_scr_h")
     return vml.R0()
 }
 
@@ -5507,20 +5700,12 @@ func ui_line(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
     vml.Call("ui_line")
 }
 
-func ui_rect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
-    vml.Call("ui_rect")
-}
-
 func ui_circle(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
     vml.Call("ui_circle")
 }
 
 func ui_ellipse(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
     vml.Call("ui_ellipse")
-}
-
-func ui_present() {
-    vml.Call("ui_present")
 }
 
 func ui_flood_fill(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
@@ -5560,10 +5745,6 @@ func ui_text_styled(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, 
     vml.Call("ui_text_styled")
 }
 
-func ui_text_v(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
-    vml.Call("ui_text_v")
-}
-
 func ui_set_font(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("ui_set_font")
 }
@@ -5574,16 +5755,6 @@ func ui_set_valign(a0 int32) {
 
 func ui_text_cur(a0 int32, a1 int32, a2 int32) {
     vml.Call("ui_text_cur")
-}
-
-func ui_poll(a0 int32) int32 {
-    vml.Call("ui_poll")
-    return vml.R0()
-}
-
-func ui_wait(a0 int32, a1 int32) int32 {
-    vml.Call("ui_wait")
-    return vml.R0()
 }
 
 func ui_poll_ex(a0 int32, a1 int32) int32 {
@@ -5637,11 +5808,6 @@ func ui_wait_msg(a0 int32) int32 {
 
 func ui_poll_msg() int32 {
     vml.Call("ui_poll_msg")
-    return vml.R0()
-}
-
-func ui_msg_type() int32 {
-    vml.Call("ui_msg_type")
     return vml.R0()
 }
 

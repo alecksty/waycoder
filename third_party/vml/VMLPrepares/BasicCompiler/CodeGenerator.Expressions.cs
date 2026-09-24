@@ -138,6 +138,10 @@ namespace BasicCompiler
                 // 打出来是空行且**不报错**（实测 `b$ = "x" + "y"` → 空串）。
                 if (GenerateStringConcat(binary, reg)) return;
 
+                // 字符串比较 `a$ = b$` / `<>` / `<` / `<=` / `>` / `>=` —— 同理必须**先分叉**：
+                // 落到下面的算术路径会先做一次 `String → Integer` 转换，变成"比首字节"。
+                if (GenerateStringComparison(binary, reg)) return;
+
                 // 推断左右操作数类型
                 ExpType leftType = InferExpType(binary.Left);
                 ExpType rightType = InferExpType(binary.Right);
@@ -390,6 +394,74 @@ namespace BasicCompiler
             return true;
         }
 
+        /// <summary>
+        /// `a$ OP b$` —— **字符串比较必须比内容，不是比指针**。
+        ///
+        /// <para>
+        /// 为什么必须收成一份共用实现：这条判据原来**两处各写一份、而且两份都不对**——
+        /// </para>
+        /// <list type="bullet">
+        /// <item><b>顶层</b>（本文件的二元分岔）把字符串<b>转成整数</b>再 `CMP`
+        /// （`GenerateTypeConversion` 的 `String → Integer` 那条 `MOVEB reg,[reg]`）——
+        /// 比的是<b>首字节</b>：`"" = ""` 恰好成立（两边首字节都是 0），于是看着"能用"，
+        /// 可 `"AB" = "AC"` 也成立（首字节都是 'A'）。</item>
+        /// <item><b>SUB 体内</b>（`CodeGenerator.Sub.cs`）`CMP` 的是<b>两个指针</b>：
+        /// 未初始化的字符串变量是 0、字面量 `""` 是 `__empty_str` 的地址 ⇒
+        /// <c>Char$ = ""</c> <b>恒为假</b>，而
+        /// <c>DO WHILE Char$ = "": Char$ = INKEY$: LOOP</c>（老 BASIC 等按键的<b>标准写法</b>）
+        /// 循环体一次都不执行、程序当场卡在"等按键"上。
+        /// 实测 GORILLA.BAS 的 `GorillaIntro` 正是卡在这儿（打印完 "Your Choice?" 就没反应了）。</item>
+        /// </list>
+        /// <para>
+        /// 修法：两条路都走库里<b>同一个</b> `basic_strcmp`（`Lib/shared/src/basiclib.c`），
+        /// 它把 <b>NULL 当空串</b> —— 本前端把未初始化的字符串变量初始化成 0，
+        /// 而 QBasic 语义里未初始化的字符串变量就是 `""`，两者必须比得出"相等"。
+        /// </para>
+        /// <para>
+        /// 判据与 `GenerateStringConcat` 同源：<b>两边都推断为 String</b> 才算字符串比较
+        /// （`1 = 2`、`a = 3` 这些数值比较一个都不受影响）。
+        /// 调用点只有两处（顶层与 SUB 体各一），都写着一模一样的一行 —— 加新判据改这一处就够。
+        /// </para>
+        /// </summary>
+        private bool GenerateStringComparison(BinaryExpression binary, int reg)
+        {
+            if (binary.Operator is not ("=" or "<>" or "<" or "<=" or ">" or ">=")) return false;
+            if (InferExpressionType(binary.Left) != BasicType.String) return false;
+            if (InferExpressionType(binary.Right) != BasicType.String) return false;
+
+            var call = new FunctionCallExpression(binary.Line, binary.Column, "basic_strcmp");
+            call.Arguments.Add(binary.Left);
+            call.Arguments.Add(binary.Right);
+
+            // 与 `GenerateStringConcat` 同一套保护：库函数会把 R0–R5 用掉，
+            // 而这可能发生在另一个表达式求值的中途。
+            EmitSaveRegsExcept(reg, 0, 1, 2, 3, 4, 5);
+            GenerateLibraryCall("basic_strcmp", call, reg);
+            EmitRestoreRegsExcept(reg, 0, 1, 2, 3, 4, 5);
+
+            // 三向结果 → 0/1 真值。跳转条件与下面整数路那份**一字不差**
+            //（同一张运算符→条件表只写一次，改一处就够）。
+            AddRI(OpCode.CMP, reg, 0);
+            OpCode jumpOp = binary.Operator switch
+            {
+                "=" => OpCode.JNE,
+                "<>" => OpCode.JE,
+                "<" => OpCode.JGE,
+                "<=" => OpCode.JG,
+                ">" => OpCode.JLE,
+                _ => OpCode.JL          // ">="
+            };
+            string strFalseLabel = GenerateLabel();
+            string strEndLabel = GenerateLabel();
+            instructions.Add(new Instruction(jumpOp, new List<Operand> { new Operand(OperandType.LABEL, strFalseLabel) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
+            instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, strEndLabel) }));
+            instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, strFalseLabel) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
+            instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, strEndLabel) }));
+            return true;
+        }
+
         private void GenerateMainFunctionCall(FunctionCallExpression funcCall, int reg)
         {
             string funcName = funcCall.FunctionName.ToLower();
@@ -536,9 +608,9 @@ namespace BasicCompiler
             // 获取函数声明以检查参数是否为 BYREF + native
             funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var funcDecl);
 
-            // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)
+            // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)，**且保留声明处的大小写**（外部符号）
             string funcLabel = (funcDecl != null && funcDecl.IsNative)
-                ? SymbolKey(funcCall.FunctionName)
+                ? NativeLabel(funcDecl.Name)
                 : FunctionLabel(funcCall.FunctionName);
 
             int argBytes = EmitCallArguments(funcCall.Arguments,

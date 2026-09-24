@@ -1470,6 +1470,11 @@ namespace BasicCompiler
                 // 字符串拼接**先分叉**（与顶层 GenerateExpression 同一条判据、同一个库函数）
                 if (GenerateStringConcat(binary, reg)) return;
 
+                // 字符串比较**同样先分叉**（同一份实现，见 GenerateStringComparison）——
+                // 落到下面会走 `CMP` 比**指针**（未初始化变量是 0、字面量 `""` 是地址 ⇒
+                // `Char$ = ""` 恒假 ⇒ 老 BASIC 那句 `DO WHILE Char$ = "": …: LOOP` 卡死）。
+                if (GenerateStringComparison(binary, reg)) return;
+
                 // ⚠ 运算符要**大小写无关**地比：操作数文本取自 token 的 `Value`（保留源码大小写），
                 //   所以 `mod` / `Mod` / `MOD` 是三个不同的字符串。顶层那套按 `"MOD"` 精确比，
                 //   小写 mod 同样编不出代码（同一个坑，只是这边顺手一起兜住）。
@@ -1948,10 +1953,11 @@ namespace BasicCompiler
             if (subDecl == null)
                 funcMap.TryGetValue(SymbolKey(stmt.SubName), out funcDecl);
 
-            // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)
+            // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)，**且保留声明处的大小写**（外部符号）
             bool isNative = (subDecl?.IsNative ?? false) || (funcDecl?.IsNative ?? false);
+            string nativeName = subDecl?.Name ?? funcDecl?.Name ?? stmt.SubName;
             string subLabel = isNative
-                ? SymbolKey(stmt.SubName)
+                ? NativeLabel(nativeName)
                 : (subDecl != null ? SubLabel(stmt.SubName) : FunctionLabel(stmt.SubName));
 
             // BYREF 判据对 SUB / FUNCTION 两种声明都成立
@@ -2393,10 +2399,10 @@ namespace BasicCompiler
                     break;
             }
             
-            // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)
+            // native FUNCTION: 使用裸名 CALL (无 func_ 前缀)，**且保留声明处的大小写**（外部符号）
             funcMap.TryGetValue(SymbolKey(funcCall.FunctionName), out var fd);
             string funcLabel = (fd != null && fd.IsNative)
-                ? SymbolKey(funcCall.FunctionName)
+                ? NativeLabel(fd.Name)
                 : FunctionLabel(funcCall.FunctionName);
 
             // Push arguments (right-to-left) —— 与另外两条调用路径共用同一份实现

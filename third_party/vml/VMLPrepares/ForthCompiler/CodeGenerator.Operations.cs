@@ -293,7 +293,14 @@ namespace ForthCompiler
                 TokenType.MINUS => "-",
                 TokenType.MULTIPLY => "*",
                 TokenType.DIVIDE => "/",
-                TokenType.MOD => "MOD",
+                /* ⚠ 必须写 "%"，不能写 "MOD"。
+                   `GetArithmeticInstruction(op, type)` 那张表（`TypedCodeGen.cs:85` 与
+                   `CodeGeneratorBase.cs:1469`）认的是 C 风格的 `"%"` —— 传 `"MOD"`
+                   会**两边都不匹配**，一路落到 `_ => OpCode.ADD`：`10 3 MOD` 编成
+                   `add @R0 @R1`，打出 13 而不是 1，**不报任何错**（实测）。
+                   `MOD R0, R1` 的语义是 `R0 = R0 % R1`（`VMLRuntime.Instructions.cs:639`
+                   的 ExecuteMod），与下面 MOD 分支先弹 b 进 R1、再弹 a 进 R0 的顺序正好吻合。 */
+                TokenType.MOD => "%",
                 _ => "+"
             };
             OpCode arithmeticOp = GetArithmeticInstruction(opStr, operandType);
