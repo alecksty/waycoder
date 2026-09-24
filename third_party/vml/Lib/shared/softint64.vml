@@ -61,11 +61,15 @@ sta_77890001:
 ; 5:     *l = rl; *h = rh;
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-8]
+        pop @R11
         move [@R11] @R0
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12-12]
+        pop @R10
         move [@R10] @R0
         move @R13 @R12
         pop @R12
@@ -130,11 +134,15 @@ sta_77890005:
 ; 11:     *l = rl; *h = rh;
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         move @R0 [@R12-8]
+        pop @R9
         move [@R9] @R0
         move @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 [@R12-12]
+        pop @R8
         move [@R8] @R0
         move @R13 @R12
         pop @R12
@@ -156,6 +164,7 @@ __vml_i64_neg:
 ; 15:     *l = ~(*l) + 1; *h = ~(*h);
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         move @R0 [@R0]
         not @R0
@@ -164,12 +173,15 @@ __vml_i64_neg:
         pop @R1
         add @R1 @R0
         move @R0 @R1
+        pop @R7
         move [@R7] @R0
         move @R0 [@R12+16]
         move @R6 @R0
+        push @R6
         move @R0 [@R12+16]
         move @R0 [@R0]
         not @R0
+        pop @R6
         move [@R6] @R0
 ; 16:     if (*l == 0) *h = *h + 1;
         move @R0 [@R12+12]
@@ -188,6 +200,7 @@ _L77890011:
         jz sta_77890008
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -195,6 +208,7 @@ _L77890011:
         pop @R1
         add @R1 @R0
         move @R0 @R1
+        pop @R5
         move [@R5] @R0
 sta_77890008:
 sta_77890009:
@@ -220,6 +234,7 @@ __vml_i64_and:
 ; 19: void __vml_i64_and(int* l, int* h, int bl, int bh) { *l = *l & bl; *h = *h & bh; }
         move @R0 [@R12+12]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -227,9 +242,11 @@ __vml_i64_and:
         pop @R1
         and @R1 @R0
         move @R0 @R1
+        pop @R4
         move [@R4] @R0
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -237,6 +254,7 @@ __vml_i64_and:
         pop @R1
         and @R1 @R0
         move @R0 @R1
+        pop @R3
         move [@R3] @R0
         move @R13 @R12
         pop @R12
@@ -260,6 +278,7 @@ __vml_i64_or:
 ; 20: void __vml_i64_or(int* l, int* h, int bl, int bh)  { *l = *l | bl; *h = *h | bh; }
         move @R0 [@R12+12]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -267,9 +286,11 @@ __vml_i64_or:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R2
         move [@R2] @R0
         move @R0 [@R12+16]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -277,6 +298,7 @@ __vml_i64_or:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R1
         move [@R1] @R0
         move @R13 @R12
         pop @R12
@@ -300,6 +322,7 @@ __vml_i64_xor:
 ; 21: void __vml_i64_xor(int* l, int* h, int bl, int bh) { *l = *l ^ bl; *h = *h ^ bh; }
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -307,9 +330,11 @@ __vml_i64_xor:
         pop @R1
         xor @R1 @R0
         move @R0 @R1
+        pop @R11
         move [@R11] @R0
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -317,6 +342,7 @@ __vml_i64_xor:
         pop @R1
         xor @R1 @R0
         move @R0 @R1
+        pop @R10
         move [@R10] @R0
         move @R13 @R12
         pop @R12
@@ -338,15 +364,19 @@ __vml_i64_not:
 ; 22: void __vml_i64_not(int* l, int* h) { *l = ~(*l); *h = ~(*h); }
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
         move @R0 [@R0]
         not @R0
+        pop @R9
         move [@R9] @R0
         move @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+16]
         move @R0 [@R0]
         not @R0
+        pop @R8
         move [@R8] @R0
         move @R13 @R12
         pop @R12
@@ -382,6 +412,7 @@ _L77890015:
         jz sta_77890012
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -394,10 +425,13 @@ _L77890015:
         pop @R1
         shl @R1 @R0
         move @R0 @R1
+        pop @R7
         move [@R7] @R0
         move @R0 [@R12+12]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         move [@R6] @R0
         jmp sta_77890013
 sta_77890012:
@@ -417,6 +451,7 @@ _L77890019:
         jz sta_77890016
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -440,9 +475,11 @@ _L77890019:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R5
         move [@R5] @R0
         move @R0 [@R12+12]
         move @R4 @R0
+        push @R4
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -450,6 +487,7 @@ _L77890019:
         pop @R1
         shl @R1 @R0
         move @R0 @R1
+        pop @R4
         move [@R4] @R0
 sta_77890016:
 sta_77890017:
@@ -489,6 +527,7 @@ _L77890023:
         jz sta_77890020
         move @R0 [@R12+12]
         move @R3 @R0
+        push @R3
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -501,9 +540,11 @@ _L77890023:
         pop @R1
         shr @R1 @R0
         move @R0 @R1
+        pop @R3
         move [@R3] @R0
         move @R0 [@R12+16]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -511,6 +552,7 @@ _L77890023:
         pop @R1
         shr @R1 @R0
         move @R0 @R1
+        pop @R2
         move [@R2] @R0
         jmp sta_77890021
 sta_77890020:
@@ -530,6 +572,7 @@ _L77890027:
         jz sta_77890024
         move @R0 [@R12+12]
         move @R1 @R0
+        push @R1
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -553,9 +596,11 @@ _L77890027:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R1
         move [@R1] @R0
         move @R0 [@R12+16]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -563,6 +608,7 @@ _L77890027:
         pop @R1
         shr @R1 @R0
         move @R0 @R1
+        pop @R11
         move [@R11] @R0
 sta_77890024:
 sta_77890025:

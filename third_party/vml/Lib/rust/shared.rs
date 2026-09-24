@@ -346,6 +346,20 @@ fn base64_decode(a0: i32, a1: i32) -> i32 {
     r
 }
 
+fn _strbuf_next_slot() -> i32 {
+    asm!("CALL _strbuf_next_slot")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _strbuf_commit(a0: i32) -> i32 {
+    asm!("CALL _strbuf_commit")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn _hex_str(a0: i32, a1: i32) -> i32 {
     asm!("CALL _hex_str")
     let r: i32;
@@ -621,6 +635,289 @@ fn basic_int(a0: i32) -> i32 {
 
 fn basic_point(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_point")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn InitGraph(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL InitGraph")
+}
+
+fn initgraph(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL initgraph")
+}
+
+fn InitWindow(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL InitWindow")
+}
+
+fn initwindow(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL initwindow")
+}
+
+fn SetGraphMode(a0: i32) {
+    asm!("CALL SetGraphMode")
+}
+
+fn CloseGraph() {
+    asm!("CALL CloseGraph")
+}
+
+fn ClearDevice() {
+    asm!("CALL ClearDevice")
+}
+
+fn GetMaxX() -> i32 {
+    asm!("CALL GetMaxX")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getmaxx() -> i32 {
+    asm!("CALL getmaxx")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GetMaxY() -> i32 {
+    asm!("CALL GetMaxY")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getmaxy() -> i32 {
+    asm!("CALL getmaxy")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GetMaxColor() -> i32 {
+    asm!("CALL GetMaxColor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getmaxcolor() -> i32 {
+    asm!("CALL getmaxcolor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GraphResult() -> i32 {
+    asm!("CALL GraphResult")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn graphresult() -> i32 {
+    asm!("CALL graphresult")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn grapherrormsg(a0: i32) -> i32 {
+    asm!("CALL grapherrormsg")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn SetColor(a0: i32) {
+    asm!("CALL SetColor")
+}
+
+fn SetBkColor(a0: i32) {
+    asm!("CALL SetBkColor")
+}
+
+fn GetColor() -> i32 {
+    asm!("CALL GetColor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getcolor() -> i32 {
+    asm!("CALL getcolor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GetBkColor() -> i32 {
+    asm!("CALL GetBkColor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getbkcolor() -> i32 {
+    asm!("CALL getbkcolor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn SetFillStyle(a0: i32, a1: i32) {
+    asm!("CALL SetFillStyle")
+}
+
+fn SetLineStyle(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL SetLineStyle")
+}
+
+fn SetTextStyle(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL SetTextStyle")
+}
+
+fn SetTextJustify(a0: i32, a1: i32) {
+    asm!("CALL SetTextJustify")
+}
+
+fn Line(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL Line")
+}
+
+fn MoveTo(a0: i32, a1: i32) {
+    asm!("CALL MoveTo")
+}
+
+fn LineTo(a0: i32, a1: i32) {
+    asm!("CALL LineTo")
+}
+
+fn LineRel(a0: i32, a1: i32) {
+    asm!("CALL LineRel")
+}
+
+fn Rectangle(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL Rectangle")
+}
+
+fn Bar(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL Bar")
+}
+
+fn Bar3D(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL Bar3D")
+}
+
+fn Circle(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL Circle")
+}
+
+fn FillEllipse(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL FillEllipse")
+}
+
+fn Ellipse(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL Ellipse")
+}
+
+fn DrawPoly(a0: i32, a1: i32) {
+    asm!("CALL DrawPoly")
+}
+
+fn FillPoly(a0: i32, a1: i32) {
+    asm!("CALL FillPoly")
+}
+
+fn PutPixel(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL PutPixel")
+}
+
+fn Arc(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL Arc")
+}
+
+fn PieSlice(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL PieSlice")
+}
+
+fn Sector(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL Sector")
+}
+
+fn FloodFill(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL FloodFill")
+}
+
+fn ImageSize(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ImageSize")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn imagesize(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL imagesize")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GetImage(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL GetImage")
+}
+
+fn PutImage(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL PutImage")
+}
+
+fn OutTextXY(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL OutTextXY")
+}
+
+fn OutText(a0: i32) {
+    asm!("CALL OutText")
+}
+
+fn TextWidth(a0: i32) -> i32 {
+    asm!("CALL TextWidth")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn textwidth(a0: i32) -> i32 {
+    asm!("CALL textwidth")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn TextHeight(a0: i32) -> i32 {
+    asm!("CALL TextHeight")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn textheight(a0: i32) -> i32 {
+    asm!("CALL textheight")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn GetPixel(a0: i32, a1: i32) -> i32 {
+    asm!("CALL GetPixel")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn getpixel(a0: i32, a1: i32) -> i32 {
+    asm!("CALL getpixel")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -4012,30 +4309,8 @@ fn gfx_viewport(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
-fn InitGraph(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL InitGraph")
-}
-
-fn CloseGraph() {
-    asm!("CALL CloseGraph")
-}
-
 fn DetectGraph(a0: i32, a1: i32) {
     asm!("CALL DetectGraph")
-}
-
-fn GetMaxX() -> i32 {
-    asm!("CALL GetMaxX")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn GetMaxY() -> i32 {
-    asm!("CALL GetMaxY")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
 }
 
 fn GetDriverName() -> i32 {
@@ -4052,101 +4327,12 @@ fn GetModeName(a0: i32) -> i32 {
     r
 }
 
-fn SetColor(a0: i32) {
-    asm!("CALL SetColor")
-}
-
-fn GetColor() -> i32 {
-    asm!("CALL GetColor")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn SetBkColor(a0: i32) {
-    asm!("CALL SetBkColor")
-}
-
-fn GetBkColor() -> i32 {
-    asm!("CALL GetBkColor")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
 fn SetRGBPalette(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL SetRGBPalette")
 }
 
-fn PutPixel(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL PutPixel")
-}
-
-fn GetPixel(a0: i32, a1: i32) -> i32 {
-    asm!("CALL GetPixel")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn Line(a0: i32, a1: i32, a2: i32, a3: i32) {
-    asm!("CALL Line")
-}
-
-fn LineTo(a0: i32, a1: i32) {
-    asm!("CALL LineTo")
-}
-
-fn LineRel(a0: i32, a1: i32) {
-    asm!("CALL LineRel")
-}
-
-fn Rectangle(a0: i32, a1: i32, a2: i32, a3: i32) {
-    asm!("CALL Rectangle")
-}
-
-fn Bar(a0: i32, a1: i32, a2: i32, a3: i32) {
-    asm!("CALL Bar")
-}
-
-fn Bar3D(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
-    asm!("CALL Bar3D")
-}
-
-fn Circle(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL Circle")
-}
-
 fn FillCircle(a0: i32, a1: i32, a2: i32) {
     asm!("CALL FillCircle")
-}
-
-fn Ellipse(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
-    asm!("CALL Ellipse")
-}
-
-fn FillEllipse(a0: i32, a1: i32, a2: i32, a3: i32) {
-    asm!("CALL FillEllipse")
-}
-
-fn Arc(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
-    asm!("CALL Arc")
-}
-
-fn PieSlice(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
-    asm!("CALL PieSlice")
-}
-
-fn SetFillStyle(a0: i32, a1: i32) {
-    asm!("CALL SetFillStyle")
-}
-
-fn SetLineStyle(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL SetLineStyle")
-}
-
-fn ClearDevice() {
-    asm!("CALL ClearDevice")
 }
 
 fn ClearViewPort() {
@@ -4155,33 +4341,6 @@ fn ClearViewPort() {
 
 fn SetViewPort(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
     asm!("CALL SetViewPort")
-}
-
-fn OutText(a0: i32) {
-    asm!("CALL OutText")
-}
-
-fn OutTextXY(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL OutTextXY")
-}
-
-fn FloodFill(a0: i32, a1: i32, a2: i32) {
-    asm!("CALL FloodFill")
-}
-
-fn ImageSize(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
-    asm!("CALL ImageSize")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
-fn GetImage(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
-    asm!("CALL GetImage")
-}
-
-fn PutImage(a0: i32, a1: i32, a2: i32, a3: i32) {
-    asm!("CALL PutImage")
 }
 
 fn GetPaletteSize() -> i32 {
@@ -4197,13 +4356,6 @@ fn GetPalette(a0: i32) {
 
 fn GetDefaultPalette(a0: i32) {
     asm!("CALL GetDefaultPalette")
-}
-
-fn GraphResult() -> i32 {
-    asm!("CALL GraphResult")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
 }
 
 fn GraphErrorMsg(a0: i32) -> i32 {
@@ -7120,6 +7272,24 @@ fn ui_put_image(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
+}
+
+fn ui_get_pixel(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_get_pixel")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_screenshot(a0: i32) -> i32 {
+    asm!("CALL ui_screenshot")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_put_qb_bitmap(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_put_qb_bitmap")
 }
 
 fn ui_text(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {

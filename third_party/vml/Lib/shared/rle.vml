@@ -168,7 +168,9 @@ sta_30030010:
         move [@R12+20] @R0
         move @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 [@R12-20]
+        pop @R7
         moveb [@R7] @R0
 ; 15:         *dst++ = current;
         move @R0 [@R12+20]
@@ -177,8 +179,10 @@ sta_30030010:
         move [@R12+20] @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         moveb @R0 [@R12-13]
         sextb @R0 @R0
+        pop @R6
         moveb [@R6] @R0
 ; 16:         i += count;
         move @R0 [@R12-12]
@@ -197,7 +201,9 @@ sta_30030006:
         move [@R12+20] @R0
         move @R0 @R1
         move @R5 @R0
+        push @R5
         move @R0 #0
+        pop @R5
         moveb [@R5] @R0
 ; 19:     return (int)(dst - start);
         move @R0 [@R12+20]
@@ -293,8 +299,10 @@ _L30030031:
         move [@R12+16] @R0
         move @R0 @R1
         move @R4 @R0
+        push @R4
         moveb @R0 [@R12-13]
         sextb @R0 @R0
+        pop @R4
         moveb [@R4] @R0
 sta_30030028:
         move @R0 [@R12-20]

@@ -62,6 +62,7 @@ _L32520008:
 ; 22:         *row_ptr = *row_ptr + 1;
         move @R0 [@R12-12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -70,11 +71,14 @@ _L32520008:
         pop @R1
         add @R1 @R0
         move @R0 @R1
+        pop @R11
         moveb [@R11] @R0
 ; 23:         *col_ptr = 0;
         move @R0 [@R12-16]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         moveb [@R10] @R0
 ; 24:         return;
         jmp L_32520004
@@ -200,7 +204,9 @@ sta_32520023:
 ; 43:     *vga = (char)c;
         move @R0 [@R12-32]
         move @R9 @R0
+        push @R9
         move @R0 [@R12+12]
+        pop @R9
         moveb [@R9] @R0
 ; 44:     vga = vga + 1;
         move @R0 [@R12-32]
@@ -213,8 +219,10 @@ sta_32520023:
 ; 45:     *vga = attr;
         move @R0 [@R12-32]
         move @R8 @R0
+        push @R8
         moveb @R0 [@R12-23]
         sextb @R0 @R0
+        pop @R8
         moveb [@R8] @R0
 ; 48:     col = col + 1;
         moveb @R0 [@R12-22]
@@ -255,16 +263,20 @@ _L32520029:
 ; 52:         *row_ptr = row;
         move @R0 [@R12-12]
         move @R7 @R0
+        push @R7
         moveb @R0 [@R12-21]
         sextb @R0 @R0
+        pop @R7
         moveb [@R7] @R0
 sta_32520026:
 sta_32520027:
 ; 54:     *col_ptr = col;
         move @R0 [@R12-16]
         move @R6 @R0
+        push @R6
         moveb @R0 [@R12-22]
         sextb @R0 @R0
+        pop @R6
         moveb [@R6] @R0
 L_32520004:
         move @R13 @R12
@@ -314,6 +326,7 @@ sta_32520031:
 ; 64:     *row_ptr = *row_ptr + 1;
         move @R0 [@R12-12]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -322,11 +335,14 @@ sta_32520031:
         pop @R1
         add @R1 @R0
         move @R0 @R1
+        pop @R5
         moveb [@R5] @R0
 ; 65:     *col_ptr = 0;
         move @R0 [@R12-16]
         move @R4 @R0
+        push @R4
         move @R0 #0
+        pop @R4
         moveb [@R4] @R0
 L_32520034:
         move @R13 @R12

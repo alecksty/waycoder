@@ -3103,7 +3103,9 @@ _L20990401:
 ; 150:         { *bom_len = 3; return 0; }
         move @R0 [@R12+20]
         move @R9 @R0
+        push @R9
         move @R0 #3
+        pop @R9
         move [@R9] @R0
         move @R0 #0
         jmp L_20990414
@@ -3190,7 +3192,9 @@ _L20990418:
 ; 152:         { *bom_len = 2; return 1; }
         move @R0 [@R12+20]
         move @R11 @R0
+        push @R11
         move @R0 #2
+        pop @R11
         move [@R11] @R0
         move @R0 #1
         jmp L_20990414
@@ -3277,7 +3281,9 @@ _L20990430:
 ; 154:         { *bom_len = 2; return 2; }
         move @R0 [@R12+20]
         move @R1 @R0
+        push @R1
         move @R0 #2
+        pop @R1
         move [@R1] @R0
         move @R0 #2
         jmp L_20990414
@@ -3286,7 +3292,9 @@ sta_20990428:
 ; 155:     *bom_len = 0;
         move @R0 [@R12+20]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         move [@R8] @R0
 ; 156:     return -1;
         move @R0 #1

@@ -2524,6 +2524,7 @@ _L3930284:
         move [@R12-16] @R0
         move @R0 @R1
         move @R5 @R0
+        push @R5
         move @R0 @R12
         sub @R0 #36
         push @R0
@@ -2541,6 +2542,7 @@ _L3930284:
         add @R0 @R4
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R5
         moveb [@R5] @R0
         jmp sta_3930281
 sta_3930282:
@@ -2589,7 +2591,9 @@ _L3930288:
         move [@R12-16] @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
+        pop @R11
         moveb [@R11] @R0
 sta_3930285:
 sta_3930286:
@@ -2604,7 +2608,9 @@ sta_3930264:
 ; 182:     *p = 0;
         move @R0 [@R12-16]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         moveb [@R6] @R0
 L_3930261:
         move @R13 @R12

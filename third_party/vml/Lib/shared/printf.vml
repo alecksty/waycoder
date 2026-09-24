@@ -1061,6 +1061,7 @@ _L35270096:
 ; 111:         *lo = (unsigned int)(abs & 0xFFFFFFFF);
         move @R0 [@R12+20]
         move @R3 @R0
+        push @R3
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #-1
@@ -1068,10 +1069,12 @@ _L35270096:
         andl @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
+        pop @R3
         move [@R3] @R0
 ; 112:         *hi = (unsigned int)(abs >> 32);
         move @R0 [@R12+24]
         move @R2 @R0
+        push @R2
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #32
@@ -1079,6 +1082,7 @@ _L35270096:
         shrul @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
+        pop @R2
         move [@R2] @R0
 ; 113:         return 1;
         move @R0 #1
@@ -1088,6 +1092,7 @@ sta_35270094:
 ; 115:     *lo = (unsigned int)((unsigned long long)v & 0xFFFFFFFF);
         move @R0 [@R12+20]
         move @R1 @R0
+        push @R1
         movel @R0 [@R12+12]
         pushl @R0
         move @R0 #-1
@@ -1095,10 +1100,12 @@ sta_35270094:
         andl @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
+        pop @R1
         move [@R1] @R0
 ; 116:     *hi = (unsigned int)((unsigned long long)v >> 32);
         move @R0 [@R12+24]
         move @R10 @R0
+        push @R10
         movel @R0 [@R12+12]
         pushl @R0
         move @R0 #32
@@ -1106,6 +1113,7 @@ sta_35270094:
         shrul @R1 @R0
         movel @R0 @R1
         l2i @R0 @R0
+        pop @R10
         move [@R10] @R0
 ; 117:     return 0;
         move @R0 #0

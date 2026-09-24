@@ -1130,12 +1130,14 @@ sta_9530125:
         move [@R12-40] @R0
         move @R0 [@R12-40]
         move @R10 @R0
+        push @R10
         move @R0 [@R12-28]
         push @R0
         move @R0 [@R12-24]
         pop @R1
         mul @R1 @R0
         move @R0 @R1
+        pop @R10
         move [@R10] @R0
         move @R0 [@R12-16]
         move @R1 @R0
@@ -1432,7 +1434,9 @@ sta_9530191:
         move [@R12-40] @R0
         move @R0 [@R12-40]
         move @R8 @R0
+        push @R8
         move @R0 [@R12-24]
+        pop @R8
         move [@R8] @R0
         move @R0 [@R12-16]
         move @R1 @R0
@@ -1606,9 +1610,11 @@ _L9530230:
 ; 111:                     { *dst = *s; dst++; s++; n++; }
         move @R0 [@R12-36]
         move @R6 @R0
+        push @R6
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R6
         moveb [@R6] @R0
         move @R0 [@R12-36]
         move @R1 @R0
@@ -1630,7 +1636,9 @@ sta_9530228:
 ; 112:                 *dst = 0;
         move @R0 [@R12-36]
         move @R5 @R0
+        push @R5
         move @R0 #0
+        pop @R5
         moveb [@R5] @R0
 ; 113:                 count++; arg_idx++;
         move @R0 [@R12-16]
@@ -1657,9 +1665,11 @@ sta_9530106:
 ; 117:                 *dst = *s; dst++; *dst = 0; s++;
         move @R0 [@R12-36]
         move @R3 @R0
+        push @R3
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R3
         moveb [@R3] @R0
         move @R0 [@R12-36]
         move @R1 @R0
@@ -1668,7 +1678,9 @@ sta_9530106:
         move @R0 @R1
         move @R0 [@R12-36]
         move @R2 @R0
+        push @R2
         move @R0 #0
+        pop @R2
         moveb [@R2] @R0
         move @R0 [@R12-8]
         move @R1 @R0

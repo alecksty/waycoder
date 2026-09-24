@@ -4030,7 +4030,9 @@ time:
         jz sta_3860308
         move @R0 [@R12+12]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-8]
+        pop @R5
         move [@R5] @R0
 sta_3860308:
 sta_3860309:

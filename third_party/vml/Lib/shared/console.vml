@@ -517,7 +517,9 @@ sta_3590027:
 ; 150:         *p = (char)c;
         move @R0 [@R12-8]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-12]
+        pop @R11
         moveb [@R11] @R0
 ; 151:         p = p + 1;
         move @R0 [@R12-8]
@@ -533,7 +535,9 @@ sta_3590012:
 ; 153:     *p = 0;
         move @R0 [@R12-8]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         moveb [@R10] @R0
 ; 154:     return s;
         move @R0 [@R12+12]

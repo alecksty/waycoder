@@ -441,9 +441,11 @@ sta_59030041:
         jz sta_59030042
         move @R0 [@R12-8]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R10
         moveb [@R10] @R0
         move @R0 [@R12-8]
         move @R1 @R0
@@ -460,7 +462,9 @@ sta_59030042:
 ; 53:     *p = 0;
         move @R0 [@R12-8]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         moveb [@R9] @R0
 ; 54:     return dst;
         move @R0 [@R12+12]
@@ -511,9 +515,11 @@ sta_59030046:
         jz sta_59030047
         move @R0 [@R12-8]
         move @R8 @R0
+        push @R8
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R8
         moveb [@R8] @R0
         move @R0 [@R12-8]
         move @R1 @R0
@@ -530,7 +536,9 @@ sta_59030047:
 ; 61:     *p = 0;
         move @R0 [@R12-8]
         move @R7 @R0
+        push @R7
         move @R0 #0
+        pop @R7
         moveb [@R7] @R0
 ; 62:     return dst;
         move @R0 [@R12+12]
@@ -1174,15 +1182,19 @@ sta_59030112:
         move [@R12+12] @R0
         move @R0 @R1
         move @R1 @R0
+        push @R1
         moveb @R0 [@R12-5]
         sextb @R0 @R0
+        pop @R1
         moveb [@R1] @R0
         jmp sta_59030109
 sta_59030110:
 ; 124:     *dst = 0;
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 #0
+        pop @R11
         moveb [@R11] @R0
         move @R13 @R12
         pop @R12
@@ -1270,15 +1282,19 @@ sta_59030122:
         move [@R12+12] @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         moveb @R0 [@R12-5]
         sextb @R0 @R0
+        pop @R9
         moveb [@R9] @R0
         jmp sta_59030119
 sta_59030120:
 ; 134:     *dst = 0;
         move @R0 [@R12+12]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         moveb [@R10] @R0
         move @R13 @R12
         pop @R12
@@ -1570,9 +1586,11 @@ sta_59030164:
 ; 162:         *dst = *src;
         move @R0 [@R12+12]
         move @R2 @R0
+        push @R2
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R2
         moveb [@R2] @R0
 ; 163:         if (*src != ' ' && *src != '\t' && *src != '\r' && *src != '\n')
         move @R0 [@R12+16]
@@ -1682,7 +1700,9 @@ sta_59030165:
         add @R1 @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 #0
+        pop @R3
         moveb [@R3] @R0
 ; 168:     return start;
         move @R0 [@R12-8]
@@ -1748,7 +1768,9 @@ _L59030190:
         jz sta_59030187
         move @R0 [@R12+12]
         move @R1 @R0
+        push @R1
         move @R0 #0
+        pop @R1
         moveb [@R1] @R0
         move @R0 [@R12+12]
         jmp L_59030191
@@ -1831,6 +1853,7 @@ _L59030199:
         move [@R12+12] @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1838,13 +1861,16 @@ _L59030199:
         move @R0 @R1
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R11
         moveb [@R11] @R0
         jmp sta_59030196
 sta_59030197:
 ; 180:     *dst = '\0';
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         moveb [@R9] @R0
 ; 181:     return start;
         move @R0 [@R12-12]
@@ -2294,7 +2320,9 @@ _L59030243:
         move [@R12+12] @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+24]
+        pop @R9
         moveb [@R9] @R0
         jmp sta_59030240
 sta_59030241:
@@ -2406,14 +2434,18 @@ _L59030252:
         move [@R12+12] @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 [@R12+24]
+        pop @R10
         moveb [@R10] @R0
         jmp sta_59030249
 sta_59030250:
 ; 242:     *dst = '\0';
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 #0
+        pop @R7
         moveb [@R7] @R0
 ; 243:     return dst - len; // return original start
         move @R0 [@R12+12]

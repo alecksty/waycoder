@@ -318,12 +318,14 @@ sta_3300041:
         move [@R12-8] @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R10
         move [@R10] @R0
         push @R0
         move @R0 #0
@@ -510,12 +512,14 @@ sta_3300063:
         move [@R12-8] @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R3
         move [@R3] @R0
         push @R0
         move @R0 #0
@@ -620,6 +624,7 @@ _L3300073:
         move [@R12-8] @R0
         move @R0 @R1
         move @R1 @R0
+        push @R1
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
@@ -631,13 +636,16 @@ _L3300073:
         pop @R11
         add @R0 @R11
         move @R0 [@R0]
+        pop @R1
         move [@R1] @R0
         jmp sta_3300070
 sta_3300071:
 ; 40:     *p = 0;
         move @R0 [@R12-8]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         move [@R10] @R0
 ; 41:     return dest;
         move @R0 [@R12+12]
@@ -1131,12 +1139,14 @@ sta_3300142:
         move [@R12-8] @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R9
         move [@R9] @R0
         jmp sta_3300142
 sta_3300143:
@@ -1180,7 +1190,9 @@ sta_3300145:
         move [@R12-8] @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+16]
+        pop @R8
         move [@R8] @R0
         jmp sta_3300145
 sta_3300146:
@@ -1238,12 +1250,14 @@ sta_3300152:
         move [@R12-8] @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R6
         move [@R6] @R0
         jmp sta_3300152
 sta_3300153:
@@ -1280,11 +1294,13 @@ sta_3300154:
         sub @R0 @R0 #4
         move [@R12-8] @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+16]
         move @R0 [@R12+16]
         sub @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 [@R0]
+        pop @R7
         move [@R7] @R0
         jmp sta_3300154
 sta_3300155:

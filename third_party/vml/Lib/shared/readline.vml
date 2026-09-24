@@ -80,7 +80,9 @@ _L45660012:
 ; 12:             *buf = 0;
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 #0
+        pop @R11
         moveb [@R11] @R0
 ; 13:             return i;
         move @R0 [@R12-8]
@@ -104,7 +106,9 @@ _L45660016:
 ; 16:                 *buf = 0;
         move @R0 [@R12+12]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         moveb [@R10] @R0
 ; 17:                 return i;
         move @R0 [@R12-8]
@@ -162,7 +166,9 @@ sta_45660017:
 ; 25:                     *buf = (char)c;
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         move @R0 [@R12-12]
+        pop @R9
         moveb [@R9] @R0
 ; 26:                     buf = buf + 1;
         move @R0 [@R12+12]
@@ -188,7 +194,9 @@ sta_45660006:
 ; 32:     *buf = 0;
         move @R0 [@R12+12]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         moveb [@R8] @R0
 ; 33:     return i;
         move @R0 [@R12-8]

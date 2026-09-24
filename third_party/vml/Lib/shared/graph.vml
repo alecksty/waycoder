@@ -183,7 +183,9 @@ DetectGraph:
         jz sta_56300020
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 #9
+        pop @R11
         move [@R11] @R0
 sta_56300020:
 sta_56300021:
@@ -193,7 +195,9 @@ sta_56300021:
         jz sta_56300022
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 #2
+        pop @R10
         move [@R10] @R0
 sta_56300022:
 sta_56300023:

@@ -188,6 +188,7 @@ _L3230017:
         move [@R12+16] @R0
         move @R0 @R1
         move @R2 @R0
+        push @R2
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -205,13 +206,16 @@ _L3230017:
         add @R0 @R10
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R2
         moveb [@R2] @R0
         jmp sta_3230014
 sta_3230015:
 ; 14:     *dst = 0;
         move @R0 [@R12+16]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         moveb [@R9] @R0
 ; 15:     return (int)(dst - start);
         move @R0 [@R12+16]
@@ -688,6 +692,7 @@ _L3230056:
         move [@R12+16] @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 @R12
         sub @R0 #40
         push @R0
@@ -705,13 +710,16 @@ _L3230056:
         add @R0 @R9
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R10
         moveb [@R10] @R0
         jmp sta_3230053
 sta_3230054:
 ; 40:     *dst = 0;
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 #0
+        pop @R7
         moveb [@R7] @R0
 ; 41:     return (int)(dst - start);
         move @R0 [@R12+16]
@@ -1147,7 +1155,9 @@ sta_3230109:
         move [@R12+20] @R0
         move @R0 @R1
         move @R4 @R0
+        push @R4
         move @R0 #45
+        pop @R4
         moveb [@R4] @R0
 sta_3230112:
 sta_3230113:
@@ -1171,7 +1181,9 @@ _L3230117:
         move [@R12+20] @R0
         move @R0 @R1
         move @R5 @R0
+        push @R5
         move @R0 #48
+        pop @R5
         moveb [@R5] @R0
         jmp sta_3230115
 sta_3230114:
@@ -1256,6 +1268,7 @@ _L3230125:
         move [@R12+20] @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 @R12
         sub @R0 #32
         push @R0
@@ -1273,6 +1286,7 @@ _L3230125:
         add @R0 @R7
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R9
         moveb [@R9] @R0
         jmp sta_3230122
 sta_3230123:
@@ -1318,7 +1332,9 @@ _L3230129:
         move [@R12+20] @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 #46
+        pop @R6
         moveb [@R6] @R0
 ; 74:         int i, max_digits = 6;
         move @R0 #6
@@ -1375,6 +1391,7 @@ _L3230138:
         move [@R12+20] @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 #48
         push @R0
         move @R0 [@R12-20]
@@ -1386,6 +1403,7 @@ _L3230138:
         pop @R1
         add @R1 @R0
         move @R0 @R1
+        pop @R11
         moveb [@R11] @R0
 ; 78:             frac_part %= scale;
         move @R0 [@R12-20]
@@ -1408,7 +1426,9 @@ sta_3230127:
 ; 81:     *dst = 0;
         move @R0 [@R12+20]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         moveb [@R8] @R0
 ; 82:     return (int)(dst - start);
         move @R0 [@R12+20]

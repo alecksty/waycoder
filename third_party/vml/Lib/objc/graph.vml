@@ -556,7 +556,8 @@ LABEL objc_InitGraph
     push @R12
     move @R12 @R13
     move @R0 [@R12+20]
-    PUSH @R0
+    sub @R13 #4
+    moveb @13 @R0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -1107,7 +1108,8 @@ LABEL objc_OutText
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    PUSH @R0
+    sub @R13 #4
+    moveb @13 @R0
     move @R0 [@R13+0]
     CALL OutText
     ADD @R13 #4
@@ -1121,7 +1123,8 @@ LABEL objc_OutTextXY
     push @R12
     move @R12 @R13
     move @R0 [@R12+20]
-    PUSH @R0
+    sub @R13 #4
+    moveb @13 @R0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

@@ -143,6 +143,7 @@ sta_42090010:
         move [@R12+20] @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 b64_table
         push @R0
         move @R7 #0
@@ -166,6 +167,7 @@ sta_42090010:
         add @R0 @R6
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R8
         moveb [@R8] @R0
 ; 14:         *dst++ = b64_table[(group >> 12) & 0x3F];
         move @R0 [@R12+20]
@@ -174,6 +176,7 @@ sta_42090010:
         move [@R12+20] @R0
         move @R0 @R1
         move @R5 @R0
+        push @R5
         move @R0 b64_table
         push @R0
         move @R4 #0
@@ -197,6 +200,7 @@ sta_42090010:
         add @R0 @R3
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R5
         moveb [@R5] @R0
 ; 15:         *dst++ = (remaining > 1) ? b64_table[(group >> 6) & 0x3F] : '=';
         move @R0 [@R12+20]
@@ -205,6 +209,7 @@ sta_42090010:
         move [@R12+20] @R0
         move @R0 @R1
         move @R2 @R0
+        push @R2
         move @R0 [@R12-16]
         push @R0
         move @R0 #1
@@ -245,6 +250,7 @@ _L42090014:
 _L42090015:
         move @R0 #61
 _L42090016:
+        pop @R2
         moveb [@R2] @R0
 ; 16:         *dst++ = (remaining > 2) ? b64_table[group & 0x3F] : '=';
         move @R0 [@R12+20]
@@ -253,6 +259,7 @@ _L42090016:
         move [@R12+20] @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 [@R12-16]
         push @R0
         move @R0 #2
@@ -288,6 +295,7 @@ _L42090018:
 _L42090019:
         move @R0 #61
 _L42090020:
+        pop @R10
         moveb [@R10] @R0
 sta_42090001:
         move @R0 [@R12-12]
@@ -303,7 +311,9 @@ sta_42090002:
 ; 18:     *dst = 0;
         move @R0 [@R12+20]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         moveb [@R6] @R0
 ; 19:     return (int)(dst - start);
         move @R0 [@R12+20]
@@ -624,6 +634,7 @@ sta_42090058:
         move [@R12+16] @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12-12]
         push @R0
         move @R0 #2
@@ -640,6 +651,7 @@ sta_42090058:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R3
         moveb [@R3] @R0
 ; 38:         if (src[2] == '=') break;
         move @R0 [@R12+12]
@@ -703,6 +715,7 @@ sta_42090071:
         move [@R12+16] @R0
         move @R0 @R1
         move @R11 @R0
+        push @R11
         move @R0 [@R12-16]
         push @R0
         move @R0 #4
@@ -719,6 +732,7 @@ sta_42090071:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R11
         moveb [@R11] @R0
 ; 42:         if (src[3] == '=') break;
         move @R0 [@R12+12]
@@ -782,6 +796,7 @@ sta_42090079:
         move [@R12+16] @R0
         move @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 [@R12-20]
         push @R0
         move @R0 #6
@@ -793,6 +808,7 @@ sta_42090079:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R7
         moveb [@R7] @R0
 ; 46:         src += 4;
         move @R0 [@R12+12]

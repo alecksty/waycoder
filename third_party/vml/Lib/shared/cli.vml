@@ -645,12 +645,14 @@ sta_85920041:
 ; 42:     *value = sign * result;
         move @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12-8]
         pop @R1
         mul @R1 @R0
         move @R0 @R1
+        pop @R8
         move [@R8] @R0
 ; 43:     return count;
         move @R0 [@R12-16]
@@ -915,6 +917,7 @@ sta_85920129:
         move [@R12-12] @R0
         move @R0 @R1
         move @R7 @R0
+        push @R7
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
@@ -922,13 +925,16 @@ sta_85920129:
         move @R0 @R1
         moveb @R0 [@R0]
         sextb @R0 @R0
+        pop @R7
         moveb [@R7] @R0
         jmp sta_85920129
 sta_85920130:
 ; 68:         *p = 0;
         move @R0 [@R12-12]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         moveb [@R6] @R0
 sta_85920125:
 sta_85920126:
@@ -1064,7 +1070,9 @@ _L85920136:
 ; 75:         *end = 0;
         move @R0 [@R12-16]
         move @R2 @R0
+        push @R2
         move @R0 #0
+        pop @R2
         moveb [@R2] @R0
         jmp sta_85920133
 sta_85920134:
@@ -1282,7 +1290,9 @@ _L85920184:
         jz sta_85920181
         move @R0 [@R12-12]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         moveb [@R10] @R0
         move @R0 [@R12-12]
         move @R1 @R0

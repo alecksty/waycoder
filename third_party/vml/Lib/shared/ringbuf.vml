@@ -363,6 +363,7 @@ sta_90750030:
 ; 38:     *value = buffer[read_idx & (state[1] - 1)];
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
@@ -386,6 +387,7 @@ sta_90750030:
         pop @R1
         add @R0 @R1
         move @R0 [@R0]
+        pop @R3
         move [@R3] @R0
 ; 39:     state[2] = (read_idx + 1) & (state[1] - 1);
         move @R0 [@R12-12]

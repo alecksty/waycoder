@@ -27,7 +27,9 @@ cmd_write:
 ; 18:     *p = val;
         move @R0 [@R12-8]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
+        pop @R11
         move [@R11] @R0
 ; 19:     __cmd_offset += 4;
         move @R0 [__cmd_offset]

@@ -117,6 +117,10 @@
 // CALL _b64_decode_char
 // extern fn base64_decode(const char* src, char* dst) -> int
 // CALL base64_decode
+// extern fn _strbuf_next_slot(void) -> har*
+// CALL _strbuf_next_slot
+// extern fn _strbuf_commit(const char* src) -> har*
+// CALL _strbuf_commit
 // extern fn _hex_str(int val, char* buf) -> oid
 // CALL _hex_str
 // extern fn basic_instr(int start, const char* haystack, const char* needle) -> int
@@ -197,6 +201,116 @@
 // CALL basic_int
 // extern fn basic_point(int x, int y) -> int
 // CALL basic_point
+// extern fn InitGraph(int *driver, int *mode, char *path) -> void
+// CALL InitGraph
+// extern fn initgraph(int *driver, int *mode, char *path) -> void
+// CALL initgraph
+// extern fn InitWindow(int w, int h, char *title) -> void
+// CALL InitWindow
+// extern fn initwindow(int w, int h, char *title) -> void
+// CALL initwindow
+// extern fn SetGraphMode(int mode) -> void
+// CALL SetGraphMode
+// extern fn CloseGraph(void) -> void
+// CALL CloseGraph
+// extern fn ClearDevice(void) -> void
+// CALL ClearDevice
+// extern fn GetMaxX(void) -> int
+// CALL GetMaxX
+// extern fn getmaxx() -> return
+// CALL getmaxx
+// extern fn GetMaxY(void) -> int
+// CALL GetMaxY
+// extern fn getmaxy() -> return
+// CALL getmaxy
+// extern fn GetMaxColor(void) -> int
+// CALL GetMaxColor
+// extern fn getmaxcolor() -> return
+// CALL getmaxcolor
+// extern fn GraphResult(void) -> int
+// CALL GraphResult
+// extern fn graphresult() -> return
+// CALL graphresult
+// extern fn grapherrormsg(code) -> return
+// CALL grapherrormsg
+// extern fn SetColor(int c) -> void
+// CALL SetColor
+// extern fn SetBkColor(int c) -> void
+// CALL SetBkColor
+// extern fn GetColor(void) -> int
+// CALL GetColor
+// extern fn getcolor() -> return
+// CALL getcolor
+// extern fn GetBkColor(void) -> int
+// CALL GetBkColor
+// extern fn getbkcolor() -> return
+// CALL getbkcolor
+// extern fn SetFillStyle(int p, int c) -> void
+// CALL SetFillStyle
+// extern fn SetLineStyle(int s, int p, int t) -> void
+// CALL SetLineStyle
+// extern fn SetTextStyle(int f, int d, int s) -> void
+// CALL SetTextStyle
+// extern fn SetTextJustify(int h, int v) -> void
+// CALL SetTextJustify
+// extern fn Line(int x1, int y1, int x2, int y2) -> void
+// CALL Line
+// extern fn MoveTo(int x, int y) -> void
+// CALL MoveTo
+// extern fn LineTo(int x, int y) -> void
+// CALL LineTo
+// extern fn LineRel(int dx, int dy) -> void
+// CALL LineRel
+// extern fn Rectangle(int l, int t, int r, int b) -> void
+// CALL Rectangle
+// extern fn Bar(int l, int t, int r, int b) -> void
+// CALL Bar
+// extern fn Bar3D(int l, int t, int r, int b, int depth, int topflag) -> void
+// CALL Bar3D
+// extern fn Circle(int x, int y, int r) -> void
+// CALL Circle
+// extern fn FillEllipse(int x, int y, int xr, int yr) -> void
+// CALL FillEllipse
+// extern fn Ellipse(int x, int y, int st, int en, int xr, int yr) -> void
+// CALL Ellipse
+// extern fn DrawPoly(int numpoints, int *polypoints) -> void
+// CALL DrawPoly
+// extern fn FillPoly(int numpoints, int *polypoints) -> void
+// CALL FillPoly
+// extern fn PutPixel(int x, int y, int color) -> void
+// CALL PutPixel
+// extern fn Arc(int x, int y, int st, int en, int r) -> void
+// CALL Arc
+// extern fn PieSlice(int x, int y, int st, int en, int r) -> void
+// CALL PieSlice
+// extern fn Sector(int x, int y, int st, int en, int xr, int yr) -> void
+// CALL Sector
+// extern fn FloodFill(int x, int y, int border) -> void
+// CALL FloodFill
+// extern fn ImageSize(int l, int t, int r, int b) -> int
+// CALL ImageSize
+// extern fn imagesize(l, t, r, b) -> return
+// CALL imagesize
+// extern fn GetImage(int l, int t, int r, int b, void *p) -> void
+// CALL GetImage
+// extern fn PutImage(int l, int t, void *p, int op) -> void
+// CALL PutImage
+// extern fn OutTextXY(int x, int y, char *s) -> void
+// CALL OutTextXY
+// extern fn OutText(char *s) -> void
+// CALL OutText
+// extern fn TextWidth(char *s) -> int
+// CALL TextWidth
+// extern fn textwidth(s) -> return
+// CALL textwidth
+// extern fn TextHeight(char *s) -> int
+// CALL TextHeight
+// extern fn textheight(s) -> return
+// CALL textheight
+// extern fn GetPixel(int x, int y) -> int
+// CALL GetPixel
+// extern fn getpixel(x, y) -> return
+// CALL getpixel
 // extern fn clear(int value, int n) -> int
 // CALL clear
 // extern fn toggle(int value, int n) -> int
@@ -1263,88 +1377,26 @@
 // CALL gfx_get_image
 // extern fn gfx_viewport(int x1, int y1, int x2, int y2) -> int
 // CALL gfx_viewport
-// extern fn InitGraph(int* driver, int* mode, const char* path) -> void
-// CALL InitGraph
-// extern fn CloseGraph(void) -> void
-// CALL CloseGraph
 // extern fn DetectGraph(int* driver, int* mode) -> void
 // CALL DetectGraph
-// extern fn GetMaxX(void) -> int
-// CALL GetMaxX
-// extern fn GetMaxY(void) -> int
-// CALL GetMaxY
 // extern fn GetDriverName(void) -> char*
 // CALL GetDriverName
 // extern fn GetModeName(int mode) -> char*
 // CALL GetModeName
-// extern fn SetColor(int color) -> void
-// CALL SetColor
-// extern fn GetColor(void) -> int
-// CALL GetColor
-// extern fn SetBkColor(int color) -> void
-// CALL SetBkColor
-// extern fn GetBkColor(void) -> int
-// CALL GetBkColor
 // extern fn SetRGBPalette(int index, int r, int g, int b) -> void
 // CALL SetRGBPalette
-// extern fn PutPixel(int x, int y, int color) -> void
-// CALL PutPixel
-// extern fn GetPixel(int x, int y) -> int
-// CALL GetPixel
-// extern fn Line(int x1, int y1, int x2, int y2) -> void
-// CALL Line
-// extern fn LineTo(int x, int y) -> void
-// CALL LineTo
-// extern fn LineRel(int dx, int dy) -> void
-// CALL LineRel
-// extern fn Rectangle(int x1, int y1, int x2, int y2) -> void
-// CALL Rectangle
-// extern fn Bar(int x1, int y1, int x2, int y2) -> void
-// CALL Bar
-// extern fn Bar3D(int x1, int y1, int x2, int y2, int depth, int top) -> void
-// CALL Bar3D
-// extern fn Circle(int x, int y, int r) -> void
-// CALL Circle
 // extern fn FillCircle(int x, int y, int r) -> void
 // CALL FillCircle
-// extern fn Ellipse(int x, int y, int sa, int ea, int rx, int ry) -> void
-// CALL Ellipse
-// extern fn FillEllipse(int x, int y, int rx, int ry) -> void
-// CALL FillEllipse
-// extern fn Arc(int x, int y, int sa, int ea, int r) -> void
-// CALL Arc
-// extern fn PieSlice(int x, int y, int sa, int ea, int r) -> void
-// CALL PieSlice
-// extern fn SetFillStyle(int pattern, int color) -> void
-// CALL SetFillStyle
-// extern fn SetLineStyle(int style, int pattern, int thickness) -> void
-// CALL SetLineStyle
-// extern fn ClearDevice(void) -> void
-// CALL ClearDevice
 // extern fn ClearViewPort(void) -> void
 // CALL ClearViewPort
 // extern fn SetViewPort(int x1, int y1, int x2, int y2, int clip) -> void
 // CALL SetViewPort
-// extern fn OutText(const char* text) -> void
-// CALL OutText
-// extern fn OutTextXY(int x, int y, const char* text) -> void
-// CALL OutTextXY
-// extern fn FloodFill(int x, int y, int border) -> void
-// CALL FloodFill
-// extern fn ImageSize(int x1, int y1, int x2, int y2) -> unsigned int
-// CALL ImageSize
-// extern fn GetImage(int x1, int y1, int x2, int y2, void* bitmap) -> void
-// CALL GetImage
-// extern fn PutImage(int x, int y, void* bitmap, int op) -> void
-// CALL PutImage
 // extern fn GetPaletteSize(void) -> int
 // CALL GetPaletteSize
 // extern fn GetPalette(void* palette) -> void
 // CALL GetPalette
 // extern fn GetDefaultPalette(void* palette) -> void
 // CALL GetDefaultPalette
-// extern fn GraphResult(void) -> int
-// CALL GraphResult
 // extern fn GraphErrorMsg(int code) -> char*
 // CALL GraphErrorMsg
 // extern fn RestoreCrtMode(void) -> void
@@ -2281,6 +2333,12 @@
 // CALL ui_get_image
 // extern fn ui_put_image(int x, int y, int handle, int mode) -> int
 // CALL ui_put_image
+// extern fn ui_get_pixel(int x, int y) -> int
+// CALL ui_get_pixel
+// extern fn ui_screenshot(char* path) -> int
+// CALL ui_screenshot
+// extern fn ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action) -> void
+// CALL ui_put_qb_bitmap
 // extern fn ui_text(int x, int y, char* s, int color, int size, int anchor) -> void
 // CALL ui_text
 // extern fn ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) -> void

@@ -59,6 +59,8 @@ namespace VML {
     // extern int base64_encode(const char* data, int len, char* dst);  // CALL base64_encode
     // extern nt _b64_decode_char(char c);  // CALL _b64_decode_char
     // extern int base64_decode(const char* src, char* dst);  // CALL base64_decode
+    // extern har* _strbuf_next_slot(void);  // CALL _strbuf_next_slot
+    // extern har* _strbuf_commit(const char* src);  // CALL _strbuf_commit
     // extern oid _hex_str(int val, char* buf);  // CALL _hex_str
     // extern int basic_instr(int start, const char* haystack, const char* needle);  // CALL basic_instr
     // extern char* basic_stringN(int n, int ch);  // CALL basic_stringN
@@ -99,6 +101,61 @@ namespace VML {
     // extern int basic_atn(int x);  // CALL basic_atn
     // extern int basic_int(int x);  // CALL basic_int
     // extern int basic_point(int x, int y);  // CALL basic_point
+    // extern void InitGraph(int *driver, int *mode, char *path);  // CALL InitGraph
+    // extern void initgraph(int *driver, int *mode, char *path);  // CALL initgraph
+    // extern void InitWindow(int w, int h, char *title);  // CALL InitWindow
+    // extern void initwindow(int w, int h, char *title);  // CALL initwindow
+    // extern void SetGraphMode(int mode);  // CALL SetGraphMode
+    // extern void CloseGraph(void);  // CALL CloseGraph
+    // extern void ClearDevice(void);  // CALL ClearDevice
+    // extern int GetMaxX(void);  // CALL GetMaxX
+    // extern return getmaxx();  // CALL getmaxx
+    // extern int GetMaxY(void);  // CALL GetMaxY
+    // extern return getmaxy();  // CALL getmaxy
+    // extern int GetMaxColor(void);  // CALL GetMaxColor
+    // extern return getmaxcolor();  // CALL getmaxcolor
+    // extern int GraphResult(void);  // CALL GraphResult
+    // extern return graphresult();  // CALL graphresult
+    // extern return grapherrormsg(code);  // CALL grapherrormsg
+    // extern void SetColor(int c);  // CALL SetColor
+    // extern void SetBkColor(int c);  // CALL SetBkColor
+    // extern int GetColor(void);  // CALL GetColor
+    // extern return getcolor();  // CALL getcolor
+    // extern int GetBkColor(void);  // CALL GetBkColor
+    // extern return getbkcolor();  // CALL getbkcolor
+    // extern void SetFillStyle(int p, int c);  // CALL SetFillStyle
+    // extern void SetLineStyle(int s, int p, int t);  // CALL SetLineStyle
+    // extern void SetTextStyle(int f, int d, int s);  // CALL SetTextStyle
+    // extern void SetTextJustify(int h, int v);  // CALL SetTextJustify
+    // extern void Line(int x1, int y1, int x2, int y2);  // CALL Line
+    // extern void MoveTo(int x, int y);  // CALL MoveTo
+    // extern void LineTo(int x, int y);  // CALL LineTo
+    // extern void LineRel(int dx, int dy);  // CALL LineRel
+    // extern void Rectangle(int l, int t, int r, int b);  // CALL Rectangle
+    // extern void Bar(int l, int t, int r, int b);  // CALL Bar
+    // extern void Bar3D(int l, int t, int r, int b, int depth, int topflag);  // CALL Bar3D
+    // extern void Circle(int x, int y, int r);  // CALL Circle
+    // extern void FillEllipse(int x, int y, int xr, int yr);  // CALL FillEllipse
+    // extern void Ellipse(int x, int y, int st, int en, int xr, int yr);  // CALL Ellipse
+    // extern void DrawPoly(int numpoints, int *polypoints);  // CALL DrawPoly
+    // extern void FillPoly(int numpoints, int *polypoints);  // CALL FillPoly
+    // extern void PutPixel(int x, int y, int color);  // CALL PutPixel
+    // extern void Arc(int x, int y, int st, int en, int r);  // CALL Arc
+    // extern void PieSlice(int x, int y, int st, int en, int r);  // CALL PieSlice
+    // extern void Sector(int x, int y, int st, int en, int xr, int yr);  // CALL Sector
+    // extern void FloodFill(int x, int y, int border);  // CALL FloodFill
+    // extern int ImageSize(int l, int t, int r, int b);  // CALL ImageSize
+    // extern return imagesize(l, t, r, b);  // CALL imagesize
+    // extern void GetImage(int l, int t, int r, int b, void *p);  // CALL GetImage
+    // extern void PutImage(int l, int t, void *p, int op);  // CALL PutImage
+    // extern void OutTextXY(int x, int y, char *s);  // CALL OutTextXY
+    // extern void OutText(char *s);  // CALL OutText
+    // extern int TextWidth(char *s);  // CALL TextWidth
+    // extern return textwidth(s);  // CALL textwidth
+    // extern int TextHeight(char *s);  // CALL TextHeight
+    // extern return textheight(s);  // CALL textheight
+    // extern int GetPixel(int x, int y);  // CALL GetPixel
+    // extern return getpixel(x, y);  // CALL getpixel
     // extern int clear(int value, int n);  // CALL clear
     // extern int toggle(int value, int n);  // CALL toggle
     // extern int test(int value, int n);  // CALL test
@@ -632,47 +689,16 @@ namespace VML {
     // extern int gfx_put_image(int x, int y, int w, int h, const void* data);  // CALL gfx_put_image
     // extern int gfx_get_image(int x, int y, int w, int h, void* buffer);  // CALL gfx_get_image
     // extern int gfx_viewport(int x1, int y1, int x2, int y2);  // CALL gfx_viewport
-    // extern void InitGraph(int* driver, int* mode, const char* path);  // CALL InitGraph
-    // extern void CloseGraph(void);  // CALL CloseGraph
     // extern void DetectGraph(int* driver, int* mode);  // CALL DetectGraph
-    // extern int GetMaxX(void);  // CALL GetMaxX
-    // extern int GetMaxY(void);  // CALL GetMaxY
     // extern char* GetDriverName(void);  // CALL GetDriverName
     // extern char* GetModeName(int mode);  // CALL GetModeName
-    // extern void SetColor(int color);  // CALL SetColor
-    // extern int GetColor(void);  // CALL GetColor
-    // extern void SetBkColor(int color);  // CALL SetBkColor
-    // extern int GetBkColor(void);  // CALL GetBkColor
     // extern void SetRGBPalette(int index, int r, int g, int b);  // CALL SetRGBPalette
-    // extern void PutPixel(int x, int y, int color);  // CALL PutPixel
-    // extern int GetPixel(int x, int y);  // CALL GetPixel
-    // extern void Line(int x1, int y1, int x2, int y2);  // CALL Line
-    // extern void LineTo(int x, int y);  // CALL LineTo
-    // extern void LineRel(int dx, int dy);  // CALL LineRel
-    // extern void Rectangle(int x1, int y1, int x2, int y2);  // CALL Rectangle
-    // extern void Bar(int x1, int y1, int x2, int y2);  // CALL Bar
-    // extern void Bar3D(int x1, int y1, int x2, int y2, int depth, int top);  // CALL Bar3D
-    // extern void Circle(int x, int y, int r);  // CALL Circle
     // extern void FillCircle(int x, int y, int r);  // CALL FillCircle
-    // extern void Ellipse(int x, int y, int sa, int ea, int rx, int ry);  // CALL Ellipse
-    // extern void FillEllipse(int x, int y, int rx, int ry);  // CALL FillEllipse
-    // extern void Arc(int x, int y, int sa, int ea, int r);  // CALL Arc
-    // extern void PieSlice(int x, int y, int sa, int ea, int r);  // CALL PieSlice
-    // extern void SetFillStyle(int pattern, int color);  // CALL SetFillStyle
-    // extern void SetLineStyle(int style, int pattern, int thickness);  // CALL SetLineStyle
-    // extern void ClearDevice(void);  // CALL ClearDevice
     // extern void ClearViewPort(void);  // CALL ClearViewPort
     // extern void SetViewPort(int x1, int y1, int x2, int y2, int clip);  // CALL SetViewPort
-    // extern void OutText(const char* text);  // CALL OutText
-    // extern void OutTextXY(int x, int y, const char* text);  // CALL OutTextXY
-    // extern void FloodFill(int x, int y, int border);  // CALL FloodFill
-    // extern unsigned int ImageSize(int x1, int y1, int x2, int y2);  // CALL ImageSize
-    // extern void GetImage(int x1, int y1, int x2, int y2, void* bitmap);  // CALL GetImage
-    // extern void PutImage(int x, int y, void* bitmap, int op);  // CALL PutImage
     // extern int GetPaletteSize(void);  // CALL GetPaletteSize
     // extern void GetPalette(void* palette);  // CALL GetPalette
     // extern void GetDefaultPalette(void* palette);  // CALL GetDefaultPalette
-    // extern int GraphResult(void);  // CALL GraphResult
     // extern char* GraphErrorMsg(int code);  // CALL GraphErrorMsg
     // extern void RestoreCrtMode(void);  // CALL RestoreCrtMode
     // extern oid _gfx_refresh_cache(void);  // CALL _gfx_refresh_cache
@@ -1141,6 +1167,9 @@ namespace VML {
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
     // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image
+    // extern int ui_get_pixel(int x, int y);  // CALL ui_get_pixel
+    // extern int ui_screenshot(char* path);  // CALL ui_screenshot
+    // extern void ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action);  // CALL ui_put_qb_bitmap
     // extern void ui_text(int x, int y, char* s, int color, int size, int anchor);  // CALL ui_text
     // extern void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);  // CALL ui_text_styled
     // extern void ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style);  // CALL ui_text_v

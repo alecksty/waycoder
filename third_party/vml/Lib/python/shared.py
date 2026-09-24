@@ -361,6 +361,17 @@ def base64_decode(a0, a1):
     asm("CALL base64_decode")
     return r0
 
+def _strbuf_next_slot():
+    r0 = asm("@R0")
+    asm("CALL _strbuf_next_slot")
+    return r0
+
+def _strbuf_commit(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _strbuf_commit")
+    return r0
+
 def _hex_str(a0, a1):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a1
@@ -608,6 +619,331 @@ def basic_point(a0, a1):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL basic_point")
+    return r0
+
+def InitGraph(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL InitGraph")
+
+def initgraph(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL initgraph")
+
+def InitWindow(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL InitWindow")
+
+def initwindow(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL initwindow")
+
+def SetGraphMode(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetGraphMode")
+
+def CloseGraph():
+    asm("CALL CloseGraph")
+
+def ClearDevice():
+    asm("CALL ClearDevice")
+
+def GetMaxX():
+    r0 = asm("@R0")
+    asm("CALL GetMaxX")
+    return r0
+
+def getmaxx():
+    r0 = asm("@R0")
+    asm("CALL getmaxx")
+    return r0
+
+def GetMaxY():
+    r0 = asm("@R0")
+    asm("CALL GetMaxY")
+    return r0
+
+def getmaxy():
+    r0 = asm("@R0")
+    asm("CALL getmaxy")
+    return r0
+
+def GetMaxColor():
+    r0 = asm("@R0")
+    asm("CALL GetMaxColor")
+    return r0
+
+def getmaxcolor():
+    r0 = asm("@R0")
+    asm("CALL getmaxcolor")
+    return r0
+
+def GraphResult():
+    r0 = asm("@R0")
+    asm("CALL GraphResult")
+    return r0
+
+def graphresult():
+    r0 = asm("@R0")
+    asm("CALL graphresult")
+    return r0
+
+def grapherrormsg(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL grapherrormsg")
+    return r0
+
+def SetColor(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetColor")
+
+def SetBkColor(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetBkColor")
+
+def GetColor():
+    r0 = asm("@R0")
+    asm("CALL GetColor")
+    return r0
+
+def getcolor():
+    r0 = asm("@R0")
+    asm("CALL getcolor")
+    return r0
+
+def GetBkColor():
+    r0 = asm("@R0")
+    asm("CALL GetBkColor")
+    return r0
+
+def getbkcolor():
+    r0 = asm("@R0")
+    asm("CALL getbkcolor")
+    return r0
+
+def SetFillStyle(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetFillStyle")
+
+def SetLineStyle(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetLineStyle")
+
+def SetTextStyle(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetTextStyle")
+
+def SetTextJustify(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL SetTextJustify")
+
+def Line(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Line")
+
+def MoveTo(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL MoveTo")
+
+def LineTo(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL LineTo")
+
+def LineRel(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL LineRel")
+
+def Rectangle(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Rectangle")
+
+def Bar(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Bar")
+
+def Bar3D(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Bar3D")
+
+def Circle(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Circle")
+
+def FillEllipse(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL FillEllipse")
+
+def Ellipse(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Ellipse")
+
+def DrawPoly(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL DrawPoly")
+
+def FillPoly(a0, a1):
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL FillPoly")
+
+def PutPixel(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL PutPixel")
+
+def Arc(a0, a1, a2, a3, a4):
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Arc")
+
+def PieSlice(a0, a1, a2, a3, a4):
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL PieSlice")
+
+def Sector(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL Sector")
+
+def FloodFill(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL FloodFill")
+
+def ImageSize(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ImageSize")
+    return r0
+
+def imagesize(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL imagesize")
+    return r0
+
+def GetImage(a0, a1, a2, a3, a4):
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL GetImage")
+
+def PutImage(a0, a1, a2, a3):
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL PutImage")
+
+def OutTextXY(a0, a1, a2):
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL OutTextXY")
+
+def OutText(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL OutText")
+
+def TextWidth(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL TextWidth")
+    return r0
+
+def textwidth(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL textwidth")
+    return r0
+
+def TextHeight(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL TextHeight")
+    return r0
+
+def textheight(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL textheight")
+    return r0
+
+def GetPixel(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL GetPixel")
+    return r0
+
+def getpixel(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL getpixel")
     return r0
 
 def clear(a0, a1):
@@ -3841,29 +4177,10 @@ def gfx_viewport(a0, a1, a2, a3):
     asm("CALL gfx_viewport")
     return r0
 
-def InitGraph(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL InitGraph")
-
-def CloseGraph():
-    asm("CALL CloseGraph")
-
 def DetectGraph(a0, a1):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL DetectGraph")
-
-def GetMaxX():
-    r0 = asm("@R0")
-    asm("CALL GetMaxX")
-    return r0
-
-def GetMaxY():
-    r0 = asm("@R0")
-    asm("CALL GetMaxY")
-    return r0
 
 def GetDriverName():
     r0 = asm("@R0")
@@ -3876,24 +4193,6 @@ def GetModeName(a0):
     asm("CALL GetModeName")
     return r0
 
-def SetColor(a0):
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL SetColor")
-
-def GetColor():
-    r0 = asm("@R0")
-    asm("CALL GetColor")
-    return r0
-
-def SetBkColor(a0):
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL SetBkColor")
-
-def GetBkColor():
-    r0 = asm("@R0")
-    asm("CALL GetBkColor")
-    return r0
-
 def SetRGBPalette(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a3
     asm(f"PUSH @R0")  # push a2
@@ -3901,116 +4200,11 @@ def SetRGBPalette(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a0
     asm("CALL SetRGBPalette")
 
-def PutPixel(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL PutPixel")
-
-def GetPixel(a0, a1):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL GetPixel")
-    return r0
-
-def Line(a0, a1, a2, a3):
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Line")
-
-def LineTo(a0, a1):
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL LineTo")
-
-def LineRel(a0, a1):
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL LineRel")
-
-def Rectangle(a0, a1, a2, a3):
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Rectangle")
-
-def Bar(a0, a1, a2, a3):
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Bar")
-
-def Bar3D(a0, a1, a2, a3, a4, a5):
-    asm(f"PUSH @R0")  # push a5
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Bar3D")
-
-def Circle(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Circle")
-
 def FillCircle(a0, a1, a2):
     asm(f"PUSH @R0")  # push a2
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL FillCircle")
-
-def Ellipse(a0, a1, a2, a3, a4, a5):
-    asm(f"PUSH @R0")  # push a5
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Ellipse")
-
-def FillEllipse(a0, a1, a2, a3):
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL FillEllipse")
-
-def Arc(a0, a1, a2, a3, a4):
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL Arc")
-
-def PieSlice(a0, a1, a2, a3, a4):
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL PieSlice")
-
-def SetFillStyle(a0, a1):
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL SetFillStyle")
-
-def SetLineStyle(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL SetLineStyle")
-
-def ClearDevice():
-    asm("CALL ClearDevice")
 
 def ClearViewPort():
     asm("CALL ClearViewPort")
@@ -4022,46 +4216,6 @@ def SetViewPort(a0, a1, a2, a3, a4):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL SetViewPort")
-
-def OutText(a0):
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL OutText")
-
-def OutTextXY(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL OutTextXY")
-
-def FloodFill(a0, a1, a2):
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL FloodFill")
-
-def ImageSize(a0, a1, a2, a3):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL ImageSize")
-    return r0
-
-def GetImage(a0, a1, a2, a3, a4):
-    asm(f"PUSH @R0")  # push a4
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL GetImage")
-
-def PutImage(a0, a1, a2, a3):
-    asm(f"PUSH @R0")  # push a3
-    asm(f"PUSH @R0")  # push a2
-    asm(f"PUSH @R0")  # push a1
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL PutImage")
 
 def GetPaletteSize():
     r0 = asm("@R0")
@@ -4075,11 +4229,6 @@ def GetPalette(a0):
 def GetDefaultPalette(a0):
     asm(f"PUSH @R0")  # push a0
     asm("CALL GetDefaultPalette")
-
-def GraphResult():
-    r0 = asm("@R0")
-    asm("CALL GraphResult")
-    return r0
 
 def GraphErrorMsg(a0):
     r0 = asm("@R0")
@@ -7051,6 +7200,28 @@ def ui_put_image(a0, a1, a2, a3):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_put_image")
     return r0
+
+def ui_get_pixel(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_get_pixel")
+    return r0
+
+def ui_screenshot(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_screenshot")
+    return r0
+
+def ui_put_qb_bitmap(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_put_qb_bitmap")
 
 def ui_text(a0, a1, a2, a3, a4, a5):
     asm(f"PUSH @R0")  # push a5

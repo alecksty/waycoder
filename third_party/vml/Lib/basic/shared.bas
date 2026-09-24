@@ -272,6 +272,16 @@ DECLARE FUNCTION base64_decode(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     base64_decode = 0
 END FUNCTION
 
+DECLARE FUNCTION _strbuf_next_slot() AS INTEGER
+    asm("CALL _strbuf_next_slot")
+    _strbuf_next_slot = 0
+END FUNCTION
+
+DECLARE FUNCTION _strbuf_commit(a0 AS INTEGER) AS INTEGER
+    asm("CALL _strbuf_commit")
+    _strbuf_commit = 0
+END FUNCTION
+
 DECLARE FUNCTION _hex_str(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL _hex_str")
     _hex_str = 0
@@ -470,6 +480,247 @@ END FUNCTION
 DECLARE FUNCTION basic_point(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL basic_point")
     basic_point = 0
+END FUNCTION
+
+DECLARE SUB InitGraph(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL InitGraph")
+END SUB
+
+DECLARE SUB initgraph(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL initgraph")
+END SUB
+
+DECLARE SUB InitWindow(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL InitWindow")
+END SUB
+
+DECLARE SUB initwindow(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL initwindow")
+END SUB
+
+DECLARE SUB SetGraphMode(a0 AS INTEGER)
+    asm("CALL SetGraphMode")
+END SUB
+
+DECLARE SUB CloseGraph()
+    asm("CALL CloseGraph")
+END SUB
+
+DECLARE SUB ClearDevice()
+    asm("CALL ClearDevice")
+END SUB
+
+DECLARE FUNCTION GetMaxX() AS INTEGER
+    asm("CALL GetMaxX")
+    GetMaxX = 0
+END FUNCTION
+
+DECLARE FUNCTION getmaxx() AS INTEGER
+    asm("CALL getmaxx")
+    getmaxx = 0
+END FUNCTION
+
+DECLARE FUNCTION GetMaxY() AS INTEGER
+    asm("CALL GetMaxY")
+    GetMaxY = 0
+END FUNCTION
+
+DECLARE FUNCTION getmaxy() AS INTEGER
+    asm("CALL getmaxy")
+    getmaxy = 0
+END FUNCTION
+
+DECLARE FUNCTION GetMaxColor() AS INTEGER
+    asm("CALL GetMaxColor")
+    GetMaxColor = 0
+END FUNCTION
+
+DECLARE FUNCTION getmaxcolor() AS INTEGER
+    asm("CALL getmaxcolor")
+    getmaxcolor = 0
+END FUNCTION
+
+DECLARE FUNCTION GraphResult() AS INTEGER
+    asm("CALL GraphResult")
+    GraphResult = 0
+END FUNCTION
+
+DECLARE FUNCTION graphresult() AS INTEGER
+    asm("CALL graphresult")
+    graphresult = 0
+END FUNCTION
+
+DECLARE FUNCTION grapherrormsg(a0 AS INTEGER) AS INTEGER
+    asm("CALL grapherrormsg")
+    grapherrormsg = 0
+END FUNCTION
+
+DECLARE SUB SetColor(a0 AS INTEGER)
+    asm("CALL SetColor")
+END SUB
+
+DECLARE SUB SetBkColor(a0 AS INTEGER)
+    asm("CALL SetBkColor")
+END SUB
+
+DECLARE FUNCTION GetColor() AS INTEGER
+    asm("CALL GetColor")
+    GetColor = 0
+END FUNCTION
+
+DECLARE FUNCTION getcolor() AS INTEGER
+    asm("CALL getcolor")
+    getcolor = 0
+END FUNCTION
+
+DECLARE FUNCTION GetBkColor() AS INTEGER
+    asm("CALL GetBkColor")
+    GetBkColor = 0
+END FUNCTION
+
+DECLARE FUNCTION getbkcolor() AS INTEGER
+    asm("CALL getbkcolor")
+    getbkcolor = 0
+END FUNCTION
+
+DECLARE SUB SetFillStyle(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL SetFillStyle")
+END SUB
+
+DECLARE SUB SetLineStyle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL SetLineStyle")
+END SUB
+
+DECLARE SUB SetTextStyle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL SetTextStyle")
+END SUB
+
+DECLARE SUB SetTextJustify(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL SetTextJustify")
+END SUB
+
+DECLARE SUB Line(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL Line")
+END SUB
+
+DECLARE SUB MoveTo(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL MoveTo")
+END SUB
+
+DECLARE SUB LineTo(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL LineTo")
+END SUB
+
+DECLARE SUB LineRel(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL LineRel")
+END SUB
+
+DECLARE SUB Rectangle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL Rectangle")
+END SUB
+
+DECLARE SUB Bar(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL Bar")
+END SUB
+
+DECLARE SUB Bar3D(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL Bar3D")
+END SUB
+
+DECLARE SUB Circle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL Circle")
+END SUB
+
+DECLARE SUB FillEllipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL FillEllipse")
+END SUB
+
+DECLARE SUB Ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL Ellipse")
+END SUB
+
+DECLARE SUB DrawPoly(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL DrawPoly")
+END SUB
+
+DECLARE SUB FillPoly(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL FillPoly")
+END SUB
+
+DECLARE SUB PutPixel(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL PutPixel")
+END SUB
+
+DECLARE SUB Arc(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL Arc")
+END SUB
+
+DECLARE SUB PieSlice(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL PieSlice")
+END SUB
+
+DECLARE SUB Sector(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL Sector")
+END SUB
+
+DECLARE SUB FloodFill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL FloodFill")
+END SUB
+
+DECLARE FUNCTION ImageSize(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ImageSize")
+    ImageSize = 0
+END FUNCTION
+
+DECLARE FUNCTION imagesize(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL imagesize")
+    imagesize = 0
+END FUNCTION
+
+DECLARE SUB GetImage(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL GetImage")
+END SUB
+
+DECLARE SUB PutImage(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL PutImage")
+END SUB
+
+DECLARE SUB OutTextXY(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL OutTextXY")
+END SUB
+
+DECLARE SUB OutText(a0 AS INTEGER)
+    asm("CALL OutText")
+END SUB
+
+DECLARE FUNCTION TextWidth(a0 AS INTEGER) AS INTEGER
+    asm("CALL TextWidth")
+    TextWidth = 0
+END FUNCTION
+
+DECLARE FUNCTION textwidth(a0 AS INTEGER) AS INTEGER
+    asm("CALL textwidth")
+    textwidth = 0
+END FUNCTION
+
+DECLARE FUNCTION TextHeight(a0 AS INTEGER) AS INTEGER
+    asm("CALL TextHeight")
+    TextHeight = 0
+END FUNCTION
+
+DECLARE FUNCTION textheight(a0 AS INTEGER) AS INTEGER
+    asm("CALL textheight")
+    textheight = 0
+END FUNCTION
+
+DECLARE FUNCTION GetPixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL GetPixel")
+    GetPixel = 0
+END FUNCTION
+
+DECLARE FUNCTION getpixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL getpixel")
+    getpixel = 0
 END FUNCTION
 
 DECLARE FUNCTION clear(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
@@ -3022,27 +3273,9 @@ DECLARE FUNCTION gfx_viewport(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     gfx_viewport = 0
 END FUNCTION
 
-DECLARE SUB InitGraph(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL InitGraph")
-END SUB
-
-DECLARE SUB CloseGraph()
-    asm("CALL CloseGraph")
-END SUB
-
 DECLARE SUB DetectGraph(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL DetectGraph")
 END SUB
-
-DECLARE FUNCTION GetMaxX() AS INTEGER
-    asm("CALL GetMaxX")
-    GetMaxX = 0
-END FUNCTION
-
-DECLARE FUNCTION GetMaxY() AS INTEGER
-    asm("CALL GetMaxY")
-    GetMaxY = 0
-END FUNCTION
 
 DECLARE FUNCTION GetDriverName() AS INTEGER
     asm("CALL GetDriverName")
@@ -3054,95 +3287,12 @@ DECLARE FUNCTION GetModeName(a0 AS INTEGER) AS INTEGER
     GetModeName = 0
 END FUNCTION
 
-DECLARE SUB SetColor(a0 AS INTEGER)
-    asm("CALL SetColor")
-END SUB
-
-DECLARE FUNCTION GetColor() AS INTEGER
-    asm("CALL GetColor")
-    GetColor = 0
-END FUNCTION
-
-DECLARE SUB SetBkColor(a0 AS INTEGER)
-    asm("CALL SetBkColor")
-END SUB
-
-DECLARE FUNCTION GetBkColor() AS INTEGER
-    asm("CALL GetBkColor")
-    GetBkColor = 0
-END FUNCTION
-
 DECLARE SUB SetRGBPalette(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
     asm("CALL SetRGBPalette")
 END SUB
 
-DECLARE SUB PutPixel(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL PutPixel")
-END SUB
-
-DECLARE FUNCTION GetPixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL GetPixel")
-    GetPixel = 0
-END FUNCTION
-
-DECLARE SUB Line(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
-    asm("CALL Line")
-END SUB
-
-DECLARE SUB LineTo(a0 AS INTEGER, a1 AS INTEGER)
-    asm("CALL LineTo")
-END SUB
-
-DECLARE SUB LineRel(a0 AS INTEGER, a1 AS INTEGER)
-    asm("CALL LineRel")
-END SUB
-
-DECLARE SUB Rectangle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
-    asm("CALL Rectangle")
-END SUB
-
-DECLARE SUB Bar(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
-    asm("CALL Bar")
-END SUB
-
-DECLARE SUB Bar3D(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
-    asm("CALL Bar3D")
-END SUB
-
-DECLARE SUB Circle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL Circle")
-END SUB
-
 DECLARE SUB FillCircle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL FillCircle")
-END SUB
-
-DECLARE SUB Ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
-    asm("CALL Ellipse")
-END SUB
-
-DECLARE SUB FillEllipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
-    asm("CALL FillEllipse")
-END SUB
-
-DECLARE SUB Arc(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
-    asm("CALL Arc")
-END SUB
-
-DECLARE SUB PieSlice(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
-    asm("CALL PieSlice")
-END SUB
-
-DECLARE SUB SetFillStyle(a0 AS INTEGER, a1 AS INTEGER)
-    asm("CALL SetFillStyle")
-END SUB
-
-DECLARE SUB SetLineStyle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL SetLineStyle")
-END SUB
-
-DECLARE SUB ClearDevice()
-    asm("CALL ClearDevice")
 END SUB
 
 DECLARE SUB ClearViewPort()
@@ -3151,31 +3301,6 @@ END SUB
 
 DECLARE SUB SetViewPort(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
     asm("CALL SetViewPort")
-END SUB
-
-DECLARE SUB OutText(a0 AS INTEGER)
-    asm("CALL OutText")
-END SUB
-
-DECLARE SUB OutTextXY(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL OutTextXY")
-END SUB
-
-DECLARE SUB FloodFill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
-    asm("CALL FloodFill")
-END SUB
-
-DECLARE FUNCTION ImageSize(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
-    asm("CALL ImageSize")
-    ImageSize = 0
-END FUNCTION
-
-DECLARE SUB GetImage(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
-    asm("CALL GetImage")
-END SUB
-
-DECLARE SUB PutImage(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
-    asm("CALL PutImage")
 END SUB
 
 DECLARE FUNCTION GetPaletteSize() AS INTEGER
@@ -3190,11 +3315,6 @@ END SUB
 DECLARE SUB GetDefaultPalette(a0 AS INTEGER)
     asm("CALL GetDefaultPalette")
 END SUB
-
-DECLARE FUNCTION GraphResult() AS INTEGER
-    asm("CALL GraphResult")
-    GraphResult = 0
-END FUNCTION
 
 DECLARE FUNCTION GraphErrorMsg(a0 AS INTEGER) AS INTEGER
     asm("CALL GraphErrorMsg")
@@ -5415,6 +5535,20 @@ DECLARE FUNCTION ui_put_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     asm("CALL ui_put_image")
     ui_put_image = 0
 END FUNCTION
+
+DECLARE FUNCTION ui_get_pixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_get_pixel")
+    ui_get_pixel = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_screenshot(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_screenshot")
+    ui_screenshot = 0
+END FUNCTION
+
+DECLARE SUB ui_put_qb_bitmap(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_put_qb_bitmap")
+END SUB
 
 DECLARE SUB ui_text(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
     asm("CALL ui_text")

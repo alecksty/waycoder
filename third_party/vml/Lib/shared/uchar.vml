@@ -320,12 +320,14 @@ sta_43310041:
         move [@R12-8] @R0
         move @R0 @R1
         move @R10 @R0
+        push @R10
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R10
         move [@R10] @R0
         push @R0
         move @R0 #0
@@ -514,12 +516,14 @@ sta_43310063:
         move [@R12-8] @R0
         move @R0 @R1
         move @R3 @R0
+        push @R3
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R3
         move [@R3] @R0
         push @R0
         move @R0 #0
@@ -625,6 +629,7 @@ _L43310073:
         move [@R12-8] @R0
         move @R0 @R1
         move @R1 @R0
+        push @R1
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
@@ -636,13 +641,16 @@ _L43310073:
         pop @R11
         add @R0 @R11
         move @R0 [@R0]
+        pop @R1
         move [@R1] @R0
         jmp sta_43310070
 sta_43310071:
 ; 60:     *p = 0;
         move @R0 [@R12-8]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         move [@R10] @R0
 ; 61:     return dest;
         move @R0 [@R12+12]
@@ -1165,12 +1173,14 @@ sta_43310146:
         move [@R12-8] @R0
         move @R0 @R1
         move @R9 @R0
+        push @R9
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R9
         move [@R9] @R0
         jmp sta_43310146
 sta_43310147:
@@ -1215,7 +1225,9 @@ sta_43310149:
         move [@R12-8] @R0
         move @R0 @R1
         move @R8 @R0
+        push @R8
         move @R0 [@R12+16]
+        pop @R8
         move [@R8] @R0
         jmp sta_43310149
 sta_43310150:
@@ -1274,12 +1286,14 @@ sta_43310156:
         move [@R12-8] @R0
         move @R0 @R1
         move @R6 @R0
+        push @R6
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 @R1
         move @R0 [@R0]
+        pop @R6
         move [@R6] @R0
         jmp sta_43310156
 sta_43310157:
@@ -1318,11 +1332,13 @@ sta_43310158:
         sub @R0 @R0 #4
         move [@R12-8] @R0
         move @R7 @R0
+        push @R7
         move @R0 [@R12+16]
         move @R0 [@R12+16]
         sub @R0 @R0 #4
         move [@R12+16] @R0
         move @R0 [@R0]
+        pop @R7
         move [@R7] @R0
         jmp sta_43310158
 sta_43310159:
@@ -1769,7 +1785,9 @@ _L43310188:
 ; 199:         *dest = (char32_t)b0;
         move @R0 [@R12+12]
         move @R5 @R0
+        push @R5
         moveb @R0 [@R12-5]
+        pop @R5
         move [@R5] @R0
 ; 200:         return 1;
         move @R0 #1
@@ -1798,6 +1816,7 @@ _L43310193:
 ; 204:         *dest = (char32_t)(((b0 & 0x1F) << 6) | ((unsigned char)src[1] & 0x3F));
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         moveb @R0 [@R12-5]
         push @R0
         move @R0 #31
@@ -1826,6 +1845,7 @@ _L43310193:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R7
         move [@R7] @R0
 ; 205:         return 2;
         move @R0 #2
@@ -1854,6 +1874,7 @@ _L43310197:
 ; 209:         *dest = (char32_t)(((b0 & 0x0F) << 12) | (((unsigned char)src[1] & 0x3F) << 6) | ((unsigned char)src[2] & 0x3F));
         move @R0 [@R12+12]
         move @R4 @R0
+        push @R4
         moveb @R0 [@R12-5]
         push @R0
         move @R0 #15
@@ -1904,6 +1925,7 @@ _L43310197:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R4
         move [@R4] @R0
 ; 210:         return 3;
         move @R0 #3
@@ -1932,6 +1954,7 @@ _L43310201:
 ; 214:         *dest = (char32_t)(((b0 & 0x07) << 18) | (((unsigned char)src[1] & 0x3F) << 12)
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         moveb @R0 [@R12-5]
         push @R0
         move @R0 #7
@@ -2005,6 +2028,7 @@ _L43310201:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R9
         move [@R9] @R0
 ; 216:         return 4;
         move @R0 #4

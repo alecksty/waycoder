@@ -21,6 +21,7 @@ __vml_double_neg:
 ; 15:     *hi = *hi ^ 0x80000000;
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -28,6 +29,7 @@ __vml_double_neg:
         pop @R1
         xor @R1 @R0
         move @R0 @R1
+        pop @R11
         move [@R11] @R0
         move @R13 @R12
         pop @R12
@@ -49,6 +51,7 @@ __vml_double_abs:
 ; 19:     *hi = *hi & 0x7FFFFFFF;
         move @R0 [@R12+12]
         move @R10 @R0
+        push @R10
         move @R0 [@R12+12]
         move @R0 [@R0]
         push @R0
@@ -56,6 +59,7 @@ __vml_double_abs:
         pop @R1
         and @R1 @R0
         move @R0 @R1
+        pop @R10
         move [@R10] @R0
         move @R13 @R12
         pop @R12
@@ -236,11 +240,15 @@ _L96590024:
         jz sta_96590021
         move @R0 [@R12+16]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         move [@R9] @R0
         move @R0 [@R12+20]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         move [@R8] @R0
         jmp L_96590025
 sta_96590021:
@@ -356,6 +364,7 @@ sta_96590031:
 ; 47:     *hi = (sign << 31) | (exp << 20) | mhi;
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12-8]
         push @R0
         move @R0 #31
@@ -377,11 +386,14 @@ sta_96590031:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R7
         move [@R7] @R0
 ; 48:     *lo = mlo;
         move @R0 [@R12+20]
         move @R6 @R0
+        push @R6
         move @R0 [@R12-32]
+        pop @R6
         move [@R6] @R0
 L_96590025:
         move @R13 @R12
@@ -679,11 +691,15 @@ _L96590058:
         jz sta_96590055
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 #0
+        pop @R5
         move [@R5] @R0
         move @R0 [@R12+20]
         move @R4 @R0
+        push @R4
         move @R0 #0
+        pop @R4
         move [@R4] @R0
         jmp L_96590063
 sta_96590055:
@@ -705,6 +721,7 @@ _L96590067:
 ; 79:         *hi = (sign << 31) | 0x7FF00000 | (mant << 20);
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12-8]
         push @R0
         move @R0 #31
@@ -726,16 +743,19 @@ _L96590067:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R3
         move [@R3] @R0
 ; 80:         *lo = mant << 12;
         move @R0 [@R12+20]
         move @R2 @R0
+        push @R2
         move @R0 [@R12-16]
         push @R0
         move @R0 #12
         pop @R1
         shl @R1 @R0
         move @R0 @R1
+        pop @R2
         move [@R2] @R0
 ; 81:         return;
         jmp L_96590063
@@ -757,6 +777,7 @@ sta_96590065:
 ; 85:     *hi = (sign << 31) | (dexp << 20) | (mant >> 3);
         move @R0 [@R12+16]
         move @R1 @R0
+        push @R1
         move @R0 [@R12-8]
         push @R0
         move @R0 #31
@@ -783,16 +804,19 @@ sta_96590065:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R1
         move [@R1] @R0
 ; 86:     *lo = mant << 29;
         move @R0 [@R12+20]
         move @R11 @R0
+        push @R11
         move @R0 [@R12-16]
         push @R0
         move @R0 #29
         pop @R1
         shl @R1 @R0
         move @R0 @R1
+        pop @R11
         move [@R11] @R0
 L_96590063:
         move @R13 @R12
@@ -1529,11 +1553,15 @@ _L96590136:
         jz sta_96590133
         move @R0 [@R12+12]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         move [@R10] @R0
         move @R0 [@R12+16]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         move [@R9] @R0
         jmp L_96590137
 sta_96590133:
@@ -1551,6 +1579,7 @@ sta_96590122:
 ; 170:     *hi = (s1 << 31) | (e1 << 20) | r_hi;
         move @R0 [@R12+12]
         move @R8 @R0
+        push @R8
         move @R0 [@R12-8]
         push @R0
         move @R0 #31
@@ -1572,11 +1601,14 @@ sta_96590122:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R8
         move [@R8] @R0
 ; 171:     *lo = r_lo;
         move @R0 [@R12+16]
         move @R7 @R0
+        push @R7
         move @R0 [@R12-52]
+        pop @R7
         move [@R7] @R0
 L_96590137:
         move @R13 @R12
@@ -1925,11 +1957,15 @@ _L96590149:
         jz sta_96590146
         move @R0 [@R12+12]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         move [@R6] @R0
         move @R0 [@R12+16]
         move @R5 @R0
+        push @R5
         move @R0 #0
+        pop @R5
         move [@R5] @R0
         jmp L_96590150
 sta_96590146:
@@ -1945,6 +1981,7 @@ sta_96590147:
 ; 208:     *hi = ((s1 ^ s2) << 31) | (e << 20) | r_hi;
         move @R0 [@R12+12]
         move @R4 @R0
+        push @R4
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
@@ -1971,11 +2008,14 @@ sta_96590147:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R4
         move [@R4] @R0
 ; 209:     *lo = r_lo;
         move @R0 [@R12+16]
         move @R3 @R0
+        push @R3
         move @R0 [@R12-76]
+        pop @R3
         move [@R3] @R0
 L_96590150:
         move @R13 @R12
@@ -2125,6 +2165,7 @@ _L96590154:
 ; 220:         *hi = s1 ? 0xFFF00000 : 0x7FF00000; // ±Inf
         move @R0 [@R12+12]
         move @R2 @R0
+        push @R2
         move @R0 [@R12-8]
         test @R0 @R0
         jz _L96590159
@@ -2133,11 +2174,14 @@ _L96590154:
 _L96590159:
         move @R0 #2146435072
 _L96590160:
+        pop @R2
         move [@R2] @R0
 ; 221:         *lo = 0;
         move @R0 [@R12+16]
         move @R1 @R0
+        push @R1
         move @R0 #0
+        pop @R1
         move [@R1] @R0
 ; 222:         return;
         jmp L_96590161
@@ -2178,11 +2222,15 @@ _L96590165:
         jz sta_96590162
         move @R0 [@R12+12]
         move @R11 @R0
+        push @R11
         move @R0 #0
+        pop @R11
         move [@R11] @R0
         move @R0 [@R12+16]
         move @R10 @R0
+        push @R10
         move @R0 #0
+        pop @R10
         move [@R10] @R0
         jmp L_96590161
 sta_96590162:
@@ -2216,11 +2264,15 @@ _L96590169:
         jz sta_96590166
         move @R0 [@R12+12]
         move @R9 @R0
+        push @R9
         move @R0 #0
+        pop @R9
         move [@R9] @R0
         move @R0 [@R12+16]
         move @R8 @R0
+        push @R8
         move @R0 #0
+        pop @R8
         move [@R8] @R0
         jmp L_96590161
 sta_96590166:
@@ -2300,11 +2352,15 @@ _L96590181:
         jz sta_96590178
         move @R0 [@R12+12]
         move @R7 @R0
+        push @R7
         move @R0 #0
+        pop @R7
         move [@R7] @R0
         move @R0 [@R12+16]
         move @R6 @R0
+        push @R6
         move @R0 #0
+        pop @R6
         move [@R6] @R0
         jmp L_96590161
 sta_96590178:
@@ -2323,6 +2379,7 @@ sta_96590179:
 ; 242:     *hi = ((s1 ^ s2) << 31) | (e << 20) | r_hi;
         move @R0 [@R12+12]
         move @R5 @R0
+        push @R5
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
@@ -2349,11 +2406,14 @@ sta_96590179:
         pop @R1
         or @R1 @R0
         move @R0 @R1
+        pop @R5
         move [@R5] @R0
 ; 243:     *lo = r_lo;
         move @R0 [@R12+16]
         move @R4 @R0
+        push @R4
         move @R0 [@R12-60]
+        pop @R4
         move [@R4] @R0
 L_96590161:
         move @R13 @R12

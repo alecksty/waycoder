@@ -274,6 +274,16 @@ func base64_decode(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
+func _strbuf_next_slot() int32 {
+    vml.Call("_strbuf_next_slot")
+    return vml.R0()
+}
+
+func _strbuf_commit(a0 int32) int32 {
+    vml.Call("_strbuf_commit")
+    return vml.R0()
+}
+
 func _hex_str(a0 int32, a1 int32) int32 {
     vml.Call("_hex_str")
     return vml.R0()
@@ -471,6 +481,247 @@ func basic_int(a0 int32) int32 {
 
 func basic_point(a0 int32, a1 int32) int32 {
     vml.Call("basic_point")
+    return vml.R0()
+}
+
+func InitGraph(a0 int32, a1 int32, a2 int32) {
+    vml.Call("InitGraph")
+}
+
+func initgraph(a0 int32, a1 int32, a2 int32) {
+    vml.Call("initgraph")
+}
+
+func InitWindow(a0 int32, a1 int32, a2 int32) {
+    vml.Call("InitWindow")
+}
+
+func initwindow(a0 int32, a1 int32, a2 int32) {
+    vml.Call("initwindow")
+}
+
+func SetGraphMode(a0 int32) {
+    vml.Call("SetGraphMode")
+}
+
+func CloseGraph() {
+    vml.Call("CloseGraph")
+}
+
+func ClearDevice() {
+    vml.Call("ClearDevice")
+}
+
+func GetMaxX() int32 {
+    vml.Call("GetMaxX")
+    return vml.R0()
+}
+
+func getmaxx() int32 {
+    vml.Call("getmaxx")
+    return vml.R0()
+}
+
+func GetMaxY() int32 {
+    vml.Call("GetMaxY")
+    return vml.R0()
+}
+
+func getmaxy() int32 {
+    vml.Call("getmaxy")
+    return vml.R0()
+}
+
+func GetMaxColor() int32 {
+    vml.Call("GetMaxColor")
+    return vml.R0()
+}
+
+func getmaxcolor() int32 {
+    vml.Call("getmaxcolor")
+    return vml.R0()
+}
+
+func GraphResult() int32 {
+    vml.Call("GraphResult")
+    return vml.R0()
+}
+
+func graphresult() int32 {
+    vml.Call("graphresult")
+    return vml.R0()
+}
+
+func grapherrormsg(a0 int32) int32 {
+    vml.Call("grapherrormsg")
+    return vml.R0()
+}
+
+func SetColor(a0 int32) {
+    vml.Call("SetColor")
+}
+
+func SetBkColor(a0 int32) {
+    vml.Call("SetBkColor")
+}
+
+func GetColor() int32 {
+    vml.Call("GetColor")
+    return vml.R0()
+}
+
+func getcolor() int32 {
+    vml.Call("getcolor")
+    return vml.R0()
+}
+
+func GetBkColor() int32 {
+    vml.Call("GetBkColor")
+    return vml.R0()
+}
+
+func getbkcolor() int32 {
+    vml.Call("getbkcolor")
+    return vml.R0()
+}
+
+func SetFillStyle(a0 int32, a1 int32) {
+    vml.Call("SetFillStyle")
+}
+
+func SetLineStyle(a0 int32, a1 int32, a2 int32) {
+    vml.Call("SetLineStyle")
+}
+
+func SetTextStyle(a0 int32, a1 int32, a2 int32) {
+    vml.Call("SetTextStyle")
+}
+
+func SetTextJustify(a0 int32, a1 int32) {
+    vml.Call("SetTextJustify")
+}
+
+func Line(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("Line")
+}
+
+func MoveTo(a0 int32, a1 int32) {
+    vml.Call("MoveTo")
+}
+
+func LineTo(a0 int32, a1 int32) {
+    vml.Call("LineTo")
+}
+
+func LineRel(a0 int32, a1 int32) {
+    vml.Call("LineRel")
+}
+
+func Rectangle(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("Rectangle")
+}
+
+func Bar(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("Bar")
+}
+
+func Bar3D(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("Bar3D")
+}
+
+func Circle(a0 int32, a1 int32, a2 int32) {
+    vml.Call("Circle")
+}
+
+func FillEllipse(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("FillEllipse")
+}
+
+func Ellipse(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("Ellipse")
+}
+
+func DrawPoly(a0 int32, a1 int32) {
+    vml.Call("DrawPoly")
+}
+
+func FillPoly(a0 int32, a1 int32) {
+    vml.Call("FillPoly")
+}
+
+func PutPixel(a0 int32, a1 int32, a2 int32) {
+    vml.Call("PutPixel")
+}
+
+func Arc(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("Arc")
+}
+
+func PieSlice(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("PieSlice")
+}
+
+func Sector(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("Sector")
+}
+
+func FloodFill(a0 int32, a1 int32, a2 int32) {
+    vml.Call("FloodFill")
+}
+
+func ImageSize(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ImageSize")
+    return vml.R0()
+}
+
+func imagesize(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("imagesize")
+    return vml.R0()
+}
+
+func GetImage(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("GetImage")
+}
+
+func PutImage(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("PutImage")
+}
+
+func OutTextXY(a0 int32, a1 int32, a2 int32) {
+    vml.Call("OutTextXY")
+}
+
+func OutText(a0 int32) {
+    vml.Call("OutText")
+}
+
+func TextWidth(a0 int32) int32 {
+    vml.Call("TextWidth")
+    return vml.R0()
+}
+
+func textwidth(a0 int32) int32 {
+    vml.Call("textwidth")
+    return vml.R0()
+}
+
+func TextHeight(a0 int32) int32 {
+    vml.Call("TextHeight")
+    return vml.R0()
+}
+
+func textheight(a0 int32) int32 {
+    vml.Call("textheight")
+    return vml.R0()
+}
+
+func GetPixel(a0 int32, a1 int32) int32 {
+    vml.Call("GetPixel")
+    return vml.R0()
+}
+
+func getpixel(a0 int32, a1 int32) int32 {
+    vml.Call("getpixel")
     return vml.R0()
 }
 
@@ -3024,26 +3275,8 @@ func gfx_viewport(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
-func InitGraph(a0 int32, a1 int32, a2 int32) {
-    vml.Call("InitGraph")
-}
-
-func CloseGraph() {
-    vml.Call("CloseGraph")
-}
-
 func DetectGraph(a0 int32, a1 int32) {
     vml.Call("DetectGraph")
-}
-
-func GetMaxX() int32 {
-    vml.Call("GetMaxX")
-    return vml.R0()
-}
-
-func GetMaxY() int32 {
-    vml.Call("GetMaxY")
-    return vml.R0()
 }
 
 func GetDriverName() int32 {
@@ -3056,95 +3289,12 @@ func GetModeName(a0 int32) int32 {
     return vml.R0()
 }
 
-func SetColor(a0 int32) {
-    vml.Call("SetColor")
-}
-
-func GetColor() int32 {
-    vml.Call("GetColor")
-    return vml.R0()
-}
-
-func SetBkColor(a0 int32) {
-    vml.Call("SetBkColor")
-}
-
-func GetBkColor() int32 {
-    vml.Call("GetBkColor")
-    return vml.R0()
-}
-
 func SetRGBPalette(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("SetRGBPalette")
 }
 
-func PutPixel(a0 int32, a1 int32, a2 int32) {
-    vml.Call("PutPixel")
-}
-
-func GetPixel(a0 int32, a1 int32) int32 {
-    vml.Call("GetPixel")
-    return vml.R0()
-}
-
-func Line(a0 int32, a1 int32, a2 int32, a3 int32) {
-    vml.Call("Line")
-}
-
-func LineTo(a0 int32, a1 int32) {
-    vml.Call("LineTo")
-}
-
-func LineRel(a0 int32, a1 int32) {
-    vml.Call("LineRel")
-}
-
-func Rectangle(a0 int32, a1 int32, a2 int32, a3 int32) {
-    vml.Call("Rectangle")
-}
-
-func Bar(a0 int32, a1 int32, a2 int32, a3 int32) {
-    vml.Call("Bar")
-}
-
-func Bar3D(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
-    vml.Call("Bar3D")
-}
-
-func Circle(a0 int32, a1 int32, a2 int32) {
-    vml.Call("Circle")
-}
-
 func FillCircle(a0 int32, a1 int32, a2 int32) {
     vml.Call("FillCircle")
-}
-
-func Ellipse(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
-    vml.Call("Ellipse")
-}
-
-func FillEllipse(a0 int32, a1 int32, a2 int32, a3 int32) {
-    vml.Call("FillEllipse")
-}
-
-func Arc(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
-    vml.Call("Arc")
-}
-
-func PieSlice(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
-    vml.Call("PieSlice")
-}
-
-func SetFillStyle(a0 int32, a1 int32) {
-    vml.Call("SetFillStyle")
-}
-
-func SetLineStyle(a0 int32, a1 int32, a2 int32) {
-    vml.Call("SetLineStyle")
-}
-
-func ClearDevice() {
-    vml.Call("ClearDevice")
 }
 
 func ClearViewPort() {
@@ -3153,31 +3303,6 @@ func ClearViewPort() {
 
 func SetViewPort(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
     vml.Call("SetViewPort")
-}
-
-func OutText(a0 int32) {
-    vml.Call("OutText")
-}
-
-func OutTextXY(a0 int32, a1 int32, a2 int32) {
-    vml.Call("OutTextXY")
-}
-
-func FloodFill(a0 int32, a1 int32, a2 int32) {
-    vml.Call("FloodFill")
-}
-
-func ImageSize(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
-    vml.Call("ImageSize")
-    return vml.R0()
-}
-
-func GetImage(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
-    vml.Call("GetImage")
-}
-
-func PutImage(a0 int32, a1 int32, a2 int32, a3 int32) {
-    vml.Call("PutImage")
 }
 
 func GetPaletteSize() int32 {
@@ -3191,11 +3316,6 @@ func GetPalette(a0 int32) {
 
 func GetDefaultPalette(a0 int32) {
     vml.Call("GetDefaultPalette")
-}
-
-func GraphResult() int32 {
-    vml.Call("GraphResult")
-    return vml.R0()
 }
 
 func GraphErrorMsg(a0 int32) int32 {
@@ -5416,6 +5536,20 @@ func ui_get_image(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
 func ui_put_image(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     vml.Call("ui_put_image")
     return vml.R0()
+}
+
+func ui_get_pixel(a0 int32, a1 int32) int32 {
+    vml.Call("ui_get_pixel")
+    return vml.R0()
+}
+
+func ui_screenshot(a0 int32) int32 {
+    vml.Call("ui_screenshot")
+    return vml.R0()
+}
+
+func ui_put_qb_bitmap(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_put_qb_bitmap")
 }
 
 func ui_text(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
