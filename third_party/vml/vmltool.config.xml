@@ -88,34 +88,34 @@
     <Language Name="pascal"  Libs="builtins.vml,crt.vml,vmlui.vml,tty.vml,bgi.vml" />
 
     <!-- 脚本语言 -->
-    <Language Name="python"     Libs="vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="python"     Libs="vmlui.vml,tty.vml" />
     <!-- lua/luatable.vml = 表读写运行库（lua_table_get / lua_table_set）—— Lua 前端把
          `a[i]` / `a[i] = v` 编成对这两个标签的 CALL，而 Lib/ 下从前没有它们的定义。 -->
-    <Language Name="lua"        Libs="vmlui.vml,lua/luatable.vml,tty.vml,bgi.vml" />
-    <Language Name="javascript" Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="ruby"       Libs="vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="lua"        Libs="vmlui.vml,lua/luatable.vml,tty.vml" />
+    <Language Name="javascript" Libs="vmlui.vml,tty.vml" />
+    <Language Name="ruby"       Libs="vmlui.vml,tty.vml" />
 
     <!-- 系统语言 -->
-    <Language Name="rust"    Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="go"      Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="java"    Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="csharp"  Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="swift"   Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="kotlin"  Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="d"       Libs="vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="rust"    Libs="vmlui.vml,tty.vml" />
+    <Language Name="go"      Libs="vmlui.vml,tty.vml" />
+    <Language Name="java"    Libs="vmlui.vml,tty.vml" />
+    <Language Name="csharp"  Libs="vmlui.vml,tty.vml" />
+    <Language Name="swift"   Libs="vmlui.vml,tty.vml" />
+    <Language Name="kotlin"  Libs="vmlui.vml,tty.vml" />
+    <Language Name="d"       Libs="vmlui.vml,tty.vml" />
 
     <!-- 函数式 / 领域语言 -->
-    <Language Name="scheme"  Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="forth"   Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="ladder"  Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="dart"    Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="fortran" Libs="vmlui.vml,tty.vml,bgi.vml" />
-    <Language Name="r"       Libs="vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="scheme"  Libs="vmlui.vml,tty.vml" />
+    <Language Name="forth"   Libs="vmlui.vml,tty.vml" />
+    <Language Name="ladder"  Libs="vmlui.vml,tty.vml" />
+    <Language Name="dart"    Libs="vmlui.vml,tty.vml" />
+    <Language Name="fortran" Libs="vmlui.vml,tty.vml" />
+    <Language Name="r"       Libs="vmlui.vml,tty.vml" />
 
     <!-- VML 汇编 -->
-    <Language Name="vml"     Libs="crt.vml,vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="vml"     Libs="crt.vml,vmlui.vml,tty.vml" />
 
     <!-- 未知语言默认 -->
-    <Language Name="default" Libs="crt.vml,vmlui.vml,tty.vml,bgi.vml" />
+    <Language Name="default" Libs="crt.vml,vmlui.vml,tty.vml" />
   </Languages>
 </VMLToolConfig>
