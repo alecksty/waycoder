@@ -8,6 +8,9 @@
  *
  * ⚠ **0 个警告不是漏写**：`WarnUnused` 全仓**只有 CCompiler 在调**
  *   （CompilerBase/CodeGeneratorBase.cs:130），ladder 前端没有任何警告出口。
+ * ⚠ 这里的 0 警告是「**源码级**」的：`.ld` 只有在**编译成功**时，链接器才会另打一条
+ *   `警告: 库代码里有 21 个未解析标签`（库档固定噪音，不是本文件的诊断 —— 本文件在
+ *   代码生成阶段就失败了，根本走不到链接器；别把那条当成本用例的期望产出）。
  * ⚠ 注释只能用 IEC 61131-3 的 (* ... *)：本前端**不认** COM / // / '。
  * ⚠ 与 js / lua 不同，本前端**会**检查未声明的变量 —— 走 CompilerBase 的共用诊断通道
  *   `ReportUndefined`（LadderCompiler/CodeGenerator.Core.cs:615），故诊断码与列号都齐。

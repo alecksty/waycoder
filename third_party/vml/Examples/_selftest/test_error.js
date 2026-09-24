@@ -11,8 +11,8 @@
 //   它确有一个 MCU 模式 try/catch 警告走 `VMLPlugins.WarningEmitter`，但被
 //   `WarningLevel` 门控（默认 0，见 CompilerBase/CompilerPluginBase.cs:77）⇒ 实测全静默。
 //   下面的 unused_var 是**刻意留的探针**：前端哪天补上未使用诊断，它会立刻现形。
-// ⚠ **错在函数名而不是变量名**：本前端不检查未声明的变量（查不到就发一个 0 继续生成，
-//   见 CompilerBase/CodeGeneratorBase.cs 的 EmitUndefinedFallback），所以「未定义变量」
+// ⚠ **错在函数名而不是变量名**：本前端不检查未声明的变量 —— 查不到就当场建一个初值 0 的槽
+//   继续生成（JavaScriptCompiler/CodeGenerator.Expressions.cs），所以「未定义变量」
 //   这类探针在这里静默无事。错误只能由**调用未声明的函数**触发 —— 编译期不报，
 //   靠链接器报 `未定义的函数 '<名>'（引用 1 次）`，位置只到 `文件:行`（**无列、无诊断码**）。
 native function println_str(s) {}
