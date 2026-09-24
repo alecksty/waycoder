@@ -12,7 +12,8 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 6232 自测
+dotnet run -- --test                 # 6521 自测（⚠ 别加 -c Release：WAYCODER_TEST 仅在 Debug 定义，
+                                     #   Release 下 TestArg 整个不编译进去，CLI 按「有错即报」直接退出 1）
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -38,7 +39,7 @@ WayCoder/
 ├── Watch/             Watch 模式 + ReviewMode
 ├── Sql/               手搓 SQL 引擎 (SqlEngine.cs)
 ├── Skills/            技能 + 权限 (SkillsManager / PermissionManager / AutoModeClassifier / builtin/)
-├── Test/              测试/调试/演示代码（SelfTest 自测 40 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6232 项）
+├── Test/              测试/调试/演示代码（SelfTest 自测 40 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6521 项）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
 ├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
 ├── Tools/             49 个工具
