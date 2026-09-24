@@ -29,6 +29,11 @@ namespace BasicCompiler
             {
                 if (pDecl.IsString)
                     variableTypes[pDecl.Name.ToLower()] = BasicType.String;
+                // `AS DOUBLE` 这类**内置类型名**也要登记（理由同上面 STRING 那条：
+                // 不登记就走"无后缀 ⇒ Integer"默认，double 形参按 4 字节整数读）。
+                // `ParamDeclaredType` 是唯一的类型判据，它认 `DeclaredType`。
+                else if (!string.IsNullOrEmpty(pDecl.DeclaredType))
+                    variableTypes[pDecl.Name.ToLower()] = ParamDeclaredType(pDecl);
                 if (pDecl.IsArray && !string.IsNullOrEmpty(pDecl.TypeName))
                     dimAsVariables[pDecl.Name.ToLower()] = pDecl.TypeName.ToLower();
             }
@@ -110,11 +115,14 @@ namespace BasicCompiler
             ResetLocalVars();
             currentParamCount = funcDecl.Parameters.Count;
 
-            // 形参声明为 STRING ⇒ 登记成字符串类型（同 SUB 那处，理由见那里）
+            // 形参声明为 STRING / 内置类型名（`AS DOUBLE`…）⇒ 登记进 `variableTypes`
+            // （同 SUB 那处，理由见那里）
             foreach (var pDecl in funcDecl.Parameters)
             {
                 if (pDecl.IsString)
                     variableTypes[pDecl.Name.ToLower()] = BasicType.String;
+                else if (!string.IsNullOrEmpty(pDecl.DeclaredType))
+                    variableTypes[pDecl.Name.ToLower()] = ParamDeclaredType(pDecl);
                 if (pDecl.IsArray && !string.IsNullOrEmpty(pDecl.TypeName))
                     dimAsVariables[pDecl.Name.ToLower()] = pDecl.TypeName.ToLower();
             }
@@ -795,8 +803,7 @@ namespace BasicCompiler
                     int paramIdx = FindParameterIndex(varName);
                     if (paramIdx >= 0)
                     {
-                        int offset = 8 + paramIdx * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
+                        EmitParamLoad(paramIdx, OpCode.MOVE, 1);
                     }
                 }
             }
@@ -859,6 +866,28 @@ namespace BasicCompiler
                         instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, srcReg), new Operand(OperandType.REGISTER, srcReg) }));
                 }
             }
+            else if (stmt.Variable is Identifier fname
+                     && currentSubName != null && SymbolKey(fname.Name) == SymbolKey(currentSubName))
+            {
+                /* **函数的返回值槽**：本前端的函数返回约定是**整数**（尾声 `MOVE R0, [槽]`，
+                   调用方把 R0 当整数用），所以浮点表达式必须**显式转回整数**再存。
+
+                   ⚠ 原来这里什么都不做 ⇒ `storeOp` 停在 `isFloat ? MOVEF : MOVE`，
+                   而值在 R0 里是**双精度位型** —— `P3 = a#`（a# = 45.0）用 `MOVEF`
+                   存进去的是 double 45.0 的**低半字**（= 0）。
+                   实测 `FUNCTION P3 (a#) / P3 = a#` 恒返回 0、`PRINT P3(45.5)` 打出 0，
+                   而**同样签名换成 SUB 就正常** —— 这就是 GORILLA 的 `PlotShot` 一类
+                   `FUNCTION` 在调用方读到 0 / 读到地址的根因。
+
+                   （`FUNCTION GetNum#` 那种"双精度返回值"本前端不支持 —— 返回值就是 R0
+                     里一个整数，如实如此，不是这里能顺手补的。） */
+                if (exprType == BasicType.Double || exprType == BasicType.Long)
+                    instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                else if (exprType == BasicType.Single)
+                    instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                storeOp = OpCode.MOVE;
+                srcReg = 0;
+            }
 
             if (stmt.Variable is Identifier ident)
             {
@@ -877,7 +906,10 @@ namespace BasicCompiler
                 //   ⇒ `IF Mode = 9` 走 else 分支 ⇒ `BottomLine` 335→190、`HtInc` 10→6
                 //   ⇒ 整座城市画到屏幕外，**一个错都不报**。
                 string varName = ident.Name.ToLower();
-                if (isFloat && !variableTypes.ContainsKey(varName) && !HasExplicitDefType(varName))
+                // ⚠ **函数名不参与类型提升**：它的槽是**整数**返回槽（见上面那段），
+                //   记成 Double 会让别处按 8 字节读它（而槽只有 4 字节）。
+                bool isFuncReturnSlot = currentSubName != null && SymbolKey(ident.Name) == SymbolKey(currentSubName);
+                if (isFloat && !isFuncReturnSlot && !variableTypes.ContainsKey(varName) && !HasExplicitDefType(varName))
                     variableTypes[varName] = exprType;
 
                 // Try local variable first
@@ -892,37 +924,8 @@ namespace BasicCompiler
                     int paramIdx = FindParameterIndex(ident.Name.ToLower());
                     if (paramIdx >= 0)
                     {
-                        // Check if parameter is BYREF
-                        bool isByRef = false;
-                        if (subMap.ContainsKey(SymbolKey(currentSubName)))
-                        {
-                            var sub = subMap[SymbolKey(currentSubName)];
-                            if (paramIdx < sub.Parameters.Count)
-                            {
-                                isByRef = sub.Parameters[paramIdx].IsByRef;
-                            }
-                        }
-                        else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
-                        {
-                            var func = funcMap[SymbolKey(currentSubName)];
-                            if (paramIdx < func.Parameters.Count)
-                            {
-                                isByRef = func.Parameters[paramIdx].IsByRef;
-                            }
-                        }
-                        
-                        int offset = 8 + paramIdx * 4;
-                        if (isByRef)
-                        {
-                            // BYREF parameter: [R12+offset] contains address, store through address
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R2"), new Operand(OperandType.REGISTER, srcReg) }));
-                        }
-                        else
-                        {
-                            // BYVAL parameter: store directly to parameter location
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{offset}"), new Operand(OperandType.REGISTER, srcReg) }));
-                        }
+                        // 写形参走唯一口径：地址格解引用后写（BYREF 的回流语义）、内联槽直接写
+                        EmitParamStore(paramIdx, ident.Name, srcReg);
                     }
                     else if (IsStaticVariable(ident.Name.ToLower()))
                     {
@@ -1389,43 +1392,11 @@ namespace BasicCompiler
                     int paramIdx = FindParameterIndex(ident.Name.ToLower());
                     if (paramIdx >= 0)
                     {
-                        int offset = 8 + paramIdx * 4;
-                        
-                        // 检查参数是否为BYREF
-                        bool isByRef = false;
-                        if (subMap.ContainsKey(SymbolKey(currentSubName)))
-                        {
-                            var sub = subMap[SymbolKey(currentSubName)];
-                            if (paramIdx < sub.Parameters.Count)
-                            {
-                                isByRef = sub.Parameters[paramIdx].IsByRef;
-                            }
-                        }
-                        else if (funcMap.ContainsKey(SymbolKey(currentSubName)))
-                        {
-                            var func = funcMap[SymbolKey(currentSubName)];
-                            if (paramIdx < func.Parameters.Count)
-                            {
-                                isByRef = func.Parameters[paramIdx].IsByRef;
-                            }
-                        }
-                        
-                        // ⚠ 取值要**按形参类型**（MOVEF/MOVED）—— 原来两条路都硬写 `MOVE`，
-                        //   于是 `FUNCTION Scl (n!)` 里的 `n!` 被当成**整数**读：
-                        //   实参 12 的位型按单精度解释是 1.7e-44 ⇒ 算出来是 0（且不报错）。
-                        //   GORILLA 的太阳半径/大猩猩肢体全靠它。
-                        OpCode loadOp = GetLoadInstruction(GetVariableType(ident.Name));
-                        if (isByRef)
-                        {
-                            // BYREF参数: [R12+offset] 包含地址，需要通过地址加载值
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
-                            instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
-                        }
-                        else
-                        {
-                            // BYVAL参数: 直接加载值
-                            instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{offset}") }));
-                        }
+                        // 取值要**按形参类型**（MOVEF/MOVED）—— 硬写 `MOVE` 会把
+                        // `FUNCTION Scl (n!)` 里的 `n!` 当整数读（实参 12 的位型按单精度
+                        // 解释是 1.7e-44 ⇒ 算出来是 0 且不报错）。GORILLA 的太阳半径靠它。
+                        // 「槽里是地址还是值」走唯一口径（BYREF **或 8 字节类型**）。
+                        EmitParamLoad(paramIdx, GetLoadInstruction(GetVariableType(ident.Name)), reg);
                     }
                     // Check STATIC variable (scoped in globals)
                     else if (IsStaticVariable(ident.Name.ToLower()))
@@ -1719,6 +1690,114 @@ namespace BasicCompiler
             return null;
         }
 
+        /* ───────────────── 实参区（参数传递）的**唯一口径** ─────────────────
+
+           约定（调用方 `EmitCallArguments` 与这里**共用同一份判据**）：
+
+             · 实参区**一格 4 字节、一行一格**，形参 i 在 `R12 + 8 + 4i`。
+             · 槽里放什么由 <see cref="ParamSlotHoldsAddress"/> 决定：
+                 声明的 **BYREF**，或者形参类型是 **8 字节**（Double/Long）⇒ 槽里放**地址**；
+                 其余 ⇒ 槽里放**内联值**。
+
+           **为什么 8 字节也要放地址**：一格只有 4 字节，double 塞不下。早先的做法是
+           "调用方一律压一个值、被调方按 `GetVarByteOffset` 给 Double 算 8 字节" ——
+           同一处布局两套算法，于是 `CALL S3(45.5)` 读到隔壁槽的垃圾、`FUNCTION P3(a#)`
+           拿到半个 double。统一成"放地址"之后，**所有槽都是 4 字节**，
+           调用方与被调方对布局只有一个说法。
+
+           这一组函数是**全前端唯一实现**：下面各处（取值 / 存值 / 取地址 / INPUT）
+           一律走它们，别再手算 `8 + paramIdx * 4`（本仓头号坑：同一规则两处实现，
+           一有 8 字节类型就漂）。 */
+
+        /// <summary>形参 <paramref name="idx"/> 在实参区里的槽偏移（相对 R12）。</summary>
+        private int ParamSlotOffset(int idx) => 8 + idx * 4;
+
+        /// <summary>形参 <paramref name="idx"/> 的类型是不是 8 字节（Double/Long）。</summary>
+        private bool ParamIsWide(int idx)
+        {
+            var d = FindParameterDecl(idx);
+            return d != null && IsWideType(ParamDeclaredType(d));
+        }
+
+        /// <summary>形参 <paramref name="idx"/> 的槽里放的是**地址**还是**内联值**。</summary>
+        private bool ParamSlotHoldsAddress(int idx)
+        {
+            var d = FindParameterDecl(idx);
+            if (d == null) return false;
+            return d.IsByRef || IsWideType(ParamDeclaredType(d));
+        }
+
+        /// <summary>8 字节类型（一格装不下 ⇒ 与 BYREF 同形传地址）。</summary>
+        private static bool IsWideType(BasicType t) => t == BasicType.Double || t == BasicType.Long;
+
+        /// <summary>
+        /// 读形参 <paramref name="idx"/> 到 <paramref name="reg"/>。
+        /// 取值指令按**声明类型**选（`MOVEF`/`MOVED`/`MOVE`）—— 硬写 `MOVE` 会把
+        /// `FUNCTION Scl (n!)` 里的 `n!` 当整数读（实参 12 的位型按单精度解释是 1.7e-44）。
+        /// </summary>
+        private void EmitParamLoad(int idx, string paramName, int reg)
+        {
+            EmitParamLoad(idx, GetLoadInstruction(GetVariableType(paramName)), reg);
+        }
+
+        /// <summary>同上，但由调用方给定取值指令（声明类型已算好的场合）。</summary>
+        private void EmitParamLoad(int idx, OpCode loadOp, int reg)
+        {
+            int off = ParamSlotOffset(idx);
+            if (ParamSlotHoldsAddress(idx))
+            {
+                // 槽里是地址：先取地址、再按宽度解引用
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
+                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
+            }
+            else
+            {
+                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
+            }
+        }
+
+        /// <summary>
+        /// 把 <paramref name="srcReg"/> 写进形参 <paramref name="idx"/>。
+        /// 内联槽直接写；地址格**解引用后写**（写入调用方的那个变量 —— BYREF 的回流语义，
+        /// QBasic 的 `SUB GetInputs (…, NumGames)` 靠的就是它）。
+        /// </summary>
+        private void EmitParamStore(int idx, string paramName, int srcReg)
+        {
+            int off = ParamSlotOffset(idx);
+            OpCode storeOp = GetStoreInstruction(GetVariableType(paramName));
+            if (ParamSlotHoldsAddress(idx))
+            {
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, $"R12+{off}") }));
+                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, srcReg) }));
+            }
+            else
+            {
+                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{off}"), new Operand(OperandType.REGISTER, srcReg) }));
+            }
+        }
+
+        /// <summary>
+        /// 取形参 <paramref name="idx"/> **本身的地址**（`&x`，用于把它再 BYREF 传下去）。
+        ///
+        /// <para>地址格（BYREF / 8 字节）里存的**就是**那个地址 ⇒ 取出来即可；
+        /// 内联槽（4 字节 BYVAL）里存的是值 ⇒ 地址就是槽本身。
+        /// 早先一律返回槽地址，于是 `SUB A (x) / CALL B(x)` 的转手把
+        /// **A 的槽**交给了 B —— B 写进去、A 读到的却是另一个地址，全程不报错。</para>
+        /// </summary>
+        private void EmitParamAddress(int idx, int reg)
+        {
+            int off = ParamSlotOffset(idx);
+            if (ParamSlotHoldsAddress(idx))
+            {
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
+            }
+            else
+            {
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, off) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+            }
+        }
+
         /// <summary>
         /// 生成变量地址到指定寄存器
         /// </summary>
@@ -1778,11 +1857,8 @@ namespace BasicCompiler
                     // 检查是否为参数
                     else if (FindParameterIndex(ident.Name.ToLower()) >= 0)
                     {
-                        int paramIdx = FindParameterIndex(ident.Name.ToLower());
-                        int offset = 8 + paramIdx * 4;
-                        // 计算参数地址: R12 + offset
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                        // `&形参` 走唯一口径（地址格里存的就是地址、内联槽的地址就是槽本身）。
+                        EmitParamAddress(FindParameterIndex(ident.Name.ToLower()), reg);
                     }
                     // 全局变量：**取静态区全局段的地址**（主程序与 SUB 共用同一份）
                     else if (variables.ContainsKey(ident.Name.ToLower()))
@@ -1842,10 +1918,7 @@ namespace BasicCompiler
                 int paramIdx = FindParameterIndex(varName);
                 if (paramIdx >= 0)
                 {
-                    int offset = 8 + paramIdx * 4;
-                    BasicType varType = GetVariableType(varName);
-                    OpCode storeOp = GetStoreInstruction(varType);
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{offset}"), new Operand(OperandType.REGISTER, valueReg) }));
+                    EmitParamStore(paramIdx, varName, valueReg);
                 }
                 else if (variables.ContainsKey(varName))
                 {
@@ -1924,56 +1997,114 @@ namespace BasicCompiler
         {
             int n = args.Count;
 
-            /* ① **先压"非左值 BYREF 实参"的临时量**，而且必须压在**实参块之外**。
-               理由：被调方按 `[R12+12+4i]` 的**固定步长 4** 取形参，每个实参只能占一格；
+            /* 实参区的口径（与被调方共用，见 `ParamSlotHoldsAddress` 那段）：
+                 · **一格 4 字节、一行一格**（被调方按 `R12 + 8 + 4i` 取）；
+                 · 槽里放**地址**的条件是「声明的 BYREF **或**形参类型 8 字节」，
+                   其余放内联值。
+
+               **8 字节形参为什么也放地址**：一格 4 字节装不下 double。早先这里是
+               "一律压一个值"，而被调方按 `GetVarByteOffset` 给 Double 算 8 字节 ⇒
+               同一处布局两套算法：`CALL S3(45.5)` 读到隔壁槽的垃圾、BYVAL 的 `a#`
+               读到半个 double。改成"地址格"之后**所有槽都是 4 字节**。 */
+
+            BasicType PType(int i) => paramTypeAt?.Invoke(i) ?? BasicType.Integer;
+            bool Wide(int i) => IsWideType(PType(i));
+            // 槽里要放地址（= 需要临时量的情形与 BYREF 同形）
+            bool AddrSlot(int i) => isByRefAt(i) || Wide(i);
+
+            /* ① **先压"要地址的实参"的临时量**，而且必须压在**实参块之外**。
+               理由：被调方按固定步长 4 取形参，每个实参只能占一格；
                把"值"那一格插进实参块里会把后面所有形参整体错位。
                所以临时量统一压在最上面（高地址），实参槽里放它的地址。
-               语义：QBasic 对"非左值实参"就是造个临时量，被调方写它写进临时量、出去即丢。 */
+               语义：QBasic 对"非左值实参"就是造个临时量，被调方写它写进临时量、出去即丢；
+               BYVAL 的 8 字节形参同理 —— **拷贝一份**，被调方写它不回流（BYVAL 的本义）。 */
             var tempIndex = new Dictionary<int, int>();   // 实参下标 → 临时量序号（0 = 最先压的）
+            var tempSizes = new List<int>();              // 各临时量的**字节数**（8 字节形参占两格）
             for (int i = n - 1; i >= 0; i--)
             {
-                if (!isByRefAt(i) || IsAddressableArg(args[i])) continue;
+                if (!AddrSlot(i)) continue;
+                // BYREF 且实参是左值 ⇒ 直接取实参地址，不必造临时量
+                if (isByRefAt(i) && IsAddressableArg(args[i])) continue;
                 EmitArgValue(args[i], 0, subScope);
                 // ⚠ 临时量里要放**形参类型**的那几个字节：形参是单精度而表达式是整数时，
                 //   直接压整数位型、被调方按 `MOVEF` 读 ⇒ 读出来是 1e-44 那种垃圾
-                //   （实测 `FUNCTION Scl (n!)` 恒返回 0）。整数 ⇒ 先 I2F（F 组与整数组共用
-                //   编号，`SetFloatValue` 会同步 `registers[]`，所以接着 `PUSH R0` 压的就是浮点字节）。
-                if (paramTypeAt != null && paramTypeAt(i) == BasicType.Single)
+                //   （实测 `FUNCTION Scl (n!)` 恒返回 0）。8 字节形参同理要先 I2D/F2D，
+                //   否则写进去的是整数位型（后面按双精度读出来是 3e-323）。
+                EmitCoerceToParamType(args[i], PType(i));
+                int size = Wide(i) ? 8 : 4;
+                /* ⚠ 8 字节的临时量**不能用 `DPUSH`** —— `DPUSH`/`FPUSH` 压的是 VM 自己的
+                   `doubleStack`/`floatStack`（见 `VMLRuntime.Float.cs` 的 `ExecuteDpush`），
+                   **不是机器栈 `R13`**；被调方是从 `R12+8+4i` 这块内存里取实参的，
+                   压进浮点栈等于没传。正确做法是在机器栈上**真的留出 8 字节**再按
+                   `MOVED` 存进去（小端，低字在低地址 ⇒ 被调方按 double 读出来正是这个值）。 */
+                if (size == 8)
                 {
-                    BasicType srcT = InferExpressionType(args[i]);
-                    if (srcT != BasicType.Single && srcT != BasicType.Double)
-                        AddRR(OpCode.I2F, 0, 0);
-                }
-                AddInstruction(OpCode.PUSH, Reg(0));
-                tempIndex[i] = tempIndex.Count;
-            }
-            int temps = tempIndex.Count;
-
-            // ② 压实参（右到左）：左值 = 取地址，非左值 BYREF = 占位（③ 回填），BYVAL = 值
-            for (int i = n - 1; i >= 0; i--)
-            {
-                if (isByRefAt(i))
-                {
-                    if (tempIndex.ContainsKey(i)) AddRI(OpCode.MOVE, 0, 0);
-                    else GenerateVariableAddress(args[i], 0);
+                    AddRI(OpCode.SUB, 13, 8);
+                    AddInstruction(OpCode.MOVED, new Operand(OperandType.MEMORY, "R13"), Reg(0));
                 }
                 else
                 {
-                    EmitArgValue(args[i], 0, subScope);
+                    AddInstruction(OpCode.PUSH, Reg(0));
                 }
+                tempIndex[i] = tempSizes.Count;
+                tempSizes.Add(size);
+            }
+            int temps = tempSizes.Count;
+            int tempBytes = 0;
+            foreach (int s in tempSizes) tempBytes += s;
+
+            // ② 压实参（右到左）：地址格 = 取地址或占位（③ 回填），内联格 = 值
+            for (int i = n - 1; i >= 0; i--)
+            {
+                if (tempIndex.ContainsKey(i))
+                    AddRI(OpCode.MOVE, 0, 0);              // 占位，③ 回填临时量地址
+                else if (isByRefAt(i))
+                    GenerateVariableAddress(args[i], 0);
+                else if (Wide(i))
+                    // 到不了：① 对"宽且非 BYREF"一律造了临时量。留一条显式防线，
+                    // 免得将来改了 ① 的判据后这里**静默**压个值（那就是半个 double）。
+                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch,
+                        $"内部错误：8 字节形参 '{i}' 没有临时量（{currentSubName ?? "主程序"}）");
+                else
+                    EmitArgValue(args[i], 0, subScope);
                 AddInstruction(OpCode.PUSH, Reg(0));
             }
 
-            /* ③ 回填临时量地址。压完之后 R13 正好指向实参块底（= 实参 0 的槽），
-               于是：实参 i 的槽在 R13+4i，临时量 j 在 R13+4*(temps+n-j-1)。 */
+            /* ③ 回填临时量地址。压完之后 R13 正好指向实参块底（= 实参 0 的槽）：
+                实参块在 [R13, R13 + 4n)，临时量区在它上面 [R13 + 4n, R13 + 4n + tempBytes)。
+               PUSH 是**先减后存**，所以最先压的（序号 0）落在临时量区的**最高**地址；
+               临时量 k 的最低字节离临时量区底 `tempBytes - prefix(k+1)`。 */
+            var prefix = new int[temps + 1];
+            for (int j = 0; j < temps; j++) prefix[j + 1] = prefix[j] + tempSizes[j];
             foreach (var kv in tempIndex)
             {
                 AddInstruction(OpCode.MOVE, Reg(0), Reg(13));
-                AddRI(OpCode.ADD, 0, 4 * (temps + n - kv.Value - 1));
+                AddRI(OpCode.ADD, 0, n * 4 + tempBytes - prefix[kv.Value + 1]);
                 AddInstruction(OpCode.MOVE, new Operand(OperandType.MEMORY, $"R13+{4 * kv.Key}"), Reg(0));
             }
 
-            return (temps + n) * 4;
+            return tempBytes + n * 4;
+        }
+
+        /// <summary>
+        /// 把 <paramref name="e"/> 的值**按形参类型**补齐位型（临时量要用）。
+        /// 单精度形参 + 整数表达式 ⇒ `I2F`；8 字节形参 + 整数/单精度 ⇒ `I2D`/`F2D`。
+        /// 不补的后果都是"编得过、跑起来是垃圾"：位型不对，被调方按声明的宽度读出来就是
+        /// 1e-44 / 3e-323 那种数。
+        /// </summary>
+        private void EmitCoerceToParamType(Expression e, BasicType target)
+        {
+            BasicType src = InferExpressionType(e);
+            if (target == BasicType.Double || target == BasicType.Long)
+            {
+                if (src == BasicType.Double || src == BasicType.Long) return;
+                AddRR(src == BasicType.Single ? OpCode.F2D : OpCode.I2D, 0, 0);
+            }
+            else if (target == BasicType.Single)
+            {
+                if (src == BasicType.Single || src == BasicType.Double) return;
+                AddRR(OpCode.I2F, 0, 0);
+            }
         }
 
         /// <summary>
@@ -2022,6 +2153,18 @@ namespace BasicCompiler
             if (n.EndsWith("#", StringComparison.Ordinal)) return BasicType.Double;
             if (n.EndsWith("&", StringComparison.Ordinal)) return BasicType.Integer;
             if (n.EndsWith("%", StringComparison.Ordinal)) return BasicType.Byte;
+            // `AS DOUBLE` 这类**内置类型名**（没有后缀写法时唯一的类型来源）。
+            // 不认它的后果不是"精度差一点"：宽度判错 ⇒ 实参槽的口径与被调方的取值
+            // 对不上，读出来是隔壁槽的内存（`CALL S(45.5)` 打出 1110835200）。
+            switch (p?.DeclaredType)
+            {
+                case "double": return BasicType.Double;
+                case "single": return BasicType.Single;
+                case "long": return BasicType.Long;
+                case "byte": return BasicType.Byte;
+                case "boolean": return BasicType.Boolean;
+                case "integer": return BasicType.Integer;
+            }
             return BasicType.Integer;
         }
 

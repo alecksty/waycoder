@@ -1,3 +1,116 @@
+## v0.96.407 — BASIC 的**实参区收成一套口径**：一格 4 字节，8 字节形参传地址（GORILLA 的城市终于画出来了）
+
+用户连着两条指示把这件事推到底：先是「除了汇编和 C 语言，不允许直接使用固定地址」，
+再是「basic 改成所有参数都走堆栈传递」。第二条落地时发现**参数其实早就走堆栈了**，
+真正的问题是**同一处布局有两套算法**：调用方 `EmitCallArguments` 一律"一格一个值"（4 字节），
+而被调方按 `GetVarByteOffset` **给 Double 算 8 字节**。一有 8 字节类型就漂，
+而且三个症状都不报错、不崩，只是"值没了"：
+
+```basic
+FUNCTION P3 (a#)          ' 返回 0（应为 45）
+  P3 = a#
+END FUNCTION
+
+CALL S3(45.5)             ' 形参读到 0（应为 45）
+```
+
+### 定下的口径（`CodeGenerator.Sub.cs` 的 `ParamSlotHoldsAddress` 一段）
+
+> 实参区**一格 4 字节、一行一格**，形参 i 在 `R12 + 8 + 4i`。
+> 槽里放什么由一条判据决定：**声明的 BYREF，或者形参类型是 8 字节**（Double/Long）
+> ⇒ 槽里放**地址**、被调方解引用；其余 ⇒ 槽里放内联值。
+
+于是**所有槽都是 4 字节**，调用方与被调方对布局只有一个说法。
+配套把散在 11 处的 `8 + paramIdx * 4` 手算收成一组函数
+（`ParamSlotOffset` / `ParamSlotHoldsAddress` / `EmitParamLoad` / `EmitParamStore` / `EmitParamAddress`）——
+这是本仓的头号坑（同一规则两处实现），一有 8 字节类型就漂。
+
+### 修掉的三个缺陷
+
+1. **`FUNCTION` 的返回值槽宽度** —— `P3 = a#` 的赋值走 `isFloat ? MOVEF : MOVE`，
+   而值在 R0 里是**双精度位型**：`MOVEF` 存进去的是 double 45.0 的**低半字**（= 0）。
+   函数的返回约定是整数（尾声 `MOVE R0, [槽]`），所以浮点表达式必须**显式转回整数**再存。
+   **同样签名换成 `SUB` 就正常** —— 这就是 GORILLA 的 `PlotShot` 一类 `FUNCTION`
+   在调用方读到 0 / 读到地址的根因。
+2. **8 字节临时量的宽度与位型** —— 非左值实参（`CALL S3(45.5)`、`CALL S3(40.5 + 5#)`）
+   走"造临时量"那条路，而临时量**一律按 4 字节压**。现在按形参类型定宽度，
+   并且 `Double` 形参要先 `I2D`/`F2D` 再存。
+3. **`&形参` 取错了地址** —— `GenerateSubVariableAddress` 一律返回**槽的地址**。
+   地址格（BYREF / 8 字节）里存的**就是**那个地址 ⇒ 取出来即可；返回槽地址的话，
+   转手传下去的 `CALL T3(g#)` 把"我方的槽"交给了被调方，它按地址读写的是我们那块内存。
+
+### 一条同源的坑：8 字节临时量**不能**用 `DPUSH`
+
+```asm
+sub @R13 #8
+moved [@R13] @R0        ; ✅ 真的在机器栈上留出 8 字节
+dpush @R0               ; ❌ 压的是 VM 自己的 doubleStack，不是 R13
+```
+
+`FPUSH`/`DPUSH` 走的是 `VMLRuntime.Float.cs` 里独立的 `floatStack`/`doubleStack`，
+被调方是从 `R12+8+4i` 这块**内存**里取实参的 —— 压进浮点栈等于没传。
+（这一条是我先写了 `DPUSH`、被 `CALL S3(45.5)` 仍然返回 0 当场抓住的。）
+
+### 顺带：`AS DOUBLE` 形参**静默按整数读**
+
+`ParamDeclaredType` 原来只看名字后缀（`a#` → Double），而 `SUB S (a AS DOUBLE)`
+这个名字上一个类型记号都没有 ⇒ 整条路按 Integer 走，读到的其实是 double 的**低半字**：
+
+```basic
+CALL S(45.5)     ' 修前打出 1110835200（= 0x42340000），修后 45
+```
+
+解析器原来**刻意不记**内置类型名（注释写着"由 `GetVariableType` 从后缀 / DEFtype 判出来"）——
+那句话对 `a#` 成立、对 `a AS DOUBLE` 不成立。现在 `ParameterNode.DeclaredType` 记下来，
+`ParamDeclaredType` 与 SUB/FUNCTION 序言的类型登记都用它。GORILLA 用的是后缀写法所以没踩到，
+老程序里 `AS DOUBLE` 很常见。
+
+### 验收
+
+- **BASIC 探针 44 通过 / 0 失败 / 已知红 3**（v0.96.406 是 42/0/4）——
+  `50-mixed-param-types.bas` **由已知红转绿**（它的 EXPECT 补全成两段输出、KNOWN-RED 标记撤掉），
+  新增 `51-wide-arg-temp.bas` 把上面四条各钉一个判据（含 BYVAL 不回流、转手 BYREF 的写回）。
+- VML ABI 探针 **7/7**（含 `p7_param_addr`）、多语言 out-probe **35/35**、C# 自测 **6527/6527**。
+- **真机目标程序**：原版 `GORILLAS.BAS` 的**城市天际线整座画出来了**
+  （`--frame` 抓到 640×350 的城市、两只大猩猩、太阳、风向箭头）。此前这一段是空白。
+
+### 仍未解决（如实记下，下一轮的入口）
+
+城市画出来了，但**大猩猩是黑的**、香蕉色也不对。已经查到**确切的机制**，不是猜测：
+
+`PALETTE idx, color` 的**两参形式**在 UI 后端被实现成
+「**把第 `color & 15` 项复制到第 `idx` 项**」（`CodeGenerator.Qbasic.UiGfx.cs` 的
+`UiEmitPaletteStatement`，注释里还写着 GORILLA 的 `PALETTE 4, 0` 就是它）：
+
+```csharp
+EvalIntCoord(stmt.Red, val);
+AddRI(OpCode.MOVE, tmp, 15);
+AddRR(OpCode.AND, val, tmp);      // ← 颜色号一律掩到 4 位
+```
+
+而 GORILLAS 的 `SetScreen` 传的是 **EGA 64 色**编号：
+
+```basic
+PALETTE 0, 1     ' 天空   → 复制第 1 项（蓝）             ✅ 恰好 < 16，蒙对
+PALETTE 1, 46    ' 大猩猩 → 46 & 15 = 14 ⇒ 复制第 14 项（黄）❌
+PALETTE 3, 54    ' 太阳   → 54 & 15 =  6 ⇒ 复制第  6 项（棕）❌
+```
+
+闸门 `scripts/vml-basic-probe/palette.sh`（**已知红**，退 0、不进聚合 runner）钉住了机制：
+
+```
+✅ (5,5)   PALETTE 0, 1  → 第 1 项：实得 #0000AA
+❌ (50,30) PALETTE 1, 46 → 颜色号 46：实得 #FFFF00（= 第 14 项，**串了**）
+❌ (50,90) PALETTE 3, 54 → 颜色号 54：实得 #AA5500（= 第  6 项，**串了**）
+```
+
+⚠ **别直接"把 46 按 EGA 64 色解成 RGB"就改** —— 那要先确认前端对
+**16 色索引**（`LINE …, 14` 这种）与**64 色号**（`PALETTE` 的第二个参数）
+是不是同一套编码：本后端的 `UiEgaR/G/B` 是**16 色**表（`blue = #0000AA` = 170），
+EGA 64 色编号里的 1 只给到 85。猜错会**改变所有 BASIC 程序的配色**。
+判据要落在"同一屏里两种写法互相对得上"上，不是"看着像原始 GORILLAS"。
+（闸门的判据因此**只钉机制、不钉目标解码** —— 钉一个我猜的值等于把猜测写进闸门。）
+
 ## v0.96.406 — SUB/FUNCTION 序言里"清局部变量"的操作数写反 ⇒ **局部变量从来没被清零过**
 
 接着 v0.96.405 往下读 `PlaceGorillas` 的生成汇编时看到的：

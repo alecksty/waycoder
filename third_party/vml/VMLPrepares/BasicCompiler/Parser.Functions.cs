@@ -100,6 +100,7 @@ namespace BasicCompiler
 
                     bool isString = false;
                     string typeName = null;
+                    string declaredType = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
@@ -109,10 +110,16 @@ namespace BasicCompiler
                             if (tName == "STRING")
                                 isString = true;
                             // 用户自定义类型的名字要留下来（数组形参解析 `a(i).Field` 用它）。
-                            // 内置类型名（INTEGER/LONG/SINGLE/DOUBLE/ANY…）不记 —— 它们
-                            // 由 `GetVariableType` 从后缀 / DEFtype 判出来，记进来只是多一张要同步的表。
-                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
-                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                            //
+                            // ⚠ **内置类型名也必须留下来**（v0.96.408 修）：原注释说
+                            //   "由 GetVariableType 从后缀 / DEFtype 判出来" —— 那是**错的**，
+                            //   `SUB S (a AS DOUBLE)` 这个名字上一个类型记号都没有，
+                            //   于是整条路按 Integer 走，读到的其实是 double 的低半字
+                            //   （实测 `CALL S(45.5)` 打出 1110835200），不报错也不崩。
+                            else if (tName == "DOUBLE" || tName == "SINGLE" || tName == "LONG"
+                                  || tName == "INTEGER" || tName == "BYTE" || tName == "BOOLEAN")
+                                declaredType = tName.ToLower();
+                            else if (tName != "ANY")
                                 typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
@@ -146,6 +153,7 @@ namespace BasicCompiler
                     {
                         IsArray = isArray,
                         TypeName = typeName,
+                        DeclaredType = declaredType,
                     });
 
                     if (Peek().Type == TokenType.COMMA)
@@ -302,6 +310,7 @@ namespace BasicCompiler
 
                     bool isString = false;
                     string typeName = null;
+                    string declaredType = null;
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
@@ -310,8 +319,11 @@ namespace BasicCompiler
                             var tName = Peek().Value.ToUpper();
                             if (tName == "STRING")
                                 isString = true;
-                            else if (tName != "INTEGER" && tName != "ANY" && tName != "SINGLE"
-                                  && tName != "DOUBLE" && tName != "LONG" && tName != "BYTE" && tName != "BOOLEAN")
+                            // 内置类型名也要留下来 —— 理由同 SUB 那处（`AS DOUBLE` 会静默按整数读）
+                            else if (tName == "DOUBLE" || tName == "SINGLE" || tName == "LONG"
+                                  || tName == "INTEGER" || tName == "BYTE" || tName == "BOOLEAN")
+                                declaredType = tName.ToLower();
+                            else if (tName != "ANY")
                                 typeName = Peek().Value.ToLower();
                             Advance(); // skip type name
                         }
@@ -343,6 +355,7 @@ namespace BasicCompiler
                     {
                         IsArray = isArray,
                         TypeName = typeName,
+                        DeclaredType = declaredType,
                     });
 
                     if (Peek().Type == TokenType.COMMA)

@@ -516,6 +516,19 @@ namespace BasicCompiler
         /// </summary>
         public string TypeName { get; set; }
 
+        /// <summary>
+        /// `AS …` 里的**内置类型名**（小写：`double`/`single`/`long`/`integer`/`byte`/`boolean`；
+        /// 用户自定义类型走 <see cref="TypeName"/>）。
+        ///
+        /// <para>为什么非记不可：形参的类型判据（`ParamDeclaredType`）原来**只看名字后缀**
+        /// （`a#` → Double），而 `SUB S (a AS DOUBLE)` 这个名字上一个类型记号都没有 ⇒
+        /// 整条路按 Integer 走：被调方从 4 字节的槽里读整数，读到的其实是 double 的**低半字**
+        /// （实测 `CALL S(45.5)` 打出 <c>1110835200</c> = <c>0x42340000</c>），
+        /// **既不报错也不崩**。GORILLA 里 `PlotShot (StartX, StartY, Angle#, …)` 用的是
+        /// 后缀写法，所以没踩到；老程序里 `AS DOUBLE` 很常见。</para>
+        /// </summary>
+        public string DeclaredType { get; set; }
+
         public ParameterNode(int line, int column, string name, bool isByRef = false, bool isString = false)
             : base(line, column)
         {
