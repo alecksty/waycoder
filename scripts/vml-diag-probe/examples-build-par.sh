@@ -71,6 +71,9 @@ for f in "$REPO"/third_party/vml/Examples/*/*; do
         # 编不过正是它们的**设计目的**，不是缺陷 —— 与上面 `file_io.*` 同一种登记理由：
         # 不登记的话这里每次都会红，而"永远红的判据"只会训练人去忽略红灯。
         # ⚠ 它们是「诊断链的判据」，不是「编译通过性的判据」；后者请看 `out.*` 那一套。
+        # ⚠⚠ **这条规则在 `examples-build.sh` 与 `examples-build-par.sh` 里各有一份**
+        #    （两个脚本本来就是同一件事的串行/并行版）—— **改一处必须改另一处**。
+        #    本仓头号坑就是"同一规则两处实现只修了一处"。
         */_selftest/test_error.*) continue ;;
         *.vml) continue ;;
         *.gen.vml) continue ;;

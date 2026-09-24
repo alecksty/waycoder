@@ -725,9 +725,17 @@ public partial class EditorPage : ContentPage
 
         bool dark = IsDarkTheme;   // 判据只有一处（见 IsDarkTheme 的说明）
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
-        // 上个文件留下来的诊断必须清掉 —— 那些行号对新文件毫无意义，而它们还会**画在代码上**
-        // （气泡与波浪线都吃这一份数据；`SetDocument` 已经换了文件路径，画布下一帧自然按新路径读）
-        try { DiagnosticManager.Inject(relPath, []); } catch { }
+        // ⚠ **这里原来写的是 `Inject(relPath, [])`「把上个文件留下的诊断清掉」，那是个错判，已删。**
+        //   理由：诊断表是**按文件路径做键**的（`SnapshotDiagnostics` → `GetAll(_filePath)`、
+        //   `DiagnosticsForThisFile` → `GetAll(_relPath)`），所以**别的文件的诊断根本画不到这个文件上**
+        //   —— "串到新文件"这个担心不成立 ⇒ 那行清的是**正在打开的这个文件**的诊断。
+        //   后果是实打实的：命令行页/文件页刚跑完一次**编译失败**、把结构化诊断注入进来
+        //   （`ShellPage.PublishDiagnosticsToEditor`），用户随手「打开」看代码 ⇒ **当场被擦掉**，
+        //   屏幕上既没有气泡也没有波浪线、错误列表也是空的 —— 正是用户报的那句
+        //   「明明有报错，错误列表是空的，编辑器也不出错误泡泡」。
+        //   实测（Windows 版 MAUI + UI Automation 驱动）：留着这行时**一个气泡都没有**，
+        //   删掉后同一操作立刻出气泡与波浪线。
+        //   「编辑之后诊断作废」那条另有人在管（`ClearDiagnosticsOnEdit`），职责不重叠。
         SetReadOnly(true);   // 打开一律先进只读（对齐旧行为：默认只读，手动解锁编辑）
         // 「预览 / 运行」那一格的图标与可见性 —— 换文件后必须重设（.md → 👁、.c → ▶、.txt → 隐藏）
         ApplyActionButton();

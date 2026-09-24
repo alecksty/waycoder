@@ -300,10 +300,18 @@ public partial class ShellPage : ContentPage
         // 那个 `_ = ` 把 Task 丢掉了，异常逃出去只会变成「未观察的任务异常」落进日志，
         // **屏幕上什么也没有**（实测踩过：一个例子编译时抛 `未找到标签: asm`，
         // 用户看到的就是"点了运行，然后什么都没发生"）。
-        if (job.Compile) await CompileArtifactAsync(job.SourcePath, job.OutputRel);
-        else await RunFileAsync(job.SourcePath);
-
-        PublishDiagnosticsToEditor(job.SourcePath);
+        if (job.Compile)
+        {
+            await CompileArtifactAsync(job.SourcePath, job.OutputRel);
+            // 编译产物那条**不经过 `ExecVmlAsync`**（它自己就是执行体），所以单独注入一次。
+            PublishDiagnosticsToEditor(job.SourcePath);
+        }
+        else
+        {
+            // **不在这里注入** —— `RunFileAsync` 走 `ExecVmlAsync`，那边已经统一注入了。
+            // 两处都写就是"同一规则两处实现"，而它已经咬过一次（手敲那条漏注入）。
+            await RunFileAsync(job.SourcePath);
+        }
     }
 
     /// <summary>
@@ -332,8 +340,13 @@ public partial class ShellPage : ContentPage
     {
         try
         {
+            // 空路径 = 没有可对应的文件（`vml test` 用内联源码跑，压根没有文件身份）⇒ 什么都不做。
+            if (string.IsNullOrEmpty(absPath)) return;
             var rel = SandboxFsService.ToRelative(absPath);
             if (rel is null) return;          // 沙箱外：编辑器也打不开，没有可注入的对象
+            // 留一行面包屑：**「错误列表为什么是空的」这类问题只能靠它定位** ——
+            // 注入的份数与键都得看得见（键对不上时注入了也读不到，且不报错）。
+            DiagLog.Write("诊断注入", $"key={rel} 条数={MauiVml.LastDiags.Count} 源={MauiVml.LastDiagsFile}");
             DiagnosticManager.Inject(rel, MauiVml.LastDiags);
         }
         catch
@@ -890,6 +903,14 @@ public partial class ShellPage : ContentPage
             // 于是被唤醒的「强制停止」看到的必然是"已经停了"的状态。
             _runDone = null;
             done.TrySetResult();
+            // 诊断**在这里**注入，不挂在调用方 —— `ExecVmlAsync` 的注释自己写着
+            // 「本页所有 VML 运行的唯一入口（文件页递的 + 手敲的）」：挂在 `RunPendingVmlJobAsync`
+            // 只会覆盖**文件页递作业**那条，**手敲 `vml run …` 那条漏掉**。
+            // 实测量到过这条漏：命令行页跑完 `test_error.c`（确实编译失败），
+            // 再从文件页「打开」它进编辑器 —— **一个气泡都没有**（截图存证）。
+            // `file` 为空（`vml test` 那种用内联源码跑的）时退回 `LastDiagsFile`：
+            // 编译成功时它是空的、`file` 才是唯一的身份来源。
+            PublishDiagnosticsToEditor(file ?? MauiVml.LastDiagsFile);
         }
     }
 

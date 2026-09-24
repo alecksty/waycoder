@@ -526,10 +526,30 @@ HALT
     /// </summary>
     private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) Fail(
         string lang, string message, string? filePath)
+        => FailWith(lang, message, filePath, VmlDiagnostics.Parse(message, filePath));
+
+    /// <summary>
+    /// 失败出口的**唯一收口** —— 凡是「编译没成」都要走这里，别直接 `return (null, …)`。
+    ///
+    /// <para>
+    /// **为什么必须收口**：这里做的是「把结构化的那一份留一份在外面」（<see cref="LastDiags"/>），
+    /// 命令行页靠它把诊断注入 `DiagnosticManager`，让编辑器的错误列表 / 行下波浪线 / 编译气泡亮起来。
+    /// 而**最容易漏的正是最常见的那条**：前端编译失败原先直接 `return (null, lang, …)` 绕开了
+    /// <see cref="Fail"/> ⇒ `LastDiags` 恒空 ⇒ 编辑器永远什么都没有。
+    /// 实测（Windows 版 MAUI，插桩 `[诊断注入] … 条数=0`）：`test_error.c` 明明编不过、
+    /// 命令行页也打了编译器的话，编辑器里却**一个气泡都没有** —— 就是这条绕道。
+    /// </para>
+    ///
+    /// <para>
+    /// 做成静态的依据与 <see cref="OnProgress"/> / <see cref="LastDiagnostics"/> 相同：
+    /// **VML 的执行是排他的**（`VmlTool.ExecutionMode = Exclusive` + 命令行页的 `_busy` 闸门），
+    /// 同一时刻只可能有一次编译在读它。做成一路透传的参数要改 6 个签名，而它们全是为了
+    /// 把这一个值送到最里面 —— 那种"接线"正是本仓库反复踩的漂移来源。
+    /// </para>
+    /// </summary>
+    private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) FailWith(
+        string lang, string message, string? filePath, List<Diagnostic> diags)
     {
-        var diags = VmlDiagnostics.Parse(message, filePath);
-        // **结构化的那一份要留一份在外面**：命令行页拿它注入 `DiagnosticManager`，
-        // 让编辑器的错误列表 / 行下波浪线 / 编译气泡跟着亮起来。见 `LastDiags` 的注释。
         LastDiags = diags;
         LastDiagsFile = filePath ?? "";
         return (null, lang, message, diags);
@@ -762,7 +782,9 @@ HALT
             // 后面那串「未声明的变量 'STD_OUTPUT_HANDLE'」是**为什么**。
             // 反过来只取 stderr 也不行：异常消息里那份位置更全。
             // 两份在链接期错误上是**逐字相同**的，所以必须去重、不能简单相加。
-            return (null, lang, $"⚠️ 编译失败：{inner.Message}",
+            // ⚠ **必须走 `FailWith`，不能直接 `return (null, …)`** —— 这里是**最常见**的失败出口
+            //   （前端编译报错），绕开它就等于"编辑器永远拿不到诊断"。见 `FailWith` 的说明。
+            return FailWith(lang, $"⚠️ 编译失败：{inner.Message}", filePath,
                 VmlDiagnostics.Merge(VmlDiagnostics.Parse($"⚠️ 编译失败：{inner.Message}", filePath),
                                      VmlDiagnostics.Parse(compileDiag, filePath)));
         }
