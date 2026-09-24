@@ -13,29 +13,43 @@
 // **函数名与 C 版逐个相同**：`initgraph` / `setcolor` / `line` / `circle` / `outtextxy`…）。
 // 本文件就是它的 Kotlin 调用。
 //
-// ## ⚠⚠ 本份**当前跑不起来**，原因两条，都在这份例程之外
+// ## ⚠⚠ 本份**当前跑不起来** —— 链不上 `bgi.vml`（两件事，都在这份例程之外）
 //
-//   ① **`bgi.vml` 没有被任何语言挂上**：`vmltool.config.xml` 里 kotlin 的 `Libs`
-//      只有 `vmlui.vml`（`builtins.vml` 来自 `DefaultLibs`）。整个仓库里 `bgi.vml`
-//      目前只被 Pascal 前端用 `uses graph` 自动链上（`PascalCompiler.cs:358` 的 `AutoLinkUnit`）。
-//   ② **`--lib` 对 Kotlin 前端不生效**（这条是本文件实测出来的）：
-//      给 Java 加 `--lib Lib/shared/bgi.vml` 就能编过（见 `Examples/java/demo_bgi.java`，
-//      已跑通出图）；**同一条命令给 Kotlin 加，仍然报 `未定义的函数 'initgraph'`**。
-//      最小对照（2026-09-24，两个文件都只改扩展名）：
+//   ① **`Libs=` 里没有 `bgi.vml`** —— 这一条**仍然成立**，但只解释得了
+//      **Java / C# / Swift** 那三份（它们要显式 `--lib Lib/shared/bgi.vml` 才跑）。
+//      ⚠ **Kotlin 这两份不是这个原因** —— 见下。
 //
-//          # mylib.vml
-//          .text
-//          mytest2:
-//              move @R0 #42
-//              ret
+//   ② **`--lib` 与 `Libs=` 对Kotlin（本前端）根本不生效** —— 真因**不是**「拿不到 `--lib`」：
+//      `--lib` 的文件与语言 `Libs=` 的文件进的是同一个 `libraryPaths`
+//      （`scripts/vmlcli/Program.cs`），而 `CompilerHelper.CompileFileStandard` 那次链接
+//      **确实**带着这份清单（`LinkStandardLibrary(prog, langName, allLibPaths)`）。
+//      真正卡住的是**更早的一步**：
+//      `KotlinCompiler.cs:35` 在 `Compile` 里先自己调了一次
+//      `CompilerHelper.LinkStandardLibrary(prog, "kotlin", null)` —— **库清单是 null**。
+//      那一次只认 `builtins.vml`（自动）+ `SharedPrefixMap` 自动探测到的模块
+//      （`ui_` → vmlui，所以 `demo_ui` 能跑），于是 `tty_*` / `initgraph` 当场被判成
+//      「未定义的函数」**硬错误抛出**，后面那次「带着真库清单」的链接**根本没机会跑**。
+//      ⚠ **别用 C 风格 `external` 声明去绕**（`external int tty_init(int,int,int);`）：
+//        Kotlin 解析器只认 `external` 这个关键字本身（`Parser.cs:32` 置 `_pendingExternal`），
+//        声明剩下的 token 被 `else Advance()` 逐个丢弃、**标志留着**，于是**紧跟着的第一个
+//        `fun`** 被当成外部函数编译（`CodeGenerator.cs:105` 的 `if (fn.IsExternal) continue;`
+//        ⇒ 不产标签、丢函数体）。症状是该 `fun` 报「未定义的函数」；而**若被吃掉的正好是
+//        `main`，程序会编译通过、运行「成功」、然后什么都不做**（静默空跑）。
+//        最小复现：`external int tty_init(int w,int h,int c);` + `fun foo(): Int { return 42 }`
+//        + `fun main(){ print(foo()) }` ⇒ `error: 未定义的函数 'foo'`。
+//      ⇒ 对照：`JavaCompiler.cs:37` / `CSharpCompiler.cs:38` **不做**这次预链接
+//        （注释写着「LinkStandardLibrary 由调用方统一处理」），所以同一份 `--lib` 给它们就有效。
+//      最小复现（2026-09-24，两步都跑过）：
 //
-//          // t.kt    →  println_int(mytest2())      + --lib mylib.vml → 未定义的函数 'mytest2'
-//          // T.java  →  static native int mytest2(); + --lib mylib.vml → 42
+//          // K2.java（同形，对照用）
+//          class K2 { static native int tty_init(int w,int h,int c);
+//                     public static void main(String[] a){ tty_init(80,25,1); } }
+//          $ vmlcli Examples/java/K2.java
+//            → ✔ 编译完成（java，59338 条指令）      // 不需要 --lib
 //
-//      ⇒ 这不是"bgi.vml 有什么特殊"，是 **Kotlin / Dart 两个前端拿不到 `--lib` 给的编译单元**
-//        （`--lib` 的文件与语言 `Libs=` 的文件进的是同一个 `libraryPaths`，见
-//         `scripts/vmlcli/Program.cs` 的 `libraryPaths.Add(full)`）。
-//
+//      ⚠ 与「`LIB.vml` 有没有挂上」**无关**：`tty.vml` 自提交 9b5e1aa7 起已在 22 门语言的
+//        `Libs=` 里（本条初版写成「只有 vmlui.vml」，已过期）。挂上了也一样编不过 ——
+//        卡点在前面那次预链接上，**不动共享代码修不了**。
 // **两种修法（都动共享代码，本份例程没有代改）**：
 //   · 把 `bgi.vml` 加进 `vmltool.config.xml` 里 kotlin / dart 那两行 `Libs=`；
 //   · 或者照 Pascal 的 `AutoLinkUnit`（`PascalCompiler.cs:358`）给这两个前端也做一层

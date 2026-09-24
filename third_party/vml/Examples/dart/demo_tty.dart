@@ -5,21 +5,35 @@
 //   `tty_*` 只有字符、没有任何图形功能；要画图用 BGI 或 `ui_*`。
 //   坐标 **1 起算**、颜色 **0–15 索引色**。
 //
-// ## ⚠⚠ 本份**当前跑不起来** —— `tty.vml` 链不上（原因两条，都在这份例程之外）
+// ## ⚠⚠ 本份**当前跑不起来** —— 链不上 `tty.vml`（两件事，都在这份例程之外）
 //
-//   ① **`tty.vml` 没有被任何语言挂上**：`vmltool.config.xml` 里 dart（以及所有其它语言）
-//      的 `Libs` 只有 `vmlui.vml`（`builtins.vml` 来自 `DefaultLibs`）。
-//      **C 是唯一例外** —— `Lib/c/tty.h` 里那句 `#param lib("tty")` 生效，
-//      所以 C 不加任何参数就能用（`Examples/c/demo_tty.c` 已跑通）。
-//   ② **`--lib` 对 Dart 前端不生效**（本轮实测；与 `demo_bgi.dart` 同一个根因）：
+//   ① **`Libs=` 里没有 `tty.vml`** —— 这一条**仍然成立**，但只解释得了
+//      **Java / C# / Swift** 那三份（它们要显式 `--lib Lib/shared/tty.vml` 才跑）。
+//      ⚠ **Dart 这两份不是这个原因** —— 见下。
 //
-//          vmlcli Examples/dart/demo_tty.dart --lib Lib/shared/tty.vml
-//            → <input>:6: error: 未定义的函数 'tty_init'（引用 1 次）
+//   ② **`--lib` 与 `Libs=` 对Dart（本前端）根本不生效** —— 真因**不是**「拿不到 `--lib`」：
+//      `--lib` 的文件与语言 `Libs=` 的文件进的是同一个 `libraryPaths`
+//      （`scripts/vmlcli/Program.cs`），而 `CompilerHelper.CompileFileStandard` 那次链接
+//      **确实**带着这份清单（`LinkStandardLibrary(prog, langName, allLibPaths)`）。
+//      真正卡住的是**更早的一步**：
+//      `DartCompiler.cs:34` 在 `Compile` 里先自己调了一次
+//      `CompilerHelper.LinkStandardLibrary(prog, "dart", null)` —— **库清单是 null**。
+//      那一次只认 `builtins.vml`（自动）+ `SharedPrefixMap` 自动探测到的模块
+//      （`ui_` → vmlui，所以 `demo_ui` 能跑），于是 `tty_*` / `initgraph` 当场被判成
+//      「未定义的函数」**硬错误抛出**，后面那次「带着真库清单」的链接**根本没机会跑**。
+//      ⇒ 对照：`JavaCompiler.cs:37` / `CSharpCompiler.cs:38` **不做**这次预链接
+//        （注释写着「LinkStandardLibrary 由调用方统一处理」），所以同一份 `--lib` 给它们就有效。
+//      最小复现（2026-09-24，两步都跑过）：
 //
-//      同一份调用给 **Java / C# / C++** 加同一个 `--lib` 就**都能跑**
-//      （三份 `demo_tty` 均已出画面）；给 Kotlin / Dart 加就还是未定义。
-//      最小对照见 `Examples/kotlin/demo_tty.kt` 的文件头（两个文件只改扩展名）。
+//          // K2.java（同形，对照用）
+//          class K2 { static native int tty_init(int w,int h,int c);
+//                     public static void main(String[] a){ tty_init(80,25,1); } }
+//          $ vmlcli Examples/java/K2.java
+//            → ✔ 编译完成（java，59338 条指令）      // 不需要 --lib
 //
+//      ⚠ 与「`LIB.vml` 有没有挂上」**无关**：`tty.vml` 自提交 9b5e1aa7 起已在 22 门语言的
+//        `Libs=` 里（本条初版写成「只有 vmlui.vml」，已过期）。挂上了也一样编不过 ——
+//        卡点在前面那次预链接上，**不动共享代码修不了**。
 // **修法（都动共享代码，本份例程没有代改）**：把 `tty.vml` 加进 `vmltool.config.xml`
 //   里 dart / kotlin 那两行 `Libs=`。
 //

@@ -19,6 +19,8 @@ public class Parser : ParserBase<Token, TokenType>
     protected override bool IsStatementSeparator(Token token) => token.Type
         is TokenType.NEWLINE or TokenType.SEMICOLON;
 
+    /// <summary>`external fun foo()` —— **修饰符**形态的标志（只由 <see cref="ConsumeExternal"/> 置位）。
+    /// ⚠ 它**绝不允许跨声明存活**：漏给下一个 `fun` 会让那个函数被当成外部函数编译（不产标签、丢函数体）。</summary>
     bool _pendingExternal = false;
 
     public Parser(List<Token> tokens) : base(tokens) { }
@@ -26,10 +28,104 @@ public class Parser : ParserBase<Token, TokenType>
     protected override Token Expect(TokenType t, string msg) =>
         Check(t) ? Advance() : throw Error($"{msg}（位置 {Cur.Line}:{Cur.Column}），实际得到 {GetTokenType(Cur)} '{Cur.Value}'");
 
+    /// <summary>
+    /// 消费一个 `external`。**两种形态都在这一个出口收口**：
+    ///   ① `external fun foo()` —— Kotlin 原生的**修饰符**形态：置 `_pendingExternal`
+    ///      交给紧随其后的 `fun` 分支，返回 null；
+    ///   ② `external int foo(int a);` —— C / Dart 风格的**裸声明**：**就地消费到 `;`**，
+    ///      返回一个 `IsExternal = true` 的 `FunctionDecl`（`CodeGenerator` 对它
+    ///      `continue` 掉、只登记名字，与"不声明直接调"产出的裸标签 `CALL` 同形）。
+    ///
+    /// ⚠ ② 不是"顺手多支持一种写法"，而是**堵一条静默损坏的路**：`external` 原先只置标志就
+    ///   `Advance()`，声明的其余 token 由顶层兜底的 `else Advance()` 逐个丢掉，而**标志还挂着**
+    ///   ⇒ 紧跟着的第一个 `fun` 被当成外部函数编译。两个症状：
+    ///     · 那个 `fun` 链接期报「未定义的函数」。实测最小复现（2026-09-24）：
+    ///       `external int tty_init(int w,int h,int c);` + `fun foo(): Int { return 42 }`
+    ///       + `fun main(){ print(foo()) }` ⇒ `error: 未定义的函数 'foo'`；
+    ///       去掉那句 `external` 就正常打出 42。
+    ///     · **被吃掉的若是 `main`，程序编译通过、运行"成功"、然后什么都不做**（静默空跑）——
+    ///       这一条比报错坏得多（探针阶段已经骗过一轮）。
+    ///   所以这里的原则是：**声明读不完整就报错，绝不让标志漏给下一个 `fun`**。
+    /// </summary>
+    ASTNode? ConsumeExternal() {
+        Advance(); // external
+        // ① 修饰符形态（`external fun` / `external fun T.f()`）—— 交给 `fun` 分支去解析。
+        //    `Peek(n)` 跳过 `NEWLINE`：Kotlin 里修饰符与声明可以分行（`external⏎fun foo()`）。
+        //    本词法器目前**根本不发 `NEWLINE` token**（见 ② 那段注释），所以这个循环眼下是
+        //    空转 —— 留着是为了"将来真发了"时这一形态**仍按修饰符处理**，而不是掉进 ② 或报错。
+        int n = 0;
+        while (GetTokenType(Peek(n)) == TokenType.NEWLINE) n++;
+        if (GetTokenType(Peek(n)) == TokenType.KEYWORD && Peek(n).Value == "fun") {
+            _pendingExternal = true;
+            return null;
+        }
+        // ② 裸声明形态：`external <返回类型> 名字 ( 形参表 )`
+        //    返回类型长度不定（`int` / `void` / `List<int>` / `Map<String, Int>`），
+        //    判据是**紧邻 `(` 的那个标识符就是函数名**（与 `ParseFunction` 取名同一套取法）。
+        //
+        //    ⚠ **扫描必须是"白名单 + 立刻报错"**，不能"一路扫到 `(` 为止"：
+        //      本前端的词法器**根本不发 `NEWLINE` token**（`Lexer.cs` 里一个都没有）⇒
+        //      按行收尾的写法在这里等于**没有收尾**。实测踩到：
+        //        `external⏎val x = 1⏎fun main() { print(x) }`
+        //      会被当成"一个名叫 `main` 的外部声明"整个吃掉（`main` 不产标签、
+        //      **编译通过、运行成功、什么都不做**）—— 与这次要堵的那条是同一个病，
+        //      只是换了个入口（`x1.kt`，实测静默空跑；已按下面的白名单修掉）。
+        //      所以：只吃**返回类型可能出现的 token**（标识符 / 泛型与限定名的符号 /
+        //      几个类型名关键字），其余**一律停下来报错**。
+        string? name = null;
+        while (true) {
+            var t = GetTokenType(Cur);
+            if (t == TokenType.LPAREN) break;                                  // 形参表开始
+            if (t == TokenType.IDENTIFIER) { name = Cur.Value; Advance(); continue; }
+            // 返回类型里的泛型与限定名：`List<int>` / `Map<String, Int>` / `a.b.C` / `int*`
+            if (t is TokenType.LT or TokenType.GT or TokenType.COMMA or TokenType.DOT
+                  or TokenType.LBRACKET or TokenType.RBRACKET or TokenType.STAR) { Advance(); continue; }
+            // Kotlin 里**几个类型名本身就是关键字**（`Lexer.Keywords` 里的 `Int`/`String`/`Boolean`/`Unit`）
+            if (t == TokenType.KEYWORD && Cur.Value is "Int" or "String" or "Boolean" or "Unit") { Advance(); continue; }
+            break;   // 其余（含 `fun`/`val`/`var`/`class`/…/`;`/`{`/ 换行 / EOF）⇒ 停下来报错
+        }
+        // ⚠ 走不到 `(` 就**报错**，绝不"跳过这一行继续"：那正是原来那条静默损坏的路
+        //   （被跳过的若是 `main`，程序会编译通过、运行"成功"、什么都不做）。
+        if (GetTokenType(Cur) != TokenType.LPAREN)
+            throw Error($"`external` 声明无法解析：期望 `external <返回类型> 函数名(形参);` 或 `external fun 函数名()`，"
+                + $"实际得到 {GetTokenType(Cur)} '{Cur.Value}'（位置 {Cur.Line}:{Cur.Column}）");
+        if (name == null)
+            throw Error($"`external` 声明缺少函数名（位置 {Cur.Line}:{Cur.Column}）");
+        Expect(TokenType.LPAREN, "Expected '('");
+        var pars = new List<string>();
+        int depth = 0;
+        var seg = new List<Token>();
+        while (GetTokenType(Cur) != TokenType.EOF) {
+            var t = GetTokenType(Cur);
+            if (depth == 0 && t == TokenType.RPAREN) break;
+            if (t is TokenType.LPAREN or TokenType.LBRACKET or TokenType.LT) depth++;
+            else if (t is TokenType.RPAREN or TokenType.RBRACKET or TokenType.GT) depth--;
+            // 顶层逗号切段（`Map<String, Int>` 里的逗号 depth > 0，不切）
+            else if (depth == 0 && t == TokenType.COMMA) { pars.Add(ExternalParamName(seg, pars.Count)); seg.Clear(); Advance(); continue; }
+            seg.Add(Cur);
+            Advance();
+        }
+        if (seg.Count > 0) pars.Add(ExternalParamName(seg, pars.Count));
+        Expect(TokenType.RPAREN, "Expected ')'");
+        if (GetTokenType(Cur) == TokenType.SEMICOLON) Advance();
+        return new FunctionDecl(name, pars, new Block([]), [], true);
+    }
+
+    /// <summary>形参段里的名字（`int w` → `w`）。⚠ 形参**可以只有类型没有名字**
+    /// （`external int f(int, int);`），那种段里一个名字都没有 —— 给占位名，
+    /// **别把类型名（`int`）当成形参名**（判据是"段里至少两个 token"）。</summary>
+    static string ExternalParamName(List<Token> seg, int idx)
+        => seg.Count >= 2 && seg[^1].Type == TokenType.IDENTIFIER ? seg[^1].Value : $"arg{idx}";
+
     public Program Parse() {
         var funcs = new List<ASTNode>();
         while (GetTokenType(Cur) != TokenType.EOF) {
-            if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "external") { _pendingExternal = true; Advance(); continue; }
+            // `external` 两种形态都走 `ConsumeExternal()`（修饰符 / C-Dart 风格裸声明）——
+            // **绝不允许它只置标志就 `continue`**，否则标志会吃掉紧跟着的下一个 `fun`，见该方法上的注释。
+            if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "external") {
+                if (ConsumeExternal() is { } extDecl) funcs.Add(extDecl);
+                continue;
+            }
             // 顶层 `val` / `var` —— 此前**没有任何一条分支认它**，于是兜底的
             // `else Advance()` 把它**一个 token 一个 token 地静默吃掉**：
             // 声明没了、`Program.Functions` 里也没有它，函数里引用它时
@@ -43,7 +139,7 @@ public class Parser : ParserBase<Token, TokenType>
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "class") funcs.Add(ParseClassDecl());
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "interface") funcs.Add(ParseInterface());
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "sealed") { Advance(); var cd = ParseClassDecl(); if (cd is ClassDecl c) c.IsSealed = true; funcs.Add(cd); }
-            else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "object") { Advance(); if (GetTokenType(Cur) == TokenType.IDENTIFIER) Advance(); if (GetTokenType(Cur) == TokenType.LBRACE) { Advance(); while (GetTokenType(Cur) != TokenType.RBRACE && GetTokenType(Cur) != TokenType.EOF) { if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "external") { _pendingExternal = true; Advance(); continue; } if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "fun") funcs.Add(ParseFunction()); else Advance(); } Advance(); /* skip } */ } }
+            else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "object") { Advance(); if (GetTokenType(Cur) == TokenType.IDENTIFIER) Advance(); if (GetTokenType(Cur) == TokenType.LBRACE) { Advance(); while (GetTokenType(Cur) != TokenType.RBRACE && GetTokenType(Cur) != TokenType.EOF) { if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "external") { if (ConsumeExternal() is { } extDecl) funcs.Add(extDecl); continue; } if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "fun") funcs.Add(ParseFunction()); else Advance(); } Advance(); /* skip } */ } }
             else Advance();
         }
         return new Program(funcs);

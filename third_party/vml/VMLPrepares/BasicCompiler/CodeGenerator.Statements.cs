@@ -278,7 +278,7 @@ namespace BasicCompiler
                 string ctorName = typeName + "_constructor";
                 if (methodSubs.Contains(ctorName) || subMap.ContainsKey(ctorName))
                 {
-                    int offset = GetOrCreateVariable(dimAsStmt.VariableName);
+                    int offset = GetOrCreateVariable(dimAsStmt.VariableName, declaration: true);
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 12)]));
                     if (offset > 0)
                         instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, offset * 4 + 8)]));

@@ -31,7 +31,17 @@ public class DartCompiler
             var codeGenerator = new CodeGenerator();
             codeGenerator.SourceLines = source.Split('\n');
             var prog = codeGenerator.GenerateCode(ast);
-            CompilerHelper.LinkStandardLibrary(prog, "dart", null);
+            // ⚠ **不在这里链接标准库** —— 与 Java / C# / C / C++ 同一条约定
+            //   （`JavaCompiler.cs:37`、`CSharpCompiler.cs:38`、`CCompiler.cs:101` 都写着
+            //    「LinkStandardLibrary 由调用方统一处理，避免重复链接」）。
+            //   理由与 Kotlin 那边逐条相同（见 `KotlinCompiler.cs` 的 `Compile` 尾注）：
+            //   这里的 `LinkStandardLibrary(prog, "dart", null)` 库清单是 **null**，
+            //   `tty_*` / `initgraph` 这类语言库里的函数会被判成「未定义的函数」**硬错误抛出**，
+            //   于是调用方（`CompileFileStandard`）那次带着真清单的链接**根本没机会跑**
+            //   ⇒ `--lib` 与 `Libs=` 对本门语言完全失效（实测 `demo_tty.dart` 加不加
+            //   `--lib Lib/shared/tty.vml` 报的是同一串「未定义的函数」）。
+            //   走「把 null 换成真实库清单」那条路要给静态的 `Compile(source)` 新开一条
+            //   环境通道（签名里没有库清单、`CompilerOptions` 也不携带），而调用方已经链过一次。
             return prog;
         });
     }

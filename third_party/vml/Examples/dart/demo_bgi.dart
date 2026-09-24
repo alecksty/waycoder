@@ -12,17 +12,35 @@
 // 所以走另一份实现：**`Lib/shared/bgi.vml`**（由 `Lib/shared/src/bgi.c` 编译而来，
 // **函数名与 C 版逐个相同**）。本文件就是它的 Dart 绑定。
 //
-// ## ⚠⚠ 本份**当前跑不起来**，原因两条，都在这份例程之外
+// ## ⚠⚠ 本份**当前跑不起来** —— 链不上 `bgi.vml`（两件事，都在这份例程之外）
 //
-//   ① **`bgi.vml` 没有被任何语言挂上**：`vmltool.config.xml` 里 dart（以及所有其它语言）
-//      的 `Libs` 只有 `vmlui.vml`（`builtins.vml` 来自 `DefaultLibs`）。整个仓库里
-//      `bgi.vml` 只被 Pascal 前端用 `uses graph` 自动链上（`PascalCompiler.cs:358`）。
-//   ② **`--lib` 对 Dart 前端不生效**（本轮实测。`Examples/java/demo_bgi.java` 与
-//      `Examples/csharp/demo_bgi.cs` 加同一条 `--lib Lib/shared/bgi.vml` 都**已跑通出图**，
-//      给 Dart 加就还是 `未定义的函数 'initgraph'`）。最小对照见
-//      `Examples/kotlin/demo_bgi.kt` / `demo_tty.kt` 的文件头（自写一行标签 `mytest2`，
-//      Java 能解析、Kotlin/Dart 不能）。
+//   ① **`Libs=` 里没有 `bgi.vml`** —— 这一条**仍然成立**，但只解释得了
+//      **Java / C# / Swift** 那三份（它们要显式 `--lib Lib/shared/bgi.vml` 才跑）。
+//      ⚠ **Dart 这两份不是这个原因** —— 见下。
 //
+//   ② **`--lib` 与 `Libs=` 对Dart（本前端）根本不生效** —— 真因**不是**「拿不到 `--lib`」：
+//      `--lib` 的文件与语言 `Libs=` 的文件进的是同一个 `libraryPaths`
+//      （`scripts/vmlcli/Program.cs`），而 `CompilerHelper.CompileFileStandard` 那次链接
+//      **确实**带着这份清单（`LinkStandardLibrary(prog, langName, allLibPaths)`）。
+//      真正卡住的是**更早的一步**：
+//      `DartCompiler.cs:34` 在 `Compile` 里先自己调了一次
+//      `CompilerHelper.LinkStandardLibrary(prog, "dart", null)` —— **库清单是 null**。
+//      那一次只认 `builtins.vml`（自动）+ `SharedPrefixMap` 自动探测到的模块
+//      （`ui_` → vmlui，所以 `demo_ui` 能跑），于是 `tty_*` / `initgraph` 当场被判成
+//      「未定义的函数」**硬错误抛出**，后面那次「带着真库清单」的链接**根本没机会跑**。
+//      ⇒ 对照：`JavaCompiler.cs:37` / `CSharpCompiler.cs:38` **不做**这次预链接
+//        （注释写着「LinkStandardLibrary 由调用方统一处理」），所以同一份 `--lib` 给它们就有效。
+//      最小复现（2026-09-24，两步都跑过）：
+//
+//          // K2.java（同形，对照用）
+//          class K2 { static native int tty_init(int w,int h,int c);
+//                     public static void main(String[] a){ tty_init(80,25,1); } }
+//          $ vmlcli Examples/java/K2.java
+//            → ✔ 编译完成（java，59338 条指令）      // 不需要 --lib
+//
+//      ⚠ 与「`LIB.vml` 有没有挂上」**无关**：`tty.vml` 自提交 9b5e1aa7 起已在 22 门语言的
+//        `Libs=` 里（本条初版写成「只有 vmlui.vml」，已过期）。挂上了也一样编不过 ——
+//        卡点在前面那次预链接上，**不动共享代码修不了**。
 // **修法（都动共享代码，本份例程没有代改）**：把 `bgi.vml` 加进 `vmltool.config.xml`
 //   里 dart / kotlin 那两行 `Libs=`。
 //

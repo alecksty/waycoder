@@ -560,7 +560,23 @@ namespace BasicCompiler
                 variableTypes[varName] = BasicType.String;
         }
 
-        private int GetOrCreateVariable(string name)
+        /// <param name="declaration">
+        /// 这次调用是**声明**（`DIM` 那一族），不是"用到了才现造"。声明**不该**报
+        /// 「未声明即隐式全局」—— 名字还不在表里正是声明的**常态**，不是可疑之处。
+        ///
+        /// <para><b>为什么必须区分（v0.96.422，用户报「demo_ui.bas 跑不起来」查出来的）</b>：
+        /// 报错的判据收在本函数一处是**对的**（见下），但 `DIM` 那几条路也从这个出口建变量 ——
+        /// 于是每一条 DIM 都把自己当成了"未声明引用"。实测三种形态：
+        /// <list type="bullet">
+        /// <item>`DIM x AS INTEGER` ⇒ 警告「隐式声明的变量 'x'」（DIM 明明写着呢）；</item>
+        /// <item>写了 `OPTION EXPLICIT` 之后**升级成硬错误** —— `DIM` 与 `OPTION EXPLICIT`
+        ///   根本不能同时用，这是最离谱的那一档；</item>
+        /// <item>数组元素槽 / 记录字段槽（`a(0)`、`p_slot_1` 这些**内部合成名**）也被报出来，
+        ///   一条 DIM 刷出十几行噪音。</item>
+        /// </list>
+        /// 所以判据不是"名字在不在表里"，而是"这次建变量**是不是声明**"。</para>
+        /// </param>
+        private int GetOrCreateVariable(string name, bool declaration = false)
         {
             if (!variables.ContainsKey(name))
             {
@@ -571,7 +587,7 @@ namespace BasicCompiler
                 //
                 // QBasic 的默认语义就是「未声明即隐式全局、值 0」⇒ **默认只警告**；
                 // 写了 `OPTION EXPLICIT` 才升级成错误。此前无论写没写都静默建槽，那条指令形同虚设。
-                if (currentLocalVars == null || !currentLocalVars.ContainsKey(name))
+                if (!declaration && (currentLocalVars == null || !currentLocalVars.ContainsKey(name)))
                 {
                     if (StrictDeclarations)
                         ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
@@ -881,7 +897,7 @@ namespace BasicCompiler
                     string varKey = dimStmt.VariableName;
                     if (!variables.ContainsKey(varKey))
                     {
-                        GetOrCreateVariable(varKey);
+                        GetOrCreateVariable(varKey, declaration: true);
                     }
                     if (dimStmt.IsShared)
                     {
@@ -915,7 +931,9 @@ namespace BasicCompiler
                                 string slotName = s == 0 ? elementName : $"{elementName}_slot_{s}";
                                 if (!variables.ContainsKey(slotName))
                                 {
-                                    GetOrCreateVariable(slotName);
+                                    // 元素槽名（`a(0)`）是**前端内部合成**的，不是用户在源码里写的
+                                    // 东西 ⇒ 报「隐式声明的变量」纯属噪音（一条 `DIM a(3)` 刷 4 行）。
+                                    GetOrCreateVariable(slotName, declaration: true);
                                 }
                                 // 元素槽的字节数也**定死**（`Byte` 等也占一格 4 字节），
                                 // 否则 `GetVarByteOffset` 现算类型会与分配脱钩。
@@ -1058,7 +1076,10 @@ namespace BasicCompiler
                 string varName = dimAsStmt.VariableName.ToLower();
                 if (!variables.ContainsKey(varName))
                 {
-                    GetOrCreateVariable(varName);
+                    // **`declaration: true`** —— `DIM x AS INTEGER` 就是声明本身。
+                    // 不加这一个参数，每一条 DIM 都会被报成「隐式声明的变量 'x'」，
+                    // 写了 `OPTION EXPLICIT` 更是直接编不过（见 GetOrCreateVariable 的说明）。
+                    GetOrCreateVariable(varName, declaration: true);
                 }
                 dimAsVariables[varName] = dimAsStmt.TypeName.ToLower();
                 RegisterDimAsType(varName, dimAsStmt.TypeName);
@@ -1070,7 +1091,7 @@ namespace BasicCompiler
                     {
                         string slotName = $"{varName}_slot_{i + 1}";
                         if (!variables.ContainsKey(slotName))
-                            GetOrCreateVariable(slotName);
+                            GetOrCreateVariable(slotName, declaration: true);   // 合成名，同数组元素槽
                     }
                 }
             }
@@ -1362,14 +1383,8 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0) }));
 
-            // 生成变量初始化
-            foreach (var variable in variables)
-            {
-                AddRI(OpCode.MOVE, 0, 0);
-                BasicType varType = GetVariableType(variable.Key);
-                OpCode storeOp = GetStoreInstruction(varType);
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + variable.Value * 4}"), new Operand(OperandType.REGISTER, 0) }));
-            }
+            // （变量初始化**不在这里** —— 它必须在静态区基址算出来、全局段清 0 之后才做，
+            //   见下面 "生成变量初始化" 那一段的长注释。这里从前是它，也就是那个 bug 的位置。）
 
             // 动态分配静态数据区 (替代固定地址 StaticBase)
             AddRI(OpCode.MOVE, 0, STATIC_TOTAL_SIZE);
@@ -1420,6 +1435,39 @@ namespace BasicCompiler
                 instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroDone) }));
             }
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+
+            // 生成变量初始化 —— **必须走 `EmitStoreVar`**（与读/写两侧同一套寻址），
+            // 不能在这里手拼地址。位置也必须在这里（静态基址已算进 `Sys.StaticBase`、
+            // 全局段已清 0）—— 前三件事（`EmitAlloc` / 存基址槽 / 清全局段）之前做，
+            // `EmitStoreVar` 会去读一个**还没写过的**基址槽（= 0），等于按绝对偏移 0x5000 乱写。
+            //
+            // ⚠ 原来这段在**序言刚结束**的位置、并且写成 `MEMORY $"R12+{8 + variable.Value * 4}"`
+            //   （"第 N 个变量在主帧里"）。而模块级变量**早就搬进静态区全局段**了
+            //   （`EmitLoadVar`/`EmitStoreVar` 都认 `IsGlobalVar`）—— 这一处是搬迁时**漏掉的唯一一处**，
+            //   于是它往**主帧 R12 之上**写：
+            //
+            //     · `R12+8` 之上就是栈顶：`main` 的序言 `push R15 / push R12 / move R12,R13`
+            //       之后 BP 已经贴住栈顶，`R12+0/+4` 是保存的 R12/R15、`R12+8` 是
+            //       **"调用 main 那个返回地址"** ⇒ 这一段的第一个变量在**覆盖返回地址**；
+            //     · 第 5 个变量 ⇒ `R12+24` ⇒ **正好越过内存上限**（实测
+            //       `地址=00200000`，而内存就是 2MB）⇒ 「内存错误(PC=…): MOVE …」当场把程序打死。
+            //       它偏偏**只是个初始化**（把这些变量清 0），真正的读写都在全局段、一直是好的 ——
+            //       所以症状长成"3 个 DIM 好、4 个好、5 个起必崩"这种**跟变量内容完全无关**的形态
+            //       （用户报的 `demo_ui.bas` 有 13 个 DIM，第 5 个就是 `DIM maxf AS INTEGER`）。
+            //     · 顺带：这里用的是 `variable.Value * 4`（槽序号 × 4），而全局段的字节偏移真源是
+            //       `GetVarByteOffset`（Double/Long 算 8 字节）⇒ 又一处"同一件事两套算法"
+            //       （见 `varByteSizes` 的说明），走 `EmitStoreVar` 一并消掉。
+            //
+            //   清全局段那段循环其实已经覆盖了同样的事（`STATIC_TOTAL_SIZE - STATIC_GLOBALS_OFFSET`
+            //   字节 ⊇ 全部变量），所以这一段如今是**幂等的第二遍**。**保留**它是有意的：
+            //   「每个变量从 0 开始」这条 BASIC 语义写在**这里**（变量逐个过一遍），而不是
+            //   隐含在"上面那段循环恰好清了这么大一块"里 —— 哪天全局段布局改了，
+            //   少了它就会退化成"变量带着垃圾值"。
+            foreach (var variable in variables)
+            {
+                AddRI(OpCode.MOVE, 0, 0);
+                EmitStoreVar(variable.Key, 0);
+            }
 
             // 初始化 DATA 指针 (offset 0 in static area)
             //
@@ -1484,8 +1532,17 @@ namespace BasicCompiler
                 GenerateStatement(statement);
             }
 
-            // 程序结束 - 加载第一个全局变量到 R0 作为退出码，然后退出
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R12+8") }));
+            // 程序结束 —— 退出码 0，然后退出。（`SYSTEM n` / 显式设了退出码的那几条路会
+            // 自己先把 R0 装好再 `EmitExit`，不受这里影响。）
+            //
+            // ⚠ 这里原来读 `[R12+8]`（注释写的是"第一个全局变量作为退出码"）。变量搬进
+            //   静态区全局段之后那一格**已经不是变量了** —— `main` 序言 `push R15/R12` 之后
+            //   `R12+8` 就是"调用 main 那个返回地址"（见上一处变量初始化的长注释，两者同源）。
+            //   它当时之所以"看着没问题"，是因为上面那个**错误的初始化循环**刚好把那格写成了 0
+            //   ⇒ 退出码恒为 0。初始化修好之后若不一起改，这里会开始返回一个**地址**，
+            //   于是"本来 0、现在非 0"变成新的回归。写死 0 既与修前的观测行为一致，
+            //   又让没有变量的程序（修前读到的是返回地址这个随机值）从此确定。
+            AddRI(OpCode.MOVE, 0, 0);
             EmitExit();
 
             // Generate SUB procedures
