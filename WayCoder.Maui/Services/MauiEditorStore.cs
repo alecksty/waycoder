@@ -153,6 +153,45 @@ public static class MauiEditorStore
     public static string NameOf(SaveNewline e)
         => SaveNewlineOptions.FirstOrDefault(o => o.Value == e).Label ?? e.ToString();
 
+    // ── 运行面板（编辑器底部那个「错误列表 / 输出」小窗）的高度 ────────────────
+    //
+    // 用户要的是「**一个地方能拖动改占比**」—— 原先 `HeightRequest="220"` 写死在 XAML 里，
+    // 大屏上显得小、小屏上又占掉一半。拖完要**记住**（不然每次进来都得再拖一遍）。
+    //
+    // ⚠ **存的是设备无关像素的高度，不是比例**。用户说的是"我拖多少就是多少"，
+    //   按比例存会让同一份设置在不同屏上呈现不同的绝对高度，手感漂移。
+    //   换屏/转屏后超过当屏上限的，由页面按**当前**高度再 clamp 一次（见 `EditorPage`）。
+    public const double DefaultPanelHeight = 220;
+
+    /// <summary>再往下拖也留得住内容的最小高度（约 4~5 行文本 + Tab 行）。</summary>
+    public const double MinPanelHeight = 120;
+
+    /// <summary>存盘时的宽松上限 —— 真正的上限得看屏幕，由页面算（这里只挡明显离谱的值）。</summary>
+    private const double MaxStoredPanelHeight = 4000;
+
+    private static double _panelHeight = DefaultPanelHeight;
+
+    /// <summary>运行面板高度（设备无关像素）。页面用之前应按当屏上限 clamp 一次。</summary>
+    public static double PanelHeight => _panelHeight;
+
+    /// <summary>把任意来源的值夹进合法区间（<c>NaN</c>/<c>Infinity</c> 退回默认值）。</summary>
+    private static double ClampStoredPanelHeight(double h)
+        => double.IsNaN(h) || double.IsInfinity(h)
+            ? DefaultPanelHeight
+            : Math.Clamp(h, MinPanelHeight, MaxStoredPanelHeight);
+
+    /// <summary>
+    /// 落盘面板高度。**拖动过程中不要每帧调它** —— 视图跟着手指走是 `HeightRequest` 的事，
+    /// 这里只在**松手那一下**写一次（写盘是原子替换，每帧一次纯属浪费）。
+    /// </summary>
+    public static void SetPanelHeight(double h)
+    {
+        double v = ClampStoredPanelHeight(h);
+        if (v == _panelHeight) return;   // 没变就不写
+        _panelHeight = v;
+        Save();
+    }
+
     public static void Load()
     {
         try
@@ -186,6 +225,11 @@ public static class MauiEditorStore
             if (enc >= 0 && enc <= (int)SaveEncoding.Oem) SaveAsEncoding = (SaveEncoding)enc;
             int nl = (int)root.GetNumber("saveNewline");
             if (nl >= 0 && nl <= (int)SaveNewline.Lf) SaveAsNewline = (SaveNewline)nl;
+
+            // 运行面板高度：**缺键 = 用默认值**（不是 0）—— 与 `bubbleChars` 同一条理由：
+            // 老版本升上来的 editor.json 里没有这个键，写成裸 GetNumber 会得到 0，
+            // 再被 clamp 夹成 MinPanelHeight ⇒ 用户的运行面板"自己变矮了"，而他根本没拖过。
+            if (root.Has("panelHeight")) _panelHeight = ClampStoredPanelHeight(root.GetNumber("panelHeight"));
         }
         catch { /* 配置损坏 → 用默认值 */ }
     }
@@ -241,6 +285,7 @@ public static class MauiEditorStore
             root.Set("defaultExpandBubbles", DefaultExpandBubbles);
             root.Set("saveEncoding", (int)SaveAsEncoding);
             root.Set("saveNewline", (int)SaveAsNewline);
+            root.Set("panelHeight", _panelHeight);
             Global.WriteAllTextAtomic(StorePath, root.ToJson());
         }
         catch { /* 保存失败不崩溃 */ }

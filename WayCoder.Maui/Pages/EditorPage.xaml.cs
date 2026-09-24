@@ -3443,9 +3443,69 @@ public partial class EditorPage : ContentPage
     private void ShowPanel(PanelTab tab)
     {
         OutputPanel.IsVisible = true;
+        ApplyPanelHeight();
         SwitchPanelTab(tab);
         // 气泡**不为面板让位**（规格：不做任何避让 —— 位置只由错误行决定）。
         // 面板的 ZIndex 比画布高，本来就压在气泡上面。
+    }
+
+    // ── 面板高度可拖（拖面板最上沿那条） ──────────────────────────────────────
+    //
+    // 用户要的：「需要一个地方拖动改变占用高度，现在高度固定，有些大屏幕我可以拖动占比多一些」。
+    //
+    // 三条约束：
+    //   · **往上拖 = 变高**（面板贴底，`VerticalOptions="End"`）⇒ 高度 = 起点 − TotalY；
+    //   · 拖动**过程中只改 `HeightRequest`**，松手才落盘一次 —— 写盘是原子替换，
+    //     跟手每帧写一次纯属浪费；
+    //   · 上限按**当屏**算（`RootGrid` 的 80%），因为存的是绝对高度：换屏/转屏之后
+    //     原来那个值可能已经超过新屏的可用高度，得重新夹一次。
+    private double _panelDragStartH;
+
+    /// <summary>当屏允许的最大面板高度（留两成给编辑器 —— 拖满就没法看代码了）。</summary>
+    private double MaxPanelHeight
+    {
+        get
+        {
+            double h = RootGrid.Height;
+            // ⚠ 布局还没跑完时 `Height` 是 -1：退回**屏幕高度**再算，别拿 -1 去 clamp
+            //   （那会把上限算成 MinPanelHeight，面板一进去就被压到最矮）。
+            if (h <= 0)
+            {
+                var d = DeviceDisplay.MainDisplayInfo;
+                h = d.Density > 0 ? d.Height / d.Density : MauiEditorStore.DefaultPanelHeight * 3;
+            }
+            return Math.Max(MauiEditorStore.MinPanelHeight, h * 0.8);
+        }
+    }
+
+    private double ClampPanelHeight(double h)
+        => Math.Clamp(h, MauiEditorStore.MinPanelHeight, MaxPanelHeight);
+
+    /// <summary>把存下来的高度应用到面板（每次显示面板时调 —— 顺带按当屏重新夹一次）。</summary>
+    private void ApplyPanelHeight()
+        => OutputPanel.HeightRequest = ClampPanelHeight(MauiEditorStore.PanelHeight);
+
+    private void OnPanelDragPanUpdated(object sender, PanUpdatedEventArgs e)
+    {
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _panelDragStartH = OutputPanel.Height > 0
+                    ? OutputPanel.Height
+                    : ClampPanelHeight(MauiEditorStore.PanelHeight);
+                break;
+
+            case GestureStatus.Running:
+                OutputPanel.HeightRequest = ClampPanelHeight(_panelDragStartH - e.TotalY);
+                break;
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                // 松手落盘。存的是**当屏**夹过的值；`SetPanelHeight` 自己还会再夹一次
+                // （那一道是防"存进去一个连自己都认不得的数"）。
+                MauiEditorStore.SetPanelHeight(OutputPanel.HeightRequest);
+                break;
+        }
     }
 
     /// <summary>

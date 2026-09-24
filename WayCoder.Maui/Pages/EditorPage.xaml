@@ -287,17 +287,34 @@
                  有了它，「运行」就不必跳到命令行页 —— 输出、报错都在原地看得见。
                  数据来源与气泡是**同一份**：错误列表读 DiagnosticManager，点一条跳到那一行。
                  ZIndex 23：压住画布（气泡画在画布上），否则气泡会盖在面板上面。 -->
+            <!-- ⚠ 高度**不在这里写死**：`HeightRequest` 由代码按 `MauiEditorStore.PanelHeight` 设
+                 （用户要的是"拖动改占比、并且记住"）。XAML 再写一个 220 就是同一个值两处真源 ——
+                 本仓的老毛病，迟早一处改了另一处没改。面板初始 `IsVisible=False`，设值之前不会被看见。 -->
             <Grid x:Name="OutputPanel"
                   IsVisible="False"
                   ZIndex="23"
                   VerticalOptions="End"
                   BackgroundColor="{AppThemeBinding Light=#F2F0F0F3, Dark=#F21A1A1E}"
-                  RowDefinitions="Auto,*"
-                  HeightRequest="220">
+                  RowDefinitions="Auto,Auto,*">
+
+                <!-- ═══ 拖动条：拖它改面板高度 ═══
+                     贴在面板**最上沿**（手指自然会往那儿摸），整条都可拖（不是只有中间那个小横杠 ——
+                     横杠只是"这里能拖"的视觉提示，命中区整条 20dp 高，好按）。
+                     面板是 `VerticalOptions="End"` 的浮层 ⇒ **往上拖 = 变高**，所以位移要取负。 -->
+                <Grid x:Name="PanelDragBar" Grid.Row="0" HeightRequest="20" BackgroundColor="Transparent">
+                    <Grid.GestureRecognizers>
+                        <PanGestureRecognizer PanUpdated="OnPanelDragPanUpdated" />
+                    </Grid.GestureRecognizers>
+                    <BoxView x:Name="PanelDragGrip"
+                             WidthRequest="44" HeightRequest="4" CornerRadius="2"
+                             HorizontalOptions="Center" VerticalOptions="Center"
+                             Color="{AppThemeBinding Light=#C9C9CE, Dark=#55555C}" />
+                </Grid>
+
                 <!-- ⚠ 用 **Grid** 而不是 HorizontalStackLayout：Stack 没有"把最后一个推到最右"这种能力，
                      而关闭键**要贴右**（用户要求：位置好找 —— 固定在一行最右端，手不用每次去找它）。
                      第 3 列是 `*` 空档，负责把 ✕ 顶到最右边；`PanelStopBtn` 仍在它左边（只是它平时不可见）。 -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Padding="4,2">
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Padding="4,2">
                     <!-- 这两个 Tab 的 TextColor **故意不在 XAML 里给**：选中/未选中是运行期状态，
                          由代码 `SwitchPanelTab` 一处决定（原来 XAML 挂的 AppThemeBinding 被代码
                          写死的 Colors.White 盖掉，日间主题下选中那格就成了白底白字）。
@@ -322,7 +339,7 @@
                 </Grid>
 
                 <!-- 错误列表：与气泡/波浪线**同一份数据** -->
-                <ScrollView Grid.Row="1" x:Name="PanelErrorsScroll">
+                <ScrollView Grid.Row="2" x:Name="PanelErrorsScroll">
                     <VerticalStackLayout x:Name="PanelErrorsList" Padding="8,2" Spacing="4" />
                 </ScrollView>
 
@@ -341,7 +358,7 @@
                      截走，捏合根本不触发（命令行页实测踩过同一个坑）。 -->
                 <Grid
                     x:Name="PanelOutputArea"
-                    Grid.Row="1"
+                    Grid.Row="2"
                     IsVisible="False"
                     RowDefinitions="*,Auto"
                     Padding="6,2,6,2"
