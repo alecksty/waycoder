@@ -94,6 +94,12 @@ NATIVE SUB ui_line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c
 END SUB
 NATIVE SUB ui_text(x AS INTEGER, y AS INTEGER, s AS STRING, c AS INTEGER, size AS INTEGER, anchor AS INTEGER)
 END SUB
+' ⚠ 用**带竖对齐**的版本：本游戏的 y 一律按**顶线**给（老契约）。
+'   v0.96.394 把 ui_text 的 y 统一成了**基线**，于是所有文字整体上移约 0.8×字号
+'   （实测：y=100/字号20 的字，墨迹落在 88..100 ⇒ 全在 y 上方）。
+'   3 = VML_VANCHOR_TOP（盒顶落在 y）⇒ 恢复老行为。
+NATIVE SUB ui_text_v(x AS INTEGER, y AS INTEGER, s AS STRING, c AS INTEGER, size AS INTEGER, anchor AS INTEGER, valign AS INTEGER, style AS INTEGER)
+END SUB
 NATIVE SUB ui_present()
 END SUB
 NATIVE FUNCTION ui_scr_w() AS INTEGER
@@ -983,7 +989,7 @@ END SUB
 ' 把整数画到屏幕上（字符串拼接是坏的，只能用 STR$ 整份赋值 —— 缺陷 ④）
 SUB drawNum(x AS INTEGER, y AS INTEGER, v AS INTEGER, col AS INTEGER, sz AS INTEGER, ac AS INTEGER)
     n$ = STR$(v)
-    ui_text(x, y, n$, col, sz, ac)
+    ui_text_v(x, y, n$, col, sz, ac, 3, 0)
 END SUB
 
 ' 瞄准时的预览虚线：只画前十几步，给个方向感，不把落点泄露出去
@@ -1097,7 +1103,7 @@ SUB drawScene()
         ui_rect(sw - 106, 5, 100, 30, C_HUD_ON, 1, 0, 8)
     END IF
 
-    ui_text(12, 11, "玩家一", C_TEXT, 14, 0)
+    ui_text_v(12, 11, "玩家一", C_TEXT, 14, 0, 3, 0)
     i = 0
     WHILE i < wscore
         colr = C_PIP_OFF
@@ -1108,7 +1114,7 @@ SUB drawScene()
         i = i + 1
     WEND
 
-    ui_text(sw - 12, 11, "玩家二", C_TEXT, 14, 2)
+    ui_text_v(sw - 12, 11, "玩家二", C_TEXT, 14, 2, 3, 0)
     i = 0
     WHILE i < wscore
         colr = C_PIP_OFF
@@ -1120,7 +1126,7 @@ SUB drawScene()
     WEND
 
     ' 风：一根轨道 + 一个会左右跑的小方块（+2 在最右、-2 在最左）
-    ui_text(cxc, 5, "风", C_DIM, 13, 1)
+    ui_text_v(cxc, 5, "风", C_DIM, 13, 1, 3, 0)
     ui_rect(cxc - 46, 27, 92, 8, C_TRACK, 1, 0, 4)
     ui_rect(cxc - 1, 25, 3, 12, &HFF6A6A8C, 1, 0, 0)
     ui_rect(cxc + wind * 17 - 5, 23, 10, 16, C_MARKER, 1, 0, 3)
@@ -1129,21 +1135,21 @@ SUB drawScene()
     ui_rect(0, panY, sw, panh, C_PANEL, 1, 0, 0)
     ui_rect(0, panY, sw, 2, &HFF2E2B45, 1, 0, 0)
 
-    ui_text(14, barAy + 8, "角度", C_DIM, 14, 0)
+    ui_text_v(14, barAy + 8, "角度", C_DIM, 14, 0, 3, 0)
     ui_rect(barX, barAy, barW, barH, C_TRACK, 1, 0, 6)
     ui_rect(barX, barAy, INT(barW * aimA / 90), barH, C_ANGLE, 1, 0, 6)
     drawNum(sw - 14, barAy + 6, aimA, C_TEXT, 16, 2)
 
-    ui_text(14, barPy + 8, "力度", C_DIM, 14, 0)
+    ui_text_v(14, barPy + 8, "力度", C_DIM, 14, 0, 3, 0)
     ui_rect(barX, barPy, barW, barH, C_TRACK, 1, 0, 6)
     ui_rect(barX, barPy, INT(barW * aimP / 100), barH, C_POWER, 1, 0, 6)
     drawNum(sw - 14, barPy + 6, aimP, C_TEXT, 16, 2)
 
     ui_rect(14, fireY, sw - 28, fireH, C_FIRE, 1, 0, 8)
     IF st = 0 THEN
-        ui_text(cxc, fireY + 7, "发 射", C_FIRE_T, 18, 1)
+        ui_text_v(cxc, fireY + 7, "发 射", C_FIRE_T, 18, 1, 3, 0)
     ELSE
-        ui_text(cxc, fireY + 7, "飞 行 中", C_FIRE_B, 18, 1)
+        ui_text_v(cxc, fireY + 7, "飞 行 中", C_FIRE_B, 18, 1, 3, 0)
     END IF
 
     ui_present()
