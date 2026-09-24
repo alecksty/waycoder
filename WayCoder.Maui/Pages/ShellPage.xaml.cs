@@ -5,6 +5,7 @@ using WayCoder.Maui.Services;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Edit;   // DiagnosticManager：把编译诊断转交给编辑器（错误列表/波浪线/气泡同一份）
 
 namespace WayCoder.Maui.Pages;
 
@@ -301,6 +302,44 @@ public partial class ShellPage : ContentPage
         // 用户看到的就是"点了运行，然后什么都没发生"）。
         if (job.Compile) await CompileArtifactAsync(job.SourcePath, job.OutputRel);
         else await RunFileAsync(job.SourcePath);
+
+        PublishDiagnosticsToEditor(job.SourcePath);
+    }
+
+    /// <summary>
+    /// 把这次 VML 编译的诊断转交给编辑器（错误列表 / 行下波浪线 / 编译气泡读的是同一份数据）。
+    ///
+    /// <para>
+    /// **为什么命令行页也要做这件事**：用户从文件页点「VML 运行」、或在命令行页敲
+    /// `vml run …`，那条路**完全不经过编辑器** ⇒ 编辑器的「错误列表」永远是空的、
+    /// 代码上也不出气泡与波浪线。用户的实测反馈就是这句：
+    /// **「明明有报错，错误列表是空的，编辑器也不出错误泡泡」**。
+    /// 而编译失败的原因**本来就有结构化的一份**（<see cref="MauiVml.LastDiags"/>），
+    /// 此前只在编辑器自己那条路上被用掉了。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **键必须与编辑器一致**：编辑器拿**工作区相对路径**当 `DiagnosticManager` 的键
+    /// （`EditorPage._relPath`），所以这里走 `ToRelative` 而不是绝对路径 ——
+    /// 键对不上时注入了也读不到，而且**不报错、只是"没反应"**，是本仓最难查的一类失败。
+    /// </para>
+    ///
+    /// <para>
+    /// 成功时注入**空表**（与编辑器那条路同一口径）：否则上一次的报错会一直挂在列表上。
+    /// </para>
+    /// </summary>
+    private static void PublishDiagnosticsToEditor(string absPath)
+    {
+        try
+        {
+            var rel = SandboxFsService.ToRelative(absPath);
+            if (rel is null) return;          // 沙箱外：编辑器也打不开，没有可注入的对象
+            DiagnosticManager.Inject(rel, MauiVml.LastDiags);
+        }
+        catch
+        {
+            // 注入诊断失败不该影响这一轮的运行结果（这只是"顺带把错误告诉编辑器"）
+        }
     }
 
     /// <summary>

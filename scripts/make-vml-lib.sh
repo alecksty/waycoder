@@ -63,20 +63,26 @@ rm -f "$TMP"
 #    （GenLib 生成的转发 shim）⇒ **两份都要排**，只排 shared 那份等于没排。
 #
 #    判据是「这个模块提供的接口在手机上有没有对应的东西」，不是"名字看着像 PC"：
-#      · crt / dos / vga_text / conio —— DOS 与 PC 文本控制台（CRT_GOTOXY、VGA 文本页…）
+#      · dos / vga_text              —— DOS 与 PC 文本控制台（VGA 文本页、BIOS 端口…）
 #      · graphics / graph            —— BGI 绘图（`initgraph`/`putpixel` 那一套，Turbo C 时代）
 #      · browser_gfx                 —— 浏览器 canvas 专用
 #      · gpio                        —— 单片机引脚
 #    ⚠ `device` / `device64` **没排** —— 名字像硬件层，但它可能是 VM 自己的设备抽象
 #      （`ui_*` 那条链上要用），排错会让手机上的绘图/音效失灵。要用先查清调用方再排。
-#    ⚠ **`conio` 已从这张表里移出（2026-09-21）** —— 它当时被排是因为"它是 DOS/PC 的
-#      文本控制台"，而**现在它的实现是原生的**：`Lib/shared/src/conio.c` 全部落在
-#      `ui_*` 上（`ui_win_open`/`ui_rect`/`ui_text`/`ui_present`/`ui_wait`），
-#      与 `crt`/`dos`/`vga_text` 那种"直写 0xB8000 显存"的完全是两回事。
-#      排着它的症状很隐蔽：**手机上编译直接报「未定义的函数 'gotoxy'」**，
-#      而桌面上（`vmlcli`，不走这个 zip）跑得好好的 —— 实测就这么白查了一轮。
-#      ⇒ 加新模块时**必须回来检查这张表**：它是"同一份清单在第二处实现"的典型形态。
-MOBILE_EXCLUDE=(crt dos vga_text graphics graph browser_gfx gpio)
+#    ⚠⚠ **这张表已经因为同一个错误错过两次了：按"名字听着像 DOS/PC"排，而实现早已原生。**
+#      判据必须是「**读它的实现**，看它落在哪一层」，不是看它叫什么。两次都是
+#      「手机上编译直接报『未定义的函数 X』、而桌面上（`vmlcli`，不走这个 zip）跑得好好的」：
+#      · **`conio`**（2026-09-21 移出）—— `Lib/shared/src/conio.c` 全部落在 `ui_*` 上
+#        （`ui_win_open`/`ui_rect`/`ui_text`/`ui_present`/`ui_wait`）。症状是 `gotoxy` 未定义。
+#      · **`crt`**（2026-09-24 移出）—— 它的头一行就写着「**替换 VGA 显存写入方案，使用
+#        ANSI escape codes**」，是**纯软件** 80×25 文本屏 + `SYSCALL 400` 输出 ANSI，
+#        文件里一个 `0xB8000`/`outb` 都没有。症状是 `CRT_TEXTCOLOR` / `CRT_TEXTBACKGROUND` /
+#        `CRT_CLRSCR` 三个未定义 —— 而 BASIC 前端的 **ui_* 后端**在 `COLOR` 语句上
+#        **照旧会发这三个调用**（`CodeGenerator.Qbasic.UiGfx.cs` 里写明了"文本模式下
+#        COLOR 仍然要改终端配色"），于是**任何含 `COLOR` 的程序在手机上都编不过**：
+#        实测 `Examples/basic/gfx_demo.bas`、`gfx_modes.bas` 就是这么挂的。
+#        ⇒ 加新模块时**必须回来检查这张表**：它是"同一份清单在第二处实现"的典型形态。
+MOBILE_EXCLUDE=(dos vga_text graphics graph browser_gfx gpio)
 
 # -X 去掉多余的文件属性（否则同样的内容在 mac/linux 上产出的 zip 字节不同，
 #    指纹会跟着变、白解压一次；虽然不影响正确性，但没必要）

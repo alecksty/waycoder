@@ -1,5 +1,20 @@
 #param lib("builtins")
 #param lib("fixed")
+#param lib("math64")
+#param lib("statistics")
+
+// ⚠ `math64` / `statistics` 这两条是给**各语言的 math shim** 用的，不是 math.c 自己调用：
+//   `Lib/<lang>/math.vml` 里那些 `CALL sin_deg_d` / `CALL sum_arr` 写的是**裸名**，
+//   真身分别在 `math64.c` / `statistics.c`；而**用户程序自己从不直接调用它们**
+//   ⇒ 前端的自动链接（按 FuncMap 路由）永远不会把这两个模块拉进来
+//   ⇒ 链接期报 `error: 未定义的函数 'sin_deg_d'（引用 1 次）`。
+//   症状是**这门语言的每个程序都编不过**（连 `print("hello")` 都不行）：
+//   实测 Python / D / Dart / C#… 全挂，与程序内容无关。
+//   C 看不出来 —— C 走 `math64.h`，那条路前端会自己把 math64 拉进来。
+//   实测：补上这两条后 `_selftest/out.py` 立刻 exit=0（此前 12 条未定义）。
+// ⚠ **只能写在源码里**：`.vml` 上的 `.linked` 是生成物，全量重生成会抹掉——
+//   见 `tools/GenLib/Program.cs` 里那段"手写的 .linked 会被抹掉"的警告（`conio` 栽过一次）。
+// ⚠ 判据在 `scripts/vml-out-probe`：改这里之后必须把 22 门语言跑一遍。
 
 // VML Shared Math Library
 // 编译: vmltool compile math.c -o ../math.vml --lang c

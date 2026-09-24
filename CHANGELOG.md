@@ -1,3 +1,73 @@
+## v0.96.415 — 修「手机上大片程序编不过」的两个真根因 + 编辑器错误列表/气泡补数据源
+
+用户报「很多老的 basic 程序无法运行、`gfx_demo` 也无法运行」，以及
+「**明明有报错，错误列表是空的，编辑器也不出错误泡泡**」。三条各自独立的根因，都已定位到机制层。
+
+### ① `crt` 被手机排除表误排 —— 与 `conio` 是同一个错误隔一个模块
+
+`scripts/make-vml-lib.sh` 的 `MOBILE_EXCLUDE` 里有 `crt`（2026-08 那次"排掉 PC/DOS 那一类"时按名字排的）。
+而 **`Lib/shared/src/crt.c` 头一行就写着「替换 VGA 显存写入方案，使用 ANSI escape codes」** ——
+它是**纯软件** 80×25 文本屏 + `SYSCALL 400` 输出 ANSI，文件里一个 `0xB8000`/`outb` 都没有。
+**判据必须是"读它的实现看落在哪一层"，不是"名字听着像 DOS"** —— 那张表的注释里已经为
+`conio` 记过一次同样的教训（`gotoxy` 未定义），这次又栽在 `crt` 上。
+
+症状的形状完全一致：**手机上编译直接报「未定义的函数」，桌面上（`vmlcli` 不走这个 zip）跑得好好的**。
+BASIC 的 `COLOR` 语句在 **ui_\* 后端**上会**照旧发** `CRT_TEXTCOLOR`/`CRT_TEXTBACKGROUND`
+（`CodeGenerator.Qbasic.UiGfx.cs` 里写明"文本模式下 COLOR 仍然要改终端配色"），
+`SCREEN`/`CLS` 那条路发 `CRT_CLRSCR` ⇒ **任何含 `COLOR` 的 BASIC 程序在手机上都编不过**：
+实测 `Examples/basic/gfx_demo.bas`、`gfx_modes.bas` 就是这么挂的。移出排除表后两者 `exit=0`。
+Pascal 那一批（`g7iles_*`/`swag_*` 里报 `CRT_READKEY`/`CRT_DELAY`/`CRT_NORMVIDEO` 的）一并恢复。
+
+⚠ 那张表的注释已改写：**判据是「读它的实现」，并记上"这张表已经因为同一个错误错过两次"**
+（`conio` 2026-09-21、`crt` 2026-09-24），免得下一个人再按名字排一遍。
+
+### ② `math`/`string` 少两条 `#param lib` —— 几乎每门语言的**每个**程序都编不过
+
+拿手机那份库（`--vml-home <解包目录>`）对 `Examples/` 全量批测，**几乎每门语言都在挂**：
+python / r / ruby / rust / scheme / swift / java / javascript / kotlin / lua / objc / go /
+fortran / dart / d / csharp…… 而**桌面同样复现** ⇒ 不是手机专有，是**前端/链接层**的问题。
+
+根因是一处**数据错误**：`Lib/modules.json` 把 `sin_deg_d`/`cos_deg_d`/`tan_deg_d`、
+`sum_arr`/`min_arr`/`max_arr` 记在**聚合模块 `math`** 名下、把 `str_len`/`str_cmp` 记在 `string` 名下，
+而它们的**真身分别在 `shared/math64.vml`、`shared/statistics.vml`、`shared/crosslang.vml`**。
+**而用户程序自己从不直接调用它们** —— 是**各语言的 shim**（`Lib/<lang>/math.vml`）在调，
+于是前端的自动链接（按 FuncMap 路由）**永远不会把 `math64` 拉进来** ⇒ 链接期报裸符号未定义。
+连 `print("hello")` 都编不过，与程序内容无关。
+
+**修法只能写在源码里**：`Lib/shared/src/math.c` 顶上加 `#param lib("math64")` + `#param lib("statistics")`、
+`string.c` 顶上加 `#param lib("crosslang")` ——
+`.vml` 上的 `.linked` 是**生成物**，全量重生成会抹掉（`tools/GenLib/Program.cs` 里那段
+「手写的 `.linked` 会被重生成抹掉」的警告就是为这个写的，`conio` 栽过一次）。
+GenLib `-A` 重生成（2 编译 / 107 跳过）后：
+
+- `_selftest/out.py`（此前 12 条未定义）→ `exit=0`；`d/catch.d`、`python/sysinfo.py`、`r/sysinfo.r`、`lua/life.lua` 全部 `exit=0`。
+- **`vml-out-probe` 全量 35 条：编译失败 1 → 0**（通过 30 / 输出不符 5）。
+  那 5 条（`out.cs`/`nat.array.cpp`/`nat.legacy.pas`/`nat.nohdr.pas`/`nat.syntax.cpp`）
+  做了**改动前后逐字对照** —— 输出完全相同，是既有问题，不是这一版引入的。
+
+### ③ 命令行页跑的程序从不注入诊断 —— 编辑器那三处永远是空的
+
+`DiagnosticManager.Inject` 全仓**只有 `EditorPage` 自己那条路在调**。而从
+**文件页点「VML 运行」/ 命令行页敲 `vml run`** 那条路**完全不经过编辑器** ⇒
+「错误列表」是空的、代码上也不出气泡与波浪线 —— 用户的实测原话就是这句。
+
+改法：`MauiVml.Fail()` 顺手把**结构化**诊断留一份在外面（`MauiVml.LastDiags` + `LastDiagsFile`，
+`BuildProgram` 开头清空），`ShellPage.RunPendingVmlJobAsync` 跑完按
+**工作区相对路径**（`SandboxFsService.ToRelative`，与 `EditorPage._relPath` 同一个键）注入。
+⚠ 键对不上时**注入了也读不到且不报错**，是最难查的一类失败，故两边必须同源。
+`LastDiagnostics`（那段给人看的 markup 串，掺着运行期输出与 `«red»` 标记）**不能拿来反解**诊断 —— 那是"同一规则两处实现"。
+
+### ④ 新增 22 门语言的诊断例程 `Examples/_selftest/test_error.*`
+
+与 `out.<ext>` 平行，每门一份**刻意带错误**的短例程，用来测「编译器输出 → 错误/警告解析 →
+错误列表 / 行下波浪线 / 编译气泡」这条链。文件头注明「这是刻意的诊断用例，不参与编译通过性检查」，
+并在 `scripts/vml-diag-probe/examples-build-par.sh` 的排除表里登记（与 `file_io.*` 同一种登记理由：
+**永远红的判据只会训练人去忽略红灯**）。
+
+⚠ **实测结论：22 门里只有 C 能产出"未使用变量"警告**（`WarnUnused` 只有 `CCompiler` 在调；
+`AddWarning` 也只有 Basic / Pascal 各一处）⇒ **其余语言的"警告列表"是空的不是显示 bug，
+是前端根本没有这个检查**。这也是这份例程的第一条产出：它把"哪些语言有哪种诊断"钉成了事实。
+
 ## v0.96.414 — `ui_screenshot`（#588）主动截屏 + 修 `ui_text` 的 R6 泄漏 + FontFinder 补 Apple 支
 
 > （v0.96.409~413 是同一件事推进中的中间版本号，未发布，合并记这一条。）

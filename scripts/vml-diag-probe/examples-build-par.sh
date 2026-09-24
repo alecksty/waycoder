@@ -65,6 +65,13 @@ for f in "$REPO"/third_party/vml/Examples/*/*; do
     case "$f" in
         *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip) continue ;;
         */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m|*/file_io.js) continue ;;
+        # `_selftest/test_error.*` 是**刻意编不过**的诊断用例（22 门语言各一份）：
+        # 它们的作用是让「错误/警告 → 错误列表 / 行下波浪线 / 编译气泡」这条链**有东西可显示**
+        # （手机上跑 `vml run examples/_selftest/test_error.c`，编辑器里看那三处）。
+        # 编不过正是它们的**设计目的**，不是缺陷 —— 与上面 `file_io.*` 同一种登记理由：
+        # 不登记的话这里每次都会红，而"永远红的判据"只会训练人去忽略红灯。
+        # ⚠ 它们是「诊断链的判据」，不是「编译通过性的判据」；后者请看 `out.*` 那一套。
+        */_selftest/test_error.*) continue ;;
         *.vml) continue ;;
         *.gen.vml) continue ;;
     esac

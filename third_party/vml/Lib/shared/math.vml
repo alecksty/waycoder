@@ -1,6 +1,8 @@
 
 .linked "builtins.vml"
 .linked "fixed.vml"
+.linked "math64.vml"
+.linked "statistics.vml"
 .data
 PI: .dword 3.141592653589793
 PI2: .dword 6.283185307179586
@@ -456,7 +458,7 @@ abs:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 5:     return x < 0 ? -x : x;
+; 17:     return x < 0 ? -x : x;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -496,7 +498,7 @@ min:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 9:     return a < b ? a : b;
+; 21:     return a < b ? a : b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -534,7 +536,7 @@ max:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 13:     return a > b ? a : b;
+; 25:     return a > b ? a : b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -573,7 +575,7 @@ clamp:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 17:     if (x < low) return low;
+; 29:     if (x < low) return low;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -591,7 +593,7 @@ _L41360018:
         jmp L_41360019
 sta_41360015:
 sta_41360016:
-; 18:     if (x > high) return high;
+; 30:     if (x > high) return high;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+20]
@@ -609,7 +611,7 @@ _L41360023:
         jmp L_41360019
 sta_41360020:
 sta_41360021:
-; 19:     return x;
+; 31:     return x;
         move @R0 [@R12+12]
         jmp L_41360019
 L_41360019:
@@ -629,7 +631,7 @@ is_even:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 23:     return (x & 1) == 0;
+; 35:     return (x & 1) == 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -664,7 +666,7 @@ is_odd:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 27:     return (x & 1) == 1;
+; 39:     return (x & 1) == 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -699,7 +701,7 @@ sign:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 31:     if (x > 0) return 1;
+; 43:     if (x > 0) return 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -717,7 +719,7 @@ _L41360033:
         jmp L_41360034
 sta_41360030:
 sta_41360031:
-; 32:     if (x < 0) return -1;
+; 44:     if (x < 0) return -1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -737,7 +739,7 @@ _L41360038:
         jmp L_41360034
 sta_41360035:
 sta_41360036:
-; 33:     return 0;
+; 45:     return 0;
         move @R0 #0
         jmp L_41360034
 L_41360034:
@@ -757,10 +759,10 @@ pow10:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 37:     int r = 1;
+; 49:     int r = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 38:     for (int i = 0; i < n; i++) r *= 10;
+; 50:     for (int i = 0; i < n; i++) r *= 10;
         move @R0 #0
         move [@R12-12] @R0
 sta_41360039:
@@ -792,7 +794,7 @@ sta_41360040:
         move @R0 @R1
         jmp sta_41360039
 sta_41360041:
-; 39:     return r;
+; 51:     return r;
         move @R0 [@R12-8]
         jmp L_41360044
 L_41360044:
@@ -812,7 +814,7 @@ randomize:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 42:     asm("SYSCALL #51");
+; 54:     asm("SYSCALL #51");
         syscall #51
         move [@R12-4] @R0
         move @R13 @R12
@@ -831,20 +833,20 @@ _sin_taylor:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 57:     double x2 = x * x;
+; 69:     double x2 = x * x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+12]
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-12] @R0
-; 58:     double term = x;
+; 70:     double term = x;
         moved @R0 [@R12+12]
         moved [@R12-20] @R0
-; 59:     double sum = x;
+; 71:     double sum = x;
         moved @R0 [@R12+12]
         moved [@R12-28] @R0
-; 61:     for (n = 1; n < 12; n++)
+; 73:     for (n = 1; n < 12; n++)
         move @R0 #1
         move [@R12-32] @R0
 sta_41360045:
@@ -861,7 +863,7 @@ _L41360048:
 _L41360049:
         cmp @R0 #0
         jz sta_41360047
-; 63:         term *= -x2 / (double)((2 * n) * (2 * n + 1));
+; 75:         term *= -x2 / (double)((2 * n) * (2 * n + 1));
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [@R12-12]
@@ -895,14 +897,14 @@ _L41360049:
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-20] @R0
-; 64:         sum += term;
+; 76:         sum += term;
         moved @R0 [@R12-28]
         dpush @R0
         moved @R0 [@R12-20]
         dpop @R1
         dadd @R0 @R1 @R0
         moved [@R12-28] @R0
-; 65:         if (term < 1e-10 && term > -1e-10) break;
+; 77:         if (term < 1e-10 && term > -1e-10) break;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [dbl_41360054]
@@ -949,7 +951,7 @@ sta_41360046:
         move @R0 @R1
         jmp sta_41360045
 sta_41360047:
-; 67:     return sum;
+; 79:     return sum;
         moved @R0 [@R12-28]
         jmp L_41360061
 L_41360061:
@@ -969,20 +971,20 @@ _cos_taylor:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 71:     double x2 = x * x;
+; 83:     double x2 = x * x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+12]
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-12] @R0
-; 72:     double term = 1.0;
+; 84:     double term = 1.0;
         moved @R0 [dbl_41360062]
         moved [@R12-20] @R0
-; 73:     double sum = 1.0;
+; 85:     double sum = 1.0;
         moved @R0 [dbl_41360063]
         moved [@R12-28] @R0
-; 75:     for (n = 1; n < 12; n++)
+; 87:     for (n = 1; n < 12; n++)
         move @R0 #1
         move [@R12-32] @R0
 sta_41360064:
@@ -999,7 +1001,7 @@ _L41360067:
 _L41360068:
         cmp @R0 #0
         jz sta_41360066
-; 77:         term *= -x2 / (double)((2 * n - 1) * (2 * n));
+; 89:         term *= -x2 / (double)((2 * n - 1) * (2 * n));
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [@R12-12]
@@ -1033,14 +1035,14 @@ _L41360068:
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-20] @R0
-; 78:         sum += term;
+; 90:         sum += term;
         moved @R0 [@R12-28]
         dpush @R0
         moved @R0 [@R12-20]
         dpop @R1
         dadd @R0 @R1 @R0
         moved [@R12-28] @R0
-; 79:         if (term < 1e-10 && term > -1e-10) break;
+; 91:         if (term < 1e-10 && term > -1e-10) break;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [dbl_41360073]
@@ -1087,7 +1089,7 @@ sta_41360065:
         move @R0 @R1
         jmp sta_41360064
 sta_41360066:
-; 81:     return sum;
+; 93:     return sum;
         moved @R0 [@R12-28]
         jmp L_41360080
 L_41360080:
@@ -1107,20 +1109,20 @@ atan_approx:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 85:     double x2 = x * x;
+; 97:     double x2 = x * x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+12]
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-12] @R0
-; 86:     double term = x;
+; 98:     double term = x;
         moved @R0 [@R12+12]
         moved [@R12-20] @R0
-; 87:     double sum = x;
+; 99:     double sum = x;
         moved @R0 [@R12+12]
         moved [@R12-28] @R0
-; 89:     for (n = 1; n < 15; n++)
+; 101:     for (n = 1; n < 15; n++)
         move @R0 #1
         move [@R12-32] @R0
 sta_41360081:
@@ -1137,7 +1139,7 @@ _L41360084:
 _L41360085:
         cmp @R0 #0
         jz sta_41360083
-; 91:         term *= -x2 * (double)(2 * n - 1) / (double)(2 * n + 1);
+; 103:         term *= -x2 * (double)(2 * n - 1) / (double)(2 * n + 1);
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [@R12-12]
@@ -1176,14 +1178,14 @@ _L41360085:
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-20] @R0
-; 92:         sum += term;
+; 104:         sum += term;
         moved @R0 [@R12-28]
         dpush @R0
         moved @R0 [@R12-20]
         dpop @R1
         dadd @R0 @R1 @R0
         moved [@R12-28] @R0
-; 93:         if (term < 1e-10 && term > -1e-10) break;
+; 105:         if (term < 1e-10 && term > -1e-10) break;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [dbl_41360090]
@@ -1230,7 +1232,7 @@ sta_41360082:
         move @R0 @R1
         jmp sta_41360081
 sta_41360083:
-; 95:     return sum;
+; 107:     return sum;
         moved @R0 [@R12-28]
         jmp L_41360097
 L_41360097:
@@ -1250,10 +1252,10 @@ sin:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 99:     double sign = 1.0;
+; 111:     double sign = 1.0;
         moved @R0 [dbl_41360098]
         moved [@R12-12] @R0
-; 100:     if (x < 0) { x = -x; sign = -1.0; }
+; 112:     if (x < 0) { x = -x; sign = -1.0; }
         moved @R0 [@R12+12]
         dpush @R0
         move @R0 #0
@@ -1278,7 +1280,7 @@ _L41360102:
         moved [@R12-12] @R0
 sta_41360099:
 sta_41360100:
-; 101:     x = x - (double)(int)(x / PI2) * PI2;
+; 113:     x = x - (double)(int)(x / PI2) * PI2;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+12]
@@ -1297,7 +1299,7 @@ sta_41360100:
         dpop @R1
         dsub @R0 @R1 @R0
         moved [@R12+12] @R0
-; 102:     if (x > PI) { x -= PI; sign = -sign; }
+; 114:     if (x > PI) { x -= PI; sign = -sign; }
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [PI]
@@ -1325,7 +1327,7 @@ _L41360108:
         moved [@R12-12] @R0
 sta_41360105:
 sta_41360106:
-; 103:     if (x > PI_HALF) x = PI - x;
+; 115:     if (x > PI_HALF) x = PI - x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [PI_HALF]
@@ -1349,7 +1351,7 @@ _L41360112:
         moved [@R12+12] @R0
 sta_41360109:
 sta_41360110:
-; 104:     return sign * _sin_taylor(x);
+; 116:     return sign * _sin_taylor(x);
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [@R12+12]
@@ -1378,7 +1380,7 @@ cos:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 108:     if (x < 0) x = -x;
+; 120:     if (x < 0) x = -x;
         moved @R0 [@R12+12]
         dpush @R0
         move @R0 #0
@@ -1399,7 +1401,7 @@ _L41360117:
         moved [@R12+12] @R0
 sta_41360114:
 sta_41360115:
-; 109:     x = x - (double)(int)(x / PI2) * PI2;
+; 121:     x = x - (double)(int)(x / PI2) * PI2;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+12]
@@ -1418,7 +1420,7 @@ sta_41360115:
         dpop @R1
         dsub @R0 @R1 @R0
         moved [@R12+12] @R0
-; 110:     if (x > PI) x = PI2 - x;
+; 122:     if (x > PI) x = PI2 - x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [PI]
@@ -1442,7 +1444,7 @@ _L41360121:
         moved [@R12+12] @R0
 sta_41360118:
 sta_41360119:
-; 111:     if (x > PI_HALF) x = PI - x;
+; 123:     if (x > PI_HALF) x = PI - x;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [PI_HALF]
@@ -1466,7 +1468,7 @@ _L41360125:
         moved [@R12+12] @R0
 sta_41360122:
 sta_41360123:
-; 112:     return _cos_taylor(x);
+; 124:     return _cos_taylor(x);
         moved @R0 [@R12+12]
         sub @R13 #8
         moved @13 @R0
@@ -1491,7 +1493,7 @@ tan:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 116:     double s = sin(x);
+; 128:     double s = sin(x);
         moved @R0 [@R12+12]
         sub @R13 #8
         moved @13 @R0
@@ -1499,7 +1501,7 @@ tan:
         call sin
         add @R13 #8
         moved [@R12-12] @R0
-; 117:     double c = cos(x);
+; 129:     double c = cos(x);
         moved @R0 [@R12+12]
         sub @R13 #8
         moved @13 @R0
@@ -1507,7 +1509,7 @@ tan:
         call cos
         add @R13 #8
         moved [@R12-20] @R0
-; 118:     if (c < 1e-15 && c > -1e-15) return 0.0;
+; 130:     if (c < 1e-15 && c > -1e-15) return 0.0;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [dbl_41360131]
@@ -1547,7 +1549,7 @@ _L41360130:
         jmp L_41360139
 sta_41360127:
 sta_41360128:
-; 119:     return s / c;
+; 131:     return s / c;
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [@R12-20]
@@ -1571,7 +1573,7 @@ sqrt:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 124:     if (x < 0.0) return 0.0;
+; 136:     if (x < 0.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360142]
@@ -1589,7 +1591,7 @@ _L41360144:
         jmp L_41360146
 sta_41360140:
 sta_41360141:
-; 125:     if (x == 0.0) return 0.0;
+; 137:     if (x == 0.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360149]
@@ -1607,7 +1609,7 @@ _L41360151:
         jmp L_41360146
 sta_41360147:
 sta_41360148:
-; 126:     guess = x * 0.5 + 0.5;
+; 138:     guess = x * 0.5 + 0.5;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360153]
@@ -1619,10 +1621,10 @@ sta_41360148:
         dadd @R0 @R1 @R0
         moved [@R12-12] @R0
 sta_41360155:
-; 128:         prev = guess;
+; 140:         prev = guess;
         moved @R0 [@R12-12]
         moved [@R12-20] @R0
-; 129:         guess = (guess + x / guess) * 0.5;
+; 141:         guess = (guess + x / guess) * 0.5;
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [@R12+12]
@@ -1638,7 +1640,7 @@ sta_41360155:
         dmul @R0 @R1 @R0
         moved [@R12-12] @R0
 sta_41360156:
-; 130:     } while (guess < prev - 1e-10 || guess > prev + 1e-10);
+; 142:     } while (guess < prev - 1e-10 || guess > prev + 1e-10);
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [@R12-20]
@@ -1681,7 +1683,7 @@ _L41360159:
 _L41360160:
         cmp @R0 #0
         jnz sta_41360155
-; 131:     return guess;
+; 143:     return guess;
         moved @R0 [@R12-12]
         jmp L_41360146
 L_41360146:
@@ -1701,7 +1703,7 @@ asin:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 135:     if (x < -1.0 || x > 1.0) return 0.0;
+; 147:     if (x < -1.0 || x > 1.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360172]
@@ -1742,7 +1744,7 @@ _L41360171:
         jmp L_41360180
 sta_41360167:
 sta_41360168:
-; 136:     return atan2(x, sqrt(1.0 - x * x));
+; 148:     return atan2(x, sqrt(1.0 - x * x));
         moved @R0 [dbl_41360181]
         dpush @R0
         moved @R0 [@R12+12]
@@ -1784,7 +1786,7 @@ acos:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 140:     if (x < -1.0 || x > 1.0) return 0.0;
+; 152:     if (x < -1.0 || x > 1.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360187]
@@ -1825,7 +1827,7 @@ _L41360186:
         jmp L_41360195
 sta_41360182:
 sta_41360183:
-; 141:     return atan2(sqrt(1.0 - x * x), x);
+; 153:     return atan2(sqrt(1.0 - x * x), x);
         moved @R0 [@R12+12]
         sub @R13 #8
         moved @13 @R0
@@ -1867,7 +1869,7 @@ atan:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 145:     return atan2(x, 1.0);
+; 157:     return atan2(x, 1.0);
         moved @R0 [dbl_41360197]
         sub @R13 #8
         moved @13 @R0
@@ -1897,7 +1899,7 @@ atan2:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 149:     if (x > 0.0) return atan_approx(y / x);
+; 161:     if (x > 0.0) return atan_approx(y / x);
         moved @R0 [@R12+20]
         dpush @R0
         moved @R0 [dbl_41360201]
@@ -1924,7 +1926,7 @@ _L41360203:
         jmp L_41360204
 sta_41360199:
 sta_41360200:
-; 150:     if (x < 0.0)
+; 162:     if (x < 0.0)
         moved @R0 [@R12+20]
         dpush @R0
         moved @R0 [dbl_41360207]
@@ -1938,7 +1940,7 @@ _L41360208:
 _L41360209:
         cmp @R0 #0
         jz sta_41360205
-; 152:         if (y >= 0.0) return atan_approx(y / x) + PI;
+; 164:         if (y >= 0.0) return atan_approx(y / x) + PI;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360212]
@@ -1970,7 +1972,7 @@ _L41360214:
         jmp L_41360204
 sta_41360210:
 sta_41360211:
-; 153:         return atan_approx(y / x) - PI;
+; 165:         return atan_approx(y / x) - PI;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [@R12+20]
@@ -1989,7 +1991,7 @@ sta_41360211:
         jmp L_41360204
 sta_41360205:
 sta_41360206:
-; 155:     if (y > 0.0) return PI_HALF;
+; 167:     if (y > 0.0) return PI_HALF;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360217]
@@ -2007,7 +2009,7 @@ _L41360219:
         jmp L_41360204
 sta_41360215:
 sta_41360216:
-; 156:     if (y < 0.0) return -PI_HALF;
+; 168:     if (y < 0.0) return -PI_HALF;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360222]
@@ -2027,7 +2029,7 @@ _L41360224:
         jmp L_41360204
 sta_41360220:
 sta_41360221:
-; 157:     return 0.0;
+; 169:     return 0.0;
         moved @R0 [dbl_41360225]
         jmp L_41360204
 L_41360204:
@@ -2047,13 +2049,13 @@ exp:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 162:     double term = 1.0;
+; 174:     double term = 1.0;
         moved @R0 [dbl_41360226]
         moved [@R12-20] @R0
-; 163:     double sum = 1.0;
+; 175:     double sum = 1.0;
         moved @R0 [dbl_41360227]
         moved [@R12-28] @R0
-; 164:     if (x < 0.0) return 1.0 / exp(-x);
+; 176:     if (x < 0.0) return 1.0 / exp(-x);
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360230]
@@ -2082,11 +2084,11 @@ _L41360232:
         jmp L_41360234
 sta_41360228:
 sta_41360229:
-; 165:     n = (int)x;
+; 177:     n = (int)x;
         moved @R0 [@R12+12]
         d2i @R0 @R0
         move [@R12-12] @R0
-; 166:     x -= (double)n;
+; 178:     x -= (double)n;
         moved @R0 [@R12+12]
         dpush @R0
         move @R0 [@R12-12]
@@ -2094,7 +2096,7 @@ sta_41360229:
         dpop @R1
         dsub @R0 @R1 @R0
         moved [@R12+12] @R0
-; 167:     for (i = 1; i < 20; i++)
+; 179:     for (i = 1; i < 20; i++)
         move @R0 #1
         move [@R12-8] @R0
 sta_41360235:
@@ -2111,7 +2113,7 @@ _L41360238:
 _L41360239:
         cmp @R0 #0
         jz sta_41360237
-; 169:         term *= x / (double)i;
+; 181:         term *= x / (double)i;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [@R12+12]
@@ -2123,14 +2125,14 @@ _L41360239:
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-20] @R0
-; 170:         sum += term;
+; 182:         sum += term;
         moved @R0 [@R12-28]
         dpush @R0
         moved @R0 [@R12-20]
         dpop @R1
         dadd @R0 @R1 @R0
         moved [@R12-28] @R0
-; 171:         if (term < 1e-12) break;
+; 183:         if (term < 1e-12) break;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [dbl_41360242]
@@ -2155,7 +2157,7 @@ sta_41360236:
         move @R0 @R1
         jmp sta_41360235
 sta_41360237:
-; 173:     for (i = 0; i < n; i++) sum *= 2.718281828459045;
+; 185:     for (i = 0; i < n; i++) sum *= 2.718281828459045;
         move @R0 #0
         move [@R12-8] @R0
 sta_41360245:
@@ -2186,7 +2188,7 @@ sta_41360246:
         move @R0 @R1
         jmp sta_41360245
 sta_41360247:
-; 174:     return sum;
+; 186:     return sum;
         moved @R0 [@R12-28]
         jmp L_41360234
 L_41360234:
@@ -2206,10 +2208,10 @@ log:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 178:     int e = 0;
+; 190:     int e = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 179:     if (x <= 0.0) return 0.0;
+; 191:     if (x <= 0.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360253]
@@ -2229,7 +2231,7 @@ sta_41360251:
 sta_41360252:
 sta_41360258:
         move @R2 #0
-; 180:     while (x > 1.5) { x /= 2.718281828459045; e++; }
+; 192:     while (x > 1.5) { x /= 2.718281828459045; e++; }
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360260]
@@ -2258,7 +2260,7 @@ _L41360262:
 sta_41360259:
 sta_41360264:
         move @R2 #0
-; 181:     while (x < 0.6) { x *= 2.718281828459045; e--; }
+; 193:     while (x < 0.6) { x *= 2.718281828459045; e--; }
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360266]
@@ -2285,7 +2287,7 @@ _L41360268:
         move @R0 @R1
         jmp sta_41360264
 sta_41360265:
-; 182:     return _log_taylor(x - 1.0) + (double)e;
+; 194:     return _log_taylor(x - 1.0) + (double)e;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360270]
@@ -2319,13 +2321,13 @@ _log_taylor:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 186:     double term = x;
+; 198:     double term = x;
         moved @R0 [@R12+12]
         moved [@R12-12] @R0
-; 187:     double sum = x;
+; 199:     double sum = x;
         moved @R0 [@R12+12]
         moved [@R12-20] @R0
-; 189:     for (n = 2; n < 30; n++)
+; 201:     for (n = 2; n < 30; n++)
         move @R0 #2
         move [@R12-24] @R0
 sta_41360271:
@@ -2342,7 +2344,7 @@ _L41360274:
 _L41360275:
         cmp @R0 #0
         jz sta_41360273
-; 191:         term *= -x * (double)(n - 1) / (double)n;
+; 203:         term *= -x * (double)(n - 1) / (double)n;
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [@R12+12]
@@ -2366,14 +2368,14 @@ _L41360275:
         dpop @R1
         dmul @R0 @R1 @R0
         moved [@R12-12] @R0
-; 192:         sum += term;
+; 204:         sum += term;
         moved @R0 [@R12-20]
         dpush @R0
         moved @R0 [@R12-12]
         dpop @R1
         dadd @R0 @R1 @R0
         moved [@R12-20] @R0
-; 193:         if (term < 1e-10 && term > -1e-10) break;
+; 205:         if (term < 1e-10 && term > -1e-10) break;
         moved @R0 [@R12-12]
         dpush @R0
         moved @R0 [dbl_41360280]
@@ -2420,7 +2422,7 @@ sta_41360272:
         move @R0 @R1
         jmp sta_41360271
 sta_41360273:
-; 195:     return sum;
+; 207:     return sum;
         moved @R0 [@R12-20]
         jmp L_41360287
 L_41360287:
@@ -2441,7 +2443,7 @@ pow:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 201:     if (y == 0.0) return 1.0;
+; 213:     if (y == 0.0) return 1.0;
         moved @R0 [@R12+20]
         dpush @R0
         moved @R0 [dbl_41360290]
@@ -2459,7 +2461,7 @@ _L41360292:
         jmp L_41360294
 sta_41360288:
 sta_41360289:
-; 202:     if (x == 0.0) return 0.0;
+; 214:     if (x == 0.0) return 0.0;
         moved @R0 [@R12+12]
         dpush @R0
         moved @R0 [dbl_41360297]
@@ -2477,11 +2479,11 @@ _L41360299:
         jmp L_41360294
 sta_41360295:
 sta_41360296:
-; 203:     int_y = (int)y;
+; 215:     int_y = (int)y;
         moved @R0 [@R12+20]
         d2i @R0 @R0
         move [@R12-12] @R0
-; 204:     if ((double)int_y == y && int_y >= 0)
+; 216:     if ((double)int_y == y && int_y >= 0)
         move @R0 [@R12-12]
         i2d @R0 @R0
         dpush @R0
@@ -2516,10 +2518,10 @@ _L41360303:
 _L41360304:
         cmp @R0 #0
         jz sta_41360301
-; 206:         double result = 1.0;
+; 218:         double result = 1.0;
         moved @R0 [dbl_41360309]
         moved [@R12-20] @R0
-; 207:         for (i = 0; i < int_y; i++) result *= x;
+; 219:         for (i = 0; i < int_y; i++) result *= x;
         move @R0 #0
         move [@R12-8] @R0
 sta_41360310:
@@ -2550,12 +2552,12 @@ sta_41360311:
         move @R0 @R1
         jmp sta_41360310
 sta_41360312:
-; 208:         return result;
+; 220:         return result;
         moved @R0 [@R12-20]
         jmp L_41360294
 sta_41360301:
 sta_41360302:
-; 210:     return exp(y * log(x));
+; 222:     return exp(y * log(x));
         moved @R0 [@R12+20]
         dpush @R0
         moved @R0 [@R12+12]
@@ -2590,7 +2592,7 @@ ipow:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 214:     if (exp <= 0) return 1;
+; 226:     if (exp <= 0) return 1;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -2608,12 +2610,12 @@ _L41360318:
         jmp L_41360319
 sta_41360315:
 sta_41360316:
-; 215:     int result = 1;
+; 227:     int result = 1;
         move @R0 #1
         move [@R12-8] @R0
 sta_41360320:
         move @R2 #0
-; 216:     while (exp > 0) {
+; 228:     while (exp > 0) {
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -2627,7 +2629,7 @@ _L41360322:
 _L41360323:
         cmp @R0 #0
         jz sta_41360321
-; 217:         result *= base;
+; 229:         result *= base;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+12]
@@ -2635,7 +2637,7 @@ _L41360323:
         mul @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 218:         exp--;
+; 230:         exp--;
         move @R0 [@R12+16]
         move @R1 @R0
         sub @R0 @R0 #1
@@ -2643,7 +2645,7 @@ _L41360323:
         move @R0 @R1
         jmp sta_41360320
 sta_41360321:
-; 220:     return result;
+; 232:     return result;
         move @R0 [@R12-8]
         jmp L_41360319
 L_41360319:
@@ -2663,13 +2665,13 @@ sin_deg:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 267:     int idx = (int)degrees;
+; 279:     int idx = (int)degrees;
         movef @R0 [@R12+12]
         f2i @R0 @R0
         move [@R12-8] @R0
 sta_41360324:
         move @R2 #0
-; 268:     while (idx < 0) idx += 360;
+; 280:     while (idx < 0) idx += 360;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -2692,7 +2694,7 @@ _L41360327:
         move [@R12-8] @R0
         jmp sta_41360324
 sta_41360325:
-; 269:     idx = idx % 360;
+; 281:     idx = idx % 360;
         move @R0 [@R12-8]
         push @R0
         move @R0 #360
@@ -2700,7 +2702,7 @@ sta_41360325:
         mod @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 271:     float frac = degrees - (float)(int)degrees;
+; 283:     float frac = degrees - (float)(int)degrees;
         movef @R0 [@R12+12]
         fpush @R0
         movef @R0 [@R12+12]
@@ -2709,7 +2711,7 @@ sta_41360325:
         fpop @R1
         fsub @R0 @R1 @R0
         movef [@R12-12] @R0
-; 272:     if (frac < 0.0f) frac = 0.0f;
+; 284:     if (frac < 0.0f) frac = 0.0f;
         movef @R0 [@R12-12]
         fpush @R0
         movef @R0 [flt_41360330]
@@ -2727,7 +2729,7 @@ _L41360332:
         movef [@R12-12] @R0
 sta_41360328:
 sta_41360329:
-; 273:     if (frac > 0.999f) frac = 0.999f;
+; 285:     if (frac > 0.999f) frac = 0.999f;
         movef @R0 [@R12-12]
         fpush @R0
         movef @R0 [flt_41360336]
@@ -2745,7 +2747,7 @@ _L41360338:
         movef [@R12-12] @R0
 sta_41360334:
 sta_41360335:
-; 274:     float v0 = sin_table[idx];
+; 286:     float v0 = sin_table[idx];
         move @R0 sin_table
         push @R0
         move @R11 #0
@@ -2759,7 +2761,7 @@ sta_41360335:
         add @R0 @R10
         movef @R0 [@R0]
         movef [@R12-16] @R0
-; 275:     float v1 = sin_table[idx + 1];
+; 287:     float v1 = sin_table[idx + 1];
         move @R0 sin_table
         push @R0
         move @R9 #0
@@ -2778,7 +2780,7 @@ sta_41360335:
         add @R0 @R8
         movef @R0 [@R0]
         movef [@R12-20] @R0
-; 276:     return v0 + (v1 - v0) * frac;
+; 288:     return v0 + (v1 - v0) * frac;
         movef @R0 [@R12-16]
         fpush @R0
         movef @R0 [@R12-20]
@@ -2810,7 +2812,7 @@ cos_deg:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 280:     return sin_deg(degrees + 90.0f);
+; 292:     return sin_deg(degrees + 90.0f);
         movef @R0 [@R12+12]
         fpush @R0
         movef @R0 [flt_41360341]
@@ -2839,7 +2841,7 @@ tan_deg:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 284:     float s = sin_deg(degrees);
+; 296:     float s = sin_deg(degrees);
         movef @R0 [@R12+12]
         sub @R13 #4
         movef @13 @R0
@@ -2847,7 +2849,7 @@ tan_deg:
         call sin_deg
         add @R13 #4
         movef [@R12-8] @R0
-; 285:     float c = cos_deg(degrees);
+; 297:     float c = cos_deg(degrees);
         movef @R0 [@R12+12]
         sub @R13 #4
         movef @13 @R0
@@ -2855,7 +2857,7 @@ tan_deg:
         call cos_deg
         add @R13 #4
         movef [@R12-12] @R0
-; 286:     if (c < 1e-6f && c > -1e-6f) return 0.0f;
+; 298:     if (c < 1e-6f && c > -1e-6f) return 0.0f;
         movef @R0 [@R12-12]
         fpush @R0
         movef @R0 [flt_41360347]
@@ -2895,7 +2897,7 @@ _L41360346:
         jmp L_41360355
 sta_41360343:
 sta_41360344:
-; 287:     return s / c;
+; 299:     return s / c;
         movef @R0 [@R12-8]
         fpush @R0
         movef @R0 [@R12-12]
@@ -2919,12 +2921,12 @@ ilog2:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 292:     int result = 0;
+; 304:     int result = 0;
         move @R0 #0
         move [@R12-8] @R0
 sta_41360356:
         move @R2 #0
-; 293:     while (x > 1) { x >>= 1; result++; }
+; 305:     while (x > 1) { x >>= 1; result++; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -2952,7 +2954,7 @@ _L41360359:
         move @R0 @R1
         jmp sta_41360356
 sta_41360357:
-; 294:     return result;
+; 306:     return result;
         move @R0 [@R12-8]
         jmp L_41360360
 L_41360360:
@@ -2973,7 +2975,7 @@ ceil_div:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 299:     if (b == 0) return 0;
+; 311:     if (b == 0) return 0;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -2991,7 +2993,7 @@ _L41360364:
         jmp L_41360365
 sta_41360361:
 sta_41360362:
-; 300:     return (a + b - 1) / b;
+; 312:     return (a + b - 1) / b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -3027,7 +3029,7 @@ round_div:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 304:     if (b == 0) return 0;
+; 316:     if (b == 0) return 0;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -3045,7 +3047,7 @@ _L41360369:
         jmp L_41360370
 sta_41360366:
 sta_41360367:
-; 305:     if (a >= 0) return (a + b / 2) / b;
+; 317:     if (a >= 0) return (a + b / 2) / b;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3078,7 +3080,7 @@ _L41360374:
         jmp L_41360370
 sta_41360371:
 sta_41360372:
-; 306:     return (a - b / 2) / b;
+; 318:     return (a - b / 2) / b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -3114,7 +3116,7 @@ gcd:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 311:     if (a < 0) a = -a;
+; 323:     if (a < 0) a = -a;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3134,7 +3136,7 @@ _L41360378:
         move [@R12+12] @R0
 sta_41360375:
 sta_41360376:
-; 312:     if (b < 0) b = -b;
+; 324:     if (b < 0) b = -b;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -3156,7 +3158,7 @@ sta_41360379:
 sta_41360380:
 sta_41360383:
         move @R2 #0
-; 313:     while (b != 0) { t = b; b = a % b; a = t; }
+; 325:     while (b != 0) { t = b; b = a % b; a = t; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -3183,7 +3185,7 @@ _L41360386:
         move [@R12+12] @R0
         jmp sta_41360383
 sta_41360384:
-; 314:     return a;
+; 326:     return a;
         move @R0 [@R12+12]
         jmp L_41360387
 L_41360387:
@@ -3204,7 +3206,7 @@ lcm:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 318:     if (a == 0 || b == 0) return 0;
+; 330:     if (a == 0 || b == 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3243,7 +3245,7 @@ _L41360392:
         jmp L_41360397
 sta_41360388:
 sta_41360389:
-; 319:     int g = gcd(a, b);
+; 331:     int g = gcd(a, b);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -3253,7 +3255,7 @@ sta_41360389:
         call gcd
         add @R13 #8
         move [@R12-8] @R0
-; 320:     return (a / g) * b;
+; 332:     return (a / g) * b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -3283,7 +3285,7 @@ is_prime:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 325:     if (n < 2) return 0;
+; 337:     if (n < 2) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3301,7 +3303,7 @@ _L41360401:
         jmp L_41360402
 sta_41360398:
 sta_41360399:
-; 326:     if (n == 2 || n == 3) return 1;
+; 338:     if (n == 2 || n == 3) return 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3340,7 +3342,7 @@ _L41360407:
         jmp L_41360402
 sta_41360403:
 sta_41360404:
-; 327:     if (n % 2 == 0) return 0;
+; 339:     if (n % 2 == 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -3363,7 +3365,7 @@ _L41360415:
         jmp L_41360402
 sta_41360412:
 sta_41360413:
-; 328:     for (i = 3; i * i <= n; i += 2)
+; 340:     for (i = 3; i * i <= n; i += 2)
         move @R0 #3
         move [@R12-8] @R0
 sta_41360416:
@@ -3385,7 +3387,7 @@ _L41360419:
 _L41360420:
         cmp @R0 #0
         jz sta_41360418
-; 329:         if (n % i == 0) return 0;
+; 341:         if (n % i == 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -3411,7 +3413,7 @@ sta_41360422:
 sta_41360417:
         move @R0 [@R12-8]
         push @R0
-; 328:     for (i = 3; i * i <= n; i += 2)
+; 340:     for (i = 3; i * i <= n; i += 2)
         move @R0 #2
         pop @R1
         add @R1 @R0
@@ -3419,7 +3421,7 @@ sta_41360417:
         move [@R12-8] @R0
         jmp sta_41360416
 sta_41360418:
-; 330:     return 1;
+; 342:     return 1;
         move @R0 #1
         jmp L_41360402
 L_41360402:
@@ -3439,10 +3441,10 @@ factorial:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 334:     int result = 1;
+; 346:     int result = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 336:     if (n < 0) return 0;
+; 348:     if (n < 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3460,7 +3462,7 @@ _L41360428:
         jmp L_41360429
 sta_41360425:
 sta_41360426:
-; 337:     if (n > 12) return 0; // 13! exceeds 32-bit int
+; 349:     if (n > 12) return 0; // 13! exceeds 32-bit int
         move @R0 [@R12+12]
         push @R0
         move @R0 #12
@@ -3478,7 +3480,7 @@ _L41360433:
         jmp L_41360429
 sta_41360430:
 sta_41360431:
-; 338:     for (i = 2; i <= n; i++) result *= i;
+; 350:     for (i = 2; i <= n; i++) result *= i;
         move @R0 #2
         move [@R12-12] @R0
 sta_41360434:
@@ -3510,7 +3512,7 @@ sta_41360435:
         move @R0 @R1
         jmp sta_41360434
 sta_41360436:
-; 339:     return result;
+; 351:     return result;
         move @R0 [@R12-8]
         jmp L_41360429
 L_41360429:
@@ -3531,7 +3533,7 @@ random_range:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 345:     if (max < min) { int t = min; min = max; max = t; }
+; 357:     if (max < min) { int t = min; min = max; max = t; }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -3553,7 +3555,7 @@ _L41360442:
         move [@R12+16] @R0
 sta_41360439:
 sta_41360440:
-; 346:     seed = (1103515245 * seed + 12345) & 0x7FFFFFFF;
+; 358:     seed = (1103515245 * seed + 12345) & 0x7FFFFFFF;
         move @R0 #1103515245
         push @R0
         move @R0 [random_range__seed]
@@ -3571,7 +3573,7 @@ sta_41360440:
         and @R1 @R0
         move @R0 @R1
         move [random_range__seed] @R0
-; 347:     return min + (seed % (max - min + 1));
+; 359:     return min + (seed % (max - min + 1));
         move @R0 [@R12+12]
         push @R0
         move @R0 [random_range__seed]
@@ -3611,7 +3613,7 @@ random_set_seed:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 353:     asm("SYSCALL #51"); // randomize via VML syscall
+; 365:     asm("SYSCALL #51"); // randomize via VML syscall
         syscall #51
         move [@R12-4] @R0
         move @R13 @R12
@@ -3632,7 +3634,7 @@ lerp:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 357:     return a + ((b - a) * t) / 1000;
+; 369:     return a + ((b - a) * t) / 1000;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -3676,7 +3678,7 @@ map_range:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 361:     if (in_max == in_min) return out_min;
+; 373:     if (in_max == in_min) return out_min;
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -3694,7 +3696,7 @@ _L41360448:
         jmp L_41360449
 sta_41360445:
 sta_41360446:
-; 362:     return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
+; 374:     return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+12]
@@ -3746,7 +3748,7 @@ clamp_int:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 366:     if (x < low) return low;
+; 378:     if (x < low) return low;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+16]
@@ -3764,7 +3766,7 @@ _L41360453:
         jmp L_41360454
 sta_41360450:
 sta_41360451:
-; 367:     if (x > high) return high;
+; 379:     if (x > high) return high;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+20]
@@ -3782,7 +3784,7 @@ _L41360458:
         jmp L_41360454
 sta_41360455:
 sta_41360456:
-; 368:     return x;
+; 380:     return x;
         move @R0 [@R12+12]
         jmp L_41360454
 L_41360454:
@@ -3803,7 +3805,7 @@ hypot_int:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 372:     if (a < 0) a = -a;
+; 384:     if (a < 0) a = -a;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3823,7 +3825,7 @@ _L41360462:
         move [@R12+12] @R0
 sta_41360459:
 sta_41360460:
-; 373:     if (b < 0) b = -b;
+; 385:     if (b < 0) b = -b;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -3843,7 +3845,7 @@ _L41360466:
         move [@R12+16] @R0
 sta_41360463:
 sta_41360464:
-; 374:     int s = a*a + b*b;
+; 386:     int s = a*a + b*b;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12+12]
@@ -3861,7 +3863,7 @@ sta_41360464:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 375:     if (s <= 0) return 0;
+; 387:     if (s <= 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3879,7 +3881,7 @@ _L41360470:
         jmp L_41360471
 sta_41360467:
 sta_41360468:
-; 376:     int g = s / 2 + 1;
+; 388:     int g = s / 2 + 1;
         move @R0 [@R12-8]
         push @R0
         move @R0 #2
@@ -3892,7 +3894,7 @@ sta_41360468:
         add @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 378:     for (i = 0; i < 10; i++) g = (g + s / (g > 0 ? g : 1)) / 2;
+; 390:     for (i = 0; i < 10; i++) g = (g + s / (g > 0 ? g : 1)) / 2;
         move @R0 #0
         move [@R12-16] @R0
 sta_41360472:
@@ -3951,7 +3953,7 @@ sta_41360473:
         move @R0 @R1
         jmp sta_41360472
 sta_41360474:
-; 379:     return g;
+; 391:     return g;
         move @R0 [@R12-12]
         jmp L_41360471
 L_41360471:
@@ -3972,7 +3974,7 @@ isqrt:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 383:     if (n <= 0) return 0;
+; 395:     if (n <= 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -3990,7 +3992,7 @@ _L41360484:
         jmp L_41360485
 sta_41360481:
 sta_41360482:
-; 384:     if (n == 1) return 1;
+; 396:     if (n == 1) return 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -4008,7 +4010,7 @@ _L41360489:
         jmp L_41360485
 sta_41360486:
 sta_41360487:
-; 385:     int g = n / 2;
+; 397:     int g = n / 2;
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -4016,7 +4018,7 @@ sta_41360487:
         div @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 386:     if (g < 1) g = 1;
+; 398:     if (g < 1) g = 1;
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -4034,7 +4036,7 @@ _L41360493:
         move [@R12-8] @R0
 sta_41360490:
 sta_41360491:
-; 388:     for (i = 0; i < 10; i++) {
+; 400:     for (i = 0; i < 10; i++) {
         move @R0 #0
         move [@R12-12] @R0
 sta_41360494:
@@ -4051,7 +4053,7 @@ _L41360497:
 _L41360498:
         cmp @R0 #0
         jz sta_41360496
-; 389:         int ng = (g + n / g) / 2;
+; 401:         int ng = (g + n / g) / 2;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+12]
@@ -4069,7 +4071,7 @@ _L41360498:
         div @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 390:         if (ng >= g) return g;
+; 402:         if (ng >= g) return g;
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-8]
@@ -4087,7 +4089,7 @@ _L41360502:
         jmp L_41360485
 sta_41360499:
 sta_41360500:
-; 391:         g = ng;
+; 403:         g = ng;
         move @R0 [@R12-16]
         move [@R12-8] @R0
 sta_41360495:
@@ -4098,7 +4100,7 @@ sta_41360495:
         move @R0 @R1
         jmp sta_41360494
 sta_41360496:
-; 393:     return g;
+; 405:     return g;
         move @R0 [@R12-8]
         jmp L_41360485
 L_41360485:

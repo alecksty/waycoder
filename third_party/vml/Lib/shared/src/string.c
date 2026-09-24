@@ -1,4 +1,13 @@
+#param lib("crosslang")
+
 // VML Shared String Library
+//
+// ⚠ `crosslang` 是给**各语言的 string shim** 用的，不是 string.c 自己调用：
+//   `Lib/<lang>/string.vml` 里 `CALL str_len` / `CALL str_cmp` 写的是**裸名**，
+//   真身在 `crosslang.c`；而用户程序自己从不直接调用它们 ⇒ 自动链接（按 FuncMap 路由）
+//   不会把 crosslang 拉进来 ⇒ 链接期报 `error: 未定义的函数 'str_len'`，
+//   这门语言的**每个**程序都编不过（与程序内容无关）。
+//   同 `math.c` 顶部的 `math64`/`statistics` 那两条，理由与判据一字相同。
 
 __stdcall int strlen(const char* s) {
     int n = 0;

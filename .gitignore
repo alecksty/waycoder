@@ -109,3 +109,15 @@ sync-qr.png
 # 草稿区：验证截图、一次性探针源码、交接草稿（本地临时材料，不进版本库）
 # 2026-09-20 起忽略；此前已跟踪的 147 个文件已 git rm --cached（工作区文件保留）
 .scratch/
+
+# ── Examples/ 下**跑例子**留下的产物（2026-09-24 补）────────────────────────────
+# 例子里写了名字的落盘文件，跑一次就出现在源码旁边。它们**必须**忽略，理由不止是"脏"：
+# `Examples/` 会被 `scripts/make-vml-lib.sh` 打进 `vml_lib.zip` 随 APK 分发
+# ⇒ 漏掉的话，**本机跑测试留下的截图/文本会一起发到用户手机上**。
+# 实测踩到：`Examples/c/shot/shot_20260924_115200.png`（截屏功能测试）与
+# `Examples/c/weather.txt`（weather 例子）一度出现在 `git status` 里，差一步就进包。
+# ⚠ 只列**例子真的会写出来**的那些名字，别图省事写 `Examples/**/*.txt`（会把示例素材一起吃掉）。
+# ⚠ 新增会落盘的例子时，**回来这里补一行** —— 这是"同一份清单第二处实现"的又一例，
+#   判据是"跑一遍能不能过 examples-build 探针"，而探针不查产物。
+third_party/vml/Examples/c/shot/
+third_party/vml/Examples/c/weather.txt

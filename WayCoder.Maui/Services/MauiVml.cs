@@ -526,7 +526,42 @@ HALT
     /// </summary>
     private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) Fail(
         string lang, string message, string? filePath)
-        => (null, lang, message, VmlDiagnostics.Parse(message, filePath));
+    {
+        var diags = VmlDiagnostics.Parse(message, filePath);
+        // **结构化的那一份要留一份在外面**：命令行页拿它注入 `DiagnosticManager`，
+        // 让编辑器的错误列表 / 行下波浪线 / 编译气泡跟着亮起来。见 `LastDiags` 的注释。
+        LastDiags = diags;
+        LastDiagsFile = filePath ?? "";
+        return (null, lang, message, diags);
+    }
+
+    /// <summary>
+    /// 上一次**编译失败**的结构化诊断（与给人看的那段 markup <see cref="LastDiagnostics"/> 并列）。
+    ///
+    /// <para>
+    /// **为什么要有它**：走**命令行页**跑的程序（文件页递过来的作业、手敲的 `vml run`）
+    /// 从头到尾不经过编辑器，于是编辑器的错误列表与气泡永远是空的 —— 用户的实测原话是
+    /// 「**明明有报错，错误列表是空的，编辑器也不出错误泡泡**」。
+    /// 而 `LastDiagnostics` 是**给人看的字符串**（带 `«red»` 标记、还掺着运行期输出），
+    /// 拿它反解诊断等于再写一套解析（本仓库头号坑就是"同一规则两处实现"）。
+    /// </para>
+    ///
+    /// <para>
+    /// 做成静态的依据与 <see cref="OnProgress"/> / <see cref="LastDiagnostics"/> 相同：
+    /// **VML 的执行是排他的**（`VmlTool.ExecutionMode = Exclusive` + 命令行页的 `_busy` 闸门），
+    /// 同一时刻只可能有一次编译在读它。做成一路透传的参数要改 6 个签名，而它们全是为了
+    /// 把这一个值送到最里面 —— 那种"接线"正是本仓库反复踩的漂移来源。
+    /// </para>
+    ///
+    /// <para>
+    /// 每次 <see cref="BuildProgram"/> 开头**清空**：编过就重算，免得"上一次的报错"
+    /// 在下一次编译成功之后还挂在编辑器里。
+    /// </para>
+    /// </summary>
+    public static List<Diagnostic> LastDiags = [];
+
+    /// <summary><see cref="LastDiags"/> 对应的源文件（绝对路径；空 = 没有）。</summary>
+    public static string LastDiagsFile = "";
 
     /// <param name="extraIncludes">
     /// 工程文件（`.vmk`）带来的**追加**头文件搜索路径（对应 `vml make`）。
@@ -556,6 +591,11 @@ HALT
         bool asObject = false,
         IReadOnlyList<string>? extraLibs = null)
     {
+        // 每次编译开头清掉上一轮的结构化诊断（见 `LastDiags`）：否则"上一次的报错"
+        // 会在这次编译成功之后还挂在编辑器的错误列表上。
+        LastDiags = [];
+        LastDiagsFile = "";
+
         if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}", filePath);
 
         var libRoot = EnsureLibExtracted();

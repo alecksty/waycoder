@@ -1,4 +1,5 @@
 
+.linked "crosslang.vml"
 .data
 
 .text
@@ -14,12 +15,12 @@ strlen:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 4:     int n = 0;
+; 10:     int n = 0;
         move @R0 #0
         move [@R12-8] @R0
 sta_59030000:
         move @R2 #0
-; 5:     while (s[n]) n++;
+; 11:     while (s[n]) n++;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -37,7 +38,7 @@ sta_59030000:
         move @R0 @R1
         jmp sta_59030000
 sta_59030001:
-; 6:     return n;
+; 12:     return n;
         move @R0 [@R12-8]
         jmp L_59030002
 L_59030002:
@@ -60,7 +61,7 @@ strcmp:
         sub @R13 #24
 sta_59030003:
         move @R2 #0
-; 10:     while (*a && *a == *b) { a++; b++; }
+; 15:     while (*a && *a == *b) { a++; b++; }
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -102,17 +103,17 @@ _L59030006:
         move @R0 @R1
         jmp sta_59030003
 sta_59030004:
-; 12:     int ca = (int)(signed char)*a;
+; 17:     int ca = (int)(signed char)*a;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-8] @R0
-; 13:     int cb = (int)(signed char)*b;
+; 18:     int cb = (int)(signed char)*b;
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-12] @R0
-; 14:     return ca - cb;
+; 19:     return ca - cb;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-12]
@@ -137,7 +138,7 @@ _vml_lower_ascii:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 30:     if (c >= 'A' && c <= 'Z') return c + 32;
+; 34:     if (c >= 'A' && c <= 'Z') return c + 32;
         move @R0 [@R12+12]
         push @R0
         move @R0 #65
@@ -180,7 +181,7 @@ _L59030013:
         jmp L_59030018
 sta_59030010:
 sta_59030011:
-; 31:     return c;
+; 35:     return c;
         move @R0 [@R12+12]
         jmp L_59030018
 L_59030018:
@@ -203,7 +204,7 @@ strcasecmp:
         sub @R13 #16
 sta_59030019:
         move @R2 #0
-; 35:     while (*a && _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
+; 38:     while (*a && _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -241,7 +242,7 @@ _L59030021:
 _L59030022:
         cmp @R0 #0
         jz sta_59030020
-; 36:         a++; b++;
+; 39:         a++; b++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -254,7 +255,7 @@ _L59030022:
         move @R0 @R1
         jmp sta_59030019
 sta_59030020:
-; 38:     return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
+; 41:     return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -295,7 +296,7 @@ strncasecmp:
         sub @R13 #16
 sta_59030026:
         move @R2 #0
-; 42:     while (n > 0 && *a &&
+; 44:     while (n > 0 && *a &&
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -321,7 +322,7 @@ _L59030030:
 _L59030031:
         test @R0 @R0
         jz _L59030028
-; 43:            _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
+; 45:            _vml_lower_ascii((int)(signed char)*a) == _vml_lower_ascii((int)(signed char)*b)) {
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -354,7 +355,7 @@ _L59030028:
 _L59030029:
         cmp @R0 #0
         jz sta_59030027
-; 44:         a++; b++; n--;
+; 46:         a++; b++; n--;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -372,7 +373,7 @@ _L59030029:
         move @R0 @R1
         jmp sta_59030026
 sta_59030027:
-; 46:     if (n == 0) return 0;   /* 前 n 个字符全等 */
+; 48:     if (n == 0) return 0;   /* 前 n 个字符全等 */
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -390,7 +391,7 @@ _L59030039:
         jmp L_59030040
 sta_59030036:
 sta_59030037:
-; 47:     return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
+; 49:     return _vml_lower_ascii((int)(signed char)*a) - _vml_lower_ascii((int)(signed char)*b);
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -428,12 +429,12 @@ strcpy:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 51:     char* p = dst;
+; 52:     char* p = dst;
         move @R0 [@R12+12]
         move [@R12-8] @R0
 sta_59030041:
         move @R2 #0
-; 52:     while (*src) { *p = *src; p++; src++; }
+; 53:     while (*src) { *p = *src; p++; src++; }
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -459,14 +460,14 @@ sta_59030041:
         move @R0 @R1
         jmp sta_59030041
 sta_59030042:
-; 53:     *p = 0;
+; 54:     *p = 0;
         move @R0 [@R12-8]
         move @R9 @R0
         push @R9
         move @R0 #0
         pop @R9
         moveb [@R9] @R0
-; 54:     return dst;
+; 55:     return dst;
         move @R0 [@R12+12]
         jmp L_59030043
 L_59030043:
@@ -562,7 +563,7 @@ strncmp:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 66:     for (int i = 0; i < n; i++) {
+; 65:     for (int i = 0; i < n; i++) {
         move @R0 #0
         move [@R12-8] @R0
 sta_59030049:
@@ -579,7 +580,7 @@ _L59030052:
 _L59030053:
         cmp @R0 #0
         jz sta_59030051
-; 67:         if (a[i] != b[i]) {
+; 66:         if (a[i] != b[i]) {
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -607,7 +608,7 @@ _L59030056:
 _L59030057:
         cmp @R0 #0
         jz sta_59030054
-; 68:             int ca = (int)(signed char)a[i];
+; 67:             int ca = (int)(signed char)a[i];
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -617,7 +618,7 @@ _L59030057:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-12] @R0
-; 69:             int cb = (int)(signed char)b[i];
+; 68:             int cb = (int)(signed char)b[i];
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -627,7 +628,7 @@ _L59030057:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-16] @R0
-; 70:             return ca - cb;
+; 69:             return ca - cb;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12-16]
@@ -637,7 +638,7 @@ _L59030057:
         jmp L_59030058
 sta_59030054:
 sta_59030055:
-; 72:         if (a[i] == 0) return 0;
+; 71:         if (a[i] == 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -670,7 +671,7 @@ sta_59030050:
         move @R0 @R1
         jmp sta_59030049
 sta_59030051:
-; 74:     return 0;
+; 73:     return 0;
         move @R0 #0
         jmp L_59030058
 L_59030058:
@@ -693,13 +694,13 @@ strchr:
         sub @R13 #16
 sta_59030063:
         move @R2 #0
-; 78:     while (*s) {
+; 76:     while (*s) {
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030064
-; 79:         if (*s == (char)c) return s;
+; 77:         if (*s == (char)c) return s;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -719,7 +720,7 @@ _L59030068:
         jmp L_59030069
 sta_59030065:
 sta_59030066:
-; 80:         s++;
+; 78:         s++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -727,7 +728,7 @@ sta_59030066:
         move @R0 @R1
         jmp sta_59030063
 sta_59030064:
-; 82:     return 0;
+; 80:     return 0;
         move @R0 #0
         jmp L_59030069
 L_59030069:
@@ -749,15 +750,15 @@ strncpy:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 86:     char* p = dst;
+; 83:     char* p = dst;
         move @R0 [@R12+12]
         move [@R12-8] @R0
-; 87:     int i = 0;
+; 84:     int i = 0;
         move @R0 #0
         move [@R12-12] @R0
 sta_59030070:
         move @R2 #0
-; 88:     while (i < n && src[i] != 0) {
+; 85:     while (i < n && src[i] != 0) {
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+20]
@@ -798,7 +799,7 @@ _L59030072:
 _L59030073:
         cmp @R0 #0
         jz sta_59030071
-; 89:         p[i] = src[i];
+; 86:         p[i] = src[i];
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
@@ -817,7 +818,7 @@ _L59030073:
         add @R0 @R9
         pop @R10
         moveb [@R0] @R10
-; 90:         i++;
+; 87:         i++;
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -826,7 +827,7 @@ _L59030073:
         jmp sta_59030070
 sta_59030071:
 sta_59030078:
-; 92:     for (; i < n; i++) p[i] = 0;
+; 89:     for (; i < n; i++) p[i] = 0;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+20]
@@ -859,7 +860,7 @@ sta_59030079:
         move @R0 @R1
         jmp sta_59030078
 sta_59030080:
-; 93:     return dst;
+; 90:     return dst;
         move @R0 [@R12+12]
         jmp L_59030083
 L_59030083:
@@ -880,7 +881,7 @@ strstr:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 97:     if (*needle == 0) return haystack;
+; 93:     if (*needle == 0) return haystack;
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -902,21 +903,21 @@ sta_59030084:
 sta_59030085:
 sta_59030089:
         move @R2 #0
-; 98:     while (*haystack) {
+; 94:     while (*haystack) {
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030090
-; 99:         const char* h = haystack;
+; 95:         const char* h = haystack;
         move @R0 [@R12+12]
         move [@R12-8] @R0
-; 100:         const char* n = needle;
+; 96:         const char* n = needle;
         move @R0 [@R12+16]
         move [@R12-12] @R0
 sta_59030091:
         move @R2 #0
-; 101:         while (*h && *n && *h == *n) { h++; n++; }
+; 97:         while (*h && *n && *h == *n) { h++; n++; }
         move @R0 [@R12-8]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -970,7 +971,7 @@ _L59030094:
         move @R0 @R1
         jmp sta_59030091
 sta_59030092:
-; 102:         if (*n == 0) return haystack;
+; 98:         if (*n == 0) return haystack;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -990,7 +991,7 @@ _L59030102:
         jmp L_59030088
 sta_59030099:
 sta_59030100:
-; 103:         haystack++;
+; 99:         haystack++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -998,7 +999,7 @@ sta_59030100:
         move @R0 @R1
         jmp sta_59030089
 sta_59030090:
-; 105:     return 0;
+; 101:     return 0;
         move @R0 #0
         jmp L_59030088
 L_59030088:
@@ -1019,14 +1020,14 @@ strrev:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 110:     int len = strlen(src);
+; 105:     int len = strlen(src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 111:     for (int i = 0; i < len; i++)
+; 106:     for (int i = 0; i < len; i++)
         move @R0 #0
         move [@R12-12] @R0
 sta_59030103:
@@ -1043,7 +1044,7 @@ _L59030106:
 _L59030107:
         cmp @R0 #0
         jz sta_59030105
-; 112:         dst[i] = src[len - 1 - i];
+; 107:         dst[i] = src[len - 1 - i];
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-8]
@@ -1080,7 +1081,7 @@ sta_59030104:
         move @R0 @R1
         jmp sta_59030103
 sta_59030105:
-; 113:     dst[len] = 0;
+; 108:     dst[len] = 0;
         move @R0 #0
         move @R3 @R0
         push @R3
@@ -1092,7 +1093,7 @@ sta_59030105:
         add @R0 @R2
         pop @R3
         moveb [@R0] @R3
-; 114:     return len;
+; 109:     return len;
         move @R0 [@R12-8]
         jmp L_59030108
 L_59030108:
@@ -1115,13 +1116,13 @@ str_toupper:
         sub @R13 #16
 sta_59030109:
         move @R2 #0
-; 119:     while (*src) {
+; 113:     while (*src) {
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030110
-; 120:         char c = *src++;
+; 114:         char c = *src++;
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1130,7 +1131,7 @@ sta_59030109:
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-5] @R0
-; 121:         if (c >= 'a' && c <= 'z') c -= 32;
+; 115:         if (c >= 'a' && c <= 'z') c -= 32;
         moveb @R0 [@R12-5]
         sextb @R0 @R0
         pushb @R0
@@ -1175,7 +1176,7 @@ _L59030114:
         moveb [@R12-5] @R0
 sta_59030111:
 sta_59030112:
-; 122:         *dst++ = c;
+; 116:         *dst++ = c;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1189,7 +1190,7 @@ sta_59030112:
         moveb [@R1] @R0
         jmp sta_59030109
 sta_59030110:
-; 124:     *dst = 0;
+; 118:     *dst = 0;
         move @R0 [@R12+12]
         move @R11 @R0
         push @R11
@@ -1215,13 +1216,13 @@ str_tolower:
         sub @R13 #16
 sta_59030119:
         move @R2 #0
-; 129:     while (*src) {
+; 122:     while (*src) {
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030120
-; 130:         char c = *src++;
+; 123:         char c = *src++;
         move @R0 [@R12+16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1230,7 +1231,7 @@ sta_59030119:
         moveb @R0 [@R0]
         sextb @R0 @R0
         moveb [@R12-5] @R0
-; 131:         if (c >= 'A' && c <= 'Z') c += 32;
+; 124:         if (c >= 'A' && c <= 'Z') c += 32;
         moveb @R0 [@R12-5]
         sextb @R0 @R0
         pushb @R0
@@ -1275,7 +1276,7 @@ _L59030124:
         moveb [@R12-5] @R0
 sta_59030121:
 sta_59030122:
-; 132:         *dst++ = c;
+; 125:         *dst++ = c;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1289,7 +1290,7 @@ sta_59030122:
         moveb [@R9] @R0
         jmp sta_59030119
 sta_59030120:
-; 134:     *dst = 0;
+; 127:     *dst = 0;
         move @R0 [@R12+12]
         move @R10 @R0
         push @R10
@@ -1314,17 +1315,17 @@ str_repeat:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 139:     int len = strlen(src);
+; 131:     int len = strlen(src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 140:     int total = 0;
+; 132:     int total = 0;
         move @R0 #0
         move [@R12-12] @R0
-; 141:     for (int i = 0; i < n; i++) {
+; 133:     for (int i = 0; i < n; i++) {
         move @R0 #0
         move [@R12-16] @R0
 sta_59030129:
@@ -1341,7 +1342,7 @@ _L59030132:
 _L59030133:
         cmp @R0 #0
         jz sta_59030131
-; 142:         for (int j = 0; j < len; j++)
+; 134:         for (int j = 0; j < len; j++)
         move @R0 #0
         move [@R12-20] @R0
 sta_59030134:
@@ -1358,7 +1359,7 @@ _L59030137:
 _L59030138:
         cmp @R0 #0
         jz sta_59030136
-; 143:             dst[total++] = src[j];
+; 135:             dst[total++] = src[j];
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-20]
@@ -1397,7 +1398,7 @@ sta_59030130:
         move @R0 @R1
         jmp sta_59030129
 sta_59030131:
-; 145:     dst[total] = 0;
+; 137:     dst[total] = 0;
         move @R0 #0
         move @R4 @R0
         push @R4
@@ -1409,7 +1410,7 @@ sta_59030131:
         add @R0 @R5
         pop @R4
         moveb [@R0] @R4
-; 146:     return total;
+; 138:     return total;
         move @R0 [@R12-12]
         jmp L_59030139
 L_59030139:
@@ -1430,7 +1431,7 @@ str_contains:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 151:     return strstr(s, sub) != 0 ? 1 : 0;
+; 142:     return strstr(s, sub) != 0 ? 1 : 0;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -1477,7 +1478,7 @@ str_trim:
         sub @R13 #24
 sta_59030145:
         move @R2 #0
-; 157:     while (*src == ' ' || *src == '\t' || *src == '\r' || *src == '\n') src++;
+; 147:     while (*src == ' ' || *src == '\t' || *src == '\r' || *src == '\n') src++;
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1569,21 +1570,21 @@ _L59030149:
         move @R0 @R1
         jmp sta_59030145
 sta_59030146:
-; 159:     char* start = dst;
+; 149:     char* start = dst;
         move @R0 [@R12+12]
         move [@R12-8] @R0
-; 160:     char* last_non_ws = dst;
+; 150:     char* last_non_ws = dst;
         move @R0 [@R12+12]
         move [@R12-12] @R0
 sta_59030164:
         move @R2 #0
-; 161:     while (*src) {
+; 151:     while (*src) {
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030165
-; 162:         *dst = *src;
+; 152:         *dst = *src;
         move @R0 [@R12+12]
         move @R2 @R0
         push @R2
@@ -1592,7 +1593,7 @@ sta_59030164:
         sextb @R0 @R0
         pop @R2
         moveb [@R2] @R0
-; 163:         if (*src != ' ' && *src != '\t' && *src != '\r' && *src != '\n')
+; 153:         if (*src != ' ' && *src != '\t' && *src != '\r' && *src != '\n')
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -1674,12 +1675,12 @@ _L59030168:
 _L59030169:
         cmp @R0 #0
         jz sta_59030166
-; 164:             last_non_ws = dst;
+; 154:             last_non_ws = dst;
         move @R0 [@R12+12]
         move [@R12-12] @R0
 sta_59030166:
 sta_59030167:
-; 165:         dst++; src++;
+; 155:         dst++; src++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1692,7 +1693,7 @@ sta_59030167:
         move @R0 @R1
         jmp sta_59030164
 sta_59030165:
-; 167:     *(last_non_ws + 1) = '\0';
+; 157:     *(last_non_ws + 1) = '\0';
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -1704,7 +1705,7 @@ sta_59030165:
         move @R0 #0
         pop @R3
         moveb [@R3] @R0
-; 168:     return start;
+; 158:     return start;
         move @R0 [@R12-8]
         jmp L_59030182
 L_59030182:
@@ -1727,14 +1728,14 @@ str_substr:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 173:     int len = strlen(src);
+; 162:     int len = strlen(src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 174:     if (pos < 0) pos = 0;
+; 163:     if (pos < 0) pos = 0;
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -1752,7 +1753,7 @@ _L59030186:
         move [@R12+20] @R0
 sta_59030183:
 sta_59030184:
-; 175:     if (pos >= len) { *dst = '\0'; return dst; }
+; 164:     if (pos >= len) { *dst = '\0'; return dst; }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -1776,7 +1777,7 @@ _L59030190:
         jmp L_59030191
 sta_59030187:
 sta_59030188:
-; 176:     if (pos + count > len) count = len - pos;
+; 165:     if (pos + count > len) count = len - pos;
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+24]
@@ -1804,10 +1805,10 @@ _L59030195:
         move [@R12+24] @R0
 sta_59030192:
 sta_59030193:
-; 177:     char* start = dst;
+; 166:     char* start = dst;
         move @R0 [@R12+12]
         move [@R12-12] @R0
-; 178:     src += pos;
+; 167:     src += pos;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+20]
@@ -1817,7 +1818,7 @@ sta_59030193:
         move [@R12+16] @R0
 sta_59030196:
         move @R2 #0
-; 179:     while (count-- > 0 && *src) *dst++ = *src++;
+; 168:     while (count-- > 0 && *src) *dst++ = *src++;
         move @R0 [@R12+24]
         move @R1 @R0
         sub @R0 @R0 #1
@@ -1865,14 +1866,14 @@ _L59030199:
         moveb [@R11] @R0
         jmp sta_59030196
 sta_59030197:
-; 180:     *dst = '\0';
+; 169:     *dst = '\0';
         move @R0 [@R12+12]
         move @R9 @R0
         push @R9
         move @R0 #0
         pop @R9
         moveb [@R9] @R0
-; 181:     return start;
+; 170:     return start;
         move @R0 [@R12-12]
         jmp L_59030191
 L_59030191:
@@ -1893,12 +1894,12 @@ str_indexof:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 186:     int i = 0;
+; 174:     int i = 0;
         move @R0 #0
         move [@R12-8] @R0
 sta_59030202:
         move @R2 #0
-; 187:     while (s[i]) {
+; 175:     while (s[i]) {
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1909,7 +1910,7 @@ sta_59030202:
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030203
-; 188:         if (s[i] == c) return i;
+; 176:         if (s[i] == c) return i;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1934,7 +1935,7 @@ _L59030207:
         jmp L_59030208
 sta_59030204:
 sta_59030205:
-; 189:         i++;
+; 177:         i++;
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1942,7 +1943,7 @@ sta_59030205:
         move @R0 @R1
         jmp sta_59030202
 sta_59030203:
-; 191:     return -1;
+; 179:     return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
@@ -1967,18 +1968,18 @@ str_split:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 197:     int count = 0;
+; 184:     int count = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 198:     const char* start = s;
+; 185:     const char* start = s;
         move @R0 [@R12+12]
         move [@R12-12] @R0
-; 199:     const char* p = s;
+; 186:     const char* p = s;
         move @R0 [@R12+12]
         move [@R12-16] @R0
 sta_59030209:
         move @R2 #0
-; 200:     while (*p && count < maxParts) {
+; 187:     while (*p && count < maxParts) {
         move @R0 [@R12-16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2004,7 +2005,7 @@ _L59030211:
 _L59030212:
         cmp @R0 #0
         jz sta_59030210
-; 201:         if (*p == delim) {
+; 188:         if (*p == delim) {
         move @R0 [@R12-16]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2020,7 +2021,7 @@ _L59030217:
 _L59030218:
         cmp @R0 #0
         jz sta_59030215
-; 202:             int len = p - start;
+; 189:             int len = p - start;
         move @R0 [@R12-16]
         push @R0
         move @R0 [@R12-12]
@@ -2028,7 +2029,7 @@ _L59030218:
         sub @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 203:             if (len > 0 || count > 0) { // include empty parts except leading
+; 190:             if (len > 0 || count > 0) { // include empty parts except leading
         move @R0 [@R12-20]
         push @R0
         move @R0 #0
@@ -2063,7 +2064,7 @@ _L59030222:
 _L59030223:
         cmp @R0 #0
         jz sta_59030219
-; 204:                 parts[count] = (char*)vml_alloc(len + 1);
+; 191:                 parts[count] = (char*)vml_alloc(len + 1);
         move @R0 [@R12-20]
         push @R0
         move @R0 #1
@@ -2084,7 +2085,7 @@ _L59030223:
         add @R0 @R8
         pop @R6
         move [@R0] @R6
-; 205:                 strncpy(parts[count], start, len);
+; 192:                 strncpy(parts[count], start, len);
         move @R0 [@R12-20]
         push @R0
         move @R0 [@R12-12]
@@ -2102,7 +2103,7 @@ _L59030223:
         move @R2 [@R13+8]
         call strncpy
         add @R13 #12
-; 206:                 parts[count][len] = '\0';
+; 193:                 parts[count][len] = '\0';
         move @R0 #0
         move @R4 @R0
         push @R4
@@ -2124,7 +2125,7 @@ _L59030223:
         move @R0 @R2
         pop @R4
         moveb [@R0] @R4
-; 207:                 count++;
+; 194:                 count++;
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2132,7 +2133,7 @@ _L59030223:
         move @R0 @R1
 sta_59030219:
 sta_59030220:
-; 209:             start = p + 1;
+; 196:             start = p + 1;
         move @R0 [@R12-16]
         push @R0
         move @R0 #1
@@ -2142,7 +2143,7 @@ sta_59030220:
         move [@R12-12] @R0
 sta_59030215:
 sta_59030216:
-; 211:         p++;
+; 198:         p++;
         move @R0 [@R12-16]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2150,7 +2151,7 @@ sta_59030216:
         move @R0 @R1
         jmp sta_59030209
 sta_59030210:
-; 214:     if (*start && count < maxParts) {
+; 201:     if (*start && count < maxParts) {
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2176,14 +2177,14 @@ _L59030230:
 _L59030231:
         cmp @R0 #0
         jz sta_59030228
-; 215:         int len = strlen(start);
+; 202:         int len = strlen(start);
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-20] @R0
-; 216:         parts[count] = (char*)vml_alloc(len + 1);
+; 203:         parts[count] = (char*)vml_alloc(len + 1);
         move @R0 [@R12-20]
         push @R0
         move @R0 #1
@@ -2204,7 +2205,7 @@ _L59030231:
         add @R0 @R1
         pop @R3
         move [@R0] @R3
-; 217:         strcpy(parts[count], start);
+; 204:         strcpy(parts[count], start);
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12+20]
@@ -2219,7 +2220,7 @@ _L59030231:
         move @R1 [@R13+4]
         call strcpy
         add @R13 #8
-; 218:         count++;
+; 205:         count++;
         move @R0 [@R12-8]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2227,7 +2228,7 @@ _L59030231:
         move @R0 @R1
 sta_59030228:
 sta_59030229:
-; 220:     return count;
+; 207:     return count;
         move @R0 [@R12-8]
         jmp L_59030234
 L_59030234:
@@ -2250,14 +2251,14 @@ str_padstart:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 225:     int len = strlen(src);
+; 211:     int len = strlen(src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 226:     if (len >= totalLen) { strcpy(dst, src); return dst; }
+; 212:     if (len >= totalLen) { strcpy(dst, src); return dst; }
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+20]
@@ -2283,7 +2284,7 @@ _L59030238:
         jmp L_59030239
 sta_59030235:
 sta_59030236:
-; 227:     int padCount = totalLen - len;
+; 213:     int padCount = totalLen - len;
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -2291,12 +2292,12 @@ sta_59030236:
         sub @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 228:     char* start = dst;
+; 214:     char* start = dst;
         move @R0 [@R12+12]
         move [@R12-16] @R0
 sta_59030240:
         move @R2 #0
-; 229:     while (padCount-- > 0) *dst++ = (char)padChar;
+; 215:     while (padCount-- > 0) *dst++ = (char)padChar;
         move @R0 [@R12-12]
         move @R1 @R0
         sub @R0 @R0 #1
@@ -2326,7 +2327,7 @@ _L59030243:
         moveb [@R9] @R0
         jmp sta_59030240
 sta_59030241:
-; 230:     strcpy(dst, src);
+; 216:     strcpy(dst, src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -2335,7 +2336,7 @@ sta_59030241:
         move @R1 [@R13+4]
         call strcpy
         add @R13 #8
-; 231:     return start;
+; 217:     return start;
         move @R0 [@R12-16]
         jmp L_59030239
 L_59030239:
@@ -2358,14 +2359,14 @@ str_padend:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 236:     int len = strlen(src);
+; 221:     int len = strlen(src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 237:     strcpy(dst, src);
+; 222:     strcpy(dst, src);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -2374,7 +2375,7 @@ str_padend:
         move @R1 [@R13+4]
         call strcpy
         add @R13 #8
-; 238:     if (len >= totalLen) return dst;
+; 223:     if (len >= totalLen) return dst;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+20]
@@ -2392,7 +2393,7 @@ _L59030247:
         jmp L_59030248
 sta_59030244:
 sta_59030245:
-; 239:     dst += len;
+; 224:     dst += len;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -2400,7 +2401,7 @@ sta_59030245:
         add @R1 @R0
         move @R0 @R1
         move [@R12+12] @R0
-; 240:     int padCount = totalLen - len;
+; 225:     int padCount = totalLen - len;
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12-8]
@@ -2410,7 +2411,7 @@ sta_59030245:
         move [@R12-12] @R0
 sta_59030249:
         move @R2 #0
-; 241:     while (padCount-- > 0) *dst++ = (char)padChar;
+; 226:     while (padCount-- > 0) *dst++ = (char)padChar;
         move @R0 [@R12-12]
         move @R1 @R0
         sub @R0 @R0 #1
@@ -2440,14 +2441,14 @@ _L59030252:
         moveb [@R10] @R0
         jmp sta_59030249
 sta_59030250:
-; 242:     *dst = '\0';
+; 227:     *dst = '\0';
         move @R0 [@R12+12]
         move @R7 @R0
         push @R7
         move @R0 #0
         pop @R7
         moveb [@R7] @R0
-; 243:     return dst - len; // return original start
+; 228:     return dst - len; // return original start
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -2473,12 +2474,12 @@ str_charat:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 248:     int i = 0;
+; 232:     int i = 0;
         move @R0 #0
         move [@R12-8] @R0
 sta_59030253:
         move @R2 #0
-; 249:     while (s[i] && i < index) i++;
+; 233:     while (s[i] && i < index) i++;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -2516,7 +2517,7 @@ _L59030256:
         move @R0 @R1
         jmp sta_59030253
 sta_59030254:
-; 250:     return s[i];  // returns 0 if index out of bounds
+; 234:     return s[i];  // returns 0 if index out of bounds
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -2546,13 +2547,13 @@ str_startswith:
         sub @R13 #16
 sta_59030260:
         move @R2 #0
-; 255:     while (*prefix) {
+; 238:     while (*prefix) {
         move @R0 [@R12+16]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_59030261
-; 256:         if (*str != *prefix) return 0;
+; 239:         if (*str != *prefix) return 0;
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2574,7 +2575,7 @@ _L59030265:
         jmp L_59030266
 sta_59030262:
 sta_59030263:
-; 257:         str++; prefix++;
+; 240:         str++; prefix++;
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2587,7 +2588,7 @@ sta_59030263:
         move @R0 @R1
         jmp sta_59030260
 sta_59030261:
-; 259:     return 1;
+; 242:     return 1;
         move @R0 #1
         jmp L_59030266
 L_59030266:
@@ -2609,21 +2610,21 @@ str_endswith:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 264:     int str_len = strlen(str);
+; 246:     int str_len = strlen(str);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-8] @R0
-; 265:     int suf_len = strlen(suffix);
+; 247:     int suf_len = strlen(suffix);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call strlen
         add @R13 #4
         move [@R12-12] @R0
-; 266:     if (suf_len > str_len) return 0;
+; 248:     if (suf_len > str_len) return 0;
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R12-8]
@@ -2641,7 +2642,7 @@ _L59030270:
         jmp L_59030271
 sta_59030267:
 sta_59030268:
-; 267:     return strcmp(str + str_len - suf_len, suffix) == 0 ? 1 : 0;
+; 249:     return strcmp(str + str_len - suf_len, suffix) == 0 ? 1 : 0;
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
