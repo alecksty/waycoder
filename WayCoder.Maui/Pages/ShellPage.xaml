@@ -11,7 +11,7 @@
         <!-- 顶栏：三个尺寸模式 + 清屏。
              工作目录**改由输入行的提示符表示**（`~/examples>`）—— 它才是"我下一条命令在哪跑"
              的唯一出处；原先这里还有一行 `cwd: …`，和提示符说同一件事，等于同一屏写两遍。 -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="6" Padding="12,8,8,2">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" ColumnSpacing="6" Padding="12,8,8,2">
             <!-- 尺寸模式：**三个正交组合**（都不固定 / 横向固定 / 都固定）——
                  不是"自动 vs 固定"两档：老程序按 80 列排表格 ⇒ 列必须钉死，
                  而手机屏幕高度各家不同 ⇒ 行没必要跟着钉死（钉了反而上下留白）。
@@ -51,9 +51,26 @@
                  而**每加一个操作就加一个按钮**这条路上，顶栏迟早装不下。
                  「复制整屏输出」还有个非它不可的理由：输出区是**自绘画布**，
                  没有文本选择 —— 不加这个入口，用户看到一段输出是**拿不走**的。 -->
+            <!-- 「⏹ 停止」：**只在有 VML 程序在跑的时候出现**。
+                 ⚠ 为什么要这个按钮：出口本来就有（返回键 → 「强制停止」），但**它不可见** ——
+                 一个卡在等输入的程序，用户看到的就是一个死界面，不会想到去按返回。
+                 用户原话：「有些程序在命令行不停的要输入，**不知道怎么结束这个程序**」。
+                 这里不新开机制，走的就是返回键那条路的同一个出口 `CancelRunningVml()`。 -->
+            <Button
+                x:Name="StopBtn"
+                Grid.Column="4"
+                Text="⏹ 停止"
+                FontSize="13"
+                Padding="12,4"
+                HeightRequest="34"
+                CornerRadius="8"
+                BackgroundColor="#B3261E"
+                TextColor="White"
+                IsVisible="False"
+                Clicked="OnStopClicked" />
             <Button
                 x:Name="MenuBtn"
-                Grid.Column="4"
+                Grid.Column="5"
                 Text="菜单"
                 FontSize="13"
                 Padding="14,4"

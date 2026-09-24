@@ -24,7 +24,8 @@ namespace WayCoder.Maui.Controls;
 /// **「自建网格模型，尺子只有一把：位置一律自己算，不看字体度量」**（见 CLAUDE.md）。
 /// 字符网格与编辑器是同一类东西 —— 每格宽度必须是**常量**。所以这里照那条走：
 ///
-///   · 格宽 = 字号 × 0.5，格高 = 字号 × 1.2（**设计值，不是实测值**）；
+///   · 格宽 = 字号 × <see cref="ShellWrap.CharAspect"/>（= 0.5，**设计值，不是实测值**），
+///     格高 = 字号 × 1.2；
 ///   · 每段（同色连续文本）按**它自己的起始列**定位 ⇒ 即使某处字形有偏差，
 ///     **误差也不会跨段累积**（这正是编辑器那条的关键）。
 ///
@@ -33,8 +34,15 @@ namespace WayCoder.Maui.Controls;
 /// </summary>
 public class TerminalGrid : GraphicsView
 {
-    /// <summary>格宽 ÷ 字号。等宽字体的半角推进量就是 0.5em（Sarasa Mono SC 的设计值）。</summary>
-    private const double CellWFactor = 0.5;
+    /// <summary>
+    /// 格宽 ÷ 字号。等宽字体的半角推进量就是 0.5em（Sarasa Mono SC 的设计值）。
+    ///
+    /// ⚠ **不在这里另写一个数**，直接引 <see cref="ShellWrap.CharAspect"/> —— 它同时是
+    ///   折行的尺子（`ShellWrap.ColumnsForWidth`："这一屏能放几列"）。两处各写一份时
+    ///   它们**必然**漂（这边 0.5、那边曾经是 0.6），而症状只是"换行离右边界很远"，
+    ///   对着代码一行行看是看不出来的 —— 用户报的就是这个。
+    /// </summary>
+    private const double CellWFactor = ShellWrap.CharAspect;
 
     /// <summary>格高 ÷ 字号（行距 1.2）。</summary>
     private const double CellHFactor = 1.2;

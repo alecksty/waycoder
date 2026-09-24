@@ -1379,18 +1379,26 @@ public static partial class SelfTest
         Check("ShellWrap: 空串返回一个空行", ShellWrap.WrapMarkup("", 5).Count == 1);
         Check("ShellWrap: 刚好填满不产生空尾行", ShellWrap.WrapMarkup("abcde", 5).Count == 1);
 
-        // 字号适配：字符推进量按**实测的 0.6 倍字号**算（不是理论值 0.5，见 CharAspect 注释）
-        Check("ShellWrap: 80 列铺满 480dp → 10 号字",
-            Math.Abs(ShellWrap.FontSizeForColumns(480, 80) - 10) < 0.01);
+        // ⚠ **字符格的宽窄只有一把尺子** —— `ShellWrap.CharAspect` 同时被折行
+        //   （`ColumnsForWidth`："这一屏能放几列"）与输出区画布（`TerminalGrid.CellWidth`：
+        //   "每格画多宽"）引用。这里钉住取值本身：它一旦被改回"平台实测"那类数（曾经是 0.6），
+        //   折行与绘制就各按各的算，症状是「**换行的地方距离右边界还很远**」（v0.96.425 修）。
+        Check("ShellWrap: 字符宽比 = 画布格宽比（0.5em，折行与绘制共用同一把尺子）",
+            Math.Abs(ShellWrap.CharAspect - 0.5) < 1e-9);
+
+        // 字号适配：字符推进量 = 0.5 倍字号（与 `CharAspect` 同源）
+        Check("ShellWrap: 80 列铺满 480dp → 12 号字",
+            Math.Abs(ShellWrap.FontSizeForColumns(480, 80) - 12) < 0.01);
         Check("ShellWrap: 列数为 0（自适应）时不改字号", ShellWrap.FontSizeForColumns(480, 0) == 0);
         Check("ShellWrap: 宽度未落定（<=0）时不改字号", ShellWrap.FontSizeForColumns(0, 80) == 0);
         // 下限 6（= MauiShellStore.MinFont，用户定的命令行字号范围 6~96）
         Check("ShellWrap: 字号钳在下限（列数太多时不无限缩小）",
             ShellWrap.FontSizeForColumns(300, 400) == 6);
 
-        // 自适应列数：按屏宽算，且**硬底线 32 列**（一行至少 32 个字，装不下就横向滚）
-        Check("ShellWrap: 自适应列数按屏宽算（393dp / 12 号 ≈ 53 列）",
-            ShellWrap.ColumnsForWidth(393, 12) is >= 50 and <= 55);
+        // 自适应列数：按屏宽算，且**硬底线 32 列**（一行至少 32 个字，装不下就横向滚）。
+        // 393 / (12 × 0.5) = 65.5 ⇒ 减 1 列余量 = 64 列。
+        Check("ShellWrap: 自适应列数按屏宽算（393dp / 12 号 = 64 列）",
+            ShellWrap.ColumnsForWidth(393, 12) == 64);
         Check("ShellWrap: 自适应列数不为 0（屏够宽时）", ShellWrap.ColumnsForWidth(393, 12) > 0);
         Check("ShellWrap: 字号放大到装不下时仍保底 32 列（而不是压到十几个字）",
             ShellWrap.ColumnsForWidth(393, 30) == ShellWrap.MinAdaptiveCols);

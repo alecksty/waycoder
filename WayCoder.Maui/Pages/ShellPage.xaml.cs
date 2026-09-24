@@ -124,7 +124,41 @@ public partial class ShellPage : ContentPage
     /// 只有 VML 才有它：普通 shell 命令（`dotnet build` 之类）**没有可用的中断入口**，
     /// 所以"运行中不许返回"的拦截只对 VML 生效（见 <see cref="OnBackButtonPressed"/>）。
     /// </summary>
-    private static CancellationTokenSource? _runCts;
+    /// <summary>
+    /// 当前活着的页面实例 —— 只为了让**静态的** <see cref="_runCts"/> 变化时能去刷新
+    /// 那个「⏹ 停止」按钮的显隐（按钮是实例控件，而 `_runCts` 是静态字段）。
+    /// </summary>
+    private static ShellPage? _live;
+
+    /// <summary>
+    /// 【为什么把 `_runCts` 包成属性】它有 **3 个设置点 + 2 个清空点**（三条运行路径：
+    /// 一次性执行 / 编译 / 槽位），逐个去加"刷新按钮"的调用就是**五处守卫、漏一处即错** ——
+    /// 漏掉的后果是按钮要么不出现、要么一直挂着。包成属性后**只有一个地方**要维护。
+    ///
+    /// ⚠ setter 里**必须** marshal 回主线程：清空点都在 `Task.Run(...)` 的 `finally` 里，
+    /// 那是后台线程，直接碰控件会抛「Only the original thread that created a view hierarchy…」。
+    /// </summary>
+    private static CancellationTokenSource? _runCtsField;
+    /// <summary>本次运行的取消源（**属性**，名字刻意与原来的字段一字不差 ⇒ 5 个调用点零改动）。</summary>
+    private static CancellationTokenSource? _runCts
+    {
+        get => _runCtsField;
+        set
+        {
+            _runCtsField = value;
+            var page = _live;
+            if (page is null) return;
+            MainThread.BeginInvokeOnMainThread(page.RefreshStopButton);
+        }
+    }
+
+    private void RefreshStopButton()
+    {
+        var show = _runCtsField is not null;
+        if (StopBtn.IsVisible != show) StopBtn.IsVisible = show;
+    }
+
+    private void OnStopClicked(object? sender, EventArgs e) => CancelRunningVml();
 
     /// <summary>
     /// 本次运行的令牌，**专供交互输入的两个回调用**（`ReadLineFromProgram` / `ReadKeyFromProgram`）。
@@ -174,6 +208,9 @@ public partial class ShellPage : ContentPage
     public ShellPage()
     {
         InitializeComponent();
+
+        // 让静态的取消源变化时够得着这个实例（去刷新「⏹ 停止」按钮的显隐）。
+        _live = this;
 
         _commands = BuildCommandRegistry();
 
@@ -1604,8 +1641,16 @@ public partial class ShellPage : ContentPage
     /// 在构造时调一次，用户改完设置由设置页再调一次。
     /// </summary>
     /// <summary>
-    /// 输出区两侧被占掉的宽度（dp）—— ScrollView 的 Padding 12+16、自绘滚动条约 9、再留余量。
+    /// 输出区两侧被占掉的宽度（dp）—— 由 XAML 里 `OutputGrid` 的 `Margin="12,4,16,4"` 定
+    /// （左 12 + 右 16 = 28）、加画布自己画的竖滚动条盖住的那 8、再留几格余量，合起来 40。
     /// 自适应模式要按它反推"这一屏能放几列"。
+    ///
+    /// ⚠ 这只是"布局还没落定"时的估算（`OnSizeAllocated` 拿的是**页面**的宽，不是画布的）——
+    ///   落定之后真值是 `OutputGrid.Width`，编辑器页的小窗就是直接读它的
+    ///   （`EditorPage.PanelCols`）。别在这里多留余量：**多留一格右边就空一格**，
+    ///   用户报的「换行的地方距离右边界还很远」里，有一半是"列数按 0.6 倍字号算"那一半，
+    ///   另一半正是这类"余量"叠出来的。
+    /// ⚠ 改 `OutputGrid` 的 `Margin` 要回来改这个数（别让它变成一张对不上的平行表）。
     /// </summary>
     private const double OutputAreaChrome = 40;
 
