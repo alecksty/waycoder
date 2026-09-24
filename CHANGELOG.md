@@ -1,3 +1,87 @@
+## v0.96.419 — Pascal：`Dos` 单元 + 单元类型登记 + 一条静默算错（常量数组下界）+ 三条内建缺失
+
+接 418。这一轮从「语料里**离绿最近**的那批」下手 —— 先量出**12 份卡在同一条消息**上
+（`变量 'X' 不是record类型，无法访问字段`），顺着它挖出下面这些。
+
+### ① `Length()` **从来没工作过**（内建指向一个不存在的函数）
+
+`CodeGenerator.Expressions` 里 `length` 分支发的是 `CALL lib_length`，而
+**`lib_length` 在 `Lib/` 里从来不存在**（`grep -rE '^lib_length:' Lib/` 零命中）⇒
+任何 `Length(S)` 都是 `error: 未定义的函数 'lib_length'`。
+它与旁边那三个（`sqrt`/`exp`/`log`）是同一批**陈旧名**，只有这一个漏改了。
+正确目标是 `str_len`（`Lib/shared/src/crosslang.c` 的 `int str_len(const char*)`，
+`Lib/pascal/string.vml` 按**裸名**链它 —— ⚠ 不能写成 `lib_str_len`，`lib_` 前缀在本仓
+链接器里是"模块内符号"的形状）。实测 `Length('hello')`=5 / `Length('')`=0 / 变量也对。
+
+### ② 常量数组的**下界**从来没登记过 ⇒ `array[1..N]` 整体错位一格（静默算错）
+
+```
+const A: array[1..3] of integer = (10,20,30);
+A[1]  →  20   （应 10）
+A[3]  →   0   （应 30）
+const A: array[5..7] …  A[5]/A[7] → 全 0
+```
+而**变量**数组一直是对的 —— 因为 `arrayBounds` 只在 `AllocateVariable`（变量路径）里登记，
+常量数组那条路从来没写过 ⇒ 两个取值分支（常量折叠 / 运行期索引）都退回 `lower = 0`。
+症状因此特别难想：**同样的下标，变量数组对、常量数组错**。
+修法是复用变量路径**同一个** `CollectArrayBounds`，避免两份规则漂移。
+
+### ③ `uses` 单元的**类型声明从来没被登记** ⇒ 卡住 12 份语料
+
+`Dos` 单元的 `Registers` / `SearchRec` 是**记录类型**，老程序写 `var Regs: Registers;`
+再用 `Regs.AX`，而前端只在**程序自己**的 `type` 段里建记录布局 ⇒ 报
+「变量 'Regs' 不是record类型，无法访问字段」。**错误信息里既没有 `Registers` 也没有 `Dos`**，
+12 份语料的报错变量名还各不相同（`REG`/`Regs`/`Info`/`P`/`points`/`side`…），
+看上去是十二个问题、其实是同一个。
+新增 `CodeGenerator.UnitTypeDeclarations`（收集）+ `ApplyUnitTypeDeclarations()`
+（在 `GenerateCode()` **之前**灌进去 —— 顺序有意如此：程序自己的 `type` 段随后处理，
+于是**程序可以覆盖单元的同名类型**，符合 Pascal 的作用域规则）。
+
+### ④ 记录变量的**类型查找是大小写敏感**的（Pascal 的标识符不是）
+
+`globalVarTypes` / `variableRecordTypes` / `localVarTypes` 三张表的**键是声明时原样的大小写**，
+查找却用**使用点**的大小写。于是 `Reg : Registers;` 配 `WITH REG DO … AX := …`
+直接报「变量 'REG' 不是record类型」—— 而 `Reg` 与 `REG` 在 Pascal 里是同一个变量。
+SWAG 那批语料大小写写得非常随意（同一份文件里混用），**这一条实测卡住 12 份**。
+做法是**只加兜底、不改键**（统一键要大写会动所有写入点，漏一处就是"某一类变量突然认不出类型"；
+兜底只在原样查不到时多走一趟线性扫描）。
+
+### ⑤ 新增 `Lib/pascal/dos.pas`（用户问的"完善现有库"）
+
+`uses Dos` 的**链接**一直是好的（`AutoLinkUnit` 链 `Lib/pascal/dos.vml`，那份模块里
+是 `GetDate:` / `FindFirst:` 这些**裸的 Pascal 大小写标签**），缺的是**声明**。
+补上：`Registers` / `SearchRec` 两个记录类型 + `GetDate`/`GetTime`/`FindFirst`/`FindNext`/
+`FindClose`/`GetEnv`/`EnvCount`/`EnvStr`/`DiskFree`/`DiskSize`/`DosVersion`/`DosExitCode`/
+`Exec`/`SwapVectors`/`GetIntVec`/`SetIntVec`（签名逐条对齐 `dos.vml` 头部的 `; source :` 行）。
+
+三条**必须说清楚的边界**，都写进了文件头：
+- **`Intr`/`MsDos` 只有声明、没有实现**（要的是 x86 实模式中断，本平台没有对应物）
+  ⇒ 调用它们会**在链接期报「未定义的函数」**（响亮失败，不是静默空转）。按用户定的口径
+  「实现不了的直接返 0 做个空函数」，**真要落地得下一步往 `Lib/` 加实现** —— 本轮先让"类型"这层通。
+- **`Registers` 不是变体记录**：TP 里 `AL/AH` 与 `AX` 是**重叠**的，本前端没有变体记录 ⇒
+  按平铺的 10 个 Word + 8 个 Byte 声明，`Regs.AX` 这类主寄存器访问是对的，
+  **`Regs.AL := …` 那种依赖重叠的写法不会生效**（写进了独立槽）。这是"能编过"与"语义正确"
+  之间有意选的前者，别当成支持了变体记录。
+- **`DosError` 是常量桩 = 0**：本前端的"单元可见符号"只支持整数常量与子程序头，
+  单元里的 `var` **传不到主程序** ⇒ `if DosError <> 0 then <处理没找到>` 这类分支
+  **会一直走"成功"那一支**。与 `ParamCount`/`Dseg` 同一套处置。
+
+### ⑥ 其余三条小兼容
+
+- **无类型 `const` 形参**（`Procedure MoveRight(Const Source;Var Dest;…)`，语料 3 份）——
+  418 那版只放行了 `var`，`const` 同样合法。
+- **`Crt` 的 `Blink` 常量**（=128，`TextColor(LightGray + Blink)` 的老写法），补进 `crt.pas`。
+- 单元文件解析补 `FileName`（内层语法错此前报 `<input>:行:列`，与外面那条告警对不上）。
+
+### 实测
+
+- **语料 112 份：104 失败 / 8 通过 → 103 / 9** —— `avc_banyan.pas` **翻绿**，
+  且**编译 + 运行都完成**（退出码 0），不是只"编过"。
+- 首错分布：60 语法 / 20 作用域 / 9 无 `error:` 行（`throw` 类）/ 7 未定义函数 / 4 期望语句。
+- `vml-out-probe` **全量 30 通过 / 5 失败 —— 与基线逐条相同，零跨语言回归**
+  （`out.cs`、`nat.array.cpp`、`nat.legacy.pas`、`nat.nohdr.pas`、`nat.syntax.cpp`
+  这 5 条改前就是红的，已逐条对照确认）。
+
 ## v0.96.418 — Pascal：库声明单元缺口 + 三条静默诊断 + 四个词法/语法兼容点
 
 > ⚠ **版本号说明（结清一处漂移）**：本仓的 `Global.Version` 上一轮真实升版停在

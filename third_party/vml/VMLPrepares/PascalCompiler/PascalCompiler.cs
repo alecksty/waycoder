@@ -206,6 +206,7 @@ namespace PascalCompiler
             CodeGenerator.ExternalFuncTypes.Clear();
             CodeGenerator.UnitConstInts.Clear();
             CodeGenerator.UnitSubprograms.Clear();
+            CodeGenerator.UnitTypeDeclarations.Clear();
 
             // 解析 uses 子句中引用的单元文件 (v1.66.32+)
             List<string> searchPaths = new List<string> { sourceDir };
@@ -282,12 +283,16 @@ namespace PascalCompiler
                 CodeGenerator codeGen = new CodeGenerator(programNode);
                 codeGen.SourceLines = source.Split('\n');
                 codeGen.UseCrtOutput = UsesUnit(parser, "crt");
+                // ⚠ **必须在 `GenerateCode()` 之前** —— 程序自己的 `type` 段是在
+                //   `GenerateProgramCode` 里处理的，先灌单元类型才能让程序覆盖同名的（Pascal 的作用域规则）。
+                codeGen.ApplyUnitTypeDeclarations();
                 prog = codeGen.GenerateCode();
             }
             else if (ast is UnitNode unitNode)
             {
                 CodeGenerator codeGen = new CodeGenerator(unitNode);
                 codeGen.SourceLines = source.Split('\n');
+                codeGen.ApplyUnitTypeDeclarations();
                 prog = codeGen.GenerateCode();
                 prog.IsLibrary = true; // 单元编译为库模式
             }
@@ -517,6 +522,14 @@ namespace PascalCompiler
                        （`grNoInitGraph = -1` 一路到 `grInvalidVersion = -18`）
                        **全是负的**，而解析器给的是 `UnaryOpNode("-", LiteralNode)`，
                        不是 `LiteralNode` —— 只认后者的话这些常量一个都登记不上。 */
+                    /* 类型声明（`Registers` / `SearchRec` 这类记录类型）——
+                       它们**不在这里建布局**（布局表是 `CodeGenerator` 的实例字段），
+                       只收集，由 `CompileFile` 在 `GenerateCode()` 之前灌进去。
+                       见 `CodeGenerator.UnitTypeDeclarations` 的注释。 */
+                    foreach (var td in un.InterfaceDeclarations)
+                        if (td is TypeDeclarationNode)
+                            CodeGenerator.UnitTypeDeclarations.Add(td);
+
                     foreach (var decl in un.InterfaceDeclarations)
                     {
                         if (decl is ConstDeclarationNode cd && cd.ArrayValues == null)

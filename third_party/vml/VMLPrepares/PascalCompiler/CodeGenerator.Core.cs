@@ -53,6 +53,33 @@ namespace PascalCompiler
         public static Dictionary<string, SubprogramDeclarationNode> UnitSubprograms = new(); // interface 子程序头
 
         /// <summary>
+        /// `uses` 单元的 **interface 类型声明**（`type Registers = record … end;` 这种）。
+        ///
+        /// <para>
+        /// ⚠ 这张表是**后加的**，而缺了它的后果很具体：`Dos` 单元里的 `Registers` /
+        /// `SearchRec` 是**记录类型**，老程序写 `var Regs: Registers;` 之后再用 `Regs.AX`，
+        /// 而前端只在**程序自己**的 `type` 段里建记录布局（`ProcessTypeDeclarations`）
+        /// ⇒ 单元里的类型从来没人登记 ⇒ 报「变量 'Regs' 不是 record类型，无法访问字段」。
+        /// 实测这一条**同时卡住 12 份语料**（`Registers`/`SearchRec`/… 各不相同但根因同一个）。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 与另外两张表不同，这张**不在这里被消费** —— 记录布局要算进
+        /// `recordFieldLayouts` / `definedRecordTypes`，而那是 `CodeGenerator` 的**实例**字段。
+        /// 所以流程是：`RegisterUnitFunctions` 往这里**收集**，
+        /// `CompileFile` 建好 `CodeGenerator` 之后调 `ApplyUnitTypeDeclarations()`
+        /// **在 `GenerateCode()` 之前**灌进去 —— 顺序有意如此：程序自己的 `type` 段
+        /// 在 `GenerateProgramCode` 里随后处理，于是**程序可以覆盖单元的同名类型**
+        ///（Pascal 的常规作用域规则）。
+        /// </para>
+        /// </summary>
+        public static List<DeclarationNode> UnitTypeDeclarations = new();
+
+        /// <summary>把 `uses` 单元的 interface 类型灌进记录布局表（见 <see cref="UnitTypeDeclarations"/>）。</summary>
+        internal void ApplyUnitTypeDeclarations()
+            => ProcessTypeDeclarations(UnitTypeDeclarations);
+
+        /// <summary>
         /// Pascal 的 <c>System</c> 单元里**不用 <c>uses</c> 就在作用域内**的预定义常量。
         ///
         /// <para>
@@ -159,6 +186,25 @@ namespace PascalCompiler
                         }
                         dataSection[constDecl.Name] = values;
                         constNames.Add(constDecl.Name);
+
+                        /* ⚠ **常量数组的下界也必须登记** —— 否则取元素时退回 `lower = 0`，
+                           于是**声明成 `array[1..N]` 的常量数组整体错位一格**：
+                           实测 `const A: array[1..3] of integer = (10,20,30);` 读 `A[1]` 得 **20**、
+                           `A[3]` 得 **0**（应 10 / 30）；`array[5..7]` 更是全 0。
+                           而**变量**数组一直是对的（`AllocateVariable` 里就登记了）——
+                           所以症状是"同样的下标，变量数组对、常量数组错"，最难往这上面想。
+
+                           数据段里的元素**本来就是按声明顺序排的**，下标换算全靠这个下界，
+                           两个取值分支（常量折叠 / 运行期索引）读的都是它 ⇒ 只登记这一处即可。
+                           用与变量路径**同一个** `CollectArrayBounds`，免得两份规则漂移。 */
+                        var constArrType = constDecl.ConstType is null
+                            ? null : ResolveTypeAlias(constDecl.ConstType) as ArrayTypeNode;
+                        if (constArrType != null && !constArrType.IsDynamic)
+                        {
+                            var constBounds = new List<(int, int)>();
+                            CollectArrayBounds(constArrType, constBounds);
+                            if (constBounds.Count > 0) arrayBounds[constDecl.Name] = constBounds;
+                        }
                     }
                     else if (constDecl.Value is LiteralNode literal)
                     {

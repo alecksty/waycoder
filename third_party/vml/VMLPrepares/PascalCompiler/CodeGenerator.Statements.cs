@@ -993,17 +993,25 @@ namespace PascalCompiler
         
         private string GetVariableRecordType(string varName)
         {
-            if (variableRecordTypes.ContainsKey(varName))
-                return variableRecordTypes[varName];
-            if (localVarTypes.ContainsKey(varName))
+            /* ⚠ **这三张表必须按"不区分大小写"查** —— Pascal 的标识符本来就不区分大小写，
+               而它们的**键是声明时原样的大小写**（`globalVarTypes[varDecl.Name] = …`），
+               查找用的却是**使用点**的大小写。于是老程序里
+               `Reg : Registers;` 配 `WITH REG DO … AX := …` 直接报
+               「变量 'REG' 不是record类型，无法访问字段」—— 而 `Reg` 与 `REG`
+               在 Pascal 里是**同一个变量**。SWAG 那批语料大小写写得非常随意
+               （同一份文件里 `Reg`/`REG` 混用），实测卡住 12 份语料。
+
+               ⚠ 做法是**只加兜底、不改键**：把三张表的键统一成大写要动**所有写入点**，
+               漏一处就是"某一类变量突然认不出类型"，而那种错极难定位
+               （本仓的"同一规则两处实现"教训）。兜底只在原样查不到时多走一趟线性扫描，
+               命中率高、代价可以忽略。 */
+            if (TryGetTypeCI(variableRecordTypes, varName, out string vrt))
+                return vrt;
+            if (TryGetTypeCI(localVarTypes, varName, out string lvt) && definedRecordTypes.ContainsKey(lvt))
+                return lvt;
+            if (TryGetTypeCI(globalVarTypes, varName, out string gvt))
             {
-                string typeName = localVarTypes[varName];
-                if (definedRecordTypes.ContainsKey(typeName))
-                    return typeName;
-            }
-            if (globalVarTypes.ContainsKey(varName))
-            {
-                string typeName = globalVarTypes[varName];
+                string typeName = gvt;
                 if (definedRecordTypes.ContainsKey(typeName))
                     return typeName;
                 // 检查是否是数组并查找元素记录类型
@@ -1041,6 +1049,26 @@ namespace PascalCompiler
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// 不区分大小写地从「变量名 → 类型名」表里取值（见 <see cref="GetVariableRecordType"/>
+        /// 里那段说明：Pascal 的标识符不区分大小写，而这三张表的键是声明时原样的大小写）。
+        /// </summary>
+        private static bool TryGetTypeCI(Dictionary<string, string> table, string name, out string value)
+        {
+            if (table.TryGetValue(name, out value!))
+                return true;
+            foreach (var kv in table)
+            {
+                if (string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = kv.Value;
+                    return true;
+                }
+            }
+            value = null!;
+            return false;
         }
 
         private (int totalOffset, string finalType) ResolveFieldChain(string varName, string firstField, List<string> additionalFields)

@@ -502,6 +502,7 @@ namespace PascalCompiler
                    || GetTokenType(Cur) == TokenType.CONST)
             {
                 bool isVar = false;
+                bool isConst = false;
                 if (GetTokenType(Cur) == TokenType.VAR)
                 {
                     isVar = true;
@@ -509,6 +510,7 @@ namespace PascalCompiler
                 }
                 else if (GetTokenType(Cur) == TokenType.CONST)
                 {
+                    isConst = true;
                     Advance();
                 }
 
@@ -535,10 +537,12 @@ namespace PascalCompiler
                  * 类型给 `INTEGER`（4 字节）是**有意的**：本前端的 `varParameters`
                  * 集合已经把"传地址"这件事管住了，这里只需要一个**宽度正确**的类型 ——
                  * 无类型形参在调用方眼里就是一个地址，4 字节。
-                 * ⚠ 只在 `var` 修饰时才允许省略；不带 `var` 的 `P(x)` 仍是语法错误，
-                 *   照旧走下面那句 `Expect` 报错（那多半是用户真写错了，不该放过）。 */
+                 * ⚠ `const` 修饰的**无类型形参**同样合法（`Procedure MoveRight(Const Source;Var Dest;…)`
+                 *   在语料里 3 份）⇒ 判据是 `isVar || isConst`，不是只看 `var`。
+                 * ⚠ 无修饰的 `P(x)` 才仍是语法错误，照旧走下面那句 `Expect` 报错
+                 *   （那多半是用户真写错了，不该放过）。 */
                 TypeNode type;
-                if (isVar && GetTokenType(Cur) != TokenType.COLON)
+                if ((isVar || isConst) && GetTokenType(Cur) != TokenType.COLON)
                     type = new SimpleTypeNode { TypeName = "INTEGER", Line = Cur.Line, Column = Cur.Column };
                 else
                 {

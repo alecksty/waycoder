@@ -755,8 +755,19 @@ namespace PascalCompiler
             }
             else if (name == "length")
             {
+                /* ⚠ 目标名从前是 **`lib_length`，而它在 `Lib/` 里从来不存在**
+                   （`grep -rE '^lib_length:' Lib/` 零命中）⇒ `Length(S)` 一用就
+                   `error: 未定义的函数 'lib_length'`，**这个内建从来没工作过**。
+                   这与旁边那三个（`sqrt`/`exp`/`log`）是同一批陈旧名 —— 它们已是裸名，
+                   只有这一个漏了。
+
+                   正确的目标是 `str_len`（`Lib/shared/src/crosslang.c:48`
+                   `int str_len(const char* s)`，`Lib/pascal/string.vml` 里按裸名链它）。
+                   ⚠ **裸名，不能写 `lib_str_len`**：`lib_` 前缀在本仓的链接器里是
+                   "模块内符号"的形状，裸名才走「函数名 → 模块」映射（见 `LibraryLinker`）。
+                   实测 `Length('hello')`=5、`Length('')`=0、`Length(s)`（变量）=对。 */
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_length");
+                EmitCallBuiltin("str_len");
                 return;
             }
             else if (name == "sizeof")
