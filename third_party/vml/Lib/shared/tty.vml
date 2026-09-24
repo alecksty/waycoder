@@ -1,0 +1,3633 @@
+
+.linked "conio.vml"
+.linked "vmlui.vml"
+.data
+_tty_w: .word 0
+_tty_h: .word 0
+_tty_alt: .word 0
+_tty_cx: .word 1
+_tty_cy: .word 1
+_tty_fg: .word 7
+_tty_bg: .word 0
+_tty_cell: .word[2000] 0
+_tty_row: .word[88] 0
+_tty_msg: .word[4] 0
+_tty_pal:
+    .word -16777216
+    .word -16777046
+    .word -16733696
+    .word -16733526
+    .word -5636096
+    .word -5635926
+    .word -5614336
+    .word -5592406
+    .word -11184811
+    .word -11184641
+    .word -11141291
+    .word -11141121
+    .word -43691
+    .word -43521
+    .word -171
+    .word -1
+
+.text
+_tty_main_attr:
+; -------------------------------------------
+; source   : void _tty_main_attr()
+; function : _tty_main_attr
+; return   : void
+; --------------------------------------------
+_tty_main_attr:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 92: static void _tty_main_attr(void) { textattr(((_tty_bg & 15) << 4) | (_tty_fg & 15)); }
+        move @R0 [_tty_bg]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #4
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_fg]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call textattr
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_auto_cols:
+; -------------------------------------------
+; source   : int _tty_auto_cols()
+; function : _tty_auto_cols
+; return   : int
+; --------------------------------------------
+_tty_auto_cols:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 99:     int c = ui_scr_w() / 8;
+        call ui_scr_w
+        push @R0
+        move @R0 #8
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+; 100:     if (c <= 0) c = 80;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930002
+        move @R0 #0
+        jmp _L51930003
+_L51930002:
+        move @R0 #1
+_L51930003:
+        cmp @R0 #0
+        jz sta_51930000
+        move @R0 #80
+        move [@R12-8] @R0
+sta_51930000:
+sta_51930001:
+; 101:     if (c > 80) c = 80;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #80
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930006
+        move @R0 #0
+        jmp _L51930007
+_L51930006:
+        move @R0 #1
+_L51930007:
+        cmp @R0 #0
+        jz sta_51930004
+        move @R0 #80
+        move [@R12-8] @R0
+sta_51930004:
+sta_51930005:
+; 102:     return c;
+        move @R0 [@R12-8]
+        jmp L_51930008
+L_51930008:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_auto_rows:
+; -------------------------------------------
+; source   : int _tty_auto_rows()
+; function : _tty_auto_rows
+; return   : int
+; --------------------------------------------
+_tty_auto_rows:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 105:     int r = ui_scr_h() / 16;
+        call ui_scr_h
+        push @R0
+        move @R0 #16
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+; 106:     if (r <= 0) r = 25;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930011
+        move @R0 #0
+        jmp _L51930012
+_L51930011:
+        move @R0 #1
+_L51930012:
+        cmp @R0 #0
+        jz sta_51930009
+        move @R0 #25
+        move [@R12-8] @R0
+sta_51930009:
+sta_51930010:
+; 107:     if (r > 25) r = 25;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #25
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930015
+        move @R0 #0
+        jmp _L51930016
+_L51930015:
+        move @R0 #1
+_L51930016:
+        cmp @R0 #0
+        jz sta_51930013
+        move @R0 #25
+        move [@R12-8] @R0
+sta_51930013:
+sta_51930014:
+; 108:     return r;
+        move @R0 [@R12-8]
+        jmp L_51930017
+L_51930017:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_idx:
+; -------------------------------------------
+; source   : int _tty_idx(int x,int y)
+; function : _tty_idx
+; param   : int x
+; param   : int y
+; return   : int
+; --------------------------------------------
+_tty_idx:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 111: static int _tty_idx(int x, int y) { return (y - 1) * 80 + (x - 1); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #80
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        jmp L_51930018
+L_51930018:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_alt_clear:
+; -------------------------------------------
+; source   : void _tty_alt_clear()
+; function : _tty_alt_clear
+; return   : void
+; --------------------------------------------
+_tty_alt_clear:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 114:     for (i = 0; i < 80 * 25; i++)
+        move @R0 #0
+        move [@R12-8] @R0
+sta_51930019:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #80
+        push @R0
+        move @R0 #25
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930022
+        move @R0 #0
+        jmp _L51930023
+_L51930022:
+        move @R0 #1
+_L51930023:
+        cmp @R0 #0
+        jz sta_51930021
+; 115:         _tty_cell[i] = 32 | (7 << 8) | (0 << 12);   /* 空格 + 浅灰/黑 */
+        move @R0 #32
+        push @R0
+        move @R0 #7
+        push @R0
+        move @R0 #8
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #12
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R11 @R0
+        push @R11
+        move @R0 _tty_cell
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-8]
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        pop @R11
+        move [@R0] @R11
+sta_51930020:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930019
+sta_51930021:
+; 116:     _tty_cx = 1;
+        move @R0 #1
+        move [_tty_cx] @R0
+; 117:     _tty_cy = 1;
+        move @R0 #1
+        move [_tty_cy] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_alt_putc:
+; -------------------------------------------
+; source   : void _tty_alt_putc(int ch)
+; function : _tty_alt_putc
+; param   : int ch
+; return   : void
+; --------------------------------------------
+_tty_alt_putc:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 120:     if (ch == 10) {                                  /* '\n' */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
+        je _L51930026
+        move @R0 #0
+        jmp _L51930027
+_L51930026:
+        move @R0 #1
+_L51930027:
+        cmp @R0 #0
+        jz sta_51930024
+; 121:         _tty_cx = 1;
+        move @R0 #1
+        move [_tty_cx] @R0
+; 122:         _tty_cy = _tty_cy + 1;
+        move @R0 [_tty_cy]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [_tty_cy] @R0
+        jmp sta_51930025
+sta_51930024:
+; 123:     } else if (ch == 13) {                           /* '\r' */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
+        je _L51930030
+        move @R0 #0
+        jmp _L51930031
+_L51930030:
+        move @R0 #1
+_L51930031:
+        cmp @R0 #0
+        jz sta_51930028
+; 124:         _tty_cx = 1;
+        move @R0 #1
+        move [_tty_cx] @R0
+        jmp sta_51930029
+sta_51930028:
+; 125:     } else if (ch == 9) {                            /* '\t' → 下一个 8 的倍数 */
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #9
+        pop @R1
+        cmp @R1 @R0
+        je _L51930034
+        move @R0 #0
+        jmp _L51930035
+_L51930034:
+        move @R0 #1
+_L51930035:
+        cmp @R0 #0
+        jz sta_51930032
+; 126:         _tty_cx = ((_tty_cx - 1) / 8 + 1) * 8 + 1;
+        move @R0 [_tty_cx]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #8
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #8
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [_tty_cx] @R0
+        jmp sta_51930033
+sta_51930032:
+; 128:         _tty_cell[_tty_idx(_tty_cx, _tty_cy)] = (ch & 255) | (_tty_fg << 8) | (_tty_bg << 12);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_fg]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_bg]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R8 @R0
+        push @R8
+        move @R0 _tty_cell
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [_tty_cy]
+        push @R0
+        move @R0 [_tty_cx]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        pop @R8
+        move [@R0] @R8
+; 129:         _tty_cx = _tty_cx + 1;
+        move @R0 [_tty_cx]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [_tty_cx] @R0
+sta_51930033:
+sta_51930029:
+sta_51930025:
+; 131:     if (_tty_cx > _tty_w) { _tty_cx = 1; _tty_cy = _tty_cy + 1; }
+        move @R0 [_tty_cx]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930038
+        move @R0 #0
+        jmp _L51930039
+_L51930038:
+        move @R0 #1
+_L51930039:
+        cmp @R0 #0
+        jz sta_51930036
+        move @R0 #1
+        move [_tty_cx] @R0
+        move @R0 [_tty_cy]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [_tty_cy] @R0
+sta_51930036:
+sta_51930037:
+; 132:     if (_tty_cy > _tty_h) {                          /* 滚屏：整体上移一行 */
+        move @R0 [_tty_cy]
+        push @R0
+        move @R0 [_tty_h]
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930042
+        move @R0 #0
+        jmp _L51930043
+_L51930042:
+        move @R0 #1
+_L51930043:
+        cmp @R0 #0
+        jz sta_51930040
+; 134:         for (y = 1; y < _tty_h; y++)
+        move @R0 #1
+        move [@R12-12] @R0
+sta_51930044:
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [_tty_h]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930047
+        move @R0 #0
+        jmp _L51930048
+_L51930047:
+        move @R0 #1
+_L51930048:
+        cmp @R0 #0
+        jz sta_51930046
+; 135:             for (x = 1; x <= _tty_w; x++)
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930049:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930052
+        move @R0 #0
+        jmp _L51930053
+_L51930052:
+        move @R0 #1
+_L51930053:
+        cmp @R0 #0
+        jz sta_51930051
+; 136:                 _tty_cell[_tty_idx(x, y)] = _tty_cell[_tty_idx(x, y + 1)];
+        move @R0 _tty_cell
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        move @R0 [@R0]
+        move @R3 @R0
+        push @R3
+        move @R0 _tty_cell
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        pop @R3
+        move [@R0] @R3
+sta_51930050:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930049
+sta_51930051:
+sta_51930045:
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_51930044
+sta_51930046:
+; 137:         for (x = 1; x <= _tty_w; x++)
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930054:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930057
+        move @R0 #0
+        jmp _L51930058
+_L51930057:
+        move @R0 #1
+_L51930058:
+        cmp @R0 #0
+        jz sta_51930056
+; 138:             _tty_cell[_tty_idx(x, _tty_h)] = 32 | (_tty_fg << 8) | (_tty_bg << 12);
+        move @R0 #32
+        push @R0
+        move @R0 [_tty_fg]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_bg]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R10 @R0
+        push @R10
+        move @R0 _tty_cell
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [_tty_h]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        pop @R10
+        move [@R0] @R10
+sta_51930055:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930054
+sta_51930056:
+; 139:         _tty_cy = _tty_h;
+        move @R0 [_tty_h]
+        move [_tty_cy] @R0
+sta_51930040:
+sta_51930041:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_alt_bg_row:
+; -------------------------------------------
+; source   : void _tty_alt_bg_row(int y)
+; function : _tty_alt_bg_row
+; param   : int y
+; return   : void
+; --------------------------------------------
+_tty_alt_bg_row:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 145:     x = 1;
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930059:
+        move @R2 #0
+; 146:     while (x <= _tty_w) {
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930061
+        move @R0 #0
+        jmp _L51930062
+_L51930061:
+        move @R0 #1
+_L51930062:
+        cmp @R0 #0
+        jz sta_51930060
+; 147:         bg = (_tty_cell[_tty_idx(x, y)] >> 12) & 15;
+        move @R0 _tty_cell
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move @R0 [@R0]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
+; 148:         run = 1;
+        move @R0 #1
+        move [@R12-12] @R0
+sta_51930063:
+        move @R2 #0
+; 149:         while (x + run <= _tty_w && (((_tty_cell[_tty_idx(x + run, y)] >> 12) & 15) == bg))
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930067
+        move @R0 #0
+        jmp _L51930068
+_L51930067:
+        move @R0 #1
+_L51930068:
+        test @R0 @R0
+        jz _L51930065
+        move @R0 _tty_cell
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move @R0 [@R0]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        cmp @R1 @R0
+        je _L51930069
+        move @R0 #0
+        jmp _L51930070
+_L51930069:
+        move @R0 #1
+_L51930070:
+        test @R0 @R0
+        jz _L51930065
+        move @R0 #1
+        jmp _L51930066
+_L51930065:
+        move @R0 #0
+_L51930066:
+        cmp @R0 #0
+        jz sta_51930064
+; 150:             run = run + 1;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+        jmp sta_51930063
+sta_51930064:
+; 152:                 _tty_pal[bg & 15], 1, 0, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 _tty_pal
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move @R0 [@R0]
+        push @R0
+; 151:         ui_rect((x - 1) * 8, (y - 1) * 16, run * 8, 16,
+        move @R0 #16
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #8
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #8
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_rect
+        add @R13 #32
+; 153:         x = x + run;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        jmp sta_51930059
+sta_51930060:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_alt_fg_row:
+; -------------------------------------------
+; source   : void _tty_alt_fg_row(int y)
+; function : _tty_alt_fg_row
+; param   : int y
+; return   : void
+; --------------------------------------------
+_tty_alt_fg_row:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
+; 159:     x = 1;
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930071:
+        move @R2 #0
+; 160:     while (x <= _tty_w) {
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930073
+        move @R0 #0
+        jmp _L51930074
+_L51930073:
+        move @R0 #1
+_L51930074:
+        cmp @R0 #0
+        jz sta_51930072
+; 161:         ch = _tty_cell[_tty_idx(x, y)] & 255;
+        move @R0 _tty_cell
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move @R0 [@R0]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+; 162:         if (ch == 32) { x = x + 1; continue; }
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
+        je _L51930077
+        move @R0 #0
+        jmp _L51930078
+_L51930077:
+        move @R0 #1
+_L51930078:
+        cmp @R0 #0
+        jz sta_51930075
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        jmp sta_51930071
+sta_51930075:
+sta_51930076:
+; 163:         fg = (_tty_cell[_tty_idx(x, y)] >> 8) & 15;
+        move @R0 _tty_cell
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+; 164:         base = x;
+        move @R0 [@R12-8]
+        move [@R12-16] @R0
+; 165:         n = 0;
+        move @R0 #0
+        move [@R12-12] @R0
+sta_51930079:
+        move @R2 #0
+; 166:         while (x <= _tty_w && n < 80) {
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930083
+        move @R0 #0
+        jmp _L51930084
+_L51930083:
+        move @R0 #1
+_L51930084:
+        test @R0 @R0
+        jz _L51930081
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #80
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930085
+        move @R0 #0
+        jmp _L51930086
+_L51930085:
+        move @R0 #1
+_L51930086:
+        test @R0 @R0
+        jz _L51930081
+        move @R0 #1
+        jmp _L51930082
+_L51930081:
+        move @R0 #0
+_L51930082:
+        cmp @R0 #0
+        jz sta_51930080
+; 167:             ch = _tty_cell[_tty_idx(x, y)] & 255;
+        move @R0 _tty_cell
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move @R0 [@R0]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+; 168:             if (ch == 32) break;
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
+        je _L51930089
+        move @R0 #0
+        jmp _L51930090
+_L51930089:
+        move @R0 #1
+_L51930090:
+        cmp @R0 #0
+        jz sta_51930087
+        jmp sta_51930080
+sta_51930087:
+sta_51930088:
+; 169:             if (((_tty_cell[_tty_idx(x, y)] >> 8) & 15) != fg) break;
+        move @R0 _tty_cell
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move @R0 [@R0]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        cmp @R1 @R0
+        jne _L51930093
+        move @R0 #0
+        jmp _L51930094
+_L51930093:
+        move @R0 #1
+_L51930094:
+        cmp @R0 #0
+        jz sta_51930091
+        jmp sta_51930080
+sta_51930091:
+sta_51930092:
+; 170:             _tty_row[n] = (char)ch;
+        move @R0 [@R12-24]
+        move @R5 @R0
+        push @R5
+        move @R0 _tty_row
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-12]
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        pop @R5
+        moveb [@R0] @R5
+; 171:             n = n + 1;
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+; 172:             x = x + 1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        jmp sta_51930079
+sta_51930080:
+; 174:         _tty_row[n] = 0;
+        move @R0 #0
+        move @R1 @R0
+        push @R1
+        move @R0 _tty_row
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-12]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        pop @R1
+        moveb [@R0] @R1
+; 176:                   _tty_pal[fg & 15], 13, 0, 3, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #3
+        push @R0
+        move @R0 #0
+        push @R0
+        move @R0 #13
+        push @R0
+        move @R0 _tty_pal
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move @R0 [@R0]
+        push @R0
+; 175:         ui_text_v((base - 1) * 8, (y - 1) * 16, _tty_row,
+        move @R0 _tty_row
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #8
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
+        call ui_text_v
+        add @R13 #32
+        jmp sta_51930071
+sta_51930072:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_refresh:
+; -------------------------------------------
+; source   : void tty_refresh()
+; function : tty_refresh
+; return   : void
+; --------------------------------------------
+tty_refresh:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 182:     if (_tty_alt == 0) return;
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930097
+        move @R0 #0
+        jmp _L51930098
+_L51930097:
+        move @R0 #1
+_L51930098:
+        cmp @R0 #0
+        jz sta_51930095
+        jmp L_51930099
+sta_51930095:
+sta_51930096:
+; 183:     for (y = 1; y <= _tty_h; y++) _tty_alt_bg_row(y);
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930100:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_h]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930103
+        move @R0 #0
+        jmp _L51930104
+_L51930103:
+        move @R0 #1
+_L51930104:
+        cmp @R0 #0
+        jz sta_51930102
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        call _tty_alt_bg_row
+        add @R13 #4
+sta_51930101:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930100
+sta_51930102:
+; 184:     for (y = 1; y <= _tty_h; y++) _tty_alt_fg_row(y);
+        move @R0 #1
+        move [@R12-8] @R0
+sta_51930105:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_h]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930108
+        move @R0 #0
+        jmp _L51930109
+_L51930108:
+        move @R0 #1
+_L51930109:
+        cmp @R0 #0
+        jz sta_51930107
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        call _tty_alt_fg_row
+        add @R13 #4
+sta_51930106:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930105
+sta_51930107:
+; 185:     ui_present();
+        call ui_present
+L_51930099:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_init:
+; -------------------------------------------
+; source   : int tty_init(int width,int height,int clear)
+; function : tty_init
+; param   : int width
+; param   : int height
+; param   : int clear
+; return   : int
+; --------------------------------------------
+tty_init:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 197:     if (width > 0 || height > 0) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930115
+        move @R0 #0
+        jmp _L51930116
+_L51930115:
+        move @R0 #1
+_L51930116:
+        test @R0 @R0
+        jnz _L51930112
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930117
+        move @R0 #0
+        jmp _L51930118
+_L51930117:
+        move @R0 #1
+_L51930118:
+        test @R0 @R0
+        jz _L51930113
+_L51930112:
+        move @R0 #1
+        jmp _L51930114
+_L51930113:
+        move @R0 #0
+_L51930114:
+        cmp @R0 #0
+        jz sta_51930110
+; 198:         if (width <= 0)  width = _tty_w > 0 ? _tty_w : 80;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930121
+        move @R0 #0
+        jmp _L51930122
+_L51930121:
+        move @R0 #1
+_L51930122:
+        cmp @R0 #0
+        jz sta_51930119
+        move @R0 [_tty_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930123
+        move @R0 #0
+        jmp _L51930124
+_L51930123:
+        move @R0 #1
+_L51930124:
+        test @R0 @R0
+        jz _L51930125
+        move @R0 [_tty_w]
+        jmp _L51930126
+_L51930125:
+        move @R0 #80
+_L51930126:
+        move [@R12+12] @R0
+sta_51930119:
+sta_51930120:
+; 199:         if (height <= 0) height = _tty_h > 0 ? _tty_h : 25;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930129
+        move @R0 #0
+        jmp _L51930130
+_L51930129:
+        move @R0 #1
+_L51930130:
+        cmp @R0 #0
+        jz sta_51930127
+        move @R0 [_tty_h]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930131
+        move @R0 #0
+        jmp _L51930132
+_L51930131:
+        move @R0 #1
+_L51930132:
+        test @R0 @R0
+        jz _L51930133
+        move @R0 [_tty_h]
+        jmp _L51930134
+_L51930133:
+        move @R0 #25
+_L51930134:
+        move [@R12+16] @R0
+sta_51930127:
+sta_51930128:
+; 200:         if (width > 80)  width = 80;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #80
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930137
+        move @R0 #0
+        jmp _L51930138
+_L51930137:
+        move @R0 #1
+_L51930138:
+        cmp @R0 #0
+        jz sta_51930135
+        move @R0 #80
+        move [@R12+12] @R0
+sta_51930135:
+sta_51930136:
+; 201:         if (height > 25) height = 25;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #25
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930141
+        move @R0 #0
+        jmp _L51930142
+_L51930141:
+        move @R0 #1
+_L51930142:
+        cmp @R0 #0
+        jz sta_51930139
+        move @R0 #25
+        move [@R12+16] @R0
+sta_51930139:
+sta_51930140:
+; 202:         _tty_w = width;
+        move @R0 [@R12+12]
+        move [_tty_w] @R0
+; 203:         _tty_h = height;
+        move @R0 [@R12+16]
+        move [_tty_h] @R0
+sta_51930110:
+sta_51930111:
+; 206:     if (_tty_w <= 0) _tty_w = 80;
+        move @R0 [_tty_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930145
+        move @R0 #0
+        jmp _L51930146
+_L51930145:
+        move @R0 #1
+_L51930146:
+        cmp @R0 #0
+        jz sta_51930143
+        move @R0 #80
+        move [_tty_w] @R0
+sta_51930143:
+sta_51930144:
+; 207:     if (_tty_h <= 0) _tty_h = 25;
+        move @R0 [_tty_h]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930149
+        move @R0 #0
+        jmp _L51930150
+_L51930149:
+        move @R0 #1
+_L51930150:
+        cmp @R0 #0
+        jz sta_51930147
+        move @R0 #25
+        move [_tty_h] @R0
+sta_51930147:
+sta_51930148:
+; 208:     _tty_alt = 0;
+        move @R0 #0
+        move [_tty_alt] @R0
+; 209:     _tty_fg = 7;
+        move @R0 #7
+        move [_tty_fg] @R0
+; 210:     _tty_bg = 0;
+        move @R0 #0
+        move [_tty_bg] @R0
+; 211:     _tty_main_attr();
+        call _tty_main_attr
+; 212:     if (clear != 0) clrscr();
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L51930153
+        move @R0 #0
+        jmp _L51930154
+_L51930153:
+        move @R0 #1
+_L51930154:
+        cmp @R0 #0
+        jz sta_51930151
+        call clrscr
+sta_51930151:
+sta_51930152:
+; 213:     return 0;
+        move @R0 #0
+        jmp L_51930155
+L_51930155:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_alt_open:
+; -------------------------------------------
+; source   : int tty_alt_open(int width,int height,char* title,int clear)
+; function : tty_alt_open
+; param   : int width
+; param   : int height
+; param   : char* title
+; param   : int clear
+; return   : int
+; --------------------------------------------
+tty_alt_open:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 226:     if (width <= 0)  width = _tty_auto_cols();
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930158
+        move @R0 #0
+        jmp _L51930159
+_L51930158:
+        move @R0 #1
+_L51930159:
+        cmp @R0 #0
+        jz sta_51930156
+        call _tty_auto_cols
+        move [@R12+12] @R0
+sta_51930156:
+sta_51930157:
+; 227:     if (height <= 0) height = _tty_auto_rows();
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930162
+        move @R0 #0
+        jmp _L51930163
+_L51930162:
+        move @R0 #1
+_L51930163:
+        cmp @R0 #0
+        jz sta_51930160
+        call _tty_auto_rows
+        move [@R12+16] @R0
+sta_51930160:
+sta_51930161:
+; 228:     if (width > 80)  width = 80;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #80
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930166
+        move @R0 #0
+        jmp _L51930167
+_L51930166:
+        move @R0 #1
+_L51930167:
+        cmp @R0 #0
+        jz sta_51930164
+        move @R0 #80
+        move [@R12+12] @R0
+sta_51930164:
+sta_51930165:
+; 229:     if (height > 25) height = 25;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #25
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930170
+        move @R0 #0
+        jmp _L51930171
+_L51930170:
+        move @R0 #1
+_L51930171:
+        cmp @R0 #0
+        jz sta_51930168
+        move @R0 #25
+        move [@R12+16] @R0
+sta_51930168:
+sta_51930169:
+; 230:     rc = ui_win_open(title, width * 8, height * 16);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #8
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        call ui_win_open
+        add @R13 #12
+        move [@R12-8] @R0
+; 231:     if (rc < 0) return -1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930174
+        move @R0 #0
+        jmp _L51930175
+_L51930174:
+        move @R0 #1
+_L51930175:
+        cmp @R0 #0
+        jz sta_51930172
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930176
+sta_51930172:
+sta_51930173:
+; 232:     _tty_w = width;
+        move @R0 [@R12+12]
+        move [_tty_w] @R0
+; 233:     _tty_h = height;
+        move @R0 [@R12+16]
+        move [_tty_h] @R0
+; 234:     _tty_alt = 1;
+        move @R0 #1
+        move [_tty_alt] @R0
+; 235:     _tty_fg = 7;
+        move @R0 #7
+        move [_tty_fg] @R0
+; 236:     _tty_bg = 0;
+        move @R0 #0
+        move [_tty_bg] @R0
+; 237:     _tty_alt_clear();
+        call _tty_alt_clear
+; 238:     tty_refresh();
+        call tty_refresh
+; 239:     return 0;
+        move @R0 #0
+        jmp L_51930176
+L_51930176:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_alt_close:
+; -------------------------------------------
+; source   : void tty_alt_close()
+; function : tty_alt_close
+; return   : void
+; --------------------------------------------
+tty_alt_close:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 243:     if (_tty_alt == 0) return;
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930179
+        move @R0 #0
+        jmp _L51930180
+_L51930179:
+        move @R0 #1
+_L51930180:
+        cmp @R0 #0
+        jz sta_51930177
+        jmp L_51930181
+sta_51930177:
+sta_51930178:
+; 244:     ui_win_close();
+        call ui_win_close
+; 245:     _tty_alt = 0;
+        move @R0 #0
+        move [_tty_alt] @R0
+; 246:     _tty_w = 80;
+        move @R0 #80
+        move [_tty_w] @R0
+; 247:     _tty_h = 25;
+        move @R0 #25
+        move [_tty_h] @R0
+; 248:     _tty_fg = 7;
+        move @R0 #7
+        move [_tty_fg] @R0
+; 249:     _tty_bg = 0;
+        move @R0 #0
+        move [_tty_bg] @R0
+; 250:     _tty_main_attr();
+        call _tty_main_attr
+L_51930181:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_alt_is_open:
+; -------------------------------------------
+; source   : int tty_alt_is_open()
+; function : tty_alt_is_open
+; return   : int
+; --------------------------------------------
+tty_alt_is_open:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 252: int tty_alt_is_open(void) { return _tty_alt; }
+        move @R0 [_tty_alt]
+        jmp L_51930182
+L_51930182:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_width:
+; -------------------------------------------
+; source   : int tty_width()
+; function : tty_width
+; return   : int
+; --------------------------------------------
+tty_width:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 253: int tty_width(void)  { return _tty_w > 0 ? _tty_w : 80; }
+        move @R0 [_tty_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930183
+        move @R0 #0
+        jmp _L51930184
+_L51930183:
+        move @R0 #1
+_L51930184:
+        test @R0 @R0
+        jz _L51930185
+        move @R0 [_tty_w]
+        jmp _L51930186
+_L51930185:
+        move @R0 #80
+_L51930186:
+        jmp L_51930187
+L_51930187:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_height:
+; -------------------------------------------
+; source   : int tty_height()
+; function : tty_height
+; return   : int
+; --------------------------------------------
+tty_height:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 254: int tty_height(void) { return _tty_h > 0 ? _tty_h : 25; }
+        move @R0 [_tty_h]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930188
+        move @R0 #0
+        jmp _L51930189
+_L51930188:
+        move @R0 #1
+_L51930189:
+        test @R0 @R0
+        jz _L51930190
+        move @R0 [_tty_h]
+        jmp _L51930191
+_L51930190:
+        move @R0 #25
+_L51930191:
+        jmp L_51930192
+L_51930192:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_cls:
+; -------------------------------------------
+; source   : void tty_cls()
+; function : tty_cls
+; return   : void
+; --------------------------------------------
+tty_cls:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 257:     if (_tty_alt) { _tty_alt_clear(); tty_refresh(); return; }
+        move @R0 [_tty_alt]
+        cmp @R0 #0
+        jz sta_51930193
+        call _tty_alt_clear
+        call tty_refresh
+        jmp L_51930195
+sta_51930193:
+sta_51930194:
+; 258:     clrscr();
+        call clrscr
+L_51930195:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_clreol:
+; -------------------------------------------
+; source   : void tty_clreol()
+; function : tty_clreol
+; return   : void
+; --------------------------------------------
+tty_clreol:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 263:     if (_tty_alt == 0) { clreol(); return; }
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930198
+        move @R0 #0
+        jmp _L51930199
+_L51930198:
+        move @R0 #1
+_L51930199:
+        cmp @R0 #0
+        jz sta_51930196
+        call clreol
+        jmp L_51930200
+sta_51930196:
+sta_51930197:
+; 264:     for (x = _tty_cx; x <= _tty_w; x++)
+        move @R0 [_tty_cx]
+        move [@R12-8] @R0
+sta_51930201:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [_tty_w]
+        pop @R1
+        cmp @R1 @R0
+        jle _L51930204
+        move @R0 #0
+        jmp _L51930205
+_L51930204:
+        move @R0 #1
+_L51930205:
+        cmp @R0 #0
+        jz sta_51930203
+; 265:         _tty_cell[_tty_idx(x, _tty_cy)] = 32 | (_tty_fg << 8) | (_tty_bg << 12);
+        move @R0 #32
+        push @R0
+        move @R0 [_tty_fg]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [_tty_bg]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R7 @R0
+        push @R7
+        move @R0 _tty_cell
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [_tty_cy]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_idx
+        add @R13 #8
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        pop @R7
+        move [@R0] @R7
+sta_51930202:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930201
+sta_51930203:
+; 266:     tty_refresh();
+        call tty_refresh
+L_51930200:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_goto:
+; -------------------------------------------
+; source   : void tty_goto(int x,int y)
+; function : tty_goto
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+tty_goto:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 271:     if (x < 1) x = 1;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930208
+        move @R0 #0
+        jmp _L51930209
+_L51930208:
+        move @R0 #1
+_L51930209:
+        cmp @R0 #0
+        jz sta_51930206
+        move @R0 #1
+        move [@R12+12] @R0
+sta_51930206:
+sta_51930207:
+; 272:     if (y < 1) y = 1;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930212
+        move @R0 #0
+        jmp _L51930213
+_L51930212:
+        move @R0 #1
+_L51930213:
+        cmp @R0 #0
+        jz sta_51930210
+        move @R0 #1
+        move [@R12+16] @R0
+sta_51930210:
+sta_51930211:
+; 273:     if (x > tty_width())  x = tty_width();
+        move @R0 [@R12+12]
+        push @R0
+        call tty_width
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930216
+        move @R0 #0
+        jmp _L51930217
+_L51930216:
+        move @R0 #1
+_L51930217:
+        cmp @R0 #0
+        jz sta_51930214
+        call tty_width
+        move [@R12+12] @R0
+sta_51930214:
+sta_51930215:
+; 274:     if (y > tty_height()) y = tty_height();
+        move @R0 [@R12+16]
+        push @R0
+        call tty_height
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930220
+        move @R0 #0
+        jmp _L51930221
+_L51930220:
+        move @R0 #1
+_L51930221:
+        cmp @R0 #0
+        jz sta_51930218
+        call tty_height
+        move [@R12+16] @R0
+sta_51930218:
+sta_51930219:
+; 275:     if (_tty_alt) { _tty_cx = x; _tty_cy = y; return; }
+        move @R0 [_tty_alt]
+        cmp @R0 #0
+        jz sta_51930222
+        move @R0 [@R12+12]
+        move [_tty_cx] @R0
+        move @R0 [@R12+16]
+        move [_tty_cy] @R0
+        jmp L_51930224
+sta_51930222:
+sta_51930223:
+; 276:     gotoxy(x, y);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call gotoxy
+        add @R13 #8
+L_51930224:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_wherex:
+; -------------------------------------------
+; source   : int tty_wherex()
+; function : tty_wherex
+; return   : int
+; --------------------------------------------
+tty_wherex:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 278: int tty_wherex(void) { return _tty_alt ? _tty_cx : wherex(); }
+        move @R0 [_tty_alt]
+        test @R0 @R0
+        jz _L51930225
+        move @R0 [_tty_cx]
+        jmp _L51930226
+_L51930225:
+        call wherex
+_L51930226:
+        jmp L_51930227
+L_51930227:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_wherey:
+; -------------------------------------------
+; source   : int tty_wherey()
+; function : tty_wherey
+; return   : int
+; --------------------------------------------
+tty_wherey:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 279: int tty_wherey(void) { return _tty_alt ? _tty_cy : wherey(); }
+        move @R0 [_tty_alt]
+        test @R0 @R0
+        jz _L51930228
+        move @R0 [_tty_cy]
+        jmp _L51930229
+_L51930228:
+        call wherey
+_L51930229:
+        jmp L_51930230
+L_51930230:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_color:
+; -------------------------------------------
+; source   : void tty_color(int fg,int bg)
+; function : tty_color
+; param   : int fg
+; param   : int bg
+; return   : void
+; --------------------------------------------
+tty_color:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 283:     _tty_fg = fg & 15;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [_tty_fg] @R0
+; 284:     _tty_bg = bg & 15;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [_tty_bg] @R0
+; 285:     if (_tty_alt == 0) _tty_main_attr();
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930233
+        move @R0 #0
+        jmp _L51930234
+_L51930233:
+        move @R0 #1
+_L51930234:
+        cmp @R0 #0
+        jz sta_51930231
+        call _tty_main_attr
+sta_51930231:
+sta_51930232:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_attr:
+; -------------------------------------------
+; source   : void tty_attr(int attr)
+; function : tty_attr
+; param   : int attr
+; return   : void
+; --------------------------------------------
+tty_attr:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 288: void tty_attr(int attr) { tty_color(attr & 15, (attr >> 4) & 15); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_color
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_getfg:
+; -------------------------------------------
+; source   : int tty_getfg()
+; function : tty_getfg
+; return   : int
+; --------------------------------------------
+tty_getfg:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 289: int tty_getfg(void) { return _tty_fg; }
+        move @R0 [_tty_fg]
+        jmp L_51930235
+L_51930235:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_getbg:
+; -------------------------------------------
+; source   : int tty_getbg()
+; function : tty_getbg
+; return   : int
+; --------------------------------------------
+tty_getbg:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 290: int tty_getbg(void) { return _tty_bg; }
+        move @R0 [_tty_bg]
+        jmp L_51930236
+L_51930236:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_putc:
+; -------------------------------------------
+; source   : void tty_putc(int ch)
+; function : tty_putc
+; param   : int ch
+; return   : void
+; --------------------------------------------
+tty_putc:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 293:     if (_tty_alt) { _tty_alt_putc(ch & 255); return; }
+        move @R0 [_tty_alt]
+        cmp @R0 #0
+        jz sta_51930237
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call _tty_alt_putc
+        add @R13 #4
+        jmp L_51930239
+sta_51930237:
+sta_51930238:
+; 294:     putch(ch & 255);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call putch
+        add @R13 #4
+L_51930239:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_puts:
+; -------------------------------------------
+; source   : void tty_puts(char* s)
+; function : tty_puts
+; param   : char* s
+; return   : void
+; --------------------------------------------
+tty_puts:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 297:     if (_tty_alt == 0) { cputs(s); return; }
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930242
+        move @R0 #0
+        jmp _L51930243
+_L51930242:
+        move @R0 #1
+_L51930243:
+        cmp @R0 #0
+        jz sta_51930240
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        call cputs
+        add @R13 #4
+        jmp L_51930244
+sta_51930240:
+sta_51930241:
+sta_51930245:
+        move @R2 #0
+; 298:     while (*s != 0) {
+        move @R0 [@R12+12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L51930247
+        move @R0 #0
+        jmp _L51930248
+_L51930247:
+        move @R0 #1
+_L51930248:
+        cmp @R0 #0
+        jz sta_51930246
+; 299:         _tty_alt_putc((int)(*s) & 255);
+        move @R0 [@R12+12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call _tty_alt_putc
+        add @R13 #4
+; 300:         s = s + 1;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        jmp sta_51930245
+sta_51930246:
+L_51930244:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_put_int:
+; -------------------------------------------
+; source   : void tty_put_int(int v)
+; function : tty_put_int
+; param   : int v
+; return   : void
+; --------------------------------------------
+tty_put_int:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
+; 309:     neg = 0;
+        move @R0 #0
+        move [@R12-28] @R0
+; 310:     if (v < 0) { neg = 1; u = (unsigned)(0 - v); } else { u = (unsigned)v; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930251
+        move @R0 #0
+        jmp _L51930252
+_L51930251:
+        move @R0 #1
+_L51930252:
+        cmp @R0 #0
+        jz sta_51930249
+        move @R0 #1
+        move [@R12-28] @R0
+        move @R0 #0
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
+        jmp sta_51930250
+sta_51930249:
+        move @R0 [@R12+12]
+        move [@R12-32] @R0
+sta_51930250:
+; 311:     n = 0;
+        move @R0 #0
+        move [@R12-24] @R0
+; 312:     if (u == 0) { buf[n] = 48; n = n + 1; }
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmpu @R1 @R0
+        je _L51930255
+        move @R0 #0
+        jmp _L51930256
+_L51930255:
+        move @R0 #1
+_L51930256:
+        cmp @R0 #0
+        jz sta_51930253
+        move @R0 #48
+        move @R4 @R0
+        push @R4
+        move @R0 @R12
+        sub @R0 #20
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 [@R12-24]
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        pop @R4
+        moveb [@R0] @R4
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+sta_51930253:
+sta_51930254:
+sta_51930257:
+        move @R2 #0
+; 313:     while (u > 0) {
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmpu @R1 @R0
+        ja _L51930259
+        move @R0 #0
+        jmp _L51930260
+_L51930259:
+        move @R0 #1
+_L51930260:
+        cmp @R0 #0
+        jz sta_51930258
+; 314:         buf[n] = (char)(48 + (int)(u % 10));
+        move @R0 #48
+        push @R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #10
+        pop @R1
+        modu @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move @R3 @R0
+        push @R3
+        move @R0 @R12
+        sub @R0 #20
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-24]
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        pop @R3
+        moveb [@R0] @R3
+; 315:         n = n + 1;
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+; 316:         u = u / 10;
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #10
+        pop @R1
+        divu @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
+        jmp sta_51930257
+sta_51930258:
+; 318:     if (neg) { buf[n] = 45; n = n + 1; }
+        move @R0 [@R12-28]
+        cmp @R0 #0
+        jz sta_51930261
+        move @R0 #45
+        move @R11 @R0
+        push @R11
+        move @R0 @R12
+        sub @R0 #20
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-24]
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        pop @R11
+        moveb [@R0] @R11
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+sta_51930261:
+sta_51930262:
+sta_51930263:
+        move @R2 #0
+; 319:     while (n > 0) { n = n - 1; tty_putc(buf[n] & 255); }
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jg _L51930265
+        move @R0 #0
+        jmp _L51930266
+_L51930265:
+        move @R0 #1
+_L51930266:
+        cmp @R0 #0
+        jz sta_51930264
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 @R12
+        sub @R0 #20
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-24]
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #255
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930263
+sta_51930264:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_print_at:
+; -------------------------------------------
+; source   : void tty_print_at(int x,int y,char* s,int fg,int bg)
+; function : tty_print_at
+; param   : int x
+; param   : int y
+; param   : char* s
+; param   : int fg
+; param   : int bg
+; return   : void
+; --------------------------------------------
+tty_print_at:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 323:     tty_goto(x, y);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+; 324:     tty_color(fg, bg);
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_color
+        add @R13 #8
+; 325:     tty_puts(s);
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        call tty_puts
+        add @R13 #4
+; 326:     tty_color(7, 0);
+        move @R0 #0
+        push @R0
+        move @R0 #7
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_color
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_hline:
+; -------------------------------------------
+; source   : void tty_hline(int x,int y,int len,int ch)
+; function : tty_hline
+; param   : int x
+; param   : int y
+; param   : int len
+; param   : int ch
+; return   : void
+; --------------------------------------------
+tty_hline:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 331:     tty_goto(x, y);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+; 332:     for (i = 0; i < len; i++) tty_putc(ch);
+        move @R0 #0
+        move [@R12-8] @R0
+sta_51930267:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930270
+        move @R0 #0
+        jmp _L51930271
+_L51930270:
+        move @R0 #1
+_L51930271:
+        cmp @R0 #0
+        jz sta_51930269
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+sta_51930268:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930267
+sta_51930269:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_vline:
+; -------------------------------------------
+; source   : void tty_vline(int x,int y,int len,int ch)
+; function : tty_vline
+; param   : int x
+; param   : int y
+; param   : int len
+; param   : int ch
+; return   : void
+; --------------------------------------------
+tty_vline:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 336:     for (i = 0; i < len; i++) { tty_goto(x, y + i); tty_putc(ch); }
+        move @R0 #0
+        move [@R12-8] @R0
+sta_51930272:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930275
+        move @R0 #0
+        jmp _L51930276
+_L51930275:
+        move @R0 #1
+_L51930276:
+        cmp @R0 #0
+        jz sta_51930274
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+sta_51930273:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930272
+sta_51930274:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+_tty_boxchar:
+; -------------------------------------------
+; source   : void _tty_boxchar(int style,int which)
+; function : _tty_boxchar
+; param   : int style
+; param   : int which
+; return   : void
+; --------------------------------------------
+_tty_boxchar:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 342:     if (style == 0) {
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930279
+        move @R0 #0
+        jmp _L51930280
+_L51930279:
+        move @R0 #1
+_L51930280:
+        cmp @R0 #0
+        jz sta_51930277
+; 343:         if (which == 4) tty_putc(45);                            /* '-' */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        cmp @R1 @R0
+        je _L51930283
+        move @R0 #0
+        jmp _L51930284
+_L51930283:
+        move @R0 #1
+_L51930284:
+        cmp @R0 #0
+        jz sta_51930281
+        move @R0 #45
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930282
+sta_51930281:
+; 344:         else if (which == 5) tty_putc(124);                      /* '|' */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #5
+        pop @R1
+        cmp @R1 @R0
+        je _L51930287
+        move @R0 #0
+        jmp _L51930288
+_L51930287:
+        move @R0 #1
+_L51930288:
+        cmp @R0 #0
+        jz sta_51930285
+        move @R0 #124
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930286
+sta_51930285:
+; 345:         else tty_putc(43);                                       /* '+' */
+        move @R0 #43
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+sta_51930286:
+sta_51930282:
+; 346:         return;
+        jmp L_51930289
+sta_51930277:
+sta_51930278:
+; 348:     tty_putc(226);                                               /* 0xE2 */
+        move @R0 #226
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+; 349:     if (which == 0)      { tty_putc(148); tty_putc(140); }       /* ┌ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930292
+        move @R0 #0
+        jmp _L51930293
+_L51930292:
+        move @R0 #1
+_L51930293:
+        cmp @R0 #0
+        jz sta_51930290
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #140
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930291
+sta_51930290:
+; 350:     else if (which == 1) { tty_putc(148); tty_putc(144); }       /* ┐ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L51930296
+        move @R0 #0
+        jmp _L51930297
+_L51930296:
+        move @R0 #1
+_L51930297:
+        cmp @R0 #0
+        jz sta_51930294
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #144
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930295
+sta_51930294:
+; 351:     else if (which == 2) { tty_putc(148); tty_putc(148); }       /* └ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
+        je _L51930300
+        move @R0 #0
+        jmp _L51930301
+_L51930300:
+        move @R0 #1
+_L51930301:
+        cmp @R0 #0
+        jz sta_51930298
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930299
+sta_51930298:
+; 352:     else if (which == 3) { tty_putc(148); tty_putc(152); }       /* ┘ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #3
+        pop @R1
+        cmp @R1 @R0
+        je _L51930304
+        move @R0 #0
+        jmp _L51930305
+_L51930304:
+        move @R0 #1
+_L51930305:
+        cmp @R0 #0
+        jz sta_51930302
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #152
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930303
+sta_51930302:
+; 353:     else if (which == 4) { tty_putc(148); tty_putc(128); }       /* ─ */
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        cmp @R1 @R0
+        je _L51930308
+        move @R0 #0
+        jmp _L51930309
+_L51930308:
+        move @R0 #1
+_L51930309:
+        cmp @R0 #0
+        jz sta_51930306
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #128
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        jmp sta_51930307
+sta_51930306:
+; 354:     else                 { tty_putc(148); tty_putc(130); }       /* │ */
+        move @R0 #148
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+        move @R0 #130
+        push @R0
+        move @R0 [@R13+0]
+        call tty_putc
+        add @R13 #4
+sta_51930307:
+sta_51930303:
+sta_51930299:
+sta_51930295:
+sta_51930291:
+L_51930289:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_box:
+; -------------------------------------------
+; source   : void tty_box(int x1,int y1,int x2,int y2,int style)
+; function : tty_box
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; param   : int style
+; return   : void
+; --------------------------------------------
+tty_box:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 358:     if (x2 < x1) { t = x1; x1 = x2; x2 = t; }
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930312
+        move @R0 #0
+        jmp _L51930313
+_L51930312:
+        move @R0 #1
+_L51930313:
+        cmp @R0 #0
+        jz sta_51930310
+        move @R0 [@R12+12]
+        move [@R12-16] @R0
+        move @R0 [@R12+20]
+        move [@R12+12] @R0
+        move @R0 [@R12-16]
+        move [@R12+20] @R0
+sta_51930310:
+sta_51930311:
+; 359:     if (y2 < y1) { t = y1; y1 = y2; y2 = t; }
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930316
+        move @R0 #0
+        jmp _L51930317
+_L51930316:
+        move @R0 #1
+_L51930317:
+        cmp @R0 #0
+        jz sta_51930314
+        move @R0 [@R12+16]
+        move [@R12-16] @R0
+        move @R0 [@R12+24]
+        move [@R12+16] @R0
+        move @R0 [@R12-16]
+        move [@R12+24] @R0
+sta_51930314:
+sta_51930315:
+; 360:     tty_goto(x1, y1); _tty_boxchar(style, 0);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #0
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+; 361:     for (x = x1 + 1; x < x2; x++) _tty_boxchar(style, 4);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+sta_51930318:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930321
+        move @R0 #0
+        jmp _L51930322
+_L51930321:
+        move @R0 #1
+_L51930322:
+        cmp @R0 #0
+        jz sta_51930320
+        move @R0 #4
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+sta_51930319:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930318
+sta_51930320:
+; 362:     tty_goto(x2, y1); _tty_boxchar(style, 1);
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+; 363:     tty_goto(x1, y2); _tty_boxchar(style, 2);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #2
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+; 364:     for (x = x1 + 1; x < x2; x++) _tty_boxchar(style, 4);
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+sta_51930323:
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930326
+        move @R0 #0
+        jmp _L51930327
+_L51930326:
+        move @R0 #1
+_L51930327:
+        cmp @R0 #0
+        jz sta_51930325
+        move @R0 #4
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+sta_51930324:
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        jmp sta_51930323
+sta_51930325:
+; 365:     tty_goto(x2, y2); _tty_boxchar(style, 3);
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #3
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+; 366:     for (y = y1 + 1; y < y2; y++) {
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+sta_51930328:
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
+        jl _L51930331
+        move @R0 #0
+        jmp _L51930332
+_L51930331:
+        move @R0 #1
+_L51930332:
+        cmp @R0 #0
+        jz sta_51930330
+; 367:         tty_goto(x1, y); _tty_boxchar(style, 5);
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #5
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+; 368:         tty_goto(x2, y); _tty_boxchar(style, 5);
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call tty_goto
+        add @R13 #8
+        move @R0 #5
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call _tty_boxchar
+        add @R13 #8
+sta_51930329:
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_51930328
+sta_51930330:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_key:
+; -------------------------------------------
+; source   : int tty_key()
+; function : tty_key
+; return   : int
+; --------------------------------------------
+tty_key:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 375:     if (_tty_alt == 0) { if (kbhit()) return getch(); return -1; }
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930335
+        move @R0 #0
+        jmp _L51930336
+_L51930335:
+        move @R0 #1
+_L51930336:
+        cmp @R0 #0
+        jz sta_51930333
+        call kbhit
+        cmp @R0 #0
+        jz sta_51930337
+        call getch
+        jmp L_51930339
+sta_51930337:
+sta_51930338:
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930339
+sta_51930333:
+sta_51930334:
+; 376:     if (ui_win_closed() != 0) return -1;
+        call ui_win_closed
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L51930342
+        move @R0 #0
+        jmp _L51930343
+_L51930342:
+        move @R0 #1
+_L51930343:
+        cmp @R0 #0
+        jz sta_51930340
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930339
+sta_51930340:
+sta_51930341:
+; 377:     t = ui_poll(_tty_msg);
+        move @R0 _tty_msg
+        push @R0
+        move @R0 [@R13+0]
+        call ui_poll
+        add @R13 #4
+        move [@R12-8] @R0
+; 378:     if (t == 1) return _tty_msg[1];
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L51930346
+        move @R0 #0
+        jmp _L51930347
+_L51930346:
+        move @R0 #1
+_L51930347:
+        cmp @R0 #0
+        jz sta_51930344
+        move @R0 _tty_msg
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 #1
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move @R0 [@R0]
+        jmp L_51930339
+sta_51930344:
+sta_51930345:
+; 379:     return -1;
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930339
+L_51930339:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_wait:
+; -------------------------------------------
+; source   : int tty_wait()
+; function : tty_wait
+; return   : int
+; --------------------------------------------
+tty_wait:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 385:     if (_tty_alt == 0) return getch();
+        move @R0 [_tty_alt]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L51930350
+        move @R0 #0
+        jmp _L51930351
+_L51930350:
+        move @R0 #1
+_L51930351:
+        cmp @R0 #0
+        jz sta_51930348
+        call getch
+        jmp L_51930352
+sta_51930348:
+sta_51930349:
+; 386:     tty_refresh();
+        call tty_refresh
+sta_51930353:
+; 388:         if (ui_win_closed() != 0) return -1;
+        call ui_win_closed
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jne _L51930358
+        move @R0 #0
+        jmp _L51930359
+_L51930358:
+        move @R0 #1
+_L51930359:
+        cmp @R0 #0
+        jz sta_51930356
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930352
+sta_51930356:
+sta_51930357:
+; 389:         t = ui_wait(_tty_msg, 200);
+        move @R0 #200
+        push @R0
+        move @R0 _tty_msg
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        call ui_wait
+        add @R13 #8
+        move [@R12-8] @R0
+; 390:         if (t == 1) return _tty_msg[1];
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
+        je _L51930362
+        move @R0 #0
+        jmp _L51930363
+_L51930362:
+        move @R0 #1
+_L51930363:
+        cmp @R0 #0
+        jz sta_51930360
+        move @R0 _tty_msg
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 #1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move @R0 [@R0]
+        jmp L_51930352
+sta_51930360:
+sta_51930361:
+; 391:         if (t == 10) return -1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
+        je _L51930366
+        move @R0 #0
+        jmp _L51930367
+_L51930366:
+        move @R0 #1
+_L51930367:
+        cmp @R0 #0
+        jz sta_51930364
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        jmp L_51930352
+sta_51930364:
+sta_51930365:
+sta_51930354:
+        jmp sta_51930353
+sta_51930355:
+L_51930352:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+tty_closed:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int tty_closed()
+; function : tty_closed
+; return   : int
+; --------------------------------------------
+tty_closed:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 395: int tty_closed(void) { return _tty_alt ? ui_win_closed() : 0; }
+        move @R0 [_tty_alt]
+        test @R0 @R0
+        jz _L51930368
+        call ui_win_closed
+        jmp _L51930369
+_L51930368:
+        move @R0 #0
+_L51930369:
+        jmp L_51930370
+L_51930370:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret

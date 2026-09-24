@@ -126,10 +126,31 @@ static void con_sgr_bg(int c)
     con_putc(27); con_putc('['); con_putn(code); con_putc('m');
 }
 
+/* ⚠ **只有属性真的变了才发 SGR** —— 这不是省字节的优化，是**正确性**。
+ *
+ * 从前 `putch` 每写一个字符都无条件 `con_sgr(at)`，于是输出流长这样：
+ *
+ *     ESC[37m ESC[40m E2  ESC[37m ESC[40m 94  ESC[37m ESC[40m 8C
+ *
+ * 而宿主的输出管线是**按字节重组 UTF-8** 的（`VMLRuntime.Syscall.cs` 的
+ * `_utf8OutputBuffer`：`putchar` 一次只进一个字节，攒够了才解码成一个字符）。
+ * 那些转义字节夹在中间 ⇒ `E2` 后面跟的不是续字节而是 `1B` ⇒ 被判成"单字节字符"，
+ * **整个多字节序列碎掉**。
+ *
+ * 实测症状：**中文和框线（`┌ ─ │`）在命令行上一律变成 `â??` 之类的乱码**，
+ * 而纯 ASCII 完全正常 —— 于是很容易被当成"终端/字体的问题"。
+ * 修前一段 644 字节的内容实际发出 **3684 字节**（5.7 倍），修后一字符一个字节。
+ *
+ * `conLastAt` 记的是**终端当前真的处在哪个属性上**；任何绕过本函数直接发 SGR
+ * 的地方都必须把它置回 -1（见 `clrscr` 的说明）。 */
+static int conLastAt = -1;
+
 static void con_sgr(int at)
 {
+    if (at == conLastAt) return;
     con_sgr_fg(at & 15);
     con_sgr_bg((at >> 4) & 15);
+    conLastAt = at;
 }
 
 /* 把一行的**某一段**重新发一遍（改过影子之后用它刷新） */
@@ -137,16 +158,18 @@ static void con_redraw_range(int y, int x0, int x1)
 {
     int x;
     int at;
-    int last;
 
     if (y < 0 || y >= CON_ROWS) return;
     if (x0 < 0) x0 = 0;
     if (x1 > CON_COLS - 1) x1 = CON_COLS - 1;
 
-    last = -1;
+    /* 这里原来自带一个 `last` 去重 —— 与 `con_sgr` 里的 `conLastAt` 是**同一个**
+       "终端现在什么属性"的问题，两处各记一份必然漂（本仓头号坑）。
+       现在统一交给 `con_sgr` 去重，这里只管定位与发字节。 */
     for (x = x0; x <= x1; x++) {
         at = conAt[y * CON_COLS + x];
-        if (at != last) { con_cup(x, y); con_sgr(at); last = at; }
+        con_cup(x, y);
+        con_sgr(at);
         con_putc(conCh[y * CON_COLS + x]);
     }
 }
@@ -185,6 +208,9 @@ void clrscr(void)
 {
     con_init();
     con_putc(27); con_puts("[2J");      /* ED：清整屏 */
+    /* ⚠ `ESC[2J` **不改属性**（它不是 SGR），所以这里不必把 `conLastAt` 置回 -1；
+       但**别的模块**（`crt.c` 之类）在同一进程里发过 SGR 就会让跟踪失准 ——
+       本项目里一条流水线只有一个输出者，暂不为此加跨模块的失效通知。 */
     con_sgr((conBg << 4) | conFg);
     con_cup(0, 0);
     con_fill(0, 0, CON_COLS - 1, CON_ROWS - 1, ' ', (conBg << 4) | conFg);
