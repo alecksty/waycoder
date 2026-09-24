@@ -301,11 +301,20 @@
                      贴在面板**最上沿**（手指自然会往那儿摸），整条都可拖（不是只有中间那个小横杠 ——
                      横杠只是"这里能拖"的视觉提示，命中区整条 20dp 高，好按）。
                      面板是 `VerticalOptions="End"` 的浮层 ⇒ **往上拖 = 变高**，所以位移要取负。 -->
-                <Grid x:Name="PanelDragBar" Grid.Row="0" HeightRequest="20" BackgroundColor="Transparent">
+                <!-- ⚠ 背景色**必须是"看得见的色"，不能写 `Transparent`**：Android 上
+                     没有背景可画的布局**不参与命中测试**，手势永远收不到 —— 实测把
+                     `Transparent` 那版装上去拖了半天面板纹丝不动、日志里一条异常都没有。
+                     用**与面板同一个色**（视觉上严丝合缝地融进去，但对命中是"有背景"）。
+                     ⚠ 中间那个小横杠要 `InputTransparent="True"`：它自己是个有颜色的
+                     `BoxView`（= 有背景 ⇒ 会消费触摸），不穿透的话**手指正好落在横杠上
+                     反而拖不动** —— 而横杠正是用户最自然去按的地方。 -->
+                <Grid x:Name="PanelDragBar" Grid.Row="0" HeightRequest="20"
+                      BackgroundColor="{AppThemeBinding Light=#F2F0F0F3, Dark=#F21A1A1E}">
                     <Grid.GestureRecognizers>
                         <PanGestureRecognizer PanUpdated="OnPanelDragPanUpdated" />
                     </Grid.GestureRecognizers>
                     <BoxView x:Name="PanelDragGrip"
+                             InputTransparent="True"
                              WidthRequest="44" HeightRequest="4" CornerRadius="2"
                              HorizontalOptions="Center" VerticalOptions="Center"
                              Color="{AppThemeBinding Light=#C9C9CE, Dark=#55555C}" />
