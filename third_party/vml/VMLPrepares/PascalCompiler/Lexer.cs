@@ -85,11 +85,26 @@ namespace PascalCompiler
             { "out", TokenType.OUT },
             { "inout", TokenType.INOUT },
             
-            // 文件类型关键字
-            { "file", TokenType.FILE },
-            { "text", TokenType.TEXT },
-            { "textfile", TokenType.TEXT },
-
+            /* ── 文件类型：**刻意不列成保留字**（`File`/`Text`/`TextFile`）────────────
+             *
+             * Turbo Pascal 里它们是**预定义类型标识符**（standard identifier），
+             * **不是保留字** —— 用户可以把它们重新定义成变量名/形参名，这是合法且常见的写法：
+             * `var Text: string;`、`procedure P(text: string);`（实测这两条在旧版本里
+             * 一律报「期望 ')'」/「期望 'begin'」）。而 `Text` 恰恰是老程序里
+             * **最常见的"文字缓冲区"变量名**之一。
+             *
+             * 代价是它随仓库发的库文件也中招：`Lib/pascal/gfx.pas` 有一句
+             * `procedure GfxPrint(x, y: integer; text: string; color: integer);`
+             * ⇒ **整个单元解析失败**，于是 `uses Gfx` 的程序的声明**一个都登记不上**、
+             * 报一堆"未声明的变量"，而错在一个跟用户源码无关的库里。
+             *
+             * 所以：**从保留字表里拿出来**，改由 `Parser.ParseType` **按名字**认
+             * （它本来就这么处理 `TextFile`，见那里的分支）。这样它们在类型位置仍是文件类型，
+             * 在别处（变量名/形参名/表达式）恢复成普通标识符。
+             *
+             * ⚠ 改这里要连带看 `Parser.cs` 里 `TokenType.FILE` / `TokenType.TEXT` 的**全部**
+             * 使用点 —— 目前只有 `ParseType` 两处（`file` 一个、`text` 一个），
+             * 已一并改成按名字判。新增别的使用点会让这条"当成普通标识符"的语义破功。 */
             // Delphi/FreePascal OOP 关键字 (v1.66.32+)
             { "class", TokenType.CLASS },
             { "object", TokenType.OBJECT },

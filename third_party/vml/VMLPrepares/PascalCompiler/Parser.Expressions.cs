@@ -523,9 +523,29 @@ namespace PascalCompiler
                     Expect(TokenType.IDENTIFIER, "期望参数名");
                 }
                 
-                Expect(TokenType.COLON, "期望 ':'");
-                var type = ParseType();
-                
+                /* ── 无类型 `var` 形参（`procedure P(var x);`）────────────────────────
+                 *
+                 * Turbo Pascal 允许 `var` 形参**不写类型**，表示"传一个任意变量的地址"
+                 * （标准库的 `FillChar`/`Move`/`BlockRead(F, Buf, N)` 全是这个形状）。
+                 * 此前这里无条件 `Expect(COLON)` ⇒ 报「期望 ':'」，
+                 * 而**随仓库发的 `Lib/pascal/gfx.pas` 就踩在这上面**
+                 * （`GfxPutImage(…; var data)` / `GfxGetImage(…; var buffer)`）——
+                 * 整个单元解析失败 ⇒ `uses Gfx` 的程序的声明一个都登记不上。
+                 *
+                 * 类型给 `INTEGER`（4 字节）是**有意的**：本前端的 `varParameters`
+                 * 集合已经把"传地址"这件事管住了，这里只需要一个**宽度正确**的类型 ——
+                 * 无类型形参在调用方眼里就是一个地址，4 字节。
+                 * ⚠ 只在 `var` 修饰时才允许省略；不带 `var` 的 `P(x)` 仍是语法错误，
+                 *   照旧走下面那句 `Expect` 报错（那多半是用户真写错了，不该放过）。 */
+                TypeNode type;
+                if (isVar && GetTokenType(Cur) != TokenType.COLON)
+                    type = new SimpleTypeNode { TypeName = "INTEGER", Line = Cur.Line, Column = Cur.Column };
+                else
+                {
+                    Expect(TokenType.COLON, "期望 ':'");
+                    type = ParseType();
+                }
+
                 foreach (var name in names)
                 {
                     parameters.Add(new ParameterNode

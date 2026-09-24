@@ -23,6 +23,20 @@ namespace PascalCompiler
 
         public Parser(List<Token> tokens) : base(tokens) { }
 
+        /// <summary>
+        /// 当前 token 是不是一个**叫这个名字的普通标识符**。
+        ///
+        /// <para>
+        /// 给"预定义类型标识符"（`File`/`Text`/`TextFile`）用：它们在 Turbo Pascal 里
+        /// **不是保留字**、可以被用户重新定义（`var Text: string;`），所以 Lexer 索性
+        /// 不把它们收进关键字表、一律发 `IDENTIFIER`，只在**类型位置**按名字认
+        /// （见 `ParseType` 那两支）。判据不区分大小写 —— Pascal 的标识符本来就不区分。
+        /// </para>
+        /// </summary>
+        private static bool IsIdentifierNamed(Token t, string name)
+            => t.Type == TokenType.IDENTIFIER
+               && string.Equals(t.Value?.ToString(), name, StringComparison.OrdinalIgnoreCase);
+
         protected override Token Expect(TokenType tokenType, string message)
         {
             if (Check(tokenType)) return Advance();
@@ -619,35 +633,36 @@ namespace PascalCompiler
                 Expect(TokenType.RPAREN, "期望 ')'");
                 return enumType;
             }
-            else if (Match(TokenType.FILE))
+            /* ── `file` / `text` / `textfile`：**按名字认，不按 token 类型认** ──────────
+             *
+             * 它们从前是 `TokenType.FILE` / `TokenType.TEXT`（保留字），而 Turbo Pascal 里
+             * 它们是**预定义类型标识符**、可以被用户重新定义成变量名或形参名
+             * （`var Text: string;` 是老程序里的常见写法）。判据与理由见 `Lexer` 关键字表里
+             * 那段注释 —— 简言之：**当保留字会让用户的变量名编不过**。
+             *
+             * ⚠ 这两支必须排在**下面那个 `Match(TokenType.IDENTIFIER)` 之前**：
+             * 现在它们是普通 IDENTIFIER，放到后面就被通用分支吃掉了
+             * （那条分支只特判 `TextFile`，`file`/`text` 会一路当成"未知类型名"）。 */
+            else if (IsIdentifierNamed(token, "file"))
             {
+                Advance();
                 FileTypeNode fileType = new FileTypeNode
                 {
                     Line = token.Line,
                     Column = token.Column
                 };
-                
-                // 检查是否是 FILE OF <type> 或 TEXT
+                // `FILE OF <type>` 是无类型文件带元素类型；裸 `FILE` 是无类型文件
                 if (Match(TokenType.OF))
-                {
-                    // FILE OF <type>
                     fileType.ElementType = ParseType();
-                }
-                else
-                {
-                    // 简单 FILE 类型 (无类型文件) 或 TEXT
-                    // 这里我们假设是简单文件类型
-                    // TEXT 类型会在下面单独处理
-                }
-                
                 return fileType;
             }
-            else if (Match(TokenType.TEXT))
+            else if (IsIdentifierNamed(token, "text") || IsIdentifierNamed(token, "textfile"))
             {
-                // TEXT 是预定义的文件类型
+                Advance();
+                // TEXT / TEXTFILE 是预定义的文件类型（没有元素类型）
                 return new FileTypeNode
                 {
-                    ElementType = null, // TEXT 文件没有元素类型
+                    ElementType = null,
                     Line = token.Line,
                     Column = token.Column
                 };

@@ -122,14 +122,14 @@ namespace PascalCompiler
                 {
                     CodeGenerator codeGen = new CodeGenerator(programNode);
                     codeGen.SourceLines = source.Split('\n');
-                    codeGen.UseCrtOutput = parser.UsesNames.Contains("crt");
+                    codeGen.UseCrtOutput = UsesUnit(parser, "crt");
                     return codeGen.GenerateCode();
                 }
                 if (ast is UnitNode unitNode)
                 {
                     CodeGenerator codeGen = new CodeGenerator(unitNode);
                     codeGen.SourceLines = source.Split('\n');
-                    codeGen.UseCrtOutput = parser.UsesNames.Contains("crt");
+                    codeGen.UseCrtOutput = UsesUnit(parser, "crt");
                     return codeGen.GenerateCode();
                 }
                 throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的AST节点类型");
@@ -223,15 +223,65 @@ namespace PascalCompiler
             foreach (string unitName in parser.UsesNames)
             {
                 string unitPath = ResolveUnitFile(unitName, searchPaths);
-                if (unitPath != null) RegisterUnitFunctions(unitPath);
+                if (unitPath != null)
+                {
+                    RegisterUnitFunctions(unitPath, diagnostics);
+                    continue;
+                }
+
+                /* ── `uses` 了一个**找不到的单元**：从前是彻底静默 ────────────────────
+                 *
+                 * `ResolveUnitFile` 返回 null 就 continue，一个字的提示都没有 ⇒ 那个单元
+                 * 在程序里**等于不存在**：它声明的常量、子程序头、类型全都没有，
+                 * 于是下游表现成一片"未声明的变量 'X'" —— 而**真凶在 `uses` 那一行**，
+                 * 离报错位置几十上百行。（实测：语料里 `uses Vector` 9 份、`uses Strings` 5 份、
+                 * `uses UMouse`/`Menu` 各 2 份，都是程序自带、本仓库没有的单元，
+                 * 它们全都表现成"程序里到处是未声明的变量"。）
+                 *
+                 * ⚠ **是警告不是错误**，这是刻意的：老程序普遍 `uses` 一堆在本平台
+                 * 无关紧要的单元（`ShellApi`、`Printer`、`TpEms`…），硬失败会把它们
+                 * 全部挡在门外；而"找不到"本身不影响能编过 —— 它只影响**诊断的质量**。
+                 * 把话说清楚，让用户能一眼看到"是我少带了一个文件"，而不是去猜。
+                 *
+                 * ⚠ 唯一例外的名字是 `System`：它是**隐式**单元（Turbo Pascal 里不用写
+                 * `uses` 就已经在作用域内），本平台的 System 语义在**前端内建**，
+                 * 没有、也不该有对应的单元文件 ⇒ 显式写 `uses System` 不该被警告。 */
+                if (!string.Equals(unitName, "system", StringComparison.OrdinalIgnoreCase)
+                    && !LibModuleExists(unitName, sourceDir))
+                    diagnostics.AddWarning(filePath, 1, 1, ErrorCode.Unknown,
+                        $"找不到单元 '{unitName}'：搜索路径里既没有它的 `.pas` 声明、" +
+                        "也没有同名的库模块，它声明的常量/子程序**一个都不会生效**" +
+                        "（下游会表现成「未声明的变量」）。若是程序自带的单元，" +
+                        "把那份源码一起放进项目目录即可。");
             }
+
+            /* ── 这个 bag 里的**警告**要有出口 ──────────────────────────────────────
+             *
+             * ⚠ 它此前**收集了没人看**：本方法是 Pascal 自己手写的一条流水线，`diagnostics`
+             * 是这个方法的局部量，而唯一读它的地方是上面那句 `if (diagnostics.HasErrors) throw`
+             * —— 于是 `{$IFDEF}` 指令层报的告警、以及 `RegisterUnitFunctions` 报的告警
+             * **一条都到不了用户眼前**（错误走异常、警告走这里，两条路）。
+             * 与 `CodeGeneratorBase.BuildProgram` 里那段"警告要有出口"同一形状、
+             * 同一格式（GCC 风 `file:line:col: warning: …`，宿主侧 `VmlDiagnostics` 认这个形状）。
+             *
+             * ⚠ **位置必须在代码生成之前**：codegen 在 `BuildProgram` 里见 `Diags.HasErrors`
+             *   就抛，一旦这句摆在后面，"编译失败"这一路上攒下的告警就全被异常带走了 ——
+             *   而"恰恰编不过"正是最需要看见这些告警的时候（实测第一版就摆错了位置）。
+             *   本 bag 在 codegen 期间不再新增内容（codegen 自持另一个 bag，见
+             *   `CodeGeneratorBase.Diags`），所以放在这里与放在末尾等价、且更可靠。
+             *
+             * 走 **stderr** 不走 stdout：`vml-out-probe` 那套是拿 stdout 逐字节比对程序输出的，
+             * 警告混进 stdout 会把"程序输出对不对"的判据污染掉。 */
+            if (diagnostics.WarningCount > 0)
+                foreach (var warn in diagnostics.Warnings)
+                    Console.Error.WriteLine(warn.ToString().TrimEnd());
 
             VmlProgram prog;
             if (ast is ProgramNode programNode)
             {
                 CodeGenerator codeGen = new CodeGenerator(programNode);
                 codeGen.SourceLines = source.Split('\n');
-                codeGen.UseCrtOutput = parser.UsesNames.Contains("crt");
+                codeGen.UseCrtOutput = UsesUnit(parser, "crt");
                 prog = codeGen.GenerateCode();
             }
             else if (ast is UnitNode unitNode)
@@ -423,7 +473,12 @@ namespace PascalCompiler
     /// </list>
     /// </para>
     /// </summary>
-    private static void RegisterUnitFunctions(string unitPath)
+    /// <param name="diags">
+    /// ⚠ **不是可有可无的**：本方法从前是 `catch { }` 一包到底的，于是"单元文件解析失败"
+    /// 与"解析出来根本不是个单元"这两种情况**都表现为"这个单元的常量一个都没登记上"** ——
+    /// 用户看到的是「未声明的变量 'White'」，而真凶在一个跟他源码无关的文件里。
+    /// </param>
+    private static void RegisterUnitFunctions(string unitPath, DiagnosticBag diags)
         {
             /* ⚠ **这里会把"生效中的行号映射"抹掉** —— `LexerBase` 的构造函数每次都会
                `SetActiveLineMap(这份源码对应的表)`，而单元文件是一份**另外的源码**，
@@ -439,7 +494,12 @@ namespace PascalCompiler
                 // 单元文件里的 `{$IFDEF}` 同样要处理 —— 否则两个分支的 `interface` 声明
                 // 会一起进 `UnitSubprograms`，调用点拿到的是哪个取决于遍历顺序。
                 s = new PascalDirectives(DirectiveSymbols()).Process(s, unitPath);
-                var lx = new Lexer(s); var up = new Parser(lx.Tokenize()); var ast = up.Parse();
+                // ⚠ `FileName` 必须给 —— 不给的话单元文件里的语法错会报成 `<input>:行:列`，
+                //    而外面那条告警说的是"这个单元没登记上"，两者对不起来，
+                //    排查时还得自己猜是哪个文件第几行（实测踩过）。
+                var lx = new Lexer(s) { FileName = unitPath };
+                var up = new Parser(lx.Tokenize()) { FileName = unitPath };
+                var ast = up.Parse();
                 if (ast is UnitNode un)
                 {
                     foreach (var sub in un.InterfaceSubprograms)
@@ -472,9 +532,89 @@ namespace PascalCompiler
                         }
                     }
                 }
-            } catch { }
+                else
+                {
+                    /* ⚠ **走到这里说明"找到了文件、但它不是单元"** —— 最常见的一种是
+                       **同名遮蔽**：`sourceDir` 是搜索路径的**第一站**（Pascal 的常规语义，
+                       本地文件优先），所以工作区里一个叫 `crt.pas` 的**主程序**会把
+                       `Lib/pascal/crt.pas` 整个顶掉，于是 `uses Crt` 之后
+                       `TextColor(White)` 报「未声明的变量 'White'」——而 `crt.pas`
+                       在用户的目录里躺着、看上去毫无关系。（这个坑实测吃掉过两轮排查。）
+
+                       这里是**警告不是错误**：老程序里"自己写个 `dos.pas` 覆盖库单元"
+                       是合法写法，只是我们没能从它那儿拿到声明 ⇒ 把话说清楚，别拦。 */
+                    diags.AddWarning(unitPath, 1, 1, ErrorCode.Unknown,
+                        $"`uses` 引到一个单元，但它不是单元文件（`{Path.GetFileName(unitPath)}` 里不是 `unit …;`）" +
+                        "—— 它声明的常量/子程序**一个都不会生效**。若是工作区里的同名文件遮蔽了库单元，改名即可。");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                /* 解析失败**也要出声**：静默的后果与上面那条一模一样（符号悄悄全没了），
+                   而"少一个常量"在下游只会表现成"未声明的变量"，指不回这里。 */
+                diags.AddWarning(unitPath, 1, 1, ErrorCode.Unknown,
+                    $"`uses` 引到的单元文件解析失败，其中的声明不会生效：{ex.Message}");
+            }
             finally { CompilerHelper.SetActiveLineMap(savedMap); }
         }
+
+        /// <summary>
+        /// `uses` 里有没有这个单元 —— **按 Pascal 的规矩不区分大小写**。
+        ///
+        /// <para>
+        /// ⚠ 从前这里是三处各写一遍的 <c>parser.UsesNames.Contains("crt")</c>，而
+        /// `UsesNames` 存的是**词法层原样的大小写**（见 `Lexer.ReadIdentifier`：它用小写副本查关键字表，
+        /// 但 token 的 Value 仍是 `value.ToString()`）⇒ **只有把小写 `crt` 一个字母不差地写出来**
+        /// 才判得中。老程序里的标准写法是 `uses Crt`（语料 112 份里 47 份这么写），
+        /// 于是它们**从来没进过 CRT 通道**（`OutputSyscall` 一直退回普通 stdio 号）——
+        /// 不报错、只是 `TextColor` 设的颜色在 `WriteLn` 上不生效。
+        /// </para>
+        ///
+        /// <para>
+        /// 判据与 `AutoLinkUnit` 对齐（那边一直是 `OrdinalIgnoreCase`，所以 `uses Crt`
+        /// **链接** CRT 库是成功的 —— 一个用大写、一个用小写，正是"同一规则两处实现"的典型）。
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// `uses` 的这个单元有没有**可链接的库模块**（`<单元名>.vml`）。
+        ///
+        /// <para>
+        /// 有些单元**本来就不需要 `.pas`**：它们的实现模块直接导出 **Pascal 大小写的裸标签**
+        /// （`Lib/shared/dos.vml` 里就是 `GetDate:` / `FindFirst:` 这样），
+        /// `uses Dos` 之后 `CALL GetDate` 在链接期按名字就能解析。
+        /// 最典型的例子是 `Dos` —— 语料里 26 份程序用它，而 `Lib/pascal/` 下
+        /// **没有、也不需要** `dos.pas`。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 少了这条判据，"找不到单元"那条告警会对 `uses Dos` **全线误报**
+        /// （26 份语料一起报），比不做还糟 —— 所以两个判据必须成对出现。
+        /// </para>
+        ///
+        /// <para>
+        /// 候选路径**刻意与 `AutoLinkUnit` 保持一致**（那里是真正去链库的地方）：
+        /// 两边不一致的话，会出现"这里说找得到、那里却没链上"这种最难查的分叉。
+        /// </para>
+        /// </summary>
+        private static bool LibModuleExists(string unitName, string sourceDir)
+        {
+            var vmlHome = Environment.GetEnvironmentVariable("VML_HOME")
+                ?? Environment.GetEnvironmentVariable("VML_TOOL_PATH");
+            string file = unitName + ".vml";
+            var candidates = new List<string?>
+            {
+                Path.Combine(sourceDir, file),
+                !string.IsNullOrEmpty(vmlHome) ? Path.Combine(vmlHome, "Lib", "shared", file) : null,
+                !string.IsNullOrEmpty(vmlHome) ? Path.Combine(vmlHome, "Lib", "pascal", file) : null,
+                Path.Combine(Directory.GetCurrentDirectory(), "Lib", "shared", file),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Lib", "shared", file),
+                Path.Combine(sourceDir, "..", "..", "..", "Lib", "shared", file),
+            };
+            return candidates.Any(c => c != null && File.Exists(c));
+        }
+
+        private static bool UsesUnit(Parser parser, string unitName)
+            => parser.UsesNames.Any(u => string.Equals(u, unitName, StringComparison.OrdinalIgnoreCase));
 
         private static void AutoLinkUnit(Parser parser, VmlProgram prog, string unitName, string libFile, string desc, string sourceDir)
     {
