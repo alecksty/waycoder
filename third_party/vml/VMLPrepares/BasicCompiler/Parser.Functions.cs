@@ -549,6 +549,41 @@ namespace BasicCompiler
             CallStatement call = new CallStatement(token.Line, token.Column, name);
             int startLine = token.Line;
 
+            // ── 调用括号：`ui_rect(ox, oy, w, h, …)` ───────────────────────────────
+            //
+            // QBasic 允许子过程调用写成 `名字(实参表)`（等价于裸调用 + 括号）。它与下面
+            // 那段「坐标**元组**」在**文本上高度相似** —— 都长成 `名字 (a, b` —— 但语义完全不同：
+            //
+            //     ui_rect(a, b, c, d)        ← `(` 是**调用括号**，里面是完整实参表 ⇒ 4 个实参
+            //     _PUTIMAGE (0, 0), img      ← `(0, 0)` 是**第一个实参**（一个点）⇒ 2 个实参
+            //
+            // ⚠ **判据是「括号闭合在哪儿」，不是「括号里有没有逗号」**。只按后者判会把这
+            //   两者混为一谈：`ui_rect(ox, oy, bwid, bhei, …)` 被当成元组 ⇒ **只取第一个实参
+            //   `ox`，其余 7 个连同 `)` 一起被吃掉**，编出一个只传 1 个参数的调用。
+            //   宿主按 8 个形参读，后 7 个读到的是寄存器里的残留值 ⇒ 画到 (200,0) 这种
+            //   坐标上、宽高为 0（**画面整片空白，但编译零错误、退出码 0**）。
+            //   实测：`Examples/basic/gorilla.bas` 171 处、`tetris.bas` 20 处全是这种写法
+            //   ⇒ 两份游戏一起黑屏，而 `demo_ui.bas`（用裸调用）正常 —— 正是"同一语法两种
+            //   写法、只坏一种"的指纹。
+            //
+            // 判据：`(` 匹配的 `)` **之后就是语句边界**（行尾 / `:` / EOF）⇒ 它包住了整个
+            //   实参表 ⇒ 调用括号。否则（`), …` 这种后面还有东西）⇒ 是实参位置上的元组，
+            //   交给下面那段既有逻辑。
+            if (Peek().Type == TokenType.LPAREN && ParenIsWholeArgList())
+            {
+                Advance();                                  // skip (
+                while (!AtEnd() && Peek().Type != TokenType.RPAREN && Peek().Line == startLine)
+                {
+                    if (!IsExpressionStart(Peek())) break;
+                    Expression a = ParseExpression();
+                    if (a != null) call.Arguments.Add(a);
+                    if (Peek().Type == TokenType.COMMA) Advance();   // consume comma
+                    else break;
+                }
+                if (!AtEnd() && Peek().Type == TokenType.RPAREN) Advance();   // consume )
+                return call;
+            }
+
             // Parse comma-separated arguments until we hit a statement boundary
             while (!AtEnd() && Peek().Type != TokenType.COLON)
             {
@@ -631,6 +666,49 @@ namespace BasicCompiler
             }
 
             return call;
+        }
+
+        /// <summary>
+        /// 当前位置是 `(`，且它**包住了整个实参表** —— 即匹配的 `)` 之后就是语句边界
+        /// （行尾 / `:` / EOF）—— 只看不消费。
+        ///
+        /// <para><b>为什么用"闭合位置"当判据</b>：这是区分**调用括号** `名字(实参表)` 与
+        /// **实参里的坐标元组** `名字 (x, y), 其余…` 的唯一可靠依据 —— 两者在 `名字 (a, b`
+        /// 这一段上**逐字符相同**，只有 `)` 后面跟什么不同。按"括号里有没有逗号"判会把前者
+        /// 误判成后者，见 <see cref="ParseImplicitCallStatement"/> 里那段长注释。</para>
+        ///
+        /// <para>空括号 `f()` 也走这条路（`(` 紧跟 `)` ⇒ 匹配后即边界）。</para>
+        /// </summary>
+        private bool ParenIsWholeArgList()
+        {
+            if (Peek().Type != TokenType.LPAREN) return false;
+            int line = Peek().Line;
+            int j = current + 1;
+            int depth = 1;
+            while (j < tokens.Count)
+            {
+                var t = tokens[j];
+                if (t.Type == TokenType.EOF) return false;
+                // ⚠ 跨行 ⇒ 不是"包住本行实参表"（续行要写显式 `_`，这里不越过）。
+                if (t.Line != line) return false;
+                if (t.Type == TokenType.LPAREN) depth++;
+                else if (t.Type == TokenType.RPAREN)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        // 匹配的 `)` 之后必须是语句边界：行变了 / `:` / EOF。
+                        // 后面还有 `,` 之类 ⇒ 它只是**一个实参**（坐标元组）。
+                        if (j + 1 >= tokens.Count) return true;
+                        var nxt = tokens[j + 1];
+                        return nxt.Type == TokenType.EOF
+                            || nxt.Type == TokenType.COLON
+                            || nxt.Line != line;
+                    }
+                }
+                j++;
+            }
+            return false;
         }
 
         /// <summary>
