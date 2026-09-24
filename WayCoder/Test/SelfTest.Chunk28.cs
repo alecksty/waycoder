@@ -130,8 +130,24 @@ public static partial class SelfTest
         /// 这三个号测透 —— 记一笔的假实现在这里等于什么都没测。
         /// </para>
         /// </summary>
+        /// <summary>光栅化被调了几次 —— 截屏用例断言「路径非法时压根没去光栅化」。</summary>
+        public int RasterCalls;
+
+        /// <summary>
+        /// 非 0 时：在**光栅化这一刻**把场景改成这个边长 —— 模拟"UI 线程在截屏中途
+        /// 改了 `scene.Width/Height`"。真机上那是 40ms 定时器的 `ResizeScene`，
+        /// 症状是 `ArgumentException: 像素缓冲长度不足`（实现分几次读尺寸就会被它咬到）。
+        /// </summary>
+        public int ResizeSceneOnRaster;
+
         public bool Rasterize(int x, int y, int w, int h, byte[] dest)
         {
+            RasterCalls++;
+            if (ResizeSceneOnRaster > 0 && Opened is not null)
+            {
+                Opened.Width = ResizeSceneOnRaster;
+                Opened.Height = ResizeSceneOnRaster;
+            }
             if (Opened is null || w <= 0 || h <= 0 || dest.Length < w * h * 4) return false;
             var canvas = DrawRunner.Rasterize(DrawRunner.Parse(Opened.BuildDsl()));
 
@@ -213,14 +229,6 @@ public static partial class SelfTest
         public string ResolvePrefix = "/fake/";
 
         public string ResolvePath(string relative) => ResolvePrefix + relative;
-
-        /// <summary>截屏的固定答案（null = 这一端截不了，用来测失败路径）。</summary>
-        public RasterImage? CaptureAnswer;
-
-        /// <summary>截屏被调用了几次 —— 用来断言「路径非法时压根没去截」。</summary>
-        public int CaptureCalls;
-
-        public RasterImage? CaptureAppWindow() { CaptureCalls++; return CaptureAnswer; }
 
         public readonly List<string> Logs = new();
         public void Log(string message) => Logs.Add(message);
@@ -587,13 +595,56 @@ public static partial class SelfTest
         Check("反斜杠当分隔符时 `..` 同样被拒", VmlUi.SanitizeShotPath("..\\x.png") is null);
 
         // 接受与规范化
-        Check("空串 → 默认名", VmlUi.SanitizeShotPath("") == VmlUi.DefaultShotName);
-        Check("纯空白 → 默认名", VmlUi.SanitizeShotPath("   ") == VmlUi.DefaultShotName);
+        // ⚠ 空串走的是**空串**（= "没指定，调用方去生成默认名"），不是 null ——
+        //   把两者混起来的话，"没给路径"会被当成非法路径直接失败。
+        Check("空串 → 空串（没指定，不是失败）", VmlUi.SanitizeShotPath("") == "");
+        Check("纯空白 → 空串", VmlUi.SanitizeShotPath("   ") == "");
+        Check("只给分隔符 → 空串", VmlUi.SanitizeShotPath("///") == "");
         Check("无扩展名 → 补 .png", VmlUi.SanitizeShotPath("shot") == "shot.png");
         Check("有扩展名 → 原样", VmlUi.SanitizeShotPath("a.png") == "a.png");
         Check("子目录保留（分隔符归一成 /）",
             VmlUi.SanitizeShotPath("shots\\1") == "shots/1.png");
         Check("重复分隔符不产生空段", VmlUi.SanitizeShotPath("a//b.png") == "a/b.png");
+
+        // ── 默认路径（没给路径时）：`shot/<标题>_<日期>_<时间>.png` ──────────
+        var t = new DateTime(2026, 9, 24, 10, 25, 30);
+        Check("默认路径 = shot/<标题>_<日期>_<时间>.png",
+            VmlUi.DefaultShotPath("tetris", t) == "shot/tetris_20260924_102530.png");
+        Check("中文标题保留（`char.IsLetterOrDigit('中')` 为真，这里正要它真）",
+            VmlUi.DefaultShotPath("五子棋", t) == "shot/五子棋_20260924_102530.png");
+        Check("空标题退回 fallback",
+            VmlUi.DefaultShotPath("", t) == "shot/shot_20260924_102530.png");
+        Check("纯符号标题退回 fallback",
+            VmlUi.DefaultShotPath("../", t) == "shot/shot_20260924_102530.png");
+        // ⚠ 这条是**安全**断言：标题是程序自己起的，含分隔符时若原样拼进路径
+        //   就是一条逃逸通道。清洗后必须是单个安全段（不产生新层级）。
+        Check("标题里的路径分隔符被清洗掉（不产生新层级）",
+            VmlUi.DefaultShotPath("a/b\\c", t) == "shot/a_b_c_20260924_102530.png");
+        Check("标题里的 `..` 出不来",
+            !VmlUi.DefaultShotPath("..", t).Contains(".."));
+        Check("默认路径整体仍是安全的（过一遍清洗不报错）",
+            VmlUi.SanitizeShotPath(VmlUi.DefaultShotPath("t", t)) == "shot/t_20260924_102530.png");
+
+        // 主干清洗的边界。⚠ 两条判据分别是「截断按码点」与「非保留字符换成一个 _」，
+        //   别把它们混起来：emoji 不是字母数字 ⇒ **会被换掉**（那是设计，不是 bug），
+        //   要钉的是"换成**一个** `_` 而不是被切半成两个替换字符"。
+        var stem = VmlUi.SafeFileStem(new string('汉', 80));
+        Check($"过长标题截到 {VmlUi.MaxShotStemRunes} 个码点（实得 {stem.EnumerateRunes().Count()}）",
+            stem.EnumerateRunes().Count() == VmlUi.MaxShotStemRunes);
+
+        // 扩展 B 汉字（**代理对**，且 `Rune.IsLetterOrDigit` 为真 ⇒ 会被保留）——
+        // 截断必须按**码点**：按 `char` 截会把它切半成 U+FFFD（本仓的字符串硬规矩）
+        var extB = VmlUi.SafeFileStem(string.Concat(Enumerable.Repeat(char.ConvertFromUtf32(0x20000), 80)));
+        Check($"扩展 B 汉字截断后仍是 {VmlUi.MaxShotStemRunes} 个码点（实得 {extB.EnumerateRunes().Count()}）",
+            extB.EnumerateRunes().Count() == VmlUi.MaxShotStemRunes);
+        Check("截断结果里没有 U+FFFD（没把代理对切半）", !extB.Contains('�'));
+
+        // emoji 不是字母数字 ⇒ 按规则**换成 `_`**（这是设计，不是 bug）。
+        // 要钉的是"换成**一个** `_`"，而不是被切半成两个替换字符。
+        Check("emoji 换成**一个** `_`（不是保留、也不是切半）",
+            VmlUi.SafeFileStem("游戏😀测试") == "游戏_测试");
+        Check("连续符号压成一个 `_`，且不留尾随 `_`",
+            VmlUi.SafeFileStem("a!!b??") == "a_b");
 
         // ── 二、端到端（真落盘）──────────────────────────────────────────────
         var dir = Path.Combine(Path.GetTempPath(), $"wcvml-shot-{Guid.NewGuid():N}");
@@ -605,10 +656,17 @@ public static partial class SelfTest
             var regs = new int[32];
             var mem = new byte[4096];
 
-            // 一张 2×2 的合成图：像素 (1,0) 是纯红 —— 用来核对 PNG 里的字节顺序
-            var pixels = new byte[2 * 2 * 4];
-            pixels[4] = 0xFF; pixels[5] = 0x00; pixels[6] = 0x00; pixels[7] = 0xFF;  // (1,0) = 红
-            host.CaptureAnswer = new RasterImage(2, 2, pixels);
+            // 开个 4×4 的窗口，整屏铺**纯红** —— 截图之后按像素核对颜色。
+            // 走的是真 syscall（开窗 / 清屏），不是往场景里直接塞图元。
+            regs[0] = WriteCStr(mem, 0, "shot");
+            regs[1] = 4; regs[2] = 4; regs[3] = 0; regs[4] = 0;
+            rt.HandleSyscall(VmlUi.WinOpen, regs, mem);
+            var scene = rt.Scene();
+            if (scene is null) { Check("开窗拿到场景（装置本身）", false); return; }
+            scene.Width = 4; scene.Height = 4;
+
+            regs[0] = unchecked((int)0xFFFF0000u);   // 纯红
+            rt.HandleSyscall(VmlUi.DrawClear, regs, mem);
 
             regs[0] = WriteCStr(mem, 0, "shot");
             Check("SCREENSHOT 被宿主认领", rt.HandleSyscall(VmlUi.Screenshot, regs, mem));
@@ -622,13 +680,15 @@ public static partial class SelfTest
                 Check("内容是 PNG（魔数）",
                     bytes.Length > 8 && bytes[0] == 0x89 && bytes[1] == 0x50
                     && bytes[2] == 0x4E && bytes[3] == 0x47);
-                // 解码回来逐点核对：证明"通道序没搞反"，而不只是"写出了一坨字节"
+
+                // 解码回来逐点核对：既证明尺寸对，也证明**通道序没搞反**
+                //（红线写出的字节必须是 R=FF,G=00,B=00,A=FF，反了就是蓝色）
                 var back = PngDecoder.Decode(bytes);
-                Check($"解码回 2×2（实得 {back.Width}×{back.Height}）",
-                    back.Width == 2 && back.Height == 2);
-                Check("红色像素落在 (1,0) 且是 RGBA 序（通道没反）",
-                    back.Rgba[4] == 0xFF && back.Rgba[5] == 0x00
-                    && back.Rgba[6] == 0x00 && back.Rgba[7] == 0xFF);
+                Check($"解码回 4×4（实得 {back.Width}×{back.Height}）",
+                    back.Width == 4 && back.Height == 4);
+                Check("像素是 RGBA 序的纯红（通道没反）",
+                    back.Rgba[0] == 0xFF && back.Rgba[1] == 0x00
+                    && back.Rgba[2] == 0x00 && back.Rgba[3] == 0xFF);
             }
 
             // 子目录：不先建目录就会抛，这条钉住"建目录"那一步
@@ -636,21 +696,41 @@ public static partial class SelfTest
             rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
             Check("子目录里的图也能落盘", File.Exists(Path.Combine(dir, "shots", "1.png")));
 
+            // 没给路径（空串）⇒ 自动命名 `shot/<标题>_<日期>_<时间>.png`
+            regs[0] = WriteCStr(mem, 256, "");
+            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+            var autoDir = Path.Combine(dir, VmlUi.DefaultShotDir);
+            var auto = Directory.Exists(autoDir) ? Directory.GetFiles(autoDir, "shot_*.png") : [];
+            Check($"空路径 ⇒ 自动命名到 {VmlUi.DefaultShotDir}/（实得 {auto.Length} 个）", auto.Length == 1);
+
+            // ── 跨线程改尺寸（真机踩到的那个 ArgumentException）──────────────
+            // `DrawWindowPage` 的 40ms 定时器会在**别的线程**上按实测视口改
+            // `scene.Width/Height`。实现若分几次读它（分配缓冲读一次、编码校验再读一次），
+            // 中间被改一次就是 `像素缓冲长度不足`。
+            // 这里让假宿主在**光栅化那一刻**把场景撑大 —— 一个确定性的复现。
+            regs[0] = WriteCStr(mem, 320, "race.png");
+            host.ResizeSceneOnRaster = 40;   // 光栅化时把场景改成 40×40
+            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+            host.ResizeSceneOnRaster = 0;
+            Check("光栅化期间场景被改尺寸 ⇒ 不抛、按**快照**的尺寸出图（不炸在 PngEncoder）",
+                File.Exists(Path.Combine(dir, "race.png")));
+
             // ── 三、失败路径 ─────────────────────────────────────────────────
-            // ① 路径非法 ⇒ **压根不去截**，也不落盘
-            host.CaptureCalls = 0;
+            // ① 路径非法 ⇒ **压根不去光栅化**，也不落盘
+            host.RasterCalls = 0;
             regs[0] = WriteCStr(mem, 128, "../escape.png");
             rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
             Check("非法路径 ⇒ -1", regs[0] == -1);
-            Check("非法路径 ⇒ 连截都没截（CaptureCalls == 0）", host.CaptureCalls == 0);
+            Check("非法路径 ⇒ 连光栅化都没做（RasterCalls == 0）", host.RasterCalls == 0);
             Check("非法路径 ⇒ 没有产生任何文件", !File.Exists(Path.Combine(dir, "..", "escape.png")));
 
-            // ② 这一端截不了 ⇒ -1（能力缺失，不是错误）
-            host.CaptureAnswer = null;
-            regs[0] = WriteCStr(mem, 192, "nocap.png");
-            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
-            Check("本端无截屏能力 ⇒ -1", regs[0] == -1);
-            Check("无能力时不留下空文件", !File.Exists(Path.Combine(dir, "nocap.png")));
+            // ② 还没开窗（没有场景）⇒ -1，且不留空文件
+            var bare = new VmlHostRuntime(new FakeVmlHost { ResolvePrefix = dir + Path.DirectorySeparatorChar });
+            var regs2 = new int[32];
+            regs2[0] = WriteCStr(mem, 192, "nowin.png");
+            bare.HandleSyscall(VmlUi.Screenshot, regs2, mem);
+            Check("没开窗 ⇒ -1", regs2[0] == -1);
+            Check("没开窗时不留下空文件", !File.Exists(Path.Combine(dir, "nowin.png")));
         }
         finally
         {

@@ -160,9 +160,9 @@ public static class VmlUi
     /// <summary>
     /// **主动截屏**：R0=相对路径* → R0=**写入的字节数**，失败 -1。
     ///
-    /// 把**本 App 窗口**（含 VML 绘图窗口、屏幕手柄、标题栏）截成 PNG 写进
+    /// 把**画布**（`VmlScene` 里那些图元）光栅化成 PNG，写进
     /// <see cref="SanitizeShotPath"/> 清洗过的相对路径（空串 = 默认名 `shot.png`；无扩展名补 `.png`）。
-    /// 失败码一律 -1，三种原因**不区分**：路径非法 / 这一端截不了 / 写不进去
+    /// 失败码一律 -1，三种原因**不区分**：路径非法 / 没有画布 / 写不进去
     /// —— 程序该做的事都一样（提示一句、继续跑）。
     ///
     /// ⚠ **只有一个参数**：不设"回写实际路径"的缓冲区。程序最自然的写法是
@@ -170,22 +170,33 @@ public static class VmlUi
     /// 往里写就是静默破坏别的字面量。规范化的规则是确定性的（空→`shot.png`、
     /// 无扩展名→补 `.png`），程序自己算得出来。
     ///
-    /// **与 <see cref="GetImage"/>(#584)、<see cref="DrawGetPixel"/>(#587) 的区别**：
-    /// 那两个读的是**画布场景**（保留模式的图元表，当场光栅化），拿到的是像素块/颜色；
-    /// 本号读的是**平台窗口的合成结果** —— 手柄、对话框、系统给的那一圈装饰都在里面，
-    /// 是"用户此刻看到的那张图"。要干净的画布出图用前者。
+    /// ## 为什么截的是**画布**而不是"整个 App 窗口"
     ///
-    /// ⚠ **不是整屏截屏**（不含状态栏、其他 App）：那在 Android 要走 MediaProjection
-    /// （弹系统授权框、用户可拒），iOS 基本做不到。本号刻意选无权限的那条路。
+    /// 走过一版"截窗口"（Android `DecorView.Draw`、Apple `CALayer`、Windows
+    /// `RenderTargetBitmap`），**真机上被否掉了**：`View.Draw` 是软件绘制，
+    /// 而 MAUI 的 `GraphicsView` 内容在硬件加速的 RenderNode 上 ⇒ 截出来
+    /// **标题栏正常、画布整块纯黑**（程序画的颜色一个像素都没有）。
     ///
-    /// ⚠ 宿主的 <c>CaptureAppWindow</c> **可能回 null**（这一端没实现）。
-    /// 桌面命令行端退化为**光栅化 VML 场景**（那里没有 App 窗口），
-    /// 所以同一份程序在桌面与手机上截出来的内容**不一样**，这是有意的。
+    /// 换成光栅化画布之后：四端**逐字同一份代码**（`DrawRunner` 在共享 `Infra/`），
+    /// 没有平台分支、没有权限、也不可能"某一端画不出来"。
+    /// 代价是只有画面本身（不含屏幕手柄与标题栏）—— 那正是要的：
+    /// 当战绩图/分享图用，干净的画面比带一圈 UI 更好。
+    ///
+    /// **与 <see cref="GetImage"/>(#584)、<see cref="DrawGetPixel"/>(#587) 的分工**：
+    /// 那两个是给**程序自己**在运行中读像素用的（句柄 / 单点）；
+    /// 本号是"存一张图给用户看"，落盘、返回长度。
     /// </summary>
     public const int Screenshot = 588;
 
-    /// <summary><see cref="Screenshot"/>(#588) 程序没给路径时用的默认文件名。</summary>
-    public const string DefaultShotName = "shot.png";
+    /// <summary><see cref="Screenshot"/>(#588) 没给路径时，图落在工作区里的这个子目录。</summary>
+    public const string DefaultShotDir = "shot";
+
+    /// <summary>窗口标题清洗后什么都不剩时，用它当文件名主干。</summary>
+    public const string FallbackShotName = "shot";
+
+    /// <summary>文件名主干（来自窗口标题）最多保留多少**码点** —— 标题可以很长，
+    /// 但目录里排起来要看得清。按 Rune 计，避免把代理对切半。</summary>
+    public const int MaxShotStemRunes = 32;
 
     /// <summary>
     /// `GET_IMAGE`：R0=x R1=y R2=w R3=h → R0=**图像句柄**（≥1），失败 0。
@@ -806,13 +817,14 @@ public static class VmlUi
     /// · 拒绝含 `:` 的（盘符 `C:\`、scheme `http:`）；
     /// · 逐段检查，任一段是 `..` 或 `.` **即整体拒绝**（不做"就地消解"——
     ///   悄悄改掉用户给的路径比直接拒绝更难排查）；
-    /// · 空串/纯空白 → 默认名 <see cref="DefaultShotName"/>；
+    /// · 空串/纯空白 → 返回**空串**（合法，含义是"程序没指定，调用方去生成默认名"，
+    ///   见 <see cref="DefaultShotPath"/>）—— ⚠ 别把它当失败，`null` 才是失败；
     /// · 无扩展名 → 补 `.png`（不认扩展名会让用户在文件页看不出这是什么）。
     /// </summary>
     public static string? SanitizeShotPath(string? raw)
     {
         var s = (raw ?? "").Trim().Replace('\\', '/');
-        if (s.Length == 0) return DefaultShotName;
+        if (s.Length == 0) return "";                  // 没指定 ⇒ 交给调用方生成默认名
         if (s.Contains(':')) return null;              // 盘符 / scheme
 
         var parts = s.Split('/');
@@ -823,11 +835,73 @@ public static class VmlUi
             if (p == ".." || p == ".") return null;    // ← 唯一的逃逸屏障，别放宽
             kept.Add(p);
         }
-        if (kept.Count == 0) return DefaultShotName;
+        if (kept.Count == 0) return "";                // 只给了分隔符 ⇒ 同"没指定"
 
         var last = kept[^1];
         if (!last.Contains('.')) kept[^1] = last + ".png";
         return string.Join('/', kept);
+    }
+
+    /// <summary>
+    /// 程序**没给路径**时的默认落点：
+    /// `shot/&lt;窗口标题&gt;_&lt;日期&gt;_&lt;时间&gt;.png`
+    ///（五子棋那局就存成 `workspace/shot/五子棋_20260924_102801.png`）。
+    ///
+    /// 为什么要带标题与时间戳（而不是固定的 `shot.png`）：截屏是**给人看/给人找**的，
+    /// 固定名字只会互相覆盖 —— 而这个接口最常见的用法就是"玩到一半连存几张"。
+    /// 带时间戳还顺带按时间排序，一眼看出先后。
+    ///
+    /// ⚠ `now` 由调用方传进来（**不在里面调 `DateTime.Now`**）：这样这个函数是纯的、
+    ///   自测能钉死输出，不必等真实时钟。这是本仓一贯的做法（时间/随机都要能从外面钉）。
+    ///
+    /// ⚠ 标题会过 <see cref="SafeFileStem"/>：窗口标题是**程序自己起的**，
+    ///   里面可能有 `/`、`..`、冒号 —— 原样拼进路径就是一条逃逸通道。
+    /// </summary>
+    public static string DefaultShotPath(string? title, DateTime now)
+        => $"{DefaultShotDir}/{SafeFileStem(title)}_{now:yyyyMMdd}_{now:HHmmss}.png";
+
+    /// <summary>
+    /// 把窗口标题清洗成**一个安全的文件名主干**（不含路径分隔符、不含 `.`/`..`、非空）。
+    ///
+    /// 规则：只留字母/数字（含中文等 CJK —— `char.IsLetterOrDigit('中')` 为真，
+    /// 这里正是要它真）、`-`、`_`；其余字符压成一个 `_`；主干上限
+    /// <see cref="MaxShotStemRunes"/> 个**码点**（`Rune` 计，不按 `char` ——
+    /// 否则 emoji/扩展 B 汉字会被切半成 U+FFFD，本仓有这条硬规矩）。
+    /// 清洗后什么都不剩（标题是纯符号、空标题）就退回 <see cref="FallbackShotName"/>。
+    ///
+    /// ⚠ 结果永远不会是 `.` / `..` / 空 —— 只保留字母数字与 `-_` 就结构性地排除了它们，
+    ///   所以拼进路径不会变成回退段。**别为"允许更多字符"放宽这条**。
+    /// </summary>
+    public static string SafeFileStem(string? title)
+    {
+        var sb = new StringBuilder();
+        // ⚠ 上限要数**码点**，不能数 `sb.Length`（那是 UTF-16 单元数）——
+        //   代理对每个码点占 2 个单元，按 `Length` 卡会让扩展 B 汉字/emoji
+        //   只留下一半（实测：80 个扩展 B 汉字本该留 32 个，按 Length 卡只留 16 个）。
+        //   这条正是本仓"截断必须按码点"的硬规矩，**代码与注释都要对得上**。
+        var runes = 0;
+        var lastWasUnderscore = false;
+        foreach (var rune in (title ?? "").EnumerateRunes())
+        {
+            if (runes >= MaxShotStemRunes) break;
+            var keep = Rune.IsLetterOrDigit(rune) || rune.Value == '-' || rune.Value == '_';
+            if (keep)
+            {
+                sb.Append(rune.ToString());
+                runes++;
+                lastWasUnderscore = false;
+            }
+            else if (!lastWasUnderscore && sb.Length > 0)
+            {
+                sb.Append('_');            // 连续的非保留字符压成一个下划线
+                runes++;
+                lastWasUnderscore = true;
+            }
+        }
+        // 末尾那个下划线（来自标题尾部的一串符号）去掉。
+        // `_` 是 ASCII，代理对的低代理不可能是它 ⇒ 这个循环不会切进代理对。
+        while (sb.Length > 0 && sb[^1] == '_') sb.Length--;
+        return sb.Length > 0 ? sb.ToString() : FallbackShotName;
     }
 
     /// <summary>

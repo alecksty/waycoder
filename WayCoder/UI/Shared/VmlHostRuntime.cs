@@ -134,35 +134,6 @@ public interface IVmlHost
     /// </summary>
     string? SaveTempImage(int w, int h, byte[] rgba);
 
-    /// <summary>
-    /// 截**本 App 窗口**的像素（`Screenshot` #588 用）。返回 null = 这一端截不了。
-    ///
-    /// <para>
-    /// 与上面 <see cref="Rasterize"/> 的区别：那个光栅化的是**画布场景**（保留模式的图元表），
-    /// 拿到的是"程序画了什么"；本方法拿的是**平台窗口的合成结果** —— 屏幕手柄、标题栏、
-    /// 对话框都在里面，是"用户此刻看到的那张图"。
-    /// </para>
-    ///
-    /// <para>
-    /// ⚠ **碰 View 的实现必须自己 marshal 回主线程**（手机端实测：`DeviceDisplay.KeepScreenOn`
-    /// 最终动的是 `Window.AddFlags`，从 VM 线程调直接抛
-    /// `Only the original thread that created a view hierarchy can touch its views`）。
-    /// </para>
-    ///
-    /// <para>
-    /// ⚠ **不许抛**：VM 线程上的异常会把整台虚拟机带走，而程序那边只看到"窗口没了"。
-    /// 截不到就回 null（共享层翻成 -1），这是"这一端没有这个能力"的正常表达
-    /// —— 与 <see cref="OpenWindow"/> / <see cref="SaveTempImage"/> 同一套约定。
-    /// </para>
-    ///
-    /// <para>
-    /// 桌面命令行端（`scripts/vmlcli`）**没有 App 窗口**，它退化为光栅化 VML 场景
-    /// （见那里的实现）—— 这是有意的：那条端到端链路（像素 → PNG → 落盘 → 返回长度）
-    /// 能在桌面上验完，不必每次都打 APK。
-    /// </para>
-    /// </summary>
-    RasterImage? CaptureAppWindow();
-
     // ── 杂项 ────────────────────────────────────────────────────────────────
 
     /// <summary>把程序给的相对路径解析成绝对路径（沙箱规则各端不同：
@@ -1425,16 +1396,63 @@ public sealed class VmlHostRuntime
             return -1;
         }
 
-        var img = _host.CaptureAppWindow();
-        if (img is null)
+        var scene = Scene();
+        if (scene is null)
         {
-            // 能力缺失，不是错误。桌面端有实现（退化为场景），所以这条通常意味着
-            // "这一端既没有窗口、也没有场景"（比如窗口还没开）。
-            _host.Log("[VmlUi] 截屏：本端没有可截的内容");
+            _host.Log("[VmlUi] 截屏：还没有窗口/画布可截");
             return -1;
         }
 
-        var png = PngEncoder.Encode(img.Width, img.Height, img.Rgba);
+        // ⚠⚠ **尺寸必须一次性快照，不能分三次读 `scene.Width/Height`**。
+        //
+        // 手机端真机实测踩到（`ArgumentException: 像素缓冲长度不足`）：场景的宽高
+        // **会被 UI 线程改** —— `DrawWindowPage` 的 40ms 定时器按实测视口
+        // `ResizeScene`（转屏、布局重测量时都会）。于是：
+        //     buf = new byte[scene.Width * scene.Height * 4]   ← 按 W1×H1 分配
+        //        ↓ 这一拍 UI 线程把它改成 W2×H2
+        //     PngEncoder.Encode(scene.Width, scene.Height, buf) ← 按 W2×H2 校验 ⇒ 抛
+        // 桌面端撞不上（那边开窗时定一次就再不改），**所以只有真机能发现**。
+        // 与本仓 `VmlScene.PresentedDsl`（"快照拍晚了"）是同一类教训：**跨线程被改的值，
+        // 读一次存下来用，别指望两个语句之间它不变**。
+        var sw = scene.Width;
+        var sh = scene.Height;
+        if (sw <= 0 || sh <= 0)
+        {
+            _host.Log($"[VmlUi] 截屏：画布尺寸非法（{sw}×{sh}）");
+            return -1;
+        }
+        var title = scene.Title;   // 同上：也是场景上的字段，一起快照
+
+        // 空串 = 程序没指定路径 ⇒ 生成 `shot/<窗口标题>_<日期>_<时间>.png`。
+        // 时钟在这里取，`DefaultShotPath` 本身是纯函数（自测好钉）。
+        if (rel.Length == 0) rel = VmlUi.DefaultShotPath(title, DateTime.Now);
+        // 与 `PngEncoder` 的上限对齐（25MP）：先在这里挡住，免得为一个离谱的尺寸
+        // 先去分配几十 MB —— 那时报的是 OOM，看不出是尺寸问题。
+        if ((long)sw * sh > 25_000_000)
+        {
+            _host.Log($"[VmlUi] 截屏：画布过大（{sw}×{sh}）");
+            return -1;
+        }
+
+        // 走 **`Rasterize`**（= `DrawRunner` 那套共享光栅器）而不是任何平台截屏 API。
+        //
+        // ⚠ 这是被真机否掉一版之后定下来的：第一版在 Android 上走
+        //   `DecorView.Draw(canvas)` 想要"整窗"（含手柄与标题栏），真机实测
+        //   **标题栏正常、画布整块纯黑** —— `View.Draw` 是软件绘制，而 MAUI 的
+        //   `GraphicsView` 内容在硬件加速的 RenderNode 上，压根不参与。
+        //
+        // 换成光栅化场景之后：四端**逐字同一份代码**（`DrawRunner` 在共享 `Infra/`），
+        // 没有平台分支、没有权限、也没有"某一端画不出来"的可能；
+        // 代价是只出**画布**（不含屏幕手柄与标题栏）—— 那正是要的：
+        // 拿来当战绩图/分享图，干净的画面比带一圈 UI 更好。
+        var buf = new byte[sw * sh * 4];
+        if (!_host.Rasterize(0, 0, sw, sh, buf))
+        {
+            _host.Log("[VmlUi] 截屏：本端光栅化失败");
+            return -1;
+        }
+
+        var png = PngEncoder.Encode(sw, sh, buf);
         var full = _host.ResolvePath(rel);
         // 程序要 `shots/1.png` 这种子目录时得先建出来，否则一写就抛。
         // 建目录在这里是安全的：`rel` 已经过 SanitizeShotPath，不会有回退段。
