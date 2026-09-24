@@ -3510,11 +3510,16 @@ public partial class EditorPage : ContentPage
                 // 整段手势只认第一下 —— 见 `_panelDragging` 的说明。
                 if (_panelDragging) return;
                 _panelDragging = true;
-                // ⚠ 基准取 **`HeightRequest`**（我们自己设的那个数），不取 `Height`（布局后的实测值）：
-                //   后者要等一趟布局才追上当前值，与手指位置之间差着一次布局的时延 ——
-                //   每轮手势都把这笔偏差算进去，累积起来就是"越拖越偏"。
-                _panelDragStartH = OutputPanel.HeightRequest > 0
-                    ? OutputPanel.HeightRequest
+                // ⚠ **基准必须是"实际高度" `Height`，不是"请求高度" `HeightRequest`** ——
+                //   这一条实测踩过：`HeightRequest` 只是我们**请求**的值，面板内容有自己的
+                //   最小高度（Tab 行 + 终端网格），实际渲染出来会**比请求值大**
+                //   （实测请求 220dp、实际 323dp）。拿请求值当基准，等于一开始就少算了那
+                //   103dp 的差，整段拖动**恒差这么多** ⇒ 手感是「手指和面板边缘对不上」
+                //   （用户报的**「拖动位置也有错位」**）。
+                //   用 `Height` 则「手指移多少 dp，面板就变多少 dp」，边缘**贴着手指走**。
+                //   （时延问题另由下面的 `_panelDragging` 解决 —— 重复 `Started` 才是抖动的真因。）
+                _panelDragStartH = OutputPanel.Height > 0
+                    ? OutputPanel.Height
                     : ClampPanelHeight(MauiEditorStore.PanelHeight);
                 break;
 
