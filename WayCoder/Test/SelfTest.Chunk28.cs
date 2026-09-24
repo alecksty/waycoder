@@ -28,6 +28,7 @@ public static partial class SelfTest
         TestVmlHostDispatch(Section, Check, Fail);
         TestVmlPixelReadback(Section, Check, Fail);
         TestVmlMemoryAccess(Section, Check, Fail);
+        TestVmlScreenshot(Section, Check, Fail);
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -203,7 +204,23 @@ public static partial class SelfTest
         public bool? LastKeepScreenOn;
         public void KeepScreenOn(bool on) => LastKeepScreenOn = on;
 
-        public string ResolvePath(string relative) => "/fake/" + relative;
+        /// <summary>
+        /// `ResolvePath` 的前缀。默认 `/fake/` —— 记录型，不指向任何真实目录。
+        ///
+        /// ⚠ 截屏用例会**真的写文件**，那时必须把它指到临时目录：写到 `/fake/` 会因
+        /// 目录不存在而失败，测出来的就不是"截屏逻辑"而是"目录不存在"。
+        /// </summary>
+        public string ResolvePrefix = "/fake/";
+
+        public string ResolvePath(string relative) => ResolvePrefix + relative;
+
+        /// <summary>截屏的固定答案（null = 这一端截不了，用来测失败路径）。</summary>
+        public RasterImage? CaptureAnswer;
+
+        /// <summary>截屏被调用了几次 —— 用来断言「路径非法时压根没去截」。</summary>
+        public int CaptureCalls;
+
+        public RasterImage? CaptureAppWindow() { CaptureCalls++; return CaptureAnswer; }
 
         public readonly List<string> Logs = new();
         public void Log(string message) => Logs.Add(message);
@@ -538,5 +555,109 @@ public static partial class SelfTest
             at += System.Text.Encoding.UTF8.GetByteCount(s) + 1;   // 串本身 + 结尾 NUL
         }
         return offset;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 主动截屏（#588）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// **路径清洗是防逃逸的唯一屏障**（两端的 `ResolvePath` 都不做钳制），
+    /// 所以这一节的每一条都当安全断言看，不是"格式整理"。
+    ///
+    /// 另一半是**端到端**：真截（假宿主给一张合成图）→ 真编码 → 真落盘 →
+    /// 核对 PNG 魔数、长度、以及"路径非法时**一个字节都不落盘**"。
+    /// </summary>
+    private static void TestVmlScreenshot(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VML 宿主：主动截屏（#588）");
+
+        // ── 一、路径清洗（纯逻辑）────────────────────────────────────────────
+        // 拒绝：回退段 / 绝对路径 / 盘符或 scheme。三种都必须整体拒绝，
+        // **不能"就地消解"**（悄悄改掉用户给的路径比直接拒绝更难排查）。
+        Check("拒绝 `..`", VmlUi.SanitizeShotPath("../x.png") is null);
+        Check("拒绝路径中间的 `..`", VmlUi.SanitizeShotPath("a/../../b.png") is null);
+        // 绝对路径是**剥掉首部分隔符**、不是拒绝（与 `SandboxPath` 同一口径：沙箱内只有相对路径）。
+        // 结果仍是相对路径 ⇒ 逃逸不了，所以这条要盯的是"剥干净了"，不是"拒了"。
+        Check("绝对路径剥成相对（`/etc/passwd` → `etc/passwd.png`）",
+            VmlUi.SanitizeShotPath("/etc/passwd") == "etc/passwd.png");
+        Check("拒绝 Windows 盘符", VmlUi.SanitizeShotPath("C:\\Windows\\x.png") is null);
+        Check("拒绝 scheme（含冒号）", VmlUi.SanitizeShotPath("http://x/y.png") is null);
+        Check("拒绝单个 `.` 段", VmlUi.SanitizeShotPath("./x.png") is null);
+        Check("反斜杠当分隔符时 `..` 同样被拒", VmlUi.SanitizeShotPath("..\\x.png") is null);
+
+        // 接受与规范化
+        Check("空串 → 默认名", VmlUi.SanitizeShotPath("") == VmlUi.DefaultShotName);
+        Check("纯空白 → 默认名", VmlUi.SanitizeShotPath("   ") == VmlUi.DefaultShotName);
+        Check("无扩展名 → 补 .png", VmlUi.SanitizeShotPath("shot") == "shot.png");
+        Check("有扩展名 → 原样", VmlUi.SanitizeShotPath("a.png") == "a.png");
+        Check("子目录保留（分隔符归一成 /）",
+            VmlUi.SanitizeShotPath("shots\\1") == "shots/1.png");
+        Check("重复分隔符不产生空段", VmlUi.SanitizeShotPath("a//b.png") == "a/b.png");
+
+        // ── 二、端到端（真落盘）──────────────────────────────────────────────
+        var dir = Path.Combine(Path.GetTempPath(), $"wcvml-shot-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var host = new FakeVmlHost { ResolvePrefix = dir + Path.DirectorySeparatorChar };
+            var rt = new VmlHostRuntime(host);
+            var regs = new int[32];
+            var mem = new byte[4096];
+
+            // 一张 2×2 的合成图：像素 (1,0) 是纯红 —— 用来核对 PNG 里的字节顺序
+            var pixels = new byte[2 * 2 * 4];
+            pixels[4] = 0xFF; pixels[5] = 0x00; pixels[6] = 0x00; pixels[7] = 0xFF;  // (1,0) = 红
+            host.CaptureAnswer = new RasterImage(2, 2, pixels);
+
+            regs[0] = WriteCStr(mem, 0, "shot");
+            Check("SCREENSHOT 被宿主认领", rt.HandleSyscall(VmlUi.Screenshot, regs, mem));
+
+            var file = Path.Combine(dir, "shot.png");
+            Check("文件真的落盘了（无扩展名自动补 .png）", File.Exists(file));
+            if (File.Exists(file))
+            {
+                var bytes = File.ReadAllBytes(file);
+                Check($"返回长度 == 文件长度（返 {regs[0]} / 实 {bytes.Length}）", regs[0] == bytes.Length);
+                Check("内容是 PNG（魔数）",
+                    bytes.Length > 8 && bytes[0] == 0x89 && bytes[1] == 0x50
+                    && bytes[2] == 0x4E && bytes[3] == 0x47);
+                // 解码回来逐点核对：证明"通道序没搞反"，而不只是"写出了一坨字节"
+                var back = PngDecoder.Decode(bytes);
+                Check($"解码回 2×2（实得 {back.Width}×{back.Height}）",
+                    back.Width == 2 && back.Height == 2);
+                Check("红色像素落在 (1,0) 且是 RGBA 序（通道没反）",
+                    back.Rgba[4] == 0xFF && back.Rgba[5] == 0x00
+                    && back.Rgba[6] == 0x00 && back.Rgba[7] == 0xFF);
+            }
+
+            // 子目录：不先建目录就会抛，这条钉住"建目录"那一步
+            regs[0] = WriteCStr(mem, 64, "shots/1");
+            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+            Check("子目录里的图也能落盘", File.Exists(Path.Combine(dir, "shots", "1.png")));
+
+            // ── 三、失败路径 ─────────────────────────────────────────────────
+            // ① 路径非法 ⇒ **压根不去截**，也不落盘
+            host.CaptureCalls = 0;
+            regs[0] = WriteCStr(mem, 128, "../escape.png");
+            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+            Check("非法路径 ⇒ -1", regs[0] == -1);
+            Check("非法路径 ⇒ 连截都没截（CaptureCalls == 0）", host.CaptureCalls == 0);
+            Check("非法路径 ⇒ 没有产生任何文件", !File.Exists(Path.Combine(dir, "..", "escape.png")));
+
+            // ② 这一端截不了 ⇒ -1（能力缺失，不是错误）
+            host.CaptureAnswer = null;
+            regs[0] = WriteCStr(mem, 192, "nocap.png");
+            rt.HandleSyscall(VmlUi.Screenshot, regs, mem);
+            Check("本端无截屏能力 ⇒ -1", regs[0] == -1);
+            Check("无能力时不留下空文件", !File.Exists(Path.Combine(dir, "nocap.png")));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, recursive: true); } catch { }
+        }
+
+        // 号段表里有它（漏加 = 那道查重护栏形同虚设）
+        Check("#588 已登记进 AllNumbers", Array.IndexOf(VmlUi.AllNumbers, VmlUi.Screenshot) >= 0);
     }
 }

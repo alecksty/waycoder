@@ -46,6 +46,15 @@
 | 529 | `DRAW_ICON` | x y 图标名* 尺寸 颜色 | 0 |
 | 530 | `DRAW_IMAGE` | x y 路径* w h | 0 |
 | 531 | `DRAW_PRESENT` | — | 0（帧边界标记；宿主定时器也会刷） |
+| 583 | `FLOOD_FILL` | R0=x R1=y R2=色 R3=边界色 | 落笔的矩形条数（0 = 没填） |
+| 584 | `GET_IMAGE` | R0=x R1=y R2=w R3=h | 图像句柄（≥1），失败 0 |
+| 585 | `PUT_IMAGE` | R0=x R1=y R2=句柄 R3=模式(0=COPY/1=XOR) | 1 成功、0 失败 |
+| 587 | `GET_PIXEL` | R0=x R1=y | `0xRRGGBB`，越界 -1 |
+| 588 | `SCREENSHOT` | R0=相对路径* | 写入字节数，失败 -1 |
+
+**`SCREENSHOT`（#588）截的是整个 App 窗口**（含屏幕手柄与标题栏），不是只截画布 ——
+要干净的画布出图用 `GET_IMAGE`。路径是相对沙箱的（空串 → `shot.png`，无扩展名补 `.png`），
+含 `..` 或盘符的直接失败。⚠ 桌面脚手架没有 App 窗口，它**退化为光栅化场景**。
 
 #### 什么时候用 `WIN_OPEN_EX` / `WIN_OPEN_PC`
 

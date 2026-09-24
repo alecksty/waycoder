@@ -115,6 +115,17 @@ int  ui_store_get(char* key, char* buf, int cap);   /* 返回长度；没这条�
 int  ui_rand(int n);                     /* 0..n-1 */
 ```
 
+### 系统
+```c
+int ui_screenshot(char* path);   /* 截本 App 窗口存成 PNG。返回写入字节数，-1 失败 */
+```
+- 存**整个 App 窗口**（含屏幕手柄与标题栏），不是只存画布 —— 拿来当"战绩图"正好。
+  要干净的画布出图用 `ui_get_image`。
+- `path` 是**相对路径**：空串用 `shot.png`，没扩展名自动补 `.png`，子目录会自动建。
+  含 `..` 或盘符的直接失败（**故意不宽容**：那是防写到你沙箱外面的唯一一道闸）。
+- ⚠ **会阻塞几十毫秒**（抓帧 + 编码 PNG），**别放进每帧的循环里** ——
+  放在"这一局结束/按了分享键"这种一拍一次的地方。
+
 ### 对话框（**阻塞**，返回用户选择）
 ```c
 int ui_dlg_msg(title, body, style);                    /* style: VML_DLG_INFO/WARN/ERROR/QUESTION */

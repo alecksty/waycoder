@@ -458,6 +458,37 @@ internal sealed class CliVmlHost : IVmlHost
     /// <summary>`putimage` 落的临时图 —— 退出时清掉（不清理会在临时目录里越堆越多）。</summary>
     private readonly List<string> _tempImages = new();
 
+    /// <summary>
+    /// 主动截屏（`ui_screenshot` / #588）的桌面实现。
+    ///
+    /// ⚠ **这里没有 App 窗口可截** —— 桌面脚手架是个控制台程序，屏幕上只有终端。
+    /// 所以退化为**光栅化 VML 场景**：桌面端能拿到的"这个程序画出来的东西"就是场景本身。
+    ///
+    /// 为什么值得这么做（而不是直接回 null）：这条链剩下的部分
+    /// （像素 → `PngEncoder` → 落盘 → 返回长度）与手机端**逐字相同**，
+    /// 在桌面上把它验完，就不必每改一行都打一次 APK（手机上那趟要一分多钟）。
+    ///
+    /// 复用 `Rasterize` 那同一句 —— 两个方法拿的是**当前场景**（`BuildDsl`），
+    /// 不是 `PresentedDsl` 那张快照（理由见上面 `Rasterize` 的注释）。
+    /// </summary>
+    public RasterImage? CaptureAppWindow()
+    {
+        var scene = Runtime?.Scene();
+        if (scene is null) return null;
+        try
+        {
+            var canvas = DrawRunner.Rasterize(DrawRunner.Parse(scene.BuildDsl()));
+            if (canvas.Width <= 0 || canvas.Height <= 0) return null;
+            return new RasterImage(canvas.Width, canvas.Height, canvas.Pixels);
+        }
+        catch (Exception ex)
+        {
+            CliErr.WriteLine($"[vml-host] 截屏（退化为场景）失败：{ex.GetType().Name}: {ex.Message}");
+            return null;
+        }
+    }
+
+
     /// <summary>删掉本次运行落的所有临时图。</summary>
     public void CleanupTempImages()
     {

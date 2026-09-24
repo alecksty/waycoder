@@ -536,6 +536,16 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         /// <summary>沙箱相对 → 绝对：`CwdContext` 与文件工具同一把尺子。</summary>
         public string ResolvePath(string relative) => CwdContext.Resolve(relative);
 
+        /// <summary>
+        /// 截本 App 窗口（`ui_screenshot` / #588）。
+        ///
+        /// 碰 View 必须回主线程 —— 与原生的 <see cref="OpenWindow"/> 同一处置。
+        /// 这里只 marshal，**不加重试/不吞异常**：抓不到就是抓不到，
+        /// <see cref="VmlWindowCapture.CaptureAsync"/> 内部已经兜住异常并记了日志。
+        /// </summary>
+        public RasterImage? CaptureAppWindow()
+            => MainThread.InvokeOnMainThreadAsync(VmlWindowCapture.CaptureAsync).GetAwaiter().GetResult();
+
         public void RegisterJsonHandlers() => EnsureJsonHandlers();
 
         public void Log(string message) => ErrorLog.Warning("VmlUi", message);

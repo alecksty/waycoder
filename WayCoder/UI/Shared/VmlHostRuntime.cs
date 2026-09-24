@@ -134,6 +134,35 @@ public interface IVmlHost
     /// </summary>
     string? SaveTempImage(int w, int h, byte[] rgba);
 
+    /// <summary>
+    /// 截**本 App 窗口**的像素（`Screenshot` #588 用）。返回 null = 这一端截不了。
+    ///
+    /// <para>
+    /// 与上面 <see cref="Rasterize"/> 的区别：那个光栅化的是**画布场景**（保留模式的图元表），
+    /// 拿到的是"程序画了什么"；本方法拿的是**平台窗口的合成结果** —— 屏幕手柄、标题栏、
+    /// 对话框都在里面，是"用户此刻看到的那张图"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **碰 View 的实现必须自己 marshal 回主线程**（手机端实测：`DeviceDisplay.KeepScreenOn`
+    /// 最终动的是 `Window.AddFlags`，从 VM 线程调直接抛
+    /// `Only the original thread that created a view hierarchy can touch its views`）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **不许抛**：VM 线程上的异常会把整台虚拟机带走，而程序那边只看到"窗口没了"。
+    /// 截不到就回 null（共享层翻成 -1），这是"这一端没有这个能力"的正常表达
+    /// —— 与 <see cref="OpenWindow"/> / <see cref="SaveTempImage"/> 同一套约定。
+    /// </para>
+    ///
+    /// <para>
+    /// 桌面命令行端（`scripts/vmlcli`）**没有 App 窗口**，它退化为光栅化 VML 场景
+    /// （见那里的实现）—— 这是有意的：那条端到端链路（像素 → PNG → 落盘 → 返回长度）
+    /// 能在桌面上验完，不必每次都打 APK。
+    /// </para>
+    /// </summary>
+    RasterImage? CaptureAppWindow();
+
     // ── 杂项 ────────────────────────────────────────────────────────────────
 
     /// <summary>把程序给的相对路径解析成绝对路径（沙箱规则各端不同：
@@ -489,6 +518,9 @@ public sealed class VmlHostRuntime
                 case VmlUi.FloodFill: registers[0] = DoFloodFill(registers); TouchScene(); break;
                 case VmlUi.GetImage:  registers[0] = DoGetImage(registers); break;
                 case VmlUi.PutImage:  registers[0] = DoPutImage(registers) ? 1 : 0; TouchScene(); break;
+                // 主动截屏（588）—— 读的是**平台窗口**而不是画布场景（分工见常量注释）。
+                // 不包 WithTimersPaused：它不是"等用户"，只是抓一帧，没有积压风险。
+                case VmlUi.Screenshot: registers[0] = Screenshot(registers, memory); break;
 
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
@@ -1365,6 +1397,52 @@ public sealed class VmlHostRuntime
 
         scene.AddImage(x, y, path, blk.W, blk.H);
         return true;
+    }
+
+    /// <summary>
+    /// 主动截屏（<see cref="VmlUi.Screenshot"/> #588）：R0=相对路径* → R0=写入的字节数，失败 -1。
+    ///
+    /// 路径先过 <see cref="VmlUi.SanitizeShotPath"/> —— 那是**唯一的逃逸屏障**
+    ///（两端的 `ResolvePath` 都不做钳制，理由见那个函数的注释）。非法路径**直接回 -1，
+    /// 一个字节都不落到文件系统上**。
+    ///
+    /// 失败**不区分原因**（路径非法 / 这一端截不了 / 写不进去）：程序该做的事都一样
+    ///（提示一句、继续跑）。真正的原因进宿主日志，排查时看那里。
+    ///
+    /// ⚠ **没有「回写规范化后的路径」这件事**（原本设计成 R1=缓冲容量、把 `shot` → `shot.png`
+    /// 的结果写回调用方缓冲区）。去掉的原因是**写坏字符串字面量**：程序最自然的写法是
+    /// `ui_screenshot("shot.png")`，而字面量在 `.data` 里、与别的字面量共享 ——
+    /// 往它上面写就是静默破坏别的字符串。规范化的规则（空→`shot.png`、无扩展名→补 `.png`）
+    /// 是**确定性**的，程序自己就能算出来，不需要宿主告诉它。
+    /// </summary>
+    private int Screenshot(int[] r, byte[] mem)
+    {
+        var raw = Str(mem, r[0]);
+        var rel = VmlUi.SanitizeShotPath(raw);
+        if (rel is null)
+        {
+            _host.Log($"[VmlUi] 截屏路径被拒（含回退段 `.`/`..` 或盘符/scheme）：{raw}");
+            return -1;
+        }
+
+        var img = _host.CaptureAppWindow();
+        if (img is null)
+        {
+            // 能力缺失，不是错误。桌面端有实现（退化为场景），所以这条通常意味着
+            // "这一端既没有窗口、也没有场景"（比如窗口还没开）。
+            _host.Log("[VmlUi] 截屏：本端没有可截的内容");
+            return -1;
+        }
+
+        var png = PngEncoder.Encode(img.Width, img.Height, img.Rgba);
+        var full = _host.ResolvePath(rel);
+        // 程序要 `shots/1.png` 这种子目录时得先建出来，否则一写就抛。
+        // 建目录在这里是安全的：`rel` 已经过 SanitizeShotPath，不会有回退段。
+        var dir = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+        File.WriteAllBytes(full, png);
+        return png.Length;
     }
 
     /// <summary>RGBA 字节流 → `0xAARRGGBB` 的 int 数组（`FloodFill` 要的形态）。</summary>

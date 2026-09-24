@@ -158,6 +158,36 @@ public static class VmlUi
     public const int DrawGetPixel = 587;
 
     /// <summary>
+    /// **主动截屏**：R0=相对路径* → R0=**写入的字节数**，失败 -1。
+    ///
+    /// 把**本 App 窗口**（含 VML 绘图窗口、屏幕手柄、标题栏）截成 PNG 写进
+    /// <see cref="SanitizeShotPath"/> 清洗过的相对路径（空串 = 默认名 `shot.png`；无扩展名补 `.png`）。
+    /// 失败码一律 -1，三种原因**不区分**：路径非法 / 这一端截不了 / 写不进去
+    /// —— 程序该做的事都一样（提示一句、继续跑）。
+    ///
+    /// ⚠ **只有一个参数**：不设"回写实际路径"的缓冲区。程序最自然的写法是
+    /// `ui_screenshot("shot.png")`，而字面量在 `.data` 里与别的字符串共享，
+    /// 往里写就是静默破坏别的字面量。规范化的规则是确定性的（空→`shot.png`、
+    /// 无扩展名→补 `.png`），程序自己算得出来。
+    ///
+    /// **与 <see cref="GetImage"/>(#584)、<see cref="DrawGetPixel"/>(#587) 的区别**：
+    /// 那两个读的是**画布场景**（保留模式的图元表，当场光栅化），拿到的是像素块/颜色；
+    /// 本号读的是**平台窗口的合成结果** —— 手柄、对话框、系统给的那一圈装饰都在里面，
+    /// 是"用户此刻看到的那张图"。要干净的画布出图用前者。
+    ///
+    /// ⚠ **不是整屏截屏**（不含状态栏、其他 App）：那在 Android 要走 MediaProjection
+    /// （弹系统授权框、用户可拒），iOS 基本做不到。本号刻意选无权限的那条路。
+    ///
+    /// ⚠ 宿主的 <c>CaptureAppWindow</c> **可能回 null**（这一端没实现）。
+    /// 桌面命令行端退化为**光栅化 VML 场景**（那里没有 App 窗口），
+    /// 所以同一份程序在桌面与手机上截出来的内容**不一样**，这是有意的。
+    /// </summary>
+    public const int Screenshot = 588;
+
+    /// <summary><see cref="Screenshot"/>(#588) 程序没给路径时用的默认文件名。</summary>
+    public const string DefaultShotName = "shot.png";
+
+    /// <summary>
     /// `GET_IMAGE`：R0=x R1=y R2=w R3=h → R0=**图像句柄**（≥1），失败 0。
     ///
     /// 句柄由**宿主**保管（不是 VML 内存里的缓冲区）—— 与 `ui_brush`/`ui_gradient`
@@ -753,6 +783,54 @@ public static class VmlUi
     public static int ClampVolume(int volume) => Math.Clamp(volume, 0, 100);
 
     /// <summary>
+    /// 截屏路径的**清洗**（<see cref="Screenshot"/>(#588)）：返回干净的**相对**路径，
+    /// 返回 <c>null</c> = 拒绝（调用方当失败处理，**不要落到文件系统**）。
+    ///
+    /// ## 为什么钳制收在这里，而不是各端自己去防
+    ///
+    /// 宿主接口的 `ResolvePath()` **两端都没有做沙箱钳制**
+    /// （手机是 `CwdContext.Resolve`、桌面是 `Path.GetFullPath(Combine(WorkDir, rel))`）
+    /// —— 程序传 `"../../../etc/passwd"` 就真会写到外面去。而这条清洗是**纯逻辑**，
+    /// 两端编的是同一份（`WayCoder/UI/Shared/` 被主工程与 `scripts/vmlcli` 同时编译），
+    /// 所以规则只有一处实现，不会出现"手机上拒绝、桌面上放行"这种最难查的分叉。
+    /// （`SandboxManager.IsUnder` 是另一条路，但 `scripts/vmlcli` **不编译** `SandboxManager.cs`，
+    /// 共享层调不到它。）
+    ///
+    /// ## 它凭什么够用
+    ///
+    /// 返回的路径**既非绝对、又不含任何回退段** ⇒ `ResolvePath(rel)` 无论怎么拼，
+    /// 结果都落在工作目录内。也就是说：**这里是唯一的屏障，规则改松了就是逃逸**。
+    ///
+    /// ## 规则
+    /// · `\` 一律归成 `/`（程序在 Windows 上习惯写反斜杠）；
+    /// · 拒绝含 `:` 的（盘符 `C:\`、scheme `http:`）；
+    /// · 逐段检查，任一段是 `..` 或 `.` **即整体拒绝**（不做"就地消解"——
+    ///   悄悄改掉用户给的路径比直接拒绝更难排查）；
+    /// · 空串/纯空白 → 默认名 <see cref="DefaultShotName"/>；
+    /// · 无扩展名 → 补 `.png`（不认扩展名会让用户在文件页看不出这是什么）。
+    /// </summary>
+    public static string? SanitizeShotPath(string? raw)
+    {
+        var s = (raw ?? "").Trim().Replace('\\', '/');
+        if (s.Length == 0) return DefaultShotName;
+        if (s.Contains(':')) return null;              // 盘符 / scheme
+
+        var parts = s.Split('/');
+        var kept = new List<string>();
+        foreach (var p in parts)
+        {
+            if (p.Length == 0) continue;               // 首尾/重复分隔符
+            if (p == ".." || p == ".") return null;    // ← 唯一的逃逸屏障，别放宽
+            kept.Add(p);
+        }
+        if (kept.Count == 0) return DefaultShotName;
+
+        var last = kept[^1];
+        if (!last.Contains('.')) kept[^1] = last + ".png";
+        return string.Join('/', kept);
+    }
+
+    /// <summary>
     /// 持久化键的**加前缀 + 清洗**：空键返回 null（调用方当失败处理）。
     ///
     /// 加 `vml.` 前缀是必须的 —— 这些键和 App 自己的 Preferences（主题、模式、编辑器设置）
@@ -809,8 +887,8 @@ public static class VmlUi
         // 窗体与绘图 520–533
         WinOpen, WinClose, DrawClear, DrawPixel, DrawLine, DrawRect, DrawCircle, DrawEllipse,
         DrawText, DrawIcon, DrawImage, DrawPresent, SetFont, Text,
-        // 像素读回 583–585、587
-        FloodFill, GetImage, PutImage, DrawGetPixel,
+        // 像素读回 583–585、587 + 主动截屏 588
+        FloodFill, GetImage, PutImage, DrawGetPixel, Screenshot,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
