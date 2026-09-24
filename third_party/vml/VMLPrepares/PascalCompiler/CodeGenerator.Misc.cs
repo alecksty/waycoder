@@ -377,7 +377,7 @@ namespace PascalCompiler
              * 而 `Lib/` 里没有这个名字 ⇒ 链接期"未解析标签"。 */
             else if (call.Name.ToLower() == "randomize")
             {
-                EmitCallBuiltin("lib_randomize");
+                EmitCallBuiltin("randomize");
             }
             /* `ReadKey`（**无参函数**，但老程序常把它**当语句**用：`ReadKey;` 就是"等一下"）。
              * 表达式那边有它（`Ch := ReadKey;`），语句这边漏了 —— 于是裸写 `ReadKey;`

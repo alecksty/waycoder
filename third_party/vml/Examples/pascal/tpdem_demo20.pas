@@ -35,6 +35,29 @@ const border:boolean=false;
 
 var pointind:array[1..maxpoints] of integer;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：把一张 dim×dim 的 8 位色精灵图
+  画到 (X,Y) —— 逐字节读精灵（`lds si,[Sprite]`），**值为 0 的字节跳过不写**
+  （`test al,al / jz @zero` = 色号 0 透明），非零字节写到虚拟屏幕 `where` 段的
+  `screen_offset[Y] + X` 位置，行尾 `di += 320 - dim` 换到下一行（屏幕宽 320）。
+  已用 ui_pixel 重新实现同一套「跳过 0 字节的写像素」语义：精灵数据仍按传入的
+  指针逐字节走（`sp^` 后 `sp := sp + 1`，与原汇编 `inc si` 一致），落笔改走本平台
+  画布的 ui_pixel；原汇编保留在下方注释里备查。 }
+procedure DrawSprite(X,Y : integer; dim : byte; Sprite : pointer;where:word);
+var
+  i, j, c : integer;
+  sp : ^byte;
+begin
+  sp := Sprite;
+  for j := 0 to dim - 1 do
+    for i := 0 to dim - 1 do
+    begin
+      c := sp^;                       { 取精灵当前字节 }
+      if c <> 0 then ui_pixel (X + i, Y + j, c);   { 0 = 透明，跳过 }
+      sp := sp + 1;                   { 原汇编的 inc si }
+    end;
+end;
+
+(*
 procedure DrawSprite(X,Y : integer; dim : byte; Sprite : pointer;where:word); assembler;
 asm
   push  ds
@@ -72,6 +95,7 @@ asm
 
   pop   ds
 end;
+*)
 
 procedure quicksort(hi:integer);
 procedure sort(l,r:integer);

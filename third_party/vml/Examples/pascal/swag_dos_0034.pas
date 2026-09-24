@@ -102,6 +102,15 @@ var
 {=============================================================================}
 
 procedure FLock(Handle: Word; Pos, Len: LongInt);
+begin
+  { ⚠ 本平台不支持内嵌汇编（Inline 机器码）。原汇编语义：调用 DOS
+    INT 21h/AX=5C00h（FLOCK 的「锁定」子功能），BX=文件句柄、ES:DX=起始位置、
+    ES:SI=长度，锁定文件的一段。本平台没有 DOS 中断与段式内存传参，
+    无法实现，故以空过程代替；原汇编（Inline 机器码）保留在下方注释里备查。 }
+end;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
+procedure FLock(Handle: Word; Pos, Len: LongInt);
 Inline(
   $B8/$00/$5C/    {  mov   AX,$5C00        ;DOS FLOCK, Lock subfunction}
   $8B/$5E/$04/    {  mov   BX,[BP + 04]    ;Place file handle in Bx register}
@@ -110,9 +119,19 @@ Inline(
   $C4/$7E/$08/    {  les   DI,[BP + 08]    ;Load length in ES:DI}
   $8C/$C6/        {  mov   SI,ES           ;Move ES pointer to SI register}
   $CD/$21);       {  int   $21             ;Call DOS}
+─────────────────────────────────────────────────────────────── *)
 
 {-----------------------------------------------------------------------------}
 
+procedure FUnlock(Handle: Word; Pos, Len: LongInt);
+begin
+  { ⚠ 本平台不支持内嵌汇编（Inline 机器码）。原汇编语义：调用 DOS
+    INT 21h/AX=5C01h（FLOCK 的「解锁」子功能），BX=文件句柄、ES:DX=起始位置、
+    ES:SI=长度，解除文件上的一段锁。本平台没有 DOS 中断与段式内存传参，
+    无法实现，故以空过程代替；原汇编（Inline 机器码）保留在下方注释里备查。 }
+end;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
 procedure FUnlock(Handle: Word; Pos, Len: LongInt);
 Inline(
   $B8/$01/$5C/    {  mov   AX,$5C01        ;DOS FLOCK, Unlock subfunction}
@@ -122,6 +141,7 @@ Inline(
   $C4/$7E/$08/    {  les   DI,[BP + 08]    ;Load length in ES:DI}
   $8C/$C6/        {  mov   SI,ES           ;Move ES pointer to SI register}
   $CD/$21);       {  int   $21             ;Call DOS}
+─────────────────────────────────────────────────────────────── *)
 
 {=============================================================================}
 
@@ -245,6 +265,16 @@ end;    { InDos }
 
 {-----------------------------------------------------------------------------}
 
+procedure GiveTimeSlice;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：按全局 MultiTasker
+    发对应的「让出时间片」中断——无多任务器用 INT 28h（DOS 空闲中断），
+    DESQview INT 15h/AX=1000h，DoubleDOS INT 21h/AX=EE01h，Windows/OS2 INT 2Fh/AX=1680h，
+    NetWare INT 7Ah。本平台没有 DOS/BIOS 中断与 8086 寄存器，也没有多任务器，
+    无法实现，故以空过程代替；原汇编保留在下方注释里备查。 }
+end;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
 procedure GiveTimeSlice;  ASSEMBLER;
 asm     { GiveTimeSlice }
   cmp   MultiTasker, DesqView
@@ -284,9 +314,19 @@ asm     { GiveTimeSlice }
 
 @WaitDone:
 end;    { TimeSlice }
+─────────────────────────────────────────────────────────────── *)
 
 {----------------------------------------------------------------------------}
 
+procedure BeginCrit;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：按全局 MultiTasker 进入临界区——
+    DESQview INT 15h/AX=101Bh，DoubleDOS INT 21h/AX=EA00h，Windows INT 2Fh/AX=1681h。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，也没有多任务器，无法实现，
+    故以空过程代替；原汇编保留在下方注释里备查。 }
+end;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
 procedure BeginCrit;  ASSEMBLER;
 asm     { BeginCrit }
   cmp   MultiTasker, DesqView
@@ -314,9 +354,19 @@ asm     { BeginCrit }
 
 @EndCrit:
 end;    { BeginCrit }
+─────────────────────────────────────────────────────────────── *)
 
 {----------------------------------------------------------------------------}
 
+procedure EndCrit;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：按全局 MultiTasker 离开临界区——
+    DESQview INT 15h/AX=101Ch，DoubleDOS INT 21h/AX=EB00h，Windows INT 2Fh/AX=1682h。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，也没有多任务器，无法实现，
+    故以空过程代替；原汇编保留在下方注释里备查。 }
+end;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
 procedure EndCrit;  ASSEMBLER;
 asm     { EndCrit }
   cmp   MultiTasker, DesqView
@@ -344,6 +394,7 @@ asm     { EndCrit }
 
 @EndCrit:
 end;    { EndCrit }
+─────────────────────────────────────────────────────────────── *)
 
 {============================================================================}
 
@@ -351,6 +402,25 @@ begin { Share }
   {- Init }
   LockRetry:= 0;
 
+  { ⚠ 原汇编（已停用）：单元初始化时检测当前多任务器——
+    DESQview（INT 21h/AX=2B01h，CX/DX='DE''SQ'）、DoubleDOS（INT 21h/AX=E400h）、
+    Windows（INT 2Fh/AX=1600h）、OS2（INT 21h/AX=3001h）、NetWare（INT 2Fh/AX=7A00h），
+    都不在则 NoTasker；据此设 MultiTasking、设显存段:偏移（多任务时用
+    INT 10h/AH=FEh 取当前视频缓冲区 ES:DI，否则 $B800:0000）、并用 INT 21h/AH=34h
+    取 InDos 标志地址写进 InDosFlag。
+    本平台没有 DOS/BIOS 中断、没有多任务器、也没有段式显存，无法实现，
+    故等价地置「无多任务器」的初值。
+    ⚠ InDosFlag 置 nil 后，function InDos 里的 InDosFlag^ > 0 会解引用
+    空指针；但 MultiTasking=False 时，LockFile/LockBytes/... 都在 While InDos
+    之前 Exit，实际走不到那一步（InDos 的函数体是非汇编代码，按规矩不动）。
+    原汇编原文见下方注释。 }
+  MultiTasker := NoTasker;
+  MultiTasking := False;
+  VideoSeg := $B800;
+  VideoOfs := $0000;
+  InDosFlag := nil;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
   asm
   @CheckDV:
     mov   AX, $2B01
@@ -427,5 +497,6 @@ begin { Share }
     mov   WORD PTR InDosFlag, BX
     mov   WORD PTR InDosFlag + 2, ES
   end;  { asm }
+─────────────────────────────────────────────────────────────── *)
 end.  { Share }
 

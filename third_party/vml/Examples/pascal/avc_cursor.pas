@@ -27,8 +27,15 @@
 Type
    CursorType = (cNormal, cInsert);
 
-PROCEDURE Set_Cursor (cType : CursorType); ASSEMBLER;
+PROCEDURE Set_Cursor (cType : CursorType);
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 BIOS 中断 int 10h 的
+  AH=01h 功能（设置文本模式光标的扫描线起止行）——若 cType = cInsert，则取
+  CX = 0115h（起始行 01h、结束行 15h，即插入模式下那个方块状光标）；否则取
+  CX = 0607h（正常的下划线光标）。
+  本平台没有 BIOS / int 10h，也没有文本模式的硬件光标寄存器，该效果无处可施
+  ⇒ 以空过程代替（对调用方而言就是「什么也不改」）。原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Cmp  cType, cNormal
@@ -50,6 +57,11 @@ ASM
     Int  10h
 
 END;
+*)
+
+Begin
+
+End;
 
 Begin
 

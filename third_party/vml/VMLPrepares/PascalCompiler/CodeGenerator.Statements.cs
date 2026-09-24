@@ -285,7 +285,10 @@ namespace PascalCompiler
 
         private void GenerateRepeatStatement(RepeatNode repeatNode)
         {
-            Sta!.EmitDoWhile(
+            // ⚠ 走 `EmitRepeatUntil` 而**不是** `EmitDoWhile` —— 两者只差跳转条件，而那是反的：
+            //   Pascal 的 `until c` 是「c 为假就再来一遍」（`JZ`），C 的 `while(c)` 是「为真再来」（`JNZ`）。
+            //   走错时**不报错、只静默跑错**：条件假 ⇒ 只跑一遍，条件真 ⇒ 死循环（详见该方法注释）。
+            Sta!.EmitRepeatUntil(
                 () => { foreach (var statement in repeatNode.Statements) GenerateStatement(statement); },
                 () => GenerateExpression(repeatNode.Condition));
         }
@@ -557,6 +560,19 @@ namespace PascalCompiler
                 }
 
                 // 保存表达式的值到R1 (仅非浮点类型; 浮点值已在F0中)
+                //
+                // ⚠⚠ **必须把 R1 压栈保住，再求目标地址** —— 求地址会**踩 R1**：
+                //   下标表达式里的二元运算（`and`/`or`/`+`…）拿 R1 当暂存
+                //   （生成形如 `PUSH R0 → <右操作数> → POP R1 → OP R1, R0`）。
+                //   多维那条路早就改成用 R3 了（见 `GenerateVariableAddress` 里那段长注释），
+                //   **单下标那条路仍用 R1** ⇒ 实测 `pal[c and 255] := 42` 之后 `pal[4]` 里是
+                //   **4（下标本身）**，而右边的 42 **从头到尾一次都没求值过** ——
+                //   编得过、不报错、写错地方，是老程序里最难查的一类。
+                //
+                //   为什么在**这一层**兜：地址计算有单下标/多维/记录字段/解引用好几条分支，
+                //   逐条去改各自的暂存寄存器就是"多处守卫、漏一处即错"（本仓记过多次）。
+                //   在这里压/弹一次，**所有**分支都覆盖到了，代价是每次赋值多两条指令。
+                //   压栈是**对称**的（下面紧跟一次 POP），不会打乱后续任何栈相对寻址。
                 if (!targetIsFloat)
                 {
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
@@ -564,9 +580,21 @@ namespace PascalCompiler
                         new Operand(OperandType.REGISTER, 1),
                         new Operand(OperandType.REGISTER, 0)
                     }));
+                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand>
+                    {
+                        new Operand(OperandType.REGISTER, 1)
+                    }));
                 }
 
                 GenerateVariableAddress(assignment.Variable);
+
+                if (!targetIsFloat)
+                {
+                    instructions.Add(new Instruction(OpCode.POP, new List<Operand>
+                    {
+                        new Operand(OperandType.REGISTER, 1)
+                    }));
+                }
 
                 // 使用数据类型敏感指令选择 (record 字段用字段类型)
                 PascalType varType;

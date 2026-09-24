@@ -127,6 +127,10 @@ FUNCTION Mouse_Init : Boolean;
 
 BEGIN
 
+   { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0000h
+     （取鼠标驱动是否安装），返回值 AX=FFFFh 表示已安装；随后把 AH（=FFh）存进 bMouse_Exist。
+     本平台没有 DOS 鼠标驱动（INT 33h 不存在），探测类 ⇒ 返回「未安装」：False。 }
+   (*
    ASM
 
       Xor  Ax, Ax
@@ -135,36 +139,61 @@ BEGIN
       Mov  Byte Ptr bMouse_Exist, Ah
 
    END;
+   *)
+
+   bMouse_Exist := False;
+   Mouse_Init := False;
 
 END;
 
 { Cache le pointeur de la souris }
 
-PROCEDURE Mouse_Hide; ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0002h
+  （隐藏鼠标指针）。本平台没有 INT 33h 鼠标驱动，无等价接口 ⇒ 空过程。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ax, 02h
     Int  33h
 
 END;
+*)
+
+PROCEDURE Mouse_Hide;
+
+BEGIN
+END;
 
 { Montre le pointeur de la souris }
 
-PROCEDURE Mouse_Show; ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0001h
+  （显示鼠标指针）。本平台没有 INT 33h 鼠标驱动，无等价接口 ⇒ 空过程。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ax, 01h
     Int  33h
 
 END;
+*)
+
+PROCEDURE Mouse_Show;
+
+BEGIN
+END;
 
 { Retourne une des constantes équivalents aux boutons enfoncés.  Retourne 0
   si aucun bouton n'a été enfoncé }
 
-FUNCTION Mouse_Pressed : cgMouse_Key;  ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0003h
+  （取按钮状态与指针位置）——BX 低 2 位是按钮（1=左 2=右 3=双 4=中），CX/DX 是坐标；
+  随后把 BX 存进返回值、CX/DX 存进 cgMouse_X/cgMouse_Y、AL 存进 cgMouse_LastButton。
+  本平台没有 INT 33h 鼠标驱动，读状态类 ⇒ 返回 0（= cgMouse_None，即「无按钮按下」；
+  本前端的枚举成员名在表达式里解析不了，故按序号 0 写），
+  三个全局量一并置 0 以免留下未初始化的坐标。原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ax, 03h
@@ -182,11 +211,25 @@ ASM
     Mov  cgMouse_LastButton, Al
 
 END;
+*)
+
+FUNCTION Mouse_Pressed : cgMouse_Key;
+
+BEGIN
+
+   cgMouse_X := 0;
+   cgMouse_Y := 0;
+   cgMouse_LastButton := 0;                      { 0 = cgMouse_None（见下：本前端不支持枚举成员名） }
+   Mouse_Pressed := 0;                           { 0 = cgMouse_None }
+
+END;
 
 { Positionne le curseur de la souris }
 
-PROCEDURE Mouse_GoToXy (X, Y : Word); ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0004h
+  （把鼠标指针移到坐标 CX=X, DX=Y）。本平台没有 INT 33h 鼠标驱动，无等价接口 ⇒ 空过程。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ax, 04h
@@ -195,11 +238,20 @@ ASM
     Int  33h
 
 END;
+*)
+
+PROCEDURE Mouse_GoToXy (X, Y : Word);
+
+BEGIN
+END;
 
 { Définit la fenêtre dans laquelle le curseur de la souris peut évoluer }
 
-PROCEDURE Mouse_Window (XMin, XMax, YMin, YMax : Word); ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h
+  AX=0007h（设横向活动范围 CX=XMin..DX=XMax）+ AX=0008h（设纵向活动范围 CX=YMin..DX=YMax），
+  把指针限制在给定矩形内。本平台没有 INT 33h 鼠标驱动，无等价接口 ⇒ 空过程。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ax, 07h
@@ -212,6 +264,12 @@ ASM
     Mov  Dx, YMax
     Int  33h
 
+END;
+*)
+
+PROCEDURE Mouse_Window (XMin, XMax, YMin, YMax : Word);
+
+BEGIN
 END;
 
 { Teste si le curseur de la souris se trouve dans une certaine surface }
@@ -415,12 +473,22 @@ END;
 { Retourne TRUE lorsque l'utilisateur maintien le bouton xxx enfoncé et
   renvoi FALSE lorsque ce bouton est relâché. }
 
-FUNCTION Mouse_ReleaseButton (Button : cgMouse_Key) : Boolean; ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h / AX=0006h
+  （取指定按钮的按下/释放状态），BX=按钮号（01h=左键），返回值 AX 非 0 表示该按钮正被按住。
+  本平台没有 INT 33h 鼠标驱动，读状态类 ⇒ 返回 0：False（「按钮未按住」）。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
    Mov  Ax, 06h
    Mov  Bx, 01h
    Int  33h
+END;
+*)
+
+FUNCTION Mouse_ReleaseButton (Button : cgMouse_Key) : Boolean;
+
+BEGIN
+   Mouse_ReleaseButton := False;
 END;
 
 { Cette procédure va attendre jusqu'à ce que le dernier bouton enfoncé ne

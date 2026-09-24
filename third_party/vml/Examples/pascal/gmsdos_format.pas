@@ -237,17 +237,39 @@ Type
  Procedure DskReset;Begin
  End;
 {$ELSE}
+ Procedure DskReset;
+ Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：BIOS INT 13h/AH=00h 复位磁盘
+    控制器（清错误状态）。本平台没有 BIOS 中断与 8086 寄存器，无法实现，
+    故以空过程代替（与上方 $IFDEF FPC 分支同形）；
+    原汇编保留在下方注释里备查。 }
+ End;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
  Procedure DskReset;Assembler;ASM
   MOV AH,00h
   MOV DL,0
   INT 13h
  END;
+─────────────────────────────────────────────────────────────── *)
 {$ENDIF}
+
 
 {$IFDEF FPC}
  Function GetDrvType(Drive:Byte):Byte;Begin
  End;
 {$ELSE}
+ Function GetDrvType(Drive:Byte):Byte;
+ Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：BIOS INT 13h/AH=08h 取
+    驱动器参数，成功时返回 AX（BL=驱动器类型），失败时回退成 dtDD525。
+    本平台没有 BIOS 中断与软驱，无法实现，故返回 0（= dtNoDrive
+    「驱动器不存在」，正合本平台没有软驱的语义）；
+    原汇编保留在下方注释里备查。 }
+  GetDrvType := 0;
+ End;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
  Function GetDrvType(Drive:Byte):Byte;Assembler;ASM
   MOV AH,08h
   MOV DL,Drive
@@ -257,7 +279,9 @@ Type
 @Ok:
   XCHG AX,BX
  END;
+─────────────────────────────────────────────────────────────── *)
 {$ENDIF}
+
 
 Const
   fCarry=$0001;
@@ -392,13 +416,17 @@ Begin
  {$IFDEF FPC}
  {$ELSE}
   _CH:=PData.Tracks-1; _CL:=PData.Sec;
-  ASM
+  { ⚠ 原汇编（已停用）：BIOS INT 13h/AH=18h 给软驱设置格式化参数表
+    （MOV AH,$18 / MOV CL,_CL / MOV CH,_CH / MOV DL,Drive / INT $13）。
+    本平台没有 BIOS 中断与软驱，无法实现，故整段作废；_CH/_CL 局部变量保留不动。
+    原汇编原文见下方注释。 }
+  (* ASM
    MOV AH,$18;
    MOV CL,_CL;
    MOV CH,_CH;
    MOV DL,Drive;
    INT $13;
-  END;
+  END; *)
  {$ENDIF}
 End;
 

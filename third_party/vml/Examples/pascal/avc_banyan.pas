@@ -134,8 +134,17 @@ VAR
 
 { Returns the interrupt number used by the BANYAN network }
 
-FUNCTION Get_Banyan_Int_NO : Word;  Assembler;
+FUNCTION Get_Banyan_Int_NO : Word;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：探测 Banyan VINES 网络是否
+  已安装 —— 置 AX=$0D701h、BX=0 后调 int 2Fh（多路复用中断）；Banyan 已安装时
+  AX 返回 0、否则返回它所占用中断号。随后 Not Al 把「AX=0」翻成
+  bBANYAN_Installed 的布尔真值（0 → True），最后把 BX 里的中断号作为函数值返回。
+  本平台没有 int 2Fh、也没有 Banyan VINES 网络环境，恒为「未安装」⇒ 以空函数
+  返回 0（与「未安装时 AX=0」一致）。调用方据此把 bBANYAN_Installed 置 False，
+  下面几个过程于是全部提前 Exit —— 正是本平台应有的行为。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
      Mov  Ax, 0D701h
@@ -150,6 +159,13 @@ ASM
      Mov  bBANYAN_Installed, Al
 
      Mov  Ax, Bx
+
+END;
+*)
+
+BEGIN
+
+   Get_Banyan_Int_NO := 0;
 
 END;
 
@@ -406,11 +422,21 @@ BEGIN
       space is found, Pascal think that there is another parameter. So, I
       will used interrupt in order to read the command line }
 
+    { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 DOS 中断 int 21h 的
+      AH=62h 功能读取当前程序的 PSP 段地址并存进 PSP_Seg；紧接着那两句
+      pS := ptr (PSP_Seg, $80) / sParam := pS^ 就是靠它去 PSP:80h 拿原始命令行
+      （绕开 Pascal 的 ParamStr 会把带空格的用户名拆成多个参数的问题）。
+      本平台没有 PSP、也没有实模式段地址 ⇒ 无法实现，直接置 PSP_Seg := 0。
+      原汇编保留在下方注释里备查。 }
+(*
     Asm
        Mov  Ah, 62h               { Read PSP Segment }
        Int  21h
        Mov  PSP_Seg, Bx           { And Save it }
     End;
+*)
+
+    PSP_Seg := 0;
 
     pS := ptr (PSP_Seg, $80);    { Parameters are in PSP_SEG:80h }
 

@@ -211,6 +211,21 @@ End;
  End;
 
  Procedure Int25h(Drive:Byte;LSN,Sects:Word;Var Buffer;Var Erreur:Word);
+ Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调用 DOS 绝对磁盘读中断 INT 25h，
+    从 Drive 盘第 LSN 个逻辑扇区起读 Sects 个扇区到 Buffer，再把 AX 里的 DOS 错误码写回 Erreur
+    （0=成功；$519 表示该盘不能用常规方式读，需改用 DS:BX 指向的参数块（LSN/Sects/Buffer）
+    重试一次，即原码里的 32 位重试分支）。
+    INT 25h 不是普通子程序：它把 FLAGS 压栈后由 IRET 返回，所以原码用
+    DB $9D（POPF）手工平衡栈。
+    本平台没有 DOS/INT 25h 与段式内存，无法实现，故以空过程代替：
+    Erreur 置 0 只表示「没有 DOS 错误」，并未真正读到任何数据。
+    原汇编保留在下方注释里备查。 }
+  Erreur := 0;
+ End;
+
+(* ── 原汇编（已停用，仅供参考）────────────────────────────────
+ Procedure Int25h(Drive:Byte;LSN,Sects:Word;Var Buffer;Var Erreur:Word);
  Assembler;
  Const __POPF = $9D;
  ASM
@@ -255,7 +270,9 @@ End;
   MOV ES:[DI],AX;
 @@No32Bits:
  End;
+─────────────────────────────────────────────────────────────── *)
 {$ENDIF}
+
 
 Function GetClusterSize:LongInt;
 Var

@@ -142,6 +142,45 @@ namespace CompilerBase
             _loopStack.RemoveAt(_loopStack.Count - 1);
         }
 
+        /// <summary>
+        /// Pascal 的 <c>repeat 语句序列 until 条件</c> —— 与上面的 <see cref="EmitDoWhile"/>
+        /// **只差一处跳转条件**，而那一处正好是反的：
+        ///
+        /// <para>
+        /// <c>do{…}while(c)</c> 是「**c 为真**就再来一遍」⇒ `JNZ`；
+        /// <c>repeat…until(c)</c> 是「**c 为假**就再来一遍」（until = 直到…为止）⇒ **`JZ`**。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ **这条是实测出来的**：Pascal 前端原先直接把 `RepeatNode` 路由到
+        /// <see cref="EmitDoWhile"/> ⇒ 语义反转，而症状**不是报错、是静默跑错**：
+        /// 条件一开始为假时循环体**只跑一遍**（`i:=0; repeat i:=i+1; Writeln(i); until i>=3;`
+        /// 只打出 `1`），条件一开始就为真时**死循环**。老程序里 `repeat…until` 遍地都是，
+        /// 所以这是"能编过、跑起来结果不对"里最隐蔽的一类。
+        /// </para>
+        ///
+        /// <para>
+        /// `continue` 仍应跳到**条件求值处**（Pascal 的 `Continue` = 直接去做 until 判断）
+        /// ⇒ 标签栈与 do-while 同形，不用另立一套。
+        /// </para>
+        /// </summary>
+        public void EmitRepeatUntil(System.Action emitBody, System.Action emitCondition)
+        {
+            string startLabel = _newLabel();
+            string continueLabel = _newLabel();
+
+            _loopStack.Add((continueLabel, continueLabel));
+
+            _labels[startLabel] = _instructions.Count;
+            emitBody();
+            _labels[continueLabel] = _instructions.Count;
+            emitCondition();
+            _instructions.Add(new Instruction(OpCode.CMP, [R(0), Imm(0)]));
+            _instructions.Add(new Instruction(OpCode.JZ, [Lbl(startLabel)]));   // ← 与 do-while 唯一的不同
+
+            _loopStack.RemoveAt(_loopStack.Count - 1);
+        }
+
         // ====== For 循环 ======
 
         /// <summary>

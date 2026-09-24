@@ -107,6 +107,20 @@ Var
   End;
  End;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。这里原本也不是"代码"，而是一张 8x16 的
+  自定义字模点阵表（字符 234 的 16 字节位图）：InitGame 里
+  LoadFont(234,0,16,1,@Font234) 取它的地址交给 BIOS INT 10h / AX=1100h
+  （"装用户自定义字库"）写进 EGA/VGA 的字库内存。
+  本平台没有 BIOS、没有字库内存、也没有"字符 234"这个字形槽位 ⇒ 装字库这一步无从谈起；
+  但**点阵数据本身**是有意义的常量，故按等价 Pascal 重实现为一张 const 数组：
+  名字不变、@Font234 取到的仍是这 16 个字节，调用方的写法一个字不用改。
+  原汇编（DB 原文）保留在下方注释里备查。 }
+ const
+   Font234 : Array[0..15] of Byte = (
+     $1C, $7E, $FF, $99, $99, $FF, $FF, $FF,
+     $FF, $FF, $FF, $FF, $FF, $BB, $99, $99
+   );
+ (*
  Procedure Font234;Assembler;ASM
    { 234 }
   DB 00011100b
@@ -126,6 +140,7 @@ Var
   DB 10011001b
   DB 10011001b
  END;
+ *)
 {$ENDIF}
 
 Procedure InitData;

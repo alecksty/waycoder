@@ -60,6 +60,11 @@ Begin
  MouseDriverFound:=Regs.AX=$FFFF;
 End;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 DOS 鼠标驱动中断 INT 33h
+  AX=0008h（设纵向活动范围 CX=Y1..DX=Y2）+ AX=0007h（设横向活动范围 CX=X1..DX=X2），
+  把鼠标指针限制在给定矩形内。本平台没有 INT 33h 鼠标驱动，无等价接口 ⇒ 空过程。
+  原汇编保留在下方注释里备查。 }
+(*
 Procedure SetMouseMoveArea(X1,Y1,X2,Y2:Word);Assembler;ASM
  MOV AX,8
  MOV CX,Y1
@@ -70,6 +75,12 @@ Procedure SetMouseMoveArea(X1,Y1,X2,Y2:Word);Assembler;ASM
  MOV DX,X2
  INT 033h
 END;
+*)
+
+Procedure SetMouseMoveArea(X1,Y1,X2,Y2:Word);
+
+Begin
+End;
 
 Procedure GetMouseSwitch(Var X,Y,Button:Word);
 Var
@@ -145,6 +156,13 @@ Function GetPixel(X,Y:Integer):Byte;Begin
  GetPixel:=Mem[SegA000:X+(Y*320)];
 End;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：直接操作 VGA 调色板端口 ——
+  先往 3C8h 写起始颜色号 Start，再对 3C9h 连续写 Num*3 个字节（每个分量 SHR 2，
+  即把 0..255 的 R/G/B 压到 VGA 的 6 位 DAC 值），把 P 指向的 Num 个 RGB 结构装进调色板。
+  本平台没有 VGA 调色板端口，颜色是 ui_* 直接收的真彩 ARGB，没有"改调色板就换掉屏幕上
+  已画像素颜色"这套硬件语义 ⇒ 无等价接口，以空过程代替。
+  原汇编保留在下方注释里备查。 }
+(*
 Procedure SetPalRGB(Var P;Start,Num:Word);Assembler;ASM
  MOV AL,Byte Ptr Start
  MOV DX,3C8h
@@ -169,6 +187,12 @@ Procedure SetPalRGB(Var P;Start,Num:Word);Assembler;ASM
   LOOP @2
  POP DS
 END;
+*)
+
+Procedure SetPalRGB(Var P;Start,Num:Word);
+
+Begin
+End;
 
 Procedure PutLnHor(X1,Y,X2,Kr:Integer);
 Var
@@ -202,7 +226,16 @@ Begin
   Exit;
  End;
  If Abs(X2-X1)<Abs(Y2-Y1)Then Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：若 Y1>Y2，就把两个端点整体对调
+    （MOV/XCHG 依次交换 X1<->X2 与 Y1<->Y2），使画线时 Y1<=Y2。
+    属纯计算（不涉及画屏）⇒ 已用等价 Pascal 的三变量交换重实现。 }
+  (*
   If(Y1>Y2)Then ASM MOV AX,X1;XCHG AX,X2;MOV X1,AX;MOV AX,Y1;XCHG AX,Y2;MOV Y1,AX;END;
+  *)
+  If(Y1>Y2)Then Begin
+   I:=X1;X1:=X2;X2:=I;
+   I:=Y1;Y1:=Y2;Y2:=I;
+  End;
   If(X2>X1)Then Ic:=1 Else Ic:=-1;
   DY:=Y2-Y1;DX:=Abs(X2-X1);D:=(DX shl 1)-DY;Ainc:=(DX-DY)shl 1;Binc:=DX shl 1;J:=X1;
   SetPixel(X1,Y1,Kr);
@@ -215,7 +248,16 @@ Begin
  End
   else
  Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：若 X1>X2，就把两个端点整体对调
+    （MOV/XCHG 依次交换 X1<->X2 与 Y1<->Y2），使画线时 X1<=X2。
+    属纯计算（不涉及画屏）⇒ 已用等价 Pascal 的三变量交换重实现。 }
+  (*
   If(X1>X2)Then ASM MOV AX,X1;XCHG AX,X2;MOV X1,AX;MOV AX,Y1;XCHG AX,Y2;MOV Y1,AX;END;
+  *)
+  If(X1>X2)Then Begin
+   I:=X1;X1:=X2;X2:=I;
+   I:=Y1;Y1:=Y2;Y2:=I;
+  End;
   If(Y2>Y1)Then Ic:=1 else Ic:=-1;
   DX:=X2-X1;DY:=Abs(Y2-Y1);D:=(DY shl 1)-DX;AInc:=(DY-DX)shl 1;BInc:=DY shl 1;J:=Y1;
   SetPixel(X1,Y1,Kr);
@@ -297,6 +339,38 @@ Begin
  XCity:=Byte(S[I+1])shl 3;
 End;
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。这里原本也不是"代码"，而是一张鼠标指针
+  （光标）的 32x16 两平面位图，共 128 字节：前 64 字节 = 第 0 页（AND 掩码），
+  后 64 字节 = 第 1 页（XOR 掩码）。使用者 ShowMousePtr 里
+  `MousePtr:=@PtrMs;` 取它的地址、按 MousePtr^[1,J,I] 读第 1 页，再逐位用 CopT8Bin
+  画到显存上（原程序自己绘制鼠标指针，因为 DOS 时钟中断里的硬件光标不在这里用）。
+  本平台没有显存直写、也没有"程序自绘鼠标指针"这套模型（指针由宿主画），
+  但**位图数据本身**是有意义的常量，故按等价 Pascal 重实现为一张 const 数组：
+  名字不变、@PtrMs 取到的仍是这 128 个字节，ShowMousePtr 的写法一个字不用改。
+  原汇编（DB 原文）保留在下方注释里备查。
+  ⚠ 写法说明：数据按原汇编 DB 的线性字节流写成 **1 维数组**（下标即"第几个字节"）。
+  本前端的多维数组下标（`T[g,k]`）不可用（实测读数全错），而原 DB 本来就只是一串
+  连续的字节，1 维反而是它最贴切的写法；调用方（@PtrMs） 只取地址，不受影响。 }
+ const
+   PtrMs : Array[0..127] of Byte = (
+     $FF, $00, $00, $FF, $FF, $FF, $FF, $FF,
+     $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+     $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+     $7F, $FF, $FF, $FE, $7F, $FF, $FF, $FE,
+     $7F, $FF, $FF, $FE, $7F, $FF, $FF, $FE,
+     $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+     $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+     $FF, $FF, $FF, $FF, $FF, $00, $00, $FF,
+     $00, $7C, $3E, $00, $03, $80, $01, $C0,
+     $0C, $00, $00, $30, $30, $00, $00, $0C,
+     $40, $00, $00, $02, $80, $01, $80, $01,
+     $80, $01, $80, $01, $00, $07, $E0, $00,
+     $00, $07, $E0, $00, $80, $01, $80, $01,
+     $80, $01, $80, $01, $40, $00, $00, $02,
+     $30, $00, $00, $0C, $0C, $00, $00, $30,
+     $03, $80, $01, $C0, $00, $7C, $3E, $00
+   );
+ (*
 Procedure PtrMs;Assembler;ASM
  DB 11111111b,00000000b,00000000b,11111111b
  DB 11111111b,11111111b,11111111b,11111111b
@@ -332,6 +406,7 @@ Procedure PtrMs;Assembler;ASM
  DB 00000011b,10000000b,00000001b,11000000b
  DB 00000000b,01111100b,00111110b,00000000b
 END;
+ *)
 
 Procedure HideMousePtr;Begin
  PutMouseImage(OldMouseX,OldMouseY,OldMouseX+31,OldMouseY+15);
@@ -370,6 +445,10 @@ Var
 Begin
  PutMissile:=0;
  If Abs(X2-X1)<Abs(Y2-Y1)Then Begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：若 Y1>Y2，就把两个端点整体对调
+    （MOV/XCHG 依次交换 X1<->X2 与 Y1<->Y2），使画线时 Y1<=Y2。
+    属纯计算（不涉及画屏）⇒ 已用等价 Pascal 的三变量交换重实现。 }
+  (*
   If(Y1>Y2)Then ASM
    MOV AX,X1;
    XCHG AX,X2;
@@ -378,6 +457,11 @@ Begin
    XCHG AX,Y2;
    MOV Y1,AX;
   END;
+  *)
+  If(Y1>Y2)Then Begin
+   I:=X1;X1:=X2;X2:=I;
+   I:=Y1;Y1:=Y2;Y2:=I;
+  End;
   If(X2>X1)Then Ic:=1 Else Ic:=-1;
   DY:=Y2-Y1;DX:=Abs(X2-X1);D:=(DX shl 1)-DY;Ainc:=(DX-DY)shl 1;Binc:=DX shl 1;J:=X1;
   SetPixel(X1,Y1,Kr);
@@ -586,10 +670,17 @@ End;
 
 BEGIN
  Randomize;
+ { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 BIOS 视频中断 INT 10h / AX=0013h
+   —— 切到 VGA 模式 13h（320x200、256 色、显存映射在 A000:0000），本游戏随后所有
+   SetPixel/GetPixel 直接写 Mem[SegA000:...] 就是这个模式的前提。
+   本平台没有 BIOS 视频中断、也没有 A000 段显存映射，无等价接口 ⇒ 以注释代替该语句
+   （不留下空语句块，主程序结构不变）。 }
+ (*
  ASM
   MOV AX,0013h
   INT 10h
  END;
+ *)
  MouseFound:=MouseDriverFound;
  If Not MouseFound Then Begin
   WriteLn('Une souris est requise pour jouer a ce jeu');

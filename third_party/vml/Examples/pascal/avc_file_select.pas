@@ -96,7 +96,21 @@ Var NbrFich : Byte;                                 { File number per line }
 
 { This function will return True if the disk exist, false otherwise }
 
-Function Disque_Exist (Disq: Byte) : Boolean; Assembler;
+Function Disque_Exist (Disq: Byte) : Boolean;
+
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：判断某个驱动器号
+  （Disq：1=A:、2=B:、…）是否存在 ——
+  ① Disq <= 2 时按软驱处理：用 DOS 中断 int 21h 的 AX=440Eh 功能（IOCTL
+     「取逻辑驱动器映射」）查该盘，返回的 AL 与 Disq 不符即视为不存在；
+  ② Disq >= 3 时按硬盘 / 网络盘处理：用 AX=4409h（IOCTL「是否远程驱动器」）
+     查，进位标志置位（调用出错）即不存在，否则存在（返回 1）；
+  ③ 前两条判成不存在时，再用 int 2Fh 的 AX=1500h（MSCDEX 光驱检测）补一次 ——
+     BX 返回光驱个数、CX 返回第一个光驱盘符，BX=0 表示没有光驱 ⇒ 不存在。
+  这是 **DOS 中断**，本平台没有盘符 / DOS 设备这一套 ⇒ 以恒返 False 的空函数
+  代替（「该盘不存在」）。调用方 SearchCurrentDir 于是不会在文件列表里加入
+  [A:..]～[Z:..] 这些盘符条目，正是本平台应有的行为。
+  原汇编保留在下方注释里备查。 }
+(*
 Asm
              Push Ds
 
@@ -140,6 +154,13 @@ Asm
              Mov Ax, 1
 
 @@Fin:       Pop Ds
+
+End;
+*)
+
+Begin
+
+   Disque_Exist := False;
 
 End;
 

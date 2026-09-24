@@ -34,6 +34,15 @@ Function IsWinEnh : Boolean;      {Windows Enhanced}
 
 implementation
 
+Function  Is4dos : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 多路复用中断查询 4DOS 命令解释器是否已加载（送功能号 AX=D44Dh，4DOS 以 AX=44DDh 应答）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  Is4dos := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  Is4dos : Boolean;Assembler;
  asm
     MOV AX, 0D44DH
@@ -46,7 +55,17 @@ Function  Is4dos : Boolean;Assembler;
     @OK: MOV AL,1
     @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsAnsiSys : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 ANSI.SYS 驱动是否已安装（AX=1A00h，驱动以 AL=FFh 应答）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsAnsiSys := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsAnsiSys : Boolean;Assembler;
  asm
   MOV AX,1A00H
@@ -58,7 +77,17 @@ Function  IsAnsiSys : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsAppend : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 APPEND.EXE 是否已常驻（AX=0B700h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsAppend := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsAppend : Boolean;Assembler;
  asm
   MOV AX,0B700H
@@ -70,7 +99,17 @@ Function  IsAppend : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsAssign : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 ASSIGN.COM 是否已常驻（AX=0600h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsAssign := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsAssign : Boolean;Assembler;
  asm
    MOV AX,0600H
@@ -82,7 +121,17 @@ Function  IsAssign : Boolean;Assembler;
    @OK: MOV AL,1
    @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsCritError : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 DOS 严重错误处理程序是否已接管（AX=0500h，AL=FFh 表示已接管）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsCritError := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsCritError : Boolean;Assembler;
  asm
   MOV AX,0500H
@@ -94,7 +143,17 @@ Function  IsCritError : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDblSpace : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 DBLSPACE.BIN 磁盘压缩驱动是否已加载（AX=4A11h、BX=0；应答 AX=0 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDblSpace := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDblSpace : Boolean;Assembler;
  asm
   MOV AX,4A11H
@@ -107,7 +166,17 @@ Function  IsDblSpace : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDesqView : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 21h 查询 DESQview 多任务环境是否在运行（AH=2Bh、CX=4445h='DE'、DX=5351h='SQ'、AL=1；AL≠FFh 表示在跑）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDesqView := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDesqView : Boolean;Assembler;
  asm
   MOV AH,2BH
@@ -122,7 +191,17 @@ Function  IsDesqView : Boolean;Assembler;
   @NOTINST: MOV AL,0
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDos4G : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 21h 查询 DOS/4G 保护模式扩展器是否存在（AX=FF00h、DX=0078h；AL≠0 表示存在）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDos4G := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDos4G : Boolean;Assembler;
  asm
   MOV AX, 0FF00H
@@ -135,7 +214,17 @@ Function  IsDos4G : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDosKey : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 DOSKEY 命令历史常驻程序是否已加载（AX=4800h；AL≠0 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDosKey := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDosKey : Boolean;Assembler;
  asm
   MOV AX,4800H
@@ -147,7 +236,17 @@ Function  IsDosKey : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDoubleDos : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 21h 查询 DoubleDOS 多任务环境是否存在（AX=0E400h；AL≠0 表示存在）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDoubleDos := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDoubleDos : Boolean;Assembler;
  asm
   MOV AX,0E400H
@@ -159,7 +258,17 @@ Function  IsDoubleDos : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsDriverSys : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 DRIVER.SYS 是否已加载（AX=0800h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsDriverSys := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsDriverSys : Boolean;Assembler;
  asm
   MOV AX,0800H
@@ -171,7 +280,17 @@ Function  IsDriverSys : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsEmm386 : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 67h（EMS 管理器中断）查询 EMM386 是否已加载（AX=FFA5h；应答 AX=845Ah 或 84A5h 表示 EMM386 在用）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsEmm386 := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsEmm386 : Boolean;Assembler;
  asm
   MOV AX,0FFA5H
@@ -187,7 +306,17 @@ Function  IsEmm386 : Boolean;Assembler;
   XOR AL,AL
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsEMS : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 67h 取 EMS 扩充内存管理器的版本号（AH=46h；返回 AH=0 表示 EMS 驱动存在）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsEMS := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsEMS : Boolean;Assembler;
  asm
   MOV AH,46H
@@ -199,7 +328,17 @@ Function  IsEMS : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsGrafTabl : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 GRAFTABL.COM 是否已加载（原代码送 AX=0B000h；AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsGrafTabl := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsGrafTabl : Boolean;Assembler;
  asm
   MOV AX,0B000H
@@ -211,7 +350,17 @@ Function  IsGrafTabl : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsKeyb : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 KEYB.COM 键盘驱动是否已加载（AX=0AD80h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsKeyb := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsKeyb : Boolean;Assembler;
  asm
   MOV AX,0AD80H
@@ -223,7 +372,17 @@ Function  IsKeyb : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsMouse : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 33h（鼠标驱动中断）查询鼠标驱动是否已安装（AX=0 复位并取状态；应答 AX=FFFFh 表示已安装）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsMouse := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsMouse : Boolean;Assembler;
  asm
   XOR AX,AX
@@ -235,7 +394,17 @@ Function  IsMouse : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsNG : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 16h 查询 Norton Guides 常驻程序（送 AX=0F398h；应答 AX=6A73h 表示常驻）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsNG := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsNG : Boolean;Assembler;
  asm
   MOV AX,0F398H
@@ -247,7 +416,17 @@ Function  IsNG : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsNlsFunc : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 NLSFUNC.EXE 国家语言支持是否已加载（AX=1400h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsNlsFunc := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsNlsFunc : Boolean;Assembler;
  asm
   MOV AX,1400H
@@ -259,7 +438,17 @@ Function  IsNlsFunc : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsShare : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 SHARE.EXE 文件共享程序是否已加载（AX=1000h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsShare := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsShare : Boolean;Assembler;
  asm
   MOV AX,1000H
@@ -271,7 +460,17 @@ Function  IsShare : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsSmartDrv : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 SMARTDrive 磁盘缓存是否已加载（AX=4A10h、BX=0、CX=0EBABh；应答 AX=0BABEh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsSmartDrv := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsSmartDrv : Boolean;Assembler;
  asm
   MOV AX,4A10H
@@ -285,7 +484,17 @@ Function  IsSmartDrv : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsSrdisk : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 SRDISK 内存盘驱动是否已加载（AX=7200h，AL=FFh 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsSrdisk := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsSrdisk : Boolean;Assembler;
  asm
   MOV AX,7200H
@@ -297,7 +506,17 @@ Function  IsSrdisk : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsThelp : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 THELP 常驻帮助程序是否已加载（AX=0CAFEh、BX=0；应答 BX≠0 表示已加载）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsThelp := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsThelp : Boolean;Assembler;
  asm
   MOV AX,0CAFEH
@@ -310,7 +529,17 @@ Function  IsThelp : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsXMS: Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 XMS 扩展内存驱动是否已安装（AX=4300h；AL=80h 表示已安装）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsXMS := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsXMS: Boolean;Assembler;
  asm
   MOV AX, 4300H
@@ -322,7 +551,17 @@ Function  IsXMS: Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
+Function  IsWinEnh : Boolean;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 INT 2Fh 查询 Windows 增强模式是否在运行（AX=1600h；AL≠0 表示 Windows 在跑）。
+    本平台没有 DOS/BIOS 中断与 8086 寄存器，这类「环境探测」在语义上等于「未安装」，
+    故统一返回 False；原汇编保留在下方注释里备查。 }
+  IsWinEnh := False;
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 Function  IsWinEnh : Boolean;Assembler;
  asm
   MOV AX,1600H
@@ -334,6 +573,7 @@ Function  IsWinEnh : Boolean;Assembler;
   @OK: MOV AL,1
   @END:
  end;
+─────────────────────────────────────────────────────────────── *)
 
 end.
 
@@ -343,6 +583,16 @@ Program TestICheck; {WARNING: I DON'T KNOW IF ALL CHECKS WORKS CORRECTLY!!!}
 
 uses Icheck;
 
+procedure ClrScr;
+begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：先用 BIOS INT 10h/AH=0Fh 读出当前
+    显示模式，再用 AH=00h 把同一个模式设回去 —— 在 DOS 上这就是「清屏」。
+    已改用本平台通用的 ANSI 清屏序列重新实现（清屏 + 光标归位），效果等价；
+    原汇编保留在下方注释里备查。 }
+  write(#27, '[2J', #27, '[H');
+end;
+
+(* ── 原汇编（已停用，仅供参考）─────────────────────────────────
 procedure ClrScr; assembler;
 asm
  mov ah,0Fh
@@ -350,17 +600,25 @@ asm
  xor ah,ah
  int 10h;
 end;
+─────────────────────────────────────────────────────────────── *)
 
 Function Readkey : Char;
 
 var AsciiK:byte;
 
 begin
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：用 BIOS 键盘中断 INT 16h/AH=0
+    **阻塞等待**一个按键，并把 ASCII 码存进 AsciiK。本平台没有 BIOS 键盘中断，
+    也无法在这里阻塞读键，故取 0（此时 readkey 返回 Chr(0)，演示程序不再等待按键）；
+    原汇编保留在下方注释里备查。 }
+  AsciiK := 0;
+  (* ── 原汇编（已停用，仅供参考）─────────────
 asm
  xor ah,ah
  int 16h
  mov asciik,al
 end;
+  ─────────────────────────────────────────── *)
  readkey:=chr(asciik);
 end;
 

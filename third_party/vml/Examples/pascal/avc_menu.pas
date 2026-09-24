@@ -969,8 +969,11 @@ END;
 { * Masque le curseur en mode texte.                                     * }
 { ************************************************************************ }
 
-PROCEDURE Cursor_Hide;  ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 BIOS 视频中断 INT 10h / AH=01h
+  （设置文字模式光标形状），CH=20h 把光标扫描线起点抬到屏幕外 ⇒ 隐藏文字光标。
+  本平台没有 BIOS 中断，也没有「文字模式光标」这个概念，无等价接口 ⇒ 以空过程代替。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ah, 01h
@@ -978,19 +981,36 @@ ASM
     Int  10h
 
 END;
+*)
+
+PROCEDURE Cursor_Hide;
+
+BEGIN
+
+END;
 
 { ************************************************************************ }
 { * Rétablit le curseur en mode texte.                                   * }
 { ************************************************************************ }
 
-PROCEDURE Cursor_Show;  ASSEMBLER;
-
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：调 BIOS 视频中断 INT 10h / AH=01h
+  （设置文字模式光标形状），CL=7 / CH=6 ⇒ 把光标恢复成第 6~7 扫描线的下划线形状。
+  本平台没有 BIOS 中断，也没有「文字模式光标」这个概念，无等价接口 ⇒ 以空过程代替。
+  原汇编保留在下方注释里备查。 }
+(*
 ASM
 
     Mov  Ah, 01h
     Mov  Cl, 7
     Mov  Ch, 6
     Int  10h
+
+END;
+*)
+
+PROCEDURE Cursor_Show;
+
+BEGIN
 
 END;
 

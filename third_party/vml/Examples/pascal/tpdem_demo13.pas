@@ -15,6 +15,43 @@ const border:boolean=false;
 
 {$I cube.vec}
 
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：对 320×200 的虚拟屏幕逐像素做
+  「火焰渐隐」—— 取当前像素与「下一行左、下两行、下一行右」三个邻像素按字节相加后
+  `shr ax,2`（除 4）取平均，非零再减一（`dec al`），写回当前像素。底部画上去的亮色
+  因此逐帧向上传递并衰减，形成燃烧渐隐。
+  已用 ui_get_pixel / ui_pixel 重新实现同一套邻域运算（本平台没有可直写的显存，
+  画布尺寸也不固定 ⇒ 逻辑坐标仍按原 VGA 320×200，落到画布时按 ui_scr_w/ui_scr_h 换算；
+  邻域用线性偏移 di+319/di+640/di+321 表达，x=0 时 di+319 在原汇编里落到上一行末列，
+  这里照同样方式回绕）。原汇编保留在下方注释里备查。 }
+procedure firefadeout;
+var
+  x, y, c, lx : integer;
+  sx, sy, sw, sh : integer;
+begin
+  sw := ui_scr_w();
+  sh := ui_scr_h();
+  if (sw <= 0) or (sh <= 0) then exit;
+  { 原汇编外层循环到 cx=198 为止（读 di+640 会越过 64000 字节的屏幕缓冲），
+    这里收敛到 0..197，避免越界读取。 }
+  for y := 0 to 197 do
+  begin
+    sy := (y * sh) div 200;
+    for x := 0 to 319 do
+    begin
+      sx := (x * sw) div 320;
+      lx := x - 1;
+      if lx < 0 then lx := 319;                 { di+319 在 x=0 时绕到上一行末列 }
+      c := ( ui_get_pixel (sx, sy)
+           + ui_get_pixel ((lx * sw) div 320, ((y + 1) * sh) div 200)
+           + ui_get_pixel (sx, ((y + 2) * sh) div 200)
+           + ui_get_pixel (((x + 1) * sw) div 320, ((y + 1) * sh) div 200) ) div 4;
+      if c <> 0 then c := c - 1;                { 非零才减一（原汇编的 jz @skip） }
+      ui_pixel (sx, sy, c);
+    end;
+  end;
+end;
+
+(*
 procedure firefadeout; assembler;
 asm
   mov   es, vaddr
@@ -45,6 +82,7 @@ asm
   cmp   cx, 199
   jne   @yloop
 end;
+*)
 
 procedure mainloop;
 var loop1:integer;

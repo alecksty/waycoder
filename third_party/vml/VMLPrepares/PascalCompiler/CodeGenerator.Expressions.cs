@@ -590,12 +590,45 @@ namespace PascalCompiler
                 }));
                 return;
             }
+            else if (name == "paramstr")
+            {
+                // `ParamStr(i)` —— 取第 i 个命令行参数。VML 程序**拿不到命令行参数**
+                // （宿主接口里根本没有这一项，与 `ParamCount` 恒 0 同源，见 `CodeGenerator.Core.StdConsts`）
+                // ⇒ 按统一约定**实现不了就返空**，但这里**返的是空串、不是 0**：
+                //   0 是 nil 指针，`Writeln(ParamStr(1))` 之类一解引用就崩，
+                //   而空串与原语义（"没有这个参数"）在**可见行为上一致**、也绝不会炸。
+                //   实参不求值（桩函数没有副作用可保留；`ParamStr(1)` 的实参是字面量）。
+                const string emptyLabel = "__pascal_paramstr_empty";
+                if (!dataSection.ContainsKey(emptyLabel))
+                    dataSection[emptyLabel] = "";
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.LABEL, emptyLabel)
+                }));
+                return;
+            }
+            else if (name == "seg" || name == "ofs")
+            {
+                // `Seg(x)` / `Ofs(x)` —— Turbo Pascal 的**段:偏移**内建（老程序拿它做指针运算）。
+                // 本平台是**平坦内存模型**，没有实模式那套段地址 ⇒ 按统一约定
+                // **「实现不了就返 0，做空实现」**（与 `CodeGenerator.Core.StdConsts` 里
+                // `Dseg`/`PrefixSeg` 同一处置，那边的注释写了完整理由）。
+                // ⚠ 依赖 `Ptr(Seg,Ofs)` 算地址的老程序在这套模型下**本就不成立**，属有意接受的边界；
+                //   返 0 至少让"探测/打印"这类用法不再卡在编译期。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, 0)
+                }));
+                return;
+            }
             else if (name == "sqrt")
             {
                 // Sqrt使用牛顿迭代法: x_{n+1} = (x_n + a/x_n) / 2
                 // 这里生成调用库函数的代码
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_sqrt");
+                EmitCallBuiltin("sqrt");
                 return;
             }
             else if (name == "random")
@@ -603,13 +636,13 @@ namespace PascalCompiler
                 // Random(n) 返回 0 到 n-1 之间的随机数
                 // 调用库函数 lib_random
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_random");
+                EmitCallBuiltin("random");
                 return;
             }
             else if (name == "randomize")
             {
                 // Randomize 初始化随机数种子
-                EmitCallBuiltin("lib_randomize");
+                EmitCallBuiltin("randomize");
                 return;
             }
             else if (name.StartsWith("peek"))
@@ -622,25 +655,25 @@ namespace PascalCompiler
             else if (name == "sin")
             {
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_sin");
+                EmitCallBuiltin("sin");
                 return;
             }
             else if (name == "cos")
             {
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_cos");
+                EmitCallBuiltin("cos");
                 return;
             }
             else if (name == "exp")
             {
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_exp");
+                EmitCallBuiltin("exp");
                 return;
             }
             else if (name == "ln")
             {
                 GenerateExpression(funcCall.Arguments[0]);
-                EmitCallBuiltin("lib_ln");
+                EmitCallBuiltin("log");
                 return;
             }
             else if (name == "length")
@@ -721,7 +754,7 @@ namespace PascalCompiler
                     new Operand(OperandType.REGISTER, 1),
                     new Operand(OperandType.REGISTER, 0)
                 }));
-                EmitCallBuiltin("lib_concat");
+                EmitCallBuiltin("concat");
                 return;
             }
             else if (name == "round")

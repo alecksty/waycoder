@@ -85,12 +85,24 @@ Var
 {=[ Misc Procedures ]=====================================================}
 
 {-[ Clear Interrupt Flag (Disable Maskable Interrupts) ]------------------}
+{ ⚠ 本平台不支持内嵌机器码（Inline）。原实现是一条内联指令 $FA = CLI（关可屏蔽中断）——
+  原程序在改中断向量表时必须先关中断，改完再开。本平台没有可改的 8259 中断向量表，
+  也没有中断驱动的播放（见 SetOutPutDevice 的说明）⇒ 以空过程代替，
+  语义上等于「临界区里无事可做」。原内联指令保留在下方注释里备查。 }
 Procedure CLI;
-Inline($FA);
+Begin
+End;
+
+(* Procedure CLI; Inline($FA); *)
 
 {-[ Set Interrupt Flag ]--------------------------------------------------}
+{ ⚠ 同上：原内联指令 $FB = STI（开中断）。本平台无中断向量表可改 ⇒ 空过程。
+  原内联指令保留在下方注释里备查。 }
 Procedure STI;
-Inline($FB);
+Begin
+End;
+
+(* Procedure STI; Inline($FB); *)
 
 
 {=[ Initialize Sound Devices ]============================================}
@@ -100,6 +112,19 @@ Procedure InitializeAdlib;
 Var
   TempInt : Pointer;
 
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：向 Adlib FM 声卡的端口写寄存器 ——
+    先向索引口 $388（AdlibIndex）写寄存器号，再向数据口 $389（AdlibReg）写值，
+    中间那些 in al,dx 是等声卡芯片响应（Adlib 的时序要求）。
+    本平台没有 Adlib 那块硬件、也没有端口 I/O ⇒ 以空过程代替（写寄存器 = 无事发生，
+    后续 InitializeAdlib 里的整串 Adlib(...) 参数设置因此都是空操作）。
+    ⚠ 想在本平台「发声」应改走 ui_beep(freq, ms)（见 Lib/shared/src/vmlui.c）——
+    但那是**语义上的替代**，音色/多声道/音色寄存器与原 Adlib FM 完全不同，
+    不是等价实现，所以这里没有接。原汇编保留在下方注释里备查。 }
+  Procedure Adlib(Reg, Data : Byte);
+  Begin
+  End;
+
+(*
   Procedure Adlib(Reg, Data : Byte); Assembler;
   Asm
     mov  dx, AdlibIndex            { Adlib index port }
@@ -127,6 +152,7 @@ Var
     in al, dx; in al, dx; in al, dx; in al, dx; in al, dx
 
   end;
+*)
 
 begin
   Adlib($00, $00);    { Set Adlib test Register }
@@ -144,6 +170,14 @@ begin
     That way, we have an operator who's wave is stuck at the top, and we can
     play digitized Sound by changing it's total level (volume) register. }
 
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：让 CPU 空转一段精确时间 ——
+    反复读 8253 定时器 0 号通道（out 43h,0 锁存计数；in 40h 两次取 16 位计数值），
+    直到计数值越过「当前值 - 952h」这个目标（等声卡的振荡器走到正弦波顶端，
+    好把它停在顶端，之后靠改音量寄存器播放数字采样）。
+    本平台没有 8253 定时器、也没有可写的端口 ⇒ 这段等待以空实现代替
+    （上一条 Adlib 设置已是空操作，声卡的振荡器本来就不存在，
+    没有「等它走到顶端」这回事）。原汇编保留在下方注释里备查。 }
+(*
   Asm
     mov  al, 0                    { Get timer 0 value into DX }
     out  43h, al
@@ -177,6 +211,7 @@ begin
     ja   @wait_loop               { if no, then go back }
 
   end;
+*)
 
  { Now that the sine wave is at the top, change its frequency to 0 to keep
    it from moving  }

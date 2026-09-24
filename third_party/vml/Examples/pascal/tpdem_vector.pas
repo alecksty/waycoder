@@ -81,7 +81,10 @@ function dotproduct(ux,uy,uz,vx,vy,vz:real):real;
 function calclength(ux,uy,uz,vx,vy,vz:real):real;
 
 IMPLEMENTATION
-
+var texturebuf : array[0..63999] of byte;   { 纹理数据。原程序里纹理放在"段:偏移"指向的
+                                            缓冲区（LoadPCX 解压出来），本平台是平坦
+                                            内存模型，没有段:偏移 ⇒ 换成这个数组。
+                                            断点说明见 hline_texture 的注释。 }
 {****************************************************************************}
 
 procedure scanconv(x1,y1,x2,y2:integer);
@@ -176,12 +179,29 @@ end;
 
 procedure hline_gouraud(x1,x2,y:integer;c1,c2:byte;where:word);
 var color,addcol,temp1,loop1:integer;
+    bcol : byte;
 begin
   temp1:=x2-x1;
   if temp1=0 then temp1:=1;
   addcol:=((c2-c1) shl 8) div temp1;
   color:=c1 shl 8;
 
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：在 y 这一行上从 x1 起连续画
+    (x2-x1) 个像素，颜色按 16.8 定点从 c1 **线性插值**到 c2（每个像素取定点数的高字节
+    当颜色索引），x2 <= x1 时一个都不画 —— 就是扫描线填充里的"高洛德着色"那一行。
+
+    已用逐像素 Putpixel 重新实现同一套插值：定点步长 addcol 与上面几行完全一致
+    （差值、移位、除法的算式一个字没改），只是把"写显存"换成了 Putpixel；
+    "调色板索引 → 真彩"的换算留在 gfx 单元里，本单元不重复实现第二份。
+    原汇编保留在下方注释里备查。 }
+  if (x2 - x1) > 0 then begin
+    for loop1 := 0 to (x2 - x1) - 1 do begin
+      bcol := (color shr 8) and 255;
+      Putpixel(x1 + loop1, y, bcol, where);
+      color := color + addcol;
+    end;
+  end;
+(*
   asm
   mov   es, [where]
   mov   bx, [y]
@@ -203,6 +223,7 @@ begin
   loop  @loop2
 @exit:
   end;
+*)
 end;
 
 {****************************************************************************}
@@ -223,7 +244,27 @@ end;
 
 {****************************************************************************}
 
-procedure hline_glenz(x1,x2,y:integer;col:byte;where:word); assembler;
+{ ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：在 y 这一行上从 x1 起连续画
+  (x2-x1) 个像素，做的是**加法发光**（"glenz"）：
+      new = (已有像素 == 0 ? 0 : 已有像素 + dl) + col      其中 dl = (col == 2 ? 2 : 0)
+  也就是"落在空背景上就直接写 col；落在已有图形上就再叠一层"（在**调色板索引**空间相加），
+  x2 <= x1 时一个都不画。
+
+  已用逐像素 Putpixel 重新实现：**占主导的那一路（已有像素 == 0）与原来完全一致** --
+  直接落 col，这正是 glenz 的典型用法（往空背景上叠发光三角）。
+  一处**做不到**的地方（不假装等价）：`已有像素 != 0` 那一支必须**读回帧缓冲**。
+  本平台确实有 ui_get_pixel（号 #587，返回 0xRRGGBB），但场景是保留模式的，
+  它每次调用都要**重光栅化整幅场景**，实测约 0.4ms/次 ⇒ 一条 320 像素的扫描线要 128ms，
+  放进扫描线循环里不可用。要真的发光，请把该调色板项本身调得更亮。
+  原汇编保留在下方注释里备查。 }
+procedure hline_glenz(x1,x2,y:integer;col:byte;where:word);
+var i : integer;
+begin
+  if (x2 - x1) > 0 then
+    for i := 0 to (x2 - x1) - 1 do
+      Putpixel(x1 + i, y, col, where);
+end;
+(*
 asm
   mov   es, [where]
   mov   bx, [y]
@@ -253,6 +294,7 @@ asm
   loop  @loop1
 @exit:
 end;
+*)
 
 {****************************************************************************}
 
@@ -292,12 +334,40 @@ end;
 procedure hline_texture(x1,x2,px1,py1,px2,py2,y:integer;source,dest:word);
 var pxval,pxstep,pyval,pystep:integer;
     linewidth:integer;
+    loop1,px,py,off:integer;
 begin
   linewidth:=(x2-x1+1);
   pxstep:=((px2-px1) shl 8) div linewidth;
   pystep:=((py2-py1) shl 8) div linewidth;
   pxval:=px1 shl 8;
   pyval:=py1 shl 8;
+  { ⚠ 本平台不支持内嵌汇编（Assembler）。原汇编语义：在 y 这一行上从 x1 起连续画
+    linewidth（= x2-x1+1）个像素，每个像素的颜色取自**纹理图**里按 (px,py) 线性插值
+    出来的位置 —— 纹理偏移 = py*320 + px，逐像素 movsb。就是"把纹理贴到这条扫描线上"。
+
+    已用逐像素 Putpixel 重新实现同一套采样：定点步长 pxstep/pystep 与上面几行完全一致
+    （算式一个字没改），纹理偏移的算法也照原样展开成 py*320 + px。
+    一处**做不到**的地方（不假装等价）：原汇编的纹理来源是**段寄存器**给出的地址
+    （参数 source），本平台是平坦内存模型、没有段:偏移，source 无法解引用 ⇒
+    改从本单元的 texturebuf 取纹理字节（尺寸与 320x200 一致）。
+    ⚠ 谁负责填 texturebuf：本该是 gfx 单元的 LoadPCX，但那是**另一个单元里的缓冲区**，
+      跨单元交接要动 gfx 的 interface 才接得上 ⇒ 这里只把采样这一半写完整，
+      并在两边注释里都标明这个断点。本语料里也走不到：textureaddr 从未被赋值。
+      （要真的贴图，本平台的正路是 ui_image(x,y,path,w,h)。）
+    原汇编保留在下方注释里备查。 }
+  if (x2 - x1 + 1) > 0 then begin
+    for loop1 := 0 to (x2 - x1 + 1) - 1 do begin
+      px := (pxval shr 8) and 255;
+      py := (pyval shr 8) and 255;
+      off := (py * 320) + px;
+      if off > 63999 then off := 63999;
+      if off < 0 then off := 0;
+      Putpixel(x1 + loop1, y, texturebuf[off], dest);
+      pxval := pxval + pxstep;
+      pyval := pyval + pystep;
+    end;
+  end;
+(*
   asm
     push  ds
     mov   bx, [y]
@@ -326,6 +396,7 @@ begin
     loop  @loop1
     pop   ds
   end;
+*)
 end;
 
 {****************************************************************************}

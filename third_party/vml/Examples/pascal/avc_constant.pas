@@ -37,11 +37,14 @@
 
 Uses Crt;
 
-Const Tour       : Integer = 0;
-      Taille_Psp : Integer = 256;
+Const Taille_Psp : Integer = 256;
 
+{ ⚠ 原码把 `Tour` 放在 `Const` 段却又给它赋值（`Tour := Tour+1`）—— 常量不可赋值，
+  那是原程序自身的一处错误（老编译器宽容、本前端按语言规则报「未声明的变量」）。
+  这里按本意把它挪成**变量**：它要被自增、被 `Ofs()` 取地址、被 `BlockWrite` 写出。 }
 Var   Fich       : File;
       Taille_Hdr : Word;
+      Tour       : Integer;
 
 Begin
 
