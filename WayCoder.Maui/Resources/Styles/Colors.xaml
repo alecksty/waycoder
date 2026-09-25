@@ -86,6 +86,9 @@
     <Color x:Key="VmlAsmNameDark">#FFA657</Color>
     <Color x:Key="VmlBinNameLight">#C62828</Color>
     <Color x:Key="VmlBinNameDark">#FF7B72</Color>
+    <!-- 头文件：蓝色（与"能编=绿 / .vml=橙 / .vmb=红"三档都不撞；语义是"参考资料"） -->
+    <Color x:Key="VmlHeaderNameLight">#1F5FA8</Color>
+    <Color x:Key="VmlHeaderNameDark">#6CB6FF</Color>
 
     <!-- ═══ 按钮（中性表面，随主题走 —— 不再用品牌蓝）═══
          用户要求：系统风格统一 —— 暗色模式近黑底 + 白字，亮色模式近白底 + 黑字。

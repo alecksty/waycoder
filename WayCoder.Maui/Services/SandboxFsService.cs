@@ -21,6 +21,46 @@ public static class SandboxFsService
     /// 菜单项与配色**不看这里**（那是 <see cref="VmlRole"/> 的活），
     /// 这里只管"它是什么、长什么样、能不能用编辑器打开"。
     /// </summary>
+    /// <summary>
+    /// 头文件扩展名 —— 各语言的「被 include 的那一半」。
+    ///
+    /// ⚠ **这张表只能手写，没有上游可问**：前端注册表把 `.h` 和 `.c` 写在同一个
+    /// <c>SupportedExtensions</c> 串里（`".c,.h"`、`".cpp,.cc,.cxx,.hpp,.hh"`），
+    /// 它只回答「这个扩展名我认不认」，**不区分「能不能当独立翻译单元」**。
+    /// 所以判据落在这里，**全仓只有这一份**；上游加一门带头文件的语言时往这里补一行。
+    ///
+    /// 22 门前端里**只有 7 门有「被 include 的那一半」**（C / C++ / D / BASIC / Pascal /
+    /// Fortran / ObjC）；其余 15 门（C#、Java、Go、Rust、Swift、Kotlin、Dart、JS、Lua、
+    /// Python、R、Ruby、Scheme、Forth、Ladder）的「引入」是 import/module，
+    /// **不落成独立文件类型**，所以这里没有它们的条目 —— 不是漏了。
+    /// （Swift 混编时的桥接头是 `.h`，已被 C 家族那条覆盖。）
+    /// </summary>
+    private static readonly HashSet<string> HeaderExts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".h", ".hpp", ".hh", ".hxx", ".h++",        // C / C++ / ObjC 家族
+        ".inl", ".ipp", ".tpp", ".tcc", ".txx",     // C++ 模板/内联的实现文件：**只被 include，不单独编译**
+        ".di",                                      // D 的接口文件（`dmd -H` 生成；dub 不把它当源文件传）
+        ".bi",                                      // BASIC 的 include（QBasic/FreeBASIC 的习惯）
+        ".inc",                                     // Pascal `{$I}`、Fortran `INCLUDE` 与通用 include
+    };
+
+    /// <summary>这个文件是「头文件」吗（判据只有 <see cref="HeaderExts"/> 一份）。</summary>
+    public static bool IsHeader(string path) => HeaderExts.Contains(Path.GetExtension(path));
+
+    /// <summary>
+    /// 这个**角色能不能编译** —— 唯一判据（文件页的菜单与编辑器那一格都问它）。
+    ///
+    /// ⚠ 写成显式枚举而不是 `!= None` / `!= Binary` 那种否定式：**否定式会让以后新增的
+    ///   每个角色静默获得这个权限**（`Header` 就是第一个会中招的）。要加角色，
+    ///   就来这里显式决定它能不能编译、能不能运行 —— 这是唯一需要回答这两个问题的地方。
+    /// </summary>
+    public static bool RoleCanCompile(VmlRole role)
+        => role is VmlRole.Compilable or VmlRole.Assembly;
+
+    /// <summary>这个**角色能不能运行** —— 唯一判据（同 <see cref="RoleCanCompile"/>）。</summary>
+    public static bool RoleCanRun(VmlRole role)
+        => role is VmlRole.Compilable or VmlRole.Assembly or VmlRole.Binary;
+
     public enum FileCategory
     {
         /// <summary>能被 VML 前端编译的源码（`.c`/`.py`/`.bas`/`.lua`…）—— 可编译、可编辑。</summary>
@@ -29,6 +69,12 @@ public static class SandboxFsService
         Runnable,
         /// <summary>`.vmb` —— 二进制字节码，**装载即跑**（VML 链上的终态，不可编辑）。</summary>
         Binary,
+        /// <summary>
+        /// 头文件（`.h`/`.hpp`/`.bi`/`.inc`…）—— **在 VML 这条线上，但不能单独编译/运行**：
+        /// 它是被 `#include` 进去的一半，只有当某份源文件把它引进来时才有意义。
+        /// 用户定的：「头文件不具备编译和运行，只能打开编辑」。
+        /// </summary>
+        Header,
         /// <summary>其他源码与纯文本（`.md`/`.json`/`.txt`/`.sh`…）。</summary>
         Source,
         /// <summary>网页（`.html`/`.htm`/`.xhtml`/`.mhtml`）。</summary>
@@ -58,6 +104,14 @@ public static class SandboxFsService
 
         /// <summary>VML 字节码（<c>.vmb</c>）—— 终态产物，只能装载运行。</summary>
         Binary,
+
+        /// <summary>
+        /// 头文件（<c>.h</c>/<c>.hpp</c>/<c>.bi</c>/<c>.inc</c>…）——
+        /// **两样都不行**：不能编译（它不是一份完整的翻译单元）、不能运行（没有入口）。
+        /// 但**在 VML 这条线上**（会被 `#include` 进可编译的源文件），所以给一档自己的颜色，
+        /// 而不是混进 `None` 那堆「跟 VML 无关」的文件里。
+        /// </summary>
+        Header,
     }
 
     /// <summary>
@@ -70,6 +124,8 @@ public static class SandboxFsService
         var ext = System.IO.Path.GetExtension(path);
         if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase)) return VmlRole.Assembly;
         if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase)) return VmlRole.Binary;
+        // ⚠ 头文件同样要判在「可编译」**之前**（理由见 FileCategory.Header）
+        if (IsHeader(path)) return VmlRole.Header;
         return MauiVml.CanCompile(path) ? VmlRole.Compilable : VmlRole.None;
     }
 
@@ -113,6 +169,9 @@ public static class SandboxFsService
             return FileCategory.Binary;
         if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase))
             return FileCategory.Runnable;
+        // ⚠ 头文件**必须判在「可编译」之前** —— 前端把 `.h` 也算作它能编译的扩展名
+        //   （见 HeaderExts 的说明），顺序反了就又变回「可编译」了。
+        if (IsHeader(path)) return FileCategory.Header;
         if (MauiVml.CanCompile(path)) return FileCategory.Compilable;
         if (WebExts.Contains(ext)) return FileCategory.Web;
         if (SourceExts.Contains(ext)) return FileCategory.Source;
@@ -137,6 +196,8 @@ public static class SandboxFsService
         FileCategory.Runnable => "🚀",
         // 用户定的隐喻：**飞碟比火箭快** —— `.vmb` 是链上终态，装载就跑，不必再"点火"
         FileCategory.Binary => "🛸",
+        // 头文件：📎（"附"到别的源文件里才有意义的那一半）
+        FileCategory.Header => "📎",
         FileCategory.Source => "📝",
         FileCategory.Web => "🌐",
         FileCategory.Image => "🖼",
@@ -184,6 +245,7 @@ public static class SandboxFsService
                     VmlRole.Compilable => MauiUi.Res(dark ? "VmlSourceNameDark" : "VmlSourceNameLight"),
                     VmlRole.Assembly => MauiUi.Res(dark ? "VmlAsmNameDark" : "VmlAsmNameLight"),
                     VmlRole.Binary => MauiUi.Res(dark ? "VmlBinNameDark" : "VmlBinNameLight"),
+                    VmlRole.Header => MauiUi.Res(dark ? "VmlHeaderNameDark" : "VmlHeaderNameLight"),
                     _ => MauiUi.Res(dark ? "MainTextDark" : "MainTextLight"),
                 };
             }
@@ -202,7 +264,8 @@ public static class SandboxFsService
         public bool CanEdit => !IsDirectory
             && Vml != VmlRole.Binary
             && Category is FileCategory.Compilable or FileCategory.Runnable
-                        or FileCategory.Source or FileCategory.Web;
+                        or FileCategory.Source or FileCategory.Web
+                        or FileCategory.Header;   // 头文件**只能打开编辑**，所以这一项必须有
         public string DisplaySize => IsDirectory ? "" : FormatSize(Size);
         public string DisplayModified => Modified.ToString("MM-dd HH:mm");
 

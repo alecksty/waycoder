@@ -50,7 +50,16 @@ for f in "$CASES"/*.bas; do
         printf "  %-16s %s\n" "$name" "$(echo "$out" | grep -E '^[A-Za-z0-9-]+=' | tr '\n' ' ')"
         continue
     fi
-    got="$(echo "$out" | grep -oE '^[A-Za-z0-9+-]+=.*' | tr '\n' '|' | sed 's/|$//')"
+    # ⚠ 取实际输出用的是"标识符 =... "这个形状，而**标识符可以是汉字**
+    #   （词法走 .NET 的 char.IsLetter，是 Unicode 感知的）。
+    #   原先这里写死 ASCII 字符类 `[A-Za-z0-9+-]+` ⇒ 汉字行一条都匹配不上，
+    #   实际值恒为空、用例**永远红**，而 `--` 直接跑程序却完全正常 ——
+    #   判据坏在尺子上，不是坏在被测物上。改成"行首到 = 之间不含空格"。
+    #   ⚠ **要同时排除控制字符**：`CLS` 之类会往 stdout 吐 `\x1b[2J\x1b[H`，
+    #     放宽成"行首到 = 之间没有空格"之后，`\x1b[2J\x1b[HB=2` 这种行也会被当成判据
+    #     （实测把用例 54 弄红了）。标识符的字符集是 `[:alnum:]` + `_` + **汉字**，
+    #     与"控制字符"不重叠 —— 用 POSIX 字符类一次写清。
+    got="$(echo "$out" | grep -oE '^[^[:space:][:cntrl:]=]+=.*' | tr '\n' '|' | sed 's/|$//')"
     if [ "$got" = "$exp" ]; then
         printf "  ✅ %-16s %s\n" "$name" "$got"
         pass=$((pass+1))

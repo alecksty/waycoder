@@ -197,8 +197,12 @@ public partial class FilesPage : ContentPage
         //   高级语言源文件（.c/.py/.rs…）→ 「VML 编译」（产出 .vml）+「VML 运行」
         //   .vml（汇编）                 → 「VML 编译」（产出 .vmb，跑得更快）+「VML 运行」
         //   .vmb（字节码）               → 只有「VML 运行」（它已经是终态了）
-        var canCompile = entry.Vml is SandboxFsService.VmlRole.Compilable or SandboxFsService.VmlRole.Assembly;
-        var canRun = entry.Vml != SandboxFsService.VmlRole.None;
+        //   头文件（.h/.hpp/.bi/.inc）→ **两样都没有**，只留「打开」——
+        //     它在链上，但不是一份完整的翻译单元，编译/运行都无从谈起（用户定的）
+        //   ⚠ 判据问 SandboxFsService.RoleCanCompile / RoleCanRun，**不在这里重列一遍角色** ——
+        //     以前这里是 `!= None`，新增一个角色就会静默获得运行权限（`Header` 正撞上这条）。
+        var canCompile = SandboxFsService.RoleCanCompile(entry.Vml);
+        var canRun = SandboxFsService.RoleCanRun(entry.Vml);
 
         var actions = new List<string>();
         if (entry.CanEdit) actions.Add("打开");   // 是文本就该能改（含 `.vml` 与各种可编译源码）

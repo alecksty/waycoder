@@ -253,6 +253,11 @@ CONST C_MARKER = &HFF6FD3FF
 ' 大猩猩配色。两只靠**色相**分开，不靠深浅 —— 用户报过「蓝色猴子白天看不清，
 ' 和天空一样了」，所以选色的判据是**跟天空（蓝）和楼群都要分得开**：
 ' 一只暖橙、一只紫，白天夜里都立得住。每只再配亮面（口鼻/肚子）与暗面（描边/手脚）。
+' 「天黑了没有」的**唯一判据**（天光系数低于它就是夜里）。
+' 原来是三处并列的魔数：飞行物的灯 55、流星 45、路灯 60（`nightF > 40`）——
+' dayL 落在 [55,59] 的那几分钟里路灯亮着、飞行物却不点灯，同一帧两个"夜里"互相矛盾。
+CONST NIGHT_DL = 55
+
 CONST C_APE0 = &HFFE8A33D
 CONST C_APE0L = &HFFF4CE8C
 CONST C_APE0D = &HFFA96B1E
@@ -448,7 +453,6 @@ DIM f AS INTEGER
 DIM s AS INTEGER
 DIM j AS INTEGER
 DIM r3 AS INTEGER
-DIM sx AS INTEGER
 DIM poleC AS INTEGER
 DIM treeC AS INTEGER
 DIM nightF AS INTEGER
@@ -467,6 +471,7 @@ DIM apeD AS INTEGER
 DIM flyC AS INTEGER        ' 飞行物本体色（白天银白 / 夜里深色）
 DIM flyD AS INTEGER        ' 飞行物轮廓色（压暗一档，银白贴浅蓝天空要靠它立住）
 DIM flyLit AS INTEGER      ' 闪灯这一刻亮不亮
+DIM flyEdge AS INTEGER     ' 这一刻铺不铺轮廓层（夜里 flyC==flyD，铺了是白画）
 DIM flyT AS INTEGER        ' 已飞了多久（单位=飞行拍，30ms）
 DIM flyK AS INTEGER        ' 这一拍算几拍（待机 4 / 飞行 1）
 DIM flyWob AS INTEGER      ' 小鸟本段的高度增量 -1/0/1
@@ -490,7 +495,10 @@ DIM stX0 AS INTEGER        ' 街道左端（树随机摆放的范围）
 DIM stX1 AS INTEGER        ' 街道右端
 DIM stSeg AS INTEGER       ' 每段宽
 DIM stTx AS INTEGER        ' 这一棵树的横坐标
-DIM stSc AS INTEGER        ' 这一棵树的尺寸百分比
+DIM stL0 AS INTEGER        ' 左路灯的横坐标（树要躲开）
+DIM stL1 AS INTEGER        ' 右路灯的横坐标
+DIM stOk AS INTEGER        ' 这一棵的位置能不能用（躲开灯没有）
+DIM dfx AS INTEGER         ' 差值临时量
 DIM tkW AS INTEGER         ' 树干宽
 DIM tkH AS INTEGER         ' 树干高
 ' 这一局的树（用户：「位置数量大小都要随机」）。
@@ -1689,7 +1697,7 @@ SUB spawnPlane()
     flyOn = 1
     flyT = 0
     flyY = hudh + 30 + ui_rand(120)
-    flyR = 20
+    flyR = 21          ' = 画出来的半宽（尾翼轮廓到 flyX±21）；见 spawnFlyer 里那条说明
     IF ui_rand(2) = 0 THEN
         flyX = 0 - 40
         flyV = 3
@@ -1715,6 +1723,9 @@ SUB spawnFlyer()
             flyX = sw + 30
             flyV = 0 - (1 + ui_rand(2))
         END IF
+        ' ⚠ flyR 是**方形命中盒的半边长**，取"画出来的半宽"——
+        '   画得比它大就会出现"香蕉明明压在碟身上却没炸"（暗色轮廓层比面层宽，
+        '   所以取的是**轮廓**的半宽，不是面层的）。改造型尺寸时这里要跟着改。
         IF flyKind = 1 THEN
             flyR = 10
             flyWob = 0
@@ -1722,7 +1733,7 @@ SUB spawnFlyer()
             flyRev = 2            ' 最多掉两次头 —— 不限的话它会赖在天上不走
             flyRevT = 0
         ELSE
-            flyR = 16
+            flyR = 18      ' = 碟身轮廓的半宽（见 spawnFlyer 里那条说明）
             flyPhase = 0          ' 飞碟：先定个悬停点（屏幕中段），走到那儿就停
             flyHold = 0
             flyTx = INT(sw * 3 / 10) + ui_rand(INT(sw * 4 / 10))
@@ -1862,7 +1873,7 @@ SUB moveMeteor()
         metWait = metWait + flyK
         IF metWait >= 900 THEN        ' 约 27 秒掷一次签
             metWait = 0
-            IF dayL < 45 THEN         ' 只在夜里
+            IF dayL < NIGHT_DL THEN   ' 只在夜里
                 IF ui_rand(100) < 50 THEN
                     spawnMeteor()
                 END IF
@@ -1887,7 +1898,9 @@ SUB drawMeteor()
     END IF
 END SUB
 
-' 天上飞的三种造型（都是剪影：白天灰、夜里更暗）
+' 天上飞的三种造型。**配色不统一**（v0.96.451 起按种类分）：
+'   小鸟 —— 剪影（白天灰、夜里更暗）；飞机/飞碟 —— 白天**银白**（金属反光）、夜里深色 + 自己的灯。
+' 命中盒 flyR 取的是**画出来（含轮廓）的半宽**，见 spawnFlyer 里那条说明。
 SUB drawFlyer()
     IF flyOn = 0 THEN
         EXIT SUB
@@ -1902,9 +1915,16 @@ SUB drawFlyer()
         mix2(46, 50, 62, 236, 240, 248, dayL)
     END IF
     flyC = colM
-    ' 下缘/轮廓：银白贴着浅蓝天空会"飘"，压一道暗边才立得住
+    ' 下缘/轮廓：银白贴着浅蓝天空会"飘"，压一道暗边才立得住。
+    ' ⚠ **只在白天铺**：dayL=0 时 mix2 原样返回第一组参数 ⇒ flyD 与 flyC **逐位相同**，
+    '   铺一层同色的底板只是把同一块再画一遍（飞机 3 个 rect、飞碟 2 个图元，逐帧白花）。
+    '   夜里那半天从"银白转深色"起就没有轮廓可言了。
     mix2(46, 50, 62, 148, 156, 174, dayL)
     flyD = colM
+    flyEdge = 0
+    IF dayL > 30 THEN
+        flyEdge = 1
+    END IF
 
     ' 闪灯：亮 15 拍、灭 15 拍 —— flyT 记的是"飞行拍"，所以飞行与瞄准两档节拍下
     ' 都是约 0.9 秒一轮（和悬停时长同一个口径，见 moveFlyer 的 flyK）
@@ -1922,20 +1942,23 @@ SUB drawFlyer()
 
     IF flyKind = 2 THEN
         ' ── 飞碟：碟身 + 舱盖 + 舷窗灯 ──
-        ' 先来一层略大的暗色当轮廓，再把银白压上去（白天贴浅蓝天空才不糊成一片）
-        ui_ellipse(flyX, flyY, 18, 6, flyD, 1, 0)
-        ui_circle(flyX, flyY - 5, 8, flyD, 1, 0)
+        ' 先来一层略大的暗色当轮廓，再把银白压上去（白天贴浅蓝天空才不糊成一片）。
+        ' ⚠ 轮廓比面层大一圈 ⇒ **命中盒 flyR 必须按轮廓算**（否则香蕉压在看得见的碟身上却不炸）
+        IF flyEdge = 1 THEN
+            ui_ellipse(flyX, flyY, 18, 6, flyD, 1, 0)
+            ui_circle(flyX, flyY - 5, 8, flyD, 1, 0)
+        END IF
         ui_ellipse(flyX, flyY, 16, 5, flyC, 1, 0)
         ui_circle(flyX, flyY - 5, 7, flyC, 1, 0)
         ' 舷窗灯：**悬停时闪**（用户点名要的），飞行中常亮；白天不点灯
-        IF dayL < 55 THEN
-            IF flyPhase = 1 THEN
-                IF flyLit = 1 THEN
-                    ui_circle(flyX - 8, flyY + 1, 2, &HFFFFD24A, 1, 0)
-                    ui_circle(flyX, flyY + 4, 2, &HFFFFD24A, 1, 0)
-                    ui_circle(flyX + 8, flyY + 1, 2, &HFFFFD24A, 1, 0)
-                END IF
-            ELSE
+        IF dayL < NIGHT_DL THEN
+            ' 悬停（phase=1）时随闪灯时钟明灭，飞行途中常亮。
+            ' ⚠ 三笔只写**一处** —— 写成两个分支各画一遍的话，以后改舷窗的颜色/间距
+            '   只会改到一支，变成"悬停和平飞不是同一只飞碟"（只在夜里的闪烁里看得见）。
+            IF flyPhase <> 1 THEN
+                flyLit = 1
+            END IF
+            IF flyLit = 1 THEN
                 ui_circle(flyX - 8, flyY + 1, 2, &HFFFFD24A, 1, 0)
                 ui_circle(flyX, flyY + 4, 2, &HFFFFD24A, 1, 0)
                 ui_circle(flyX + 8, flyY + 1, 2, &HFFFFD24A, 1, 0)
@@ -1946,24 +1969,30 @@ SUB drawFlyer()
     IF flyKind = 3 THEN
         ' ── 飞机：机身 + 一对机翼 + 尾翼（照飞行的方向朝前）──
         ' 同飞碟：暗色打底当轮廓，银白压上去
+        ' ⚠ 轮廓各方向都比面层宽 1~2px（尾翼那一笔到 flyX±21）⇒ 命中盒 flyR 按轮廓算
+        IF flyEdge = 1 THEN
+            IF flyV >= 0 THEN
+                ui_rect(flyX - 16, flyY - 4, 32, 9, flyD, 1, 0, 3)
+                ui_rect(flyX - 5, flyY - 13, 11, 26, flyD, 1, 0, 2)
+                ui_rect(flyX - 21, flyY - 11, 8, 10, flyD, 1, 0, 1)
+            ELSE
+                ui_rect(flyX - 16, flyY - 4, 32, 9, flyD, 1, 0, 3)
+                ui_rect(flyX - 6, flyY - 13, 11, 26, flyD, 1, 0, 2)
+                ui_rect(flyX + 13, flyY - 11, 8, 10, flyD, 1, 0, 1)
+            END IF
+        END IF
         IF flyV >= 0 THEN
-            ui_rect(flyX - 16, flyY - 4, 32, 9, flyD, 1, 0, 3)
-            ui_rect(flyX - 5, flyY - 13, 11, 26, flyD, 1, 0, 2)
-            ui_rect(flyX - 21, flyY - 11, 8, 10, flyD, 1, 0, 1)
             ui_rect(flyX - 16, flyY - 3, 32, 7, flyC, 1, 0, 3)
             ui_rect(flyX - 4, flyY - 12, 9, 24, flyC, 1, 0, 2)
             ui_rect(flyX - 20, flyY - 10, 6, 8, flyC, 1, 0, 0)
         ELSE
-            ui_rect(flyX - 16, flyY - 4, 32, 9, flyD, 1, 0, 3)
-            ui_rect(flyX - 6, flyY - 13, 11, 26, flyD, 1, 0, 2)
-            ui_rect(flyX + 13, flyY - 11, 8, 10, flyD, 1, 0, 1)
             ui_rect(flyX - 16, flyY - 3, 32, 7, flyC, 1, 0, 3)
             ui_rect(flyX - 5, flyY - 12, 9, 24, flyC, 1, 0, 2)
             ui_rect(flyX + 14, flyY - 10, 6, 8, flyC, 1, 0, 0)
         END IF
         ' 航行灯（用户：「飞机晚上有闪灯」）：尾灯红、机腹频闪白，**交替**闪 ——
         ' 一亮一灭像真飞机；只在夜里点（白天看不见灯）
-        IF dayL < 55 THEN
+        IF dayL < NIGHT_DL THEN
             IF flyLit = 1 THEN
                 IF flyV >= 0 THEN
                     ui_circle(flyX - 18, flyY - 7, 2, &HFFFF3B30, 1, 0)
@@ -2077,24 +2106,55 @@ END SUB
 ' ⚠ 它们进的是**城市图块**（随楼一起每分钟重录一次）⇒ 每帧零成本。
 ' 反面：弹坑会把它们一起"炸掉"（洞画在楼之后）。稀有、且看着还算合理，接受。
 ' **新一局掷一次**树的名单（位置/数量/大小）。见数组声明处的说明。
-SUB rollTrees()
+' 街道的几何（左右端点、每段宽）—— **唯一实现**。
+' rollTrees（掷树的名单）与 drawStreet（摆灯与树）都调它：两处各算一遍的话，
+' 只改一处就会出现「树按旧几何掷、灯按新几何摆」，编译 0 错、桌面也看不出来。
+SUB calcStreet()
     stX0 = INT(sw * 14 / 100)
     stX1 = INT(sw * 86 / 100)
     stSeg = INT((stX1 - stX0) / 5)
     IF stSeg < 12 THEN
         stSeg = 12
     END IF
+    ' 两盏灯各自的横坐标（也是树要躲开的两点）
+    stL0 = stX0 + INT(stSeg / 2)
+    stL1 = stX1 - INT(stSeg / 2)
+END SUB
+
+SUB rollTrees()
+    CALL calcStreet()
     treeN = 0
     i = 1
     WHILE i <= 4
         ' 每段掷一次签（约 3/4 中签）⇒ **数量**本身也就随机了（0~4 棵）
         IF ui_rand(100) < 75 THEN
             IF treeN < 5 THEN
-                ' 横向：段内随机，两端各留 1/5 免得压到灯上
-                treeX(treeN) = stX0 + i * stSeg + INT(stSeg / 5) + ui_rand(INT(stSeg * 3 / 5))
-                ' 大小：70%~127%，两次掷签相加 ⇒ 小树更常见（不是均匀分布，观感自然些）
-                treeS(treeN) = 70 + ui_rand(30) + ui_rand(28)
-                treeN = treeN + 1
+                ' 横向：段内随机，两端各留 1/5
+                stTx = stX0 + i * stSeg + INT(stSeg / 5) + ui_rand(INT(stSeg * 3 / 5))
+                ' ⚠ 还得**躲开两盏路灯** —— 它们都在段的中点，而"段内留 1/5"只护得住段两端；
+                '   不躲的话第 4 段的树约六成的局会压在右灯上（灯先画、树后画 ⇒ 树盖住灯）。
+                stOk = 1
+                dfx = stTx - stL0
+                IF dfx < 0 THEN
+                    dfx = 0 - dfx
+                END IF
+                IF dfx < 24 THEN
+                    stOk = 0
+                END IF
+                dfx = stTx - stL1
+                IF dfx < 0 THEN
+                    dfx = 0 - dfx
+                END IF
+                IF dfx < 24 THEN
+                    stOk = 0
+                END IF
+                IF stOk = 1 THEN
+                    treeX(treeN) = stTx
+                    ' 大小 70%~127%：两次均匀掷签相加 ⇒ **三角分布**（中段最常见、两端最罕见），
+                    ' 比均匀分布看着自然些（但"小树更多"是另一回事，三角分布是对称的）
+                    treeS(treeN) = 70 + ui_rand(30) + ui_rand(29)
+                    treeN = treeN + 1
+                END IF
             END IF
         END IF
         i = i + 1
@@ -2107,16 +2167,11 @@ SUB drawStreet()
     '   · **树照 rollTrees 掷好的名单画**（位置/数量/大小都在新一局定下来了）
     ' 这里只用**确定性**的计算（sw 一定 ⇒ 灯的落点一定），随机一个都不掷 ——
     ' 这个 SUB 会被城市图块每秒重录一次，任何随机写在这儿都会变成"每秒满地跑"。
-    stX0 = INT(sw * 14 / 100)
-    stX1 = INT(sw * 86 / 100)
-    stSeg = INT((stX1 - stX0) / 5)
-    IF stSeg < 12 THEN
-        stSeg = 12
-    END IF
+    CALL calcStreet()
 
     ' 两盏路灯：一头一盏
-    CALL drawLamp(stX0 + INT(stSeg / 2))
-    CALL drawLamp(stX1 - INT(stSeg / 2))
+    CALL drawLamp(stL0)
+    CALL drawLamp(stL1)
 
     ' 树：照名单
     i = 0
@@ -2133,8 +2188,7 @@ SUB drawLamp(lx AS INTEGER)
     ui_rect(lx - 1, ground - 36, 3, 36, poleC, 1, 0, 0)          ' 杆
     ui_rect(lx - 7, ground - 40, 15, 5, poleC, 1, 0, 3)          ' 灯头横过来
     ' 天黑就亮：灯罩下一个小暖点（不画光晕 —— 光晕要混当地底色，而底下是楼不是天空）
-    nightF = 100 - dayL
-    IF nightF > 40 THEN
+    IF dayL < NIGHT_DL THEN
         ui_circle(lx, ground - 38, 3, &HFFFFE9A8, 1, 0)
     END IF
 END SUB

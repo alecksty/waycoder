@@ -61,7 +61,25 @@ namespace CppCompiler
         private readonly Dictionary<string, FunctionDecl> _functionDecls = new();
         private readonly HashSet<string> _definedFunctions = new();
         private readonly Dictionary<string, bool> _isReferenceVar = new();
+        /// <summary>构造函数符号名 —— 与 <see cref="MethodSymbol"/> 同一套口味，单独一个前缀好认。</summary>
+        private static string CtorSymbol(string className, IEnumerable<string> paramTypes)
+        {
+            string suffix = "";
+            foreach (var t in paramTypes) suffix += t switch
+            {
+                "float" => "f", "double" => "d", "char" => "c", "bool" => "b",
+                "int" or "long" or "short" or "unsigned" or "unsigned int" => "i",
+                _ => t.EndsWith("*") ? "p" : "v",
+            };
+            return suffix.Length > 0 ? $"ctor_{className}_{suffix}" : $"ctor_{className}";
+        }
+
         private string? _currentClass = null;    // Track current class context for RTTI
+        /// <summary>
+        /// 成员函数里 `this` 所在的**局部槽**（-1 = 当前函数不是成员函数，没有 this）。
+        /// 序言从栈上把它取出来存进这个槽，`ThisExpr` 与裸成员访问都读它。
+        /// </summary>
+        private int _thisSlot = -1;
 
         /// <summary>
         /// 当前语句来自**哪个文件**（`ASTNode.OriginalFile`，由解析器在语句入口盖）。
@@ -155,7 +173,20 @@ namespace CppCompiler
             {
                 case FunctionDecl fd:
                     if (fd.Body != null)
+                    {
+                        // ⚠ 类成员方法在 AST 里**同时**挂在 ClassDecl 下、又被提升成一个顶层
+                        //   FunctionDecl（这样调用点才能按普通函数名找到它）。于是方法体被
+                        //   生成**两趟**：ClassDecl 那趟带着 `_currentClass`（成员访问能解析），
+                        //   顶层这趟没有 ⇒ 方法体里的裸字段名一路退化成"读同名全局变量"，
+                        //   生成出来的指令完全正常、只是值恒为 0，且**哪一趟先谁后**取决于
+                        //   声明顺序 —— 这类"看着对、值不对"最难查。
+                        //   用 FunctionDecl 自带的 ClassName 把上下文补齐，两趟一致。
+                        string? savedCls = _currentClass;
+                        if (fd.IsMember && !string.IsNullOrEmpty(fd.ClassName))
+                            _currentClass = CleanType(fd.ClassName!);
                         GenerateFunction(fd);
+                        _currentClass = savedCls;
+                    }
                     // 前向声明 (extern等): 仅存储签名 (_functionDecls 已在 pre-pass 中填充)
                     break;
                 case VariableDecl vd:
@@ -184,7 +215,7 @@ namespace CppCompiler
                             if (m.IsVirtual && m.Method != null)
                             {
                                 string vte = $"vtab_{cd.Name}_{vi}_{m.Method.Name}";
-                                dataSection[vte] = $"method_{cd.Name}_{m.Method.Name}";
+                                dataSection[vte] = MethodSymbol(cd.Name, m.Method.Name, m.Method!.Parameters.Select(p => p.Type));
                                 vi++;
                             }
                         }
@@ -194,9 +225,17 @@ namespace CppCompiler
                     _currentClass = cd.Name;
                     foreach (var m in cd.Members)
                     {
-                        if (m.IsMethod && m.Method != null)
+                        // ⚠ 构造函数（IsConstructor）**不在 IsMethod 里** —— 原来这一支只认
+                        //   IsMethod，于是构造函数体从没被生成过（`P p;` 之后字段全是 0）。
+                        if (m.IsConstructor && m.Method != null)
                         {
-                            string label = $"method_{cd.Name}_{m.Method.Name}";
+                            string clabel = CtorSymbol(cd.Name, m.Method.Parameters.Select(p => p.Type));
+                            labels[clabel] = instructions.Count;
+                            GenerateFunction(m.Method);
+                        }
+                        else if (m.IsMethod && m.Method != null)
+                        {
+                            string label = MethodSymbol(cd.Name, m.Method.Name, m.Method!.Parameters.Select(p => p.Type));
                             labels[label] = instructions.Count;
                             GenerateFunction(m.Method);
                         }
@@ -230,6 +269,14 @@ namespace CppCompiler
             AddLabel(label);
 
             int savedReturnLabel = _currentFuncReturnLabel;
+            // ⚠ `_thisSlot` 与 `_currentClass` 也要 save/restore：生成一个函数体的过程中
+            //   会**再进 GenerateFunction**（模板实例化、内联展开），而函数开头那句
+            //   `_thisSlot = -1` 会把外层方法的 this 槽冲掉 —— 回到外层函数体时
+            //   `_thisSlot` 已经是 -1，于是**方法体里的成员访问判定为假**、
+            //   悄悄退化成"读同名全局变量"。症状极隐蔽：生成出来的指令看着正常，
+            //   只是值恒为 0（`move @R0 [var_v]`），而调试打印显示"条件为真"。
+            int savedThisSlot = _thisSlot;
+            string? savedClassCtx = _currentClass;
             _currentFuncReturnLabel = labelCounter++;
             Vars?.ResetLocals();
             _stackOffset = 0;
@@ -262,6 +309,22 @@ namespace CppCompiler
                 if (param.IsReference || isStructVal)
                     _isReferenceVar[param.Name] = true;
                 cumOff += 4;
+            }
+
+            // ── 成员函数的 `this`：先**分配槽位**（必须在下面算 frameSize 之前，
+            //    否则这个局部槽不占栈帧）──
+            // 调用方**最先**压 `this`（见 GenerateCallExpr 的 hasThis），之后才右到左压实参
+            // ⇒ `this` 落在所有形参**之上**：R14 相对偏移 = 12 + 4×形参个数。
+            //
+            // ⚠ 这一级原先整个是缺的：`FunctionDecl.IsMember` 解析器设了、**代码生成从没读过**。
+            //   调用点压进去的 `this` 没人接，而 `ThisExpr` 读的是 R14 —— 那是**帧指针**，
+            //   于是 `this->x` 指向栈帧。初始化列表那段更早，假设 `this` 在 `R14+8`
+            //   （那是**返回地址**），还用 `MOVE R14, 8(R14)` 把帧指针本身覆盖掉了。
+            _thisSlot = -1;
+            if (func.IsMember)
+            {
+                var thisInfo = Vars?.AllocLocal("__this", 4, "int*");
+                _thisSlot = thisInfo?.Offset ?? -4;
             }
 
             // Prologue
@@ -313,6 +376,13 @@ namespace CppCompiler
                     Add(OpCode.MOVE, "R0", $"{pa.paramOff}(R14)");
                     Add(OpCode.MOVE, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", "R0");
                 }
+            }
+
+            // `this` 从栈上取出来存进刚才那个槽（帧已经开好了，R14 是帧指针）
+            if (_thisSlot >= 0)
+            {
+                Add(OpCode.MOVE, "R0", $"{12 + func.Parameters.Count * 4}(R14)");
+                Add(OpCode.MOVE, Vars?.FormatOffset(_thisSlot) ?? $"R14-{_thisSlot}", "R0");
             }
 
             // 构造函数初始化列表: : member1(val1), member2(val2)
@@ -374,6 +444,8 @@ namespace CppCompiler
                 Add(OpCode.RET);
 
             _currentFuncReturnLabel = savedReturnLabel;
+            _thisSlot = savedThisSlot;
+            _currentClass = savedClassCtx;
         }
 
         /// <summary>
@@ -1080,7 +1152,7 @@ namespace CppCompiler
                 {
                     if (m.IsMethod && m.Method != null)
                     {
-                        string label = $"method_{cd.Name}_{m.Method.Name}";
+                        string label = MethodSymbol(cd.Name, m.Method.Name, m.Method!.Parameters.Select(p => p.Type));
                         if (!labels.ContainsKey(label))
                         {
                             labels[label] = instructions.Count;

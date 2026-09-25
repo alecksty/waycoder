@@ -3191,9 +3191,11 @@ public partial class EditorPage : ContentPage
         if (IsMarkdown(_relPath)) return EditorAction.Preview;
 
         // 判据问 DetectVmlRole（→ MauiVml.CanCompile → 上游 22 个编译器的注册表），
-        // 与文件页那条「VML 运行」完全同源，**不另立扩展名表**。
-        // None 的文件（.txt/.json/未知扩展名）这一格直接隐藏 —— 点了没用的按钮比没有更让人困惑。
-        return SandboxFsService.DetectVmlRole(_relPath) != SandboxFsService.VmlRole.None
+        // 再问 RoleCanRun —— 与文件页那条「VML 运行」**完全同源**，这边不重列一遍角色。
+        // 隐藏这一格的两种情况：None 的文件（.txt/.json/未知扩展名），
+        // 以及**头文件**（它在链上，但不是完整的翻译单元、跑不了；用户定的"只能打开编辑"）
+        // —— 点了没用的按钮比没有更让人困惑。
+        return SandboxFsService.RoleCanRun(SandboxFsService.DetectVmlRole(_relPath))
             ? EditorAction.Run : EditorAction.None;
     }
 

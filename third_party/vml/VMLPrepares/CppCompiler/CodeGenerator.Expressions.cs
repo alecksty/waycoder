@@ -271,6 +271,30 @@ namespace CppCompiler
                                 _ => OpCode.MOVE
                             };
                         }
+                        // ── 隐式 `this->field` ──
+                        // 方法体里直接写字段名（不写 this->）时走到这里。这是**第 5 级**回退：
+                        // 局部变量 → 函数名 → 全局变量 → **当前类的字段** → 报未声明。
+                        // ⚠ 这一级原先整个是缺的 —— 所以「方法体看不见成员变量」，
+                        //   而同样的写法在**构造函数**里却好用（那是内联展开的，没有 this 这一层）。
+                        // ⚠ 判定**只认 `_currentClass`**，不认 `_thisSlot`。
+                        //   原因很隐蔽：方法体在一次编译里会被生成**两趟**，其中一趟
+                        //   `_thisSlot` 已经被重置成 -1（函数开头那句），于是判定为假、
+                        //   悄悄退化成"读同名全局变量"—— 生成出来的指令看着完全正常，
+                        //   只是值恒为 0。用"当前类"这个**跨趟稳定**的上下文做判据。
+                        //   `this` 的槽位用固定值：它是该方法里**第一个**分配的局部
+                        //   （紧随 `Vars.ResetLocals()` 之后），所以恒为 R14-4。
+                        int thisOff = _thisSlot >= 0 ? _thisSlot : -4;
+                        if (_currentClass != null
+                            && TryFieldOffset(_currentClass, id.Name, out int implicitOff))
+                        {
+                            Add(OpCode.MOVE, "R0", Vars?.FormatOffset(thisOff) ?? $"R14-{thisOff}");
+                            if (implicitOff > 0)
+                                Add(OpCode.ADD, "R0", $"#{implicitOff}");
+                            // ⚠ 偏移写 `0(R0)` 而不是 `(R0)` —— 序列化器认的是
+                            //   `偏移(寄存器)` 这个形状，`(R0)` 会被写成 `@0`（寄存器 0）。
+                            Add(OpCode.MOVE, "R0", "0(R0)");
+                            break;
+                        }
                         if (!dataSection.ContainsKey(varLabel))
                         {
                             // 局部表、函数表、`dataSection` 三处都没有 ⇒ 这个名字**从未声明过**。
@@ -285,7 +309,13 @@ namespace CppCompiler
                     }
                     break;
                 case ThisExpr _:
-                    Add(OpCode.MOVE, "R0", "R14");
+                    // `this` 由函数序言取出来存在局部槽里（见 CodeGenerator.GenerateFunction）。
+                    // ⚠ 原来读的是 R14 —— 那是**帧指针**，不是 this。
+                    //    非成员函数里没有 this（_thisSlot = -1），沿用旧行为免得影响别处。
+                    if (_thisSlot >= 0)
+                        Add(OpCode.MOVE, "R0", Vars?.FormatOffset(_thisSlot) ?? $"R14-{_thisSlot}");
+                    else
+                        Add(OpCode.MOVE, "R0", "R14");
                     break;
                 case BinaryExpr be:
                     GenerateBinaryExpr(be);
@@ -1146,8 +1176,10 @@ namespace CppCompiler
                 if (me.Object is IdentExpr objId)
                 {
                     // Check if it's a virtual method call
-                    if (_classes.TryGetValue(objId.Name, out var cls))
+                    var recvCls = ResolveClassOf(me.Object);
+                    if (recvCls != null)
                     {
+                        var cls = recvCls;
                         var virtMethod = cls.Members.FirstOrDefault(m => m.IsMethod && m.Method?.Name == me.Member && m.IsVirtual);
                         if (virtMethod != null)
                         {
@@ -1169,12 +1201,12 @@ namespace CppCompiler
                                 // R0 = this pointer (from GenerateExpr above, already pushed)
                                 // Object's first word = type_info address
                                 Add(OpCode.MOVE, "R2", "(R0)");  // R2 = type_info ptr from object
-                                string baseLabel = MangleName($"method_{objId.Name}_{me.Member}", ce.Arguments);
+                                string baseLabel = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
                                 // Pre-generate label names for overrides
                                 var ovrLabels = new List<(ClassDecl dc, string ovrLabel, string jeLabel)>();
                                 foreach (var dc in overriders)
                                 {
-                                    string ovrLabel = MangleName($"method_{dc.Name}_{me.Member}", ce.Arguments);
+                                    string ovrLabel = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
                                     string jeLabel = $"vdisp_ovr_{labelCounter++}";
                                     ovrLabels.Add((dc, ovrLabel, jeLabel));
                                 }
@@ -1200,12 +1232,12 @@ namespace CppCompiler
                             }
                             else
                             {
-                                funcName = MangleName($"method_{objId.Name}_{me.Member}", ce.Arguments);
+                                funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
                             }
                         }
                         else
                         {
-                            funcName = MangleName($"method_{objId.Name}_{me.Member}", ce.Arguments);
+                            funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
                             GenerateExpr(me.Object);
                             Add(OpCode.PUSH, "R0");
                             hasThis = true;
@@ -1213,7 +1245,7 @@ namespace CppCompiler
                     }
                     else
                     {
-                        funcName = MangleName($"method_{objId.Name}_{me.Member}", ce.Arguments);
+                        funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
                         GenerateExpr(me.Object);
                         Add(OpCode.PUSH, "R0");
                         hasThis = true;
@@ -1363,6 +1395,145 @@ namespace CppCompiler
             return cls.Members.Any(m => m.IsVirtual) ? 4 : 0;
         }
 
+        /// <summary>
+        /// 类（**含继承链**）里有没有虚函数 —— 有就说明对象最前面是 vtable/typeid 指针。
+        /// ⚠ `GetVtableOffset(cls)` 只看当前类自己：派生类自己没写 virtual、但基类有，
+        ///   布局里**照样**有那个 4 字节。两处判据不一致 ⇒ 继承来的字段偏移整体差 4。
+        /// </summary>
+        private bool ClassHasVirtualDeep(string className)
+        {
+            var seen = 0;
+            while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
+            {
+                if (cls.Members.Any(m => m.IsVirtual)) return true;
+                className = string.IsNullOrEmpty(cls.BaseClass) ? "" : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return false;
+        }
+
+        /// <summary>对象占多少字节（**含基类子对象**、含 vtable 指针）—— 唯一实现。</summary>
+        private int ClassSizeDeep(string className)
+        {
+            int size = ClassHasVirtualDeep(className) ? 4 : 0;
+            var seen = 0;
+            while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
+            {
+                size += cls.Members.Count(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor) * 4;
+                // 基类子对象在前：它的字节数已经含在上面那次 +4 里了吗？不含 —— 递归累加
+                className = string.IsNullOrEmpty(cls.BaseClass) ? "" : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return Math.Max(4, size);
+        }
+
+        /// <summary>
+        /// 字段在对象里的**字节偏移** —— **唯一实现**（`obj.field`、`this->field`、
+        /// 隐式 `field` 三条路都问它）。
+        ///
+        /// 布局：`[vtable 指针?] [基类子对象] [本类字段…]`（标准 C++ 顺序）。
+        /// ⚠ 原先这条规则在 <see cref="GenerateMemberExpr"/> 与
+        ///   <see cref="GenerateMemberAddress"/> 里**各写了一遍**，而且两处都只遍历
+        ///   当前类自己的成员 ⇒ **继承来的字段偏移算错**（`a.baseField` 会读到派生类的字段，
+        ///   两者都不报错，只是值不对）。
+        /// </summary>
+        private bool TryFieldOffset(string className, string fieldName, out int offset)
+        {
+            offset = ClassHasVirtualDeep(className) ? 4 : 0;
+            var seen = 0;
+            while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
+            {
+                // 基类子对象排在前面：先到基类里找，找不到就把整个基类子对象跳过
+                if (!string.IsNullOrEmpty(cls.BaseClass))
+                {
+                    string baseName = CleanType(cls.BaseClass!);
+                    if (_classes.ContainsKey(baseName))
+                    {
+                        if (TryFieldOffset(baseName, fieldName, out int baseOff))
+                        {
+                            offset += baseOff;
+                            return true;
+                        }
+                        offset += ClassSizeDeep(baseName);
+                    }
+                }
+                foreach (var m in cls.Members)
+                {
+                    if (m.IsMethod || m.IsConstructor || m.IsDestructor) continue;
+                    if (m.Name == fieldName) return true;
+                    offset += 4;
+                }
+                return false;   // 基类那一支已经 return，这里只可能走到"本类里没有"
+            }
+            return false;
+        }
+
+        /// <summary>形参类型 → 一个字符的修饰码（方法符号名用）。</summary>
+        private static string TypeCode(string t) => t switch
+        {
+            "float" => "f",
+            "double" => "d",
+            "char" => "c",
+            "bool" => "b",
+            "int" or "long" or "short" or "unsigned" or "unsigned int" => "i",
+            _ => t.EndsWith("*") ? "p" : "v",
+        };
+
+        /// <summary>
+        /// 方法符号名 —— **调用侧与定义侧共用的唯一算法**。
+        ///
+        /// ⚠ 此前两边各有一套、而且**永远对不上**：
+        ///     定义侧 `method_{类名}_{方法名}`（无后缀）
+        ///     调用侧 `MangleName($"method_{**变量名**}_{方法名}", 实参)`（有后缀）
+        ///   ⇒ 任何带参方法都报「未定义的函数 'method_t_Set_i'」。
+        ///
+        /// 更麻烦的是旧的后缀取自**实参表达式的种类**（字面量 `3`→`i`、变量 `x`→`v`）
+        /// ⇒ 同一个方法按你传字面量还是传变量，会去找**两个不同的符号**，
+        /// 那是"把名字对齐"修不好的。现在改成按**形参类型**修饰 —— 两边都算得出来。
+        /// 类名取**声明该方法的那个类**（含继承链查找），不是接收者变量的静态类型。
+        /// </summary>
+        private string MethodSymbol(string className, string methodName, IEnumerable<string> paramTypes)
+        {
+            string suffix = "";
+            foreach (var t in paramTypes) suffix += TypeCode(CleanType(t));
+            return suffix.Length > 0
+                ? $"method_{className}_{methodName}_{suffix}"
+                : $"method_{className}_{methodName}";
+        }
+
+        /// <summary>
+        /// 沿继承链找方法，返回**声明它的那个类**与方法声明 —— 两者都要，因为符号名用的是
+        /// 声明处的类名（`Ape a; a.Base()` 里 `Base` 声明在 `Entity` ⇒ 符号名是
+        /// `method_Entity_Base`，不是 `method_Ape_Base`）。
+        /// </summary>
+        private bool FindMethodDeep(string className, string methodName, int argCount, out string owner, out FunctionDecl? decl)
+        {
+            owner = className;
+            decl = null;
+            var seen = 0;
+            while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
+            {
+                var m = cls.Members.FirstOrDefault(x => x.IsMethod && x.Method != null
+                                                        && x.Method.Name == methodName
+                                                        && x.Method.Parameters.Count == argCount)
+                     ?? cls.Members.FirstOrDefault(x => x.IsMethod && x.Method != null && x.Method.Name == methodName);
+                if (m?.Method != null) { owner = className; decl = m.Method; return true; }
+                className = string.IsNullOrEmpty(cls.BaseClass) ? "" : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return false;
+        }
+
+        /// <summary>方法调用点的符号名：按接收者的类沿继承链找到声明处，再用形参类型修饰。</summary>
+        private string MethodSymbolForCall(Expr objExpr, string methodName, int argCount)
+        {
+            var cls = ResolveClassOf(objExpr);
+            string className = cls?.Name ?? (objExpr is IdentExpr oid ? oid.Name : "");
+            if (FindMethodDeep(className, methodName, argCount, out string owner, out var decl))
+                return MethodSymbol(owner, methodName, decl!.Parameters.Select(p => p.Type));
+            return MethodSymbol(className, methodName, Enumerable.Empty<string>());
+        }
+
         /// <summary>清理类型字符串: 去掉 struct/union/class 前缀</summary>
         private static string CleanType(string type)
         {
@@ -1498,13 +1669,7 @@ namespace CppCompiler
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
-                int fieldOffset = GetVtableOffset(cls);
-                foreach (var member in cls.Members)
-                {
-                    if (member.IsMethod) continue;
-                    if (member.Name == me.Member) break;
-                    fieldOffset += 4;
-                }
+                TryFieldOffset(cls.Name, me.Member, out int fieldOffset);
                 Add(OpCode.MOVE, "R1", "R0");
                 Add(OpCode.MOVE, "R0", $"{fieldOffset}(R1)");
             }
@@ -1521,13 +1686,7 @@ namespace CppCompiler
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
-                int fieldOffset = GetVtableOffset(cls);
-                foreach (var member in cls.Members)
-                {
-                    if (member.IsMethod) continue;
-                    if (member.Name == me.Member) break;
-                    fieldOffset += 4;
-                }
+                TryFieldOffset(cls.Name, me.Member, out int fieldOffset);
                 if (fieldOffset != 0)
                     Add(OpCode.ADD, "R0", $"#{fieldOffset}");
             }
