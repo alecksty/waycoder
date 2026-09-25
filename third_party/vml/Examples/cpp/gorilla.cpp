@@ -152,6 +152,17 @@ static Flyer* FLY[3];        // 鸟 / 飞碟 / 飞机 —— 三个派生类共�
 //   写死一个颜色会在楼中间留下一块色不对的圆 —— 而且只在某些时段看得出来。
 //════════════════════════════════════════════════════════════════════
 
+// ── 云 / 路灯 / 树的**图块**（开窗时录、每帧贴一次）──────────────────────
+//
+// ⚠ 它们的颜色**随昼夜连续变**，而图块里的颜色是**录制那一刻定死的** ⇒ 按天光
+//   **分档录**（`VML_DAY_STEPS` 档），贴的时候按当前天光选最近的一档。
+//   24 真实分钟走完一天 ⇒ 每档约 1.5 分钟，档位之间的颜色差看不出来。
+// ⚠ 声明必须放在**最前面**：这个前端不做前向引用，`lampsDraw` 在 442 行就用到了。
+#define VML_DAY_STEPS 16
+static int cloudBid[VML_DAY_STEPS];
+static int lampBid[VML_DAY_STEPS];
+static int treeBid[3];           // 树的绿色**本来就是三档固定色** ⇒ 不需要分昼夜
+
 #define MAX_HOLE 24
 
 static int holeX[MAX_HOLE];
@@ -439,30 +450,52 @@ int clockPackParts() { return 0xFF000000 + gMr * 65536 + gMg * 256 + gMb; }
 
 #define N_LAMP 3
 
+/// 一盏灯的**标准尺寸**（录图块用；灯是固定尺寸，贴的时候不用缩放）。
+/// 内容范围：x ∈ [lx-1, lx+18]、y ∈ [ly-46, ly] ⇒ 19×46。
+#define LAMP_STD_W 19
+#define LAMP_STD_H 46
+
+/// 一盏路灯的局部形状（`lx` = 灯柱中轴、`ly` = 地面）。
+/// 抽出来是为了录图块 —— 杆和灯头是**两套独立的昼夜插值**，所以要按天光分档录。
+void lampShapeAt(int lx, int ly, int dayL)
+{
+    int poleC;
+    int headC;
+    // 杆：白天是深灰（有体积感），夜里更深（背光）
+    poleC = mixcol(28, 30, 36, 74, 78, 88, dayL);
+    // 灯头：白天是玻璃（暗），夜里是暖黄 —— 夜里越黑越亮
+    headC = mixcol(255, 214, 130, 96, 102, 116, dayL);
+    ui_rect(lx - 1, ly - 46, 3, 46, poleC, 1, 0, 0);      // 杆
+    ui_rect(lx - 1, ly - 46, 14, 3, poleC, 1, 0, 0);      // 横臂
+    ui_rect(lx + 8, ly - 44, 10, 5, headC, 1, 0, 0);      // 灯头（挂在横臂末端）
+}
+
 void lampsDraw(int scrW, int groundY, int scrH)
 {
     int i;
     int lx;
     int ly;
-    int poleC;
-    int headC;
+    int slot;
 
-    // 杆：白天是深灰（有体积感），夜里更深（背光）
-    poleC = mixcol(28, 30, 36, 74, 78, 88, gDayL);
-    // 灯头：白天是玻璃（暗），夜里是暖黄 —— 夜里越黑越亮
-    headC = mixcol(255, 214, 130, 96, 102, 116, gDayL);
+    slot = gDayL * VML_DAY_STEPS / 101;
+    if (slot < 0) { slot = 0; }
+    if (slot >= VML_DAY_STEPS) { slot = VML_DAY_STEPS - 1; }
 
     i = 0;
     while (i < N_LAMP)
     {
         lx = scrW * (i * 2 + 1) / (N_LAMP * 2);     // 均分：1/6、3/6、5/6 处
         ly = groundY;
-        // 杆
-        ui_rect(lx - 1, ly - 46, 3, 46, poleC, 1, 0, 0);
-        // 横臂
-        ui_rect(lx - 1, ly - 46, 14, 3, poleC, 1, 0, 0);
-        // 灯头（挂在横臂末端）
-        ui_rect(lx + 8, ly - 44, 10, 5, headC, 1, 0, 0);
+        if (lampBid[slot] > 0)
+        {
+            // 图块中心相对"灯柱底"偏 (8.5, -23)（见录制处的局部坐标）——
+            // ⚠ 灯是固定尺寸，**不用缩放**，所以这个偏移是常数，直接加到坐标上即可
+            ui_draw_block(lampBid[slot], lx + 8, ly - 23, 1000, 1000, 0);
+        }
+        else
+        {
+            lampShapeAt(lx, ly, gDayL);
+        }
         i = i + 1;
     }
 }
@@ -535,6 +568,16 @@ void meteorDraw(int scrW, int groundY)
 
 static int cloudY[N_CLOUD];      // 第 i 朵的基准高度（按屏幕比例，开局定一次）
 static int cloudW[N_CLOUD];      // 第 i 朵的宽度
+
+// ── 云 / 路灯 / 树的**图块**（开窗时录、每帧贴一次）──────────────────────
+//
+// ⚠ 它们的颜色**随昼夜连续变**，而图块里的颜色是**录制那一刻定死的** ⇒ 按天光
+//   **分档录**（`VML_DAY_STEPS` 档），贴的时候按当前天光选最近的一档。
+//   24 真实分钟走完一天 ⇒ 每档约 1.5 分钟，档位之间的颜色差看不出来。
+#define VML_DAY_STEPS 16
+static int cloudBid[VML_DAY_STEPS];
+static int lampBid[VML_DAY_STEPS];
+static int treeBid[3];           // 树的绿色**本来就是三档固定色** ⇒ 不需要分昼夜
 static int cloudSpeed[N_CLOUD];  // 第 i 朵的飘动速度（像素 / 游戏分钟）
 static int cloudsReady;
 
@@ -566,17 +609,57 @@ int cloudX(int idx, int scrW)
 }
 
 // 一朵云 = 三团椭圆叠出来（便宜，形状够用）
+/// 云的**标准尺寸**（录图块用）—— 贴的时候按实际宽度等比缩放。
+#define CLOUD_STD_W 128
+/// 云图块的高：云心**上方** 2×ch（最大的鼓包顶到那儿）、**下方** ch/2 ⇒ `2.5×ch`。
+/// ⚠ 云心因此在图块里偏下（从顶算 `2×ch`），贴的时候要减掉那 31.5 个标准像素的偏移。
+#define CLOUD_STD_H (CLOUD_STD_W * 5 / 6)
+
+/// 一朵云（局部形状：`cx,cy` 是云心、`cw` 是宽度、`ch = cw/3`）。
+///
+/// ⚠ 抽成函数是**为了录图块**：形状写一遍，录的时候调它、画的时候贴。
+///   `dayL` 是**绘制时**的天光 —— 录图块时传档位值，正常绘制时传 `gDayL`。
+///   天空色（`gMr/gMg/gMb`）由调用方先 `clockPartsAt` 设好。
+void cloudShapeAt(int cx, int cy, int cw, int dayL)
+{
+    int ch;
+    int col;
+    int shade;
+    ch = cw / 3;
+    // 云色 = 当地天空色 → 白，按天光插值 ⇒ 天全黑时云正好融进天空。
+    // ⚠ 系数要**够狠**：天光 52（早上 7:30）时若只插到 44%，云就是 `0xFF8094B3`
+    //   这种灰蓝，比天空亮一点点、**肉眼看不出来**（实测过）。
+    //   乘 1.6、封顶 100 ⇒ 天光 63 以上就是纯白的云，日出前后才淡出。
+    col = mixcol(gMr, gMg, gMb, 255, 255, 255, dayL * 160 / 100);
+    if (dayL * 160 / 100 > 100) { col = mixcol(gMr, gMg, gMb, 255, 255, 255, 100); }
+    shade = mixcol(colR(col), colG(col), colB(col), gMr, gMg, gMb, 30);
+
+    // ⚠ 原来是"三颗球叠一起"，玩家原话是「云就是圆球？」
+    //   云之所以一眼是云，靠的是**底边接近一条水平线**、只有上半是鼓的。
+    //   所以改成：一条扁的圆角底座（两端自然收成半圆）+ 顶上加三个鼓包。
+    //   只画圆的话，无论怎么排都会读成"一堆球" —— 差别全在这条底边。
+    ui_rect(cx, cy - ch / 2, cw, ch, col, 1, 0, ch / 2);
+    ui_circle(cx + cw / 5,     cy - ch / 2, ch * 3 / 4, col, 1, 0);
+    ui_circle(cx + cw / 2,     cy - ch,     ch,         col, 1, 0);
+    ui_circle(cx + cw * 4 / 5, cy - ch / 2, ch * 2 / 3, col, 1, 0);
+    // 底面一道暗色 —— 有它才有体积感，否则还是"贴纸"
+    ui_rect(cx + ch / 2, cy + ch / 2 - 3, cw - ch, 3, shade, 1, 0, 1);
+}
+
 void cloudsDraw(int scrW, int groundY)
 {
     int i;
     int cx;
     int cy;
     int cw;
-    int ch;
-    int col;
-    int shade;
+    int slot;
 
     if (cloudsReady == 0) { return; }
+
+    // 按当前天光选一档图块（24 分钟走完一天 ⇒ 每档 ~1.5 分钟，档间差看不出来）
+    slot = gDayL * VML_DAY_STEPS / 101;
+    if (slot < 0) { slot = 0; }
+    if (slot >= VML_DAY_STEPS) { slot = VML_DAY_STEPS - 1; }
 
     i = 0;
     while (i < N_CLOUD)
@@ -584,26 +667,21 @@ void cloudsDraw(int scrW, int groundY)
         cx = cloudX(i, scrW);
         cy = cloudY[i];
         cw = cloudW[i];
-        ch = cw / 3;
-        clockPartsAt(cy, groundY);
-        // 云色 = 当地天空色 → 白，按天光插值 ⇒ 天全黑时云正好融进天空。
-        // ⚠ 系数要**够狠**：天光 52（早上 7:30）时若只插到 44%，云就是 `0xFF8094B3`
-        //   这种灰蓝，比天空亮一点点、**肉眼看不出来**（实测过）。
-        //   乘 1.6、封顶 100 ⇒ 天光 63 以上就是纯白的云，日出前后才淡出。
-        col = mixcol(gMr, gMg, gMb, 255, 255, 255, gDayL * 160 / 100);
-        if (gDayL * 160 / 100 > 100) { col = mixcol(gMr, gMg, gMb, 255, 255, 255, 100); }
-        shade = mixcol(colR(col), colG(col), colB(col), gMr, gMg, gMb, 30);
-
-        // ⚠ 原来是"三颗球叠一起"，玩家原话是「云就是圆球？」
-        //   云之所以一眼是云，靠的是**底边接近一条水平线**、只有上半是鼓的。
-        //   所以改成：一条扁的圆角底座（两端自然收成半圆）+ 顶上加三个鼓包。
-        //   只画圆的话，无论怎么排都会读成"一堆球" —— 差别全在这条底边。
-        ui_rect(cx, cy - ch / 2, cw, ch, col, 1, 0, ch / 2);
-        ui_circle(cx + cw / 5,     cy - ch / 2, ch * 3 / 4, col, 1, 0);
-        ui_circle(cx + cw / 2,     cy - ch,     ch,         col, 1, 0);
-        ui_circle(cx + cw * 4 / 5, cy - ch / 2, ch * 2 / 3, col, 1, 0);
-        // 底面一道暗色 —— 有它才有体积感，否则还是"贴纸"
-        ui_rect(cx + ch / 2, cy + ch / 2 - 3, cw - ch, 3, shade, 1, 0, 1);
+        if (cloudBid[slot] > 0)
+        {
+            // ⚠ **等比缩放**：云的高宽比本来就是定的（ch = cw/3），非等比会把鼓包压扁。
+            // ⚠ **要减一个偏移**：图块的内容是"往上鼓"的（云心下方只有 ch/2、上方有
+            //   2×ch），所以图块的**几何中心不等于云心** —— 差 31.5 个标准像素（见录制处）。
+            //   不减这一步，云会整体往下沉一截。
+            ui_draw_block(cloudBid[slot], cx, cy - (32 * cw / CLOUD_STD_W),
+                          cw * 1000 / CLOUD_STD_W, cw * 1000 / CLOUD_STD_W, 0);
+        }
+        else
+        {
+            // 图块没建起来（有真窗口时不该发生）—— 退回直接画
+            clockPartsAt(cy, groundY);
+            cloudShapeAt(cx, cy, cw, gDayL);
+        }
         i = i + 1;
     }
 }
@@ -1813,6 +1891,42 @@ public:
 // Tree —— 地上的树（位置 / 数量 / 高矮都随机）
 // ════════════════════════════════════════════════════════════════════
 
+/// 树的**标准尺寸**（录图块用）。⚠ 树的高矮宽窄每棵都不同，贴的时候按**高度等比缩放**
+/// （宽度不按实际值 —— 那会让树冠变成椭圆；宽度上的差异在观感上本来就只是"冠大一点"）。
+#define TREE_STD_W 40
+#define TREE_STD_H 64
+
+/// 一棵树的局部形状：`cx` = 树干中轴、`cy` = 树根、`cw`/`chh` = 冠宽/树高、`v` = 绿档 0..2。
+///
+/// 抽成函数是为了录图块（形状写一遍，录的时候调它、画的时候贴）。
+/// ⚠ 绿档**本来就是三档固定色**（按位置取，与天光无关）⇒ 树只要录 3 个图块，不用分昼夜。
+void treeShapeAt(int cx, int cy, int cw, int chh, int v)
+{
+    int r;
+    int cyy;
+    int dark;
+    int mid;
+    int lit;
+
+    dark = 0xFF1E4A22;
+    mid  = 0xFF2E7A38;
+    lit  = 0xFF57B05E;
+    if (v == 1) { dark = 0xFF22401E; mid = 0xFF4A7A2E; lit = 0xFF78C05A; }
+    if (v == 2) { dark = 0xFF173F2A; mid = 0xFF2A6E4A; lit = 0xFF4FA87A; }
+
+    // 树干
+    ui_rect(cx - 2, cy - chh / 3, 5, chh / 3 + 2, dark, 1, 0, 1);
+    ui_rect(cx - 1, cy - chh / 3, 3, chh / 3, 0xFF5A4326, 1, 0, 1);
+
+    // 树冠：两侧小圆先画（当底部层次），主冠盖上去，最后左上一块受光
+    cyy = cy - chh * 2 / 3;
+    r = cw / 2 + 2;
+    ui_circle(cx - r * 3 / 4, cyy + r / 3, r / 2, dark, 1, 0);
+    ui_circle(cx + r * 3 / 4, cyy + r / 3, r / 2, dark, 1, 0);
+    ui_circle(cx, cyy, r, mid, 1, 0);
+    ui_circle(cx - r / 4, cyy - r / 3, r * 2 / 3, lit, 1, 0);
+}
+
 class Tree
 {
 public:
@@ -1839,35 +1953,21 @@ public:
 
     void Draw()
     {
-        int cy;
-        int r;
         int v;              // 本棵的绿色档（0..2）—— 按位置取，不用额外字段
-        int dark;
-        int mid;
-        int lit;
-
-        // ⚠ 原来树冠是**三层方角矩形**叠出来的 —— 放小了一看就是"绿色方块"，
-        //   与云那时候同一个毛病。树冠就用圆：一大两小拼一顶，再补受光面。
-        // 三档绿，按 x 取（同一棵每帧稳定，每棵树之间不一样）
         v = (x / 7) % 3;
-        dark = 0xFF1E4A22;
-        mid  = 0xFF2E7A38;
-        lit  = 0xFF57B05E;
-        if (v == 1) { dark = 0xFF22401E; mid = 0xFF4A7A2E; lit = 0xFF78C05A; }
-        if (v == 2) { dark = 0xFF173F2A; mid = 0xFF2A6E4A; lit = 0xFF4FA87A; }
-
-        // 树干
-        ui_rect(x - 2, y - h / 3, 5, h / 3 + 2, dark, 1, 0, 1);
-        ui_rect(x - 1, y - h / 3, 3, h / 3, 0xFF5A4326, 1, 0, 1);
-
-        // 树冠：两侧小圆先画（当底部层次），主冠盖上去，最后左上一块受光
-        cy = y - h * 2 / 3;
-        r = w / 2 + 2;
-        ui_circle(x - r * 3 / 4, cy + r / 3, r / 2, dark, 1, 0);
-        ui_circle(x + r * 3 / 4, cy + r / 3, r / 2, dark, 1, 0);
-        ui_circle(x, cy, r, mid, 1, 0);
-        ui_circle(x - r / 4, cy - r / 3, r * 2 / 3, lit, 1, 0);
+        if (treeBid[v] > 0)
+        {
+            // ⚠ **按高度等比缩放**：宽度不按实际值 —— 那会让树冠变椭圆，
+            //   而宽度上的差异观感上只是"冠大一点"。
+            // ⚠ 图块的"高"含树根**下方 2px**（树冠画到 cy-h/3+2），所以中心要跟着偏。
+            int sc;
+            sc = h * 1000 / TREE_STD_H;
+            ui_draw_block(treeBid[v], x, y - h / 2, sc, sc, 0);
+            return;
+        }
+        treeShapeAt(x, y, w, h, v);
     }
+
 };
 
 // ════════════════════════════════════════════════════════════════════
@@ -2175,6 +2275,52 @@ public:
         bird.MakeBlocks();
         ufo.MakeBlock();
         plane.MakeBlock();
+
+        // ── 云 / 路灯：按天光**分档录** ────────────────────────────────────
+        //
+        // ⚠ 图块里的颜色是**录制那一刻定死的**，而这两样的颜色随昼夜连续变
+        //   ⇒ 每档录一份，贴的时候按当前天光选最近的一档。
+        //   24 真实分钟走完一天 ⇒ 每档约 1.5 分钟，档与档之间的颜色差看不出来。
+        //
+        // ⚠ 录制期间要**临时改 `gDayL`**（云还要用"当地天空色" ⇒ 顺带调一次
+        //   `clockPartsAt`）。用屏宽中点的高度当代表 —— 云分布在不同高度、天空色
+        //   略有差异，但那个差异比档位差还小。
+        // ⚠ **录完必须恢复 `gDayL`**：它决定天色，留着档位值会让第一帧的天色不对
+        //   （下一帧 `Draw` 开头的 `clockCompute` 会重算，但那一帧已经画出去了）。
+        int k;
+        int d;
+        int saveDay;
+        saveDay = gDayL;
+        k = 0;
+        while (k < VML_DAY_STEPS)
+        {
+            d = k * 100 / (VML_DAY_STEPS - 1);
+            gDayL = d;
+            clockPartsAt(sw / 2, gy);
+
+            cloudBid[k] = ui_create_block(CLOUD_STD_W, CLOUD_STD_H, 0);
+            // ⚠ 云心在图块里**偏下**：从顶算 2×ch（最大的鼓包顶到那儿）—— 贴的时候减掉
+            cloudShapeAt(CLOUD_STD_W / 2, CLOUD_STD_W * 2 / 3, CLOUD_STD_W, d);
+            cloudBid[k] = ui_end_block();
+
+            lampBid[k] = ui_create_block(LAMP_STD_W, LAMP_STD_H, 0);
+            // 灯柱底放在图块底边 ⇒ 图块中心相对灯柱底偏 (8.5, -23)
+            lampShapeAt(1, LAMP_STD_H, d);
+            lampBid[k] = ui_end_block();
+            k = k + 1;
+        }
+
+        // 树的绿档**本来就是固定色**（与天光无关）⇒ 只录 3 个
+        k = 0;
+        while (k < 3)
+        {
+            treeBid[k] = ui_create_block(TREE_STD_W, TREE_STD_H, 0);
+            treeShapeAt(TREE_STD_W / 2, TREE_STD_H, TREE_STD_W, TREE_STD_H, k);
+            treeBid[k] = ui_end_block();
+            k = k + 1;
+        }
+
+        gDayL = saveDay;
     }
 
     void NewTurn()
