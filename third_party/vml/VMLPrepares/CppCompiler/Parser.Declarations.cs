@@ -62,6 +62,7 @@ namespace CppCompiler
                         dimValues.Add(d is IntLiteral il2 ? il2.Value : 1);
                 }
                 Expr? init = null;
+                List<Expr>? ctorArgs = null;
                 if (Match(TokenType.ASSIGN))
                 {
                     if (Check(TokenType.LBRACE)) init = ParseInitializerList();
@@ -69,9 +70,20 @@ namespace CppCompiler
                 }
                 else if (Match(TokenType.LPAREN))
                 {
-                    // 构造函数风格初始化: Foo f(42)
-                    init = ParseExpression();
-                    while (Match(TokenType.COMMA)) { }
+                    // 构造函数风格初始化: Foo f(42) / Foo f(a, b)
+                    //
+                    // ⚠ 实参**一个都不能丢**：原先那句 `while (Match(COMMA)) { }` 把
+                    //   第二个及以后的实参直接吃掉，`Foo f(1, 2)` 只传得进一个 ——
+                    //   不报错、不崩，只是参数少了一个。全部收进 `CtorArgs`，
+                    //   由代码生成按"声明类型是不是类"决定拿它去调构造函数还是当普通初值。
+                    ctorArgs = new List<Expr>();
+                    if (!Check(TokenType.RPAREN))
+                    {
+                        ctorArgs.Add(ParseExpression());
+                        while (Match(TokenType.COMMA))
+                            ctorArgs.Add(ParseExpression());
+                    }
+                    if (ctorArgs.Count > 0) init = ctorArgs[0];   // 非类类型沿旧行为用第一个
                     Expect(TokenType.RPAREN);
                 }
                 // `[]`（不给维度）时**从初始化器推断元素个数**（C 的语义）。
@@ -80,7 +92,7 @@ namespace CppCompiler
                 int totalElems = arraySize is IntLiteral il
                     ? il.Value
                     : (isArray ? InferArrayElements(init) : 0);
-                stmts.Add(new AssignExpr { Target = new IdentExpr { Name = name }, Value = init ?? new IntLiteral { Value = 0 }, DeclType = type, ArraySize = totalElems, Dimensions = dimValues });
+                stmts.Add(new AssignExpr { Target = new IdentExpr { Name = name }, Value = init ?? new IntLiteral { Value = 0 }, DeclType = type, ArraySize = totalElems, Dimensions = dimValues, CtorArgs = ctorArgs });
             } while (Match(TokenType.COMMA));
             Expect(TokenType.SEMICOLON);
             if (stmts.Count == 1) return new ExprStmt { Expression = stmts[0] };

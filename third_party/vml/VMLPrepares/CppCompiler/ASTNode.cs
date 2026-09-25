@@ -280,6 +280,23 @@ namespace CppCompiler
         public string? DeclType { get; set; } // 变量声明时的类型 (struct Pt / int / ...)
         public int ArraySize { get; set; } // 数组元素个数 (0 = 非数组)
         public List<int> Dimensions { get; set; } = new(); // 多维数组原始维度 [2,3] for arr[2][3]
+
+        /// <summary>
+        /// `T x(args);` 那条**构造调用**形态的实参表；`null` = 不是这个形态。
+        ///
+        /// <para>
+        /// 为什么必须单独记：这个形态与 `T x = v;` 在 AST 里**长得一模一样**
+        /// （都是 `AssignExpr{Target, Value, DeclType}`），`T x;`（无初值）又被补成
+        /// `Value = 0` ⇒ 与 `T x(0);` 也分不开。光看 AST 判不出该不该调构造函数，
+        /// 所以"用了括号形态"这件事实要在解析时**记下来**。
+        /// </para>
+        /// <para>
+        /// ⚠ 这里存的是**全部**实参。原先解析器对多参形态是
+        /// `while (Match(COMMA)) { }` —— 把第二个及以后的实参**直接丢掉**，
+        /// 于是 `Foo f(1, 2)` 只传得进一个参数（静默，不报错）。
+        /// </para>
+        /// </summary>
+        public List<Expr>? CtorArgs { get; set; }
     }
 
     public class NewExpr : Expr

@@ -76,10 +76,21 @@ namespace CppCompiler
 
         private string? _currentClass = null;    // Track current class context for RTTI
         /// <summary>
-        /// 成员函数里 `this` 所在的**局部槽**（-1 = 当前函数不是成员函数，没有 this）。
-        /// 序言从栈上把它取出来存进这个槽，`ThisExpr` 与裸成员访问都读它。
+        /// 成员函数里 `this` 所在的**局部槽偏移**。序言从栈上把它取出来存进这个槽，
+        /// `ThisExpr` 与裸成员访问都读它。
+        ///
+        /// ⚠ **「有没有这个槽」必须用 <see cref="_hasThis"/> 判，绝不能用 `_thisSlot >= 0`**。
+        ///   `VarMemManager.AllocLocal` 是**从帧指针向负方向**分配的（`_localBottom - size`），
+        ///   所以第一个局部量 —— 也就是这里的 `__this` —— 偏移恒为 **-4**。
+        ///   写成 `_thisSlot >= 0` 就是把"分配到了槽"判成"没有槽"：帧照开（4 字节）、
+        ///   `this` 的**读**又恰好有一条 `-4` 兜底（见 `GenerateExpr` 的隐式 `this->f`
+        ///   与 `ThisExpr`），于是**只有写槽那一句被跳过** —— 读到一个从没写过的槽，
+        ///   值恒为 0，而生成的指令看着一句不少。
         /// </summary>
         private int _thisSlot = -1;
+
+        /// <summary>当前函数是不是成员函数（有 `this` 槽）。见 <see cref="_thisSlot"/> 的警告。</summary>
+        private bool _hasThis;
 
         /// <summary>
         /// 当前语句来自**哪个文件**（`ASTNode.OriginalFile`，由解析器在语句入口盖）。
@@ -269,13 +280,13 @@ namespace CppCompiler
             AddLabel(label);
 
             int savedReturnLabel = _currentFuncReturnLabel;
-            // ⚠ `_thisSlot` 与 `_currentClass` 也要 save/restore：生成一个函数体的过程中
-            //   会**再进 GenerateFunction**（模板实例化、内联展开），而函数开头那句
-            //   `_thisSlot = -1` 会把外层方法的 this 槽冲掉 —— 回到外层函数体时
-            //   `_thisSlot` 已经是 -1，于是**方法体里的成员访问判定为假**、
-            //   悄悄退化成"读同名全局变量"。症状极隐蔽：生成出来的指令看着正常，
-            //   只是值恒为 0（`move @R0 [var_v]`），而调试打印显示"条件为真"。
+            // ⚠ `_thisSlot` / `_hasThis` 与 `_currentClass` 也要 save/restore：
+            //   生成一个函数体的过程中会**再进 GenerateFunction**（模板实例化、内联展开），
+            //   而函数开头那句复位会把外层方法的 this 上下文冲掉 —— 回到外层函数体时
+            //   判定就变成"没有 this"，成员访问悄悄退化成"读同名全局变量"。
+            //   症状极隐蔽：生成出来的指令看着正常，只是值恒为 0。
             int savedThisSlot = _thisSlot;
+            bool savedHasThis = _hasThis;
             string? savedClassCtx = _currentClass;
             _currentFuncReturnLabel = labelCounter++;
             Vars?.ResetLocals();
@@ -320,24 +331,22 @@ namespace CppCompiler
             //   调用点压进去的 `this` 没人接，而 `ThisExpr` 读的是 R14 —— 那是**帧指针**，
             //   于是 `this->x` 指向栈帧。初始化列表那段更早，假设 `this` 在 `R14+8`
             //   （那是**返回地址**），还用 `MOVE R14, 8(R14)` 把帧指针本身覆盖掉了。
-            // ⚠ 判据**不能只认 `func.IsMember`**：类方法在 AST 里既挂在 `ClassDecl` 下、
-            //   又被提升成一个顶层 `FunctionDecl`，**方法体会被生成两趟**。提升上来的那份
-            //   `IsMember` 是 false，于是这趟不分配槽、也不写 —— 可 `_currentClass` 是上一趟
-            //   **残留**的（没人清），方法体里的成员访问照样发 `[0(R0)]`，而 `this` 读的是
-            //   一个从没写过的槽 ⇒ 拿到 0 ⇒ `[0(0)]` ⇒ 值恒为 0。
-            //   判据换成"这个函数名是不是当前类的方法" —— 两趟都成立。
+            // ⚠ 判据**必须带上 `func.ClassName`**：`IsMember` 是解析时才有的东西
+            //   （`ParseClassMember` 那条路设），而生成期真正要靠的是"这个函数属于哪个类"。
+            //   两者任一为真就认 —— 只认 `IsMember` 会让任何漏设该位的路径（模板实例化
+            //   造出来的 `FunctionDecl` 等）静默丢掉 `this`。
             //
-            // ⚠ 判据**用 `func.ClassName`**（解析器给的），不要靠 `_currentClass` 残留：
-            //   类方法被提升成顶层 `FunctionDecl` 之后 `IsMember` 是 false，而 `_currentClass`
-            //   只是上一趟没清干净的**残留值** —— 靠残留会出现"成员访问发得出来、`this` 却是
-            //   垃圾"这种半对状态。带上类名，两趟都认得出来，行为才一致。
+            // ⚠ 「有没有槽」记在 `_hasThis` 上，**不要用 `_thisSlot >= 0` 判** ——
+            //   槽偏移是从帧指针向负方向分配的，第一个局部量恒为 `-4`（见 `_thisSlot` 的注释）。
             _thisSlot = -1;
+            _hasThis = false;
             if (!string.IsNullOrEmpty(func.ClassName))
                 _currentClass = CleanType(func.ClassName!);
             if (func.IsMember || !string.IsNullOrEmpty(func.ClassName))
             {
                 var thisInfo = Vars?.AllocLocal("__this", 4, "int*");
                 _thisSlot = thisInfo?.Offset ?? -4;
+                _hasThis = true;
             }
 
             // Prologue
@@ -392,7 +401,7 @@ namespace CppCompiler
             }
 
             // `this` 从栈上取出来存进刚才那个槽（帧已经开好了，R14 是帧指针）
-            if (_thisSlot >= 0)
+            if (_hasThis)
             {
                 Add(OpCode.MOVE, "R0", $"{12 + func.Parameters.Count * 4}(R14)");
                 Add(OpCode.MOVE, Vars?.FormatOffset(_thisSlot) ?? $"R14-{_thisSlot}", "R0");
@@ -458,6 +467,7 @@ namespace CppCompiler
 
             _currentFuncReturnLabel = savedReturnLabel;
             _thisSlot = savedThisSlot;
+            _hasThis = savedHasThis;
             _currentClass = savedClassCtx;
         }
 

@@ -276,14 +276,12 @@ namespace CppCompiler
                         // 局部变量 → 函数名 → 全局变量 → **当前类的字段** → 报未声明。
                         // ⚠ 这一级原先整个是缺的 —— 所以「方法体看不见成员变量」，
                         //   而同样的写法在**构造函数**里却好用（那是内联展开的，没有 this 这一层）。
-                        // ⚠ 判定**只认 `_currentClass`**，不认 `_thisSlot`。
-                        //   原因很隐蔽：方法体在一次编译里会被生成**两趟**，其中一趟
-                        //   `_thisSlot` 已经被重置成 -1（函数开头那句），于是判定为假、
-                        //   悄悄退化成"读同名全局变量"—— 生成出来的指令看着完全正常，
-                        //   只是值恒为 0。用"当前类"这个**跨趟稳定**的上下文做判据。
-                        //   `this` 的槽位用固定值：它是该方法里**第一个**分配的局部
-                        //   （紧随 `Vars.ResetLocals()` 之后），所以恒为 R14-4。
-                        int thisOff = _thisSlot >= 0 ? _thisSlot : -4;
+                        // ⚠ 判定**只认 `_currentClass`**，不认 `_thisSlot`：
+                        //   "有没有 this"记在 `_hasThis` 上，而 `_thisSlot` 是个**偏移**
+                        //   （第一个局部量 = `-4`，负数！），拿它当布尔用必然出错。
+                        //   槽位固定取 `_thisSlot`，没有时退回那个约定值 —— 它是该方法里
+                        //   **第一个**分配的局部量（紧随 `Vars.ResetLocals()` 之后）。
+                        int thisOff = _hasThis ? _thisSlot : -4;
                         if (_currentClass != null
                             && TryFieldOffset(_currentClass, id.Name, out int implicitOff))
                         {
@@ -311,8 +309,8 @@ namespace CppCompiler
                 case ThisExpr _:
                     // `this` 由函数序言取出来存在局部槽里（见 CodeGenerator.GenerateFunction）。
                     // ⚠ 原来读的是 R14 —— 那是**帧指针**，不是 this。
-                    //    非成员函数里没有 this（_thisSlot = -1），沿用旧行为免得影响别处。
-                    if (_thisSlot >= 0)
+                    //    非成员函数里没有 this，沿用旧行为免得影响别处。
+                    if (_hasThis)
                         Add(OpCode.MOVE, "R0", Vars?.FormatOffset(_thisSlot) ?? $"R14-{_thisSlot}");
                     else
                         Add(OpCode.MOVE, "R0", "R14");
@@ -670,6 +668,28 @@ namespace CppCompiler
                     break;
                 case "~":
                     _expr!.EmitBitNot(WrapExpr(ue.Operand));
+                    break;
+                // `++`/`--` 作用在**隐式 `this->字段`** 上时，走 `Emit*Inc/Dec` 会落到
+                // `WrapTargetExpr` 的 `Data("var_字段名")` 分支 —— 改的是全局量、不是字段
+                // （与 `v += e` 同一条根因）。这里降级成 `v = v ± 1`，由成员赋值那条路处理。
+                //
+                // ⚠ 已知局限：作为**子表达式**用时（`x = v++`）返回的是**自增后**的值，
+                //   与 C++ 的后缀语义（返回旧值）不同。语句位置（`v++;` 独占一行）不受影响，
+                //   而 `_expr` 那套 ExpVar 本来就只对 Stack/Data 落点做得正确 ——
+                //   这是"字段上的自增"此前**完全不能用**与"取值语义略有出入"之间的取舍。
+                case "++" or "++post" or "--" or "--post"
+                    when IsImplicitThisField(ue.Operand, out var incMem):
+                    GenerateAssignExpr(new AssignExpr
+                    {
+                        Target = incMem,
+                        Op = "=",
+                        Value = new BinaryExpr
+                        {
+                            Left = incMem,
+                            Op = ue.Op.StartsWith("+") ? "+" : "-",
+                            Right = new IntLiteral { Value = 1 },
+                        },
+                    });
                     break;
                 case "++":
                     _expr!.EmitPrefixInc(WrapTargetExpr(ue.Operand));
@@ -1550,6 +1570,19 @@ namespace CppCompiler
         /// <summary>Resolve the ClassDecl from an expression's type (handles ptr-to-class too)</summary>
         private ClassDecl? ResolveClassOf(Expr expr)
         {
+            // ⚠ `this` **必须**在这一列里。原先没有这一支，于是 `this->b` 一路返回 null：
+            //   `GenerateMemberAddress`/`GenerateMemberExpr` 拿不到类，字段偏移那条
+            //   `if (fieldOffset != 0) ADD` 整个被跳过 ⇒ **`this->b` 读写的是 `this->a`**
+            //   （偏移恒 0）。只写一个字段的类看不出来 —— 而本仓的类例子恰好都是那种，
+            //   所以这个洞一直活着。显式 `this->f` 与隐式 `f` 是两条路（后者走
+            //   `_currentClass`），两边必须都能定位到同一个字段。
+            if (expr is ThisExpr)
+            {
+                if (!string.IsNullOrEmpty(_currentClass)
+                    && _classes.TryGetValue(_currentClass!, out var thisCls))
+                    return thisCls;
+                return null;
+            }
             if (expr is IdentExpr ie)
             {
                 if (_classes.TryGetValue(ie.Name, out var directCls))
@@ -1721,8 +1754,133 @@ namespace CppCompiler
             }
         }
 
+        /// <summary>
+        /// 「这个表达式是**隐式的 `this->字段`** 吗」—— 唯一判据。
+        ///
+        /// <para>
+        /// 方法体里裸写字段名（不写 `this->`）时走这一支。读那条路
+        /// （<see cref="GenerateExpr"/> 的 `IdentExpr`）早就有它；写这条原先没有，
+        /// 于是同一个 `v` 读的是 `this->v`、写的是全局 `var_v` —— 值写进去读不出来。
+        /// </para>
+        /// <para>
+        /// 三条前提，缺一不可：
+        /// <list type="number">
+        /// <item>正处于某个类的方法体里（`_currentClass` 非空）；</item>
+        /// <item>**不是局部量** —— 局部量遮蔽同名字段（C++ 的作用域规则）；</item>
+        /// <item>名字确实是当前类（含基类）的字段 —— 否则它就是个普通全局量。</item>
+        /// </list>
+        /// 命中时给出等价的显式 `this->字段`，交给**已经存在**的成员读写路径去处理
+        /// （偏移含继承，见 <see cref="GenerateMemberAddress"/>）。
+        /// </para>
+        /// </summary>
+        private bool IsImplicitThisField(Expr e, out MemberExpr member)
+        {
+            member = null!;
+            if (e is not IdentExpr id) return false;
+            if (string.IsNullOrEmpty(_currentClass)) return false;
+            if (_variables.ContainsKey(id.Name)) return false;
+            if (!_classes.ContainsKey(_currentClass!)) return false;
+            if (!TryFieldOffset(_currentClass!, id.Name, out _)) return false;
+            member = new MemberExpr { Object = new ThisExpr(), Member = id.Name };
+            return true;
+        }
+
+        /// <summary>
+        /// 按**实参个数**挑一个构造函数；没有就返回 null（"这类没有用户构造函数"，
+        /// 调用方沿旧行为处理）。
+        ///
+        /// <para>
+        /// 只按个数匹配，不按类型：这个前端没有"实参 → 形参"的类型推导（`InferExpType`
+        /// 给的是枚举、不是类型名），而按个数匹配已经能覆盖"重载只在参数个数上不同"的
+        /// 绝大多数写法。同名同个数不同类型两个构造函数会挑到先声明的那个 ——
+        /// 这是个**已知的**局限，不是"碰巧对"。
+        /// </para>
+        /// <para>
+        /// 只看本类，**不往基类找**：C++ 不继承构造函数（派生类的构造函数得自己调基类的），
+        /// 往基类找会把 `Derived d;` 接到 `Base()` 上去，那比不调更糟。
+        /// </para>
+        /// </summary>
+        private static FunctionDecl? FindCtor(ClassDecl cls, int argCount)
+            => cls.Members.FirstOrDefault(m => m.IsConstructor && m.Method != null
+                                               && m.Method.Parameters.Count == argCount)?.Method;
+
+        /// <summary>
+        /// 发一次构造函数调用 —— 调用约定与 `GenerateCallExpr` 的方法调用那条**逐位相同**：
+        /// `this` **最先**压（于是它在最上面，被调方按 `12 + 4×形参个数` 取），
+        /// 然后实参右到左压，再镜像 arg0..3 进 R0-R3，最后调用方清栈。
+        ///
+        /// <para>
+        /// ⚠ 清栈量是 `(实参个数 + 1) × 4` —— 那个 `+1` 是 `this`。漏了它每建一个对象
+        /// 栈指针就漂 4 字节，症状是"对象建到第二个之后值开始不对"。
+        /// </para>
+        /// </summary>
+        private void EmitCtorCall(string objLabel, string className, FunctionDecl ctor, List<Expr>? args)
+        {
+            args ??= new List<Expr>();
+
+            // this = 对象地址（LABEL 操作数取的是**地址**，不是那一格的内容）
+            instructions.Add(new Instruction(OpCode.MOVE, [
+                new(OperandType.REGISTER, 0),
+                new(OperandType.LABEL, objLabel)
+            ]));
+            Add(OpCode.PUSH, "R0");
+
+            for (int i = args.Count - 1; i >= 0; i--)
+            {
+                GenerateExpr(args[i]);
+                Add(OpCode.PUSH, "R0");
+            }
+
+            // 镜像 arg0..arg3 —— 与 GenerateCallExpr 同一份理由（`Lib` 里的内联汇编吃 R0）
+            for (int i = 0; i < args.Count && i < 4; i++)
+            {
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, i), new Operand(OperandType.MEMORY, $"R13+{i * 4}")],
+                    instructions.Count));
+            }
+
+            Add(OpCode.CALL, CtorSymbol(className, ctor.Parameters.Select(p => p.Type)));
+            Add(OpCode.ADD, "R13", $"#{(args.Count + 1) * 4}");
+        }
+
         private void GenerateAssignExpr(AssignExpr ae)
         {
+            // ── 隐式 `this->field` 的**写**：先降级成显式 `this->field`，再走下面那条
+            //    **已经存在**的成员赋值路径（`ae.Target is MemberExpr`）─────────────
+            //
+            // ⚠ 读那条路（`GenerateExpr` 的 `IdentExpr`）早就有这一级，**写**这条原先没有：
+            //   方法体里写 `v = x;` 一路落到最后那句 `Add(varStoreOp, "var_v", "R0")` ——
+            //   发一条写**全局** `var_v` 的指令，而同一句 `v` 当成**读**时读的是 `this->v`
+            //   ⇒「写进去的值读不出来」。指令一条不缺、没有任何报错，症状与
+            //   v0.96.453 那条（`this` 槽没写）**一模一样**，所以这次把两处一起钉住。
+            //
+            // 降级而不是另写一遍：成员赋值那条路已经处理了多级继承的字段偏移
+            // （`GenerateMemberAddress`），另写一份就是本仓头号坑"同一规则两处实现"。
+            //
+            // 三条前提（见 `IsImplicitThisField`）：`DeclType` 为空（这是**赋值**不是**声明** ——
+            // `int v = 3;` 要老老实实声明一个局部量）、不是局部量、名字确实是字段。
+            //
+            // 复合赋值走**同一条**降级（`v += e` → `v = v + e`）：不降级的话它会去
+            // `EmitCompoundAssign(WrapTargetExpr(…))`，而 `WrapTargetExpr` 只认
+            // `Stack`/`Data` 两种落点，字段在那里被当成全局 `var_v` —— 又是"读了 this、
+            // 写了全局"。降级后左右两边都是普通表达式、由既有路径处理。
+            // ⚠ `ae.Value` 在新树里**只出现一次** ⇒ 不会被求值两遍（`v += f()` 只调一次）。
+            if (string.IsNullOrEmpty(ae.DeclType) && IsImplicitThisField(ae.Target, out var implMem))
+            {
+                Expr value = ae.Value;
+                if (ae.Op != "=")
+                {
+                    value = new BinaryExpr
+                    {
+                        Left = implMem,
+                        Op = ae.Op.TrimEnd('='),
+                        Right = ae.Value,
+                    };
+                }
+                GenerateAssignExpr(new AssignExpr { Target = implMem, Op = "=", Value = value });
+                return;
+            }
+
             // Struct-to-struct copy: detect BEFORE GenerateExpr consumes the value
             if (ae.Op == "=" && ae.Target is IdentExpr tId && ae.Value is IdentExpr srcId
                 && IsClassTyped(srcId))
@@ -1800,17 +1958,39 @@ namespace CppCompiler
                 if (string.IsNullOrEmpty(structType)) _varTypes.TryGetValue(ie2.Name, out structType);
                 if (!string.IsNullOrEmpty(structType) && _classes.TryGetValue(CleanType(structType), out var allocCls))
                 {
+                    string allocName = CleanType(structType);
                     int fieldCount = allocCls.Members.Count(m => !m.IsMethod);
+                    // 对象占几个字要走 `ClassSizeDeep`（**含基类子对象**），不是"本类字段数"：
+                    // 继承来的字段同样是这个对象的一部分，按本类字段数分配会**少分**，
+                    // 写基类字段就越界写到隔壁变量上（不报错、只是把别人的值改掉）。
+                    int objWords = Math.Max(1, ClassSizeDeep(allocName) / 4);
                     if (!dataSection.ContainsKey(label))
                     {
                         if (ae.ArraySize > 0)
                         {
-                            // VML array: 1 header word + N * fieldCount elements
-                            dataSection[label] = new int[1 + ae.ArraySize * fieldCount];
+                            // VML array: 1 header word + N * 每个元素的字数
+                            dataSection[label] = new int[1 + ae.ArraySize * objWords];
                             _isArrayVar[ie2.Name] = true;
                         }
                         else
-                            dataSection[label] = fieldCount > 1 ? new int[fieldCount] : 0;
+                            dataSection[label] = objWords > 1 ? new int[objWords] : 0;
+                    }
+                    // ── `T x;` / `T x(args);` 要**真的调一次构造函数** ──────────────
+                    // 此前这一支压根没有调用点：构造函数体生成得完完整整（见
+                    // `GenerateDecl` 的 ClassDecl 分支），却**没有任何地方 call 它** ——
+                    // 对象上全是数据段里的 0。而 `Counter c(100)` 那句会被下面那句
+                    // `Add(varStoreOp, label, "R0")` 当成"初值 100"写进**第 0 个字**，
+                    // 于是「只有一个字段、且恰好偏移 0」的类**看起来是对的**
+                    // （`c.Get()` 真能读到 100），字段一多或一有继承就现形 ——
+                    // 这类"例子恰好都对"的洞最难靠跑例子发现。
+                    if (ae.ArraySize == 0 && ae.Value is not CallExpr)
+                    {
+                        var ctor = FindCtor(allocCls, ae.CtorArgs?.Count ?? 0);
+                        if (ctor != null)
+                        {
+                            EmitCtorCall(label, allocName, ctor, ae.CtorArgs);
+                            return;   // 对象已经由构造函数初始化，别再往第 0 格里塞初值
+                        }
                     }
                     // Struct init from function call: copy N fields from (R0)
                     if (fieldCount > 1 && ae.Value is CallExpr)
