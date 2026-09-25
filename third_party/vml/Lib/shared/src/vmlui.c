@@ -182,6 +182,22 @@ int ui_brush_reset(void) {
     return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
 }
 
+int ui_clip_reset(void) {
+    int op;
+    int z;
+    op = 9;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
+int ui_res_count(int what) {
+    int op;
+    int z;
+    op = 10;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${what}, ${z}, ${z}, ${z}");
+}
+
 /* 帧边界标记（本帧画完了）。 */
 void ui_present(void) {
     asm("SYSCALL #531");

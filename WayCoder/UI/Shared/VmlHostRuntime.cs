@@ -1166,6 +1166,14 @@ public sealed class VmlHostRuntime
             case VmlUi.GfxOp.BrushReset:
                 Scene()?.ResetBrushes();
                 break;
+            case VmlUi.GfxOp.ClipReset:
+                Scene()?.ResetClips();
+                break;
+            case VmlUi.GfxOp.ResCount:
+                // ⚠ **图像那一档在宿主这边**（`_images` 是宿主的表，不在场景里），
+                //   所以这一档不进 `Scene().ResCount`，由宿主自己答。
+                r[0] = r[1] == 1 ? _images.Count : (Scene()?.ResCount(r[1]) ?? -1);
+                return;
             default:
                 r[0] = 0;   // 未实现：如实返回 0，别假装成功
                 return;

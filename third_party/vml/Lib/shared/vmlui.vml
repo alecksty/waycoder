@@ -603,6 +603,69 @@ L_2170015:
         pop @R12
         pop @R15
         ret
+ui_clip_reset:
+; -------------------------------------------
+; source   : int ui_clip_reset()
+; function : ui_clip_reset
+; return   : int
+; --------------------------------------------
+ui_clip_reset:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 162:     op = 9;
+        move @R0 #9
+        move [@R12-8] @R0
+; 163:     z = 0;
+        move @R0 #0
+        move [@R12-12] @R0
+; 164:     return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+        move @R0 [@R12-8]
+        move @R1 [@R12-12]
+        move @R2 [@R12-12]
+        move @R3 [@R12-12]
+        move @R4 [@R12-12]
+        syscall #595
+        move [@R12-4] @R0
+        jmp L_2170016
+L_2170016:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
+ui_res_count:
+; -------------------------------------------
+; source   : int ui_res_count(int what)
+; function : ui_res_count
+; param   : int what
+; return   : int
+; --------------------------------------------
+ui_res_count:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 169:     op = 10;
+        move @R0 #10
+        move [@R12-8] @R0
+; 170:     z = 0;
+        move @R0 #0
+        move [@R12-12] @R0
+; 171:     return asm("SYSCALL #595, ${op}, ${what}, ${z}, ${z}, ${z}");
+        move @R0 [@R12-8]
+        move @R1 [@R12+12]
+        move @R2 [@R12-12]
+        move @R3 [@R12-12]
+        move @R4 [@R12-12]
+        syscall #595
+        move [@R12-4] @R0
+        jmp L_2170017
+L_2170017:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
 ui_present:
 ; -------------------------------------------
 ; source   : void ui_present()
@@ -614,7 +677,7 @@ ui_present:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 161:     asm("SYSCALL #531");
+; 175:     asm("SYSCALL #531");
         syscall #531
         move [@R12-4] @R0
         move @R13 @R12
@@ -636,15 +699,15 @@ ui_flood_fill:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 173:     return asm("SYSCALL #583, ${x}, ${y}, ${color}, ${border}");
+; 187:     return asm("SYSCALL #583, ${x}, ${y}, ${color}, ${border}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         move @R3 [@R12+24]
         syscall #583
         move [@R12-4] @R0
-        jmp L_2170016
-L_2170016:
+        jmp L_2170018
+L_2170018:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -664,15 +727,15 @@ ui_get_image:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 177:     return asm("SYSCALL #584, ${x}, ${y}, ${w}, ${h}");
+; 191:     return asm("SYSCALL #584, ${x}, ${y}, ${w}, ${h}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         move @R3 [@R12+24]
         syscall #584
         move [@R12-4] @R0
-        jmp L_2170017
-L_2170017:
+        jmp L_2170019
+L_2170019:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -692,15 +755,15 @@ ui_put_image:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 181:     return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
+; 195:     return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         move @R3 [@R12+24]
         syscall #585
         move [@R12-4] @R0
-        jmp L_2170018
-L_2170018:
+        jmp L_2170020
+L_2170020:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -719,14 +782,14 @@ ui_create_block:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 203:     return asm("SYSCALL #589, ${w}, ${h}, ${color}");
+; 217:     return asm("SYSCALL #589, ${w}, ${h}, ${color}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         syscall #589
         move [@R12-4] @R0
-        jmp L_2170019
-L_2170019:
+        jmp L_2170021
+L_2170021:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -742,11 +805,11 @@ ui_end_block:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 207:     return asm("SYSCALL #590");
+; 221:     return asm("SYSCALL #590");
         syscall #590
         move [@R12-4] @R0
-        jmp L_2170020
-L_2170020:
+        jmp L_2170022
+L_2170022:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -768,7 +831,7 @@ ui_draw_block:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 212:     return asm("SYSCALL #591, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+; 226:     return asm("SYSCALL #591, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -777,8 +840,8 @@ ui_draw_block:
         move @R5 [@R12+32]
         syscall #591
         move [@R12-4] @R0
-        jmp L_2170021
-L_2170021:
+        jmp L_2170023
+L_2170023:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -800,7 +863,7 @@ ui_draw_block_at:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 216:     return asm("SYSCALL #592, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+; 230:     return asm("SYSCALL #592, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -809,8 +872,8 @@ ui_draw_block_at:
         move @R5 [@R12+32]
         syscall #592
         move [@R12-4] @R0
-        jmp L_2170022
-L_2170022:
+        jmp L_2170024
+L_2170024:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -827,12 +890,12 @@ ui_free_block:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 224:     return asm("SYSCALL #593, ${block}");
+; 238:     return asm("SYSCALL #593, ${block}");
         move @R0 [@R12+12]
         syscall #593
         move [@R12-4] @R0
-        jmp L_2170023
-L_2170023:
+        jmp L_2170025
+L_2170025:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -849,12 +912,12 @@ ui_free_image:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 231:     return asm("SYSCALL #594, ${handle}");
+; 245:     return asm("SYSCALL #594, ${handle}");
         move @R0 [@R12+12]
         syscall #594
         move [@R12-4] @R0
-        jmp L_2170024
-L_2170024:
+        jmp L_2170026
+L_2170026:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -872,13 +935,13 @@ ui_get_pixel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 237:     return asm("SYSCALL #587, ${x}, ${y}");
+; 251:     return asm("SYSCALL #587, ${x}, ${y}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #587
         move [@R12-4] @R0
-        jmp L_2170025
-L_2170025:
+        jmp L_2170027
+L_2170027:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -895,12 +958,12 @@ ui_screenshot:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 253:     return asm("SYSCALL #588, ${path}");
+; 267:     return asm("SYSCALL #588, ${path}");
         move @R0 [@R12+12]
         syscall #588
         move [@R12-4] @R0
-        jmp L_2170026
-L_2170026:
+        jmp L_2170028
+L_2170028:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -922,7 +985,7 @@ ui_put_qb_bitmap:
         push @R12
         move @R12 @R13
         sub @R13 #72
-; 289:     hdr = arr[0];
+; 303:     hdr = arr[0];
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -931,7 +994,7 @@ ui_put_qb_bitmap:
         add @R0 @R11
         move @R0 [@R0]
         move [@R12-8] @R0
-; 290:     w = hdr & 65535;
+; 304:     w = hdr & 65535;
         move @R0 [@R12-8]
         push @R0
         move @R0 #65535
@@ -939,7 +1002,7 @@ ui_put_qb_bitmap:
         and @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 291:     h = (hdr >> 16) & 65535;
+; 305:     h = (hdr >> 16) & 65535;
         move @R0 [@R12-8]
         push @R0
         move @R0 #16
@@ -952,21 +1015,8 @@ ui_put_qb_bitmap:
         and @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-; 292:     if (w <= 0 || h <= 0) return;
+; 306:     if (w <= 0 || h <= 0) return;
         move @R0 [@R12-12]
-        push @R0
-        move @R0 #0
-        pop @R1
-        cmp @R1 @R0
-        jle _L2170032
-        move @R0 #0
-        jmp _L2170033
-_L2170032:
-        move @R0 #1
-_L2170033:
-        test @R0 @R0
-        jnz _L2170029
-        move @R0 [@R12-16]
         push @R0
         move @R0 #0
         pop @R1
@@ -978,36 +1028,49 @@ _L2170034:
         move @R0 #1
 _L2170035:
         test @R0 @R0
-        jz _L2170030
-_L2170029:
-        move @R0 #1
-        jmp _L2170031
-_L2170030:
+        jnz _L2170031
+        move @R0 [@R12-16]
+        push @R0
         move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        jle _L2170036
+        move @R0 #0
+        jmp _L2170037
+_L2170036:
+        move @R0 #1
+_L2170037:
+        test @R0 @R0
+        jz _L2170032
 _L2170031:
+        move @R0 #1
+        jmp _L2170033
+_L2170032:
+        move @R0 #0
+_L2170033:
         cmp @R0 #0
-        jz sta_2170027
-        jmp L_2170036
-sta_2170027:
-sta_2170028:
-; 293:     if (planes <= 0) return;
+        jz sta_2170029
+        jmp L_2170038
+sta_2170029:
+sta_2170030:
+; 307:     if (planes <= 0) return;
         move @R0 [@R12+28]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jle _L2170039
+        jle _L2170041
         move @R0 #0
-        jmp _L2170040
-_L2170039:
+        jmp _L2170042
+_L2170041:
         move @R0 #1
-_L2170040:
+_L2170042:
         cmp @R0 #0
-        jz sta_2170037
-        jmp L_2170036
-sta_2170037:
-sta_2170038:
-; 294:     data = (char*)arr + 4;          /* 跳过那 4 字节头 */
+        jz sta_2170039
+        jmp L_2170038
+sta_2170039:
+sta_2170040:
+; 308:     data = (char*)arr + 4;          /* 跳过那 4 字节头 */
         move @R0 [@R12+20]
         push @R0
         move @R0 #4
@@ -1015,7 +1078,7 @@ sta_2170038:
         add @R1 @R0
         move @R0 @R1
         move [@R12-56] @R0
-; 295:     bprow = (w + 7) / 8;
+; 309:     bprow = (w + 7) / 8;
         move @R0 [@R12-12]
         push @R0
         move @R0 #7
@@ -1028,61 +1091,61 @@ sta_2170038:
         div @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-; 296:     for (row = 0; row < h; row++) {
+; 310:     for (row = 0; row < h; row++) {
         move @R0 #0
         move [@R12-24] @R0
-sta_2170041:
+sta_2170043:
         move @R0 [@R12-24]
         push @R0
         move @R0 [@R12-16]
         pop @R1
         cmp @R1 @R0
-        jl _L2170044
+        jl _L2170046
         move @R0 #0
-        jmp _L2170045
-_L2170044:
+        jmp _L2170047
+_L2170046:
         move @R0 #1
-_L2170045:
+_L2170047:
         cmp @R0 #0
-        jz sta_2170043
-; 297:         for (col = 0; col < w; col++) {
+        jz sta_2170045
+; 311:         for (col = 0; col < w; col++) {
         move @R0 #0
         move [@R12-28] @R0
-sta_2170046:
+sta_2170048:
         move @R0 [@R12-28]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L2170049
+        jl _L2170051
         move @R0 #0
-        jmp _L2170050
-_L2170049:
+        jmp _L2170052
+_L2170051:
         move @R0 #1
-_L2170050:
+_L2170052:
         cmp @R0 #0
-        jz sta_2170048
-; 298:             color = 0;
+        jz sta_2170050
+; 312:             color = 0;
         move @R0 #0
         move [@R12-36] @R0
-; 299:             for (p = 0; p < planes; p++) {
+; 313:             for (p = 0; p < planes; p++) {
         move @R0 #0
         move [@R12-32] @R0
-sta_2170051:
+sta_2170053:
         move @R0 [@R12-32]
         push @R0
         move @R0 [@R12+28]
         pop @R1
         cmp @R1 @R0
-        jl _L2170054
+        jl _L2170056
         move @R0 #0
-        jmp _L2170055
-_L2170054:
+        jmp _L2170057
+_L2170056:
         move @R0 #1
-_L2170055:
+_L2170057:
         cmp @R0 #0
-        jz sta_2170053
-; 300:                 off = (row * planes + p) * bprow + (col >> 3);
+        jz sta_2170055
+; 314:                 off = (row * planes + p) * bprow + (col >> 3);
         move @R0 [@R12-24]
         push @R0
         move @R0 [@R12+28]
@@ -1110,7 +1173,7 @@ _L2170055:
         add @R1 @R0
         move @R0 @R1
         move [@R12-48] @R0
-; 301:                 b = data[off] & 255;
+; 315:                 b = data[off] & 255;
         move @R0 [@R12-56]
         push @R0
         move @R0 [@R12-48]
@@ -1125,7 +1188,7 @@ _L2170055:
         and @R1 @R0
         move @R0 @R1
         move [@R12-52] @R0
-; 302:                 if (b & (128 >> (col & 7))) color = color | (1 << p);
+; 316:                 if (b & (128 >> (col & 7))) color = color | (1 << p);
         move @R0 [@R12-52]
         push @R0
         move @R0 #128
@@ -1143,7 +1206,7 @@ _L2170055:
         and @R1 @R0
         move @R0 @R1
         cmp @R0 #0
-        jz sta_2170056
+        jz sta_2170058
         move @R0 [@R12-36]
         push @R0
         move @R0 #1
@@ -1156,31 +1219,31 @@ _L2170055:
         or @R1 @R0
         move @R0 @R1
         move [@R12-36] @R0
-sta_2170056:
-sta_2170057:
-sta_2170052:
+sta_2170058:
+sta_2170059:
+sta_2170054:
         move @R0 [@R12-32]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-32] @R0
         move @R0 @R1
-        jmp sta_2170051
-sta_2170053:
-; 304:             if (color != 0) {
+        jmp sta_2170053
+sta_2170055:
+; 318:             if (color != 0) {
         move @R0 [@R12-36]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jne _L2170060
+        jne _L2170062
         move @R0 #0
-        jmp _L2170061
-_L2170060:
+        jmp _L2170063
+_L2170062:
         move @R0 #1
-_L2170061:
+_L2170063:
         cmp @R0 #0
-        jz sta_2170058
-; 305:                 src = pal[color & 15];
+        jz sta_2170060
+; 319:                 src = pal[color & 15];
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-36]
@@ -1194,21 +1257,21 @@ _L2170061:
         add @R0 @R9
         move @R0 [@R0]
         move [@R12-40] @R0
-; 306:                 if (action == 1) {
+; 320:                 if (action == 1) {
         move @R0 [@R12+32]
         push @R0
         move @R0 #1
         pop @R1
         cmp @R1 @R0
-        je _L2170064
+        je _L2170066
         move @R0 #0
-        jmp _L2170065
-_L2170064:
+        jmp _L2170067
+_L2170066:
         move @R0 #1
-_L2170065:
+_L2170067:
         cmp @R0 #0
-        jz sta_2170062
-; 307:                     dst = ui_get_pixel(x + col, y + row);
+        jz sta_2170064
+; 321:                     dst = ui_get_pixel(x + col, y + row);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-24]
@@ -1228,43 +1291,43 @@ _L2170065:
         call ui_get_pixel
         add @R13 #8
         move [@R12-44] @R0
-; 308:                     if (dst >= 0) {
+; 322:                     if (dst >= 0) {
         move @R0 [@R12-44]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jge _L2170068
+        jge _L2170070
         move @R0 #0
-        jmp _L2170069
-_L2170068:
+        jmp _L2170071
+_L2170070:
         move @R0 #1
-_L2170069:
+_L2170071:
         cmp @R0 #0
-        jz sta_2170066
-; 315:                         int idx = -1, k;
+        jz sta_2170068
+; 329:                         int idx = -1, k;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
         move [@R12-60] @R0
-; 316:                         for (k = 0; k < 16; k++)
+; 330:                         for (k = 0; k < 16; k++)
         move @R0 #0
         move [@R12-64] @R0
-sta_2170070:
+sta_2170072:
         move @R0 [@R12-64]
         push @R0
         move @R0 #16
         pop @R1
         cmp @R1 @R0
-        jl _L2170073
+        jl _L2170075
         move @R0 #0
-        jmp _L2170074
-_L2170073:
+        jmp _L2170076
+_L2170075:
         move @R0 #1
-_L2170074:
+_L2170076:
         cmp @R0 #0
-        jz sta_2170072
-; 317:                             if ((pal[k] & 0xFFFFFF) == (dst & 0xFFFFFF)) { idx = k; break; }
+        jz sta_2170074
+; 331:                             if ((pal[k] & 0xFFFFFF) == (dst & 0xFFFFFF)) { idx = k; break; }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-64]
@@ -1286,41 +1349,41 @@ _L2170074:
         move @R0 @R1
         pop @R1
         cmp @R1 @R0
-        je _L2170077
+        je _L2170079
         move @R0 #0
-        jmp _L2170078
-_L2170077:
+        jmp _L2170080
+_L2170079:
         move @R0 #1
-_L2170078:
+_L2170080:
         cmp @R0 #0
-        jz sta_2170075
+        jz sta_2170077
         move @R0 [@R12-64]
         move [@R12-60] @R0
-        jmp sta_2170072
-sta_2170075:
-sta_2170076:
-sta_2170071:
+        jmp sta_2170074
+sta_2170077:
+sta_2170078:
+sta_2170073:
         move @R0 [@R12-64]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-64] @R0
         move @R0 @R1
-        jmp sta_2170070
-sta_2170072:
-; 318:                         if (idx >= 0) src = pal[(idx ^ color) & 15];
+        jmp sta_2170072
+sta_2170074:
+; 332:                         if (idx >= 0) src = pal[(idx ^ color) & 15];
         move @R0 [@R12-60]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jge _L2170081
+        jge _L2170083
         move @R0 #0
-        jmp _L2170082
-_L2170081:
+        jmp _L2170084
+_L2170083:
         move @R0 #1
-_L2170082:
+_L2170084:
         cmp @R0 #0
-        jz sta_2170079
+        jz sta_2170081
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12-60]
@@ -1339,9 +1402,9 @@ _L2170082:
         add @R0 @R7
         move @R0 [@R0]
         move [@R12-40] @R0
-        jmp sta_2170080
-sta_2170079:
-; 319:                         else src = 0xFF000000 | ((src ^ dst) & 0xFFFFFF);
+        jmp sta_2170082
+sta_2170081:
+; 333:                         else src = 0xFF000000 | ((src ^ dst) & 0xFFFFFF);
         move @R0 #-16777216
         push @R0
         move @R0 [@R12-40]
@@ -1359,12 +1422,12 @@ sta_2170079:
         or @R1 @R0
         move @R0 @R1
         move [@R12-40] @R0
-sta_2170080:
-sta_2170066:
-sta_2170067:
-sta_2170062:
-sta_2170063:
-; 322:                 ui_pixel(x + col, y + row, src);
+sta_2170082:
+sta_2170068:
+sta_2170069:
+sta_2170064:
+sta_2170065:
+; 336:                 ui_pixel(x + col, y + row, src);
         move @R0 [@R12-40]
         push @R0
         move @R0 [@R12+16]
@@ -1386,25 +1449,25 @@ sta_2170063:
         move @R2 [@R13+8]
         call ui_pixel
         add @R13 #12
-sta_2170058:
-sta_2170059:
-sta_2170047:
+sta_2170060:
+sta_2170061:
+sta_2170049:
         move @R0 [@R12-28]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-28] @R0
         move @R0 @R1
-        jmp sta_2170046
-sta_2170048:
-sta_2170042:
+        jmp sta_2170048
+sta_2170050:
+sta_2170044:
         move @R0 [@R12-24]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-24] @R0
         move @R0 @R1
-        jmp sta_2170041
-sta_2170043:
-L_2170036:
+        jmp sta_2170043
+sta_2170045:
+L_2170038:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1426,10 +1489,10 @@ ui_text:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 341:     no_style = 0;
+; 355:     no_style = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 342:     asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${no_style}");
+; 356:     asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${no_style}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -1461,7 +1524,7 @@ ui_text_styled:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 345:     asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${style}");
+; 359:     asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${style}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -1494,7 +1557,7 @@ ui_text_v:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 350:     asm("SYSCALL #581, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${valign}, ${style}");
+; 364:     asm("SYSCALL #581, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${valign}, ${style}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -1524,7 +1587,7 @@ ui_set_font:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 356:     asm("SYSCALL #532, ${size}, ${style}, ${color}, ${anchor}");
+; 370:     asm("SYSCALL #532, ${size}, ${style}, ${color}, ${anchor}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -1547,7 +1610,7 @@ ui_set_valign:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 362:     asm("SYSCALL #586, ${valign}");
+; 376:     asm("SYSCALL #586, ${valign}");
         move @R0 [@R12+12]
         syscall #586
         move [@R12-4] @R0
@@ -1569,7 +1632,7 @@ ui_text_cur:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 366:     asm("SYSCALL #533, ${x}, ${y}, ${s}");
+; 380:     asm("SYSCALL #533, ${x}, ${y}, ${s}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -1591,12 +1654,12 @@ ui_poll:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 374:     return asm("SYSCALL #560, ${msg}");
+; 388:     return asm("SYSCALL #560, ${msg}");
         move @R0 [@R12+12]
         syscall #560
         move [@R12-4] @R0
-        jmp L_2170083
-L_2170083:
+        jmp L_2170085
+L_2170085:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1614,13 +1677,13 @@ ui_wait:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 378:     return asm("SYSCALL #561, ${msg}, ${timeout_ms}");
+; 392:     return asm("SYSCALL #561, ${msg}, ${timeout_ms}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #561
         move [@R12-4] @R0
-        jmp L_2170084
-L_2170084:
+        jmp L_2170086
+L_2170086:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1638,13 +1701,13 @@ ui_poll_ex:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 385:     return asm("SYSCALL #571, ${msg}, ${keep}");
+; 399:     return asm("SYSCALL #571, ${msg}, ${keep}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #571
         move [@R12-4] @R0
-        jmp L_2170085
-L_2170085:
+        jmp L_2170087
+L_2170087:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1663,14 +1726,14 @@ ui_wait_ex:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 388:     return asm("SYSCALL #572, ${msg}, ${timeout_ms}, ${keep}");
+; 402:     return asm("SYSCALL #572, ${msg}, ${timeout_ms}, ${keep}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         syscall #572
         move [@R12-4] @R0
-        jmp L_2170086
-L_2170086:
+        jmp L_2170088
+L_2170088:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1690,15 +1753,15 @@ ui_call_json:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 400:     return asm("SYSCALL #573, ${fn}, ${args_json}, ${out_buf}, ${cap}");
+; 414:     return asm("SYSCALL #573, ${fn}, ${args_json}, ${out_buf}, ${cap}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         move @R3 [@R12+24]
         syscall #573
         move [@R12-4] @R0
-        jmp L_2170087
-L_2170087:
+        jmp L_2170089
+L_2170089:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1716,7 +1779,7 @@ ui_call_json_s:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 408:     _ui_json_len = ui_call_json(fn, args_json, _ui_json_buf, 4096);
+; 422:     _ui_json_len = ui_call_json(fn, args_json, _ui_json_buf, 4096);
         move @R0 #4096
         push @R0
         move @R0 _ui_json_buf
@@ -1732,29 +1795,29 @@ ui_call_json_s:
         call ui_call_json
         add @R13 #16
         move [_ui_json_len] @R0
-; 409:     if (_ui_json_len < 0) {
+; 423:     if (_ui_json_len < 0) {
         move @R0 [_ui_json_len]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L2170090
+        jl _L2170092
         move @R0 #0
-        jmp _L2170091
-_L2170090:
+        jmp _L2170093
+_L2170092:
         move @R0 #1
-_L2170091:
+_L2170093:
         cmp @R0 #0
-        jz sta_2170088
-; 410:         _ui_json_len = 0;
+        jz sta_2170090
+; 424:         _ui_json_len = 0;
         move @R0 #0
         move [_ui_json_len] @R0
-sta_2170088:
-sta_2170089:
-; 412:     return _ui_json_len;
+sta_2170090:
+sta_2170091:
+; 426:     return _ui_json_len;
         move @R0 [_ui_json_len]
-        jmp L_2170092
-L_2170092:
+        jmp L_2170094
+L_2170094:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1770,10 +1833,10 @@ ui_call_json_len:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 416:     return _ui_json_len;
+; 430:     return _ui_json_len;
         move @R0 [_ui_json_len]
-        jmp L_2170093
-L_2170093:
+        jmp L_2170095
+L_2170095:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1789,24 +1852,24 @@ ui_call_json_print:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 425:     for (i = 0; i < _ui_json_len; i = i + 1) {
+; 439:     for (i = 0; i < _ui_json_len; i = i + 1) {
         move @R0 #0
         move [@R12-8] @R0
-sta_2170094:
+sta_2170096:
         move @R0 [@R12-8]
         push @R0
         move @R0 [_ui_json_len]
         pop @R1
         cmp @R1 @R0
-        jl _L2170097
+        jl _L2170099
         move @R0 #0
-        jmp _L2170098
-_L2170097:
+        jmp _L2170100
+_L2170099:
         move @R0 #1
-_L2170098:
+_L2170100:
         cmp @R0 #0
-        jz sta_2170096
-; 426:         putchar(_ui_json_buf[i]);
+        jz sta_2170098
+; 440:         putchar(_ui_json_buf[i]);
         move @R0 _ui_json_buf
         push @R0
         move @R6 #0
@@ -1824,8 +1887,8 @@ _L2170098:
         move @R0 [@R13+0]
         call putchar
         add @R13 #4
-sta_2170095:
-; 425:     for (i = 0; i < _ui_json_len; i = i + 1) {
+sta_2170097:
+; 439:     for (i = 0; i < _ui_json_len; i = i + 1) {
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -1833,9 +1896,9 @@ sta_2170095:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-        jmp sta_2170094
-sta_2170096:
-; 428:     putchar(10);   /* '\n' */
+        jmp sta_2170096
+sta_2170098:
+; 442:     putchar(10);   /* '\n' */
         move @R0 #10
         push @R0
         move @R0 [@R13+0]
@@ -1857,47 +1920,47 @@ ui_call_json_at:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 432:     if (i < 0 || i >= _ui_json_len) {
+; 446:     if (i < 0 || i >= _ui_json_len) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L2170104
-        move @R0 #0
-        jmp _L2170105
-_L2170104:
-        move @R0 #1
-_L2170105:
-        test @R0 @R0
-        jnz _L2170101
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 [_ui_json_len]
-        pop @R1
-        cmp @R1 @R0
-        jge _L2170106
+        jl _L2170106
         move @R0 #0
         jmp _L2170107
 _L2170106:
         move @R0 #1
 _L2170107:
         test @R0 @R0
-        jz _L2170102
-_L2170101:
+        jnz _L2170103
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_ui_json_len]
+        pop @R1
+        cmp @R1 @R0
+        jge _L2170108
+        move @R0 #0
+        jmp _L2170109
+_L2170108:
         move @R0 #1
-        jmp _L2170103
-_L2170102:
-        move @R0 #0
+_L2170109:
+        test @R0 @R0
+        jz _L2170104
 _L2170103:
-        cmp @R0 #0
-        jz sta_2170099
-; 433:         return 0;
+        move @R0 #1
+        jmp _L2170105
+_L2170104:
         move @R0 #0
-        jmp L_2170108
-sta_2170099:
-sta_2170100:
-; 435:     return _ui_json_buf[i];
+_L2170105:
+        cmp @R0 #0
+        jz sta_2170101
+; 447:         return 0;
+        move @R0 #0
+        jmp L_2170110
+sta_2170101:
+sta_2170102:
+; 449:     return _ui_json_buf[i];
         move @R0 _ui_json_buf
         push @R0
         move @R4 #0
@@ -1911,8 +1974,8 @@ sta_2170100:
         add @R0 @R3
         moveb @R0 [@R0]
         sextb @R0 @R0
-        jmp L_2170108
-L_2170108:
+        jmp L_2170110
+L_2170110:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1928,11 +1991,11 @@ ui_msg_count:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 438:     return asm("SYSCALL #562");
+; 452:     return asm("SYSCALL #562");
         syscall #562
         move [@R12-4] @R0
-        jmp L_2170109
-L_2170109:
+        jmp L_2170111
+L_2170111:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1948,11 +2011,11 @@ ui_msg_clear:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 447:     return asm("SYSCALL #568");
+; 461:     return asm("SYSCALL #568");
         syscall #568
         move [@R12-4] @R0
-        jmp L_2170110
-L_2170110:
+        jmp L_2170112
+L_2170112:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1969,17 +2032,17 @@ ui_wait_msg:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 468:     buf = tmp;
+; 482:     buf = tmp;
         move @R0 @R12
         sub @R0 #24
         move [@R12-8] @R0
-; 469:     _ui_msg_type = asm("SYSCALL #561, ${buf}, ${timeout_ms}");
+; 483:     _ui_msg_type = asm("SYSCALL #561, ${buf}, ${timeout_ms}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #561
         move [@R12-4] @R0
         move [_ui_msg_type] @R0
-; 470:     _ui_msg_a = tmp[1];
+; 484:     _ui_msg_a = tmp[1];
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -1994,7 +2057,7 @@ ui_wait_msg:
         add @R0 @R1
         move @R0 [@R0]
         move [_ui_msg_a] @R0
-; 471:     _ui_msg_b = tmp[2];
+; 485:     _ui_msg_b = tmp[2];
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -2009,10 +2072,10 @@ ui_wait_msg:
         add @R0 @R10
         move @R0 [@R0]
         move [_ui_msg_b] @R0
-; 472:     return _ui_msg_type;
+; 486:     return _ui_msg_type;
         move @R0 [_ui_msg_type]
-        jmp L_2170111
-L_2170111:
+        jmp L_2170113
+L_2170113:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2028,16 +2091,16 @@ ui_poll_msg:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 478:     buf = tmp;
+; 492:     buf = tmp;
         move @R0 @R12
         sub @R0 #24
         move [@R12-8] @R0
-; 479:     _ui_msg_type = asm("SYSCALL #560, ${buf}");
+; 493:     _ui_msg_type = asm("SYSCALL #560, ${buf}");
         move @R0 [@R12-8]
         syscall #560
         move [@R12-4] @R0
         move [_ui_msg_type] @R0
-; 480:     _ui_msg_a = tmp[1];
+; 494:     _ui_msg_a = tmp[1];
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -2052,7 +2115,7 @@ ui_poll_msg:
         add @R0 @R8
         move @R0 [@R0]
         move [_ui_msg_a] @R0
-; 481:     _ui_msg_b = tmp[2];
+; 495:     _ui_msg_b = tmp[2];
         move @R0 @R12
         sub @R0 #24
         push @R0
@@ -2067,10 +2130,10 @@ ui_poll_msg:
         add @R0 @R6
         move @R0 [@R0]
         move [_ui_msg_b] @R0
-; 482:     return _ui_msg_type;
+; 496:     return _ui_msg_type;
         move @R0 [_ui_msg_type]
-        jmp L_2170112
-L_2170112:
+        jmp L_2170114
+L_2170114:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2086,10 +2149,10 @@ ui_msg_type:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 485: int ui_msg_type(void) { return _ui_msg_type; }
+; 499: int ui_msg_type(void) { return _ui_msg_type; }
         move @R0 [_ui_msg_type]
-        jmp L_2170113
-L_2170113:
+        jmp L_2170115
+L_2170115:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2105,10 +2168,10 @@ ui_msg_a:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 486: int ui_msg_a(void) { return _ui_msg_a; }
+; 500: int ui_msg_a(void) { return _ui_msg_a; }
         move @R0 [_ui_msg_a]
-        jmp L_2170114
-L_2170114:
+        jmp L_2170116
+L_2170116:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2124,10 +2187,10 @@ ui_msg_b:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 487: int ui_msg_b(void) { return _ui_msg_b; }
+; 501: int ui_msg_b(void) { return _ui_msg_b; }
         move @R0 [_ui_msg_b]
-        jmp L_2170115
-L_2170115:
+        jmp L_2170117
+L_2170117:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2143,23 +2206,23 @@ ui_gclear:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 514:     for (i = 0; i < 256; i = i + 1) _ui_grid[i] = 0;
+; 528:     for (i = 0; i < 256; i = i + 1) _ui_grid[i] = 0;
         move @R0 #0
         move [@R12-8] @R0
-sta_2170116:
+sta_2170118:
         move @R0 [@R12-8]
         push @R0
         move @R0 #256
         pop @R1
         cmp @R1 @R0
-        jl _L2170119
+        jl _L2170121
         move @R0 #0
-        jmp _L2170120
-_L2170119:
+        jmp _L2170122
+_L2170121:
         move @R0 #1
-_L2170120:
+_L2170122:
         cmp @R0 #0
-        jz sta_2170118
+        jz sta_2170120
         move @R0 #0
         move @R5 @R0
         push @R5
@@ -2176,7 +2239,7 @@ _L2170120:
         add @R0 @R3
         pop @R5
         move [@R0] @R5
-sta_2170117:
+sta_2170119:
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -2184,8 +2247,8 @@ sta_2170117:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-        jmp sta_2170116
-sta_2170118:
+        jmp sta_2170118
+sta_2170120:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2203,40 +2266,40 @@ ui_gset:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 517:     if (idx >= 0 && idx < 256) _ui_grid[idx] = val;
+; 531:     if (idx >= 0 && idx < 256) _ui_grid[idx] = val;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jge _L2170125
-        move @R0 #0
-        jmp _L2170126
-_L2170125:
-        move @R0 #1
-_L2170126:
-        test @R0 @R0
-        jz _L2170123
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 #256
-        pop @R1
-        cmp @R1 @R0
-        jl _L2170127
+        jge _L2170127
         move @R0 #0
         jmp _L2170128
 _L2170127:
         move @R0 #1
 _L2170128:
         test @R0 @R0
-        jz _L2170123
-        move @R0 #1
-        jmp _L2170124
-_L2170123:
+        jz _L2170125
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #256
+        pop @R1
+        cmp @R1 @R0
+        jl _L2170129
         move @R0 #0
-_L2170124:
+        jmp _L2170130
+_L2170129:
+        move @R0 #1
+_L2170130:
+        test @R0 @R0
+        jz _L2170125
+        move @R0 #1
+        jmp _L2170126
+_L2170125:
+        move @R0 #0
+_L2170126:
         cmp @R0 #0
-        jz sta_2170121
+        jz sta_2170123
         move @R0 [@R12+16]
         move @R2 @R0
         push @R2
@@ -2253,8 +2316,8 @@ _L2170124:
         add @R0 @R11
         pop @R2
         move [@R0] @R2
-sta_2170121:
-sta_2170122:
+sta_2170123:
+sta_2170124:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2271,40 +2334,40 @@ ui_gget:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 520:     if (idx >= 0 && idx < 256) return _ui_grid[idx];
+; 534:     if (idx >= 0 && idx < 256) return _ui_grid[idx];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jge _L2170133
-        move @R0 #0
-        jmp _L2170134
-_L2170133:
-        move @R0 #1
-_L2170134:
-        test @R0 @R0
-        jz _L2170131
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 #256
-        pop @R1
-        cmp @R1 @R0
-        jl _L2170135
+        jge _L2170135
         move @R0 #0
         jmp _L2170136
 _L2170135:
         move @R0 #1
 _L2170136:
         test @R0 @R0
-        jz _L2170131
-        move @R0 #1
-        jmp _L2170132
-_L2170131:
+        jz _L2170133
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #256
+        pop @R1
+        cmp @R1 @R0
+        jl _L2170137
         move @R0 #0
-_L2170132:
+        jmp _L2170138
+_L2170137:
+        move @R0 #1
+_L2170138:
+        test @R0 @R0
+        jz _L2170133
+        move @R0 #1
+        jmp _L2170134
+_L2170133:
+        move @R0 #0
+_L2170134:
         cmp @R0 #0
-        jz sta_2170129
+        jz sta_2170131
         move @R0 _ui_grid
         push @R0
         move @R10 #0
@@ -2317,13 +2380,13 @@ _L2170132:
         pop @R9
         add @R0 @R9
         move @R0 [@R0]
-        jmp L_2170137
-sta_2170129:
-sta_2170130:
-; 521:     return 0;
+        jmp L_2170139
+sta_2170131:
+sta_2170132:
+; 535:     return 0;
         move @R0 #0
-        jmp L_2170137
-L_2170137:
+        jmp L_2170139
+L_2170139:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2339,7 +2402,7 @@ ui_piece_init:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 538:     ui_gset(200 + 0, 0x0066);   /* O */
+; 552:     ui_gset(200 + 0, 0x0066);   /* O */
         move @R0 #102
         push @R0
         move @R0 #200
@@ -2348,7 +2411,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 539:     ui_gset(200 + 1, 0x0F00);   /* I */
+; 553:     ui_gset(200 + 1, 0x0F00);   /* I */
         move @R0 #3840
         push @R0
         move @R0 #200
@@ -2362,7 +2425,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 540:     ui_gset(200 + 2, 0x006C);   /* S */
+; 554:     ui_gset(200 + 2, 0x006C);   /* S */
         move @R0 #108
         push @R0
         move @R0 #200
@@ -2376,7 +2439,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 541:     ui_gset(200 + 3, 0x00C6);   /* Z */
+; 555:     ui_gset(200 + 3, 0x00C6);   /* Z */
         move @R0 #198
         push @R0
         move @R0 #200
@@ -2390,7 +2453,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 542:     ui_gset(200 + 4, 0x00E4);   /* T */
+; 556:     ui_gset(200 + 4, 0x00E4);   /* T */
         move @R0 #228
         push @R0
         move @R0 #200
@@ -2404,7 +2467,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 543:     ui_gset(200 + 5, 0x0062);   /* L */
+; 557:     ui_gset(200 + 5, 0x0062);   /* L */
         move @R0 #98
         push @R0
         move @R0 #200
@@ -2418,7 +2481,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 544:     ui_gset(200 + 6, 0x00E8);   /* J */
+; 558:     ui_gset(200 + 6, 0x00E8);   /* J */
         move @R0 #232
         push @R0
         move @R0 #200
@@ -2432,7 +2495,7 @@ ui_piece_init:
         move @R1 [@R13+4]
         call ui_gset
         add @R13 #8
-; 545:     _ui_piece_rot[0] = 200 + 0;
+; 559:     _ui_piece_rot[0] = 200 + 0;
         move @R0 #200
         move @R8 @R0
         push @R8
@@ -2449,7 +2512,7 @@ ui_piece_init:
         add @R0 @R6
         pop @R8
         move [@R0] @R8
-; 546:     _ui_piece_rot[1] = 200 + 1;
+; 560:     _ui_piece_rot[1] = 200 + 1;
         move @R0 #200
         push @R0
         move @R0 #1
@@ -2471,7 +2534,7 @@ ui_piece_init:
         add @R0 @R5
         pop @R4
         move [@R0] @R4
-; 547:     _ui_piece_rot[2] = 200 + 2;
+; 561:     _ui_piece_rot[2] = 200 + 2;
         move @R0 #200
         push @R0
         move @R0 #2
@@ -2493,7 +2556,7 @@ ui_piece_init:
         add @R0 @R2
         pop @R1
         move [@R0] @R1
-; 548:     _ui_piece_rot[3] = 200 + 3;
+; 562:     _ui_piece_rot[3] = 200 + 3;
         move @R0 #200
         push @R0
         move @R0 #3
@@ -2515,7 +2578,7 @@ ui_piece_init:
         add @R0 @R7
         pop @R10
         move [@R0] @R10
-; 549:     _ui_piece_rot[4] = 200 + 4;
+; 563:     _ui_piece_rot[4] = 200 + 4;
         move @R0 #200
         push @R0
         move @R0 #4
@@ -2537,7 +2600,7 @@ ui_piece_init:
         add @R0 @R3
         pop @R6
         move [@R0] @R6
-; 550:     _ui_piece_rot[5] = 200 + 5;
+; 564:     _ui_piece_rot[5] = 200 + 5;
         move @R0 #200
         push @R0
         move @R0 #5
@@ -2559,7 +2622,7 @@ ui_piece_init:
         add @R0 @R11
         pop @R5
         move [@R0] @R5
-; 551:     _ui_piece_rot[6] = 200 + 6;
+; 565:     _ui_piece_rot[6] = 200 + 6;
         move @R0 #200
         push @R0
         move @R0 #6
@@ -2597,48 +2660,48 @@ _ui_rot90:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 558:     out = 0;
+; 572:     out = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 559:     r = 0;
+; 573:     r = 0;
         move @R0 #0
         move [@R12-12] @R0
-sta_2170138:
+sta_2170140:
         move @R2 #0
-; 560:     while (r < 4) {
+; 574:     while (r < 4) {
         move @R0 [@R12-12]
         push @R0
         move @R0 #4
         pop @R1
         cmp @R1 @R0
-        jl _L2170140
+        jl _L2170142
         move @R0 #0
-        jmp _L2170141
-_L2170140:
+        jmp _L2170143
+_L2170142:
         move @R0 #1
-_L2170141:
+_L2170143:
         cmp @R0 #0
-        jz sta_2170139
-; 561:         c = 0;
+        jz sta_2170141
+; 575:         c = 0;
         move @R0 #0
         move [@R12-16] @R0
-sta_2170142:
+sta_2170144:
         move @R2 #0
-; 562:         while (c < 4) {
+; 576:         while (c < 4) {
         move @R0 [@R12-16]
         push @R0
         move @R0 #4
         pop @R1
         cmp @R1 @R0
-        jl _L2170144
+        jl _L2170146
         move @R0 #0
-        jmp _L2170145
-_L2170144:
+        jmp _L2170147
+_L2170146:
         move @R0 #1
-_L2170145:
+_L2170147:
         cmp @R0 #0
-        jz sta_2170143
-; 563:             if ((m & (1 << (r * 4 + c))) != 0)
+        jz sta_2170145
+; 577:             if ((m & (1 << (r * 4 + c))) != 0)
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -2664,15 +2727,15 @@ _L2170145:
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jne _L2170148
+        jne _L2170150
         move @R0 #0
-        jmp _L2170149
-_L2170148:
+        jmp _L2170151
+_L2170150:
         move @R0 #1
-_L2170149:
+_L2170151:
         cmp @R0 #0
-        jz sta_2170146
-; 564:                 out = out | (1 << (c * 4 + (3 - r)));
+        jz sta_2170148
+; 578:                 out = out | (1 << (c * 4 + (3 - r)));
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -2700,9 +2763,9 @@ _L2170149:
         or @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-sta_2170146:
-sta_2170147:
-; 565:             c = c + 1;
+sta_2170148:
+sta_2170149:
+; 579:             c = c + 1;
         move @R0 [@R12-16]
         push @R0
         move @R0 #1
@@ -2710,9 +2773,9 @@ sta_2170147:
         add @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-        jmp sta_2170142
-sta_2170143:
-; 567:         r = r + 1;
+        jmp sta_2170144
+sta_2170145:
+; 581:         r = r + 1;
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -2720,12 +2783,12 @@ sta_2170143:
         add @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-        jmp sta_2170138
-sta_2170139:
-; 569:     return out;
+        jmp sta_2170140
+sta_2170141:
+; 583:     return out;
         move @R0 [@R12-8]
-        jmp L_2170150
-L_2170150:
+        jmp L_2170152
+L_2170152:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -2744,90 +2807,90 @@ ui_piece_cell:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 577:     if (pid < 0 || pid > 6 || which < 0 || which > 3) return -1;
+; 591:     if (pid < 0 || pid > 6 || which < 0 || which > 3) return -1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jl _L2170162
-        move @R0 #0
-        jmp _L2170163
-_L2170162:
-        move @R0 #1
-_L2170163:
-        test @R0 @R0
-        jnz _L2170159
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 #6
-        pop @R1
-        cmp @R1 @R0
-        jg _L2170164
+        jl _L2170164
         move @R0 #0
         jmp _L2170165
 _L2170164:
         move @R0 #1
 _L2170165:
         test @R0 @R0
-        jz _L2170160
-_L2170159:
-        move @R0 #1
-        jmp _L2170161
-_L2170160:
-        move @R0 #0
-_L2170161:
-        test @R0 @R0
-        jnz _L2170156
-        move @R0 [@R12+20]
+        jnz _L2170161
+        move @R0 [@R12+12]
         push @R0
-        move @R0 #0
+        move @R0 #6
         pop @R1
         cmp @R1 @R0
-        jl _L2170166
+        jg _L2170166
         move @R0 #0
         jmp _L2170167
 _L2170166:
         move @R0 #1
 _L2170167:
         test @R0 @R0
-        jz _L2170157
-_L2170156:
+        jz _L2170162
+_L2170161:
         move @R0 #1
-        jmp _L2170158
-_L2170157:
+        jmp _L2170163
+_L2170162:
         move @R0 #0
-_L2170158:
+_L2170163:
         test @R0 @R0
-        jnz _L2170153
+        jnz _L2170158
         move @R0 [@R12+20]
         push @R0
-        move @R0 #3
+        move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jg _L2170168
+        jl _L2170168
         move @R0 #0
         jmp _L2170169
 _L2170168:
         move @R0 #1
 _L2170169:
         test @R0 @R0
-        jz _L2170154
-_L2170153:
+        jz _L2170159
+_L2170158:
         move @R0 #1
-        jmp _L2170155
-_L2170154:
+        jmp _L2170160
+_L2170159:
         move @R0 #0
+_L2170160:
+        test @R0 @R0
+        jnz _L2170155
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #3
+        pop @R1
+        cmp @R1 @R0
+        jg _L2170170
+        move @R0 #0
+        jmp _L2170171
+_L2170170:
+        move @R0 #1
+_L2170171:
+        test @R0 @R0
+        jz _L2170156
 _L2170155:
+        move @R0 #1
+        jmp _L2170157
+_L2170156:
+        move @R0 #0
+_L2170157:
         cmp @R0 #0
-        jz sta_2170151
+        jz sta_2170153
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_2170170
-sta_2170151:
-sta_2170152:
-; 578:     m = ui_gget(_ui_piece_rot[pid]);
+        jmp L_2170172
+sta_2170153:
+sta_2170154:
+; 592:     m = ui_gget(_ui_piece_rot[pid]);
         move @R0 _ui_piece_rot
         push @R0
         move @R7 #0
@@ -2845,7 +2908,7 @@ sta_2170152:
         call ui_gget
         add @R13 #4
         move [@R12-8] @R0
-; 579:     k = rot % 4;
+; 593:     k = rot % 4;
         move @R0 [@R12+16]
         push @R0
         move @R0 #4
@@ -2853,30 +2916,30 @@ sta_2170152:
         mod @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-sta_2170171:
+sta_2170173:
         move @R2 #0
-; 580:     while (k > 0) {
+; 594:     while (k > 0) {
         move @R0 [@R12-12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jg _L2170173
+        jg _L2170175
         move @R0 #0
-        jmp _L2170174
-_L2170173:
+        jmp _L2170176
+_L2170175:
         move @R0 #1
-_L2170174:
+_L2170176:
         cmp @R0 #0
-        jz sta_2170172
-; 581:         m = _ui_rot90(m);
+        jz sta_2170174
+; 595:         m = _ui_rot90(m);
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
         call _ui_rot90
         add @R13 #4
         move [@R12-8] @R0
-; 582:         k = k - 1;
+; 596:         k = k - 1;
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -2884,50 +2947,50 @@ _L2170174:
         sub @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-        jmp sta_2170171
-sta_2170172:
-; 585:     n = 0;
+        jmp sta_2170173
+sta_2170174:
+; 599:     n = 0;
         move @R0 #0
         move [@R12-24] @R0
-; 586:     r = 0;
+; 600:     r = 0;
         move @R0 #0
         move [@R12-16] @R0
-sta_2170175:
+sta_2170177:
         move @R2 #0
-; 587:     while (r < 4) {
+; 601:     while (r < 4) {
         move @R0 [@R12-16]
         push @R0
         move @R0 #4
         pop @R1
         cmp @R1 @R0
-        jl _L2170177
+        jl _L2170179
         move @R0 #0
-        jmp _L2170178
-_L2170177:
+        jmp _L2170180
+_L2170179:
         move @R0 #1
-_L2170178:
+_L2170180:
         cmp @R0 #0
-        jz sta_2170176
-; 588:         c = 0;
+        jz sta_2170178
+; 602:         c = 0;
         move @R0 #0
         move [@R12-20] @R0
-sta_2170179:
+sta_2170181:
         move @R2 #0
-; 589:         while (c < 4) {
+; 603:         while (c < 4) {
         move @R0 [@R12-20]
         push @R0
         move @R0 #4
         pop @R1
         cmp @R1 @R0
-        jl _L2170181
+        jl _L2170183
         move @R0 #0
-        jmp _L2170182
-_L2170181:
+        jmp _L2170184
+_L2170183:
         move @R0 #1
-_L2170182:
+_L2170184:
         cmp @R0 #0
-        jz sta_2170180
-; 590:             if ((m & (1 << (r * 4 + c))) != 0) {
+        jz sta_2170182
+; 604:             if ((m & (1 << (r * 4 + c))) != 0) {
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -2953,28 +3016,28 @@ _L2170182:
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jne _L2170185
+        jne _L2170187
         move @R0 #0
-        jmp _L2170186
-_L2170185:
+        jmp _L2170188
+_L2170187:
         move @R0 #1
-_L2170186:
+_L2170188:
         cmp @R0 #0
-        jz sta_2170183
-; 591:                 if (n == which) return c * 16 + r;
+        jz sta_2170185
+; 605:                 if (n == which) return c * 16 + r;
         move @R0 [@R12-24]
         push @R0
         move @R0 [@R12+20]
         pop @R1
         cmp @R1 @R0
-        je _L2170189
+        je _L2170191
         move @R0 #0
-        jmp _L2170190
-_L2170189:
+        jmp _L2170192
+_L2170191:
         move @R0 #1
-_L2170190:
+_L2170192:
         cmp @R0 #0
-        jz sta_2170187
+        jz sta_2170189
         move @R0 [@R12-20]
         push @R0
         move @R0 #16
@@ -2986,10 +3049,10 @@ _L2170190:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        jmp L_2170170
-sta_2170187:
-sta_2170188:
-; 592:                 n = n + 1;
+        jmp L_2170172
+sta_2170189:
+sta_2170190:
+; 606:                 n = n + 1;
         move @R0 [@R12-24]
         push @R0
         move @R0 #1
@@ -2997,9 +3060,9 @@ sta_2170188:
         add @R1 @R0
         move @R0 @R1
         move [@R12-24] @R0
-sta_2170183:
-sta_2170184:
-; 594:             c = c + 1;
+sta_2170185:
+sta_2170186:
+; 608:             c = c + 1;
         move @R0 [@R12-20]
         push @R0
         move @R0 #1
@@ -3007,9 +3070,9 @@ sta_2170184:
         add @R1 @R0
         move @R0 @R1
         move [@R12-20] @R0
-        jmp sta_2170179
-sta_2170180:
-; 596:         r = r + 1;
+        jmp sta_2170181
+sta_2170182:
+; 610:         r = r + 1;
         move @R0 [@R12-16]
         push @R0
         move @R0 #1
@@ -3017,14 +3080,14 @@ sta_2170180:
         add @R1 @R0
         move @R0 @R1
         move [@R12-16] @R0
-        jmp sta_2170175
-sta_2170176:
-; 598:     return -1;
+        jmp sta_2170177
+sta_2170178:
+; 612:     return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        jmp L_2170170
-L_2170170:
+        jmp L_2170172
+L_2170172:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3042,13 +3105,13 @@ ui_timer_set:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 602:     return asm("SYSCALL #563, ${interval_ms}, ${tag}");
+; 616:     return asm("SYSCALL #563, ${interval_ms}, ${tag}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #563
         move [@R12-4] @R0
-        jmp L_2170191
-L_2170191:
+        jmp L_2170193
+L_2170193:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3065,12 +3128,12 @@ ui_timer_kill:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 605:     return asm("SYSCALL #564, ${id}");
+; 619:     return asm("SYSCALL #564, ${id}");
         move @R0 [@R12+12]
         syscall #564
         move [@R12-4] @R0
-        jmp L_2170192
-L_2170192:
+        jmp L_2170194
+L_2170194:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3087,29 +3150,29 @@ ui_rand:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 615:     if (n <= 0) return 0;
+; 629:     if (n <= 0) return 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jle _L2170195
+        jle _L2170197
         move @R0 #0
-        jmp _L2170196
-_L2170195:
+        jmp _L2170198
+_L2170197:
         move @R0 #1
-_L2170196:
+_L2170198:
         cmp @R0 #0
-        jz sta_2170193
+        jz sta_2170195
         move @R0 #0
-        jmp L_2170197
-sta_2170193:
-sta_2170194:
-; 616:     v = asm("SYSCALL #50");
+        jmp L_2170199
+sta_2170195:
+sta_2170196:
+; 630:     v = asm("SYSCALL #50");
         syscall #50
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 618:     return (v % n + n) % n;
+; 632:     return (v % n + n) % n;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12+12]
@@ -3126,8 +3189,8 @@ sta_2170194:
         pop @R1
         mod @R1 @R0
         move @R0 @R1
-        jmp L_2170197
-L_2170197:
+        jmp L_2170199
+L_2170199:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3143,11 +3206,11 @@ ui_tick:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 622:     return asm("SYSCALL #53");
+; 636:     return asm("SYSCALL #53");
         syscall #53
         move [@R12-4] @R0
-        jmp L_2170198
-L_2170198:
+        jmp L_2170200
+L_2170200:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3168,7 +3231,7 @@ ui_icon:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 626:     asm("SYSCALL #529, ${x}, ${y}, ${name}, ${size}, ${color}");
+; 640:     asm("SYSCALL #529, ${x}, ${y}, ${name}, ${size}, ${color}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3196,7 +3259,7 @@ ui_image:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 629:     asm("SYSCALL #530, ${x}, ${y}, ${path}, ${w}, ${h}");
+; 643:     asm("SYSCALL #530, ${x}, ${y}, ${path}, ${w}, ${h}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3227,7 +3290,7 @@ ui_gradient:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 646:     asm("SYSCALL #534, ${id}, ${radial}, ${color_a}, ${color_b}, ${a1}, ${a2}, ${a3}, ${a4}");
+; 660:     asm("SYSCALL #534, ${id}, ${radial}, ${color_a}, ${color_b}, ${a1}, ${a2}, ${a3}, ${a4}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3260,7 +3323,7 @@ ui_path:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 649:     asm("SYSCALL #535, ${d}, ${stroke}, ${width}, ${fill}, ${grad}, ${cap}, ${dash}");
+; 663:     asm("SYSCALL #535, ${d}, ${stroke}, ${width}, ${fill}, ${grad}, ${cap}, ${dash}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3291,7 +3354,7 @@ ui_polygon:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 653:     asm("SYSCALL #536, ${pts}, ${count}, ${fill}, ${stroke}, ${width}, ${grad}");
+; 667:     asm("SYSCALL #536, ${pts}, ${count}, ${fill}, ${stroke}, ${width}, ${grad}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3320,7 +3383,7 @@ ui_polyline:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 656:     asm("SYSCALL #537, ${pts}, ${count}, ${stroke}, ${width}, ${grad}");
+; 670:     asm("SYSCALL #537, ${pts}, ${count}, ${stroke}, ${width}, ${grad}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3349,7 +3412,7 @@ ui_rect_grad:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 659:     asm("SYSCALL #538, ${x}, ${y}, ${w}, ${h}, ${grad}, ${radius}");
+; 673:     asm("SYSCALL #538, ${x}, ${y}, ${w}, ${h}, ${grad}, ${radius}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3377,7 +3440,7 @@ ui_circle_grad:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 662:     asm("SYSCALL #539, ${cx}, ${cy}, ${r}, ${grad}");
+; 676:     asm("SYSCALL #539, ${cx}, ${cy}, ${r}, ${grad}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
@@ -3400,16 +3463,16 @@ ui_brush_solid:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 685:     op = 0;
+; 699:     op = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 686:     return asm("SYSCALL #575, ${op}, ${color}");
+; 700:     return asm("SYSCALL #575, ${op}, ${color}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #575
         move [@R12-4] @R0
-        jmp L_2170199
-L_2170199:
+        jmp L_2170201
+L_2170201:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3431,10 +3494,10 @@ ui_brush_linear:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 691:     op = 1;
+; 705:     op = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 692:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${x1}, ${y1}, ${x2}, ${y2}");
+; 706:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${x1}, ${y1}, ${x2}, ${y2}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3444,8 +3507,8 @@ ui_brush_linear:
         move @R6 [@R12+32]
         syscall #575
         move [@R12-4] @R0
-        jmp L_2170200
-L_2170200:
+        jmp L_2170202
+L_2170202:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3466,10 +3529,10 @@ ui_brush_radial:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 697:     op = 2;
+; 711:     op = 2;
         move @R0 #2
         move [@R12-8] @R0
-; 698:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${cx}, ${cy}, ${r}");
+; 712:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${cx}, ${cy}, ${r}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3478,8 +3541,8 @@ ui_brush_radial:
         move @R5 [@R12+28]
         syscall #575
         move [@R12-4] @R0
-        jmp L_2170201
-L_2170201:
+        jmp L_2170203
+L_2170203:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3496,16 +3559,16 @@ ui_brush_named:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 703:     op = 3;
+; 717:     op = 3;
         move @R0 #3
         move [@R12-8] @R0
-; 704:     return asm("SYSCALL #575, ${op}, ${gradId}");
+; 718:     return asm("SYSCALL #575, ${op}, ${gradId}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #575
         move [@R12-4] @R0
-        jmp L_2170202
-L_2170202:
+        jmp L_2170204
+L_2170204:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3522,16 +3585,16 @@ ui_set_fill:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 709:     slot = 0;
+; 723:     slot = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 710:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+; 724:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #576
         move [@R12-4] @R0
-        jmp L_2170203
-L_2170203:
+        jmp L_2170205
+L_2170205:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3552,10 +3615,10 @@ ui_set_pen:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 715:     slot = 1;
+; 729:     slot = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 716:     return asm("SYSCALL #576, ${slot}, ${brush}, ${width}, ${cap}, ${dash}, ${arrow}");
+; 730:     return asm("SYSCALL #576, ${slot}, ${brush}, ${width}, ${cap}, ${dash}, ${arrow}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3564,8 +3627,8 @@ ui_set_pen:
         move @R5 [@R12+28]
         syscall #576
         move [@R12-4] @R0
-        jmp L_2170204
-L_2170204:
+        jmp L_2170206
+L_2170206:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3582,16 +3645,16 @@ ui_set_text_brush:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 721:     slot = 2;
+; 735:     slot = 2;
         move @R0 #2
         move [@R12-8] @R0
-; 722:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+; 736:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #576
         move [@R12-4] @R0
-        jmp L_2170205
-L_2170205:
+        jmp L_2170207
+L_2170207:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -3612,10 +3675,10 @@ ui_draw_rect:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 727:     op = 0;
+; 741:     op = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 728:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${w}, ${h}, ${radius}");
+; 742:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${w}, ${h}, ${radius}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3642,10 +3705,10 @@ ui_draw_circle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 732:     op = 1;
+; 746:     op = 1;
         move @R0 #1
         move [@R12-8] @R0
-; 733:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}");
+; 747:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3671,10 +3734,10 @@ ui_draw_ellipse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 737:     op = 2;
+; 751:     op = 2;
         move @R0 #2
         move [@R12-8] @R0
-; 738:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}");
+; 752:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3701,10 +3764,10 @@ ui_draw_line:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 742:     op = 3;
+; 756:     op = 3;
         move @R0 #3
         move [@R12-8] @R0
-; 743:     asm("SYSCALL #574, ${op}, ${x1}, ${y1}, ${x2}, ${y2}");
+; 757:     asm("SYSCALL #574, ${op}, ${x1}, ${y1}, ${x2}, ${y2}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3730,28 +3793,28 @@ ui_draw_poly:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 748:     if (close != 0) { op = 4; } else { op = 5; }
+; 762:     if (close != 0) { op = 4; } else { op = 5; }
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jne _L2170208
+        jne _L2170210
         move @R0 #0
-        jmp _L2170209
-_L2170208:
+        jmp _L2170211
+_L2170210:
         move @R0 #1
-_L2170209:
+_L2170211:
         cmp @R0 #0
-        jz sta_2170206
+        jz sta_2170208
         move @R0 #4
         move [@R12-8] @R0
-        jmp sta_2170207
-sta_2170206:
+        jmp sta_2170209
+sta_2170208:
         move @R0 #5
         move [@R12-8] @R0
-sta_2170207:
-; 749:     asm("SYSCALL #574, ${op}, ${pts}, ${count}");
+sta_2170209:
+; 763:     asm("SYSCALL #574, ${op}, ${pts}, ${count}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3773,10 +3836,10 @@ ui_draw_path:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 753:     op = 6;
+; 767:     op = 6;
         move @R0 #6
         move [@R12-8] @R0
-; 754:     asm("SYSCALL #574, ${op}, ${d}");
+; 768:     asm("SYSCALL #574, ${op}, ${d}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         syscall #574
@@ -3799,10 +3862,10 @@ ui_draw_text:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 758:     op = 7;
+; 772:     op = 7;
         move @R0 #7
         move [@R12-8] @R0
-; 759:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${s}");
+; 773:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${s}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3829,10 +3892,10 @@ ui_ellipse_grad:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 764:     op = 13;
+; 778:     op = 13;
         move @R0 #13
         move [@R12-8] @R0
-; 765:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}, ${grad}");
+; 779:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}, ${grad}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3862,10 +3925,10 @@ ui_draw_star:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 769:     op = 8;
+; 783:     op = 8;
         move @R0 #8
         move [@R12-8] @R0
-; 770:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}, ${points}, ${rot}");
+; 784:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}, ${points}, ${rot}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3895,10 +3958,10 @@ ui_draw_regular:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 774:     op = 9;
+; 788:     op = 9;
         move @R0 #9
         move [@R12-8] @R0
-; 775:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${n}, ${rot}");
+; 789:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${n}, ${rot}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3926,10 +3989,10 @@ ui_draw_ring:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 779:     op = 10;
+; 793:     op = 10;
         move @R0 #10
         move [@R12-8] @R0
-; 780:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}");
+; 794:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3957,10 +4020,10 @@ ui_draw_pie:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 784:     op = 11;
+; 798:     op = 11;
         move @R0 #11
         move [@R12-8] @R0
-; 785:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${a0}, ${a1}");
+; 799:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${a0}, ${a1}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -3987,10 +4050,10 @@ ui_draw_heart:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 789:     op = 12;
+; 803:     op = 12;
         move @R0 #12
         move [@R12-8] @R0
-; 790:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${size}");
+; 804:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${size}");
         move @R0 [@R12-8]
         move @R1 [@R12+12]
         move @R2 [@R12+16]
@@ -4014,7 +4077,7 @@ ui_beep:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 797:     asm("SYSCALL #57, ${freq}, ${ms}");
+; 811:     asm("SYSCALL #57, ${freq}, ${ms}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #57
@@ -4036,7 +4099,7 @@ ui_vibrate:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 803:     asm("SYSCALL #545, ${ms}, ${strength}");
+; 817:     asm("SYSCALL #545, ${ms}, ${strength}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #545
@@ -4057,7 +4120,7 @@ ui_keep_on:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 806:     asm("SYSCALL #553, ${on}");
+; 820:     asm("SYSCALL #553, ${on}");
         move @R0 [@R12+12]
         syscall #553
         move [@R12-4] @R0
@@ -4078,7 +4141,7 @@ ui_store_set:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 810:     asm("SYSCALL #550, ${key}, ${value}");
+; 824:     asm("SYSCALL #550, ${key}, ${value}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         syscall #550
@@ -4101,14 +4164,14 @@ ui_store_get:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 813:     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
+; 827:     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         syscall #551
         move [@R12-4] @R0
-        jmp L_2170210
-L_2170210:
+        jmp L_2170212
+L_2170212:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4124,11 +4187,11 @@ ui_argc:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 829:     return asm("SYSCALL #62");
+; 843:     return asm("SYSCALL #62");
         syscall #62
         move [@R12-4] @R0
-        jmp L_2170211
-L_2170211:
+        jmp L_2170213
+L_2170213:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4147,14 +4210,14 @@ ui_arg:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 835:     return asm("SYSCALL #63, ${i}, ${buf}, ${cap}");
+; 849:     return asm("SYSCALL #63, ${i}, ${buf}, ${cap}");
         move @R0 [@R12+12]
         move @R1 [@R12+16]
         move @R2 [@R12+20]
         syscall #63
         move [@R12-4] @R0
-        jmp L_2170212
-L_2170212:
+        jmp L_2170214
+L_2170214:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4171,7 +4234,7 @@ callwithint8:
         push @R12
         move @R12 @R13
         sub @R13 #48
-; 865:     int a0 = v[0]; int a1 = v[1]; int a2 = v[2]; int a3 = v[3];
+; 879:     int a0 = v[0]; int a1 = v[1]; int a2 = v[2]; int a3 = v[3];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -4204,7 +4267,7 @@ callwithint8:
         add @R0 @R4
         move @R0 [@R0]
         move [@R12-20] @R0
-; 866:     int a4 = v[4]; int a5 = v[5]; int a6 = v[6]; int a7 = v[7];
+; 880:     int a4 = v[4]; int a5 = v[5]; int a6 = v[6]; int a7 = v[7];
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -4237,7 +4300,7 @@ callwithint8:
         add @R0 @R9
         move @R0 [@R0]
         move [@R12-36] @R0
-; 867:     return asm("SYSCALL #577, ${a0}, ${a1}, ${a2}, ${a3}, ${a4}, ${a5}, ${a6}, ${a7}");
+; 881:     return asm("SYSCALL #577, ${a0}, ${a1}, ${a2}, ${a3}, ${a4}, ${a5}, ${a6}, ${a7}");
         move @R0 [@R12-8]
         move @R1 [@R12-12]
         move @R2 [@R12-16]
@@ -4248,8 +4311,8 @@ callwithint8:
         move @R7 [@R12-36]
         syscall #577
         move [@R12-4] @R0
-        jmp L_2170213
-L_2170213:
+        jmp L_2170215
+L_2170215:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4266,12 +4329,12 @@ callwithfloat8:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 873:     p = v;     asm("MOVEF F0, [${p}]");
+; 887:     p = v;     asm("MOVEF F0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F0, [@R0]"
-; 874:     p = v + 1; asm("MOVEF F1, [${p}]");
+; 888:     p = v + 1; asm("MOVEF F1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -4282,7 +4345,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F1, [@R0]"
-; 875:     p = v + 2; asm("MOVEF F2, [${p}]");
+; 889:     p = v + 2; asm("MOVEF F2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -4293,7 +4356,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F2, [@R0]"
-; 876:     p = v + 3; asm("MOVEF F3, [${p}]");
+; 890:     p = v + 3; asm("MOVEF F3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -4304,7 +4367,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F3, [@R0]"
-; 877:     p = v + 4; asm("MOVEF F4, [${p}]");
+; 891:     p = v + 4; asm("MOVEF F4, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -4315,7 +4378,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F4, [@R0]"
-; 878:     p = v + 5; asm("MOVEF F5, [${p}]");
+; 892:     p = v + 5; asm("MOVEF F5, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
@@ -4326,7 +4389,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F5, [@R0]"
-; 879:     p = v + 6; asm("MOVEF F6, [${p}]");
+; 893:     p = v + 6; asm("MOVEF F6, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #6
@@ -4337,7 +4400,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F6, [@R0]"
-; 880:     p = v + 7; asm("MOVEF F7, [${p}]");
+; 894:     p = v + 7; asm("MOVEF F7, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #7
@@ -4348,7 +4411,7 @@ callwithfloat8:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEF F7, [@R0]"
-; 881:     id = (int)v[0];
+; 895:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -4358,12 +4421,12 @@ callwithfloat8:
         movef @R0 [@R0]
         f2i @R0 @R0
         move [@R12-12] @R0
-; 882:     return asm("SYSCALL #578, ${id}");
+; 896:     return asm("SYSCALL #578, ${id}");
         move @R0 [@R12-12]
         syscall #578
         move [@R12-4] @R0
-        jmp L_2170214
-L_2170214:
+        jmp L_2170216
+L_2170216:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4380,12 +4443,12 @@ callwithlong4:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 888:     p = v;     asm("MOVEL L0, [${p}]");
+; 902:     p = v;     asm("MOVEL L0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L0, [@R0]"
-; 889:     p = v + 1; asm("MOVEL L1, [${p}]");
+; 903:     p = v + 1; asm("MOVEL L1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -4396,7 +4459,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L1, [@R0]"
-; 890:     p = v + 2; asm("MOVEL L2, [${p}]");
+; 904:     p = v + 2; asm("MOVEL L2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -4407,7 +4470,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L2, [@R0]"
-; 891:     p = v + 3; asm("MOVEL L3, [${p}]");
+; 905:     p = v + 3; asm("MOVEL L3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -4418,7 +4481,7 @@ callwithlong4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVEL L3, [@R0]"
-; 892:     id = (int)v[0];
+; 906:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -4428,12 +4491,12 @@ callwithlong4:
         movel @R0 [@R0]
         l2i @R0 @R0
         move [@R12-12] @R0
-; 893:     return asm("SYSCALL #579, ${id}");
+; 907:     return asm("SYSCALL #579, ${id}");
         move @R0 [@R12-12]
         syscall #579
         move [@R12-4] @R0
-        jmp L_2170215
-L_2170215:
+        jmp L_2170217
+L_2170217:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -4451,12 +4514,12 @@ callwithdouble4:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 899:     p = v;     asm("MOVED D0, [${p}]");
+; 913:     p = v;     asm("MOVED D0, [${p}]");
         move @R0 [@R12+12]
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D0, [@R0]"
-; 900:     p = v + 1; asm("MOVED D1, [${p}]");
+; 914:     p = v + 1; asm("MOVED D1, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -4467,7 +4530,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D1, [@R0]"
-; 901:     p = v + 2; asm("MOVED D2, [${p}]");
+; 915:     p = v + 2; asm("MOVED D2, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -4478,7 +4541,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D2, [@R0]"
-; 902:     p = v + 3; asm("MOVED D3, [${p}]");
+; 916:     p = v + 3; asm("MOVED D3, [${p}]");
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -4489,7 +4552,7 @@ callwithdouble4:
         move [@R12-8] @R0
         move @R0 [@R12-8]
         asm "MOVED D3, [@R0]"
-; 903:     id = (int)v[0];
+; 917:     id = (int)v[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -4499,12 +4562,12 @@ callwithdouble4:
         moved @R0 [@R0]
         d2i @R0 @R0
         move [@R12-12] @R0
-; 904:     return asm("SYSCALL #580, ${id}");
+; 918:     return asm("SYSCALL #580, ${id}");
         move @R0 [@R12-12]
         syscall #580
         move [@R12-4] @R0
-        jmp L_2170216
-L_2170216:
+        jmp L_2170218
+L_2170218:
         move @R13 @R12
         pop @R12
         pop @R15

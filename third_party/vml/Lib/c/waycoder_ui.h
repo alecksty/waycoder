@@ -198,6 +198,17 @@ int ui_alpha(int v);                           /* 全局透明度 0..255（对�
  *   图像与图块**不受影响** —— 它们各有按句柄的释放（见 ui_free_image / ui_free_block）。
  *   重置后旧的 `@名字` 引用解析不到，按既有约定**退化成纯色**（不会崩）。 */
 int ui_brush_reset(void);
+
+/* 清空**整个裁剪栈**（不是弹一级）—— 给出错恢复用：程序中途 return/走别的分支时，
+ * 压进去的那几级没人弹，后面的东西就全画不出来、而且看不出原因。配 ui_alpha(255) 复位。 */
+int ui_clip_reset(void);
+
+/* 查当前占用（a：0=场景图元数 1=图像数 2=矢量图块数 3=画刷/渐变数；未知返回 -1）。
+ *
+ * ⚠ 各类都有**硬上限，而且是到了上限就静默丢弃** ⇒ "防资源爆炸"光有释放口还不够，
+ *   程序得看得见"快满了"。提前查、提前放，比撞上限再猜有用得多。
+ *   典型用法：每帧开头 `if (ui_res_count(3) > 200) ui_brush_reset();` */
+int ui_res_count(int what);
 void ui_icon(int x, int y, char* name, int size, int color);
 void ui_image(int x, int y, char* path, int w, int h);
 void ui_present(void);

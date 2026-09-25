@@ -278,6 +278,31 @@ public static class VmlUi
         ///   （见 `Parse` 里"悬空引用退化为纯色"那一段）—— 不会崩，只是变成纯色。
         /// </summary>
         public const int BrushReset = 8;
+
+        /// <summary>
+        /// 清空**整个裁剪栈**（不是弹一级）。
+        ///
+        /// 给"出错恢复"用：程序中途 `return` / 走了别的分支，压进去的那几级没人弹，
+        /// 后面的东西就全画不出来，而且**看不出原因**。有了它，一进主循环（或按 Esc）
+        /// 调一次就能回到干净的整屏状态。与 `ui_alpha(255)` 配成一对"复位"。
+        /// </summary>
+        public const int ClipReset = 9;
+
+        /// <summary>
+        /// 查**当前占用**（`a` = 种类，返回计数；未知种类返回 -1）。
+        ///
+        /// | a | 种类 |
+        /// |---|---|
+        /// | 0 | 场景图元数（上一帧的线条数，`ui_clear` 之后归零） |
+        /// | 1 | 图像数（`ui_free_image` 释放） |
+        /// | 2 | 矢量图块数（`ui_free_block` 释放） |
+        /// | 3 | 画刷/渐变定义数（`ui_brush_reset` 释放） |
+        ///
+        /// 给程序**自己判断什么时候该释放**用（"防资源爆炸"）—— 光有释放口还不够，
+        /// 程序得看得见"快满了"。各类都有硬上限（见 `MaxFigures` / `MaxBrushes` …），
+        /// 而且是**到了上限就静默丢弃**，所以提前查、提前放，比撞上限再猜有用得多。
+        /// </summary>
+        public const int ResCount = 10;
     }
 
     /// <summary><see cref="Screenshot"/>(#588) 没给路径时，图落在工作区里的这个子目录。</summary>
@@ -2003,6 +2028,32 @@ public sealed class VmlScene
     /// 删单个会让后面的错位 ⇒ 只能整体重置。**调用时机是程序自己的事**：
     /// 按需造渐变的程序应当在每帧开头调一次，否则定义会一直累积到上限。
     /// </summary>
+    /// <summary>
+    /// 清空整个裁剪栈（见 `GfxOp.ClipReset`）。
+    ///
+    /// ⚠ **不新造一条 DSL 指令**，而是**按当前深度补发 N 个 `clippop`** ——
+    ///   `Canvas` / `IVectorTarget` / SVG 那边一个字都不用改，语义天然一致
+    ///   （"栈空了再弹"三处都已经是 no-op）。多一条新指令就要三处各实现一遍，
+    ///   而那正是"同一规则三处实现"的老坑。
+    /// </summary>
+    public void ResetClips()
+    {
+        while (_clipDepth > 0) { AddClipPop(); }
+    }
+
+    /// <summary>查当前占用；未知种类返回 -1。见 `GfxOp.ResCount`。</summary>
+    public int ResCount(int what)
+    {
+        switch (what)
+        {
+            case 0: lock (_figures) { return _figures.Count; }
+            case 1: return -2;          // 图像在宿主那一层（`VmlHostRuntime._images`）
+            case 2: lock (_figures) { return _blocks.Count; }
+            case 3: lock (_figures) { return _brushes.Count; }
+            default: return -1;
+        }
+    }
+
     public void ResetBrushes()
     {
         lock (_figures)
@@ -2023,14 +2074,22 @@ public sealed class VmlScene
     }
 
     /// <summary>`clip` —— 压入一级矩形裁剪（与上一级求交），直到对应的 `clippop`。</summary>
+    /// <summary>当前压了几级裁剪 —— 只为 `ResetClips` 补弹用（**别拿它当"后端已压几级"**）。</summary>
+    private int _clipDepth;
+
     public void AddClipPush(int x, int y, int w, int h)
     {
         w = Dim(w); h = Dim(h);
+        _clipDepth++;
         Add($"clip {x} {y} {w} {h}");
     }
 
     /// <summary>`clippop` —— 弹出一级裁剪。</summary>
-    public void AddClipPop() => Add("clippop");
+    public void AddClipPop()
+    {
+        if (_clipDepth > 0) { _clipDepth--; }
+        Add("clippop");
+    }
 
     public void AddRect(int x, int y, int w, int h, uint color, bool filled, int width, int radius,
         string? fillGradient = null)
