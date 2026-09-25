@@ -72,7 +72,17 @@
 // 回合状态
 #define ST_AIM   0
 #define ST_FLY   1
-#define ST_BOOM  2        // 爆炸定格
+#define ST_BOOM  2        // 爆炸（短促的一下，见 `BOOM_TICKS`）
+
+/// 爆炸持续几拍（一拍 = `TICK_MS` = 33ms ⇒ 12 拍 ≈ 0.4 秒）。
+///
+/// ⚠ **它同时决定火球能长多大**（`r = 6 + boomT * 3`）—— 缩时间就是缩大小，
+///   这两件事本来就是同一个数。别在绘制那边另写一个上限：那会出现
+///   "时间到了球还在长"或者"球长满了还停着"这类对不上的中间态。
+/// ⚠ 原来 24（≈0.8 秒、最大直径 176px），玩家报「圆圈有点大、时间有点长」；
+///   减半到 12 ⇒ 0.4 秒、最大直径约 104px。外圈多出来的那 10px 与碎屑的 14px
+///   也一并减半（`+5` / `+7`）—— 半径减半了、这两个偏移不减，外圈占的比例就会变形。
+#define BOOM_TICKS  12
 
 // ════════════════════════════════════════════════════════════════════
 // 整数三角函数（Bhaskara I 近似）
@@ -2867,7 +2877,7 @@ public:
             {
                 hitBy = -1;
                 state = ST_BOOM;
-                boomT = 24;               // 飞出去：不画爆炸，直接进入下一回合
+                boomT = BOOM_TICKS;       // 飞出去：不画爆炸，直接进入下一回合
                 ban.Stop();
                 return 1;
             }
@@ -2875,7 +2885,7 @@ public:
         else if (state == ST_BOOM)
         {
             boomT = boomT + 1;
-            if (boomT > 24)
+            if (boomT > BOOM_TICKS)
             {
                 if ((*AP[0]).score >= WIN_SCORE || (*AP[1]).score >= WIN_SCORE) { over = 1; }
                 turn = 1 - turn;
@@ -3332,15 +3342,17 @@ public:
         DrawAimPreview();
 
         // 爆炸：冲击波 + 火球 + 碎屑
-        if (state == ST_BOOM && boomT <= 24)
+        if (state == ST_BOOM && boomT <= BOOM_TICKS)
         {
             int r;
             int k;
             int dx;
             int dy;
 
+            // 半径随时间线性长到 `6 + BOOM_TICKS*3`（= 42，直径 84）——
+            // 时间与大小由 `BOOM_TICKS` 一处决定，见那个常量的说明。
             r = 6 + boomT * 3;
-            ui_circle(boomX, boomY, r + 10, 0x30FF7020, 1, 0);        // 半透明冲击波
+            ui_circle(boomX, boomY, r + 5, 0x30FF7020, 1, 0);         // 半透明冲击波
             ui_circle(boomX, boomY, r, C_BOOM, 1, 0);
             ui_circle(boomX, boomY, r * 2 / 3, C_BANANA, 1, 0);
             ui_circle(boomX, boomY, r / 3, 0xFFFFFFFF, 1, 0);
@@ -3348,15 +3360,15 @@ public:
             k = 0;
             while (k < 8)
             {
-                dx = icos(k * 45) * (r + 14) / 800;
-                dy = -isin(k * 45) * (r + 14) / 800;
+                dx = icos(k * 45) * (r + 7) / 800;
+                dy = -isin(k * 45) * (r + 7) / 800;
                 ui_rect(boomX + dx, boomY + dy, 3, 3, C_BOOM, 1, 0, 0);
                 k = k + 1;
             }
         }
 
         // 命中横幅（谁打中了谁）
-        if (state == ST_BOOM && hitBy >= 0 && boomT <= 24)
+        if (state == ST_BOOM && hitBy >= 0 && boomT <= BOOM_TICKS)
         {
             if (hitBy == 0) { ui_text(sw / 2, gy / 2, "橙猴命中！", C_APE0, 26, VML_ANCHOR_CENTER); }
             else { ui_text(sw / 2, gy / 2, "紫猴命中！", C_APE1, 26, VML_ANCHOR_CENTER); }
