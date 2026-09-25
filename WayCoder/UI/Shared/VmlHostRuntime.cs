@@ -1166,6 +1166,15 @@ public sealed class VmlHostRuntime
             case VmlUi.GfxOp.BrushReset:
                 Scene()?.ResetBrushes();
                 break;
+            case VmlUi.GfxOp.MaskBegin:
+                Scene()?.AddMaskBegin();
+                break;
+            case VmlUi.GfxOp.MaskEnd:
+                Scene()?.AddMaskEnd(r[1]);
+                break;
+            case VmlUi.GfxOp.MaskClear:
+                Scene()?.AddMaskClear();
+                break;
             case VmlUi.GfxOp.ClipReset:
                 Scene()?.ResetClips();
                 break;

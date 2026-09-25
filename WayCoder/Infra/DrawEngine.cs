@@ -348,6 +348,7 @@ public sealed class DrawDocument
     public bool Antialias = false; // 消除锯齿（PNG 端超采样降采样）
     public readonly List<DrawFigure> Figures = new();
     public readonly List<Gradient> Gradients = new();
+
     public string? Error;
 }
 
@@ -365,6 +366,7 @@ public static class DrawRunner
 
         var current = Affine.Identity;
         var stack = new Stack<Affine>();
+        List<DrawFigure>? maskBuf = null;   // 蒙版收集缓冲（`mask_begin` 开、`mask_end` 收）
 
         foreach (var raw in dsl.Split('\n'))
         {
@@ -427,11 +429,55 @@ public static class DrawRunner
                 continue;
             }
 
+            // ── 蒙版：`mask_begin` … `mask_end [inside]` ────────────────────────
+            // 中间画的形状**不上屏**，只被收成一条蒙版定义（见 `DrawDocument.Masks`）。
+            // ⚠ 收集要在**解析期**做，不能留给指令：指令拿不到"后面还有什么"。
+            if (name.Equals("mask_begin", StringComparison.OrdinalIgnoreCase))
+            {
+                maskBuf ??= new List<DrawFigure>();
+                continue;
+            }
+            if (name.Equals("mask_end", StringComparison.OrdinalIgnoreCase))
+            {
+                var shapes = new List<(string, double, double, double, double)>();
+                if (maskBuf != null)
+                {
+                    foreach (var mf in maskBuf)
+                    {
+                        // 只认能**闭式判定**的形状（圆 / 矩形）。别的形状在蒙版里没有意义，
+                        // 与其"看着支持了其实不生效"，不如明确忽略。
+                        if (mf.Kind == "circle" && mf.Args.Count >= 3)
+                            shapes.Add(("circle", mf.Args[0], mf.Args[1], mf.Args[2], 0));
+                        else if ((mf.Kind == "rect" || mf.Kind == "roundrect") && mf.Args.Count >= 4)
+                            shapes.Add(("rect", mf.Args[0], mf.Args[1], mf.Args[2], mf.Args[3]));
+                    }
+                    maskBuf = null;
+                }
+                double inside = args.Count >= 1 ? DrawParse.Num(args[0]) : 1;
+                // ⚠ 形状**直接平铺在标记图元的 `Args` 上**（自足），不另存一张文档级的表 ——
+                //   因为 `IDrawCommand.Rasterize(Canvas, DrawFigure)` **只看得到这一个图元**，
+                //   够不到文档。存两处就得让指令回头去查文档，那是"同一件事两处存"。
+                //   编码：`[inside, kind, a, b, c, d, kind, a, b, c, d, …]`，kind 0=圆 1=矩形。
+                var mf2 = new DrawFigure { Kind = "mask" };
+                mf2.Args.Add(inside != 0 ? 1 : 0);
+                foreach (var sh in shapes)
+                {
+                    mf2.Args.Add(sh.Item1 == "circle" ? 0 : 1);
+                    mf2.Args.Add(sh.Item2); mf2.Args.Add(sh.Item3);
+                    mf2.Args.Add(sh.Item4); mf2.Args.Add(sh.Item5);
+                }
+                mf2.Transform = current;
+                doc.Figures.Add(mf2);
+                continue;
+            }
+
             var cmd = DrawCommandRegistry.Get(name);
             if (cmd == null) { doc.Error = $"未知指令: {name}"; continue; }
             var fig = cmd.Parse(args);
             if (fig == null) { doc.Error = $"参数错误: {line}"; continue; }
             fig.Transform = current;
+            // 蒙版收集期：进缓冲、**不上屏**（见上面 mask_begin 那段）
+            if (maskBuf != null) { maskBuf.Add(fig); continue; }
             doc.Figures.Add(fig);
         }
 

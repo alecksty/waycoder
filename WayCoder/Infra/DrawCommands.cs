@@ -1405,12 +1405,72 @@ internal sealed class AlphaCommand : IDrawCommand
     public void EmitSvg(StringBuilder sb, DrawFigure f) { }
 }
 
+/// <summary>
+/// `mask` —— 蒙版**标记**（不是形状本身；形状由解析器从 `mask_begin…mask_end` 收好、
+/// 平铺在本图元的 `Args` 上，见 `DrawEngine` 里那一段）。
+///
+/// 语义：从这一条起，后续图元**只在该蒙版内**（`inside=1`）或**只在其外**（`inside=0`）可见，
+/// 直到下一条 `mask` 替换它。
+///
+/// ⚠ 光栅那条是**闭式判定**（圆比半径平方、矩形比边界），**没有离屏缓冲、没有第二遍遍历**
+///   —— 蒙版形状本来就不上屏，那它们只是"一组判定用的几何"。
+/// ⚠ **矢量后端暂标记 Unsupported** ⇒ 宿主整窗回退光栅。这是有意的：
+///   宁可慢，也不要"看着画出来了其实形状不对"。要做实只需把它接到平台的
+///   `ClipPath` / `SubtractFromClip` 上（见 `docs/VML宿主接口.md` §10.1）。
+/// </summary>
+internal sealed class MaskCommand : IDrawCommand
+{
+    public string Name => "mask";
+
+    public DrawFigure? Parse(IReadOnlyList<DrawToken> a) => new DrawFigure { Kind = "mask" };
+
+    public void Rasterize(Canvas c, DrawFigure f)
+    {
+        // ⚠⚠ **形状也要过 `f.Transform`** —— 与 `ClipCommand` 是**同一个坑**：
+        //   出图走 `ToPngAntialiased`，它在放大 s 倍的画布上重画（判定点也在那个空间里），
+        //   而蒙版形状若留在原坐标 ⇒ 圆挪了位、判定点全在外面 ⇒ "一开蒙版全没了"。
+        //   圆心与半径**一起**缩放（半径是长度、不是坐标）。
+        bool scaled = DrawFill.TryScaled(f.Transform, out var sc, out var tx, out var ty);
+        var shapes = new List<(string, double, double, double, double)>();
+        for (int i = 1; i + 4 < f.Args.Count; i += 5)
+        {
+            double a = f.Args[i + 1], b = f.Args[i + 2], cc = f.Args[i + 3], d = f.Args[i + 4];
+            if (f.Args[i] == 0)
+                shapes.Add(("circle", scaled ? tx + a * sc : a, scaled ? ty + b * sc : b, scaled ? cc * sc : cc, 0));
+            else
+                shapes.Add(("rect", scaled ? tx + a * sc : a, scaled ? ty + b * sc : b, scaled ? cc * sc : cc, scaled ? d * sc : d));
+        }
+        c.SetMask(shapes, f.Args.Count > 0 && f.Args[0] != 0);
+    }
+
+    public void Vector(IVectorTarget t, DrawFigure f) => t.MarkUnsupported("mask");
+
+    // SVG：形状与 inside 都在 Args 上，就地发一个 clipPath 再开 `<g>`。
+    public void EmitSvg(StringBuilder sb, DrawFigure f)
+    {
+        string id = "maskg" + (ClipCommand.NextClipId++);
+        sb.Append("  <defs><clipPath id=\"").Append(id).Append("\">");
+        for (int i = 1; i + 4 < f.Args.Count; i += 5)
+        {
+            if (f.Args[i] == 0)
+                sb.Append("<circle cx=\"").Append(DrawParse.F(f.Args[i + 1])).Append("\" cy=\"")
+                  .Append(DrawParse.F(f.Args[i + 2])).Append("\" r=\"").Append(DrawParse.F(f.Args[i + 3])).Append("\"/>");
+            else
+                sb.Append("<rect x=\"").Append(DrawParse.F(f.Args[i + 1])).Append("\" y=\"")
+                  .Append(DrawParse.F(f.Args[i + 2])).Append("\" width=\"").Append(DrawParse.F(f.Args[i + 3]))
+                  .Append("\" height=\"").Append(DrawParse.F(f.Args[i + 4])).Append("\"/>");
+        }
+        sb.Append("</clipPath></defs>\n  <g clip-path=\"url(#").Append(id).Append(")\">\n");
+    }
+}
+
 /// <summary>内置指令自动注册（AOT 无反射，随模块加载执行）。</summary>
 internal static class DrawCommandInit
 {
     [System.Runtime.CompilerServices.ModuleInitializer]
     internal static void Init()
     {
+        DrawCommandRegistry.Register(new MaskCommand());
         DrawCommandRegistry.Register(new ClipCommand());
         DrawCommandRegistry.Register(new ClipPopCommand());
         DrawCommandRegistry.Register(new AlphaCommand());

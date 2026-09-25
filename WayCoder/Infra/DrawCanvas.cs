@@ -66,6 +66,50 @@ public sealed class Canvas
         ApplyClip();
     }
 
+    // ── 蒙版（`mask_begin` / `mask_end`，见 DrawCommands 的 MaskCommand）────────
+    //
+    // ⚠ **存形状表 + 闭式判定，不做离屏位图**。
+    //   原设计是"把蒙版图元渲进一块覆盖度缓冲、主遍历逐点去查"，那要**遍历两遍**、
+    //   还要在每个后端各维护一块临时画布。但蒙版形状**本来就不上屏** ——
+    //   那它们只是"一组判定用的几何"，落到点上就是几行算术（圆 = 比半径平方、
+    //   矩形 = 比边界）。省掉两次遍历、一块缓冲，而且三条后端可以同构实现。
+    private readonly List<(string Kind, double A, double B, double C, double D)> _maskShapes = new();
+    private bool _maskInside;
+    private bool _maskOn;
+
+    /// <summary>设一个蒙版 = 一组形状的**并集**；<paramref name="inside"/> 为真表示"只在里面画"。</summary>
+    public void SetMask(List<(string Kind, double A, double B, double C, double D)> shapes, bool inside)
+    {
+        _maskShapes.Clear();
+        _maskShapes.AddRange(shapes);
+        _maskInside = inside;
+        _maskOn = _maskShapes.Count > 0;
+    }
+
+    /// <summary>取消蒙版。</summary>
+    public void ClearMask() { _maskOn = false; _maskShapes.Clear(); }
+
+    /// <summary>这一点该不该落笔？没有蒙版时恒真。</summary>
+    private bool InMask(int x, int y)
+    {
+        if (!_maskOn) return true;
+        var hit = false;
+        for (var i = 0; i < _maskShapes.Count; i++)
+        {
+            var s = _maskShapes[i];
+            if (s.Kind == "circle")
+            {
+                double dx = x - s.A, dy = y - s.B;
+                if (dx * dx + dy * dy <= s.C * s.C) { hit = true; break; }
+            }
+            else if (s.Kind == "rect")
+            {
+                if (x >= s.A && x < s.A + s.C && y >= s.B && y < s.B + s.D) { hit = true; break; }
+            }
+        }
+        return _maskInside ? hit : !hit;
+    }
+
     private void ApplyClip()
     {
         if (_clipStack.Count == 0) { _clipped = false; return; }
@@ -88,6 +132,7 @@ public sealed class Canvas
     /// </summary>
     public void SetPixel(int x, int y, uint c)
     {
+        if (!InMask(x, y)) return;
         if (_clipped && (x < _clipX0 || x >= _clipX1 || y < _clipY0 || y >= _clipY1)) return;
         if (x < 0 || y < 0 || x >= Width || y >= Height) return;
         var i = (y * Width + x) * 4;
@@ -116,6 +161,7 @@ public sealed class Canvas
     /// <summary>带 alpha 覆盖率混合到既有像素（用于字形/线条抗锯齿）。coverage ∈ [0,1]。</summary>
     public void BlendPixel(int x, int y, uint c, double coverage)
     {
+        if (!InMask(x, y)) return;
         if (_clipped && (x < _clipX0 || x >= _clipX1 || y < _clipY0 || y >= _clipY1)) return;
         if (x < 0 || y < 0 || x >= Width || y >= Height || coverage <= 0) return;
         if (coverage >= 1) { SetPixel(x, y, c); return; }

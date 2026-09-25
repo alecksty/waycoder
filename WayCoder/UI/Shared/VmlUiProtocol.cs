@@ -288,6 +288,13 @@ public static class VmlUi
         /// </summary>
         public const int ClipReset = 9;
 
+        /// <summary>开始收集蒙版形状（`ui_mask_begin`）。这期间画的形状**不上屏**。</summary>
+        public const int MaskBegin = 3;
+        /// <summary>结束收集并启用蒙版（`ui_mask_end`，`a` = 1 只在里面画 / 0 只在外面画）。</summary>
+        public const int MaskEnd = 4;
+        /// <summary>取消蒙版（`ui_mask_clear`）——实现是"开一个空的再收"。见 `AddMaskClear`。</summary>
+        public const int MaskClear = 5;
+
         /// <summary>
         /// 查**当前占用**（`a` = 种类，返回计数；未知种类返回 -1）。
         ///
@@ -2036,6 +2043,22 @@ public sealed class VmlScene
     ///   （"栈空了再弹"三处都已经是 no-op）。多一条新指令就要三处各实现一遍，
     ///   而那正是"同一规则三处实现"的老坑。
     /// </summary>
+    /// <summary>`mask_begin` —— 开始收集蒙版形状（这期间的形状不上屏）。</summary>
+    public void AddMaskBegin() => Add("mask_begin");
+
+    /// <summary>`mask_end [inside]` —— 收下蒙版并启用。</summary>
+    public void AddMaskEnd(int inside) => Add($"mask_end {(inside != 0 ? 1 : 0)}");
+
+    /// <summary>
+    /// 取消蒙版。**不新造指令**：开一个空的再收 —— 空蒙版在 `Canvas.SetMask` 里
+    /// 自然 `_maskOn = false`，于是"后续图元全部可见"。与 `ResetClips` 补发 `clippop` 同一路数。
+    /// </summary>
+    public void AddMaskClear()
+    {
+        Add("mask_begin");
+        Add("mask_end 1");
+    }
+
     public void ResetClips()
     {
         while (_clipDepth > 0) { AddClipPop(); }

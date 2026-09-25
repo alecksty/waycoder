@@ -209,6 +209,25 @@ int ui_clip_reset(void);
  *   程序得看得见"快满了"。提前查、提前放，比撞上限再猜有用得多。
  *   典型用法：每帧开头 `if (ui_res_count(3) > 200) ui_brush_reset();` */
 int ui_res_count(int what);
+
+/* ── 蒙版（任意形状）────────────────────────────────────────────────────
+ *
+ *   ui_mask_begin();
+ *     ui_circle(200, 200, 120, 0xFFFFFFFF, 1, 0);   // 圆的蒙版（这些形状**不上屏**）
+ *   ui_mask_end(1);                                  // 1 = 只在圆内画 / 0 = 只在圆外画
+ *   ...后续绘制只在该蒙版内(外)可见，直到下一条蒙版...
+ *   ui_mask_clear();                                 // 取消蒙版，恢复全部可见
+ *
+ * ⚠ 蒙版形状**只认圆与矩形**（矩形的圆角参数忽略）—— 它们能做**闭式判定**，
+ *   于是光栅那条不需要离屏缓冲、也不需要把图元表走两遍。
+ *   别的形状（多边形/路径）**会被忽略**，不是"看着支持了其实不生效"。
+ *
+ * ⚠ 矢量后端目前**回退光栅**（整窗），所以用了蒙版的程序在手机上会走慢的那条路。
+ *   要做实是接到平台的 ClipPath 上，见 docs/VML宿主接口.md §10.1。
+ */
+int ui_mask_begin(void);
+int ui_mask_end(int inside);
+int ui_mask_clear(void);
 void ui_icon(int x, int y, char* name, int size, int color);
 void ui_image(int x, int y, char* path, int w, int h);
 void ui_present(void);

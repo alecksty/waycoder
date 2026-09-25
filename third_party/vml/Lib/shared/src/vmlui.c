@@ -190,6 +190,30 @@ int ui_clip_reset(void) {
     return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
 }
 
+int ui_mask_begin(void) {
+    int op;
+    int z;
+    op = 3;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
+int ui_mask_end(int inside) {
+    int op;
+    int z;
+    op = 4;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${inside}, ${z}, ${z}, ${z}");
+}
+
+int ui_mask_clear(void) {
+    int op;
+    int z;
+    op = 5;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
 int ui_res_count(int what) {
     int op;
     int z;
