@@ -2421,6 +2421,10 @@
 // CALL ui_draw_block
 // extern fn ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) -> int
 // CALL ui_draw_block_at
+// extern fn ui_free_block(int block) -> int
+// CALL ui_free_block
+// extern fn ui_free_image(int handle) -> int
+// CALL ui_free_image
 // extern fn ui_get_pixel(int x, int y) -> int
 // CALL ui_get_pixel
 // extern fn ui_screenshot(char* path) -> int

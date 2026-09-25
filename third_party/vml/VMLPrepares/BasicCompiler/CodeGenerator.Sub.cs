@@ -239,6 +239,27 @@ namespace BasicCompiler
         private bool IsSharedVariable(string varName)
             => !string.IsNullOrEmpty(varName) && _sharedVariables.Contains(varName.ToLower());
 
+        /// <summary>
+        /// 扫描局部量时，**常量名一律不算局部量**。
+        ///
+        /// <para>
+        /// `CollectLocalVariables*` 是个**启发式扫描**（"这个子过程里出现过哪些名字"），
+        /// 它把见到的每个标识符都登记成局部量 —— 常量名也在内。
+        /// 平时看不出问题（求值那条路先查 `constants`，折叠赢了），但一旦让
+        /// **局部量遮蔽同名常量**（`SUB t(nb AS INTEGER)` 撞 `CONST NB = 6` 那条修复），
+        /// 被扫描进来的常量名就反过来把常量折叠整个废掉 ——
+        /// 实测：`C_PANEL` 被登记成局部量 ⇒ 面板整块变成别的颜色（读的是未初始化的帧槽），
+        /// 而**编译器一个错都不报**，只是画面不对。
+        /// </para>
+        /// <para>
+        /// ⚠ 判据放在**扫描处**、不是 `DeclareLocal` 里：显式 `DIM nb` 的局部量
+        /// **必须**能遮蔽同名常量（那是有意支持的），把闸门下移到 `DeclareLocal`
+        /// 会把那条一起挡掉。
+        /// </para>
+        /// </summary>
+        private bool IsConstantName(string name)
+            => constants != null && constants.ContainsKey(name.ToLower());
+
         private void CollectLocalVariables(Statement stmt)
         {
             if (stmt is SequenceStatement seq)
@@ -256,6 +277,7 @@ namespace BasicCompiler
                         !currentLocalVars.ContainsKey(ident.Name.ToLower()) &&
                         !IsParameter(ident.Name.ToLower()) &&
                         !IsStaticVariable(ident.Name.ToLower()) &&
+                        !IsConstantName(ident.Name) &&      // 常量**不是**局部量（见 IsConstantName）
                         !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                     {
                         DeclareLocal(ident.Name.ToLower());
@@ -499,6 +521,7 @@ namespace BasicCompiler
                     !variables.ContainsKey(ident.Name.ToLower()) &&
                     !IsParameter(ident.Name.ToLower()) &&
                     !IsStaticVariable(ident.Name.ToLower()) &&
+                    !IsConstantName(ident.Name) &&      // 常量**不是**局部量（见 IsConstantName）
                     !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                 {
                     DeclareLocal(ident.Name.ToLower());
@@ -1357,10 +1380,30 @@ namespace BasicCompiler
             }
             else if (expr is Identifier ident)
             {
-                // Check if this is a compile-time constant
-                if (constants.ContainsKey(ident.Name.ToLower()))
+                // ⚠⚠ **局部量 / 形参必须遮蔽同名常量** —— 判据要排在查 `constants` 之前。
+                //
+                // 从前这里是反过来（先 `constants`），而 BASIC 的名字**大小写不敏感**：
+                // `CONST NB = 6` 与 `SUB t(nb AS INTEGER)` 里的 `nb` 就是同一个名字 ⇒
+                // 子过程体里的 `nb` 被整体折成 6，**实参传进来直接丢掉，一个错都不报**。
+                // 最小复现（8 行）：`scripts/vml-basic-probe/cases/55-const-shadows-param.bas`
+                //     CONST NB = 6 / SUB t(nb AS INTEGER) / out = nb / END SUB / t(129)
+                //     ⇒ out = 6（应为 129）
+                // 真实撞上它的是 `gorilla_pro.bas` 的 `mix2(nr, ng, nb, …)`：
+                // 「天空 → 云」混色的**蓝色分量恒等于 6**，云画出来是橄榄绿的 ——
+                // 编译日志、警告、运行时报错里一个字都没有，只能靠把中间量 PRINT 出来才看得见。
+                //
+                // `currentLocalVars` 在子过程**外**是空表 ⇒ 模块级同名常量照旧生效，
+                // 老程序一个字都不用改。
+                // ⚠ 判据要**两张表都查**：局部量在 `currentLocalVars`（负数偏移，R12 往下长），
+                //   而**形参不在这张表里** —— 它们按 `R12+8+4i` 访问，靠 `FindParameterIndex`
+                //   认。只查 `currentLocalVars` 的话，形参那条仍然会被常量吃掉
+                //   （实测：局部量遮蔽修好了 B=7，形参那条 A 还是 6）。
+                string idKey = ident.Name.ToLower();
+                bool isLocalName = (currentLocalVars != null && currentLocalVars.ContainsKey(idKey))
+                                   || FindParameterIndex(idKey) >= 0;
+                if (!isLocalName && constants.ContainsKey(idKey))
                 {
-                    var val = constants[ident.Name.ToLower()];
+                    var val = constants[idKey];
                     if (val is int intVal)
                     {
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, intVal) }));

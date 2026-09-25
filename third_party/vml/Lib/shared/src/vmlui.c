@@ -204,6 +204,23 @@ int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) {
     return asm("SYSCALL #592, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
 }
 
+/* **释放**一个图块（句柄回收再用）。返回 1 成功 / 0 失败（句柄不存在或已释放）。
+ *
+ * 块的**内容与尺寸都不可改**，"更新一个块"的唯一办法是重录 ——
+ * 没有本函数时那就是在漏句柄（块表 128 格，满了之后 ui_create_block 一律返回 0，
+ * 而画面只是"悄悄退回逐帧画"，很难发现）。 */
+int ui_free_block(int block) {
+    return asm("SYSCALL #593, ${block}");
+}
+
+/* **释放**一张 ui_get_image 存下的图像（句柄回收）。返回 1 成功 / 0 失败。
+ *
+ * 图像表是**宿主级**的、不随场景释放，所以程序自己主动释放才有意义
+ * （退出时宿主会统一清掉）。 */
+int ui_free_image(int handle) {
+    return asm("SYSCALL #594, ${handle}");
+}
+
 /* ── 老 BASIC 的精灵位图（`DATA` 手打包 + `PUT`）────────────────── */
 
 /* 读一个像素的颜色 → **0xRRGGBB**（越界返回 -1）。异或擦除要用。

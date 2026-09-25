@@ -1024,6 +1024,18 @@ namespace VMLRuntime
         /// 是同一条线程，无并发问题。
         /// </para>
         /// </summary>
+        public void PauseTimeout()
+        {
+            if (TimeoutSeconds <= 0 || _timeoutCts is null) return;
+            try
+            {
+                // `Timeout.InfiniteTimeSpan` = 不再触发。用 `ResetTimeout` 恢复。
+                _timeoutCts.CancelAfter(Timeout.InfiniteTimeSpan);
+                _timeoutDeadlineMs = long.MaxValue;
+            }
+            catch (ObjectDisposedException) { /* 这次运行刚结束（与 Run 的 finally 赛跑） */ }
+        }
+
         public void ResetTimeout()
         {
             if (TimeoutSeconds <= 0 || _timeoutCts is null) return;

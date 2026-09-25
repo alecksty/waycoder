@@ -1363,6 +1363,8 @@ __stdcall void vga_text_newline(void);
  int ui_end_block(void);
  int ui_draw_block(int block, int x, int y, int sx, int sy, int rot);
  int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot);
+ int ui_free_block(int block);
+ int ui_free_image(int handle);
  int ui_get_pixel(int x, int y);
  int ui_screenshot(char* path);
  void ui_put_qb_bitmap(int x, int y, int* arr, int* pal, int planes, int action);

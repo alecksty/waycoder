@@ -299,6 +299,20 @@ public sealed class VmlHostRuntime
     public Action? OnWaitEnded { get; set; }
 
     /// <summary>
+    /// 「宿主把程序**挂住**了」—— 与 <see cref="OnWaitEnded"/> 配对，用来把超时**挂起**
+    /// （而不是续期）。
+    ///
+    /// <para>
+    /// 用在"对话框挂在那儿等用户作答"这条路：那段时间 VM 线程完全阻塞、**一条指令都没执行**，
+    /// 可倒计时照走 ⇒ 用户在开场说明上多读两分钟，程序就被超时杀了。
+    /// 这正是 v0.96.438 那次「手机游戏卡死」的一半根因（另一半是墙钟本身），
+    /// 而那一轮只补了"弹框结束后续期"，**没补"弹框期间停表"** ——
+    /// 读得比超时还久仍然会被杀。
+    /// </para>
+    /// </summary>
+    public Action? OnBlocked { get; set; }
+
+    /// <summary>
     /// 绘图窗口**现在还开着**吗（程序开过、且没被关掉）。
     ///
     /// <para>
@@ -328,11 +342,30 @@ public sealed class VmlHostRuntime
         _nextTimerId = 1;
         _windowClosed = false;
         _scene = null;
+        // **图像表也要清**：它是**宿主级**的（不像图块/刷子那样挂在场景上），
+        // 不清就是跨运行泄漏 —— 上一轮程序 `ui_get_image` 存的图会一直占着内存，
+        // 新程序拿到的句柄还从旧的继续涨（用户定的：退出程序要能自动释放）。
+        _images.Clear();
+        _nextImageHandle = 1;
     }
 
     /// <summary>平台把输入事件投进来。</summary>
     public void PostInput(VmlMsgType type, int a = 0, int b = 0)
-        => _queue.Post(new VmlMessage(type, a, b, Environment.TickCount));
+    {
+        // **人给的输入 = "人还在"**，一并给超时续期（用户定的判据：「只要有触摸，就不应该超时」）。
+        //
+        // ⚠ 只认**人给的**那几类（键盘 / 鼠标 / 触摸）。`Timer` / `WindowResize` / `WindowOrient`
+        //   是**程序自己或宿主**生成的 —— 拿它们续期等于"程序只要设了定时器就永不超时"，
+        //   与 `ui_poll` 绝不能续期是同一条理由（见 `ResetTimeout` 的注释）。
+        if (IsUserInput(type)) OnWaitEnded?.Invoke();
+        _queue.Post(new VmlMessage(type, a, b, Environment.TickCount));
+    }
+
+    /// <summary>这条消息是不是**人**给的（而不是程序/宿主自己生成的）。见 <see cref="PostInput"/>。</summary>
+    private static bool IsUserInput(VmlMsgType t)
+        => t is VmlMsgType.KeyDown or VmlMsgType.KeyUp
+             or VmlMsgType.MouseMove or VmlMsgType.MouseDown or VmlMsgType.MouseUp
+             or VmlMsgType.TouchDown or VmlMsgType.TouchMove or VmlMsgType.TouchUp;
 
     /// <summary>投递一条任意的消息（脚本化输入直接用它）。</summary>
     public void Post(VmlMessage msg) => _queue.Post(msg);
@@ -545,6 +578,12 @@ public sealed class VmlHostRuntime
                                                       registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
                     TouchScene();
                     break;
+                case VmlUi.FreeImage: registers[0] = (_images.Remove(registers[0])) ? 1 : 0; break;
+                case VmlUi.FreeBlock:
+                    // 与 Create/End 一样**不 `TouchScene()`**：释放只动"块表"，
+                    // 一个图元都没往场景里放（贴图元的是 DrawBlock*）。
+                    registers[0] = (Scene()?.FreeBlock(registers[0]) ?? false) ? 1 : 0;
+                    break;
                 case VmlUi.DrawBlockAt:
                     registers[0] = (Scene()?.DrawBlockAt(registers[0], registers[1], registers[2],
                                                         registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
@@ -635,6 +674,7 @@ public sealed class VmlHostRuntime
     private T WithTimersPaused<T>(Func<T> body)
     {
         SetTimersPaused(true);
+        OnBlocked?.Invoke();          // 挂起超时：这段时间程序一步都没走
         try { return body(); }
         finally
         {

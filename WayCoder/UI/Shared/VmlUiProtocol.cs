@@ -215,6 +215,35 @@ public static class VmlUi
     /// <summary>`ui_draw_block_at(block, x, y, sx, sy, rot)` —— 同上，但 **(x, y) 是左上角、绕左上角转**。</summary>
     public const int DrawBlockAt = 592;
 
+    /// <summary>
+    /// `ui_free_block(block)` —— **手动释放**一个图块。→ 1 成功 / 0 失败（句柄不存在或已释放）。
+    ///
+    /// <para>
+    /// <b>为什么要有它</b>：块表有 <see cref="MaxBlocks"/>（128）上限，而"改一个块的内容"
+    /// 的唯一办法是**重录新块**（块的内容/尺寸都不可变）—— 没有释放的话，任何"内容会变"
+    /// 的用法都在漏句柄。实测 `Examples/basic/gorilla_pro.bas`：城市/星空/云三块每次配色变化
+    /// 重录一次 ⇒ **每秒 3 个** ⇒ 43 秒撑满，之后 `ui_create_block` 一律返回 0，
+    /// 画面**悄悄**退回逐帧画（帧率从 25 掉回 18，屏幕上完全看不出"图块没了"）。
+    /// 有了它，程序可以"先释放旧的、再录新的"，想多频繁就多频繁。
+    /// </para>
+    /// <para>
+    /// ⚠ 释放过的句柄会被**回收复用**（句柄值只增不减），所以别在别处留旧句柄当"以后再贴"。
+    /// 贴一个已失效的句柄是**静默 no-op**（与"句柄 0 = 没有块"同一套，见 <see cref="DrawBlock"/>）。
+    /// </para>
+    /// </summary>
+    public const int FreeBlock = 593;
+
+    /// <summary>
+    /// `ui_free_image(handle)` —— **手动释放**一张 `ui_get_image` 存下的图像。→ 1 成功 / 0 失败。
+    ///
+    /// <para>
+    /// 图像表是**宿主级**的（不是场景级），所以它不会随场景释放 —— 从前只能一路膨胀到
+    /// `MaxImages` 为止。程序退出时由 `VmlHostRuntime.Reset()` 统一清掉（用户定的：
+    /// 「ui 绘图资源都要做成可以手动释放的，如果退出程序，也能自动释放」）。
+    /// </para>
+    /// </summary>
+    public const int FreeImage = 594;
+
     /// <summary><see cref="Screenshot"/>(#588) 没给路径时，图落在工作区里的这个子目录。</summary>
     public const string DefaultShotDir = "shot";
 
@@ -992,7 +1021,7 @@ public static class VmlUi
         // ⚠ `SetVAlign`(586) 此前**漏在这张表外**（上面这行注释也把它跳过去了）——
         //   漏登记**不报错**，只是查重网漏掉它（那张网查"重复/越界"，**查不出"少一个"**）。
         //   与 `DrawTextEx`(581) 那次是同一个坑，见下面那段注释。
-        FloodFill, GetImage, PutImage, SetVAlign, DrawGetPixel, Screenshot,
+        FloodFill, GetImage, PutImage, SetVAlign, DrawGetPixel, Screenshot, FreeBlock, FreeImage,
         // 矢量图块 589–592
         CreateBlock, EndBlock, DrawBlock, DrawBlockAt,
         // 绘图增强 534–539
@@ -1845,7 +1874,24 @@ public sealed class VmlScene
         public bool HasImage;
     }
 
-    private readonly List<Block> _blocks = new();
+    /// <summary>
+    /// 图块表：**句柄 → 块**。
+    ///
+    /// ⚠ 从前是 `List&lt;Block&gt;` 而句柄 = 下标+1 —— 那样**没法释放**：删掉中间一个，
+    /// 后面所有句柄都会平移（旧句柄指向别的块，静默画错东西）。
+    /// 所以换成"句柄字典 + 回收栈"：句柄只增不减、释放过的**回收再用**，
+    /// 任何一个已发出的句柄要么指向它那块，要么已经失效（贴的时候静默 no-op）。
+    /// </summary>
+    private readonly Dictionary<int, Block> _blocks = new();
+
+    /// <summary>下一个新句柄（从 1 开始，0 恒为"没有"）。</summary>
+    private int _nextBlockHandle = 1;
+
+    /// <summary>释放出来的句柄，下次 `CreateBlock` 优先复用。</summary>
+    private readonly Stack<int> _freeBlockHandles = new();
+
+    /// <summary>`CreateBlock` 已经占下、等 `EndBlock` 落表的那个句柄（没在录时 0）。</summary>
+    private int _pendingHandle;
 
     /// <summary>正在录制的内容（非 null = 处于录制期）。见 <see cref="Add"/> 的分流。</summary>
     private List<string>? _recording;
@@ -2431,9 +2477,12 @@ public sealed class VmlScene
             _recordingW = w;
             _recordingH = h;
             _recordingWarned = false;
-            // 句柄**先占好**（= 下一个下标 + 1），`EndBlock` 时才连同内容落表 ——
+            // 句柄**先占好**、`EndBlock` 时才连同内容落表 ——
             // 这样程序可以拿着句柄立刻传给别的函数，而表里不会出现"半成品块"。
-            return _blocks.Count + 1;
+            // ⚠ 上限判据用 `_blocks.Count`（**活着的块**）而不是句柄值：
+            //   释放过的句柄会被回收复用，句柄值可以无限涨。
+            _pendingHandle = _freeBlockHandles.Count > 0 ? _freeBlockHandles.Pop() : _nextBlockHandle++;
+            return _pendingHandle;
         }
     }
 
@@ -2450,14 +2499,25 @@ public sealed class VmlScene
             var hasImage = false;
             foreach (var l in lines)
                 if (l.StartsWith("image ", StringComparison.Ordinal)) { hasImage = true; break; }
-            _blocks.Add(new Block
+            _blocks[_pendingHandle] = new Block
             {
                 Lines = lines.ToArray(),
                 W = _recordingW,
                 H = _recordingH,
                 HasImage = hasImage,
-            });
-            return _blocks.Count;    // = 下标 + 1，与 `CreateBlock` 返回的那个一致
+            };
+            return _pendingHandle;   // 与 `CreateBlock` 返回的那个一致
+        }
+    }
+
+    /// <summary>`ui_free_block(block)` —— 释放一个图块（句柄回收，见 <see cref="VmlUi.FreeBlock"/>）。</summary>
+    public bool FreeBlock(int block)
+    {
+        lock (_figures)
+        {
+            if (!_blocks.Remove(block)) return false;   // 句柄不存在 / 已释放：静默失败
+            _freeBlockHandles.Push(block);
+            return true;
         }
     }
 
@@ -2512,8 +2572,7 @@ public sealed class VmlScene
         lock (_figures)
         {
             // 句柄 0 / 越界 ⇒ **静默 no-op**（与"句柄 0 = 没有刷子"同一套：不为它告警）
-            if (block <= 0 || block > _blocks.Count) return false;
-            blk = _blocks[block - 1];
+            if (!_blocks.TryGetValue(block, out blk!)) return false;   // 句柄 0 / 已释放 / 越界
 
             // **整块原子化**：先算这次要占多少行，超预算就整块不贴。
             // 逐行 `Add` 到顶会出现「`push` 进了、`pop` 被丢」的**悬空 push** ——

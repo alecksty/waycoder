@@ -5741,6 +5741,16 @@ DECLARE FUNCTION ui_draw_block_at(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a
     ui_draw_block_at = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_free_block(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_free_block")
+    ui_free_block = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_free_image(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_free_image")
+    ui_free_image = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_get_pixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL ui_get_pixel")
     ui_get_pixel = 0

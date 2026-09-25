@@ -1203,6 +1203,14 @@ namespace BasicCompiler
         /// </summary>
         private BasicType InferExpressionType(Expression expr)
         {
+            // `TIMER` 是 **SINGLE**（QBasic 的语义：当天秒数带小数）——
+            // 少了这一条，赋值那一侧会按整数搬寄存器（`move @R1 @R0` 而不是 `movef`），
+            // 于是 `a = TIMER` 把浮点位型当整数存下来（实测打出 937060603 这种数）。
+            // ⚠ 类型推断要和 `GenerateTimerFunction` 里发的指令**同源**：
+            //   那边置 `_lastExprFloatType = Single` 只管"求值那一步"，
+            //   存储那一侧看的是这里。
+            if (expr is TimerFunctionExpression)
+                return BasicType.Single;
             if (expr is NumberLiteral numLiteral)
             {
                 // 数字字面量：检查是否有小数点

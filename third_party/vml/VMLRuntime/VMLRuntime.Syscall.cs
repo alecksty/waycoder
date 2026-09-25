@@ -27,7 +27,6 @@ namespace VMLRuntime
             }
 
             SyscallsExecuted++;
-
             // 如果没有处理器或处理器未处理，使用默认实现
             switch (syscallNum)
             {
@@ -110,6 +109,11 @@ namespace VMLRuntime
                     break;
                 case 53: // GetTick -> R0 = ms
                     registers[0] = (int)(DateTime.UtcNow - _startTime).TotalMilliseconds;
+                    break;
+                case 64: // GetLocalMillisOfDay -> R0 = 本地当天 0 点以来的毫秒
+                    // 用 `DateTime.Now`（**本地**时间）—— 与 `#55/#56` 那两条字符串同源，
+                    // 不然 TIME$ 说 10 点、TIMER 却按 UTC 算成 2 点，两个读数对不上。
+                    registers[0] = (int)DateTime.Now.TimeOfDay.TotalMilliseconds;
                     break;
                 case 54: // GetDateTime -> R0 = unix timestamp
                     registers[0] = (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;

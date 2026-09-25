@@ -102,6 +102,9 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             // 不算"程序在跑"。不接这一根线，游戏主循环每 40ms 等一次、超时却按墙钟走，
             // 120 秒必被杀 —— 表现就是"游戏卡死、触摸没反应"（真机实测 gorilla.bas）。
             _rt.OnWaitEnded = () => value?.ResetTimeout();
+            // 与上面配对：**对话框挂着的期间要把表停掉**（见 `OnBlocked` 的注释）——
+            // 只"结束后续期"是不够的，读得比超时还久照样被杀。
+            _rt.OnBlocked = () => value?.PauseTimeout();
         }
     }
     private VmRuntime? _vm;

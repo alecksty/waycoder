@@ -1035,7 +1035,9 @@ HALT
             // 手机上一行输入敲几十秒很正常，60 秒会在提示符上被超时杀掉。
             // 代价：失控程序最长挂 10 分钟。真正的解法是"等输入时不计时"（暂停 CTS），
             // 那要动 VML 的超时实现，留作后续；现阶段用宿主侧的可中断入口兜底。
-            TimeoutSeconds = Math.Clamp(timeoutSeconds, 1, 600),
+            // `0` 是**有意放行**的"不限时"档（见 `MauiVmStore.TimeoutOptions`）——
+            // 其余档位仍然钳到 600：给个 1800 也只会得到 600，那是"选了不生效"。
+            TimeoutSeconds = timeoutSeconds <= 0 ? 0 : Math.Clamp(timeoutSeconds, 1, 600),
             ConsoleIO = io,
             SystemCallHandler = uiCalls,
 

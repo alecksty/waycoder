@@ -852,6 +852,13 @@ internal sealed class CliUiCalls : ISystemCallHandler
         VmlCallRegistry.RegisterDefaults(VmlCallRegistry.HostDesktop);
 
         _rt = new VmlHostRuntime(_host) { BlockingWaitLimitMs = Math.Max(1, cfg.TimeoutSeconds) * 1000 };
+        // ⚠ **与手机端同一套超时语义**（`VmlUiCalls.Vm` 的 setter 里接的是同两根线）：
+        //   等消息 / 人给了输入 / 弹框期间 —— 都不算"程序在跑"。
+        //   不接的话，**手机能一直玩的程序在桌面上会被 `--timeout` 杀掉**，
+        //   桌面就再也验不出"会不会被超时误杀"这类问题（本轮真机上"玩两局退出"
+        //   正是这么漏掉的：桌面上它每次都超时，谁会去怀疑这条）。
+        _rt.OnWaitEnded = () => _vm?.ResetTimeout();
+        _rt.OnBlocked = () => _vm?.PauseTimeout();
         _host.Runtime = _rt;
 
         // `--trace-draw`：把**绘制调用**逐条写进文件。

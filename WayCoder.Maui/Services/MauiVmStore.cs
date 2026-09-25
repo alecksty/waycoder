@@ -39,7 +39,16 @@ public static class MauiVmStore
     /// `Math.Clamp(timeoutSeconds, 1, 600)` 就是这个数 —— 候选表超过它只会让用户
     /// "选了 1800、实际跑的是 600"，那比不给选更糟。
     /// </summary>
-    public static readonly int[] TimeoutOptions = [30, 60, 120, 300, 600];
+    /// <summary>
+    /// 超时档位。**`0` = 不限时**（`VmRuntime.TimeoutSeconds &lt;= 0` 的约定）。
+    ///
+    /// <para>
+    /// 加这一档是因为 v0.96.440 起"有输入就不计时"（触摸/按键都续期）——
+    /// 于是超时只剩一个用途：**兜住失控程序**。而"玩家盯着棋盘想了十分钟、一次没碰屏幕"
+    /// 是正常行为，不该被杀；真不想要这个兜底的人现在能自己关掉。
+    /// </para>
+    /// </summary>
+    public static readonly int[] TimeoutOptions = [0, 30, 60, 120, 300, 600];
 
     public const int DefaultMemoryMb = VmlVmDefaults.MemoryBytes / (1024 * 1024);
     public const int DefaultStackKb = VmlVmDefaults.StackBytes / 1024;
@@ -103,5 +112,10 @@ public static class MauiVmStore
     }
 
     /// <summary>设置页摘要行用的一句话。</summary>
-    public static string Summary() => $"内存 {MemoryMb}M · 栈 {StackKb}K · 超时 {EditorTimeoutSec}/{ShellTimeoutSec}s";
+    /// <summary>超时档位的**显示文本**（唯一实现）—— **`0` 是"不限"，不是"0 秒"**。</summary>
+    public static string TimeoutText(int v) => v <= 0 ? "不限" : $"{v} 秒";
+
+    /// <summary>设置页摘要行用的一句话。</summary>
+    public static string Summary()
+        => $"内存 {MemoryMb}M · 栈 {StackKb}K · 超时 {TimeoutText(EditorTimeoutSec)}/{TimeoutText(ShellTimeoutSec)}";
 }

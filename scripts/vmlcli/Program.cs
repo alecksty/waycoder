@@ -800,7 +800,21 @@ internal static class Program
             {
                 Console.SetOut(sink);
                 Console.SetError(sink);
-                vm.Run();
+                // ⚠ **CLI 自己的墙钟看门狗**，与 VM 那条"连续执行"超时是**两件事**：
+                //   · VM 的超时（`TimeoutSeconds`）数的是"程序连跑多久没等待"，
+                //     等消息/等输入/弹框都不计 —— 所以**游戏可以一直玩下去**（这正是要的）；
+                //   · 但脚本化的运行（`palette.sh` 那种要出图的）必须有个人把程序叫停，
+                //     否则一个 `while ui_wait_msg(40)` 的游戏会让 CLI **永远不返回**。
+                //   于是这里按**墙钟**兜底：到点 cancel，程序被取消后照常走完收尾（含出图）。
+                using var wallClock = new CancellationTokenSource();
+                var runTask = Task.Run(() => vm.Run(wallClock.Token));
+                if (!runTask.Wait(TimeSpan.FromSeconds(Math.Max(1, opt.TimeoutSeconds))))
+                {
+                    wallClock.Cancel();
+                    CliErr.WriteLine($"[vmlcli] ⏱ 墙钟 {opt.TimeoutSeconds} 秒到，主动停表出结果"
+                                     + "（VM 的「连续执行」超时另算，见 --timeout 的说明）");
+                    runTask.Wait(TimeSpan.FromSeconds(5));
+                }
             }
             finally
             {

@@ -75,14 +75,65 @@ public partial class CodeGenerator
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
     }
 
+    /// <summary>
+    /// `TIMER` = **本地当天 0 点以来的秒数，带小数**（QBasic 的 SINGLE 语义）。
+    ///
+    /// <para>
+    /// 从前这里发的是 `#53 GetTick`（**VM 启动以来**的毫秒）÷ 1000，两头都不对：
+    /// ① 语义不是"当天"（QBasic 里 TIMER 半夜归零，`GORILLAS.BAS` 拿它算弹道延时）；
+    /// ② 只有整秒 ⇒ `LOOP UNTIL TIMER - t0 > 0.5` 这类"等半秒"的写法**永远不成立**
+    ///    （差值恒为整数，`> 0.5` 得"等到跨秒"，一等等一整秒，而且跨秒前恒假）。
+    /// </para>
+    /// <para>
+    /// 现在走新号 `#64 LocalMillisOfDay`（本地当天毫秒），在 0..86399999 之间；
+    /// 先 `I2F` 转单精度再做 `FDIV 1000.0` ⇒ 结果**带小数**，与 QBasic 一致。
+    /// ⚠ 结果类型是 SINGLE：这里必须把 `_lastExprFloatType` 置上，
+    /// 否则调用方按整数存（`t# = TIMER` 会被截成整秒）。
+    /// </para>
+    /// </summary>
     void GenerateTimerFunction(int reg)
     {
-        // TIMER: return elapsed seconds via SYSCALL 53 (GetTick)
-        EmitGetTick();
-        // R0 = milliseconds, convert to seconds: R0 = R0 / 1000
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1000) }));
-        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 64) }));
+        // F0 = R0（毫秒 → 单精度）
+        instructions.Add(new Instruction(OpCode.I2F, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 0),
+            new Operand(OperandType.REGISTER, 0)
+        }));
+        instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 4),
+            new Operand(OperandType.IMMEDIATE, 1000.0f)
+        }));
+        // ⚠ `FDIV` 是**三操作数**（`FDIV dst src1 src2`，见 `VMLRuntime.Float.cs` 的
+        //   `ExecuteFdiv`/`FSrc`）—— 只发两个操作数时第三只寄存器读到的是垃圾，
+        //   实测表现为"TIMER 恒等于除数 1000"。FADD 那边 `CodeGenerator.Misc.cs:81`
+        //   也是三个，照它写。
+        instructions.Add(new Instruction(OpCode.FDIV, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 0),
+            new Operand(OperandType.REGISTER, 0),
+            new Operand(OperandType.REGISTER, 4)
+        }));
+        // ⚠ **结果要同时放进 F1**：赋值那一侧的收尾是
+        //     `f2i @R1 @R0` + `movef @2 @R1`（`@2` = 以 R2 为地址的间接写），
+        //   而 `movef` 的源操作数 `@R1` 读的是**浮点寄存器 F1**（`GetFloatValue` 的
+        //   REGISTER 分支就是 `floatRegisters[n]`）—— F2I 写的是**整数** R1，
+        //   两者不是同一个东西。实测指纹很清楚：除数放 F1 时变量里存进去的就是
+        //   除数（1000），放 F7 时存进去的是 0（F1 从没被写过）。
+        //   照抄普通浮点字面量的形状（除数放 F4）会得到 0，所以这里显式补一句。
+        instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand>
+        {
+            new Operand(OperandType.REGISTER, 1),
+            new Operand(OperandType.REGISTER, 0)
+        }));
+        if (reg != 0)
+            instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg),
+                new Operand(OperandType.REGISTER, 0)
+            }));
+        _lastExprFloatType = BasicType.Single;
     }
 
     void GenerateDateFunction(int reg)

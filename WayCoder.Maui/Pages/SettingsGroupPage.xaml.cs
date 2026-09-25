@@ -214,12 +214,12 @@ public partial class SettingsGroupPage : ContentPage
     {
         SelectOption(VmMemoryPicker, MauiVmStore.MemoryOptions, MauiVmStore.MemoryMb, v => $"{v} MB");
         SelectOption(VmStackPicker, MauiVmStore.StackOptions, MauiVmStore.StackKb, v => $"{v} KB");
-        SelectOption(VmEditorTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.EditorTimeoutSec, v => $"{v} 秒");
-        SelectOption(VmShellTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.ShellTimeoutSec, v => $"{v} 秒");
+        SelectOption(VmEditorTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.EditorTimeoutSec, MauiVmStore.TimeoutText);
+        SelectOption(VmShellTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.ShellTimeoutSec, MauiVmStore.TimeoutText);
 
         // 超时的语义在 v0.96.438 变了（墙钟 → **连续执行**），设置项旁边必须说清楚，
         // 否则用户会以为"调大了就能让程序跑更久"，而真正的原因是**等输入已经不计时了**。
-        VmHintLabel.Text = "超时只在程序连续运行、一次都没等待时计时；等消息/等弹框/等你操作都不算。"
+        VmHintLabel.Text = "超时只在程序连续运行、一次都没等待时计时；等消息/等弹框/**触摸与按键**都不算。选「不限」= 不设兜底。"
                          + "内存与栈改完，下一次运行才生效。";
     }
 

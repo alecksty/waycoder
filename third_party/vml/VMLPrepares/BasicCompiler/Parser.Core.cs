@@ -244,9 +244,110 @@ namespace BasicCompiler
             }
         }
 
+        /// <summary>
+        /// 把**被 `DIM` 成用户名字的保留字**改回标识符 —— 「**声明优先**」。
+        ///
+        /// <para>
+        /// 起因（实测，`Examples/basic/gorilla_pro.bas`）：`DIM cls(4)` 之后，
+        /// `cls(0) = 7` 与 `x = cls(0)` 在从前是**静默编错**的 ——
+        /// `cls` 的词法是 `CLS_KW`，于是：
+        /// ① 下面那段 DIM 预扫描里 `tokens[nameStart].Type == IDENTIFIER` 不成立
+        ///    ⇒ **这个数组根本没被登记**；
+        /// ② 语句层的 `case CLS_KW` 把它当**清屏语句**执行（运行时输出里能直接看到 `ESC[2J`，
+        ///    把刚 `PRINT` 出来的东西一并擦掉，看着像"print 没输出"）；
+        /// ③ 拿它当**右值**时（`csize = cls(i)`，下标是变量）露出一条
+        ///    `未定义的函数 'func_i'`：报的名字从没在源码里出现过，位置也指在别处。
+        /// </para>
+        /// <para>
+        /// `cls` 只是冰山一角：`line` / `time` / `circle` / `color` / `name` / `input` … 一样，
+        /// 而它们都是**很自然**的数组名。
+        /// </para>
+        ///
+        /// <para>
+        /// <b>判据是"用户自己声明过"，不是"这个 token 长什么样"</b>：
+        /// 只有被 `DIM` 点名的保留字才改判，其余一律保持关键字语义
+        /// （`CLS` 还是清屏、`LINE (0,0)-(9,9)` 还是画线）。
+        /// 这与编译器里既有的「`declaredFunctions.Contains` 才算函数调用 /
+        /// `declaredArrays.Contains` 才算数组访问」是同一条规则 —— 一处声明，全场生效。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 改的是**整份 token 流**里这个名字的每一处（不只 DIM 那一处）：
+        /// 只改声明处的话，用它的地方仍旧走关键字那条路，等于没修。
+        /// </para>
+        /// <para>
+        /// ⚠ 代价（**有意接受**，且应当写进语言规范）：一个程序**同时** `DIM cls(4)`
+        /// 又想用 `CLS` 语句时，那个 `CLS` 会被当成数组。自己起的名字自己负责；
+        /// **不声明就完全不受影响**（老程序一个字都不用改）。
+        /// </para>
+        /// </summary>
+        private void UnreserveDeclaredNames()
+        {
+            HashSet<string>? reserved = null;
+
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Type != TokenType.DIM) continue;
+                int line = tokens[i].Line;
+                bool expectName = false;      // 下一个 token 该是名字（`DIM` 后 / `,` 后）
+                bool expectType = false;      // 正在 `AS` 后面的类型名上（**别收**：`AS INTEGER` 里的 INTEGER 也是保留字）
+
+                for (int j = i + 1; j < tokens.Count && tokens[j].Line == line; j++)
+                {
+                    var t = tokens[j];
+                    if (t.Type == TokenType.COLON) break;          // 同行冒号 = 本条 DIM 结束
+
+                    if (expectType)
+                    {
+                        // 类型名之后回到"名字位置"只有一条路：逗号
+                        if (t.Type == TokenType.COMMA) { expectName = true; expectType = false; }
+                        continue;
+                    }
+                    if (t.Type == TokenType.AS) { expectType = true; continue; }
+                    if (t.Type == TokenType.COMMA) { expectName = true; continue; }
+                    if (t.Type == TokenType.SHARED && j == i + 1) { expectName = true; continue; }
+                    if (t.Type == TokenType.IDENTIFIER) { expectName = false; continue; }
+
+                    // 名字位置的判据：紧跟 DIM（或 SHARED）、或紧跟逗号
+                    if (expectName || j == i + 1)
+                    {
+                        if (LooksLikeIdentifierName(t.Value))
+                            (reserved ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase)).Add(t.Value);
+                        expectName = false;
+                    }
+                }
+            }
+
+            if (reserved == null) return;
+
+            foreach (var t in tokens)
+            {
+                if (t.Type != TokenType.IDENTIFIER && reserved.Contains(t.Value))
+                    t.Type = TokenType.IDENTIFIER;
+            }
+        }
+
+        /// <summary>
+        /// 这个词法值看着像不像一个标识符 —— 用来把"数字 / 符号 token"挡在外面
+        /// （保留字全都是标识符的形状，所以这一条足够把候选范围收窄）。
+        /// </summary>
+        private static bool LooksLikeIdentifierName(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return false;
+            if (!char.IsLetter(value[0]) && value[0] != '_') return false;
+            foreach (char ch in value)
+            {
+                if (!char.IsLetterOrDigit(ch) && ch != '_' && ch != '.') return false;
+            }
+            return true;
+        }
+
         public BasicProgram Parse()
         {
             CollectFieldConstants();
+            // ⚠ **必须排在下面那段 DIM 预扫描之前**：那段只认 `IDENTIFIER` 形状的名字，
+            //   不先把保留字改判过来，`DIM cls(4)` 就登记不进 `declaredArrays`。
+            UnreserveDeclaredNames();
 
             // First pass: collect SUB/FUNCTION/DIM/DEF FN declarations
             for (int i = 0; i < tokens.Count; i++)

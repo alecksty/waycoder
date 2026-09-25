@@ -107,8 +107,24 @@ namespace BasicCompiler
             }
             else if (expr is Identifier ident)
             {
-                // Check if this is a compile-time constant
-                if (constants.ContainsKey(ident.Name.ToLower()))
+                // ⚠⚠ **局部量 / 形参优先于同名常量** —— 这一条必须排在查 `constants` **之前**。
+                //
+                // 从前是先查 `constants`，于是 `CONST NB = 6` 与 `SUB t(nb AS INTEGER)`
+                // 撞名（BASIC 名字大小写不敏感 ⇒ 就是同一个名字）时，子过程体里的 `nb`
+                // **被整体折成常量 6**：实参传进来直接丢掉，**一个错都不报**。
+                // 最小复现（8 行，`scripts/vml-basic-probe/cases/55-const-shadows-param.bas`）：
+                //     CONST NB = 6
+                //     SUB t(nb AS INTEGER) / out = nb / END SUB
+                //     t(129)  ⇒ out = 6（应为 129）
+                // 真实撞上它的是 `gorilla_pro.bas` 的 `mix2(nr, ng, nb, …)` ——
+                // 整个"天空 → 云"的混色里**蓝色分量**恒等于 6，出来的云是橄榄绿的，
+                // 而报错、警告、编译日志里一个字都没有。
+                //
+                // 判据用 `currentLocalVars`（局部表，由形参与 `DIM` 建立）：
+                // 它在子过程外是空表 ⇒ 模块级同名常量照旧生效，不影响任何老程序。
+                bool isLocalName = currentLocalVars != null
+                                   && currentLocalVars.ContainsKey(ident.Name.ToLower());
+                if (!isLocalName && constants.ContainsKey(ident.Name.ToLower()))
                 {
                     var val = constants[ident.Name.ToLower()];
                     if (val is int intVal)

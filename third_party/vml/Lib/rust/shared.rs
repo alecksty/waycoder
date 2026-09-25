@@ -7537,6 +7537,20 @@ fn ui_draw_block_at(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32
     r
 }
 
+fn ui_free_block(a0: i32) -> i32 {
+    asm!("CALL ui_free_block")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_free_image(a0: i32) -> i32 {
+    asm!("CALL ui_free_image")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_get_pixel(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_get_pixel")
     let r: i32;
