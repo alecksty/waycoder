@@ -22,8 +22,11 @@
 //
 // ## 操作
 //
-//   ← → 调角度，↑ ↓ 调力度，回车 / 空格 / A 发射；按住会连发。
-//   ESC 退出；窗口被关也退出。
+//   拖「角度」条调仰角、拖「力度」条调力度、点左边的「发 射」按钮出香蕉 ——
+//   手指点到条的哪一格就是哪个值，**不需要键盘**（与 `basic/gorilla_pro.bas` 同一套）。
+//   开窗声明了 `VML_WIN_NO_GAMEPAD`（不要手柄区 ⇒ 画布吃满整屏）与 `VML_WIN_PORTRAIT`。
+//   键盘**不是必需品**，接物理键盘时仍可用：←→ 角度、↑↓ 力度、回车/空格/A 发射、ESC 退出。
+//   窗口被关、或结束画面上点一下，也会退出。
 //
 // ## 跑法
 //
@@ -49,6 +52,9 @@
 #define SIN_SCALE 1000    // 正弦表的值域：1000 = 1.0
 
 #define MAX_TRAIL 96      // 尾迹点数上限
+
+// 先拿满这么多分的人赢
+#define WIN_SCORE 5
 
 // 回合状态
 #define ST_AIM   0
@@ -385,6 +391,21 @@ public:
         if (power > 100) { power = 100; }
     }
 
+    // 触摸拖条直接落值（钳位与 `Aim`/`Boost` 同源，别在面板那边再写一遍）
+    void SetAngle(int a)
+    {
+        angle = a;
+        if (angle < 1) { angle = 1; }
+        if (angle > 89) { angle = 89; }
+    }
+
+    void SetPower(int pw)
+    {
+        power = pw;
+        if (power < 10) { power = 10; }
+        if (power > 100) { power = 100; }
+    }
+
     // 出手点（手臂末端）
     int HandX()
     {
@@ -484,7 +505,10 @@ public:
     {
         bx = sx * FP;
         by = sy * FP;
-        vx = svx + wind * FP / 4;
+        // ⚠ **不要**在这里再加一次风的冲量：`wind` 是**加速度**（定点单位/拍²），
+        //   已经由 `Step` 每拍累加。原先写 `svx + wind * FP / 4` —— 风本来就是定点量、
+        //   不用再过 `FP`，那一下把它放大 **64 倍**，直接盖过初速 ⇒ 香蕉**反着飞**。
+        vx = svx;
         vy = svy;
         live = 1;
         trailN = 0;
@@ -572,8 +596,8 @@ public:
 
     void Randomize()
     {
+        // ±30 定点单位/拍²（≈重力的 21%）—— 一局里的横向偏移够明显，又不至于没法瞄
         v = ui_rand(61) - 30;
-        v = v * 3;                       // -90 .. +90
     }
 
     void Draw(int sw, int y)
@@ -672,6 +696,19 @@ public:
     int heldU;
     int heldD;
     int repeatT;
+
+    // 操作面板的几何（绘制与命中**共用**，见 PanelGeometry 的注释）
+    int panH;
+    int panY;
+    int barX;
+    int barW;
+    int barH;
+    int barAy;
+    int barPy;
+    int fireX;
+    int fireY;
+    int fireW;
+    int fireH;
 
     Game()
     {
@@ -844,7 +881,7 @@ public:
             boomT = boomT + 1;
             if (boomT > 24)
             {
-                if ((*AP[0]).score >= 3 || (*AP[1]).score >= 3) { over = 1; }
+                if ((*AP[0]).score >= WIN_SCORE || (*AP[1]).score >= WIN_SCORE) { over = 1; }
                 turn = 1 - turn;
                 NewTurn();
                 return 1;
@@ -928,7 +965,7 @@ public:
 
         px = (*cur).HandX() * FP;
         py = (*cur).HandY() * FP;
-        vx = v * cv / SIN_SCALE * dir + wind.v * FP / 4;
+        vx = v * cv / SIN_SCALE * dir;      // 与 Banana::Launch 一致：风不在起飞时给冲量
         vy = -v * sv / SIN_SCALE;
 
         n = 0;
@@ -973,33 +1010,99 @@ public:
         }
     }
 
+    // ── 操作面板：**直接上手拖**（与 BASIC 版同一套操控）────────────────────
+    //
+    // 两根值是**可拖的横条**、发射是一个**大按钮** —— 手指点/拖到哪就设到哪，
+    // 不需要键盘。键盘（←→↑↓ + 回车）仍保留，接物理键盘时照旧能用。
+    //
+    // ⚠ 条要**够厚**：`barH = 30` 是照手指定的（8px 的细条在手机上根本按不准）。
+    //   命中判定与绘制**共用同一组几何**（`PanelGeometry` 算一次，两边都读），
+    //   两边各算一遍就是"看着在条上、点了没反应"。
+    // ⚠ 三行**不许重叠**：按钮 6..40、角度条 46..76、力度条 82..112、面板高 122。
+    //   第一版把发射键摆在左上、角度条摆在 y+34 —— 键的下沿压在角度条上。
+    void PanelGeometry()
+    {
+        panH = 122;
+        panY = sh - panH;
+        fireX = 12;
+        fireW = 78;
+        fireY = panY + 6;
+        fireH = 34;
+        barX = 96;
+        barW = sw - barX - 14;
+        if (barW < 40) { barW = 40; }
+        barH = 30;
+        barAy = panY + 46;
+        barPy = panY + 82;
+    }
+
+    void DrawBar(int y, int val, int vmax, int col, char* name)
+    {
+        int w;
+        w = barW * val / vmax;
+        if (w > barW) { w = barW; }
+        ui_rect(barX, y, barW, barH, 0x33FFFFFF, 1, 0, 6);
+        if (w > 0)
+        {
+            ui_rect(barX, y, w, barH, col, 1, 0, 6);
+        }
+        ui_text(14, y + barH - 9, name, C_TEXT_DIM, 12, VML_ANCHOR_LEFT);
+        ui_text(barX + barW - 6, y + barH - 9, numstr(val), C_TEXT, 15, VML_ANCHOR_RIGHT);
+    }
+
     void DrawAimPanel()
     {
         Ape* cur;
-        int y;
-        int px;
+        int bc;
 
         cur = &(*AP[turn]);
-        y = sh - 74;
-        ui_rect(0, y, sw, 74, C_HUD_BG, 1, 0, 0);
+        PanelGeometry();
 
-        ui_text(12, y + 26, "角度", C_TEXT_DIM, 12, VML_ANCHOR_LEFT);
-        ui_text(56, y + 26, numstr(cur->angle), C_TEXT, 15, VML_ANCHOR_LEFT);
-        ui_text(12, y + 54, "力度", C_TEXT_DIM, 12, VML_ANCHOR_LEFT);
-        ui_text(56, y + 54, numstr(cur->power), C_TEXT, 15, VML_ANCHOR_LEFT);
+        ui_rect(0, panY, sw, panH, C_HUD_BG, 1, 0, 0);
 
-        // 力度条
-        px = 96;
-        ui_rect(px, y + 48, sw - px - 96, 8, 0x40FFFFFF, 1, 0, 0);
-        ui_rect(px, y + 48, (sw - px - 96) * cur->power / 100, 8, C_BANANA, 1, 0, 0);
+        bc = C_BANANA;
+        if (state != ST_AIM) { bc = 0x66FFE070; }
+        ui_rect(fireX, fireY, fireW, fireH, bc, 1, 0, 8);
+        if (state == ST_AIM) { ui_text(fireX + fireW / 2, fireY + 23, "发 射", 0xFF201810, 15, VML_ANCHOR_CENTER); }
+        else { ui_text(fireX + fireW / 2, fireY + 23, "飞行中", 0xFF201810, 12, VML_ANCHOR_CENTER); }
 
-        // 角度条
-        ui_rect(px, y + 20, sw - px - 96, 8, 0x40FFFFFF, 1, 0, 0);
-        ui_rect(px, y + 20, (sw - px - 96) * cur->angle / 90, 8, C_WIND, 1, 0, 0);
+        DrawBar(barAy, cur->angle, 90, C_WIND, "角度");
+        DrawBar(barPy, cur->power, 100, C_BANANA, "力度");
 
-        ui_text(sw - 12, y + 26, "←→ 角度", C_TEXT_DIM, 11, VML_ANCHOR_RIGHT);
-        ui_text(sw - 12, y + 54, "↑↓ 力度", C_TEXT_DIM, 11, VML_ANCHOR_RIGHT);
-        ui_text(sw / 2, y + 8, "回车 / 空格 / A 发射", C_BANANA, 12, VML_ANCHOR_CENTER);
+        ui_text(sw - 12, panY + 22, "拖动调值 · 点发射", C_TEXT_DIM, 11, VML_ANCHOR_RIGHT);
+    }
+
+    // ── 触摸 / 鼠标：按下的那一点落在哪根条上就改哪个值 ────────────────────
+    // `isDown = 1` 只对**按下那一刻**认（拖动路过不算），免得调条时误射 —— 与 BASIC 版一致。
+    void HandlePoint(int isDown)
+    {
+        int px;
+        int py;
+
+        if (over != 0)
+        {
+            if (isDown != 0) { over = 2; }        // 结束画面：点一下 = 请求退出
+            return;
+        }
+        if (state != ST_AIM) { return; }
+
+        px = ui_msg_a();
+        py = ui_msg_b();
+        PanelGeometry();
+
+        if (py >= barAy && py < barAy + barH)
+        {
+            if (px >= barX) { (*AP[turn]).SetAngle((px - barX) * 90 / barW); }
+        }
+        if (py >= barPy && py < barPy + barH)
+        {
+            if (px >= barX) { (*AP[turn]).SetPower((px - barX) * 100 / barW); }
+        }
+        if (isDown != 0 && py >= fireY && py < fireY + fireH && px >= fireX && px <= fireX + fireW)
+        {
+            Fire(&(*AP[turn]));
+            ui_beep(660, 40);
+        }
     }
 
     void Draw()
@@ -1102,7 +1205,9 @@ int main()
     int score1;
 
     g.Layout();
-    ui_win_open("大猩猩扔香蕉 (C++)", g.sw, g.sh);
+    // **全触摸**：不要屏幕手柄区（`VML_WIN_NO_GAMEPAD`）—— 手柄区连折叠条一起吃画布
+    // 高度，这个游戏只用手指，没必要为它留一条；顺带锁竖屏（版面按竖屏排）。
+    ui_win_open_ex("大猩猩扔香蕉 (C++)", g.sw, g.sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
     g.NewTurn();
 
@@ -1127,10 +1232,13 @@ int main()
         }
         if (t == VML_MSG_KEYDOWN) { g.KeyDown(ui_msg_a()); }
         if (t == VML_MSG_KEYUP) { g.KeyUp(ui_msg_a()); }
-        if (t == VML_MSG_TOUCHDOWN || t == VML_MSG_MOUSEUP)
-        {
-            if (g.over != 0) { done = 1; }
-        }
+
+        // 触摸 / 鼠标 —— **与 BASIC 版同一套**：拖条调值、点按钮发射。
+        // 移动事件（TOUCHMOVE）也走同一条，所以按住条一路拖就一直跟手。
+        if (t == VML_MSG_TOUCHDOWN || t == VML_MSG_MOUSEDOWN) { g.HandlePoint(1); }
+        if (t == VML_MSG_TOUCHMOVE || t == VML_MSG_MOUSEMOVE) { g.HandlePoint(0); }
+
+        if (g.over == 2) { done = 1; }      // 结束画面被点了一下
     }
 
     if (tid != 0) { ui_timer_kill(tid); }
