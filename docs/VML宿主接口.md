@@ -767,6 +767,47 @@ asm("SYSCALL #595, 0, ${x}, ${y}, ${w}, ${h}")   /* ⚠ 错 */
 症状看着像"裁剪逻辑写错了"，其实是**坐标系没对齐**；判据与 `RectCommand` 同一处
 （`DrawFill.TryScaled`），不另写一套。
 
+
+### 10.1 待实现：蒙版（`op 3/4`）与图层（`op 5/6/7`）—— 设计已定，照着做
+
+**这一节是留给下一次实现的**（本轮只把号占住、头文件不声明，所以现在调不到）。
+难点与结论都写在这里，省得下次重新推导。
+
+#### 蒙版 `ui_mask_begin()` / `ui_mask_end(inside)`
+
+语义：begin 之后画的形状**不上屏**，只当蒙版；end 之后画的图元**只在该蒙版内**（`inside=1`）
+或**只在其外**（`inside=0`）可见，直到被下个蒙版替换。
+
+**⚠ 关键约束（决定了实现形态）**：`IDrawCommand.Rasterize(Canvas, DrawFigure)` 的签名
+**没法把"后续图元的落笔"改道到另一块画布**上 —— 指令只看得到自己那一个图元。
+所以蒙版**不能在指令内部攒**，必须在**遍历驱动**那一层做（`DrawRunner.Rasterize` /
+`ToPngAntialiased`），走**两遍**：
+
+1. **预扫**：`mask_begin … mask_end` 之间的图元**从 `doc.Figures` 里摘出来**放进
+   `DrawDocument.Masks`，在原位置留一个引用标记；把这些图元光栅化进一块**临时画布**，
+   取其 alpha 当**覆盖度缓冲**（`byte[W*H]`）。矢量后端则直接用这些子路径建 `PathF`。
+2. **主遍历**：`mask_apply` 标记把它设到 `Canvas` 上；之后每次落笔查一次。
+
+`Canvas` 侧只需两行（与裁剪同一处）：
+```csharp
+private byte[]? _mask; private bool _maskInside;
+// SetPixel / BlendPixel 里，紧跟裁剪判据之后：
+if (_mask != null) { var m = _mask[y * Width + x]; if (_maskInside ? m == 0 : m != 0) return; }
+```
+- **矢量**（MAUI）：`_canvas.SaveState(); _canvas.ClipPath(path, windingMode);` … `RestoreState()`。
+- **SVG**：`<defs><mask id="mN">…</mask></defs>` + 后续图元外包 `<g mask="url(#mN)">`。
+- `inside=0`（反向）在光栅里就是判据取反；矢量/SVG 用 `clip-rule` 或外包一个大矩形做偶奇。
+
+#### 图层 `ui_layer_begin()` / `ui_layer_end(alpha)`
+
+语义：把一组图元先画进离屏缓冲，再**整层**以 `alpha` 合成上去。
+- **光栅**：与蒙版同一套机制 —— 层内图元先渲进临时 `Canvas`，`layer_end` 时按 `alpha` 混上去。
+- **矢量**：`SaveState` + 平台的整体透明度（若有）；否则同样走离屏位图。
+- **SVG**：`<g opacity="…">`，最省事的一条。
+
+**代价提示**：图层是三者里最贵的（每个后端都要一块离屏缓冲，光栅那条还要动渲染管线）；
+而它 90% 的用途（"整组统一透明"）在有了 `ui_alpha` 之后已经能凑合。
+⇒ **建议顺序：先蒙版、后图层**，且各自单独一轮做、单独验证。
 ### 验证方式
 
 `scripts/vmlcli` 的 `--dump-dsl <路径>`：把**这一帧的绘制流**（DSL 文本）原样写出来。
