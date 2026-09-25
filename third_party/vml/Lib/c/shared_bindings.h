@@ -1027,6 +1027,7 @@ __stdcall void reset(int* state);
  nt sign64(long long v, unsigned int *lo, unsigned int *hi);
  nt _printf_ftoa(char *buf, float f, int prec);
  nt _printf_ftoe(char *buf, float f, int prec, int upper);
+ nt format_slot_count(const char *format);
 __cdecl int sprintf(char *buf, const char *fmt, ...);
 __cdecl int snprintf(char *buf, unsigned int size, const char *fmt, ...);
  int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4);

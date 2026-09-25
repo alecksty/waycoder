@@ -883,6 +883,14 @@ internal sealed class CliUiCalls : ISystemCallHandler
                     VmlUi.DrawEllipse => $"ellipse ({r[0]},{r[1]}) {r[2]}x{r[3]} 0x{r[4]:X8} fill={r[5]}",
                     VmlUi.FloodFill   => $"fill    ({r[0]},{r[1]}) 0x{r[2]:X8}",
                     VmlUi.PutImage    => $"putimg  ({r[0]},{r[1]}) handle={r[2]} mode={r[3]}",
+                    // 多边形/折线/路径/文字。⚠ 这几个**原先没记**，而 `#15` 正好坏在这里 ⇒
+                    // "trace 里一条都没有"曾被误读成"宿主没画"，其实是**工具没记**。
+                    // 这几个图元在 DSL 里存的是**点列表**，不逐点打印；要核坐标用 `--frames` 出图。
+                    VmlUi.DrawPolygon  => $"polygon ptsAddr={r[0]} count={r[1]} fill=0x{r[2]:X8} stroke=0x{r[3]:X8} w={r[4]}",
+                    VmlUi.DrawPolyline => $"polyline ptsAddr={r[0]} count={r[1]} stroke=0x{r[2]:X8} w={r[3]}",
+                    VmlUi.DrawPath     => $"path    str={r[0]} stroke=0x{r[1]:X8} w={r[2]} fill=0x{r[3]:X8}",
+                    VmlUi.DrawText     => $"text    ({r[0]},{r[1]}) str={r[2]} 0x{r[3]:X8} size={r[4]}",
+                    VmlUi.DrawShape    => $"shape   id={r[0]}",
                     // 矢量图块（589–592）。⚠ `OnSyscall` 在宿主 switch **之前**触发，
                     // 拿不到返回值 ⇒ `blkend` 记不到句柄（想核句柄就看 `--frame` 的画面）。
                     VmlUi.CreateBlock => $"blknew  {r[0]}x{r[1]} color=0x{r[2]:X8}",

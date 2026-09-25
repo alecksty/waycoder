@@ -58,9 +58,7 @@ namespace CppCompiler
                 //   `_globalArrays` 是全局的 —— 与 `CodeGenerator.Expressions.cs:274` 同一套。
                 bool isArrayVar = (_isArrayVar.TryGetValue(ie.Name, out bool ia) && ia)
                                   || _globalArrays.Contains(ie.Name);
-                int __sz = isArrayVar ? SizeOfDeclaredType(vt0) : GetPointerStepSize(vt0);
-                Console.Error.WriteLine($"[GES] {ie.Name} type='{vt0}' isArr={isArrayVar} -> {__sz}");
-                return __sz;
+                return isArrayVar ? SizeOfDeclaredType(vt0) : GetPointerStepSize(vt0);
             }
             return 4; // 默认 int / 数组元素
         }
@@ -160,6 +158,43 @@ namespace CppCompiler
         /// <summary>按元素宽度选**存储**指令。见 <see cref="LoadOpFor"/>。</summary>
         private static OpCode StoreOpFor(int elemSize)
             => elemSize == 1 ? OpCode.MOVEB : elemSize == 2 ? OpCode.MOVEH : OpCode.MOVE;
+
+        /// <summary>
+        /// `a[i]` 的**元素地址**算进 `R0`，返回元素字节数。
+        ///
+        /// 抽出来的理由：这件事现在有**两个**使用者 —— 「写数组元素」与
+        /// 「在数组元素上跑构造函数」（`arr[i] = T(实参)`，见账本 #14）。
+        /// 各写一份必然漂移，而这类漂移的症状是"写对了、构造错了"这种最难查的分叉。
+        /// ⚠ 判据（元素大小、有没有长度头）一律取自 <see cref="ArrayIndexInfo"/>，
+        /// **不许在这里另算**。
+        /// </summary>
+        private int EmitArrayElementAddress(BinaryExpr be2)
+        {
+            GenerateExpr(be2.Left);
+            Add(OpCode.PUSH, "R0");
+            GenerateExpr(be2.Right);
+            Add(OpCode.MOVE, "R2", "R0");
+            Add(OpCode.POP, "R1");
+            Add(OpCode.MOVE, "R0", "R2");
+            // 多维数组 stride
+            bool isNestedArr = be2.Left is BinaryExpr inner2 && inner2.Op == "[]";
+            // 与读取那条**同一套判据**（见 `ArrayIndexInfo`）：
+            // 写错一处就是"读对了、写错了"，而那种分叉最难查。
+            var (wElemSize, wHasHeader) = ArrayIndexInfo(be2.Left, isNestedArr);
+            int innerDimW = 1;
+            if (!isNestedArr && be2.Left is IdentExpr arrIdW && _arrayInnerDim.TryGetValue(arrIdW.Name, out int idimW))
+                innerDimW = idimW;
+            if (innerDimW > 1)
+            {
+                Add(OpCode.MOVE, "R2", $"#{innerDimW}");
+                Add(OpCode.MUL, "R0", "R0", "R2");   // index * innerDim
+            }
+            EmitIndexScale("R0", wElemSize);
+            if (wHasHeader && !isNestedArr)
+                Add(OpCode.ADD, "R0", "#4");         // +4 header
+            Add(OpCode.ADD, "R0", "R1");             // + base
+            return wElemSize;
+        }
 
         /// <summary>获取指针步长: 根据变量类型字符串返回 sizeof(*ptr)</summary>
         private int GetPointerStepSize(string? varTypeStr)
@@ -971,7 +1006,7 @@ namespace CppCompiler
             if (string.IsNullOrEmpty(type)) return 1;
             string clean = CleanType(type);
             if (_classes.TryGetValue(clean, out var cls))
-                return Math.Max(1, cls.Members.Count(m => !m.IsMethod));
+                return StructWordCount(cls.Name);   // 见 StructWordCount：**不许**再写"字段数"
             return 1;
         }
 
@@ -1181,21 +1216,19 @@ namespace CppCompiler
                 Add(OpCode.CALL, "println_str");
                 return;
             }
-            // printf("纯字符串") → CALL print_str。**只在"恰好一个实参"时走这条捷径**。
+            // ── 这里**曾经**有一条 `printf("纯字符串") → CALL print_str` 的捷径，已删 ──
             //
-            // ⚠ 这里原先写的是 `ce.Arguments.Count > 0` —— 于是**多实参的 printf 也只取第一个**、
-            //    第 2 个起全部丢掉，而且**一个字都不报**。实测
-            //    `printf("OUT-INT=%d\n", 42)` 打出来的就是字面量 `OUT-INT=%d`，42 凭空消失
-            //    （探针 `scripts/vml-out-probe/langs/nat.cpp`）。
-            //    多实参意味着格式串里有 `%d`/`%s` —— 那正是被丢掉的东西。
-            //    交给普通调用路径落到 `Lib/shared/printf.vml` 的真实现（C 前端就是这么做的，
-            //    它没有这条特例，所以 C 的 printf 一直是对的 —— 又一处"两门语言同一件事两种实现"）。
-            if (ce.Callee is IdentExpr pfId && pfId.Name.Contains("printf") && ce.Arguments.Count == 1)
-            {
-                GenerateExpr(ce.Arguments[0]);
-                Add(OpCode.CALL, "print_str");
-                return;
-            }
+            // 它当年是为了绕开"库里的 printf 坏着"（`%` 转换产出零个字符，见 ㉒/㉓），
+            // 代价是**两门语言同一件事两种实现**，于是长期藏着一个只有 C++ 有的缺陷：
+            // `printf("100%%\n")` 打 **`100%%`**（`print_str` 把格式串**原样**输出，
+            // 而 `%%` 该折叠成 `%`），C 侧一直是好的（账本 OPEN #10）。
+            // ⚠ 当初就写好了顺序：**先修库、再删捷径** —— 反了就是拿一个可见的回归
+            //   去换一个看不见的整洁。库已经修好了（实测 C 的 `%d`/`%%`/`%s`/多参数全对），
+            //   现在删掉，`printf` 无论几个实参都走 `Lib/shared/printf.vml` 那一份真实现。
+            //
+            // ⚠ 当初那条捷径还有第二个 bug（若将来有人想把它加回来）：判据是
+            //   `Arguments.Count > 0`，于是**多实参的 printf 也只取第一个**、第 2 个起
+            //   全部丢掉，且一个字都不报（`printf("OUT-INT=%d\n", 42)` 打出字面量 `OUT-INT=%d`）。
             // exit(n) → MOVE R0, n; SYSCALL #3
             if (ce.Callee is IdentExpr exId && exId.Name.Contains("exit"))
             {
@@ -1468,7 +1501,24 @@ namespace CppCompiler
                 if (isRefArg || isStructValArg)
                     GenerateAddressOf(ce.Arguments[i]);
                 else
+                {
                     GenerateExpr(ce.Arguments[i]);
+                    // ── **数组名当实参 ⇒ 要跳过 4 字节长度头** ────────────────────
+                    //   `GenerateExpr(数组名)` 的契约是"**头**的地址"（**索引路径自己会
+                    //   `+4`**，见下面写数组元素那一段），而函数实参要的是**数据**的地址。
+                    //   少这一跳的表现：`f(int* p)` 里 `p[0]` 读到的其实是**长度头**
+                    //   ⇒ 全局数组求和 `g[3]={10,20,30}` 得 **33**（应 60，多读了那个 `3`）、
+                    //   局部数组得 3（头是 0）。**而且它不报错** —— 只有"数值不对"。
+                    //   实测 `ui_polygon(pts, n, …)` 从 C++ 拿到的点因此全是
+                    //   `(20,0),(0,0),(0,0)…` ⇒ 画出来是"从 (0,0) 甩出去的尖锥"（账本 #15）。
+                    //   ⚠ 判据**复用 `ArrayIndexInfo`**（本仓头号坑就是同一规则两处实现）：
+                    //   字节数组（`char x[]`）**没有**长度头，它那条路返回 `HasHeader=false`。
+                    if (ce.Arguments[i] is IdentExpr bareArr
+                        && ((_isArrayVar.TryGetValue(bareArr.Name, out bool bareIsArr) && bareIsArr)
+                            || _globalArrays.Contains(bareArr.Name))
+                        && ArrayIndexInfo(ce.Arguments[i], isNested: false).HasHeader)
+                        Add(OpCode.ADD, "R0", "#4");
+                }
                 Add(OpCode.PUSH, "R0");
             }
 
@@ -1650,6 +1700,21 @@ namespace CppCompiler
             }
             return Math.Max(4, size);
         }
+
+        /// <summary>
+        /// 「一个对象按值搬运要搬几个 word」—— **唯一实现**。
+        ///
+        /// ⚠ 原先这里写的是 `Members.Count(m => !m.IsMethod)`（**扁平字段数**），而
+        ///   「一个对象占多大」在别处一律问 <see cref="ClassSizeDeep"/>（含 **vptr**、
+        ///   含**基类子对象**、含**内嵌对象**的**字节**大小）⇒ 只要类里有基类或内嵌对象，
+        ///   两者就不一样，而 <see cref="EmitStructFieldCopy"/> 是按 `i*4` 搬
+        ///   **连续 N 个 word** 的 ⇒ 少算的后果是**尾巴上那几个字段没被搬过去**。
+        ///   实测 `class Inner{a,b;} class Outer{Inner in; int c;}`：
+        ///   `o2 = o1;` 之后 `c` 还是旧值（求和得 **3**，应 6）—— **静默**。
+        ///   与 F33~F37 是**同一个病**：搬运侧按"字段数"、访问侧按"字节大小"。
+        /// </summary>
+        private int StructWordCount(string className)
+            => Math.Max(1, ClassSizeDeep(className) / 4);
 
         /// <summary>
         /// 字段在对象里的**字节偏移** —— **唯一实现**（`obj.field`、`this->field`、
@@ -2442,7 +2507,9 @@ namespace CppCompiler
                 {
                     string lbl = $"var_{tId.Name}";
                     if (!_varTypes.ContainsKey(tId.Name)) _varTypes[tId.Name] = st;
-                    int fc = copyCls.Members.Count(m => !m.IsMethod);
+                    // ⚠ 这里是**搬几个 word**、不是"有几个字段" —— 见 `StructWordCount`。
+                    //   原先按字段数算 ⇒ 有内嵌对象/基类时尾巴上的字段搬不过去（静默）。
+                    int fc = StructWordCount(copyCls.Name);
                     if (!dataSection.ContainsKey(lbl))
                         dataSection[lbl] = fc > 1 ? new int[fc] : 0;
                     EmitStructFieldCopy($"var_{srcId.Name}", lbl, fc);
@@ -2681,33 +2748,47 @@ namespace CppCompiler
                     Add(varStoreOp, label, "R0");
                 }
             }
+            // ── `arr[i] = T(实参);`：在**数组元素地址上**跑构造函数 ──────────────
+            //
+            // 与上面那条 `obj = T(实参)` 是**同一件事的两半**（那边目标是"一个对象"、
+            // 这边是"数组的第 i 个元素"），改一处要成对看另一处。
+            //
+            // ⚠ 原先这一条**完全没处理**：`P(i+1,…)` 被当成普通自由函数调用，
+            //   返回值只有**一个 word**，而元素（`P` 两个 int）是 **8 字节**
+            //   ⇒ 每个元素只写进去半个对象，另一半留着旧值。
+            //   实测 `P arr[3]; arr[i]=P(i+1,(i+1)*10);` 之后
+            //   `arr[0].x+arr[1].x+arr[2].x` 得 **60**（应 6）、`.y` 得 **0**（应 60）——
+            //   **静默**，没有任何报错，只有数值不对（账本 #14）。
+            //   ⚠ 症状看着像"读的偏移多 4 字节"，其实**读那侧一直是对的**，
+            //   是**写只写了一半**；差一点又去改读取路径。
+            if (ae.Op == "=" && ae.Target is BinaryExpr subTgt && subTgt.Op == "[]"
+                && ae.Value is CallExpr subCtorCall && subCtorCall.Callee is IdentExpr subCtorName
+                && !_variables.ContainsKey(subCtorName.Name)          // 别把函数指针变量当类名
+                && _classes.TryGetValue(subCtorName.Name, out var subCls))
+            {
+                var subCtor = FindCtor(subCls, subCtorCall.Arguments.Count);
+                if (subCtor != null)
+                {
+                    EmitArrayElementAddress(subTgt);     // R0 = &arr[i]
+                    Add(OpCode.PUSH, "R0");              // 当 this
+                    EmitCtorCallOnPushedThis(subCtorName.Name, subCtor, subCtorCall.Arguments);
+                    Add(OpCode.MOVE, "R0", "#0");
+                    return;
+                }
+            }
             else if (ae.Target is BinaryExpr be2 && be2.Op == "[]")
             {
                 Add(OpCode.MOVE, "R3", "R0");
-                GenerateExpr(be2.Left);
-                Add(OpCode.PUSH, "R0");
-                GenerateExpr(be2.Right);
-                Add(OpCode.MOVE, "R2", "R0");
-                Add(OpCode.POP, "R1");
-                Add(OpCode.MOVE, "R0", "R2");
-                // 多维数组 stride
-                bool isNestedArr = be2.Left is BinaryExpr inner2 && inner2.Op == "[]";
-                // 与读取那条**同一套判据**（见 `ArrayIndexInfo`）：
-                // 写错一处就是"读对了、写错了"，而那种分叉最难查。
-                var (wElemSize, wHasHeader) = ArrayIndexInfo(be2.Left, isNestedArr);
-                int innerDimW = 1;
-                if (!isNestedArr && be2.Left is IdentExpr arrIdW && _arrayInnerDim.TryGetValue(arrIdW.Name, out int idimW))
-                    innerDimW = idimW;
-                if (innerDimW > 1)
-                {
-                    Add(OpCode.MOVE, "R2", $"#{innerDimW}");
-                    Add(OpCode.MUL, "R0", "R0", "R2");   // index * innerDim
-                }
-                EmitIndexScale("R0", wElemSize);
-                if (wHasHeader && !isNestedArr)
-                    Add(OpCode.ADD, "R0", "#4");         // +4 header
-                Add(OpCode.ADD, "R0", "R1");             // + base
+                int wElemSize = EmitArrayElementAddress(be2);
                 // 存储指令同样按元素宽度选（字节数组 → `MOVEB`，只写一格）
+                //
+                // ⚠ 这里本该是"把 R3 存到 `[R0]`"，但**实际生成的是 `move @0 @R3`**
+                //   —— 目标成了**寄存器 R0**，把刚算好的元素地址覆盖掉。
+                //   于是 `arr[i] = P(实参)` 这种"整体赋值"**静默不生效**
+                //   （`.scratch/cppdefects/d27.cpp`：期望 `t=6 u=60`、实得 `t=60 u=0`）。
+                //   `AddOp` 对 `"(R0)"` 的处理是对的（转成 `MEMORY "R0"`），
+                //   `"[R0]"` 那条反而会变成双重解引用 `[[R0]]` ⇒ **问题在序列化器**，
+                //   不在调用点。**别再往这里加方括号试** —— 试过了，更糟。
                 Add(StoreOpFor(wElemSize), "(R0)", "R3");
                 Add(OpCode.MOVE, "R0", "R3");
             }

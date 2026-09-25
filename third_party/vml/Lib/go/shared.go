@@ -4354,6 +4354,11 @@ func _printf_ftoe(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
+func format_slot_count(a0 int32) int32 {
+    vml.Call("format_slot_count")
+    return vml.R0()
+}
+
 func sprintf(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("sprintf")
     return vml.R0()

@@ -4929,6 +4929,583 @@ L_35270546:
         pop @R12
         pop @R15
         ret
+format_slot_count:
+; -------------------------------------------
+; source   : int format_slot_count(const char* format)
+; function : format_slot_count
+; param   : const char* format
+; return   : int
+; --------------------------------------------
+format_slot_count:
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 362:     int n = 0;
+        move @R0 #0
+        move [@R12-8] @R0
+; 363:     const char *p = format;
+        move @R0 [@R12+12]
+        move [@R12-12] @R0
+sta_35270547:
+        move @R2 #0
+; 364:     while (*p) {
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
+        jz sta_35270548
+; 365:         if (*p != '%') { p++; continue; }
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #37
+        popb @R1
+        cmp @R1 @R0
+        jne _L35270551
+        move @R0 #0
+        jmp _L35270552
+_L35270551:
+        move @R0 #1
+_L35270552:
+        cmp @R0 #0
+        jz sta_35270549
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_35270547
+sta_35270549:
+sta_35270550:
+; 366:         p++;
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+; 367:         if (*p == '%' || *p == 0) continue;          // `%%` 不消耗实参
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #37
+        popb @R1
+        cmp @R1 @R0
+        je _L35270558
+        move @R0 #0
+        jmp _L35270559
+_L35270558:
+        move @R0 #1
+_L35270559:
+        test @R0 @R0
+        jnz _L35270555
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
+        je _L35270560
+        move @R0 #0
+        jmp _L35270561
+_L35270560:
+        move @R0 #1
+_L35270561:
+        test @R0 @R0
+        jz _L35270556
+_L35270555:
+        move @R0 #1
+        jmp _L35270557
+_L35270556:
+        move @R0 #0
+_L35270557:
+        cmp @R0 #0
+        jz sta_35270553
+        jmp sta_35270547
+sta_35270553:
+sta_35270554:
+sta_35270562:
+        move @R2 #0
+; 368:         while (*p == '-' || *p == '0' || *p == '#' || *p == '+' || *p == ' ') p++;
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #45
+        popb @R1
+        cmp @R1 @R0
+        je _L35270576
+        move @R0 #0
+        jmp _L35270577
+_L35270576:
+        move @R0 #1
+_L35270577:
+        test @R0 @R0
+        jnz _L35270573
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        je _L35270578
+        move @R0 #0
+        jmp _L35270579
+_L35270578:
+        move @R0 #1
+_L35270579:
+        test @R0 @R0
+        jz _L35270574
+_L35270573:
+        move @R0 #1
+        jmp _L35270575
+_L35270574:
+        move @R0 #0
+_L35270575:
+        test @R0 @R0
+        jnz _L35270570
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #35
+        popb @R1
+        cmp @R1 @R0
+        je _L35270580
+        move @R0 #0
+        jmp _L35270581
+_L35270580:
+        move @R0 #1
+_L35270581:
+        test @R0 @R0
+        jz _L35270571
+_L35270570:
+        move @R0 #1
+        jmp _L35270572
+_L35270571:
+        move @R0 #0
+_L35270572:
+        test @R0 @R0
+        jnz _L35270567
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #43
+        popb @R1
+        cmp @R1 @R0
+        je _L35270582
+        move @R0 #0
+        jmp _L35270583
+_L35270582:
+        move @R0 #1
+_L35270583:
+        test @R0 @R0
+        jz _L35270568
+_L35270567:
+        move @R0 #1
+        jmp _L35270569
+_L35270568:
+        move @R0 #0
+_L35270569:
+        test @R0 @R0
+        jnz _L35270564
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
+        je _L35270584
+        move @R0 #0
+        jmp _L35270585
+_L35270584:
+        move @R0 #1
+_L35270585:
+        test @R0 @R0
+        jz _L35270565
+_L35270564:
+        move @R0 #1
+        jmp _L35270566
+_L35270565:
+        move @R0 #0
+_L35270566:
+        cmp @R0 #0
+        jz sta_35270563
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_35270562
+sta_35270563:
+sta_35270586:
+        move @R2 #0
+; 369:         while (*p >= '0' && *p <= '9') p++;
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        jge _L35270590
+        move @R0 #0
+        jmp _L35270591
+_L35270590:
+        move @R0 #1
+_L35270591:
+        test @R0 @R0
+        jz _L35270588
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
+        jle _L35270592
+        move @R0 #0
+        jmp _L35270593
+_L35270592:
+        move @R0 #1
+_L35270593:
+        test @R0 @R0
+        jz _L35270588
+        move @R0 #1
+        jmp _L35270589
+_L35270588:
+        move @R0 #0
+_L35270589:
+        cmp @R0 #0
+        jz sta_35270587
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_35270586
+sta_35270587:
+; 370:         if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #46
+        popb @R1
+        cmp @R1 @R0
+        je _L35270596
+        move @R0 #0
+        jmp _L35270597
+_L35270596:
+        move @R0 #1
+_L35270597:
+        cmp @R0 #0
+        jz sta_35270594
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+sta_35270598:
+        move @R2 #0
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
+        jge _L35270602
+        move @R0 #0
+        jmp _L35270603
+_L35270602:
+        move @R0 #1
+_L35270603:
+        test @R0 @R0
+        jz _L35270600
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
+        jle _L35270604
+        move @R0 #0
+        jmp _L35270605
+_L35270604:
+        move @R0 #1
+_L35270605:
+        test @R0 @R0
+        jz _L35270600
+        move @R0 #1
+        jmp _L35270601
+_L35270600:
+        move @R0 #0
+_L35270601:
+        cmp @R0 #0
+        jz sta_35270599
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        jmp sta_35270598
+sta_35270599:
+sta_35270594:
+sta_35270595:
+; 371:         int wide = 0;
+        move @R0 #0
+        move [@R12-16] @R0
+; 372:         if (*p == 'l') { p++; wide = 1; if (*p == 'l') p++; }
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #108
+        popb @R1
+        cmp @R1 @R0
+        je _L35270608
+        move @R0 #0
+        jmp _L35270609
+_L35270608:
+        move @R0 #1
+_L35270609:
+        cmp @R0 #0
+        jz sta_35270606
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        move @R0 #1
+        move [@R12-16] @R0
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #108
+        popb @R1
+        cmp @R1 @R0
+        je _L35270612
+        move @R0 #0
+        jmp _L35270613
+_L35270612:
+        move @R0 #1
+_L35270613:
+        cmp @R0 #0
+        jz sta_35270610
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+sta_35270610:
+sta_35270611:
+        jmp sta_35270607
+sta_35270606:
+; 373:         else if (*p == 'h') { p++; if (*p == 'h') p++; }
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #104
+        popb @R1
+        cmp @R1 @R0
+        je _L35270616
+        move @R0 #0
+        jmp _L35270617
+_L35270616:
+        move @R0 #1
+_L35270617:
+        cmp @R0 #0
+        jz sta_35270614
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #104
+        popb @R1
+        cmp @R1 @R0
+        je _L35270620
+        move @R0 #0
+        jmp _L35270621
+_L35270620:
+        move @R0 #1
+_L35270621:
+        cmp @R0 #0
+        jz sta_35270618
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+sta_35270618:
+sta_35270619:
+sta_35270614:
+sta_35270615:
+sta_35270607:
+; 374:         if (*p == 'f' || *p == 'e' || *p == 'E' || *p == 'g' || *p == 'G') wide = 1;
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #102
+        popb @R1
+        cmp @R1 @R0
+        je _L35270636
+        move @R0 #0
+        jmp _L35270637
+_L35270636:
+        move @R0 #1
+_L35270637:
+        test @R0 @R0
+        jnz _L35270633
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #101
+        popb @R1
+        cmp @R1 @R0
+        je _L35270638
+        move @R0 #0
+        jmp _L35270639
+_L35270638:
+        move @R0 #1
+_L35270639:
+        test @R0 @R0
+        jz _L35270634
+_L35270633:
+        move @R0 #1
+        jmp _L35270635
+_L35270634:
+        move @R0 #0
+_L35270635:
+        test @R0 @R0
+        jnz _L35270630
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #69
+        popb @R1
+        cmp @R1 @R0
+        je _L35270640
+        move @R0 #0
+        jmp _L35270641
+_L35270640:
+        move @R0 #1
+_L35270641:
+        test @R0 @R0
+        jz _L35270631
+_L35270630:
+        move @R0 #1
+        jmp _L35270632
+_L35270631:
+        move @R0 #0
+_L35270632:
+        test @R0 @R0
+        jnz _L35270627
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #103
+        popb @R1
+        cmp @R1 @R0
+        je _L35270642
+        move @R0 #0
+        jmp _L35270643
+_L35270642:
+        move @R0 #1
+_L35270643:
+        test @R0 @R0
+        jz _L35270628
+_L35270627:
+        move @R0 #1
+        jmp _L35270629
+_L35270628:
+        move @R0 #0
+_L35270629:
+        test @R0 @R0
+        jnz _L35270624
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #71
+        popb @R1
+        cmp @R1 @R0
+        je _L35270644
+        move @R0 #0
+        jmp _L35270645
+_L35270644:
+        move @R0 #1
+_L35270645:
+        test @R0 @R0
+        jz _L35270625
+_L35270624:
+        move @R0 #1
+        jmp _L35270626
+_L35270625:
+        move @R0 #0
+_L35270626:
+        cmp @R0 #0
+        jz sta_35270622
+        move @R0 #1
+        move [@R12-16] @R0
+sta_35270622:
+sta_35270623:
+; 375:         n += wide ? 2 : 1;
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        test @R0 @R0
+        jz _L35270646
+        move @R0 #2
+        jmp _L35270647
+_L35270646:
+        move @R0 #1
+_L35270647:
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+; 376:         if (*p) p++;
+        move @R0 [@R12-12]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
+        jz sta_35270648
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+sta_35270648:
+sta_35270649:
+        jmp sta_35270547
+sta_35270548:
+; 378:     return n;
+        move @R0 [@R12-8]
+        jmp L_35270650
+L_35270650:
+        move @R13 @R12
+        pop @R12
+        pop @R15
+        ret
 printf:
 ; -------------------------------------------
 ; source   : void printf(const char* fmt)
@@ -4941,7 +5518,7 @@ printf:
         push @R12
         move @R12 @R13
         sub @R13 #608
-; 351:     __builtin_va_start(ap, fmt);
+; 393:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #12
         add @R0 #4
@@ -4949,48 +5526,48 @@ printf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 352:     int nargs = format_arg_count(fmt);
+; 397:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
-        call format_arg_count
+        call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 353:     if (nargs > 16) nargs = 16;
+; 398:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
         pop @R1
         cmp @R1 @R0
-        jg _L35270549
+        jg _L35270653
         move @R0 #0
-        jmp _L35270550
-_L35270549:
+        jmp _L35270654
+_L35270653:
         move @R0 #1
-_L35270550:
+_L35270654:
         cmp @R0 #0
-        jz sta_35270547
+        jz sta_35270651
         move @R0 #16
         move [@R12-12] @R0
-sta_35270547:
-sta_35270548:
-; 356:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+sta_35270651:
+sta_35270652:
+; 401:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
-sta_35270551:
+sta_35270655:
         move @R0 [@R12-80]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L35270554
+        jl _L35270658
         move @R0 #0
-        jmp _L35270555
-_L35270554:
+        jmp _L35270659
+_L35270658:
         move @R0 #1
-_L35270555:
+_L35270659:
         cmp @R0 #0
-        jz sta_35270553
+        jz sta_35270657
         move @R0 [@R12-8]
         move @R1 @R0
         move @R2 [@R1]
@@ -5016,15 +5593,15 @@ _L35270555:
         add @R0 @R3
         pop @R5
         move [@R0] @R5
-sta_35270552:
+sta_35270656:
         move @R0 [@R12-80]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-80] @R0
         move @R0 @R1
-        jmp sta_35270551
-sta_35270553:
-; 359:     int len = vsnprintf(buf, fmt, args, nargs);
+        jmp sta_35270655
+sta_35270657:
+; 404:     int len = vsnprintf(buf, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5042,7 +5619,7 @@ sta_35270553:
         call vsnprintf
         add @R13 #16
         move [@R12-596] @R0
-; 360:     buf[len] = 0;
+; 405:     buf[len] = 0;
         move @R0 #0
         move @R4 @R0
         push @R4
@@ -5060,11 +5637,11 @@ sta_35270553:
         add @R0 @R7
         pop @R4
         moveb [@R0] @R4
-; 361:     int dummy = (int)buf;
+; 406:     int dummy = (int)buf;
         move @R0 @R12
         sub @R0 #592
         move [@R12-600] @R0
-; 362:     asm("SYSCALL #1");
+; 407:     asm("SYSCALL #1");
         syscall #1
         move [@R12-4] @R0
         move @R13 @R12
@@ -5084,7 +5661,7 @@ sprintf:
         push @R12
         move @R12 @R13
         sub @R13 #96
-; 366:     __builtin_va_start(ap, fmt);
+; 411:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #16
         add @R0 #4
@@ -5092,48 +5669,48 @@ sprintf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 367:     int nargs = format_arg_count(fmt);
+; 415:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
-        call format_arg_count
+        call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 368:     if (nargs > 16) nargs = 16;
+; 416:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
         pop @R1
         cmp @R1 @R0
-        jg _L35270558
+        jg _L35270662
         move @R0 #0
-        jmp _L35270559
-_L35270558:
+        jmp _L35270663
+_L35270662:
         move @R0 #1
-_L35270559:
+_L35270663:
         cmp @R0 #0
-        jz sta_35270556
+        jz sta_35270660
         move @R0 #16
         move [@R12-12] @R0
-sta_35270556:
-sta_35270557:
-; 371:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+sta_35270660:
+sta_35270661:
+; 419:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
-sta_35270560:
+sta_35270664:
         move @R0 [@R12-80]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L35270563
+        jl _L35270667
         move @R0 #0
-        jmp _L35270564
-_L35270563:
+        jmp _L35270668
+_L35270667:
         move @R0 #1
-_L35270564:
+_L35270668:
         cmp @R0 #0
-        jz sta_35270562
+        jz sta_35270666
         move @R0 [@R12-8]
         move @R1 @R0
         move @R2 [@R1]
@@ -5159,15 +5736,15 @@ _L35270564:
         add @R0 @R10
         pop @R9
         move [@R0] @R9
-sta_35270561:
+sta_35270665:
         move @R0 [@R12-80]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-80] @R0
         move @R0 @R1
-        jmp sta_35270560
-sta_35270562:
-; 373:     int n = vsnprintf(buf, fmt, args, nargs);
+        jmp sta_35270664
+sta_35270666:
+; 421:     int n = vsnprintf(buf, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5184,7 +5761,7 @@ sta_35270562:
         call vsnprintf
         add @R13 #16
         move [@R12-84] @R0
-; 385:     buf[n] = 0;
+; 433:     buf[n] = 0;
         move @R0 #0
         move @R6 @R0
         push @R6
@@ -5196,10 +5773,10 @@ sta_35270562:
         add @R0 @R8
         pop @R6
         moveb [@R0] @R6
-; 386:     return n;
+; 434:     return n;
         move @R0 [@R12-84]
-        jmp L_35270565
-L_35270565:
+        jmp L_35270669
+L_35270669:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -5218,7 +5795,7 @@ snprintf:
         push @R12
         move @R12 @R13
         sub @R13 #616
-; 398:     __builtin_va_start(ap, fmt);
+; 446:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #20
         add @R0 #4
@@ -5226,48 +5803,48 @@ snprintf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 399:     int nargs = format_arg_count(fmt);
+; 450:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R13+0]
-        call format_arg_count
+        call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 400:     if (nargs > 16) nargs = 16;
+; 451:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
         pop @R1
         cmp @R1 @R0
-        jg _L35270568
+        jg _L35270672
         move @R0 #0
-        jmp _L35270569
-_L35270568:
+        jmp _L35270673
+_L35270672:
         move @R0 #1
-_L35270569:
+_L35270673:
         cmp @R0 #0
-        jz sta_35270566
+        jz sta_35270670
         move @R0 #16
         move [@R12-12] @R0
-sta_35270566:
-sta_35270567:
-; 403:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+sta_35270670:
+sta_35270671:
+; 454:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
-sta_35270570:
+sta_35270674:
         move @R0 [@R12-80]
         push @R0
         move @R0 [@R12-12]
         pop @R1
         cmp @R1 @R0
-        jl _L35270573
+        jl _L35270677
         move @R0 #0
-        jmp _L35270574
-_L35270573:
+        jmp _L35270678
+_L35270677:
         move @R0 #1
-_L35270574:
+_L35270678:
         cmp @R0 #0
-        jz sta_35270572
+        jz sta_35270676
         move @R0 [@R12-8]
         move @R1 @R0
         move @R2 [@R1]
@@ -5293,15 +5870,15 @@ _L35270574:
         add @R0 @R5
         pop @R11
         move [@R0] @R11
-sta_35270571:
+sta_35270675:
         move @R0 [@R12-80]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-80] @R0
         move @R0 @R1
-        jmp sta_35270570
-sta_35270572:
-; 409:     int n = vsnprintf(tmp, fmt, args, nargs);
+        jmp sta_35270674
+sta_35270676:
+; 460:     int n = vsnprintf(tmp, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5319,7 +5896,7 @@ sta_35270572:
         call vsnprintf
         add @R13 #16
         move [@R12-596] @R0
-; 410:     tmp[n] = 0;
+; 461:     tmp[n] = 0;
         move @R0 #0
         move @R1 @R0
         push @R1
@@ -5337,29 +5914,29 @@ sta_35270572:
         add @R0 @R4
         pop @R1
         moveb [@R0] @R1
-; 411:     int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
+; 462:     int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
         move @R0 [@R12+16]
         move [@R12-600] @R0
-; 412:     if (lim > 0) {
+; 463:     if (lim > 0) {
         move @R0 [@R12-600]
         push @R0
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jg _L35270577
+        jg _L35270681
         move @R0 #0
-        jmp _L35270578
-_L35270577:
+        jmp _L35270682
+_L35270681:
         move @R0 #1
-_L35270578:
+_L35270682:
         cmp @R0 #0
-        jz sta_35270575
-; 413:         int k = 0;
+        jz sta_35270679
+; 464:         int k = 0;
         move @R0 #0
         move [@R12-604] @R0
-sta_35270579:
+sta_35270683:
         move @R2 #0
-; 414:         while (k < lim - 1 && tmp[k] != 0) { buf[k] = tmp[k]; k++; }
+; 465:         while (k < lim - 1 && tmp[k] != 0) { buf[k] = tmp[k]; k++; }
         move @R0 [@R12-604]
         push @R0
         move @R0 [@R12-600]
@@ -5370,14 +5947,14 @@ sta_35270579:
         move @R0 @R1
         pop @R1
         cmp @R1 @R0
-        jl _L35270583
+        jl _L35270687
         move @R0 #0
-        jmp _L35270584
-_L35270583:
+        jmp _L35270688
+_L35270687:
         move @R0 #1
-_L35270584:
+_L35270688:
         test @R0 @R0
-        jz _L35270581
+        jz _L35270685
         move @R0 @R12
         sub @R0 #592
         push @R0
@@ -5396,21 +5973,21 @@ _L35270584:
         move @R0 #0
         pop @R1
         cmp @R1 @R0
-        jne _L35270585
+        jne _L35270689
         move @R0 #0
-        jmp _L35270586
-_L35270585:
+        jmp _L35270690
+_L35270689:
         move @R0 #1
-_L35270586:
+_L35270690:
         test @R0 @R0
-        jz _L35270581
+        jz _L35270685
         move @R0 #1
-        jmp _L35270582
-_L35270581:
+        jmp _L35270686
+_L35270685:
         move @R0 #0
-_L35270582:
+_L35270686:
         cmp @R0 #0
-        jz sta_35270580
+        jz sta_35270684
         move @R0 @R12
         sub @R0 #592
         push @R0
@@ -5440,9 +6017,9 @@ _L35270582:
         add @R0 @R0 #1
         move [@R12-604] @R0
         move @R0 @R1
-        jmp sta_35270579
-sta_35270580:
-; 415:         buf[k] = 0;
+        jmp sta_35270683
+sta_35270684:
+; 466:         buf[k] = 0;
         move @R0 #0
         move @R5 @R0
         push @R5
@@ -5454,12 +6031,12 @@ sta_35270580:
         add @R0 @R11
         pop @R5
         moveb [@R0] @R5
-sta_35270575:
-sta_35270576:
-; 417:     return n;
+sta_35270679:
+sta_35270680:
+; 468:     return n;
         move @R0 [@R12-596]
-        jmp L_35270587
-L_35270587:
+        jmp L_35270691
+L_35270691:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -5479,7 +6056,7 @@ printf2:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 420: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
+; 471: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
         move @R0 @R12
         sub @R0 #12
         add @R0 #0
@@ -5509,8 +6086,8 @@ printf2:
         move @R3 [@R13+12]
         call vsnprintf
         add @R13 #16
-        jmp L_35270588
-L_35270588:
+        jmp L_35270692
+L_35270692:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -5531,7 +6108,7 @@ printf3:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 421: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
+; 472: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
         move @R0 @R12
         sub @R0 #16
         add @R0 #0
@@ -5568,8 +6145,8 @@ printf3:
         move @R3 [@R13+12]
         call vsnprintf
         add @R13 #16
-        jmp L_35270589
-L_35270589:
+        jmp L_35270693
+L_35270693:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -5591,7 +6168,7 @@ printf4:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 422: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
+; 473: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
         move @R0 @R12
         sub @R0 #20
         add @R0 #0
@@ -5635,8 +6212,8 @@ printf4:
         move @R3 [@R13+12]
         call vsnprintf
         add @R13 #16
-        jmp L_35270590
-L_35270590:
+        jmp L_35270694
+L_35270694:
         move @R13 @R12
         pop @R12
         pop @R15
@@ -5660,7 +6237,7 @@ printf5:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 423: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
+; 474: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
         move @R0 @R12
         sub @R0 #24
         add @R0 #0
@@ -5711,8 +6288,8 @@ printf5:
         move @R3 [@R13+12]
         call vsnprintf
         add @R13 #16
-        jmp L_35270591
-L_35270591:
+        jmp L_35270695
+L_35270695:
         move @R13 @R12
         pop @R12
         pop @R15

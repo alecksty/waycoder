@@ -353,6 +353,49 @@ int format_arg_count(const char *format) {
     return n;
 }
 
+// ── 变参**占用几个 4 字节槽** —— printf 家族要的是这个数，不是"有几个转换" ──
+//
+// ⚠ 为什么必须与 `format_arg_count` 分开（**这不是"同一规则两处实现"，是两个问题**）：
+//   `printf("%f", 1.5)` 的实参是**一个 double 值** ⇒ 占 **2** 槽；
+//   `scanf("%f", &d)`  的实参是**一个指针**      ⇒ 占 **1** 槽。
+//   同一个 `%f`，两家族要的数不一样。`format_arg_count`（转换个数）**对 scanf 是对的、
+//   对 printf 是错的** —— 而 printf 家族此前一直拿它当槽数用（`for (i=0;i<nargs;i++)
+//   vals[i] = va_arg(ap,int);`），于是 `%f` 只抄走一个槽 ⇒ **double 的高半字丢掉**。
+//   实测 `printf("d=%f\n", 1.5)` 打 `d=0.000000`（1.5 的高字 0x3FF80000 被丢、
+//   低字恰好是 0）—— 而 `vsnprintf` 内部那条 `argStart + 1 < nargs` 的判据
+//   也因此永远为假，**两层同时把它读成 0.0**（账本 OPEN #9）。
+//
+// 判据与 `vsnprintf` 内部**对齐**（必须同步改，见那边的 `is64` 与 `%f` 分支）：
+//   · `%%`                                             ⇒ 0 槽（不消耗实参）
+//   · 带 `l` 长度修饰符（`%ld`/`%lld`/`%lu`…）          ⇒ 2 槽
+//   · `%f`/`%e`/`%E`/`%g`/`%G`                          ⇒ 2 槽（C 默认提升 ⇒ 到 printf 是 double）
+//   · 其余                                              ⇒ 1 槽
+// ⚠ 顺带修掉 `format_arg_count` 的一个盲区：它**不跳过宽度/精度**，
+//   `%5d` 会被它数成…… 仍然只数 1 个（因为 `%` 后只看一个字符），
+//   但 `%-5d` 之类在它眼里也没问题；本函数按 C 的完整语法解析，不依赖那个巧合。
+// ⚠ **static**：它只在本文件里用（三处 printf 家族入口）。写成导出的会平白
+//   出现在 22 门语言的绑定里（`shared_bindings.h` / `shared.py` …），
+//   那是给"**别的语言要调**"用的清单 —— 一个内部助手挂上去只是噪音。
+static int format_slot_count(const char *format) {
+    int n = 0;
+    const char *p = format;
+    while (*p) {
+        if (*p != '%') { p++; continue; }
+        p++;
+        if (*p == '%' || *p == 0) continue;          // `%%` 不消耗实参
+        while (*p == '-' || *p == '0' || *p == '#' || *p == '+' || *p == ' ') p++;
+        while (*p >= '0' && *p <= '9') p++;
+        if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+        int wide = 0;
+        if (*p == 'l') { p++; wide = 1; if (*p == 'l') p++; }
+        else if (*p == 'h') { p++; if (*p == 'h') p++; }
+        if (*p == 'f' || *p == 'e' || *p == 'E' || *p == 'g' || *p == 'G') wide = 1;
+        n += wide ? 2 : 1;
+        if (*p) p++;
+    }
+    return n;
+}
+
 // ⚠ **变参一律走 `va_list`，不许拿形参地址自己算偏移**（用户定的硬规矩，
 //   见 ROADMAP 第零节「自接读写地址的代码不要」）。
 //
@@ -370,7 +413,10 @@ __cdecl void printf(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
 
-    int nargs = format_arg_count(fmt);
+    // ⚠ 这里要的是**槽数**、不是"有几个转换" —— 见 `format_slot_count` 的说明。
+    //   用 `format_arg_count` 的话 `%f` 只算 1 个 ⇒ 下面这个 `va_arg(ap,int)` 循环
+    //   只抄走一个槽 ⇒ double 的高半字丢掉 ⇒ 打 `0.000000`（账本 OPEN #9）。
+    int nargs = format_slot_count(fmt);
     if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
     int args[PRINTF_MAX_ARGS];
     int i;
@@ -387,7 +433,10 @@ __cdecl void printf(const char *fmt, ...) {
 __cdecl int sprintf(char *buf, const char *fmt, ...) {
     va_list ap;                            // 见上面 printf 处的说明（不许拿形参地址算偏移）
     va_start(ap, fmt);
-    int nargs = format_arg_count(fmt);
+    // ⚠ 这里要的是**槽数**、不是"有几个转换" —— 见 `format_slot_count` 的说明。
+    //   用 `format_arg_count` 的话 `%f` 只算 1 个 ⇒ 下面这个 `va_arg(ap,int)` 循环
+    //   只抄走一个槽 ⇒ double 的高半字丢掉 ⇒ 打 `0.000000`（账本 OPEN #9）。
+    int nargs = format_slot_count(fmt);
     if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
     int args[PRINTF_MAX_ARGS];
     int i;
@@ -422,7 +471,10 @@ __cdecl int sprintf(char *buf, const char *fmt, ...) {
 __cdecl int snprintf(char *buf, unsigned int size, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    int nargs = format_arg_count(fmt);
+    // ⚠ 这里要的是**槽数**、不是"有几个转换" —— 见 `format_slot_count` 的说明。
+    //   用 `format_arg_count` 的话 `%f` 只算 1 个 ⇒ 下面这个 `va_arg(ap,int)` 循环
+    //   只抄走一个槽 ⇒ double 的高半字丢掉 ⇒ 打 `0.000000`（账本 OPEN #9）。
+    int nargs = format_slot_count(fmt);
     if (nargs > PRINTF_MAX_ARGS) nargs = PRINTF_MAX_ARGS;
     int args[PRINTF_MAX_ARGS];
     int i;

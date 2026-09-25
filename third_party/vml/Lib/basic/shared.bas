@@ -4352,6 +4352,11 @@ DECLARE FUNCTION _printf_ftoe(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     _printf_ftoe = 0
 END FUNCTION
 
+DECLARE FUNCTION format_slot_count(a0 AS INTEGER) AS INTEGER
+    asm("CALL format_slot_count")
+    format_slot_count = 0
+END FUNCTION
+
 DECLARE FUNCTION sprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL sprintf")
     sprintf = 0

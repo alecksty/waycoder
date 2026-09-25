@@ -5706,6 +5706,13 @@ fn _printf_ftoe(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
+fn format_slot_count(a0: i32) -> i32 {
+    asm!("CALL format_slot_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn sprintf(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sprintf")
     let r: i32;

@@ -1837,6 +1837,8 @@
 // CALL _printf_ftoa
 // extern fn _printf_ftoe(char *buf, float f, int prec, int upper) -> nt
 // CALL _printf_ftoe
+// extern fn format_slot_count(const char *format) -> nt
+// CALL format_slot_count
 // extern fn sprintf(char *buf, const char *fmt, ...) -> int
 // CALL sprintf
 // extern fn snprintf(char *buf, unsigned int size, const char *fmt, ...) -> int

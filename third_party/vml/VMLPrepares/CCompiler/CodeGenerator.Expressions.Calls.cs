@@ -127,6 +127,8 @@ namespace CCompiler
             bool[] isDoubleArg = new bool[funcCall.Args.Count];
             bool[] isLongArg = new bool[funcCall.Args.Count];
             bool[] isFloatArg = new bool[funcCall.Args.Count];
+            // 「这个槽是 double，但**值是 float**」—— 见下面那句 `EmitF2D`。
+            bool[] wasFloatArg = new bool[funcCall.Args.Count];
             if (funcDef != null)
             {
                 for (int i = 0; i < Math.Min(funcCall.Args.Count, funcDef.Params.Count); i++)
@@ -211,6 +213,22 @@ namespace CCompiler
                 }
             }
 
+            // ── 「标了 2 槽」还不够，**值也要跟着转** ────────────────────────────
+            //
+            // ⚠ 上面几处把 float 实参标成 `isDoubleArg` 只决定了**占 2 槽**，
+            //   而 R0 里装的仍然是 **float 的位模式**（`GenerateExpression` 按变量的
+            //   静态类型装的）。`EmitPushArg` 那条 `MOVED [R13], R0` 会原样写 8 字节
+            //   ⇒ **高半字是栈上残留的别的值**，读出来是个四不像的 double。
+            //   实测 `float f = 2.25; printf("f=%f\n", f);` 打出 **`1.500000`**
+            //   （低半字 = float 2.25 的 0x40100000，高半字 = 上一次调用 double 1.5
+            //    留下的 0x3FF80000）—— **它甚至不是 0，是个"看着像对"的数**，最难查。
+            //   在**压栈之前**补一次 `F2D`（float → double），值才真的提上去。
+            //   判据按**表达式类型**统一推一次（不依赖上面哪一条把它标成 double 的）。
+            for (int i = 0; i < funcCall.Args.Count; i++)
+                if (isDoubleArg[i] && !isFloatArg[i] && !isStructArg[i]
+                    && InferExpressionType(funcCall.Args[i]) == ExprType.Float)
+                    wasFloatArg[i] = true;
+
             // 间接调用判断:
             // 1. IsIndirectCall: Callee 不是简单 Identifier（如 *fp、arr[i]、obj.method）
             // 2. 函数指针变量调用: fp(42) 其中 fp 是已知的指针类型变量且不是已定义函数
@@ -281,6 +299,8 @@ namespace CCompiler
                 else
                 {
                     GenerateExpression(funcCall.Args[i]);
+                    // 值也要提上去（见上面 `wasFloatArg` 那段）—— 放在 `EmitPushArg` **之前**
+                    if (wasFloatArg[i]) EmitF2D();
                     // 与 ParamStackBytes 同源的 4/8 规则（见该函数注释）
                     int size = ParamStackBytes(funcDef?.Params.Count > i ? funcDef.Params[i].Type : null);
                     if (isDoubleArg[i] || isLongArg[i]) size = 8;

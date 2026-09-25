@@ -5588,6 +5588,12 @@ def _printf_ftoe(a0, a1, a2, a3):
     asm("CALL _printf_ftoe")
     return r0
 
+def format_slot_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL format_slot_count")
+    return r0
+
 def sprintf(a0, a1, a2):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a2
