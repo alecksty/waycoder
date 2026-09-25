@@ -1195,50 +1195,34 @@ namespace CppCompiler
             }
             else if (ce.Callee is MemberExpr me)
             {
-                // obj.method() or obj->method()
-                if (me.Object is IdentExpr objId)
+                // obj.method() / obj->method() —— 接收者**不一定是简单标识符**：
+                // `list[i]->m()`、`(*p).m()`、`a.b.m()` 都走这里。
+                //
+                // ⚠ 这里原先写成 `if (me.Object is IdentExpr objId) { … }` 而**没有 else**：
+                //   接收者不是标识符时整段被跳过 ⇒ `funcName` 停在 `""` ⇒ 一路落到下面
+                //   "函数指针间接调用"那条路，发一条 **`call R0`**，而 R0 里装的是
+                //   **对象指针**（不是函数地址）⇒ 跳到数据上执行。
+                //   症状是"程序跑完、一行输出都没有"，**编译期零报错** ——
+                //   而 `Entity* e = list[0]; e->m()` 这种绕一步的写法又是好的，
+                //   所以只看"指针调用能不能用"会误判成没问题。
+                //   顺带把三分支（虚 / 非虚 / 无类）合并：它们本来就只差 `funcName` 一行，
+                //   分开写正是"漏一个分支"的土壤。
+                var recvCls = ResolveClassOf(me.Object);
+                // 虚调用 = 从**对象自己的** vptr（对象第 0 个字）按槽号取实现。
+                // （实参压栈与间接调用在后面**共用**的那段里发，那里才知道实参个数。）
+                if (recvCls != null && VirtualSlots(recvCls.Name).TryGetValue(me.Member, out int slot))
                 {
-                    // Check if it's a virtual method call
-                    var recvCls = ResolveClassOf(me.Object);
-                    if (recvCls != null)
-                    {
-                        // 虚调用 = 从**对象自己的** vptr（对象第 0 个字）按槽号取实现。
-                        //
-                        // ⚠ 这里原先是一套"拿对象里的 typeid 一路比下去"的**级联比较**，
-                        //   而它三处都不成立、且**从来没有运行过**（`IsVirtual` 恒为 false）：
-                        //   ① 级联里的 `ovrLabel` 在循环里用**同一组实参**算 ⇒ 每个分支
-                        //      拿到的是**同一个标签**（基类那个），比中了也还是调基类；
-                        //   ② 它把 `CALL` 发在**实参压栈之前**（那段代码在实参循环的上游），
-                        //      被调方读的是残留的寄存器；
-                        //   ③ `CALL` 后面没有清栈。
-                        //   换成一槽一地址的间接调用，三个问题一并消失。
-                        if (VirtualSlots(recvCls.Name).TryGetValue(me.Member, out int slot))
-                        {
-                            virtualSlot = slot;
-                            // `this` 要的是**对象地址**，不是对象的值（见下面那两处同批注释）
-                            GenerateBaseForMember(me.Object);
-                            Add(OpCode.PUSH, "R0");
-                            hasThis = true;
-                            // 实参压栈与间接调用在后面**共用**的那段里发（那里才知道实参个数）
-                        }
-                        else
-                        {
-                            funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                            // ⚠ 同上一处：`this` 要的是**对象地址**，不是对象的值。
-                            GenerateBaseForMember(me.Object);
-                            Add(OpCode.PUSH, "R0");
-                            hasThis = true;
-                        }
-                    }
-                    else
-                    {
-                        funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                        // ⚠ 同上：`this` 要的是**对象地址**。
-                        GenerateBaseForMember(me.Object);
-                        Add(OpCode.PUSH, "R0");
-                        hasThis = true;
-                    }
+                    virtualSlot = slot;
                 }
+                else
+                {
+                    funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
+                }
+                // ⚠ `this` 要的是**对象地址**，不是对象的值：`GenerateExpr` 对类类型的变量
+                //   发的是值加载（`move @R0 [var_k]`），压进去就成了"对象的第一个字段当指针"。
+                GenerateMemberBase(me);
+                Add(OpCode.PUSH, "R0");
+                hasThis = true;
             }
 
             // Look up function signature for reference-parameter handling
@@ -1726,6 +1710,14 @@ namespace CppCompiler
                     string clean = CleanType(arrType);
                     if (_classes.TryGetValue(clean, out var arrCls))
                         return arrCls;
+                    // ⚠ **指针数组**：`Entity* list[4]; list[0]->Value()` ——
+                    //   类型串是 `Entity*`，去掉星号才是类名。漏了这一支，
+                    //   `list[i]` 就解析不出接收者的类 ⇒ 调用点拿不到 `funcName`、
+                    //   退化成"把对象指针当函数指针"的**间接调用**（`call R0`），
+                    //   而 R0 里装的是对象地址 ⇒ 跳到数据上执行。
+                    //   症状是"程序跑完但一行输出都没有"，且**编译期零报错**。
+                    if (clean.EndsWith("*") && _classes.TryGetValue(clean.TrimEnd('*').Trim(), out var arrPtrCls))
+                        return arrPtrCls;
                 }
             }
             return null;
@@ -1748,6 +1740,30 @@ namespace CppCompiler
             if (_varTypes.TryGetValue(ie.Name, out var vt))
                 return _classes.ContainsKey(CleanType(vt));
             return false;
+        }
+
+        /// <summary>
+        /// 成员访问的**基址** —— `obj.field` 与 `ptr->field` 的唯一分界。
+        ///
+        /// <list type="bullet">
+        /// <item><c>.</c>（<c>Arrow == false</c>）：<c>obj</c> 是**对象本身**，要它的**地址**；</item>
+        /// <item><c>-&gt;</c>（<c>Arrow == true</c>）：<c>obj</c> 是**指针**，要它存的**值**。</item>
+        /// </list>
+        ///
+        /// <para>
+        /// ⚠ 原先一律走 <see cref="GenerateBaseForMember"/>，而它按"对象的地址"算 ——
+        /// `list[i]->m()` 于是把**元素的地址**当成了对象指针（`&list[i]` 而不是 `list[i]`），
+        /// 读到的是一片别处。`. ` 那条没错（`GenerateBaseForMember` 对指针类型的变量
+        /// 本来就发值加载），所以只有"指针来自表达式"（数组元素、`(*p)`、嵌套成员）
+        /// 时才错 —— 而又只有 `->` 才需要区分，`Arrow` 这个位 AST 里一直有。
+        /// </para>
+        /// </summary>
+        private void GenerateMemberBase(MemberExpr me)
+        {
+            if (me.Arrow)
+                GenerateExpr(me.Object);        // `->`：对象是**指针**，取它的值
+            else
+                GenerateBaseForMember(me.Object); // `.`：对象本身，取它的地址
         }
 
         /// <summary>Generate base for member access: address for class-typed vars, value for ptr-to-class</summary>
@@ -1811,7 +1827,7 @@ namespace CppCompiler
 
         private void GenerateMemberExpr(MemberExpr me)
         {
-            GenerateBaseForMember(me.Object);
+            GenerateMemberBase(me);
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
@@ -1829,7 +1845,7 @@ namespace CppCompiler
         /// Compute the address of a member field into R0
         private void GenerateMemberAddress(MemberExpr me)
         {
-            GenerateBaseForMember(me.Object);
+            GenerateMemberBase(me);
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
