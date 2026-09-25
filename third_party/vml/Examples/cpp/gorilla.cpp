@@ -224,6 +224,29 @@ int mixcol(int nr, int ng, int nb, int dr, int dg, int db, int pct)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// 落点该炸多大的坑：撞在楼身上大一些（打进墙里），砸在地上小一些。
+//
+// ⚠ 判据与 `Game::Step` 里判 `hit` 用的是**同一个** `Covers` —— 两处各判一次的话，
+//   "显示成撞楼、坑却按地面算"这种不一致迟早会出现。
+//
+// ⚠ 这个函数曾经**只要存在就让画面全毁**（OPEN #19），当时只好改用固定半径。
+//   根因是编译器的一个缺陷（全局对象只分配 1 个 word，字段一写就踩到相邻全局量，
+//   见 KNOWN_DEFECTS 的 F38）—— 修掉之后它就正常了。
+int HoleRadiusAt(int px, int py)
+{
+    int i;
+    i = 0;
+    while (i < 4)
+    {
+        if ((*BL[i]).Covers(px))
+        {
+            if (py >= (*BL[i]).RoofY()) { return 16; }
+        }
+        i = i + 1;
+    }
+    return 10;
+}
+
 // 游戏时钟 —— **一组全局量 + 自由函数**（1 真实秒 = 1 游戏分钟）
 //
 // ## 为什么不是类
@@ -1702,7 +1725,7 @@ public:
                 // ⚠ **这一支同时覆盖"撞楼"和"落地"**（见上面那两处 `hit = -2`）——
                 //   两种都该留下痕迹，而且半径分两档：撞楼炸得大一点（那是"打进墙里"），
                 //   落地小一点。判据是"落点上方有没有楼"，与判定 `hit` 用的是同一个 `Covers`。
-                addHole(ban.x, ban.y, 14);      // ⚠ 临时：固定半径，先不调 HoleRadiusAt
+                addHole(ban.x, ban.y, HoleRadiusAt(ban.x, ban.y));
                 boomT = 0;
                 state = ST_BOOM;
                 ban.Stop();
