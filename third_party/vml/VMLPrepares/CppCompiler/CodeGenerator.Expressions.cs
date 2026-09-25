@@ -1860,7 +1860,17 @@ namespace CppCompiler
                 else if (be.Left is IdentExpr arrId && _varTypes.TryGetValue(arrId.Name, out var arrType))
                 {
                     if (_classes.TryGetValue(CleanType(arrType), out var arrCls))
-                        stride = arrCls.Members.Count(m => !m.IsMethod) * 4;
+                    {
+                        // ⚠ 元素步长**必须**与"分配时按多大一个元素算"是**同一个数**。
+                        //   分配那边用的是 `ClassSizeDeep`（见 `GenerateAssignExpr` 的 `objWords`），
+                        //   这里原先写的是"本类字段数 × 4" —— 两者**不相等**：
+                        //   `ClassSizeDeep` 把**基类子对象**和 **vptr** 一起算进去，字段数只数本类。
+                        //   于是 `Tree TREES[6]`（4 个 int = 16 字节）按 16 分配、按 **20** 步进
+                        //   ⇒ 写到第 4 个元素就越过数组尾巴、**踩到别的全局量**上。
+                        //   本仓头号坑"同一份数据两处实现"，这里是它的内存版。
+                        stride = ClassSizeDeep(arrCls.Name);
+                        if (stride < 4) stride = 4;
+                    }
                 }
                 if (stride == 4) Add(OpCode.SHL, "R1", "#2");
                 else if (stride == 8) Add(OpCode.SHL, "R1", "#3");
