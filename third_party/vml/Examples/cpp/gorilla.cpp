@@ -118,6 +118,8 @@ static int trailY[MAX_TRAIL];
 // 按序号访问具名字段的指针表（见 `Game` 里那段注释：类里放不了数组字段）
 static Building* BL[4];
 static Ape* AP[2];
+static Tree TREES[6];        // 地上的树（数量随机，见 Game::Layout）
+static Flyer* FLY[3];        // 鸟 / 飞碟 / 飞机 —— 三个派生类共用基类指针
 
 // ════════════════════════════════════════════════════════════════════
 // 颜色（0xAARRGGBB；VM 的 int 是有符号的，超过 0x7FFFFFFF 的写成十进制负数）
@@ -581,6 +583,254 @@ public:
 };
 
 // ════════════════════════════════════════════════════════════════════
+// 天上飞的：鸟 / 飞碟 / 飞机
+//
+// 这一族是**继承 + 虚函数**的正经用法（不是为了炫技）：
+//   · 三者的**走法**完全不同（鸟乱抖乱掉头、飞碟悬停、飞机匀速直线）；
+//   · 但游戏只关心"你在哪、你能不能被打到"这两件事。
+// 基类 `Flyer` 定 `Step()` / `R()` / `Draw()` 三个虚接口，派生类各写各的。
+// ════════════════════════════════════════════════════════════════════
+
+class Flyer : public Entity
+{
+public:
+    int vx;
+    int live;            // 1 = 在场
+    int kind;            // 1 鸟 / 2 飞碟 / 3 飞机
+
+    Flyer()
+    {
+        x = 0;
+        y = 0;
+        vx = 0;
+        live = 0;
+        kind = 0;
+    }
+
+    virtual int R() { return 10; }                  // 命中半径（画多大就判多大）
+    virtual void Step(int sw, int gy) { }           // 一拍的运动
+    virtual void Draw() { }
+};
+
+// ── 鸟：进哪边随机、高度隔一阵抖一下、偶尔掉头（只掉有限次）──
+class Bird : public Flyer
+{
+public:
+    int wob;
+    int t;
+    int turns;
+
+    Bird()
+    {
+        kind = 1;
+        wob = 0;
+        t = 0;
+        turns = 0;
+    }
+
+    void Spawn(int sw, int gy, int dir)
+    {
+        live = 1;
+        turns = 0;
+        t = 0;
+        vx = 3 * dir;
+        if (dir > 0) { x = -20; }
+        else { x = sw + 20; }
+        y = gy / 4 + ui_rand(gy / 3);
+        wob = ui_rand(3) - 1;
+    }
+
+    virtual int R() { return 10; }
+
+    virtual void Step(int sw, int gy)
+    {
+        if (live == 0) { return; }
+        t = t + 1;
+        if (t % 12 == 0) { wob = ui_rand(3) - 1; }
+        if (t % 90 == 0) { if (turns < 2) { vx = -vx; turns = turns + 1; } }
+        x = x + vx;
+        y = y + wob;
+        if (y < 30) { y = 30; }
+        if (y > gy - 60) { y = gy - 60; }
+        if (x < -40 || x > sw + 40) { live = 0; }
+    }
+
+    virtual void Draw()
+    {
+        if (live == 0) { return; }
+        ui_circle(x, y, 6, 0xFF30343C, 1, 0);
+        ui_circle(x + 4, y - 4, 4, 0xFF30343C, 1, 0);
+        ui_rect(x + 7, y - 5, 4, 2, 0xFFFFC060, 1, 0, 0);
+        if (wob >= 0) { ui_line(x - 6, y, x - 14, y + 5, 0xFF50565E, 3); }
+        else { ui_line(x - 6, y, x - 14, y - 5, 0xFF50565E, 3); }
+    }
+};
+
+// ── 飞碟：飞来 → 悬停一会儿 → 飞走；悬停时灯闪 ──
+class Ufo : public Flyer
+{
+public:
+    int phase;
+    int hold;
+    int t;
+    int lit;
+
+    Ufo()
+    {
+        kind = 2;
+        phase = 0;
+        hold = 0;
+        t = 0;
+        lit = 0;
+    }
+
+    void Spawn(int sw, int gy, int dir)
+    {
+        live = 1;
+        phase = 0;
+        t = 0;
+        lit = 0;
+        vx = 4 * dir;
+        if (dir > 0) { x = -30; }
+        else { x = sw + 30; }
+        y = gy / 3 + ui_rand(gy / 4);
+        hold = sw / 2 + ui_rand(sw / 3);
+    }
+
+    virtual int R() { return 16; }
+
+    virtual void Step(int sw, int gy)
+    {
+        if (live == 0) { return; }
+        t = t + 1;
+        if (t % 4 == 0) { lit = 1 - lit; }
+        if (phase == 0)
+        {
+            x = x + vx;
+            if (vx > 0) { if (x >= hold) { phase = 1; t = 0; } }
+            else { if (x <= hold) { phase = 1; t = 0; } }
+        }
+        else if (phase == 1)
+        {
+            y = y + (ui_rand(3) - 1);
+            if (t > 45) { phase = 2; }
+        }
+        else
+        {
+            x = x + vx;
+            if (x < -40 || x > sw + 40) { live = 0; }
+        }
+    }
+
+    virtual void Draw()
+    {
+        if (live == 0) { return; }
+        ui_circle(x, y, 13, 0xFFB8C0CC, 1, 0);
+        ui_circle(x, y - 5, 7, 0xFF97A0AC, 1, 0);
+        if (lit != 0)
+        {
+            ui_circle(x - 9, y + 5, 2, 0xFFFF5050, 1, 0);
+            ui_circle(x, y + 7, 2, 0xFFFFE050, 1, 0);
+            ui_circle(x + 9, y + 5, 2, 0xFF50FF70, 1, 0);
+        }
+    }
+};
+
+// ── 飞机：定期飞过、匀速直线；夜里机翼有闪灯 ──
+class Plane : public Flyer
+{
+public:
+    int t;
+    int lit;
+
+    Plane()
+    {
+        kind = 3;
+        t = 0;
+        lit = 0;
+    }
+
+    void Spawn(int sw, int gy, int dir)
+    {
+        live = 1;
+        t = 0;
+        lit = 0;
+        vx = 6 * dir;
+        if (dir > 0) { x = -40; }
+        else { x = sw + 40; }
+        y = gy / 5;
+    }
+
+    virtual int R() { return 20; }
+
+    virtual void Step(int sw, int gy)
+    {
+        if (live == 0) { return; }
+        t = t + 1;
+        if (t % 20 < 10) { lit = 1; } else { lit = 0; }
+        x = x + vx;
+        if (x < -60 || x > sw + 60) { live = 0; }
+    }
+
+    virtual void Draw()
+    {
+        if (live == 0) { return; }
+        ui_rect(x - 16, y - 3, 32, 6, 0xFFD8DEE6, 1, 0, 3);
+        ui_line(x - 2, y, x - 12, y - 10, 0xFFB8C0CC, 3);
+        ui_line(x + 2, y, x + 8, y - 9, 0xFFB8C0CC, 3);
+        ui_rect(x + 6, y - 2, 8, 5, 0xFF6FA8DC, 1, 0, 2);
+        if (lit != 0) { ui_circle(x - 14, y - 11, 2, 0xFFFF4040, 1, 0); }
+    }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// Tree —— 地上的树（位置 / 数量 / 高矮都随机）
+// ════════════════════════════════════════════════════════════════════
+
+class Tree
+{
+public:
+    int x;
+    int y;               // 树根
+    int h;               // 树高
+    int w;
+
+    Tree()
+    {
+        x = 0;
+        y = 0;
+        h = 0;
+        w = 0;
+    }
+
+    void Setup(int px, int py, int ph, int pw)
+    {
+        x = px;
+        y = py;
+        h = ph;
+        w = pw;
+    }
+
+    void Draw()
+    {
+        int i;
+        int ty;
+        int tw;
+
+        ui_rect(x - 2, y - h / 4, 4, h / 4, 0xFF4A3520, 1, 0, 0);   // 树干
+        // 树冠：三层越来越小的圆角矩形叠出来（便宜，形状够用）
+        i = 0;
+        while (i < 3)
+        {
+            ty = y - h / 4 - (h / 3) * i;
+            tw = w * (3 - i) / 3;
+            ui_rect(x - tw / 2, ty - h / 3, tw, h / 3, 0xFF2E6B34, 1, 0, 4);
+            i = i + 1;
+        }
+    }
+};
+
+// ════════════════════════════════════════════════════════════════════
 // Wind —— 风
 // ════════════════════════════════════════════════════════════════════
 
@@ -679,6 +929,10 @@ public:
     Banana ban;
     Wind wind;
     Hud hud;
+    Bird bird;
+    Ufo ufo;
+    Plane plane;
+    int spawnT;          // 天上添东西的节拍计数
 
     int sw;
     int sh;
@@ -696,6 +950,7 @@ public:
     int heldU;
     int heldD;
     int repeatT;
+    int treeN;
 
     // 操作面板的几何（绘制与命中**共用**，见 PanelGeometry 的注释）
     int panH;
@@ -728,6 +983,8 @@ public:
         heldU = 0;
         heldD = 0;
         repeatT = 0;
+        treeN = 0;
+        spawnT = 0;
     }
 
     // 把具名字段与按序号的访问对上（构造函数跑完、对象地址稳定之后调一次）
@@ -739,6 +996,9 @@ public:
         BL[3] = &b3;
         AP[0] = &a0;
         AP[1] = &a1;
+        FLY[0] = &bird;
+        FLY[1] = &ufo;
+        FLY[2] = &plane;
         a0.SetSide(0);
         a1.SetSide(1);
     }
@@ -783,6 +1043,20 @@ public:
 
         (*AP[0]).StandOn(&(*BL[0]));
         (*AP[1]).StandOn(&(*BL[3]));
+
+        // 地上的树：**位置 / 数量 / 高矮都随机**（每局不一样）
+        treeN = 2 + ui_rand(4);
+        i = 0;
+        while (i < treeN)
+        {
+            int tx;
+            int th;
+            tx = 10 + ui_rand(sw - 20);
+            th = 26 + ui_rand(30);
+            TREES[i].Setup(tx, gy + 2, th, 14 + ui_rand(12));
+            i = i + 1;
+        }
+        spawnT = 0;
     }
 
     void NewTurn()
@@ -806,6 +1080,28 @@ public:
         int hit;
 
         sky.Advance();
+        spawnT = spawnT + 1;
+
+        // ── 天上添东西：节拍到了掷一次，天上空着才放 ──
+        if (spawnT % 40 == 0)
+        {
+            int dice;
+            int dir;
+            dice = ui_rand(20);
+            dir = 1;
+            if (ui_rand(2) == 0) { dir = -1; }
+            if (dice == 0 && FLY[2]->live == 0) { plane.Spawn(sw, gy, dir); }
+            else if (dice == 1 && FLY[1]->live == 0) { ufo.Spawn(sw, gy, dir); }
+            else if (dice < 4 && FLY[0]->live == 0) { bird.Spawn(sw, gy, dir); }
+        }
+
+        // 多态：三个派生类各走各的，这里一行覆盖
+        i = 0;
+        while (i < 3)
+        {
+            FLY[i]->Step(sw, gy);
+            i = i + 1;
+        }
 
         if (state == ST_FLY)
         {
@@ -825,6 +1121,24 @@ public:
                 }
                 i = i + 1;
             }
+            // 打到**天上飞的**？→ 空中爆炸、不得分、直接换人（"浪费一个香蕉"，与 BASIC 版一致）
+            if (ban.live != 0)
+            {
+                i = 0;
+                while (i < 3)
+                {
+                    if (hit < 0 && FLY[i]->live != 0)
+                    {
+                        if (iabs(ban.x - FLY[i]->x) < FLY[i]->R() && iabs(ban.y - FLY[i]->y) < FLY[i]->R())
+                        {
+                            hit = -3;
+                            FLY[i]->live = 0;
+                        }
+                    }
+                    i = i + 1;
+                }
+            }
+
             // 打到楼？
             if (hit < 0 && r == 0)
             {
@@ -854,6 +1168,19 @@ public:
                 ban.Stop();
                 ui_beep(880, 60);
                 ui_vibrate(40, 0);
+                return 1;
+            }
+            if (hit == -3)
+            {
+                // 空中爆炸：**不得分**，这一发白扔
+                hitBy = -1;
+                boomX = ban.x;
+                boomY = ban.y;
+                boomT = 0;
+                state = ST_BOOM;
+                ban.Stop();
+                ui_beep(1200, 50);
+                ui_vibrate(30, 0);
                 return 1;
             }
             if (hit == -2)
@@ -1120,12 +1447,23 @@ public:
         actors[6] = &(*AP[1]);
         actors[7] = &ban;
 
+        // 树画在楼房**之前** —— 楼房后画会把树挡住，正好得到"树长在楼缝里"的观感
+        i = 0;
+        while (i < treeN)
+        {
+            TREES[i].Draw();
+            i = i + 1;
+        }
+
         i = 0;
         while (i < 8)
         {
             actors[i]->Draw();
             i = i + 1;
         }
+        bird.Draw();
+        ufo.Draw();
+        plane.Draw();
 
         // 地面
         ui_rect(0, gy, sw, sh - gy, C_GROUND, 1, 0, 0);
