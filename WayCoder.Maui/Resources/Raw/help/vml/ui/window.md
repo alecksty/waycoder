@@ -45,3 +45,8 @@ ui_win_open_ex("五子棋", w, h, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
 /* 赛车：锁横屏 + 要手柄 */
 ui_win_open_ex("赛车", w, h, VML_WIN_LANDSCAPE, VML_WIN_NEED_GAMEPAD);
 ```
+### `ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard)`
+开一个 **“电脑屏”窗口**：老 DOS/BGI 程序那种“字符网格 + 鼠标”的模型（要键盘/鼠标，不要手机手柄）。
+```c
+ui_win_open_pc("老程序", 640, 400, VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
+```

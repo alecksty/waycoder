@@ -11,6 +11,11 @@
 ui_set_font(18, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
 ui_text_cur(180, 40, "按方向键退出");
 ```
+### `ui_set_valign(int valign)`
+设置**默认**垂直对齐（之后所有文字生效）。
+```c
+ui_set_valign(VML_VALIGN_MIDDLE);
+```
 ### `ui_text(int x, int y, char* s, int color, int size, int anchor)`
 在 (x,y) 写一行字。`size` 是字号；`anchor` 决定 (x,y) 指文字的哪一边（`VML_ANCHOR_LEFT` / `CENTER` / `RIGHT`）。
 ```c
@@ -25,4 +30,9 @@ ui_text_cur(180, 300, "游戏结束");
 同上，另加样式（粗体 / 斜体 / 下划线）。
 ```c
 ui_text_styled(10, 10, "标题", 0xFFFFFFFF, 22, VML_ANCHOR_LEFT, VML_FONT_BOLD);
+```
+### `ui_text_v(int x, int y, char* s, int color, int size, int anchor, int valign, int style)`
+带**垂直对齐**的文字（`VML_VALIGN_*`）—— `ui_text` 的 y 是基线，这个可以按顶/中/底对齐。
+```c
+ui_text_v(200, 100, "居中", 0xFFFFFFFF, 20, VML_ANCHOR_CENTER, VML_VALIGN_MIDDLE, 0);
 ```

@@ -29,6 +29,72 @@ int main(void) {
 > 签名的权威来源是 `Lib/c/waycoder_ui.h`，实现在 `Lib/shared/src/vmlui.c` ——
 > **22 个前端共用同一份实现**。本页的签名就是从那个头文件取的，改了接口重跑生成器即可。
 
+## 接口分几层
+
+按**用途**分四层。写程序时按这张图找接口，比翻列表快：
+
+```text
+┌─ 窗口 / 设备 ────────────────────────────────────────────────┐
+│  开窗 ui_win_open(_ex / _pc)   问尺寸 ui_scr_w/h             │
+│  设备方向 ui_orientation       方向锁 ui_orient_lock         │
+│  全屏 ui_immersive             别熄屏 ui_keep_on             │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ 开好窗之后
+┌─ 输入 ────────────────────▼──────────────────────────────────┐
+│  事件式（主循环）ui_wait / ui_poll + ui_msg_a/b              │
+│  轮询式（手感）  ui_touch_query / ui_key_down                │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ 拿到输入 → 决定画什么
+┌─ 绘图 ────────────────────▼──────────────────────────────────┐
+│  图元   ui_rect / ui_circle / ui_path / ui_text …            │
+│  绘图状态 ui_clip_* / ui_mask_* / ui_alpha                   │
+│  资源   ui_create_block（精灵）/ ui_gradient / ui_brush_*     │
+│  像素   ui_get_pixel / ui_flood_fill / ui_screenshot          │
+└───────────────────────────┬──────────────────────────────────┘
+                            │ 配合着用
+┌─ 系统 ────────────────────▼──────────────────────────────────┐
+│  对话框 ui_dlg_*    音效震动 ui_beep / ui_vibrate            │
+│  存档 ui_store_*    参数 ui_argc / ui_arg                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**一句话记法**：**窗口**决定你能画多大，**输入**告诉你用户干了什么，
+**绘图**把东西画上去，**系统**是游戏之外的那些事（弹框、出声、存档）。
+
+### 精灵为什么要用「矢量图块」
+
+会动的东西（玩家、飞鸟、香蕉…）**尽量做成图块**（`ui_create_block` → `ui_draw_block`）：
+
+- 形状只写一遍，贴的时候能**旋转、缩放、镜像**（缩放取负值就是镜像）；
+- 每一帧从"十几次绘图调用"压成"一次贴图块"。实测 300 个精灵 × 60 帧：
+  直接画 **3531ms** → 贴图块 **2945ms**（快 **17%**），精灵越多差距越大。
+
+## 这些接口长在哪一层（出了问题去哪找）
+
+```text
+   你的程序（C / BASIC / Python / … 22 种语言）
+        │  #include <waycoder_ui.h>
+        ▼
+   Lib/c/waycoder_ui.h          ← 签名的权威来源
+   Lib/shared/src/vmlui.c       ← C 包装：一行 asm("SYSCALL #5xx")
+        │  syscall 500–599
+        ▼
+   VmlHostRuntime（UI/Shared）  ← **逻辑全在这一份**
+        │   手机与桌面**编同一份**：坐标钳位、消息队列、绘图状态机…
+        │  IVmlHost（只有平台真的不一样的那十几件事）
+        ▼
+   手机 MauiVmlHost          │  桌面 CliVmlHost（scripts/vmlcli）
+   弹原生框 / 存档 / 音频     │  脚本化输入 / 写 PNG
+```
+
+**知道这个有什么用**：
+
+- **两端行为一致**（同一份实现）⇒ 桌面上验证过的，手机上就是那个行为；
+- 万一出现「手机上对、桌面上错」，那一定在 **`IVmlHost`** 那一层（最下面那格），
+  不用去翻绘图的代码；
+- 桌面的 `scripts/vmlcli` 是**验收脚手架** —— 改完程序先在那儿跑（秒级），
+  别一上来就打 APK（手机上编译要一分多钟）。
+
 ## 窗口
 
 开窗、问尺寸、关窗、屏幕方向 —— [`help:vml/ui/window`](help:vml/ui/window)
@@ -42,6 +108,7 @@ int main(void) {
 | [ui_win_closed](help:vml/ui/window) | 用户是不是已经关窗了（主循环的退出条件）。 |
 | [ui_win_open](help:vml/ui/window) | 开一个绘图窗口。先问 `ui_scr_w/h()` 拿可用绘图区，再按它开 —— 写死尺寸在小屏上会溢出。 |
 | [ui_win_open_ex](help:vml/ui/window) | 同上，另加两个开窗前就生效的声明：转屏策略、要不要手柄区。 |
+| [ui_win_open_pc](help:vml/ui/window) | 开一个 “电脑屏”窗口：老 DOS/BGI 程序那种“字符网格 + 鼠标”的模型（要键盘/鼠标，不要手机手柄）。 |
 
 ```c
 /* 例：ui_orientation */
@@ -69,6 +136,28 @@ if (ui_orientation() == VML_ORIENT_LANDSCAPE) { /* 横排 */ }
 ```c
 /* 例：ui_msg_a */
 int x = ui_msg_a();
+```
+
+## 多点触控与设备
+
+多指查询、按住判断、方向锁、全屏 —— [`help:vml/ui/device`](help:vml/ui/device)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_audio_playing](help:vml/ui/device) | 后台 BGM 还在放吗 → 1/0（没放过、已放完、被停掉都是 0）。 |
+| [ui_immersive](help:vml/ui/device) | 隐藏 / 恢复状态栏与导航栏（全屏游戏）。 |
+| [ui_key_down](help:vml/ui/device) | 某个键此刻按住没有（“持续按住左移”不必自己维护状态表）。 |
+| [ui_orient_lock](help:vml/ui/device) | 锁定屏幕方向：`VML_LOCK_PORTRAIT`(0) / `VML_LOCK_LANDSCAPE`(1) / `VML_LOCK_AUTO`(2)。 |
+| [ui_touch](help:vml/ui/device) | 查第 slot 根手指（0..9）：写进 `out[0]=x out[1]=y out[2]=按下`，返回 1 有效（槽位越界 0）。 |
+| [ui_touch_down](help:vml/ui/device) | 上一次 `ui_touch_query` 缓存里的“按下”（1/0）。 |
+| [ui_touch_query](help:vml/ui/device) | 拿不到指针的语言用这个：查一次并缓存，下面三个读缓存（与 `ui_wait_msg` + `ui_msg_a/b` 同一套分工）。 |
+| [ui_touch_x](help:vml/ui/device) | 上一次 `ui_touch_query` 缓存里的 x。 |
+| [ui_touch_y](help:vml/ui/device) | 上一次 `ui_touch_query` 缓存里的 y。 |
+
+```c
+/* 例：ui_audio_playing */
+ui_audio_play("bgm.mp3", 0);
+while (ui_audio_playing()) { ui_wait(msg, 200); }
 ```
 
 ## 定时器与随机数
@@ -136,6 +225,70 @@ int b = ui_brush_linear(0xFFFF3020, 0xFF2050FF, 0, 0, 1000, 0);
 ui_set_fill(b);
 ```
 
+## 绘图状态
+
+裁剪、蒙版（含布尔运算）、透明度、资源计数 —— [`help:vml/ui/gfx`](help:vml/ui/gfx)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_alpha](help:vml/ui/gfx) | 全局透明度 0..255，对之后画的图元生效。 |
+| [ui_brush_reset](help:vml/ui/gfx) | 释放本窗口累积的全部画刷 / 渐变定义（只能整体重置 —— 句柄就是表的下标，删单个会让后面全部错位）。 |
+| [ui_clip_pop](help:vml/ui/gfx) | 弹出一级裁剪（栈空了再弹是空操作）。 |
+| [ui_clip_push](help:vml/ui/gfx) | 压入一级矩形裁剪：之后画的东西只在这个矩形里可见；可以嵌套（与上一级求交）。 |
+| [ui_clip_reset](help:vml/ui/gfx) | 清空整个裁剪栈（不是弹一级）—— 给“出错恢复”用：一进主循环调一次，回到干净的整屏状态。 |
+| [ui_layer_begin](help:vml/ui/gfx) | 开始图层收集：这期间画的图元先落在临时画布上，等 `ui_layer_end` 整层合成。 |
+| [ui_layer_end](help:vml/ui/gfx) | 结束收集并整层按 `alpha`（0..255）合成上去。 |
+| [ui_mask_begin](help:vml/ui/gfx) | 开始收集蒙版形状：这期间画的形状不上屏，只当蒙版用。配 `ui_mask_end` / `ui_mask_end2` 收尾。 |
+| [ui_mask_clear](help:vml/ui/gfx) | 取消蒙版：之后的图元全部可见。 |
+| [ui_mask_end](help:vml/ui/gfx) | 收下蒙版并取代当前蒙版。`inside`：1 = 只在形状里画 / 0 = 只在形状外画。 |
+| [ui_mask_end2](help:vml/ui/gfx) | 收下蒙版并与当前蒙版按 `op` 做布尔运算 —— 老式“圆环”得画两遍，现在一次就够。 |
+| [ui_mask_path](help:vml/ui/gfx) | 把第 seg 段第 idx 个形状导出成 SVG 路径写进 buf —— 程序能拿它描洞口的边、做外发光。 |
+| [ui_mask_seg_count](help:vml/ui/gfx) | 当前蒙版有几段（没有蒙版返回 0）。 |
+| [ui_mask_seg_op](help:vml/ui/gfx) | 第 seg 段用的运算符（越界 -1）。 |
+| [ui_mask_shape_count](help:vml/ui/gfx) | 第 seg 段里有几个形状（越界 0）。 |
+| [ui_mask_test](help:vml/ui/gfx) | 蒙版当碰撞体：这一点在不在当前蒙版里（1/0）。 |
+| [ui_res_count](help:vml/ui/gfx) | 查当前占用：`0` 图元 / `1` 图像 / `2` 矢量图块 / `3` 画刷渐变；未知返回 -1。 |
+
+```c
+/* 例：ui_alpha */
+ui_alpha(120);
+ui_rect(10, 10, 100, 60, 0xFF000000, 1, 0, 0);   /* 半透明黑 */
+ui_alpha(255);
+```
+
+## 像素读回
+
+读像素、灌色、抓图贴图、截屏 —— [`help:vml/ui/pixel`](help:vml/ui/pixel)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_flood_fill](help:vml/ui/pixel) | 从 (x,y) 灌色，碰到 border 色就停（四连通）。返回落笔的矩形条数，0 = 没填 |
+| [ui_get_image](help:vml/ui/pixel) | 存一块画面 → 句柄（≥1），失败 0。老程序的 `malloc(imagesize(...))` 照写不误，只是那块内存我们不用。 |
+| [ui_get_pixel](help:vml/ui/pixel) | 读一个像素的颜色（`0xRRGGBB`；越界 -1）。 |
+| [ui_put_image](help:vml/ui/pixel) | 把句柄那块贴到 (x,y)。`mode`：0 = COPY 直接贴 / 1 = XOR 异或（异或要先读目的像素，慢一些）。 |
+| [ui_screenshot](help:vml/ui/pixel) | 把当前窗口存成 PNG（路径相对工作区；不给路径就自动取名落在 `shot/` 下）。返回 1 成功。 |
+
+```c
+/* 例：ui_flood_fill */
+ui_flood_fill(50, 50, 0xFF00FF00, 0xFFFF0000);   /* 在红框里灌绿 */
+```
+
+## 矢量图块
+
+录一次、带旋转缩放地反复贴（精灵用这个） —— [`help:vml/ui/block`](help:vml/ui/block)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_create_block](help:vml/ui/block) | 开始录制一个图块。录的是绘图指令、不是像素 —— 贴的时候能旋转缩放，放大也不糊。 |
+| [ui_draw_block](help:vml/ui/block) | 贴一个图块。(x,y) 是块的中心、绕中心旋转；缩放是千分比（1000 = 原尺寸）、角度是度。 |
+| [ui_draw_block_at](help:vml/ui/block) | 同上，但 (x,y) 是块的左上角、绕左上角转。 |
+| [ui_end_block](help:vml/ui/block) | 结束录制，返回图块句柄（≥1；0 = 没录成）。 |
+
+```c
+/* 例：ui_create_block */
+bid = ui_create_block(30, 20, 0);   /* 30×20 的块 */
+```
+
 ## 文字
 
 写字、字体、锚点 —— [`help:vml/ui/text`](help:vml/ui/text)
@@ -143,9 +296,11 @@ ui_set_fill(b);
 | 接口 | 一句话 |
 |---|---|
 | [ui_set_font](help:vml/ui/text) | 设一次字体，后面所有 `ui_text_cur` 都用它（省得每次重复传四个参数）。 |
+| [ui_set_valign](help:vml/ui/text) | 设置默认垂直对齐（之后所有文字生效）。 |
 | [ui_text](help:vml/ui/text) | 在 (x,y) 写一行字。`size` 是字号；`anchor` 决定 (x,y) 指文字的哪一边（`VML_ANCHOR_LEFT` / `CENTER` / `RIGHT`）。 |
 | [ui_text_cur](help:vml/ui/text) | 用 `ui_set_font` 设好的字体写字。 |
 | [ui_text_styled](help:vml/ui/text) | 同上，另加样式（粗体 / 斜体 / 下划线）。 |
+| [ui_text_v](help:vml/ui/text) | 带垂直对齐的文字（`VML_VALIGN_*`）—— `ui_text` 的 y 是基线，这个可以按顶/中/底对齐。 |
 
 ```c
 /* 例：ui_set_font */
@@ -266,4 +421,19 @@ double v[4];
 v[0] = VML_CALL_ECHO_DOUBLE;
 v[1] = 1.0; v[2] = 2.0;
 double r = callwithdouble4(v);
+```
+
+## 命令行参数
+
+程序自己的 -l 这类开关 —— [`help:vml/ui/args`](help:vml/ui/args)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_arg](help:vml/ui/args) | 把第 i 个参数拷进 buf，返回长度（越界 -1）。`argv[0]` 是程序名 ⇒ 用户给的第一个是 `ui_arg(1,…)`。 |
+| [ui_argc](help:vml/ui/args) | 参数个数（含程序名，恒 ≥ 1）。 |
+
+```c
+/* 例：ui_arg */
+char buf[64];
+if (ui_arg(1, buf, sizeof(buf)) > 0) { /* 用了 -l 这类开关 */ }
 ```
