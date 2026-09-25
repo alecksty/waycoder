@@ -28,7 +28,7 @@
 int getconfig(int type);
 int ui_tick(void);
 
-#define MAX_PLANES 100
+#define MAX_PLANES 1000
 #define KINDS 10
 
 /* 飞机状态（文件级全局变量是好的，见 shot.c 的说明） */
@@ -185,7 +185,10 @@ int main() {
             }
         }
 
-        /* ── 右上角信息面板 ── */
+        /* ── 信息面板 ── */
+        /* 底衬：飞机上千之后，没底衬的文字根本读不清（半透明黑，压在文字下面） */
+        ui_rect(0, 0, 168, 84, 0xCC000000, 1, 0, 0);
+
         frames = frames + 1;
         grow = grow + 1;
         t1 = ui_tick();
@@ -254,8 +257,9 @@ int main() {
 
         ui_present();
 
-        /* 每 12 帧加一架，加到 100 架为止 */
-        if (grow >= 12) {
+        /* 每 3 帧加一架，加到 MAX_PLANES 架为止
+           （1000 架按每 12 帧加要跑一万多帧，手机上太慢；3 帧一架约 20~30 秒跑满） */
+        if (grow >= 3) {
             grow = 0;
             if (planeCount < MAX_PLANES) {
                 spawnPlane(planeCount);
