@@ -1420,6 +1420,26 @@ namespace CppCompiler
         }
 
         /// <summary>
+        /// 一个字段占几个字节 —— **唯一实现**（字段偏移步进、对象大小、跳过基类子对象
+        /// 三处都问它）。
+        ///
+        /// <para>
+        /// ⚠ 此前这三处**都写死了 `* 4`**，而**内嵌一个对象时它不是 4**
+        /// （`class Team { Ape a0; Ape a1; }` 里 `Ape` 是 8 字节）。
+        /// 后果不是"报错"而是**静默的布局错**：`a1` 的偏移算成 4（应为 8）⇒
+        /// `a1.Set(10, 20)` 把值写进了 `a0`，而 `a0.y` 读出来是 10；
+        /// 更要命的是 `Team` 的对象只分了 2 个字（应为 4），**写第二个成员就写到对象外面**。
+        /// 一个对象里嵌另一个对象是类的基本用法，所以这条一直是个洞，只是没有例子踩到。
+        /// </para>
+        /// </summary>
+        private int FieldSizeOf(ClassMember m)
+        {
+            string ct = CleanType(m.Type);
+            if (_classes.ContainsKey(ct)) return ClassSizeDeep(ct);   // 内嵌对象
+            return 4;                                                  // 标量 / 指针
+        }
+
+        /// <summary>
         /// 继承链上**所有字段**的字节数（不含 vtable 指针）—— 唯一实现。
         ///
         /// <para>
@@ -1438,7 +1458,9 @@ namespace CppCompiler
             string? c = className;
             while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
             {
-                size += cls.Members.Count(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor) * 4;
+                foreach (var m in cls.Members)
+                    if (!m.IsMethod && !m.IsConstructor && !m.IsDestructor)
+                        size += FieldSizeOf(m);
                 c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
                 seen++;
             }
@@ -1452,7 +1474,9 @@ namespace CppCompiler
             var seen = 0;
             while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
             {
-                size += cls.Members.Count(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor) * 4;
+                foreach (var m in cls.Members)
+                    if (!m.IsMethod && !m.IsConstructor && !m.IsDestructor)
+                        size += FieldSizeOf(m);
                 // 基类子对象在前：它的字节数已经含在上面那次 +4 里了吗？不含 —— 递归累加
                 className = string.IsNullOrEmpty(cls.BaseClass) ? "" : CleanType(cls.BaseClass!);
                 seen++;
@@ -1504,7 +1528,7 @@ namespace CppCompiler
                 {
                     if (m.IsMethod || m.IsConstructor || m.IsDestructor) continue;
                     if (m.Name == fieldName) return true;
-                    offset += 4;
+                    offset += FieldSizeOf(m);   // ⚠ 不是 `+= 4`：内嵌对象占好几个字
                 }
                 return false;   // 基类那一支已经 return，这里只可能走到"本类里没有"
             }
@@ -1577,6 +1601,50 @@ namespace CppCompiler
             return MethodSymbol(className, methodName, Enumerable.Empty<string>());
         }
 
+        /// <summary>
+        /// 沿继承链找**字段的声明**（`obj.a0` / 隐式 `a0` 两条路都要它的类型）。
+        ///
+        /// <para>
+        /// `ResolveClassOf` 原先只认"变量"（`_varTypes`）—— 而**字段**不在 `_varTypes` 里，
+        /// 于是"一个对象里嵌另一个对象"（`Team { Ape a0; }` 里 `a0.Total()`）解析不出接收者的类，
+        /// 符号名退化成拿**字段名**当类名（`method_a0_Total`）⇒ 链接期"未定义的函数"。
+        /// </para>
+        /// </summary>
+        private bool FindFieldDeep(string className, string fieldName, out string fieldType)
+        {
+            fieldType = "";
+            var seen = 0;
+            string? c = className;
+            while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
+            {
+                var fm = cls.Members.FirstOrDefault(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor
+                                                         && m.Name == fieldName);
+                if (fm != null) { fieldType = fm.Type; return true; }
+                c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 隐式的 `this->字段`、且这个字段**本身是对象**（不是指针）——
+        /// 取它的地址才是 `obj.field` 那条链要的基址。
+        ///
+        /// <para>
+        /// ⚠ 与"字段是指向对象的**指针**"（`Ape* p`）要分开：那种要的是指针的**值**。
+        /// 两者混了就是"把一个对象的内容当指针用"，读到的是一片别的内存。
+        /// </para>
+        /// </summary>
+        private bool IsImplicitThisClassField(IdentExpr id, out MemberExpr member)
+        {
+            member = null!;
+            if (!IsImplicitThisField(id, out var m)) return false;
+            if (!FindFieldDeep(_currentClass!, id.Name, out string ft)) return false;
+            if (!_classes.ContainsKey(CleanType(ft))) return false;    // `Ape*` 不在此列
+            member = m;
+            return true;
+        }
+
         /// <summary>清理类型字符串: 去掉 struct/union/class 前缀</summary>
         private static string CleanType(string type)
         {
@@ -1612,6 +1680,20 @@ namespace CppCompiler
                     // Pointer to class: e.g. "struct Pt*" → "Pt"
                     if (clean.EndsWith("*") && _classes.TryGetValue(clean.TrimEnd('*').Trim(), out var ptrCls))
                         return ptrCls;
+                }
+                // ── 隐式的 `this->字段` ──
+                // 字段不在 `_varTypes` 里，上面两条都查不到 ⇒ 一个对象里嵌另一个对象时
+                // （`Team { Ape a0; }` 里的 `a0.Total()`）接收者解析不出类。
+                // 这条放在**最后**：局部量/变量优先于字段（字段在 `_varTypes` 里本来就没有，
+                // 顺序上只是把"先查变量"的既有语义写清楚）。
+                if (IsImplicitThisField(ie, out _)
+                    && FindFieldDeep(_currentClass!, ie.Name, out string fieldType))
+                {
+                    string ft = CleanType(fieldType);
+                    if (_classes.TryGetValue(ft, out var fieldCls))
+                        return fieldCls;
+                    if (ft.EndsWith("*") && _classes.TryGetValue(ft.TrimEnd('*').Trim(), out var fieldPtrCls))
+                        return fieldPtrCls;
                 }
             }
             else if (expr is UnaryExpr ue && ue.Op == "*")
@@ -1673,6 +1755,14 @@ namespace CppCompiler
         {
             if (obj is IdentExpr ie)
             {
+                // 隐式 `this->字段`、且字段本身是对象 ⇒ 要的是**字段的地址**
+                // （与"类类型的变量"同一条处理）。漏了这一支会落到 `GenerateExpr`，
+                // 那条路把字段的**值**（对象第一个字）当 this 用。
+                if (IsImplicitThisClassField(ie, out var thisField))
+                {
+                    GenerateMemberAddress(thisField);
+                    return;
+                }
                 bool needAddr = _classes.TryGetValue(ie.Name, out _) || IsClassTyped(ie);
                 if (needAddr)
                     GenerateAddressOf(ie);
