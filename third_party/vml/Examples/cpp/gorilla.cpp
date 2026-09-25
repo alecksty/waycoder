@@ -1095,6 +1095,8 @@ public:
             else if (dice < 4 && FLY[0]->live == 0) { bird.Spawn(sw, gy, dir); }
         }
 
+        // 夜里偶尔来一颗流星
+
         // 多态：三个派生类各走各的，这里一行覆盖
         i = 0;
         while (i < 3)
@@ -1464,6 +1466,7 @@ public:
         bird.Draw();
         ufo.Draw();
         plane.Draw();
+        // met.Draw();
 
         // 地面
         ui_rect(0, gy, sw, sh - gy, C_GROUND, 1, 0, 0);
