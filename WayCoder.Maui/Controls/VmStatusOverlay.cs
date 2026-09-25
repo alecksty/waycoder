@@ -21,10 +21,14 @@ namespace WayCoder.Maui.Controls;
 /// `Transparent` 的反而不参与）—— 所以这里按"**谁能点谁才有背景**"来分层：
 ///
 /// <list type="bullet">
-///   <item><b>顶部把柄</b>（`"VM 状态"` + 小窗/大窗两个形态图标 + `✕`）：给它**与面板同色**的背景 ——
-///     视觉上融进去看不出边界，但对命中就是"有背景"⇒ 能拖、能点。**这正是它存在的意义**。</item>
-///   <item><b>正文区</b>：容器 `InputTransparent = true` + `CascadeInputTransparent = false`
-///     （不往下传）⇒ 手指落在**读数文字**上是**穿到游戏**的。</item>
+///   <item><b>可拖的"面"</b>（标题格 + 正文块）：都带**与面板同色**的背景。
+///     视觉上融进去看不出边界，但对命中就是"有背景"⇒ 接得住触摸。**这正是它存在的意义**。</item>
+///   <item><b>三个键</b>（小窗 / 大窗 / `✕`）：各自有点按，**不参与拖动** ——
+///     重叠的话点一下就会与拖动抢手势。</item>
+///   <item>⚠ <b>正文块是"可拖的面"之一</b>，所以 `InputTransparent = false`
+///     ⇒ **点正文不再穿透给下面的画布**。这是用户明确要的取舍
+///     （2026-09-25：「整条除了那几个图标按键，其他都可以拖动」），
+///     换来的是"抓手"从很窄的标题一格变成整条。见 `_body` 那段注释。</item>
 /// </list>
 ///
 /// ## 两档形态：小窗 / 大窗
@@ -80,7 +84,6 @@ public sealed class VmStatusOverlay : ContentView
     private readonly Border _body;
     private readonly Image _smallIcon;
     private readonly Image _bigIcon;
-    private readonly PanGestureRecognizer _pan = new();
     private IDispatcherTimer? _timer;
 
     /// <summary>这一整段拖动是不是已经开始过（见类注释铁律 ①）。</summary>
@@ -188,11 +191,21 @@ public sealed class VmStatusOverlay : ContentView
         //   而这里恰恰是"用位移移动自身" ⇒ 视图一动基准跟着动 ⇒ **手指停着它也会来回抖**
         //   （真机报的"拖动抖动"；与本仓 v0.96.432 编辑器运行面板那条是同一个回路）。
         //   `RawX/RawY` 是**屏幕坐标**，与视图移没移动无关，回路自然断开。
+        // ⚠ **整条都能拖**（除了小窗/大窗/✕ 三个键）：`titleBox` 那一格在 `bar` 里占
+        //   `Star` 列（剩余宽度全归它），横着抓哪儿都行；**`_body` 那一整块正文也挂上** ——
+        //   这一条是用户明确要的「整条除了那几个图标按键，其他都可以拖动」。
+        //   三个键**不挂**：它们各自有点按，重叠会与拖动抢手势。
+        // ⚠⚠ **只能挂 `titleBox`，`_body` 要等它建出来再挂**（见下面那段）——
+        //   原先这里顺手把 `_body` 也挂上，而 `_body` 是在**这之后**才 `new` 的
+        //   ⇒ `null.HandlerChanged += …` 直接抛 `NullReferenceException`，
+        //   于是**一进命令行页 App 就退回桌面**（`ShellPage` 里就住着这个浮层）。
+        //   编译期一个字都不报 —— 这类"顺序"错误只有跑起来才知道。
+        //   真机日志特征：`ExceptionManager match exception type failed for com.tanso.waycoder`
+        //   ＋ `willFinishToHome=true`，**没有** AndroidRuntime FATAL。
 #if ANDROID
         titleBox.HandlerChanged += (_, _) => AttachNativeDrag(titleBox);
 #else
-        _pan.PanUpdated += OnPanUpdated;
-        titleBox.GestureRecognizers.Add(_pan);
+        AttachPanDrag(titleBox);
 #endif
 
         // ── 正文：**不吃触摸**（这块才是盖住游戏画面的部分）──
@@ -208,11 +221,29 @@ public sealed class VmStatusOverlay : ContentView
             StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(0, 0, 8, 8) },
             Padding = new Thickness(10, 0, 10, 8),
             Content = _text,
-            // ⚠ 这一句是"面板不挡游戏"的全部依据：容器不吃触摸、正文 Label 本身又没背景
-            //   ⇒ 落在这块读数文字上的手指**穿到下面那层**（画布 / 输出区）去。
-            //   必须真机验（见类注释）。
-            InputTransparent = true,
+            // ⚠⚠ **这里从 `true` 改成了 `false`** —— 这是"整条都能拖"的另一半实现，
+            //   也是一次**有意的取舍交换**（用户 2026-09-25 明确要「整条除了图标按键都能拖」）：
+            //     · 原样（`true`）= 面板不挡游戏：手指落在读数文字上会**穿到下面那层**
+            //       （画布 / 输出区），代价是**只有很窄的标题那一格能抓**。
+            //     · 现在（`false`）= 正文自己接住触摸 ⇒ **点正文不再穿透给画布**。
+            // ⚠ 这一句由 `SetBodyDraggable` 按**宿主页面**覆写（见 `_bodyDraggable` 那段）：
+            //   命令行页 ⇒ false（能拖）、绘图窗口页 ⇒ true（穿透，游戏照常玩）。
+            //   想两者兼得是**做不到**的：Android 的手势序列独占，而 MAUI 的
+            //   `InputTransparent` 又是静态属性，表达不了"条件穿透"。
+            //   （试过"Down 先不吃、位移超阈值再吃"⇒ 面板直接收不到 Move，完全拖不动。）
+            InputTransparent = !_bodyDraggable,
         };
+
+        // 正文能不能拖由宿主页定 —— **必须在这里应用**（`_body` 到这一行才存在）
+        _body.InputTransparent = !_bodyDraggable;
+
+        // 挂拖动 —— **必须在这里挂**：`_body` 到这一行才存在，挂早了就是空引用
+        //（见上面那段注释：那正是"一进命令行页就退回桌面"的成因）。
+#if ANDROID
+        _body.HandlerChanged += (_, _) => AttachNativeDrag(_body);
+#else
+        if (_bodyDraggable) AttachPanDrag(_body);
+#endif
 
         var root = new Grid
         {
@@ -328,7 +359,47 @@ public sealed class VmStatusOverlay : ContentView
     /// <summary>按下时手指的**屏幕**坐标 —— 整个拖动过程的唯一基准（见类注释的回路说明）。</summary>
     private float _downRawX, _downRawY;
 
-    private bool _nativeDragAttached;
+    /// <summary>
+    /// 已经接过拖动的**格** —— 每格独立记账。
+    ///
+    /// ⚠ 原先是**一个 bool**（那时只有标题那一格要拖）。"整条都能拖"之后，多格共用
+    ///   同一个 bool 会让第二格被自己的守卫挡在门外，表现是「标题能拖、正文拖不动」，
+    ///   而**一点报错都没有** —— 这类"静默少挂一处"正是本仓最花时间的故障形态。
+    ///   同时它也防重复：`HandlerChanged` 可能来不止一次，重复 `+=` 会让拖动跑 N 倍。
+    /// </summary>
+    private readonly HashSet<View> _dragAttached = new();
+
+    /// <summary>
+    /// 正文块**是否也参与拖动**（由宿主页面设，见 <see cref="SetBodyDraggable"/>）。
+    ///
+    /// ⚠⚠ 这是**按页面分**的开关，不是风格选项 —— Android 的手势序列（Down→Move→Up）
+    ///   是**独占**的：Down 被谁消费，后续事件就全归谁。所以同一块区域只有两种可能：
+    ///     · **吃**（`InputTransparent = false`）⇒ 能拖，但**盖住的东西再也收不到触摸**；
+    ///     · **不吃**（`= true`）              ⇒ 穿透，底下的画布照常玩，**但拖不动**。
+    ///   两者**不可能兼得**。本仓 v0.96.438 已经定过这条：「浮层『可拖可关』与
+    ///   『不挡游戏』是对立的，只能靠分层收窄」—— 这里是把它落成"按页面收窄"：
+    ///     · **命令行页**：底下没有游戏 ⇒ 开（正文也能拖，抓哪儿都行）；
+    ///     · **绘图窗口页**：底下就是游戏 ⇒ 关（正文穿透，只有把柄那一格能拖）。
+    /// </summary>
+    private bool _bodyDraggable;
+
+    /// <summary>
+    /// 设定正文块能不能拖（见 <see cref="_bodyDraggable"/> 那段注释：这是**按页面**的取舍）。
+    /// 必须在构造之后调（`_body` 要先存在）。
+    /// </summary>
+    public void SetBodyDraggable(bool on)
+    {
+        _bodyDraggable = on;
+        if (_body is null) return;
+        _body.InputTransparent = !on;
+#if !ANDROID
+        // ⚠ **补挂**：构造那会儿 `_bodyDraggable` 还是默认值，非 Android 这条分支
+        //   （下面构造里那句 `if (_bodyDraggable) AttachPanDrag(_body)`）当时没挂上，
+        //   事后才打开就再也挂不上了 —— 表现是"桌面/iOS 上正文拖不动"。
+        //   Android 那条是无条件挂的，不受影响（`AttachPanDrag` 自带去重）。
+        if (on) AttachPanDrag(_body);
+#endif
+    }
 
     /// <summary>
     /// 把拖动接到把柄的**平台视图**上，收 `MotionEvent.RawX/RawY`（屏幕绝对坐标）。
@@ -340,9 +411,10 @@ public sealed class VmStatusOverlay : ContentView
     /// </summary>
     private void AttachNativeDrag(View target)
     {
-        if (_nativeDragAttached) return;
+        // ⚠ **先判平台视图、再记账**：Handler 还没建好时 `PlatformView` 是 null，
+        //   这一趟若已经记了账，等 Handler 真建好那次就会被守卫挡掉，**再也接不上**。
         if (target.Handler?.PlatformView is not Android.Views.View v) return;
-        _nativeDragAttached = true;
+        if (!_dragAttached.Add(target)) return;
         v.Touch += OnPlatformTouch;
     }
 
@@ -377,10 +449,26 @@ public sealed class VmStatusOverlay : ContentView
                 break;
         }
 
-        // 一律吃掉：这一段触摸属于"抓把柄"，不该再冒泡给下面的画布/输出区
+        // ⚠ **一律吃掉** —— 这一句是"能拖"的前提，不是可有可无的收尾：
+        //   Android 的手势序列是**独占**的，Down 被谁消费，后续 Move/Up 就全归谁。
+        //   曾经试过"Down 先不吃、等位移超阈值再开始吃"，想让轻点穿透给下面的画布 ——
+        //   结果是**面板再也收不到 Move**（手势序列早被判给了下层），
+        //   症状是「VM 状态条完全拖动不了」。这条路的结论：**同一块区域只能二选一**。
         e.Handled = true;
     }
 #else
+    /// <summary>给一格挂上桌面/iOS 的拖动（Android 那条走原生触摸，见 <see cref="AttachNativeDrag"/>）。</summary>
+    private void AttachPanDrag(View target)
+    {
+        // 去重：`SetBodyDraggable` 可能事后再来挂一次（见那里的注释）
+        if (!_dragAttached.Add(target)) return;
+        // ⚠ `PanGestureRecognizer` **一个实例只能挂一处** —— 它自带手势状态，
+        //   两格共用会在抬起/取消时串台。所以每格新建一个。
+        var pan = new PanGestureRecognizer();
+        pan.PanUpdated += OnPanUpdated;
+        target.GestureRecognizers.Add(pan);
+    }
+
     private void OnPanUpdated(object? sender, PanUpdatedEventArgs e)
     {
         switch (e.StatusType)

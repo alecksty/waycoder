@@ -763,12 +763,20 @@ namespace CppCompiler
             string type = ParseType();
             Expr? size = null;
             if (Match(TokenType.LBRACKET)) { size = ParseExpression(); Expect(TokenType.RBRACKET); }
-            // new int(42) — constructor-style initializer
+            // `(` 后面**允许是空的** —— 同一个括号里装着两件不同的事：
+            //   `new A()`    → 构造实参表（**可以一个都不给**，`A()` 就是"调无参构造"）
+            //   `new int(42)` → 标量初值
+            // ⚠ 原先这里无条件 `ParseExpression()`，于是 `new A()` 的空实参表被当成
+            //   "一个表达式的位置却什么都没有" ⇒ 「表达式缺失或多余（遇到 ')'）」，
+            //   **`new` 整个写不出来**（`new A(1)` 也进不去，因为报错在括号里）。
+            //   括号里给几个实参是**语义**问题，不是**语法**问题 —— 语法层只管收下来。
             if (Match(TokenType.LPAREN))
             {
-                var init = ParseExpression();
+                var init = new List<Expr>();
+                if (!Check(TokenType.RPAREN))
+                    do { init.Add(ParseExpression()); } while (Match(TokenType.COMMA));
                 Expect(TokenType.RPAREN);
-                return new NewExpr { Type = type, Size = size, Init = new List<Expr> { init } };
+                return new NewExpr { Type = type, Size = size, Init = init };
             }
             return new NewExpr { Type = type, Size = size };
         }

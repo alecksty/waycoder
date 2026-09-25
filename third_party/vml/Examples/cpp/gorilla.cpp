@@ -12,13 +12,25 @@
 //   · **基类指针数组**（`Entity* actors[8]`）---- 画图时多态派发到各自的 `Draw()`
 //   · 对象数组、对象里嵌对象、对象互相调用、复合赋值与自增
 //
-// ## 前端的四条限制（本文件的写法是为绕开它们，不是风格选择）
+// ## 前端的四条限制 —— **已经全部修好了**，但这个文件**暂时仍按老写法**
 //
-//   ① **类里不能有数组字段**（`int data[4];` 直接解析错误「期望 SEMICOLON」）
-//      ⇒ 香蕉的尾迹用**文件级数组**（`trailX/trailY`）。
-//   ② **方法不能返回指针类型**（`Chunk* InnerRef()` 解析错误）⇒ 一律返回 int / void。
-//   ③ **`cout << 对象的字段` 打不出东西**（打出来是空的）⇒ 要印就先存进局部量。
-//   ④ **临时对象赋值**（`a0 = Ape(1, 2);`）不生效 ⇒ 用 `Setup(...)` 这样的成员方法改状态。
+// 这四条原先是真的写不出来（下面括号里是当年的报错），现在都能写了：
+//
+//   ① **类里不能有数组字段** ⇒ 现在能了（`int data[4];` 正常，见 `KNOWN_DEFECTS.md` 的 F25）。
+//      本文件的尾迹仍在**文件级数组**（`trailX/trailY`），因为整条链上还有一小截没通：
+//      **成员数组在类内部用隐式 `this` 做下标读**（`trailX[i]` 而不是 `b.trailX[i]`）
+//      算出来的地址不对（`d30.cpp`：求和 143 应为 99，且输出会断）。等那一截修好再收回来。
+//   ② **方法不能返回指针类型** ⇒ 现在能了（F26）。本文件没有需要返回指针的地方，维持原样。
+//   ③ **`cout << 对象的字段` 打不出东西** ⇒ 现在能了（F22/F30）。本文件里凡是要印的
+//      仍习惯性先存进局部量 —— 那是无害的写法，不是缺陷绕过。
+//   ④ **临时对象赋值**（`a0 = Ape(1, 2);`）不生效 ⇒ 现在能了（F31，且带默认参数补齐 F28）。
+//      本文件仍用 `Setup(...)` / `Launch(...)` 这类成员方法改状态：对"改一个已有对象的
+//      若干字段"来说，成员方法本来就更直白。
+//
+// ⚠ **别照着这几条去写新程序** —— 新代码该用什么用什么；这份注释的作用是
+//   让人知道"这段老写法不是风格选择、也不是不能改，而是**改之前先跑一遍**"。
+//   完整台账（哪些修了、哪些还开着、怎么复现）见
+//   `VMLPrepares/CppCompiler/KNOWN_DEFECTS.md`。
 //
 // ## 操作
 //
@@ -109,13 +121,14 @@ char* numstr(int v)
 }
 
 // ════════════════════════════════════════════════════════════════════
-// 香蕉尾迹（见文件头 ①：类里放不了数组）
+// 香蕉尾迹。见文件头 ①：**类里现在能放数组了**，但"成员数组在类内部用隐式 `this`
+// 做下标读"那一截还没通（`d30.cpp`），所以尾迹暂时仍在文件级。
 // ════════════════════════════════════════════════════════════════════
 
 static int trailX[MAX_TRAIL];
 static int trailY[MAX_TRAIL];
 
-// 按序号访问具名字段的指针表（见 `Game` 里那段注释：类里放不了数组字段）
+// 按序号访问具名字段的指针表（见 `Game` 里那段注释：那里的写法是历史原因，不是限制）
 static Building* BL[4];
 static Ape* AP[2];
 static Tree TREES[6];        // 地上的树（数量随机，见 Game::Layout）
@@ -151,6 +164,189 @@ static Flyer* FLY[3];        // 鸟 / 飞碟 / 飞机 —— 三个派生类共�
 #define C_BOOM      0xFFFF7020
 
 // ════════════════════════════════════════════════════════════════════
+// 颜色插值 —— 全文件配色的**唯一**入口
+//
+//   两个颜色按百分比插值，结果打包成 0xAARRGGBB。
+//   分量各自算完再打包 —— **只打包、不解包**：`0xFF` 打头的颜色在 int 里是负数，
+//   反解一个"颜色变量"要先处理符号，而"分量算完再打包"根本不需要反解。
+//
+// ⚠ 参数名一律**两个字母以上**：本仓实测「7 个参数 + 单字母参数名」会让**别的类**
+//   解析失败（解析期一个错都不报），见 `KNOWN_DEFECTS.md` 的 OPEN #17。
+// ════════════════════════════════════════════════════════════════════
+
+int mixcol(int nr, int ng, int nb, int dr, int dg, int db, int pct)
+{
+    int cr;
+    int cg;
+    int cb;
+    cr = nr + (dr - nr) * pct / 100;
+    cg = ng + (dg - ng) * pct / 100;
+    cb = nb + (db - nb) * pct / 100;
+    return 0xFF000000 + cr * 65536 + cg * 256 + cb;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 游戏时钟 —— **一组全局量 + 自由函数**（1 真实秒 = 1 游戏分钟）
+//
+// ## 为什么不是类
+//
+// 一开始它是 `class Clock` + 一个全局对象 `static Clock gclk;`，结果**天空恒黑**：
+// `Compute` 里写 `zenR/G/B` 之后，外面读到的还是 0。查了一圈 —— 全局对象上调用方法
+// 正常（`d44`）、方法内读自己的字段正常（`d45`/`d47`）、字段数多寡无关、
+// 参数重名无关、方法返回值当实参正常（`d48`）—— **根因没找到**（见 OPEN #18）。
+//
+// 用户拍板绕开：**没有类就没有 `this` 和字段偏移这整条链**。代价是这里的"状态"
+// 是大写开头的全局量而不是对象字段，读起来糙一点；好处是它**确实能工作**。
+// ⚠ 等 OPEN #18 定位了，这一段可以收回成类 —— 那时别把上面的结论当"类不能用"。
+//
+// ## 时间怎么走
+//
+// 走**独立的一秒定时器**，不是"每画一帧加一点"：主循环在玩家拖动滑条时会一次
+// 抽干几十条 TOUCHMOVE，拿帧数当时钟会"滑得越勤、时钟跑得越快"。
+// ════════════════════════════════════════════════════════════════════
+
+static int gHour = 7;        // 开局清晨 —— 一进来就是白天，玩家不用干等
+static int gMinute = 30;
+static int gDayL;            // 天光 0..100（0 = 全黑、100 = 正午满亮）
+static int gWarm;            // 日出/日落的暖色系数 0..100（地平线偏橙）
+static int gSunUp;
+static int gMoonUp;
+static int gSunX;
+static int gSunY;
+static int gMoonX;
+static int gMoonY;
+static int gZenR; static int gZenG; static int gZenB;    // 当前天顶色
+static int gHorR; static int gHorG; static int gHorB;    // 当前地平线色
+static int gMr; static int gMg; static int gMb;          // `clockPartsAt` 的输出
+
+// 游戏时钟走一格
+void clockTick()
+{
+    gMinute = gMinute + 1;
+    if (gMinute >= 60) { gMinute = 0; gHour = gHour + 1; }
+    if (gHour >= 24) { gHour = 0; }
+}
+
+// 算这一刻的天光 / 暖色 / 日月位置 —— **每帧调一次**（游戏时间可能刚跳过一格）
+void clockCompute(int scrW, int groundY, int hudH)
+{
+    int gmins;
+    int tpv;
+    int mm;
+    int tp2;
+    int win;
+    int arcX0;
+    int arcW;
+    int arcBot;
+    int arcH;
+
+    gmins = gHour * 60 + gMinute;
+
+    // 太阳：6:00 升、12:00 顶、18:00 落
+    gSunUp = 0;
+    tpv = 0;
+    if (gmins >= 360)
+    {
+        if (gmins <= 1080)
+        {
+            gSunUp = 1;
+            tpv = (gmins - 360) * 1000 / 720;         // 0..1000
+        }
+    }
+    gDayL = 0;
+    if (gSunUp != 0)
+    {
+        // 高度角 → 0..100，再**提亮 1.4 倍**（封顶 100）。
+        // 不提的话"看着像白天"只有 9:00–15:00 那一小段，而玩家 24 分钟才看完一天，
+        // 白天的观感被压到中间那几帧很不划算。1.4 倍之后约 7:00–17:00 都满亮。
+        // ⚠ `isin` 的值域是 ×1000（**不是 BASIC 那个 SIN 的 ×10000**），
+        //   所以这里是 `* 14 / 100` = ×140 —— 照抄 BASIC 的 `/ 1000` 会差一个数量级。
+        gDayL = isin(tpv * 180 / 1000) * 14 / 100;
+        if (gDayL > 100) { gDayL = 100; }
+    }
+
+    // 日月走**同一条弧**（月亮把时钟拨 12 小时）
+    arcX0 = 40;
+    arcW = scrW - 80;
+    arcBot = groundY - 46;
+    arcH = arcBot - hudH - 46;
+    if (arcH < 40) { arcH = 40; }
+    gSunX = arcX0 + arcW * tpv / 1000;
+    gSunY = arcBot - arcH * isin(tpv * 180 / 1000) / 1000;
+
+    mm = gmins + 720;
+    if (mm >= 1440) { mm = mm - 1440; }
+    gMoonUp = 0;
+    tp2 = 0;
+    if (mm >= 360)
+    {
+        if (mm <= 1080)
+        {
+            gMoonUp = 1;
+            tp2 = (mm - 360) * 1000 / 720;
+        }
+    }
+    gMoonX = arcX0 + arcW * tp2 / 1000;
+    gMoonY = arcBot - arcH * isin(tp2 * 180 / 1000) / 1000;
+
+    // 天顶：夜(7,10,24) → 昼(46,111,208)
+    gZenR = 7 + (46 - 7) * gDayL / 100;
+    gZenG = 10 + (111 - 10) * gDayL / 100;
+    gZenB = 24 + (208 - 24) * gDayL / 100;
+    // 地平线：夜(18,19,42) → 昼(168,216,245)
+    gHorR = 18 + (168 - 18) * gDayL / 100;
+    gHorG = 19 + (216 - 19) * gDayL / 100;
+    gHorB = 42 + (245 - 42) * gDayL / 100;
+
+    // 日出 / 日落的暖色：以 6:00 与 18:00 为中心各一个 ±60 分钟的三角窗。
+    // ⚠ **不能用 gDayL 算暖色**：它在日落那一刻直接归 0，而"0 ⇒ 最暖"会让
+    //   地平线在 18:00 整从橙**跳**回蓝（BASIC 版实测过，肉眼可见的一跳）。
+    //   按**时钟**给窗、两窗重叠取大，黄昏的余晖才是连续收尾的。
+    gWarm = 0;
+    if (gmins >= 300)
+    {
+        if (gmins <= 420)
+        {
+            gWarm = 100 - iabs(gmins - 360) * 100 / 60;
+        }
+    }
+    if (gmins >= 1020)
+    {
+        if (gmins <= 1140)
+        {
+            win = 100 - iabs(gmins - 1080) * 100 / 60;
+            if (win > gWarm) { gWarm = win; }
+        }
+    }
+    gHorR = gHorR + (236 - gHorR) * gWarm / 100;
+    gHorG = gHorG + (126 - gHorG) * gWarm / 100;
+    gHorB = gHorB + (64 - gHorB) * gWarm / 100;
+}
+
+int clockZenith() { return 0xFF000000 + gZenR * 65536 + gZenG * 256 + gZenB; }
+
+int clockHorizon() { return 0xFF000000 + gHorR * 65536 + gHorG * 256 + gHorB; }
+
+// 某个 y 处的天空色**分量** —— 给 `mixcol` 用（它吃分量、不吃打包色）。
+// 结果落在 gMr/gMg/gMb（与 BASIC 版 `mix2`/`skyAt` 的约定一致：输出走固定全局，
+// 因为 C++ 前端不能让函数一次返回三个值）。
+void clockPartsAt(int posY, int groundY)
+{
+    int frac;
+    if (groundY <= 0) { groundY = 1; }
+    frac = posY * 100 / groundY;
+    if (frac < 0) { frac = 0; }
+    if (frac > 100) { frac = 100; }
+    gMr = gZenR + (gHorR - gZenR) * frac / 100;
+    gMg = gZenG + (gHorG - gZenG) * frac / 100;
+    gMb = gZenB + (gHorB - gZenB) * frac / 100;
+}
+
+// 把上一次 `clockPartsAt` 的结果打包
+int clockPackParts() { return 0xFF000000 + gMr * 65536 + gMg * 256 + gMb; }
+
+
+// ════════════════════════════════════════════════════════════════════
 // Entity —— 所有能在屏幕上画自己的东西的基类
 //
 // 只放两个字段（屏幕坐标）+ 一个**虚**的 Draw()。放基类指针数组里逐个调 Draw()
@@ -184,7 +380,6 @@ public:
     int sw;
     int sh;
     int gy;              // 地平线 y
-    int night;
     int ticks;           // 用来自转星星/眨眼的计数
 
     Sky()
@@ -192,16 +387,14 @@ public:
         sw = 0;
         sh = 0;
         gy = 0;
-        night = 0;
         ticks = 0;
     }
 
-    void Setup(int w, int h, int groundY, int isNight)
+    void Setup(int w, int h, int groundY)
     {
         sw = w;
         sh = h;
         gy = groundY;
-        night = isNight;
         ticks = 0;
     }
 
@@ -215,40 +408,63 @@ public:
         int i;
         int sx;
         int sy;
-        int r;
+        int rad;
+        int fade;        // 星星的可见度（跟着天光走）
 
-        if (night != 0)
-        {
-            ui_gradient("sky", 0, C_SKY_NIT1, C_SKY_NIT2, 0, 0, 0, 1000);
-        }
-        else
-        {
-            ui_gradient("sky", 0, C_SKY_DAY1, C_SKY_DAY2, 0, 0, 0, 1000);
-        }
+        // 天空：**整块渐变**，两端颜色每一帧都随时钟算（与 BASIC 版 `skyPal` 同一口径）。
+        ui_gradient("sky", 0, clockZenith(), clockHorizon(), 0, 0, 0, 1000);
         ui_rect_grad(0, 0, sw, gy, "sky", 0);
 
-        if (night != 0)
+        // ── 星星 ──────────────────────────────────────────────────────
+        // 位置由下标推出来（**不用随机数**，否则每帧都在闪）。
+        // 可见度**跟着天光淡出**：天光满时正好等于当地天空色 ⇒ 自然消失。
+        // 这样就不需要"天黑该不该画星星"那个开关 —— 开关会在某一刻跳一下，
+        // 而连续变化的场景里，任何"跳"都看得出来。
+        fade = 0;
+        if (gDayL < 45) { fade = (45 - gDayL) * 220 / 45; }
+        if (fade > 100) { fade = 100; }
+        if (fade > 0)
         {
-            // 星星：位置由下标推出来（**不用随机数**，否则每帧都在闪）
             i = 0;
             while (i < 26)
             {
                 sx = (i * 137 + 41) % sw;
                 sy = (i * 89 + 23) % (gy - 40) + 10;
-                r = 1 + (i % 3);
+                rad = 1 + (i % 3);
                 if ((ticks / 8 + i) % 5 != 0)
                 {
-                    ui_rect(sx, sy, r, r, C_STAR, 1, 0, 0);
+                    clockPartsAt(sy, gy);
+                    // 每颗星再差一点亮度（由下标定），不然一片一模一样的白点像噪点
+                    ui_rect(sx, sy, rad, rad,
+                            mixcol(gMr, gMg, gMb, 255, 255, 255, fade - (i % 5) * 6),
+                            1, 0, 0);
                 }
                 i = i + 1;
             }
-            ui_circle(sw - 54, 54, 22, C_MOON, 1, 0);
-            ui_circle(sw - 62, 48, 20, C_SKY_NIT1, 1, 0);
         }
-        else
+
+        // ── 太阳 / 月亮 ────────────────────────────────────────────────
+        // 位置由时钟算（6:00 升、12:00 顶、18:00 落；月亮差 12 小时走同一条弧）。
+        // 都带一圈"朝**当地天空色**淡出"的光晕 —— 天空是渐变的，光晕外缘写死一个
+        // 颜色就会在渐变天上留一个色斑，而且只在某些时段看得出来。
+        if (gSunUp != 0)
         {
-            ui_circle(sw - 54, 54, 24, C_SUN, 1, 0);
-            ui_circle(sw - 54, 54, 34, 0x40FFE060, 1, 0);
+            clockPartsAt(gSunY, gy);
+            ui_gradient("sunglow", 1, 0xFFFFE9A8, clockPackParts(), 500, 500, 500);
+            ui_circle_grad(gSunX, gSunY, 34, "sunglow");
+            ui_circle(gSunX, gSunY, 11, 0xFFFFF0B4, 1, 0);
+            ui_circle(gSunX - 3, gSunY - 3, 4, 0xFFFFFCE6, 1, 0);
+        }
+        if (gMoonUp != 0)
+        {
+            clockPartsAt(gMoonY, gy);
+            ui_gradient("moonglow", 1, 0xFFEDE9D6, clockPackParts(), 500, 500, 500);
+            ui_circle_grad(gMoonX, gMoonY, 26, "moonglow");
+            ui_circle(gMoonX, gMoonY, 14, 0xFFF4F0DE, 1, 0);
+            // 环形山（三个暗一点的小圆）—— 没有它们月亮就是一个白饼
+            ui_circle(gMoonX - 5, gMoonY - 4, 3, 0xFFDCD6BE, 1, 0);
+            ui_circle(gMoonX + 4, gMoonY + 2, 2, 0xFFDCD6BE, 1, 0);
+            ui_circle(gMoonX + 1, gMoonY - 7, 2, 0xFFE4DEC6, 1, 0);
         }
     }
 };
@@ -264,6 +480,9 @@ public:
     int h;
     int gy;              // 地平线（底面）
     int tint;            // 配色档（0..3）
+    int baseR;           // 本栋的**基色分量** —— 配色随时钟变化时要从分量算起
+    int baseG;
+    int baseB;
 
     Building()
     {
@@ -271,9 +490,22 @@ public:
         h = 0;
         gy = 0;
         tint = 0;
+        baseR = 110; baseG = 90; baseB = 70;
     }
 
-    void SetTint(int t) { tint = t; }
+    /// <summary>
+    /// 定色相。**存分量而不是只存档号** —— 后面每一处配色（楼体、受光面、檐口、窗框）
+    /// 都要以它为基准按天光插值，每次再从档号反解一遍颜色分量是"同一件事两处实现"。
+    /// 四个色与 `C_BLDG_A..D` 一一对应（BASIC 版是 6 档，这里沿用本文件原有的 4 档）。
+    /// </summary>
+    void SetTint(int t)
+    {
+        tint = t;
+        baseR = 110; baseG = 90; baseB = 70;        // A 0xFF6E5A46
+        if (t == 1) { baseR = 138; baseG = 114; baseB = 88; }    // B 0xFF8A7258
+        if (t == 2) { baseR = 90; baseG = 110; baseB = 122; }    // C 0xFF5A6E7A
+        if (t == 3) { baseR = 122; baseG = 90; baseB = 110; }    // D 0xFF7A5A6E
+    }
 
     void Setup(int px, int pw, int ph, int groundY)
     {
@@ -296,25 +528,49 @@ public:
         return 1;
     }
 
+    /// <summary>
+    /// 一栋楼。**全部颜色都跟着天光走** —— 这是"昼夜连续变化"里最显眼的一块：
+    /// 楼体是"同一个色相压到 16%"，窗是"白天冷玻璃 → 夜里暖灯"，两者都按 `gDayL` 插值。
+    ///
+    /// ⚠ 不另存一张夜色调色板 —— 那样"哪栋是哪栋"得靠人保持两张表同步（本仓的平行表坑）。
+    /// 口径与 `basic/gorilla_pro.bas` 的 `drawBuilding` 一致。
+    /// </summary>
     virtual void Draw()
     {
-        int col;
+        int bodyC;
+        int hiC;
+        int edgeC;
+        int litC;
+        int offC;
+        int frmC;
         int cols;
         int rows;
         int c;
         int r;
         int wx;
         int wy;
+        int litN;
 
-        // 按**楼号**染色（不是按 x 的奇偶）：一整条街四栋各不同，看着才像城市
-        col = C_BLDG_A;
-        if (tint == 1) { col = C_BLDG_B; }
-        if (tint == 2) { col = C_BLDG_C; }
-        if (tint == 3) { col = C_BLDG_D; }
-        ui_rect(x, y, w, h, col, 1, 0, 0);
-        ui_rect(x, y, w, 3, C_APE_DARK, 1, 0, 0);
+        // 楼体：夜色 = **同一个色相压到 16%**，按天光在两者之间插值
+        bodyC = mixcol(baseR * 16 / 100, baseG * 16 / 100, baseB * 16 / 100,
+                       baseR, baseG, baseB, gDayL);
+        ui_rect(x, y, w, h, bodyC, 1, 0, 0);
 
-        // 窗格
+        // 受光面：左侧 3px 亮一点（白天更明显）；右侧 2px 压暗 —— 楼才有体积感
+        hiC = mixcol(baseR, baseG, baseB, 255, 255, 255, 6 + gDayL * 12 / 100);
+        edgeC = mixcol(baseR, baseG, baseB, 0, 0, 0, 14 + gDayL * 10 / 100);
+        ui_rect(x, y, 3, h, hiC, 1, 0, 0);
+        ui_rect(x + w - 2, y, 2, h, edgeC, 1, 0, 0);
+
+        // 檐口：比楼体亮一档（白天像被阳光打亮，夜里像被月光勾了一道边）
+        ui_rect(x, y, w, 4, mixcol(baseR, baseG, baseB, 255, 255, 255, 18 + gDayL * 22 / 100), 1, 0, 0);
+
+        // 窗：白天是玻璃（冷色反光），夜里点灯（暖黄）；**夜里亮的窗更多**。
+        litC = mixcol(255, 198, 104, 226, 236, 244, gDayL);
+        offC = mixcol(14, 14, 24, 52, 74, 96, gDayL);
+        frmC = mixcol(baseR, baseG, baseB, 0, 0, 0, 45);
+        litN = 4 - gDayL * 2 / 100;
+
         cols = w / 18;
         if (cols < 1) { cols = 1; }
         rows = h / 24;
@@ -327,18 +583,23 @@ public:
             {
                 wx = x + 6 + c * 18;
                 wy = y + 10 + r * 24;
-                if (((c + r + x) % 3) == 0)
+                // 窗框 + 玻璃（**有框才像窗**，没框就是一排色块）
+                ui_rect(wx - 1, wy - 1, 11, 14, frmC, 1, 0, 0);
+                if (((c + r + x / 8) % 5) < litN)
                 {
-                    ui_rect(wx, wy, 9, 12, C_WIN_LIT, 1, 0, 0);
+                    ui_rect(wx, wy, 9, 12, litC, 1, 0, 0);
                 }
                 else
                 {
-                    ui_rect(wx, wy, 9, 12, C_WIN_DARK, 1, 0, 0);
+                    ui_rect(wx, wy, 9, 12, offC, 1, 0, 0);
                 }
                 r = r + 1;
             }
             c = c + 1;
         }
+
+        // 门（贴楼底）。⚠ 被弹坑盖住是对的 —— 坑就是"打没了"。
+        ui_rect(x + w / 2 - 6, gy - 16, 12, 16, frmC, 1, 0, 3);
     }
 };
 
@@ -888,7 +1149,7 @@ public:
     {
     }
 
-    void Draw(Ape* a0, Ape* a1, int turn, int sw, int night)
+    void Draw(Ape* a0, Ape* a1, int turn, int sw)
     {
         ui_rect(0, 0, sw, 30, C_HUD_BG, 1, 0, 0);
 
@@ -901,9 +1162,27 @@ public:
         if (turn == 0) { ui_text(sw / 2, 20, "轮到 橙", C_APE0, 14, VML_ANCHOR_CENTER); }
         else { ui_text(sw / 2, 20, "轮到 紫", C_APE1, 14, VML_ANCHOR_CENTER); }
 
-        if (night != 0)
+        // 昼夜标记：白天不写、天黑了才写"夜" —— 比写"昼"省一格，也更像在报状态
+        if (gDayL < 40)
         {
             ui_text(sw / 2 + 58, 20, "夜", C_TEXT_DIM, 12, VML_ANCHOR_CENTER);
+        }
+
+        // 游戏时间 hh:mm。
+        // ⚠ 一律**左对齐**、坐标各自往左让位 —— 用 `VML_ANCHOR_RIGHT` 让它们右对齐
+        //   的话几段会叠在同一处（实测「7」和「30」压成了「7月3」）。
+        // ⚠ 分钟补零靠判断而不是 `sprintf("%02d")` —— 本平台的 `%` 转换是坏的
+        //   （见 KNOWN_DEFECTS 的 9/10）。
+        ui_text(sw - 96, 20, numstr(gHour), C_TEXT_DIM, 11, VML_ANCHOR_LEFT);
+        ui_text(sw - 89, 20, ":", C_TEXT_DIM, 11, VML_ANCHOR_LEFT);
+        if (gMinute < 10)
+        {
+            ui_text(sw - 84, 20, "0", C_TEXT_DIM, 11, VML_ANCHOR_LEFT);
+            ui_text(sw - 77, 20, numstr(gMinute), C_TEXT_DIM, 11, VML_ANCHOR_LEFT);
+        }
+        else
+        {
+            ui_text(sw - 84, 20, numstr(gMinute), C_TEXT_DIM, 11, VML_ANCHOR_LEFT);
         }
     }
 };
@@ -915,10 +1194,12 @@ public:
 class Game
 {
 public:
-    // ⚠ 这里**不能写成 `Building bldgs[4];`** —— 类里放不了数组字段
-    //   （`int data[4];` 直接解析错误「期望 SEMICOLON，实际得到 LBRACKET」）。
-    //   所以四条楼、两只猴子各自**具名**，另外用文件级指针表按序号访问
-    //   （`BL[i]` / `AP[i]`，见本文件顶部的 `g_*` 那一组）。
+    // ⚠ 这里写的是"四个具名 `Building` + 文件级指针表 `BL[i]`"。
+    //   **当年是因为类里放不了数组字段**（`int data[4];` 报「期望 SEMICOLON」），
+    //   现在那个限制已经修好（F25），但**还没收回来**：成员数组的读写整体缺一小截
+    //   （见 `d30.cpp` —— 类内部用隐式 `this` 做下标读会算错地址），
+    //   而这个文件当前是**能跑的**，不宜为写法好看去动它的内存布局。
+    //   等那一截修好，这里就该是 `Building bldgs[4]; Ape apes[2];`。
     Sky sky;
     Building b0;
     Building b1;
@@ -1021,9 +1302,8 @@ public:
         if (sh <= 0) { sh = 726; }
 
         gy = sh * 74 / 100;
-        night = (ui_rand(2) == 1);
-
-        sky.Setup(sw, sh, gy, night);
+        // 天空不再"掷一个昼夜"，它跟着游戏时钟连续变化
+        sky.Setup(sw, sh, gy);
 
         gap = sw / 40;
         bw = (sw - gap * 5) / 4;
@@ -1439,6 +1719,10 @@ public:
         int i;
         Entity* actors[8];
 
+        // ⚠ **每帧的第一件事**：把这一刻的天光 / 暖色 / 日月位置算出来。
+        //   后面每一处配色（天、楼、窗、地、云、弹坑）都读它算出来的那几个全局量。
+        clockCompute(sw, gy, 30);
+
         // 多态绘制：全部当 Entity 指针调 Draw()，实现由各自决定
         actors[0] = &sky;
         actors[1] = &(*BL[0]);
@@ -1504,7 +1788,7 @@ public:
             else { ui_text(sw / 2, gy / 2, "紫猴命中！", C_APE1, 26, VML_ANCHOR_CENTER); }
         }
 
-        hud.Draw(&(*AP[0]), &(*AP[1]), turn, sw, night);
+        hud.Draw(&(*AP[0]), &(*AP[1]), turn, sw);
         wind.Draw(sw, 44);
         DrawAimPanel();
 
@@ -1538,6 +1822,7 @@ int main()
 {
     Game g;
     int tid;
+    int cid;
     int t;
     int k;
     int done;
@@ -1553,6 +1838,10 @@ int main()
     g.NewTurn();
 
     tid = ui_timer_set(TICK_MS, 0);
+    // 游戏时钟：**另一只定时器**，1 真实秒 = 1 游戏分钟（24 真实分钟走完一天）。
+    // 为什么不拿物理节拍那只数帧：玩家拖动滑条时主循环会一次抽干几十条 TOUCHMOVE，
+    // 帧率完全取决于输入有多密 —— 数帧的话"滑得越勤、时钟跑得越快"。
+    cid = ui_timer_set(1000, 0);
     done = 0;
 
     while (done == 0 && ui_win_closed() == 0)
@@ -1564,11 +1853,21 @@ int main()
 
         if (t == VML_MSG_TIMER)
         {
-            g.Tick();
-            if (g.over != 0)
+            // ⚠ **必须按定时器 id 分流**：现在有两只（物理节拍 33ms、游戏时钟 1000ms），
+            //   不分的话两只都会走对方的逻辑 —— 时钟按 33ms 飞奔、物理按 1 秒一跳。
+            //   消息 A 就是定时器 id。
+            if (ui_msg_a() == cid)
             {
-                ui_timer_kill(tid);
-                tid = 0;
+                clockTick();
+            }
+            else
+            {
+                g.Tick();
+                if (g.over != 0)
+                {
+                    ui_timer_kill(tid);
+                    tid = 0;
+                }
             }
         }
         if (t == VML_MSG_KEYDOWN) { g.KeyDown(ui_msg_a()); }
@@ -1583,6 +1882,7 @@ int main()
     }
 
     if (tid != 0) { ui_timer_kill(tid); }
+    if (cid != 0) { ui_timer_kill(cid); }
 
     // 比分落盘（下次开局问不出来，但先存着 —— 与 BASIC 版同一套键）
     score0 = (*AP[0]).score;

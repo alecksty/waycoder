@@ -1311,7 +1311,15 @@ public partial class ShellPage : ContentPage
     /// 开关是全局的（`MauiVmStatusStore`）：在绘图窗口里打开之后回到这一页也该是开着的 ——
     /// 所以 `OnAppearing` 每次都要重新同步一次，不能只在点菜单时设。
     /// </summary>
-    private void ApplyVmStatusVisibility() => VmStatus.IsVisible = MauiVmStatusStore.Visible;
+    private void ApplyVmStatusVisibility()
+    {
+        // ⚠ **命令行页的正文块也参与拖动**（"整条除了图标键都能拖"）——
+        //   这一页底下是命令输出，没有游戏可挡，所以可以放心让正文吃触摸。
+        //   绘图窗口页**不能**这么干：那一页底下就是游戏，正文吃触摸 = 盖住的地方
+        //   手指点不到游戏（见 `VmStatusOverlay._bodyDraggable` 那段，以及 v0.96.438 的结论）。
+        VmStatus.SetBodyDraggable(true);
+        VmStatus.IsVisible = MauiVmStatusStore.Visible;
+    }
 
     /// <summary>
     /// **改字号**（菜单 / 捏合结束共用这一条）。

@@ -645,7 +645,10 @@ namespace CppCompiler
 
                 // 补足到声明的元素个数（`int g[4] = {1,2};` 后面两个是 0）
                 int declared = vd.ArraySize is IntLiteral sz ? sz.Value : flat.Count;
-                while (flat.Count < declared) flat.Add(0);
+                // ⚠ 补的量按 **`declared × 每个元素占几格`**，不是 `declared` 个格 ——
+                //   见下面 `elemWords` 的说明。
+                int elemWords = Math.Max(1, (SizeOfDeclaredType(vd.Type) + 3) / 4);
+                while (flat.Count < declared * elemWords) flat.Add(0);
 
                 // ⚠ **必须补那个 4 字节长度头**。C++ 前端的数组布局是
                 //   `[长度(4B)][元素…]` —— 见 `GenerateLocalVar` 的注释
@@ -711,9 +714,22 @@ namespace CppCompiler
             else if (vd.IsArray)
             {
                 // 未初始化的全局数组：同样要有 `[长度][元素…]`（见上面那段说明）
+                //
+                // ⚠⚠ **一格必须占"一个元素"那么大，不能恒按 4 字节算。**
+                //   访问侧（`ArrayIndexInfo` → `GetElementSize`）早就是按元素的真实字节数
+                //   跨步的，这里却写死"一格 4 字节"——**同一件事两处实现**，
+                //   只要元素不是 4 字节就必然分家：
+                //     `static Tree TREES[6]`（`Tree` 4 个 int = 16 字节）
+                //     ⇒ 这里只给 6 格（24 字节），而访问侧按 16 跨步
+                //     ⇒ **第 2 个元素就写出数据段**，踩在别的全局量上。
+                //   实测症状（gorilla.cpp）：`--frame` 只剩天空与楼房、
+                //   `--frames` **一帧都不导**（`Game::Draw` 的流程被写坏，
+                //   `ui_present()` 根本执行不到），而编译期**零报错**。
+                //   这条与 F21「对象数组的元素步长」是同一族：**分配与访问必须同源**。
                 int declared = vd.ArraySize is IntLiteral sz0 ? sz0.Value : 0;
+                int elemWords = Math.Max(1, (SizeOfDeclaredType(vd.Type) + 3) / 4);
                 var zeros = new List<object> { declared };
-                for (int i = 0; i < declared; i++) zeros.Add(0);
+                for (int i = 0; i < declared * elemWords; i++) zeros.Add(0);
                 dataSection[label] = zeros.ToArray();
                 _globalArrays.Add(vd.Name);
             }
@@ -1116,8 +1132,66 @@ namespace CppCompiler
 
             bool isClass = _classes.TryGetValue(ne.Type, out var clsInfo);
             bool hasVirt = isClass && clsInfo.Members.Any(m => m.IsVirtual);
-            int fieldCount = isClass ? clsInfo.Members.Count(m => !m.IsMethod) : 1;
-            int objSize = (hasVirt ? 4 : 0) + fieldCount * 4;
+
+            // ── `new T[n]`：**数组形式**，要分配「n 个元素」那么大 ──────────────
+            // ⚠ 原先这条路上 `ne.Size` **被整个忽略**：`new int[8]` 只 `alloc(4)`，
+            //   于是 `a[0..7]` 全写在分配块之外 —— **越界写别人的内存，且一声不响**。
+            //   实测 `int* a = new int[8]; a[7] = 77;` 照样打出 77（堆恰好够大），
+            //   这正是"看起来能跑"的假象：`alloc`（SYSCALL #40）只管给一块内存，
+            //   给少了它也不知道；换个分配顺序、或者中间多 new 几次，
+            //   踩到的就是别人的数据（症状会跑到很远的地方才现形）。
+            //   ⚠ **不要再加 4 字节长度头** —— `[]` 的寻址侧（`ArrayIndexInfo`）
+            //     对 `int*` 这种指针判的是 `IsPointerDeref` ⇒ **没有头**，
+            //     按 C 一致；加了头反而整体偏 4 字节。
+            if (ne.Size != null)
+            {
+                int elemSz = isClass ? ClassSizeDeep(ne.Type) : GetTypeLoadInfo(ne.Type).byteSize;
+                if (elemSz <= 0) elemSz = 4;
+                GenerateExpr(ne.Size);                        // R0 = n
+                Add(OpCode.PUSH, "R0");                       // [R13+8] 循环计数
+                Add(OpCode.MOVE, "R1", $"#{elemSz}");
+                Add(OpCode.MUL, "R0", "R0", "R1");            // R0 = n × 元素字节数
+                Add(OpCode.CALL, "alloc");                    // R0 = base
+                Add(OpCode.PUSH, "R0");                       // [R13+4] base（返回值）
+                Add(OpCode.PUSH, "R0");                       // [R13+0] 游标
+
+                // 元素是类、且有能空参调用的构造函数 ⇒ **逐个构造**
+                //（C++ 语义：`new A[n]` 是"n 个已构造的对象"，不是 n 块原始内存）
+                var elemCtor = isClass ? FindCtor(clsInfo, 0) : null;
+                if (elemCtor != null)
+                {
+                    string loopLbl = NewLabel(), doneLbl = NewLabel();
+                    labels[loopLbl] = instructions.Count;
+                    Add(OpCode.MOVE, "R1", "8(R13)");         // 剩余计数
+                    Add(OpCode.CMP, "R1", "#0");
+                    Add(OpCode.JE, doneLbl);
+                    Add(OpCode.MOVE, "R0", "4(R13)");         // this = 游标
+                    Add(OpCode.PUSH, "R0");                   // ← R13 下移一格……
+                    EmitCtorCallOnPushedThis(ne.Type, elemCtor, null);
+                    // ……它自己把那格弹掉（内部固定 `ADD R13, #(n+1)*4`），
+                    // 所以下面几条读到的偏移又回到原始位置 —— 用之前先确认这一点。
+                    Add(OpCode.MOVE, "R1", "4(R13)");
+                    Add(OpCode.ADD, "R1", $"#{elemSz}");      // 游标 += 元素大小
+                    Add(OpCode.MOVE, "4(R13)", "R1");
+                    Add(OpCode.MOVE, "R1", "8(R13)");
+                    Add(OpCode.SUB, "R1", "#1");              // 计数 -= 1
+                    Add(OpCode.MOVE, "8(R13)", "R1");
+                    Add(OpCode.JMP, loopLbl);
+                    labels[doneLbl] = instructions.Count;
+                }
+
+                Add(OpCode.MOVE, "R0", "4(R13)");             // 返回值 = base
+                Add(OpCode.ADD, "R13", "#12");                // 清掉那三个格子
+                return;
+            }
+
+            // ⚠ 对象大小**必须问 `ClassSizeDeep`**，不能按"字段个数 × 4"自己算。
+            //   那个算式漏掉三样东西，而且**漏了也不报错**（`alloc` 只管给一块内存，
+            //   给少了就是越界写别人的内存）：数组字段（`int cell[9]` 是 36 字节不是 4）、
+            //   内嵌对象（`Inner in` 是整个 Inner 那么大）、以及**基类子对象的字节数**。
+            //   `ClassSizeDeep` 早就是"对象占多少字节"的唯一实现（F21 元素步长那条
+            //   把访问侧收过来时用的就是它）—— 这里是**第二处**在自算，本该一并收掉。
+            int objSize = isClass ? ClassSizeDeep(ne.Type) : 4;
             Add(OpCode.MOVE, "R0", $"#{objSize}");
             Add(OpCode.CALL, "alloc");      // R0 = allocated ptr
             if (hasVirt)
@@ -1128,6 +1202,24 @@ namespace CppCompiler
                 Add(OpCode.MOVE, "(R1)", "R0");
                 Add(OpCode.MOVE, "R0", "R1");
             }
+
+            // ── `new A(实参)`：alloc 出来的新对象**也要跑构造函数** ──────────────
+            // ⚠ 原先这条路只把实参当"标量初值"写进对象第一个字（下面那段 `Init[0]`），
+            //   **构造函数一次都不调** —— `new A()` 的字段停在 `alloc` 给的原始内存上
+            //   （内存是不是 0 由分配器决定，不是语言保证），而 `new A(1,2)` 更糟：
+            //   它把 `1` 写进对象首字、`2` 直接丢掉。两条都是"编得过、值不对"。
+            //   实参表交给 `FindCtor` 选构造函数（它已处理"默认参数能补齐"的情形）。
+            if (isClass)
+            {
+                var ctor = FindCtor(clsInfo, ne.Init.Count);
+                if (ctor != null)
+                {
+                    Add(OpCode.PUSH, "R0");      // this —— 同时也是 `new` 的返回值
+                    EmitCtorCallOnPushedThis(ne.Type, ctor, ne.Init, resultIsThis: true);
+                    return;
+                }
+            }
+
             if (ne.Init.Count > 0)
             {
                 Add(OpCode.PUSH, "R0");          // save ptr

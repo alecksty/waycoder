@@ -59,6 +59,16 @@ namespace CppCompiler
         public string Type { get; set; } = "int";
         public string Name { get; set; } = "";
         public bool IsReference { get; set; }
+
+        /// <summary>
+        /// 默认实参（`void f(int x = 5)` 里的 `5`）；null = 没有默认值、调用处必须给。
+        ///
+        /// <para>
+        /// 调用点在实参少于形参时，从这里取表达式**在调用处求值**（与 C++ 语义一致：
+        /// 默认值是"每次调用重新求值"，不是"声明时算一次"）。
+        /// </para>
+        /// </summary>
+        public Expr? DefaultValue { get; set; }
     }
 
     public class MultiVarDecl : ASTNode
@@ -117,6 +127,17 @@ namespace CppCompiler
         public bool IsDestructor { get; set; }
         public bool IsVirtual { get; set; }
         public bool IsStatic { get; set; }
+
+        /// <summary>
+        /// 数组字段的元素个数（0 = 不是数组）。`class H { int data[4]; };` 的 `data` 是 4。
+        ///
+        /// <para>
+        /// 布局与 C 数组一致：占 `ArraySize × 元素大小` 字节、**没有长度头**
+        /// （普通局部/全局数组那套 `[长度头][元素…]` 是给 `int a[] = {…}` 用的，
+        /// 成员数组是"对象里的一块连续区域"，加头会让 `sizeof` 与字段偏移都对不上）。
+        /// </para>
+        /// </summary>
+        public int ArraySize { get; set; }
     }
 
     public class NamespaceDecl : ASTNode

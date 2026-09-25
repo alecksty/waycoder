@@ -452,6 +452,12 @@ namespace CppCompiler
             else if (Check(TokenType.IDENTIFIER))
             {
                 type = Cur.Value; Advance();
+                // ⚠ **必须把 `*` 也吃掉**：`A* InnerPtr(){ … }` 原先只取到标识符 `A` 就收手，
+                //   紧接着的 `*` 撞上 `Expect(IDENTIFIER)` ⇒
+                //   「期望 IDENTIFIER，实际得到 STAR ('*')」——
+                //   于是**类里所有返回指针的方法都写不出来**（而在类外面写自由函数是好的，
+                //   所以只看自由函数会以为没问题）。
+                while (Match(TokenType.STAR)) type += "*";
             }
             string name;
             if (Match(TokenType.OPERATOR))
@@ -493,7 +499,15 @@ namespace CppCompiler
                             if (!Check(TokenType.RBRACKET)) SkipTo(TokenType.RBRACKET);
                             Expect(TokenType.RBRACKET);
                         }
-                    func.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef });
+                    // ── 默认参数：`A(int x = 5)` ──
+                    // 语法上收下并**丢弃**默认值（调用点仍须写全实参）。
+                    // ⚠ 不收的话这里会撞上 `Expect(RPAREN)` ⇒
+                    //   「期望 RPAREN，实际得到 ASSIGN ('=')」——而报错位置在 `=` 上，
+                    //   看不出是"默认参数不支持"。声明处能写、调用处要写全，
+                    //   比"整个类都写不出来"好得多；真正的默认值补全留给后续。
+                    Expr? defVal = null;
+                    if (Match(TokenType.ASSIGN)) defVal = ParseExpression();
+                    func.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef, DefaultValue = defVal });
                     } while (Match(TokenType.COMMA));
                 }
                 Expect(TokenType.RPAREN);
@@ -547,6 +561,21 @@ namespace CppCompiler
                     return new ClassMember { Access = access, Name = name, IsConstructor = true, Method = func, IsVirtual = isVirtual, IsStatic = isStatic };
                 return new ClassMember { Access = access, Name = name, IsMethod = true, Method = func, IsVirtual = isVirtual, IsStatic = isStatic };
             }
+            // ── 数组字段：`int data[4];` ──
+            // ⚠ 原先这里只认"名字 + 可选的 `= 初值`"，碰到 `[` 直接报
+            //   「期望 SEMICOLON，实际得到 LBRACKET」—— 于是**类里根本写不了数组**，
+            //   而可破坏地形（体素楼）正好要靠它。
+            int arrSize = 0;
+            if (Match(TokenType.LBRACKET))
+            {
+                if (!Check(TokenType.RBRACKET))
+                {
+                    var szExpr = ParseExpression();
+                    if (szExpr is IntLiteral il) arrSize = il.Value;
+                }
+                Expect(TokenType.RBRACKET);
+            }
+
             Expr? init = null;
             if (Match(TokenType.ASSIGN)) init = ParseExpression();
             
@@ -570,7 +599,7 @@ namespace CppCompiler
             }
             
             Expect(TokenType.SEMICOLON);
-            return new ClassMember { Access = access, Type = type, Name = name, Initializer = init, IsStatic = isStatic };
+            return new ClassMember { Access = access, Type = type, Name = name, Initializer = init, IsStatic = isStatic, ArraySize = arrSize };
         }
 
         // Simplified: parse function or variable

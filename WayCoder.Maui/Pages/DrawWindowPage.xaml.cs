@@ -335,7 +335,18 @@ public partial class DrawWindowPage : ContentPage
     }
 
     /// <summary>把（可能被另一个页面改过的）开关状态落到本页浮层上。</summary>
-    private void ApplyVmStatusVisibility() => VmStatus.IsVisible = MauiVmStatusStore.Visible;
+    private void ApplyVmStatusVisibility()
+    {
+        // ⚠ **绘图窗口页的正文也参与拖动**（用户 2026-09-25 定）：
+        //   原先这一页的正文是"穿透"的（手指落读数文字上会传给画布），
+        //   那是为了"浮层不挡游戏"；但代价是**只有标题那一格能抓**。
+        //   用户的选择是「盖住了我就把它拖走」—— 于是正文吃触摸、整条都能拖，
+        //   而"浮层挡着游戏"改由**用户自己拖开**来解决。
+        //   注：这一句换来的是"手指落在面板上的那一下不会到游戏"，
+        //   所以玩全触摸的游戏（如 gorilla）时，面板压在操作区上就得先拖开。
+        VmStatus.SetBodyDraggable(true);
+        VmStatus.IsVisible = MauiVmStatusStore.Visible;
+    }
 
     protected override void OnAppearing()
     {

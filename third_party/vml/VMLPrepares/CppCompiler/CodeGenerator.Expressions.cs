@@ -45,15 +45,96 @@ namespace CppCompiler
                 // ⚠ 字节数组（`char x[]`）要排在指针之前判 —— 它的 `_varTypes` 里是 `char`
                 //   （不带 `*`），走下面那条会拿到默认的 4（见 `_byteArrays` 的注释）。
                 if (_byteArrays.Contains(ie.Name)) return 1;
-                if (_varTypes.TryGetValue(ie.Name, out var vt0) && vt0.Contains("*"))
-                    return GetPointerStepSize(vt0);
+                if (!_varTypes.TryGetValue(ie.Name, out var vt0) || string.IsNullOrEmpty(vt0))
+                    return 4;
+                // ── 「数组变量」与「指针变量」的元素大小**是两件事** ──────────────
+                //   类型串上两者长得一样（都是 `X*`），只有"这个变量本身是不是数组"能分开：
+                //     `Building* BL[4]`  → 数组，元素是**指针** ⇒ 4 字节
+                //     `Tree TREES[6]`    → 数组，元素是**对象** ⇒ ClassSizeDeep(Tree)
+                //     `P* arr`           → 指针，元素是**解引用后的对象** ⇒ ClassSizeDeep(P)
+                //   只判 `Contains("*")`（旧写法）会把前两者都当成指针：
+                //   `TREES[i]` 按 4 跨步 ⇒ 整个数组错位（gorilla.cpp 实测**一帧都导不出来**）。
+                //   判据要**同时**看两张表：`_isArrayVar` 是局部的（每进一个函数就清），
+                //   `_globalArrays` 是全局的 —— 与 `CodeGenerator.Expressions.cs:274` 同一套。
+                bool isArrayVar = (_isArrayVar.TryGetValue(ie.Name, out bool ia) && ia)
+                                  || _globalArrays.Contains(ie.Name);
+                int __sz = isArrayVar ? SizeOfDeclaredType(vt0) : GetPointerStepSize(vt0);
+                Console.Error.WriteLine($"[GES] {ie.Name} type='{vt0}' isArr={isArrayVar} -> {__sz}");
+                return __sz;
             }
             return 4; // 默认 int / 数组元素
         }
-        private static int ElemShift(int size) => size switch { 1 => 0, 2 => 1, _ => 2 };
+
+        /// <summary>
+        /// 类型**本身**占多少字节（不是"解引用之后"）：
+        /// 指针恒为 4（一格里装的就是一个地址）、类走 <see cref="ClassSizeDeep"/>、
+        /// 其余查内置宽度表。
+        ///
+        /// 与 <see cref="GetPointerStepSize"/> 成对：后者算的是 `sizeof(*p)`。
+        /// 两者**不可互换** —— `Building*` 本身 4 字节、解引用后是整个 Building。
+        /// </summary>
+        private int SizeOfDeclaredType(string typeStr)
+        {
+            // ⚠ **指针必须最先判**：`Entity*` 这个类型**本身**就是 4 字节（一格装一个地址）。
+            //   而 `ClassOfType` 的职责是"去掉 `*` 再找类"，它会照样查到 `Entity` ⇒
+            //   顺序反了就会把 `Entity* actors[8]` 的元素当成**整个 Entity 对象**那么大，
+            //   于是 `actors[i]` 越跨越多、写穿到栈上别的局部量（实测 gorilla.cpp 的
+            //   `Entity* actors[8]` 把 `Draw` 的流程打乱到 `ui_present()` 根本执行不到：
+            //   绘制调用 5460 条、导出**0 帧**）。
+            //   两个函数分工要记牢：本函数 = `sizeof(T)`；`GetPointerStepSize` = `sizeof(*p)`。
+            if (typeStr.Contains("*")) return 4;
+            var cls = ClassOfType(typeStr);
+            if (cls != null) return ClassSizeDeep(cls.Name);
+            var (sz, _, _) = GetTypeLoadInfo(typeStr);
+            return sz > 0 ? sz : 4;
+        }
+        /// <summary>
+        /// 「下标 → 字节偏移」：把 <paramref name="reg"/> 里的下标乘上元素字节数 —— **唯一实现**。
+        ///
+        /// ⚠ 这件事原先在**四处**各写了一遍，而且**四处都只认 1 / 2 / 4**（写法是
+        ///   `size == 2 ? SHL #1 : SHL #2`，也就是"凡是大于 2 的一律按 ×4"）。
+        ///   **元素字节数是 8 的时候，四处都算成 ×4 ⇒ 跨步只有一半**：
+        ///   `p[1].x` 读到的是 `p[0]` 的后半截、`p[i].y = v` 写进下一个元素。
+        ///   它**不报错、也不越界**（还落在分配块里），只是数据错位 ——
+        ///   实测 `P* arr = new P[5]`（`P` 两个 int = 8 字节）五个元素求和：
+        ///   期望 1515、实得 **529**。
+        ///   而 `GenerateAddressOf` 里那一处**已经**写对了（`stride == 8 → SHL #3`）——
+        ///   说明这个结论本来就在本文件里，只是没同步到其余几处：
+        ///   又是本仓头号坑"同一规则两处实现"。
+        ///   现在四处都走这一个函数：新增一种元素宽度只需改这一处。
+        /// </summary>
+        private void EmitIndexScale(string reg, int elemSize)
+        {
+            switch (elemSize)
+            {
+                case 1: break;                                   // ×1：无动作
+                case 2: Add(OpCode.SHL, reg, "#1"); break;
+                case 4: Add(OpCode.SHL, reg, "#2"); break;
+                case 8: Add(OpCode.SHL, reg, "#3"); break;
+                default:                                         // 类对象等任意字节数
+                    Add(OpCode.MOVE, "R2", $"#{elemSize}");
+                    Add(OpCode.MUL, reg, reg, "R2");
+                    break;
+            }
+        }
         /// <summary>表达式是否是简单指针解引用 (char*/int*/float*等, 非VML数组, 无需+4 header)</summary>
-        private bool IsPointerDeref(Expr e) => e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt)
-            && vt.Contains("*") && !vt.Contains("[") && !vt.Contains("(");
+        private bool IsPointerDeref(Expr e)
+        {
+            if (e is not IdentExpr ie) return false;
+            // ⚠ **数组变量一律不算"裸指针"** —— 它按 VML 的数组布局 `[长度头][元素…]` 走，
+            //   访问时要 `+4` 跳过那个头（见 `ArrayIndexInfo`）。
+            //   而**指针数组**（`Building* BL[4]`）的类型串里**也有 `*`**，
+            //   只看 `Contains("*")` 就会把它判成裸指针 ⇒ 那 4 字节不加。
+            //   危险的是：**读和写用的是同一个错判据 ⇒ 自洽**，`BL[0]=&b0` 写进去、
+            //   再读 `BL[0]` 拿出来的确实是 `&b0`，所以"写进去再读"式的测试全绿；
+            //   真正的问题是**整体错位一格**（逻辑上的 `BL[0]` 实际落在长度头那格），
+            //   最后一个元素因此**越出数组尾巴 4 字节**，踩在紧邻的全局量上。
+            //   实测 gorilla.cpp：`--frame` 只剩最先画的那栋楼、猴子与 HUD 全不见。
+            if ((_isArrayVar.TryGetValue(ie.Name, out bool ia) && ia) || _globalArrays.Contains(ie.Name))
+                return false;
+            return _varTypes.TryGetValue(ie.Name, out var vt)
+                   && vt.Contains("*") && !vt.Contains("[") && !vt.Contains("(");
+        }
 
         /// <summary>
         /// `[]` 寻址要用的**两个参数**：元素字节数、有没有那个 4 字节长度头。
@@ -85,6 +166,16 @@ namespace CppCompiler
         {
             if (string.IsNullOrEmpty(varTypeStr) || !varTypeStr.Contains("*"))
                 return 1;
+            // ⚠ **指向类对象的指针，步长 = 那个类的字节数**，不是 4。
+            //   `GetTypeLoadInfo` 只认内置标量名，类名落进它的兜底 `_ => (4, false, false)`
+            //   ⇒ `P* arr` 按 4 字节跨步 —— `P` 若有 2 个 int 字段（8 字节），
+            //   `arr[1].x` 读的是**前一个元素的后半截**，而且 `arr[i].y` 会写到下一个元素上。
+            //   实测：`P* arr = new P[5]` 五个元素求和，期望 1515、实得 **529**（静默）。
+            //   这条与 F21（对象数组的元素步长）**是同一个判据的第三处** ——
+            //   「一个类对象占多少字节」的答案只有 `ClassSizeDeep` 一处，
+            //   任何按"4 字节一格"或"字段个数 × 4"自算的地方都会在加字段那天悄悄错位。
+            var cls = ClassOfType(varTypeStr);
+            if (cls != null) return ClassSizeDeep(cls.Name);
             var (byteSize, _, _) = GetTypeLoadInfo(varTypeStr);
             return byteSize > 0 ? byteSize : 4;
         }
@@ -229,6 +320,15 @@ namespace CppCompiler
                         Add(OpCode.MOVE, "R0", $"#{enumVal}");
                         return;
                     }
+                    // ⚠ **成员数组**（`class G { A arr[3]; }` 里的 `arr`）也要返回**地址** ——
+                    //   它既不在 `_isArrayVar`（那是**局部**变量表）、也不在 `_globalArrays`，
+                    //   于是一路掉进下面 `_variables` / 字段那几条，返回的是**字段的值**。
+                    //   对数组来说那是第一个元素的头一个字（对象数组上就是 **vptr**），
+                    //   再拿它当基址加下标 ⇒ 跳到数据里执行（本仓记过这类症状：
+                    //   "程序跑完但一行输出都没有"）。实测 `g.Sum()` 在
+                    //   `arr[i].V()` 那一句直接把程序带走 —— `cout << "sum="` 后面**再无输出**。
+                    //   判据与 `ResolveClassOf` 里那条"成员数组"是**同一件事的两半**
+                    //   （那边认得出类、这边取得出地址），改动时要成对看。
                     // ⚠ 判据要**同时**看两张表：`_isArrayVar` 是局部的（每进一个函数就被清），
                     //   `_globalArrays` 是全局的。只看前者的话全局数组永远走不进这一支。
                     if ((_isArrayVar.TryGetValue(id.Name, out bool isArr) && isArr)
@@ -483,6 +583,38 @@ namespace CppCompiler
 
         private bool IsFloat(Expr e) => e is FloatLiteral;
 
+        /// <summary>
+        /// 这个表达式的值是**字符串**吗 —— 决定 `cout << x` 该当字符串打还是当整数打。
+        ///
+        /// ⚠ 原先那条判据是**按 AST 节点种类猜**的：
+        ///   `if (Right is IntLiteral || CharLiteral || BoolLiteral || IdentExpr) 打整数; else 打字符串;`
+        ///   于是 `cout << (a + b)`（`BinaryExpr`）落到 `else` ⇒ **把整数值当字符串指针打**，
+        ///   屏幕上那一格是**空的**（实测）。`cout << a + b` 同理。
+        ///   判据必须看**这个表达式是什么类型**，不是"它长得像什么节点"。
+        /// </summary>
+        private bool IsStringTypedExpr(Expr e)
+        {
+            if (e is StringLiteral) return true;
+            if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out string? vt))
+            {
+                string t = vt ?? "";
+                // `char*` / `const char*` / `string` / `std_string` 都是字符串
+                return t == "string" || t == "std_string" || t.Contains("char*") || t.Contains("char *");
+            }
+            if (e is CallExpr ce) return IsStringReturningFunc((ce.Callee as IdentExpr)?.Name);
+            if (e is MemberExpr me && _classes.Count > 0)
+            {
+                // `obj.field` 是 char* 的话也算（拿接收者的类去查字段类型）
+                var cls = ResolveClassOf(me.Object);
+                if (cls != null && FindFieldDeep(cls.Name, me.Member, out string ft))
+                {
+                    string t = CleanType(ft);
+                    return t == "string" || t == "std_string" || ft.Contains("char*");
+                }
+            }
+            return false;
+        }
+
         private bool IsStringExpr(Expr e)
         {
             if (e is StringLiteral) return true;
@@ -531,17 +663,9 @@ namespace CppCompiler
                     else
                     {
                         GenerateExpr(be.Right);
-                        if (be.Right is IntLiteral || be.Right is CharLiteral || be.Right is BoolLiteral || be.Right is IdentExpr)
-                            EmitPrintInt();
-                        else if (be.Right is CallExpr ce2)
-                        {
-                            string? calleeName = (ce2.Callee as IdentExpr)?.Name;
-                            if (IsStringReturningFunc(calleeName))
-                                EmitPrintString();
-                            else
-                                EmitPrintInt();
-                        }
-                        else EmitPrintString();
+                        // 按**类型**判，不按节点种类猜（见 `IsStringTypedExpr` 的注释）
+                        if (IsStringTypedExpr(be.Right)) EmitPrintString();
+                        else EmitPrintInt();
                     }
                     Add(OpCode.MOVE, "R0", "#0"); // cout << returns 0
                     return;
@@ -630,14 +754,13 @@ namespace CppCompiler
                     {
                         Add(OpCode.MOVE, "R2", $"#{innerDim}");
                         Add(OpCode.MUL, "R1", "R1", "R2");
-                        if (elemSize > 1) Add(OpCode.SHL, "R1", $"#{ElemShift(elemSize)}");
+                        EmitIndexScale("R1", elemSize);
                         if (hasHeader) Add(OpCode.ADD, "R1", "#4");
                         Add(OpCode.ADD, "R0", "R0", "R1");
                     }
                     else
                     {
-                        if (elemSize == 2) Add(OpCode.SHL, "R1", "#1");
-                        else if (elemSize > 2) Add(OpCode.SHL, "R1", "#2");   // default: *4
+                        EmitIndexScale("R1", elemSize);
                         if (hasHeader && !isNestedArray)
                             Add(OpCode.ADD, "R1", "#4");
                         Add(OpCode.ADD, "R1", "R0");
@@ -793,8 +916,7 @@ namespace CppCompiler
                 Add(OpCode.POP, "R0");           // R0 = base
                 // 与读/写**同一套判据**（见 `ArrayIndexInfo`）—— 字节数组没有长度头、步长 1
                 var (aElemSize, aHasHeader) = ArrayIndexInfo(be.Left, isNested: false);
-                if (aElemSize == 2) Add(OpCode.SHL, "R1", "#1");
-                else if (aElemSize > 2) Add(OpCode.SHL, "R1", "#2");   // index * 4
+                EmitIndexScale("R1", aElemSize);
                 if (aHasHeader) Add(OpCode.ADD, "R1", "#4");           // +4 (skip header)
                 Add(OpCode.ADD, "R0", "R1");     // R0 = base + index*elemSize (+ header)
             }
@@ -1475,8 +1597,13 @@ namespace CppCompiler
         private int FieldSizeOf(ClassMember m)
         {
             string ct = CleanType(m.Type);
-            if (_classes.ContainsKey(ct)) return ClassSizeDeep(ct);   // 内嵌对象
-            return 4;                                                  // 标量 / 指针
+            int elem = _classes.ContainsKey(ct) ? ClassSizeDeep(ct) : 4;   // 内嵌对象 / 标量
+            // 数组字段：`int cell[9]` 占 **9 个元素**那么宽（与 C 一致，**没有长度头**）。
+            // 漏了这一步，数组后面的字段偏移就全挤在数组头几个字节上 ——
+            // 写 `cell[8]` 会踩到后面的成员，而**读写两边用的是同一个错偏移**，
+            // 所以"写了再读"式的小测试反而看不出来（实测就是），只有越界才露馅。
+            if (m.ArraySize > 0) return elem * m.ArraySize;
+            return elem;
         }
 
         /// <summary>
@@ -1650,20 +1777,32 @@ namespace CppCompiler
         /// 符号名退化成拿**字段名**当类名（`method_a0_Total`）⇒ 链接期"未定义的函数"。
         /// </para>
         /// </summary>
-        private bool FindFieldDeep(string className, string fieldName, out string fieldType)
+        /// <summary>
+        /// 继承链上找**字段声明本身**（不只是类型串）—— 需要 `ArraySize` 这类
+        /// **声明期**信息时用它（类型串里看不出"是不是数组"：`A arr[3]` 的 `Type`
+        /// 只有 `A`，`[3]` 在 `ArraySize` 里）。
+        /// <see cref="FindFieldDeep"/> 是它的薄封装（只要类型串的那批调用方）。
+        /// </summary>
+        private ClassMember? FindFieldMemberDeep(string className, string fieldName)
         {
-            fieldType = "";
             var seen = 0;
             string? c = className;
             while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
             {
                 var fm = cls.Members.FirstOrDefault(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor
                                                          && m.Name == fieldName);
-                if (fm != null) { fieldType = fm.Type; return true; }
+                if (fm != null) return fm;
                 c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
                 seen++;
             }
-            return false;
+            return null;
+        }
+
+        private bool FindFieldDeep(string className, string fieldName, out string fieldType)
+        {
+            var fm = FindFieldMemberDeep(className, fieldName);
+            fieldType = fm?.Type ?? "";
+            return fm != null;
         }
 
         /// <summary>
@@ -1683,6 +1822,27 @@ namespace CppCompiler
             if (!_classes.ContainsKey(CleanType(ft))) return false;    // `Ape*` 不在此列
             member = m;
             return true;
+        }
+
+        /// <summary>
+        /// 「类型串 → 类声明」的**唯一实现**：去 `struct/union/class` 前缀、去 `*`/`&`/`[]` 后缀，
+        /// 再查 `_classes`。
+        ///
+        /// ⚠ 原先这段"去星号"的逻辑在 <see cref="ResolveClassOf"/> 里**抄了四遍**，
+        ///   而且**四遍都不认 `&`** —— 于是"引用参数上的成员调用"
+        ///   （`void f(A& a){ a.Set(9); }`）解析不出类，符号名退化成拿**变量名**当类名
+        ///   （`method_a_Set`）⇒ 链接期"未定义的函数 'method_a_Set'"。
+        ///   四份抄写正是"漏掉一类后缀"的土壤：补了指针数组、没补引用。收成一处。
+        /// </summary>
+        private ClassDecl? ClassOfType(string? typeString)
+        {
+            if (string.IsNullOrEmpty(typeString)) return null;
+            string t = CleanType(typeString);
+            while (t.Length > 0 && (t.EndsWith("*") || t.EndsWith("&")))
+                t = t.Substring(0, t.Length - 1).Trim();
+            int br = t.IndexOf('[');                 // `int a[4]` 这种声明串
+            if (br > 0) t = t.Substring(0, br).Trim();
+            return _classes.TryGetValue(t, out var cls) ? cls : null;
         }
 
         /// <summary>清理类型字符串: 去掉 struct/union/class 前缀</summary>
@@ -1714,12 +1874,8 @@ namespace CppCompiler
                     return directCls;
                 if (_varTypes.TryGetValue(ie.Name, out var vt))
                 {
-                    string clean = CleanType(vt);
-                    if (_classes.TryGetValue(clean, out var cls))
-                        return cls;
-                    // Pointer to class: e.g. "struct Pt*" → "Pt"
-                    if (clean.EndsWith("*") && _classes.TryGetValue(clean.TrimEnd('*').Trim(), out var ptrCls))
-                        return ptrCls;
+                    var cls = ClassOfType(vt);          // 指针 / 引用 / 结构体前缀一并处理
+                    if (cls != null) return cls;
                 }
                 // ── 隐式的 `this->字段` ──
                 // 字段不在 `_varTypes` 里，上面两条都查不到 ⇒ 一个对象里嵌另一个对象时
@@ -1729,11 +1885,8 @@ namespace CppCompiler
                 if (IsImplicitThisField(ie, out _)
                     && FindFieldDeep(_currentClass!, ie.Name, out string fieldType))
                 {
-                    string ft = CleanType(fieldType);
-                    if (_classes.TryGetValue(ft, out var fieldCls))
-                        return fieldCls;
-                    if (ft.EndsWith("*") && _classes.TryGetValue(ft.TrimEnd('*').Trim(), out var fieldPtrCls))
-                        return fieldPtrCls;
+                    var fieldCls = ClassOfType(fieldType);
+                    if (fieldCls != null) return fieldCls;
                 }
             }
             else if (expr is UnaryExpr ue && ue.Op == "*")
@@ -1750,30 +1903,41 @@ namespace CppCompiler
                     var fm = outerCls.Members.FirstOrDefault(m => !m.IsMethod && m.Name == me.Member);
                     if (fm != null)
                     {
-                        string ft = CleanType(fm.Type);
-                        if (_classes.TryGetValue(ft, out var fcls))
-                            return fcls;
-                        if (ft.EndsWith("*") && _classes.TryGetValue(ft.TrimEnd('*').Trim(), out var fpcls))
-                            return fpcls;
+                        var fcls = ClassOfType(fm.Type);
+                        if (fcls != null) return fcls;
                     }
                 }
             }
             else if (expr is BinaryExpr be && be.Op == "[]")
             {
                 // Array subscript: resolve the element type (e.g. arr[i] where arr is struct Pt[])
-                if (be.Left is IdentExpr arrId && _varTypes.TryGetValue(arrId.Name, out var arrType))
+                if (be.Left is IdentExpr arrId)
                 {
-                    string clean = CleanType(arrType);
-                    if (_classes.TryGetValue(clean, out var arrCls))
-                        return arrCls;
-                    // ⚠ **指针数组**：`Entity* list[4]; list[0]->Value()` ——
-                    //   类型串是 `Entity*`，去掉星号才是类名。漏了这一支，
-                    //   `list[i]` 就解析不出接收者的类 ⇒ 调用点拿不到 `funcName`、
-                    //   退化成"把对象指针当函数指针"的**间接调用**（`call R0`），
-                    //   而 R0 里装的是对象地址 ⇒ 跳到数据上执行。
-                    //   症状是"程序跑完但一行输出都没有"，且**编译期零报错**。
-                    if (clean.EndsWith("*") && _classes.TryGetValue(clean.TrimEnd('*').Trim(), out var arrPtrCls))
-                        return arrPtrCls;
+                    // ① 局部量 / 全局量 —— 类型串在 `_varTypes` 里。
+                    //    ⚠ **指针数组**（`Entity* list[4]` 的 `list[i]`）也走这条：
+                    //    类型串是 `Entity*`，`ClassOfType` 会去掉星号。漏了它，
+                    //    `list[i]` 解析不出接收者的类 ⇒ 调用点拿不到 `funcName`、
+                    //    退化成"把对象指针当函数指针"的**间接调用**（`call R0`）
+                    //    ⇒ 跳到数据上执行（症状是"程序跑完但一行输出都没有"）。
+                    if (_varTypes.TryGetValue(arrId.Name, out var arrType))
+                    {
+                        var arrCls = ClassOfType(arrType);
+                        if (arrCls != null) return arrCls;
+                    }
+                    // ② **成员数组**（`class G { A arr[3]; }` 里的 `arr[i]`）——
+                    //    字段**不在 `_varTypes` 里**（那是变量表），所以上面那条永远查不到
+                    //    ⇒ 接收者的类解析不出来 ⇒ 方法符号退化成 `method__V`
+                    //    （**类名是空串**）⇒ 链接期「未定义的函数 'method__V'」。
+                    //    ⚠ 这是"类里能放数组字段"（F25）的**最后一环**：数组声明得出来、
+                    //    下标访问得动，但**拿元素当接收者调方法**不行 —— 而 gorilla.cpp
+                    //    的收编正是要把 `static Building* BL[4]`（全局，在变量表里）
+                    //    换成 `Game` 的成员数组，一脚踩在这上面。
+                    else if (IsImplicitThisField(arrId, out _) && !string.IsNullOrEmpty(_currentClass)
+                             && FindFieldDeep(_currentClass!, arrId.Name, out string memArrType))
+                    {
+                        var memCls = ClassOfType(memArrType);
+                        if (memCls != null) return memCls;
+                    }
                 }
             }
             return null;
@@ -1853,30 +2017,21 @@ namespace CppCompiler
                 GenerateExpr(be.Right);    // R0 = index
                 Add(OpCode.MOVE, "R1", "R0");
                 Add(OpCode.POP, "R0");     // R0 = base
-                // Determine element stride
-                int stride = 4;
-                if (be.Left is IdentExpr arrId0 && _byteArrays.Contains(arrId0.Name))
-                    stride = 1;                                        // 字节数组（见 ArrayIndexInfo）
-                else if (be.Left is IdentExpr arrId && _varTypes.TryGetValue(arrId.Name, out var arrType))
-                {
-                    if (_classes.TryGetValue(CleanType(arrType), out var arrCls))
-                    {
-                        // ⚠ 元素步长**必须**与"分配时按多大一个元素算"是**同一个数**。
-                        //   分配那边用的是 `ClassSizeDeep`（见 `GenerateAssignExpr` 的 `objWords`），
-                        //   这里原先写的是"本类字段数 × 4" —— 两者**不相等**：
-                        //   `ClassSizeDeep` 把**基类子对象**和 **vptr** 一起算进去，字段数只数本类。
-                        //   于是 `Tree TREES[6]`（4 个 int = 16 字节）按 16 分配、按 **20** 步进
-                        //   ⇒ 写到第 4 个元素就越过数组尾巴、**踩到别的全局量**上。
-                        //   本仓头号坑"同一份数据两处实现"，这里是它的内存版。
-                        stride = ClassSizeDeep(arrCls.Name);
-                        if (stride < 4) stride = 4;
-                    }
-                }
-                if (stride == 4) Add(OpCode.SHL, "R1", "#2");
-                else if (stride == 8) Add(OpCode.SHL, "R1", "#3");
-                else { Add(OpCode.MOVE, "R2", $"#{stride}"); Add(OpCode.MUL, "R1", "R1", "R2"); }
-                // 与读/写**同一套判据**（见 `ArrayIndexInfo`）：字节数组没有长度头
-                if (ArrayIndexInfo(be.Left, isNested: false).HasHeader)
+                // 元素步长与「有没有长度头」**一次问出来**（见 `ArrayIndexInfo`）。
+                //
+                // ⚠ 这里原先是**自己算一遍** `stride`，而且判据是
+                //   `_classes.TryGetValue(CleanType(arrType))` —— `arr` 声明成 `P*` 时
+                //   `CleanType("P*")` 仍是 `"P*"`，而 `_classes` 的键是 `"P"` ⇒ **查不到**
+                //   ⇒ stride 停在默认的 4。于是 `P`（两个 int = 8 字节）的元素
+                //   `arr[i].x` 按 4 跨步、`arr[i].y` 直接写进**下一个元素**：
+                //   实测 `P* arr = new P[5]` 求和，期望 1515、实得 **529**（静默）。
+                //   更刺眼的是**紧接着**那一行又调了一次 `ArrayIndexInfo` 去问 HasHeader ——
+                //   同一件事问两遍、两遍答案不同（一个说 4、一个说 8），
+                //   正是本仓头号坑「同一规则两处实现」的标准形态。
+                //   现在步长与长度头都由 `ArrayIndexInfo` 一次给出。
+                var (stride, strideHasHeader) = ArrayIndexInfo(be.Left, isNested: false);
+                EmitIndexScale("R1", stride);
+                if (strideHasHeader)
                     Add(OpCode.ADD, "R1", "#4");  // +4 (skip VML array length header)
                 Add(OpCode.ADD, "R0", "R1");  // R0 = &arr[i]
             }
@@ -2046,8 +2201,41 @@ namespace CppCompiler
         /// </para>
         /// </summary>
         private static FunctionDecl? FindCtor(ClassDecl cls, int argCount)
-            => cls.Members.FirstOrDefault(m => m.IsConstructor && m.Method != null
-                                               && m.Method.Parameters.Count == argCount)?.Method;
+        {
+            // 精确匹配优先
+            var exact = cls.Members.FirstOrDefault(m => m.IsConstructor && m.Method != null
+                                                        && m.Method.Parameters.Count == argCount);
+            if (exact != null) return exact.Method;
+            // 否则找"默认参数能补齐"的那个：实参个数 ≥ 必填数 且 ≤ 形参总数。
+            // ⚠ 少了这一条，`class A { A(int x = 5); }; A a;` 会**一个构造函数都不调**
+            //   （字段停在数据段的 0），而语法上完全合法 —— 又一个"编得过、值不对"。
+            foreach (var m in cls.Members)
+            {
+                if (!m.IsConstructor || m.Method == null) continue;
+                int total = m.Method.Parameters.Count;
+                int required = 0;
+                foreach (var p in m.Method.Parameters) if (p.DefaultValue == null) required++;
+                if (argCount >= required && argCount <= total) return m.Method;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 把调用点**没给的尾部实参**用形参的默认值补上（返回"实际要压栈的实参表"）。
+        /// 默认值在**调用处**求值 —— 与 C++ 一致（不是声明时算一次）。
+        /// </summary>
+        private List<Expr> FillDefaultArgs(FunctionDecl? decl, List<Expr> args)
+        {
+            var result = new List<Expr>(args);
+            if (decl == null) return result;
+            for (int i = args.Count; i < decl.Parameters.Count; i++)
+            {
+                var dv = decl.Parameters[i].DefaultValue;
+                if (dv == null) break;                 // 后面没有默认值了，补不了（语法上不该发生）
+                result.Add(dv);
+            }
+            return result;
+        }
 
         /// <summary>
         /// 发一次构造函数调用 —— 调用约定与 `GenerateCallExpr` 的方法调用那条**逐位相同**：
@@ -2123,14 +2311,31 @@ namespace CppCompiler
 
         private void EmitCtorCall(string objLabel, string className, FunctionDecl ctor, List<Expr>? args)
         {
-            args ??= new List<Expr>();
-
             // this = 对象地址（LABEL 操作数取的是**地址**，不是那一格的内容）
             instructions.Add(new Instruction(OpCode.MOVE, [
                 new(OperandType.REGISTER, 0),
                 new(OperandType.LABEL, objLabel)
             ]));
             Add(OpCode.PUSH, "R0");
+            EmitCtorCallOnPushedThis(className, ctor, args);
+        }
+
+        /// <summary>
+        /// 与 <see cref="EmitCtorCall"/> 同一套约定，但**假定 `this` 已经压在栈顶了** ——
+        /// 给"在**已有对象**上跑构造函数"用（`q = P(5);` 那条，对象不是新分配的一个标签）。
+        ///
+        /// <para>
+        /// <paramref name="resultIsThis"/> = true 时**不弹掉 `this`**，而是把它留在 `R0` 里
+        /// 当返回值 —— `new A(实参)` 要用这个地址（对象是刚 `alloc` 出来的，没有标签可取）。
+        /// ⚠ 两条出口**都要清干净实参**，区别只在 `this` 那一格的去留 ——
+        ///   写成"留 this 就整个不清"会让每次 `new` 泄 (n+1) 个字，而**循环里 new
+        ///   的对象泄漏得不快、只是把栈慢慢耗尽**，症状要跑到后面才出现。
+        /// </para>
+        /// </summary>
+        private void EmitCtorCallOnPushedThis(string className, FunctionDecl ctor, List<Expr>? args,
+                                              bool resultIsThis = false)
+        {
+            args = FillDefaultArgs(ctor, args ?? new List<Expr>());   // 缺的尾部实参用默认值补
 
             for (int i = args.Count - 1; i >= 0; i--)
             {
@@ -2147,7 +2352,16 @@ namespace CppCompiler
             }
 
             Add(OpCode.CALL, CtorSymbol(className, ctor.Parameters.Select(p => p.Type)));
-            Add(OpCode.ADD, "R13", $"#{(args.Count + 1) * 4}");
+
+            if (resultIsThis)
+            {
+                if (args.Count > 0) Add(OpCode.ADD, "R13", $"#{args.Count * 4}");  // 只清实参
+                Add(OpCode.POP, "R0");                                            // this → 返回值
+            }
+            else
+            {
+                Add(OpCode.ADD, "R13", $"#{(args.Count + 1) * 4}");
+            }
         }
 
         private void GenerateAssignExpr(AssignExpr ae)
@@ -2186,6 +2400,36 @@ namespace CppCompiler
                 }
                 GenerateAssignExpr(new AssignExpr { Target = implMem, Op = "=", Value = value });
                 return;
+            }
+
+            // ── `obj = T(实参);`：在**这个对象上**跑构造函数 ───────────────────────
+            //
+            // C++ 的语义是"建个临时对象、再拷贝赋值"，但对这种 POD 风格的类，
+            // **直接在当前对象上跑构造函数**在观感上等价，而且省一次拷贝。
+            //
+            // ⚠ 原先这条完全没处理：`P(5)` 被当成**普通函数调用** `P`，
+            //   返回一个垃圾值、`EmitStore` 把它写进对象的第一个字 ——
+            //   既没构造、也没赋值，`q.x` 还是旧值（**静默**，连警告都没有）。
+            if (ae.Op == "=" && ae.Target is IdentExpr ctorTgt && ae.Value is CallExpr ctorCall
+                && ctorCall.Callee is IdentExpr ctorName
+                && !_variables.ContainsKey(ctorName.Name)          // 别把函数指针变量当类名
+                && _classes.TryGetValue(ctorName.Name, out var tgtCls))
+            {
+                var ctor = FindCtor(tgtCls, ctorCall.Arguments.Count);
+                if (ctor != null)
+                {
+                    // 先把目标对象的**地址**压进去当 this（局部量是栈槽、全局量是标签）
+                    if (_variables.TryGetValue(ctorTgt.Name, out int tgtOff))
+                        Add(OpCode.MOVE, "R0", Vars?.FormatOffset(tgtOff) ?? $"R14-{tgtOff}");
+                    else
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 0),
+                            new(OperandType.LABEL, $"var_{ctorTgt.Name}")]));
+                    Add(OpCode.PUSH, "R0");
+                    EmitCtorCallOnPushedThis(ctorName.Name, ctor, ctorCall.Arguments);
+                    Add(OpCode.MOVE, "R0", "#0");
+                    return;
+                }
             }
 
             // Struct-to-struct copy: detect BEFORE GenerateExpr consumes the value
@@ -2459,8 +2703,7 @@ namespace CppCompiler
                     Add(OpCode.MOVE, "R2", $"#{innerDimW}");
                     Add(OpCode.MUL, "R0", "R0", "R2");   // index * innerDim
                 }
-                if (wElemSize == 2) Add(OpCode.SHL, "R0", "#1");
-                else if (wElemSize > 2) Add(OpCode.SHL, "R0", "#2");   // * 4 → 字节偏移
+                EmitIndexScale("R0", wElemSize);
                 if (wHasHeader && !isNestedArr)
                     Add(OpCode.ADD, "R0", "#4");         // +4 header
                 Add(OpCode.ADD, "R0", "R1");             // + base
