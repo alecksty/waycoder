@@ -15,6 +15,9 @@ namespace CppCompiler
         private readonly Dictionary<string, string> _varTypes = new();
         private readonly Dictionary<string, bool> _isArrayVar = new();
 
+        /// <summary>进函数时的 `_varTypes` 快照 —— 出函数时恢复（见函数入口那段注释）。</summary>
+        private Dictionary<string, string>? _varTypesSnapshot;
+
         /// <summary>
         /// **全局/静态数组**的名字。
         ///
@@ -327,6 +330,22 @@ namespace CppCompiler
             _classVarScopes.Clear();
             _isReferenceVar.Clear();
 
+            // ⚠⚠ **`_varTypes` 要存快照、出函数时恢复** —— 它是**唯一**跨函数残留的表。
+            //
+            //   上面那六张表都是"进函数就 Clear"，唯独 `_varTypes` 不能照做：
+            //   它还装着**全局量**的类型（`GenerateGlobalVar` 里登记的），清掉就全没了。
+            //   于是形参的类型登记（`_varTypes[param.Name] = param.Type`）会**留下来**，
+            //   污染后面所有函数里**同名**的东西。
+            //
+            //   实测（`scripts/vml-cpp-probe/cases/f40_single_letter_param.cpp`）：
+            //   `int p7(int a,int b,int c,int d,int e,int f,int g)` 的形参 `g` 登记成 `int`，
+            //   而 `main` 里 `G g;` 声明完再读 `g.Get()` 时，`_varTypes["g"]` 已经不是 `G` 了
+            //   ⇒ `ResolveClassOf` 拿不到类 ⇒ 符号退化成 `method_g_Get`（拿变量名当类名）
+            //   ⇒ 链接期「未定义的函数」，**而解析期一个错都不报**。
+            //   这解释了那条一直没定位的 OPEN #17："单字母形参 + 参数多"只是让它更容易撞名，
+            //   真正的条件是**形参名与后面某处的变量名重名**。
+            _varTypesSnapshot = new Dictionary<string, string>(_varTypes);
+
             // Pre-allocate parameters via Vars (get offsets before prologue)
             //
             // ⚠ **只有一种布局了**（2026-09-17 调用约定统一）：实参全部右到左压栈 ⇒
@@ -509,6 +528,14 @@ namespace CppCompiler
             frameOperand.Value = (Vars?.LocalFrameSize ?? 64) + 64;
 
             _currentFuncReturnLabel = savedReturnLabel;
+            // 恢复 `_varTypes`（见函数入口那段注释）—— **必须放在所有生成动作之后**，
+            // 否则调用方后续还要读的类型就没了。
+            _varTypes.Clear();
+            if (_varTypesSnapshot != null)
+            {
+                foreach (var kv in _varTypesSnapshot) _varTypes[kv.Key] = kv.Value;
+            }
+
             _thisSlot = savedThisSlot;
             _hasThis = savedHasThis;
             _currentClass = savedClassCtx;
