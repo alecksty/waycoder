@@ -994,26 +994,31 @@ static void ClampHoleToBuilding(int* px, int* py, int* pr,
     // ⚠ **优先缩半径、保住圆心**。
     //   圆心是"炸在哪"的忠实记录 —— 玩家看得出弹着点，**洞挪了地方比洞小一圈刺眼得多**
     //   （第一版直接钳圆心，玩家的原话是"剪切的洞位置有点怪"）。
-    //   圆心到楼四边（各留 1px）的最小距离，就是半径能取的上限。
-    int lim = x - (left + 1);
-    if (y - (roofY + 1) < lim) { lim = y - (roofY + 1); }
-    if ((right - 1) - x < lim) { lim = (right - 1) - x; }
-    if ((groundY - 1) - y < lim) { lim = (groundY - 1) - y; }
+    //
+    // ⚠⚠ **只钳三个方向：左、右、楼顶。地面那个方向不用管** ——
+    //   洞的下缘压到地面以下是**无害**的：地面是**后画**的（楼之后才画那条地面带），
+    //   会把多出来的那块盖住。而把它算进半径上限的后果是**灾难性的**：
+    //   洞本来就常落在楼的下半部、离地面不远，一算就只剩十几像素，
+    //   再叠上"横向也贴边"就成了 3px 的小点 —— 玩家的原话是「**炸不动楼房了**」。
+    int hLimit = x - (left + 1);
+    if ((right - 1) - x < hLimit) { hLimit = (right - 1) - x; }
+    int vLimit = y - (roofY + 1);
+    int lim = hLimit < vLimit ? hLimit : vLimit;
 
-    if (lim >= 3)
+    // 半径下限 8：再小就看不出是个洞了（"炸不动"就是这么来的）。
+    // 装得下就**只缩半径、圆心一动不动**；实在贴边（连 8 都放不下）才挪圆心。
+    if (lim >= 8)
     {
-        // 装得下（哪怕是缩到最小半径）⇒ **只缩半径，圆心一动不动**
         if (r > lim) { r = lim; }
     }
     else
     {
-        // 圆心离楼边太近，连 r=3 都放不下（贴着墙角炸）⇒ 这才退而求其次**挪圆心**
-        r = 3;
+        r = 8;
         if (x - r < left + 1) { x = left + 1 + r; }
         if (x + r > right - 1) { x = right - 1 - r; }
         if (y - r < roofY + 1) { y = roofY + 1 + r; }
-        if (y + r > groundY - 1) { y = groundY - 1 - r; }
     }
+    (void)groundY;   // 地面那个方向**有意不钳**（见上面那段）
 
     *px = x;
     *py = y;
