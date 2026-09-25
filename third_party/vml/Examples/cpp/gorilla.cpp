@@ -243,7 +243,7 @@ int mixcol(int nr, int ng, int nb, int dr, int dg, int db, int pct)
 // 抽干几十条 TOUCHMOVE，拿帧数当时钟会"滑得越勤、时钟跑得越快"。
 // ════════════════════════════════════════════════════════════════════
 
-static int gHour = 7;        // 开局清晨 —— 一进来就是白天，玩家不用干等
+static int gHour = 7;        // 开局清晨 —— 一进来就是白天，玩家不用干等 —— 一进来就是白天，玩家不用干等
 static int gMinute = 30;
 static int gDayL;            // 天光 0..100（0 = 全黑、100 = 正午满亮）
 static int gWarm;            // 日出/日落的暖色系数 0..100（地平线偏橙）
@@ -382,6 +382,88 @@ void clockPartsAt(int posY, int groundY)
 
 // 把上一次 `clockPartsAt` 的结果打包
 int clockPackParts() { return 0xFF000000 + gMr * 65536 + gMg * 256 + gMb; }
+
+// ════════════════════════════════════════════════════════════════════
+// 街灯 —— 地面上几盏，**夜里才亮**
+//
+// 位置按屏幕宽度均分（不用随机数：路灯本来就该等距，随机反而像故障）。
+// 白天灯是暗的（只是几根杆），夜里灯头变暖黄 —— 与窗户同一套天光口径。
+// ════════════════════════════════════════════════════════════════════
+
+#define N_LAMP 3
+
+void lampsDraw(int scrW, int groundY, int scrH)
+{
+    int i;
+    int lx;
+    int ly;
+    int poleC;
+    int headC;
+
+    // 杆：白天是深灰（有体积感），夜里更深（背光）
+    poleC = mixcol(28, 30, 36, 74, 78, 88, gDayL);
+    // 灯头：白天是玻璃（暗），夜里是暖黄 —— 夜里越黑越亮
+    headC = mixcol(255, 214, 130, 96, 102, 116, gDayL);
+
+    i = 0;
+    while (i < N_LAMP)
+    {
+        lx = scrW * (i * 2 + 1) / (N_LAMP * 2);     // 均分：1/6、3/6、5/6 处
+        ly = groundY;
+        // 杆
+        ui_rect(lx - 1, ly - 46, 3, 46, poleC, 1, 0, 0);
+        // 横臂
+        ui_rect(lx - 1, ly - 46, 14, 3, poleC, 1, 0, 0);
+        // 灯头（挂在横臂末端）
+        ui_rect(lx + 8, ly - 44, 10, 5, headC, 1, 0, 0);
+        i = i + 1;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 流星 —— 夜里偶尔划过一颗
+//
+// 起点/方向/速度都由**游戏分钟**推出来（不用随机数）：这样"第几分钟会有流星"
+// 是可复现的，出问题时能原样重放；而随机数一旦引入，"这次为什么没出现"就说不清了。
+//
+// ⚠ 它和云一样，是**按时间算位置**而不是每帧累加 —— 累加会随帧率变快慢。
+// ════════════════════════════════════════════════════════════════════
+
+void meteorDraw(int scrW, int groundY)
+{
+    int cycle;
+    int phase;
+    int mx;
+    int my;
+    int tail;
+    int i;
+    int alpha;
+
+    // 每 7 游戏分钟来一颗；只有夜里（天光低）才看得见
+    if (gDayL > 35) { return; }
+    cycle = (gHour * 60 + gMinute) % 7;
+    if (cycle >= 3) { return; }                  // 只用周期里的前 3 分钟
+    phase = cycle * 100 / 3;                     // 0..100
+
+    mx = scrW * 70 / 100 - scrW * phase / 100;   // 从右上往左下
+    my = groundY * 30 / 100 + groundY * phase / 100;
+    tail = 26;
+    alpha = 100 - phase;                         // 越飞越淡
+    if (alpha < 0) { alpha = 0; }
+
+    // 尾巴：一串越来越小的点（比画线更像"划过"）
+    i = 0;
+    while (i < 6)
+    {
+        clockPartsAt(my - i, groundY);
+        ui_circle(mx + i * tail / 6, my - i * tail / 6 / 4,
+                  5 - i / 2,
+                  mixcol(gMr, gMg, gMb, 255, 250, 220, alpha * (100 - i * 15) / 100),
+                  1, 0);
+        i = i + 1;
+    }
+}
+
 
 // ════════════════════════════════════════════════════════════════════
 // 云 —— 白天天上那几团，**随游戏时间慢慢飘**，出画从另一头绕回来
@@ -1884,6 +1966,7 @@ public:
         //   代价是这里得把 `actors` 的循环拆成两段 —— 云不属于任何 `Entity` 对象。
         actors[0]->Draw();
         cloudsDraw(sw, gy);
+        meteorDraw(sw, gy);
 
         i = 1;
         while (i < 8)
@@ -1911,6 +1994,8 @@ public:
 
         // 地面：白天是灰亮的街面，夜里压暗（与楼房同一套天光口径）
         ui_rect(0, gy, sw, sh - gy, mixcol(12, 12, 22, 74, 78, 86, gDayL), 1, 0, 0);
+        // 街灯：**地面之后**画（灯杆是立在地上的，画在地面前会被地面啃掉一截）
+        lampsDraw(sw, gy, sh);
 
         DrawAimPreview();
 
