@@ -1425,6 +1425,11 @@ func vsnprintf(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
+func format_slot_count(a0 int32) int32 {
+    vml.Call("format_slot_count")
+    return vml.R0()
+}
+
 func con_putc(a0 int32) int32 {
     vml.Call("con_putc")
     return vml.R0()
@@ -4354,11 +4359,6 @@ func _printf_ftoe(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
-func format_slot_count(a0 int32) int32 {
-    vml.Call("format_slot_count")
-    return vml.R0()
-}
-
 func sprintf(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("sprintf")
     return vml.R0()
@@ -5711,6 +5711,136 @@ func ui_circle(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
 
 func ui_ellipse(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
     vml.Call("ui_ellipse")
+}
+
+func ui_clip_push(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_clip_push")
+    return vml.R0()
+}
+
+func ui_clip_pop() int32 {
+    vml.Call("ui_clip_pop")
+    return vml.R0()
+}
+
+func ui_alpha(a0 int32) int32 {
+    vml.Call("ui_alpha")
+    return vml.R0()
+}
+
+func ui_brush_reset() int32 {
+    vml.Call("ui_brush_reset")
+    return vml.R0()
+}
+
+func ui_clip_reset() int32 {
+    vml.Call("ui_clip_reset")
+    return vml.R0()
+}
+
+func ui_mask_begin() int32 {
+    vml.Call("ui_mask_begin")
+    return vml.R0()
+}
+
+func ui_mask_end(a0 int32) int32 {
+    vml.Call("ui_mask_end")
+    return vml.R0()
+}
+
+func ui_mask_end2(a0 int32) int32 {
+    vml.Call("ui_mask_end2")
+    return vml.R0()
+}
+
+func ui_mask_clear() int32 {
+    vml.Call("ui_mask_clear")
+    return vml.R0()
+}
+
+func ui_mask_test(a0 int32, a1 int32) int32 {
+    vml.Call("ui_mask_test")
+    return vml.R0()
+}
+
+func ui_mask_seg_count() int32 {
+    vml.Call("ui_mask_seg_count")
+    return vml.R0()
+}
+
+func ui_mask_seg_op(a0 int32) int32 {
+    vml.Call("ui_mask_seg_op")
+    return vml.R0()
+}
+
+func ui_mask_shape_count(a0 int32) int32 {
+    vml.Call("ui_mask_shape_count")
+    return vml.R0()
+}
+
+func ui_mask_path(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_mask_path")
+    return vml.R0()
+}
+
+func ui_res_count(a0 int32) int32 {
+    vml.Call("ui_res_count")
+    return vml.R0()
+}
+
+func ui_layer_begin() int32 {
+    vml.Call("ui_layer_begin")
+    return vml.R0()
+}
+
+func ui_layer_end(a0 int32) int32 {
+    vml.Call("ui_layer_end")
+    return vml.R0()
+}
+
+func ui_touch(a0 int32, a1 int32) int32 {
+    vml.Call("ui_touch")
+    return vml.R0()
+}
+
+func ui_touch_query(a0 int32) int32 {
+    vml.Call("ui_touch_query")
+    return vml.R0()
+}
+
+func ui_touch_x() int32 {
+    vml.Call("ui_touch_x")
+    return vml.R0()
+}
+
+func ui_touch_y() int32 {
+    vml.Call("ui_touch_y")
+    return vml.R0()
+}
+
+func ui_touch_down() int32 {
+    vml.Call("ui_touch_down")
+    return vml.R0()
+}
+
+func ui_key_down(a0 int32) int32 {
+    vml.Call("ui_key_down")
+    return vml.R0()
+}
+
+func ui_orient_lock(a0 int32) int32 {
+    vml.Call("ui_orient_lock")
+    return vml.R0()
+}
+
+func ui_immersive(a0 int32) int32 {
+    vml.Call("ui_immersive")
+    return vml.R0()
+}
+
+func ui_audio_playing() int32 {
+    vml.Call("ui_audio_playing")
+    return vml.R0()
 }
 
 func ui_flood_fill(a0 int32, a1 int32, a2 int32, a3 int32) int32 {

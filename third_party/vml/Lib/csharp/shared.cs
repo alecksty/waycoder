@@ -304,6 +304,7 @@ namespace VML {
     // extern int getchar(void);  // CALL getchar
     // extern int format_arg_count(const char *format);  // CALL format_arg_count
     // extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);  // CALL vsnprintf
+    // extern int format_slot_count(const char *format);  // CALL format_slot_count
     // extern oid con_putc(int c);  // CALL con_putc
     // extern oid con_puts(const char *s);  // CALL con_puts
     // extern oid con_putn(int v);  // CALL con_putn
@@ -919,7 +920,6 @@ namespace VML {
     // extern nt sign64(long long v, unsigned int *lo, unsigned int *hi);  // CALL sign64
     // extern nt _printf_ftoa(char *buf, float f, int prec);  // CALL _printf_ftoa
     // extern nt _printf_ftoe(char *buf, float f, int prec, int upper);  // CALL _printf_ftoe
-    // extern nt format_slot_count(const char *format);  // CALL format_slot_count
     // extern int sprintf(char *buf, const char *fmt, ...);  // CALL sprintf
     // extern int snprintf(char *buf, unsigned int size, const char *fmt, ...);  // CALL snprintf
     // extern int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4);  // CALL printf4
@@ -1205,6 +1205,32 @@ namespace VML {
     // extern void ui_line(int x1, int y1, int x2, int y2, int color, int lw);  // CALL ui_line
     // extern void ui_circle(int cx, int cy, int r, int color, int fill, int lw);  // CALL ui_circle
     // extern void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);  // CALL ui_ellipse
+    // extern int ui_clip_push(int x, int y, int w, int h);  // CALL ui_clip_push
+    // extern int ui_clip_pop(void);  // CALL ui_clip_pop
+    // extern int ui_alpha(int v);  // CALL ui_alpha
+    // extern int ui_brush_reset(void);  // CALL ui_brush_reset
+    // extern int ui_clip_reset(void);  // CALL ui_clip_reset
+    // extern int ui_mask_begin(void);  // CALL ui_mask_begin
+    // extern int ui_mask_end(int inside);  // CALL ui_mask_end
+    // extern int ui_mask_end2(int op);  // CALL ui_mask_end2
+    // extern int ui_mask_clear(void);  // CALL ui_mask_clear
+    // extern int ui_mask_test(int x, int y);  // CALL ui_mask_test
+    // extern int ui_mask_seg_count(void);  // CALL ui_mask_seg_count
+    // extern int ui_mask_seg_op(int seg);  // CALL ui_mask_seg_op
+    // extern int ui_mask_shape_count(int seg);  // CALL ui_mask_shape_count
+    // extern int ui_mask_path(int seg, int idx, char* buf, int cap);  // CALL ui_mask_path
+    // extern int ui_res_count(int what);  // CALL ui_res_count
+    // extern int ui_layer_begin(void);  // CALL ui_layer_begin
+    // extern int ui_layer_end(int alpha);  // CALL ui_layer_end
+    // extern int ui_touch(int slot, int* out);  // CALL ui_touch
+    // extern int ui_touch_query(int slot);  // CALL ui_touch_query
+    // extern int ui_touch_x(void);  // CALL ui_touch_x
+    // extern int ui_touch_y(void);  // CALL ui_touch_y
+    // extern int ui_touch_down(void);  // CALL ui_touch_down
+    // extern int ui_key_down(int key);  // CALL ui_key_down
+    // extern int ui_orient_lock(int mode);  // CALL ui_orient_lock
+    // extern int ui_immersive(int on);  // CALL ui_immersive
+    // extern int ui_audio_playing(void);  // CALL ui_audio_playing
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
     // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image

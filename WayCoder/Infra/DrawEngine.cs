@@ -228,6 +228,18 @@ public sealed class DrawFigure
     public string Kind = "";
     public readonly List<double> Args = new();
     public string? Text;
+
+    /// <summary>
+    /// **子图元**（只给 `layer` 用）。解析期把 `layer_begin..layer_end` 之间的图元挂上来，
+    /// `LayerCommand.Rasterize` 再把它们画进一块临时画布、整层按 alpha 合成。
+    ///
+    /// ⚠ 为什么不是"塞进 `Args`"（蒙版就是那么做的）：蒙版的形状是**几个数**
+    /// （圆 = 三四个 double、矩形 = 四个），而图层里装的是**任意图元** ——
+    /// 它们有颜色、文字、渐变引用、点列表，塞不进一个 `List&lt;double&gt;`。
+    /// ⚠ 为什么不能"让指令回头去查文档"：`IDrawCommand.Rasterize(Canvas, DrawFigure)`
+    ///   的签名**只看得到自己那一个图元** —— 所以收集必须在**解析期**做，那里才看得到全局。
+    /// </summary>
+    public List<DrawFigure>? Children;
     public uint Fill = 0xFF000000;
     /// <summary>
     /// 是否**真的要填充**。<see cref="Fill"/> 默认是黑色，不能拿"它非零"当判据 ——
@@ -367,6 +379,11 @@ public static class DrawRunner
         var current = Affine.Identity;
         var stack = new Stack<Affine>();
         List<DrawFigure>? maskBuf = null;   // 蒙版收集缓冲（`mask_begin` 开、`mask_end` 收）
+        List<DrawFigure>? layerBuf = null;  // 图层收集缓冲（`layer_begin` 开、`layer_end` 收）
+        // 当前蒙版的**累积段列表** —— 布尔运算必须有一处记着"当前蒙版是什么"
+        // （`mask_end2(op)` 的语义就是"与它组合"）。见下面那段的长注释。
+        var maskSegs = new List<MaskExpr.Segment>();
+        bool maskInside = true;
 
         foreach (var raw in dsl.Split('\n'))
         {
@@ -429,45 +446,72 @@ public static class DrawRunner
                 continue;
             }
 
-            // ── 蒙版：`mask_begin` … `mask_end [inside]` ────────────────────────
-            // 中间画的形状**不上屏**，只被收成一条蒙版定义（见 `DrawDocument.Masks`）。
+            // ── 蒙版：`mask_begin` … `mask_end [inside]` / `mask_end2 <op>` ──────
+            // 中间画的形状**不上屏**，只被收成一条蒙版定义（见 `MaskCommand`）。
             // ⚠ 收集要在**解析期**做，不能留给指令：指令拿不到"后面还有什么"。
+            //
+            // ⚠ **布尔运算的累积也在这里，不在 `VmlScene`**：`mask_end2(op)` 的语义是
+            //   "与**当前**蒙版按 op 组合"，所以必须有一处记着当前蒙版是什么；而解码那头
+            //   （`MaskCommand.Rasterize`）每次只看到**一条自足的图元**（`Rasterize` 的签名
+            //   够不到文档）⇒ 索性每发一条就把**完整段列表**带上（见 `MaskExpr.Encode`）。
+            //   累积放在解析期还有个好处：它是**唯一**一处，VmlScene 那边只管发一行文本。
             if (name.Equals("mask_begin", StringComparison.OrdinalIgnoreCase))
             {
                 maskBuf ??= new List<DrawFigure>();
                 continue;
             }
-            if (name.Equals("mask_end", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals("mask_end", StringComparison.OrdinalIgnoreCase)
+                || name.Equals("mask_end2", StringComparison.OrdinalIgnoreCase))
             {
-                var shapes = new List<(string, double, double, double, double)>();
-                if (maskBuf != null)
+                var shapes = ExtractMaskShapes(maskBuf);
+                maskBuf = null;
+
+                int op = MaskOp.Replace;
+                if (name.Equals("mask_end", StringComparison.OrdinalIgnoreCase))
                 {
-                    foreach (var mf in maskBuf)
-                    {
-                        // 只认能**闭式判定**的形状（圆 / 矩形）。别的形状在蒙版里没有意义，
-                        // 与其"看着支持了其实不生效"，不如明确忽略。
-                        if (mf.Kind == "circle" && mf.Args.Count >= 3)
-                            shapes.Add(("circle", mf.Args[0], mf.Args[1], mf.Args[2], 0));
-                        else if ((mf.Kind == "rect" || mf.Kind == "roundrect") && mf.Args.Count >= 4)
-                            shapes.Add(("rect", mf.Args[0], mf.Args[1], mf.Args[2], mf.Args[3]));
-                    }
-                    maskBuf = null;
+                    // 老形态：带 inside，且**整体取代**当前蒙版
+                    //（v0.96.465 之前就是"替换"语义 —— 老程序的画面必须逐像素不变）
+                    maskInside = args.Count < 1 || DrawParse.Num(args[0]) != 0;
                 }
-                double inside = args.Count >= 1 ? DrawParse.Num(args[0]) : 1;
-                // ⚠ 形状**直接平铺在标记图元的 `Args` 上**（自足），不另存一张文档级的表 ——
-                //   因为 `IDrawCommand.Rasterize(Canvas, DrawFigure)` **只看得到这一个图元**，
-                //   够不到文档。存两处就得让指令回头去查文档，那是"同一件事两处存"。
-                //   编码：`[inside, kind, a, b, c, d, kind, a, b, c, d, …]`，kind 0=圆 1=矩形。
+                else
+                {
+                    if (args.Count < 1) continue;
+                    op = (int)DrawParse.Num(args[0]);
+                    // 不认得的运算符：整条忽略（**别当 0 蒙混** —— 那会把"程序写错了"
+                    // 变成"画面莫名其妙不一样"，最难查的一类）
+                    if (!MaskOp.IsValid(op)) continue;
+                }
+
+                // 累积语义与运行时镜像（`VmlScene.ApplyMaskSegment`）**共用这一处**，
+                // 否则 `ui_mask_test` 查到的蒙版会与画出来的不是一个（见 `MaskExpr.ApplySegment`）
+                MaskExpr.ApplySegment(maskSegs, op, shapes);
+
                 var mf2 = new DrawFigure { Kind = "mask" };
-                mf2.Args.Add(inside != 0 ? 1 : 0);
-                foreach (var sh in shapes)
-                {
-                    mf2.Args.Add(sh.Item1 == "circle" ? 0 : 1);
-                    mf2.Args.Add(sh.Item2); mf2.Args.Add(sh.Item3);
-                    mf2.Args.Add(sh.Item4); mf2.Args.Add(sh.Item5);
-                }
+                MaskExpr.Encode(mf2, maskInside, maskSegs);
                 mf2.Transform = current;
                 doc.Figures.Add(mf2);
+                continue;
+            }
+
+            // ── 图层：`layer_begin` … `layer_end [alpha]` ─────────────────────
+            // 与蒙版**同一个理由**必须在解析期收集（指令只看得到自己那一个图元），
+            // 但**去向相反**：蒙版的形状不上屏，图层的子图元要上屏（经过一次离屏合成）。
+            if (name.Equals("layer_begin", StringComparison.OrdinalIgnoreCase))
+            {
+                layerBuf ??= new List<DrawFigure>();
+                continue;
+            }
+            if (name.Equals("layer_end", StringComparison.OrdinalIgnoreCase))
+            {
+                var lf = new DrawFigure { Kind = "layer" };
+                // alpha 收成 0..1：DSL 里写 0..255 的整数更贴近 C 的用法，
+                // 换算**只在这一处**（两端各算一次就是本仓记过的"沉默的错"）
+                double a255 = args.Count >= 1 ? DrawParse.Num(args[0]) : 255;
+                lf.Args.Add(Math.Clamp(a255, 0, 255) / 255.0);
+                lf.Children = layerBuf ?? new List<DrawFigure>();
+                lf.Transform = current;
+                layerBuf = null;
+                doc.Figures.Add(lf);
                 continue;
             }
 
@@ -476,8 +520,15 @@ public static class DrawRunner
             var fig = cmd.Parse(args);
             if (fig == null) { doc.Error = $"参数错误: {line}"; continue; }
             fig.Transform = current;
-            // 蒙版收集期：进缓冲、**不上屏**（见上面 mask_begin 那段）
+            // ⚠ **两个收集器同时开着时，蒙版先拿**。顺序反了会踩这个坑：
+            //   形状被图层缓冲截走 ⇒ `mask_end` 收到一个**空蒙版** ⇒ 层内的蒙版**静默失效**，
+            //   而且那些形状还会被当成普通图元画出来（"蒙版没用、形状照画"）。
+            //   现在的顺序下，`mask_begin..mask_end` 之间的形状只进蒙版缓冲、不上屏，
+            //   而 `mask_end` 生成的那条 `mask` 图元照常落进图层缓冲
+            //   ⇒ **层内的蒙版独立生效**（在临时画布上），语义正好。
             if (maskBuf != null) { maskBuf.Add(fig); continue; }
+            // 图层收集期：进缓冲（**照常上屏**，只是晚一步、经过合成）
+            if (layerBuf != null) { layerBuf.Add(fig); continue; }
             doc.Figures.Add(fig);
         }
 
@@ -503,6 +554,56 @@ public static class DrawRunner
             }
         }
         return doc;
+    }
+
+    /// <summary>
+    /// 把 `mask_begin` 期间收集到的图元转成**能闭式判定**的蒙版形状。
+    ///
+    /// **只认圆 / 矩形 / 多边形**（多边形来自 `path` 与 `polygon`）：别的形状（椭圆、星形、
+    /// 文字、图像…）在蒙版里**明确忽略** —— 与其"看着支持了其实不生效"，不如不认。
+    ///
+    /// `roundrect` 当矩形处理（**忽略圆角**）：蒙版是"哪些点可见"，圆角差那几个像素
+    /// 不值得为它单开一种形状。真要圆角蒙版，用 `path` 画一条带 `A` 的路径。
+    ///
+    /// ⚠ `path` 走的是 `DrawPath.Flatten`（**含贝塞尔与圆弧**，按 SVG 规范展平）——
+    ///   它与光栅器画 `path` 图元用的是**同一个展平器**，所以"同一个形状当图元画"
+    ///   与"当蒙版用"边界严丝合缝。**别为蒙版另写一个曲线展平器**（本仓头号坑）。
+    /// </summary>
+    static List<MaskShape> ExtractMaskShapes(List<DrawFigure>? buf)
+    {
+        var shapes = new List<MaskShape>();
+        if (buf == null) return shapes;
+
+        foreach (var mf in buf)
+        {
+            switch (mf.Kind)
+            {
+                case "circle" when mf.Args.Count >= 3:
+                    shapes.Add(MaskShape.Circle(mf.Args[0], mf.Args[1], mf.Args[2]));
+                    break;
+                case "rect" or "roundrect" when mf.Args.Count >= 4:
+                    shapes.Add(MaskShape.Rect(mf.Args[0], mf.Args[1], mf.Args[2], mf.Args[3]));
+                    break;
+                case "polygon" when mf.Args.Count >= 6:
+                    shapes.Add(MaskShape.Polygon(new List<double>(mf.Args)));
+                    break;
+                case "path":
+                    // 一条 `d` 可以开多条子路径（`M…Z M…Z`）：**每条子路径各算一个形状**，
+                    // 而不是把点全串成一条折线 —— 串起来会凭空多出一条连接边，
+                    // 那块区域被判成"在形状里"，洞就填上了。
+                    foreach (var sp in DrawPath.Flatten(mf.Text))
+                    {
+                        if (sp.Points.Count < 3) continue;
+                        var flat = new List<double>(sp.Points.Count * 2);
+                        foreach (var (px, py) in sp.Points) { flat.Add(px); flat.Add(py); }
+                        shapes.Add(MaskShape.Polygon(flat));
+                    }
+                    break;
+                default:
+                    break;   // 明确忽略（见上面的说明）
+            }
+        }
+        return shapes;
     }
 
     static double Num(DrawToken t)
@@ -639,6 +740,14 @@ public static class DrawRunner
         }
 
         int clipN = 0;
+        // 蒙版开的那层 `<g>` 是**跨图元**的，得有人关：
+        //   · 蒙版是**替换**语义（不是 push/pop）⇒ 新的一条先把上一条的关掉，
+        //     ⚠ 不关的话 `mask_clear` 之后的内容仍然被上一个蒙版箍着，画面全错；
+        //   · 最后一条留到文档末尾统一关（`clippop` 是自己发 `</g>` 的，与这里无关）。
+        // ⚠ 已知边界：`clip` 与 `mask` **交叉**使用（裁剪的生命周期跨越一次蒙版替换）时，
+        //   这里的"先关一层"会关错那一层。VML 那条路不会混用（`ui_gfx` 的蒙版不带变换、
+        //   裁剪与蒙版各管各的段落），手写 DSL 才会碰上 —— 真碰上请拆成两段。
+        bool maskOpen = false;
         foreach (var f in doc.Figures)
         {
             var cmd = DrawCommandRegistry.Get(f.Kind);
@@ -646,7 +755,11 @@ public static class DrawRunner
             // image 图元需要裁剪（圆角/源图子矩形）时分配文档内唯一 clipPath id
             if (f.Kind == "image" && (f.CornerRadius > 0 || (f.SrcW > 0 && f.SrcH > 0)))
                 f.ClipId = "imgClip" + (clipN++);
-            if (f.Transform.IsIdentity)
+            if (f.Kind == "mask" && maskOpen) { sb.Append("  </g>\n"); maskOpen = false; }
+            // ⚠ 蒙版图元**不套**外层 `<g transform>`：它的变换要落进 `<defs>` 里的形状上
+            //   （见 `SvgMaskEmitter.EmitShapes`），而 `<g mask>` 本身必须留在顶层 ——
+            //   否则"跨图元的层"会被包进只在一条图元上生效的 transform 里，结构就错了。
+            if (f.Transform.IsIdentity || f.Kind == "mask")
             {
                 cmd.EmitSvg(sb, f);
             }
@@ -656,7 +769,9 @@ public static class DrawRunner
                 cmd.EmitSvg(sb, f);
                 sb.Append("  </g>\n");
             }
+            if (f.Kind == "mask") maskOpen = true;
         }
+        if (maskOpen) sb.Append("  </g>\n");
         sb.Append("</svg>\n");
         return sb.ToString();
     }

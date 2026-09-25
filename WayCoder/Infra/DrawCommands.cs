@@ -1426,41 +1426,314 @@ internal sealed class MaskCommand : IDrawCommand
 
     public void Rasterize(Canvas c, DrawFigure f)
     {
+        var m = MaskExpr.Decode(f.Args);
+        if (m == null) { c.ClearMask(); return; }
+
         // ⚠⚠ **形状也要过 `f.Transform`** —— 与 `ClipCommand` 是**同一个坑**：
         //   出图走 `ToPngAntialiased`，它在放大 s 倍的画布上重画（判定点也在那个空间里），
         //   而蒙版形状若留在原坐标 ⇒ 圆挪了位、判定点全在外面 ⇒ "一开蒙版全没了"。
-        //   圆心与半径**一起**缩放（半径是长度、不是坐标）。
-        bool scaled = DrawFill.TryScaled(f.Transform, out var sc, out var tx, out var ty);
-        var shapes = new List<(string, double, double, double, double)>();
-        for (int i = 1; i + 4 < f.Args.Count; i += 5)
-        {
-            double a = f.Args[i + 1], b = f.Args[i + 2], cc = f.Args[i + 3], d = f.Args[i + 4];
-            if (f.Args[i] == 0)
-                shapes.Add(("circle", scaled ? tx + a * sc : a, scaled ? ty + b * sc : b, scaled ? cc * sc : cc, 0));
-            else
-                shapes.Add(("rect", scaled ? tx + a * sc : a, scaled ? ty + b * sc : b, scaled ? cc * sc : cc, scaled ? d * sc : d));
-        }
-        c.SetMask(shapes, f.Args.Count > 0 && f.Args[0] != 0);
+        //   `MaskShape.Scaled` 里圆心与半径**一起**缩放（半径是长度、不是坐标）。
+        if (DrawFill.TryScaled(f.Transform, out var sc, out var tx, out var ty))
+            m = m.Scaled(sc, tx, ty);
+        c.SetMask(m);
     }
 
-    public void Vector(IVectorTarget t, DrawFigure f) => t.MarkUnsupported("mask");
+    /// <summary>
+    /// 矢量后端：把布尔链**折叠成一条路径 + 一个填充规则**交给平台裁剪
+    /// （见 `MaskExpr.ToClipPath`）。
+    ///
+    /// ⚠ **折叠不了的形态整窗回退光栅**（`MarkUnsupported`）—— `INTERSECT` / `XOR` /
+    ///   混合链需要真正的路径布尔运算，塞进一条路径表达不出来。宁可慢，也别画错。
+    /// ⚠ 这里**不过 `f.Transform`**：矢量侧的形状坐标本来就是场景坐标（驱动层已经
+    ///   `canvas.Scale` 过了），与 `ClipCommand.Vector` 同一处置。
+    /// </summary>
+    public void Vector(IVectorTarget t, DrawFigure f)
+    {
+        var m = MaskExpr.Decode(f.Args);
+        // ⚠ **空蒙版（`ui_mask_clear` 的产物）是"取消"，不是"折叠不了"** ——
+        //   它解码出来是个**非 null 但没形状**的表达式，漏判这一条会把"取消蒙版"
+        //   整窗回退光栅（画面是对的，代价白白付了），而这一步只有端到端用例才照得出来。
+        if (m == null || m.IsEmpty) { t.PopMask(); return; }
+        var folded = m.ToClipPath();
+        if (folded == null) { t.MarkUnsupported("mask-bool"); return; }
+        t.PushMask(folded.Value.Subpaths, folded.Value.EvenOdd);
+    }
 
-    // SVG：形状与 inside 都在 Args 上，就地发一个 clipPath 再开 `<g>`。
+    // SVG：整条布尔链在 `<defs>` 里用**逐级嵌套的 mask** 展开（见下面 `SvgMaskEmitter`）。
+    public void EmitSvg(StringBuilder sb, DrawFigure f)
+        => SvgMaskEmitter.Emit(sb, MaskExpr.Decode(f.Args), f.Transform);
+}
+
+/// <summary>
+/// 把一条 <see cref="MaskExpr"/> 导成 SVG：**一层 mask 一个布尔段**，逐级嵌套。
+///
+/// ## 为什么不是"一个 clipPath 里摆几个形状"
+///
+/// `clipPath` 在一次 `<g>` 上**只能表达交集**（多层裁剪 = 逐级求交），而布尔链里有并、差、异或。
+/// SVG 里能表达任意布尔的只有 `<mask>`（按亮度取 alpha）+ 嵌套：
+///
+/// | 段 | 展开 |
+/// |---|---|
+/// | `REPLACE` | 新 mask 只画本段形状（白）—— 前面的一概不算 |
+/// | `UNION` | 先铺一块"上一级 mask 的复印件"（`<rect fill="white" mask="url(#prev)"/>`），再画白形状 |
+/// | `INTERSECT` | 白形状**只画在 `prev` 里**（`<g mask="url(#prev)">`） |
+/// | `SUBTRACT` | 铺 `prev`，再画**黑**形状（黑 = 抠掉） |
+/// | `XOR` | `(prev 且非本段)` 并上 `(非 prev 且本段)`，各用一个补集 mask |
+///
+/// ⚠ 亮度 mask 的默认底色是**黑**（= 不可见），正好是我们要的"空集" ——
+///   所以 `REPLACE` 只要"别去引用上一级"就自然清干净了，不必先铺一块黑板。
+///
+/// ⚠ 这条路上**没有 `clipPath`**：直接用 `<mask>` 是因为它与光栅那侧同为
+///   "逐点判定"语义，比 clip 的"区域裁剪"更贴。`inside=0` 用"白底 + 形状涂黑"表达取反。
+/// </summary>
+internal static class SvgMaskEmitter
+{
+    /// <summary>发一条蒙版指令：写 `<defs>`，再开一个引用它的 `&lt;g&gt;`。</summary>
+    public static void Emit(StringBuilder sb, MaskExpr? m, Affine transform)
+    {
+        if (m == null || m.IsEmpty)
+        {
+            // 没有蒙版 = 后续图元全部可见。开一个空 `<g>` 保持"开/关成对"，好让收尾统一。
+            sb.Append("  <g>\n");
+            return;
+        }
+
+        // 逐段累积，每段产出一个 mask id（`inside=0` 的取反包在最外层）
+        var ids = new List<string>();
+        for (int i = 0; i < m.Segments.Count; i++)
+        {
+            var seg = m.Segments[i];
+            string id = "mk" + (ClipCommand.NextClipId++);
+            string? prev = (i > 0 && seg.Op != MaskOp.Replace) ? ids[^1] : null;
+            EmitSegment(sb, id, prev, seg, transform);
+            ids.Add(id);
+        }
+
+        string final = ids[^1];
+        if (!m.Inside)
+        {
+            // `inside=0` = 在蒙版**外**画：白底铺满 + 把蒙版涂黑 ⇒ 亮度取反。
+            string nid = "mk" + (ClipCommand.NextClipId++);
+            sb.Append("  <defs><mask id=\"").Append(nid).Append("\" maskUnits=\"userSpaceOnUse\">")
+              .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#fff\"/>")
+              .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#000\" mask=\"url(#")
+              .Append(final).Append(")\"/>")
+              .Append("</mask></defs>\n");
+            final = nid;
+        }
+
+        sb.Append("  <g mask=\"url(#").Append(final).Append(")\">\n");
+    }
+
+    private static void EmitSegment(StringBuilder sb, string id, string? prev, MaskExpr.Segment seg, Affine transform)
+    {
+        sb.Append("  <defs><mask id=\"").Append(id).Append("\" maskUnits=\"userSpaceOnUse\">");
+
+        if (prev != null && seg.Op != MaskOp.Xor)
+        {
+            // 铺一块"上一级结果的复印件"：**白色**表示"上一级可见的地方继续可见"。
+            // `Intersect` 反过来 —— 本段要画在上一级**里面**，所以这边什么都不铺，
+            // 改成下面用 `<g mask>` 把本段形状箍住。
+            if (seg.Op != MaskOp.Intersect)
+                sb.Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#fff\" mask=\"url(#")
+                  .Append(prev).Append(")\"/>");
+        }
+
+        // 本段的形状（并集）：白 = 加进来，黑 = 挖掉
+        string shapeFill = seg.Op == MaskOp.Subtract ? "#000" : "#fff";
+        switch (seg.Op)
+        {
+            case MaskOp.Intersect when prev != null:
+                sb.Append("<g mask=\"url(#").Append(prev).Append(")\">");
+                EmitShapes(sb, seg, "#fff", transform);
+                sb.Append("</g>");
+                break;
+            case MaskOp.Xor when prev != null:
+                EmitXor(sb, prev, seg, transform);
+                break;
+            default:
+                EmitShapes(sb, seg, shapeFill, transform);
+                break;
+        }
+
+        sb.Append("</mask></defs>\n");
+    }
+
+    /// <summary>
+    /// XOR = `(prev 且非本段) 或 (非 prev 且本段)`。
+    /// 需要两个**补集**：本段的补集、上一级的补集 —— 各用一个"白底 + 涂黑"的 mask 表达。
+    /// </summary>
+    private static void EmitXor(StringBuilder sb, string prev, MaskExpr.Segment seg, Affine transform)
+    {
+        string notPrev = "mk" + (ClipCommand.NextClipId++);
+        sb.Append("<mask id=\"").Append(notPrev).Append("\" maskUnits=\"userSpaceOnUse\">")
+          .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#fff\"/>")
+          .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#000\" mask=\"url(#")
+          .Append(prev).Append(")\"/>")
+          .Append("</mask>");
+
+        string notSeg = "mk" + (ClipCommand.NextClipId++);
+        sb.Append("<mask id=\"").Append(notSeg).Append("\" maskUnits=\"userSpaceOnUse\">")
+          .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#fff\"/>");
+        EmitShapes(sb, seg, "#000", transform);
+        sb.Append("</mask>");
+
+        // prev 且非本段：先铺一块 prev 的白色（`<rect mask=prev>`），再**套一层** notSeg
+        // 把本段盖住的地方抠掉。⚠ `<rect>` 只能挂一个 `mask` 属性 ⇒ 两个条件必须靠
+        // `<g mask>` 套一层表达，不能写成两层属性。
+        sb.Append("<g mask=\"url(#").Append(notSeg).Append(")\">")
+          .Append("<rect x=\"-100000\" y=\"-100000\" width=\"200000\" height=\"200000\" fill=\"#fff\" mask=\"url(#")
+          .Append(prev).Append(")\"/>")
+          .Append("</g>");
+        // 非 prev 且本段
+        sb.Append("<g mask=\"url(#").Append(notPrev).Append(")\">");
+        EmitShapes(sb, seg, "#fff", transform);
+        sb.Append("</g>");
+    }
+
+    /// <summary>
+    /// 发本段的形状。
+    ///
+    /// ⚠ 形状坐标是**图元自己的局部坐标**，变换要在这里补上（`MaskCommand.Rasterize` 走的是
+    ///   "形状过一遍 `f.Transform`"，两条路必须同源）。所以外层的 `<g transform>` 不再包
+    ///   mask 图元 —— 变换进 `<defs>` 里，`<g mask>` 本身留在顶层（那样收尾好配对）。
+    /// </summary>
+    private static void EmitShapes(StringBuilder sb, MaskExpr.Segment seg, string fill, Affine transform)
+    {
+        bool wrap = !transform.IsIdentity;
+        if (wrap) sb.Append("<g transform=\"").Append(transform.ToString()).Append("\">");
+        EmitShapesCore(sb, seg, fill);
+        if (wrap) sb.Append("</g>");
+    }
+
+    private static void EmitShapesCore(StringBuilder sb, MaskExpr.Segment seg, string fill)
+    {
+        foreach (var sh in seg.Shapes)
+        {
+            switch (sh.Kind)
+            {
+                case MaskShape.KindCircle:
+                    sb.Append("<circle cx=\"").Append(DrawParse.F(sh.A)).Append("\" cy=\"").Append(DrawParse.F(sh.B))
+                      .Append("\" r=\"").Append(DrawParse.F(sh.C)).Append("\" fill=\"").Append(fill).Append("\"/>");
+                    break;
+                case MaskShape.KindRect:
+                    sb.Append("<rect x=\"").Append(DrawParse.F(sh.A)).Append("\" y=\"").Append(DrawParse.F(sh.B))
+                      .Append("\" width=\"").Append(DrawParse.F(sh.C)).Append("\" height=\"").Append(DrawParse.F(sh.D))
+                      .Append("\" fill=\"").Append(fill).Append("\"/>");
+                    break;
+                case MaskShape.KindPolygon:
+                {
+                    var pts = sh.Points;
+                    if (pts == null || pts.Count < 6) break;
+                    sb.Append("<polygon points=\"");
+                    for (int i = 0; i + 1 < pts.Count; i += 2)
+                    {
+                        if (i > 0) sb.Append(' ');
+                        sb.Append(DrawParse.F(pts[i])).Append(',').Append(DrawParse.F(pts[i + 1]));
+                    }
+                    // ⚠ 多边形用 `evenodd`：与光栅器的 `Canvas.PointInPolygon`（射线法/奇偶）
+                    //   同一套规则。用 nonzero 的话"带洞的路径"两条路会画出不一样的形状。
+                    sb.Append("\" fill=\"").Append(fill).Append("\" fill-rule=\"evenodd\"/>");
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// <summary>
+/// `layer_begin` / `layer_end [alpha]` —— **整层离屏合成**（`ui_gfx` op 6/7）。
+///
+/// 语义：`layer_begin … layer_end` 之间的图元先画进一块**临时画布**，`layer_end` 时
+/// **整层**按 `alpha` 合成到主画布上。
+///
+/// ## 为什么必须有离屏缓冲（而蒙版不需要）
+///
+/// 蒙版的形状**本来就不上屏**，所以它们只是"一组判定用的几何"（闭式判定就行，见 `DrawMask`）。
+/// 图层的子图元**是要上屏的** —— "先画到别处、再整层贴回来"这件事本身就要求一块临时画布，
+/// 换成逐像素判定表达不出来。
+///
+/// ## 子图元怎么来的
+///
+/// ⚠ `IDrawCommand.Rasterize(Canvas, DrawFigure)` **只看得到自己那一个图元** ⇒
+///   收集必须在**解析期**做（`DrawRunner.Parse` 把 `layer_begin..layer_end` 之间的图元
+///   挂进 `DrawFigure.Children`）。与蒙版同一处置、**去向相反**。
+///
+/// ## 已知取舍
+///
+/// · **矢量后端回退光栅**（`ICanvas` 没有"离屏渲染到另一个画布"的通用 API）⇒
+///   用了图层的那一帧在手机上走慢路。SVG 侧最省事（`&lt;g opacity="…"&gt;`）。
+/// · **合成走 `Canvas.SetPixel`**，所以整层**照常受外层的裁剪与蒙版约束** ——
+///   这是有意的：层内绘制不受外层约束，但"贴回来"这一步是一次正常的落笔。
+/// · 代价是**每层一块整屏画布 + 一次逐像素合成**。图层别开太多。
+/// </summary>
+internal sealed class LayerCommand : IDrawCommand
+{
+    public string Name => "layer";
+
+    public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
+    {
+        // 子图元由**解析期**挂上来（见类注释），这里只收 alpha
+        var f = new DrawFigure { Kind = "layer" };
+        f.Args.Add(a.Count >= 1 ? DrawParse.Num(a[0]) : 1.0);
+        return f;
+    }
+
+    public void Rasterize(Canvas c, DrawFigure f)
+    {
+        var kids = f.Children;
+        if (kids == null || kids.Count == 0) return;
+        double alpha = f.Args.Count > 0 ? f.Args[0] : 1.0;
+        if (alpha <= 0) return;          // 全透明 = 整层不画（也省掉一块画布）
+
+        // 临时画布：**与主画布同尺寸同坐标系**（子图元的坐标与变换照用），背景全透明。
+        // ⚠ 透明背景是关键：合成时按 `a == 0` 跳过，才不会把整块黑板盖上去。
+        var temp = new Canvas(c.Width, c.Height, 0x00000000);
+        foreach (var kid in kids)
+            DrawCommandRegistry.Get(kid.Kind)?.Rasterize(temp, kid);
+
+        // 合成。⚠ **走 `SetPixel` 而不是直接写 `c.Pixels`** ——
+        //   `SetPixel` 里有裁剪与蒙版的判定，整层贴回来时该受它们约束；
+        //   直接写数组会绕过那两道，症状是"蒙版外的东西从图层里漏出来"。
+        var px = temp.Pixels;
+        for (int y = 0; y < c.Height; y++)
+        {
+            for (int x = 0; x < c.Width; x++)
+            {
+                int i = (y * c.Width + x) * 4;
+                int a = px[i + 3];
+                if (a == 0) continue;                       // 层内没画到 → 跳过
+                if (alpha >= 1) { c.SetPixel(x, y, Rgba(px[i], px[i + 1], px[i + 2], a)); continue; }
+                // 整层 alpha：把每个像素的 alpha 乘上层的 alpha，交给 `SetPixel` 做 source-over
+                int a2 = (int)(a * alpha);
+                if (a2 <= 0) continue;
+                c.SetPixel(x, y, Rgba(px[i], px[i + 1], px[i + 2], a2));
+            }
+        }
+    }
+
+    private static uint Rgba(int r, int g, int b, int a)
+        => ((uint)a << 24) | ((uint)r << 16) | ((uint)g << 8) | (uint)b;
+
+    /// <summary>
+    /// 矢量后端：**回退光栅**。整层的离屏合成在平台画布上没有通用做法。
+    /// </summary>
+    public void Vector(IVectorTarget t, DrawFigure f) => t.MarkUnsupported("layer");
+
+    /// <summary>
+    /// SVG：`&lt;g opacity="…"&gt;` 最省事 —— 开一层、子图元照常发、再关掉。
+    /// ⚠ 与蒙版那层一样是**跨图元**的 `&lt;g&gt;`，收尾由 `ToSvg` 统一管（见那里的注释）。
+    /// </summary>
     public void EmitSvg(StringBuilder sb, DrawFigure f)
     {
-        string id = "maskg" + (ClipCommand.NextClipId++);
-        sb.Append("  <defs><clipPath id=\"").Append(id).Append("\">");
-        for (int i = 1; i + 4 < f.Args.Count; i += 5)
+        double alpha = f.Args.Count > 0 ? f.Args[0] : 1.0;
+        sb.Append("  <g opacity=\"").Append(DrawParse.F(alpha)).Append("\">\n");
+        if (f.Children != null)
         {
-            if (f.Args[i] == 0)
-                sb.Append("<circle cx=\"").Append(DrawParse.F(f.Args[i + 1])).Append("\" cy=\"")
-                  .Append(DrawParse.F(f.Args[i + 2])).Append("\" r=\"").Append(DrawParse.F(f.Args[i + 3])).Append("\"/>");
-            else
-                sb.Append("<rect x=\"").Append(DrawParse.F(f.Args[i + 1])).Append("\" y=\"")
-                  .Append(DrawParse.F(f.Args[i + 2])).Append("\" width=\"").Append(DrawParse.F(f.Args[i + 3]))
-                  .Append("\" height=\"").Append(DrawParse.F(f.Args[i + 4])).Append("\"/>");
+            foreach (var kid in f.Children)
+                DrawCommandRegistry.Get(kid.Kind)?.EmitSvg(sb, kid);
         }
-        sb.Append("</clipPath></defs>\n  <g clip-path=\"url(#").Append(id).Append(")\">\n");
+        sb.Append("  </g>\n");
     }
 }
 
@@ -1470,6 +1743,7 @@ internal static class DrawCommandInit
     [System.Runtime.CompilerServices.ModuleInitializer]
     internal static void Init()
     {
+        DrawCommandRegistry.Register(new LayerCommand());
         DrawCommandRegistry.Register(new MaskCommand());
         DrawCommandRegistry.Register(new ClipCommand());
         DrawCommandRegistry.Register(new ClipPopCommand());

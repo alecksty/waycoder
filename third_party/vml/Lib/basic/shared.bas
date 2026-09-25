@@ -1423,6 +1423,11 @@ DECLARE FUNCTION vsnprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS IN
     vsnprintf = 0
 END FUNCTION
 
+DECLARE FUNCTION format_slot_count(a0 AS INTEGER) AS INTEGER
+    asm("CALL format_slot_count")
+    format_slot_count = 0
+END FUNCTION
+
 DECLARE FUNCTION con_putc(a0 AS INTEGER) AS INTEGER
     asm("CALL con_putc")
     con_putc = 0
@@ -4352,11 +4357,6 @@ DECLARE FUNCTION _printf_ftoe(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     _printf_ftoe = 0
 END FUNCTION
 
-DECLARE FUNCTION format_slot_count(a0 AS INTEGER) AS INTEGER
-    asm("CALL format_slot_count")
-    format_slot_count = 0
-END FUNCTION
-
 DECLARE FUNCTION sprintf(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL sprintf")
     sprintf = 0
@@ -5710,6 +5710,136 @@ END SUB
 DECLARE SUB ui_ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
     asm("CALL ui_ellipse")
 END SUB
+
+DECLARE FUNCTION ui_clip_push(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_clip_push")
+    ui_clip_push = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_clip_pop() AS INTEGER
+    asm("CALL ui_clip_pop")
+    ui_clip_pop = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_alpha(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_alpha")
+    ui_alpha = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_brush_reset() AS INTEGER
+    asm("CALL ui_brush_reset")
+    ui_brush_reset = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_clip_reset() AS INTEGER
+    asm("CALL ui_clip_reset")
+    ui_clip_reset = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_begin() AS INTEGER
+    asm("CALL ui_mask_begin")
+    ui_mask_begin = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_end(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_end")
+    ui_mask_end = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_end2(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_end2")
+    ui_mask_end2 = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_clear() AS INTEGER
+    asm("CALL ui_mask_clear")
+    ui_mask_clear = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_test(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_test")
+    ui_mask_test = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_seg_count() AS INTEGER
+    asm("CALL ui_mask_seg_count")
+    ui_mask_seg_count = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_seg_op(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_seg_op")
+    ui_mask_seg_op = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_shape_count(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_shape_count")
+    ui_mask_shape_count = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_mask_path(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_mask_path")
+    ui_mask_path = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_res_count(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_res_count")
+    ui_res_count = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_layer_begin() AS INTEGER
+    asm("CALL ui_layer_begin")
+    ui_layer_begin = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_layer_end(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_layer_end")
+    ui_layer_end = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_touch(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_touch")
+    ui_touch = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_touch_query(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_touch_query")
+    ui_touch_query = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_touch_x() AS INTEGER
+    asm("CALL ui_touch_x")
+    ui_touch_x = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_touch_y() AS INTEGER
+    asm("CALL ui_touch_y")
+    ui_touch_y = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_touch_down() AS INTEGER
+    asm("CALL ui_touch_down")
+    ui_touch_down = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_key_down(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_key_down")
+    ui_key_down = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_orient_lock(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_orient_lock")
+    ui_orient_lock = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_immersive(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_immersive")
+    ui_immersive = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_audio_playing() AS INTEGER
+    asm("CALL ui_audio_playing")
+    ui_audio_playing = 0
+END FUNCTION
 
 DECLARE FUNCTION ui_flood_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
     asm("CALL ui_flood_fill")

@@ -73,42 +73,20 @@ public sealed class Canvas
     //   还要在每个后端各维护一块临时画布。但蒙版形状**本来就不上屏** ——
     //   那它们只是"一组判定用的几何"，落到点上就是几行算术（圆 = 比半径平方、
     //   矩形 = 比边界）。省掉两次遍历、一块缓冲，而且三条后端可以同构实现。
-    private readonly List<(string Kind, double A, double B, double C, double D)> _maskShapes = new();
-    private bool _maskInside;
-    private bool _maskOn;
+    //
+    // 布尔运算（`MaskOp`）也长在这条路上：判定本来就是**逐点**做的，
+    // 从"任一形状命中"改成"按运算符链求值"就是几行 —— 依然不需要离屏缓冲。
+    private MaskExpr? _mask;
 
-    /// <summary>设一个蒙版 = 一组形状的**并集**；<paramref name="inside"/> 为真表示"只在里面画"。</summary>
-    public void SetMask(List<(string Kind, double A, double B, double C, double D)> shapes, bool inside)
-    {
-        _maskShapes.Clear();
-        _maskShapes.AddRange(shapes);
-        _maskInside = inside;
-        _maskOn = _maskShapes.Count > 0;
-    }
+    /// <summary>设一个蒙版；传 null / 空表达式等于取消。</summary>
+    public void SetMask(MaskExpr? mask)
+        => _mask = mask != null && !mask.IsEmpty ? mask : null;
 
     /// <summary>取消蒙版。</summary>
-    public void ClearMask() { _maskOn = false; _maskShapes.Clear(); }
+    public void ClearMask() => _mask = null;
 
     /// <summary>这一点该不该落笔？没有蒙版时恒真。</summary>
-    private bool InMask(int x, int y)
-    {
-        if (!_maskOn) return true;
-        var hit = false;
-        for (var i = 0; i < _maskShapes.Count; i++)
-        {
-            var s = _maskShapes[i];
-            if (s.Kind == "circle")
-            {
-                double dx = x - s.A, dy = y - s.B;
-                if (dx * dx + dy * dy <= s.C * s.C) { hit = true; break; }
-            }
-            else if (s.Kind == "rect")
-            {
-                if (x >= s.A && x < s.A + s.C && y >= s.B && y < s.B + s.D) { hit = true; break; }
-            }
-        }
-        return _maskInside ? hit : !hit;
-    }
+    private bool InMask(int x, int y) => _mask == null || _mask.Hit(x, y);
 
     private void ApplyClip()
     {

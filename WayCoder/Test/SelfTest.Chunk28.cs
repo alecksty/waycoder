@@ -31,6 +31,8 @@ public static partial class SelfTest
         TestVmlScreenshot(Section, Check, Fail);
         TestVmlWaitRenew(Section, Check, Fail);
         TestVmlStatusLines(Section, Check, Fail);
+        TestVmlMaskBool(Section, Check, Fail);
+        TestVmlMobileOps(Section, Check, Fail);
     }
 
     /// <summary>
@@ -344,6 +346,16 @@ public static partial class SelfTest
 
         public bool? LastKeepScreenOn;
         public void KeepScreenOn(bool on) => LastKeepScreenOn = on;
+
+        // ── 手机特有的操作方式（§3 P1）—— 记录型：自测只关心"宿主有没有把话传下来"，
+        //    真正的平台效果在各自那一端（桌面根本没有屏幕方向/沉浸式这些概念）。
+        public bool AudioPlayingFlag;
+        public int LastOrientationLock = -1;
+        public bool LastImmersive;
+
+        public bool AudioPlaying() => AudioPlayingFlag;
+        public void LockOrientation(int mode) => LastOrientationLock = mode;
+        public void SetImmersive(bool on) => LastImmersive = on;
 
         /// <summary>
         /// `ResolvePath` 的前缀。默认 `/fake/` —— 记录型，不指向任何真实目录。
@@ -929,5 +941,630 @@ public static partial class SelfTest
 
         // 号段表里有它（漏加 = 那道查重护栏形同虚设）
         Check("#588 已登记进 AllNumbers", Array.IndexOf(VmlUi.AllNumbers, VmlUi.Screenshot) >= 0);
+    }
+
+    /// <summary>
+    /// **手机特有的操作方式**（#556–559 / #547）。
+    ///
+    /// <para>
+    /// ⚠ 判据是"**宿主把话传对了没有**"，不是"屏幕上真的锁了方向" —— 后者只有真机能验，
+    /// 而这一层的价值在于：**共享层这一份两端编的是同一个**（桌面 vmlcli 与手机
+    /// `MauiVmlHost` 都调它），所以这里对了，两端的行为就一致。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 触摸那条最有价值的断言是"**两份状态同源**"：平台只有 `PostTouch` 一个入口，
+    /// 它必须**同时**更新状态（给轮询）**和**投一条消息（给事件驱动）。
+    /// 少任何一半都有一整类程序用不了 —— 而只测其中一半的话，另一半漏了照样全绿。
+    /// </para>
+    /// </summary>
+    private static void TestVmlMobileOps(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VML 宿主：手机特有的操作方式（触摸 / 按键 / 方向 / 沉浸 / BGM）");
+
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var regs = new int[32];
+        var mem = new byte[4096];
+
+        // 内存按**小端**手工解码 —— 与 `WriteInt32` 对称，不依赖宿主机的端序
+        static int Rd(byte[] m, int at)
+            => m[at] | (m[at + 1] << 8) | (m[at + 2] << 16) | (m[at + 3] << 24);
+
+        bool Touch(int slot, out int x, out int y, out int down)
+        {
+            Array.Clear(regs);
+            regs[0] = slot; regs[1] = 100;      // out 缓冲区放在 mem[100]
+            var claimed = rt.HandleSyscall(VmlUi.TouchQuery, regs, mem);
+            x = Rd(mem, 100); y = Rd(mem, 104); down = Rd(mem, 108);
+            return claimed && regs[0] == 1;
+        }
+
+        // ── 多点触控 ──────────────────────────────────────────────────────
+        rt.PostTouch(0, 111, 222, true);
+        rt.PostTouch(1, 333, 444, true);
+        rt.PostTouch(1, 333, 444, false);
+
+        Check("TOUCH_QUERY：槽位 0 的坐标与按下状态",
+            Touch(0, out var x0, out var y0, out var d0) && x0 == 111 && y0 == 222 && d0 == 1);
+        Check("TOUCH_QUERY：槽位 1 已抬起（坐标还在）",
+            Touch(1, out var x1, out var y1, out var d1) && x1 == 333 && y1 == 444 && d1 == 0);
+        Check("TOUCH_QUERY：没碰过的槽位全零（不是脏数据）",
+            Touch(2, out var x2, out _, out var d2) && x2 == 0 && d2 == 0);
+        Check("TOUCH_QUERY：槽位越界返回 0", !Touch(99, out _, out _, out _));
+
+        // 移动：坐标更新、仍然按着
+        rt.PostTouchMove(0, 150, 260);
+        Check("TOUCH_QUERY：移动后坐标更新，仍是按着",
+            Touch(0, out var xm, out var ym, out var dm) && xm == 150 && ym == 260 && dm == 1);
+        // 没按着的手指报移动 ⇒ 忽略（平台偶尔补发，不该把"抬起"变回"按着"）
+        rt.PostTouchMove(1, 999, 999);
+        Check("TOUCH_QUERY：抬起的手指报移动会被忽略",
+            Touch(1, out var xs, out _, out var ds) && xs == 333 && ds == 0);
+
+        // ⚠ **两份状态同源**：`PostTouch` 必须同时投一条触摸消息
+        int Poll()
+        {
+            Array.Clear(regs);
+            rt.HandleSyscall(VmlUi.MsgPoll, regs, mem);
+            return regs[0];
+        }
+        while (Poll() != 0) { }                       // 清掉上面那些
+        rt.PostTouch(0, 7, 8, true);
+        Check("槽位 0 同时投了一条 TOUCHDOWN 消息（老程序照旧收得到）",
+            Poll() == (int)VmlMsgType.TouchDown);
+        // ⚠ 别的槽位**只更新状态、不投消息**：消息通道是单指语义，
+        //   把第 2 根手指也投进去会让老程序把一次双指操作算成两次点击。
+        while (Poll() != 0) { }
+        rt.PostTouch(1, 9, 9, true);
+        Check("槽位 1 不投消息（多指只走查询，不干扰老程序）", Poll() == 0);
+        Check("但槽位 1 的状态照样能查到",
+            Touch(1, out var x1b, out var y1b, out var d1b) && x1b == 9 && y1b == 9 && d1b == 1);
+
+        // ── 按键查询 ──────────────────────────────────────────────────────
+        int KeyQ(int k)
+        {
+            Array.Clear(regs);
+            regs[0] = k;
+            rt.HandleSyscall(VmlUi.KeyQuery, regs, mem);
+            return regs[0];
+        }
+
+        Check("KEY_QUERY：没按时为 0", KeyQ(37) == 0);
+        rt.PostInput(VmlMsgType.KeyDown, 37);
+        Check("KEY_QUERY：按下之后为 1", KeyQ(37) == 1);
+        Check("KEY_QUERY：别的键不受影响", KeyQ(38) == 0);
+        rt.PostInput(VmlMsgType.KeyUp, 37);
+        Check("KEY_QUERY：抬起之后回到 0", KeyQ(37) == 0);
+
+        // ── 方向锁 / 沉浸式 / BGM：转发给平台 ─────────────────────────────
+        Array.Clear(regs); regs[0] = 1;
+        Check("ORIENTATION_LOCK 被认领", rt.HandleSyscall(VmlUi.OrientationLock, regs, mem));
+        Check("ORIENTATION_LOCK 原样转发给平台（横屏=1）", host.LastOrientationLock == 1);
+
+        Array.Clear(regs); regs[0] = 1;
+        rt.HandleSyscall(VmlUi.Immersive, regs, mem);
+        Check("IMMERSIVE 转发给平台（开）", host.LastImmersive);
+        Array.Clear(regs); regs[0] = 0;
+        rt.HandleSyscall(VmlUi.Immersive, regs, mem);
+        Check("IMMERSIVE 转发给平台（关）", !host.LastImmersive);
+
+        host.AudioPlayingFlag = true;
+        Array.Clear(regs);
+        rt.HandleSyscall(VmlUi.AudioIsPlaying, regs, mem);
+        Check("AUDIO_IS_PLAYING：平台说在放 ⇒ 1", regs[0] == 1);
+        host.AudioPlayingFlag = false;
+        Array.Clear(regs);
+        rt.HandleSyscall(VmlUi.AudioIsPlaying, regs, mem);
+        Check("AUDIO_IS_PLAYING：平台说没放 ⇒ 0", regs[0] == 0);
+
+        // 号段表里有它们（漏登记 = 那道查重护栏形同虚设）
+        Check("新号已登记进 AllNumbers",
+            Array.IndexOf(VmlUi.AllNumbers, VmlUi.TouchQuery) >= 0
+            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.KeyQuery) >= 0
+            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.OrientationLock) >= 0
+            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.Immersive) >= 0
+            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.AudioIsPlaying) >= 0);
+    }
+
+    /// <summary>
+    /// **蒙版与布尔运算**（`ui_gfx` op 3/4/5 与 op 11）。
+    ///
+    /// <para>
+    /// 判据分两层，两层都要：**纯逻辑**（直接构造 `MaskExpr` 求值 + 编解码往返）与
+    /// **端到端**（走真实 syscall 把形状写进场景、再用假宿主的光栅化读像素）。
+    /// 纯逻辑绿而端到端红 ⇒ "DSL 那一跳"漏了；反过来 ⇒ 判定本身写错。两者的修法完全不同。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 布尔运算的错法**全都是不报错的错法**：`XOR` 写成并集、`SUBTRACT` 写成交集，
+    /// 画面上只是"多一块/少一块"，而返回值、图元数、DSL 文本**一切正常**。
+    /// 所以每一条都落到"某个具体坐标该不该是那个色"上，绝不看"跑没跑通"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 采样点一律取在**离边界 5px 以上**的地方：判据不该被抗锯齿的边缘像素左右
+    /// （`BlendPixel` 是按覆盖率混的，边上一像素本来就不是纯色）。
+    /// </para>
+    /// </summary>
+    private static void TestVmlMaskBool(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VML 宿主：蒙版与布尔运算");
+
+        const uint FILL = 0xFF3C6EB4;
+
+        // ── 一、纯逻辑：段链的求值 ─────────────────────────────────────────
+        // 两个交叠的方框，取三个点：**只在 A** / **两者都在** / **只在 B**。
+        // 三个点足以把五种运算两两区分开 —— 少一个点就会有"两种运算结果一样"的盲区。
+        var boxA = MaskShape.Rect(0, 0, 10, 10);
+        var boxB = MaskShape.Rect(5, 0, 10, 10);
+
+        MaskExpr Build(bool inside, params (int Op, MaskShape[] Shapes)[] segs)
+        {
+            var e = new MaskExpr { Inside = inside };
+            foreach (var (op, shapes) in segs)
+            {
+                var s = new MaskExpr.Segment { Op = op };
+                s.Shapes.AddRange(shapes);
+                e.Segments.Add(s);
+            }
+            return e;
+        }
+
+        var replace = Build(true, (MaskOp.Replace, new[] { boxA }));
+        Check("REPLACE：A 内命中、B 独有处不命中",
+            replace.Hit(2, 5) && replace.Hit(7, 5) && !replace.Hit(12, 5));
+
+        var union = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Union, new[] { boxB }));
+        Check("UNION：三处全命中", union.Hit(2, 5) && union.Hit(7, 5) && union.Hit(12, 5));
+
+        var inter = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Intersect, new[] { boxB }));
+        Check("INTERSECT：只有重叠处命中", !inter.Hit(2, 5) && inter.Hit(7, 5) && !inter.Hit(12, 5));
+
+        var sub = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Subtract, new[] { boxB }));
+        Check("SUBTRACT：A 减去 B", sub.Hit(2, 5) && !sub.Hit(7, 5) && !sub.Hit(12, 5));
+
+        var xor = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Xor, new[] { boxB }));
+        Check("XOR：重叠处互相抵消", xor.Hit(2, 5) && !xor.Hit(7, 5) && xor.Hit(12, 5));
+
+        // `inside=0` 与 SUBTRACT **正交**：先算完整条布尔链，最后整体取反。
+        // 这条是文档 §10.2 要求"定清楚"的那一条 —— 两种写法（老式 inside=0 挖洞 /
+        // 新式 SUBTRACT 挖洞）给出**同样的画面**，那是等价表达，不是两种语义。
+        var outside = Build(false, (MaskOp.Replace, new[] { boxA }));
+        Check("inside=0：整体取反（形状外可见）", !outside.Hit(2, 5) && outside.Hit(12, 5));
+
+        var outsideSub = Build(false, (MaskOp.Replace, new[] { boxA }), (MaskOp.Subtract, new[] { boxB }));
+        Check("inside=0 + SUBTRACT = 非(A 减 B)",
+            !outsideSub.Hit(2, 5) && outsideSub.Hit(7, 5) && outsideSub.Hit(12, 5));
+
+        // 首段忽略运算符（它是链的起点）：`UNION` 打头不等于"和空集取并"以外的任何东西
+        var headUnion = Build(true, (MaskOp.Union, new[] { boxA }));
+        Check("首段的运算符被忽略（链从它开始）",
+            headUnion.Hit(2, 5) && headUnion.Hit(7, 5) && !headUnion.Hit(12, 5));
+
+        // ── 二、纯逻辑：空蒙版的语义 ───────────────────────────────────────
+        Check("没有段 ⇒ 空蒙版", new MaskExpr().IsEmpty);
+        // ⚠ `ui_mask_clear` 的实现是"开一个空的再收" ⇒ 产出**一个空段**。
+        //   若按"段数为 0"判空，取消蒙版会变成"一个空蒙版"= 整屏什么都画不出来。
+        Check("只有一个空段 ⇒ 空蒙版（ui_mask_clear 的产物）",
+            Build(true, (MaskOp.Replace, Array.Empty<MaskShape>())).IsEmpty);
+        Check("有形状 + 空段 ⇒ 不是空蒙版（空段对链无影响）",
+            !Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Subtract, Array.Empty<MaskShape>())).IsEmpty);
+
+        // ── 三、纯逻辑：编解码往返 ─────────────────────────────────────────
+        // 三个段，其中一段是**多边形**（可变长编码那条路）—— 定长元组式的编码在这里会露馅。
+        var chain = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Xor, new[] { boxB }));
+        var polySeg = new MaskExpr.Segment { Op = MaskOp.Union };
+        polySeg.Shapes.Add(MaskShape.Polygon(new List<double> { 0, 0, 10, 0, 5, 10 }));
+        chain.Segments.Add(polySeg);
+
+        string Sample(MaskExpr e)
+        {
+            int[] xs = { 2, 7, 12, 3, 3 };
+            int[] ys = { 5, 5, 5, 8, 2 };
+            var s = "";
+            for (int i = 0; i < xs.Length; i++) s += e.Hit(xs[i], ys[i]) ? '1' : '0';
+            return s;
+        }
+
+        var fig = new DrawFigure { Kind = "mask" };
+        MaskExpr.Encode(fig, true, chain.Segments);
+        var back = MaskExpr.Decode(fig.Args);
+        Check("编解码往返：段数 / 多边形种类都在",
+            back != null && back.Inside && back.Segments.Count == 3
+            && back.Segments[2].Shapes.Count == 1
+            && back.Segments[2].Shapes[0].Kind == MaskShape.KindPolygon);
+        Check($"编解码往返：求值一致（{Sample(chain)}）", back != null && Sample(back) == Sample(chain));
+
+        Check("解码空 Args ⇒ null（当作没有蒙版）", MaskExpr.Decode(new List<double>()) == null);
+
+        // 程序给的数可能是坏的 —— 解码**绝不能抛异常**（宿主 syscall 处理器抛出去会把 VM 打挂，
+        // 而程序那边只看到"窗口没了"）。截断的 Args 交回已解出的部分即可。
+        bool threw = false;
+        try { MaskExpr.Decode(new List<double> { 1, 3, 0, 9, 1, 4, 1, 2 }); }
+        catch { threw = true; }
+        Check("解码截断/超额的 Args 不抛异常", !threw);
+
+        // ── 四、端到端：syscall → 场景 → 光栅 ─────────────────────────────
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var regs = new int[32];
+        var mem = new byte[8192];
+
+        regs[0] = WriteCStr(mem, 0, "maskbool");
+        regs[1] = 64; regs[2] = 64; regs[3] = 0; regs[4] = 0;
+        rt.HandleSyscall(VmlUi.WinOpen, regs, mem);
+        var scene = rt.Scene();
+        if (scene is null) { Check("开窗拿到场景（自测装置本身）", false); return; }
+        scene.Width = 64; scene.Height = 64;
+
+        bool Gfx(int op, int a = 0)
+        {
+            Array.Clear(regs);
+            regs[0] = op; regs[1] = a;
+            return rt.HandleSyscall(VmlUi.GfxState, regs, mem);
+        }
+
+        /// <summary>发一条 `ui_gfx` 并把**应答**（`regs[0]`）取回来 —— 查询类操作用。</summary>
+        int GfxQ(int op, int a = 0, int b = 0, int c = 0, int d = 0)
+        {
+            Array.Clear(regs);
+            regs[0] = op; regs[1] = a; regs[2] = b; regs[3] = c; regs[4] = d;
+            rt.HandleSyscall(VmlUi.GfxState, regs, mem);
+            return regs[0];
+        }
+
+        void Circle(int cx, int cy, int r)
+        {
+            Array.Clear(regs);
+            regs[0] = cx; regs[1] = cy; regs[2] = r;
+            regs[3] = unchecked((int)0xFFFFFFFF); regs[4] = 1; regs[5] = 0;
+            rt.HandleSyscall(VmlUi.DrawCircle, regs, mem);
+        }
+
+        void FillAll()
+        {
+            Array.Clear(regs);
+            regs[0] = 0; regs[1] = 0; regs[2] = 64; regs[3] = 64;
+            regs[4] = unchecked((int)FILL); regs[5] = 1; regs[6] = 0; regs[7] = 0;
+            rt.HandleSyscall(VmlUi.DrawRect, regs, mem);
+        }
+
+        // 甜甜圈：大圆（r=24）SUBTRACT 小圆（r=12），圆心都在 (32,32)
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(32, 32, 24);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(32, 32, 12);
+        Check("ui_mask_end2 被宿主认领", Gfx(VmlUi.GfxOp.MaskEnd2, MaskOp.Subtract));
+        FillAll();
+        Gfx(VmlUi.GfxOp.MaskClear);
+
+        // 未知运算符必须被**拒掉**：`regs[0] == 0`（"认领了这个号，但没执行" ——
+        // 与 `GfxState` 处理未实现 op 的既有约定同构），且**不能当成 REPLACE 蒙混过去**。
+        // ⚠ 判据不是 `HandleSyscall` 的返回值：那个只表示"这个 syscall 号归我管"。
+        Check("未知运算符被拒（返回 0，不当 REPLACE）",
+            Gfx(VmlUi.GfxOp.MaskEnd2, 99) && regs[0] == 0);
+
+        var buf = new byte[64 * 64 * 4];
+        if (!host.Rasterize(0, 0, 64, 64, buf))
+        {
+            Check("假宿主能光栅化（自测装置本身）", false);
+            return;
+        }
+
+        bool IsFill(int x, int y)
+        {
+            int i = (y * 64 + x) * 4;
+            return buf[i] == 0x3C && buf[i + 1] == 0x6E && buf[i + 2] == 0xB4;
+        }
+
+        Check("SUBTRACT 端到端：环上有填充（r=18 处）", IsFill(50, 32));
+        Check("SUBTRACT 端到端：洞里是空的（挖掉了）", !IsFill(32, 32) && !IsFill(36, 32));
+        Check("SUBTRACT 端到端：圆外是空的", !IsFill(2, 2) && !IsFill(32, 4));
+
+        // ── 五、端到端：路径当蒙版（曲线展平那条路）────────────────────────
+        // 三角形 (10,50) (54,50) (32,10)。它走的是 `DrawPath.Flatten` ——
+        // 与 `ui_path` 当图元画时**同一个展平器**，所以这条也顺带钉住了"两条路同源"。
+        scene.Clear(0xFF000000);
+        // ⚠ `Gfx()` 内部会 `Array.Clear(regs)`（它就是"把操作码放进 R0"）⇒
+        //   **必须先把状态指令发完、再填这一条的参数**，顺序反了参数会被清成 0，
+        //   而 `DrawPath` 拿到空字符串是**直接 return**（不报错）—— 表现为"蒙版是空的"。
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Array.Clear(regs);
+        regs[0] = WriteCStr(mem, 256, "M10 50 L54 50 L32 10 Z");
+        regs[1] = unchecked((int)0xFFFFFFFF); regs[2] = 1;
+        regs[3] = unchecked((int)0xFFFFFFFF); regs[4] = WriteCStr(mem, 512, "");
+        regs[5] = 1; regs[6] = 0;
+        rt.HandleSyscall(VmlUi.DrawPath, regs, mem);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        FillAll();
+        Gfx(VmlUi.GfxOp.MaskClear);
+
+        var buf2 = new byte[64 * 64 * 4];
+        host.Rasterize(0, 0, 64, 64, buf2);
+        bool IsFill2(int x, int y)
+        {
+            int i = (y * 64 + x) * 4;
+            return buf2[i] == 0x3C && buf2[i + 1] == 0x6E && buf2[i + 2] == 0xB4;
+        }
+
+        // y=45 处三角形的 x 范围是 [13.5, 50.5] 附近 ⇒ (32,45) 在内、(12,45) 在外
+        Check("路径蒙版：三角形内可见", IsFill2(32, 45) && IsFill2(32, 20));
+        Check("路径蒙版：三角形外不可见", !IsFill2(12, 45) && !IsFill2(52, 45) && !IsFill2(32, 5));
+
+        // ── 七、蒙版当碰撞体（`ui_mask_test`）────────────────────────────
+        // 蒙版已经是"可见区域的几何定义"，顺手就是一份碰撞体 —— 程序不必再自己
+        // 维护一份洞的坐标表。⚠ 判据要与**画面**一致：`ui_mask_test` 说不可见的点，
+        // 光栅出来就该是空的（下面拿甜甜圈的环做交叉验证）。
+        int MaskTest(int x, int y)
+        {
+            Array.Clear(regs);
+            regs[0] = VmlUi.GfxOp.MaskTest; regs[1] = x; regs[2] = y;
+            rt.HandleSyscall(VmlUi.GfxState, regs, mem);
+            return regs[0];
+        }
+
+        // 先把甜甜圈重新设上（上面区域 5 之后蒙版已被清掉）
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(32, 32, 24);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(32, 32, 12);
+        Gfx(VmlUi.GfxOp.MaskEnd2, MaskOp.Subtract);
+
+        Check("MaskTest：环上（r=18）⇒ 1", MaskTest(50, 32) == 1);
+        Check("MaskTest：洞里（被挖掉）⇒ 0", MaskTest(32, 32) == 0 && MaskTest(36, 32) == 0);
+        Check("MaskTest：圆外 ⇒ 0", MaskTest(2, 2) == 0);
+        // 与画面**交叉验证**：同一个点，蒙版说 1 ⇒ 上面光栅出来就该是填充色
+        Check("MaskTest 与光栅同源（环上那点画出来了）", MaskTest(50, 32) == 1 && IsFill(50, 32));
+
+        // `inside=0` 取反之后，查询结果也要跟着取反
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(32, 32, 12);
+        Gfx(VmlUi.GfxOp.MaskEnd, 0);
+        Check("MaskTest：inside=0 时内外互换",
+            MaskTest(32, 32) == 0 && MaskTest(2, 2) == 1);
+
+        // 没有蒙版 ⇒ 处处可见（与绘制那边"没有蒙版就全画"同一条口径）
+        Gfx(VmlUi.GfxOp.MaskClear);
+        Check("MaskTest：没有蒙版时恒为 1", MaskTest(2, 2) == 1 && MaskTest(63, 63) == 1);
+
+        // 路径蒙版也能查（多边形形状走的是同一条判定）
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Array.Clear(regs);
+        regs[0] = WriteCStr(mem, 256, "M10 50 L54 50 L32 10 Z");
+        regs[1] = unchecked((int)0xFFFFFFFF); regs[2] = 1;
+        regs[3] = unchecked((int)0xFFFFFFFF); regs[4] = WriteCStr(mem, 512, "");
+        regs[5] = 1; regs[6] = 0;
+        rt.HandleSyscall(VmlUi.DrawPath, regs, mem);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        Check("MaskTest：路径蒙版内 / 外",
+            MaskTest(32, 45) == 1 && MaskTest(12, 45) == 0 && MaskTest(32, 5) == 0);
+        Gfx(VmlUi.GfxOp.MaskClear);
+
+        // ── 九、蒙版 → 路径（描洞口的边）──────────────────────────────────
+        // **判据是"往返"**：导出的 SVG 路径喂回 `DrawPath.Flatten`，展平出来的点
+        // 必须仍落在原形状上。只断言"返回了一个非空串"证明不了什么 ——
+        // 格式写错（少个空格、`A` 的参数顺序不对）照样返回一串东西。
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(20, 20, 12);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Circle(20, 20, 5);
+        Gfx(VmlUi.GfxOp.MaskEnd2, MaskOp.Subtract);
+
+        Check("Mask 导出：段数 2 / 第 1 段是 SUBTRACT / 该段 1 个形状",
+            GfxQ(VmlUi.GfxOp.MaskSegCount) == 2
+            && GfxQ(VmlUi.GfxOp.MaskSegOp, 1) == MaskOp.Subtract
+            && GfxQ(VmlUi.GfxOp.MaskShapeCount, 1) == 1);
+
+        int len = GfxQ(VmlUi.GfxOp.MaskPath, 1, 0, 300, 256);
+        var d = len > 0 ? System.Text.Encoding.UTF8.GetString(mem, 300, len) : "";
+        Check($"Mask 导出：圆的路径有内容（{len} 字节）", len > 0 && d.StartsWith("M"));
+
+        var subs = DrawPath.Flatten(d);
+        Check("Mask 导出：路径能喂回解析器", subs.Count == 1 && subs[0].Points.Count >= 8);
+        bool onCircle = subs.Count == 1;
+        if (onCircle)
+        {
+            foreach (var (px, py) in subs[0].Points)
+            {
+                double rr = Math.Sqrt((px - 20) * (px - 20) + (py - 20) * (py - 20));
+                if (Math.Abs(rr - 5) > 0.2) { onCircle = false; break; }
+            }
+        }
+        Check("Mask 导出：展平后的点都落在原圆上（半径 5）", onCircle);
+
+        // 矩形导出走另一条分支（`L` 命令），同样做往返
+        Gfx(VmlUi.GfxOp.MaskClear);
+        Gfx(VmlUi.GfxOp.MaskBegin);
+        Array.Clear(regs);
+        regs[0] = 0; regs[1] = 0; regs[2] = 40; regs[3] = 30; regs[4] = 0;
+        regs[5] = 1; regs[6] = 0; regs[7] = 0;
+        rt.HandleSyscall(VmlUi.DrawRect, regs, mem);
+        Gfx(VmlUi.GfxOp.MaskEnd, 1);
+        int rlen = GfxQ(VmlUi.GfxOp.MaskPath, 0, 0, 300, 256);
+        var rd = rlen > 0 ? System.Text.Encoding.UTF8.GetString(mem, 300, rlen) : "";
+        var rsubs = DrawPath.Flatten(rd);
+        Check("Mask 导出：矩形的路径往返（4 个角点）",
+            rsubs.Count == 1 && rsubs[0].Points.Count >= 4
+            && rsubs[0].Points.Exists(p => Math.Abs(p.X) < 0.01 && Math.Abs(p.Y) < 0.01)
+            && rsubs[0].Points.Exists(p => Math.Abs(p.X - 40) < 0.01 && Math.Abs(p.Y - 30) < 0.01));
+
+        // 越界与容量不足：都返回 -1（"没拿到"），程序据此跳过
+        Check("Mask 导出：段越界 ⇒ -1", GfxQ(VmlUi.GfxOp.MaskPath, 9, 0, 300, 256) == -1);
+        Check("Mask 导出：形状越界 ⇒ -1", GfxQ(VmlUi.GfxOp.MaskPath, 0, 9, 300, 256) == -1);
+        Check("Mask 导出：缓冲区放不下 ⇒ -1", GfxQ(VmlUi.GfxOp.MaskPath, 0, 0, 300, 4) == -1);
+
+        Gfx(VmlUi.GfxOp.MaskClear);
+        Check("Mask 导出：没有蒙版时段数为 0", GfxQ(VmlUi.GfxOp.MaskSegCount) == 0);
+
+        // ── 十、图层（`ui_gfx` op 6/7）：整层离屏合成 ──────────────────────
+        // **判别性判据是"组内重叠只透一次"** —— 那正是图层与 `ui_alpha` 的区别：
+        //   `ui_alpha` 是每个图元各自半透明（重叠处**互相透出来**，交界更深），
+        //   图层是"先画好一整张、再整张压上去"（组内怎么重叠都只透一次）。
+        //   只测"半透明生效"的话，用 `ui_alpha` 的错误实现照样能过。
+        Canvas LayerRaster(string dsl) => DrawRunner.Rasterize(DrawRunner.Parse(dsl));
+
+        const string OverlapPair =
+            "rect 10 10 30 30 #ff0000 1 0 0\n"
+            + "rect 25 25 30 30 #ff0000 1 0 0\n";     // 两块重叠的红（重叠区 x/y ∈ 25..40）
+
+        static uint Solid2(Canvas cv, int x, int y)
+        {
+            int i = (y * cv.Width + x) * 4;
+            return (uint)((cv.Pixels[i + 3] << 24) | (cv.Pixels[i] << 16)
+                        | (cv.Pixels[i + 1] << 8) | cv.Pixels[i + 2]);
+        }
+
+        // 图层：整组 50% 透明
+        var lc = LayerRaster("canvas 64 64 #ffffff\nlayer_begin\n" + OverlapPair + "layer_end 128\n");
+        uint solid = Solid2(lc, 15, 15);      // 只有一块红的地方
+        uint overlap = Solid2(lc, 32, 32);    // 两块重叠的地方
+        Check($"图层：整层半透明生效（实得 0x{solid:X8}）",
+            ColorUtil.R(solid) > 200 && ColorUtil.G(solid) > 90 && ColorUtil.G(solid) < 170);
+        Check("图层：**组内重叠只透一次**（重叠处与非重叠处同色）", solid == overlap);
+
+        // 对照：同样两块**各自半透明**的红（`#80ff0000`）—— 重叠处会更深。
+        // ⚠ 不能用 DSL 的 `alpha 128`：那条指令是**给 VML 宿主**用的
+        //   （`VmlScene.Style` 在把颜色写进 DSL 时就把 alpha 乘进去了），
+        //   而 `DrawRunner` 直接解析 DSL 时它**什么都不做** —— 写它等于没写。
+        var ac = LayerRaster("canvas 64 64 #ffffff\n"
+            + "rect 10 10 30 30 #80ff0000 1 0 0\nrect 25 25 30 30 #80ff0000 1 0 0\n");
+        Check($"对照：`ui_alpha` 的重叠处确实更深（单 0x{Solid2(ac, 15, 15):X8} / 叠 0x{Solid2(ac, 32, 32):X8}）",
+            Solid2(ac, 15, 15) != Solid2(ac, 32, 32));
+
+        // alpha=0 ⇒ 整层不画（也省掉那块画布）
+        var zero = LayerRaster("canvas 64 64 #ffffff\nlayer_begin\n" + OverlapPair + "layer_end 0\n");
+        Check("图层：alpha=0 ⇒ 整层不画", Solid2(zero, 15, 15) == 0xFFFFFFFF);
+
+        // alpha=255 ⇒ 与不加图层一样（不透明整层贴回来）
+        var full = LayerRaster("canvas 64 64 #ffffff\nlayer_begin\n" + OverlapPair + "layer_end 255\n");
+        Check($"图层：alpha=255 ⇒ 纯红（实得 0x{Solid2(full, 15, 15):X8}）", Solid2(full, 15, 15) == 0xFFFF0000);
+
+        // 子图元确实被**收进**了 layer 图元（不是留在顶层）
+        var ldoc = DrawRunner.Parse("canvas 64 64\nlayer_begin\nrect 1 1 5 5 0xFF000000 1 0 0\n"
+            + "circle 10 10 3 0xFF000000 1 0\nlayer_end 255\nrect 40 40 5 5 0xFF000000 1 0 0\n");
+        var layerFig = ldoc.Figures.Find(f2 => f2.Kind == "layer");
+        Check("图层：层内两个图元被收进 Children，层外那个留在顶层",
+            layerFig?.Children is { Count: 2 } && ldoc.Figures.Count == 2);
+
+        // 合成走 `SetPixel` ⇒ **整层受外层裁剪约束**（这是有意设计的）
+        var clipped = LayerRaster("canvas 64 64 #ffffff\nclip 0 0 20 20\nlayer_begin\n"
+            + "rect 0 0 60 60 #ff0000 1 0 0\nlayer_end 255\n");
+        Check("图层：贴在裁剪里的整层被裁掉（合成走 SetPixel，受外层约束）",
+            Solid2(clipped, 5, 5) == 0xFFFF0000 && Solid2(clipped, 40, 40) == 0xFFFFFFFF);
+
+        // 矢量后端：整层离屏合成没有通用做法 ⇒ 如实标记不支持（回退光栅）
+        var lrec = new RecordingVectorTarget();
+        foreach (var f3 in ldoc.Figures)
+            DrawCommandRegistry.Get(f3.Kind)?.Vector(lrec, f3);
+        Check("图层：矢量后端标记 Unsupported（回退光栅）",
+            lrec.Unsupported.Contains("layer"));
+
+        // 端到端：走 **syscall** 收一层（上面那些只证明了 `DrawRunner` 认识这两个词，
+        // 而程序走的是 `ui_gfx` op 6/7 那条路 —— 两跳都要验）
+        scene.Clear(0xFFFFFFFF);
+        Gfx(VmlUi.GfxOp.LayerBegin);
+        Array.Clear(regs);
+        regs[0] = 0; regs[1] = 0; regs[2] = 64; regs[3] = 64;
+        regs[4] = unchecked((int)0xFF0000FF); regs[5] = 1; regs[6] = 0; regs[7] = 0;
+        rt.HandleSyscall(VmlUi.DrawRect, regs, mem);
+        Check("LAYER_END 被宿主认领", Gfx(VmlUi.GfxOp.LayerEnd, 128));
+
+        var lbuf = new byte[64 * 64 * 4];
+        host.Rasterize(0, 0, 64, 64, lbuf);
+        int li = (32 * 64 + 32) * 4;
+        Check($"图层端到端：整层半透明（实得 R{lbuf[li]} G{lbuf[li + 1]} B{lbuf[li + 2]}）",
+            lbuf[li] > 100 && lbuf[li + 1] > 100 && lbuf[li + 2] > 200);
+
+        // **图层里套蒙版**（两个收集器同时开着）：层内的蒙版必须**照常生效**。
+        // ⚠ 这条钉的是解析期两个缓冲的**先后**：反了的话形状被图层截走 ⇒ 蒙版收到空集
+        //   ⇒ 静默失效，而且那些形状还会被当普通图元画出来（"蒙版没用、形状照画"）。
+        var lm = LayerRaster("canvas 64 64 #ffffff\nlayer_begin\n"
+            + "mask_begin\nrect 0 0 32 64 #ffffff 1 0 0\nmask_end 1\n"
+            + "rect 0 0 64 64 #ff0000 1 0 0\nlayer_end 255\n");
+        Check("图层里套蒙版：蒙版照常生效（右半没画、左半红）",
+            Solid2(lm, 16, 32) == 0xFFFF0000 && Solid2(lm, 48, 32) == 0xFFFFFFFF);
+
+        // ── 六、SVG 导出：`<g>` 必须配对（蒙版开的那层原来没人关）──────────
+        var doc = DrawRunner.Parse(
+            "canvas 32 32\n"
+            + "mask_begin\ncircle 16 16 10 0 1 0\nmask_end 1\n"
+            + "rect 0 0 32 32 0xFF00FF00 1 0 0\n"
+            + "mask_begin\nrect 8 8 8 8 0 1 0\nmask_end2 3\n"
+            + "line 0 0 32 32 0xFF000000 1\n");
+        var svg = DrawRunner.ToSvg(doc);
+        int opens = CountOccurrences(svg, "<g"), closes = CountOccurrences(svg, "</g>");
+        Check($"SVG 的 <g> 配对（{opens} 开 / {closes} 闭）", opens == closes && opens >= 2);
+        Check("SVG 里含 <mask>（布尔链走的是亮度蒙版）", svg.Contains("<mask id="));
+
+        // ── 八、矢量后端：布尔链**折叠成一条路径 + 一个填充规则**────────────
+        // 矢量后端不懂布尔运算，只认"一条能直接裁剪的路径"。折叠不了就回退光栅 ——
+        // 所以这里既测"能折叠的折叠对了"，也测"折叠不了的**确实拒绝了**"（后者更要紧：
+        // 硬塞一条路径进去画出来是错的，而错的画面比慢的画面糟得多）。
+        var oneSeg = Build(true, (MaskOp.Replace, new[] { MaskShape.Circle(0, 0, 10) }));
+        var fold1 = oneSeg.ToClipPath();
+        Check("矢量折叠：单段圆 ⇒ 一条子路径 + NonZero",
+            fold1 != null && fold1.Value.Subpaths.Count == 1
+            && !fold1.Value.EvenOdd && fold1.Value.Subpaths[0].Count >= 6);
+
+        var ring2 = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 100, 100) }),
+                                (MaskOp.Subtract, new[] { MaskShape.Circle(50, 50, 20) }));
+        var fold2 = ring2.ToClipPath();
+        Check("矢量折叠：矩形减圆 ⇒ EvenOdd + 两条子路径",
+            fold2 != null && fold2.Value.EvenOdd && fold2.Value.Subpaths.Count == 2);
+
+        // 洞跑到矩形**外面**：even-odd 会把洞外面那块填**实**（穿一次 = 奇数 = 内部）⇒ 必须拒绝
+        var holeOut = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 100, 100) }),
+                                  (MaskOp.Subtract, new[] { MaskShape.Circle(200, 200, 20) }));
+        Check("矢量折叠：洞在底外 ⇒ 拒绝", holeOut.ToClipPath() == null);
+
+        // 两个洞重叠：重叠区穿过两次 ⇒ 反而被填实 ⇒ 必须拒绝
+        var holeOverlap = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 100, 100) }),
+                                      (MaskOp.Subtract, new[] { MaskShape.Circle(40, 50, 20),
+                                                                MaskShape.Circle(50, 50, 20) }));
+        Check("矢量折叠：洞与洞重叠 ⇒ 拒绝", holeOverlap.ToClipPath() == null);
+
+        // 单段（并集）里形状重叠是**合法**的：NonZero 规则下重叠区仍是内部，正是并集。
+        // ⚠ 这与"多段 EvenOdd 下底形状不能重叠"是两回事 —— 规则换了，同一个几何结论就反了。
+        var baseOverlap = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 60, 60),
+                                                              MaskShape.Rect(30, 30, 60, 60) }));
+        var fold3 = baseOverlap.ToClipPath();
+        Check("矢量折叠：单段形状重叠 ⇒ 允许（NonZero 天然是并集）",
+            fold3 != null && !fold3.Value.EvenOdd && fold3.Value.Subpaths.Count == 2);
+
+        var inter2 = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Intersect, new[] { boxB }));
+        var xor2 = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Xor, new[] { boxB }));
+        Check("矢量折叠：INTERSECT / XOR 拒绝（要真正的路径布尔）",
+            inter2.ToClipPath() == null && xor2.ToClipPath() == null);
+
+        // 端到端：DSL → 矢量后端（用记录型落笔面，桌面就能验）
+        var rec = new RecordingVectorTarget();
+        var vdoc = DrawRunner.Parse(
+            "canvas 64 64\n"
+            + "mask_begin\nrect 0 0 40 40 0 1 0 0\nmask_end 1\n"
+            + "mask_begin\ncircle 20 20 8 0 1 0\nmask_end2 3\n"
+            + "rect 0 0 64 64 0xFF00FF00 1 0 0\n"
+            + "mask_begin\nmask_end 1\n"
+            + "rect 0 0 8 8 0xFF000000 1 0 0\n");
+        foreach (var vf in vdoc.Figures)
+            DrawCommandRegistry.Get(vf.Kind)?.Vector(rec, vf);
+        // ⚠ `mask_end` 与 `mask_end2` **各生成一条蒙版图元**（前一条是"底"，后一条才是完整的
+        //   布尔链）—— 与光栅那边逐条 `SetMask` 完全一致，所以这里要断言**第二条**。
+        Check($"矢量端到端：先是一条底（NonZero），再是甜甜圈（EvenOdd）",
+            rec.Masks.Count == 2
+            && !rec.Masks[0].EvenOdd && rec.Masks[0].Subpaths.Count == 1
+            && rec.Masks[1].EvenOdd && rec.Masks[1].Subpaths.Count == 2);
+        Check("矢量端到端：空蒙版（clear）只弹不推", rec.MaskPops >= 2);
+        Check("矢量端到端：没有 MarkUnsupported（这一帧能走矢量快路）", rec.Unsupported.Count == 0);
+
+        static int CountOccurrences(string s, string needle)
+        {
+            int n = 0, i = 0;
+            while ((i = s.IndexOf(needle, i, StringComparison.Ordinal)) >= 0) { n++; i += needle.Length; }
+            return n;
+        }
     }
 }

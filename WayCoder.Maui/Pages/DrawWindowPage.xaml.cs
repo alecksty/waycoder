@@ -1421,18 +1421,35 @@ public partial class DrawWindowPage : ContentPage
         bool wantTouch = !VmlUi.SuppressTouch(_kind);
         if (down)
         {
-            if (wantTouch) calls.PostInput(VmlMsgType.TouchDown, x, y);
+            if (wantTouch) calls.PostTouch(0, x, y, true);
             calls.PostInput(VmlMsgType.MouseDown, x, y);
         }
         if (move)
         {
-            if (wantTouch) calls.PostInput(VmlMsgType.TouchMove, x, y);
+            if (wantTouch) calls.PostTouchMove(0, x, y);
             calls.PostInput(VmlMsgType.MouseMove, x, y);
         }
         if (up)
         {
-            if (wantTouch) calls.PostInput(VmlMsgType.TouchUp, x, y);
+            if (wantTouch) calls.PostTouch(0, x, y, false);
             calls.PostInput(VmlMsgType.MouseUp, x, y);
+        }
+
+        // ── 多指：**只在触摸路径上多报几根手指**（`TOUCH_QUERY` #556 查）────────
+        // ⚠ 槽位用**数组下标**：MAUI 的手势事件给的是"当前所有触点"，没有稳定的
+        //   pointer id ⇒ 中间某一根抬起时下标会顺移。对"左右各一根、各自按各自抬"
+        //   的常见用法够用；要严格跟踪多指得下到 Android 原生
+        //   `MotionEvent.GetPointerId`（编辑器那套 `PlatformView.Touch` 的写法）。
+        // ⚠ `PostTouch` 里**只有槽位 0 投消息**，所以这里不会给老程序多发事件。
+        if (wantTouch && points is { Length: > 1 })
+        {
+            for (int i = 1; i < points.Length && i < VmlUi.MaxTouchSlots; i++)
+            {
+                if (_canvas.ToScene(new Point(points[i].X, points[i].Y)) is not { } sc2) continue;
+                if (down) calls.PostTouch(i, sc2.X, sc2.Y, true);
+                else if (up) calls.PostTouch(i, sc2.X, sc2.Y, false);
+                else calls.PostTouchMove(i, sc2.X, sc2.Y);
+            }
         }
 
         // 【诊断脚手架】证明"拖动真的来了"。默认关（`TraceTouch` 打开才打），

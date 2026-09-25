@@ -1839,6 +1839,13 @@ fn vsnprintf(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
+fn format_slot_count(a0: i32) -> i32 {
+    asm!("CALL format_slot_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn con_putc(a0: i32) -> i32 {
     asm!("CALL con_putc")
     let r: i32;
@@ -5706,13 +5713,6 @@ fn _printf_ftoe(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
-fn format_slot_count(a0: i32) -> i32 {
-    asm!("CALL format_slot_count")
-    let r: i32;
-    asm!("MOVE {{0}}, @R0", out(reg) r);
-    r
-}
-
 fn sprintf(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL sprintf")
     let r: i32;
@@ -7493,6 +7493,188 @@ fn ui_circle(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
 
 fn ui_ellipse(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
     asm!("CALL ui_ellipse")
+}
+
+fn ui_clip_push(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_clip_push")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_clip_pop() -> i32 {
+    asm!("CALL ui_clip_pop")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_alpha(a0: i32) -> i32 {
+    asm!("CALL ui_alpha")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_brush_reset() -> i32 {
+    asm!("CALL ui_brush_reset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_clip_reset() -> i32 {
+    asm!("CALL ui_clip_reset")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_begin() -> i32 {
+    asm!("CALL ui_mask_begin")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_end(a0: i32) -> i32 {
+    asm!("CALL ui_mask_end")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_end2(a0: i32) -> i32 {
+    asm!("CALL ui_mask_end2")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_clear() -> i32 {
+    asm!("CALL ui_mask_clear")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_test(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_mask_test")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_seg_count() -> i32 {
+    asm!("CALL ui_mask_seg_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_seg_op(a0: i32) -> i32 {
+    asm!("CALL ui_mask_seg_op")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_shape_count(a0: i32) -> i32 {
+    asm!("CALL ui_mask_shape_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_mask_path(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_mask_path")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_res_count(a0: i32) -> i32 {
+    asm!("CALL ui_res_count")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_layer_begin() -> i32 {
+    asm!("CALL ui_layer_begin")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_layer_end(a0: i32) -> i32 {
+    asm!("CALL ui_layer_end")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_touch(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_touch")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_touch_query(a0: i32) -> i32 {
+    asm!("CALL ui_touch_query")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_touch_x() -> i32 {
+    asm!("CALL ui_touch_x")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_touch_y() -> i32 {
+    asm!("CALL ui_touch_y")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_touch_down() -> i32 {
+    asm!("CALL ui_touch_down")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_key_down(a0: i32) -> i32 {
+    asm!("CALL ui_key_down")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_orient_lock(a0: i32) -> i32 {
+    asm!("CALL ui_orient_lock")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_immersive(a0: i32) -> i32 {
+    asm!("CALL ui_immersive")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_audio_playing() -> i32 {
+    asm!("CALL ui_audio_playing")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
 }
 
 fn ui_flood_fill(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {

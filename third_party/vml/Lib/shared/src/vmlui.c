@@ -206,6 +206,18 @@ int ui_mask_end(int inside) {
     return asm("SYSCALL #595, ${op}, ${inside}, ${z}, ${z}, ${z}");
 }
 
+/* 结束收集，并与**当前蒙版**按布尔运算符组合（op 取 `waycoder_ui.h` 的 VML_MASK_*）。
+ * ⚠ 运算符用**新的操作码 11**，不是给 ui_mask_end 加参数 —— 宿主是从 registers[n] 读参数的，
+ *   只传一个参数的老程序后面那几只寄存器里是它自己上一句留下的值，宿主无从判断"给没给"。
+ *   与 `ui_mask_end` 的区别：这条**不动 inside**（保持当前值）。 */
+int ui_mask_end2(int op) {
+    int code;
+    int z;
+    code = 11;
+    z = 0;
+    return asm("SYSCALL #595, ${code}, ${op}, ${z}, ${z}, ${z}");
+}
+
 int ui_mask_clear(void) {
     int op;
     int z;
@@ -214,12 +226,124 @@ int ui_mask_clear(void) {
     return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
 }
 
+/* 查一点在不在当前蒙版里（详见 `waycoder_ui.h`）—— 蒙版当碰撞体用。 */
+int ui_mask_test(int x, int y) {
+    int op;
+    int z;
+    op = 12;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${x}, ${y}, ${z}, ${z}");
+}
+
+/* 当前蒙版有几段 / 第 seg 段的运算符 / 第 seg 段有几个形状。 */
+int ui_mask_seg_count(void) {
+    int op;
+    int z;
+    op = 13;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
+int ui_mask_seg_op(int seg) {
+    int op;
+    int z;
+    op = 16;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${seg}, ${z}, ${z}, ${z}");
+}
+
+int ui_mask_shape_count(int seg) {
+    int op;
+    int z;
+    op = 14;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${seg}, ${z}, ${z}, ${z}");
+}
+
+/* 把第 seg 段第 idx 个形状导出成 SVG 路径，写进 buf（容量 cap）。返回写入字节数，放不下 -1。 */
+int ui_mask_path(int seg, int idx, char* buf, int cap) {
+    int op;
+    int z;
+    op = 15;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${seg}, ${idx}, ${buf}, ${cap}");
+}
+
 int ui_res_count(int what) {
     int op;
     int z;
     op = 10;
     z = 0;
     return asm("SYSCALL #595, ${op}, ${what}, ${z}, ${z}, ${z}");
+}
+
+/* 图层（离屏合成）：`layer_begin … layer_end(alpha)` 之间的图元先画进临时画布，
+ * 收尾时**整层**按 alpha（0..255）合成上去。详见 `waycoder_ui.h`。 */
+int ui_layer_begin(void) {
+    int op;
+    int z;
+    op = 6;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
+int ui_layer_end(int alpha) {
+    int op;
+    int z;
+    op = 7;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${alpha}, ${z}, ${z}, ${z}");
+}
+
+/* ── 手机特有的操作方式（#556–559 / #547）────────────────────────────────
+ *
+ * ⚠ 这几条**各有各的号**，不是 `ui_gfx` 的操作码。
+ */
+int ui_touch(int slot, int* out) {
+    return asm("SYSCALL #556, ${slot}, ${out}");
+}
+
+/* 面向**不支持指针的语言**（Python/BASIC/…）的取触摸接口 —— 与
+ * `ui_wait_msg` + `ui_msg_a/b` 是同一套分工（那边也是"取一条，拆开放静态变量"）：
+ *
+ *     ui_touch_query(0);
+ *     x = ui_touch_x();  y = ui_touch_y();  if ui_touch_down(): ...
+ *
+ * ⚠ 一次只保留**最近一次查询**的结果（单缓冲），与消息那几个访问器同一口径。
+ */
+static int _ui_touch_x;
+static int _ui_touch_y;
+static int _ui_touch_down;
+
+int ui_touch_query(int slot) {
+    int tmp[3];
+    int ok;
+    tmp[0] = 0; tmp[1] = 0; tmp[2] = 0;
+    ok = ui_touch(slot, tmp);
+    _ui_touch_x = tmp[0];
+    _ui_touch_y = tmp[1];
+    _ui_touch_down = tmp[2];
+    return ok;
+}
+
+int ui_touch_x(void) { return _ui_touch_x; }
+int ui_touch_y(void) { return _ui_touch_y; }
+int ui_touch_down(void) { return _ui_touch_down; }
+
+int ui_key_down(int key) {
+    return asm("SYSCALL #557, ${key}");
+}
+
+int ui_orient_lock(int mode) {
+    return asm("SYSCALL #558, ${mode}");
+}
+
+int ui_immersive(int on) {
+    return asm("SYSCALL #559, ${on}");
+}
+
+int ui_audio_playing(void) {
+    return asm("SYSCALL #547");
 }
 
 /* 帧边界标记（本帧画完了）。 */

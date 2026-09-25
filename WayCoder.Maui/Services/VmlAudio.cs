@@ -153,6 +153,18 @@ internal static class VmlAudio
     }
 
     /// <summary>
+    /// BGM 还在放吗（`AUDIO_IS_PLAYING` #547）。
+    /// ⚠ 没放过的、已经放完的、被停掉的都返回 false —— 对程序来说都是"现在没声音"，
+    ///   不必区分（要区分的话那是另一个问题，别把语义搅在一起）。
+    /// </summary>
+    public static bool IsPlaying()
+    {
+        var mp = _bgm;
+        if (mp == null) return false;
+        try { return mp.IsPlaying; } catch { return false; }
+    }
+
+    /// <summary>
     /// 震动一下。<paramref name="amplitude"/> = 0 表示用系统默认强度。
     ///
     /// ⚠ 需要 `android.permission.VIBRATE`（**normal 级**，装上就生效，不用运行时申请）——
@@ -362,6 +374,14 @@ internal static class VmlAudio
         try { _bgmPlayer?.Stop(); } catch { }
         _bgmPlayer?.Dispose();
         _bgmPlayer = null;
+    }
+
+    /// <summary>BGM 还在放吗（`AUDIO_IS_PLAYING` #547）—— 与 Android 那侧同一条口径。</summary>
+    public static bool IsPlaying()
+    {
+        var p = _bgmPlayer;
+        if (p == null) return false;
+        try { return p.Playing; } catch { return false; }
     }
 
     public static bool Vibrate(int ms, int amplitude)

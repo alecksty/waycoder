@@ -107,6 +107,19 @@ public interface IVmlHost
     /// <summary>玩游戏时别熄屏。</summary>
     void KeepScreenOn(bool on);
 
+    /// <summary>BGM 还在放吗（没放过 / 已放完 ⇒ false）—— `AUDIO_IS_PLAYING`(#547)。</summary>
+    bool AudioPlaying();
+
+    /// <summary>
+    /// 锁定屏幕方向：0 竖 / 1 横 / 2 自动（`ORIENTATION_LOCK` #558）。
+    /// ⚠ 与 `ui_win_open_ex` 的 `rotatable` 是**两件事**：那个决定"转屏时窗口跟不跟"，
+    ///   这个决定"**系统让不让转**"。后者会改设备的 `user_rotation`。
+    /// </summary>
+    void LockOrientation(int mode);
+
+    /// <summary>隐藏状态栏与导航栏（`IMMERSIVE` #559）—— 全屏游戏用。</summary>
+    void SetImmersive(bool on);
+
     // ── 像素读回（583–585：floodfill / getimage / putimage）──────────────────
     //
     // 场景是**保留模式**的（只有图元、没有像素缓冲），所以"这个像素是什么颜色"
@@ -358,7 +371,63 @@ public sealed class VmlHostRuntime
         //   是**程序自己或宿主**生成的 —— 拿它们续期等于"程序只要设了定时器就永不超时"，
         //   与 `ui_poll` 绝不能续期是同一条理由（见 `ResetTimeout` 的注释）。
         if (IsUserInput(type)) OnWaitEnded?.Invoke();
+
+        // 顺带维护"**此刻**按着什么"（`KEY_QUERY` #557 查它）。
+        // ⚠ 放在这里而不是让平台各处自己记：平台只有"投一条输入消息"这一个入口，
+        //   两条路（消息 / 查询）从同一份事实出发，才不会出现"消息收到了、查询却说不清"。
+        if (type == VmlMsgType.KeyDown) { lock (_keysDown) { _keysDown.Add(a); } }
+        else if (type == VmlMsgType.KeyUp) { lock (_keysDown) { _keysDown.Remove(a); } }
+
         _queue.Post(new VmlMessage(type, a, b, Environment.TickCount));
+    }
+
+    // ── 多点触控的当前状态（`TOUCH_QUERY` #556）────────────────────────────
+    //
+    // 与消息队列**并存**：队列记"发生过什么"，这里记"此刻是什么样"。
+    // 少任何一份都有程序用不了 —— 事件驱动的用前者、轮询式的用后者。
+    private readonly int[] _touchX = new int[VmlUi.MaxTouchSlots];
+    private readonly int[] _touchY = new int[VmlUi.MaxTouchSlots];
+    private readonly bool[] _touchDown = new bool[VmlUi.MaxTouchSlots];
+
+    /// <summary>当前**按住的**虚拟键码（`KEY_QUERY` 查它；由 <see cref="PostInput"/> 维护）。</summary>
+    private readonly HashSet<int> _keysDown = new();
+
+    /// <summary>
+    /// 平台报告**第 <paramref name="slot"/> 根手指**按下或抬起（坐标已由平台换算成场景坐标）。
+    ///
+    /// <para>
+    /// ⚠ **只有槽位 0 投消息**，其余槽位只更新状态。理由：
+    /// 消息通道是**单指语义**（16 字节的消息只放得下一组 x/y），老程序全按它写；
+    /// 把第 2、3 根手指也投进去，只会让它们把**一次双指操作算成两次点击**
+    /// （本仓已有"点一下动两下"的同类故障）。
+    /// ⇒ 多指的信息**只走查询**（`TOUCH_QUERY`），两条通道各管各的、互不干扰。
+    /// </para>
+    /// <para>
+    /// ⚠ 但**槽位 0 那一条照投不误** —— 绝大多数游戏的主循环是 `ui_wait_msg` 驱动的，
+    /// 只更新状态的话它们再也收不到触摸（而这是老行为，一个字都不能改）。
+    /// </para>
+    /// </summary>
+    public void PostTouch(int slot, int x, int y, bool down)
+    {
+        if (slot < 0 || slot >= VmlUi.MaxTouchSlots) return;
+        _touchX[slot] = x;
+        _touchY[slot] = y;
+        _touchDown[slot] = down;
+        if (slot == 0) PostInput(down ? VmlMsgType.TouchDown : VmlMsgType.TouchUp, x, y);
+    }
+
+    /// <summary>第 <paramref name="slot"/> 根手指移动（只在按着的时候有效）。</summary>
+    public void PostTouchMove(int slot, int x, int y)
+    {
+        if (slot < 0 || slot >= VmlUi.MaxTouchSlots) return;
+        // ⚠ **没按着就整条忽略（坐标也不更新）**。平台偶尔会补发抬起之后的移动事件，
+        //   若只跳过"投消息"而照改坐标，`TOUCH_QUERY` 就会报出一个**没有手指在**的位置
+        //   —— 程序正拿它当"手指还按在那儿"用（虚拟摇杆会一直往那个方向走）。
+        //   判据与"消息"那条一致：**无效事件整条丢弃**，不要半途改一半状态。
+        if (!_touchDown[slot]) return;
+        _touchX[slot] = x;
+        _touchY[slot] = y;
+        if (slot == 0) PostInput(VmlMsgType.TouchMove, x, y);   // 同 `PostTouch`：只有 0 号投消息
     }
 
     /// <summary>这条消息是不是**人**给的（而不是程序/宿主自己生成的）。见 <see cref="PostInput"/>。</summary>
@@ -478,7 +547,7 @@ public sealed class VmlHostRuntime
                 // ── 绘图状态（裁剪 / 透明度）────────────────────────────────
                 // `ui_gfx(op, a, b, c, d)`。⚠ 多路复用一个号的理由见 `VmlUi.GfxState` 的注释
                 // （宿主号段 500–599 只剩 595–599，而状态操作有八九个）。
-                case VmlUi.GfxState: GfxState(registers); break;
+                case VmlUi.GfxState: GfxState(registers, memory); break;
                 case VmlUi.DrawRect: Scene()?.AddRect(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.DrawCircle: Scene()?.AddCircle(registers[0], registers[1], registers[2], (uint)registers[3], registers[4] != 0, registers[5]); TouchScene(); break;
                 case VmlUi.DrawEllipse: Scene()?.AddEllipse(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6]); TouchScene(); break;
@@ -602,7 +671,45 @@ public sealed class VmlHostRuntime
                 // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
                 // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
                 case VmlUi.MsgClear: _queue.Clear(); registers[0] = 0; break;
-                case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
+                // ── 手机特有的操作方式（§3 P1）──────────────────────────────────
+            case VmlUi.TouchQuery:
+            {
+                // **写进调用方给的缓冲区**，不是"回三个寄存器"：
+                // C 那边 `asm()` 只能拿到 R0，回 R0/R1/R2 的话另外两个值谁都取不到。
+                // 与 `ui_wait(msg, …)` 是同一套约定（`out[0]=x out[1]=y out[2]=按下`）。
+                var slot = registers[0];
+                var dst = registers[1];
+                if (slot < 0 || slot >= VmlUi.MaxTouchSlots
+                    || dst < 0 || dst + 12 > memory.Length)
+                {
+                    registers[0] = 0;
+                    break;
+                }
+                WriteInt32(memory, dst, _touchX[slot]);
+                WriteInt32(memory, dst + 4, _touchY[slot]);
+                WriteInt32(memory, dst + 8, _touchDown[slot] ? 1 : 0);
+                registers[0] = 1;
+                break;
+            }
+            case VmlUi.KeyQuery:
+            {
+                bool down;
+                lock (_keysDown) { down = _keysDown.Contains(registers[0]); }
+                registers[0] = down ? 1 : 0;
+                break;
+            }
+            case VmlUi.OrientationLock:
+                _host.LockOrientation(registers[0]);
+                registers[0] = 1;
+                break;
+            case VmlUi.Immersive:
+                _host.SetImmersive(registers[0] != 0);
+                registers[0] = 1;
+                break;
+            case VmlUi.AudioIsPlaying:
+                registers[0] = _host.AudioPlaying() ? 1 : 0;
+                break;
+            case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
                 case VmlUi.TimerKill: registers[0] = TimerKill(registers); break;
                 case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : (_windowOpened ? 0 : 2); break;
                 case VmlUi.CallJson: registers[0] = CallJson(registers, memory); break;
@@ -1150,7 +1257,7 @@ public sealed class VmlHostRuntime
     ///   这里不抛异常：宿主 syscall 处理器抛出去会把 VM 打挂，而程序那边只看到"窗口没了"
     ///   （与 `VmlJsonApi.Invoke` 那条约定同源）。
     /// </summary>
-    private void GfxState(int[] r)
+    private void GfxState(int[] r, byte[] memory)
     {
         switch (r[0])
         {
@@ -1166,15 +1273,65 @@ public sealed class VmlHostRuntime
             case VmlUi.GfxOp.BrushReset:
                 Scene()?.ResetBrushes();
                 break;
+            case VmlUi.GfxOp.LayerBegin:
+                Scene()?.AddLayerBegin();
+                break;
+            case VmlUi.GfxOp.LayerEnd:
+                Scene()?.AddLayerEnd(r[1]);
+                break;
             case VmlUi.GfxOp.MaskBegin:
                 Scene()?.AddMaskBegin();
                 break;
             case VmlUi.GfxOp.MaskEnd:
                 Scene()?.AddMaskEnd(r[1]);
                 break;
+            case VmlUi.GfxOp.MaskEnd2:
+                // 不认得的运算符：**什么都不做**（返回 0），别当 Replace 蒙混 ——
+                // 那会把"程序写错了"变成"画面莫名其妙不一样"。
+                if (!MaskOp.IsValid(r[1])) { r[0] = 0; return; }
+                Scene()?.AddMaskEnd2(r[1]);
+                break;
             case VmlUi.GfxOp.MaskClear:
                 Scene()?.AddMaskClear();
                 break;
+            case VmlUi.GfxOp.MaskTest:
+            {
+                // **没有蒙版 ⇒ 处处可见**（返回 1）—— 与 `Canvas.InMask` 里"没有蒙版恒真"
+                // 同一条口径。两条路必须一致，否则"没开蒙版时碰撞体是全空"这种
+                // 反直觉的结果会让程序在别处兜一圈才找得到。
+                var m = Scene()?.CurrentMask();
+                r[0] = m == null || m.Hit(r[1], r[2]) ? 1 : 0;
+                return;
+            }
+            // ── 蒙版 → 路径（`ui_mask_seg_count` / `_seg_op` / `_shape_count` / `_path`）──
+            // 四个都**不改场景**（纯查询）⇒ 直接 `return`，不 `TouchScene()`。
+            case VmlUi.GfxOp.MaskSegCount:
+                r[0] = Scene()?.CurrentMask()?.Segments.Count ?? 0;
+                return;
+            case VmlUi.GfxOp.MaskSegOp:
+            {
+                var m = Scene()?.CurrentMask();
+                r[0] = m != null && r[1] >= 0 && r[1] < m.Segments.Count ? m.Segments[r[1]].Op : -1;
+                return;
+            }
+            case VmlUi.GfxOp.MaskShapeCount:
+            {
+                var m = Scene()?.CurrentMask();
+                r[0] = m != null && r[1] >= 0 && r[1] < m.Segments.Count
+                    ? m.Segments[r[1]].Shapes.Count : 0;
+                return;
+            }
+            case VmlUi.GfxOp.MaskPath:
+            {
+                var m = Scene()?.CurrentMask();
+                if (m == null || r[1] < 0 || r[1] >= m.Segments.Count) { r[0] = -1; return; }
+                var seg = m.Segments[r[1]];
+                if (r[2] < 0 || r[2] >= seg.Shapes.Count) { r[0] = -1; return; }
+                // 放不下时 `WriteString` 返回 -1 —— 与"越界"同一个返回值，
+                // 程序按"没拿到"处理即可（想说清是哪种，看 `ui_mask_path` 的头文件说明）。
+                r[0] = WriteString(memory, r[3], r[4], seg.Shapes[r[2]].ToSvgPath());
+                return;
+            }
             case VmlUi.GfxOp.ClipReset:
                 Scene()?.ResetClips();
                 break;
@@ -1429,6 +1586,19 @@ public sealed class VmlHostRuntime
             at += Encoding.UTF8.GetByteCount(s) + 1;
         }
         return list;
+    }
+
+    /// <summary>
+    /// 把一个 **int32 小端**写进 VM 内存（`TOUCH_QUERY` 那种"多值结果写进调用方缓冲区"用）。
+    /// ⚠ 端序按 VM 的规定来（32 位小端），**不要**用 `BitConverter` 的默认端序 ——
+    ///   那跟着宿主机走，在大端机器上会写出反的字节序（本仓记过"两端不同源"的账）。
+    /// </summary>
+    private static void WriteInt32(byte[] mem, int dst, int value)
+    {
+        mem[dst] = (byte)value;
+        mem[dst + 1] = (byte)(value >> 8);
+        mem[dst + 2] = (byte)(value >> 16);
+        mem[dst + 3] = (byte)(value >> 24);
     }
 
     /// <summary>

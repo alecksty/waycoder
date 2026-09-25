@@ -607,6 +607,8 @@
 // CALL format_arg_count
 // extern fn vsnprintf(char *buf, const char *fmt, const int *args, int nargs) -> int
 // CALL vsnprintf
+// extern fn format_slot_count(const char *format) -> int
+// CALL format_slot_count
 // extern fn con_putc(int c) -> oid
 // CALL con_putc
 // extern fn con_puts(const char *s) -> oid
@@ -1837,8 +1839,6 @@
 // CALL _printf_ftoa
 // extern fn _printf_ftoe(char *buf, float f, int prec, int upper) -> nt
 // CALL _printf_ftoe
-// extern fn format_slot_count(const char *format) -> nt
-// CALL format_slot_count
 // extern fn sprintf(char *buf, const char *fmt, ...) -> int
 // CALL sprintf
 // extern fn snprintf(char *buf, unsigned int size, const char *fmt, ...) -> int
@@ -2409,6 +2409,58 @@
 // CALL ui_circle
 // extern fn ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw) -> void
 // CALL ui_ellipse
+// extern fn ui_clip_push(int x, int y, int w, int h) -> int
+// CALL ui_clip_push
+// extern fn ui_clip_pop(void) -> int
+// CALL ui_clip_pop
+// extern fn ui_alpha(int v) -> int
+// CALL ui_alpha
+// extern fn ui_brush_reset(void) -> int
+// CALL ui_brush_reset
+// extern fn ui_clip_reset(void) -> int
+// CALL ui_clip_reset
+// extern fn ui_mask_begin(void) -> int
+// CALL ui_mask_begin
+// extern fn ui_mask_end(int inside) -> int
+// CALL ui_mask_end
+// extern fn ui_mask_end2(int op) -> int
+// CALL ui_mask_end2
+// extern fn ui_mask_clear(void) -> int
+// CALL ui_mask_clear
+// extern fn ui_mask_test(int x, int y) -> int
+// CALL ui_mask_test
+// extern fn ui_mask_seg_count(void) -> int
+// CALL ui_mask_seg_count
+// extern fn ui_mask_seg_op(int seg) -> int
+// CALL ui_mask_seg_op
+// extern fn ui_mask_shape_count(int seg) -> int
+// CALL ui_mask_shape_count
+// extern fn ui_mask_path(int seg, int idx, char* buf, int cap) -> int
+// CALL ui_mask_path
+// extern fn ui_res_count(int what) -> int
+// CALL ui_res_count
+// extern fn ui_layer_begin(void) -> int
+// CALL ui_layer_begin
+// extern fn ui_layer_end(int alpha) -> int
+// CALL ui_layer_end
+// extern fn ui_touch(int slot, int* out) -> int
+// CALL ui_touch
+// extern fn ui_touch_query(int slot) -> int
+// CALL ui_touch_query
+// extern fn ui_touch_x(void) -> int
+// CALL ui_touch_x
+// extern fn ui_touch_y(void) -> int
+// CALL ui_touch_y
+// extern fn ui_touch_down(void) -> int
+// CALL ui_touch_down
+// extern fn ui_key_down(int key) -> int
+// CALL ui_key_down
+// extern fn ui_orient_lock(int mode) -> int
+// CALL ui_orient_lock
+// extern fn ui_immersive(int on) -> int
+// CALL ui_immersive
+// extern fn ui_audio_playing(void) -> int
+// CALL ui_audio_playing
 // extern fn ui_flood_fill(int x, int y, int color, int border) -> int
 // CALL ui_flood_fill
 // extern fn ui_get_image(int x, int y, int w, int h) -> int

@@ -84,6 +84,44 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     public void PopClip() => _canvas.RestoreState();
 
+    // 蒙版同理借平台的裁剪栈 —— 只是形状从矩形换成任意路径。
+    // ⚠ `ClipPath` 与 `ClipRectangle` 压的是**同一层栈**，所以 `PushMask`/`PopMask`
+    //   必须与 `PushClip`/`PopClip` 严格配对（驱动层按 DSL 顺序发，天然成对）。
+    public void PushMask(IReadOnlyList<IReadOnlyList<double>> subpaths, bool evenOdd)
+    {
+        // ⚠ 蒙版是**替换**语义（不是 push/pop 配对）：新的一条要把上一条**先关掉**，
+        //   否则 `mask_clear` 之后的内容仍被上一个蒙版箍着（SVG 那边踩过同一个坑）。
+        if (_maskOpen) { _canvas.RestoreState(); _maskOpen = false; }
+
+        var path = new PathF();
+        foreach (var sub in subpaths)
+        {
+            if (sub.Count < 4) continue;
+            path.MoveTo((float)sub[0], (float)sub[1]);
+            for (int i = 2; i + 1 < sub.Count; i += 2)
+                path.LineTo((float)sub[i], (float)sub[i + 1]);
+            path.Close();
+        }
+        _canvas.SaveState();
+        _canvas.ClipPath(path, evenOdd ? WindingMode.EvenOdd : WindingMode.NonZero);
+        _maskOpen = true;
+    }
+
+    public void PopMask()
+    {
+        if (!_maskOpen) return;
+        _canvas.RestoreState();
+        _maskOpen = false;
+    }
+
+    /// <summary>
+    /// 当前有没有压着蒙版那一层。
+    /// ⚠ 它和裁剪共用平台那一套 `SaveState`/`RestoreState` —— 两条**交叉**使用
+    ///   （裁剪的生命周期跨越一次蒙版替换）时会关错层。VML 生成的绘制流不会这样
+    ///   （`ui_gfx` 的蒙版与裁剪各管各的段落），手写 DSL 才会碰上；真碰上就拆成两段。
+    /// </summary>
+    private bool _maskOpen;
+
     // ── 填充 / 描边 ────────────────────────────────────────────────────────
 
     public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,

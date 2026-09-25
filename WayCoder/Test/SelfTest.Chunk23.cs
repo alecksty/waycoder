@@ -208,5 +208,19 @@ public static partial class SelfTest
 
         public void PushClip(double x, double y, double w, double h) => Clips.Add((x, y, w, h));
         public void PopClip() => ClipPops++;
+
+        /// <summary>压入过的蒙版（子路径 + 填充规则），用于断言 `mask` 确实折叠对了。</summary>
+        public List<(List<IReadOnlyList<double>> Subpaths, bool EvenOdd)> Masks = new();
+        /// <summary>弹出次数 —— 与"压入过几次"对不上就是有 push 没 pop（或反过来）。</summary>
+        public int MaskPops;
+
+        public void PushMask(IReadOnlyList<IReadOnlyList<double>> subpaths, bool evenOdd)
+        {
+            // 蒙版是**替换**语义：新的一条先关掉上一条（与 MauiVectorTarget 同一处置）
+            if (Masks.Count > MaskPops) MaskPops++;
+            Masks.Add((subpaths.ToList(), evenOdd));
+        }
+
+        public void PopMask() => MaskPops++;
     }
 }

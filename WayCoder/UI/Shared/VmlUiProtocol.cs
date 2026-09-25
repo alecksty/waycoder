@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using WayCoder.Infra;   // 蒙版形状/表达式（DrawMask.cs）—— 运行时镜像与 `ui_mask_test` 要用
 
 namespace WayCoder.UI.Shared;
 
@@ -294,6 +295,82 @@ public static class VmlUi
         public const int MaskEnd = 4;
         /// <summary>取消蒙版（`ui_mask_clear`）——实现是"开一个空的再收"。见 `AddMaskClear`。</summary>
         public const int MaskClear = 5;
+
+        /// <summary>
+        /// 结束收集，并把新形状与**当前蒙版**按布尔运算符组合（`ui_mask_end2(op)`，`a` = 运算符）。
+        ///
+        /// 运算符见 <see cref="MaskOp"/>：`Replace`(0，= 老 `ui_mask_end` 的行为) / `Union` /
+        /// `Intersect` / `Subtract` / `Xor`。
+        ///
+        /// ⚠ **为什么不给 `ui_mask_end(inside)` 加个参数**：宿主是从 `registers[n]` 读参数的，
+        ///   而只传一个参数的老程序后面那几只寄存器里是**它自己上一句留下的值**
+        ///   （可能是个指针、可能是个计数）—— 宿主无从判断"这是不是真给了"。
+        ///   所以照铁律新开一个操作码，老号语义一个字不动（与 `WIN_OPEN_EX` #570 同一处置）。
+        ///
+        /// ⚠ 它**不碰 `inside`**（保持当前值，默认 1）：`inside` 是"最后要不要整体取反"，
+        ///   与形状之间的布尔运算正交 —— 见 <see cref="MaskExpr"/> 的说明。
+        /// </summary>
+        public const int MaskEnd2 = 11;
+
+        /// <summary>图层：开始离屏收集（`ui_layer_begin`）。见 <see cref="MaskOp"/> 同级的规划。</summary>
+        public const int LayerBegin = 6;
+        /// <summary>图层：结束并按 alpha 整层合成（`ui_layer_end`）。</summary>
+        public const int LayerEnd = 7;
+
+        /// <summary>
+        /// 查"这一点在不在**当前蒙版**里"（`ui_mask_test(x, y)`，`a`=x `b`=y）→ 1 / 0。
+        ///
+        /// 蒙版既然已经是"可见区域的几何定义"，它**顺手就是一份碰撞体** ——
+        /// 建筑层"炸一块缺一块"之后，程序不必再自己维护一份洞的坐标表来判
+        /// "香蕉撞墙了没有 / 这一枪能不能穿过破洞"。这是玩家点名的用法。
+        ///
+        /// | 返回 | 含义 |
+        /// |---|---|
+        /// | 1 | 这一点在蒙版**内**（= 会画出来的地方，`inside=0` 时是"蒙版外"）|
+        /// | 0 | 在外面 |
+        /// | 1 | **没有蒙版**时恒为 1（处处可见 —— 与 `InMask` 的"没有蒙版恒真"同一条口径）|
+        ///
+        /// ⚠ 坐标是**场景坐标**（与 `ui_rect` 那些一致），不是放大后的画布坐标 ——
+        ///   缩放只发生在出图那一刻，查询走的是原始几何。
+        /// ⚠ **别每像素调**：一次查询要在形状表上跑一遍（洞多时是几十次命中测试）。
+        ///   拿它判"香蕉/子弹"这类每帧几个点的问题正合适，逐像素扫描请走 `ui_get_pixel`。
+        /// </summary>
+        public const int MaskTest = 12;
+
+        /// <summary>`ui_mask_seg_count()` —— 当前蒙版有几段（没有蒙版返回 0）。</summary>
+        public const int MaskSegCount = 13;
+
+        /// <summary>`ui_mask_shape_count(seg)` —— 第 `a` 段里有几个形状（越界返回 0）。</summary>
+        public const int MaskShapeCount = 14;
+
+        /// <summary>
+        /// `ui_mask_path(seg, shape, buf*, cap)` —— 把第 `a` 段第 `b` 个形状导出成
+        /// **SVG 路径字符串**写进 `c` 指向的缓冲区（`d` = 容量），返回写入的**字节数**
+        /// （不含结尾 NUL）；越界或放不下返回 -1。
+        ///
+        /// 这是"蒙版 → 路径"那个方向：程序拿到路径就能**描洞口的边**
+        /// （画断面、做外发光），或者把洞的形状再拿去做别的运算。
+        /// 圆导出的是**真圆弧**（`A` 命令），不是折线近似 —— 保持它是圆的。
+        ///
+        /// 典型用法（描当前蒙版里"被减掉"那一层的每个洞）：
+        /// ```c
+        /// int n = ui_mask_seg_count();
+        /// if (n >= 2 && ui_mask_seg_op(1) == VML_MASK_SUBTRACT) {   // 见 ui_mask_seg_op
+        ///     for (int i = 0; i < ui_mask_shape_count(1); i++)
+        ///         if (ui_mask_path(1, i, buf, sizeof(buf)) > 0) ui_path(buf, 色, 2, 0, "", 1, 0);
+        /// }
+        /// ```
+        /// ⚠ 段与形状都按**当前蒙版**取 —— 蒙版一改（下一条 `ui_mask_end*`）就变了。
+        /// </summary>
+        public const int MaskPath = 15;
+
+        /// <summary>
+        /// `ui_mask_seg_op(seg)` —— 第 `a` 段用的运算符（`MaskOp` 之一；越界返回 -1）。
+        ///
+        /// 程序要靠它认出"哪一段是**被减掉的洞**"（`SUBTRACT`）才能去描洞口边 ——
+        /// 只有形状列表而没有运算符的话，"这是底还是洞"是猜不出来的。
+        /// </summary>
+        public const int MaskSegOp = 16;
 
         /// <summary>
         /// 查**当前占用**（`a` = 种类，返回计数；未知种类返回 -1）。
@@ -1065,6 +1142,46 @@ public static class VmlUi
     /// <summary>本协议是否认领该 syscall 号。**不认识必须返回 false**，否则会把内置 syscall 吞掉。</summary>
     public static bool Handles(int syscallNumber) => syscallNumber is >= 500 and <= 599;
 
+    // ── 手机特有的操作方式（§3 P1）────────────────────────────────────────
+    //
+    // 这一批的共同点：**桌面端没有对应的东西**，但接口本身是跨端的 ——
+    // 桌面缺的是"输入源"（没有手指、没有重力），不是"语义"。
+    // 所以宿主层照常实现，两端各给一个平台实现（桌面用脚本化输入喂）。
+
+    /// <summary>
+    /// `TOUCH_QUERY`：`R0`=槽位(0–9) → `R0`=x `R1`=y `R2`=按下(1/0)。
+    ///
+    /// **多点触控** —— 虚拟摇杆、双指缩放、双人同屏都靠它。
+    ///
+    /// ⚠ **轮询式**而不是新消息类型：16 字节的消息塞不下"手指 id + x + y"
+    ///   （`[类型][A][B][时间]` 只有两个自由值），把它扩成 20 字节会**打断所有现有程序**。
+    ///   轮询是在现有布局之外新增，**零破坏**。
+    /// ⚠ 平台要**同时**做两件事：更新这份状态（`PostTouch`）+ 投一条消息 ——
+    ///   只更新状态的话，用 `ui_wait_msg` 驱动主循环的程序再也收不到触摸。
+    /// </summary>
+    public const int TouchQuery = 556;
+
+    /// <summary>
+    /// `KEY_QUERY`：`R0`=虚拟键码 → 0/1（**此刻**按住没有）。
+    ///
+    /// "持续按住左移"这类逻辑不必自己维护一张状态表 —— 但**它治不了丢 KeyUp**：
+    /// 手指划出按键范围、系统吃掉 CANCEL 都会让 `KeyUp` 永远不来，
+    /// 而查询只会一直报"按着"。**连发逻辑仍然要自带刹车**（见 tetris 的连发那一段）。
+    /// </summary>
+    public const int KeyQuery = 557;
+
+    /// <summary>`ORIENTATION_LOCK`：`R0` = 0 竖屏 / 1 横屏 / 2 自动。</summary>
+    public const int OrientationLock = 558;
+
+    /// <summary>`IMMERSIVE`：`R0` = 0/1，隐藏状态栏与导航栏（全屏游戏用）。</summary>
+    public const int Immersive = 559;
+
+    /// <summary>`AUDIO_IS_PLAYING` → 1/0（BGM 放完没有 —— "等这首放完再进下一段"要用）。</summary>
+    public const int AudioIsPlaying = 547;
+
+    /// <summary>`TOUCH_QUERY` 的槽位数（`R0` 的合法范围是 `0 .. MaxTouchSlots-1`）。</summary>
+    public const int MaxTouchSlots = 10;
+
     /// <summary>
     /// 本协议**已占用**的全部号，只给自测查重用 —— 没有运行时消费方。
     ///
@@ -1095,10 +1212,12 @@ public static class VmlUi
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
-        AudioPlay, AudioStop, AudioVolume, Vibrate, VibratePattern,
+        AudioPlay, AudioStop, AudioVolume, Vibrate, VibratePattern, AudioIsPlaying,
         StoreSet, StoreGet, StoreDel, ScreenKeepOn,
         // 输入与屏幕 560–569
         MsgPoll, MsgWait, MsgCount, TimerSet, TimerKill, WinClosed, ScrW, ScrH, MsgClear, ScrOrient,
+        // 手机特有的操作方式 556–559
+        TouchQuery, KeyQuery, OrientationLock, Immersive,
         // 扩展 570–573
         WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
         // ⚠ `DrawTextEx = 581` 是**补进来的**（v0.96.353）：它早就定义了，
@@ -2044,19 +2163,104 @@ public sealed class VmlScene
     ///   而那正是"同一规则三处实现"的老坑。
     /// </summary>
     /// <summary>`mask_begin` —— 开始收集蒙版形状（这期间的形状不上屏）。</summary>
-    public void AddMaskBegin() => Add("mask_begin");
+    public void AddMaskBegin()
+    {
+        _maskBuf = new List<MaskShape>();
+        Add("mask_begin");
+    }
 
-    /// <summary>`mask_end [inside]` —— 收下蒙版并启用。</summary>
-    public void AddMaskEnd(int inside) => Add($"mask_end {(inside != 0 ? 1 : 0)}");
+    /// <summary>`mask_end [inside]` —— 收下蒙版并**取代**当前蒙版（老语义，画面必须逐像素不变）。</summary>
+    public void AddMaskEnd(int inside)
+    {
+        _maskInside = inside != 0;
+        ApplyMaskSegment(MaskOp.Replace);
+        Add($"mask_end {(inside != 0 ? 1 : 0)}");
+    }
 
     /// <summary>
-    /// 取消蒙版。**不新造指令**：开一个空的再收 —— 空蒙版在 `Canvas.SetMask` 里
-    /// 自然 `_maskOn = false`，于是"后续图元全部可见"。与 `ResetClips` 补发 `clippop` 同一路数。
+    /// `mask_end2 [op]` —— 收下蒙版并与**当前蒙版**按布尔运算符组合（`Replace` 等价于老的那条）。
+    ///
+    /// ⚠ 出图那条路的段累积在 `DrawRunner.Parse`（解析期）—— 这里**另记一份**，
+    ///   只服务 `ui_mask_test`（运行时问"这个点在不在蒙版里"，那时解析期还没跑）。
+    ///   两处**共用** `MaskExpr.ApplySegment` 的累积语义与 `MaskShape` 的构造，
+    ///   差异只在"形状从哪来"：那边从解析好的 `DrawFigure` 提取，这边从方法参数直接构造。
+    /// </summary>
+    public void AddMaskEnd2(int op)
+    {
+        ApplyMaskSegment(op);
+        Add($"mask_end2 {op}");
+    }
+
+    /// <summary>
+    /// 取消蒙版。**不新造指令**：开一个空的再收 —— 空形状在 `MaskExpr.IsEmpty` 里
+    /// 判为"没有蒙版"，于是"后续图元全部可见"。与 `ResetClips` 补发 `clippop` 同一路数。
     /// </summary>
     public void AddMaskClear()
     {
-        Add("mask_begin");
-        Add("mask_end 1");
+        AddMaskBegin();
+        AddMaskEnd(1);
+    }
+
+    /// <summary>
+    /// `layer_begin` —— 开始**离屏收集**：这期间画的图元先落到一块临时画布上
+    /// （`LayerCommand` 的注释里有完整说明）。
+    ///
+    /// ⚠ 与蒙版**方向相反**：层内图元**是要上屏的**（只是晚一步、经过一次合成），
+    ///   所以它需要一块真的临时画布 + 一次逐像素合成 —— 不是"一组判定用的几何"。
+    /// </summary>
+    public void AddLayerBegin() => Add("layer_begin");
+
+    /// <summary>`layer_end [alpha]` —— 结束收集，**整层**按 `alpha`（0..255）合成上去。</summary>
+    public void AddLayerEnd(int alpha)
+        => Add($"layer_end {Math.Clamp(alpha, 0, 255).ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+
+    // ── 蒙版的**运行时镜像**（只服务 `ui_mask_test`）─────────────────────
+    //
+    // 出图时，蒙版的段累积发生在 `DrawRunner.Parse`；而"这一点在不在蒙版里"是
+    // **运行时**的问题，那时场景还没被解析。宿主手里只有自己刚发出去的那几行文本，
+    // 所以必须自己记一份。
+    //
+    // ⚠ 记账**只在 `lock (_figures)` 里做** —— 与 `Add` 用的是同一把锁，
+    //   否则"收集到一半被别的线程读走"会给出一个半成品的蒙版。
+    private List<MaskShape>? _maskBuf;                 // `mask_begin` 之后收集的形状
+    private readonly List<MaskExpr.Segment> _maskSegs = new();
+    private bool _maskInside = true;
+
+    /// <summary>`mask_begin` 期间画的形状**顺手记一份**（图形与解析期同源，见上面那段）。</summary>
+    private void NoteMaskShape(MaskShape s)
+    {
+        lock (_figures) { _maskBuf?.Add(s); }
+    }
+
+    /// <summary>收一段：`Replace` 清掉历史，其余追加（与 `DrawRunner.Parse` 同一语义）。</summary>
+    private void ApplyMaskSegment(int op)
+    {
+        lock (_figures)
+        {
+            MaskExpr.ApplySegment(_maskSegs, op, _maskBuf);
+            _maskBuf = null;
+        }
+    }
+
+    /// <summary>
+    /// 当前生效的蒙版（没有就返回 null = 处处可见）。给 `ui_mask_test` 用。
+    /// ⚠ 返回的是**快照**（段与形状列表都另建一份）—— 调用方拿去算碰撞时，
+    ///   程序可能正在改蒙版，共用同一个 `List` 会在枚举中途被改。
+    /// </summary>
+    public MaskExpr? CurrentMask()
+    {
+        lock (_figures)
+        {
+            if (_maskSegs.Count == 0) return null;
+            var e = new MaskExpr { Inside = _maskInside };
+            foreach (var seg in _maskSegs)
+            {
+                var copy = new MaskExpr.Segment { Op = seg.Op };
+                copy.Shapes.AddRange(seg.Shapes);
+                e.Segments.Add(copy);
+            }
+            return e.IsEmpty ? null : e;
+        }
     }
 
     public void ResetClips()
@@ -2122,12 +2326,18 @@ public sealed class VmlScene
         var name = radius > 0 ? "roundrect" : "rect";
         var extra = radius > 0 ? $" {radius}" : "";
         Add($"{name} {x} {y} {w} {h}{extra}{Style(color, filled, width, fillGradient)}");
+        // 蒙版收集期：顺手记一份（`roundrect` 当矩形，圆角忽略 —— 与解析期的口径一致）。
+        // ⚠ 先判 `_maskBuf` 再构造形状：这两个方法是**每帧几百次**的热路径，
+        //   不加判断就是每次白构造一个小对象（收集期才是少数）。
+        if (_maskBuf != null) NoteMaskShape(MaskShape.Rect(x, y, w, h));
     }
 
     public void AddCircle(int cx, int cy, int r, uint color, bool filled, int width, string? fillGradient = null)
     {
         if (!InCoordRange(cx) || !InCoordRange(cy)) return;
-        Add($"circle {cx} {cy} {Dim(r)}{Style(color, filled, Dim(width), fillGradient)}");
+        var rr = Dim(r);
+        Add($"circle {cx} {cy} {rr}{Style(color, filled, Dim(width), fillGradient)}");
+        if (_maskBuf != null) NoteMaskShape(MaskShape.Circle(cx, cy, rr));
     }
 
     public void AddEllipse(int cx, int cy, int rx, int ry, uint color, bool filled, int width, string? fillGradient = null)
@@ -2193,6 +2403,25 @@ public sealed class VmlScene
         if (!string.IsNullOrEmpty(fillGradient)) sb.Append(" fill @").Append(VmlUi.SafeId(fillGradient));
         else if (fillSet) sb.Append(" fill ").Append(Hex(fillColor));
         Add(sb.ToString());
+        // 蒙版收集期：路径按**展平后的多边形**计入（与解析期同一个展平器）
+        NoteMaskPath(d);
+    }
+
+    /// <summary>
+    /// 把一条 `d` 展平后逐条子路径记成多边形形状（蒙版运行时镜像用）。
+    /// ⚠ 与 `DrawRunner.ExtractMaskShapes` 走的是**同一个** `DrawPath.Flatten`，
+    ///   所以"路径当蒙版"画出来的形状和这里是同一个。
+    /// </summary>
+    private void NoteMaskPath(string d)
+    {
+        if (_maskBuf == null) return;
+        foreach (var sp in DrawPath.Flatten(d))
+        {
+            if (sp.Points.Count < 3) continue;
+            var flat = new List<double>(sp.Points.Count * 2);
+            foreach (var (px, py) in sp.Points) { flat.Add(px); flat.Add(py); }
+            NoteMaskShape(MaskShape.Polygon(flat));
+        }
     }
 
     /// <summary>
@@ -2205,6 +2434,13 @@ public sealed class VmlScene
         var pts = FlatPoints(points);
         if (pts == null) return;
         Add($"polygon {pts}{Style(color, filled, width, fillGradient)}{(dashed ? " dash" : "")}");
+        // 蒙版收集期：多边形原样计入（`FlatPoints` 已经钳过坐标，与上面发出去的同一份）
+        if (_maskBuf != null)
+        {
+            var flat = new List<double>(points.Count);
+            foreach (var v in points) flat.Add(v);
+            if (flat.Count >= 6) NoteMaskShape(MaskShape.Polygon(flat));
+        }
     }
 
     /// <summary>折线（不闭合）。坐标同上。</summary>
@@ -2733,9 +2969,15 @@ public sealed class VmlScene
         if (!InCoordRange(x) || !InCoordRange(y)) return false;
         // `scale 0` 会让矢量后端的 `TryAxisScale`（要求 A>0 && D>0）失败而掉进逐像素慢路径；
         // "缩到看不见"直接判失败，让程序自己能看见（见 MaxBlockScalePerMille 的说明）。
-        if (sx <= 0 || sy <= 0) return false;
-        sx = Math.Min(sx, MaxBlockScalePerMille);
-        sy = Math.Min(sy, MaxBlockScalePerMille);
+        //
+        // ⚠ **负值是合法的**（水平/垂直**镜像**）—— 原来这里写的是 `sx <= 0`，把负值
+        //   连同 0 一起拒了，于是"同一个精灵朝左朝右"只能录两个图块、两段近乎重复的形状代码。
+        //   镜像在矢量后端同样过不了 `TryAxisScale`（它不认负数）⇒ 那一帧回退整窗光栅，
+        //   但**光栅那边是对的**（`FillTransformed` 走逆变换，负缩放照样可逆）——
+        //   拿"慢一点"换掉一整类重复代码，划算。钳制要**两侧都夹**（见下）。
+        if (sx == 0 || sy == 0) return false;
+        sx = Math.Max(-MaxBlockScalePerMille, Math.Min(sx, MaxBlockScalePerMille));
+        sy = Math.Max(-MaxBlockScalePerMille, Math.Min(sy, MaxBlockScalePerMille));
         rotate = ((rotate % 360) + 360) % 360;
 
         int need;

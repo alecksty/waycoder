@@ -407,6 +407,13 @@ internal sealed class CliVmlHost : IVmlHost
 
     public void KeepScreenOn(bool on) => CliErr.WriteLine($"[vml-host] keep-screen-on={on}");
 
+    // ── 手机特有的操作方式（§3 P1）──────────────────────────────────────────
+    // 桌面没有屏幕方向 / 沉浸式 / 后台 BGM 这些概念，**如实**记一行日志即可 ——
+    // 静默 no-op 会让"调了没反应"与"桌面本来就没有"分不开。
+    public bool AudioPlaying() => false;              // 桌面这条路上没有后台播放
+    public void LockOrientation(int mode) => CliErr.WriteLine($"[vml-host] orientation-lock={mode}");
+    public void SetImmersive(bool on) => CliErr.WriteLine($"[vml-host] immersive={on}");
+
     // ── 像素读回（583–585）──────────────────────────────────────────────────
     //
     // 桌面端与手机端**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
@@ -892,6 +899,22 @@ internal sealed class CliUiCalls : ISystemCallHandler
         // 刻意**不记 `DrawPresent`**（每条语句都发一次，会淹掉日志）。
         if (cfg.TraceDrawPath is { Length: > 0 } tracePath)
         {
+            // `ui_gfx` 的操作码名字 —— trace 里光有数字读不出在干什么
+            static string GfxOpName(int op) => op switch
+            {
+                VmlUi.GfxOp.ClipPush => "(裁剪入栈)",
+                VmlUi.GfxOp.ClipPop => "(裁剪出栈)",
+                VmlUi.GfxOp.Alpha => "(透明度)",
+                VmlUi.GfxOp.MaskBegin => "(蒙版开始)",
+                VmlUi.GfxOp.MaskEnd => "(蒙版收)",
+                VmlUi.GfxOp.MaskClear => "(蒙版清除)",
+                VmlUi.GfxOp.MaskEnd2 => "(蒙版布尔)",
+                VmlUi.GfxOp.BrushReset => "(清空画刷)",
+                VmlUi.GfxOp.ClipReset => "(清空裁剪栈)",
+                VmlUi.GfxOp.ResCount => "(查占用)",
+                _ => "",
+            };
+
             var tw = new StreamWriter(tracePath, append: false) { AutoFlush = true };
             _rt.OnSyscall = (n, r, _) =>
             {
@@ -919,6 +942,11 @@ internal sealed class CliUiCalls : ISystemCallHandler
                     VmlUi.EndBlock    => "blkend  (录制结束)",
                     VmlUi.DrawBlock   => $"blkdraw handle={r[0]} 中心({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
                     VmlUi.DrawBlockAt => $"blkdraw handle={r[0]} 左上({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
+                    // 绘图**状态**（`ui_gfx` 多路复用）：裁剪 / 蒙版 / 透明度 / 资源。
+                    // ⚠ 这一条是补上的：原来只记"图元"，于是**蒙版与裁剪在 trace 里一条都没有** ——
+                    //   而"trace 里没有"会被读成"宿主没执行"，正是下面那句注释记过的同一个坑。
+                    //   排查"洞挖没挖出来"这类问题时，`mask_end2 op=3`（SUBTRACT）就是最直接的证据。
+                    VmlUi.GfxState => $"gfx     op={r[0]}{GfxOpName(r[0])} a={r[1]} b={r[2]} c={r[3]} d={r[4]}",
                     _ => null,
                 };
                 if (line is not null) tw.WriteLine($"{n,4} {line}");

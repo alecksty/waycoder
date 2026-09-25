@@ -132,6 +132,15 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     /// <summary>页面把输入事件投进来（UI 线程调用）。</summary>
     internal void PostInput(VmlMsgType type, int a = 0, int b = 0) => _rt.PostInput(type, a, b);
 
+    /// <summary>
+    /// 页面把**第 slot 根手指**的状态投进来（多点触控，见 `VmlHostRuntime.PostTouch`）。
+    /// ⚠ **只有槽位 0 会投消息**，其余槽位只更新查询状态 —— 老程序照旧按单指写。
+    /// </summary>
+    internal void PostTouch(int slot, int x, int y, bool down) => _rt.PostTouch(slot, x, y, down);
+
+    /// <summary>第 slot 根手指移动（只在按着的时候有效）。</summary>
+    internal void PostTouchMove(int slot, int x, int y) => _rt.PostTouchMove(slot, x, y);
+
     /// <summary>页面被用户关闭时调用（返回箭头）。</summary>
     internal void MarkWindowClosed() => _rt.MarkWindowClosed();
 
@@ -557,6 +566,72 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 try { DeviceDisplay.KeepScreenOn = on; }
                 catch (Exception ex) { ErrorLog.Error("VmlUi", "设置常亮失败", ex); }
             });
+
+        /// <summary>`AUDIO_IS_PLAYING`(#547) —— 查的是**后台 BGM** 那个播放器（两端各一份）。</summary>
+        public bool AudioPlaying() => VmlAudio.IsPlaying();
+
+        /// <summary>
+        /// `ORIENTATION_LOCK`(#558)：0 竖 / 1 横 / 2 自动。
+        ///
+        /// ⚠ 与 `ui_win_open_ex` 的 `rotatable` 是**两件事**：那个管"转屏时窗口跟不跟"，
+        ///   这个管"**系统让不让转**"（改的是设备的 `user_rotation`）。
+        ///   `DrawWindowPage.ApplyOrientationLock` 走的是同一条 Android API，但触发时机不同
+        ///   （那个是开窗时按声明定，这个是程序运行中主动改）。
+        /// ⚠ 枚举成员**必须全限定写**（`var so = Android.Content.PM.ScreenOrientation;`
+        ///   是"把类型当表达式"，CS0119 编不过 —— 这个坑本仓记过）。
+        /// iOS 上锁方向要 override 视图控制器的方向回调，语义与 Android 不同，
+        /// 这里**如实标注不支持**（返回后程序查 `SCR_ORIENT` 就知道）。
+        /// </summary>
+        public void LockOrientation(int mode)
+        {
+#if ANDROID
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                try
+                {
+                    var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+                    if (activity == null) return;
+                    activity.RequestedOrientation = mode switch
+                    {
+                        0 => Android.Content.PM.ScreenOrientation.Portrait,
+                        1 => Android.Content.PM.ScreenOrientation.Landscape,
+                        _ => Android.Content.PM.ScreenOrientation.Unspecified,
+                    };
+                }
+                catch (Exception ex) { ErrorLog.Error("VmlUi", "锁定屏幕方向失败", ex); }
+            });
+#else
+            Log($"orientation-lock={mode}（这一端不支持）");
+#endif
+        }
+
+        /// <summary>
+        /// `IMMERSIVE`(#559)：隐藏 / 恢复状态栏与导航栏。
+        ///
+        /// ⚠ 必须回主线程：它动的是 Window 的装饰，与 `KeepScreenOn` 同一条理由
+        ///   （实测过 `Only the original thread that created a view hierarchy can touch its views`）。
+        /// ⚠ API 30 起用 `InsetsController`（旧的 `SystemUiVisibility` 已废弃），
+        ///   两个分支都要有 —— 只写新的会在旧机上静默无效。
+        /// </summary>
+        public void SetImmersive(bool on)
+        {
+#if ANDROID
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                try
+                {
+                    var window = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity?.Window;
+                    if (window == null) return;
+                    var bars = Android.Views.WindowInsets.Type.SystemBars();
+                    if (on) window.InsetsController?.Hide(bars);
+                    else window.InsetsController?.Show(bars);
+                }
+                catch (Exception ex) { ErrorLog.Error("VmlUi", "切换沉浸式失败", ex); }
+            });
+#else
+            Log($"immersive={on}（这一端不支持）");
+#endif
+        }
 
         // ── 像素读回（583–585）──────────────────────────────────────────────
         //

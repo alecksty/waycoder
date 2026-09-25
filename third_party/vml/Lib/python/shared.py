@@ -1846,6 +1846,12 @@ def vsnprintf(a0, a1, a2, a3):
     asm("CALL vsnprintf")
     return r0
 
+def format_slot_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL format_slot_count")
+    return r0
+
 def con_putc(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -5588,12 +5594,6 @@ def _printf_ftoe(a0, a1, a2, a3):
     asm("CALL _printf_ftoe")
     return r0
 
-def format_slot_count(a0):
-    r0 = asm("@R0")
-    asm(f"PUSH @R0")  # push a0
-    asm("CALL format_slot_count")
-    return r0
-
 def sprintf(a0, a1, a2):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a2
@@ -7402,6 +7402,159 @@ def ui_ellipse(a0, a1, a2, a3, a4, a5, a6):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_ellipse")
+
+def ui_clip_push(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_clip_push")
+    return r0
+
+def ui_clip_pop():
+    r0 = asm("@R0")
+    asm("CALL ui_clip_pop")
+    return r0
+
+def ui_alpha(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_alpha")
+    return r0
+
+def ui_brush_reset():
+    r0 = asm("@R0")
+    asm("CALL ui_brush_reset")
+    return r0
+
+def ui_clip_reset():
+    r0 = asm("@R0")
+    asm("CALL ui_clip_reset")
+    return r0
+
+def ui_mask_begin():
+    r0 = asm("@R0")
+    asm("CALL ui_mask_begin")
+    return r0
+
+def ui_mask_end(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_end")
+    return r0
+
+def ui_mask_end2(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_end2")
+    return r0
+
+def ui_mask_clear():
+    r0 = asm("@R0")
+    asm("CALL ui_mask_clear")
+    return r0
+
+def ui_mask_test(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_test")
+    return r0
+
+def ui_mask_seg_count():
+    r0 = asm("@R0")
+    asm("CALL ui_mask_seg_count")
+    return r0
+
+def ui_mask_seg_op(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_seg_op")
+    return r0
+
+def ui_mask_shape_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_shape_count")
+    return r0
+
+def ui_mask_path(a0, a1, a2, a3):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_mask_path")
+    return r0
+
+def ui_res_count(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_res_count")
+    return r0
+
+def ui_layer_begin():
+    r0 = asm("@R0")
+    asm("CALL ui_layer_begin")
+    return r0
+
+def ui_layer_end(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_layer_end")
+    return r0
+
+def ui_touch(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_touch")
+    return r0
+
+def ui_touch_query(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_touch_query")
+    return r0
+
+def ui_touch_x():
+    r0 = asm("@R0")
+    asm("CALL ui_touch_x")
+    return r0
+
+def ui_touch_y():
+    r0 = asm("@R0")
+    asm("CALL ui_touch_y")
+    return r0
+
+def ui_touch_down():
+    r0 = asm("@R0")
+    asm("CALL ui_touch_down")
+    return r0
+
+def ui_key_down(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_key_down")
+    return r0
+
+def ui_orient_lock(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_orient_lock")
+    return r0
+
+def ui_immersive(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_immersive")
+    return r0
+
+def ui_audio_playing():
+    r0 = asm("@R0")
+    asm("CALL ui_audio_playing")
+    return r0
 
 def ui_flood_fill(a0, a1, a2, a3):
     r0 = asm("@R0")

@@ -90,6 +90,24 @@ public interface IVectorTarget
 
     /// <summary>弹出一级裁剪（没有可弹的就什么都不做）。</summary>
     void PopClip();
+
+    /// <summary>
+    /// 压入一级**任意形状蒙版**（DSL 的 `mask`，见 `MaskCommand`）—— 与
+    /// <see cref="PushClip"/> 并列，只是形状是任意路径。
+    ///
+    /// <paramref name="subpaths"/> 是**已经折叠好的一条路径**（多层布尔在前端算完了，
+    /// 见 `MaskExpr.ToClipPath`），<paramref name="evenOdd"/> 是它的填充规则。
+    /// 实现方**不必懂布尔运算** —— 前端要么给出一条能直接裁剪的路径，要么根本不调这个方法
+    /// （折叠不了就整窗回退光栅）。
+    ///
+    /// ⚠ 与光栅那边**语义必须一致**：都是"从这条往后生效、`PopMask` 恢复上一级"。
+    ///   不一致的症状是"手机上对了、导出的 PNG 不对"（或反过来），而这两种产物平时
+    ///   根本不会摆在一起看。
+    /// </summary>
+    void PushMask(IReadOnlyList<IReadOnlyList<double>> subpaths, bool evenOdd);
+
+    /// <summary>弹出蒙版那一级（没有可弹的就什么都不做）。</summary>
+    void PopMask();
 }
 
 /// <summary>
