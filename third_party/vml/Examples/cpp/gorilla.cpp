@@ -911,8 +911,13 @@ public:
         int dir;
         int v;
         int n;
+        int k;
+        int hitX;
+        int hitY;
 
         if (state != ST_AIM) { return; }
+        hitX = 0;
+        hitY = 0;
 
         cur = AP[turn];
         v = (*cur).power * V_UNIT;
@@ -941,8 +946,30 @@ public:
                     ui_rect(px / FP - 1, py / FP - 1, 5, 5, 0xCCFFE070, 1, 0, 0);
                 }
             }
-            if (py / FP > gy) { n = 150; }
+            if (py / FP > gy) { n = 150; }        // 掉到地平线以下：停
+            if (hitX == 0)
+            {
+                // 撞楼就停在这一格（落点标记画在**它撞上的那栋楼**的屋顶上）
+                k = 0;
+                while (k < 4)
+                {
+                    if ((*BL[k]).Covers(px / FP) && py / FP >= (*BL[k]).RoofY())
+                    {
+                        hitX = px / FP;
+                        hitY = py / FP;
+                    }
+                    k = k + 1;
+                }
+            }
             n = n + 1;
+        }
+
+        // 落点准星：一眼看出"这一发会打哪儿"
+        if (hitX != 0)
+        {
+            ui_rect(hitX - 9, hitY - 1, 19, 3, 0xCCFF5060, 1, 0, 0);
+            ui_rect(hitX - 1, hitY - 9, 3, 19, 0xCCFF5060, 1, 0, 0);
+            ui_circle(hitX, hitY, 10, 0x80FF5060, 1, 0);
         }
     }
 
