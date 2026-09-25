@@ -212,24 +212,31 @@ namespace CppCompiler
                     string typeIdLabel = $"{cd.Name}_typeid";
                     dataSection[typeIdLabel] = cd.Name;
 
-                    bool hasVirtual = cd.Members.Any(m => m.IsVirtual);
-                    if (hasVirtual)
+                    // ⚠ 判据是 **ClassHasVirtualDeep**，不是 `cd.Members.Any(IsVirtual)`：
+                    //   派生类可能一个新虚函数都没声明（只是继承），深判据为真、浅判据为假 ——
+                    //   那样的类**也需要自己的一张表**（表里放基类的实现），因为它的构造函数
+                    //   会把这张表的地址写进对象；漏了就是链接期"未定义的标签"。
+                    if (ClassHasVirtualDeep(cd.Name))
                     {
-                        // Build vtable: array of function pointers
-                        string vtableLabel = $"{cd.Name}_vtable";
-                        dataSection[vtableLabel + "_len"] = cd.Members.Count(m => m.IsVirtual) + 1; // +1 for typeid
-                        // First vtable entry: type_info pointer
-                        dataSection[$"vtab_{cd.Name}_typeid"] = typeIdLabel;
-                        int vi = 0;
-                        foreach (var m in cd.Members)
+                        // 虚表 = **连续**的指针数组：`[typeid][槽 0][槽 1]…`。
+                        //
+                        // ⚠ 原先那张"表"是**一组各自独立的标签**（`vtab_类_序号_方法名`），
+                        //   根本没有连续地址 ⇒ 运行期没法按槽号索引 ⇒ 只能退化成
+                        //   "拿对象里的 typeid 一路比下去"的级联比较。连续数组才能 `[vptr+4*槽]` 取。
+                        //   元素是**标签名字符串**放在 `object[]` 里 —— 那正是本仓"指针表"的形态
+                        //   （见 `VmlProgram.DataRefs`：只有 `object[]` 里的字符串是标签名）。
+                        var slots = VirtualSlots(cd.Name);
+                        int n = slots.Count;
+                        var table = new object[n + 1];
+                        table[0] = typeIdLabel;                       // 槽 -1：type_info
+                        foreach (var kv in slots)
                         {
-                            if (m.IsVirtual && m.Method != null)
-                            {
-                                string vte = $"vtab_{cd.Name}_{vi}_{m.Method.Name}";
-                                dataSection[vte] = MethodSymbol(cd.Name, m.Method.Name, m.Method!.Parameters.Select(p => p.Type));
-                                vi++;
-                            }
+                            // 槽里放**这个类实际生效的那个实现**（重写则放自己的，否则沿基类找）
+                            table[kv.Value + 1] = VirtualSlotSymbol(cd.Name, kv.Key)
+                                                  ?? typeIdLabel;     // 理论上到不了，防御
                         }
+                        dataSection[$"{cd.Name}_vtable"] = table;
+                        dataSection[$"{cd.Name}_vtable_slots"] = n;
                     }
                     // Generate ALL methods (not just virtual), tracking class context
                     string? savedClass = _currentClass;

@@ -427,10 +427,13 @@ namespace CppCompiler
         private ClassMember? ParseClassMember(AccessSpec access, bool isVirtual = false, bool isStatic = false)
         {
             if (Match(TokenType.TEMPLATE)) { SkipTemplate(); return null; }
-            if (Check(TokenType.IDENTIFIER) && Cur.Value == "virtual")
-            { Advance(); return ParseClassMember(access, true, isStatic); }
-            if (Check(TokenType.IDENTIFIER) && Cur.Value == "static")
-            { Advance(); return ParseClassMember(access, isVirtual, true); }
+            // ⚠ 这两句原先判的是 `Check(TokenType.IDENTIFIER) && Cur.Value == "virtual"` ——
+            //   **永远为假**：词法器把 `virtual` 归成 `TokenType.VIRTUAL`（`static` 同理归 STATIC），
+            //   它压根不是 IDENTIFIER。于是这两个修饰符被 `ParseType` 的兜底 `Advance()`
+            //   静默吞掉、`IsVirtual` 恒为 false ⇒ **虚表一条都不生成、派发永远是静态的**，
+            //   而源码看着完全正常。判词法器的那个 token 才对。
+            if (Match(TokenType.VIRTUAL)) return ParseClassMember(access, true, isStatic);
+            if (Match(TokenType.STATIC)) return ParseClassMember(access, isVirtual, true);
             // 调用约定属性
             CallingConvention? pendingConvention = null;
             if (Check(TokenType.STDCALL)) { Advance(); pendingConvention = CallingConvention.Stdcall; }

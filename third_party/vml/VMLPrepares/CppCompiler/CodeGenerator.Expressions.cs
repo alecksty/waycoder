@@ -1133,6 +1133,9 @@ namespace CppCompiler
 
             string funcName = "";
             bool hasThis = false;
+            // 虚调用的槽号（-1 = 不是虚调用）。非 -1 时走**间接调用**：
+            // 实现地址从**对象自己的** vptr 取，而不是编译期写死某个符号。
+            int virtualSlot = -1;
             // ===== std::min / std::max / std::swap — MCU built-in =====
             if (ce.Callee is IdentExpr stlFn)
             {
@@ -1199,65 +1202,24 @@ namespace CppCompiler
                     var recvCls = ResolveClassOf(me.Object);
                     if (recvCls != null)
                     {
-                        var cls = recvCls;
-                        var virtMethod = cls.Members.FirstOrDefault(m => m.IsMethod && m.Method?.Name == me.Member && m.IsVirtual);
-                        if (virtMethod != null)
+                        // 虚调用 = 从**对象自己的** vptr（对象第 0 个字）按槽号取实现。
+                        //
+                        // ⚠ 这里原先是一套"拿对象里的 typeid 一路比下去"的**级联比较**，
+                        //   而它三处都不成立、且**从来没有运行过**（`IsVirtual` 恒为 false）：
+                        //   ① 级联里的 `ovrLabel` 在循环里用**同一组实参**算 ⇒ 每个分支
+                        //      拿到的是**同一个标签**（基类那个），比中了也还是调基类；
+                        //   ② 它把 `CALL` 发在**实参压栈之前**（那段代码在实参循环的上游），
+                        //      被调方读的是残留的寄存器；
+                        //   ③ `CALL` 后面没有清栈。
+                        //   换成一槽一地址的间接调用，三个问题一并消失。
+                        if (VirtualSlots(recvCls.Name).TryGetValue(me.Member, out int slot))
                         {
-                            // Virtual dispatch through vtable
-                            int vtableIndex = cls.Members.TakeWhile(m => !(m.IsMethod && m.Method?.Name == me.Member && m.IsVirtual)).Count(m => m.IsVirtual);
-                            // Push this pointer
-                            // ⚠ 必须取**地址**（`GenerateBaseForMember`），不能用 `GenerateExpr` ——
-                            //   后者对类类型的全局变量发的是**值加载**（`move @R0 [var_k]`），
-                            //   压进去的是对象第一个字（也就是第一个字段）当指针用，
-                            //   被调方拿它当 `this` 去 `[0(R0)]`，读的是地址 7 的内容 ⇒ 恒为 0。
+                            virtualSlot = slot;
+                            // `this` 要的是**对象地址**，不是对象的值（见下面那两处同批注释）
                             GenerateBaseForMember(me.Object);
                             Add(OpCode.PUSH, "R0");
                             hasThis = true;
-                            // Find derived classes that override this method
-                            var overriders = _classes.Values
-                                .Where(c => c.BaseClass == objId.Name
-                                    && c.Members.Any(m => m.IsMethod && m.IsVirtual && m.Method?.Name == me.Member))
-                                .ToList();
-                            if (overriders.Count > 0)
-                            {
-                                // Generate typeid-based virtual dispatch cascade
-                                string vdispEnd = $"vdisp_end_{labelCounter++}";
-                                // R0 = this pointer (from GenerateExpr above, already pushed)
-                                // Object's first word = type_info address
-                                Add(OpCode.MOVE, "R2", "(R0)");  // R2 = type_info ptr from object
-                                string baseLabel = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                                // Pre-generate label names for overrides
-                                var ovrLabels = new List<(ClassDecl dc, string ovrLabel, string jeLabel)>();
-                                foreach (var dc in overriders)
-                                {
-                                    string ovrLabel = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                                    string jeLabel = $"vdisp_ovr_{labelCounter++}";
-                                    ovrLabels.Add((dc, ovrLabel, jeLabel));
-                                }
-                                // Emit typeid comparisons (compare type_info addresses directly)
-                                foreach (var ol in ovrLabels)
-                                {
-                                    Add(OpCode.MOVE, "R1", $"{ol.dc.Name}_typeid"); // R1 = expected type_info addr
-                                    Add(OpCode.CMP, "R2", "R1");
-                                    Add(OpCode.JE, ol.jeLabel);
-                                }
-                                // Fall through: base implementation
-                                Add(OpCode.CALL, baseLabel);
-                                Add(OpCode.JMP, vdispEnd);
-                                // Override targets
-                                foreach (var ol in ovrLabels)
-                                {
-                                    labels[ol.jeLabel] = instructions.Count;
-                                    Add(OpCode.CALL, ol.ovrLabel);
-                                    Add(OpCode.JMP, vdispEnd);
-                                }
-                                labels[vdispEnd] = instructions.Count;
-                                funcName = null; // already emitted CALL
-                            }
-                            else
-                            {
-                                funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                            }
+                            // 实参压栈与间接调用在后面**共用**的那段里发（那里才知道实参个数）
                         }
                         else
                         {
@@ -1366,6 +1328,25 @@ namespace CppCompiler
             // 在此块之前就已压好，一并计入待清理量。
             int argsSize = (ce.Arguments.Count + (hasThis ? 1 : 0)) * 4;
 
+            // ── 虚调用：`CALL [ [this] + 4*(槽+1) ]` ───────────────────────────
+            //
+            // 编译期写的是"第几个槽"，**具体是哪个实现由对象自己决定** ——
+            // 这正是"基类指针调出派生实现"能成立的原因。
+            // `this` 在实参**之上**（本文件开头的调用约定：this 最先压），
+            // 所以它的位置是 `[R13 + 实参个数*4]`。
+            if (virtualSlot >= 0)
+            {
+                int thisOff = ce.Arguments.Count * 4;
+                Add(OpCode.MOVE, "R0", $"[R13+{thisOff}]");     // R0 = this
+                Add(OpCode.MOVE, "R0", "(R0)");                 // R0 = vptr（对象第 0 个字）
+                Add(OpCode.ADD, "R0", $"#{4 * (virtualSlot + 1)}");  // 第 0 项是 typeid
+                Add(OpCode.MOVE, "R0", "(R0)");                 // R0 = 实现地址
+                Add(OpCode.CALL, "R0");
+                if (argsSize > 0)
+                    Add(OpCode.ADD, "R13", $"#{argsSize}");
+                return;
+            }
+
             // 函数指针间接调用（Callee 非简单标识符，如 fa[i](r)）
             if (string.IsNullOrEmpty(funcName))
             {
@@ -1438,6 +1419,32 @@ namespace CppCompiler
             return false;
         }
 
+        /// <summary>
+        /// 继承链上**所有字段**的字节数（不含 vtable 指针）—— 唯一实现。
+        ///
+        /// <para>
+        /// ⚠ 单独抽出来是因为"vptr 算几次"必须只有一处说了算。vptr **整个对象共用一份**
+        /// （它排在**最外层**的基类子对象之前），所以"跳过一个基类子对象"要加的是
+        /// **字段区**的字节数，不是 <see cref="ClassSizeDeep"/> —— 后者把那一份 vptr
+        /// 又算了一遍。此前没抽这一层，是因为虚表从来没生效过（`IsVirtual` 恒 false）、
+        /// 两份数**碰巧相等**；虚派发一接通就露出来了：`x` 在构造里被写在偏移 8、
+        /// 而 `Entity` 类型的引用读的是偏移 4 ⇒ **读回 0**。
+        /// </para>
+        /// </summary>
+        private int FieldBytesDeep(string className)
+        {
+            int size = 0;
+            var seen = 0;
+            string? c = className;
+            while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
+            {
+                size += cls.Members.Count(m => !m.IsMethod && !m.IsConstructor && !m.IsDestructor) * 4;
+                c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return size;
+        }
+
         /// <summary>对象占多少字节（**含基类子对象**、含 vtable 指针）—— 唯一实现。</summary>
         private int ClassSizeDeep(string className)
         {
@@ -1465,9 +1472,18 @@ namespace CppCompiler
         /// </summary>
         private bool TryFieldOffset(string className, string fieldName, out int offset)
         {
+            // vptr **只算这一次**（整个对象共用一份，排在基类子对象之前）；
+            // 往下走到基类里找时**不能再算**，见 `FieldBytesDeep` 的注释。
             offset = ClassHasVirtualDeep(className) ? 4 : 0;
+            return TryFieldOffsetWalk(className, fieldName, ref offset);
+        }
+
+        /// <summary>沿继承链走，把已经数出来的 <paramref name="offset"/> 接着往下加。</summary>
+        private bool TryFieldOffsetWalk(string className, string fieldName, ref int offset)
+        {
             var seen = 0;
-            while (!string.IsNullOrEmpty(className) && _classes.TryGetValue(className, out var cls) && seen < 32)
+            string? c = className;
+            while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
             {
                 // 基类子对象排在前面：先到基类里找，找不到就把整个基类子对象跳过
                 if (!string.IsNullOrEmpty(cls.BaseClass))
@@ -1475,12 +1491,13 @@ namespace CppCompiler
                     string baseName = CleanType(cls.BaseClass!);
                     if (_classes.ContainsKey(baseName))
                     {
-                        if (TryFieldOffset(baseName, fieldName, out int baseOff))
+                        int probe = offset;
+                        if (TryFieldOffsetWalk(baseName, fieldName, ref probe))
                         {
-                            offset += baseOff;
+                            offset = probe;
                             return true;
                         }
-                        offset += ClassSizeDeep(baseName);
+                        offset += FieldBytesDeep(baseName);   // **不含** vptr（对象只有一份）
                     }
                 }
                 foreach (var m in cls.Members)
@@ -1708,7 +1725,8 @@ namespace CppCompiler
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
-                TryFieldOffset(cls.Name, me.Member, out int fieldOffset);
+                // 同上：查不到时 `out` 里留的是 vptr 那 4 个字节，照着用就是整体偏一个字
+                int fieldOffset = TryFieldOffset(cls.Name, me.Member, out int fo) ? fo : 0;
                 Add(OpCode.MOVE, "R1", "R0");
                 Add(OpCode.MOVE, "R0", $"{fieldOffset}(R1)");
             }
@@ -1725,8 +1743,10 @@ namespace CppCompiler
             var cls = ResolveClassOf(me.Object);
             if (cls != null)
             {
-                TryFieldOffset(cls.Name, me.Member, out int fieldOffset);
-                if (fieldOffset != 0)
+                // ⚠ 判**返回值**，不能只看 `fieldOffset`：查不到时那个 `out` 里留的是
+                //   "vptr 占的 4"（`offset` 的初值），照着加就会**整体偏一个字**，
+                //   而症状是"读到了隔壁字段"这种看着像逻辑错的值。
+                if (TryFieldOffset(cls.Name, me.Member, out int fieldOffset) && fieldOffset != 0)
                     Add(OpCode.ADD, "R0", $"#{fieldOffset}");
             }
         }
@@ -1752,6 +1772,59 @@ namespace CppCompiler
                 if (off > 0) Add(OpCode.ADD, "R0", $"#{off}");
                 Add(OpCode.MOVE, "(R0)", "R1");
             }
+        }
+
+        /// <summary>
+        /// 虚函数**槽位表**（方法名 → 槽号）—— 槽号在整条继承链上**稳定**：
+        /// 基类的虚函数占前面的槽，派生类的**重写占同一个槽**（C++ 的规则，也正是
+        /// "基类指针调出派生实现"能成立的原因），派生类新增的排在其后。
+        ///
+        /// <para>
+        /// 定义侧（生成虚表）与调用侧（算槽号）**共用这一份** —— 两边各算一遍就是
+        /// 本仓头号坑"同一规则两处实现"，而这里的症状会是"调到了隔壁那个方法"，
+        /// 比"没调到"更难查。按**方法名**匹配（不按签名）：这个前端没有重载解析。
+        /// </para>
+        /// </summary>
+        private Dictionary<string, int> VirtualSlots(string className)
+        {
+            // 继承链**从根往下**排，保证基类先占槽
+            var chain = new List<ClassDecl>();
+            int seen = 0;
+            string? c = className;
+            while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
+            {
+                chain.Insert(0, cls);
+                c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
+                seen++;
+            }
+
+            var slots = new Dictionary<string, int>();
+            foreach (var cls in chain)
+                foreach (var m in cls.Members)
+                    if (m.IsVirtual && m.Method != null && !slots.ContainsKey(m.Method.Name))
+                        slots[m.Method.Name] = slots.Count;
+            return slots;
+        }
+
+        /// <summary>
+        /// <paramref name="className"/> 这个类在 <paramref name="methodName"/> 这个槽里
+        /// **实际生效**的实现符号 —— 本类重写了就是本类的，否则沿继承链往上找第一个声明的。
+        ///
+        /// <para>返回 null = 整条链上都没有这个虚函数（调用方不该走到这里）。</para>
+        /// </summary>
+        private string? VirtualSlotSymbol(string className, string methodName)
+        {
+            int seen = 0;
+            string? c = className;
+            while (!string.IsNullOrEmpty(c) && _classes.TryGetValue(c!, out var cls) && seen < 32)
+            {
+                var m = cls.Members.FirstOrDefault(x => x.IsVirtual && x.Method != null && x.Method.Name == methodName);
+                if (m != null)
+                    return MethodSymbol(cls.Name, m.Method!.Name, m.Method.Parameters.Select(p => p.Type));
+                c = string.IsNullOrEmpty(cls.BaseClass) ? null : CleanType(cls.BaseClass!);
+                seen++;
+            }
+            return null;
         }
 
         /// <summary>
@@ -1974,6 +2047,18 @@ namespace CppCompiler
                         }
                         else
                             dataSection[label] = objWords > 1 ? new int[objWords] : 0;
+                    }
+                    // ── 有虚函数的类：把**本类**虚表的地址写进对象第 0 个字 ──────────
+                    // 虚调用的第一步就是读这个字（见调用点的 `(R0)`）。**在这里写**而不是
+                    // 写进构造函数里，是因为"没有用户构造函数"的类也要有 ——
+                    // 漏了的话 vptr 是 0，`CALL [0 + …]` 直接跳到地址 0 上，是**崩溃**而不是错值。
+                    if (ClassHasVirtualDeep(allocName))
+                    {
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 1), new(OperandType.LABEL, label)]));
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 0), new(OperandType.LABEL, $"{allocName}_vtable")]));
+                        Add(OpCode.MOVE, "(R1)", "R0");
                     }
                     // ── `T x;` / `T x(args);` 要**真的调一次构造函数** ──────────────
                     // 此前这一支压根没有调用点：构造函数体生成得完完整整（见
