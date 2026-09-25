@@ -315,9 +315,33 @@ public partial class DrawWindowPage : ContentPage
         Dispatcher.Dispatch(RefitCanvasIfNeeded);
     }
 
+    /// <summary>
+    /// 标题栏菜单（右上角 ☰）。目前只有「VM 状态」一项，做成菜单是因为这一页后面还会有别的
+    /// （复制画面、全屏…）—— 一个一个往 `ToolbarItems` 上摆，导航栏迟早挤不下。
+    ///
+    /// ⚠ 文案跟着**当前状态**走（显示 / 隐藏），点完立刻翻转并落盘。开关是**两个页面共享**的
+    /// （用户要的是"所有程序都能看"）：在命令行页打开之后进这里也是开着的，反之亦然 ——
+    /// 每页各记一份必然出现"这页开了那页没开"。
+    /// </summary>
+    private async void OnMenuClicked(object? sender, EventArgs e)
+    {
+        var showing = MauiVmStatusStore.Visible;
+        var choice = await DisplayActionSheetAsync("VML 窗口", "取消", null,
+            showing ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态");
+
+        if (choice is null || choice == "取消") return;
+        MauiVmStatusStore.Toggle();
+        ApplyVmStatusVisibility();
+    }
+
+    /// <summary>把（可能被另一个页面改过的）开关状态落到本页浮层上。</summary>
+    private void ApplyVmStatusVisibility() => VmStatus.IsVisible = MauiVmStatusStore.Visible;
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // 开关是全局的：从别的页面回来时要重新同步一次（用户可能在命令行页把它关掉了）
+        ApplyVmStatusVisibility();
         // 整页占满的页面不该带底部 tab 栏（编辑器 / 游戏窗口里没有切页的需求，返回箭头就够）。
         // ⚠ XAML 上的 Shell.TabBarIsVisible 对这种 push 出来的页面**不生效**（实机验过：tab 栏照旧），
         //   必须在 code-behind 设。
@@ -1325,6 +1349,9 @@ public partial class DrawWindowPage : ContentPage
         _statsWindow.Restart();
         _statsWindowFrames = 0;
         var realFps = elapsed > 0 ? windowFrames * 1000.0 / elapsed : 0;
+        // 状态面板上的 fps 就取**这一个数**（不另算一遍 —— 两处各算必然出现"日志 17.6、面板 18.0"，
+        // 而那时候人只会怀疑其中一个是错的）
+        VmStatus.Fps = realFps;
 
         var uiMs = decodeMs + blitMs;
         var bgMs = st?.DslMs + st?.ParseMs + st?.RasterMs ?? 0;

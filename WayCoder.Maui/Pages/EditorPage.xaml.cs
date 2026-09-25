@@ -3322,8 +3322,12 @@ public partial class EditorPage : ContentPage
         await RunInEditorAsync(prebuilt);
     }
 
-    /// <summary>运行超时（秒）—— 与命令行页同一个量级；崩/死循环的程序不该把编辑器永久钉住。</summary>
-    private const int RunTimeoutSec = 120;
+    // 运行超时（秒）现在**可配置**：设置页 →「虚拟机」→ 编辑器运行超时（`MauiVmStore.EditorTimeoutSec`，
+    // 默认 120）。口径的说明留在这里：
+    //   · 与命令行页同一个量级 —— 崩掉或死循环的程序不该把编辑器永久钉住；
+    //   · ⚠ **这条超时是"连续执行"的，不是墙钟**（`VmRuntime.ResetTimeout`：等消息 / 等弹框 /
+    //     等用户输入都会续期）。所以现在它只在"程序真的连跑 N 秒一次都没等过"时才生效 ——
+    //     从前那版按墙钟算，玩家在开场说明框上读两分钟就把超时耗光了，必死。
 
     private CancellationTokenSource? _runCts;
     private volatile bool _runActive;
@@ -3351,8 +3355,8 @@ public partial class EditorPage : ContentPage
             // 默认的 `false` 是给 AI 那条路的（它要的是"最终结果那一整段纯文本"）。
             var output = await Task.Run(() =>
                 prebuiltVml is { Length: > 0 }
-                    ? MauiVml.Run(prebuiltVml, null, RunTimeoutSec, ReadLineFromProgram, cts.Token, markup: true)
-                    : MauiVml.Run(null, _fullPath, RunTimeoutSec, ReadLineFromProgram, cts.Token, markup: true));
+                    ? MauiVml.Run(prebuiltVml, null, MauiVmStore.EditorTimeoutSec, ReadLineFromProgram, cts.Token, markup: true)
+                    : MauiVml.Run(null, _fullPath, MauiVmStore.EditorTimeoutSec, ReadLineFromProgram, cts.Token, markup: true));
 
             if (MauiVml.LastRunStreamed)
             {

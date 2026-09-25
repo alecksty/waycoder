@@ -98,6 +98,10 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             _rt.FloatRegisters = value?.FloatRegisters;
             _rt.DoubleRegisters = value?.DoubleRegisters;
             _rt.LongRegisters = value?.LongRegisters;
+            // **宿主"等完了"就给 VM 的超时续期**：等消息 / 等弹框 / 等用户思考的时间
+            // 不算"程序在跑"。不接这一根线，游戏主循环每 40ms 等一次、超时却按墙钟走，
+            // 120 秒必被杀 —— 表现就是"游戏卡死、触摸没反应"（真机实测 gorilla.bas）。
+            _rt.OnWaitEnded = () => value?.ResetTimeout();
         }
     }
     private VmRuntime? _vm;
@@ -118,6 +122,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     internal void Reset()
     {
         Current = this; // 绘图页据此把输入投回本实例的队列
+        _runEnded = false;   // 新一轮运行：面板上的"运行中/已结束"从这一句重新起算
         _rt.Reset();
     }
 
@@ -129,6 +134,85 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     /// <summary>当前场景（绘图页要它来渲染）。</summary>
     internal VmlScene? Scene => _rt.Scene();
+
+    /// <summary>
+    /// 绘图窗口现在还开着吗 —— **程序结束时据此收尾关窗**（见 <see cref="VmlHostRuntime.WindowOpen"/>）。
+    /// 程序被超时杀掉 / 报错 / 自己退出时都不会自己关窗，留一帧静止画面会被当成"卡死"。
+    /// </summary>
+    internal bool WindowOpen => _rt.WindowOpen;
+
+    /// <summary>这次运行是不是已经结束了（正常退出 / 超时被杀 / 报错终止）。见 <see cref="CaptureStatus"/>。</summary>
+    private bool _runEnded;
+
+    /// <summary>这次运行结束了 —— 只影响面板上的「运行中 / 已结束」，数据照样可读（见 <see cref="CaptureStatus"/>）。</summary>
+    internal void MarkRunEnded() => _runEnded = true;
+
+    /// <summary>
+    /// **采集这一刻的 VM 状态**（「VM 状态面板」的数据源）。
+    ///
+    /// <para>
+    /// 判空有几处非做不可：
+    /// ① `_vm` 为 null —— 这次运行还没走到 `Vm = vm`（`Reset()` 之后那段窗口期，
+    ///    以及"汇编/编译失败、压根没进 RunProgram"的情形）；
+    /// ② `Config` 可能为 null（构造时没给 config）；
+    /// ③ `Current` 还可能指着**上一轮**的实例 —— 但那是"上一次运行的终态"，
+    ///    显示出来是对的（见下条），是不是还在跑由 <see cref="VmlStatusSnapshot.Running"/> 说了算。
+    /// </para>
+    /// <para>
+    /// ⚠ **运行结束后数据仍然可读**：`VmRuntime.Dispose()` 只关文件句柄，不清寄存器与内存，
+    /// 所以"上一次跑完时的 PC 停在哪、栈还剩多少"也显示得出来 —— 那恰恰是排查
+    /// 「程序为什么停了」时最想看的。**"有没有数据"与"还在不在跑"是两件事**。
+    /// </para>
+    /// </summary>
+    /// <param name="fps">宿主实际出帧速率（只有绘图页知道；命令行页传 0）。</param>
+    internal VmlStatusSnapshot CaptureStatus(double fps = 0)
+    {
+        var snap = new VmlStatusSnapshot();
+
+        // 绘图窗口侧（没开窗的文本程序这一整段都跳过）
+        if (_rt.Scene() is { } scene)
+        {
+            snap.HasScene = true;
+            snap.WindowTitle = scene.Title;
+            snap.SceneWidth = scene.Width;
+            snap.SceneHeight = scene.Height;
+            snap.FigureCount = scene.FigureCount;
+            snap.FrameNumber = scene.EverPresented ? scene.PresentVersion : scene.Version;
+            snap.Fps = fps;
+        }
+
+        if (_vm is not { } vm) return snap;
+
+        snap.HasVm = true;
+        snap.Running = !_runEnded;
+        snap.PrivilegeLevel = vm.PrivilegeLevel;
+        snap.Pc = vm.PC;
+        snap.Registers = vm.Registers;
+        snap.FloatRegisters = vm.FloatRegisters;
+        snap.DoubleRegisters = vm.DoubleRegisters;
+        snap.LongRegisters = vm.LongRegisters;
+        snap.Zf = vm.ZF; snap.Cf = vm.CF; snap.Sf = vm.SF;
+        snap.Fzf = vm.FZF; snap.Fsf = vm.FSF; snap.Fcf = vm.FCF;
+        snap.Fof = vm.FOF; snap.Fuf = vm.FUF; snap.Fdf = vm.FDF; snap.Fif = vm.FIF;
+        snap.InstructionsExecuted = vm.InstructionsExecuted;
+        snap.SyscallsExecuted = vm.SyscallsExecuted;
+        snap.ExitCode = vm.ExitCode;
+        snap.TimeoutSeconds = vm.TimeoutSeconds;
+        snap.TimeoutRemainingSeconds = vm.TimeoutRemainingSeconds;
+        // 占用（用户要的"内存用了 72%、堆栈 38%"）—— 分子在 VM 上，分母是配置值（下面那几行）
+        snap.MemoryUsedBytes = vm.MemoryUsedBytes;
+        snap.StackUsedBytes = vm.StackUsedBytes;
+        if (vm.Config is { } cfg)
+        {
+            snap.MemoryBytes = cfg.MemorySize;
+            snap.StackBytes = cfg.StackSize;
+        }
+        else
+        {
+            snap.MemoryBytes = vm.Memory.Length;
+        }
+        return snap;
+    }
 
     /// <summary>
     /// 把保留号段加进运行时的用户态白名单。

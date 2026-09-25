@@ -66,6 +66,10 @@ public partial class SettingsPage : ContentPage
         var wm = string.IsNullOrEmpty(cfg.WhisperModel) ? "默认 whisper-1" : cfg.WhisperModel;
         VoiceSummary.Text = wm;
 
+        // ── 虚拟机：摘要那行由 `MauiVmStore.Summary()` 给（**取值与文案同一处** ——
+        //    在这里再拼一遍必然出现"摘要写 16M、进去看到的是 8M"）
+        VmSummary.Text = Services.MauiVmStore.Summary();
+
         // ── 关于
         AboutSummary.Text = $"WayCoder {Global.Version}";
     }
@@ -93,6 +97,7 @@ public partial class SettingsPage : ContentPage
     private async void OnStorageTapped(object? sender, TappedEventArgs e) => await Go("storage");
     private async void OnEditorTapped(object? sender, TappedEventArgs e) => await Go("editor");
     private async void OnVoiceTapped(object? sender, TappedEventArgs e) => await Go("voice");
+    private async void OnVmTapped(object? sender, TappedEventArgs e) => await Go("vm");
 
     private async void OnAboutTapped(object? sender, TappedEventArgs e) =>
         await Shell.Current.GoToAsync("about");

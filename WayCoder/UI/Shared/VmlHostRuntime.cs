@@ -278,6 +278,42 @@ public sealed class VmlHostRuntime
     /// </summary>
     public Action<int, int[], byte[]>? OnSyscall { get; set; }
 
+    /// <summary>
+    /// **每一次"阻塞等待"结束**时回调（等消息 / 等弹框 / 等用户输入）—— 平台据此给 VM 的超时续期。
+    ///
+    /// <para>
+    /// 为什么要在共享层开这个口：VM 的超时**必须只算"连续执行"的时间**，而"程序在等"这件事
+    /// 只有宿主知道（`ui_wait_msg` 等多久、弹框挂多久、用户对着说明读多久）。按墙钟算的话，
+    /// 玩家读说明的时间也在扣超时 —— 实测 `gorilla.bas` 的 120 秒里实际只玩了 46 秒就被杀掉，
+    /// 而**程序被杀后窗口停在最后一帧**，用户看到的是"游戏卡死、触摸没反应"。
+    /// </para>
+    /// <para>
+    /// ⚠ **只在真正阻塞过的路径上触发**：`Wait`（`ui_wait_msg`）与四个 `ui_dlg_*`。
+    /// **`Poll` 绝不能触发** —— 程序每帧都调它，续期等于超时永不触发、看门狗形同虚设。
+    /// </para>
+    /// <para>
+    /// 共享层刻意不引用 `VMLRuntime`（主工程不引它，引了就没法自测），所以这里用委托，
+    /// 由各端在拿到 VM 之后接上（手机端见 `VmlUiCalls.Vm` 的 setter）。
+    /// </para>
+    /// </summary>
+    public Action? OnWaitEnded { get; set; }
+
+    /// <summary>
+    /// 绘图窗口**现在还开着**吗（程序开过、且没被关掉）。
+    ///
+    /// <para>
+    /// 程序结束时宿主据此**收尾关窗**：程序无论是正常退出、超时被杀还是报错终止，都**不会**
+    /// 自己再关一次窗（`WinClose` 只有程序主动调或用户按返回才发生）—— 留着的话屏幕上就是一帧
+    /// 静止画面，用户分不出"程序已经停了"和"程序卡死了"。真机报的"游戏卡死"正是这个观感：
+    /// 超时把程序杀了，窗口却停在最后一帧不动。
+    /// </para>
+    /// <para>
+    /// 判据与 `ui_win_closed()`（<see cref="VmlUi.WinClosed"/>）**同源**：`WinClose` 会把
+    /// `_scene` 置空并置 `_windowClosed`，用户按返回只置 `_windowClosed`（页面已经走了）。
+    /// </para>
+    /// </summary>
+    public bool WindowOpen => _scene is not null && !_windowClosed;
+
     // ══════════════════════════════════════════════════════════════════════
     // 生命周期
     // ══════════════════════════════════════════════════════════════════════
@@ -600,7 +636,14 @@ public sealed class VmlHostRuntime
     {
         SetTimersPaused(true);
         try { return body(); }
-        finally { SetTimersPaused(false); }
+        finally
+        {
+            SetTimersPaused(false);
+            // **弹框挂着的时间不算"程序在跑"** —— 与定时器暂停同一个道理（见 OnWaitEnded）。
+            // 四个 `ui_dlg_*` 都包在本方法里，所以这一处就覆盖了全部对话框；
+            // 用户对着开场说明读两分钟，不该把这两分钟算进程序的超时。
+            OnWaitEnded?.Invoke();
+        }
     }
 
     private void SetTimersPaused(bool paused)
@@ -833,6 +876,9 @@ public sealed class VmlHostRuntime
         var msg = ex
             ? _queue.Read(timeout, r[2] == VmlUi.Keep, RunToken)
             : _queue.Take(timeout, RunToken);
+        // **等完了就续期** —— 这是"游戏能一直玩下去"的关键一句：等消息的时间不算程序在跑，
+        // 否则游戏主循环每 40ms 等一次、超时却在后台按墙钟走，120 秒必被杀（见 OnWaitEnded）。
+        OnWaitEnded?.Invoke();
         if (msg is not { } m) return 0;
         m.WriteTo(mem, r[0]);
         return (int)m.Type;

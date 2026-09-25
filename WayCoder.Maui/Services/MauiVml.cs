@@ -1118,6 +1118,36 @@ HALT
             }
         }
 
+        // ── 程序结束了（正常退出 / 超时被杀 / 报错终止，三条路都一样）⇒ **把还开着的窗口收掉** ──
+        //
+        // 不关的话屏幕上留着一帧静止画面：用户分不出「程序已经停了」和「程序卡死了」——
+        // 真机实测报的"游戏卡死"正是这么来的（超时把程序杀了，窗口却定格在最后一帧）。
+        // 而且**这条收尾只有宿主能做**：程序被超时杀掉时它自己已经没有机会调 `ui_win_close()`。
+        //
+        // 判据是"还开着"：程序自己关过、用户按返回走过、或压根没开过窗（纯文本程序），
+        // `WindowOpen` 都是 false ⇒ 一个字都不做。
+        //
+        // ⚠ 放在 `ConsoleRedirectGate` **锁外**：`CloseWindow` 要阻塞等 UI 线程
+        //   （`MainThread.InvokeOnMainThreadAsync(...).GetResult()`），占着锁去等是自找麻烦。
+        // 面板上的「运行中 / 已结束」从这一句翻面 —— 数据仍然可读（见 `CaptureStatus` 的说明），
+        // 因为"上一次跑完时 PC 停在哪"正是排查"程序为什么停"最想看的东西。
+        uiCalls.MarkRunEnded();
+
+        if (uiCalls.WindowOpen)
+        {
+            // ⚠ 走**静态委托**而不是 `uiCalls.CloseWindow()` —— 那个方法是 MAUI 侧 host 实现类上的，
+            //   `VmlUiCalls` 本身没有；而 `CloseWindowAsync` 里已经判过"当前页是不是绘图页"，
+            //   用户早就按返回走掉时它一个字都不做。
+            try { VmlUiCalls.CloseWindowAsync?.Invoke().GetAwaiter().GetResult(); }
+            catch (Exception ex)
+            {
+                // 收尾失败不该把"程序跑完了"也变成失败 —— 记一笔就够。
+                // ⚠ `ErrorLog` 的命名空间是 `WayCoder`（**不是** `WayCoder.Infra`）——
+                //   它虽然在 `Infra/` 目录下，命名空间却挂在根上。
+                WayCoder.ErrorLog.Warning("VmlRun", "程序结束后收尾关窗失败", ex);
+            }
+        }
+
         if (!markup)
         {
             // 老行为（AI 那条路）：两个流按 stdout→诊断 的顺序并成一段纯文本
@@ -1241,11 +1271,13 @@ HALT
             MouseYAddress = 0,
             VgaStartAddress = 0,
         };
-        // 内存与栈走**唯一真源**（桌面 vmlcli 的 MakeConfig 用的是同一对常量）——
+        // 内存与栈：**出厂值**是 `VmlVmDefaults`（桌面 vmlcli 用的是同一对常量），
+        // 手机端在这之上**允许用户改**（设置页 →「虚拟机」→ `MauiVmStore`）——
+        // 默认值仍从那份常量派生，不是又立了一处真源。
         // ⚠ **顺序不能反**：`StackSize` 的 setter 按 `MemorySize / 2` 钳位，
         //   反过来的话内存还是默认的 1MB，1MB 的栈会被**静默钳成 512KB**。
-        cfg.MemorySize = VmlVmDefaults.MemoryBytes;
-        cfg.StackSize = VmlVmDefaults.StackBytes;
+        cfg.MemorySize = MauiVmStore.MemoryBytes;
+        cfg.StackSize = MauiVmStore.StackBytes;
         cfg.VgaDisplay.Width = 1;
         cfg.VgaDisplay.Height = 1;
         return cfg;

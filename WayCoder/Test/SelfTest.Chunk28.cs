@@ -29,6 +29,131 @@ public static partial class SelfTest
         TestVmlPixelReadback(Section, Check, Fail);
         TestVmlMemoryAccess(Section, Check, Fail);
         TestVmlScreenshot(Section, Check, Fail);
+        TestVmlWaitRenew(Section, Check, Fail);
+        TestVmlStatusLines(Section, Check, Fail);
+    }
+
+    /// <summary>
+    /// **超时续期只挂在"真的等过"的路径上。**
+    ///
+    /// <para>
+    /// 这一对断言就是"游戏能一直玩下去"的护栏：`ui_wait_msg` 等完必须续期 ——
+    /// 否则程序每 40ms 等一次、而超时却在后台按**墙钟**走，120 秒必被杀；
+    /// 被杀之后窗口留在最后一帧（宿主那时已经不关窗了，见 `MauiVml` 的收尾），
+    /// 用户看到的就是"游戏卡死、触摸没反应"（真机实测 `gorilla.bas` 报的正是这个）。
+    /// </para>
+    /// <para>
+    /// ⚠ **两个断言必须成对**：只测"Wait 会续期"的话，将来谁顺手把 <c>OnWaitEnded</c>
+    /// 也挂到 `Poll` 上（看起来更"完整"），看门狗就永远不触发了，而测试照样全绿。
+    /// </para>
+    /// </summary>
+    private static void TestVmlWaitRenew(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VML 宿主：超时续期只在阻塞路径上");
+
+        var rt = new VmlHostRuntime(new FakeVmlHost());
+        var regs = new int[32];
+        var mem = new byte[4096];
+
+        int renewed = 0;
+        rt.OnWaitEnded = () => renewed++;
+
+        // `ui_wait_msg(目标, 超时ms, 保留)` —— 队列空，1ms 后超时返回。**这条路径算等过。**
+        regs[0] = 0; regs[1] = 1; regs[2] = 0;
+        rt.HandleSyscall(VmlUi.MsgWait, regs, mem);
+        Check("ui_wait_msg 返回后触发续期", renewed == 1);
+
+        // `ui_poll` 是非阻塞的：**一次都不许续期**（程序每帧都调它）
+        renewed = 0;
+        rt.HandleSyscall(VmlUi.MsgPoll, regs, mem);
+        Check("ui_poll 不触发续期（否则超时永不触发）", renewed == 0);
+
+        // 与窗态判据配对：`ui_win_close` 之后宿主必须认为"窗口没了"，
+        // 否则程序结束时的收尾关窗会去关一个已经关掉的窗口。
+        Check("开窗前 WindowOpen 为假", !rt.WindowOpen);
+        regs[0] = WriteCStr(mem, 0, "窗"); regs[1] = 100; regs[2] = 100; regs[3] = 0; regs[4] = 0;
+        rt.HandleSyscall(VmlUi.WinOpen, regs, mem);
+        Check("开窗后 WindowOpen 为真", rt.WindowOpen);
+        rt.HandleSyscall(VmlUi.WinClose, regs, mem);
+        Check("程序自己关窗后 WindowOpen 为假", !rt.WindowOpen);
+    }
+
+    /// <summary>
+    /// 状态面板的**格式化**（<see cref="VmlStatusSnapshot.FormatLines"/>）。
+    ///
+    /// 测的全是"看着对、其实错一格"的东西：十六进制补零、标志位的 `+/-`、尺寸单位换算、
+    /// 行宽补齐（`R0` 与 `R12` 名字长度不同，补错了整行串位），以及**空快照不许抛** ——
+    /// 面板在"没跑任何程序"时也会被打开，那是最容易漏的一条路径。
+    /// </summary>
+    private static void TestVmlStatusLines(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("VM 状态面板：格式化");
+
+        var empty = new VmlStatusSnapshot().FormatLines();
+        Check("空闲快照不抛且有提示", empty.Length == 1 && empty[0].Contains("空闲"));
+
+        var s = new VmlStatusSnapshot
+        {
+            HasVm = true, Running = true, PrivilegeLevel = 1,
+            Pc = 0x120A3C,
+            Registers = [0, 0x0C, 0xFF100, 1, 0, 0, 0, 3, 0, 0, 0, 0, 0xFEFF8, 0xFF000, 0x1208A0, 0],
+            FloatRegisters = [0f, 1.5f],
+            DoubleRegisters = [0d],
+            LongRegisters = [7L],
+            Zf = true, Cf = false, Sf = true,
+            InstructionsExecuted = 1234567, SyscallsExecuted = 42,
+            MemoryBytes = 16 * 1024 * 1024, StackBytes = 1024 * 1024,
+            // 占用取整档（4M/16M = 25%、256K/1M = 25%）—— 用整齐的数才验得出"百分比是算出来的"，
+            // 拿 3.2M 那类值写断言只能证明"我按计算器算过一遍"
+            MemoryUsedBytes = 4 * 1024 * 1024, StackUsedBytes = 256 * 1024,
+            TimeoutSeconds = 120, TimeoutRemainingSeconds = 87,
+            HasScene = true, WindowTitle = "大猩猩", SceneWidth = 376, SceneHeight = 610,
+            FigureCount = 253, FrameNumber = 1234, Fps = 17.6,
+        };
+        var lines = s.FormatLines();
+        var text = string.Join("\n", lines);
+
+        Check("PC 补足八位十六进制", text.Contains("PC 00120A3C"));
+        Check("SP 取 R13、FP 取 R12（别按 R14/R15 认）",
+            text.Contains("SP 000FF000") && text.Contains("FP 000FEFF8"));
+        // 名字补到 3 再加一个分隔空格 ⇒ 前缀恒 5 字符，所以 R0 后面是 3 个空格、R12 后面是 2 个：
+        // **两个 hex 的起始列相同**才是判据（按 2 补的话 R0 行与 R12 行会差一格、整行串位）
+        Check("R0 与 R12 **同一列**对齐", text.Contains("R0   00000000") && text.Contains("R12  000FEFF8"));
+        Check("标志位写成 Z+/C-/S+", text.Contains("Z+ C- S+"));
+        Check("超时剩余显示出来（排查卡死的第一读数）", text.Contains("超时 120s · 剩 87s"));
+        Check("内存/栈显示**占用百分比**（用户要的那个数）",
+            text.Contains("内存 25%（4M/16M）") && text.Contains("栈 25%（256K/1M）"));
+        Check("总量未知时给「-」而不是 100%（100% 会被读成「用满了」）",
+            new VmlStatusSnapshot { HasVm = true, MemoryUsedBytes = 100, MemoryBytes = 0 }
+                .FormatLines().Any(l => l.Contains("内存 -（")));
+        Check("图元数与帧率在场景那一行", text.Contains("图元 253") && text.Contains("17.6fps"));
+        Check("不限时的程序写「不限」而不是「剩 0s」",
+            new VmlStatusSnapshot { HasVm = true, TimeoutSeconds = 0 }.FormatLines()
+                .Any(l => l.Contains("超时 不限")));
+        Check("行数不失控（面板不该把画面全遮住）", lines.Length <= 16);
+
+        // ── 小窗（`FormatLines(false)`）────────────────────────────────────
+        //
+        // 判据不是"少了几行"而是**"该在的还在、该走的真走了"**：
+        // 少一行容易（删了就少），难的是删完之后 PC/SP 还在、寄存器那四组是真没了。
+        // ⚠ 断言 `!text.Contains("R0")` 是**故意挑 R0 而不是 R12** —— `R0` 是 16 个通用寄存器里
+        //   唯一不会被别的词偶然命中的名字（`R12` 会撞上……不，其实都不会；但 `R0` 还额外
+        //   保证了"逐个寄存器都没了"，因为大窗那四行里它排头一个）。
+        var small = s.FormatLines(detailed: false);
+        var smallText = string.Join("\n", small);
+        Check("小窗留 PC/SP/LR（排查「卡在哪」不能省）",
+            smallText.Contains("PC 00120A3C") && smallText.Contains("SP 000FF000") && smallText.Contains("LR 001208A0"));
+        Check("小窗砍掉全部寄存器组（R0–R15 / F / D / L）",
+            !smallText.Contains("R0 ") && !smallText.Contains("F  0") && !smallText.Contains("D  0") && !smallText.Contains("L  "));
+        Check("小窗仍报超时剩余（含这行才算「基本状态」）", smallText.Contains("超时剩 87s"));
+        Check("小窗仍报内存/栈占用", smallText.Contains("内存 25%") && smallText.Contains("栈 25%"));
+        Check("小窗仍报帧率（还出不出帧）", smallText.Contains("17.6fps"));
+        Check("小窗明显比大窗矮（不然「小窗」二字没意义）", small.Length <= 5 && small.Length < lines.Length / 2);
+        Check("小窗带 `detailed: false` 与不带参的**默认**是两种形态",
+            !string.Equals(smallText, text));
+
+        var smallIdle = new VmlStatusSnapshot().FormatLines(detailed: false);
+        Check("小窗空闲时一行且不抛", smallIdle.Length == 1 && smallIdle[0].Contains("空闲"));
     }
 
     // ══════════════════════════════════════════════════════════════════════

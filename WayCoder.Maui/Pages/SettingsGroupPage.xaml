@@ -292,6 +292,38 @@
             </Border>
             </VerticalStackLayout>
 
+            <!-- ═══ 虚拟机 ═══
+                 四项全是**候选档（Picker）而不是输入框**：内存/栈给错一个量级（比如把字节当 MB）
+                 会让程序直接跑不起来，而报的是"内存错误"、看不出是设置的问题；
+                 超时那边还有个硬上限（`MauiVml.RunProgram` 的 `Math.Clamp(…, 1, 600)`），
+                 让用户自己填 1800 只会得到"选了不生效"。候选表在 `MauiVmStore` 里，
+                 与钳位口径同一处。 -->
+            <VerticalStackLayout x:Name="GrpVm" IsVisible="False" Spacing="10">
+            <Label Text="虚拟机（VML 程序运行参数）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="内存（改完下一次运行生效）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="VmMemoryPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="栈（不超过内存的一半）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="VmStackPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="编辑器运行超时（秒）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="VmEditorTimeoutPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="命令行运行超时（秒）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="VmShellTimeoutPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label x:Name="VmHintLabel" FontSize="11"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+            </VerticalStackLayout>
+
             <Button x:Name="SaveBtn" Text="保存配置" Clicked="OnSaveClicked" Margin="0,14,0,0" />
 
         </VerticalStackLayout>

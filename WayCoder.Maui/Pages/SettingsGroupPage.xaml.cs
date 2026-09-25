@@ -26,6 +26,7 @@ public partial class SettingsGroupPage : ContentPage
         yield return ("存储", GrpStorage);
         yield return ("编辑器", GrpEditor);
         yield return ("语音", GrpVoice);
+        yield return ("虚拟机", GrpVm);
     }
 
     private string _group = "model";
@@ -71,6 +72,7 @@ public partial class SettingsGroupPage : ContentPage
         "storage" => title == "存储",
         "editor" => title == "编辑器",
         "voice" => title == "语音",
+        "vm" => title == "虚拟机",
         _ => false,
     };
 
@@ -199,6 +201,51 @@ public partial class SettingsGroupPage : ContentPage
         base.OnAppearing();
         LoadEditorSettings();
         LoadConfig();
+        LoadVmSettings();
+    }
+
+    /// <summary>
+    /// 载入「虚拟机」分组的四项（内存 / 栈 / 两个超时）。
+    ///
+    /// 这些值存在 **Preferences**（<see cref="MauiVmStore"/>）而不是 `config.json` ——
+    /// 它们只对**手机端**有意义（桌面 `vmlcli` 走命令行参数），塞进共享配置反而要在两端各解释一遍。
+    /// </summary>
+    private void LoadVmSettings()
+    {
+        SelectOption(VmMemoryPicker, MauiVmStore.MemoryOptions, MauiVmStore.MemoryMb, v => $"{v} MB");
+        SelectOption(VmStackPicker, MauiVmStore.StackOptions, MauiVmStore.StackKb, v => $"{v} KB");
+        SelectOption(VmEditorTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.EditorTimeoutSec, v => $"{v} 秒");
+        SelectOption(VmShellTimeoutPicker, MauiVmStore.TimeoutOptions, MauiVmStore.ShellTimeoutSec, v => $"{v} 秒");
+
+        // 超时的语义在 v0.96.438 变了（墙钟 → **连续执行**），设置项旁边必须说清楚，
+        // 否则用户会以为"调大了就能让程序跑更久"，而真正的原因是**等输入已经不计时了**。
+        VmHintLabel.Text = "超时只在程序连续运行、一次都没等待时计时；等消息/等弹框/等你操作都不算。"
+                         + "内存与栈改完，下一次运行才生效。";
+    }
+
+    /// <summary>
+    /// 把候选表填进 Picker 并选中当前值。
+    /// **显示文案与取值分离**（索引 → 候选表里的数）—— 直接用字符串当值的话，
+    /// "1024 KB" 这种文案一改就会和存储里的数对不上。
+    /// </summary>
+    private static void SelectOption(Picker picker, int[] options, int current, Func<int, string> label)
+    {
+        picker.ItemsSource = options.Select(label).ToList();
+        var idx = Array.IndexOf(options, current);
+        picker.SelectedIndex = idx >= 0 ? idx : 0;
+    }
+
+    /// <summary>把四个 Picker 的选择写回 <see cref="MauiVmStore"/>（索引 → 候选表里的值）。</summary>
+    private void SaveVmSettings()
+    {
+        if (VmMemoryPicker.SelectedIndex >= 0)
+            MauiVmStore.MemoryMb = MauiVmStore.MemoryOptions[VmMemoryPicker.SelectedIndex];
+        if (VmStackPicker.SelectedIndex >= 0)
+            MauiVmStore.StackKb = MauiVmStore.StackOptions[VmStackPicker.SelectedIndex];
+        if (VmEditorTimeoutPicker.SelectedIndex >= 0)
+            MauiVmStore.EditorTimeoutSec = MauiVmStore.TimeoutOptions[VmEditorTimeoutPicker.SelectedIndex];
+        if (VmShellTimeoutPicker.SelectedIndex >= 0)
+            MauiVmStore.ShellTimeoutSec = MauiVmStore.TimeoutOptions[VmShellTimeoutPicker.SelectedIndex];
     }
 
     private void LoadConfig()
@@ -587,6 +634,10 @@ public partial class SettingsGroupPage : ContentPage
         Config.Instance.VmlExportFrame = VmlExportSwitch.IsToggled;
         if (int.TryParse(VmlFrameMaxSideEntry.Text, out var vms))
             Config.Instance.VmlFrameMaxSide = Math.Clamp(vms, 128, 4096);
+
+        // 虚拟机参数（内存 / 栈 / 两个运行超时）—— 存 Preferences，不进 config.json
+        // ——它们只对手机端有意义（桌面 vmlcli 走命令行参数）。
+        SaveVmSettings();
 
         // 3) 参数
         if (int.TryParse(MaxTokensEntry.Text, out var mt)) Config.Instance.MaxTokens = mt;

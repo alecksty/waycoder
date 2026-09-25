@@ -12,6 +12,43 @@ namespace VMLRuntime
         private int pc;
         private int memorySize;
 
+        /// <summary>
+        /// 本次运行的**超时源**（`TimeoutSeconds &gt; 0` 时才建）。
+        ///
+        /// ⚠ 提成字段（原来是 <see cref="Run"/> 里的局部变量）只为让 <see cref="ResetTimeout"/>
+        /// 够得着它 —— 宿主每次"阻塞等待"返回后都要把截止时间推后，见那里的说明。
+        /// </summary>
+        private CancellationTokenSource? _timeoutCts;
+
+        /// <summary>
+        /// 超时的**截止时刻**（`Environment.TickCount64` 口径，毫秒）。
+        ///
+        /// <para>
+        /// `CancellationTokenSource` 查不到"还剩多久"，而状态面板要显示这个数 ——
+        /// 排查"游戏卡死"那一轮全靠拿日志时间戳反推超时时刻才定下案，面板上直接显示
+        /// 「超时剩 3s」就不必再推。每次 <see cref="Run"/> 起表、<see cref="ResetTimeout"/>
+        /// 续期时一起更新。
+        /// </para>
+        /// </summary>
+        private long _timeoutDeadlineMs;
+
+        /// <summary>
+        /// **初始栈顶**（`LoadProgram` 里定下来那一刻的 `sp`）。
+        ///
+        /// 状态面板拿它当基准算"栈用了多少"：程序跑起来之后 `sp` 一路往下压，
+        /// 而"压了多少"只有跟**起点**比才有意义（拿 R13 单独一个值看不出任何东西）。
+        /// </summary>
+        private int _initialSp;
+
+        /// <summary>
+        /// 调用方传进来的取消令牌（用户按「强制停止」/宿主取消）。
+        ///
+        /// **只用来区分两种结束**：它被取消了 ⇒ 用户自己停的；它没被取消而超时源响了 ⇒ 超时。
+        /// 两种都打同一句话的话，用户看到"VM execution cancelled"根本分不出是程序坏了还是被超时杀了
+        /// （这正是"游戏卡死"那轮排查里最花时间的一段）。
+        /// </summary>
+        private CancellationToken _externalCt;
+
         public int[] Registers
         {
             get { return registers; }
@@ -686,6 +723,10 @@ namespace VMLRuntime
             if (sp <= memoryAllocPtr)
                 sp = memory.Length - 4;   // 退到内存顶端（构造函数本来就用这个默认值）
 
+            // 记下**初始栈顶** —— 状态面板要拿它当"栈用了多少"的基准（`StackUsedBytes`）。
+            // 程序跑起来之后 `sp` 一路往下压，而"压了多少"只有跟起点比才有意义。
+            _initialSp = sp;
+
             registers[12] = sp;
             registers[13] = sp;
             registers[14] = sp;
@@ -752,18 +793,27 @@ namespace VMLRuntime
             }
 
             // 超时控制：TimeoutSeconds=0 不限时，>0 则创建超时 Token
-            CancellationTokenSource? timeoutCts = null;
+            //
+            // ⚠ **这是"连续执行"的超时，不是墙钟** —— 宿主每次阻塞等待（等消息 / 等弹框 /
+            //   等用户输入）返回后都会调 `ResetTimeout()` 把截止时间推后（见那里的说明）。
+            //   按墙钟走的话，"用户在开场对话框上读说明、瞄准时思考"的时间全被算进超时：
+            //   实测 `gorilla.bas`（编辑器运行 = 120 秒）里玩家实际只玩了 46 秒就被杀掉，
+            //   而**程序被杀后窗口停在最后一帧**，用户看到的就是"游戏卡死、触摸没反应"。
+            _externalCt = cancellationToken;
+            _timeoutCts = null;
             if (TimeoutSeconds > 0 && cancellationToken == default)
             {
-                timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-                cancellationToken = timeoutCts.Token;
+                _timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
+                cancellationToken = _timeoutCts.Token;
             }
             else if (TimeoutSeconds > 0 && cancellationToken != default)
             {
-                timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
-                cancellationToken = timeoutCts.Token;
+                _timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                _timeoutCts.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
+                cancellationToken = _timeoutCts.Token;
             }
+            // 截止时刻自己记一笔（CTS 查不到"还剩多久"，见 `_timeoutDeadlineMs`）
+            _timeoutDeadlineMs = _timeoutCts is null ? 0 : Environment.TickCount64 + TimeoutSeconds * 1000L;
 
             try
             {
@@ -831,7 +881,12 @@ namespace VMLRuntime
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        Console.WriteLine("VM execution cancelled");
+                        // 两种"停"必须分得出来：外部令牌被取消 = 用户自己按的停止；
+                        // 外部没取消而这里响了 = **连续执行**超时。原来两种都打
+                        // "VM execution cancelled"，用户根本分不出是程序坏了还是被超时杀了。
+                        Console.WriteLine(_externalCt.IsCancellationRequested
+                            ? "VM execution cancelled"
+                            : $"运行超时（连续执行 {TimeoutSeconds} 秒未等待，已停止）");
                         return;
                     }
 
@@ -946,9 +1001,81 @@ namespace VMLRuntime
             }
             finally
             {
-                timeoutCts?.Dispose();
+                _timeoutCts?.Dispose();
+                _timeoutCts = null;   // `ResetTimeout` 据此判"这次运行已经结束"
             }
         }
+
+        /// <summary>
+        /// 把超时截止时间**推后** <see cref="TimeoutSeconds"/> —— 宿主每次"阻塞等待"返回后调用。
+        ///
+        /// <para>
+        /// 语义因此从「从开始跑起满 N 秒」变成「**连续执行 N 秒未阻塞**」：等消息、等弹框、
+        /// 等用户思考**都不计时**。失控程序（死循环里压根不碰宿主）照旧会在 N 秒被杀掉 ——
+        /// 那才是超时该管的唯一情形。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ **只在"真的阻塞等过"的路径上调用**（`ui_wait_msg` / `ui_dlg_*` / 读输入）。
+        /// 非阻塞的 `ui_poll` **绝不能调**：程序每帧都调它，续期等于超时永不触发。
+        /// </para>
+        /// <para>
+        /// ⚠ 只在 VM 线程调用（宿主的 syscall 处理就跑在 VM 线程上），与 <see cref="Run"/>
+        /// 是同一条线程，无并发问题。
+        /// </para>
+        /// </summary>
+        public void ResetTimeout()
+        {
+            if (TimeoutSeconds <= 0 || _timeoutCts is null) return;
+            try
+            {
+                _timeoutCts.CancelAfter(TimeSpan.FromSeconds(TimeoutSeconds));
+                _timeoutDeadlineMs = Environment.TickCount64 + TimeoutSeconds * 1000L;
+            }
+            catch (ObjectDisposedException) { /* 这次运行刚结束（与 Run 的 finally 赛跑） */ }
+        }
+
+        /// <summary>
+        /// 这次运行**还剩多少秒**超时；`0` = 不限时（`TimeoutSeconds &lt;= 0`）或这次运行已经结束。
+        ///
+        /// <para>
+        /// 状态面板靠它显示「超时剩 Ns」。它是"程序是不是马上要被超时杀掉"的**唯一直接读数** ——
+        /// 排查"游戏卡死"那一轮，最后是靠日志时间戳反推出"08:22:05 + 120s = 08:24:05"才定案的；
+        /// 面板上直接有这个数就不必再推。
+        /// </para>
+        /// </summary>
+        public int TimeoutRemainingSeconds
+        {
+            get
+            {
+                if (TimeoutSeconds <= 0 || _timeoutCts is null) return 0;
+                var left = _timeoutDeadlineMs - Environment.TickCount64;
+                return left <= 0 ? 0 : (int)(left / 1000);
+            }
+        }
+
+        /// <summary>
+        /// **内存用了多少**（字节）= 堆高水位（数据段 + 已分配的动态内存）。
+        ///
+        /// 这是"还装得下多少"的那个读数：它逼近 <see cref="MemoryTotalBytes"/> 时，
+        /// `AllocateMemory` 就开始失败，而程序那边只会看到"内存错误"。
+        /// </summary>
+        public int MemoryUsedBytes => memoryAllocPtr;
+
+        /// <summary>内存总量（字节）—— 就是 `memory` 数组的长度。</summary>
+        public int MemoryTotalBytes => memory?.Length ?? 0;
+
+        /// <summary>
+        /// **栈压了多少**（字节）= 初始栈顶 − 当前 `sp`。
+        ///
+        /// ⚠ 分母（<see cref="StackTotalBytes"/>）用**配置的栈大小**，不用"到堆高水位的距离"：
+        /// 后者会随程序自己的动态分配涨落，用户看到的百分比就会莫名其妙地跳 ——
+        /// 而他心里的"栈"就是设置页里填的那个数。
+        /// </summary>
+        public int StackUsedBytes => Math.Max(0, _initialSp - sp);
+
+        /// <summary>栈容量（字节）：配置的栈大小；拿不到配置就退回"初始栈顶"。</summary>
+        public int StackTotalBytes => _config is { StackSize: > 0 } c ? c.StackSize : _initialSp;
 
         public string FormatOperand(Operand operand)
         {

@@ -39,12 +39,13 @@ public partial class ShellPage : ContentPage
     // 回滚行上限改为**可配置**（见 MauiShellStore.Scrollback，默认值与从前写死的 256 一致）。
 
 
-    /// <summary>
-    /// 交互式运行的超时（秒）。给得宽是**必须的**：VM 的超时是从 `Run()` 起就走的**墙钟**，
-    /// **用户思考与打字的时间也在里面**。用非交互那个口径（几十秒），手机上敲慢一点
-    /// 程序就会在提示符上被超时杀掉，而报的是"超时"、完全看不出是在等人。
-    /// </summary>
-    private const int InteractiveTimeoutSec = 600;
+    // 交互式运行的超时（秒）现在**可配置**：设置页 →「虚拟机」→ 命令行运行超时
+    // （`MauiVmStore.ShellTimeoutSec`，默认 600）。口径的说明留在这里：
+    //   · 给得宽是**必须的** —— 用非交互那个口径（几十秒），手机上敲慢一点程序就会在提示符上
+    //     被超时杀掉，而报的是"超时"、完全看不出是在等人；
+    //   · ⚠ **这条超时是"连续执行"的，不是墙钟**（`VmRuntime.ResetTimeout`）：等消息 / 等弹框 /
+    //     等键盘输入都会续期。所以"用户在提示符前想两分钟"现在**不再扣它的时间** ——
+    //     从前按墙钟算，那段思考时间是实打实被算进去的。
 
     /// <summary>
     /// 回滚缓冲，**一项 = 一整行**（不含 `\n`）。最后一项可能是"还在写、尚未换行"的半行 ——
@@ -350,6 +351,7 @@ public partial class ShellPage : ContentPage
         RenderOutput();                          // 让新设置立刻反映到已有输出（重算折行/字号）
         UpdateSizeButtons();                     // 侧栏可能改过尺寸，按钮高亮要跟上
         Dispatcher.Dispatch(UpdateScrollBar);   // 回到本页时量一次（期间可能转过屏）
+        ApplyVmStatusVisibility();               // VM 状态开关是全局的：别的页面可能刚改过它
 
         // 文件页递过来的活：等本页真的显示出来再干（切 Tab 会走这里）。
         if (Interlocked.Exchange(ref PendingVml, null) is { } job)
@@ -963,7 +965,7 @@ public partial class ShellPage : ContentPage
         {
             // 两个输入源都给：**程序要哪个由它调的读接口决定**（`ReadString` → 按行、
             // `ReadChar` → 逐键），不需要它声明什么。
-            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec,
+            return await Task.Run(() => MauiVml.Run(source, file, MauiVmStore.ShellTimeoutSec,
                 ReadLineFromProgram, cts.Token, markup: true, readKey: ReadKeyFromProgram));
         }
         finally
@@ -1279,9 +1281,13 @@ public partial class ShellPage : ContentPage
     private async void OnMenuClicked(object? sender, EventArgs e)
     {
         var size = MauiShellStore.Font;
+        // VM 状态那一项的文案跟着**当前状态**走（显示 / 隐藏），所以它得先算出来 ——
+        // 也因此不能写进下面 switch 的 `case`（那里的标签必须是编译期常量）。
+        var statusItem = MauiVmStatusStore.Visible ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态";
+
         var choice = await DisplayActionSheetAsync(
             $"命令行 · 字号 {size:0}", "取消", null,
-            "加大字号", "减小字号", "重置字号", "复制整屏输出", "清空屏幕");
+            "加大字号", "减小字号", "重置字号", "复制整屏输出", "清空屏幕", statusItem);
 
         switch (choice)
         {
@@ -1291,7 +1297,21 @@ public partial class ShellPage : ContentPage
             case "复制整屏输出": await CopyAllOutputAsync(); break;
             case "清空屏幕": ClearOutput(); break;
         }
+
+        if (choice == statusItem)
+        {
+            MauiVmStatusStore.Toggle();
+            ApplyVmStatusVisibility();
+        }
     }
+
+    /// <summary>
+    /// 把（可能被**另一个页面**改过的）VM 状态开关落到本页浮层上。
+    ///
+    /// 开关是全局的（`MauiVmStatusStore`）：在绘图窗口里打开之后回到这一页也该是开着的 ——
+    /// 所以 `OnAppearing` 每次都要重新同步一次，不能只在点菜单时设。
+    /// </summary>
+    private void ApplyVmStatusVisibility() => VmStatus.IsVisible = MauiVmStatusStore.Visible;
 
     /// <summary>
     /// **改字号**（菜单 / 捏合结束共用这一条）。

@@ -165,5 +165,28 @@
                 CornerRadius="8"
                 Clicked="OnStdinSubmitted" />
         </Grid>
+
+        <!-- 「VM 状态」浮层：**挂在根网格上、跨满全部行列**，所以它是「浮在所有控件之上」的
+             —— 它能被拖到顶栏、输入行、提示行上面去，而不是被关在输出区那一格里
+             （用户要的就是"所有控件之上"）。
+             命令行页也能开它，是因为**不是每个 VML 程序都开绘图窗口** ——
+             纯文本程序（`sl` / `nyancat` 那种）跑起来时，这一页就是唯一的看板。
+             开关与绘图窗口**同一个**（`MauiVmStatusStore`），两页因此永远一致。
+
+             ⚠ **`ZIndex` 不是可选的**：MAUI 的 `LayoutHandler` 按 ZIndex 决定平台子视图的
+             插入次序（`GetLayoutHandlerIndex` 就是按它算的），而绘图页切横竖屏时会把
+             手柄按钮**摘下来再挂回去** —— 那一下新挂上去的按钮会插在声明次序的末尾，
+             光靠"我声明在最后"是压不住的。给了 ZIndex 之后，之后任何一次增删都还它在上层。
+             ⚠ `Margin.Top = 58` 是为了**默认不压住顶栏**（顶栏 = 8+44+2 ≈ 54dp）；
+             它只是静止位置，拖动范围由 `VmStatusOverlay.ClampIntoParent` 按 Margin 折算，
+             照样能拖到屏幕最上沿。 -->
+        <controls:VmStatusOverlay
+            x:Name="VmStatus"
+            Grid.Row="0"
+            Grid.RowSpan="4"
+            ZIndex="10"
+            HorizontalOptions="Start"
+            VerticalOptions="Start"
+            Margin="14,58,0,0" />
     </Grid>
 </ContentPage>

@@ -145,6 +145,29 @@
                 </Grid>
             </Border>
 
+            <!-- 虚拟机：内存 / 栈 / 两个运行超时（VML 程序跑起来之后才用得上的那几项） -->
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🖥" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="虚拟机" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="VmSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnVmTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
                     StrokeThickness="0" Padding="0">
                 <Border.StrokeShape>

@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:WayCoder.Maui.Controls"
              x:Class="WayCoder.Maui.Pages.DrawWindowPage"
              Title="VML 窗口"
              Shell.TabBarIsVisible="False"
              BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
+
+    <!-- 标题栏右上角的菜单。⚠ **必须显式接 `Clicked`** —— 加了按钮却忘了接线就是"点了没反应"
+         （编辑器页踩过这一条，用户报的是"没看到菜单"）。
+         这一页此前没有任何菜单，先放进来的就是「显示 VM 状态」——
+         真机上"游戏卡死"那次全靠日志时间戳反推超时，有这块面板就不必再推。 -->
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="☰" Order="Primary" Priority="0"
+                     Clicked="OnMenuClicked"
+                     SemanticProperties.Hint="窗口菜单" />
+    </ContentPage.ToolbarItems>
 
     <!-- VML 程序开的窗口。布局三行：画布 / 折叠条 / 手柄。
          **标题只有一处**：Shell 的标题栏（代码里 `Title = scene.Title`）。
@@ -166,5 +177,27 @@
             </Grid>
             <VerticalStackLayout x:Name="PcKeyRows" Grid.Row="1" Spacing="3" />
         </Grid>
+
+        <!-- 「VM 状态」浮层：**挂在根网格上、跨满全部行列** ⇒ 它浮在画布、手柄区、折叠条、
+             屏幕键盘**所有控件之上**（用户要的），拖动范围也是整页而不是画布那一格。
+             跨行列的写法对行数是安全的：MAUI 的 `GridStructure.InitializeCells` 会把
+             越界的 `RowSpan`/`ColumnSpan` 夹到已有定义上（`Clamp(span, 1, 行数 - 行号)`），
+             而绘图页横竖屏的行数不一样（竖屏 3 行 / 横屏 4 行）—— 写大一点两边都吃得下。
+
+             ⚠ **`ZIndex` 是必须的**：`ApplyOrientation` 会把两侧手柄按钮**摘下来再挂回去**，
+             而 MAUI 按 ZIndex 算平台子视图的插入次序 —— 不写 ZIndex 的话，那一下重挂的按钮
+             会插到浮层之上，浮层拖过去就被盖住。
+             ⚠ 浮层自身的触摸语义见 `VmStatusOverlay` 的类注释：**把柄吃触摸、正文穿透**，
+             所以把面板拖到画布上之后，落在读数文字上的手指照样是给游戏的操作输入。 -->
+        <controls:VmStatusOverlay
+            x:Name="VmStatus"
+            Grid.Row="0"
+            Grid.RowSpan="4"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            ZIndex="10"
+            HorizontalOptions="Start"
+            VerticalOptions="Start"
+            Margin="14,10,0,0" />
     </Grid>
 </ContentPage>
