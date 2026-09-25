@@ -383,6 +383,85 @@ void clockPartsAt(int posY, int groundY)
 // 把上一次 `clockPartsAt` 的结果打包
 int clockPackParts() { return 0xFF000000 + gMr * 65536 + gMg * 256 + gMb; }
 
+// ════════════════════════════════════════════════════════════════════
+// 云 —— 白天天上那几团，**随游戏时间慢慢飘**，出画从另一头绕回来
+//
+// 可见度**跟着天光走**（而不是"天黑就不画"的开关）：天光为 0 时云的颜色正好等于
+// 当地天空色 ⇒ 自然消失。少一个能写错的开关，也少一次"某一刻画面跳一下"。
+//
+// ⚠ 位置是**按游戏分钟算的**（不是每帧累加）：累加的话帧率一变云就飘得快慢不一，
+//   而"飘"这件事本来就该由时钟定，与画多快无关 —— 与时钟走独立定时器是同一条理由。
+// ════════════════════════════════════════════════════════════════════
+
+#define N_CLOUD 5
+
+static int cloudY[N_CLOUD];      // 第 i 朵的基准高度（按屏幕比例，开局定一次）
+static int cloudW[N_CLOUD];      // 第 i 朵的宽度
+static int cloudSpeed[N_CLOUD];  // 第 i 朵的飘动速度（像素 / 游戏分钟）
+static int cloudsReady;
+
+void cloudsInit(int scrW, int groundY)
+{
+    int i;
+    i = 0;
+    while (i < N_CLOUD)
+    {
+        // 位置/大小由下标推出来（**不用随机数**：每局都该长得差不多，
+        // 而且随机的话"这朵云什么时候飘回来"就不可预期了）
+        cloudY[i] = 40 + (i * 53) % (groundY / 2);
+        cloudW[i] = 60 + (i * 37) % 70;
+        cloudSpeed[i] = 2 + (i % 3);
+        i = i + 1;
+    }
+    cloudsReady = 1;
+}
+
+// 第 i 朵云现在的左边 x（按游戏分钟算，出画就从另一头绕回来）
+int cloudX(int idx, int scrW)
+{
+    int span;
+    int pos;
+    span = scrW + 160;                       // 多留 160，让云整个出画再回来
+    pos = cloudSpeed[idx] * (gHour * 60 + gMinute) + idx * 97;
+    pos = pos % span;
+    return pos - 120;
+}
+
+// 一朵云 = 三团椭圆叠出来（便宜，形状够用）
+void cloudsDraw(int scrW, int groundY)
+{
+    int i;
+    int cx;
+    int cy;
+    int cw;
+    int ch;
+    int col;
+
+    if (cloudsReady == 0) { return; }
+
+    i = 0;
+    while (i < N_CLOUD)
+    {
+        cx = cloudX(i, scrW);
+        cy = cloudY[i];
+        cw = cloudW[i];
+        ch = cw / 3;
+        clockPartsAt(cy, groundY);
+        // 云色 = 当地天空色 → 白，按天光插值 ⇒ 天全黑时云正好融进天空。
+        // ⚠ 系数要**够狠**：天光 52（早上 7:30）时若只插到 44%，云就是 `0xFF8094B3`
+        //   这种灰蓝，比天空亮一点点、**肉眼看不出来**（实测过）。
+        //   乘 1.6、封顶 100 ⇒ 天光 63 以上就是纯白的云，日出前后才淡出。
+        col = mixcol(gMr, gMg, gMb, 255, 255, 255, gDayL * 160 / 100);
+        if (gDayL * 160 / 100 > 100) { col = mixcol(gMr, gMg, gMb, 255, 255, 255, 100); }
+        // 先画两边小的、再画中间大的（后画的盖住前者，看着像一朵）
+        ui_circle(cx, cy, ch, col, 1, 0);
+        ui_circle(cx + cw / 2, cy + ch / 4, ch * 3 / 4, col, 1, 0);
+        ui_circle(cx + cw, cy, ch * 4 / 5, col, 1, 0);
+        i = i + 1;
+    }
+}
+
+
 
 // ════════════════════════════════════════════════════════════════════
 // Entity —— 所有能在屏幕上画自己的东西的基类
@@ -1343,6 +1422,7 @@ public:
         // 地形是本局的战果，换一局就推倒重来 —— 不清的话上一局打出来的洞会跟着下一局
         // （`Layout` 就是"换一局"的入口：新城市 + 新地形）
         clearHoles();
+        cloudsInit(sw, gy);
         // 天空不再"掷一个昼夜"，它跟着游戏时钟连续变化
         sky.Setup(sw, sh, gy);
 
@@ -1798,7 +1878,14 @@ public:
             i = i + 1;
         }
 
-        i = 0;
+        // ⚠ **`actors[0]` 是 `Sky`，它会把整片天空铺一遍** —— 所以云必须画在它**之后**，
+        //   否则刚画好的云立刻被天空盖掉（实测：云的位置颜色都对，屏幕上却什么都没有）。
+        //   这与 BASIC 版 `drawScene` 的次序一致：天空 → 星星 → 日月 → 云 → 飞行物 → 楼。
+        //   代价是这里得把 `actors` 的循环拆成两段 —— 云不属于任何 `Entity` 对象。
+        actors[0]->Draw();
+        cloudsDraw(sw, gy);
+
+        i = 1;
         while (i < 8)
         {
             actors[i]->Draw();
