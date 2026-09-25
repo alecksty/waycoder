@@ -244,6 +244,42 @@ public static class VmlUi
     /// </summary>
     public const int FreeImage = 594;
 
+    /// <summary>
+    /// **绘图状态**（图层 / 裁剪 / 蒙版 / 透明度）—— `ui_gfx(op, a, b, c, d)`。
+    ///
+    /// ⚠ **用一个号做多路复用，而不是每个操作占一个号**：宿主认的号段是
+    ///   `500–599`（见 <see cref="Handles"/>），而这套结构到 594 已经**只剩 595–599 五个**，
+    ///   状态操作却有八九个。放宽 `Handles` 到 600+ 是不行的 —— 那条注释记着
+    ///   「放宽会把别的内置 syscall 一并吞掉，那是最难查的一类故障」。
+    ///   多路复用在本题材上也更贴切：它们本来就是**同一个状态机**的几种动作。
+    ///
+    /// 目前实现：`0/1` = 裁剪压/弹、`2` = 透明度。
+    /// `3..7`（蒙版/图层）留号未实现 —— **调用它们会返回 0 并且什么都不发生**，
+    /// 但头文件里**没有**对应声明，所以正常写法碰不到（不会出现"写了没生效"）。
+    /// </summary>
+    public const int GfxState = 595;
+
+    /// <summary>`ui_gfx` 的操作码。见 <see cref="GfxState"/>。</summary>
+    public static class GfxOp
+    {
+        public const int ClipPush = 0;
+        public const int ClipPop = 1;
+        public const int Alpha = 2;
+
+        /// <summary>
+        /// 释放**本窗口累积的全部画刷 / 渐变定义**。
+        ///
+        /// ⚠ 画刷的句柄就是 `_brushes` 的**下标**（`handle = Count`），所以没法像
+        ///   图像/图块那样"按句柄删一个"——删中间那个会让后面的句柄全部错位。
+        ///   于是这里给的是**整体重置**：每帧开头调一次，就能让"按需造渐变的程序"
+        ///   不随帧数累积。**图像与图块不受影响**（它们有各自的句柄回收，见 593/594）。
+        ///
+        /// ⚠ 重置之后，之前发出的 `@名字` 引用会**解析不到**，按既有约定退化成纯色
+        ///   （见 `Parse` 里"悬空引用退化为纯色"那一段）—— 不会崩，只是变成纯色。
+        /// </summary>
+        public const int BrushReset = 8;
+    }
+
     /// <summary><see cref="Screenshot"/>(#588) 没给路径时，图落在工作区里的这个子目录。</summary>
     public const string DefaultShotDir = "shot";
 
@@ -1944,6 +1980,58 @@ public sealed class VmlScene
 
     /// <summary>矩形；<paramref name="radius"/> &gt; 0 时走 DSL 的 roundrect（圆角矩形）。
     /// <paramref name="fillGradient"/> 非空时用**渐变刷子**填充（DSL 的 `@id` 引用）。</summary>
+    // ── 绘图状态：全局透明度（`ui_gfx` 的 Alpha 操作）──────────────────────
+    //
+    // ⚠ 它**在宿主侧就乘进颜色了**（见 `Style`），所以后端三条路都不必知道它的存在。
+    //   代价是**渐变与图片不受它影响**（那两样的颜色不经过 `Style`）—— 这条限制
+    //   写在 `docs/VML宿主接口.md` 里，别指望它。
+    private int _alpha = 255;
+
+    /// <summary>设置全局透明度 0..255（对**之后**的图元生效）。</summary>
+    public void SetAlpha(int a)
+    {
+        if (a < 0) { a = 0; }
+        if (a > 255) { a = 255; }
+        _alpha = a;
+        Add($"alpha {a}");
+    }
+
+    /// <summary>
+    /// 释放本窗口累积的**全部画刷 / 渐变定义**（`ui_brush_reset`）。
+    ///
+    /// 与图像（`FreeImage` 594）/ 图块（`FreeBlock` 593）不同，画刷的句柄是**下标**，
+    /// 删单个会让后面的错位 ⇒ 只能整体重置。**调用时机是程序自己的事**：
+    /// 按需造渐变的程序应当在每帧开头调一次，否则定义会一直累积到上限。
+    /// </summary>
+    public void ResetBrushes()
+    {
+        lock (_figures)
+        {
+            _brushes.Clear();
+            _gradientNames.Clear();
+            _solidBrushCache.Clear();
+        }
+    }
+
+    /// <summary>把当前的全局透明度乘进一个颜色的 alpha 通道。</summary>
+    private uint ApplyAlpha(uint c)
+    {
+        if (_alpha >= 255) return c;
+        var a = (uint)((c >> 24) & 0xFF);
+        a = a * (uint)_alpha / 255u;
+        return (c & 0x00FFFFFFu) | (a << 24);
+    }
+
+    /// <summary>`clip` —— 压入一级矩形裁剪（与上一级求交），直到对应的 `clippop`。</summary>
+    public void AddClipPush(int x, int y, int w, int h)
+    {
+        w = Dim(w); h = Dim(h);
+        Add($"clip {x} {y} {w} {h}");
+    }
+
+    /// <summary>`clippop` —— 弹出一级裁剪。</summary>
+    public void AddClipPop() => Add("clippop");
+
     public void AddRect(int x, int y, int w, int h, uint color, bool filled, int width, int radius,
         string? fillGradient = null)
     {
@@ -2295,8 +2383,9 @@ public sealed class VmlScene
     /// （见 <c>DrawCommands.ParseStyle</c>）。所以空心图形要把填充显式写成全透明色 ——
     /// 这里传 <c>#00000000</c> 而不是省略，否则颜色位会被描边占用、变成"填充了描边的颜色"。
     /// </summary>
-    private static string Style(uint color, bool filled, int width, string? fillGradient = null)
+    private string Style(uint color, bool filled, int width, string? fillGradient = null)
     {
+        color = ApplyAlpha(color);   // 全局透明度在这里一次生效（形状的填充与描边都走它）
         var w = width > 0 ? $" {width}" : "";
         // 渐变填充：把 DSL 的 `@id` 放在**填充位**（DSL 规定"第一个颜色 = 填充，第二个 = 描边"，
         // 渐变引用与颜色占同一个位置，见 DrawParse.TryParseStyle）。

@@ -78,6 +78,18 @@ public interface IVectorTarget
     /// 宿主据此把整个窗口回退到光栅后端 —— 宁可慢，也别默默少画东西。
     /// </summary>
     void MarkUnsupported(string kind, string? detail = null);
+
+    /// <summary>
+    /// 压入一级**矩形裁剪**（与上一级求交）—— DSL 的 `clip x y w h`，见 `ClipCommand`。
+    ///
+    /// ⚠ 与光栅那边**语义必须一致**：都是"从这条往后生效、`PopClip` 恢复上一级"。
+    ///   两边不一致的症状是"手机上对了、导出的 PNG 不对"（或反过来），而那两种产物
+    ///   平时根本不会摆在一起看。
+    /// </summary>
+    void PushClip(double x, double y, double w, double h);
+
+    /// <summary>弹出一级裁剪（没有可弹的就什么都不做）。</summary>
+    void PopClip();
 }
 
 /// <summary>

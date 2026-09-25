@@ -135,6 +135,53 @@ void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw) {
     asm("SYSCALL #527, ${cx}, ${cy}, ${rx}, ${ry}, ${color}, ${fill}, ${lw}");
 }
 
+/* ── 绘图状态（`ui_gfx`，SYSCALL #595）────────────────────────────────────
+ *
+ * 三个操作走**同一个号**，第一个参数是操作码 —— 理由见 `waycoder_ui.h` 的说明
+ * （号段不够）。返回值是宿主的应答：1 = 认了，0 = 不认识这个操作码。
+ *
+ * ⚠ 用 `return asm(...)` 而不是先 asm 再 return 一个变量 ——
+ *   后者会把 syscall 的返回值整个丢掉（本仓记过这条：`io.c` 的 `getchar` 就是这么坏的）。
+ */
+/* ⚠⚠ **asm 串里的字面量参数会被整个丢掉**（实测）：写成
+ *      asm("SYSCALL #595, 0, ${x}, ${y}, ${w}, ${h}")
+ *    编出来是 `R0=x, R1=y, R2=w, R3=h` —— 那个 `0` 凭空消失，**参数整体前移一格**；
+ *    而 `ui_clip_pop` 那种"全是字面量"的更是**一条寄存器装载都没有**，直接 `syscall`。
+ *    ⇒ 所有实参（含操作码）一律写成 `${变量}`。这与 `ui_rect`/`ui_circle` 那批
+ *      包装函数的写法一致 —— 它们的形参本来就全是 `${}`，所以从来没踩到。
+ *    这条已记进 `VMLPrepares/CCompiler/KNOWN_DEFECTS.md`。
+ */
+int ui_clip_push(int x, int y, int w, int h) {
+    int op;
+    op = 0;
+    return asm("SYSCALL #595, ${op}, ${x}, ${y}, ${w}, ${h}");
+}
+
+int ui_clip_pop(void) {
+    int op;
+    int z;
+    op = 1;
+    z = 0;
+    /* ⚠ 操作码与占位参数**都必须写成 `${}` 变量**，不能写字面量 —— 见文件开头那条说明。 */
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
+int ui_alpha(int v) {
+    int op;
+    int z;
+    op = 2;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${v}, ${z}, ${z}, ${z}");
+}
+
+int ui_brush_reset(void) {
+    int op;
+    int z;
+    op = 8;
+    z = 0;
+    return asm("SYSCALL #595, ${op}, ${z}, ${z}, ${z}, ${z}");
+}
+
 /* 帧边界标记（本帧画完了）。 */
 void ui_present(void) {
     asm("SYSCALL #531");

@@ -197,6 +197,7 @@ void addHole(int hx, int hy, int hr)
 #define C_WIN_LIT   0xFFFFD070
 #define C_WIN_DARK  0xFF2A2A38
 #define C_GROUND    0xFF3C5A34
+#define C_DIRT      0xFF2A1E14   // 地上的弹坑挖出来的土色（**不是天空色**，见 holesDraw）
 #define C_APE0      0xFFE08A3C
 #define C_APE1      0xFFC758D6
 #define C_APE_DARK  0xFF3A2A1A
@@ -476,8 +477,10 @@ void meteorDraw(int scrW, int groundY)
     int phase;
     int mx;
     int my;
-    int tail;
-    int i;
+    int tailX;
+    int tailY;
+    int tx;
+    int ty;
     int alpha;
 
     // 每 7 游戏分钟来一颗；只有夜里（天光低）才看得见
@@ -488,21 +491,28 @@ void meteorDraw(int scrW, int groundY)
 
     mx = scrW * 70 / 100 - scrW * phase / 100;   // 从右上往左下
     my = groundY * 30 / 100 + groundY * phase / 100;
-    tail = 26;
     alpha = 100 - phase;                         // 越飞越淡
     if (alpha < 0) { alpha = 0; }
 
-    // 尾巴：一串越来越小的点（比画线更像"划过"）
-    i = 0;
-    while (i < 6)
-    {
-        clockPartsAt(my - i, groundY);
-        ui_circle(mx + i * tail / 6, my - i * tail / 6 / 4,
-                  5 - i / 2,
-                  mixcol(gMr, gMg, gMb, 255, 250, 220, alpha * (100 - i * 15) / 100),
-                  1, 0);
-        i = i + 1;
-    }
+    // ── 尾迹**沿运动方向**（玩家报：「流星太大，而且不是按流线方向跑的」）──
+    //
+    // ⚠ 原来尾巴是"往右下 26px、再往上一点"的一段**固定轴向**，
+    //   而流星本身是**从右上往左下**飞的 —— 两者方向不一致，看着就是"拖错了方向"；
+    //   而且尾巴是 6 个半径 5/4/3/2/1/0 的**圆点**，头一颗直径 10px，太大。
+    //
+    // 现在：尾迹方向**就是运动方向的反向** —— 位移在一个周期里是
+    //   `(-scrW, +groundY)`，那么尾巴取它的一个固定比例（这里 8%）就与轨迹严格同向，
+    //   不用算归一化（**不能调 isqrt**：它定义在 Building 之后，这里在它之前）。
+    tailX = scrW * 8 / 100;
+    tailY = groundY * 8 / 100;
+    tx = mx + tailX;
+    ty = my - tailY;
+
+    clockPartsAt(my, groundY);
+    // 外圈一道淡光晕 → 细芯 → 头上一点亮：一条线读出"划过"
+    ui_line(tx, ty, mx, my, mixcol(gMr, gMg, gMb, 255, 250, 220, alpha * 40 / 100), 3);
+    ui_line(tx, ty, mx, my, mixcol(gMr, gMg, gMb, 255, 252, 235, alpha * 85 / 100), 1);
+    ui_circle(mx, my, 2, mixcol(gMr, gMg, gMb, 255, 255, 245, alpha), 1, 0);
 }
 
 
@@ -838,15 +848,21 @@ public:
             {
                 wx = x + 6 + c * 18;
                 wy = y + 10 + r * 24;
-                // 窗框 + 玻璃（**有框才像窗**，没框就是一排色块）
-                ui_rect(wx - 1, wy - 1, 11, 14, frmC, 1, 0, 0);
-                if (((c + r + x / 8) % 5) < litN)
+                // ⚠ **一楼只开门、不开窗** —— 原来窗是整列均匀铺到底的，最后一行正好
+                //   压在门上（门在 `gy-20 .. gy`），玩家看到的就是"窗户和门重合"。
+                //   压在门那一段的窗**一格都不画**（判据用门框的顶 `gy-20`）。
+                if (wy + 14 <= gy - 20)
                 {
-                    ui_rect(wx, wy, 9, 12, litC, 1, 0, 0);
-                }
-                else
-                {
-                    ui_rect(wx, wy, 9, 12, offC, 1, 0, 0);
+                    // 窗框 + 玻璃（**有框才像窗**，没框就是一排色块）
+                    ui_rect(wx - 1, wy - 1, 11, 14, frmC, 1, 0, 0);
+                    if (((c + r + x / 8) % 5) < litN)
+                    {
+                        ui_rect(wx, wy, 9, 12, litC, 1, 0, 0);
+                    }
+                    else
+                    {
+                        ui_rect(wx, wy, 9, 12, offC, 1, 0, 0);
+                    }
                 }
                 r = r + 1;
             }
@@ -854,7 +870,11 @@ public:
         }
 
         // 门（贴楼底）。⚠ 被弹坑盖住是对的 —— 坑就是"打没了"。
-        ui_rect(x + w / 2 - 6, gy - 16, 12, 16, frmC, 1, 0, 3);
+        // 门框 + 门板 + 底下透出来的一条亮光（屋里有人，门就"活"了）
+        ui_rect(x + w / 2 - 9, gy - 20, 18, 20, frmC, 1, 0, 3);
+        ui_rect(x + w / 2 - 7, gy - 18, 14, 18, mixcol(baseR, baseG, baseB, 0, 0, 0, 60), 1, 0, 2);
+        // 门缝里透出来的一条灯光 —— 比整扇门发亮自然，也不会在白天显得奇怪
+        ui_rect(x + w / 2 - 7, gy - 7, 14, 2, litC, 1, 0, 0);
 
         // ── 屋顶细节：水箱 / 天线 / 平的 ────────────────────────────────
         // 按**楼号**分（`tint` 就是它在 `Layout` 里的序号），三种轮着来。
@@ -882,6 +902,114 @@ public:
         }
     }
 };
+
+// ⚠ `holesDraw` 与 `isqrt` **必须放在 `Building` 之后**：这个前端不做前向引用，
+//   而这里要用 `Building` 的 `Covers/Left/Right/RoofY`、还要用颜色宏 `C_DIRT`，
+//   那两样都定义在后面。（第一版插在 `addHole` 后面，直接编不过。）
+// 整数平方根（牛顿迭代）—— 凿洞时要按行算半宽 `sqrt(r^2 - dy^2)`。
+// 平台没有 sqrt 可用，就这几行，自己带一个。
+int isqrt(int v)
+{
+    int x;
+    int y;
+    if (v <= 0) { return 0; }
+    x = v;
+    y = (x + 1) / 2;
+    while (y < x)
+    {
+        x = y;
+        y = (x + v / x) / 2;
+    }
+    return x;
+}
+
+// ── 弹坑：**在墙上真正凿一个洞**（而不是盖一个天空色的圆）──────────────
+//
+// ⚠ 原先就是在坑的位置盖一个**天空色的实心圆**，玩家在手机上点出了两个毛病：
+//   ① 那一趟画在**香蕉之后** ⇒ 香蕉飞过坑口被盖住，**看着像撞上一块看不见的墙**；
+//   ② 一整块**平色**盖上去 ⇒ 天空是渐变的，坑里那块色对不上；
+//      而且它会把**后面的云 / 日月一起盖掉** —— 那些东西本来是"透过洞该看见"的。
+//
+// 现在的做法（平台**没有** clip/mask 接口，所以这一层只能程序自己裁剪）：
+//   · **逐行凿**：每行一条 1 像素高的横条，半宽按 `sqrt(r² - dy²)` 算 ⇒ 出来是圆的；
+//   · **每行单独取色**（`clockPartsAt(y)`）⇒ 天空渐变在洞里自然接得上，没有补丁感；
+//   · **横向夹到所在那栋楼的范围内** —— 这就是"裁剪"，洞不会糊到隔壁楼上去；
+//   · **纵向夹在楼顶与地面之间** —— 洞不会翻到楼顶外面去。
+//   · 地上的坑**涂土色而不是天空色**（原来地上也是个蓝洞，那显然不对）。
+//
+// ⚠ 调用时机也是修的一部分：必须夹在**楼之后、香蕉之前**（见 `Game::Draw`）。
+void holesDraw(int groundY, int scrH)
+{
+    int i;
+    int j;
+    int dy;
+    int y;
+    int hw;
+    int x0;
+    int x1;
+    int r;
+    int left;
+    int right;
+    int roof;
+    int onBldg;
+    int col;
+
+    i = 0;
+    while (i < holeN)
+    {
+        r = holeR[i];
+
+        // 这个坑开在**哪一栋楼**上？（一栋都没覆盖 ⇒ 是打在地上的坑）
+        onBldg = 0;
+        left = 0;
+        right = 0;
+        roof = groundY;
+        j = 0;
+        while (j < gBldgN)
+        {
+            if ((*BL[j]).Covers(holeX[i]))
+            {
+                onBldg = 1;
+                left = (*BL[j]).Left();
+                right = (*BL[j]).Right();
+                roof = (*BL[j]).RoofY();
+            }
+            j = j + 1;
+        }
+
+        dy = -r;
+        while (dy <= r)
+        {
+            y = holeY[i] + dy;
+            if (y >= 0 && y < scrH)
+            {
+                hw = isqrt(r * r - dy * dy);
+                x0 = holeX[i] - hw;
+                x1 = holeX[i] + hw;
+
+                if (onBldg != 0 && y >= roof && y < groundY)
+                {
+                    // 楼上的洞：**这一行的天空色**，横向夹进这栋楼
+                    if (x0 < left) { x0 = left; }
+                    if (x1 > right) { x1 = right; }
+                    if (x1 > x0)
+                    {
+                        clockPartsAt(y, groundY);
+                        col = clockPackParts();
+                        ui_rect(x0, y, x1 - x0, 1, col, 1, 0, 0);
+                    }
+                }
+                else if (y >= groundY)
+                {
+                    // 地上的坑：挖土
+                    if (x1 > x0) { ui_rect(x0, y, x1 - x0, 1, C_DIRT, 1, 0, 0); }
+                }
+            }
+            dy = dy + 1;
+        }
+        i = i + 1;
+    }
+}
 
 // ════════════════════════════════════════════════════════════════════
 // Ape —— 猴子（角度 / 力度 / 得分 / 朝哪边）
@@ -1233,12 +1361,24 @@ public:
 
     virtual void Draw()
     {
+        int d;
+        int bx;
+
         if (live == 0) { return; }
+
+        // ⚠ 朝向必须**按当前速度算**（`vx` 会被 `t % 90` 那个掉头翻转），
+        //   不能按出生时的 `dir`。原来整套图形是按"朝右"写死的（头在 x+4、喙在 x+7、
+        //   尾巴在 x-14）⇒ **掉头之后就是倒着飞**（玩家报的正是这个）。
+        d = 1;
+        if (vx < 0) { d = -1; }
+
         ui_circle(x, y, 6, 0xFF30343C, 1, 0);
-        ui_circle(x + 4, y - 4, 4, 0xFF30343C, 1, 0);
-        ui_rect(x + 7, y - 5, 4, 2, 0xFFFFC060, 1, 0, 0);
-        if (wob >= 0) { ui_line(x - 6, y, x - 14, y + 5, 0xFF50565E, 3); }
-        else { ui_line(x - 6, y, x - 14, y - 5, 0xFF50565E, 3); }
+        ui_circle(x + 4 * d, y - 4, 4, 0xFF30343C, 1, 0);
+        bx = x + 7;
+        if (d < 0) { bx = x - 11; }
+        ui_rect(bx, y - 5, 4, 2, 0xFFFFC060, 1, 0, 0);
+        if (wob >= 0) { ui_line(x - 6 * d, y, x - 14 * d, y + 5, 0xFF50565E, 3); }
+        else { ui_line(x - 6 * d, y, x - 14 * d, y - 5, 0xFF50565E, 3); }
     }
 };
 
@@ -1380,12 +1520,22 @@ public:
 
     virtual void Draw()
     {
+        int d;
+        int cx;
+
         if (live == 0) { return; }
+
+        // 与鸟同一个道理：座舱与尾翼都按**当前速度**镜像（原来写死朝右）
+        d = 1;
+        if (vx < 0) { d = -1; }
+
         ui_rect(x - 16, y - 3, 32, 6, 0xFFD8DEE6, 1, 0, 3);
-        ui_line(x - 2, y, x - 12, y - 10, 0xFFB8C0CC, 3);
-        ui_line(x + 2, y, x + 8, y - 9, 0xFFB8C0CC, 3);
-        ui_rect(x + 6, y - 2, 8, 5, 0xFF6FA8DC, 1, 0, 2);
-        if (lit != 0) { ui_circle(x - 14, y - 11, 2, 0xFFFF4040, 1, 0); }
+        ui_line(x - 2 * d, y, x - 12 * d, y - 10, 0xFFB8C0CC, 3);
+        ui_line(x + 2 * d, y, x + 8 * d, y - 9, 0xFFB8C0CC, 3);
+        cx = x + 6;
+        if (d < 0) { cx = x - 14; }
+        ui_rect(cx, y - 2, 8, 5, 0xFF6FA8DC, 1, 0, 2);
+        if (lit != 0) { ui_circle(x - 14 * d, y - 11, 2, 0xFFFF4040, 1, 0); }
     }
 };
 
@@ -2163,29 +2313,30 @@ public:
         cloudsDraw(sw, gy);
         meteorDraw(sw, gy);
 
+        // ── 顺序：**楼 → 凿洞 → 其余** ─────────────────────────────────
+        // ⚠ `actors[1..gBldgN]` 是楼，后面依次是猴子、香蕉。这个循环原先是一整趟跑完的，
+        //   于是弹坑只能画在**最后**，把香蕉也盖住了 —— 玩家说的
+        //   「被炸穿的地方还是会挡住香蕉」就是这么来的（香蕉是飞在半空的，
+        //   而坑是开在墙上的，墙在香蕉**后面**）。
         i = 1;
+        while (i <= gBldgN)
+        {
+            actors[i]->Draw();
+            i = i + 1;
+        }
+
+        holesDraw(gy, sh);          // 凿洞（见该函数的说明：逐行 + 横向夹进这栋楼）
+
         while (i < actorN)
         {
             actors[i]->Draw();
             i = i + 1;
         }
+
         bird.Draw();
         ufo.Draw();
         plane.Draw();
         // met.Draw();
-
-        // ── 弹坑：把炸掉的那块**涂回当地的天空色** ─────────────────────────
-        // ⚠ 位置很讲究：**在所有楼之后**（坑可能横跨两栋的交界，画在前会被后一栋盖掉）、
-        //   **在地面之前**（否则会把地面也啃掉一块）。
-        // ⚠ "涂回天空色"要问**这个 y 的天空色**（`clockPartsAt`）—— 天空是渐变的，
-        //   写死一个颜色会在楼中间留一块色不对的圆，而且只在某些时段看得出来。
-        i = 0;
-        while (i < holeN)
-        {
-            clockPartsAt(holeY[i], gy);
-            ui_circle(holeX[i], holeY[i], holeR[i], clockPackParts(), 1, 0);
-            i = i + 1;
-        }
 
         // 地面：白天是灰亮的街面，夜里压暗（与楼房同一套天光口径）
         ui_rect(0, gy, sw, sh - gy, mixcol(12, 12, 22, 74, 78, 86, gDayL), 1, 0, 0);

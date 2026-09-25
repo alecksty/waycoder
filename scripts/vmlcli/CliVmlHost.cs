@@ -161,6 +161,7 @@ internal sealed class CliVmlHost : IVmlHost
         var path = Path.Combine(_cfg.FramesDir, $"frame_{FramesWritten:D4}.png");
         FramesWritten++;
         TryWritePng(dsl, path);
+        DumpDsl(dsl);
     }
 
     /// <summary>
@@ -174,6 +175,14 @@ internal sealed class CliVmlHost : IVmlHost
     ///
     /// 返回 false = 没开过窗 / 没东西可画（纯文本程序的正常路径，不报错）。
     /// </summary>
+    /// <summary>`--dump-dsl`：把绘制流写出来（只在设了路径时才写）。</summary>
+    private void DumpDsl(string dsl)
+    {
+        if (_cfg.DumpDslPath is not { Length: > 0 } p) return;
+        try { File.WriteAllText(p, dsl); }
+        catch (Exception ex) { CliErr.WriteLine($"[vml-host] 导出绘制流失败：{ex.Message}"); }
+    }
+
     public bool RenderFrame(string path)
     {
         var scene = Runtime?.Scene();
@@ -181,6 +190,7 @@ internal sealed class CliVmlHost : IVmlHost
 
         var dsl = scene.PresentedDsl ?? (scene.FigureCount > 0 ? scene.BuildDsl() : null);
         if (string.IsNullOrWhiteSpace(dsl)) return false;
+        DumpDsl(dsl);
         return TryWritePng(dsl, path);
     }
 
@@ -698,6 +708,9 @@ internal sealed partial class CliOptions
     public string? FramePath { get; private set; }
     /// <summary>`--trace-draw <路径>`：把程序的**绘制调用**逐条写进文件（排查"画面为什么不对"）。</summary>
     public string? TraceDrawPath { get; private set; }
+
+    /// <summary>`--dump-dsl &lt;路径&gt;`：把最新呈现帧的 DSL 文本写出来。</summary>
+    public string? DumpDslPath { get; private set; }
     /// <summary>`--frames <目录>`：每个 `ui_present` 落一帧（看动画用）。</summary>
     public string? FramesDir { get; private set; }
     /// <summary>`--frames-max N`：帧数上限（默认 120，防死循环程序写满磁盘）。</summary>
@@ -724,6 +737,12 @@ internal sealed partial class CliOptions
                 return true;
             case "--trace-draw":
                 TraceDrawPath = Require(args, ref i, "--trace-draw");
+                return true;
+            case "--dump-dsl":
+                // 把**这一帧的绘制流**（DSL 文本）原样写出来。
+                // 排"某个指令没生效"时这是第一手证据 —— 一眼分清是**没发射**、
+                // **发射了但没解析**、还是**解析了但没画**（三种病因，修法完全不同）。
+                DumpDslPath = Require(args, ref i, "--dump-dsl");
                 return true;
             case "--frames":
                 FramesDir = Require(args, ref i, "--frames");
@@ -782,6 +801,7 @@ internal sealed partial class CliOptions
             ScreenHeight = ScreenHeight,
             FramePath = FramePath,
             TraceDrawPath = TraceDrawPath,
+            DumpDslPath = DumpDslPath,
             FramesDir = FramesDir,
             FramesMax = FramesMax,
             StorePath = StorePath,
@@ -806,6 +826,8 @@ internal sealed class CliHostConfig
     public string? FramePath;
     /// <summary>`--trace-draw <路径>`：绘制调用逐条落文件。</summary>
     public string? TraceDrawPath;
+    /// <summary>`--dump-dsl &lt;路径&gt;`：见上面同名属性。</summary>
+    public string? DumpDslPath;
     /// <summary>`--frames <目录>`：每个 `ui_present` 落一帧（看动画用）。</summary>
     public string? FramesDir;
     /// <summary>`--frames-max N`：帧数上限（防一个死循环程序写满磁盘）。</summary>

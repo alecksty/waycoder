@@ -29,6 +29,51 @@ public sealed class Canvas
 
     public byte[] ToPng() => PngEncoder.Encode(Width, Height, Pixels);
 
+    // ── 裁剪（DSL 的 `clip` / `clippop`，见 DrawEngine 的状态命令）──────────
+    //
+    // **只有一个矩形**：嵌套由调用方（`ClipCommand` 的 Rasterize）与上一级**求交**后
+    // 再设进来，画布这层不做栈 —— 栈在解析/遍历那一层，那里才知道"上一级是谁"。
+    //
+    // ⚠ 判据**只加在两处**：`SetPixel` 与 `BlendPixel`。它们是全画布**唯一的两个**
+    //   落笔点（`FillRect`/`FillCircle`/`DrawLine`/`FillPolygon`… 全部收敛到这里），
+    //   所以两条各一行就够 —— 千万别去逐个图元加，那是十几处、必然漏。
+    private readonly List<(int X0, int Y0, int X1, int Y1)> _clipStack = new();
+    private int _clipX0;
+    private int _clipY0;
+    private int _clipX1;
+    private int _clipY1;
+    private bool _clipped;
+
+    /// <summary>压入一个裁剪矩形（半开区间 [x0,x1) × [y0,y1)）—— **与当前一级求交**。</summary>
+    public void PushClip(int x0, int y0, int x1, int y1)
+    {
+        if (_clipStack.Count > 0)
+        {
+            var p = _clipStack[_clipStack.Count - 1];
+            if (x0 < p.X0) { x0 = p.X0; }
+            if (y0 < p.Y0) { y0 = p.Y0; }
+            if (x1 > p.X1) { x1 = p.X1; }
+            if (y1 > p.Y1) { y1 = p.Y1; }
+        }
+        _clipStack.Add((x0, y0, x1, y1));
+        ApplyClip();
+    }
+
+    /// <summary>弹出一级裁剪。</summary>
+    public void PopClip()
+    {
+        if (_clipStack.Count > 0) { _clipStack.RemoveAt(_clipStack.Count - 1); }
+        ApplyClip();
+    }
+
+    private void ApplyClip()
+    {
+        if (_clipStack.Count == 0) { _clipped = false; return; }
+        var c = _clipStack[_clipStack.Count - 1];
+        _clipX0 = c.X0; _clipY0 = c.Y0; _clipX1 = c.X1; _clipY1 = c.Y1;
+        _clipped = true;
+    }
+
     // ── 像素 ──
     /// <summary>
     /// 写像素（source-over 混合）。
@@ -43,6 +88,7 @@ public sealed class Canvas
     /// </summary>
     public void SetPixel(int x, int y, uint c)
     {
+        if (_clipped && (x < _clipX0 || x >= _clipX1 || y < _clipY0 || y >= _clipY1)) return;
         if (x < 0 || y < 0 || x >= Width || y >= Height) return;
         var i = (y * Width + x) * 4;
         var a = ColorUtil.A(c);
@@ -70,6 +116,7 @@ public sealed class Canvas
     /// <summary>带 alpha 覆盖率混合到既有像素（用于字形/线条抗锯齿）。coverage ∈ [0,1]。</summary>
     public void BlendPixel(int x, int y, uint c, double coverage)
     {
+        if (_clipped && (x < _clipX0 || x >= _clipX1 || y < _clipY0 || y >= _clipY1)) return;
         if (x < 0 || y < 0 || x >= Width || y >= Height || coverage <= 0) return;
         if (coverage >= 1) { SetPixel(x, y, c); return; }
         var i = (y * Width + x) * 4;

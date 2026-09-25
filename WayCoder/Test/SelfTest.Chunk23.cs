@@ -200,5 +200,13 @@ public static partial class SelfTest
         }
 
         public void MarkUnsupported(string kind, string? detail = null) => Unsupported.Add(kind);
+
+        /// <summary>压入过的裁剪矩形（按顺序），用于断言 `clip` 确实传到了后端。</summary>
+        public List<(double X, double Y, double W, double H)> Clips = new();
+        /// <summary>弹出次数 —— 与 `Clips.Count` 对不上就是"有 push 没 pop"（或反过来）。</summary>
+        public int ClipPops;
+
+        public void PushClip(double x, double y, double w, double h) => Clips.Add((x, y, w, h));
+        public void PopClip() => ClipPops++;
     }
 }

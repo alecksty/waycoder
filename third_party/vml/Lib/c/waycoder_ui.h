@@ -172,6 +172,32 @@ void ui_line(int x1, int y1, int x2, int y2, int color, int lw);
 void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius);
 void ui_circle(int cx, int cy, int r, int color, int fill, int lw);
 void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);
+
+/* ── 绘图状态：裁剪 / 透明度（`ui_gfx`，SYSCALL #595）─────────────────────
+ *
+ * **一个号做多路复用**（宿主认的号段 500–599 到 594 只剩 595–599 五个，
+ * 而状态操作有八九个）。目前实现三个操作，蒙版/图层留号未实现
+ * （所以也**没有**对应声明 —— 正常写法碰不到"写了没生效"那种事）。
+ *
+ * 裁剪是**可嵌套**的：每次 push 与上一级**求交**，pop 恢复上一级。
+ * 用处：只让内容画在某个框里（HUD 面板、滚动视图、异形窗口、
+ * 以及在墙上凿一个真正的洞 —— 后者不必再靠"逐行盖色"模拟）。
+ *
+ * ⚠ `ui_alpha` 只影响**形状的填充与描边**：它是在宿主把颜色写进绘制流时
+ *   乘进 alpha 通道的，而**渐变与图片**的颜色不走那条路 ⇒ 不受它影响。
+ *   要么等将来做成真正的图层混合，要么这两样别指望它。
+ */
+int ui_clip_push(int x, int y, int w, int h);   /* 压入一级矩形裁剪 */
+int ui_clip_pop(void);                         /* 弹出一级（没有可弹的就什么都不做）*/
+int ui_alpha(int v);                           /* 全局透明度 0..255（对之后的图元生效）*/
+
+/* 释放**本窗口累积的全部画刷/渐变定义**。
+ *
+ * ⚠ 画刷句柄就是内部表的下标 ⇒ 删单个会让后面的句柄错位，所以只能整体重置。
+ *   按需造渐变的程序应当**每帧开头调一次**（否则定义会一直累积到上限）。
+ *   图像与图块**不受影响** —— 它们各有按句柄的释放（见 ui_free_image / ui_free_block）。
+ *   重置后旧的 `@名字` 引用解析不到，按既有约定**退化成纯色**（不会崩）。 */
+int ui_brush_reset(void);
 void ui_icon(int x, int y, char* name, int size, int color);
 void ui_image(int x, int y, char* path, int w, int h);
 void ui_present(void);

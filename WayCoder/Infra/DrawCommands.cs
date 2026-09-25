@@ -1304,12 +1304,116 @@ internal sealed partial class ImageCommand : IDrawCommand
     }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// 状态类指令（`clip` / `clippop` / `alpha`）
+//
+// ⚠ 它们**不是图元**，是"从这一条往后有效"的**状态**。之所以能做成普通指令：
+//   三条输出路径（Rasterize / Vector / EmitSvg）都是**顺序遍历** `doc.Figures`，
+//   于是"改一下当前状态"这件事天然成立 —— SVG 那边正好映射成嵌套 `<g>`。
+//
+// ⚠ 状态**不放在指令对象里**（`IDrawCommand` 是单例）：放进去会跨帧、跨文档串味。
+//   裁剪的栈放在 `Canvas` 上（它本来就与一次渲染同生命周期）；
+//   矢量后端同理放在 target 上。
+// ════════════════════════════════════════════════════════════════════
+
+/// <summary>`clip x y w h` —— 压入一级矩形裁剪，与上一级**求交**。</summary>
+internal sealed class ClipCommand : IDrawCommand
+{
+    public string Name => "clip";
+
+    public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
+    {
+        if (a.Count < 4) return null;
+        var f = new DrawFigure { Kind = "clip" };
+        for (int i = 0; i < 4; i++) f.Args.Add(DrawParse.Num(a[i]));
+        return f;
+    }
+
+    public void Rasterize(Canvas c, DrawFigure f)
+    {
+        // ⚠⚠ **必须过一遍 `f.Transform`** —— 这是个很容易漏、且症状指错方向的地方：
+        //   出图默认走 `DrawRunner.ToPngAntialiased`（DSL 里有 `antialias` 就是它），
+        //   它在**放大 s 倍**的画布上把每个图元按 `Scale(s,s)` 重画一遍再降采样。
+        //   裁剪矩形不过变换 ⇒ 落在**未缩放**的坐标系里（3 倍画布上只裁到 1/3 的位置），
+        //   表现为"裁剪一开，里面的东西全没了"—— 看着像裁剪逻辑写错，其实是坐标系没对齐。
+        //   判据与 `RectCommand` **同一处**（`DrawFill.TryScaled`），不另写一套。
+        double x0 = f.Args[0], y0 = f.Args[1];
+        double x1 = x0 + f.Args[2], y1 = y0 + f.Args[3];
+        if (DrawFill.TryScaled(f.Transform, out var sc, out var tx, out var ty))
+        {
+            x0 = tx + x0 * sc; y0 = ty + y0 * sc;
+            x1 = tx + x1 * sc; y1 = ty + y1 * sc;
+        }
+        c.PushClip((int)Math.Round(x0), (int)Math.Round(y0),
+                   (int)Math.Round(x1), (int)Math.Round(y1));
+    }
+
+    public void Vector(IVectorTarget t, DrawFigure f)
+        => t.PushClip(f.Args[0], f.Args[1], f.Args[2], f.Args[3]);
+
+    // SVG 允许 `<defs>` 出现在正文任意位置 ⇒ 就地发一份 clipPath 再开一个 `<g>`，
+    // 不必回头改 `<defs>` 那一遍（那一遍需要先扫全文档，代价更大）。
+    public void EmitSvg(StringBuilder sb, DrawFigure f)
+    {
+        string id = "clipg" + (NextClipId++);
+        sb.Append("  <defs><clipPath id=\"").Append(id).Append("\"><rect x=\"").Append(DrawParse.F(f.Args[0]))
+          .Append("\" y=\"").Append(DrawParse.F(f.Args[1]))
+          .Append("\" width=\"").Append(DrawParse.F(f.Args[2]))
+          .Append("\" height=\"").Append(DrawParse.F(f.Args[3])).Append("\"/></clipPath></defs>\n");
+        sb.Append("  <g clip-path=\"url(#").Append(id).Append(")\">\n");
+    }
+
+    internal static int NextClipId;
+}
+
+/// <summary>`clippop` —— 弹出一级裁剪。</summary>
+internal sealed class ClipPopCommand : IDrawCommand
+{
+    public string Name => "clippop";
+
+    public DrawFigure? Parse(IReadOnlyList<DrawToken> a) => new DrawFigure { Kind = "clippop" };
+    public void Rasterize(Canvas c, DrawFigure f) => c.PopClip();
+    public void Vector(IVectorTarget t, DrawFigure f) => t.PopClip();
+    public void EmitSvg(StringBuilder sb, DrawFigure f) => sb.Append("  </g>\n");
+}
+
+/// <summary>
+/// `alpha v` —— 全局透明度 0..255。
+///
+/// ⚠ 这一条**不走后端**：宿主在把颜色写进 DSL 时就把它乘进 alpha 通道了
+///   （见 `VmlScene.Style`）。所以它对本条之后的**形状填充/描边**立即生效，
+///   而**渐变与图片**不受影响 —— 那两样的颜色不经过 `Style`。
+///   这条限制写在 `docs/VML宿主接口.md` 里，别指望它。
+/// </summary>
+internal sealed class AlphaCommand : IDrawCommand
+{
+    public string Name => "alpha";
+
+    public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
+    {
+        if (a.Count < 1) return null;
+        var f = new DrawFigure { Kind = "alpha" };
+        f.Args.Add(DrawParse.Num(a[0]));
+        return f;
+    }
+
+    // 已经在宿主侧烘焙进颜色了，三条路径都无事可做。
+    // **保留成显式空实现而不是"不注册"**：注册了它才是一个**认得出**的指令，
+    // 不至于在解析时被当成未知指令默默丢掉（那种"写了但没生效"最难查）。
+    public void Rasterize(Canvas c, DrawFigure f) { }
+    public void Vector(IVectorTarget t, DrawFigure f) { }
+    public void EmitSvg(StringBuilder sb, DrawFigure f) { }
+}
+
 /// <summary>内置指令自动注册（AOT 无反射，随模块加载执行）。</summary>
 internal static class DrawCommandInit
 {
     [System.Runtime.CompilerServices.ModuleInitializer]
     internal static void Init()
     {
+        DrawCommandRegistry.Register(new ClipCommand());
+        DrawCommandRegistry.Register(new ClipPopCommand());
+        DrawCommandRegistry.Register(new AlphaCommand());
         DrawCommandRegistry.Register(new RectCommand());
         DrawCommandRegistry.Register(new RoundRectCommand());
         DrawCommandRegistry.Register(new CircleCommand());

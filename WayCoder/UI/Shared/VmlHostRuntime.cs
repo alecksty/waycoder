@@ -475,6 +475,10 @@ public sealed class VmlHostRuntime
                 // 读像素（BASIC 的 `PUT …, XOR` 要用）。**与 CALLJSON 的 `pixel` 同一个实现**。
                 case VmlUi.DrawGetPixel: registers[0] = ReadPixelRgb(registers[0], registers[1]); break;
                 case VmlUi.DrawLine: Scene()?.AddLine(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5]); TouchScene(); break;
+                // ── 绘图状态（裁剪 / 透明度）────────────────────────────────
+                // `ui_gfx(op, a, b, c, d)`。⚠ 多路复用一个号的理由见 `VmlUi.GfxState` 的注释
+                // （宿主号段 500–599 只剩 595–599，而状态操作有八九个）。
+                case VmlUi.GfxState: GfxState(registers); break;
                 case VmlUi.DrawRect: Scene()?.AddRect(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.DrawCircle: Scene()?.AddCircle(registers[0], registers[1], registers[2], (uint)registers[3], registers[4] != 0, registers[5]); TouchScene(); break;
                 case VmlUi.DrawEllipse: Scene()?.AddEllipse(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6]); TouchScene(); break;
@@ -1139,6 +1143,37 @@ public sealed class VmlHostRuntime
     }
 
     /// <summary>多边形 / 折线：点数组是内存里的 **int32 的 x,y 对**。</summary>
+    /// <summary>
+    /// `ui_gfx(op, a, b, c, d)` —— 绘图状态。见 <see cref="VmlUi.GfxState"/>。
+    ///
+    /// ⚠ **未实现的操作返回 0 并什么都不做**，但头文件里没有对应声明 ⇒ 正常写法碰不到。
+    ///   这里不抛异常：宿主 syscall 处理器抛出去会把 VM 打挂，而程序那边只看到"窗口没了"
+    ///   （与 `VmlJsonApi.Invoke` 那条约定同源）。
+    /// </summary>
+    private void GfxState(int[] r)
+    {
+        switch (r[0])
+        {
+            case VmlUi.GfxOp.ClipPush:
+                Scene()?.AddClipPush(r[1], r[2], r[3], r[4]);
+                break;
+            case VmlUi.GfxOp.ClipPop:
+                Scene()?.AddClipPop();
+                break;
+            case VmlUi.GfxOp.Alpha:
+                Scene()?.SetAlpha(r[1]);
+                break;
+            case VmlUi.GfxOp.BrushReset:
+                Scene()?.ResetBrushes();
+                break;
+            default:
+                r[0] = 0;   // 未实现：如实返回 0，别假装成功
+                return;
+        }
+        TouchScene();
+        r[0] = 1;
+    }
+
     private void DrawPolyline(int[] r, byte[] mem, bool close)
     {
         var count = r[1];

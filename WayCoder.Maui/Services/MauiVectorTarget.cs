@@ -72,6 +72,18 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     public void MarkUnsupported(string kind, string? detail = null) => _unsupported.Add(kind);
 
+    // ── 裁剪 ───────────────────────────────────────────────────────────────
+    // 平台画布自己就有裁剪栈，直接借它的 `SaveState`/`RestoreState` 配对 ——
+    // **不要自己再维护一份矩形栈**：平台的裁剪跟它的变换是一体的，
+    // 自己算一份等于把"哪一级压了多少"记两遍，迟早对不上。
+    public void PushClip(double x, double y, double w, double h)
+    {
+        _canvas.SaveState();
+        _canvas.ClipRectangle((float)x, (float)y, (float)w, (float)h);
+    }
+
+    public void PopClip() => _canvas.RestoreState();
+
     // ── 填充 / 描边 ────────────────────────────────────────────────────────
 
     public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
