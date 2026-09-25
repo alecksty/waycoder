@@ -159,6 +159,11 @@ static int holeY[MAX_HOLE];
 static int holeR[MAX_HOLE];
 static int holeN;
 
+// 画蒙版用的**临时**洞表：钳制 + 合并之后的圆（见 `Game::Draw` 里那段说明）。
+static int mhx[MAX_HOLE];
+static int mhy[MAX_HOLE];
+static int mhr[MAX_HOLE];
+
 void clearHoles()
 {
     holeN = 0;
@@ -937,8 +942,9 @@ public:
 /// 不该从楼里透出天空）。
 ///
 /// ⚠ 抽成函数是因为"墙上的洞"现在**有两个消费者**：挖洞的蒙版（建筑层）与
-///   洞口的断面（墙厚 / 受光边）。各写一遍就是"同一规则两处实现" ——
+///   挖洞的蒙版（建筑层）与地上那批坑的分流。各写一遍就是"同一规则两处实现" ——
 ///   哪天判据一改，必有一处忘了跟。
+///   （原先还有第三个消费者"洞口的断面"，那个已经删了 —— 见 `Game::Draw` 里那段说明。）
 /// </summary>
 static int HoleOnBldg(int hi, int k, int groundY)
 {
@@ -967,6 +973,72 @@ int isqrt(int v)
         y = (x + v / x) / 2;
     }
     return x;
+}
+
+/// 把一个洞**钳制**进楼的范围（圆心在楼内、圆整个在 [楼顶, 地面) 里）。
+///
+/// ⚠ 这是为了让"楼 − 洞"能被**矢量后端折叠成一条路径**。折叠不成立时整个窗口会退回
+///   光栅后端 —— 画面立刻变糊、帧率从几十掉到 6（真机实测 6.2fps）。
+///   洞一旦探出楼外，"楼外那块洞"在 even-odd 下只穿过一次 ⇒ 被判成**内部**
+///   ⇒ 画出一块不该有的肉，所以宿主的折叠判据只能**拒**。
+///
+/// ⚠ 楼比洞还窄/还矮时先把半径压到"装得下" —— 否则下面两组钳制条件会互相矛盾
+///   （左边推右、右边推左），圆照样探出去。
+static void ClampHoleToBuilding(int* px, int* py, int* pr,
+                                int left, int right, int roofY, int groundY)
+{
+    int x = *px;
+    int y = *py;
+    int r = *pr;
+
+    // ⚠ **优先缩半径、保住圆心**。
+    //   圆心是"炸在哪"的忠实记录 —— 玩家看得出弹着点，**洞挪了地方比洞小一圈刺眼得多**
+    //   （第一版直接钳圆心，玩家的原话是"剪切的洞位置有点怪"）。
+    //   圆心到楼四边（各留 1px）的最小距离，就是半径能取的上限。
+    int lim = x - (left + 1);
+    if (y - (roofY + 1) < lim) { lim = y - (roofY + 1); }
+    if ((right - 1) - x < lim) { lim = (right - 1) - x; }
+    if ((groundY - 1) - y < lim) { lim = (groundY - 1) - y; }
+
+    if (lim >= 3)
+    {
+        // 装得下（哪怕是缩到最小半径）⇒ **只缩半径，圆心一动不动**
+        if (r > lim) { r = lim; }
+    }
+    else
+    {
+        // 圆心离楼边太近，连 r=3 都放不下（贴着墙角炸）⇒ 这才退而求其次**挪圆心**
+        r = 3;
+        if (x - r < left + 1) { x = left + 1 + r; }
+        if (x + r > right - 1) { x = right - 1 - r; }
+        if (y - r < roofY + 1) { y = roofY + 1 + r; }
+        if (y + r > groundY - 1) { y = groundY - 1 - r; }
+    }
+
+    *px = x;
+    *py = y;
+    *pr = r;
+}
+
+/// 两个圆合并成**包含它们的最小圆**（同心的那种包含关系直接取大的）。
+///
+/// ⚠ 为什么必须合并：折叠"楼 − 洞"要求**洞与洞互不重叠** —— 重叠处在 even-odd 下
+///   会被填实（NonZero 也一样，这是"一条路径 + 填充规则"的数学限制，绕不过去）。
+///   而观感上合并反而更对：炸得太密，破洞本来就该连成一片。
+static void MergeHoles(int ax, int ay, int ar, int bx, int by, int br,
+                       int* ox, int* oy, int* orr)
+{
+    int dx = bx - ax;
+    int dy = by - ay;
+    int d = isqrt(dx * dx + dy * dy);
+    if (d + br <= ar) { *ox = ax; *oy = ay; *orr = ar; return; }   // a 已经把 b 包住了
+    if (d + ar <= br) { *ox = bx; *oy = by; *orr = br; return; }   // b 把 a 包住了
+    int R = (d + ar + br) / 2;
+    if (d == 0) { *ox = ax; *oy = ay; *orr = R; return; }
+    int t = R - ar;                       // 新圆心沿 a→b 方向走这么远
+    *ox = ax + dx * t / d;
+    *oy = ay + dy * t / d;
+    *orr = R;
 }
 
 // ── 弹坑：**在墙上真正凿一个洞**（而不是盖一个天空色的圆）──────────────
@@ -2488,6 +2560,16 @@ public:
         int onBldg;         // 这个弹坑是不是开在楼上（见 `HoleOnBldg`）
         int k;
         int j;
+        int hx;             // 画洞蒙版时的**钳制后**圆心/半径（见那段注释）
+        int hy;
+        int hr;
+        int hn;             // 本楼有几个洞（合并之后）
+        int changed;        // 合并循环：这一趟有没有合并过
+        int a;
+        int b2;
+        int ddx;
+        int ddy;
+        int dd;
 
         // ⚠ **每帧的第一件事**：把这一刻的天光 / 暖色 / 日月位置算出来。
         //   后面每一处配色（天、楼、窗、地、云、弹坑）都读它算出来的那几个全局量。
@@ -2563,15 +2645,72 @@ public:
             // 没有洞就别开那一段（`SUBTRACT` 空集本来是合法的，但少一段就少一次逐点判定）
             if (onBldg > 0)
             {
-                ui_mask_begin();
+                // ── 先把本楼的洞收进一个临时表，**钳制进楼、再合并重叠的** ──────────
+                //
+                // 这两步都是为了让"楼 − 洞"能被矢量后端**折叠成一条路径**。折叠不成立时
+                // 整个窗口会退回光栅后端 —— 画面立刻变糊、帧率从几十掉到 6（实测 6.2fps）。
+                //
+                // ① **钳制**：折叠要求每个洞整个落在楼里。洞一旦探出楼外，
+                //    "楼外那块洞"在 even-odd 下只穿过一次 ⇒ 被判成**内部** ⇒ 画出一块不该有的肉。
+                // ② **合并**：折叠要求洞与洞互不重叠 —— 重叠处同样会被 even-odd 填实。
+                //    这条在数学上绕不过去（NonZero 也一样），只能**不让它重叠**。
+                //    ⚠ 观感上反而更对：炸得太密，破洞本来就该连成一片。
+                hn = 0;
                 j = 0;
                 while (j < holeN)
                 {
                     if (HoleOnBldg(j, k, gy) != 0)
                     {
-                        ui_circle(holeX[j], holeY[j], holeR[j], 0xFFFFFFFF, 1, 0);
+                        hx = holeX[j]; hy = holeY[j]; hr = holeR[j];
+                        ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left(), (*BL[k]).Right(),
+                                            (*BL[k]).RoofY(), gy);
+                        mhx[hn] = hx; mhy[hn] = hy; mhr[hn] = hr;
+                        hn = hn + 1;
                     }
                     j = j + 1;
+                }
+                // 反复合并，直到没有一对重叠（合并会造出更大的圆，可能又压到别人）
+                changed = 1;
+                while (changed != 0)
+                {
+                    changed = 0;
+                    a = 0;
+                    while (a < hn)
+                    {
+                        b2 = a + 1;
+                        while (b2 < hn)
+                        {
+                            ddx = mhx[b2] - mhx[a];
+                            ddy = mhy[b2] - mhy[a];
+                            dd = isqrt(ddx * ddx + ddy * ddy);
+                            if (dd < mhr[a] + mhr[b2])          // 重叠（**相切不算**，见宿主那条判据）
+                            {
+                                MergeHoles(mhx[a], mhy[a], mhr[a], mhx[b2], mhy[b2], mhr[b2],
+                                           &hx, &hy, &hr);
+                                // 合并出来的圆可能探出楼外 ⇒ 再钳一次
+                                ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left(), (*BL[k]).Right(),
+                                                    (*BL[k]).RoofY(), gy);
+                                mhx[a] = hx; mhy[a] = hy; mhr[a] = hr;
+                                // 把最后一个搬到 b2 的位置（顺序无所谓）
+                                hn = hn - 1;
+                                mhx[b2] = mhx[hn]; mhy[b2] = mhy[hn]; mhr[b2] = mhr[hn];
+                                changed = 1;
+                            }
+                            else
+                            {
+                                b2 = b2 + 1;
+                            }
+                        }
+                        a = a + 1;
+                    }
+                }
+
+                ui_mask_begin();
+                a = 0;
+                while (a < hn)
+                {
+                    ui_circle(mhx[a], mhy[a], mhr[a], 0xFFFFFFFF, 1, 0);
+                    a = a + 1;
                 }
                 ui_mask_end2(VML_MASK_SUBTRACT);
             }
@@ -2583,30 +2722,18 @@ public:
             k = k + 1;
         }
 
-        // ── 洞口的断面：内壁一圈暗色（墙厚）+ 左上受光一线 ──────────────
-        // ⚠ 画在楼**之上**（所以不受蒙版约束，洞沿才有"翻起来的边"），
-        //   但仍在**精灵之下** —— 香蕉飞过洞口时该盖住它。
-        i = 0;
-        while (i < holeN)
-        {
-            onBldg = 0;
-            k = 0;
-            while (k < gBldgN)
-            {
-                if (HoleOnBldg(i, k, gy) != 0) { onBldg = 1; }
-                k = k + 1;
-            }
-            if (onBldg != 0)
-            {
-                // 内壁压一圈暗色 ⇒ 有"墙厚"，不然还是像贴纸。
-                // ⚠ **要细、要淡** —— 先前是 width 3、60% 黑，在 r=16 的洞上几乎把洞填满，
-                //   读出来是"一团黑"而不是"透过去看见了天空"。现在是 2px、35% 黑。
-                ui_circle(holeX[i], holeY[i], holeR[i] + 1, 0x59000000, 0, 2);
-                // 外缘受光一线（左上那半圈），破口才有"翻起来的边"的观感
-                ui_circle(holeX[i] - 1, holeY[i] - 1, holeR[i], 0x40FFFFFF, 0, 1);
-            }
-            i = i + 1;
-        }
+        // ── 洞口的断面：**不画了**（玩家："炸完了怎么还留下一个圆环？"）────────
+        //
+        // 这里原先描两圈：内壁一圈暗色（"墙厚"）+ 左上受光一线（"翻起来的边"）。
+        // 那是**"洞里涂天空色"那个年代的补丁** —— 当时洞和楼的边界靠这一圈才分得开，
+        // 不然读出来像一张贴上去的圆纸片。
+        //
+        // 现在洞是**真的挖掉了**（建筑层 = 楼 − 洞），洞沿**天然就是楼的边界**：
+        // 一边是楼体色、一边是透出来的天空，对比本来就够。再套一圈就成了
+        // "炸穿的洞"上额外挂的一圈装饰 —— 玩家一眼看出来不对。
+        //
+        // ⚠ 洞的边界**不需要**任何描边来"帮助识别"。真觉得糊（比如楼色与天空接近），
+        //   那要调的是**楼的配色**，不是给洞加圈。
 
         holesDraw(gy, sh);          // 地上的坑（挖土）
 

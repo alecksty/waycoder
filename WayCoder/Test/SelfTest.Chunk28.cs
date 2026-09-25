@@ -1535,6 +1535,28 @@ public static partial class SelfTest
         Check("矢量折叠：单段形状重叠 ⇒ 允许（NonZero 天然是并集）",
             fold3 != null && !fold3.Value.EvenOdd && fold3.Value.Subpaths.Count == 2);
 
+        // ⚠ **两个挨着但不相碰的圆洞必须能折叠** —— 这正是 gorilla 的日常情形
+        //   （香蕉炸出来的洞常常挨得很近）。用**包围盒**判"洞与洞重叠"会把它们误拒，
+        //   于是**几乎每一帧都退回光栅** —— 玩家直接看出来"画面怎么变成光栅了"。
+        //   两个圆 r=30、圆心距 61 ⇒ 不相碰，但包围盒必然相交。
+        var nearMiss = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 200, 200) }),
+                                   (MaskOp.Subtract, new[] { MaskShape.Circle(60, 100, 30),
+                                                             MaskShape.Circle(121, 100, 30) }));
+        Check("矢量折叠：两个挨着但不相碰的洞 ⇒ 能折叠（gorilla 的日常情形）",
+            nearMiss.ToClipPath() != null);
+
+        // 真的重叠（圆心距 50 < 60）⇒ 仍然拒（even-odd 下重叠区会被填实）
+        var reallyOverlap = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 200, 200) }),
+                                       (MaskOp.Subtract, new[] { MaskShape.Circle(60, 100, 30),
+                                                                 MaskShape.Circle(110, 100, 30) }));
+        Check("矢量折叠：真的重叠的洞 ⇒ 仍然拒", reallyOverlap.ToClipPath() == null);
+
+        // 相切（圆心距恰好 60）= 不算重叠 —— "差一点点就拒"会让刚好挨着的洞永远走光栅
+        var tangent = Build(true, (MaskOp.Replace, new[] { MaskShape.Rect(0, 0, 200, 200) }),
+                                 (MaskOp.Subtract, new[] { MaskShape.Circle(60, 100, 30),
+                                                           MaskShape.Circle(120, 100, 30) }));
+        Check("矢量折叠：相切的洞 ⇒ 算能折叠（切点面积为零）", tangent.ToClipPath() != null);
+
         var inter2 = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Intersect, new[] { boxB }));
         var xor2 = Build(true, (MaskOp.Replace, new[] { boxA }), (MaskOp.Xor, new[] { boxB }));
         Check("矢量折叠：INTERSECT / XOR 拒绝（要真正的路径布尔）",

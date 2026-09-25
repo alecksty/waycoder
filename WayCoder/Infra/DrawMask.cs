@@ -244,6 +244,16 @@ public sealed class MaskExpr
     /// <summary>真 = 只在蒙版**里面**画；假 = 只在**外面**画。</summary>
     public bool Inside = true;
 
+    /// <summary>
+    /// 上一次 <see cref="ToClipPath"/> **折叠失败的原因**（诊断用，成功时是空串）。
+    ///
+    /// ⚠ 它是被<strong>实际排查</strong>逼出来的：六个失败点原先都只会让调用方
+    /// `MarkUnsupported("mask-bool")` —— 而那句笼统的话在设备日志里
+    /// 和"洞重叠""洞探出底""运算符不支持"长得一模一样，只能靠猜。
+    /// 那次为此多打了一个 APK 去定位。**失败要给得出原因**。
+    /// </summary>
+    public string FoldFailure = "";
+
     public readonly List<Segment> Segments = new();
 
     /// <summary>
@@ -269,36 +279,40 @@ public sealed class MaskExpr
     /// </summary>
     public (List<List<double>> Subpaths, bool EvenOdd)? ToClipPath()
     {
-        if (IsEmpty) return null;
+        FoldFailure = "";
+        if (IsEmpty) { FoldFailure = "空蒙版"; return null; }
 
         if (Segments.Count == 1)
         {
             var subs = new List<List<double>>();
             foreach (var s in Segments[0].Shapes) subs.Add(s.ToSubpath());
-            return subs.Count == 0 ? null : (subs, false);
+            if (subs.Count == 0) { FoldFailure = "段里没有形状"; return null; }
+            return (subs, false);
         }
 
         // 多段：只认 [A, SUBTRACT…]
         for (int i = 1; i < Segments.Count; i++)
         {
-            if (Segments[i].Op != MaskOp.Subtract) return null;
+            if (Segments[i].Op != MaskOp.Subtract)
+            { FoldFailure = "含 SUBTRACT 以外的运算符（只有单段或[底,减…]能折叠）"; return null; }
         }
 
         var baseShapes = Segments[0].Shapes;
-        if (baseShapes.Count == 0) return null;
+        if (baseShapes.Count == 0) { FoldFailure = "底那一段没有形状"; return null; }
 
         // ③a 底形状之间不能重叠（even-odd 下重叠区会被挖掉，那不是并集）
         for (int i = 0; i < baseShapes.Count; i++)
         {
             for (int j = i + 1; j < baseShapes.Count; j++)
             {
-                if (Overlaps(baseShapes[i].Box(), baseShapes[j].Box())) return null;
+                if (ShapesOverlap(baseShapes[i], baseShapes[j]))
+                { FoldFailure = "底形状之间重叠"; return null; }
             }
         }
 
         var holes = new List<MaskShape>();
         for (int i = 1; i < Segments.Count; i++) holes.AddRange(Segments[i].Shapes);
-        if (holes.Count == 0) return null;
+        if (holes.Count == 0) { FoldFailure = "没有洞（纯底不该走多段）"; return null; }
 
         var baseBox = baseShapes[0].Box();
         for (int i = 1; i < baseShapes.Count; i++)
@@ -313,7 +327,8 @@ public sealed class MaskExpr
         {
             var b = h.Box();
             if (b.MinX < baseBox.MinX || b.MinY < baseBox.MinY ||
-                b.MaxX > baseBox.MaxX || b.MaxY > baseBox.MaxY) return null;
+                b.MaxX > baseBox.MaxX || b.MaxY > baseBox.MaxY)
+            { FoldFailure = "有洞探出底之外"; return null; }
         }
 
         // ③b 洞与洞之间不重叠
@@ -321,7 +336,8 @@ public sealed class MaskExpr
         {
             for (int j = i + 1; j < holes.Count; j++)
             {
-                if (Overlaps(holes[i].Box(), holes[j].Box())) return null;
+                if (ShapesOverlap(holes[i], holes[j]))
+                { FoldFailure = "洞与洞重叠"; return null; }
             }
         }
 
@@ -335,6 +351,30 @@ public sealed class MaskExpr
     private static bool Overlaps((double MinX, double MinY, double MaxX, double MaxY) a,
                                  (double MinX, double MinY, double MaxX, double MaxY) b)
         => a.MinX < b.MaxX && b.MinX < a.MaxX && a.MinY < b.MaxY && b.MinY < a.MaxY;
+
+    /// <summary>
+    /// 两个形状**真的**相交吗？（<see cref="ToClipPath"/> 里"洞与洞不能重叠""底形状不能重叠"用）
+    ///
+    /// ⚠ **不能拿包围盒顶替**。这条判据的误判方向是"拒"，而拒的代价是**整帧退回光栅**：
+    ///   gorilla 的洞是香蕉炸出来的、常常挨得很近，两个**不相碰**的洞包围盒也会相交
+    ///   ⇒ 几乎每一帧都被拒 ⇒ 玩家直接看出来"画面怎么变成光栅了"。
+    ///
+    /// 只对**能精确判定**的组合给精确答案（圆×圆、矩形×矩形），其余退回包围盒 ——
+    /// 保守方向不变（宁可拒、不可错），但把最常见的那两种从误伤里摘出来。
+    /// </summary>
+    private static bool ShapesOverlap(MaskShape a, MaskShape b)
+    {
+        if (a.Kind == MaskShape.KindCircle && b.Kind == MaskShape.KindCircle)
+        {
+            // 圆×圆：圆心距 < 半径和才算重叠。**相切不算** —— even-odd 下切点面积为零，
+            // 而"差一点点就拒"会让"两个刚好挨着的洞"永远走光栅。
+            double dx = a.A - b.A, dy = a.B - b.B, rr = a.C + b.C;
+            return dx * dx + dy * dy < rr * rr;
+        }
+        if (a.Kind == MaskShape.KindRect && b.Kind == MaskShape.KindRect)
+            return Overlaps(a.Box(), b.Box());      // 轴对齐矩形：包围盒就是精确判定
+        return Overlaps(a.Box(), b.Box());          // 其余（圆×矩形、多边形…）保守处理
+    }
 
     /// <summary>
     /// 收一段进段列表：`Replace` 清掉历史，其余**追加**（左结合链，见类注释）。

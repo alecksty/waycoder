@@ -1455,7 +1455,7 @@ internal sealed class MaskCommand : IDrawCommand
         //   整窗回退光栅（画面是对的，代价白白付了），而这一步只有端到端用例才照得出来。
         if (m == null || m.IsEmpty) { t.PopMask(); return; }
         var folded = m.ToClipPath();
-        if (folded == null) { t.MarkUnsupported("mask-bool"); return; }
+        if (folded == null) { t.MarkUnsupported("mask-bool:" + m.FoldFailure); return; }
         t.PushMask(folded.Value.Subpaths, folded.Value.EvenOdd);
     }
 
