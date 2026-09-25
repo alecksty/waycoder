@@ -733,6 +733,45 @@ namespace CppCompiler
                 dataSection[label] = zeros.ToArray();
                 _globalArrays.Add(vd.Name);
             }
+            else if (_classes.TryGetValue(CleanType(vd.Type), out var gcls))
+            {
+                // ── **全局对象**：`static Clock gclk;` 这类 ─────────────────────
+                //
+                // ⚠⚠ 原先它落到下面那个兜底 `dataSection[label] = 0` ⇒ **只占 1 个 word**，
+                //   而类可能有几十个字段 ⇒ 对字段的每一次写都**越过自己那块**、
+                //   踩到**紧挨着的下一个全局量**上。
+                //
+                //   实测（gorilla.cpp 的 `static ClockProbe gcp;`，3 个字段）：
+                //     var_gcp:    .word 0      ← 只 1 格
+                //     var_gHour:  .word 7      ← 被 gcp.phour 踩掉
+                //     var_gMinute:.word 30     ← 被 gcp.pminute 踩掉
+                //     var_gDayL:  .word 0      ← 被 gcp.pday 踩掉
+                //   症状是"调用全局对象的方法之后，**别的**全局量莫名其妙变成 0"，
+                //   而那个方法本身完全正确 —— 这与 OPEN #18 追了很多轮的表现一致
+                //   （先前一直从"类 / 方法 / 字段"的角度找，其实**问题在分配**）。
+                //
+                //   口径与局部对象、成员对象**同源**：都用 `ClassSizeDeep`
+                //   （含基类子对象、含 vptr）—— 本仓记过多次"分配与访问必须同源"。
+                int gwords = Math.Max(1, ClassSizeDeep(gcls.Name) / 4);
+                if (gwords == 1)
+                {
+                    // 只有一个 word 的对象（无字段的类）没必要开数组
+                    dataSection[label] = ClassHasVirtualDeep(gcls.Name)
+                        ? new object[] { new LabelRef($"{gcls.Name}_typeid") }
+                        : (object)0;
+                }
+                else
+                {
+                    var cells = new object[gwords];
+                    // ⚠ **vptr 直接写进数据段**（`LabelRef` 由链接器解析成 `{类}_typeid` 的地址）。
+                    //   不能靠"顶层指令流"去写 —— 那一段根本不执行（本仓记过：
+                    //   顶层生成的 `MOVE [var_x], R0` 落在任何函数体之外，永远跑不到）。
+                    if (ClassHasVirtualDeep(gcls.Name))
+                        cells[0] = new LabelRef($"{gcls.Name}_typeid");
+                    for (int gi = 1; gi < gwords; gi++) cells[gi] = 0;
+                    dataSection[label] = cells;
+                }
+            }
             else
             {
                 dataSection[label] = 0;
