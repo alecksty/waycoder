@@ -987,19 +987,10 @@ void holesDraw(int groundY, int scrH)
                 x0 = holeX[i] - hw;
                 x1 = holeX[i] + hw;
 
-                if (onBldg != 0 && y >= roof && y < groundY)
-                {
-                    // 楼上的洞：**这一行的天空色**，横向夹进这栋楼
-                    if (x0 < left) { x0 = left; }
-                    if (x1 > right) { x1 = right; }
-                    if (x1 > x0)
-                    {
-                        clockPartsAt(y, groundY);
-                        col = clockPackParts();
-                        ui_rect(x0, y, x1 - x0, 1, col, 1, 0, 0);
-                    }
-                }
-                else if (y >= groundY)
+                // ⚠ **楼上的洞不在这里画** —— 见 `Game::Draw` 那段：那边用**蒙版**
+                //   把背景**重画一遍**，洞后面才是"活"的（云、日月会从洞里露出来）。
+                //   这里只负责**地上的坑**（挖土）。
+                if (y >= groundY)
                 {
                     // 地上的坑：挖土
                     if (x1 > x0) { ui_rect(x0, y, x1 - x0, 1, C_DIRT, 1, 0, 0); }
@@ -2277,6 +2268,8 @@ public:
         int i;
         Entity* actors[16];
         int actorN;
+        int onBldg;         // 这个弹坑是不是开在楼上（见下面那段蒙版重画）
+        int k;
 
         // ⚠ **每帧的第一件事**：把这一刻的天光 / 暖色 / 日月位置算出来。
         //   后面每一处配色（天、楼、窗、地、云、弹坑）都读它算出来的那几个全局量。
@@ -2325,7 +2318,49 @@ public:
             i = i + 1;
         }
 
-        holesDraw(gy, sh);          // 凿洞（见该函数的说明：逐行 + 横向夹进这栋楼）
+        // ── 楼上的弹坑：**用蒙版把背景重画一遍**（洞后面才"活"起来）──────────
+        //
+        // ⚠ 原先是在洞里涂"当时的天空色"。天空渐变虽然接得上，但
+        //   **洞后面的云 / 日月不会露出来** ⇒ 一眼就看出"洞是贴上去的"
+        //   （玩家报的「破洞还会挡住背景」就是这么来的）。
+        //   正解就是蒙版：开一个**洞口形状**的蒙版 → **重画一遍背景** → 关蒙版。
+        //   `ui_mask_end(1)` = "只在里面画"。
+        //
+        // ⚠ 代价要盯着：**每个洞重画一遍背景**（天空渐变 + 星 + 日月 + 云），
+        //   24 个洞就是 24 倍。所以只对**楼上的洞**做（地上的坑挖土就够），
+        //   而且背景只重画天空与云 —— 楼是并排的，洞后面不会有别的楼。
+        i = 0;
+        while (i < holeN)
+        {
+            onBldg = 0;
+            k = 0;
+            while (k < gBldgN)
+            {
+                if ((*BL[k]).Covers(holeX[i]))
+                {
+                    if (holeY[i] >= (*BL[k]).RoofY()) { onBldg = 1; }
+                }
+                k = k + 1;
+            }
+            if (onBldg != 0 && holeY[i] < gy)
+            {
+                ui_mask_begin();
+                ui_circle(holeX[i], holeY[i], holeR[i], 0xFFFFFFFF, 1, 0);
+                ui_mask_end(1);
+                sky.Draw();
+                cloudsDraw(sw, gy);
+                ui_mask_clear();
+                // 洞口断面：内壁压一圈暗色 ⇒ 有"墙厚"，不然还是像贴纸。
+                // ⚠ **要细、要淡** —— 先前是 width 3、60% 黑，在 r=16 的洞上几乎把洞填满，
+                //   读出来是"一团黑"而不是"透过去看见了天空"。现在是 2px、35% 黑。
+                ui_circle(holeX[i], holeY[i], holeR[i] + 1, 0x59000000, 0, 2);
+                // 外缘受光一线（左上那半圈），破口才有"翻起来的边"的观感
+                ui_circle(holeX[i] - 1, holeY[i] - 1, holeR[i], 0x40FFFFFF, 0, 1);
+            }
+            i = i + 1;
+        }
+
+        holesDraw(gy, sh);          // 地上的坑（挖土）
 
         while (i < actorN)
         {
