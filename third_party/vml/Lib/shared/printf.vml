@@ -4941,21 +4941,21 @@ format_slot_count:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 362:     int n = 0;
+; 359:     int n = 0;
         move @R0 #0
         move [@R12-8] @R0
-; 363:     const char *p = format;
+; 360:     const char *p = format;
         move @R0 [@R12+12]
         move [@R12-12] @R0
 sta_35270547:
         move @R2 #0
-; 364:     while (*p) {
+; 361:     while (*p) {
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_35270548
-; 365:         if (*p != '%') { p++; continue; }
+; 362:         if (*p != '%') { p++; continue; }
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -4979,13 +4979,13 @@ _L35270552:
         jmp sta_35270547
 sta_35270549:
 sta_35270550:
-; 366:         p++;
+; 363:         p++;
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
         move [@R12-12] @R0
         move @R0 @R1
-; 367:         if (*p == '%' || *p == 0) continue;          // `%%` 不消耗实参
+; 364:         if (*p == '%' || *p == 0) continue;          // `%%` 不消耗实参
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5029,7 +5029,7 @@ sta_35270553:
 sta_35270554:
 sta_35270562:
         move @R2 #0
-; 368:         while (*p == '-' || *p == '0' || *p == '#' || *p == '+' || *p == ' ') p++;
+; 365:         while (*p == '-' || *p == '0' || *p == '#' || *p == '+' || *p == ' ') p++;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5146,7 +5146,7 @@ _L35270566:
 sta_35270563:
 sta_35270586:
         move @R2 #0
-; 369:         while (*p >= '0' && *p <= '9') p++;
+; 366:         while (*p >= '0' && *p <= '9') p++;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5191,7 +5191,7 @@ _L35270589:
         move @R0 @R1
         jmp sta_35270586
 sta_35270587:
-; 370:         if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+; 367:         if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5260,10 +5260,10 @@ _L35270601:
 sta_35270599:
 sta_35270594:
 sta_35270595:
-; 371:         int wide = 0;
+; 368:         int wide = 0;
         move @R0 #0
         move [@R12-16] @R0
-; 372:         if (*p == 'l') { p++; wide = 1; if (*p == 'l') p++; }
+; 369:         if (*p == 'l') { p++; wide = 1; if (*p == 'l') p++; }
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5310,7 +5310,7 @@ sta_35270610:
 sta_35270611:
         jmp sta_35270607
 sta_35270606:
-; 373:         else if (*p == 'h') { p++; if (*p == 'h') p++; }
+; 370:         else if (*p == 'h') { p++; if (*p == 'h') p++; }
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5356,7 +5356,7 @@ sta_35270619:
 sta_35270614:
 sta_35270615:
 sta_35270607:
-; 374:         if (*p == 'f' || *p == 'e' || *p == 'E' || *p == 'g' || *p == 'G') wide = 1;
+; 371:         if (*p == 'f' || *p == 'e' || *p == 'E' || *p == 'g' || *p == 'G') wide = 1;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5468,7 +5468,7 @@ _L35270626:
         move [@R12-16] @R0
 sta_35270622:
 sta_35270623:
-; 375:         n += wide ? 2 : 1;
+; 372:         n += wide ? 2 : 1;
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R12-16]
@@ -5483,7 +5483,7 @@ _L35270647:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 376:         if (*p) p++;
+; 373:         if (*p) p++;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -5498,7 +5498,7 @@ sta_35270648:
 sta_35270649:
         jmp sta_35270547
 sta_35270548:
-; 378:     return n;
+; 375:     return n;
         move @R0 [@R12-8]
         jmp L_35270650
 L_35270650:
@@ -5518,7 +5518,7 @@ printf:
         push @R12
         move @R12 @R13
         sub @R13 #608
-; 393:     __builtin_va_start(ap, fmt);
+; 390:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #12
         add @R0 #4
@@ -5526,14 +5526,14 @@ printf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 397:     int nargs = format_slot_count(fmt);
+; 394:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 398:     if (nargs > 16) nargs = 16;
+; 395:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
@@ -5551,7 +5551,7 @@ _L35270654:
         move [@R12-12] @R0
 sta_35270651:
 sta_35270652:
-; 401:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+; 398:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
 sta_35270655:
@@ -5601,7 +5601,7 @@ sta_35270656:
         move @R0 @R1
         jmp sta_35270655
 sta_35270657:
-; 404:     int len = vsnprintf(buf, fmt, args, nargs);
+; 401:     int len = vsnprintf(buf, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5619,7 +5619,7 @@ sta_35270657:
         call vsnprintf
         add @R13 #16
         move [@R12-596] @R0
-; 405:     buf[len] = 0;
+; 402:     buf[len] = 0;
         move @R0 #0
         move @R4 @R0
         push @R4
@@ -5637,11 +5637,11 @@ sta_35270657:
         add @R0 @R7
         pop @R4
         moveb [@R0] @R4
-; 406:     int dummy = (int)buf;
+; 403:     int dummy = (int)buf;
         move @R0 @R12
         sub @R0 #592
         move [@R12-600] @R0
-; 407:     asm("SYSCALL #1");
+; 404:     asm("SYSCALL #1");
         syscall #1
         move [@R12-4] @R0
         move @R13 @R12
@@ -5661,7 +5661,7 @@ sprintf:
         push @R12
         move @R12 @R13
         sub @R13 #96
-; 411:     __builtin_va_start(ap, fmt);
+; 408:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #16
         add @R0 #4
@@ -5669,14 +5669,14 @@ sprintf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 415:     int nargs = format_slot_count(fmt);
+; 412:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R13+0]
         call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 416:     if (nargs > 16) nargs = 16;
+; 413:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
@@ -5694,7 +5694,7 @@ _L35270663:
         move [@R12-12] @R0
 sta_35270660:
 sta_35270661:
-; 419:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+; 416:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
 sta_35270664:
@@ -5744,7 +5744,7 @@ sta_35270665:
         move @R0 @R1
         jmp sta_35270664
 sta_35270666:
-; 421:     int n = vsnprintf(buf, fmt, args, nargs);
+; 418:     int n = vsnprintf(buf, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5761,7 +5761,7 @@ sta_35270666:
         call vsnprintf
         add @R13 #16
         move [@R12-84] @R0
-; 433:     buf[n] = 0;
+; 430:     buf[n] = 0;
         move @R0 #0
         move @R6 @R0
         push @R6
@@ -5773,7 +5773,7 @@ sta_35270666:
         add @R0 @R8
         pop @R6
         moveb [@R0] @R6
-; 434:     return n;
+; 431:     return n;
         move @R0 [@R12-84]
         jmp L_35270669
 L_35270669:
@@ -5795,7 +5795,7 @@ snprintf:
         push @R12
         move @R12 @R13
         sub @R13 #616
-; 446:     __builtin_va_start(ap, fmt);
+; 443:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #20
         add @R0 #4
@@ -5803,14 +5803,14 @@ snprintf:
         move @R0 @R12
         sub @R0 #8
         move [@R0] @R1
-; 450:     int nargs = format_slot_count(fmt);
+; 447:     int nargs = format_slot_count(fmt);
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R13+0]
         call format_slot_count
         add @R13 #4
         move [@R12-12] @R0
-; 451:     if (nargs > 16) nargs = 16;
+; 448:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #16
@@ -5828,7 +5828,7 @@ _L35270673:
         move [@R12-12] @R0
 sta_35270670:
 sta_35270671:
-; 454:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
+; 451:     for (i = 0; i < nargs; i++) args[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-80] @R0
 sta_35270674:
@@ -5878,7 +5878,7 @@ sta_35270675:
         move @R0 @R1
         jmp sta_35270674
 sta_35270676:
-; 460:     int n = vsnprintf(tmp, fmt, args, nargs);
+; 457:     int n = vsnprintf(tmp, fmt, args, nargs);
         move @R0 [@R12-12]
         push @R0
         move @R0 @R12
@@ -5896,7 +5896,7 @@ sta_35270676:
         call vsnprintf
         add @R13 #16
         move [@R12-596] @R0
-; 461:     tmp[n] = 0;
+; 458:     tmp[n] = 0;
         move @R0 #0
         move @R1 @R0
         push @R1
@@ -5914,10 +5914,10 @@ sta_35270676:
         add @R0 @R4
         pop @R1
         moveb [@R0] @R1
-; 462:     int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
+; 459:     int lim = (int)size;          // size_t = unsigned int，先转有符号免得 size-1 下溢成天文数字
         move @R0 [@R12+16]
         move [@R12-600] @R0
-; 463:     if (lim > 0) {
+; 460:     if (lim > 0) {
         move @R0 [@R12-600]
         push @R0
         move @R0 #0
@@ -5931,12 +5931,12 @@ _L35270681:
 _L35270682:
         cmp @R0 #0
         jz sta_35270679
-; 464:         int k = 0;
+; 461:         int k = 0;
         move @R0 #0
         move [@R12-604] @R0
 sta_35270683:
         move @R2 #0
-; 465:         while (k < lim - 1 && tmp[k] != 0) { buf[k] = tmp[k]; k++; }
+; 462:         while (k < lim - 1 && tmp[k] != 0) { buf[k] = tmp[k]; k++; }
         move @R0 [@R12-604]
         push @R0
         move @R0 [@R12-600]
@@ -6019,7 +6019,7 @@ _L35270686:
         move @R0 @R1
         jmp sta_35270683
 sta_35270684:
-; 466:         buf[k] = 0;
+; 463:         buf[k] = 0;
         move @R0 #0
         move @R5 @R0
         push @R5
@@ -6033,7 +6033,7 @@ sta_35270684:
         moveb [@R0] @R5
 sta_35270679:
 sta_35270680:
-; 468:     return n;
+; 465:     return n;
         move @R0 [@R12-596]
         jmp L_35270691
 L_35270691:
@@ -6056,7 +6056,7 @@ printf2:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 471: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
+; 468: int printf2(char *buf, const char *fmt, int a1, int a2)     { int args[]={a1,a2};       return vsnprintf(buf, fmt, args, 2); }
         move @R0 @R12
         sub @R0 #12
         add @R0 #0
@@ -6108,7 +6108,7 @@ printf3:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 472: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
+; 469: int printf3(char *buf, const char *fmt, int a1, int a2, int a3) { int args[]={a1,a2,a3}; return vsnprintf(buf, fmt, args, 3); }
         move @R0 @R12
         sub @R0 #16
         add @R0 #0
@@ -6168,7 +6168,7 @@ printf4:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 473: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
+; 470: int printf4(char *buf, const char *fmt, int a1, int a2, int a3, int a4) { int args[]={a1,a2,a3,a4}; return vsnprintf(buf, fmt, args, 4); }
         move @R0 @R12
         sub @R0 #20
         add @R0 #0
@@ -6237,7 +6237,7 @@ printf5:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 474: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
+; 471: int printf5(char *buf, const char *fmt, int a1, int a2, int a3, int a4, int a5) { int args[]={a1,a2,a3,a4,a5}; return vsnprintf(buf, fmt, args, 5); }
         move @R0 @R12
         sub @R0 #24
         add @R0 #0

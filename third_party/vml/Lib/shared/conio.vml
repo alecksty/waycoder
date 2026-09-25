@@ -28,7 +28,7 @@ con_putc:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 54:     putchar(c);
+; 56:     putchar(c);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -50,7 +50,7 @@ con_puts:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 59:     for (i = 0; s[i] != 0; i++) con_putc(s[i]);
+; 61:     for (i = 0; s[i] != 0; i++) con_putc(s[i]);
         move @R0 #0
         move [@R12-8] @R0
 sta_44560000:
@@ -110,7 +110,7 @@ con_putn:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 66:     if (v < 0) { con_putc('-'); v = -v; }
+; 68:     if (v < 0) { con_putc('-'); v = -v; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -135,10 +135,10 @@ _L44560008:
         move [@R12+12] @R0
 sta_44560005:
 sta_44560006:
-; 67:     n = 0;
+; 69:     n = 0;
         move @R0 #0
         move [@R12-20] @R0
-; 68:     if (v == 0) { con_putc('0'); return; }
+; 70:     if (v == 0) { con_putc('0'); return; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -162,7 +162,7 @@ sta_44560009:
 sta_44560010:
 sta_44560014:
         move @R2 #0
-; 69:     while (v > 0 && n < 11) { t[n] = (char)('0' + (v % 10)); v = v / 10; n++; }
+; 71:     while (v > 0 && n < 11) { t[n] = (char)('0' + (v % 10)); v = v / 10; n++; }
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -239,7 +239,7 @@ _L44560017:
 sta_44560015:
 sta_44560022:
         move @R2 #0
-; 70:     while (n > 0) { n--; con_putc(t[n]); }
+; 72:     while (n > 0) { n--; con_putc(t[n]); }
         move @R0 [@R12-20]
         push @R0
         move @R0 #0
@@ -296,7 +296,7 @@ con_cup:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 75:     con_putc(27); con_putc('[');
+; 77:     con_putc(27); con_putc('[');
         move @R0 #27
         push @R0
         move @R0 [@R13+0]
@@ -307,7 +307,7 @@ con_cup:
         move @R0 [@R13+0]
         call con_putc
         add @R13 #4
-; 76:     con_putn(y + 1); con_putc(';'); con_putn(x + 1); con_putc('H');
+; 78:     con_putn(y + 1); con_putc(';'); con_putn(x + 1); con_putc('H');
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -354,7 +354,7 @@ con_dos2ansi:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 88:     if (c == 0) return 0;      /* 黑 */
+; 90:     if (c == 0) return 0;      /* 黑 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -372,7 +372,7 @@ _L44560029:
         jmp L_44560030
 sta_44560026:
 sta_44560027:
-; 89:     if (c == 1) return 4;      /* 蓝 → ANSI 蓝 */
+; 91:     if (c == 1) return 4;      /* 蓝 → ANSI 蓝 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -390,7 +390,7 @@ _L44560034:
         jmp L_44560030
 sta_44560031:
 sta_44560032:
-; 90:     if (c == 2) return 2;      /* 绿 */
+; 92:     if (c == 2) return 2;      /* 绿 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -408,7 +408,7 @@ _L44560038:
         jmp L_44560030
 sta_44560035:
 sta_44560036:
-; 91:     if (c == 3) return 6;      /* 青 → ANSI 青 */
+; 93:     if (c == 3) return 6;      /* 青 → ANSI 青 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -426,7 +426,7 @@ _L44560042:
         jmp L_44560030
 sta_44560039:
 sta_44560040:
-; 92:     if (c == 4) return 1;      /* 红 → ANSI 红 */
+; 94:     if (c == 4) return 1;      /* 红 → ANSI 红 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -444,7 +444,7 @@ _L44560046:
         jmp L_44560030
 sta_44560043:
 sta_44560044:
-; 93:     if (c == 5) return 5;      /* 紫 */
+; 95:     if (c == 5) return 5;      /* 紫 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
@@ -462,7 +462,7 @@ _L44560050:
         jmp L_44560030
 sta_44560047:
 sta_44560048:
-; 94:     if (c == 6) return 3;      /* 棕 → ANSI 黄 */
+; 96:     if (c == 6) return 3;      /* 棕 → ANSI 黄 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #6
@@ -480,7 +480,7 @@ _L44560054:
         jmp L_44560030
 sta_44560051:
 sta_44560052:
-; 95:     if (c == 7) return 7;      /* 浅灰 */
+; 97:     if (c == 7) return 7;      /* 浅灰 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #7
@@ -498,7 +498,7 @@ _L44560058:
         jmp L_44560030
 sta_44560055:
 sta_44560056:
-; 96:     if (c == 8) return 8;      /* 深灰 → ANSI 亮黑 */
+; 98:     if (c == 8) return 8;      /* 深灰 → ANSI 亮黑 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #8
@@ -516,7 +516,7 @@ _L44560062:
         jmp L_44560030
 sta_44560059:
 sta_44560060:
-; 97:     if (c == 9) return 12;     /* 亮蓝 */
+; 99:     if (c == 9) return 12;     /* 亮蓝 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #9
@@ -534,7 +534,7 @@ _L44560066:
         jmp L_44560030
 sta_44560063:
 sta_44560064:
-; 98:     if (c == 10) return 10;    /* 亮绿 */
+; 100:     if (c == 10) return 10;    /* 亮绿 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #10
@@ -552,7 +552,7 @@ _L44560070:
         jmp L_44560030
 sta_44560067:
 sta_44560068:
-; 99:     if (c == 11) return 14;    /* 亮青 */
+; 101:     if (c == 11) return 14;    /* 亮青 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #11
@@ -570,7 +570,7 @@ _L44560074:
         jmp L_44560030
 sta_44560071:
 sta_44560072:
-; 100:     if (c == 12) return 9;     /* 亮红 */
+; 102:     if (c == 12) return 9;     /* 亮红 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #12
@@ -588,7 +588,7 @@ _L44560078:
         jmp L_44560030
 sta_44560075:
 sta_44560076:
-; 101:     if (c == 13) return 13;    /* 亮紫 */
+; 103:     if (c == 13) return 13;    /* 亮紫 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #13
@@ -606,7 +606,7 @@ _L44560082:
         jmp L_44560030
 sta_44560079:
 sta_44560080:
-; 102:     if (c == 14) return 11;    /* 黄 → ANSI 亮黄 */
+; 104:     if (c == 14) return 11;    /* 黄 → ANSI 亮黄 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #14
@@ -624,7 +624,7 @@ _L44560086:
         jmp L_44560030
 sta_44560083:
 sta_44560084:
-; 103:     return 15;                 /* 白 */
+; 105:     return 15;                 /* 白 */
         move @R0 #15
         jmp L_44560030
 L_44560030:
@@ -644,7 +644,7 @@ con_sgr_fg:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 109:     a = con_dos2ansi(c & 15);
+; 111:     a = con_dos2ansi(c & 15);
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
@@ -656,7 +656,7 @@ con_sgr_fg:
         call con_dos2ansi
         add @R13 #4
         move [@R12-8] @R0
-; 110:     if (a < 8) code = 30 + a;
+; 112:     if (a < 8) code = 30 + a;
         move @R0 [@R12-8]
         push @R0
         move @R0 #8
@@ -679,7 +679,7 @@ _L44560090:
         move [@R12-12] @R0
         jmp sta_44560088
 sta_44560087:
-; 111:     else       code = 90 + (a - 8);
+; 113:     else       code = 90 + (a - 8);
         move @R0 #90
         push @R0
         move @R0 [@R12-8]
@@ -693,7 +693,7 @@ sta_44560087:
         move @R0 @R1
         move [@R12-12] @R0
 sta_44560088:
-; 112:     con_putc(27); con_putc('['); con_putn(code); con_putc('m');
+; 114:     con_putc(27); con_putc('['); con_putn(code); con_putc('m');
         move @R0 #27
         push @R0
         move @R0 [@R13+0]
@@ -730,7 +730,7 @@ con_sgr_bg:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 118:     a = con_dos2ansi(c & 15);
+; 120:     a = con_dos2ansi(c & 15);
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
@@ -742,7 +742,7 @@ con_sgr_bg:
         call con_dos2ansi
         add @R13 #4
         move [@R12-8] @R0
-; 119:     if (a < 8) code = 40 + a;
+; 121:     if (a < 8) code = 40 + a;
         move @R0 [@R12-8]
         push @R0
         move @R0 #8
@@ -765,7 +765,7 @@ _L44560094:
         move [@R12-12] @R0
         jmp sta_44560092
 sta_44560091:
-; 120:     else       code = 100 + (a - 8);
+; 122:     else       code = 100 + (a - 8);
         move @R0 #100
         push @R0
         move @R0 [@R12-8]
@@ -779,7 +779,7 @@ sta_44560091:
         move @R0 @R1
         move [@R12-12] @R0
 sta_44560092:
-; 121:     con_putc(27); con_putc('['); con_putn(code); con_putc('m');
+; 123:     con_putc(27); con_putc('['); con_putn(code); con_putc('m');
         move @R0 #27
         push @R0
         move @R0 [@R13+0]
@@ -816,7 +816,7 @@ con_sgr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 143:     if (at == conLastAt) return;
+; 145:     if (at == conLastAt) return;
         move @R0 [@R12+12]
         push @R0
         move @R0 [conLastAt]
@@ -833,7 +833,7 @@ _L44560098:
         jmp L_44560099
 sta_44560095:
 sta_44560096:
-; 144:     con_sgr_fg(at & 15);
+; 146:     con_sgr_fg(at & 15);
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
@@ -844,7 +844,7 @@ sta_44560096:
         move @R0 [@R13+0]
         call con_sgr_fg
         add @R13 #4
-; 145:     con_sgr_bg((at >> 4) & 15);
+; 147:     con_sgr_bg((at >> 4) & 15);
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -860,7 +860,7 @@ sta_44560096:
         move @R0 [@R13+0]
         call con_sgr_bg
         add @R13 #4
-; 146:     conLastAt = at;
+; 148:     conLastAt = at;
         move @R0 [@R12+12]
         move [conLastAt] @R0
 L_44560099:
@@ -882,7 +882,7 @@ con_redraw_range:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 153:     if (y < 0 || y >= 25) return;
+; 155:     if (y < 0 || y >= 25) return;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -920,7 +920,7 @@ _L44560104:
         jmp L_44560109
 sta_44560100:
 sta_44560101:
-; 154:     if (x0 < 0) x0 = 0;
+; 156:     if (x0 < 0) x0 = 0;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -938,7 +938,7 @@ _L44560113:
         move [@R12+16] @R0
 sta_44560110:
 sta_44560111:
-; 155:     if (x1 > 80 - 1) x1 = 80 - 1;
+; 157:     if (x1 > 80 - 1) x1 = 80 - 1;
         move @R0 [@R12+20]
         push @R0
         move @R0 #80
@@ -966,7 +966,7 @@ _L44560117:
         move [@R12+20] @R0
 sta_44560114:
 sta_44560115:
-; 159:     for (x = x0; x <= x1; x++) {
+; 161:     for (x = x0; x <= x1; x++) {
         move @R0 [@R12+16]
         move [@R12-8] @R0
 sta_44560118:
@@ -983,7 +983,7 @@ _L44560121:
 _L44560122:
         cmp @R0 #0
         jz sta_44560120
-; 160:         at = conAt[y * 80 + x];
+; 162:         at = conAt[y * 80 + x];
         move @R0 conAt
         push @R0
         move @R4 #0
@@ -1008,7 +1008,7 @@ _L44560122:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-12] @R0
-; 161:         con_cup(x, y);
+; 163:         con_cup(x, y);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -1017,13 +1017,13 @@ _L44560122:
         move @R1 [@R13+4]
         call con_cup
         add @R13 #8
-; 162:         con_sgr(at);
+; 164:         con_sgr(at);
         move @R0 [@R12-12]
         push @R0
         move @R0 [@R13+0]
         call con_sgr
         add @R13 #4
-; 163:         con_putc(conCh[y * 80 + x]);
+; 165:         con_putc(conCh[y * 80 + x]);
         move @R0 conCh
         push @R0
         move @R2 #0
@@ -1075,7 +1075,7 @@ con_redraw_all:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 169:     for (y = 0; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
+; 171:     for (y = 0; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
         move @R0 #0
         move [@R12-8] @R0
 sta_44560123:
@@ -1137,7 +1137,7 @@ con_fill:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 175:     for (y = y0; y <= y1; y++)
+; 177:     for (y = y0; y <= y1; y++)
         move @R0 [@R12+16]
         move [@R12-12] @R0
 sta_44560128:
@@ -1154,7 +1154,7 @@ _L44560131:
 _L44560132:
         cmp @R0 #0
         jz sta_44560130
-; 176:         for (x = x0; x <= x1; x++) {
+; 178:         for (x = x0; x <= x1; x++) {
         move @R0 [@R12+12]
         move [@R12-8] @R0
 sta_44560133:
@@ -1171,7 +1171,7 @@ _L44560136:
 _L44560137:
         cmp @R0 #0
         jz sta_44560135
-; 177:             conCh[y * 80 + x] = (char)ch;
+; 179:             conCh[y * 80 + x] = (char)ch;
         move @R0 [@R12+28]
         move @R11 @R0
         push @R11
@@ -1198,7 +1198,7 @@ _L44560137:
         add @R0 @R8
         pop @R11
         moveb [@R0] @R11
-; 178:             conAt[y * 80 + x] = (char)at;
+; 180:             conAt[y * 80 + x] = (char)at;
         move @R0 [@R12+32]
         move @R7 @R0
         push @R7
@@ -1256,7 +1256,7 @@ con_init:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 183:     if (conReady != 0) return;
+; 185:     if (conReady != 0) return;
         move @R0 [conReady]
         push @R0
         move @R0 #0
@@ -1273,22 +1273,22 @@ _L44560141:
         jmp L_44560142
 sta_44560138:
 sta_44560139:
-; 184:     conReady = 1;
+; 186:     conReady = 1;
         move @R0 #1
         move [conReady] @R0
-; 185:     conFg = 7;                   /* = conio.h 的 LIGHTGRAY（DOS 定义的默认前景） */
+; 187:     conFg = 7;                   /* = conio.h 的 LIGHTGRAY（DOS 定义的默认前景） */
         move @R0 #7
         move [conFg] @R0
-; 186:     conBg = 0;                   /* = conio.h 的 BLACK */
+; 188:     conBg = 0;                   /* = conio.h 的 BLACK */
         move @R0 #0
         move [conBg] @R0
-; 187:     conX = 0;
+; 189:     conX = 0;
         move @R0 #0
         move [conX] @R0
-; 188:     conY = 0;
+; 190:     conY = 0;
         move @R0 #0
         move [conY] @R0
-; 189:     con_fill(0, 0, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
+; 191:     con_fill(0, 0, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -1343,9 +1343,9 @@ clrscr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 194:     con_init();
+; 196:     con_init();
         call con_init
-; 195:     con_putc(27); con_puts("[2J");      /* ED：清整屏 */
+; 197:     con_putc(27); con_puts("[2J");      /* ED：清整屏 */
         move @R0 #27
         push @R0
         move @R0 [@R13+0]
@@ -1356,7 +1356,7 @@ clrscr:
         move @R0 [@R13+0]
         call con_puts
         add @R13 #4
-; 199:     con_sgr((conBg << 4) | conFg);
+; 201:     con_sgr((conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -1372,7 +1372,7 @@ clrscr:
         move @R0 [@R13+0]
         call con_sgr
         add @R13 #4
-; 200:     con_cup(0, 0);
+; 202:     con_cup(0, 0);
         move @R0 #0
         push @R0
         move @R0 #0
@@ -1381,7 +1381,7 @@ clrscr:
         move @R1 [@R13+4]
         call con_cup
         add @R13 #8
-; 201:     con_fill(0, 0, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
+; 203:     con_fill(0, 0, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -1420,10 +1420,10 @@ clrscr:
         move @R3 [@R13+12]
         call con_fill
         add @R13 #24
-; 202:     conX = 0;
+; 204:     conX = 0;
         move @R0 #0
         move [conX] @R0
-; 203:     conY = 0;
+; 205:     conY = 0;
         move @R0 #0
         move [conY] @R0
         move @R13 @R12
@@ -1441,9 +1441,9 @@ clreol:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 207:     con_init();
+; 209:     con_init();
         call con_init
-; 208:     con_cup(conX, conY);
+; 210:     con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -1452,7 +1452,7 @@ clreol:
         move @R1 [@R13+4]
         call con_cup
         add @R13 #8
-; 209:     con_putc(27); con_puts("[K");       /* EL(0)：擦到行尾 */
+; 211:     con_putc(27); con_puts("[K");       /* EL(0)：擦到行尾 */
         move @R0 #27
         push @R0
         move @R0 [@R13+0]
@@ -1463,7 +1463,7 @@ clreol:
         move @R0 [@R13+0]
         call con_puts
         add @R13 #4
-; 210:     con_fill(conX, conY, 80 - 1, conY, ' ', (conBg << 4) | conFg);
+; 212:     con_fill(conX, conY, 80 - 1, conY, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -1514,9 +1514,9 @@ gotoxy:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 214:     con_init();
+; 216:     con_init();
         call con_init
-; 215:     conX = x - 1;
+; 217:     conX = x - 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -1524,7 +1524,7 @@ gotoxy:
         sub @R1 @R0
         move @R0 @R1
         move [conX] @R0
-; 216:     conY = y - 1;
+; 218:     conY = y - 1;
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -1532,7 +1532,7 @@ gotoxy:
         sub @R1 @R0
         move @R0 @R1
         move [conY] @R0
-; 217:     if (conX < 0) conX = 0;
+; 219:     if (conX < 0) conX = 0;
         move @R0 [conX]
         push @R0
         move @R0 #0
@@ -1550,7 +1550,7 @@ _L44560148:
         move [conX] @R0
 sta_44560145:
 sta_44560146:
-; 218:     if (conX > 80 - 1) conX = 80 - 1;
+; 220:     if (conX > 80 - 1) conX = 80 - 1;
         move @R0 [conX]
         push @R0
         move @R0 #80
@@ -1578,7 +1578,7 @@ _L44560152:
         move [conX] @R0
 sta_44560149:
 sta_44560150:
-; 219:     if (conY < 0) conY = 0;
+; 221:     if (conY < 0) conY = 0;
         move @R0 [conY]
         push @R0
         move @R0 #0
@@ -1596,7 +1596,7 @@ _L44560156:
         move [conY] @R0
 sta_44560153:
 sta_44560154:
-; 220:     if (conY > 25 - 1) conY = 25 - 1;
+; 222:     if (conY > 25 - 1) conY = 25 - 1;
         move @R0 [conY]
         push @R0
         move @R0 #25
@@ -1624,7 +1624,7 @@ _L44560160:
         move [conY] @R0
 sta_44560157:
 sta_44560158:
-; 221:     con_cup(conX, conY);
+; 223:     con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -1648,7 +1648,7 @@ wherex:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 223: int wherex(void) { return conX + 1; }
+; 225: int wherex(void) { return conX + 1; }
         move @R0 [conX]
         push @R0
         move @R0 #1
@@ -1672,7 +1672,7 @@ wherey:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 224: int wherey(void) { return conY + 1; }
+; 226: int wherey(void) { return conY + 1; }
         move @R0 [conY]
         push @R0
         move @R0 #1
@@ -1697,7 +1697,7 @@ textcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 225: void textcolor(int color) { con_init(); conFg = color & 15; }
+; 227: void textcolor(int color) { con_init(); conFg = color & 15; }
         call con_init
         move @R0 [@R12+12]
         push @R0
@@ -1722,7 +1722,7 @@ textbackground:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 226: void textbackground(int color) { con_init(); conBg = color & 15; }
+; 228: void textbackground(int color) { con_init(); conBg = color & 15; }
         call con_init
         move @R0 [@R12+12]
         push @R0
@@ -1747,9 +1747,9 @@ textattr:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 229:     con_init();
+; 231:     con_init();
         call con_init
-; 230:     conFg = attr & 15;
+; 232:     conFg = attr & 15;
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
@@ -1757,7 +1757,7 @@ textattr:
         and @R1 @R0
         move @R0 @R1
         move [conFg] @R0
-; 231:     conBg = (attr >> 4) & 15;
+; 233:     conBg = (attr >> 4) & 15;
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -1785,7 +1785,7 @@ highvideo:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 233: void highvideo(void) { con_init(); conFg = conFg | 8; }
+; 235: void highvideo(void) { con_init(); conFg = conFg | 8; }
         call con_init
         move @R0 [conFg]
         push @R0
@@ -1809,7 +1809,7 @@ lowvideo:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 234: void lowvideo(void) { con_init(); conFg = conFg & 7; }
+; 236: void lowvideo(void) { con_init(); conFg = conFg & 7; }
         call con_init
         move @R0 [conFg]
         push @R0
@@ -1833,7 +1833,7 @@ normvideo:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 235: void normvideo(void) { con_init(); conFg = 7; conBg = 0; }   /* 7/0 = LIGHTGRAY / BLACK */
+; 237: void normvideo(void) { con_init(); conFg = 7; conBg = 0; }   /* 7/0 = LIGHTGRAY / BLACK */
         call con_init
         move @R0 #7
         move [conFg] @R0
@@ -1855,9 +1855,9 @@ putch:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 242:     con_init();
+; 244:     con_init();
         call con_init
-; 243:     if (c == 10 || c == 13) {           /* 换行：DOS 的 \n 自带回车 */
+; 245:     if (c == 10 || c == 13) {           /* 换行：DOS 的 \n 自带回车 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #10
@@ -1892,10 +1892,10 @@ _L44560166:
 _L44560167:
         cmp @R0 #0
         jz sta_44560163
-; 244:         conX = 0;
+; 246:         conX = 0;
         move @R0 #0
         move [conX] @R0
-; 245:         conY = conY + 1;
+; 247:         conY = conY + 1;
         move @R0 [conY]
         push @R0
         move @R0 #1
@@ -1903,7 +1903,7 @@ _L44560167:
         add @R1 @R0
         move @R0 @R1
         move [conY] @R0
-; 246:         if (conY >= 25) {
+; 248:         if (conY >= 25) {
         move @R0 [conY]
         push @R0
         move @R0 #25
@@ -1917,7 +1917,7 @@ _L44560174:
 _L44560175:
         cmp @R0 #0
         jz sta_44560172
-; 248:             for (y = 0; y < 25 - 1; y++)
+; 250:             for (y = 0; y < 25 - 1; y++)
         move @R0 #0
         move [@R12-16] @R0
 sta_44560176:
@@ -1939,7 +1939,7 @@ _L44560179:
 _L44560180:
         cmp @R0 #0
         jz sta_44560178
-; 249:                 for (x = 0; x < 80; x++) {
+; 251:                 for (x = 0; x < 80; x++) {
         move @R0 #0
         move [@R12-20] @R0
 sta_44560181:
@@ -1956,7 +1956,7 @@ _L44560184:
 _L44560185:
         cmp @R0 #0
         jz sta_44560183
-; 250:                     conCh[y * 80 + x] = conCh[(y + 1) * 80 + x];
+; 252:                     conCh[y * 80 + x] = conCh[(y + 1) * 80 + x];
         move @R0 conCh
         push @R0
         move @R5 #0
@@ -2010,7 +2010,7 @@ _L44560185:
         add @R0 @R1
         pop @R3
         moveb [@R0] @R3
-; 251:                     conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
+; 253:                     conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
         move @R0 conAt
         push @R0
         move @R10 #0
@@ -2080,7 +2080,7 @@ sta_44560177:
         move @R0 @R1
         jmp sta_44560176
 sta_44560178:
-; 253:             con_fill(0, 25 - 1, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
+; 255:             con_fill(0, 25 - 1, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -2124,7 +2124,7 @@ sta_44560178:
         move @R3 [@R13+12]
         call con_fill
         add @R13 #24
-; 254:             conY = 25 - 1;
+; 256:             conY = 25 - 1;
         move @R0 #25
         push @R0
         move @R0 #1
@@ -2132,11 +2132,11 @@ sta_44560178:
         sub @R1 @R0
         move @R0 @R1
         move [conY] @R0
-; 255:             con_redraw_all();
+; 257:             con_redraw_all();
         call con_redraw_all
 sta_44560172:
 sta_44560173:
-; 257:         con_cup(conX, conY);
+; 259:         con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -2145,11 +2145,11 @@ sta_44560173:
         move @R1 [@R13+4]
         call con_cup
         add @R13 #8
-; 258:         return;
+; 260:         return;
         jmp L_44560186
 sta_44560163:
 sta_44560164:
-; 260:     if (c == 8) {                        /* 退格：DOS 的回退**不擦**，只移光标 */
+; 262:     if (c == 8) {                        /* 退格：DOS 的回退**不擦**，只移光标 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #8
@@ -2163,7 +2163,7 @@ _L44560189:
 _L44560190:
         cmp @R0 #0
         jz sta_44560187
-; 261:         if (conX > 0) conX = conX - 1;
+; 263:         if (conX > 0) conX = conX - 1;
         move @R0 [conX]
         push @R0
         move @R0 #0
@@ -2186,7 +2186,7 @@ _L44560194:
         move [conX] @R0
 sta_44560191:
 sta_44560192:
-; 262:         con_cup(conX, conY);
+; 264:         con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -2195,11 +2195,11 @@ sta_44560192:
         move @R1 [@R13+4]
         call con_cup
         add @R13 #8
-; 263:         return;
+; 265:         return;
         jmp L_44560186
 sta_44560187:
 sta_44560188:
-; 265:     at = (conBg << 4) | conFg;
+; 267:     at = (conBg << 4) | conFg;
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -2212,7 +2212,7 @@ sta_44560188:
         or @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 266:     idx = conY * 80 + conX;
+; 268:     idx = conY * 80 + conX;
         move @R0 [conY]
         push @R0
         move @R0 #80
@@ -2225,7 +2225,7 @@ sta_44560188:
         add @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 267:     conCh[idx] = (char)c;
+; 269:     conCh[idx] = (char)c;
         move @R0 [@R12+12]
         move @R7 @R0
         push @R7
@@ -2242,7 +2242,7 @@ sta_44560188:
         add @R0 @R4
         pop @R7
         moveb [@R0] @R7
-; 268:     conAt[idx] = (char)at;
+; 270:     conAt[idx] = (char)at;
         move @R0 [@R12-8]
         move @R2 @R0
         push @R2
@@ -2259,19 +2259,19 @@ sta_44560188:
         add @R0 @R3
         pop @R2
         moveb [@R0] @R2
-; 269:     con_sgr(at);
+; 271:     con_sgr(at);
         move @R0 [@R12-8]
         push @R0
         move @R0 [@R13+0]
         call con_sgr
         add @R13 #4
-; 270:     con_putc(c);
+; 272:     con_putc(c);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call con_putc
         add @R13 #4
-; 271:     conX = conX + 1;
+; 273:     conX = conX + 1;
         move @R0 [conX]
         push @R0
         move @R0 #1
@@ -2279,7 +2279,7 @@ sta_44560188:
         add @R1 @R0
         move @R0 @R1
         move [conX] @R0
-; 272:     if (conX >= 80) {
+; 274:     if (conX >= 80) {
         move @R0 [conX]
         push @R0
         move @R0 #80
@@ -2293,10 +2293,10 @@ _L44560197:
 _L44560198:
         cmp @R0 #0
         jz sta_44560195
-; 273:         conX = 0;
+; 275:         conX = 0;
         move @R0 #0
         move [conX] @R0
-; 274:         conY = conY + 1;
+; 276:         conY = conY + 1;
         move @R0 [conY]
         push @R0
         move @R0 #1
@@ -2304,7 +2304,7 @@ _L44560198:
         add @R1 @R0
         move @R0 @R1
         move [conY] @R0
-; 275:         if (conY >= 25) conY = 25 - 1;
+; 277:         if (conY >= 25) conY = 25 - 1;
         move @R0 [conY]
         push @R0
         move @R0 #25
@@ -2327,7 +2327,7 @@ _L44560202:
         move [conY] @R0
 sta_44560199:
 sta_44560200:
-; 276:         con_cup(conX, conY);
+; 278:         con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -2355,9 +2355,9 @@ cputs:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 282:     con_init();
+; 284:     con_init();
         call con_init
-; 283:     for (i = 0; s[i] != 0; i++) putch(s[i]);
+; 285:     for (i = 0; s[i] != 0; i++) putch(s[i]);
         move @R0 #0
         move [@R12-8] @R0
 sta_44560203:
@@ -2417,14 +2417,14 @@ cprintf:
         push @R12
         move @R12 @R13
         sub @R13 #608
-; 296:     nargs = format_arg_count(fmt);
+; 298:     nargs = format_slot_count(fmt);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
-        call format_arg_count
+        call format_slot_count
         add @R13 #4
         move [@R12-588] @R0
-; 297:     if (nargs > 16) nargs = 16;
+; 299:     if (nargs > 16) nargs = 16;
         move @R0 [@R12-588]
         push @R0
         move @R0 #16
@@ -2442,7 +2442,7 @@ _L44560211:
         move [@R12-588] @R0
 sta_44560208:
 sta_44560209:
-; 298:     __builtin_va_start(ap, fmt);
+; 300:     __builtin_va_start(ap, fmt);
         move @R0 @R12
         add @R0 #12
         add @R0 #4
@@ -2450,7 +2450,7 @@ sta_44560209:
         move @R0 @R12
         sub @R0 #596
         move [@R0] @R1
-; 299:     for (i = 0; i < nargs; i++) vals[i] = __builtin_va_arg(ap, sizeof(int));
+; 301:     for (i = 0; i < nargs; i++) vals[i] = __builtin_va_arg(ap, sizeof(int));
         move @R0 #0
         move [@R12-584] @R0
 sta_44560212:
@@ -2500,7 +2500,7 @@ sta_44560213:
         move @R0 @R1
         jmp sta_44560212
 sta_44560214:
-; 301:     n = vsnprintf(buf, fmt, vals, nargs);
+; 303:     n = vsnprintf(buf, fmt, vals, nargs);
         move @R0 [@R12-588]
         push @R0
         move @R0 @R12
@@ -2518,7 +2518,7 @@ sta_44560214:
         call vsnprintf
         add @R13 #16
         move [@R12-592] @R0
-; 302:     buf[n] = 0;
+; 304:     buf[n] = 0;
         move @R0 #0
         move @R5 @R0
         push @R5
@@ -2536,7 +2536,7 @@ sta_44560214:
         add @R0 @R7
         pop @R5
         moveb [@R0] @R5
-; 303:     cputs(buf);
+; 305:     cputs(buf);
         move @R0 @R12
         sub @R0 #516
         push @R0
@@ -2558,9 +2558,9 @@ delline:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 309:     con_init();
+; 311:     con_init();
         call con_init
-; 310:     for (y = conY; y < 25 - 1; y++)
+; 312:     for (y = conY; y < 25 - 1; y++)
         move @R0 [conY]
         move [@R12-8] @R0
 sta_44560217:
@@ -2582,7 +2582,7 @@ _L44560220:
 _L44560221:
         cmp @R0 #0
         jz sta_44560219
-; 311:         for (x = 0; x < 80; x++) {
+; 313:         for (x = 0; x < 80; x++) {
         move @R0 #0
         move [@R12-12] @R0
 sta_44560222:
@@ -2599,7 +2599,7 @@ _L44560225:
 _L44560226:
         cmp @R0 #0
         jz sta_44560224
-; 312:             conCh[y * 80 + x] = conCh[(y + 1) * 80 + x];
+; 314:             conCh[y * 80 + x] = conCh[(y + 1) * 80 + x];
         move @R0 conCh
         push @R0
         move @R1 #0
@@ -2653,7 +2653,7 @@ _L44560226:
         add @R0 @R8
         pop @R2
         moveb [@R0] @R2
-; 313:             conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
+; 315:             conAt[y * 80 + x] = conAt[(y + 1) * 80 + x];
         move @R0 conAt
         push @R0
         move @R6 #0
@@ -2723,7 +2723,7 @@ sta_44560218:
         move @R0 @R1
         jmp sta_44560217
 sta_44560219:
-; 315:     con_fill(0, 25 - 1, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
+; 317:     con_fill(0, 25 - 1, 80 - 1, 25 - 1, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -2767,7 +2767,7 @@ sta_44560219:
         move @R3 [@R13+12]
         call con_fill
         add @R13 #24
-; 316:     for (y = conY; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
+; 318:     for (y = conY; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
         move @R0 [conY]
         move [@R12-8] @R0
 sta_44560227:
@@ -2808,7 +2808,7 @@ sta_44560228:
         move @R0 @R1
         jmp sta_44560227
 sta_44560229:
-; 317:     con_cup(conX, conY);
+; 319:     con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -2832,9 +2832,9 @@ insline:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 323:     con_init();
+; 325:     con_init();
         call con_init
-; 324:     for (y = 25 - 1; y > conY; y--)
+; 326:     for (y = 25 - 1; y > conY; y--)
         move @R0 #25
         push @R0
         move @R0 #1
@@ -2856,7 +2856,7 @@ _L44560235:
 _L44560236:
         cmp @R0 #0
         jz sta_44560234
-; 325:         for (x = 0; x < 80; x++) {
+; 327:         for (x = 0; x < 80; x++) {
         move @R0 #0
         move [@R12-12] @R0
 sta_44560237:
@@ -2873,7 +2873,7 @@ _L44560240:
 _L44560241:
         cmp @R0 #0
         jz sta_44560239
-; 326:             conCh[y * 80 + x] = conCh[(y - 1) * 80 + x];
+; 328:             conCh[y * 80 + x] = conCh[(y - 1) * 80 + x];
         move @R0 conCh
         push @R0
         move @R5 #0
@@ -2927,7 +2927,7 @@ _L44560241:
         add @R0 @R8
         pop @R3
         moveb [@R0] @R3
-; 327:             conAt[y * 80 + x] = conAt[(y - 1) * 80 + x];
+; 329:             conAt[y * 80 + x] = conAt[(y - 1) * 80 + x];
         move @R0 conAt
         push @R0
         move @R2 #0
@@ -2997,7 +2997,7 @@ sta_44560233:
         move @R0 @R1
         jmp sta_44560232
 sta_44560234:
-; 329:     con_fill(0, conY, 80 - 1, conY, ' ', (conBg << 4) | conFg);
+; 331:     con_fill(0, conY, 80 - 1, conY, ' ', (conBg << 4) | conFg);
         move @R0 [conBg]
         push @R0
         move @R0 #4
@@ -3031,7 +3031,7 @@ sta_44560234:
         move @R3 [@R13+12]
         call con_fill
         add @R13 #24
-; 330:     for (y = conY; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
+; 332:     for (y = conY; y < 25; y++) con_redraw_range(y, 0, 80 - 1);
         move @R0 [conY]
         move [@R12-8] @R0
 sta_44560242:
@@ -3072,7 +3072,7 @@ sta_44560243:
         move @R0 @R1
         jmp sta_44560242
 sta_44560244:
-; 331:     con_cup(conX, conY);
+; 333:     con_cup(conX, conY);
         move @R0 [conY]
         push @R0
         move @R0 [conX]
@@ -3096,7 +3096,7 @@ _con_win_state:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 368:     return (int)asm("SYSCALL #565");     /* ui_win_closed()：0 开着 / 1 关了 / 2 没开过 */
+; 370:     return (int)asm("SYSCALL #565");     /* ui_win_closed()：0 开着 / 1 关了 / 2 没开过 */
         syscall #565
         move [@R12-4] @R0
         jmp L_44560247
@@ -3117,7 +3117,7 @@ _con_scan_code:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 376:     if (vk == 0x25) return 0x4B;              /* ← */
+; 378:     if (vk == 0x25) return 0x4B;              /* ← */
         move @R0 [@R12+12]
         push @R0
         move @R0 #37
@@ -3135,7 +3135,7 @@ _L44560251:
         jmp L_44560252
 sta_44560248:
 sta_44560249:
-; 377:     if (vk == 0x26) return 0x48;              /* ↑ */
+; 379:     if (vk == 0x26) return 0x48;              /* ↑ */
         move @R0 [@R12+12]
         push @R0
         move @R0 #38
@@ -3153,7 +3153,7 @@ _L44560256:
         jmp L_44560252
 sta_44560253:
 sta_44560254:
-; 378:     if (vk == 0x27) return 0x4D;              /* → */
+; 380:     if (vk == 0x27) return 0x4D;              /* → */
         move @R0 [@R12+12]
         push @R0
         move @R0 #39
@@ -3171,7 +3171,7 @@ _L44560260:
         jmp L_44560252
 sta_44560257:
 sta_44560258:
-; 379:     if (vk == 0x28) return 0x50;              /* ↓ */
+; 381:     if (vk == 0x28) return 0x50;              /* ↓ */
         move @R0 [@R12+12]
         push @R0
         move @R0 #40
@@ -3189,7 +3189,7 @@ _L44560264:
         jmp L_44560252
 sta_44560261:
 sta_44560262:
-; 380:     if (vk == 0x24) return 0x47;              /* Home */
+; 382:     if (vk == 0x24) return 0x47;              /* Home */
         move @R0 [@R12+12]
         push @R0
         move @R0 #36
@@ -3207,7 +3207,7 @@ _L44560268:
         jmp L_44560252
 sta_44560265:
 sta_44560266:
-; 381:     if (vk == 0x23) return 0x4F;              /* End  */
+; 383:     if (vk == 0x23) return 0x4F;              /* End  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #35
@@ -3225,7 +3225,7 @@ _L44560272:
         jmp L_44560252
 sta_44560269:
 sta_44560270:
-; 382:     if (vk == 0x21) return 0x49;              /* PgUp */
+; 384:     if (vk == 0x21) return 0x49;              /* PgUp */
         move @R0 [@R12+12]
         push @R0
         move @R0 #33
@@ -3243,7 +3243,7 @@ _L44560276:
         jmp L_44560252
 sta_44560273:
 sta_44560274:
-; 383:     if (vk == 0x22) return 0x51;              /* PgDn */
+; 385:     if (vk == 0x22) return 0x51;              /* PgDn */
         move @R0 [@R12+12]
         push @R0
         move @R0 #34
@@ -3261,7 +3261,7 @@ _L44560280:
         jmp L_44560252
 sta_44560277:
 sta_44560278:
-; 384:     if (vk == 0x2D) return 0x52;              /* Ins  */
+; 386:     if (vk == 0x2D) return 0x52;              /* Ins  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #45
@@ -3279,7 +3279,7 @@ _L44560284:
         jmp L_44560252
 sta_44560281:
 sta_44560282:
-; 385:     if (vk == 0x2E) return 0x53;              /* Del  */
+; 387:     if (vk == 0x2E) return 0x53;              /* Del  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #46
@@ -3297,7 +3297,7 @@ _L44560288:
         jmp L_44560252
 sta_44560285:
 sta_44560286:
-; 386:     if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
+; 388:     if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #112
@@ -3345,7 +3345,7 @@ _L44560292:
         jmp L_44560252
 sta_44560289:
 sta_44560290:
-; 387:     if (vk == 0x7A) return 0x57;              /* F11 */
+; 389:     if (vk == 0x7A) return 0x57;              /* F11 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #122
@@ -3363,7 +3363,7 @@ _L44560300:
         jmp L_44560252
 sta_44560297:
 sta_44560298:
-; 388:     if (vk == 0x7B) return 0x58;              /* F12 */
+; 390:     if (vk == 0x7B) return 0x58;              /* F12 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #123
@@ -3381,7 +3381,7 @@ _L44560304:
         jmp L_44560252
 sta_44560301:
 sta_44560302:
-; 389:     return 0;
+; 391:     return 0;
         move @R0 #0
         jmp L_44560252
 L_44560252:
@@ -3400,11 +3400,11 @@ _con_getch_window:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 395:     int* msg = buf;          /* ⚠ 必须用**指针变量**：`asm` 里的 `${msg}` 展开的是
+; 397:     int* msg = buf;          /* ⚠ 必须用**指针变量**：`asm` 里的 `${msg}` 展开的是
         move @R0 @R12
         sub @R0 #20
         move [@R12-24] @R0
-; 402:     if (_con_pending_scan != 0)
+; 404:     if (_con_pending_scan != 0)
         move @R0 [_con_pending_scan]
         push @R0
         move @R0 #0
@@ -3418,21 +3418,21 @@ _L44560307:
 _L44560308:
         cmp @R0 #0
         jz sta_44560305
-; 404:         sc = _con_pending_scan;
+; 406:         sc = _con_pending_scan;
         move @R0 [_con_pending_scan]
         move [@R12-32] @R0
-; 405:         _con_pending_scan = 0;
+; 407:         _con_pending_scan = 0;
         move @R0 #0
         move [_con_pending_scan] @R0
-; 406:         return sc;
+; 408:         return sc;
         move @R0 [@R12-32]
         jmp L_44560309
 sta_44560305:
 sta_44560306:
 sta_44560310:
-; 429:         asm("MOVE R1 #0");
+; 431:         asm("MOVE R1 #0");
         asm "MOVE R1 #0"
-; 430:         if ((int)asm("SYSCALL #561, ${msg}") <= 0) return 0;
+; 432:         if ((int)asm("SYSCALL #561, ${msg}") <= 0) return 0;
         move @R0 [@R12-24]
         syscall #561
         move [@R12-4] @R0
@@ -3452,7 +3452,7 @@ _L44560316:
         jmp L_44560309
 sta_44560313:
 sta_44560314:
-; 433:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
+; 435:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
         move @R0 [@R12-24]
         push @R0
         move @R0 #0
@@ -3478,7 +3478,7 @@ sta_44560318:
 sta_44560311:
         jmp sta_44560310
 sta_44560312:
-; 435:     vk = msg[1];
+; 437:     vk = msg[1];
         move @R0 [@R12-24]
         push @R0
         move @R0 #1
@@ -3487,14 +3487,14 @@ sta_44560312:
         add @R0 @R5
         move @R0 [@R0]
         move [@R12-28] @R0
-; 436:     sc = _con_scan_code(vk);
+; 438:     sc = _con_scan_code(vk);
         move @R0 [@R12-28]
         push @R0
         move @R0 [@R13+0]
         call _con_scan_code
         add @R13 #4
         move [@R12-32] @R0
-; 437:     if (sc != 0)
+; 439:     if (sc != 0)
         move @R0 [@R12-32]
         push @R0
         move @R0 #0
@@ -3508,15 +3508,15 @@ _L44560323:
 _L44560324:
         cmp @R0 #0
         jz sta_44560321
-; 439:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
+; 441:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
         move @R0 [@R12-32]
         move [_con_pending_scan] @R0
-; 440:         return 0;
+; 442:         return 0;
         move @R0 #0
         jmp L_44560309
 sta_44560321:
 sta_44560322:
-; 442:     return vk;                               /* 普通键：虚拟键码 == ASCII */
+; 444:     return vk;                               /* 普通键：虚拟键码 == ASCII */
         move @R0 [@R12-28]
         jmp L_44560309
 L_44560309:
@@ -3535,7 +3535,7 @@ getch:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 447:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
+; 449:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3572,7 +3572,7 @@ _L44560328:
         jmp L_44560329
 sta_44560325:
 sta_44560326:
-; 450:     if (_con_win_state() == 0) return _con_getch_window();
+; 452:     if (_con_win_state() == 0) return _con_getch_window();
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3590,15 +3590,15 @@ _L44560333:
         jmp L_44560329
 sta_44560330:
 sta_44560331:
-; 451:     conKbLen = 0;
+; 453:     conKbLen = 0;
         move @R0 #0
         move [conKbLen] @R0
-; 452:     conKbPos = 0;
+; 454:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
 sta_44560334:
         move @R2 #0
-; 453:     while (conKbLen < 126) {
+; 455:     while (conKbLen < 126) {
         move @R0 [conKbLen]
         push @R0
         move @R0 #126
@@ -3612,10 +3612,10 @@ _L44560336:
 _L44560337:
         cmp @R0 #0
         jz sta_44560335
-; 454:         c = getchar();
+; 456:         c = getchar();
         call getchar
         move [@R12-8] @R0
-; 455:         if (c <= 0 || c == 10 || c == 13) break;
+; 457:         if (c <= 0 || c == 10 || c == 13) break;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3674,7 +3674,7 @@ _L44560342:
         jmp sta_44560335
 sta_44560338:
 sta_44560339:
-; 456:         conKb[conKbLen] = (char)c;
+; 458:         conKb[conKbLen] = (char)c;
         move @R0 [@R12-8]
         move @R8 @R0
         push @R8
@@ -3691,7 +3691,7 @@ sta_44560339:
         add @R0 @R2
         pop @R8
         moveb [@R0] @R8
-; 457:         conKbLen++;
+; 459:         conKbLen++;
         move @R0 [conKbLen]
         move @R1 @R0
         add @R0 @R0 #1
@@ -3699,10 +3699,10 @@ sta_44560339:
         move @R0 @R1
         jmp sta_44560334
 sta_44560335:
-; 459:     conKbPos = 0;
+; 461:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 460:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
+; 462:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
         move @R0 [conKbLen]
         push @R0
         move @R0 #0
@@ -3720,7 +3720,7 @@ _L44560355:
         jmp L_44560329
 sta_44560352:
 sta_44560353:
-; 461:     c = conKb[conKbPos];
+; 463:     c = conKb[conKbPos];
         move @R0 conKb
         push @R0
         move @R6 #0
@@ -3735,13 +3735,13 @@ sta_44560353:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-8] @R0
-; 462:     conKbPos++;
+; 464:     conKbPos++;
         move @R0 [conKbPos]
         move @R1 @R0
         add @R0 @R0 #1
         move [conKbPos] @R0
         move @R0 @R1
-; 463:     return c;
+; 465:     return c;
         move @R0 [@R12-8]
         jmp L_44560329
 L_44560329:
@@ -3760,10 +3760,10 @@ getche:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 468:     c = getch();
+; 470:     c = getch();
         call getch
         move [@R12-8] @R0
-; 469:     if (c != 0) putch(c);
+; 471:     if (c != 0) putch(c);
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3784,7 +3784,7 @@ _L44560359:
         add @R13 #4
 sta_44560356:
 sta_44560357:
-; 470:     return c;
+; 472:     return c;
         move @R0 [@R12-8]
         jmp L_44560360
 L_44560360:
@@ -3804,11 +3804,11 @@ kbhit:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 500:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
+; 502:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
         move @R0 @R12
         sub @R0 #24
         move [@R12-28] @R0
-; 501:     if (conKbPos < conKbLen) return 1;
+; 503:     if (conKbPos < conKbLen) return 1;
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3826,7 +3826,7 @@ _L44560364:
         jmp L_44560365
 sta_44560361:
 sta_44560362:
-; 504:     if (_con_win_state() == 0)
+; 506:     if (_con_win_state() == 0)
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3841,9 +3841,9 @@ _L44560369:
         cmp @R0 #0
         jz sta_44560366
 sta_44560370:
-; 517:             asm("MOVE R1 #1");
+; 519:             asm("MOVE R1 #1");
         asm "MOVE R1 #1"
-; 518:             if ((int)asm("SYSCALL #571, ${msg}") <= 0) return 0;   /* 队列空 */
+; 520:             if ((int)asm("SYSCALL #571, ${msg}") <= 0) return 0;   /* 队列空 */
         move @R0 [@R12-28]
         syscall #571
         move [@R12-4] @R0
@@ -3863,7 +3863,7 @@ _L44560376:
         jmp L_44560365
 sta_44560373:
 sta_44560374:
-; 519:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
+; 521:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
         move @R0 [@R12-28]
         push @R0
         move @R0 #0
@@ -3887,7 +3887,7 @@ _L44560380:
         jmp L_44560365
 sta_44560377:
 sta_44560378:
-; 520:             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
+; 522:             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
         move @R0 [@R12-28]
         syscall #560
         move [@R12-4] @R0
@@ -3896,13 +3896,13 @@ sta_44560371:
 sta_44560372:
 sta_44560366:
 sta_44560367:
-; 525:     asm("MOVE R0 #0");
+; 527:     asm("MOVE R0 #0");
         asm "MOVE R0 #0"
-; 526:     c = asm("SYSCALL #5");
+; 528:     c = asm("SYSCALL #5");
         syscall #5
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 527:     if (c <= 0) return 0;
+; 529:     if (c <= 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3920,7 +3920,7 @@ _L44560384:
         jmp L_44560365
 sta_44560381:
 sta_44560382:
-; 528:     conKb[0] = (char)c;
+; 530:     conKb[0] = (char)c;
         move @R0 [@R12-8]
         move @R11 @R0
         push @R11
@@ -3937,13 +3937,13 @@ sta_44560382:
         add @R0 @R5
         pop @R11
         moveb [@R0] @R11
-; 529:     conKbLen = 1;
+; 531:     conKbLen = 1;
         move @R0 #1
         move [conKbLen] @R0
-; 530:     conKbPos = 0;
+; 532:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 531:     return 1;
+; 533:     return 1;
         move @R0 #1
         jmp L_44560365
 L_44560365:

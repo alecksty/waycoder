@@ -129,9 +129,12 @@ static int trailX[MAX_TRAIL];
 static int trailY[MAX_TRAIL];
 
 // 按序号访问具名字段的指针表（见 `Game` 里那段注释：那里的写法是历史原因，不是限制）
-static Building* BL[4];
+static Building* BL[8];
+// 本局的**实际栋数**（4~8，每局随机，见 `Game::Layout`）。
+// 放文件级是因为 `HoleRadiusAt` 这个自由函数也要遍历楼 —— 它是按序号表 `BL` 走的。
+static int gBldgN;
 static Ape* AP[2];
-static Tree TREES[6];        // 地上的树（数量随机，见 Game::Layout）
+static Tree TREES[8];        // 地上的树（数量/高矮/位置都随机，见 Game::Layout）
 static Flyer* FLY[3];        // 鸟 / 飞碟 / 飞机 —— 三个派生类共用基类指针
 
 // ════════════════════════════════════════════════════════════════════
@@ -183,10 +186,14 @@ void addHole(int hx, int hy, int hr)
 #define C_STAR      0xFFFFFFFF
 #define C_SUN       0xFFFFE060
 #define C_MOON      0xFFE8E8F0
-#define C_BLDG_A    0xFF6E5A46
-#define C_BLDG_B    0xFF8A7258
-#define C_BLDG_C    0xFF5A6E7A
-#define C_BLDG_D    0xFF7A5A6E
+// 楼体色 —— ⚠ 这四档原本是**暗棕/土黄/石板/藕紫**（0xFF6E5A46 一路下来），
+//   白天拉满也只有 RGB(110,90,70)，配上夜景那就是一片糊。玩家报「画面不太好看」
+//   很大一半在这里：**天空是鲜的、楼是灰的**，整个画面就"脏"。
+//   换成饱和度高的四色（与 BASIC 版那排彩色楼同一个路子）。改这里记得同步 `SetTint`。
+#define C_BLDG_A    0xFFE0604E
+#define C_BLDG_B    0xFF3FB59A
+#define C_BLDG_C    0xFFE8B840
+#define C_BLDG_D    0xFF9A6AE0
 #define C_WIN_LIT   0xFFFFD070
 #define C_WIN_DARK  0xFF2A2A38
 #define C_GROUND    0xFF3C5A34
@@ -223,6 +230,17 @@ int mixcol(int nr, int ng, int nb, int dr, int dg, int db, int pct)
     return 0xFF000000 + cr * 65536 + cg * 256 + cb;
 }
 
+// 颜色分量。**描边色一律由本体色算出来**，不写死 —— 见 Ape::Draw 的说明。
+//
+// ⚠⚠ **必须用位运算，不能用 `/` 和 `%`**：本平台的颜色值都带 alpha（`0xFFxxxxxx`），
+//   存进 `int` 是**负数** —— 实测 `0xFFFFFFFF` 就是 `-1`，而 C 的整数除法/取模是
+//   **向零截断**的 ⇒ `(-1 / 65536) % 256` 得 **0**、`-1 % 256` 得 **-1**，
+//   分量全错。症状不是报错，是**画出一个谁也没指定的颜色**（云的底面被算成红褐色横线）。
+//   位运算对正负都成立（算术/逻辑右移都行，因为后面 `& 0xFF` 会把高位切掉）。
+int colR(int c) { return (c >> 16) & 255; }
+int colG(int c) { return (c >> 8) & 255; }
+int colB(int c) { return c & 255; }
+
 // ════════════════════════════════════════════════════════════════════
 // 落点该炸多大的坑：撞在楼身上大一些（打进墙里），砸在地上小一些。
 //
@@ -236,7 +254,7 @@ int HoleRadiusAt(int px, int py)
 {
     int i;
     i = 0;
-    while (i < 4)
+    while (i < gBldgN)
     {
         if ((*BL[i]).Covers(px))
         {
@@ -541,6 +559,7 @@ void cloudsDraw(int scrW, int groundY)
     int cw;
     int ch;
     int col;
+    int shade;
 
     if (cloudsReady == 0) { return; }
 
@@ -558,10 +577,18 @@ void cloudsDraw(int scrW, int groundY)
         //   乘 1.6、封顶 100 ⇒ 天光 63 以上就是纯白的云，日出前后才淡出。
         col = mixcol(gMr, gMg, gMb, 255, 255, 255, gDayL * 160 / 100);
         if (gDayL * 160 / 100 > 100) { col = mixcol(gMr, gMg, gMb, 255, 255, 255, 100); }
-        // 先画两边小的、再画中间大的（后画的盖住前者，看着像一朵）
-        ui_circle(cx, cy, ch, col, 1, 0);
-        ui_circle(cx + cw / 2, cy + ch / 4, ch * 3 / 4, col, 1, 0);
-        ui_circle(cx + cw, cy, ch * 4 / 5, col, 1, 0);
+        shade = mixcol(colR(col), colG(col), colB(col), gMr, gMg, gMb, 30);
+
+        // ⚠ 原来是"三颗球叠一起"，玩家原话是「云就是圆球？」
+        //   云之所以一眼是云，靠的是**底边接近一条水平线**、只有上半是鼓的。
+        //   所以改成：一条扁的圆角底座（两端自然收成半圆）+ 顶上加三个鼓包。
+        //   只画圆的话，无论怎么排都会读成"一堆球" —— 差别全在这条底边。
+        ui_rect(cx, cy - ch / 2, cw, ch, col, 1, 0, ch / 2);
+        ui_circle(cx + cw / 5,     cy - ch / 2, ch * 3 / 4, col, 1, 0);
+        ui_circle(cx + cw / 2,     cy - ch,     ch,         col, 1, 0);
+        ui_circle(cx + cw * 4 / 5, cy - ch / 2, ch * 2 / 3, col, 1, 0);
+        // 底面一道暗色 —— 有它才有体积感，否则还是"贴纸"
+        ui_rect(cx + ch / 2, cy + ch / 2 - 3, cw - ch, 3, shade, 1, 0, 1);
         i = i + 1;
     }
 }
@@ -712,7 +739,7 @@ public:
         h = 0;
         gy = 0;
         tint = 0;
-        baseR = 110; baseG = 90; baseB = 70;
+        baseR = 224; baseG = 96; baseB = 78;
     }
 
     /// <summary>
@@ -723,10 +750,14 @@ public:
     void SetTint(int t)
     {
         tint = t;
-        baseR = 110; baseG = 90; baseB = 70;        // A 0xFF6E5A46
-        if (t == 1) { baseR = 138; baseG = 114; baseB = 88; }    // B 0xFF8A7258
-        if (t == 2) { baseR = 90; baseG = 110; baseB = 122; }    // C 0xFF5A6E7A
-        if (t == 3) { baseR = 122; baseG = 90; baseB = 110; }    // D 0xFF7A5A6E
+        baseR = 224; baseG = 96;  baseB = 78;     // 0 珊瑚红
+        if (t == 1) { baseR = 63;  baseG = 181; baseB = 154; }   // 1 青绿
+        if (t == 2) { baseR = 232; baseG = 184; baseB = 64;  }   // 2 明黄
+        if (t == 3) { baseR = 154; baseG = 106; baseB = 224; }   // 3 紫
+        if (t == 4) { baseR = 74;  baseG = 144; baseB = 217; }   // 4 天蓝
+        if (t == 5) { baseR = 230; baseG = 140; baseB = 60;  }   // 5 橙
+        if (t == 6) { baseR = 224; baseG = 106; baseB = 152; }   // 6 粉
+        if (t == 7) { baseR = 122; baseG = 190; baseB = 84;  }   // 7 草绿
     }
 
     void Setup(int px, int pw, int ph, int groundY)
@@ -773,8 +804,10 @@ public:
         int wy;
         int litN;
 
-        // 楼体：夜色 = **同一个色相压到 16%**，按天光在两者之间插值
-        bodyC = mixcol(baseR * 16 / 100, baseG * 16 / 100, baseB * 16 / 100,
+        // 楼体：夜色 = **同一个色相压到 26% 再偏一点冷蓝**，按天光在两者之间插值。
+        // ⚠ 原来压到 16% 且不加蓝 ⇒ 夜里几乎全黑，四栋楼糊成一片分不出彼此；
+        //   月光本身是冷的，给夜景补 18 点蓝分量，暗是暗、但"看得见是几栋楼"。
+        bodyC = mixcol(baseR * 26 / 100, baseG * 26 / 100, baseB * 26 / 100 + 18,
                        baseR, baseG, baseB, gDayL);
         ui_rect(x, y, w, h, bodyC, 1, 0, 0);
 
@@ -957,29 +990,64 @@ public:
         int hx;
         int hy;
         int len;
+        int dark;
+        int light;
 
-        // 身体
-        ui_rect(x - 11, y - 26, 22, 26, body, 1, 0, 0);
-        // 头
-        ui_circle(x, y - 34, 10, body, 1, 0);
+        // ⚠ **描边色与浅色都由本体色算出来，不写死**。
+        //   原来写死 `C_APE_DARK`（深棕），橙猴子看着还行，**紫猴子配深棕是发闷的** ——
+        //   玩家当时的原话是「猴子没有轮廓」。由本体色推出来的描边在任何配色下都成立。
+        dark = mixcol(colR(body), colG(body), colB(body), 12, 8, 6, 62);
+        light = mixcol(colR(body), colG(body), colB(body), 255, 245, 235, 45);
+
+        // ── 腿脚（先画，躯干盖住上沿）────────────────────────────
+        ui_rect(x - 12, y - 9, 11, 9, body, 1, 0, 3);
+        ui_rect(x + 1, y - 9, 11, 9, body, 1, 0, 3);
+        ui_rect(x - 12, y - 9, 11, 9, dark, 0, 2, 3);
+        ui_rect(x + 1, y - 9, 11, 9, dark, 0, 2, 3);
+
+        // ── 后边那只胳膊（垂着）──────────────────────────────────
+        ui_line(x - 11, y - 25, x - 16, y - 8, dark, 9);
+        ui_line(x - 11, y - 25, x - 16, y - 8, body, 6);
+        ui_circle(x - 16, y - 8, 5, body, 1, 0);
+        ui_circle(x - 16, y - 8, 5, dark, 0, 2);
+
+        // ── 躯干：宽肩（大猩猩的体型就是"肩膀比头宽"）────────────
+        ui_rect(x - 14, y - 30, 28, 23, body, 1, 0, 9);
+        ui_rect(x - 14, y - 30, 28, 23, dark, 0, 2, 9);
+        // 浅色胸腹 —— 有它才不会读成"一块方砖"
+        ui_ellipse(x, y - 20, 8, 9, light, 1, 0);
+
+        // ── 头：耳朵 → 头 → 眉骨 → 吻部 → 眼 ─────────────────────
+        ui_circle(x - 11, y - 39, 5, body, 1, 0);
+        ui_circle(x + 11, y - 39, 5, body, 1, 0);
+        ui_circle(x - 11, y - 39, 5, dark, 0, 2);
+        ui_circle(x + 11, y - 39, 5, dark, 0, 2);
+        ui_circle(x, y - 40, 12, body, 1, 0);
+        ui_circle(x, y - 40, 12, dark, 0, 2);
+        // 眉骨：一条压低的横条 —— **这一笔是"看出是猩猩"的关键**，
+        //   光有一个圆头，放大到手机屏幕上就是个球。
+        ui_rect(x - 9, y - 47, 18, 4, dark, 1, 0, 2);
+        // 吻部
+        ui_ellipse(x, y - 33, 7, 5, light, 1, 0);
+        ui_ellipse(x, y - 33, 7, 5, dark, 0, 2);
         // 眼睛（朝对手那边）
         if (flip != 0)
         {
-            ui_rect(x - 7, y - 37, 3, 3, C_APE_DARK, 1, 0, 0);
+            ui_circle(x - 5, y - 42, 2, C_TEXT, 1, 0);
         }
         else
         {
-            ui_rect(x + 4, y - 37, 3, 3, C_APE_DARK, 1, 0, 0);
+            ui_circle(x + 5, y - 42, 2, C_TEXT, 1, 0);
         }
-        // 腿
-        ui_rect(x - 9, y - 6, 7, 6, C_APE_DARK, 1, 0, 0);
-        ui_rect(x + 2, y - 6, 7, 6, C_APE_DARK, 1, 0, 0);
-        // 举起来那只胳膊（按角度画）—— 玩家看得见自己调的角度
+
+        // ── 举起来那只胳膊（按角度画）—— 玩家看得见自己调的角度 ──
         len = 26;
         hx = x + icos(angle) * len / SIN_SCALE * (1 - 2 * flip);
-        hy = y - 20 - isin(angle) * len / SIN_SCALE;
-        ui_line(x, y - 20, hx, hy, body, 5);
-        ui_circle(hx, hy, 4, body, 1, 0);
+        hy = y - 24 - isin(angle) * len / SIN_SCALE;
+        ui_line(x, y - 24, hx, hy, dark, 10);   // 先粗的深色当描边
+        ui_line(x, y - 24, hx, hy, body, 6);    // 再细的本体色
+        ui_circle(hx, hy, 5, body, 1, 0);
+        ui_circle(hx, hy, 5, dark, 0, 2);
     }
 };
 
@@ -1232,14 +1300,44 @@ public:
 
     virtual void Draw()
     {
+        int hull;
+        int hullD;
+        int glass;
+        int glassD;
+
         if (live == 0) { return; }
-        ui_circle(x, y, 13, 0xFFB8C0CC, 1, 0);
-        ui_circle(x, y - 5, 7, 0xFF97A0AC, 1, 0);
+
+        hull = 0xFFC8D0DC;
+        hullD = 0xFF5A6472;
+        glass = 0xFF8ADCFF;
+        glassD = 0xFF2E6E9E;
+
+        // ⚠ 原来是「大球 + 小球」，玩家原话是「飞碟也是个球」。
+        //   飞碟之所以一眼是飞碟，靠的是**宽扁的碟身 + 顶上一个罩子**这两条轮廓线，
+        //   光有圆是读不出来的。
+        // 悬停的光晕（先画，后面被碟身压住一半）
+        ui_ellipse(x, y + 10, 17, 4, 0x40A0E0FF, 1, 0);
+
+        // ── 座舱罩：**先画一整个圆**，碟身随后盖掉它的下半 ⇒ 正好剩一个半圆罩 ──
+        //    （本平台没有裁剪，这个"画完再盖"就是最省事的做法）
+        ui_circle(x, y - 6, 10, glass, 1, 0);
+        ui_circle(x, y - 6, 10, glassD, 0, 2);
+        ui_ellipse(x - 4, y - 9, 3, 2, 0xFFFFFFFF, 1, 0);   // 罩子高光
+
+        // ── 碟身：宽扁椭圆（宽:高 ≈ 3:1 才像碟）──
+        ui_ellipse(x, y + 1, 22, 7, hull, 1, 0);
+        ui_ellipse(x, y + 1, 22, 7, hullD, 0, 2);
+        // 碟身上半的一道亮边，给它"金属盘子"的感觉
+        ui_ellipse(x, y - 1, 17, 3, 0xFFE8EEF6, 1, 0);
+
+        // ── 底下一圈灯 ──
         if (lit != 0)
         {
-            ui_circle(x - 9, y + 5, 2, 0xFFFF5050, 1, 0);
-            ui_circle(x, y + 7, 2, 0xFFFFE050, 1, 0);
-            ui_circle(x + 9, y + 5, 2, 0xFF50FF70, 1, 0);
+            ui_circle(x - 15, y + 5, 2, 0xFFFF5050, 1, 0);
+            ui_circle(x - 8,  y + 7, 2, 0xFFFFE050, 1, 0);
+            ui_circle(x,      y + 8, 2, 0xFF50FF70, 1, 0);
+            ui_circle(x + 8,  y + 7, 2, 0xFF50D0FF, 1, 0);
+            ui_circle(x + 15, y + 5, 2, 0xFFFF5050, 1, 0);
         }
     }
 };
@@ -1321,20 +1419,34 @@ public:
 
     void Draw()
     {
-        int i;
-        int ty;
-        int tw;
+        int cy;
+        int r;
+        int v;              // 本棵的绿色档（0..2）—— 按位置取，不用额外字段
+        int dark;
+        int mid;
+        int lit;
 
-        ui_rect(x - 2, y - h / 4, 4, h / 4, 0xFF4A3520, 1, 0, 0);   // 树干
-        // 树冠：三层越来越小的圆角矩形叠出来（便宜，形状够用）
-        i = 0;
-        while (i < 3)
-        {
-            ty = y - h / 4 - (h / 3) * i;
-            tw = w * (3 - i) / 3;
-            ui_rect(x - tw / 2, ty - h / 3, tw, h / 3, 0xFF2E6B34, 1, 0, 4);
-            i = i + 1;
-        }
+        // ⚠ 原来树冠是**三层方角矩形**叠出来的 —— 放小了一看就是"绿色方块"，
+        //   与云那时候同一个毛病。树冠就用圆：一大两小拼一顶，再补受光面。
+        // 三档绿，按 x 取（同一棵每帧稳定，每棵树之间不一样）
+        v = (x / 7) % 3;
+        dark = 0xFF1E4A22;
+        mid  = 0xFF2E7A38;
+        lit  = 0xFF57B05E;
+        if (v == 1) { dark = 0xFF22401E; mid = 0xFF4A7A2E; lit = 0xFF78C05A; }
+        if (v == 2) { dark = 0xFF173F2A; mid = 0xFF2A6E4A; lit = 0xFF4FA87A; }
+
+        // 树干
+        ui_rect(x - 2, y - h / 3, 5, h / 3 + 2, dark, 1, 0, 1);
+        ui_rect(x - 1, y - h / 3, 3, h / 3, 0xFF5A4326, 1, 0, 1);
+
+        // 树冠：两侧小圆先画（当底部层次），主冠盖上去，最后左上一块受光
+        cy = y - h * 2 / 3;
+        r = w / 2 + 2;
+        ui_circle(x - r * 3 / 4, cy + r / 3, r / 2, dark, 1, 0);
+        ui_circle(x + r * 3 / 4, cy + r / 3, r / 2, dark, 1, 0);
+        ui_circle(x, cy, r, mid, 1, 0);
+        ui_circle(x - r / 4, cy - r / 3, r * 2 / 3, lit, 1, 0);
     }
 };
 
@@ -1452,6 +1564,10 @@ public:
     Building b1;
     Building b2;
     Building b3;
+    Building b4;
+    Building b5;
+    Building b6;
+    Building b7;
     Ape a0;
     Ape a1;
     Banana ban;
@@ -1522,6 +1638,10 @@ public:
         BL[1] = &b1;
         BL[2] = &b2;
         BL[3] = &b3;
+        BL[4] = &b4;
+        BL[5] = &b5;
+        BL[6] = &b6;
+        BL[7] = &b7;
         AP[0] = &a0;
         AP[1] = &a1;
         FLY[0] = &bird;
@@ -1542,6 +1662,10 @@ public:
         int base;
         int h;
         int x;
+        int avail;          // 扣掉间隔之后、留给楼体的总宽
+        int wsum;           // 权重之和
+        int wW[8];          // 每栋的**宽度权重**（见下面"权重法"的说明）
+        int tintOff;        // 配色的起始档 —— 每局换个顺序，连玩两局不会"又是那排色"
 
         sw = ui_scr_w();
         sh = ui_scr_h();
@@ -1556,35 +1680,63 @@ public:
         // 天空不再"掷一个昼夜"，它跟着游戏时钟连续变化
         sky.Setup(sw, sh, gy);
 
+        // ── 楼：**4~8 栋、宽度不一**（玩家要求："房子数量应该是 4 到 8 个不等，
+        //    宽度不固定，随机的"）────────────────────────────────────────
         gap = sw / 40;
-        bw = (sw - gap * 5) / 4;
-        base = gy - sh / 5;
-        x = gap;
+        gBldgN = 4 + ui_rand(5);            // 4..8
+        avail = sw - gap * (gBldgN + 1);
+        if (avail < 60) { avail = 60; }
 
+        // 宽度用**权重法**：先随机每栋的权重，再按权重去分总宽。
+        // ⚠ 别直接给每栋随机一个宽度 —— 那些数加起来**不等于**可用宽度，
+        //   右边不是空一截就是溢出屏幕（"随机的"要的是宽窄不一，不是铺不满）。
+        wsum = 0;
         i = 0;
-        while (i < 4)
+        while (i < gBldgN)
         {
+            wW[i] = 5 + ui_rand(11);        // 5..15
+            wsum = wsum + wW[i];
+            i = i + 1;
+        }
+
+        tintOff = ui_rand(8);
+        x = gap;
+        i = 0;
+        while (i < gBldgN)
+        {
+            bw = avail * wW[i] / wsum;
+            if (bw < 22) { bw = 22; }       // 太窄站不下猴子
+            if (i == gBldgN - 1)
+            {
+                // **最后一栋吃掉余量** ⇒ 右边严丝合缝；只要剩得下，就不留缝
+                int rest;
+                rest = sw - gap - x;
+                if (rest >= 22) { bw = rest; }
+            }
             h = sh / 5 + ui_rand(sh / 4);
-            if (i == 0 || i == 3) { h = h + sh / 14; }   // 两边的楼高一点，好站
+            // 两边的楼高一点，好站（猴子站在最左和最右那两栋上）
+            if (i == 0 || i == gBldgN - 1) { h = h + sh / 14; }
             (*BL[i]).Setup(x, bw, h, gy);
-            (*BL[i]).SetTint(i);
+            (*BL[i]).SetTint((i + tintOff) % 8);
             x = x + bw + gap;
             i = i + 1;
         }
 
         (*AP[0]).StandOn(&(*BL[0]));
-        (*AP[1]).StandOn(&(*BL[3]));
+        (*AP[1]).StandOn(&(*BL[gBldgN - 1]));
 
-        // 地上的树：**位置 / 数量 / 高矮都随机**（每局不一样）
-        treeN = 2 + ui_rand(4);
+        // 地上的树：**位置 / 数量 / 高矮都随机**（每局都不一样）
+        treeN = 3 + ui_rand(6);             // 3..8
         i = 0;
         while (i < treeN)
         {
             int tx;
             int th;
-            tx = 10 + ui_rand(sw - 20);
-            th = 26 + ui_rand(30);
-            TREES[i].Setup(tx, gy + 2, th, 14 + ui_rand(12));
+            int tw;
+            tx = 12 + ui_rand(sw - 24);
+            th = 24 + ui_rand(42);          // 24..65，高矮差一倍多才看得出"随机"
+            tw = 12 + ui_rand(16);          // 12..27
+            TREES[i].Setup(tx, gy + 4, th, tw);
             i = i + 1;
         }
         spawnT = 0;
@@ -1677,7 +1829,7 @@ public:
             if (hit < 0 && r == 0)
             {
                 i = 0;
-                while (i < 4)
+                while (i < gBldgN)
                 {
                     if ((*BL[i]).Covers(ban.x) && ban.y >= (*BL[i]).RoofY())
                     {
@@ -1853,7 +2005,7 @@ public:
             {
                 // 撞楼就停在这一格（落点标记画在**它撞上的那栋楼**的屋顶上）
                 k = 0;
-                while (k < 4)
+                while (k < gBldgN)
                 {
                     if ((*BL[k]).Covers(px / FP) && py / FP >= (*BL[k]).RoofY())
                     {
@@ -1973,7 +2125,8 @@ public:
     void Draw()
     {
         int i;
-        Entity* actors[8];
+        Entity* actors[16];
+        int actorN;
 
         // ⚠ **每帧的第一件事**：把这一刻的天光 / 暖色 / 日月位置算出来。
         //   后面每一处配色（天、楼、窗、地、云、弹坑）都读它算出来的那几个全局量。
@@ -1991,22 +2144,16 @@ public:
         ui_clear(clockZenith());
 
         // 多态绘制：全部当 Entity 指针调 Draw()，实现由各自决定
-        actors[0] = &sky;
-        actors[1] = &(*BL[0]);
-        actors[2] = &b1;
-        actors[3] = &b2;
-        actors[4] = &(*BL[3]);
-        actors[5] = &(*AP[0]);
-        actors[6] = &(*AP[1]);
-        actors[7] = &ban;
-
-        // 树画在楼房**之前** —— 楼房后画会把树挡住，正好得到"树长在楼缝里"的观感
+        // ⚠ 画表**按本局实际栋数拼**，不能写死下标 ——
+        //   原来写的是 actors[1..4] = 四栋楼，栋数一变（4~8）就会漏画或越界。
+        actorN = 0;
+        actors[actorN] = &sky;     actorN = actorN + 1;
         i = 0;
-        while (i < treeN)
-        {
-            TREES[i].Draw();
-            i = i + 1;
-        }
+        while (i < gBldgN) { actors[actorN] = &(*BL[i]); actorN = actorN + 1; i = i + 1; }
+        actors[actorN] = &(*AP[0]); actorN = actorN + 1;
+        actors[actorN] = &(*AP[1]); actorN = actorN + 1;
+        actors[actorN] = &ban;      actorN = actorN + 1;
+
 
         // ⚠ **`actors[0]` 是 `Sky`，它会把整片天空铺一遍** —— 所以云必须画在它**之后**，
         //   否则刚画好的云立刻被天空盖掉（实测：云的位置颜色都对，屏幕上却什么都没有）。
@@ -2017,7 +2164,7 @@ public:
         meteorDraw(sw, gy);
 
         i = 1;
-        while (i < 8)
+        while (i < actorN)
         {
             actors[i]->Draw();
             i = i + 1;
@@ -2044,6 +2191,18 @@ public:
         ui_rect(0, gy, sw, sh - gy, mixcol(12, 12, 22, 74, 78, 86, gDayL), 1, 0, 0);
         // 街灯：**地面之后**画（灯杆是立在地上的，画在地面前会被地面啃掉一截）
         lampsDraw(sw, gy, sh);
+
+        // ── 树：**画在所有楼之后** ────────────────────────────────────
+        // ⚠ 原来画在楼**之前**，注释写的是"楼房后画会把树挡住，正好得到树长在楼缝里的观感"。
+        //   但楼缝只有 `gap = sw/40`（十几像素），树基本全被挡掉 —— 玩家看不到地上有树，
+        //   于是又提了一次「地上还有随机的树，数量大小，位置随机」。
+        //   街上种的树本来就该**站在楼前面**（也遮住楼脚，画面更有层次），与 BASIC 版一致。
+        i = 0;
+        while (i < treeN)
+        {
+            TREES[i].Draw();
+            i = i + 1;
+        }
 
         DrawAimPreview();
 

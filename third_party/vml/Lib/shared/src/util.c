@@ -2,6 +2,8 @@
 
 #param lib("math")
 
+extern int format_slot_count(const char *format);   /* 见 printf.c：槽数 ≠ 转换个数 */
+
 // VML Shared Utility Library
 
 __stdcall void delay(int ms) {
@@ -94,7 +96,7 @@ __stdcall int fprintf(int stream, const char* fmt, ...) {
     va_list ap;
 
     (void)stream;
-    nargs = format_arg_count(fmt);
+    nargs = format_slot_count(fmt);
     if (nargs > 16) nargs = 16;
     va_start(ap, fmt);
     for (i = 0; i < nargs; i++) vals[i] = va_arg(ap, int);
@@ -121,7 +123,7 @@ __stdcall int vfprintf(int stream, const char* fmt, va_list ap) {
     int n;
 
     (void)stream;
-    nargs = format_arg_count(fmt);
+    nargs = format_slot_count(fmt);
     if (nargs > 16) nargs = 16;
     for (i = 0; i < nargs; i++) vals[i] = va_arg(ap, int);
     n = vsnprintf(buf, fmt, vals, nargs);

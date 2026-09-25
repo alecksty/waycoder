@@ -373,10 +373,7 @@ int format_arg_count(const char *format) {
 // ⚠ 顺带修掉 `format_arg_count` 的一个盲区：它**不跳过宽度/精度**，
 //   `%5d` 会被它数成…… 仍然只数 1 个（因为 `%` 后只看一个字符），
 //   但 `%-5d` 之类在它眼里也没问题；本函数按 C 的完整语法解析，不依赖那个巧合。
-// ⚠ **static**：它只在本文件里用（三处 printf 家族入口）。写成导出的会平白
-//   出现在 22 门语言的绑定里（`shared_bindings.h` / `shared.py` …），
-//   那是给"**别的语言要调**"用的清单 —— 一个内部助手挂上去只是噪音。
-static int format_slot_count(const char *format) {
+int format_slot_count(const char *format) {
     int n = 0;
     const char *p = format;
     while (*p) {

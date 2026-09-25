@@ -34,6 +34,8 @@ extern int putchar(int c);                    /* SYSCALL #4 —— 唯一的输�
 extern int getchar(void);
 extern int format_arg_count(const char *format);
 extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);
+// 变参**占几个槽**（与 `format_arg_count` 的"几个转换"是两件事）
+extern int format_slot_count(const char *format);
 
 #define CON_ROWS 25
 #define CON_COLS 80
@@ -323,7 +325,7 @@ void cprintf(const char *fmt, ...)
     int n;
     va_list ap;
 
-    nargs = format_arg_count(fmt);
+    nargs = format_slot_count(fmt);
     if (nargs > 16) nargs = 16;
 
     va_start(ap, fmt);

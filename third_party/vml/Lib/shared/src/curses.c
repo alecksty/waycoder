@@ -33,6 +33,8 @@
 extern int putchar(int c);
 extern int format_arg_count(const char *format);
 extern int vsnprintf(char *buf, const char *fmt, const int *args, int nargs);
+// 变参**占几个槽**（与 `format_arg_count` 的"几个转换"是两件事）
+extern int format_slot_count(const char *format);
 extern void delay(int ms);   /* util.c —— `napms` 用它，见该处说明 */
 extern int kbhit(void);      /* conio.c —— `wgetch` 的非阻塞探测，见该处说明 */
 
@@ -422,7 +424,7 @@ int printw(const char *fmt, ...)
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
-    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    sc_vformat(buf, fmt, ap, format_slot_count(fmt));
     va_end(ap);
     return addstr(buf);
 }
@@ -432,7 +434,7 @@ int mvprintw(int y, int x, const char *fmt, ...)
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
-    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    sc_vformat(buf, fmt, ap, format_slot_count(fmt));
     va_end(ap);
     move(y, x);
     return addstr(buf);
@@ -583,7 +585,7 @@ int wprintw(WINDOW *w, const char *fmt, ...)
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
-    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    sc_vformat(buf, fmt, ap, format_slot_count(fmt));
     va_end(ap);
     return waddstr(w, buf);
 }
@@ -592,7 +594,7 @@ int mvwprintw(WINDOW *w, int y, int x, const char *fmt, ...)
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
-    sc_vformat(buf, fmt, ap, format_arg_count(fmt));
+    sc_vformat(buf, fmt, ap, format_slot_count(fmt));
     va_end(ap);
     move(y, x);
     return waddstr(w, buf);
