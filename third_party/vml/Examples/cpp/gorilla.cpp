@@ -61,6 +61,7 @@
 #define GRAV     142      // 每拍重力增量（定点单位）
 #define V_UNIT   43       // 力度 1 点 = 43 定点单位/拍（力度 100 → 4300）
 #define TICK_MS  33       // 物理节拍（≈30fps）
+#define CLOCK_MS 50       // 游戏时钟的推进周期 —— **不是** 1000，见 `gMsOfDay` 的说明
 #define SIN_SCALE 1000    // 正弦表的值域：1000 = 1.0
 
 #define MAX_TRAIL 96      // 尾迹点数上限
@@ -96,6 +97,32 @@ int isin(int deg)
 int icos(int deg)
 {
     return isin(90 - deg);                   // cos(x) = sin(90-x)
+}
+
+/// **亚度**的 sin：`mdeg` 是**千分之一度**（毫度）。
+///
+/// ⚠ 为什么需要它：`isin` 的粒度是 **1 度**，而日月是"跟时间连续走"的 ——
+///   弧顶附近 1 度 ≈ 4px 的纵向位移，于是太阳会**每隔几分钟往上弹一下**
+///   （玩家报的"太阳能不能平滑移动"就是这个）。
+///   粒度的锅补不了，只能把角度本身做细。
+///
+/// 做法是**在相邻两个整数度之间线性插值**（不是重推 Bhaskara）：
+/// 一个 1 度区间内 sin 的二阶误差约 `(π/180)²/8 ≈ 0.00015`（相对值），
+/// 比 Bhaskara 自身的误差还小 —— 而它**不会溢出**：Bhaskara 把输入放大 1000 倍后
+/// 分子 `4·u·1000` 会冲到 3×10⁹ 撞破 32 位，插值版最大只有几千。
+int isin_f(int mdeg)
+{
+    int d0;
+    int frac;
+    int s0;
+    int s1;
+
+    if (mdeg < 0) { mdeg = -mdeg; }
+    d0 = mdeg / 1000;
+    frac = mdeg - d0 * 1000;
+    s0 = isin(d0);
+    s1 = isin(d0 + 1);
+    return s0 + (s1 - s0) * frac / 1000;
 }
 
 int iabs(int v)
@@ -217,6 +244,11 @@ void addHole(int hx, int hy, int hr)
 #define C_APE0      0xFFE08A3C
 #define C_APE1      0xFFC758D6
 #define C_APE_DARK  0xFF3A2A1A
+
+/// 举起那只胳膊的长度（肩 → 手，像素）。
+/// **画手臂与算香蕉出手点共用这一个数** —— 见 `Ape::ArmRootX` 上面的说明。
+/// 26 太短（手掌落在头的边缘、读成"手捂在脸上"），32 之后手掌离头约 20px。
+#define ARM_LEN     32
 #define C_BANANA    0xFFFFE070
 #define C_TRAIL     0xFFFFF0B0
 #define C_HUD_BG    0xCC101020
@@ -303,6 +335,21 @@ int HoleRadiusAt(int px, int py)
 
 static int gHour = 7;        // 开局清晨 —— 一进来就是白天，玩家不用干等 —— 一进来就是白天，玩家不用干等
 static int gMinute = 30;
+/// 当天已过的**毫秒**（游戏时间）—— **平滑动画的唯一真源**。
+///
+/// ⚠ 为什么不能只靠 `gHour/gMinute`：它们的分辨率是**一分钟**，而 1 真实秒 = 1 游戏分钟
+///   ⇒ 任何"按分钟算位置"的东西都是**每秒跳一次**：
+///   · 云的速度是 2~4 px/分钟 ⇒ 每秒瞬移 2~4px（玩家报的"云层不平滑"就是这个）；
+///   · 日月的角度分辨率是 1 度 ⇒ 弧顶附近 1 度 ≈ 4px 的纵向位移，太阳会"每几分钟弹一下"。
+///   **位置要连续，时间本身就得是连续的。**
+///
+/// ⚠ `gHour/gMinute` 降级为**显示值**（HUD 上的时钟、流星的分钟判据、暖色窗口），
+///   由 `clockAdvance` 从 `gMsOfDay` 推出来。**别在别处直接累加分钟** ——
+///   两个真源一旦不同步，就是"钟面上的时间和天色对不上"这类最难查的分叉。
+///
+/// ⚠ 初值在 `main` 里由 `gHour/gMinute` 算出来（**不在这里写死** —— 写死就是
+///   同一个"开局 7:30"写两遍，改一处忘一处）。
+static int gMsOfDay;
 static int gDayL;            // 天光 0..100（0 = 全黑、100 = 正午满亮）
 static int gWarm;            // 日出/日落的暖色系数 0..100（地平线偏橙）
 static int gSunUp;
@@ -315,21 +362,23 @@ static int gZenR; static int gZenG; static int gZenB;    // 当前天顶色
 static int gHorR; static int gHorG; static int gHorB;    // 当前地平线色
 static int gMr; static int gMg; static int gMb;          // `clockPartsAt` 的输出
 
-// 游戏时钟走一格
-void clockTick()
+// 游戏时钟走 `ms` 毫秒（调用方按定时器周期给；见 `CLOCK_MS`）
+void clockAdvance(int ms)
 {
-    gMinute = gMinute + 1;
-    if (gMinute >= 60) { gMinute = 0; gHour = gHour + 1; }
-    if (gHour >= 24) { gHour = 0; }
+    gMsOfDay = gMsOfDay + ms;
+    if (gMsOfDay >= 86400000) { gMsOfDay = gMsOfDay - 86400000; }
+    gMinute = (gMsOfDay / 60000) % 60;
+    gHour = (gMsOfDay / 3600000) % 24;
 }
 
 // 算这一刻的天光 / 暖色 / 日月位置 —— **每帧调一次**（游戏时间可能刚跳过一格）
 void clockCompute(int scrW, int groundY, int hudH)
 {
     int gmins;
-    int tpv;
+    int tpvM;            // 千分之一 tpv（0..10000）—— **位置与角度都按它算**，见下
     int mm;
-    int tp2;
+    int mmMs;
+    int tp2M;
     int win;
     int arcX0;
     int arcW;
@@ -338,15 +387,22 @@ void clockCompute(int scrW, int groundY, int hudH)
 
     gmins = gHour * 60 + gMinute;
 
-    // 太阳：6:00 升、12:00 顶、18:00 落
+    // ── 太阳：6:00 升、12:00 顶、18:00 落 ──────────────────────────────
+    //
+    // ⚠ 位置一律由 `gMsOfDay`（毫秒）推，**不用 `gmins`**：
+    //   `gmins` 的粒度是一分钟 ⇒ 太阳每秒才动一次、每次移动接近 1px，
+    //   在屏幕上就是"一顿一顿地走"。毫秒版每帧都在动，而 `tpvM` 的分辨率
+    //   （4.3 秒 / 步）换算到屏幕上是 0.04px/步 —— 远在肉眼之下。
+    //   `gmins` 只留给"升没升起来"这种**开关量**判据（它是分钟语义的）。
     gSunUp = 0;
-    tpv = 0;
+    tpvM = 0;
     if (gmins >= 360)
     {
         if (gmins <= 1080)
         {
             gSunUp = 1;
-            tpv = (gmins - 360) * 1000 / 720;         // 0..1000
+            // 6:00 = 21600000ms；12 小时 = 43200000ms ⇒ 每 4320ms 一格，共 10000 格
+            tpvM = (gMsOfDay - 21600000) / 4320;      // 0..10000
         }
     }
     gDayL = 0;
@@ -357,7 +413,9 @@ void clockCompute(int scrW, int groundY, int hudH)
         // 白天的观感被压到中间那几帧很不划算。1.4 倍之后约 7:00–17:00 都满亮。
         // ⚠ `isin` 的值域是 ×1000（**不是 BASIC 那个 SIN 的 ×10000**），
         //   所以这里是 `* 14 / 100` = ×140 —— 照抄 BASIC 的 `/ 1000` 会差一个数量级。
-        gDayL = isin(tpv * 180 / 1000) * 14 / 100;
+        // ⚠ 用 `isin_f`（毫度）：亮度每秒跳一格会让朝霞的过渡出现台阶
+        //   （按整数度算的话，1 度 ≈ 一整分钟的天光变化，天亮的边沿是锯齿状的）。
+        gDayL = isin_f(tpvM * 18) * 14 / 100;         // tpvM×18 = 毫度（0..180000）
         if (gDayL > 100) { gDayL = 100; }
     }
 
@@ -367,23 +425,25 @@ void clockCompute(int scrW, int groundY, int hudH)
     arcBot = groundY - 46;
     arcH = arcBot - hudH - 46;
     if (arcH < 40) { arcH = 40; }
-    gSunX = arcX0 + arcW * tpv / 1000;
-    gSunY = arcBot - arcH * isin(tpv * 180 / 1000) / 1000;
+    gSunX = arcX0 + arcW * tpvM / 10000;
+    gSunY = arcBot - arcH * isin_f(tpvM * 18) / 1000;
 
-    mm = gmins + 720;
-    if (mm >= 1440) { mm = mm - 1440; }
+    // 月亮：同样走毫秒（`mm` 那套是分钟语义的，这里只借它判"在不在天上"）
+    mmMs = gMsOfDay + 43200000;
+    if (mmMs >= 86400000) { mmMs = mmMs - 86400000; }
+    mm = mmMs / 60000;
     gMoonUp = 0;
-    tp2 = 0;
+    tp2M = 0;
     if (mm >= 360)
     {
         if (mm <= 1080)
         {
             gMoonUp = 1;
-            tp2 = (mm - 360) * 1000 / 720;
+            tp2M = (mmMs - 21600000) / 4320;
         }
     }
-    gMoonX = arcX0 + arcW * tp2 / 1000;
-    gMoonY = arcBot - arcH * isin(tp2 * 180 / 1000) / 1000;
+    gMoonX = arcX0 + arcW * tp2M / 10000;
+    gMoonY = arcBot - arcH * isin_f(tp2M * 18) / 1000;
 
     // 天顶：夜(7,10,24) → 昼(46,111,208)
     gZenR = 7 + (46 - 7) * gDayL / 100;
@@ -503,11 +563,26 @@ void lampsDraw(int scrW, int groundY, int scrH)
 // ════════════════════════════════════════════════════════════════════
 // 流星 —— 夜里偶尔划过一颗
 //
-// 起点/方向/速度都由**游戏分钟**推出来（不用随机数）：这样"第几分钟会有流星"
-// 是可复现的，出问题时能原样重放；而随机数一旦引入，"这次为什么没出现"就说不清了。
+// 拆成两件事看：
+//   · **节拍**（第几分钟会有）仍由**游戏分钟**推出来 —— 所以"为什么现在没流星"
+//     一句话能答上来（现在是第 4 分钟，不在周期前 3 分钟里）；
+//   · **这一颗长什么样**（起点在哪、尾多长、甚至这一颗来不来）由**随机数**定。
+// 玩家要的"流星的位置随机"就是后半件：位置固定 ⇒ 每次都在同一个地方划过，
+// 看两回就腻了。
+//
+// ⚠⚠ 随机数**每颗只掷一次**，判据是"周期序号变了没有"（`cid`）。
+//   本函数**每帧都调** —— 每帧掷一次的话，流星会变成满屏乱跳的一条线
+//   （位置每帧不同，读出来是"闪烁的斜线"而不是"划过"）。
+//   这与云"按分钟算位置"是同一条理由：**跟时间走的东西不要每帧重新决定**。
 //
 // ⚠ 它和云一样，是**按时间算位置**而不是每帧累加 —— 累加会随帧率变快慢。
 // ════════════════════════════════════════════════════════════════════
+
+static int metCycle = -1;        // 当前这颗的周期序号（-1 = 还没掷过）
+static int metSkip;              // 1 = 这一颗不出现
+static int metOffX;              // 起点横向偏移
+static int metOffY;              // 起点纵向偏移
+static int metTail;              // 尾长（屏宽的百分之几）
 
 void meteorDraw(int scrW, int groundY)
 {
@@ -520,6 +595,7 @@ void meteorDraw(int scrW, int groundY)
     int tx;
     int ty;
     int alpha;
+    int cid;
 
     // 每 7 游戏分钟来一颗；只有夜里（天光低）才看得见
     if (gDayL > 35) { return; }
@@ -527,8 +603,24 @@ void meteorDraw(int scrW, int groundY)
     if (cycle >= 3) { return; }                  // 只用周期里的前 3 分钟
     phase = cycle * 100 / 3;                     // 0..100
 
-    mx = scrW * 70 / 100 - scrW * phase / 100;   // 从右上往左下
-    my = groundY * 30 / 100 + groundY * phase / 100;
+    // ── 这一颗的形状：**每颗只掷一次**（见文件头那条说明）──────────────
+    cid = (gHour * 60 + gMinute) / 7;
+    if (cid != metCycle)
+    {
+        metCycle = cid;
+        metSkip = 0;
+        if (ui_rand(4) == 0) { metSkip = 1; }              // 1/4 的夜里干脆不来
+        metOffX = ui_rand(scrW / 3) - scrW / 6;            // 起点左右晃 ±1/6 屏宽
+        metOffY = ui_rand(groundY / 4) - groundY / 8;      // 起点上下晃 ±1/8 地平线高
+        metTail = 5 + ui_rand(7);                          // 尾长 5..11
+    }
+    if (metSkip != 0) { return; }
+
+    mx = scrW * 70 / 100 - scrW * phase / 100 + metOffX;   // 从右上往左下
+    // ⚠ `my` 的纵向跨度（55%）改了，下面尾迹的 `tailY` 必须**跟着改同一个系数** ——
+    //   尾迹靠"取位移的一个固定比例"来与轨迹同向，两处系数一旦不同源，
+    //   尾巴就又不按流线方向跑了（这正是玩家上一轮挑出来的毛病）。
+    my = groundY * 25 / 100 + groundY * phase * 55 / 10000 + metOffY;
     alpha = 100 - phase;                         // 越飞越淡
     if (alpha < 0) { alpha = 0; }
 
@@ -541,8 +633,8 @@ void meteorDraw(int scrW, int groundY)
     // 现在：尾迹方向**就是运动方向的反向** —— 位移在一个周期里是
     //   `(-scrW, +groundY)`，那么尾巴取它的一个固定比例（这里 8%）就与轨迹严格同向，
     //   不用算归一化（**不能调 isqrt**：它定义在 Building 之后，这里在它之前）。
-    tailX = scrW * 8 / 100;
-    tailY = groundY * 8 / 100;
+    tailX = scrW * metTail / 100;
+    tailY = groundY * metTail * 55 / 10000;
     tx = mx + tailX;
     ty = my - tailY;
 
@@ -578,7 +670,7 @@ static int cloudW[N_CLOUD];      // 第 i 朵的宽度
 static int cloudBid[VML_DAY_STEPS];
 static int lampBid[VML_DAY_STEPS];
 static int treeBid[3];           // 树的绿色**本来就是三档固定色** ⇒ 不需要分昼夜
-static int cloudSpeed[N_CLOUD];  // 第 i 朵的飘动速度（像素 / 游戏分钟）
+static int cloudSpeed[N_CLOUD];  // 第 i 朵的飘动速度（**像素 / 秒**，见 `cloudX`）
 static int cloudsReady;
 
 void cloudsInit(int scrW, int groundY)
@@ -590,20 +682,32 @@ void cloudsInit(int scrW, int groundY)
         // 位置/大小由下标推出来（**不用随机数**：每局都该长得差不多，
         // 而且随机的话"这朵云什么时候飘回来"就不可预期了）
         cloudY[i] = 40 + (i * 53) % (groundY / 2);
-        cloudW[i] = 60 + (i * 37) % 70;
+        // 宽度 40..75（玩家报「云层有点偏大」）——
+        // ⚠ 原来是 60..129，最宽那朵占屏宽的三分之一，天上全是云、楼都不显了。
+        //   云是**背景的装饰**，它一大就抢戏；这里按"比一栋楼窄一点"来定
+        //   （楼宽 ≈ 可用宽 / 栋数 ≈ 300/6 ≈ 50）⇒ 取 40~75 正好压在这个量级上。
+        cloudW[i] = 40 + (i * 23) % 36;
         cloudSpeed[i] = 2 + (i % 3);
         i = i + 1;
     }
     cloudsReady = 1;
 }
 
-// 第 i 朵云现在的左边 x（按游戏分钟算，出画就从另一头绕回来）
+/// 第 i 朵云现在的左边 x（按**毫秒**算，出画就从另一头绕回来）。
+///
+/// ⚠ 时间用 `gMsOfDay` 而不是 `gHour*60+gMinute`（玩家报的"云层不平滑"就是这个）：
+///   按分钟算 ⇒ 位置**每秒跳一次**，而 `cloudSpeed` 是 2~4px/分钟 ⇒
+///   云每秒瞬移 2~4 像素，看着就是一顿一顿的。
+///   换成毫秒之后同一段位置函数变成**每帧都在动**，每帧只动零点几像素 —— 连续了。
+/// ⚠ `cloudSpeed` 的语义因此从"像素/游戏分钟"变成**"像素/秒"**（数值不变：
+///   2~4 px/s 正是原来的观感速度，改的只是"跳一次"变成"连续走"）。
+///   **别在这里再做 `*60` 之类的换算** —— 那会让云快 60 倍。
 int cloudX(int idx, int scrW)
 {
     int span;
     int pos;
     span = scrW + 160;                       // 多留 160，让云整个出画再回来
-    pos = cloudSpeed[idx] * (gHour * 60 + gMinute) + idx * 97;
+    pos = cloudSpeed[idx] * gMsOfDay / 1000 + idx * 97;
     pos = pos % span;
     return pos - 120;
 }
@@ -1215,6 +1319,7 @@ public:
     int score;
     int flip;            // 0 = 朝右（左边那只），1 = 朝左（右边那只）
     int body;            // 颜色
+    int dead;            // 1 = 被飞碟的激光打死（画成焦黑、不再举手臂）
 
     Ape()
     {
@@ -1225,6 +1330,7 @@ public:
         score = 0;
         flip = 0;
         body = C_APE0;
+        dead = 0;
     }
 
     void SetSide(int isFlip)
@@ -1269,16 +1375,37 @@ public:
         if (power > 100) { power = 100; }
     }
 
-    // 出手点（手臂末端）
+    // ── 手臂：肩点 → 手 ────────────────────────────────────────────────
+    //
+    // ⚠⚠ 这四个函数是**画手臂**与**算出手点**共用的唯一真源。
+    //   原来两边各写各的：`Draw` 从躯干中心 `(x, y-24)` 画一条 `len=26` 的斜线，
+    //   而 `HandX/HandY` 写死 `x±18, y-20` —— 于是
+    //     · 手臂短到**手掌贴在脸上**（手掌到头的距离只有 1.4px）；
+    //     · 香蕉从**胸口**飞出去，手上空空。
+    //   玩家报的「猴子的手臂外观有点奇怪」就是这两条。
+    //   现在改一处两边都对 —— 再出现"手和香蕉不在一起"，先看这里。
+    //
+    // 肩点取**躯干外缘**（躯干是 `x±14` 的圆角矩形），不是躯干中心：
+    // 从中心出发的胳膊读出来是"从胸口斜插出来的一截"。
+    int ArmRootX()
+    {
+        return x + 13 * (1 - 2 * flip);
+    }
+
+    int ArmRootY()
+    {
+        return y - 26;
+    }
+
+    /// 出手点（手臂末端）。**方向按 `angle` 算** —— 那是玩家调的角度，得看得见。
     int HandX()
     {
-        if (flip != 0) { return x - 18; }
-        return x + 18;
+        return ArmRootX() + icos(angle) * ARM_LEN / SIN_SCALE * (1 - 2 * flip);
     }
 
     int HandY()
     {
-        return y - 20;
+        return ArmRootY() - isin(angle) * ARM_LEN / SIN_SCALE;
     }
 
     // 把初速写进香蕉（定点单位/拍）。`dir` 由 flip 决定。
@@ -1305,13 +1432,61 @@ public:
         return 0;
     }
 
+    /// 被打死的样子：**焦黑**的一团 + 三缕余烟。
+    ///
+    /// ⚠ 不做成"消失"：玩家得看见"我的猴子没了"才明白这一局是怎么结束的。
+    ///   结束语在屏幕正中的横幅上（`Game::Draw`），可玩家的视线一直在自己那只猴子这边 ——
+    ///   两处都要有交代，只写横幅的话会读成"画面卡住了"。
+    ///
+    /// ⚠ 轮廓与活着的猴子**同一套坐标**（腿 / 躯干 / 头 / 耳朵 / 眉骨）：轮廓一变
+    ///   就认不出"这是刚才那只猴子"，而认不出来等于没交代。
+    void DrawDead()
+    {
+        int ash;
+        int soot;
+        int i;
+        int sx;
+
+        ash = 0xFF3A3632;
+        soot = 0xFF211E1B;
+
+        ui_rect(x - 12, y - 9, 11, 9, ash, 1, 0, 3);
+        ui_rect(x + 1, y - 9, 11, 9, ash, 1, 0, 3);
+        ui_rect(x - 14, y - 30, 28, 23, ash, 1, 0, 9);
+        ui_rect(x - 14, y - 30, 28, 23, soot, 0, 2, 9);
+        ui_circle(x - 11, y - 39, 5, ash, 1, 0);
+        ui_circle(x + 11, y - 39, 5, ash, 1, 0);
+        ui_circle(x, y - 40, 12, ash, 1, 0);
+        ui_circle(x, y - 40, 12, soot, 0, 2);
+        // 眉骨照旧压着，眼睛画成两个 ✕ ——"死透了"得一眼看出来，不能靠猜
+        ui_rect(x - 9, y - 47, 18, 4, soot, 1, 0, 2);
+        ui_line(x - 7, y - 45, x - 3, y - 41, soot, 2);
+        ui_line(x - 3, y - 45, x - 7, y - 41, soot, 2);
+        ui_line(x + 3, y - 45, x + 7, y - 41, soot, 2);
+        ui_line(x + 7, y - 45, x + 3, y - 41, soot, 2);
+
+        // 三缕余烟。**不带时间参数** —— 这一局已经结束了，动不动的没人再看；
+        // 而引入一个计时变量就多一处"重开时忘了归零"的隐患。
+        sx = -10;
+        i = 0;
+        while (i < 3)
+        {
+            ui_circle(x + sx, y - 58 - i * 9, 4 - i, 0x55B0B0B0, 1, 0);
+            sx = sx + 10;
+            i = i + 1;
+        }
+    }
+
     virtual void Draw()
     {
-        int hx;
+        int ax;              // 肩点（手臂根）
+        int ay;
+        int hx;              // 手（= 香蕉的出手点）
         int hy;
-        int len;
         int dark;
         int light;
+
+        if (dead != 0) { DrawDead(); return; }
 
         // ⚠ **描边色与浅色都由本体色算出来，不写死**。
         //   原来写死 `C_APE_DARK`（深棕），橙猴子看着还行，**紫猴子配深棕是发闷的** ——
@@ -1361,13 +1536,19 @@ public:
         }
 
         // ── 举起来那只胳膊（按角度画）—— 玩家看得见自己调的角度 ──
-        len = 26;
-        hx = x + icos(angle) * len / SIN_SCALE * (1 - 2 * flip);
-        hy = y - 24 - isin(angle) * len / SIN_SCALE;
-        ui_line(x, y - 24, hx, hy, dark, 10);   // 先粗的深色当描边
-        ui_line(x, y - 24, hx, hy, body, 6);    // 再细的本体色
-        ui_circle(hx, hy, 5, body, 1, 0);
-        ui_circle(hx, hy, 5, dark, 0, 2);
+        //
+        // ⚠ 端点一律取自 `HandX/HandY`（与香蕉的出手点是同一个函数）——
+        //   见那组函数上面的说明：分开算过一次，代价是"手在脸上、香蕉从胸口飞"。
+        ax = ArmRootX();
+        ay = ArmRootY();
+        hx = HandX();
+        hy = HandY();
+        ui_line(ax, ay, hx, hy, dark, 10);      // 先粗的深色当描边
+        ui_line(ax, ay, hx, hy, body, 6);       // 再细的本体色
+        // 手掌要比手臂**明显**粗（半径 7 对线半宽 3）—— 只粗一点点的话，
+        // 末端读出来是"一根棍子的圆头"，不是"手"。
+        ui_circle(hx, hy, 7, body, 1, 0);
+        ui_circle(hx, hy, 7, dark, 0, 2);
     }
 };
 
@@ -1557,6 +1738,17 @@ public:
 // 基类 `Flyer` 定 `Step()` / `R()` / `Draw()` 三个虚接口，派生类各写各的。
 // ════════════════════════════════════════════════════════════════════
 
+// ── 飞碟的"脾气"：速度与报复 ─────────────────────────────────────────
+//
+// 玩家定的：**飞碟要"速度很快飞来、悬停、很快飞走"**（原来 4px/拍 是飘过来的），
+// 而且**打中它 = 招来报复**（见 `Ufo::BeginRage`）。
+// 这三只定时器都按"拍"算（一拍 = `TICK_MS` = 33ms）。
+#define UFO_V 10             // 巡航速度（px/拍）—— "很快"，是飞机(6)的 1.7 倍
+#define UFO_HOLD 18          // 悬停拍数（原来 45，玩家要"悬停一下就走"）
+#define RAGE_V 14            // 报复时扑向猴子的速度（比巡航还快）
+#define RAGE_AIM 20          // 飞到头顶后瞄准的拍数（玩家看得见"它在瞄你"）
+#define RAGE_SHOT 45         // 激光持续的拍数（约 1.5 秒 —— 够看清，又不拖沓）
+
 class Flyer : public Entity
 {
 public:
@@ -1637,7 +1829,9 @@ public:
         vx = 3 * dir;
         if (dir > 0) { x = -20; }
         else { x = sw + 20; }
-        y = gy / 4 + ui_rand(gy / 3);
+        // 高度随机，**最低**那一档（鸟本来就贴着楼顶飞，偶尔从楼顶那一线掠过才好看）。
+        // ⚠ 原来 `gy/4 + rand(gy/3)` 最下一档也会到 0.58·gy，比最高的楼顶（0.297·gy）还低一截。
+        y = gy * 21 / 100 + ui_rand(gy * 9 / 100);
         wob = ui_rand(3) - 1;
     }
 
@@ -1698,6 +1892,21 @@ public:
     int lit;
     int bid;             // 碟身图块（座舱罩 + 碟身；光晕与灯是动态的，不进块）
 
+    // ── 报复模式 ─────────────────────────────────────────────────────
+    //
+    // 玩家定的玩法：**打中飞碟会招来报复** —— 它眼神不好，只找**离它最近的**那只猴子，
+    // 飞到头顶放激光，直接打死，一局结束。
+    //
+    // ⚠ 所以"打中飞碟"**不再等于击落它**（鸟和飞机照旧击落）。这一发的代价从
+    //   "白扔一个香蕉"变成了"可能输掉这一局" —— 这正是玩家要的张力：天上飞的
+    //   不再是"可以随便打的靶子"，而是**要躲开的东西**。
+    int rage;            // 1 = 报复模式
+    int target;          // 目标猴子（0 / 1）
+    int arrived;         // 已经飞到目标头顶
+    int aimT;            // 到位之后瞄了几拍
+    int shot;            // 激光已经开了几拍（0 = 还没开火）
+    int fired;           // 已经结算过（防止"每拍都打死一次"）
+
     Ufo()
     {
         kind = 2;
@@ -1706,6 +1915,74 @@ public:
         t = 0;
         lit = 0;
         bid = 0;
+        rage = 0;
+        target = 0;
+        arrived = 0;
+        aimT = 0;
+        shot = 0;
+        fired = 0;
+    }
+
+    /// 被香蕉打中 → **转入报复**（而不是被击落）。
+    /// `who` 是目标猴子，由 `Game::NearestApeTo` 按"离飞碟最近"选出来。
+    void BeginRage(int who)
+    {
+        rage = 1;
+        target = who;
+        arrived = 0;
+        aimT = 0;
+        shot = 0;
+        fired = 0;
+        live = 1;
+        phase = 0;
+        t = 0;
+        ui_beep(300, 200);           // 一声低吼：玩家要立刻知道"我惹到它了"
+        ui_vibrate(120, 0);
+    }
+
+    /// 报复模式的一拍：扑向目标头顶 → 悬停瞄准 → 开火。
+    ///
+    /// ⚠ 走的是**直线逼近**（每拍朝目标走 `RAGE_V`），不是"先横后竖"的分段 ——
+    ///   分段会让它在猴子正上方拐个直角，看着像"按格子走"，与"扑过来"完全不是一回事。
+    void RageStep(int sw, int gy)
+    {
+        int tx;
+        int ty;
+        int dx;
+        int dy;
+        int d;
+
+        // 目标点 = 猴子**头顶上方** 78px（猴子头顶在 `y-52`，再留 26px 空档，
+        // 免得碟身压着猴子的脑袋 —— 那样激光就没地方画了）
+        tx = (*AP[target]).x;
+        ty = (*AP[target]).y - 78;
+
+        if (arrived == 0)
+        {
+            dx = tx - x;
+            dy = ty - y;
+            d = isqrt(dx * dx + dy * dy);
+            if (d <= RAGE_V)
+            {
+                x = tx;
+                y = ty;
+                arrived = 1;
+            }
+            else
+            {
+                x = x + dx * RAGE_V / d;
+                y = y + dy * RAGE_V / d;
+            }
+        }
+        else if (aimT < RAGE_AIM)
+        {
+            aimT = aimT + 1;
+            y = y + (ui_rand(3) - 1);        // 悬停时轻微浮动（"它在瞄准"）
+        }
+        else if (shot < RAGE_SHOT)
+        {
+            shot = shot + 1;
+        }
     }
 
     /// <summary>
@@ -1739,10 +2016,20 @@ public:
         phase = 0;
         t = 0;
         lit = 0;
-        vx = 4 * dir;
+        // 上一次若是在报复中被重开，这些状态得清掉（否则新飞碟一出来就直奔猴子）
+        rage = 0;
+        target = 0;
+        arrived = 0;
+        aimT = 0;
+        shot = 0;
+        fired = 0;
+        vx = UFO_V * dir;
         if (dir > 0) { x = -30; }
         else { x = sw + 30; }
-        y = gy / 3 + ui_rand(gy / 4);
+        // 高度随机，中间那一档（见 `Plane::Spawn` 的说明）。
+        // ⚠ 原来 `gy/3 + rand(gy/4)` 最下一档到 0.58·gy，那已经**低于最高的楼顶**
+        //   （0.297·gy），碟子会从楼中间穿过去。
+        y = gy * 17 / 100 + ui_rand(gy * 8 / 100);
         hold = sw / 2 + ui_rand(sw / 3);
     }
 
@@ -1753,6 +2040,11 @@ public:
         if (live == 0) { return; }
         t = t + 1;
         if (t % 4 == 0) { lit = 1 - lit; }
+
+        // 报复模式**整条走法都不一样**（扑向猴子 → 悬停 → 开火），
+        // 而且它不该再"飞出屏幕就消失" —— 那等于半路撤销了惩罚。
+        if (rage != 0) { RageStep(sw, gy); return; }
+
         if (phase == 0)
         {
             x = x + vx;
@@ -1762,7 +2054,7 @@ public:
         else if (phase == 1)
         {
             y = y + (ui_rand(3) - 1);
-            if (t > 45) { phase = 2; }
+            if (t > UFO_HOLD) { phase = 2; }
         }
         else
         {
@@ -1805,6 +2097,38 @@ public:
             ui_circle(x + 8,  y + 7, 2, 0xFF50D0FF, 1, 0);
             ui_circle(x + 15, y + 5, 2, 0xFFFF5050, 1, 0);
         }
+
+        // ── 报复：瞄准警示 + 激光 ──────────────────────────────────────
+        //
+        // 警示圈：**到位之后、开火之前**那段（`RAGE_AIM` 拍 ≈ 0.7 秒）在猴子头上
+        // 闪一个红圈。玩家反应不过来，但"我知道我要死了"和"莫名其妙就死了"
+        // 是两种完全不同的体验 —— 前者是惩罚，后者是 bug。
+        if (rage != 0 && arrived != 0 && shot == 0)
+        {
+            if (aimT % 6 < 3)
+            {
+                ui_circle((*AP[target]).x, (*AP[target]).y - 30, 20, 0xFFFF4040, 0, 3);
+            }
+        }
+
+        // 激光：三层同轴（宽而淡 → 中 → 细而白）。
+        // ⚠ 与流星尾迹是**同一套画法**：单画一条线读出来是"一根棍子"，
+        //   三层叠起来才有"能量烧穿"的观感。起画点取碟身下沿 `y+8`，
+        //   免得被碟身盖掉一截（碟身是**先**画的，后画的线会盖住它 —— 所以起点
+        //   定在碟身下沿而不是中心）。
+        if (rage != 0 && shot > 0)
+        {
+            int cx;
+            int cy;
+
+            cx = (*AP[target]).x;
+            cy = (*AP[target]).y - 18;      // 落在猴子**身上**（不是脚下）
+            ui_line(x, y + 8, cx, cy, 0x50FF3030, 13);
+            ui_line(x, y + 8, cx, cy, 0xCCFF5050, 6);
+            ui_line(x, y + 8, cx, cy, 0xFFFFFFFF, 2);
+            ui_circle(cx, cy, 9, 0x80FF6060, 1, 0);
+            ui_circle(cx, cy, 4, 0xFFFFFFFF, 1, 0);
+        }
     }
 };
 
@@ -1846,7 +2170,17 @@ public:
         vx = 6 * dir;
         if (dir > 0) { x = -40; }
         else { x = sw + 40; }
-        y = gy / 5;
+        // 高度**随机**（玩家："飞机的高度…都应该随机"）。原来写死 `gy / 5`，
+        // 于是每一架都在同一条水平线上飞 —— 看两眼就发现是"轨道"不是"天空"。
+        //
+        // ── 三档飞行高的划分（见 `Flyer` 那段的说明）────────────────────
+        // 天空带其实**只有 0.13·gy ~ 0.30·gy 这一段**：
+        //   · 上限 0.13·gy —— 顶上是计分/风向栏（`hud` 是**最后**画的，飞进去就被盖住）；
+        //   · 下限 0.30·gy —— 最高那栋楼的楼顶（楼高 = sh/5+sh/4，两边那两栋再加 sh/14
+        //     ⇒ 楼顶最高到 0.22·sh = 0.297·gy），再低就从楼里穿过去了。
+        // 于是三档**首尾相接**地铺满这一段：飞机最高、鸟最低、飞碟居中。
+        // 三档各自 7~9% 的宽度，飞几趟就能看出高度不是固定的。
+        y = gy * 13 / 100 + ui_rand(gy * 7 / 100);
     }
 
     virtual int R() { return 20; }
@@ -1890,6 +2224,16 @@ public:
 // ════════════════════════════════════════════════════════════════════
 // Tree —— 地上的树（位置 / 数量 / 高矮都随机）
 // ════════════════════════════════════════════════════════════════════
+
+/// 蒙版**底矩形**比楼体向外扩多少（px）。
+///
+/// ⚠⚠ 这一圈是**让洞不被缩小**的关键。折叠"楼 − 洞"要求洞整个落在底矩形里
+/// （even-odd 下"底外洞内"会被判成**内部**，那一块就会允许绘制）。
+/// 而**楼体外的这一圈本来就没有任何绘制**（建筑层画的楼体/窗/门/檐口全在楼矩形内），
+/// 所以把底矩形放大一圈、让洞挖进去，**不会有"肉"露出来**，洞却能保持原始大小。
+///
+/// 洞半径最大 16 ⇒ 20 足够。
+#define MASK_PAD 20
 
 /// 树的**标准尺寸**（录图块用）。⚠ 树的高矮宽窄每棵都不同，贴的时候按**高度等比缩放**
 /// （宽度不按实际值 —— 那会让树冠变成椭圆；宽度上的差异在观感上本来就只是"冠大一点"）。
@@ -2107,6 +2451,7 @@ public:
     int boomX;
     int boomY;
     int over;
+    int overKind;           // 0 = 打够分数结束 / 1 = 被飞碟激光清场
     int night;
     int hitBy;              // 这一发打中了谁（-1 = 没打中人）
     int heldL;
@@ -2140,6 +2485,7 @@ public:
         boomX = 0;
         boomY = 0;
         over = 0;
+        overKind = 0;
         night = 0;
         hitBy = -1;
         heldL = 0;
@@ -2323,6 +2669,18 @@ public:
         gDayL = saveDay;
     }
 
+    /// 离横坐标 `px` **最近**的那只猴子（0 / 1）—— 飞碟报复时挑目标用。
+    ///
+    /// ⚠ 判据是「离**飞碟**最近」（玩家原话："他只找离他最近的猴子"），
+    ///   不是"离被打中那栋楼最近"、也不是"离发射者最近"。
+    /// ⚠ 平手取左边那只（`<=`）：**必须有个确定的裁决** —— 同一帧里若两次调用
+    ///   给出不同答案，目标就会在半路改口，飞碟会在空中拐一个莫名其妙的弯。
+    int NearestApeTo(int px)
+    {
+        if (iabs(px - (*AP[0]).x) <= iabs(px - (*AP[1]).x)) { return 0; }
+        return 1;
+    }
+
     void NewTurn()
     {
 
@@ -2370,6 +2728,26 @@ public:
             i = i + 1;
         }
 
+        // ── 飞碟的激光打完了吗？→ 猴子死、这一局结束 ──────────────────────
+        //
+        // ⚠ 结算放在 **Game** 这一层，而不是 `Ufo::RageStep` 里：飞碟只管
+        //   "我怎么飞、什么时候开火"，"谁死了、这一局算不算完"是**游戏的规则** ——
+        //   规则挂到飞行物身上，将来加第二艘飞碟就得在两处各写一遍。
+        // ⚠ `fired` 是**必须的**：`shot` 到顶之后会一直停在 `RAGE_SHOT`，
+        //   没有这个闸门就是"每拍打死一次、每拍结束一局"。
+        if (ufo.rage != 0 && ufo.shot >= RAGE_SHOT && ufo.fired == 0)
+        {
+            ufo.fired = 1;
+            (*AP[ufo.target]).dead = 1;
+            overKind = 1;
+            over = 1;
+            boomX = (*AP[ufo.target]).x;
+            boomY = (*AP[ufo.target]).y - 20;
+            ui_beep(160, 800);
+            ui_vibrate(400, 0);
+            return 1;
+        }
+
         if (state == ST_FLY)
         {
             r = ban.Step(wind.v, gy, sw);
@@ -2398,8 +2776,15 @@ public:
                     {
                         if (iabs(ban.x - FLY[i]->x) < FLY[i]->R() && iabs(ban.y - FLY[i]->y) < FLY[i]->R())
                         {
+                            // ⚠ **只有飞碟不一样**：打中它 = **招来报复**，不是把它打下来。
+                            //   鸟和飞机照旧击落（代价仍然只是"白扔一个香蕉"）。
+                            // ⚠ 这里按**下标**判（`FLY[1]` 是飞碟，见 `Bind`）——
+                            //   要是哪天调整了 `Bind` 里的顺序，这一行也得跟着改。
+                            //   三种飞行物的**走法本来就不一样**，用 `kind` 判更稳，
+                            //   所以判据写在这里，别挪去别处再抄一份。
+                            if (i == 1) { ufo.BeginRage(NearestApeTo(ufo.x)); }
+                            else { FLY[i]->live = 0; }
                             hit = -3;
-                            FLY[i]->live = 0;
                         }
                     }
                     i = i + 1;
@@ -2783,7 +3168,11 @@ public:
 
             // 蒙版 = 楼体矩形 − 本栋楼上所有的洞（`SUBTRACT` 一次算完，不必逐洞嵌套）
             ui_mask_begin();
-            ui_rect((*BL[k]).Left(), (*BL[k]).RoofY(), (*BL[k]).w, (*BL[k]).h, 0xFFFFFFFF, 1, 0, 0);
+            // ⚠ 底矩形**比楼体大一圈**（`MASK_PAD`）—— 见那个常量的说明：
+            //   楼外那一圈本来就没有绘制，所以洞挖进去不会露出"肉"；
+            //   而底矩形只贴着楼体的话，洞一贴边就被迫缩小（玩家报的「就一个小洞」）。
+            ui_rect((*BL[k]).Left() - MASK_PAD, (*BL[k]).RoofY() - MASK_PAD,
+                    (*BL[k]).w + MASK_PAD * 2, (*BL[k]).h + MASK_PAD * 2, 0xFFFFFFFF, 1, 0, 0);
             ui_mask_end(1);
 
             onBldg = 0;
@@ -2813,8 +3202,11 @@ public:
                     if (HoleOnBldg(j, k, gy) != 0)
                     {
                         hx = holeX[j]; hy = holeY[j]; hr = holeR[j];
-                        ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left(), (*BL[k]).Right(),
-                                            (*BL[k]).RoofY(), gy);
+                        // 边界用**放大后的底矩形**（不是楼体本身）—— 洞因此基本不会被缩，
+                        // 只有极端情况（洞比 PAD 还大）才动它
+                        ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left() - MASK_PAD,
+                                            (*BL[k]).Right() + MASK_PAD,
+                                            (*BL[k]).RoofY() - MASK_PAD, gy + MASK_PAD);
                         mhx[hn] = hx; mhy[hn] = hy; mhr[hn] = hr;
                         hn = hn + 1;
                     }
@@ -2839,8 +3231,9 @@ public:
                                 MergeHoles(mhx[a], mhy[a], mhr[a], mhx[b2], mhy[b2], mhr[b2],
                                            &hx, &hy, &hr);
                                 // 合并出来的圆可能探出楼外 ⇒ 再钳一次
-                                ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left(), (*BL[k]).Right(),
-                                                    (*BL[k]).RoofY(), gy);
+                                ClampHoleToBuilding(&hx, &hy, &hr, (*BL[k]).Left() - MASK_PAD,
+                                                    (*BL[k]).Right() + MASK_PAD,
+                                                    (*BL[k]).RoofY() - MASK_PAD, gy + MASK_PAD);
                                 mhx[a] = hx; mhy[a] = hy; mhr[a] = hr;
                                 // 把最后一个搬到 b2 的位置（顺序无所谓）
                                 hn = hn - 1;
@@ -2962,8 +3355,16 @@ public:
 
         if (over != 0)
         {
-            ui_rect(0, sh / 2 - 40, sw, 80, 0xE0101020, 1, 0, 0);
-            if ((*AP[0]).score > (*AP[1]).score)
+            // 横幅加高到 100：被飞碟清场时要放**两行**（怎么输的 + 下次别这么干）
+            ui_rect(0, sh / 2 - 50, sw, 100, 0xE0101020, 1, 0, 0);
+            if (overKind == 1)
+            {
+                // ⚠ 这一局的胜负**与分数无关**，所以绝不能落到下面"比分数"那几支去 ——
+                //   否则一只猴子被激光打死，屏幕上却在报"紫猴获胜！"，玩家一头雾水。
+                ui_text(sw / 2, sh / 2 - 18, "飞碟清场！", 0xFFFF6060, 26, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 + 10, "别打飞碟 —— 它会记住你", C_TEXT_DIM, 14, VML_ANCHOR_CENTER);
+            }
+            else if ((*AP[0]).score > (*AP[1]).score)
             {
                 ui_text(sw / 2, sh / 2 - 2, "橙猴获胜！", C_APE0, 24, VML_ANCHOR_CENTER);
             }
@@ -2975,7 +3376,7 @@ public:
             {
                 ui_text(sw / 2, sh / 2 - 2, "平局", C_TEXT, 24, VML_ANCHOR_CENTER);
             }
-            ui_text(sw / 2, sh / 2 + 26, "点一下屏幕退出", C_TEXT_DIM, 13, VML_ANCHOR_CENTER);
+            ui_text(sw / 2, sh / 2 + 36, "点一下屏幕退出", C_TEXT_DIM, 13, VML_ANCHOR_CENTER);
         }
 
         ui_present();
@@ -2994,9 +3395,14 @@ int main()
     int t;
     int k;
     int done;
+    int needDraw;            // 这一轮要不要重绘（见主循环里那条说明）
     int msg[4];
     int score0;
     int score1;
+
+    // 把静态初值的 `gHour/gMinute`（开局 7:30）落进毫秒真源 —— **全程序只此一处换算**。
+    // 两处各写一遍就是"改一处忘一处"，而症状是"钟面上 7:30、天却已经大亮"。
+    gMsOfDay = (gHour * 60 + gMinute) * 60000;
 
     g.Layout();
     // **全触摸**：不要屏幕手柄区（`VML_WIN_NO_GAMEPAD`）—— 手柄区连折叠条一起吃画布
@@ -3013,24 +3419,48 @@ int main()
     // 游戏时钟：**另一只定时器**，1 真实秒 = 1 游戏分钟（24 真实分钟走完一天）。
     // 为什么不拿物理节拍那只数帧：玩家拖动滑条时主循环会一次抽干几十条 TOUCHMOVE，
     // 帧率完全取决于输入有多密 —— 数帧的话"滑得越勤、时钟跑得越快"。
-    cid = ui_timer_set(1000, 0);
+    //
+    // ⚠ 周期是 `CLOCK_MS`（50ms）而**不是 1000ms**：时钟的**语义**没变（1 秒照走
+    //   1 游戏分钟），变的只是**推进的粒度** —— 见 `gMsOfDay` 的说明。
+    //   1000ms 一跳的话，云和日月的位置每秒才更新一次，看着就是一顿一顿的。
+    cid = ui_timer_set(CLOCK_MS, 0);
     done = 0;
+    needDraw = 1;            // 第一帧总得画
 
     while (done == 0 && ui_win_closed() == 0)
     {
-        g.Draw();
+        // 重绘由**变化**驱动，不由**节拍**驱动（本仓的一条老规矩）。
+        // ⚠ 原来这里是无条件 `g.Draw()`：主循环每收到**一条**消息就画一帧，而
+        //   时钟定时器 50ms 一条 ⇒ 凭空多出 20 帧/秒，内容一模一样。
+        //   实测帧率因此从 30 涨到 50 —— 多出来的全是空转（手机上就是白耗电）。
+        if (needDraw != 0)
+        {
+            g.Draw();
+            needDraw = 0;
+        }
 
         t = ui_wait_msg(0);
+
+        // 默认**每一轮都重绘**，只有"纯时钟推进"那一支把它按下去。
+        // ⚠ 写反了（默认不画、白名单里才画）就会在将来加消息类型时**静默漏掉重绘** ——
+        //   "界面不刷新"是最难查的一类症状，而这里的代价只是多画几帧。
+        needDraw = 1;
+
         if (t == VML_MSG_WINDOWCLOSE) { done = 1; }
 
         if (t == VML_MSG_TIMER)
         {
-            // ⚠ **必须按定时器 id 分流**：现在有两只（物理节拍 33ms、游戏时钟 1000ms），
-            //   不分的话两只都会走对方的逻辑 —— 时钟按 33ms 飞奔、物理按 1 秒一跳。
+            // ⚠ **必须按定时器 id 分流**：现在有两只（物理节拍 33ms、游戏时钟 50ms），
+            //   不分的话两只都会走对方的逻辑 —— 时钟按 33ms 飞奔、物理按 50ms 一跳。
             //   消息 A 就是定时器 id。
             if (ui_msg_a() == cid)
             {
-                clockTick();
+                // ⚠ 时钟**只推进时间、不请求重绘**：云和日月的位置是按 `gMsOfDay`
+                //   现算的，下一拍物理帧自然会用上最新的时间。
+                //   在这里补一帧的话，画出来的和上一帧没有区别（时间才走了 50ms，
+                //   云也才挪了 0.1px）—— 纯浪费。
+                clockAdvance(CLOCK_MS);
+                needDraw = 0;
             }
             else
             {
@@ -3042,6 +3472,7 @@ int main()
                 }
             }
         }
+
         if (t == VML_MSG_KEYDOWN) { g.KeyDown(ui_msg_a()); }
         if (t == VML_MSG_KEYUP) { g.KeyUp(ui_msg_a()); }
 
