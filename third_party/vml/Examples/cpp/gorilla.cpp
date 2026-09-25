@@ -800,6 +800,57 @@ public:
     /// </summary>
     virtual void Draw()
     {
+        DrawRoof();
+        DrawBody();
+    }
+
+    /// <summary>
+    /// 屋顶细节（水箱 / 天线）。
+    ///
+    /// ⚠ **必须在挖洞蒙版之外画**：它们的包围盒伸到楼体矩形**上方**
+    /// （水箱到 `y-15`、天线到 `y-22`），而那个蒙版就是"楼体矩形 − 洞" ——
+    /// 放进去会被整块裁掉。先画它、后画楼体没有差别：两者本来就不重叠
+    /// （细节全在 `y` 以上，洞全在 `y` 以下 —— 判据见 `HoleOnBldg`）。
+    /// </summary>
+    void DrawRoof()
+    {
+        int frmC = mixcol(baseR, baseG, baseB, 0, 0, 0, 45);
+
+        // ── 屋顶细节：水箱 / 天线 / 平的 ────────────────────────────────
+        // 按**楼号**分（`tint` 就是它在 `Layout` 里的序号），三种轮着来。
+        //
+        // ⚠ **0 号与 3 号不给** —— 那是两只猴子站的地方，加个水箱/天线正好跟猿抢位置
+        //   （BASIC 版 `drawBuilding` 里同样是 `IF bi > 0 THEN IF bi < nb1`）。
+        //   所以实际只有中间那两栋有屋顶细节，看着正好错落。
+        //
+        // 用同色系的深浅色，不要新颜色 —— 屋顶是"同一栋楼的顶"，不是另一种建筑。
+        if (tint == 1)
+        {
+            // 水箱：一个小方块 + 两条腿
+            ui_rect(x + 7, y - 15, 15, 11,
+                    mixcol(baseR, baseG, baseB, 255, 255, 255, 10), 1, 0, 2);
+            ui_line(x + 10, y - 4, x + 10, y, frmC, 2);
+            ui_line(x + 19, y - 4, x + 19, y, frmC, 2);
+        }
+        if (tint == 2)
+        {
+            // 天线：一根细杆 + 两道横档。
+            // ⚠ **顶上不要亮点** —— 用户一眼就把它当成"屋子上的路灯"（路灯在街上，见 `lampsDraw`）。
+            ui_line(x + w - 15, y - 22, x + w - 15, y, frmC, 2);
+            ui_line(x + w - 19, y - 18, x + w - 11, y - 18, frmC, 2);
+            ui_line(x + w - 17, y - 12, x + w - 13, y - 12, frmC, 2);
+        }
+    }
+
+    /// <summary>
+    /// 楼体（体 / 受光面 / 压暗边 / 檐口 / 窗 / 门）。
+    ///
+    /// ⚠ **这一部分整个落在楼体矩形 `(x, y, w, h)` 内**，所以能直接套
+    /// "楼体矩形 − 洞"的蒙版 —— 被炸开的地方直接透出背景层（云、日月都是活的）。
+    /// 加新的装饰时要问一句"它还在这个矩形里吗"，不在就得挪到 `DrawRoof` 去。
+    /// </summary>
+    void DrawBody()
+    {
         int bodyC;
         int hiC;
         int edgeC;
@@ -875,33 +926,28 @@ public:
         ui_rect(x + w / 2 - 7, gy - 18, 14, 18, mixcol(baseR, baseG, baseB, 0, 0, 0, 60), 1, 0, 2);
         // 门缝里透出来的一条灯光 —— 比整扇门发亮自然，也不会在白天显得奇怪
         ui_rect(x + w / 2 - 7, gy - 7, 14, 2, litC, 1, 0, 0);
-
-        // ── 屋顶细节：水箱 / 天线 / 平的 ────────────────────────────────
-        // 按**楼号**分（`tint` 就是它在 `Layout` 里的序号），三种轮着来。
-        //
-        // ⚠ **0 号与 3 号不给** —— 那是两只猴子站的地方，加个水箱/天线正好跟猿抢位置
-        //   （BASIC 版 `drawBuilding` 里同样是 `IF bi > 0 THEN IF bi < nb1`）。
-        //   所以实际只有中间那两栋有屋顶细节，看着正好错落。
-        //
-        // 用同色系的深浅色，不要新颜色 —— 屋顶是"同一栋楼的顶"，不是另一种建筑。
-        if (tint == 1)
-        {
-            // 水箱：一个小方块 + 两条腿
-            ui_rect(x + 7, y - 15, 15, 11,
-                    mixcol(baseR, baseG, baseB, 255, 255, 255, 10), 1, 0, 2);
-            ui_line(x + 10, y - 4, x + 10, y, frmC, 2);
-            ui_line(x + 19, y - 4, x + 19, y, frmC, 2);
-        }
-        if (tint == 2)
-        {
-            // 天线：一根细杆 + 两道横档。
-            // ⚠ **顶上不要亮点** —— 用户一眼就把它当成"屋子上的路灯"（路灯在街上，见 `lampsDraw`）。
-            ui_line(x + w - 15, y - 22, x + w - 15, y, frmC, 2);
-            ui_line(x + w - 19, y - 18, x + w - 11, y - 18, frmC, 2);
-            ui_line(x + w - 17, y - 12, x + w - 13, y - 12, frmC, 2);
-        }
     }
 };
+
+/// <summary>
+/// 这个洞开在第 `k` 栋楼的**墙上**吗？
+///
+/// 判据三条，缺一不可：① 横向落在这栋楼的范围内；② 在楼顶**以下**（楼顶以上是屋面，
+/// 不是墙）；③ 在地平线**以上**（地面以下的坑是"挖土"，走 `holesDraw` 那条路，
+/// 不该从楼里透出天空）。
+///
+/// ⚠ 抽成函数是因为"墙上的洞"现在**有两个消费者**：挖洞的蒙版（建筑层）与
+///   洞口的断面（墙厚 / 受光边）。各写一遍就是"同一规则两处实现" ——
+///   哪天判据一改，必有一处忘了跟。
+/// </summary>
+static int HoleOnBldg(int hi, int k, int groundY)
+{
+    if (hi < 0 || hi >= holeN) { return 0; }
+    if (holeY[hi] >= groundY) { return 0; }
+    if (holeY[hi] < (*BL[k]).RoofY()) { return 0; }
+    if (!(*BL[k]).Covers(holeX[hi])) { return 0; }
+    return 1;
+}
 
 // ⚠ `holesDraw` 与 `isqrt` **必须放在 `Building` 之后**：这个前端不做前向引用，
 //   而这里要用 `Building` 的 `Covers/Left/Right/RoofY`、还要用颜色宏 `C_DIRT`，
@@ -1174,6 +1220,33 @@ public:
 // Banana —— 香蕉（定点弹道）
 // ════════════════════════════════════════════════════════════════════
 
+// ── 速度方向 → 姿态角（度）──────────────────────────────────────────────
+//
+// 用**菱形近似**算 atan2（那条 `45·ay/ax`），误差最大约 4.5° —— 香蕉只要"大致顺着
+// 弹道"，而本平台上 `sqrt`/`sin`/`cos` 都不可用（见下面 `isqrt` 那段说明），
+// 为几度的精度去引一条数学库依赖不值当。
+//
+// 角度口径与 `basic/gorilla_pro.bas` 的 `bananaAngle` 一致（**屏幕 y 向下**）：
+// 向右上飞是**负角**、向右下飞是正角。两版用同一套，观感才对得上。
+static int AngleOf(int vx, int vy)
+{
+    int ax = vx < 0 ? 0 - vx : vx;
+    int ay = vy < 0 ? 0 - vy : vy;
+    int t;
+
+    if (ax == 0 && ay == 0) { return 0; }
+    if (ax >= ay) { t = ax == 0 ? 0 : 45 * ay / ax; }
+    else { t = 90 - (ay == 0 ? 0 : 45 * ax / ay); }
+
+    if (vx >= 0)
+    {
+        if (vy < 0) { return 0 - t; }
+        return t;
+    }
+    if (vy < 0) { return 180 + t; }
+    return 180 - t;
+}
+
 class Banana : public Entity
 {
 public:
@@ -1184,6 +1257,8 @@ public:
     int live;
     int owner;           // 谁扔的（0/1）
     int trailN;
+    int bid;             // 月牙**图块**句柄（开窗后建一次，见 `MakeBlock`）
+    int spin;            // 飞行中的自转累计角（度）—— 见 `Draw`
 
     Banana()
     {
@@ -1194,8 +1269,29 @@ public:
         live = 0;
         owner = 0;
         trailN = 0;
+        bid = 0;
+        spin = 0;
         x = 0;
         y = 0;
+    }
+
+    /// <summary>
+    /// 把月牙录成**图块**（开窗之后调一次）。
+    ///
+    /// ⚠ 为什么不每帧直接画路径：`ui_path` 收的是**绝对场景坐标**，没有任何变换参数 ——
+    /// 要让月牙顺着弹道转，就得把角度算进每一段贝塞尔的控制点里，那是一场噩梦。
+    /// 图块正好补上这个缺口：形状随便画（曲线都行），贴的时候 `ui_draw_block` 带旋转。
+    /// 路径字符串与 `basic/gorilla_pro.bas` 的 `makeBanana` **逐字相同**（两版同一只香蕉）。
+    /// </summary>
+    void MakeBlock()
+    {
+        bid = ui_create_block(30, 20, 0);
+        // 月牙：两段三次贝塞尔，两个尖端在 (3,14) 与 (27,9)，凹面朝下
+        ui_path("M 3 14 C 8 2, 22 -1, 27 9 C 20 4, 10 6, 3 14 Z", 0xFF8A7418, 1, 0xFFFFE066, "", 1, 0);
+        // 两个蒂（深一点的圆点）—— 两端有蒂才像香蕉，不然像月牙
+        ui_circle(3, 14, 2, 0xFF6E5A14, 1, 0);
+        ui_circle(27, 9, 2, 0xFF6E5A14, 1, 0);
+        bid = ui_end_block();
     }
 
     void Launch(int sx, int sy, int svx, int svy, int wind)
@@ -1209,6 +1305,7 @@ public:
         vy = svy;
         live = 1;
         trailN = 0;
+        spin = 0;              // 每一发重新开始翻跟头
     }
 
     // 一拍。返回 0 = 还在飞，1 = 掉到地上/楼里，2 = 飞出屏幕
@@ -1225,6 +1322,12 @@ public:
 
         x = bx / FP;
         y = by / FP;
+
+        // 自转（翻跟头）。
+        // ⚠ 光靠"顺着弹道"是不够的：一发平射全程只转 ±45°，22px 的小月牙看着几乎没动
+        //   （`basic/gorilla_pro.bas` 那边的玩家原话是"转动幅度太小了"）。
+        spin = spin + 18;
+        if (spin >= 360) { spin = spin - 360; }
 
         // 记尾迹（满了就整体左移一格）
         if (trailN < MAX_TRAIL)
@@ -1272,8 +1375,21 @@ public:
             }
             i = i + 1;
         }
-        ui_circle(x, y, 5, C_BANANA, 1, 0);
-        ui_circle(x - 2, y - 2, 2, 0xFFFFFFFF, 1, 0);
+        if (bid > 0)
+        {
+            // 姿态 = **弹道方向**（新月顺着飞行方向）+ **自转**（翻跟头）。
+            // 缩放 720‰：图块本身 30x20，原尺寸贴出来比大猩猩（约 28px 宽）还大一圈，
+            // 看着像"扔出去一个球拍"；720 之后约 22px，比猿小、又还看得出是香蕉。
+            ui_draw_block(bid, x, y, 720, 720, AngleOf(vx, vy) + spin);
+        }
+        else
+        {
+            // 图块没建起来（有真窗口时不该发生）—— 退回一个圆点。
+            // **宁可画得糙，也不能让香蕉看不见**：看不见 = 这一局没法玩，
+            // 而屏幕上没有任何东西提示你是哪儿坏了。
+            ui_circle(x, y, 5, C_BANANA, 1, 0);
+            ui_circle(x - 2, y - 2, 2, 0xFFFFFFFF, 1, 0);
+        }
     }
 };
 
@@ -1314,6 +1430,8 @@ public:
     int wob;
     int t;
     int turns;
+    int bidUp;           // 翅膀朝上的那帧
+    int bidDn;           // 翅膀朝下的那帧
 
     Bird()
     {
@@ -1321,6 +1439,39 @@ public:
         wob = 0;
         t = 0;
         turns = 0;
+        bidUp = 0;
+        bidDn = 0;
+    }
+
+    /// <summary>
+    /// 把鸟的**两种翅膀姿态**各录成图块（开窗之后调一次）。
+    ///
+    /// ⚠ 为什么是**两个**图块而不是"一个身体 + 一条会转的翅膀"：
+    ///   翅膀是长在**身后**的（从 `cx-6` 甩到 `cx-14`），绕身体转会把根也甩出去。
+    ///   两帧各录一份最直白，代价只是多一份 30×20 的录制。
+    ///
+    /// ⚠ 只录**朝右**的那一份 —— 朝左贴的时候用 `-1000` 镜像（见 `Draw`）。
+    ///   这是本版才通的：`Stamp` 原先把 `sx <= 0` 一起拒了，负值（镜像）根本贴不出来。
+    /// </summary>
+    void MakeBlocks()
+    {
+        bidUp = ui_create_block(30, 20, 0);
+        Shape(15, 10, 1);
+        bidUp = ui_end_block();
+
+        bidDn = ui_create_block(30, 20, 0);
+        Shape(15, 10, -1);
+        bidDn = ui_end_block();
+    }
+
+    /// <summary>一只**朝右**的鸟，画在局部坐标 (cx, cy) 处。两帧只差翅膀那条线。</summary>
+    void Shape(int cx, int cy, int wingUp)
+    {
+        ui_circle(cx, cy, 6, 0xFF30343C, 1, 0);
+        ui_circle(cx + 4, cy - 4, 4, 0xFF30343C, 1, 0);
+        ui_rect(cx + 7, cy - 5, 4, 2, 0xFFFFC060, 1, 0, 0);
+        if (wingUp > 0) { ui_line(cx - 6, cy, cx - 14, cy + 5, 0xFF50565E, 3); }
+        else { ui_line(cx - 6, cy, cx - 14, cy - 5, 0xFF50565E, 3); }
     }
 
     void Spawn(int sw, int gy, int dir)
@@ -1353,7 +1504,7 @@ public:
     virtual void Draw()
     {
         int d;
-        int bx;
+        int b;
 
         if (live == 0) { return; }
 
@@ -1363,13 +1514,22 @@ public:
         d = 1;
         if (vx < 0) { d = -1; }
 
-        ui_circle(x, y, 6, 0xFF30343C, 1, 0);
-        ui_circle(x + 4 * d, y - 4, 4, 0xFF30343C, 1, 0);
-        bx = x + 7;
-        if (d < 0) { bx = x - 11; }
-        ui_rect(bx, y - 5, 4, 2, 0xFFFFC060, 1, 0, 0);
-        if (wob >= 0) { ui_line(x - 6 * d, y, x - 14 * d, y + 5, 0xFF50565E, 3); }
-        else { ui_line(x - 6 * d, y, x - 14 * d, y - 5, 0xFF50565E, 3); }
+        b = bidUp;
+        if (wob < 0) { b = bidDn; }
+
+        if (b > 0)
+        {
+            // 朝左 = **水平镜像**（`sx` 取负）。同一个图块左右通吃，不必录两份形状。
+            ui_draw_block(b, x, y, d * 1000, 1000, 0);
+        }
+        else
+        {
+            // 图块没建起来（有真窗口时不该发生）—— 退回一只"圆点鸟"。
+            // **宁可画得糙，也不能让它看不见**：看不见 = 打不中它，而屏幕上没有
+            // 任何东西提示你是哪儿坏了。
+            ui_circle(x, y, 6, 0xFF30343C, 1, 0);
+            ui_circle(x + 4 * d, y - 4, 4, 0xFF30343C, 1, 0);
+        }
     }
 };
 
@@ -1381,6 +1541,7 @@ public:
     int hold;
     int t;
     int lit;
+    int bid;             // 碟身图块（座舱罩 + 碟身；光晕与灯是动态的，不进块）
 
     Ufo()
     {
@@ -1389,6 +1550,32 @@ public:
         hold = 0;
         t = 0;
         lit = 0;
+        bid = 0;
+    }
+
+    /// <summary>
+    /// 把碟身录成图块（开窗之后调一次）。
+    ///
+    /// ⚠ 碟身**不能整体旋转**（座舱罩在顶上，转起来就成了"歪帽子"）—— 它用图块是为了
+    ///   形状只写一遍 + 贴出时省调用。**会转的是底下那圈灯**（见 `Draw` 里 `spin` 那段）：
+    ///   一圈灯绕中心转，才像"盘子底下有东西在转"。
+    ///
+    /// 块范围按最外沿取：碟身 `x±22`、罩顶到 `y-16` ⇒ 48×34，中心在局部 (24,17)。
+    /// </summary>
+    void MakeBlock()
+    {
+        bid = ui_create_block(48, 34, 0);
+        // 座舱罩：**先画一整个圆**，碟身随后盖掉它的下半 ⇒ 正好剩一个半圆罩
+        //（本平台没有裁剪，这个"画完再盖"就是最省事的做法）
+        ui_circle(24, 11, 10, 0xFF8ADCFF, 1, 0);
+        ui_circle(24, 11, 10, 0xFF2E6E9E, 0, 2);
+        ui_ellipse(20, 8, 3, 2, 0xFFFFFFFF, 1, 0);          // 罩子高光
+        // 碟身：宽扁椭圆（宽:高 ≈ 3:1 才像碟）
+        ui_ellipse(24, 18, 22, 7, 0xFFC8D0DC, 1, 0);
+        ui_ellipse(24, 18, 22, 7, 0xFF5A6472, 0, 2);
+        // 碟身上半的一道亮边，给它"金属盘子"的感觉
+        ui_ellipse(24, 16, 17, 3, 0xFFE8EEF6, 1, 0);
+        bid = ui_end_block();
     }
 
     void Spawn(int sw, int gy, int dir)
@@ -1431,37 +1618,30 @@ public:
 
     virtual void Draw()
     {
-        int hull;
-        int hullD;
-        int glass;
-        int glassD;
-
         if (live == 0) { return; }
-
-        hull = 0xFFC8D0DC;
-        hullD = 0xFF5A6472;
-        glass = 0xFF8ADCFF;
-        glassD = 0xFF2E6E9E;
 
         // ⚠ 原来是「大球 + 小球」，玩家原话是「飞碟也是个球」。
         //   飞碟之所以一眼是飞碟，靠的是**宽扁的碟身 + 顶上一个罩子**这两条轮廓线，
-        //   光有圆是读不出来的。
-        // 悬停的光晕（先画，后面被碟身压住一半）
+        //   光有圆是读不出来的。这两条轮廓现在录在 `MakeBlock` 里。
+        //
+        // 悬停的光晕：**先画**（随后被碟身压住一半）。
+        // 它是半透明的、又跟着碟身走，留在块外更省事（进了块也只是多录一行）。
         ui_ellipse(x, y + 10, 17, 4, 0x40A0E0FF, 1, 0);
 
-        // ── 座舱罩：**先画一整个圆**，碟身随后盖掉它的下半 ⇒ 正好剩一个半圆罩 ──
-        //    （本平台没有裁剪，这个"画完再盖"就是最省事的做法）
-        ui_circle(x, y - 6, 10, glass, 1, 0);
-        ui_circle(x, y - 6, 10, glassD, 0, 2);
-        ui_ellipse(x - 4, y - 9, 3, 2, 0xFFFFFFFF, 1, 0);   // 罩子高光
+        if (bid > 0)
+        {
+            ui_draw_block(bid, x, y, 1000, 1000, 0);
+        }
+        else
+        {
+            // 图块没建起来（有真窗口时不该发生）—— 退回"大球 + 小球"。
+            // ⚠ 那正是玩家挑过的形状，但**看不见比难看糟得多**。
+            ui_circle(x, y - 6, 10, 0xFF8ADCFF, 1, 0);
+            ui_ellipse(x, y + 1, 22, 7, 0xFFC8D0DC, 1, 0);
+        }
 
-        // ── 碟身：宽扁椭圆（宽:高 ≈ 3:1 才像碟）──
-        ui_ellipse(x, y + 1, 22, 7, hull, 1, 0);
-        ui_ellipse(x, y + 1, 22, 7, hullD, 0, 2);
-        // 碟身上半的一道亮边，给它"金属盘子"的感觉
-        ui_ellipse(x, y - 1, 17, 3, 0xFFE8EEF6, 1, 0);
-
-        // ── 底下一圈灯 ──
+        // ── 底下一圈灯（`lit` 隔一阵闪一下）──
+        // **动态的，不进图块**：进了就得录两帧，而它只值五个圆点。
         if (lit != 0)
         {
             ui_circle(x - 15, y + 5, 2, 0xFFFF5050, 1, 0);
@@ -1479,12 +1659,28 @@ class Plane : public Flyer
 public:
     int t;
     int lit;
+    int bid;             // 机身图块（含尾翼与座舱；灯是动态的，不进块）
 
     Plane()
     {
         kind = 3;
         t = 0;
         lit = 0;
+        bid = 0;
+    }
+
+    /// <summary>
+    /// 把机身录成图块（开窗之后调一次）。只录**朝右**那一份，朝左用 `-1000` 镜像。
+    /// 块范围按最外沿取：机身 `x±16`、尾翼到 `y-10`、灯在 `y-11` ⇒ 40×24，中心在局部 (20,12)。
+    /// </summary>
+    void MakeBlock()
+    {
+        bid = ui_create_block(40, 24, 0);
+        ui_rect(4, 9, 32, 6, 0xFFD8DEE6, 1, 0, 3);          // 机身
+        ui_line(18, 12, 8, 2, 0xFFB8C0CC, 3);               // 尾翼（后）
+        ui_line(22, 12, 28, 3, 0xFFB8C0CC, 3);              // 尾翼（前）
+        ui_rect(26, 10, 8, 5, 0xFF6FA8DC, 1, 0, 2);         // 座舱
+        bid = ui_end_block();
     }
 
     void Spawn(int sw, int gy, int dir)
@@ -1512,20 +1708,26 @@ public:
     virtual void Draw()
     {
         int d;
-        int cx;
 
         if (live == 0) { return; }
 
-        // 与鸟同一个道理：座舱与尾翼都按**当前速度**镜像（原来写死朝右）
+        // 与鸟同一个道理：机身按**当前速度**镜像（原来写死朝右）
         d = 1;
         if (vx < 0) { d = -1; }
 
-        ui_rect(x - 16, y - 3, 32, 6, 0xFFD8DEE6, 1, 0, 3);
-        ui_line(x - 2 * d, y, x - 12 * d, y - 10, 0xFFB8C0CC, 3);
-        ui_line(x + 2 * d, y, x + 8 * d, y - 9, 0xFFB8C0CC, 3);
-        cx = x + 6;
-        if (d < 0) { cx = x - 14; }
-        ui_rect(cx, y - 2, 8, 5, 0xFF6FA8DC, 1, 0, 2);
+        if (bid > 0)
+        {
+            ui_draw_block(bid, x, y, d * 1000, 1000, 0);
+        }
+        else
+        {
+            // 图块没建起来（有真窗口时不该发生）—— 退回简版（见 `Bird::Draw` 的同一条理由）
+            ui_rect(x - 16, y - 3, 32, 6, 0xFFD8DEE6, 1, 0, 3);
+            ui_rect(x + 6 * d - 8, y - 2, 8, 5, 0xFF6FA8DC, 1, 0, 2);
+        }
+
+        // 航行灯：**动态的**（`lit` 隔一阵闪一下），不进图块 —— 进了就得录两帧、
+        // 而它只值一个圆点。位置按 `d` 镜像，与机身同一边。
         if (lit != 0) { ui_circle(x - 14 * d, y - 11, 2, 0xFFFF4040, 1, 0); }
     }
 };
@@ -1881,6 +2083,21 @@ public:
             i = i + 1;
         }
         spawnT = 0;
+    }
+
+    /// <summary>
+    /// 把**会动的精灵**都录成图块（开窗之后调一次，见 `main`）。
+    ///
+    /// 三类精灵一起走这条路：形状只写一遍、贴出来带旋转/镜像/缩放，
+    /// 而且每帧从"十几次绘图调用"压成"一次贴图块"（实测 300 个精灵 × 60 帧：
+    /// 直接画 3531ms → 贴图块 2945ms）。
+    /// </summary>
+    void MakeBlocks()
+    {
+        ban.MakeBlock();
+        bird.MakeBlocks();
+        ufo.MakeBlock();
+        plane.MakeBlock();
     }
 
     void NewTurn()
@@ -2268,8 +2485,9 @@ public:
         int i;
         Entity* actors[16];
         int actorN;
-        int onBldg;         // 这个弹坑是不是开在楼上（见下面那段蒙版重画）
+        int onBldg;         // 这个弹坑是不是开在楼上（见 `HoleOnBldg`）
         int k;
+        int j;
 
         // ⚠ **每帧的第一件事**：把这一刻的天光 / 暖色 / 日月位置算出来。
         //   后面每一处配色（天、楼、窗、地、云、弹坑）都读它算出来的那几个全局量。
@@ -2306,29 +2524,68 @@ public:
         cloudsDraw(sw, gy);
         meteorDraw(sw, gy);
 
-        // ── 顺序：**楼 → 凿洞 → 其余** ─────────────────────────────────
+        // ── 建筑层：**楼 − 自己身上的洞** ───────────────────────────────
+        //
+        // 三层模型（玩家定的）：**背景层 / 建筑层 / 精灵层**。
+        // 建筑层"可以被炸穿" = 楼体**挖掉**洞 ⇒ 上一层画好的背景**直接从洞里透出来**
+        // （云、日月都是活的），不需要在洞里补画任何东西。
+        //
+        // ⚠ 上一版是"每个洞开一个洞口蒙版、把背景**重画一遍**"。像素结果对，但：
+        //   · 24 个洞 = **24 倍**背景图元（天空渐变 + 星 + 日月 + 云各来一遍）；
+        //   · 而且洞一多就撞 `MaxFigures = 12000`（新图元被**静默丢弃**）。
+        //   现在每个洞只花"一个蒙版形状"，楼体只画一遍。
+        //
         // ⚠ `actors[1..gBldgN]` 是楼，后面依次是猴子、香蕉。这个循环原先是一整趟跑完的，
         //   于是弹坑只能画在**最后**，把香蕉也盖住了 —— 玩家说的
         //   「被炸穿的地方还是会挡住香蕉」就是这么来的（香蕉是飞在半空的，
         //   而坑是开在墙上的，墙在香蕉**后面**）。
+        //
+        // ⚠ 顺序：**屋顶细节 → 开蒙版 → 楼体**。屋顶细节（水箱 / 天线）伸到楼体矩形
+        //   **上方**，套进"楼体矩形 − 洞"的蒙版里会被整块裁掉。
         i = 1;
+        k = 0;
         while (i <= gBldgN)
         {
-            actors[i]->Draw();
+            (*BL[k]).DrawRoof();
+
+            // 蒙版 = 楼体矩形 − 本栋楼上所有的洞（`SUBTRACT` 一次算完，不必逐洞嵌套）
+            ui_mask_begin();
+            ui_rect((*BL[k]).Left(), (*BL[k]).RoofY(), (*BL[k]).w, (*BL[k]).h, 0xFFFFFFFF, 1, 0, 0);
+            ui_mask_end(1);
+
+            onBldg = 0;
+            j = 0;
+            while (j < holeN)
+            {
+                if (HoleOnBldg(j, k, gy) != 0) { onBldg = onBldg + 1; }
+                j = j + 1;
+            }
+            // 没有洞就别开那一段（`SUBTRACT` 空集本来是合法的，但少一段就少一次逐点判定）
+            if (onBldg > 0)
+            {
+                ui_mask_begin();
+                j = 0;
+                while (j < holeN)
+                {
+                    if (HoleOnBldg(j, k, gy) != 0)
+                    {
+                        ui_circle(holeX[j], holeY[j], holeR[j], 0xFFFFFFFF, 1, 0);
+                    }
+                    j = j + 1;
+                }
+                ui_mask_end2(VML_MASK_SUBTRACT);
+            }
+
+            (*BL[k]).DrawBody();
+            ui_mask_clear();
+
             i = i + 1;
+            k = k + 1;
         }
 
-        // ── 楼上的弹坑：**用蒙版把背景重画一遍**（洞后面才"活"起来）──────────
-        //
-        // ⚠ 原先是在洞里涂"当时的天空色"。天空渐变虽然接得上，但
-        //   **洞后面的云 / 日月不会露出来** ⇒ 一眼就看出"洞是贴上去的"
-        //   （玩家报的「破洞还会挡住背景」就是这么来的）。
-        //   正解就是蒙版：开一个**洞口形状**的蒙版 → **重画一遍背景** → 关蒙版。
-        //   `ui_mask_end(1)` = "只在里面画"。
-        //
-        // ⚠ 代价要盯着：**每个洞重画一遍背景**（天空渐变 + 星 + 日月 + 云），
-        //   24 个洞就是 24 倍。所以只对**楼上的洞**做（地上的坑挖土就够），
-        //   而且背景只重画天空与云 —— 楼是并排的，洞后面不会有别的楼。
+        // ── 洞口的断面：内壁一圈暗色（墙厚）+ 左上受光一线 ──────────────
+        // ⚠ 画在楼**之上**（所以不受蒙版约束，洞沿才有"翻起来的边"），
+        //   但仍在**精灵之下** —— 香蕉飞过洞口时该盖住它。
         i = 0;
         while (i < holeN)
         {
@@ -2336,21 +2593,12 @@ public:
             k = 0;
             while (k < gBldgN)
             {
-                if ((*BL[k]).Covers(holeX[i]))
-                {
-                    if (holeY[i] >= (*BL[k]).RoofY()) { onBldg = 1; }
-                }
+                if (HoleOnBldg(i, k, gy) != 0) { onBldg = 1; }
                 k = k + 1;
             }
-            if (onBldg != 0 && holeY[i] < gy)
+            if (onBldg != 0)
             {
-                ui_mask_begin();
-                ui_circle(holeX[i], holeY[i], holeR[i], 0xFFFFFFFF, 1, 0);
-                ui_mask_end(1);
-                sky.Draw();
-                cloudsDraw(sw, gy);
-                ui_mask_clear();
-                // 洞口断面：内壁压一圈暗色 ⇒ 有"墙厚"，不然还是像贴纸。
+                // 内壁压一圈暗色 ⇒ 有"墙厚"，不然还是像贴纸。
                 // ⚠ **要细、要淡** —— 先前是 width 3、60% 黑，在 r=16 的洞上几乎把洞填满，
                 //   读出来是"一团黑"而不是"透过去看见了天空"。现在是 2px、35% 黑。
                 ui_circle(holeX[i], holeY[i], holeR[i] + 1, 0x59000000, 0, 2);
@@ -2362,6 +2610,13 @@ public:
 
         holesDraw(gy, sh);          // 地上的坑（挖土）
 
+        // ── 精灵层：猴子、香蕉（`actors[0]` 是天空、`actors[1..gBldgN]` 是楼，都已画过）
+        //
+        // ⚠ 起点必须是 `gBldgN + 1`。原先这里**没有赋起点**，沿用上面洞循环遗留下来的 `i`
+        //   ⇒ 下标变成了**洞的数量**（拿一个不相干的计数当数组下标）：
+        //   洞少时把天空和楼又画一遍（**盖掉云和洞口断面**），洞多时前面的猴子被整段跳过。
+        //   这是本仓"变量复用出了边界"的又一个实例 —— 循环变量用完就该显式重置。
+        i = gBldgN + 1;
         while (i < actorN)
         {
             actors[i]->Draw();
@@ -2470,6 +2725,10 @@ int main()
     // 高度，这个游戏只用手指，没必要为它留一条；顺带锁竖屏（版面按竖屏排）。
     ui_win_open_ex("大猩猩扔香蕉 (C++)", g.sw, g.sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
+    // ⚠ **必须在开窗之后**：图块是宿主那边的资源，没有场景就建不起来
+    //   （`ui_create_block` 会返回 0，之后整局都只能用"退化的简版形状"兜底）。
+    // ⚠ 而且**只建这一次**：块表不随 `ui_clear` 清，每帧建一遍会在 128 帧后拿不到句柄。
+    g.MakeBlocks();
     g.NewTurn();
 
     tid = ui_timer_set(TICK_MS, 0);
