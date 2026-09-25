@@ -29,6 +29,17 @@ namespace CppCompiler
         /// </summary>
         private readonly List<ASTNode> _pendingDecls = new();
 
+        /// <summary>
+        /// 正在解析的类名 —— 用来给类成员方法/构造函数打上 `FunctionDecl.ClassName`。
+        ///
+        /// ⚠ 这个字段不是锦上添花：类方法在 AST 里**既挂在 `ClassDecl` 下、又被提升成
+        ///   一个顶层 `FunctionDecl`**（调用点才能按普通函数名找到它）。代码生成按
+        ///   `_program.Declarations` 遍历时会**两趟都生成**，而提升的那份 `IsMember` 是 false
+        ///   ⇒ 那一趟不理解 `this`，方法体却照样发成员访问（靠残留的类上下文），
+        ///   于是 `this` 读一个从没写过的槽、值恒为 0。带上类名，两趟就都能认出来。
+        /// </summary>
+        private string? _currentClassName;
+
         protected override TokenType GetTokenType(Token token) => token.Type;
 
         /// <summary>
@@ -327,6 +338,7 @@ namespace CppCompiler
             string anonName = "_anon_" + (_anonCount++);
             Expect(TokenType.LBRACE, "StructLikeBody");
             var cd = new ClassDecl { Name = anonName, CurrentAccess = AccessSpec.Public };
+            _currentClassName = anonName;
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
                 var member = ParseClassMember(cd.CurrentAccess);
@@ -398,6 +410,7 @@ namespace CppCompiler
             }
             Expect(TokenType.LBRACE, "Class");
             var cd = new ClassDecl { Name = name, BaseClass = baseClass };
+            _currentClassName = name;
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
                 if (Match(TokenType.PUBLIC)) { cd.CurrentAccess = AccessSpec.Public; continue; }
@@ -458,7 +471,7 @@ namespace CppCompiler
             }
             if (Match(TokenType.LPAREN))
             {
-                var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true, IsVirtual = isVirtual };
+                var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true, IsVirtual = isVirtual, ClassName = _currentClassName };
                 if (pendingConvention.HasValue) func.Convention = pendingConvention.Value;
                 if (IsVoidOnlyParamList()) Advance(); // `f(void)`
                 else if (!Check(TokenType.RPAREN))

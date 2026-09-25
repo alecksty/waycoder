@@ -320,8 +320,21 @@ namespace CppCompiler
             //   调用点压进去的 `this` 没人接，而 `ThisExpr` 读的是 R14 —— 那是**帧指针**，
             //   于是 `this->x` 指向栈帧。初始化列表那段更早，假设 `this` 在 `R14+8`
             //   （那是**返回地址**），还用 `MOVE R14, 8(R14)` 把帧指针本身覆盖掉了。
+            // ⚠ 判据**不能只认 `func.IsMember`**：类方法在 AST 里既挂在 `ClassDecl` 下、
+            //   又被提升成一个顶层 `FunctionDecl`，**方法体会被生成两趟**。提升上来的那份
+            //   `IsMember` 是 false，于是这趟不分配槽、也不写 —— 可 `_currentClass` 是上一趟
+            //   **残留**的（没人清），方法体里的成员访问照样发 `[0(R0)]`，而 `this` 读的是
+            //   一个从没写过的槽 ⇒ 拿到 0 ⇒ `[0(0)]` ⇒ 值恒为 0。
+            //   判据换成"这个函数名是不是当前类的方法" —— 两趟都成立。
+            //
+            // ⚠ 判据**用 `func.ClassName`**（解析器给的），不要靠 `_currentClass` 残留：
+            //   类方法被提升成顶层 `FunctionDecl` 之后 `IsMember` 是 false，而 `_currentClass`
+            //   只是上一趟没清干净的**残留值** —— 靠残留会出现"成员访问发得出来、`this` 却是
+            //   垃圾"这种半对状态。带上类名，两趟都认得出来，行为才一致。
             _thisSlot = -1;
-            if (func.IsMember)
+            if (!string.IsNullOrEmpty(func.ClassName))
+                _currentClass = CleanType(func.ClassName!);
+            if (func.IsMember || !string.IsNullOrEmpty(func.ClassName))
             {
                 var thisInfo = Vars?.AllocLocal("__this", 4, "int*");
                 _thisSlot = thisInfo?.Offset ?? -4;

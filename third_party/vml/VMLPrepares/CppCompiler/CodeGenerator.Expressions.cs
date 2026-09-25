@@ -1186,7 +1186,11 @@ namespace CppCompiler
                             // Virtual dispatch through vtable
                             int vtableIndex = cls.Members.TakeWhile(m => !(m.IsMethod && m.Method?.Name == me.Member && m.IsVirtual)).Count(m => m.IsVirtual);
                             // Push this pointer
-                            GenerateExpr(me.Object);
+                            // ⚠ 必须取**地址**（`GenerateBaseForMember`），不能用 `GenerateExpr` ——
+                            //   后者对类类型的全局变量发的是**值加载**（`move @R0 [var_k]`），
+                            //   压进去的是对象第一个字（也就是第一个字段）当指针用，
+                            //   被调方拿它当 `this` 去 `[0(R0)]`，读的是地址 7 的内容 ⇒ 恒为 0。
+                            GenerateBaseForMember(me.Object);
                             Add(OpCode.PUSH, "R0");
                             hasThis = true;
                             // Find derived classes that override this method
@@ -1238,7 +1242,8 @@ namespace CppCompiler
                         else
                         {
                             funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                            GenerateExpr(me.Object);
+                            // ⚠ 同上一处：`this` 要的是**对象地址**，不是对象的值。
+                            GenerateBaseForMember(me.Object);
                             Add(OpCode.PUSH, "R0");
                             hasThis = true;
                         }
@@ -1246,7 +1251,8 @@ namespace CppCompiler
                     else
                     {
                         funcName = MethodSymbolForCall(me.Object, me.Member, ce.Arguments.Count);
-                        GenerateExpr(me.Object);
+                        // ⚠ 同上：`this` 要的是**对象地址**。
+                        GenerateBaseForMember(me.Object);
                         Add(OpCode.PUSH, "R0");
                         hasThis = true;
                     }
