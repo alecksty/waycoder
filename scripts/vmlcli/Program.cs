@@ -761,7 +761,9 @@ internal static class Program
         // 处理器先建出来（下面 `uiCalls.Runtime = vm` 要回填 —— 通用调用口读浮点/长整数
         // 寄存器组必须拿得到运行时，见 NullUiCalls.Runtime 的注释）。
         var uiCalls = new CliUiCalls(opt.ToHostConfig(sourcePath));
-        using var vm = new VmRuntime(2 * 1024 * 1024, MakeConfig(), [], mode: "mcu")
+        // ⚠ 内存传 **0** = 以 `VmConfig.MemorySize` 为准（见 `VmlVmDefaults`）——
+        //   这里再写一个具体数字就等于又开了一处真源。
+        using var vm = new VmRuntime(0, MakeConfig(), [], mode: "mcu")
         {
             TimeoutSeconds = Math.Clamp(opt.TimeoutSeconds, 1, 600),
             ConsoleIO = io,
@@ -827,6 +829,11 @@ internal static class Program
             MouseYAddress = 0,
             VgaStartAddress = 0,
         };
+        // 内存与栈走**唯一真源**（手机端 MakeConfig 用的是同一对常量）——
+        // ⚠ **顺序不能反**：`StackSize` 的 setter 按 `MemorySize / 2` 钳位，
+        //   反过来的话内存还是默认的 1MB，1MB 的栈会被**静默钳成 512KB**。
+        cfg.MemorySize = VmlVmDefaults.MemoryBytes;
+        cfg.StackSize = VmlVmDefaults.StackBytes;
         cfg.VgaDisplay.Width = 1;
         cfg.VgaDisplay.Height = 1;
         return cfg;

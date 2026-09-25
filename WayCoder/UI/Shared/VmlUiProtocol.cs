@@ -1349,6 +1349,32 @@ public readonly record struct VmlMessage(VmlMsgType Type, int A, int B, int Time
 /// 所以这里用锁 + 队列；阻塞取用 <see cref="SemaphoreSlim"/> 放行（与 <c>MauiVml</c> 里
 /// 「VM 线程阻塞等宿主输入」的既有模型一致，见 <c>CaptureIo.ReadLine</c>）。
 /// </summary>
+/// <summary>
+/// 虚拟机给 VML 程序的**内存与栈**（用户 2026-09-25 定：内存 16M、栈 1M）。
+///
+/// <para><b>为什么放这里</b>：桌面（`scripts/vmlcli/Program.cs`）与手机
+/// （`WayCoder.Maui/Services/MauiVml.cs`）**各有一份 `MakeConfig()`** ——
+/// 值写在两处就迟早漂（本仓头号坑）。两端都编这个文件，所以这里是**唯一真源**。</para>
+///
+/// <para><b>⚠ 两个值有依赖，顺序不能反</b>：<see cref="VmConfig.StackSize"/> 的 setter 是
+/// <c>Math.Clamp(value, 1024, _memorySize / 2)</c> —— 它按 **`VmConfig.MemorySize`**
+/// 钳位。所以必须**先设内存、再设栈**：反过来的话，内存还是默认的 1MB 时设 1MB 栈，
+/// 会被**静默钳成 512KB**（不报错、只是栈小了一半）。</para>
+///
+/// <para><b>⚠ 传给 `VmRuntime` 的内存必须是 0</b>：构造函数的第一个参数会**覆盖**
+/// `config.MemorySize`（`if (memorySize &lt;= 0) memorySize = config.MemorySize;`）。
+/// 传一个具体数字就等于又开了一处真源。传 0 ⇒ 一切以本类为准。</para>
+/// </summary>
+public static class VmlVmDefaults
+{
+    /// <summary>虚拟机内存（字节）。</summary>
+    public const int MemoryBytes = 16 * 1024 * 1024;
+
+    /// <summary>栈上限（字节）。见类注释里那条"先内存后栈"的顺序要求。</summary>
+    public const int StackBytes = 1024 * 1024;
+
+}
+
 public sealed class VmlMessageQueue
 {
     /// <summary>

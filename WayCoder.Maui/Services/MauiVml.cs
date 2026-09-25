@@ -1025,7 +1025,9 @@ HALT
         // 模式是**宿主侧**参数、VML 程序自己改不了 —— 所以只要这里写死，那三层就是死代码。
         // （也正因如此，没去删 VMLRuntime.Syscall.OS.cs / .FFI.cs：删了只是删死代码，
         //   却要在 sync.sh 里加一步「同步后删文件」，那是最脆的一类本地适配。）
-        using var vm = new VmRuntime(2 * 1024 * 1024, MakeConfig(), [], mode: "mcu")
+        // ⚠ 内存传 **0** = 以 `VmConfig.MemorySize` 为准（见 `VmlVmDefaults`）——
+        //   这里再写一个具体数字就等于又开了一处真源。
+        using var vm = new VmRuntime(0, MakeConfig(), [], mode: "mcu")
         {
             // **超时必须设**：VML 程序里的死循环会把 App 挂死，手机上没有 Ctrl+C 可按。
             //
@@ -1239,6 +1241,11 @@ HALT
             MouseYAddress = 0,
             VgaStartAddress = 0,
         };
+        // 内存与栈走**唯一真源**（桌面 vmlcli 的 MakeConfig 用的是同一对常量）——
+        // ⚠ **顺序不能反**：`StackSize` 的 setter 按 `MemorySize / 2` 钳位，
+        //   反过来的话内存还是默认的 1MB，1MB 的栈会被**静默钳成 512KB**。
+        cfg.MemorySize = VmlVmDefaults.MemoryBytes;
+        cfg.StackSize = VmlVmDefaults.StackBytes;
         cfg.VgaDisplay.Width = 1;
         cfg.VgaDisplay.Height = 1;
         return cfg;

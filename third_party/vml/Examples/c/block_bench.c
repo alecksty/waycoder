@@ -155,7 +155,9 @@ int main() {
     char buf[24];
     char line[128];
 
-    ui_win_open("图块压力测试", 0, 0);
+    /* ⚠ 尺寸必须传 `ui_scr_w()/ui_scr_h()`（可用绘图区），**不能传 0** ——
+       传 0 时窗口拿到的尺寸与程序以为的不是一回事，飞机全画到画布外面去了。 */
+    ui_win_open("图块压力测试", ui_scr_w(), ui_scr_h());
 
     sw = ui_scr_w();
     sh = ui_scr_h();

@@ -1,3 +1,33 @@
+## v0.96.437 — 虚拟机内存 2M→**16M**、栈 64K→**1M**（用户定）
+
+用户原话：「必须改大，程序内存改 16M，堆栈 1M」。
+
+### 改法与一个**静默钳位**的坑
+
+两端各有 `MakeConfig()`（桌面 `scripts/vmlcli/Program.cs`、手机 `WayCoder.Maui/Services/MauiVml.cs`），
+值写在两处迟早漂 ⇒ 做成**一处真源** `VmlVmDefaults`（放在两端都编的 `UI/Shared/VmlUiProtocol.cs`）：
+
+```csharp
+public const int MemoryBytes = 16 * 1024 * 1024;
+public const int StackBytes  = 1024 * 1024;
+```
+
+⚠ **两个赋值的顺序不能反**：`VmConfig.StackSize` 的 setter 是
+`Math.Clamp(value, 1024, _memorySize / 2)` —— 它按 **`VmConfig.MemorySize`** 钳位。
+**先设栈再设内存**的话，那一刻内存还是默认的 1MB，1MB 的栈会被**静默钳成 512KB**
+（不报错、不告警，只是栈小了一半）。所以两处都写成"先 MemorySize、后 StackSize"。
+
+⚠ **`new VmRuntime` 的第一个参数改成 0**：那个参数会**覆盖** `config.MemorySize`
+（`if (memorySize <= 0) memorySize = config.MemorySize;`），原来两端都传 `2 * 1024 * 1024` ——
+再留着它就等于**又开了一处真源**，改 `VmlVmDefaults` 也不会生效。传 0 ⇒ 一切以它为准。
+
+**实测**（benchmark 屏幕上用 `GetConfig(7)`/`(12)` 读回来的）：`MEM 16384K` / `STK 1024K` ✅
+
+### 同批
+
+- 压力测试的 `ui_win_open` 尺寸从 `0,0` 改成 `ui_scr_w()/ui_scr_h()` ——
+  传 0 时窗口实际尺寸与程序以为的不是一回事，飞机全画到画布外面去了（真机上看到的）。
+
 ## v0.96.436 — 压力测试加到 1000 架（发到手机测）
 
 用户要「把飞机最大加到 1000 架，发到我手机测试」：
