@@ -93,6 +93,26 @@ namespace CppCompiler
         private bool _hasThis;
 
         /// <summary>
+        /// 正在生成**函数体**（而不是顶层/全局作用域）。
+        ///
+        /// <para>
+        /// 用来决定"一个变量声明该落在**栈帧**里还是数据段里"。此前这个判断**整个是缺的** ——
+        /// 函数体里的 `int i;` 会被当成**全局量**（`var_i`）发出去，而所有函数的 `i`
+        /// **共用同一个标签**。后果极隐蔽：`Game::Draw` 里
+        /// <c>while (i &lt; 8) { actors[i]-&gt;Draw(); i = i + 1; }</c> 的第一个 `Draw()`
+        /// 进去（`Sky::Draw` 自己也有个 `i`，循环到 26）回来之后，`var_i` 已经是 26 ——
+        /// **循环直接结束**，后面 7 个一个都不画。
+        /// 而"白天"那一路 `Sky::Draw` 不走那个循环 ⇒ 同一个程序**白天正常、夜里丢东西**，
+        /// 看着像绘制问题、其实是变量作用域。
+        /// </para>
+        /// <para>
+        /// ⚠ 局部量上栈帧之后，**帧大小必须在函数体生成完之后回填**，
+        /// 见 <c>GenerateFunction</c> 里 `frameOperand` 那两句。
+        /// </para>
+        /// </summary>
+        private bool _inFunctionBody;
+
+        /// <summary>
         /// 当前语句来自**哪个文件**（`ASTNode.OriginalFile`，由解析器在语句入口盖）。
         /// 覆写 <see cref="DiagFile"/> 用它 —— **这是头文件里的错能指向头文件的唯一一环**：
         /// 不区分文件的话，`#include` 进来的声明出问题时报的是"主文件 + 头文件的行号"，
@@ -294,8 +314,10 @@ namespace CppCompiler
             //   症状极隐蔽：生成出来的指令看着正常，只是值恒为 0。
             int savedThisSlot = _thisSlot;
             bool savedHasThis = _hasThis;
+            bool savedInFunction = _inFunctionBody;
             string? savedClassCtx = _currentClass;
             _currentFuncReturnLabel = labelCounter++;
+            _inFunctionBody = true;
             Vars?.ResetLocals();
             _stackOffset = 0;
             _variables.Clear();
@@ -360,8 +382,18 @@ namespace CppCompiler
             Add(OpCode.PUSH, "R15");
             Add(OpCode.PUSH, "R14");
             Add(OpCode.MOVE, "R14", "R13");
+            // ⚠ 帧大小**先按当前已分配量开**，函数体生成完之后再**回填一次**
+            //   （见本函数末尾那处 `frameOperand.Value = …`）。
+            //   原因：局部变量是在**生成函数体的过程中**才逐个分配的，
+            //   而这里必须给出一个数 —— 老写法只算"参数 + `__this`"，
+            //   于是函数体里的局部量**一个都不在帧里**。此前它们的落点被
+            //   整个绕过（当全局量用），所以看不出来；一旦让它们真的落在栈帧上，
+            //   不回头改这个数就会写到帧**外面**去。
             int frameSize = (Vars?.LocalFrameSize ?? 64) + 64; // Vars local + 64 buffer
-            Add(OpCode.SUB, "R13", $"#{frameSize}");
+            var frameOperand = new Operand(OperandType.IMMEDIATE, frameSize);
+            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
+                new(OperandType.REGISTER, 13), frameOperand
+            }));
 
             // Load/save parameters into local slots
             int regIdx = 0;
@@ -472,10 +504,15 @@ namespace CppCompiler
             else
                 Add(OpCode.RET);
 
+            // 函数体里的局部变量到这一步才全都分配完 ⇒ **回填帧大小**
+            // （与开头那句成对，理由见那里）。
+            frameOperand.Value = (Vars?.LocalFrameSize ?? 64) + 64;
+
             _currentFuncReturnLabel = savedReturnLabel;
             _thisSlot = savedThisSlot;
             _hasThis = savedHasThis;
             _currentClass = savedClassCtx;
+            _inFunctionBody = savedInFunction;
         }
 
         /// <summary>
@@ -559,6 +596,14 @@ namespace CppCompiler
         private void GenerateGlobalVar(VariableDecl vd)
         {
             string label = $"var_{vd.Name}";
+
+            // 全局量的**类型**要在这里就记下来，不能等到下面那条标量分支 ——
+            // 数组（含**指针数组**）走的是各自的分支并 `return`，永远到不了那句赋值，
+            // 于是 `_varTypes` 里没有它。而 `ResolveClassOf` 正是靠 `_varTypes` 找
+            // 接收者的类 ⇒ 全局的 `Building* BL[4]` 取 `(*BL[i])` 时解析不出类，
+            // 方法符号退化成 `method__Setup`（类名是空串）⇒ 链接期"未定义的函数"。
+            // 放在最前面一句，所有分支都覆盖得到。
+            if (!string.IsNullOrEmpty(vd.Type)) _varTypes[vd.Name] = vd.Type;
 
             // ── 字节数组（`char x[] = "…"` / `char buf[N]`）──────────────────────
             //

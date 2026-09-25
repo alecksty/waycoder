@@ -744,7 +744,21 @@ namespace CppCompiler
         /// Generate the address (l-value) of an expression into R0
         private void GenerateAddressOf(Expr expr)
         {
-            if (expr is IdentExpr ie && _variables.TryGetValue(ie.Name, out int offset))
+            // ── `&字段`（隐式 `this->字段`）────────────────────────────────
+            // 方法体里写 `&sky` 要的是**这个对象的那个字段**的地址。
+            // ⚠ 原先这一支不存在：`IsImplicitThisField` 只在**取值**那条路上用过，
+            //   取地址这条一路落到下面的 `IdentExpr` 分支，拿名字当**全局量**
+            //   （`var_sky`）—— 那个标签根本不存在（或指向别处），
+            //   于是 `actors[0] = &sky` 存进去是个野地址，
+            //   再 `actors[i]->Draw()` 就是**拿着野地址当函数指针调**：
+            //   实测跳飞了、程序"正常结束"、屏幕上什么都没有、**一句报错都没有**。
+            //   必须排在下面"局部量 / 全局量"之前（字段不在 `_variables` 里，
+            //   但它确实属于 `this`）。
+            if (expr is IdentExpr idf && IsImplicitThisField(idf, out var implicitAddrMem))
+            {
+                GenerateMemberAddress(implicitAddrMem);
+            }
+            else if (expr is IdentExpr ie && _variables.TryGetValue(ie.Name, out int offset))
             {
                 // For reference vars, the local slot already contains the address; load it directly
                 if (_isReferenceVar.TryGetValue(ie.Name, out bool isRef) && isRef)
@@ -783,6 +797,16 @@ namespace CppCompiler
                 else if (aElemSize > 2) Add(OpCode.SHL, "R1", "#2");   // index * 4
                 if (aHasHeader) Add(OpCode.ADD, "R1", "#4");           // +4 (skip header)
                 Add(OpCode.ADD, "R0", "R1");     // R0 = base + index*elemSize (+ header)
+            }
+            else if (expr is UnaryExpr ue && ue.Op == "*")
+            {
+                // `&*p` **恒等于** `p`（C++ 的恒等式），取地址与解引用互相抵消。
+                //
+                // ⚠ 原先落到下面的兜底分支 `GenerateExpr(expr)`，而 `*p` 生成的是
+                //   "从 p 读一个字"的**值** ⇒ `&(*p)` 变成 `[p]` —— 对类对象来说
+                //   那一个字是 **vptr**，于是拿到一个完全无关的地址（实测读它当场
+                //   内存越界，PC 落在被调方的第一条成员访问上，看着像"this 传错了"）。
+                GenerateExpr(ue.Operand);
             }
             else if (expr is MemberExpr me)
             {
@@ -1192,6 +1216,34 @@ namespace CppCompiler
             if (ce.Callee is IdentExpr ie)
             {
                 funcName = ie.Name;
+
+                // ── 隐式 `this` 的**成员方法调用** ──────────────────────────────
+                // 方法体里直接写 `Double()`（不带对象）调的是**自己**的成员方法，
+                // 接收者就是 `this`。原先这条**完全没处理**：`funcName` 直接取标识符名
+                // （`Double` 而不是 `method_Ape_Double`），也没压 `this` ⇒
+                // 被调方从 `[12(R14)]` 读到的是**实参或残留值**当 this 用，
+                // 而它读的是自己的局部槽 ⇒ 值恒为 0；若那个垃圾值恰好像指针，
+                // 就是"内存访问越界"直接崩（实测：`HandX()` 写在 `Shoot()` 里）。
+                //
+                // 判据用 `FindMethodDeep`（沿继承链找方法声明）：名字确实是**当前类
+                // （或其基类）的方法**时才算，否则照旧当自由函数。
+                // 顺序与显式调用一致：`this` **最先**压，然后实参右到左。
+                if (_hasThis && !string.IsNullOrEmpty(_currentClass)
+                    && FindMethodDeep(_currentClass!, ie.Name, ce.Arguments.Count, out string ownerCls, out var mDecl)
+                    && mDecl != null)
+                {
+                    if (mDecl.IsVirtual && VirtualSlots(ownerCls).TryGetValue(ie.Name, out int mslot))
+                    {
+                        virtualSlot = mslot;
+                    }
+                    else
+                    {
+                        funcName = MethodSymbol(ownerCls, ie.Name, mDecl.Parameters.Select(p => p.Type));
+                    }
+                    GenerateExpr(new ThisExpr { Line = ce.Line, Column = ce.Column });
+                    Add(OpCode.PUSH, "R0");
+                    hasThis = true;
+                }
             }
             else if (ce.Callee is MemberExpr me)
             {
@@ -1321,7 +1373,11 @@ namespace CppCompiler
             if (virtualSlot >= 0)
             {
                 int thisOff = ce.Arguments.Count * 4;
-                Add(OpCode.MOVE, "R0", $"[R13+{thisOff}]");     // R0 = this
+                // ⚠ 地址写成 `R13+0`，**不带方括号** —— `Add` 的字符串形态里
+                //   `[...]` 会把方括号**含在值里**存进 MEMORY 操作数，序列化时再包一层
+                //   ⇒ 编出 `[[R13+0]]` 这种读不出东西的操作数（实测当场内存越界）。
+                //   下面镜像实参那段用的就是不带括号的写法。
+                Add(OpCode.MOVE, "R0", $"R13+{thisOff}");       // R0 = this
                 Add(OpCode.MOVE, "R0", "(R0)");                 // R0 = vptr（对象第 0 个字）
                 Add(OpCode.ADD, "R0", $"#{4 * (virtualSlot + 1)}");  // 第 0 项是 typeid
                 Add(OpCode.MOVE, "R0", "(R0)");                 // R0 = 实现地址
@@ -1993,6 +2049,68 @@ namespace CppCompiler
         /// 栈指针就漂 4 字节，症状是"对象建到第二个之后值开始不对"。
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 构造 <paramref name="objLabel"/> 这个对象的**成员对象**（C++ 的隐式成员构造）。
+        ///
+        /// <para>
+        /// ⚠ 原先整个是缺的：`class Game { Sky sky; Ape a0; }` 里那几个成员**从来没被构造过** ——
+        /// 构造 `Game` 只会把**它自己的标量字段**清零。后果有两级：
+        /// <list type="bullet">
+        /// <item>成员的字段全是数据段的 0（构造函数体白写了）；</item>
+        /// <item>**成员的 vptr 也是 0** —— 于是 `&成员` 存进基类指针数组、
+        ///   再 `p->Draw()` 时，`[vptr]` 取出 0、`call [0+4]` 跳到地址 4 上。
+        ///   实测的表现是"程序正常结束、屏幕上什么都没有、一句报错都没有"，
+        ///   而所有 `Draw()` 里插的探针**一个都没响**（调用根本没进函数）。</item>
+        /// </list>
+        /// </para>
+        /// <para>
+        /// 递归往下做（成员里还嵌着成员也一样），并在有虚函数时**顺手写 vptr** ——
+        /// 与构造点那句同源（`GenerateAssignExpr` 的类分支）。**只有这一处实现**：
+        /// 成员构造不放进构造函数体里，否则"有没有用户构造函数"又会分叉成两条路。
+        /// </para>
+        /// </summary>
+        private void EmitMemberCtorCalls(string objLabel, string className, int baseOff)
+        {
+            if (!_classes.TryGetValue(className, out var cls)) return;
+
+            int off = 0;
+            foreach (var m in cls.Members)
+            {
+                if (m.IsMethod || m.IsConstructor || m.IsDestructor) continue;
+                int size = FieldSizeOf(m);
+                string mt = CleanType(m.Type);
+                if (_classes.ContainsKey(mt))
+                {
+                    int fieldOff = baseOff + off;
+                    if (FieldHasVptrBackedType(mt))
+                    {
+                        // R1 = 成员地址；R0 = 它的虚表；*R1 = R0
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 1), new(OperandType.LABEL, objLabel)]));
+                        if (fieldOff > 0) Add(OpCode.ADD, "R1", $"#{fieldOff}");
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 0), new(OperandType.LABEL, $"{mt}_vtable")]));
+                        Add(OpCode.MOVE, "(R1)", "R0");
+                    }
+                    var ctor = FindCtor(_classes[mt], 0);
+                    if (ctor != null)
+                    {
+                        instructions.Add(new Instruction(OpCode.MOVE, [
+                            new(OperandType.REGISTER, 0), new(OperandType.LABEL, objLabel)]));
+                        if (fieldOff > 0) Add(OpCode.ADD, "R0", $"#{fieldOff}");
+                        Add(OpCode.PUSH, "R0");
+                        Add(OpCode.CALL, CtorSymbol(mt, ctor.Parameters.Select(p => p.Type)));
+                        Add(OpCode.ADD, "R13", "#4");
+                    }
+                    EmitMemberCtorCalls(objLabel, mt, fieldOff);
+                }
+                off += size;
+            }
+        }
+
+        /// <summary>—— 只为可读性：这个类型是不是"有虚表的那一类"。</summary>
+        private bool FieldHasVptrBackedType(string typeName) => ClassHasVirtualDeep(typeName);
+
         private void EmitCtorCall(string objLabel, string className, FunctionDecl ctor, List<Expr>? args)
         {
             args ??= new List<Expr>();
@@ -2133,6 +2251,33 @@ namespace CppCompiler
                     return;
                 }
 
+                // ── 真正的**局部变量**：落在栈帧里 ──────────────────────────────
+                //
+                // ⚠ 此前函数体里的 `int i;` 会被当成**全局量**（`var_i`）发出去 ——
+                //   **所有函数的 `i` 共用同一个标签**。后果极隐蔽：
+                //   `while (i < 8) { f(); i = i + 1; }` 里 `f()` 内部也有个 `i` 的话，
+                //   回来时 `i` 已经被改过 ⇒ 循环次数随被调方而变。
+                //   实测症状是"白天正常、夜里丢一半画面"（`Sky::Draw` 夜里才走那个循环），
+                //   看着像绘制问题，其实是变量作用域。
+                //
+                // 只管**标量**：数组（`ae.ArraySize > 0`）、字节数组、以及类类型的对象
+                // 仍走各自的分支 —— 它们的数据段布局/构造流程是另一套，不在这条路上改。
+                if (_inFunctionBody && Vars != null && ae.ArraySize == 0
+                    && !string.IsNullOrEmpty(ae.DeclType)
+                    && !_variables.ContainsKey(ie2.Name)          // 参数等已登记的优先
+                    && !_classes.ContainsKey(CleanType(ae.DeclType!)))
+                {
+                    var localInfo = Vars.AllocLocal(ie2.Name, 4, ae.DeclType);
+                    _variables[ie2.Name] = localInfo.Offset;
+                    _varTypes[ie2.Name] = ae.DeclType!;
+                    OpCode stOp = OpCode.MOVE;
+                    var cppT = MapToCppType(ae.DeclType!);
+                    if (cppT == CppType.Float) stOp = OpCode.MOVEF;
+                    else if (cppT == CppType.Double) stOp = OpCode.MOVED;
+                    Add(stOp, Vars.FormatOffset(localInfo.Offset), "R0");
+                    return;
+                }
+
                 string? structType = ae.DeclType;
                 if (string.IsNullOrEmpty(structType)) _varTypes.TryGetValue(ie2.Name, out structType);
                 if (!string.IsNullOrEmpty(structType) && _classes.TryGetValue(CleanType(structType), out var allocCls))
@@ -2166,6 +2311,11 @@ namespace CppCompiler
                             new(OperandType.REGISTER, 0), new(OperandType.LABEL, $"{allocName}_vtable")]));
                         Add(OpCode.MOVE, "(R1)", "R0");
                     }
+                    // 先构造成员对象（C++ 里成员比构造函数的**函数体**更早构造），
+                    // 它们各自的构造函数与 vptr 都在这里落地 —— 见 `EmitMemberCtorCalls`。
+                    if (ae.ArraySize == 0 && ae.Value is not CallExpr)
+                        EmitMemberCtorCalls(label, allocName, 0);
+
                     // ── `T x;` / `T x(args);` 要**真的调一次构造函数** ──────────────
                     // 此前这一支压根没有调用点：构造函数体生成得完完整整（见
                     // `GenerateDecl` 的 ClassDecl 分支），却**没有任何地方 call 它** ——
