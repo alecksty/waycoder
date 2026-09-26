@@ -67,6 +67,7 @@ static int BLACK_SEMI[7];
 
 /* ── 手指状态 ── */
 static int KeyDown[10];    /* 这个槽位按着哪个**音符号**；-1 = 没按 */
+static int PrevDown[10];   /* 上一拍这个槽位按着没有 —— 用来取"按下沿"（见按钮那段） */
 static int Ref[26];        /* 每个半音偏移（相对 BaseNote）被几根手指按着 */
 
 /* ── 示范曲 ── */
@@ -85,7 +86,8 @@ static int RecTick[384];   /* 事件时刻（拍） */
 static int RecNote[384];   /* 音符号；-1 表示"关音" */
 
 /* ── 状态栏按钮（布局时算好，**画与命中同源**）── */
-static int BtnX[4];
+/* 0=移调- 1=移调+ 2=示范曲 3=录音 4=**强制清除** */
+static int BtnX[5];
 static int BtnY;
 static int BtnW;
 static int BtnH;
@@ -175,14 +177,16 @@ static void draw(void)
     ui_set_font(19, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
     ui_text_cur(SW / 2 + 26, BtnY + BtnH / 2, buf);
 
-    for (i = 0; i < 4; i++) {
-        ui_rect(BtnX[i], BtnY, BtnW, BtnH, 0xFF2A3A4A, 1, 0, 8);
+    for (i = 0; i < 5; i++) {
+        /* 第 5 个（清除）用暖红底 —— 它是"急停"，混在其余按钮里不好找 */
+        ui_rect(BtnX[i], BtnY, BtnW, BtnH, i == 4 ? 0xFF6A2A2A : 0xFF2A3A4A, 1, 0, 8);
         ui_set_font(15, VML_FONT_BOLD, 0xFFDDEEFF, VML_ANCHOR_CENTER);
         ui_set_valign(VML_VANCHOR_MIDDLE);
         if (i == 0) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "-");
         if (i == 1) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "+");
         if (i == 2) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, SongOn ? "停" : "示范");
         if (i == 3) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, RecOn ? "停录" : "录音");
+        if (i == 4) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "清音");
     }
 
     /* ── 两行白键 ── */
@@ -268,7 +272,7 @@ static int hit_btn(int x, int y)
 {
     int i;
     if (y < BtnY || y >= BtnY + BtnH) return -1;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 5; i++) {
         if (x >= BtnX[i] && x < BtnX[i] + BtnW) return i;
     }
     return -1;
@@ -318,6 +322,51 @@ static int song_next(int* note, int* hold)
 /* ══════════════════════════════════════════════════════════════════════
  * 主循环
  * ══════════════════════════════════════════════════════════════════════ */
+
+/* 按钮的动作。
+ * ⚠ **判定**（在轮询里取"按下沿"）与**动作**分开：判定只能有一处，动作也只写一遍。 */
+static void apply_btn(int btn)
+{
+    int i;
+
+    if (btn == 0 || btn == 1) {
+        /* 移调前先把响着的都关掉 —— 否则那些音的"相对偏移"会跟着基准一起漂，
+         * 引用计数就成了错的（关音时会去减另一个键的账）。 */
+        for (i = 0; i < 10; i++) {
+            if (KeyDown[i] >= 0) { p_off(i, KeyDown[i]); KeyDown[i] = -1; }
+        }
+        for (i = 0; i < 26; i++) Ref[i] = 0;
+        BaseNote = BaseNote + (btn == 0 ? -RowStep : RowStep);
+        if (BaseNote < 36) BaseNote = 36;
+        if (BaseNote > 84 - RowStep) BaseNote = 84 - RowStep;
+    } else if (btn == 2) {
+        if (SongOn) {
+            SongOn = 0;
+            if (SongNote >= 0) { p_off(0, SongNote); SongNote = -1; }
+        } else {
+            SongOn = 1; SongPos = 0; SongTick = 0;
+            SongNote = -1; SongOffAt = 0; SongNextAt = 0;
+        }
+    } else if (btn == 3) {
+        RecOn = 1 - RecOn;
+        if (RecOn) RecN = 0;
+    } else if (btn == 4) {
+        /* **强制清除**（用户要的"急停"）：把所有正在响的音立刻掐掉。
+         *
+         * ⚠ 三件事必须**一起**做，少一件这个键就是假的：
+         *   ① `ui_tone_panic()` —— 立刻全停（**不是** `ui_tone_all_off()` 的淡出：
+         *      这个键的语义就是"马上安静"，卡住的音再拖 90ms 没有意义）；
+         *   ② 清**引用计数** —— 不清的话，抬起手指时会去减一个早就清空的账，
+         *      越减越负，之后那个键就再也起不来音了；
+         *   ③ 清槽位的记账 —— 让"这一拍手指还按着"被当成**新按下**（重新起音）。
+         *      于是：还按着的手指会继续弹（那是它本来就该做的），
+         *      而**已经卡住/松开了却没收到 KeyUp 的槽位**从此不再发声。
+         */
+        for (i = 0; i < 26; i++) Ref[i] = 0;
+        for (i = 0; i < 10; i++) KeyDown[i] = -1;
+        ui_tone_panic();
+    }
+}
 
 int main(void)
 {
@@ -377,13 +426,17 @@ int main(void)
     if (RowKeyH > (SW / PerRow) * 6) RowKeyH = (SW / PerRow) * 6;
     if (RowKeyH < 60) RowKeyH = 60;     /* 太矮就按不准了 */
 
+    /* 5 个按钮：`- + 示范 录音 清音`。窄屏上按 4 个的宽度放不下，所以键宽按屏宽算。 */
     BtnH = 32;
     BtnY = (BARH - BtnH) / 2;
-    BtnW = 56;
-    BtnX[0] = SW - 4 * BtnW - 20;
+    BtnW = (SW - 60) / 5;               /* 左边留出放「钢琴 + 音域」的地方 */
+    if (BtnW > 52) BtnW = 52;           /* 宽屏上别拉太宽 */
+    if (BtnW < 40) BtnW = 40;           /* 太窄字就挤没了 */
+    BtnX[0] = SW - 5 * BtnW - 20;
     BtnX[1] = BtnX[0] + BtnW + 4;
     BtnX[2] = BtnX[1] + BtnW + 6;
     BtnX[3] = BtnX[2] + BtnW + 4;
+    BtnX[4] = BtnX[3] + BtnW + 6;
 
     ui_win_open_ex("钢琴", SW, SH, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
@@ -395,43 +448,29 @@ int main(void)
 
         dirty = 0;
 
-        /* ── 按钮：事件式（单指点击）────────────────────────────────── */
-        if (msgType == VML_MSG_TOUCHDOWN || msgType == VML_MSG_MOUSEDOWN) {
-            btn = hit_btn(m[1], m[2]);
-            if (btn == 0 || btn == 1) {
-                /* 移调前先把响着的都关掉 —— 否则那些音的"相对偏移"会跟着基准一起漂，
-                 * 引用计数就成了错的（关音时会去减另一个键的账）。 */
-                for (i = 0; i < 10; i++) {
-                    if (KeyDown[i] >= 0) { p_off(i, KeyDown[i]); KeyDown[i] = -1; }
-                }
-                for (i = 0; i < 26; i++) Ref[i] = 0;
-                BaseNote = BaseNote + (btn == 0 ? -RowStep : RowStep);
-                if (BaseNote < 36) BaseNote = 36;
-                if (BaseNote > 84 - RowStep) BaseNote = 84 - RowStep;
-                dirty = 1;
-            } else if (btn == 2) {
-                if (SongOn) {
-                    SongOn = 0;
-                    if (SongNote >= 0) { p_off(0, SongNote); SongNote = -1; }
-                } else {
-                    SongOn = 1; SongPos = 0; SongTick = 0;
-                    SongNote = -1; SongOffAt = 0; SongNextAt = 0;
-                }
-                dirty = 1;
-            } else if (btn == 3) {
-                RecOn = 1 - RecOn;
-                if (RecOn) RecN = 0;
-                dirty = 1;
-            }
-        }
-
-        /* ── 琴键：**轮询**（只有轮询才看得到多指）──────────────────── */
+        /* ── 琴键与按钮：**都在轮询里判** ────────────────────────────── */
         for (slot = 0; slot < 10; slot++) {
             if (ui_touch(slot, t) == 0) continue;
 
+            /* 按钮：取**按下沿**（这一拍按下、上一拍没按）。
+             *
+             * ⚠ 先前只在 slot 0 的**事件消息**里判按钮，于是
+             *   "一根手指按着琴键、另一根手指去点清音"——**最需要急停的那个场合**——
+             *   反而点不到：事件消息只有 slot 0 会投，而 slot 0 正按着琴键。
+             *   统一到轮询之后就都点得到了（16ms 一拍，人手点击至少 50ms，不会漏）。 */
+            if (t[2] != 0 && PrevDown[slot] == 0) {
+                btn = hit_btn(t[0], t[1]);
+                if (btn >= 0) {
+                    apply_btn(btn);
+                    dirty = 1;
+                    PrevDown[slot] = 1;
+                    continue;               /* 这一拍就不当琴键处理了 */
+                }
+            }
+            PrevDown[slot] = t[2] != 0;
+
             if (t[2] != 0) {
-                if (hit_btn(t[0], t[1]) >= 0) { semi = -1; }   /* 按钮区：在那儿处理过了 */
-                else { semi = hit_key(t[0], t[1]); }
+                semi = hit_key(t[0], t[1]);
             } else {
                 semi = -1;                                      /* 抬起了 */
             }
