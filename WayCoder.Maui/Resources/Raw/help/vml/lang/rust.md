@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/rust/breakout.rs
+vml run examples/rust/sysinfo.rs
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/rust/breakout.rs
 |---|---|
 | `breakout.rs` | 打砖块（24 块砖的数组遍历 + 矩形碰撞） |
 | `sysinfo.rs` | 设备信息 |
+
+同目录还有：`demo_std.rs`、`demo_tty.rs`、`demo_ui.rs`
 
 ## 实测踩过的坑
 

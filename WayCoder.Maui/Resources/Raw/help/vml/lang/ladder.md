@@ -7,7 +7,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/ladder/file_io.ld
+vml run examples/ladder/sysinfo.ld
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/ladder/file_io.ld
 |---|---|
 | `file_io.ld` | 空测试（NOP） |
 | `sysinfo.ld` | 占位 —— 这一路调不了 JSON 接口 |
+
+同目录还有：`demo_std.ld`、`demo_tty.ld`
 
 ## 实测踩过的坑
 

@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/r/catch.r
+vml run examples/r/sysinfo.r
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -24,6 +24,8 @@ vml run examples/r/catch.r
 | `file_io.r` | 读写文件 |
 | `parserexpf_demo.r` | 调用共享库解析表达式 |
 | `sysinfo.r` | 设备信息 |
+
+同目录还有：`demo_std.r`、`demo_tty.r`、`demo_ui.r`
 
 ---
 

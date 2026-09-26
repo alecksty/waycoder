@@ -5,7 +5,7 @@ Lisp 方言，括号就是一切。
 ## 在手机上怎么跑
 
 ```
-vml run examples/scheme/catch.scm
+vml run examples/scheme/sysinfo.scm
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -22,6 +22,8 @@ vml run examples/scheme/catch.scm
 |---|---|
 | `catch.scm` | 接方块 |
 | `sysinfo.scm` | 设备信息 |
+
+同目录还有：`demo_std.scm`、`demo_tty.scm`、`demo_ui.scm`
 
 ## 实测踩过的坑
 

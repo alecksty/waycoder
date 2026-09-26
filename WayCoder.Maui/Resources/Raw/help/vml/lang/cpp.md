@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/cpp/snake.cpp
+vml run examples/cpp/sysinfo.cpp
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/cpp/snake.cpp
 |---|---|
 | `snake.cpp` | 贪吃蛇 |
 | `sysinfo.cpp` | 设备信息 |
+
+同目录还有：`demo_bgi.cpp`、`demo_std.cpp`、`demo_tty.cpp`、`demo_ui.cpp`、`gorilla.cpp`、`test_bgi.cpp`
 
 ---
 

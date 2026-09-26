@@ -1,23 +1,23 @@
 # BASIC 语言编译器规范说明
 
 > **版本**：v2.1 | **日期**：2026-08-01 | **修订者**：深圳市探索智能科技有限公司
-> **更新**: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 116 个关键字
+> **更新**: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 140 条关键字（实测，v0.96.506）
 
 ## 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | QBasic (默认) + 6种方言, 全部 ≥90% 完成度 |
+| **目标标准** | QBasic (默认) + 9 种方言（共 10 个 `BasicDialect` 成员，见 `VMLPlugins/CompilerOptions.cs`）, 全部 ≥90% 完成度 |
 | **CLI 选项** | `--basictype qbasic\|turbobasic\|freebasic\|truebasic\|purebasic\|chipbasic\|minibasic` |
 | **完成度** | 92% (QBasic), 90% (全部方言) |
 | **测试** | 63 通过 (Lang_BASIC) + 22 方言测试 |
-| **Token 总数** | 116 个关键字, 141 个 TokenType |
+| **Token 总数** | 140 条关键字（实测，v0.96.506）, 171 个 TokenType（实测，v0.96.506） |
 
 ---
 
 ## 多方言关键字集合
 
-BASIC 编译器通过 `--basictype` 选项支持 7 种方言。下方列出每种方言的关键字差异。
+BASIC 编译器通过 `--basictype` 选项支持 10 种方言。下方列出每种方言的关键字差异。
 
 ### 1. QBasic (默认) — `__QBASIC__`
 
@@ -666,8 +666,8 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 - 析构函数: DESTRUCTOR (token 已注册)
 
 ### 词法分析器
-- **116 个关键字** (141 个 TokenType)
-- 支持 7 种方言的特有关键字
+- **140 条关键字、171 个 `TokenType`**（实测，v0.96.506 —— 此前这里写的是 116 / 141）
+- 支持 10 种方言的特有关键字
 - 关键字大小写不敏感 (LexerBase.ReadIdentifier)
 
 ### 预处理器

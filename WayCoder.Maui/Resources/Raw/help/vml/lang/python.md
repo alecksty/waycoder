@@ -24,6 +24,8 @@ vml run examples/python/sysinfo.py
 | `sysinfo.py` | 设备信息 |
 | `tetris.py` | 俄罗斯方块 |
 
+同目录还有：`demo_std.py`、`demo_tty.py`、`demo_ui.py`
+
 ## 实测踩过的坑
 
 - ⚠ «bold»列表「写不生效」«/»：`b[i] = v` 之后读回来还是 0（嵌套列表也错）。

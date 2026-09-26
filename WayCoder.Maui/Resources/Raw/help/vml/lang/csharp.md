@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/csharp/file_io.cs
+vml run examples/csharp/sysinfo.cs
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -25,6 +25,8 @@ vml run examples/csharp/file_io.cs
 | `racer.cs` | 赛车 |
 | `snake.cs` | 贪吃蛇 |
 | `sysinfo.cs` | 设备信息 |
+
+同目录还有：`demo_std.cs`、`demo_tty.cs`、`demo_ui.cs`
 
 ---
 

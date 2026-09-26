@@ -23,6 +23,8 @@ vml run examples/forth/sysinfo.fth
 | `parserexp_demo.fs` | 调用共享库解析表达式 |
 | `sysinfo.fth` | 设备信息 |
 
+同目录还有：`demo_std.fth`、`demo_tty.fth`
+
 ---
 
 下面的内容是**从 VML 源码里直接带的**（`third_party/vml/VMLPrepares/ForthCompiler/`）：

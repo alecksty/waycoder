@@ -15,18 +15,41 @@ vml run examples/basic/sysinfo.bas
 
 - 用到的每个 `ui_*` 都要 `NATIVE FUNCTION` / `NATIVE SUB` 声明
 - 无返回值的过程«bold»裸调«/»（不写括号也可以）
+- «bold»一屏的 `NATIVE` 声明不用自己抄«/» —— 写一行 `'$INCLUDE: 'waycoder_ui.bi'` 就把整张 `ui_*` 表拉进来了（见 `examples/basic/waycoder_ui.bi`）
+- `SCREEN`/`CLS`/`PSET`/`LINE`/`CIRCLE`/`PAINT`/`COLOR`/`PALETTE`/`LOCATE`/`DRAW`/`GET`/`PUT`/`POINT(x,y)`/`WIDTH` «bold»手机上直接可用«/»（编译器默认翻译成 宿主的 `ui_*` 图元）；`SCREEN n` 只决定开多大窗口
+- `PRINT` 在图形模式下落到«bold»窗口里«/»（不是控制台），中文与框线正常
+- 浮点可用：`PRINT 3.14` 打 `3.14`、`PRINT 7 / 2` 打 `3.5`（`\` 才是整除）、整数不打多余的 `.0`（`PRINT 2.0` 打 `2`）
+- 文件 `OPEN`/`CLOSE`/`PRINT #`/`INPUT #`/`LINE INPUT #`/`FREEFILE` 都能用，路径落在你自己的工作区里（越界会被拒）
 
 ## 示例
 
 | 文件 | 演示什么 |
 |---|---|
+| `_tty.bas` | 不是独立程序，是「用 `ui_*` 重建等宽字符网格」的垫层 |
+| `blackjack.bas` | 21 点（轮询式消息循环 + 振动） |
+| `demo_bgi.bas` | 图形语句逐条演示 |
+| `demo_tty.bas` | 文本模式（ANSI 彩色） |
+| `demo_ui.bas` | 开窗 / 画图 / 消息循环的最小骨架 |
+| `gfx_demo.bas` | 同上 |
+| `gfx_modes.bas` | 各 `SCREEN` 模式的分辨率 |
+| `gorilla.bas` | 猴子扔香蕉（完整游戏 + 音效） |
+| `gorilla_pro.bas` | 同上，加了渐变 / 路径 / 图块 |
+| `hammurabi.bas` | 汉谟拉比（回合制经营） |
+| `hurkle.bas` | 老式打字机式文本程序（内联了 `_tty.bas`） |
+| `lander.bas` | 登月舱 |
+| `nibbles.bas` | 贪吃蛇 |
 | `sysinfo.bas` | 设备信息 |
-| `tetris.bas` | 俄罗斯方块 |
-| `whack.bas` | 打地鼠（随机数 + 离散光标 + 秒级倒计时） |
+| `tetris.bas` | 俄罗斯方块（网格 + 手柄） |
+| `whack.bas` | 打地鼠（随机数 + 定时器 + 振动） |
+
+同目录还有：`CREDITS.md`、`demo_std.bas`、`donkey.bas`、`waycoder_ui.bi`
 
 ## 实测踩过的坑
 
 - 形参名不能叫 `on`（关键字）。
+- «bold»`FOR INPUT` 里的 `INPUT` 是关键字«/»，不是普通标识符 —— 别的模式名（`OUTPUT`/`APPEND`）随便写就行。
+- 字符串拼接是好的，但一行里«bold»同时活着的串有上限«/»（轮转缓冲 8 块），超过会互相覆盖。
+- «bold»`FUNCTION` 的返回值槽是整数«/» —— 想返回浮点得绕（用 `SUB` + 输出参数）。
 
 ---
 
@@ -39,23 +62,23 @@ vml run examples/basic/sysinfo.bas
 ### BASIC 语言编译器规范说明
 
 > «bold»版本«/»：v2.1 | «bold»日期«/»：2026-08-01 | «bold»修订者«/»：深圳市探索智能科技有限公司
-> «bold»更新«/»: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 116 个关键字
+> «bold»更新«/»: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 140 条关键字（实测，v0.96.506）
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| «bold»目标标准«/» | QBasic (默认) + 6种方言, 全部 ≥90% 完成度 |
+| «bold»目标标准«/» | QBasic (默认) + 9 种方言（共 10 个 `BasicDialect` 成员，见 `VMLPlugins/CompilerOptions.cs`）, 全部 ≥90% 完成度 |
 | «bold»CLI 选项«/» | `--basictype qbasic\|turbobasic\|freebasic\|truebasic\|purebasic\|chipbasic\|minibasic` |
 | «bold»完成度«/» | 92% (QBasic), 90% (全部方言) |
 | «bold»测试«/» | 63 通过 (Lang_BASIC) + 22 方言测试 |
-| «bold»Token 总数«/» | 116 个关键字, 141 个 TokenType |
+| «bold»Token 总数«/» | 140 条关键字（实测，v0.96.506）, 171 个 TokenType（实测，v0.96.506） |
 
 ---
 
 #### 多方言关键字集合
 
-BASIC 编译器通过 `--basictype` 选项支持 7 种方言。下方列出每种方言的关键字差异。
+BASIC 编译器通过 `--basictype` 选项支持 10 种方言。下方列出每种方言的关键字差异。
 
 ##### 1. QBasic (默认) — `__QBASIC__`
 
@@ -704,8 +727,8 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 - 析构函数: DESTRUCTOR (token 已注册)
 
 ##### 词法分析器
-- «bold»116 个关键字«/» (141 个 TokenType)
-- 支持 7 种方言的特有关键字
+- «bold»140 条关键字、171 个 `TokenType`«/»（实测，v0.96.506 —— 此前这里写的是 116 / 141）
+- 支持 10 种方言的特有关键字
 - 关键字大小写不敏感 (LexerBase.ReadIdentifier)
 
 ##### 预处理器
@@ -732,7 +755,10 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 ### BASIC 编译器
 
 «bold»路径«/»: `VMLPrepares/BasicCompiler/` | «bold»版本«/»: v1.66.33
-«bold»完成度«/»: 10方言 ≥90% | 🟢 生产可用 | «bold»测试«/»: 78 (Lang_BASIC)
+«bold»完成度«/»: 10方言 ≥90% | 🟢 生产可用（图形/声音/文件已通手机端）
+⚠ «bold»测试数字（78 / Lang_BASIC、`VMLTests/`、`test/basic_examples/`）是上游仓库的«/» ——
+  本仓（分家后的移动端副本）«bold»没有«/» `VMLTests/` 与 `test/` 这两个目录，那些路径与数字在这里复现不了。
+  本仓的判据是 `scripts/vml-basic-probe/`（54 例 + `fileio.sh` 5 例）。
 «bold»标准库«/»: `Lib/basic/`
 
 #### 多方言支持
@@ -757,17 +783,26 @@ vmltool -x basic --basictype freebasic test.bas -o test.vml
 vmltool -x basic --basictype gwbasic test.bas -o test.vml
 ```
 
-#### 关键字实现 (81/99, 82%)
+#### 关键字实现
+
+⚠ «bold»这里的数字此前对不上代码«/»（README 写 81/99、同文件下面又写 116+，SPEC 又写 116/141）。
+按 v0.96.506 实测重算：«bold»词法表 140 条关键字、`TokenType` 171 个«/»；
+`ALL_KEYWORDS.md` 那张 99 项的表按实测是 «bold»89 实现 / 10 未实现«/»。
+«bold»以 `ALL_KEYWORDS.md` 为准«/»，它逐条标了实测状态。
 
 ##### 完全实现
 - ✅ 控制流: IF/THEN/ELSE/ELSEIF/SELECT CASE/FOR/NEXT/WHILE/WEND/DO/LOOP/GOTO/GOSUB
 - ✅ 子程序: SUB/END SUB/FUNCTION/CALL/DECLARE/BYVAL/BYREF/PROCEDURE
 - ✅ 变量: DIM/LET/CONST/SWAP/ERASE/REDIM/SHARED/COMMON/STATIC/LOCAL/GLOBAL
-- ✅ I/O: PRINT/INPUT/OPEN/CLOSE/WRITE/LPRINT/PRINT USING/FREEFILE
-- ✅ OOP (FreeBasic): CLASS/CONSTRUCTOR/DESTRUCTOR/METHOD/NEW/ENUM
+- ✅ I/O: PRINT/INPUT/OPEN/CLOSE/WRITE/LPRINT/PRINT USING/FREEFILE/LINE INPUT #
+  （⚠ 文件那一族是 v0.96.503/504 才真做通的：此前 OPEN 的句柄根本没存、
+    `PRINT #`/`INPUT #` 走的是«bold»设备«/»号而不是«bold»文件«/»号、`FREEFILE` 只有词法条目。
+    现在全部改走吃沙箱的 `#110-113`，判据见 `scripts/vml-basic-probe/fileio.sh`）
+- ⚠️ OOP (FreeBasic): CLASS/METHOD/ENUM ✅；«bold»CONSTRUCTOR 只到"解析"、DESTRUCTOR 无代码«/»
 - ✅ 数学: ABS/SGN/SQR/SIN/COS/TAN/INT/FIX/RND/RANDOMIZE
 - ✅ 字符串: LEN/CHR$/ASC/STR$/VAL/LEFT$/RIGHT$/MID$
-- ✅ MCU: CHIPASM/ASM/BLOAD/BSAVE
+- ⚠️ MCU: CHIPASM/ASM/BLOAD/BSAVE —— «bold»`ASM` 已从词法表移除«/»（注释写着"仅限 C/ObjC/C++"）；
+  `BLOAD`/`BSAVE` 会生成 GPIO 调用但«bold»缺运行时库«/»，且手机上没有 GPIO ⇒ 实际不可用
 - ✅ 其他: REM/DATA/READ/RESTORE/ON ERROR/RESUME/SLEEP/SYSTEM/BEEP/SOUND
 
 ##### 部分实现
@@ -792,8 +827,8 @@ vmltool -x basic --basictype gwbasic test.bas -o test.vml
 
 ```
 BasicCompiler/
-├── ASTNode.cs                 # AST 节点 (141 TokenType)
-├── Lexer.cs                   # 词法分析 (116+ 关键字)
+├── ASTNode.cs                 # AST 节点 (实测 171 个 TokenType)
+├── Lexer.cs                   # 词法分析 (实测 140 条关键字)
 ├── Parser.cs / Parser.*.cs    # 语法分析 (10方言支持)
 ├── CodeGenerator.cs / *.cs    # 代码生成 (TypedCodeGen<BasicType>)
 ├── BasicCompilerPlugin.cs     # 插件入口 + 编译流水线

@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/swift/file_io.swift
+vml run examples/swift/sysinfo.swift
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -24,6 +24,8 @@ vml run examples/swift/file_io.swift
 | `plane.swift` | 飞机空战 |
 | `snake.swift` | 贪吃蛇 |
 | `sysinfo.swift` | 设备信息 |
+
+同目录还有：`demo_std.swift`、`demo_tty.swift`、`demo_ui.swift`
 
 ---
 

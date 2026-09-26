@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/ruby/catch.rb
+vml run examples/ruby/sysinfo.rb
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/ruby/catch.rb
 | `catch.rb` | 接方块（完全平铺的一份，这一路写不了函数） |
 | `file_io.rb` | 读写文件 |
 | `sysinfo.rb` | 设备信息 |
+
+同目录还有：`demo_std.rb`、`demo_tty.rb`、`demo_ui.rb`
 
 ## 实测踩过的坑
 

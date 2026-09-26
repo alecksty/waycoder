@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/go/snake.go
+vml run examples/go/sysinfo.go
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/go/snake.go
 |---|---|
 | `snake.go` | 贪吃蛇 |
 | `sysinfo.go` | 设备信息 |
+
+同目录还有：`demo_std.go`、`demo_tty.go`、`demo_ui.go`
 
 ---
 

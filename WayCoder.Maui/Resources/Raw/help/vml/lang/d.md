@@ -5,7 +5,7 @@ C 风格的语法，写起来比 C 宽松一些。
 ## 在手机上怎么跑
 
 ```
-vml run examples/d/catch.d
+vml run examples/d/sysinfo.d
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/d/catch.d
 |---|---|
 | `catch.d` | 接方块 |
 | `sysinfo.d` | 设备信息 |
+
+同目录还有：`demo_std.d`、`demo_tty.d`、`demo_ui.d`
 
 ---
 

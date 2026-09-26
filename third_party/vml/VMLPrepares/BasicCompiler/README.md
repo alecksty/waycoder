@@ -1,7 +1,10 @@
 # BASIC 编译器
 
 **路径**: `VMLPrepares/BasicCompiler/` | **版本**: v1.66.33
-**完成度**: 10方言 ≥90% | 🟢 生产可用 | **测试**: 78 (Lang_BASIC)
+**完成度**: 10方言 ≥90% | 🟢 生产可用（图形/声音/文件已通手机端）
+⚠ **测试数字（78 / Lang_BASIC、`VMLTests/`、`test/basic_examples/`）是上游仓库的** ——
+  本仓（分家后的移动端副本）**没有** `VMLTests/` 与 `test/` 这两个目录，那些路径与数字在这里复现不了。
+  本仓的判据是 `scripts/vml-basic-probe/`（54 例 + `fileio.sh` 5 例）。
 **标准库**: `Lib/basic/`
 
 ## 多方言支持
@@ -26,17 +29,26 @@ vmltool -x basic --basictype freebasic test.bas -o test.vml
 vmltool -x basic --basictype gwbasic test.bas -o test.vml
 ```
 
-## 关键字实现 (81/99, 82%)
+## 关键字实现
+
+⚠ **这里的数字此前对不上代码**（README 写 81/99、同文件下面又写 116+，SPEC 又写 116/141）。
+按 v0.96.506 实测重算：**词法表 140 条关键字、`TokenType` 171 个**；
+`ALL_KEYWORDS.md` 那张 99 项的表按实测是 **89 实现 / 10 未实现**。
+**以 `ALL_KEYWORDS.md` 为准**，它逐条标了实测状态。
 
 ### 完全实现
 - ✅ 控制流: IF/THEN/ELSE/ELSEIF/SELECT CASE/FOR/NEXT/WHILE/WEND/DO/LOOP/GOTO/GOSUB
 - ✅ 子程序: SUB/END SUB/FUNCTION/CALL/DECLARE/BYVAL/BYREF/PROCEDURE
 - ✅ 变量: DIM/LET/CONST/SWAP/ERASE/REDIM/SHARED/COMMON/STATIC/LOCAL/GLOBAL
-- ✅ I/O: PRINT/INPUT/OPEN/CLOSE/WRITE/LPRINT/PRINT USING/FREEFILE
-- ✅ OOP (FreeBasic): CLASS/CONSTRUCTOR/DESTRUCTOR/METHOD/NEW/ENUM
+- ✅ I/O: PRINT/INPUT/OPEN/CLOSE/WRITE/LPRINT/PRINT USING/FREEFILE/LINE INPUT #
+  （⚠ 文件那一族是 v0.96.503/504 才真做通的：此前 OPEN 的句柄根本没存、
+    `PRINT #`/`INPUT #` 走的是**设备**号而不是**文件**号、`FREEFILE` 只有词法条目。
+    现在全部改走吃沙箱的 `#110-113`，判据见 `scripts/vml-basic-probe/fileio.sh`）
+- ⚠️ OOP (FreeBasic): CLASS/METHOD/ENUM ✅；**CONSTRUCTOR 只到"解析"、DESTRUCTOR 无代码**
 - ✅ 数学: ABS/SGN/SQR/SIN/COS/TAN/INT/FIX/RND/RANDOMIZE
 - ✅ 字符串: LEN/CHR$/ASC/STR$/VAL/LEFT$/RIGHT$/MID$
-- ✅ MCU: CHIPASM/ASM/BLOAD/BSAVE
+- ⚠️ MCU: CHIPASM/ASM/BLOAD/BSAVE —— **`ASM` 已从词法表移除**（注释写着"仅限 C/ObjC/C++"）；
+  `BLOAD`/`BSAVE` 会生成 GPIO 调用但**缺运行时库**，且手机上没有 GPIO ⇒ 实际不可用
 - ✅ 其他: REM/DATA/READ/RESTORE/ON ERROR/RESUME/SLEEP/SYSTEM/BEEP/SOUND
 
 ### 部分实现
@@ -61,8 +73,8 @@ vmltool -x basic --basictype gwbasic test.bas -o test.vml
 
 ```
 BasicCompiler/
-├── ASTNode.cs                 # AST 节点 (141 TokenType)
-├── Lexer.cs                   # 词法分析 (116+ 关键字)
+├── ASTNode.cs                 # AST 节点 (实测 171 个 TokenType)
+├── Lexer.cs                   # 词法分析 (实测 140 条关键字)
 ├── Parser.cs / Parser.*.cs    # 语法分析 (10方言支持)
 ├── CodeGenerator.cs / *.cs    # 代码生成 (TypedCodeGen<BasicType>)
 ├── BasicCompilerPlugin.cs     # 插件入口 + 编译流水线

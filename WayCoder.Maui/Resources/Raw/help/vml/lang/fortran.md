@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/fortran/bench.f90
+vml run examples/fortran/sysinfo.f90
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/fortran/bench.f90
 | `bench.f90` | 跑分 |
 | `sokoban.f90` | 推箱子（双数组状态 + 移动规则 + 过关判定） |
 | `sysinfo.f90` | 设备信息 |
+
+同目录还有：`demo_std.f90`、`demo_tty.f90`、`demo_ui.f90`
 
 ## 实测踩过的坑
 

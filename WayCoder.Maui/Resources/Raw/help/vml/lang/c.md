@@ -7,7 +7,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/c/draw_prims.c
+vml run examples/c/sysinfo.c
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -31,7 +31,7 @@ vml run examples/c/draw_prims.c
 | `sysinfo.c` | 调 `ui_call_json("sysinfo")` 打印设备信息 |
 | `tetris.c` | 俄罗斯方块（计分、等级、重开、音效） |
 
-同目录还有：`c.bat`
+同目录还有：`ansi_colors.c`、`audio_test.c`、`block_bench.c`、`c.bat`、`calc.c`、`callports.c`、`chess.c`、`conio_screen.c`、`curses_demo.c`、`demo_bgi.c`、`demo_std.c`、`demo_tty.c`、`demo_tty_alt.c`、`demo_ui.c`、`dos_demo.c`、`draw_brush.c`、`draw_colors.c`、`gyro.c`、`mask_bool.c`、`matrix_rain.c`、`nyancat.c`、`nyancat_frames.h`、`pcscreen.c`、`piano.c`、`plane.c`、`regname.c`、`shot.c`、`test_bgi.c`、`test_font.c`、`tilt.c`、`tty_legacy.c`、`weather.c`
 
 ## 实测踩过的坑
 

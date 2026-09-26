@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/dart/catch.dart
+vml run examples/dart/sysinfo.dart
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/dart/catch.dart
 | `catch.dart` | 接方块 |
 | `parserexpf_demo.dart` | 调用共享库解析表达式 |
 | `sysinfo.dart` | 设备信息 |
+
+同目录还有：`demo_std.dart`、`demo_tty.dart`、`demo_ui.dart`
 
 ---
 

@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/java/catch.java
+vml run examples/java/sysinfo.java
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -24,6 +24,8 @@ vml run examples/java/catch.java
 | `catch.java` | 接方块（挡板 + 球 + 计分 + 结束重开） |
 | `file_io.java` | 读写文件 |
 | `sysinfo.java` | 设备信息 |
+
+同目录还有：`demo_std.java`、`demo_tty.java`、`demo_ui.java`
 
 ---
 

@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/javascript/bench.js
+vml run examples/javascript/sysinfo.js
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -24,6 +24,8 @@ vml run examples/javascript/bench.js
 | `catch.js` | 接方块 |
 | `file_io.js` | 读写文件 |
 | `sysinfo.js` | 设备信息 |
+
+同目录还有：`demo_std.js`、`demo_tty.js`、`demo_ui.js`
 
 ---
 

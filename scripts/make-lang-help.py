@@ -175,8 +175,24 @@ LANGS = [
     dict(key="basic", title="BASIC", dir="BasicCompiler", ext=".bas",
          intro="老式写法，命令式一行一行往下走。",
          tips=["用到的每个 `ui_*` 都要 `NATIVE FUNCTION` / `NATIVE SUB` 声明",
-               "无返回值的过程**裸调**（不写括号也可以）"],
-         pitfalls="- 形参名不能叫 `on`（关键字）。"),
+               "无返回值的过程**裸调**（不写括号也可以）",
+               "**一屏的 `NATIVE` 声明不用自己抄** —— 写一行 `'$INCLUDE: 'waycoder_ui.bi'` "
+               "就把整张 `ui_*` 表拉进来了（见 `examples/basic/waycoder_ui.bi`）",
+               "`SCREEN`/`CLS`/`PSET`/`LINE`/`CIRCLE`/`PAINT`/`COLOR`/`PALETTE`/`LOCATE`/"
+               "`DRAW`/`GET`/`PUT`/`POINT(x,y)`/`WIDTH` **手机上直接可用**（编译器默认翻译成 "
+               "宿主的 `ui_*` 图元）；`SCREEN n` 只决定开多大窗口",
+               "`PRINT` 在图形模式下落到**窗口里**（不是控制台），中文与框线正常",
+               "浮点可用：`PRINT 3.14` 打 `3.14`、`PRINT 7 / 2` 打 `3.5`（`\\` 才是整除）、"
+               "整数不打多余的 `.0`（`PRINT 2.0` 打 `2`）",
+               "文件 `OPEN`/`CLOSE`/`PRINT #`/`INPUT #`/`LINE INPUT #`/`FREEFILE` 都能用，"
+               "路径落在你自己的工作区里（越界会被拒）"],
+         pitfalls="\n".join([
+             "- 形参名不能叫 `on`（关键字）。",
+             "- **`FOR INPUT` 里的 `INPUT` 是关键字**，不是普通标识符 —— "
+             "别的模式名（`OUTPUT`/`APPEND`）随便写就行。",
+             "- 字符串拼接是好的，但一行里**同时活着的串有上限**（轮转缓冲 8 块），超过会互相覆盖。",
+             "- **`FUNCTION` 的返回值槽是整数** —— 想返回浮点得绕（用 `SUB` + 输出参数）。",
+         ])),
 
     dict(key="forth", title="Forth", dir="ForthCompiler", ext=".fth",
          intro="栈式语言，写起来完全是另一种思路。",
@@ -274,9 +290,22 @@ EXAMPLE_DESC = {
     "fortran/sokoban.f90": "推箱子（双数组状态 + 移动规则 + 过关判定）",
     "fortran/sysinfo.f90": "设备信息",
 
-    "basic/tetris.bas": "俄罗斯方块",
-    "basic/whack.bas": "打地鼠（随机数 + 离散光标 + 秒级倒计时）",
     "basic/sysinfo.bas": "设备信息",
+    "basic/demo_ui.bas": "开窗 / 画图 / 消息循环的最小骨架",
+    "basic/tetris.bas": "俄罗斯方块（网格 + 手柄）",
+    "basic/whack.bas": "打地鼠（随机数 + 定时器 + 振动）",
+    "basic/gorilla.bas": "猴子扔香蕉（完整游戏 + 音效）",
+    "basic/gorilla_pro.bas": "同上，加了渐变 / 路径 / 图块",
+    "basic/blackjack.bas": "21 点（轮询式消息循环 + 振动）",
+    "basic/hammurabi.bas": "汉谟拉比（回合制经营）",
+    "basic/lander.bas": "登月舱",
+    "basic/nibbles.bas": "贪吃蛇",
+    "basic/hurkle.bas": "老式打字机式文本程序（内联了 `_tty.bas`）",
+    "basic/demo_tty.bas": "文本模式（ANSI 彩色）",
+    "basic/demo_bgi.bas": "图形语句逐条演示",
+    "basic/gfx_demo.bas": "同上",
+    "basic/gfx_modes.bas": "各 `SCREEN` 模式的分辨率",
+    "basic/_tty.bas": "不是独立程序，是「用 `ui_*` 重建等宽字符网格」的垫层",
 
     "forth/parserexp_demo.fs": "调用共享库解析表达式",
     "forth/sysinfo.fth": "设备信息",
@@ -393,7 +422,16 @@ def build(lang) -> str:
     d = os.path.join(EXAMPLES, lang["key"])
     exts = [f for f in sorted(os.listdir(d))
             if os.path.isfile(os.path.join(d, f)) and f.endswith(lang["ext"])]
-    sample = exts[0] if exts else "sysinfo" + lang["ext"]
+    # ⚠ **别直接取 `sorted(...)[0]`**（v0.96.506 修）：下划线开头的文件排在最前，
+    #   而 `_` 前缀在本仓的约定里是**脚手架/被内联的库**（`basic/_tty.bas` 就是
+    #   "用 ui_* 重建字符网格"的垫层，**不是能独立跑的程序**）——
+    #   于是 BASIC 那一页的「在手机上怎么跑」写着 `vml run examples/basic/_tty.bas`，
+    #   照着敲只会得到一个什么都不画的东西。优先挑能独立跑的，垫层一律排除。
+    runnable = [f for f in exts if not f.startswith("_")]
+    exts = runnable or exts
+    sample = next((f for f in exts if f.startswith("sysinfo")), None) \
+        or next((f for f in exts if f.startswith(("tetris", "demo_ui"))), None) \
+        or (exts[0] if exts else "sysinfo" + lang["ext"])
 
     tips = bold_to_markup("\n".join("- " + t for t in lang["tips"]))
     body = HEAD.format(title=lang["title"], intro=bold_to_markup(lang["intro"]), key=lang["key"],

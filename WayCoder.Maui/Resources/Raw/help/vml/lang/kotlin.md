@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/kotlin/catch.kt
+vml run examples/kotlin/sysinfo.kt
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -23,6 +23,8 @@ vml run examples/kotlin/catch.kt
 |---|---|
 | `catch.kt` | 接方块 |
 | `sysinfo.kt` | 设备信息 |
+
+同目录还有：`demo_std.kt`、`demo_tty.kt`、`demo_ui.kt`
 
 ## 实测踩过的坑
 

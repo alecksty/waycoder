@@ -5,7 +5,7 @@
 ## 在手机上怎么跑
 
 ```
-vml run examples/lua/life.lua
+vml run examples/lua/sysinfo.lua
 ```
 
 编译要等一会儿（C 那种要一两分钟，脚本类语言几秒）。程序跑起来后**屏幕底部就是手柄**，
@@ -22,6 +22,8 @@ vml run examples/lua/life.lua
 |---|---|
 | `life.lua` | 生命游戏（双缓冲 + 八邻域求和） |
 | `sysinfo.lua` | 设备信息 |
+
+同目录还有：`demo_std.lua`、`demo_tty.lua`、`demo_ui.lua`
 
 ---
 
