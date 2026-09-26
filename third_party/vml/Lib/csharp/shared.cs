@@ -1257,6 +1257,7 @@ namespace VML {
     // extern int ui_call_json_at(int i);  // CALL ui_call_json_at
     // extern int ui_msg_count(void);  // CALL ui_msg_count
     // extern int ui_msg_clear(void);  // CALL ui_msg_clear
+    // extern int ui_msg_drop(int kind);  // CALL ui_msg_drop
     // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg
     // extern int ui_poll_msg(void);  // CALL ui_poll_msg
     // extern int ui_msg_a(void);  // CALL ui_msg_a

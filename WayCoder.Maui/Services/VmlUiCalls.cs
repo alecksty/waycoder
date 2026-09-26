@@ -112,6 +112,16 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     /// <summary>最近一次运行用的处理器实例 —— 绘图页靠它把用户的触摸/按键投回队列。</summary>
     internal static VmlUiCalls? Current;
 
+    /// <summary>
+    /// **消息队列里还压着多少条**（诊断用）。
+    ///
+    /// 用户报「玩一会儿越来越卡、触摸要等一下才反应，但背景绘图不卡」——
+    /// 那是"输入这条路有东西在累积"的形状，而稳态下这个数该在 0~2 徘徊
+    /// （主循环每轮把它抽干）。**若随时间单调上涨**，就说明程序消费不过来，
+    /// 触摸事件排在队尾 —— 那正是"迟钝"。
+    /// </summary>
+    internal int QueueCount => _rt.Queue.Count;
+
     /// <summary>当前场景变化时通知绘图页重绘。</summary>
     internal static Action<VmlScene>? OnSceneChanged;
 

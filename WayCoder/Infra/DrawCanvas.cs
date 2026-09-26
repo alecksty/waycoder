@@ -331,6 +331,11 @@ public sealed class Canvas
     /// <summary>仿射变换点列表（x,y 交替）到世界坐标。</summary>
     public static double[] TransformPoints(Affine t, IReadOnlyList<double> pts)
     {
+        // ⚠ **恒等变换直接返回入参**（不复制、不分配）。
+        //   矢量那条路上绝大多数图元没有变换（游戏里的矩形/圆都是裸坐标），
+        //   而这里一帧要被调几百次、每次复制一整份点集 —— 是纯粹的垃圾。
+        //   返回的引用与入参同一个，故**调用方不得改写返回值**（本仓所有调用点都只读）。
+        if (t.IsIdentity) return pts as double[] ?? pts.ToArray();
         var w = new double[pts.Count];
         for (int i = 0; i + 1 < pts.Count; i += 2)
         {

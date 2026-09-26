@@ -1389,8 +1389,17 @@ HALT
     /// 它按「条目名 + 长度 + 内容」算、**不看时间戳**，所以"同样的内容重新打个包"指纹不变、
     /// 不会白解压一次；而且读取成本从 6 MB 降到几十字节。
     /// 没有这个资产（老包）才退回把整个 `vml_lib.zip` 哈希一遍 —— 行为退化成加它之前那样，不会更糟。
+    ///
+    /// <para>
+    /// ⚠ **`internal` 而不是 `private`**：`MauiBootstrap` 里解 `examples/` 与 `help/` 的
+    /// 闸门**也必须用它**。那两处原先存的是 `Global.Version`，于是"改了示例却忘了升版本"
+    /// 就等于**新示例永远到不了手机**（实测：`gorilla.cpp` 重写过、包也重打了，
+    /// 手机上仍是旧文件，用户跑起来报「第 698 行 表达式缺失或多余」，
+    /// 而同一份文件在桌面 `vmlcli` 上编得好好的）。版本号与内容**是两件独立的事**，
+    /// 拿它当内容闸门迟早对不上；指纹本来就在手边，没有理由再各判一套。
+    /// </para>
     /// </summary>
-    private static string LibFingerprint()
+    internal static string LibFingerprint()
     {
         if (_libFingerprint != null) return _libFingerprint;
 

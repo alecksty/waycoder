@@ -96,9 +96,25 @@ public static class ColorUtil
 /// 2D 仿射变换矩阵（对应 SVG matrix(a b c d e f)：x'=a·x+c·y+e，y'=b·x+d·y+f）。
 /// 变换指令 translate/rotate/scale 组合成的当前变换，绘制时应用到图元。
 /// </summary>
-public readonly struct Affine
+public readonly struct Affine : IEquatable<Affine>
 {
     public readonly double A, B, C, D, E, F;
+
+    /// <summary>
+    /// 逐字段比较。
+    ///
+    /// <para>
+    /// ⚠ 必须**显式实现**：默认的 <c>ValueType.Equals</c> 走反射（或至少是一次装箱比较），
+    /// 而这里的调用点是**每帧、每图元一次**（矢量后端拿它判断"这个图元和上一个是不是
+    /// 同一个变换"）。托管侧的反射比较在热路径上比这个手写版慢两个数量级。
+    /// </para>
+    /// </summary>
+    public bool Equals(Affine o)
+        => A == o.A && B == o.B && C == o.C && D == o.D && E == o.E && F == o.F;
+
+    public override bool Equals(object? o) => o is Affine a && Equals(a);
+
+    public override int GetHashCode() => HashCode.Combine(A, B, C, D, E, F);
     public Affine(double a, double b, double c, double d, double e, double f)
     { A = a; B = b; C = c; D = d; E = e; F = f; }
 
@@ -122,6 +138,41 @@ public readonly struct Affine
     {
         sx = A; sy = D;
         return B == 0 && C == 0 && A > 0 && D > 0;
+    }
+
+    /// <summary>
+    /// 是不是**刚体变换**（只有旋转 + 平移：两轴正交、且长度都是 1）。
+    ///
+    /// <para>
+    /// 用途：矢量后端据此决定"能不能把变换交给平台坐标系"（见
+    /// <c>IVectorTarget.PushTransform</c>）。刚体变换**不改变形状** —— 矩形还是矩形、
+    /// 圆还是圆、线宽与圆角半径都不变 —— 所以「把矩阵挂到画布上、图元照常画」
+    /// 与「逐点变换后再画折线」**结果完全一致**，却省掉了每个点一次的平台路径构建
+    /// （真机实测：带旋转的图块走折线时，一帧 15000 次通用填充要 2.9 秒）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **不能放宽成"等比缩放也算"**：那时线宽会跟着放大，而本仓的语义是
+    /// <c>StrokeWidth</c> **不**随变换走（`DrawVector.Stroke` 就是把点变换掉、线宽原样传下去）。
+    /// 一旦放宽，同一个程序的描边会突然变粗 —— 那是观感变化，不是优化。
+    /// 同理圆角半径、虚线相位也都只在刚体下才保证不变。
+    /// </para>
+    ///
+    /// <para>
+    /// 容差取 <c>1e-6</c> 而不是机器精度：变换是 <c>Compose</c> 累乘出来的，
+    /// 转几次之后 `cos²+sin²` 与 1 的差会到 1e-15 量级，1e-9 在长链上仍可能失手；
+    /// 而"真的缩放了 0.0001%"这种情形本来就不存在（程序里的缩放都是整数比）。
+    /// </para>
+    /// </summary>
+    public bool IsRigid
+    {
+        get
+        {
+            const double eps = 1e-6;
+            return Math.Abs(A * A + B * B - 1) < eps
+                && Math.Abs(C * C + D * D - 1) < eps
+                && Math.Abs(A * C + B * D) < eps;
+        }
     }
 
     public static Affine Translate(double dx, double dy) => new(1, 0, 0, 1, dx, dy);

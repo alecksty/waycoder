@@ -72,17 +72,62 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     public void MarkUnsupported(string kind, string? detail = null) => _unsupported.Add(kind);
 
+    // ── 图元变换 ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 把图元的**刚体变换**（纯旋转 + 平移）交给平台坐标系 —— 于是矩形还是矩形、
+    /// 圆还是圆，都能走平台原生图元，不必逐点建路径。理由与收益见
+    /// <see cref="IVectorTarget.PushTransform"/> 的说明（真机实测差三个数量级）。
+    ///
+    /// ⚠ **与 `PushClip`/`PushMask` 共用平台那一套 `SaveState`/`RestoreState`** ——
+    ///   只要严格配对就没有问题（栈本来就是配对的），但**不能交叉着不关**
+    ///   （比如进入图元变换后又去 push 蒙版、然后只 pop 一次）。
+    ///   驱动层是"一个图元一次 push/pop"，天然配对。
+    /// </summary>
+    public bool PushTransform(Affine t)
+    {
+        _canvas.SaveState();
+
+        // ⚠⚠ **不要用 `ConcatenateTransform(Matrix3x2)`** —— 踩过一次，记下来：
+        //   它的语义（.NET 的行主序 `Matrix3x2` 与 Android `Matrix` 的列主序、
+        //   以及 MAUI 中间那层 `AsAndroidMatrix` 的换算）**实测对不上**。
+        //   症状很有欺骗性：**平移分量被吃掉、旋转变成错切** ——
+        //   一个 `rotate 45` 的矩形画出来是**平行四边形**，而且所有图元都挤到原点附近。
+        //   而它**不报错、不崩**，只是画得不对（真机 A/B 截屏才看出来）。
+        //
+        //   改用 `Translate` + `Rotate` 拼 —— 这两个是**本文件已经在用**的 API
+        //   （`DrawVectorFrame` 里那对 `Translate`/`Scale` 一直是对的），约定已经被验证过。
+        //   刚体变换恰好能这么拆：`Affine` 对刚体就是"平移 + 纯旋转"，
+        //   没有缩放也没有错切 ⇒ `A = cos θ`、`B = sin θ`，角度由 `atan2(B, A)` 还原。
+        //
+        //   ⚠ 顺序是**先转后移**（`T ∘ R`），与 `Affine` 的 `E/F = 平移` 同一口径 ——
+        //     反过来写是"沿旋转后的轴平移"，`(0,0)` 之外全都偏。
+        _canvas.Translate((float)t.E, (float)t.F);
+        var deg = Math.Atan2(t.B, t.A) * 180.0 / Math.PI;
+        if (Math.Abs(deg) > 1e-6) _canvas.Rotate((float)deg);
+        return true;
+    }
+
+    public void PopTransform() => _canvas.RestoreState();
+
     // ── 裁剪 ───────────────────────────────────────────────────────────────
     // 平台画布自己就有裁剪栈，直接借它的 `SaveState`/`RestoreState` 配对 ——
     // **不要自己再维护一份矩形栈**：平台的裁剪跟它的变换是一体的，
     // 自己算一份等于把"哪一级压了多少"记两遍，迟早对不上。
     public void PushClip(double x, double y, double w, double h)
     {
+        var __t0 = VectorProbe.Begin();
         _canvas.SaveState();
         _canvas.ClipRectangle((float)x, (float)y, (float)w, (float)h);
+        VectorProbe.End(6, __t0);
     }
 
-    public void PopClip() => _canvas.RestoreState();
+    public void PopClip()
+    {
+        var __t0 = VectorProbe.Begin();
+        _canvas.RestoreState();
+        VectorProbe.End(6, __t0);
+    }
 
     // 蒙版同理借平台的裁剪栈 —— 只是形状从矩形换成任意路径。
     // ⚠ `ClipPath` 与 `ClipRectangle` 压的是**同一层栈**，所以 `PushMask`/`PopMask`
@@ -91,6 +136,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
     {
         // ⚠ 蒙版是**替换**语义（不是 push/pop 配对）：新的一条要把上一条**先关掉**，
         //   否则 `mask_clear` 之后的内容仍被上一个蒙版箍着（SVG 那边踩过同一个坑）。
+        var __t0 = VectorProbe.Begin();
         if (_maskOpen) { _canvas.RestoreState(); _maskOpen = false; }
 
         var path = new PathF();
@@ -105,13 +151,16 @@ internal sealed class MauiVectorTarget : IVectorTarget
         _canvas.SaveState();
         _canvas.ClipPath(path, evenOdd ? WindingMode.EvenOdd : WindingMode.NonZero);
         _maskOpen = true;
+        VectorProbe.End(6, __t0);
     }
 
     public void PopMask()
     {
         if (!_maskOpen) return;
+        var __t0 = VectorProbe.Begin();
         _canvas.RestoreState();
         _maskOpen = false;
+        VectorProbe.End(6, __t0);
     }
 
     /// <summary>
@@ -130,8 +179,10 @@ internal sealed class MauiVectorTarget : IVectorTarget
     public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
         bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box)
     {
+        var __t0 = VectorProbe.Begin();
         var path = new PathF();
         var any = false;
+        var __pts = 0;
         foreach (var pts in subpaths)
         {
             if (pts.Count < 6) continue;
@@ -139,9 +190,10 @@ internal sealed class MauiVectorTarget : IVectorTarget
             for (var i = 2; i + 1 < pts.Count; i += 2)
                 path.LineTo((float)pts[i], (float)pts[i + 1]);
             path.Close();
+            __pts += pts.Count / 2;
             any = true;
         }
-        if (!any) return;
+        if (!any) { VectorProbe.End(2, __t0, 0); return; }
 
         // ⚠ **两条分支都必须走 `SetFillPaint`，纯色那条不能只写 `FillColor`** ——
         //    原因见类注释里「渐变的余荫」。一句话：平台把渐变挂成 Android `Paint` 的
@@ -162,6 +214,58 @@ internal sealed class MauiVectorTarget : IVectorTarget
             _canvas.SetFillPaint(_solid, rect);
         }
         _canvas.FillPath(path, evenOdd ? WindingMode.EvenOdd : WindingMode.NonZero);
+        VectorProbe.End(2, __t0, __pts);
+    }
+
+    /// <summary>
+    /// **轴对齐矩形 / 椭圆的平台原生填充** —— 一帧里绝大多数图元走这条。
+    ///
+    /// ⚠ 为什么不复用 <see cref="FillShape"/>：那条路要把点集交给平台**逐点建路径**
+    ///   （`AsAndroidPath()` 里每个点一次 JNI）。一个矩形 4 个点、一个圆 64 个点，
+    ///   一帧几百个图元就是几万次 JNI —— 真机实测单帧 70ms、只有 13fps 的主因。
+    ///   `FillRectangle`/`DrawRoundRect`/`DrawOval` 都是 Android 的原生图元，
+    ///   不建路径、不碰点集。
+    ///
+    /// ⚠ 刷子仍要经过 `SetFillPaint`（不能只写 `FillColor`）—— 理由见类注释「渐变的余荫」。
+    ///   渐变按**这个矩形**归一化，与 `FillShape` 用 `path.Bounds` 是同一个口径
+    ///   （矩形就是它自己的外接矩形；椭圆的外接矩形也正是 `cx±rx, cy±ry`）。
+    /// </summary>
+    public void FillRect(double x, double y, double w, double h, uint fill, Gradient? gradient, double radius)
+    {
+        if (gradient == null && (fill >> 24) == 0) return;
+        var __t0 = VectorProbe.Begin();
+        var rect = new RectF((float)x, (float)y, (float)w, (float)h);
+        if (gradient != null)
+        {
+            _canvas.SetFillPaint(BuildPaint(gradient), rect);
+        }
+        else
+        {
+            _solid.Color = Col(fill);
+            _canvas.SetFillPaint(_solid, rect);
+        }
+        if (radius > 0) _canvas.FillRoundedRectangle(rect, (float)radius);
+        else _canvas.FillRectangle(rect);
+        VectorProbe.End(0, __t0);
+    }
+
+    /// <summary>实心椭圆 —— 同 <see cref="FillRect"/>，平台走原生 `DrawOval`。</summary>
+    public void FillEllipse(double cx, double cy, double rx, double ry, uint fill, Gradient? gradient)
+    {
+        if (gradient == null && (fill >> 24) == 0) return;
+        var __t0 = VectorProbe.Begin();
+        var rect = new RectF((float)(cx - rx), (float)(cy - ry), (float)(rx * 2), (float)(ry * 2));
+        if (gradient != null)
+        {
+            _canvas.SetFillPaint(BuildPaint(gradient), rect);
+        }
+        else
+        {
+            _solid.Color = Col(fill);
+            _canvas.SetFillPaint(_solid, rect);
+        }
+        _canvas.FillEllipse(rect);
+        VectorProbe.End(1, __t0);
     }
 
     /// <summary>
@@ -176,6 +280,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     public void StrokePolyline(IReadOnlyList<double> pts, double width, uint color, string cap, bool dashed, bool close)
     {
+        var __t0 = VectorProbe.Begin();
         var path = BuildPath(pts, close);
         _canvas.StrokeColor = Col(color);
         _canvas.StrokeSize = (float)Math.Max(0.1, width);
@@ -190,6 +295,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
             ? new[] { (float)(width * 3), (float)(width * 2) }
             : null;
         _canvas.DrawPath(path);
+        VectorProbe.End(3, __t0, pts.Count / 2);
     }
 
     // ── 文本 / 贴图 ────────────────────────────────────────────────────────
@@ -197,6 +303,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
     public void DrawText(double x, double y, string text, double size, uint color, string anchor, bool bold, bool italic)
     {
         if (string.IsNullOrEmpty(text)) return;
+        var __t0 = VectorProbe.Begin();
         _canvas.Font = bold || italic ? GFont.DefaultBold : GFont.Default;
         _canvas.FontSize = (float)Math.Max(1, size);
         _canvas.FontColor = Col(color);
@@ -218,6 +325,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
         var (boxX, boxW) = WayCoder.UI.Shared.VmlUi.TextAnchorBox(x, SceneWidth, anchor);
         var boxH = (float)Math.Max(1, size * 2);
         _canvas.DrawString(text, (float)boxX, (float)top, (float)boxW, boxH, align, VerticalAlignment.Top);
+        VectorProbe.End(4, __t0);
     }
 
     /// <summary>
@@ -245,15 +353,32 @@ internal sealed class MauiVectorTarget : IVectorTarget
     private double Ascent(double size, bool bold)
     {
 #if ANDROID
+        // ── 先查缓存 ──────────────────────────────────────────────────────────
+        // ⚠ 这个缓存不是"锦上添花"，是**必须的**：下面那段每次都要
+        //   `SetTypeface(ToTypeface())` + `GetFontMetrics()`，而后者**每次分配一个
+        //   Java 的 `Paint.FontMetrics` 对象**（JNI + 托管/Java 两侧的 GC 压力）。
+        //   真机实测（gorilla，16 次文字/帧）：光文字一项 30 帧就要 133ms ≈ **每次 281μs** ——
+        //   而一门程序的字号总共才两三种，同样的度量被反复重算了几百遍。
+        //
+        // ⚠ **key 用 `double` 原值而不是取整**：`13.0` 与 `13.4` 就是要分开算的
+        //   （四舍五入会让它们共用同一个度量，字号越大偏差越明显）。
+        //   字号是程序自己算出来的，稳定值会精确命中；偶然的抖动只是多算一次，不会算错。
+        var key = (Size: size, Bold: bold);
+        if (AscentCache.TryGetValue(key, out var hit)) return hit;
         try
         {
-            _metricsProbe ??= new Android.Graphics.Paint();
+            MetricsProbe ??= new Android.Graphics.Paint();
             // ⚠ 绑定里 `Paint.Typeface` 是**只读**属性，只能走 SetTypeface（实测 CS0200）
-            _metricsProbe.SetTypeface((bold ? GFont.DefaultBold : GFont.Default).ToTypeface());
-            _metricsProbe.TextSize = (float)Math.Max(1, size);
-            var m = _metricsProbe.GetFontMetrics();
+            MetricsProbe.SetTypeface((bold ? GFont.DefaultBold : GFont.Default).ToTypeface());
+            MetricsProbe.TextSize = (float)Math.Max(1, size);
+            var m = MetricsProbe.GetFontMetrics();
             // Android 的 `Ascent` 是**负值**（基线以上的距离取负），故取反
-            if (m is not null && m.Ascent < 0) return -m.Ascent;
+            if (m is not null && m.Ascent < 0)
+            {
+                var a = -m.Ascent;
+                AscentCache[key] = a;
+                return a;
+            }
         }
         catch { /* 取不到度量就退回近似值，绝不因此不画字 */ }
 #endif
@@ -261,8 +386,19 @@ internal sealed class MauiVectorTarget : IVectorTarget
     }
 
 #if ANDROID
-    /// <summary>量字体度量用的画笔（只读度量，不落笔）。</summary>
-    private Android.Graphics.Paint? _metricsProbe;
+    /// <summary>
+    /// 量字体度量用的画笔（只读度量，不落笔）。
+    ///
+    /// ⚠ **静态**：它只是"量尺"，度量只跟字体与字号有关，跟哪个画布、哪个窗口无关 ——
+    ///   而 `MauiVectorTarget` 是**每帧新建**的，做成实例字段就等于每帧重造一把尺子。
+    /// </summary>
+    private static Android.Graphics.Paint? MetricsProbe;
+
+    /// <summary>
+    /// 上升的缓存 —— key 是（字号，是否粗体），**与画布无关**，所以也是静态的。
+    /// 度量只取决于平台字体与字号，跨窗口共享安全（见 <see cref="Ascent"/> 的说明）。
+    /// </summary>
+    private static readonly Dictionary<(double Size, bool Bold), double> AscentCache = new();
 #endif
 
     public void DrawImage(string? path, double x, double y, double w, double h,
@@ -273,6 +409,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
         if (string.IsNullOrEmpty(path)) { MarkUnsupported("image", "只有内存位图、没有文件路径"); return; }
         var img = LoadImage(path);
         if (img == null) { MarkUnsupported("image", path); return; }
+        var __t0 = VectorProbe.Begin();
 
         // 裁剪用"缩放到让裁剪区落进目标矩形 + 按目标矩形裁"这两步做 ——
         // 不依赖平台是否提供带源矩形的 DrawImage 重载（那份重载各版本不一）。
@@ -296,6 +433,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
         }
         _canvas.DrawImage(img, (float)dx, (float)dy, (float)dw, (float)dh);
         _canvas.RestoreState();
+        VectorProbe.End(5, __t0);
     }
 
     /// <summary>图片按路径缓存 —— 每帧重新解码一张图会把"省掉 PNG"的收益又还回去。</summary>
@@ -404,7 +542,111 @@ internal sealed class MauiVectorTarget : IVectorTarget
         canvas.FillRectangle(rect.X, rect.Y, rect.Width, rect.Height);
     }
 
-    /// <summary>`0xAARRGGBB`（VML 的颜色序，与 <c>RasterImage.ColorAt</c> 一致）→ 平台颜色。</summary>
-    private static Color Col(uint argb) => Color.FromRgba(
-        (int)((argb >> 16) & 0xFF), (int)((argb >> 8) & 0xFF), (int)(argb & 0xFF), (int)((argb >> 24) & 0xFF));
+    /// <summary>
+    /// `0xAARRGGBB`（VML 的颜色序，与 <c>RasterImage.ColorAt</c> 一致）→ 平台颜色（**带缓存**）。
+    ///
+    /// ⚠ 缓存是必要的：`Color.FromRgba` **每次分配一个 `Color` 对象**，而这条路上一帧要调
+    ///   几百次（每个矩形 / 椭圆 / 描边 / 文字至少一次）—— 全是短命垃圾。
+    ///   颜色是程序里写死的有限集合（gorilla 实测几十种），缓存下来既省分配又省换算。
+    ///
+    /// ⚠ 上限是**防"程序用计算出来的颜色"把内存撑爆**（比如按渐变位置采样上色）。
+    ///   超了就退回"每次新算"—— 慢一点，但不会无界增长。颜色本身是不可变值语义，
+    ///   缓存共享没有副作用。
+    ///
+    /// ⚠ 只在**绘制线程**（UI 线程）访问 —— 这条路上所有落笔都从 `Draw` 回调进来，
+    ///   单线程访问字典是安全的。将来若有别的线程直接调它，这里要改成并发字典。
+    /// </summary>
+    private static Color Col(uint argb)
+    {
+        if (ColorCache.TryGetValue(argb, out var c)) return c;
+        c = Color.FromRgba(
+            (int)((argb >> 16) & 0xFF), (int)((argb >> 8) & 0xFF), (int)(argb & 0xFF), (int)((argb >> 24) & 0xFF));
+        if (ColorCache.Count < 4096) ColorCache[argb] = c;
+        return c;
+    }
+
+    private static readonly Dictionary<uint, Color> ColorCache = new();
+}
+
+/// <summary>
+/// 矢量后端的**分指令耗时探针**（诊断件，默认关；`Enabled` 打开后才计时）。
+///
+/// ## 为什么非得分类量
+///
+/// 日志里那句「绘制 243ms」只是**总数**，而这条路上有七类互不相干的开销，
+/// 它们**优化手段完全不同**：
+///   · 原生图元（矩形/椭圆）—— 已是 `DrawRect`/`DrawOval`，无从再省；
+///   · 通用填充 / 描边 / 蒙版 —— 要**逐点建平台路径**（每点一次 JNI），是候选大头；
+///   · 文字 —— 每次调用重新排版（`DrawText` 的已知代价）；
+///   · 贴图 —— 解码只在首次，之后是纯 blit。
+/// 不分类就只能猜，而本仓的规矩是**先立基准、再按数据优化**（v0.96.176 那次
+/// "先关抗锯齿再量"才找到 87% 的杠杆，就是同一个道理）。
+///
+/// ## 读法
+///
+/// `LogFrameStats` 每 30 帧打一行，随后 `Reset()` —— 所以那一行是**这 30 帧的合计**，
+/// 除以 30 才是每帧。`×N` 是调用次数、`/N点` 是累计点数（判断"贵在点数还是贵在次数"）。
+/// </summary>
+internal static class VectorProbe
+{
+    public const int Slots = 14;
+
+    /// <summary>
+    /// **诊断开关，正式版保持 false**。
+    ///
+    /// 要查"绘制为什么慢"时把它改成 true，重新构建，然后
+    /// `adb logcat -s WCVML` 就会在每 30 帧的分段行下面多打一行**分指令耗时**。
+    /// 计时本身开销很小（每图元两次 `Stopwatch.GetTimestamp`，实测整帧 &lt;1ms），
+    /// 但既然它只在诊断时有用，就不该常驻在每帧几千次的路径上。
+    /// </summary>
+    public static bool Enabled = false;
+
+    public static readonly long[] Ticks = new long[Slots];
+    public static readonly int[] Counts = new int[Slots];
+    public static readonly long[] Points = new long[Slots];
+
+    /// <summary>
+    /// ⚠ 8~10 是**帧级**开销，不是"某个指令"：它们的存在是因为"绘制 440ms"
+    /// 与"各指令加起来 70ms"曾经差了六倍 —— 差额必须有个去处，否则就只能靠猜。
+    /// 建了这几格之后账才闭合：`画布状态 + 背景 + 遍历开销 + 各指令 ≈ LastDrawMs`。
+    /// </summary>
+    public static readonly string[] Names =
+        ["矩形原生", "椭圆原生", "通用填充", "描边", "文字", "贴图", "裁剪蒙版", "建目标",
+         "背景填充", "画布状态", "遍历开销", "绘图调用", "推拉坐标系", "查表"];
+
+    public static long Begin() => Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
+
+    public static void End(int slot, long t0, int pts = 0)
+    {
+        if (!Enabled || t0 == 0L) return;
+        Ticks[slot] += System.Diagnostics.Stopwatch.GetTimestamp() - t0;
+        Counts[slot]++;
+        Points[slot] += pts;
+    }
+
+    /// <summary>这一窗的分布；**一次都没画过则返回 null**（光栅后端下不该打空行）。</summary>
+    public static string? Report()
+    {
+        var total = 0;
+        for (var i = 0; i < Slots; i++) total += Counts[i];
+        if (total == 0) return null;
+
+        var perMs = (double)System.Diagnostics.Stopwatch.Frequency / 1000.0;
+        var sb = new System.Text.StringBuilder("指令分布：");
+        for (var i = 0; i < Slots; i++)
+        {
+            if (Counts[i] == 0) continue;
+            sb.Append(' ').Append(Names[i]).Append(' ')
+              .Append((Ticks[i] / perMs).ToString("F1")).Append("ms×").Append(Counts[i]);
+            if (Points[i] > 0) sb.Append('/').Append(Points[i]).Append("点");
+        }
+        return sb.ToString();
+    }
+
+    public static void Reset()
+    {
+        Array.Clear(Ticks);
+        Array.Clear(Counts);
+        Array.Clear(Points);
+    }
 }

@@ -348,9 +348,17 @@ public static class MauiBootstrap
             var dir = Path.Combine(WorkspaceDir, "examples");
             var marker = Path.Combine(dir, ".unpacked");
 
-            // 标记里存**版本号**而不是只看"文件在不在"：示例集随版本增删，
-            // 只判存在的话老用户永远看不到新示例、也留着一堆已被删掉的旧文件。
-            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == WayCoder.Global.Version
+            // 标记里存**包的内容指纹**（`vml_lib.hash`，与标准库解压同一个），不是版本号。
+            //
+            // ⚠ 这里原先存的是 `Global.Version`，那是个**已经坑到用户的**判据：
+            //   "改了示例"与"升了版本"是两件独立的事，忘了升版本 ⇒ 闸门判"一样" ⇒
+            //   **新示例永远到不了手机**。真实现场：`gorilla.cpp` 重写过、包也重打了、
+            //   APK 也装了，手机上那份仍是旧的（145734 字节 vs 包里 157556），
+            //   用户跑起来报「第 698 行 表达式缺失或多余（遇到 ';'）」——
+            //   而同一份文件在桌面 `vmlcli` 上编得好好的（2428ms、86341 条指令）。
+            //   查这个花了一整轮：**构建全绿、自测全绿、桌面能跑**，因为错的不是代码，是"哪份文件"。
+            // 指纹按「条目名 + 长度 + 内容」算、不看时间戳 ⇒ 重新打包但内容没变时不会白解一次。
+            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == Services.MauiVml.LibFingerprint()
                 && Directory.EnumerateFiles(dir).Any(f => Path.GetFileName(f) != ".unpacked"))
                 return;
 
@@ -396,7 +404,7 @@ public static class MauiBootstrap
                 s.CopyTo(f);
             }
 
-            File.WriteAllText(marker, WayCoder.Global.Version);
+            File.WriteAllText(marker, Services.MauiVml.LibFingerprint());
         }
         catch (Exception ex)
         {
@@ -414,8 +422,8 @@ public static class MauiBootstrap
     /// `scripts/make-vml-lib.sh` 把它复制成 zip 里的 `Help/`。
     /// 也就是说**只有一个源**，这里是它落地的第二个位置 —— 不存在"两份要对着改"。
     ///
-    /// ⚠ 版本号是闸门（标记文件里存的就是 `Global.Version`）：**改了说明文档必须升版本**，
-    ///    否则手机上永远解不出新的（与 examples 同一个坑，见 CLAUDE.md）。
+    /// ⚠ 闸门是**包的内容指纹**（不是版本号）—— 与 `EnsureExamples()` 同一个，
+    ///    理由见那边的长注释（"改了说明却忘了升版本"曾经让新文档永远到不了手机）。
     /// </summary>
     static void EnsureHelp()
     {
@@ -423,7 +431,9 @@ public static class MauiBootstrap
         {
             var dir = Path.Combine(WorkspaceDir, "help");
             var marker = Path.Combine(dir, ".unpacked");
-            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == WayCoder.Global.Version
+            // 闸门与 `EnsureExamples()` **同源**（包的内容指纹，不是版本号）——
+            // 两者出的本来就是同一个 zip 的两半，判据没有理由不一样（见那边的长注释）。
+            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == Services.MauiVml.LibFingerprint()
                 && Directory.EnumerateFiles(dir, "*.md", SearchOption.AllDirectories).Any())
                 return;
 
@@ -457,7 +467,7 @@ public static class MauiBootstrap
                 src.CopyTo(f);
             }
 
-            File.WriteAllText(marker, WayCoder.Global.Version);
+            File.WriteAllText(marker, Services.MauiVml.LibFingerprint());
         }
         catch (Exception ex)
         {

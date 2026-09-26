@@ -1409,6 +1409,7 @@ __stdcall void vga_text_newline(void);
  int ui_call_json_at(int i);
  int ui_msg_count(void);
  int ui_msg_clear(void);
+ int ui_msg_drop(int kind);
  int ui_wait_msg(int timeout_ms);
  int ui_poll_msg(void);
  int ui_msg_a(void);

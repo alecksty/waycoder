@@ -428,6 +428,14 @@ int ui_draw_block(int block, int x, int y, int sx, int sy, int rot);
 /* 同上，但 **(x,y) 是图块左上角、绕左上角旋转**。 */
 int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot);
 
+/* 释放一个图块，返回 1 成功 / 0 失败（句柄不存在或已释放）。
+   ⚠ **块表有 128 的上限，而"改一个块的内容"只能重录新块**（块的内容与尺寸都不可变），
+     所以凡是"内容会变"的用法都必须先释放旧的 —— 不释放就是每重录一次漏一个句柄，
+     迟早撑满，之后 `ui_create_block` 一律返回 0（画面**悄悄**退回逐帧画，看不出"块没了"）。
+   ⚠ 释放过的句柄会被**回收复用**，所以别在别处留着旧句柄当"以后再贴"；
+     贴一个已失效的句柄是**静默 no-op**。 */
+int ui_free_block(int block);
+
 /* ── 主动截屏（588）────────────────────────────────────────────────────
  *
  * 把**画布**存成一张 PNG 文件。与上面三个的分工：那几个是给程序在运行中
@@ -513,6 +521,24 @@ int  ui_msg_count(void);
 /* 丢掉队列里所有待处理消息 → 丢弃条数。重新开始/切关时调，
    防上一局没读完的输入（一次点击常有多条）被新一局读出来。 */
 int  ui_msg_clear(void);
+
+/* 消息类别 —— `ui_msg_drop(kind)` 的 kind（**跨语言契约**，与宿主的 `VmlMsgKind` 同值）。
+   ⚠ 只能末尾追加：数值会编进程序里。 */
+#define VML_MSG_KIND_TIMER 0   /* 定时器消息（ui_timer_kill 是"停表"，这个是"清掉已排队的到点通知"） */
+#define VML_MSG_KIND_TOUCH 1   /* 触摸：按下 / 移动 / 抬起 */
+#define VML_MSG_KIND_MOUSE 2   /* 鼠标：移动 / 按下 / 抬起 */
+#define VML_MSG_KIND_KEY   3   /* 键盘：按下 / 抬起 */
+#define VML_MSG_KIND_ALL   4   /* 全部（等价于 ui_msg_clear，只是回报条数） */
+
+/* 丢掉队列里**某一类**还没被消费的消息 → 丢掉的条数（-1 = 类别认不出，什么也没丢）。
+ *
+ * 用于"移动类消息积压"：它是**追最新位置**的语义，旧的位置没有价值，而主循环
+ * 一次只取一条 ⇒ 拖动时产生的比消费的快，队列只涨不落（实测 6 轮涨到 2280 条），
+ * 触摸事件于是排在队尾 —— 表现为"背景绘图不卡、但触摸要等半天才反应"。
+ * 在 TOUCHMOVE 分支里调一次 `ui_msg_drop(VML_MSG_KIND_TOUCH)` 即可让队列回到个位数。
+ *
+ * ⚠ **别拿它丢键盘 / 定时器**：那两类是离散语义，丢一条就少一次事件。 */
+int  ui_msg_drop(int kind);
 int  ui_timer_set(int interval_ms, int tag);
 int  ui_timer_kill(int timerId);
 

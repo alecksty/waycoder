@@ -525,6 +525,51 @@ public static class VmlUi
     /// 程序应在**重新开始 / 切关 / 暂停恢复**这类状态断点上调用它，把历史输入清干净。
     /// </summary>
     public const int MsgClear = 568;
+
+    /// <summary>
+    /// `ui_msg_drop(kind)` —— **丢掉队列里某一类还没被消费的消息** → 丢掉的条数。
+    ///
+    /// <para>
+    /// 与 <see cref="MsgClear"/> 的差别是**"只丢一类"**：清空是"把历史全部扔掉"，
+    /// 那对"我正在拖动、但中间那几百条移动事件已经过期了"这种情形**太狠** ——
+    /// 会把同一时间排着的键盘、定时器一起丢掉（程序那边表现为"按键丢了/物理卡了一拍"）。
+    /// </para>
+    ///
+    /// <para>
+    /// **为什么需要它**：移动类消息是"追最新位置"的语义，旧的位置毫无价值。
+    /// 而主循环是"一次取一条"（`ui_wait_msg`），手指拖动一秒产生几百条 ⇒
+    /// **产生的比消费的快，队列只涨不落**。真机实测（gorilla 连续拖滑条 6 轮）：
+    /// 队列 285 → 596 → … → **2280** 条且完全不回落，而同一时间 fps 全程 19~21 ——
+    /// 用户看到的就是「**背景绘图不卡、但触摸要等一下才反应**」。
+    /// 在 `TOUCHMOVE` 分支里调一次 `ui_msg_drop(VML_MSG_KIND_TOUCH)`，队列立刻回到个位数。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 类别见 <see cref="VmlMsgKind"/>。**别拿它丢键盘/定时器** ——
+    /// 那两类是离散语义，丢一条就少一次事件。
+    /// </para>
+    /// </summary>
+    public const int MsgDrop = 596;
+
+    /// <summary>
+    /// `ui_msg_drop(kind)` 的**类别** —— **跨语言契约**（C 头文件里的
+    /// `VML_MSG_KIND_*` 按这些数值写死）。
+    ///
+    /// ⚠ **只能末尾追加**：数值编进了程序的机器码里，改值等于改 ABI。
+    /// </summary>
+    public enum VmlMsgKind
+    {
+        /// <summary>定时器消息（`Timer`）。`ui_timer_kill` 是"把表停掉"，这个是"清掉已经排队的到点通知"。</summary>
+        Timer = 0,
+        /// <summary>触摸：按下 / 移动 / 抬起三类一起。</summary>
+        Touch = 1,
+        /// <summary>鼠标：移动 / 按下 / 抬起三类一起。</summary>
+        Mouse = 2,
+        /// <summary>键盘：按下 / 抬起。</summary>
+        Key = 3,
+        /// <summary>全部待处理消息（等价于 <see cref="MsgClear"/>，走同一条实现）。</summary>
+        All = 4,
+    }
     /// <summary>
     /// 读一条消息（**非阻塞，带"读完之后留不留"**）：R0=消息缓冲地址 R1=保留位 → 消息类型。
     ///
@@ -1230,6 +1275,8 @@ public static class VmlUi
         DrawShape, Brush, SetStyle,
         // 通用宿主调用口 577–580（带类型快通道，见 VmlCallRegistry）
         CallWithInt8, CallWithFloat8, CallWithLong4, CallWithDouble4,
+        // 消息队列**按类丢弃** 594（见 `VmlMsgKind`：定时器 / 触摸 / 鼠标 / 键盘 / 全部）
+        MsgDrop,
     ];
 
     /// <summary>
@@ -1685,6 +1732,46 @@ public sealed class VmlMessageQueue
 
     /// <summary>非阻塞取一条（消费）；无消息返回 null。</summary>
     public VmlMessage? TryTake() => TryRead(keep: false);
+
+    /// <summary>
+    /// **丢掉队列里所有满足条件的、还没被消费的**消息，返回丢掉的条数。
+    ///
+    /// <para>
+    /// 存在的理由：移动类消息（`TouchMove` / `MouseMove`）是**"追最新位置"**的语义 ——
+    /// 旧的位置**毫无价值**，而程序的主循环是"一次取一条"（`ui_wait_msg`）——
+    /// 手指拖动一秒能产生几百条 ⇒ **产生的比消费的快，队列只涨不落**。
+    /// 真机实测（gorilla 连续拖滑条 6 轮）：队列 285 → 596 → 1050 → 1481 → 2010 → **2280**
+    /// 条，**完全不回落**；而同一时间 fps 全程 19~21。用户看到的正是
+    /// 「**背景绘图不卡、但触摸要等一下才反应**」—— 他的触摸事件排在那两千多条后面。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **只该丢移动类**。键盘 / 定时器 / 触摸的按下抬起都承载**离散语义**：
+    /// 丢一条就少一次按键、少一拍物理 —— 那是换一种 bug。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 许可（<see cref="_signal"/>）的账与 <see cref="TryRead"/> 同一条不变量：
+    /// **丢一条就 `Wait(0)` 一次**。队列长度减一而许可不减，就会留下"计数 &gt; 0 而队列为空"
+    /// 的假信号，让 `ui_wait_msg` 空转（见 <see cref="Post"/> 的注释）。
+    /// </para>
+    /// </summary>
+    public int DropPending(Func<VmlMessage, bool> predicate)
+    {
+        lock (_lock)
+        {
+            int n = _queue.Count;
+            if (n == 0) return 0;
+            int dropped = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var msg = _queue.Dequeue();
+                if (predicate(msg)) { dropped++; _signal.Wait(0); }
+                else _queue.Enqueue(msg);      // 不匹配的**保持原顺序**放回去
+            }
+            return dropped;
+        }
+    }
 
     /// <summary>
     /// 非阻塞取**第一条满足条件**的消息（消费），其余消息保持原顺序不动；没有则返回 null。

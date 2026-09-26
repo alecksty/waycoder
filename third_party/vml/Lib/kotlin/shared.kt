@@ -2513,6 +2513,8 @@
 // CALL ui_msg_count
 // extern fn ui_msg_clear(void) -> int
 // CALL ui_msg_clear
+// extern fn ui_msg_drop(int kind) -> int
+// CALL ui_msg_drop
 // extern fn ui_wait_msg(int timeout_ms) -> int
 // CALL ui_wait_msg
 // extern fn ui_poll_msg(void) -> int

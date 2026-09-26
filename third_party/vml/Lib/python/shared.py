@@ -7743,6 +7743,12 @@ def ui_msg_clear():
     asm("CALL ui_msg_clear")
     return r0
 
+def ui_msg_drop(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_msg_drop")
+    return r0
+
 def ui_wait_msg(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0

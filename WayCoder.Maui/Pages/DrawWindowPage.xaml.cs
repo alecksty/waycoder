@@ -162,6 +162,16 @@ public partial class DrawWindowPage : ContentPage
             _sceneH = doc.Height <= 0 ? 1 : doc.Height;
         }
 
+        /// <summary>
+        /// 最近一帧在平台画布上**实际画了多久**（ms）—— 矢量路径的真实开销在这里。
+        ///
+        /// ⚠ 之所以要专门量它：矢量后端把文档挂给画布就返回了，"绘制"发生在
+        ///   下一次 `Draw` 回调里 —— 原来整条日志统计的都是**后台**那半（DSL + 解析），
+        ///   于是出现"合计 5ms 但实际 13fps"这种自相矛盾的数字（真机实测就是 66ms 不知去向）。
+        ///   **没被量到的那一半才是瓶颈**，这就是它的读数口。
+        /// </summary>
+        public double LastDrawMs { get; private set; }
+
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
             // 背景铺满整个视图（含 AspectFit 留出的黑边），否则未覆盖区会是平台默认底色。
@@ -172,7 +182,9 @@ public partial class DrawWindowPage : ContentPage
 
             if (UseVector && _doc is { } doc)
             {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 DrawVectorFrame(canvas, dirtyRect, doc);
+                LastDrawMs = sw.Elapsed.TotalMilliseconds;
                 return;
             }
 
@@ -193,6 +205,27 @@ public partial class DrawWindowPage : ContentPage
         }
 
         /// <summary>
+        /// **能把图元变换交给平台坐标系**的指令（见 <c>IVectorTarget.PushTransform</c>）。
+        ///
+        /// ⚠ 刻意用**白名单**而不是黑名单：默认"不支持"最多是慢（退回逐点变换，画出来一样），
+        ///   而默认"支持"碰上某个语义不兼容的指令就会**画错**。两类后果不对称，取保守的那边。
+        ///   新增几何图元时**回来加一个名字** —— 漏了不报错，只是它仍旧走逐点变换。
+        ///
+        /// 不在名单里的，各自的原因：
+        ///   · `text` —— 平台 `DrawString` 会连**字形**一起旋转，而本仓语义是"只挪位置、不转字"
+        ///     （`DrawVector.Text` 把变换用在位置上、字号只取 `ScaleFactor`）；
+        ///   · `image` —— 带旋转的贴图原本就走"标记不支持 ⇒ 整窗回退光栅"（`ImageCommand`），
+        ///     交给画布会把它变成"矢量画旋转贴图"，那是行为变化，与提速分开做；
+        ///   · `clip` / `clippop` / `mask` / `alpha` / `layer` —— 管的是**状态**
+        ///     （裁剪栈 / 透明度 / 子图元集合），坐标语义与"整体旋转坐标系"不同源。
+        /// </summary>
+        private static readonly HashSet<string> CanvasTransformKinds = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "rect", "roundrect", "circle", "ellipse", "line", "arrow",
+            "polygon", "polyline", "path", "star", "regular", "ring", "pie", "heart",
+        };
+
+        /// <summary>
         /// 矢量后端出图：把文档里的图元**逐条画到平台画布**上。
         ///
         /// 坐标：场景坐标 → 屏幕坐标用与光栅路径**同一个 AspectFit 结果**（`_fit`），
@@ -210,19 +243,78 @@ public partial class DrawWindowPage : ContentPage
             var y = dirtyRect.Y + (dirtyRect.Height - h) / 2f;
             _fit = new RectF(x, y, w, h);
 
+            var __tc = VectorProbe.Begin();
             canvas.SaveState();
             canvas.Translate(x, y);
             canvas.Scale((float)s, (float)s);
+            VectorProbe.End(9, __tc);
 
             // 场景底色（`canvas w h <bg>` 那条），与光栅路径的起始填充一致。
             // ⚠ 必须走 FillSolid 而不是裸的 `FillColor = …`：后者清不掉上一个渐变挂上去的
             //    shader（见 MauiVectorTarget 类注释「渐变的余荫」）。
+            var __tb = VectorProbe.Begin();
             MauiVectorTarget.FillSolid(canvas, doc.Background, new RectF(0, 0, doc.Width, doc.Height));
+            VectorProbe.End(8, __tb);
 
+            var __t0 = VectorProbe.Begin();
             var target = new MauiVectorTarget(canvas, doc.Width, doc.Height);
+            VectorProbe.End(7, __t0);
+            // ⚠ 这一格量的是**整轮遍历**，**包含**下面各指令自己的耗时 ——
+            //   它存在的意义是"减去各指令之后还剩多少"，即查表/分支/push-pop 那部分。
+            //   看的时候按**调用次数**分辨：这一格是 30（帧数），指令那几格是图元数。
+            var __tl = VectorProbe.Begin();
+            // 平台坐标系里**当前开着**的那个图元变换（`open` 为真时才有效）。
+            var openTf = WayCoder.Infra.Affine.Identity;
+            var open = false;
             foreach (var f in doc.Figures)
-                WayCoder.Infra.DrawCommandRegistry.Get(f.Kind)?.Vector(target, f);
+            {
+                var __tk = VectorProbe.Begin();
+                var cmd = WayCoder.Infra.DrawCommandRegistry.Get(f.Kind);
+                var kindOk = CanvasTransformKinds.Contains(f.Kind);
+                VectorProbe.End(13, __tk);
+                if (cmd == null) continue;
+
+                // ── 刚体变换交给平台坐标系（**绘制耗时的大头在这里**）──────────────
+                // 带旋转的图元原本要把每个点逐个建成平台路径（Android 上一次 JNI/点），
+                // 于是"旋转的矩形"比"轴对齐的矩形"慢三个数量级。刚体变换不改变形状，
+                // 所以把矩阵挂到画布上、图元照常画，结果一样却省掉整份点集。
+                var tf = f.Transform;
+                var want = kindOk && !tf.IsIdentity && tf.IsRigid
+                           && f.Gradient == null && f.StrokeGradient == null;
+
+                bool useCv;
+                if (want && open && tf.Equals(openTf))
+                {
+                    // **连续同一变换 ⇒ 复用已经开着的坐标系**，不再进出一次。
+                    // 图块贴图恰好是这个形状（`push / translate / rotate / scale / …块内图元… / pop`），
+                    // 于是**一整块只付一次**进出坐标系的钱 —— 实测那一进一出的代价，
+                    // 比它省下来的"逐点建路径"还高，不合并就等于白优化。
+                    useCv = true;
+                }
+                else
+                {
+                    var __tp = VectorProbe.Begin();
+                    if (open) { target.PopTransform(); open = false; }
+                    useCv = want && target.PushTransform(tf);
+                    VectorProbe.End(12, __tp);
+                    if (useCv) { open = true; openTf = tf; }
+                }
+
+                // 绘制期间把图元的变换置为恒等（它已经由画布承担）；画完立刻还回去。
+                // **收口就在这一处**：让 14 个几何指令各写一遍"要不要交出去"，
+                // 就是"同一规则多处实现"，迟早漂。`DrawVector` 那边一个字都不用改。
+                var __tv = VectorProbe.Begin();
+                if (useCv) f.Transform = WayCoder.Infra.Affine.Identity;
+                cmd.Vector(target, f);
+                if (useCv) f.Transform = tf;
+                VectorProbe.End(11, __tv);
+            }
+            if (open) { var __tp2 = VectorProbe.Begin(); target.PopTransform(); VectorProbe.End(12, __tp2); }
+            VectorProbe.End(10, __tl);
+
+            var __tr = VectorProbe.Begin();
             canvas.RestoreState();
+            VectorProbe.End(9, __tr);
 
             if (target.Unsupported.Count > 0) OnUnsupported?.Invoke(target.Unsupported);
         }
@@ -1211,13 +1303,8 @@ public partial class DrawWindowPage : ContentPage
                 // 每帧的托管分配几乎归零（原来每帧一张 333KB 位图 ⇒ 25fps ≈ 10MB/s 垃圾）。
                 if (_canvas.UseVector)
                 {
-                    MainThread.BeginInvokeOnMainThread(() =>
-                    {
-                        _pendingStats = (dslMs, parseMs, 0, 0, figures);
-                        _canvas.SetDocument(doc);
-                        CanvasView.Invalidate();
-                        LogFrameStats(0, 0, 0);
-                    });
+                    _pendingStats = (dslMs, parseMs, 0, 0, figures);
+                    QueueVectorFrame(doc);
                     return;
                 }
 
@@ -1367,14 +1454,27 @@ public partial class DrawWindowPage : ContentPage
         var uiMs = decodeMs + blitMs;
         var bgMs = st?.DslMs + st?.ParseMs + st?.RasterMs ?? 0;
         var msg = $"每帧：DSL {st?.DslMs ?? 0:F1} / 解析 {st?.ParseMs ?? 0:F1} / 光栅+PNG {st?.RasterMs ?? 0:F1} " +
-                  $"= 后台 {bgMs:F1}ms｜解码 {decodeMs:F1} / 贴图 {blitMs:F1} = UI {uiMs:F1}ms" +
+                  // ⚠ `blitMs` 在矢量路径下装的是**上一帧的平台绘制耗时**（`SceneCanvas.LastDrawMs`）——
+                  //   那一半原来根本没被统计，才有了"合计 5ms 却只有 13fps"的自相矛盾。
+                  $"= 后台 {bgMs:F1}ms｜解码 {decodeMs:F1} / 绘制 {blitMs:F1} = UI {uiMs:F1}ms" +
                   $"｜图元 {st?.Figures ?? 0}｜PNG {pngBytes / 1024}KB｜合计 {bgMs + uiMs:F0}ms" +
+                  // ⚠ **队列长度**：用户报「玩一会儿越来越卡、触摸要等一下才反应，但背景绘图不卡」
+                  //   —— 那是"输入这条路有东西在累积"的典型形状。而**唯一能直接证伪/证实它**的
+                  //   就是这个数：稳态下它该在 0~2 徘徊（主循环每轮抽干），若**随时间单调上涨**，
+                  //   就说明程序消费不过来，触摸事件排在后面（就是"迟钝"）。
+                  $"｜队列 {VmlUiCalls.Current?.QueueCount ?? -1}" +
                   $"｜**实际 {realFps:F1} fps**（{windowFrames} 帧 / {elapsed:F0}ms）";
 
         // ⚠ 平台守卫：`Android.Util.Log` 在 iOS 上不存在 —— 本页是两端共编的，
         //   少一处守卫就多一次「只在某个平台编译不过」（本仓在编辑器探针上踩过一轮）。
 #if ANDROID
         Android.Util.Log.Info("WCVML", msg);
+        // 分指令耗时（诊断件）—— 总数只说明"慢"，这一行说明**慢在哪一类**。
+        if (VectorProbe.Report() is { } dist)
+        {
+            Android.Util.Log.Info("WCVML", dist);
+            VectorProbe.Reset();
+        }
 #else
         System.Diagnostics.Debug.WriteLine("[WCVML] " + msg);
 #endif
@@ -1392,6 +1492,40 @@ public partial class DrawWindowPage : ContentPage
     {
         _rendering = false;
         RenderIfChanged();
+    }
+
+    // ── 矢量帧进 UI 线程：**最多只排一个** ────────────────────────────────────
+    //
+    // ⚠⚠ 这是真机「又卡又木」的根因。矢量路径下 `FinishRender()` 是在
+    //   `BeginInvokeOnMainThread` **排队之后**立刻执行的，而它并不等 UI 真的画完 ——
+    //   于是后台线程（解析只要 5ms）以十几倍的速率不停往 UI 队列里塞回调，
+    //   而 UI 每帧要几十毫秒。后果有两层：
+    //     · 回调队列越堆越长，**触摸事件排在它们后面** ⇒ 操作发木（用户原话"操作变卡了"）；
+    //     · 每个回调都要 `SetDocument` + `Invalidate`，白占 UI 时间。
+    //
+    //   而画布绘制天生是**幂等且追最新**的：`SetDocument` 只是换个引用、
+    //   `Invalidate` 只是标脏（Android 下一次 vsync 才真画）。所以积压的中间帧
+    //   **一份都不需要** —— 进门时用最新的那份覆盖掉即可。
+    //
+    // 语义上也更对：渲染要的是"追上最新状态"，不是"把每一帧都补出来"。
+    private WayCoder.Infra.DrawDocument? _pendingDoc;
+    private int _uiFrameQueued;          // 0/1：UI 队列里是否已经排着一个取帧回调
+
+    private void QueueVectorFrame(WayCoder.Infra.DrawDocument doc)
+    {
+        System.Threading.Volatile.Write(ref _pendingDoc, doc);
+        if (System.Threading.Interlocked.CompareExchange(ref _uiFrameQueued, 1, 0) != 0)
+            return;                      // 已有在途的回调 ⇒ 它取的时候会拿到刚写进去的这份
+
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            System.Threading.Interlocked.Exchange(ref _uiFrameQueued, 0);
+            var frame = System.Threading.Interlocked.Exchange(ref _pendingDoc, null);
+            if (frame == null) return;
+            _canvas.SetDocument(frame);
+            CanvasView.Invalidate();
+            LogFrameStats(0, _canvas.LastDrawMs, 0);
+        });
     }
 
     // ── 输入 ──────────────────────────────────────────────────

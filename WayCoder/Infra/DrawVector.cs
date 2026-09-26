@@ -35,6 +35,41 @@ public interface IVectorTarget
     double SceneHeight { get; }
 
     /// <summary>
+    /// 把**图元的仿射变换**交给平台坐标系，之后的图元按**本地坐标**画即可。
+    ///
+    /// 返回 <c>true</c> = 已进入（调用方**必须**配一次 <see cref="PopTransform"/>）；
+    /// <c>false</c> = 本实现不支持，调用方**退回逐点变换**（<c>Canvas.TransformPoints</c>）。
+    ///
+    /// <para>
+    /// 为什么值得单开一个方法：通用那条路（<c>FillShape</c>/<c>StrokePolyline</c>）要
+    /// **逐点**建平台路径（Android 上每个点一次 JNI），而平台原生图元
+    /// （<c>FillRectangle</c>/<c>FillEllipse</c>/<c>DrawLine</c>）根本不碰点集 ——
+    /// 但它们要求形状在**当前坐标系**里是轴对齐的。刚体变换（纯旋转 + 平移）
+    /// 不改变形状，所以"把矩阵挂到画布上、图元照常画"与"逐点变换再画折线"
+    /// 结果完全一致，却省掉整份点集。
+    /// </para>
+    ///
+    /// <para>
+    /// 真机实测（`Examples/c/block_bench.c`，一千架带旋转的图块）：一帧 15000 次通用填充
+    /// 要 **2.9 秒**，而同类图元走原生只要 **0.4 毫秒 × 30 帧** —— 差三个数量级。
+    /// 症结不在图元数，在"旋转变换把每个矩形都逼成了折线"。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 调用方**只在 <see cref="Affine.IsRigid"/> 为真时**才该调它（见那里的说明：
+    /// 等比缩放会让线宽变粗，那是观感变化）。接口这层不替调用方判 ——
+    /// 判据只有一份，在 <see cref="Affine.IsRigid"/>。
+    /// </para>
+    ///
+    /// ⚠ **带默认实现**（与上面那个 5 参 <c>FillShape</c> 同一套兼容策略）：
+    /// 不支持的实现方一个字都不用改，自动退回逐点变换 —— 结果相同，只是慢一点。
+    /// </summary>
+    bool PushTransform(Affine t) => false;
+
+    /// <summary>退出 <see cref="PushTransform"/> 开的坐标系（**仅当它返回过 true 才调**）。</summary>
+    void PopTransform() { }
+
+    /// <summary>
     /// 填充一组子路径（每个子路径是 x,y 交替的点集）。
     /// <paramref name="evenOdd"/> 为真时按**奇偶规则**挖洞（`path` 的多子路径靠它做环）。
     /// </summary>
@@ -55,6 +90,44 @@ public interface IVectorTarget
     void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
         bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box)
         => FillShape(subpaths, fill, gradient, evenOdd);
+
+    /// <summary>
+    /// **轴对齐的实心矩形**（<paramref name="radius"/> &gt; 0 时是圆角矩形）—— 平台原生快路径。
+    ///
+    /// ⚠ 为什么值得单开一个方法：通用那条路（<see cref="FillShape"/>）要把点集交给实现方
+    ///   **逐个点建平台路径**（Android 上每个点是一次 JNI 调用）。一个矩形 4 个点看似不多，
+    ///   但一帧几百个图元、绝大多数正是矩形与圆 —— 真机实测每帧几万次 JNI，
+    ///   单帧 70ms、只有 13fps 的主因就在这里。而平台自己就有 `DrawRect`/`DrawOval`
+    ///   这类原生图元，根本不必绕路径。
+    ///
+    /// 约定与 <see cref="FillShape"/> 完全一致：几何**已经落到世界坐标**（变换由调用方做，
+    /// 所以调用方必须保证变换是恒等 —— 带旋转的矩形已经不是"轴对齐矩形"了），
+    /// <paramref name="gradient"/> 非空时按这个矩形归一化（与几何的外接矩形同一个口径）。
+    ///
+    /// ⚠ **带默认实现**（与上面那个 5 参 `FillShape` 同一套兼容策略）：认不出这个方法的
+    ///   实现方一个字都不用改，自动退化成"四点折线走通用路径" —— 结果相同，只是慢一点。
+    /// </summary>
+    void FillRect(double x, double y, double w, double h, uint fill, Gradient? gradient, double radius)
+    {
+        if (gradient == null && (fill >> 24) == 0) return;
+        IReadOnlyList<double> pts = radius > 0
+            ? DrawGeo.RoundRect(x, y, w, h, radius)
+            : new List<double> { x, y, x + w, y, x + w, y + h, x, y + h };
+        FillShape(new[] { pts }, fill, gradient, evenOdd: false);
+    }
+
+    /// <summary>
+    /// **实心椭圆**（`rx == ry` 就是圆）—— 平台原生快路径，理由同 <see cref="FillRect"/>。
+    ///
+    /// ⚠ 通用那条路是用 **64 段折线**近似一个圆，而游戏里几十个圆的半径只有 2~5px ——
+    ///   折线在那儿既看不出圆、又要付 64 个点建路径的代价。平台原生 `DrawOval`
+    ///   又更快又更圆。默认实现同样退回折线。
+    /// </summary>
+    void FillEllipse(double cx, double cy, double rx, double ry, uint fill, Gradient? gradient)
+    {
+        if (gradient == null && (fill >> 24) == 0) return;
+        FillShape(new[] { DrawGeo.Ellipse(cx, cy, rx, ry, 64) }, fill, gradient, evenOdd: false);
+    }
 
     /// <summary>描边折线；<paramref name="close"/> 为真时首尾相连（多边形轮廓）。</summary>
     void StrokePolyline(IReadOnlyList<double> pts, double width, uint color, string cap, bool dashed, bool close);
@@ -122,12 +195,51 @@ public interface IVectorTarget
 /// </summary>
 public static class DrawVector
 {
-    /// <summary>单个多边形的填充（绝大多数图元走这条）。</summary>
+    /// <summary>单个多边形的填充（**带变换**的图元走这条）。</summary>
     public static void Polygon(IVectorTarget t, IReadOnlyList<double> pts, DrawFigure f)
     {
         if (pts.Count < 6) return;
         if (f.Gradient == null && (f.Fill >> 24) == 0) return;
         t.FillShape(new[] { Canvas.TransformPoints(f.Transform, pts) }, f.Fill, f.Gradient, evenOdd: false);
+    }
+
+    /// <summary>
+    /// 这个图元**要不要描边**。
+    ///
+    /// 用途是**省掉一份白建的点集**：`Stroke` 自己会在"没给描边色"时提前返回，但调用方
+    /// 往往已经把点集拼好了（矩形那四个点、圆那 64 个点）。先问一句再拼。
+    /// </summary>
+    public static bool HasStroke(DrawFigure f)
+        => f.StrokeGradient != null || (f.Stroke != 0 && (f.Stroke >> 24) != 0);
+
+    /// <summary>
+    /// 轴对齐矩形的填充：**能走平台原生就走原生**（见 `IVectorTarget.FillRect` 的说明），
+    /// 带旋转/错切时退回折线 —— 那时它已经不是"轴对齐矩形"了。
+    /// </summary>
+    public static void Rect(IVectorTarget t, double x, double y, double w, double h, double radius, DrawFigure f)
+    {
+        if (f.Gradient == null && (f.Fill >> 24) == 0) return;
+        if (f.Transform.IsIdentity)
+        {
+            t.FillRect(x, y, w, h, f.Fill, f.Gradient, radius);
+            return;
+        }
+        var pts = radius > 0
+            ? DrawGeo.RoundRect(x, y, w, h, radius)
+            : new List<double> { x, y, x + w, y, x + w, y + h, x, y + h };
+        Polygon(t, pts, f);
+    }
+
+    /// <summary>椭圆的填充 —— 同 <see cref="Rect"/>，能走原生 `DrawOval` 就不建那 64 个点。</summary>
+    public static void Ellipse(IVectorTarget t, double cx, double cy, double rx, double ry, DrawFigure f)
+    {
+        if (f.Gradient == null && (f.Fill >> 24) == 0) return;
+        if (f.Transform.IsIdentity)
+        {
+            t.FillEllipse(cx, cy, rx, ry, f.Fill, f.Gradient);
+            return;
+        }
+        Polygon(t, DrawGeo.Ellipse(cx, cy, rx, ry, 64), f);
     }
 
     /// <summary>多子路径填充（`path` 的挖洞）。</summary>

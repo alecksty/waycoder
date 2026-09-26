@@ -12,14 +12,22 @@ namespace WayCoder.Infra;
 //   这里是"几何到落笔"的映射，不该有第二套规则。
 // ══════════════════════════════════════════════════════════════════════════
 
+// ⚠ 这四个（矩形 / 圆角矩形 / 圆 / 椭圆）**填充走平台原生**（`DrawVector.Rect`/`Ellipse`
+//   会判变换恒等后调 `IVectorTarget.FillRect`/`FillEllipse`），只有**描边**还用折线。
+//   原因见 `IVectorTarget.FillRect` 的说明：通用那条路要逐点建平台路径，一帧几百个图元
+//   就是几万次 JNI。而这四类是一帧图元的绝大多数（游戏里的窗户、楼体、地面、按键全是矩形）。
+//
+// ⚠ 描边那半边的点集**先问 `HasStroke` 再拼** —— `Stroke` 自己会在"没给描边色"时提前
+//   返回，但点集是调用方拼的，不先问一句就是白建一份（圆那份还是 64 个点）。
+
 internal sealed partial class RectCommand
 {
     public void Vector(IVectorTarget t, DrawFigure f)
     {
         double x = f.Args[0], y = f.Args[1], w = f.Args[2], h = f.Args[3];
-        var pts = new List<double> { x, y, x + w, y, x + w, y + h, x, y + h };
-        DrawVector.Polygon(t, pts, f);
-        DrawVector.Stroke(t, pts, f, close: true);
+        DrawVector.Rect(t, x, y, w, h, 0, f);
+        if (DrawVector.HasStroke(f))
+            DrawVector.Stroke(t, new List<double> { x, y, x + w, y, x + w, y + h, x, y + h }, f, close: true);
     }
 }
 
@@ -27,9 +35,10 @@ internal sealed partial class RoundRectCommand
 {
     public void Vector(IVectorTarget t, DrawFigure f)
     {
-        var pts = DrawGeo.RoundRect(f.Args[0], f.Args[1], f.Args[2], f.Args[3], f.Args[4]);
-        DrawVector.Polygon(t, pts, f);
-        DrawVector.Stroke(t, pts, f, close: true);
+        double x = f.Args[0], y = f.Args[1], w = f.Args[2], h = f.Args[3], r = f.Args[4];
+        DrawVector.Rect(t, x, y, w, h, r, f);
+        if (DrawVector.HasStroke(f))
+            DrawVector.Stroke(t, DrawGeo.RoundRect(x, y, w, h, r), f, close: true);
     }
 }
 
@@ -37,9 +46,10 @@ internal sealed partial class CircleCommand
 {
     public void Vector(IVectorTarget t, DrawFigure f)
     {
-        var pts = DrawGeo.Ellipse(f.Args[0], f.Args[1], f.Args[2], f.Args[2], 64);
-        DrawVector.Polygon(t, pts, f);
-        DrawVector.Stroke(t, pts, f, close: true);
+        double cx = f.Args[0], cy = f.Args[1], r = f.Args[2];
+        DrawVector.Ellipse(t, cx, cy, r, r, f);
+        if (DrawVector.HasStroke(f))
+            DrawVector.Stroke(t, DrawGeo.Ellipse(cx, cy, r, r, 64), f, close: true);
     }
 }
 
@@ -47,9 +57,10 @@ internal sealed partial class EllipseCommand
 {
     public void Vector(IVectorTarget t, DrawFigure f)
     {
-        var pts = DrawGeo.Ellipse(f.Args[0], f.Args[1], f.Args[2], f.Args[3], 64);
-        DrawVector.Polygon(t, pts, f);
-        DrawVector.Stroke(t, pts, f, close: true);
+        double cx = f.Args[0], cy = f.Args[1], rx = f.Args[2], ry = f.Args[3];
+        DrawVector.Ellipse(t, cx, cy, rx, ry, f);
+        if (DrawVector.HasStroke(f))
+            DrawVector.Stroke(t, DrawGeo.Ellipse(cx, cy, rx, ry, 64), f, close: true);
     }
 }
 

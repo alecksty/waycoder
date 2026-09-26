@@ -256,6 +256,32 @@ public static partial class SelfTest
         Section("[Draw.Antialias]");
         Check("Affine 恒等缩放因子 1", Affine.Identity.ScaleFactor == 1);
         Check("Affine 缩放因子 3", Affine.Scale(3, 3).ScaleFactor == 3);
+
+        // ── 刚体判定（`IsRigid`）────────────────────────────────────────────
+        // 矢量后端拿它决定"能不能把变换交给平台坐标系"（画布变换 + 原生图元）。
+        // ⚠ 判错的后果**不对称**，所以正反两面都要钉：
+        //   · 判"是刚体"而实际不是 ⇒ 描边会变粗、圆角会变形（**画错**）；
+        //   · 判"不是刚体"而实际是 ⇒ 只是退回逐点变换（**慢**，但画得对）。
+        Check("Rigid: 恒等", Affine.Identity.IsRigid);
+        Check("Rigid: 平移", Affine.Translate(3, -4).IsRigid);
+        Check("Rigid: 旋转 30°", Affine.Rotate(30).IsRigid);
+        Check("Rigid: 绕点旋转", Affine.Rotate(45, 10, 20).IsRigid);
+        Check("Rigid: 缩放不是刚体", !Affine.Scale(2, 2).IsRigid);
+        Check("Rigid: 等比缩放也不是刚体", !Affine.Scale(1.5, 1.5).IsRigid);
+        Check("Rigid: 非等比缩放不是刚体", !Affine.Scale(2, 1).IsRigid);
+        Check("Rigid: 错切不是刚体", !new Affine(1, 0, 0.5, 1, 0, 0).IsRigid);
+        // **长链累乘**：变换是 `Compose` 一层层叠出来的，转几十次之后
+        // `cos²+sin²` 与 1 的差会累积到 1e-14 量级 —— 容差太严会让"转几圈之后
+        // 突然不走快路径"，那是**性能问题**而不是错误，正因如此才最难被发现。
+        var rigidChain = Affine.Identity;
+        for (var i = 0; i < 50; i++)
+            rigidChain = rigidChain.Compose(Affine.Rotate(7)).Compose(Affine.Translate(1, 1));
+        Check("Rigid: 50 次累乘后仍是刚体", rigidChain.IsRigid);
+        // 逐字段比较（驱动层每图元拿它判"和上一个是不是同一个变换"）。
+        // 默认的 `ValueType.Equals` 走反射 —— 在每帧几千次的路径上那是灾难。
+        Check("Affine.Equals 逐字段", Affine.Rotate(30).Equals(Affine.Rotate(30))
+              && !Affine.Rotate(30).Equals(Affine.Rotate(31))
+              && Affine.Translate(1, 2).Equals(new Affine(1, 0, 0, 1, 1, 2)));
         var aaDoc = DrawRunner.Parse("antialias\ncanvas 40 40 #fff\ncircle 20 20 10 #000");
         Check("aa 指令置位", aaDoc.Antialias);
         var noAaDoc = DrawRunner.Parse("canvas 40 40 #fff\ncircle 20 20 10 #000");

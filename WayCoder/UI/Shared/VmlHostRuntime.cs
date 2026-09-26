@@ -381,6 +381,19 @@ public sealed class VmlHostRuntime
         _queue.Post(new VmlMessage(type, a, b, Environment.TickCount));
     }
 
+    /// <summary>
+    /// `ui_msg_drop(VML_MSG_KIND_ALL)` —— 清空队列并**返回清掉的条数**。
+    ///
+    /// 与 `ui_msg_clear`（#568，固定返回 0）走同一件事，只是回报条数：
+    /// 两个入口共用这一处实现，免得"清空"这件事有两份写法（其中一份迟早忘了同步）。
+    /// </summary>
+    private int AllAndCount()
+    {
+        var n = _queue.Count;
+        _queue.Clear();
+        return n;
+    }
+
     // ── 多点触控的当前状态（`TOUCH_QUERY` #556）────────────────────────────
     //
     // 与消息队列**并存**：队列记"发生过什么"，这里记"此刻是什么样"。
@@ -671,6 +684,27 @@ public sealed class VmlHostRuntime
                 // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
                 // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
                 case VmlUi.MsgClear: _queue.Clear(); registers[0] = 0; break;
+                // 按类丢弃待处理消息 → 丢掉的条数。类别见 `VmlMsgKind`（跨语言契约）。
+                // ⚠ 判据必须是**消息类型本身**，不是"消息从哪来" —— 宿主这边只有类型。
+                case VmlUi.MsgDrop:
+                {
+                    var kind = (VmlUi.VmlMsgKind)registers[0];
+                    registers[0] = kind switch
+                    {
+                        VmlUi.VmlMsgKind.Timer => _queue.DropPending(m => m.Type == VmlMsgType.Timer),
+                        VmlUi.VmlMsgKind.Touch => _queue.DropPending(m =>
+                            m.Type is VmlMsgType.TouchDown or VmlMsgType.TouchMove or VmlMsgType.TouchUp),
+                        VmlUi.VmlMsgKind.Mouse => _queue.DropPending(m =>
+                            m.Type is VmlMsgType.MouseDown or VmlMsgType.MouseMove or VmlMsgType.MouseUp),
+                        VmlUi.VmlMsgKind.Key => _queue.DropPending(m =>
+                            m.Type is VmlMsgType.KeyDown or VmlMsgType.KeyUp),
+                        VmlUi.VmlMsgKind.All => AllAndCount(),
+                        // 认不出的类别**什么都不丢**并返回 -1：静默当成"全部清掉"是最坏的做法
+                        // （程序打错一个字面量就把整队历史抹了，还看不出是谁干的）。
+                        _ => -1,
+                    };
+                    break;
+                }
                 // ── 手机特有的操作方式（§3 P1）──────────────────────────────────
             case VmlUi.TouchQuery:
             {
