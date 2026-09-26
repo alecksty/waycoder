@@ -163,7 +163,10 @@ func reset() {
 
 func gameOver() {
     A[8] = 0
-    ui_beep(220, 260)
+    // 音效：机制在共享库（ui_sfx_*），这里只有音色
+    ui_sfx_add(2, 60, 0, 4, 90, 2)
+    ui_sfx_add(3, 53, 4, 4, 90, 2)
+    ui_sfx_add(4, 45, 8, 12, 95, 2)
     draw()
     if ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 { ui_win_close(); return }
     reset()
@@ -198,7 +201,9 @@ func step() -> Int {
         A[6] = A[6] + 10
         if A[6] > A[7] { A[7] = A[6] }
         if A[10] > 70 { A[10] = A[10] - 6 }
-        ui_beep(880, 40)
+        // 音效：机制在共享库（ui_sfx_*），这里只有音色
+        ui_sfx_add(0, 84, 0, 2, 85, 1)
+        ui_sfx_add(1, 91, 1, 4, 80, 1)
         placeFood()
     }
     return 1
@@ -252,6 +257,8 @@ func main() {
     var curMs = A[10]
 
     while ui_win_closed() == 0 {
+
+        ui_sfx_tick()
         var t = ui_wait_msg(0)
         if t == 0 { continue }
         if t == MSG_CLOSE { break }

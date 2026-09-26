@@ -245,7 +245,8 @@ class Racer
                     {
                         if (speed < 18) speed = speed + 1;
                         if (tickMs > 24) tickMs = tickMs - 4;
-                        ui_beep(1180, 30);
+                        ui_sfx_add(0, 84, 0, 2, 80, 1);
+                                                ui_sfx_add(1, 91, 1, 4, 75, 1);   // 躲过一辆：上行两音
                     }
                 }
             }
@@ -276,7 +277,9 @@ class Racer
                 if (vOver != 0 && hNear != 0)
                 {
                     alive = 0;
-                    ui_beep(180, 320);
+                    ui_sfx_add(2, 60, 0, 4, 95, 2);
+                                        ui_sfx_add(3, 53, 4, 4, 95, 2);
+                                        ui_sfx_add(4, 45, 8, 12, 100, 2);   // 撞车：下行三音
                     draw();
                     if (ui_dlg_msg("赛车", "撞车了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return 1; }
                     reset();
@@ -304,6 +307,8 @@ class Racer
         int curMs = tickMs;
 
         while (ui_win_closed() == 0)
+
+            ui_sfx_tick();
         {
             int t = ui_wait_msg(0);
             if (t == 0) continue;

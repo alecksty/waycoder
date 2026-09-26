@@ -137,7 +137,10 @@ func reset() {
 
 func gameOver() {
 	A[8] = 0
-	ui_beep(220, 260)
+	// 音效：机制在共享库（ui_sfx_*），这里只有音色
+	ui_sfx_add(2, 60, 0, 4, 90, 2)
+	ui_sfx_add(3, 53, 4, 4, 90, 2)
+	ui_sfx_add(4, 45, 8, 12, 95, 2)
 	draw()
 	// 选「否/拒绝」→ 退出游戏（ui_dlg_msg 返回 0=是 / 1=否）。
 	// 此前不接返回值 ⇒ 两个按钮一个样、游戏还退不出去（用户实测报的）。
@@ -196,7 +199,9 @@ func step() {
 		if A[10] > 70 {
 			A[10] = A[10] - 6
 		}
-		ui_beep(880, 40)
+		// 音效：机制在共享库（ui_sfx_*），这里只有音色
+		ui_sfx_add(0, 84, 0, 2, 85, 1)
+		ui_sfx_add(1, 91, 1, 4, 80, 1)
 		placeFood()
 	}
 }
@@ -242,6 +247,8 @@ func main() {
 	curMs := A[10]
 
 	for ui_win_closed() == 0 {
+
+		ui_sfx_tick()
 		if A[109] != 0 {
 			break
 		}

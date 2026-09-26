@@ -117,7 +117,8 @@ Var
     中间那些 in al,dx 是等声卡芯片响应（Adlib 的时序要求）。
     本平台没有 Adlib 那块硬件、也没有端口 I/O ⇒ 以空过程代替（写寄存器 = 无事发生，
     后续 InitializeAdlib 里的整串 Adlib(...) 参数设置因此都是空操作）。
-    ⚠ 想在本平台「发声」应改走 ui_beep(freq, ms)（见 Lib/shared/src/vmlui.c）——
+    ⚠ 想在本平台「发声」应改走 ui_beep(freq, ms) 或复音的
+    ui_sfx_add/ui_sfx_tick（都在 Lib/shared/src/vmlui.c，各语言共用一份）——
     但那是**语义上的替代**，音色/多声道/音色寄存器与原 Adlib FM 完全不同，
     不是等价实现，所以这里没有接。原汇编保留在下方注释里备查。 }
   Procedure Adlib(Reg, Data : Byte);

@@ -232,7 +232,7 @@ void on_key(int i)
             if (!entering) { cur = 0; curDigits = 0; hasDot = 0; entering = 1; }
             cur = cur * 10 + c * 100;
             curDigits = curDigits + 1;
-            ui_beep(1200, 12);
+            sfx_digit();
         }
         return;
     }
@@ -240,18 +240,18 @@ void on_key(int i)
     if (c == 18) {                                    /* . */
         if (!entering) { cur = 0; curDigits = 0; entering = 1; hasDot = 0; }
         if (hasDot == 0) hasDot = 1;
-        ui_beep(1200, 12);
+        sfx_digit();
         return;
     }
 
-    if (c == 16) { cur = -cur; ui_beep(900, 14); return; }        /* +/- */
-    if (c == 17) { cur = cur / 100; ui_beep(900, 14); return; }   /* % */
+    if (c == 16) { cur = -cur; sfx_sign(); return; }        /* +/- */
+    if (c == 17) { cur = cur / 100; sfx_sign(); return; }   /* % */
 
     if (c == 15) {                                    /* C */
         acc = 0; cur = 0; curDigits = 0; hasDot = 0;
         pendingOp = 0; entering = 0; err = 0;
         exprLen = 0; expr[0] = 0;
-        ui_beep(420, 40);
+        sfx_clear();
         return;
     }
 
@@ -265,7 +265,7 @@ void on_key(int i)
             cur = acc; entering = 0; curDigits = 0; hasDot = 0;
             pendingOp = 0;
             exprLen = 0; expr[0] = 0;
-            if (err) { ui_beep(300, 120); } else { ui_beep(1400, 40); }
+            if (err) { sfx_err(); } else { sfx_ok(); }
             return;
         }
 
@@ -282,8 +282,36 @@ void on_key(int i)
             expr[exprLen] = 0;
         }
         push_expr_op(op);
-        ui_beep(900, 18);
+        sfx_op();
     }
+}
+
+/* ── 音效：机制在共享库里（ui_sfx_*），这里只有音色 ──────────
+ *
+ * 计算器的音效是**触感**，不是气氛 —— 所以一律**极短**（dur 1~2，vel 45~55）。
+ * 按一次键响 200ms 的"叮"，按十下就是噪音。
+ * ⚠ 通道分区互不重叠：0 数字 / 1 正负与百分号 / 2 运算符 / 3–4 清零 /
+ *   5–6 等号成功 / 7–9 等号出错。 */
+
+void sfx_digit(void) { ui_sfx_add(0, 88, 0, 1, 45, VML_WAVE_SQUARE); }
+void sfx_sign(void)  { ui_sfx_add(1, 79, 0, 1, 50, VML_WAVE_SQUARE); }
+void sfx_op(void)    { ui_sfx_add(2, 76, 0, 1, 55, VML_WAVE_SQUARE); }
+
+/* 清零：下行两音 —— 一听就知道"清掉了"。 */
+void sfx_clear(void) {
+    ui_sfx_add(3, 72, 0, 2, 70, VML_WAVE_TRIANGLE);
+    ui_sfx_add(4, 65, 1, 3, 70, VML_WAVE_TRIANGLE);
+}
+
+/* 等号：对是上行「叮-铃」，错是下行三音 —— 两者**方向相反**，不会听错。 */
+void sfx_ok(void) {
+    ui_sfx_add(5, 84, 0, 2, 80, VML_WAVE_SQUARE);
+    ui_sfx_add(6, 91, 1, 4, 80, VML_WAVE_SQUARE);
+}
+void sfx_err(void) {
+    ui_sfx_add(7, 60, 0, 3, 85, VML_WAVE_SAW);
+    ui_sfx_add(8, 53, 3, 3, 85, VML_WAVE_SAW);
+    ui_sfx_add(9, 45, 6, 8, 90, VML_WAVE_SAW);
 }
 
 /* ── 渲染 ───────────────────────────────────────────────── */
@@ -446,6 +474,7 @@ int main(void)
     ui_present();
 
     while (ui_win_closed() == 0) {
+        ui_sfx_tick();
         t = ui_wait(m, 400);
 
         if (t == VML_MSG_TOUCHDOWN) {
@@ -480,5 +509,6 @@ int main(void)
     }
 
     ui_keep_on(0);
+    ui_sfx_panic();
     return 0;
 }

@@ -76,6 +76,12 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(f AS INTEGER, ms AS INTEGER)
 END SUB
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+END SUB
+NATIVE SUB ui_sfx_tick()
+END SUB
+NATIVE SUB ui_sfx_panic()
+END SUB
 NATIVE SUB ui_keep_on(on AS INTEGER)
 END SUB
 
@@ -252,6 +258,7 @@ FUNCTION ttyAsk(prompt AS STRING, lo AS INTEGER, hi AS INTEGER) AS INTEGER
     bx2 = (ttyW - 140) / 2
     quit = 0
     WHILE quit = 0
+        ui_sfx_tick
         lab = STR$(ttyVal)
         ui_rect(0, ttyBarTop - 6, ttyW, ttyH - ttyBarTop + 6, ttyBarBg, 1, 0, 0)
         ui_text(ttyW / 2, ttyBarTop + 4, ttyPrompt, ttyFg, ttyFont, 1)
@@ -279,7 +286,7 @@ FUNCTION ttyAsk(prompt AS STRING, lo AS INTEGER, hi AS INTEGER) AS INTEGER
                             IF ttyVal < ttyLo THEN
                                 ttyVal = ttyLo
                             END IF
-                            ui_beep(660, 20)
+                            ui_sfx_add 0, 67, 0, 1, 40, 3   ' 减
                         END IF
                     END IF
                     IF ttyA >= bx3 THEN
@@ -288,13 +295,13 @@ FUNCTION ttyAsk(prompt AS STRING, lo AS INTEGER, hi AS INTEGER) AS INTEGER
                             IF ttyVal > ttyHi THEN
                                 ttyVal = ttyHi
                             END IF
-                            ui_beep(880, 20)
+                            ui_sfx_add 0, 72, 0, 1, 40, 3   ' 加
                         END IF
                     END IF
                     IF ttyA >= bx2 THEN
                         IF ttyA <= bx2 + 140 THEN
                             quit = 1
-                            ui_beep(1180, 40)
+                            ui_sfx_add 1, 84, 0, 2, 65, 1   ' 确定
                         END IF
                     END IF
                 END IF
@@ -331,6 +338,7 @@ FUNCTION ttyKey() AS INTEGER
     got = 0
     ttyKey = 0
     WHILE got = 0
+        ui_sfx_tick
         ttyM = ui_wait_msg(0)
         IF ttyM = 10 THEN
             ui_win_close
@@ -416,6 +424,7 @@ END IF
 710 ttyPn("EAST")
 720 ttyP("")
 730 RETURN
+999 ui_sfx_panic
 999 END
 
 99998 END

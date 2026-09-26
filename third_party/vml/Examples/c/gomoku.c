@@ -283,19 +283,6 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
  *   人机两条落子音**必须分得开**（玩家要一耳朵知道刚才那步是谁下的）。 */
 
 /* 音序器推进：按真实流逝时间（不按"绕一圈算一拍"）。放在主循环里。 */
-int sfx_last;
-void sfx_pump(void) {
-    int now;
-    int n;
-    now = ui_tick();
-    if (sfx_last == 0) { sfx_last = now; return; }
-    n = (now - sfx_last) / 33;
-    if (n > 4) n = 4;
-    if (n > 0) {
-        sfx_last = now;
-        while (n > 0) { ui_sfx_tick(); n = n - 1; }
-    }
-}
 
 /* 人落子：清亮、高。 */
 void sfx_put_human(void) { ui_sfx_add(0, 88, 0, 2, 70, VML_WAVE_SQUARE); }
@@ -420,9 +407,8 @@ int main(void) {
     draw_board(b, pad, padY, cell, lastIdx, over);
 
     /* 主循环：一个统一的消息队列，取到触摸就换算格子 */
-    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
-        sfx_pump();
+        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;                     /* 超时（这里不会发生，0=无限等） */
         if (t == VML_MSG_WINDOWCLOSE) break;

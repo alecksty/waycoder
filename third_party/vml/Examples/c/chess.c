@@ -766,6 +766,44 @@ int pt_in(int px, int py, int x, int y, int w, int h) {
 
 #ifndef CHESS_LIB_ONLY
 
+/* ── 音效：机制在共享库里（ui_sfx_*），这里只有音色 ──────────
+ *
+ * ⚠ 象棋里大部分音是**高频动作**（选中、走子），必须**又轻又短** —— 响一点就烦。
+ *   真正需要"有分量"的只有三个：将军、赢、输。
+ * ⚠ **你走子与电脑走子必须分得开**：玩家要一耳朵知道刚才那步是谁走的。
+ * ⚠ 通道分区互不重叠：0 选中 / 1 你走子 / 2 电脑走子 / 3 悔棋成功 / 4 悔棋失败 /
+ *   5 新局 / 6–7 将军 / 8–10 赢 / 11–13 输。 */
+
+void sfx_pick(void)   { ui_sfx_add(0, 84, 0, 1, 40, VML_WAVE_TRIANGLE); }
+void sfx_move(void)   { ui_sfx_add(1, 76, 0, 2, 65, VML_WAVE_SQUARE); }
+void sfx_aimove(void) { ui_sfx_add(2, 64, 0, 2, 65, VML_WAVE_TRIANGLE); }
+
+/* 悔棋：成不成一听就知道（成了清亮、没得悔低闷）。 */
+void sfx_undo_ok(void) { ui_sfx_add(3, 72, 0, 2, 70, VML_WAVE_TRIANGLE); }
+void sfx_undo_no(void) { ui_sfx_add(4, 48, 0, 2, 80, VML_WAVE_SAW); }
+
+void sfx_newgame(void) { ui_sfx_add(5, 79, 0, 3, 75, VML_WAVE_SQUARE); }
+
+/* 将军：上行两音 + 拖长 —— 这是**必须让玩家立刻知道**的事。 */
+void sfx_check(void) {
+    ui_sfx_add(6, 84, 0, 3, 95, VML_WAVE_SQUARE);
+    ui_sfx_add(7, 91, 2, 9, 95, VML_WAVE_SQUARE);
+}
+
+/* 赢：上行大三和弦 + 高八度；输：下行三音。**方向相反，不会听错。** */
+void sfx_win(void) {
+    ui_sfx_add(8, 72, 0, 4, 92, VML_WAVE_SQUARE);
+    ui_sfx_add(9, 79, 2, 4, 90, VML_WAVE_SQUARE);
+    ui_sfx_add(10, 84, 4, 12, 92, VML_WAVE_SQUARE);
+    ui_vibrate(60, 0);
+}
+void sfx_lose(void) {
+    ui_sfx_add(11, 60, 0, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(12, 53, 4, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(13, 45, 8, 12, 95, VML_WAVE_SAW);
+    ui_vibrate(220, 0);
+}
+
 int main(void) {
     int b[CELLS];
     int msg[4];
@@ -840,6 +878,7 @@ int main(void) {
     ui_present();
 
     while (ui_win_closed() == 0) {
+        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -880,9 +919,9 @@ int main(void) {
                 sel = -1;
                 turn = S_RED;
                 status = "已悔一步，该你走";
-                ui_beep(700, 40);
+                sfx_undo_ok();
             } else {
-                ui_beep(300, 60);
+                sfx_undo_no();
             }
             draw_board(b, bx, by, cell, sel, status);
             draw_buttons(btns);
@@ -896,7 +935,7 @@ int main(void) {
             turn = S_RED;
             hn = 0;
             status = "新的一局，你执红先行";
-            ui_beep(900, 70);
+            sfx_newgame();
             ui_msg_clear();
             draw_board(b, bx, by, cell, sel, status);
             draw_buttons(btns);
@@ -917,13 +956,13 @@ int main(void) {
             } else if (sel < 0) {
                 if (b[idx] != 0 && b[idx] / 10 == S_RED) {
                     sel = idx;
-                    ui_beep(760, 20);
+                    sfx_pick();
                 }
             } else if (idx == sel) {
                 sel = -1;
             } else if (b[idx] != 0 && b[idx] / 10 == S_RED) {
                 sel = idx;
-                ui_beep(760, 20);
+                sfx_pick();
             } else if (legal_move(b, sel % BW, sel / BW, col, row) == 1) {
                 /* 人走子 */
                 f = sel;
@@ -947,10 +986,10 @@ int main(void) {
                 b[f] = 0;
                 sel = -1;
                 turn = S_BLK;
-                ui_beep(880, 25);
+                sfx_move();
                 ui_vibrate(15, 0);
 
-                if (in_check(b, S_BLK) == 1) ui_beep(1200, 90);
+                if (in_check(b, S_BLK) == 1) sfx_check();
                 if (has_legal(b, S_BLK) == 0) {
                     over = 1;
                     status = "将死！红方胜";
@@ -984,11 +1023,11 @@ int main(void) {
                         hn = hn + 1;
                         b[aiTo] = b[aiFrom];
                         b[aiFrom] = 0;
-                        ui_beep(560, 25);
+                        sfx_aimove();
                         turn = S_RED;
 
                         if (in_check(b, S_RED) == 1) {
-                            ui_beep(1200, 90);
+                            sfx_check();
                             ui_vibrate(30, 0);
                             status = "将军！该你走";
                         } else {
@@ -1013,12 +1052,10 @@ int main(void) {
          * 先让终局画面留在屏上，再出声弹框问要不要再来。 */
         if (over != 0) {
             if (over == 1) {
-                ui_beep(1320, 320);
-                ui_vibrate(60, 0);
+                sfx_win();
                 r = ui_dlg_msg("象棋", "恭喜，你赢了！再来一局？", VML_DLG_QUESTION);
             } else {
-                ui_beep(240, 420);
-                ui_vibrate(220, 0);
+                sfx_lose();
                 r = ui_dlg_msg("象棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
             }
             if (r == 1) break;                 /* 弹框失败(-1)也当"再来"，别把局面卡死 */
@@ -1029,7 +1066,7 @@ int main(void) {
             hn = 0;
             status = "新的一局，你执红先行";
             ui_msg_clear();
-            ui_beep(900, 70);
+            sfx_newgame();
             draw_board(b, bx, by, cell, sel, status);
             draw_buttons(btns);
             ui_present();
@@ -1037,6 +1074,7 @@ int main(void) {
     }
 
     ui_keep_on(0);
+    ui_sfx_panic();
     ui_timer_set(120, 0);
     t = ui_wait(msg, 400);
     ui_win_close();

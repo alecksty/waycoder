@@ -61,6 +61,14 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
+NATIVE SUB ui_sfx_reset()
+END SUB
+NATIVE SUB ui_sfx_panic()
+END SUB
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+END SUB
+NATIVE SUB ui_sfx_tick()
+END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
@@ -343,7 +351,8 @@ SUB touchDown()
         bestScore = score
     END IF
     lastMsg = "着陆成功！剩余燃料 " + STR$(fuel) + " → " + STR$(score) + " 分"
-    ui_beep(1046, 120)
+    ui_sfx_add 0, 79, 0, 3, 90, 1
+    ui_sfx_add 1, 86, 2, 8, 90, 1   ' 着陆成功：上行两音
     ui_vibrate(60, 120)
 END SUB
 
@@ -351,7 +360,9 @@ SUB crash(why AS STRING)
     state = ST_DOWN
     boomT = 0
     lastMsg = why
-    ui_beep(140, 320)
+    ui_sfx_add 2, 60, 0, 4, 95, 2
+    ui_sfx_add 3, 53, 4, 4, 95, 2
+    ui_sfx_add 4, 45, 8, 12, 100, 2   ' 坠毁：下行三音
     ui_vibrate(200, 240)
 END SUB
 
@@ -538,14 +549,14 @@ SUB handlePoint(isDown AS INTEGER)
                 IF ang < 0 - 90 THEN
                     ang = 0 - 90
                 END IF
-                ui_beep(520, 20)
+                ui_sfx_add 5, 67, 0, 1, 40, 3   ' 左转'
             ELSE
                 rightHeld = 1
                 ang = ang + TURN
                 IF ang > 90 THEN
                     ang = 90
                 END IF
-                ui_beep(760, 20)
+                ui_sfx_add 5, 72, 0, 1, 40, 3   ' 右转'
             END IF
         END IF
     END IF
@@ -597,7 +608,9 @@ SUB runGame()
     newRound()
 
     WHILE ui_win_closed() = 0
+        ui_sfx_tick
         IF quit = 1 THEN
+            ui_sfx_panic
             ui_win_close()
         END IF
 

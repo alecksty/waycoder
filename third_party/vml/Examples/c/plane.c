@@ -531,19 +531,6 @@ void draw(void)
 /* ── 音效：机制在共享库里，这里只有音色 ────────────────────
  * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）。
  * ⚠ 射击是一秒钟好几次的动作，音效**必须又轻又短**，否则玩两分钟就烦。 */
-int sfx_last;
-void sfx_pump(void) {
-    int now;
-    int n;
-    now = ui_tick();
-    if (sfx_last == 0) { sfx_last = now; return; }
-    n = (now - sfx_last) / 33;
-    if (n > 4) n = 4;
-    if (n > 0) {
-        sfx_last = now;
-        while (n > 0) { ui_sfx_tick(); n = n - 1; }
-    }
-}
 
 /* 打掉一架敌机：上行两音「叮-铃」（打中什么了，一耳朵听得出来）。 */
 void sfx_kill(void) {
@@ -581,10 +568,9 @@ int main(void)
     /* 一拍 33ms，约 30fps —— 手机上手感正好，也不费电 */
     ui_timer_set(TICK, 1);
 
-    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
         int m[4];
-        sfx_pump();
+        ui_sfx_tick();
         int t = ui_wait(m, 200);
         if (t == VML_MSG_TIMER) {
             step();

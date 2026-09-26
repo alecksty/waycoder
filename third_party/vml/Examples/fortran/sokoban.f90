@@ -99,6 +99,8 @@ program sokoban
   tid = ui_timer_set(120, 0)
 
   do while (ui_win_closed() == 0)
+
+    ui_sfx_tick()
     ! ── 过关判定：目标点上都有箱子 ──
     goals = 0
     do i = 1, 64
@@ -222,14 +224,15 @@ program sokoban
                 pr = nr
                 pc = nc
                 obj((pr - 1) * 8 + pc + 1) = 2
-                k = ui_beep(700, 25)
+                call ui_sfx_add(0, 84, 0, 2, 75, 1)      ! 推到位：上行两音
+                call ui_sfx_add(1, 91, 1, 4, 70, 1)
               else
-                k = ui_beep(300, 50)
+                call ui_sfx_add(2, 48, 0, 2, 80, 2)   ! 推不动：低闷
               end if
             end if
           end if
         else
-          k = ui_beep(300, 50)
+          call ui_sfx_add(2, 48, 0, 2, 80, 2)   ! 推不动：低闷
         end if
       end if
     end if

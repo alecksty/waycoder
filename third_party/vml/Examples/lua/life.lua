@@ -70,6 +70,8 @@ function main()
     local tid = ui_timer_set(300, 0)
 
     while ui_win_closed() == 0 do
+
+      ui_sfx_tick()
         -- ── draw ──
         ui_clear(-15724520)
         ui_text(8, 8, "世代", -6643536, 13, 0)
@@ -171,7 +173,7 @@ function main()
                     i = i + 1
                 end
                 gen = 0
-                ui_beep(880, 40)
+                ui_sfx_add(0, 84, 0, 2, 70, 1)   -- 换代：短促
             end
             if k == 16 then
                 if paused == 0 then

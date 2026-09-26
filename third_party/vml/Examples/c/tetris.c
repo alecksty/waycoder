@@ -211,19 +211,6 @@ void sfx_over(void) {
 
 /* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍"—— 主循环的节奏在
  * 下落间隔变化时会变）。⚠ 每帧调一次，放在主循环里。 */
-int sfx_last;
-void sfx_pump(void) {
-    int now;
-    int n;
-    now = ui_tick();
-    if (sfx_last == 0) { sfx_last = now; return; }
-    n = (now - sfx_last) / 33;
-    if (n > 4) n = 4;
-    if (n > 0) {
-        sfx_last = now;
-        while (n > 0) { ui_sfx_tick(); n = n - 1; }
-    }
-}
 
 
 /* ── 方块几何 ───────────────────────────────────────────── */
@@ -874,9 +861,8 @@ int main(void) {
                              "返回箭头退出。", VML_DLG_INFO);
     draw_all();
 
-    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
-        sfx_pump();
+        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

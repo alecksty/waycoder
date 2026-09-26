@@ -62,6 +62,14 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
+NATIVE SUB ui_sfx_reset()
+END SUB
+NATIVE SUB ui_sfx_panic()
+END SUB
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+END SUB
+NATIVE SUB ui_sfx_tick()
+END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
@@ -488,12 +496,13 @@ SUB eatFood()
     IF isBonus = 1 THEN
         score = score + foodVal * 2
         eaten = eaten + 2
-        ui_beep(1568, 60)
+        ui_sfx_add 0, 88, 0, 2, 85, 1
+        ui_sfx_add 1, 95, 1, 4, 80, 1   ' 大餐：上行两音
         ui_vibrate(40, 120)
     ELSE
         score = score + foodVal
         eaten = eaten + 1
-        ui_beep(880, 35)
+        ui_sfx_add 2, 88, 0, 1, 45, 1   ' 吃食：极短
     END IF
     IF score > best THEN
         best = score
@@ -508,7 +517,9 @@ SUB eatFood()
 
     IF eaten >= need THEN
         level = level + 1
-        ui_beep(1318, 120)
+        ui_sfx_add 3, 76, 0, 3, 88, 1
+        ui_sfx_add 4, 83, 2, 3, 88, 1
+        ui_sfx_add 5, 88, 4, 8, 90, 1   ' 升级：上行琶音
         ui_vibrate(80, 160)
         startLevel()
         hint = "第 " + STR$(level) + " 关！"
@@ -521,7 +532,9 @@ END SUB
 SUB die(why AS STRING)
     over = 1
     hint = why + " —— 得分 " + STR$(score)
-    ui_beep(160, 320)
+    ui_sfx_add 6, 60, 0, 4, 90, 2
+    ui_sfx_add 7, 53, 4, 4, 90, 2
+    ui_sfx_add 8, 45, 8, 12, 95, 2   ' 死：下行三音
     ui_vibrate(220, 240)
 END SUB
 
@@ -735,7 +748,9 @@ SUB runGame()
     rearmTimer()
 
     WHILE ui_win_closed() = 0
+        ui_sfx_tick
         IF quit = 1 THEN
+            ui_sfx_panic
             ui_win_close()
         END IF
 

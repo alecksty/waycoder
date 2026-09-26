@@ -252,22 +252,6 @@ void reset_round(void) {
  * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
  *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
 
-/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍" —— 主循环节奏会变）。
- * ⚠ 放在主循环里，别挂在会被提前杀掉的定时器上：一局结束时定时器往往就没了，
- *   而胜负音正要开始放，结果只响得出第一个音。 */
-int sfx_last;
-void sfx_pump(void) {
-    int now;
-    int n;
-    now = ui_tick();
-    if (sfx_last == 0) { sfx_last = now; return; }
-    n = (now - sfx_last) / 33;
-    if (n > 4) n = 4;
-    if (n > 0) {
-        sfx_last = now;
-        while (n > 0) { ui_sfx_tick(); n = n - 1; }
-    }
-}
 
 
 void sfx_jump(void) {                                                   /* 跳：上行一挑 */
@@ -839,9 +823,8 @@ int main(void) {
                "踩敌人得分，收金币，走到右边的旗杆通关。START 重开、SELECT 暂停。",
                VML_DLG_INFO);
 
-    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
-        sfx_pump();
+        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

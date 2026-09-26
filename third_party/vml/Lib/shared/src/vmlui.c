@@ -475,12 +475,12 @@ int ui_tone_panic(void) { return _ui_tone_ctl(VML_TONE_CTL_PANIC, 0, 0); }
  *     ui_sfx_add(4, 76, 1, 4, 85, VML_WAVE_SQUARE);   // mi，晚一拍起
  *     ui_sfx_add(5, 79, 2, 6, 85, VML_WAVE_SQUARE);   // sol
  *     ...
- *     ui_sfx_tick();                                   // 每拍（见下）
+ *     ui_sfx_tick();                                   // 主循环里每帧一次（它自己按
+ *                                                      //   真实流逝时间补拍，你不用管）
  *
- * ⚠ **`tick` 要按真实流逝时间调**，而且**别挂在会被提前杀掉的定时器上** ——
- *   一局结束那一刻物理定时器往往就被 kill 了，而胜负音正要开始放，结果
- *   **只响得出第一个音**（症状很像"音效没做"）。挂在主循环里、用 `ui_tick()`
- *   的差值补拍最稳。
+ * ⚠ **`ui_sfx_tick` 放在主循环里**，别挂在会被提前杀掉的定时器上 —— 一局结束那一刻
+ *   物理定时器往往就被 kill 了，而胜负音正要开始放，结果**只响得出第一个音**
+ *   （症状很像"音效没做"，实际是驱动源选错了）。
  *
  * ⚠ **通道分配由调用方定，但要按"谁与谁可能同拍"分区** —— 两个可能同时发生的
  *   音效共用通道时，后者会把前者的槽顶掉：表现是**静默少一个音**，日志上只是
@@ -563,8 +563,11 @@ void ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave) {
     _ui_sfx_on[slot] = 0;
 }
 
-/* 一拍推进：`delay` 到了就 note_on，`dur` 响完就 note_off 并腾出槽位。 */
-void ui_sfx_tick(void) {
+/* 推进**一拍**：`delay` 到了就 note_on，`dur` 响完就 note_off 并腾出槽位。
+ *
+ * ⚠ 一般**不用**直接调它 —— 用 `ui_sfx_tick()`（它按真实流逝时间替你补拍）。
+ *   这一支留给"自己的节拍就是基准、要手动控速"的场合。 */
+void ui_sfx_step(void) {
     int i;
     _ui_sfx_ensure();
     for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
@@ -588,6 +591,31 @@ void ui_sfx_tick(void) {
                 }
             }
         }
+    }
+}
+
+/* 每帧调一次：**按真实流逝时间自动补拍**（内部读 `ui_tick()`）。
+ *
+ * 把"该走几拍"这件事收进库，是因为每个调用方都需要它、而且都需要**一模一样**的它 ——
+ * 否则每份游戏里都会出现同一段 12 行的补拍循环（本仓最忌讳的那种重复）。
+ *
+ * ⚠ **放在主循环里**，别挂在会被提前杀掉的定时器上：一局结束那一刻物理定时器往往
+ *   就被 kill 了，而胜负音正要开始放，结果**只响得出第一个音**（症状很像"音效没做"）。
+ * ⚠ 上限 4 拍：卡顿一下（GC / 切后台）不该让音效"补跑"一串回来。
+ */
+static int _ui_sfx_last = 0;
+
+void ui_sfx_tick(void) {
+    int now;
+    int n;
+    _ui_sfx_ensure();
+    now = ui_tick();
+    if (_ui_sfx_last == 0) { _ui_sfx_last = now; return; }
+    n = (now - _ui_sfx_last) / 33;      /* 一拍 = 33ms */
+    if (n > 4) n = 4;
+    if (n > 0) {
+        _ui_sfx_last = now;
+        while (n > 0) { ui_sfx_step(); n = n - 1; }
     }
 }
 

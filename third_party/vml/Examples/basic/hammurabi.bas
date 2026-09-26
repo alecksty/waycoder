@@ -63,6 +63,14 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
+NATIVE SUB ui_sfx_reset()
+END SUB
+NATIVE SUB ui_sfx_panic()
+END SUB
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+END SUB
+NATIVE SUB ui_sfx_tick()
+END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
@@ -344,7 +352,7 @@ SUB endYear()
         msg3 = ""
         msg4 = ""
         phase = PH_DONE
-        ui_beep(160, 400)
+        ui_sfx_add 2, 48, 0, 6, 85, 2   ' 一年收尾：低沉
         ui_vibrate(200, 255)
         EXIT SUB
     END IF
@@ -533,18 +541,18 @@ SUB handlePoint(isDown AS INTEGER)
     IF onButton(minusX, valY, 34, rx, ry) = 1 THEN
         amount = amount - stepSize
         clampAmount()
-        ui_beep(520, 20)
+        ui_sfx_add 0, 60, 0, 1, 40, 3
         RETURN
     END IF
     IF onButton(plusX, valY, 34, rx, ry) = 1 THEN
         amount = amount + stepSize
         clampAmount()
-        ui_beep(780, 20)
+        ui_sfx_add 0, 67, 0, 1, 40, 3
         RETURN
     END IF
     IF ry >= okY THEN
         confirmPhase()
-        ui_beep(980, 30)
+        ui_sfx_add 1, 79, 0, 2, 65, 1   ' 确认'
     END IF
 END SUB
 
@@ -582,7 +590,9 @@ SUB runGame()
     newGame()
 
     WHILE ui_win_closed() = 0
+        ui_sfx_tick
         IF quit = 1 THEN
+            ui_sfx_panic
             ui_win_close()
         END IF
 

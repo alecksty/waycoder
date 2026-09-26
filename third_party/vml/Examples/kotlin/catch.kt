@@ -52,6 +52,8 @@ fun main() {
     var tid = ui_timer_set(40, 0)
 
     while (ui_win_closed() == 0) {
+
+        ui_sfx_tick()
         // ── draw ──
         ui_clear(-15724520)
         ui_text(8, 8, "得分", -6643536, 13, 0)
@@ -80,11 +82,16 @@ fun main() {
                     A[2] = A[9] - 52
                     A[5] = A[5] + 10
                     if (A[5] > A[6]) { A[6] = A[5] }
-                    ui_beep(880, 30)
+                    // 音效：机制在共享库（ui_sfx_*），这里只有音色
+                    ui_sfx_add(0, 84, 0, 2, 85, 1)
+                    ui_sfx_add(1, 91, 1, 4, 80, 1)
                 }
                 if (A[2] > A[9]) {
                     A[7] = 0
-                    ui_beep(220, 260)
+                    // 音效：机制在共享库（ui_sfx_*），这里只有音色
+                    ui_sfx_add(2, 60, 0, 4, 90, 2)
+                    ui_sfx_add(3, 53, 4, 4, 90, 2)
+                    ui_sfx_add(4, 45, 8, 12, 95, 2)
                     if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); break }
                     A[0] = A[8] / 2 - 40
                     A[1] = A[8] / 2
