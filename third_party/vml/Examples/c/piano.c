@@ -131,6 +131,28 @@ static int row_top(int row)
     return KEYTOP + row * (RowKeyH + RowGap);
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+ * 「第几行第几个键 → 哪个半音偏移」——**画与命中共用的唯一真源**
+ *
+ * ⚠ 这两个函数是踩出来的：最先绘制时只算了**行内**偏移、忘了加 `row * RowStep`，
+ *   而命中那条**算对了**。于是表现成一对其怪的组合：
+ *     · 按**上行** ⇒ 两行查的是同一个 `Ref` 键 ⇒ **下面那行一起亮**；
+ *     · 按**下行** ⇒ 查的键根本没人写过 ⇒ **声音是有的、却不高亮**。
+ *   两处各算一遍就是两个真源，迟早对不上 —— 收成一个函数之后不可能再错开。
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* 第 `row` 行第 `i` 个白键的半音偏移（相对 BaseNote）。 */
+static int white_semi_at(int row, int i)
+{
+    return row * RowStep + WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+}
+
+/* 第 `row` 行第 `i` 个白键右上方黑键的半音偏移（调用方先判 `BLACK_AT` 不是 -1）。 */
+static int black_semi_at(int row, int i)
+{
+    return row * RowStep + BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+}
+
 /* 第 `row` 行第 `i` 个白键右上方黑键的矩形（out[0..3] = x y w h）。 */
 static void black_rect(int row, int i, int* out)
 {
@@ -194,9 +216,10 @@ static void draw(void)
     for (row = 0; row < RowCount; row++) {
         y0 = row_top(row);
         for (i = 0; i < PerRow; i++) {
-            /* ⚠ 全局数组元素先落局部变量（坑 3）——`WHITE_SEMI[i % 7]` 直接
-             *   拿去比较/运算都可能读不出正确值。 */
-            semi = WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            /* ⚠ 这里的 `semi` **必须**用 `white_semi_at(row, i)`（含行偏移）——
+             *   先前写成"只有行内偏移"，于是两行共用同一个 `Ref` 键：
+             *   按上行两行一起亮、按下行反而不亮（声音却有）。见那个函数的注释。 */
+            semi = white_semi_at(row, i);
             x = i * w;
             ui_rect(x + 1, y0 + 3, w - 2, RowKeyH, 0xFF000000, 1, 0, 6);   /* 底影 */
             if (Ref[semi] > 0) {
@@ -212,7 +235,7 @@ static void draw(void)
     for (row = 0; row < RowCount; row++) {
         for (i = 0; i < PerRow; i++) {
             if (BLACK_AT[i - (i / 7) * 7] < 0) continue;
-            semi = BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            semi = black_semi_at(row, i);
             black_rect(row, i, r);
             ui_rect(r[0], r[1] + 2, r[2], r[3], 0xFF000000, 1, 0, 5);
             if (Ref[semi] > 0) {
@@ -252,18 +275,12 @@ static int hit_key(int x, int y)
     for (i = 0; i < PerRow; i++) {
         if (BLACK_AT[i - (i / 7) * 7] < 0) continue;
         black_rect(row, i, r);
-        if (x >= r[0] && x < r[0] + r[2] && y < r[1] + r[3]) {
-            rel = BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
-            return row * RowStep + rel;
-        }
+        if (x >= r[0] && x < r[0] + r[2] && y < r[1] + r[3]) return black_semi_at(row, i);
     }
 
     w = SW / PerRow;
     for (i = 0; i < PerRow; i++) {
-        if (x >= i * w && x < (i + 1) * w) {
-            rel = WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
-            return row * RowStep + rel;
-        }
+        if (x >= i * w && x < (i + 1) * w) return white_semi_at(row, i);
     }
     return -1;
 }
