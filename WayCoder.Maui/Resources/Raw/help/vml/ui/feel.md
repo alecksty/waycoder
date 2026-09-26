@@ -32,17 +32,25 @@ ui_tone_off(2, 67); ui_tone_off(1, 64); ui_tone_off(0, 60);
 
 #### 想让音效听起来"不是同一声哔"？
 
-单靠 `ui_tone_on/off` 还不够 —— 还差三件事，`Examples/cpp/gorilla.cpp` 与
-`Examples/basic/gorilla.bas` 里有一份可抄的实现（**音序器**）：
+单靠 `ui_tone_on/off` 还不够 —— 还差三件事（`ui_tone_on` **没有时长参数**，
+忘了关声部只涨不落、满了新音**全哑而且不报错**；几个音**先后**才是音效；
+同通道后音掐前音）。**这三条不用自己绕**：
 
-- **`ui_tone_on` 没有时长参数**：响多久全看自己什么时候 `ui_tone_off`，忘了关，
-  声部就只涨不落（上限 32，满了以后新音**全哑而且不报错**）；
-- **几个音先后**（"叮—咚"、上行三音）才是音效，一个音只是"哔"；
-- **同通道后音掐前音** ⇒ "同时响"要落在不同通道上。
+```c
+ui_sfx_add(3, 72, 0, 4, 95, VML_WAVE_SQUARE);   /* do，立刻响 4 拍 */
+ui_sfx_add(4, 76, 1, 4, 85, VML_WAVE_SQUARE);   /* mi，晚一拍起 */
+ui_sfx_add(5, 79, 2, 6, 85, VML_WAVE_SQUARE);   /* sol —— 命中得分的和弦 */
+...
+ui_sfx_tick();                                   /* 每拍推进（放主循环里） */
+```
+
+**机制在共享库里**（`ui_sfx_add` / `ui_sfx_tick` / `ui_sfx_panic` / `ui_sfx_active`，
+所有语言共用一份），你只写**音色** —— 哪个事件配什么音是设计，不是机制。
 
 ⚠ 另外两条：**低音别写太低** —— 手机外放在 200Hz 以下衰减很快，C2(65Hz) 出来是
 "噗"的一声闷响，玩家听着像**没响**；**胜负一定要有声音**，玩家那一刻的视线在棋盘上、
-不在你写的横幅上。完整版见开发者文档 `docs/VML游戏开发指南.md` 的 §4.5。
+不在你写的横幅上。可抄的例子：`examples/c/tetris.c`、`pacman.c`、`mario.c`。
+完整版见开发者文档 `docs/VML游戏开发指南.md` 的 §4.5。
 ### `ui_tone_all_off(void)` / `ui_tone_voices(void)`
 全关（走**淡出**，不是硬切）；查"此刻在响的声部数" —— 调和弦时有用。
 ### `ui_tone_wave(int ch, int wave)` / `ui_tone_max_voices(int n)`

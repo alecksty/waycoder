@@ -139,6 +139,19 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
+' 音效音序器（**机制在共享库里**，所有语言共用一份；这里只有音色）
+NATIVE SUB ui_sfx_reset()
+END SUB
+NATIVE SUB ui_sfx_panic()
+END SUB
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+END SUB
+NATIVE SUB ui_sfx_tick()
+END SUB
+NATIVE FUNCTION ui_sfx_active() AS INTEGER
+END FUNCTION
+NATIVE FUNCTION ui_tick() AS INTEGER
+END FUNCTION
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
@@ -548,7 +561,6 @@ DIM sfxDur(16) AS INTEGER
 DIM sfxVel(16) AS INTEGER
 DIM sfxWave(16) AS INTEGER
 DIM sfxOn(16) AS INTEGER
-DIM sfxN AS INTEGER
 DIM sfxSlot AS INTEGER
 DIM sfxTmp AS INTEGER
 DIM sfxNow AS INTEGER
@@ -580,7 +592,6 @@ idleMs = IDLE_MS
 paceMs = PACE_MS
 
 ' ── 音效音序器的常量（SUB 里只用这些普通变量，见缺陷 ② 第四条）──────────
-sfxN = 16
 sfxTickMs = 33
 ghole = G_HOLE
 maxHole = MAXHOLE
@@ -2702,121 +2713,19 @@ END SUB
 ' ── 主循环 ─────────────────────────────────────────────────────────────
 
 ' ══════════════════════════════════════════════════════════════════════════
-'  音效音序器
+'  音效：音色表
 ' ══════════════════════════════════════════════════════════════════════════
 '
-' 为什么要它，而不是在事件点上直接 ui_tone_on/off（与 C++ 版同一套理由）：
+' **机制在共享库里**（`ui_sfx_add` / `ui_sfx_tick` / `ui_sfx_panic` ——
+' `Lib/shared/src/vmlui.c`，所有语言共用一份），这里只有**音色** ——
+' 哪个事件配什么音是设计，不是机制。
 '
-'   ① **ui_tone_on 没有时长参数** —— 响多久全看自己什么时候 ui_tone_off。
-'      事件点上 on、忘了 off，声部就只涨不落（上限 32，满了以后新音**全哑**，
-'      而且一声不响地哑）。
-'   ② 好听的音效往往是**几个音先后**，而事件点只有一拍 ⇒ 要"过几拍再响下一个"。
-'   ③ 同一个**通道**上后一个音会掐掉前一个（ui_beep 的老语义）⇒ "同时响"必须
-'      落在不同通道上，得有一处统一分配。
+' ⚠ **通道分配是契约**（分区互不重叠；同分区内新事件盖过旧事件，那是有意的）：
+'     0–2 地面爆炸    3–5 命中得分    6–7 发射    8–9 空中爆炸    13–15 胜负
 '
-' ⚠ 通道分配（分区互不重叠；同分区内新事件盖过旧事件，那是有意的）：
-'     0–2 地面爆炸   3–5 命中得分   6–7 发射   8–9 空中爆炸   13–15 胜负
-'
-' ⚠ 写这些 SUB 时躲开文件头那几条前端缺陷：不用 `\` / `MOD`（SUB 里编不出代码）；
-'   不在 SUB 的条件里用 `AND`（恒不成立，要两个条件就嵌套 IF）；表达式摊平、
-'   不套复合括号；SUB 的形参不叫关键字（`on` 那种），一律用短名。
-'
-' ⚠ **推进由主循环按真实流逝时间给**（不是"绕一圈算一拍"）——与 C++ 版同源。
-'   这个游戏的主循环节奏在"飞行"（30ms）与"瞄准"（120ms）之间切换，按圈数计
-'   会让同一段音效在两种状态下快慢不一样。
-SUB sfxReset()
-    DIM i AS INTEGER
-    i = 0
-    DO WHILE i < sfxN
-        sfxCh(i) = -1
-        sfxNote(i) = -1
-        sfxDel(i) = 0
-        sfxDur(i) = 0
-        sfxVel(i) = 0
-        sfxWave(i) = -1
-        sfxOn(i) = 0
-        i = i + 1
-    LOOP
-END SUB
-
-' 立刻静音。⚠ 顺序不能反：先清表就丢掉了"哪些通道在响"，那些声部会一直响下去。
-SUB sfxPanic()
-    DIM i AS INTEGER
-    i = 0
-    DO WHILE i < sfxN
-        IF sfxOn(i) = 1 THEN
-            sfxTmp = ui_tone_off(sfxCh(i), sfxNote(i))
-        END IF
-        i = i + 1
-    LOOP
-    sfxTmp = ui_tone_panic()
-    sfxReset
-END SUB
-
-' 往表里塞一个音（cd 拍之后开始响、响 cdur 拍）。
-' ⚠ 会先接管同通道的旧槽，接管之前**先把那个音关掉** —— 不然旧槽连同"它还在响"
-'   一起被丢掉，那个声部就再也没人去关它了。
-SUB sfxAdd(cch AS INTEGER, cn AS INTEGER, cd AS INTEGER, cdur AS INTEGER, cvel AS INTEGER, cwave AS INTEGER)
-    DIM k AS INTEGER
-    sfxSlot = -1
-    k = 0
-    DO WHILE k < sfxN
-        IF sfxCh(k) = cch THEN
-            IF sfxOn(k) = 1 THEN
-                sfxTmp = ui_tone_off(sfxCh(k), sfxNote(k))
-            END IF
-            sfxSlot = k
-        END IF
-        k = k + 1
-    LOOP
-    IF sfxSlot < 0 THEN
-        k = 0
-        DO WHILE k < sfxN
-            IF sfxCh(k) < 0 THEN
-                sfxSlot = k
-            END IF
-            k = k + 1
-        LOOP
-    END IF
-    IF sfxSlot >= 0 THEN
-        sfxCh(sfxSlot) = cch
-        sfxNote(sfxSlot) = cn
-        sfxDel(sfxSlot) = cd
-        sfxDur(sfxSlot) = cdur
-        sfxVel(sfxSlot) = cvel
-        sfxWave(sfxSlot) = cwave
-        sfxOn(sfxSlot) = 0
-    END IF
-END SUB
-
-' 一拍推进（主循环按真实流逝时间调）。
-SUB sfxTick()
-    DIM k AS INTEGER
-    k = 0
-    DO WHILE k < sfxN
-        IF sfxCh(k) >= 0 THEN
-            IF sfxOn(k) = 0 THEN
-                IF sfxDel(k) > 0 THEN
-                    sfxDel(k) = sfxDel(k) - 1
-                ELSE
-                    sfxTmp = ui_tone_wave(sfxCh(k), sfxWave(k))
-                    sfxTmp = ui_tone_on(sfxCh(k), sfxNote(k), sfxVel(k))
-                    sfxOn(k) = 1
-                END IF
-            ELSE
-                sfxDur(k) = sfxDur(k) - 1
-                IF sfxDur(k) <= 0 THEN
-                    sfxTmp = ui_tone_off(sfxCh(k), sfxNote(k))
-                    sfxCh(k) = -1
-                    sfxNote(k) = -1
-                    sfxWave(k) = -1
-                    sfxOn(k) = 0
-                END IF
-            END IF
-        END IF
-        k = k + 1
-    LOOP
-END SUB
+' ⚠ **推进由主循环按真实流逝时间给**（`ui_sfx_tick`），不按"绕一圈算一拍"——
+'   这个游戏的主循环节奏在"飞行"（30ms）与"瞄准"（120ms）之间切换，
+'   按圈数计会让同一段音效在两种状态下快慢不一样。
 
 ' ── 音色（音符号是真 MIDI 语义：中央 C = 60、A4 = 69 = 440Hz）──────────
 '
@@ -2826,36 +2735,36 @@ END SUB
 
 ' 发射：两音快速下行 = 有方向感的「嗖」
 SUB sfxFire()
-    sfxAdd 6, 77, 0, 2, 70, 3
-    sfxAdd 7, 72, 1, 2, 55, 3
+    ui_sfx_add 6, 77, 0, 2, 70, 3
+    ui_sfx_add 7, 72, 1, 2, 55, 3
 END SUB
 
 ' 命中得分：大三和弦上行（do–mi–sol）—— 重复最多的正反馈，就该最好听
 SUB sfxHit()
-    sfxAdd 3, 72, 0, 4, 95, 1
-    sfxAdd 4, 76, 1, 4, 85, 1
-    sfxAdd 5, 79, 2, 6, 85, 1
+    ui_sfx_add 3, 72, 0, 4, 95, 1
+    ui_sfx_add 4, 76, 1, 4, 85, 1
+    ui_sfx_add 5, 79, 2, 6, 85, 1
 END SUB
 
 ' 撞楼 / 落地：「轰」—— 48 与 54 是三全音（最"脏"的音程），锯齿波谐波丰富
 SUB sfxGroundBoom()
-    sfxAdd 0, 48, 0, 6, 100, 2
-    sfxAdd 1, 54, 0, 5, 75, 2
-    sfxAdd 2, 36, 0, 7, 85, 3
+    ui_sfx_add 0, 48, 0, 6, 100, 2
+    ui_sfx_add 1, 54, 0, 5, 75, 2
+    ui_sfx_add 2, 36, 0, 7, 85, 3
 END SUB
 
 ' 空中爆炸（打到飞行物）：高音一「叮」+ 低音垫底。
 ' **不用轰鸣** —— 那是"打爆了一个小东西"，与撞楼的份量不一样，听着就该不一样。
 SUB sfxAirBoom()
-    sfxAdd 8, 84, 0, 2, 85, 1
-    sfxAdd 9, 55, 0, 3, 70, 2
+    ui_sfx_add 8, 84, 0, 2, 85, 1
+    ui_sfx_add 9, 55, 0, 3, 70, 2
 END SUB
 
 ' 获胜：上行 do–sol–do，明亮
 SUB sfxWin()
-    sfxAdd 13, 72, 0, 4, 95, 1
-    sfxAdd 14, 79, 2, 5, 90, 1
-    sfxAdd 15, 84, 5, 12, 90, 1
+    ui_sfx_add 13, 72, 0, 4, 95, 1
+    ui_sfx_add 14, 79, 2, 5, 90, 1
+    ui_sfx_add 15, 84, 5, 12, 90, 1
 END SUB
 
 SUB runGame()
@@ -2917,7 +2826,7 @@ SUB runGame()
 
     curMs = 0
     tid = 0
-    sfxReset
+    ui_sfx_reset
     sfxLast = ui_tick()
     WHILE ui_win_closed() = 0
         drawScene()
@@ -2934,7 +2843,7 @@ SUB runGame()
         IF sfxWant > 0 THEN
             sfxLast = sfxNow
             DO WHILE sfxWant > 0
-                sfxTick
+                ui_sfx_tick
                 sfxWant = sfxWant - 1
             LOOP
         END IF
@@ -3015,7 +2924,7 @@ SUB runGame()
                 '   杀掉"是同一类坑，只是这里卡在弹框上。）约 18 拍 ≈ 0.55 秒。
                 sfxWant = 0
                 DO WHILE sfxWant < 18
-                    sfxTick
+                    ui_sfx_tick
                     sfxTmp = ui_wait_msg(30)
                     sfxWant = sfxWant + 1
                 LOOP
@@ -3034,7 +2943,7 @@ SUB runGame()
                     aimP = 70
                     wind = ui_rand(5) - 2
                     newCity()
-                    sfxPanic
+                    ui_sfx_panic
                     sfxLast = ui_tick()
                     ui_msg_clear()
                 END IF
@@ -3059,7 +2968,7 @@ SUB runGame()
 
     ' ⚠ **退出前必须静音**：声部是宿主的资源，进程退出前不关就会一直响下去
     '   （手机上表现为"切回桌面还有声音"）。
-    sfxPanic
+    ui_sfx_panic
     ui_win_close()
 END SUB
 

@@ -271,22 +271,73 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
  * 胜负是这一局唯一必须让玩家知道的事，**用一行小字交代等于没交代**：
  * 要么弹框（挡住视线、必须点一下才消失），要么根本别做这个游戏。
  *
- * 音效按"赢/输"给完全不同的两条：赢是又高又长的上行亮音，输是又低又闷的长音 ——
- * 两者差别要大到**不看屏幕也分得出**（合成音是单通道的，一次只能发一个音，
- * 所以用"音高"而不是"音数"表达情绪，见 tetris.c 里同一处的说明）。 */
+/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+ *
+ * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
+ * 哪个事件配什么音是**设计**，留在本文件。见 `docs/VML游戏开发指南.md` §4.5。
+ *
+ * ⚠ **胜负两条必须差别大到不看屏幕也分得出** —— 玩家赢/输那一刻视线在自己手上，
+ *   不在你写的横幅上。这里：赢 = 上行大三和弦 + 高八度，输 = 下行三音，
+ *   平局 = 中性两音（既不欢快也不沮丧，别让它听着像赢了）。
+ * ⚠ 通道分区互不重叠：0 人落子 / 1 电脑落子 / 2 重开 / 3–5 赢 / 6–8 输 / 9–10 平局。
+ *   人机两条落子音**必须分得开**（玩家要一耳朵知道刚才那步是谁下的）。 */
+
+/* 音序器推进：按真实流逝时间（不按"绕一圈算一拍"）。放在主循环里。 */
+int sfx_last;
+void sfx_pump(void) {
+    int now;
+    int n;
+    now = ui_tick();
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;
+    if (n > 4) n = 4;
+    if (n > 0) {
+        sfx_last = now;
+        while (n > 0) { ui_sfx_tick(); n = n - 1; }
+    }
+}
+
+/* 人落子：清亮、高。 */
+void sfx_put_human(void) { ui_sfx_add(0, 88, 0, 2, 70, VML_WAVE_SQUARE); }
+
+/* 电脑落子：低一截 —— 与人的那条**一耳朵分得出**。 */
+void sfx_put_ai(void) { ui_sfx_add(1, 67, 0, 2, 70, VML_WAVE_TRIANGLE); }
+
+/* 重开：一声干脆的起手音。 */
+void sfx_newgame(void) { ui_sfx_add(2, 76, 0, 3, 75, VML_WAVE_SQUARE); }
+
+/* 赢：上行大三和弦 + 高八度收尾，明亮。 */
+void sfx_win(void) {
+    ui_sfx_add(3, 72, 0, 4, 92, VML_WAVE_SQUARE);
+    ui_sfx_add(4, 79, 2, 4, 90, VML_WAVE_SQUARE);
+    ui_sfx_add(5, 84, 4, 12, 92, VML_WAVE_SQUARE);
+    ui_vibrate(60, 0);
+}
+
+/* 输：下行三音 —— 与"赢"是**两个方向**，不会听错。 */
+void sfx_lose(void) {
+    ui_sfx_add(6, 60, 0, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(7, 53, 4, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(8, 45, 8, 12, 95, VML_WAVE_SAW);
+    ui_vibrate(220, 0);
+}
+
+/* 平局：中性两音（既不欢快也不沮丧）。 */
+void sfx_draw(void) {
+    ui_sfx_add(9, 64, 0, 3, 80, VML_WAVE_TRIANGLE);
+    ui_sfx_add(10, 62, 3, 8, 80, VML_WAVE_TRIANGLE);
+    ui_vibrate(40, 0);
+}
 int finish(int over) {
     int r;
     if (over == 1) {
-        ui_beep(1320, 320);
-        ui_vibrate(60, 0);
+        sfx_win();
         r = ui_dlg_msg("五子棋", "你赢了！再来一局？", VML_DLG_QUESTION);
     } else if (over == 2) {
-        ui_beep(260, 420);
-        ui_vibrate(220, 0);
+        sfx_lose();
         r = ui_dlg_msg("五子棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
     } else {
-        ui_beep(500, 300);
-        ui_vibrate(40, 0);
+        sfx_draw();
         r = ui_dlg_msg("五子棋", "平局。再来一局？", VML_DLG_QUESTION);
     }
     /* 弹框失败（返回 -1）也当"再来" —— 总不能因为宿主弹不出框就把整局卡死在这儿 */
@@ -369,7 +420,9 @@ int main(void) {
     draw_board(b, pad, padY, cell, lastIdx, over);
 
     /* 主循环：一个统一的消息队列，取到触摸就换算格子 */
+    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
+        sfx_pump();
         t = ui_wait(msg, 0);
         if (t == 0) continue;                     /* 超时（这里不会发生，0=无限等） */
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -389,7 +442,7 @@ int main(void) {
         b[idx] = BLACK;
         moves = moves + 1;
         lastIdx = idx;
-        ui_beep(880, 25);                          /* 人：清亮一点 */
+        sfx_put_human();          /* 人：清亮一点 */
 
         if (has_won(b, col, row, BLACK) == 1) {
             over = 1;
@@ -409,7 +462,7 @@ int main(void) {
                 lastIdx = aiIdx;
                 col = aiIdx % N;
                 row = aiIdx / N;
-                ui_beep(620, 25);                  /* 电脑：低一点，一耳朵分得出是谁下的 */
+                sfx_put_ai();              /* 电脑：低一点，一耳朵分得出是谁下的 */
                 if (has_won(b, col, row, WHITE) == 1) over = 2;
                 else if (moves >= N * N) over = 3;
             }
@@ -429,7 +482,7 @@ int main(void) {
             over = 0;
             moves = 0;
             lastIdx = -1;
-            ui_beep(900, 70);
+            sfx_newgame();
             draw_board(b, pad, padY, cell, lastIdx, over);
         }
     }
@@ -437,6 +490,7 @@ int main(void) {
     /* 收尾：等一小会儿再关，免得窗口一闪而过（宿主定时刷新，这里只是留个缓冲） */
     ui_timer_set(120, 0);
     t1 = ui_wait(msg, 400);
+    ui_sfx_panic();
     ui_win_close();
     return 0;
 }

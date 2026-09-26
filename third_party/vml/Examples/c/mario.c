@@ -241,13 +241,56 @@ void reset_round(void) {
     spawn_player();
 }
 
-/* ── 声音（合成音是单通道的 ⇒ 一次事件只发一个音）────────── */
+/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+ *
+ * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
+ * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ *
+ * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
+ *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
+ *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
+ * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
+ *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
 
-void sfx_jump(void) { ui_beep(620, 60); }
-void sfx_coin(void) { ui_beep(1180, 55); }
-void sfx_stomp(void) { ui_beep(320, 70); }
-void sfx_hurt(void) { ui_beep(180, 320); ui_vibrate(180, 0); }
-void sfx_win(void) { ui_beep(1568, 420); ui_vibrate(120, 0); }
+/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍" —— 主循环节奏会变）。
+ * ⚠ 放在主循环里，别挂在会被提前杀掉的定时器上：一局结束时定时器往往就没了，
+ *   而胜负音正要开始放，结果只响得出第一个音。 */
+int sfx_last;
+void sfx_pump(void) {
+    int now;
+    int n;
+    now = ui_tick();
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;
+    if (n > 4) n = 4;
+    if (n > 0) {
+        sfx_last = now;
+        while (n > 0) { ui_sfx_tick(); n = n - 1; }
+    }
+}
+
+
+void sfx_jump(void) {                                                   /* 跳：上行一挑 */
+    ui_sfx_add(0, 67, 0, 1, 70, VML_WAVE_SQUARE);
+    ui_sfx_add(1, 74, 1, 2, 65, VML_WAVE_SQUARE);
+}
+void sfx_coin(void) {                                                   /* 金币：两音「叮-铃」，最有辨识度 */
+    ui_sfx_add(2, 88, 0, 2, 90, VML_WAVE_SQUARE);
+    ui_sfx_add(3, 96, 1, 5, 85, VML_WAVE_SQUARE);
+}
+void sfx_stomp(void) { ui_sfx_add(4, 48, 0, 3, 90, VML_WAVE_SAW); }     /* 踩敌：一声闷响 */
+void sfx_hurt(void) {                                                   /* 受伤：下行 */
+    ui_sfx_add(5, 60, 0, 3, 90, VML_WAVE_SAW);
+    ui_sfx_add(6, 53, 3, 8, 90, VML_WAVE_SAW);
+    ui_vibrate(180, 0);
+}
+void sfx_win(void) {                                                    /* 通关：上行大三和弦 + 高八度 */
+    ui_sfx_add(7, 72, 0, 4, 92, VML_WAVE_SQUARE);
+    ui_sfx_add(8, 76, 2, 4, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(9, 79, 4, 5, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(10, 84, 6, 12, 90, VML_WAVE_SQUARE);
+    ui_vibrate(120, 0);
+}
 
 /* ── 玩家物理 ───────────────────────────────────────────── */
 
@@ -796,7 +839,9 @@ int main(void) {
                "踩敌人得分，收金币，走到右边的旗杆通关。START 重开、SELECT 暂停。",
                VML_DLG_INFO);
 
+    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
+        sfx_pump();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -815,6 +860,7 @@ int main(void) {
     }
 
     ui_keep_on(0);
+    ui_sfx_panic();
     ui_win_close();
     return 0;
 }

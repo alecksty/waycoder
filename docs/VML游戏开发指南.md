@@ -119,6 +119,17 @@ int  ui_tone_voices(void);                    /* 此刻在响的声部数 ——
 int  ui_tone_panic(void);                     /* **立刻**全停（不进淡出）—— 强制停止 / 一键静音用；
                                                *   ⚠ 它只停声部，自己的记账要一并清，否则"还按着的手指"
                                                *   抬手时会去减一本已清空的账，那个键以后就起不来音 */
+/* 音效音序器（**不是 syscall**，是共享库里的一段状态机）—— 做"轰/叮/警报"这类
+ * 有音色的音效用它，别在事件点上裸调 ui_tone_on/off。怎么配见 §4.5。
+ *     ui_sfx_add(ch, note, delay, dur, vel, wave);   塞一个音（delay 拍后响、响 dur 拍）
+ *     ui_sfx_tick();                                 一拍推进（**放主循环**，见 §4.5）
+ *     ui_sfx_panic();                                立刻静音 + 清表（退出/重开时）
+ *     ui_sfx_active();                               还有几个槽占着（放完一轮应当回到 0）*/
+void ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave);
+void ui_sfx_tick(void);
+void ui_sfx_reset(void);
+void ui_sfx_panic(void);
+int  ui_sfx_active(void);
 void ui_vibrate(int ms, int strength);   /* 震动 */
 void ui_keep_on(int on);                 /* 别熄屏 */
 void ui_store_set(char* key, char* value);
@@ -210,12 +221,33 @@ int ui_dlg_input(title, prompt, buf, cap);
 3. **同一个通道上后一个音会掐掉前一个**（这正是 `ui_beep` 的老语义）⇒
    "同时响"必须落在**不同通道**上，得有一处统一分配。
 
-所以是一张 16 槽的小表 + 每拍推进一次：`del` 拍后 `note_on`、响 `dur` 拍后 `note_off`。
-可抄的实现：`Examples/cpp/gorilla.cpp` 的「音效：一个小音序器」一节，
-以及 `Examples/basic/gorilla.bas` 的 `sfxAdd` / `sfxTick`（BASIC 版，语法不同、逻辑一样）。
+⚠ **这三条不用你自己绕 —— 机制在共享库里**（`Lib/shared/src/vmlui.c`，所有语言共用一份）：
 
-⚠ 表里**接管同通道旧槽时，要先把那个音关掉** —— 不然旧槽连同"它还在响"一起被丢掉，
-那个声部就再也没人去关它了。
+```c
+void ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave);
+                 /* ↑delay 拍之后开始响、响 ↑dur 拍 */
+void ui_sfx_tick(void);        /* 一拍推进：delay 到了 note_on、dur 响完 note_off */
+void ui_sfx_reset(void);       /* 清表（**不发声**） */
+void ui_sfx_panic(void);       /* 立刻静音：先把在响的全关掉、再清表 */
+int  ui_sfx_active(void);      /* 还有几个槽占着 —— **放完一轮应当回到 0**，拿它做自检 */
+```
+
+**机制在库里，音色留在你的游戏里** —— 哪个事件配什么音是设计，不是机制
+（同一个"爆炸"，机甲游戏和种田游戏要的不一样）。所以一个音效就是三五行：
+
+```c
+/* 命中得分：大三和弦上行（do–mi–sol）—— 重复最多的正反馈，就该最好听的那个 */
+ui_sfx_add(3, 72, 0, 4, 95, VML_WAVE_SQUARE);
+ui_sfx_add(4, 76, 1, 4, 85, VML_WAVE_SQUARE);
+ui_sfx_add(5, 79, 2, 6, 85, VML_WAVE_SQUARE);
+```
+
+⚠ `ui_sfx_add` **接管同通道旧槽时会先把那个音关掉** —— 这是它替你处理的一件容易忘的事
+（不关的话旧槽连同"它还在响"一起被丢掉，那个声部再也没人去关）。
+
+现成的例子按"读起来最快"排序：`Examples/c/tetris.c`（消行用**和弦的丰满度**表达赚了多少，
+不是把音高往上堆）、`Examples/c/pacman.c` / `mario.c` / `starfall.c`（几个 `sfx_*` 一眼看完）、
+`Examples/cpp/gorilla.cpp`（七种音色最全）、`Examples/basic/gorilla.bas`（BASIC 怎么写）。
 
 ### 通道按「谁与谁**可能**同拍」分区
 
@@ -240,10 +272,25 @@ int ui_dlg_input(title, prompt, buf, cap);
 主循环的节奏常常是变的（gorilla 在"飞行 30ms"与"瞄准 120ms"之间切）——
 按"绕一圈算一拍"会让同一段音效在两种状态下**快慢不一样**。
 
-⚠⚠ 更阴的一条：**别把音序器挂在物理节拍（那一支 `Tick()`）上**。
+⚠⚠ 更阴的一条：**别把 `ui_sfx_tick()` 挂在物理节拍（那一支 `Tick()`）上**。
 一局结束的那一刻，物理定时器往往就被杀掉了 —— 而胜负音正要开始放，
 结果**只响出第一个音**。症状很像"音效没做"，实际是驱动源选错了。
-挂在主循环里、按 `ui_tick()` 的真实流逝时间补拍，就一路活到程序退出。
+挂在主循环里、按 `ui_tick()` 的真实流逝时间补拍，就一路活到程序退出：
+
+```c
+int sfx_last;
+void sfx_pump(void) {                 /* 主循环每轮调一次 */
+    int now = ui_tick();
+    int n;
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;        /* 一拍 33ms */
+    if (n > 4) n = 4;                 /* 卡顿一下别"补跑"一串回来 */
+    if (n > 0) { sfx_last = now; while (n > 0) { ui_sfx_tick(); n = n - 1; } }
+}
+```
+
+⚠ 退出前记得 `ui_sfx_panic()` —— 声部是宿主的资源，不关就会一直响下去
+（手机上表现为"切回桌面还有声音"）。
 
 ⚠ **BASIC 版另有一个**：`ui_dlg_msg` 这类对话框是**阻塞**的，一弹出来整个主循环就停了、
 音序器跟着停。所以终局要"先放胜利音 → 等它放完（约 0.5 秒）→ 再弹框"。

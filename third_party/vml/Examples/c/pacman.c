@@ -160,13 +160,52 @@ int row_of(int y) { int v = (y - OY) / TILE; if (v < 0) v = 0; if (v >= MH) v = 
 int abs_i(int v) { if (v < 0) return -v; return v; }
 int rnd(int n) { if (n <= 0) return 0; return ui_rand(n); }
 
-/* ── 音效（单通道 ⇒ 一次一个音）─────────────────────────── */
+/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+ *
+ * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
+ * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ *
+ * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
+ *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
+ *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
+ * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
+ *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
 
-void sfx_dot(void) { ui_beep(880, 18); }
-void sfx_pow(void) { ui_beep(520, 120); }
-void sfx_eat(void) { ui_beep(1400, 90); }
-void sfx_die(void) { ui_beep(150, 420); ui_vibrate(220, 0); }
-void sfx_win(void) { ui_beep(1320, 150); }
+/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍" —— 主循环节奏会变）。
+ * ⚠ 放在主循环里，别挂在会被提前杀掉的定时器上：一局结束时定时器往往就没了，
+ *   而胜负音正要开始放，结果只响得出第一个音。 */
+int sfx_last;
+void sfx_pump(void) {
+    int now;
+    int n;
+    now = ui_tick();
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;
+    if (n > 4) n = 4;
+    if (n > 0) {
+        sfx_last = now;
+        while (n > 0) { ui_sfx_tick(); n = n - 1; }
+    }
+}
+
+
+void sfx_dot(void) { ui_sfx_add(0, 96, 0, 1, 45, VML_WAVE_SQUARE); }   /* 吃豆：高频动作，必须又轻又短 */
+void sfx_pow(void) { ui_sfx_add(1, 60, 0, 5, 90, VML_WAVE_SAW); }      /* 大力丸：有分量的一声 */
+void sfx_eat(void) {                                                    /* 吃鬼：上行两音 = 爽 */
+    ui_sfx_add(2, 84, 0, 3, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(3, 91, 2, 5, 88, VML_WAVE_SQUARE);
+}
+void sfx_die(void) {                                                    /* 死亡：下行三音 */
+    ui_sfx_add(4, 64, 0, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(5, 57, 4, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(6, 48, 8, 14, 95, VML_WAVE_SAW);
+    ui_vibrate(220, 0);
+}
+void sfx_win(void) {                                                    /* 过关：上行琶音 */
+    ui_sfx_add(7, 72, 0, 3, 90, VML_WAVE_SQUARE);
+    ui_sfx_add(8, 79, 2, 3, 90, VML_WAVE_SQUARE);
+    ui_sfx_add(9, 84, 4, 10, 92, VML_WAVE_SQUARE);
+}
 
 /* ── 开局 ───────────────────────────────────────────────── */
 
@@ -666,7 +705,9 @@ int main(void) {
                "START 重开、SELECT 暂停。",
                VML_DLG_INFO);
 
+    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
+        sfx_pump();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -694,6 +735,7 @@ int main(void) {
     }
 
     ui_keep_on(0);
+    ui_sfx_panic();
     ui_win_close();
     return 0;
 }

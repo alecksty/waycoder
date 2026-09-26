@@ -154,24 +154,77 @@ char* digit_str(int d) {
 
 /* ── 手感：音效与震动 ───────────────────────────────────── */
 
-/* 设计原则：**动作用"手感"回话，不堆气氛**。
+/* **机制在共享库里**（`ui_sfx_add` / `ui_sfx_tick` —— `Lib/shared/src/vmlui.c`，
+ * 所有语言共用一份），这里只写**音色**：哪个事件配什么音是设计，不是机制。
+ * 完整的设计建议见 `docs/VML游戏开发指南.md` §4.5。
  *
- * 合成音是**单通道**的（`ui_beep` 一来就把上一个音停掉，见 VmlAudio.ToneCore），
- * 所以这里**一次事件只发一个音**，靠"频率高低"表达好坏，而不是连发一串琶音 ——
- * 连发的话只有最后一个音听得见，等于白写。
- * 频率从低到高：闷响（落地）< 干音（消一行）< 亮音（消四行 / 升级）。 */
-void sfx(int hz, int ms) {
-    ui_beep(hz, ms);
-}
+ * ⚠ 这份文件从前写着"合成音是**单通道**的，所以一次事件只发一个音，靠频率高低
+ *   表达好坏" —— **那个前提现在没有了**（`ui_tone_on/off` 是复音的）。
+ *   于是"消了多少行"不再用"音更高"表达，改用**和弦的丰满度**：
+ *   一行一个音、四行是个带八度的大三和弦 —— 一耳朵就分得出这波赚了多少，
+ *   比单纯把音高往上堆更有层次，也不会在四行时高到刺耳。
+ *
+ * ⚠ 通道分区（互不重叠）：0–3 消行和弦 / 4 旋转 / 5 落地 / 6 暂停继续 /
+ *   7–9 升级 / 10–12 结束。
+ * ⚠ 低音别写太低：手机外放在 200Hz 以下衰减很快，写 C2(65Hz) 出来是"噗"一声
+ *   闷响，玩家听着像**没响**。落地/硬降的基音落在 C3(130Hz) 上下。 */
 
-/* 消行：行数越多音越高、越长 —— 一耳朵就能听出"这波赚了"。 */
+/* 消行：行数越多、和弦越满。 */
 void sfx_clear(int n) {
-    if (n == 1) sfx(880, 110);
-    else if (n == 2) sfx(1046, 130);
-    else if (n == 3) sfx(1318, 160);
-    else sfx(1568, 220);
+    ui_sfx_add(0, 72, 0, 4, 92, VML_WAVE_SQUARE);              /* do */
+    if (n >= 2) ui_sfx_add(1, 76, 1, 4, 82, VML_WAVE_SQUARE);  /* mi */
+    if (n >= 3) ui_sfx_add(2, 79, 2, 5, 82, VML_WAVE_SQUARE);  /* sol */
+    if (n >= 4) ui_sfx_add(3, 84, 3, 9, 88, VML_WAVE_SQUARE);  /* do（高八度）*/
     ui_vibrate(28, 0);
 }
+
+/* 旋转：轻、短、不抢戏 —— 这是个高频动作，响一点就烦。 */
+void sfx_rotate(void) { ui_sfx_add(4, 84, 0, 1, 55, VML_WAVE_TRIANGLE); }
+
+/* 自然落地：一声闷响（不震）。 */
+void sfx_land(void) { ui_sfx_add(5, 48, 0, 2, 72, VML_WAVE_SAW); }
+
+/* 硬降：更沉、更短促 —— 与自然落地**必须分得出**（玩家是主动砸的还是没赶上）。 */
+void sfx_harddrop(void) { ui_sfx_add(5, 43, 0, 3, 100, VML_WAVE_SAW); }
+
+/* 暂停 / 继续：一低一高，一听就知道是"停"还是"走"。 */
+void sfx_pause(void) { ui_sfx_add(6, 72, 0, 2, 70, VML_WAVE_TRIANGLE); }
+void sfx_resume(void) { ui_sfx_add(6, 79, 0, 2, 70, VML_WAVE_TRIANGLE); }
+
+/* 重开：一声干脆的起手音。 */
+void sfx_restart(void) { ui_sfx_add(6, 76, 0, 3, 75, VML_WAVE_SQUARE); }
+
+/* 升级：上行琶音，**盖过消行音** —— 升级更值得听见。 */
+void sfx_levelup(void) {
+    ui_sfx_add(7, 84, 0, 3, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(8, 88, 2, 3, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(9, 96, 4, 8, 92, VML_WAVE_SQUARE);
+}
+
+/* 结束：下行三音 + 长低音拖尾。 */
+void sfx_over(void) {
+    ui_sfx_add(10, 57, 0, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(11, 53, 3, 4, 90, VML_WAVE_SAW);
+    ui_sfx_add(12, 48, 6, 12, 95, VML_WAVE_SAW);
+    ui_vibrate(220, 0);
+}
+
+/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍"—— 主循环的节奏在
+ * 下落间隔变化时会变）。⚠ 每帧调一次，放在主循环里。 */
+int sfx_last;
+void sfx_pump(void) {
+    int now;
+    int n;
+    now = ui_tick();
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;
+    if (n > 4) n = 4;
+    if (n > 0) {
+        sfx_last = now;
+        while (n > 0) { ui_sfx_tick(); n = n - 1; }
+    }
+}
+
 
 /* ── 方块几何 ───────────────────────────────────────────── */
 
@@ -290,8 +343,7 @@ void spawn(void) {
     if (collide(pid, rot, px, py) != 0) {   /* 出生位就满了 = 结束 */
         state = 2;
         submit_score();
-        sfx(220, 420);
-        ui_vibrate(220, 0);
+        sfx_over();
     }
 }
 
@@ -360,14 +412,14 @@ void lock_piece(void) {
         if (lv > 12) lv = 12;
         if (lv > level) {
             level = lv;
-            sfx(1760, 150);            /* 升级盖过消行音：升级更值得听见 */
+            sfx_levelup();             /* 升级盖过消行音：升级更值得听见 */
             ui_vibrate(60, 0);
         } else {
             sfx_clear(n);
         }
         set_speed();
     } else {
-        sfx(200, 35);                  /* 自然落地：一声闷响，不震 */
+        sfx_land();                     /* 自然落地：一声闷响，不震 */
     }
 }
 
@@ -393,7 +445,7 @@ void rotate_piece(void) {
     nm = piece_min(pid, nr);
     nx = px + om / 16 - nm / 16;
     ny = py + om % 16 - nm % 16;
-    sfx(1200, 22);
+    sfx_rotate();
     if (collide(pid, nr, nx, ny) == 0) {
         rot = nr;
         px = nx;
@@ -433,7 +485,7 @@ void hard_drop(void) {
         n = n + 1;
     }
     score = score + n * 2;
-    sfx(150, 70);                      /* 低频闷响 = "砸下去了" */
+    sfx_harddrop();                    /* 低频闷响 = "砸下去了" */
     ui_vibrate(22, 0);
     lock_piece();
     spawn();
@@ -460,7 +512,7 @@ void restart(void) {
     npid = ui_rand(7);
     spawn();
     set_speed();
-    sfx(900, 70);
+    sfx_restart();
 }
 
 /* ── 绘图 ───────────────────────────────────────────────── */
@@ -654,11 +706,11 @@ int press(int btn) {
             state = 1;
             if (tid > 0) ui_timer_kill(tid);
             tid = 0;
-            sfx(500, 60);
+            sfx_pause();
         } else {
             state = 0;
             set_speed();
-            sfx(700, 60);
+            sfx_resume();
         }
         return 1;
     }
@@ -822,7 +874,9 @@ int main(void) {
                              "返回箭头退出。", VML_DLG_INFO);
     draw_all();
 
+    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
+        sfx_pump();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

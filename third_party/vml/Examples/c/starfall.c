@@ -232,12 +232,51 @@ void reset_game(void) {
     }
 }
 
-/* ── 音效（合成音单通道 ⇒ 一次只发一个音）───────────────── */
+/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+ *
+ * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
+ * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ *
+ * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
+ *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
+ *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
+ * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
+ *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
 
-void sfx_shoot(void) { ui_beep(900, 22); }
-void sfx_boom(void) { ui_beep(160, 110); }
-void sfx_hit(void) { ui_beep(90, 260); ui_vibrate(140, 0); }
-void sfx_wave(void) { ui_beep(1320, 90); }
+/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍" —— 主循环节奏会变）。
+ * ⚠ 放在主循环里，别挂在会被提前杀掉的定时器上：一局结束时定时器往往就没了，
+ *   而胜负音正要开始放，结果只响得出第一个音。 */
+int sfx_last;
+void sfx_pump(void) {
+    int now;
+    int n;
+    now = ui_tick();
+    if (sfx_last == 0) { sfx_last = now; return; }
+    n = (now - sfx_last) / 33;
+    if (n > 4) n = 4;
+    if (n > 0) {
+        sfx_last = now;
+        while (n > 0) { ui_sfx_tick(); n = n - 1; }
+    }
+}
+
+
+void sfx_shoot(void) { ui_sfx_add(0, 91, 0, 1, 45, VML_WAVE_SQUARE); }   /* 射击：最高频的动作，最轻最短 */
+void sfx_boom(void) {                                                    /* 爆炸：三音轰鸣 */
+    ui_sfx_add(1, 48, 0, 5, 100, VML_WAVE_SAW);
+    ui_sfx_add(2, 54, 0, 4, 75, VML_WAVE_SAW);
+    ui_sfx_add(3, 36, 0, 6, 85, VML_WAVE_TRIANGLE);
+}
+void sfx_hit(void) {                                                     /* 被撞：低沉长音往下沉 */
+    ui_sfx_add(4, 55, 0, 5, 95, VML_WAVE_SAW);
+    ui_sfx_add(5, 45, 5, 12, 95, VML_WAVE_SAW);
+    ui_vibrate(140, 0);
+}
+void sfx_wave(void) {                                                    /* 过一波：上行琶音 */
+    ui_sfx_add(6, 76, 0, 3, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(7, 83, 2, 3, 88, VML_WAVE_SQUARE);
+    ui_sfx_add(8, 88, 4, 8, 90, VML_WAVE_SQUARE);
+}
 
 /* ── 每拍 ───────────────────────────────────────────────── */
 
@@ -686,7 +725,9 @@ int main(void) {
                "打掉敌机攒连击，别被撞到。START 重开、SELECT 暂停。",
                VML_DLG_INFO);
 
+    sfx_last = ui_tick();
     while (ui_win_closed() == 0) {
+        sfx_pump();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -721,6 +762,7 @@ int main(void) {
     }
 
     ui_keep_on(0);
+    ui_sfx_panic();
     ui_win_close();
     return 0;
 }

@@ -454,6 +454,156 @@ int ui_tone_voices(void) { return _ui_tone_ctl(VML_TONE_CTL_VOICES, 0, 0); }
 /* 立刻全停（**不进淡出**）。用于"用户强制停止 / 页面被销毁"这类场合。 */
 int ui_tone_panic(void) { return _ui_tone_ctl(VML_TONE_CTL_PANIC, 0, 0); }
 
+/* ── 音效音序器 ────────────────────────────────────────────────────────
+ *
+ * 为什么这一层在**库里**，而不是每个游戏自己写一遍：
+ *
+ *   ① `ui_tone_on` **没有时长参数** —— 响多久全看自己什么时候 `ui_tone_off`。
+ *      事件点上 on、忘了 off，声部就只涨不落（上限 `VML_TONE_MAX_VOICES` = 32，
+ *      满了以后新音**全哑，而且一声不响地哑**）。
+ *   ② 好听的音效是**几个音先后**（"叮—咚"、上行三音），而事件点只有一拍 ⇒
+ *      要"过几拍再响下一个"。
+ *   ③ 同一个**通道**上后一个音会掐掉前一个（这正是 `ui_beep` 的老语义）⇒
+ *      "同时响"必须落在不同通道上，得有一处统一分配。
+ *
+ * 三条合起来 = 一张小表 + 每拍推进一次。**机制在这儿，音色留在各游戏里** ——
+ * 哪个事件配什么音是设计，不是机制（同一个"爆炸"，机甲游戏和种田游戏要的不一样）。
+ *
+ * 用法（`tick` 每拍调一次）：
+ *
+ *     ui_sfx_add(3, 72, 0, 4, 95, VML_WAVE_SQUARE);   // do，立刻响 4 拍
+ *     ui_sfx_add(4, 76, 1, 4, 85, VML_WAVE_SQUARE);   // mi，晚一拍起
+ *     ui_sfx_add(5, 79, 2, 6, 85, VML_WAVE_SQUARE);   // sol
+ *     ...
+ *     ui_sfx_tick();                                   // 每拍（见下）
+ *
+ * ⚠ **`tick` 要按真实流逝时间调**，而且**别挂在会被提前杀掉的定时器上** ——
+ *   一局结束那一刻物理定时器往往就被 kill 了，而胜负音正要开始放，结果
+ *   **只响得出第一个音**（症状很像"音效没做"）。挂在主循环里、用 `ui_tick()`
+ *   的差值补拍最稳。
+ *
+ * ⚠ **通道分配由调用方定，但要按"谁与谁可能同拍"分区** —— 两个可能同时发生的
+ *   音效共用通道时，后者会把前者的槽顶掉：表现是**静默少一个音**，日志上只是
+ *   少两行。建议：0–2 爆炸 / 3–5 得分 / 6–7 发射 / 8–9 空中 / 10–12 警报 / 13–15 胜负。
+ *
+ * ⚠ 低音别写太低：手机外放在 200Hz 以下衰减很快，C2(65Hz) 出来是"噗"一声闷响，
+ *   玩家听着像**没响**而不是"低沉"。轰鸣的基音落在 C3(130Hz) 上下比较稳。
+ */
+#define UI_SFX_SLOTS 16
+
+static int _ui_sfx_ch[UI_SFX_SLOTS];
+static int _ui_sfx_note[UI_SFX_SLOTS];
+static int _ui_sfx_del[UI_SFX_SLOTS];    /* 还差几拍开响（0 = 落到这一拍就响） */
+static int _ui_sfx_dur[UI_SFX_SLOTS];    /* 响几拍 */
+static int _ui_sfx_vel[UI_SFX_SLOTS];
+static int _ui_sfx_wave[UI_SFX_SLOTS];
+static int _ui_sfx_on[UI_SFX_SLOTS];     /* 1 = 已经 note_on、还等着 note_off */
+static int _ui_sfx_rdy = 0;              /* 静态区是 0，而"空槽"用 -1 表示 ⇒ 要懒初始化一次 */
+
+/* 清表（**不发声**）。⚠ 只清表不关音 = 已经在响的那些**从此没人管**，
+ * 所以要"静音"请用 `ui_sfx_panic()`。 */
+void ui_sfx_reset(void) {
+    int i;
+    for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+        _ui_sfx_ch[i] = -1;
+        _ui_sfx_note[i] = -1;
+        _ui_sfx_del[i] = 0;
+        _ui_sfx_dur[i] = 0;
+        _ui_sfx_vel[i] = 0;
+        _ui_sfx_wave[i] = -1;
+        _ui_sfx_on[i] = 0;
+    }
+    _ui_sfx_rdy = 1;
+}
+
+static void _ui_sfx_ensure(void) {
+    if (_ui_sfx_rdy == 0) ui_sfx_reset();
+}
+
+/* 立刻静音：先把在响的全关掉、再清表。
+ * ⚠ **顺序不能反** —— 先清表就丢掉了"哪些通道在响"，那些声部会一直响到程序结束。 */
+void ui_sfx_panic(void) {
+    int i;
+    _ui_sfx_ensure();
+    for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+        if (_ui_sfx_on[i] != 0) ui_tone_off(_ui_sfx_ch[i], _ui_sfx_note[i]);
+    }
+    ui_tone_panic();          /* 兜底：表外的（老式 `ui_beep` 那条声道）也一并停 */
+    ui_sfx_reset();
+}
+
+/* 往表里塞一个音：`delay` 拍之后开始响、响 `dur` 拍。
+ *
+ * ⚠ 会**先接管同通道的旧槽**，接管之前**先把那个音关掉** —— 不然旧槽连同
+ *   "它还在响"这件事一起被丢掉，那个声部就再也没人去关它了。 */
+void ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave) {
+    int i;
+    int slot;
+    _ui_sfx_ensure();
+    slot = -1;
+    for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+        if (_ui_sfx_ch[i] == ch) {
+            if (_ui_sfx_on[i] != 0) ui_tone_off(_ui_sfx_ch[i], _ui_sfx_note[i]);
+            slot = i;
+        }
+    }
+    if (slot < 0) {
+        for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+            if (_ui_sfx_ch[i] < 0) slot = i;
+        }
+    }
+    if (slot < 0) return;     /* 表满：宁可少一个音，也不要越界 */
+
+    _ui_sfx_ch[slot] = ch;
+    _ui_sfx_note[slot] = note;
+    _ui_sfx_del[slot] = delay;
+    _ui_sfx_dur[slot] = dur;
+    _ui_sfx_vel[slot] = vel;
+    _ui_sfx_wave[slot] = wave;
+    _ui_sfx_on[slot] = 0;
+}
+
+/* 一拍推进：`delay` 到了就 note_on，`dur` 响完就 note_off 并腾出槽位。 */
+void ui_sfx_tick(void) {
+    int i;
+    _ui_sfx_ensure();
+    for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+        if (_ui_sfx_ch[i] >= 0) {
+            if (_ui_sfx_on[i] == 0) {
+                if (_ui_sfx_del[i] > 0) {
+                    _ui_sfx_del[i] = _ui_sfx_del[i] - 1;
+                } else {
+                    ui_tone_wave(_ui_sfx_ch[i], _ui_sfx_wave[i]);
+                    ui_tone_on(_ui_sfx_ch[i], _ui_sfx_note[i], _ui_sfx_vel[i]);
+                    _ui_sfx_on[i] = 1;
+                }
+            } else {
+                _ui_sfx_dur[i] = _ui_sfx_dur[i] - 1;
+                if (_ui_sfx_dur[i] <= 0) {
+                    ui_tone_off(_ui_sfx_ch[i], _ui_sfx_note[i]);
+                    _ui_sfx_ch[i] = -1;
+                    _ui_sfx_note[i] = -1;
+                    _ui_sfx_wave[i] = -1;
+                    _ui_sfx_on[i] = 0;
+                }
+            }
+        }
+    }
+}
+
+/* 表里还有几个槽占着（待响 + 在响）。**没声音可放时返回 0** ——
+ * 拿它做自检的判据（"放完一轮之后必须回到 0"），比看日志靠谱。 */
+int ui_sfx_active(void) {
+    int i;
+    int n;
+    _ui_sfx_ensure();
+    n = 0;
+    for (i = 0; i < UI_SFX_SLOTS; i = i + 1) {
+        if (_ui_sfx_ch[i] >= 0) n = n + 1;
+    }
+    return n;
+}
+
 /* 帧边界标记（本帧画完了）。 */
 void ui_present(void) {
     asm("SYSCALL #531");

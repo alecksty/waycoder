@@ -74,6 +74,11 @@ NATIVE FUNCTION ui_tone_wave(ch AS INTEGER, wave AS INTEGER) AS INTEGER
 NATIVE FUNCTION ui_tone_max_voices(n AS INTEGER) AS INTEGER
 NATIVE FUNCTION ui_tone_voices() AS INTEGER
 NATIVE FUNCTION ui_tone_panic() AS INTEGER
+NATIVE SUB ui_sfx_reset()
+NATIVE SUB ui_sfx_panic()
+NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
+NATIVE SUB ui_sfx_tick()
+NATIVE FUNCTION ui_sfx_active() AS INTEGER
 NATIVE FUNCTION ui_mask_seg_count() AS INTEGER
 NATIVE FUNCTION ui_mask_seg_op(seg AS INTEGER) AS INTEGER
 NATIVE FUNCTION ui_mask_shape_count(seg AS INTEGER) AS INTEGER
