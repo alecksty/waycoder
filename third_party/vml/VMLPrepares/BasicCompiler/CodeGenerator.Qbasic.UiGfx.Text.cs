@@ -59,6 +59,20 @@ public partial class CodeGenerator
     const string UiTxtMaxColLabel = "_ui_txt_maxcol";
     /// <summary>文本行数（模式 9/1/7/13 = 25、模式 12 = 30）—— 行溢出钳制用</summary>
     const string UiTxtMaxRowLabel = "_ui_txt_maxrow";
+    /// <summary>
+    /// 当前窗口的**像素高**（开窗时记下来）。`WIDTH` 要拿它算 <c>cellh = H ÷ rows</c>,
+    /// 而格高在运行期才知道（模式可能是变量）。
+    /// </summary>
+    const string UiWinHLabel = "_ui_win_h";
+    /// <summary>
+    /// 「网格是用户用 `WIDTH` 指定的」= 1。开窗时按 SCREEN 模式铺网格会**跳过**三项 store。
+    ///
+    /// <para>⚠ 为什么必须是**运行期**标志而不是编译期布尔：老程序习惯把 `WIDTH` 写在
+    /// `SCREEN` **之前**（QBasic 时代 `SCREEN` 会重置网格，所以大家都这么写），
+    /// 而 SCREEN 开窗那一步是无条件铺网格的 —— 编译期标志只挡得住"WIDTH 在 SCREEN 之后"
+    /// 这一种顺序。</para>
+    /// </summary>
+    const string UiTxtUserGridLabel = "_ui_txt_user_grid";
 
     /// <summary>行缓冲容量（字节）。一个字符一个字节，够 GORILLA 那种 80 列的一行还有余量。</summary>
     const int UiTxtBufCap = 240;
@@ -128,6 +142,122 @@ public partial class CodeGenerator
         if (!dataSection.ContainsKey(UiTxtCellHLabel)) dataSection[UiTxtCellHLabel] = 16;
         if (!dataSection.ContainsKey(UiTxtMaxColLabel)) dataSection[UiTxtMaxColLabel] = 80;
         if (!dataSection.ContainsKey(UiTxtMaxRowLabel)) dataSection[UiTxtMaxRowLabel] = 25;
+        if (!dataSection.ContainsKey(UiWinHLabel)) dataSection[UiWinHLabel] = 480;
+        if (!dataSection.ContainsKey(UiTxtUserGridLabel)) dataSection[UiTxtUserGridLabel] = 0;
+    }
+
+    /// <summary>
+    /// 网格只在"用户没指定过"时才按模式铺 —— 见 <see cref="UiTxtUserGridLabel"/> 的注释。
+    /// 生成 <c>if ([flag] == 0) { …三项 store… } else { 重算 cellh }</c>。
+    ///
+    /// <para>
+    /// ⚠ <b>else 那一支不是可省的</b>：`WIDTH` 写在 `SCREEN` **之前**时（QBasic 的老习惯），
+    /// WIDTH 当时还不知道窗口多高，只能用默认值算格高 —— 必须等 SCREEN 把真实的
+    /// <see cref="UiWinHLabel"/> 记下来之后**再算一次**。少了这一支，症状是
+    /// 「`WIDTH 40,10` 配 `SCREEN 9` 得到格高 48（= 480/10），而不是 35（= 350/10）」——
+    /// 列数是对的、只有行高偏，看起来像字体问题。
+    /// </para>
+    /// </summary>
+    void UiTextGridUnlessUserSpecified(Action storeGrid)
+    {
+        string userWins = newLabel();
+        string done = newLabel();
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, UiTxtUserGridLabel)]));
+        instructions.Add(new Instruction(OpCode.CMP,
+            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+        instructions.Add(new Instruction(OpCode.JNE, [new Operand(OperandType.LABEL, userWins)]));
+        storeGrid();
+        instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
+        AddLabel(userWins);
+        UiTextStoreCellhFromRows();
+        AddLabel(done);
+    }
+
+    /// <summary>
+    /// <c>cellh = max(_ui_win_h ÷ _ui_txt_maxrow, 1)</c> —— 用**用户指定的行数**重算格高。
+    /// 除零按 1 兜底（`UiEmitWidthStatement` 已保证 maxrow ≥ 1，这里再兜一次是防御）。
+    /// </summary>
+    void UiTextStoreCellhFromRows()
+    {
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, UiWinHLabel)]));
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, UiTxtMaxRowLabel)]));
+        string rowsOk = newLabel();
+        instructions.Add(new Instruction(OpCode.CMP,
+            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+        instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, rowsOk)]));
+        AddRI(OpCode.MOVE, 0, 1);
+        AddLabel(rowsOk);
+        instructions.Add(new Instruction(OpCode.DIV,
+            [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
+        string cellOk = newLabel();
+        instructions.Add(new Instruction(OpCode.CMP,
+            [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1)]));
+        instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, cellOk)]));
+        AddRI(OpCode.MOVE, 1, 1);
+        AddLabel(cellOk);
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.MEMORY, UiTxtCellHLabel), new Operand(OperandType.REGISTER, 1)]));
+    }
+
+    /// <summary>把窗口像素高记进 <see cref="UiWinHLabel"/>（R0 = 高）</summary>
+    void UiTextStoreWinH()
+    {
+        UiEnsureTextVars();
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.MEMORY, UiWinHLabel), new Operand(OperandType.REGISTER, 0)]));
+    }
+
+    /// <summary>
+    /// <c>WIDTH cols, rows</c> → 设定文字网格（列数 / 行数 / 格高）。
+    ///
+    /// <para>
+    /// <b>原先这个语句完全没有效果</b>，而且是双重失效：
+    /// <list type="number">
+    /// <item><c>GenerateQbWidthStatement</c> 存的是 <c>Sys.TextCols</c>/<c>TextRows</c> 两个槽，
+    /// 而那两个槽**一个读者都没有**（全仓 8 处引用全是写点）；</item>
+    /// <item>更糟的是那 8 处**连"写"都不是** —— 生成的是 <c>MOVE R0, [R2]</c>（读），
+    /// 值读进 R0/R1 就丢了。同一族"存取方向写反"的坑。</item>
+    /// </list>
+    /// 真正被文字层读的是 <c>_ui_txt_maxcol</c>/<c>_ui_txt_maxrow</c>/<c>_ui_txt_cellh</c>
+    /// （<c>UiGfx.Text.cs</c> 的三处读者），所以这里写它们。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <c>cols</c>/<c>rows</c> 可以是**表达式**（老程序常写 <c>WIDTH scrCols</c>），
+    /// 所以格高必须**运行期**算：<c>cellh = _ui_win_h ÷ rows</c>，不能折成常量。
+    /// <c>rows ≤ 0</c> 时按 1 兜底，免得除零把整台 VM 打挂。
+    /// </para>
+    /// </summary>
+    void UiEmitWidthStatement(QbWidthStatement stmt)
+    {
+        UiEnsureTextVars();
+        UiEnter();
+        UiTextStoreConst(UiTxtUserGridLabel, 1);
+
+        // maxcol = Cols
+        EvalIntCoord(stmt.Cols, 0);
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.MEMORY, UiTxtMaxColLabel), new Operand(OperandType.REGISTER, 0)]));
+
+        // maxrow = max(Rows, 1) —— 顺手挡掉除零
+        EvalIntCoord(stmt.Rows, 0);
+        string rowsOk = newLabel();
+        instructions.Add(new Instruction(OpCode.CMP,
+            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+        instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, rowsOk)]));
+        AddRI(OpCode.MOVE, 0, 1);
+        AddLabel(rowsOk);
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.MEMORY, UiTxtMaxRowLabel), new Operand(OperandType.REGISTER, 0)]));
+
+        // cellh = max(winH / rows, 1)
+        UiTextStoreCellhFromRows();
+
+        // ⚠ 用 EmitRestoreRegisters 而不是 UiLeave()：WIDTH 不动场景，不必 present。
+        EmitRestoreRegisters(UiClobbered);
     }
 
     /// <summary>把光标归位并丢掉行缓冲（CLS / 开窗之后调）</summary>
@@ -163,9 +293,14 @@ public partial class CodeGenerator
         UiEnsureTextVars();
         var (cols, rows) = UiTextGridOf(mode);
         var (_, h) = UiResolutionOf(mode);
-        UiTextStoreConst(UiTxtMaxColLabel, cols);
-        UiTextStoreConst(UiTxtMaxRowLabel, rows);
-        UiTextStoreConst(UiTxtCellHLabel, Math.Max(1, h / rows));
+        // 窗口高无条件记下来（WIDTH 要用它算格高），网格本身则只在用户没指定过时才铺。
+        UiTextStoreConst(UiWinHLabel, h);
+        UiTextGridUnlessUserSpecified(() =>
+        {
+            UiTextStoreConst(UiTxtMaxColLabel, cols);
+            UiTextStoreConst(UiTxtMaxRowLabel, rows);
+            UiTextStoreConst(UiTxtCellHLabel, Math.Max(1, h / rows));
+        });
     }
 
     /// <summary>
@@ -179,20 +314,26 @@ public partial class CodeGenerator
         string chosen = newLabel();
         // 兜底 = 默认那档（未知模式按 640×480 的 80×30）
         var def = UiTextGridOf(-1);
-        UiTextStoreConst(UiTxtMaxColLabel, def.Cols);
-        UiTextStoreConst(UiTxtMaxRowLabel, def.Rows);
-        UiTextStoreConst(UiTxtCellHLabel, Math.Max(1, 480 / def.Rows));
+        UiTextStoreConst(UiWinHLabel, 480);
+        UiTextGridUnlessUserSpecified(() =>
+        {
+            UiTextStoreConst(UiTxtMaxColLabel, def.Cols);
+            UiTextStoreConst(UiTxtMaxRowLabel, def.Rows);
+            UiTextStoreConst(UiTxtCellHLabel, Math.Max(1, 480 / def.Rows));
+        });
 
-        var emitted = new HashSet<(int, int, int)>();
+        // ⚠ key 里带上**窗口高**（不只 (cols,rows,cellh)）：`WIDTH` 要拿 winH 算格高，
+        //   所以每一档都得把那个模式的高一并记下来。
+        var emitted = new HashSet<(int, int, int, int)>();
         foreach (int m in new[] { 1, 2, 7, 8, 9, 11, 12, 13 })
         {
             var (cols, rows) = UiTextGridOf(m);
             var (_, h) = UiResolutionOf(m);
-            var key = (cols, rows, Math.Max(1, h / rows));
+            var key = (cols, rows, Math.Max(1, h / rows), h);
             if (!emitted.Add(key)) continue;
             var modes = new[] { 1, 2, 7, 8, 9, 11, 12, 13 }
                 .Where(x => { var (c2, r2) = UiTextGridOf(x); var (_, h2) = UiResolutionOf(x);
-                              return (c2, r2, Math.Max(1, h2 / r2)) == key; })
+                              return (c2, r2, Math.Max(1, h2 / r2), h2) == key; })
                 .ToArray();
             string skip = newLabel();
             foreach (int mm in modes)
@@ -204,9 +345,13 @@ public partial class CodeGenerator
             string next = newLabel();
             instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, next)]));
             AddLabel(skip);
-            UiTextStoreConst(UiTxtMaxColLabel, key.Item1);
-            UiTextStoreConst(UiTxtMaxRowLabel, key.Item2);
-            UiTextStoreConst(UiTxtCellHLabel, key.Item3);
+            UiTextStoreConst(UiWinHLabel, key.Item4);
+            UiTextGridUnlessUserSpecified(() =>
+            {
+                UiTextStoreConst(UiTxtMaxColLabel, key.Item1);
+                UiTextStoreConst(UiTxtMaxRowLabel, key.Item2);
+                UiTextStoreConst(UiTxtCellHLabel, key.Item3);
+            });
             instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, chosen)]));
             AddLabel(next);
         }

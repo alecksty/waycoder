@@ -969,6 +969,18 @@ namespace BasicCompiler
                 case TokenType.RANDOMIZE:   return ParseRandomizeStatement();
                 case TokenType.KB_GETCH:    return ParseKbGetChStatement();
                 case TokenType.SLEEP:       return ParseSleepStatement();
+                // BEEP —— ⚠ **此前从来没人解析它**：`TokenType.BEEP` 在 Lexer 里有词条，
+                // `BeepStatement` 也早就定义好了（ASTNode.cs），但**语句分派表里没有它**、
+                // 全仓没有任何地方 `new BeepStatement(...)` ⇒ BEEP 被词法化成 token 之后
+                // 直接掉进兜底分支，**连一条指令都不生成**。
+                //
+                // 后果是"BEEP 调了没反应"、而且**静默**（编译零错误、退出码 0）。
+                // 这正是本仓记过的形态：**光有 AST 节点与关键字，没有解析入口** ——
+                // 与 `FREEFILE`（只有 TokenType + 死 AST 类）是同一族。
+                //
+                // 实测判据：加这一行之前，`BEEP` 跑完**一个 `vml-audio` 调用都没有**；
+                // 之后有一行 `[vml-audio] tone hz=800 ms=100`（走 ui_beep）。
+                case TokenType.BEEP:        return ParseBeepStatement();
                 case TokenType.SWAP:        return ParseSwapStatement();
                 case TokenType.ERASE:       return ParseEraseStatement();
                 case TokenType.CHIPASM:     return ParseChipAsmStatement();

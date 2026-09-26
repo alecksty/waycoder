@@ -172,9 +172,19 @@ namespace BasicCompiler
             }
             else if (statement is BeepStatement)
             {
-                // BEEP: output ASCII BEL (0x07) via SYSCALL 4
-                AddRI(OpCode.MOVE, 0, 7);
-                EmitPrintChar();
+                // UiGfx（默认）→ ui_beep(800,100)；老路才是 BEL(0x07) + SYSCALL 4。
+                // ⚠ 老路在手机上**完全静音且不报错**（BEL 被文字层的控制字符过滤吃掉），
+                //   详见 UiEmitBeepStatement 的注释。
+                if (UiGfx)
+                {
+                    UiEmitBeepStatement();
+                }
+                else
+                {
+                    // BEEP: output ASCII BEL (0x07) via SYSCALL 4
+                    AddRI(OpCode.MOVE, 0, 7);
+                    EmitPrintChar();
+                }
             }
             else if (statement is SleepStatement sleepStmt)
             {

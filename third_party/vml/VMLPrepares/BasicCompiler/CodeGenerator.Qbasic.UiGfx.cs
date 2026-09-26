@@ -317,6 +317,47 @@ public partial class CodeGenerator
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    //  BEEP
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>BEEP 的频率与时长 —— 与 <c>VmSpeakerDevice.Beep</c> 的默认值一致。</summary>
+    const int UiBeepHz = 800;
+    const int UiBeepMs = 100;
+
+    /// <summary>
+    /// <c>BEEP</c> → <c>ui_beep(800, 100)</c>（= 宿主 <c>SYSCALL #57</c>）。
+    ///
+    /// <para>
+    /// <b>为什么必须显式接过来</b>：原来的两条路在手机上都<b>完全静音</b>，而且不报错 ——
+    /// <list type="bullet">
+    /// <item>主程序里发的是 <c>BEL</c>(0x07)，经 <see cref="EmitPrintChar"/> 进文字层，
+    /// 而文字层（<c>UiGfx.Text.cs</c> 的 <c>basic_ui_text_putc</c>）**把 &lt;32 且非 CR/LF
+    /// 的控制字符直接丢掉**（那是为了不让杂散控制符破坏字符网格）；</item>
+    /// <item>SUB 体里发的是裸 <c>SYSCALL #4</c>，绕开整个 UiGfx 分派；而 <c>#4</c> 看到 7 只让
+    /// <c>VmSpeakerDevice</c> 去 <c>Console.Beep</c>（非 Windows 抛异常后被 catch 成
+    /// <c>Write('\a')</c>）—— 手机端那条输出流根本没人看。</item>
+    /// </list>
+    /// </para>
+    ///
+    /// <para>
+    /// 真正会响的只有 <c>SYSCALL #57</c>（宿主在 <c>VmlHostRuntime</c> 里把它截住交给音频层）。
+    /// 实测：改前 <c>BEEP</c> 跑完**一个 <c>vml-audio</c> 调用都没有**，改后有一行
+    /// <c>[vml-audio] tone hz=800 ms=100</c>。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>不需要 <see cref="UiLeave"/></b> —— 它除了恢复寄存器还会发一次
+    /// <c>ui_present()</c>，而 BEEP 不动场景，多一次 present 只是白跑。
+    /// </para>
+    /// </summary>
+    void UiEmitBeepStatement()
+    {
+        UiEnter();
+        UiCall("ui_beep", UiConst(UiBeepHz), UiConst(UiBeepMs));
+        EmitRestoreRegisters(UiClobbered);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     //  SCREEN
     // ══════════════════════════════════════════════════════════════════════
 
@@ -718,10 +759,24 @@ public partial class CodeGenerator
     /// <summary>
     /// CIRCLE (x,y), r, color [, start, end, aspect] → <c>ui_circle</c> / <c>ui_ellipse</c>。
     ///
-    /// <para>**弧（start/end）不支持，而且不静默** —— 见 <see cref="UiWarnArcUnsupported"/>：
-    /// 编译期打一条真正的告警（`; 警告:` 注释进汇编 + DiagnosticBag），运行期**画整圆**。
-    /// 本平台没有任何"按角度画弧"的宿主图元（<c>ui_circle</c> 只画整圆、
-    /// <c>ui_draw_pie</c> 是扇形填充），所以要真做就得往共享库加 <c>ui_arc</c> —— 那一步没做。</para>
+    /// <para>**弧（start/end）暂不支持，而且不静默** —— 见 <see cref="UiWarnArcUnsupported"/>：
+    /// 编译期打一条真正的告警（`; 警告:` 注释进汇编 + DiagnosticBag），运行期**画整圆**。</para>
+    ///
+    /// <para>
+    /// ⚠ <b>这里原先写的理由是错的</b>（v0.96.501 更正）：原文说"本平台没有任何按角度画弧的
+    /// 宿主图元"。实际上 <c>ui_path</c>(#535) 的 SVG 语法里就有弧（<c>A</c> 命令），
+    /// 而弧的端点→中心参数化换算（SVG 规范 F.6.5，含半径不够时放大）**早就实现好了**
+    /// —— 见 <c>WayCoder/Infra/DrawPath.cs</c> 的 <c>AppendArc</c>。缺的只是"把弧喂给宿主"这一步。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>那为什么还不做</b>：喂 <c>ui_path</c> 要一个**运行期拼出来的路径串**
+    /// （端点要按角度算 sin/cos）。运行期字符串拼接实测**是好的**
+    /// （<c>a$ = "M " + STR$(160) + " " + STR$(100)</c> → <c>"M 160 100"</c>，长度 9 ✓），
+    /// 但 QBasic 的起始/结束角是**弧度、浮点**，而本前端的浮点目前是坏的
+    /// （`DIM x AS SINGLE` 不生效、`PRINT` 把浮点截成整数、`/` 走整数除 —— 见批 2）。
+    /// 现在硬做出来会是一条**静默画错角度**的弧，比"响亮地退回整圆"更糟。
+    /// ⇒ **排在数值那一批之后**。</para>
     /// </summary>
     void UiEmitCircleStatement(QbCircleStatement stmt)
     {
@@ -781,13 +836,15 @@ public partial class CodeGenerator
     /// </summary>
     void UiWarnArcUnsupported()
     {
-        WarnUnimplemented("CIRCLE 的起始/结束角（弧）—— 本平台没有按角度画弧的宿主图元，已落回整圆");
+        WarnUnimplemented("CIRCLE 的起始/结束角（弧）—— 尚未接线到 ui_path 的 SVG 弧，已落回整圆");
         if (_uiArcWarned) return;
         _uiArcWarned = true;
         Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
-            "CIRCLE 的 start/end（画弧）尚未实现：宿主图元里没有按角度画弧的接口，"
-            + "本后端**落回整圆**（画出来会比原程序多出弧以外的部分，不是静默-忽略而是可见的差异）。"
-            + "纵横比 aspect 是支持的（走 ui_ellipse）。");
+            "CIRCLE 的 start/end（画弧）尚未实现，本后端**落回整圆**"
+            + "（画出来会比原程序多出弧以外的部分 —— 是可见的差异，不是静默忽略）。"
+            + "宿主侧其实有现成能力（ui_path 的 SVG `A` 命令 + DrawPath.cs 的 F.6.5 换算），"
+            + "缺的是运行期把角度算成端点并拼出路径串；而 QBasic 的角度是弧度浮点，"
+            + "需等数值那一批修好。纵横比 aspect 是支持的（走 ui_ellipse）。");
     }
 
     bool _uiArcWarned;

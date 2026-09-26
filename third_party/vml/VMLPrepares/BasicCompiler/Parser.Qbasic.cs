@@ -216,6 +216,13 @@ public partial class Parser : ParserBase<Token, TokenType>
         return s;
     }
 
+    /// <summary>`BEEP` —— 无参数，喇叭响一声。生成侧见 <c>UiEmitBeepStatement</c>。</summary>
+    Statement ParseBeepStatement()
+    {
+        var t = Advance();
+        return new BeepStatement(t.Line, t.Column);
+    }
+
     Statement ParseSleepStatement()
     {
         var t = Advance();

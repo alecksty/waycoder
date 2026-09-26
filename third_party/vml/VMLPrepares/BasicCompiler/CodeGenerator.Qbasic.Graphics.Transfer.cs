@@ -48,7 +48,13 @@ public partial class CodeGenerator
     void GenerateQbWidthStatement(QbWidthStatement stmt)
     {
         // WIDTH: set text columns/rows (NOT pixel resolution, which is set by SCREEN)
-        // Store at text dimension addresses (0x6FF6=cols, 0x6FFA=rows)
+        //
+        // ⚠ UiGfx（默认）走文字层**真正在读的那三个槽**；老 PcGfx 路保持原样。
+        if (UiGfx)
+        {
+            UiEmitWidthStatement(stmt);
+            return;
+        }
         if (currentSubName != null)
         {
             GenerateSubExpression(stmt.Cols, 0);
@@ -64,6 +70,21 @@ public partial class CodeGenerator
         SysAddr(2, Sys.TextRows);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
     }
+    /// <summary>
+    /// 把一个编译期常量存进 `DRAW` 的运行期状态槽（`Sys.Draw*`）。
+    ///
+    /// <para>⚠ 存在的唯一理由是**别再写反操作数顺序**：这个动作原先在
+    /// <see cref="GenerateDrawStatement"/> 里手抄了 5 遍，5 遍全是 `MOVE R0, [R1]`（读）。
+    /// 收成一个函数之后，方向只写一次。</para>
+    /// </summary>
+    void DrawStore(string sysSlot, int value)
+    {
+        SysAddr(1, sysSlot);                        // R1 = &槽
+        AddRI(OpCode.MOVE, 0, value);               // R0 = 值
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));  // [R1] = R0
+    }
+
     void GenerateDrawStatement(DrawStatement stmt)
     {
         // Generate inline VML code that parses the DRAW command string at runtime
@@ -75,29 +96,35 @@ public partial class CodeGenerator
         //   Sys.DrawAngle: angle
 
         // Initialize draw state
-        SysAddr(1, Sys.DrawX);
-        AddRI(OpCode.MOVE, 0, 160); // X center
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        SysAddr(1, Sys.DrawY);
-        AddRI(OpCode.MOVE, 0, 100); // Y center
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        SysAddr(1, Sys.DrawColor);
-        AddRI(OpCode.MOVE, 0, 15); // white
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        SysAddr(1, Sys.DrawScale);
-        AddRI(OpCode.MOVE, 0, 1); // scale = 1
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-        SysAddr(1, Sys.DrawAngle);
-        AddRI(OpCode.MOVE, 0, 0); // angle = 0
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+        //
+        // ⚠⚠ **操作数方向全部写反了**（v0.96.501 修）：原来是
+        //     `(REGISTER 0, MEMORY "R1")` = `MOVE R0, [R1]` —— 那是**读**，
+        //     把槽里的初值（0）读进 R0，刚设好的 160/100/15/1/0 **一个都没存进去**。
+        //   后果连锁：`DrawScale` 恒为 0 ⇒ 步数被 `MUL R1, 0` 归零 ⇒ 每条命令画 0 像素。
+        //   （本仓在 `UiGfx.cs` 的 `GenerateQbColorStatement` 那里专门写了长注释讲这条：
+        //     「`MOVEB [R1], R0` 才是"存"」—— 这里是同一个坑的第 N 次。）
+        DrawStore(Sys.DrawX, 160);      // 起点（QBasic 默认在屏幕中心附近）
+        DrawStore(Sys.DrawY, 100);
+        DrawStore(Sys.DrawColor, 15);   // 默认白
+        DrawStore(Sys.DrawScale, 1);    // 比例 1
+        DrawStore(Sys.DrawAngle, 0);
 
         // Load DRAW string address into R2
         // Store string in data section and emit LEA to load address
+        //
+        // ⚠⚠ **操作数类型必须是 `LABEL` 不是 `IMMEDIATE`**（v0.96.501 修）：
+        //   写成 `IMMEDIATE` 时那个标签**不会被汇编器登记成符号**，而 `dataSection` 里
+        //   那一项也就不出现在产物里 —— 生成的 `move R2, #drawstr_2` 指向一个
+        //   **不存在的标签**，读到的是内存 0 处的字节（0）⇒ 解析循环第一次比较
+        //   `cb == 0` 就判定"串结束"，**整个 DRAW 一条线都不画**。
+        //   ⚠ 而且**不报错**：汇编器对未定义标签不吭声（实测 `grep drawstr` 只有一个"用"、没有"定义"）。
+        //   本仓其它 6 处字符串字面量（`Expressions.cs:107`、`Statements.IO.cs:248`、
+        //   `Misc.cs:155/233`…）用的都是 `OperandType.LABEL` —— 只有这一处不一样。
         if (stmt.DrawString is StringLiteral strLit)
         {
             string drawStrLabel = NewLabel("drawstr");
             dataSection[drawStrLabel] = new DataString(strLit.Value);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, drawStrLabel) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.LABEL, drawStrLabel) }));
         }
         else if (currentSubName != null)
             GenerateSubExpression(stmt.DrawString, 2);
@@ -151,6 +178,13 @@ public partial class CodeGenerator
         SysAddr(4, Sys.DrawScale);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 4) }));
+
+        // ⚠ **步数必须在这里就存下来**（v0.96.501 修）：R1 此刻是"缩放后的步数"，
+        //   而下面的分派分支会把它用掉/覆盖（`C` 分支改成颜色、`M` 分支改成 X 坐标，
+        //   方向分支拿它做加减）。原先代码在"画线"那一段才取步数，取到的已经是
+        //   `R1 = &Sys.DrawY` 这个**地址** ⇒ 步数恒为 DrawY 的值（初值 0）
+        //   ⇒ 每条命令只画 1 个像素，而且画在起点上（DRAW 完全看不出效果）。
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 1) })); // steps = R1
 
         // Save current X, Y for drawing line
         SysAddr(4, Sys.DrawX);
@@ -235,9 +269,21 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
         // C: set color
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawC) }));
-        SysAddr(6, Sys.DrawColor);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R6") }));
-        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
+        // ⚠ **不能借 R6 当"取地址"的暂存**（v0.96.501 修）：R6/R7 是**老位置的 X/Y**，
+        //   下面"画这一段"要用它们当起点。原来写的是 `SysAddr(6, …)` ⇒ R6 被改成
+        //   `&Sys.DrawColor` 这个**内存地址**（实测 1402），于是 `DRAW "C4 …"` 会先画一条
+        //   `(1402,100)→(160,100)` 的**横贯屏幕的假线** —— 而且**不报错**，只是画面上多一条。
+        //   R11 在那个时刻是空的（R0 命令字符 / R1 数值 / R2 串游标 / R3 数字暂存 /
+        //   R4,R5 新位置 / R6,R7 老位置 / R8 步数 / R9,R10 方向 / R12 帧指针 / R13 栈）。
+        SysAddr(11, Sys.DrawColor);
+        // ⚠ 方向是**存**（`[R11] = R1`）：R1 此刻是刚从串里解析出来的那个数字。
+        //   原来写的是 `MOVE R1, [R11]`（**读**）⇒ `C` 命令实际上什么也没设，
+        //   而且顺手把 R1 冲成旧的 DrawColor —— 同一个"存取方向写反"的坑，这是第 6 处。
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R11"), new Operand(OperandType.REGISTER, 1) }));
+        // ⚠ `C` 是**设色**不是**移动** ⇒ 设完就回去解析下一条命令，**不该画**。
+        //   （原来落进 drawOther 画了一条零长度的线：UiGfx 下白跑一次 `ui_line`，
+        //     老 PcGfx 下白画一个像素。）
+        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawLoop) }));
         // M: absolute move (x,y)
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawM) }));
         // For M, R1 has the first number (x), need to parse comma and second number (y)
@@ -271,17 +317,63 @@ public partial class CodeGenerator
 
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawOther) }));
 
-        // Draw line from (oldX, oldY) to (newX, newY)
-        // Load oldX, oldY from R4, R5; newX, newY from Sys.DrawX, Sys.DrawY
-        // Store newX, newY
+        // 到此为止：R6/R7 = 老位置、R4/R5 = 新位置（分派分支算出来的）、R8 = 步数。
+        //
+        // ⚠⚠ **这里原来是两次"读"**（v0.96.501 修）：写的是
+        //     `SysAddr(1, Sys.DrawX); MOVE R4, [R1]` —— 那是把**表里的旧值读进 R4**，
+        //     刚由分派算出来的新位置**当场被覆盖掉**。
+        //   而注释写的是"Store newX, newY"（说明当初的意图就是存），
+        //   指令方向却反了 —— 正是本仓记过的那个坑（`MOVEB [R1], R0` 才是"存"，
+        //   见 `UiGfx.cs` 里 `GenerateQbColorStatement` 那段长注释）。
+        //   后果：DRAW 的位置**永远不前进**（每条命令都从同一点再画一次），
+        //   而且 `R8`（步数）在那之后被赋成 `R1 = &Sys.DrawY` 这个**地址** ⇒ 步数恒为 0。
+        //   两个缺陷叠在一起，表现就是"DRAW 什么都不画"。
         SysAddr(1, Sys.DrawX);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R1") }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 4) }));
         SysAddr(1, Sys.DrawY);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R1") }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 5) }));
 
-        // Draw line from old(R6,R7) to new(R4,R5) with R1 steps
-        // Save step count to R8 (R1 may be used below)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 1) })); // steps=R1
+        // ── UI 后端：一条线段 = 一次 `ui_line`（手机/桌面那扇绘图窗口）────────────
+        //
+        // ⚠ **不要另写一套 DRAW 语法解析**：上面那个运行期解析器照旧是唯一一份，
+        //   这里只是在"把这一段画出来"这个动作上分岔（与 PSET/LINE/CIRCLE 同一个形状）。
+        //
+        // ⚠ **只保护 R2/R4/R5**，不是整套 `UiClobbered`：
+        //   · R2 = DRAW 串的游标，是这条循环里**唯一必须活过这次调用**的值；
+        //   · R4/R5 = 新位置，调用回来还要拿它们去更新游标（其实已存进 .data，
+        //     但顺手保住更省心）；
+        //   · R6–R10 用完即弃（下一轮命令会从 .data 重新装载）。
+        //   用 `UiEnter()`/`UiLeave()` 会连 R6–R10 一起存取、还**每条线段 present 一次**。
+        if (UiGfx)
+        {
+            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
+            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 4) }));
+            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 5) }));
+
+            int dcolor = 12;    // 借一个不在 R2/R4/R5/R6..R10 里的寄存器当暂存
+            UiCall("ui_line",
+                () => instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 6)])),   // x1 = 老 X
+                () => instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 7)])),   // y1 = 老 Y
+                () => instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 4)])),   // x2 = 新 X
+                () => instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 5)])),   // y2 = 新 Y
+                // 颜色：把 `Sys.DrawColor` 里的**调色板索引**换成 0xAARRGGBB。
+                // ⚠ 原来这段硬编码 `255,255,255`（白），`DRAW "C4 …"` 设定的颜色
+                //   **从头到尾没被用过** —— 也是"设了没反应"。
+                () => { SysAddr(dcolor, Sys.DrawColor);
+                        instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R{dcolor}")]));
+                        UiTranslateColorInR0(dcolor); },
+                UiConst(1));    // 线宽
+
+            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 5) }));
+            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 4) }));
+            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
+
+            instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, drawLoop) }));
+            instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, drawEnd) }));
+            return;
+        }
+
+        // ── 老 PcGfx 后端：Bresenham 逐像素写帧缓冲（本平台的宿主都不渲染它）──────
         // Compute direction: R9=sign(R4-R6), R10=sign(R5-R7)
         string drDxDone = newLabel(), drDyDone = newLabel();
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 9), new Operand(OperandType.IMMEDIATE, 0) }));

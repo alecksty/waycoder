@@ -691,8 +691,18 @@ namespace BasicCompiler
             }
             else if (stmt is BeepStatement)
             {
-                AddRI(OpCode.MOVE, 0, 7);
-                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 4) }));
+                // ⚠ 这一份与 CodeGenerator.Statements.cs 里那份是**两份实现**（本仓的老毛病）。
+                //   只改主程序那份的话，症状是"SUB 里 BEEP 没声、主程序里有声" ——
+                //   而两者都编译通过。两处必须一起改。
+                if (UiGfx)
+                {
+                    UiEmitBeepStatement();
+                }
+                else
+                {
+                    AddRI(OpCode.MOVE, 0, 7);
+                    instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 4) }));
+                }
             }
             else if (stmt is SleepStatement sleepStmt)
             {
@@ -2331,7 +2341,11 @@ namespace BasicCompiler
                 case string p when p == "peek" || p == "peekb" || p == "peekh" || p == "peekl" || p == "peekf" || p == "peekd":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateBuiltInPeek(funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "point":
-                    EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_point", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
+                    // ⚠ 与主程序那张表**成对**（`CodeGenerator.Expressions.cs` 的同名分支）：
+                    //   原来两边都调 `basic_point` —— 那个 C 函数读 DOS MMIO 固定地址
+                    //   （`basiclib.c:588` 的 `p = (char*)0x6FE0`），在本平台读不到真值。
+                    //   改走宿主 `ui_get_pixel`，见 `EmitPointFunction`。
+                    EmitPointFunction(funcCall, reg); return;
                 case "command$":
                 case "command":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateCommand(funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;

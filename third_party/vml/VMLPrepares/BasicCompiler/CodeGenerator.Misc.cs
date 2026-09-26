@@ -56,6 +56,96 @@ namespace BasicCompiler
         /// 那是 `Lib` 里那些函数还没重生成时的形态（收尾会替调用方弹掉实参槽）。现在被调方
         /// 一律裸 `ret`，**压了就必须自己清** —— 否则每次库调用净漏 `实参个数 × 4` 字节，
         /// 攒够就把调用方的栈帧踩花（与 D 的 `^^`、Fortran/Ruby 的 `**`、Forth 的 `."` 同族）。</summary>
+        /// <summary>
+        /// <c>POINT(x, y)</c> —— 读像素，返回**调色板索引**（QBasic 语义），越界或取不到 -1。
+        ///
+        /// <para>
+        /// <b>为什么不是直接返回 <c>ui_get_pixel</c> 给的那个 <c>0xRRGGBB</c></b>：
+        /// QBasic 里 <c>POINT</c> 返回的是**颜色号**，老程序的写法清一色是
+        /// <c>IF POINT(x,y) = 0 THEN</c>（背景色）/ <c>&lt;&gt; 15</c>（不是白）。
+        /// 直接把 RGB 递出去，那些比较**全部不成立**，而且不报错 ——
+        /// 表现为"碰撞检测永远判不到"，属于最难查的一类。
+        /// </para>
+        ///
+        /// <para>
+        /// 所以这里多做一步**反查**：拿 <c>ui_get_pixel</c> 的 RGB 去
+        /// <c>_ui_palette_argb</c> 那张 16 项表里找下标。这张表正是所有绘图语句
+        /// （<c>UiTranslateColorInR0</c>）把颜色号换成 RGB 用的**同一张**，
+        /// 所以"画进去的号"与"读出来的号"天然一致。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 两个易错点都在下面的生成里标着：**越界值 -1 必须最先判**
+        /// （白色 <c>0xFFFFFFFF</c> 与 -1 的位型相同，先查表会把越界读成 15），
+        /// 以及**表里找不到时返回 -1** 而不是 0（0 是合法颜色号，混用就分不清
+        /// "背景色"与"没读到"）。
+        /// </para>
+        /// </summary>
+        void EmitPointFunction(FunctionCallExpression funcCall, int reg)
+        {
+            if (!UiGfx)
+            {
+                // 老 PcGfx 后端没有像素回读通道（帧缓冲在堆里，没人渲染也没有读回接口）。
+                // 如实返回 -1，**不假装成功**。
+                AddRI(OpCode.MOVE, reg, -1);
+                return;
+            }
+
+            // 保护 R1–R4（下面要拿它们当暂存），并把结果写回 reg
+            const int rIdx = 1, rTab = 2, rTmp = 3;
+            EmitSaveRegsExcept(reg, 0, rIdx, rTab, rTmp, 4);
+
+            // ui_get_pixel(x, y) —— 参数求值走 GenerateLibraryCall 的既有约定（右到左压栈）
+            GenerateLibraryCall("ui_get_pixel", funcCall, 0);
+
+            string outOfRange = newLabel();
+            string scan = newLabel();
+            string found = newLabel();
+            string done = newLabel();
+
+            // ⚠ 越界**先判**：`ui_get_pixel` 越界返回 -1，而 -1 的位型就是 0xFFFFFFFF，
+            //   与调色板里的白色**一模一样** ⇒ 先查表会把"越界"读成"白色(15)"。
+            instructions.Add(new Instruction(OpCode.CMP,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.JL, [new Operand(OperandType.LABEL, outOfRange)]));
+
+            AddRI(OpCode.MOVE, rIdx, 0);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, rTab), new Operand(OperandType.LABEL, UiPaletteLabel)]));
+
+            AddLabel(scan);
+            instructions.Add(new Instruction(OpCode.CMP,
+                [new Operand(OperandType.REGISTER, rIdx), new Operand(OperandType.IMMEDIATE, 16)]));
+            instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, outOfRange)]));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, rTmp), new Operand(OperandType.MEMORY, $"R{rTab}")]));
+            // ⚠ **必须剥掉 alpha 再比**：调色板表是 `0xAARRGGBB`（每项都带 0xFF 不透明），
+            //   而 `ui_get_pixel` 的契约是 **`0xRRGGBB`（不带 alpha）**。
+            //   不剥的话 `0xFFFFFF00 != 0x00FFFF00`，**16 项一个都对不上**，
+            //   POINT 恒返回 -1 —— 而它看起来完全正常（调用、循环、返回都有）。
+            //   实测：`LINE …,14,BF` 之后 `IF POINT(5,5) = 14` 判不成立。
+            AddRI(OpCode.MOVE, 4, 0x00FFFFFF);
+            AddRR(OpCode.AND, rTmp, 4);
+            instructions.Add(new Instruction(OpCode.CMP,
+                [new Operand(OperandType.REGISTER, rTmp), new Operand(OperandType.REGISTER, 0)]));
+            instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, found)]));
+            AddRI(OpCode.ADD, rTab, 4);
+            AddRI(OpCode.ADD, rIdx, 1);
+            instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, scan)]));
+
+            AddLabel(found);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rIdx)]));
+            instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
+
+            // 表里找不到（真彩图元画的、或调色板被改过）⇒ -1，**不是 0**
+            AddLabel(outOfRange);
+            AddRI(OpCode.MOVE, reg, -1);
+
+            AddLabel(done);
+            EmitRestoreRegsExcept(reg, 0, rIdx, rTab, rTmp, 4);
+        }
+
         private void GenerateLibraryCall(string funcName, FunctionCallExpression funcCall, int reg, bool returnsFloat = false)
         {
             // 从右到左求值参数并压栈（使用 EvalIntCoord 确保 float→int 转换）

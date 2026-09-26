@@ -510,7 +510,14 @@ namespace BasicCompiler
                 case string p when p == "peek" || p == "peekb" || p == "peekh" || p == "peekl" || p == "peekf" || p == "peekd":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateBuiltInPeek(funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 case "point":
-                    EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateLibraryCall("basic_point", funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
+                    // ⚠ 原来这里调的是 `basic_point` —— 那个 C 函数读的是 **DOS MMIO 固定地址**
+                    //   （`Lib/shared/src/basiclib.c:588` 起：`p = (char*)0x6FE0; width = *((int*)p);`），
+                    //   也就是 PcGfx 时代那套"运行期状态写在固定小地址"的约定。
+                    //   在本平台那几格内存**没有那个语义**（同 v0.96.403 用户定的
+                    //   「除汇编和 C 外不许用固定地址」）⇒ 读到的要么是 0、要么是别的程序留下的残留，
+                    //   而 `POINT` 的典型用法 `IF POINT(x,y) = 0` 会**静默判错**。
+                    //   改走宿主的 `ui_get_pixel`，见 `EmitPointFunction`。
+                    EmitPointFunction(funcCall, reg); return;
                 case "command$": case "command":
                     EmitSaveRegsExcept(reg, 0,1,2,3,4,5); GenerateCommand(funcCall, reg); EmitRestoreRegsExcept(reg, 0,1,2,3,4,5); return;
                 // === C 库实现 (CALL basic_xxx) ===
