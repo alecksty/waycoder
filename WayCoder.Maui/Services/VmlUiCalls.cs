@@ -650,6 +650,264 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 #endif
         }
 
+        // ── 传感器（`SENSOR` #554，v0.96.492）────────────────────────────────
+        //
+        // ⚠ **两个平台的方向约定不同，要在这里抹平**：
+        //   · Android 的旋转向量是**四元数**，欧拉角得自己算 —— 那段数学在
+        //     `SensorMath.QuaternionToEuler`（共享层，桌面自测覆盖得到）；
+        //     加速度是 `m/s²`（本来就是 SI）、角速度是 `rad/s`。
+        //   · iOS 的 `CMAttitude` **直接给欧拉角**（弧度）⇒ 不用那段数学；
+        //     但加速度是 **g**，要乘 9.80665 换成 SI。
+        //   契约（毫克 / 千分之一度每秒 / 千分之一度）的换算是**共享层**做的，
+        //   这里只交 SI 基本单位 —— 见 `IVmlHost.SensorRead` 上面那段说明。
+        //
+        // ⚠ 传感器是**推**的（Android/iOS 都没有"读当前值"的 API）⇒ 注册一次监听、
+        //   把最新读数缓存下来，`SensorRead` 只读缓存。注册是**懒**的：
+        //   没用到传感器的程序一个 listener 都不开（那是持续耗电的东西）。
+        // ⚠ 回调在**别的线程**上 ⇒ 缓存要加锁（`_sensorGate`）。
+
+        private readonly object _sensorGate = new();
+        private readonly float[][] _sensorCache = CreateSensorCache();
+        private readonly bool[] _sensorReady = new bool[VmlUi.SensorKind.Count];
+
+        private static float[][] CreateSensorCache()
+        {
+            var a = new float[VmlUi.SensorKind.Count][];
+            for (var i = 0; i < a.Length; i++) a[i] = new float[3];
+            return a;
+        }
+
+        /// <summary>把一组 SI 读数存进缓存（**回调线程**调，故加锁）。</summary>
+        private void CacheSensor(int kind, float x, float y, float z)
+        {
+            lock (_sensorGate)
+            {
+                _sensorCache[kind][0] = x;
+                _sensorCache[kind][1] = y;
+                _sensorCache[kind][2] = z;
+                _sensorReady[kind] = true;
+            }
+        }
+
+        public bool SensorRead(int kind, out float x, out float y, out float z)
+        {
+            x = y = z = 0;
+            if (!EnsureSensor(kind)) return false;      // 这台设备没有该传感器
+            lock (_sensorGate)
+            {
+                if (!_sensorReady[kind]) return true;   // **有**传感器、只是还没收到第一个样本 ⇒ 报 (0,0,0)
+                x = _sensorCache[kind][0];
+                y = _sensorCache[kind][1];
+                z = _sensorCache[kind][2];
+            }
+            return true;
+        }
+
+        public bool SensorSetRate(int kind, int ms)
+        {
+            // 采样率是注册时定的；改它要重新注册。**没注册过就先不注册** ——
+            // 程序只是想设个率、还没真读的话，没必要把硬件打开。
+            // 真正需要生效的是"注册之后又改了"这一种，那时候才有 listener 可换。
+            if (!SensorRegistered(kind)) return SensorExists(kind);
+            return EnsureSensor(kind, ms);
+        }
+
+#if ANDROID
+        // ── Android：SensorManager ──────────────────────────────────────────
+        private Android.Hardware.SensorManager? _sensorMgr;
+        private readonly AndroidSensorListener?[] _sensorListeners = new AndroidSensorListener?[VmlUi.SensorKind.Count];
+        private readonly int[] _sensorRateMs = new int[VmlUi.SensorKind.Count];
+
+        /// <summary>契约里的种类 → Android 的传感器类型。
+        /// ⚠ 融合姿态用 `RotationVector`（含磁力计；`GameRotationVector` 不含，
+        ///   方位角会一直漂）—— 契约文档里写的"方位角可能慢慢转"指的就是后者，
+        ///   这里选前者，能稳则稳。</summary>
+        private static Android.Hardware.SensorType SensorTypeOf(int kind) => kind switch
+        {
+            VmlUi.SensorKind.Accel => Android.Hardware.SensorType.Accelerometer,
+            VmlUi.SensorKind.Gyro => Android.Hardware.SensorType.Gyroscope,
+            _ => Android.Hardware.SensorType.RotationVector,
+        };
+
+        private Android.Hardware.SensorManager? SensorManagerOf()
+        {
+            if (_sensorMgr != null) return _sensorMgr;
+            try
+            {
+                var ctx = Microsoft.Maui.ApplicationModel.Platform.AppContext;
+                _sensorMgr = ctx?.GetSystemService(Android.Content.Context.SensorService)
+                             as Android.Hardware.SensorManager;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "取 SensorManager 失败", ex); }
+            return _sensorMgr;
+        }
+
+        private bool SensorExists(int kind)
+        {
+            try { return SensorManagerOf()?.GetDefaultSensor(SensorTypeOf(kind)) != null; }
+            catch { return false; }
+        }
+
+        private bool SensorRegistered(int kind) => _sensorListeners[kind] != null;
+
+        /// <summary>懒注册。返回 false = 这台设备没有该传感器。</summary>
+        private bool EnsureSensor(int kind, int rateMs = -1)
+        {
+            var mgr = SensorManagerOf();
+            if (mgr == null) return false;
+            if (rateMs >= 0) _sensorRateMs[kind] = rateMs;
+
+            var existing = _sensorListeners[kind];
+            var sensor = mgr.GetDefaultSensor(SensorTypeOf(kind));
+            if (sensor == null) return false;
+            if (existing != null) return true;          // 已经听着了
+
+            try
+            {
+                var listener = new AndroidSensorListener(kind, this);
+                // 0 = 平台默认间隔（"尽快"）。程序没设过就别拿一个拍脑袋的数去换电。
+                var us = _sensorRateMs[kind] > 0 ? _sensorRateMs[kind] * 1000 : 0;
+                mgr.RegisterListener(listener, sensor, (Android.Hardware.SensorDelay)us);
+                _sensorListeners[kind] = listener;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("VmlUi", "注册传感器监听失败", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Android 的传感器回调。⚠ 它是**推**的、在**传感器线程**上回调
+        /// ⇒ 只做一件事：把值交给宿主缓存（那边加锁）。
+        /// </summary>
+        private sealed class AndroidSensorListener : Java.Lang.Object, Android.Hardware.ISensorEventListener
+        {
+            private readonly int _kind;
+            private readonly MauiVmlHost _host;
+
+            public AndroidSensorListener(int kind, MauiVmlHost host) { _kind = kind; _host = host; }
+
+            public void OnAccuracyChanged(Android.Hardware.Sensor? sensor, Android.Hardware.SensorStatus accuracy) { }
+
+            public void OnSensorChanged(Android.Hardware.SensorEvent? e)
+            {
+                var v = e?.Values;
+                if (v == null || v.Count < 3) return;
+                if (_kind == VmlUi.SensorKind.Rotation)
+                {
+                    // 旋转向量 = 四元数 [x·sin(θ/2), y·sin(θ/2), z·sin(θ/2), cos(θ/2)]
+                    // （第 5 个值若存在是方位精度，不用）⇒ 换成欧拉角，单位仍是弧度。
+                    if (v.Count < 4) return;
+                    var (pitch, roll, yaw) = SensorMath.QuaternionToEuler(v[0], v[1], v[2], v[3]);
+                    _host.CacheSensor(_kind, (float)pitch, (float)roll, (float)yaw);
+                    return;
+                }
+                // 加速度计已是 m/s²、陀螺仪已是 rad/s —— 都是 SI，原样交上去。
+                _host.CacheSensor(_kind, v[0], v[1], v[2]);
+            }
+        }
+#elif IOS || MACCATALYST
+        // ── iOS：CoreMotion ────────────────────────────────────────────────
+        private CoreMotion.CMMotionManager? _motion;
+        private readonly bool[] _sensorStarted = new bool[VmlUi.SensorKind.Count];
+
+        private CoreMotion.CMMotionManager? MotionOf()
+        {
+            if (_motion != null) return _motion;
+            try
+            {
+                var m = new CoreMotion.CMMotionManager();
+                if (!m.AccelerometerAvailable && !m.GyroAvailable && !m.DeviceMotionAvailable)
+                {
+                    m.Dispose();
+                    return null;                       // 模拟器就是这一类：一个传感器都没有
+                }
+                _motion = m;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "取 CMMotionManager 失败", ex); }
+            return _motion;
+        }
+
+        private bool SensorExists(int kind)
+        {
+            var m = MotionOf();
+            if (m == null) return false;
+            return kind switch
+            {
+                VmlUi.SensorKind.Accel => m.AccelerometerAvailable,
+                VmlUi.SensorKind.Gyro => m.GyroAvailable,
+                _ => m.DeviceMotionAvailable,
+            };
+        }
+
+        private bool SensorRegistered(int kind) => _sensorStarted[kind];
+
+        private bool EnsureSensor(int kind, int rateMs = -1)
+        {
+            var m = MotionOf();
+            if (m == null || !SensorExists(kind)) return false;
+            if (_sensorStarted[kind]) return true;
+
+            // 0 = 平台默认；否则换成秒（CoreMotion 用 NSTimeInterval）
+            var interval = rateMs > 0 ? rateMs / 1000.0 : 1.0 / 60.0;
+            try
+            {
+                if (kind == VmlUi.SensorKind.Accel)
+                {
+                    m.AccelerometerUpdateInterval = interval;
+                    m.StartAccelerometerUpdates(Foundation.NSOperationQueue.CurrentQueue ?? new Foundation.NSOperationQueue(),
+                        (data, _) =>
+                        {
+                            if (data == null) return;
+                            var a = data.Acceleration;
+                            // ⚠ iOS 给的是 **g**，契约那条路要 SI ⇒ 这里乘回去
+                            //   （"把平台的数交上来"里唯一一处需要换算的，就它）。
+                            CacheSensor(kind, (float)(a.X * 9.80665), (float)(a.Y * 9.80665), (float)(a.Z * 9.80665));
+                        });
+                }
+                else if (kind == VmlUi.SensorKind.Gyro)
+                {
+                    m.GyroUpdateInterval = interval;
+                    m.StartGyroUpdates(Foundation.NSOperationQueue.CurrentQueue ?? new Foundation.NSOperationQueue(),
+                        (data, _) =>
+                        {
+                            if (data == null) return;
+                            var r = data.RotationRate;
+                            CacheSensor(kind, (float)r.x, (float)r.y, (float)r.z);   // 已是 rad/s
+                        });
+                }
+                else
+                {
+                    m.DeviceMotionUpdateInterval = interval;
+                    m.StartDeviceMotionUpdates(Foundation.NSOperationQueue.CurrentQueue ?? new Foundation.NSOperationQueue(),
+                        (motion, _) =>
+                        {
+                            if (motion == null) return;
+                            var at = motion.Attitude;
+                            // `CMAttitude` 直接就是欧拉角（弧度）⇒ 与 Android 那条
+                            // 四元数换算**殊途同归**，契约里的顺序（俯仰/翻滚/方位）两边一致。
+                            CacheSensor(kind, (float)at.Pitch, (float)at.Roll, (float)at.Yaw);
+                        });
+                }
+                _sensorStarted[kind] = true;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("VmlUi", "启动传感器失败", ex);
+                return false;
+            }
+        }
+#else
+        // ── 其它平台（Windows 等）：没有这套传感器接口 ─────────────────────
+        // ⚠ **如实报"没有"**，不要用 0 冒充 —— 见 `IVmlHost.SensorRead` 那条说明。
+        private bool SensorExists(int kind) => false;
+        private bool SensorRegistered(int kind) => false;
+        private bool EnsureSensor(int kind, int rateMs = -1) => false;
+#endif
+
         // ── 像素读回（583–585）──────────────────────────────────────────────
         //
         // 与桌面**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——

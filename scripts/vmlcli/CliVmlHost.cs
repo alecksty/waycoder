@@ -554,6 +554,65 @@ internal sealed class CliVmlHost : IVmlHost
     public void LockOrientation(int mode) => CliErr.WriteLine($"[vml-host] orientation-lock={mode}");
     public void SetImmersive(bool on) => CliErr.WriteLine($"[vml-host] immersive={on}");
 
+    // ── 传感器（`SENSOR` #554）───────────────────────────────────────────────
+    //
+    // 桌面**根本没有**这些传感器，而且这不是缺陷、是不该假装的东西
+    //（拿假数据冒充真读数，程序在桌面上"跑通了"、上了手机是另一回事）。
+    // 所以这里的做法与触摸一样：**如实报"没有"**，值靠输入脚本注入 ——
+    // 注入过的种类才算"这台设备有它"。
+    //
+    //     --input 脚本里：
+    //       accel  0 0 1        加速度（**以 g 为单位**，这里转成 SI 交出去）
+    //       gyro   0 0 90       角速度（度/秒）
+    //       rotation 10 0 0     姿态角（度）
+    //
+    // ⚠ 脚本里用**人好写的单位**（g / 度每秒 / 度），交上去按接口约定换成 SI
+    //   （`m/s²` / `rad/s` / `rad`）—— 换算是共享层的事，这里只是"脚本解析"那一层
+    //   顺手做了，免得写脚本的人还要心算 9.80665。
+    // ⚠ 一旦注入过某种传感器，它就**一直可用**（值停在最后一次注入的读数上）——
+    //   与真机一致（真机上它也不会"没有读数"），而且这样"程序读到的是我给的"这件事
+    //   在程序看来与真机没有区别。
+
+    private readonly Dictionary<int, (float X, float Y, float Z)> _sensorInjected = new();
+
+    /// <summary>从输入脚本注入一组传感器读数（单位见上面那段）。</summary>
+    public void InjectSensor(string name, float x, float y, float z)
+    {
+        var kind = name switch
+        {
+            "accel" or "加速度" => VmlUi.SensorKind.Accel,
+            "gyro" or "陀螺仪" => VmlUi.SensorKind.Gyro,
+            _ => VmlUi.SensorKind.Rotation,
+        };
+        // 脚本单位 → SI 基本单位（`IVmlHost.SensorRead` 的约定）
+        const float G = 9.80665f;
+        const float DegToRad = MathF.PI / 180f;
+        var si = kind switch
+        {
+            VmlUi.SensorKind.Accel => (x * G, y * G, z * G),        // g → m/s²
+            VmlUi.SensorKind.Gyro => (x * DegToRad, y * DegToRad, z * DegToRad),   // 度/秒 → rad/s
+            _ => (x * DegToRad, y * DegToRad, z * DegToRad),        // 度 → rad
+        };
+        _sensorInjected[kind] = ((float)si.Item1, (float)si.Item2, (float)si.Item3);
+    }
+
+    private readonly Dictionary<int, int> _sensorRateMs = new();
+
+    public bool SensorRead(int kind, out float x, out float y, out float z)
+    {
+        if (_sensorInjected.TryGetValue(kind, out var v)) { x = v.X; y = v.Y; z = v.Z; return true; }
+        x = y = z = 0;
+        return false;      // 没注入过 = 这台"设备"没有该传感器
+    }
+
+    public bool SensorSetRate(int kind, int ms)
+    {
+        if (!_sensorInjected.ContainsKey(kind)) return false;
+        _sensorRateMs[kind] = ms;
+        CliErr.WriteLine($"[vml-host] sensor-rate kind={kind} ms={ms}");
+        return true;
+    }
+
     // ── 像素读回（583–585）──────────────────────────────────────────────────
     //
     // 桌面端与手机端**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
@@ -719,7 +778,7 @@ internal sealed class CliVmlHost : IVmlHost
             {
                 var wait = ev.TimeMs - (int)clock.ElapsedMilliseconds;
                 if (wait > 0) Thread.Sleep(wait);
-                try { ev.Apply(rt); }
+                try { ev.Apply(rt, this); }
                 catch (Exception ex) { CliErr.WriteLine($"[vml-host] 输入事件投递失败：{ex.Message}"); }
             }
         })
@@ -736,10 +795,12 @@ internal sealed class CliVmlHost : IVmlHost
 /// 程序那边看到的类型就是这些，脚本要是自造一套，"脚本里写 keydown、程序收到 KeyDown"
 /// 这层对应关系就又多了一张要人工同步的表。
 /// </summary>
-internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B, int C = 0)
+internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B, int C = 0,
+                                     float F1 = 0, float F2 = 0, float F3 = 0)
 {
     /// <summary>投递（或执行）这条事件。</summary>
-    public void Apply(VmlHostRuntime rt)
+    /// <param name="host">只有传感器注入需要它 —— 那份状态在宿主上（`IVmlHost` 的活）。</param>
+    public void Apply(VmlHostRuntime rt, CliVmlHost host)
     {
         switch (Action)
         {
@@ -764,6 +825,14 @@ internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B, in
             case "touchn_up": rt.PostTouch(A, B, C, down: false); break;
             case "resize": rt.PostInput(VmlMsgType.WindowResize, A, B); break;
             case "orient": rt.PostInput(VmlMsgType.WindowOrient, A, B); break;
+            // 传感器注入（桌面没有这些硬件，靠脚本喂）——
+            // 单位是**人好写的**：accel 用 g、gyro 用度/秒、rotation 用度。
+            // ⚠ 参数是三个值，脚本里的 B/C 只够两个 ⇒ 这三个事件走单独一条解析。
+            case "accel":
+            case "gyro":
+            case "rotation":
+                host.InjectSensor(Action, F1, F2, F3);
+                break;
             // `close` = 用户点了窗口的返回箭头。**两件事一起做**（置位 + 投消息），
             // 见 `VmlHostRuntime.MarkWindowClosed` —— 只投消息的话 `ui_win_closed()` 仍报 0，
             // 那套 `while (ui_win_closed() == 0)` 的主循环就出不来。
@@ -811,6 +880,8 @@ internal static class CliInputScript
         "keydown", "keyup", "mousemove", "mousedown", "mouseup",
         "touchdown", "touchmove", "touchup", "resize", "orient", "close", "wait",
         "touchn_down", "touchn_move", "touchn_up",
+        // 传感器注入（桌面没有硬件，靠脚本喂）
+        "accel", "gyro", "rotation",
     };
 
     /// <summary>
@@ -845,6 +916,23 @@ internal static class CliInputScript
             // 参数个数就是"这条消息填几个槽"：`close`/`wait` 不填、按键只填 A、
             // 指针与窗口尺寸填 A+B、`orient` 只填 A（B 是预留位，见 VmlMsgType.WindowOrient）、
             // `touchn_*` 填 `slot + x + y` 三个。
+            if (action is "accel" or "gyro" or "rotation")
+            {
+                // 传感器是**三个浮点**，不是整数 —— 脚本里写 `accel 0 0 1`（1g）、
+                // `gyro 0 0 90.5`（度/秒）。单独一支解析，免得把下面那套整数校验
+                // 撑成"既收整数又收浮点"（那种两用写的校验最容易在某一边漏掉）。
+                if (i + 3 > parts.Length)
+                    throw new CliArgumentException($"{path}:{lineNo} 事件 `{action}` 需要 3 个参数（x y z）");
+                var fv = new float[3];
+                for (var k = 0; k < 3; k++)
+                {
+                    if (!float.TryParse(parts[i + k], System.Globalization.NumberStyles.Float,
+                                        System.Globalization.CultureInfo.InvariantCulture, out fv[k]))
+                        throw new CliArgumentException($"{path}:{lineNo} 参数不是数字：`{parts[i + k]}`");
+                }
+                events.Add(new CliInputEvent(time, action, 0, 0, 0, fv[0], fv[1], fv[2]));
+                continue;
+            }
             var needsArgs = action switch
             {
                 "close" or "wait" => 0,

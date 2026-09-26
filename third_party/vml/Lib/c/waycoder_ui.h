@@ -314,6 +314,51 @@ int ui_mask_test(int x, int y);
  * ⚠ 这是**轮询**：程序要自己每帧查。事件式的触摸仍是 `ui_wait_msg` 那套
  *   （`VML_MSG_TOUCHDOWN` 等），两者并存 —— 队列记"发生过什么"，这里记"此刻是什么样"。
  * ⚠ 查询本身很轻（读三个数），但**别放进逐像素循环**。 */
+/* ── 传感器（`SENSOR` #554，v0.96.492）──────────────────────────────────
+ *
+ * 一个号 + 操作码：`R1` = 种类、`R2/R3` 按操作码不同。
+ *
+ * **游戏里该怎么选**（这一段最该看）：
+ *   · **倾斜控制**（"手机歪向哪边、角色就往哪边走"）用 `VML_SENS_ACCEL` ——
+ *     静止时读到的是重力方向，**不漂移**，而且几乎所有设备都有。
+ *   · **瞬时动作**（"甩一下"）用 `VML_SENS_GYRO` —— 角速度；想拿"当前角度"得自己
+ *     积分，而积分**会漂**（几十秒就偏出可用范围），不适合长时间。
+ *   · **精确且长时间稳定的角度**用 `VML_SENS_ROTATION`（平台融合好的欧拉角）。
+ *     代价是**有的设备没有**（没磁力计时方位角会慢慢转）⇒ 先 `ui_sensor_available`。
+ *
+ * 单位是**整数定标**：加速度 **毫克**（1000 = 1g）、角速度 **千分之一度/秒**、
+ * 姿态角 **千分之一度**。坐标：x = 屏幕向右、y = 屏幕向上、z = **屏幕朝外**。
+ *
+ *     int a[3];
+ *     if (ui_sensor(VML_SENS_ACCEL, a)) {
+ *         tilt_x = a[0];        // 正数 = 手机右侧往下压
+ *         tilt_y = a[1];
+ *     }
+ *
+ * ⚠ **轮询式**（与触摸同一套分工）：姿态是连续量，投消息只会把队列淹掉。
+ * ⚠ **没有传感器的设备要能分辨**：`ui_sensor_available` 报 0、`ui_sensor` 返回 0。
+ *   **别把"读不到"当成"读到了 0"** —— 那会让程序以为"手机放平了"。
+ * ⚠ 桌面（vmlcli）**没有**这些硬件，它靠输入脚本注入（`accel 0 0 1`）——
+ *   所以"桌面上跑通"证明的是**接口对**，不是**硬件对**。
+ * ⚠ 玩家躺着玩时"水平"是错的，退出重进也还是错的 ⇒ 给一个"校准"入口
+ *   （`ui_sensor_calibrate`，把当前姿态当成零点）。 */
+#define VML_SENS_ACCEL     0   /* 加速度（含重力），毫克 */
+#define VML_SENS_GYRO      1   /* 角速度，千分之一度/秒 */
+#define VML_SENS_ROTATION  2   /* 融合姿态（俯仰/翻滚/方位），千分之一度 */
+#define VML_SENS_COUNT     3
+
+int ui_sensor(int kind, int* out);  /* out[0..2]=x,y,z；返回 1=有效，0=没有该传感器 */
+int ui_sensor_available(int kind);  /* 这台设备有没有 —— **开窗之前就能问** */
+int ui_sensor_rate(int kind, int ms);      /* 采样间隔毫秒（0=平台默认）*/
+int ui_sensor_calibrate(int kind);         /* 把**当前姿态**当零点（"校准水平"）*/
+
+/* 拿不到指针的语言走这四个（与 `ui_touch_query/x/y/down` 同构）：
+ *     ok = ui_sensor_query(0);  ax = ui_sensor_x();  ay = ui_sensor_y();  az = ui_sensor_z() */
+int ui_sensor_query(int kind);     /* 查一次并缓存，返回 1=有效 */
+int ui_sensor_x(void);             /* 缓存里的 x */
+int ui_sensor_y(void);             /* 缓存里的 y */
+int ui_sensor_z(void);             /* 缓存里的 z */
+
 int ui_touch(int slot, int* out);  /* out[0]=x out[1]=y out[2]=按下；返回 1=有效（槽位越界 0）*/
 int ui_touch_query(int slot);      /* 查一次并缓存（返回同上），下面三个读缓存 */
 int ui_touch_x(void);              /* 缓存里的 x */

@@ -1397,6 +1397,95 @@ public static class VmlUi
     /// <summary>`IMMERSIVE`：`R0` = 0/1，隐藏状态栏与导航栏（全屏游戏用）。</summary>
     public const int Immersive = 559;
 
+    /// <summary>
+    /// `SENSOR`（v0.96.492）：`R0`=操作码（见 <see cref="SensorOp"/>），参数从 `R1` 起。
+    ///
+    /// <para>
+    /// **一个号 + 第一个参数区分三种传感器**（<see cref="SensorKind"/>）—— 和
+    /// `Audio`/`Vibrate`/`Store` 一样，同类的东西收成一个号。
+    /// </para>
+    ///
+    /// <para>
+    /// **为什么是轮询式，不是"值变了投一条消息"**：姿态是**连续量**，一秒钟几十个采样，
+    /// 投消息只会把队列淹掉（而主循环一次只取一条，见 `ui_msg_drop` 那段）。
+    /// 与 `TOUCH_QUERY` 同一套分工：**队列记"发生过什么"，这里记"此刻是什么样"**。
+    /// 另外 16 字节的消息也塞不下三个值 —— 那是 `TOUCH_QUERY` 当初就不走消息的同一个理由。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **值是整数定标**，不是浮点：加速度单位 **毫克**（`1000` = 1g）、角速度单位
+    /// **千分之一度/秒**、姿态角单位 **千分之一度**。理由与图元里的"千分比"一样 ——
+    /// 整数让 ABI 不必管浮点寄存器，而且够用（手机的陀螺仪满量程约 ±2000°/s
+    /// ⇒ 定标后约 ±200 万，`int` 放得下）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **没有传感器的设备要有确定的返回**：`AVAILABLE` 报 0、`QUERY` 返回 0。
+    /// 桌面（vmlcli）就是这一类 —— 它那边靠脚本注入来模拟，见 `CliVmlHost`。
+    /// </para>
+    /// </summary>
+    public const int Sensor = 554;
+
+    /// <summary>`SENSOR` 的操作码（`R0`）。**跨语言契约，只能末尾追加。**</summary>
+    public static class SensorOp
+    {
+        /// <summary>
+        /// 读最新值：`R1`=种类 `R2`=输出缓冲区（三个 `int32`）→ 1=有效 / 0=没有该传感器。
+        ///
+        /// <para>
+        /// ⚠ **写进调用方给的缓冲区**，不是"回三个寄存器" —— C 那边 `asm()` 只能拿到 `R0`，
+        /// 与 `ui_touch` / `ui_wait` 同一套约定。
+        /// </para>
+        /// </summary>
+        public const int Query = 0;
+
+        /// <summary>这台设备有没有该传感器：`R1`=种类 → 1/0。**开窗之前就能问。**</summary>
+        public const int Available = 1;
+
+        /// <summary>设采样间隔：`R1`=种类 `R2`=毫秒（0 = 用平台默认）→ 1/0（没有该传感器）。</summary>
+        public const int Rate = 2;
+
+        /// <summary>
+        /// 把**当前姿态**当成新的零点（"校准水平"）：`R1`=种类 → 1/0。
+        ///
+        /// <para>
+        /// 游戏里很需要它 —— 玩家躺在沙发上玩的，不校准的话"水平"一直是错的。
+        /// 只对 <see cref="SensorKind.Rotation"/> 与 <see cref="SensorKind.Accel"/> 有意义。
+        /// </para>
+        /// </summary>
+        public const int Calibrate = 3;
+    }
+
+    /// <summary>
+    /// 传感器种类（`SENSOR` 的 `R1`）。**跨语言契约**，与 `waycoder_ui.h` 的 `VML_SENS_*` 同值。
+    ///
+    /// <para>
+    /// ⚠ **三档的分工要分清楚**（这是给写游戏的人最重要的一段）：
+    /// <list type="bullet">
+    /// <item><see cref="Accel"/> —— **倾斜控制用这个**。静止时它读到的是重力方向，
+    /// 也就是"手机往哪边歪"。**不漂移**，而且几乎所有设备都有。</item>
+    /// <item><see cref="Gyro"/> —— **角速度**（转得多快）。要"当前角度"得自己积分，
+    /// 而积分会**漂移**（几十秒就偏出可用的范围）。它适合做"甩一下"这类瞬时判断。</item>
+    /// <item><see cref="Rotation"/> —— **融合姿态**，平台把加速度计+陀螺仪（+磁力计）融好的角度，
+    /// 直接给俯仰/翻滚/方位。要精确、长时间稳定的角度就用它；代价是**有的设备没有**
+    /// （没有磁力计时方位角会慢慢转，平台通常也会报"可用性打折"，这里一律按"有"处理）。</item>
+    /// </list>
+    /// </para>
+    /// </summary>
+    public static class SensorKind
+    {
+        /// <summary>加速度（含重力）。单位**毫克**（`1000` = 1g）。x=右 y=上 z=**屏幕朝外**。</summary>
+        public const int Accel = 0;
+
+        /// <summary>角速度。单位**千分之一度/秒**。绕 x=俯仰 y=翻滚 z=方位。</summary>
+        public const int Gyro = 1;
+
+        /// <summary>融合姿态角。单位**千分之一度**。x=俯仰(抬低头) y=翻滚(左右歪) z=方位(指南针)。</summary>
+        public const int Rotation = 2;
+
+        /// <summary>合法种类数（`R1` 的范围是 `0 .. Count-1`）。</summary>
+        public const int Count = 3;
+    }
 
     /// <summary>`TOUCH_QUERY` 的槽位数（`R0` 的合法范围是 `0 .. MaxTouchSlots-1`）。</summary>
     public const int MaxTouchSlots = 10;
@@ -1437,6 +1526,9 @@ public static class VmlUi
         Msg, Timer, WinClosed, ScrW, ScrH, ScrOrient,
         // 手机特有的操作方式 556–559
         TouchQuery, KeyQuery, OrientationLock, Immersive,
+        // 传感器 554（**一个号 + 操作码**，见 `SensorOp` / `SensorKind`；
+        // 加速度计 / 陀螺仪 / 融合姿态三档用 R1 区分）
+        Sensor,
         // 扩展 570–573
         WinOpenEx, CallJson,
         // ⚠ `DrawTextEx = 581` 是**补进来的**（v0.96.353）：它早就定义了，

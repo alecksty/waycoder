@@ -334,6 +334,88 @@ int ui_key_down(int key) {
     return asm("SYSCALL #557, ${key}");
 }
 
+/* ── 传感器（`SENSOR` #554，v0.96.492）────────────────────────────────────
+ *
+ * 一个号 + 操作码：`R0`=操作码 `R1`=种类（0 加速度 / 1 角速度 / 2 融合姿态）。
+ *
+ * **游戏里该怎么选**（这是这段最该看的一句）：
+ *   · 做**倾斜控制**（"把手机歪向哪边、角色就往哪边走"）用 **`VML_SENS_ACCEL`** ——
+ *     静止时它读到的是重力方向，**不漂移**，而且几乎所有设备都有。
+ *   · 要**瞬时动作**（"甩一下"）用 `VML_SENS_GYRO` —— 它是角速度，
+ *     想拿"当前角度"得自己积分，而**积分会漂**（几十秒就偏出可用范围）。
+ *   · 要**精确且长时间稳定的角度**用 `VML_SENS_ROTATION`（平台融合好的欧拉角）。
+ *     代价是**有的设备没有**（没磁力计时方位角会慢慢转），先问 `ui_sensor_available`。
+ *
+ * 单位是**整数定标**（不是浮点）：加速度 **毫克**（1000 = 1g）、
+ * 角速度 **千分之一度/秒**、姿态角 **千分之一度**。理由与图元的"千分比"一样：
+ * 整数让 ABI 不必管浮点寄存器，精度也够（手机满量程约 ±2000°/s ⇒ 定标后约 ±200 万）。
+ *
+ * ⚠ 与触摸一样是**轮询式**：姿态是连续量，一秒钟几十个采样，投消息只会把队列淹掉。
+ *   程序每帧自己查（`ui_sensor` 很轻，但**别放进逐像素循环**）。
+ * ⚠ **没有传感器的设备要能分辨**：`ui_sensor_available` 报 0、`ui_sensor` 返回 0。
+ *   **别把"读不到"当成"读到了 0"** —— 那会让程序以为"手机放平了"。
+ */
+int ui_sensor(int kind, int* out) {
+    int op;
+    /* ⚠ **操作码必须占 R0**，种类才在 R1、缓冲区在 R2 —— 漏了这个 `op`
+     *   （`asm("SYSCALL #554, ${kind}, ${out}")`）时，`kind` 会被当成操作码、
+     *   输出**指针**被当成种类 ⇒ 宿主看到的是一个巨大的种类、直接返回 -1。
+     *   症状是"传感器永远读不到"，而包装函数看着完全正常。实测踩过（v0.96.492）。
+     *   ⚠ 与 `ui_clip_push` 一样，操作码要写成 **`${变量}`** ——
+     *   字面量在 asm 串里会被整个丢掉、参数整体前移一格（见本文件开头那条说明）。 */
+    op = 0;
+    return asm("SYSCALL #554, ${op}, ${kind}, ${out}");
+}
+
+int ui_sensor_available(int kind) {
+    int op;
+    int z;
+    op = 1;
+    z = 0;
+    return asm("SYSCALL #554, ${op}, ${kind}, ${z}");
+}
+
+int ui_sensor_rate(int kind, int ms) {
+    int op;
+    op = 2;
+    return asm("SYSCALL #554, ${op}, ${kind}, ${ms}");
+}
+
+int ui_sensor_calibrate(int kind) {
+    int op;
+    int z;
+    op = 3;
+    z = 0;
+    return asm("SYSCALL #554, ${op}, ${kind}, ${z}");
+}
+
+/* 面向**不支持指针的语言**（Python/BASIC/…）的取传感器接口 —— 与 `ui_touch_query`
+ * 那一套同构：
+ *
+ *     ok = ui_sensor_query(0)      # 0 = 加速度
+ *     x = ui_sensor_x();  y = ui_sensor_y();  z = ui_sensor_z()
+ *
+ * ⚠ 一次只保留**最近一次查询**的结果（单缓冲），与触摸那几个访问器同一口径。
+ */
+static int _ui_sensor_x;
+static int _ui_sensor_y;
+static int _ui_sensor_z;
+
+int ui_sensor_query(int kind) {
+    int tmp[3];
+    int ok;
+    tmp[0] = 0; tmp[1] = 0; tmp[2] = 0;
+    ok = ui_sensor(kind, tmp);
+    _ui_sensor_x = tmp[0];
+    _ui_sensor_y = tmp[1];
+    _ui_sensor_z = tmp[2];
+    return ok;
+}
+
+int ui_sensor_x(void) { return _ui_sensor_x; }
+int ui_sensor_y(void) { return _ui_sensor_y; }
+int ui_sensor_z(void) { return _ui_sensor_z; }
+
 int ui_orient_lock(int mode) {
     return asm("SYSCALL #558, ${mode}");
 }

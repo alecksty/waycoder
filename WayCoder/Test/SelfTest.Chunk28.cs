@@ -33,6 +33,7 @@ public static partial class SelfTest
         TestVmlStatusLines(Section, Check, Fail);
         TestVmlMaskBool(Section, Check, Fail);
         TestVmlMobileOps(Section, Check, Fail);
+        TestVmlSensor(Section, Check, Fail);
     }
 
     /// <summary>
@@ -88,6 +89,107 @@ public static partial class SelfTest
     /// 行宽补齐（`R0` 与 `R12` 名字长度不同，补错了整行串位），以及**空快照不许抛** ——
     /// 面板在"没跑任何程序"时也会被打开，那是最容易漏的一条路径。
     /// </summary>
+    /// <summary>
+    /// 传感器（`SENSOR` #554）—— 定标、可用性、校准、以及那段**四元数→欧拉角**的数学。
+    ///
+    /// <para>
+    /// 为什么要专门测：这里的错法全是**"值差一个系数"**和**"符号反了"**，
+    /// 而它们在真机上看起来只是"手感不对"，看不出是代码问题（本仓在编辑器网格
+    /// 那块吃过两轮同样的亏）。定标与换算是**三端共用的一份**，所以桌面测透就够了。
+    /// </para>
+    /// </summary>
+    private static void TestVmlSensor(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("传感器 SENSOR #554");
+
+        // ── ① 四元数 → 欧拉角（Android 的融合姿态走这一段）──
+        var (p0, r0, y0) = SensorMath.QuaternionToEuler(0, 0, 0, 1);   // 单位四元数 = 无旋转
+        Check("四元数：单位元 → 三个角都是 0", Math.Abs(p0) < 1e-9 && Math.Abs(r0) < 1e-9 && Math.Abs(y0) < 1e-9);
+
+        // 绕 x 轴转 90°：q = (sin45°, 0, 0, cos45°) ⇒ 俯仰 = 90°
+        var h = Math.Sin(Math.PI / 4);
+        var (p1, r1, y1) = SensorMath.QuaternionToEuler(h, 0, 0, h);
+        Check("四元数：绕 x 转 90° → 俯仰 ≈ 90°",
+            Math.Abs(p1 - Math.PI / 2) < 1e-6 && Math.Abs(r1) < 1e-6 && Math.Abs(y1) < 1e-6);
+
+        // 绕 y 轴转 90° ⇒ 翻滚 = 90°（**顺序不能与俯仰写反**，写反了正是"歪的方向不对"）
+        var (p2, r2, y2) = SensorMath.QuaternionToEuler(0, h, 0, h);
+        Check("四元数：绕 y 转 90° → 翻滚 ≈ 90°（与俯仰分得开）",
+            Math.Abs(r2 - Math.PI / 2) < 1e-6 && Math.Abs(p2) < 1e-6 && Math.Abs(y2) < 1e-6);
+
+        // 非单位四元数要先归一化 —— 不归一化的话角度会随长度缩放（平台给的数有轻微偏移）
+        var (p3, _, _) = SensorMath.QuaternionToEuler(h * 2, 0, 0, h * 2);
+        Check("四元数：非单位长度先归一化（结果与单位四元数一致）", Math.Abs(p3 - Math.PI / 2) < 1e-6);
+
+        // 零四元数是"没有数据"，不能返回 NaN
+        var (p4, r4, y4) = SensorMath.QuaternionToEuler(0, 0, 0, 0);
+        Check("四元数：全零 → (0,0,0)，不是 NaN", p4 == 0 && r4 == 0 && y4 == 0);
+
+        // ── ② 定标：SI → 契约单位 ──
+        var host = new FakeVmlHost();
+        host.SensorsPresent.Add(VmlUi.SensorKind.Accel);
+        var rt = new VmlHostRuntime(host);
+        var reg = new int[8];
+        var mem = new byte[256];
+
+        // 平放：加速度 (0, 0, 9.80665) m/s² ⇒ z = **1000 毫克**（1g）
+        host.SensorValues[VmlUi.SensorKind.Accel] = (0f, 0f, 9.80665f);
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("加速度：9.80665 m/s² → 1000 毫克（1g）", reg[0] == 1 && ReadI32(mem, 64) == 0 && ReadI32(mem, 68) == 0 && ReadI32(mem, 72) == 1000);
+
+        // 角速度：π/2 rad/s = 90°/s ⇒ 90000 千分之一度每秒
+        host.SensorsPresent.Add(VmlUi.SensorKind.Gyro);
+        host.SensorValues[VmlUi.SensorKind.Gyro] = (0f, 0f, MathF.PI / 2);
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Gyro; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("角速度：π/2 rad/s → 90000 千分之一度/秒", ReadI32(mem, 72) == 90000);
+
+        // ── ③ "没有"与"读到 0"必须分得开 ──
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Rotation; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("没有该传感器 → 返回 0（而不是「读到 0,0,0」）", reg[0] == 0);
+
+        reg[0] = VmlUi.SensorOp.Available; reg[1] = VmlUi.SensorKind.Rotation; reg[2] = 0;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        var rotMissing = reg[0];
+        reg[0] = VmlUi.SensorOp.Available; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 0;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("AVAILABLE 分得清有与没有", rotMissing == 0 && reg[0] == 1);
+
+        // ── ④ 认不出的种类 / 操作码要**报错**，不能当 0 号用 ──
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = 99; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        var badKind = reg[0];
+        reg[0] = 99; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("认不出的种类 / 操作码都返回 -1（别静静当成 0 号）", badKind == -1 && reg[0] == -1);
+
+        // ── ⑤ 校准：校准之后同一个读数应当读成 ~0 ──
+        host.SensorValues[VmlUi.SensorKind.Accel] = (3f, 4f, 9.80665f);
+        reg[0] = VmlUi.SensorOp.Calibrate; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 0;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        var calOk = reg[0];
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("校准之后同一个姿态读成 (0,0,0)",
+            calOk == 1 && ReadI32(mem, 64) == 0 && ReadI32(mem, 68) == 0 && ReadI32(mem, 72) == 0);
+
+        // 换了姿态之后，读数是"相对校准点"的偏移（校准不是把传感器关掉）
+        host.SensorValues[VmlUi.SensorKind.Accel] = (3f + 9.80665f, 4f, 9.80665f);
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("校准后换姿态 → 读到的是相对偏移（1000 毫克）", ReadI32(mem, 64) == 1000);
+
+        // ── ⑥ 缓冲区越界要安全失败（不写、不抛）──
+        reg[0] = VmlUi.SensorOp.Query; reg[1] = VmlUi.SensorKind.Accel; reg[2] = 250;
+        rt.HandleSyscall(VmlUi.Sensor, reg, mem);
+        Check("输出缓冲区越界 → 返回 0（不抛异常）", reg[0] == 0);
+
+        static int ReadI32(byte[] m, int at)
+            => m[at] | (m[at + 1] << 8) | (m[at + 2] << 16) | (m[at + 3] << 24);
+    }
+
     private static void TestVmlStatusLines(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("VM 状态面板：格式化");
@@ -394,6 +496,37 @@ public static partial class SelfTest
         public bool AudioPlaying() => AudioPlayingFlag;
         public void LockOrientation(int mode) => LastOrientationLock = mode;
         public void SetImmersive(bool on) => LastImmersive = on;
+
+        // ── 传感器（`SENSOR` #554）──────────────────────────────────────────
+        /// <summary>假宿主只**记一笔**：哪几种传感器"有"（其余按"没有"报）。
+        /// 值靠 <see cref="SensorValues"/> 注入 —— 桌面本来就没有传感器，
+        /// 而这块的**定标/校准/可用性**全都发生在共享层，所以假读数足够测透它们。</summary>
+        public readonly HashSet<int> SensorsPresent = new();
+
+        /// <summary>注入的 **SI 单位**读数（`m/s²` / `rad/s` / `rad`），按种类存。</summary>
+        public readonly Dictionary<int, (float X, float Y, float Z)> SensorValues = new();
+
+        /// <summary>每种传感器最近一次被设过的采样间隔（0 = 没设过）。</summary>
+        public readonly Dictionary<int, int> SensorRates = new();
+
+        public bool SensorRead(int kind, out float x, out float y, out float z)
+        {
+            if (!SensorsPresent.Contains(kind))
+            {
+                x = y = z = 0;
+                return false;                 // **没有这个传感器** —— 与"读到 0,0,0"是两回事
+            }
+            if (SensorValues.TryGetValue(kind, out var v)) { x = v.X; y = v.Y; z = v.Z; }
+            else { x = y = z = 0; }
+            return true;
+        }
+
+        public bool SensorSetRate(int kind, int ms)
+        {
+            if (!SensorsPresent.Contains(kind)) return false;
+            SensorRates[kind] = ms;
+            return true;
+        }
 
         /// <summary>
         /// `ResolvePath` 的前缀。默认 `/fake/` —— 记录型，不指向任何真实目录。

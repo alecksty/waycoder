@@ -137,6 +137,30 @@ public interface IVmlHost
     /// <summary>隐藏状态栏与导航栏（`IMMERSIVE` #559）—— 全屏游戏用。</summary>
     void SetImmersive(bool on);
 
+    // ── 传感器（`SENSOR` #554，v0.96.492）────────────────────────────────────
+    //
+    // 只有**平台真的不一样的那一件事**放在这个接口上：**"怎么读到值"**。
+    // 定标（浮点 → 整数）、可用性缓存、校准偏移这些**三端一致**的东西全在共享层，
+    // 平台实现只负责"把平台的浮点读数交上来"。
+    //
+    // ⚠ **平台只交 SI 基本单位的浮点读数**（`m/s²`、`rad/s`、`rad`），
+    //   **不要在这里做单位换算** —— 换算成契约单位（毫克 / 千分之一度每秒 /
+    //   千分之一度）只在共享层做一次。两端各换一次就是"同一个程序在两台机器上是
+    //   两套手感"，而那种偏差在单端测试里永远看不出来。
+    //   （Android 的 `SensorManager` 本来就是 SI，iOS 的 `CoreMotion` 是 g / rad
+    //    ⇒ iOS 那边只把加速度乘个 9.80665，仍属于"把平台的数交上来"。）
+
+    /// <summary>
+    /// 读传感器最新值（**SI 基本单位**：加速度 `m/s²`、角速度 `rad/s`、姿态 `rad`）。
+    /// 返回 false = 这一台没有该传感器 ⇒ 共享层照实往上报"没有"，**不要用 0 冒充**
+    /// （报 0 会让程序以为"手机放平了"，而真相是"读不到"）。
+    /// </summary>
+    bool SensorRead(int kind, out float x, out float y, out float z);
+
+    /// <summary>设这一种传感器的采样间隔（毫秒，0 = 平台默认）。返回 false = 没有该传感器。
+    /// 采样**由平台自己持续开着**（程序只读最新值），所以这里只在间隔真的变了时才需要动硬件。</summary>
+    bool SensorSetRate(int kind, int ms);
+
     // ── 像素读回（583–585：floodfill / getimage / putimage）──────────────────
     //
     // 场景是**保留模式**的（只有图元、没有像素缓冲），所以"这个像素是什么颜色"
@@ -421,6 +445,82 @@ public sealed class VmlHostRuntime
 
     /// <summary>当前**按住的**虚拟键码（`KEY_QUERY` 查它；由 <see cref="PostInput"/> 维护）。</summary>
     private readonly HashSet<int> _keysDown = new();
+
+    // ── 传感器（`SENSOR` #554）──────────────────────────────────────────────
+    //
+    // 校准偏移与采样间隔都放**共享层**，不放平台：它们是"程序怎么看这台设备"的语义，
+    // 三端必须一样。平台只负责"把 SI 单位的浮点读数交上来"。
+    private readonly float[] _sensorBiasX = new float[VmlUi.SensorKind.Count];
+    private readonly float[] _sensorBiasY = new float[VmlUi.SensorKind.Count];
+    private readonly float[] _sensorBiasZ = new float[VmlUi.SensorKind.Count];
+    private readonly bool[] _sensorBiasSet = new bool[VmlUi.SensorKind.Count];
+    private readonly int[] _sensorRateMs = new int[VmlUi.SensorKind.Count];
+
+    /// <summary>
+    /// SI 基本单位 → 跨语言契约的整数单位。**全仓唯一实现**（两端都走这里）。
+    ///
+    /// <list type="bullet">
+    /// <item>加速度 `m/s²` → **毫克**（`1000` = 1g）</item>
+    /// <item>角速度 `rad/s` → **千分之一度/秒**</item>
+    /// <item>姿态 `rad` → **千分之一度**</item>
+    /// </list>
+    ///
+    /// ⚠ 用**四舍五入**而不是截断：截断对负数是"往大里取"（`-0.5 → 0`），
+    ///   静态噪声就会整体偏一点；而玩家调"水平"时正是在看那一点点。
+    /// ⚠ 定标后要**钳进 `int`**：真实设备不会有超出量程的值，但
+    ///   "读不到"时平台可能给出 `NaN`/`±Inf`（本仓的原则是**宁可钳、不拒绝**，
+    ///   见 `ui_tone_on` 那条同样的处置）—— 而 `NaN` 直接转 `int` 是**未定义**值。
+    /// </summary>
+    private static int ScaleSensor(int kind, float v)
+    {
+        if (float.IsNaN(v)) return 0;
+        float scaled;
+        switch (kind)
+        {
+            case VmlUi.SensorKind.Accel: scaled = v / 9.80665f * 1000f; break;
+            default: scaled = v * (180f / MathF.PI) * 1000f; break;   // 角速度与姿态同是"度"
+        }
+        if (scaled > int.MaxValue) return int.MaxValue;
+        if (scaled < int.MinValue) return int.MinValue;
+        return (int)MathF.Round(scaled, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>这台设备有没有该传感器（`SENSOR` op 1）。</summary>
+    private bool SensorAvailable(int kind)
+        => _host.SensorRead(kind, out _, out _, out _);
+
+    /// <summary>
+    /// 读一种传感器并换成契约单位；**减去校准偏移**（`SENSOR` op 3 设的）。
+    /// 返回 false = 这一台没有该传感器。
+    /// </summary>
+    private bool SensorRead(int kind, out int x, out int y, out int z)
+    {
+        x = 0; y = 0; z = 0;
+        if (!_host.SensorRead(kind, out var fx, out var fy, out var fz)) return false;
+        x = ScaleSensor(kind, fx);
+        y = ScaleSensor(kind, fy);
+        z = ScaleSensor(kind, fz);
+        if (_sensorBiasSet[kind])
+        {
+            // ⚠ 减在**定标之后**（同一个单位里减）：先减浮点再定标会多一次舍入，
+            //   而校准的语义就是"把这个读数当成 0"，两次舍入会让它转一圈后不回到 0。
+            x -= (int)_sensorBiasX[kind];
+            y -= (int)_sensorBiasY[kind];
+            z -= (int)_sensorBiasZ[kind];
+        }
+        return true;
+    }
+
+    /// <summary>把**当前读数**当成零点（`SENSOR` op 3）—— 玩家躺着玩时"水平"就不对了，靠它纠正。</summary>
+    private bool SensorCalibrate(int kind)
+    {
+        if (!_host.SensorRead(kind, out var fx, out var fy, out var fz)) return false;
+        _sensorBiasX[kind] = ScaleSensor(kind, fx);
+        _sensorBiasY[kind] = ScaleSensor(kind, fy);
+        _sensorBiasZ[kind] = ScaleSensor(kind, fz);
+        _sensorBiasSet[kind] = true;
+        return true;
+    }
 
     /// <summary>
     /// 平台报告**第 <paramref name="slot"/> 根手指**按下或抬起（坐标已由平台换算成场景坐标）。
@@ -841,6 +941,50 @@ public sealed class VmlHostRuntime
                 _host.SetImmersive(registers[0] != 0);
                 registers[0] = 1;
                 break;
+            case VmlUi.Sensor:
+            {
+                // 一个号 + 操作码（v0.96.492）—— 加速度计 / 陀螺仪 / 融合姿态三档用 R1 区分。
+                var op = registers[0];
+                var kind = registers[1];
+                if (kind < 0 || kind >= VmlUi.SensorKind.Count)
+                {
+                    registers[0] = -1;      // 认不出的种类：报错，别当 0 号用
+                    break;
+                }
+                switch (op)
+                {
+                    case VmlUi.SensorOp.Available:
+                        registers[0] = SensorAvailable(kind) ? 1 : 0;
+                        break;
+                    case VmlUi.SensorOp.Rate:
+                        registers[0] = _host.SensorSetRate(kind, registers[2]) ? 1 : 0;
+                        break;
+                    case VmlUi.SensorOp.Calibrate:
+                        registers[0] = SensorCalibrate(kind) ? 1 : 0;
+                        break;
+                    case VmlUi.SensorOp.Query:
+                    {
+                        // **写进调用方给的缓冲区**（三个 int32）—— 与 TouchQuery 同一套约定：
+                        // C 那边 asm() 只能拿到 R0，回三个寄存器的话另外两个谁都取不到。
+                        var dst = registers[2];
+                        if (dst < 0 || dst + 12 > memory.Length) { registers[0] = 0; break; }
+                        if (!SensorRead(kind, out var sx, out var sy, out var sz))
+                        {
+                            registers[0] = 0;   // 没有这个传感器 —— 与"读到 0,0,0"是两回事
+                            break;
+                        }
+                        WriteInt32(memory, dst, sx);
+                        WriteInt32(memory, dst + 4, sy);
+                        WriteInt32(memory, dst + 8, sz);
+                        registers[0] = 1;
+                        break;
+                    }
+                    default:
+                        registers[0] = -1;      // 认不出的 op
+                        break;
+                }
+                break;
+            }
             case VmlUi.Timer:
                     // 一个号 + 操作码（v0.96.483 合并，原先 563/564 两个号）。
                     // 参数从 `registers[1]` 起（`registers[0]` 是 op）。
