@@ -10,19 +10,23 @@
  * ⚠ 因此本程序**不用 `ui_timer_set`**：定时器消息会和触摸消息争同一个队列，
  *   而 `ui_wait(m, 16)` 的超时天然就是"至少每 16ms 醒一次"，一拍两用。
  *
- * ## 两套输入的边界
+ * ## 键盘布局：**自适应列数 + 两行**
  *
- * - **琴键**：轮询（多指）
- * - **按钮**（八度 −/+、示范曲、录音）：事件式（单指点击）
+ * 竖屏一块屏只放一个八度的话，每个键宽 ~51dp 而高 ~540dp —— 成了 1:10 的**竖长条**，
+ * 一点都不像琴键（用户原话："画面是长条"）。所以：
  *
- * 两者会打架（按琴键也会发 slot 0 的 TOUCHDOWN），所以**先判按钮**：
- * 落在按钮矩形里就当点击、否则才当琴键。
+ *   · **每行几个键按屏宽定**（每个键至少约 44dp，手指才按得准），且取 **7 的整数倍** ——
+ *     保证一行正好是若干个**完整八度**（落在 B 上收尾，不会切在 mi/si 中间而缺黑键）。
+ *     竖屏 360dp ⇒ 7 个（一个八度）；平板 800dp ⇒ 14 个（两个八度）。
+ *   · **两行** —— 上行比下行**高一个"每行八度数"**，音域直接翻倍，
+ *     而且每行的高度只剩一半 ⇒ 键的宽高比回到像琴键的样子。
+ *   · 每行高度再按"不超过宽度的 6 倍"收一道 —— 屏幕很高时别又把键拉成长条。
  *
  * ## 引用计数：为什么不能"抬起就关音"
  *
  * 两根手指先后按同一个键、其中一根先抬起来时，**那个键不该停**
  * （另一根还按着）。所以每个音记一个引用计数，**归零才真的关**。
- * 表按**半音偏移**建（0..12，含高八度的 do），一张就够 ——
+ * 表按**半音偏移**建（0..25，覆盖两行），一张就够 ——
  * 分白键/黑键两张是"怎么画"的事，与"谁按着"无关。
  *
  * ## ⚠ C 前端的四条硬约束
@@ -40,13 +44,19 @@
 static int SW;
 static int SH;
 static int BARH;      /* 顶部状态栏高 */
-static int KEYTOP;    /* 键盘上沿 */
-static int KEYH;      /* 白键高 */
+static int KEYTOP;    /* 键盘上沿（第一行的顶） */
+static int RowKeyH;   /* **每一行**白键的高（不再是整块屏幕的高度） */
+static int RowGap;    /* 两行之间的缝 —— 手指按错行时能看出来 */
 
-/* ── 音域：一个八度 + 整体移调 ──
- * 竖屏下 7 个白键、每键约 SW/7 —— 手指按得准。
- * 想要别的音域按状态栏那两个「−/+」，比把键盘挤成一条窄键好得多。 */
-static int BaseNote;  /* 当前这排的 do 的音符号 */
+/* ── 键盘布局 ── */
+static int PerRow;    /* 每行几个白键（7 的整数倍：7 或 14） */
+static int RowCount;  /* 行数（2） */
+static int RowStep;   /* 上下两行差几个半音（= 12 × 每行的八度数） */
+
+/* ── 音域 ──
+ * `BaseNote` 是**第一行**的 do；第二行是 `BaseNote + RowStep`。
+ * 状态栏那两个「−/+」整体移调（两行一起走），比把键盘挤成一条窄键好得多。 */
+static int BaseNote;
 
 /* 白键半音偏移：do re mi fa sol la si */
 static int WHITE_SEMI[7];
@@ -57,7 +67,7 @@ static int BLACK_SEMI[7];
 
 /* ── 手指状态 ── */
 static int KeyDown[10];    /* 这个槽位按着哪个**音符号**；-1 = 没按 */
-static int Ref[13];        /* 每个半音偏移被几根手指按着（0..12） */
+static int Ref[26];        /* 每个半音偏移（相对 BaseNote）被几根手指按着 */
 
 /* ── 示范曲 ── */
 static char* SONG;
@@ -105,25 +115,31 @@ static void p_off(int ch, int note)
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * 键位几何
+ * 键位几何 —— **画与命中同源**（同一个函数算出来的矩形）
  * ══════════════════════════════════════════════════════════════════════ */
 
 static int white_w(void)
 {
-    return SW / 7;
+    return SW / PerRow;
 }
 
-/* 第 i 个白键右上方黑键的矩形（out[0..3] = x y w h）。 */
-static void black_rect(int i, int* out)
+/* 第 `row` 行第 `i` 个白键的**上沿** y。 */
+static int row_top(int row)
+{
+    return KEYTOP + row * (RowKeyH + RowGap);
+}
+
+/* 第 `row` 行第 `i` 个白键右上方黑键的矩形（out[0..3] = x y w h）。 */
+static void black_rect(int row, int i, int* out)
 {
     int w;
     int bw;
-    w = SW / 7;
+    w = SW / PerRow;
     bw = w * 62 / 100;
     out[0] = (i + 1) * w - bw / 2;
-    out[1] = KEYTOP;
+    out[1] = row_top(row);
     out[2] = bw;
-    out[3] = KEYH * 62 / 100;
+    out[3] = RowKeyH * 62 / 100;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -133,11 +149,13 @@ static void black_rect(int i, int* out)
 static void draw(void)
 {
     int i;
+    int row;
     int r[4];
     int x;
     int w;
     int semi;
     int oct;
+    int y0;
     char buf[8];
 
     ui_clear(0xFF101820);
@@ -147,13 +165,15 @@ static void draw(void)
     ui_set_valign(VML_VANCHOR_MIDDLE);
     ui_text_cur(10, BtnY + BtnH / 2, "钢琴");
 
-    /* 当前音域（C2..C7 这样标，比写数字直观） */
+    /* 当前音域（下行那排的 do，标成 C2..C7 这样比写数字直观） */
     oct = (BaseNote - 60) / 12 + 4;
     buf[0] = 'C';
     buf[1] = '0' + oct;
-    buf[2] = 0;
-    ui_set_font(20, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
-    ui_text_cur(SW / 2 + 30, BtnY + BtnH / 2, buf);
+    buf[2] = '-';
+    buf[3] = '0' + oct + (RowStep / 12);
+    buf[4] = 0;
+    ui_set_font(19, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
+    ui_text_cur(SW / 2 + 26, BtnY + BtnH / 2, buf);
 
     for (i = 0; i < 4; i++) {
         ui_rect(BtnX[i], BtnY, BtnW, BtnH, 0xFF2A3A4A, 1, 0, 8);
@@ -165,30 +185,37 @@ static void draw(void)
         if (i == 3) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, RecOn ? "停录" : "录音");
     }
 
-    /* ── 白键 ── */
+    /* ── 两行白键 ── */
     w = white_w();
-    for (i = 0; i < 7; i++) {
-        semi = WHITE_SEMI[i];
-        x = i * w;
-        ui_rect(x + 1, KEYTOP + 3, w - 2, KEYH, 0xFF000000, 1, 0, 6);   /* 底影 */
-        if (Ref[semi] > 0) {
-            ui_rect(x + 1, KEYTOP + 2, w - 2, KEYH - 2, 0xFFFFD98A, 1, 0, 6);   /* 按下的暖色 */
-        } else {
-            ui_rect(x + 1, KEYTOP, w - 2, KEYH, 0xFFF2F2F4, 1, 0, 6);
+    for (row = 0; row < RowCount; row++) {
+        y0 = row_top(row);
+        for (i = 0; i < PerRow; i++) {
+            /* ⚠ 全局数组元素先落局部变量（坑 3）——`WHITE_SEMI[i % 7]` 直接
+             *   拿去比较/运算都可能读不出正确值。 */
+            semi = WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            x = i * w;
+            ui_rect(x + 1, y0 + 3, w - 2, RowKeyH, 0xFF000000, 1, 0, 6);   /* 底影 */
+            if (Ref[semi] > 0) {
+                ui_rect(x + 1, y0 + 2, w - 2, RowKeyH - 2, 0xFFFFD98A, 1, 0, 6);  /* 按下：暖色 */
+            } else {
+                ui_rect(x + 1, y0, w - 2, RowKeyH, 0xFFF2F2F4, 1, 0, 6);
+            }
+            ui_rect(x + 1, y0, w - 2, RowKeyH, 0xFF8A8A92, 0, 2, 6);        /* 描边 */
         }
-        ui_rect(x + 1, KEYTOP, w - 2, KEYH, 0xFF8A8A92, 0, 2, 6);       /* 描边 */
     }
 
-    /* ── 黑键（画在白键之上）── */
-    for (i = 0; i < 7; i++) {
-        if (BLACK_AT[i] < 0) continue;
-        semi = BLACK_SEMI[i];
-        black_rect(i, r);
-        ui_rect(r[0], r[1] + 2, r[2], r[3], 0xFF000000, 1, 0, 5);
-        if (Ref[semi] > 0) {
-            ui_rect(r[0], r[1], r[2], r[3] - 2, 0xFF6A5A3A, 1, 0, 5);
-        } else {
-            ui_rect(r[0], r[1], r[2], r[3], 0xFF1A1A20, 1, 0, 5);
+    /* ── 黑键（画在白键之上；每行各自铺一遍）── */
+    for (row = 0; row < RowCount; row++) {
+        for (i = 0; i < PerRow; i++) {
+            if (BLACK_AT[i - (i / 7) * 7] < 0) continue;
+            semi = BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            black_rect(row, i, r);
+            ui_rect(r[0], r[1] + 2, r[2], r[3], 0xFF000000, 1, 0, 5);
+            if (Ref[semi] > 0) {
+                ui_rect(r[0], r[1], r[2], r[3] - 2, 0xFF6A5A3A, 1, 0, 5);
+            } else {
+                ui_rect(r[0], r[1], r[2], r[3], 0xFF1A1A20, 1, 0, 5);
+            }
         }
     }
 
@@ -199,25 +226,40 @@ static void draw(void)
  * 命中
  * ══════════════════════════════════════════════════════════════════════ */
 
-/* 打中哪个键？返回**半音偏移**（0..12），-1 = 没打中。
+/* 打中哪个键？返回**半音偏移**（相对 BaseNote，0..RowStep+12），-1 = 没打中。
  * ⚠ **黑键优先** —— 它压在白键上方，先判白键会让黑键永远按不到。 */
 static int hit_key(int x, int y)
 {
+    int row;
     int i;
     int r[4];
     int w;
+    int rel;
 
     if (y < KEYTOP) return -1;
 
-    for (i = 0; i < 7; i++) {
-        if (BLACK_AT[i] < 0) continue;
-        black_rect(i, r);
-        if (x >= r[0] && x < r[0] + r[2] && y < r[1] + r[3]) return BLACK_SEMI[i];
+    /* 落在哪一行？—— 按"行 + 缝"的周期算，再夹到合法行 */
+    row = (y - KEYTOP) / (RowKeyH + RowGap);
+    if (row < 0) row = 0;
+    if (row >= RowCount) row = RowCount - 1;
+    if (y >= row_top(row) + RowKeyH) return -1;   /* 正好落在两行之间那道缝里 */
+
+    /* 黑键优先 */
+    for (i = 0; i < PerRow; i++) {
+        if (BLACK_AT[i - (i / 7) * 7] < 0) continue;
+        black_rect(row, i, r);
+        if (x >= r[0] && x < r[0] + r[2] && y < r[1] + r[3]) {
+            rel = BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            return row * RowStep + rel;
+        }
     }
 
-    w = SW / 7;
-    for (i = 0; i < 7; i++) {
-        if (x >= i * w && x < (i + 1) * w) return WHITE_SEMI[i];
+    w = SW / PerRow;
+    for (i = 0; i < PerRow; i++) {
+        if (x >= i * w && x < (i + 1) * w) {
+            rel = WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+            return row * RowStep + rel;
+        }
     }
     return -1;
 }
@@ -291,6 +333,7 @@ int main(void)
     int dirty;
     int hit;
     int btn;
+    int perRowOct;
 
     WHITE_SEMI[0] = 0; WHITE_SEMI[1] = 2; WHITE_SEMI[2] = 4; WHITE_SEMI[3] = 5;
     WHITE_SEMI[4] = 7; WHITE_SEMI[5] = 9; WHITE_SEMI[6] = 11;
@@ -300,7 +343,7 @@ int main(void)
     BLACK_SEMI[4] = 8; BLACK_SEMI[5] = 10; BLACK_SEMI[6] = -1;
 
     for (i = 0; i < 10; i++) KeyDown[i] = -1;
-    for (i = 0; i < 13; i++) Ref[i] = 0;
+    for (i = 0; i < 26; i++) Ref[i] = 0;
 
     BaseNote = 60;
     RecOn = 0; RecN = 0;
@@ -312,9 +355,27 @@ int main(void)
     if (SW <= 0) SW = 360;
     if (SH <= 0) SH = 620;
 
+    /* ── 每行放几个白键：按屏宽自适应 ──
+     * 每键至少约 44dp 手指才按得准；取 **7 的整数倍** 保证一行是完整八度。 */
+    PerRow = SW / 44;
+    PerRow = (PerRow / 7) * 7;
+    if (PerRow < 7) PerRow = 7;
+    if (PerRow > 14) PerRow = 14;
+
+    /* ── 两行：音域翻倍，且每行只剩一半高 ⇒ 键不再是个竖长条 ── */
+    RowCount = 2;
+    perRowOct = PerRow / 7;             /* 每行有几个八度 */
+    RowStep = 12 * perRowOct;           /* 上行比下行高这么多半音 */
+
     BARH = 54;
     KEYTOP = BARH + 10;
-    KEYH = SH - KEYTOP - 20;
+    RowGap = 6;
+    RowKeyH = (SH - KEYTOP - 20 - RowGap * (RowCount - 1)) / RowCount;
+
+    /* ⚠ 再按宽高比收一道：屏幕很高时（平板竖放）别又把键拉成长条。
+     *   真实琴键的宽高比大约 1:5~1:6，这里取 6 作上限。 */
+    if (RowKeyH > (SW / PerRow) * 6) RowKeyH = (SW / PerRow) * 6;
+    if (RowKeyH < 60) RowKeyH = 60;     /* 太矮就按不准了 */
 
     BtnH = 32;
     BtnY = (BARH - BtnH) / 2;
@@ -337,22 +398,16 @@ int main(void)
         /* ── 按钮：事件式（单指点击）────────────────────────────────── */
         if (msgType == VML_MSG_TOUCHDOWN || msgType == VML_MSG_MOUSEDOWN) {
             btn = hit_btn(m[1], m[2]);
-            if (btn == 0) {
-                /* 移调前先把响着的都关掉 —— 否则那些音的"音符号"会跟着基准一起漂 */
+            if (btn == 0 || btn == 1) {
+                /* 移调前先把响着的都关掉 —— 否则那些音的"相对偏移"会跟着基准一起漂，
+                 * 引用计数就成了错的（关音时会去减另一个键的账）。 */
                 for (i = 0; i < 10; i++) {
                     if (KeyDown[i] >= 0) { p_off(i, KeyDown[i]); KeyDown[i] = -1; }
                 }
-                for (i = 0; i < 13; i++) Ref[i] = 0;
-                BaseNote = BaseNote - 12;
+                for (i = 0; i < 26; i++) Ref[i] = 0;
+                BaseNote = BaseNote + (btn == 0 ? -RowStep : RowStep);
                 if (BaseNote < 36) BaseNote = 36;
-                dirty = 1;
-            } else if (btn == 1) {
-                for (i = 0; i < 10; i++) {
-                    if (KeyDown[i] >= 0) { p_off(i, KeyDown[i]); KeyDown[i] = -1; }
-                }
-                for (i = 0; i < 13; i++) Ref[i] = 0;
-                BaseNote = BaseNote + 12;
-                if (BaseNote > 84) BaseNote = 84;
+                if (BaseNote > 84 - RowStep) BaseNote = 84 - RowStep;
                 dirty = 1;
             } else if (btn == 2) {
                 if (SongOn) {
@@ -386,7 +441,7 @@ int main(void)
                 /* 这个槽位换了音（含抬起）：先把上一个音还回去 */
                 if (KeyDown[slot] >= 0) {
                     hit = KeyDown[slot] - BaseNote;
-                    if (hit >= 0 && hit < 13) {
+                    if (hit >= 0 && hit < 26) {
                         if (Ref[hit] > 0) Ref[hit] = Ref[hit] - 1;
                         /* ⚠ **归零才真的关** —— 两根手指按同一个键时，
                          *   先抬起的那根不该把还按着的那根的音关掉 */
@@ -394,7 +449,7 @@ int main(void)
                     }
                 }
                 KeyDown[slot] = note;
-                if (note >= 0 && semi >= 0 && semi < 13) {
+                if (note >= 0 && semi >= 0 && semi < 26) {
                     if (Ref[semi] == 0) p_on(slot, note, 100);
                     Ref[semi] = Ref[semi] + 1;
                 }
