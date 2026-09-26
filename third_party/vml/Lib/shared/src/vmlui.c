@@ -605,16 +605,35 @@ void ui_text_cur(int x, int y, char* s) {
 /* ── 输入（统一消息队列）────────────────────────────────────
  *
  * 消息缓冲固定 **16 字节 = 4 个 int**：msg[0]=类型 msg[1]=A msg[2]=B msg[3]=时间戳
- * 触摸类消息：A=x，B=y（单位与绘图一致）。 */
+ * 触摸类消息：A=x，B=y（单位与绘图一致）。
+ *
+ * ⚠ **底层只有一个号（560）**：`R0` 是操作码（下面这组宏）、参数从 `R1` 起。
+ *   原先这里是 560/561/562/568/571/572/596 **七个号**（v0.96.483 合并）——
+ *   宿主侧 `Poll`/`Wait` **本来就是同一份实现**、只差一个保留位。
+ *   **函数名与签名一个都没变**，程序照旧写下面的函数即可。
+ * ⚠ 操作码定义在**本文件**（本文件不 include 头文件，理由见 VML_BRUSH_* 那段注释）；
+ *   `Lib/c/waycoder_ui.h` 里有同一份给用户程序用 —— **改一边必须改另一边**。
+ * ⚠ `asm` 串里的 `${}` 展开**总是先载入 R0** ⇒ 操作码写成 `${op}` 那个变量，
+ *   **不要**直接写字面量（字面量会被丢弃，操作码位置就空了）。 */
+
+#define VML_MSG_OP_POLL     0
+#define VML_MSG_OP_WAIT     1
+#define VML_MSG_OP_COUNT    2
+#define VML_MSG_OP_CLEAR    3
+#define VML_MSG_OP_DROP     4
+#define VML_MSG_OP_POLL_EX  5
+#define VML_MSG_OP_WAIT_EX  6
 
 /* 非阻塞取一条。返回消息类型，无消息 0。 */
 int ui_poll(int* msg) {
-    return asm("SYSCALL #560, ${msg}");
+    int op = VML_MSG_OP_POLL;
+    return asm("SYSCALL #560, ${op}, ${msg}");
 }
 
 /* 阻塞取一条，timeout_ms=0 表示无限等。返回消息类型，超时 0。 */
 int ui_wait(int* msg, int timeout_ms) {
-    return asm("SYSCALL #561, ${msg}, ${timeout_ms}");
+    int op = VML_MSG_OP_WAIT;
+    return asm("SYSCALL #560, ${op}, ${msg}, ${timeout_ms}");
 }
 
 /* 读一条，带"读完之后留不留"（VML_MSG_KEEP / VML_MSG_CONSUME）。
@@ -622,11 +641,13 @@ int ui_wait(int* msg, int timeout_ms) {
  * 直到程序明确地消费掉。想"先看一眼再决定谁来处理"时用；
  * ⚠ **别拿它当循环条件**：保留模式下永远返回同一条 = 死循环。 */
 int ui_poll_ex(int* msg, int keep) {
-    return asm("SYSCALL #571, ${msg}, ${keep}");
+    int op = VML_MSG_OP_POLL_EX;
+    return asm("SYSCALL #560, ${op}, ${msg}, ${keep}");
 }
 
 int ui_wait_ex(int* msg, int timeout_ms, int keep) {
-    return asm("SYSCALL #572, ${msg}, ${timeout_ms}, ${keep}");
+    int op = VML_MSG_OP_WAIT_EX;
+    return asm("SYSCALL #560, ${op}, ${msg}, ${timeout_ms}, ${keep}");
 }
 
 /* ── 全能接口：两个字符串进、一个 JSON 字符串出 ────────────────────────
@@ -684,7 +705,8 @@ int ui_call_json_at(int i) {
 }
 
 int ui_msg_count(void) {
-    return asm("SYSCALL #562");
+    int op = VML_MSG_OP_COUNT;
+    return asm("SYSCALL #560, ${op}");
 }
 
 /* 丢掉队列里**所有待处理消息** → 丢弃条数。
@@ -694,7 +716,8 @@ int ui_msg_count(void) {
  * 症状是「重新开始后，黑子立刻又落到上次最后点的位置」。
  * 在**重新开始 / 切关 / 暂停恢复**这类状态断点上调它，把历史输入清干净。 */
 int ui_msg_clear(void) {
-    return asm("SYSCALL #568");
+    int op = VML_MSG_OP_CLEAR;
+    return asm("SYSCALL #560, ${op}");
 }
 
 /* 丢掉队列里**某一类**还没被消费的消息 → 丢掉的条数（-1 = 类别认不出，什么也没丢）。
@@ -712,7 +735,8 @@ int ui_msg_clear(void) {
  *
  * ⚠ **别拿它丢键盘 / 定时器**：那两类是**离散语义**，丢一条就少一次事件。 */
 int ui_msg_drop(int kind) {
-    return asm("SYSCALL #596, ${kind}");
+    int op = VML_MSG_OP_DROP;
+    return asm("SYSCALL #560, ${op}, ${kind}");
 }
 
 /* ── 面向**不支持指针的语言**（Python/BASIC/…）的取消息接口 ──────────
@@ -735,8 +759,10 @@ static int _ui_msg_b;
 int ui_wait_msg(int timeout_ms) {
     int* buf;
     int tmp[4];
+    int op;
+    op = VML_MSG_OP_WAIT;
     buf = tmp;
-    _ui_msg_type = asm("SYSCALL #561, ${buf}, ${timeout_ms}");
+    _ui_msg_type = asm("SYSCALL #560, ${op}, ${buf}, ${timeout_ms}");
     _ui_msg_a = tmp[1];
     _ui_msg_b = tmp[2];
     return _ui_msg_type;
@@ -746,8 +772,10 @@ int ui_wait_msg(int timeout_ms) {
 int ui_poll_msg(void) {
     int* buf;
     int tmp[4];
+    int op;
+    op = VML_MSG_OP_POLL;
     buf = tmp;
-    _ui_msg_type = asm("SYSCALL #560, ${buf}");
+    _ui_msg_type = asm("SYSCALL #560, ${op}, ${buf}");
     _ui_msg_a = tmp[1];
     _ui_msg_b = tmp[2];
     return _ui_msg_type;
@@ -884,13 +912,19 @@ int ui_piece_cell(int pid, int rot, int which) {
     return -1;
 }
 
-/* 定时器：每隔 interval_ms 往队列投一条 VML_MSG_TIMER（A=id，B=tag）。 */
+/* 定时器：每隔 interval_ms 往队列投一条 VML_MSG_TIMER（A=id，B=tag）。
+ * ⚠ 底层只有一个号（563）+ 操作码（v0.96.483 合并，原先 563/564 两个号）。 */
+#define VML_TIMER_OP_SET   0
+#define VML_TIMER_OP_KILL  1
+
 int ui_timer_set(int interval_ms, int tag) {
-    return asm("SYSCALL #563, ${interval_ms}, ${tag}");
+    int op = VML_TIMER_OP_SET;
+    return asm("SYSCALL #563, ${op}, ${interval_ms}, ${tag}");
 }
 
 int ui_timer_kill(int id) {
-    return asm("SYSCALL #564, ${id}");
+    int op = VML_TIMER_OP_KILL;
+    return asm("SYSCALL #563, ${op}, ${id}");
 }
 
 /* ── 随机数 / 计时（游戏要用，而只有 C 能直接调 #50/#53）──────

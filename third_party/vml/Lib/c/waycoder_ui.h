@@ -520,7 +520,21 @@ int  ui_piece_cell(int pid, int rot, int which);
 void ui_gset(int idx, int val);
 int  ui_gget(int idx);
 
-/* ── 输入 ── */
+/* ── 输入 ──
+ *
+ * ⚠ **底层只有一个 syscall 号（560）**：`R0` 是操作码（下面这组宏）、参数从 `R1` 起。
+ *   原先这里是 560/561/562/568/571/572/596 **七个号**（v0.96.483 合并）——
+ *   宿主侧 `Poll`/`Wait` 本来就是同一份实现、只差一个保留位。
+ *   **下面这些 C 函数名与签名一个都没变**，程序照旧写它们即可 —— 操作码只是库内部的事。
+ * ⚠ 操作码是**跨语言契约，只能末尾追加**。程序一般不必直接碰它们。 */
+#define VML_MSG_OP_POLL     0   /* ui_poll      */
+#define VML_MSG_OP_WAIT     1   /* ui_wait      */
+#define VML_MSG_OP_COUNT    2   /* ui_msg_count */
+#define VML_MSG_OP_CLEAR    3   /* ui_msg_clear */
+#define VML_MSG_OP_DROP     4   /* ui_msg_drop  */
+#define VML_MSG_OP_POLL_EX  5   /* ui_poll_ex   */
+#define VML_MSG_OP_WAIT_EX  6   /* ui_wait_ex   */
+
 int  ui_poll(int* msg);
 int  ui_wait(int* msg, int timeout_ms);
 /* 读一条，带"读完之后留不留"：keep=VML_MSG_KEEP 时**只看队头、不取走**
@@ -552,6 +566,11 @@ int  ui_msg_clear(void);
  *
  * ⚠ **别拿它丢键盘 / 定时器**：那两类是离散语义，丢一条就少一次事件。 */
 int  ui_msg_drop(int kind);
+
+/* 定时器 —— 底层同样只有一个号（563）+ 操作码（v0.96.483 合并，原先 563/564 两个号）。 */
+#define VML_TIMER_OP_SET   0   /* ui_timer_set  */
+#define VML_TIMER_OP_KILL  1   /* ui_timer_kill */
+
 int  ui_timer_set(int interval_ms, int tag);
 int  ui_timer_kill(int timerId);
 

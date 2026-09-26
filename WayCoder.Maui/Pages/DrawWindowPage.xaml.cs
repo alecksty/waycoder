@@ -1178,7 +1178,7 @@ public partial class DrawWindowPage : ContentPage
 
         // 用户点了返回箭头（或被导航走）：告诉程序窗口没了。
         // **这必须在 OnDisappearing 里做** —— 放在别处会漏掉"手势返回"这条路径，
-        // 程序就会一直等在 MsgWait 上，直到超时。
+        // 程序就会一直等读消息（`MSG` op 1 `WAIT`）上，直到超时。
         VmlUiCalls.Current?.MarkWindowClosed();
 
         // 再上一道保险：**退出窗口 = 终止程序**（用户原话「随时按返回，需要终止程序」）。

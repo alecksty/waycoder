@@ -692,33 +692,47 @@ public sealed class VmlHostRuntime
                 }
                 case VmlUi.FreeImage: registers[0] = (_images.Remove(registers[0])) ? 1 : 0; break;
 
-                case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
-                case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
-                case VmlUi.MsgPollEx: registers[0] = Poll(registers, memory, ex: true); break;
-                case VmlUi.MsgWaitEx: registers[0] = Wait(registers, memory, ex: true); break;
-                case VmlUi.MsgCount: registers[0] = _queue.Count; break;
-                // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
-                // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
-                case VmlUi.MsgClear: _queue.Clear(); registers[0] = 0; break;
-                // 按类丢弃待处理消息 → 丢掉的条数。类别见 `VmlMsgKind`（跨语言契约）。
-                // ⚠ 判据必须是**消息类型本身**，不是"消息从哪来" —— 宿主这边只有类型。
-                case VmlUi.MsgDrop:
+                case VmlUi.Msg:
                 {
-                    var kind = (VmlUi.VmlMsgKind)registers[0];
-                    registers[0] = kind switch
+                    // 一个号 + 操作码（v0.96.483 合并，原先 560/561/562/568/571/572/596 **七个号**）。
+                    // ⚠ **参数整体后移一格**：`registers[0]` 现在是 op，原来那些号里它是第一个参数。
+                    //   助手统一带基址 `b: 1` —— 参数索引只写在**一处**，不必在七个分支里各写一遍
+                    //   （"同一规则两处实现"正是本仓记过多次的坑）。
+                    switch (registers[0])
                     {
-                        VmlUi.VmlMsgKind.Timer => _queue.DropPending(m => m.Type == VmlMsgType.Timer),
-                        VmlUi.VmlMsgKind.Touch => _queue.DropPending(m =>
-                            m.Type is VmlMsgType.TouchDown or VmlMsgType.TouchMove or VmlMsgType.TouchUp),
-                        VmlUi.VmlMsgKind.Mouse => _queue.DropPending(m =>
-                            m.Type is VmlMsgType.MouseDown or VmlMsgType.MouseMove or VmlMsgType.MouseUp),
-                        VmlUi.VmlMsgKind.Key => _queue.DropPending(m =>
-                            m.Type is VmlMsgType.KeyDown or VmlMsgType.KeyUp),
-                        VmlUi.VmlMsgKind.All => AllAndCount(),
-                        // 认不出的类别**什么都不丢**并返回 -1：静默当成"全部清掉"是最坏的做法
-                        // （程序打错一个字面量就把整队历史抹了，还看不出是谁干的）。
-                        _ => -1,
-                    };
+                        case VmlUi.MsgOp.Poll:   registers[0] = Poll(registers, memory, ex: false, b: 1); break;
+                        case VmlUi.MsgOp.Wait:   registers[0] = Wait(registers, memory, ex: false, b: 1); break;
+                        case VmlUi.MsgOp.PollEx: registers[0] = Poll(registers, memory, ex: true, b: 1); break;
+                        case VmlUi.MsgOp.WaitEx: registers[0] = Wait(registers, memory, ex: true, b: 1); break;
+                        case VmlUi.MsgOp.Count:  registers[0] = _queue.Count; break;
+                        // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
+                        // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
+                        case VmlUi.MsgOp.Clear:  _queue.Clear(); registers[0] = 0; break;
+                        // 按类丢弃待处理消息 → 丢掉的条数。类别见 `VmlMsgKind`（跨语言契约）。
+                        // ⚠ 判据必须是**消息类型本身**，不是"消息从哪来" —— 宿主这边只有类型。
+                        case VmlUi.MsgOp.Drop:
+                        {
+                            var kind = (VmlUi.VmlMsgKind)registers[1];
+                            registers[0] = kind switch
+                            {
+                                VmlUi.VmlMsgKind.Timer => _queue.DropPending(m => m.Type == VmlMsgType.Timer),
+                                VmlUi.VmlMsgKind.Touch => _queue.DropPending(m =>
+                                    m.Type is VmlMsgType.TouchDown or VmlMsgType.TouchMove or VmlMsgType.TouchUp),
+                                VmlUi.VmlMsgKind.Mouse => _queue.DropPending(m =>
+                                    m.Type is VmlMsgType.MouseDown or VmlMsgType.MouseMove or VmlMsgType.MouseUp),
+                                VmlUi.VmlMsgKind.Key => _queue.DropPending(m =>
+                                    m.Type is VmlMsgType.KeyDown or VmlMsgType.KeyUp),
+                                VmlUi.VmlMsgKind.All => AllAndCount(),
+                                // 认不出的类别**什么都不丢**并返回 -1：静默当成"全部清掉"是最坏的做法
+                                // （程序打错一个字面量就把整队历史抹了，还看不出是谁干的）。
+                                _ => -1,
+                            };
+                            break;
+                        }
+                        // 认不出的操作码同样返回 -1（**不是 0**）：0 在这组里表示"没有消息"，
+                        // 是合法结果 —— 都用 0 就分不出"op 写错了"与"队列是空的"。
+                        default: registers[0] = -1; break;
+                    }
                     break;
                 }
                 // ── 手机特有的操作方式（§3 P1）──────────────────────────────────
@@ -759,8 +773,17 @@ public sealed class VmlHostRuntime
             case VmlUi.AudioIsPlaying:
                 registers[0] = _host.AudioPlaying() ? 1 : 0;
                 break;
-            case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
-                case VmlUi.TimerKill: registers[0] = TimerKill(registers); break;
+            case VmlUi.Timer:
+                    // 一个号 + 操作码（v0.96.483 合并，原先 563/564 两个号）。
+                    // 参数从 `registers[1]` 起（`registers[0]` 是 op）。
+                    registers[0] = registers[0] switch
+                    {
+                        VmlUi.TimerOp.Set  => TimerSet(registers, b: 1),
+                        VmlUi.TimerOp.Kill => TimerKill(registers, b: 1),
+                        // 认不出的 op 返回 -1（**不是 0**）：`Kill` 成功时返回的就是 0。
+                        _ => -1,
+                    };
+                    break;
                 case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : (_windowOpened ? 0 : 2); break;
                 case VmlUi.CallJson: registers[0] = CallJson(registers, memory); break;
 
@@ -862,10 +885,10 @@ public sealed class VmlHostRuntime
         }
     }
 
-    private int TimerSet(int[] r)
+    private int TimerSet(int[] r, int b)
     {
-        var interval = Math.Clamp(r[0], 1, 3_600_000);
-        var tag = r[1];
+        var interval = Math.Clamp(r[b], 1, 3_600_000);
+        var tag = r[b + 1];
         var id = _nextTimerId++;
         // 正处于模态弹框期间（程序在弹框里又装了个定时器）⇒ 同样以暂停状态建出来，
         // 免得它成为下一个"积压源"
@@ -879,9 +902,9 @@ public sealed class VmlHostRuntime
         return id;
     }
 
-    private int TimerKill(int[] r)
+    private int TimerKill(int[] r, int b)
     {
-        if (_timers.TryRemove(r[0], out var t)) t.Timer.Dispose();
+        if (_timers.TryRemove(r[b], out var t)) t.Timer.Dispose();
         return 0;
     }
 
@@ -1045,43 +1068,43 @@ public sealed class VmlHostRuntime
     // ══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// 读一条消息（非阻塞）。<paramref name="ex"/> = 走 <see cref="VmlUi.MsgPollEx"/>：
-    /// 多一个 R1=保留位（<see cref="VmlUi.Keep"/> 时**只看队头、不取走**）。
+    /// 读一条消息（非阻塞）。<paramref name="ex"/> = 走
+    /// <see cref="VmlUi.MsgOp.PollEx"/>：多一个保留位（<see cref="VmlUi.Keep"/> 时**只看队头、不取走**）。
     ///
-    /// ⚠ 老号只读 R0 —— 不把两个号合成"从 r[1] 取默认值"的理由与 `WinOpen` 同一处：
-    /// 只传 R0 的老程序，r[1] 里是它自己上一句留下的值。
+    /// <paramref name="b"/> = **第一个参数的寄存器下标**。合并进 `Msg` 号之后参数整体后移一格
+    /// （`r[0]` 是操作码）⇒ 基址是 1。参数索引只在这里写一遍。
     /// </summary>
-    private int Poll(int[] r, byte[] mem, bool ex)
+    private int Poll(int[] r, byte[] mem, bool ex, int b)
     {
-        var msg = ex ? _queue.TryRead(r[1] == VmlUi.Keep) : _queue.TryTake();
+        var msg = ex ? _queue.TryRead(r[b + 1] == VmlUi.Keep) : _queue.TryTake();
         if (msg is not { } m) return 0;
-        m.WriteTo(mem, r[0]);
+        m.WriteTo(mem, r[b]);
         return (int)m.Type;
     }
 
     /// <summary>
-    /// 读一条消息（阻塞）。<paramref name="ex"/> = 走 <see cref="VmlUi.MsgWaitEx"/>：
-    /// 多一个 R2=保留位。理由同 <see cref="Poll"/>。
+    /// 读一条消息（阻塞）。<paramref name="ex"/> = 走
+    /// <see cref="VmlUi.MsgOp.WaitEx"/>：多一个保留位。基址语义同 <see cref="Poll"/>。
     ///
     /// ⚠ 保留模式**必须阻塞等待**吗？不必 —— 队头那条一直在，`TryRead(keep)` 立刻就能返回。
     /// 换句话说保留模式下这个"阻塞"只在**队列空**时才起作用（等的还是"来第一条"）。
     /// </summary>
-    private int Wait(int[] r, byte[] mem, bool ex)
+    private int Wait(int[] r, byte[] mem, bool ex, int b)
     {
         // 无限等要被切成人有上限的片（理由见 BlockingWaitLimitMs）——
         // 宿主没设上限时一个字不改，仍是"一直等"。
-        var timeout = r[1];
+        var timeout = r[b + 1];
         if (timeout <= 0 && BlockingWaitLimitMs > 0) timeout = BlockingWaitLimitMs;
         // ⚠ 令牌一起传下去：**这是"强制终止"能不能落地的关键一步** ——
         //   卡在这里等消息的程序不执行指令，VM 的令牌检查够不着它（见 WaitPostOrCancel）。
         var msg = ex
-            ? _queue.Read(timeout, r[2] == VmlUi.Keep, RunToken)
+            ? _queue.Read(timeout, r[b + 2] == VmlUi.Keep, RunToken)
             : _queue.Take(timeout, RunToken);
         // **等完了就续期** —— 这是"游戏能一直玩下去"的关键一句：等消息的时间不算程序在跑，
         // 否则游戏主循环每 40ms 等一次、超时却在后台按墙钟走，120 秒必被杀（见 OnWaitEnded）。
         OnWaitEnded?.Invoke();
         if (msg is not { } m) return 0;
-        m.WriteTo(mem, r[0]);
+        m.WriteTo(mem, r[b]);
         return (int)m.Type;
     }
 

@@ -1036,7 +1036,7 @@ public static partial class SelfTest
         // 每加一个号就手抄一遍比对名单，而捏造漏掉的那几个永远查不到。已删。
         VmlJsonApi.ClearForTest();   // 别把测试用的函数留给后面的用例
 
-        // ── 读消息的"读完之后留不留"（`MSG_POLL_EX` #571 / `MSG_WAIT_EX` #572）──
+        // ── 读消息的"读完之后留不留"（`MSG` #560 的 op 5 `POLL_EX` / op 6 `WAIT_EX`）──
         var mq = new VmlMessageQueue();
         mq.Post(new VmlMessage(VmlMsgType.TouchDown, 11, 22, 0));
         mq.Post(new VmlMessage(VmlMsgType.KeyDown, 33, 0, 0));

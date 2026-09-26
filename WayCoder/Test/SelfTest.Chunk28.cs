@@ -61,13 +61,14 @@ public static partial class SelfTest
         rt.OnWaitEnded = () => renewed++;
 
         // `ui_wait_msg(目标, 超时ms, 保留)` —— 队列空，1ms 后超时返回。**这条路径算等过。**
-        regs[0] = 0; regs[1] = 1; regs[2] = 0;
-        rt.HandleSyscall(VmlUi.MsgWait, regs, mem);
+        regs[0] = VmlUi.MsgOp.Wait; regs[1] = 0; regs[2] = 1; regs[3] = 0;
+        rt.HandleSyscall(VmlUi.Msg, regs, mem);
         Check("ui_wait_msg 返回后触发续期", renewed == 1);
 
         // `ui_poll` 是非阻塞的：**一次都不许续期**（程序每帧都调它）
         renewed = 0;
-        rt.HandleSyscall(VmlUi.MsgPoll, regs, mem);
+        regs[0] = VmlUi.MsgOp.Poll; regs[1] = 0;
+        rt.HandleSyscall(VmlUi.Msg, regs, mem);
         Check("ui_poll 不触发续期（否则超时永不触发）", renewed == 0);
 
         // 与窗态判据配对：`ui_win_close` 之后宿主必须认为"窗口没了"，
@@ -1006,7 +1007,8 @@ public static partial class SelfTest
         int Poll()
         {
             Array.Clear(regs);
-            rt.HandleSyscall(VmlUi.MsgPoll, regs, mem);
+            regs[0] = VmlUi.MsgOp.Poll;
+            rt.HandleSyscall(VmlUi.Msg, regs, mem);
             return regs[0];
         }
         while (Poll() != 0) { }                       // 清掉上面那些

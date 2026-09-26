@@ -101,7 +101,20 @@ def main():
         if wc_lines(d):
             break
     else:
-        print("✘ 等不到渲染日志（编译失败？看设备屏幕）")
+        # ⚠ **先别急着报"编译失败"**（v0.96.483 实测踩到）：程序里有 `ui_dlg_msg`
+        # 开场说明框的（gorilla_pro / 一堆移植游戏）会**停在原生弹框上等用户点**，
+        # 那时一张帧都没出 —— 日志为空、退出码 0，看着像编译挂了，其实只是没人点。
+        # 所以失败时**自动截一张屏**：弹框在截图里一眼可见（编译失败则是黑屏或报错文字）。
+        shot = args.shot or "/tmp/perf_stuck.png"
+        # ⚠ 用 subprocess 直取**二进制**（与下面正常截图那条同一个理由）：
+        #   `driver.sh()` 把 stdout 解成文本，PNG 会被毁掉。
+        with open(shot, "wb") as f:
+            f.write(subprocess.run(["adb", "-s", args.serial, "exec-out", "screencap", "-p"],
+                                   capture_output=True).stdout)
+        print("✘ 等不到渲染日志 —— 已截图：%s" % shot)
+        print("  ⚠ 常见原因：程序有**开场说明弹框**（ui_dlg_msg）停在等用户点。")
+        print("    看一眼截图：有弹框就 `adb shell input tap <允许的坐标>` 点掉它再重跑。")
+        print("    没弹框才是真的编译失败，那就要看设备屏幕上的报错文字了。")
         return 1
     boot = time.time() - t0
     print("▶ 开始出帧（编译+启动 %.0fs），采集 %ds …" % (boot, args.secs), flush=True)

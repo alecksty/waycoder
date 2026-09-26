@@ -541,46 +541,98 @@ public static class VmlUi
     public const int Text = 533;
 
     // ── 输入（统一消息队列）──
-    /// <summary>非阻塞取一条消息：R0=消息缓冲地址 → 消息类型，无消息返回 0。</summary>
-    public const int MsgPoll = 560;
-    /// <summary>阻塞取一条消息：R0=消息缓冲地址 R1=超时毫秒(0=无限) → 消息类型，超时返回 0。</summary>
-    public const int MsgWait = 561;
-    /// <summary>队列里待处理消息数（非阻塞）→ 条数。</summary>
-    public const int MsgCount = 562;
     /// <summary>
-    /// 丢掉队列里**所有待处理消息**（非阻塞）→ 丢弃条数。
+    /// **消息队列**（一个号 + 操作码，见 <see cref="MsgOp"/>）。
     ///
-    /// **为什么需要它**：一次点击往往产生**多条**消息（按下/抬起/移动各一条），
-    /// 游戏主循环通常只读它要的那一条，剩下的就留在队列里 —— 于是"重开一局"时
-    /// `ui_poll` 又把**上一局的残留**读出来，黑子立刻落到上次最后点的位置上。
-    /// 程序应在**重新开始 / 切关 / 暂停恢复**这类状态断点上调用它，把历史输入清干净。
+    /// `R0` = 操作码、参数从 `R1` 起。原先这里是 **560/561/562/568/571/572/596 七个号**
+    /// （v0.96.483 合并）—— 而宿主侧 `Poll`/`Wait` **本来就是同一份实现**、
+    /// 只差一个 `ex` 布尔（保留位），拆成七个号纯粹是历史增长（每加一个能力就占一个）。
+    ///
+    /// ⚠ **认不出的操作码返回 `-1`**，不是 0 —— `0` 在这组里表示"没有消息"，
+    /// 是**合法结果**；都用 0 就分不出"op 写错了"与"队列是空的"。
     /// </summary>
-    public const int MsgClear = 568;
+    public const int Msg = 560;
 
     /// <summary>
-    /// `ui_msg_drop(kind)` —— **丢掉队列里某一类还没被消费的消息** → 丢掉的条数。
+    /// <see cref="Msg"/> 的操作码 —— **跨语言契约**（C 头文件的 `VML_MSG_OP_*` 按这些数写死）。
     ///
-    /// <para>
-    /// 与 <see cref="MsgClear"/> 的差别是**"只丢一类"**：清空是"把历史全部扔掉"，
-    /// 那对"我正在拖动、但中间那几百条移动事件已经过期了"这种情形**太狠** ——
-    /// 会把同一时间排着的键盘、定时器一起丢掉（程序那边表现为"按键丢了/物理卡了一拍"）。
-    /// </para>
-    ///
-    /// <para>
-    /// **为什么需要它**：移动类消息是"追最新位置"的语义，旧的位置毫无价值。
-    /// 而主循环是"一次取一条"（`ui_wait_msg`），手指拖动一秒产生几百条 ⇒
-    /// **产生的比消费的快，队列只涨不落**。真机实测（gorilla 连续拖滑条 6 轮）：
-    /// 队列 285 → 596 → … → **2280** 条且完全不回落，而同一时间 fps 全程 19~21 ——
-    /// 用户看到的就是「**背景绘图不卡、但触摸要等一下才反应**」。
-    /// 在 `TOUCHMOVE` 分支里调一次 `ui_msg_drop(VML_MSG_KIND_TOUCH)`，队列立刻回到个位数。
-    /// </para>
-    ///
-    /// <para>
-    /// ⚠ 类别见 <see cref="VmlMsgKind"/>。**别拿它丢键盘/定时器** ——
-    /// 那两类是离散语义，丢一条就少一次事件。
-    /// </para>
+    /// ⚠ **只能末尾追加**：数值会编进程序的机器码里，改值或插队 = 改 ABI。
     /// </summary>
-    public const int MsgDrop = 596;
+    public static class MsgOp
+    {
+        /// <summary>非阻塞取一条消息：R1=消息缓冲地址 → 消息类型，无消息返回 0。</summary>
+        public const int Poll = 0;
+
+        /// <summary>阻塞取一条消息：R1=消息缓冲地址 R2=超时毫秒(0=无限) → 消息类型，超时返回 0。</summary>
+        public const int Wait = 1;
+
+        /// <summary>队列里待处理消息数（非阻塞）→ 条数。</summary>
+        public const int Count = 2;
+
+        /// <summary>
+        /// 丢掉队列里**所有待处理消息**（非阻塞）→ 丢弃条数。
+        ///
+        /// **为什么需要它**：一次点击往往产生**多条**消息（按下/抬起/移动各一条），
+        /// 游戏主循环通常只读它要的那一条，剩下的就留在队列里 —— 于是"重开一局"时
+        /// `ui_poll` 又把**上一局的残留**读出来，黑子立刻落到上次最后点的位置上。
+        /// 程序应在**重新开始 / 切关 / 暂停恢复**这类状态断点上调用它，把历史输入清干净。
+        ///
+        /// 与 <see cref="Drop"/> 的 `All` 等价，走同一条实现。
+        /// </summary>
+        public const int Clear = 3;
+
+        /// <summary>
+        /// `ui_msg_drop(kind)` —— **丢掉队列里某一类还没被消费的消息** → 丢掉的条数。
+        ///
+        /// <para>
+        /// 与 <see cref="Clear"/> 的差别是**"只丢一类"**：清空是"把历史全部扔掉"，
+        /// 那对"我正在拖动、但中间那几百条移动事件已经过期了"这种情形**太狠** ——
+        /// 会把同一时间排着的键盘、定时器一起丢掉（程序那边表现为"按键丢了/物理卡了一拍"）。
+        /// </para>
+        ///
+        /// <para>
+        /// **为什么需要它**：移动类消息是"追最新位置"的语义，旧的位置毫无价值。
+        /// 而主循环是"一次取一条"（`ui_wait_msg`），手指拖动一秒产生几百条 ⇒
+        /// **产生的比消费的快，队列只涨不落**。真机实测（gorilla 连续拖滑条 6 轮）：
+        /// 队列 285 → 596 → … → **2280** 条且完全不回落，而同一时间 fps 全程 19~21 ——
+        /// 用户看到的就是「**背景绘图不卡、但触摸要等一下才反应**」。
+        /// 在 `TOUCHMOVE` 分支里调一次 `ui_msg_drop(VML_MSG_KIND_TOUCH)`，队列立刻回到个位数。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 类别见 <see cref="VmlMsgKind"/>。**别拿它丢键盘/定时器** ——
+        /// 那两类是离散语义，丢一条就少一次事件。
+        /// </para>
+        /// </summary>
+        public const int Drop = 4;
+
+        /// <summary>
+        /// 读一条消息（**非阻塞，带"读完之后留不留"**）：R1=消息缓冲地址 R2=保留位 → 消息类型。
+        ///
+        /// 保留位的语义（<see cref="Consume"/> / <see cref="Keep"/>）：
+        /// - **消费（0，默认）** = 读完就没了，下一条 poll 拿到的是再下一条 —— 与
+        ///   <see cref="Poll"/> 完全一致。
+        /// - **保留（1）** = 只**看**队头那一条，队列里一个都不少 —— 下一次 poll/wait 还是它，
+        ///   直到程序**明确地**消费掉它（再调一次消费模式的 poll）。
+        ///
+        /// 什么时候要"保留"：程序想**先看一眼再决定谁处理**（比如"是触摸就自己吃掉、
+        /// 是按键就留给下一层"），或者一帧里要按同一条消息做几件事。**别拿它当循环条件** ——
+        /// 保留模式下 poll 永远返回同一条，写成 `while (ui_poll_ex(...) != 0)` 就是死循环。
+        ///
+        /// ⚠ 当初走新号（而不是给 <see cref="Poll"/> 加参数）的理由：老程序只传 R0，
+        /// R1 里是**它自己上一句留下的值**，宿主无从判断那是"保留"还是垃圾。
+        /// 合并进 `Msg` 之后这条约束由**操作码本身**承担 —— `Poll` 与 `PollEx` 是两个 op，
+        /// 老程序发出来的仍是那个不带保留位的 op。
+        /// </summary>
+        public const int PollEx = 5;
+
+        /// <summary>
+        /// 读一条消息（**阻塞，带"读完之后留不留"**）：R1=缓冲地址 R2=超时毫秒(0=无限) R3=保留位 → 类型。
+        /// 保留位语义见 <see cref="PollEx"/>。
+        /// </summary>
+        public const int WaitEx = 6;
+    }
+
 
     /// <summary>
     /// `ui_msg_drop(kind)` 的**类别** —— **跨语言契约**（C 头文件里的
@@ -598,42 +650,32 @@ public static class VmlUi
         Mouse = 2,
         /// <summary>键盘：按下 / 抬起。</summary>
         Key = 3,
-        /// <summary>全部待处理消息（等价于 <see cref="MsgClear"/>，走同一条实现）。</summary>
+        /// <summary>全部待处理消息（等价于 <see cref="MsgOp.Clear"/>，走同一条实现）。</summary>
         All = 4,
     }
-    /// <summary>
-    /// 读一条消息（**非阻塞，带"读完之后留不留"**）：R0=消息缓冲地址 R1=保留位 → 消息类型。
-    ///
-    /// <paramref name="keep"/> 的语义（<see cref="Consume"/> / <see cref="Keep"/>）：
-    /// - **消费（0，默认）** = 读完就没了，下一条 poll 拿到的是再下一条 —— 与
-    ///   <see cref="MsgPoll"/> 完全一致。
-    /// - **保留（1）** = 只**看**队头那一条，队列里一个都不少 —— 下一次 poll/wait 还是它，
-    ///   直到程序**明确地**消费掉它（再调一次消费模式的 poll）。
-    ///
-    /// 什么时候要"保留"：程序想**先看一眼再决定谁处理**（比如"是触摸就自己吃掉、
-    /// 是按键就留给下一层"），或者一帧里要按同一条消息做几件事。**别拿它当循环条件** ——
-    /// 保留模式下 poll 永远返回同一条，写成 `while (ui_poll_ex(...) != 0)` 就是死循环。
-    ///
-    /// ⚠ 与 <see cref="WinOpenEx"/> 同样的理由走新号：老程序只传 R0，R1 里是**它自己
-    /// 上一句留下的值**，宿主无从判断那是"保留"还是垃圾。
-    /// </summary>
-    public const int MsgPollEx = 571;
-
-    /// <summary>
-    /// 读一条消息（**阻塞，带"读完之后留不留"**）：R0=缓冲地址 R1=超时毫秒(0=无限) R2=保留位 → 类型。
-    /// 保留位语义见 <see cref="MsgPollEx"/>。
-    /// </summary>
-    public const int MsgWaitEx = 572;
 
     /// <summary>读消息的 R? 保留位：读完就没了（默认行为）。</summary>
     public const int Consume = 0;
     /// <summary>读消息的 R? 保留位：只读**队头**那一条，队列里一个都不少。</summary>
     public const int Keep = 1;
 
-    /// <summary>装定时器：R0=间隔毫秒 R1=用户标记 → 定时器 id；消息以 <see cref="VmlMsgType.Timer"/> 入队。</summary>
-    public const int TimerSet = 563;
-    /// <summary>删定时器：R0=id → 0。</summary>
-    public const int TimerKill = 564;
+    /// <summary>
+    /// **定时器**（一个号 + 操作码，见 <see cref="TimerOp"/>）。`R0` = 操作码、参数从 `R1` 起。
+    ///
+    /// 原先这里是 **563/564 两个号**（v0.96.483 合并）—— 装与删是同一件事的两面，
+    /// 合起来只花一个号。
+    /// </summary>
+    public const int Timer = 563;
+
+    /// <summary>`Timer` 的操作码 —— **跨语言契约**，只能末尾追加。</summary>
+    public static class TimerOp
+    {
+        /// <summary>装定时器：R1=间隔毫秒 R2=用户标记 → 定时器 id；消息以 <see cref="VmlMsgType.Timer"/> 入队。</summary>
+        public const int Set = 0;
+
+        /// <summary>删定时器：R1=id → 0。</summary>
+        public const int Kill = 1;
+    }
     /// <summary>
     /// 窗口状态 —— **三值**，不是布尔：`0` 开着 / `1` 被关掉（返回箭头）/ `2` **从来没开过窗口**。
     ///
@@ -1284,12 +1326,12 @@ public static class VmlUi
         // 手感与存档 541–553
         AudioPlay, AudioStop, AudioVolume, Vibrate, VibratePattern, AudioIsPlaying,
         StoreSet, StoreGet, StoreDel, ScreenKeepOn,
-        // 输入与屏幕 560–569
-        MsgPoll, MsgWait, MsgCount, TimerSet, TimerKill, WinClosed, ScrW, ScrH, MsgClear, ScrOrient,
+        // 输入与屏幕 560–569（消息与定时器**各收成一个号 + 操作码**，见 `MsgOp` / `TimerOp`）
+        Msg, Timer, WinClosed, ScrW, ScrH, ScrOrient,
         // 手机特有的操作方式 556–559
         TouchQuery, KeyQuery, OrientationLock, Immersive,
         // 扩展 570–573
-        WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
+        WinOpenEx, CallJson,
         // ⚠ `DrawTextEx = 581` 是**补进来的**（v0.96.353）：它早就定义了，
         //   却一直没进这张表 —— 正是上面那段注释警告的"护栏形同虚设"。
         //   没有它，581 与别的号撞了也查不出来（症状是一个功能静默变成另一个功能）。
@@ -1307,8 +1349,6 @@ public static class VmlUi
         GfxState,
         // 通用宿主调用口 577–580（带类型快通道，见 VmlCallRegistry）
         CallWithInt8, CallWithFloat8, CallWithLong4, CallWithDouble4,
-        // 消息队列**按类丢弃** 594（见 `VmlMsgKind`：定时器 / 触摸 / 鼠标 / 键盘 / 全部）
-        MsgDrop,
     ];
 
     /// <summary>
