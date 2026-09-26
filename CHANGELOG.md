@@ -1,3 +1,66 @@
+## v0.96.514 — 采用 UIScene 生命周期：**用 SDK 27 编的包终于能在 iOS 27 上起来了**
+
+### 症状与根因
+
+**用 SDK 27 编译的包在 iOS 27 上直接起不来**，UIKit 断言：
+
+```
+Application failed to launch: UIScene life cycle is required for apps built with this SDK.
+```
+
+iOS 26 只给警告（所以真机 26.7 一直没暴露），**装到 iOS 27 的模拟器/设备上必挂**。
+这是上一版列在"已知未修"里的那条。
+
+### 修法：两步，缺一不可
+
+1. **`Platforms/iOS/SceneDelegate.cs`**（新文件）—— 继承 `MauiUISceneDelegate` 的**空子类**
+   （窗口怎么建、根控制器怎么挂、生命周期怎么桥回 MAUI，全在基类里）；
+2. **`Platforms/iOS/Info.plist`** 里声明 `UIApplicationSceneManifest`。
+
+### ⚠ 真正的坑：场景配置名**必须逐字是 `__MAUI_DEFAULT_SCENE_CONFIGURATION__`**
+
+反编译 MAUI 10.0.20 的 `MauiUISceneDelegate.WillConnect` 才看清第一句就是：
+
+```csharp
+if (session.Configuration.Name != "__MAUI_DEFAULT_SCENE_CONFIGURATION__" || ...) return;
+CreatePlatformWindow(...);      // ← 只有名字对上才会建窗口
+```
+
+**名字不对不报错、不崩**，只是 MAUI 直接 `return` ⇒ **App 起得来、也停在前台，但一个窗口都没有**
+（系统日志里只有一句 `Keyboard screen not found for window (null)`，屏幕全黑）。
+
+我照网上那份 `Default Configuration` 的写法（那是给别家模板用的）写了一版 ——
+**先得到"断言没了"，再得到"黑屏"**，两轮才对上。这个过程值得记下来，
+因为症状与"没采用 scene"（同样是起不来/黑屏）**几乎一样**，只看现象分不出是哪一步错。
+
+同一条链上还有两个**无声**的坑：`UISceneDelegateClassName` 写的是 **ObjC 注册名**
+（`[Register("SceneDelegate")]` 那个字符串，不是 C# 类名）；plist 改了要**清掉对应 TFM 的
+`obj/`+`bin/` 再编** —— 合并后的 plist 在增量构建里会被缓存住，不清就**改了个寂寞**
+（实测：不清 obj 时包内 plist 里没有新键，清掉立刻就有）。
+
+### 顺带确认的：`FinishedLaunching` 里那句 `HasSceneManifest()`
+
+`MauiUIApplicationDelegate.FinishedLaunching` 是 `if (!HasSceneManifest()) { 建窗口 }` ——
+也就是说**只要 plist 里有清单，MAUI 就不再走老路**，窗口只能由 scene 那条链给。
+所以"加清单但配置名写错"必然黑屏，而不是退回老行为。
+
+### 验证
+
+| 环境 | 结果 |
+|---|---|
+| **iOS 27.0 模拟器**（此前必挂） | ✅ **完整跑起来**：首页、标签栏、按钮全部正常渲染 |
+| **iOS 26.5 模拟器**（回归） | ✅ 正常，无变化 |
+| **真机 iPad（26.7）** | 已装 v0.96.514，**待用户解锁后确认**（场景清单会影响所有 iOS 版本的启动路径） |
+
+### 仍然欠着
+
+- **内置帮助**（`help/vml/ui/feel.md`）还在教音序器 —— 要重打 `vml_lib.zip` + 重编 + 重装。
+- 本机 MAUI 是 **10.0.20**：官方那条"采用 scene"的修复进的是 **10.0.1xx-SR11** 服务版，
+  本机升不上去（nuget 取不到包）。**我们这套是自己在应用层补上的** ——
+  将来能升 MAUI 时，这段（plist 清单 + 空子类）应该与官方做法一致，届时复核一次即可。
+
+---
+
 ## v0.96.513 — iOS 五处修复 + 28 个游戏的音效统一退回 `ui_beep`
 
 这一批横跨 v0.96.509–513 五个版本号（**都装到 iPad 上实测过**），是两件事：

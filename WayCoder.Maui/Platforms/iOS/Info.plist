@@ -26,6 +26,30 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- UIScene 生命周期（2026-09-27 加）：⚠ 少了这段，**用 SDK 27 编译的包在 iOS 27 上起不来**
+	     （UIKit 断言 "UIScene life cycle is required…"）。iOS 26 只是警告，所以真机一直没暴露。
+	     `UISceneDelegateClassName` 是 **ObjC 注册名**，必须与 Platforms/iOS/SceneDelegate.cs 的
+	     `[Register("SceneDelegate")]` 逐字相同 —— 写错不报错，只是回到"起不来"或黑屏。 -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<!-- ⚠⚠ **这个名字必须逐字是这样**：MauiUISceneDelegate.WillConnect 第一句就是
+					     `if (session.Configuration.Name != "__MAUI_DEFAULT_SCENE_CONFIGURATION__") return;`
+					     —— 名字不对**不报错**，只是 MAUI 不建窗口 ⇒ App 在前台但屏幕全黑（实测踩过）。 -->
+					<key>UISceneConfigurationName</key>
+					<string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>
+					<key>UISceneDelegateClassName</key>
+					<string>SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
 	<key>NSCameraUsageDescription</key>
