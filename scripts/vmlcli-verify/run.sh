@@ -79,6 +79,54 @@ else
     fi
 fi
 
+# ══════════════════════════════════════════════════════════════════════════
+# 【C】多点触控注入（touch_probe.c）
+# ══════════════════════════════════════════════════════════════════════════
+# 治的是：桌面输入脚本原先只 `PostInput`（投队列消息），**不碰 `ui_touch` 的槽位表**
+# ⇒ 任何 `ui_touch(slot)` 轮询在桌面永远读到"没按"，多点触控程序只能上真机验。
+# 判据：脚本投哪几个槽位，日志里就该出现哪几个频率（`10<slot>00 + x/10`）。
+echo "── 【C】多点触控注入（scripts/vmlcli-verify/touch_probe.c）"
+
+printf '%s\n' \
+    '400 touchn_down 1 60 300' \
+    '400 touchn_down 2 130 300' \
+    '900 touchn_up 1 60 300' \
+    '900 touchn_up 2 130 300' \
+    '1400 close' > "$TMP/touch.txt"
+
+VML_HOME="$VML_HOME" dotnet "$CLI" "$HERE/touch_probe.c" --timeout 20 \
+    --screen 320x240 --input "$TMP/touch.txt" \
+    >"$TMP/touch_out.txt" 2>"$TMP/touch_err.txt"
+
+# `sort -u`：程序每 16ms 一拍都在报"这个槽位按着"，日志里是连续一串，去重后才好比对。
+gotm="$(grep -o 'tone hz=[0-9]*' "$TMP/touch_err.txt" | sed 's/tone hz=//' | sort -u | tr '\n' ' ')"
+wantm="10106 10213 "
+if [ "$gotm" = "$wantm" ]; then
+    echo "  ✔ 两个槽位各自被 ui_touch 读到（10106=slot1/x60、10213=slot2/x130）"
+else
+    echo "  ✘ 多点触控槽位没被读到"
+    echo "     期望：$wantm"
+    echo "     实得：$gotm"
+    fail=1
+fi
+
+# 老语法（单指 touch*，等价槽位 0）必须照旧可用 —— 这条钉住"改动是超集不是替换"
+printf '%s\n' \
+    '400 touchdown 45 300' \
+    '900 touchup 45 300' \
+    '1400 close' > "$TMP/touch_old.txt"
+
+VML_HOME="$VML_HOME" dotnet "$CLI" "$HERE/touch_probe.c" --timeout 20 \
+    --screen 320x240 --input "$TMP/touch_old.txt" \
+    >"$TMP/touch_old_out.txt" 2>"$TMP/touch_old_err.txt"
+
+goto="$(grep -o 'tone hz=[0-9]*' "$TMP/touch_old_err.txt" | sed 's/tone hz=//' | sort -u | tr '\n' ' ')"
+if [ "$goto" = "10004 " ]; then
+    echo "  ✔ 老语法 touchdown 仍走槽位 0（10004=slot0/x45）"
+else
+    echo "  ✘ 老的单指语法被改坏了"; echo "     期望：10004 "; echo "     实得：$goto"; fail=1
+fi
+
 echo
 if [ "$fail" = 0 ]; then echo "全部通过"; else echo "有失败项"; fi
 exit "$fail"

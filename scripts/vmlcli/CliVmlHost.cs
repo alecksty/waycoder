@@ -596,7 +596,7 @@ internal sealed class CliVmlHost : IVmlHost
 /// 程序那边看到的类型就是这些，脚本要是自造一套，"脚本里写 keydown、程序收到 KeyDown"
 /// 这层对应关系就又多了一张要人工同步的表。
 /// </summary>
-internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B)
+internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B, int C = 0)
 {
     /// <summary>投递（或执行）这条事件。</summary>
     public void Apply(VmlHostRuntime rt)
@@ -608,9 +608,20 @@ internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B)
             case "mousemove": rt.PostInput(VmlMsgType.MouseMove, A, B); break;
             case "mousedown": rt.PostInput(VmlMsgType.MouseDown, A, B); break;
             case "mouseup": rt.PostInput(VmlMsgType.MouseUp, A, B); break;
-            case "touchdown": rt.PostInput(VmlMsgType.TouchDown, A, B); break;
-            case "touchmove": rt.PostInput(VmlMsgType.TouchMove, A, B); break;
-            case "touchup": rt.PostInput(VmlMsgType.TouchUp, A, B); break;
+            // ⚠ 触摸**走 `PostTouch` 而不是 `PostInput`**（v0.96.485 修）。
+            //   `PostInput` 只投队列消息，**不碰 `_touchX/_touchY/_touchDown` 那三张槽位表**
+            //   （那是 `PostTouch` 的活）—— 于是桌面上任何 `ui_touch(slot)` 轮询**永远读到"没按"**，
+            //   多点触控程序（钢琴）在桌面**一格都驱不动**，只能上真机验。
+            //   `PostTouch(0, …)` 内部对 slot 0 就是 `PostInput`（`VmlHostRuntime.cs:429`），
+            //   所以老脚本的行为**一个字不变**，只是**多**把槽位状态也维护上了（超集）。
+            case "touchdown": rt.PostTouch(0, A, B, down: true); break;
+            case "touchmove": rt.PostTouchMove(0, A, B); break;
+            case "touchup": rt.PostTouch(0, A, B, down: false); break;
+            // 指定槽位的触摸（多点触控）。参数：`<slot> <x> <y>`。
+            // 手机上是真手指，桌面上只有这一个入口 —— 钢琴那类要按和弦的程序靠它验。
+            case "touchn_down": rt.PostTouch(A, B, C, down: true); break;
+            case "touchn_move": rt.PostTouchMove(A, B, C); break;
+            case "touchn_up": rt.PostTouch(A, B, C, down: false); break;
             case "resize": rt.PostInput(VmlMsgType.WindowResize, A, B); break;
             case "orient": rt.PostInput(VmlMsgType.WindowOrient, A, B); break;
             // `close` = 用户点了窗口的返回箭头。**两件事一起做**（置位 + 投消息），
@@ -636,11 +647,22 @@ internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B)
 /// 900   touchup 100 200
 /// 1200  resize 480 800
 /// 1500  close
+/// # 多点触控（指定槽位 0–9）：按和弦那样几根手指同时按
+/// 2000  touchn_down 0 60 400
+/// 2000  touchn_down 1 130 400
+/// 2000  touchn_down 2 200 400
+/// 2600  touchn_up 0 60 400
+/// 2600  touchn_up 1 130 400
+/// 2600  touchn_up 2 200 400
 /// </code>
 ///
 /// ⚠ **时间可省略**：省略时沿用上一条的时间（= 同一拍连投）。
 /// 键码沿用 Win32 虚拟键值（见 <see cref="VmlKeys"/>）——
 /// 与手机屏幕手柄、与桌面物理键盘**同一张表**，脚本里直接写 37 就是左方向键。
+///
+/// ⚠ **`touch*` 与 `touchn_*` 的分工**：`touch*` 是**单指**（等价于槽位 0），
+/// `touchn_*` 显式给槽位 —— 要多点触控（钢琴按和弦）只能用后者。
+/// 两者都会同时维护"队列消息"与"`ui_touch` 的可轮询槽位状态"。
 /// </summary>
 internal static class CliInputScript
 {
@@ -648,6 +670,7 @@ internal static class CliInputScript
     {
         "keydown", "keyup", "mousemove", "mousedown", "mouseup",
         "touchdown", "touchmove", "touchup", "resize", "orient", "close", "wait",
+        "touchn_down", "touchn_move", "touchn_up",
     };
 
     /// <summary>
@@ -678,13 +701,15 @@ internal static class CliInputScript
                 throw new CliArgumentException(
                     $"{path}:{lineNo} 认不出的事件 `{action}`；可用：{string.Join(" / ", Known.OrderBy(x => x, StringComparer.Ordinal))}");
 
-            var a = 0; var b = 0;
+            var a = 0; var b = 0; var c = 0;
             // 参数个数就是"这条消息填几个槽"：`close`/`wait` 不填、按键只填 A、
-            // 指针与窗口尺寸填 A+B、`orient` 只填 A（B 是预留位，见 VmlMsgType.WindowOrient）。
+            // 指针与窗口尺寸填 A+B、`orient` 只填 A（B 是预留位，见 VmlMsgType.WindowOrient）、
+            // `touchn_*` 填 `slot + x + y` 三个。
             var needsArgs = action switch
             {
                 "close" or "wait" => 0,
                 "keydown" or "keyup" or "orient" => 1,
+                "touchn_down" or "touchn_move" or "touchn_up" => 3,
                 _ => 2,
             };
             if (i + needsArgs > parts.Length)
@@ -693,8 +718,10 @@ internal static class CliInputScript
                 throw new CliArgumentException($"{path}:{lineNo} 参数不是整数：`{parts[i]}`");
             if (needsArgs >= 2 && !int.TryParse(parts[i + 1], out b))
                 throw new CliArgumentException($"{path}:{lineNo} 参数不是整数：`{parts[i + 1]}`");
+            if (needsArgs >= 3 && !int.TryParse(parts[i + 2], out c))
+                throw new CliArgumentException($"{path}:{lineNo} 参数不是整数：`{parts[i + 2]}`");
 
-            events.Add(new CliInputEvent(time, action, a, b));
+            events.Add(new CliInputEvent(time, action, a, b, c));
         }
         return events;
     }
