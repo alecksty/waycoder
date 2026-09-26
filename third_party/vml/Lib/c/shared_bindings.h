@@ -88,6 +88,7 @@ __stdcall char* basic_chr(int n);
 __stdcall char* basic_space(int n);
 __stdcall char* basic_str_int(int val);
 __stdcall char* basic_str_single(float v);
+__stdcall float basic_val_float(const char* s);
 __stdcall int basic_val(const char* s);
 __stdcall char* basic_left(const char* s, int n);
 __stdcall char* basic_right(const char* s, int n);

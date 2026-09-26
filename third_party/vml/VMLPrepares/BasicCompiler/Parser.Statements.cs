@@ -5,27 +5,45 @@ namespace BasicCompiler
 {
     public partial class Parser : ParserBase<Token, TokenType>
     {
-        private PrintStatement ParsePrintStatement()
+        private Statement ParsePrintStatement()
         {
             Token token = Advance(); // 跳过 PRINT
             PrintStatement stmt = new PrintStatement(token.Line, token.Column);
 
-            // `PRINT #1, x` —— 文件号前缀，**必须先吃掉**。
+            // `PRINT #1, x` —— 文件号前缀。
             //
-            // ⚠ 与 `INPUT #1, x` 是同一个写法，而那条路早就处理了（见 `ParseInputStatement`），
-            //   这条路没有 ⇒ `#` 不是表达式开头，循环**第一圈就 break**：`PRINT` 成了一条
-            //   空语句，`#1, x$` 整段漏给语句层。`x$` 于是落到「名字后面不是 `=`」的兜底
-            //   分支、编成 `CALL func_x$` ⇒ 链接期报「未定义的函数 'func_x'」
-            //   （`Examples/basic/thirdparty/maze.bas` 的 `PRINT #1, mazname$` 就是这一档；
-            //   报的名字里连 `$` 都不带，靠它根本猜不到是 `PRINT #`）。
+            // ⚠⚠ **这里原来只是把 `#1` "收掉"**，注释写着"本平台的 `#n` 没有独立文件流语义
+            //    （OPEN 走的是别的实现），所以只是收掉它，让后面的输出项照常打进控制台" ——
+            //    那是**文件 I/O 整条链坏掉时期的权宜之计**：既然写不进文件，至少别崩。
+            //    代价是 `PRINT #1, x` **静默写到了控制台**，一个错都不报。
             //
-            // 本平台的 `#n` 没有独立文件流语义（OPEN 走的是别的实现），所以这里**只是
-            // 收掉它**，让后面的输出项照常打进控制台 —— 与 INPUT 那条路同一口径。
+            //    v0.96.503 起文件那一条链修好了（`OPEN`/`CLOSE`/`PRINT #`/`INPUT #`
+            //    全部改走吃沙箱的 `#110-113`），所以这里改成**造真正的 `PrintFileStatement`**。
+            //    ⚠ 与 `INPUT #1, x` 是同一个写法，两边的判据必须一致。
             if (Peek().Type == TokenType.HASH)
             {
                 Advance();                      // skip #
-                ParseExpression();              // 文件号
+                var fn = ParseExpression();     // 文件号
                 if (Peek().Type == TokenType.COMMA) Advance();
+                var pf = new PrintFileStatement(token.Line, token.Column) { FileNumber = fn };
+                while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
+                {
+                    if (LineEnded(token.Line)) break;
+                    if (!IsExpressionStart(Peek())) break;
+                    Expression e = ParseExpression();
+                    if (e != null) pf.Expressions.Add(e);
+                    if (Peek().Type == TokenType.COMMA || Peek().Type == TokenType.SEMICOLON) Advance();
+                    else break;
+                }
+                // 每一项之间补一个换行、**末尾也补一个** —— QBasic 的 `PRINT #n, a, b`
+                // 语义是"一项一行"，而且**行尾总有换行**（`PRINT` 也一样）。
+                // 不补行尾的话 `PRINT #1, a` / `PRINT #1, b` 两条语句会拼成 `ab` 一行，
+                // 而 `INPUT #1, x` / `INPUT #1, y` 是按行读的 ⇒ 第一条就把两行都读走。
+                // （`;` 紧接不换行是 QBasic 的细节；这里按最常用的形态处理：逐项一行。）
+                for (int k = pf.Expressions.Count - 1; k >= 1; k--)
+                    pf.Expressions.Insert(k, new StringLiteral(token.Line, token.Column, "\n"));
+                pf.Expressions.Add(new StringLiteral(token.Line, token.Column, "\n"));
+                return pf;
             }
 
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
@@ -61,7 +79,7 @@ namespace BasicCompiler
             return stmt;
         }
 
-        private InputStatement ParseInputStatement()
+        private Statement ParseInputStatement()
         {
             Token token = Advance(); // 跳过 INPUT
             InputStatement stmt = new InputStatement(token.Line, token.Column);
@@ -87,10 +105,30 @@ namespace BasicCompiler
             }
             else if (Peek().Type == TokenType.HASH)
             {
-                // `INPUT #1, var` —— 文件号
+                // `INPUT #1, var` —— 文件号。
+                //
+                // ⚠⚠ **这里原来只是把 `#1` 收掉**（与 `PRINT #` 同源的权宜之计），
+                //    然后照常返回一个**控制台** `InputStatement` ⇒ `INPUT #1, a$`
+                //    实际是**从键盘读**的。症状是"跑起来就卡住不动"（在等 stdin），
+                //    而编译日志里一个字都没有 —— 极易误判成"文件读挂了"。
+                //
+                //    v0.96.503 起改成造真正的 `InputFileStatement`。
                 Advance(); // skip #
-                ParseExpression();
+                var fn2 = ParseExpression();
                 if (Peek().Type == TokenType.COMMA) Advance();
+                var ifs = new InputFileStatement(token.Line, token.Column) { FileNumber = fn2 };
+                while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)
+                {
+                    if (LineEnded(token.Line)) break;
+                    if (Peek().Type == TokenType.IDENTIFIER)
+                    {
+                        ifs.Variables.Add(new Identifier(Peek().Line, Peek().Column, Peek().Value));
+                        Advance();
+                    }
+                    if (Peek().Type == TokenType.COMMA) Advance();
+                    else break;
+                }
+                return ifs;
             }
 
             while (!AtEnd() && Peek().Type != TokenType.EOF && Peek().Type != TokenType.COLON)

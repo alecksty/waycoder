@@ -163,6 +163,8 @@
 // CALL basic_str_int
 // extern fn basic_str_single(float v) -> char*
 // CALL basic_str_single
+// extern fn basic_val_float(const char* s) -> float
+// CALL basic_val_float
 // extern fn basic_val(const char* s) -> int
 // CALL basic_val
 // extern fn basic_left(const char* s, int n) -> char*

@@ -507,6 +507,13 @@ fn basic_str_single(a0: i32) -> i32 {
     r
 }
 
+fn basic_val_float(a0: i32) -> i32 {
+    asm!("CALL basic_val_float")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn basic_val(a0: i32) -> i32 {
     asm!("CALL basic_val")
     let r: i32;

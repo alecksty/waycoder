@@ -82,6 +82,7 @@ namespace VML {
     // extern char* basic_space(int n);  // CALL basic_space
     // extern char* basic_str_int(int val);  // CALL basic_str_int
     // extern char* basic_str_single(float v);  // CALL basic_str_single
+    // extern float basic_val_float(const char* s);  // CALL basic_val_float
     // extern int basic_val(const char* s);  // CALL basic_val
     // extern char* basic_left(const char* s, int n);  // CALL basic_left
     // extern char* basic_right(const char* s, int n);  // CALL basic_right

@@ -331,6 +331,19 @@ namespace BasicCompiler
         /// </summary>
         private void EmitPrintSingleValue(BasicType exprType)
         {
+            EmitPrintSingleToString(exprType);
+            // R0 = 串指针 → 走普通的字符串输出（窗口 / stdout 两条后端各自处理）
+            EmitPrintString();
+        }
+
+        /// <summary>
+        /// 单精度/双精度值 → 字符串，**结果指针留在 R0**（不输出）。
+        /// `PRINT` 与 `PRINT #` 共用它 —— 免得两处各写一份 `basic_str_single` 的调用样板
+        /// （本仓"同一规则两处实现"的老毛病）。
+        /// 入口约定：值在 F0（Single）或 D0（Double/Long）。
+        /// </summary>
+        private void EmitPrintSingleToString(BasicType exprType)
+        {
             if (exprType == BasicType.Double || exprType == BasicType.Long)
             {
                 // D0 → F0（basic_str_single 收单精度）
@@ -346,8 +359,6 @@ namespace BasicCompiler
                 [new Operand(OperandType.LABEL, "basic_str_single")]));
             instructions.Add(new Instruction(OpCode.ADD,
                 [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
-            // R0 = 串指针 → 走普通的字符串输出（窗口 / stdout 两条后端各自处理）
-            EmitPrintString();
         }
 
         private void GenerateIntegerToString(int reg)

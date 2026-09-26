@@ -387,6 +387,11 @@ DECLARE FUNCTION basic_str_single(a0 AS INTEGER) AS INTEGER
     basic_str_single = 0
 END FUNCTION
 
+DECLARE FUNCTION basic_val_float(a0 AS INTEGER) AS INTEGER
+    asm("CALL basic_val_float")
+    basic_val_float = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_val(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_val")
     basic_val = 0

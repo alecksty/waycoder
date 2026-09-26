@@ -232,15 +232,54 @@ namespace BasicCompiler
 
         // ===== 文件操作 =====
 
+        /// <summary>
+        /// 文件号（表达式）→ 它在 `Sys.FileHandles` 表里的**表项地址**（留在 R1）。
+        /// 表项 = 基址 + 文件号 × 4 —— 一格 4 字节存一个**宿主句柄**。
+        ///
+        /// <para>⚠ 这个动作在 OPEN / CLOSE / PRINT # / INPUT # 四处各要一次，
+        /// 收成一个函数是**为了别把存取方向再写反**（见 <see cref="GenerateOpenStatement"/> 的注释）。</para>
+        /// </summary>
+        private void EmitFileHandleSlot(Expression fileNumber)
+        {
+            GenerateExpression(fileNumber, 1);
+            AddRI(OpCode.MUL, 1, 4);
+            SysAddr(2, Sys.FileHandles);
+            AddRR(OpCode.ADD, 1, 2);
+        }
+
+        /// <summary>
+        /// `OPEN "文件名" FOR 模式 AS #n` —— 走**吃沙箱的那条** syscall：
+        /// `#110 FileOpen`（R0=文件名, R1=模式）→ R0 = 宿主句柄。
+        ///
+        /// <h3>为什么要从 `#100`/`#104` 换过来（v0.96.503）</h3>
+        ///
+        /// 原先走的是**设备**通道（`#100` 打开 `"fs"` 设备 + `#104` 命令 0 开文件），
+        /// 而那条路**不受沙箱约束**：`VmFileSystemDevice` 是进程级单例的**无参构造**，
+        /// `_basePath` 取的是**进程 CWD**，而且 `GetFullPath` 对**绝对路径原样放行**
+        /// （`VmFileSystemDevice.cs:175-181`）。手机上那个 CWD 通常是只读目录
+        /// ⇒ 症状是"OPEN 之后写不进去、且看不出为什么"。
+        ///
+        /// `#110-113` 则受 `VmRuntime.FileSystemRoot` 约束（手机端 `MauiVml.cs` 已设成
+        /// app 的 workspace），越界直接返回 `FILE_ACCESS_DENIED`。
+        ///
+        /// <para>⚠ 选择改 BASIC 前端而不是"给 `DeviceManager` 传沙箱根"：后者的
+        /// `dev_open`/`dev_control` 被**全部 22 门语言**的 device 绑定共用，
+        /// 会跨语言改变行为；改前端则**只有 BASIC 受影响**。</para>
+        ///
+        /// <h3>整条链原先坏在三处，这一处只是其中一处</h3>
+        /// <list type="number">
+        /// <item>句柄**根本没存**：下面那句 `MOVE R0, [R1]` 是**读**不是写（见内联注释）；</item>
+        /// <item>`PRINT #`/`INPUT #` 用的是**设备**号（`#102`/`#103`），而设备侧 Read/Write 是空实现；</item>
+        /// <item>`INPUT #` 还把刚放好的缓冲区地址覆盖掉（自带的注释承认了）。</item>
+        /// </list>
+        /// </summary>
         private void GenerateOpenStatement(OpenStatement stmt)
         {
-            // OPEN "filename" FOR mode AS #n
-            // 使用SYSCALL 104 (DeviceControl) 命令0 (OpenFile)
-            
-            // 1. 获取文件名地址到R0
+            // OPEN "filename" FOR mode AS #n —— 走 SYSCALL 110 (FileOpen)
+
+            // 1. 文件名地址 → R0
             if (stmt.FileName is StringLiteral strLit)
             {
-                // 字符串常量: 在数据段创建
                 string dataLabel = "str_open_" + labelCounter++;
                 dataSection[dataLabel] = new DataString(strLit.Value);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, dataLabel) }));
@@ -249,69 +288,109 @@ namespace BasicCompiler
             {
                 GenerateExpression(stmt.FileName, 0);
             }
-            
-            // 2. 打开"fs"设备
-            string fsLabel = "str_fs_" + labelCounter++;
-            dataSection[fsLabel] = "fs";
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, fsLabel) }));
-            instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 100) }));
-            // R0 = 设备句柄
-            
-            // 3. 准备OpenFile命令参数: [mode, path...]
-            // mode: 0=read, 1=write, 2=append
+
+            // 2. 模式 → R1。⚠ **`#110` 的模式语义与老设备命令不同**：
+            //    0 = 只读(Open)、1 = 只写(Create，**会截断**)、2 = 读写(OpenOrCreate)。
+            //    `Append` 没有对应档 —— 见下面第 4 步，用 `#114` 定位到文件尾补出来。
             int mode = stmt.Mode switch
             {
                 FileOpenMode.Input => 0,
                 FileOpenMode.Output => 1,
-                FileOpenMode.Append => 2,
-                _ => 0
+                _ => 2,                     // Append 与"读写"共用 2，之后自己 seek 到末尾
             };
-            
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0) })); // command = OpenFile
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, mode) })); // mode
-            instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 104) }));
-            
-            // 4. 保存文件句柄到变量
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, mode) }));
+            instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 110) }));
+            // R0 = 宿主句柄（失败时是**负的错误码**，不去判它 —— 与 QBasic 一致：
+            //      老程序靠后续读写失败暴露问题，而不是靠 OPEN 的返回值）
+
+            // 3. **把句柄存进句柄表**
+            //    ⚠⚠ 这里原来写的是 `MOVE R0, [R1]`（**读**）—— 把表里的旧值读进 R0，
+            //       `#104` 的返回值**被直接丢掉、槽永远写不进去**。于是后续的
+            //       `CLOSE #n` 读到 0、`PRINT #n` 用句柄 0 去写 ⇒ 整条链断裂。
+            //       方向必须是 `MOVE [R1], R0`（本仓在 `UiGfx.cs` 里专门写过这条规矩）。
+            //       **这是文件 I/O 的第一块多米诺，不修它后面全验证不了。**
             if (stmt.FileNumber != null)
             {
-                // 将文件句柄存入变量(使用文件号作为变量名)
-                GenerateExpression(stmt.FileNumber, 1); // 获取文件号
-                // 使用文件号*4 + 句柄表基址（Sys.FileHandles）作为文件句柄存储地址
-                instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-                SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+                EmitFileHandleSlot(stmt.FileNumber);          // R1 = 表项地址
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
+
+                // 4. `APPEND` → 定位到文件末尾
+                //    `#110` 只有"只读/只写/读写"三档，没有追加档；用 `#114 FileControl`
+                //    补出来（命令 0 = 取文件大小、命令 1 = 定位到绝对偏移）。
+                //    与"降级成读写档"的区别很实在：不定位的话每次运行都会**从头覆写**，
+                //    而 QBasic 的 `APPEND` 语义是"接着写"（存档类程序全靠它）。
+                if (stmt.Mode == FileOpenMode.Append)
+                {
+                    EmitFileHandleSlot(stmt.FileNumber);
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));  // R0 = 句柄
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0) })); // cmd = 取大小
+                    instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 114) }));
+                    // R0 = 文件大小 ⇒ 要搬到 R2 当定位参数，但 R2 又被下面的句柄读取用掉了，
+                    // 所以先压栈保管（同一个 slot，前后成对）。
+                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    EmitFileHandleSlot(stmt.FileNumber);
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));  // R0 = 句柄
+                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 2)]));  // R2 = 文件大小（定位到末尾）
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) })); // cmd = 定位
+                    instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 114) }));
+                }
             }
         }
 
         private void GenerateCloseStatement(CloseStatement stmt)
         {
-            // CLOSE #n 或 CLOSE
+            // CLOSE #n —— 走 SYSCALL 111 (FileClose)
             if (stmt.FileNumber != null)
             {
-                // 获取文件句柄
-                GenerateExpression(stmt.FileNumber, 1);
-                instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-                SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
-                
-                // SYSCALL 101 (DeviceClose)
-                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 101) }));
+                EmitFileHandleSlot(stmt.FileNumber);          // R1 = 表项地址
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));   // R0 = 句柄
+                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 111) }));
+                // 表项清零 —— 免得下次 `OPEN` 失败时后续语句还拿着一个**已经关掉的**句柄去读写
+                // （那会得到 `INVALID_FILE_HANDLE`，比"文件没打开"更难对上号）。
+                EmitFileHandleSlot(stmt.FileNumber);
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
+            }
+            else
+            {
+                // 裸 `CLOSE` = 关掉**所有**打开的文件（QBasic 语义）。
+                // ⚠ 原来这里是**什么都不生成**（`if (stmt.FileNumber != null)` 之外没有任何分支）——
+                //   于是 `CLOSE`（不带 #）是彻底的 no-op，而老程序常用它做收尾。
+                // 句柄表有 256 格，逐格扫一遍：非 0 的就关掉并清零。
+                int idx = 0, tbl = 1;
+                AddRI(OpCode.MOVE, idx, 0);
+                SysAddr(tbl, Sys.FileHandles);                 // R1 = 表基址
+                string loop = newLabel(), done = newLabel(), next = newLabel();
+                AddLabel(loop);
+                AddRI(OpCode.CMP, idx, 256);
+                instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, done)]));
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R{tbl}")]));  // R0 = 表项
+                // 0 或负数（= 从没打开过）都跳过
+                instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+                instructions.Add(new Instruction(OpCode.JL, [new Operand(OperandType.LABEL, next)]));
+                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 111) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, $"R{tbl}"), new Operand(OperandType.REGISTER, 0)]));
+                AddLabel(next);
+                AddRI(OpCode.ADD, tbl, 4);
+                AddRI(OpCode.ADD, idx, 1);
+                instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, loop)]));
+                AddLabel(done);
             }
         }
 
         private void GeneratePrintFileStatement(PrintFileStatement stmt)
         {
-            // PRINT #n, expr1, expr2...
-            // 获取文件句柄
-            GenerateExpression(stmt.FileNumber, 1);
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-            SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
-            // R1 = 文件句柄
-            
+            // ⚠ 句柄**不在这里缓存** —— 循环体里的库调用会把寄存器冲掉，
+            //   每一项现查一次表（见 `EmitFileWriteFromR0` 的注释）。
+
             // 对每个表达式, 转换为字符串并写入文件
             for (int i = 0; i < stmt.Expressions.Count; i++)
             {
@@ -322,88 +401,212 @@ namespace BasicCompiler
                     string dataLabel = "str_pf_" + labelCounter++;
                     dataSection[dataLabel] = new DataString(strLit.Value);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, dataLabel) }));
-                    // 计算字符串长度
-                    string lenLoop = GenerateLabel();
-                    string lenEnd = GenerateLabel();
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0) }));
-                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lenLoop) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R2") }));
-                    instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0) }));
-                    instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, lenEnd) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 1) }));
-                    instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, lenLoop) }));
-                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lenEnd) }));
-                    // R3 = 长度, R0 = 地址
-                    // SYSCALL 103 (DeviceWrite): R0=handle, R1=buffer, R2=count
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) })); // handle
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) })); // count
-                    EmitDeviceWrite();
+                    EmitFileWriteFromR0(stmt.FileNumber);
                 }
                 else
                 {
-                    // 数字: 转换为字符串再写入
-                    GenerateExpression(expr, 0);
-                    // 使用STR$内置函数转换
-                    var fakeCall = new FunctionCallExpression(0, 0, "STR$");
-                    fakeCall.Arguments.Add(expr);
-                    GenerateLibraryCall("basic_str_int", fakeCall, 0);
-                    // R0 = 字符串地址, 需要计算长度
-                    string lenLoop = GenerateLabel();
-                    string lenEnd = GenerateLabel();
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 0) }));
-                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lenLoop) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R2") }));
-                    instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0) }));
-                    instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, lenEnd) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 1) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 1) }));
-                    instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, lenLoop) }));
-                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lenEnd) }));
-                    // SYSCALL 103
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) }));
-                    EmitDeviceWrite();
+                    // 数字: 转换为字符串再写入。
+                    // ⚠ 浮点要走 `basic_str_single`（整数那条会把 45.5 写成 45）——
+                    //   与 `PRINT` 同一个判据、同一个函数。
+                    var exprType = InferExpressionType(expr);
+                    if (exprType == BasicType.Single || exprType == BasicType.Double || exprType == BasicType.Long)
+                    {
+                        // ⚠ **先求值**（值落进 F0/D0），再转字符串 ——
+                        //   少了这一步，`EmitPrintSingleToString` 格式化的是**上一次留下的** F0，
+                        //   实测 `PRINT #1, 3.5` 写进文件的是 `0`，而调用链看着完全正常。
+                        GenerateExpression(expr, 0);
+                        EmitPrintSingleToString(exprType);   // 值已在 F0/D0，出参 R0 = 串
+                    }
+                    else
+                    {
+                        GenerateExpression(expr, 0);
+                        var fakeCall = new FunctionCallExpression(0, 0, "STR$");
+                        fakeCall.Arguments.Add(expr);
+                        GenerateLibraryCall("basic_str_int", fakeCall, 0);
+                    }
+                    // R0 = 字符串地址
+                    EmitFileWriteFromR0(stmt.FileNumber);
                 }
             }
         }
 
+        /// <summary>
+        /// 把 R0 指向的 NUL 结尾串写进当前文件：算长度 → `SYSCALL #113 FileWrite`
+        /// （R0=句柄 R1=缓冲 R2=长度）。
+        ///
+        /// <para>
+        /// ⚠ 句柄从 `R9` 里取 —— 调用方（<see cref="GeneratePrintFileStatement"/>）
+        /// 在循环**之前**就把句柄装进 R9 了。这是有意的：循环体里算长度要用 R0–R4，
+        /// 每次都重新按文件号查表会把那几个寄存器冲掉。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 原来这里调的是 `EmitDeviceWrite()`（`SYSCALL #103`）—— **设备**写，
+        /// 而句柄是**文件**句柄，且 `VmFileSystemDevice.Write` 是无条件 `return -1` 的空实现。
+        /// 换成 `#113` 之后才真的落到盘上。
+        /// </para>
+        /// </summary>
+        private void EmitFileWriteFromR0(Expression fileNumber)
+        {
+            // R2 = 缓冲首址，R3 = 长度计数
+            AddRR(OpCode.MOVE, 2, 0);
+            AddRI(OpCode.MOVE, 3, 0);
+            string lenLoop = GenerateLabel(), lenEnd = GenerateLabel();
+            AddLabel(lenLoop);
+            instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R2")]));
+            instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, lenEnd)]));
+            AddRI(OpCode.ADD, 2, 1);
+            AddRI(OpCode.ADD, 3, 1);
+            instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, lenLoop)]));
+            AddLabel(lenEnd);
+
+            // ⚠⚠ **句柄不能缓存在 R9 里跨项复用**（v0.96.503 实测踩到）：
+            //    这一项上面的 `basic_str_int` / `basic_str_single` / `basic_val` 都是
+            //    **库函数**，会把 R0–R5 用掉，R9 也不保证活着 ⇒ 第二项起句柄就没了、
+            //    写入静默失败。实测：`PRINT #1, "hello"` 之后的两项**都没落盘**
+            //    （文件只有 5 字节的 "hello"）。
+            //    正解是每项**现查一次表**。代价是几次指令，换"多项都对"。
+            //
+            // 顺序：先把缓冲与长度压栈保管（下面查表要用 R0/R1），查完再取回来。
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));   // 缓冲
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 3)]));   // 长度
+            EmitFileHandleSlot(fileNumber);          // R1 = 表项地址
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));      // R0 = 句柄
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 2)]));    // R2 = 长度
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));    // R1 = 缓冲
+            instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 113) }));
+        }
+
+        /// <summary>
+        /// `INPUT #n, v1, v2, …` —— 走 `SYSCALL #112 FileRead`（R0=句柄 R1=缓冲 R2=长度）。
+        ///
+        /// <h3>原先三处都是坏的（v0.96.503 重写）</h3>
+        /// <list type="number">
+        /// <item>调的是 `#102`（**设备**读），而句柄是**文件**句柄，且
+        ///   `VmFileSystemDevice.Read` 是无条件 `return -1` 的空实现；</item>
+        /// <item>读完只把**缓冲区地址**塞进变量，从来不做"字符串 → 数值"的转换
+        ///   （那个 `EmitLoadVar` 还是**读**，把刚放好的地址当场覆盖掉 —— 原代码自带的注释也承认了）；</item>
+        /// <item>句柄压根没存进表（见 <see cref="GenerateOpenStatement"/>），读到的是 0。</item>
+        /// </list>
+        ///
+        /// <para>
+        /// 这一版：读**一行**（读到 `\n` 或缓冲满），按变量的类型解释它 ——
+        /// 数值变量用 `basic_val` 转，字符串变量直接指向缓冲。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ **逐字节读**（`#112` 每次要 1 个字节）而不是"一次读 64 字节"：
+        /// QBasic 的 `INPUT #` 是**按行**的语义，一次读满会把下一行的内容也吃掉，
+        /// 于是"读三个变量 = 读三行"变成"读一行、后两个是空"。逐字节才能在 `\n` 处停下。
+        /// 代价是慢 —— 但文件 I/O 不在热路径上，正确优先。
+        /// </para>
+        /// </summary>
+        /// <summary>
+        /// `basic_val(缓冲)` —— 字符串转数值，结果留在 R0。
+        ///
+        /// <para>⚠ <b>参数必须**压栈**，不能"值放 R0 直接 CALL"</b>（v0.96.503 实测踩到）：
+        /// `basic_val` 是 `__stdcall int basic_val(const char* s)`，函数体里用的是
+        /// <c>s[i]</c> —— C 前端会从 <c>[R12+8]</c> 读它，也就是**栈**。
+        /// 值放 R0 调用的话它读到的是垃圾 ⇒ 恒返回 0。
+        /// 实测 `INPUT #2, b` 读文件里那行 `42` 得到 <b>0</b>，而字符串那条路是好的
+        /// （字符串直接指向缓冲，不过函数）。</para>
+        /// </summary>
+        private void EmitCallBasicVal(string bufLabel)
+        {
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel)]));
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+            instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "basic_val")]));
+            instructions.Add(new Instruction(OpCode.ADD,
+                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+        }
+
         private void GenerateInputFileStatement(InputFileStatement stmt)
         {
-            // INPUT #n, var1, var2...
-            // 获取文件句柄
-            GenerateExpression(stmt.FileNumber, 1);
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-            SysAddr(2, Sys.FileHandles);   // R2 = 句柄表基址（老代码这里是「文件号*4 + 0x9D000」的立即数）
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));
-            // R1 = 文件句柄
-            
-            // 对每个变量, 从文件读取
+            // ⚠ 句柄同样**不缓存**：下面每次读之前现查（理由同 `EmitFileWriteFromR0`）。
+
             for (int i = 0; i < stmt.Variables.Count; i++)
             {
                 string varName = stmt.Variables[i].Name;
-                // 分配读取缓冲区
                 string bufLabel = "input_buf_" + labelCounter++;
-                dataSection[bufLabel] = new string('\0', 64); // 64字节缓冲区
-                
-                // SYSCALL 102 (DeviceRead): R0=handle, R1=buffer, R2=count
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) })); // handle
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, bufLabel) })); // buffer
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 64) })); // count
-                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 102) }));
-                
-                // 将读取的字符串转换为整数存入变量
+                dataSection[bufLabel] = new string('\0', 256);
+
+                // ── 读一行到缓冲 ──
+                // R4 = 缓冲里的位置，R6 = 已读字节数（上限 255，留一格给 NUL）
+                int rPos = 4, rCnt = 6;
+                AddRI(OpCode.MOVE, rPos, 0);
+                AddRI(OpCode.MOVE, rCnt, 0);
+                string rdLoop = GenerateLabel(), rdEnd = GenerateLabel(), rdNotNl = GenerateLabel();
+                AddLabel(rdLoop);
+                AddRI(OpCode.CMP, rCnt, 255);
+                instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, rdEnd)]));
+                // #112(handle, buf+pos, 1) → R0 = 实际读到的字节数（0 = EOF）
+                EmitFileHandleSlot(stmt.FileNumber);                         // R1 = 表项
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));   // R0 = 句柄
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, bufLabel)]));
+                AddRR(OpCode.ADD, 1, rPos);                                  // R1 = 缓冲 + pos
+                AddRI(OpCode.MOVE, 2, 1);                                    // R2 = 1 字节
+                instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 112) }));
+                instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+                instructions.Add(new Instruction(OpCode.JL, [new Operand(OperandType.LABEL, rdEnd)]));   // EOF 或出错
+                // 是换行就吞掉并结束
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel)]));
+                AddRR(OpCode.ADD, 0, rPos);
+                instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R0")]));
+                instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 10)]));
+                instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, rdEnd)]));
+                instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 13)]));
+                instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, rdEnd)]));
+                AddLabel(rdNotNl);
+                // 不是换行 ⇒ 前进一格
+                AddRI(OpCode.ADD, rPos, 1);
+                AddRI(OpCode.ADD, rCnt, 1);
+                instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, rdLoop)]));
+                AddLabel(rdEnd);
+                // 补 NUL 收尾
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel)]));
+                AddRR(OpCode.ADD, 0, rPos);
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0)]));
+                instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 1)]));
+
                 if (variables.ContainsKey(varName))
                 {
-                    // 简化: 直接存储缓冲区地址
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel) }));
-                    // ⚠ 这一行其实是**读**（把变量当前值取到 R0），不是写 —— 它紧跟着把上面刚放进去的
-                    //   缓冲区地址覆盖掉了（`INPUT #` 整体是坏的，属既有缺陷）。这里只把寻址从
-                    //   `R12+8+索引*4`（主帧、且是另一套偏移算法）改成全局段的统一入口。
-                    EmitLoadVar(0, varName);
+                    BasicType vt = GetVariableType(varName);
+                    if (vt == BasicType.String)
+                    {
+                        // 字符串变量：直接指向刚才那个缓冲（⚠ 缓冲是**每个变量一份**的，
+                        // 所以不像库函数那样会被下一次调用冲掉）
+                        instructions.Add(new Instruction(OpCode.MOVE,
+                            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel)]));
+                        EmitStoreVar(varName, 0);
+                    }
+                    else if (vt == BasicType.Single || vt == BasicType.Double || vt == BasicType.Long)
+                    {
+                        // 浮点变量：用**浮点版**的解析器（`basic_val` 只认整数，
+                        //   从文件里读 `3.5` 会得到 3）。返回值在 F0 ⇒ 双精度再 F2D。
+                        instructions.Add(new Instruction(OpCode.MOVE,
+                            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel)]));
+                        instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                        instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "basic_val_float")]));
+                        instructions.Add(new Instruction(OpCode.ADD,
+                            [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+                        if (vt != BasicType.Single)
+                            instructions.Add(new Instruction(OpCode.F2D,
+                                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                        EmitStoreVar(varName, 0);
+                    }
+                    else
+                    {
+                        // 整型：字符串 → 数值
+                        EmitCallBasicVal(bufLabel);
+                        EmitStoreVar(varName, 0);
+                    }
                 }
             }
         }

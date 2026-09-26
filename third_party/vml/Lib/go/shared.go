@@ -389,6 +389,11 @@ func basic_str_single(a0 int32) int32 {
     return vml.R0()
 }
 
+func basic_val_float(a0 int32) int32 {
+    vml.Call("basic_val_float")
+    return vml.R0()
+}
+
 func basic_val(a0 int32) int32 {
     vml.Call("basic_val")
     return vml.R0()

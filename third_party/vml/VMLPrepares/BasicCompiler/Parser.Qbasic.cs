@@ -530,6 +530,14 @@ public partial class Parser : ParserBase<Token, TokenType>
         Advance(); // skip INPUT
         // LINE INPUT ["prompt";] variable$
         // LINE INPUT #filenum, variable$
+        // ⚠⚠ 这个函数**曾经无条件返回 `null`**（末尾写着 `// no-op`）——
+        //    也就是 `LINE INPUT` 被**静默丢掉**：既不报错、也不生成任何指令。
+        //    实测过：`LINE INPUT #1, s$` 之后 `s$` 还是空串，而编译日志里一个字都没有。
+        //    （与 `BEEP` 没有解析入口、`FREEFILE` 只有死类是同一族：
+        //      **看起来"支持这个关键字"，其实什么都没做**。）
+        Expression? fileNum = null;
+        Identifier? varExpr = null;
+
         if (Peek().Type == TokenType.STRING)
         {
             Advance(); // skip prompt string
@@ -539,12 +547,26 @@ public partial class Parser : ParserBase<Token, TokenType>
         {
             // FILE INPUT: LINE INPUT #1, var$
             Advance(); // skip #
-            ParseExpression(); // file number
+            fileNum = ParseExpression();
             if (Peek().Type == TokenType.COMMA) Advance();
         }
         // Parse variable
-        if (Peek().Type == TokenType.IDENTIFIER) Advance();
-        return null; // no-op (INPUT is complex; game uses default values)
+        if (Peek().Type == TokenType.IDENTIFIER)
+        {
+            var tok = Advance();
+            varExpr = new Identifier(tok.Line, tok.Column, tok.Value);
+        }
+
+        // 有 `#n` 才造节点；`LINE INPUT var$`（从**键盘**读一整行的那个形式）
+        // 仍返回 null —— 键盘那一路走 `INPUT`，两件事语义不同，不在这里硬凑。
+        if (fileNum != null && varExpr != null)
+        {
+            var s = new InputFileStatement(0, 0);
+            s.FileNumber = fileNum;
+            s.Variables.Add(varExpr);
+            return s;
+        }
+        return null; // 键盘形式：还是 no-op（`INPUT` 那条路覆盖它）
     }
 
     // ==================== VIEW PRINT ====================

@@ -363,6 +363,38 @@ __stdcall char* basic_str_single(float v) {
     return _strbuf_commit(_buf1);
 }
 
+/// VAL(string$) 的**浮点版** —— 给 `INPUT #n, x#` / `x!` 用。
+///
+/// `basic_val` 只认整数（遇到 `.` 就停），所以从文件里读 `3.5` 到 Double 变量
+/// 会得到 `3`。这个版本把小数部分也读进来。
+///
+/// ⚠ 与 `basic_val` 是**两个函数**而不是"一个带开关的"：返回值一个走 R0（整数）、
+/// 一个走 F0（浮点），调用点的取用方式完全不同 —— 合成一个反而要调用方再判断。
+__stdcall float basic_val_float(const char* s) {
+    float r;
+    float scale;
+    int i;
+    int sign;
+    if (!s) return 0.0f;
+    i = 0;
+    sign = 1;
+    while (s[i] == ' ') i = i + 1;
+    if (s[i] == '-') { sign = -1; i = i + 1; }
+    else if (s[i] == '+') i = i + 1;
+    r = 0.0f;
+    while (s[i] >= '0' && s[i] <= '9') { r = r * 10.0f + (float)(s[i] - '0'); i = i + 1; }
+    if (s[i] == '.') {
+        i = i + 1;
+        scale = 0.1f;
+        while (s[i] >= '0' && s[i] <= '9') {
+            r = r + (float)(s[i] - '0') * scale;
+            scale = scale * 0.1f;
+            i = i + 1;
+        }
+    }
+    return r * (float)sign;
+}
+
 /// VAL(string$) — string to integer
 __stdcall int basic_val(const char* s) {
     int result = 0, sign = 1, i = 0;

@@ -502,6 +502,12 @@ def basic_str_single(a0):
     asm("CALL basic_str_single")
     return r0
 
+def basic_val_float(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL basic_val_float")
+    return r0
+
 def basic_val(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
