@@ -389,6 +389,29 @@ int ui_battery_charging(void);       /* 缓存里的"充电中" 1/0 */
 #define VML_POWER_OP_BATTERY 0
 #define VML_POWER_OP_SAVER   1
 
+/* ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543，v0.96.497）──────────
+ *
+ * **游戏拿来干什么**：分享 / 导入"**存档码**"（把整局状态编成一小段文本，
+ * 玩家自己存到备忘录里换设备接着玩）、复制战绩、粘贴一个种子。
+ *
+ *     char code[64];
+ *     ui_clipboard_set("SAVE-1a2b3c");                // 把存档码交给玩家
+ *     if (ui_clipboard_get(code, 64) > 0) { ... }     // 读回来接着玩
+ *     ui_share_text("我在拧螺丝里拧了 8 圈！", "分享战绩");
+ *
+ * ⚠ **返回 1 只表示"已经交给系统"**，不表示"玩家已经存上了" —— 写剪贴板、
+ *   弹分享面板在平台上都是异步的，宿主不等结果（在 VM 线程上等主线程会死锁）。
+ * ⚠ **桌面（vmlcli）没有分享面板** ⇒ `ui_share_text` / `ui_open_url` 返回 0，
+ *   但会往 stderr 打一行说明"程序想分享什么"（那是判据）。
+ *   **别把 0 当错误终止** —— 那是"这一端没有这个能力"，游戏该照常继续。
+ *   （与"设备没有陀螺仪"同一条处置：能力缺失要如实报，而不是假装成功。）
+ * ⚠ `ui_open_url` **只放行 http/https**，别的 scheme 一律返回 0。
+ */
+int ui_clipboard_set(char* text);            /* → 1=已交给系统 / 0=这一端没有剪贴板 */
+int ui_clipboard_get(char* buf, int cap);    /* → UTF-8 字节数（不含结尾 \0）/ -1=空的或不支持 */
+int ui_share_text(char* text, char* title);  /* title 传空串 = 不带标题 → 1 / 0 */
+int ui_open_url(char* url);                  /* 只认 http/https → 1 / 0 */
+
 int ui_touch(int slot, int* out);  /* out[0]=x out[1]=y out[2]=按下；返回 1=有效（槽位越界 0）*/
 int ui_touch_query(int slot);      /* 查一次并缓存（返回同上），下面三个读缓存 */
 int ui_touch_x(void);              /* 缓存里的 x */

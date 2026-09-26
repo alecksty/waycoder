@@ -963,6 +963,84 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 #endif
         }
 
+        // ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543，v0.96.497）────────
+        //
+        // ⚠⚠ **这一节最容易踩的是线程模型，不是 API**：
+        //   这些方法是在 **VM 线程**上被调的，而 MAUI 的剪贴板/分享全是**异步 API**
+        //   且要主线程。VM 线程**不能阻塞等主线程** —— 万一主线程正在等 VM 线程，
+        //   两边就**死锁**（而且现场只剩一个卡住的窗口，看不出是谁等谁）。
+        //
+        //   分两种情形处理：
+        //     · **写类**（写剪贴板 / 分享 / 开链接）—— 语义本来就是"提交给系统"，
+        //       **fire-and-forget**：派到主线程就返回，不等结果。
+        //     · **读类**（读剪贴板）—— 非要回话不可。调用方是 VM 线程（**不是**主线程），
+        //       所以"派到主线程再等"是安全的（主线程不会反过来等 VM 线程），
+        //       但仍要**加超时**兜底。
+        //
+        //   ⚠ 返回值只有两种含义：**1 = 已经交给系统**、**0 = 这一端没有这个能力**。
+        //     "玩家最后选没选"不在这条链上 —— 那是系统的事。
+
+        public bool ClipboardSet(string text)
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try { await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(text); }
+                    catch (Exception ex) { ErrorLog.Error("VmlUi", "写剪贴板失败", ex); }
+                });
+                return true;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "写剪贴板失败", ex); return false; }
+        }
+
+        public string? ClipboardGet()
+        {
+            try
+            {
+                var task = MainThread.InvokeOnMainThreadAsync(
+                    () => Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.GetTextAsync());
+                // ⚠ 超时兜底：主线程万一被别的东西占住，不能让整个 VM 一起卡死。
+                if (!task.Wait(TimeSpan.FromSeconds(2))) return null;
+                var s = task.Result;
+                return string.IsNullOrEmpty(s) ? null : s;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "读剪贴板失败", ex); return null; }
+        }
+
+        public bool ShareText(string text, string? title)
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        await Microsoft.Maui.ApplicationModel.DataTransfer.Share.Default.RequestAsync(
+                            new Microsoft.Maui.ApplicationModel.DataTransfer.ShareTextRequest
+                            { Text = text, Title = title });
+                    }
+                    catch (Exception ex) { ErrorLog.Error("VmlUi", "分享失败", ex); }
+                });
+                return true;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "分享失败", ex); return false; }
+        }
+
+        public bool OpenUrl(string url)
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try { await Microsoft.Maui.ApplicationModel.Launcher.Default.OpenAsync(url); }
+                    catch (Exception ex) { ErrorLog.Error("VmlUi", "打开链接失败", ex); }
+                });
+                return true;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "打开链接失败", ex); return false; }
+        }
+
         // ── 像素读回（583–585）──────────────────────────────────────────────
         //
         // 与桌面**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——

@@ -1535,6 +1535,61 @@ public static class VmlUi
         public const int Saver = 1;
     }
 
+    /// <summary>
+    /// `CLIPBOARD`（v0.96.497）：`R0`=操作码（见 <see cref="ClipboardOp"/>），参数从 `R1` 起。
+    ///
+    /// <para>
+    /// **游戏拿来干什么**：分享/导入"存档码"（把整局状态编成一小段文本，让玩家自己
+    /// 存到备忘录里换设备玩）、复制战绩、粘贴一个种子。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **为什么占号而不是走 `CALLJSON`**（文档 P2 表原本建议那条路）：
+    ///   P2 那条建议的前提是"**参数简单到能直接塞进 JSON**"（toast、帧耗时那种）。
+    ///   而这两个接口带**字符串参数** —— C 程序要用就得**手拼 JSON 并做转义**，
+    ///   那正是最容易写错、且错了不报错的一类代码。占号则 22 门语言都拿到
+    ///   类型安全的签名，C 侧一行就能调。**号还够，就别拿易用性换。**
+    /// </para>
+    /// </summary>
+    public const int Clipboard = 542;
+
+    /// <summary>`CLIPBOARD` 的操作码（`R0`）。**跨语言契约，只能末尾追加。**</summary>
+    public static class ClipboardOp
+    {
+        /// <summary>写入剪贴板：`R1`=文本 → 1=已提交 / 0=这一端不支持。</summary>
+        public const int Set = 0;
+
+        /// <summary>读出剪贴板：`R1`=缓冲区 `R2`=容量 → 写入长度（UTF-8 字节，不含结尾 `\0`）；
+        /// **-1 = 剪贴板是空的或这一端不支持**（与 `store_get` 同一套返回口径）。</summary>
+        public const int Get = 1;
+    }
+
+    /// <summary>
+    /// `SHARE`（v0.96.497）：把一段文本交给系统的分享面板，或者打开一个链接。
+    ///
+    /// <para>
+    /// **分享要等用户选完**（选微信还是备忘录）—— 但那**不是程序该等的事**：
+    /// 这里只负责"把面板弹出来"，**不阻塞**。程序继续跑它的，
+    /// 玩家选完了系统自己会切走再切回来。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ **`OPEN_URL` 会离开这个应用**（浏览器接管）。程序该在调它之前先暂停/存档 ——
+    /// 但**别指望宿主会替你暂停**：那是策略，不是机制。
+    /// </para>
+    /// </summary>
+    public const int Share = 543;
+
+    /// <summary>`SHARE` 的操作码（`R0`）。**跨语言契约，只能末尾追加。**</summary>
+    public static class ShareOp
+    {
+        /// <summary>弹系统分享面板：`R1`=文本 `R2`=标题（`0` = 不带标题）→ 1=已弹出 / 0=不支持。</summary>
+        public const int Text = 0;
+
+        /// <summary>用系统浏览器打开链接：`R1`=URL → 1=已交给系统 / 0=不支持或 URL 非法。</summary>
+        public const int Url = 1;
+    }
+
     /// <summary>`TOUCH_QUERY` 的槽位数（`R0` 的合法范围是 `0 .. MaxTouchSlots-1`）。</summary>
     public const int MaxTouchSlots = 10;
 
@@ -1579,6 +1634,8 @@ public static class VmlUi
         Sensor,
         // 电量与省电 540（**一个号 + 操作码**，见 `PowerOp`）
         Power,
+        // 剪贴板与分享 542–543（各一个号 + 操作码，见 `ClipboardOp` / `ShareOp`）
+        Clipboard, Share,
         // 扩展 570–573
         WinOpenEx, CallJson,
         // ⚠ `DrawTextEx = 581` 是**补进来的**（v0.96.353）：它早就定义了，

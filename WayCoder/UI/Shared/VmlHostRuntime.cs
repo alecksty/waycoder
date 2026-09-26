@@ -185,6 +185,27 @@ public interface IVmlHost
     /// </summary>
     bool PowerSaverOn();
 
+    // ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543，v0.96.497）──────────
+    //
+    // ⚠ **平台实现一律"提交了就算成功"（fire-and-forget）**：
+    //   写剪贴板、弹分享面板、开浏览器在平台上都是**异步**的（MAUI 那几个 API
+    //   干脆就带 `Async` 后缀），而 VM 线程**不能阻塞等主线程**（会死锁）。
+    //   所以返回值只有两种含义：**1 = 已经交给系统**、**0 = 这一端没有这个能力**。
+    //   **"玩家最后选没选、存没存上"不在这条链上** —— 那是系统的事。
+
+    /// <summary>写入系统剪贴板。返回 false = 这一端没有剪贴板。</summary>
+    bool ClipboardSet(string text);
+
+    /// <summary>读系统剪贴板；**null = 空的或这一端不支持**（与 `StoreGet` 同一口径）。
+    /// ⚠ 这是唯一一个**要等平台回话**的 —— 平台上同样是异步 API，实现时注意别在 VM 线程上死锁。</summary>
+    string? ClipboardGet();
+
+    /// <summary>弹系统分享面板（把一段文本交给别的应用）。返回 false = 这一端没有分享面板。</summary>
+    bool ShareText(string text, string? title);
+
+    /// <summary>用系统浏览器打开链接。返回 false = 这一端打不开 / <paramref name="url"/> 不是 http(s)。</summary>
+    bool OpenUrl(string url);
+
     // ── 像素读回（583–585：floodfill / getimage / putimage）──────────────────
     //
     // 场景是**保留模式**的（只有图元、没有像素缓冲），所以"这个像素是什么颜色"
@@ -1035,6 +1056,70 @@ public sealed class VmlHostRuntime
                     default:
                         registers[0] = -1;      // 认不出的 op
                         break;
+                }
+                break;
+            }
+            case VmlUi.Clipboard:
+            {
+                switch (registers[0])
+                {
+                    case VmlUi.ClipboardOp.Set:
+                    {
+                        var text = Str(memory, registers[1]);
+                        // 空串**不写**：那会把玩家原来复制的东西清掉，而"清空剪贴板"
+                        // 从来不是调用方的本意（它多半是算出了一个空字符串）。
+                        if (text.Length == 0) { registers[0] = 0; break; }
+                        registers[0] = _host.ClipboardSet(text) ? 1 : 0;
+                        break;
+                    }
+                    case VmlUi.ClipboardOp.Get:
+                    {
+                        var value = _host.ClipboardGet();
+                        if (string.IsNullOrEmpty(value)) { registers[0] = -1; break; }
+                        // 与 store_get 同一套：**写进调用方给的缓冲区**、留一个字节给 \0、
+                        // 返回**实际写入的字节数**（不是内容的真实长度 —— 截断了要让调用方看得出来）。
+                        var capacity = Math.Max(0, registers[2]);
+                        var bytes = Encoding.UTF8.GetBytes(value);
+                        var n = Math.Min(bytes.Length, Math.Max(0, capacity - 1));
+                        var dst = registers[1];
+                        if (dst >= 0 && dst + n + 1 <= memory.Length)
+                        {
+                            Array.Copy(bytes, 0, memory, dst, n);
+                            memory[dst + n] = 0;
+                        }
+                        registers[0] = n;
+                        break;
+                    }
+                    default: registers[0] = -1; break;
+                }
+                break;
+            }
+            case VmlUi.Share:
+            {
+                switch (registers[0])
+                {
+                    case VmlUi.ShareOp.Text:
+                    {
+                        var text = Str(memory, registers[1]);
+                        if (text.Length == 0) { registers[0] = 0; break; }
+                        var titlePtr = registers[2];
+                        var title = titlePtr == 0 ? null : Str(memory, titlePtr);
+                        registers[0] = _host.ShareText(text, string.IsNullOrEmpty(title) ? null : title) ? 1 : 0;
+                        break;
+                    }
+                    case VmlUi.ShareOp.Url:
+                    {
+                        var url = Str(memory, registers[1]);
+                        // ⚠ **只放行 http/https** —— 放行别的 scheme 等于让程序
+                        //   借系统去打开任意东西（`file:` / 自定义 scheme 都可能触发别的应用）。
+                        //   这不是权限问题，是"别把程序给的东西直接当命令用"。
+                        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                            && !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                        { registers[0] = 0; break; }
+                        registers[0] = _host.OpenUrl(url) ? 1 : 0;
+                        break;
+                    }
+                    default: registers[0] = -1; break;
                 }
                 break;
             }

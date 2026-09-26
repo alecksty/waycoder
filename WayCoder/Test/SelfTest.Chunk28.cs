@@ -35,6 +35,7 @@ public static partial class SelfTest
         TestVmlMobileOps(Section, Check, Fail);
         TestVmlSensor(Section, Check, Fail);
         TestVmlPower(Section, Check, Fail);
+        TestVmlClipboard(Section, Check, Fail);
     }
 
     /// <summary>
@@ -265,6 +266,101 @@ public static partial class SelfTest
         reg[0] = VmlUi.PowerOp.Battery; reg[1] = 252;
         rt.HandleSyscall(VmlUi.Power, reg, mem);
         Check("输出缓冲区越界 → 返回 0（不抛异常）", reg[0] == 0);
+    }
+
+    /// <summary>
+    /// 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543）。
+    ///
+    /// <para>
+    /// 重点在三处**不报错的错**：空串把剪贴板清掉（多半不是调用方的本意）、
+    /// 缓冲区截断后返回了真实长度（调用方以为拿全了）、以及 `open_url` 放行了
+    /// `file:` 这类 scheme（等于让程序借系统去打开任意东西）。
+    /// </para>
+    /// </summary>
+    private static void TestVmlClipboard(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("剪贴板与分享 CLIPBOARD/SHARE");
+
+        static string Rd(byte[] m, int at)
+        {
+            var n = 0;
+            while (at + n < m.Length && m[at + n] != 0) n++;
+            return System.Text.Encoding.UTF8.GetString(m, at, n);
+        }
+
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var reg = new int[8];
+        var mem = new byte[256];
+
+        void Text(string s, int at) => System.Text.Encoding.UTF8.GetBytes(s).CopyTo(mem, at);
+
+        // ── 写进去能读回来 ──
+        Text("SAVE-1a2b3c", 32);
+        reg[0] = VmlUi.ClipboardOp.Set; reg[1] = 32;
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        var setOk = reg[0];
+        reg[0] = VmlUi.ClipboardOp.Get; reg[1] = 96; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        Check("写进剪贴板再读回来，内容一致", setOk == 1 && reg[0] == 11 && Rd(mem, 96) == "SAVE-1a2b3c");
+
+        // ── 剪贴板空着 → -1（与 store_get 同一口径）──
+        host.ClipboardValue = "";
+        reg[0] = VmlUi.ClipboardOp.Get; reg[1] = 96; reg[2] = 64;
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        Check("剪贴板是空的 → 返回 -1", reg[0] == -1);
+
+        // ── ⚠ 写空串**不该**把玩家原来复制的东西清掉 ──
+        host.ClipboardValue = "玩家自己的东西";
+        reg[0] = VmlUi.ClipboardOp.Set; reg[1] = 200;   // mem[200] 是 0 ⇒ 空串
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        Check("写空串 → 返回 0，且**没有清掉**剪贴板里的东西",
+            reg[0] == 0 && host.ClipboardValue == "玩家自己的东西");
+
+        // ── ⚠ 缓冲区装不下时要返回**实际写入的长度**（调用方才知道被截断了）──
+        host.ClipboardValue = "0123456789ABCDEF";
+        reg[0] = VmlUi.ClipboardOp.Get; reg[1] = 96; reg[2] = 6;   // 只给 6 字节（5 + \0）
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        Check("缓冲区不够 → 返回被截断后的长度（5），不是原文长度", reg[0] == 5 && Rd(mem, 96) == "01234");
+
+        // ── 分享：能力有没有要如实报 ──
+        Text("我的战绩", 32);
+        host.ShareAvailable = true;
+        reg[0] = VmlUi.ShareOp.Text; reg[1] = 32; reg[2] = 0;
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        var shareOk = reg[0];
+        host.ShareAvailable = false;
+        reg[0] = VmlUi.ShareOp.Text; reg[1] = 32; reg[2] = 0;
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        Check("分享：有能力报 1、没能力报 0（且文本传对了）",
+            shareOk == 1 && reg[0] == 0 && host.LastShared == "我的战绩");
+
+        // ── ⚠ open_url 只认 http/https ──
+        Text("https://example.com", 32);
+        host.UrlAvailable = true;
+        reg[0] = VmlUi.ShareOp.Url; reg[1] = 32;
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        var httpsOk = reg[0];
+
+        Text("file:///etc/passwd", 32);
+        reg[0] = VmlUi.ShareOp.Url; reg[1] = 32;
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        var fileRejected = reg[0];
+
+        Text("javascript:alert(1)", 32);
+        reg[0] = VmlUi.ShareOp.Url; reg[1] = 32;
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        var jsRejected = reg[0];
+
+        Check("open_url：https 放行，file:/javascript: 一律拒（别把程序给的东西当命令用）",
+            httpsOk == 1 && fileRejected == 0 && jsRejected == 0 && host.LastUrl == "https://example.com");
+
+        // ── 认不出的 op → -1 ──
+        reg[0] = 99; reg[1] = 32;
+        rt.HandleSyscall(VmlUi.Clipboard, reg, mem);
+        var badClip = reg[0];
+        rt.HandleSyscall(VmlUi.Share, reg, mem);
+        Check("认不出的 op → -1（两个号都是）", badClip == -1 && reg[0] == -1);
     }
 
     private static void TestVmlStatusLines(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
@@ -620,6 +716,34 @@ public static partial class SelfTest
         }
 
         public bool PowerSaverOn() => PowerSaverValue;
+
+        // ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543）──────────────────
+        /// <summary>假的剪贴板（**空串 = 没东西**，与真宿主那条口径一致）。</summary>
+        public string ClipboardValue = "";
+
+        /// <summary>假的分享面板"有没有"。桌面那一端没有 ⇒ 默认 false。</summary>
+        public bool ShareAvailable;
+
+        /// <summary>最近一次被分享/打开的文本（自测据此断言"传对了没有"）。</summary>
+        public string? LastShared;
+        public string? LastUrl;
+        public bool UrlAvailable;
+
+        public bool ClipboardSet(string text) { ClipboardValue = text; return true; }
+
+        public string? ClipboardGet() => ClipboardValue.Length == 0 ? null : ClipboardValue;
+
+        public bool ShareText(string text, string? title)
+        {
+            LastShared = text;
+            return ShareAvailable;
+        }
+
+        public bool OpenUrl(string url)
+        {
+            LastUrl = url;
+            return UrlAvailable;
+        }
 
         /// <summary>
         /// `ResolvePath` 的前缀。默认 `/fake/` —— 记录型，不指向任何真实目录。

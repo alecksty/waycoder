@@ -143,6 +143,12 @@ int  ui_sensor_calibrate(int kind);       /* 把当前姿态当零点（玩家�
  * 不需要任何权限。单位：电量 0-100。 */
 int  ui_battery(int* out);          /* out[0]=电量 out[1]=充电中；1=有效 0=**没有电池** */
 int  ui_power_saver(void);          /* 系统省电模式（用户明确要求省电，与"电量低"不是一回事）*/
+/* 剪贴板与分享（CLIPBOARD #542 / SHARE #543）—— 分享成绩、**存取档码**
+ * （把整局状态编成一小段文本，玩家自己存到备忘录里换设备接着玩）。 */
+int  ui_clipboard_set(char* text);            /* 1=已交给系统 0=这一端没有剪贴板 */
+int  ui_clipboard_get(char* buf, int cap);    /* 写入的字节数 / -1=空的或不支持 */
+int  ui_share_text(char* text, char* title);  /* title 传空串 = 不带标题 */
+int  ui_open_url(char* url);                  /* 只认 http/https */
 void ui_vibrate(int ms, int strength);   /* 震动 */
 void ui_keep_on(int on);                 /* 别熄屏 */
 void ui_store_set(char* key, char* value);

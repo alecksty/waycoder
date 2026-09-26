@@ -468,6 +468,50 @@ int ui_battery_query(void) {
 
 int ui_battery_level(void) { return _ui_bat_level; }
 int ui_battery_charging(void) { return _ui_bat_charging; }
+
+/* ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543，v0.96.497）────────────
+ *
+ * **游戏拿来干什么**：分享/导入"存档码"（把整局状态编成一小段文本，玩家自己存到
+ * 备忘录里换设备玩）、复制战绩、粘贴一个种子。
+ *
+ *     char code[64];
+ *     ui_clipboard_set("SAVE-1a2b3c");          // 把存档码交给玩家
+ *     if (ui_clipboard_get(code, 64) > 0) { ... }   // 读回来接着玩
+ *     ui_share_text("我在拧螺丝里拧了 8 圈！", "分享战绩");
+ *
+ * ⚠ **返回 1 只表示"已经交给系统"**，不表示"玩家已经存上了" ——
+ *   写剪贴板、弹分享面板在平台上都是异步的，宿主不等结果（等会死锁）。
+ * ⚠ **桌面（vmlcli）没有分享面板** ⇒ `ui_share_text` / `ui_open_url` 返回 0，
+ *   但会往 stderr 打一行 `[vml-share]` 说明"程序想分享什么"（那是判据）。
+ *   **写代码时别把 0 当错误终止** —— 那是"这一端没有这个能力"，游戏该照常继续。
+ * ⚠ `ui_open_url` **只放行 http/https**（别的 scheme 一律 0）：放行任意 scheme
+ *   等于让程序借系统去打开任意东西。
+ */
+int ui_clipboard_set(char* text) {
+    int op;
+    int z;
+    op = 0;
+    z = 0;
+    return asm("SYSCALL #542, ${op}, ${text}, ${z}");
+}
+
+int ui_clipboard_get(char* buf, int cap) {
+    int op;
+    op = 1;
+    return asm("SYSCALL #542, ${op}, ${buf}, ${cap}");
+}
+
+int ui_share_text(char* text, char* title) {
+    int op;
+    op = 0;
+    return asm("SYSCALL #543, ${op}, ${text}, ${title}");
+}
+
+int ui_open_url(char* url) {
+    int op;
+    op = 1;
+    return asm("SYSCALL #543, ${op}, ${url}");
+}
 int ui_sensor_y(void) { return _ui_sensor_y; }
 int ui_sensor_z(void) { return _ui_sensor_z; }
 

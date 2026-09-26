@@ -644,6 +644,46 @@ internal sealed class CliVmlHost : IVmlHost
 
     public bool PowerSaverOn() => _powerSaver;
 
+    // ── 剪贴板与分享（`CLIPBOARD` #542 / `SHARE` #543）───────────────────────
+    //
+    // 桌面**有剪贴板**（这里用进程内的一个字符串模拟 —— 判据只需要"写进去能读回来"），
+    // **没有分享面板**（没有别的应用可以分享给它）⇒ 分享/开链接**如实报 0**，
+    // 并打一行日志说明"如果这是在手机上会做什么"。
+    //
+    // ⚠ 这些都是**机器可读的判据接口**（与 `[vml-audio]` 那批同一个用途）：
+    //   桌面上"分享"这个动作没法真的发生，但**"程序在什么时候想分享什么"
+    //   必须看得见**，否则这条链在桌面上等于没测。
+
+    private string _clipboard = "";
+
+    public bool ClipboardSet(string text)
+    {
+        _clipboard = text;
+        CliErr.WriteLine($"[vml-clip] set len={text.Length} \"{Clip(text)}\"");
+        return true;
+    }
+
+    public string? ClipboardGet()
+    {
+        CliErr.WriteLine($"[vml-clip] get len={_clipboard.Length}");
+        return _clipboard.Length == 0 ? null : _clipboard;
+    }
+
+    public bool ShareText(string text, string? title)
+    {
+        CliErr.WriteLine($"[vml-share] text len={text.Length} title=\"{title}\" \"{Clip(text)}\"（桌面没有分享面板 ⇒ 报 0）");
+        return false;
+    }
+
+    public bool OpenUrl(string url)
+    {
+        CliErr.WriteLine($"[vml-share] url \"{url}\"（桌面不打开浏览器 ⇒ 报 0）");
+        return false;
+    }
+
+    /// <summary>日志里截断长文本（判据要能一眼看完，而存档码可能很长）。</summary>
+    private static string Clip(string s) => s.Length <= 60 ? s : s[..60] + "…";
+
     // ── 像素读回（583–585）──────────────────────────────────────────────────
     //
     // 桌面端与手机端**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
