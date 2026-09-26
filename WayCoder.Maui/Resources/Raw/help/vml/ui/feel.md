@@ -29,6 +29,20 @@ ui_tone_off(2, 67); ui_tone_off(1, 64); ui_tone_off(0, 60);
 ⚠ `ui_beep` 与它**互不干扰** —— 蜂鸣走自己的专用声道，按着和弦时照常打音效也没事。
 
 现成例子：`Examples/c/audio_test.c`（音阶/和弦/旋律）与 `Examples/c/piano.c`（钢琴）。
+
+#### 想让音效听起来"不是同一声哔"？
+
+单靠 `ui_tone_on/off` 还不够 —— 还差三件事，`Examples/cpp/gorilla.cpp` 与
+`Examples/basic/gorilla.bas` 里有一份可抄的实现（**音序器**）：
+
+- **`ui_tone_on` 没有时长参数**：响多久全看自己什么时候 `ui_tone_off`，忘了关，
+  声部就只涨不落（上限 32，满了以后新音**全哑而且不报错**）；
+- **几个音先后**（"叮—咚"、上行三音）才是音效，一个音只是"哔"；
+- **同通道后音掐前音** ⇒ "同时响"要落在不同通道上。
+
+⚠ 另外两条：**低音别写太低** —— 手机外放在 200Hz 以下衰减很快，C2(65Hz) 出来是
+"噗"的一声闷响，玩家听着像**没响**；**胜负一定要有声音**，玩家那一刻的视线在棋盘上、
+不在你写的横幅上。完整版见开发者文档 `docs/VML游戏开发指南.md` 的 §4.5。
 ### `ui_tone_all_off(void)` / `ui_tone_voices(void)`
 全关（走**淡出**，不是硬切）；查"此刻在响的声部数" —— 调和弦时有用。
 ### `ui_tone_wave(int ch, int wave)` / `ui_tone_max_voices(int n)`
