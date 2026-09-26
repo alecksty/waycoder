@@ -56,8 +56,15 @@ internal static class EditorTypography
     public const string CanvasFontName =
 #if ANDROID
         "SarasaMonoSC-Regular.ttf";      // 资产文件名（CreateFromAsset 按这个名字找）
-#elif IOS
-        "Sarasa-Mono-SC-Regular";        // PostScript 名（UIFont.FromName 按这个名字找）
+#elif IOS || MACCATALYST
+        // ⚠ **`|| MACCATALYST` 是 2026-09-27 补的**：此前只写了 `IOS`，于是 Mac Catalyst
+        //   **掉进下面的 Windows 分支**（`NSimSun`）—— 那个族名在 macOS 上不存在，CoreText
+        //   静默回落成平台默认的**比例字体**，而定位走的是 2 列网格 ⇒ 编辑器光标/选区对不上。
+        //   真机症状极小：`CodeCanvasView` 的字体自检打的是
+        //   `[字体自检] OK … a=7.85(期望 7.00) … 名=NSimSun` —— 拉丁推进量宽了 12%
+        //   （7.85/14 = 0.56em，不是 0.5em），而自检的容差把 12% 判成了"OK"，不看那行数字看不出来。
+        //   Mac Catalyst 与 iOS 是同一个 CoreText 解析器 ⇒ 名字也必须同一个。
+        "Sarasa-Mono-SC-Regular";        // PostScript 名（UIFont.FromName / CGFontCreateWithFontName 按这个名字找）
 #else
         // Windows（WinUI 3）：按**族名**解析（`CanvasTextFormat.FontFamily` 直接交给 DirectWrite
         // 查**系统字体集合**），不用资产文件名、也不用 PostScript 名 —— 那两条是 Android / iOS 专有的解析器。

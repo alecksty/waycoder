@@ -379,9 +379,22 @@ internal static class VmlAudio
             //   错误都没有，正对上这一条。
             //   `Playback` = 忽略静音开关（游戏音效就该这样）；再加 `MixWithOthers`，
             //   免得把用户正在听的音乐掐掉（`Playback` 默认会独占）。
+            //
+            // ⚠ **只对 iOS 做，Mac Catalyst 上跳过**（2026-09-27 macOS 实测）：
+            //   `AVAudioSession` 是 **UIKit 一致性**要求的 API —— 从非主线程调它就报
+            //   `UIKitThreadAccessException: UIKit Consistency error: you are calling a UIKit method
+            //   that can only be invoked from the UI thread`（本文件这两句正好**成对**触发，
+            //   日志里就是同一毫秒两条）。而本方法是从 **VM / 混音线程**进来的
+            //   （`ui_beep` → 宿主 → Tone），不在主线程。
+            //   macOS 这边**不需要**这段：没有静音开关，也没有"类别"这回事，`Playback`/`MixWithOthers`
+            //   的语义在 macOS 上是空操作 —— 拿一条会报错的调用去换一个空操作不划算。
+            //   （真要在 Catalyst 上配，就得 `MainThread.InvokeOnMainThreadAsync` 包起来；
+            //     那会引入"VM 线程等主线程"的阻塞，只在确有需要时才做。）
+#if IOS
             var session = AVAudioSession.SharedInstance();
             session.SetCategory(AVAudioSessionCategory.Playback, AVAudioSessionCategoryOptions.MixWithOthers);
             session.SetActive(true);
+#endif
 
             var engine = new AVAudioEngine();
             var node = new AVAudioPlayerNode();
@@ -398,9 +411,23 @@ internal static class VmlAudio
             if (!engine.StartAndReturnError(out var err) || err != null)
             {
                 engine.Dispose();
+                // ⚠ **这一路必须留痕**（2026-09-27）：原先它直接 `return null`，而调用方一律当
+                //   "没声音"处理 ⇒ 症状就是那条最贵的"引擎没起来、一声不响、日志干干净净"。
+                //   iOS 那次花了几小时才从"设备日志一条音频错误都没有"倒推回来；
+                //   Mac Catalyst 上 `AVAudioSession` 能力有限（会话可能直接抛），更不能静默。
+                ErrorLog.Error("VmlAudio", $"音频引擎启动失败：{err?.LocalizedDescription ?? "(无错误对象)"}");
                 return null;
             }
             _engine = engine;
+            // 起得来也记一笔（只此一次）：排查"到底出没出声"时，**有**这条才算引擎真的跑起来了 ——
+            // 静默成功同样是不可判定的（见上）。
+            ErrorLog.Info("VmlAudio", $"音频引擎已启动：采样率={SampleRate} 声道=1"
+#if IOS
+                + "（音频会话 = Playback + MixWithOthers）"
+#else
+                + "（Mac Catalyst 不配音频会话 —— 见 EnsureNode 里的说明）"
+#endif
+            );
             return _node = node;
         }
         catch (Exception ex)

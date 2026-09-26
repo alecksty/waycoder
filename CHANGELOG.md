@@ -1,3 +1,68 @@
+## v0.96.517 — macOS（Mac Catalyst）版：**起不来**、字体错、UIKit 跨线程，三处一起修
+
+用户让"OSX 版本也测一下"。`dotnet build -f net10.0-maccatalyst27.0` **0 错误**，
+但**双击图标什么都不会发生** —— 一路查下来是三个互不相干的缺陷。
+
+### ① macOS 版**根本起不来**：`UIScene` 那条修了 iOS、忘了 Mac Catalyst
+
+`open WayCoder.app` 之后进程秒退，**退出码 133（SIGTRAP）**、stdout/stderr **一个字都没有**。
+用 `lldb` 抓栈才看到真凶和 iOS 27 那次**逐字相同**：
+
+```
+Application failed to launch: UIScene life cycle is required for apps built with this SDK.
+```
+
+⇒ `Platforms/iOS/Info.plist` 上一版加了 `UIApplicationSceneManifest`，而 **Mac Catalyst 用的是
+另一份 `Platforms/MacCatalyst/Info.plist`** —— "iOS 修好了"这个结论**看起来完全成立**，
+实际只覆盖了两个平台里的一个。（⚠ 顺带：改 plist 后**必须清 `obj/`/`bin/` 重编**，
+增量构建会把旧的合并 plist 缓存住 —— 本条也是一路踩过来的。）
+
+**修法**：两份 plist 都写场景清单；委托类**合并成一份**放项目根、用 `#if IOS || MACCATALYST`
+守起来（各写一份就是本仓反复吃亏的平行表，将来改一处另一处不变、症状是**另一个平台黑屏**）。
+
+### ② 编辑器字体在 macOS 上**整个退化成系统比例字体**：`#if` 边界漏了 MacCatalyst
+
+`EditorTypography.CanvasFontName` 写的是 `#if ANDROID … #elif IOS … #else NSimSun`，
+而 **Mac Catalyst 掉进 `#else`** —— `NSimSun` 是 Windows 的族名，CoreText 找不到就静默回落成
+**比例字体**，于是"汉字 = 2 列"的网格不成立 ⇒ 光标/选区对不上位置。
+真机读数（`CodeCanvasView` 的自检）：修前 `a=7.85(期望 7.00) 名=NSimSun`，修后
+**`a=7.00(期望 7.00) 中=14.00(期望 14.00) 名=Sarasa-Mono-SC-Regular`**。
+
+⚠ **自检本身也有问题**：它原来判 "`|实测 − 设计| < 1.0pt`"，而半列宽只有 7pt ⇒ 容差 **14%**，
+这次 12% 的偏差正好被判成 **OK**。改成**相对判据（各 5%）** —— 闸门要比"能不能用"更严一档。
+
+另有一处同源缺陷：内置字体落地目录叫 `<Home>/fonts`，而 Mac Catalyst 容器里的
+`Data/Library/fonts` 是**指向用户真实 `~/Library/Fonts` 的符号链接**（大小写不敏感），
+沙箱拒绝写入（`Operation not permitted`）⇒ 那份给 `FontFinder` 用的 TTF 永远落不下来。
+改落 `<Home>/vml/fonts`（`FontFinder` 本来就搜它，读取端一个字没改）。
+
+### ③ 每次 VML 程序开声都报两条 UIKit 跨线程异常
+
+`[FirstChance] UIKitThreadAccessException: … can only be invoked from the UI thread`，
+每次 VML 程序启动**成对出现**、同一毫秒。根因是 `EnsureNode()` 里那两句
+`AVAudioSession.SetCategory` + `SetActive` —— 而它从 **VM/混音线程**进来（`ui_beep` → 宿主 → Tone）。
+macOS **不需要**这段（没有静音开关、没有"类别"这回事，`Playback`/`MixWithOthers` 在 macOS 上是空操作），
+于是改成 `#if IOS` 只对 iOS 配。**改完实测 0 条**（修前每次程序启动 2 条）。
+
+### 验证（Mac Catalyst，Debug，Apple Silicon）
+
+| 项 | 结果 |
+|---|---|
+| 启动 | ✅ 修前秒退（133）→ 修后窗口正常 |
+| 编辑器字体自检 | ✅ `a=7.00 / 中=14.00 / 名=Sarasa-Mono-SC-Regular`（修前 7.85 / NSimSun） |
+| 字体落地 | ✅ `<Home>/vml/fonts/SarasaMonoSC-Regular.ttf`（修前 `Operation not permitted`） |
+| **音频** | ✅ 命令行页跑 `vml run examples/c/audio_all.c`：**12 项全部走完**，日志 `音频引擎已启动：采样率=44100 声道=1` |
+| UIKit 跨线程异常 | ✅ 0 条（修前每次 VML 启动 2 条） |
+| VML 程序（象棋 / 五子棋） | ✅ 编译 + 窗口 + 弹框都正常（用户实测） |
+| iOS / MacCatalyst 编译 | ✅ `net10.0-ios27.0` 与 `net10.0-maccatalyst27.0` **各 0 错误** |
+| 桌面全量自测 | ✅ **6803 通过 / 0 失败**（含新增的"两份 plist 场景清单"护栏 7 条） |
+
+新增护栏：`SelfTest.Chunk19` 读**两份** Apple `Info.plist`（解析 XML，不是 `Contains` 文本 ——
+注释里也写着那些键名，文本匹配会把"真键被删"判成绿），要求都写了场景清单、配置名逐字是
+`__MAUI_DEFAULT_SCENE_CONFIGURATION__`、委托类名与 `SceneDelegate.cs` 的 `[Register]` 一致，
+且**两份必须同款** —— 漏写一处即红（正是这次 macOS 的形态）。
+
+---
 ## v0.96.516 — 内置帮助改口径（音效）+ 修 iOS「设备上没有声音」
 
 ### ① 内置帮助不再教音序器（这一项随 v0.96.515 的包先进了设备）

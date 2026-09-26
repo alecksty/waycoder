@@ -1197,6 +1197,100 @@ public static partial class SelfTest
             Directory.SetCurrentDirectory(savedRootCwd);
             try { Directory.Delete(rootTmp, true); } catch { }
         }
+
+        Section("[Apple 两个 Info.plist 的场景生命周期：漏写一处 = 那个平台起不来]");
+        // 2026-09-27 **连着踩了两次**：用 SDK 27 编的包在 iOS 27 上起不来（UIKit 断言
+        // `Application failed to launch: UIScene life cycle is required for apps built with this SDK.`
+        // 之后当场 `brk` ⇒ 退出码 133 / SIGTRAP、**两个流一个字都没有**，只有 lldb 抓得到栈），
+        // 补了 `Platforms/iOS/Info.plist`；随后发现 **Mac Catalyst 用的是另一份 plist**
+        // ⇒ macOS 版同一条断言、同一个崩溃码 —— 而当时"iOS 修好了"这个结论**看起来完全成立**。
+        //
+        // 判据因此是「**两份 plist 都要写**」，而不是「某一份写了」。⚠ 检查必须**解析 XML**，
+        // 不能 `Contains` 文本：那两份 plist 的注释里恰好也写着这些键名（解释为什么必须写），
+        // 用文本匹配的话把真键删掉、只要注释还在就照样绿 —— 那种闸门比没有更糟。
+        //
+        // 另一半是「名字要逐字对上」：`MauiUISceneDelegate.WillConnect` 拿配置名做比较，
+        // 不对**不报错**、只是不建窗口（App 在前台、屏幕全黑）；委托类名则要与
+        // `SceneDelegate.cs` 的 `[Register]` 一致（那个类两端共用一份，见文件头）。
+        {
+            static string? FindRepoFile(string rel)
+            {
+                for (var d = new DirectoryInfo(Directory.GetCurrentDirectory()); d != null; d = d.Parent)
+                {
+                    var p = Path.Combine(d.FullName, rel);
+                    if (File.Exists(p)) return p;
+                }
+                return null;
+            }
+
+            // plist 的 dict 是 `<key>名</key><值/>` 成对排列：返回某个键**后面那个元素**。
+            static System.Xml.Linq.XElement? PListValue(System.Xml.Linq.XElement dict, string key)
+            {
+                var kids = dict.Elements().ToList();
+                for (var i = 0; i + 1 < kids.Count; i++)
+                    if (kids[i].Name.LocalName == "key" && kids[i].Value == key) return kids[i + 1];
+                return null;
+            }
+
+            // 从一份 Info.plist 里取出 (配置名, 委托类名)。任一层缺失返回 null。
+            // ⚠ 成员名**不能叫 `Delegate`** —— 那是 `System.Delegate` 这个类型名，
+            //   在成员访问位置上编译器会先当成类型去解析，报「元组不含 Delegate 定义」（实测）。
+            static (string? Cfg, string? Cls)? SceneConfig(string path)
+            {
+                try
+                {
+                    var doc = System.Xml.Linq.XDocument.Load(path);
+                    var rootDict = doc.Root?.Element("dict");
+                    if (rootDict == null) return null;
+                    var manifest = PListValue(rootDict, "UIApplicationSceneManifest");
+                    if (manifest == null) return null;
+                    var configs = PListValue(manifest, "UISceneConfigurations");
+                    var roleList = configs == null ? null : PListValue(configs, "UIWindowSceneSessionRoleApplication");
+                    var first = roleList?.Element("dict");
+                    if (first == null) return null;
+                    return (PListValue(first, "UISceneConfigurationName")?.Value,
+                            PListValue(first, "UISceneDelegateClassName")?.Value);
+                }
+                catch { return null; }
+            }
+
+            // ⚠ 不标 `static`：调了实例方法 `Check`（静态本地函数不许引用它）
+            string ConfigNameOf(string plistPath, string plistLabel, string delegateFile)
+            {
+                var got = SceneConfig(plistPath);
+                Check($"{plistLabel}: 写了 UIApplicationSceneManifest（漏了 ⇒ 该平台起不来："
+                    + "UIKit 断言 UIScene 生命周期后当场 brk，退出码 133 且**无任何输出**）",
+                    got != null);
+                Check($"{plistLabel}: 配置名逐字是 __MAUI_DEFAULT_SCENE_CONFIGURATION__"
+                    + "（名字不对不报错，只是 MAUI 不建窗口 ⇒ 黑屏）",
+                    got?.Cfg == "__MAUI_DEFAULT_SCENE_CONFIGURATION__");
+                var cls = got?.Cls;
+                Check($"{plistLabel}: 委托类名与 {delegateFile} 的 [Register] 名一致",
+                    cls != null
+                    && File.Exists(delegateFile)
+                    && System.Text.RegularExpressions.Regex.IsMatch(
+                        File.ReadAllText(delegateFile),
+                        $@"\[Register\(""{System.Text.RegularExpressions.Regex.Escape(cls)}""\)\]"));
+                return got?.Cfg ?? "";
+            }
+
+            var iosPlist = FindRepoFile(Path.Combine("WayCoder.Maui", "Platforms", "iOS", "Info.plist"));
+            var macPlist = FindRepoFile(Path.Combine("WayCoder.Maui", "Platforms", "MacCatalyst", "Info.plist"));
+            if (iosPlist == null || macPlist == null)
+            {
+                // 打包/发布产物里没有源码 → 该护栏只在开发期生效，跳过不算失败
+                Check("Apple 场景生命周期: 无源码目录（打包环境），跳过", true);
+            }
+            else
+            {
+                var delegateFile = FindRepoFile(Path.Combine("WayCoder.Maui", "SceneDelegate.cs")) ?? "";
+                var iosConfig = ConfigNameOf(iosPlist, "iOS Info.plist", delegateFile);
+                var macConfig = ConfigNameOf(macPlist, "MacCatalyst Info.plist", delegateFile);
+                // 两份必须**同款**：只有一份改了（正是 9-27 那次）就红。
+                Check("两个平台用同一个场景配置名（改一份忘另一份 = 另一个平台黑屏）",
+                    iosConfig.Length > 0 && iosConfig == macConfig);
+            }
+        }
     }
 
     /// <summary>路径等价比较（忽略末尾分隔符与大小写，Windows 语义）。</summary>

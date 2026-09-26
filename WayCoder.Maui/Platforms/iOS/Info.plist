@@ -28,8 +28,11 @@
 	</array>
 	<!-- UIScene 生命周期（2026-09-27 加）：⚠ 少了这段，**用 SDK 27 编译的包在 iOS 27 上起不来**
 	     （UIKit 断言 "UIScene life cycle is required…"）。iOS 26 只是警告，所以真机一直没暴露。
-	     `UISceneDelegateClassName` 是 **ObjC 注册名**，必须与 Platforms/iOS/SceneDelegate.cs 的
-	     `[Register("SceneDelegate")]` 逐字相同 —— 写错不报错，只是回到"起不来"或黑屏。 -->
+	     `UISceneDelegateClassName` 是 **ObjC 注册名**，必须与 `SceneDelegate.cs`（项目根，两端共用一份）
+	     的 `[Register("SceneDelegate")]` 逐字相同 —— 写错不报错，只是回到"起不来"或黑屏。
+	     ⚠⚠ **`Platforms/MacCatalyst/Info.plist` 里也有一份一模一样的**（2026-09-27 补）：
+	     上一轮只改了本文件 ⇒ iOS 好了、**macOS 版照样秒退（133/SIGTRAP）**。
+	     改这里就要改那里，反之亦然（`SelfTest.Chunk19` 有护栏：漏一处即红）。 -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

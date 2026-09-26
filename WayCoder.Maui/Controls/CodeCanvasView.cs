@@ -1277,7 +1277,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                     float advA = (float)canvas.GetStringSize("a", EditorTypography.CanvasFont, full).Width;
                     float advWide = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, full).Width;
 #endif
-                    bool ok = Math.Abs(advA - half) < 1.0f && Math.Abs(advWide - full) < 1.0f;
+                    // ⚠ 判据是**相对**的（各 5%），不是原来的「绝对 1pt」——
+                    //   1pt 在半列宽只有 7pt 时是 **14%**，而"回落成比例字体"恰好落在这个缝里：
+                    //   2026-09-27 Mac Catalyst 实测 a=7.85（期望 7.00，宽 **12%**）被判成 **OK**，
+                    //   于是一个"光标对不上位置"的缺陷躺在日志里写了三天没人发现。
+                    //   闸门的意义就在这：**受检对象错到什么程度必须红**，得比"能不能用"更严。
+                    //   5% 对真 Sarasa 有充足余量（两端实测 0.00px 偏差），对回落则必红。
+                    bool ok = Math.Abs(advA - half) <= half * 0.05f
+                           && Math.Abs(advWide - full) <= full * 0.05f;
                     string tag = ok ? "[字体自检] OK  内嵌 Sarasa 已加载" : "[字体自检] ❌ 字体回落了！检查 CanvasFontName";
                     System.Diagnostics.Debug.WriteLine($"{tag} a={advA:F2}(期望 {half:F2}) 中={advWide:F2}(期望 {full:F2}) 名={EditorTypography.CanvasFontName}");
                     DiagLog.Write("字体自检", $"{tag} a={advA:F2}(期望 {half:F2}) 中={advWide:F2}(期望 {full:F2}) 名={EditorTypography.CanvasFontName}");

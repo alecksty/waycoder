@@ -308,7 +308,17 @@ public static class MauiBootstrap
     {
         try
         {
-            var dir = Path.Combine(WayCoder.Global.Home, "fonts");
+            // ⚠⚠ **目录名不能叫 `fonts`**（2026-09-27 Mac Catalyst 实测）：
+            //   `Global.Home` 在 Mac Catalyst 上是容器里的 `Data/Library`，而那个目录下有
+            //   **一堆指向用户真实 `~/Library/*` 的符号链接** —— 其中 `fonts` 就指向
+            //   `~/Library/Fonts`（macOS 文件系统大小写不敏感）。往那儿写被沙箱拒绝：
+            //   `UnauthorizedAccessException: Access to the path '…/Data/Library/fonts/…' is denied`
+            //   （内层 `IOException: Operation not permitted`）⇒ **字体永远落不下来**，
+            //   而这一层只是画布之外的 TTF 文本通道（`FontFinder` 找的那份），
+            //   症状是"随包字体取不到、退回系统字体"，日志里只有一行 ErrorLog 很容易被忽略。
+            //   换成 `vml/fonts`：① 不与任何沙箱软链撞名；② `FontFinder` **本来就搜它**
+            //   （`<home>/vml/fonts`，见 Infra/FontFinder.cs），读取端一个字不用改。
+            var dir = Path.Combine(WayCoder.Global.Home, "vml", "fonts");
             Directory.CreateDirectory(dir);
             foreach (var name in new[] { "SarasaMonoSC-Regular.ttf" })
             {

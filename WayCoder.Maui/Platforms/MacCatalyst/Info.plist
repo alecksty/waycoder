@@ -15,6 +15,31 @@
 	<array>
 		<integer>2</integer>
 	</array>
+	<!-- ⚠⚠ **这一整段 macOS 版也必须有**（2026-09-27）：用 SDK 27 编的包在 macOS 27 上
+	     和 iOS 27 是同一条断言、同一个崩溃码（SIGTRAP / 退出码 133）：
+	     `Application failed to launch: UIScene life cycle is required for apps built with this SDK.`
+	     上一轮只改了 Platforms/iOS/Info.plist ⇒ iOS 好了、macOS 照样起不来。
+	     ⚠ `UISceneConfigurationName` 必须**逐字**是 __MAUI_DEFAULT_SCENE_CONFIGURATION__
+	     （MauiUISceneDelegate.WillConnect 拿它做比较，名字不对**不报错**、只是不建窗口 ⇒ 黑屏）；
+	     `UISceneDelegateClassName` = 根上 SceneDelegate.cs 的 [Register] 名（两端共用一份）。
+	     改这里记得同步 Platforms/iOS/Info.plist，反之亦然。 -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>__MAUI_DEFAULT_SCENE_CONFIGURATION__</string>
+					<key>UISceneDelegateClassName</key>
+					<string>SceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.lifestyle</string>
 	<key>UIRequiredDeviceCapabilities</key>
