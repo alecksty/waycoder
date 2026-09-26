@@ -107,7 +107,15 @@ void ui_text_cur(int x, int y, char* s);
 
 ### 手感 / 存档
 ```c
-void ui_beep(int freq, int ms);          /* 合成音 —— **单通道，一次只发一个音** */
+void ui_beep(int freq, int ms);          /* 音效 —— **单通道**：连发只听见最后一个（老语义，不变） */
+/* 复音（v0.96.485）：**多个音同时响**（最多 VML_TONE_MAX_VOICES = 32 个声部）。
+ * 音符号是真 MIDI 语义：A4 = 69 = 440Hz、中央 C = 60。
+ * 按和弦就是连续 tone_on 几个通道、中间不 tone_off —— 这时 `ui_beep` 仍可照常打，
+ * 两者互不干扰（蜂鸣走自己的专用声道，不吃掉和弦）。 */
+int  ui_tone_on(int ch, int note, int vel);   /* 起一个音：通道 0–15、音符号 0–127、力度 0–127 */
+int  ui_tone_off(int ch, int note);           /* 关一个音（note 传 -1 = 该通道全部） */
+int  ui_tone_all_off(void);                   /* 全关（走淡出，不是硬切） */
+int  ui_tone_voices(void);                    /* 此刻在响的声部数 —— 查"和弦叠起来没有"用它 */
 void ui_vibrate(int ms, int strength);   /* 震动 */
 void ui_keep_on(int on);                 /* 别熄屏 */
 void ui_store_set(char* key, char* value);
@@ -162,7 +170,7 @@ int ui_dlg_input(title, prompt, buf, cap);
 | **按屏幕尺寸排版、却开了别的宽高** | 内容**右边被切掉** | 窗口宽高 = 画布坐标空间。必须先 `ui_scr_w/h()` 再 `ui_win_open` |
 | **把「长按连发」当前提** | 松手后角色**一直往前跑** | KeyUp 会丢（手指滑出按键范围 / 系统吃掉 CANCEL）。**必须自带刹车**：换键即接管 + 连续按住超过 N 拍自动释放 |
 | **`ui_keep_on(1)` 后忘了关** | 退出游戏后屏幕一直不熄 | 退出路径上补 `ui_keep_on(0)` |
-| **音效连发一串** | 只听得见最后一个 | 合成音是**单通道**的，后一个音会把前一个停掉。一次事件只发一个音，要用**音高**表达情绪（赢=高、输=低） |
+| **音效连发一串** | 只听得见最后一个 | `ui_beep` 是**单通道**的，后一个音会把前一个停掉（**这是它的老语义，没变**）。一次事件只发一个音，要用**音高**表达情绪（赢=高、输=低）。⚠ 要**同时**响几个音得用 `ui_tone_on/off`（复音，见 §4 的接口表）——`ui_beep` 做不到，但它也不吃和弦 |
 | **网格游戏一拍直接走 N 像素** | 角色**卡在半格上**：不转向、不吃道具，看着像"按键没反应" | 位置一越过格线 `col_of()` 就报**下一格**，"前面是墙"随即在**离格心半格**处把人钉死。见 §6.5 |
 | **全局数组初始化里写负数** | 那个负数**变成 0**，正数全对 | C 前端曾有这个缺陷（`-3` 是 `UnaryOp` 而非 `NumberLiteral`，摊平初始化器时掉进兜底 `Add(0)`）。**已修**（`VMLPrepares/CCompiler/ConstFold.cs`），`vml-out-probe` 的 `nat.c` 钉着它 |
 

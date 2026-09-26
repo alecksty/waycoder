@@ -360,7 +360,11 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。 |
+| [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。**单通道**，连发只听见最后一个。 |
+| [ui_tone_on](help:vml/ui/feel) | **复音**：起一个音（音符号 0–127，A4=69）。几个通道同时起就是和弦。 |
+| [ui_tone_off](help:vml/ui/feel) | 关一个音（`note` 传 -1 = 该通道全部）。 |
+| [ui_tone_all_off](help:vml/ui/feel) | 全关（走淡出）。 |
+| [ui_tone_voices](help:vml/ui/feel) | 此刻在响的声部数 —— 查和弦叠起来没有。 |
 | [ui_audio_play](help:vml/ui/feel) | 播放一个音频**文件**（mp3/wav…），`loop` 非 0 = 循环（BGM 用）。 |
 | [ui_audio_stop](help:vml/ui/feel) | 停掉正在播的音频。 |
 | [ui_audio_volume](help:vml/ui/feel) | 整体音量 0–100（对**之后**播放的音生效）。 |

@@ -349,6 +349,9 @@ RenderNode** 上，压根不参与。退路本想上 `PixelCopy`，但"只截画
 | | | 1 `STOP` | 停播 | `ui_audio_stop` |
 | | | 2 `VOLUME` | 整体音量 0–100（R1） | `ui_audio_volume` |
 | | | 3 `IS_PLAYING` | BGM 放完没有 | `ui_audio_playing` |
+| | | 4 `NOTE_ON` | **复音**：起一个音（R2=音符号 0–127、R3=力度） | `ui_tone_on` |
+| | | 5 `NOTE_OFF` | 关一个音（R2=-1 表示该通道全部） | `ui_tone_off` |
+| | | 6 `CONTROL` | 杂项（控制码见下） | `ui_tone_*` |
 | **545** | **`VIBRATE`** | 0 `SIMPLE` | 震动一下（R1=ms R2=强度） | `ui_vibrate` |
 | | | 1 `PATTERN` | 按节奏震动（R1=int 数组 R2=段数） | `ui_vibrate_pattern` |
 | **550** | **`STORE`** | 0 `SET` | 写持久化键值（R1=键 R2=值） | `ui_store_set` |
@@ -759,8 +762,12 @@ double4   = 3002001          ← D0..D3
    症状是"画不出来"或"程序卡住"，很难查。
 4. **别在宿主里长耗时**：syscall 是在 VM 线程上同步返回的，任何阻塞都会拖住整个程序。
    要等用户的（弹框）例外——那正是"程序在等人"的语义。
-5. **音频别用 `ToneGenerator` 做叠加**：它同时只能一个音。要多个音效同时响得用 `AudioTrack`
-   自己混（当前 `AUDIO_TONE` 是单通道，够用且简单）。
+5. **音频别用 `ToneGenerator` 做叠加**：它同时只能一个音。
+   要多个音效同时响得用 `AudioTrack` 自己混 ——
+   **✅ v0.96.485 已经这么做了**：宿主侧一条流式 `AudioTrack` + 后台混音线程，
+   声部表在 `UI/Shared/VmlToneSynth.cs`（纯逻辑，与桌面/自测同源），
+   程序用 `ui_tone_on/off` 按和弦。`ui_beep` 仍是**单通道**语义（连发只听见最后一个），
+   但它走自己的专用声道，**不再掐掉别的通道** —— 音效与和弦可以共存。
 6. **`WindowResize` 曾经是"协议里有、宿主从不发"的死消息**。转屏、折叠屏、以及绘图页新增的
    **手柄折叠条**都会改视口，程序却一无所知。现在在实测视口变化时补发（见
    `DrawWindowPage.PublishViewport`）——**光有协议不叫有接口，得有人发**。
