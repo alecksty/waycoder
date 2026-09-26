@@ -127,6 +127,26 @@ else
     echo "  ✘ 老的单指语法被改坏了"; echo "     期望：10004 "; echo "     实得：$goto"; fail=1
 fi
 
+# ══════════════════════════════════════════════════════════════════════════
+# 【D】声音：把 `--wav` 录下来的 PCM 做频率检测
+# ══════════════════════════════════════════════════════════════════════════
+# 治的是「音对不对只能靠耳朵」：录成 WAV 之后，"复音有没有真叠加""音高有没有算错"
+# 都成了可数字判定的东西（`tone_check.py` 用 Goertzel 量频率）。
+# ⚠ 它**不需要声卡** —— 没设备时 DesktopAudio 会另起线程按实时速率录。
+echo "── 【D】复音与音准（Examples/c/audio_test.c + --wav + tone_check.py）"
+
+VML_HOME="$VML_HOME" dotnet "$CLI" "$ROOT/third_party/vml/Examples/c/audio_test.c" \
+    --timeout 45 --screen 360x620 --wav "$TMP/at.wav" \
+    >"$TMP/at_out.txt" 2>"$TMP/at_err.txt"
+
+if [ ! -s "$TMP/at.wav" ]; then
+    echo "  ✘ --wav 没产出文件（看 $TMP/at_err.txt）"
+    tail -3 "$TMP/at_err.txt" | sed 's/^/     /'
+    fail=1
+else
+    python3 "$HERE/tone_check.py" "$TMP/at.wav" || fail=1
+fi
+
 echo
 if [ "$fail" = 0 ]; then echo "全部通过"; else echo "有失败项"; fi
 exit "$fail"

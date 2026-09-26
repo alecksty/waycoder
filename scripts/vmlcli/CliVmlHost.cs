@@ -116,6 +116,8 @@ internal sealed class CliVmlHost : IVmlHost
         if (_audioTried) return;
         _audioTried = true;
         DesktopAudio.Start(VmlToneSynth.SampleRate, _synth.Mix);
+        // `--wav`：和声卡并行录一份（有声卡时由音频回调顺带写、没设备时另起线程）。
+        if (_cfg.WavPath is { } wav) DesktopAudio.StartRecording(wav);
         // 成功也报一声：不然"到底出没出声"要靠有没有失败信息来推断，那是猜。
         CliErr.WriteLine($"[vml-audio] 桌面音频后端：{DesktopAudio.Backend}"
             + (DesktopAudio.Available ? "（**真发声**）" : "（退化为只打日志，判据不受影响）"));
@@ -269,6 +271,16 @@ internal sealed class CliVmlHost : IVmlHost
     {
         if (_cfg.FramesDir is not null)
             CliErr.WriteLine($"[vml-host] 共导出 {FramesWritten} 帧到 {Path.GetFullPath(_cfg.FramesDir)}");
+
+        // `--wav`：收尾（回填 WAV 头里的两个长度字段 —— 录之前不知道会有多长）。
+        // ⚠ 放在这里而不是 `Stop()`：`Stop` 只在明确收摊时调，而程序**自然跑完**时
+        //   走的是这条路。漏了它文件头里的长度就是 0，播放器认为"零长度音频"。
+        DesktopAudio.StopRecording();
+        if (_cfg.WavPath is { } wavPath && DesktopAudio.RecordedBytes > 0)
+        {
+            CliErr.WriteLine($"[vml-host] 声音已写出：{Path.GetFullPath(wavPath)}"
+                + $"（{DesktopAudio.RecordedBytes} 字节 ≈ {DesktopAudio.RecordedBytes / 2.0 / VmlToneSynth.SampleRate:F1} 秒）");
+        }
 
         if (_cfg.FramePath is not { } path) return;
         if (!WindowOpened)
@@ -868,6 +880,9 @@ internal sealed partial class CliOptions
 {
     /// <summary>`--frame <路径>`：运行结束后把最新呈现帧渲成 PNG 写到这里。</summary>
     public string? FramePath { get; private set; }
+
+    /// <summary>`--wav <路径>`：把本次运行发出的声音录成 WAV（见那个 case 的说明）。</summary>
+    public string? WavPath { get; private set; }
     /// <summary>`--trace-draw <路径>`：把程序的**绘制调用**逐条写进文件（排查"画面为什么不对"）。</summary>
     public string? TraceDrawPath { get; private set; }
 
@@ -896,6 +911,13 @@ internal sealed partial class CliOptions
         {
             case "--frame":
                 FramePath = Require(args, ref i, "--frame");
+                return true;
+            case "--wav":
+                // 把本次运行发出的声音录成 16 位单声道 WAV（与 `--frame` 独立、可同时用）。
+                // 有了它，"音对不对"就能被 `scripts/vmlcli-verify/tone_check.py` **量**出来，
+                // 而不是只能靠耳朵听 —— 复音有没有真叠加，在波形上是可判定的。
+                // ⚠ 与"有没有声卡"无关：没设备也会起线程按实时速率录。
+                WavPath = Require(args, ref i, "--wav");
                 return true;
             case "--trace-draw":
                 TraceDrawPath = Require(args, ref i, "--trace-draw");
@@ -962,6 +984,7 @@ internal sealed partial class CliOptions
             ScreenWidth = ScreenWidth,
             ScreenHeight = ScreenHeight,
             FramePath = FramePath,
+            WavPath = WavPath,
             TraceDrawPath = TraceDrawPath,
             DumpDslPath = DumpDslPath,
             FramesDir = FramesDir,
@@ -986,6 +1009,9 @@ internal sealed class CliHostConfig
     public int ScreenHeight = 640;
     /// <summary>`--frame <路径>`：运行结束后把最新呈现帧落成 PNG。</summary>
     public string? FramePath;
+
+    /// <summary>`--wav <路径>`：把本次运行发出的声音录成 16 位单声道 WAV。</summary>
+    public string? WavPath;
     /// <summary>`--trace-draw <路径>`：绘制调用逐条落文件。</summary>
     public string? TraceDrawPath;
     /// <summary>`--dump-dsl &lt;路径&gt;`：见上面同名属性。</summary>

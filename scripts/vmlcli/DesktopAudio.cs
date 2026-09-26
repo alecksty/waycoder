@@ -108,7 +108,147 @@ internal static class DesktopAudio
             catch { /* 收尾失败无所谓 */ }
             _available = false;
             _mixer = null;
+            WavClose();
         }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // WAV 录制（`--wav <路径>`）
+    //
+    // 为什么要有它：桌面现在**能出声**了，但"音对不对"只能靠耳朵 —— 而音准是个
+    // **可以量的东西**。录成 WAV 之后，`scripts/vmlcli-verify/tone_check.py` 就能用
+    // Goertzel 去量每个音窗里的频率成分，把"复音真的叠加了""音高没算错"变成可判定的
+    // 数字，而不是"我听着像"。
+    //
+    // ⚠ 它与"有没有声卡"**无关**：没设备时也会起一个线程按实时速率跑混音并录制，
+    //   所以 CI / 容器里同样能拿到 WAV。
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static FileStream? _wav;
+    private static long _wavDataBytes;
+    private static Thread? _wavThread;
+    private static volatile bool _wavRunning;
+
+    /// <summary>已录的 PCM 字节数（收尾时报给用户看，也用来判"这次到底录到东西没有"）。</summary>
+    public static long RecordedBytes { get { lock (Gate) return _wavDataBytes; } }
+
+    /// <summary>收尾：回填 WAV 头并关闭（**幂等**；`Stop` 里也会调）。</summary>
+    public static void StopRecording()
+    {
+        lock (Gate) WavClose();
+    }
+
+    /// <summary>开始录 WAV（16 位单声道 44.1kHz）。**与音频设备无关**。</summary>
+    public static void StartRecording(string path)
+    {
+        lock (Gate)
+        {
+            try
+            {
+                _wav = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+                // 先占位 44 字节的头，结束时回填长度（流式录制的常规做法 —— 录之前
+                // 不知道会有多长，而 WAV 头里有两个长度字段必须准确）。
+                _wav.Write(new byte[44], 0, 44);
+                _wavDataBytes = 0;
+            }
+            catch (Exception ex)
+            {
+                LastError = "WAV 打开失败：" + ex.Message;
+                _wav = null;
+                return;
+            }
+
+            // 有声卡时由音频回调顺带写（那份 PCM 就是**真正送出去**的样本）；
+            // 没有声卡时自己起线程按实时速率跑混音 —— 否则就一个字节都录不到。
+            if (!_available)
+            {
+                _wavRunning = true;
+                _wavThread = new Thread(WavLoop) { IsBackground = true, Name = "vml-wav" };
+                _wavThread.Start();
+            }
+        }
+    }
+
+    /// <summary>没声卡时的录制线程：按块时长跑混音、只写文件。</summary>
+    private static void WavLoop()
+    {
+        var blockMs = BlockFrames * 1000 / 44100;
+        try
+        {
+            while (_wavRunning)
+            {
+                var mixer = _mixer;
+                var n = mixer == null ? 0 : Math.Clamp(mixer(Scratch, BlockFrames), 0, BlockFrames);
+                if (n < BlockFrames) Array.Clear(Scratch, n, BlockFrames - n);
+                WavWrite(Scratch, BlockFrames);
+                Thread.Sleep(blockMs);
+            }
+        }
+        catch { /* 录制线程不允许掀进程 */ }
+    }
+
+    private static readonly byte[] WavScratch = new byte[BlockFrames * 2];
+
+    private static void WavWrite(short[] buf, int n)
+    {
+        var f = _wav;
+        if (f == null || n <= 0) return;
+        try
+        {
+            var bytes = Math.Min(n, BlockFrames) * 2;
+            Buffer.BlockCopy(buf, 0, WavScratch, 0, bytes);
+            f.Write(WavScratch, 0, bytes);
+            _wavDataBytes += bytes;
+        }
+        catch { /* 同上 */ }
+    }
+
+    /// <summary>回填头并关闭。**幂等**（`Stop` 可能被调多次）。</summary>
+    private static void WavClose()
+    {
+        _wavRunning = false;
+        try { _wavThread?.Join(200); } catch { }
+        _wavThread = null;
+
+        var f = _wav;
+        _wav = null;
+        if (f == null) return;
+        try
+        {
+            f.Seek(0, SeekOrigin.Begin);
+            var h = BuildWavHeader(_wavDataBytes);
+            f.Write(h, 0, h.Length);
+            f.Flush();
+            f.Dispose();
+        }
+        catch { }
+    }
+
+    /// <summary>标准 44 字节 RIFF/WAVE 头（16 位单声道固定 44.1kHz）。</summary>
+    private static byte[] BuildWavHeader(long dataBytes)
+    {
+        const int rate = 44100;
+        const short channels = 1;
+        const short bits = 16;
+        var h = new byte[44];
+        void Put(int at, string s) { for (var i = 0; i < s.Length; i++) h[at + i] = (byte)s[i]; }
+        void U32(int at, uint v) { BitConverter.GetBytes(v).CopyTo(h, at); }
+        void U16(int at, ushort v) { BitConverter.GetBytes(v).CopyTo(h, at); }
+
+        Put(0, "RIFF");
+        U32(4, (uint)(36 + dataBytes));
+        Put(8, "WAVE");
+        Put(12, "fmt ");
+        U32(16, 16);                                   // fmt 块大小
+        U16(20, 1);                                    // PCM
+        U16(22, (ushort)channels);
+        U32(24, rate);
+        U32(28, (uint)(rate * channels * bits / 8));   // 字节率
+        U16(32, (ushort)(channels * bits / 8));        // 块对齐
+        U16(34, (ushort)bits);
+        Put(36, "data");
+        U32(40, (uint)dataBytes);
+        return h;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -280,6 +420,10 @@ internal static class DesktopAudio
         Marshal.Copy(Scratch, 0, data, BlockFrames);
         // 设 `mAudioDataByteSize`：第 2 个字段在偏移 16
         Marshal.WriteInt32(buffer, 16, BlockFrames * 2);
+
+        // `--wav` 时顺带把**同一份**样本写进文件 —— 有声卡时就不另起录制线程了
+        // （两条路各自跑一次 `Mix` 会把声部表推进两次，录出来是两倍速）。
+        WavWrite(Scratch, BlockFrames);
     }
 
     // ══════════════════════════════════════════════════════════════════════
