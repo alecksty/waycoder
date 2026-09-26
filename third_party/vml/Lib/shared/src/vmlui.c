@@ -350,6 +350,27 @@ int ui_immersive(int on) {
 #define VML_AUDIO_OP_STOP       1
 #define VML_AUDIO_OP_VOLUME     2
 #define VML_AUDIO_OP_IS_PLAYING 3
+/* ⚠ 下面三个是 v0.96.485 **追加在末尾**的（op 数值编进程序机器码里，不能插队、不能改值）。
+ *   上面四个是**播放文件**（BGM），下面三个是**现场合成**（音符）。 */
+#define VML_AUDIO_OP_NOTE_ON    4
+#define VML_AUDIO_OP_NOTE_OFF   5
+#define VML_AUDIO_OP_CONTROL    6
+
+/* `ui_tone_ctl` 的控制码（与宿主的 `VmlUi.AudioCtl` 同值；**只能末尾追加**） */
+#define VML_TONE_CTL_ALL_OFF    0
+#define VML_TONE_CTL_WAVE       1
+#define VML_TONE_CTL_MAX_VOICES 2
+#define VML_TONE_CTL_VOICES     3
+#define VML_TONE_CTL_PANIC      4
+
+/* 波形（与 `VmlUi.ClampTone` 的 0..3 口径一致） */
+#define VML_WAVE_SINE     0
+#define VML_WAVE_SQUARE   1
+#define VML_WAVE_SAW      2
+#define VML_WAVE_TRIANGLE 3
+
+/* 同时能响的声部上限（宿主侧 `VmlToneSynth.MaxVoices`） */
+#define VML_TONE_MAX_VOICES 32
 
 /* 播放一个音频文件（相对路径按沙箱根解）。`loop` 非 0 = 循环（BGM 用）。
  * 返回 0 成功 / -1 失败（文件不存在 / 路径非法 / 平台不支持）。 */
@@ -375,6 +396,63 @@ int ui_audio_playing(void) {
     int op = VML_AUDIO_OP_IS_PLAYING;
     return asm("SYSCALL #541, ${op}");
 }
+
+/* ── 复音发声（v0.96.485）──────────────────────────────────────────────
+ *
+ * 与上面 `ui_audio_*` 的分工：那四个是**播放文件**（BGM），这几个是**现场合成**（音符）。
+ * 音符号是**真 MIDI 语义**：A4 = 69 = 440Hz、中央 C(do) = 60。
+ *
+ * ⚠ **复音 = 多个声部同时响**（最多 `VML_TONE_MAX_VOICES` 个）。
+ *   `ui_beep` 那条"一次只发一个音"的老限制在这里**不存在** ——
+ *   按和弦就是连续 `ui_tone_on` 几个不同通道、中间不 `ui_tone_off`：
+ *
+ *       ui_tone_on(0, 60, 100);   // do
+ *       ui_tone_on(1, 64, 100);   // mi
+ *       ui_tone_on(2, 67, 100);   // sol   ← 三个音**同时在响**
+ *       ...
+ *       ui_tone_off(0, 60); ui_tone_off(1, 64); ui_tone_off(2, 67);
+ *
+ *   `ui_beep` 自己的老语义（连发只听见最后一个）**原样保留**，两者互不干扰：
+ *   蜂鸣占一条自己的专用声道，不吃掉和弦里的任何声部。
+ *
+ * ⚠ 参数**一律钳、不拒**：越界的音符号会被钳到 0–127 继续响，而不是默默不发声。
+ */
+
+/* 起一个音：`ch` 通道 0–15、`note` 音符号 0–127、`vel` 力度 0–127（**0 等同关音**）。
+ * 返回 0 成功 / -1 参数非法。 */
+int ui_tone_on(int ch, int note, int vel) {
+    int op = VML_AUDIO_OP_NOTE_ON;
+    return asm("SYSCALL #541, ${op}, ${ch}, ${note}, ${vel}");
+}
+
+/* 关一个音：`note` 传 **-1** 表示"该通道上所有音"。
+ * 返回 0 成功 / -1 那个音本来就没在响。 */
+int ui_tone_off(int ch, int note) {
+    int op = VML_AUDIO_OP_NOTE_OFF;
+    return asm("SYSCALL #541, ${op}, ${ch}, ${note}");
+}
+
+/* 控制码的统一出口。
+ * ⚠ 参数全部走形参：`asm` 串里的**字面量会被丢掉**（本文件上面几处都记过这条）。 */
+static int _ui_tone_ctl(int ctl, int a, int b) {
+    int op = VML_AUDIO_OP_CONTROL;
+    return asm("SYSCALL #541, ${op}, ${ctl}, ${a}, ${b}");
+}
+
+/* 所有音走**淡出**（不是硬切 —— 硬切会"咔"）。 */
+int ui_tone_all_off(void) { return _ui_tone_ctl(VML_TONE_CTL_ALL_OFF, 0, 0); }
+
+/* 设通道的默认波形（`VML_WAVE_*`）。 */
+int ui_tone_wave(int ch, int wave) { return _ui_tone_ctl(VML_TONE_CTL_WAVE, ch, wave); }
+
+/* 同时允许的声部上限（1–32）。 */
+int ui_tone_max_voices(int n) { return _ui_tone_ctl(VML_TONE_CTL_MAX_VOICES, n, 0); }
+
+/* 此刻在响的声部数（0–32）—— 查"和弦有没有真的叠起来"用它。 */
+int ui_tone_voices(void) { return _ui_tone_ctl(VML_TONE_CTL_VOICES, 0, 0); }
+
+/* 立刻全停（**不进淡出**）。用于"用户强制停止 / 页面被销毁"这类场合。 */
+int ui_tone_panic(void) { return _ui_tone_ctl(VML_TONE_CTL_PANIC, 0, 0); }
 
 /* 帧边界标记（本帧画完了）。 */
 void ui_present(void) {

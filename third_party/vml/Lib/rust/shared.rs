@@ -7692,6 +7692,62 @@ fn ui_audio_playing() -> i32 {
     r
 }
 
+fn ui_tone_on(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_tone_on")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_off(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_tone_off")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn _ui_tone_ctl(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL _ui_tone_ctl")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_all_off() -> i32 {
+    asm!("CALL ui_tone_all_off")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_wave(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_tone_wave")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_max_voices(a0: i32) -> i32 {
+    asm!("CALL ui_tone_max_voices")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_voices() -> i32 {
+    asm!("CALL ui_tone_voices")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_tone_panic() -> i32 {
+    asm!("CALL ui_tone_panic")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_flood_fill(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     asm!("CALL ui_flood_fill")
     let r: i32;

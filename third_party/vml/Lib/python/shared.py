@@ -7570,6 +7570,57 @@ def ui_audio_playing():
     asm("CALL ui_audio_playing")
     return r0
 
+def ui_tone_on(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_tone_on")
+    return r0
+
+def ui_tone_off(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_tone_off")
+    return r0
+
+def _ui_tone_ctl(a0, a1, a2):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL _ui_tone_ctl")
+    return r0
+
+def ui_tone_all_off():
+    r0 = asm("@R0")
+    asm("CALL ui_tone_all_off")
+    return r0
+
+def ui_tone_wave(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_tone_wave")
+    return r0
+
+def ui_tone_max_voices(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_tone_max_voices")
+    return r0
+
+def ui_tone_voices():
+    r0 = asm("@R0")
+    asm("CALL ui_tone_voices")
+    return r0
+
+def ui_tone_panic():
+    r0 = asm("@R0")
+    asm("CALL ui_tone_panic")
+    return r0
+
 def ui_flood_fill(a0, a1, a2, a3):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a3

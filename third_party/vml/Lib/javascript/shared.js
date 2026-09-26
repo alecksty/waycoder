@@ -2467,6 +2467,22 @@
 // CALL ui_audio_volume
 // extern fn ui_audio_playing(void) -> int
 // CALL ui_audio_playing
+// extern fn ui_tone_on(int ch, int note, int vel) -> int
+// CALL ui_tone_on
+// extern fn ui_tone_off(int ch, int note) -> int
+// CALL ui_tone_off
+// extern fn _ui_tone_ctl(int ctl, int a, int b) -> nt
+// CALL _ui_tone_ctl
+// extern fn ui_tone_all_off(void) -> int
+// CALL ui_tone_all_off
+// extern fn ui_tone_wave(int ch, int wave) -> int
+// CALL ui_tone_wave
+// extern fn ui_tone_max_voices(int n) -> int
+// CALL ui_tone_max_voices
+// extern fn ui_tone_voices(void) -> int
+// CALL ui_tone_voices
+// extern fn ui_tone_panic(void) -> int
+// CALL ui_tone_panic
 // extern fn ui_flood_fill(int x, int y, int color, int border) -> int
 // CALL ui_flood_fill
 // extern fn ui_get_image(int x, int y, int w, int h) -> int

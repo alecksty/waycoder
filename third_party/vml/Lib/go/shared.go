@@ -5856,6 +5856,46 @@ func ui_audio_playing() int32 {
     return vml.R0()
 }
 
+func ui_tone_on(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_tone_on")
+    return vml.R0()
+}
+
+func ui_tone_off(a0 int32, a1 int32) int32 {
+    vml.Call("ui_tone_off")
+    return vml.R0()
+}
+
+func _ui_tone_ctl(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("_ui_tone_ctl")
+    return vml.R0()
+}
+
+func ui_tone_all_off() int32 {
+    vml.Call("ui_tone_all_off")
+    return vml.R0()
+}
+
+func ui_tone_wave(a0 int32, a1 int32) int32 {
+    vml.Call("ui_tone_wave")
+    return vml.R0()
+}
+
+func ui_tone_max_voices(a0 int32) int32 {
+    vml.Call("ui_tone_max_voices")
+    return vml.R0()
+}
+
+func ui_tone_voices() int32 {
+    vml.Call("ui_tone_voices")
+    return vml.R0()
+}
+
+func ui_tone_panic() int32 {
+    vml.Call("ui_tone_panic")
+    return vml.R0()
+}
+
 func ui_flood_fill(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     vml.Call("ui_flood_fill")
     return vml.R0()

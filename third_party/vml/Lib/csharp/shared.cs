@@ -1234,6 +1234,14 @@ namespace VML {
     // extern void ui_audio_stop(void);  // CALL ui_audio_stop
     // extern void ui_audio_volume(int volume);  // CALL ui_audio_volume
     // extern int ui_audio_playing(void);  // CALL ui_audio_playing
+    // extern int ui_tone_on(int ch, int note, int vel);  // CALL ui_tone_on
+    // extern int ui_tone_off(int ch, int note);  // CALL ui_tone_off
+    // extern nt _ui_tone_ctl(int ctl, int a, int b);  // CALL _ui_tone_ctl
+    // extern int ui_tone_all_off(void);  // CALL ui_tone_all_off
+    // extern int ui_tone_wave(int ch, int wave);  // CALL ui_tone_wave
+    // extern int ui_tone_max_voices(int n);  // CALL ui_tone_max_voices
+    // extern int ui_tone_voices(void);  // CALL ui_tone_voices
+    // extern int ui_tone_panic(void);  // CALL ui_tone_panic
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
     // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image

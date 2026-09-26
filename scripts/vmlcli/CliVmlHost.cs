@@ -93,6 +93,33 @@ internal sealed class CliVmlHost : IVmlHost
     /// </summary>
     private readonly VmlToneSynth _synth = new();
 
+    /// <summary>上一次推进合成器时的墙钟（毫秒）。见 <see cref="AdvanceSynth"/>。</summary>
+    private long _lastAdvanceMs;
+
+    /// <summary>
+    /// 按**真实流逝的时间**推进合成器（回收已淡出的声部）。
+    ///
+    /// <para>
+    /// ⚠ 桌面**不跑混音线程**（不发声），所以没人调 `Synth.Mix()` ——
+    /// 不补这一步的话，进入 release 的槽位**永远不被回收**，
+    /// 声部数与快照会越积越偏，症状是"明明关掉的音还在快照里"，
+    /// 看着像 `note_off` 没生效。而那两个正是桌面判据的**全部来源**。
+    /// </para>
+    ///
+    /// <para>传真实时间而不是固定步长：固定步长会把 release 时长按调用频率压缩，
+    /// 快照的出现/消失时机跟着失真。</para>
+    /// </summary>
+    private void AdvanceSynth()
+    {
+        var now = Environment.TickCount64;
+        if (_lastAdvanceMs != 0)
+        {
+            var dt = (int)Math.Clamp(now - _lastAdvanceMs, 0, 2000);
+            if (dt > 0) _synth.Advance(dt);
+        }
+        _lastAdvanceMs = now;
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // 屏幕
     // ══════════════════════════════════════════════════════════════════════
@@ -357,6 +384,7 @@ internal sealed class CliVmlHost : IVmlHost
 
     public bool NoteOn(int channel, int note, int velocity, int wave)
     {
+        AdvanceSynth();   // ⚠ 先按真实时间推进（回收已淡出的声部），否则快照越积越偏
         var ok = _synth.NoteOn(channel, VmlToneSynth.NoteToHz(note), note, velocity, wave);
         CliErr.WriteLine($"[vml-audio] note-on ch={channel} note={note} vel={velocity} voices={_synth.VoiceSnapshot()}");
         return ok;
@@ -364,6 +392,7 @@ internal sealed class CliVmlHost : IVmlHost
 
     public bool NoteOff(int channel, int note)
     {
+        AdvanceSynth();
         var ok = _synth.NoteOff(channel, note);
         CliErr.WriteLine($"[vml-audio] note-off ch={channel} note={note} voices={_synth.VoiceSnapshot()}");
         return ok;
@@ -371,6 +400,7 @@ internal sealed class CliVmlHost : IVmlHost
 
     public int ToneControl(int ctl, int a, int b)
     {
+        AdvanceSynth();   // `Voices` 查询尤其要靠它 —— 不推进就是查了个过期状态
         int ret;
         switch (ctl)
         {

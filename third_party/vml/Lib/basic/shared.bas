@@ -5854,6 +5854,46 @@ DECLARE FUNCTION ui_audio_playing() AS INTEGER
     ui_audio_playing = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_tone_on(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_tone_on")
+    ui_tone_on = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_off(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_tone_off")
+    ui_tone_off = 0
+END FUNCTION
+
+DECLARE FUNCTION _ui_tone_ctl(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL _ui_tone_ctl")
+    _ui_tone_ctl = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_all_off() AS INTEGER
+    asm("CALL ui_tone_all_off")
+    ui_tone_all_off = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_wave(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_tone_wave")
+    ui_tone_wave = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_max_voices(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_tone_max_voices")
+    ui_tone_max_voices = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_voices() AS INTEGER
+    asm("CALL ui_tone_voices")
+    ui_tone_voices = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tone_panic() AS INTEGER
+    asm("CALL ui_tone_panic")
+    ui_tone_panic = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_flood_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
     asm("CALL ui_flood_fill")
     ui_flood_fill = 0

@@ -400,10 +400,17 @@ public sealed class VmlToneSynth
     {
         lock (_gate)
         {
-            var notes = new System.Collections.Generic.List<int>();
+            // ⚠ 老式蜂鸣的 Note 是 -1（它拿到的是频率、不是音符号）——
+            //   直接打进日志会变成 `[-1,64,67]`，读的人得先知道那个约定才看得懂。
+            //   显示成 `beep` 是自解释的（这一行的读者是人，不是解析器）。
+            var notes = new System.Collections.Generic.List<string>();
             for (var i = 0; i < _voices.Length; i++)
-                if (_voices[i].Active && _voices[i].Stage != StageRelease) notes.Add(_voices[i].Note);
-            notes.Sort();
+            {
+                ref var v = ref _voices[i];
+                if (!v.Active || v.Stage == StageRelease) continue;
+                notes.Add(v.Note < 0 ? "beep" : v.Note.ToString());
+            }
+            notes.Sort(StringComparer.Ordinal);
             return $"{notes.Count} [{string.Join(",", notes)}]";
         }
     }
@@ -473,6 +480,34 @@ public sealed class VmlToneSynth
             }
 
             return peakVoices;
+        }
+    }
+
+    /// <summary>
+    /// 只推进包络 / 回收槽位，**不产出 PCM** —— 给**不跑混音线程的宿主**用
+    /// （桌面 vmlcli：它不发声，也就没人调 <see cref="Mix"/>）。
+    ///
+    /// <para>
+    /// ⚠ 少了这一步会出一个很隐蔽的错：进入 release 的槽位**永远不被回收**，
+    /// 于是声部数与 <see cref="VoiceSnapshot"/> 越积越偏 ——
+    /// 而那两个**正是桌面判据的全部来源**（"三个音同时在响"就靠它）。
+    /// 症状是"明明关掉了的音还在快照里"，看着像 `note_off` 没生效。
+    /// </para>
+    ///
+    /// <para><paramref name="ms"/> 应当传**真实流逝的时间**（不是固定步长）——
+    /// 传固定值等于把 release 时长按调用频率压缩或拉长，快照的时机会跟着失真。</para>
+    /// </summary>
+    public void Advance(int ms)
+    {
+        if (ms <= 0) return;
+        var left = (int)Math.Min((long)SampleRate * ms / 1000, SampleRate * 5);
+        if (left <= 0) left = 1;
+        var scratch = new short[Math.Min(left, 2048)];
+        while (left > 0)
+        {
+            var n = Math.Min(left, scratch.Length);
+            Mix(scratch, n);
+            left -= n;
         }
     }
 
