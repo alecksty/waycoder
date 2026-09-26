@@ -96,6 +96,31 @@ internal sealed class CliVmlHost : IVmlHost
     /// <summary>上一次推进合成器时的墙钟（毫秒）。见 <see cref="AdvanceSynth"/>。</summary>
     private long _lastAdvanceMs;
 
+    /// <summary>平台音频输出是否已经尝试启动过（只试一次，失败也不重试）。</summary>
+    private bool _audioTried;
+
+    /// <summary>
+    /// 桌面**真的发声**（v0.96.485）—— 惰性启动平台音频输出。
+    ///
+    /// <para>
+    /// 在此之前 `vmlcli` 只往 stderr 打一行 `[vml-audio] tone …`（那是判据接口，
+    /// **现在也保留**：CI / 容器里没有声卡，日志必须是唯一可靠的观测面）。
+    /// 现在多了一条真出声的路：把**同一个** `VmlToneSynth` 接给声卡，
+    /// 于是"桌面上跑起来能听见和弦"这件事不再需要真机。
+    /// </para>
+    ///
+    /// <para>失败（没声卡 / 平台不支持）**只打一行说明**，不抛 —— 程序照跑。</para>
+    /// </summary>
+    private void EnsureAudio()
+    {
+        if (_audioTried) return;
+        _audioTried = true;
+        DesktopAudio.Start(VmlToneSynth.SampleRate, _synth.Mix);
+        // 成功也报一声：不然"到底出没出声"要靠有没有失败信息来推断，那是猜。
+        CliErr.WriteLine($"[vml-audio] 桌面音频后端：{DesktopAudio.Backend}"
+            + (DesktopAudio.Available ? "（**真发声**）" : "（退化为只打日志，判据不受影响）"));
+    }
+
     /// <summary>
     /// 按**真实流逝的时间**推进合成器（回收已淡出的声部）。
     ///
@@ -371,9 +396,10 @@ internal sealed class CliVmlHost : IVmlHost
     public void Tone(int hz, int ms, int wave, int volume)
     {
         CliErr.WriteLine($"[vml-audio] tone hz={hz} ms={ms} wave={wave} vol={volume}");
-        // 老式蜂鸣也进合成器（进 LegacyLane 那条专用声道）—— 桌面不发声，
-        // 但声部表要跟着动，否则 `voices=` 就不是真实读数。
+        // 老式蜂鸣也进合成器（进 LegacyLane 那条专用声道）—— 声部表要跟着动，
+        // 否则 `voices=` 就不是真实读数；接上音频输出后它就是**听到的那一声**。
         _synth.NoteOn(VmlToneSynth.LegacyLane, hz, -1, 100, wave, holdMs: ms);
+        EnsureAudio();
     }
 
     // ── 复音（`Audio` 的 op 4/5/6，v0.96.485）──────────────────────────────
@@ -385,6 +411,7 @@ internal sealed class CliVmlHost : IVmlHost
     public bool NoteOn(int channel, int note, int velocity, int wave)
     {
         AdvanceSynth();   // ⚠ 先按真实时间推进（回收已淡出的声部），否则快照越积越偏
+        EnsureAudio();    // 第一次起音时才启动音频输出（不发声的程序不该占声卡）
         var ok = _synth.NoteOn(channel, VmlToneSynth.NoteToHz(note), note, velocity, wave);
         CliErr.WriteLine($"[vml-audio] note-on ch={channel} note={note} vel={velocity} voices={_synth.VoiceSnapshot()}");
         return ok;

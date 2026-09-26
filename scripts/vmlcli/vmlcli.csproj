@@ -101,6 +101,9 @@
          ⚠ 本文件是**显式清单**（不是 glob）—— 往 UI/Shared/ 加新文件时必须在这里补一行，
            漏了会以"找不到类型"的形式报在 vmlcli 上，而主工程/MAUI 那边（走 glob）看不出来。 -->
     <Compile Include="../../WayCoder/UI/Shared/VmlToneSynth.cs" Link="VmlToneSynth.cs" />
+    <!-- ⚠ 本文件列的是**跨目录**的源文件。项目自己目录（scripts/vmlcli/）下的 .cs
+         由 SDK 默认包含，**不要再写一遍** —— 重复包含会以 NETSDK1022 报错。
+         （`DesktopAudio.cs` 就属于这一类，它在这个目录里，所以这里没有它。） -->
     <Compile Include="../../WayCoder/UI/Shared/VmlProject.cs" Link="VmlProject.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProjectImport.cs" Link="VmlProjectImport.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlMakefileImporter.cs" Link="VmlMakefileImporter.cs" />
