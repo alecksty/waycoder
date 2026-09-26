@@ -536,26 +536,39 @@ public sealed class VmlToneSynth
         v.Stage = StageRelease;
     }
 
-    /// <summary>找一个空槽；没有就抢占（优先抢"已经在释放"的，否则抢最老的）。</summary>
+    /// <summary>
+    /// 找一个槽给新声部：**上限之内**还有空槽就正常占一个；到了上限（或一个空槽都没有）
+    /// 就抢占 —— 优先抢"已经在释放"的，否则抢最老的活跃声部。
+    /// </summary>
     private int FindFreeSlotLocked()
     {
         var active = 0;
         var releasingLowest = -1;
         var releasingEnv = double.MaxValue;
-        var oldest = 0;
+        var freeSlot = -1;
+        var oldestActive = -1;
 
         for (var i = 0; i < _voices.Length; i++)
         {
             ref var v = ref _voices[i];
-            if (!v.Active) return i;
+            if (!v.Active) { if (freeSlot < 0) freeSlot = i; continue; }
             if (v.Stage == StageRelease && v.Env < releasingEnv) { releasingEnv = v.Env; releasingLowest = i; }
-            if (v.Serial < _voices[oldest].Serial) oldest = i;
+            if (oldestActive < 0 || v.Serial < _voices[oldestActive].Serial) oldestActive = i;
             active++;
         }
 
-        // 到达上限才抢；没到上限却一个空槽都没有是不可能的（上面已经 return 了）。
-        if (active >= _maxVoices && releasingLowest >= 0) return releasingLowest;
-        return oldest;
+        // ⚠ **上限必须在这里判，不能只在"表全占满"时判**。旧版写的是
+        //   「一见到 !Active 就 return i」，而 `_maxVoices` 只在最后一个 else 里用到 ——
+        //   于是只要表里还有空槽，`ui_tone_max_voices(2)` 就形同虚设：32 个槽随便占。
+        //   （实测：压到 2 之后起 4 个音，`ui_tone_voices()` 报 4，声音也确实四个一起响。
+        //   两端共用本类 ⇒ Android / iOS / 桌面 vmlcli 全都一样。）
+        //   程序员的意图是"同时在响的声部不超过 N 个"，而不是"表装满之前随便占"。
+        if (active < _maxVoices && freeSlot >= 0) return freeSlot;
+
+        // 到上限了（或表满）：抢一个，**而且不能退回空槽** —— 那就突破上限了。
+        if (releasingLowest >= 0) return releasingLowest;
+        if (oldestActive >= 0) return oldestActive;
+        return freeSlot >= 0 ? freeSlot : 0;   // 兜底：一个活跃声部都没有（正常情况下上面已经返回）
     }
 
     /// <summary>

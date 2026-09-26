@@ -407,9 +407,14 @@ internal sealed class CliVmlHost : IVmlHost
     /// </summary>
     public void Tone(int hz, int ms, int wave, int volume)
     {
-        CliErr.WriteLine($"[vml-audio] tone hz={hz} ms={ms} wave={wave} vol={volume}");
+        // ⚠ 末尾这个 `master=` 是**追加**，前面的字段一个字没动 —— `run.sh` 用
+        //   `grep -o 'tone hz=[0-9]*'` 抽序列，加在尾巴上照旧命中（那 20 项仍全绿）。
+        //   为什么要有它：`vol=` 是**这一次调用**带的音量（`ui_beep` 走 #57 时恒 100），
+        //   而"主音量调小了没有"看的是 `master=` —— 少了这个字段，第 ⑩ 项在桌面**判不了**。
+        CliErr.WriteLine($"[vml-audio] tone hz={hz} ms={ms} wave={wave} vol={volume} master={_synth.Volume}");
         // 老式蜂鸣也进合成器（进 LegacyLane 那条专用声道）—— 声部表要跟着动，
         // 否则 `voices=` 就不是真实读数；接上音频输出后它就是**听到的那一声**。
+        // 音量不在这里乘：合成器内部已经按 `Volume`（主音量）作用到总增益上。
         _synth.NoteOn(VmlToneSynth.LegacyLane, hz, -1, 100, wave, holdMs: ms);
         EnsureAudio();
     }
@@ -473,7 +478,19 @@ internal sealed class CliVmlHost : IVmlHost
 
     public void StopAudio() => CliErr.WriteLine("[vml-audio] stop");
 
-    public void SetAudioVolume(int volume) => CliErr.WriteLine($"[vml-audio] volume={volume}");
+    /// <summary>
+    /// 主音量（`ui_audio_volume`）。
+    ///
+    /// ⚠ **必须转进合成器**：桌面 `vmlcli` 是**真发声**的（CoreAudio/AudioQueue），
+    /// 原先这里只打一行日志、`_synth.Volume` 一直是它自己的默认值 ⇒ 程序喊"音量 30%"
+    /// 而桌面照样满音量往外放，且日志里看不出区别（"调小了还是那么响"）。
+    /// 手机端（`VmlAudio.SetVolume`）本来就是设进去的，这里补齐同一条口径。
+    /// </summary>
+    public void SetAudioVolume(int volume)
+    {
+        _synth.Volume = volume;   // setter 自己钳 0–100
+        CliErr.WriteLine($"[vml-audio] volume={_synth.Volume}");   // 打**生效值**：传 200 时显示 100，一眼看出被钳
+    }
 
     public bool Vibrate(int ms, int amplitude)
     {

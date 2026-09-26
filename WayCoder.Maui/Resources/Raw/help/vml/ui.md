@@ -369,7 +369,7 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。**单通道**，连发只听见最后一个。 |
+| [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。**单通道**，连发只听见最后一个 —— **这正是不破音的原因**：一个事件永远只有一个音在响。**游戏音效用它**。 |
 | [ui_tone_on](help:vml/ui/feel) | **复音**：起一个音（音符号 0–127，A4=69）。几个通道同时起就是和弦。 |
 | [ui_tone_off](help:vml/ui/feel) | 关一个音（`note` 传 -1 = 该通道全部）。 |
 | [ui_tone_all_off](help:vml/ui/feel) | 全关（走淡出）。 |
@@ -377,7 +377,7 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 | [ui_tone_panic](help:vml/ui/feel) | **立刻**全停（不进淡出）—— 一键静音 / 强制停止用。 |
 | [ui_tone_wave](help:vml/ui/feel) | 设某通道的波形（正弦/方波/锯齿/三角）—— 和弦里给低音换三角波就不糊。 |
 | [ui_tone_max_voices](help:vml/ui/feel) | 同时允许的声部上限（1–32，默认 32）。 |
-| [ui_sfx_add](help:vml/ui/feel) | **音序器**：塞一个音（delay 拍后响、响 dur 拍）。做"轰 / 叮 / 警报"这类**有音色**的音效用它。 |
+| [ui_sfx_add](help:vml/ui/feel) | **音序器**：塞一个音（delay 拍后响、响 dur 拍）。⚠ **游戏音效别用它**（多声部叠加 / 长音拖尾**真机破音**，本仓 28 个游戏已全量退回 `ui_beep`）—— 见 [音效用哪个](help:vml/ui/feel)。 |
 | [ui_sfx_tick](help:vml/ui/feel) | 每帧调一次，按真实流逝时间推进（**放主循环里**）。 |
 | [ui_sfx_panic](help:vml/ui/feel) | 立刻静音 + 清表（退出 / 重开一局时）。 |
 | [ui_sfx_active](help:vml/ui/feel) | 还有几个槽占着 —— **放完一轮应当回到 0**，拿它做自检。 |

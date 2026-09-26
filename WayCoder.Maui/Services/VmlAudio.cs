@@ -372,6 +372,17 @@ internal static class VmlAudio
         if (_node != null) return _node;
         try
         {
+            // ⚠⚠ **必须配音频会话，否则"一点声音都没有"**（2026-09-27 真机报「iOS 设备上没有声音」）：
+            //   iOS 的默认类别是 `SoloAmbient` —— 它**跟随静音开关**（侧边开关/响铃静音）。开关一
+            //   拨到静音，App 里所有合成音**一声不响**，而且**不报错**：引擎照常 `Start` 成功、
+            //   `ToneCore` 照常返回 true、日志里干干净净，就是听不见 —— 实测设备日志里一条音频
+            //   错误都没有，正对上这一条。
+            //   `Playback` = 忽略静音开关（游戏音效就该这样）；再加 `MixWithOthers`，
+            //   免得把用户正在听的音乐掐掉（`Playback` 默认会独占）。
+            var session = AVAudioSession.SharedInstance();
+            session.SetCategory(AVAudioSessionCategory.Playback, AVAudioSessionCategoryOptions.MixWithOthers);
+            session.SetActive(true);
+
             var engine = new AVAudioEngine();
             var node = new AVAudioPlayerNode();
             engine.AttachNode(node);

@@ -310,6 +310,44 @@ public static partial class SelfTest
                 regs[0] == 0 && host.Audio.Count == 1 && host.Synth.ActiveVoices == 1);
         }
 
+        // ── ⑬ 声部上限：`ui_tone_max_voices(n)` 真的限住了吗 ─────────────────
+        //
+        // ⚠ 这一段是**被 `Examples/c/audio_all.c` 的第 ⑥ 项抓出来的**：
+        //   上限压到 2 之后起 4 个音，`ui_tone_voices()` 报的却是 4 —— 声音也四个一起响。
+        //   根因在 `FindFreeSlotLocked`：它「一见空槽就 return」，而 `_maxVoices` 只在
+        //   表**32 个槽全占满**时才轮到判 ⇒ 上限形同虚设。两端共用这个类，
+        //   所以 Android / iOS / 桌面 vmlcli 全都一样。
+        //   教训：自测里原先只有「ctl 转发下去了」和「Voices 在 0..32 之间」两条 ——
+        //   **转发**与**生效**是两件事，前者全绿后者照样是坏的。
+        {
+            var s = new VmlToneSynth();
+            s.MaxVoicesLimit = 2;
+            for (var ch = 0; ch < 4; ch++)
+                s.NoteOn(ch, VmlToneSynth.NoteToHz(60 + ch * 4), 60 + ch * 4, 100, wave: 0);
+            s.Mix(new short[512], 512);
+            Check($"声部上限 2 → 起 4 个音之后在响的仍 ≤ 2（实得 {s.ActiveVoices}）",
+                s.ActiveVoices <= 2);
+            Check("声部上限只压数量、不封死发声：被留下的声部确实在响",
+                s.ActiveVoices == 2 && s.VoiceSnapshot().EndsWith("]"));
+
+            // 上限放开之后要能再涨回去（别把槽位标记成坏的）
+            s.MaxVoicesLimit = VmlToneSynth.MaxVoices;
+            s.Panic();
+            for (var ch = 0; ch < 4; ch++)
+                s.NoteOn(ch, VmlToneSynth.NoteToHz(60 + ch * 4), 60 + ch * 4, 100, wave: 0);
+            s.Mix(new short[512], 512);
+            Check("上限复位到 32 之后，同样的 4 个音全部成立", s.ActiveVoices == 4);
+
+            // 抢占优先级没被改动：上限之内仍有空槽时**不该**去抢已在响的声部
+            var s2 = new VmlToneSynth();
+            s2.MaxVoicesLimit = 3;
+            for (var ch = 0; ch < 3; ch++)
+                s2.NoteOn(ch, VmlToneSynth.NoteToHz(60 + ch * 4), 60 + ch * 4, 100, wave: 0);
+            s2.Mix(new short[512], 512);
+            Check("上限 3 起 3 个音：三个都在（没到上限就不许抢占）",
+                s2.VoiceSnapshot() == "3 [60,64,68]");
+        }
+
         _ = Fail;
     }
 

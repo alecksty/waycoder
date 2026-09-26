@@ -125,9 +125,12 @@ EXAMPLES_PASCAL_CORPUS_RE='^Examples/pascal/(avc_|g7iles_|gcorail_|gmsdos_|gnc_|
 EX_LIST="$(mktemp)"
 {
     cd "$VML"
-    find Examples -maxdepth 1 -type f ! -name '*.gen.vml'
-    find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml'
-    find Examples -mindepth 3 -maxdepth 3 -type f ! -name '*.gen.vml'
+    # ⚠ `! -name '.DS_Store'`：macOS 逛一遍目录就会留下这个文件，而它在 `Examples/` 里
+    #   一被 find 到就**随包发到用户设备上**（实测 `Examples/c/.DS_Store` 进了 zip）。
+    #   这里排掉就够 —— 下面两条打包路径（zip / Python）吃的是**同一份清单**。
+    find Examples -maxdepth 1 -type f ! -name '*.gen.vml' ! -name '.DS_Store'
+    find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml' ! -name '.DS_Store'
+    find Examples -mindepth 3 -maxdepth 3 -type f ! -name '*.gen.vml' ! -name '.DS_Store'
 } | sort | grep -Ev "$EXAMPLES_PASCAL_CORPUS_RE" > "$EX_LIST" || true
 # （`|| true` 是**为了把话说清楚**，不是为了放行：`grep` 一行都没匹配上时返回 1，
 #   而 `set -e` 会抢在下面那条检查之前就退出 —— 结果是一个**没有理由的退出码 1**。
