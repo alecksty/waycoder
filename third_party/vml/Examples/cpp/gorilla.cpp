@@ -839,6 +839,244 @@ void cloudsDraw(int scrW, int groundY)
 
 
 // ════════════════════════════════════════════════════════════════════
+// 音效：一个小音序器
+// ════════════════════════════════════════════════════════════════════
+//
+// 为什么要它，而不是在事件点上直接 `ui_tone_on/off`：
+//
+//   ① **`ui_tone_on` 没有时长参数** —— 响多久全看自己什么时候 `note_off`。
+//      在事件点 on、忘了 off，声部就只涨不落（上限 32，满了以后新音**全哑**，
+//      而且**一声不响地哑**）。表里记着"还差几拍关"，就不会漏。
+//   ② 好听的音效往往是**几个音先后**（"叮—咚"、上行三音），而事件点只有一拍 ——
+//      需要"过几拍再响下一个"。
+//   ③ 同一个**通道**上后一个音会掐掉前一个（这正是 `ui_beep` 的老语义）。
+//      所以"同时响"必须落在**不同通道**上 —— 得有一处统一分配，否则两处音效
+//      撞到同一个通道就是"少响了一个，还看不出为什么"。
+//
+// 三条合起来 = 一张小表 + 每拍推进一次。
+//
+// ⚠ **通道分配是这张表的契约**（分区互不重叠；同分区内的音效可以互相覆盖，
+//   那是有意的：新事件就该盖过旧事件）：
+//     0–2   地面爆炸（三音轰鸣）
+//     3–5   命中得分的和弦
+//     6–7   发射
+//     8–9   空中爆炸
+//     10–12 警报（飞碟低吼）/ 激光
+//     13–15 胜负
+//
+// ⚠ **两个"可能同时发生"的音效绝不能共用通道**。实测踩过：探针里让发射音与
+//   空中爆炸音同拍响（它们本该相隔一个飞行过程，那次是人为凑到一起的），
+//   后者把前者的槽顶掉 —— 表现是**发射音一声没有**，而日志上只是"少了两行"，
+//   很容易当成"没做"。分区表就是按"谁与谁可能同拍"划的：发射与空中爆炸分开了，
+//   低吼与激光分开用各自的（它们先后发生，共用没问题，但仍分开更省心）。
+//   `ui_beep` 走宿主那条**专用声道**，与本表**互不干扰** —— 所以哪怕将来
+//   还有地方在用老音效，它也不会吃掉和弦。
+#define SFX_SLOTS 16
+
+// 波形（与 `VML_WAVE_*` 同值，这里再写一遍是为了让下面的音色表读起来不用跳出去查）
+#define SFX_SINE     0
+#define SFX_SQUARE   1
+#define SFX_SAW      2
+#define SFX_TRIANGLE 3
+
+static int sfxCh[SFX_SLOTS];
+static int sfxNote[SFX_SLOTS];
+static int sfxDel[SFX_SLOTS];      // 还差几拍开响（0 = 落到这一拍就响）
+static int sfxDur[SFX_SLOTS];      // 响几拍
+static int sfxVel[SFX_SLOTS];
+static int sfxWave[SFX_SLOTS];
+static int sfxOn[SFX_SLOTS];       // 1 = 已经 note_on、还等着 note_off
+
+/// 清表（**不发声**）。⚠ 只清表不关音 = 已经在响的那些**从此没人管**，
+/// 所以要"静音"请走 `SfxPanic()`。
+void SfxReset()
+{
+    int i;
+    i = 0;
+    while (i < SFX_SLOTS)
+    {
+        sfxCh[i] = -1;
+        sfxNote[i] = -1;
+        sfxDel[i] = 0;
+        sfxDur[i] = 0;
+        sfxVel[i] = 0;
+        sfxWave[i] = -1;
+        sfxOn[i] = 0;
+        i = i + 1;
+    }
+}
+
+/// 立刻静音。退出、重开一局时用。
+/// ⚠ **顺序不能反**：先清表就丢掉了"哪些通道在响"，那些声部会一直响到程序结束。
+void SfxPanic()
+{
+    int i;
+    i = 0;
+    while (i < SFX_SLOTS)
+    {
+        if (sfxOn[i] != 0) { ui_tone_off(sfxCh[i], sfxNote[i]); }
+        i = i + 1;
+    }
+    ui_tone_panic();          // 兜底：表外的（老音效那条声道）也一并停
+    SfxReset();
+}
+
+/// 往表里塞一个音（`del` 拍之后开始响、响 `dur` 拍）。
+///
+/// ⚠ 会**先接管同通道的旧槽**，而且在接管之前**先把那个音关掉**：
+///   不然旧槽连同"它还在响"这件事一起被丢掉，那个声部就再也没人去关它了。
+void SfxAdd(int ch, int note, int del, int dur, int vel, int wave)
+{
+    int i;
+    int slot;
+    slot = -1;
+    i = 0;
+    while (i < SFX_SLOTS)
+    {
+        if (sfxCh[i] == ch)
+        {
+            if (sfxOn[i] != 0) { ui_tone_off(sfxCh[i], sfxNote[i]); }
+            slot = i;
+        }
+        i = i + 1;
+    }
+    if (slot < 0)
+    {
+        i = 0;
+        while (i < SFX_SLOTS)
+        {
+            if (sfxCh[i] < 0) { slot = i; }
+            i = i + 1;
+        }
+    }
+    if (slot < 0) { return; }        // 表满：宁可少一个音，也不要越界
+    sfxCh[slot] = ch;
+    sfxNote[slot] = note;
+    sfxDel[slot] = del;
+    sfxDur[slot] = dur;
+    sfxVel[slot] = vel;
+    sfxWave[slot] = wave;
+    sfxOn[slot] = 0;
+}
+
+/// 一拍推进。**由主循环按真实流逝时间调**（不是物理节拍 —— 见那里的说明：
+/// 游戏结束后物理定时器会被杀掉，而胜负音还得接着放完）。
+void SfxTick()
+{
+    int i;
+    i = 0;
+    while (i < SFX_SLOTS)
+    {
+        if (sfxCh[i] >= 0)
+        {
+            if (sfxOn[i] == 0)
+            {
+                if (sfxDel[i] > 0) { sfxDel[i] = sfxDel[i] - 1; }
+                else
+                {
+                    ui_tone_wave(sfxCh[i], sfxWave[i]);
+                    ui_tone_on(sfxCh[i], sfxNote[i], sfxVel[i]);
+                    sfxOn[i] = 1;
+                }
+            }
+            else
+            {
+                sfxDur[i] = sfxDur[i] - 1;
+                if (sfxDur[i] <= 0)
+                {
+                    ui_tone_off(sfxCh[i], sfxNote[i]);
+                    sfxCh[i] = -1;
+                    sfxNote[i] = -1;
+                    sfxWave[i] = -1;
+                    sfxOn[i] = 0;
+                }
+            }
+        }
+        i = i + 1;
+    }
+}
+
+// ── 音色表 ──────────────────────────────────────────────────────────
+//
+// 音符号是**真 MIDI 语义**（中央 C = 60、A4 = 69 = 440Hz）。
+//
+// ⚠ **低音别写太低**：手机的外放小喇叭在 200Hz 以下衰减很快，写 36（C2=65Hz）
+//   出来是"噗"的一声闷响，玩家听着像**没响**而不是"低沉"。所以轰鸣的**基音
+//   落在 48（C3=130Hz）上下**，低八度只当"配重"垫一层（三角波、谐波少）。
+//   要判断"够不够响"只能上真机听 —— 桌面（耳机/音箱）听得到不代表手机听得到。
+
+/// 发射：短促的一记「嗖」（两个音快速下行 = 有方向感）。
+void SfxFire()
+{
+    SfxAdd(6, 77, 0, 2, 70, SFX_TRIANGLE);
+    SfxAdd(7, 72, 1, 2, 55, SFX_TRIANGLE);
+}
+
+/// 命中得分：**大三和弦上行**（do–mi–sol）。
+/// 得分是这一局里重复最多的正反馈，就该是最好听的那个 —— 一次只响一个音
+/// 的话，打十次听十遍"哔"，赢也听不出高兴。
+void SfxHit()
+{
+    SfxAdd(3, 72, 0, 4, 95, SFX_SQUARE);
+    SfxAdd(4, 76, 1, 4, 85, SFX_SQUARE);
+    SfxAdd(5, 79, 2, 6, 85, SFX_SQUARE);
+}
+
+/// 空中爆炸（打到飞行物）：高音一「叮」+ 低音垫底，**不用轰鸣** ——
+/// 那是"打爆了一个小东西"，与撞楼的份量不一样，听着就该不一样。
+void SfxAirBoom()
+{
+    SfxAdd(8, 84, 0, 2, 85, SFX_SQUARE);
+    SfxAdd(9, 55, 0, 3, 70, SFX_SAW);
+}
+
+/// 撞楼 / 落地：「轰」。
+/// 靠**三个不谐和的低音叠在一起**做出粗粝感（48 与 54 是三全音，最"脏"的音程），
+/// 再垫一个低八度当配重。锯齿波谐波丰富，比方波更像爆破。
+void SfxGroundBoom()
+{
+    SfxAdd(0, 48, 0, 6, 100, SFX_SAW);
+    SfxAdd(1, 54, 0, 5, 75, SFX_SAW);
+    SfxAdd(2, 36, 0, 7, 85, SFX_TRIANGLE);
+}
+
+/// 飞碟被惹毛：**下行警报**（三个音，锯齿 = 有攻击性）。
+/// 事件点上响一个音是"哔"，下行三音才是"我盯上你了"。
+void SfxRage()
+{
+    SfxAdd(10, 72, 0, 3, 90, SFX_SAW);
+    SfxAdd(11, 67, 3, 3, 90, SFX_SAW);
+    SfxAdd(12, 60, 6, 8, 95, SFX_SAW);
+}
+
+/// 被飞碟清场（这一局**与分数无关地**结束）：低沉的长音慢慢往下沉。
+void SfxLaser()
+{
+    SfxAdd(10, 55, 0, 6, 100, SFX_SAW);
+    SfxAdd(11, 48, 5, 8, 95, SFX_SAW);
+    SfxAdd(12, 36, 10, 14, 90, SFX_TRIANGLE);
+}
+
+/// 获胜：**上行大三和弦 + 高八度收尾**，明亮。
+void SfxWin()
+{
+    SfxAdd(13, 72, 0, 4, 95, SFX_SQUARE);
+    SfxAdd(14, 79, 2, 5, 90, SFX_SQUARE);
+    SfxAdd(15, 84, 5, 12, 90, SFX_SQUARE);
+}
+
+/// 输：**小二度下行**（G–F#，最不谐和的音程之一）再拖一个低音。
+/// ⚠ 输赢的音必须**不看屏幕也分得出** —— 合成音是单通道的那个年代只能用音高
+///   表达情绪，这规矩在复音时代同样成立：两者都用"上行三音"的话，玩家只知道
+///   "响了个东西"，还得抬头看横幅才知道自己是输是赢。
+void SfxLose()
+{
+    SfxAdd(13, 67, 0, 4, 90, SFX_SAW);
+    SfxAdd(14, 66, 4, 10, 90, SFX_SAW);
+    SfxAdd(15, 42, 4, 10, 85, SFX_TRIANGLE);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Entity —— 所有能在屏幕上画自己的东西的基类
 //
 // 只放两个字段（屏幕坐标）+ 一个**虚**的 Draw()。放基类指针数组里逐个调 Draw()
@@ -2128,7 +2366,7 @@ public:
         live = 1;
         phase = 0;
         t = 0;
-        ui_beep(300, 200);           // 一声低吼：玩家要立刻知道"我惹到它了"
+        SfxRage();           // 下行警报：玩家要立刻知道"我惹到它了"
         ui_vibrate(120, 0);
     }
 
@@ -2896,6 +3134,11 @@ public:
     {
         who->Shoot(&ban, wind.v);
         state = ST_FLY;
+        // ⚠ 音效挂在**这里**（动作本身），不是挂在某条输入路径上 ——
+        //   原先它只写在触摸那支里，于是**键盘回车发射是一声不响的**
+        //   （游戏是"全触摸"，键盘只是兜底，所以这个缺口一直没被发现）。
+        //   挂在动作上则键盘 / 触摸 / 将来真加了自动发射，都自动有。
+        SfxFire();
     }
 
     // 一拍物理；返回 1 = 这一拍结算了（换人或结束）
@@ -2946,7 +3189,7 @@ public:
             over = 1;
             boomX = (*AP[ufo.target]).x;
             boomY = (*AP[ufo.target]).y - 20;
-            ui_beep(160, 800);
+            SfxLaser();
             ui_vibrate(400, 0);
             return 1;
         }
@@ -3021,7 +3264,7 @@ public:
                 boomT = 0;
                 state = ST_BOOM;
                 ban.Stop();
-                ui_beep(880, 60);
+                SfxHit();
                 ui_vibrate(40, 0);
                 return 1;
             }
@@ -3034,7 +3277,7 @@ public:
                 boomT = 0;
                 state = ST_BOOM;
                 ban.Stop();
-                ui_beep(1200, 50);
+                SfxAirBoom();
                 ui_vibrate(30, 0);
                 return 1;
             }
@@ -3050,7 +3293,7 @@ public:
                 boomT = 0;
                 state = ST_BOOM;
                 ban.Stop();
-                ui_beep(180, 40);
+                SfxGroundBoom();
                 return 1;
             }
             if (r == 2)
@@ -3067,7 +3310,15 @@ public:
             boomT = boomT + 1;
             if (boomT > BOOM_TICKS)
             {
-                if ((*AP[0]).score >= WIN_SCORE || (*AP[1]).score >= WIN_SCORE) { over = 1; }
+                // 打够分就结束 —— 赢家**一定是刚刚得分的那位**（分数是一个一个加的，
+                // 不存在两人同时到顶），所以这里不必再比一次分数。⚠ 但**不能**因此
+                // 就用 `SfxWin()` 一把梭：另一条结束路径（被飞碟清场）的胜负与分数无关，
+                // 它在上面单独响了 `SfxLaser()`。
+                if ((*AP[0]).score >= WIN_SCORE || (*AP[1]).score >= WIN_SCORE)
+                {
+                    over = 1;
+                    SfxWin();
+                }
                 turn = 1 - turn;
                 NewTurn();
                 return 1;
@@ -3286,8 +3537,7 @@ public:
         }
         if (isDown != 0 && py >= fireY && py < fireY + fireH && px >= fireX && px <= fireX + fireW)
         {
-            Fire(&(*AP[turn]));
-            ui_beep(660, 40);
+            Fire(&(*AP[turn]));      // 发射音在 Fire() 里，别在这里再来一次
         }
     }
 
@@ -3622,6 +3872,7 @@ int main()
     // 上一拍物理 / 游戏时钟的 `ui_tick()` 时刻 —— 用来"按真实流逝时间补拍"，
     // 让物理与时钟**与帧率解耦**（见主循环 `VML_MSG_TIMER` 那两支的长注释）。
     int lastPhysMs;
+    int lastSfxMs;           // 音效音序器的上一拍时刻（见主循环里那段说明）
     int lastClockMs;
 
     // 把静态初值的 `gHour/gMinute`（开局 7:30）落进毫秒真源 —— **全程序只此一处换算**。
@@ -3641,6 +3892,8 @@ int main()
 
     lastPhysMs = ui_tick();
     lastClockMs = lastPhysMs;
+    lastSfxMs = lastPhysMs;
+    SfxReset();              // 表清干净（静态区本来就是空的，这里只为"重开一局"这条将来留一个入口）
 
     tid = ui_timer_set(TICK_MS, 0);
     // 游戏时钟：**另一只定时器**，1 真实秒 = 1 游戏分钟（24 真实分钟走完一天）。
@@ -3656,6 +3909,36 @@ int main()
 
     while (done == 0 && ui_win_closed() == 0)
     {
+        // ── 音效音序器：**按真实流逝时间**推进，与物理同一套理由 ──────────
+        //
+        // ⚠⚠ **不能挂在物理节拍（`g.Tick()`）里**，这是本版最容易踩的一处：
+        //   一局结束的**那一刻**主循环就把物理定时器 `ui_timer_kill(tid)` 了
+        //   （见下面"结束"那一支），而胜负音正要在这时候开始放 ——
+        //   挂在物理上，`Tick()` 从此不再被调 ⇒ 那串音**只会响出第一个音**，
+        //   后面几个永远等不到"下一拍"。症状是"赢了只听到一声"，很容易被当成
+        //   "音效没做"而不是"驱动源选错了"。
+        //   挂在这儿则一路活到程序退出（时钟定时器 `cid` 还在，消息循环照转）。
+        //
+        // ⚠ 上限 4 拍、且**推进后把 `lastSfxMs` 对齐到真实时间**（不是 `+want*TICK_MS`）：
+        //   与物理那段同一个理由 —— 卡顿一下不该让音效"补跑"一串回来，
+        //   但也不能把欠账一直记着（那会让音序永久偏快）。
+        {
+            int sNow;
+            int sWant;
+            sNow = ui_tick();
+            sWant = (sNow - lastSfxMs) / TICK_MS;
+            if (sWant > 4) { sWant = 4; }
+            if (sWant > 0)
+            {
+                lastSfxMs = sNow;
+                while (sWant > 0)
+                {
+                    SfxTick();
+                    sWant = sWant - 1;
+                }
+            }
+        }
+
         // 重绘由**变化**驱动，不由**节拍**驱动（本仓的一条老规矩）。
         // ⚠ 原来这里是无条件 `g.Draw()`：主循环每收到**一条**消息就画一帧，而
         //   时钟定时器 50ms 一条 ⇒ 凭空多出 20 帧/秒，内容一模一样。
@@ -3808,6 +4091,11 @@ int main()
 
     if (tid != 0) { ui_timer_kill(tid); }
     if (cid != 0) { ui_timer_kill(cid); }
+
+    // ⚠ **退出前必须静音**：胜负音还在响的时候玩家就点了退出，声部会一直响下去
+    //   （进程没了才停）。桌面上表现为"窗口关了还有声音"，手机上更明显 ——
+    //   切回桌面还在响。
+    SfxPanic();
 
     // 比分落盘（下次开局问不出来，但先存着 —— 与 BASIC 版同一套键）
     score0 = (*AP[0]).score;
