@@ -97,6 +97,10 @@
          拖不进来）⇒ 把判定表下沉成这个自足文件，`AnsiString.CharWidth` 转调它。 -->
     <Compile Include="../../WayCoder/UI/Shared/CharMetrics.cs" Link="CharMetrics.cs" />
     <Compile Include="../../WayCoder/UI/Shared/FloodFill.cs" Link="FloodFill.cs" />
+    <!-- 复音合成器：与手机端**同一个类** ⇒ 桌面验出来的结论对手机成立。
+         ⚠ 本文件是**显式清单**（不是 glob）—— 往 UI/Shared/ 加新文件时必须在这里补一行，
+           漏了会以"找不到类型"的形式报在 vmlcli 上，而主工程/MAUI 那边（走 glob）看不出来。 -->
+    <Compile Include="../../WayCoder/UI/Shared/VmlToneSynth.cs" Link="VmlToneSynth.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProject.cs" Link="VmlProject.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlProjectImport.cs" Link="VmlProjectImport.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlMakefileImporter.cs" Link="VmlMakefileImporter.cs" />

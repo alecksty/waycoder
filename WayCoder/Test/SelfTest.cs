@@ -457,6 +457,8 @@ public static partial class SelfTest
 
     TestChunk33(Section, Check, Fail);
 
+    TestChunk34(Section, Check, Fail);
+
 
 
         // 清理 ConnectConfig 测试隔离
