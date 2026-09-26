@@ -199,7 +199,6 @@ static void draw(void)
     int oct;
     int y0;
     int rel;
-    char buf[8];
     char nm[4];
 
     ui_clear(0xFF101820);
@@ -209,15 +208,10 @@ static void draw(void)
     ui_set_valign(VML_VANCHOR_MIDDLE);
     ui_text_cur(10, BtnY + BtnH / 2, "钢琴");
 
-    /* 当前音域（下行那排的 do，标成 C2..C7 这样比写数字直观） */
-    oct = (BaseNote - 60) / 12 + 4;
-    buf[0] = 'C';
-    buf[1] = '0' + oct;
-    buf[2] = '-';
-    buf[3] = '0' + oct + (RowStep / 12);
-    buf[4] = 0;
-    ui_set_font(19, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
-    ui_text_cur(SW / 2 + 26, BtnY + BtnH / 2, buf);
+    /* ⚠ 这里原先还有一行"音域提示"（`C4-5` 之类），居中画的 ——
+     *   而 5 个按钮从 x≈80 起把右边占满了，那行字**大半被盖住、只露出一个 C**，
+     *   看着像凭空多出来的字符（用户报的就是这个）。
+     *   既然音名已经标在每个白键上，那个提示本来就是重复的 —— 直接去掉。 */
 
     for (i = 0; i < 5; i++) {
         /* 第 5 个（清除）用暖红底 —— 它是"急停"，混在其余按钮里不好找 */
@@ -303,7 +297,6 @@ static int hit_key(int x, int y)
     int i;
     int r[4];
     int w;
-    int rel;
 
     if (y < KEYTOP) return -1;
 
