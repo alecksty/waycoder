@@ -766,41 +766,45 @@ int pt_in(int px, int py, int x, int y, int w, int h) {
 
 #ifndef CHESS_LIB_ONLY
 
-/* ── 音效：机制在共享库里（ui_sfx_*），这里只有音色 ──────────
+/* ── 音效：**用 ui_beep 单音**（v0.96.508 换回来） ──────────────
  *
- * ⚠ 象棋里大部分音是**高频动作**（选中、走子），必须**又轻又短** —— 响一点就烦。
- *   真正需要"有分量"的只有三个：将军、赢、输。
- * ⚠ **你走子与电脑走子必须分得开**：玩家要一耳朵知道刚才那步是谁走的。
- * ⚠ 通道分区互不重叠：0 选中 / 1 你走子 / 2 电脑走子 / 3 悔棋成功 / 4 悔棋失败 /
- *   5 新局 / 6–7 将军 / 8–10 赢 / 11–13 输。 */
+ * ⚠⚠ 这里一度改用共享库的音序器（`ui_sfx_add`），**真机上破音**，换回来了。
+ *   原因不是音序器本身，是**这里配的音**：
+ *     · 将军 / 赢 / 输 三组都是**多个音叠着响**（将军 2 声部、胜负各 3 声部），
+ *       音量还开到了 90–95 —— 多声部一叠加就顶到**削波**；
+ *     · `sfx_lose` 的末音是 `45`(A2 = **110Hz**)，而 `waycoder_ui.h` 里白纸黑字
+ *       写着「低音别写太低…手机外放在 200Hz 以下衰减很快，C2 出来是"噗"一声闷响，
+ *       **玩家听着像没响**」。这一条正是冲着这类写法写的。
+ *
+ *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   **结构上不可能削波**。连锁反应的代价也不大：将军/胜负本来就是"一声提示"，
+ *   不需要和弦。
+ *
+ * ⚠ 频率沿用换音序器之前那一版（v0.96.490 之前就在用的），**别随手调** ——
+ *   调了要真机听。分得清"谁走的"靠的是音区：
+ *   选子 760 / 你走子 880 / 电脑走子 560 / 悔棋成 700 / 悔棋不成 300 /
+ *   新局 900 / 将军 1200 / 赢 1320 长 / 输 240 长。 */
 
-void sfx_pick(void)   { ui_sfx_add(0, 84, 0, 1, 40, VML_WAVE_TRIANGLE); }
-void sfx_move(void)   { ui_sfx_add(1, 76, 0, 2, 65, VML_WAVE_SQUARE); }
-void sfx_aimove(void) { ui_sfx_add(2, 64, 0, 2, 65, VML_WAVE_TRIANGLE); }
+void sfx_pick(void)   { ui_beep(760, 20); }
+void sfx_move(void)   { ui_beep(880, 25); }
+void sfx_aimove(void) { ui_beep(560, 25); }
 
 /* 悔棋：成不成一听就知道（成了清亮、没得悔低闷）。 */
-void sfx_undo_ok(void) { ui_sfx_add(3, 72, 0, 2, 70, VML_WAVE_TRIANGLE); }
-void sfx_undo_no(void) { ui_sfx_add(4, 48, 0, 2, 80, VML_WAVE_SAW); }
+void sfx_undo_ok(void) { ui_beep(700, 40); }
+void sfx_undo_no(void) { ui_beep(300, 60); }
 
-void sfx_newgame(void) { ui_sfx_add(5, 79, 0, 3, 75, VML_WAVE_SQUARE); }
+void sfx_newgame(void) { ui_beep(900, 70); }
 
-/* 将军：上行两音 + 拖长 —— 这是**必须让玩家立刻知道**的事。 */
-void sfx_check(void) {
-    ui_sfx_add(6, 84, 0, 3, 95, VML_WAVE_SQUARE);
-    ui_sfx_add(7, 91, 2, 9, 95, VML_WAVE_SQUARE);
-}
+/* 将军：**必须让玩家立刻知道**的事 —— 比周围所有音都高、都长。 */
+void sfx_check(void) { ui_beep(1200, 90); }
 
-/* 赢：上行大三和弦 + 高八度；输：下行三音。**方向相反，不会听错。** */
+/* 赢：高、长，明亮；输：低、长。**两个方向，不会听错。** */
 void sfx_win(void) {
-    ui_sfx_add(8, 72, 0, 4, 92, VML_WAVE_SQUARE);
-    ui_sfx_add(9, 79, 2, 4, 90, VML_WAVE_SQUARE);
-    ui_sfx_add(10, 84, 4, 12, 92, VML_WAVE_SQUARE);
+    ui_beep(1320, 320);
     ui_vibrate(60, 0);
 }
 void sfx_lose(void) {
-    ui_sfx_add(11, 60, 0, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(12, 53, 4, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(13, 45, 8, 12, 95, VML_WAVE_SAW);
+    ui_beep(240, 420);
     ui_vibrate(220, 0);
 }
 
@@ -878,7 +882,6 @@ int main(void) {
     ui_present();
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;
@@ -1074,7 +1077,6 @@ int main(void) {
     }
 
     ui_keep_on(0);
-    ui_sfx_panic();
     ui_timer_set(120, 0);
     t = ui_wait(msg, 400);
     ui_win_close();
