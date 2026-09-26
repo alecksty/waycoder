@@ -365,6 +365,7 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 | [ui_tone_off](help:vml/ui/feel) | 关一个音（`note` 传 -1 = 该通道全部）。 |
 | [ui_tone_all_off](help:vml/ui/feel) | 全关（走淡出）。 |
 | [ui_tone_voices](help:vml/ui/feel) | 此刻在响的声部数 —— 查和弦叠起来没有。 |
+| [ui_tone_panic](help:vml/ui/feel) | **立刻**全停（不进淡出）—— 一键静音 / 强制停止用。 |
 | [ui_audio_play](help:vml/ui/feel) | 播放一个音频**文件**（mp3/wav…），`loop` 非 0 = 循环（BGM 用）。 |
 | [ui_audio_stop](help:vml/ui/feel) | 停掉正在播的音频。 |
 | [ui_audio_volume](help:vml/ui/feel) | 整体音量 0–100（对**之后**播放的音生效）。 |

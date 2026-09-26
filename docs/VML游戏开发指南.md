@@ -116,6 +116,9 @@ int  ui_tone_on(int ch, int note, int vel);   /* 起一个音：通道 0–15、
 int  ui_tone_off(int ch, int note);           /* 关一个音（note 传 -1 = 该通道全部） */
 int  ui_tone_all_off(void);                   /* 全关（走淡出，不是硬切） */
 int  ui_tone_voices(void);                    /* 此刻在响的声部数 —— 查"和弦叠起来没有"用它 */
+int  ui_tone_panic(void);                     /* **立刻**全停（不进淡出）—— 强制停止 / 一键静音用；
+                                               *   ⚠ 它只停声部，自己的记账要一并清，否则"还按着的手指"
+                                               *   抬手时会去减一本已清空的账，那个键以后就起不来音 */
 void ui_vibrate(int ms, int strength);   /* 震动 */
 void ui_keep_on(int on);                 /* 别熄屏 */
 void ui_store_set(char* key, char* value);
