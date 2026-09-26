@@ -51,6 +51,22 @@ public partial class CodeGenerator
     const string UiTxtColLabel = "_ui_txt_col";
     /// <summary>行缓冲里已攒的字节数（0 = 这一行还没有待落笔的内容）</summary>
     const string UiTxtLenLabel = "_ui_txt_len";
+    /// <summary>
+    /// 行缓冲里已攒内容的**显示列数**（≠ 字节数）。
+    ///
+    /// <para>
+    /// ⚠⚠ 两者必须分开（v0.96.505 修）。从前只有字节数，而它被**当成列数**用了三处：
+    /// 光标推进 `col += len`、背景条宽 `len * 8`、折行判据 `col + len`。
+    /// 一个汉字在 UTF-8 里是 3 字节、只占 2 格 ⇒ 每写一个汉字光标就**多走一格**，
+    /// 背景条还宽出一截（24px vs 16px）。中文一多整行就越飘越远。
+    /// </para>
+    /// <para>
+    /// 宽度的判据只看**UTF-8 首字节**（字节流是一个一个喂进来的，不需要跨字节状态机）：
+    /// 3/4 字节序列的首字节（CJK、emoji）记 2 列，2 字节序列的首字节记 1 列，
+    /// 续字节（0x80–0xBF）记 **0** 列（它们属于前一个字符），其余记 1 列。
+    /// </para>
+    /// </summary>
+    const string UiTxtWLabel = "_ui_txt_w";
     /// <summary>行缓冲本体（<c>int[64]</c> = 256 个零字节，零初始化正好当空串）</summary>
     const string UiTxtBufLabel = "_ui_txt_buf";
     /// <summary>字符格高（= 窗口高 ÷ 文本行数；模式 9 = 14、模式 12 = 16、CGA = 8）</summary>
@@ -136,6 +152,7 @@ public partial class CodeGenerator
         if (!dataSection.ContainsKey(UiTxtRowLabel)) dataSection[UiTxtRowLabel] = 1;
         if (!dataSection.ContainsKey(UiTxtColLabel)) dataSection[UiTxtColLabel] = 1;
         if (!dataSection.ContainsKey(UiTxtLenLabel)) dataSection[UiTxtLenLabel] = 0;
+        if (!dataSection.ContainsKey(UiTxtWLabel)) dataSection[UiTxtWLabel] = 0;
         // int[64] = 256 个零字节。**必须是全零**：flush 靠 NUL 收尾、缓冲靠 len 判断空，
         // 两者都要求初值干净；用 `.string "   …"` 会带上"这串到底有没有被裁掉尾空格"的问题。
         if (!dataSection.ContainsKey(UiTxtBufLabel)) dataSection[UiTxtBufLabel] = new int[64];
@@ -272,6 +289,8 @@ public partial class CodeGenerator
         AddRI(OpCode.MOVE, 1, 0);
         instructions.Add(new Instruction(OpCode.MOVE,
             [new Operand(OperandType.MEMORY, UiTxtLenLabel), new Operand(OperandType.REGISTER, 1)]));
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [new Operand(OperandType.MEMORY, UiTxtWLabel), new Operand(OperandType.REGISTER, 1)]));
     }
 
     /// <summary>写 <paramref name="label"/>（int 槽）= 立即数</summary>
@@ -643,7 +662,9 @@ public partial class CodeGenerator
             // ⚠ **换行之前必须落笔** —— 不然攒着的那半行会被直接丢掉（光标一格一格的模型里
             //   没有"回退"这东西），表现是长行折行处**少一截字**。
             Ins(OpCode.MOVE, UiReg(1), UiMem(UiTxtColLabel));
-            Ins(OpCode.MOVE, UiReg(2), UiMem(UiTxtLenLabel));
+            // ⚠ 用**显示列数** `w`，不是字节数 `len` —— 汉字 3 字节只占 2 格，
+            //   按字节判会让含中文的行**提前折行**（且折得越靠后差得越多）。
+            Ins(OpCode.MOVE, UiReg(2), UiMem(UiTxtWLabel));
             Ins(OpCode.ADD, UiReg(1), UiReg(2));
             Ins(OpCode.MOVE, UiReg(3), UiMem(UiTxtMaxColLabel));
             string noWrap = newLabel();
@@ -672,6 +693,36 @@ public partial class CodeGenerator
             Ins(OpCode.MOVEB, UiMem("R2"), UiReg(0));
             Ins(OpCode.ADD, UiReg(1), UiImm(1));
             Ins(OpCode.MOVE, UiMem(UiTxtLenLabel), UiReg(1));
+
+            // ── 累加**显示宽度**（按 UTF-8 首字节判；见 `UiTxtWLabel` 的注释）──
+            //   0x80–0xBF 续字节 ⇒ 0 列（属于前一个字符）
+            //   ≥ 0xF0（4 字节，emoji）与 0xE0–0xEF（3 字节，CJK）⇒ 2 列
+            //   0xC0–0xDF（2 字节）与 ASCII ⇒ 1 列
+            string wCont = newLabel(), wWide = newLabel(), wDone = newLabel();
+            string wChar = "R0";   // 此刻 R0 就是刚追加的那个字节
+            Ins(OpCode.MOVE, UiReg(1), UiMem(UiTxtWLabel));
+            Ins(OpCode.CMP, UiReg(0), UiImm(0xC0));
+            Ins(OpCode.JL, UiLabelOp(wCont));          // < 0xC0：ASCII 或续字节，到 wCont 细分
+            Ins(OpCode.CMP, UiReg(0), UiImm(0xE0));
+            Ins(OpCode.JGE, UiLabelOp(wWide));         // ≥ 0xE0：3/4 字节 ⇒ 2 列
+            Ins(OpCode.ADD, UiReg(1), UiImm(1));       // 0xC0–0xDF：2 字节 ⇒ 1 列
+            Ins(OpCode.JMP, UiLabelOp(wDone));
+
+            AddLabel(wWide);
+            Ins(OpCode.ADD, UiReg(1), UiImm(2));
+            Ins(OpCode.JMP, UiLabelOp(wDone));
+
+            AddLabel(wCont);
+            Ins(OpCode.CMP, UiReg(0), UiImm(0x80));
+            Ins(OpCode.JL, UiLabelOp(wDone));          // ASCII ⇒ 1 列
+            Ins(OpCode.CMP, UiReg(0), UiImm(0xC0));
+            Ins(OpCode.JGE, UiLabelOp(wDone));         // 防御：不该到这儿
+            // 0x80–0xBF：续字节 ⇒ 0 列（不累加）
+            Ins(OpCode.JMP, UiLabelOp(wDone));
+
+            AddLabel(wDone);
+            Ins(OpCode.MOVE, UiMem(UiTxtWLabel), UiReg(1));
+            _ = wChar;
         }
 
         AddLabel(done);
@@ -755,7 +806,10 @@ public partial class CodeGenerator
 
         // R4 = x, R5 = y, R6 = w, R7 = cellh
         EmitUiTxtXY();
-        Ins(OpCode.MOVE, UiReg(6), UiReg(1));
+        // ⚠ 背景条宽取**显示列数**（`_ui_txt_w`），不是字节数。
+        //   按字节算的话一个汉字铺 24px 而字形只占 16px —— 中文行的底条会互相压盖，
+        //   而且"下一格从哪开始"也跟着算错（与光标推进是同一个量）。
+        Ins(OpCode.MOVE, UiReg(6), UiMem(UiTxtWLabel));
         Ins(OpCode.MUL, UiReg(6), UiImm(8));
 
         // ── 背景格：ui_rect(x, y, w, h, 背景色, fill=1, lw=1, round=0) ──
@@ -813,13 +867,14 @@ public partial class CodeGenerator
         // present：与图形语句一样"一条语句执行完就该看见"
         instructions.Add(new Instruction(OpCode.CALL, [UiLabelOp("ui_present")]));
 
-        // col += len; len = 0
-        Ins(OpCode.MOVE, UiReg(1), UiMem(UiTxtLenLabel));
+        // col += w; len = 0; w = 0   —— ⚠ 推进用**显示列数** w，不是字节数 len
+        Ins(OpCode.MOVE, UiReg(1), UiMem(UiTxtWLabel));
         Ins(OpCode.MOVE, UiReg(2), UiMem(UiTxtColLabel));
         Ins(OpCode.ADD, UiReg(2), UiReg(1));
         Ins(OpCode.MOVE, UiMem(UiTxtColLabel), UiReg(2));
         Ins(OpCode.MOVE, UiReg(1), UiImm(0));
         Ins(OpCode.MOVE, UiMem(UiTxtLenLabel), UiReg(1));
+        Ins(OpCode.MOVE, UiMem(UiTxtWLabel), UiReg(1));
 
         AddLabel(done);
         UiTxtEpilogue();

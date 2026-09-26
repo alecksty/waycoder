@@ -284,35 +284,51 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
 
 /* 音序器推进：按真实流逝时间（不按"绕一圈算一拍"）。放在主循环里。 */
 
-/* 人落子：清亮、高。 */
-void sfx_put_human(void) { ui_sfx_add(0, 88, 0, 2, 70, VML_WAVE_SQUARE); }
+/* 人落子：清亮但**不刺耳**。
+ *
+ * ⚠ 改过一版（v0.96.505）：原来是 `88`（E6 = 1318Hz）+ **方波** + 音量 70。
+ *   落子是**全局最高频的音效**（一局几十上百次），方波是最扎耳朵的波形，
+ *   高音 + 方波 + 偏大的音量叠起来，下几手就变成噪音了 —— 这正是"音效不太好"
+ *   最直观的那一半。现在换三角波、落到 C6(1046Hz)、音量压到 62。 */
+void sfx_put_human(void) { ui_sfx_add(0, 84, 0, 2, 62, VML_WAVE_TRIANGLE); }
 
-/* 电脑落子：低一截 —— 与人的那条**一耳朵分得出**。 */
-void sfx_put_ai(void) { ui_sfx_add(1, 67, 0, 2, 70, VML_WAVE_TRIANGLE); }
+/* 电脑落子：低一截、略长一点（听感更"沉"）—— 与人的那条**一耳朵分得出**。
+ * 判据是**音区**（C4 vs C6，差两个八度）而不是音色，音色两条都是三角波。 */
+void sfx_put_ai(void) { ui_sfx_add(1, 60, 0, 3, 62, VML_WAVE_TRIANGLE); }
 
 /* 重开：一声干脆的起手音。 */
-void sfx_newgame(void) { ui_sfx_add(2, 76, 0, 3, 75, VML_WAVE_SQUARE); }
+void sfx_newgame(void) { ui_sfx_add(2, 76, 0, 3, 70, VML_WAVE_TRIANGLE); }
 
-/* 赢：上行大三和弦 + 高八度收尾，明亮。 */
+/* 赢：**完整的大三和弦** + 高八度收尾（do–mi–sol–do）。
+ *
+ * ⚠ 改过一版：原来是 `72 → 79 → 84`，也就是 do–sol–do —— **缺三度**，
+ *   那是个空五度，听着"开阔"但**不像赢**（大三和弦要靠三度才能定"大调"的色彩）。
+ *   补上 `76`(mi) 之后才是真的"成了"。 */
 void sfx_win(void) {
-    ui_sfx_add(3, 72, 0, 4, 92, VML_WAVE_SQUARE);
-    ui_sfx_add(4, 79, 2, 4, 90, VML_WAVE_SQUARE);
-    ui_sfx_add(5, 84, 4, 12, 92, VML_WAVE_SQUARE);
+    ui_sfx_add(3, 72, 0, 3, 85, VML_WAVE_SQUARE);
+    ui_sfx_add(4, 76, 2, 3, 82, VML_WAVE_SQUARE);
+    ui_sfx_add(5, 79, 4, 3, 82, VML_WAVE_SQUARE);
+    ui_sfx_add(11, 84, 6, 14, 88, VML_WAVE_SQUARE);
     ui_vibrate(60, 0);
 }
 
-/* 输：下行三音 —— 与"赢"是**两个方向**，不会听错。 */
+/* 输：下行三音 —— 与"赢"是**两个方向**，不会听错。
+ *
+ * ⚠ 改过一版：末音原来是 `45`（A2 = **110Hz**）—— 撞在 `waycoder_ui.h` 里
+ *   白纸黑字写着的那条上：「低音别写太低，手机外放在 200Hz 以下衰减很快，
+ *   出来是"噗"一声闷响，**玩家听着像没响**，基音落在 C3(130Hz) 上下比较稳」。
+ *   改到 `48`（C3 = 130.8Hz）之后整条下行 `C4 → F3 → C3` 都还在能听清的范围里。 */
 void sfx_lose(void) {
-    ui_sfx_add(6, 60, 0, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(7, 53, 4, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(8, 45, 8, 12, 95, VML_WAVE_SAW);
+    ui_sfx_add(6, 60, 0, 4, 85, VML_WAVE_SAW);
+    ui_sfx_add(7, 53, 4, 4, 85, VML_WAVE_SAW);
+    ui_sfx_add(12, 48, 8, 12, 90, VML_WAVE_SAW);
     ui_vibrate(220, 0);
 }
 
 /* 平局：中性两音（既不欢快也不沮丧）。 */
 void sfx_draw(void) {
-    ui_sfx_add(9, 64, 0, 3, 80, VML_WAVE_TRIANGLE);
-    ui_sfx_add(10, 62, 3, 8, 80, VML_WAVE_TRIANGLE);
+    ui_sfx_add(9, 64, 0, 3, 75, VML_WAVE_TRIANGLE);
+    ui_sfx_add(10, 62, 3, 8, 75, VML_WAVE_TRIANGLE);
     ui_vibrate(40, 0);
 }
 int finish(int over) {
