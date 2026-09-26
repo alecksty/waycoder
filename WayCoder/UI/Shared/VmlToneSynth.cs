@@ -50,6 +50,20 @@ internal struct VmlToneVoice
 
     /// <summary>起音序号 —— 抢占时用它判"谁最老"。</summary>
     public long Serial;
+
+    /// <summary>
+    /// 自动释放的采样数（0 = 不限，等 <see cref="VmlToneSynth.NoteOff"/>）。
+    ///
+    /// <para>
+    /// 给**老式蜂鸣**（`ui_beep(freq, ms)`）用的 —— 它自带时长，而 `note_on` 没有。
+    /// 有了这一条，`ui_beep` 的"响 25ms 就停"能在复音合成器里原样表达，
+    /// 不必为它再留一条平行的发声通路。
+    /// </para>
+    /// </summary>
+    public int HoldSamples;
+
+    /// <summary>这个声部已经响了几个采样（配合 <see cref="HoldSamples"/> 判到点没有）。</summary>
+    public int Age;
 }
 
 /// <summary>
@@ -251,7 +265,11 @@ public sealed class VmlToneSynth
     /// 它拿到的是频率），此时按频率区分重触发。
     /// </summary>
     /// <returns>是否成功起音（通道非法返回 false）。</returns>
-    public bool NoteOn(int ch, double hz, int note, int velocity, int wave = -1)
+    /// <param name="holdMs">
+    /// 自动释放的毫秒数（0 = 一直响，等 <see cref="NoteOff"/>）。
+    /// **老式蜂鸣**（<c>ui_beep(freq, ms)</c>）就是靠它表达"响这么久"的。
+    /// </param>
+    public bool NoteOn(int ch, double hz, int note, int velocity, int wave = -1, int holdMs = 0)
     {
         if (hz <= 0 || double.IsNaN(hz) || double.IsInfinity(hz)) return false;
         if (ch < 0 || ch > LegacyLane) return false;
@@ -285,6 +303,8 @@ public sealed class VmlToneSynth
                 AttackInc = 1.0 / (SampleRate * MinAttackMs / 1000.0),
                 ReleaseCoef = MakeReleaseCoef(releaseMs),
                 Serial = _serial,
+                HoldSamples = holdMs > 0 ? Math.Max(1, SampleRate * holdMs / 1000) : 0,
+                Age = 0,
             };
             return true;
         }
@@ -302,6 +322,9 @@ public sealed class VmlToneSynth
                 ref var v = ref _voices[i];
                 if (!v.Active || v.Channel != ch) continue;
                 if (note >= 0 && v.Note != note) continue;
+                // ⚠ 已经在释放中的**不算**"这次关掉了它" —— 否则同一句 `note_off` 调两次
+                //   都会返回成功，调用方没法区分"我关掉了一个音"与"那个音早就在消退了"。
+                if (v.Stage == StageRelease) continue;
                 ReleaseLocked(ref v);
                 any = true;
             }
@@ -339,19 +362,29 @@ public sealed class VmlToneSynth
         return true;
     }
 
-    /// <summary>当前真正在响的声部数（包络已归零的不算 —— 它们只是还没回收）。</summary>
+    /// <summary>
+    /// **此刻在响的**声部数。
+    ///
+    /// <para>
+    /// ⚠ **不含正在释放衰减的那些**。槽位可能还被占着（要等包络掉到阈值才回收），
+    /// 但那个音已经"开始消失"了 —— 对数的人（程序、日志判据）来说它不在响。
+    /// 把两者混起来，"关掉一个音之后快照还是 3 个"会让人以为 note_off 没生效。
+    /// </para>
+    /// </summary>
     public int ActiveVoices
     {
         get
         {
-            lock (_gate)
-            {
-                var n = 0;
-                for (var i = 0; i < _voices.Length; i++)
-                    if (_voices[i].Active) n++;
-                return n;
-            }
+            lock (_gate) return CountSoundingLocked();
         }
+    }
+
+    private int CountSoundingLocked()
+    {
+        var n = 0;
+        for (var i = 0; i < _voices.Length; i++)
+            if (_voices[i].Active && _voices[i].Stage != StageRelease) n++;
+        return n;
     }
 
     /// <summary>
@@ -369,7 +402,7 @@ public sealed class VmlToneSynth
         {
             var notes = new System.Collections.Generic.List<int>();
             for (var i = 0; i < _voices.Length; i++)
-                if (_voices[i].Active) notes.Add(_voices[i].Note);
+                if (_voices[i].Active && _voices[i].Stage != StageRelease) notes.Add(_voices[i].Note);
             notes.Sort();
             return $"{notes.Count} [{string.Join(",", notes)}]";
         }
@@ -407,6 +440,13 @@ public sealed class VmlToneSynth
                 {
                     ref var voice = ref _voices[v];
                     if (!voice.Active) continue;
+
+                    // ── 到点自动释放（老式蜂鸣的"响 ms 毫秒"靠这条表达）──
+                    if (voice.HoldSamples > 0 && voice.Stage != StageRelease)
+                    {
+                        voice.Age++;
+                        if (voice.Age >= voice.HoldSamples) voice.Stage = StageRelease;
+                    }
 
                     // ── 包络推进 ──
                     switch (voice.Stage)

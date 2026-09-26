@@ -541,6 +541,13 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
         public void Tone(int hz, int ms, int wave, int volume) => VmlAudio.Tone(hz, ms, wave);
 
+        public bool NoteOn(int channel, int note, int velocity, int wave) =>
+            VmlAudio.NoteOn(channel, note, velocity, wave);
+
+        public bool NoteOff(int channel, int note) => VmlAudio.NoteOff(channel, note);
+
+        public int ToneControl(int ctl, int a, int b) => VmlAudio.ToneControl(ctl, a, b);
+
         public bool PlayAudio(string fullPath, bool loop) => VmlAudio.Play(fullPath, loop) == null;
 
         public void StopAudio() => VmlAudio.StopBgm();

@@ -340,6 +340,43 @@ public static partial class SelfTest
         public bool Vibrate(int ms, int amplitude) { Vibes.Add($"{ms}/{amplitude}"); return true; }
         public bool VibratePattern(long[] pattern) { Vibes.Add(string.Join("+", pattern)); return true; }
 
+        // ── 复音（`Audio` 的 op 4/5/6，v0.96.485）────────────────────────────
+        //
+        // ⚠ 这里挂的是一个**真的** `VmlToneSynth`（不是记录型替身）。
+        //   理由：那样"经 HandleSyscall 走一遍完整的 op → 宿主 → 合成器"这条链
+        //   就能被自测断言到底 —— 包括**复音真的叠加了**（RMS 比值），
+        //   而不只是"宿主收到了调用"。记录型替身验不到叠加。
+        public readonly VmlToneSynth Synth = new();
+
+        public readonly List<string> NoteLog = new();
+
+        public bool NoteOn(int channel, int note, int velocity, int wave)
+        {
+            NoteLog.Add($"on|{channel}|{note}|{velocity}");
+            return Synth.NoteOn(channel, VmlToneSynth.NoteToHz(VmlUi.ClampNote(note)),
+                                VmlUi.ClampNote(note), VmlUi.ClampVelocity(velocity), wave);
+        }
+
+        public bool NoteOff(int channel, int note)
+        {
+            NoteLog.Add($"off|{channel}|{note}");
+            return Synth.NoteOff(channel, note);
+        }
+
+        public int ToneControl(int ctl, int a, int b)
+        {
+            NoteLog.Add($"ctl|{ctl}|{a}|{b}");
+            switch (ctl)
+            {
+                case VmlUi.AudioCtl.AllNotesOff: Synth.AllNotesOff(); return 0;
+                case VmlUi.AudioCtl.Wave: return Synth.SetChannelWave(a, b) ? 0 : -1;
+                case VmlUi.AudioCtl.MaxVoices: Synth.MaxVoicesLimit = a; return 0;
+                case VmlUi.AudioCtl.Voices: return Synth.ActiveVoices;
+                case VmlUi.AudioCtl.Panic: Synth.Panic(); return 0;
+                default: return -1;
+            }
+        }
+
         public readonly Dictionary<string, string> Store = new(StringComparer.Ordinal);
         public string? StoreGet(string key) => Store.TryGetValue(key, out var v) ? v : null;
         public void StoreSet(string key, string value) => Store[key] = value;

@@ -134,12 +134,21 @@ public static partial class SelfTest
             s.NoteOff(0, 69);
             var blk = new short[64];
             s.Mix(blk, 64);
-            Check("note_off 后**不会立刻回收**（走 release，否则听感是硬切 '咔'）",
-                s.ActiveVoices == 1);
+            // "不是硬切"的真正判据是**输出里还有信号** —— 硬切会让这一块瞬间归零。
+            // （`ActiveVoices` 这时已经是 0：它的口径是"在响"，不含正在消退的那些。）
+            var audible = false;
+            for (var i = 0; i < blk.Length; i++) if (blk[i] != 0) { audible = true; break; }
+            Check("note_off 后仍在释放（输出还有信号，不是硬切静音）", audible);
+            Check("note_off 后快照不再报它（'在响'的口径不含释放中的）",
+                s.VoiceSnapshot().StartsWith("0 "));
 
-            // 放够久（默认 release 90ms ⇒ 至少 4 秒的块）就应该收干净
+            // 放够久（默认 release 90ms ⇒ 200 块 × 64 帧 ≈ 290ms）就该收干净
             for (var i = 0; i < 200; i++) s.Mix(blk, 64);
-            Check("release 走完后声部被回收", s.ActiveVoices == 0);
+            blk = new short[64];
+            s.Mix(blk, 64);
+            var silent = true;
+            for (var i = 0; i < blk.Length; i++) if (blk[i] != 0) { silent = false; break; }
+            Check("release 走完后彻底归零（槽位回收）", silent);
         }
 
         // ── ⑦ 老式蜂鸣声道：连发仍然"只听见最后一个" ────────────────────────
@@ -220,8 +229,8 @@ public static partial class SelfTest
             Check("快照按音符号排序、形如 \"3 [60,64,67]\"",
                 s.VoiceSnapshot() == "3 [60,64,67]");
             s.NoteOff(1, 64);
-            Check("关掉中间的 64 之后快照仍报它在响（还在 release 里）",
-                s.VoiceSnapshot() == "3 [60,64,67]");
+            Check("关掉中间那个之后快照只剩两个（'在响'不含正在释放衰减的）",
+                s.VoiceSnapshot() == "2 [60,67]");
         }
 
         // ── ⑪ 非法入参不崩、不产生 NaN ──────────────────────────────────────
@@ -233,6 +242,72 @@ public static partial class SelfTest
                 s.NoteOn(0, 440, 69, 0) && s.ActiveVoices == 0);
             s.Panic();
             Check("Panic 后没有任何声部", s.ActiveVoices == 0);
+        }
+
+        // ── ⑫ 契约链：op → 宿主 → 合成器（端到端）────────────────────────────
+        // 前面 ①–⑪ 验的是合成器**纯逻辑**；这一段验"**经 syscall 分派**走一遍也对"
+        // —— 参数从哪个寄存器读、返回值写哪、钳位在哪一层，全是这段在钉。
+        // 宿主的复音实现挂的是一个**真的** `VmlToneSynth`（不是记录型替身），
+        // 所以"复音真的叠加了"这件事在**整条链**上也是可断言的。
+        {
+            var host = new FakeVmlHost();
+            var rt = new VmlHostRuntime(host);
+            var regs = new int[32];
+            var mem = new byte[16];
+
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 0; regs[2] = 60; regs[3] = 100;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: NoteOn op 返回 0", regs[0] == 0);
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 1; regs[2] = 64; regs[3] = 100;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 2; regs[2] = 67; regs[3] = 100;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 三个 note-on 之后快照是 \"3 [60,64,67]\"（复音经 syscall 也成立）",
+                host.Synth.VoiceSnapshot() == "3 [60,64,67]");
+
+            regs[0] = VmlUi.AudioOp.NoteOff; regs[1] = 1; regs[2] = 64;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: NoteOff op 返回 0", regs[0] == 0);
+            regs[0] = VmlUi.AudioOp.NoteOff; regs[1] = 1; regs[2] = 64;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 关一个本来就没在响的音返回 -1（能区分'没响'与'关成功'）", regs[0] == -1);
+
+            // 力度 0 = 关音（真 MIDI 语义，白送的一条）
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 0; regs[2] = 60; regs[3] = 0;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 力度 0 等同 note_off", regs[0] == 0 && !host.Synth.VoiceSnapshot().StartsWith("3 "));
+
+            // 参数**一律钳、不拒**（与 ClampTone 同一教条）
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 99; regs[2] = 999; regs[3] = 200;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 通道/音符号/力度越界被钳到边界而不是拒绝", regs[0] == 0
+                && host.NoteLog[^1] == "on|15|127|127");
+
+            // Control 各码
+            regs[0] = VmlUi.AudioOp.Control; regs[1] = VmlUi.AudioCtl.Voices; regs[2] = 0; regs[3] = 0;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: Control(Voices) 返回当前声部数", regs[0] is >= 0 and <= VmlToneSynth.MaxVoices);
+
+            regs[0] = VmlUi.AudioOp.Control; regs[1] = VmlUi.AudioCtl.Panic; regs[2] = 0; regs[3] = 0;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: Control(Panic) 之后没有声部", regs[0] == 0 && host.Synth.ActiveVoices == 0);
+
+            regs[0] = VmlUi.AudioOp.Control; regs[1] = 999; regs[2] = 0; regs[3] = 0;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 认不出的控制码返回 -1", regs[0] == -1);
+
+            regs[0] = 99;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 认不出的 op 返回 -1（0 是 Play/Stop/NoteOn 的成功码）", regs[0] == -1);
+
+            // ⚠ 老 op 一个都不能坏：Stop **只停 BGM**，不该顺手把声部也清了
+            host.Audio.Clear();
+            regs[0] = VmlUi.AudioOp.NoteOn; regs[1] = 0; regs[2] = 60; regs[3] = 100;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            regs[0] = VmlUi.AudioOp.Stop;
+            rt.HandleSyscall(VmlUi.Audio, regs, mem);
+            Check("契约: 老 op Stop 仍然只停 BGM、不清声部",
+                regs[0] == 0 && host.Audio.Count == 1 && host.Synth.ActiveVoices == 1);
         }
 
         _ = Fail;

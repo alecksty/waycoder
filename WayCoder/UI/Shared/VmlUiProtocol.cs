@@ -1071,7 +1071,72 @@ public static class VmlUi
 
         /// <summary>还在播吗 → 1/0（BGM 播完没有）。</summary>
         public const int IsPlaying = 3;
+
+        // ── 复音发声（v0.96.485 追加；上面四个都是**文件播放**，这四个是**现场合成**）──
+        //
+        // ⚠ 追加在**末尾**是硬要求：op 数值会编进程序的机器码里，插队或改值 = 改 ABI。
+        //    本批**没有新号**（还在 `Audio` = 541 里）⇒ `AllNumbers` 一个字不改。
+
+        /// <summary>
+        /// 起一个音：R1=通道(0–15) R2=音符号(0–127) R3=力度(0–127，**0 等同 NoteOff**) → 0 / -1。
+        ///
+        /// <para>
+        /// 音符号是**真 MIDI 语义**（A4 = 69 = 440Hz）——网上现成的乐谱数据能直接喂进来。
+        /// 频率换算见 <see cref="VmlToneSynth.NoteToHz"/>，**全仓唯一实现**。
+        /// </para>
+        ///
+        /// <para>
+        /// 同一 (通道, 音符号) 重复起音是**重触发**（旧的滑出、新的起音），不是叠加
+        /// —— 两个完全同频的声部只会拍频。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 返回值里 **`0` = 成功、`-1` 只是"结构性拒绝"**（参数非法）。
+        /// **"这台机器放不出声"不返回 -1** —— 与 `PlayAudio` 在桌面恒返回 true 同一个理由：
+        /// 说"放不了"会把程序的分支带偏。
+        /// </para>
+        /// </summary>
+        public const int NoteOn = 4;
+
+        /// <summary>关掉一个音：R1=通道 R2=音符号（**-1 = 该通道全部**）→ 0 / -1（那个音没在响）。</summary>
+        public const int NoteOff = 5;
+
+        /// <summary>杂项控制：R1=控制码（见 <see cref="AudioCtl"/>）R2/R3=参数 → 见各控制码。</summary>
+        public const int Control = 6;
     }
+
+    /// <summary>
+    /// <see cref="AudioOp.Control"/> 的控制码 —— **跨语言契约**，只能末尾追加。
+    /// </summary>
+    public static class AudioCtl
+    {
+        /// <summary>所有音走释放（**不硬切** —— 硬切会"咔"）：R2=释放毫秒(0–1000) → 0。</summary>
+        public const int AllNotesOff = 0;
+
+        /// <summary>设通道的默认波形：R2=通道 R3=波形(0 正弦 / 1 方波 / 2 锯齿 / 3 三角) → 0 / -1。</summary>
+        public const int Wave = 1;
+
+        /// <summary>同时允许的声部上限：R2=上限(1–32) → 0 / -1（越界被钳）。</summary>
+        public const int MaxVoices = 2;
+
+        /// <summary>此刻在响的声部数 → 0–32（**只读查询**；桌面日志的判据就是它）。</summary>
+        public const int Voices = 3;
+
+        /// <summary>立刻全停（不进释放）：→ 0。用于"用户强制停止 / 页面被销毁"这类场合。</summary>
+        public const int Panic = 4;
+    }
+
+    /// <summary>
+    /// 音符号 / 通道 / 力度的钳位 —— **一律钳、不拒**（与 <see cref="ClampTone"/> 同一教条：
+    /// 程序传个越界值不该让整个音消失，钳到边界继续响才是它想要的）。
+    /// </summary>
+    public static int ClampNote(int note) => Math.Clamp(note, 0, 127);
+
+    /// <summary>通道号 0–15（<see cref="VmlToneSynth.LegacyLane"/> 是宿主内部用的，程序不该传）。</summary>
+    public static int ClampChannel(int ch) => Math.Clamp(ch, 0, 15);
+
+    /// <summary>力度 0–127（0 会被解释成 <see cref="AudioOp.NoteOff"/>）。</summary>
+    public static int ClampVelocity(int vel) => Math.Clamp(vel, 0, 127);
 
     /// <summary>
     /// **震动**（一个号 + 操作码，见 <see cref="VibrateOp"/>）。`R0` = 操作码、参数从 `R1` 起。

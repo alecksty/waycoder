@@ -36,83 +36,162 @@ internal static class VmlAudio
     /// <summary>合成音的音量（0–100），由 `AUDIO_VOLUME` 改；对之后播的音生效。</summary>
     private static int _volume = 80;
 
-    /// <summary>设置整体音量（已由协议层钳过 0–100）。</summary>
-    public static void SetVolume(int volume) => _volume = VmlUi.ClampVolume(volume);
+    /// <summary>
+    /// **复音合成器** —— 与桌面 vmlcli、与主工程自测用的是**同一个类**
+    /// （`WayCoder/UI/Shared/VmlToneSynth.cs`）。所以"桌面上验出来的复音对不对"
+    /// 这个结论对手机同样成立 —— 这正是把合成抽成纯逻辑的收益。
+    /// </summary>
+    private static readonly VmlToneSynth Synth = new();
+
+    /// <summary>设置整体音量（已由协议层钳过 0–100）。**BGM 与合成器一起改** ——
+    /// 只改一个的话，调音量会出现"背景音乐小了、音效还震耳"。</summary>
+    public static void SetVolume(int volume)
+    {
+        _volume = VmlUi.ClampVolume(volume);
+        Synth.Volume = _volume;
+        SetBgmVolume(_volume);
+    }
 
     /// <summary>
     /// 合成音（用当前音量）—— **VM 内置 `#57` 蜂鸣走这条**。
     /// 参数先过协议层钳位：频率传 0 会让合成器算出除零/零周期，症状是"没声音"甚至卡住，
     /// 而程序那边完全看不出是参数问题。
+    ///
+    /// <para>
+    /// ⚠ 现在它走**合成器的老式蜂鸣声道**（<see cref="VmlToneSynth.LegacyLane"/>），
+    /// 而不是自己造一段 PCM 丢给静态轨：
+    /// 同一通道上后音掐前音 ⇒「**连发一串只听见最后一个**」这个老语义**原样保留**，
+    /// 而它**不再掐掉别的通道** ⇒ 游戏音效可以与和弦共存。这正是复音改造的目的。
+    /// 唯一的（有意的）差异：老实现是硬切，现在是 5ms 淡出 —— 去掉了"咔"声，可观察语义不变。
+    /// </para>
     /// </summary>
     public static bool Tone(int hz, int ms, int wave)
     {
         var (f, d, w, _) = VmlUi.ClampTone(hz, ms, wave, _volume);
-        return ToneCore(f, d, w, _volume);
+        Synth.NoteOn(VmlToneSynth.LegacyLane, f, -1, 100, w, holdMs: d);
+        EnsureMixer();                       // 惰性起混音线程（没起过才起）
+        return true;
+    }
+
+    /// <summary>复音：在通道上起一个音（音符号 0–127，力度 0 等同关音）。</summary>
+    public static bool NoteOn(int channel, int note, int velocity, int wave)
+    {
+        var n = VmlUi.ClampNote(note);
+        var ok = Synth.NoteOn(VmlUi.ClampChannel(channel), VmlToneSynth.NoteToHz(n), n,
+                              VmlUi.ClampVelocity(velocity), wave);
+        if (ok) EnsureMixer();
+        return ok;
+    }
+
+    /// <summary>复音：关一个音（<paramref name="note"/> = -1 表示该通道全部）。</summary>
+    public static bool NoteOff(int channel, int note) => Synth.NoteOff(VmlUi.ClampChannel(channel), note);
+
+    /// <summary>复音：杂项控制（控制码见 <see cref="VmlUi.AudioCtl"/>）。</summary>
+    public static int ToneControl(int ctl, int a, int b)
+    {
+        switch (ctl)
+        {
+            case VmlUi.AudioCtl.AllNotesOff: Synth.AllNotesOff(); return 0;
+            case VmlUi.AudioCtl.Wave: return Synth.SetChannelWave(a, b) ? 0 : -1;
+            case VmlUi.AudioCtl.MaxVoices: Synth.MaxVoicesLimit = a; return 0;
+            case VmlUi.AudioCtl.Voices: return Synth.ActiveVoices;
+            case VmlUi.AudioCtl.Panic: Synth.Panic(); return 0;
+            default: return -1;   // ⚠ 与宿主侧"认不出的 ctl 返回 -1"同一口径
+        }
     }
 
 #if ANDROID
-    /// <summary>当前正在响的合成音 —— 新的来了先把它停掉（单通道，与协议注释一致）。</summary>
-    private static Android.Media.AudioTrack? _tone;
+    // ── 复音混音器（v0.96.485）────────────────────────────────────────────
+    //
+    // 老实现是"每发一个音当场算一段 PCM、丢给一个 **Static** 模式的 AudioTrack" ——
+    // 一条轨只能装一段、播完即弃，所以下一个音必须先把它 Stop 掉 ⇒ **结构性单通道**，
+    // 和弦/旋律都做不出来。现在换成**一条 Stream 轨 + 一个后台混音线程**：
+    //   · 声部表在 `Synth` 里（`UI/Shared/VmlToneSynth.cs`，与桌面/自测**同一份**）
+    //   · 线程每 1024 帧调一次 `Mix()` 填 PCM，`Write()` 进轨
+    //   · **`Write` 是阻塞的** —— 环形缓冲一满它就等，循环自然按实时速率走。
+    //     这是选 Stream 模式最大的隐性收益：不用自己算节拍、不用轮询播放头。
+    //   · 渲染彻底搬离 VM 线程（老实现是在 VM 线程上同步合成，那是知情的将就）
+
+    /// <summary>流式输出轨（惰性建）。</summary>
+    private static Android.Media.AudioTrack? _mixer;
+
+    /// <summary>混音线程（惰性起、随 <see cref="StopAll"/> 收）。</summary>
+    private static Thread? _mixThread;
+
+    /// <summary>线程退出的唯一开关。**置位顺序见 <see cref="StopAll"/> —— 反了会卡住。**</summary>
+    private static volatile bool _running;
+
+    /// <summary>渲染块（帧）。1024 帧 ≈ 23ms —— 也是"按下到出声"延迟的上界。</summary>
+    private const int BlockFrames = 1024;
+
 
     /// <summary>BGM 播放器（惰性建）。</summary>
     private static Android.Media.MediaPlayer? _bgm;
 
-    /// <summary>合成一段音并播放（参数已由 <see cref="VmlUi.ClampTone"/> 钳过）。</summary>
-    private static bool ToneCore(int hz, int ms, int wave, int volume)
+    /// <summary>
+    /// 起混音器（**惰性** —— 第一次真要发声时才起）。
+    /// 一个全程不发声的程序不该开音频轨：省电，也少一类失败模式。
+    /// </summary>
+    private static void EnsureMixer()
     {
-        const int rate = 44100;
+        if (_mixer != null) return;
         try
         {
-            StopTone();
-
-            var count = rate * ms / 1000;
-            var pcm = new byte[count * 2];   // 16 位单声道
-            var amp = 32767.0 * Math.Clamp(volume, 0, 100) / 100.0;
-            var period = (double)rate / hz;
-
-            for (var i = 0; i < count; i++)
-            {
-                var phase = i / period;
-                var frac = phase - Math.Floor(phase);          // 0..1 的一个周期内位置
-                var v = wave switch
-                {
-                    1 => frac < 0.5 ? 1.0 : -1.0,               // 方波（8 位机味，音效最常用）
-                    2 => 2.0 * frac - 1.0,                      // 锯齿
-                    3 => 4.0 * Math.Abs(frac - 0.5) - 1.0,      // 三角
-                    _ => Math.Sin(phase * 2 * Math.PI),         // 正弦
-                };
-
-                // **包络**：直接切方波头尾会有"咔"的爆音（电平瞬间从 0 跳满），
-                // 加 3ms 淡入淡出就干净了 —— 这是合成音效最容易漏、又最刺耳的一处。
-                var fade = Math.Min(1.0, Math.Min(i, count - 1 - i) / (rate * 0.003));
-                var sample = (short)(v * amp * Math.Max(0, fade));
-                pcm[i * 2] = (byte)(sample & 0xFF);
-                pcm[i * 2 + 1] = (byte)((sample >> 8) & 0xFF);
-            }
-
+            var minBytes = Android.Media.AudioTrack.GetMinBufferSize(
+                VmlToneSynth.SampleRate, Android.Media.ChannelOut.Mono, Android.Media.Encoding.Pcm16bit);
+            // 至少留 4 个块的余量 —— 太小会欠载（听感是断续/爆音）。
+            var bufBytes = Math.Max(minBytes, BlockFrames * 2 * 4);
             var track = new Android.Media.AudioTrack(
-                Android.Media.Stream.Music, rate, Android.Media.ChannelOut.Mono,
-                Android.Media.Encoding.Pcm16bit, pcm.Length, Android.Media.AudioTrackMode.Static);
-            track.Write(pcm, 0, pcm.Length);
+                Android.Media.Stream.Music, VmlToneSynth.SampleRate, Android.Media.ChannelOut.Mono,
+                Android.Media.Encoding.Pcm16bit, bufBytes, Android.Media.AudioTrackMode.Stream);
             track.Play();
-            _tone = track;
-            return true;
+            _mixer = track;
+            _running = true;
+            _mixThread = new Thread(MixLoop) { IsBackground = true, Name = "vml-audio" };
+            _mixThread.Start();
         }
         catch (Exception ex)
         {
-            ErrorLog.Error("VmlAudio", "合成音播放失败", ex);
-            return false;
+            // 起不来就**退化**成"没声音"，绝不抛回 VM 线程（那会把 VML 程序打挂）。
+            _mixer = null;
+            ErrorLog.Error("VmlAudio", "混音器起不来（退化：程序照跑，只是没声音）", ex);
         }
     }
 
-    /// <summary>停掉正在响的合成音（没有就什么都不做）。</summary>
-    public static void StopTone()
+    /// <summary>混音线程主体：填一块、写一块，直到 <see cref="_running"/> 被清。</summary>
+    private static void MixLoop()
     {
-        var t = _tone;
-        _tone = null;
-        if (t == null) return;
-        try { t.Stop(); } catch { /* 已经播完自己停了：Stop 会抛，忽略 */ }
-        try { t.Release(); } catch { }
+        var samples = new short[BlockFrames];
+        var bytes = new byte[BlockFrames * 2];
+        try
+        {
+            while (_running)
+            {
+                Synth.Mix(samples, BlockFrames);
+                Buffer.BlockCopy(samples, 0, bytes, 0, bytes.Length);
+                var track = _mixer;
+                if (track == null) break;
+                // ⚠ 这一句就是**背压**：缓冲满了它自己阻塞，循环自然跟着实时速率走。
+                track.Write(bytes, 0, bytes.Length);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 正常收尾（Stop 之后再 Write 会抛）不该刷错误日志。
+            if (_running) ErrorLog.Error("VmlAudio", "混音线程异常退出", ex);
+        }
+    }
+
+    /// <summary>停掉正在响的合成音 —— 现在语义是"清掉老式蜂鸣那条通道"。</summary>
+    public static void StopTone() => Synth.NoteOff(VmlToneSynth.LegacyLane);
+
+    /// <summary>同步 BGM 音量（`AUDIO_VOLUME` 要同时作用于 BGM 与合成器）。</summary>
+    private static void SetBgmVolume(int volume)
+    {
+        var mp = _bgm;
+        if (mp == null) return;
+        try { var v = Math.Clamp(volume, 0, 100) / 100f; mp.SetVolume(v, v); }
+        catch { /* 已释放：忽略 */ }
     }
 
     /// <summary>播一个音频文件（BGM）。返回失败原因，成功返回 null。</summary>
@@ -226,10 +305,37 @@ internal static class VmlAudio
         => Android.App.Application.Context.GetSystemService(Android.Content.Context.VibratorService)
            as Android.OS.Vibrator;
 
-    /// <summary>页面消失/程序结束时全停 —— 否则退出游戏后 BGM 还在响（比不响更糟）。</summary>
+    /// <summary>
+    /// 页面消失/程序结束时全停 —— 否则退出游戏后 BGM 还在响（比不响更糟）。
+    ///
+    /// <para>
+    /// ⚠ **收尾的次序是坑，不能改**：
+    /// ① 先 <c>Panic</c> 立刻静音（否则淡出还没走完就被切，尾音是"噗"一下）；
+    /// ② 置 <c>_running = false</c> —— **必须先置位**；
+    /// ③ 再 <c>Stop()</c> 从另一线程把**阻塞中的 Write 解开**；
+    /// ④ <c>Join</c> 带超时 —— **绝不因为音频线程卡住而冻住退出流程**；
+    /// ⑤ 最后 Flush/Release。
+    /// </para>
+    ///
+    /// <para>
+    /// 反例：先 Release 再 Join ⇒ <c>Write</c> 立刻抛/返回，循环变空转烧 CPU；
+    /// 先 Join 再 Stop ⇒ 死等（<c>Write</c> 永远阻塞在满缓冲上）。两者都是
+    /// "退出时卡一下 / 退不掉"的经典成因。
+    /// </para>
+    ///
+    /// <para>**幂等** —— 页面消失可能被调多次，也可能从没起过混音器。</para>
+    /// </summary>
     public static void StopAll()
     {
-        StopTone();
+        Synth.Panic();                       // ① 立刻静音
+        _running = false;                    // ② 先置位
+        var track = _mixer;
+        try { track?.Stop(); } catch { }     // ③ 解开阻塞中的 Write
+        try { _mixThread?.Join(200); } catch { }   // ④ 有超时，绝不冻住退出
+        try { track?.Flush(); track?.Release(); } catch { }   // ⑤
+        _mixer = null;
+        _mixThread = null;
+        Synth.Panic();                       // 音频线程可能刚写完最后一块，再清一次
         StopBgm();
     }
 

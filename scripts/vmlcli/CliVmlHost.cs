@@ -81,6 +81,18 @@ internal sealed class CliVmlHost : IVmlHost
 
     public CliVmlHost(CliHostConfig cfg) => _cfg = cfg;
 
+    /// <summary>
+    /// **复音合成器** —— 与手机端是**同一个类**（`UI/Shared/VmlToneSynth.cs`）。
+    ///
+    /// <para>
+    /// 桌面这里**不起音频线程、不发声**（维持本文件既有的立场：没有声卡就打日志）。
+    /// 但声部表**要跟着动**，因为它是两条判据的来源：
+    /// ① `voices=` 日志 —— "三个音同时响"就是复音成立的**可判定**证据；
+    /// ② 将来 `--wav` 离线渲染时，用的就是这份被真实驱动过的状态。
+    /// </para>
+    /// </summary>
+    private readonly VmlToneSynth _synth = new();
+
     // ══════════════════════════════════════════════════════════════════════
     // 屏幕
     // ══════════════════════════════════════════════════════════════════════
@@ -322,8 +334,67 @@ internal sealed class CliVmlHost : IVmlHost
     //（本仓真机调试时用同样的办法定位过"连发定时器跑了几拍才被杀"）。
     // ══════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// 老式蜂鸣（`ui_beep`）。
+    ///
+    /// ⚠ **这一行的格式是老判据的接口**：`scripts/vmlcli-verify/run.sh` 的【A】段
+    /// 靠 `grep -o 'tone hz=[0-9]*'` 拼出期望序列逐字节比对（20 项）。
+    /// **格式一个字都不能改** —— 改了那 20 项会全红，而红的原因跟被测功能毫无关系。
+    /// </summary>
     public void Tone(int hz, int ms, int wave, int volume)
-        => CliErr.WriteLine($"[vml-audio] tone hz={hz} ms={ms} wave={wave} vol={volume}");
+    {
+        CliErr.WriteLine($"[vml-audio] tone hz={hz} ms={ms} wave={wave} vol={volume}");
+        // 老式蜂鸣也进合成器（进 LegacyLane 那条专用声道）—— 桌面不发声，
+        // 但声部表要跟着动，否则 `voices=` 就不是真实读数。
+        _synth.NoteOn(VmlToneSynth.LegacyLane, hz, -1, 100, wave, holdMs: ms);
+    }
+
+    // ── 复音（`Audio` 的 op 4/5/6，v0.96.485）──────────────────────────────
+    //
+    // 桌面**不发声**，但日志里带上 `voices=` 快照 —— 这是"复音真的叠加了"在桌面上
+    // **唯一可判定**的证据：三个音先后 note-on、期间没有 note-off，快照里就该同时出现三个。
+    // 判据见 `scripts/vmlcli-verify/audio_probe.c` 与 `tone_check.py`。
+
+    public bool NoteOn(int channel, int note, int velocity, int wave)
+    {
+        var ok = _synth.NoteOn(channel, VmlToneSynth.NoteToHz(note), note, velocity, wave);
+        CliErr.WriteLine($"[vml-audio] note-on ch={channel} note={note} vel={velocity} voices={_synth.VoiceSnapshot()}");
+        return ok;
+    }
+
+    public bool NoteOff(int channel, int note)
+    {
+        var ok = _synth.NoteOff(channel, note);
+        CliErr.WriteLine($"[vml-audio] note-off ch={channel} note={note} voices={_synth.VoiceSnapshot()}");
+        return ok;
+    }
+
+    public int ToneControl(int ctl, int a, int b)
+    {
+        int ret;
+        switch (ctl)
+        {
+            case VmlUi.AudioCtl.AllNotesOff:
+                _synth.AllNotesOff(); ret = 0;
+                CliErr.WriteLine($"[vml-audio] ctl all_off voices={_synth.VoiceSnapshot()}"); break;
+            case VmlUi.AudioCtl.Wave:
+                ret = _synth.SetChannelWave(a, b) ? 0 : -1;
+                CliErr.WriteLine($"[vml-audio] ctl wave ch={a} wave={b}"); break;
+            case VmlUi.AudioCtl.MaxVoices:
+                _synth.MaxVoicesLimit = a; ret = 0;
+                CliErr.WriteLine($"[vml-audio] ctl max_voices={a}"); break;
+            case VmlUi.AudioCtl.Voices:
+                ret = _synth.ActiveVoices;
+                CliErr.WriteLine($"[vml-audio] ctl voices={ret}"); break;
+            case VmlUi.AudioCtl.Panic:
+                _synth.Panic(); ret = 0;
+                CliErr.WriteLine("[vml-audio] ctl panic"); break;
+            default:
+                ret = -1;
+                CliErr.WriteLine($"[vml-audio] ctl ?={ctl}"); break;
+        }
+        return ret;
+    }
 
     public bool PlayAudio(string fullPath, bool loop)
     {

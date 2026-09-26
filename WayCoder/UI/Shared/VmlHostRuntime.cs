@@ -84,8 +84,25 @@ public interface IVmlHost
     /// <summary>停掉 BGM。</summary>
     void StopAudio();
 
-    /// <summary>设置整体音量（已钳到 0–100）。</summary>
+    /// <summary>设置整体音量（已钳到 0–100）。**同时**作用于 BGM 与复音合成器。</summary>
     void SetAudioVolume(int volume);
+
+    // ── 复音发声（`Audio` 的 op 4/5/6，v0.96.485）────────────────────────────
+    //
+    // 与上面 `Tone` 的分工：`Tone` 是**老式蜂鸣**（单发、后音掐前音、`ui_beep` 走它），
+    // 下面这三个是**复音**（多声部同时响）。两者共用一个合成器、各占各的通道，
+    // 所以"游戏音效"与"和弦"能同时存在。
+
+    /// <summary>在通道上起一个音（音符号 0–127，力度 0 等同关音）。
+    /// 返回 false = 参数非法（**不是**"这台机器放不出声"——那不该让程序改分支）。</summary>
+    bool NoteOn(int channel, int note, int velocity, int wave);
+
+    /// <summary>关掉一个音（<paramref name="note"/> = -1 表示该通道全部）。
+    /// 返回 false = 那个音本来就没在响。</summary>
+    bool NoteOff(int channel, int note);
+
+    /// <summary>杂项控制（控制码见 <see cref="VmlUi.AudioCtl"/>）→ 返回值语义随控制码。</summary>
+    int ToneControl(int ctl, int a, int b);
 
     /// <summary>震动一下。</summary>
     bool Vibrate(int ms, int amplitude);
@@ -601,7 +618,28 @@ public sealed class VmlHostRuntime
                         case VmlUi.AudioOp.Stop:   _host.StopAudio(); registers[0] = 0; break;
                         case VmlUi.AudioOp.Volume: _host.SetAudioVolume(VmlUi.ClampVolume(registers[1])); registers[0] = 0; break;
                         case VmlUi.AudioOp.IsPlaying: registers[0] = _host.AudioPlaying() ? 1 : 0; break;
-                        // 认不出的 op 返回 -1（**不是 0**）：0 是 Play/Stop 的**成功码**。
+
+                        // ── 复音发声（op 4/5/6，v0.96.485）──────────────────────────
+                        // 参数同样从 `registers[1]` 起（`registers[0]` 是 op）。
+                        case VmlUi.AudioOp.NoteOn:
+                        {
+                            var ch = VmlUi.ClampChannel(registers[1]);
+                            var note = VmlUi.ClampNote(registers[2]);
+                            var vel = VmlUi.ClampVelocity(registers[3]);
+                            // 力度 0 = 关音（真 MIDI 语义）—— 白送的一条，程序少写一个分支。
+                            registers[0] = vel == 0
+                                ? (_host.NoteOff(ch, note) ? 0 : -1)
+                                : (_host.NoteOn(ch, note, vel, wave: -1) ? 0 : -1);
+                            break;
+                        }
+                        case VmlUi.AudioOp.NoteOff:
+                            registers[0] = _host.NoteOff(VmlUi.ClampChannel(registers[1]), registers[2]) ? 0 : -1;
+                            break;
+                        case VmlUi.AudioOp.Control:
+                            registers[0] = _host.ToneControl(registers[1], registers[2], registers[3]);
+                            break;
+
+                        // 认不出的 op 返回 -1（**不是 0**）：0 是 Play/Stop/NoteOn 的**成功码**。
                         default: registers[0] = -1; break;
                     }
                     break;
