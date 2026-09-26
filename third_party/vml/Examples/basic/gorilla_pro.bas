@@ -178,7 +178,7 @@ NATIVE FUNCTION ui_end_block() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_draw_block(blk AS INTEGER, x AS INTEGER, y AS INTEGER, sx AS INTEGER, sy AS INTEGER, rot AS INTEGER)
 END SUB
-' **释放**图块（#593）：块的内容/尺寸都不可改，"更新一个块"只能重录 ——
+' **释放**图块（#589 的 op 4）：块的内容/尺寸都不可改，"更新一个块"只能重录 ——
 ' 不释放就是在漏句柄（块表 128 格，满了之后 create 返回 0、画面悄悄退回逐帧画）。
 NATIVE FUNCTION ui_free_block(blk AS INTEGER) AS INTEGER
 END FUNCTION
@@ -1213,7 +1213,13 @@ SUB resolveShot()
                 wind = ui_rand(5) - 2
             END IF
             st = 0
-            spawnFlyer()          ' 新回合重新掷一次"天上有没有东西飞过"
+            ' ⚠ 只在**天上空着**时才重新抽签 —— 换人不该打断正在飞的那一只。
+            '   用户报："飞碟本来在屏幕上，换了玩家，就突然没了"。
+            '   飞碟有自己的生命周期（飞来 → 停一下 → 飞走），被换人打断就是凭空消失；
+            '   这也与 spawnPlane 的既有原则一致（"天上空着才放，不打断正在飞的鸟/飞碟"）。
+            IF flyOn = 0 THEN
+                spawnFlyer()
+            END IF
             armBanana()
         END IF
     END IF

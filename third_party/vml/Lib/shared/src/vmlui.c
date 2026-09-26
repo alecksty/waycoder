@@ -375,11 +375,15 @@ int ui_put_image(int x, int y, int handle, int mode) {
     return asm("SYSCALL #585, ${x}, ${y}, ${handle}, ${mode}");
 }
 
-/* ── 矢量图块（589–592）────────────────────────────────────────────────
+/* ── 矢量图块（589，一个号 + 操作码）──────────────────────────────────
  *
  * 与上面那对 ui_get_image / ui_put_image 是**两条并存的路**：
  *   像素路：存光栅像素（w×h×4 字节）—— 老程序的 GET/PUT 用它；放大要重采样、转不了。
  *   矢量路：存**绘图指令** —— 放大不糊、旋转免费、内存与图块尺寸无关。
+ *
+ * ⚠ **底层只有一个号（589）**：`R0` 是操作码（见 waycoder_ui.h 的 VML_BLOCK_*），
+ *   参数从 `R1` 起。原先这里是 589–593 五个号，合并后**函数名与签名一个都没变**，
+ *   程序照旧写 ui_create_block / ui_draw_block —— 它们各自在这里发同一条 SYSCALL。
  *
  * 用法：
  *     h = ui_create_block(32, 32, 0);
@@ -390,29 +394,44 @@ int ui_put_image(int x, int y, int handle, int mode) {
  *
  * ⚠ 块表**不随 ui_clear 清** —— 造一次、之后一直贴。每帧 create 一遍会在 128 帧后拿不到句柄。
  * ⚠ 块里要用渐变/刷子，就在 ui_create_block **之后**建（理由见 waycoder_ui.h）。
+ * ⚠ `asm` 串里的 `${}` 展开**总是先载入 R0** ⇒ 操作码写成 `${op}` 那个变量，
+ *   **不要**直接写字面量 `0`/`1`（字面量会被丢弃，操作码位置就空了）。
+ *
+ * ⚠ 操作码定义在**本文件**（本文件不 include 头文件，理由见上面 VML_BRUSH_* 那段注释）；
+ *   `Lib/c/waycoder_ui.h` 里有同一份给用户程序用 —— **改一边必须改另一边**。
  */
+
+#define VML_BLOCK_CREATE   0
+#define VML_BLOCK_END      1
+#define VML_BLOCK_DRAW     2
+#define VML_BLOCK_DRAW_AT  3
+#define VML_BLOCK_FREE     4
 
 /* 开始录一个图块。w×h 是尺寸声明（中心版贴图要用它算中心）；color 是**保留位** ——
  * 图块永远**透明叠加**，传什么都没有区别。
  * 返回句柄（≥1）；0 = 失败（已经在录了 / 块表满 128）。 */
 int ui_create_block(int w, int h, int color) {
-    return asm("SYSCALL #589, ${w}, ${h}, ${color}");
+    int op = VML_BLOCK_CREATE;
+    return asm("SYSCALL #589, ${op}, ${w}, ${h}, ${color}");
 }
 
 /* 结束录制。返回句柄（与 ui_create_block 给的那个一致）；0 = 没在录制。 */
 int ui_end_block(void) {
-    return asm("SYSCALL #590");
+    int op = VML_BLOCK_END;
+    return asm("SYSCALL #589, ${op}");
 }
 
 /* 贴图块：**(x,y) 是图块中心，绕中心旋转**。
  * sx/sy 用**千分比**（1000 = 原尺寸、2000 = 两倍），rot 用**度**。返回 1 成功 / 0 失败。 */
 int ui_draw_block(int block, int x, int y, int sx, int sy, int rot) {
-    return asm("SYSCALL #591, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+    int op = VML_BLOCK_DRAW;
+    return asm("SYSCALL #589, ${op}, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
 }
 
 /* 同上，但 **(x,y) 是图块左上角、绕左上角旋转**。 */
 int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) {
-    return asm("SYSCALL #592, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
+    int op = VML_BLOCK_DRAW_AT;
+    return asm("SYSCALL #589, ${op}, ${block}, ${x}, ${y}, ${sx}, ${sy}, ${rot}");
 }
 
 /* **释放**一个图块（句柄回收再用）。返回 1 成功 / 0 失败（句柄不存在或已释放）。
@@ -421,7 +440,8 @@ int ui_draw_block_at(int block, int x, int y, int sx, int sy, int rot) {
  * 没有本函数时那就是在漏句柄（块表 128 格，满了之后 ui_create_block 一律返回 0，
  * 而画面只是"悄悄退回逐帧画"，很难发现）。 */
 int ui_free_block(int block) {
-    return asm("SYSCALL #593, ${block}");
+    int op = VML_BLOCK_FREE;
+    return asm("SYSCALL #589, ${op}, ${block}");
 }
 
 /* **释放**一张 ui_get_image 存下的图像（句柄回收）。返回 1 成功 / 0 失败。

@@ -936,12 +936,20 @@ internal sealed class CliUiCalls : ISystemCallHandler
                     VmlUi.DrawPath     => $"path    str={r[0]} stroke=0x{r[1]:X8} w={r[2]} fill=0x{r[3]:X8}",
                     VmlUi.DrawText     => $"text    ({r[0]},{r[1]}) str={r[2]} 0x{r[3]:X8} size={r[4]}",
                     VmlUi.DrawShape    => $"shape   id={r[0]}",
-                    // 矢量图块（589–592）。⚠ `OnSyscall` 在宿主 switch **之前**触发，
-                    // 拿不到返回值 ⇒ `blkend` 记不到句柄（想核句柄就看 `--frame` 的画面）。
-                    VmlUi.CreateBlock => $"blknew  {r[0]}x{r[1]} color=0x{r[2]:X8}",
-                    VmlUi.EndBlock    => "blkend  (录制结束)",
-                    VmlUi.DrawBlock   => $"blkdraw handle={r[0]} 中心({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
-                    VmlUi.DrawBlockAt => $"blkdraw handle={r[0]} 左上({r[1]},{r[2]}) 缩放={r[3]},{r[4]}‰ 转={r[5]}°",
+                    // 矢量图块（589）：**一个号 + 操作码**（v0.96.481 合并，原先 589–593 五个号）。
+                    // ⚠ `OnSyscall` 在宿主 switch **之前**触发，拿不到返回值 ⇒ `blkend` 记不到句柄
+                    //   （想核句柄就看 `--frame` 的画面）。
+                    // ⚠ **参数整体后移一格**：`r[0]` 现在是 op，原来那些号里 `r[0]` 是第一个参数。
+                    //   顺带补上了原先**漏记**的 `Free`（原来那条路在 trace 里一条都看不到）。
+                    VmlUi.Block => r[0] switch
+                    {
+                        VmlUi.BlockOp.Create => $"blknew  {r[1]}x{r[2]} color=0x{r[3]:X8}",
+                        VmlUi.BlockOp.End    => "blkend  (录制结束)",
+                        VmlUi.BlockOp.Draw   => $"blkdraw handle={r[1]} 中心({r[2]},{r[3]}) 缩放={r[4]},{r[5]}‰ 转={r[6]}°",
+                        VmlUi.BlockOp.DrawAt => $"blkdraw handle={r[1]} 左上({r[2]},{r[3]}) 缩放={r[4]},{r[5]}‰ 转={r[6]}°",
+                        VmlUi.BlockOp.Free   => $"blkfree handle={r[1]}",
+                        _ => $"blk?    op={r[0]}（认不出的操作码）",
+                    },
                     // 绘图**状态**（`ui_gfx` 多路复用）：裁剪 / 蒙版 / 透明度 / 资源。
                     // ⚠ 这一条是补上的：原来只记"图元"，于是**蒙版与裁剪在 trace 里一条都没有** ——
                     //   而"trace 里没有"会被读成"宿主没执行"，正是下面那句注释记过的同一个坑。

@@ -196,43 +196,69 @@ public static class VmlUi
     // 这层存指令 —— 放大不糊、旋转免费、内存与图块尺寸无关。
 
     /// <summary>
-    /// `ui_create_block(w, h, color)` —— 开始录制后续绘图指令。→ 句柄（≥1），失败 0。
-    ///
-    /// <para>**`color` 是保留位**：图块永远透明叠加，传什么都没有区别。</para>
-    /// <para>`ui_clear` 在录制期 = **从零开始录**（只清录制缓冲，不动场景）。</para>
-    /// </summary>
-    public const int CreateBlock = 589;
-
-    /// <summary>`ui_end_block()` —— 结束录制。→ 句柄（与 create 给的一致）；没在录时 0。</summary>
-    public const int EndBlock = 590;
-
-    /// <summary>
-    /// `ui_draw_block(block, x, y, sx, sy, rot)` —— 贴图块。**(x, y) 是图块中心，绕中心转。**
-    ///
-    /// 缩放千分比（1000 = 原尺寸）、角度用度。→ 1 成功 / 0 失败。
-    /// </summary>
-    public const int DrawBlock = 591;
-
-    /// <summary>`ui_draw_block_at(block, x, y, sx, sy, rot)` —— 同上，但 **(x, y) 是左上角、绕左上角转**。</summary>
-    public const int DrawBlockAt = 592;
-
-    /// <summary>
-    /// `ui_free_block(block)` —— **手动释放**一个图块。→ 1 成功 / 0 失败（句柄不存在或已释放）。
+    /// **图块的五个操作共用一个号** —— `R0 = op`（见 <see cref="BlockOp"/>），
+    /// `R1..R6 = 参数`，返回写回 `R0`。
     ///
     /// <para>
-    /// <b>为什么要有它</b>：块表有 <see cref="MaxBlocks"/>（128）上限，而"改一个块的内容"
-    /// 的唯一办法是**重录新块**（块的内容/尺寸都不可变）—— 没有释放的话，任何"内容会变"
-    /// 的用法都在漏句柄。实测 `Examples/basic/gorilla_pro.bas`：城市/星空/云三块每次配色变化
-    /// 重录一次 ⇒ **每秒 3 个** ⇒ 43 秒撑满，之后 `ui_create_block` 一律返回 0，
-    /// 画面**悄悄**退回逐帧画（帧率从 25 掉回 18，屏幕上完全看不出"图块没了"）。
-    /// 有了它，程序可以"先释放旧的、再录新的"，想多频繁就多频繁。
+    /// ⚠ v0.96.481 起合并（原先 `CreateBlock`/`EndBlock`/`DrawBlock`/`DrawBlockAt`/`FreeBlock`
+    /// **各占一个号 589–593**）。它们本来就是**同一件事的五种动作** ——
+    /// 正是"相同或相似功能合并一个号、用第一个参数区别"这条规则的典型，一次省下 4 个号。
     /// </para>
+    ///
     /// <para>
-    /// ⚠ 释放过的句柄会被**回收复用**（句柄值只增不减），所以别在别处留旧句柄当"以后再贴"。
-    /// 贴一个已失效的句柄是**静默 no-op**（与"句柄 0 = 没有块"同一套，见 <see cref="DrawBlock"/>）。
+    /// ⚠ **每个 op 的参数都 ≤6，加上 op 自己只占 7 个槽**，卡在 `R0–R7` 的容纳上限内。
+    /// `Draw`/`DrawAt` 是最满的（6 个参数）；**再给它们加一个参数就塞不下了** ——
+    /// 那时只能开新号或走内存缓冲，别再往这个 op 上加。
+    /// </para>
+    ///
+    /// <para>各 op 的语义与返回（**与合并前逐字一致**）：</para>
+    /// <list type="bullet">
+    /// <item>`Create(w,h,color)` → 句柄（≥1），失败 0。**`color` 是保留位**：图块永远透明叠加，
+    ///   传什么都没有区别。`ui_clear` 在录制期 = **从零开始录**（只清录制缓冲，不动场景）。</item>
+    /// <item>`End()` → 句柄（与 create 给的一致）；没在录时 0。</item>
+    /// <item>`Draw(block,x,y,sx,sy,rot)` → 1 成功 / 0 失败。缩放千分比（1000 = 原尺寸）、角度用度。
+    ///   **(x,y) 是中心、绕中心转**。</item>
+    /// <item>`DrawAt(block,x,y,sx,sy,rot)` → 同上，但 **(x,y) 是左上角、绕左上角转**。</item>
+    /// <item>`Free(block)` → 1 成功 / 0 失败（句柄不存在或已释放）。**先释放旧的、再录新的**，
+    ///   是"内容会变"那种用法的标准写法 —— 块表有 <see cref="MaxBlocks"/>（128）上限，而"改一个块"
+    ///   只能重录（块的内容与尺寸都不可变），不释放就是**每次漏一个句柄**。
+    ///   实测 `Examples/basic/gorilla_pro.bas`：城市/星空/云三块每次配色变化重录 ⇒ **每秒 3 个**
+    ///   ⇒ 43 秒撑满，之后 `ui_create_block` 一律返回 0、画面**悄悄**退回逐帧画
+    ///   （帧率 25 → 18，屏幕上完全看不出"图块没了"）。
+    ///   释放过的句柄会被**回收复用**，所以别在别处留旧句柄当"以后再贴"；
+    ///   贴一个已失效的句柄是**静默 no-op**（与"句柄 0 = 没有块"同一套）。</item>
+    /// </list>
+    ///
+    /// <para>
+    /// ⚠ **认不出的 op 返回 -1 且什么都不做** —— **不是 0**。因为 0 在这套里是**合法的失败码**
+    /// （`Create` 失败就返回 0），拿 0 当"认不出"就分不清"参数错了"和"op 打错了"。
+    /// （`ui_gfx`(#595) 那边用 0 是因为它的每个 op 本来就不返回业务值；两处约定不同，各有各的理由。）
     /// </para>
     /// </summary>
-    public const int FreeBlock = 593;
+    public const int Block = 589;
+
+    /// <summary>
+    /// <see cref="Block"/>(#589) 的**操作码** —— **跨语言契约**
+    /// （C 头文件里的 `VML_BLOCK_*` 按这些数值写死）。
+    ///
+    /// ⚠ **只能末尾追加**：数值会编进程序的机器码里，改值等于改 ABI。
+    /// </summary>
+    public static class BlockOp
+    {
+        /// <summary>开始录制 → 句柄。参数：`w, h, color`（color 是保留位）。</summary>
+        public const int Create = 0;
+        /// <summary>结束录制 → 句柄。无参数。</summary>
+        public const int End = 1;
+        /// <summary>贴块（**(x,y) 是中心**）。参数：`block, x, y, sx, sy, rot`。</summary>
+        public const int Draw = 2;
+        /// <summary>贴块（**(x,y) 是左上角**）。参数：`block, x, y, sx, sy, rot`。</summary>
+        public const int DrawAt = 3;
+        /// <summary>释放块。参数：`block`。</summary>
+        public const int Free = 4;
+    }
+
+    // ⚠ `EndBlock(590)` / `DrawBlock(591)` / `DrawBlockAt(592)` / `FreeBlock(593)` 四个号
+    //   已在 v0.96.481 **并入上面的 `Block`(589) + `BlockOp`**，四个值随即空出。
 
     /// <summary>
     /// `ui_free_image(handle)` —— **手动释放**一张 `ui_get_image` 存下的图像。→ 1 成功 / 0 失败。
@@ -259,7 +285,7 @@ public static class VmlUi
     /// 都接好了，C 头文件里也都有声明。
     ///
     /// ⚠ 这里原先写着「目前实现三个操作，`3..7`（蒙版/图层）留号未实现」——
-    /// **那句是过期的**（v0.96.480 逐条核实：`VmlHostRuntime` 的 `GfxState` 里
+    /// **那句是过期的**（v0.96.481 逐条核实：`VmlHostRuntime` 的 `GfxState` 里
     /// `MaskBegin`/`MaskEnd`/`MaskEnd2`/`MaskClear`/`LayerBegin`/`LayerEnd` 六个 case 都在）。
     /// 留着的害处是让人以为"蒙版/图层不能用"，从而绕开本职工具自己造一套。
     /// </summary>
@@ -1250,9 +1276,9 @@ public static class VmlUi
         // ⚠ `SetVAlign`(586) 此前**漏在这张表外**（上面这行注释也把它跳过去了）——
         //   漏登记**不报错**，只是查重网漏掉它（那张网查"重复/越界"，**查不出"少一个"**）。
         //   与 `DrawTextEx`(581) 那次是同一个坑，见下面那段注释。
-        FloodFill, GetImage, PutImage, SetVAlign, DrawGetPixel, Screenshot, FreeBlock, FreeImage,
-        // 矢量图块 589–592
-        CreateBlock, EndBlock, DrawBlock, DrawBlockAt,
+        FloodFill, GetImage, PutImage, SetVAlign, DrawGetPixel, Screenshot, FreeImage,
+        // 矢量图块 589（**一个号 + 操作码**，见 `BlockOp`；原先 589–593 五个号）
+        Block,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
         // 手感与存档 541–553
@@ -1272,7 +1298,7 @@ public static class VmlUi
         WinOpenPc,
         // 绘图扩展 574–576（一个号 + 操作码，见 VmlShape / VmlBrushKind / VmlStyleSlot）
         DrawShape, Brush, SetStyle,
-        // ⚠ `GfxState = 595` 是**补进来的**（v0.96.480）：它早就定义了，却一直没进这张表 ——
+        // ⚠ `GfxState = 595` 是**补进来的**（v0.96.481）：它早就定义了，却一直没进这张表 ——
         //   **这是第三次**（前两次是 `DrawTextEx(581)`、`SetVAlign(586)`，上面两处注释各记了一次）。
         //   漏登记**不报错**：这张表只被自测拿去查"重复/越界"，漏一个号 = 那道网漏掉一个号，
         //   它与别的号撞了也查不出来（症状是一个功能静默变成另一个功能）。
@@ -3043,7 +3069,7 @@ public sealed class VmlScene
         }
     }
 
-    /// <summary>`ui_free_block(block)` —— 释放一个图块（句柄回收，见 <see cref="VmlUi.FreeBlock"/>）。</summary>
+    /// <summary>`ui_free_block(block)` —— 释放一个图块（句柄回收，见 <see cref="VmlUi.BlockOp.Free"/>）。</summary>
     public bool FreeBlock(int block)
     {
         lock (_figures)

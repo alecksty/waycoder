@@ -648,33 +648,49 @@ public sealed class VmlHostRuntime
                 // 不包 WithTimersPaused：它不是"等用户"，只是抓一帧，没有积压风险。
                 case VmlUi.Screenshot: registers[0] = Screenshot(registers, memory); break;
 
-                // 矢量图块（589–592）—— 录制/重放，实现在 VmlScene 的四个方法上。
+                // 矢量图块（589）—— 录制/重放，实现在 VmlScene 的几个方法上。
+                // v0.96.481 起**五个号合并成一个**（`Block` + `BlockOp`），理由见 `VmlUi.Block`。
                 //
-                // ⚠ `CreateBlock` / `EndBlock` **不 `TouchScene()`**：它们只动"块表"，
+                // ⚠ `Create` / `End` / `Free` **不 `TouchScene()`**：它们只动"块表"，
                 //   一个图元都没往场景里放（与 `DrawPresent` 那条同一个判断口径）。
-                //   涨了 `SceneChanged` 只会让宿主白刷一帧。真正贴图元的是 `DrawBlock*`。
-                case VmlUi.CreateBlock:
-                    registers[0] = Scene()?.CreateBlock(registers[0], registers[1], (uint)registers[2]) ?? 0;
+                //   涨了 `SceneChanged` 只会让宿主白刷一帧。真正贴图元的是 `Draw` / `DrawAt`。
+                //   ⚠ 合并之后这条差别**一点都不能含糊** —— 以前是靠"不同 case"天然分开的，
+                //     现在同一个 case 里按 op 分，写错就是"每录一次块白刷一帧"。
+                case VmlUi.Block:
+                {
+                    var sc = Scene();
+                    switch (registers[0])
+                    {
+                        case VmlUi.BlockOp.Create:
+                            registers[0] = sc?.CreateBlock(registers[1], registers[2], (uint)registers[3]) ?? 0;
+                            break;
+                        case VmlUi.BlockOp.End:
+                            registers[0] = sc?.EndBlock() ?? 0;
+                            break;
+                        case VmlUi.BlockOp.Draw:
+                            registers[0] = (sc?.DrawBlock(registers[1], registers[2], registers[3],
+                                                          registers[4], registers[5], registers[6]) ?? false) ? 1 : 0;
+                            TouchScene();
+                            break;
+                        case VmlUi.BlockOp.DrawAt:
+                            registers[0] = (sc?.DrawBlockAt(registers[1], registers[2], registers[3],
+                                                            registers[4], registers[5], registers[6]) ?? false) ? 1 : 0;
+                            TouchScene();
+                            break;
+                        case VmlUi.BlockOp.Free:
+                            // 与 Create/End 一样**不 `TouchScene()`**：释放只动"块表"。
+                            registers[0] = (sc?.FreeBlock(registers[1]) ?? false) ? 1 : 0;
+                            break;
+                        // ⚠ 认不出的 op 返回 **-1**，**不是 0** —— 0 在这套里是**合法的失败码**
+                        //   （`Create`/`End` 失败都返回 0），拿它当"认不出"就分不清
+                        //   "参数错了"和"op 打错了"。与 `ui_gfx`(#595) 用 0 不同，理由见 `VmlUi.Block`。
+                        default:
+                            registers[0] = -1;
+                            break;
+                    }
                     break;
-                case VmlUi.EndBlock:
-                    registers[0] = Scene()?.EndBlock() ?? 0;
-                    break;
-                case VmlUi.DrawBlock:
-                    registers[0] = (Scene()?.DrawBlock(registers[0], registers[1], registers[2],
-                                                      registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
-                    TouchScene();
-                    break;
+                }
                 case VmlUi.FreeImage: registers[0] = (_images.Remove(registers[0])) ? 1 : 0; break;
-                case VmlUi.FreeBlock:
-                    // 与 Create/End 一样**不 `TouchScene()`**：释放只动"块表"，
-                    // 一个图元都没往场景里放（贴图元的是 DrawBlock*）。
-                    registers[0] = (Scene()?.FreeBlock(registers[0]) ?? false) ? 1 : 0;
-                    break;
-                case VmlUi.DrawBlockAt:
-                    registers[0] = (Scene()?.DrawBlockAt(registers[0], registers[1], registers[2],
-                                                        registers[3], registers[4], registers[5]) ?? false) ? 1 : 0;
-                    TouchScene();
-                    break;
 
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
