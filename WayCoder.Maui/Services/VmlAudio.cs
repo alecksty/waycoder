@@ -342,12 +342,16 @@ internal static class VmlAudio
 #elif IOS || MACCATALYST
     // ── iOS / MacCatalyst：同一套合成思路，落到 AVFoundation ──
     //
-    // 与 Android 那份**语义完全一致**（同样的钳位、同样的包络、同样的单通道），
-    // 换的只是 API：AVAudioEngine + AVAudioPlayerNode + 一块 PCM 缓冲。
-    // 之所以不抽一层"音频抽象接口"再各写一份实现：那样要多两个文件、一层虚调用，
-    // 而两条实现都只有几十行、且**必须各写一遍**（平台 API 完全不同），
-    // 抽了也只是把 `#if` 挪个地方。
-
+    // 与 Android 那份**语义完全一致** —— 而且现在连"合成"那部分都是**同一个类**
+    // （`UI/Shared/VmlToneSynth.cs`）：两端各写各的只剩**播放**这一层
+    // （`AudioTrack` vs `AVAudioEngine`）。
+    //
+    // ⚠ 这一段原先是"不抽音频抽象接口"的理由（"两条实现都只有几十行"）。
+    //   **复音推翻了这个前提**：有了声部表、相位累加、包络、混音、限幅之后，
+    //   那就不再是几十行采样循环，而是一段**两端必须逐字一致**的算法 ——
+    //   否则同一个程序在两台机器上音色不同，那是最难查的一类分叉。
+    //   所以边界重划：**抽「合成/混音」，不抽「播放」**。
+    //
     private static AVAudioEngine? _engine;
     private static AVAudioPlayerNode? _node;
     private static AVAudioPlayer? _bgmPlayer;
@@ -395,63 +399,82 @@ internal static class VmlAudio
         }
     }
 
-    private static bool ToneCore(int hz, int ms, int wave, int volume)
+    // ── 复音混音器（v0.96.485）────────────────────────────────────────────
+    //
+    // 与 Android 那份同一套结构：**一个后台线程持续把 `Synth.Mix()` 出来的块喂给播放节点**，
+    // 而不是"每发一个音算一段、Stop 掉上一个"（那是结构性单通道）。
+    //
+    // ⚠ 差别在"背压从哪来"：Android 的 `AudioTrack.Write` 是阻塞的，缓冲一满自然等；
+    //   `ScheduleBuffer` **不阻塞、只管排队** ⇒ 得自己控速，否则会一直往队列里堆。
+    //   这里的做法是**按块时长 sleep**（1024 帧 ≈ 23ms）—— 简单、可控，
+    //   代价是时钟会有微小漂移（长时间连续播放才看得出来）。
+    //   更精确的做法是用 `ScheduleBuffer` 的完成回调驱动下一块，留作后续。
+
+    /// <summary>喂块线程（惰性起、随 <see cref="StopAll"/> 收）。</summary>
+    private static Thread? _mixThread;
+
+    /// <summary>线程退出的唯一开关。置位顺序见 <see cref="StopAll"/> —— 反了会卡住。</summary>
+    private static volatile bool _running;
+
+    /// <summary>渲染块（帧）—— 与 Android、与桌面同值。</summary>
+    private const int BlockFrames = 1024;
+
+    private static readonly short[] MixScratch = new short[BlockFrames];
+
+    /// <summary>起混音线程（**惰性** —— 第一次真要发声时才起；幂等）。</summary>
+    private static void EnsureMixer()
     {
+        if (_running) return;
+        if (EnsureNode() == null) return;   // 引擎起不来 ⇒ 退化（程序照跑，只是没声音）
+        _running = true;
+        _mixThread = new Thread(MixLoop) { IsBackground = true, Name = "vml-audio" };
+        _mixThread.Start();
+    }
+
+    private static void MixLoop()
+    {
+        var format = _format ??= new AVAudioFormat(AVAudioCommonFormat.PCMInt16, SampleRate, 1, false);
+        var blockMs = BlockFrames * 1000 / SampleRate;
         try
         {
-            var node = EnsureNode();
-            if (node == null) return false;
-
-            // 与 `EnsureNode` 里连接节点用的是同一个实例（见 `_format` 注释）。
-            var format = _format ??= new AVAudioFormat(AVAudioCommonFormat.PCMInt16, SampleRate, 1, false);
-            var frames = (uint)(SampleRate * ms / 1000);
-            if (frames == 0) return false;
-
-            using var buf = new AVAudioPcmBuffer(format, frames);
-            buf.FrameLength = frames;
-
-            var amp = 32767.0 * Math.Clamp(volume, 0, 100) / 100.0;
-            var period = (double)SampleRate / hz;
-            unsafe
+            while (_running)
             {
-                // `int16ChannelData` 的 ObjC 类型是 `int16_t * const *`（通道指针数组），
-                // .NET 绑定把它收成了 `nint` ⇒ 这里显式还原成 `short**` 再取通道 0，
-                // 语义与绑定暴露裸指针时完全一致。
-                var ch = ((short**)buf.Int16ChannelData)[0];
-                for (var i = 0; i < frames; i++)
-                {
-                    var phase = i / period;
-                    var frac = phase - Math.Floor(phase);
-                    var v = wave switch
-                    {
-                        1 => frac < 0.5 ? 1.0 : -1.0,
-                        2 => 2.0 * frac - 1.0,
-                        3 => 4.0 * Math.Abs(frac - 0.5) - 1.0,
-                        _ => Math.Sin(phase * 2 * Math.PI),
-                    };
-                    // 包络：不加的话方波头尾会有"咔"的爆音（与 Android 那份同一处理）
-                    var fade = Math.Min(1.0, Math.Min(i, frames - 1 - i) / (SampleRate * 0.003));
-                    ch[i] = (short)(v * amp * Math.Max(0, fade));
-                }
-            }
+                var node = _node;
+                if (node == null) break;
 
-            node.Stop();
-            // 绑定里没有「只要 buffer」的 1 参重载：完成回调是 `[NullAllowed] Action`
-            // ⇒ 传 null 表示不关心播放结束（显式转型消掉与枚举重载的歧义）。
-            node.ScheduleBuffer(buf, (Action?)null);
-            node.Play();
-            return true;
+                Synth.Mix(MixScratch, BlockFrames);
+
+                // ⚠ `AVAudioPcmBuffer` 每块新建（约 2KB）—— 换来的是不必和
+                //   "上一块还在播、这块要覆盖它"的竞态打交道。23ms 一块，GC 扛得住。
+                using var buf = new AVAudioPcmBuffer(format, BlockFrames);
+                buf.FrameLength = BlockFrames;
+                unsafe
+                {
+                    // `int16ChannelData` 的 ObjC 类型是 `int16_t * const *`（通道指针数组），
+                    // .NET 绑定把它收成了 `nint` ⇒ 还原成 `short**` 再取通道 0。
+                    var ch = ((short**)buf.Int16ChannelData)[0];
+                    for (var i = 0; i < BlockFrames; i++) ch[i] = MixScratch[i];
+                }
+                node.ScheduleBuffer(buf, (Action?)null);
+                if (!node.Playing) node.Play();
+
+                Thread.Sleep(blockMs);
+            }
         }
         catch (Exception ex)
         {
-            ErrorLog.Error("VmlAudio", "iOS 合成音播放失败", ex);
-            return false;
+            if (_running) ErrorLog.Error("VmlAudio", "iOS 混音线程异常退出", ex);
         }
     }
 
-    public static void StopTone()
+    /// <summary>停掉正在响的合成音 —— 现在语义是"清掉老式蜂鸣那条通道"。</summary>
+    public static void StopTone() => Synth.NoteOff(VmlToneSynth.LegacyLane);
+
+    /// <summary>同步 BGM 音量（`AUDIO_VOLUME` 要同时作用于 BGM 与合成器）。</summary>
+    private static void SetBgmVolume(int volume)
     {
-        try { _node?.Stop(); } catch { }
+        try { if (_bgmPlayer != null) _bgmPlayer.Volume = Math.Clamp(volume, 0, 100) / 100f; }
+        catch { /* 已释放：忽略 */ }
     }
 
     public static string? Play(string path, bool loop)
@@ -506,9 +529,19 @@ internal static class VmlAudio
         return Vibrate((int)Math.Clamp(total, 1, VmlUi.VibrateMaxSegmentMs), 0);
     }
 
+    /// <summary>
+    /// 页面消失/程序结束时全停（**幂等**）。
+    /// ⚠ 次序与 Android 那份同一道理：**先置开关、再停引擎、最后带超时 Join** ——
+    /// 反了会死等（线程阻塞在 ScheduleBuffer 的队列上）。
+    /// </summary>
     public static void StopAll()
     {
-        StopTone();
+        Synth.Panic();          // ① 立刻静音（别让尾音拖到引擎停掉那一刻）
+        _running = false;       // ② 先置位
+        try { _node?.Stop(); } catch { }        // ③ 让线程下一轮醒来时看到 _running=false
+        try { _mixThread?.Join(200); } catch { } // ④ 有超时，绝不冻住退出
+        _mixThread = null;
+        try { _engine?.Stop(); } catch { }
         StopBgm();
     }
 

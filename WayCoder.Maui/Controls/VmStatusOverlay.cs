@@ -358,6 +358,11 @@ public sealed class VmStatusOverlay : ContentView
 #if ANDROID
     /// <summary>按下时手指的**屏幕**坐标 —— 整个拖动过程的唯一基准（见类注释的回路说明）。</summary>
     private float _downRawX, _downRawY;
+#endif
+
+    // ⚠ `_dragAttached` **不属于 Android 段**：桌面/iOS 那条 `AttachPanDrag` 也要用它做去重
+    //   （见下面 469 行附近）。先前它被圈在 Android 段里，而 `#else` 分支引用它 ——
+    //   **Apple 目标一直编译不过**（桌面构建、Android 构建都看不出来）。
 
     /// <summary>
     /// 已经接过拖动的**格** —— 每格独立记账。
@@ -368,6 +373,12 @@ public sealed class VmStatusOverlay : ContentView
     ///   同时它也防重复：`HandlerChanged` 可能来不止一次，重复 `+=` 会让拖动跑 N 倍。
     /// </summary>
     private readonly HashSet<View> _dragAttached = new();
+
+    // ⚠ **这里必须关掉 `#if ANDROID`**（v0.96.485 修）：下面这两个成员是**跨平台**的 ——
+    //   `SetBodyDraggable` 里本身就有 `#if !ANDROID` 分支（"桌面/iOS 上正文拖不动"那处补挂），
+    //   整段被圈进 Android 段之后那个分支成了**永远编译不到的死代码**，
+    //   而且 `_body` 构造里对 `_bodyDraggable` 的引用（在 `#if` 外）直接编译不过 ——
+    //   **表现是 macOS / iOS 从来没编译过**（桌面构建和 Android 构建都看不出来）。
 
     /// <summary>
     /// 正文块**是否也参与拖动**（由宿主页面设，见 <see cref="SetBodyDraggable"/>）。
@@ -401,6 +412,7 @@ public sealed class VmStatusOverlay : ContentView
 #endif
     }
 
+#if ANDROID
     /// <summary>
     /// 把拖动接到把柄的**平台视图**上，收 `MotionEvent.RawX/RawY`（屏幕绝对坐标）。
     ///
