@@ -58,6 +58,13 @@ static int RowStep;   /* 上下两行差几个半音（= 12 × 每行的八度�
  * 状态栏那两个「−/+」整体移调（两行一起走），比把键盘挤成一条窄键好得多。 */
 static int BaseNote;
 
+/* 音名（标在白键底部用）。
+ * ⚠ 用**两个一维 char 数组**而不是 `char* NAMES[12]` 或二维数组 ——
+ *   本仓记过"全局**指针**数组在这条前端上会读出垃圾值"，能不碰就不碰。
+ *   12 个半音里只有 5 个带升号（C# D# F# G# A#），另一个数组存 '#' 或 0。 */
+static char NAME0[12];
+static char NAME1[12];
+
 /* 白键半音偏移：do re mi fa sol la si */
 static int WHITE_SEMI[7];
 /* 第 i 个白键右上方有没有黑键（-1 = 没有：mi 和 si 右上方没有） */
@@ -141,16 +148,27 @@ static int row_top(int row)
  *   两处各算一遍就是两个真源，迟早对不上 —— 收成一个函数之后不可能再错开。
  * ══════════════════════════════════════════════════════════════════════ */
 
+/* 第 `row` 行**多高**（相对 BaseNote 的半音数）。
+ *
+ * ⚠ **下面那行是低音**（`row` 越大越低）—— 音高往上走、屏幕上也往上走，
+ *   与钢琴/电子琴的直觉一致。第一版写反了（下面反而高一个八度），
+ *   标上音名才一眼看出来（下面是 C5、上面是 C4）。
+ *   这类"反了也能跑"的错误，靠**把语义画出来**（音名）比靠断言容易发现得多。 */
+static int row_shift(int row)
+{
+    return (RowCount - 1 - row) * RowStep;
+}
+
 /* 第 `row` 行第 `i` 个白键的半音偏移（相对 BaseNote）。 */
 static int white_semi_at(int row, int i)
 {
-    return row * RowStep + WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+    return row_shift(row) + WHITE_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
 }
 
 /* 第 `row` 行第 `i` 个白键右上方黑键的半音偏移（调用方先判 `BLACK_AT` 不是 -1）。 */
 static int black_semi_at(int row, int i)
 {
-    return row * RowStep + BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
+    return row_shift(row) + BLACK_SEMI[i - (i / 7) * 7] + (i / 7) * 12;
 }
 
 /* 第 `row` 行第 `i` 个白键右上方黑键的矩形（out[0..3] = x y w h）。 */
@@ -180,7 +198,9 @@ static void draw(void)
     int semi;
     int oct;
     int y0;
+    int rel;
     char buf[8];
+    char nm[4];
 
     ui_clear(0xFF101820);
 
@@ -228,6 +248,28 @@ static void draw(void)
                 ui_rect(x + 1, y0, w - 2, RowKeyH, 0xFFF2F2F4, 1, 0, 6);
             }
             ui_rect(x + 1, y0, w - 2, RowKeyH, 0xFF8A8A92, 0, 2, 6);        /* 描边 */
+
+            /* 音名标在白键**底部**（黑键太窄，标了也看不清）。
+             * 八度用"相对中央 C 的八度号"—— `BaseNote` 就是第一行的 C。 */
+            /* ⚠ 坑 3（全局数组元素先落局部变量）：`NAME0[...]` 的下标也先算出来，
+             *   别在两次取用里各算一遍。 */
+            rel = semi - semi / 12 * 12;                    /* 这个音在八度内的位置 */
+            oct = (BaseNote + semi - 60) / 12 + 4;          /* C4 = 中央 C */
+            if (oct < 0) oct = 0;
+            if (oct > 9) oct = 9;                           /* 只画一位，画不下就夹住 */
+            if (NAME1[rel] == 0) {
+                nm[0] = NAME0[rel];                         /* 白键：C4 / D4 … */
+                nm[1] = '0' + oct;
+                nm[2] = 0;
+            } else {
+                nm[0] = NAME0[rel];                         /* 黑键名用不上，但留着不会错 */
+                nm[1] = '#';
+                nm[2] = '0' + oct;
+                nm[3] = 0;
+            }
+            ui_set_font(13, 0, 0xFF8A8A92, VML_ANCHOR_CENTER);
+            ui_set_valign(VML_VANCHOR_BOTTOM);
+            ui_text_cur(x + w / 2, y0 + RowKeyH - 6, nm);
         }
     }
 
@@ -407,6 +449,14 @@ int main(void)
     BLACK_AT[4] = 4; BLACK_AT[5] = 5; BLACK_AT[6] = -1;
     BLACK_SEMI[0] = 1; BLACK_SEMI[1] = 3; BLACK_SEMI[2] = -1; BLACK_SEMI[3] = 6;
     BLACK_SEMI[4] = 8; BLACK_SEMI[5] = 10; BLACK_SEMI[6] = -1;
+
+    /* 音名表（标在白键底部）—— 12 个半音，只有 5 个带升号 */
+    NAME0[0] = 'C'; NAME0[1] = 'C'; NAME0[2] = 'D'; NAME0[3] = 'D';
+    NAME0[4] = 'E'; NAME0[5] = 'F'; NAME0[6] = 'F'; NAME0[7] = 'G';
+    NAME0[8] = 'G'; NAME0[9] = 'A'; NAME0[10] = 'A'; NAME0[11] = 'B';
+    NAME1[0] = 0; NAME1[1] = '#'; NAME1[2] = 0; NAME1[3] = '#';
+    NAME1[4] = 0; NAME1[5] = 0; NAME1[6] = '#'; NAME1[7] = 0;
+    NAME1[8] = '#'; NAME1[9] = 0; NAME1[10] = '#'; NAME1[11] = 0;
 
     for (i = 0; i < 10; i++) KeyDown[i] = -1;
     for (i = 0; i < 26; i++) Ref[i] = 0;
