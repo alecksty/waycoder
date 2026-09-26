@@ -173,11 +173,13 @@ void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius
 void ui_circle(int cx, int cy, int r, int color, int fill, int lw);
 void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);
 
-/* ── 绘图状态：裁剪 / 透明度（`ui_gfx`，SYSCALL #595）─────────────────────
+/* ── 绘图状态：裁剪 / 透明度 / 蒙版 / 图层（`ui_gfx`，SYSCALL #595）────────
  *
  * **一个号做多路复用**（宿主认的号段 500–599 到 594 只剩 595–599 五个，
- * 而状态操作有八九个）。目前实现三个操作，蒙版/图层留号未实现
- * （所以也**没有**对应声明 —— 正常写法碰不到"写了没生效"那种事）。
+ * 而状态操作有八九个）。
+ *
+ * ⚠ 这里早期写着「目前实现三个操作，蒙版/图层留号未实现」—— **那句已过期**
+ *   （v0.96.480 逐条核实：op 0–16 全部接好，声明也都在本文件下面）。
  *
  * 裁剪是**可嵌套**的：每次 push 与上一级**求交**，pop 恢复上一级。
  * 用处：只让内容画在某个框里（HUD 面板、滚动视图、异形窗口、

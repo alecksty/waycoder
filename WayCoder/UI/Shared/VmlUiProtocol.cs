@@ -254,9 +254,14 @@ public static class VmlUi
     ///   「放宽会把别的内置 syscall 一并吞掉，那是最难查的一类故障」。
     ///   多路复用在本题材上也更贴切：它们本来就是**同一个状态机**的几种动作。
     ///
-    /// 目前实现：`0/1` = 裁剪压/弹、`2` = 透明度。
-    /// `3..7`（蒙版/图层）留号未实现 —— **调用它们会返回 0 并且什么都不发生**，
-    /// 但头文件里**没有**对应声明，所以正常写法碰不到（不会出现"写了没生效"）。
+    /// **已实现的 op 全在 <see cref="GfxOp"/> 里**（0–16：裁剪压弹 / 透明度 /
+    /// 蒙版三种与布尔运算 / 图层 / 画刷重置 / 裁剪栈清空 / 资源计数 / 蒙版导出路径）——
+    /// 都接好了，C 头文件里也都有声明。
+    ///
+    /// ⚠ 这里原先写着「目前实现三个操作，`3..7`（蒙版/图层）留号未实现」——
+    /// **那句是过期的**（v0.96.480 逐条核实：`VmlHostRuntime` 的 `GfxState` 里
+    /// `MaskBegin`/`MaskEnd`/`MaskEnd2`/`MaskClear`/`LayerBegin`/`LayerEnd` 六个 case 都在）。
+    /// 留着的害处是让人以为"蒙版/图层不能用"，从而绕开本职工具自己造一套。
     /// </summary>
     public const int GfxState = 595;
 
@@ -773,17 +778,15 @@ public static class VmlUi
         // 这只是**第一次开窗之前**的兜底：只要开出过一次窗口，
         // `MeasuredViewport` 就把真实值接管了（见 `DrawWindowPage.PublishViewport`）。
         var (w, h) = dpW > dpH
-            ? (dpW - LandscapeSideChromeDp, dpH - LandscapeChromeHeightDp)
+            ? (dpW - VmlUiLimits.LandscapeSideChromeDp, dpH - VmlUiLimits.LandscapeChromeHeightDp)
             : (dpW - 16, dpH - chromeHeightDp);          // 竖屏：左右各 8dp 留白 + 底部手柄
         // 下限给足（太小的话程序没法布局）；上限防止异常设备算出离谱值
         return (Math.Clamp(w, 120, 2048), Math.Clamp(h, 120, 4096));
     }
 
-    /// <summary>横屏时**左右两列手柄 + 间距 + 页边距**占掉的宽度（dp）。实测标定，见上。</summary>
-    public const int LandscapeSideChromeDp = 518;
-
-    /// <summary>横屏时**状态栏 + 导航栏 + 折叠条**占掉的高度（dp）。实测标定，见上。</summary>
-    public const int LandscapeChromeHeightDp = 110;
+    // ⚠ 横屏的两个布局标定常量（`LandscapeSideChromeDp = 518` / `LandscapeChromeHeightDp`）
+    //   已挪到 **`VmlUiLimits`** —— 518 落在 500–599 里，而 `Handles()` 是纯数值判据、
+    //   会把它当 syscall 号认领（理由见那个类的注释）。
 
     // ── 手感：音效 / 震动（540–546）──
     //
@@ -958,12 +961,8 @@ public static class VmlUi
     /// </summary>
     public const int CallWithDouble4 = 580;
 
-    /// <summary>
-    /// 多边形/折线的**点数上限**。程序传的是内存里的点数组，点数由它自己给 ——
-    /// 不设上限的话，一个写错的大数会让宿主去读几十万个点（每次读还要做越界检查），
-    /// 界面直接卡住。512 个点足够画任何真实图形（一张地图轮廓也不过几百个点）。
-    /// </summary>
-    public const int MaxPolyPoints = 512;
+    // ⚠ `MaxPolyPoints = 512` 已挪到 **`VmlUiLimits`** —— 512 落在 500–599 里，
+    //   而 `Handles()` 是纯数值判据、会把它当 syscall 号认领（理由见那个类的注释）。
 
     /// <summary>
     /// 渐变 id 清洗：只留字母数字与 `_ - .`，其余换成 `_`；空/全非法返回空串。
@@ -1273,6 +1272,13 @@ public static class VmlUi
         WinOpenPc,
         // 绘图扩展 574–576（一个号 + 操作码，见 VmlShape / VmlBrushKind / VmlStyleSlot）
         DrawShape, Brush, SetStyle,
+        // ⚠ `GfxState = 595` 是**补进来的**（v0.96.480）：它早就定义了，却一直没进这张表 ——
+        //   **这是第三次**（前两次是 `DrawTextEx(581)`、`SetVAlign(586)`，上面两处注释各记了一次）。
+        //   漏登记**不报错**：这张表只被自测拿去查"重复/越界"，漏一个号 = 那道网漏掉一个号，
+        //   它与别的号撞了也查不出来（症状是一个功能静默变成另一个功能）。
+        //   ⇒ 本版另加了一条**拿源码文本与这张表交叉比对**的自测，专治"漏一个"，
+        //     见 `SelfTest.Chunk26` 的"号段清单与常量定义一致"。
+        GfxState,
         // 通用宿主调用口 577–580（带类型快通道，见 VmlCallRegistry）
         CallWithInt8, CallWithFloat8, CallWithLong4, CallWithDouble4,
         // 消息队列**按类丢弃** 594（见 `VmlMsgKind`：定时器 / 触摸 / 鼠标 / 键盘 / 全部）
@@ -1628,6 +1634,39 @@ public readonly record struct VmlMessage(VmlMsgType Type, int A, int B, int Time
 /// `config.MemorySize`（`if (memorySize &lt;= 0) memorySize = config.MemorySize;`）。
 /// 传一个具体数字就等于又开了一处真源。传 0 ⇒ 一切以本类为准。</para>
 /// </summary>
+/// <summary>
+/// **不是 syscall 号、却被放在了 500–599 那个数值区间里**的常量 —— 集中到这里。
+///
+/// <para>
+/// ⚠ **为什么要搬走**：<see cref="VmlUi.Handles"/> 是**纯数值判据**（`500..599`），
+/// 它会把落在这个区间的一切都当成 syscall 号认领 —— 包括下面这两个根本不是号的常量。
+/// 目前靠 `VmlHostRuntime.HandleSyscall` 末尾的 `default: return false` 放行才没出事，
+/// 但那是"程序只能靠巧合才碰不到"的**伪 syscall**：将来谁给 512 或 518 补一个 `case`，
+/// 就会出现一个谁都想不到的内置调用，而且**不会有任何报错**。
+/// </para>
+///
+/// <para>
+/// ⚠ 值是**实测标定**（布局）与**设计上限**（点数），不能为了"避开区间"而改数值 ——
+/// 所以搬位置，不搬值。搬出来之后这两个号在 <see cref="VmlUi.Handles"/> 眼里就干干净净地
+/// 是"空号"了。
+/// </para>
+/// </summary>
+public static class VmlUiLimits
+{
+    /// <summary>横屏时**左右两列手柄 + 间距 + 页边距**占掉的宽度（dp）。实测标定，见 <c>AvailableArea</c>。</summary>
+    public const int LandscapeSideChromeDp = 518;
+
+    /// <summary>横屏时**状态栏 + 导航栏 + 折叠条**占掉的高度（dp）。实测标定，与上一条成对。</summary>
+    public const int LandscapeChromeHeightDp = 110;
+
+    /// <summary>
+    /// 多边形/折线的**点数上限**。程序传的是内存里的点数组、点数由它自己给 ——
+    /// 不设上限的话，一个写错的大数会让宿主去读几十万个点（每次读还要做越界检查），
+    /// 界面直接卡住。512 个点足够画任何真实图形（一张地图轮廓也不过几百个点）。
+    /// </summary>
+    public const int MaxPolyPoints = 512;
+}
+
 public static class VmlVmDefaults
 {
     /// <summary>虚拟机内存（字节）。</summary>

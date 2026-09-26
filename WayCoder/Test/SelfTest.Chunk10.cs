@@ -806,9 +806,9 @@ public static partial class SelfTest
         // 判据照**实测**的横屏布局来：屏幕 914.3×411.4 → 画布 396.4×301.0。
         var land = VmlUi.AvailableArea(2400, 1080, 2.625);
         Check("VmlUi.AvailableArea: 横屏宽 = dp 宽 − 左右两列手柄",
-            land.Width == (int)Math.Floor(2400 / 2.625) - VmlUi.LandscapeSideChromeDp);
+            land.Width == (int)Math.Floor(2400 / 2.625) - VmlUiLimits.LandscapeSideChromeDp);
         Check("VmlUi.AvailableArea: 横屏高 = dp 高 − 状态栏/导航栏/折叠条",
-            land.Height == (int)Math.Floor(1080 / 2.625) - VmlUi.LandscapeChromeHeightDp);
+            land.Height == (int)Math.Floor(1080 / 2.625) - VmlUiLimits.LandscapeChromeHeightDp);
         // 横屏那块区域必须**装得下**实测的真实画布（396×301）—— 估小了程序就会开一个
         // 偏小的窗，画面跟着小；估大一点没关系（FitSize 会等比缩回画布）。
         Check("VmlUi.AvailableArea: 横屏估算不小于实测画布（396×301）",

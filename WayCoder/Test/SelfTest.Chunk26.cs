@@ -20,6 +20,40 @@ public static partial class SelfTest
     /// 这与本仓反复踩的「平行表」是同一族问题，但危害更大：平行表漂了是"两边显示不一样"，
     /// 号撞了是"功能整个不见了"。所以这条断言放在新一批接口动工**之前**先落。
     /// </summary>
+    /// <summary>
+    /// 定位 `WayCoder/UI/Shared/VmlUiProtocol.cs`（交叉比对那条自测要读它的源码文本）。
+    ///
+    /// 写法照 `SelfTest.Chunk10.FindHelpDir()`：**从当前目录逐级上溯**去找一个已知路径。
+    /// 不用 `AppContext.BaseDirectory` —— 那是 `bin/…`，源码不在那儿。
+    /// </summary>
+    private static string? FindVmlUiProtocolSrc()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        for (var i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+        {
+            var probe = Path.Combine(dir.FullName, "WayCoder", "UI", "Shared", "VmlUiProtocol.cs");
+            if (File.Exists(probe)) return probe;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 从文件全文里**切出 `VmlUi` 类那一段**（`public static class VmlUi` 到下一个顶层类之前）。
+    ///
+    /// ⚠ 切段是必须的：同一个文件里 `VmlUiLimits` 也定义了一批 5xx 常量
+    /// （`LandscapeSideChromeDp = 518`、`MaxPolyPoints = 512`），而它们**不是 syscall 号**、
+    /// 本就不该出现在 `AllNumbers` 里。不切段的话这条自测会把它们报成"漏登记"，成了误报。
+    /// </summary>
+    private static string VmlUiClassBody(string text)
+    {
+        const string head = "public static class VmlUi\n";
+        var start = text.IndexOf(head, StringComparison.Ordinal);
+        if (start < 0) return "";
+        var bodyStart = start + head.Length;
+        var end = text.IndexOf("\npublic static class ", bodyStart, StringComparison.Ordinal);
+        return end < 0 ? text[bodyStart..] : text[bodyStart..end];
+    }
+
     private static void TestChunk26(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("VML 宿主接口：号段查重");
@@ -53,6 +87,50 @@ public static partial class SelfTest
         var probe = all.Append(all[0]).ToArray();
         var probeDupes = probe.GroupBy(n => n).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
         Check("反证：清单里塞一个重复号，查重能抓到", probeDupes.Count == 1 && probeDupes[0] == all[0]);
+
+        // ④ **清单 ↔ 源码定义 的交叉比对** —— 上面三条全在"表内自洽"，**查不出"少一个"**。
+        //
+        //    而这个坑已经踩过**三次**：`DrawTextEx(581)`、`SetVAlign(586)`、`GfxState(595)`
+        //    （最后一个连注释都把它记了两遍，还是漏了第三次）。
+        //    危害不是"少登记本身"，而是**那道查重网漏掉了这个号**：它与别的号撞了也查不出来，
+        //    症状是一个功能静默变成另一个功能（`switch` 里先写的 `case` 赢）。
+        //
+        //    AOT 禁反射 ⇒ 运行时枚举不出常量 ⇒ 唯一的办法是**读源码文本**做比对。
+        //    ⚠ 只扫 `VmlUi` 那一段（理由见 `VmlUiClassBody` 的注释）。
+        var srcPath = FindVmlUiProtocolSrc();
+        Check("号段: 找得到 VmlUiProtocol.cs（交叉比对要读源码）", srcPath != null);
+        if (srcPath != null)
+        {
+            var body = VmlUiClassBody(File.ReadAllText(srcPath));
+            Check("号段: 切得出 VmlUi 类正文（切段判据没被别处改动带偏）", body.Length > 1000);
+
+            var declared = System.Text.RegularExpressions.Regex
+                .Matches(body, @"public const int \w+ = (\d+);")
+                .Select(m => int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture))
+                .Where(n => n is >= 500 and <= 599)
+                .ToHashSet();
+            var listed = new HashSet<int>(all);
+
+            // ① 源码里定义了、却没登记进清单 ⇒ 查重网漏掉它
+            var missing = declared.Except(listed).OrderBy(n => n).ToList();
+            Check(missing.Count == 0
+                    ? $"号段: 源码里定义的 5xx 常量都已登记（{declared.Count} 个）"
+                    : $"号段: 源码里定义的 5xx 常量都已登记（**漏登记**：{string.Join(", ", missing)}）",
+                missing.Count == 0);
+
+            // ② 清单里有、源码里却没有 ⇒ 这条更严重：那个号根本没有实现，纯占位
+            var extra = listed.Except(declared).OrderBy(n => n).ToList();
+            Check(extra.Count == 0
+                    ? "号段: 清单里的每一项在源码里都有定义"
+                    : $"号段: 清单里的每一项在源码里都有定义（**无定义**：{string.Join(", ", extra)}）",
+                extra.Count == 0);
+
+            // ③ 反证：这道网**真的会响**。人为"漏登记"一个号，比对必须抓到。
+            //    （"不响的自测比没有更糟"—— 本仓记过的一条。）
+            var probeMissing = declared.Where(n => n != declared.Min()).ToHashSet();
+            Check("反证：漏登记一个号，交叉比对能抓到",
+                declared.Except(probeMissing).Count() == 1);
+        }
 
         _ = Fail;
 
@@ -232,7 +310,7 @@ public static partial class SelfTest
     /// 种类/槽位/形状码**全是裸整数**，写错一个就是未定义行为。
     ///
     /// 仓库既有的规矩是「**让异常参数最多画不出来，绝不崩**」（见 `VmlScene` 那一堆
-    /// `InCoordRange` / `Dim` / `MaxPolyPoints`）。这一批同样按这条写，但
+    /// `InCoordRange` / `Dim` / `MaxPolyPoints`(见 `VmlUiLimits`)）。这一批同样按这条写，但
     /// **写的时候没有自测钉住** —— 于是补在这里。
     ///
     /// 判据刻意只断言两类，因为这两类才是"崩"的来源：

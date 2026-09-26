@@ -1385,7 +1385,7 @@ public sealed class VmlHostRuntime
     private void DrawPolyline(int[] r, byte[] mem, bool close)
     {
         var count = r[1];
-        if (count < 2 || count > VmlUi.MaxPolyPoints) return;
+        if (count < 2 || count > VmlUiLimits.MaxPolyPoints) return;
 
         // 读内存要防越界：地址与点数都是程序给的，越界就地停（宁可少画几个点，不要读坏内存）
         var pts = new List<double>(count * 2);
@@ -1468,7 +1468,7 @@ public sealed class VmlHostRuntime
             case VmlShape.Polyline:
             {
                 var count = r[2];
-                if (count < 2 || count > VmlUi.MaxPolyPoints) return false;
+                if (count < 2 || count > VmlUiLimits.MaxPolyPoints) return false;
                 var pts = new List<double>(count * 2);
                 for (var i = 0; i < count; i++)
                 {
