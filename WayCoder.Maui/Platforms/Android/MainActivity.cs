@@ -29,4 +29,18 @@ public class MainActivity : MauiAppCompatActivity
         if (e != null && Services.HardwareKeys.TryDispatch(e)) return true;
         return base.DispatchKeyEvent(e);
     }
+
+    // **手柄摇杆的入口**（外接蓝牙/USB 手柄）。
+    //
+    // ⚠ 与按键**不是同一条路**：摇杆是 `MotionEvent` 的**轴**事件
+    //   （`ACTION_MOVE` + `AXIS_X/AXIS_Y`），`DispatchKeyEvent` 一辈子收不到它。
+    //   只补按键不补这个，就是"手柄能按、但推杆没反应"。
+    //
+    // 处理的活全在 `HardwareKeys.TryDispatchMotion`（把轴翻成虚拟方向键）——
+    // 这一层只负责"把 Activity 的入口接上"，与上面那条同一个分工。
+    public override bool DispatchGenericMotionEvent(Android.Views.MotionEvent? e)
+    {
+        if (e != null && Services.HardwareKeys.TryDispatchMotion(e)) return true;
+        return base.DispatchGenericMotionEvent(e);
+    }
 }

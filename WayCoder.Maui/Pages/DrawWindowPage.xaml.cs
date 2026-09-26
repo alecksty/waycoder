@@ -972,18 +972,34 @@ public partial class DrawWindowPage : ContentPage
     }
 
     /// <summary>
-    /// 接上物理键盘（Android 的 Activity 级键分发，见 `Services/HardwareKeys`）。
+    /// 接上**物理输入**（Android 的 Activity 级键分发，见 `Services/HardwareKeys`）。
     ///
-    /// ⚠ **只有电脑屏窗口接**（图形窗口的输入契约是"触摸 + 手柄"，照旧不动它）——
-    ///   而且是**按窗口种类**接、不是按 `_needKeyboard`：
-    ///   那两个参数管的是**两件事** —— 种类决定"这类程序的输入是键盘"，R4 只是说
-    ///   "别把屏幕键盘画出来"（程序想要那块屏幕高度）。声明了不要屏幕键盘的程序，
-    ///   接个蓝牙键盘照样该能用。
+    /// ⚠ **按窗口种类**接、不是按 `_needKeyboard`：那两个参数管的是**两件事** ——
+    ///   种类决定"这类程序的输入是什么"，R4 只是说"别把屏幕键盘/手柄区画出来"
+    ///   （程序想要那块屏幕高度）。声明了不要屏幕区**不等于**不接外设：
+    ///   玩家接个蓝牙键盘/手柄，照旧该能用。
+    ///
+    /// <para>
+    /// ⚠⚠ **图形窗口也接**（v0.96.496 改的）。原先这里写着"图形窗口的输入契约是
+    ///   「触摸 + 手柄」，照旧不动它" —— 那句话在当时是对的（屏幕手柄够用），
+    ///   但它的后果是：**外接的手柄/键盘对游戏一点用都没有**（`Sink` 是这条链的
+    ///   唯一入口，为 null 时 `TryDispatch` 直接返回 false、事件交给系统）。
+    ///   踩到的形态很有代表性：v0.96.494 给 `Keycode.Button*` 补了映射、
+    ///   编译通过、自测全绿，**但对任何一个游戏都没生效** ——
+    ///   因为**没人把那条链接上**（本仓记过同款："光有协议不叫有接口，得有人发"）。
+    /// </para>
+    ///
+    /// <para>
+    /// 安全性：`HardwareKeys.TryDispatch` **只吃掉它认得出的 VML 键**，
+    /// 返回键/音量键/Home 一律返回 false 照常放行（见那里的说明），
+    /// 所以接到图形窗口上不会让用户退不出去。
+    /// </para>
     /// </summary>
     private void InstallHardwareKeyboard()
     {
 #if ANDROID
-        if (_kind != VmlWinKind.PcScreen) { Services.HardwareKeys.Sink = null; return; }
+        // 两种窗口都接（原先只接 PcScreen）。`Sink` 只有一个槽位，
+        // 而 VML 执行是排他的（同一时刻最多一个绘图窗口），所以不必改集合。
         Services.HardwareKeys.Sink = (vk, down) =>
         {
             if (down) PostKeyDown(vk); else PostKeyUp(vk);
@@ -994,6 +1010,10 @@ public partial class DrawWindowPage : ContentPage
     private static void UninstallHardwareKeyboard()
     {
 #if ANDROID
+        // ⚠ **先松开摇杆的方向键再摘 sink** —— 摇杆没有"抬起"事件，
+        //   玩家推着杆关掉窗口的话，那个方向会**一直是按着的**，
+        //   下一个程序一进去就自己往一边走（而且看不出是谁按的）。
+        Services.HardwareKeys.ReleaseStick();
         Services.HardwareKeys.Sink = null;
 #endif
     }

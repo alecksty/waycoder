@@ -54,8 +54,7 @@ public static class HardwareKeys
     /// </summary>
     public static bool TryDispatch(KeyEvent e)
     {
-        var sink = Sink;
-        if (sink is null) return false;
+        if (Sink is null) return false;
 
         bool down;
         switch (e.Action)
@@ -73,6 +72,19 @@ public static class HardwareKeys
 
         int vk = VirtualKey(e);
         if (vk == 0) return false;          // 认不出 ⇒ 不动它，交给系统
+
+        Emit(vk, down);
+        return true;
+    }
+
+    /// <summary>
+    /// 发一次（虚拟键码, 按下/抬起）。**键盘与摇杆两条路共用这一处** ——
+    /// `_down` 那本账只有一份，两条路各写一遍必然对不上。
+    /// </summary>
+    private static void Emit(int vk, bool down)
+    {
+        var sink = Sink;
+        if (sink is null) return;
 
         if (down)
         {
@@ -100,7 +112,76 @@ public static class HardwareKeys
             sink(vk, true);
             sink(vk, false);
         }
-        return true;
+    }
+
+    // ── 模拟摇杆 → 虚拟方向键（v0.96.496）──────────────────────────────────
+    //
+    // **为什么映射成方向键，而不是新开一套"轴"接口**：
+    //   现有游戏全部是按 `VML_KEY_LEFT/UP/...` 写的（屏幕手柄就是发这个）。
+    //   把摇杆翻成同样的键 ⇒ **所有游戏不用改一个字就支持物理手柄的摇杆**。
+    //   这与"手柄面键映射到自然键盘键"是同一条原则：**不另造一套只有新程序认得的编号**。
+    //
+    // ⚠ **只取主导轴（4 向，不是 8 向）**：摇杆推到斜角时同时按住两个方向，
+    //   对"为十字键写的游戏"是**没见过的输入**（十字键物理上按不出斜角）。
+    //   `tetris` 那类会一下往两个方向掉 —— 与其让每个游戏各自处理，不如在这里收敛。
+    //   要 8 向就得先把游戏改成能处理 —— 那是另一件事。
+
+    /// <summary>摇杆的死区。手柄不在中心是常态（摇杆磨损、霍尔漂移），
+    /// 不去掉的话游戏会"自己一直往一边走"。0.4 是常见取值。</summary>
+    private const float StickDead = 0.4f;
+
+    /// <summary>当前**由摇杆按着**的方向键（0 = 没有）。只在主线程用。</summary>
+    private static int _stickVk;
+
+    /// <summary>
+    /// Activity 把手柄的**轴事件**递进来（`DispatchGenericMotionEvent`）。
+    ///
+    /// ⚠ 摇杆是**连续量**、每秒几百个事件：只在**方向真变了**的时候才发键，
+    ///   否则一次推杆就是把消息队列灌满（而 VML 主循环一次只取一条）。
+    /// </summary>
+    public static bool TryDispatchMotion(MotionEvent e)
+    {
+        if (Sink is null) return false;
+
+        // 左摇杆（X/Y）与十字键帽（HatX/HatY）取**绝对值大的那个** ——
+        // 有些手柄把十字键也报成轴，两者行为一致，谁动听谁的。
+        var lx = e.GetAxisValue(Axis.X);
+        var ly = e.GetAxisValue(Axis.Y);
+        var hx = e.GetAxisValue(Axis.HatX);
+        var hy = e.GetAxisValue(Axis.HatY);
+        if (MathF.Abs(hx) > MathF.Abs(lx)) lx = hx;
+        if (MathF.Abs(hy) > MathF.Abs(ly)) ly = hy;
+
+        var want = 0;
+        if (MathF.Abs(lx) >= StickDead || MathF.Abs(ly) >= StickDead)
+        {
+            if (MathF.Abs(lx) >= MathF.Abs(ly))
+                want = lx > 0 ? VmlKeys.Right : VmlKeys.Left;
+            else
+                // ⚠ Android 摇杆的 Y 轴**与屏幕同向**：向下为正、向上为负
+                //   （`AXIS_Y` 是与触摸共用的坐标轴，不是数学坐标系）。
+                //   写反的症状是"推上它往下走" —— 与 `tilt.c` 的轴符号同一类问题。
+                want = ly > 0 ? VmlKeys.Down : VmlKeys.Up;
+        }
+
+        if (want == _stickVk) return want != 0;   // 没变 ⇒ 什么都不发（关键：别灌队列）
+
+        if (_stickVk != 0) Emit(_stickVk, false);
+        if (want != 0) Emit(want, true);
+        _stickVk = want;
+        return want != 0;
+    }
+
+    /// <summary>
+    /// 松开摇杆方向键。**窗口关闭时必须调** —— 摇杆没有"抬起"事件，
+    /// 不主动松的话，玩家推着杆关掉窗口，下一个程序会看到那个方向**一直是按着的**。
+    /// （与"长按连发要自带刹车"是同一类：**凡是有状态的东西，都要问一句"谁来清"**。）
+    /// </summary>
+    public static void ReleaseStick()
+    {
+        if (_stickVk == 0) return;
+        Emit(_stickVk, false);
+        _stickVk = 0;
     }
 
     /// <summary>

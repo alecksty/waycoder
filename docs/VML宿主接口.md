@@ -1194,6 +1194,8 @@ ui_mask_begin();  ui_rect(...);    ui_mask_end2(VML_MASK_INTERSECT);  /* 与当�
 | `SENSOR_*` | 无（加速度计/陀螺仪非危险权限） | — |
 | `POWER` | 无 | — |
 
+**外接手柄 / 键盘不需要权限**：它们走的是 Activity 的键事件，不经过任何 Android 权限（`BLUETOOTH_CONNECT` 只管**配对**，配对好之后读按键不需要它）。
+
 清单里已有：`INTERNET` / `ACCESS_NETWORK_STATE` / `CAMERA` / `RECORD_AUDIO` /
 `MANAGE_EXTERNAL_STORAGE` / `READ_EXTERNAL_STORAGE` / `READ_MEDIA_IMAGES`。
 
