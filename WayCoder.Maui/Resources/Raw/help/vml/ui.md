@@ -366,6 +366,8 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 | [ui_tone_all_off](help:vml/ui/feel) | 全关（走淡出）。 |
 | [ui_tone_voices](help:vml/ui/feel) | 此刻在响的声部数 —— 查和弦叠起来没有。 |
 | [ui_tone_panic](help:vml/ui/feel) | **立刻**全停（不进淡出）—— 一键静音 / 强制停止用。 |
+| [ui_tone_wave](help:vml/ui/feel) | 设某通道的波形（正弦/方波/锯齿/三角）—— 和弦里给低音换三角波就不糊。 |
+| [ui_tone_max_voices](help:vml/ui/feel) | 同时允许的声部上限（1–32，默认 32）。 |
 | [ui_audio_play](help:vml/ui/feel) | 播放一个音频**文件**（mp3/wav…），`loop` 非 0 = 循环（BGM 用）。 |
 | [ui_audio_stop](help:vml/ui/feel) | 停掉正在播的音频。 |
 | [ui_audio_volume](help:vml/ui/feel) | 整体音量 0–100（对**之后**播放的音生效）。 |

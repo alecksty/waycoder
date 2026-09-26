@@ -330,6 +330,8 @@ dotnet scripts/vmlcli/bin/Release/net10.0/vmlcli.dll Examples/c/mario.c --timeou
 | `Examples/c/starfall.c` | **视觉最丰富**：渐变星云背景、三层视差星空、发光叠层、粒子爆炸、震屏、机身倾斜；**触摸拖动操控**（不用手柄） |
 | `Examples/c/tetris.c` | 网格游戏：形状表、消行、等级加速、最高分存档、暂停 |
 | `Examples/c/gomoku.c` | 回合制：点棋盘落子（这批用**触摸**，不是手柄）、AI 落子、胜负弹框 |
+| `Examples/c/piano.c` | **多点触控 + 复音音频**：轮询 `ui_touch(slot)` 做多指边沿检测（事件消息只有槽位 0 会投）、按和弦、急停清音、自适应键位布局 |
+| `Examples/c/audio_test.c` | **音频**四段：音阶（音准）/ 和弦同时响（复音）/ 旋律 / 与旧式 `ui_beep` 共存 |
 | `Examples/c/draw_prims.c` | 绘图图元逐个体检（矩形/圆/多边形/路径/渐变各一格） |
 | `Examples/c/snake.cpp`、`Examples/basic/whack.bas`、`Examples/fortran/sokoban.f90` | 其它语言前端，**同一套 `ui_*` 接口** |
 

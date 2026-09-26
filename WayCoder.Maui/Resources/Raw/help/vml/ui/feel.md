@@ -31,6 +31,16 @@ ui_tone_off(2, 67); ui_tone_off(1, 64); ui_tone_off(0, 60);
 现成例子：`Examples/c/audio_test.c`（音阶/和弦/旋律）与 `Examples/c/piano.c`（钢琴）。
 ### `ui_tone_all_off(void)` / `ui_tone_voices(void)`
 全关（走**淡出**，不是硬切）；查"此刻在响的声部数" —— 调和弦时有用。
+### `ui_tone_wave(int ch, int wave)` / `ui_tone_max_voices(int n)`
+设**某个通道**的默认波形（`VML_WAVE_SINE`(0) / `SQUARE`(1) / `SAW`(2) / `TRIANGLE`(3)）、
+设**同时允许的声部上限**（1–32，默认 `VML_TONE_MAX_VOICES` = 32）。
+音色不同是"和弦听起来不糊"的一半：几个音同时响时，**给低音声部换 `TRIANGLE`**（谐波少、
+不抢）、旋律声部留 `SQUARE`（亮），比全用同一种波形清楚得多。
+```c
+ui_tone_wave(0, VML_WAVE_TRIANGLE);   /* 通道 0 当低音铺底 */
+ui_tone_wave(1, VML_WAVE_SQUARE);     /* 通道 1 走旋律 */
+ui_tone_max_voices(16);               /* 声部够用就行，太多会互相掩盖 */
+```
 ### `ui_tone_panic(void)`
 **立刻**全停（**不进淡出**，声音当场断掉）。用于「用户按了强制停止」这种场合 ——
 淡出才安静下来的那几十毫秒，在急停的语义下就是"没停"。

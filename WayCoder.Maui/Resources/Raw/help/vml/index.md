@@ -35,11 +35,12 @@
 VML 程序不是只能打印文字——它有一套完整的**手机界面接口**：
 
 - 开一个绘图窗口，画矩形 / 圆 / 路径 / 渐变 / 文字
-- 收触摸、按键、定时器消息
-- 合成音效（不用带音频文件）、震动、屏幕常亮
+- 收触摸（**多点**）、按键、定时器消息
+- 合成音效（不用带音频文件）—— **单音**用 `ui_beep`，**和弦 / 旋律**用 `ui_tone_on/off`
+  （复音，最多 32 个声部同时响）、震动、屏幕常亮
 - 本地存档
 
-已经用这套接口写了俄罗斯方块、五子棋、吃豆人、贪吃蛇、飞机大战…
+已经用这套接口写了俄罗斯方块、五子棋、吃豆人、贪吃蛇、飞机大战、**钢琴**…
 都在 `examples/` 里，能直接跑。
 
 详见「UI 开发」。
@@ -53,7 +54,7 @@ VML 程序不是只能打印文字——它有一套完整的**手机界面接�
 
 | 语言 | 示例 | 跑法 |
 |---|---|---|
-| C | `examples/c/tetris.c` `gomoku.c` `pacman.c` `mario.c` `starfall.c` | `vml run examples/c/gomoku.c` |
+| C | `examples/c/tetris.c` `gomoku.c` `pacman.c` `mario.c` `starfall.c` **`piano.c`** **`audio_test.c`** | `vml run examples/c/gomoku.c` |
 | C++ | `examples/cpp/snake.cpp` | `vml run examples/cpp/snake.cpp` |
 | C# | `examples/csharp/snake.cs` `racer.cs` | `vml run examples/csharp/snake.cs` |
 | Objective-C | `examples/objc/snake.m` | `vml run examples/objc/snake.m` |
