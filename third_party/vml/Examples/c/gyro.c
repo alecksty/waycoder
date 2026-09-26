@@ -89,6 +89,15 @@ static int playing;
 static int leftMs;
 static int lastTick;
 static int win;
+static int finalAngle;    /* 结束那一刻的角度 —— 分享要用，而 angle 会被 reset 清掉 */
+
+/* 「分享成绩」按钮的几何：**在 main 里算一次，画与命中共用**（本仓的规矩 ——
+ * 各算一遍就会出现"看着在按钮上、点下去没反应"）。 */
+static int shX;
+static int shY;
+static int shW;
+static int shH;
+static char shareBuf[96];  /* 拼好的分享文本（见 buildShare）*/
 
 /* ── 整数工具（本仓惯例：不依赖 sprintf 家族的格式化路径）──────────── */
 static char g_buf[24];
@@ -120,6 +129,20 @@ static char* numStr(int v)
         n = n + 1;
     }
     return g_buf;
+}
+
+/* 把 s 接到 d 后面（**逐字符手写**，不依赖本平台的字符串库 ——
+ * 那个库在这条链上出过问题，而这里只需要十行）。返回新的末尾指针。 */
+static char* appStr(char* d, char* s)
+{
+    while (*s != 0)
+    {
+        *d = *s;
+        d = d + 1;
+        s = s + 1;
+    }
+    *d = 0;
+    return d;
 }
 
 static int iabs(int v)
@@ -187,6 +210,19 @@ static void boltEnds(int mdeg, int arm, int* out)
     out[1] = cy - arm * vy / 1024;
     out[2] = cx + arm * vx / 1024;
     out[3] = cy + arm * vy / 1024;
+}
+
+/* 拼分享文本。⚠ **手动逐字符拼**（见 appStr）——
+ * 本平台的字符串库在这条链上出过问题，而这里只需要三次 append。 */
+static void buildShare(void)
+{
+    char* p;
+    char laps[16];
+    lapsStr(finalAngle, laps);
+    p = shareBuf;
+    p = appStr(p, "我在「拧螺丝」里拧了 ");
+    p = appStr(p, laps);
+    p = appStr(p, " 圈！");
 }
 
 /* ── 绘制 ───────────────────────────────────────────────────────────── */
@@ -262,9 +298,15 @@ static void draw(void)
     }
     else
     {
-        if (win == 1) ui_text(sw / 2, sh - 74, "拧到底了！", 0xFF4ADE80, 18, VML_ANCHOR_CENTER);
-        else ui_text(sw / 2, sh - 74, "时间到 —— 还差一点", 0xFFFF8A80, 18, VML_ANCHOR_CENTER);
-        ui_text(sw / 2, sh - 46, "点屏幕再来一次", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
+        if (win == 1) ui_text(sw / 2, sh - 150, "拧到底了！", 0xFF4ADE80, 18, VML_ANCHOR_CENTER);
+        else ui_text(sw / 2, sh - 150, "时间到 —— 还差一点", 0xFFFF8A80, 18, VML_ANCHOR_CENTER);
+        /* 「分享成绩」按钮（**几何在 main 里算好，画与命中共用**）。
+         * ⚠ 桌面没有分享面板 —— `ui_share_text` 会返回 0，游戏**照常继续**
+         *   （0 是"这一端没有这个能力"，不是错误）。 */
+        ui_rect(shX, shY, shW, shH, 0xFF2A6E3A, 1, 0, 10);
+        ui_rect(shX, shY, shW, shH, 0xFF4ADE80, 0, 2, 10);
+        ui_text(shX + shW / 2, shY + 14, "分享成绩", 0xFFFFFFFF, 16, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 46, "点别处再来一次", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
     }
 
     ui_present();
@@ -302,8 +344,10 @@ static void step(int dtMs)
 
     leftMs = leftMs - dtMs;
 
-    if (angle >= TARGET_MDEG) { playing = 0; win = 1; return; }
-    if (leftMs <= 0) { leftMs = 0; playing = 0; win = 0; }
+    /* ⚠ 结束那一刻**先把角度存下来** —— 后面 `reset()` 会把它清掉，
+     *   而分享文案要用的是"这一局拧到哪"。 */
+    if (angle >= TARGET_MDEG) { playing = 0; win = 1; finalAngle = angle; buildShare(); return; }
+    if (leftMs <= 0) { leftMs = 0; playing = 0; win = 0; finalAngle = angle; buildShare(); }
 }
 
 static void reset(void)
@@ -336,11 +380,19 @@ int main(void)
     cr = sw / 2 - 40;
     if (cr > 140) cr = 140;
 
+    /* 「分享成绩」按钮的几何 —— **只在这里算一次**，画与命中都用它。 */
+    shW = 200;
+    if (shW > sw - 60) shW = sw - 60;
+    shH = 44;
+    shX = (sw - shW) / 2;
+    shY = sh - 116;
+
     hasGyro = ui_sensor_available(VML_SENS_GYRO);
     /* 转圈是快动作，采密一点（20ms）。间隔越大越省电，但手感越钝。 */
     ui_sensor_rate(VML_SENS_GYRO, 20);
 
     reset();
+    buildShare();
     ui_timer_set(30, 0);
     draw();
 
@@ -362,23 +414,37 @@ int main(void)
                 lastTick = now;
                 wasPlaying = playing;
                 step(dt);
-                if (wasPlaying == 1 && playing == 0)
-                {
-                    /* 刚结束：**先把终局画面画出来再弹框** —— 弹框会盖住画面，
-                     * 不先画一帧的话玩家看不到自己拧到哪儿。 */
-                    draw();
-                    if (win == 1) ui_dlg_msg("拧螺丝", "拧到底了！", VML_DLG_INFO);
-                    else ui_dlg_msg("拧螺丝", "时间到，还差一点。", VML_DLG_INFO);
-                    reset();
-                }
+                /* ⚠ **结束后不弹框**（v0.96.498 改的）。
+                 *
+                 * 原来这里弹一个 `ui_dlg_msg` 再 `reset()` —— 而弹框是**阻塞**的，
+                 * 玩家看完点掉就直接重开了，**挂在同一屏上的「分享成绩」按钮
+                 * 根本没有机会被点到**（画了，但永远点不着）。
+                 *
+                 * 现在把结果留在画面上（见 draw() 的结束面板），玩家想分享就点按钮、
+                 * 想重来就点别处 —— **两个动作都是他自己选的**，也没有模态打断。
+                 * （这也是"按钮画出来了"与"按钮能点到"是两件事的一个实例：
+                 *   本仓记过好几回"看着在键上、点下去没反应"。）*/
+                (void)wasPlaying;
             }
             draw();
             continue;
         }
 
-        /* 点一下 = 重开（玩到一半也能重来） */
+        /* 触摸：**先判「分享」按钮，再判"点别处重开"** ——
+         * 用 `shX/shY/shW/shH` 那组数（与画按钮时**同一组**，本仓的规矩）。 */
         if (t == VML_MSG_TOUCHDOWN || t == VML_MSG_MOUSEDOWN)
         {
+            int px;
+            int py;
+            px = msg[1];
+            py = msg[2];
+            if (playing == 0 && px >= shX && px < shX + shW && py >= shY && py < shY + shH)
+            {
+                /* ⚠ 返回值**不看**：0 只表示"这一端没有分享面板"（桌面就是），
+                 *   不是错误 —— 游戏照常继续。 */
+                ui_share_text(shareBuf, "拧螺丝");
+                continue;
+            }
             reset();
             draw();
             continue;
