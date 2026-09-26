@@ -38,6 +38,8 @@ int main(void) {
 │  开窗 ui_win_open(_ex / _pc)   问尺寸 ui_scr_w/h             │
 │  设备方向 ui_orientation       方向锁 ui_orient_lock         │
 │  全屏 ui_immersive             别熄屏 ui_keep_on             │
+│  传感器 ui_sensor(_available/_rate/_calibrate)               │
+│  电量 ui_battery               省电 ui_power_saver           │
 └───────────────────────────┬──────────────────────────────────┘
                             │ 开好窗之后
 ┌─ 输入 ────────────────────▼──────────────────────────────────┐
@@ -55,6 +57,7 @@ int main(void) {
 ┌─ 系统 ────────────────────▼──────────────────────────────────┐
 │  对话框 ui_dlg_*    音效震动 ui_beep / ui_vibrate            │
 │  存档 ui_store_*    参数 ui_argc / ui_arg                    │
+│  剪贴板 ui_clipboard_*   分享 ui_share_text / ui_open_url    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -153,6 +156,12 @@ int x = ui_msg_a();
 | [ui_touch_query](help:vml/ui/device) | 拿不到指针的语言用这个：查一次并缓存，下面三个读缓存（与 `ui_wait_msg` + `ui_msg_a/b` 同一套分工）。 |
 | [ui_touch_x](help:vml/ui/device) | 上一次 `ui_touch_query` 缓存里的 x。 |
 | [ui_touch_y](help:vml/ui/device) | 上一次 `ui_touch_query` 缓存里的 y。 |
+| [ui_sensor](help:vml/ui/device) | **传感器**：读加速度计 / 陀螺仪 / 融合姿态，写进 `out[0..2]`。**做倾斜控制用加速度计**。 |
+| [ui_sensor_available](help:vml/ui/device) | 这台设备有没有该传感器 → 1/0（**开窗之前就能问**）。 |
+| [ui_sensor_rate](help:vml/ui/device) | 设采样间隔（毫秒）—— 传感器一开就在耗电。 |
+| [ui_sensor_calibrate](help:vml/ui/device) | 把**当前姿态**当零点（玩家躺着玩时"水平"是错的）。 |
+| [ui_battery](help:vml/ui/device) | **电量与充电**：`out[0]`=0–100、`out[1]`=充电中。返回 0 = **这台设备没有电池**。 |
+| [ui_power_saver](help:vml/ui/device) | 系统省电模式开着吗 → 1/0（**与"电量低"不是一回事**）。 |
 
 ```c
 /* 例：ui_audio_playing */
@@ -368,6 +377,10 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 | [ui_tone_panic](help:vml/ui/feel) | **立刻**全停（不进淡出）—— 一键静音 / 强制停止用。 |
 | [ui_tone_wave](help:vml/ui/feel) | 设某通道的波形（正弦/方波/锯齿/三角）—— 和弦里给低音换三角波就不糊。 |
 | [ui_tone_max_voices](help:vml/ui/feel) | 同时允许的声部上限（1–32，默认 32）。 |
+| [ui_sfx_add](help:vml/ui/feel) | **音序器**：塞一个音（delay 拍后响、响 dur 拍）。做"轰 / 叮 / 警报"这类**有音色**的音效用它。 |
+| [ui_sfx_tick](help:vml/ui/feel) | 每帧调一次，按真实流逝时间推进（**放主循环里**）。 |
+| [ui_sfx_panic](help:vml/ui/feel) | 立刻静音 + 清表（退出 / 重开一局时）。 |
+| [ui_sfx_active](help:vml/ui/feel) | 还有几个槽占着 —— **放完一轮应当回到 0**，拿它做自检。 |
 | [ui_audio_play](help:vml/ui/feel) | 播放一个音频**文件**（mp3/wav…），`loop` 非 0 = 循环（BGM 用）。 |
 | [ui_audio_stop](help:vml/ui/feel) | 停掉正在播的音频。 |
 | [ui_audio_volume](help:vml/ui/feel) | 整体音量 0–100（对**之后**播放的音生效）。 |
@@ -381,6 +394,28 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 ui_beep(880, 80);      /* 消一行 */
 ui_beep(1568, 160);    /* 消四行，音更高 */
 ```
+
+## 剪贴板与分享
+
+分享成绩、**存取档码**（把整局状态编成一小段文本，玩家自己存到备忘录里换设备接着玩）
+—— [`help:vml/ui/device`](help:vml/ui/device)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_clipboard_set](help:vml/ui/device) | 写系统剪贴板：1=已交给系统 / 0=这一端没有剪贴板。 |
+| [ui_clipboard_get](help:vml/ui/device) | 读剪贴板：返回**写入的字节数** / -1=空的或不支持。 |
+| [ui_share_text](help:vml/ui/device) | 弹系统**分享面板**（标题传空串 = 不带）。⚠ 不阻塞。 |
+| [ui_open_url](help:vml/ui/device) | 用系统浏览器打开链接。**只认 http/https**。 |
+
+```c
+char code[64];
+ui_clipboard_set("SAVE-1a2b3c");              /* 把存档码交给玩家 */
+if (ui_clipboard_get(code, 64) > 0) { /* 读回来接着玩 */ }
+ui_share_text("我在拧螺丝里拧了 8 圈！", "分享战绩");
+```
+
+⚠ **返回 0 是"这一端没有这个能力"**（桌面就没有分享面板），**不是失败** ——
+游戏该照常继续。写剪贴板/弹面板在平台上都是异步的，宿主不等结果。
 
 ## 本地存档
 
