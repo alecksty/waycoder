@@ -55,11 +55,13 @@
 '        位置全部换成 1/16 像素的整数单位（最大也就六千多）。
 '      (e) **`AND` 在 SUB 的条件里是坏的**：`IF a > 0 AND b > 50 THEN` 恒不成立
 '          （顶层 `v = 5 AND 3` 是好的）⇒ 条件一律拆成嵌套 IF 或用标志位。
-'   ③ **数组不能用**：`DIM a(10)` 会被拆成 10 个互不相干的标量，
-'      随后 `a(3) = 42` 编成一次调用 `func_a`，链接期报「未定义的函数 'func_a'」。
-'      最小复现：两行 —— `DIM a(10)` / `a(3) = 42`。
-'      ⇒ 楼房高度、星星坐标、三角函数表全放共享库的整数网格 `ui_gset`/`ui_gget`
-'        （那一对是 `vmlui.c` 里的真数组，不走 syscall，桌面上也是好的）。
+'   ③ ~~**数组不能用**~~ —— **这条已过期（v0.96.487 实测）**。
+'      两种写法都验过，下标读写都对：`DIM a(8) AS INTEGER` 与不带类型的 `DIM b(8)`，
+'      在 SUB 里遍历赋值后 `a(3)` 读出 13、`b(3)` 读出 23（正是写进去的值）。
+'      音效音序器就是靠它做的（见 `sfxAdd` / `sfxTick`）。
+'      ⚠ 本文件里楼房高度、星星坐标、三角函数表**仍然**走 `ui_gset`/`ui_gget` 网格 ——
+'        那是当年为绕过这条而写的，**能跑就别动**（改它们与音效无关，风险白担）。
+'        但新写的代码**不必**再绕。
 '   ④ **字符串拼接是坏的**：`b$ = "x" + "y"` 得到**空串**，不报错。
 '      `STR$(n)` 本身是好的 ⇒ 数字上屏走 `n$ = STR$(v)` 再交给 `ui_text`。
 '   ⑤ **`DIM x AS STRING` 是坏的**：随后 `x = "..."` 会编成 `func_x`、链接期找不到。
@@ -132,6 +134,18 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
+' 复音（v0.96.485）：一次起一个音、可以同时响好几个 —— 音效音序器用它。
+' ⚠ 形参名避开 BASIC 关键字（`on` 那种），全用短名。
+NATIVE FUNCTION ui_tone_on(ch AS INTEGER, note AS INTEGER, vel AS INTEGER) AS INTEGER
+END FUNCTION
+NATIVE FUNCTION ui_tone_off(ch AS INTEGER, note AS INTEGER) AS INTEGER
+END FUNCTION
+NATIVE FUNCTION ui_tone_wave(ch AS INTEGER, wave AS INTEGER) AS INTEGER
+END FUNCTION
+NATIVE FUNCTION ui_tone_panic() AS INTEGER
+END FUNCTION
+NATIVE FUNCTION ui_tick() AS INTEGER
+END FUNCTION
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
@@ -325,6 +339,25 @@ DIM stepMs AS INTEGER
 DIM idleMs AS INTEGER
 DIM paceMs AS INTEGER
 
+' ── 音效音序器：模块级状态 ─────────────────────────────────────────────
+' ⚠ 数组**能用**（文件头缺陷 ③「`DIM a(10)` 会被拆成 10 个标量」已经过期：
+'   实测 `DIM a(8) AS INTEGER` 与不带的 `DIM b(8)` 两种写法，下标读写都对）。
+'   这里仍然把下标循环写成 `DO WHILE`，是为了照文件里其它 SUB 的样子来。
+DIM sfxCh(16) AS INTEGER
+DIM sfxNote(16) AS INTEGER
+DIM sfxDel(16) AS INTEGER
+DIM sfxDur(16) AS INTEGER
+DIM sfxVel(16) AS INTEGER
+DIM sfxWave(16) AS INTEGER
+DIM sfxOn(16) AS INTEGER
+DIM sfxN AS INTEGER
+DIM sfxSlot AS INTEGER
+DIM sfxTmp AS INTEGER
+DIM sfxNow AS INTEGER
+DIM sfxLast AS INTEGER
+DIM sfxWant AS INTEGER
+DIM sfxTickMs AS INTEGER
+
 ' ── CONST 的替身变量（SUB 里只用这些普通变量）──────────────────────────
 ' 缺陷 ② 的第四种形态：CONST 一旦在 SUB 体里**参与算术**就会出错 ——
 '   `IF bi > NB - 1 THEN bi = NB - 1` 会**无条件成立**（最小复现见文件头），
@@ -347,6 +380,10 @@ gtrig = G_TRIG
 stepMs = STEP_MS
 idleMs = IDLE_MS
 paceMs = PACE_MS
+
+' ── 音效音序器的常量（SUB 里只用这些普通变量，见缺陷 ② 第四条）──────────
+sfxN = 16
+sfxTickMs = 33
 ghole = G_HOLE
 maxHole = MAXHOLE
 holeR = HOLE_R
@@ -871,10 +908,10 @@ SUB stepFlight()
         ' 那几声不该让用户在见到画面之前先听一串蜂鸣。
         IF simMode = 0 THEN
             IF hitFlag = 1 THEN
-                ui_beep(1046, 90)
+                sfxHit
                 ui_vibrate(45, 120)
             ELSE
-                ui_beep(280, 60)
+                sfxGroundBoom
                 ui_vibrate(20, 60)
             END IF
         END IF
@@ -1198,7 +1235,7 @@ SUB handlePoint(isDown AS INTEGER)
                         IF ptx <= sw - 14 THEN
                             armBanana()
                             st = 1
-                            ui_beep(660, 40)
+                            sfxFire
                         END IF
                     END IF
                 END IF
@@ -1217,19 +1254,171 @@ SUB handleKey()
         IF st = 0 THEN
             armBanana()
             st = 1
-            ui_beep(660, 40)
+            sfxFire
         END IF
     END IF
     IF i = 65 THEN
         IF st = 0 THEN
             armBanana()
             st = 1
-            ui_beep(660, 40)
+            sfxFire
         END IF
     END IF
 END SUB
 
 ' ── 主循环 ─────────────────────────────────────────────────────────────
+
+' ══════════════════════════════════════════════════════════════════════════
+'  音效音序器
+' ══════════════════════════════════════════════════════════════════════════
+'
+' 为什么要它，而不是在事件点上直接 ui_tone_on/off（与 C++ 版同一套理由）：
+'
+'   ① **ui_tone_on 没有时长参数** —— 响多久全看自己什么时候 ui_tone_off。
+'      事件点上 on、忘了 off，声部就只涨不落（上限 32，满了以后新音**全哑**，
+'      而且一声不响地哑）。
+'   ② 好听的音效往往是**几个音先后**，而事件点只有一拍 ⇒ 要"过几拍再响下一个"。
+'   ③ 同一个**通道**上后一个音会掐掉前一个（ui_beep 的老语义）⇒ "同时响"必须
+'      落在不同通道上，得有一处统一分配。
+'
+' ⚠ 通道分配（分区互不重叠；同分区内新事件盖过旧事件，那是有意的）：
+'     0–2 地面爆炸   3–5 命中得分   6–7 发射   8–9 空中爆炸   13–15 胜负
+'
+' ⚠ 写这些 SUB 时躲开文件头那几条前端缺陷：不用 `\` / `MOD`（SUB 里编不出代码）；
+'   不在 SUB 的条件里用 `AND`（恒不成立，要两个条件就嵌套 IF）；表达式摊平、
+'   不套复合括号；SUB 的形参不叫关键字（`on` 那种），一律用短名。
+'
+' ⚠ **推进由主循环按真实流逝时间给**（不是"绕一圈算一拍"）——与 C++ 版同源。
+'   这个游戏的主循环节奏在"飞行"（30ms）与"瞄准"（120ms）之间切换，按圈数计
+'   会让同一段音效在两种状态下快慢不一样。
+SUB sfxReset()
+    DIM i AS INTEGER
+    i = 0
+    DO WHILE i < sfxN
+        sfxCh(i) = -1
+        sfxNote(i) = -1
+        sfxDel(i) = 0
+        sfxDur(i) = 0
+        sfxVel(i) = 0
+        sfxWave(i) = -1
+        sfxOn(i) = 0
+        i = i + 1
+    LOOP
+END SUB
+
+' 立刻静音。⚠ 顺序不能反：先清表就丢掉了"哪些通道在响"，那些声部会一直响下去。
+SUB sfxPanic()
+    DIM i AS INTEGER
+    i = 0
+    DO WHILE i < sfxN
+        IF sfxOn(i) = 1 THEN
+            sfxTmp = ui_tone_off(sfxCh(i), sfxNote(i))
+        END IF
+        i = i + 1
+    LOOP
+    sfxTmp = ui_tone_panic()
+    sfxReset
+END SUB
+
+' 往表里塞一个音（cd 拍之后开始响、响 cdur 拍）。
+' ⚠ 会先接管同通道的旧槽，接管之前**先把那个音关掉** —— 不然旧槽连同"它还在响"
+'   一起被丢掉，那个声部就再也没人去关它了。
+SUB sfxAdd(cch AS INTEGER, cn AS INTEGER, cd AS INTEGER, cdur AS INTEGER, cvel AS INTEGER, cwave AS INTEGER)
+    DIM k AS INTEGER
+    sfxSlot = -1
+    k = 0
+    DO WHILE k < sfxN
+        IF sfxCh(k) = cch THEN
+            IF sfxOn(k) = 1 THEN
+                sfxTmp = ui_tone_off(sfxCh(k), sfxNote(k))
+            END IF
+            sfxSlot = k
+        END IF
+        k = k + 1
+    LOOP
+    IF sfxSlot < 0 THEN
+        k = 0
+        DO WHILE k < sfxN
+            IF sfxCh(k) < 0 THEN
+                sfxSlot = k
+            END IF
+            k = k + 1
+        LOOP
+    END IF
+    IF sfxSlot >= 0 THEN
+        sfxCh(sfxSlot) = cch
+        sfxNote(sfxSlot) = cn
+        sfxDel(sfxSlot) = cd
+        sfxDur(sfxSlot) = cdur
+        sfxVel(sfxSlot) = cvel
+        sfxWave(sfxSlot) = cwave
+        sfxOn(sfxSlot) = 0
+    END IF
+END SUB
+
+' 一拍推进（主循环按真实流逝时间调）。
+SUB sfxTick()
+    DIM k AS INTEGER
+    k = 0
+    DO WHILE k < sfxN
+        IF sfxCh(k) >= 0 THEN
+            IF sfxOn(k) = 0 THEN
+                IF sfxDel(k) > 0 THEN
+                    sfxDel(k) = sfxDel(k) - 1
+                ELSE
+                    sfxTmp = ui_tone_wave(sfxCh(k), sfxWave(k))
+                    sfxTmp = ui_tone_on(sfxCh(k), sfxNote(k), sfxVel(k))
+                    sfxOn(k) = 1
+                END IF
+            ELSE
+                sfxDur(k) = sfxDur(k) - 1
+                IF sfxDur(k) <= 0 THEN
+                    sfxTmp = ui_tone_off(sfxCh(k), sfxNote(k))
+                    sfxCh(k) = -1
+                    sfxNote(k) = -1
+                    sfxWave(k) = -1
+                    sfxOn(k) = 0
+                END IF
+            END IF
+        END IF
+        k = k + 1
+    LOOP
+END SUB
+
+' ── 音色（音符号是真 MIDI 语义：中央 C = 60、A4 = 69 = 440Hz）──────────
+'
+' ⚠ **低音别写太低**：手机外放在 200Hz 以下衰减很快，写 C2(65Hz) 出来是"噗"一声
+'   闷响，玩家听着像**没响**而不是"低沉"。所以轰鸣的基音落在 C3(130Hz) 上下，
+'   低八度只当配重垫一层（三角波、谐波少）。桌面上听得到不代表手机听得到。
+
+' 发射：两音快速下行 = 有方向感的「嗖」
+SUB sfxFire()
+    sfxAdd 6, 77, 0, 2, 70, 3
+    sfxAdd 7, 72, 1, 2, 55, 3
+END SUB
+
+' 命中得分：大三和弦上行（do–mi–sol）—— 重复最多的正反馈，就该最好听
+SUB sfxHit()
+    sfxAdd 3, 72, 0, 4, 95, 1
+    sfxAdd 4, 76, 1, 4, 85, 1
+    sfxAdd 5, 79, 2, 6, 85, 1
+END SUB
+
+' 撞楼 / 落地：「轰」—— 48 与 54 是三全音（最"脏"的音程），锯齿波谐波丰富
+SUB sfxGroundBoom()
+    sfxAdd 0, 48, 0, 6, 100, 2
+    sfxAdd 1, 54, 0, 5, 75, 2
+    sfxAdd 2, 36, 0, 7, 85, 3
+END SUB
+
+
+' 获胜：上行 do–sol–do，明亮
+SUB sfxWin()
+    sfxAdd 13, 72, 0, 4, 95, 1
+    sfxAdd 14, 79, 2, 5, 90, 1
+    sfxAdd 15, 84, 5, 12, 90, 1
+END SUB
+
 SUB runGame()
     ui_keep_on(1)
 
@@ -1272,8 +1461,27 @@ SUB runGame()
 
     curMs = 0
     tid = 0
+    sfxReset
+    sfxLast = ui_tick()
     WHILE ui_win_closed() = 0
         drawScene()
+
+        ' ── 音效音序器：按**真实流逝时间**推进 ──────────────────────────────
+        ' ⚠ 不按"绕一圈算一拍"：主循环的节奏在飞行（30ms）与瞄准（120ms）之间切，
+        '   按圈数计会让同一段音效在两种状态下快慢不一样。
+        sfxNow = ui_tick()
+        sfxWant = sfxNow - sfxLast
+        sfxWant = INT(sfxWant / sfxTickMs)
+        IF sfxWant > 4 THEN
+            sfxWant = 4
+        END IF
+        IF sfxWant > 0 THEN
+            sfxLast = sfxNow
+            DO WHILE sfxWant > 0
+                sfxTick
+                sfxWant = sfxWant - 1
+            LOOP
+        END IF
 
         IF st = 1 THEN
             wantMs = stepMs
@@ -1336,7 +1544,16 @@ SUB runGame()
             IF quit = 0 THEN
                 ' 终局：先按最终比分再画一帧（对话框会盖住画面，得让玩家看到定格）
                 drawScene()
-                ui_beep(1568, 200)
+                sfxWin
+                ' ⚠ **让胜利音先放完再弹框**：对话框是**阻塞**的，一弹出来主循环就停了、
+                '   音序器跟着停 —— 那样只会响出第一个音。（与 C++ 版"物理定时器被提前
+                '   杀掉"是同一类坑，只是这里卡在弹框上。）约 18 拍 ≈ 0.55 秒。
+                sfxWant = 0
+                DO WHILE sfxWant < 18
+                    sfxTick
+                    sfxTmp = ui_wait_msg(30)
+                    sfxWant = sfxWant + 1
+                LOOP
                 IF sc0 >= wscore THEN
                     dlg = ui_dlg_msg("大猩猩扔香蕉", "玩家一 先拿满 3 分，赢了！再来一局？（选「否」退出）", 0)
                 ELSE
@@ -1352,6 +1569,8 @@ SUB runGame()
                     aimP = 70
                     wind = ui_rand(5) - 2
                     newCity()
+                    sfxPanic
+                    sfxLast = ui_tick()
                     ui_msg_clear()
                 END IF
             END IF
@@ -1367,6 +1586,10 @@ SUB runGame()
         tid = 0
     END IF
     ui_keep_on(0)
+
+    ' ⚠ **退出前必须静音**：声部是宿主的资源，进程退出前不关就会一直响下去
+    '   （手机上表现为"切回桌面还有声音"）。
+    sfxPanic
     ui_win_close()
 END SUB
 
