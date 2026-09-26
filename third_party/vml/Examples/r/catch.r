@@ -80,19 +80,17 @@ tick <- function() {
           if (A[6] > A[7]) {
             A[7] <<- A[6]
           }
-          # 音效：机制在共享库（ui_sfx_*），这里只有音色
-          ui_sfx_add(0, 84, 0, 2, 85, 1)
-          ui_sfx_add(1, 91, 1, 4, 80, 1)
+          # 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+          #   那一版多声部叠加 / 长音拖尾在真机上破音）
+          ui_beep(1047, 165)
         }
       }
     }
   }
   if (A[3] > A[10]) {
     A[8] <<- 0
-    # 音效：机制在共享库（ui_sfx_*），这里只有音色
-    ui_sfx_add(2, 60, 0, 4, 90, 2)
-    ui_sfx_add(3, 53, 4, 4, 90, 2)
-    ui_sfx_add(4, 45, 8, 12, 95, 2)
+    # 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+    ui_beep(131, 320)
     draw()
     if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); return(0) }
     resetGame()
@@ -116,7 +114,6 @@ tid <- ui_timer_set(40, 0)
 
 while (ui_win_closed() == 0) {
 
-    ui_sfx_tick()
   draw()
   t <- ui_wait_msg(0)
   if (t == 10) {

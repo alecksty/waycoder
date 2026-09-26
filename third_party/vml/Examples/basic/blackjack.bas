@@ -54,15 +54,16 @@ NATIVE FUNCTION ui_msg_b() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
+' 音效：**用 `ui_beep` 单音**（v0.96.509 统一换回来）。
+' ⚠⚠ 一度走共享库的音序器（`ui_sfx_add`），**真机上破音**（多个音叠着响 + 长音拖尾）
+'   ⇒ 全换回单音的 beep：它是**单通道**的（后一个音掐掉前一个），结构上不可能削波。
+' ⚠ 频率取原音型的**首音**；**胜负取两端的极值**（赢取最高音、输取最低音 ——
+'   「不看屏幕也分得出」就靠这个，五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
+'   低音不低于 C3(131Hz)（手机外放 200Hz 以下衰减很快，听着像没响）。
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
-NATIVE SUB ui_sfx_reset()
-END SUB
+' ⚠ `ui_sfx_panic` 留着 —— 它是"全停"，退出前调一次把所有正在响的声音一起掐掉。
 NATIVE SUB ui_sfx_panic()
-END SUB
-NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
-END SUB
-NATIVE SUB ui_sfx_tick()
 END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
@@ -300,7 +301,7 @@ SUB playerHit()
     END IF
     hand(pn) = deal()
     pn = pn + 1
-    ui_sfx_add 0, 79, 0, 1, 50, 3   ' 发牌：极短轻音
+    ui_beep 784, 33   ' 发牌：极短轻音
     IF handValue(0, pn) > 21 THEN
         settle()
     END IF
@@ -314,7 +315,7 @@ END SUB
 SUB playerDouble()
     IF chips < bet THEN
         msg = "筹码不够加倍"
-        ui_sfx_add 1, 48, 0, 3, 80, 2   ' 筹码不够：低闷
+        ui_beep 131, 99   ' 筹码不够：低闷
         EXIT SUB
     END IF
     chips = chips - bet
@@ -322,7 +323,7 @@ SUB playerDouble()
     doubled = 1
     hand(pn) = deal()
     pn = pn + 1
-    ui_sfx_add 0, 84, 0, 1, 55, 3   ' 加倍发牌
+    ui_beep 1047, 33   ' 加倍发牌
     playerStand()
 END SUB
 
@@ -366,20 +367,15 @@ SUB settle()
     SELECT CASE result
         CASE WIN
             msg = "你赢了！+" + STR$(bet)
-            ui_sfx_add 2, 72, 0, 4, 92, 1
-            ui_sfx_add 3, 79, 2, 4, 90, 1
-            ui_sfx_add 4, 84, 4, 10, 92, 1   ' 赢：上行大三和弦
+            ui_beep 1047, 320   ' 赢：最高音（结局取两端）
             ui_vibrate(60, 120)
         CASE LOSE
             msg = "庄家赢 " + STR$(pv) + " : " + STR$(dv)
-            ui_sfx_add 5, 60, 0, 4, 90, 2
-            ui_sfx_add 6, 53, 4, 4, 90, 2
-            ui_sfx_add 7, 45, 8, 12, 95, 2   ' 输：下行三音
+            ui_beep 131, 320   ' 输：最低音（结局取两端）
             ui_vibrate(180, 200)
         CASE PUSH
             msg = "和局，退还赌注"
-            ui_sfx_add 8, 64, 0, 3, 80, 3
-            ui_sfx_add 9, 62, 3, 8, 80, 3   ' 和局：中性两音
+            ui_beep 330, 320   ' 和局：中性（既不欢快也不沮丧）
         CASE ELSE
             msg = "（未结算）"
     END SELECT
@@ -616,7 +612,7 @@ SUB handlePoint(isDown AS INTEGER)
             IF bet > chips THEN
                 bet = chips
             END IF
-            ui_sfx_add 10, 60, 0, 1, 45, 3
+            ui_beep 262, 33   ' 减注：低一点
             EXIT SUB
         END IF
         IF inRect(b2x, b2y, bw, bwh, rx, ry) = 1 THEN
@@ -624,7 +620,7 @@ SUB handlePoint(isDown AS INTEGER)
             IF bet > chips THEN
                 bet = chips
             END IF
-            ui_sfx_add 10, 67, 0, 1, 45, 3
+            ui_beep 392, 33   ' 加注：高一点（与减注一耳朵分得出）
             EXIT SUB
         END IF
         IF inRect(b3x, b3y, sw - 48, bwh, rx, ry) = 1 THEN
@@ -632,7 +628,7 @@ SUB handlePoint(isDown AS INTEGER)
                 chips = chips - bet
                 shuffle()
                 dealRound()
-                ui_sfx_add 11, 76, 0, 2, 60, 1   ' 洗牌
+                ui_beep 659, 66   ' 洗牌
             END IF
         END IF
         EXIT SUB
@@ -664,7 +660,7 @@ SUB handlePoint(isDown AS INTEGER)
                 msg = "重新给你 200 筹码"
             END IF
             newRound()
-            ui_sfx_add 11, 72, 0, 2, 60, 1   ' 新局
+            ui_beep 523, 66   ' 新局
         END IF
     END IF
 END SUB
@@ -727,7 +723,6 @@ SUB runGame()
     newRound()
 
     WHILE ui_win_closed() = 0
-        ui_sfx_tick
         IF quit = 1 THEN
             ui_sfx_panic
             ui_win_close()

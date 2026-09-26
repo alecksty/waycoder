@@ -163,7 +163,7 @@ func fire() {
             A[20 + i] = A[0]
             A[24 + i] = A[1] - 6
             A[28 + i] = 1
-            ui_sfx_add(0, 96, 0, 1, 35, 1)   // 射击：最轻最短
+            ui_beep(2093, 33)   // 射击：最轻最短（单音 ui_beep，v0.96.509 从音序器换回来）
             return
         }
         i = i + 1
@@ -186,8 +186,7 @@ func spawnFoe() {
 func hitFoe(slot: Int) {
     A[48 + slot] = 0
     addScore()
-    ui_sfx_add(1, 88, 0, 2, 70, 1)
-        ui_sfx_add(2, 95, 1, 4, 65, 1)   // 击落：上行两音
+    ui_beep(1319, 165)   // 击落：一声高而短的「叮」
 }
 
 func drawShip() {
@@ -271,9 +270,7 @@ func overlap(ax: Int, ay: Int, aw: Int, ah: Int, bx: Int, by: Int, bw: Int, bh: 
 
 func gameOver() {
     A[4] = 0
-    ui_sfx_add(3, 60, 0, 4, 95, 2)
-        ui_sfx_add(4, 53, 4, 4, 95, 2)
-        ui_sfx_add(5, 45, 8, 12, 100, 2)   // 死：下行三音
+    ui_beep(131, 320)   // 死（结局）：**最低音**、最长
     draw()
     if ui_dlg_msg("飞机空战", "被撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 { ui_win_close(); return }
     reset()
@@ -350,7 +347,9 @@ func step() -> Int {
             if A[44 + i] > A[10] - 20 {
                 A[48 + i] = 0
                 A[14] = A[14] - 1
-                ui_sfx_add(6, 43, 0, 2, 95, 2)   // 被撞：低闷
+                // 被撞：低闷的一声（原来 43 = 98Hz 在 C3 以下 —— 按判据抬到 165，
+                //   与"死"那条 131 也差得开）
+                ui_beep(165, 66)
                 if A[14] <= 0 {
                     gameOver()
                     return 1
@@ -378,7 +377,6 @@ func main() {
 
     while ui_win_closed() == 0 {
 
-        ui_sfx_tick()
         var t = ui_wait_msg(0)
         if t == msgClose() { break }
         if t == msgTimer() {

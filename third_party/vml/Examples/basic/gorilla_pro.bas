@@ -139,17 +139,10 @@ NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
-' 音效音序器（**机制在共享库里**，所有语言共用一份；这里只有音色）
-NATIVE SUB ui_sfx_reset()
-END SUB
+' 音效：现在只用 `ui_beep`（单音）。⚠ `ui_sfx_panic` 留着 —— 它是"全停"，
+' 退出前调一次把所有正在响的声音（含 `ui_beep` 那条声道）一起掐掉。
 NATIVE SUB ui_sfx_panic()
 END SUB
-NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
-END SUB
-NATIVE SUB ui_sfx_tick()
-END SUB
-NATIVE FUNCTION ui_sfx_active() AS INTEGER
-END FUNCTION
 NATIVE FUNCTION ui_tick() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
@@ -557,16 +550,6 @@ DIM paceMs AS INTEGER
 DIM sfxCh(16) AS INTEGER
 DIM sfxNote(16) AS INTEGER
 DIM sfxDel(16) AS INTEGER
-DIM sfxDur(16) AS INTEGER
-DIM sfxVel(16) AS INTEGER
-DIM sfxWave(16) AS INTEGER
-DIM sfxOn(16) AS INTEGER
-DIM sfxSlot AS INTEGER
-DIM sfxTmp AS INTEGER
-DIM sfxNow AS INTEGER
-DIM sfxLast AS INTEGER
-DIM sfxWant AS INTEGER
-DIM sfxTickMs AS INTEGER
 
 ' ── CONST 的替身变量（SUB 里只用这些普通变量）──────────────────────────
 ' 缺陷 ② 的第四种形态：CONST 一旦在 SUB 体里**参与算术**就会出错 ——
@@ -591,8 +574,6 @@ stepMs = STEP_MS
 idleMs = IDLE_MS
 paceMs = PACE_MS
 
-' ── 音效音序器的常量（SUB 里只用这些普通变量，见缺陷 ② 第四条）──────────
-sfxTickMs = 33
 ghole = G_HOLE
 maxHole = MAXHOLE
 holeR = HOLE_R
@@ -2716,55 +2697,53 @@ END SUB
 '  音效：音色表
 ' ══════════════════════════════════════════════════════════════════════════
 '
-' **机制在共享库里**（`ui_sfx_add` / `ui_sfx_tick` / `ui_sfx_panic` ——
-' `Lib/shared/src/vmlui.c`，所有语言共用一份），这里只有**音色** ——
-' 哪个事件配什么音是设计，不是机制。
+' **用 `ui_beep` 单音**（v0.96.509 统一换回来）。
 '
-' ⚠ **通道分配是契约**（分区互不重叠；同分区内新事件盖过旧事件，那是有意的）：
-'     0–2 地面爆炸    3–5 命中得分    6–7 发射    8–9 空中爆炸    13–15 胜负
+' ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add` / `ui_sfx_tick`），**真机上破音**，
+'   全部换回来了。破音的是**这里配的音** —— 那一版同时踩了两条：
+'     · **多个声部同时响**：命中是 3 声部和弦、撞楼是三个低音一起轰，
+'       多声部混音一叠加，音量就顶到削波；
+'     · **长音拖尾**：获胜那个末音拖了 12 拍（一拍 33ms ≈ 400ms）。
+'   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+'   **结构上不可能削波、也不会长音叠加**。代价是没有和弦、没有音色 —— 对
+'   "打中/爆炸/胜负"这类**一次性提示音**够用。
 '
-' ⚠ **推进由主循环按真实流逝时间给**（`ui_sfx_tick`），不按"绕一圈算一拍"——
-'   这个游戏的主循环节奏在"飞行"（30ms）与"瞄准"（120ms）之间切换，
-'   按圈数计会让同一段音效在两种状态下快慢不一样。
+' ── 频率怎么定的（机械规则，别随手改，改了几处要一起改）─────────────────
+'   · 取整块的**首音**（MIDI → Hz）；低音不低于 **C3(131Hz)** —— 手机外放在
+'     200Hz 以下衰减很快，36（C2=65Hz）出来是"噗"一声闷响，玩家听着像**没响**。
+'   · **胜负取两端的极值**：赢取整块**最高音**。「不看屏幕也分得出输赢」就靠这个
+'     —— 五子棋/象棋两版也是这么配的（赢 1320 / 输 240）。
+'   · 时长 = 整块总时长（拍 × 33ms），封顶 320ms。
+'   · 同文件内两个事件换算后**撞车**（同频率）时，把语义较低沉的那个挪到它的
+'     最低音 —— 下面 `sfxAirBoom` 就是这么来的（它的首音 84 与"获胜"撞了）。
+'
+' 音符号是真 MIDI 语义（中央 C = 60、A4 = 69 = 440Hz）—— 下面的 Hz 由它换算来。
 
-' ── 音色（音符号是真 MIDI 语义：中央 C = 60、A4 = 69 = 440Hz）──────────
-'
-' ⚠ **低音别写太低**：手机外放在 200Hz 以下衰减很快，写 C2(65Hz) 出来是"噗"一声
-'   闷响，玩家听着像**没响**而不是"低沉"。所以轰鸣的基音落在 C3(130Hz) 上下，
-'   低八度只当配重垫一层（三角波、谐波少）。桌面上听得到不代表手机听得到。
-
-' 发射：两音快速下行 = 有方向感的「嗖」
+' 发射：短促的一记「嗖」（原来两个音快速下行；单音只留起手那一下）
 SUB sfxFire()
-    ui_sfx_add 6, 77, 0, 2, 70, 3
-    ui_sfx_add 7, 72, 1, 2, 55, 3
+    ui_beep 698, 99        ' note 77
 END SUB
 
-' 命中得分：大三和弦上行（do–mi–sol）—— 重复最多的正反馈，就该最好听
+' 命中得分：一声清亮的「叮」
 SUB sfxHit()
-    ui_sfx_add 3, 72, 0, 4, 95, 1
-    ui_sfx_add 4, 76, 1, 4, 85, 1
-    ui_sfx_add 5, 79, 2, 6, 85, 1
+    ui_beep 523, 264       ' note 72
 END SUB
 
-' 撞楼 / 落地：「轰」—— 48 与 54 是三全音（最"脏"的音程），锯齿波谐波丰富
+' 撞楼 / 落地：「轰」—— **最低的一档**
 SUB sfxGroundBoom()
-    ui_sfx_add 0, 48, 0, 6, 100, 2
-    ui_sfx_add 1, 54, 0, 5, 75, 2
-    ui_sfx_add 2, 36, 0, 7, 85, 3
+    ui_beep 131, 231       ' note 48
 END SUB
 
-' 空中爆炸（打到飞行物）：高音一「叮」+ 低音垫底。
+' 空中爆炸（打到飞行物）：**低而短**的一声。
 ' **不用轰鸣** —— 那是"打爆了一个小东西"，与撞楼的份量不一样，听着就该不一样。
+' ⚠ 原来首音是 84（与"获胜"换算出来同一个数）⇒ 按上面"撞车取最低音"用 55。
 SUB sfxAirBoom()
-    ui_sfx_add 8, 84, 0, 2, 85, 1
-    ui_sfx_add 9, 55, 0, 3, 70, 2
+    ui_beep 196, 99        ' note 55（原"低音垫底"那一条）
 END SUB
 
-' 获胜：上行 do–sol–do，明亮
+' 获胜：**最亮最高的那一档**（取整块最高音，见上面"胜负取两端"）
 SUB sfxWin()
-    ui_sfx_add 13, 72, 0, 4, 95, 1
-    ui_sfx_add 14, 79, 2, 5, 90, 1
-    ui_sfx_add 15, 84, 5, 12, 90, 1
+    ui_beep 1047, 320      ' note 84（原上行 do–sol–do 的顶点）
 END SUB
 
 SUB runGame()
@@ -2826,27 +2805,9 @@ SUB runGame()
 
     curMs = 0
     tid = 0
-    ui_sfx_reset
-    sfxLast = ui_tick()
     WHILE ui_win_closed() = 0
         drawScene()
 
-        ' ── 音效音序器：按**真实流逝时间**推进 ──────────────────────────────
-        ' ⚠ 不按"绕一圈算一拍"：主循环的节奏在飞行（30ms）与瞄准（120ms）之间切，
-        '   按圈数计会让同一段音效在两种状态下快慢不一样。
-        sfxNow = ui_tick()
-        sfxWant = sfxNow - sfxLast
-        sfxWant = INT(sfxWant / sfxTickMs)
-        IF sfxWant > 4 THEN
-            sfxWant = 4
-        END IF
-        IF sfxWant > 0 THEN
-            sfxLast = sfxNow
-            DO WHILE sfxWant > 0
-                ui_sfx_tick
-                sfxWant = sfxWant - 1
-            LOOP
-        END IF
 
         IF st = 1 THEN
             wantMs = stepMs
@@ -2919,15 +2880,10 @@ SUB runGame()
                 ' 终局：先按最终比分再画一帧（对话框会盖住画面，得让玩家看到定格）
                 drawScene()
                 sfxWin
-                ' ⚠ **让胜利音先放完再弹框**：对话框是**阻塞**的，一弹出来主循环就停了、
-                '   音序器跟着停 —— 那样只会响出第一个音。（与 C++ 版"物理定时器被提前
-                '   杀掉"是同一类坑，只是这里卡在弹框上。）约 18 拍 ≈ 0.55 秒。
-                sfxWant = 0
-                DO WHILE sfxWant < 18
-                    ui_sfx_tick
-                    sfxTmp = ui_wait_msg(30)
-                    sfxWant = sfxWant + 1
-                LOOP
+                ' ⚠ 从前这里有一段"等 18 拍让胜利音放完再弹框"的循环 —— 那是给音序器
+                '   准备的（对话框**阻塞**，主循环一停，后面的音就永远等不到下一拍）。
+                '   现在胜利音是一声 `ui_beep`：它在**音频线程**上响完，与主循环无关，
+                '   所以直接弹框即可。
                 IF sc0 >= wscore THEN
                     dlg = ui_dlg_msg("大猩猩扔香蕉", "玩家一 先拿满 3 分，赢了！再来一局？（选「否」退出）", 0)
                 ELSE
@@ -2944,7 +2900,6 @@ SUB runGame()
                     wind = ui_rand(5) - 2
                     newCity()
                     ui_sfx_panic
-                    sfxLast = ui_tick()
                     ui_msg_clear()
                 END IF
             END IF

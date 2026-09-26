@@ -154,63 +154,57 @@ char* digit_str(int d) {
 
 /* ── 手感：音效与震动 ───────────────────────────────────── */
 
-/* **机制在共享库里**（`ui_sfx_add` / `ui_sfx_tick` —— `Lib/shared/src/vmlui.c`，
- * 所有语言共用一份），这里只写**音色**：哪个事件配什么音是设计，不是机制。
- * 完整的设计建议见 `docs/VML游戏开发指南.md` §4.5。
+/* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ────────────
  *
- * ⚠ 这份文件从前写着"合成音是**单通道**的，所以一次事件只发一个音，靠频率高低
- *   表达好坏" —— **那个前提现在没有了**（`ui_tone_on/off` 是复音的）。
- *   于是"消了多少行"不再用"音更高"表达，改用**和弦的丰满度**：
- *   一行一个音、四行是个带八度的大三和弦 —— 一耳朵就分得出这波赚了多少，
- *   比单纯把音高往上堆更有层次，也不会在四行时高到刺耳。
+ * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，换回来了。
+ *   破音的是**这里配的音**（机制本身没问题）—— 那一版同时踩了两条：
+ *     · **多个音叠着响**：消行是 1–4 个声部的和弦，多声部混音一叠加，音量顶到削波；
+ *     · **长音拖尾**：结束音末了一个 12 拍（一拍 33ms ≈ 400ms）的低音。
+ *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   **结构上不可能削波**。代价是没有和弦、没有音色。
  *
- * ⚠ 通道分区（互不重叠）：0–3 消行和弦 / 4 旋转 / 5 落地 / 6 暂停继续 /
- *   7–9 升级 / 10–12 结束。
- * ⚠ 低音别写太低：手机外放在 200Hz 以下衰减很快，写 C2(65Hz) 出来是"噗"一声
- *   闷响，玩家听着像**没响**。落地/硬降的基音落在 C3(130Hz) 上下。 */
+ * ⚠ 频率取整块的**首音**（哪个事件什么音是设计，不是机制），时长取整块时长、
+ *   封顶 320ms。**结局类取两端**：升级/胜利取整块**最高音**、结束/失败取**最低音**
+ *   —— 五子棋/象棋两版也是这么配的（赢 1320 / 输 240）。
+ *   低音不低于 C3(131Hz) —— `waycoder_ui.h` 写着「手机外放在 200Hz 以下衰减很快…
+ *   C2 出来是"噗"一声闷响，玩家听着像没响」。 */
 
-/* 消行：行数越多、和弦越满。 */
+/* 消行：**行数越多、音越高越长** —— 单音表达"这波赚了多少"只剩这一个杠杆。
+ * 音高对应原来和弦的第几个音（do / mi / sol / do 高八度）。 */
 void sfx_clear(int n) {
-    ui_sfx_add(0, 72, 0, 4, 92, VML_WAVE_SQUARE);              /* do */
-    if (n >= 2) ui_sfx_add(1, 76, 1, 4, 82, VML_WAVE_SQUARE);  /* mi */
-    if (n >= 3) ui_sfx_add(2, 79, 2, 5, 82, VML_WAVE_SQUARE);  /* sol */
-    if (n >= 4) ui_sfx_add(3, 84, 3, 9, 88, VML_WAVE_SQUARE);  /* do（高八度）*/
+    if (n >= 4)      ui_beep(1047, 320);
+    else if (n == 3) ui_beep(784, 264);
+    else if (n == 2) ui_beep(659, 198);
+    else             ui_beep(523, 132);
     ui_vibrate(28, 0);
 }
 
 /* 旋转：轻、短、不抢戏 —— 这是个高频动作，响一点就烦。 */
-void sfx_rotate(void) { ui_sfx_add(4, 84, 0, 1, 55, VML_WAVE_TRIANGLE); }
+void sfx_rotate(void) { ui_beep(1047, 33); }
 
 /* 自然落地：一声闷响（不震）。 */
-void sfx_land(void) { ui_sfx_add(5, 48, 0, 2, 72, VML_WAVE_SAW); }
+void sfx_land(void) { ui_beep(165, 66); }
 
-/* 硬降：更沉、更短促 —— 与自然落地**必须分得出**（玩家是主动砸的还是没赶上）。 */
-void sfx_harddrop(void) { ui_sfx_add(5, 43, 0, 3, 100, VML_WAVE_SAW); }
+/* 硬降：**更低更长** —— 与自然落地必须分得出（玩家是主动砸的还是没赶上）。
+ * ⚠ 原来两条同为 note 48，靠波形与时长分；波形没了 ⇒ 改用音高（硬降更沉）。 */
+void sfx_harddrop(void) { ui_beep(131, 99); }
 
 /* 暂停 / 继续：一低一高，一听就知道是"停"还是"走"。 */
-void sfx_pause(void) { ui_sfx_add(6, 72, 0, 2, 70, VML_WAVE_TRIANGLE); }
-void sfx_resume(void) { ui_sfx_add(6, 79, 0, 2, 70, VML_WAVE_TRIANGLE); }
+void sfx_pause(void) { ui_beep(523, 66); }
+void sfx_resume(void) { ui_beep(784, 66); }
 
 /* 重开：一声干脆的起手音。 */
-void sfx_restart(void) { ui_sfx_add(6, 76, 0, 3, 75, VML_WAVE_SQUARE); }
+void sfx_restart(void) { ui_beep(659, 99); }
 
-/* 升级：上行琶音，**盖过消行音** —— 升级更值得听见。 */
-void sfx_levelup(void) {
-    ui_sfx_add(7, 84, 0, 3, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(8, 88, 2, 3, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(9, 96, 4, 8, 92, VML_WAVE_SQUARE);
-}
+/* 升级：**盖过消行音**（更高更长）—— 升级更值得听见。
+ * ⚠ 取整块的**最高音**（原来琶音的顶 96），否则与"四行消"撞成同一个数。 */
+void sfx_levelup(void) { ui_beep(2093, 320); }
 
-/* 结束：下行三音 + 长低音拖尾。 */
+/* 结束：**低而长** —— 与"升级"正好是两端。 */
 void sfx_over(void) {
-    ui_sfx_add(10, 57, 0, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(11, 53, 3, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(12, 48, 6, 12, 95, VML_WAVE_SAW);
+    ui_beep(131, 320);
     ui_vibrate(220, 0);
 }
-
-/* 音序器推进：**按真实流逝时间**（不按"绕一圈算一拍"—— 主循环的节奏在
- * 下落间隔变化时会变）。⚠ 每帧调一次，放在主循环里。 */
 
 
 /* ── 方块几何 ───────────────────────────────────────────── */
@@ -862,7 +856,6 @@ int main(void) {
     draw_all();
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

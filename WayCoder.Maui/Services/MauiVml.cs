@@ -505,11 +505,20 @@ HALT
     /// <summary>
     /// 前端编译的**看门狗**（秒）。超了就报错收场，不再傻等。
     ///
-    /// ⚠ 值必须**明显大于合法编译的耗时**，否则会把正常程序误杀：手机上一份 C 程序
-    /// （前端 + 汇编 + 链接 3.7 万条指令）实测要**一分多钟**，所以给到 180 秒 ——
-    /// 它防的是"编译器自己卡死"（源码里有让前端死循环的写法），不是"慢"。
+    /// ⚠ 值必须**明显大于合法编译的耗时**，否则会把正常程序误杀：一份 C 程序
+    /// （前端 + 汇编 + 链接 3.7 万条指令）在手机上实测**一分多钟**，而设备之间的差距很大
+    /// —— 参考机型是当年的旗舰；**2019 年的 iPad mini 5（A12）实测 `chess.c` 要 143 秒**
+    /// （用户真机计时，2026-09-26），已经吃掉旧上限 180 秒的八成，再大一点的程序就会被误杀。
+    ///
+    /// 它防的是"编译器自己卡死"（源码里有让前端死循环的写法），**不是"慢"**。
+    ///
+    /// ⚠ 2026-09-26（v0.96.511）从 180 改到 600，配套改了两处，缺一不可：
+    ///   ① **编译期间每秒报一次已用秒数**（见 <c>BuildProgram</c> 里的 ticker）——
+    ///      从此"在跑"与"卡死"在屏幕上是两种样子；② 用户可以随时按**停止**
+    ///      （那个 token 取消的是"等待"，编译线程本身中不了止，见下）。
+    ///   有了这两条，自动上限放宽才是安全的：它从"唯一出口"退化成"兜底"。
     /// </summary>
-    public const int CompileTimeoutSeconds = 180;
+    public const int CompileTimeoutSeconds = 600;
 
     /// <summary>
     /// 失败出口的统一构造 —— 把「给用户看的原因」**同时**解析成结构化诊断。
@@ -702,8 +711,19 @@ HALT
             return Fail(lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
                  + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。", filePath);
 
-        // 前端编译同样是个静默段（手机上**一分钟起步**）—— 与解压那条提示同一个道理
-        OnProgress?.Invoke($"⏳ 正在编译 {Path.GetFileName(filePath)}（前端编译 + 链接标准库，手机上要一两分钟）…");
+        // 前端编译是个**静默段**（手机上一分钟起步，慢的设备更久）—— 与解压那条提示同一个道理：
+        // 屏幕上一个字不变，和卡死没有区别。所以先报一条，紧接着用 ticker **每秒报一次已用秒数**。
+        //
+        // ⚠ 这不是"锦上添花的动画"，它承担两件事：
+        //   ① 用户看得出现在是**在跑**还是**死了**（2026-09-26 真机反馈：iPad mini 5 上一份 C 程序
+        //      要等一两分钟，屏幕毫无变化，用户只能判断成"所有代码都无法运行"）；
+        //   ② 它**把真实耗时量出来** —— 报错/报告里带秒数，才谈得上"这台设备该给多少上限"。
+        var compileName = Path.GetFileName(filePath);
+        var compileWatch = System.Diagnostics.Stopwatch.StartNew();
+        OnProgress?.Invoke($"⏳ 正在编译 {compileName}（前端编译 + 链接标准库，手机上要一两分钟）…");
+        using var compileTicker = new System.Threading.Timer(_ =>
+            OnProgress?.Invoke($"⏳ 正在编译 {compileName}… 已 {compileWatch.Elapsed.TotalSeconds:0} 秒"
+                + $"（上限 {CompileTimeoutSeconds} 秒，随时可按「停止」）"), null, 1000, 1000);
 
         // **看门狗**：前端编译是同步的、且**没有取消入口**（`IFrontendCompiler` 上没有任何 token），
         // 所以只能把它丢到独立线程上跑，主线程**带超时地等**。
@@ -747,8 +767,9 @@ HALT
                         // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
                         // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
                         _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-                        return Fail(lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
-                            + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。", filePath);
+                        return Fail(lang, $"⚠️ 编译超时（已等 {compileWatch.Elapsed.TotalSeconds:0} 秒，"
+                            + $"上限 {CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器卡住的写法。"
+                            + "编译线程还在后台跑（.NET 没法中止线程），建议改完源码再试；实在不行退出 App 重来。", filePath);
                     }
                     vmlText = compile.Result;
                 }

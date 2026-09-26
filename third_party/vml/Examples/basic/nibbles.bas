@@ -60,15 +60,16 @@ NATIVE SUB ui_timer_kill(id AS INTEGER)
 END SUB
 NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
+' 音效：**用 `ui_beep` 单音**（v0.96.509 统一换回来）。
+' ⚠⚠ 一度走共享库的音序器（`ui_sfx_add`），**真机上破音**（多个音叠着响 + 长音拖尾）
+'   ⇒ 全换回单音的 beep：它是**单通道**的（后一个音掐掉前一个），结构上不可能削波。
+' ⚠ 频率取原音型的**首音**；「大餐」「升级」这两个"更好的事"取整块**最高音**
+'   （好与高频的"吃食"分得开）；**死取最低音** —— 五子棋/象棋两版也是这么配的。
+'   低音不低于 C3(131Hz)（手机外放 200Hz 以下衰减很快，听着像没响）。
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
-NATIVE SUB ui_sfx_reset()
-END SUB
+' ⚠ `ui_sfx_panic` 留着 —— 它是"全停"，退出前调一次把所有正在响的声音一起掐掉。
 NATIVE SUB ui_sfx_panic()
-END SUB
-NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
-END SUB
-NATIVE SUB ui_sfx_tick()
 END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
@@ -496,13 +497,12 @@ SUB eatFood()
     IF isBonus = 1 THEN
         score = score + foodVal * 2
         eaten = eaten + 2
-        ui_sfx_add 0, 88, 0, 2, 85, 1
-        ui_sfx_add 1, 95, 1, 4, 80, 1   ' 大餐：上行两音
+        ui_beep 1976, 165   ' 大餐：比"吃食"更高更长（取整块最高音）
         ui_vibrate(40, 120)
     ELSE
         score = score + foodVal
         eaten = eaten + 1
-        ui_sfx_add 2, 88, 0, 1, 45, 1   ' 吃食：极短
+        ui_beep 1319, 33   ' 吃食：极短（高频动作，不能吵）
     END IF
     IF score > best THEN
         best = score
@@ -517,9 +517,7 @@ SUB eatFood()
 
     IF eaten >= need THEN
         level = level + 1
-        ui_sfx_add 3, 76, 0, 3, 88, 1
-        ui_sfx_add 4, 83, 2, 3, 88, 1
-        ui_sfx_add 5, 88, 4, 8, 90, 1   ' 升级：上行琶音
+        ui_beep 1319, 320   ' 升级：长音（与"吃食"同音高但长 10 倍，一听就分得出）
         ui_vibrate(80, 160)
         startLevel()
         hint = "第 " + STR$(level) + " 关！"
@@ -532,9 +530,7 @@ END SUB
 SUB die(why AS STRING)
     over = 1
     hint = why + " —— 得分 " + STR$(score)
-    ui_sfx_add 6, 60, 0, 4, 90, 2
-    ui_sfx_add 7, 53, 4, 4, 90, 2
-    ui_sfx_add 8, 45, 8, 12, 95, 2   ' 死：下行三音
+    ui_beep 131, 320   ' 死：最低音、最长
     ui_vibrate(220, 240)
 END SUB
 
@@ -748,7 +744,6 @@ SUB runGame()
     rearmTimer()
 
     WHILE ui_win_closed() = 0
-        ui_sfx_tick
         IF quit = 1 THEN
             ui_sfx_panic
             ui_win_close()

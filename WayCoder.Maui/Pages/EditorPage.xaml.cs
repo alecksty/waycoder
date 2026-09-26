@@ -161,14 +161,24 @@ public partial class EditorPage : ContentPage
         // Entry 保留下来只为了三件事——IME 组合输入、软键盘、系统复制粘贴菜单。
         // 两层都显示文字的话，各自的行高/内边距规则不同，必然错位。
         LineEditor.TextColor = Colors.Transparent;
-#if IOS || MACCATALYST
         // iOS/MacCatalyst 的**硬件键盘** Tab：UIKit 里 Tab 是「命令键」（不是字符），
-        // 只能通过 `UIKeyCommand` 接，而 key command 的 selector 必须**由控件自己的类实现** ——
-        // 没法给现成的 MauiTextField 实例挂。所以给编辑器**这一个**输入框换成专用 handler
-        // （不动全局 EntryHandler.Mapper，那会波及全 App 的 Entry）。
-        // 软键盘不需要它（没有 Tab 键），Android 那条走 KeyPress，Windows 走 PreviewKeyDown。
-        LineEditor.Handler = new TabAwareEntryHandler();
-#endif
+        // 只能通过 `UIKeyCommand` 接，而 key command 的 selector 必须**由控件自己的类实现**，
+        // 没法给现成的 MauiTextField 实例挂 —— 所以这个输入框得换成 `TabAwareTextField`。
+        // 换法在 `MauiProgram` 里**按类型注册** handler（`AddHandler<Entry, TabAwareEntryHandler>`，
+        // 与 Android 侧 `EditorEntryHandler` 同一套），**不在这里动手**。
+        //
+        // ⚠⚠ **这里曾经写着 `LineEditor.Handler = new TabAwareEntryHandler();`，那是个坑
+        //   （v0.96.510 修，iPad 实测）**：
+        //     ① MAUI **只在它自己创建 handler 时**才替我们设好 `MauiContext`。手工赋的时候
+        //        上下文是 null，而赋值会立刻跑一遍属性映射器 —— 其中就有 `EntryHandler.MapFont`，
+        //        它要取 `IFontManager` ⇒
+        //        `InvalidOperationException: Unable to find the context. The MauiContext property
+        //        should have been set by the host.`。构造函数阶段页面还没进窗口，必然踩中
+        //        ⇒ **iOS 上「打开编辑器」直接抛异常，编辑器根本进不去**。
+        //     ② 就算把上下文补上也不对：此刻平台视图已经建好并挂在原生树里了，
+        //        **换 handler 不会把新的平台视图插进去** ⇒ 输入框哑掉（软键盘 / IME / 粘贴全没）。
+        //   软键盘不需要 Tab（没有这个键）；Android 那条走 KeyPress，Windows 走 PreviewKeyDown。
+
 
         // 系统光标也藏掉：它由平台按自己的内边距/行内对齐绘制，我们算不出它的位置，
         // 实测就是「在光标行的下方乱飘」。光标改由画布自绘（见 CodeCanvasView.DrawCaret），
@@ -235,6 +245,20 @@ public partial class EditorPage : ContentPage
             }
 #endif
         };
+
+        // 面板拖动条：**Android / iOS 走原生触摸**（拿"屏幕/窗口绝对坐标"），不能用 MAUI 的
+        // `PanGestureRecognizer`（它给的是相对视图的坐标 ⇒ 反馈回路，见 `HookPanelDragBar`
+        // 上面那段推导）。Windows 仍走 XAML 里那条 `PanGestureRecognizer`（见
+        // `OnPanelDragPanUpdated` 的分支）。
+        // ⚠ **这一行原先被关在 `#if ANDROID` 里** —— 于是 iOS 侧那条 `HookPanelDragBar()`
+        //   永远不会被挂上（v0.96.513 修；与"辅助输入条在 iOS 上拖不动"是同一次排查里
+        //   发现的同类问题：**只按安卓的模型写，iOS 就少一条通路**）。
+        // ⚠ `HookPanelDragBar` 只在 Android / iOS / MacCatalyst 三支里有实现，
+        //   Windows 目标不能挂（会 CS0103）。
+#if ANDROID || IOS || MACCATALYST
+        PanelDragBar.HandlerChanged += (_, _) => HookPanelDragBar();
+#endif
+
 #if ANDROID
         // 光标**只由画布画**（见 CodeCanvasView.DrawCaret）—— 系统的插入光标一个都不留。
         // 每次获得焦点都重申一遍：`setCursorVisible(false)` 会被平台的焦点流程重新打开
@@ -246,10 +270,6 @@ public partial class EditorPage : ContentPage
 
         // 键盘遮挡 → 压矮内容区。Handler 同样是懒创建的。
         Canvas.HandlerChanged += (_, _) => HookImeInsets();
-
-        // 面板拖动条：Android 上**必须走原生触摸**（拿屏幕绝对坐标），
-        // 不能用 MAUI 的 `PanGestureRecognizer` —— 理由见 `HookPanelDragBar` 的长注释。
-        PanelDragBar.HandlerChanged += (_, _) => HookPanelDragBar();
 #endif
     }
 
@@ -3514,10 +3534,10 @@ public partial class EditorPage : ContentPage
 
     private void OnPanelDragPanUpdated(object sender, PanUpdatedEventArgs e)
     {
-#if ANDROID
-        // Android 走原生触摸（见 `HookPanelDragBar`）—— 这里直接让位。
-        // 一句话理由：MAUI 的 `TotalY` 是**相对视图**的坐标，而面板一变高、拖动条自己就在上移
-        // ⇒ 反馈回路，量级恒偏小且来回抖（实测手指移 152dp、`TotalY` 只报 74.7dp）。
+#if ANDROID || IOS || MACCATALYST
+        // Android / iOS 都走原生触摸（见 `HookPanelDragBar` 与 `OnIosPanelDragPan`）——
+        // 这里直接让位。一句话理由见上面那段"反馈回路"的推导：MAUI 的 `TotalY` 是**相对视图**
+        // 的坐标，而面板一变高、拖动条自己就在上移 ⇒ 回路自己抵消自己，量级恒偏小且来回抖。
         return;
 #endif
         switch (e.StatusType)
@@ -3555,6 +3575,30 @@ public partial class EditorPage : ContentPage
         }
     }
 
+    /* ── 拖动条的两个基准（Android / iOS 共用）────────────────────────────────
+     *
+     * **为什么不能都靠 MAUI 的 `PanGestureRecognizer`**：它给的 `TotalY` 是**相对视图**的
+     * 坐标变化，而这段交互恰恰是"用位移去改这个视图自己的高度" —— 面板一变高，拖动条
+     * （连同整个面板）就往上升。设手指上移 `ΔF`、拖动条上移 `ΔH`（都取上移为正）：
+     *
+     *     相对坐标的变化  TotalY = ΔF − ΔH      （手指远离了视图，但视图也迎上来了）
+     *     而我们想要的     ΔH = ΔF
+     *     代进去           ΔF = ΔF − ΔH  ⇒  **只有 ΔH ≡ 0 才成立**
+     *
+     * 即「用相对坐标驱动自身尺寸」是个**会自己抵消自己的回路** —— 实测（Android）手指移
+     * 152dp、`TotalY` 只报 74.7dp（约一半，正是被 ΔH 抵消掉的那部分），而且中途来回抖
+     * （`-38.5 → -32.7`）。用户报的「**来回抖动** + **位置错位**」两条都是它。
+     *
+     * **正解：脱离视图坐标系**，用"手指在屏幕/窗口里的绝对坐标"—— 它与视图怎么动无关
+     * ⇒ 回路断开，`ΔH = ΔF` 严格成立。两种平台各有一个等价的量：
+     *   · Android —— `MotionEvent.RawY`（屏幕**像素**）
+     *   · iOS / MacCatalyst —— `UIPanGestureRecognizer.LocationInView(null)`（窗口**点**）
+     * ⚠ **单位不同**：Android 那个是像素，要除 `DisplayInfo.Density`；iOS 的是点，
+     *   与 `HeightRequest` 同一单位，**不要除**（两边别互抄这一句）。
+     */
+    private float _dragRawStartY;
+    private double _dragRawStartH;
+
 #if ANDROID
     // ── Android：拖动条走**原生触摸**，用屏幕绝对坐标 ──────────────────────────
     //
@@ -3570,10 +3614,6 @@ public partial class EditorPage : ContentPage
     // `TotalY` 只报 74.7dp（约一半，正是被 ΔH 抵消掉的那部分），而且中途来回抖
     // （`-38.5 → -32.7`）。用户报的「**来回抖动** + **位置错位**」两条都是它。
     //
-    // **正解：脱离视图坐标系**，用 `MotionEvent.RawY`（屏幕绝对坐标）—— 手指的绝对位移
-    // 与视图怎么动无关 ⇒ 回路断开，`ΔH = ΔF` 严格成立。
-    private float _dragRawStartY;
-    private double _dragRawStartH;
 
     private void HookPanelDragBar()
     {
@@ -3609,6 +3649,59 @@ public partial class EditorPage : ContentPage
             case Android.Views.MotionEventActions.Cancel:
                 MauiEditorStore.SetPanelHeight(OutputPanel.HeightRequest);
                 e.Handled = true;
+                break;
+        }
+    }
+#endif
+
+#if IOS || MACCATALYST
+    // ── iOS / MacCatalyst：同一套解法，等价的量是**窗口坐标** ────────────────
+    //
+    // 与 Android 那位同因同解（推导见上面那段"反馈回路"）。iOS 上没有 `RawY`，等价的
+    // 是 `LocationInView(null)` —— 窗口坐标，与视图自身怎么动无关 ⇒ 回路断开。
+    //
+    // ⚠ **一定要挂 `UIPanGestureRecognizer` 到平台视图上，不能用 MAUI 的 `PanGestureRecognizer`**：
+    //   后者的 `TotalY` 又是"相对视图"的，等于把回路原样搬过来。
+    // ⚠ 窗口坐标是**点**，与 `HeightRequest` 同单位 ⇒ **不除密度**（Android 那边是像素，要除）。
+    private UIKit.UIView? _iosDragHost;
+    private UIKit.UIPanGestureRecognizer? _iosPanelDragPan;
+
+    private void HookPanelDragBar()
+    {
+        if (PanelDragBar.Handler?.PlatformView is not UIKit.UIView v) return;
+        // 同一个平台视图重复挂会叠出多个识别器（Handler 重建会换视图，那时才该重挂）
+        if (ReferenceEquals(_iosDragHost, v) && _iosPanelDragPan != null) return;
+        _iosDragHost = v;
+        _iosPanelDragPan = new UIKit.UIPanGestureRecognizer(OnIosPanelDragPan);
+        v.AddGestureRecognizer(_iosPanelDragPan);
+    }
+
+    /// <summary>拖动条的 iOS 原生手势（`LocationInView(null)` = 窗口坐标，绝对量）。</summary>
+    private void OnIosPanelDragPan(UIKit.UIPanGestureRecognizer g)
+    {
+        var y = g.LocationInView(null).Y;          // 窗口坐标（点）
+        switch (g.State)
+        {
+            case UIKit.UIGestureRecognizerState.Began:
+                _dragRawStartY = (float)y;
+                // 基准取**实际高度**（不是 `HeightRequest`）：内容有自己的最小高度，
+                // 拿请求值当基准会恒差那一截（本仓记过：请求 220dp、实际 323dp）。
+                _dragRawStartH = OutputPanel.Height > 0
+                    ? OutputPanel.Height
+                    : ClampPanelHeight(MauiEditorStore.PanelHeight);
+                break;
+
+            case UIKit.UIGestureRecognizerState.Changed:
+                {
+                    double movedPt = _dragRawStartY - y;                     // 上移为正
+                    OutputPanel.HeightRequest = ClampPanelHeight(_dragRawStartH + movedPt);
+                    break;
+                }
+
+            case UIKit.UIGestureRecognizerState.Ended:
+            case UIKit.UIGestureRecognizerState.Cancelled:
+            case UIKit.UIGestureRecognizerState.Failed:
+                MauiEditorStore.SetPanelHeight(OutputPanel.HeightRequest);
                 break;
         }
     }
@@ -4205,9 +4298,38 @@ internal sealed class TabAwareTextField : Microsoft.Maui.Platform.MauiTextField
     public void OnShiftTab(UIKit.UIKeyCommand command) => TabPressed?.Invoke(true);
 }
 
-/// <summary>只服务编辑器那个输入框的 handler（用 CreatePlatformView 换成 TabAwareTextField）。</summary>
+/// <summary>
+/// Entry 的处理器 —— 存在的唯一目的是：**让编辑器那个输入框换成 <see cref="TabAwareTextField"/>**
+/// （只有它接得住 iOS 硬件键盘的 Tab / Shift+Tab）。
+///
+/// <para>
+/// **为什么是「按类型注册」（`MauiProgram` 的 `AddHandler`）而不是页面里手工赋 `Handler`**：
+/// MAUI **只在它自己创建 handler 时**才设 `MauiContext`；手工赋的时候上下文是 null，
+/// 而赋值会立刻跑属性映射器（`EntryHandler.MapFont` 要取 `IFontManager`）⇒ 抛
+/// 「Unable to find the context…」。而且那时平台视图已经建好挂在原生树里，换 handler
+/// **也换不掉它**（新的平台视图不会被插进去 ⇒ 输入框哑掉）。详见 `EditorPage` 构造函数里的那段注释。
+/// </para>
+///
+/// <para>
+/// **为什么在 `CreatePlatformView` 里按 `StyleId` 分流**：`EntryHandler.Mapper` 是全局静态的、
+/// 而且拿到的是**已经建好的实例**，换不了平台视图的类型；注册表这一层可以。于是非编辑器
+/// 那一支返回**原样的 `MauiTextField`**，App 里另外那些输入框（聊天框、API Key、仓库地址…）
+/// 走的就是 MAUI 原本那一行代码，一个字节都不差 —— 与 Android 侧 `EditorEntryHandler` 同一套做法。
+/// </para>
+///
+/// <para>
+/// **为什么在 `CreatePlatformView` 里读 `StyleId` 是安全的**：`ElementHandler.SetVirtualView`
+/// 的顺序是 `VirtualView = view;` **然后**才 `PlatformView = CreatePlatformElement();`。
+/// </para>
+/// </summary>
 internal sealed class TabAwareEntryHandler : Microsoft.Maui.Handlers.EntryHandler
 {
-    protected override Microsoft.Maui.Platform.MauiTextField CreatePlatformView() => new TabAwareTextField();
+    protected override Microsoft.Maui.Platform.MauiTextField CreatePlatformView()
+    {
+        if ((VirtualView as Microsoft.Maui.Controls.Element)?.StyleId == MauiProgram.EditorLineStyleId)
+            return new TabAwareTextField();
+
+        return new Microsoft.Maui.Platform.MauiTextField();
+    }
 }
 #endif

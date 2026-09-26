@@ -30,6 +30,22 @@ public static class MauiProgram
 			h.AddHandler<Microsoft.Maui.Controls.Entry, EditorEntryHandler>());
 #endif
 
+#if IOS || MACCATALYST
+		// 同上，iOS 侧换的是 TabAwareTextField —— **硬件键盘的 Tab 是「命令键」**（不走
+		// ShouldChangeCharacters），要由控件自己的类在 KeyCommands 里声明 UIKeyCommand。
+		// 非编辑器那一支同样在 CreatePlatformView 里按 StyleId 分流回原类型。
+		//
+		// ⚠⚠ **必须走这条「按类型注册」的路，绝不能在页面里 `LineEditor.Handler = new …()`**
+		//   （v0.96.510 修）：MAUI **只在它自己创建 handler 时**才替我们设好 `MauiContext`，
+		//   手工赋时上下文是 null，而赋值会立刻跑一遍属性映射器 —— 其中 `EntryHandler.MapFont`
+		//   要取 `IFontManager` ⇒ 抛 `InvalidOperationException: Unable to find the context.
+		//   The MauiContext property should have been set by the host.`。
+		//   页面构造函数阶段还没进窗口，必然踩中 ⇒ **iPad/iPhone 上编辑器整个打不开**
+		//   （Android 侧那个 handler 的注释里早写明了别用这条路，iOS 侧当初没照做）。
+		builder.ConfigureMauiHandlers(h =>
+			h.AddHandler<Microsoft.Maui.Controls.Entry, WayCoder.Maui.Pages.TabAwareEntryHandler>());
+#endif
+
 #if ANDROID
 		// 去掉 Android 原生下划线（underbar）：Editor 用于编辑器/多行输入，Entry 用于聊天输入框与
 		// 各设置单行输入——原生 EditText/AppCompatEditText 默认底部一条横线，iOS 无，观感不一致。
@@ -110,12 +126,19 @@ public static class MauiProgram
 		return builder.Build();
 	}
 
-#if ANDROID
 	/// <summary>
-	/// 给编辑器的浮动输入框打的标记 —— 只有带这个 StyleId 的 Entry 才关掉平台的选中浮层
-	/// （见 <c>NoSelectionToolbar</c> 那两处 mapper 的注释：mapper 是全局的，不判 StyleId 会误伤全 App）。
+	/// 给编辑器的浮动输入框打的标记。只有带这个 StyleId 的 Entry 才：
+	///   · Android —— 关掉平台的选中浮层、换上 BackspaceAwareEditText（见 <c>EditorEntryHandler</c>）；
+	///   · iOS/MacCatalyst —— 换上 TabAwareTextField（见 <c>TabAwareEntryHandler</c>）。
+	/// 判据必须靠标记而不是「是不是编辑器那个控件」：那几处 mapper/handler **是全局的**，
+	/// 不判 StyleId 会误伤全 App 的 Entry（<c>NoSelectionToolbar</c> 的注释里记过这一条）。
+	///
+	/// ⚠ **本常量刻意放在 `#if ANDROID` 外面** —— 它同时被 iOS 侧的 handler 用
+	/// （v0.96.510：原先只在 Android 段里，iOS 一编译就 CS0117）。
 	/// </summary>
 	internal const string EditorLineStyleId = "code-line-editor";
+
+#if ANDROID
 
 	/// <summary>
 	/// 平台「选中操作」浮层的回调：**`OnCreateActionMode` 返回 false = 不创建**，

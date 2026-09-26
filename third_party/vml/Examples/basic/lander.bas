@@ -59,15 +59,16 @@ NATIVE FUNCTION ui_msg_b() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
+' 音效：**用 `ui_beep` 单音**（v0.96.509 统一换回来）。
+' ⚠⚠ 一度走共享库的音序器（`ui_sfx_add`），**真机上破音**（多个音叠着响 + 长音拖尾）
+'   ⇒ 全换回单音的 beep：它是**单通道**的（后一个音掐掉前一个），结构上不可能削波。
+' ⚠ 频率取原音型的**首音**；**结局取两端的极值**（着陆成功取最高音、坠毁取最低音 ——
+'   五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
+'   低音不低于 C3(131Hz)（手机外放 200Hz 以下衰减很快，听着像没响）。
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
-NATIVE SUB ui_sfx_reset()
-END SUB
+' ⚠ `ui_sfx_panic` 留着 —— 它是"全停"，退出前调一次把所有正在响的声音一起掐掉。
 NATIVE SUB ui_sfx_panic()
-END SUB
-NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
-END SUB
-NATIVE SUB ui_sfx_tick()
 END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
@@ -351,8 +352,7 @@ SUB touchDown()
         bestScore = score
     END IF
     lastMsg = "着陆成功！剩余燃料 " + STR$(fuel) + " → " + STR$(score) + " 分"
-    ui_sfx_add 0, 79, 0, 3, 90, 1
-    ui_sfx_add 1, 86, 2, 8, 90, 1   ' 着陆成功：上行两音
+    ui_beep 1175, 320   ' 着陆成功（赢方）：最高音、最长
     ui_vibrate(60, 120)
 END SUB
 
@@ -360,9 +360,7 @@ SUB crash(why AS STRING)
     state = ST_DOWN
     boomT = 0
     lastMsg = why
-    ui_sfx_add 2, 60, 0, 4, 95, 2
-    ui_sfx_add 3, 53, 4, 4, 95, 2
-    ui_sfx_add 4, 45, 8, 12, 100, 2   ' 坠毁：下行三音
+    ui_beep 131, 320   ' 坠毁（输方）：最低音、最长
     ui_vibrate(200, 240)
 END SUB
 
@@ -549,14 +547,14 @@ SUB handlePoint(isDown AS INTEGER)
                 IF ang < 0 - 90 THEN
                     ang = 0 - 90
                 END IF
-                ui_sfx_add 5, 67, 0, 1, 40, 3   ' 左转'
+                ui_beep 392, 33   ' 左转（低一点）'
             ELSE
                 rightHeld = 1
                 ang = ang + TURN
                 IF ang > 90 THEN
                     ang = 90
                 END IF
-                ui_sfx_add 5, 72, 0, 1, 40, 3   ' 右转'
+                ui_beep 523, 33   ' 右转（高一点，与左转分得开）'
             END IF
         END IF
     END IF
@@ -608,7 +606,6 @@ SUB runGame()
     newRound()
 
     WHILE ui_win_closed() = 0
-        ui_sfx_tick
         IF quit = 1 THEN
             ui_sfx_panic
             ui_win_close()

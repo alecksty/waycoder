@@ -523,6 +523,26 @@ public class TerminalGrid : GraphicsView
     public double CellHeight => Math.Max(1, _fontSize * CellHFactor);
 
     /// <summary>
+    /// **绘制时传给平台的框高** —— 必须**明显大于**一格的高度，绝不能直接用
+    /// <see cref="CellHeight"/>。
+    ///
+    /// <para>
+    /// ⚠⚠ 这是「命令行文字**缩小到一定程度就不显示**」的根因（2026-09-26 真机 + 模拟器实测）：
+    /// 带框的 <c>DrawString</c> / <c>DrawText</c> 会**按框高裁切**，而平台的真实行高
+    /// **不是**严格的 <c>字号 × 1.2</c> —— 其中有一块**不随字号缩放**的固定量，再加上取整，
+    /// 于是**小字号下这个比例更不够** ⇒ 整行被裁得一个字不剩。
+    /// 模拟器上量得很干净：同一句文字，框高 26 配字号 44 ⇒ 一个字都不画；框高给足 ⇒ 正常。
+    /// </para>
+    ///
+    /// <para>
+    /// 编辑器（`CodeCanvasView`）一直没这个毛病，正是因为它传的是
+    /// <c>EditorTypography.LineHeight</c>（字号 × 1.4 且先取整）—— 比这里的 1.2 宽裕。
+    /// **格子高度照旧**（它是网格与滚动的尺子，改了会动排版），**只有绘制框给足**。
+    /// </para>
+    /// </summary>
+    public double DrawBoxHeight => Math.Max(CellHeight, _fontSize * 3);
+
+    /// <summary>
     /// 装内容：`markupLines` 是**已经是中间格式**（`«»` 标记）的行，一行 = 屏幕上一行。
     ///
     /// 只解 `«»` 标记（<see cref="MarkdownParser.ParseMarkupOnly"/>）—— 画面是数据，不是文档：
@@ -645,8 +665,21 @@ public class TerminalGrid : GraphicsView
 
                     var fg = ResolveColor(color, dark ? Color.FromArgb("#E0E0E0") : Color.FromArgb("#1A1A1A"));
                     // 逐**段**定位：起点按"这一段自己的起始列"算 ⇒ 误差不跨段累积
+                    //
+                    // ⚠⚠ **框高必须给足，不能给"这一格的高度"** —— 这就是
+                    //   「命令行文字缩小到一定程度就不显示」的根因（2026-09-26 真机 + 模拟器实测）：
+                    //   带框的 `DrawString`/`DrawText` 会**按框高裁切**，而平台真实行高**不是**严格的
+                    //   `字号 × 1.2`（多出一块不随字号缩放的固定量、再加上取整），小字号下这个比例
+                    //   更不够 ⇒ **整行被裁得一个字不剩**。模拟器上量得很干净：同样一句文字，
+                    //   框高 26 配字号 44 ⇒ **一个字都不画**；框高给足 ⇒ 正常出来。
+                    //   编辑器一直没这毛病，正是因为它传的是 `EditorTypography.LineHeight`
+                    //   （`字号 × 1.4` 且先取整）—— 比这里的 1.2 宽裕。
+                    //   ⇒ **格子的高度照旧**（它是网格与滚动的尺子），**只有绘制框给足**。
+                    //   ⚠ 宽度同理：给 `text.Length * cw * 2` 对全角行只剩刚好够，平台一取整就可能
+                    //     溢出回折，所以一并放宽。
                     canvas.FontColor = fg;
-                    canvas.DrawString(text, (float)(col * cw), (float)y, (float)(text.Length * cw * 2), (float)ch,
+                    canvas.DrawString(text, (float)(col * cw), (float)y,
+                        (float)(text.Length * cw * 3 + cw * 4), (float)g.DrawBoxHeight,
                         HorizontalAlignment.Left, VerticalAlignment.Top);
 
                     foreach (var r in text.EnumerateRunes()) col += Math.Max(1, AnsiString.CharWidth(r));

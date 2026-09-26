@@ -286,33 +286,27 @@ void on_key(int i)
     }
 }
 
-/* ── 音效：机制在共享库里（ui_sfx_*），这里只有音色 ──────────
+/* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ──────────
  *
- * 计算器的音效是**触感**，不是气氛 —— 所以一律**极短**（dur 1~2，vel 45~55）。
+ * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，换回来了。
+ *   破音的是**这里配的音**：等号成功/出错是 2–3 个声部叠着响，多声部一叠加就顶到
+ *   削波。`ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音
+ *   在响，**结构上不可能削波**。代价是没有音色。
+ *
+ * 计算器的音效是**触感**，不是气氛 —— 所以一律**极短**（按键那三个只有 33ms）。
  * 按一次键响 200ms 的"叮"，按十下就是噪音。
- * ⚠ 通道分区互不重叠：0 数字 / 1 正负与百分号 / 2 运算符 / 3–4 清零 /
- *   5–6 等号成功 / 7–9 等号出错。 */
+ * ⚠ 频率沿用原来那版的音区（数字最高、出错最低最长），时长封顶 320ms。 */
 
-void sfx_digit(void) { ui_sfx_add(0, 88, 0, 1, 45, VML_WAVE_SQUARE); }
-void sfx_sign(void)  { ui_sfx_add(1, 79, 0, 1, 50, VML_WAVE_SQUARE); }
-void sfx_op(void)    { ui_sfx_add(2, 76, 0, 1, 55, VML_WAVE_SQUARE); }
+void sfx_digit(void) { ui_beep(1319, 33); }
+void sfx_sign(void)  { ui_beep(784, 33); }
+void sfx_op(void)    { ui_beep(659, 33); }
 
-/* 清零：下行两音 —— 一听就知道"清掉了"。 */
-void sfx_clear(void) {
-    ui_sfx_add(3, 72, 0, 2, 70, VML_WAVE_TRIANGLE);
-    ui_sfx_add(4, 65, 1, 3, 70, VML_WAVE_TRIANGLE);
-}
+/* 清零：一声干净的中音 —— 一听就知道"清掉了"。 */
+void sfx_clear(void) { ui_beep(523, 132); }
 
-/* 等号：对是上行「叮-铃」，错是下行三音 —— 两者**方向相反**，不会听错。 */
-void sfx_ok(void) {
-    ui_sfx_add(5, 84, 0, 2, 80, VML_WAVE_SQUARE);
-    ui_sfx_add(6, 91, 1, 4, 80, VML_WAVE_SQUARE);
-}
-void sfx_err(void) {
-    ui_sfx_add(7, 60, 0, 3, 85, VML_WAVE_SAW);
-    ui_sfx_add(8, 53, 3, 3, 85, VML_WAVE_SAW);
-    ui_sfx_add(9, 45, 6, 8, 90, VML_WAVE_SAW);
-}
+/* 等号：对是**高而短**、错是**低而长** —— 两个方向，不会听错。 */
+void sfx_ok(void) { ui_beep(1047, 165); }
+void sfx_err(void) { ui_beep(262, 320); }
 
 /* ── 渲染 ───────────────────────────────────────────────── */
 
@@ -474,7 +468,6 @@ int main(void)
     ui_present();
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(m, 400);
 
         if (t == VML_MSG_TOUCHDOWN) {

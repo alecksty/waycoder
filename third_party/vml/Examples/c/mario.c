@@ -241,38 +241,28 @@ void reset_round(void) {
     spawn_player();
 }
 
-/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+/* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ────────────
  *
- * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
- * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，全部换回来了。
+ *   破音的是**这里配的音**：通关那一版是**上行大三和弦 + 高八度**（4 个声部叠着响），
+ *   多声部混音一叠加，音量就顶到削波；受伤的末音还拖了 8 拍（一拍 33ms）。
+ *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   **结构上不可能削波**。代价是没有和弦、没有音色。
  *
- * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
- *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
- *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
- * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
- *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
+ * ⚠ 频率取整块的**首音**（哪个事件什么音是设计，不是机制），时长取整块时长、
+ *   封顶 320ms。**通关是例外**：取整块**最高音** —— 「不看屏幕也分得出」靠这个
+ *   （五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
+ *   低音不低于 C3(131Hz) —— 手机外放在 200Hz 以下衰减很快，玩家听着像没响。 */
 
-
-
-void sfx_jump(void) {                                                   /* 跳：上行一挑 */
-    ui_sfx_add(0, 67, 0, 1, 70, VML_WAVE_SQUARE);
-    ui_sfx_add(1, 74, 1, 2, 65, VML_WAVE_SQUARE);
-}
-void sfx_coin(void) {                                                   /* 金币：两音「叮-铃」，最有辨识度 */
-    ui_sfx_add(2, 88, 0, 2, 90, VML_WAVE_SQUARE);
-    ui_sfx_add(3, 96, 1, 5, 85, VML_WAVE_SQUARE);
-}
-void sfx_stomp(void) { ui_sfx_add(4, 48, 0, 3, 90, VML_WAVE_SAW); }     /* 踩敌：一声闷响 */
-void sfx_hurt(void) {                                                   /* 受伤：下行 */
-    ui_sfx_add(5, 60, 0, 3, 90, VML_WAVE_SAW);
-    ui_sfx_add(6, 53, 3, 8, 90, VML_WAVE_SAW);
+void sfx_jump(void)   { ui_beep(392, 99); }     /* 跳：中音一挑，短 */
+void sfx_coin(void)   { ui_beep(1319, 198); }   /* 金币：**最高最长** —— 最有辨识度 */
+void sfx_stomp(void)  { ui_beep(131, 99); }     /* 踩敌：一声闷响（最低） */
+void sfx_hurt(void) {
+    ui_beep(262, 320);                          /* 受伤：低而长 */
     ui_vibrate(180, 0);
 }
-void sfx_win(void) {                                                    /* 通关：上行大三和弦 + 高八度 */
-    ui_sfx_add(7, 72, 0, 4, 92, VML_WAVE_SQUARE);
-    ui_sfx_add(8, 76, 2, 4, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(9, 79, 4, 5, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(10, 84, 6, 12, 90, VML_WAVE_SQUARE);
+void sfx_win(void) {
+    ui_beep(1047, 320);                         /* 通关（结局）：**最高音**、最长 */
     ui_vibrate(120, 0);
 }
 
@@ -824,7 +814,6 @@ int main(void) {
                VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

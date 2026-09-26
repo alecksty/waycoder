@@ -56,7 +56,6 @@ fn main() {
 
     while ui_win_closed() == 0 {
 
-        ui_sfx_tick();
         // ── draw ──
         ui_clear(-15724520);
         ui_text(8, 8, "得分", -6643536, 13, 0);
@@ -124,7 +123,10 @@ fn main() {
                                         left = left - 1;
                                         score = score + 10;
                                         bdy = 0 - bdy;
-                                        ui_sfx_add(0, 84, 0, 2, 80, 1)
+                                        // 打砖得分：一声高而短的「叮」
+                                        //   （单音 ui_beep —— v0.96.509 从音序器换回来，
+                                        //    那一版多声部叠加 / 长音在真机上破音）
+                                        ui_beep(1047, 66)
                                     }
                                 }
                             }
@@ -135,8 +137,8 @@ fn main() {
 
                 if left == 0 {
                     alive = 0;
-                    ui_sfx_add(1, 72, 0, 4, 92, 1);            ui_sfx_add(2, 79, 2, 4, 90, 1);
-                                ui_sfx_add(3, 84, 4, 10, 92, 1);   // 过关：上行大三和弦
+                    // 过关（赢方）：**最高音**、最长
+                    ui_beep(1047, 320)
                     ui_present();
                     if (ui_dlg_msg("打砖块", "全清了！这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
                     i = 0;
@@ -153,8 +155,8 @@ fn main() {
 
                 if by > h {
                     alive = 0;
-                    ui_sfx_add(4, 60, 0, 4, 90, 2);            ui_sfx_add(5, 53, 4, 4, 90, 2);
-                                ui_sfx_add(6, 45, 8, 12, 95, 2);   // 死：下行三音
+                    // 死（输方）：「最低音」、最长 —— 与过关那条 1047 正好是两端
+                    ui_beep(131, 320)
                     ui_present();
                     if (ui_dlg_msg("打砖块", "球落底了，这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
                     i = 0;

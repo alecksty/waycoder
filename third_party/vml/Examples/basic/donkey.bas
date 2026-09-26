@@ -78,15 +78,15 @@ NATIVE FUNCTION ui_msg_b() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
+' 音效：**用 `ui_beep` 单音**（v0.96.509 统一换回来）。
+' ⚠⚠ 一度走共享库的音序器（`ui_sfx_add`），**真机上破音**（多个音叠着响 + 长音拖尾）
+'   ⇒ 全换回单音的 beep：它是**单通道**的（后一个音掐掉前一个），结构上不可能削波。
+' ⚠ 频率取原音型的**首音**；**结局（撞车）取最低音** —— 五子棋/象棋两版也是这么配的
+'   （赢 1320 / 输 240）。低音不低于 C3(131Hz)（手机外放 200Hz 以下衰减很快）。
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
-NATIVE SUB ui_sfx_reset()
-END SUB
+' ⚠ `ui_sfx_panic` 留着 —— 它是"全停"，退出前调一次把所有正在响的声音一起掐掉。
 NATIVE SUB ui_sfx_panic()
-END SUB
-NATIVE SUB ui_sfx_add(ch AS INTEGER, note AS INTEGER, delay AS INTEGER, dur AS INTEGER, vel AS INTEGER, wave AS INTEGER)
-END SUB
-NATIVE SUB ui_sfx_tick()
 END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
@@ -336,7 +336,7 @@ SUB moveCar(d AS INTEGER)
     END IF
     carX = laneCenter(carLane)
     carX = carX - carw / 2
-    ui_sfx_add 0, 72, 0, 1, 40, 3   ' 前进
+    ui_beep 523, 33   ' 前进
 END SUB
 
 ' 这一拍：出驴、推驴、判撞、计分
@@ -380,7 +380,7 @@ SUB stepWorld()
                     passed = 0
                     IF speed < speedMax THEN
                         speed = speed + 1
-                        ui_sfx_add 1, 84, 0, 2, 60, 1   ' 加速
+                        ui_beep 1047, 66   ' 加速
                     END IF
                 END IF
             END IF
@@ -398,9 +398,7 @@ SUB crash()
     crashed = 1
     boomT = 0
     hitLane = donLane
-    ui_sfx_add 2, 60, 0, 4, 95, 2
-    ui_sfx_add 3, 53, 4, 4, 95, 2
-    ui_sfx_add 4, 45, 8, 12, 100, 2   ' 撞车：下行三音
+    ui_beep 131, 320   ' 撞车（结局）：最低音、最长
     ui_vibrate(120, 200)
 END SUB
 
@@ -491,7 +489,6 @@ SUB runGame()
     tid = ui_timer_set(tickMs, 0)
 
     WHILE ui_win_closed() = 0
-        ui_sfx_tick
         IF quit = 1 THEN
             ui_sfx_panic
             ui_win_close()

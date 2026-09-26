@@ -232,35 +232,24 @@ void reset_game(void) {
     }
 }
 
-/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+/* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ────────────
  *
- * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
- * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，全部换回来了。
+ *   破音的是**这里配的音**：爆炸是**三个声部同时响**（48/54/48 一起轰），多声部混音
+ *   一叠加就顶到削波；被撞的末音还拖了 12 拍（一拍 33ms ≈ 400ms）。
+ *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   **结构上不可能削波、也不会长音叠加**。代价是没有音色。
  *
- * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
- *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
- *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
- * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
- *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
+ * ⚠ 频率沿用原来那版的**首音**（射击最高最轻、爆炸最低），时长取整块时长、封顶 320ms。
+ *   低音不低于 C3(131Hz) —— 手机外放在 200Hz 以下衰减很快，玩家听着像没响。 */
 
-
-
-void sfx_shoot(void) { ui_sfx_add(0, 91, 0, 1, 45, VML_WAVE_SQUARE); }   /* 射击：最高频的动作，最轻最短 */
-void sfx_boom(void) {                                                    /* 爆炸：三音轰鸣 */
-    ui_sfx_add(1, 48, 0, 5, 100, VML_WAVE_SAW);
-    ui_sfx_add(2, 54, 0, 4, 75, VML_WAVE_SAW);
-    ui_sfx_add(3, 36, 0, 6, 85, VML_WAVE_TRIANGLE);
-}
-void sfx_hit(void) {                                                     /* 被撞：低沉长音往下沉 */
-    ui_sfx_add(4, 55, 0, 5, 95, VML_WAVE_SAW);
-    ui_sfx_add(5, 45, 5, 12, 95, VML_WAVE_SAW);
+void sfx_shoot(void) { ui_beep(1568, 33); }      /* 射击：最高频的动作，最轻最短 */
+void sfx_boom(void) { ui_beep(131, 198); }       /* 爆炸：一声闷响（最低） */
+void sfx_hit(void) {                             /* 被撞：低沉、长 */
+    ui_beep(196, 320);
     ui_vibrate(140, 0);
 }
-void sfx_wave(void) {                                                    /* 过一波：上行琶音 */
-    ui_sfx_add(6, 76, 0, 3, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(7, 83, 2, 3, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(8, 88, 4, 8, 90, VML_WAVE_SQUARE);
-}
+void sfx_wave(void) { ui_beep(659, 320); }       /* 过一波：中高、长 */
 
 /* ── 每拍 ───────────────────────────────────────────────── */
 
@@ -710,7 +699,6 @@ int main(void) {
                VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

@@ -261,9 +261,9 @@ class Snake
             score = score + 10;
             if (score > best) best = score;
             if (stepMs > 70) stepMs = stepMs - 6;    // 越吃越快，但留个下限
-            // 音效：机制在共享库（ui_sfx_*），这里只有音色
-            ui_sfx_add(0, 84, 0, 2, 85, 1);
-            ui_sfx_add(1, 91, 1, 4, 80, 1);
+            // 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+            //   那一版多声部叠加 / 长音拖尾在真机上破音）
+            ui_beep(1047, 165);
             placeFood();
         }
         return 1;
@@ -272,10 +272,8 @@ class Snake
     static void gameOver()
     {
         alive = 0;
-        // 音效：机制在共享库（ui_sfx_*），这里只有音色
-        ui_sfx_add(2, 60, 0, 4, 90, 2);
-        ui_sfx_add(3, 53, 4, 4, 90, 2);
-        ui_sfx_add(4, 45, 8, 12, 95, 2);
+        // 音效：单音 ui_beep；**结局音取最低音**（吃到 1047 / 撞到 131，差得开）
+        ui_beep(131, 320);
         draw();                                    // 先把终局画面画出来
         if (ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return; }
         reset();
@@ -306,7 +304,6 @@ class Snake
 
         while (ui_win_closed() == 0)
 
-            ui_sfx_tick();
         {
             int t = ui_wait_msg(0);
             if (t == 0) continue;

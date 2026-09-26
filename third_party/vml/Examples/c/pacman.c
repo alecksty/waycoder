@@ -160,36 +160,27 @@ int row_of(int y) { int v = (y - OY) / TILE; if (v < 0) v = 0; if (v >= MH) v = 
 int abs_i(int v) { if (v < 0) return -v; return v; }
 int rnd(int n) { if (n <= 0) return 0; return ui_rand(n); }
 
-/* ── 音效：机制在共享库里，这里只有音色 ────────────────────
+/* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ────────────
  *
- * `ui_sfx_add` / `ui_sfx_tick` 在 `Lib/shared/src/vmlui.c`（所有语言共用一份）——
- * 哪个事件配什么音是**设计**，留在本文件。设计建议见 `docs/VML游戏开发指南.md` §4.5。
+ * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，全部换回来了。
+ *   破音的是**这里配的音**：死亡/过关都是**几个音先后响**，末音还拖了 14 拍
+ *   （一拍 33ms ≈ 460ms）—— 长音加外放就是"滋滋"。
+ *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   **结构上不可能削波、也不会长音叠加**。代价是没有音色。
  *
- * ⚠ 本文件从前写着"合成音是**单通道**的 ⇒ 一次事件只发一个音" —— **那个前提没有了**
- *   （`ui_tone_on/off` 是复音的）。现在一次事件可以是**一小段**（几个音先后 /
- *   一个和弦），这才是"打爆"和"吃到"听起来不一样的原因。
- * ⚠ 通道分区互不重叠（见下面每个函数）。低音别写太低：手机外放 200Hz 以下衰减很快，
- *   C2(65Hz) 出来是"噗"一声闷响，玩家听着像**没响**。 */
+ * ⚠ 频率取整块的**首音**（吃豆最高最轻），时长取整块时长、封顶 320ms。
+ *   **胜负是例外**：赢取整块**最高音**、输取**最低音** —— 「不看屏幕也分得出输赢」
+ *   就靠这一条（五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
+ *   低音不低于 C3(131Hz) —— 手机外放在 200Hz 以下衰减很快，玩家听着像没响。 */
 
-
-
-void sfx_dot(void) { ui_sfx_add(0, 96, 0, 1, 45, VML_WAVE_SQUARE); }   /* 吃豆：高频动作，必须又轻又短 */
-void sfx_pow(void) { ui_sfx_add(1, 60, 0, 5, 90, VML_WAVE_SAW); }      /* 大力丸：有分量的一声 */
-void sfx_eat(void) {                                                    /* 吃鬼：上行两音 = 爽 */
-    ui_sfx_add(2, 84, 0, 3, 88, VML_WAVE_SQUARE);
-    ui_sfx_add(3, 91, 2, 5, 88, VML_WAVE_SQUARE);
-}
-void sfx_die(void) {                                                    /* 死亡：下行三音 */
-    ui_sfx_add(4, 64, 0, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(5, 57, 4, 4, 90, VML_WAVE_SAW);
-    ui_sfx_add(6, 48, 8, 14, 95, VML_WAVE_SAW);
+void sfx_dot(void) { ui_beep(2093, 33); }        /* 吃豆：高频动作，必须又轻又短 */
+void sfx_pow(void) { ui_beep(262, 165); }       /* 大力丸：有分量的一声 */
+void sfx_eat(void) { ui_beep(1047, 231); }      /* 吃鬼：高而中长 = 爽 */
+void sfx_die(void) {                            /* 死亡（输方）：**最低音**、最长 */
+    ui_beep(131, 320);
     ui_vibrate(220, 0);
 }
-void sfx_win(void) {                                                    /* 过关：上行琶音 */
-    ui_sfx_add(7, 72, 0, 3, 90, VML_WAVE_SQUARE);
-    ui_sfx_add(8, 79, 2, 3, 90, VML_WAVE_SQUARE);
-    ui_sfx_add(9, 84, 4, 10, 92, VML_WAVE_SQUARE);
-}
+void sfx_win(void) { ui_beep(1047, 320); }      /* 过关（赢方）：**最高音**、最长 */
 
 /* ── 开局 ───────────────────────────────────────────────── */
 
@@ -690,7 +681,6 @@ int main(void) {
                VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
-        ui_sfx_tick();
         t = ui_wait(msg, 0);
         if (t == 0) continue;
         if (t == VML_MSG_WINDOWCLOSE) break;

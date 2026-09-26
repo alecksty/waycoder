@@ -425,7 +425,17 @@
                     <ctl:AssistDragSurface x:Name="AssistDrag"
                                            HorizontalOptions="Fill"
                                            VerticalOptions="Fill" />
-                    <HorizontalStackLayout x:Name="AssistRow" Spacing="0">
+                    <!-- ⚠⚠ **这一行必须 `InputTransparent="True"`**（2026-09-26，iOS 实测「辅助输入条拖不动、
+                         也点不动」，安卓正常）。
+                         上面那段注释里的「谁不消费就继续找下一个」是 **Android 的 ViewGroup 分发**规则；
+                         **iOS 的 `UIView.hitTest` 不是这个模型** —— 它从最上层子视图往回退着找**第一个
+                         `UserInteractionEnabled = true`** 的视图，而 `HorizontalStackLayout` 本身就是可交互的
+                         普通视图 ⇒ 触摸全被它截住，**永远到不了底下那层拖动面**。按钮又恰好是
+                         `InputTransparent="True"`（点击由拖动面按坐标派发），于是整条既拖不动也点不动。
+                         设成透明后，两个平台的命中都落到 `AssistDrag`：Android 本来就是这个结果，
+                         iOS 则由 `hitTest` 继续往回退到它。（`CascadeInputTransparent` 默认 true，
+                         所以 ⣿ 与六个按钮一并透明 —— 它们的「点击」本来就不靠自己可点。） -->
+                    <HorizontalStackLayout x:Name="AssistRow" Spacing="0" InputTransparent="True">
                         <!-- 拖动区放**最左边**（用户要求）：原先它紧挨着右边的 ✕，
                              手指想拖条子时很容易滑到关闭上、一不小心就把浮条关了。
                              它现在只是个**视觉提示** —— 真正的拖动面是下面那层 GraphicsView。 -->
