@@ -356,13 +356,18 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 
 ## 音效与触感
 
-合成音、震动、屏幕常亮 —— [`help:vml/ui/feel`](help:vml/ui/feel)
+合成音、音频文件、震动、屏幕常亮 —— [`help:vml/ui/feel`](help:vml/ui/feel)
 
 | 接口 | 一句话 |
 |---|---|
 | [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。 |
+| [ui_audio_play](help:vml/ui/feel) | 播放一个音频**文件**（mp3/wav…），`loop` 非 0 = 循环（BGM 用）。 |
+| [ui_audio_stop](help:vml/ui/feel) | 停掉正在播的音频。 |
+| [ui_audio_volume](help:vml/ui/feel) | 整体音量 0–100（对**之后**播放的音生效）。 |
+| [ui_audio_playing](help:vml/ui/device) | 后台 BGM 还在放吗 → 1/0。 |
 | [ui_keep_on](help:vml/ui/feel) | 屏幕常亮开关（玩游戏的都该开）。 |
 | [ui_vibrate](help:vml/ui/feel) | 震动：`ms` 毫秒，`strength` 强度。 |
+| [ui_vibrate_pattern](help:vml/ui/feel) | 按节奏震动（int 数组：奇数下标静、偶数下标动）。 |
 
 ```c
 /* 例：ui_beep */
@@ -378,6 +383,7 @@ ui_beep(1568, 160);    /* 消四行，音更高 */
 |---|---|
 | [ui_store_get](help:vml/ui/store) | 读一个值：写进你给的缓冲区、返回长度（没有这条键返回 -1）。 |
 | [ui_store_set](help:vml/ui/store) | 存一个值。值也是字符串 —— 存数字要先自己转成字符串（这里没有 sprintf 可用）。 |
+| [ui_store_del](help:vml/ui/store) | 删掉一条存档（例如"清空最高分"）。 |
 
 ```c
 /* 例：ui_store_get */

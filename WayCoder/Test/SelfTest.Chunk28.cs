@@ -501,24 +501,26 @@ public static partial class SelfTest
         // ── 存档：键加 `vml.` 前缀并清洗（不能污染宿主自己的设置）────────────────────
         var kOff = WriteCStr(mem, 1200, "hi score!");
         var vOff = WriteCStr(mem, 1300, "42");
-        regs[0] = kOff; regs[1] = vOff;
-        rt.HandleSyscall(VmlUi.StoreSet, regs, mem);
+        regs[0] = VmlUi.StoreOp.Set; regs[1] = kOff; regs[2] = vOff;
+        rt.HandleSyscall(VmlUi.Store, regs, mem);
         // 清洗规则（VmlUi.StoreKey）：字母数字与 `._-` 保留、空格换 `_`、**其余字符直接丢**
         Check("存档键加了 vml. 前缀且清洗掉了空格/感叹号",
             host.Store.ContainsKey("vml.hi_score") && host.Store["vml.hi_score"] == "42");
 
         Array.Clear(mem, buf, 64);
-        regs[0] = kOff; regs[1] = buf; regs[2] = 64;
-        rt.HandleSyscall(VmlUi.StoreGet, regs, mem);
+        regs[0] = VmlUi.StoreOp.Get; regs[1] = kOff; regs[2] = buf; regs[3] = 64;
+        rt.HandleSyscall(VmlUi.Store, regs, mem);
         Check("StoreGet 返回长度并写回缓冲", regs[0] == 2 && VmlHostRuntime.Str(mem, buf) == "42");
 
-        regs[0] = kOff;
-        rt.HandleSyscall(VmlUi.StoreDel, regs, mem);
+        regs[0] = VmlUi.StoreOp.Delete; regs[1] = kOff;
+        rt.HandleSyscall(VmlUi.Store, regs, mem);
         Check("StoreDel 删掉了", !host.Store.ContainsKey("vml.hi_score_"));
 
         // ── 音效 / 震动 ────────────────────────────────────────────────────────
-        regs[0] = unchecked((int)0xFFFFFFFF);     // -1ms → 钳到 1
-        regs[1] = 999;                            // 强度 → 钳到 255
+        // ⚠ 参数整体后移一格（`R0` 是操作码）—— 这条断言同时钉住了"移位真的生效"。
+        regs[0] = VmlUi.VibrateOp.Simple;
+        regs[1] = unchecked((int)0xFFFFFFFF);     // -1ms → 钳到 1
+        regs[2] = 999;                            // 强度 → 钳到 255
         rt.HandleSyscall(VmlUi.Vibrate, regs, mem);
         Check("震动时长/强度都被钳过", host.Vibes[^1] == $"{1}/{255}");
 
@@ -1052,12 +1054,12 @@ public static partial class SelfTest
         Check("IMMERSIVE 转发给平台（关）", !host.LastImmersive);
 
         host.AudioPlayingFlag = true;
-        Array.Clear(regs);
-        rt.HandleSyscall(VmlUi.AudioIsPlaying, regs, mem);
+        Array.Clear(regs); regs[0] = VmlUi.AudioOp.IsPlaying;
+        rt.HandleSyscall(VmlUi.Audio, regs, mem);
         Check("AUDIO_IS_PLAYING：平台说在放 ⇒ 1", regs[0] == 1);
         host.AudioPlayingFlag = false;
-        Array.Clear(regs);
-        rt.HandleSyscall(VmlUi.AudioIsPlaying, regs, mem);
+        Array.Clear(regs); regs[0] = VmlUi.AudioOp.IsPlaying;
+        rt.HandleSyscall(VmlUi.Audio, regs, mem);
         Check("AUDIO_IS_PLAYING：平台说没放 ⇒ 0", regs[0] == 0);
 
         // 号段表里有它们（漏登记 = 那道查重护栏形同虚设）
@@ -1066,7 +1068,7 @@ public static partial class SelfTest
             && Array.IndexOf(VmlUi.AllNumbers, VmlUi.KeyQuery) >= 0
             && Array.IndexOf(VmlUi.AllNumbers, VmlUi.OrientationLock) >= 0
             && Array.IndexOf(VmlUi.AllNumbers, VmlUi.Immersive) >= 0
-            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.AudioIsPlaying) >= 0);
+            && Array.IndexOf(VmlUi.AllNumbers, VmlUi.Audio) >= 0);
     }
 
     /// <summary>

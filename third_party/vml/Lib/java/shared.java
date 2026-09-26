@@ -2459,6 +2459,12 @@
 // CALL ui_orient_lock
 // extern fn ui_immersive(int on) -> int
 // CALL ui_immersive
+// extern fn ui_audio_play(char* path, int loop) -> int
+// CALL ui_audio_play
+// extern fn ui_audio_stop(void) -> void
+// CALL ui_audio_stop
+// extern fn ui_audio_volume(int volume) -> void
+// CALL ui_audio_volume
 // extern fn ui_audio_playing(void) -> int
 // CALL ui_audio_playing
 // extern fn ui_flood_fill(int x, int y, int color, int border) -> int
@@ -2604,12 +2610,16 @@
 // CALL ui_beep
 // extern fn ui_vibrate(int ms, int strength) -> void
 // CALL ui_vibrate
+// extern fn ui_vibrate_pattern(int* pattern, int count) -> int
+// CALL ui_vibrate_pattern
 // extern fn ui_keep_on(int on) -> void
 // CALL ui_keep_on
 // extern fn ui_store_set(char* key, char* value) -> void
 // CALL ui_store_set
 // extern fn ui_store_get(char* key, char* buf, int cap) -> int
 // CALL ui_store_get
+// extern fn ui_store_del(char* key) -> int
+// CALL ui_store_del
 // extern fn ui_argc(void) -> int
 // CALL ui_argc
 // extern fn ui_arg(int i, char* buf, int cap) -> int

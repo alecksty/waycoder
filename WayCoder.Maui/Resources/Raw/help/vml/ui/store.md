@@ -18,3 +18,8 @@ if (ui_store_get("high", buf, 16) > 0) best = atoi(buf);
 ```c
 ui_store_set("high", "1200");
 ```
+### `ui_store_del(char* key)`
+删掉一条存档（例如"清空最高分"）。返回 0 成功 / -1 失败（键非法）。
+```c
+ui_store_del("high");
+```

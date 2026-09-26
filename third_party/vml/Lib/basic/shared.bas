@@ -5836,6 +5836,19 @@ DECLARE FUNCTION ui_immersive(a0 AS INTEGER) AS INTEGER
     ui_immersive = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_audio_play(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_audio_play")
+    ui_audio_play = 0
+END FUNCTION
+
+DECLARE SUB ui_audio_stop()
+    asm("CALL ui_audio_stop")
+END SUB
+
+DECLARE SUB ui_audio_volume(a0 AS INTEGER)
+    asm("CALL ui_audio_volume")
+END SUB
+
 DECLARE FUNCTION ui_audio_playing() AS INTEGER
     asm("CALL ui_audio_playing")
     ui_audio_playing = 0
@@ -6163,6 +6176,11 @@ DECLARE SUB ui_vibrate(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL ui_vibrate")
 END SUB
 
+DECLARE FUNCTION ui_vibrate_pattern(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_vibrate_pattern")
+    ui_vibrate_pattern = 0
+END FUNCTION
+
 DECLARE SUB ui_keep_on(a0 AS INTEGER)
     asm("CALL ui_keep_on")
 END SUB
@@ -6174,6 +6192,11 @@ END SUB
 DECLARE FUNCTION ui_store_get(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL ui_store_get")
     ui_store_get = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_store_del(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_store_del")
+    ui_store_del = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_argc() AS INTEGER

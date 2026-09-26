@@ -7551,6 +7551,20 @@ def ui_immersive(a0):
     asm("CALL ui_immersive")
     return r0
 
+def ui_audio_play(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_audio_play")
+    return r0
+
+def ui_audio_stop():
+    asm("CALL ui_audio_stop")
+
+def ui_audio_volume(a0):
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_audio_volume")
+
 def ui_audio_playing():
     r0 = asm("@R0")
     asm("CALL ui_audio_playing")
@@ -8050,6 +8064,13 @@ def ui_vibrate(a0, a1):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_vibrate")
 
+def ui_vibrate_pattern(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_vibrate_pattern")
+    return r0
+
 def ui_keep_on(a0):
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_keep_on")
@@ -8065,6 +8086,12 @@ def ui_store_get(a0, a1, a2):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL ui_store_get")
+    return r0
+
+def ui_store_del(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_store_del")
     return r0
 
 def ui_argc():

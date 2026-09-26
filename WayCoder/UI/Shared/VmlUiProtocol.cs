@@ -1049,16 +1049,47 @@ public static class VmlUi
         return sb.ToString();
     }
 
-    public const int AudioPlay = 541;
-    /// <summary>停掉正在播的音频：→ 0。</summary>
-    public const int AudioStop = 542;
-    /// <summary>设置整体音量：R0=音量(0–100) → 0（对之后播放的音生效）。</summary>
-    public const int AudioVolume = 543;
+    /// <summary>
+    /// **音频**（一个号 + 操作码，见 <see cref="AudioOp"/>）。`R0` = 操作码、参数从 `R1` 起。
+    ///
+    /// 原先这里是 **541/542/543/547 四个号**（v0.96.484 合并）—— 它们是**同一台音频设备**
+    /// 上的几个动作（播 / 停 / 调音量 / 查状态），拆成四个号没有道理。
+    /// </summary>
+    public const int Audio = 541;
 
-    /// <summary>震动一下：R0=时长ms R1=强度(0–255，0=用系统默认) → 0。</summary>
+    /// <summary>`Audio` 的操作码 —— **跨语言契约**，只能末尾追加。</summary>
+    public static class AudioOp
+    {
+        /// <summary>播放一个音频文件（循环 BGM 用它）：R1=路径* R2=1 表示循环 → 0 / -1。</summary>
+        public const int Play = 0;
+
+        /// <summary>停掉正在播的音频 → 0。</summary>
+        public const int Stop = 1;
+
+        /// <summary>设置整体音量：R1=音量(0–100) → 0（对之后播放的音生效）。</summary>
+        public const int Volume = 2;
+
+        /// <summary>还在播吗 → 1/0（BGM 播完没有）。</summary>
+        public const int IsPlaying = 3;
+    }
+
+    /// <summary>
+    /// **震动**（一个号 + 操作码，见 <see cref="VibrateOp"/>）。`R0` = 操作码、参数从 `R1` 起。
+    ///
+    /// 原先这里是 **545/546 两个号**（v0.96.484 合并）—— "震一下"与"按节奏震"
+    /// 是同一个设备的同一个动作、只差模式参数。
+    /// </summary>
     public const int Vibrate = 545;
-    /// <summary>按节奏震动：R0=模式*(int 数组) R1=段数 → 0（奇数下标=静、偶数下标=动，同 Android 语义）。</summary>
-    public const int VibratePattern = 546;
+
+    /// <summary>`Vibrate` 的操作码 —— **跨语言契约**，只能末尾追加。</summary>
+    public static class VibrateOp
+    {
+        /// <summary>震动一下：R1=时长ms R2=强度(0–255，0=用系统默认) → 0。</summary>
+        public const int Simple = 0;
+
+        /// <summary>按节奏震动：R1=模式*(int 数组) R2=段数 → 0（奇数下标=静、偶数下标=动，同 Android 语义）。</summary>
+        public const int Pattern = 1;
+    }
 
     // ── 持久化与常亮（550–553）──
     //
@@ -1067,12 +1098,25 @@ public static class VmlUi
     //   · `#53` GetTick（VM 启动至今毫秒）/ `#54` GetDateTime（unix **秒**）/ `#55`/`#56` 日期时间串
     // 同样是"先 grep 有没有现成的"，只不过这里的"仓"是 VM 的内置 syscall 表。
 
-    /// <summary>写入一条持久化键值：R0=键* R1=值* → 0（键会加 `vml.` 前缀，见 <see cref="StoreKey"/>）。</summary>
-    public const int StoreSet = 550;
-    /// <summary>读一条：R0=键* R1=缓冲* R2=容量 → 写入长度；没有这个键返回 -1。</summary>
-    public const int StoreGet = 551;
-    /// <summary>删一条：R0=键* → 0。</summary>
-    public const int StoreDel = 552;
+    /// <summary>
+    /// **持久化键值**（一个号 + 操作码，见 <see cref="StoreOp"/>）。`R0` = 操作码、参数从 `R1` 起。
+    ///
+    /// 原先这里是 **550/551/552 三个号**（v0.96.484 合并）—— 增 / 查 / 删是同一张表的三个动作。
+    /// </summary>
+    public const int Store = 550;
+
+    /// <summary>`Store` 的操作码 —— **跨语言契约**，只能末尾追加。</summary>
+    public static class StoreOp
+    {
+        /// <summary>写入一条：R1=键* R2=值* → 0（键会加 `vml.` 前缀，见 <see cref="StoreKey"/>）。</summary>
+        public const int Set = 0;
+
+        /// <summary>读一条：R1=键* R2=缓冲* R3=容量 → 写入长度；没有这个键返回 -1。</summary>
+        public const int Get = 1;
+
+        /// <summary>删一条：R1=键* → 0。</summary>
+        public const int Delete = 2;
+    }
 
     /// <summary>玩游戏时别熄屏：R0=0 关 / 1 开 → 0。</summary>
     public const int ScreenKeepOn = 553;
@@ -1288,8 +1332,6 @@ public static class VmlUi
     /// <summary>`IMMERSIVE`：`R0` = 0/1，隐藏状态栏与导航栏（全屏游戏用）。</summary>
     public const int Immersive = 559;
 
-    /// <summary>`AUDIO_IS_PLAYING` → 1/0（BGM 放完没有 —— "等这首放完再进下一段"要用）。</summary>
-    public const int AudioIsPlaying = 547;
 
     /// <summary>`TOUCH_QUERY` 的槽位数（`R0` 的合法范围是 `0 .. MaxTouchSlots-1`）。</summary>
     public const int MaxTouchSlots = 10;
@@ -1323,9 +1365,9 @@ public static class VmlUi
         Block,
         // 绘图增强 534–539
         Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
-        // 手感与存档 541–553
-        AudioPlay, AudioStop, AudioVolume, Vibrate, VibratePattern, AudioIsPlaying,
-        StoreSet, StoreGet, StoreDel, ScreenKeepOn,
+        // 手感与存档 541–553（音频 / 震动 / 存档**各收成一个号 + 操作码**，
+        // 见 `AudioOp` / `VibrateOp` / `StoreOp`；`ScreenKeepOn` 单个、无同类可并）
+        Audio, Vibrate, Store, ScreenKeepOn,
         // 输入与屏幕 560–569（消息与定时器**各收成一个号 + 操作码**，见 `MsgOp` / `TimerOp`）
         Msg, Timer, WinClosed, ScrW, ScrH, ScrOrient,
         // 手机特有的操作方式 556–559

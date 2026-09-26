@@ -338,25 +338,34 @@ RenderNode** 上，压根不参与。退路本想上 `PixelCopy`，但"只截画
    `ResolvePath` 都不做沙箱钳制。（绝对路径是**剥掉首部分隔符**、不是拒绝，
    与 `SandboxPath` 同口径；剥完仍是相对路径，逃逸不了。）
 
-### 手感与存档（541–553）
+### 手感与存档（541–553，**三个号 + 操作码**）
 
-| 号 | 名称 | 用途 | C 侧出口 |
-|---|---|---|---|
-| 541 | `AUDIO_PLAY` | 播音频**文件** | ⚠ **无** |
-| 542 | `AUDIO_STOP` | 停播 | ⚠ 无专用包装（仅 `dos.c` 的 `nosound()` 直发） |
-| 543 | `AUDIO_VOLUME` | 整体音量 0–100 | ⚠ **无** |
-| 545 | `VIBRATE` | 震动一下 | `ui_vibrate` ✅ |
-| 546 | `VIBRATE_PATTERN` | 按节奏震动（int 数组） | ⚠ **无** |
-| 547 | `AUDIO_IS_PLAYING` | BGM 放完没有 | `ui_audio_playing` ✅ |
-| 550 | `STORE_SET` | 写持久化键值 | `ui_store_set` ✅ |
-| 551 | `STORE_GET` | 读持久化 | `ui_store_get` ✅ |
-| 552 | `STORE_DEL` | 删持久化键 | ⚠ **无**（只有 `probes/dlg_probe.c` 裸调过） |
-| 553 | `SCREEN_KEEP_ON` | 不熄屏 | `ui_keep_on` ✅ |
+`R0` 是操作码、参数从 `R1` 起。**原先这里是九个号**（v0.96.484 合并成三个：
+音频 4→1、震动 2→1、存档 3→1）。
 
-⚠ **"无 C 出口"那四个（541 / 543 / 546 / 552）是 v0.96.481 号段体检查出来的**：
-宿主 handler 都在、`switch` 里都有分支，但 `vmlui.c` / 本头文件 / 22 门语言的生成绑定里
-**都没有包装** ⇒ **程序从任何语言都调不到它们**。号占着、能力不可达。
-要么补包装、要么把号退回来 —— 留给"整合号段"那批一起处置。
+| 号 | 名称 | op | 用途 | C 侧出口 |
+|---|---|---|---|---|
+| **541** | **`AUDIO`** | 0 `PLAY` | 播音频**文件**（R2≠0 表示循环） | `ui_audio_play` |
+| | | 1 `STOP` | 停播 | `ui_audio_stop` |
+| | | 2 `VOLUME` | 整体音量 0–100（R1） | `ui_audio_volume` |
+| | | 3 `IS_PLAYING` | BGM 放完没有 | `ui_audio_playing` |
+| **545** | **`VIBRATE`** | 0 `SIMPLE` | 震动一下（R1=ms R2=强度） | `ui_vibrate` |
+| | | 1 `PATTERN` | 按节奏震动（R1=int 数组 R2=段数） | `ui_vibrate_pattern` |
+| **550** | **`STORE`** | 0 `SET` | 写持久化键值（R1=键 R2=值） | `ui_store_set` |
+| | | 1 `GET` | 读（R1=键 R2=缓冲 R3=容量） | `ui_store_get` |
+| | | 2 `DELETE` | 删一条（R1=键） | `ui_store_del` |
+| 553 | `SCREEN_KEEP_ON` | — | 不熄屏（单个，无同类可并） | `ui_keep_on` |
+
+**认不出的 op**：`Audio` / `Vibrate` 返回 `-1`（它们的成功码是 `0`）；
+`Store` 返回 **`-2`** —— 因为 `GET` 找不到键时**协议本来就返回 -1**，
+两个都写 -1 就分不出"键不存在"与"op 写错了"。
+
+✅ **"无 C 出口"那四个（541 / 543 / 546 / 552）已在 v0.96.484 补齐**：
+它们是 v0.96.481 号段体检查出来的 —— 宿主 handler 都在、`switch` 里都有分支，
+但 `vmlui.c` / 头文件 / 22 门语言的生成绑定里**都没有包装** ⇒ **程序从任何语言都调不到**，
+号占着、能力不可达。这一版补上包装（`ui_audio_play` / `ui_audio_stop` /
+`ui_audio_volume` / `ui_vibrate_pattern` / `ui_store_del`），能力这才真的到手 ——
+GenLib 重生成后 22 门语言的绑定里也一并有了（stubs 1320 → 1325）。
 
 📌 音效还有一条**不占号**的路：VM 内建的 `#57`（`speaker_beep`），宿主在
 `VmlHostRuntime` 里截住它接真实音频（见 §3 P0 的说明）—— 合成音、零素材，游戏够用。

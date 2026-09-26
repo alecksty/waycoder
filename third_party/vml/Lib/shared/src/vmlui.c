@@ -342,8 +342,38 @@ int ui_immersive(int on) {
     return asm("SYSCALL #559, ${on}");
 }
 
+/* ── 音频（541，一个号 + 操作码；v0.96.484 合并，原先 541/542/543/547 四个号）──
+ *
+ * ⚠ 原先这组**只有 `ui_audio_playing` 一个出口**，另外三个（播放/停止/音量）宿主里
+ *   实现都在、却没有 C 包装 ⇒ 22 门语言一个都调不到，等于死号。这一版一并补齐。 */
+#define VML_AUDIO_OP_PLAY       0
+#define VML_AUDIO_OP_STOP       1
+#define VML_AUDIO_OP_VOLUME     2
+#define VML_AUDIO_OP_IS_PLAYING 3
+
+/* 播放一个音频文件（相对路径按沙箱根解）。`loop` 非 0 = 循环（BGM 用）。
+ * 返回 0 成功 / -1 失败（文件不存在 / 路径非法 / 平台不支持）。 */
+int ui_audio_play(char* path, int loop) {
+    int op = VML_AUDIO_OP_PLAY;
+    return asm("SYSCALL #541, ${op}, ${path}, ${loop}");
+}
+
+/* 停掉正在播的音频。 */
+void ui_audio_stop(void) {
+    int op = VML_AUDIO_OP_STOP;
+    asm("SYSCALL #541, ${op}");
+}
+
+/* 设置整体音量（0–100，超出会被钳）。对**之后**播放的音生效。 */
+void ui_audio_volume(int volume) {
+    int op = VML_AUDIO_OP_VOLUME;
+    asm("SYSCALL #541, ${op}, ${volume}");
+}
+
+/* 还在播吗 → 1/0（"等这首放完再进下一段"用它）。 */
 int ui_audio_playing(void) {
-    return asm("SYSCALL #547");
+    int op = VML_AUDIO_OP_IS_PLAYING;
+    return asm("SYSCALL #541, ${op}");
 }
 
 /* 帧边界标记（本帧画完了）。 */
@@ -1180,24 +1210,50 @@ void ui_beep(int freq, int ms) {
     asm("SYSCALL #57, ${freq}, ${ms}");
 }
 
-/* 震动：时长 ms + 强度（0-255，0 = 默认）。
- * ⚠ 强度位**必须**是形参 —— `${形参}` 是按出现顺序装进 R0、R1…，
- *   在 asm 文本里塞字面量 `0` 不会落到 R1（实测被丢掉），宿主读到的就是垃圾值。 */
+/* 震动 —— 底层只有一个号（545）+ 操作码（v0.96.484 合并，原先 545/546 两个号）。
+ *
+ * ⚠ 参数**必须**是形参 —— `${形参}` 是按出现顺序装进 R0、R1…，
+ *   在 asm 文本里塞字面量 `0` 不会落到对应寄存器（实测被丢掉），宿主读到的就是垃圾值。
+ *   合并进 op 之后操作码自己也走形参，同一条道理。 */
+#define VML_VIBRATE_OP_SIMPLE   0
+#define VML_VIBRATE_OP_PATTERN  1
+
 void ui_vibrate(int ms, int strength) {
-    asm("SYSCALL #545, ${ms}, ${strength}");
+    int op = VML_VIBRATE_OP_SIMPLE;
+    asm("SYSCALL #545, ${op}, ${ms}, ${strength}");
+}
+
+/* 按节奏震动：`pattern` 是 int 数组（奇数下标=静、偶数下标=动，同 Android 语义），
+ * `count` 是段数（上限见 VML_VIBRATE_MAX_SEGMENTS）。返回 0 成功 / -1 失败。 */
+int ui_vibrate_pattern(int* pattern, int count) {
+    int op = VML_VIBRATE_OP_PATTERN;
+    return asm("SYSCALL #545, ${op}, ${pattern}, ${count}");
 }
 
 void ui_keep_on(int on) {
     asm("SYSCALL #553, ${on}");
 }
 
-/* 持久化。键由宿主统一加 `vml.` 前缀，不会和 App 自己的设置打架。 */
+/* 持久化。键由宿主统一加 `vml.` 前缀，不会和 App 自己的设置打架。
+ * ⚠ 底层只有一个号（550）+ 操作码（v0.96.484 合并，原先 550/551/552 三个号）。 */
+#define VML_STORE_OP_SET     0
+#define VML_STORE_OP_GET     1
+#define VML_STORE_OP_DELETE  2
+
 void ui_store_set(char* key, char* value) {
-    asm("SYSCALL #550, ${key}, ${value}");
+    int op = VML_STORE_OP_SET;
+    asm("SYSCALL #550, ${op}, ${key}, ${value}");
 }
 
 int ui_store_get(char* key, char* buf, int cap) {
-    return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
+    int op = VML_STORE_OP_GET;
+    return asm("SYSCALL #550, ${op}, ${key}, ${buf}, ${cap}");
+}
+
+/* 删掉一条存档。返回 0 成功 / -1 失败（键非法）。 */
+int ui_store_del(char* key) {
+    int op = VML_STORE_OP_DELETE;
+    return asm("SYSCALL #550, ${op}, ${key}");
 }
 
 /* ── 命令行参数（#62/#63，v0.96.371）────────────────────────────

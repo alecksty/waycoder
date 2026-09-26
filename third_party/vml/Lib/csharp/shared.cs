@@ -1230,6 +1230,9 @@ namespace VML {
     // extern int ui_key_down(int key);  // CALL ui_key_down
     // extern int ui_orient_lock(int mode);  // CALL ui_orient_lock
     // extern int ui_immersive(int on);  // CALL ui_immersive
+    // extern int ui_audio_play(char* path, int loop);  // CALL ui_audio_play
+    // extern void ui_audio_stop(void);  // CALL ui_audio_stop
+    // extern void ui_audio_volume(int volume);  // CALL ui_audio_volume
     // extern int ui_audio_playing(void);  // CALL ui_audio_playing
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
@@ -1303,9 +1306,11 @@ namespace VML {
     // extern void ui_draw_heart(int cx, int cy, int size);  // CALL ui_draw_heart
     // extern void ui_beep(int freq, int ms);  // CALL ui_beep
     // extern void ui_vibrate(int ms, int strength);  // CALL ui_vibrate
+    // extern int ui_vibrate_pattern(int* pattern, int count);  // CALL ui_vibrate_pattern
     // extern void ui_keep_on(int on);  // CALL ui_keep_on
     // extern void ui_store_set(char* key, char* value);  // CALL ui_store_set
     // extern int ui_store_get(char* key, char* buf, int cap);  // CALL ui_store_get
+    // extern int ui_store_del(char* key);  // CALL ui_store_del
     // extern int ui_argc(void);  // CALL ui_argc
     // extern int ui_arg(int i, char* buf, int cap);  // CALL ui_arg
     // extern int callwithint8(int* v);  // CALL callwithint8

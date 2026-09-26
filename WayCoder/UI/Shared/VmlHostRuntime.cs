@@ -591,11 +591,33 @@ public sealed class VmlHostRuntime
                 case VmlUi.DrawPresent: Scene()?.Present(); TouchScene(); break;
 
                 // ── 手感：音效 / 震动 ──
-                case VmlUi.AudioPlay: registers[0] = AudioPlay(registers, memory); break;
-                case VmlUi.AudioStop: _host.StopAudio(); registers[0] = 0; break;
-                case VmlUi.AudioVolume: _host.SetAudioVolume(VmlUi.ClampVolume(registers[0])); registers[0] = 0; break;
-                case VmlUi.Vibrate: registers[0] = Vibrate(registers); break;
-                case VmlUi.VibratePattern: registers[0] = VibratePattern(registers, memory); break;
+                case VmlUi.Audio:
+                {
+                    // 一个号 + 操作码（v0.96.484 合并，原先 541/542/543/547 **四个号**）。
+                    // ⚠ **参数整体后移一格**：`registers[0]` 现在是 op；助手统一带基址 `b: 1`。
+                    switch (registers[0])
+                    {
+                        case VmlUi.AudioOp.Play:   registers[0] = AudioPlay(registers, memory, b: 1); break;
+                        case VmlUi.AudioOp.Stop:   _host.StopAudio(); registers[0] = 0; break;
+                        case VmlUi.AudioOp.Volume: _host.SetAudioVolume(VmlUi.ClampVolume(registers[1])); registers[0] = 0; break;
+                        case VmlUi.AudioOp.IsPlaying: registers[0] = _host.AudioPlaying() ? 1 : 0; break;
+                        // 认不出的 op 返回 -1（**不是 0**）：0 是 Play/Stop 的**成功码**。
+                        default: registers[0] = -1; break;
+                    }
+                    break;
+                }
+                case VmlUi.Vibrate:
+                {
+                    // 一个号 + 操作码（v0.96.484 合并，原先 545/546 两个号）。
+                    switch (registers[0])
+                    {
+                        case VmlUi.VibrateOp.Simple:  registers[0] = Vibrate(registers, b: 1); break;
+                        case VmlUi.VibrateOp.Pattern: registers[0] = VibratePattern(registers, memory, b: 1); break;
+                        // 0 是"震成功"的成功码 ⇒ 认不出必须用 -1 区分。
+                        default: registers[0] = -1; break;
+                    }
+                    break;
+                }
 
                 // ── 绘图增强（534–539）──
                 case VmlUi.Gradient: Gradient(registers, memory); registers[0] = 0; break;
@@ -635,9 +657,20 @@ public sealed class VmlHostRuntime
                     TouchScene(); break;
 
                 // ── 持久化与常亮 ──
-                case VmlUi.StoreSet: registers[0] = StoreSet(registers, memory); break;
-                case VmlUi.StoreGet: registers[0] = StoreGet(registers, memory); break;
-                case VmlUi.StoreDel: registers[0] = StoreDel(registers, memory); break;
+                case VmlUi.Store:
+                {
+                    // 一个号 + 操作码（v0.96.484 合并，原先 550/551/552 三个号）。
+                    // ⚠ `Get` 找不到键时返回 **-1**（协议如此）⇒ 认不出的 op 也用 -1 会混淆，
+                    //   所以这里返回 **-2**：两个都是"负数失败"，但能分清是哪一种。
+                    switch (registers[0])
+                    {
+                        case VmlUi.StoreOp.Set:    registers[0] = StoreSet(registers, memory, b: 1); break;
+                        case VmlUi.StoreOp.Get:    registers[0] = StoreGet(registers, memory, b: 1); break;
+                        case VmlUi.StoreOp.Delete: registers[0] = StoreDel(registers, memory, b: 1); break;
+                        default: registers[0] = -2; break;
+                    }
+                    break;
+                }
                 case VmlUi.ScreenKeepOn: _host.KeepScreenOn(registers[0] != 0); registers[0] = 0; break;
 
                 // 像素读回（583–585）—— 详见各方法上的注释
@@ -769,9 +802,6 @@ public sealed class VmlHostRuntime
             case VmlUi.Immersive:
                 _host.SetImmersive(registers[0] != 0);
                 registers[0] = 1;
-                break;
-            case VmlUi.AudioIsPlaying:
-                registers[0] = _host.AudioPlaying() ? 1 : 0;
                 break;
             case VmlUi.Timer:
                     // 一个号 + 操作码（v0.96.483 合并，原先 563/564 两个号）。
@@ -1252,32 +1282,33 @@ public sealed class VmlHostRuntime
     /// BGM：路径交给宿主按它那把沙箱尺子解析（手机是 workspace、桌面是源文件所在目录），
     /// 文件不存在直接回 -1 —— 让程序自己看得见"没播成"，而不是静默没声音。
     /// </summary>
-    private int AudioPlay(int[] r, byte[] mem)
+    private int AudioPlay(int[] r, byte[] mem, int b)
     {
-        var rel = Str(mem, r[0]);
+        var rel = Str(mem, r[b]);
         if (rel.Length == 0) return -1;
         var full = _host.ResolvePath(rel);
         if (!File.Exists(full)) return -1;
-        return _host.PlayAudio(full, r[1] != 0) ? 0 : -1;
+        return _host.PlayAudio(full, r[b + 1] != 0) ? 0 : -1;
     }
 
-    /// <summary>震动一下：时长先钳到上限（负数/超长都拦掉），强度交给平台层。</summary>
-    private int Vibrate(int[] r)
-        => _host.Vibrate(Math.Clamp(r[0], 1, VmlUi.VibrateMaxSegmentMs), Math.Clamp(r[1], 0, 255)) ? 0 : -1;
+    /// <summary>震动一下：时长先钳到上限（负数/超长都拦掉），强度交给平台层。
+    /// <paramref name="b"/> = 第一个参数的寄存器下标（`R0` 是操作码 ⇒ 1）。</summary>
+    private int Vibrate(int[] r, int b)
+        => _host.Vibrate(Math.Clamp(r[b], 1, VmlUi.VibrateMaxSegmentMs), Math.Clamp(r[b + 1], 0, 255)) ? 0 : -1;
 
     /// <summary>
     /// 按节奏震动：把内存里的 int 数组读出来 → 协议层钳段数/段长 → 交给平台层。
     /// **读内存要防越界**：地址与段数都是程序给的，越界就地停（宁可少振几段，不要读坏内存）。
     /// </summary>
-    private int VibratePattern(int[] r, byte[] mem)
+    private int VibratePattern(int[] r, byte[] mem, int b)
     {
-        var count = Math.Clamp(r[1], 0, VmlUi.VibrateMaxSegments);
+        var count = Math.Clamp(r[b + 1], 0, VmlUi.VibrateMaxSegments);
         if (count <= 0) return -1;
 
         var raw = new List<int>(count);
         for (var i = 0; i < count; i++)
         {
-            var at = r[0] + i * 4;
+            var at = r[b] + i * 4;
             if (at < 0 || at + 4 > mem.Length) break;
             raw.Add(BitConverter.ToInt32(mem, at));
         }
@@ -1550,35 +1581,35 @@ public sealed class VmlHostRuntime
     // 另立接口就是同一件事两处实现。
     // ══════════════════════════════════════════════════════════════════════
 
-    private int StoreSet(int[] r, byte[] mem)
+    private int StoreSet(int[] r, byte[] mem, int b)
     {
-        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        var key = VmlUi.StoreKey(Str(mem, r[b]));
         if (key == null) return -1;
-        _host.StoreSet(key, Str(mem, r[1]));
+        _host.StoreSet(key, Str(mem, r[b + 1]));
         return 0;
     }
 
-    private int StoreGet(int[] r, byte[] mem)
+    private int StoreGet(int[] r, byte[] mem, int b)
     {
-        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        var key = VmlUi.StoreKey(Str(mem, r[b]));
         if (key == null) return -1;
         var value = _host.StoreGet(key);
         if (value == null) return -1;
 
-        var capacity = Math.Max(0, r[2]);
+        var capacity = Math.Max(0, r[b + 2]);
         var bytes = Encoding.UTF8.GetBytes(value);
         var n = Math.Min(bytes.Length, Math.Max(0, capacity - 1));   // 留一个字节给结尾 \0
-        if (r[1] >= 0 && r[1] + n + 1 <= mem.Length)
+        if (r[b + 1] >= 0 && r[b + 1] + n + 1 <= mem.Length)
         {
-            Array.Copy(bytes, 0, mem, r[1], n);
-            mem[r[1] + n] = 0;
+            Array.Copy(bytes, 0, mem, r[b + 1], n);
+            mem[r[b + 1] + n] = 0;
         }
         return n;
     }
 
-    private int StoreDel(int[] r, byte[] mem)
+    private int StoreDel(int[] r, byte[] mem, int b)
     {
-        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        var key = VmlUi.StoreKey(Str(mem, r[b]));
         if (key == null) return -1;
         _host.StoreDel(key);
         return 0;

@@ -5838,6 +5838,19 @@ func ui_immersive(a0 int32) int32 {
     return vml.R0()
 }
 
+func ui_audio_play(a0 int32, a1 int32) int32 {
+    vml.Call("ui_audio_play")
+    return vml.R0()
+}
+
+func ui_audio_stop() {
+    vml.Call("ui_audio_stop")
+}
+
+func ui_audio_volume(a0 int32) {
+    vml.Call("ui_audio_volume")
+}
+
 func ui_audio_playing() int32 {
     vml.Call("ui_audio_playing")
     return vml.R0()
@@ -6165,6 +6178,11 @@ func ui_vibrate(a0 int32, a1 int32) {
     vml.Call("ui_vibrate")
 }
 
+func ui_vibrate_pattern(a0 int32, a1 int32) int32 {
+    vml.Call("ui_vibrate_pattern")
+    return vml.R0()
+}
+
 func ui_keep_on(a0 int32) {
     vml.Call("ui_keep_on")
 }
@@ -6175,6 +6193,11 @@ func ui_store_set(a0 int32, a1 int32) {
 
 func ui_store_get(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("ui_store_get")
+    return vml.R0()
+}
+
+func ui_store_del(a0 int32) int32 {
+    vml.Call("ui_store_del")
     return vml.R0()
 }
 

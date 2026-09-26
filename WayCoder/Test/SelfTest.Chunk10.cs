@@ -1638,10 +1638,9 @@ public static partial class SelfTest
     {
         Section("VML 手感接口（音效 / 震动 / 持久化）");
 
-        // 号：这一段用的都是 541–553，别和已有的撞（撞了 handle 里 switch 会先命中先写的那个）
-        var feel = new[] { VmlUi.AudioPlay, VmlUi.AudioStop, VmlUi.AudioVolume,
-                           VmlUi.Vibrate, VmlUi.VibratePattern,
-                           VmlUi.StoreSet, VmlUi.StoreGet, VmlUi.StoreDel, VmlUi.ScreenKeepOn };
+        // 号：这一段用的都是 541–553，别和已有的撞（撞了 handle 里 switch 会先命中先写的那个）。
+        // ⚠ v0.96.484 起音频/震动/存档**各收成一个号 + 操作码** ⇒ 这里也就只剩四个号。
+        var feel = new[] { VmlUi.Audio, VmlUi.Vibrate, VmlUi.Store, VmlUi.ScreenKeepOn };
         Check("VmlUi: 手感接口号唯一且都在保留段内",
             feel.Distinct().Count() == feel.Length && feel.All(n => n is >= 500 and <= 599));
 

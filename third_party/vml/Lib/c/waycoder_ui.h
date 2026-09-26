@@ -337,9 +337,30 @@ int ui_orient_lock(int mode);
 /* 隐藏 / 恢复状态栏与导航栏（全屏游戏）。`on` = 1 隐藏。 */
 int ui_immersive(int on);
 
+/* ── 音频（541，一个号 + 操作码）────────────────────────────────────────
+ *
+ * ⚠ 底层只有一个 syscall 号（541），`R0` 是操作码（下面这组宏）、参数从 `R1` 起。
+ *   原先这里是 541/542/543/547 **四个号**（v0.96.484 合并）。
+ *   **上面的 C 函数名与签名一个都没变**，程序照旧写这些函数即可。
+ * ⚠ 操作码是**跨语言契约，只能末尾追加**。程序一般不必直接碰它们。
+ *
+ * ⚠ 这一组原先**只有 `ui_audio_playing` 一个 C 出口** —— 播放 / 停止 / 调音量
+ *   宿主里实现都在，却没写包装 ⇒ 22 门语言一个都调不到（死号）。v0.96.484 一并补齐。 */
+#define VML_AUDIO_OP_PLAY       0   /* ui_audio_play   */
+#define VML_AUDIO_OP_STOP       1   /* ui_audio_stop   */
+#define VML_AUDIO_OP_VOLUME     2   /* ui_audio_volume */
+#define VML_AUDIO_OP_IS_PLAYING 3   /* ui_audio_playing */
+
+/* 播放一个音频文件（相对路径按沙箱根解）。`loop` 非 0 = 循环（BGM 用）。
+   返回 0 成功 / -1 失败（文件不存在 / 路径非法 / 平台不支持）。 */
+int  ui_audio_play(char* path, int loop);
+/* 停掉正在播的音频。 */
+void ui_audio_stop(void);
+/* 设置整体音量（0–100，超出会被钳）。对**之后**播放的音生效。 */
+void ui_audio_volume(int volume);
 /* 后台 BGM 还在放吗 → 1/0（没放过、已放完、被停掉都是 0）。
  * 典型用法：等一首放完再进下一段 —— `while (ui_audio_playing()) { ... }`。 */
-int ui_audio_playing(void);
+int  ui_audio_playing(void);
 
 /* ── 蒙版 → 路径（描洞口的边）────────────────────────────────────────────
  *
@@ -649,10 +670,27 @@ int  ui_tick(void);       /* VM 启动至今毫秒 */
    音效走 **VM 内置的 #57 蜂鸣**（宿主把它接到真实音频，零素材、不必打包音频文件）。
    这一组同样要提给上游 VML 仓库（Lib/ 会被 sync.sh 覆盖）。 */
 void ui_beep(int freq, int ms);              /* 合成音：频率 Hz + 时长 ms */
-void ui_vibrate(int ms, int strength);                     /* 震动一下（Android 需 VIBRATE 权限，normal 级） */
+/* 震动 —— 底层只有一个号（545）+ 操作码（v0.96.484 合并，原先 545/546 两个号）。 */
+#define VML_VIBRATE_OP_SIMPLE   0   /* ui_vibrate        */
+#define VML_VIBRATE_OP_PATTERN  1   /* ui_vibrate_pattern */
+
+void ui_vibrate(int ms, int strength);         /* 震动一下（Android 需 VIBRATE 权限，normal 级） */
+/* 按节奏震动：`pattern` 是 int 数组（奇数下标=静、偶数下标=动，同 Android 语义），
+   `count` 段数（最多 VML_VIBRATE_MAX_SEGMENTS）。返回 0 成功 / -1 失败。 */
+int  ui_vibrate_pattern(int* pattern, int count);
+
 void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 1 开 */
+
+/* 持久化 —— 底层只有一个号（550）+ 操作码（v0.96.484 合并，原先 550/551/552 三个号）。
+   键由宿主统一加 `vml.` 前缀，不会和 App 自己的设置打架。 */
+#define VML_STORE_OP_SET     0   /* ui_store_set */
+#define VML_STORE_OP_GET     1   /* ui_store_get */
+#define VML_STORE_OP_DELETE  2   /* ui_store_del */
+
 void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
 int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
+/* 删掉一条存档（句柄回收式的清理，例如"清空最高分"）。返回 0 成功 / -1 失败（键非法）。 */
+int  ui_store_del(char* key);
 
 /* ── 命令行参数 ──
    参数由宿主喂（桌面 `vmlcli prog.c --arg -l`、手机 `vml run prog.c -l`）。

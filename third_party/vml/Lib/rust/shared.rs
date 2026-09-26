@@ -7670,6 +7670,21 @@ fn ui_immersive(a0: i32) -> i32 {
     r
 }
 
+fn ui_audio_play(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_audio_play")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_audio_stop() {
+    asm!("CALL ui_audio_stop")
+}
+
+fn ui_audio_volume(a0: i32) {
+    asm!("CALL ui_audio_volume")
+}
+
 fn ui_audio_playing() -> i32 {
     asm!("CALL ui_audio_playing")
     let r: i32;
@@ -8075,6 +8090,13 @@ fn ui_vibrate(a0: i32, a1: i32) {
     asm!("CALL ui_vibrate")
 }
 
+fn ui_vibrate_pattern(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_vibrate_pattern")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_keep_on(a0: i32) {
     asm!("CALL ui_keep_on")
 }
@@ -8085,6 +8107,13 @@ fn ui_store_set(a0: i32, a1: i32) {
 
 fn ui_store_get(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_store_get")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_store_del(a0: i32) -> i32 {
+    asm!("CALL ui_store_del")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
