@@ -76,12 +76,15 @@ internal static class DesktopAudio
                     _available = WinStart(sampleRate);
                     _backend = _available ? "winmm (waveOut)" : "winmm 启动失败";
                 }
+                else if (OperatingSystem.IsLinux())
+                {
+                    _available = LinuxStart(sampleRate);
+                    _backend = _available ? "ALSA (libasound)" : $"ALSA 启动失败：{LastError}";
+                }
                 else
                 {
-                    // Linux：ALSA 的 P/Invoke 需要 libasound 且设备名因发行版而异，
-                    // 这一版**先不接**（宁可不出声，也不要因为猜错设备名而抛异常）。
                     _available = false;
-                    _backend = "Linux 暂未接音频输出";
+                    _backend = "未知平台，不出声";
                 }
             }
             catch (Exception ex)
@@ -104,6 +107,7 @@ internal static class DesktopAudio
             {
                 if (_available && OperatingSystem.IsMacOS()) MacStop();
                 else if (_available && OperatingSystem.IsWindows()) WinStop();
+                else if (_available && OperatingSystem.IsLinux()) LinuxStop();
             }
             catch { /* 收尾失败无所谓 */ }
             _available = false;
@@ -536,6 +540,8 @@ internal static class DesktopAudio
                     var frames = mixer(Scratch, BlockFrames);
                     var bytes = Math.Clamp(frames, 0, BlockFrames) * 2;
                     Marshal.Copy(Scratch, 0, _woData[i], Math.Clamp(frames, 0, BlockFrames));
+                    // `--wav` 时顺带写（有设备时录制靠这里，理由同 AlsaLoop）
+                    WavWrite(Scratch, Math.Clamp(frames, 0, BlockFrames));
                     var hdr = Marshal.PtrToStructure<WaveHdr>(_woHdrs[i]);
                     hdr.BufferLength = (uint)bytes;
                     hdr.Flags &= ~0x10u;   // 清 WHDR_DONE，允许重写
@@ -546,6 +552,107 @@ internal static class DesktopAudio
             }
         }
         catch { /* 同上：音频线程异常不允许掀进程 */ }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Linux：ALSA（libasound）
+    //
+    // ⚠ **本机（macOS）无法验证** —— 留作实现，逻辑与 Windows 那份同构。
+    //   与 Windows 的关键差别：`snd_pcm_writei` **是阻塞的**（缓冲满了就等），
+    //   所以不需要自己控速 —— 性质与 Android 的 `AudioTrack.Write` 一样。
+    //   正因为如此，它比 Windows 那条简单：**一个循环、一次 write、无需 sleep**。
+    //
+    // ⚠ 设备名用 `"default"` 而不是 `"hw:0,0"`：后者在不同发行版上编号不同，
+    //   而 `default` 是 ALSA 的插件层，桌面/服务器/容器里都由它路由到实际设备
+    //   （容器里没有声卡时 `snd_pcm_open` 会失败 ⇒ 正好走"优雅退化"那条路）。
+    // ══════════════════════════════════════════════════════════════════════
+
+    private const string Asound = "libasound.so.2";
+
+    /// <summary>`snd_pcm_stream_t` 的 PLAYBACK</summary>
+    private const int PcmStreamPlayback = 0;
+    /// <summary>`snd_pcm_format_t` 的 S16_LE</summary>
+    private const int PcmFormatS16Le = 2;
+    /// <summary>`snd_pcm_access_t` 的 RW_INTERLEAVED</summary>
+    private const int PcmAccessRwInterleaved = 3;
+
+    [DllImport(Asound)]
+    private static extern int snd_pcm_open(out IntPtr pcm, string name, int stream, int mode);
+
+    [DllImport(Asound)]
+    private static extern int snd_pcm_set_params(IntPtr pcm, int format, int access,
+        uint channels, uint rate, int softResample, uint latencyUs);
+
+    [DllImport(Asound)]
+    private static extern long snd_pcm_writei(IntPtr pcm, byte[] buffer, ulong frames);
+
+    [DllImport(Asound)]
+    private static extern int snd_pcm_drain(IntPtr pcm);
+
+    [DllImport(Asound)]
+    private static extern int snd_pcm_close(IntPtr pcm);
+
+    private static IntPtr _pcm;
+    private static Thread? _alsaThread;
+    private static volatile bool _alsaRun;
+    private static readonly byte[] AlsaScratch = new byte[BlockFrames * 2];
+
+    private static bool LinuxStart(int sampleRate)
+    {
+        if (snd_pcm_open(out _pcm, "default", PcmStreamPlayback, 0) < 0)
+        {
+            LastError = "snd_pcm_open(\"default\") 失败（没有声卡？）";
+            return false;
+        }
+        // 100ms 延迟：缓冲够大就不会欠载（与另外两端的块策略一致）
+        if (snd_pcm_set_params(_pcm, PcmFormatS16Le, PcmAccessRwInterleaved,
+                channels: 1, rate: (uint)sampleRate, softResample: 1, latencyUs: 100_000) < 0)
+        {
+            LastError = "snd_pcm_set_params 失败（设备不支持 16 位单声道？）";
+            return false;
+        }
+        _alsaRun = true;
+        _alsaThread = new Thread(AlsaLoop) { IsBackground = true, Name = "vml-audio-alsa" };
+        _alsaThread.Start();
+        return true;
+    }
+
+    private static void AlsaLoop()
+    {
+        try
+        {
+            while (_alsaRun)
+            {
+                var mixer = _mixer;
+                var n = mixer == null ? 0 : Math.Clamp(mixer(Scratch, BlockFrames), 0, BlockFrames);
+                if (n < BlockFrames) Array.Clear(Scratch, n, BlockFrames - n);
+                Buffer.BlockCopy(Scratch, 0, AlsaScratch, 0, AlsaScratch.Length);
+                // `--wav` 时顺带写：**有设备时录制靠这里**（`StartRecording` 只在
+                // 没设备时才另起线程 —— 两条路各跑一次 `Mix` 会录成两倍速）。
+                WavWrite(Scratch, BlockFrames);
+                // ⚠ 这一句**阻塞**（缓冲满就等）⇒ 循环自然按实时速率走，不必 sleep。
+                var written = snd_pcm_writei(_pcm, AlsaScratch, BlockFrames);
+                if (written < 0)
+                {
+                    // 欠载/挂起：ALSA 的惯例是"重试一次"，失败就退出循环（退化成没声音）
+                    if (snd_pcm_writei(_pcm, AlsaScratch, BlockFrames) < 0) break;
+                }
+            }
+        }
+        catch { /* 音频线程不允许掀进程 */ }
+    }
+
+    private static void LinuxStop()
+    {
+        _alsaRun = false;
+        try { _alsaThread?.Join(200); } catch { }
+        _alsaThread = null;
+        if (_pcm != IntPtr.Zero)
+        {
+            try { snd_pcm_drain(_pcm); } catch { }
+            try { snd_pcm_close(_pcm); } catch { }
+            _pcm = IntPtr.Zero;
+        }
     }
 
     private static void WinStop()
