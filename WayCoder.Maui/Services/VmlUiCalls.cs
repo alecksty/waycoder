@@ -908,6 +908,61 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         private bool EnsureSensor(int kind, int rateMs = -1) => false;
 #endif
 
+        // ── 电量与省电（`POWER` #540，v0.96.494）─────────────────────────────
+
+        /// <summary>
+        /// 读电量与充电状态。MAUI 的 `Battery` 是跨平台封装（Android 走
+        /// `BatteryManager`、iOS 走 `UIDevice.batteryMonitoringEnabled`）。
+        ///
+        /// ⚠ **`ChargeLevel` 报负数 = 这一端没有电池**（模拟器上实测会返回 -1）——
+        ///   照实返回 false，**别把它钳成 0 或 100**：那会让程序以为"电耗尽了"或"电很足"，
+        ///   而真相是"这个问题在这里没有意义"。
+        /// </summary>
+        public bool BatteryLevel(out int level, out bool charging)
+        {
+            level = 0;
+            charging = false;
+            try
+            {
+                var b = Microsoft.Maui.Devices.Battery.Default;
+                var raw = b.ChargeLevel;                 // 0.0–1.0，**没有电池时是 -1**
+                if (raw < 0) return false;
+                level = (int)Math.Round(raw * 100);
+                charging = b.State is Microsoft.Maui.Devices.BatteryState.Charging
+                                  or Microsoft.Maui.Devices.BatteryState.Full;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Error("VmlUi", "读电量失败", ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 系统省电模式。⚠ 与"电量低"不是一回事 —— 这是**用户明确要求省电**
+        /// （也可能在电量还有 40% 时手动开的），程序据此降帧是照用户的意思办。
+        /// </summary>
+        public bool PowerSaverOn()
+        {
+#if ANDROID
+            try
+            {
+                var ctx = Microsoft.Maui.ApplicationModel.Platform.AppContext;
+                var pm = ctx?.GetSystemService(Android.Content.Context.PowerService)
+                         as Android.OS.PowerManager;
+                return pm?.IsPowerSaveMode ?? false;
+            }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "读省电模式失败", ex); return false; }
+#elif IOS || MACCATALYST
+            // iOS 的对应物叫「低电量模式」，语义相同。
+            try { return Foundation.NSProcessInfo.ProcessInfo.LowPowerModeEnabled; }
+            catch { return false; }
+#else
+            return false;      // 这一端没有这个概念 —— 与"没开"对程序来说是同一件事
+#endif
+        }
+
         // ── 像素读回（583–585）──────────────────────────────────────────────
         //
         // 与桌面**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——

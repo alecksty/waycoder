@@ -149,6 +149,34 @@ public static class HardwareKeys
             case Keycode.AltLeft:
             case Keycode.AltRight:    return VmlKeys.Alt;
 
+            // ── **外接游戏手柄**的面键（蓝牙/USB 手柄）──────────────────────
+            //
+            // ⚠ 这一段是**补缺口**（v0.96.494）：Android 的手柄面键发的是
+            //   `Keycode.ButtonA`(96) 这一套**自己的**键码，与 Win32 的 `'A'`(65) 不是一回事
+            //   ⇒ 从前**外接手柄按了完全没反应**（而屏幕上的自绘手柄走的是我们自己发的
+            //   Win32 键，所以一直是对的 —— 这个缺口只在真接一个物理手柄时才暴露）。
+            //
+            // 映射原则与上面那批**逐字相同**：**映射到自然键盘等价键**，不另造一套手柄编号。
+            // 于是同一个 VML 程序在「屏幕手柄 / 物理键盘 / 外接手柄」三种输入下都能玩。
+            //
+            // ⚠ **只映射屏幕手柄上画得出来的那几个**（A/B/X/Y/START/SELECT）——
+            //   与 `DrawWindowPad` 的布局保持一一对应。手柄的肩键（L1/R1/L2/R2）
+            //   与摇杆按下（Thumb）**刻意不映射**：它们在键盘上**没有自然等价键**，
+            //   硬造一个只有我们知道的值，等于让程序去认一个"从来没有过的键" ——
+            //   而那种键在桌面（物理键盘）上永远按不出来，正是上面那段注释要避免的分叉。
+            case Keycode.ButtonA:      return VmlKeys.PadA;
+            case Keycode.ButtonB:      return VmlKeys.PadB;
+            case Keycode.ButtonX:      return VmlKeys.PadX;
+            case Keycode.ButtonY:      return VmlKeys.PadY;
+            case Keycode.ButtonStart:  return VmlKeys.Start;
+            case Keycode.ButtonSelect: return VmlKeys.Select;
+            // 有些手柄的 START/SELECT 走的是另一组（`ButtonMode` 是中间的 Home，
+            // **不映射** —— 系统拿它开游戏中心，抢过来会让玩家退不出去）。
+            case Keycode.Button1:      return VmlKeys.PadX;   // 少数手柄把面键报成 1/2/3/4
+            case Keycode.Button2:      return VmlKeys.PadA;
+            case Keycode.Button3:      return VmlKeys.PadB;
+            case Keycode.Button4:      return VmlKeys.PadY;
+
             default: break;
         }
 

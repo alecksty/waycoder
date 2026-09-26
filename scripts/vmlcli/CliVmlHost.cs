@@ -613,6 +613,37 @@ internal sealed class CliVmlHost : IVmlHost
         return true;
     }
 
+    // ── 电量与省电（`POWER` #540）────────────────────────────────────────────
+    //
+    // 桌面**没有电池**（台式机）—— 默认如实报"没有"，值靠输入脚本注入：
+    //     battery 85 1       电量 85%、充电中
+    //     saver 1            省电模式开着
+    // ⚠ 默认**不注入就报"没有电池"**，与传感器那条同一条原则：
+    //   拿假数据冒充真读数，程序在桌面上"跑通了"、上了手机是另一回事。
+
+    private int _batteryLevel = -1;      // -1 = 这台"设备"没有电池
+    private bool _batteryCharging;
+    private bool _powerSaver;
+
+    /// <summary>从输入脚本注入电量（`level` 0–100）。</summary>
+    public void InjectBattery(int level, bool charging)
+    {
+        _batteryLevel = Math.Clamp(level, 0, 100);
+        _batteryCharging = charging;
+    }
+
+    /// <summary>从输入脚本注入省电模式。</summary>
+    public void InjectSaver(bool on) => _powerSaver = on;
+
+    public bool BatteryLevel(out int level, out bool charging)
+    {
+        level = _batteryLevel < 0 ? 0 : _batteryLevel;
+        charging = _batteryCharging;
+        return _batteryLevel >= 0;
+    }
+
+    public bool PowerSaverOn() => _powerSaver;
+
     // ── 像素读回（583–585）──────────────────────────────────────────────────
     //
     // 桌面端与手机端**同一条光栅路径**（`DrawRunner`，两边编的是同一份 `Infra/`）——
@@ -833,6 +864,9 @@ internal sealed record CliInputEvent(int TimeMs, string Action, int A, int B, in
             case "rotation":
                 host.InjectSensor(Action, F1, F2, F3);
                 break;
+            // 电量 / 省电（桌面没有电池，靠脚本喂）
+            case "battery": host.InjectBattery(A, B != 0); break;
+            case "saver":   host.InjectSaver(A != 0); break;
             // `close` = 用户点了窗口的返回箭头。**两件事一起做**（置位 + 投消息），
             // 见 `VmlHostRuntime.MarkWindowClosed` —— 只投消息的话 `ui_win_closed()` 仍报 0，
             // 那套 `while (ui_win_closed() == 0)` 的主循环就出不来。
@@ -882,6 +916,7 @@ internal static class CliInputScript
         "touchn_down", "touchn_move", "touchn_up",
         // 传感器注入（桌面没有硬件，靠脚本喂）
         "accel", "gyro", "rotation",
+        "battery", "saver",
     };
 
     /// <summary>
@@ -936,7 +971,8 @@ internal static class CliInputScript
             var needsArgs = action switch
             {
                 "close" or "wait" => 0,
-                "keydown" or "keyup" or "orient" => 1,
+                "keydown" or "keyup" or "orient" or "saver" => 1,
+                "battery" => 2,
                 "touchn_down" or "touchn_move" or "touchn_up" => 3,
                 _ => 2,
             };

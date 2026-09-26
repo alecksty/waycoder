@@ -30,6 +30,8 @@
 static int sAcc[3];
 static int sGyr[3];
 static int sRot[3];
+static int sBat[3];    /* 电量 / 充电中 / 省电模式 */
+static int hasBat;
 static int hasAcc;
 static int hasGyr;
 static int hasRot;
@@ -144,6 +146,38 @@ static void draw(void)
     drawReadout(lineY + 32, "角速度 mdps", sGyr, hasGyr);
     drawReadout(lineY + 64, "姿态 mdeg", sRot, hasRot);
 
+    /* 电量那一行（`ui_battery`，见 waycoder_ui.h 的 POWER 段）。
+     * ⚠ 电量变得很慢，**不必每帧查** —— 这里是 30fps 的演示，每 30 帧查一次就够，
+     *   顺便把"低频的东西别每帧问"这条示范出来。 */
+    if (tickN % 30 == 0)
+    {
+        hasBat = ui_battery(sBat);
+        /* ⚠ 省电模式**不在** `ui_battery` 里 —— 它是另一个操作码。
+         *   忘了这一句的话 `sBat[2]` 永远是 0，而代码看着完全正常
+         *   （「省电模式」那一行就是不显示，也不报错）。 */
+        sBat[2] = ui_power_saver();
+    }
+    if (hasBat == 1)
+    {
+        char* p;
+        ui_text(16, lineY + 100, "电量", 0xFFB8C4D8, 14, VML_ANCHOR_LEFT);
+        p = numStr(sBat[0]);
+        ui_text(64, lineY + 100, p, 0xFFFFFFFF, 14, VML_ANCHOR_LEFT);
+        ui_text(120, lineY + 100, "%", 0xFFB8C4D8, 14, VML_ANCHOR_LEFT);
+        if (sBat[1] != 0) ui_text(150, lineY + 100, "充电中", 0xFF4ADE80, 13, VML_ANCHOR_LEFT);
+        /* 省电模式与"电量低"**不是一回事** —— 分开显示，别混成一句。 */
+        if (sBat[2] != 0) ui_text(210, lineY + 100, "省电模式", 0xFFFFD166, 13, VML_ANCHOR_LEFT);
+        /* ⚠ 电量低**且没在充电**才提醒（插着电的时候电量低是正常的）。 */
+        if (sBat[0] < 20 && sBat[1] == 0)
+        {
+            ui_text(sw / 2, lineY + 128, "电量偏低 —— 记得存档", 0xFFFF8A80, 13, VML_ANCHOR_CENTER);
+        }
+    }
+    else
+    {
+        ui_text(16, lineY + 100, "这台设备没有电池", 0xFF606878, 13, VML_ANCHOR_LEFT);
+    }
+
     if (hasAcc == 1)
     {
         ui_text(sw / 2, sh - 34, "点屏幕任意处 = 校准水平", 0xFF8A94A8, 13, VML_ANCHOR_CENTER);
@@ -231,6 +265,8 @@ int main(void)
     hasAcc = ui_sensor(VML_SENS_ACCEL, sAcc);
     hasGyr = ui_sensor(VML_SENS_GYRO, sGyr);
     hasRot = ui_sensor(VML_SENS_ROTATION, sRot);
+    hasBat = ui_battery(sBat);
+    sBat[2] = ui_power_saver();
 
     ui_timer_set(33, 0);
     draw();

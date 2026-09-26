@@ -413,6 +413,61 @@ int ui_sensor_query(int kind) {
 }
 
 int ui_sensor_x(void) { return _ui_sensor_x; }
+
+/* ── 电量与省电（`POWER` #540，v0.96.494）─────────────────────────────────
+ *
+ * `R0`=操作码（0 电量 / 1 省电模式），参数从 `R1` 起。
+ *
+ * **为什么值得有**：玩到一半没电是手机游戏最常见的"事故"，而程序自己就能防 ——
+ * 电量低了少画点东西、关掉音效、提醒玩家存档。而这一切**不需要任何权限**。
+ *
+ *     int b[2];
+ *     if (ui_battery(b) && b[0] < 15 && b[1] == 0) {
+ *         low_power_mode();      // 没在充电、又是低电量 ⇒ 该省了
+ *     }
+ *
+ * ⚠ 电量变得很慢，**不必每帧查** —— 在"每拍跑一次"的逻辑里顺手看一眼就够
+ *   （每帧查是在白白多走一趟 syscall）。
+ * ⚠ **没有电池的设备返回 0**（桌面、一直插电的机器）。别拿 100 冒充满电 ——
+ *   那会让程序以为"电很足"，而真相是"这个问题在这里没有意义"。
+ * ⚠ `ui_battery` 与 `ui_battery_level/charging` 是**两条路**：
+ *   前者每次都问宿主，后者读**上一次问到的**（给拿不到指针的语言用，与触摸那套同构）。
+ */
+int ui_power(int op, int* out) {
+    /* ⚠ 操作码必须占 R0，且要写成 `${变量}` —— 字面量在 asm 串里会被丢掉。 */
+    return asm("SYSCALL #540, ${op}, ${out}");
+}
+
+int ui_battery(int* out) {
+    int op;
+    op = 0;
+    return asm("SYSCALL #540, ${op}, ${out}");
+}
+
+int ui_power_saver(void) {
+    int op;
+    int z;
+    op = 1;
+    z = 0;
+    return asm("SYSCALL #540, ${op}, ${z}");
+}
+
+/* 上一次 `ui_battery` 查到的值（单缓冲，与 `ui_touch_query` 那一套同口径）。 */
+static int _ui_bat_level;
+static int _ui_bat_charging;
+
+int ui_battery_query(void) {
+    int tmp[2];
+    int ok;
+    tmp[0] = 0; tmp[1] = 0;
+    ok = ui_battery(tmp);
+    _ui_bat_level = tmp[0];
+    _ui_bat_charging = tmp[1];
+    return ok;
+}
+
+int ui_battery_level(void) { return _ui_bat_level; }
+int ui_battery_charging(void) { return _ui_bat_charging; }
 int ui_sensor_y(void) { return _ui_sensor_y; }
 int ui_sensor_z(void) { return _ui_sensor_z; }
 

@@ -161,6 +161,30 @@ public interface IVmlHost
     /// 采样**由平台自己持续开着**（程序只读最新值），所以这里只在间隔真的变了时才需要动硬件。</summary>
     bool SensorSetRate(int kind, int ms);
 
+    // ── 电量与省电（`POWER` #540，v0.96.494）────────────────────────────────
+
+    /// <summary>
+    /// 读电量：<paramref name="level"/> 0–100、<paramref name="charging"/> 是否在充电。
+    ///
+    /// <para>
+    /// 返回 false = **这台设备没有电池**（桌面 CLI、一直插电的机器）⇒ 共享层照实报 0。
+    /// **别用 100 冒充满电** —— 那会让程序以为"电很足"，而真相是"这个问题在这里没有意义"。
+    /// </para>
+    /// </summary>
+    bool BatteryLevel(out int level, out bool charging);
+
+    /// <summary>
+    /// 系统的**省电模式**开着吗。
+    ///
+    /// <para>
+    /// ⚠ 与"电量低"**不是一回事**：这是**用户明确要求省电**（也可能在电量还有 40% 时手动开）。
+    /// 程序据此降帧、关动画 —— 那是用户的意思，不是你猜的。
+    /// </para>
+    ///
+    /// <para>没有这个概念的平台返回 false（= "不必为此降级"，与"没开"是同一件事）。</para>
+    /// </summary>
+    bool PowerSaverOn();
+
     // ── 像素读回（583–585：floodfill / getimage / putimage）──────────────────
     //
     // 场景是**保留模式**的（只有图元、没有像素缓冲），所以"这个像素是什么颜色"
@@ -979,6 +1003,35 @@ public sealed class VmlHostRuntime
                         registers[0] = 1;
                         break;
                     }
+                    default:
+                        registers[0] = -1;      // 认不出的 op
+                        break;
+                }
+                break;
+            }
+            case VmlUi.Power:
+            {
+                // 一个号 + 操作码（v0.96.494）—— 电量与省电。
+                switch (registers[0])
+                {
+                    case VmlUi.PowerOp.Battery:
+                    {
+                        // 与 TouchQuery / Sensor 同一套约定：**写进调用方给的缓冲区**。
+                        var dst = registers[1];
+                        if (dst < 0 || dst + 8 > memory.Length) { registers[0] = 0; break; }
+                        if (!_host.BatteryLevel(out var lvl, out var charging))
+                        {
+                            registers[0] = 0;   // 没有电池 —— 与"电量 0%"是两回事
+                            break;
+                        }
+                        WriteInt32(memory, dst, Math.Clamp(lvl, 0, 100));
+                        WriteInt32(memory, dst + 4, charging ? 1 : 0);
+                        registers[0] = 1;
+                        break;
+                    }
+                    case VmlUi.PowerOp.Saver:
+                        registers[0] = _host.PowerSaverOn() ? 1 : 0;
+                        break;
                     default:
                         registers[0] = -1;      // 认不出的 op
                         break;

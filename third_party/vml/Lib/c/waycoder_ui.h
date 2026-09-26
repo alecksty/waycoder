@@ -359,6 +359,36 @@ int ui_sensor_x(void);             /* 缓存里的 x */
 int ui_sensor_y(void);             /* 缓存里的 y */
 int ui_sensor_z(void);             /* 缓存里的 z */
 
+/* ── 电量与省电（`POWER` #540，v0.96.494）────────────────────────────────
+ *
+ * **为什么值得有**：玩到一半没电是手机游戏最常见的"事故"，而程序自己就能防 ——
+ * 电量低了少画点东西、关掉音效、提醒玩家存档。**不需要任何权限。**
+ *
+ *     int b[2];
+ *     if (ui_battery(b) && b[0] < 15 && b[1] == 0) {
+ *         low_power_mode();          // 没在充电、又是低电量 ⇒ 该省了
+ *     }
+ *
+ * ⚠ 电量变得很慢（几分钟才动一格）—— 在"每拍跑一次"的逻辑里顺手看一眼就够，
+ *   **不必每帧查**（每帧查是白白多走一趟 syscall）。
+ * ⚠ **没有电池的设备返回 0**（桌面、一直插电的机器）。别拿 100 冒充满电 ——
+ *   那会让程序以为"电很足"，而真相是"这个问题在这里没有意义"。
+ * ⚠ **省电模式与"电量低"不是一回事**：那是**用户明确要求省电**（也可能在 40% 时手动开）。
+ *   程序据此降帧是照用户的意思办，而不是你在猜。
+ */
+int ui_power(int op, int* out);      /* 通用入口：op = VML_POWER_OP_* */
+int ui_battery(int* out);            /* out[0]=电量 0–100 out[1]=充电中；1=有效 0=**没有电池** */
+int ui_power_saver(void);            /* 系统省电模式开着吗 → 1/0 */
+
+/* 拿不到指针的语言走这两个（先 `ui_battery_query()` 查一次并缓存，再读）：
+ *     ok = ui_battery_query();  lv = ui_battery_level();  ch = ui_battery_charging(); */
+int ui_battery_query(void);          /* 查一次并缓存，返回 1=有效 */
+int ui_battery_level(void);          /* 缓存里的电量 0–100 */
+int ui_battery_charging(void);       /* 缓存里的"充电中" 1/0 */
+
+#define VML_POWER_OP_BATTERY 0
+#define VML_POWER_OP_SAVER   1
+
 int ui_touch(int slot, int* out);  /* out[0]=x out[1]=y out[2]=按下；返回 1=有效（槽位越界 0）*/
 int ui_touch_query(int slot);      /* 查一次并缓存（返回同上），下面三个读缓存 */
 int ui_touch_x(void);              /* 缓存里的 x */

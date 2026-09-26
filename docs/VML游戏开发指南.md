@@ -139,6 +139,10 @@ int  ui_sensor(int kind, int* out);       /* out[0..2]=x,y,z；1=有效 0=**没�
 int  ui_sensor_available(int kind);       /* 开窗之前就能问 */
 int  ui_sensor_rate(int kind, int ms);    /* 采样间隔，0=平台默认 */
 int  ui_sensor_calibrate(int kind);       /* 把当前姿态当零点（玩家躺着玩时用）*/
+/* 电量与省电（POWER #540）—— 玩到一半没电是最常见的"事故"，而程序自己就能防。
+ * 不需要任何权限。单位：电量 0-100。 */
+int  ui_battery(int* out);          /* out[0]=电量 out[1]=充电中；1=有效 0=**没有电池** */
+int  ui_power_saver(void);          /* 系统省电模式（用户明确要求省电，与"电量低"不是一回事）*/
 void ui_vibrate(int ms, int strength);   /* 震动 */
 void ui_keep_on(int on);                 /* 别熄屏 */
 void ui_store_set(char* key, char* value);

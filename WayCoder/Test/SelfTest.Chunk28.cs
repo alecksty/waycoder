@@ -34,6 +34,7 @@ public static partial class SelfTest
         TestVmlMaskBool(Section, Check, Fail);
         TestVmlMobileOps(Section, Check, Fail);
         TestVmlSensor(Section, Check, Fail);
+        TestVmlPower(Section, Check, Fail);
     }
 
     /// <summary>
@@ -188,6 +189,82 @@ public static partial class SelfTest
 
         static int ReadI32(byte[] m, int at)
             => m[at] | (m[at + 1] << 8) | (m[at + 2] << 16) | (m[at + 3] << 24);
+    }
+
+    /// <summary>
+    /// 电量与省电（`POWER` #540）—— 重点是**"没有电池"与"电量 0%"分得开**。
+    ///
+    /// <para>
+    /// 这条不是吹毛求疵：桌面（台式机 / 容器）就是"没有电池"，
+    /// 而拿 100 或 0 冒充满/耗尽，会让程序在桌面上走进"低电量模式"或"电很足"的
+    /// 错误分支 —— 而这段逻辑恰恰是**只有在真机上才看得到效果**的，
+    /// 桌面上跑错了也没人发现。
+    /// </para>
+    /// </summary>
+    private static void TestVmlPower(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("电量与省电 POWER #540");
+
+        static int Rd(byte[] m, int at)
+            => m[at] | (m[at + 1] << 8) | (m[at + 2] << 16) | (m[at + 3] << 24);
+
+        var host = new FakeVmlHost();
+        var rt = new VmlHostRuntime(host);
+        var reg = new int[8];
+        var mem = new byte[256];
+
+        // ── 没有电池：返回 0（**不是**"电量 0%"）──
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("没有电池 → 返回 0（与「电量 0%」分得开）", reg[0] == 0);
+
+        // ── 有电池：电量与充电状态都写对 ──
+        host.BatteryLevelValue = 85;
+        host.BatteryChargingValue = true;
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("有电池 → 1，且电量 85%、充电中",
+            reg[0] == 1 && Rd(mem, 64) == 85 && Rd(mem, 68) == 1);
+
+        host.BatteryChargingValue = false;
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("没在充电 → 第二个数是 0", Rd(mem, 68) == 0);
+
+        // ── 钳制：宿主报了越界的电量也不能漏出去 ──
+        host.BatteryLevelValue = 300;
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("电量越界（300）被钳到 100", Rd(mem, 64) == 100);
+
+        // ── 省电模式：与"电量低"是两件事 ──
+        host.PowerSaverValue = true;
+        reg[0] = VmlUi.PowerOp.Saver; reg[1] = 0;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        var saverOn = reg[0];
+        host.PowerSaverValue = false;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("省电模式分得清开与关", saverOn == 1 && reg[0] == 0);
+
+        // 电量还有 85% 但省电模式开着 —— 两者**互不影响**（用户可能手动开）
+        host.PowerSaverValue = true;
+        host.BatteryLevelValue = 85;
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        var lv = Rd(mem, 64);
+        reg[0] = VmlUi.PowerOp.Saver; reg[1] = 0;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("电量高也可以省电模式开着（两者独立）", lv == 85 && reg[0] == 1);
+
+        // ── 认不出的 op → -1（不是 0）──
+        reg[0] = 99; reg[1] = 64;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("认不出的 op → -1", reg[0] == -1);
+
+        // ── 缓冲区越界要安全失败 ──
+        reg[0] = VmlUi.PowerOp.Battery; reg[1] = 252;
+        rt.HandleSyscall(VmlUi.Power, reg, mem);
+        Check("输出缓冲区越界 → 返回 0（不抛异常）", reg[0] == 0);
     }
 
     private static void TestVmlStatusLines(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
@@ -527,6 +604,22 @@ public static partial class SelfTest
             SensorRates[kind] = ms;
             return true;
         }
+
+        // ── 电量与省电（`POWER` #540）────────────────────────────────────────
+        /// <summary>假的电量：**-1 = 这台"设备"没有电池**（桌面就是这一类），
+        /// 与真宿主那条约定一致 —— 测试要能覆盖"没有电池"这一支。</summary>
+        public int BatteryLevelValue = -1;
+        public bool BatteryChargingValue;
+        public bool PowerSaverValue;
+
+        public bool BatteryLevel(out int level, out bool charging)
+        {
+            level = BatteryLevelValue < 0 ? 0 : BatteryLevelValue;
+            charging = BatteryChargingValue;
+            return BatteryLevelValue >= 0;
+        }
+
+        public bool PowerSaverOn() => PowerSaverValue;
 
         /// <summary>
         /// `ResolvePath` 的前缀。默认 `/fake/` —— 记录型，不指向任何真实目录。
