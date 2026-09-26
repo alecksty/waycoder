@@ -1,3 +1,78 @@
+## v0.96.504 — BASIC 输入与文件号（批 4/6）：`INPUT$` 能读、`FREEFILE` 真实现了
+
+第四批，两件事。这一批还**顺带挖出批 3 漏掉的一个解析缺陷**（见下）。
+
+### `INPUT$(n)` —— 已接线，但结果**恒为 n 个 NUL**
+
+`basic_inputN`（`Lib/shared/src/basiclib.c`）里的写法是：
+
+```c
+asm("SYSCALL #5");
+ch = 0;   // 注释写的是「SYSCALL result stored to stack by compiler fix」
+```
+
+**那句注释是错的。** 正确写法是**把 `asm` 当表达式**用（本仓反复记过的一条，
+见 `vmlui.c` 头部）：写成语句再从局部量取，局部量是**没被赋过值**的 ——
+于是 `INPUT$(n)` 恒返回 n 个 NUL，**而且不报错**，看起来就像"读不到东西"。
+
+判据用 `--vml` 对照生成码（这一处**在桌面上验不了**，见下面的说明）：
+改前是 `syscall #5` → **`move @R0 #0`** → 存进 `ch`；改后是 `syscall #5` → 结果直接落进 `ch`。
+
+### `FREEFILE` —— 从"只有词法条目 + 死 AST 类"到真实现
+
+它此前**只有 `TokenType` 与一个从不被实例化的 `FreeFileExpression`**，
+`Parser` 与 `CodeGenerator` 一处引用都没有 —— 与 `BEEP`、`LINE INPUT #` 同一族：
+**看起来支持这个关键字，其实什么都没做**。
+
+补了三处（少一处都不行）：
+`ParsePrimary` 的分支、`IsExpressionStart` 的白名单、两张 codegen 表。
+⚠ **漏掉 `IsExpressionStart` 的症状最阴**：`PRINT "A="; FREEFILE` 里
+表达式循环**当场 break** —— 整项静默消失、连换行都没了
+（实测打出 `A=B=C=D=` 全挤在一行）。
+
+实现是扫句柄表找第一个空槽。这里踩到一个**真实的设计碰撞**：
+
+> 宿主给的**第一个句柄就是 0**（`_fileHandles.IndexOf(null)` 空表返回 -1 ⇒ `handle = Count = 0`），
+> 而"这一格是空的"也用 0 表示。两者撞在一起，`FREEFILE` 会把**已经打开的文件当成空闲**：
+> 实测 `OPEN … AS #0` 之后 `FREEFILE` 仍返回 **0**（应 1）。
+
+**修法**：表里存 `句柄 + 1` —— "活着的格子 ≥ 1、空格子 == 0"，两者不再重叠。
+取值收成一个出口 `EmitFileHandleToR0`（`OPEN` / `CLOSE` / `PRINT #` / `INPUT #` /
+裸 `CLOSE` 五处共用），免得 +1/-1 散在各处漏一个。
+
+### 顺带修掉批 3 漏掉的：**`FOR INPUT` 里的 `INPUT` 是关键字**
+
+`ParseOpenStatement` 解析 `FOR <模式>` 时只认 `TokenType.IDENTIFIER`：
+
+- `FOR OUTPUT` / `FOR APPEND` —— `OUTPUT`/`APPEND` 恰好是普通标识符 ⇒ **能匹配**；
+- **`FOR INPUT` —— `INPUT` 是 `TokenType.INPUT` ⇒ 整个模式块被跳过**，
+  那几个 token（`INPUT AS #5`）留在流上被语句层当成**一条新的 INPUT 语句**。
+
+后果不是"模式错了"（默认档正好也是 Input，所以**读能读对**），
+而是**这条 OPEN 之后的解析全乱**：实测 `OPEN "t.txt" FOR INPUT AS #5` 生成**零条指令**、
+紧随的 `PRINT` 连行标都不发 —— 整个程序后半段静默消失。
+
+⚠ 这一条**是批 3 的判据漏掉的**：批 3 的 `fileio.sh` 里读取用的是 `AS #2`，
+而 `#2` 恰好让后面的语句凑巧还能对上。**补 `AS #0` 才炸出来**。
+
+### 一个诚实的说明：`INPUT$` 在桌面上验不了
+
+桌面 `vmlcli` 的 `SYSCALL #5`（阻塞读键）**吃不到 `--stdin`** —— 普通 `INPUT a$`
+用 `--stdin` 也一样挂住（实测）。这是既有的桌面脚手架问题，**不是这次改动引入的**
+（`scripts/vml-c-probe/cases/16-conio-key.c` 挂的是同一个根因）。
+所以 `INPUT$` 的判据只做到**生成码层面的对照**（上面那段），
+真机验证留在设备上做。
+
+### 判据
+
+`scripts/vml-basic-probe/fileio.sh` 从 4 条加到 **5 条**（新增 `FREEFILE` 的占用/释放）：
+```
+✅ 写 / ✅ 读 / ✅ APPEND / ✅ LINE INPUT # / ✅ FREEFILE：A=0 B=1 C=2 D=0
+```
+
+回归：18/18 例子 · BASIC 探针 **51/0/3** · 桌面自测 **6791/0**。
+`Lib/` 变了 ⇒ `GenLib -b` + `-A` 全量重生成 + 重打 `vml_lib.zip`。
+
 ## v0.96.503 — BASIC 文件 I/O（批 3/6）：整条链重写，并接进手机沙箱
 
 第三批。这一批和前面几批一样，**挖下去比计划里判断的更糟** ——

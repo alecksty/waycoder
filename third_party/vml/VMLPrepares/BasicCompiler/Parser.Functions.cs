@@ -755,6 +755,13 @@ namespace BasicCompiler
                 case TokenType.TIMER_FUNC:
                 case TokenType.DATE_FUNC:
                 case TokenType.TIME_FUNC:
+                // ⚠ `FREEFILE` 也要在这张表里（v0.96.504）。它是**无参关键字表达式**，
+                //   与 TIMER/DATE$/TIME$ 同族；漏了它的后果不是"报错"，而是
+                //   `PRINT "A="; FREEFILE` 里**表达式循环当场 break** ——
+                //   整项静默消失、连换行都没了（实测打出 `A=B=C=D=` 挤在一行）。
+                //   凡是"新增一个无参关键字表达式"，**三处要一起加**：
+                //   `ParsePrimary` 的分支、本表、以及两张 codegen 表。
+                case TokenType.FREEFILE:
                     return true;
                 default:
                     return false;

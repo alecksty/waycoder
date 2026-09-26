@@ -1362,6 +1362,11 @@ namespace BasicCompiler
             //
             //   判据与 Inkey 同源：**这一类"没有参数的内置函数"在两条路上必须各有一档**，
             //   加新内置函数时两处一起加（`GenerateExpression` 的那一组是清单）。
+            else if (expr is FreeFileExpression)
+            {
+                // ⚠ 与 `GenerateExpression` 那个副本**成对**（两张表是同一个 switch 的两份）。
+                EmitFreeFile(reg);
+            }
             else if (expr is TimerFunctionExpression)
             {
                 GenerateTimerFunction(reg);

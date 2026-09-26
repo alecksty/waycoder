@@ -169,13 +169,18 @@ __stdcall int basic_timer(void) {
 
 /// INPUT$(n) — read N chars from stdin, blocking (SYSCALL 5 loop)
 __stdcall char* basic_inputN(int n) {
+    int i;
+    int ch;
     if (n < 0) n = 0;
     if (n > 255) n = 255;
-    for (int i = 0; i < n; i++) {
-        int ch;
+    for (i = 0; i < n; i++) {
         asm("LOAD R0 #1");  // blocking mode
-        asm("SYSCALL #5");
-        ch = 0;  // SYSCALL result stored to stack by compiler fix
+        /* ⚠⚠ 这行原来是 `ch = 0;`，注释写的是「SYSCALL result stored to stack by compiler fix」——
+           那个判断是**错的**。正确写法是**把 asm 当表达式**用（本仓反复记过的一条，
+           见 `vmlui.c` 头部）：写成语句再从局部量取，局部量是**没被赋过值**的，
+           于是 `INPUT$(n)` **恒返回 n 个 NUL 字节** —— 而且不报错，
+           看起来就像"INPUT$ 读不到东西"。 */
+        ch = (int)asm("SYSCALL #5");
         _buf1[i] = (char)ch;
     }
     _buf1[n] = 0;

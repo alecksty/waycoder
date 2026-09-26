@@ -303,6 +303,20 @@ namespace BasicCompiler
                     Advance();
                     expr = new TimerFunctionExpression(token.Line, token.Column);
                     break;
+                // `FREEFILE` —— 返回**当前没用**的最小文件号。
+                //
+                // ⚠⚠ 它此前是**只有词法条目 + 一个死 AST 类**（`FreeFileExpression`），
+                //    `Parser` 与 `CodeGenerator` **一处引用都没有** ⇒ 写成表达式时
+                //    直接掉进兜底分支。与 `BEEP`（没有解析入口）、`LINE INPUT #`
+                //    （`return null`）是同一族：**看起来支持这个关键字，其实什么都没做**。
+                //
+                //    它在老程序里的用法固定是 `OPEN f$ FOR OUTPUT AS #FREEFILE`
+                //    —— 也就是**同时用到返回值**，所以这条路上"没实现"的表现是
+                //    "文件号变成了垃圾/0"。
+                case TokenType.FREEFILE:
+                    Advance();
+                    expr = new FreeFileExpression(token.Line, token.Column);
+                    break;
                 case TokenType.DATE_FUNC:
                     Advance();
                     expr = new DateFunctionExpression(token.Line, token.Column);

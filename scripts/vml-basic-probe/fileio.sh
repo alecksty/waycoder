@@ -86,6 +86,24 @@ out="$(dotnet "$CLI_ABS" l.bas --timeout 20 2>/dev/null | grep -E '^L=' | head -
 exp='L=[hello]'
 [ "$out" = "$exp" ] && ok "LINE INPUT #：$out" || bad "LINE INPUT #" "$exp" "$out"
 
+# ── ⑤ FREEFILE：返回**当前没用**的最小文件号 ────────────────────────
+#
+# ⚠ 判据里刻意**先开 #0**（而不是 #1）：宿主给的第一个句柄**就是 0**，
+#   而"这一格是空的"也用 0 表示 —— 两者撞在一起时 `FREEFILE` 会把
+#   已经打开的文件当成空闲。实测就是这样先踩到的（B 应为 1 却得 0）。
+cat > ff.bas <<'EOF'
+PRINT "A="; FREEFILE
+OPEN "t.txt" FOR OUTPUT AS #0
+PRINT "B="; FREEFILE
+OPEN "t2.txt" FOR OUTPUT AS #1
+PRINT "C="; FREEFILE
+CLOSE #0
+PRINT "D="; FREEFILE
+EOF
+out="$(dotnet "$CLI_ABS" ff.bas --timeout 20 2>/dev/null | grep -E '^[ABCD]=' | tr '\n' ' ')"
+exp='A=0 B=1 C=2 D=0 '
+[ "$out" = "$exp" ] && ok "FREEFILE：$out" || bad "FREEFILE（占用/释放）" "$exp" "$out"
+
 echo "──────────────────────────────────────────────"
 echo "通过 $pass / 失败 $fail"
 [ "$fail" -eq 0 ] || exit 1

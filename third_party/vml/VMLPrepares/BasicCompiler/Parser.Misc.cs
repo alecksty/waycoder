@@ -109,11 +109,21 @@ namespace BasicCompiler
             }
 
             // 解析 FOR mode (可选)
+            //
+            // ⚠⚠ **`FOR INPUT` 里的 `INPUT` 是关键字 token，不是 IDENTIFIER**（v0.96.504 修）。
+            //    原来这里只认 `TokenType.IDENTIFIER`，于是：
+            //      · `FOR OUTPUT` / `FOR APPEND` —— `OUTPUT`/`APPEND` 恰好是普通标识符 ⇒ **能匹配**；
+            //      · `FOR INPUT` —— `INPUT` 是 `TokenType.INPUT` ⇒ **整个 mode 块被跳过**，
+            //        那几个 token（`INPUT AS #5`）留在流上，被语句层当成**一条新的 INPUT 语句**。
+            //    后果不是"模式错了"，而是**这条 OPEN 之后的解析全乱**：
+            //    实测 `OPEN "t.txt" FOR INPUT AS #5` 生成**零条指令**、紧随的 `PRINT` 连
+            //    行标都不发（整个程序后半段静默消失）。
+            //    ⇒ 判据要把**关键字形式**一起收：两者都当模式名读，然后比对文本。
             stmt.Mode = FileOpenMode.Input; // 默认
             if (Peek().Type == TokenType.FOR)
             {
                 Advance(); // 跳过 FOR
-                if (Peek().Type == TokenType.IDENTIFIER)
+                if (Peek().Type == TokenType.IDENTIFIER || Peek().Type == TokenType.INPUT)
                 {
                     string modeStr = Peek().Value.ToUpper();
                     Advance();

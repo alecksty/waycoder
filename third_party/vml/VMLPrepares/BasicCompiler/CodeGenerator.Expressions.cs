@@ -71,6 +71,11 @@ namespace BasicCompiler
             {
                 GenerateTimerFunction(reg);
             }
+            else if (expr is FreeFileExpression)
+            {
+                // ⚠ 与 `GenerateExpression` 那个副本**成对**（两张表是同一个 switch 的两份）。
+                EmitFreeFile(reg);
+            }
             else if (expr is DateFunctionExpression)
             {
                 GenerateDateFunction(reg);

@@ -146,6 +146,47 @@ namespace BasicCompiler
             EmitRestoreRegsExcept(reg, 0, rIdx, rTab, rTmp, 4);
         }
 
+        /// <summary>
+        /// `FREEFILE` → 句柄表里**第一个空槽的下标**（= 当前没被占用的最小文件号）。
+        ///
+        /// <para>
+        /// 判据是"表项 == 0"（`OPEN` 成功会写进一个 ≥0 的宿主句柄、`CLOSE` 会清零），
+        /// 所以这个扫描与裸 `CLOSE` 那个循环**用的是同一套约定**。
+        /// 表满（256 个都占着）时返回 1 —— QBasic 那时也无号可用，返回什么都是错的，
+        /// 给一个确定的数比给垃圾好。
+        /// </para>
+        /// </summary>
+        void EmitFreeFile(int reg)
+        {
+            const int rIdx = 1, rTab = 2, rTmp = 3;
+            EmitSaveRegsExcept(reg, 0, rIdx, rTab, rTmp);
+
+            AddRI(OpCode.MOVE, rIdx, 0);
+            SysAddr(rTab, Sys.FileHandles);
+
+            string loop = newLabel(), found = newLabel(), none = newLabel(), done = newLabel();
+            AddLabel(loop);
+            AddRI(OpCode.CMP, rIdx, SysFileHandleSlots);
+            instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, none)]));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, rTmp), new Operand(OperandType.MEMORY, $"R{rTab}")]));
+            instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, rTmp), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.JE, [new Operand(OperandType.LABEL, found)]));
+            AddRI(OpCode.ADD, rTab, 4);
+            AddRI(OpCode.ADD, rIdx, 1);
+            instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, loop)]));
+
+            AddLabel(found);
+            AddRR(OpCode.MOVE, reg, rIdx);
+            instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, done)]));
+
+            AddLabel(none);
+            AddRI(OpCode.MOVE, reg, 1);
+
+            AddLabel(done);
+            EmitRestoreRegsExcept(reg, 0, rIdx, rTab, rTmp);
+        }
+
         private void GenerateLibraryCall(string funcName, FunctionCallExpression funcCall, int reg, bool returnsFloat = false)
         {
             // 从右到左求值参数并压栈（使用 EvalIntCoord 确保 float→int 转换）
@@ -248,6 +289,26 @@ namespace BasicCompiler
         }
 
         /// <summary>
+        /// 取文件号对应的**宿主句柄**到 R0（可能为"未打开"，见下）。
+        ///
+        /// <para>
+        /// ⚠⚠ <b>表里存的是 `句柄 + 1`，不是句柄本身</b>（v0.96.504 修，实测踩到）。
+        /// 原因：宿主给的第一个句柄**就是 0**（`_fileHandles.IndexOf(null)` 空表时返回 -1，
+        /// 于是 `handle = Count = 0`）。而"这一格是空的"也用 0 表示 ——
+        /// 两者撞在一起，`FREEFILE` 会**把已经打开的文件当成空闲**：
+        /// 实测 `OPEN … AS #0` 之后 `FREEFILE` 仍返回 **0**（应 1）。
+        /// 存 `句柄+1` 之后，"活着的格子 ≥ 1、空的格子 == 0"，两者不再重叠。
+        /// </para>
+        /// </summary>
+        private void EmitFileHandleToR0(Expression fileNumber)
+        {
+            EmitFileHandleSlot(fileNumber);          // R1 = 表项地址
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));   // R0 = 句柄+1
+            AddRI(OpCode.SUB, 0, 1);                                                               // R0 = 句柄
+        }
+
+        /// <summary>
         /// `OPEN "文件名" FOR 模式 AS #n` —— 走**吃沙箱的那条** syscall：
         /// `#110 FileOpen`（R0=文件名, R1=模式）→ R0 = 宿主句柄。
         ///
@@ -312,6 +373,8 @@ namespace BasicCompiler
             if (stmt.FileNumber != null)
             {
                 EmitFileHandleSlot(stmt.FileNumber);          // R1 = 表项地址
+                // ⚠ 存 `句柄 + 1`（0 留给"空格子"，见 `EmitFileHandleToR0` 的注释）
+                AddRI(OpCode.ADD, 0, 1);
                 instructions.Add(new Instruction(OpCode.MOVE,
                     [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
 
@@ -322,17 +385,13 @@ namespace BasicCompiler
                 //    而 QBasic 的 `APPEND` 语义是"接着写"（存档类程序全靠它）。
                 if (stmt.Mode == FileOpenMode.Append)
                 {
-                    EmitFileHandleSlot(stmt.FileNumber);
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));  // R0 = 句柄
+                    EmitFileHandleToR0(stmt.FileNumber);                                                 // R0 = 句柄
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0) })); // cmd = 取大小
                     instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 114) }));
                     // R0 = 文件大小 ⇒ 要搬到 R2 当定位参数，但 R2 又被下面的句柄读取用掉了，
                     // 所以先压栈保管（同一个 slot，前后成对）。
                     instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
-                    EmitFileHandleSlot(stmt.FileNumber);
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));  // R0 = 句柄
+                    EmitFileHandleToR0(stmt.FileNumber);                                                 // R0 = 句柄
                     instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 2)]));  // R2 = 文件大小（定位到末尾）
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) })); // cmd = 定位
                     instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 114) }));
@@ -345,9 +404,7 @@ namespace BasicCompiler
             // CLOSE #n —— 走 SYSCALL 111 (FileClose)
             if (stmt.FileNumber != null)
             {
-                EmitFileHandleSlot(stmt.FileNumber);          // R1 = 表项地址
-                instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));   // R0 = 句柄
+                EmitFileHandleToR0(stmt.FileNumber);          // R0 = 句柄
                 instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 111) }));
                 // 表项清零 —— 免得下次 `OPEN` 失败时后续语句还拿着一个**已经关掉的**句柄去读写
                 // （那会得到 `INVALID_FILE_HANDLE`，比"文件没打开"更难对上号）。
@@ -370,10 +427,11 @@ namespace BasicCompiler
                 AddRI(OpCode.CMP, idx, 256);
                 instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, done)]));
                 instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R{tbl}")]));  // R0 = 表项
-                // 0 或负数（= 从没打开过）都跳过
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R{tbl}")]));  // R0 = 句柄+1
+                // 0 = 空格子（活着的格子恒 ≥ 1，见 `EmitFileHandleToR0`）
                 instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
                 instructions.Add(new Instruction(OpCode.JL, [new Operand(OperandType.LABEL, next)]));
+                AddRI(OpCode.SUB, 0, 1);                                                                   // R0 = 句柄
                 instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 111) }));
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
                 instructions.Add(new Instruction(OpCode.MOVE,
@@ -471,9 +529,7 @@ namespace BasicCompiler
             // 顺序：先把缓冲与长度压栈保管（下面查表要用 R0/R1），查完再取回来。
             instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));   // 缓冲
             instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 3)]));   // 长度
-            EmitFileHandleSlot(fileNumber);          // R1 = 表项地址
-            instructions.Add(new Instruction(OpCode.MOVE,
-                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));      // R0 = 句柄
+            EmitFileHandleToR0(fileNumber);                                                            // R0 = 句柄
             instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 2)]));    // R2 = 长度
             instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));    // R1 = 缓冲
             instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 113) }));
@@ -543,9 +599,7 @@ namespace BasicCompiler
                 AddRI(OpCode.CMP, rCnt, 255);
                 instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.LABEL, rdEnd)]));
                 // #112(handle, buf+pos, 1) → R0 = 实际读到的字节数（0 = EOF）
-                EmitFileHandleSlot(stmt.FileNumber);                         // R1 = 表项
-                instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));   // R0 = 句柄
+                EmitFileHandleToR0(stmt.FileNumber);                         // R0 = 句柄
                 instructions.Add(new Instruction(OpCode.MOVE,
                     [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, bufLabel)]));
                 AddRR(OpCode.ADD, 1, rPos);                                  // R1 = 缓冲 + pos
