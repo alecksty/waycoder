@@ -550,13 +550,21 @@ namespace VMLRuntime
                     break;
 
                 case 400: // TTY_WriteChar(R0=char) — 直接写入终端, 绕过 stdout 重定向
-                    Console.Write((char)registers[0]);
+                    // ⚠⚠ **必须走 UTF-8 累积器，不能逐字节 `(char)` 直写**（v0.96.506 修）。
+                    //   原来那行 `Console.Write((char)registers[0])` 把**一个 UTF-8 字节**
+                    //   变成一个 Latin-1 码位 ⇒ 中文与框线全碎（`你` = E4 BD A0 → `ä½ `），
+                    //   而**同一份中文走 `#4` 是好的**（`#4` 会把 <256 的值攒进
+                    //   `_utf8OutputBuffer` 再按 UTF-8 解码）。两条路一个对一个错，
+                    //   于是"图形模式画的中文好好的、文本模式打出来是乱码"。
+                    //   ⚠ 这条只在 **CrtMode**（用过 COLOR/CLS/LOCATE 的 BASIC 程序）下才走到，
+                    //     所以症状是"某些程序的中文碎、另一些不碎"。
+                    FeedOutputByte(registers[0]);
                     break;
                 case 401: // TTY_WriteString(R0=addr) — 直接写入终端字符串
                 {
                     int addr = registers[0];
                     while (addr < memory.Length && memory[addr] != 0)
-                        Console.Write((char)memory[addr++]);
+                        FeedOutputByte(memory[addr++]);
                     break;
                 }
                 case 402: // TTY_PrintInt(R0=int) — 直接写入终端整数
@@ -824,6 +832,43 @@ namespace VMLRuntime
         /// （DOS 程序要的就是这个）。
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 把一个**字节**喂进 UTF-8 累积器；凑够一个完整字符就经 <see cref="OutputChar"/> 吐出去。
+        ///
+        /// <para>
+        /// `#4` 与 `#400`/`#401` **共用这一份**。从前 `#400`/`#401` 是
+        /// `Console.Write((char)byte)` 逐字节直写 —— 一个 UTF-8 字节变成一个 Latin-1 码位，
+        /// 中文与框线全碎，而同一份内容走 `#4` 是好的（见 `#400` 那个分支的注释）。
+        /// </para>
+        /// </summary>
+        private void FeedOutputByte(int ch)
+        {
+            // BEL(7) 触发 PC 喇叭 —— 与 `#4` 一致
+            if (ch == 7)
+            {
+                VmSpeakerDevice.Beep();
+                return;
+            }
+            // ≥256 是 Unicode 码点直接输出（如 Pascal 编译器）：先把攒着的吐干净
+            if (ch >= 256)
+            {
+                FlushOutputBuffer();
+                OutputChar((char)ch);
+                return;
+            }
+            _utf8OutputBuffer.Add((byte)ch);
+            while (TryFlushOneOutputUnit()) { }
+        }
+
+        /// <summary>把累积器里剩下的字节原样吐出并清空（切换输出通道 / 结束时用）。</summary>
+        private void FlushOutputBuffer()
+        {
+            if (_utf8OutputBuffer.Count == 0) return;
+            foreach (byte b in _utf8OutputBuffer)
+                OutputChar((char)b);
+            _utf8OutputBuffer.Clear();
+        }
+
         private bool TryFlushOneOutputUnit()
         {
             if (_utf8OutputBuffer.Count == 0) return false;
