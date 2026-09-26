@@ -161,6 +161,8 @@
 // CALL basic_space
 // extern fn basic_str_int(int val) -> char*
 // CALL basic_str_int
+// extern fn basic_str_single(float v) -> char*
+// CALL basic_str_single
 // extern fn basic_val(const char* s) -> int
 // CALL basic_val
 // extern fn basic_left(const char* s, int n) -> char*
@@ -2455,6 +2457,42 @@
 // CALL ui_touch_down
 // extern fn ui_key_down(int key) -> int
 // CALL ui_key_down
+// extern fn ui_sensor(int kind, int* out) -> int
+// CALL ui_sensor
+// extern fn ui_sensor_available(int kind) -> int
+// CALL ui_sensor_available
+// extern fn ui_sensor_rate(int kind, int ms) -> int
+// CALL ui_sensor_rate
+// extern fn ui_sensor_calibrate(int kind) -> int
+// CALL ui_sensor_calibrate
+// extern fn ui_sensor_query(int kind) -> int
+// CALL ui_sensor_query
+// extern fn ui_sensor_x(void) -> int
+// CALL ui_sensor_x
+// extern fn ui_power(int op, int* out) -> int
+// CALL ui_power
+// extern fn ui_battery(int* out) -> int
+// CALL ui_battery
+// extern fn ui_power_saver(void) -> int
+// CALL ui_power_saver
+// extern fn ui_battery_query(void) -> int
+// CALL ui_battery_query
+// extern fn ui_battery_level(void) -> int
+// CALL ui_battery_level
+// extern fn ui_battery_charging(void) -> int
+// CALL ui_battery_charging
+// extern fn ui_clipboard_set(char* text) -> int
+// CALL ui_clipboard_set
+// extern fn ui_clipboard_get(char* buf, int cap) -> int
+// CALL ui_clipboard_get
+// extern fn ui_share_text(char* text, char* title) -> int
+// CALL ui_share_text
+// extern fn ui_open_url(char* url) -> int
+// CALL ui_open_url
+// extern fn ui_sensor_y(void) -> int
+// CALL ui_sensor_y
+// extern fn ui_sensor_z(void) -> int
+// CALL ui_sensor_z
 // extern fn ui_orient_lock(int mode) -> int
 // CALL ui_orient_lock
 // extern fn ui_immersive(int on) -> int
@@ -2483,6 +2521,20 @@
 // CALL ui_tone_voices
 // extern fn ui_tone_panic(void) -> int
 // CALL ui_tone_panic
+// extern fn ui_sfx_reset(void) -> void
+// CALL ui_sfx_reset
+// extern fn _ui_sfx_ensure(void) -> oid
+// CALL _ui_sfx_ensure
+// extern fn ui_sfx_panic(void) -> void
+// CALL ui_sfx_panic
+// extern fn ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave) -> void
+// CALL ui_sfx_add
+// extern fn ui_sfx_step(void) -> void
+// CALL ui_sfx_step
+// extern fn ui_sfx_tick(void) -> void
+// CALL ui_sfx_tick
+// extern fn ui_sfx_active(void) -> int
+// CALL ui_sfx_active
 // extern fn ui_flood_fill(int x, int y, int color, int border) -> int
 // CALL ui_flood_fill
 // extern fn ui_get_image(int x, int y, int w, int h) -> int

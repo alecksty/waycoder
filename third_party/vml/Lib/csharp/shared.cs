@@ -81,6 +81,7 @@ namespace VML {
     // extern char* basic_chr(int n);  // CALL basic_chr
     // extern char* basic_space(int n);  // CALL basic_space
     // extern char* basic_str_int(int val);  // CALL basic_str_int
+    // extern char* basic_str_single(float v);  // CALL basic_str_single
     // extern int basic_val(const char* s);  // CALL basic_val
     // extern char* basic_left(const char* s, int n);  // CALL basic_left
     // extern char* basic_right(const char* s, int n);  // CALL basic_right
@@ -1228,6 +1229,24 @@ namespace VML {
     // extern int ui_touch_y(void);  // CALL ui_touch_y
     // extern int ui_touch_down(void);  // CALL ui_touch_down
     // extern int ui_key_down(int key);  // CALL ui_key_down
+    // extern int ui_sensor(int kind, int* out);  // CALL ui_sensor
+    // extern int ui_sensor_available(int kind);  // CALL ui_sensor_available
+    // extern int ui_sensor_rate(int kind, int ms);  // CALL ui_sensor_rate
+    // extern int ui_sensor_calibrate(int kind);  // CALL ui_sensor_calibrate
+    // extern int ui_sensor_query(int kind);  // CALL ui_sensor_query
+    // extern int ui_sensor_x(void);  // CALL ui_sensor_x
+    // extern int ui_power(int op, int* out);  // CALL ui_power
+    // extern int ui_battery(int* out);  // CALL ui_battery
+    // extern int ui_power_saver(void);  // CALL ui_power_saver
+    // extern int ui_battery_query(void);  // CALL ui_battery_query
+    // extern int ui_battery_level(void);  // CALL ui_battery_level
+    // extern int ui_battery_charging(void);  // CALL ui_battery_charging
+    // extern int ui_clipboard_set(char* text);  // CALL ui_clipboard_set
+    // extern int ui_clipboard_get(char* buf, int cap);  // CALL ui_clipboard_get
+    // extern int ui_share_text(char* text, char* title);  // CALL ui_share_text
+    // extern int ui_open_url(char* url);  // CALL ui_open_url
+    // extern int ui_sensor_y(void);  // CALL ui_sensor_y
+    // extern int ui_sensor_z(void);  // CALL ui_sensor_z
     // extern int ui_orient_lock(int mode);  // CALL ui_orient_lock
     // extern int ui_immersive(int on);  // CALL ui_immersive
     // extern int ui_audio_play(char* path, int loop);  // CALL ui_audio_play
@@ -1242,6 +1261,13 @@ namespace VML {
     // extern int ui_tone_max_voices(int n);  // CALL ui_tone_max_voices
     // extern int ui_tone_voices(void);  // CALL ui_tone_voices
     // extern int ui_tone_panic(void);  // CALL ui_tone_panic
+    // extern void ui_sfx_reset(void);  // CALL ui_sfx_reset
+    // extern oid _ui_sfx_ensure(void);  // CALL _ui_sfx_ensure
+    // extern void ui_sfx_panic(void);  // CALL ui_sfx_panic
+    // extern void ui_sfx_add(int ch, int note, int delay, int dur, int vel, int wave);  // CALL ui_sfx_add
+    // extern void ui_sfx_step(void);  // CALL ui_sfx_step
+    // extern void ui_sfx_tick(void);  // CALL ui_sfx_tick
+    // extern int ui_sfx_active(void);  // CALL ui_sfx_active
     // extern int ui_flood_fill(int x, int y, int color, int border);  // CALL ui_flood_fill
     // extern int ui_get_image(int x, int y, int w, int h);  // CALL ui_get_image
     // extern int ui_put_image(int x, int y, int handle, int mode);  // CALL ui_put_image

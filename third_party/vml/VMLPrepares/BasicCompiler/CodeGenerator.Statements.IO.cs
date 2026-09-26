@@ -288,21 +288,66 @@ namespace BasicCompiler
                     // R0 = string pointer — 始终 stdout + 条件 VGA
                     EmitPrintString();
                 }
+                else if (exprType == BasicType.Single || exprType == BasicType.Double || exprType == BasicType.Long)
+                {
+                    // ⚠⚠ **这里原来是"一律截成整数再打"**（v0.96.502 修）——
+                    //     `PRINT 3.14` 打 `3`、`PRINT 1.0/3.0` 打 `0`、`PRINT RND(1)` 打 `0`，
+                    //     而**不报错**，看起来就像这门语言的浮点坏了
+                    //     （RND 本身是好的：`INT(RND(1)*100)` 能得到 91/97/36 这种变化的数）。
+                    //
+                    //     现在走 `basic_str_single`（Lib/shared/src/basiclib.c）：
+                    //     QBasic 风格 —— 整数不带 `.0`、小数去尾零。**去尾零那一条是
+                    //     `/` 改成浮点除之后不回归的前提**（否则 `PRINT 640/320` 会从 `2` 变 `2.0`）。
+                    EmitPrintSingleValue(exprType);
+                }
                 else
                 {
-                    // 浮点/双精度 → 整数转换（GenerateIntegerToString 从整数寄存器读取）
-                    if (exprType == BasicType.Double || exprType == BasicType.Long)
-                    {
-                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
-                    }
-                    else if (exprType == BasicType.Single)
-                    {
-                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
-                    }
                     // 整数→字符串并输出
                     GenerateIntegerToString(0);
                 }
                 }
+        }
+
+        /// <summary>
+        /// 打一个**浮点值**：值此刻在 F0（`Single`）或 D0（`Double`/`Long`）里，
+        /// 经 `basic_str_single` 转成串再走普通的字符串输出通道。
+        ///
+        /// <para>
+        /// ⚠ <b>为什么不直接用宿主现成的 `print_float`</b>：那个函数体是
+        /// <c>asm("SYSCALL 8")</c>，而 `#8` 的实现是 `OutputChar(...)` —— **直写 stdout**。
+        /// 图形窗口模式下 `PRINT` 的文字是经文字层（<c>basic_ui_text_putc</c> →
+        /// `ui_text_v`）落到窗口里的，走 `#8` 会**跑到屏幕外**（窗口里一个字都没有，
+        /// 而 stdout 那边也没人看）。所以必须拿到**字符串**再交给 `EmitPrintString`，
+        /// 让两条后端各走各的路。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>压 float 实参的样子是照 C 前端生成的码抄的</b>（实测 `/tmp/fabi.c` 的 `--vml`）：
+        /// <c>SUB R13,#4</c> + <c>MOVEF [R13], F0</c>，调用完再 <c>ADD R13,#4</c>。
+        /// 浮点实参在栈上就是**普通的一个 4 字节槽**（与整数同形），
+        /// 被调方 `[R12+8]` 取出来按浮点解读 —— 这一点单独验过：
+        /// `take(1.75f)` 返回 222、`take(9.5f)` 返回 111，说明形参真收到了值。
+        /// </para>
+        /// </summary>
+        private void EmitPrintSingleValue(BasicType exprType)
+        {
+            if (exprType == BasicType.Double || exprType == BasicType.Long)
+            {
+                // D0 → F0（basic_str_single 收单精度）
+                instructions.Add(new Instruction(OpCode.D2F,
+                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+            }
+            // 压实参：F0 写进栈顶那一格（= 被调方的 [R12+8]）
+            instructions.Add(new Instruction(OpCode.SUB,
+                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+            instructions.Add(new Instruction(OpCode.MOVEF,
+                [new Operand(OperandType.MEMORY, "R13"), new Operand(OperandType.REGISTER, 0)]));
+            instructions.Add(new Instruction(OpCode.CALL,
+                [new Operand(OperandType.LABEL, "basic_str_single")]));
+            instructions.Add(new Instruction(OpCode.ADD,
+                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+            // R0 = 串指针 → 走普通的字符串输出（窗口 / stdout 两条后端各自处理）
+            EmitPrintString();
         }
 
         private void GenerateIntegerToString(int reg)

@@ -553,11 +553,46 @@ namespace BasicCompiler
         ///   · `s = "hello"` 把**字符串指针**存进一个整数槽（能存下，没人拦）；
         ///   · `PRINT s` 按整数把它打出来 —— 实测 `1024`（一个地址）。
         /// 声明里白纸黑字写着 STRING 却被当成整数，是最容易让人怀疑"字符串坏了"的那种形态。
+        ///
+        /// <para>
+        /// ⚠⚠ <b>这个函数原先只认 <c>STRING</c> 一种</b>（v0.96.502 补齐），
+        /// 于是 `DIM x AS SINGLE` / `AS DOUBLE` / `AS LONG` 声明了等于没声明 ——
+        /// 变量照样是 Integer。而 <c>f! = 2.5</c> 这种**后缀**写法是好的
+        /// （`GetVariableType` 认后缀），所以症状是"同一个类型、两种写法两种结果"：
+        /// <c>DIM f AS SINGLE : f = 2.5 : PRINT f * 4</c> 打出 <b>0</b>，
+        /// 换成 <c>f! = 2.5</c> 打出 <b>10</b>。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>必须在 <c>GetOrCreateVariable</c> 之前调</b> —— 那个函数按
+        /// <see cref="GetVariableType"/> 决定**分配几个槽**（Double/Long 要 2 槽 = 8 字节）。
+        /// 顺序反了的话 `DIM x AS DOUBLE` 只分到 4 字节，之后 `MOVED` 按 8 字节读写
+        /// 会踩到**隔壁变量**（而且不报错）。调用点的注释里也标了这一点。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 自定义类型（`TYPE … END TYPE` 的名字）**不要**登记成标量 ——
+        /// 它们由 <c>typeDefinitions</c> 那条路单独处理，登记成标量会把记录当整数用。
+        /// </para>
         /// </summary>
         private void RegisterDimAsType(string varName, string typeName)
         {
-            if (string.Equals(typeName, "string", StringComparison.OrdinalIgnoreCase))
-                variableTypes[varName] = BasicType.String;
+            // 自定义类型先排除（它们的名字也在这张 switch 之外，见上面那条注释）
+            if (typeDefinitions != null && typeDefinitions.ContainsKey(typeName.ToLowerInvariant()))
+                return;
+
+            BasicType? t = typeName.ToLowerInvariant() switch
+            {
+                "string"            => BasicType.String,
+                "integer" or "int"  => BasicType.Integer,
+                "long"              => BasicType.Long,
+                "single"            => BasicType.Single,
+                "double"            => BasicType.Double,
+                "byte"              => BasicType.Byte,
+                "boolean" or "bool" => BasicType.Boolean,
+                _ => null,
+            };
+            if (t.HasValue) variableTypes[varName] = t.Value;
         }
 
         /// <param name="declaration">
@@ -1095,6 +1130,12 @@ namespace BasicCompiler
             else if (statement is DimAsStatement dimAsStmt)
             {
                 string varName = dimAsStmt.VariableName.ToLower();
+                // ⚠⚠ **类型登记必须在建变量之前**（v0.96.502 修）：`GetOrCreateVariable`
+                //    按 `GetVariableType` 决定分配几个槽（Double/Long 要 2 槽 = 8 字节）。
+                //    顺序反了 ⇒ `DIM x AS DOUBLE` 只分到 4 字节，之后 `MOVED`
+                //    按 8 字节读写会踩到**隔壁变量**，而且**一个错都不报**。
+                //    （原代码就是反的：先 GetOrCreateVariable 再 RegisterDimAsType。）
+                RegisterDimAsType(varName, dimAsStmt.TypeName);
                 if (!variables.ContainsKey(varName))
                 {
                     // **`declaration: true`** —— `DIM x AS INTEGER` 就是声明本身。
@@ -1103,7 +1144,6 @@ namespace BasicCompiler
                     GetOrCreateVariable(varName, declaration: true);
                 }
                 dimAsVariables[varName] = dimAsStmt.TypeName.ToLower();
-                RegisterDimAsType(varName, dimAsStmt.TypeName);
                 // Allocate slots based on type size
                 if (typeDefinitions.ContainsKey(dimAsStmt.TypeName.ToLower()))
                 {

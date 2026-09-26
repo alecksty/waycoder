@@ -439,6 +439,13 @@ namespace BasicCompiler
                 // DIM var AS TypeName inside SUB — register in dimAsVariables
                 string varName = dimAs.VariableName.ToLower();
                 dimAsVariables[varName] = dimAs.TypeName.ToLower();
+                // ⚠⚠ **类型登记必须在 `DeclareLocal` 之前**（v0.96.502 修）——
+                //    `DeclareLocal` 按 `GetVarByteSize(GetVariableType(name))` 定局部量字节数，
+                //    而 `GetVariableType` 只认后缀/DEFtype。顺序反了 ⇒ `DIM x AS SINGLE`
+                //    在 SUB 里先按 Integer 分 4 字节、之后 `MOVEF` 按 4 字节写（恰好没错），
+                //    但 `DIM x AS DOUBLE` 就只分到 4 字节而 `MOVED` 要写 8 字节 ⇒
+                //    **越过帧头**。与主程序那处同一口径（见 `CodeGenerator.cs` 的同名分支）。
+                RegisterDimAsType(varName, dimAs.TypeName);
                 // Also allocate the type's slots as local variables
                 if (typeDefinitions.ContainsKey(dimAs.TypeName.ToLower()))
                 {
@@ -462,12 +469,7 @@ namespace BasicCompiler
                     DeclareLocal(varName);
                 }
 
-                // `DIM s AS STRING` / `DIM n AS INTEGER` —— **类型名要接上**。
-                // 只写进 `dimAsVariables`（那是记录字段布局用的表）不够：变量本身的类型
-                // 由 `GetVariableType` 决定，而它只看后缀与 DEFtype ⇒ `DIM s AS STRING`
-                // 明明写着 STRING，`PRINT s` 仍旧按整数打（实测打出 `1024`，是个栈地址）。
-                // 与主程序那处（`CodeGenerator.cs` 的 DimAsStatement 分支）**同一口径**。
-                RegisterDimAsType(varName, dimAs.TypeName);
+                // 类型登记已提到本分支**开头**（见上面那条注释：`DeclareLocal` 要用它定字节数）。
             }
             else if (stmt is DoLoopStatement doLoop)
             {
@@ -1380,7 +1382,9 @@ namespace BasicCompiler
                 //   而且**不报错**。判据与顶层（`CodeGenerator.Expressions.cs` 的
                 //   NumberLiteral 分支）逐字一致：整数放得下走 MOVE，否则走 MOVEF。
                 double litValue = numLiteral.Value;
-                if (litValue == (int)litValue && litValue >= int.MinValue && litValue <= int.MaxValue)
+                // ⚠ 与顶层同源：判据是**源码里写没写小数点**（`NumberLiteral.IsFloat`），
+                //   不是"值是不是整数" —— `5.0` 的值就是 5，按值判会走整数分支。
+                if (!numLiteral.IsFloat && litValue == (int)litValue && litValue >= int.MinValue && litValue <= int.MaxValue)
                     AddRI(OpCode.MOVE, reg, (int)litValue);
                 else
                 {
@@ -1550,6 +1554,12 @@ namespace BasicCompiler
                 ExpType subLeftT = InferExpType(binary.Left);
                 ExpType subRightT = InferExpType(binary.Right);
                 ExpType subResultT = ExpressionManager.WidenType(subLeftT, subRightT);
+                // ⚠ **`/` 恒为浮点除**（QBasic 语义）—— 与顶层
+                //   `CodeGenerator.Expressions.cs` 的二元路径**是两份实现**，必须一起改。
+                //   只改一处会出现「主程序里 `7 / 2` 得 3.5、SUB 里得 3」这种最难查的分叉。
+                //   完整理由（含"为什么敢改"的回归论证）见顶层那处注释。
+                if (op == "/" && !subResultT.IsDouble())
+                    subResultT = ExpType.F32;
                 bool subDouble = subResultT.IsDouble();
                 bool subFloat = (subResultT.IsFloat() || subDouble)
                     && op is "+" or "-" or "*" or "/" or "=" or "<>" or "<" or "<=" or ">" or ">=";
@@ -1618,6 +1628,16 @@ namespace BasicCompiler
                         AddRR(OpCode.MOVE, reg, 2);
                         AddRR(arithOp.Value, reg, 1);
                     }
+
+                    // ⚠ **算完必须把"结果是浮点"记下来**（v0.96.502 修）—— 这个标志是
+                    //   `AddF2I`（`EvalIntCoord` 的收尾）唯一的判据。不记的话下游那些
+                    //   "要整数"的调用点（`INT()` / 图形坐标 / 整数实参）**不会插 F2I**，
+                    //   于是把浮点的**位型**当整数用。
+                    //   实测（`cases/02-divmod.bas`）：SUB 里 `INT(100 / 2)` 打 **1112014848**
+                    //   （= `0x42480000` = 50.0f 的位型），而 `PRINT 100 / 2` 是对的 50。
+                    //   顶层那条路（`CodeGenerator.Expressions.cs:351`）本来就记，
+                    //   只有 SUB 这一份漏了 —— 又是"同一个 switch 两份实现"。
+                    if (subFloat) _lastExprFloatType = subDouble ? BasicType.Double : BasicType.Single;
                 }
                 else if (op == "^")
                 {
@@ -1672,7 +1692,18 @@ namespace BasicCompiler
                 GenerateSubExpression(unary.Expression, reg);
                 if (unary.Operator == "-")
                 {
-                    instructions.Add(new Instruction(OpCode.NEG, new List<Operand> { new Operand(OperandType.REGISTER, reg) }));
+                    // ⚠ 与顶层同源：`NEG` 是**整数**取负，作用在浮点位型上会得到垃圾。
+                    //   （顶层 `CodeGenerator.Expressions.cs` 的同名分支已改，这里是第二份。）
+                    var subUnaryT = InferExpressionType(unary.Expression);
+                    OpCode subNegOp = subUnaryT switch
+                    {
+                        BasicType.Double or BasicType.Long => OpCode.DNEG,
+                        BasicType.Single                   => OpCode.FNEG,
+                        _                                  => OpCode.NEG,
+                    };
+                    instructions.Add(new Instruction(subNegOp, new List<Operand> { new Operand(OperandType.REGISTER, reg) }));
+                    if (subUnaryT == BasicType.Single || subUnaryT == BasicType.Double)
+                        _lastExprFloatType = subUnaryT;
                 }
                 else if (unary.Operator == "NOT")
                 {

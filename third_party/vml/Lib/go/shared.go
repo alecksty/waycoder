@@ -384,6 +384,11 @@ func basic_str_int(a0 int32) int32 {
     return vml.R0()
 }
 
+func basic_str_single(a0 int32) int32 {
+    vml.Call("basic_str_single")
+    return vml.R0()
+}
+
 func basic_val(a0 int32) int32 {
     vml.Call("basic_val")
     return vml.R0()
@@ -5828,6 +5833,96 @@ func ui_key_down(a0 int32) int32 {
     return vml.R0()
 }
 
+func ui_sensor(a0 int32, a1 int32) int32 {
+    vml.Call("ui_sensor")
+    return vml.R0()
+}
+
+func ui_sensor_available(a0 int32) int32 {
+    vml.Call("ui_sensor_available")
+    return vml.R0()
+}
+
+func ui_sensor_rate(a0 int32, a1 int32) int32 {
+    vml.Call("ui_sensor_rate")
+    return vml.R0()
+}
+
+func ui_sensor_calibrate(a0 int32) int32 {
+    vml.Call("ui_sensor_calibrate")
+    return vml.R0()
+}
+
+func ui_sensor_query(a0 int32) int32 {
+    vml.Call("ui_sensor_query")
+    return vml.R0()
+}
+
+func ui_sensor_x() int32 {
+    vml.Call("ui_sensor_x")
+    return vml.R0()
+}
+
+func ui_power(a0 int32, a1 int32) int32 {
+    vml.Call("ui_power")
+    return vml.R0()
+}
+
+func ui_battery(a0 int32) int32 {
+    vml.Call("ui_battery")
+    return vml.R0()
+}
+
+func ui_power_saver() int32 {
+    vml.Call("ui_power_saver")
+    return vml.R0()
+}
+
+func ui_battery_query() int32 {
+    vml.Call("ui_battery_query")
+    return vml.R0()
+}
+
+func ui_battery_level() int32 {
+    vml.Call("ui_battery_level")
+    return vml.R0()
+}
+
+func ui_battery_charging() int32 {
+    vml.Call("ui_battery_charging")
+    return vml.R0()
+}
+
+func ui_clipboard_set(a0 int32) int32 {
+    vml.Call("ui_clipboard_set")
+    return vml.R0()
+}
+
+func ui_clipboard_get(a0 int32, a1 int32) int32 {
+    vml.Call("ui_clipboard_get")
+    return vml.R0()
+}
+
+func ui_share_text(a0 int32, a1 int32) int32 {
+    vml.Call("ui_share_text")
+    return vml.R0()
+}
+
+func ui_open_url(a0 int32) int32 {
+    vml.Call("ui_open_url")
+    return vml.R0()
+}
+
+func ui_sensor_y() int32 {
+    vml.Call("ui_sensor_y")
+    return vml.R0()
+}
+
+func ui_sensor_z() int32 {
+    vml.Call("ui_sensor_z")
+    return vml.R0()
+}
+
 func ui_orient_lock(a0 int32) int32 {
     vml.Call("ui_orient_lock")
     return vml.R0()
@@ -5893,6 +5988,36 @@ func ui_tone_voices() int32 {
 
 func ui_tone_panic() int32 {
     vml.Call("ui_tone_panic")
+    return vml.R0()
+}
+
+func ui_sfx_reset() {
+    vml.Call("ui_sfx_reset")
+}
+
+func _ui_sfx_ensure() int32 {
+    vml.Call("_ui_sfx_ensure")
+    return vml.R0()
+}
+
+func ui_sfx_panic() {
+    vml.Call("ui_sfx_panic")
+}
+
+func ui_sfx_add(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_sfx_add")
+}
+
+func ui_sfx_step() {
+    vml.Call("ui_sfx_step")
+}
+
+func ui_sfx_tick() {
+    vml.Call("ui_sfx_tick")
+}
+
+func ui_sfx_active() int32 {
+    vml.Call("ui_sfx_active")
     return vml.R0()
 }
 

@@ -380,10 +380,30 @@ namespace BasicCompiler
     {
         public double Value { get; set; }
 
-        public NumberLiteral(int line, int column, double value)
+        /// <summary>
+        /// 源码里**写了小数点或尾随 `.`**（`3.14` / `1.0` / `5.`）⇒ 是浮点字面量。
+        ///
+        /// <para>
+        /// ⚠⚠ <b>为什么必须单独记这一位</b>（v0.96.502）：在这之前，
+        /// "这个字面量是不是浮点"是靠 <c>Value.ToString().Contains(".")</c> **反推**的 ——
+        /// 而 <c>5.0.ToString() == "5"</c>、<c>1.0.ToString() == "1"</c>，
+        /// 于是 <b>凡是"小数部分为零"的浮点字面量全被判成整数</b>。
+        /// 后果：<c>1.0 / 3.0</c> 走**整数除**得 <b>0</b>（QBasic 应是 0.333333）、
+        /// <c>a! = 5.0</c> 把 5 按整数存。而 <c>3.14</c> 侥幸对（它 ToString 带小数点），
+        /// 所以症状看起来像"有的浮点能用有的不能"，极难对上号。
+        /// </para>
+        ///
+        /// <para>
+        /// 十六进制字面量（<c>&amp;H...</c>）**永远不是浮点**，构造时显式传 false。
+        /// </para>
+        /// </summary>
+        public bool IsFloat { get; set; }
+
+        public NumberLiteral(int line, int column, double value, bool isFloat = false)
             : base(line, column)
         {
             Value = value;
+            IsFloat = isFloat;
         }
     }
 

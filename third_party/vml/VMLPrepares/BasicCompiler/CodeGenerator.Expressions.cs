@@ -82,7 +82,9 @@ namespace BasicCompiler
             else if (expr is NumberLiteral numLiteral)
             {
                 double val = numLiteral.Value;
-                if (val == (int)val && val >= int.MinValue && val <= int.MaxValue)
+                // ⚠ 判据是**源码里写没写小数点**，不是"这个值是不是整数"。
+                //   `5.0` 的值就是 5，按值判会走整数分支 ⇒ `1.0 / 3.0` 变整数除。
+                if (!numLiteral.IsFloat && val == (int)val && val >= int.MinValue && val <= int.MaxValue)
                     AddRI(OpCode.MOVE, reg, (int)val);
                 else {
                     instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, (float)val) }));
@@ -164,6 +166,25 @@ namespace BasicCompiler
 
                 // 确定运算结果类型（类型提升）
                 ExpType resultType = ExpressionManager.WidenType(leftType, rightType);
+
+                // ⚠⚠ **`/` 恒为浮点除**（v0.96.502，QBasic 语义）。
+                //
+                //    QBasic 里 `/` 是浮点除、`\` 才是整除 —— 两者**不是**同一个运算符的两种写法：
+                //      `PRINT 7 / 2`  ⇒ 3.5
+                //      `PRINT 7 \ 2`  ⇒ 3
+                //    本前端原来把两者合成一条路径（只差 `isFloat`，而 `7`/`2` 两个 Integer
+                //    让 `isFloat` 为假）⇒ `7 / 2` 得 3。
+                //
+                //    这一改的**回归风险是这个改动里最高的**：现有语料里有大量
+                //    `640 / 320`、`ScrWidth / 320` 这类"整数÷整数"的写法。
+                //    之所以敢改，是因为同时把 `PRINT` 的浮点输出做成了**去尾零**的 QBasic 风格
+                //    （`basic_str_single`：`2.0` 打成 `2`）—— 于是 `PRINT 640/320` 的输出**一个字不变**。
+                //    ⚠ 这两件事是**绑在一起的**，谁先把"去尾零"改回去，谁就会引爆一片老程序。
+                //
+                //    ⚠ `\` 不受影响：下面选择指令时 `\` 仍旧按 `isFloat` 走整除分支。
+                if (binary.Operator == "/" && !resultType.IsDouble())
+                    resultType = ExpType.F32;      // 至少 F32（Single）；有 64 位操作数则维持 Double
+
                 bool isFloat = resultType.IsFloat() || resultType.IsDouble();
                 BasicType basicResultType = resultType.IsDouble() ? BasicType.Double :
                                            isFloat ? BasicType.Single : BasicType.Integer;
@@ -335,7 +356,20 @@ namespace BasicCompiler
                 GenerateExpression(unary.Expression, reg);
                 if (unary.Operator == "-")
                 {
-                    instructions.Add(new Instruction(OpCode.NEG, new List<Operand> { new Operand(OperandType.REGISTER, reg) }));
+                    // ⚠⚠ **浮点取负不能走 `NEG`**（v0.96.502 修）：`NEG` 是**整数**指令，
+                    //    作用在寄存器上按整数解释 —— 而此刻 `reg` 里躺的是**浮点的位型**。
+                    //    实测 `PRINT -0.25`：0.25 的位型 `0x3E800000` 被整数取负成
+                    //    `0xC1800000`，那是 **-16.0** 的位型 ⇒ 打出一串看着像垃圾的东西
+                    //    （而正数 `0.25` 一切正常，所以这个坑只在**负数常量**上冒头）。
+                    //    `FNEG` 才是浮点取负（`d.IsFloat()` 那条判断与二元运算同一口径）。
+                    var unaryOperandType = InferExpressionType(unary.Expression);
+                    OpCode negOp = unaryOperandType switch
+                    {
+                        BasicType.Double or BasicType.Long => OpCode.DNEG,
+                        BasicType.Single                   => OpCode.FNEG,
+                        _                                  => OpCode.NEG,
+                    };
+                    instructions.Add(new Instruction(negOp, new List<Operand> { new Operand(OperandType.REGISTER, reg) }));
                 }
                 else if (unary.Operator == "NOT")
                 {

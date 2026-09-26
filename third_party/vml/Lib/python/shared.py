@@ -496,6 +496,12 @@ def basic_str_int(a0):
     asm("CALL basic_str_int")
     return r0
 
+def basic_str_single(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL basic_str_single")
+    return r0
+
 def basic_val(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -7539,6 +7545,112 @@ def ui_key_down(a0):
     asm("CALL ui_key_down")
     return r0
 
+def ui_sensor(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sensor")
+    return r0
+
+def ui_sensor_available(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sensor_available")
+    return r0
+
+def ui_sensor_rate(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sensor_rate")
+    return r0
+
+def ui_sensor_calibrate(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sensor_calibrate")
+    return r0
+
+def ui_sensor_query(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sensor_query")
+    return r0
+
+def ui_sensor_x():
+    r0 = asm("@R0")
+    asm("CALL ui_sensor_x")
+    return r0
+
+def ui_power(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_power")
+    return r0
+
+def ui_battery(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_battery")
+    return r0
+
+def ui_power_saver():
+    r0 = asm("@R0")
+    asm("CALL ui_power_saver")
+    return r0
+
+def ui_battery_query():
+    r0 = asm("@R0")
+    asm("CALL ui_battery_query")
+    return r0
+
+def ui_battery_level():
+    r0 = asm("@R0")
+    asm("CALL ui_battery_level")
+    return r0
+
+def ui_battery_charging():
+    r0 = asm("@R0")
+    asm("CALL ui_battery_charging")
+    return r0
+
+def ui_clipboard_set(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_clipboard_set")
+    return r0
+
+def ui_clipboard_get(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_clipboard_get")
+    return r0
+
+def ui_share_text(a0, a1):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_share_text")
+    return r0
+
+def ui_open_url(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_open_url")
+    return r0
+
+def ui_sensor_y():
+    r0 = asm("@R0")
+    asm("CALL ui_sensor_y")
+    return r0
+
+def ui_sensor_z():
+    r0 = asm("@R0")
+    asm("CALL ui_sensor_z")
+    return r0
+
 def ui_orient_lock(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -7619,6 +7731,37 @@ def ui_tone_voices():
 def ui_tone_panic():
     r0 = asm("@R0")
     asm("CALL ui_tone_panic")
+    return r0
+
+def ui_sfx_reset():
+    asm("CALL ui_sfx_reset")
+
+def _ui_sfx_ensure():
+    r0 = asm("@R0")
+    asm("CALL _ui_sfx_ensure")
+    return r0
+
+def ui_sfx_panic():
+    asm("CALL ui_sfx_panic")
+
+def ui_sfx_add(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH @R0")  # push a5
+    asm(f"PUSH @R0")  # push a4
+    asm(f"PUSH @R0")  # push a3
+    asm(f"PUSH @R0")  # push a2
+    asm(f"PUSH @R0")  # push a1
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL ui_sfx_add")
+
+def ui_sfx_step():
+    asm("CALL ui_sfx_step")
+
+def ui_sfx_tick():
+    asm("CALL ui_sfx_tick")
+
+def ui_sfx_active():
+    r0 = asm("@R0")
+    asm("CALL ui_sfx_active")
     return r0
 
 def ui_flood_fill(a0, a1, a2, a3):

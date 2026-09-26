@@ -500,6 +500,13 @@ fn basic_str_int(a0: i32) -> i32 {
     r
 }
 
+fn basic_str_single(a0: i32) -> i32 {
+    asm!("CALL basic_str_single")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn basic_val(a0: i32) -> i32 {
     asm!("CALL basic_val")
     let r: i32;
@@ -7656,6 +7663,132 @@ fn ui_key_down(a0: i32) -> i32 {
     r
 }
 
+fn ui_sensor(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_sensor")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_available(a0: i32) -> i32 {
+    asm!("CALL ui_sensor_available")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_rate(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_sensor_rate")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_calibrate(a0: i32) -> i32 {
+    asm!("CALL ui_sensor_calibrate")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_query(a0: i32) -> i32 {
+    asm!("CALL ui_sensor_query")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_x() -> i32 {
+    asm!("CALL ui_sensor_x")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_power(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_power")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_battery(a0: i32) -> i32 {
+    asm!("CALL ui_battery")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_power_saver() -> i32 {
+    asm!("CALL ui_power_saver")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_battery_query() -> i32 {
+    asm!("CALL ui_battery_query")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_battery_level() -> i32 {
+    asm!("CALL ui_battery_level")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_battery_charging() -> i32 {
+    asm!("CALL ui_battery_charging")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_clipboard_set(a0: i32) -> i32 {
+    asm!("CALL ui_clipboard_set")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_clipboard_get(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_clipboard_get")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_share_text(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_share_text")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_open_url(a0: i32) -> i32 {
+    asm!("CALL ui_open_url")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_y() -> i32 {
+    asm!("CALL ui_sensor_y")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sensor_z() -> i32 {
+    asm!("CALL ui_sensor_z")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_orient_lock(a0: i32) -> i32 {
     asm!("CALL ui_orient_lock")
     let r: i32;
@@ -7743,6 +7876,40 @@ fn ui_tone_voices() -> i32 {
 
 fn ui_tone_panic() -> i32 {
     asm!("CALL ui_tone_panic")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sfx_reset() {
+    asm!("CALL ui_sfx_reset")
+}
+
+fn _ui_sfx_ensure() -> i32 {
+    asm!("CALL _ui_sfx_ensure")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn ui_sfx_panic() {
+    asm!("CALL ui_sfx_panic")
+}
+
+fn ui_sfx_add(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_sfx_add")
+}
+
+fn ui_sfx_step() {
+    asm!("CALL ui_sfx_step")
+}
+
+fn ui_sfx_tick() {
+    asm!("CALL ui_sfx_tick")
+}
+
+fn ui_sfx_active() -> i32 {
+    asm!("CALL ui_sfx_active")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

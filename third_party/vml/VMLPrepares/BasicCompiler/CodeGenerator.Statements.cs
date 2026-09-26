@@ -435,6 +435,32 @@ namespace BasicCompiler
             // 存储时：浮点用 F0 (register 0)，整数用 R1 (register 1)
             int storeSrcReg = isFloatExpr ? 0 : 1;
 
+            // ⚠⚠ **"静默类型提升"必须排在 `destType` 求值之前**（v0.96.502 修）。
+            //
+            //    原先这段在下面"处理赋值目标"里，于是 `g = 1.75`（g 无后缀、无 DIM）走成：
+            //      ① `destType = GetVariableType("g")` = **Integer**（那时还没提升）
+            //      ② 于是 `needsF2I` 成立 ⇒ 发 `F2I R1, F0`（把 1.75 截成 1），`storeSrcReg = 1`
+            //      ③ 之后才把 `g` 提升成 Single
+            //      ④ 最后 `GetStoreInstruction(Single)` 给的是 **MOVEF**，
+            //         而源寄存器传的是 **R1** —— `GetFloatValue` 的 REGISTER 分支读的是
+            //         `floatRegisters[1]`（= **F1**，从没写过）⇒ 存进去的是 0。
+            //    实测：`g = 1.75 : PRINT g * 4` 打 **0**（提升之后本应是 7）。
+            //
+            //    判据是"**变量类型要在决定怎么存之前就定下来**" —— 这一步本来就该最先做。
+            //    （`DIM f AS SINGLE` 那条路之所以是对的，是因为类型创建时就登记好了，
+            //      `destType` 一开始就是 Single、压根不进 F2I 分支。两条路的分界正在这里。）
+            if (stmt.Variable is Identifier identPromote && isFloatExpr)
+            {
+                string pk = identPromote.Name.ToLower();
+                // 仅当变量无显式类型声明（DEFtype/后缀/DIM）时才自动提升，
+                // 避免 DEFINT B 等显式整型声明被浮点/Long 表达式覆盖。
+                if (!variableTypes.ContainsKey(pk)
+                    && GetVariableType(pk) == BasicType.Integer && !HasExplicitDefType(pk))
+                {
+                    variableTypes[pk] = exprType;
+                }
+            }
+
             // 检查目标变量类型：如果是浮点变量但表达式是整数，需要 I2F 转换
             BasicType destType = BasicType.Integer;
             if (stmt.Variable is Identifier ident2)
@@ -489,17 +515,10 @@ namespace BasicCompiler
             if (stmt.Variable is Identifier ident)
             {
                 // 记录变量类型，便于后续加载时使用正确的指令（FLOAD vs LOAD）
-                // 仅当当前类型是默认 Integer 时才设置，避免覆盖 DEFDBL/DEFLNG 等类型声明
                 string varKey = ident.Name.ToLower();
-                var existingType = GetVariableType(varKey);
-                // 仅当变量无显式类型声明（DEFtype/后缀）时才自动提升类型，
-                // 避免 DEFINT B 等显式整型声明被浮点/Long 表达式覆盖
-                if (isFloatExpr && !variableTypes.ContainsKey(varKey)
-                    && existingType == BasicType.Integer && !HasExplicitDefType(varKey))
-                {
-                    variableTypes[varKey] = exprType;
-                }
-                
+                // ⚠ "静默类型提升"已提到上面（`destType` 求值**之前**）—— 见那段注释：
+                //   留在这里会让"怎么存"按旧类型决定、而"存到哪"按新类型决定，两边打架。
+
                 // 检查是局部变量、参数还是全局变量
                 if (currentSubName != null)
                 {
@@ -1223,30 +1242,33 @@ namespace BasicCompiler
                 return BasicType.Single;
             if (expr is NumberLiteral numLiteral)
             {
-                // 数字字面量：检查是否有小数点
-                if (numLiteral.Value.ToString().Contains("."))
-                {
-                    return BasicType.Single;
-                }
-                else
-                {
-                    // 检查值范围决定是整数还是字节
-                    int value = (int)numLiteral.Value;
-                    if (value >= 0 && value <= 255)
-                    {
-                        // 小值可能是字节，但默认返回整数
-                        return BasicType.Integer;
-                    }
-                    else
-                    {
-                        return BasicType.Integer;
-                    }
-                }
+                // 数字字面量：有没有小数点是**语法**决定的（见 `NumberLiteral.IsFloat`）。
+                // ⚠ 原来这里写的是 `numLiteral.Value.ToString().Contains(".")` ——
+                //   而 `5.0.ToString() == "5"`、`1.0.ToString() == "1"`，
+                //   于是"小数部分为零"的浮点字面量全被判成整数，
+                //   `1.0 / 3.0` 走整数除得 0（QBasic 应为 0.333333）。
+                return numLiteral.IsFloat ? BasicType.Single : BasicType.Integer;
             }
             else if (expr is Identifier ident)
             {
                 // 变量：获取变量类型
                 return GetVariableType(ident.Name);
+            }
+            else if (expr is UnaryExpression unaryExpr)
+            {
+                // ⚠⚠ **这个分支原来不存在**（v0.96.502 补）⇒ `-0.25` 这类**一元表达式**
+                //    一路落到函数末尾的 `default: Integer`，被当成整数。
+                //    后果分两处，而且是**叠加**的：
+                //      ① `PRINT -0.25` 走整数输出路径 ⇒ 把浮点的**位型**当整数打出来
+                //         （实测 `-1048576000`，那是 `0xC1800000`）；
+                //      ② 取负本身也会选错指令（`NEG` 是整数取负）。
+                //    正数 `0.25` 一切正常 —— 所以这个坑**只在负数常量上冒头**，
+                //    而 `CIRCLE (x,y), r, c, -0.5` 这类写法在老程序里很常见。
+                //
+                //    取负**不改变类型**（`-1.5` 还是 Single）；`NOT` 是逻辑运算，结果为 Integer。
+                return unaryExpr.Operator == "NOT"
+                    ? BasicType.Integer
+                    : InferExpressionType(unaryExpr.Expression);
             }
             else if (expr is BinaryExpression binExpr)
             {
@@ -1261,6 +1283,19 @@ namespace BasicCompiler
                 if (binExpr.Operator == "+" && leftType == BasicType.String && rightType == BasicType.String)
                     return BasicType.String;
                 
+                // ⚠ **`/` 恒为浮点除**（QBasic 语义，v0.96.502）—— 这条必须与
+                //   `CodeGenerator.Expressions.cs` 里生成代码那一侧**同源**。
+                //   不同源的后果实测过：生成侧发了 `FDIV`（值确实是 2.0），
+                //   而这里仍把它判成 Integer ⇒ `PRINT` 走**整数输出路径**，
+                //   把 2.0 的**位型** `1073741824` 打了出来。
+                //   （`1073741824` = `0x40000000` = 2.0f 的 IEEE754 编码。）
+                if (binExpr.Operator == "/"
+                    && leftType != BasicType.Double && rightType != BasicType.Double
+                    && leftType != BasicType.Long && rightType != BasicType.Long)
+                {
+                    return BasicType.Single;
+                }
+
                 // 类型提升规则：
                 // 1. 如果有一个是 Double/Long，结果是 Double (64位)
                 // 2. 如果有一个是 Single，结果是 Single

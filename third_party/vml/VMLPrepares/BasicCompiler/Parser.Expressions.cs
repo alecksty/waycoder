@@ -174,7 +174,10 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        expr = new NumberLiteral(token.Line, token.Column, double.Parse(token.Value));
+                        // ⚠ 浮点与否看**源码里有没有小数点**，不看 `double.Parse` 之后的值
+                        //   （`5.0` 解析出来是 5，反推不出来 —— 见 NumberLiteral.IsFloat 的注释）。
+                        expr = new NumberLiteral(token.Line, token.Column, double.Parse(token.Value),
+                                                 token.Value.Contains('.'));
                     }
                     break;
                 case TokenType.STRING:

@@ -382,6 +382,11 @@ DECLARE FUNCTION basic_str_int(a0 AS INTEGER) AS INTEGER
     basic_str_int = 0
 END FUNCTION
 
+DECLARE FUNCTION basic_str_single(a0 AS INTEGER) AS INTEGER
+    asm("CALL basic_str_single")
+    basic_str_single = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_val(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_val")
     basic_val = 0
@@ -5826,6 +5831,96 @@ DECLARE FUNCTION ui_key_down(a0 AS INTEGER) AS INTEGER
     ui_key_down = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_sensor(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_sensor")
+    ui_sensor = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_available(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_sensor_available")
+    ui_sensor_available = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_rate(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_sensor_rate")
+    ui_sensor_rate = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_calibrate(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_sensor_calibrate")
+    ui_sensor_calibrate = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_query(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_sensor_query")
+    ui_sensor_query = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_x() AS INTEGER
+    asm("CALL ui_sensor_x")
+    ui_sensor_x = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_power(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_power")
+    ui_power = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_battery(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_battery")
+    ui_battery = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_power_saver() AS INTEGER
+    asm("CALL ui_power_saver")
+    ui_power_saver = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_battery_query() AS INTEGER
+    asm("CALL ui_battery_query")
+    ui_battery_query = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_battery_level() AS INTEGER
+    asm("CALL ui_battery_level")
+    ui_battery_level = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_battery_charging() AS INTEGER
+    asm("CALL ui_battery_charging")
+    ui_battery_charging = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_clipboard_set(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_clipboard_set")
+    ui_clipboard_set = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_clipboard_get(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_clipboard_get")
+    ui_clipboard_get = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_share_text(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_share_text")
+    ui_share_text = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_open_url(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_open_url")
+    ui_open_url = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_y() AS INTEGER
+    asm("CALL ui_sensor_y")
+    ui_sensor_y = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_sensor_z() AS INTEGER
+    asm("CALL ui_sensor_z")
+    ui_sensor_z = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_orient_lock(a0 AS INTEGER) AS INTEGER
     asm("CALL ui_orient_lock")
     ui_orient_lock = 0
@@ -5892,6 +5987,36 @@ END FUNCTION
 DECLARE FUNCTION ui_tone_panic() AS INTEGER
     asm("CALL ui_tone_panic")
     ui_tone_panic = 0
+END FUNCTION
+
+DECLARE SUB ui_sfx_reset()
+    asm("CALL ui_sfx_reset")
+END SUB
+
+DECLARE FUNCTION _ui_sfx_ensure() AS INTEGER
+    asm("CALL _ui_sfx_ensure")
+    _ui_sfx_ensure = 0
+END FUNCTION
+
+DECLARE SUB ui_sfx_panic()
+    asm("CALL ui_sfx_panic")
+END SUB
+
+DECLARE SUB ui_sfx_add(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_sfx_add")
+END SUB
+
+DECLARE SUB ui_sfx_step()
+    asm("CALL ui_sfx_step")
+END SUB
+
+DECLARE SUB ui_sfx_tick()
+    asm("CALL ui_sfx_tick")
+END SUB
+
+DECLARE FUNCTION ui_sfx_active() AS INTEGER
+    asm("CALL ui_sfx_active")
+    ui_sfx_active = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_flood_fill(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
