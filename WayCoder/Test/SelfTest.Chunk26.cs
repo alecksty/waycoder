@@ -132,6 +132,8 @@ public static partial class SelfTest
                 declared.Except(probeMissing).Count() == 1);
         }
 
+        TestUiDocSync(Section, Check);
+
         _ = Fail;
 
         TestStrokeStyleCompat(Section, Check);
@@ -139,6 +141,111 @@ public static partial class SelfTest
         TestTextGradient(Section, Check);
         TestBrushModel(Section, Check);
         TestCallPorts(Section, Check);
+    }
+
+    /// <summary>
+    /// **号段文档同步** —— `third_party/vml/Lib/README-ui.md` 与 `VmlUi.AllNumbers` 对表。
+    ///
+    /// ## 为什么这条必须有
+    ///
+    /// 那个文件是接口号的第 **4** 份抄本（另三份：`VmlUiProtocol.cs` 本体、
+    /// `docs/VML宿主接口.md`、`help/vml/ui.md`），而它是**给程序作者看的那一份** ——
+    /// C 头文件 `waycoder_ui.h` 的注释里就写着「号段表见 `Lib/README-ui.md`」。
+    ///
+    /// 它漂过一次，而且**三种错同时犯**：列着 3 个**已经被合并掉的号**
+    /// （561 `MSG_WAIT` / 562 `MSG_COUNT` / 564 `TIMER_KILL` —— v0.96.483 把七个号
+    /// 并成了 `MSG`(#560) 一个号 + 操作码）、漏了 **36 个活着的号**、示例里还在用老号。
+    /// **照它写程序不会报错，只会"调了没反应"** —— 宿主 switch 落到兜底、返回 -1。
+    ///
+    /// ## 判据的形状（为什么只查这两个方向）
+    ///
+    /// · **正向**（活号 → 文档）：`AllNumbers` 里每个号都必须在文档**表格行**里出现。
+    ///   漏一个就红 —— 这是"文档过期"的主症状。
+    /// · **反向**（文档 → 活号）：表格行里出现的号都必须是活号。**只扫表格行、不扫正文** ——
+    ///   文档里**该**提到死号（"561/562/564 已不存在"那句警告是刻意留的），
+    ///   扫正文会把那句警告报成错，于是逼着后人把警告删掉，正好抹掉最有用的信息。
+    ///
+    /// ⚠ **它只能保证"号没漏"，保证不了"参数写得对"** —— 参数以 `VmlUiProtocol.cs`
+    /// 的注释为准（唯一事实源）。这是刻意的：文档抄参数必然漂，抄"有哪些、叫什么"才有护栏价值。
+    /// </summary>
+    private static void TestUiDocSync(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("VML 宿主接口：号段文档同步（Lib/README-ui.md）");
+
+        var docPath = FindRepoFile("third_party", "vml", "Lib", "README-ui.md");
+        Check("号段文档: 找得到 Lib/README-ui.md", docPath != null);
+        if (docPath == null) return;
+
+        var text = File.ReadAllText(docPath);
+
+        // ── 表格行里出现的号（含 `| 577–580 |` 这种区间写法）──
+        //
+        //    ⚠ 区间必须展开：那一行只写了 577，578/579/580 一个数字都不出现，
+        //      不展开的话正向检查会把它们三个报成"文档漏了"，成了误报。
+        //    ⚠ `\*{0,2}` 是给 `| **560** |` 这种加粗写法留的：加粗是排版，
+        //      不该让号"看不见" —— 第一版没留，于是把 `MSG`(560) 与 `TIMER`(563)
+        //      报成漏了（而它们就在表里，还是最要紧的两个）。**判据要容得下排版。**
+        var documented = new HashSet<int>();
+        foreach (System.Text.RegularExpressions.Match m in
+                 System.Text.RegularExpressions.Regex.Matches(text,
+                     @"^\|\s*\*{0,2}(\d{3})\*{0,2}\s*(?:[–-]\s*\*{0,2}(\d{3})\*{0,2}\s*)?\|",
+                     System.Text.RegularExpressions.RegexOptions.Multiline))
+        {
+            var lo = int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            if (!m.Groups[2].Success)
+            {
+                if (lo is >= 500 and <= 599) documented.Add(lo);
+                continue;
+            }
+            var hi = int.Parse(m.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            for (var n = lo; n <= hi && n <= 599; n++)
+                if (n >= 500) documented.Add(n);
+        }
+
+        Check($"号段文档: 扫得出号（实得 {documented.Count} 个）", documented.Count > 30);
+
+        var live = new HashSet<int>(VmlUi.AllNumbers);
+        Check($"号段文档: 活号清单非空（实得 {live.Count} 个）", live.Count > 30);
+
+        // ① 正向：活号必须有文档
+        var undocumented = live.Except(documented).OrderBy(n => n).ToList();
+        Check(undocumented.Count == 0
+                ? $"号段文档: {live.Count} 个活号在 README-ui.md 里都有"
+                : $"号段文档: **漏了 {undocumented.Count} 个号**（{string.Join(", ", undocumented)}）"
+                  + " —— 照它写程序会静默失效，补进 `Lib/README-ui.md` 的表格",
+            undocumented.Count == 0);
+
+        // ② 反向：文档表格里不许有死号（正文里的历史说明不算，理由见方法注释）
+        var dead = documented.Except(live).OrderBy(n => n).ToList();
+        Check(dead.Count == 0
+                ? "号段文档: 表格里的号都是活号"
+                : $"号段文档: 表格里列着**已经不存在的号**（{string.Join(", ", dead)}）"
+                  + " —— 照着调只会返回 -1、什么都不发生",
+            dead.Count == 0);
+
+        // ③ 反证：这道网**真的会响**（"不响的自测比没有更糟"）。
+        //    人为从活号里去掉一个，正向比对必须抓到它。
+        var probe = live.Where(n => n != live.Min()).ToHashSet();
+        Check("反证：活号少一个，文档比对能抓到",
+            live.Except(probe).Count() == 1 && live.Except(probe).First() == live.Min());
+    }
+
+    /// <summary>
+    /// 从当前目录逐级上溯，按**路径分段**拼出一个仓库内文件的绝对路径。
+    ///
+    /// 按分段拼而不是写死 `"third_party/vml/Lib/README-ui.md"`：Windows 上分隔符不同，
+    /// 而 `Path.Combine` 在两种平台上都对。找不到返回 null —— **由用例自己报红**，
+    /// 静默跳过就是"这条测试永远不生效"。
+    /// </summary>
+    private static string? FindRepoFile(params string[] segments)
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        for (var i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+        {
+            var probe = Path.Combine(new[] { dir.FullName }.Concat(segments).ToArray());
+            if (File.Exists(probe)) return probe;
+        }
+        return null;
     }
 
     /// <summary>

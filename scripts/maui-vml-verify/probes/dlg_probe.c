@@ -8,9 +8,23 @@
 char buf[128];
 char opts[16];
 
-/* #552 宿主**实现了**，但 `Lib/shared/src/vmlui.c` 与 `Lib/c/waycoder_ui.h` 都没有包装函数
-   ⇒ 22 门语言一个都调不到它。这里用内联 asm 直接发号，把宿主那一侧单独验掉。 */
-void probe_store_del(char* key) { asm("SYSCALL #552, ${key}"); }
+/* ⚠⚠ 这里原来是一段**两头都过期**的探针（v0.96.500 修）：
+ *
+ *   ① 它用内联 asm 发 **#552** —— 那是 `STORE_DEL` 的老号。v0.96.483 的号段整合
+ *      把 550/551/552 并成了 `STORE`(#550) 一个号 + 操作码 ⇒ **#552 已经不存在**，
+ *      宿主 switch 落到兜底、返回 -1、**什么都不做**。
+ *   ② 它当时的理由是"宿主实现了但**没有包装函数**，22 门语言都调不到" ——
+ *      那个缺口在 v0.96.484 补掉了（现在有 `ui_store_del`）。
+ *
+ * 后果：这一行的"删"根本没发生 ⇒ 下面那句 `S2 del=` 会读到 **2**（键还在），
+ * 而期望是 -1 —— 一句**假失败**，指着一个已经被修好的东西。
+ *
+ * ⇒ 直接用现成的包装函数。顺带把"22 门语言都能调到它"这条也验了 ——
+ *   那才是**实际程序走的那条路**，比绕过包装直接发号更有代表性。
+ *
+ * （这一处和 `Lib/shared/src/conio.c` 那三处是同一个根因：
+ *   **号段整合改的是"同一个能力的入口"，调用点必须全部找出来** ——
+ *   `grep -rn 'SYSCALL #5' .` 就是那条命令。） */
 
 int main(void)
 {
@@ -25,7 +39,7 @@ int main(void)
     printf("S2 store len=%d c0=%d c1=%d\n", n, buf[0], buf[1]);   /* 期望 2 / 104 / 105 */
     n = ui_store_get("probe.none", buf, 128);
     printf("S2 none=%d\n", n);                                     /* 期望 -1 */
-    probe_store_del("probe.k");
+    ui_store_del("probe.k");      /* 走包装函数（原来的 #552 已并走）*/
     n = ui_store_get("probe.k", buf, 128);
     printf("S2 del=%d\n", n);                                      /* 期望 -1 */
 

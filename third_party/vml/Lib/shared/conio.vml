@@ -3399,7 +3399,7 @@ _con_getch_window:
         push @R15
         push @R12
         move @R12 @R13
-        sub @R13 #40
+        sub @R13 #48
 ; 397:     int* msg = buf;          /* ⚠ 必须用**指针变量**：`asm` 里的 `${msg}` 展开的是
         move @R0 @R12
         sub @R0 #20
@@ -3430,11 +3430,17 @@ _L44560308:
 sta_44560305:
 sta_44560306:
 sta_44560310:
-; 431:         asm("MOVE R1 #0");
-        asm "MOVE R1 #0"
-; 432:         if ((int)asm("SYSCALL #561, ${msg}") <= 0) return 0;
-        move @R0 [@R12-24]
-        syscall #561
+; 438:         op = 1;      /* VmlUi.MsgOp.Wait */
+        move @R0 #1
+        move [@R12-36] @R0
+; 439:         to = 0;      /* 0 = 无限等 */
+        move @R0 #0
+        move [@R12-40] @R0
+; 440:         if ((int)asm("SYSCALL #560, ${op}, ${msg}, ${to}") <= 0) return 0;
+        move @R0 [@R12-36]
+        move @R1 [@R12-24]
+        move @R2 [@R12-40]
+        syscall #560
         move [@R12-4] @R0
         push @R0
         move @R0 #0
@@ -3452,7 +3458,7 @@ _L44560316:
         jmp L_44560309
 sta_44560313:
 sta_44560314:
-; 435:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
+; 443:         if (msg[0] == 1) break;              /* VML_MSG_KEYDOWN */
         move @R0 [@R12-24]
         push @R0
         move @R0 #0
@@ -3478,7 +3484,7 @@ sta_44560318:
 sta_44560311:
         jmp sta_44560310
 sta_44560312:
-; 437:     vk = msg[1];
+; 445:     vk = msg[1];
         move @R0 [@R12-24]
         push @R0
         move @R0 #1
@@ -3487,14 +3493,14 @@ sta_44560312:
         add @R0 @R5
         move @R0 [@R0]
         move [@R12-28] @R0
-; 438:     sc = _con_scan_code(vk);
+; 446:     sc = _con_scan_code(vk);
         move @R0 [@R12-28]
         push @R0
         move @R0 [@R13+0]
         call _con_scan_code
         add @R13 #4
         move [@R12-32] @R0
-; 439:     if (sc != 0)
+; 447:     if (sc != 0)
         move @R0 [@R12-32]
         push @R0
         move @R0 #0
@@ -3508,15 +3514,15 @@ _L44560323:
 _L44560324:
         cmp @R0 #0
         jz sta_44560321
-; 441:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
+; 449:         _con_pending_scan = sc;              /* 扩展键：先给 0，下次给扫描码 */
         move @R0 [@R12-32]
         move [_con_pending_scan] @R0
-; 442:         return 0;
+; 450:         return 0;
         move @R0 #0
         jmp L_44560309
 sta_44560321:
 sta_44560322:
-; 444:     return vk;                               /* 普通键：虚拟键码 == ASCII */
+; 452:     return vk;                               /* 普通键：虚拟键码 == ASCII */
         move @R0 [@R12-28]
         jmp L_44560309
 L_44560309:
@@ -3535,7 +3541,7 @@ getch:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 449:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
+; 457:     if (conKbPos < conKbLen) { c = conKb[conKbPos]; conKbPos++; return c; }
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3572,7 +3578,7 @@ _L44560328:
         jmp L_44560329
 sta_44560325:
 sta_44560326:
-; 452:     if (_con_win_state() == 0) return _con_getch_window();
+; 460:     if (_con_win_state() == 0) return _con_getch_window();
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3590,15 +3596,15 @@ _L44560333:
         jmp L_44560329
 sta_44560330:
 sta_44560331:
-; 453:     conKbLen = 0;
+; 461:     conKbLen = 0;
         move @R0 #0
         move [conKbLen] @R0
-; 454:     conKbPos = 0;
+; 462:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
 sta_44560334:
         move @R2 #0
-; 455:     while (conKbLen < 126) {
+; 463:     while (conKbLen < 126) {
         move @R0 [conKbLen]
         push @R0
         move @R0 #126
@@ -3612,10 +3618,10 @@ _L44560336:
 _L44560337:
         cmp @R0 #0
         jz sta_44560335
-; 456:         c = getchar();
+; 464:         c = getchar();
         call getchar
         move [@R12-8] @R0
-; 457:         if (c <= 0 || c == 10 || c == 13) break;
+; 465:         if (c <= 0 || c == 10 || c == 13) break;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3674,7 +3680,7 @@ _L44560342:
         jmp sta_44560335
 sta_44560338:
 sta_44560339:
-; 458:         conKb[conKbLen] = (char)c;
+; 466:         conKb[conKbLen] = (char)c;
         move @R0 [@R12-8]
         move @R8 @R0
         push @R8
@@ -3691,7 +3697,7 @@ sta_44560339:
         add @R0 @R2
         pop @R8
         moveb [@R0] @R8
-; 459:         conKbLen++;
+; 467:         conKbLen++;
         move @R0 [conKbLen]
         move @R1 @R0
         add @R0 @R0 #1
@@ -3699,10 +3705,10 @@ sta_44560339:
         move @R0 @R1
         jmp sta_44560334
 sta_44560335:
-; 461:     conKbPos = 0;
+; 469:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 462:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
+; 470:     if (conKbLen == 0) return 13;       /* 空行 = 回车（DOS 里最常见的"确认"） */
         move @R0 [conKbLen]
         push @R0
         move @R0 #0
@@ -3720,7 +3726,7 @@ _L44560355:
         jmp L_44560329
 sta_44560352:
 sta_44560353:
-; 463:     c = conKb[conKbPos];
+; 471:     c = conKb[conKbPos];
         move @R0 conKb
         push @R0
         move @R6 #0
@@ -3735,13 +3741,13 @@ sta_44560353:
         moveb @R0 [@R0]
         sextb @R0 @R0
         move [@R12-8] @R0
-; 464:     conKbPos++;
+; 472:     conKbPos++;
         move @R0 [conKbPos]
         move @R1 @R0
         add @R0 @R0 #1
         move [conKbPos] @R0
         move @R0 @R1
-; 465:     return c;
+; 473:     return c;
         move @R0 [@R12-8]
         jmp L_44560329
 L_44560329:
@@ -3760,10 +3766,10 @@ getche:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 470:     c = getch();
+; 478:     c = getch();
         call getch
         move [@R12-8] @R0
-; 471:     if (c != 0) putch(c);
+; 479:     if (c != 0) putch(c);
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3784,7 +3790,7 @@ _L44560359:
         add @R13 #4
 sta_44560356:
 sta_44560357:
-; 472:     return c;
+; 480:     return c;
         move @R0 [@R12-8]
         jmp L_44560360
 L_44560360:
@@ -3803,12 +3809,12 @@ kbhit:
         push @R15
         push @R12
         move @R12 @R13
-        sub @R13 #40
-; 502:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
+        sub @R13 #48
+; 510:     int* msg = buf;          /* 同上：指针变量，不是数组名 */
         move @R0 @R12
         sub @R0 #24
         move [@R12-28] @R0
-; 503:     if (conKbPos < conKbLen) return 1;
+; 513:     if (conKbPos < conKbLen) return 1;
         move @R0 [conKbPos]
         push @R0
         move @R0 [conKbLen]
@@ -3826,7 +3832,7 @@ _L44560364:
         jmp L_44560365
 sta_44560361:
 sta_44560362:
-; 506:     if (_con_win_state() == 0)
+; 516:     if (_con_win_state() == 0)
         call _con_win_state
         push @R0
         move @R0 #0
@@ -3841,11 +3847,17 @@ _L44560369:
         cmp @R0 #0
         jz sta_44560366
 sta_44560370:
-; 519:             asm("MOVE R1 #1");
-        asm "MOVE R1 #1"
-; 520:             if ((int)asm("SYSCALL #571, ${msg}") <= 0) return 0;   /* 队列空 */
-        move @R0 [@R12-28]
-        syscall #571
+; 529:             op = 5;      /* VmlUi.MsgOp.PollEx */
+        move @R0 #5
+        move [@R12-32] @R0
+; 530:             keep = 1;    /* VML_MSG_KEEP */
+        move @R0 #1
+        move [@R12-36] @R0
+; 531:             if ((int)asm("SYSCALL #560, ${op}, ${msg}, ${keep}") <= 0) return 0;  /* 队列空 */
+        move @R0 [@R12-32]
+        move @R1 [@R12-28]
+        move @R2 [@R12-36]
+        syscall #560
         move [@R12-4] @R0
         push @R0
         move @R0 #0
@@ -3863,7 +3875,7 @@ _L44560376:
         jmp L_44560365
 sta_44560373:
 sta_44560374:
-; 521:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
+; 532:             if (msg[0] == 1) return 1;                                   /* 队头就是按键 */
         move @R0 [@R12-28]
         push @R0
         move @R0 #0
@@ -3887,8 +3899,12 @@ _L44560380:
         jmp L_44560365
 sta_44560377:
 sta_44560378:
-; 522:             asm("SYSCALL #560, ${msg}");                                 /* ui_poll：消费掉 */
-        move @R0 [@R12-28]
+; 534:             op = 0;      /* VmlUi.MsgOp.Poll */
+        move @R0 #0
+        move [@R12-32] @R0
+; 535:             asm("SYSCALL #560, ${op}, ${msg}");
+        move @R0 [@R12-32]
+        move @R1 [@R12-28]
         syscall #560
         move [@R12-4] @R0
 sta_44560371:
@@ -3896,13 +3912,13 @@ sta_44560371:
 sta_44560372:
 sta_44560366:
 sta_44560367:
-; 527:     asm("MOVE R0 #0");
+; 540:     asm("MOVE R0 #0");
         asm "MOVE R0 #0"
-; 528:     c = asm("SYSCALL #5");
+; 541:     c = asm("SYSCALL #5");
         syscall #5
         move [@R12-4] @R0
         move [@R12-8] @R0
-; 529:     if (c <= 0) return 0;
+; 542:     if (c <= 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -3920,7 +3936,7 @@ _L44560384:
         jmp L_44560365
 sta_44560381:
 sta_44560382:
-; 530:     conKb[0] = (char)c;
+; 543:     conKb[0] = (char)c;
         move @R0 [@R12-8]
         move @R11 @R0
         push @R11
@@ -3937,13 +3953,13 @@ sta_44560382:
         add @R0 @R5
         pop @R11
         moveb [@R0] @R11
-; 531:     conKbLen = 1;
+; 544:     conKbLen = 1;
         move @R0 #1
         move [conKbLen] @R0
-; 532:     conKbPos = 0;
+; 545:     conKbPos = 0;
         move @R0 #0
         move [conKbPos] @R0
-; 533:     return 1;
+; 546:     return 1;
         move @R0 #1
         jmp L_44560365
 L_44560365:
