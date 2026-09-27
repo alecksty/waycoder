@@ -59,8 +59,20 @@ else
 fi
 TFM="net10.0-ios${SDK_VER}"
 
+# ⚠⚠ **必须用"装了 maui 工作负载"的那个 dotnet** —— 与 `build-apk.sh` 同一条（那边踩过，
+#   这边当初漏了）：本机有两套 —— PATH 上的 `/opt/homebrew/bin/dotnet`（`dotnet workload list`
+#   在 10.0.401 波段下**是空的**）与 `/usr/local/share/dotnet/dotnet`（装了 maui 全家）。
+#   用错那套的报错是 `error NETSDK1147: 必须安装以下工作负载: maui-android`（**在打 iOS 时
+#   报 android**，因为还原会评估全部 TFM）——完全看不出是"走错了 dotnet"，实测白查一轮。
+#   想换回去：`WAYCODER_DOTNET=/path/to/dotnet ./build-ios.sh`。
+DOTNET="${WAYCODER_DOTNET:-}"
+if [[ -z "$DOTNET" ]]; then
+  if [[ -x /usr/local/share/dotnet/dotnet ]]; then DOTNET=/usr/local/share/dotnet/dotnet; else DOTNET=dotnet; fi
+fi
+
+echo "▸ 用 dotnet：$DOTNET"
 echo "▸ TFM = $TFM   RID = $RID"
-dotnet build WayCoder.Maui.csproj -f "$TFM" -c Release -p:RuntimeIdentifier="$RID"
+"$DOTNET" build WayCoder.Maui.csproj -f "$TFM" -c Release -p:RuntimeIdentifier="$RID"
 
 APP="bin/Release/${TFM}/${RID}/WayCoder.Maui.app"
 echo
