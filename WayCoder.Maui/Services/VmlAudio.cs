@@ -121,31 +121,66 @@ internal static class VmlAudio
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("🔊 音频自检（每一步都会真的响，听着对一下）");
         sb.AppendLine($"· 合成器：主音量={_volume} 声部上限={Synth.MaxVoicesLimit}");
-        sb.AppendLine($"· 发声前：{DescribePlatform()}");
 
-        sb.AppendLine("① 单音 do（约 0.6 秒）");
-        NoteOn(0, 60, 100, 0);
-        await Task.Delay(650);
-        sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 1 —— 是 0 说明调用没进合成器）");
-        NoteOff(0, 60);
+        // ⚠⚠ **每一步各自 try/catch，而且异常必须打在屏幕上**（2026-09-27 真机实测）：
+        //   用户在 iPad 上跑到第 ③ 步**闪退**（SIGABRT、托管异常未捕获），而异常消息只在
+        //   App 私有的日志文件里 —— **从 Mac 读不到设备容器**（devicectl 不支持），
+        //   于是"崩在哪一行、什么异常"完全看不见，只能靠猜 ✗。
+        //   自检工具**崩掉是最糟的失败形态**：它本来就是用来把不可见的故障变成可见的。
+        //   现在每一步独立兜住，异常类型 + 消息直接进返回值（打在屏幕上）——
+        //   崩到哪一步、是什么异常，一眼就能读出来。
+        async Task Step(string title, Func<Task> body)
+        {
+            sb.AppendLine(title);
+            try { await body(); }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"   ❌ **这一步抛异常**：{ex.GetType().Name}：{ex.Message}");
+                var st = ex.StackTrace ?? "";
+                if (st.Length > 400) st = st[..400] + "…";
+                sb.AppendLine("   " + st.Replace("\n", "\n   "));
+            }
+        }
 
-        sb.AppendLine("② 和弦 do-mi-sol（约 0.9 秒，三个音同时）");
-        NoteOn(0, 60, 100, 0);
-        NoteOn(1, 64, 100, 0);
-        NoteOn(2, 67, 100, 0);
-        await Task.Delay(950);
-        sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 3）");
-        ToneControl(VmlUi.AudioCtl.AllNotesOff, 0, 0);
+        // 设备状态整段也兜住（会话/节点属性在真机上更可能抛）
+        try { sb.AppendLine($"· 发声前：{DescribePlatform()}"); }
+        catch (Exception ex) { sb.AppendLine($"· 发声前状态读取失败：{ex.GetType().Name}：{ex.Message}"); }
 
-        sb.AppendLine("③ 老式蜂鸣 880Hz（约 0.4 秒，**与游戏音效同一条路**）");
-        Tone(880, 400, 1);
-        await Task.Delay(600);
+        await Step("① 单音 do（约 0.6 秒）", async () =>
+        {
+            NoteOn(0, 60, 100, 0);
+            await Task.Delay(650);
+            sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 1 —— 是 0 说明调用没进合成器）");
+            NoteOff(0, 60);
+        });
 
-        sb.AppendLine("· 发声后：" + DescribePlatform());
-        sb.AppendLine(Synth.ActiveVoices == 0
-            ? "· 声部已清空 ✓"
-            : $"· ⚠️ 还有 {Synth.ActiveVoices} 个声部没关");
+        await Step("② 和弦 do-mi-sol（约 0.9 秒，三个音同时）", async () =>
+        {
+            NoteOn(0, 60, 100, 0);
+            NoteOn(1, 64, 100, 0);
+            NoteOn(2, 67, 100, 0);
+            await Task.Delay(950);
+            sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 3）");
+            ToneControl(VmlUi.AudioCtl.AllNotesOff, 0, 0);
+        });
+
+        await Step("③ 老式蜂鸣 880Hz（约 0.4 秒，**与游戏音效同一条路**）", async () =>
+        {
+            Tone(880, 400, 1);
+            await Task.Delay(600);
+        });
+
+        try
+        {
+            sb.AppendLine("· 发声后：" + DescribePlatform());
+            sb.AppendLine(Synth.ActiveVoices == 0
+                ? "· 声部已清空 ✓"
+                : $"· ⚠️ 还有 {Synth.ActiveVoices} 个声部没关");
+        }
+        catch (Exception ex) { sb.AppendLine($"· 发声后状态读取失败：{ex.GetType().Name}：{ex.Message}"); }
+
         sb.AppendLine("· ①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。");
+        sb.AppendLine("· 哪一步写了 ❌ ⇒ 那一步抛了异常（类型与消息就在上面），把那几行发我。");
         return sb.ToString();
     }
 
@@ -533,28 +568,61 @@ internal static class VmlAudio
         var blockMs = BlockFrames * 1000 / SampleRate;
         try
         {
+            // ⚠⚠ **必须留余量，不能"刚好实时"**（2026-09-27 真机：iPad 上「有的声音是破音的」）：
+            //   原来每轮排完一块就 `Thread.Sleep(块长)` —— 长跑的平均速率虽然对得上，
+            //   但**节点队列里始终只有一块**：线程被调度晚一次（GC、别的线程抢 CPU、
+            //   系统忙）就是一个断点，听感就是"咔 / 破音"，而且**只在真机上偶发**
+            //   （模拟器/桌面不经过这条路径）。
+            //   现在按**队列剩余量**控速：不足 3 块就补，够了就短睡 ⇒ 常驻约 70ms 余量，
+            //   足以吸收抖动；进度用节点自己的 `LastRenderTime` 算，**不是靠猜**，
+            //   所以也不会无限堆积（另有 8 块的硬上限兜底，防进度读不到时胀出去）。
+            const int TargetLeadBlocks = 3;
+            const int MaxLeadBlocks = 8;
+            long scheduled = 0;      // 已经排进队列的帧数
+            long playedBase = -1;    // 播放进度的基准（首次读到的值）
+            long played = 0;         // 相对基准已播出的帧数
+
             while (_running)
             {
                 var node = _node;
                 if (node == null) break;
 
-                Synth.Mix(MixScratch, BlockFrames);
-
-                // ⚠ `AVAudioPcmBuffer` 每块新建（约 2KB）—— 换来的是不必和
-                //   "上一块还在播、这块要覆盖它"的竞态打交道。23ms 一块，GC 扛得住。
-                using var buf = new AVAudioPcmBuffer(format, BlockFrames);
-                buf.FrameLength = BlockFrames;
-                unsafe
+                // 引擎的播放进度（拿不到就退化成"照旧一块一块来"）
+                var rt = node.LastRenderTime;
+                if (rt != null)
                 {
-                    // `int16ChannelData` 的 ObjC 类型是 `int16_t * const *`（通道指针数组），
-                    // .NET 绑定把它收成了 `nint` ⇒ 还原成 `short**` 再取通道 0。
-                    var ch = ((short**)buf.Int16ChannelData)[0];
-                    for (var i = 0; i < BlockFrames; i++) ch[i] = MixScratch[i];
+                    if (playedBase < 0) playedBase = rt.SampleTime;
+                    played = rt.SampleTime - playedBase;
                 }
-                node.ScheduleBuffer(buf, (Action?)null);
-                if (!node.Playing) node.Play();
+                if (playedBase < 0) played = scheduled;
 
-                Thread.Sleep(blockMs);
+                var lead = scheduled - played;
+                if (lead > (long)BlockFrames * MaxLeadBlocks) scheduled = played;   // 兜底：进度卡住了就别再堆
+
+                if (lead < (long)BlockFrames * TargetLeadBlocks)
+                {
+                    Synth.Mix(MixScratch, BlockFrames);
+
+                    // ⚠ `AVAudioPcmBuffer` 每块新建（约 2KB）—— 换来的是不必和
+                    //   "上一块还在播、这块要覆盖它"的竞态打交道。23ms 一块，GC 扛得住。
+                    using var buf = new AVAudioPcmBuffer(format, BlockFrames);
+                    buf.FrameLength = BlockFrames;
+                    unsafe
+                    {
+                        // `int16ChannelData` 的 ObjC 类型是 `int16_t * const *`（通道指针数组），
+                        // .NET 绑定把它收成了 `nint` ⇒ 还原成 `short**` 再取通道 0。
+                        var ch = ((short**)buf.Int16ChannelData)[0];
+                        for (var i = 0; i < BlockFrames; i++) ch[i] = MixScratch[i];
+                    }
+                    node.ScheduleBuffer(buf, (Action?)null);
+                    scheduled += BlockFrames;
+                    if (!node.Playing) node.Play();
+                    Thread.Sleep(blockMs);
+                }
+                else
+                {
+                    Thread.Sleep(2);   // 队列够了：短睡等它播掉一点（不空转烧 CPU）
+                }
             }
         }
         catch (Exception ex)

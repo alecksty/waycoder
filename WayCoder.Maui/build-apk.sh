@@ -80,7 +80,19 @@ fi
 #    这一步保证「打出来的包」与「当前工作树的 `Lib/`」一致。
 "$HERE/../scripts/make-vml-lib.sh"
 
-dotnet publish -f net10.0-android -c Release \
+# ⚠⚠ **必须用"装了 maui 工作负载"的那个 dotnet**（2026-09-27 实测踩到）：
+#   本机有两套 —— PATH 上的 `/opt/homebrew/bin/dotnet`（当前 SDK 波段下
+#   `dotnet workload list` 是**空的**）与 `/usr/local/share/dotnet/dotnet`（装了 maui）。
+#   用错那套的直接后果是 `error NETSDK1147: 要构建此项目，必须安装以下工作负载: maui-android`，
+#   而那条报错**完全看不出是"走错了 dotnet"**（读起来像"workload 没装"），实测为一句话白查一轮。
+#   想换回去：`WAYCODER_DOTNET=/path/to/dotnet ./build-apk.sh`。
+DOTNET="${WAYCODER_DOTNET:-}"
+if [[ -z "$DOTNET" ]]; then
+  if [[ -x /usr/local/share/dotnet/dotnet ]]; then DOTNET=/usr/local/share/dotnet/dotnet; else DOTNET=dotnet; fi
+fi
+echo "▸ 用 dotnet：$DOTNET"
+
+"$DOTNET" publish -f net10.0-android -c Release \
   -p:AndroidPackageFormat=apk \
   -p:AndroidKeyStore=true \
   -p:AndroidSigningKeyStore="$KS" \
