@@ -823,7 +823,7 @@ namespace BasicCompiler
         {
             // Read an integer from input
             instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 7) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 1), RegOf(OpCode.MOVE, 1, 0) }));
             if (stmt.Variables.Count > 0)
             {
                 var varIdent = stmt.Variables[0];
@@ -865,7 +865,7 @@ namespace BasicCompiler
 
             GenerateSubExpression(stmt.Expression, 0);
             if (!isFloat)
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 1), RegOf(OpCode.MOVE, 1, 0) }));
 
             int srcReg = isFloat ? 0 : 1;
             OpCode storeOp = isFloat ? OpCode.MOVEF : OpCode.MOVE;
@@ -896,9 +896,9 @@ namespace BasicCompiler
                     //  写进去的是 3e-323，后面按双精度读出来就是垃圾）。
                     storeOp = OpCode.MOVED;
                     if (exprType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, srcReg), new Operand(OperandType.REGISTER, srcReg) }));
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, srcReg), RegOf(OpCode.F2D, 1, srcReg) }));
                     else if (exprType != BasicType.Double && exprType != BasicType.Long)
-                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, srcReg), new Operand(OperandType.REGISTER, srcReg) }));
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, srcReg), RegOf(OpCode.I2D, 1, srcReg) }));
                 }
             }
             else if (stmt.Variable is Identifier fname
@@ -917,9 +917,9 @@ namespace BasicCompiler
                    （`FUNCTION GetNum#` 那种"双精度返回值"本前端不支持 —— 返回值就是 R0
                      里一个整数，如实如此，不是这里能顺手补的。） */
                 if (exprType == BasicType.Double || exprType == BasicType.Long)
-                    instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { RegOf(OpCode.D2I, 0, 0), RegOf(OpCode.D2I, 1, 0) }));
                 else if (exprType == BasicType.Single)
-                    instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { RegOf(OpCode.F2I, 0, 0), RegOf(OpCode.F2I, 1, 0) }));
                 storeOp = OpCode.MOVE;
                 srcReg = 0;
             }
@@ -951,7 +951,7 @@ namespace BasicCompiler
                 if (currentLocalVars.ContainsKey(varName))
                 {
                     int offset = LocalVarOffset(varName);
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, srcReg) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), RegOf(storeOp, 1, srcReg) }));
                 }
                 else
                 {
@@ -967,7 +967,7 @@ namespace BasicCompiler
                         // STATIC variable (scoped in globals)
                         string staticName = $"{currentSubName.ToLower()}__{ident.Name.ToLower()}";
                         int varOffset = variables[staticName] * 4;
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, srcReg) }));
+                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), RegOf(storeOp, 1, srcReg) }));
                     }
                     else if (currentClassName != null && classDefinitions.TryGetValue(currentClassName.ToLower(), out var clsDef))
                     {
@@ -986,14 +986,14 @@ namespace BasicCompiler
                             // THIS 指针位于 R12+8 (第一个参数)
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R12+8") }));
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, fieldOff) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), new Operand(OperandType.REGISTER, srcReg) }));
+                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 3), RegOf(OpCode.ADD, 1, 2) }));
+                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R3"), RegOf(storeOp, 1, srcReg) }));
                         }
                         else
                         {
                             // Not a field — create global variable
                             int varOffset = GetOrCreateVariable(ident.Name) * 4;
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, srcReg) }));
+                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), RegOf(storeOp, 1, srcReg) }));
                         }
                     }
                     else
@@ -1069,7 +1069,7 @@ namespace BasicCompiler
                     {
                         int baseOffset = LocalVarOffset(recordName);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
+                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 14) }));
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
                     }
                     else if (variables.ContainsKey(recordName))
@@ -1101,7 +1101,7 @@ namespace BasicCompiler
                 {
                     int baseOffset = LocalVarOffset(recordName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 14) }));
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 14) }));
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
                 }
                 else if (variables.ContainsKey(recordName))
@@ -1234,7 +1234,7 @@ namespace BasicCompiler
             // Increment
             EmitLoadLoopVarToR0();
             GenerateSubExpression(stmt.StepValue, 1);
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 1) }));
             // ⚠ 同理：step 求值（`GenerateSubExpression`）可能改掉 R3，存回去之前必须**重算地址**。
             EmitStoreR0ToLoopVar();
 
@@ -1484,7 +1484,7 @@ namespace BasicCompiler
                         {
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R12+8") }));
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, fieldOff) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 2) }));
+                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 3), RegOf(OpCode.ADD, 1, 2) }));
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, "R3") }));
                         }
                         else
@@ -1616,7 +1616,8 @@ namespace BasicCompiler
                         {
                             // reg == 1 就是**右操作数**的寄存器，直接写它会自毁 ⇒ 先做进 R2 再搬
                             instructions.Add(new Instruction(fop, new List<Operand> { Reg(2), Reg(2), Reg(1) }));
-                            instructions.Add(new Instruction(subDouble ? OpCode.MOVED : OpCode.MOVEF, new List<Operand> { Reg(1), Reg(2) }));
+                            OpCode mvOp = subDouble ? OpCode.MOVED : OpCode.MOVEF;
+                            instructions.Add(new Instruction(mvOp, new List<Operand> { RegOf(mvOp, 0, 1), RegOf(mvOp, 1, 2) }));
                         }
                         else
                         {
@@ -1862,11 +1863,11 @@ namespace BasicCompiler
             if (ParamSlotHoldsAddress(idx))
             {
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, $"R12+{off}") }));
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, srcReg) }));
+                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R2"), RegOf(storeOp, 1, srcReg) }));
             }
             else
             {
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{off}"), new Operand(OperandType.REGISTER, srcReg) }));
+                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{off}"), RegOf(storeOp, 1, srcReg) }));
             }
         }
 
@@ -1888,7 +1889,7 @@ namespace BasicCompiler
             else
             {
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, off) }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, reg), RegOf(OpCode.ADD, 1, 12) }));
             }
         }
 
@@ -1946,7 +1947,7 @@ namespace BasicCompiler
                         int offset = LocalVarOffset(ident.Name.ToLower());
                         // 计算局部变量地址: R12 + offset
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, reg), RegOf(OpCode.ADD, 1, 12) }));
                     }
                     // 检查是否为参数
                     else if (FindParameterIndex(ident.Name.ToLower()) >= 0)
@@ -1965,7 +1966,7 @@ namespace BasicCompiler
                         {
                             int off = GetVarByteOffset(ident.Name.ToLower());
                             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + off) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, reg), RegOf(OpCode.ADD, 1, 12) }));
                         }
                     }
                     else
@@ -2005,7 +2006,7 @@ namespace BasicCompiler
                 int offset = LocalVarOffset(varName);
                 BasicType varType = GetVariableType(varName);
                 OpCode storeOp = GetStoreInstruction(varType);
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), new Operand(OperandType.REGISTER, valueReg) }));
+                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12-{-offset}"), RegOf(storeOp, 1, valueReg) }));
             }
             else
             {
@@ -2153,7 +2154,7 @@ namespace BasicCompiler
                 if (size == 8)
                 {
                     AddRI(OpCode.SUB, 13, 8);
-                    AddInstruction(OpCode.MOVED, new Operand(OperandType.MEMORY, "R13"), Reg(0));
+                    AddInstruction(OpCode.MOVED, new Operand(OperandType.MEMORY, "R13"), RegOf(OpCode.MOVED, 1, 0));
                 }
                 else
                 {
@@ -2211,7 +2212,8 @@ namespace BasicCompiler
             if (target == BasicType.Double || target == BasicType.Long)
             {
                 if (src == BasicType.Double || src == BasicType.Long) return;
-                AddRR(src == BasicType.Single ? OpCode.F2D : OpCode.I2D, 0, 0);
+                OpCode cvtOp = src == BasicType.Single ? OpCode.F2D : OpCode.I2D;
+                AddInstruction(cvtOp, RegOf(cvtOp, 0, 0), RegOf(cvtOp, 1, 0));
             }
             else if (target == BasicType.Single)
             {
@@ -2241,14 +2243,14 @@ namespace BasicCompiler
                     // 已经是双精度：原样
                 }
                 else if (operandType.IsFloat())
-                    instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+                    instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, 1), RegOf(OpCode.F2D, 1, 1) }));
                 else
-                    instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+                    instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, 1), RegOf(OpCode.I2D, 1, 1) }));
             }
             else
             {
                 if (!operandType.IsFloat() && !operandType.IsDouble())
-                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1) }));
+                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { RegOf(OpCode.I2F, 0, 1), RegOf(OpCode.I2F, 1, 1) }));
             }
         }
 
@@ -2463,9 +2465,9 @@ namespace BasicCompiler
                     GenerateSubExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { RegOf(OpCode.I2F, 0, reg), RegOf(OpCode.I2F, 1, reg) }));
                     else if (argType == BasicType.Double)
-                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { RegOf(OpCode.D2F, 0, reg), RegOf(OpCode.D2F, 1, reg) }));
                     _lastExprFloatType = BasicType.Single;
                     return;
                 }
@@ -2474,9 +2476,9 @@ namespace BasicCompiler
                     GenerateSubExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, reg), RegOf(OpCode.I2D, 1, reg) }));
                     else if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, reg), RegOf(OpCode.F2D, 1, reg) }));
                     _lastExprFloatType = BasicType.Double;
                     return;
                 }
@@ -2485,9 +2487,9 @@ namespace BasicCompiler
                     GenerateSubExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, reg), RegOf(OpCode.I2D, 1, reg) }));
                     else if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, reg), RegOf(OpCode.F2D, 1, reg) }));
                     _lastExprFloatType = BasicType.Double;
                     return;
                 }
@@ -2496,9 +2498,9 @@ namespace BasicCompiler
                     GenerateSubExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { RegOf(OpCode.F2I, 0, reg), RegOf(OpCode.F2I, 1, reg) }));
                     else if (argType == BasicType.Double)
-                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { RegOf(OpCode.D2I, 0, reg), RegOf(OpCode.D2I, 1, reg) }));
                     _lastExprFloatType = null;
                     return;
                 }
@@ -2553,7 +2555,7 @@ namespace BasicCompiler
             // Return value is in R0
             if (reg != 0)
             {
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, 0) }));
             }
         }
 

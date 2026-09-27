@@ -110,9 +110,9 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
             // Compute address: dynamic_base + ptr * 4
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 0), RegOf(OpCode.MUL, 1, 1) }));
             EmitStaticAddr(1, STATIC_DATA_OFFSET);
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 1) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, "R0") }));
         }
 
@@ -164,7 +164,7 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, slEnd) }));
             instructions.Add(new Instruction(OpCode.NOP, new List<Operand>())); // delay
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) }));
-            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 0), RegOf(OpCode.SUB, 1, 1) }));
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, slStart) }));
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, slEnd) }));
         }
@@ -348,7 +348,7 @@ namespace BasicCompiler
             {
                 // D0 → F0（basic_str_single 收单精度）
                 instructions.Add(new Instruction(OpCode.D2F,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                    [RegOf(OpCode.D2F, 0, 0), RegOf(OpCode.D2F, 1, 0)]));
             }
             // 压实参：F0 写进栈顶那一格（= 被调方的 [R12+8]）
             instructions.Add(new Instruction(OpCode.SUB,
@@ -373,7 +373,7 @@ namespace BasicCompiler
             // 使用 R1 作为临时寄存器保存值
             if (reg != 1)
             {
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, reg) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 1), RegOf(OpCode.MOVE, 1, reg) }));
             }
 
             // 检查是否为负数
@@ -402,7 +402,7 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0) }));
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
             // 计算余数 (R1 % 10)
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 2), RegOf(OpCode.MOVE, 1, 1) }));
             instructions.Add(new Instruction(OpCode.MOD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 10) }));
             // 转换为字符并保存到栈
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, (int)'0') }));
@@ -411,7 +411,7 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 1) }));
             // 计算商 (R1 / 10)
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 10) }));
-            instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 3) }));
+            instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { RegOf(OpCode.DIV, 0, 1), RegOf(OpCode.DIV, 1, 3) }));
             // 检查是否为零
             instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0) }));
             instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
@@ -471,10 +471,10 @@ namespace BasicCompiler
             // 转换为数字: digit = char - '0'
             instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, (int)'0') }));
             // 保存 digit，然后 结果 = 结果 * 10 + digit (R0=digit from InputChar, R3=accumulated result)
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0) })); // R2 = digit
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 2), RegOf(OpCode.MOVE, 1, 0) })); // R2 = digit
             AddRI(OpCode.MOVE, 0, 10);
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, resReg), new Operand(OperandType.REGISTER, 0) })); // res *= 10
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, resReg), new Operand(OperandType.REGISTER, 2) })); // res += digit
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, resReg), RegOf(OpCode.MUL, 1, 0) })); // res *= 10
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, resReg), RegOf(OpCode.ADD, 1, 2) })); // res += digit
             // 继续输入下一个字符
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, startLabel) }));
 
@@ -488,7 +488,7 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, negLabel) }));
             // Move result to R0 for caller (INPUT stores R0 to variable)
             if (resReg != 0)
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, resReg) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 0), RegOf(OpCode.MOVE, 1, resReg) }));
         }
 
         private void GenerateInputStatement(InputStatement stmt)
@@ -550,7 +550,7 @@ namespace BasicCompiler
                     {
                         // 局部变量
                         int offset = LocalVarOffset(variable.Name.ToLower());
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
+                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, RegOf(storeOp, 1, 0)) }));
                     }
                     else
                     {
@@ -559,7 +559,7 @@ namespace BasicCompiler
                         if (paramIdx >= 0)
                         {
                             int offset = 8 + paramIdx * 4;
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, 0) }));
+                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R14+{offset}"), new Operand(OperandType.REGISTER, RegOf(storeOp, 1, 0)) }));
                         }
                         else if (variables.ContainsKey(variable.Name.ToLower()))
                         {

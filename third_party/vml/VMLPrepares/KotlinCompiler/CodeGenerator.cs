@@ -195,7 +195,7 @@ public partial class CodeGenerator : OopCodeGenerator {
             } else {
                 EmitLoadConstant(vt switch { "Double" => (object)0.0, "Float" => 0f, "Long" => 0L, _ => 0 });
             }
-            instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, _globalLabel[gv.Name]), new Operand(OperandType.REGISTER, 0)]));
+            instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, _globalLabel[gv.Name]), new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(StoreOpFor(vt), 1))]));
         }
     }
 
@@ -227,14 +227,14 @@ public partial class CodeGenerator : OopCodeGenerator {
                 }
                 // store to local frame (类型感知: Float→MOVEF, Double→MOVED, Long→MOVEL)
                 int off = AllocVar(vd.Name, vt);
-                instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, 0)]));
+                instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(StoreOpFor(vt), 1))]));
                 break;
             }
             case IntLiteral i: {
     if (i.Value >= int.MinValue && i.Value <= int.MaxValue)
         instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, (int)i.Value)]));
     else
-        instructions.Add(new(OpCode.MOVEL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, i.Value)]));
+        instructions.Add(new(OpCode.MOVEL, [new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(OpCode.MOVEL, 0)), new Operand(OperandType.IMMEDIATE, i.Value)]));
     break;
 }
             case StringLiteral s: {
@@ -288,11 +288,11 @@ public partial class CodeGenerator : OopCodeGenerator {
                 if (vr.Name == "__when_val__") {
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "(R13)")]));
                 } else if (_varOffsets.TryGetValue(vr.Name, out int off)) {
-                    instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{off + 12}")]));
+                    instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(LoadOpFor(VarType(vr.Name)), 0)), new Operand(OperandType.MEMORY, $"R12-{off + 12}")]));
                 } else if (_globalLabel.TryGetValue(vr.Name, out var glabel)) {
                     // 顶层属性：从数据段读。**这条分支以前没有** —— 查不到局部偏移就什么都不生成，
                     // R0 留着上一步的残值，读出来永远是 0（台账那条"顶层 arrayOf 读回是 0"的真身）。
-                    instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, glabel)]));
+                    instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(LoadOpFor(VarType(vr.Name)), 0)), new Operand(OperandType.MEMORY, glabel)]));
                 } else if (_varOffsets.TryGetValue("this", out int thisOff)) {
                     // Try to resolve as property of 'this'
                     foreach (var cd in _classDefs.Values) {
@@ -392,7 +392,7 @@ public partial class CodeGenerator : OopCodeGenerator {
                     if (_varOffsets.TryGetValue(a.Name, out int off)) {
                         string vt = VarType(a.Name);
                         EmitKotlinConvert(a.Value, vt);
-                        instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, 0)]));
+                        instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(StoreOpFor(vt), 1))]));
                     } else if (_globalLabel.TryGetValue(a.Name, out var gstore)) {
                         // 顶层 `var` 赋值：写回数据段（与读那条对称，别再漏一次）
                         string vt = VarType(a.Name);
@@ -901,8 +901,12 @@ public partial class CodeGenerator : OopCodeGenerator {
                     if (is64Bit) {
                         // Push 8 bytes for double/long: SUB R13,8 + MOVED/MOVEL @R13,R0
                         instructions.Add(new(OpCode.SUB, [Reg(13), Imm(8)]));
-                        instructions.Add(new(arg is DoubleLiteral ? OpCode.MOVED : OpCode.MOVEL,
-                            [new Operand(OperandType.INDIRECT, 13), Reg(0)]));
+                        // ⚠ 源寄存器要跟着 op 走（`MOVED`/`MOVEL` 的源必须是 D0/L0）——
+                        //   写死 `Reg(0)` 会让 64 位实参压栈被寄存器类闸门拦下（与上面 237 行同款）。
+                        var pushOp = arg is DoubleLiteral ? OpCode.MOVED : OpCode.MOVEL;
+                        instructions.Add(new(pushOp,
+                            [new Operand(OperandType.INDIRECT, 13),
+                             new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(pushOp, 1))]));
                         totalStackBytes += 8;
                     } else {
                         instructions.Add(new(OpCode.PUSH, [Reg(0)]));
@@ -1184,6 +1188,14 @@ public partial class CodeGenerator : OopCodeGenerator {
         return off;
     }
 
+    // ⚠ **用这两个 helper 选 op 的地方，寄存器号必须跟着 op 走**（2026-09-27 修）：
+    //   `Long` ⇒ `MOVEL`、`Double` ⇒ `MOVED`，它们的源/目标必须是**异类寄存器**
+    //   （`L0`=24 / `D0`=16），写死 `R0`（=0）会让汇编期的寄存器类闸门直接拦下
+    //   （「MOVEL 的第 2 个操作数要 L0–L7，给的是 R0」），整份程序编不过。
+    //   正解是 `VMLAssembler.RegisterClassTable.BankOfOperand(op, index)` ——
+    //   与**校验用的是同一张表**，免得"发射一个类、校验另一个类"（本仓头号坑）。
+    //   同一个毛病在 Python 上已经炸过一次（`Examples/python/tetris.py` 的 5 个 0xFF 颜色常量），
+    //   这里是同款写法的第二、三处。
     static OpCode StoreOpFor(string type) => type switch {
         "Float" => OpCode.MOVEF,
         "Double" => OpCode.MOVED,

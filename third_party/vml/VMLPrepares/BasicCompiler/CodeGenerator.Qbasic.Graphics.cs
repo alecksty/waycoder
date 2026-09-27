@@ -202,10 +202,10 @@ public partial class CodeGenerator
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R2") })); // width
         SysAddr(3, Sys.ScreenHeight);
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R3") })); // height
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) })); // width*height
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 2), RegOf(OpCode.MUL, 1, 3) })); // width*height
         SysAddr(3, Sys.ScreenBpp);
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R3") })); // bpp
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3) })); // total bytes
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 2), RegOf(OpCode.MUL, 1, 3) })); // total bytes
         // Clear loop
         string gfxClsLoop = newLabel(), gfxClsEnd = newLabel();
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, gfxClsLoop) }));
@@ -345,34 +345,34 @@ string loop = newLabel();
 
             // Look up color in palette: addr = 调色板基址 + color_index * 3
             EmitLoadScreenBpp(5);
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 2), RegOf(OpCode.MUL, 1, 5) }));
         SysAddr(5, Sys.Palette16);
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 5) }));
 
         // Load R, G, B from palette
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R2") }));
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 1) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 5) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R2") }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 5) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.MEMORY, "R2") }));
 
         // Write pixel: 帧缓冲基址 + (y * 320 + x) * 3
         // path: R6 是这一带的临时寄存器（刚做完 bpp 的乘法，已经用完了）—— 复用它装基址。
         EmitLoadScreenWidth(6);
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 1), RegOf(OpCode.MUL, 1, 6) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 0) }));
             EmitLoadScreenBpp(6);
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 1), RegOf(OpCode.MUL, 1, 6) }));
         FbBase(6);
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 6) }));
 
         // Bounds check: skip pixel write if address outside framebuffer
         string psetSkip = newLabel();
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 1), RegOf(OpCode.CMP, 1, 6) }));
         instructions.Add(new Instruction(OpCode.JL, new List<Operand> { new Operand(OperandType.LABEL, psetSkip) }));
         FbBasePlus(6, 1024 * 1024);   // 上界（老代码是「固定地址 + 1MB」）
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 1), RegOf(OpCode.CMP, 1, 6) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, psetSkip) }));
 
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.MEMORY, "R1") }));
@@ -388,10 +388,10 @@ string loop = newLabel();
         // === Mode 13 path: write 1 byte (color index), no scaling ===
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, mode13Label) }));
             EmitLoadScreenWidth(5);
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 5) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 1), RegOf(OpCode.MUL, 1, 5) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 0) }));
         FbBase(5);   // R5 是上面那个乘法的临时寄存器，用完即取基址
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 5) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.MEMORY, "R1") }));
 
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, modeEndLabel) }));
@@ -435,9 +435,9 @@ string loop = newLabel();
             string boxMode13 = newLabel();
             string boxModeEnd = newLabel();
             EmitGfxCheckBpp(boxMode13, 5);
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 9), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 8), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 9), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 10), RegOf(OpCode.MOVE, 1, 4) }));
             if (stmt.Fill)
             {
                 GenerateQbBoxFill(stmt);
@@ -475,25 +475,25 @@ string loop = newLabel();
 
         // bpp=1 indexed: color IS the palette index, no lookup needed
         // R5=R6=R7=R4 (color index for pixel writes)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 5), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 4) }));
 
         // Now R5=R, R6=G, R7=B, R0=x1, R1=y1, R2=x2, R3=y3
         // For simplicity, use VGADRAWLINE-style inline Bresenham
         // Store color regs somewhere safe
         // bpp=1: color IS the index (R4 unchanged from expression eval)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 9), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 8), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 9), RegOf(OpCode.MOVE, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 10), RegOf(OpCode.MOVE, 1, 4) }));
 
         // Save start/end (use R14 for x2 to preserve R9=G color component)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 0) })); // x1
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 14), new Operand(OperandType.REGISTER, 2) })); // x2 in R14
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 11), RegOf(OpCode.MOVE, 1, 0) })); // x1
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 14), RegOf(OpCode.MOVE, 1, 2) })); // x2 in R14
 
         // Calculate dx = |x2 - x1|
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 2) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 5), RegOf(OpCode.MOVE, 1, 2) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 5), RegOf(OpCode.SUB, 1, 0) }));
         string lAbsDx = newLabel();
         string eAbsDx = newLabel();
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0) }));
@@ -502,8 +502,8 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lAbsDx) }));
 
         // Calculate dy = |y2 - y1|
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 3) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 3) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 6), RegOf(OpCode.SUB, 1, 1) }));
         string lAbsDy = newLabel();
         string eAbsDy = newLabel();
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, 0) }));
@@ -517,34 +517,34 @@ string loop = newLabel();
         string lineEnd = newLabel();
 
         // Determine steps (max of dx, dy)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 5) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 7) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 5) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 6), RegOf(OpCode.CMP, 1, 7) }));
         string lSteps = newLabel();
         instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, lSteps) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 6) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lSteps) }));
 
         // Save y1 in R14 (preserved)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 14), new Operand(OperandType.REGISTER, 1) })); // saved_y1 in R14
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 14), RegOf(OpCode.MOVE, 1, 1) })); // saved_y1 in R14
         
         // Draw each point along the line
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 0) })); // step counter
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lineLoop) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 7) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 4), RegOf(OpCode.CMP, 1, 7) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, lineEnd) }));
 
         // Compute current point: x = x1 + (x2-x1) * step / steps, y = y1 + (y2-y1) * step / steps
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 2) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 11) }));
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 7) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 11) })); // cx
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 5), RegOf(OpCode.MOVE, 1, 2) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 5), RegOf(OpCode.SUB, 1, 11) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 5), RegOf(OpCode.MUL, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { RegOf(OpCode.DIV, 0, 5), RegOf(OpCode.DIV, 1, 7) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 5), RegOf(OpCode.ADD, 1, 11) })); // cx
 
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 3) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 14) })); // use saved_y1 (R14)
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 4) }));
-        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 7) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 14) })); // cy = y1 + dy*step/steps
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 3) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 6), RegOf(OpCode.SUB, 1, 14) })); // use saved_y1 (R14)
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 6), RegOf(OpCode.MUL, 1, 4) }));
+        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { RegOf(OpCode.DIV, 0, 6), RegOf(OpCode.DIV, 1, 7) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 6), RegOf(OpCode.ADD, 1, 14) })); // cy = y1 + dy*step/steps
 
         // Write pixel at (cx, cy)
         // R5 = cx, R6 = cy
@@ -577,7 +577,7 @@ string loop = newLabel();
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lineSkipPx) }));
 
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 1) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 4), RegOf(OpCode.ADD, 1, 1) }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, lineLoop) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lineEnd) }));
         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, qbLineEndLabel) }));
@@ -599,57 +599,57 @@ string loop = newLabel();
         }
 
         // Save start and end points (don't use R11/R12 - R12 is BP)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 11), new Operand(OperandType.REGISTER, 0) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 9), new Operand(OperandType.REGISTER, 2) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 11), RegOf(OpCode.MOVE, 1, 0) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 9), RegOf(OpCode.MOVE, 1, 2) }));
         // dx = |x2 - x1|
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 2) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 0) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 5), RegOf(OpCode.MOVE, 1, 2) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 5), RegOf(OpCode.SUB, 1, 0) }));
         string lAbsDxa = newLabel();
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, lAbsDxa) }));
         instructions.Add(new Instruction(OpCode.NEG, new List<Operand> { new Operand(OperandType.REGISTER, 5) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lAbsDxa) }));
         // dy = |y2 - y1|
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 3) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 3) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 6), RegOf(OpCode.SUB, 1, 1) }));
         string lAbsDya = newLabel();
         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, lAbsDya) }));
         instructions.Add(new Instruction(OpCode.NEG, new List<Operand> { new Operand(OperandType.REGISTER, 6) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lAbsDya) }));
         // steps = max(dx, dy)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 5) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 7) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 5) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 6), RegOf(OpCode.CMP, 1, 7) }));
         string lStepsa = newLabel();
         instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, lStepsa) }));
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 6) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lStepsa) }));
         // Loop: draw each point
         string qbLine13Loop = newLabel();
         string qbLine13End = newLabel();
         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.IMMEDIATE, 0) }));
         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, qbLine13Loop) }));
-        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 7) }));
+        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 8), RegOf(OpCode.CMP, 1, 7) }));
         instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, qbLine13End) }));
         // cx = x1 + (x2-x1) * step / steps  (x2 saved in R9)
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 9) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 11) }));
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 8) }));
-        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 7) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 11) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 5), RegOf(OpCode.MOVE, 1, 9) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 5), RegOf(OpCode.SUB, 1, 11) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 5), RegOf(OpCode.MUL, 1, 8) }));
+        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { RegOf(OpCode.DIV, 0, 5), RegOf(OpCode.DIV, 1, 7) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 5), RegOf(OpCode.ADD, 1, 11) }));
         // cy = y1 + (y2-y1) * step / steps
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 3) }));
-        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 8) }));
-        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 7) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 3) }));
+        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 6), RegOf(OpCode.SUB, 1, 1) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 6), RegOf(OpCode.MUL, 1, 8) }));
+        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { RegOf(OpCode.DIV, 0, 6), RegOf(OpCode.DIV, 1, 7) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 6), RegOf(OpCode.ADD, 1, 1) }));
         // Write 1 byte at 帧缓冲基址 + cy*320 + cx
-        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 6) }));
+        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 0), RegOf(OpCode.MOVE, 1, 6) }));
             EmitLoadScreenWidth(10);
-        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 10) }));
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 5) }));
+        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 0), RegOf(OpCode.MUL, 1, 10) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 5) }));
         FbBase(10);
-        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 10) }));
+        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 10) }));
         instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R0") }));
         // Increment step
         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.IMMEDIATE, 1) }));

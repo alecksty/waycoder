@@ -250,21 +250,24 @@ namespace BasicCompiler
         /// </summary>
         private void EmitLoadVar(int reg, string name)
         {
+            OpCode loadOp = GetLoadInstruction(GetVariableType(name));
             if (IsGlobalVar(name))
             {
                 EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
                 // ⚠ 读也要**按类型**（MOVEF/MOVED/MOVEL）—— 与 EmitStoreVar 的
                 //   `GetStoreInstruction(GetVariableType(name))` 对称。固定发 MOVE 的话，
                 //   浮点/64 位全局变量会写进 F 寄存器组、却用整数寄存器读回来（值进不了目标组）。
-                instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(name)), new List<Operand>
+                // ⚠ 目标操作数还要**按该指令的寄存器类**进编号空间（`MOVED` 的目标是 `Dn`
+                //   而非 `Rn`）—— 与汇编期校验同表，见 <see cref="RegOf"/>。
+                instructions.Add(new Instruction(loadOp, new List<Operand>
                 {
-                    new Operand(OperandType.REGISTER, reg), new Operand(OperandType.INDIRECT, reg)
+                    RegOf(loadOp, 0, reg), new Operand(OperandType.INDIRECT, reg)
                 }));
                 return;
             }
-            instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(name)), new List<Operand>
+            instructions.Add(new Instruction(loadOp, new List<Operand>
             {
-                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(name))
+                RegOf(loadOp, 0, reg), new Operand(OperandType.MEMORY, VarMemRef(name))
             }));
         }
 
@@ -276,18 +279,19 @@ namespace BasicCompiler
         /// </summary>
         private void EmitStoreVar(string name, int srcReg)
         {
+            OpCode storeOp = GetStoreInstruction(GetVariableType(name));
             if (IsGlobalVar(name))
             {
                 EmitStaticAddr(2, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
-                instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
+                instructions.Add(new Instruction(storeOp, new List<Operand>
                 {
-                    new Operand(OperandType.INDIRECT, 2), new Operand(OperandType.REGISTER, srcReg)
+                    new Operand(OperandType.INDIRECT, 2), RegOf(storeOp, 1, srcReg)
                 }));
                 return;
             }
-            instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
+            instructions.Add(new Instruction(storeOp, new List<Operand>
             {
-                new Operand(OperandType.MEMORY, VarMemRef(name)), new Operand(OperandType.REGISTER, srcReg)
+                new Operand(OperandType.MEMORY, VarMemRef(name)), RegOf(storeOp, 1, srcReg)
             }));
         }
 

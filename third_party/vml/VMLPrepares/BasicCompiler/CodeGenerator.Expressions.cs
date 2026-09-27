@@ -45,7 +45,7 @@ namespace BasicCompiler
             if (_lastExprFloatType != null)
             {
                 var convOp = _lastExprFloatType == BasicType.Double ? OpCode.D2I : OpCode.F2I;
-                instructions.Add(new Instruction(convOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                instructions.Add(new Instruction(convOp, new List<Operand> { RegOf(convOp, 0, reg), RegOf(convOp, 1, reg) }));
                 _lastExprFloatType = null;
             }
         }
@@ -261,16 +261,16 @@ namespace BasicCompiler
                             if (rightReg == reg) {
                                 if (binary.Operator == "-" || binary.Operator == "/" || binary.Operator == "\\" || binary.Operator == "MOD") {
                                     // Non-commutative: save right value (in reg) to R0 before MOVE clobbers it
-                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, reg) }));
-                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
-                                    instructions.Add(new Instruction(arithmeticOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 0), RegOf(OpCode.MOVE, 1, reg) }));
+                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, leftReg) }));
+                                    instructions.Add(new Instruction(arithmeticOp, new List<Operand> { RegOf(arithmeticOp, 0, reg), RegOf(arithmeticOp, 1, 0) }));
                                 } else {
                                     // Commutative: right already in reg, just op with leftReg
-                                    instructions.Add(new Instruction(arithmeticOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
+                                    instructions.Add(new Instruction(arithmeticOp, new List<Operand> { RegOf(arithmeticOp, 0, reg), RegOf(arithmeticOp, 1, leftReg) }));
                                 }
                             } else {
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
-                                instructions.Add(new Instruction(arithmeticOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rightReg) }));
+                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, leftReg) }));
+                                instructions.Add(new Instruction(arithmeticOp, new List<Operand> { RegOf(arithmeticOp, 0, reg), RegOf(arithmeticOp, 1, rightReg) }));
                             }
                         } else {
                             instructions.Add(new Instruction(arithmeticOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rightReg) }));
@@ -288,7 +288,7 @@ namespace BasicCompiler
                         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, powLoop) }));
                         instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, expReg), new Operand(OperandType.IMMEDIATE, 0) }));
                         instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, powEnd) }));
-                        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, baseReg) }));
+                        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, reg), RegOf(OpCode.MUL, 1, baseReg) }));
                         instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, expReg), new Operand(OperandType.IMMEDIATE, 1) }));
                         instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, powLoop) }));
                         instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, powEnd) }));
@@ -302,7 +302,7 @@ namespace BasicCompiler
                     case ">=":
                         // 使用类型敏感的比较指令
                         OpCode compareOp = ExpressionManager.SelectCompareOp(isFloat, resultType.IsDouble());
-                        instructions.Add(new Instruction(compareOp, new List<Operand> { new Operand(OperandType.REGISTER, leftReg), new Operand(OperandType.REGISTER, rightReg) }));
+                        instructions.Add(new Instruction(compareOp, new List<Operand> { RegOf(compareOp, 0, leftReg), RegOf(compareOp, 1, rightReg) }));
                         
                         // 根据运算符选择跳转指令
                         OpCode jumpOp = OpCode.JMP;
@@ -329,19 +329,19 @@ namespace BasicCompiler
                     case "AND":
                         if (rightReg == reg) {
                             // Commutative: right already in reg
-                            instructions.Add(new Instruction(OpCode.AND, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
+                            instructions.Add(new Instruction(OpCode.AND, new List<Operand> { RegOf(OpCode.AND, 0, reg), RegOf(OpCode.AND, 1, leftReg) }));
                         } else {
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
-                            instructions.Add(new Instruction(OpCode.AND, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rightReg) }));
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, leftReg) }));
+                            instructions.Add(new Instruction(OpCode.AND, new List<Operand> { RegOf(OpCode.AND, 0, reg), RegOf(OpCode.AND, 1, rightReg) }));
                         }
                         break;
                     case "OR":
                         if (rightReg == reg) {
                             // Commutative: right already in reg
-                            instructions.Add(new Instruction(OpCode.OR, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
+                            instructions.Add(new Instruction(OpCode.OR, new List<Operand> { RegOf(OpCode.OR, 0, reg), RegOf(OpCode.OR, 1, leftReg) }));
                         } else {
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
-                            instructions.Add(new Instruction(OpCode.OR, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rightReg) }));
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, leftReg) }));
+                            instructions.Add(new Instruction(OpCode.OR, new List<Operand> { RegOf(OpCode.OR, 0, reg), RegOf(OpCode.OR, 1, rightReg) }));
                         }
                         break;
                 }
@@ -618,9 +618,9 @@ namespace BasicCompiler
                     GenerateExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { RegOf(OpCode.I2F, 0, reg), RegOf(OpCode.I2F, 1, reg) }));
                     else if (argType == BasicType.Double)
-                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.D2F, new List<Operand> { RegOf(OpCode.D2F, 0, reg), RegOf(OpCode.D2F, 1, reg) }));
                     _lastExprFloatType = BasicType.Single;
                     return;
                 }
@@ -629,9 +629,9 @@ namespace BasicCompiler
                     GenerateExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, reg), RegOf(OpCode.I2D, 1, reg) }));
                     else if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, reg), RegOf(OpCode.F2D, 1, reg) }));
                     _lastExprFloatType = BasicType.Double;
                     return;
                 }
@@ -640,9 +640,9 @@ namespace BasicCompiler
                     GenerateExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Integer)
-                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { RegOf(OpCode.I2D, 0, reg), RegOf(OpCode.I2D, 1, reg) }));
                     else if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2D, new List<Operand> { RegOf(OpCode.F2D, 0, reg), RegOf(OpCode.F2D, 1, reg) }));
                     _lastExprFloatType = BasicType.Double;
                     return;
                 }
@@ -651,9 +651,9 @@ namespace BasicCompiler
                     GenerateExpression(funcCall.Arguments[0], reg);
                     BasicType argType = InferExpressionType(funcCall.Arguments[0]);
                     if (argType == BasicType.Single)
-                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.F2I, new List<Operand> { RegOf(OpCode.F2I, 0, reg), RegOf(OpCode.F2I, 1, reg) }));
                     else if (argType == BasicType.Double)
-                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg) }));
+                        instructions.Add(new Instruction(OpCode.D2I, new List<Operand> { RegOf(OpCode.D2I, 0, reg), RegOf(OpCode.D2I, 1, reg) }));
                     _lastExprFloatType = null;
                     return;
                 }
@@ -712,7 +712,7 @@ namespace BasicCompiler
 
             if (reg != 0)
             {
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, 0) }));
             }
         }
 
@@ -893,7 +893,7 @@ namespace BasicCompiler
                     {
                         instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, stride) }));
                     }
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 2) }));
                 }
             }
             
@@ -967,7 +967,7 @@ namespace BasicCompiler
             }
 
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, elemBytes) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 1) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 2), RegOf(OpCode.ADD, 1, 1) }));
 
             if (storeReg >= 0)
             {
@@ -982,7 +982,7 @@ namespace BasicCompiler
                 // 地址 → 目标寄存器（`reg == 2` 时已经在里面了）
                 if (reg != 2)
                 {
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, 2) }));
                 }
 
                 if (!addressOnly)
@@ -1123,7 +1123,7 @@ namespace BasicCompiler
         private void GenerateArrayAssignment(ArrayAccessExpression arrayAccess, int valueReg)
         {
             // 值先落 **R3**（`GenerateArrayElementAddr` 算地址要用 R1/R2）
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, valueReg) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 3), RegOf(OpCode.MOVE, 1, valueReg) }));
 
             if (!GenerateArrayElementAddr(arrayAccess, 0, storeReg: 3))
             {
@@ -1204,7 +1204,7 @@ namespace BasicCompiler
 
                 // R2 holds base address of array element, add field offset, then load
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, fieldOff) }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, reg), RegOf(OpCode.ADD, 1, 2) }));
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
                 return;
             }
@@ -1252,7 +1252,7 @@ namespace BasicCompiler
                 {
                     int offset = LocalVarOffset(recordName);
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 14) }));
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, reg), RegOf(OpCode.ADD, 1, 14) }));
                 }
                 else if (variables.ContainsKey(recordName))
                 {

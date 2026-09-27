@@ -155,28 +155,28 @@ namespace CompilerBase
             {
                 case ExpLoc.Reg:
                     if (v.RegNum != 0)
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, v.RegNum)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v), A(v, v.RegNum)]);
                     break;
                 case ExpLoc.Stack:
                     if (v.IsReference)
                     {
                         _emit(OpCode.MOVE, [R(0), Mem(v.FormatOffset())]);
-                        _emit(op, [A(v.Type), Mem("R0")]);
+                        _emit(op, [A(v), Mem("R0")]);
                     }
                     else
-                        _emit(op, [A(v.Type), Mem(v.FormatOffset())]);
+                        _emit(op, [A(v), Mem(v.FormatOffset())]);
                     break;
                 case ExpLoc.Data:
                     if (v.IsReference)
                     {
                         _emit(OpCode.MOVE, [R(0), Mem(v.Label!)]);
-                        _emit(op, [A(v.Type), Mem("R0")]);
+                        _emit(op, [A(v), Mem("R0")]);
                     }
                     else
-                        _emit(op, [A(v.Type), Mem(v.Label!)]);
+                        _emit(op, [A(v), Mem(v.Label!)]);
                     break;
                 case ExpLoc.Imm:
-                    _emit(SelectMoveOp(v.ByteSize, false, false, v.IsLong), [A(v.Type), Imm(v.ImmValue!)]);
+                    _emit(SelectMoveOp(v.ByteSize, false, false, v.IsLong), [A(v), Imm(v.ImmValue!)]);
                     break;
             }
         }
@@ -189,31 +189,31 @@ namespace CompilerBase
             {
                 case ExpLoc.Reg:
                     if (v.RegNum != 0)
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, v.RegNum), A(v.Type)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v, v.RegNum), A(v)]);
                     break;
                 case ExpLoc.Stack:
                     if (v.IsReference)
                     {
                         // 引用槽：值搬进本类 1 号寄存器（类型化 MOVE，别用 32 位 MOVE）
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, 1), A(v.Type)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v, 1), A(v)]);
                         _emit(OpCode.MOVE, [R(0), Mem(v.FormatOffset())]);
-                        _emit(op, [Mem("R0"), A(v.Type, 1)]);   // 统一 store: dest=mem, src=reg
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, 1)]);
+                        _emit(op, [Mem("R0"), A(v, 1)]);   // 统一 store: dest=mem, src=reg
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v), A(v, 1)]);
                     }
                     else
-                        _emit(op, [Mem(v.FormatOffset()), A(v.Type)]);  // 统一 store: dest=mem, src=reg
+                        _emit(op, [Mem(v.FormatOffset()), A(v)]);  // 统一 store: dest=mem, src=reg
                     break;
                 case ExpLoc.Data:
                     if (v.IsReference)
                     {
                         // 引用槽：值搬进本类 1 号寄存器（类型化 MOVE，别用 32 位 MOVE）
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, 1), A(v.Type)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v, 1), A(v)]);
                         _emit(OpCode.MOVE, [R(0), Mem(v.Label!)]);
-                        _emit(op, [Mem("R0"), A(v.Type, 1)]);   // 统一 store: dest=mem, src=reg
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, 1)]);
+                        _emit(op, [Mem("R0"), A(v, 1)]);   // 统一 store: dest=mem, src=reg
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v), A(v, 1)]);
                     }
                     else
-                        _emit(op, [Mem(v.Label!), A(v.Type)]);  // 统一 store: dest=mem, src=reg
+                        _emit(op, [Mem(v.Label!), A(v)]);  // 统一 store: dest=mem, src=reg
                     break;
                 // Imm 不存储
             }
@@ -223,14 +223,14 @@ namespace CompilerBase
         public void EmitPush(ExpVar v)
         {
             EmitLoad(v);
-            _emit(SelectPushOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type)]);
+            _emit(SelectPushOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v)]);
         }
 
         /// <summary>从栈 Pop 到 ExpVar</summary>
         public void EmitPop(ExpVar v)
         {
             var op = SelectPopOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong);
-            _emit(op, [v.Loc == ExpLoc.Reg ? A(v.Type, v.RegNum) : A(v.Type)]);
+            _emit(op, [v.Loc == ExpLoc.Reg ? A(v, v.RegNum) : A(v)]);
             if (v.Loc != ExpLoc.Reg || v.RegNum == 0)
                 EmitStore(v);
         }
@@ -285,7 +285,7 @@ namespace CompilerBase
         public ExpVar EmitNeg(ExpVar v)
         {
             EmitLoad(v);
-            _emit(SelectNegOp(v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type)]);
+            _emit(SelectNegOp(v.IsFloat, v.IsDouble, v.IsLong), [A(v), A(v)]);
             return ExpVar.Reg(0, v.Type);
         }
 
@@ -1030,6 +1030,22 @@ namespace CompilerBase
 
         /// <summary>该类型的第 n 号寄存器（n=1/2 是表达式求值用的临时寄存器）。</summary>
         private static Operand A(ExpType t, int n) => new(OperandType.REGISTER, t.BankBase() + n);
+
+        /// <summary>
+        /// <paramref name="v"/> 所在**本类**的第 <paramref name="n"/> 号寄存器。
+        ///
+        /// <para>
+        /// ⚠ 类**由 <c>(ByteSize, IsFloat, IsDouble, IsLong)</c> 这组标志裁决** —— 也就是
+        /// 与 `SelectLoadOp`/`SelectStoreUnifiedOp`/`SelectPushOp` 取 <c>op</c> 的**同一组输入**
+        /// （走 <see cref="T"/>）。**不能改用 <c>v.Type</c>**：那是另一条判据，两者不一致时
+        /// 就会出现"`MOVEL` 却发 `R0`"这种漂移 —— 汇编期的寄存器类闸直接判死
+        /// （实测 `python/demo_ui.py` 的 `tid = ui_timer_set(60, 1)` 编不过，
+        ///  病灶 `movel @R0 [@R12-88]` 就是 `v.Type` 与 `IsLong` 不一致）。
+        /// 寄存器类最终由**助记符**决定，所以必须与 op 同源。
+        /// </para>
+        /// </summary>
+        private static Operand A(ExpVar v, int n = 0)
+            => new(OperandType.REGISTER, T(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong).BankBase() + n);
 
         /// <summary>由 (size, isFloat, isDouble, isLong) 还原统一的 <see cref="ExpType"/>（只为取寄存器类）。</summary>
         private static ExpType T(int size, bool isFloat, bool isDouble, bool isLong)

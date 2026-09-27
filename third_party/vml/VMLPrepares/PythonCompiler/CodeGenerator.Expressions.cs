@@ -590,17 +590,17 @@ namespace PythonCompiler
             
             if (localVars.TryGetValue(node.Name, out int offset))
             {
-                Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(offset)));
+                Emit(loadOp, new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(loadOp, 0)), new Operand(OperandType.MEMORY, Vars.FormatOffset(offset)));
             }
             else if (globalVars.TryGetValue(node.Name, out int gOffset))
             {
                 // 全局变量：使用 data 段标签
-                Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, $"global_{node.Name}"));
+                Emit(loadOp, new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(loadOp, 0)), new Operand(OperandType.LABEL, $"global_{node.Name}"));
             }
             else
             {
                 // 未知变量
-                Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
+                Emit(loadOp, new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(loadOp, 0)), new Operand(OperandType.IMMEDIATE, 0));
             }
         }
 

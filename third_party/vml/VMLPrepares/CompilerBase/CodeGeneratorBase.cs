@@ -1082,12 +1082,35 @@ namespace CompilerBase
         /// 替代各编译器 20-40 行重复的 GenerateLiteral switch-case。
         /// </summary>
         /// <summary>
-        /// 该类指令第 <paramref name="index"/> 个操作数该用的寄存器 —— 用户定的模型
+        /// 「本类第 <paramref name="n"/> 号寄存器」进**统一编号空间** —— 用户定的模型
         /// （`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，编号 0–15 通用、16–23=D0–D7、
-        /// 24–31=L0–L7），**类由助记符决定**。判据与汇编期校验（`RegisterClassTable`）同源。
+        /// 24–31=L0–L7），**类由助记符决定**。判据与汇编期校验（`RegisterClassTable`）同源，
+        /// 所以这是**唯一**该用来发射寄存器操作数的地方。
+        ///
+        /// <para>
+        /// ⚠ 凡是用 `MOVED`/`MOVEL`/`F2D`/`D2F`/`I2D`/`D2I` 这类**助记符决定寄存器类**
+        /// 的指令，发射寄存器**必须**走这里，别写裸编号：写裸 `0` 会被当成 `R0`，而校验要的是
+        /// `D0`(16) ⇒ 汇编期直接报「寄存器类用错」（实测 `x = 3.14159`（Basic）、
+        /// `demo_ui.py`（Python）都由此触发）。`Rn`/`Fn` 组基址为 0，走这里与写裸编号
+        /// **逐字节相同**，故 R/F 组的调用点一并换过来没有副作用。
+        /// </para>
+        ///
+        /// <para>
+        /// 为什么要有 `<paramref name="n"/>`：`Fn`/`Rn` **同号不同组**（`F0` 与 `R0` 都是编号 0），
+        /// 所以"源类第 n 号 → 目标类第 n 号"的搬运（如 `MOVED D0, F0`）两个操作数只需各自的基址。
+        /// 只发第 0 号时用下面的 <see cref="TRegOf"/> 即可。
+        /// </para>
         /// </summary>
-        protected static Operand TRegOf(OpCode op, int index)
-            => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, index));
+        protected static Operand RegOf(OpCode op, int index, int n)
+            => new(OperandType.REGISTER, n + VMLAssembler.RegisterClassTable.BankOfOperand(op, index));
+
+        /// <summary>
+        /// 该类指令第 <paramref name="index"/> 个操作数该用的寄存器（**第 0 号**）——
+        /// 用户定的模型（`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，编号 0–15 通用、
+        /// 16–23=D0–D7、24–31=L0–L7），**类由助记符决定**。
+        /// 判据与汇编期校验（`RegisterClassTable`）同源。
+        /// </summary>
+        protected static Operand TRegOf(OpCode op, int index) => RegOf(op, index, 0);
 
         /// <summary>
         /// 类型感知的参数压栈: 根据 byteSize/isFloat/isDouble/isLong 选择 PUSH/PUSHB/PUSHH/FPUSH/DPUSH/PUSHL
@@ -1121,7 +1144,10 @@ namespace CompilerBase
                 return 8;
             }
             var pushOp = ExpressionManager.SelectPushOp(byteSize, isFloat, isDouble, isLong);
-            Emit(pushOp, Reg(0));
+            // ⚠ 源寄存器**按类取**：`SelectPushOp` 会给出 `DPUSH`/`PUSHL`（8 字节），
+            //   那两个的 0 号是 `D0`/`L0` 而**不是** `R0` —— 写 `Reg(0)` 会被汇编期的
+            //   寄存器类闸判死（与 `EmitLoadVar`/`EmitStoreVar` 是同一条，见那里的注释）。
+            Emit(pushOp, TRegOf(pushOp, 0));
             return pushOp switch
             {
                 OpCode.PUSHB => 1, OpCode.PUSHH => 2,

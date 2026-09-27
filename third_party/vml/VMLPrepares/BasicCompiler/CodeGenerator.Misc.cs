@@ -214,7 +214,7 @@ namespace BasicCompiler
             else
             {
                 if (reg != 0)
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, reg), RegOf(OpCode.MOVE, 1, 0) }));
             }
         }
 
@@ -263,7 +263,7 @@ namespace BasicCompiler
             // COMMAND$ — 获取命令行参数 (SYSCALL 362)
             // 在栈上分配缓冲区, 调用GetArgs
             instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 1024) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 13) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 0), RegOf(OpCode.MOVE, 1, 13) }));
             instructions.Add(new Instruction(OpCode.SYSCALL, new List<Operand> { new Operand(OperandType.IMMEDIATE, 362) }));
             // R0 = argc, 栈上缓冲区填充了参数
             // 简单返回: R0指向参数字符串（首个参数地址在buf+4）
@@ -652,7 +652,7 @@ namespace BasicCompiler
                             [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
                         if (vt != BasicType.Single)
                             instructions.Add(new Instruction(OpCode.F2D,
-                                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                                [RegOf(OpCode.F2D, 0, 0), RegOf(OpCode.F2D, 1, 0)]));
                         EmitStoreVar(varName, 0);
                     }
                     else
@@ -679,7 +679,7 @@ namespace BasicCompiler
 
             // PUSH 保护测试值 → 保存到 R10
             instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 0) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 10), RegOf(OpCode.MOVE, 1, 0) }));
 
             // ══════════════════════════════════════════════════════════════════════
             // 测试值是**字符串**时，条件比较必须比**内容**，不能用 `CMP`。
@@ -714,7 +714,7 @@ namespace BasicCompiler
                     if (currentSubName != null) GenerateSubExpression(valueExpr, 1);
                     else GenerateExpression(valueExpr, 1);
                     instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 10) }));
-                    instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 10), new Operand(OperandType.REGISTER, 1) }));
+                    instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 10), RegOf(OpCode.CMP, 1, 1) }));
                     return;
                 }
 
@@ -1007,10 +1007,10 @@ namespace BasicCompiler
 
             // Compute VGA addr: 文本缓冲基址 + (row*80+col)*2
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 80) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 2) }));
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 2) }));
             SysAddr(2, Sys.TextBuffer);   // R2（刚才的列号）已经用完了，拿来装文本帧缓冲基址
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 2) }));
 
             // Store char and attr byte
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
@@ -1193,9 +1193,9 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 16) })); // R1 = row*16
             // R1 = row*16 + (16 - font_height)/2
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, 16) }));
-            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 9) })); // R7 = 16 - height
+            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { RegOf(OpCode.SUB, 0, 7), RegOf(OpCode.SUB, 1, 9) })); // R7 = 16 - height
             instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, 2) })); // R7 = offset
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 7) })); // R1 = y_top
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 1), RegOf(OpCode.ADD, 1, 7) })); // R1 = y_top
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8) })); // R2 = x_left
 
             // Load screen width into R5
@@ -1219,25 +1219,25 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, modeByteLayout) }));
 
             // === MODE 0: 32-bit word per row ===  offset = (char-32) * height * 4
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 9) })); // *height
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 0), RegOf(OpCode.MUL, 1, 9) })); // *height
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4) })); // *4 bytes/row
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 8) })); // +font_base
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0) })); // R3 = glyph base
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 8) })); // +font_base
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 3), RegOf(OpCode.MOVE, 1, 0) })); // R3 = glyph base
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, modeDone) }));
 
             // === MODE 1+: byte per row ===  offset = char * height
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, modeByteLayout) }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 32) })); // restore char
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 9) })); // *height
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 8) })); // +font_base
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0) })); // R3 = glyph base
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 0), RegOf(OpCode.MUL, 1, 9) })); // *height
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 0), RegOf(OpCode.ADD, 1, 8) })); // +font_base
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 3), RegOf(OpCode.MOVE, 1, 0) })); // R3 = glyph base
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, modeDone) }));
 
             // For each row of the glyph (R9 = font_height)
             string fontYLoop = newLabel(), fontYEnd = newLabel();
             AddRI(OpCode.MOVE, 0, 0); // R0 = row counter
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, fontYLoop) }));
-            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 9) }));
+            instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { RegOf(OpCode.CMP, 0, 0), RegOf(OpCode.CMP, 1, 9) }));
             instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, fontYEnd) }));
 
             // Load glyph row based on mode
@@ -1248,33 +1248,33 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, rowByte) }));
 
             // Mode 0: 32-bit load
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 0) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 4), RegOf(OpCode.MOVE, 1, 0) }));
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.IMMEDIATE, 4) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 3) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 4), RegOf(OpCode.ADD, 1, 3) }));
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, rowDone) }));
 
             // Mode 1: byte load
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, rowByte) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 3) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 0) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 4), RegOf(OpCode.MOVE, 1, 3) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 4), RegOf(OpCode.ADD, 1, 0) }));
             instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand> { new Operand(OperandType.REGISTER, 4), new Operand(OperandType.MEMORY, "R4") }));
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, rowDone) }));
 
             // Compute VRAM addr: R6 = 帧缓冲基址 + (y+row)*width + x
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 0) })); // y+row
-            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 5) })); // *width
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 2) })); // +x
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 6), RegOf(OpCode.MOVE, 1, 1) }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 6), RegOf(OpCode.ADD, 1, 0) })); // y+row
+            instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { RegOf(OpCode.MUL, 0, 6), RegOf(OpCode.MUL, 1, 5) })); // *width
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 6), RegOf(OpCode.ADD, 1, 2) })); // +x
             FbBase(11);   // R11 在本函数里没有被用到（只 PUSH 了 R0-R10），拿它装基址
-            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 11) })); // R6 = VRAM addr
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { RegOf(OpCode.ADD, 0, 6), RegOf(OpCode.ADD, 1, 11) })); // R6 = VRAM addr
 
             // For each of 8 columns: test bit 7..0, write white (15) if set
             for (int gx = 0; gx < 8; gx++)
             {
                 int bitMask = 0x80 >> gx;
                 string skipPx = newLabel();
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 4) }));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { RegOf(OpCode.MOVE, 0, 7), RegOf(OpCode.MOVE, 1, 4) }));
                 instructions.Add(new Instruction(OpCode.AND, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, bitMask) }));
                 instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, 0) }));
                 instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, skipPx) }));

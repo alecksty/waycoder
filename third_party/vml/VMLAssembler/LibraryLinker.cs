@@ -897,6 +897,11 @@ namespace VMLAssembler
                         where = $"{file ?? "<input>"}:{line}: ";
                     }
                     lines.Add($"  {where}{v.Message}");
+                    // 把**病灶本身**也打出来 —— 只看"第 N 个操作数要 Dn"时，还得自己去数指令
+                    // （实测定位一个前端缺陷要绕好几轮：先拿 `--vml` 产物、再对齐索引，
+                    //  而 Python 那条路**链接期就抛了**、产物根本落不了盘 ⇒ 拿不到索引对应的指令）。
+                    if (v.Index >= 0 && v.Index < program.Instructions.Count)
+                        lines.Add($"    ↳ 该指令：{program.Instructions[v.Index]}");
                 }
                 lines.Add("提示: 64 位/双精度的值要用 `LS`/`D` 寄存器（`MOVEL L0, …` / `MOVED D0, …`）；"
                         + "前端发射时走 `RegisterClassTable.BankOfOperand` 换算。");

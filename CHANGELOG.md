@@ -1,3 +1,51 @@
+## v0.96.551 — 寄存器类用错：一整类「前端写了裸编号」的缺陷（Basic 390+ / Python 3 / 共享基类 27）
+
+**症状**：`x = 3.14159`（BASIC）、`tid = ui_timer_set(60, 1)`（Python `demo_ui.py`）
+**连编译都过不去** —— `error: 有 N 处**寄存器类用错**`：`MOVED`/`MOVEL`/`F2D`/`D2F`
+的目标或源被发到了通用寄存器上（病灶长这样：`movel @R0 [@R12-88]`），
+而 VM 里那类指令的 0 号是 `D0`/`L0`（编号 16 / 24）。
+
+**根因是「同一规则多处实现」**（本仓头号坑）：寄存器类**由助记符决定**，
+判据在 `RegisterClassTable`；而前端发射时写裸编号 `REGISTER 0`，就等于按 `R0` 发
+—— 两个判据不一致。**已经修过的地方注释里都记着这条规则**
+（`EmitLoadVar`/`EmitStoreVar`/`EmitConv`/Python 的 `VisitConstant`），
+**但同一批覆写点、同一文件里还有没跟着改的**。
+
+### 一、共享基类：`RegOf` 成为唯一真源（影响全部 22 门）
+
+- `CodeGeneratorBase` 原先只有 `TRegOf(op, index)`（= 第 0 号）。加通用版
+  **`RegOf(op, index, n)`**（= 本类第 n 号进编号空间），`TRegOf` 收成它的**一行特例**
+  —— 省得各前端再各造一个（Basic 一度就各造了一份，属于同一个坑的复制）。
+- `CodeGeneratorBase` 的类型感知压栈（`pushOp` 可能是 `DPUSH`/`PUSHL`）原写
+  `Emit(pushOp, Reg(0))` ⇒ 改 `TRegOf(pushOp, 0)`。
+- `ExpressionManager`：`A(v.Type)` 与 `op = Select*Op(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong)`
+  是**两条独立判据**，不一致就漂（Python 那个病灶正是 `v.Type` 说 32 位、标志说 64 位）。
+  改成 **`A(v)` = 由同一组标志推类**（26 处），与 op **同源** —— 寄存器类最终由助记符
+  裁决，所以必须与 op 同源。
+
+### 二、Basic：390+ 处统一走 `RegOf`
+
+`F2D R0, R0` / `D2F R0, R0` / `MOVED … R0` 遍布 `Expressions`/`Misc`/`Statements`/
+`Statements.IO`/`Sub`/`Qbasic.*` 六类文件；**入口**是 `EmitLoadVar`/`EmitStoreVar`
+两处覆写（`DIM x AS DOUBLE` + `x = 3.14159` 即触发）。批量换成 `RegOf(op, i, n)`。
+`Rn`/`Fn` 组基址为 0 ⇒ 那部分的产物**逐字节不变**（回归因此只有"修好"、没有"改坏"）。
+
+### 三、Python：`VisitVariable` 3 处
+
+`VisitConstant` 已经改对了（注释还写着这条规则），而紧挨着的 `VisitVariable`
+仍写死 `REGISTER 0` —— 典型「改了一处漏了另一处」。
+
+### 四、顺带：报错信息现在带**病灶指令**
+
+`LibraryLinker.ReportRegisterClass` 原来只说「第 N 个操作数要 Dn」，还得自己去数指令
+—— 而 Python 那条路是**链接期就抛**，`--vml` 产物根本落不了盘，拿不到索引对应的指令
+（定位它绕了好几轮）。现在多一行 `↳ 该指令：movel @R0 [@R12-88]`。
+
+**判据**：
+- `examples-build`：**196 通过 / 83 失败**（前 195 / 84）—— 修好 `python/demo_ui.py`，**零回归**。
+- BASIC 双精度 / 长整型 / 单精度各一例**编译通过并运行**（`3.14159` 逐字正确）。
+- Kotlin `Long`/`Double` 用例编译通过。
+
 ## v0.96.550 — `.vmb` 往返彻底一致：偏移 0 不再被写成 `[@R0+0]`
 
 CLAUDE.md 里记着的那条「**`.vmb` 读回来这一半还断着**」（`Unknown operand type tag: 0x00`，
