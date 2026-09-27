@@ -8,6 +8,7 @@ namespace PythonCompiler
         private static ExpType PythonTypeToExpType(PythonType t) => t switch
         {
             PythonType.Bool => ExpType.I8,
+            PythonType.Int64 => ExpType.I64,
             PythonType.Float => ExpType.F32,
             PythonType.String or PythonType.List or PythonType.Dict or PythonType.Tuple or PythonType.Set => ExpType.Ptr32,
             _ => ExpType.I32,
@@ -165,11 +166,18 @@ namespace PythonCompiler
                 return;
             }
 
-            // 参数压栈（从右到左）
+            // 参数压栈（从右到左）—— **按类型压**：
+            //   原先一律 `PUSH R0`（4 字节）⇒ 浮点实参的值在 `F0`、64 位/双精度实参在
+            //   `L0`/`D0`，压 `R0` 压到的是残留；8 字节值还会把布局挤歪。
+            //   统一走 `EmitPushArg`（浮点 4 字节、双精度/64 位 8 字节，都写**主栈**）。
+            int pushedArgBytes = 0;
             for (int i = node.Args.Count - 1; i >= 0; i--)
             {
                 node.Args[i].Accept(this);
-                Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
+                var at = InferExpressionType(node.Args[i]);
+                var (asz, af, ad, al) = GetTypeInfo(at);
+                EmitPushArg(asz, af, ad, al);
+                pushedArgBytes += al ? 8 : ad ? 8 : 4;
             }
 
             // 函数调用 / 内置函数
@@ -335,8 +343,31 @@ namespace PythonCompiler
                         if (node.Args.Count == 1)
                         {
                             int stackOffset = (node.Args.Count - 1) * 4;
-                            Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
-                                 new Operand(OperandType.MEMORY, $"{stackOffset}(R13)"));
+                            // ⚠ **`int(<浮点>)` 必须真的转换**。实参按 4 字节压栈（浮点值在栈上是
+                            //   它的**位型**），取回来若只 `MOVE R0, [R13+0]` 就把位型当整数了 ——
+                            //   实测 `println_int(int(3.14))` 打出 **188219392**（= 3.14f 的位型）。
+                            //   正解：位型放回 F0（`MOVEF` 认的是同一份位型），再 `F2I` 取整。
+                            //   `float`/`double` 之外的类型照旧直接搬运。
+                            var argType = InferExpressionType(node.Args[0]);
+                            if (argType == PythonType.Float)
+                            {
+                                // 浮点：栈上是 4 字节位型 → 放回 F0（`MOVEF` 认同一份位型）→ `F2I`
+                                Emit(OpCode.MOVEF, new Operand(OperandType.REGISTER, 0),
+                                     new Operand(OperandType.MEMORY, $"{stackOffset}(R13)"));
+                                Emit(OpCode.F2I, new Operand(OperandType.REGISTER, 0),
+                                     new Operand(OperandType.REGISTER, 0));
+                            }
+                            else if (argType == PythonType.Int64)
+                            {
+                                // 64 位：栈上是 8 字节 → 取进 L0 → 收窄到 int（`int64 → int` 的截断）
+                                Emit(OpCode.MOVEL, new Operand(OperandType.REGISTER, 24),
+                                     new Operand(OperandType.MEMORY, $"{stackOffset}(R13)"));
+                                Emit(OpCode.L2I, new Operand(OperandType.REGISTER, 0),
+                                     new Operand(OperandType.REGISTER, 24));
+                            }
+                            else
+                                Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
+                                     new Operand(OperandType.MEMORY, $"{stackOffset}(R13)"));
                         }
                         else
                             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
@@ -438,10 +469,10 @@ namespace PythonCompiler
                 }
             }
 
-            // 清理栈上的参数
-            if (node.Args.Count > 0)
+            // 清理栈上的参数（按**实际压入**的字节数 —— 双精度/64 位实参占 2 格）
+            if (pushedArgBytes > 0)
                 Emit(OpCode.ADD, new Operand(OperandType.REGISTER, 13),
-                     new Operand(OperandType.IMMEDIATE, node.Args.Count * 4));
+                     new Operand(OperandType.IMMEDIATE, pushedArgBytes));
         }
 
         public void VisitAttribute(AttributeNode node)
@@ -577,35 +608,59 @@ namespace PythonCompiler
         {
             PythonType pythonType = GetPythonTypeFromValue(node.Value);
             OpCode loadOp = GetLoadInstruction(pythonType);
-            
+            // ⚠ 目的寄存器按**类**取（浮点 → `F0`、64 位 → `L0`、其余 → `R0`）——
+            //   写死 `REGISTER 0` 时浮点值会落到 32 位通用寄存器上，后续按类取用就错位。
+            var dst = new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(loadOp, 0));
+
             switch (node.Value)
             {
                 case int i:
-                    Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, i));
+                    Emit(loadOp, dst, new Operand(OperandType.IMMEDIATE, i));
                     break;
-                case float f:
-                    if (pythonType == PythonType.Float)
+
+                // ⚠ **Python 的字面量是 `double`**（词法器一律按 double 存）—— 原先这里只有
+                //   `case float`，于是 `3.14` 掉进兜底分支 ⇒ 常量**恒 0**（实测 `int(3.5)` → 0）。
+                //   本平台的 Python `float` 是 **32 位**（F 寄存器那一类），所以按 `(float)` 存
+                //   4 字节 `.word`，用 `MOVEF` 取。
+                case double dd when pythonType == PythonType.Float:
                     {
-                        // 浮点常量需要特殊处理
-                        string floatLabel = $"float_{labelCounter++}";
-                        dataSection[floatLabel] = f;
-                        Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, floatLabel));
+                        string flabel = $"flt_{labelCounter++}";
+                        dataSection[flabel] = (float)dd;
+                        Emit(loadOp, dst, new Operand(OperandType.MEMORY, flabel));
+                        break;
                     }
-                    else
+                case float ff when pythonType == PythonType.Float:
                     {
-                        Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, (int)f));
+                        string flabel = $"flt_{labelCounter++}";
+                        dataSection[flabel] = ff;
+                        Emit(loadOp, dst, new Operand(OperandType.MEMORY, flabel));
+                        break;
                     }
+                case double dd2:
+                    Emit(loadOp, dst, new Operand(OperandType.IMMEDIATE, (int)dd2));
                     break;
+                case float ff2:
+                    Emit(loadOp, dst, new Operand(OperandType.IMMEDIATE, (int)ff2));
+                    break;
+
+                // 64 位整数字面量（超出 32 位范围）：数据段放 `.dword` + `MOVEL L0`
+                case long lo:
+                    {
+                        string llabel = $"int64_{labelCounter++}";
+                        dataSection[llabel] = lo;
+                        Emit(loadOp, dst, new Operand(OperandType.MEMORY, llabel));
+                        break;
+                    }
                 case bool b:
-                    Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, b ? 1 : 0));
+                    Emit(loadOp, dst, new Operand(OperandType.IMMEDIATE, b ? 1 : 0));
                     break;
                 case string s:
                     string label = $"str_{labelCounter++}";
                     dataSection[label] = WStr(s);
-                    Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, label));
+                    Emit(loadOp, dst, new Operand(OperandType.LABEL, label));
                     break;
                 default:
-                    Emit(loadOp, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
+                    Emit(loadOp, dst, new Operand(OperandType.IMMEDIATE, 0));
                     break;
             }
         }

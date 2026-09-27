@@ -9,8 +9,10 @@ namespace PythonCompiler
     /// </summary>
     public enum PythonType
     {
-        Int,        // 整数类型
-        Float,      // 浮点类型
+        Int,        // 32 位整数
+        Int64,      // **64 位整数**（用户 2026-09-27 要求「每种语言都要有 int64 运算」；
+                    //   Python 的 int 本是无界的，本平台退一步给到 64 位）
+        Float,      // 浮点类型（本平台是 **32 位** F32 —— 与 F 寄存器对齐）
         Bool,       // 布尔类型
         String,     // 字符串类型
         None,       // None类型

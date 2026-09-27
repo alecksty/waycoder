@@ -77,6 +77,7 @@ namespace PythonCompiler
         protected override (int byteSize, bool isFloat, bool isDouble, bool isLong) GetTypeInfo(PythonType t) => t switch
         {
             PythonType.Float => (4, true, false, false),
+            PythonType.Int64 => (8, false, false, true),   // 64 位整数（`L0` 一类）
             PythonType.Bool => (1, false, false, false),
             _ => (4, false, false, false),
         };
@@ -144,6 +145,7 @@ namespace PythonCompiler
             return value switch
             {
                 int => PythonType.Int,
+                long => PythonType.Int64,      // 超出 32 位范围的整数字面量（Parser.FitIntLiteral 给的）
                 float => PythonType.Float,
                 double => PythonType.Float,
                 bool => PythonType.Bool,
@@ -186,7 +188,12 @@ namespace PythonCompiler
                 {
                     return PythonType.Int;
                 }
-                return leftType; // 默认返回左操作数的类型
+                // ⚠ **要按宽度加宽**：原先直接 `return leftType` ⇒ `0 - 4294967296`（右操作数
+                //   是 64 位常量、左是 int）被推成 `Int` ⇒ 外层除法发 **32 位** `DIV`
+                //   （实测 `(0 - 4294967296) / 1000000000` 得 0，应 -4）。
+                if (leftType == PythonType.Int64 || rightType == PythonType.Int64)
+                    return PythonType.Int64;
+                return leftType; // 其余取左操作数的类型
             }
             else if (node is UnaryOpNode unaryNode)
             {

@@ -18,8 +18,12 @@ namespace CppCompiler
             if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt))
             {
                 if (vt.Contains("*")) return ExpType.Ptr32;
-                if (vt == "float") return ExpType.F32;
-                if (vt == "double") return ExpType.F64;
+                // ⚠ 别用 `vt == "float"` 这种**精确相等**：类型串可能带修饰（`const float`、
+                //   多空格…）⇒ 判不出来就退回 I32 ⇒ 浮点局部量按 32 位读（实测
+                //   `float a = 3.14f; (int)(a * 2.0f * 100.0f)` 读到的是位型）。
+                var t = vt.Trim();
+                if (t.Contains("float")) return ExpType.F32;
+                if (t.Contains("double")) return ExpType.F64;
             }
             return ExpType.I32;
         }
@@ -33,6 +37,18 @@ namespace CppCompiler
                 var (byteSize, isFloat, isDouble) = GetTypeLoadInfo(vt);
                 // C++ long long 使用 8 字节但不用 VML Long 路径 (用 double 路径 MOVED)
                 return (byteSize, isFloat, isDouble, false);
+            }
+            // ⚠ **要穿透表达式**：原先只认字面量与变量 ⇒ `(a * 2.0f * 100.0f)` 一律当 int，
+            //   于是 `(int)(…)` 那个 cast 算出"int → int"⇒ **不发任何转换**（实测打印出浮点位型
+            //   1372222465）。**浮点优先**：任一侧是浮点就按浮点算。
+            if (e is BinaryExpr b)
+            {
+                var l = GetExprTypeInfo(b.Left);
+                var r = GetExprTypeInfo(b.Right);
+                if (l.isFloat || r.isFloat) return (4, true, false, false);
+                if (l.isDouble || r.isDouble) return (8, false, true, false);
+                if (l.isLong || r.isLong) return (8, false, false, true);
+                return (l.byteSize, false, false, false);
             }
             return (4, false, false, false); // 默认为 int
         }

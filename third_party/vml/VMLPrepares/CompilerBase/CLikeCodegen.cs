@@ -126,47 +126,6 @@ namespace CompilerBase
             }
         }
 
-        /// <summary>
-        /// 类型感知的参数压栈: 根据 byteSize/isFloat/isDouble/isLong 选择 PUSH/PUSHB/PUSHH/FPUSH/DPUSH/PUSHL
-        /// 返回压栈的字节数 (用于调用方计算 argSize/stackWordCount)
-        /// 替代各编译器手写的 isDoubleArg ? DPUSH : PUSH
-        /// v1.66.63: float/double/long 使用 sub R13 + movef/moved/movel @13 替代 FPUSH/DPUSH/PUSHL，
-        ///   因为 typed stack 指令推到独立栈 (floatStack/doubleStack/longStack)，
-        ///   而 C 函数 callee 始终从主栈 [R12+offset] 读取参数。
-        /// </summary>
-        protected int EmitPushArg(int byteSize, bool isFloat, bool isDouble, bool isLong)
-        {
-            // float/double/long: 用 sub R13 + move/movef/moved/movel @13 写入主栈
-            // 因为 FPUSH/DPUSH/PUSHL 推到 typed stack，而 callee 从主栈读取
-            if (isFloat)
-            {
-                Emit(OpCode.SUB, Reg(13), Imm(4));
-                Emit(OpCode.MOVEF, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVEF, 0));
-                return 4;
-            }
-            if (isDouble)
-            {
-                Emit(OpCode.SUB, Reg(13), Imm(8));
-                Emit(OpCode.MOVED, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVED, 0));
-                return 8;
-            }
-            if (isLong)
-            {
-                Emit(OpCode.SUB, Reg(13), Imm(8));
-                Emit(OpCode.MOVEL, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVEL, 0));
-                return 8;
-            }
-            var pushOp = ExpressionManager.SelectPushOp(byteSize, isFloat, isDouble, isLong);
-            Emit(pushOp, Reg(0));
-            return pushOp switch
-            {
-                OpCode.PUSHB => 1, OpCode.PUSHH => 2,
-                OpCode.FPUSH => 4, OpCode.PUSH => 4,
-                OpCode.DPUSH => 8, OpCode.PUSHL => 8,
-                _ => 4
-            };
-        }
-
         // ====== 立即数 ======
 
         protected void EmitLoadInt(int value)

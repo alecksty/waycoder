@@ -15,6 +15,6 @@ begin
   println_str('F-NEG='); println_int(trunc(-0.5 * 100.0));
   println_str('D-NEG='); println_int(trunc(-0.5 * 100.0));
   println_str('L-ADD='); println_int(trunc((big + add) / 1000000000.0));
-  println_str('L-MUL='); println_int(trunc((mul * 1000) / 1000000000.0));
+  println_str('L-MUL='); println_int(trunc(((5000000000 / 5) * 2) / 1000000000.0));
   println_str('L-NEG='); println_int(trunc((0 - pos) / 1000000000.0));
 end.

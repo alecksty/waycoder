@@ -1085,6 +1085,49 @@ namespace CompilerBase
         protected static Operand TRegOf(OpCode op, int index)
             => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, index));
 
+        /// <summary>
+        /// 类型感知的参数压栈: 根据 byteSize/isFloat/isDouble/isLong 选择 PUSH/PUSHB/PUSHH/FPUSH/DPUSH/PUSHL
+        /// 返回压栈的字节数 (用于调用方计算 argSize/stackWordCount)
+        /// 替代各编译器手写的 isDoubleArg ? DPUSH : PUSH
+        /// ⚠ **本仓所有前端共用这一份**（原先只在 `CLikeCodegen` 里，Python/Lua 这类走
+        ///   `TypedCodeGen` 的门反而各写各的 —— 实测 Python 一律 `PUSH R0`：浮点实参的值在
+        ///   `F0`，压 `R0` 压到的是残留 ⇒ `println_int(int(3.14))` 打出的是浮点**位型**）。
+        ///   原因见下：typed stack 指令推到独立栈，而 callee 始终从主栈 `[R12+offset]` 读参数。
+        /// </summary>
+        protected int EmitPushArg(int byteSize, bool isFloat, bool isDouble, bool isLong)
+        {
+            // float/double/long: 用 sub R13 + move/movef/moved/movel @13 写入主栈
+            // 因为 FPUSH/DPUSH/PUSHL 推到 typed stack，而 callee 从主栈读取
+            if (isFloat)
+            {
+                Emit(OpCode.SUB, Reg(13), Imm(4));
+                Emit(OpCode.MOVEF, new Operand(OperandType.INDIRECT, 13), TRegOf(OpCode.MOVEF, 0));
+                return 4;
+            }
+            if (isDouble)
+            {
+                Emit(OpCode.SUB, Reg(13), Imm(8));
+                Emit(OpCode.MOVED, new Operand(OperandType.INDIRECT, 13), TRegOf(OpCode.MOVED, 0));
+                return 8;
+            }
+            if (isLong)
+            {
+                Emit(OpCode.SUB, Reg(13), Imm(8));
+                Emit(OpCode.MOVEL, new Operand(OperandType.INDIRECT, 13), TRegOf(OpCode.MOVEL, 0));
+                return 8;
+            }
+            var pushOp = ExpressionManager.SelectPushOp(byteSize, isFloat, isDouble, isLong);
+            Emit(pushOp, Reg(0));
+            return pushOp switch
+            {
+                OpCode.PUSHB => 1, OpCode.PUSHH => 2,
+                OpCode.FPUSH => 4, OpCode.PUSH => 4,
+                OpCode.DPUSH => 8, OpCode.PUSHL => 8,
+                _ => 4
+            };
+        }
+
+
         protected void EmitLoadConstant(object? value)
         {
             if (value == null)

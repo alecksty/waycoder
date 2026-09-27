@@ -49,6 +49,27 @@ namespace JavaScriptCompiler
                 if (lit.Value is string) return ExpType.Ptr32;
                 if (lit.Value is bool) return ExpType.I8;
             }
+            // ⚠ **要穿透表达式**：原先只认字面量 ⇒ `(3.14 * 2.0)` 被推成 `I32`，
+            //   于是它外层那次 `* 100` 走 32 位 `MUL`（实测 `~~(3.14*2.0*100)` 打出
+            //   浮点位型 1317011500）。**浮点优先**：任一侧是 F32 就按 F32 算。
+            if (expr is BinaryExpression bin)
+            {
+                var lt = InferJSType(bin.Left);
+                var rt = InferJSType(bin.Right);
+                if (lt == ExpType.F32 || rt == ExpType.F32) return ExpType.F32;
+                if (lt == ExpType.F64 || rt == ExpType.F64) return ExpType.F64;
+                return lt;
+            }
+            // ⚠ **括号节点必须穿透**：解析器把 `(expr)` 包成 `ParenthesizedExpression`，
+            //   不认它就会掉到 `I32` —— 实测 `~~3.14` 对、`~~(3.14)` 错（打出浮点位型）。
+            if (expr is ParenthesizedExpression paren)
+                return InferJSType(paren.Expression);
+            if (expr is UnaryExpression un)
+            {
+                // `~x` 在 JS 里是 **ToInt32(x) 再取反** ⇒ 结果是整数（不能让浮点"穿透"上来）
+                if (un.Operator == TokenType.BitwiseNot) return ExpType.I32;
+                return InferJSType(un.Operand);
+            }
             return ExpType.I32;
         }
 
@@ -114,8 +135,24 @@ namespace JavaScriptCompiler
                     break;
 
                 case TokenType.BitwiseNot:
-                    _expr!.EmitBitNot(WrapExpr(unary.Operand));
-                    break;
+                    {
+                        // JS 的 `~x` = **ToInt32(x)** 再按位取反 —— 浮点操作数必须先转成整数
+                        // 落进 `R0`，否则 `NOT R0` 作用在 32 位通用寄存器上、值却还在 F0
+                        // （实测 `~~(3.14*2.0*100)` 打出浮点位型）。`~~x` 就是 ToInt32 ✓：两次取反相消。
+                        var v = WrapExpr(unary.Operand);
+                        if (v.Type == ExpType.F32 || v.Type == ExpType.F64)
+                        {
+                            _expr!.EmitLoad(v);                       // → F0 / D0
+                            instructions.Add(new Instruction(
+                                v.Type == ExpType.F64 ? OpCode.D2I : OpCode.F2I,
+                                new List<Operand> { Reg(0), Reg(0) }));
+                            instructions.Add(new Instruction(OpCode.NOT,
+                                new List<Operand> { Reg(0), Reg(0) }));
+                        }
+                        else
+                            _expr!.EmitBitNot(v);
+                        break;
+                    }
 
                 case TokenType.Increment:
                     if (unary.Operand is VariableExpression)

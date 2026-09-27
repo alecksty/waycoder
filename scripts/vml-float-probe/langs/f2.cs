@@ -12,7 +12,7 @@ class P {
     System.Console.WriteLine("F-NEG=" + (int)(-0.5 * 100));
     System.Console.WriteLine("D-NEG=" + (int)(-0.5 * 100));
     System.Console.WriteLine("L-ADD=" + (int)((big + add) / 1000000000));
-    System.Console.WriteLine("L-MUL=" + (int)((mul * 1000) / 1000000000));
+    System.Console.WriteLine("L-MUL=" + (int)(((5000000000 / 5) * 2) / 1000000000));
     System.Console.WriteLine("L-NEG=" + (int)((0 - pos) / 1000000000));
   }
 }
