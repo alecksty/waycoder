@@ -1,3 +1,34 @@
+## v0.96.552 — 老语言例子精简：Pascal 98 → 7（**失败从 83 掉到 1**）
+
+用户的口径：**「老语言举几个 BGI 例子就够了」**。
+
+`Examples/pascal/` 原先有 **98 份**（AVC / 7iles / gcorail / gmsdos / gnc / ktp / swag /
+tpdem 八批），全是 **DOS / Delphi 时代的存档程序** —— 它们依赖 `Mem[]`/`Port[]`/
+`Intr($21)`/DOS 单元等本平台**不打算兼容**的东西（判据见 `docs/老程序兼容性.md`）。
+代价是**失败清单被它们淹掉**：79 个失败里看不出哪几条是真缺陷，
+刚才那轮「寄存器类用错」的定位就因为这片噪音绕了好几轮。
+
+**保留 7 份**：
+- 本仓自己的 demo —— `catch` / `demo_bgi` / `demo_std` / `demo_tty` / `demo_ui` / `sysinfo`
+- 一份**能编译通过**的 BGI 图形例子 —— `swag_graphics_0038`
+
+⚠ 删之前**逐份测过可编译性**：候补的 BGI 例子里只有 `swag_graphics_0038` 能编过
+（`swag_egavga_0024`/`swag_graphics_0029/0046`/`tpdem_gfx` 都编不过）——
+**留一份编不过的例子没有意义**。`CREDITS.md` 加了精简说明，来源与许可记录**保留**（追溯用）。
+
+**判据**：`examples-build` **187 通过 / 1 失败**（此前 196 / 83）——
+失败只剩 `forth/parserexp_demo.fs`（forth 前端「调共享库」那条链没接，1 个例子）。
+
+**顺带修**：Pascal 常量数组里的**字符串元素**原先直接 `Convert.ToInt32` ⇒ 抛
+`FormatException`，用户看到的是
+「The input string 'Fichier' was not in a correct format.」（**看不出是哪个文件、
+也看不出这是编译器处理不了**，像个内部崩溃）。现在报
+「常量数组里出现了非整数元素 `Fichier`：字符串常量数组本前端尚未支持」
+（`gmsdos_dosshell.pas` / `g7iles_loderunn.pas` 两例）。
+
+**另外**：重新打包 `vml_lib.zip`（示例 230 个）—— ⚠ 包里的 `Examples/` 是随 APK 分发的，
+所以**必须同步升版本号**（`EnsureExamples()` 靠它判要不要重新解压）。
+
 ## v0.96.551 — 寄存器类用错：一整类「前端写了裸编号」的缺陷（Basic 390+ / Python 3 / 共享基类 27）
 
 **症状**：`x = 3.14159`（BASIC）、`tid = ui_timer_set(60, 1)`（Python `demo_ui.py`）

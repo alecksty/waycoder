@@ -163,6 +163,32 @@ namespace PascalCompiler
             throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的AST节点类型");
         }
 
+        /// <summary>
+        /// 取常量字面量的整数值（用于摊平 `array[1..5] of integer = (1,2,3)` 这类初值表）。
+        ///
+        /// <para>
+        /// ⚠ **别直接写 `Convert.ToInt32(lit.Value)`**：`Const Menu: array[1..5] of string =
+        /// ('Fichier', …)` 是**合法 Pascal**（`gmsdos_dosshell.pas` 的菜单就是它），
+        /// 而那个字符串会被 `Convert.ToInt32` 抛 `FormatException`，一路落到顶层变成
+        /// 用户看不懂的一句「The input string 'Fichier' was not in a correct format.」
+        /// —— 实测 `gmsdos_dosshell.pas` / `g7iles_loderunn.pas` 各一例，
+        /// 而且**看不出是哪个文件哪一行、也看不出这是编译器在处理不了**（像个内部崩溃）。
+        /// 字符串常量数组本前端尚未支持，所以这里给一条**指得出原因**的诊断。
+        /// </para>
+        /// </summary>
+        private static int ConstIntOrThrow(LiteralNode lit)
+        {
+            switch (lit.Value)
+            {
+                case int i: return i;
+                case null: return 0;
+            }
+            var text = lit.Value.ToString() ?? "";
+            if (int.TryParse(text, out int parsed)) return parsed;
+            throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression,
+                $"常量数组里出现了非整数元素 `{text}`：字符串常量数组（`array[…] of string = (…)`）本前端尚未支持");
+        }
+
         private VmlProgram GenerateProgramCode(ProgramNode ast)
         {
             // 处理类型声明(记录record类型)
@@ -180,7 +206,7 @@ namespace PascalCompiler
                         for (int i = 0; i < constDecl.ArrayValues.Count; i++)
                         {
                             if (constDecl.ArrayValues[i] is LiteralNode lit)
-                                values[i] = Convert.ToInt32(lit.Value);
+                                values[i] = ConstIntOrThrow(lit);
                             else
                                 values[i] = 0;
                         }
@@ -215,7 +241,7 @@ namespace PascalCompiler
                         else if (literal.Type == TokenType.INTEGER_LITERAL)
                         {
                             // 整数常量直接放入数据段
-                            dataSection[constDecl.Name] = Convert.ToInt32(literal.Value);
+                            dataSection[constDecl.Name] = ConstIntOrThrow(literal);
                             constNames.Add(constDecl.Name);
                         }
                         else if (literal.Type == TokenType.BOOLEAN)
@@ -231,7 +257,7 @@ namespace PascalCompiler
                         }
                         else
                         {
-                            dataSection[constDecl.Name] = Convert.ToInt32(literal.Value);
+                            dataSection[constDecl.Name] = ConstIntOrThrow(literal);
                             constNames.Add(constDecl.Name);
                         }
                     }
@@ -317,7 +343,7 @@ namespace PascalCompiler
             {
                 if (decl is ConstDeclarationNode constDecl && constDecl.Value is LiteralNode literal)
                 {
-                    dataSection[constDecl.Name] = Convert.ToInt32(literal.Value);
+                    dataSection[constDecl.Name] = ConstIntOrThrow(literal);
                     constNames.Add(constDecl.Name);
                 }
             }
