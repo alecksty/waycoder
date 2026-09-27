@@ -56,6 +56,20 @@ namespace PascalCompiler
         /// </para>
         /// </summary>
         public List<ConstDeclarationNode> LocalConstants { get; set; } = new List<ConstDeclarationNode>();
+
+        /// <summary>
+        /// 过程/函数**内部**的 `type` 段声明（老 Pascal 把数组/记录类型写在过程里是常态：
+        /// `procedure Triangle(…); type PolyType = Array[1..3] of PointType;
+        /// var TriangleData : PolyType;` —— 实测 `ktp_rose.pas`）。
+        ///
+        /// <para>
+        /// 此前这一段被解析器**整个跳过**（"type: 跳过直到 ;"），于是 `definedTypeAliases`
+        /// 里没有那个别名 ⇒ 后面对它的元素取字段（`TriangleData[1].X`）报
+        /// 「不是record类型」—— 与 <see cref="LocalConstants"/> 当初是**同一个错法**
+        /// （那段注释记着「只跳过不登记 ⇒ 换一个错法」），修法也一样：**收下来并登记**。
+        /// </para>
+        /// </summary>
+        public List<TypeDeclarationNode> LocalTypes { get; set; } = new List<TypeDeclarationNode>();
         public List<SubprogramDeclarationNode> NestedSubprograms { get; set; } = new List<SubprogramDeclarationNode>();
         public BlockNode Body { get; set; } = new BlockNode();
         public bool IsForward { get; set; }

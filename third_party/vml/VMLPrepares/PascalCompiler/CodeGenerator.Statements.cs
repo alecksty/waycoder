@@ -425,7 +425,7 @@ namespace PascalCompiler
             bool targetIsSet;
             if (assignment.Variable.Field != null)
             {
-                var (_, fieldType) = ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields);
+                var (_, fieldType) = ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields, assignment.Variable.DereferenceCount);
                 string ft = ResolveTypeName(fieldType);
                 targetIsFloat = ft == "REAL";
                 targetIsSet = ft == "SET";
@@ -437,7 +437,7 @@ namespace PascalCompiler
             }
             // 目标的完整 Pascal 类（转换判据要用；`targetIsFloat` 那两个 bool 是给下面分支用的）
             PascalType targetPt = assignment.Variable.Field != null
-                ? GetPascalType(ResolveTypeName(ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields).finalType))
+                ? GetPascalType(ResolveTypeName(ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields, assignment.Variable.DereferenceCount).finalType))
                 : (assignment.Variable.DereferenceCount > 0
                     ? GetPointedPascalType(assignment.Variable.Name)
                     : GetVariablePascalType(assignment.Variable.Name));
@@ -599,7 +599,7 @@ namespace PascalCompiler
                 PascalType varType;
                 if (assignment.Variable.Field != null)
                 {
-                    var (_, fieldType) = ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields);
+                    var (_, fieldType) = ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields, assignment.Variable.DereferenceCount);
                     varType = GetPascalType(ResolveTypeName(fieldType));
                 }
                 else if (assignment.Variable.DereferenceCount > 0)
@@ -975,7 +975,7 @@ namespace PascalCompiler
             // 处理record字段访问 (支持多级 b.a.v)
             if (variable.Field != null)
             {
-                var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields);
+                var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields, variable.DereferenceCount);
                 if (fieldOffset > 0)
                 {
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
@@ -1092,8 +1092,42 @@ namespace PascalCompiler
             else if (TryGetNodeCI(globalVarDeclarations, varName, out var gv)) t = gv;
             if (t is null) return false;
 
+            // ⚠ **先展開別名、再剥维度** —— 顺序反了就是本条的首个坑：
+            //   `PolyType = Array[1..3] of PointType;  TriangleData : PolyType;` 时，
+            //   变量的类型是 `SimpleTypeNode("PolyType")`（一个**别名**），
+            //   不展开就永远看不到那个 `ArrayTypeNode` ⇒ `TriangleData[1].X` 报
+            //   「不是record类型」（实测 `ktp_rose.pas`）。而老 Pascal **几乎都**把数组
+            //   写成别名（`PolyType`/`TBoard`/`TMap`…），所以这不是边角料。
+            //   别名链可能有几层，展开到不再是别名为止（带圈数上限，防自引用死循环）。
+            for (int hop = 0; hop < 8 && t is SimpleTypeNode al
+                 && TryGetNodeCI(definedTypeAliases, al.TypeName, out var expanded); hop++)
+                t = expanded;
+
             // 剥掉**全部**维度：Pascal 的多维数组就是"数组的数组"
             while (t is ArrayTypeNode arr) t = arr.ElementType;
+
+            // 元素可能**又是**别名（`of TPoint` 而 `TPoint = record … end`）⇒ 再展开一次
+            for (int hop = 0; hop < 8 && t is SimpleTypeNode al2
+                 && TryGetNodeCI(definedTypeAliases, al2.TypeName, out var expanded2); hop++)
+                t = expanded2;
+
+            // ⚠ 元素类型可能**直接就是 record 本体** —— 上面的别名展开在
+            //   `PointType = record … end`（**单元**里声明的类型，灌进 `definedTypeAliases`
+            //   的就是那个 `RecordTypeNode` 本身）这一步拿到的**不是** `SimpleTypeNode`，
+            //   于是原先那句 `if (t is not SimpleTypeNode st) return false;` 直接把它判掉，
+            //   下游还是「不是record类型」（实测 ktp_rose.pas：`PolyType = Array[1..3] of
+            //   PointType` 而 `PointType` 来自 `uses Graph`）。**两档都要认。**
+            if (t is RecordTypeNode direct)
+            {
+                foreach (var kv in definedTypeAliases)
+                    if (ReferenceEquals(kv.Value, direct) && recordFieldLayouts.ContainsKey(kv.Key))
+                    {
+                        recordTypeName = kv.Key;
+                        return true;
+                    }
+                return false;
+            }
+
             if (t is not SimpleTypeNode st) return false;
 
             foreach (var key in recordFieldLayouts.Keys)
@@ -1103,6 +1137,51 @@ namespace PascalCompiler
                     return true;
                 }
             return false;
+        }
+
+        /// <summary>
+        /// 变量是**指向 record 的指针** —— 返回它指向的那个 record 的类型名（表里原样的大小写）。
+        ///
+        /// <para>
+        /// 为什么需要：老 Pascal 的**链表 / 树 / 图**全是这个写法 ——
+        /// `Q : Ptr; … Q^.doubleX := …`（实测 `ktp_rose.pas`：`Ptr = ^MidPointType`）。
+        /// 先前 <see cref="ResolveFieldChain"/> 只认「变量本身是 record」与
+        /// 「数组元素是 record」两档，于是 `Q^.字段` 一律报
+        /// 「变量 'Q' 不是record类型，无法访问字段」—— 一整片用指针的老程序卡在这条上。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ **两层都要跟**：① 变量类型本身就是 <see cref="PointerTypeNode"/>（`Q : ^T`）；
+        /// ② 变量类型是个**别名**、别名才是指针（`Q : Ptr; Ptr = ^T`）——
+        /// 这一层最容易漏，而老代码几乎都写成别名形式（`Ptr`/`PNode`/`PRec` 之类）。
+        /// 目标类型同理也可能再套一层别名（`^TSomething` 而 `TSomething = TReal`）。
+        /// </para>
+        /// </summary>
+        private string? TryGetPointerTargetRecordType(string varName)
+        {
+            TypeNode? t = null;
+            if (TryGetNodeCI(localVarDeclarations, varName, out var lv)) t = lv;
+            else if (TryGetNodeCI(globalVarDeclarations, varName, out var gv)) t = gv;
+            if (t is null) return null;
+
+            // ① 别名层：`Q : Ptr` ⇒ 展开到 `Ptr` 的真实类型
+            if (t is not PointerTypeNode && t is SimpleTypeNode alias
+                && TryGetNodeCI(definedTypeAliases, alias.TypeName, out var real))
+                t = real;
+
+            if (t is not PointerTypeNode ptr) return null;
+
+            // ② 目标层：`^MidPointType` ⇒ 目标类型名（可能还有一层别名）
+            if (ptr.TargetType is not SimpleTypeNode target) return null;
+            string name = target.TypeName;
+            if (TryGetNodeCI(definedTypeAliases, name, out var targetReal)
+                && targetReal is SimpleTypeNode tr)
+                name = tr.TypeName;
+
+            foreach (var key in recordFieldLayouts.Keys)
+                if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
+                    return key;
+            return null;
         }
 
         /// <summary>类型表版的大小写不敏感查找（同 <c>TryGetTypeCI</c> 的理由）。</summary>
@@ -1119,12 +1198,26 @@ namespace PascalCompiler
             return false;
         }
 
-        private (int totalOffset, string finalType) ResolveFieldChain(string varName, string firstField, List<string> additionalFields)
+        private (int totalOffset, string finalType) ResolveFieldChain(
+            string varName, string firstField, List<string> additionalFields, int derefCount = 0)
         {
             string recordTypeName = GetVariableRecordType(varName);
-            if ((recordTypeName == null || !recordFieldLayouts.ContainsKey(recordTypeName))
-                && !TryGetArrayElementRecordType(varName, out recordTypeName))
-                throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"变量 '{varName}' 不是record类型，无法访问字段");
+            if (recordTypeName == null || !recordFieldLayouts.ContainsKey(recordTypeName))
+            {
+                if (!TryGetArrayElementRecordType(varName, out recordTypeName))
+                {
+                    // 第三档：**指向 record 的指针** —— `Q : Ptr; … Q^.doubleX := …`
+                    //   （老 Pascal 的链表/树全是这个写法，见 TryGetPointerTargetRecordType）。
+                    //   ⚠ **只在真的解引用过**（`derefCount > 0`）时才当 record 用：
+                    //     没写 `^` 的 `Q.字段` 在 Pascal 里本来就不合法，替它兜底会让
+                    //     真正的笔误静默编过 —— 那是"能编过但跑不对"，比报错难查得多。
+                    string? ptrRec = derefCount > 0 ? TryGetPointerTargetRecordType(varName) : null;
+                    if (ptrRec is null)
+                        throw new CompilationException(ErrorCode.CodeGen_TypeMismatch,
+                            $"变量 '{varName}' 不是record类型，无法访问字段");
+                    recordTypeName = ptrRec;
+                }
+            }
 
             int totalOffset = 0;
             string currentRecordType = recordTypeName;

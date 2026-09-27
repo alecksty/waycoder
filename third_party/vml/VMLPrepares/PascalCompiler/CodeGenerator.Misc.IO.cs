@@ -305,7 +305,7 @@ namespace PascalCompiler
             {
                 if (varNode.Field != null)
                 {
-                    var (_, fieldType) = ResolveFieldChain(varNode.Name, varNode.Field, varNode.Fields);
+                    var (_, fieldType) = ResolveFieldChain(varNode.Name, varNode.Field, varNode.Fields, varNode.DereferenceCount);
                     return ResolveTypeName(fieldType);
                 }
                 // ⚠ **字符串常量要先认出来** —— `const S = 'hello'; WriteLn(S);`

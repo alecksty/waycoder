@@ -483,11 +483,18 @@ namespace PascalCompiler
                 }
                 else
                 {
-                    // type: 跳过直到 ;
-                    Advance();
-                    while (GetTokenType(Cur) != TokenType.SEMICOLON && GetTokenType(Cur) != TokenType.EOF)
-                        Advance();
-                    Expect(TokenType.SEMICOLON, "期望 ';'");
+                    // ⚠ type 段**不能只"跳过"**（原来就是「type: 跳过直到 ;」）——
+                    //   老 Pascal 把数组/记录类型写在**过程内**是常态：
+                    //   `procedure Triangle(…); type PolyType = Array[1..3] of PointType;
+                    //    var TriangleData : PolyType; begin TriangleData[1].X := …;`
+                    //   （实测 `ktp_rose.pas`）。只跳过 ⇒ `definedTypeAliases` 里没有那个别名
+                    //   ⇒ `TriangleData[1].X` 报「不是record类型」。
+                    //   与上面 `Const` 段是**同一个错法**（那段注释也记着"只跳过不登记 ⇒
+                    //   换一个错法"），修法一样：**收下来并登记**（见 LocalTypes）。
+                    var tmpTypes = new List<DeclarationNode>();
+                    ParseTypeDeclarations(tmpTypes);
+                    foreach (var d in tmpTypes)
+                        if (d is TypeDeclarationNode td) subprogram.LocalTypes.Add(td);
                 }
             }
 

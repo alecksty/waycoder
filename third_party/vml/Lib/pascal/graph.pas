@@ -96,6 +96,57 @@ const
   grIOerror = -12;       grInvalidFont = -13;   grInvalidFontNum = -14;
   grInvalidVersion = -18;
 
+  { BGI 的调色板索引上限（`PaletteType.Colors` 用它定长）。 }
+  MaxColors = 15;
+
+{ ── BGI 标准**类型** ──────────────────────────────────────── }
+{ ⚠ 这一段是**兼容老代码**的关键，别当装饰删掉：
+  Turbo Pascal 的 `Graph` 单元导出的不只是过程，还有这几个**类型**，而老程序
+  大量用它们 —— 实测 `ktp_rose.pas`：
+      `type PolyType = Array[1..3] of PointType;  TriangleData : PolyType;`
+  而 `PointType` **在源码里根本没有定义**（它来自 `uses Graph`）⇒ 缺了它，
+  下游表现成「变量 'TriangleData' 不是record类型，无法访问字段」——
+  **指不回这里**，看着像前端缺陷，其实是"单元的声明没提供全"。
+  这正是「老语言遗留代码要靠补兼容层跑起来」最典型的一类缺口。
+  （本仓原先只收单元的 `const` 与过程/函数，**不收 `type`** ⇒ 补上。）}
+type
+  { 最常用的一个：`MoveTo`/`LineTo`/`GetImage` 那一族都用它。 }
+  PointType = record
+    X, Y: Integer;
+  end;
+
+  { `GetPalette`/`SetAllPalette` 的入出参。`Size` 是"有效项数"，`Colors` 是索引表
+    （BGI 里颜色偏移是 ShortInt，可为负 = 那个是**闪烁**色）。 }
+  PaletteType = record
+    Size: Byte;
+    Colors: array[0 .. MaxColors] of ShortInt;
+  end;
+
+  { `GetViewSettings` 的入出参；`Clip` = 是否把绘制裁剪到视口内。 }
+  ViewPortType = record
+    x1, y1, x2, y2: Integer;
+    Clip: Boolean;
+  end;
+
+  { `GetArcCoords` 的入出参。 }
+  ArcCoordsType = record
+    X, Y: Integer;
+    Xstart, Ystart: Integer;
+    Xend, Yend: Integer;
+  end;
+
+  { `GetFillSettings` / `GetLineSettings` 的入出参 }
+  FillPatternType = array [1 .. 8] of Byte;
+  FillSettingsType = record
+    Pattern: FillPatternType;
+    Color: Word;
+  end;
+  LineSettingsType = record
+    LineStyle: Word;
+    Pattern: Word;
+    Thickness: Word;
+  end;
+
 { ── 生命周期 ──────────────────────────────────────────────── }
 { `driver`/`mode` 是**入参+出参**：老程序的标准开场是
   `gd := Detect; InitGraph(gd, gm, '');` —— `gm` 由库回填。 }

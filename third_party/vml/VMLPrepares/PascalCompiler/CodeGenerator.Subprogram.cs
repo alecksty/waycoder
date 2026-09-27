@@ -16,6 +16,15 @@ namespace PascalCompiler
             var prevInSubprogram = isInSubprogram;
             var prevVariableRecordTypes = new Dictionary<string, string>(variableRecordTypes);
             var prevLocalDeclarations = new Dictionary<string, TypeNode>(localVarDeclarations);
+            // ⚠ 过程内的 `type` 段也要按**作用域**处理：老 Pascal 把数组/记录类型写在过程里
+            //   是常态（`type PolyType = Array[1..3] of PointType;` 实测 ktp_rose.pas），
+            //   而它此前被解析器整个跳过。现在收进 `LocalTypes`，在这里**登记**、
+            //   出作用域时**恢复** —— 与 `localVarDeclarations` 同一套处置。
+            var prevDefinedTypeAliases = new Dictionary<string, TypeNode>(definedTypeAliases);
+            var prevDefinedRecordTypes = new Dictionary<string, RecordTypeNode>(definedRecordTypes);
+            var prevRecordFieldLayouts =
+                new Dictionary<string, Dictionary<string, (int offset, string type)>>(recordFieldLayouts);
+            ProcessTypeDeclarations(subprogram.LocalTypes.Cast<DeclarationNode>().ToList());
             
             localVarOffsets.Clear();
             localVarDeclarations.Clear();
@@ -228,6 +237,9 @@ namespace PascalCompiler
             localVarTypes.Clear();
             localVarDeclarations = prevLocalDeclarations;
             variableRecordTypes = prevVariableRecordTypes;
+            definedTypeAliases = prevDefinedTypeAliases;
+            definedRecordTypes = prevDefinedRecordTypes;
+            recordFieldLayouts = prevRecordFieldLayouts;
             varParameters.Clear();
             paramOffsets.Clear();
             currentLocalSize = prevLocalSize;

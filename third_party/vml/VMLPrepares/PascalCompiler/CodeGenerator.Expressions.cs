@@ -222,7 +222,7 @@ namespace PascalCompiler
                     if (variable.Field != null)
                     {
                         // 数组元素 + 记录字段: 地址已在R0，加字段偏移后加载 (支持多级 b.a.v)
-                        var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields);
+                        var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields, variable.DereferenceCount);
                         if (fieldOffset > 0)
                         {
                             instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
@@ -419,7 +419,7 @@ namespace PascalCompiler
                 // 处理record字段访问: 计算地址后LOAD (支持多级 b.a.v)
                 if (variable.Field != null)
                 {
-                    var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields);
+                    var (fieldOffset, fieldType) = ResolveFieldChain(variable.Name, variable.Field, variable.Fields, variable.DereferenceCount);
 
                     // 先获取基地址
                     if (localVarOffsets.ContainsKey(variable.Name))

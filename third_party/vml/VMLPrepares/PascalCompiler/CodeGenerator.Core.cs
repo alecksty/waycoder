@@ -77,7 +77,9 @@ namespace PascalCompiler
 
         /// <summary>把 `uses` 单元的 interface 类型灌进记录布局表（见 <see cref="UnitTypeDeclarations"/>）。</summary>
         internal void ApplyUnitTypeDeclarations()
-            => ProcessTypeDeclarations(UnitTypeDeclarations);
+        {
+            ProcessTypeDeclarations(UnitTypeDeclarations);
+        }
 
         /// <summary>
         /// Pascal 的 <c>System</c> 单元里**不用 <c>uses</c> 就在作用域内**的预定义常量。
