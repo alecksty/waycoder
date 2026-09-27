@@ -141,6 +141,31 @@ namespace PascalCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
         }
 
+        /// <summary>
+        /// `GetMem(P, N)` = `P := alloc(N)` —— Turbo Pascal 的 `System` 单元导出的**标准**过程
+        /// （不用 `uses` 就能调，老程序大量用它按**运行时算出来的长度**分配：
+        /// 读文件、动态数组、链表节点池）。
+        ///
+        /// <para>
+        /// 与 `New(P)` 的差别只是**大小从哪来**：`New` 按指针的目标类型算，
+        /// `GetMem` 由调用方**显式给字节数** ⇒ 所以这里先求值第二个实参，
+        /// 后面的分配/对齐/存回与 <see cref="GenerateNewCall"/> **逐句相同**
+        /// （同一件事只该有一套写法）。
+        /// </para>
+        /// </summary>
+        private void GenerateGetMemCall(ProcedureCallNode call)
+        {
+            if (call.Arguments.Count < 2 || call.Arguments[0] is not VariableNode ptr)
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand,
+                    "GetMem 的参数必须是「指针变量, 字节数」");
+            GenerateExpression(call.Arguments[1]);   // ⇒ R0 = 字节数
+            EmitAlloc();
+            AlignAllocatedPointer();
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+            GenerateVariableAddress(ptr);
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }));
+        }
+
         private void GenerateDisposeCall(ProcedureCallNode call)
         {
             if (call.Arguments.Count == 0)

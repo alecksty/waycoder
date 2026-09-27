@@ -31,8 +31,19 @@ namespace PascalCompiler
             {
                 GenerateNewCall(call);
             }
+            else if (callName == "getmem")
+            {
+                GenerateGetMemCall(call);
+            }
             else if (callName == "dispose")
             {
+                GenerateDisposeCall(call);
+            }
+            else if (callName == "freemem")
+            {
+                // `FreeMem(P)` 与 `Dispose(P)` **同一件事**（释放指针）：前者还要一个字节数、
+                // 后者不收，而本平台的释放**只认指针**（`SYSCALL 41`）⇒ 直接转发
+                //（`GenerateDisposeCall` 只看第一个实参，多出来的那个自然被忽略）。
                 GenerateDisposeCall(call);
             }
             else if (callName == "setlength")
