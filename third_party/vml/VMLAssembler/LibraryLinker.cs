@@ -24,6 +24,7 @@ namespace VMLAssembler
         public static VmlProgram LinkLibraries(VmlProgram mainProgram, List<string> libraryPaths,
             List<string>? multiPrefixes = null, bool debug = false)
         {
+            var swLink = System.Diagnostics.Stopwatch.StartNew();
             // ⚠ **用户代码 / 库代码的分界**：`mainProgram` 里的指令是**前端为这门语言产出的**，
             //   后面 `LinkSingleLibrary` 追加进来的全是库来源。索引边界在链接开始前取，
             //   之后不再变（`AddRange` 只往后加）。
@@ -43,7 +44,10 @@ namespace VMLAssembler
             ReportRegisterClass(mainProgram, mainProgram.Instructions.Count);
 
             if (libraryPaths == null || libraryPaths.Count == 0)
+            {
+                Console.Error.WriteLine($"[耗时] 链接 {swLink.Elapsed.TotalSeconds:0.0}s（无库）");
                 return mainProgram;
+            }
 
             // Fallback to static properties for backward compatibility
             multiPrefixes ??= MultiPrefixes;
@@ -163,6 +167,28 @@ namespace VMLAssembler
             // v1.66.63: 最终修复 — 用完整的 globalLabelMapping 解析所有 CALL 目标
             // (解决 builtins.itoa 自引用: UpdateAllLabelReferences 跳过了自引用 CALL，
             //  此时 globalLabelMapping 已完整，可将裸标签正确解析到实现体)
+            // ⚠ **反着查**（性能关键，语义与原实现逐条相同）：
+            //
+            //   原实现对**每一条** `lib_` 开头的 CALL 都遍历整个 `globalLabelMapping`
+            //   （上千个库符号），里层再套一层 `moduleNames` —— 复杂度
+            //   O(CALL × 符号数 × 模块数)。实测 48.8k 条指令要上亿次字符串比较、
+            //   **407 ms，占整个链接的 86%**（而链接又占一次 hello-world 编译的八成）。
+            //   真机（iPad，Mono AOT 没有 JIT）上这一项的绝对耗时还要再乘约 9 倍。
+            //
+            //   而 target 的形态是**固定**的 `lib_<模块>_<裸名>`（模块名 = 库文件 basename）
+            //   ⇒ 拿模块名前缀去**切**它、剩下的就是裸名，一次字典查询即可。
+            //   「最长裸名」⇔「最短模块名」⇒ 模块名按长度升序试、第一条命中即最长 ✓。
+            //
+            //   两条等价性依据（改这里之前先看它们）：
+            //   · 原来那句 `if (target == impl) { bestBare = null; bestImpl = null; break; }`
+            //     一旦命中就**整体作废**，且与遍历顺序无关 ⇒ 与「target 本身就是某个
+            //     实现体（impl）就不该被重定向」等价 ⇒ 提成 HashSet 前置判断。
+            //   · 原来 `exact` 要求 `target.Length == m.Length + 5 + bareName.Length`
+            //     且三段逐字相等 —— 那正是 `target == "lib_" + m + "_" + bare`，
+            //     与 `StartsWith(前缀)` + 取余下子串同义。
+            var implBodies = new HashSet<string>(globalLabelMapping.Values, StringComparer.Ordinal);
+            var modulesByShortestFirst = moduleNames.OrderBy(m => m.Length).ToList();
+
             int finalFixupCount = 0;
             foreach (var instr in linkedProgram.Instructions)
             {
@@ -210,61 +236,28 @@ namespace VMLAssembler
                 // 直接旁路到实现体会丢失调用约定, 导致参数错位/死循环 (v1.66.64 修复)
                 if (!target.Contains("_func_"))
                 {
-                    string? bestBare = null;
                     string? bestImpl = null;
-                    foreach (var kvp in globalLabelMapping)
+                    if (target.StartsWith("lib_", StringComparison.Ordinal) && !implBodies.Contains(target))
                     {
-                        string bareName = kvp.Key;
-                        string impl = kvp.Value;
-                        if (target == impl) { bestBare = null; bestImpl = null; break; } // 已是最佳实现
-                        if (target == impl) continue;
-                        if (!target.StartsWith("lib_")) continue;
-                        if (!linkedProgram.Labels.ContainsKey(impl)) continue;
-
-                        // ⚠ 判据必须**带模块边界**：target 要**恰好**是 `lib_<模块>_<裸名>`
-                        //   （模块名 = 库文件 basename，见 LinkSingleLibrary 里
-                        //    `libPrefix = $"lib_{文件名}_"`）。
-                        //
-                        //   原先写的是 `target.EndsWith("_" + bareName)` —— 纯后缀匹配，
-                        //   会误伤**名字里含短名**的函数：printf.c 的 static 助手
-                        //   `_printf_itoa` 链接后是 `lib_printf__printf_itoa`，它
-                        //   `EndsWith("_itoa")` ⇒ 被当成「itoa 的包装器」，**整个调用被
-                        //   重定向到 convert.c 的 `itoa(int value, char* dst)`**
-                        //   —— 参数顺序完全相反的函数。
-                        //
-                        //   实测后果：`call _printf_itoa` **永远进不去那个函数**（在它内部
-                        //   插桩一个字都不打），`itoa(42, tmp)` 把 42 当目标地址去写，
-                        //   于是 `%d` 返回垃圾长度、`tmp` 未被填 ⇒ **printf 的所有 `%`
-                        //   转换全废**，而字面量正常（那条路只经过 emit，不经过它）。
-                        //
-                        //   源码里那句注释「前缀 _printf_ 避免与其他库冲突」正是前人给这个
-                        //   碰撞打的补丁 —— 而 `EndsWith` 把那个规避手段整个架空了。
-                        //
-                        //   带边界后：`lib_builtins_itoa`（模块 builtins）仍照旧重定向，
-                        //   而 `lib_printf__printf_itoa` 需要模块名 `printf__printf`（不存在）
-                        //   ⇒ 不再误伤。
-                        bool exact = false;
-                        foreach (var m in moduleNames)
+                        foreach (var m in modulesByShortestFirst)
                         {
-                            if (target.Length == m.Length + 5 + bareName.Length &&
-                                string.CompareOrdinal(target, 0, "lib_", 0, 4) == 0 &&
-                                string.CompareOrdinal(target, 4, m, 0, m.Length) == 0 &&
-                                target[m.Length + 4] == '_' &&
-                                string.CompareOrdinal(target, m.Length + 5, bareName, 0, bareName.Length) == 0)
+                            if (target.Length <= m.Length + 5) continue;
+                            if (string.CompareOrdinal(target, 4, m, 0, m.Length) != 0) continue;
+                            if (target[m.Length + 4] != '_') continue;
+                            string bareName = target[(m.Length + 5)..];
+                            // ⚠ 判据必须**带模块边界**（target 恰好是 `lib_<模块>_<裸名>`）——
+                            //   曾经写成 `target.EndsWith("_" + bareName)`（纯后缀匹配），
+                            //   于是 printf.c 的 static 助手 `_printf_itoa`（链接后是
+                            //   `lib_printf__printf_itoa`）被当成「itoa 的包装器」，
+                            //   整个调用被重定向到 convert.c 的 `itoa(int value, char* dst)`
+                            //   —— 参数顺序完全相反 ⇒ **printf 的所有 `%` 转换全废**
+                            //   （字面量正常，因为那条路不经过它）。模块名边界就是那道修复。
+                            if (globalLabelMapping.TryGetValue(bareName, out var impl) &&
+                                linkedProgram.Labels.ContainsKey(impl))
                             {
-                                exact = true;
+                                bestImpl = impl;
                                 break;
                             }
-                        }
-                        if (!exact) continue;
-
-                        // 多个候选时取**最长**的裸名（更具体）。
-                        // 原实现 break 在字典遍历顺序的第一个匹配上 ⇒ 结果取决于
-                        // Dictionary 的枚举顺序，本身就是不确定行为。
-                        if (bestBare == null || bareName.Length > bestBare.Length)
-                        {
-                            bestBare = bareName;
-                            bestImpl = impl;
                         }
                     }
                     if (bestImpl != null)
@@ -328,6 +321,8 @@ namespace VMLAssembler
             ReportRegisterClass(linkedProgram, userEnd);
 
             Console.WriteLine($"链接完成，总指令数: {linkedProgram.Instructions.Count}");
+            Console.Error.WriteLine($"[耗时] 链接 {swLink.Elapsed.TotalSeconds:0.0}s"
+                + $"（{linkedFiles.Count} 个库模块，总指令 {linkedProgram.Instructions.Count:#,0}）");
             return linkedProgram;
         }
 
@@ -358,15 +353,105 @@ namespace VMLAssembler
             return value;
         }
 
+        /// <summary>
+        /// **已解析的库模块缓存** —— 键 = (绝对路径, 大小, 修改时间, basePath)。
+        ///
+        /// <para>
+        /// 为什么要有：每次编译都要把标准库**整份重新读+解析**一遍。实测（桌面，48.8k 指令的程序）：
+        /// 解析 35 个库模块 = **190 ms**；真机上同一份工作按文本量还要更贵。
+        /// 而在**一次进程**里库是**只读不变**的（App 解压一次、桌面从仓库读）⇒ 这份工作只该做一次。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ **只缓存"解析"这一步，不缓存"前缀改写"**：后者依赖**累积的** `globalLabelMapping`
+        /// （链接到第 N 个模块时的映射与前面链过谁有关）⇒ 不是纯函数，缓存它必错。
+        /// 解析则只取决于 (文件内容, basePath, checkRegisterClass) —— 纯函数 ✓。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠⚠ **缓存里的对象是"只读模板"，绝不能被改写** —— 链接器是**就地改**指令的
+        /// （`UpdateAllLabelReferences` 直接写 `operand.Value`），而且库指令是**按引用**并进
+        /// 主程序的（`mainProgram.Instructions.Add(instr)`）⇒ 之后的地址分配、`ApplyExports()`、
+        /// `ToString()` 都可能继续改这批对象。共享出去 = 第二次编译从"上一次编译改完的状态"
+        /// 开始，产物静默不对 ⇒ 交出去的永远是 <see cref="CloneInstructions"/> 的**副本**。
+        /// </para>
+        ///
+        /// <para>
+        /// 键里带**大小 + 修改时间**：库被替换（换版本 / 重新解压）时自动失效。
+        /// </para>
+        /// </summary>
+        private static readonly Dictionary<(string Path, long Size, long Mtime, string? Base), (VmlProgram Prog, int Count)> ParsedLibCache = new();
+        private static readonly object ParsedLibCacheGate = new();
+        private const int ParsedLibCacheMax = 400;   // 上限：库模块 ~80 个，留足余量防手写库把内存撑爆
+
+        /// <summary>
+        /// 复制一份**可改写**的指令表 —— 缓存模板的指令**只读**，凡要就地改的都改在副本上。
+        ///
+        /// <para>
+        /// 只深拷贝**指令**这一层：`Operand.Value` 是 `int`/`string`（不可变）⇒ 可以共享；
+        /// `Labels`/`DataSection`/`Constants`/`Exports` 在链接路径上**只被读**
+        /// （`RemapLabelRefs` 也是返回新对象、不就地改）⇒ 也共享。
+        /// </para>
+        ///
+        /// <para>
+        /// 代价实测（桌面）：整份标准库 ~48k 条指令的复制约 **4 ms**，而它替掉的是
+        /// **每次编译重新读+解析 35 个库模块的 VML 文本**（桌面 190 ms）。
+        /// </para>
+        /// </summary>
+        private static List<Instruction> CloneInstructions(List<Instruction> src)
+        {
+            var dst = new List<Instruction>(src.Count);
+            foreach (var ins in src)
+            {
+                var ops = new List<Operand>(ins.Operands.Count);
+                foreach (var op in ins.Operands)
+                    ops.Add(new Operand(op.Type, op.Value, op.Size));
+                dst.Add(new Instruction(ins.Opcode, ops, ins.Address, ins.Label) { SourceLine = ins.SourceLine });
+            }
+            return dst;
+        }
+
+        /// <summary>解析一个库模块（带缓存）。返回的是**只读模板**，改写前先见 <see cref="CloneInstructions"/>。</summary>
+        private static VmlProgram ParseLibraryCached(VmlAssembler assembler, string libraryPath, string? basePath)
+        {
+            var fi = new FileInfo(libraryPath);
+            var key = (Path: Path.GetFullPath(libraryPath), Size: fi.Exists ? fi.Length : 0,
+                       Mtime: fi.Exists ? fi.LastWriteTimeUtc.Ticks : 0, Base: basePath);
+            lock (ParsedLibCacheGate)
+                if (ParsedLibCache.TryGetValue(key, out var hit))
+                {
+                    // ⚠ **闸门**：模板只读，指令数**永远**不该变。这里只是 O(1) 抽查 ——
+                    //   真被下游改掉的典型形态是"死代码消除把指令删了"（数量变少），
+                    //   而那种错**不会**报错、只会让下一个程序编出来不对。
+                    //   查不出来就说明 clone 那道防线漏了，**别把这条静默掉**。
+                    if (hit.Prog.Instructions.Count != hit.Count)
+                        Console.Error.WriteLine($"⚠ 库解析缓存被改写！{Path.GetFileName(key.Path)}："
+                            + $"缓存时 {hit.Count} 条，现在 {hit.Prog.Instructions.Count} 条"
+                            + "（缓存模板必须只读，见 ParsedLibCache 的注释）");
+                    return hit.Prog;
+                }
+
+            string libraryCode = File.ReadAllText(libraryPath);
+            // 库文件：**不做寄存器类检查**（库只警告不抛；分档由 ReportRegisterClass 用 userEnd 做）。
+            // 否则一个库模块写错类会让**每个**用户程序都编不过 —— 与 UnresolvedSymbolException 同一条边界。
+            var parsed = assembler.AssembleWithIncludes(libraryCode, basePath, null, checkRegisterClass: false);
+
+            lock (ParsedLibCacheGate)
+            {
+                if (ParsedLibCache.Count >= ParsedLibCacheMax) ParsedLibCache.Clear();  // 简单淘汰：整体清空（库集合稳定，实际不会触发）
+                ParsedLibCache[key] = (parsed, parsed.Instructions.Count);
+            }
+            return parsed;
+        }
+
         private static VmlProgram LinkSingleLibrary(VmlProgram mainProgram, string libraryPath, VmlAssembler assembler, Dictionary<string, string> globalLabelMapping, bool debug = false)
         {
             try
             {
-                string libraryCode = File.ReadAllText(libraryPath);
                 string? basePath = Path.GetDirectoryName(Path.GetFullPath(libraryPath));
-                // 库文件：**不做寄存器类检查**（库只警告不抛；分档由 ReportRegisterClass 用 userEnd 做）。
-                // 否则一个库模块写错类会让**每个**用户程序都编不过 —— 与 UnresolvedSymbolException 同一条边界。
-                var libraryProgram = assembler.AssembleWithIncludes(libraryCode, basePath, null, checkRegisterClass: false);
+                var libraryProgram = ParseLibraryCached(assembler, libraryPath, basePath);
+                // 模板只读！本函数及下游的一切就地改写（标签改名 / 地址 / DCE）都落在这份副本上。
+                var libInstructions = CloneInstructions(libraryProgram.Instructions);
 
                 // 创建标签映射：原始标签 -> 带前缀的标签
                 // (必须在合并数据段之前构建，以便数据段 key 也用前缀映射)
@@ -434,10 +519,10 @@ namespace VMLAssembler
                 }
 
                 // 更新库程序中的所有标签引用（CALL/JMP/LOAD等），使用组合映射解析跨库引用
-                UpdateAllLabelReferences(libraryProgram.Instructions, combinedMapping);
+                UpdateAllLabelReferences(libInstructions, combinedMapping);
 
                 // 更新库程序中的 ASM 伪指令标签引用
-                UpdateAsmLabelReferences(libraryProgram.Instructions, combinedMapping);
+                UpdateAsmLabelReferences(libInstructions, combinedMapping);
 
                 // 将当前库的标签映射合并到全局映射（供后续库解析跨库引用）
                 foreach (var kvp in labelMapping) globalLabelMapping[kvp.Key] = kvp.Value;
@@ -486,7 +571,7 @@ namespace VMLAssembler
                 int baseOffset = mainProgram.Instructions.Count;
                 int deduped = 0;
                 bool inSkipBlock = false;
-                foreach (var instr in libraryProgram.Instructions)
+                foreach (var instr in libInstructions)
                 {
                     if (!string.IsNullOrEmpty(instr.Label))
                     {
@@ -535,7 +620,7 @@ namespace VMLAssembler
                         mainProgram.Exports[exp.Key] = exp.Value;
                 }
 
-                Console.WriteLine($"    成功链接: {Path.GetFileName(libraryPath)} ({libraryProgram.Instructions.Count} 条指令)");
+                Console.WriteLine($"    成功链接: {Path.GetFileName(libraryPath)} ({libInstructions.Count} 条指令)");
                 return mainProgram;
             }
             catch (Exception ex)

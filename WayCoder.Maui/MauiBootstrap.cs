@@ -211,6 +211,25 @@ public static class MauiBootstrap
             var mode = System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
                 ? "JIT"
                 : System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeCompiled ? "AOT（编译好的本机代码）" : "解释器（最慢）";
+            // ── 性能探针：**同一段托管死循环**，用来回答"这台设备到底跑的是本机代码还是解释器" ──
+            //
+            // 为什么不能只信上面那对 `RuntimeFeature` 标志：Mono 的 **AOT** 与**解释器**在
+            // iOS 上都会报 `IsDynamicCodeSupported=false`，而 `IsDynamicCodeCompiled` 在
+            // Mono AOT 下**也可能是 false** ⇒ 判据说"解释器"、实际是 AOT（真机实测：
+            // iPad 报"解释器"却带着 99 个 `aotdata.arm64`，两边对不上）。
+            // 量一段固定工作量最干净：本机代码 ~几十毫秒，解释器要**秒级**。
+            try
+            {
+                var swProbe = System.Diagnostics.Stopwatch.StartNew();
+                long acc = 0;
+                for (int i = 0; i < 20_000_000; i++) acc += i;
+                swProbe.Stop();
+                ErrorLog.Info("MAUI",
+                    $"性能探针：2e7 次整数累加 = {swProbe.Elapsed.TotalMilliseconds:0} ms"
+                    + $"（本机代码(AOT/JIT) 约 30–100 ms；**解释器**要 2000 ms 以上）[校验和 {acc}]");
+            }
+            catch (Exception probeEx) { ErrorLog.Info("MAUI", $"性能探针失败：{probeEx.Message}"); }
+
             ErrorLog.Info("MAUI", $"运行时：{System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}"
                 + $" / 执行模式={mode}"
                 + "（Apple 平台禁 JIT ⇒ Debug 包只能跑解释器，前端编译会比安卓/Windows 慢十倍上下；"

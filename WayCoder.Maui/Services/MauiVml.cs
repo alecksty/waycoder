@@ -950,14 +950,25 @@ HALT
         // **成功也要留下耗时**（2026-09-26 用户问「为什么 iOS/macOS 编译比 Android/Windows 慢那么多」）：
         // 此前秒数只出现在**超时**那条路上，正常编完一个字都不记 ⇒ "这台设备编这个程序多久"
         // 只能靠掐表看屏幕，比不了也追不了。一行 Info 换一个可查的数，值。
-        // ⚠ 同一份源码在不同平台差 10 倍以上是**正常现象**（Apple 禁 JIT ⇒ Debug 走解释器；
-        //   见 `docs/` 与 CLAUDE.md 里那条），有秒数才谈得上判断"是平台特性还是真出问题了"。
+        // ⚠ 同一份源码在不同平台差好几倍是**正常现象**：Apple 禁 JIT（W^X）⇒ iOS 上
+        //   Mono 只能 **AOT**，安卓走 **JIT**，桌面 CoreCLR 最齐 —— 同一份字节码，
+        //   三边的**机器码质量与优化程度**不是一个档。实测（2026-09-27，同一份 gorilla.cpp）：
+        //   iPad 133.6s / 安卓手机 14.9s / 桌面 2.7s，比值 ≈ 9:1:0.18。
+        //   ⚠ **不是"解释执行"**：AOT 探针（2e7 次整数累加）在 iPad 上 59 ms ——
+        //   是真机器码（解释器要 2000 ms 以上）。别把它当解释器去"优化解释器开销"。
+        // 分阶段耗时（`[耗时] 链接 X s（N 个库模块，总指令 M）`，由 `LibraryLinker` 打在 stderr）
+        // **回显到界面**：真机上一份大程序要一两分钟，只报总数判断不出该优化哪一段。
+        var phaseNote = "";
+        foreach (var line in compileDiag.Split('\n'))
+            if (line.Contains("[耗时]")) { phaseNote = "\n" + line.Trim(); break; }
+
         ErrorLog.Info("MauiVml", $"编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒"
             + $"（前端 {compiler.Name} + 汇编 + 链接，共 {prog.Instructions.Count} 条指令）");
         // **界面上也报一句**：这一版之前，只有"超时"才看得见秒数 —— 于是"这台设备编这个程序多久"
         // 除了掐表没别的办法，平台之间更是没法比（正是用户问「为什么 iOS 比安卓慢那么多」时的处境）。
         // 末尾那个 `\n` = **收尾**：覆盖掉计时那一行，并让后面的输出从新的一行开始（见契约）。
-        OnProgress?.Invoke($"\r✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒\n");
+        OnProgress?.Invoke($"\r✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒"
+            + $"{phaseNote}\n");
         return (prog, lang, null, compileWarnings);
     }
 
