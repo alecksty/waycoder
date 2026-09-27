@@ -7,9 +7,9 @@ LABEL scheme_labs64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL labs64
     ADD @R13 #8
@@ -22,12 +22,12 @@ LABEL scheme_lmin64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmin64
@@ -41,12 +41,12 @@ LABEL scheme_lmax64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmax64
@@ -60,15 +60,15 @@ LABEL scheme_lclamp64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+28]
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -83,9 +83,9 @@ LABEL scheme_lsign64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lsign64
     ADD @R13 #8
@@ -98,12 +98,12 @@ LABEL scheme_lgcd64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lgcd64
@@ -117,12 +117,12 @@ LABEL scheme_llcm64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL llcm64
@@ -136,9 +136,9 @@ LABEL scheme_lisqrt64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lisqrt64
     ADD @R13 #8
@@ -151,12 +151,12 @@ LABEL scheme_lpow64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lpow64
@@ -170,9 +170,9 @@ LABEL scheme_lfactorial64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lfactorial64
     ADD @R13 #8
@@ -185,12 +185,12 @@ LABEL scheme_lceil_div64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lceil_div64
@@ -204,12 +204,12 @@ LABEL scheme_lround_div64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lround_div64
@@ -223,9 +223,9 @@ LABEL scheme_lis_prime64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lis_prime64
     ADD @R13 #8
@@ -238,12 +238,12 @@ LABEL scheme_lrandom64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrandom64
@@ -257,9 +257,9 @@ LABEL scheme_lclz64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lclz64
     ADD @R13 #8
@@ -272,9 +272,9 @@ LABEL scheme_lpopcnt64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lpopcnt64
     ADD @R13 #8
@@ -287,15 +287,15 @@ LABEL scheme_llerp64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+28]
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -310,21 +310,21 @@ LABEL scheme_lmap_range64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+44]
+    movel @L0 [@R12+44]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+36]
+    movel @13 @L0
+    movel @L0 [@R12+36]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+28]
+    movel @13 @L0
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -340,9 +340,9 @@ LABEL scheme_lpow10_64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lpow10_64
     ADD @R13 #8
@@ -355,12 +355,12 @@ LABEL scheme_lhypot64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lhypot64
@@ -374,9 +374,9 @@ LABEL scheme_lilog2_64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lilog2_64
     ADD @R13 #8
@@ -389,9 +389,9 @@ LABEL scheme_lis_even64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lis_even64
     ADD @R13 #8
@@ -404,9 +404,9 @@ LABEL scheme_lis_odd64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lis_odd64
     ADD @R13 #8

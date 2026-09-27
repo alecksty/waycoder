@@ -59,7 +59,8 @@ namespace VMLAssembler
                 return $"{labelStr}asm \"{asmContent}\"";
             }
 
-            var ops = string.Join(" ", Operands.Select(o => o.ToString()));
+            // 寄存器按**类**写名（`@L0`/`@D0`/`@F0`），类由助记符决定 —— 见 Operand.ToStringFor
+            var ops = string.Join(" ", Operands.Select((o, idx) => o.ToStringFor(Opcode, idx, Operands.Count)));
             return $"{labelStr}{Opcode.ToString().ToLowerInvariant()} {ops}".Trim();
         }
     }

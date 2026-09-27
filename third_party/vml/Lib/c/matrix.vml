@@ -83,9 +83,9 @@ LABEL c_mat2_scale
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+16]
+    movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -152,9 +152,9 @@ LABEL c_mat2_rot
     move @R12 @R13
     move @R0 [@R12+16]
     PUSH @R0
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat2_rot
@@ -235,9 +235,9 @@ LABEL c_mat3_scale
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+16]
+    movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -290,15 +290,15 @@ LABEL c_mat4_translate
     move @R12 @R13
     move @R0 [@R12+24]
     PUSH @R0
-    move @R0 [@R12+20]
+    movef @F0 [@R12+20]
     sub @R13 #4
-    movef @13 @R0
-    move @R0 [@R12+16]
+    movef @13 @F0
+    movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @R0
-    move @R0 [@R12+12]
+    movef @13 @F0
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -316,15 +316,15 @@ LABEL c_mat4_scale_xyz
     move @R12 @R13
     move @R0 [@R12+24]
     PUSH @R0
-    move @R0 [@R12+20]
+    movef @F0 [@R12+20]
     sub @R13 #4
-    movef @13 @R0
-    move @R0 [@R12+16]
+    movef @13 @F0
+    movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @R0
-    move @R0 [@R12+12]
+    movef @13 @F0
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -342,9 +342,9 @@ LABEL c_mat4_rot_x
     move @R12 @R13
     move @R0 [@R12+16]
     PUSH @R0
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_x
@@ -360,9 +360,9 @@ LABEL c_mat4_rot_y
     move @R12 @R13
     move @R0 [@R12+16]
     PUSH @R0
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_y
@@ -378,9 +378,9 @@ LABEL c_mat4_rot_z
     move @R12 @R13
     move @R0 [@R12+16]
     PUSH @R0
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_z

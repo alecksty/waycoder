@@ -353,6 +353,35 @@ static string[] GetParamTypes(string ps)
         .ToArray();
 }
 
+/// 按类型给出**寄存器名**（用户 2026-09-27 定的模型：`Rn`=32位 / `Ln`=64位 /
+/// `Fn`=32位 / `Dn`=64位，**类由助记符决定**）。包装器里一律写 `@R{n}` 是错的 ——
+/// `movel @13 @R0` 的源是 32 位寄存器（VM 的兼容垫层恰好也认 `R0-R7`，所以"看着能跑"），
+/// 而写错类的文本会**直接撞上汇编期的寄存器类检查**。
+static string TypedRegName(string paramType, int n)
+{
+    var t = (paramType ?? "").Trim().ToLower();
+    return t switch
+    {
+        "double" => $"@D{n}",
+        "long" or "long long" or "unsigned long" or "unsigned long long" or "int64_t" or "uint64_t" => $"@L{n}",
+        "float" => $"@F{n}",
+        _ => $"@R{n}",
+    };
+}
+
+/// 按类型给出**取数指令**（把形参从帧里搬进该类的 0 号寄存器）
+static string TypedLoadMnemonic(string paramType)
+{
+    var t = (paramType ?? "").Trim().ToLower();
+    return t switch
+    {
+        "double" => "moved",
+        "long" or "long long" or "unsigned long" or "unsigned long long" or "int64_t" or "uint64_t" => "movel",
+        "float" => "movef",
+        _ => "move",
+    };
+}
+
 /// 根据参数类型返回正确的 PUSH 指令
 static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
 {
@@ -360,14 +389,14 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
     switch (t)
     {
         case "float":
-            return (new[] { $"    sub @R13 #4", $"    movef @13 @R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    movef @13 {TypedRegName("float", regIdx)}" }, 4);
         case "double":
-            return (new[] { $"    sub @R13 #8", $"    moved @13 @R{regIdx}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    moved @13 {TypedRegName("double", regIdx)}" }, 8);
         case "long":
         case "long long":
         case "unsigned long":
         case "unsigned long long":
-            return (new[] { $"    sub @R13 #8", $"    movel @13 @R{regIdx}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    movel @13 {TypedRegName("long", regIdx)}" }, 8);
         // 1 字节整数: char/signed char/unsigned char
         // 实现体用 moveb 读取 + add R13 #5 清栈, 包装器必须只压 1 字节
         case "char":
@@ -509,7 +538,9 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             {
                 string type = i < paramTypes.Length ? paramTypes[i] : "";
                 // 先把第 i 个实参从帧里取到 R0，再复用同一套按类型压栈的指令
-                sb.AppendLine($"    move @R0 [@R12+{argOff[i]}]");
+                // ⚠ 取值也要按**类**：`long` 形参用 32 位 `move @R0` 取只会拿到低半字
+                //   （而且 `movel @13 @R0` 的源就变成 32 位寄存器 —— 撞寄存器类检查）
+                sb.AppendLine($"    {TypedLoadMnemonic(type)} {TypedRegName(type, 0)} [@R12+{argOff[i]}]");
                 var (lines, bytes) = EmitPushParam(type, 0);
                 foreach (var line in lines)
                     sb.AppendLine(line);

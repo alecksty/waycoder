@@ -8,6 +8,16 @@ namespace CppCompiler
 
     public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
     {
+
+        /// <summary>
+        /// 取"该指令该用哪个寄存器"的**文本名** —— 用户定的模型：
+        /// `Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位（编号 0–15 通用、16–23=D0–D7、
+        /// 24–31=L0–L7），**类由助记符决定**。前端一律写 "R0" 时，64 位值会被静默截断
+        /// （实测 C++ 的双精度字面量/变量存取）。判据与汇编期校验同源。
+        /// </summary>
+        private static string TR(OpCode op, int operandIndex = 0)
+            => "R" + VMLAssembler.RegisterClassTable.BankOfOperand(op, operandIndex);
+
         private readonly Program _program;
         private int _nextString;
         private int _stackOffset;
@@ -735,7 +745,7 @@ namespace CppCompiler
                         CppType.Double => OpCode.MOVED,
                         _ => OpCode.MOVE
                     };
-                    Add(storeOp, label, "R0");
+                    Add(storeOp, label, TR(storeOp, 1));
                 }
             }
             else if (vd.IsArray)

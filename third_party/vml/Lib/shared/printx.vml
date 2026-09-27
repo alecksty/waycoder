@@ -304,9 +304,9 @@ printx_float64:
         move @R12 @R13
         sub @R13 #16
 ; 80:     float f = (float)val;
-        moved @R16 [@R12+12]
-        d2f @R0 @R16
-        movef [@R12-8] @R0
+        moved @D0 [@R12+12]
+        d2f @F0 @D0
+        movef [@R12-8] @F0
 ; 81:     asm("SYSCALL #8");
         syscall #8
         move [@R12-4] @R0
@@ -327,9 +327,9 @@ printlnx_float64:
         move @R12 @R13
         sub @R13 #16
 ; 84:     float f = (float)val;
-        moved @R16 [@R12+12]
-        d2f @R0 @R16
-        movef [@R12-8] @R0
+        moved @D0 [@R12+12]
+        d2f @F0 @D0
+        movef [@R12-8] @F0
 ; 85:     asm("SYSCALL #8");
         syscall #8
         move [@R12-4] @R0

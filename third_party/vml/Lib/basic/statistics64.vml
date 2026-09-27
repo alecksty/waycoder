@@ -35,9 +35,9 @@ LABEL BASIC_LCOUNT_GT64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -53,9 +53,9 @@ LABEL BASIC_LCOUNT_LT64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -71,9 +71,9 @@ LABEL BASIC_LCOUNT_EQ64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]

@@ -10,6 +10,17 @@ namespace CSharpCompiler
     /// </summary>
     public class CodeGenerator : OopCodeGenerator
     {
+
+        /// <summary>
+        /// 取"该指令第 <paramref name="operandIndex"/> 个操作数"该用的寄存器 ——
+        /// 用户定的模型：`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位（编号 0–15 通用、
+        /// 16–23=D0–D7、24–31=L0–L7）。**类由助记符决定**，所以 `MOVED` 的目标必须是 D 寄存器；
+        /// 从前这里一律写 R0，64 位值一进 R8–R15 就被静默截断。
+        /// 判据与汇编期校验同源（`RegisterClassTable`）。
+        /// </summary>
+        private static Operand TR(OpCode op, int operandIndex)
+            => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, operandIndex));
+
         private Dictionary<string, string> functionEndLabels = new Dictionary<string, string>();
         private Dictionary<string, string> functionReturnTypes = new Dictionary<string, string>();
         private Dictionary<string, string> _nativeAliases = new Dictionary<string, string>();
@@ -436,7 +447,7 @@ namespace CSharpCompiler
             // 优先从栈帧加载局部变量
             if (localVarOffsets.TryGetValue(variable.Name, out int offset))
             {
-                instructions.Add(new Instruction(loadOp, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(offset))]));
+                instructions.Add(new Instruction(loadOp, [TR(loadOp, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(offset))]));
                 return;
             }
 
@@ -452,7 +463,7 @@ namespace CSharpCompiler
                 return;
             }
 
-            instructions.Add(new Instruction(loadOp, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, label)]));
+            instructions.Add(new Instruction(loadOp, [TR(loadOp, 0), new Operand(OperandType.MEMORY, label)]));
         }
         
         private void GenerateIndex(IndexExpression indexExpr)
@@ -709,7 +720,7 @@ namespace CSharpCompiler
                 // 优先存到栈帧局部变量
                 if (localVarOffsets.TryGetValue(varExpr2.Name, out int loff))
                 {
-                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(loff)), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(loff)), TR(storeOp, 1)]));
                 }
                 else
                 {
@@ -717,7 +728,7 @@ namespace CSharpCompiler
                     if (!dataSection.ContainsKey(label))
                         dataSection[label] = 0;
                     // 同上：写进"那个位置"，不是写进"那个地址的编号"
-                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), TR(storeOp, 1)]));
                 }
             }
         }
@@ -791,17 +802,17 @@ namespace CSharpCompiler
                 // 如果源类型与目标类型的寄存器文件不匹配，插入转换指令
                 // float→double: F2D, int→float: I2F, int→double/long: I2D, double→float: D2F
                 if (isFloat && srcType == ExpType.I32)
-                    instructions.Add(new Instruction(OpCode.I2F, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(OpCode.I2F, [TR(OpCode.I2F, 0), TR(OpCode.I2F, 1)]));
                 else if (isFloat && srcType == ExpType.F64)
-                    instructions.Add(new Instruction(OpCode.D2F, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(OpCode.D2F, [TR(OpCode.D2F, 0), TR(OpCode.D2F, 1)]));
                 else if (isDoubleOrLong && srcType == ExpType.I32)
-                    instructions.Add(new Instruction(OpCode.I2D, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(OpCode.I2D, [TR(OpCode.I2D, 0), TR(OpCode.I2D, 1)]));
                 else if (isDoubleOrLong && srcType == ExpType.F32)
-                    instructions.Add(new Instruction(OpCode.F2D, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(OpCode.F2D, [TR(OpCode.F2D, 0), TR(OpCode.F2D, 1)]));
 
                 // 统一 MOVE 系列: dest-first 操作数顺序 [Mem, Reg]
                 int loff = localVarOffsets[varName];
-                instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(loff)), new Operand(OperandType.REGISTER, 0)]));
+                instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(loff)), TR(storeOp, 1)]));
             }
         }
         

@@ -28,6 +28,15 @@ namespace JavaCompiler
     /// </summary>
     public partial class CodeGenerator : OopCodeGenerator
     {
+
+        /// <summary>
+        /// 取"该指令该用哪个寄存器"的**类内 0 号** —— 用户定的模型：`Rn`=32位 / `Ln`=64位 /
+        /// `Fn`=32位 / `Dn`=64位（编号 0–15 通用、16–23=D0–D7、24–31=L0–L7），
+        /// **类由助记符决定**。从前一律写 R0，64 位值一进 R8–R15 就被静默截断。
+        /// 判据与汇编期校验（`RegisterClassTable`）同源。
+        /// </summary>
+        private static Operand TR0(OpCode op)
+            => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, 0));
         private int _methodReturnLabelId = -1;
         private int _currentVarOffset;
         private new Dictionary<string, int> _varOffsets = new Dictionary<string, int>();
@@ -131,7 +140,11 @@ namespace JavaCompiler
             var (ts, tf, td, tl) = JavaTypeInfo(toType);
             var op = ExpressionManager.SelectConversionOp(fs, ff, fd, ts, tf, td, fl, tl);
             if (op != null)
-                AddRR(op.Value, 0, 0);
+                // ⚠ 转换的两个操作数类**不同**（`D2I` 目标 R、源 D）⇒ 必须按操作数位取寄存器。
+                //   两个都写 0 会让 `d2i R0, R0` 去读通用寄存器而不是双精度寄存器。
+                instructions.Add(new Instruction(op.Value, [
+                    new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op.Value, 0)),
+                    new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op.Value, 1))]));
         }
 
         /// <summary>
@@ -390,7 +403,7 @@ namespace JavaCompiler
                 {
                     GenerateExpression(varDecl.Initializer);
                     OpCode storeOp = GetStoreInstruction(varType);
-                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), TR0(storeOp)]));
                 }
             }
             else if (statement is ReturnStatement returnStmt)

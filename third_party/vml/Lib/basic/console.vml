@@ -120,9 +120,9 @@ LABEL BASIC_PRINT_FLOAT
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL print_float
     ADD @R13 #4
@@ -163,9 +163,9 @@ LABEL BASIC_PUTFLOAT
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL putfloat
     ADD @R13 #4
@@ -410,9 +410,9 @@ LABEL BASIC_PRINT_LONG
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL print_long
     ADD @R13 #8
@@ -425,9 +425,9 @@ LABEL BASIC_PRINT_HEX_LONG
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL print_hex_long
     ADD @R13 #8
@@ -440,9 +440,9 @@ LABEL BASIC_PRINTLN_LONG
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL println_long
     ADD @R13 #8
@@ -455,9 +455,9 @@ LABEL BASIC_PRINTLN_HEX_LONG
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL println_hex_long
     ADD @R13 #8
@@ -482,9 +482,9 @@ LABEL BASIC_PRINT_DOUBLE
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL print_double
@@ -500,9 +500,9 @@ LABEL BASIC_PRINTLN_DOUBLE
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL println_double
@@ -731,9 +731,9 @@ LABEL BASIC_PRINTX_FLOAT32
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL printx_float32
     ADD @R13 #4
@@ -746,9 +746,9 @@ LABEL BASIC_PRINTLNX_FLOAT32
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL printlnx_float32
     ADD @R13 #4
@@ -761,9 +761,9 @@ LABEL BASIC_PRINTX_FLOAT64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL printx_float64
     ADD @R13 #8
@@ -776,9 +776,9 @@ LABEL BASIC_PRINTLNX_FLOAT64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL printlnx_float64
     ADD @R13 #8

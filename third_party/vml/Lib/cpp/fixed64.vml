@@ -7,12 +7,12 @@ LABEL cpp_lfixed_mul64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lfixed_mul64
@@ -26,12 +26,12 @@ LABEL cpp_lfixed_div64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lfixed_div64
@@ -45,9 +45,9 @@ LABEL cpp_lfixed_from_int64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lfixed_from_int64
     ADD @R13 #8
@@ -60,9 +60,9 @@ LABEL cpp_lfixed_to_int64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lfixed_to_int64
     ADD @R13 #8
@@ -75,9 +75,9 @@ LABEL cpp_lfixed_to_int_round64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lfixed_to_int_round64
     ADD @R13 #8
@@ -90,9 +90,9 @@ LABEL cpp_lfixed_from_double
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL lfixed_from_double
     ADD @R13 #8
@@ -105,9 +105,9 @@ LABEL cpp_lfixed_to_double
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lfixed_to_double
     ADD @R13 #8

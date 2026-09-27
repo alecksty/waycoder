@@ -301,7 +301,7 @@ namespace CppCompiler
                     {
                         string llLabel = $"lng_{labelCounter++}";
                         dataSection[llLabel] = ll.Value;
-                        Add(OpCode.MOVEL, "R0", llLabel);
+                        Add(OpCode.MOVEL, TR(OpCode.MOVEL), llLabel);
                     }
                     break;
                 case FloatLiteral fl:
@@ -321,7 +321,7 @@ namespace CppCompiler
                         string flabel = $"dbl_{labelCounter++}";
                         dataSection[flabel] = fl.Value; // 存 double 对象，VMLProgram 序列化时用 .dword
                         instructions.Add(new Instruction(OpCode.MOVED,
-                            [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, flabel)],
+                            [new Operand(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(OpCode.MOVED, 0)), new Operand(OperandType.MEMORY, flabel)],
                             instructions.Count));
                     }
                     break;
@@ -438,7 +438,7 @@ namespace CppCompiler
                             EmitUndefinedFallback();
                             break;
                         }
-                        Add(loadOp, "R0", varLabel);
+                        Add(loadOp, TR(loadOp), varLabel);
                     }
                     break;
                 case ThisExpr _:

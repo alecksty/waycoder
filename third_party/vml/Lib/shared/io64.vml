@@ -21,9 +21,9 @@ print_long:
         move @R0 @R12
         sub @R0 #28
         push @R0
-        movel @R24 [@R12+12]
+        movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @R24
+        movel @13 @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -55,9 +55,9 @@ print_hex_long:
         move @R0 @R12
         sub @R0 #24
         push @R0
-        movel @R24 [@R12+12]
+        movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @R24
+        movel @13 @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa_hex
@@ -86,9 +86,9 @@ println_long:
         move @R12 @R13
         sub @R13 #16
 ; 19:     print_long(val);
-        movel @R24 [@R12+12]
+        movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @R24
+        movel @13 @L0
         move @R0 [@R13+0]
         call print_long
         add @R13 #8
@@ -115,9 +115,9 @@ println_hex_long:
         move @R12 @R13
         sub @R13 #16
 ; 23:     print_hex_long(val);
-        movel @R24 [@R12+12]
+        movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @R24
+        movel @13 @L0
         move @R0 [@R13+0]
         call print_hex_long
         add @R13 #8
@@ -297,9 +297,9 @@ print_double:
         push @R0
         move @R0 [@R12+20]
         push @R0
-        moved @R16 [@R12+12]
+        moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @R16
+        moved @13 @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         move @R2 [@R13+12]
@@ -333,9 +333,9 @@ println_double:
 ; 43:     print_double(val, precision);
         move @R0 [@R12+20]
         push @R0
-        moved @R16 [@R12+12]
+        moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @R16
+        moved @13 @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call print_double

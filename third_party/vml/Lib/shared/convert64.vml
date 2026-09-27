@@ -23,44 +23,44 @@ ltoa:
         move @R0 #0
         move [@R12-16] @R0
 ; 8:     if (value < 0) { is_neg = 1; value = -value; }
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L19190002
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L19190003
 _L19190002:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L19190003:
         cmp @R0 #0
         jz sta_19190000
         move @R0 #1
         move [@R12-16] @R0
-        movel @R24 [@R12+12]
-        movel @R24 [@R12+12]
-        negl @R24 @R24
-        movel [@R12+12] @R24
+        movel @L0 [@R12+12]
+        movel @L0 [@R12+12]
+        negl @L0 @L0
+        movel [@R12+12] @L0
 sta_19190000:
 sta_19190001:
 ; 9:     if (value == 0) { dst[0] = '0'; dst[1] = 0; return 1; }
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         je _L19190006
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L19190007
 _L19190006:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L19190007:
         cmp @R0 #0
         jz sta_19190004
@@ -93,32 +93,32 @@ sta_19190005:
 sta_19190009:
         move @R2 #0
 ; 10:     while (value > 0) {
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jg _L19190011
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L19190012
 _L19190011:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L19190012:
         cmp @R0 #0
         jz sta_19190010
 ; 11:         dst[i++] = '0' + (char)(value % 10);
         move @R0 #48
         pushb @R0
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        modl @R24 @R25 @R24
-        l2i @R0 @R24
+        i2l @L0 @R0
+        popl @L1
+        modl @L0 @L1 @L0
+        l2i @R0 @L0
         popb @R1
         add @R1 @R0
         moveb @R0 @R1
@@ -137,13 +137,13 @@ _L19190012:
         pop @R7
         moveb [@R0] @R7
 ; 12:         value /= 10;
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        divl @R24 @R25 @R24
-        movel [@R12+12] @R24
+        i2l @L0 @R0
+        popl @L1
+        divl @L0 @L1 @L0
+        movel [@R12+12] @L0
         jmp sta_19190009
 sta_19190010:
 ; 14:     if (is_neg) dst[i++] = '-';
@@ -291,8 +291,8 @@ atol:
         sub @R13 #32
 ; 25:     long result = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 ; 26:     int sign = 1;
         move @R0 #1
         move [@R12-16] @R0
@@ -469,13 +469,13 @@ _L19190040:
         cmp @R0 #0
         jz sta_19190038
 ; 32:         result = result * 10 + (long)(s[i] - '0');
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
+        i2l @L0 @R0
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-20]
@@ -489,10 +489,10 @@ _L19190040:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2l @R24 @R0
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-12] @L0
 ; 33:         i++;
         move @R0 [@R12-20]
         move @R1 @R0
@@ -503,11 +503,11 @@ _L19190040:
 sta_19190038:
 ; 35:     return sign * result;
         move @R0 [@R12-16]
-        i2l @R24 @R0
-        pushl @R24
-        movel @R24 [@R12-12]
-        popl @R25
-        mull @R24 @R25 @R24
+        i2l @L0 @R0
+        pushl @L0
+        movel @L0 [@R12-12]
+        popl @L1
+        mull @L0 @L1 @L0
         jmp L_19190045
 L_19190045:
         move @R13 @R12
@@ -534,8 +534,8 @@ ltoa_hex:
         move @R0 #0
         move [@R12-16] @R0
 ; 43:     unsigned long uval = (unsigned long)value;
-        movel @R24 [@R12+12]
-        movel [@R12-24] @R24
+        movel @L0 [@R12+12]
+        movel [@R12-24] @L0
 ; 45:     for (shift = 60; shift >= 0; shift -= 4) {
         move @R0 #60
         move [@R12-28] @R0
@@ -554,18 +554,18 @@ _L19190050:
         cmp @R0 #0
         jz sta_19190048
 ; 46:         int nibble = (int)((uval >> shift) & 0xF);
-        movel @R24 [@R12-24]
-        pushl @R24
+        movel @L0 [@R12-24]
+        pushl @L0
         move @R0 [@R12-28]
-        popl @R25
-        shrul @R25 @R0
-        movel @R24 @R25
-        pushl @R24
+        popl @L1
+        shrul @L1 @R0
+        movel @L0 @L1
+        pushl @L0
         move @R0 #15
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         move [@R12-32] @R0
 ; 47:         if (nibble > 0 || started || shift == 0) {
         move @R0 [@R12-32]
@@ -711,8 +711,8 @@ atol_hex:
         sub @R13 #32
 ; 58:     long result = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 ; 59:     int i = 0;
         move @R0 #0
         move [@R12-16] @R0
@@ -921,13 +921,13 @@ _L19190094:
 _L19190095:
         cmp @R0 #0
         jz sta_19190092
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #16
-        i2l @R24 @R0
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
+        i2l @L0 @R0
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
         moveb @R0 [@R12-17]
         sextb @R0 @R0
         pushb @R0
@@ -935,10 +935,10 @@ _L19190095:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2l @R24 @R0
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-12] @L0
         jmp sta_19190093
 sta_19190092:
 ; 65:         else if (c >= 'a' && c <= 'f') result = result * 16 + (long)(c - 'a' + 10);
@@ -977,13 +977,13 @@ _L19190102:
 _L19190103:
         cmp @R0 #0
         jz sta_19190100
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #16
-        i2l @R24 @R0
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
+        i2l @L0 @R0
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
         moveb @R0 [@R12-17]
         sextb @R0 @R0
         pushb @R0
@@ -996,10 +996,10 @@ _L19190103:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        i2l @R24 @R0
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-12] @L0
         jmp sta_19190101
 sta_19190100:
 ; 66:         else if (c >= 'A' && c <= 'F') result = result * 16 + (long)(c - 'A' + 10);
@@ -1038,13 +1038,13 @@ _L19190110:
 _L19190111:
         cmp @R0 #0
         jz sta_19190108
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #16
-        i2l @R24 @R0
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
+        i2l @L0 @R0
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
         moveb @R0 [@R12-17]
         sextb @R0 @R0
         pushb @R0
@@ -1057,10 +1057,10 @@ _L19190111:
         pop @R1
         add @R1 @R0
         move @R0 @R1
-        i2l @R24 @R0
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-12] @L0
         jmp sta_19190109
 sta_19190108:
         jmp sta_19190091
@@ -1076,7 +1076,7 @@ sta_19190093:
         jmp sta_19190090
 sta_19190091:
 ; 70:     return result;
-        movel @R24 [@R12-12]
+        movel @L0 [@R12-12]
         jmp L_19190116
 L_19190116:
         move @R13 @R12
@@ -1102,12 +1102,12 @@ dtoa:
         move @R0 #0
         move [@R12-8] @R0
 ; 77:     if (value < 0) { dst[i++] = '-'; value = -value; }
-        moved @R16 [@R12+12]
-        dpush @R16
+        moved @D0 [@R12+12]
+        dpush @D0
         move @R0 #0
-        i2d @R16 @R0
-        dpop @R17
-        dcmp @R17 @R16
+        i2d @D0 @R0
+        dpop @D1
+        dcmp @D1 @D0
         jl _L19190119
         move @R0 #0
         jmp _L19190120
@@ -1131,41 +1131,41 @@ _L19190120:
         add @R0 @R11
         pop @R10
         moveb [@R0] @R10
-        moved @R16 [@R12+12]
-        moved @R16 [@R12+12]
-        dneg @R16 @R16
-        moved [@R12+12] @R16
+        moved @D0 [@R12+12]
+        moved @D0 [@R12+12]
+        dneg @D0 @D0
+        moved [@R12+12] @D0
 sta_19190117:
 sta_19190118:
 ; 78:     long int_part = (long)value;
-        moved @R16 [@R12+12]
-        d2l @R24 @R16
-        movel [@R12-20] @R24
+        moved @D0 [@R12+12]
+        d2l @L0 @D0
+        movel [@R12-20] @L0
 ; 79:     double frac = value - (double)int_part;
-        moved @R16 [@R12+12]
-        dpush @R16
-        movel @R24 [@R12-20]
-        l2d @R16 @R24
-        dpop @R17
-        dsub @R16 @R17 @R16
-        moved [@R12-28] @R16
+        moved @D0 [@R12+12]
+        dpush @D0
+        movel @L0 [@R12-20]
+        l2d @D0 @L0
+        dpop @D1
+        dsub @D0 @D1 @D0
+        moved [@R12-28] @D0
 ; 81:     int istart = i;
         move @R0 [@R12-8]
         move [@R12-32] @R0
 ; 82:     if (int_part == 0) { dst[i++] = '0'; }
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         je _L19190123
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L19190124
 _L19190123:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L19190124:
         cmp @R0 #0
         jz sta_19190121
@@ -1192,31 +1192,31 @@ sta_19190121:
 sta_19190125:
         move @R2 #0
 ; 85:         while (int_part > 0) { dst[i++] = '0' + (char)(int_part % 10); int_part /= 10; }
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jg _L19190127
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L19190128
 _L19190127:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L19190128:
         cmp @R0 #0
         jz sta_19190126
         move @R0 #48
         pushb @R0
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        modl @R24 @R25 @R24
-        l2i @R0 @R24
+        i2l @L0 @R0
+        popl @L1
+        modl @L0 @L1 @L0
+        l2i @R0 @L0
         popb @R1
         add @R1 @R0
         moveb @R0 @R1
@@ -1234,13 +1234,13 @@ _L19190128:
         add @R0 @R7
         pop @R6
         moveb [@R0] @R6
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        divl @R24 @R25 @R24
-        movel [@R12-20] @R24
+        i2l @L0 @R0
+        popl @L1
+        divl @L0 @L1 @L0
+        movel [@R12-20] @L0
         jmp sta_19190125
 sta_19190126:
 ; 87:         int end = i - 1;
@@ -1387,15 +1387,15 @@ _L19190141:
         cmp @R0 #0
         jz sta_19190139
 ; 95:             frac *= 10.0;
-        moved @R16 [@R12-28]
-        dpush @R16
-        moved @R16 [dbl_19190146]
-        dpop @R17
-        dmul @R16 @R17 @R16
-        moved [@R12-28] @R16
+        moved @D0 [@R12-28]
+        dpush @D0
+        moved @D0 [dbl_19190146]
+        dpop @D1
+        dmul @D0 @D1 @D0
+        moved [@R12-28] @D0
 ; 96:             int digit = (int)frac;
-        moved @R16 [@R12-28]
-        d2i @R0 @R16
+        moved @D0 [@R12-28]
+        d2i @R0 @D0
         move [@R12-52] @R0
 ; 97:             dst[i++] = '0' + (char)digit;
         move @R0 #48
@@ -1419,13 +1419,13 @@ _L19190141:
         pop @R8
         moveb [@R0] @R8
 ; 98:             frac -= (double)digit;
-        moved @R16 [@R12-28]
-        dpush @R16
+        moved @D0 [@R12-28]
+        dpush @D0
         move @R0 [@R12-52]
-        i2d @R16 @R0
-        dpop @R17
-        dsub @R16 @R17 @R16
-        moved [@R12-28] @R16
+        i2d @D0 @R0
+        dpop @D1
+        dsub @D0 @D1 @D0
+        moved [@R12-28] @D0
 sta_19190138:
         move @R0 [@R12-48]
         move @R1 @R0

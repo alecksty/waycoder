@@ -93,9 +93,9 @@ LABEL LADDER_LTOA
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ltoa
@@ -111,9 +111,9 @@ LABEL LADDER_LONG_TO_STRBUF
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL long_to_strbuf
@@ -127,9 +127,9 @@ LABEL LADDER_LONG_TO_STR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL long_to_str
     ADD @R13 #8
@@ -142,9 +142,9 @@ LABEL LADDER_LONG_TO_WSTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL long_to_wstr
     ADD @R13 #8
@@ -157,9 +157,9 @@ LABEL LADDER_LONG_TO_USTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL long_to_ustr
     ADD @R13 #8
@@ -242,9 +242,9 @@ LABEL LADDER_ULONG_TO_STR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL ulong_to_str
     ADD @R13 #8
@@ -478,9 +478,9 @@ LABEL LADDER_FLOAT_TO_STR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL float_to_str
     ADD @R13 #4
@@ -511,9 +511,9 @@ LABEL LADDER_DTOA
     PUSH @R0
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+12]
@@ -528,9 +528,9 @@ LABEL LADDER_DOUBLE_TO_STR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL double_to_str
     ADD @R13 #8
@@ -557,9 +557,9 @@ LABEL LADDER_FLOAT_TO_WSTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL float_to_wstr
     ADD @R13 #4
@@ -572,9 +572,9 @@ LABEL LADDER_DOUBLE_TO_WSTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL double_to_wstr
     ADD @R13 #8
@@ -601,9 +601,9 @@ LABEL LADDER_FLOAT_TO_USTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL float_to_ustr
     ADD @R13 #4
@@ -616,9 +616,9 @@ LABEL LADDER_DOUBLE_TO_USTR
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL double_to_ustr
     ADD @R13 #8

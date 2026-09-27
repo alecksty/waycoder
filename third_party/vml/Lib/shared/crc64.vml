@@ -22,141 +22,141 @@ crc64:
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        i2l @R24 @R0
-        movel [@R12-28] @R24
+        i2l @L0 @R0
+        movel [@R12-28] @L0
 ; 8:     for (i = 0; i < len; i++) {
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 sta_16180000:
-        movel @R24 [@R12-12]
-        pushl @R24
-        movel @R24 [@R12+16]
-        popl @R25
-        cmpl @R25 @R24
+        movel @L0 [@R12-12]
+        pushl @L0
+        movel @L0 [@R12+16]
+        popl @L1
+        cmpl @L1 @L0
         jl _L16180003
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L16180004
 _L16180003:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L16180004:
         cmp @R0 #0
         jz sta_16180002
 ; 9:         crc ^= ((long)data[i] & 0xFF) << 56;
-        movel @R24 [@R12-28]
-        pushl @R24
+        movel @L0 [@R12-28]
+        pushl @L0
         move @R0 [@R12+12]
         push @R0
-        movel @R24 [@R12-12]
-        l2i @R0 @R24
+        movel @L0 [@R12-12]
+        l2i @R0 @L0
         mul @R0 #1
         pop @R11
         add @R0 @R11
         moveb @R0 [@R0]
         sextb @R0 @R0
-        i2l @R24 @R0
-        pushl @R24
+        i2l @L0 @R0
+        pushl @L0
         move @R0 #255
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        pushl @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        pushl @L0
         move @R0 #56
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        popl @R25
-        xorl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-28] @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        popl @L1
+        xorl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-28] @L0
 ; 10:         for (bit = 0; bit < 8; bit++) {
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-20] @R24
+        i2l @L0 @R0
+        movel [@R12-20] @L0
 sta_16180005:
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #8
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L16180008
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L16180009
 _L16180008:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L16180009:
         cmp @R0 #0
         jz sta_16180007
 ; 11:             if (crc < 0) crc = (crc << 1) ^ 0x42F0E1EBA9EA3693L;
-        movel @R24 [@R12-28]
-        pushl @R24
+        movel @L0 [@R12-28]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L16180012
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L16180013
 _L16180012:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L16180013:
         cmp @R0 #0
         jz sta_16180010
-        movel @R24 [@R12-28]
-        pushl @R24
+        movel @L0 [@R12-28]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        pushl @R24
-        movel @R24 [i64_16180014]
-        popl @R25
-        xorl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-28] @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        pushl @L0
+        movel @L0 [i64_16180014]
+        popl @L1
+        xorl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-28] @L0
         jmp sta_16180011
 sta_16180010:
 ; 12:             else crc = crc << 1;
-        movel @R24 [@R12-28]
-        pushl @R24
+        movel @L0 [@R12-28]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        movel [@R12-28] @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        movel [@R12-28] @L0
 sta_16180011:
 sta_16180006:
-        movel @R24 [@R12-20]
-        movel @R25 @R24
-        addl @R24 @R24 #1
-        movel [@R12-20] @R24
-        movel @R24 @R25
+        movel @L0 [@R12-20]
+        movel @L1 @L0
+        addl @L0 @L0 #1
+        movel [@R12-20] @L0
+        movel @L0 @L1
         jmp sta_16180005
 sta_16180007:
 sta_16180001:
-        movel @R24 [@R12-12]
-        movel @R25 @R24
-        addl @R24 @R24 #1
-        movel [@R12-12] @R24
-        movel @R24 @R25
+        movel @L0 [@R12-12]
+        movel @L1 @L0
+        addl @L0 @L0 #1
+        movel [@R12-12] @L0
+        movel @L0 @L1
         jmp sta_16180000
 sta_16180002:
 ; 15:     return crc ^ -1;
-        movel @R24 [@R12-28]
-        pushl @R24
+        movel @L0 [@R12-28]
+        pushl @L0
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
-        popl @R25
-        xorl @R25 @R24
-        movel @R24 @R25
+        popl @L1
+        xorl @L1 @L0
+        movel @L0 @L1
         jmp L_16180015
 L_16180015:
         move @R13 @R12
@@ -176,8 +176,8 @@ fnv1a_hash64:
         move @R12 @R13
         sub @R13 #24
 ; 20:     long hash = 0xCBF29CE484222325L; /* FNV offset basis 64-bit */
-        movel @R24 [i64_16180016]
-        movel [@R12-12] @R24
+        movel @L0 [i64_16180016]
+        movel [@R12-12] @L0
 ; 21:     int i = 0;
         move @R0 #0
         move [@R12-16] @R0
@@ -195,8 +195,8 @@ sta_16180017:
         cmp @R0 #0
         jz sta_16180018
 ; 23:         hash ^= (long)(unsigned char)str[i];
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -205,18 +205,18 @@ sta_16180017:
         add @R0 @R9
         moveb @R0 [@R0]
         sextb @R0 @R0
-        zextl @R24 @R0
-        popl @R25
-        xorl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-12] @R24
+        zextl @L0 @R0
+        popl @L1
+        xorl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-12] @L0
 ; 24:         hash *= 0x100000001B3L; /* FNV prime 64-bit */
-        movel @R24 [@R12-12]
-        pushl @R24
-        movel @R24 [i64_16180019]
-        popl @R25
-        mull @R24 @R25 @R24
-        movel [@R12-12] @R24
+        movel @L0 [@R12-12]
+        pushl @L0
+        movel @L0 [i64_16180019]
+        popl @L1
+        mull @L0 @L1 @L0
+        movel [@R12-12] @L0
 ; 25:         i++;
         move @R0 [@R12-16]
         move @R1 @R0
@@ -226,7 +226,7 @@ sta_16180017:
         jmp sta_16180017
 sta_16180018:
 ; 27:     return hash;
-        movel @R24 [@R12-12]
+        movel @L0 [@R12-12]
         jmp L_16180020
 L_16180020:
         move @R13 @R12
@@ -247,8 +247,8 @@ djb2_hash64:
         sub @R13 #24
 ; 32:     long hash = 5381;
         move @R0 #5381
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 sta_16180021:
         move @R2 #0
 ; 34:     while ((c = str[0]) != 0) {
@@ -274,22 +274,22 @@ _L16180024:
         cmp @R0 #0
         jz sta_16180022
 ; 35:         hash = ((hash << 5) + hash) + (long)c; /* hash * 33 + c */
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #5
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        pushl @R24
-        movel @R24 [@R12-12]
-        popl @R25
-        addl @R24 @R25 @R24
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        pushl @L0
+        movel @L0 [@R12-12]
+        popl @L1
+        addl @L0 @L1 @L0
+        pushl @L0
         move @R0 [@R12-16]
-        i2l @R24 @R0
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-12] @L0
 ; 36:         str++;
         move @R0 [@R12+12]
         move @R1 @R0
@@ -299,7 +299,7 @@ _L16180024:
         jmp sta_16180021
 sta_16180022:
 ; 38:     return hash;
-        movel @R24 [@R12-12]
+        movel @L0 [@R12-12]
         jmp L_16180025
 L_16180025:
         move @R13 @R12
@@ -320,8 +320,8 @@ sdbm_hash64:
         sub @R13 #24
 ; 43:     long hash = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 sta_16180026:
         move @R2 #0
 ; 45:     while ((c = str[0]) != 0) {
@@ -348,30 +348,30 @@ _L16180029:
         jz sta_16180027
 ; 46:         hash = (long)(unsigned char)c + (hash << 6) + (hash << 16) - hash;
         move @R0 [@R12-16]
-        zextl @R24 @R0
-        pushl @R24
-        movel @R24 [@R12-12]
-        pushl @R24
+        zextl @L0 @R0
+        pushl @L0
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #6
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        popl @R25
-        addl @R24 @R25 @R24
-        pushl @R24
-        movel @R24 [@R12-12]
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        popl @L1
+        addl @L0 @L1 @L0
+        pushl @L0
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #16
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        popl @R25
-        addl @R24 @R25 @R24
-        pushl @R24
-        movel @R24 [@R12-12]
-        popl @R25
-        subl @R24 @R25 @R24
-        movel [@R12-12] @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        popl @L1
+        addl @L0 @L1 @L0
+        pushl @L0
+        movel @L0 [@R12-12]
+        popl @L1
+        subl @L0 @L1 @L0
+        movel [@R12-12] @L0
 ; 47:         str++;
         move @R0 [@R12+12]
         move @R1 @R0
@@ -381,7 +381,7 @@ _L16180029:
         jmp sta_16180026
 sta_16180027:
 ; 49:     return hash;
-        movel @R24 [@R12-12]
+        movel @L0 [@R12-12]
         jmp L_16180030
 L_16180030:
         move @R13 @R12
@@ -409,21 +409,21 @@ crc32_64l:
         move [@R12-24] @R0
 ; 56:     for (i = 0; i < len; i++) {
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-12] @R24
+        i2l @L0 @R0
+        movel [@R12-12] @L0
 sta_16180031:
-        movel @R24 [@R12-12]
-        pushl @R24
-        movel @R24 [@R12+16]
-        popl @R25
-        cmpl @R25 @R24
+        movel @L0 [@R12-12]
+        pushl @L0
+        movel @L0 [@R12+16]
+        popl @L1
+        cmpl @L1 @L0
         jl _L16180034
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L16180035
 _L16180034:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L16180035:
         cmp @R0 #0
         jz sta_16180033
@@ -432,8 +432,8 @@ _L16180035:
         push @R0
         move @R0 [@R12+12]
         push @R0
-        movel @R24 [@R12-12]
-        l2i @R0 @R24
+        movel @L0 [@R12-12]
+        l2i @R0 @L0
         mul @R0 #1
         pop @R6
         add @R0 @R6
@@ -450,22 +450,22 @@ _L16180035:
         move [@R12-24] @R0
 ; 58:         for (j = 0; j < 8; j++) {
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-20] @R24
+        i2l @L0 @R0
+        movel [@R12-20] @L0
 sta_16180036:
-        movel @R24 [@R12-20]
-        pushl @R24
+        movel @L0 [@R12-20]
+        pushl @L0
         move @R0 #8
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L16180039
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L16180040
 _L16180039:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L16180040:
         cmp @R0 #0
         jz sta_16180038
@@ -502,19 +502,19 @@ sta_16180041:
         move [@R12-24] @R0
 sta_16180042:
 sta_16180037:
-        movel @R24 [@R12-20]
-        movel @R25 @R24
-        addl @R24 @R24 #1
-        movel [@R12-20] @R24
-        movel @R24 @R25
+        movel @L0 [@R12-20]
+        movel @L1 @L0
+        addl @L0 @L0 #1
+        movel [@R12-20] @L0
+        movel @L0 @L1
         jmp sta_16180036
 sta_16180038:
 sta_16180032:
-        movel @R24 [@R12-12]
-        movel @R25 @R24
-        addl @R24 @R24 #1
-        movel [@R12-12] @R24
-        movel @R24 @R25
+        movel @L0 [@R12-12]
+        movel @L1 @L0
+        addl @L0 @L0 #1
+        movel [@R12-12] @L0
+        movel @L0 @L1
         jmp sta_16180031
 sta_16180033:
 ; 63:     return crc ^ -1;

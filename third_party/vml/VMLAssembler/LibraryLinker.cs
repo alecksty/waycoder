@@ -36,6 +36,12 @@ namespace VMLAssembler
             //   程序（Pascal 单元、GenLib 编共享库）整个失效。
             int userEnd = mainProgram.Instructions.Count;
 
+            // ⚠ **无库程序也要过闸**（实测踩到）：手写的 `.vml` 或"没链任何库"的程序
+            //   会从这里早退，若把检查只放在链接之后，它们**永远不被检查** ——
+            //   而"能不能响"正是闸门的全部价值（不响的闸比没有更糟：它给人已经检查过的错觉）。
+            //   此刻整份都是**用户代码**，userEnd 就是全部指令数 ⇒ 有违规就抛。
+            ReportRegisterClass(mainProgram, mainProgram.Instructions.Count);
+
             if (libraryPaths == null || libraryPaths.Count == 0)
                 return mainProgram;
 
@@ -319,6 +325,7 @@ namespace VMLAssembler
                 Console.WriteLine($"  别名: {legacyAliasCount} 个 CALL 标签已解析");
 
             ReportUnresolved(linkedProgram, userEnd);
+            ReportRegisterClass(linkedProgram, userEnd);
 
             Console.WriteLine($"链接完成，总指令数: {linkedProgram.Instructions.Count}");
             return linkedProgram;
@@ -357,7 +364,9 @@ namespace VMLAssembler
             {
                 string libraryCode = File.ReadAllText(libraryPath);
                 string? basePath = Path.GetDirectoryName(Path.GetFullPath(libraryPath));
-                var libraryProgram = assembler.AssembleWithIncludes(libraryCode, basePath);
+                // 库文件：**不做寄存器类检查**（库只警告不抛；分档由 ReportRegisterClass 用 userEnd 做）。
+                // 否则一个库模块写错类会让**每个**用户程序都编不过 —— 与 UnresolvedSymbolException 同一条边界。
+                var libraryProgram = assembler.AssembleWithIncludes(libraryCode, basePath, null, checkRegisterClass: false);
 
                 // 创建标签映射：原始标签 -> 带前缀的标签
                 // (必须在合并数据段之前构建，以便数据段 key 也用前缀映射)
@@ -751,6 +760,62 @@ namespace VMLAssembler
             }
 
             return mergedSource.ToString();
+        }
+
+        /// <summary>
+        /// **寄存器类检查**（用户 2026-09-27 定：「用错寄存器就要报错」）。
+        ///
+        /// <para>
+        /// 判据在 <see cref="RegisterClassTable"/> —— 与前端发射用的是**同一张表**。
+        /// 从前这件事**没有判据**：VM 里 `MOVEL`/`MOVED`/`MOVEF` 会把 `R0–R7` 当成
+        /// `L0–L7`/`D0–D7`/`F0–F7`（另一份寄存器组），而 `R8–R15` 一律**截断成 32 位** ⇒
+        /// 值一进 R8–R15 就静默丢高半字（实测 `long a[4]` 写进去再读，一半元素读成 0），
+        /// 手写汇编里写错类也**一个字都不报**。
+        /// </para>
+        ///
+        /// <para>
+        /// 分档与 <see cref="ReportUnresolved"/> 完全一致：**用户代码抛异常**（宿主按编译失败处理），
+        /// **库代码只警告**（库打进 APK，一次坏重生成不能让每个用户程序都编不过）。
+        /// </para>
+        /// </summary>
+        private static void ReportRegisterClass(VmlProgram program, int userEnd)
+        {
+            var all = RegisterClassTable.ValidateDetailed(program);
+            if (all.Count == 0) return;
+
+            var userErrs = all.Where(v => v.Index < userEnd).ToList();
+            int libCount = all.Count - userErrs.Count;
+
+            if (userErrs.Count > 0)
+            {
+                var lines = new List<string>
+                {
+                    $"error: 有 {userErrs.Count} 处**寄存器类用错**（`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，类由助记符决定）："
+                };
+                int shown = 0;
+                foreach (var v in userErrs)
+                {
+                    if (++shown > 20) { lines.Add($"  …（还有 {userErrs.Count - 20} 处）"); break; }
+                    var where = "";
+                    if (v.SourceLine > 0)
+                    {
+                        var (file, line) = SourceLineMapUtil.Map(program.SourceLineMap, v.SourceLine);
+                        where = $"{file ?? "<input>"}:{line}: ";
+                    }
+                    lines.Add($"  {where}{v.Message}");
+                }
+                lines.Add("提示: 64 位/双精度的值要用 `LS`/`D` 寄存器（`MOVEL L0, …` / `MOVED D0, …`）；"
+                        + "前端发射时走 `RegisterClassTable.BankOfOperand` 换算。");
+                var text = string.Join(Environment.NewLine, lines);
+                Console.Error.WriteLine(text);
+                throw new RegisterClassException(text, userErrs);
+            }
+
+            // 表头**不能**以 `警告:`/`错误:` 开头（宿主 VmlDiagnostics 会把那四个词当诊断，
+            // 库内部的问题用户改不了 —— 与 ReportUnresolved 里那条注释同一个理由）。
+            Console.Error.WriteLine($"[库内部] 库代码里有 {libCount} 处寄存器类用错（该路径一旦执行就会算错）：");
+            foreach (var v in all.Where(v => v.Index >= userEnd).Take(10))
+                Console.Error.WriteLine($"  {v}");
         }
 
         private static void ReportUnresolved(VmlProgram program, int userEnd)

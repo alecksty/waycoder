@@ -7,9 +7,9 @@ LABEL PASCAL_LMEMCPY
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -28,9 +28,9 @@ LABEL PASCAL_LMEMSET
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -49,9 +49,9 @@ LABEL PASCAL_LMEMMOVE
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -70,9 +70,9 @@ LABEL PASCAL_LMEMCMP
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

@@ -149,12 +149,12 @@ LABEL forth_zexp_re
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @R0
-    move @R0 [@R12+12]
+    moved @13 @D0
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL zexp_re
@@ -168,12 +168,12 @@ LABEL forth_zexp_im
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @R0
-    move @R0 [@R12+12]
+    moved @13 @D0
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL zexp_im

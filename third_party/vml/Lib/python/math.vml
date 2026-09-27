@@ -238,9 +238,9 @@ LABEL python_tan
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL tan
     ADD @R13 #8
@@ -253,9 +253,9 @@ LABEL python_asin
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL asin
     ADD @R13 #8
@@ -268,9 +268,9 @@ LABEL python_acos
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL acos
     ADD @R13 #8
@@ -283,9 +283,9 @@ LABEL python_atan
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL atan
     ADD @R13 #8
@@ -298,9 +298,9 @@ LABEL python_exp
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL exp
     ADD @R13 #8
@@ -313,9 +313,9 @@ LABEL python_log
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL log
     ADD @R13 #8
@@ -328,12 +328,12 @@ LABEL python_pow
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @R0
-    move @R0 [@R12+12]
+    moved @13 @D0
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL pow
@@ -364,9 +364,9 @@ LABEL python_sin_deg
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL sin_deg
     ADD @R13 #4
@@ -379,9 +379,9 @@ LABEL python_cos_deg
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL cos_deg
     ADD @R13 #4
@@ -394,9 +394,9 @@ LABEL python_tan_deg
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL tan_deg
     ADD @R13 #4
@@ -584,9 +584,9 @@ LABEL python_sin_deg_d
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL sin_deg_d
     ADD @R13 #8
@@ -599,9 +599,9 @@ LABEL python_cos_deg_d
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL cos_deg_d
     ADD @R13 #8
@@ -614,9 +614,9 @@ LABEL python_tan_deg_d
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @R0
+    moved @13 @D0
     move @R0 [@R13+0]
     CALL tan_deg_d
     ADD @R13 #8

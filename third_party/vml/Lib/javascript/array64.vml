@@ -21,9 +21,9 @@ LABEL js_lget64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -39,12 +39,12 @@ LABEL js_lset64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+24]
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -75,9 +75,9 @@ LABEL js_lindexof64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -93,9 +93,9 @@ LABEL js_llastIndexof64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -111,9 +111,9 @@ LABEL js_lcontains64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -143,9 +143,9 @@ LABEL js_lfill64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -180,12 +180,12 @@ LABEL js_lslice64
     move @R12 @R13
     move @R0 [@R12+32]
     PUSH @R0
-    move @R0 [@R12+24]
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -223,9 +223,9 @@ LABEL js_lpush64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -269,9 +269,9 @@ LABEL js_lunshift64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -287,12 +287,12 @@ LABEL js_linsert64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+24]
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -309,9 +309,9 @@ LABEL js_lremove64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]

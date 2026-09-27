@@ -466,8 +466,8 @@ _L35270044:
         jz sta_35270041
 ; 55:         unsigned long long rem = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-16] @R24
+        i2l @L0 @R0
+        movel [@R12-16] @L0
 ; 57:         unsigned int q_hi = 0, q_lo = 0;
         move @R0 #0
         move [@R12-20] @R0
@@ -556,13 +556,13 @@ _L35270060:
 _L35270061:
         move [@R12-36] @R0
 ; 61:             unsigned long long cur = (rem << 1) | (unsigned long long)((i >= 32) ? bit_hi : bit_lo);
-        movel @R24 [@R12-16]
-        pushl @R24
+        movel @L0 [@R12-16]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        pushl @L0
         move @R0 [@R12-28]
         push @R0
         move @R0 #32
@@ -581,48 +581,48 @@ _L35270063:
 _L35270064:
         move @R0 [@R12-36]
 _L35270065:
-        i2l @R24 @R0
-        popl @R25
-        orl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-44] @R24
+        i2l @L0 @R0
+        popl @L1
+        orl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-44] @L0
 ; 62:             if (cur >= (unsigned long long)base) {
-        movel @R24 [@R12-44]
-        pushl @R24
+        movel @L0 [@R12-44]
+        pushl @L0
         move @R0 [@R12+24]
-        i2l @R24 @R0
-        popl @R25
-        cmpul @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpul @L1 @L0
         jae _L35270068
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L35270069
 _L35270068:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L35270069:
         cmp @R0 #0
         jz sta_35270066
 ; 63:                 unsigned long long qt = cur / (unsigned long long)base;
-        movel @R24 [@R12-44]
-        pushl @R24
+        movel @L0 [@R12-44]
+        pushl @L0
         move @R0 [@R12+24]
-        i2l @R24 @R0
-        popl @R25
-        divul @R24 @R25 @R24
-        movel [@R12-52] @R24
+        i2l @L0 @R0
+        popl @L1
+        divul @L0 @L1 @L0
+        movel [@R12-52] @L0
 ; 64:                 rem = cur - qt * (unsigned long long)base;
-        movel @R24 [@R12-44]
-        pushl @R24
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-44]
+        pushl @L0
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 [@R12+24]
-        i2l @R24 @R0
-        popl @R25
-        mull @R24 @R25 @R24
-        popl @R25
-        subl @R24 @R25 @R24
-        movel [@R12-16] @R24
+        i2l @L0 @R0
+        popl @L1
+        mull @L0 @L1 @L0
+        popl @L1
+        subl @L0 @L1 @L0
+        movel [@R12-16] @L0
 ; 65:                 if (i >= 32) q_hi |= (unsigned int)(qt & 0xFFFFFFFF) << (i - 32);
         move @R0 [@R12-28]
         push @R0
@@ -639,13 +639,13 @@ _L35270073:
         jz sta_35270070
         move @R0 [@R12-20]
         push @R0
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         push @R0
         move @R0 [@R12-28]
         push @R0
@@ -665,13 +665,13 @@ sta_35270070:
 ; 66:                 else        q_lo |= (unsigned int)(qt & 0xFFFFFFFF) << i;
         move @R0 [@R12-24]
         push @R0
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         push @R0
         move @R0 [@R12-28]
         pop @R1
@@ -685,8 +685,8 @@ sta_35270071:
         jmp sta_35270067
 sta_35270066:
 ; 68:                 rem = cur;
-        movel @R24 [@R12-44]
-        movel [@R12-16] @R24
+        movel @L0 [@R12-44]
+        movel [@R12-16] @L0
 sta_35270067:
 sta_35270050:
         move @R0 [@R12-28]
@@ -697,26 +697,26 @@ sta_35270050:
         jmp sta_35270049
 sta_35270051:
 ; 71:         tmp[len++] = (char)(rem < 10 ? '0' + (int)rem : (upper ? 'A' : 'a') + (int)rem - 10);
-        movel @R24 [@R12-16]
-        pushl @R24
+        movel @L0 [@R12-16]
+        pushl @L0
         move @R0 #10
-        i2l @R24 @R0
-        popl @R25
-        cmpul @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpul @L1 @L0
         jb _L35270074
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L35270075
 _L35270074:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L35270075:
         test @R0 @R0
         jz _L35270076
         move @R0 #48
         push @R0
-        movel @R24 [@R12-16]
-        l2i @R0 @R24
+        movel @L0 [@R12-16]
+        l2i @R0 @L0
         pop @R1
         add @R1 @R0
         move @R0 @R1
@@ -731,8 +731,8 @@ _L35270078:
         move @R0 #97
 _L35270079:
         push @R0
-        movel @R24 [@R12-16]
-        l2i @R0 @R24
+        movel @L0 [@R12-16]
+        l2i @R0 @L0
         pop @R1
         add @R1 @R0
         move @R0 @R1
@@ -925,18 +925,18 @@ readLong:
         move [@R12-12] @R0
 ; 87:     return (long long)(((unsigned long long)hi << 32) | (unsigned long long)lo);
         move @R0 [@R12-12]
-        zextl @R24 @R0
-        pushl @R24
+        zextl @L0 @R0
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        pushl @L0
         move @R0 [@R12-8]
-        zextl @R24 @R0
-        popl @R25
-        orl @R25 @R24
-        movel @R24 @R25
+        zextl @L0 @R0
+        popl @L1
+        orl @L1 @L0
+        movel @L0 @L1
         jmp L_35270091
 L_35270091:
         move @R13 @R12
@@ -1015,7 +1015,7 @@ readDouble:
         move [@R12-16] @R0
 ; 104:     return *dp;
         move @R0 [@R12-16]
-        moved @R16 [@R0]
+        moved @D0 [@R0]
         jmp L_35270092
 L_35270092:
         move @R13 @R12
@@ -1037,51 +1037,51 @@ sign64:
         move @R12 @R13
         sub @R13 #24
 ; 109:     if (v < 0) {
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L35270095
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L35270096
 _L35270095:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L35270096:
         cmp @R0 #0
         jz sta_35270093
 ; 110:         unsigned long long abs = (unsigned long long)(-v);
-        movel @R24 [@R12+12]
-        movel @R24 [@R12+12]
-        negl @R24 @R24
-        movel [@R12-12] @R24
+        movel @L0 [@R12+12]
+        movel @L0 [@R12+12]
+        negl @L0 @L0
+        movel [@R12-12] @L0
 ; 111:         *lo = (unsigned int)(abs & 0xFFFFFFFF);
         move @R0 [@R12+20]
         move @R3 @R0
         push @R3
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         pop @R3
         move [@R3] @R0
 ; 112:         *hi = (unsigned int)(abs >> 32);
         move @R0 [@R12+24]
         move @R2 @R0
         push @R2
-        movel @R24 [@R12-12]
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrul @R25 @R0
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        shrul @L1 @R0
+        movel @L0 @L1
+        l2i @R0 @L0
         pop @R2
         move [@R2] @R0
 ; 113:         return 1;
@@ -1093,26 +1093,26 @@ sta_35270094:
         move @R0 [@R12+20]
         move @R1 @R0
         push @R1
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         pop @R1
         move [@R1] @R0
 ; 116:     *hi = (unsigned int)((unsigned long long)v >> 32);
         move @R0 [@R12+24]
         move @R10 @R0
         push @R10
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrul @R25 @R0
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        shrul @L1 @R0
+        movel @L0 @L1
+        l2i @R0 @L0
         pop @R10
         move [@R10] @R0
 ; 117:     return 0;
@@ -1141,11 +1141,11 @@ _printf_ftoa:
         move @R0 #0
         move [@R12-8] @R0
 ; 122:     if (f < 0.0f) { buf[len++] = '-'; f = -f; }
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270100]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270100]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270101
         move @R0 #0
         jmp _L35270102
@@ -1169,30 +1169,30 @@ _L35270102:
         add @R0 @R9
         pop @R8
         moveb [@R0] @R8
-        movef @R0 [@R12+16]
-        movef @R0 [@R12+16]
-        fneg @R0 @R0
-        movef [@R12+16] @R0
+        movef @F0 [@R12+16]
+        movef @F0 [@R12+16]
+        fneg @F0 @F0
+        movef [@R12+16] @F0
 sta_35270098:
 sta_35270099:
 ; 123:     int ip = (int)f;
-        movef @R0 [@R12+16]
-        f2i @R0 @R0
+        movef @F0 [@R12+16]
+        f2i @R0 @F0
         move [@R12-12] @R0
 ; 124:     float frac = f - (float)ip;
-        movef @R0 [@R12+16]
-        fpush @R0
+        movef @F0 [@R12+16]
+        fpush @F0
         move @R0 [@R12-12]
-        i2f @R0 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12-16] @R0
+        i2f @F0 @R0
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12-16] @F0
 ; 125:     if (frac < 0.0f) frac = -frac;
-        movef @R0 [@R12-16]
-        fpush @R0
-        movef @R0 [flt_35270105]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12-16]
+        fpush @F0
+        movef @F0 [flt_35270105]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270106
         move @R0 #0
         jmp _L35270107
@@ -1201,10 +1201,10 @@ _L35270106:
 _L35270107:
         cmp @R0 #0
         jz sta_35270103
-        movef @R0 [@R12-16]
-        movef @R0 [@R12-16]
-        fneg @R0 @R0
-        movef [@R12-16] @R0
+        movef @F0 [@R12-16]
+        movef @F0 [@R12-16]
+        fneg @F0 @F0
+        movef [@R12-16] @F0
 sta_35270103:
 sta_35270104:
 ; 126:     char tmp[20]; int ilen = _printf_itoa(tmp, (unsigned int)ip, 10, 0);
@@ -1283,20 +1283,20 @@ _L35270111:
         pop @R11
         moveb [@R0] @R11
 ; 130:         frac = f - (float)((int)f); if (frac < 0) frac = -frac;
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [@R12+16]
-        f2i @R0 @R0
-        i2f @R0 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12-16] @R0
-        movef @R0 [@R12-16]
-        fpush @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [@R12+16]
+        f2i @R0 @F0
+        i2f @F0 @R0
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12-16] @F0
+        movef @F0 [@R12-16]
+        fpush @F0
         move @R0 #0
-        i2f @R0 @R0
-        fpop @R1
-        fcmp @R1 @R0
+        i2f @F0 @R0
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270114
         move @R0 #0
         jmp _L35270115
@@ -1305,10 +1305,10 @@ _L35270114:
 _L35270115:
         cmp @R0 #0
         jz sta_35270112
-        movef @R0 [@R12-16]
-        movef @R0 [@R12-16]
-        fneg @R0 @R0
-        movef [@R12-16] @R0
+        movef @F0 [@R12-16]
+        movef @F0 [@R12-16]
+        fneg @F0 @F0
+        movef [@R12-16] @F0
 sta_35270112:
 sta_35270113:
 ; 131:         int fi = 0, i; for (i = 0; i < prec; i++) { frac *= 10.0f; fi = fi * 10 + (int)frac; frac -= (float)(int)frac; }
@@ -1330,12 +1330,12 @@ _L35270119:
 _L35270120:
         cmp @R0 #0
         jz sta_35270118
-        movef @R0 [@R12-16]
-        fpush @R0
-        movef @R0 [flt_35270121]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        movef [@R12-16] @R0
+        movef @F0 [@R12-16]
+        fpush @F0
+        movef @F0 [flt_35270121]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        movef [@R12-16] @F0
         move @R0 [@R12-44]
         push @R0
         move @R0 #10
@@ -1343,20 +1343,20 @@ _L35270120:
         mul @R1 @R0
         move @R0 @R1
         push @R0
-        movef @R0 [@R12-16]
-        f2i @R0 @R0
+        movef @F0 [@R12-16]
+        f2i @R0 @F0
         pop @R1
         add @R1 @R0
         move @R0 @R1
         move [@R12-44] @R0
-        movef @R0 [@R12-16]
-        fpush @R0
-        movef @R0 [@R12-16]
-        f2i @R0 @R0
-        i2f @R0 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12-16] @R0
+        movef @F0 [@R12-16]
+        fpush @F0
+        movef @F0 [@R12-16]
+        f2i @R0 @F0
+        i2f @F0 @R0
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12-16] @F0
 sta_35270117:
         move @R0 [@R12-48]
         move @R1 @R0
@@ -1479,11 +1479,11 @@ _printf_ftoe:
         move @R0 #0
         move [@R12-8] @R0
 ; 141:     if (f < 0.0f) { buf[len++] = '-'; f = -f; }
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270130]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270130]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270131
         move @R0 #0
         jmp _L35270132
@@ -1507,10 +1507,10 @@ _L35270132:
         add @R0 @R3
         pop @R7
         moveb [@R0] @R7
-        movef @R0 [@R12+16]
-        movef @R0 [@R12+16]
-        fneg @R0 @R0
-        movef [@R12+16] @R0
+        movef @F0 [@R12+16]
+        movef @F0 [@R12+16]
+        fneg @F0 @F0
+        movef [@R12+16] @F0
 sta_35270128:
 sta_35270129:
 ; 142:     if (prec < 0) prec = 6;
@@ -1535,11 +1535,11 @@ sta_35270134:
         move @R0 #0
         move [@R12-12] @R0
 ; 144:     if (f != 0.0f) {
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270139]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270139]
+        fpop @F1
+        fcmp @F1 @F0
         jne _L35270140
         move @R0 #0
         jmp _L35270141
@@ -1549,11 +1549,11 @@ _L35270141:
         cmp @R0 #0
         jz sta_35270137
 ; 145:         if (f >= 10.0f)       { while (f >= 10.0f)  { f /= 10.0f; exp++; } }
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270144]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270144]
+        fpop @F1
+        fcmp @F1 @F0
         jge _L35270145
         move @R0 #0
         jmp _L35270146
@@ -1564,11 +1564,11 @@ _L35270146:
         jz sta_35270142
 sta_35270147:
         move @R2 #0
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270149]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270149]
+        fpop @F1
+        fcmp @F1 @F0
         jge _L35270150
         move @R0 #0
         jmp _L35270151
@@ -1577,12 +1577,12 @@ _L35270150:
 _L35270151:
         cmp @R0 #0
         jz sta_35270148
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270152]
-        fpop @R1
-        fdiv @R0 @R1 @R0
-        movef [@R12+16] @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270152]
+        fpop @F1
+        fdiv @F0 @F1 @F0
+        movef [@R12+16] @F0
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -1593,11 +1593,11 @@ sta_35270148:
         jmp sta_35270143
 sta_35270142:
 ; 146:         else if (f < 1.0f)    { while (f < 1.0f)    { f *= 10.0f; exp--; } }
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270155]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270155]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270156
         move @R0 #0
         jmp _L35270157
@@ -1608,11 +1608,11 @@ _L35270157:
         jz sta_35270153
 sta_35270158:
         move @R2 #0
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270160]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270160]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270161
         move @R0 #0
         jmp _L35270162
@@ -1621,12 +1621,12 @@ _L35270161:
 _L35270162:
         cmp @R0 #0
         jz sta_35270159
-        movef @R0 [@R12+16]
-        fpush @R0
-        movef @R0 [flt_35270163]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        movef [@R12+16] @R0
+        movef @F0 [@R12+16]
+        fpush @F0
+        movef @F0 [flt_35270163]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        movef [@R12+16] @F0
         move @R0 [@R12-12]
         move @R1 @R0
         sub @R0 @R0 #1
@@ -1640,8 +1640,8 @@ sta_35270143:
 sta_35270137:
 sta_35270138:
 ; 148:     int ip = (int)f;
-        movef @R0 [@R12+16]
-        f2i @R0 @R0
+        movef @F0 [@R12+16]
+        f2i @R0 @F0
         move [@R12-16] @R0
 ; 149:     buf[len++] = (char)('0' + ip);
         move @R0 #48
@@ -1695,13 +1695,13 @@ _L35270167:
         pop @R10
         moveb [@R0] @R10
 ; 152:         float frac = f - (float)ip;
-        movef @R0 [@R12+16]
-        fpush @R0
+        movef @F0 [@R12+16]
+        fpush @F0
         move @R0 [@R12-16]
-        i2f @R0 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12-20] @R0
+        i2f @F0 @R0
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12-20] @F0
 ; 153:         int i; for (i = 0; i < prec; i++) { frac *= 10.0f; buf[len++] = (char)('0' + (int)frac); frac -= (float)(int)frac; }
         move @R0 #0
         move [@R12-24] @R0
@@ -1719,16 +1719,16 @@ _L35270171:
 _L35270172:
         cmp @R0 #0
         jz sta_35270170
-        movef @R0 [@R12-20]
-        fpush @R0
-        movef @R0 [flt_35270173]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        movef [@R12-20] @R0
+        movef @F0 [@R12-20]
+        fpush @F0
+        movef @F0 [flt_35270173]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        movef [@R12-20] @F0
         move @R0 #48
         push @R0
-        movef @R0 [@R12-20]
-        f2i @R0 @R0
+        movef @F0 [@R12-20]
+        f2i @R0 @F0
         pop @R1
         add @R1 @R0
         move @R0 @R1
@@ -1746,14 +1746,14 @@ _L35270172:
         add @R0 @R6
         pop @R8
         moveb [@R0] @R8
-        movef @R0 [@R12-20]
-        fpush @R0
-        movef @R0 [@R12-20]
-        f2i @R0 @R0
-        i2f @R0 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12-20] @R0
+        movef @F0 [@R12-20]
+        fpush @F0
+        movef @F0 [@R12-20]
+        f2i @R0 @F0
+        i2f @F0 @R0
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12-20] @F0
 sta_35270169:
         move @R0 [@R12-24]
         move @R1 @R0
@@ -2401,8 +2401,8 @@ sta_35270242:
         move [@R12-44] @R0
 ; 193:         long long val64 = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-52] @R24
+        i2l @L0 @R0
+        movel [@R12-52] @L0
 ; 194:         int argStart = ai;   // %f 系列要**回头**从这两个槽重读一个 double，故记下起点
         move @R0 [@R12-16]
         move [@R12-56] @R0
@@ -2444,7 +2444,7 @@ _L35270248:
         move @R1 [@R13+4]
         call readLong
         add @R13 #8
-        movel [@R12-52] @R24
+        movel [@R12-52] @L0
 ; 197:             ai += 2;
         move @R0 [@R12-16]
         push @R0
@@ -2550,9 +2550,9 @@ _L35270259:
         move @R0 @R12
         sub @R0 #112
         push @R0
-        movel @R24 [@R12-52]
+        movel @L0 [@R12-52]
         sub @R13 #8
-        movel @13 @R24
+        movel @13 @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         move @R2 [@R13+12]
@@ -3021,22 +3021,22 @@ _L35270328:
         cmp @R0 #0
         jz sta_35270329
 ; 223:                 unsigned int lo = (unsigned int)((unsigned long long)val64 & 0xFFFFFFFF);
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        l2i @R0 @L0
         move [@R12-112] @R0
 ; 224:                 unsigned int hi = (unsigned int)((unsigned long long)val64 >> 32);
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrul @R25 @R0
-        movel @R24 @R25
-        l2i @R0 @R24
+        popl @L1
+        shrul @L1 @R0
+        movel @L0 @L1
+        l2i @R0 @L0
         move [@R12-116] @R0
 ; 225:                 len = _printf_itoa64(tmp, lo, hi, base, upper);
         move @R0 [@R12-128]
@@ -3088,19 +3088,19 @@ sta_35270330:
         move @R0 [@R12-40]
         test @R0 @R0
         jz _L35270333
-        movel @R24 [@R12-52]
-        pushl @R24
+        movel @L0 [@R12-52]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         je _L35270335
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L35270336
 _L35270335:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L35270336:
         jmp _L35270334
 _L35270333:
@@ -3116,7 +3116,7 @@ _L35270337:
         move @R0 #1
 _L35270338:
 _L35270334:
-        l2i @R0 @R24
+        l2i @R0 @L0
         move [@R12-136] @R0
 ; 232:                 if (!isZero) {
         move @R0 [@R12-136]
@@ -4327,9 +4327,9 @@ _L35270468:
         add @R13 #8
         jmp _L35270470
 _L35270469:
-        moved @R16 [dbl_35270471]
+        moved @D0 [dbl_35270471]
 _L35270470:
-        moved [@R12-728] @R16
+        moved [@R12-728] @D0
 ; 288:             ai = argStart + 2;          // 固定消费两个槽（is64 与否一视同仁）
         move @R0 [@R12-56]
         push @R0
@@ -4339,9 +4339,9 @@ _L35270470:
         move @R0 @R1
         move [@R12-16] @R0
 ; 289:             float fv = (float)dv;
-        moved @R16 [@R12-728]
-        d2f @R0 @R16
-        movef [@R12-732] @R0
+        moved @D0 [@R12-728]
+        d2f @F0 @D0
+        movef [@R12-732] @F0
 ; 290:             if (*fmt == 'e' || *fmt == 'E') {
         move @R0 [@R12+16]
         moveb @R0 [@R0]
@@ -4398,9 +4398,9 @@ _L35270482:
         push @R0
         move @R0 [@R12-36]
         push @R0
-        movef @R0 [@R12-732]
+        movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @R0
+        movef @13 @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4453,14 +4453,14 @@ _L35270487:
         cmp @R0 #0
         jz sta_35270483
 ; 293:                 float af = fv; if (af < 0) af = -af;
-        movef @R0 [@R12-732]
-        movef [@R12-736] @R0
-        movef @R0 [@R12-736]
-        fpush @R0
+        movef @F0 [@R12-732]
+        movef [@R12-736] @F0
+        movef @F0 [@R12-736]
+        fpush @F0
         move @R0 #0
-        i2f @R0 @R0
-        fpop @R1
-        fcmp @R1 @R0
+        i2f @F0 @R0
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270494
         move @R0 #0
         jmp _L35270495
@@ -4469,18 +4469,18 @@ _L35270494:
 _L35270495:
         cmp @R0 #0
         jz sta_35270492
-        movef @R0 [@R12-736]
-        movef @R0 [@R12-736]
-        fneg @R0 @R0
-        movef [@R12-736] @R0
+        movef @F0 [@R12-736]
+        movef @F0 [@R12-736]
+        fneg @F0 @F0
+        movef [@R12-736] @F0
 sta_35270492:
 sta_35270493:
 ; 294:                 int use_exp = (af != 0.0f && (af >= 1000000.0f || af < 0.001f));
-        movef @R0 [@R12-736]
-        fpush @R0
-        movef @R0 [flt_35270498]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12-736]
+        fpush @F0
+        movef @F0 [flt_35270498]
+        fpop @F1
+        fcmp @F1 @F0
         jne _L35270499
         move @R0 #0
         jmp _L35270500
@@ -4489,11 +4489,11 @@ _L35270499:
 _L35270500:
         test @R0 @R0
         jz _L35270496
-        movef @R0 [@R12-736]
-        fpush @R0
-        movef @R0 [flt_35270504]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12-736]
+        fpush @F0
+        movef @F0 [flt_35270504]
+        fpop @F1
+        fcmp @F1 @F0
         jge _L35270505
         move @R0 #0
         jmp _L35270506
@@ -4502,11 +4502,11 @@ _L35270505:
 _L35270506:
         test @R0 @R0
         jnz _L35270501
-        movef @R0 [@R12-736]
-        fpush @R0
-        movef @R0 [flt_35270507]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12-736]
+        fpush @F0
+        movef @F0 [flt_35270507]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L35270508
         move @R0 #0
         jmp _L35270509
@@ -4528,7 +4528,7 @@ _L35270503:
 _L35270496:
         move @R0 #0
 _L35270497:
-        f2i @R0 @R0
+        f2i @R0 @F0
         move [@R12-740] @R0
 ; 295:                 if (!use_exp) { flen = _printf_ftoa(fbuf, fv, prec > 0 ? prec : 6); }
         move @R0 [@R12-740]
@@ -4561,9 +4561,9 @@ _L35270516:
         move @R0 #6
 _L35270517:
         push @R0
-        movef @R0 [@R12-732]
+        movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @R0
+        movef @13 @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4597,9 +4597,9 @@ _L35270519:
         sub @R1 @R0
         move @R0 @R1
         push @R0
-        movef @R0 [@R12-732]
+        movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @R0
+        movef @13 @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4616,9 +4616,9 @@ sta_35270483:
 ; 298:                 flen = _printf_ftoa(fbuf, fv, prec);
         move @R0 [@R12-36]
         push @R0
-        movef @R0 [@R12-732]
+        movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @R0
+        movef @13 @F0
         move @R0 @R12
         sub @R0 #716
         push @R0

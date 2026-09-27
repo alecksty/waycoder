@@ -7,12 +7,12 @@ LABEL c_ladd64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ladd64
@@ -26,12 +26,12 @@ LABEL c_lsub64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lsub64
@@ -45,12 +45,12 @@ LABEL c_lmul64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmul64
@@ -64,12 +64,12 @@ LABEL c_ldiv64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ldiv64
@@ -83,12 +83,12 @@ LABEL c_lmod64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmod64
@@ -102,9 +102,9 @@ LABEL c_lneg64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lneg64
     ADD @R13 #8

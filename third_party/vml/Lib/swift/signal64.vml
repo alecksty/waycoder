@@ -11,9 +11,9 @@ LABEL swift_lmoving_avg_init64
     PUSH @R0
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+12]
@@ -28,9 +28,9 @@ LABEL swift_lmoving_avg_update64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -60,12 +60,12 @@ LABEL swift_lema_update64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+24]
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -82,15 +82,15 @@ LABEL swift_lkalman_init64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+32]
+    movel @L0 [@R12+32]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+24]
+    movel @13 @L0
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -108,9 +108,9 @@ LABEL swift_lkalman_update64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+16]
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -126,12 +126,12 @@ LABEL swift_ldeadband64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ldeadband64
@@ -145,15 +145,15 @@ LABEL swift_lhysteresis64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+32]
+    movel @L0 [@R12+32]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+24]
+    movel @13 @L0
+    movel @L0 [@R12+24]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+16]
+    movel @13 @L0
+    movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]

@@ -1077,6 +1077,14 @@ namespace CompilerBase
         /// string→AddStringCached+MOVE | bool→MOVE 0/1 | null→MOVE 0
         /// 替代各编译器 20-40 行重复的 GenerateLiteral switch-case。
         /// </summary>
+        /// <summary>
+        /// 该类指令第 <paramref name="index"/> 个操作数该用的寄存器 —— 用户定的模型
+        /// （`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，编号 0–15 通用、16–23=D0–D7、
+        /// 24–31=L0–L7），**类由助记符决定**。判据与汇编期校验（`RegisterClassTable`）同源。
+        /// </summary>
+        protected static Operand TRegOf(OpCode op, int index)
+            => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, index));
+
         protected void EmitLoadConstant(object? value)
         {
             if (value == null)
@@ -1089,12 +1097,14 @@ namespace CompilerBase
             }
             else if (value is long l)
             {
-                // 必须始终 MOVEL: MOVE 只写 32 位 registers[0]，不更新 64 位 longRegisters[0]，
-                // 后续 MOVEL 存储/长整数运算会读到 0 (v1.66.64 修复)
+                // ⚠ 目标是该**类**的 0 号寄存器（`L0` = 编号 24），不是 `R0` ——
+                //   用户定的模型 `Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，**类由助记符决定**。
+                //   写 `MOVEL R0, lbl` 时 `R0` 是 32 位寄存器：VM 的兼容垫层恰好也认它
+                //   （`R0-R7 → longRegisters`），但 `R8-R15` 会**静默截断**，而且文本形态骗人。
                 string dlabel = $"lng_{instructions.Count}";
                 dataSection[dlabel] = l;
                 instructions.Add(new Instruction(OpCode.MOVEL,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dlabel)],
+                    [TRegOf(OpCode.MOVEL, 0), new Operand(OperandType.MEMORY, dlabel)],
                     instructions.Count));
             }
             else if (value is float f)
@@ -1102,7 +1112,7 @@ namespace CompilerBase
                 string flabel = $"flt_{instructions.Count}";
                 dataSection[flabel] = f;
                 instructions.Add(new Instruction(OpCode.MOVEF,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, flabel)],
+                    [TRegOf(OpCode.MOVEF, 0), new Operand(OperandType.MEMORY, flabel)],
                     instructions.Count));
             }
             else if (value is double d)
@@ -1110,7 +1120,7 @@ namespace CompilerBase
                 string dlabel = $"dbl_{instructions.Count}";
                 dataSection[dlabel] = d;
                 instructions.Add(new Instruction(OpCode.MOVED,
-                    [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dlabel)],
+                    [TRegOf(OpCode.MOVED, 0), new Operand(OperandType.MEMORY, dlabel)],
                     instructions.Count));
             }
             else if (value is bool b)

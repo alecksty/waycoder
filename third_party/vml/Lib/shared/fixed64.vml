@@ -19,82 +19,82 @@ lfixed_mul64:
         move @R12 @R13
         sub @R13 #64
 ; 6:     long ah = a >> 32, al = a & 0xFFFFFFFF;
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrl @R25 @R0
-        movel @R24 @R25
-        movel [@R12-12] @R24
-        movel @R24 [@R12+12]
-        pushl @R24
+        popl @L1
+        shrl @L1 @R0
+        movel @L0 @L1
+        movel [@R12-12] @L0
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-20] @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-20] @L0
 ; 7:     long bh = b >> 32, bl = b & 0xFFFFFFFF;
-        movel @R24 [@R12+20]
-        pushl @R24
+        movel @L0 [@R12+20]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrl @R25 @R0
-        movel @R24 @R25
-        movel [@R12-28] @R24
-        movel @R24 [@R12+20]
-        pushl @R24
+        popl @L1
+        shrl @L1 @R0
+        movel @L0 @L1
+        movel [@R12-28] @L0
+        movel @L0 [@R12+20]
+        pushl @L0
         move @R0 #-1
-        popl @R25
-        andl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-36] @R24
+        popl @L1
+        andl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-36] @L0
 ; 8:     long mid = ah * bl + al * bh;
-        movel @R24 [@R12-12]
-        pushl @R24
-        movel @R24 [@R12-36]
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
-        movel @R24 [@R12-20]
-        pushl @R24
-        movel @R24 [@R12-28]
-        popl @R25
-        mull @R24 @R25 @R24
-        popl @R25
-        addl @R24 @R25 @R24
-        movel [@R12-44] @R24
+        movel @L0 [@R12-12]
+        pushl @L0
+        movel @L0 [@R12-36]
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
+        movel @L0 [@R12-20]
+        pushl @L0
+        movel @L0 [@R12-28]
+        popl @L1
+        mull @L0 @L1 @L0
+        popl @L1
+        addl @L0 @L1 @L0
+        movel [@R12-44] @L0
 ; 9:     long result = ((ah * bh) << 32) + (unsigned long)(al * bl) >> 32 + mid;
-        movel @R24 [@R12-12]
-        pushl @R24
-        movel @R24 [@R12-28]
-        popl @R25
-        mull @R24 @R25 @R24
-        pushl @R24
+        movel @L0 [@R12-12]
+        pushl @L0
+        movel @L0 [@R12-28]
+        popl @L1
+        mull @L0 @L1 @L0
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        pushl @R24
-        movel @R24 [@R12-20]
-        pushl @R24
-        movel @R24 [@R12-36]
-        popl @R25
-        mull @R24 @R25 @R24
-        popl @R25
-        addl @R24 @R25 @R24
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        pushl @L0
+        movel @L0 [@R12-20]
+        pushl @L0
+        movel @L0 [@R12-36]
+        popl @L1
+        mull @L0 @L1 @L0
+        popl @L1
+        addl @L0 @L1 @L0
+        pushl @L0
         move @R0 #32
-        i2l @R24 @R0
-        pushl @R24
-        movel @R24 [@R12-44]
-        popl @R25
-        addl @R24 @R25 @R24
-        popl @R25
-        shrul @R25 @R0
-        movel @R24 @R25
-        movel [@R12-52] @R24
+        i2l @L0 @R0
+        pushl @L0
+        movel @L0 [@R12-44]
+        popl @L1
+        addl @L0 @L1 @L0
+        popl @L1
+        shrul @L1 @R0
+        movel @L0 @L1
+        movel [@R12-52] @L0
 ; 10:     return result;
-        movel @R24 [@R12-52]
+        movel @L0 [@R12-52]
         jmp L_49580000
 L_49580000:
         move @R13 @R12
@@ -115,19 +115,19 @@ lfixed_div64:
         move @R12 @R13
         sub @R13 #32
 ; 14:     if (b == 0) return 0;
-        movel @R24 [@R12+20]
-        pushl @R24
+        movel @L0 [@R12+20]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         je _L49580003
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L49580004
 _L49580003:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L49580004:
         cmp @R0 #0
         jz sta_49580001
@@ -139,26 +139,26 @@ sta_49580002:
         move @R0 #1
         move [@R12-8] @R0
 ; 17:     if (a < 0) { a = -a; sign = -sign; }
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L49580008
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L49580009
 _L49580008:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L49580009:
         cmp @R0 #0
         jz sta_49580006
-        movel @R24 [@R12+12]
-        movel @R24 [@R12+12]
-        negl @R24 @R24
-        movel [@R12+12] @R24
+        movel @L0 [@R12+12]
+        movel @L0 [@R12+12]
+        negl @L0 @L0
+        movel [@R12+12] @L0
         move @R0 [@R12-8]
         move @R0 [@R12-8]
         neg @R0 @R0
@@ -166,26 +166,26 @@ _L49580009:
 sta_49580006:
 sta_49580007:
 ; 18:     if (b < 0) { b = -b; sign = -sign; }
-        movel @R24 [@R12+20]
-        pushl @R24
+        movel @L0 [@R12+20]
+        pushl @L0
         move @R0 #0
-        i2l @R24 @R0
-        popl @R25
-        cmpl @R25 @R24
+        i2l @L0 @R0
+        popl @L1
+        cmpl @L1 @L0
         jl _L49580012
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L49580013
 _L49580012:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L49580013:
         cmp @R0 #0
         jz sta_49580010
-        movel @R24 [@R12+20]
-        movel @R24 [@R12+20]
-        negl @R24 @R24
-        movel [@R12+20] @R24
+        movel @L0 [@R12+20]
+        movel @L0 [@R12+20]
+        negl @L0 @L0
+        movel [@R12+20] @L0
         move @R0 [@R12-8]
         move @R0 [@R12-8]
         neg @R0 @R0
@@ -194,8 +194,8 @@ sta_49580010:
 sta_49580011:
 ; 19:     long q = 0;
         move @R0 #0
-        i2l @R24 @R0
-        movel [@R12-16] @R24
+        i2l @L0 @R0
+        movel [@R12-16] @L0
 ; 21:     for (i = 0; i < 64; i++) { q <<= 1; if (a >= b) { a -= b; q |= 1; } a <<= 1; }
         move @R0 #0
         move [@R12-20] @R0
@@ -213,50 +213,50 @@ _L49580017:
 _L49580018:
         cmp @R0 #0
         jz sta_49580016
-        movel @R24 [@R12-16]
-        pushl @R24
+        movel @L0 [@R12-16]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        movel [@R12-16] @R24
-        movel @R24 [@R12+12]
-        pushl @R24
-        movel @R24 [@R12+20]
-        popl @R25
-        cmpl @R25 @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        movel [@R12-16] @L0
+        movel @L0 [@R12+12]
+        pushl @L0
+        movel @L0 [@R12+20]
+        popl @L1
+        cmpl @L1 @L0
         jge _L49580021
         move @R0 #0
-        i2l @R24 @R0
+        i2l @L0 @R0
         jmp _L49580022
 _L49580021:
         move @R0 #1
-        i2l @R24 @R0
+        i2l @L0 @R0
 _L49580022:
         cmp @R0 #0
         jz sta_49580019
-        movel @R24 [@R12+12]
-        pushl @R24
-        movel @R24 [@R12+20]
-        popl @R25
-        subl @R24 @R25 @R24
-        movel [@R12+12] @R24
-        movel @R24 [@R12-16]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
+        movel @L0 [@R12+20]
+        popl @L1
+        subl @L0 @L1 @L0
+        movel [@R12+12] @L0
+        movel @L0 [@R12-16]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        orl @R25 @R24
-        movel @R24 @R25
-        movel [@R12-16] @R24
+        popl @L1
+        orl @L1 @L0
+        movel @L0 @L1
+        movel [@R12-16] @L0
 sta_49580019:
 sta_49580020:
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #1
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        movel [@R12+12] @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        movel [@R12+12] @L0
 sta_49580015:
         move @R0 [@R12-20]
         move @R1 @R0
@@ -267,11 +267,11 @@ sta_49580015:
 sta_49580016:
 ; 22:     return sign * q;
         move @R0 [@R12-8]
-        i2l @R24 @R0
-        pushl @R24
-        movel @R24 [@R12-16]
-        popl @R25
-        mull @R24 @R25 @R24
+        i2l @L0 @R0
+        pushl @L0
+        movel @L0 [@R12-16]
+        popl @L1
+        mull @L0 @L1 @L0
         jmp L_49580005
 L_49580005:
         move @R13 @R12
@@ -291,12 +291,12 @@ lfixed_from_int64:
         move @R12 @R13
         sub @R13 #16
 ; 26:     return value << 32;
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
         jmp L_49580023
 L_49580023:
         move @R13 @R12
@@ -316,12 +316,12 @@ lfixed_to_int64:
         move @R12 @R13
         sub @R13 #16
 ; 30:     return value >> 32;
-        movel @R24 [@R12+12]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrl @R25 @R0
-        movel @R24 @R25
+        popl @L1
+        shrl @L1 @R0
+        movel @L0 @L1
         jmp L_49580024
 L_49580024:
         move @R13 @R12
@@ -341,21 +341,21 @@ lfixed_to_int_round64:
         move @R12 @R13
         sub @R13 #16
 ; 34:     return (value + (1L << 31)) >> 32;
-        movel @R24 [@R12+12]
-        pushl @R24
-        movel @R24 [i64_49580025]
-        pushl @R24
+        movel @L0 [@R12+12]
+        pushl @L0
+        movel @L0 [i64_49580025]
+        pushl @L0
         move @R0 #31
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        popl @R25
-        addl @R24 @R25 @R24
-        pushl @R24
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        popl @L1
+        addl @L0 @L1 @L0
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shrl @R25 @R0
-        movel @R24 @R25
+        popl @L1
+        shrl @L1 @R0
+        movel @L0 @L1
         jmp L_49580026
 L_49580026:
         move @R13 @R12
@@ -375,18 +375,18 @@ lfixed_from_double:
         move @R12 @R13
         sub @R13 #16
 ; 38:     return (long)(f * (double)(1L << 32));
-        moved @R16 [@R12+12]
-        dpush @R16
-        movel @R24 [i64_49580027]
-        pushl @R24
+        moved @D0 [@R12+12]
+        dpush @D0
+        movel @L0 [i64_49580027]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        l2d @R16 @R24
-        dpop @R17
-        dmul @R16 @R17 @R16
-        d2l @R24 @R16
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        l2d @D0 @L0
+        dpop @D1
+        dmul @D0 @D1 @D0
+        d2l @L0 @D0
         jmp L_49580028
 L_49580028:
         move @R13 @R12
@@ -407,18 +407,18 @@ lfixed_to_double:
         move @R12 @R13
         sub @R13 #16
 ; 42:     return (double)value / (double)(1L << 32);
-        movel @R24 [@R12+12]
-        l2d @R16 @R24
-        dpush @R16
-        movel @R24 [i64_49580029]
-        pushl @R24
+        movel @L0 [@R12+12]
+        l2d @D0 @L0
+        dpush @D0
+        movel @L0 [i64_49580029]
+        pushl @L0
         move @R0 #32
-        popl @R25
-        shll @R25 @R0
-        movel @R24 @R25
-        l2d @R16 @R24
-        dpop @R17
-        ddiv @R16 @R17 @R16
+        popl @L1
+        shll @L1 @R0
+        movel @L0 @L1
+        l2d @D0 @L0
+        dpop @D1
+        ddiv @D0 @D1 @D0
         jmp L_49580030
 L_49580030:
         move @R13 @R12

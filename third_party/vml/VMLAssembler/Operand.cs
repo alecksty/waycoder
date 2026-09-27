@@ -40,6 +40,32 @@ namespace VMLAssembler
         /// 才成立。解析侧把 `@` 剥掉后**存进内存的还是裸名**（见 <see cref="RegisterSyntax"/>）。
         /// </para>
         /// </summary>
+        /// <summary>
+        /// 带上**寄存器类**的文本（`@L0` / `@D0` / `@F0` / `@R0`）—— 类由**助记符**决定
+        /// （用户 2026-09-27 定的模型：`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位）。
+        ///
+        /// <para>
+        /// ⚠ 编号空间是**统一**的（0–15 通用、16–23=D0–D7、24–31=L0–L7），所以
+        /// `movel @R24` 与 `movel @L0` 说的是同一只寄存器 —— 但前者**读的人看不出**
+        /// 这是 64 位寄存器，而写错类（`movel @R0`）又恰恰是想让人一眼抓住的错。
+        /// 解析两边都认（见 <c>RegisterSyntax.TryParseName</c>），这里只是**输出**怎么拼。
+        /// </para>
+        /// </summary>
+        public string ToStringFor(OpCode op, int operandIndex, int operandCount)
+        {
+            if (Type != OperandType.REGISTER) return ToString() ?? "";
+            int num;
+            try { num = Convert.ToInt32(Value); } catch { return ToString() ?? ""; }
+            var cls = RegisterClassTable.ClassOf(op, operandIndex, operandCount);
+            return cls switch
+            {
+                RegClass.Long when num >= 24 => "@L" + (num - 24),
+                RegClass.Double when num >= 16 => "@D" + (num - 16),
+                RegClass.Float when num >= 0 && num < 16 => "@F" + num,
+                _ => ToString() ?? "",
+            };
+        }
+
         public override string? ToString()
         {
             return Type switch

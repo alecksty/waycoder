@@ -66,9 +66,9 @@ LABEL java_fromFloat
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @R0
+    movef @13 @F0
     move @R0 [@R13+0]
     CALL from_float
     ADD @R13 #4

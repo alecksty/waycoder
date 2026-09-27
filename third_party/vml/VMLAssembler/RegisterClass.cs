@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace VMLAssembler
 {
@@ -87,7 +88,7 @@ namespace VMLAssembler
             // ── 64 位整数（含有符号/无符号/位移/按位）──
             OpCode.ADDL or OpCode.SUBL or OpCode.MULL or OpCode.DIVL or OpCode.MODL
                 or OpCode.DIVUL or OpCode.MODUL
-                or OpCode.ANDL or OpCode.XORL => Long3,
+                or OpCode.ANDL or OpCode.ORL or OpCode.XORL => Long3,
             OpCode.NOTL or OpCode.NEGL => Long2,
             OpCode.CMPL or OpCode.CMPUL => Long2,
 
@@ -162,8 +163,7 @@ namespace VMLAssembler
         /// </summary>
         public static int BankOfOperand(OpCode op, int index, int operandCount = 3)
         {
-            var table = Expected(op, operandCount);
-            var cls = (table != null && index < table.Length) ? table[index] : RegClass.Int;
+            var cls = ClassOf(op, index, operandCount);
             return cls switch
             {
                 RegClass.Long => 24,
@@ -174,6 +174,22 @@ namespace VMLAssembler
 
         /// <summary>该指令第 0 个操作数（对多数指令就是累加器/目标）的基址。</summary>
         public static int BankOf(OpCode op) => BankOfOperand(op, 0);
+
+        /// <summary>
+        /// 取第 <paramref name="index"/> 个操作数该用的类 —— **超出表长时沿用最后一档**。
+        ///
+        /// <para>
+        /// 表按"有几种操作数形态"写：`MOVEL`/`MOVEF` 这类只列 1 项（两端同类），
+        /// 3 操作数写法则一次列 3 项。若不沿用，第 2 个操作数会掉进兜底的 `Int`
+        /// ⇒ 校验漏判、序列化拼错名（实测 `movel @L0 @R25`：源操作数该是 `@L1`）。
+        /// </para>
+        /// </summary>
+        public static RegClass ClassOf(OpCode op, int index, int operandCount)
+        {
+            var t = Expected(op, operandCount);
+            if (t == null || t.Length == 0) return RegClass.Int;
+            return index < t.Length ? t[index] : t[^1];
+        }
 
         /// <summary>编号范围（含端点）—— 与 <see cref="RegisterSyntax.TryParseName"/> 的映射同一张表。</summary>
         public static (int Lo, int Hi) Range(RegClass cls) => cls switch
@@ -202,9 +218,7 @@ namespace VMLAssembler
         /// </summary>
         public static string? CheckOperand(OpCode op, int operandIndex, Operand operand, int operandCount = 3)
         {
-            var table = Expected(op, operandCount);
-            if (table == null || operandIndex >= table.Length) return null;
-            var want = table[operandIndex];
+            var want = ClassOf(op, operandIndex, operandCount);
             if (want == RegClass.Any) return null;
             if (operand.Type != OperandType.REGISTER) return null;
 
@@ -223,10 +237,17 @@ namespace VMLAssembler
             return $"{op} 的第 {operandIndex + 1} 个操作数要 {Name(want)}，给的是 {given}（编号 {num}）";
         }
 
-        /// <summary>校验整个程序，返回**全部**违规（每条含指令下标与可读错因）。</summary>
-        public static List<string> Validate(VmlProgram program)
+        /// <summary>一条违规：指令下标 + 可读错因（+ 源码行，供报错定位）。</summary>
+        public readonly record struct Violation(int Index, int SourceLine, string Label, string Message)
         {
-            var errors = new List<string>();
+            public override string ToString()
+                => $"[{Index}]" + (string.IsNullOrEmpty(Label) ? "" : $" ({Label})") + $" {Message}";
+        }
+
+        /// <summary>校验整个程序，返回**全部**违规（结构化：调用方要按"用户代码 / 库代码"分档）。</summary>
+        public static List<Violation> ValidateDetailed(VmlProgram program)
+        {
+            var errors = new List<Violation>();
             for (int i = 0; i < program.Instructions.Count; i++)
             {
                 var instr = program.Instructions[i];
@@ -234,10 +255,14 @@ namespace VMLAssembler
                 {
                     var err = CheckOperand(instr.Opcode, k, instr.Operands[k], instr.Operands.Count);
                     if (err != null)
-                        errors.Add($"[{i}]" + (string.IsNullOrEmpty(instr.Label) ? "" : $" ({instr.Label})") + $" {err}");
+                        errors.Add(new Violation(i, instr.SourceLine, instr.Label ?? "", err));
                 }
             }
             return errors;
         }
+
+        /// <summary>同上，但拼成可读字符串列表（探针/自测用）。</summary>
+        public static List<string> Validate(VmlProgram program)
+            => ValidateDetailed(program).Select(v => v.ToString()).ToList();
     }
 }

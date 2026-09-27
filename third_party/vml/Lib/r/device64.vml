@@ -7,12 +7,12 @@ LABEL r_ldev_read64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+28]
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -32,12 +32,12 @@ LABEL r_ldev_write64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+28]
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

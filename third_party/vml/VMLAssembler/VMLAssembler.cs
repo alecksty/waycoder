@@ -1488,7 +1488,14 @@ namespace VMLAssembler
             return AssembleWithIncludes(source, basePath, null);
         }
 
-        public VmlProgram AssembleWithIncludes(string source, string? basePath, IEnumerable<string>? defines)
+        /// <param name="checkRegisterClass">
+        /// 是否做**寄存器类检查**（用户 2026-09-27 定：「用错寄存器就要报错」）。
+        /// 默认 true = **用户手写的汇编**：写错类直接抛 <see cref="RegisterClassException"/>。
+        /// ⚠ 链接器装载**库文件**时要传 false —— 库里的违规只打警告（库打进 APK，
+        ///   一次坏重生成不能让每个用户程序都编不过），分档由链接器用 `userEnd` 做。
+        /// </param>
+        public VmlProgram AssembleWithIncludes(string source, string? basePath, IEnumerable<string>? defines,
+                                               bool checkRegisterClass = true)
         {
             Reset();
             if (defines != null) SetDefines(defines);
@@ -1502,6 +1509,22 @@ namespace VMLAssembler
                 LinkedFiles = linkedFiles,
                 Externs = externs
             };
+            // 用户手写的汇编：**当场报错**（不响的闸比没有更糟）
+            if (checkRegisterClass)
+            {
+                var bad = RegisterClassTable.ValidateDetailed(prog);
+                if (bad.Count > 0)
+                {
+                    var lines = new List<string>
+                    {
+                        $"error: 有 {bad.Count} 处**寄存器类用错**（`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，类由助记符决定）："
+                    };
+                    foreach (var v in bad.Take(20)) lines.Add($"  {v}");
+                    var text = string.Join(Environment.NewLine, lines);
+                    Console.Error.WriteLine(text);
+                    throw new RegisterClassException(text, bad);
+                }
+            }
             prog.EntryPoint = entryPoint;
             prog.StackTop = stackTop;
             prog.VectorTable = vectorTable;

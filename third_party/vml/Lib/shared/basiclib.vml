@@ -2629,11 +2629,11 @@ basic_str_single:
         move @R0 #0
         move [@R12-28] @R0
 ; 291:     if (v < 0.0f) { neg = 1; v = 0.0f - v; }
-        movef @R0 [@R12+12]
-        fpush @R0
-        movef @R0 [flt_66490261]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+12]
+        fpush @F0
+        movef @F0 [flt_66490261]
+        fpop @F1
+        fcmp @F1 @F0
         jl _L66490262
         move @R0 #0
         jmp _L66490263
@@ -2644,20 +2644,20 @@ _L66490263:
         jz sta_66490259
         move @R0 #1
         move [@R12-28] @R0
-        movef @R0 [flt_66490264]
-        fpush @R0
-        movef @R0 [@R12+12]
-        fpop @R1
-        fsub @R0 @R1 @R0
-        movef [@R12+12] @R0
+        movef @F0 [flt_66490264]
+        fpush @F0
+        movef @F0 [@R12+12]
+        fpop @F1
+        fsub @F0 @F1 @F0
+        movef [@R12+12] @F0
 sta_66490259:
 sta_66490260:
 ; 292:     if (v >= 2000.0f) {
-        movef @R0 [@R12+12]
-        fpush @R0
-        movef @R0 [flt_66490267]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+12]
+        fpush @F0
+        movef @F0 [flt_66490267]
+        fpop @F1
+        fcmp @F1 @F0
         jge _L66490268
         move @R0 #0
         jmp _L66490269
@@ -2667,11 +2667,11 @@ _L66490269:
         cmp @R0 #0
         jz sta_66490265
 ; 294:         if (v > 2000000000.0f) v = 2000000000.0f;
-        movef @R0 [@R12+12]
-        fpush @R0
-        movef @R0 [flt_66490272]
-        fpop @R1
-        fcmp @R1 @R0
+        movef @F0 [@R12+12]
+        fpush @F0
+        movef @F0 [flt_66490272]
+        fpop @F1
+        fcmp @F1 @F0
         jg _L66490273
         move @R0 #0
         jmp _L66490274
@@ -2680,13 +2680,13 @@ _L66490273:
 _L66490274:
         cmp @R0 #0
         jz sta_66490270
-        movef @R0 [flt_66490275]
-        movef [@R12+12] @R0
+        movef @F0 [flt_66490275]
+        movef [@R12+12] @F0
 sta_66490270:
 sta_66490271:
 ; 295:         ipart = (int)v;
-        movef @R0 [@R12+12]
-        f2i @R0 @R0
+        movef @F0 [@R12+12]
+        f2i @R0 @F0
         move [@R12-20] @R0
 ; 296:         frac = 0;
         move @R0 #0
@@ -2694,16 +2694,16 @@ sta_66490271:
         jmp sta_66490266
 sta_66490265:
 ; 298:         scaled = (int)(v * 1000000.0f + 0.5f);
-        movef @R0 [@R12+12]
-        fpush @R0
-        movef @R0 [flt_66490276]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        fpush @R0
-        movef @R0 [flt_66490277]
-        fpop @R1
-        fadd @R0 @R1 @R0
-        f2i @R0 @R0
+        movef @F0 [@R12+12]
+        fpush @F0
+        movef @F0 [flt_66490276]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        fpush @F0
+        movef @F0 [flt_66490277]
+        fpop @F1
+        fadd @F0 @F1 @F0
+        f2i @R0 @F0
         move [@R12-16] @R0
 ; 299:         ipart = scaled / 1000000;
         move @R0 [@R12-16]
@@ -3234,7 +3234,7 @@ _L66490330:
 _L66490331:
         cmp @R0 #0
         jz sta_66490328
-        movef @R0 [flt_66490332]
+        movef @F0 [flt_66490332]
         jmp L_66490333
 sta_66490328:
 sta_66490329:
@@ -3342,8 +3342,8 @@ sta_66490342:
 sta_66490343:
 sta_66490339:
 ; 349:     r = 0.0f;
-        movef @R0 [flt_66490346]
-        movef [@R12-8] @R0
+        movef @F0 [flt_66490346]
+        movef [@R12-8] @F0
 sta_66490347:
         move @R2 #0
 ; 350:     while (s[i] >= '0' && s[i] <= '9') { r = r * 10.0f + (float)(s[i] - '0'); i = i + 1; }
@@ -3394,12 +3394,12 @@ _L66490349:
 _L66490350:
         cmp @R0 #0
         jz sta_66490348
-        movef @R0 [@R12-8]
-        fpush @R0
-        movef @R0 [flt_66490355]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        fpush @R0
+        movef @F0 [@R12-8]
+        fpush @F0
+        movef @F0 [flt_66490355]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        fpush @F0
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -3413,10 +3413,10 @@ _L66490350:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2f @R0 @R0
-        fpop @R1
-        fadd @R0 @R1 @R0
-        movef [@R12-8] @R0
+        i2f @F0 @R0
+        fpop @F1
+        fadd @F0 @F1 @F0
+        movef [@R12-8] @F0
         move @R0 [@R12-16]
         push @R0
         move @R0 #1
@@ -3456,8 +3456,8 @@ _L66490359:
         move @R0 @R1
         move [@R12-16] @R0
 ; 353:         scale = 0.1f;
-        movef @R0 [flt_66490360]
-        movef [@R12-12] @R0
+        movef @F0 [flt_66490360]
+        movef [@R12-12] @F0
 sta_66490361:
         move @R2 #0
 ; 354:         while (s[i] >= '0' && s[i] <= '9') {
@@ -3509,8 +3509,8 @@ _L66490364:
         cmp @R0 #0
         jz sta_66490362
 ; 355:             r = r + (float)(s[i] - '0') * scale;
-        movef @R0 [@R12-8]
-        fpush @R0
+        movef @F0 [@R12-8]
+        fpush @F0
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-16]
@@ -3524,21 +3524,21 @@ _L66490364:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2f @R0 @R0
-        fpush @R0
-        movef @R0 [@R12-12]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        fpop @R1
-        fadd @R0 @R1 @R0
-        movef [@R12-8] @R0
+        i2f @F0 @R0
+        fpush @F0
+        movef @F0 [@R12-12]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        fpop @F1
+        fadd @F0 @F1 @F0
+        movef [@R12-8] @F0
 ; 356:             scale = scale * 0.1f;
-        movef @R0 [@R12-12]
-        fpush @R0
-        movef @R0 [flt_66490369]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        movef [@R12-12] @R0
+        movef @F0 [@R12-12]
+        fpush @F0
+        movef @F0 [flt_66490369]
+        fpop @F1
+        fmul @F0 @F1 @F0
+        movef [@R12-12] @F0
 ; 357:             i = i + 1;
         move @R0 [@R12-16]
         push @R0
@@ -3552,12 +3552,12 @@ sta_66490362:
 sta_66490356:
 sta_66490357:
 ; 360:     return r * (float)sign;
-        movef @R0 [@R12-8]
-        fpush @R0
+        movef @F0 [@R12-8]
+        fpush @F0
         move @R0 [@R12-20]
-        i2f @R0 @R0
-        fpop @R1
-        fmul @R0 @R1 @R0
+        i2f @F0 @R0
+        fpop @F1
+        fmul @F0 @F1 @F0
         jmp L_66490333
 L_66490333:
         move @R13 @R12

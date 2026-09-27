@@ -7,12 +7,12 @@ LABEL LbitAnd64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_and64
@@ -26,12 +26,12 @@ LABEL LbitOr64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_or64
@@ -45,12 +45,12 @@ LABEL LbitXor64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_xor64
@@ -64,9 +64,9 @@ LABEL LbitNot64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lbit_not64
     ADD @R13 #8
@@ -79,12 +79,12 @@ LABEL LbitShl64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_shl64
@@ -98,12 +98,12 @@ LABEL LbitShr64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_shr64
@@ -117,12 +117,12 @@ LABEL Lrol64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrol64
@@ -136,12 +136,12 @@ LABEL Lror64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lror64
@@ -155,12 +155,12 @@ LABEL LbitSet64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_set64
@@ -174,12 +174,12 @@ LABEL LbitClear64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_clear64
@@ -193,12 +193,12 @@ LABEL LbitToggle64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_toggle64
@@ -212,12 +212,12 @@ LABEL LbitTest64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_test64
@@ -231,9 +231,9 @@ LABEL Lcount64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lcount64
     ADD @R13 #8
@@ -246,12 +246,12 @@ LABEL LrotateLeft64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrotate_left64
@@ -265,12 +265,12 @@ LABEL LrotateRight64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+20]
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrotate_right64
@@ -284,9 +284,9 @@ LABEL LlowestSet64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL llowest_set64
     ADD @R13 #8
@@ -299,9 +299,9 @@ LABEL Lctz64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lctz64
     ADD @R13 #8
@@ -314,9 +314,9 @@ LABEL LhighestSet64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lhighest_set64
     ADD @R13 #8
@@ -329,9 +329,9 @@ LABEL Lmask64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lmask64
     ADD @R13 #8
@@ -344,15 +344,15 @@ LABEL Lextract64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+28]
+    movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+20]
+    movel @13 @L0
+    movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @R0
-    move @R0 [@R12+12]
+    movel @13 @L0
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -367,9 +367,9 @@ LABEL LisPowerOfTwo64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lis_power_of_two64
     ADD @R13 #8
@@ -382,9 +382,9 @@ LABEL LnextPowerOfTwo64
     push @R15
     push @R12
     move @R12 @R13
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     CALL lnext_power_of_two64
     ADD @R13 #8

@@ -410,23 +410,39 @@ namespace CCompiler
                 GenerateExpression(uo.Operand);
             instructions.Add(new Instruction(OpCode.MOVE, [Reg(addrReg), Reg(0)]));
 
+            // ⚠ 两处都按**类型**发：运算要用 ADDL/DADD/FADD（写死 32 位 ADD 等于拿
+            //   L/D/F 寄存器编号去当通用寄存器用，实测 `long a[0]++;` **一点没加**），
+            //   而 8 字节/浮点值的"暂存旧值"不能借 R 池寄存器（32 位 MOVE 搬不动它们）
+            //   ⇒ 压**主栈**（与数组赋值那条同一句惯用法）。
+            bool typed = GetTypeSize(exprType) == 8 || exprType == ExprType.Float;
+            var arithOp = GetArithmeticInstruction(op, exprType);
+
             if (isPostfix)
             {
-                // 后置: 加载旧值 → 保存到临时寄存器 → 加载+修改 → 存储 → 恢复旧值到 R0
-                int savedValReg = Regs!.AllocInt(instructions);
+                // 后置: 加载旧值 → 暂存 → 加载+修改 → 存储 → 把旧值还给累加器
+                int savedValReg = typed ? -1 : Regs!.AllocInt(instructions);
                 var loadOp = GetLoadInstruction(exprType);
                 instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
-                instructions.Add(new Instruction(OpCode.MOVE, [Reg(savedValReg), Reg(0)]));
+                if (typed)
+                {
+                    instructions.Add(new Instruction(OpCode.SUB, [Reg(13), Imm(8)]));
+                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.INDIRECT, 13), TRegAcc(storeOp)]));
+                }
+                else
+                    instructions.Add(new Instruction(OpCode.MOVE, [Reg(savedValReg), Reg(0)]));
                 instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
-                if (op == "+")
-                    instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), Imm(scale)]));
-                else
-                    instructions.Add(new Instruction(OpCode.SUB, [Reg(0), Reg(0), Imm(scale)]));
+                instructions.Add(new Instruction(arithOp, [TRegAcc(arithOp), TRegAcc(arithOp), Imm(scale)]));
                 instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), TRegAcc(storeOp)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(savedValReg)]));
-                Regs!.FreeInt(savedValReg, instructions);
+                if (typed)
+                {
+                    instructions.Add(new Instruction(storeOp, [TRegAcc(storeOp), new Operand(OperandType.INDIRECT, 13)]));
+                    instructions.Add(new Instruction(OpCode.ADD, [Reg(13), Imm(8)]));
+                }
+                else
+                    instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(savedValReg)]));
+                if (!typed) Regs!.FreeInt(savedValReg, instructions);
             }
             else
             {
@@ -434,10 +450,7 @@ namespace CCompiler
                 var loadOp = GetLoadInstruction(exprType);
                 instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
-                if (op == "+")
-                    instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), Imm(scale)]));
-                else
-                    instructions.Add(new Instruction(OpCode.SUB, [Reg(0), Reg(0), Imm(scale)]));
+                instructions.Add(new Instruction(arithOp, [TRegAcc(arithOp), TRegAcc(arithOp), Imm(scale)]));
                 instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), TRegAcc(storeOp)]));
             }
             Regs!.FreeInt(addrReg, instructions);
@@ -663,8 +676,10 @@ namespace CCompiler
                     new(OperandType.REGISTER, addrReg) }));
                 // 使用类型对应的存储指令
                 var storeOp = GetStoreInstruction(targetType);
+                // ⚠ 源必须按**类**取（`*p = 9L` 时值在 L0；写死 R0 是 32 位寄存器，
+                //   而 `MOVEL` 要的是 L —— 实测 `long x; long* p=&x; *p=9;` 会被寄存器类检查拦下）
                 instructions.Add(new Instruction(storeOp, new List<Operand> {
-                    new(OperandType.MEMORY, $"R{addrReg}"), new(OperandType.REGISTER, 0) }));
+                    new(OperandType.MEMORY, $"R{addrReg}"), TRegAcc(storeOp) }));
                 Regs.FreeInt(addrReg, instructions);
                 return;
             }

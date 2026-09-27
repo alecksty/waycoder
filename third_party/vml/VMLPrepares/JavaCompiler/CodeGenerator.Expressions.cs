@@ -251,7 +251,7 @@ namespace JavaCompiler
 
             if (_varOffsets.TryGetValue(variable.Name, out int offset))
             {
-                instructions.Add(new Instruction(loadOp, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(-offset))]));
+                instructions.Add(new Instruction(loadOp, [TR0(loadOp), new Operand(OperandType.MEMORY, Vars.FormatOffset(-offset))]));
             }
             else
             {
@@ -601,7 +601,7 @@ namespace JavaCompiler
                     //   同族问题见 patch 0015（Go）/0011（Swift）——"操作数写反"。
                     instructions.Add(new Instruction(storeOp, new List<Operand> {
                         new Operand(OperandType.MEMORY, Vars.FormatOffset(-offset)),
-                        new Operand(OperandType.REGISTER, 0)
+                        TR0(storeOp)
                     }));
                 }
                 else

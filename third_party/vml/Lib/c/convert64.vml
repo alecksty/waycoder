@@ -9,9 +9,9 @@ LABEL c_ltoa_hex
     move @R12 @R13
     move @R0 [@R12+20]
     PUSH @R0
-    move @R0 [@R12+12]
+    movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @R0
+    movel @13 @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ltoa_hex
