@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# VML 跨语言**浮点**判据 —— 每门语言一份 `langs/f.<ext>`，跑出来逐行核对。
+#
+# 为什么单独立一套：`Examples/vml/float_ops.vml` 只证明了**汇编层**（`.float`/`.double`）是好的，
+# 而"前端把浮点编成什么"是另一回事。2026-09-27 实测：**22 门里只有 C 是对的** ——
+# Python/JS/C++ 打印出垃圾整数、BASIC 把常量截成整数、C#/Lua 静默无输出、
+# Go 连 `var d float64 = -0.5` 都编不过（未声明的变量 d）。
+#
+# 判据（三门探针的期望输出，逐行）：
+#     F-MUL=  628    ← (int)(3.14 × 2.0 × 100)
+#     F-NEG=  -50    ← (int)(-0.5 × 100)
+#     F-HEX=  1600   ← (int)(0x10 × 100)
+#
+# 用法：scripts/vml-float-probe/run-langs.sh [c py …]
+# ⚠ 前置：先 `dotnet build scripts/vmlcli/vmlcli.csproj -c Release`
+set -uo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
+CLI="$ROOT/scripts/vmlcli/bin/Release/net10.0/vmlcli.dll"
+VML_HOME="$ROOT/third_party/vml"
+
+[ -f "$CLI" ] || { echo "✘ 先构建 vmlcli（dotnet build scripts/vmlcli/vmlcli.csproj -c Release）"; exit 2; }
+
+want=$'F-MUL=\n628\nF-NEG=\n-50\nF-HEX=\n1600'
+pass=0; fail=0; skip=0
+for f in "$HERE"/langs/f.*; do
+    name="$(basename "$f")"
+    if [ $# -gt 0 ]; then
+        ext="${name#f.}"; keep=0
+        for a in "$@"; do [ "$a" = "$ext" ] && keep=1; done
+        [ "$keep" = 1 ] || continue
+    fi
+    got=$(VML_HOME="$VML_HOME" dotnet "$CLI" "$f" --timeout 25 2>&1 | grep -vE '^\[dbg\]|^✔|已注册|成功链接|链接|最终修复|别名')
+    if [ "$got" = "$want" ]; then
+        printf "  ✅ %-8s 正确\n" "${name#f.}"; pass=$((pass+1))
+    else
+        made=$(printf '%s\n' "$got" | tail -6 | tr '\n' ' ')
+        if [ -z "$made" ]; then
+            printf "  ✘ %-8s 无输出（或编译失败）\n" "${name#f.}"; fail=$((fail+1))
+        else
+            printf "  ✘ %-8s 实得: %s\n" "${name#f.}" "$made"; fail=$((fail+1))
+        fi
+    fi
+done
+echo
+echo "浮点探针：通过 $pass / 失败 $fail / 跳过 $skip（判据见本脚本头部）"
+[ "$fail" = 0 ]
