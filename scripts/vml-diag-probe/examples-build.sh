@@ -108,10 +108,17 @@ for f in "${targets[@]}"; do
         continue
     fi
     trip_reset
-    err="$(printf '%s' "$out" | grep -a "编译失败\|error:" | head -2)"
-    if [ -n "$err" ]; then
+    # ⚠ **判据必须是退出码，不能是"输出里有没有 error:"**（2026-09-27 修）。
+    #   用 grep 的那版会**漏报一整类失败**：`vmlcli` 的失败路径并不都带 `error:` 字样 ——
+    #   例如「✘ 找不到文件：…」（路径写错、或文件刚好被删）与其它早退分支，
+    #   输出里一个字都不匹配，于是**被判成通过**。
+    #   实测：`pascal/avc_file_select.pas` 明明编译失败，却一直挂在"通过"那一栏里
+    #   （拿它自己的输出一测就现形，两边都报 "编译失败"）——
+    #   这正是本仓反复记的那条：「**超时/失败必须按退出码判，不能靠 grep 输出**」。
+    #   `run_with_timeout` 已把超时归一成 124，所以这里只需判 `rc -ne 0`。
+    if [ "$rc" -ne 0 ]; then
         printf 'FAIL %s\n' "$(echo "$f" | sed 's|.*/Examples/||')"
-        printf '%s\n' "$err" | sed 's/^/     /'
+        printf '%s\n' "$out" | grep -a "编译失败\|error:\|找不到文件\|✘" | head -2 | sed 's/^/     /'
         fail=$((fail + 1)); failed+=("$(echo "$f" | sed 's|.*/Examples/||')")
     else ok=$((ok + 1)); fi
 done
