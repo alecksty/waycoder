@@ -384,6 +384,46 @@ namespace PascalCompiler
                                     EmitLoadConstant(stdConst);
                                     return;
                                 }
+
+                                /* ⚠ **裸 `Random`（无参）** —— Pascal 的 `Random` 有**两种形态**：
+                                   ① `Random(n)`：0..n-1 的**整数**（那是函数调用，另一条分支）；
+                                   ② **裸 `Random`**：`[0,1)` 的**实数**（`Real`）。
+                                   语法上完全是两回事（后者就是个**标识符**），而老代码大量用它：
+                                   `AsteroidAngle[I] := Random * (PI * 2);`（实测 `g7iles_asteroid.pas`）。
+                                   此前只实现了①⇒ 裸写一律报「未声明的变量 'Random'」——
+                                   **指不回这里**（看着像少了个常量）。
+
+                                   ⚠ 语义要**真按 [0,1) 实数**算，别糊成一个整数了事：
+                                   `Random * (PI*2)` 若拿到的是 32 位整数，「能编过」但角度是天文数字，
+                                   **跑起来全错** —— 那正是本仓反复批评的"编得过、跑不对"。
+
+                                   实现：`random() / 2^31`。除数取 `2^31` 是因为宿主的
+                                   `#50` 就是 `random.Next()`（**.NET 语义：[0, int.MaxValue)**，
+                                   见 `VMLRuntime.Syscall.cs` 的 `case 50`）—— 除完必然落进 [0,1)。
+                                   `random()` 与 `Random(n)` 共用同一个库函数，**不新开随机源**。 */
+                                if (string.Equals(variable.Name, "Random", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // ① 除数先落 F0（EmitLoadConstant 的浮点常量放本类 0 号），搬进 F1 留着
+                                    EmitLoadConstant(2147483648.0f);
+                                    instructions.Add(new Instruction(OpCode.MOVEF, new List<Operand>
+                                    {
+                                        RegOf(OpCode.MOVEF, 0, 1), RegOf(OpCode.MOVEF, 1, 0)
+                                    }));
+                                    // ② 取随机整数（结果在 R0）
+                                    EmitCallBuiltin("random");
+                                    // ③ 整数→单精度，再除 ⇒ F0 ∈ [0,1)
+                                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand>
+                                    {
+                                        RegOf(OpCode.I2F, 0, 0), new Operand(OperandType.REGISTER, 0)
+                                    }));
+                                    instructions.Add(new Instruction(OpCode.FDIV, new List<Operand>
+                                    {
+                                        RegOf(OpCode.FDIV, 0, 0),
+                                        RegOf(OpCode.FDIV, 1, 0),
+                                        RegOf(OpCode.FDIV, 2, 1)
+                                    }));
+                                    return;
+                                }
                             }
 
                             // 局部集合 / 局部变量 / 形参三个分支都没命中，`dataSection` 里也没有

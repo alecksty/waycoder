@@ -18,26 +18,26 @@ namespace PascalCompiler
         private Dictionary<string, List<(int lower, int upper)>> arrayBounds;
         
         // 栈帧管理
-        private Dictionary<string, int> globalVarOffsets = new(); // 全局变量偏移
-        private Dictionary<string, int> localVarOffsets = new(); // 局部变量偏移(BP相对)
-        private Dictionary<string, string> globalVarTypes = new(); // 全局变量类型
-        private Dictionary<string, string> localVarTypes = new(); // 局部变量类型
-        private Dictionary<string, TypeNode> globalVarDeclarations = new(); // 全局变量声明
-        private Dictionary<string, TypeNode> localVarDeclarations = new(); // 局部变量声明
-        private Dictionary<string, TypeNode> definedTypeAliases = new(); // 类型别名
-        private HashSet<string> dynamicArrayNames = new(); // 动态数组变量
-        private Dictionary<string, RecordTypeNode> definedRecordTypes = new(); // 已定义的record类型
-        private Dictionary<string, Dictionary<string, (int offset, string type)>> recordFieldLayouts = new(); // record字段布局
-        private Dictionary<string, string> variableRecordTypes = new(); // 变量对应的record类型名
-        private HashSet<string> constNames = new(); // 常量名称(在dataSection中)
+        private Dictionary<string, int> globalVarOffsets = new(StringComparer.OrdinalIgnoreCase); // 全局变量偏移
+        private Dictionary<string, int> localVarOffsets = new(StringComparer.OrdinalIgnoreCase); // 局部变量偏移(BP相对)
+        private Dictionary<string, string> globalVarTypes = new(StringComparer.OrdinalIgnoreCase); // 全局变量类型
+        private Dictionary<string, string> localVarTypes = new(StringComparer.OrdinalIgnoreCase); // 局部变量类型
+        private Dictionary<string, TypeNode> globalVarDeclarations = new(StringComparer.OrdinalIgnoreCase); // 全局变量声明
+        private Dictionary<string, TypeNode> localVarDeclarations = new(StringComparer.OrdinalIgnoreCase); // 局部变量声明
+        private Dictionary<string, TypeNode> definedTypeAliases = new(StringComparer.OrdinalIgnoreCase); // 类型别名
+        private HashSet<string> dynamicArrayNames = new(StringComparer.OrdinalIgnoreCase); // 动态数组变量
+        private Dictionary<string, RecordTypeNode> definedRecordTypes = new(StringComparer.OrdinalIgnoreCase); // 已定义的record类型
+        private Dictionary<string, Dictionary<string, (int offset, string type)>> recordFieldLayouts = new(StringComparer.OrdinalIgnoreCase); // record字段布局
+        private Dictionary<string, string> variableRecordTypes = new(StringComparer.OrdinalIgnoreCase); // 变量对应的record类型名
+        private HashSet<string> constNames = new(StringComparer.OrdinalIgnoreCase); // 常量名称(在dataSection中)
         private HashSet<string> recordsBeingComputed = new(); // 正在计算布局的record,防递归
         private int currentLocalSize = 0; // 当前函数局部变量大小(4字节单元)
         private int currentParamSize = 0; // 当前函数参数大小
         private bool isInSubprogram = false; // 是否在过程/函数中
-        private HashSet<string> varParameters = new(); // var参数(引用传递)
-        private Dictionary<string, int> paramOffsets = new(); // 参数偏移(BP正方向)
+        private HashSet<string> varParameters = new(StringComparer.OrdinalIgnoreCase); // var参数(引用传递)
+        private Dictionary<string, int> paramOffsets = new(StringComparer.OrdinalIgnoreCase); // 参数偏移(BP正方向)
         private Stack<string> subprogramExitLabels = new(); // 子程序 exit 标签栈
-        private HashSet<string> functionNames = new(); // 函数名集合,用于识别无括号函数调用
+        private HashSet<string> functionNames = new(StringComparer.OrdinalIgnoreCase); // 函数名集合,用于识别无括号函数调用
         public static Dictionary<string, string> ExternalFuncTypes = new(); // 外部函数返回类型 (v1.66.46)
 
         /* ── `uses` 单元的 interface 符号（登记处见 `PascalCompiler.RegisterUnitFunctions`）──
