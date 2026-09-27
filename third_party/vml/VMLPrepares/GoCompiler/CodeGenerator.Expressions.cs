@@ -15,9 +15,11 @@ namespace GoCompiler
                 GoTypeEnum varType = _varTypes.ContainsKey(ident.Name) ? _varTypes[ident.Name] : GoTypeEnum.Int;
                 OpCode loadOp = GetLoadInstruction(varType);
                 
+                // ⚠ 目的寄存器按**类**取（double/64 位 → `D0`/`L0`）：写死 `REGISTER 0` 是 32 位
+                //   通用寄存器，撞寄存器类闸，值也落在错的寄存器组里
                 AddInstruction(loadOp, new List<Operand>
                 {
-                    new Operand(OperandType.REGISTER, 0),
+                    TRegOf(loadOp, 0),
                     Mem($"R14-{offset}")
                 });
             }

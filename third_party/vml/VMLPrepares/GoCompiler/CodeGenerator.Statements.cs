@@ -838,7 +838,7 @@ namespace GoCompiler
                         instructions.Add(new Instruction(storeOp, new List<Operand>
                         {
                             Mem($"R14-{variables[name]}"),
-                            new Operand(OperandType.REGISTER, 0)
+                            TRegOf(storeOp, 1)          // 源按类取（double/64 位 → D0/L0）
                         }, instructions.Count));
                     }
                 }
@@ -882,7 +882,7 @@ namespace GoCompiler
                 instructions.Add(new Instruction(storeOp, new List<Operand>
                 {
                     Mem($"R14-{offset}"),
-                    new Operand(OperandType.REGISTER, 0)
+                    TRegOf(storeOp, 1)
                 }, instructions.Count));
             }
         }
