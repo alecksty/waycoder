@@ -703,8 +703,9 @@ namespace CppCompiler
                     {
                         // Runtime type_info lookup: object's first word = type_info address
                         GenerateExpr(te.Expression);
-                        Add(OpCode.MOVE, "R0", "(R0)"); // load type_info ptr from object[0]
-                        Add(OpCode.MOVE, "R0", "(R0)"); // load class name string
+                        Add(OpCode.MOVE, "R0", "(R0)"); // R0 = vptr（对象第 0 个字 = &vtable）
+                        Add(OpCode.MOVE, "R0", "(R0)"); // R0 = 表首格 = type_info 地址
+                        Add(OpCode.MOVE, "R0", "(R0)"); // R0 = 类名字符串
                     }
                     break;
                 case CastExpr ce when ce.TargetType == "dynamic_cast":
@@ -1837,15 +1838,16 @@ namespace CppCompiler
         }
 
         /// <summary>返回 class/struct 是否有虚函数，有则字段前有 vtable 指针 (4 字节)</summary>
-        private static int GetVtableOffset(ClassDecl cls)
+        private int GetVtableOffset(ClassDecl cls)   // 非静态：判据要用实例上的 `_classes`（ClassHasVirtualDeep）
         {
-            return cls.Members.Any(m => m.IsVirtual) ? 4 : 0;
+            return ClassHasVirtualDeep(cls.Name) ? 4 : 0;   // deep：见上方注释（继承来的虚函数照样占这 4 字节）
         }
 
         /// <summary>
         /// 类（**含继承链**）里有没有虚函数 —— 有就说明对象最前面是 vtable/typeid 指针。
-        /// ⚠ `GetVtableOffset(cls)` 只看当前类自己：派生类自己没写 virtual、但基类有，
-        ///   布局里**照样**有那个 4 字节。两处判据不一致 ⇒ 继承来的字段偏移整体差 4。
+        /// ⚠ 判据曾经是**只看当前类自己**（`cls.Members.Any(IsVirtual)`），而布局（`ClassSizeDeep`）
+        ///   用的是 deep ⇒ 派生类自己没写 virtual、但基类有时，字段偏移与对象大小**整体差 4**。
+        ///   两处判据现已统一到 <see cref="ClassHasVirtualDeep"/>。
         /// </summary>
         private bool ClassHasVirtualDeep(string className)
         {

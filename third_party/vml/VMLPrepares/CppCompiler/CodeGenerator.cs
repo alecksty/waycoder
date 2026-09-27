@@ -432,8 +432,15 @@ namespace CppCompiler
                 if (param.IsReference || isStructVal)
                     _isReferenceVar[param.Name] = true;
                 cumOff += slot;
-                _paramBytes = cumOff - 12;
             }
+            // ⚠ **必须在循环外交卷**：`_paramBytes` 是实例字段，写在循环体里的话
+            //   **零个形参的函数根本执行不到那一句** ⇒ 它沿用**上一个生成过的函数**留下的值。
+            //   而 `this` 的取值偏移正是 `12 + _paramBytes`（见下面那处），于是"谁前面编过什么"
+            //   会决定这个函数的 `this` 从哪儿读 —— 实测 `Building::DrawBody()`（无形参）
+            //   继承到 12 ⇒ 从 `24(R14)` 取 `this`（应 `16(R14)`），拿到的是**上一个栈帧的残留**
+            //   （`FF2A6E4E`）⇒ 第一次解引用就"内存错误"，而同一个类的 `Draw()`/`DrawRoof()`
+            //   恰好排在有形参的函数后面、拿到 4 ⇒ 正常。**这类"上一个函数的残留"只有换顺序才现形。**
+            _paramBytes = cumOff - 12;
 
             // ── 成员函数的 `this`：先**分配槽位**（必须在下面算 frameSize 之前，
             //    否则这个局部槽不占栈帧）──
@@ -546,13 +553,13 @@ namespace CppCompiler
                 Add(OpCode.MOVE, "R14", "8(R14)");
                 int fieldOffset = 0;
                 // If class has virtual methods, store vtable pointer as first word of object
-                bool hasVirt = _classes.TryGetValue(_currentClass ?? "", out var curCls) && curCls.Members.Any(m => m.IsVirtual);
+                bool hasVirt = !string.IsNullOrEmpty(_currentClass) && ClassHasVirtualDeep(_currentClass!);
                 if (hasVirt)
                 {
                     fieldOffset = 1;
                     // Store type_info address as first word of object (for RTTI + virtual dispatch)
-                    Add(OpCode.MOVE, "R0", $"{_currentClass}_typeid");
-                    Add(OpCode.MOVE, "(R14)", "R0"); // *this = type_info ptr
+                    Add(OpCode.MOVE, "R0", $"{_currentClass}_vtable");
+                    Add(OpCode.MOVE, "(R14)", "R0"); // *this = vptr（= 虚表首地址）
                 }
                 foreach (var init in func.InitList)
                 {
@@ -857,7 +864,7 @@ namespace CppCompiler
                 {
                     // 只有一个 word 的对象（无字段的类）没必要开数组
                     dataSection[label] = ClassHasVirtualDeep(gcls.Name)
-                        ? new object[] { new LabelRef($"{gcls.Name}_typeid") }
+                        ? new object[] { new LabelRef($"{gcls.Name}_vtable") }
                         : (object)0;
                 }
                 else
@@ -867,7 +874,7 @@ namespace CppCompiler
                     //   不能靠"顶层指令流"去写 —— 那一段根本不执行（本仓记过：
                     //   顶层生成的 `MOVE [var_x], R0` 落在任何函数体之外，永远跑不到）。
                     if (ClassHasVirtualDeep(gcls.Name))
-                        cells[0] = new LabelRef($"{gcls.Name}_typeid");
+                        cells[0] = new LabelRef($"{gcls.Name}_vtable");
                     for (int gi = 1; gi < gwords; gi++) cells[gi] = 0;
                     dataSection[label] = cells;
                 }
@@ -985,7 +992,10 @@ namespace CppCompiler
             }
 
             bool isClass = _classes.TryGetValue(vd.Type, out var clsInfo);
-            bool hasVirt = isClass && clsInfo.Members.Any(m => m.IsVirtual);
+            // ⚠ 判据必须是 **deep**：派生类自己一个新虚函数都不写、只继承基类的虚函数时，
+            //   `Members.Any(IsVirtual)` 为假而布局里**照样**有那个 vptr（`ClassSizeDeep` 用的是 deep）
+            //   ⇒ 对象少写/少留 4 字节、字段偏移与访问侧整体差 4。见 GetVtableOffset 的注释。
+            bool hasVirt = isClass && ClassHasVirtualDeep(clsInfo.Name);
             // ⚠ **槽大小按类型**：原先一律 4 字节 ⇒ `double`/`long`（8 字节）的槽与**后一个
             //   变量重叠**：实测"只声明两个 float"是对的，**再加两个 double 声明**就让前面的
             //   float 算式算出 672（应 628）—— 就是被后面的 8 字节写入啃掉了。
@@ -1049,7 +1059,7 @@ namespace CppCompiler
             _varTypes[vd.Name] = vd.Type;
             if (hasVirt)
             {
-                Add(OpCode.MOVE, "R0", $"{vd.Type}_typeid");
+                Add(OpCode.MOVE, "R0", $"{vd.Type}_vtable");
                 Add(OpCode.MOVE, Vars?.FormatOffset(firstWordOff) ?? $"R14-{firstWordOff}", "R0");
             }
             if (vd.Initializer != null)
@@ -1281,7 +1291,7 @@ namespace CppCompiler
             }
 
             bool isClass = _classes.TryGetValue(ne.Type, out var clsInfo);
-            bool hasVirt = isClass && clsInfo.Members.Any(m => m.IsVirtual);
+            bool hasVirt = isClass && ClassHasVirtualDeep(clsInfo.Name);   // deep，理由同上
 
             // ── `new T[n]`：**数组形式**，要分配「n 个元素」那么大 ──────────────
             // ⚠ 原先这条路上 `ne.Size` **被整个忽略**：`new int[8]` 只 `alloc(4)`，
@@ -1347,7 +1357,7 @@ namespace CppCompiler
             if (hasVirt)
             {
                 Add(OpCode.PUSH, "R0");
-                Add(OpCode.MOVE, "R0", $"{ne.Type}_typeid");
+                Add(OpCode.MOVE, "R0", $"{ne.Type}_vtable");
                 Add(OpCode.POP, "R1");
                 Add(OpCode.MOVE, "(R1)", "R0");
                 Add(OpCode.MOVE, "R0", "R1");
