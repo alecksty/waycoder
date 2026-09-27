@@ -117,6 +117,13 @@ namespace PascalCompiler
             ["paramcount"] = 0,
             ["dseg"]       = 0,
             ["prefixseg"]  = 0,
+
+            // `Graph` 单元导出的**显存基址**（Turbo Pascal 的 BGI 内部用它在实模式显存上
+            // 直接画）。老程序把它当透明参数往下传（`cls(vaddr)` / `putpixel(x, y, c, vaddr)`，
+            // 实测 `tpdem_demo0{1,2}.pas`），本平台**没有那块显存** ⇒ 与 `Dseg` 同类，
+            // 取 0 表示"没有这个基址"。⚠ 真拿它做**指针运算**的老程序在这套模型下没有意义，
+            // 不属兼容范围（有意接受的边界）。
+            ["vaddr"]      = 0,
         };
 
         /// <summary>
