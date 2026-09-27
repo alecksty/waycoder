@@ -36,7 +36,7 @@ CORPUS="$REPO/third_party/vml/compat-corpus"
 [ -f "$DLL" ] || { echo "✘ 找不到 vmlcli：$DLL" >&2; exit 2; }
 [ -d "$CORPUS" ] || { echo "✘ 找不到语料目录：$CORPUS" >&2; exit 2; }
 
-ok=0; fail=0; failed=(); errs=(); noerr=()
+ok=0; fail=0; skipped=0; failed=(); errs=(); noerr=(); missing=()
 
 # ── 清单：先列出来，进度才有分母 ───────────────────────────────────────────
 langs=("$@")
@@ -82,6 +82,14 @@ for f in "${targets[@]}"; do
         ok=$((ok + 1))
         trip_reset
     else
+        # ⚠ 「缺配套文件」**不计入 fail** —— 那不是前端编不过，是这份语料不成立
+        #   （见下面那条判据）。单独计数、单独列名，否则它会一直占着失败栏。
+        if grep -q "找不到包含文件" <<< "$out"; then
+            skipped=$((skipped + 1))
+            missing+=("$rel")
+            errs+=("(缺配套文件：程序自带的 \${I} 包含文件没进来)")
+            continue
+        fi
         fail=$((fail + 1))
         failed+=("$rel")
         if [ "$rc" -eq 124 ]; then
@@ -91,6 +99,17 @@ for f in "${targets[@]}"; do
         else
             # 缺口分类：抓第一行错误，把数字抹平成占位符（否则同一个缺口会因为行号不同
             # 被拆成几百条，聚合就没意义了）
+            # ⚠ **先摘"缺配套文件"的** —— 那不是前端编不过，是**这份语料不成立**：
+            #   程序自带的数据/包含文件没跟着进来（`{$I cube.vec}`，实测 tpdem_* 系列），
+            #   与 `examples-build` 里 `file_io.*` 那条同源（「不是坏了的例子，
+            #   是已经不成立的例子」）。混在失败栏里只会训练人忽略红灯。
+            #   ⚠ **只认「找不到包含文件」**：`{$I}` 拉进来的必然是**程序自带的**文件；
+            #   而「找不到单元」**不能**这么判 —— 那可能是真该补的库
+            #   （`ktp_rose` 的 `uses Graph` 要的正是补 `graph.pas` 的类型段）。
+            if printf '%s' "$out" | grep -q "找不到包含文件"; then
+                missing+=("$rel")
+                errs+=("(缺配套文件：程序自带的 \${I} 包含文件没进来)")
+            else
             msg=$(printf '%s' "$out" | grep -oE "error: [^（，(]*" | head -1 | sed 's/[0-9]\+/N/g' | cut -c1-58)
             if [ -z "$msg" ]; then
                 # ⚠ 「无 error 行」单独成一档**并留下文件名** —— 它是一整类**未知**缺口
@@ -101,13 +120,14 @@ for f in "${targets[@]}"; do
                 noerr+=("$rel")
             fi
             errs+=("$msg")
+            fi
         fi
     fi
 done
 printf '\r\033[K'
 
 echo "--------------------------------------------------------------"
-echo "兼容 通过 $ok / 失败 $fail   （共 $total 份 · 单个时限 ${CP_TIMEOUT}s）"
+echo "兼容 通过 $ok / 失败 $fail / 缺配套(不计) $skipped   （共 $total 份 · 单个时限 ${CP_TIMEOUT}s）"
 
 if [ "$fail" -gt 0 ]; then
     echo
@@ -115,6 +135,12 @@ if [ "$fail" -gt 0 ]; then
     printf '%s\n' "${errs[@]}" | sort | uniq -c | sort -rn | head -25
 
     echo
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "── 「缺配套文件」的那几份（**不计入前端缺陷**：程序自带的 \${I} 包含文件没跟着语料进来）──"
+        printf '  %s\n' "${missing[@]}"
+        echo
+    fi
+
     if [ ${#noerr[@]} -gt 0 ]; then
         echo "── 「无 error 行」的那几份（**要挨个点进去**：崩溃 / 早退 / 前端抛异常）──"
         printf '  %s\n' "${noerr[@]}"
