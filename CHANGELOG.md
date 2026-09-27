@@ -1,3 +1,20 @@
+## v0.96.536 — C# 的 `WriteLine` 重载按类型选（原先 `(int)(…)` 走字符串重载 ⇒ 一个字都不打）
+
+C# 的 `System.Console.WriteLine(...)` 用 `IsIntExpression(arg)` 决定调 `PrintlnInt` 还是
+`PrintlnStr`，而那个判据**不认 `CastExpression`** ⇒ `(int)(a * 100)` 掉进"当字符串"的兜底
+⇒ 生成 `call PrintlnStr`（打印**字符串**指针）⇒ **一个字符都不打**。症状很有欺骗性：
+**编译成功、运行成功、就是没有任何输出**（看起来像"程序没跑"）。
+
+修法：`IsIntExpression` 加 `CastExpression` 分支，按**目标类型**判（`float`/`double`/`decimal`
+不算整数）。实测 `(int)(3.14 * 100)` 现在打印 **314** ✓。
+
+✗ 仍未全绿：`f2.cs` 那份探针里另有**声明解析**问题（`double a = 3.14; double b = 2.0; …` 之后
+`a`/`b` 被判成"未声明的变量"，同样的两行单独写成最小用例却正常）—— 已定位到"探针结构相关"，
+下一批继续。
+
+无回归：浮点探针 **7 项 ✅**（`c / js / py` + `f2.c / f2.java / f2.js / f2.py`）、
+`test_shared` 3/3、`out-probe` 34/1（既有 C++ 那条）、C 三探针全对、自测 6802 通过 0 失败。
+
 ## v0.96.535 — 数据段**位型经 double 掉精度**（通用缺陷）+ Java 一元穿透 ⇒ 浮点探针 **7 项 ✅**
 
 **① 数据段的位型整数被当 double 解析（影响所有语言的 `.dword`）** —— 这是这一版最有价值的一条：

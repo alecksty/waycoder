@@ -1098,6 +1098,16 @@ namespace CSharpCompiler
                     return IsNumericType(type);
                 return false; // unknown type, treat as string
             }
+            // ⚠ **强制转换 `(int)(…)` 要按目标类型判**：原先不认 `CastExpression` ⇒
+            //   掉进"当字符串"的兜底 ⇒ `System.Console.WriteLine((int)(a * 100))` 调的是
+            //   `PrintlnStr`（打印**字符串**）⇒ 一个字符都不打（实测 C# 的 float/double/int
+            //   输出**全空**，看起来像"程序没跑"）。
+            if (arg is CastExpression castArg)
+            {
+                var ct = (castArg.TargetType ?? "").Trim().ToLowerInvariant();
+                if (ct is "float" or "double" or "decimal") return false;
+                return IsNumericType(castArg.TargetType);
+            }
             // 二元/一元表达式产生整数结果
             if (arg is BinaryExpression || arg is UnaryExpression)
                 return true;
