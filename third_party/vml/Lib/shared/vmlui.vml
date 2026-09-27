@@ -7522,8 +7522,8 @@ callwithlong4:
         mul @R0 #8
         pop @R7
         add @R0 @R7
-        movel @R0 [@R0]
-        l2i @R0 @R0
+        movel @R24 [@R0]
+        l2i @R0 @R24
         move [@R12-12] @R0
 ; 1512:     return asm("SYSCALL #579, ${id}");
         move @R0 [@R12-12]
@@ -7593,8 +7593,8 @@ callwithdouble4:
         mul @R0 #8
         pop @R8
         add @R0 @R8
-        moved @R0 [@R0]
-        d2i @R0 @R0
+        moved @R16 [@R0]
+        d2i @R0 @R16
         move [@R12-12] @R0
 ; 1523:     return asm("SYSCALL #580, ${id}");
         move @R0 [@R12-12]

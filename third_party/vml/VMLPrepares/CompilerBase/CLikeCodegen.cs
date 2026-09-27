@@ -86,6 +86,24 @@ namespace CompilerBase
         }
 
         protected new Operand Reg(int reg) => new(OperandType.REGISTER, reg);
+
+        /// <summary>
+        /// 按**指令**取寄存器操作数 —— 该类指令的第 <paramref name="n"/> 号寄存器（n=0 是累加器）。
+        ///
+        /// <para>
+        /// 用户 2026-09-27 定的模型：`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位。
+        /// 编号空间是统一的（0–15 通用、16–23=D0–D7、24–31=L0–L7），**类由助记符决定** ——
+        /// 所以凡是 `MOVEL`/`ADDL`/`PUSHL`/`I2L` 这类指令，寄存器号必须走这个助手换算，
+        /// 不能写裸 `Reg(0)`/`Reg(1)`。写错的后果是**静默算错**（把 64 位值放 R8–R15 会被
+        /// 截断成 32 位；把 R0 当 L0 用则读写两组不同的寄存器）。
+        /// 判据与汇编期校验（<see cref="VMLAssembler.RegisterClassTable"/>）**同一张表**。
+        /// </para>
+        /// </summary>
+        protected static Operand TReg(OpCode op, int operandIndex, int regNo = 0)
+            => new(OperandType.REGISTER, VMLAssembler.RegisterClassTable.BankOfOperand(op, operandIndex) + regNo);
+
+        /// <summary>该类指令的**累加器**（第 0 个操作数位、类内 0 号寄存器）。绝大多数场合用它。</summary>
+        protected static Operand TRegAcc(OpCode op) => TReg(op, 0, 0);
         protected Operand Imm(int value) => new(OperandType.IMMEDIATE, value);
         protected new Operand LabelOp(string label) => new(OperandType.LABEL, label);
         protected new Operand Mem(string addr) => new(OperandType.MEMORY, addr);
@@ -123,19 +141,19 @@ namespace CompilerBase
             if (isFloat)
             {
                 Emit(OpCode.SUB, Reg(13), Imm(4));
-                Emit(OpCode.MOVEF, new Operand(OperandType.INDIRECT, 13), Reg(0));
+                Emit(OpCode.MOVEF, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVEF, 0));
                 return 4;
             }
             if (isDouble)
             {
                 Emit(OpCode.SUB, Reg(13), Imm(8));
-                Emit(OpCode.MOVED, new Operand(OperandType.INDIRECT, 13), Reg(0));
+                Emit(OpCode.MOVED, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVED, 0));
                 return 8;
             }
             if (isLong)
             {
                 Emit(OpCode.SUB, Reg(13), Imm(8));
-                Emit(OpCode.MOVEL, new Operand(OperandType.INDIRECT, 13), Reg(0));
+                Emit(OpCode.MOVEL, new Operand(OperandType.INDIRECT, 13), TReg(OpCode.MOVEL, 0));
                 return 8;
             }
             var pushOp = ExpressionManager.SelectPushOp(byteSize, isFloat, isDouble, isLong);

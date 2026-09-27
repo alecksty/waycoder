@@ -101,44 +101,44 @@ cadd:
         movef @R0 [@R0]
         fpop @R1
         fadd @R0 @R1 @R0
-        move @R9 @R0
-        push @R9
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
         pop @R9
-        movef [@R0] @R9
+        add @R0 @R9
+        movef [@R0] @13
+        add @R13 #8
 ; 7:     result[1] = a[1] + b[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
+        pop @R8
+        add @R0 @R8
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
+        pop @R7
+        add @R0 @R7
         movef @R0 [@R0]
         fpop @R1
         fadd @R0 @R1 @R0
-        move @R5 @R0
-        push @R5
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
-        pop @R5
-        movef [@R0] @R5
+        pop @R6
+        add @R0 @R6
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -162,57 +162,57 @@ csub:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R3
-        add @R0 @R3
+        pop @R5
+        add @R0 @R5
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R2
-        add @R0 @R2
+        pop @R4
+        add @R0 @R4
         movef @R0 [@R0]
         fpop @R1
         fsub @R0 @R1 @R0
-        move @R1 @R0
-        push @R1
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R11
-        add @R0 @R11
-        pop @R1
-        movef [@R0] @R1
+        pop @R3
+        add @R0 @R3
+        movef [@R0] @13
+        add @R13 #8
 ; 12:     result[1] = a[1] - b[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R10
-        add @R0 @R10
+        pop @R2
+        add @R0 @R2
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
+        pop @R1
+        add @R0 @R1
         movef @R0 [@R0]
         fpop @R1
         fsub @R0 @R1 @R0
-        move @R9 @R0
-        push @R9
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
-        pop @R9
-        movef [@R0] @R9
+        pop @R11
+        add @R0 @R11
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -236,64 +236,16 @@ cmul:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
-        movef @R0 [@R0]
-        fpush @R0
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 #0
-        mul @R0 #4
-        pop @R4
-        add @R0 @R4
-        movef @R0 [@R0]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        fpush @R0
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 #1
-        mul @R0 #4
-        pop @R5
-        add @R0 @R5
-        movef @R0 [@R0]
-        fpush @R0
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 #1
-        mul @R0 #4
-        pop @R3
-        add @R0 @R3
-        movef @R0 [@R0]
-        fpop @R1
-        fmul @R0 @R1 @R0
-        fpop @R1
-        fsub @R0 @R1 @R0
-        move @R2 @R0
-        push @R2
-        move @R0 [@R12+20]
-        push @R0
-        move @R0 #0
-        mul @R0 #4
-        pop @R11
-        add @R0 @R11
-        pop @R2
-        movef [@R0] @R2
-; 19:     result[1] = a[0]*b[1] + a[1]*b[0];
-        move @R0 [@R12+12]
-        push @R0
-        move @R0 #0
-        mul @R0 #4
-        pop @R1
-        add @R0 @R1
-        movef @R0 [@R0]
-        fpush @R0
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 #1
-        mul @R0 #4
         pop @R10
         add @R0 @R10
+        movef @R0 [@R0]
+        fpush @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -308,7 +260,7 @@ cmul:
         fpush @R0
         move @R0 [@R12+16]
         push @R0
-        move @R0 #0
+        move @R0 #1
         mul @R0 #4
         pop @R7
         add @R0 @R7
@@ -316,17 +268,65 @@ cmul:
         fpop @R1
         fmul @R0 @R1 @R0
         fpop @R1
+        fsub @R0 @R1 @R0
+        sub @R13 #8
+        movef @13 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        movef [@R0] @13
+        add @R13 #8
+; 19:     result[1] = a[0]*b[1] + a[1]*b[0];
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        movef @R0 [@R0]
+        fpush @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        movef @R0 [@R0]
+        fpop @R1
+        fmul @R0 @R1 @R0
+        fpush @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        movef @R0 [@R0]
+        fpush @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        movef @R0 [@R0]
+        fpop @R1
+        fmul @R0 @R1 @R0
+        fpop @R1
         fadd @R0 @R1 @R0
-        move @R9 @R0
-        push @R9
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
-        pop @R9
-        movef [@R0] @R9
+        pop @R1
+        add @R0 @R1
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -350,16 +350,16 @@ cdiv:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
+        pop @R11
+        add @R0 @R11
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R5
-        add @R0 @R5
+        pop @R10
+        add @R0 @R10
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -368,16 +368,16 @@ cdiv:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R3
-        add @R0 @R3
+        pop @R9
+        add @R0 @R9
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R11
-        add @R0 @R11
+        pop @R8
+        add @R0 @R8
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -422,28 +422,28 @@ _L43840003:
         jz sta_43840000
 ; 26:         result[0] = 0.0f;
         movef @R0 [flt_43840011]
-        move @R2 @R0
-        push @R2
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R1
-        add @R0 @R1
-        pop @R2
-        movef [@R0] @R2
+        pop @R7
+        add @R0 @R7
+        movef [@R0] @13
+        add @R13 #8
 ; 27:         result[1] = 0.0f;
         movef @R0 [flt_43840012]
-        move @R10 @R0
-        push @R10
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
-        pop @R10
-        movef [@R0] @R10
+        pop @R6
+        add @R0 @R6
+        movef [@R0] @13
+        add @R13 #8
 ; 28:         return;
         jmp L_43840013
 sta_43840000:
@@ -453,16 +453,16 @@ sta_43840001:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
+        pop @R5
+        add @R0 @R5
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
+        pop @R4
+        add @R0 @R4
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -471,16 +471,16 @@ sta_43840001:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R9
-        add @R0 @R9
+        pop @R3
+        add @R0 @R3
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
+        pop @R2
+        add @R0 @R2
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -490,16 +490,16 @@ sta_43840001:
         movef @R0 [@R12-8]
         fpop @R1
         fdiv @R0 @R1 @R0
-        move @R5 @R0
-        push @R5
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R3
-        add @R0 @R3
-        pop @R5
-        movef [@R0] @R5
+        pop @R1
+        add @R0 @R1
+        movef [@R0] @13
+        add @R13 #8
 ; 31:     result[1] = (a[1]*b[0] - a[0]*b[1]) / denom;
         move @R0 [@R12+12]
         push @R0
@@ -513,8 +513,8 @@ sta_43840001:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R1
-        add @R0 @R1
+        pop @R10
+        add @R0 @R10
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -523,8 +523,8 @@ sta_43840001:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R2
-        add @R0 @R2
+        pop @R9
+        add @R0 @R9
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+16]
@@ -542,16 +542,16 @@ sta_43840001:
         movef @R0 [@R12-8]
         fpop @R1
         fdiv @R0 @R1 @R0
-        move @R10 @R0
-        push @R10
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+20]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R7
         add @R0 @R7
-        pop @R10
-        movef [@R0] @R10
+        movef [@R0] @13
+        add @R13 #8
 L_43840013:
         move @R13 @R12
         pop @R12
@@ -582,8 +582,8 @@ complex_abs:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R9
-        add @R0 @R9
+        pop @R5
+        add @R0 @R5
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -750,8 +750,8 @@ complex_arg:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R5
-        add @R0 @R5
+        pop @R2
+        add @R0 @R2
         movef @R0 [@R0]
         movef [@R12-8] @R0
 ; 52:     float y = z[1];
@@ -759,8 +759,8 @@ complex_arg:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R11
-        add @R0 @R11
+        pop @R1
+        add @R0 @R1
         movef @R0 [@R0]
         movef [@R12-12] @R0
 ; 54:     if (x > 0.0f) {
@@ -940,45 +940,45 @@ cconj:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R1
-        add @R0 @R1
+        pop @R11
+        add @R0 @R11
         movef @R0 [@R0]
-        move @R2 @R0
-        push @R2
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
-        pop @R2
-        movef [@R0] @R2
+        pop @R10
+        add @R0 @R10
+        movef [@R0] @13
+        add @R13 #8
 ; 71:     result[1] = -a[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
+        pop @R9
+        add @R0 @R9
         movef @R0 [@R0]
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R10
-        add @R0 @R10
+        pop @R8
+        add @R0 @R8
         movef @R0 [@R0]
         fneg @R0 @R0
-        move @R6 @R0
-        push @R6
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R9
-        add @R0 @R9
-        pop @R6
-        movef [@R0] @R6
+        pop @R7
+        add @R0 @R7
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1001,53 +1001,53 @@ cneg:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
+        pop @R6
+        add @R0 @R6
         movef @R0 [@R0]
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R3
-        add @R0 @R3
+        pop @R5
+        add @R0 @R5
         movef @R0 [@R0]
         fneg @R0 @R0
-        move @R5 @R0
-        push @R5
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R11
-        add @R0 @R11
-        pop @R5
-        movef [@R0] @R5
+        pop @R4
+        add @R0 @R4
+        movef [@R0] @13
+        add @R13 #8
 ; 76:     result[1] = -a[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R1
-        add @R0 @R1
+        pop @R3
+        add @R0 @R3
         movef @R0 [@R0]
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
+        pop @R2
+        add @R0 @R2
         movef @R0 [@R0]
         fneg @R0 @R0
-        move @R2 @R0
-        push @R2
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
-        pop @R2
-        movef [@R0] @R2
+        pop @R1
+        add @R0 @R1
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1314,16 +1314,16 @@ csqr:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R10
-        add @R0 @R10
+        pop @R11
+        add @R0 @R11
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R9
-        add @R0 @R9
+        pop @R10
+        add @R0 @R10
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -1332,31 +1332,31 @@ csqr:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
+        pop @R9
+        add @R0 @R9
         movef @R0 [@R0]
         fpush @R0
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
+        pop @R8
+        add @R0 @R8
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
         fpop @R1
         fsub @R0 @R1 @R0
-        move @R3 @R0
-        push @R3
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R11
-        add @R0 @R11
-        pop @R3
-        movef [@R0] @R3
+        pop @R7
+        add @R0 @R7
+        movef [@R0] @13
+        add @R13 #8
 ; 99:     result[1] = 2.0f * a[0] * a[1];
         movef @R0 [flt_43840091]
         fpush @R0
@@ -1364,8 +1364,8 @@ csqr:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R5
-        add @R0 @R5
+        pop @R6
+        add @R0 @R6
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -1374,21 +1374,21 @@ csqr:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R1
-        add @R0 @R1
+        pop @R5
+        add @R0 @R5
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
-        move @R8 @R0
-        push @R8
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
-        pop @R8
-        movef [@R0] @R8
+        pop @R4
+        add @R0 @R4
+        movef [@R0] @13
+        add @R13 #8
         move @R13 @R12
         pop @R12
         pop @R15
@@ -1430,28 +1430,28 @@ _L43840096:
         jz sta_43840092
 ; 105:         result[0] = 0.0f;
         movef @R0 [flt_43840097]
-        move @R2 @R0
-        push @R2
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R10
-        add @R0 @R10
-        pop @R2
-        movef [@R0] @R2
+        pop @R3
+        add @R0 @R3
+        movef [@R0] @13
+        add @R13 #8
 ; 106:         result[1] = 0.0f;
         movef @R0 [flt_43840098]
-        move @R9 @R0
-        push @R9
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R6
-        add @R0 @R6
-        pop @R9
-        movef [@R0] @R9
+        pop @R2
+        add @R0 @R2
+        movef [@R0] @13
+        add @R13 #8
 ; 107:         return;
         jmp L_43840099
 sta_43840092:
@@ -1461,8 +1461,8 @@ sta_43840093:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R4
-        add @R0 @R4
+        pop @R1
+        add @R0 @R1
         movef @R0 [@R0]
         movef [@R12-12] @R0
 ; 110:     float im = z[1];
@@ -1565,30 +1565,30 @@ sta_43840114:
 sta_43840115:
 ; 117:             result[0] = g;
         movef @R0 [@R12-24]
-        move @R3 @R0
-        push @R3
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R5
-        add @R0 @R5
-        pop @R3
-        movef [@R0] @R3
+        pop @R10
+        add @R0 @R10
+        movef [@R0] @13
+        add @R13 #8
         jmp sta_43840107
 sta_43840106:
 ; 119:             result[0] = 0.0f;
         movef @R0 [flt_43840119]
-        move @R1 @R0
-        push @R1
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
-        pop @R1
-        movef [@R0] @R1
+        pop @R9
+        add @R0 @R9
+        movef [@R0] @13
+        add @R13 #8
 sta_43840107:
 ; 121:         result[1] = result[0] > 1e-10f ? im / (2.0f * result[0]) : 0.0f;
         move @R0 [@R12+16]
@@ -1618,8 +1618,8 @@ _L43840122:
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R10
-        add @R0 @R10
+        pop @R7
+        add @R0 @R7
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -1629,16 +1629,16 @@ _L43840122:
 _L43840123:
         movef @R0 [flt_43840126]
 _L43840124:
-        move @R2 @R0
-        push @R2
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R6
         add @R0 @R6
-        pop @R2
-        movef [@R0] @R2
+        movef [@R0] @13
+        add @R13 #8
         jmp sta_43840101
 sta_43840100:
 ; 123:         float s = (r - re) * 0.5f;
@@ -1737,30 +1737,30 @@ _L43840144:
         movef @R0 [@R12-24]
         fneg @R0 @R0
 _L43840145:
-        move @R9 @R0
-        push @R9
-        move @R0 [@R12+16]
-        push @R0
-        move @R0 #1
-        mul @R0 #4
-        pop @R4
-        add @R0 @R4
-        pop @R9
-        movef [@R0] @R9
-        jmp sta_43840129
-sta_43840128:
-; 130:             result[1] = 0.0f;
-        movef @R0 [flt_43840146]
-        move @R11 @R0
-        push @R11
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
         mul @R0 #4
         pop @R5
         add @R0 @R5
-        pop @R11
-        movef [@R0] @R11
+        movef [@R0] @13
+        add @R13 #8
+        jmp sta_43840129
+sta_43840128:
+; 130:             result[1] = 0.0f;
+        movef @R0 [flt_43840146]
+        sub @R13 #8
+        movef @13 @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        movef [@R0] @13
+        add @R13 #8
 sta_43840129:
 ; 132:         result[0] = result[1] > 1e-10f ? im / (2.0f * result[1]) : 0.0f;
         move @R0 [@R12+16]
@@ -1790,8 +1790,8 @@ _L43840149:
         push @R0
         move @R0 #1
         mul @R0 #4
-        pop @R7
-        add @R0 @R7
+        pop @R2
+        add @R0 @R2
         movef @R0 [@R0]
         fpop @R1
         fmul @R0 @R1 @R0
@@ -1801,16 +1801,16 @@ _L43840149:
 _L43840150:
         movef @R0 [flt_43840153]
 _L43840151:
-        move @R1 @R0
-        push @R1
+        sub @R13 #8
+        movef @13 @R0
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
         mul @R0 #4
-        pop @R8
-        add @R0 @R8
         pop @R1
-        movef [@R0] @R1
+        add @R0 @R1
+        movef [@R0] @13
+        add @R13 #8
 sta_43840101:
 L_43840099:
         move @R13 @R12

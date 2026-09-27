@@ -513,9 +513,9 @@ long_to_strbuf:
 ; 65: __stdcall int long_to_strbuf(long val, char* dst) { return ltoa(val, dst); }
         move @R0 [@R12+20]
         push @R0
-        movel @R0 [@R12+12]
+        movel @R24 [@R12+12]
         sub @R13 #8
-        movel @13 @R0
+        movel @13 @R24
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -541,9 +541,9 @@ long_to_str:
 ; 68:     ltoa(val, _buf);
         move @R0 _buf
         push @R0
-        movel @R0 [@R12+12]
+        movel @R24 [@R12+12]
         sub @R13 #8
-        movel @13 @R0
+        movel @13 @R24
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -571,9 +571,9 @@ long_to_wstr:
 ; 73:     ltoa(val, _buf);
         move @R0 _buf
         push @R0
-        movel @R0 [@R12+12]
+        movel @R24 [@R12+12]
         sub @R13 #8
-        movel @13 @R0
+        movel @13 @R24
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -677,9 +677,9 @@ long_to_ustr:
 ; 80:     ltoa(val, _buf);
         move @R0 _buf
         push @R0
-        movel @R0 [@R12+12]
+        movel @R24 [@R12+12]
         sub @R13 #8
-        movel @13 @R0
+        movel @13 @R24
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -1250,26 +1250,26 @@ ulong_to_str:
         move @R12 @R13
         sub @R13 #32
 ; 118:     if (val <= 9223372036854775807UL) { ltoa((long)val, _buf); return _buf; }
-        movel @R0 [@R12+12]
-        pushl @R0
-        movel @R0 [i64_95080065]
-        popl @R1
-        cmpul @R1 @R0
+        movel @R24 [@R12+12]
+        pushl @R24
+        movel @R24 [i64_95080065]
+        popl @R25
+        cmpul @R25 @R24
         jbe _L95080066
         move @R0 #0
-        i2l @R0 @R0
+        i2l @R24 @R0
         jmp _L95080067
 _L95080066:
         move @R0 #1
-        i2l @R0 @R0
+        i2l @R24 @R0
 _L95080067:
         cmp @R0 #0
         jz sta_95080063
         move @R0 _buf
         push @R0
-        movel @R0 [@R12+12]
+        movel @R24 [@R12+12]
         sub @R13 #8
-        movel @13 @R0
+        movel @13 @R24
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -1282,21 +1282,22 @@ sta_95080064:
         move @R0 #0
         move [@R12-8] @R0
 ; 120:     unsigned long v = val;
-        movel @R0 [@R12+12]
-        movel [@R12-16] @R0
+        movel @R24 [@R12+12]
+        movel [@R12-16] @R24
 sta_95080069:
 ; 121:     do { _buf[pos++] = '0' + (v % 10); v /= 10; } while (v > 0);
         move @R0 #48
-        i2l @R0 @R0
-        pushl @R0
-        movel @R0 [@R12-16]
-        pushl @R0
+        i2l @R24 @R0
+        pushl @R24
+        movel @R24 [@R12-16]
+        pushl @R24
         move @R0 #10
-        i2l @R0 @R0
-        popl @R1
-        modul @R0 @R1 @R0
-        popl @R1
-        addl @R0 @R1 @R0
+        i2l @R24 @R0
+        popl @R25
+        modul @R24 @R25 @R24
+        popl @R25
+        addl @R24 @R25 @R24
+        l2i @R0 @R24
         move @R9 @R0
         push @R9
         move @R0 _buf
@@ -1316,27 +1317,27 @@ sta_95080069:
         add @R0 @R2
         pop @R9
         moveb [@R0] @R9
-        movel @R0 [@R12-16]
-        pushl @R0
+        movel @R24 [@R12-16]
+        pushl @R24
         move @R0 #10
-        i2l @R0 @R0
-        popl @R1
-        divul @R0 @R1 @R0
-        movel [@R12-16] @R0
+        i2l @R24 @R0
+        popl @R25
+        divul @R24 @R25 @R24
+        movel [@R12-16] @R24
 sta_95080070:
-        movel @R0 [@R12-16]
-        pushl @R0
+        movel @R24 [@R12-16]
+        pushl @R24
         move @R0 #0
-        i2l @R0 @R0
-        popl @R1
-        cmpul @R1 @R0
+        i2l @R24 @R0
+        popl @R25
+        cmpul @R25 @R24
         ja _L95080071
         move @R0 #0
-        i2l @R0 @R0
+        i2l @R24 @R0
         jmp _L95080072
 _L95080071:
         move @R0 #1
-        i2l @R0 @R0
+        i2l @R24 @R0
 _L95080072:
         cmp @R0 #0
         jnz sta_95080069
@@ -2578,9 +2579,9 @@ double_to_str:
         push @R0
         move @R0 #9
         push @R0
-        moved @R0 [@R12+12]
+        moved @R16 [@R12+12]
         sub @R13 #8
-        moved @13 @R0
+        moved @13 @R16
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         move @R2 [@R13+12]
@@ -2651,7 +2652,7 @@ _L95080173:
 _L95080174:
         cmp @R0 #0
         jz sta_95080170
-        moved @R0 [dbl_95080179]
+        moved @R16 [dbl_95080179]
         jmp L_95080180
 sta_95080170:
 sta_95080171:
@@ -2691,8 +2692,8 @@ _L95080184:
 sta_95080181:
 sta_95080182:
 ; 229:     double result = 0.0;
-        moved @R0 [dbl_95080185]
-        moved [@R12-16] @R0
+        moved @R16 [dbl_95080185]
+        moved [@R12-16] @R16
 sta_95080186:
         move @R2 #0
 ; 230:     while (*s >= '0' && *s <= '9') { result = result * 10.0 + (double)(*s - '0'); s++; }
@@ -2733,12 +2734,12 @@ _L95080188:
 _L95080189:
         cmp @R0 #0
         jz sta_95080187
-        moved @R0 [@R12-16]
-        dpush @R0
-        moved @R0 [dbl_95080194]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        dpush @R0
+        moved @R16 [@R12-16]
+        dpush @R16
+        moved @R16 [dbl_95080194]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        dpush @R16
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2747,10 +2748,10 @@ _L95080189:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2d @R0 @R0
-        dpop @R1
-        dadd @R0 @R1 @R0
-        moved [@R12-16] @R0
+        i2d @R16 @R0
+        dpop @R17
+        dadd @R16 @R17 @R16
+        moved [@R12-16] @R16
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2781,8 +2782,8 @@ _L95080198:
         move [@R12+12] @R0
         move @R0 @R1
 ; 233:         double frac = 0.1;
-        moved @R0 [dbl_95080199]
-        moved [@R12-24] @R0
+        moved @R16 [dbl_95080199]
+        moved [@R12-24] @R16
 sta_95080200:
         move @R2 #0
 ; 234:         while (*s >= '0' && *s <= '9') { result += frac * (double)(*s - '0'); frac *= 0.1; s++; }
@@ -2823,10 +2824,10 @@ _L95080202:
 _L95080203:
         cmp @R0 #0
         jz sta_95080201
-        moved @R0 [@R12-16]
-        dpush @R0
-        moved @R0 [@R12-24]
-        dpush @R0
+        moved @R16 [@R12-16]
+        dpush @R16
+        moved @R16 [@R12-24]
+        dpush @R16
         move @R0 [@R12+12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -2835,18 +2836,18 @@ _L95080203:
         popb @R1
         sub @R1 @R0
         moveb @R0 @R1
-        i2d @R0 @R0
-        dpop @R1
-        dmul @R0 @R1 @R0
-        dpop @R1
-        dadd @R0 @R1 @R0
-        moved [@R12-16] @R0
-        moved @R0 [@R12-24]
-        dpush @R0
-        moved @R0 [dbl_95080208]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        moved [@R12-24] @R0
+        i2d @R16 @R0
+        dpop @R17
+        dmul @R16 @R17 @R16
+        dpop @R17
+        dadd @R16 @R17 @R16
+        moved [@R12-16] @R16
+        moved @R16 [@R12-24]
+        dpush @R16
+        moved @R16 [dbl_95080208]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        moved [@R12-24] @R16
         move @R0 [@R12+12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -2858,11 +2859,11 @@ sta_95080195:
 sta_95080196:
 ; 236:     return sign * result;
         move @R0 [@R12-8]
-        i2d @R0 @R0
-        dpush @R0
-        moved @R0 [@R12-16]
-        dpop @R1
-        dmul @R0 @R1 @R0
+        i2d @R16 @R0
+        dpush @R16
+        moved @R16 [@R12-16]
+        dpop @R17
+        dmul @R16 @R17 @R16
         jmp L_95080180
 L_95080180:
         move @R13 @R12
@@ -2969,9 +2970,9 @@ double_to_wstr:
         move @R12 @R13
         sub @R13 #24
 ; 252:     double_to_str(d);
-        moved @R0 [@R12+12]
+        moved @R16 [@R12+12]
         sub @R13 #8
-        moved @13 @R0
+        moved @13 @R16
         move @R0 [@R13+0]
         call double_to_str
         add @R13 #8
@@ -3229,9 +3230,9 @@ double_to_ustr:
         move @R12 @R13
         sub @R13 #24
 ; 274:     double_to_str(d);
-        moved @R0 [@R12+12]
+        moved @R16 [@R12+12]
         sub @R13 #8
-        moved @13 @R0
+        moved @13 @R16
         move @R0 [@R13+0]
         call double_to_str
         add @R13 #8

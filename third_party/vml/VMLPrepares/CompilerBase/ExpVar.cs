@@ -40,6 +40,24 @@ namespace CompilerBase
 
         /// <summary>指针类型只能做加减运算</summary>
         public static bool IsPtr(this ExpType t) => t is ExpType.Ptr32 or ExpType.Ptr64;
+
+        /// <summary>
+        /// 该类型的**寄存器组基址** —— 用户 2026-09-27 定下的模型
+        /// （`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位）在编号空间里的落点：
+        /// <list type="bullet">
+        /// <item><c>long</c> → **24**（L0–L7，见 <c>RegisterSyntax.TryParseName</c>）；</item>
+        /// <item><c>double</c> → **16**（D0–D7）；</item>
+        /// <item>其余（int/float/指针）→ **0**（R0–R15，浮点与整数**同号不同组**）。</item>
+        /// </list>
+        /// <para>
+        /// ⚠ 这是**唯一真源**：序列化拼写（`@L0`/`@D0`）、汇编期校验（<c>RegisterClassTable</c>）、
+        /// 运行时那三个数组（<c>registers[16]</c>/<c>doubleRegisters[8]</c>/<c>longRegisters[8]</c>）
+        /// 与前端发射都从这一份推。此前 `ExpVar.RegBankBase` 就写着同样的式子，但**零调用点**
+        /// —— 前端全用 R0 当累加器，于是 64 位值一进 R8–R15 就被静默截断（实测数组元素读成 0）。
+        /// </para>
+        /// </summary>
+        public static int BankBase(this ExpType t)
+            => t == ExpType.F64 ? 16 : (t.IsLong() ? 24 : 0);
     }
 
     /// <summary>变量存储位置</summary>
@@ -77,7 +95,7 @@ namespace CompilerBase
         public bool IsPtr => Type is ExpType.Ptr32 or ExpType.Ptr64;
 
         /// <summary>寄存器组基址偏移: double→16 (R16-R23=D0-D7), long→24 (R24-R31=L0-L7), 其他→0</summary>
-        public int RegBankBase => IsDouble ? 16 : (IsLong ? 24 : 0);
+        public int RegBankBase => Type.BankBase();
 
         /// <summary>指针所指类型的字节大小。0=非指针, 1=char*, 2=short*, 4=int*, 8=long*</summary>
         public int PointedTypeSize { get; }

@@ -41,28 +41,28 @@ lutf8_decode:
         move @R12 @R13
         sub @R13 #16
 ; 5:     return encoding_utf8_decode(src, (int)(len > 0x7FFFFFFF ? 0x7FFFFFFF : len));
-        movel @R0 [@R12+16]
-        pushl @R0
+        movel @R24 [@R12+16]
+        pushl @R24
         move @R0 #2147483647
-        i2l @R0 @R0
-        popl @R1
-        cmpl @R1 @R0
+        i2l @R24 @R0
+        popl @R25
+        cmpl @R25 @R24
         jg _L55030001
         move @R0 #0
-        i2l @R0 @R0
+        i2l @R24 @R0
         jmp _L55030002
 _L55030001:
         move @R0 #1
-        i2l @R0 @R0
+        i2l @R24 @R0
 _L55030002:
         test @R0 @R0
         jz _L55030003
         move @R0 #2147483647
         jmp _L55030004
 _L55030003:
-        movel @R0 [@R12+16]
+        movel @R24 [@R12+16]
 _L55030004:
-        l2i @R0 @R0
+        l2i @R0 @R24
         push @R0
         move @R0 [@R12+12]
         push @R0
@@ -92,33 +92,33 @@ lutf8_encode:
         move @R12 @R13
         sub @R13 #16
 ; 8:     return encoding_utf8_encode((int)codepoint, dst, (int)(max_bytes > 0x7FFFFFFF ? 0x7FFFFFFF : max_bytes));
-        movel @R0 [@R12+24]
-        pushl @R0
+        movel @R24 [@R12+24]
+        pushl @R24
         move @R0 #2147483647
-        i2l @R0 @R0
-        popl @R1
-        cmpl @R1 @R0
+        i2l @R24 @R0
+        popl @R25
+        cmpl @R25 @R24
         jg _L55030006
         move @R0 #0
-        i2l @R0 @R0
+        i2l @R24 @R0
         jmp _L55030007
 _L55030006:
         move @R0 #1
-        i2l @R0 @R0
+        i2l @R24 @R0
 _L55030007:
         test @R0 @R0
         jz _L55030008
         move @R0 #2147483647
         jmp _L55030009
 _L55030008:
-        movel @R0 [@R12+24]
+        movel @R24 [@R12+24]
 _L55030009:
-        l2i @R0 @R0
+        l2i @R0 @R24
         push @R0
         move @R0 [@R12+20]
         push @R0
-        movel @R0 [@R12+12]
-        l2i @R0 @R0
+        movel @R24 [@R12+12]
+        l2i @R0 @R24
         push @R0
         move @R0 [@R13+0]
         move @R1 [@R13+4]

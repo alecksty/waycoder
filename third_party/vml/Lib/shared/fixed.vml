@@ -20,21 +20,21 @@ mul:
         sub @R13 #24
 ; 5:     long long result = (long long)a * (long long)b;
         move @R0 [@R12+12]
-        i2l @R0 @R0
-        pushl @R0
+        i2l @R24 @R0
+        pushl @R24
         move @R0 [@R12+16]
-        i2l @R0 @R0
-        popl @R1
-        mull @R0 @R1 @R0
-        movel [@R12-12] @R0
+        i2l @R24 @R0
+        popl @R25
+        mull @R24 @R25 @R24
+        movel [@R12-12] @R24
 ; 6:     return (int)(result >> 16);
-        movel @R0 [@R12-12]
-        pushl @R0
+        movel @R24 [@R12-12]
+        pushl @R24
         move @R0 #16
-        popl @R1
-        shrl @R1 @R0
-        movel @R0 @R1
-        l2i @R0 @R0
+        popl @R25
+        shrl @R25 @R0
+        movel @R24 @R25
+        l2i @R0 @R24
         jmp L_57480000
 L_57480000:
         move @R13 @R12
@@ -74,21 +74,21 @@ sta_57480001:
 sta_57480002:
 ; 11:     long long aa = (long long)a << 16;
         move @R0 [@R12+12]
-        i2l @R0 @R0
-        pushl @R0
+        i2l @R24 @R0
+        pushl @R24
         move @R0 #16
-        popl @R1
-        shll @R1 @R0
-        movel @R0 @R1
-        movel [@R12-12] @R0
+        popl @R25
+        shll @R25 @R0
+        movel @R24 @R25
+        movel [@R12-12] @R24
 ; 12:     return (int)(aa / b);
-        movel @R0 [@R12-12]
-        pushl @R0
+        movel @R24 [@R12-12]
+        pushl @R24
         move @R0 [@R12+16]
-        i2l @R0 @R0
-        popl @R1
-        divl @R0 @R1 @R0
-        l2i @R0 @R0
+        i2l @R24 @R0
+        popl @R25
+        divl @R24 @R25 @R24
+        l2i @R0 @R24
         jmp L_57480005
 L_57480005:
         move @R13 @R12

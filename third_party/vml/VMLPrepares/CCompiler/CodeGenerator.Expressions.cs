@@ -43,7 +43,7 @@ namespace CCompiler
                     string flabel = $"flt_{labelCounter++}";
                     float fval = Convert.ToSingle(numLiteral.Value);
                     dataSection[flabel] = BitConverter.SingleToInt32Bits(fval);
-                    AddInstruction(OpCode.MOVEF, Reg(0), Mem(flabel));
+                    AddInstruction(OpCode.MOVEF, TRegAcc(OpCode.MOVEF), Mem(flabel));
                 }
                 else if (suffix.Contains('L') || suffix.Contains('l'))
                 {
@@ -82,14 +82,14 @@ namespace CCompiler
                         longVal = numLiteral.Value is long l ? l : Convert.ToInt64(numLiteral.Value);
                     }
                     dataSection[dlabel] = longVal;
-                    instructions.Add(new Instruction(OpCode.MOVEL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dlabel) }));
+                    instructions.Add(new Instruction(OpCode.MOVEL, new List<Operand> { TRegAcc(OpCode.MOVEL), new Operand(OperandType.MEMORY, dlabel) }));
                 }
                 else if (numLiteral.Value is double)
                 {
                     // 双精度字面量 (如 3.14, 10.0): 用 MOVED 加载
                     string dlabel = $"dbl_{labelCounter++}";
                     dataSection[dlabel] = (double)numLiteral.Value;
-                    AddInstruction(OpCode.MOVED, Reg(0), Mem(dlabel));
+                    AddInstruction(OpCode.MOVED, TRegAcc(OpCode.MOVED), Mem(dlabel));
                 }
                 else
                 {
@@ -192,13 +192,13 @@ namespace CCompiler
                     if (staticLocals.ContainsKey(ident.Name))
                     {
                         // static局部变量 (data section)
-                        instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, staticLocals[ident.Name]) }));
+                        instructions.Add(new Instruction(loadOp, new List<Operand> { TRegAcc(loadOp), new Operand(OperandType.MEMORY, staticLocals[ident.Name]) }));
                         EmitSignExtendIfSigned(varType);
                     }
                     else if (variables.ContainsKey(ident.Name))
                     {
                         // 局部变量
-                        instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"{FormatVarOffset(ident.Name)}") }));
+                        instructions.Add(new Instruction(loadOp, new List<Operand> { TRegAcc(loadOp), new Operand(OperandType.MEMORY, $"{FormatVarOffset(ident.Name)}") }));
                         EmitSignExtendIfSigned(varType);
                     }
                     else if (enumValues.TryGetValue(ident.Name, out int enumVal))
@@ -209,7 +209,7 @@ namespace CCompiler
                     else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                     {
                         // 全局变量
-                        instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, ident.Name) }));
+                        instructions.Add(new Instruction(loadOp, new List<Operand> { TRegAcc(loadOp), new Operand(OperandType.MEMORY, ident.Name) }));
                         EmitSignExtendIfSigned(varType);
                     }
                     else if (ast.Functions.Exists(f => f.Name == ident.Name))
@@ -298,7 +298,7 @@ namespace CCompiler
                                                                    fromLong, toLong, fromUnsigned);
                 if (convOp != null)
                     instructions.Add(new Instruction(convOp.Value, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                        TReg(convOp.Value, 0, 0), TReg(convOp.Value, 1, 0) }));
             }
             else if (node is ConditionalOp condOp)
             {
@@ -415,16 +415,16 @@ namespace CCompiler
                 // 后置: 加载旧值 → 保存到临时寄存器 → 加载+修改 → 存储 → 恢复旧值到 R0
                 int savedValReg = Regs!.AllocInt(instructions);
                 var loadOp = GetLoadInstruction(exprType);
-                instructions.Add(new Instruction(loadOp, [Reg(0), Mem($"R{addrReg}")]));
+                instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
                 instructions.Add(new Instruction(OpCode.MOVE, [Reg(savedValReg), Reg(0)]));
-                instructions.Add(new Instruction(loadOp, [Reg(0), Mem($"R{addrReg}")]));
+                instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
                 if (op == "+")
                     instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), Imm(scale)]));
                 else
                     instructions.Add(new Instruction(OpCode.SUB, [Reg(0), Reg(0), Imm(scale)]));
-                instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), Reg(0)]));
+                instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), TRegAcc(storeOp)]));
                 instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(savedValReg)]));
                 Regs!.FreeInt(savedValReg, instructions);
             }
@@ -432,13 +432,13 @@ namespace CCompiler
             {
                 // 前置: 加载 → 修改 → 存储
                 var loadOp = GetLoadInstruction(exprType);
-                instructions.Add(new Instruction(loadOp, [Reg(0), Mem($"R{addrReg}")]));
+                instructions.Add(new Instruction(loadOp, [TRegAcc(loadOp), Mem($"R{addrReg}")]));
                 EmitSignExtendIfSigned(exprType);
                 if (op == "+")
                     instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), Imm(scale)]));
                 else
                     instructions.Add(new Instruction(OpCode.SUB, [Reg(0), Reg(0), Imm(scale)]));
-                instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), Reg(0)]));
+                instructions.Add(new Instruction(storeOp, [Mem($"R{addrReg}"), TRegAcc(storeOp)]));
             }
             Regs!.FreeInt(addrReg, instructions);
         }
@@ -552,7 +552,7 @@ namespace CCompiler
                         // R0 已经是地址，直接加载
                         // 根据指向的类型选择合适的加载指令(char*→LOADB, short*→LOADH, int*→LOAD)
                         var derefLoadOp = GetLoadInstruction(exprType);
-                        instructions.Add(new Instruction(derefLoadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
+                        instructions.Add(new Instruction(derefLoadOp, new List<Operand> { TRegAcc(derefLoadOp), new Operand(OperandType.MEMORY, "R0") }));
                         EmitSignExtendIfSigned(exprType);
                         break;
                     case "~":
@@ -700,17 +700,17 @@ namespace CCompiler
                 if (staticLocals.ContainsKey(ident.Name))
                 {
                     // static局部变量
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, staticLocals[ident.Name]), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, staticLocals[ident.Name]), TRegAcc(storeOp) }));
                 }
                 else if (variables.ContainsKey(ident.Name))
                 {
                     // 局部变量
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"{FormatVarOffset(ident.Name)}"), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"{FormatVarOffset(ident.Name)}"), TRegAcc(storeOp) }));
                 }
                 else if (dataSection.ContainsKey(ident.Name) || externVariables.Contains(ident.Name))
                 {
                     // 全局变量
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, ident.Name), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, ident.Name), TRegAcc(storeOp) }));
                 }
                 else
                 {
@@ -722,7 +722,7 @@ namespace CCompiler
                 // 数组赋值：根据元素类型选择 STORE/STOREB/STOREH
                 var elemType = InferExpressionType(arrayAccess);
                 OpCode storeOp = GetStoreInstruction(elemType);
-                if (GetTypeSize(elemType) == 8)
+                if (GetTypeSize(elemType) == 8 || elemType == ExprType.Float)
                 {
                     // ⚠ **8 字节元素不能借"整数寄存器"暂存**（long / long long / double）。
                     //   下面那条 `valReg`（PUSH 保命）的老路对 4 字节够用，对 8 字节是错的：
@@ -751,7 +751,7 @@ namespace CCompiler
                     //   数组/成员分支从前漏了 —— 这也是这批 64 位缺陷共同的另一半。
                     EmitTypeConversion(valueType, elemType);
                     instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { Reg(13), Imm(8) }));
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.INDIRECT, 13), new Operand(OperandType.REGISTER, 0) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.INDIRECT, 13), TRegAcc(storeOp) }));
                     GenerateArrayAddress(arrayAccess);
                     instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.INDIRECT, 13) }));
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { Reg(13), Imm(8) }));
@@ -824,10 +824,33 @@ namespace CCompiler
             // 根据元素类型选择加载指令
             var elemType = InferExpressionType(arrayAccess);
             OpCode loadOp = GetLoadInstruction(elemType);
-            instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
+            instructions.Add(new Instruction(loadOp, new List<Operand> { TRegAcc(loadOp), new Operand(OperandType.MEMORY, "R0") }));
             EmitSignExtendIfSigned(elemType);
         }
 
+
+        /// <summary>
+        /// 求值一个**数组下标表达式**，并把结果规整到 **R0（32 位）**。
+        ///
+        /// <para>
+        /// 地址空间是 32 位的，而 8 字节下标（`long i`）或浮点下标求值后落在 **L0/D0** ——
+        /// 紧随其后的地址算术（`MUL/SHL/ADD R0`）全是 32 位指令、只认 R0。
+        /// 不换算就会出现"用低半字算偏移"甚至读到别的寄存器里的残留值
+        /// （实测 `for (i=1; i<=len; i++) sum += arr[i];`（i/len 都是 long）里
+        /// `arr[i]` 的 `i*8` 用的是 R0 的残留值）。
+        /// </para>
+        /// </summary>
+        private void GenerateArrayIndex(ASTNode indexExpr)
+        {
+            GenerateExpression(indexExpr);
+            var t = InferExpressionType(indexExpr);
+            OpCode? conv = t == ExprType.Double ? OpCode.D2I
+                        : (t == ExprType.Float ? OpCode.F2I
+                        : (GetTypeSize(t) == 8 ? OpCode.L2I : null));
+            if (conv != null)
+                instructions.Add(new Instruction(conv.Value, new List<Operand> {
+                    TReg(conv.Value, 0, 0), TReg(conv.Value, 1, 0) }));
+        }
 
         private void GenerateArrayAddress(ArrayAccess arrayAccess)
         {
@@ -1006,7 +1029,7 @@ namespace CCompiler
 
                 // 第 0 级：base + i0 * 4 → 该槽的地址 → **解引用**取出指针
                 instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
-                GenerateExpression(arrayAccess.Indices[0]);
+                GenerateArrayIndex(arrayAccess.Indices[0]);
                 instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
                 instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4) }));
                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, mreg), new Operand(OperandType.REGISTER, 0) }));
@@ -1019,7 +1042,7 @@ namespace CCompiler
                 {
                     int stride = k == 1 ? innerStride : 4;   // 更深的层级 ExprType 表达不了 ⇒ 按指针走
                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
-                    GenerateExpression(arrayAccess.Indices[k]);
+                    GenerateArrayIndex(arrayAccess.Indices[k]);
                     instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, mreg) }));
                     instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride) }));
                     instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, mreg), new Operand(OperandType.REGISTER, 0) }));
@@ -1036,7 +1059,7 @@ namespace CCompiler
                 // 生成第一个索引
                 if (arrayAccess.Indices.Count > 0)
                 {
-                    GenerateExpression(arrayAccess.Indices[0]);
+                    GenerateArrayIndex(arrayAccess.Indices[0]);
                     
                     // 对于多维数组但没有维度信息的情况，我们无法正确计算
                     // 这里我们简单地将所有索引相加（这是不正确的，但至少不会崩溃）
@@ -1047,7 +1070,7 @@ namespace CCompiler
                         // 用 RegisterManager 保存累加结果，避免 PUSH/POP
                         int accReg = Regs!.AllocInt(instructions);
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, accReg), new Operand(OperandType.REGISTER, 0) }));
-                        GenerateExpression(arrayAccess.Indices[i]);
+                        GenerateArrayIndex(arrayAccess.Indices[i]);
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, accReg), new Operand(OperandType.REGISTER, 0) }));
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, accReg) }));
                         Regs.FreeInt(accReg, instructions);
@@ -1066,7 +1089,7 @@ namespace CCompiler
                     // 生成当前索引 → R0
                     // 保存累加器值，因为 GenerateExpression 可能破坏 accReg
                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, accReg) }));
-                    GenerateExpression(arrayAccess.Indices[i]);
+                    GenerateArrayIndex(arrayAccess.Indices[i]);
                     instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, accReg) }));
 
                     if (i == 0)
@@ -1220,7 +1243,7 @@ namespace CCompiler
             if (!isArrayMember)
             {
                 OpCode loadOp = GetLoadOpForExprType(memberType);
-                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0") }));
+                instructions.Add(new Instruction(loadOp, new List<Operand> { TRegAcc(loadOp), new Operand(OperandType.MEMORY, "R0") }));
                 EmitSignExtendIfSigned(memberType);
                 // 位域: 掩码+移位提取
                 var bfInfo = GetBitfieldInfo(structTypeName, memberAccess.MemberName);

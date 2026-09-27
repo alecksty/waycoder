@@ -194,7 +194,8 @@ namespace CCompiler
                     if (info != null)
                         variables[cc.VariableName] = info.Offset;
                     variableTypes[cc.VariableName] = StringToExprType(cc.ExceptionType ?? "int");
-                    Emit(GetStoreInstruction(variableTypes[cc.VariableName]), Mem(FormatVarOffset(cc.VariableName)), Reg(0));
+                    var ccatchStoreOp = GetStoreInstruction(variableTypes[cc.VariableName]);
+                    Emit(ccatchStoreOp, Mem(FormatVarOffset(cc.VariableName)), TRegAcc(ccatchStoreOp));
                 }
                 GenerateStatement(cc.Body);
                 Emit(OpCode.ENDCATCH);
@@ -268,7 +269,7 @@ namespace CCompiler
                     {
                         GenerateExpression(varDecl.Initializer);
                         var storeOp = GetStoreInstruction(StringToExprType(varDecl.Type));
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, staticLocals[varDecl.Name]), new Operand(OperandType.REGISTER, 0) }));
+                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, staticLocals[varDecl.Name]), TRegAcc(storeOp) }));
                     }
                 }
                 else if (varDecl.Initializer is ArrayInitializer arrayInit)
@@ -378,7 +379,7 @@ namespace CCompiler
                         var sourceType = InferExpressionType(varDecl.Initializer);
                         var storeOp = GetStoreInstruction(targetType);
                         EmitTypeConversion(sourceType, targetType);
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"{FormatVarOffset(varDecl.Name)}"), new Operand(OperandType.REGISTER, 0) }));
+                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"{FormatVarOffset(varDecl.Name)}"), TRegAcc(storeOp) }));
                     }
                 }
             }
@@ -430,7 +431,9 @@ namespace CCompiler
             OpCode storeOp = GetStoreInstruction(StringToExprType(varDecl.Type));
             if (offset.StartsWith("R12"))
             {
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, offset), new Operand(OperandType.REGISTER, 13) }));
+                // VLA 槽里存的是**指针**（R13 算出来的地址）⇒ 永远按 32 位写，
+                // 不能跟着元素类型走（`long a[n]` 会发 MOVEL 去写一个 4 字节槽）
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, offset), new Operand(OperandType.REGISTER, 13) }));
             }
         }
 

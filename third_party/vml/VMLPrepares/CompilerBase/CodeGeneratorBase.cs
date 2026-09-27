@@ -1347,9 +1347,13 @@ namespace CompilerBase
         /// <summary>整数转浮点: I2F R0, R0</summary>
         protected void EmitI2F() => AddRR(OpCode.I2F, 0, 0);
         /// <summary>双精度转整数: D2I R0, R0</summary>
-        protected void EmitD2I() => AddRR(OpCode.D2I, 0, 0);
+        protected void EmitD2I() => Emit(OpCode.D2I,
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.D2I, 0)),
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.D2I, 1)));
         /// <summary>整数转双精度: I2D R0, R0</summary>
-        protected void EmitI2D() => AddRR(OpCode.I2D, 0, 0);
+        protected void EmitI2D() => Emit(OpCode.I2D,
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.I2D, 0)),
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.I2D, 1)));
         /// <summary>浮点转双精度: F2D R0, R0</summary>
         protected void EmitF2D() => AddRR(OpCode.F2D, 0, 0);
         /// <summary>双精度转浮点: D2F R0, R0</summary>

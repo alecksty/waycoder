@@ -432,7 +432,7 @@ namespace CCompiler
                                                                fromLong, toLong);
             if (convOp != null)
                 instructions.Add(new Instruction(convOp.Value, new List<Operand> {
-                    new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }));
+                    TReg(convOp.Value, 0, 0), TReg(convOp.Value, 1, 0) }));
         }
 
         /// <summary>
@@ -528,7 +528,7 @@ namespace CCompiler
 
             // 使用正确的比较指令
             var cmpOp = GetCompareInstruction(exprType);
-            AddRR(cmpOp, 1, 0);
+            Emit(cmpOp, TReg(cmpOp, 0, 1), TRegAcc(cmpOp));
 
             // 根据操作符选择跳转指令（必须在CMP后立即使用，否则标志位会变）
             OpCode jumpOp = op switch

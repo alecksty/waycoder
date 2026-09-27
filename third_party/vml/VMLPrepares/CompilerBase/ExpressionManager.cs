@@ -153,28 +153,28 @@ namespace CompilerBase
             {
                 case ExpLoc.Reg:
                     if (v.RegNum != 0)
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [R(0), R(v.RegNum)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, v.RegNum)]);
                     break;
                 case ExpLoc.Stack:
                     if (v.IsReference)
                     {
                         _emit(OpCode.MOVE, [R(0), Mem(v.FormatOffset())]);
-                        _emit(op, [R(0), Mem("R0")]);
+                        _emit(op, [A(v.Type), Mem("R0")]);
                     }
                     else
-                        _emit(op, [R(0), Mem(v.FormatOffset())]);
+                        _emit(op, [A(v.Type), Mem(v.FormatOffset())]);
                     break;
                 case ExpLoc.Data:
                     if (v.IsReference)
                     {
                         _emit(OpCode.MOVE, [R(0), Mem(v.Label!)]);
-                        _emit(op, [R(0), Mem("R0")]);
+                        _emit(op, [A(v.Type), Mem("R0")]);
                     }
                     else
-                        _emit(op, [R(0), Mem(v.Label!)]);
+                        _emit(op, [A(v.Type), Mem(v.Label!)]);
                     break;
                 case ExpLoc.Imm:
-                    _emit(SelectMoveOp(v.ByteSize, false, false, v.IsLong), [R(0), Imm(v.ImmValue!)]);
+                    _emit(SelectMoveOp(v.ByteSize, false, false, v.IsLong), [A(v.Type), Imm(v.ImmValue!)]);
                     break;
             }
         }
@@ -187,29 +187,31 @@ namespace CompilerBase
             {
                 case ExpLoc.Reg:
                     if (v.RegNum != 0)
-                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [R(v.RegNum), R(0)]);
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, v.RegNum), A(v.Type)]);
                     break;
                 case ExpLoc.Stack:
                     if (v.IsReference)
                     {
-                        _emit(OpCode.MOVE, [R(1), R(0)]);
+                        // 引用槽：值搬进本类 1 号寄存器（类型化 MOVE，别用 32 位 MOVE）
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, 1), A(v.Type)]);
                         _emit(OpCode.MOVE, [R(0), Mem(v.FormatOffset())]);
-                        _emit(op, [Mem("R0"), R(1)]);   // 统一 store: dest=mem, src=reg
-                        _emit(OpCode.MOVE, [R(0), R(1)]);
+                        _emit(op, [Mem("R0"), A(v.Type, 1)]);   // 统一 store: dest=mem, src=reg
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, 1)]);
                     }
                     else
-                        _emit(op, [Mem(v.FormatOffset()), R(0)]);  // 统一 store: dest=mem, src=reg
+                        _emit(op, [Mem(v.FormatOffset()), A(v.Type)]);  // 统一 store: dest=mem, src=reg
                     break;
                 case ExpLoc.Data:
                     if (v.IsReference)
                     {
-                        _emit(OpCode.MOVE, [R(1), R(0)]);
+                        // 引用槽：值搬进本类 1 号寄存器（类型化 MOVE，别用 32 位 MOVE）
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type, 1), A(v.Type)]);
                         _emit(OpCode.MOVE, [R(0), Mem(v.Label!)]);
-                        _emit(op, [Mem("R0"), R(1)]);   // 统一 store: dest=mem, src=reg
-                        _emit(OpCode.MOVE, [R(0), R(1)]);
+                        _emit(op, [Mem("R0"), A(v.Type, 1)]);   // 统一 store: dest=mem, src=reg
+                        _emit(SelectMoveOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type, 1)]);
                     }
                     else
-                        _emit(op, [Mem(v.Label!), R(0)]);  // 统一 store: dest=mem, src=reg
+                        _emit(op, [Mem(v.Label!), A(v.Type)]);  // 统一 store: dest=mem, src=reg
                     break;
                 // Imm 不存储
             }
@@ -219,14 +221,14 @@ namespace CompilerBase
         public void EmitPush(ExpVar v)
         {
             EmitLoad(v);
-            _emit(SelectPushOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [R(0)]);
+            _emit(SelectPushOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type)]);
         }
 
         /// <summary>从栈 Pop 到 ExpVar</summary>
         public void EmitPop(ExpVar v)
         {
             var op = SelectPopOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong);
-            _emit(op, [v.Loc == ExpLoc.Reg ? R(v.RegNum) : R(0)]);
+            _emit(op, [v.Loc == ExpLoc.Reg ? A(v.Type, v.RegNum) : A(v.Type)]);
             if (v.Loc != ExpLoc.Reg || v.RegNum == 0)
                 EmitStore(v);
         }
@@ -281,7 +283,7 @@ namespace CompilerBase
         public ExpVar EmitNeg(ExpVar v)
         {
             EmitLoad(v);
-            _emit(SelectNegOp(v.IsFloat, v.IsDouble, v.IsLong), [R(0), R(0)]);
+            _emit(SelectNegOp(v.IsFloat, v.IsDouble, v.IsLong), [A(v.Type), A(v.Type)]);
             return ExpVar.Reg(0, v.Type);
         }
 
@@ -394,13 +396,17 @@ namespace CompilerBase
             bool l = resultType.IsLong();
 
             EmitLoad(left);
-            _emit(SelectPushOp(s, false, false, l), [R(0)]);
+            _emit(SelectPushOp(s, false, false, l), [A(resultType)]);
             EmitLoad(right);
-            _emit(SelectPopOp(s, false, false, l), [R(1)]);
+            _emit(SelectPopOp(s, false, false, l), [A(resultType, 1)]);
 
             var bitOp = SelectBitOp(op, l, resultType.IsUnsigned());
-            _emit(bitOp, [R(1), R(0)]);
-            _emit(SelectMoveOp(s, false, false, l), [R(0), R(1)]);
+            // ⚠ 位移的**次数**是 32 位操作数：VM 的 `ExecuteShlL`/`ExecuteShrUL` 用
+            //   `GetRegisterOrImmediate`（读 32 位 `registers[]`，16 项）读它 ⇒ 长整数移位时
+            //   这一格必须留 `R` 类（次数求值后正好在 R0），不能跟着值的类走 L 寄存器。
+            var cntReg = (op == "<<" || op == ">>") ? A(ExpType.I32) : A(resultType);
+            _emit(bitOp, [A(resultType, 1), cntReg]);
+            _emit(SelectMoveOp(s, false, false, l), [A(resultType), A(resultType, 1)]);
             return ExpVar.Reg(0, resultType);
         }
 
@@ -426,14 +432,16 @@ namespace CompilerBase
         {
             int scale = target.PointedTypeSize > 1 ? target.PointedTypeSize : 1;
             bool isLong = target.IsLong;
-            var arithOp = op == "+" ? (isLong ? OpCode.ADDL : OpCode.ADD)
-                                    : (isLong ? OpCode.SUBL : OpCode.SUB);
+            // ⚠ 必须**按类型**取指令：原先只判了 `isLong`，于是 `double d; d++` 会发 32 位的
+            //   `ADD D0, D0, 1`（拿 D 寄存器编号当通用寄存器用）—— 实测 `shared/complex64.vml`
+            //   就是这么被校验器抓出来的。`SelectArithmeticOp` 是那张表的唯一真源。
+            var arithOp = SelectArithmeticOp(op, target.IsFloat, target.IsDouble, isLong);
 
             if (prefix)
             {
                 // ++x: R0 = load; R0 +/-= scale; store; return R0 (新值)
                 EmitLoad(target);
-                _emit(arithOp, [R(0), R(0), Imm(scale)]);
+                _emit(arithOp, [A(target.Type), A(target.Type), Imm(scale)]);
                 EmitStore(target);
                 return ExpVar.Reg(0, target.Type);
             }
@@ -441,10 +449,10 @@ namespace CompilerBase
             {
                 // x++: R0 = load (旧值); R1 = R0 (保存); R0 +/-= scale; store; R0 = R1 (恢复旧值)
                 EmitLoad(target);
-                _emit(SelectMoveOp(target.ByteSize, target.IsFloat, target.IsDouble, target.IsLong), [R(1), R(0)]);
-                _emit(arithOp, [R(0), R(0), Imm(scale)]);
+                _emit(SelectMoveOp(target.ByteSize, target.IsFloat, target.IsDouble, target.IsLong), [A(target.Type, 1), A(target.Type)]);
+                _emit(arithOp, [A(target.Type), A(target.Type), Imm(scale)]);
                 EmitStore(target);
-                _emit(SelectMoveOp(target.ByteSize, target.IsFloat, target.IsDouble, target.IsLong), [R(0), R(1)]);
+                _emit(SelectMoveOp(target.ByteSize, target.IsFloat, target.IsDouble, target.IsLong), [A(target.Type), A(target.Type, 1)]);
                 return ExpVar.Reg(0, target.Type);
             }
         }
@@ -505,7 +513,7 @@ namespace CompilerBase
             if (op == "+" && !left.IsPtr && right.IsPtr && right.PointedTypeSize > 1)
                 _emit(OpCode.MUL, [R(0), R(0), Imm(right.PointedTypeSize)]);
             EmitConvertRaw(left.Type, resultType2);
-            _emit(SelectPushOp(s, f, d, l), [R(0)]);
+            _emit(SelectPushOp(s, f, d, l), [A(resultType2)]);
 
             // 右
             EmitLoad(right);
@@ -513,7 +521,7 @@ namespace CompilerBase
             if ((op == "+" || op == "-") && left.IsPtr && !right.IsPtr && left.PointedTypeSize > 1)
                 _emit(OpCode.MUL, [R(0), R(0), Imm(left.PointedTypeSize)]);
             EmitConvertRaw(right.Type, resultType2);
-            _emit(SelectPopOp(s, f, d, l), [R(1)]);
+            _emit(SelectPopOp(s, f, d, l), [A(resultType2, 1)]);
 
             // 计算 — 位运算和算术运算分别处理
             if (op == "&" || op == "|" || op == "^" || op == "<<" || op == ">>")
@@ -522,25 +530,27 @@ namespace CompilerBase
                 // ⚠ 此前用的是类型盲的 `SelectBitwiseOp` ⇒ 64 位移位发 32 位 `SHL`、
                 //   无符号 `>>` 发**算术** `SHR`。
                 var bitOp = SelectBitOp(op, l, resultType2.IsUnsigned());
+                // 位移次数是 32 位（见 EmitBitOp 里的说明）
+                var cntReg2 = (op == "<<" || op == ">>") ? A(ExpType.I32) : A(resultType2);
                 if (_threeOpInt)
-                    _emit(bitOp, [R(0), R(1), R(0)]);
+                    _emit(bitOp, [A(resultType2), A(resultType2, 1), cntReg2]);
                 else
                 {
-                    _emit(bitOp, [R(1), R(0)]);
-                    _emit(SelectMoveOp(s, false, false, l), [R(0), R(1)]);
+                    _emit(bitOp, [A(resultType2, 1), cntReg2]);
+                    _emit(SelectMoveOp(s, false, false, l), [A(resultType2), A(resultType2, 1)]);
                 }
             }
             else
             {
                 var arithOp = SelectArithmeticOp(op, f, d, l, resultType2.IsUnsigned());
                 if (f || d || l)
-                    _emit(arithOp, [R(0), R(1), R(0)]);
+                    _emit(arithOp, [A(resultType2), A(resultType2, 1), A(resultType2)]);
                 else if (_threeOpInt)
-                    _emit(arithOp, [R(0), R(1), R(0)]);
+                    _emit(arithOp, [A(resultType2), A(resultType2, 1), A(resultType2)]);
                 else
                 {
-                    _emit(arithOp, [R(1), R(0)]);
-                    _emit(SelectMoveOp(s, false, false, l), [R(0), R(1)]);
+                    _emit(arithOp, [A(resultType2, 1), A(resultType2)]);
+                    _emit(SelectMoveOp(s, false, false, l), [A(resultType2), A(resultType2, 1)]);
                 }
             }
             return ExpVar.Reg(0, resultType2);
@@ -560,17 +570,17 @@ namespace CompilerBase
             bool f = resultType.IsFloat(), d = resultType.IsDouble(), l = resultType.IsLong();
 
             EmitLoad(left);
-            _emit(SelectPushOp(s, f, d, l), [R(0)]);
+            _emit(SelectPushOp(s, f, d, l), [A(resultType)]);
             EmitLoad(right);
             EmitConvertRaw(right.Type, resultType);
-            _emit(SelectPopOp(s, f, d, l), [R(1)]);
+            _emit(SelectPopOp(s, f, d, l), [A(resultType, 1)]);
 
             /* 无符号比较：换比较指令 + 换四条跳转（`==`/`!=` 与符号无关，不动）。
                映射与有符号**一一对应**（`<`→JB、`<=`→JBE、`>`→JA、`>=`→JAE）——
                因为上面那条比较永远是 `CMP/CMPU R1, R0`，即"R1 − R0"，而
                `CMPU` 置的是 `uf = (R1 < R0 无符号)`，方向与 `CMP` 的 sf 同向。 */
             bool u = resultType.IsUnsigned();
-            _emit(u ? SelectUnsignedCompareOp(l) : SelectCompareOp(f, d, l), [R(1), R(0)]);
+            _emit(u ? SelectUnsignedCompareOp(l) : SelectCompareOp(f, d, l), [A(resultType, 1), A(resultType)]);
 
             string trueLabel = _newLabel();
             string endLabel = _newLabel();
@@ -585,11 +595,11 @@ namespace CompilerBase
             };
             _emit(jmpOp, [Lbl(trueLabel)]);
             _emit(OpCode.MOVE, [R(0), Imm(0)]);
-            if (l) _emit(OpCode.I2L, [R(0), R(0)]);
+            if (l) _emit(OpCode.I2L, [A(ExpType.I64), A(ExpType.I32)]);
             _emit(OpCode.JMP, [Lbl(endLabel)]);
             _placeLabel(trueLabel);
             _emit(OpCode.MOVE, [R(0), Imm(1)]);
-            if (l) _emit(OpCode.I2L, [R(0), R(0)]);
+            if (l) _emit(OpCode.I2L, [A(ExpType.I64), A(ExpType.I32)]);
             _placeLabel(endLabel);
 
             return ExpVar.Reg(0, ExpType.I32);
@@ -643,7 +653,7 @@ namespace CompilerBase
         public ExpVar EmitAssign(ExpVar dst, ExpVar src)
         {
             if (src.Loc == ExpLoc.Imm)
-                _emit(SelectMoveOp(dst.ByteSize, dst.IsFloat, dst.IsDouble, dst.IsLong), [R(0), Imm(src.ImmValue!)]);
+                _emit(SelectMoveOp(dst.ByteSize, dst.IsFloat, dst.IsDouble, dst.IsLong), [A(dst.Type), Imm(src.ImmValue!)]);
             else
                 EmitLoad(src);
             EmitStore(dst);
@@ -741,7 +751,7 @@ namespace CompilerBase
                                          to.ByteSize(), to.IsFloat(), to.IsDouble(),
                                          from.IsLong(), to.IsLong());
             if (op != null)
-                _emit(op.Value, [R(0), R(0)]);
+                _emit(op.Value, [A(to), A(from)]);   // 目的类 0 号 ← 源类 0 号
         }
 
         // ====== 保留旧 Action 委托方法（向后兼容）======
@@ -786,7 +796,7 @@ namespace CompilerBase
         {
             var op = SelectConversionOp(fromSize, fromFloat, fromDouble, toSize, toFloat, toDouble, fromLong, toLong);
             if (op != null)
-                _emit(op.Value, [R(0), R(0)]);
+                _emit(op.Value, [A(T(toSize, toFloat, toDouble, toLong)), A(T(fromSize, fromFloat, fromDouble, fromLong))]);
         }
 
         // ====== 二元表达式模板 ======
@@ -805,30 +815,33 @@ namespace CompilerBase
             // 左操作数
             emitLeft();
             EmitConversion(leftSize, leftFloat, leftDouble, resultSize, resultFloat, resultDouble, leftLong, resultLong);
-            _emit(SelectPushOp(resultSize, resultFloat, resultDouble, resultLong), [R(0)]);
+            _emit(SelectPushOp(resultSize, resultFloat, resultDouble, resultLong), [A(T(resultSize, resultFloat, resultDouble, resultLong))]);
 
             // 右操作数
             emitRight();
             EmitConversion(rightSize, rightFloat, rightDouble, resultSize, resultFloat, resultDouble, rightLong, resultLong);
 
             // 弹出左操作数到 R1
-            _emit(SelectPopOp(resultSize, resultFloat, resultDouble, resultLong), [R(1)]);
+            _emit(SelectPopOp(resultSize, resultFloat, resultDouble, resultLong), [A(T(resultSize, resultFloat, resultDouble, resultLong), 1)]);
 
             // 运算
             var arithOp = SelectArithmeticOp(arithmeticOp, resultFloat, resultDouble, resultLong);
             if (resultFloat || resultDouble || resultLong)
             {
                 // 浮点/双精度/长整数始终 3 操作数
-                _emit(arithOp, [R(0), R(1), R(0)]);
+                var rt = T(resultSize, resultFloat, resultDouble, resultLong);
+                _emit(arithOp, [A(rt), A(rt, 1), A(rt)]);
             }
             else if (_threeOpInt)
             {
-                _emit(arithOp, [R(0), R(1), R(0)]);
+                var rt2 = T(resultSize, resultFloat, resultDouble, resultLong);
+                _emit(arithOp, [A(rt2), A(rt2, 1), A(rt2)]);
             }
             else
             {
-                _emit(arithOp, [R(1), R(0)]);
-                _emit(SelectMoveOp(resultSize, false, false, resultLong), [R(0), R(1)]);
+                var rt3 = T(resultSize, resultFloat, resultDouble, resultLong);
+                _emit(arithOp, [A(rt3, 1), A(rt3)]);
+                _emit(SelectMoveOp(resultSize, false, false, resultLong), [A(rt3), A(rt3, 1)]);
             }
         }
 
@@ -852,14 +865,15 @@ namespace CompilerBase
                                 string cmpOp, int byteSize, bool isFloat, bool isDouble = false, bool isLong = false)
         {
             // 左操作数
+            var ct = T(byteSize, isFloat, isDouble, isLong);
             emitLeft();
-            _emit(SelectPushOp(byteSize, isFloat, isDouble, isLong), [R(0)]);
+            _emit(SelectPushOp(byteSize, isFloat, isDouble, isLong), [A(ct)]);
             // 右操作数
             emitRight();
-            _emit(SelectPopOp(byteSize, isFloat, isDouble, isLong), [R(1)]);
+            _emit(SelectPopOp(byteSize, isFloat, isDouble, isLong), [A(ct, 1)]);
 
-            // 比较 R1 vs R0
-            _emit(SelectCompareOp(isFloat, isDouble, isLong), [R(1), R(0)]);
+            // 比较：1 号 vs 0 号（同类寄存器）
+            _emit(SelectCompareOp(isFloat, isDouble, isLong), [A(ct, 1), A(ct)]);
 
             string trueLabel = _newLabel();
             string endLabel = _newLabel();
@@ -874,12 +888,12 @@ namespace CompilerBase
 
             _emit(jmpOp, [Lbl(trueLabel)]);
             _emit(OpCode.MOVE, [R(0), Imm(0)]);
-            if (isLong) _emit(OpCode.I2L, [R(0), R(0)]);
+            if (isLong) _emit(OpCode.I2L, [A(ExpType.I64), A(ExpType.I32)]);
             _emit(OpCode.JMP, [Lbl(endLabel)]);
 
             _placeLabel(trueLabel);
             _emit(OpCode.MOVE, [R(0), Imm(1)]);
-            if (isLong) _emit(OpCode.I2L, [R(0), R(0)]);
+            if (isLong) _emit(OpCode.I2L, [A(ExpType.I64), A(ExpType.I32)]);
             _placeLabel(endLabel);
         }
 
@@ -990,6 +1004,25 @@ namespace CompilerBase
         // ====== 便捷操作数工厂 ======
 
         public Operand R(int n) => new(OperandType.REGISTER, n);
+
+        /// <summary>
+        /// 该类型的**累加器寄存器** —— `long`→`L0`(24)、`double`→`D0`(16)、其余→`R0`(0)。
+        ///
+        /// <para>
+        /// ⚠ 本文件里凡是**类相关**的指令（`MOVEL`/`MOVED`/`ADDL`/`DADD`/`PUSHL`/`DPUSH`/`I2L`…）
+        /// 都要用这两个助手取寄存器，别再写裸 `R(0)`/`R(1)`：用户定的模型是
+        /// `Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，把 64 位值放进 R8–R15 会被运行时
+        /// **静默截断**（实测 `long a[4]` 写进去再逐个读，一半元素读成 0）。
+        /// </para>
+        /// </summary>
+        private static Operand A(ExpType t) => new(OperandType.REGISTER, t.BankBase());
+
+        /// <summary>该类型的第 n 号寄存器（n=1/2 是表达式求值用的临时寄存器）。</summary>
+        private static Operand A(ExpType t, int n) => new(OperandType.REGISTER, t.BankBase() + n);
+
+        /// <summary>由 (size, isFloat, isDouble, isLong) 还原统一的 <see cref="ExpType"/>（只为取寄存器类）。</summary>
+        private static ExpType T(int size, bool isFloat, bool isDouble, bool isLong)
+            => isLong ? ExpType.I64 : isDouble ? ExpType.F64 : isFloat ? ExpType.F32 : ExpType.I32;
         public static Operand Reg(int n) => new(OperandType.REGISTER, n);
         public static Operand Imm(object v) => new(OperandType.IMMEDIATE, v);
         public static Operand Lbl(string s) => new(OperandType.LABEL, s);

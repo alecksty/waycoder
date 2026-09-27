@@ -479,9 +479,9 @@ _L96590042:
         move @R0 [@R12-8]
         test @R0 @R0
         jz _L96590043
-        moved @R0 [dbl_96590045]
-        moved @R0 [dbl_96590046]
-        dneg @R0 @R0
+        moved @R16 [dbl_96590045]
+        moved @R16 [dbl_96590046]
+        dneg @R16 @R16
         jmp _L96590044
 _L96590043:
         move @R0 #2147483647
@@ -1772,13 +1772,13 @@ __vml_double_mul:
         move [@R12-40] @R0
 ; 191:     long long product = (long long)m1_hi * m2_hi;
         move @R0 [@R12-24]
-        i2l @R0 @R0
-        pushl @R0
+        i2l @R24 @R0
+        pushl @R24
         move @R0 [@R12-28]
-        i2l @R0 @R0
-        popl @R1
-        mull @R0 @R1 @R0
-        movel [@R12-48] @R0
+        i2l @R24 @R0
+        popl @R25
+        mull @R24 @R25 @R24
+        movel [@R12-48] @R24
 ; 193:     int a_lo = m1_hi & 0xFFFF, a_hi = m1_hi >> 16;
         move @R0 [@R12-24]
         push @R0

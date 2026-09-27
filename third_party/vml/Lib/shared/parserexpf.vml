@@ -181,8 +181,8 @@ parse_factor_f:
         move @R12 @R13
         sub @R13 #32
 ; 21:     double val = 0.0;
-        moved @R0 [dbl_29360026]
-        moved [@R12-12] @R0
+        moved @R16 [dbl_29360026]
+        moved [@R12-12] @R16
 ; 22:     skip_spaces();
         call skip_spaces
 ; 23:     if (*g_pos == '(') {
@@ -208,7 +208,7 @@ _L29360030:
         move @R0 @R1
 ; 25:         val = parse_expr_f();
         call parse_expr_f
-        moved [@R12-12] @R0
+        moved [@R12-12] @R16
 ; 26:         skip_spaces();
         call skip_spaces
 ; 27:         if (*g_pos == ')') g_pos++;
@@ -234,7 +234,7 @@ _L29360034:
 sta_29360031:
 sta_29360032:
 ; 28:         return val;
-        moved @R0 [@R12-12]
+        moved @R16 [@R12-12]
         jmp L_29360035
 sta_29360027:
 sta_29360028:
@@ -262,7 +262,7 @@ _L29360039:
 ; 32:         return -parse_factor_f();
         call parse_factor_f
         call parse_factor_f
-        dneg @R0 @R0
+        dneg @R16 @R16
         jmp L_29360035
 sta_29360036:
 sta_29360037:
@@ -278,12 +278,12 @@ sta_29360040:
         cmp @R0 #0
         jz sta_29360041
 ; 36:         val = val * 10.0 + (*g_pos - '0');
-        moved @R0 [@R12-12]
-        dpush @R0
-        moved @R0 [dbl_29360042]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        dpush @R0
+        moved @R16 [@R12-12]
+        dpush @R16
+        moved @R16 [dbl_29360042]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        dpush @R16
         move @R0 [g_pos]
         move @R0 [@R0]
         push @R0
@@ -291,10 +291,10 @@ sta_29360040:
         pop @R1
         sub @R1 @R0
         move @R0 @R1
-        i2d @R0 @R0
-        dpop @R1
-        dadd @R0 @R1 @R0
-        moved [@R12-12] @R0
+        i2d @R16 @R0
+        dpop @R17
+        dadd @R16 @R17 @R16
+        moved [@R12-12] @R16
 ; 37:         g_pos++;
         move @R0 [g_pos]
         move @R1 @R0
@@ -325,8 +325,8 @@ _L29360046:
         move [g_pos] @R0
         move @R0 @R1
 ; 42:         double frac = 0.1;
-        moved @R0 [dbl_29360047]
-        moved [@R12-20] @R0
+        moved @R16 [dbl_29360047]
+        moved [@R12-20] @R16
 sta_29360048:
         move @R2 #0
 ; 43:         while (is_digit(*g_pos)) {
@@ -339,8 +339,8 @@ sta_29360048:
         cmp @R0 #0
         jz sta_29360049
 ; 44:             val += (*g_pos - '0') * frac;
-        moved @R0 [@R12-12]
-        dpush @R0
+        moved @R16 [@R12-12]
+        dpush @R16
         move @R0 [g_pos]
         move @R0 [@R0]
         push @R0
@@ -348,21 +348,21 @@ sta_29360048:
         pop @R1
         sub @R1 @R0
         move @R0 @R1
-        i2d @R0 @R0
-        dpush @R0
-        moved @R0 [@R12-20]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        dpop @R1
-        dadd @R0 @R1 @R0
-        moved [@R12-12] @R0
+        i2d @R16 @R0
+        dpush @R16
+        moved @R16 [@R12-20]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        dpop @R17
+        dadd @R16 @R17 @R16
+        moved [@R12-12] @R16
 ; 45:             frac *= 0.1;
-        moved @R0 [@R12-20]
-        dpush @R0
-        moved @R0 [dbl_29360050]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        moved [@R12-20] @R0
+        moved @R16 [@R12-20]
+        dpush @R16
+        moved @R16 [dbl_29360050]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        moved [@R12-20] @R16
 ; 46:             g_pos++;
         move @R0 [g_pos]
         move @R1 @R0
@@ -374,7 +374,7 @@ sta_29360049:
 sta_29360043:
 sta_29360044:
 ; 49:     return val;
-        moved @R0 [@R12-12]
+        moved @R16 [@R12-12]
         jmp L_29360035
 L_29360035:
         move @R13 @R12
@@ -394,7 +394,7 @@ parse_term_f:
         sub @R13 #32
 ; 53:     double left = parse_factor_f();
         call parse_factor_f
-        moved [@R12-12] @R0
+        moved [@R12-12] @R16
 ; 54:     skip_spaces();
         call skip_spaces
 sta_29360051:
@@ -448,7 +448,7 @@ _L29360055:
         move @R0 @R1
 ; 58:         double right = parse_factor_f();
         call parse_factor_f
-        moved [@R12-24] @R0
+        moved [@R12-24] @R16
 ; 59:         if (op == '*')
         moveb @R0 [@R12-13]
         sextb @R0 @R0
@@ -465,20 +465,20 @@ _L29360063:
         cmp @R0 #0
         jz sta_29360060
 ; 60:             left = left * right;
-        moved @R0 [@R12-12]
-        dpush @R0
-        moved @R0 [@R12-24]
-        dpop @R1
-        dmul @R0 @R1 @R0
-        moved [@R12-12] @R0
+        moved @R16 [@R12-12]
+        dpush @R16
+        moved @R16 [@R12-24]
+        dpop @R17
+        dmul @R16 @R17 @R16
+        moved [@R12-12] @R16
         jmp sta_29360061
 sta_29360060:
 ; 62:             if (right == 0.0) return 0.0;
-        moved @R0 [@R12-24]
-        dpush @R0
-        moved @R0 [dbl_29360066]
-        dpop @R1
-        dcmp @R1 @R0
+        moved @R16 [@R12-24]
+        dpush @R16
+        moved @R16 [dbl_29360066]
+        dpop @R17
+        dcmp @R17 @R16
         je _L29360067
         move @R0 #0
         jmp _L29360068
@@ -487,24 +487,24 @@ _L29360067:
 _L29360068:
         cmp @R0 #0
         jz sta_29360064
-        moved @R0 [dbl_29360069]
+        moved @R16 [dbl_29360069]
         jmp L_29360070
 sta_29360064:
 sta_29360065:
 ; 63:             left = left / right;
-        moved @R0 [@R12-12]
-        dpush @R0
-        moved @R0 [@R12-24]
-        dpop @R1
-        ddiv @R0 @R1 @R0
-        moved [@R12-12] @R0
+        moved @R16 [@R12-12]
+        dpush @R16
+        moved @R16 [@R12-24]
+        dpop @R17
+        ddiv @R16 @R17 @R16
+        moved [@R12-12] @R16
 sta_29360061:
 ; 65:         skip_spaces();
         call skip_spaces
         jmp sta_29360051
 sta_29360052:
 ; 67:     return left;
-        moved @R0 [@R12-12]
+        moved @R16 [@R12-12]
         jmp L_29360070
 L_29360070:
         move @R13 @R12
@@ -524,7 +524,7 @@ parse_expr_f:
         sub @R13 #32
 ; 71:     double left = parse_term_f();
         call parse_term_f
-        moved [@R12-12] @R0
+        moved [@R12-12] @R16
 ; 72:     skip_spaces();
         call skip_spaces
 sta_29360071:
@@ -578,7 +578,7 @@ _L29360075:
         move @R0 @R1
 ; 76:         double right = parse_term_f();
         call parse_term_f
-        moved [@R12-24] @R0
+        moved [@R12-24] @R16
 ; 77:         if (op == '+')
         moveb @R0 [@R12-13]
         sextb @R0 @R0
@@ -595,28 +595,28 @@ _L29360083:
         cmp @R0 #0
         jz sta_29360080
 ; 78:             left = left + right;
-        moved @R0 [@R12-12]
-        dpush @R0
-        moved @R0 [@R12-24]
-        dpop @R1
-        dadd @R0 @R1 @R0
-        moved [@R12-12] @R0
+        moved @R16 [@R12-12]
+        dpush @R16
+        moved @R16 [@R12-24]
+        dpop @R17
+        dadd @R16 @R17 @R16
+        moved [@R12-12] @R16
         jmp sta_29360081
 sta_29360080:
 ; 80:             left = left - right;
-        moved @R0 [@R12-12]
-        dpush @R0
-        moved @R0 [@R12-24]
-        dpop @R1
-        dsub @R0 @R1 @R0
-        moved [@R12-12] @R0
+        moved @R16 [@R12-12]
+        dpush @R16
+        moved @R16 [@R12-24]
+        dpop @R17
+        dsub @R16 @R17 @R16
+        moved [@R12-12] @R16
 sta_29360081:
 ; 81:         skip_spaces();
         call skip_spaces
         jmp sta_29360071
 sta_29360072:
 ; 83:     return left;
-        moved @R0 [@R12-12]
+        moved @R16 [@R12-12]
         jmp L_29360084
 L_29360084:
         move @R13 @R12
@@ -650,7 +650,7 @@ _L29360087:
 _L29360088:
         cmp @R0 #0
         jz sta_29360085
-        moved @R0 [dbl_29360089]
+        moved @R16 [dbl_29360089]
         jmp L_29360090
 sta_29360085:
 sta_29360086:
@@ -674,7 +674,7 @@ _L29360093:
 _L29360094:
         cmp @R0 #0
         jz sta_29360091
-        moved @R0 [dbl_29360095]
+        moved @R16 [dbl_29360095]
         jmp L_29360090
 sta_29360091:
 sta_29360092:
