@@ -13,26 +13,6 @@ LABEL forth_parse_expr_f
     pop @R15
     RET
 
-LABEL forth_parse_term_f
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_term_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL forth_parse_factor_f
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_factor_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL forth_parserexpf
     push @R15
     push @R12
@@ -55,24 +35,6 @@ LABEL func_ParseExprF
 
 LABEL func_parseExprF
     JMP forth_parse_expr_f
-
-LABEL func_parse_term_f
-    JMP forth_parse_term_f
-
-LABEL func_ParseTermF
-    JMP forth_parse_term_f
-
-LABEL func_parseTermF
-    JMP forth_parse_term_f
-
-LABEL func_parse_factor_f
-    JMP forth_parse_factor_f
-
-LABEL func_ParseFactorF
-    JMP forth_parse_factor_f
-
-LABEL func_parseFactorF
-    JMP forth_parse_factor_f
 
 LABEL func_parserexpf
     JMP forth_parserexpf

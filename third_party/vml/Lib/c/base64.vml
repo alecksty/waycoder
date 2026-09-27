@@ -23,21 +23,6 @@ LABEL c_base64_encode
     pop @R15
     RET
 
-LABEL c__b64_decode_char
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    sub @R13 #4
-    moveb @13 @R0
-    move @R0 [@R13+0]
-    CALL _b64_decode_char
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL c_base64_decode
     push @R15
     push @R12
@@ -63,15 +48,6 @@ LABEL func_Base64Encode
 
 LABEL func_base64Encode
     JMP c_base64_encode
-
-LABEL func__b64_decode_char
-    JMP c__b64_decode_char
-
-LABEL func_B64DecodeChar
-    JMP c__b64_decode_char
-
-LABEL func_b64DecodeChar
-    JMP c__b64_decode_char
 
 LABEL func_base64_decode
     JMP c_base64_decode

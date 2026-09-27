@@ -1,3 +1,60 @@
+## v0.96.521 — 把审计出的问题修掉：`shared_bindings.h` 编得过（29 错→0）+ 死桩标注 + EEPROM 号修正
+
+上一版只"查出并报告"，这一版**动手修**。
+
+### ① `Lib/c/shared_bindings.h` **过不了自己的 C 前端** —— 29 个语法错误，修到 0
+
+根因在 **GenLib 的解析器**（`tools/GenLib/Program.cs` 的 `ParseFunctions`），三处：
+
+1. **反 static 的前置断言挡不住"从单词中间开始匹配"** ✗ —— 那个 `(?<!\bstatic\s)` 只能挡住
+   "从返回类型开头匹配"，正则引擎会往后挪一格**从词中**再匹配一次：
+   `static int is_hex_digit(char c)` 被匹配成「返回类型 `nt`、函数名 `is_hex_digit`」，
+   `static void skip_spaces(void)` 变成「`oid skip_spaces`」。
+   **`Lib/c/shared_bindings.h` 里就有 ` nt is_hex_digit(char c);` 这种编不过的行。**
+   → 返回类型那段加词边界 `\b`（`n|t` 之间不算边界 ⇒ 只能从词首匹配）。
+2. **函数体里的语句被当成声明** ✗ —— ` return lmin_arr64(arr);`、` return asm("SYSCALL #55");`
+   这类行混进绑定文件；连同 `#param lib("bitlib")` 指令（少了 `#` 变成 ` param lib("bitlib");`）。
+   → 加 `LooksLikeDeclaration` 过滤：名字必须是**裸标识符**、返回类型不能是语句/预处理关键字
+   （⚠ 判据**刻意收窄** —— 不能用"返回类型必须是标识符"，那样会把 `const char*`
+   `unsigned long` 这些合法多词类型一起误杀）。
+3. **函数指针参数被截断** ✗ —— 参数段是 `([^)]*)`，`void (*fn)(void)` 在**第一个右括号**处断开，
+   生成 `__stdcall int atexit(void (*fn);`。→ 参数里含括号的**一律不收**（本前端的 C 子集也不支持）。
+
+**改动面很大**（`-A` 重生成 22 种语言的绑定 + 各语言 `.vml` 包装：286 个文件、−22281 行），
+所以验证不是"看着对"，而是四道：
+
+| 判据 | 结果 |
+|---|---|
+| 头文件编译 | ✅ `#include <shared_bindings.h>`：**29 错 → 0** |
+| 函数名集合逐一比对（C 绑定，改前 vs 改后） | ✅ 1360 → 1254，**删掉 106、新增 0**；删的全是被截断的 static 助手（`_cos_taylor`/`_printf_itoa`/`_qs_partition`/`_isspace`…） |
+| 22 种语言冒烟（`Examples/_selftest/out.*`） | ✅ **22 通过 / 0 失败**（改前改后各跑一次） |
+| 真实大程序 | ✅ `chess.c` 编译 75452 条指令、桌面自测 6803 通过 / 0 失败 |
+
+⚠ 顺带一条**可能的历史影响**：这批"被截断导出"的名字里就有 `_printf_itoa` / `_printf_itoa64` ——
+正是本仓 ㉓ 那条「`LibraryLinker` 纯后缀匹配把 `_printf_itoa` 认成 `itoa`」事故里的名字。
+绑定里少一批**虚构的导出名**，链接器可误配的面也小一圈（那一处链接器判据此前已修）。
+
+### ② 死桩：EEPROM 号修正 + 未实现的能力加醒目警示
+
+- **`Lib/ruby/eeprom.rb`：`SYSCALL 120/121` → `106/107`** ✓ —— 铁证：同功能的
+  `Lib/scheme/eeprom.scm` 与 `Lib/python/eeprom.py` 用的都是 **106/107**，而 120/121 全仓无人实现
+  ⇒ Ruby 那份是**号写错**（调了静默 no-op）。⚠ 这个文件是**用户可 `import` 的扩展库**，不是死代码。
+- **加警示（不删文件）**：`ruby/env.rb`(130/131)、`ruby/fs.rb`(140–143)、`scheme/device.scm`(83–88)、
+  `scheme/stdlib.scm`(数学 20–49 等 35 个)、`pascal/system.pas`(32/44)、`lua/lua_meta.vml`(74) ——
+  这些号**从未实现**（全仓只有这一处在用），文件顶部写明"调了什么都不会发生、要真用得走库函数"。
+  ⚠ 删文件是不可逆的、改法要另定（实现 or 删除），所以这一版只**标注**，留给人决定。
+  `stdlib.scm` 里那句 `(define (cons x y) (asm "SYSCALL 80") (cons x y))` 是**自我递归**，警示里点名。
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| 头文件编译 | ✅ 29 错 → **0** |
+| 22 语言冒烟 | ✅ 22 / 0 |
+| 桌面全量自测 | ✅ 6803 通过 / 0 失败 |
+| Lib 生成一致性 | ✅ 重生成只影响该影响的（解析器改了 ⇒ 22 种语言的绑定与包装同步更新） |
+
+---
 ## v0.96.520 — 全库 syscall 审计：找出过时/错误的号，修掉两个真坏的
 
 用户要「检查一遍库所有 syscall 是否合法有效，有没有过时错误的」。做法是**三方交叉核对**：

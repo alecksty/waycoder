@@ -13,26 +13,6 @@ LABEL ParseExprF
     pop @R15
     RET
 
-LABEL ParseTermF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_term_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL ParseFactorF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_factor_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL Parserexpf
     push @R15
     push @R12
@@ -49,12 +29,6 @@ LABEL Parserexpf
 
 LABEL Parserexpf_ParseExprF
     JMP ParseExprF
-
-LABEL Parserexpf_ParseTermF
-    JMP ParseTermF
-
-LABEL Parserexpf_ParseFactorF
-    JMP ParseFactorF
 
 LABEL Parserexpf_Parserexpf
     JMP Parserexpf

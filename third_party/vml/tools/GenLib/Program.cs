@@ -816,11 +816,23 @@ static List<FuncDef> ParseFunctions(string srcDir)
         // 撞名自调用是同一个机制：将来撞上真标签就是静默劫持）。
         // 实测剥离之前有 5 个虚构条目：Arrays / Manipulation / CRC / GetDate / GetTime。
         var src = StripComments(File.ReadAllText(file));
-        var matches = Regex.Matches(src, @"(?<!\bstatic\s)(?<!\bstatic\n)(?:(__stdcall|__cdecl|__fastcall)\s+)?((?:const\s+)?(?:unsigned\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s*\*?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)");
+        // ⚠⚠ **返回类型那一段前面必须有词边界 `\b`**（2026-09-27 审计）：
+        //   那个 `(?<!\bstatic\s)` 只挡得住"**从返回类型开头**匹配"，挡不住正则引擎
+        //   **从单词中间**另起一次匹配 —— `static int is_hex_digit(char c)` 就会被匹配成
+        //   「返回类型 `nt`、函数名 `is_hex_digit`」，于是一批**虚构条目**混进各语言绑定
+        //   （`Lib/c/shared_bindings.h` 里就是 ` nt is_hex_digit(char c);` 这种编不过的行）。
+        //   `\b` 让 `n|t` 之间不算边界 ⇒ 只能从词首匹配，这条整类消失。
+        var matches = Regex.Matches(src, @"(?<!\bstatic\s)(?<!\bstatic\n)(?:(__stdcall|__cdecl|__fastcall)\s+)?\b((?:const\s+)?(?:unsigned\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s*\*?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)");
         foreach (Match m in matches)
         {
             var fnName = m.Groups[3].Value;
             if (IsKeyword(fnName) || fnName.StartsWith("__") || fnName == "main") continue;
+            // ⚠ **参数里带括号的一律不收**（2026-09-27 审计，最后一个编译错误）：
+            //   正则的参数段是 `([^)]*)` —— 遇到**函数指针参数**（`void (*fn)(void)`）会在
+            //   **第一个右括号**处截断，生成 `__stdcall int atexit(void (*fn);` 这种缺括号、
+            //   编不过的声明（`shared_bindings.h` 里 29 条错误的最后一条）。
+            //   本前端的 C 子集也不支持函数指针参数 ⇒ 收进来只会生成坏声明，不如不收。
+            if (m.Groups[4].Value.Contains('(') || m.Groups[4].Value.Contains(')')) continue;
             result.Add(new FuncDef
             {
                 File = Path.GetFileName(file),
@@ -850,7 +862,41 @@ internal class BindingGenerator
     {
         _libRoot = libRoot;
         _funcs = funcs;
-        _exported = funcs.ToList(); // v1.66.55+: 所有函数均为公开导出，无前缀过滤
+        // ⚠⚠ **必须把"不是声明"的东西滤掉**（2026-09-27 审计：`Lib/c/shared_bindings.h` 编不过，
+        //   29 个语法错误）。解析器会把**函数体里的一行**（` return lmin_arr64(arr);`）和
+        //   **指令**（`#param lib("bitlib")`）也当成函数收进来，于是绑定文件里混进
+        //   ` param lib("bitlib");` / ` return lmin_arr64(arr);` 这种行 —— 而绑定文件是
+        //   **给编译器当声明看的**，出现一条非声明就是硬编译错误（C/C++/Pascal/Java… 全中）。
+        //
+        // 判据**刻意收窄**，防止误杀合法声明：
+        //   · `Name` 必须是**裸标识符**（带 `(` 或 `"` 的一定是误收进来的语句/指令）；
+        //   · `ReturnType` 不得是**语句关键字**（`return` / `param` …）——
+        //     ⚠ 不能用"必须是标识符"那条：`const char*`、`unsigned long`、`void*` 都是
+        //     合法的多词返回类型，那样滤会把 `basic_time_str` 这类真函数一起干掉。
+        _exported = funcs.Where(LooksLikeDeclaration).ToList(); // v1.66.55+: 所有函数均为公开导出，无前缀过滤
+    }
+
+    /// <summary>语句/指令关键字 —— 出现在"返回类型"位置就说明这条不是函数声明。</summary>
+    static readonly HashSet<string> StatementKeywords = new(StringComparer.Ordinal)
+    {
+        "return", "param", "if", "else", "for", "while", "do", "switch", "case", "break",
+        "continue", "goto", "sizeof", "asm", "typedef", "extern", "register", "volatile",
+        // 预处理指令：`#define NULL ((void*)0)` 会被解析成「返回类型 define、函数名 NULL」
+        // （审计实测：`Lib/c/shared_bindings.h` 里留下的最后两条错误之一就是它）
+        "define", "include", "undef", "ifdef", "ifndef", "endif", "pragma", "error", "line",
+    };
+
+    static bool LooksLikeDeclaration(FuncDef f)
+        => IsBareIdentifier(f.Name)
+        && !StatementKeywords.Contains(f.ReturnType ?? "")
+        && !StatementKeywords.Contains((f.ReturnType ?? "").Trim().Split(' ')[^1]);
+
+    static bool IsBareIdentifier(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        if (!(char.IsLetter(s[0]) || s[0] == '_')) return false;
+        foreach (var c in s) if (!(char.IsLetterOrDigit(c) || c == '_')) return false;
+        return true;
     }
 
     public void Generate(string lang, string package = "")

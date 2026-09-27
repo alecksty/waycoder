@@ -23,21 +23,6 @@ LABEL js_base64Encode
     pop @R15
     RET
 
-LABEL js_b64DecodeChar
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    sub @R13 #4
-    moveb @13 @R0
-    move @R0 [@R13+0]
-    CALL _b64_decode_char
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_base64Decode
     push @R15
     push @R12
@@ -58,9 +43,6 @@ LABEL js_base64Decode
 LABEL Base64_Base64Encode
     JMP js_base64Encode
 
-LABEL Base64_B64DecodeChar
-    JMP js_b64DecodeChar
-
 LABEL Base64_Base64Decode
     JMP js_base64Decode
 
@@ -72,15 +54,6 @@ LABEL method_Base64Encode
 
 LABEL method_base64Encode
     JMP js_base64Encode
-
-LABEL method__b64_decode_char
-    JMP js_b64DecodeChar
-
-LABEL method_B64DecodeChar
-    JMP js_b64DecodeChar
-
-LABEL method_b64DecodeChar
-    JMP js_b64DecodeChar
 
 LABEL method_base64_decode
     JMP js_base64Decode

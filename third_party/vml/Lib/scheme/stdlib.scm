@@ -1,3 +1,7 @@
+;; ⚠ SYSCALL 审计（2026-09-27）：本文件里那批 `(asm "SYSCALL NN")` 用的号（数学 20–49、cons/car/cdr 80–82、105/108、115–118）在本 VM 里**从未实现** ——
+;;   宿主与 VM 都不认 ⇒ **调了什么都不会发生**（静默 no-op，函数多数返回常量 0/0.0）。
+;;   ⚠ 更要命的是 `(define (cons x y) (asm "SYSCALL 80") (cons x y))` 是**自我递归**：
+;;   谁真把它接上就是死循环。本文件**不在链接路径上**（Scheme 实际链 `scheme_rt.vml`）。
 ;; VML Scheme 标准库 — 完整运行时支持 (R5RS/R7RS-small 兼容)
 ;; 用法: scheme -l vml stdlib.scm
 

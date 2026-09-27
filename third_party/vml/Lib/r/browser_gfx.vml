@@ -3,20 +3,6 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL r_cmd_write
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL cmd_write
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL r_browser_clear
     push @R15
     push @R12
@@ -100,15 +86,6 @@ LABEL r_browser_flush
     pop @R12
     pop @R15
     RET
-
-LABEL func_cmd_write
-    JMP r_cmd_write
-
-LABEL func_CmdWrite
-    JMP r_cmd_write
-
-LABEL func_cmdWrite
-    JMP r_cmd_write
 
 LABEL func_browser_clear
     JMP r_browser_clear

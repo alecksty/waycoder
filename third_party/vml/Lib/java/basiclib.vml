@@ -3,23 +3,6 @@
 
 .linked "../shared/basiclib.vml"
 
-LABEL java_hexStr
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL _hex_str
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL java_basicInstr
     push @R15
     push @R12
@@ -549,9 +532,6 @@ LABEL java_basicPoint
     pop @R15
     RET
 
-LABEL Basiclib_HexStr
-    JMP java_hexStr
-
 LABEL Basiclib_BasicInstr
     JMP java_basicInstr
 
@@ -662,15 +642,6 @@ LABEL Basiclib_BasicInt
 
 LABEL Basiclib_BasicPoint
     JMP java_basicPoint
-
-LABEL method__hex_str
-    JMP java_hexStr
-
-LABEL method_HexStr
-    JMP java_hexStr
-
-LABEL method_hexStr
-    JMP java_hexStr
 
 LABEL method_basic_instr
     JMP java_basicInstr

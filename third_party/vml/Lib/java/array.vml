@@ -377,66 +377,6 @@ LABEL java_endswith
     pop @R15
     RET
 
-LABEL java_qsSwap
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_swap
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL java_qsPartition
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_partition
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL java_qsRecursive
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_recursive
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL java_sortQuick
     push @R15
     push @R12
@@ -533,15 +473,6 @@ LABEL Array_Startswith
 
 LABEL Array_Endswith
     JMP java_endswith
-
-LABEL Array_QsSwap
-    JMP java_qsSwap
-
-LABEL Array_QsPartition
-    JMP java_qsPartition
-
-LABEL Array_QsRecursive
-    JMP java_qsRecursive
 
 LABEL Array_SortQuick
     JMP java_sortQuick
@@ -689,33 +620,6 @@ LABEL method_endswith
 
 LABEL method_Endswith
     JMP java_endswith
-
-LABEL method__qs_swap
-    JMP java_qsSwap
-
-LABEL method_QsSwap
-    JMP java_qsSwap
-
-LABEL method_qsSwap
-    JMP java_qsSwap
-
-LABEL method__qs_partition
-    JMP java_qsPartition
-
-LABEL method_QsPartition
-    JMP java_qsPartition
-
-LABEL method_qsPartition
-    JMP java_qsPartition
-
-LABEL method__qs_recursive
-    JMP java_qsRecursive
-
-LABEL method_QsRecursive
-    JMP java_qsRecursive
-
-LABEL method_qsRecursive
-    JMP java_qsRecursive
 
 LABEL method_sort_quick
     JMP java_sortQuick

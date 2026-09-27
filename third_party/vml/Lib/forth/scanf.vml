@@ -3,34 +3,6 @@
 
 .linked "../shared/scanf.vml"
 
-LABEL forth__isspace
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _isspace
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL forth__isdigit
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _isdigit
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL forth_vsscanf
     push @R15
     push @R12
@@ -55,24 +27,6 @@ LABEL forth_vsscanf
     pop @R12
     pop @R15
     RET
-
-LABEL func__isspace
-    JMP forth__isspace
-
-LABEL func_Isspace
-    JMP forth__isspace
-
-LABEL func_isspace
-    JMP forth__isspace
-
-LABEL func__isdigit
-    JMP forth__isdigit
-
-LABEL func_Isdigit
-    JMP forth__isdigit
-
-LABEL func_isdigit
-    JMP forth__isdigit
 
 LABEL func_vsscanf
     JMP forth_vsscanf

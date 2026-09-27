@@ -13,26 +13,6 @@ LABEL java_parseExprF
     pop @R15
     RET
 
-LABEL java_parseTermF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_term_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL java_parseFactorF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_factor_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL java_parserexpf
     push @R15
     push @R12
@@ -50,12 +30,6 @@ LABEL java_parserexpf
 LABEL Parserexpf_ParseExprF
     JMP java_parseExprF
 
-LABEL Parserexpf_ParseTermF
-    JMP java_parseTermF
-
-LABEL Parserexpf_ParseFactorF
-    JMP java_parseFactorF
-
 LABEL Parserexpf_Parserexpf
     JMP java_parserexpf
 
@@ -67,24 +41,6 @@ LABEL method_ParseExprF
 
 LABEL method_parseExprF
     JMP java_parseExprF
-
-LABEL method_parse_term_f
-    JMP java_parseTermF
-
-LABEL method_ParseTermF
-    JMP java_parseTermF
-
-LABEL method_parseTermF
-    JMP java_parseTermF
-
-LABEL method_parse_factor_f
-    JMP java_parseFactorF
-
-LABEL method_ParseFactorF
-    JMP java_parseFactorF
-
-LABEL method_parseFactorF
-    JMP java_parseFactorF
 
 LABEL method_parserexpf
     JMP java_parserexpf

@@ -420,11 +420,10 @@ LABEL c__sin_taylor64
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL _sin_taylor64
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15
@@ -435,11 +434,10 @@ LABEL c__cos_taylor64
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL _cos_taylor64
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15

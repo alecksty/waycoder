@@ -3,80 +3,6 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL cpp__gfx_refresh_cache
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL _gfx_refresh_cache
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL cpp_get_config
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL get_config
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL cpp_gfx_fb
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_fb
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL cpp_gfx_w
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_w
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL cpp_gfx_h
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_h
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL cpp__putpixel
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _putpixel
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL cpp__getpixel
     push @R15
     push @R12
@@ -94,77 +20,6 @@ LABEL cpp__getpixel
     pop @R15
     RET
 
-LABEL cpp__putpixel_fast
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL _putpixel_fast
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL func__gfx_refresh_cache
-    JMP cpp__gfx_refresh_cache
-
-LABEL func_GfxRefreshCache
-    JMP cpp__gfx_refresh_cache
-
-LABEL func_gfxRefreshCache
-    JMP cpp__gfx_refresh_cache
-
-LABEL func_get_config
-    JMP cpp_get_config
-
-LABEL func_GetConfig
-    JMP cpp_get_config
-
-LABEL func_getConfig
-    JMP cpp_get_config
-
-LABEL func_gfx_fb
-    JMP cpp_gfx_fb
-
-LABEL func_GfxFb
-    JMP cpp_gfx_fb
-
-LABEL func_gfxFb
-    JMP cpp_gfx_fb
-
-LABEL func_gfx_w
-    JMP cpp_gfx_w
-
-LABEL func_GfxW
-    JMP cpp_gfx_w
-
-LABEL func_gfxW
-    JMP cpp_gfx_w
-
-LABEL func_gfx_h
-    JMP cpp_gfx_h
-
-LABEL func_GfxH
-    JMP cpp_gfx_h
-
-LABEL func_gfxH
-    JMP cpp_gfx_h
-
-LABEL func__putpixel
-    JMP cpp__putpixel
-
-LABEL func_Putpixel
-    JMP cpp__putpixel
-
-LABEL func_putpixel
-    JMP cpp__putpixel
-
 LABEL func__getpixel
     JMP cpp__getpixel
 
@@ -173,13 +28,4 @@ LABEL func_Getpixel
 
 LABEL func_getpixel
     JMP cpp__getpixel
-
-LABEL func__putpixel_fast
-    JMP cpp__putpixel_fast
-
-LABEL func_PutpixelFast
-    JMP cpp__putpixel_fast
-
-LABEL func_putpixelFast
-    JMP cpp__putpixel_fast
 

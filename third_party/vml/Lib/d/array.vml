@@ -377,66 +377,6 @@ LABEL d_endswith
     pop @R15
     RET
 
-LABEL d__qs_swap
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_swap
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL d__qs_partition
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_partition
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL d__qs_recursive
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_recursive
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL d_sort_quick
     push @R15
     push @R12
@@ -608,33 +548,6 @@ LABEL func_endswith
 
 LABEL func_Endswith
     JMP d_endswith
-
-LABEL func__qs_swap
-    JMP d__qs_swap
-
-LABEL func_QsSwap
-    JMP d__qs_swap
-
-LABEL func_qsSwap
-    JMP d__qs_swap
-
-LABEL func__qs_partition
-    JMP d__qs_partition
-
-LABEL func_QsPartition
-    JMP d__qs_partition
-
-LABEL func_qsPartition
-    JMP d__qs_partition
-
-LABEL func__qs_recursive
-    JMP d__qs_recursive
-
-LABEL func_QsRecursive
-    JMP d__qs_recursive
-
-LABEL func_qsRecursive
-    JMP d__qs_recursive
 
 LABEL func_sort_quick
     JMP d_sort_quick

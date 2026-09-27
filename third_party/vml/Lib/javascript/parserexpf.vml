@@ -13,26 +13,6 @@ LABEL js_parseExprF
     pop @R15
     RET
 
-LABEL js_parseTermF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_term_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_parseFactorF
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL parse_factor_f
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_parserexpf
     push @R15
     push @R12
@@ -50,12 +30,6 @@ LABEL js_parserexpf
 LABEL Parserexpf_ParseExprF
     JMP js_parseExprF
 
-LABEL Parserexpf_ParseTermF
-    JMP js_parseTermF
-
-LABEL Parserexpf_ParseFactorF
-    JMP js_parseFactorF
-
 LABEL Parserexpf_Parserexpf
     JMP js_parserexpf
 
@@ -67,24 +41,6 @@ LABEL method_ParseExprF
 
 LABEL method_parseExprF
     JMP js_parseExprF
-
-LABEL method_parse_term_f
-    JMP js_parseTermF
-
-LABEL method_ParseTermF
-    JMP js_parseTermF
-
-LABEL method_parseTermF
-    JMP js_parseTermF
-
-LABEL method_parse_factor_f
-    JMP js_parseFactorF
-
-LABEL method_ParseFactorF
-    JMP js_parseFactorF
-
-LABEL method_parseFactorF
-    JMP js_parseFactorF
 
 LABEL method_parserexpf
     JMP js_parserexpf

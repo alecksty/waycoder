@@ -3,80 +3,6 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL js_gfxRefreshCache
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL _gfx_refresh_cache
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_getConfig
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL get_config
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_gfxFb
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_fb
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_gfxW
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_w
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_gfxH
-    push @R15
-    push @R12
-    move @R12 @R13
-    CALL gfx_h
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_putpixel
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _putpixel
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_getpixel
     push @R15
     push @R12
@@ -94,100 +20,8 @@ LABEL js_getpixel
     pop @R15
     RET
 
-LABEL js_putpixelFast
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    CALL _putpixel_fast
-    ADD @R13 #8
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL Graphics_GfxRefreshCache
-    JMP js_gfxRefreshCache
-
-LABEL Graphics_GetConfig
-    JMP js_getConfig
-
-LABEL Graphics_GfxFb
-    JMP js_gfxFb
-
-LABEL Graphics_GfxW
-    JMP js_gfxW
-
-LABEL Graphics_GfxH
-    JMP js_gfxH
-
-LABEL Graphics_Putpixel
-    JMP js_putpixel
-
 LABEL Graphics_Getpixel
     JMP js_getpixel
-
-LABEL Graphics_PutpixelFast
-    JMP js_putpixelFast
-
-LABEL method__gfx_refresh_cache
-    JMP js_gfxRefreshCache
-
-LABEL method_GfxRefreshCache
-    JMP js_gfxRefreshCache
-
-LABEL method_gfxRefreshCache
-    JMP js_gfxRefreshCache
-
-LABEL method_get_config
-    JMP js_getConfig
-
-LABEL method_GetConfig
-    JMP js_getConfig
-
-LABEL method_getConfig
-    JMP js_getConfig
-
-LABEL method_gfx_fb
-    JMP js_gfxFb
-
-LABEL method_GfxFb
-    JMP js_gfxFb
-
-LABEL method_gfxFb
-    JMP js_gfxFb
-
-LABEL method_gfx_w
-    JMP js_gfxW
-
-LABEL method_GfxW
-    JMP js_gfxW
-
-LABEL method_gfxW
-    JMP js_gfxW
-
-LABEL method_gfx_h
-    JMP js_gfxH
-
-LABEL method_GfxH
-    JMP js_gfxH
-
-LABEL method_gfxH
-    JMP js_gfxH
-
-LABEL method__putpixel
-    JMP js_putpixel
-
-LABEL method_Putpixel
-    JMP js_putpixel
-
-LABEL method_putpixel
-    JMP js_putpixel
 
 LABEL method__getpixel
     JMP js_getpixel
@@ -197,13 +31,4 @@ LABEL method_Getpixel
 
 LABEL method_getpixel
     JMP js_getpixel
-
-LABEL method__putpixel_fast
-    JMP js_putpixelFast
-
-LABEL method_PutpixelFast
-    JMP js_putpixelFast
-
-LABEL method_putpixelFast
-    JMP js_putpixelFast
 

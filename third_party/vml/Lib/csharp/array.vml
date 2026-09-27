@@ -377,66 +377,6 @@ LABEL Endswith
     pop @R15
     RET
 
-LABEL QsSwap
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_swap
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL QsPartition
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_partition
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL QsRecursive
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_recursive
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL SortQuick
     push @R15
     push @R12
@@ -533,15 +473,6 @@ LABEL Array_Startswith
 
 LABEL Array_Endswith
     JMP Endswith
-
-LABEL Array_QsSwap
-    JMP QsSwap
-
-LABEL Array_QsPartition
-    JMP QsPartition
-
-LABEL Array_QsRecursive
-    JMP QsRecursive
 
 LABEL Array_SortQuick
     JMP SortQuick

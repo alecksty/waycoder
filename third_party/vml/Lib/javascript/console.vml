@@ -188,20 +188,6 @@ LABEL js_printStrNoNl
     pop @R15
     RET
 
-LABEL js_printStrNoNlImpl
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL print_str_no_nl_impl
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_printlnHex
     push @R15
     push @R12
@@ -521,29 +507,6 @@ LABEL js_printlnDouble
     move @R1 [@R13+8]
     CALL println_double
     ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_putsn
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+24]
-    PUSH @R0
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    move @R3 [@R13+12]
-    CALL putsn
-    ADD @R13 #16
     move @R13 @R12
     pop @R12
     pop @R15
@@ -927,9 +890,6 @@ LABEL Console_Putfloat
 LABEL Console_PrintStrNoNl
     JMP js_printStrNoNl
 
-LABEL Console_PrintStrNoNlImpl
-    JMP js_printStrNoNlImpl
-
 LABEL Console_PrintlnHex
     JMP js_printlnHex
 
@@ -998,9 +958,6 @@ LABEL Console_PrintDouble
 
 LABEL Console_PrintlnDouble
     JMP js_printlnDouble
-
-LABEL Console_Putsn
-    JMP js_putsn
 
 LABEL Console_Vsnprintf
     JMP js_vsnprintf
@@ -1166,15 +1123,6 @@ LABEL method_PrintStrNoNl
 
 LABEL method_printStrNoNl
     JMP js_printStrNoNl
-
-LABEL method_print_str_no_nl_impl
-    JMP js_printStrNoNlImpl
-
-LABEL method_PrintStrNoNlImpl
-    JMP js_printStrNoNlImpl
-
-LABEL method_printStrNoNlImpl
-    JMP js_printStrNoNlImpl
 
 LABEL method_println_hex
     JMP js_printlnHex
@@ -1364,12 +1312,6 @@ LABEL method_PrintlnDouble
 
 LABEL method_printlnDouble
     JMP js_printlnDouble
-
-LABEL method_putsn
-    JMP js_putsn
-
-LABEL method_Putsn
-    JMP js_putsn
 
 LABEL method_vsnprintf
     JMP js_vsnprintf

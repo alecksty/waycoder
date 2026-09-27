@@ -3,34 +3,6 @@
 
 .linked "../shared/scanf.vml"
 
-LABEL Isspace
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _isspace
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL Isdigit
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL _isdigit
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL Vsscanf
     push @R15
     push @R12
@@ -55,12 +27,6 @@ LABEL Vsscanf
     pop @R12
     pop @R15
     RET
-
-LABEL Scanf_Isspace
-    JMP Isspace
-
-LABEL Scanf_Isdigit
-    JMP Isdigit
 
 LABEL Scanf_Vsscanf
     JMP Vsscanf

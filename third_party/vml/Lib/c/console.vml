@@ -188,20 +188,6 @@ LABEL c_print_str_no_nl
     pop @R15
     RET
 
-LABEL c_print_str_no_nl_impl
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    CALL print_str_no_nl_impl
-    ADD @R13 #4
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL c_println_hex
     push @R15
     push @R12
@@ -521,29 +507,6 @@ LABEL c_println_double
     move @R1 [@R13+8]
     CALL println_double
     ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL c_putsn
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+24]
-    PUSH @R0
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    move @R3 [@R13+12]
-    CALL putsn
-    ADD @R13 #16
     move @R13 @R12
     pop @R12
     pop @R15
@@ -993,15 +956,6 @@ LABEL func_PrintStrNoNl
 LABEL func_printStrNoNl
     JMP c_print_str_no_nl
 
-LABEL func_print_str_no_nl_impl
-    JMP c_print_str_no_nl_impl
-
-LABEL func_PrintStrNoNlImpl
-    JMP c_print_str_no_nl_impl
-
-LABEL func_printStrNoNlImpl
-    JMP c_print_str_no_nl_impl
-
 LABEL func_println_hex
     JMP c_println_hex
 
@@ -1190,12 +1144,6 @@ LABEL func_PrintlnDouble
 
 LABEL func_printlnDouble
     JMP c_println_double
-
-LABEL func_putsn
-    JMP c_putsn
-
-LABEL func_Putsn
-    JMP c_putsn
 
 LABEL func_vsnprintf
     JMP c_vsnprintf

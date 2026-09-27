@@ -377,66 +377,6 @@ LABEL js_endswith
     pop @R15
     RET
 
-LABEL js_qsSwap
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_swap
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_qsPartition
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_partition
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
-LABEL js_qsRecursive
-    push @R15
-    push @R12
-    move @R12 @R13
-    move @R0 [@R12+20]
-    PUSH @R0
-    move @R0 [@R12+16]
-    PUSH @R0
-    move @R0 [@R12+12]
-    PUSH @R0
-    move @R0 [@R13+0]
-    move @R1 [@R13+4]
-    move @R2 [@R13+8]
-    CALL _qs_recursive
-    ADD @R13 #12
-    move @R13 @R12
-    pop @R12
-    pop @R15
-    RET
-
 LABEL js_sortQuick
     push @R15
     push @R12
@@ -533,15 +473,6 @@ LABEL Array_Startswith
 
 LABEL Array_Endswith
     JMP js_endswith
-
-LABEL Array_QsSwap
-    JMP js_qsSwap
-
-LABEL Array_QsPartition
-    JMP js_qsPartition
-
-LABEL Array_QsRecursive
-    JMP js_qsRecursive
 
 LABEL Array_SortQuick
     JMP js_sortQuick
@@ -689,33 +620,6 @@ LABEL method_endswith
 
 LABEL method_Endswith
     JMP js_endswith
-
-LABEL method__qs_swap
-    JMP js_qsSwap
-
-LABEL method_QsSwap
-    JMP js_qsSwap
-
-LABEL method_qsSwap
-    JMP js_qsSwap
-
-LABEL method__qs_partition
-    JMP js_qsPartition
-
-LABEL method_QsPartition
-    JMP js_qsPartition
-
-LABEL method_qsPartition
-    JMP js_qsPartition
-
-LABEL method__qs_recursive
-    JMP js_qsRecursive
-
-LABEL method_QsRecursive
-    JMP js_qsRecursive
-
-LABEL method_qsRecursive
-    JMP js_qsRecursive
 
 LABEL method_sort_quick
     JMP js_sortQuick

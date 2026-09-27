@@ -183,11 +183,10 @@ LABEL swift__sin_taylor
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL _sin_taylor
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15
@@ -198,11 +197,10 @@ LABEL swift__cos_taylor
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL _cos_taylor
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15
@@ -213,11 +211,10 @@ LABEL swift_atan_approx
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL atan_approx
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15
@@ -228,11 +225,10 @@ LABEL swift__log_taylor
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    sub @R13 #8
-    moved @13 @R0
+    PUSH @R0
     move @R0 [@R13+0]
     CALL _log_taylor
-    ADD @R13 #8
+    ADD @R13 #4
     move @R13 @R12
     pop @R12
     pop @R15
