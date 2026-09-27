@@ -826,7 +826,11 @@ namespace GoCompiler
                     var index = varDecl.Names.IndexOf(name);
                     if (index < varDecl.Values.Count)
                     {
-                        GenerateExpression(varDecl.Values[index]);
+                        // ⚠ **初值要按声明类型转换**（`GenerateExpressionWithType`）：`var big int64 = 3000000000`
+                        //   里字面量是 `int`（3000000000 当场截成 -1294967296），而槽按 Int64 存
+                        //   （Go 的 Int64 走 double 路径）⇒ 不转换就是把"R0 的低位垃圾"当双精度存进去。
+                        //   实测 `int(big / 1000000000)` 得 **0**。
+                        GenerateExpressionWithType(varDecl.Values[index], varType);
                         // 使用类型敏感的存储指令
                         // ⚠ v0.96.193 修：原来是 `Mem($"R14-{-localVarOffset + typeSize}")` ——
                         //   字面量里**已经有了那个负号**，再喂一个负数就成了 `R14--4`，

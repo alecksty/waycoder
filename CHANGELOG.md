@@ -1,3 +1,27 @@
+## v0.96.538 — Go：大整数字面量不再截成 int32（`var big int64 = 3000000000` 现在是对的）
+
+接上一版（Go 的撞闸清零）往下查 int64 **取值**得 0 的问题，一路剥出**三层**：
+
+1. **字面量在解析/发射处被 `(int)` 截断**：`GenerateNumberLiteral` 用 `long.TryParse` 之后又
+   `value = (int)l` ⇒ `3000000000` 变成 `-1294967296`（实测 `int(big/1000000000)` 得 **-1**）。
+   改成：超出 32 位时按 Int64 发（Go 的 Int64 走 double 路径 ⇒ `dbl_` + `MOVED D0`，
+   2^53 以内的整数在 double 里精确）。
+2. **类型推断没跟上**：`InferExpressionType(NumberLiteral)` 恒返回 `Int` ⇒ 声明处的类型转换
+   拿"R0 是 int"去读（值其实在 D0）⇒ 得 **0**。改成大整数推 `Int64`。
+   ⚠ **只改发射不改推断 = 半截状态**（这一版第二次踩：C++ 那次也是推断与发射一处改了、一处没改）。
+3. **声明处缺类型转换**：`var big int64 = <int 字面量>` 直接把 int 按 double 存 ⇒
+   补 `GenerateExpressionWithType(初值, 声明类型)`（用 Go 自己的助手，别去够基类的 `GetTypeInfo`
+   —— Go 走的是 `TypeInfo`，名字不同）。
+
+**结果**：最小复现 `var big int64 = 3000000000; int(big / 1000000000)` → **3** ✓（原来 -1/0）。
+
+✗ **f2.go 仍未过**：它撞的是 **Go 解析器的另一个缺口** —— **负浮点字面量**（`-0.5`）。
+判据干净：`-5 * 100` ✓ 能编能跑，`-0.5 * 100` ✗ 报「期望 IDENTIFIER，实际得到 NUMBER」，
+连 `var x float64 = -0.5` 都编不过 ⇒ 与探针结构无关，是 Go 前端的真缺口，下一批修。
+
+无回归：浮点探针 **7 项 ✅**（c/js/py + f2 的 c/java/js/py）、`test_shared` 3/3、
+`out-probe` 34/1（既有那条 C++）、C 三探针全对。
+
 ## v0.96.537 — Go 的 var 读写按类取寄存器（撞闸 12 处 → 0）
 
 Go 的**局部变量读写**写死 `REGISTER 0`（`GetLoadInstruction`/`GetStoreInstruction` 已经按类型

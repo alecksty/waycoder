@@ -283,7 +283,24 @@ namespace GoCompiler
             else
             {
                 if (long.TryParse(numLit.Value, out long l))
+                {
+                    // ⚠ **超出 32 位不能截断**：原先 `long.TryParse` 之后又 `(int)l` ⇒
+                    //   `3000000000` 变成 `-1294967296`（实测 `var big int64 = 3000000000;
+                    //   int(big/1000000000)` 得 -1）。按 Int64 发（Go 的 Int64 走 double 路径
+                    //   ⇒ 存 `dbl_` + `MOVED D0`，2^53 以内的整数在 double 里精确）。
+                    if (l < int.MinValue || l > int.MaxValue)
+                    {
+                        string dlabel = $"dbl_lit_{instructions.Count}";
+                        dataSection[dlabel] = (double)l;
+                        instructions.Add(new Instruction(OpCode.MOVED, new List<Operand>
+                        {
+                            TRegOf(OpCode.MOVED, 0),
+                            new Operand(OperandType.MEMORY, dlabel)
+                        }, instructions.Count));
+                        return;
+                    }
                     value = (int)l;
+                }
                 else
                     value = 0;
                 type = GoTypeEnum.Int;

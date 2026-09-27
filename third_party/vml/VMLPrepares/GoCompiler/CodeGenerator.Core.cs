@@ -305,7 +305,13 @@ namespace GoCompiler
 
             if (expr is NumberLiteral numLit)
             {
-                return numLit.IsFloat ? GoTypeEnum.Float : GoTypeEnum.Int;
+                if (numLit.IsFloat) return GoTypeEnum.Float;
+                // ⚠ **超出 32 位的整数字面量要推成 Int64** —— 与 `GenerateNumberLiteral`
+                //   的发射（按 `dbl_` + `MOVED D0` 发）保持一致；只改发射不改推断，
+                //   声明处的类型转换会拿"R0 是 int"去读（值其实在 D0）⇒ 得 0。
+                if (long.TryParse(numLit.Value, out long l0) && (l0 < int.MinValue || l0 > int.MaxValue))
+                    return GoTypeEnum.Int64;
+                return GoTypeEnum.Int;
             }
             else if (expr is BoolLiteral)
             {
