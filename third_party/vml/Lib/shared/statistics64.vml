@@ -509,7 +509,7 @@ _L52150057:
         add @R0 @R9
         movel @L0 [@R0]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -523,7 +523,7 @@ _L52150057:
         mul @R0 #8
         pop @R7
         add @R0 @R7
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 sta_52150054:
         movel @L0 [@R12-540]
@@ -649,7 +649,7 @@ _L52150071:
         add @R0 @R10
         movel @L0 [@R0]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -663,11 +663,11 @@ _L52150071:
         mul @R0 #8
         pop @R8
         add @R0 @R8
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         movel @L0 [@R12-556]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -681,7 +681,7 @@ _L52150071:
         mul @R0 #8
         pop @R6
         add @R0 @R6
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 sta_52150068:
 sta_52150069:
@@ -1385,7 +1385,7 @@ lstd_dev64:
         call lvariance64
         add @R13 #4
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lisqrt64
         add @R13 #8

@@ -9,7 +9,7 @@ LABEL go_lmemcpy
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -30,7 +30,7 @@ LABEL go_lmemset
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -51,7 +51,7 @@ LABEL go_lmemmove
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -72,7 +72,7 @@ LABEL go_lmemcmp
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

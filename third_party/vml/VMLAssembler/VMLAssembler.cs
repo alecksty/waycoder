@@ -255,18 +255,34 @@ namespace VMLAssembler
                 return new Operand(OperandType.IMMEDIATE, value);
             }
 
-            // 间接寻址：@reg 或 @[addr]
-            if (operandStr.StartsWith("@"))
+            // ── `@` 的**严格格式校验**（用户 2026-09-27 定）─────────────────────────────
+            //
+            // 规矩只有一条：**`@` 只做寄存器标记** —— 它后面必须是一个**合法寄存器名**
+            // （`R0–R31` / `F0–F15` / `D0–D7` / `L0–L7`，上面两条分支已经处理）。
+            // 走到这里说明 `@` 后面既不是合法寄存器名、也不像越界的寄存器形 ⇒ 报错。
+            //
+            // ⚠ 这一档**以前是静默的**：`@foo` 会被当**间接寻址**收下（`INDIRECT("foo")`），
+            //   到运行时才拿一个解析不出的地址去读写 —— 实测 `movel @foo @L0` 一路
+            //   「编译完成 / 运行完成」，一个错都不报。`@99`（越界号）同样静默。
+            //
+            // **寻址一律写进方括号**：`[@R1+n]` / `[@R13]`（与 `Memory` 同一形态，运行时也是同一条路）。
+            // 旧的裸 `@13` / `@R14-4` 写法**已作废**。
+            if (afterAt != null)
             {
-                string inner = afterAt;
-                if (inner.StartsWith("[") && inner.EndsWith("]"))
-                {
-                    object addr = ParseValue(inner.Substring(1, inner.Length - 2));
-                    return new Operand(OperandType.INDIRECT, addr);
-                }
+                throw new ArgumentException(
+                    $"`@` 后面必须是合法寄存器名（R0–R31 / F0–F15 / D0–D7 / L0–L7）：@{afterAt}"
+                    + " —— 寻址请写 [@R1+n]（如 [@R13] / [@R14-4]）");
+            }
 
-                object value = ParseValue(inner);
-                return new Operand(OperandType.INDIRECT, value);
+            // `@` 出现在**非开头**位置：标签里不该有（`IsValidLabel` 本来也不收 `@`）。
+            // 单独报一句，免得落到"未找到标签"那种指不到点上的错。
+            //
+            // ⚠ **方括号形态豁免**：`[@R13]` 的 `@` 在 `[` 之后，是**合法**的寻址写法
+            //   （`[address/reg/reg+offset]` 三种形态之一），它自己的内容由下面
+            //   内存那条分支单独校验（带 `@` 就必须是合法寄存器引用）。
+            if (operandStr[0] != '[' && operandStr.IndexOf('@') > 0)
+            {
+                throw new ArgumentException($"`@` 只能用在寄存器名的**开头**：{operandStr}");
             }
 
             // 内存寻址：[address]
@@ -275,7 +291,19 @@ namespace VMLAssembler
                 string addrStr = operandStr.Substring(1, operandStr.Length - 2).Trim();
                 // `[@R12-8]` / `[@R0]`：串里也带 `@` 标记（序列化器写的形态）——
                 // 剥掉之后与裸写法走的是**同一条**路，所以内存表示与改动前逐字相同
-                addrStr = RegisterSyntax.StripMarker(addrStr);
+                //
+                // ⚠ 带标记时**必须**是寄存器名或寄存器相对地址：`[@foo]` 里的 `@` 声称
+                //   "foo 是寄存器"，而它既不是寄存器也不是"越界的寄存器形" ⇒ 报错
+                //   （不带标记的 `[foo]` 仍然是合法的**标签地址**，那是另一回事）。
+                bool markedAddr = addrStr.StartsWith("@");
+                string addrName = RegisterSyntax.StripMarker(addrStr);
+                if (markedAddr && !RegisterSyntax.LooksLikeReference(addrName))
+                {
+                    throw new ArgumentException(
+                        $"`@` 后面必须是合法寄存器名或寄存器相对地址：[@{addrName}]"
+                        + " —— 若本意是「取该标签的地址」，方括号里**不要写 `@`**（即 [标签]）");
+                }
+                addrStr = addrName;
 
                 // 寄存器形的内容（`[R0]` / `[f1]` / `[R99]`）：**归属推迟裁定**，理由与裸 token 同。
                 //

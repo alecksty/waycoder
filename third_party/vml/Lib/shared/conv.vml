@@ -515,7 +515,7 @@ long_to_strbuf:
         push @R0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -543,7 +543,7 @@ long_to_str:
         push @R0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -573,7 +573,7 @@ long_to_wstr:
         push @R0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -679,7 +679,7 @@ long_to_ustr:
         push @R0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -1269,7 +1269,7 @@ _L95080067:
         push @R0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call ltoa
@@ -2581,7 +2581,7 @@ double_to_str:
         push @R0
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         move @R2 [@R13+12]
@@ -2885,7 +2885,7 @@ float_to_wstr:
 ; 245:     float_to_str(f);
         movef @F0 [@R12+12]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 [@R13+0]
         call float_to_str
         add @R13 #4
@@ -2972,7 +2972,7 @@ double_to_wstr:
 ; 252:     double_to_str(d);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call double_to_str
         add @R13 #8
@@ -3145,7 +3145,7 @@ float_to_ustr:
 ; 267:     float_to_str(f);
         movef @F0 [@R12+12]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 [@R13+0]
         call float_to_str
         add @R13 #4
@@ -3232,7 +3232,7 @@ double_to_ustr:
 ; 274:     double_to_str(d);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call double_to_str
         add @R13 #8

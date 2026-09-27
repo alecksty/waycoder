@@ -85,7 +85,7 @@ LABEL java_mat2Scale
     PUSH @R0
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -154,7 +154,7 @@ LABEL java_mat2Rot
     PUSH @R0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat2_rot
@@ -237,7 +237,7 @@ LABEL java_mat3Scale
     PUSH @R0
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -292,13 +292,13 @@ LABEL java_mat4Translate
     PUSH @R0
     movef @F0 [@R12+20]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -318,13 +318,13 @@ LABEL java_mat4ScaleXyz
     PUSH @R0
     movef @F0 [@R12+20]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -344,7 +344,7 @@ LABEL java_mat4RotX
     PUSH @R0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_x
@@ -362,7 +362,7 @@ LABEL java_mat4RotY
     PUSH @R0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_y
@@ -380,7 +380,7 @@ LABEL java_mat4RotZ
     PUSH @R0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL mat4_rot_z

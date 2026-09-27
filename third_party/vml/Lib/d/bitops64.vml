@@ -9,10 +9,10 @@ LABEL d_lbit_and64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_and64
@@ -28,10 +28,10 @@ LABEL d_lbit_or64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_or64
@@ -47,10 +47,10 @@ LABEL d_lbit_xor64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_xor64
@@ -66,7 +66,7 @@ LABEL d_lbit_not64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lbit_not64
     ADD @R13 #8
@@ -81,10 +81,10 @@ LABEL d_lbit_shl64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_shl64
@@ -100,10 +100,10 @@ LABEL d_lbit_shr64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_shr64
@@ -119,10 +119,10 @@ LABEL d_lrol64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrol64
@@ -138,10 +138,10 @@ LABEL d_lror64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lror64
@@ -157,10 +157,10 @@ LABEL d_lbit_set64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_set64
@@ -176,10 +176,10 @@ LABEL d_lbit_clear64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_clear64
@@ -195,10 +195,10 @@ LABEL d_lbit_toggle64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_toggle64
@@ -214,10 +214,10 @@ LABEL d_lbit_test64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lbit_test64
@@ -233,7 +233,7 @@ LABEL d_lcount64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lcount64
     ADD @R13 #8
@@ -248,10 +248,10 @@ LABEL d_lrotate_left64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrotate_left64
@@ -267,10 +267,10 @@ LABEL d_lrotate_right64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrotate_right64
@@ -286,7 +286,7 @@ LABEL d_llowest_set64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL llowest_set64
     ADD @R13 #8
@@ -301,7 +301,7 @@ LABEL d_lctz64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lctz64
     ADD @R13 #8
@@ -316,7 +316,7 @@ LABEL d_lhighest_set64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lhighest_set64
     ADD @R13 #8
@@ -331,7 +331,7 @@ LABEL d_lmask64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lmask64
     ADD @R13 #8
@@ -346,13 +346,13 @@ LABEL d_lextract64
     move @R12 @R13
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -369,7 +369,7 @@ LABEL d_lis_power_of_two64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lis_power_of_two64
     ADD @R13 #8
@@ -384,7 +384,7 @@ LABEL d_lnext_power_of_two64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lnext_power_of_two64
     ADD @R13 #8

@@ -19,50 +19,50 @@ lmoving_avg_init64:
 ; 4:     state[0] = window_size; state[1] = 0; state[2] = 0; state[3] = (long)buffer;
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+24]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R11
         add @R0 @R11
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+24]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R10
         add @R0 @R10
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+24]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R9
         add @R0 @R9
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 [@R12+20]
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+24]
         push @R0
         move @R0 #3
         mul @R0 #8
         pop @R8
         add @R0 @R8
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 ; 6:     for (i = 0; i < window_size && i < 64; i++) buffer[i] = 0;
         move @R0 #0
@@ -110,7 +110,7 @@ _L67100004:
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+20]
         push @R0
         movel @L0 [@R12-12]
@@ -118,7 +118,7 @@ _L67100004:
         mul @R0 #8
         pop @R7
         add @R0 @R7
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 sta_67100001:
         movel @L0 [@R12-12]
@@ -201,7 +201,7 @@ lmoving_avg_update64:
 ; 14:     buf[idx] = new_value;
         movel @L0 [@R12+16]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12-32]
         push @R0
         movel @L0 [@R12-20]
@@ -209,7 +209,7 @@ lmoving_avg_update64:
         mul @R0 #8
         pop @R1
         add @R0 @R1
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 ; 15:     sum += new_value;
         movel @L0 [@R12-28]
@@ -271,36 +271,36 @@ _L67100013:
         move @R10 @R0
         movel @L0 [@R10]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         movel @L0 [@R10]
         addl @L0 @L0 #1
         movel [@R10] @L0
-        movel @L0 @13
+        movel @L0 [@R13]
         add @R13 #8
 sta_67100010:
 sta_67100011:
 ; 18:     state[1] = idx; state[2] = sum;
         movel @L0 [@R12-20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R8
         add @R0 @R8
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         movel @L0 [@R12-28]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R7
         add @R0 @R7
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 ; 19:     long count = state[3 + 1];
         move @R0 [@R12+12]
@@ -365,26 +365,26 @@ lema_init64:
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R5
         add @R0 @R5
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R4
         add @R0 @R4
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #1
         jmp L_67100019
@@ -439,14 +439,14 @@ lema_update64:
 ; 29:     state[0] = result;
         movel @L0 [@R12-20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R2
         add @R0 @R2
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 ; 30:     return result;
         movel @L0 [@R12-20]
@@ -474,48 +474,48 @@ lkalman_init64:
 ; 34:     state[0] = initial_value; state[1] = 1000; state[2] = process_noise; state[3] = measure_noise;
         movel @L0 [@R12+16]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R1
         add @R0 @R1
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #1000
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R11
         add @R0 @R11
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         movel @L0 [@R12+24]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
         mul @R0 #8
         pop @R9
         add @R0 @R9
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         movel @L0 [@R12+32]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
         mul @R0 #8
         pop @R10
         add @R0 @R10
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R13 @R12
         pop @R12
@@ -650,25 +650,25 @@ _L67100024:
 ; 43:     state[0] = estimate; state[1] = p;
         movel @L0 [@R12-12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R4
         add @R0 @R4
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         movel @L0 [@R12-20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
         mul @R0 #8
         pop @R3
         add @R0 @R3
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
 ; 44:     return estimate;
         movel @L0 [@R12-12]
@@ -778,14 +778,14 @@ _L67100038:
         move @R0 #1
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R2
         add @R0 @R2
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #1
         jmp L_67100039
@@ -810,14 +810,14 @@ _L67100043:
         move @R0 #0
         i2l @L0 @R0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
         mul @R0 #8
         pop @R1
         add @R0 @R1
-        movel [@R0] @13
+        movel [@R0] [@R13]
         add @R13 #8
         move @R0 #0
         jmp L_67100039

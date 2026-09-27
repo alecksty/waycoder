@@ -958,10 +958,10 @@ lrotate_left64:
 ; 78:     return lrol64(value, n);
         movel @L0 [@R12+20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call lrol64
@@ -988,10 +988,10 @@ lrotate_right64:
 ; 82:     return lror64(value, n);
         movel @L0 [@R12+20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call lror64
@@ -1040,7 +1040,7 @@ sta_81630087:
 ; 87:     return lctz64(value);
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lctz64
         add @R13 #8
@@ -1327,7 +1327,7 @@ sta_81630114:
         pushl @L0
         movel @L0 [@R12+28]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lmask64
         add @R13 #8
@@ -1431,7 +1431,7 @@ sta_81630129:
 ; 112:     long mask = lmask64(len) << start;
         movel @L0 [@R12+36]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lmask64
         add @R13 #8
@@ -1454,7 +1454,7 @@ sta_81630129:
         pushl @L0
         movel @L0 [@R12+36]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lmask64
         add @R13 #8

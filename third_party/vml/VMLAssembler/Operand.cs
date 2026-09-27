@@ -30,7 +30,9 @@ namespace VMLAssembler
         /// 分别就是 <c>R1</c>/<c>R17</c>/<c>R25</c>，所以一律写 <c>R&lt;n&gt;</c>）</item>
         /// <item><c>MEMORY</c> → <c>[@R12-8]</c>（**串里**的寄存器引用同样加标记 ——
         /// 「寄存器只活在文本格式里」这条对两种形态一视同仁）</item>
-        /// <item><c>INDIRECT</c> → <c>@{Value}</c>（本来就是 `@` 打头：<c>@13</c> / <c>@R14-4</c>）</item>
+        /// <item><c>INDIRECT</c> → <c>[@R13]</c> / <c>[@R14-4]</c> —— **寻址一律写进方括号**，
+        /// 与 <c>MEMORY</c> 同一个文本形态（运行时对两者本来就是同一条路：`GetAddress` + `GetMemory`）。
+        /// 用户 2026-09-27 定的格式：**`@` 只做寄存器标记**，所以旧的裸 <c>@13</c> / <c>@R14-4</c> 已作废。</item>
         /// </list>
         ///
         /// <para>
@@ -78,10 +80,19 @@ namespace VMLAssembler
                 OperandType.IMMEDIATE => $"#{Value}",
                 OperandType.MEMORY => $"[{MarkMemoryText(Value)}]",
                 OperandType.LABEL => $"{Value}",
-                OperandType.INDIRECT => $"@{Value}",
+                // ⚠ 寻址**一律进方括号**（`[@R1+n]`）——`@` 从此只做**寄存器标记**。
+                //   值可能是 int（寄存器号）或 string（寄存器相对地址 `R14-4`）：
+                //   前者要拼成 `R<n>` 才满足"`@` 后面必须是合法寄存器名"这条格式。
+                OperandType.INDIRECT => $"[{MarkMemoryText(IndirectText(Value))}]",
                 _ => Value.ToString()
             };
         }
+
+        /// <summary>
+        /// `INDIRECT` 的值 → 文本：寄存器号（<c>13</c>）补成寄存器名（<c>R13</c>），
+        /// 字符串（寄存器相对地址 <c>R14-4</c>）原样。
+        /// </summary>
+        private static object IndirectText(object value) => value is int n ? $"R{n}" : value;
 
         /// <summary>内存操作数串里的寄存器引用加 `@`（`R12-8` → `@R12-8`）；标签等原样。</summary>
         private static object MarkMemoryText(object value)

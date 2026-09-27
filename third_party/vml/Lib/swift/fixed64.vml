@@ -9,10 +9,10 @@ LABEL swift_lfixed_mul64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lfixed_mul64
@@ -28,10 +28,10 @@ LABEL swift_lfixed_div64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lfixed_div64
@@ -47,7 +47,7 @@ LABEL swift_lfixed_from_int64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lfixed_from_int64
     ADD @R13 #8
@@ -62,7 +62,7 @@ LABEL swift_lfixed_to_int64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lfixed_to_int64
     ADD @R13 #8
@@ -77,7 +77,7 @@ LABEL swift_lfixed_to_int_round64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lfixed_to_int_round64
     ADD @R13 #8
@@ -92,7 +92,7 @@ LABEL swift_lfixed_from_double
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL lfixed_from_double
     ADD @R13 #8
@@ -107,7 +107,7 @@ LABEL swift_lfixed_to_double
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lfixed_to_double
     ADD @R13 #8

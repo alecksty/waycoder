@@ -40,7 +40,7 @@ LABEL forth_byte_to_hword
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL byte_to_hword
     ADD @R13 #4
@@ -55,7 +55,7 @@ LABEL forth_byte_to_word
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL byte_to_word
     ADD @R13 #4

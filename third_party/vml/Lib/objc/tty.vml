@@ -31,7 +31,7 @@ LABEL objc_tty_alt_open
     PUSH @R0
     move @R0 [@R12+20]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -215,7 +215,7 @@ LABEL objc_tty_puts
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL tty_puts
     ADD @R13 #4
@@ -248,7 +248,7 @@ LABEL objc_tty_print_at
     PUSH @R0
     move @R0 [@R12+20]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

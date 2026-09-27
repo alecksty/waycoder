@@ -9,7 +9,7 @@ LABEL js_labs64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL labs64
     ADD @R13 #8
@@ -24,10 +24,10 @@ LABEL js_lmin64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmin64
@@ -43,10 +43,10 @@ LABEL js_lmax64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmax64
@@ -62,13 +62,13 @@ LABEL js_lclamp64
     move @R12 @R13
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -85,7 +85,7 @@ LABEL js_lsign64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lsign64
     ADD @R13 #8
@@ -100,10 +100,10 @@ LABEL js_lgcd64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lgcd64
@@ -119,10 +119,10 @@ LABEL js_llcm64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL llcm64
@@ -138,7 +138,7 @@ LABEL js_lisqrt64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lisqrt64
     ADD @R13 #8
@@ -153,10 +153,10 @@ LABEL js_lpow64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lpow64
@@ -172,7 +172,7 @@ LABEL js_lfactorial64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lfactorial64
     ADD @R13 #8
@@ -187,10 +187,10 @@ LABEL js_lceilDiv64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lceil_div64
@@ -206,10 +206,10 @@ LABEL js_lroundDiv64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lround_div64
@@ -225,7 +225,7 @@ LABEL js_lisPrime64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lis_prime64
     ADD @R13 #8
@@ -240,10 +240,10 @@ LABEL js_lrandom64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lrandom64
@@ -259,7 +259,7 @@ LABEL js_lclz64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lclz64
     ADD @R13 #8
@@ -274,7 +274,7 @@ LABEL js_lpopcnt64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lpopcnt64
     ADD @R13 #8
@@ -289,13 +289,13 @@ LABEL js_llerp64
     move @R12 @R13
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -312,19 +312,19 @@ LABEL js_lmapRange64
     move @R12 @R13
     movel @L0 [@R12+44]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+36]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -342,7 +342,7 @@ LABEL js_lpow1064
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lpow10_64
     ADD @R13 #8
@@ -357,10 +357,10 @@ LABEL js_lhypot64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lhypot64
@@ -376,7 +376,7 @@ LABEL js_lilog264
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lilog2_64
     ADD @R13 #8
@@ -391,7 +391,7 @@ LABEL js_lisEven64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lis_even64
     ADD @R13 #8
@@ -406,7 +406,7 @@ LABEL js_lisOdd64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lis_odd64
     ADD @R13 #8

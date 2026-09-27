@@ -27,7 +27,7 @@ LABEL c_wcstombs
     PUSH @R0
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -86,7 +86,7 @@ LABEL c_ucs_to_utf8
     PUSH @R0
     move @R0 [@R12+16]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]

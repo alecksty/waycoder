@@ -1356,7 +1356,7 @@ sta_41360110:
         dpush @D0
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call _sin_taylor
         add @R13 #8
@@ -1471,7 +1471,7 @@ sta_41360123:
 ; 124:     return _cos_taylor(x);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call _cos_taylor
         add @R13 #8
@@ -1496,7 +1496,7 @@ tan:
 ; 128:     double s = sin(x);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call sin
         add @R13 #8
@@ -1504,7 +1504,7 @@ tan:
 ; 129:     double c = cos(x);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call cos
         add @R13 #8
@@ -1755,15 +1755,15 @@ sta_41360168:
         dpop @D1
         dsub @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call sqrt
         add @R13 #8
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call atan2
@@ -1830,7 +1830,7 @@ sta_41360183:
 ; 153:     return atan2(sqrt(1.0 - x * x), x);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         moved @D0 [dbl_41360196]
         dpush @D0
         moved @D0 [@R12+12]
@@ -1841,12 +1841,12 @@ sta_41360183:
         dpop @D1
         dsub @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call sqrt
         add @R13 #8
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call atan2
@@ -1872,10 +1872,10 @@ atan:
 ; 157:     return atan2(x, 1.0);
         moved @D0 [dbl_41360197]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call atan2
@@ -1919,7 +1919,7 @@ _L41360203:
         dpop @D1
         ddiv @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call atan_approx
         add @R13 #8
@@ -1960,7 +1960,7 @@ _L41360214:
         dpop @D1
         ddiv @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call atan_approx
         add @R13 #8
@@ -1979,7 +1979,7 @@ sta_41360211:
         dpop @D1
         ddiv @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call atan_approx
         add @R13 #8
@@ -2075,7 +2075,7 @@ _L41360232:
         moved @D0 [@R12+12]
         dneg @D0 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call exp
         add @R13 #8
@@ -2294,7 +2294,7 @@ sta_41360265:
         dpop @D1
         dsub @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call _log_taylor
         add @R13 #8
@@ -2562,14 +2562,14 @@ sta_41360302:
         dpush @D0
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call log
         add @R13 #8
         dpop @D1
         dmul @D0 @D1 @D0
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call exp
         add @R13 #8
@@ -2819,7 +2819,7 @@ cos_deg:
         fpop @F1
         fadd @F0 @F1 @F0
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 [@R13+0]
         call sin_deg
         add @R13 #4
@@ -2844,7 +2844,7 @@ tan_deg:
 ; 296:     float s = sin_deg(degrees);
         movef @F0 [@R12+12]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 [@R13+0]
         call sin_deg
         add @R13 #4
@@ -2852,7 +2852,7 @@ tan_deg:
 ; 297:     float c = cos_deg(degrees);
         movef @F0 [@R12+12]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 [@R13+0]
         call cos_deg
         add @R13 #4

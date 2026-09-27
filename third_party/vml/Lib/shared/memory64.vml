@@ -257,7 +257,7 @@ lmemmove:
 ; 27:     return lmemcpy(dst, src, n);
         movel @L0 [@R12+20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]

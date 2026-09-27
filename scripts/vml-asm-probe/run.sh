@@ -67,6 +67,26 @@ for f in "$CASES"/*.vml; do
         [ "$hit" = 1 ] || continue
     fi
 
+    # ── 两种判据 ──────────────────────────────────────────────────────────────
+    #   `; EXPECT: a b c`     —— **正向**：程序输出必须逐字相同
+    #   `; EXPECT-ERR: 片段`  —— **负向**：**必须汇编失败**，且 stderr 里含该片段
+    #
+    # 负向那一档是给**格式规则**用的（`@` 的用法、寄存器名合法性…）：这类规则的
+    # 判据本来就只能是"该报的错报没报" —— 正向用例永远证明不了它。
+    wantErr="$(sed -n 's/^;;* *EXPECT-ERR: *//p' "$f" | head -1)"
+    if [ -n "$wantErr" ]; then
+        # ⚠ 只看 **stderr**（编译/汇编报错走那条；stdout 是程序自己的输出）
+        err="$(run_to dotnet "$CLI" "$f" 2>&1 >/dev/null)"
+        if [ "${err#*"$wantErr"}" != "$err" ]; then
+            printf '%-34s %-6s %s\n' "$name" "✅" "如期报错：$wantErr"
+            pass=$((pass + 1))
+        else
+            printf '%-34s %-6s 没有如期报错（期望含 [%s]）\n' "$name" "❌" "$wantErr"
+            fail=$((fail + 1)); failed+=("$name")
+        fi
+        continue
+    fi
+
     # 期望值：`; EXPECT: a b c`
     want="$(sed -n 's/^;;* *EXPECT: *//p' "$f" | head -1)"
     if [ -z "$want" ]; then

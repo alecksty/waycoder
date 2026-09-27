@@ -240,7 +240,7 @@ LABEL d_tan
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL tan
     ADD @R13 #8
@@ -255,7 +255,7 @@ LABEL d_asin
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL asin
     ADD @R13 #8
@@ -270,7 +270,7 @@ LABEL d_acos
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL acos
     ADD @R13 #8
@@ -285,7 +285,7 @@ LABEL d_atan
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL atan
     ADD @R13 #8
@@ -300,7 +300,7 @@ LABEL d_exp
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL exp
     ADD @R13 #8
@@ -315,7 +315,7 @@ LABEL d_log
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL log
     ADD @R13 #8
@@ -330,10 +330,10 @@ LABEL d_pow
     move @R12 @R13
     moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL pow
@@ -366,7 +366,7 @@ LABEL d_sin_deg
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL sin_deg
     ADD @R13 #4
@@ -381,7 +381,7 @@ LABEL d_cos_deg
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL cos_deg
     ADD @R13 #4
@@ -396,7 +396,7 @@ LABEL d_tan_deg
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL tan_deg
     ADD @R13 #4
@@ -586,7 +586,7 @@ LABEL d_sin_deg_d
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL sin_deg_d
     ADD @R13 #8
@@ -601,7 +601,7 @@ LABEL d_cos_deg_d
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL cos_deg_d
     ADD @R13 #8
@@ -616,7 +616,7 @@ LABEL d_tan_deg_d
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL tan_deg_d
     ADD @R13 #8

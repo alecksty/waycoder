@@ -21,7 +21,7 @@ lua_binop:
         MOVE R0 R1
         MOVE [R12-4] R0
         MOVE R0 [R12-4]
-        MOVE R0 @0
+        MOVE R0 [@R0]
         MOVE [R12-8] R0
         MOVE R0 [R12-8]
         PUSH R0
@@ -255,7 +255,7 @@ L64520008:
         MOVE R13 R12
         POP R12
         POP R15
-        MOVE R1 @13
+        MOVE R1 [@R13]
         ADD R13 #16
         PUSH R1
         RET
@@ -371,7 +371,7 @@ L64520053:
         MOVE R13 R12
         POP R12
         POP R15
-        MOVE R1 @13
+        MOVE R1 [@R13]
         ADD R13 #16
         PUSH R1
         RET
@@ -384,7 +384,7 @@ lua_print1:
         MOVE R13 R12
         POP R12
         POP R15
-        MOVE R1 @13
+        MOVE R1 [@R13]
         ADD R13 #8
         PUSH R1
         RET
@@ -397,7 +397,7 @@ lua_sleep:
         MOVE R13 R12
         POP R12
         POP R15
-        MOVE R1 @13
+        MOVE R1 [@R13]
         ADD R13 #8
         PUSH R1
         RET
@@ -410,7 +410,7 @@ lua_print_str:
         MOVE R13 R12
         POP R12
         POP R15
-        MOVE R1 @13
+        MOVE R1 [@R13]
         ADD R13 #8
         PUSH R1
         RET

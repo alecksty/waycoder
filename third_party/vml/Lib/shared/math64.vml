@@ -435,10 +435,10 @@ sta_8740047:
 ; 40:     long g = lgcd64(a, b);
         movel @L0 [@R12+20]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         call lgcd64
@@ -1070,7 +1070,7 @@ sta_8740132:
 ; 96:     long limit = lisqrt64(n);
         movel @L0 [@R12+12]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lisqrt64
         add @R13 #8
@@ -1895,7 +1895,7 @@ _L8740228:
         popl @L1
         addl @L0 @L1 @L0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lisqrt64
         add @R13 #8
@@ -1917,7 +1917,7 @@ sta_8740218:
         popl @L1
         addl @L0 @L1 @L0
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         call lisqrt64
         add @R13 #8
@@ -2487,7 +2487,7 @@ sta_8740293:
         dpush @D0
         moved @D0 [@R12-20]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call _sin_taylor64
         add @R13 #8
@@ -2614,7 +2614,7 @@ sta_8740307:
 ; 238:     return _cos_taylor64(rad);
         moved @D0 [@R12-12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call _cos_taylor64
         add @R13 #8
@@ -2640,7 +2640,7 @@ tan_deg_d:
 ; 242:     double s = sin_deg_d(degrees);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call sin_deg_d
         add @R13 #8
@@ -2648,7 +2648,7 @@ tan_deg_d:
 ; 243:     double c = cos_deg_d(degrees);
         moved @D0 [@R12+12]
         sub @R13 #8
-        moved @13 @D0
+        moved [@R13] @D0
         move @R0 [@R13+0]
         call cos_deg_d
         add @R13 #8

@@ -60,7 +60,7 @@ LABEL cpp_encoding_utf8_seqlen
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL encoding_utf8_seqlen
     ADD @R13 #4

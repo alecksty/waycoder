@@ -2552,7 +2552,7 @@ _L35270259:
         push @R0
         movel @L0 [@R12-52]
         sub @R13 #8
-        movel @13 @L0
+        movel [@R13] @L0
         move @R0 [@R13+0]
         move @R1 [@R13+8]
         move @R2 [@R13+12]
@@ -4400,7 +4400,7 @@ _L35270482:
         push @R0
         movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4563,7 +4563,7 @@ _L35270517:
         push @R0
         movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4599,7 +4599,7 @@ _L35270519:
         push @R0
         movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 @R12
         sub @R0 #716
         push @R0
@@ -4618,7 +4618,7 @@ sta_35270483:
         push @R0
         movef @F0 [@R12-732]
         sub @R13 #4
-        movef @13 @F0
+        movef [@R13] @F0
         move @R0 @R12
         sub @R0 #716
         push @R0

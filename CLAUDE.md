@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 6521 自测（⚠ 别加 -c Release：WAYCODER_TEST 仅在 Debug 定义，
+dotnet run -- --test                 # 6803 自测（⚠ 别加 -c Release：WAYCODER_TEST 仅在 Debug 定义，
                                      #   Release 下 TestArg 整个不编译进去，CLI 按「有错即报」直接退出 1）
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
@@ -24,7 +24,7 @@ dotnet run -- --update               # 自动升级 (检查并自替换)
 ```
 WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
-├── Agent/             智能体核心 (20 文件)
+├── Agent/             智能体核心 (19 文件)
 │   ├── Agent.cs           主循环 (Stop Hook + WorkReporter + 10 阶段流水线)
 │   ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
 │   ├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 任务花费追踪)
@@ -33,19 +33,20 @@ WayCoder/
 │   ├── WorkModeManager.cs 工作模式 (Build/Plan/Chat)
 │   └── FallbackLLM.cs / BackgroundTask.cs / WorkReporter.cs / TaskProgress.cs
 ├── Memory/            记忆与会话 (9 文件: StructuredMemory + MEMORY.md 索引 / MemoryRetrieval / SessionManager / ProjectKnowledge)
-├── Config/            配置 (24 文件: Global.cs 全局 ~/.waycoder/config.json 权威源 / Config.Schema 110 项 / ConnectionConfig / ModelCatalog / ModelCli)
-├── Infra/             基础设施 (86 文件: BashGuard / FileTracker / SandboxManager / HooksManager / UpdateChecker / DrawEngine 绘制 + 图片编解码 + Logging/)
+├── Config/            配置 (23 文件: Global.cs 全局 ~/.waycoder/config.json 权威源 / Config.Schema 110 项 / ConnectionConfig / ModelCatalog / ModelCli)
+├── Infra/             基础设施 (87 文件: BashGuard / FileTracker / SandboxManager / HooksManager / UpdateChecker / DrawEngine 绘制 + 图片编解码 + Logging/)
 ├── Git/               Git 集成 (8 文件: GitRunner / GitCore / PackFile / RepoMapGenerator / WorktreeIsolation)
 ├── Watch/             Watch 模式 + ReviewMode
 ├── Sql/               手搓 SQL 引擎 (SqlEngine.cs)
 ├── Skills/            技能 + 权限 (SkillsManager / PermissionManager / AutoModeClassifier / builtin/)
-├── Test/              测试/调试/演示代码（SelfTest 自测 40 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6521 项）
+├── Test/              测试/调试/演示代码（SelfTest 自测 46 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6803 项）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
 ├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
 ├── Tools/             49 个工具
 │   ├── BashTool.cs    GitTool.cs    LspTool.cs
 │   ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
 │   ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
+│   ├── StructTodoTool.cs ExportTool.cs
 │   ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
 │   ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
 │   ├── PsTool.cs      KillTool.cs    LsTool.cs
@@ -62,7 +63,7 @@ WayCoder/
 │   ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射）
 │   └── ImageConvertTool.cs / ConvertEncodingTool.cs / SqliteTool.cs / SymbolsTool.cs
 └── UI/                 五端界面层
-    ├── TUI/            终端界面 (220 文件)
+    ├── TUI/            终端界面 (136 文件)
     │   ├── Base/           控件基座 (TuiBase→TuiControl→TuiView / TuiManager / TuiScreen / TuiWindow / InputManager / 滚动数学)
     │   ├── Controls/       基础控件库 (45 文件: TuiButton / TuiListView / TuiDynamicBar / TuiKeybindHelp / TuiMarkdown …)
     │   ├── Custom/         自定义控件 + 对话框 (15 文件: ModelPicker / FilePicker / CommandPalette / DiffPreview / UxHelper …)
@@ -73,7 +74,23 @@ WayCoder/
     ├── Shared/         跨端共享纯逻辑 (MarkdownRenderer / UnifiedDiff / AnsiHelper / AnsiColors / Terminal 缓冲与 ANSI / Vml* 协议与宿主接口)
     ├── WEB/            Web 端 (WebServer / WebChat / www 前端资源)
     ├── CLI/            命令行端 (Arguments 参数注册 / Commands 斜杠命令)
-    └── GUI/            Avalonia GUI 占位（预留扩展）
+    └── GUI/            ⚠ **只剩 README** —— Avalonia GUI 已经是**独立工程 `WayCoder.Gui/`**
+                        （35 个 .cs/.axaml：MainWindow / EditorWindow / ModelWindow /
+                         SettingsWindow / App + `ChatInputBox`，见本文件的「GUI（Avalonia）三条坑」）
+```
+
+### 仓库一级目录（上面那棵树只画了 `WayCoder/` 主工程）
+
+```
+├── WayCoder/           主工程（TUI / Web / CLI / 智能体 / 工具 / Sql / Skills …）
+├── WayCoder.Gui/       Avalonia GUI（桌面第二前端，独立 csproj）
+├── WayCoder.Maui/      移动端（.NET MAUI，Android + iOS；`CoreStubs.cs` 是桩，见该条）
+├── third_party/vml/    vendored 的 VML（22 个前端 + 汇编器 + 运行时 + Lib + GenLib，**已与上游分家**）
+├── scripts/            探针与工具（vml-*-probe / vmlcli / vml-asm-probe / make-vml-lib.sh …）
+├── docs/               设计文档（模式体系 / VML调用约定统一 / VML宿主接口 / 插件系统 …）
+├── packaging/          winget / brew / apt 打包 + 发布工作流
+├── vscode-extension/   VS Code 扩展（走 `--json` 桥接）
+└── Examples/           ⚠ 实际在 `third_party/vml/Examples/`（随 `vml_lib.zip` 进 APK）
 ```
 
 ## 关键设计决策
@@ -111,7 +128,7 @@ WayCoder/
 - **工具取消令牌**：`ICancellableTool` 接口——bash（流式 + 杀子进程）/ fetch / web_search / download / git（`WaitForExitAsync(ct)` + 取消时 `Kill(entireProcessTree)`）/ agent（子智能体透传 ct）中断时真正终止在途操作，取消抛 `OperationCanceledException` 向上传播（不吞）；区分「中断」与「超时」：`OperationCanceledException when ct.IsCancellationRequested` 重抛 vs `TaskCanceledException` 返回超时文案
 - **Watch 模式**：FileSystemWatcher 监听文件变更 → 提取 AI! / AI? 注释 → 线程安全队列 → REPL 轮询执行
 - **全屏缓冲 UI**：备用屏 + 每帧重绘 + 行内权限块 + 弹窗菜单 + 侧栏面板 + 居中对话框
-- **UI 控件库**：`UI/` 目录封装 TUI 控件（未来拆分 Tty 底层 + View 视图），`UI/Gui/` 预留 GUI 扩展
+- **UI 控件库**：`UI/` 目录封装 TUI 控件（未来拆分 Tty 底层 + View 视图）；GUI **不是**这里的预留目录，而是独立工程 `WayCoder.Gui/`（Avalonia）
 - **工具输出渲染器**：`IToolRenderer` 接口 + `ToolRendererFactory` 工厂，每种工具独立渲染器（对标 Crush ToolMessageItem），bash/edit/write/agent 各有 emoji + ANSI 着色
 - **Dialog Overlay 栈**：`DialogOverlay` 栈式对话框管理 + `DialogAction` 类型化结果（对标 Crush overlay + typed actions），Push/Pop/按 ID 替换 + Esc 关闭栈顶
 - **懒渲染列表**：`ILazyItem` 接口（`MeasureHeight`/`IsRenderCached`）+ `TuiListView` 二分查找首可见项 O(log n)（对标 Crush List + Item 接口）
@@ -221,7 +238,7 @@ WayCoder/
 - **VT 字节流丢键修复（v0.96.78）**：Windows 读键自 v0.96.74 改走 VT 字节流后**丢失修饰键信息**，凡是「按字节还原按键」的映射漏一处就整键失效——已修三处：①**Backspace** 在 VT 下发 **DEL(0x7F)** 而非 BS(0x08)，漏映射 → `Key=NoName`，而编辑控件都按 `Key==Backspace` 判 → **退格擦不掉输入**；②终端未协商 Kitty（conhost/旧终端忽略 `CSI >1u`）时 **Ctrl+字母 = 控制字节 0x01..0x1A**，不还原成 Ctrl 修饰键则 Ctrl+P/E/M/B/S 全静默失效（`Program.Repl` 判 `Modifiers.HasFlag(Control)`）；③**F1-F4 走 SS3 形态 `ESC O P/Q/R/S`**（无 `[`），`TryParseEscapeSequence` 只认 `[` 则落进「Alt+字符」分支 → F1-F10 槽位键整排失效。**收敛点**：`WindowsCharSource.ToConsoleKeyInfo(char)` 是字节→ConsoleKeyInfo 的唯一实现（`TryReadKey` 与 `InputManager.ToConsoleKeyInfo` 共用）、`InputManager.MapSs3Key` 是 SS3 唯一映射；歧义码位 0x08(BS)/0x09(Tab)/0x0A(LF)/0x0D(CR)/0x1B(ESC) **保持既有语义不动**（Unix 上与 Ctrl+H/I/J/M/[ 同码，见 `TuiKeybindHelp`）。**测试铁律**：`KEY:`/`INJECT` 直接注入 `ConsoleKeyInfo`、**绕过了字节映射层**，这类问题只有 `--keypad` 的 **`RAWKEY:<hex>`**（真机字节路径）或直接喂字节的字节级自测能复现——新增按键必两者都覆盖
 - **自测硬离线 + 项目根解析边界（v0.96.77）**：`Global.OfflineMode` 是自测/CI 的**硬护栏**（`SelfTest.RunWithFilter` 置位、`finally` 还原，生产恒 false）——①`LLM` 在**真正发包处**拒绝非本机端点（只拦发送，`Endpoint` 等展示路径不受影响）⇒ 跑测试不可能产生 token 费用；②`Config.Env.FindEnvFile` 不再发现 `.env`（临时 home 不在 cwd 祖先链上，「上溯到 home 为止」护栏会失效、一路走到盘根命中仓库根 `.env` 把真实密钥导进测试进程）；③`ModelCli.ProbeEndpointAsync` 跳过外部探测。**新写测试必须遵守此约定**——真要联网的用例走 `ProbeBaseUrlOverride` 之类的本地 mock 接缝，不要直连真实服务商。另一条铁律：`ProjectContext.FindProjectRoot()` 的**边界判定（home / 用户主目录 / 盘根）必须在项目标志检测之前**——home 下有个 `package.json`（很常见）就会让 home 被当成项目根，`DetectLanguages` 随即递归遍历整个 home（几十万文件），实测 `DetectProject` 从 88ms 恶化到 **12~36s**（生产路径每次构建系统提示词都要吃）；`UserProfileDir` 兜住 `HomeOverride` 场景，`WalkFiles` 的 `MaxDirsPerScan` 目录预算兜底
 - **TUI Windows 输入统一字符源（v0.96.74）**：TUI 读键链路统一到 `UI/TUI/Base/CharSource.cs`（`WindowsCharSource`=OpenStandardInput VT 字节流 / `UnixCharSource`=ReadKey）+ `WinConsoleMode` P/Invoke 开 `ENABLE_VIRTUAL_TERMINAL_INPUT`；code-review 修复要点（桌面自测 5083）：①VT 下方向/功能键是裸 CSI（`ESC[A`、`1~..6~`）须在 `ParseCsiFuncKey` 显式映射，否则退化成裸 ESC 取消 agent；②字节流前提要清 `LINE_INPUT|ECHO_INPUT`（否则回显叠加 TUI 自绘=「鼠标乱码」疑因+行缓冲）；③`WindowsCharSource` 解码须状态化（跨读边界缓存续字节、代理对高位先返）防中文 emoji 乱码；④鼠标乱码/motion 泛滥仍待 Windows 真机复验
-- **自绘层与平台输入框的叠放次序 = 「点哪儿」的判据归属（v0.96.144，用户实测的「点击偏差」真根因）**：`EditorPage.xaml` 里画布 `CodeCanvasView` 声明在**前**、浮动 `Entry` 在**后** —— MAUI 的 Grid **后声明者在上层**，于是编辑行那个 Entry（一个真 Android `EditText`）**盖在画布上**。后果不是「样式不好看」，而是**判据被整个交给了平台**：① 点它的触摸它接走，画布根本收不到（实测在编辑行点 5 下，画布自己的触摸日志**一条都没有**；点别的行立刻有）；② 「横坐标 → 字符下标」由**平台自己的排版 + 它内部自己的横向滚动**决定（那个滚动随光标位置变），与自绘层「逐字形推进量」的网格无关；③ 每格只差不到 1px，但**沿行累积**，到第 80 列就是一整格，叠加内部滚动还会跳变 ⇒ 用户看到的就是「手点和落点差好几格、**越靠右越明显**、而且不单调」。**修法：把 Entry 挪到画布之前（压在底下）** —— 触摸全归画布，点哪儿由 `CharIndexAtX` 一把尺子决定；它仍能被 `Focus()` 聚焦，**IME/软键盘/剪贴板照常**（它本来就只管这三件事），而**它的系统光标、选择手柄、放大镜正好被不透明的画布一并盖住**。配套：同一行分支里画布光标**直接取我们算出的列**（不回读平台值），`SyncCaret` 轮询从此只管**输入法改光标**（如打完一个字往右挪）。**验证方法（不用肉眼）**：临时把链路里每个量连同单位假设一起打日志（一次就看出哪个量不同源），再配合「洋红三角标记」把自绘光标变成**截屏里可程序化测量**的东西（`scripts/_taptest.py`：点 → 截屏 → 取三角尖端 x → 与该行墨迹栅距算出的格线比），闭环判据两条 —— **光标必须落在字形格边界上**、**该边界必须含住手指的 x（差 < 半格）**。同批还发现 `EnsureCaretVisible` 直接给 `_scrollX` 赋值**没有边界**，点一次行尾就永久「滚过头」（HUD `X3504/3412`，屏幕上留空白）；既有 `ClampScroll()` 就是那个唯一收口处，**几何计算的辅助函数要把边界守卫一起收进去**，别留给调用方。
+- **自绘层与平台输入框的叠放次序 = 「点哪儿」的判据归属（v0.96.144，用户实测的「点击偏差」真根因）**：`EditorPage.xaml` 里画布 `CodeCanvasView` 声明在**前**、浮动 `Entry` 在**后** —— MAUI 的 Grid **后声明者在上层**，于是编辑行那个 Entry（一个真 Android `EditText`）**盖在画布上**。后果不是「样式不好看」，而是**判据被整个交给了平台**：① 点它的触摸它接走，画布根本收不到（实测在编辑行点 5 下，画布自己的触摸日志**一条都没有**；点别的行立刻有）；② 「横坐标 → 字符下标」由**平台自己的排版 + 它内部自己的横向滚动**决定（那个滚动随光标位置变），与自绘层「逐字形推进量」的网格无关；③ 每格只差不到 1px，但**沿行累积**，到第 80 列就是一整格，叠加内部滚动还会跳变 ⇒ 用户看到的就是「手点和落点差好几格、**越靠右越明显**、而且不单调」。**修法：把 Entry 挪到画布之前（压在底下）** —— 触摸全归画布，点哪儿由 `CharIndexAtX` 一把尺子决定；它仍能被 `Focus()` 聚焦，**IME/软键盘/剪贴板照常**（它本来就只管这三件事），而**它的系统光标、选择手柄、放大镜正好被不透明的画布一并盖住**。配套：同一行分支里画布光标**直接取我们算出的列**（不回读平台值），`SyncCaret` 轮询从此只管**输入法改光标**（如打完一个字往右挪）。**验证方法（不用肉眼）**：临时把链路里每个量连同单位假设一起打日志（一次就看出哪个量不同源），再配合「洋红三角标记」把自绘光标变成**截屏里可程序化测量**的东西（当时用的临时脚本 `scripts/_taptest.py` —— **已不在仓里**；要复现就照这个思路现写：点 → `adb exec-out screencap` 取裸帧 → 找洋红三角尖端 x → 与该行墨迹栅距算出的格线比），闭环判据两条 —— **光标必须落在字形格边界上**、**该边界必须含住手指的 x（差 < 半格）**。同批还发现 `EnsureCaretVisible` 直接给 `_scrollX` 赋值**没有边界**，点一次行尾就永久「滚过头」（HUD `X3504/3412`，屏幕上留空白）；既有 `ClampScroll()` 就是那个唯一收口处，**几何计算的辅助函数要把边界守卫一起收进去**，别留给调用方。
 
 - **软键盘遮挡光标：`adjustResize` 在 Android 15+ 已失效，要自己接 IME inset（v0.96.150）**：`MainActivity` 上写着 `WindowSoftInputMode=AdjustResize` 也没用 —— **Android 15（API 35）起 targetSdk ≥ 35 的应用强制 edge-to-edge，`adjustResize` 不再缩放窗口**，它现在只负责「让你能收到 IME inset」，剩下要应用自己按 `WindowInsetsCompat.Type.ime()` 调整。真机 `uiautomator dump` 前后一比：页面平台视图始终是 `(0,0)-(1080,2202)`，键盘只是**盖上来**、布局一点没动 ⇒ 症状是「点一条靠下的行 → 键盘盖住光标 → 什么都不滚」。修法：`EditorPage` 在**画布的平台视图**上挂 `ViewCompat.SetOnApplyWindowInsetsListener`（**不挂页面视图** —— 那上面已有 MAUI 的安全区监听，覆盖会连带弄坏；画布是叶子视图，MAUI 不管它），**inset 原样传下去、不消费**（它是窗口级的，吃掉会让别的控件一起失去内边距），把键盘高度换算成**根布局的底部内边距**。**选「压矮布局」而不是「在滚动数学里减去键盘高度」**：压矮之后画布高度/命中测试/滚动边界/绘制范围全部照旧，只多一条 `CodeCanvasView.OnSizeAllocated`（**变矮**时把光标行顶回视口、最小滚动；变高只收口边界、不无端跳一下）；后者要同时维护「两个高度」（画用大的、算边界用小的），正是本仓库反复踩的「同一件事两处实现」。**触发点必须是「真实的高度变化」，不能猜键盘动画时长** —— 原来那版是「点完**等 260ms** 再滚一次」，而键盘动画在 200~400ms 之间：猜早了算的还是旧视口（那行判定为可见 ⇒ 一个字不滚 = 没做），猜晚了用户已经看着自己被挡住 —— 症状恰好就是用户报的「**刚好弹出键盘时挡住光标**」。**三条踩坑**：① **`ime()` 不要再「顺手扣掉导航栏」** —— 网上通行做法（也是官方文档里 ime「may include」导航栏那句话）在这里**是错的**：实测行号栏结束 y=1453、状态栏 1453~1517、键盘上沿 **1517**，`ime()` 报的就是 1517，本机**没**算进导航栏；扣掉 64px 后内容区被多顶上去、状态栏直接掉到键盘底下。**判断依据别靠肉眼看缩放截图**（第一版就是这么误判的）：**扫一列像素看行号栏底色 `#F2F2F4` 在哪一行结束**，就得到内容区的真实下沿；② **跨版本会压两遍** —— `adjustResize` 只在 15+ 失效，同一份 APK 装到 Android 14 及更早的机器上那条老路**照常生效**，再补一次就是压两遍（编辑区被挤成一条缝）⇒ 判据**不写「系统版本 ≥ N」**（那是在猜系统行为），而是**直接量**：键盘弹出后页面还是满高 ⇒ 系统没管、我们补；已经明显矮了 ⇒ 系统管了、一个字不加；③ 三处绑定细节：`WindowInsetsCompat.Type` 是**嵌套类型**（`var t = ...Type;` 再 `t.Ime()` 报 CS0119，只能全限定写）、`GetInsets()` 返回**可空的** `Insets?`（点 `.Bottom` 报 CS8602，要 `?.Bottom ?? 0`）、`OnApplyWindowInsets` 的参数与返回在绑定里都可空（CS8767）。**验证**（Android 16 模拟器，UI 树 + 逐像素双读数）：点靠下（y=2000 → 光标 L28）画布 `2126→1453`、状态栏完整可见、L28 被滚进视口底部，内容区下沿与键盘上沿严丝合缝（1516 / 1517）；点靠上（y=700 → 光标 L15）画布同样变矮但**一行都没滚**（最小滚动原则保住）；返回键收键盘完整复位。
 - **VML 游戏示例：手柄交给系统、手感交给音效接口（v0.96.173）**：用户对 `Examples/c/tetris.c` 的要求是「**俄罗斯方块本来系统有游戏按键，自己右画了一套，多此一举**，使用系统的手柄即可，然后加上声音效果、震动效果」。① **删掉自绘手柄 + 触摸命中**（净少约 140 行）：自绘那套的代价是三重的 —— 占约 140px 窗口高度（棋盘矮一截）、几何要在「画」与「命中判定」两处各算一遍（改个间距就「看着在键上、点下去没反应」）、每个游戏各画一套风格。**屏幕上已有的东西不要在程序里再画一遍**：绘图窗口底部本来就有一排屏幕手柄，程序只该收 `VML_MSG_KEYDOWN`，窗口就是一块显示区。② **手机手柄必须发真按下/抬起**（`DrawWindowPage` 由 `Clicked` 改 `Pressed`/`Released`）：`Clicked` 是**抬手才触发一次**，按住不放没有任何后续事件 ⇒ 程序只收到一次 `KeyDown`，「按住 ← 连续左移」根本做不出来（连发是程序拿定时器做的 DAS）。改完 `Pressed` 发 `KeyDown`、`Released` 发 `KeyUp`，单点仍是「先 Down 后 Up」只是中间隔了真实按压时长，向后兼容。**手指从一个键滑到另一个键时 Android 只发新键的 `Pressed`、旧键的 `Released` 会丢** ⇒ 按下新键前先替旧键补一条 `KeyUp`（否则程序以为两个键同时按着、连发一直挂在旧方向上）；`OnDisappearing` 也要补（页面走了不可能再有 `Released`）。③ **长按连发必须自带刹车，不能把「一定会收到 KeyUp」当前提**（v0.96.173）：手指划出按键范围、系统吃掉 CANCEL、页面被切走都可能让 KeyUp 永远不来，而 `ui_timer_set` 是**重复**定时器 ⇒ 现象是「方块自己一直往左移」。三道刹车：换键即接管 / 按了没动两次就停 / 总拍数上限（40 拍 ≈ 5 秒，而横穿棋盘只要 10 拍）。**凡是重复定时器都要问一句「谁来停它」**，并且要能在脚手架里验（本版给最小宿主加了「这个连发定时器跑了几拍才被杀」的观测点：`[repeat] #N 连发 M 拍后停`，实测丢 KeyUp 时 ← 是 4 拍自停、↓ 是 40 拍封顶）。④ **音效是单通道的，所以一次事件只发一个音**（`VmlAudio.ToneCore` 开头就 `StopTone()`）：连发一串琶音**只有最后一个听得见**，等于白写 ⇒ 改成「用频率高低表达好坏」（消行 1→880 / 2→1046 / 3→1318 / 4→1568 Hz，升级 1760 盖过消行音，结束 220Hz 长音）。⑤ **`${}` 展开总是先载入 R0** ⇒ `asm("MOVE R0 ${freq}"); asm("MOVE R1 ${ms}")` 生成 `move R0 [R12+12]; move R0 [R12+16]; move R1 R0`，**第二个参数把第一个覆盖掉**；多参数 syscall 一律走 `Lib/shared/vmlui.vml` 的包装函数（照 `ui_timer_set` 的模板：形参在栈上、`arg_i = [R12+8+4*i]`）。新加的五个 `ui_beep`/`ui_vibrate`/`ui_keep_on`/`ui_store_set`/`ui_store_get` 已在 `Lib/shared/vmlui.vml` 里（**分家后直接改即可，不必再提上游**，见 ⑱）。⑥ **⚠ 这一条的第一版结论是错的，已更正（v0.96.174）**：当时写的是「带缓冲区的接口在 C 里有**两条**既有缺陷（局部数组地址传参错 + 全局 `char` 数组下标读成 32 位）」。**前者不存在** —— 局部数组传参一直是好的。真因只有一条：`InferExpressionType(ArrayAccess)` 只查 `variableTypes`（只装局部变量），**全局** `char`/`short` 数组查不到就退化成 `ExprType.Int` ⇒ 元素访问走 32 位 `MOVE`（应 `MOVEB`/`MOVEH`），于是「长度对、内容不对」，写还会越界。**局部数组反而正常**，所以这个坑只在全局数组上冒头。已修成 `patches/0004-c-global-array-elem-type.patch`（那是**分家前**的约定：不改上游源码、在 `sync.sh` 的【B】清单里加一条 patch + 一个复现用例；**分家后直接在 C 前端源码里改**，见 ⑱）。**误判的来源是判定方法**：第一版拿 `puts` 的输出当判据，而本环境的 `puts` 在字面量多的程序里输出会**串行/重复**（同一个字符串打出两种结果）⇒ 把 stdio 的毛病看成了 codegen 的毛病。**改成不经过 stdio 的判据**（每条结论用一个 `ui_beep` 频率报出来、宿主原样打印；`ui_dlg_msg` 也是现成的"宿主从内存里读到的字符串"探针）之后，六个格子一次就量清了：局部下标读/写 ✓✓、全局下标读/写 ✗✗。**凡是"猜编译器"的结论，先在判定链上把 stdio 摘出去。**⑦ **两条「估算/缩放只做了一半」的坑（v0.96.173，都是用户实测报出来的）**：
@@ -248,7 +265,7 @@ WayCoder/
 ⑨ **「同一段代码有时对有时错」的根：`Lib/` 里两套栈清理约定并存（v0.96.175）**：
    C 前端生成的函数是**调用方清参数**（`move R13 R12; pop R12; pop R15; ret`，调用点后面跟
    `add R13 #4/#8`），而 `Lib/` 里 **764 个函数是"被调用方自己清"**
-   （`…; pop R15; move R1 @13; add R13 #N; push R1; ret`），另有 446 个与前端一致。
+   （`…; pop R15; move R1 [@R13]; add R13 #N; push R1; ret`），另有 446 个与前端一致。
    ⇒ **每调一次那 764 个之一，调用方的栈指针就多释放一次**（`strlen` 一次多 4 字节）。
    漂了之后凡是**用 `pop` 取临时值**的地方都读错 —— 实参槽（`move R0 [R13+0]`）与
    **数组下标的中间量**都在此列，于是"判据没错、读到的是错的数"。
@@ -592,12 +609,13 @@ return ParseLetStatement();`），而 `ui_win_open` 声明的是 `NATIVE FUNCTIO
 ⇒ 症状是「改了一处却没生效」，没有任何报错。查法：三条一起用 —— **编译日志**（`成功编译: X.vml`
 会逐条列出真正装载的模块，这是最硬的一条）、`.linked` 全图（`grep -rn 'linked "x.vml"'`）、
 以及**前端的「函数名 → 模块」映射表**（`CompilerBase/CompilerHelper.cs`）。本次 `c/stdio.c` 与
-`c/vmlib.c` 就是靠「映射表里没有 `stdio`/`vmlib` 这两个键 + 编译日志里根本不出现」判定不可达的。
+`c/vmlib.c` 就是靠「映射表里没有 `stdio`/`vmlib` 这两个键 + 编译日志里根本不出现」判定不可达的
+（⚠ 这两个文件**已按此结论删除**，`Lib/c/` 下现在只剩 `stdio.h`/`stdio_notypedef.h`/`vmlib.h`）。
 ② **`printf` 那件事的真相比「2 份」更绕**：`shared/src/printf.c`（活）+ `c/printf.vml`（159 条指令的
 **shim**，把 shared 的 `static` 助手导出成 `c_emit`/`func_emit` 这类跨模块名 —— **它不是第二份实现，
-别删**）+ `c/stdio.c` + `c/vmlib.c` + `c/src/printf.c`（三份不可达）。**判断「谁是真实现」要看
+别删**）+ `c/stdio.c` + `c/vmlib.c` + `c/src/printf.c`（后三份不可达 ⇒ **已删除**）。**判断「谁是真实现」要看
 编译日志里谁的指令数配得上那门语言**（shared 4100 条 vs shim 159 条）。
-③ **最危险的不是重复本身，是「重复 + 会覆盖」**：`build_libs.sh` 的 Phase 3 是
+③ **最危险的不是重复本身，是「重复 + 会覆盖」**（⚠ 该脚本**现已删除**，这条是历史教训）：`build_libs.sh` 的 Phase 3 是
 `c/src/*.c → c/<name>.vml`，而 `c/src/` 里**只有 `printf.c` 一个文件** ⇒ 谁跑一次构建脚本，
 它就把那个**能工作的 shim（3146 字节）覆盖成自己的编译产物（7915 字节）**。一份**从没被链接过**的
 源码，唯一的作用就是等地雷式地毁掉旁边能跑的文件 —— **加「生成物」目录时要问一句「同名的源会不会
@@ -651,10 +669,10 @@ if (target.EndsWith("_" + bareName) && target.StartsWith("lib_") && ...) operand
 ② **顶着 `Auto-generated` 注释的文件也可能是陈旧件** —— 那 6 个 `<lang>/stdio.vml`
 链着 GenLib 源码里**早已不存在**的 `stdio_funcs`，是更早版本的输出。
 
-㉕ **GenLib 是唯一生成器，`build_libs.sh` 才是冗余的那个；但 GenLib 的产物里有陈旧件（v0.96.208）**：
+㉕ **GenLib 是唯一生成器（`build_libs.sh` **已删除**）；但 GenLib 的产物里有陈旧件（v0.96.208）**：
 用户问「GenLib 是不是也没有用处？」。**实测**：让 GenLib 重新生成 `c/` 的 74 个模块
 → 与签入的**零差异**（幂等、权威）⇒ **GenLib 必须留**（`c/` 下 84/87 个 `.vml` 头一行就写着
-`Auto-generated by GenLib`）。真正冗余的是 `build_libs.sh`/`.ps1`：它重复实现 GenLib 的
+`Auto-generated by GenLib`）。真正冗余的是 `build_libs.sh`/`.ps1`（**后来整份删掉了** —— 判据就是下面这条"跑一遍看 diff"）：它重复实现 GenLib 的
 `-b`/`-m`/`-a` 三阶段（**更旧的语义**、缺 `-g`/`-n`），除历史 CHANGELOG 外无人引用；
 **而且它的 Phase 3（`<lang>/*.c → <lang>/<name>.vml` 无差别遍历）会覆盖 GenLib 的 shim**
 —— 这是本仓记过两次的地雷源头。**「哪个生成器该留」的判据 = 跑一遍看 diff**：
@@ -925,6 +943,26 @@ int B[3] = { -5,  7, -9 };       /* 程序实际读到  0  7  0    */
   **GenLib 生成器**（13 处字面量改 `@` 后 `-b` + `-A` 全量重生成，`Lib/` 下 1587 个文件）。
   **判据**：`Examples/c/regname.c`（12 项、合计 831）、out-probe 31/31、abi-probe 27/29、
   examples-build 85/86、自测 6231/6232 —— **全部与基线逐条相同**。
+
+- **`@` 只做寄存器标记；寻址一律 `[address/reg/reg+offset]`（v0.96.543 定案，用户 2026-09-27 定）**：
+  「**VML 汇编要严格格式检查，`@` 只能寄存器开头、名字必须合法**」+「**寻址使用 `[@R1+n]`**」。
+  两条合起来把 `@` 的**两种旧含义**收成一种：`@R0` = 寄存器（值），`[@R0]` / `[@R14-4]` / `[标签]` = 内存。
+  - **合法**：① 寄存器名 `@R0–@R31` / `@F0–@F15` / `@D0–@D7` / `@L0–@L7`；
+    ② 方括号里的三种地址 —— `[reg]`（`[@R13]`）、`[reg+offset]`（`[@R14-4]` / `[@R12+12]`）、`[地址]`（`[标签]` / `[123]`）。
+  - **报错**（此前是**静默**的）：`@foo`（以前被当 `INDIRECT("foo")` 收下，到运行时才拿解析不出的地址去读写 ——
+    实测 `movel @foo @L0` 一路「编译完成 / 运行完成」一个错都不报）、`@13`（裸号间接）、`@R14-4`（裸的寄存器相对地址）、
+    `@R99`（越界，这条早有）、`[@foo]`（方括号里带 `@` 却没写寄存器名）、`@` 出现在 token 非开头处。
+  - **写入侧同步**：`Operand.ToString` 的 `INDIRECT` 从 `@13`/`@R14-4` 改成 `[@R13]`/`[@R14-4]`
+    （值若为数字先补成寄存器名 `R<n>`）；`VMLRuntime` 的反汇编显示同式（**看到的就是能汇编回去的文本**）。
+    运行时里 **`MEMORY` 与 `INDIRECT` 本来就是同一条路**（`GetAddress` + `GetMemory`），所以这只是文本形态的合并。
+  - **语料迁移**：全仓 `.vml` 里 `@<裸号>` 7212 处迁成 `[@R<n>]`（654 个文件）；而 `@R14-4` 那种
+    8.7 万处**本来就在方括号里**（序列化器的 `MEMORY` 形态），一处都不用动。`tools/GenLib` 的 `sub @R13 #4` +
+    `movef [@R13] …` 一并改成 `[@R13]`。
+  - ⚠ **`@` 的旧含义变了**：`@R0` 以前是「以 R0 为地址的间接寻址」，现在是**寄存器本身**（v0.96.327 起）。
+    间接写 `[@R0]`。C 源码里那 543 处内联汇编的旧写法（`asm("MOVEF F0, [@R0]")`）本来就是方括号形态 ✓ 不受影响。
+  - **判据**：`scripts/vml-asm-probe`（**9 用例全绿**，其中 `06/07/08` 是**负向**判据 ——
+    runner 新增 `; EXPECT-ERR: <片段>` 一档：必须汇编失败且 stderr 含该片段。格式规则的判据只能是否定的，
+    正向用例永远证明不了它）；`09-addr-bracket-forms.vml` 正向验三种寻址形态**真能寻址**（存进去再读回来）。
 
 ## 模式体系（三分钟版，竞品对标）
 

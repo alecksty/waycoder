@@ -85,7 +85,7 @@ LABEL LADDER_MAT2_SCALE_D
     PUSH @R0
     moved @D0 [@R12+16]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -154,7 +154,7 @@ LABEL LADDER_MAT2_ROT_D
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL mat2_rot_d
@@ -237,7 +237,7 @@ LABEL LADDER_MAT3_SCALE_D
     PUSH @R0
     moved @D0 [@R12+16]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -292,13 +292,13 @@ LABEL LADDER_MAT4_TRANSLATE_D
     PUSH @R0
     moved @D0 [@R12+28]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -318,13 +318,13 @@ LABEL LADDER_MAT4_SCALE_XYZ_D
     PUSH @R0
     moved @D0 [@R12+28]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     moved @D0 [@R12+20]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+16]
@@ -344,7 +344,7 @@ LABEL LADDER_MAT4_ROT_X_D
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL mat4_rot_x_d
@@ -362,7 +362,7 @@ LABEL LADDER_MAT4_ROT_Y_D
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL mat4_rot_y_d
@@ -380,7 +380,7 @@ LABEL LADDER_MAT4_ROT_Z_D
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL mat4_rot_z_d

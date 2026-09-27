@@ -355,7 +355,7 @@ static string[] GetParamTypes(string ps)
 
 /// 按类型给出**寄存器名**（用户 2026-09-27 定的模型：`Rn`=32位 / `Ln`=64位 /
 /// `Fn`=32位 / `Dn`=64位，**类由助记符决定**）。包装器里一律写 `@R{n}` 是错的 ——
-/// `movel @13 @R0` 的源是 32 位寄存器（VM 的兼容垫层恰好也认 `R0-R7`，所以"看着能跑"），
+/// `movel [@R13] @R0` 的源是 32 位寄存器（VM 的兼容垫层恰好也认 `R0-R7`，所以"看着能跑"），
 /// 而写错类的文本会**直接撞上汇编期的寄存器类检查**。
 static string TypedRegName(string paramType, int n)
 {
@@ -389,14 +389,14 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
     switch (t)
     {
         case "float":
-            return (new[] { $"    sub @R13 #4", $"    movef @13 {TypedRegName("float", regIdx)}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    movef [@R13] {TypedRegName("float", regIdx)}" }, 4);
         case "double":
-            return (new[] { $"    sub @R13 #8", $"    moved @13 {TypedRegName("double", regIdx)}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    moved [@R13] {TypedRegName("double", regIdx)}" }, 8);
         case "long":
         case "long long":
         case "unsigned long":
         case "unsigned long long":
-            return (new[] { $"    sub @R13 #8", $"    movel @13 {TypedRegName("long", regIdx)}" }, 8);
+            return (new[] { $"    sub @R13 #8", $"    movel [@R13] {TypedRegName("long", regIdx)}" }, 8);
         // 1 字节整数: char/signed char/unsigned char
         // 实现体用 moveb 读取 + add R13 #5 清栈, 包装器必须只压 1 字节
         case "char":
@@ -406,7 +406,7 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "uint8_t":
             // ⚠ 统一约定：形参槽一律 4 字节（C 前端 ParamStackBytes），所以**压满一格**。
             // 按自然大小压 1 字节会让后续形参整体错位 —— 与脚本判据 p6（short 形参）同一个病。
-            return (new[] { $"    sub @R13 #4", $"    moveb @13 @R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    moveb [@R13] @R{regIdx}" }, 4);
         // 2 字节整数: short/unsigned short
         // 实现体用 moveh 读取 + add R13 #6 清栈, 包装器必须只压 2 字节
         case "short":
@@ -418,7 +418,7 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "int16_t":
         case "uint16_t":
             // ⚠ 同上：short 也压满一格（4 字节），不再按自然大小压 2 字节。
-            return (new[] { $"    sub @R13 #4", $"    moveh @13 @R{regIdx}" }, 4);
+            return (new[] { $"    sub @R13 #4", $"    moveh [@R13] @R{regIdx}" }, 4);
         default:
             return (new[] { $"    PUSH @R{regIdx}" }, 4);
     }
@@ -539,7 +539,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
                 string type = i < paramTypes.Length ? paramTypes[i] : "";
                 // 先把第 i 个实参从帧里取到 R0，再复用同一套按类型压栈的指令
                 // ⚠ 取值也要按**类**：`long` 形参用 32 位 `move @R0` 取只会拿到低半字
-                //   （而且 `movel @13 @R0` 的源就变成 32 位寄存器 —— 撞寄存器类检查）
+                //   （而且 `movel [@R13] @R0` 的源就变成 32 位寄存器 —— 撞寄存器类检查）
                 sb.AppendLine($"    {TypedLoadMnemonic(type)} {TypedRegName(type, 0)} [@R12+{argOff[i]}]");
                 var (lines, bytes) = EmitPushParam(type, 0);
                 foreach (var line in lines)

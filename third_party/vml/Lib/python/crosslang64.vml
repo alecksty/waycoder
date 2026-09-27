@@ -9,10 +9,10 @@ LABEL python_ladd64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ladd64
@@ -28,10 +28,10 @@ LABEL python_lsub64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lsub64
@@ -47,10 +47,10 @@ LABEL python_lmul64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmul64
@@ -66,10 +66,10 @@ LABEL python_ldiv64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ldiv64
@@ -85,10 +85,10 @@ LABEL python_lmod64
     move @R12 @R13
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL lmod64
@@ -104,7 +104,7 @@ LABEL python_lneg64
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL lneg64
     ADD @R13 #8

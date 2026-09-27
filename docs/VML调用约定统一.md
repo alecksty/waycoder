@@ -5,7 +5,7 @@
 > **VML 自身调用约定不一致** —— 它既解释了 `print_*` 栈漂移，也是一整类
 > 「同一段代码有时对有时错」缺陷的温床。
 >
-> ⚠ **2026-09-21 补记（读本文时先看一眼）**：本文里的汇编片段（`push R15`、`move R1 @13`、
+> ⚠ **2026-09-21 补记（读本文时先看一眼）**：本文里的汇编片段（`push R15`、`move R1 [@R13]`、
 > `[R12+12]` 等）用的是**裸名方言**。VML 汇编语法此后加了寄存器标记：
 > **新写法是 `@` 打头（`push @R15`、`move @R1 @R13`、`[@R12+12]`）** —— 但**裸名读兼容**，
 > 所以本文片段照旧成立、不用改。
@@ -173,7 +173,7 @@ println_int:
         push R15 / push R12 / move R12 R13
         syscall #6            ; 参数直接吃 R0，从不读 [R12+12]
         ...
-        move R1 @13           ; 存返回地址
+        move R1 [@R13]           ; 存返回地址
         add R13 #8            ; ← 被调方清掉「返回地址 + 1 个参数槽」
         push R1 / ret
 ```
@@ -221,7 +221,7 @@ println_int:
    「整个重新生成」会把这些无关改动一并拖进来，每个模块几百行，且 `.linked` 的去留未查清。
 
 3. **机械剥离被调方清栈能全绿，但会打断 thunk 链。** 试过：把
-   `move R13 R12 / pop R12 / pop R15 / move R1 @13 / add R13 #N / push R1 / ret`
+   `move R13 R12 / pop R12 / pop R15 / move R1 [@R13] / add R13 #N / push R1 / ret`
    机械改写成裸 `ret`（65 个文件、719 处）—— **6/6 判据立刻全绿**。
    但 22 语言掉到 19/22（csharp / fortran / forth 回归）。原因：
    `Lib/c/console.vml` 里的 thunk **自己也依赖被调方清栈**：
@@ -429,7 +429,7 @@ sb.AppendLine("    RET");
 ### ② 压参宽度：`EmitPushParam` 按自然大小压，与新的形参槽对不上
 
 ```csharp
-case "char": ... return (new[] { $"    sub R13 #1", $"    moveb @13 R{regIdx}" }, 1);
+case "char": ... return (new[] { $"    sub R13 #1", $"    moveb [@R13] R{regIdx}" }, 1);
 case "short": ... return (new[] { $"    sub R13 #2", ... }, 2);
 ```
 

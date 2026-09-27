@@ -37,7 +37,7 @@ LABEL java_putchar
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL putchar
     ADD @R13 #4
@@ -122,7 +122,7 @@ LABEL java_printFloat
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL print_float
     ADD @R13 #4
@@ -165,7 +165,7 @@ LABEL java_putfloat
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL putfloat
     ADD @R13 #4
@@ -412,7 +412,7 @@ LABEL java_printLong
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL print_long
     ADD @R13 #8
@@ -427,7 +427,7 @@ LABEL java_printHexLong
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL print_hex_long
     ADD @R13 #8
@@ -442,7 +442,7 @@ LABEL java_printlnLong
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL println_long
     ADD @R13 #8
@@ -457,7 +457,7 @@ LABEL java_printlnHexLong
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL println_hex_long
     ADD @R13 #8
@@ -484,7 +484,7 @@ LABEL java_printDouble
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL print_double
@@ -502,7 +502,7 @@ LABEL java_printlnDouble
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL println_double
@@ -524,7 +524,7 @@ LABEL java_vsnprintf
     PUSH @R0
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -546,7 +546,7 @@ LABEL java_sprintf
     PUSH @R0
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -573,7 +573,7 @@ LABEL java_printf4
     PUSH @R0
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -603,7 +603,7 @@ LABEL java_printf5
     PUSH @R0
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     move @R2 [@R13+8]
@@ -733,7 +733,7 @@ LABEL java_printxFloat32
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL printx_float32
     ADD @R13 #4
@@ -748,7 +748,7 @@ LABEL java_printlnxFloat32
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL printlnx_float32
     ADD @R13 #4
@@ -763,7 +763,7 @@ LABEL java_printxFloat64
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL printx_float64
     ADD @R13 #8
@@ -778,7 +778,7 @@ LABEL java_printlnxFloat64
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL printlnx_float64
     ADD @R13 #8

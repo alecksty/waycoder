@@ -151,10 +151,10 @@ LABEL PASCAL_CEXP_RE
     move @R12 @R13
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL cexp_re
@@ -170,10 +170,10 @@ LABEL PASCAL_CEXP_IM
     move @R12 @R13
     movef @F0 [@R12+16]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     move @R1 [@R13+4]
     CALL cexp_im

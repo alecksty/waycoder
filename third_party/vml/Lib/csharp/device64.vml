@@ -9,10 +9,10 @@ LABEL LdevRead64
     move @R12 @R13
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]
@@ -34,10 +34,10 @@ LABEL LdevWrite64
     move @R12 @R13
     movel @L0 [@R12+28]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     movel @L0 [@R12+20]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+16]
     PUSH @R0
     move @R0 [@R12+12]

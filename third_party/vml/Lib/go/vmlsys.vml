@@ -37,7 +37,7 @@ LABEL go_vml_print_char
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL vml_print_char
     ADD @R13 #4
@@ -52,7 +52,7 @@ LABEL go_vml_print_float
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL vml_print_float
     ADD @R13 #4

@@ -68,7 +68,7 @@ LABEL fortran_from_float
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL from_float
     ADD @R13 #4

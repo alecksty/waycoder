@@ -95,7 +95,7 @@ LABEL cpp_ltoa
     PUSH @R0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL ltoa
@@ -113,7 +113,7 @@ LABEL cpp_long_to_strbuf
     PUSH @R0
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     CALL long_to_strbuf
@@ -129,7 +129,7 @@ LABEL cpp_long_to_str
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL long_to_str
     ADD @R13 #8
@@ -144,7 +144,7 @@ LABEL cpp_long_to_wstr
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL long_to_wstr
     ADD @R13 #8
@@ -159,7 +159,7 @@ LABEL cpp_long_to_ustr
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL long_to_ustr
     ADD @R13 #8
@@ -244,7 +244,7 @@ LABEL cpp_ulong_to_str
     move @R12 @R13
     movel @L0 [@R12+12]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R13+0]
     CALL ulong_to_str
     ADD @R13 #8
@@ -315,7 +315,7 @@ LABEL cpp_char_to_str
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL char_to_str
     ADD @R13 #4
@@ -344,7 +344,7 @@ LABEL cpp_byte_to_str
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL byte_to_str
     ADD @R13 #4
@@ -373,7 +373,7 @@ LABEL cpp_sbyte_to_str
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveb @13 @R0
+    moveb [@R13] @R0
     move @R0 [@R13+0]
     CALL sbyte_to_str
     ADD @R13 #4
@@ -402,7 +402,7 @@ LABEL cpp_short_to_str
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveh @13 @R0
+    moveh [@R13] @R0
     move @R0 [@R13+0]
     CALL short_to_str
     ADD @R13 #4
@@ -431,7 +431,7 @@ LABEL cpp_ushort_to_str
     move @R12 @R13
     move @R0 [@R12+12]
     sub @R13 #4
-    moveh @13 @R0
+    moveh [@R13] @R0
     move @R0 [@R13+0]
     CALL ushort_to_str
     ADD @R13 #4
@@ -480,7 +480,7 @@ LABEL cpp_float_to_str
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL float_to_str
     ADD @R13 #4
@@ -513,7 +513,7 @@ LABEL cpp_dtoa
     PUSH @R0
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     move @R1 [@R13+8]
     move @R2 [@R13+12]
@@ -530,7 +530,7 @@ LABEL cpp_double_to_str
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL double_to_str
     ADD @R13 #8
@@ -559,7 +559,7 @@ LABEL cpp_float_to_wstr
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL float_to_wstr
     ADD @R13 #4
@@ -574,7 +574,7 @@ LABEL cpp_double_to_wstr
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL double_to_wstr
     ADD @R13 #8
@@ -603,7 +603,7 @@ LABEL cpp_float_to_ustr
     move @R12 @R13
     movef @F0 [@R12+12]
     sub @R13 #4
-    movef @13 @F0
+    movef [@R13] @F0
     move @R0 [@R13+0]
     CALL float_to_ustr
     ADD @R13 #4
@@ -618,7 +618,7 @@ LABEL cpp_double_to_ustr
     move @R12 @R13
     moved @D0 [@R12+12]
     sub @R13 #8
-    moved @13 @D0
+    moved [@R13] @D0
     move @R0 [@R13+0]
     CALL double_to_ustr
     ADD @R13 #8

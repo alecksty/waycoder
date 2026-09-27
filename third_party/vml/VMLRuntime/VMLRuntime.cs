@@ -1098,7 +1098,10 @@ namespace VMLRuntime
                 OperandType.IMMEDIATE => $"#{valStr}",
                 OperandType.MEMORY => $"[{valStr}]",
                 OperandType.LABEL => valStr,
-                OperandType.INDIRECT => $"@{valStr}",
+                // 寻址与 `MEMORY` 同一形态（`[@R13]` / `[@R14-4]`）——
+                // 用户 2026-09-27 定的格式：`@` 只做寄存器标记，寻址进方括号。
+                // 这与 `Operand.ToString` 的写侧**必须一致**（反汇编看到的就是能被汇编回去的文本）。
+                OperandType.INDIRECT => $"[@{valStr}]",
                 _ => valStr,
             };
         }

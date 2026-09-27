@@ -9,7 +9,7 @@ LABEL LADDER_CRC64
     move @R12 @R13
     movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
@@ -69,7 +69,7 @@ LABEL LADDER_CRC32_64L
     move @R12 @R13
     movel @L0 [@R12+16]
     sub @R13 #8
-    movel @13 @L0
+    movel [@R13] @L0
     move @R0 [@R12+12]
     PUSH @R0
     move @R0 [@R13+0]
