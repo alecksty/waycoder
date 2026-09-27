@@ -100,6 +100,59 @@ internal static class VmlAudio
         }
     }
 
+    /// <summary>
+    /// <b>音频自检</b>（命令行页敲 <c>audio</c> 触发）—— 把"这台设备上音频到底通没通"
+    /// 逐环节摆到屏幕上，并挨个放几种声音让人对着听。
+    ///
+    /// <para>
+    /// 为什么值得做成常驻功能：iOS 那条「**一声不响、什么都不报**」的路已经坑过两次
+    /// （会话类别跟随静音开关、UIKit 跨线程），而**从 Mac 读不到设备上的日志**
+    /// （`devicectl` 这个版本不支持读 App 容器）⇒ 唯一的观测手段就是让它**打在屏幕上**。
+    /// 判据是「看得见的状态 + 听得见的声音」两样一起，缺一样都定不了性。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 每一步都要**真的过一遍发声链**（而不是只读字段）：`NoteOn` 会顺带 `EnsureMixer()`，
+    /// 引擎与播放节点正是那一步建起来的 —— 先放一声再看状态，才看得到"建没建起来"。
+    /// </para>
+    /// </summary>
+    public static async Task<string> SelfCheckAsync()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("🔊 音频自检（每一步都会真的响，听着对一下）");
+        sb.AppendLine($"· 合成器：主音量={_volume} 声部上限={Synth.MaxVoicesLimit}");
+        sb.AppendLine($"· 发声前：{DescribePlatform()}");
+
+        sb.AppendLine("① 单音 do（约 0.6 秒）");
+        NoteOn(0, 60, 100, 0);
+        await Task.Delay(650);
+        sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 1 —— 是 0 说明调用没进合成器）");
+        NoteOff(0, 60);
+
+        sb.AppendLine("② 和弦 do-mi-sol（约 0.9 秒，三个音同时）");
+        NoteOn(0, 60, 100, 0);
+        NoteOn(1, 64, 100, 0);
+        NoteOn(2, 67, 100, 0);
+        await Task.Delay(950);
+        sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 3）");
+        ToneControl(VmlUi.AudioCtl.AllNotesOff, 0, 0);
+
+        sb.AppendLine("③ 老式蜂鸣 880Hz（约 0.4 秒，**与游戏音效同一条路**）");
+        Tone(880, 400, 1);
+        await Task.Delay(600);
+
+        sb.AppendLine("· 发声后：" + DescribePlatform());
+        sb.AppendLine(Synth.ActiveVoices == 0
+            ? "· 声部已清空 ✓"
+            : $"· ⚠️ 还有 {Synth.ActiveVoices} 个声部没关");
+        sb.AppendLine("· ①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。");
+        return sb.ToString();
+    }
+
+    // `DescribePlatform()` 由**下面每个平台分支各定义一份**（引擎/混音轨/播放节点的字段本来
+    // 就分属各分支）—— 与 `EnsureMixer` / `StopAll` 同一个做法。少写一个分支会直接编不过，
+    // 这正是想要的失败方式（本仓宁可编不过，也不要"某个平台悄悄没实现"）。
+
 #if ANDROID
     // ── 复音混音器（v0.96.485）────────────────────────────────────────────
     //
@@ -184,6 +237,11 @@ internal static class VmlAudio
 
     /// <summary>停掉正在响的合成音 —— 现在语义是"清掉老式蜂鸣那条通道"。</summary>
     public static void StopTone() => Synth.NoteOff(VmlToneSynth.LegacyLane);
+
+    /// <summary>自检用：这台 Android 设备上混音那一路的实际状态。</summary>
+    private static string DescribePlatform()
+        => $"Android 混音轨={(_mixer == null ? "**未起（没声音就是这里）**" : "已起")}"
+         + $" / 喂块线程={(_mixThread?.IsAlive == true ? "在跑" : (_running ? "已起但不在跑" : "没起"))}";
 
     /// <summary>同步 BGM 音量（`AUDIO_VOLUME` 要同时作用于 BGM 与合成器）。</summary>
     private static void SetBgmVolume(int volume)
@@ -508,6 +566,32 @@ internal static class VmlAudio
     /// <summary>停掉正在响的合成音 —— 现在语义是"清掉老式蜂鸣那条通道"。</summary>
     public static void StopTone() => Synth.NoteOff(VmlToneSynth.LegacyLane);
 
+    /// <summary>
+    /// 自检用：Apple 这一支的实际状态。**这是"没声音"时唯一看得见的判据** ——
+    /// 引擎 `StartAndReturnError` 成功、`ToneCore` 返回 true、日志干干净净，而声音就是不出来，
+    /// 只有把「引擎建没建、节点在不在播、会话是什么类别」摆出来才定得了性。
+    /// </summary>
+    private static string DescribePlatform()
+    {
+        var s = $"Apple 引擎={(_engine == null ? "**未启动（声音出不去）**" : "已启动")}"
+              + $" / 播放节点={(_node == null ? "无" : _node.Playing ? "正在播" : "**建了但没在播（声音出不去）**")}";
+#if IOS
+        // 会话类别：`Playback` 才是"忽略静音开关"；读**实际值**比"我们设过什么"可信。
+        // ⚠ `OutputVolume` 是**这条链上唯一能揭穿"系统音量被拧到 0 / 静音"的读数** ——
+        //   那种情况下引擎、节点、声部全部正常，就是一个字都听不见（真机排查的头号嫌疑）。
+        try
+        {
+            var session = AVFoundation.AVAudioSession.SharedInstance();
+            s += $" / 会话类别={session.Category}"
+               + $" / 输出音量={session.OutputVolume:0.00}（0 = 静音，系统音量被拧到底）";
+        }
+        catch (Exception ex) { s += $" / 会话读取失败：{ex.Message}"; }
+#else
+        s += " / 会话=不适用（Mac Catalyst 不配，见 EnsureNode 的说明）";
+#endif
+        return s;
+    }
+
     /// <summary>同步 BGM 音量（`AUDIO_VOLUME` 要同时作用于 BGM 与合成器）。</summary>
     private static void SetBgmVolume(int volume)
     {
@@ -588,6 +672,8 @@ internal static class VmlAudio
     // 根本没有 DrawWindowPage，也就没人调到这里 —— 不是"没做"，是那条路不存在。
     public static bool ToneCore(int hz, int ms, int wave, int volume) => false;
     public static void StopTone() { }
+    /// <summary>自检用：这一支是空实现（桌面端走 TUI，没有绘窗那条路）。</summary>
+    private static string DescribePlatform() => "该平台没有音频输出实现（桌面端走 TUI 那条路）";
     public static string? Play(string path, bool loop) => "当前平台不支持音频播放";
     public static void StopBgm() { }
 

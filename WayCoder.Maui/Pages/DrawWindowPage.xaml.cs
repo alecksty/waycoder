@@ -1496,7 +1496,16 @@ public partial class DrawWindowPage : ContentPage
             VectorProbe.Reset();
         }
 #else
-        System.Diagnostics.Debug.WriteLine("[WCVML] " + msg);
+        // ⚠ **非 Android 也写 ErrorLog**（2026-09-27）：原先这里只有 `Debug.WriteLine`，
+        //   而它是**Release 里看不见**的（条件编译掉）—— 于是"macOS 上 gorilla 只有一帧"
+        //   （实测 VM 面板显示 **1.4 fps**、图元 2158/帧）在设备上**一个数都读不到**，
+        //   只能干看着那个面板猜。日志有文件、`ErrorLog` 在每端都落盘 ⇒ 让它可见。
+        ErrorLog.Info("VmlDraw", msg);
+        if (VectorProbe.Report() is { } dist)
+        {
+            ErrorLog.Info("VmlDraw", dist);       // 慢在哪一类指令
+            VectorProbe.Reset();
+        }
 #endif
     }
 

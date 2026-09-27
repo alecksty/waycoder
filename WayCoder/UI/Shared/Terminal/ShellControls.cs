@@ -138,4 +138,27 @@ public static class ShellControls
         outp.Append(line);
         return outp.ToString();
     }
+
+    /// <summary>
+    /// **摘掉"当前那一行"**（半行语义）—— 供"原地刷新的进度行"使用：先摘掉上一帧，再写下一帧。
+    ///
+    /// <para>
+    /// ⚠ 为什么不能靠上面的 <see cref="Apply"/> 把 `\r` 解掉就完事：`Apply` 的 `\r` 只在**同一次
+    /// 调用内**回行首（它只清自己那个局部缓冲），而上一秒那一帧**早就写进屏幕缓冲了** ——
+    /// 跨调用的覆写必须由持有缓冲的人来做。两个消费者（命令行页 / 编辑器运行面板）手里都是
+    /// `List&lt;(string Text, bool NoWrap)&gt;` + 一个 `partial` 标志的同一个形状，
+    /// 于是这条规则只写一份，两边共用（本仓头号坑就是"同一规则两处实现"）。
+    /// </para>
+    ///
+    /// <para>
+    /// 只有末尾确实是半行时才摘（<paramref name="partial"/> 为真且列表非空）；否则什么也不做 ——
+    /// 调用方接着按平时的规则追加即可。
+    /// </para>
+    /// </summary>
+    public static void DropPartialLine(List<(string Text, bool NoWrap)> lines, ref bool partial)
+    {
+        if (!partial || lines.Count == 0) return;
+        lines.RemoveAt(lines.Count - 1);
+        partial = false;
+    }
 }

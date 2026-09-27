@@ -3762,6 +3762,13 @@ public partial class EditorPage : ContentPage
     private bool _panelPartial;
 
     /// <summary>
+    /// 面板当前那一行是不是**进度行**（`\r` 开头、还在原地刷新）。**只用来兜住"普通输出接在
+    /// 进度行后面"**这一种情况 —— 编辑器这边收尾本来就由 `AppendOutput → ClosePendingLine` 负责，
+    /// 标志只是让语义写清楚（命令行页那边它会真的补一个空行收尾）。
+    /// </summary>
+    private bool _panelLiveLine;
+
+    /// <summary>
     /// 面板网格字号 —— 捏合可改（会话内有效，**不落盘**：那是"临时看清这一屏"的取景动作，
     /// 与编辑器正文字号各管各的）。
     ///
@@ -3794,6 +3801,7 @@ public partial class EditorPage : ContentPage
     {
         _panelLines.Clear();
         _panelPartial = false;
+        _panelLiveLine = false;
         _panelCursorBase = -1;
         _panelCursorDisplay = -1;
         RenderPanelOutput();
@@ -3812,7 +3820,27 @@ public partial class EditorPage : ContentPage
     private void AppendOutput(string text)
     {
         ClosePendingLine();
+        _panelLiveLine = false;          // 普通输出一到，进度行就算结束了（见 AppendProgress）
         AppendPanelText(text + "\n", noWrap: false, alreadyMarkup: false);
+    }
+
+    /// <summary>
+    /// 进度消息落屏 —— **以 `\r` 开头 = 原地刷新当前那一行**（编译计时每秒一帧走这条），
+    /// 契约见 <see cref="MauiVml.OnProgress"/>。"替换当前半行"的实现与命令行页共用
+    /// <see cref="ShellControls.DropPartialLine"/>（同一规则不写两遍）。
+    /// </summary>
+    private void AppendProgress(string msg)
+    {
+        if (msg.Length == 0 || msg[0] != '\r') { AppendOutput(msg); return; }
+
+        var text = msg[1..];
+        var endsLine = text.EndsWith('\n');
+        if (endsLine) text = text[..^1];
+
+        Term.ShellControls.DropPartialLine(_panelLines, ref _panelPartial);   // 别名 Term = WayCoder.UI.Shared.Terminal
+        _panelLiveLine = false;          // 同上：进度帧之间不能让 AppendPanelText 去补空行
+        AppendPanelText(text + (endsLine ? "\n" : ""), noWrap: false, alreadyMarkup: false);
+        _panelLiveLine = !endsLine;
     }
 
     /// <summary>同上，但内容**已经是 markup**（`MauiVml.LastDiagnostics` 就是）。</summary>
@@ -3839,6 +3867,7 @@ public partial class EditorPage : ContentPage
     {
         _panelLines.Clear();
         _panelPartial = false;
+        _panelLiveLine = false;
         bool grid = MauiVml.LastOutputWasGrid;
         _panelCursorBase = grid ? 0 : -1;
         if (grid) (_panelCursorRow, _panelCursorCol, _panelCursorVisible) = MauiVml.LastCursor;
@@ -4155,7 +4184,7 @@ public partial class EditorPage : ContentPage
         AppendOutput("⏳ 正在编译…（手机上要一两分钟）");
         // ⚠ `MauiVml.OnProgress` 是**单个静态槽**：命令行页也在用同一个。现实中两者互斥
         //   （一个在编辑器、一个在命令行），且 ShellPage 那边有 _busy 守卫。
-        MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => AppendOutput(msg));
+        MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => AppendProgress(msg));
 
         try
         {

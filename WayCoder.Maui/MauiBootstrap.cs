@@ -218,6 +218,26 @@ public static class MauiBootstrap
         }
         catch { /* 诊断不拦住启动 */ }
 
+        // 2c) **音频自检的自动化入口**：`WAYCODER_AUDIO_SELFCHECK=1` 时开局跑一遍，把报告写到 stdout。
+        //
+        // 为什么需要它：iOS 那条「一声不响、什么都不报」的路**只能上设备才暴露**，
+        // 而排查时既点不了界面（模拟器没有触控注入）、又读不到设备上的日志
+        // （`devicectl` 这个版本不支持读 App 容器）⇒ 之前只能靠"请用户跑一次、念给我听"。
+        // 有了这个开关，`xcrun simctl launch --console` 直接把 App 的 stdout 打回终端，
+        // 一条命令拿到全部状态。开关默认关，对用户零影响。
+        if (Environment.GetEnvironmentVariable("WAYCODER_AUDIO_SELFCHECK") == "1")
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(3000);          // 等 UIApplication 活起来（音频会话要求 App 处于前台）
+                    Console.WriteLine("[音频自检]\n" + await Services.VmlAudio.SelfCheckAsync());
+                }
+                catch (Exception ex) { Console.WriteLine("[音频自检] 抛异常：" + ex); }
+            });
+        }
+
         // 3) 全局未处理异常：落盘 + 尽力保存会话（对齐 GuiBootstrap）
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {

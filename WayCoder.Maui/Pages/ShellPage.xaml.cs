@@ -68,6 +68,13 @@ public partial class ShellPage : ContentPage
     /// <summary>缓冲是否停在半行上（上一段没有以 `\n` 收尾）。</summary>
     private bool _partial;
 
+    /// <summary>
+    /// 屏幕上当前那一行是不是**进度行**（`\r` 开头那种，还在原地刷新）。
+    /// 用来保证：进度行之后的**普通输出**先把它收尾，而不是接在它屁股后面 ——
+    /// 否则编到一半失败时，错误信息会拼在"⏳ 已 12 秒"后面变成一行读不通的东西。
+    /// </summary>
+    private bool _liveLine;
+
     /* ── 全屏程序的光标 ──
      *
      * 记的是"**最近一块画面**"的光标（用户点名的：「光标位置也要显示光标，除非指令关闭了光标」）。
@@ -440,7 +447,28 @@ public partial class ShellPage : ContentPage
     /// 也会往这一页冒提示。
     /// </summary>
     private void InstallVmlProgress()
-        => MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => Append(msg + "\n"));
+        => MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => AppendProgress(msg));
+
+    /// <summary>
+    /// 进度消息落屏。**以 `\r` 开头 = 原地刷新当前那一行**（编译计时每秒一帧就走这条），
+    /// 其余照旧各占一行（见 <see cref="MauiVml.OnProgress"/> 的契约）。
+    /// </summary>
+    private void AppendProgress(string msg)
+    {
+        if (msg.Length == 0 || msg[0] != '\r') { Append(msg + "\n"); return; }
+
+        var text = msg[1..];
+        var endsLine = text.EndsWith('\n');         // 带 `\n` = 这一帧把行收尾（"✅ 编译完成…"）
+        if (endsLine) text = text[..^1];
+
+        // 先摘掉上一帧（"替换当前半行"的唯一实现见 ShellControls），再写这一帧
+        ShellControls.DropPartialLine(_lines, ref _partial);
+        // ⚠ 先清标志再 `Append`：`Append` 见到 `_liveLine` 会**补一个空行收尾**，
+        //   那是给"普通输出接在进度行后面"用的；进度帧之间不能走那条（每帧多一个空行）。
+        _liveLine = false;
+        Append(text + (endsLine ? "\n" : ""));      // 不带 `\n` ⇒ 仍然是半行，下一帧再覆盖
+        _liveLine = !endsLine;
+    }
 
     /// <summary>跑一个 VML 文件（复用 <see cref="ExecVmlAsync"/>，不另起一份执行体）。</summary>
     private Task RunFileAsync(string absPath)
@@ -840,6 +868,18 @@ public partial class ShellPage : ContentPage
                 "把输出区的回滚缓冲整个丢掉，回到干净的一屏。",
                 _ => { MainThread.BeginInvokeOnMainThread(ClearOutput); return Task.FromResult(""); },
                 MaxArgs: 0));
+
+        // audio：音频自检 —— 把"这台设备上音频到底通没通"打到屏幕上，并挨个放几种声音
+        reg.Register(new ShellCommand(
+            "audio", "",
+            "音频自检：报出引擎/会话/播放节点的实际状态，并依次放单音、和弦、蜂鸣",
+            "为什么有这条命令：iOS 上「一声不响、什么都不报」的坑踩过两次，而**从 Mac 读不到"
+            + "设备上的日志**（devicectl 不支持读 App 容器）⇒ 只能让状态自己打在屏幕上。"
+            + "跑一遍：① 单音 do ② 和弦 do-mi-sol ③ 老式蜂鸣 880Hz（与游戏音效同一条路），"
+            + "每一步都会真响并报出当时的声部数与引擎状态。"
+            + "\n判据：①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。",
+            _ => VmlAudio.SelfCheckAsync(),
+            MaxArgs: 0));
 
         // vml：不走 shell，转交进程内的虚拟机（iOS 没有 shell；Android 也不该为编译起进程）
         reg.Register(new ShellCommand(
@@ -1609,6 +1649,9 @@ public partial class ShellPage : ContentPage
     /// <param name="alreadyMarkup">已经是中间格式，别再转一遍（见 RunWithPromptAsync 的说明）。</param>
     private void Append(string text, bool alreadyMarkup = false, bool noWrap = false)
     {
+        // 普通输出接在**进度行**后面时，先把那一行收尾（否则会拼成一串读不通的文本）
+        if (_liveLine) { AddSegment("", partial: false); _liveLine = false; }
+
         // ⚠ **控制字符必须在 ANSI → 标记转换之前解释**：`\r`/`\t`/`\b` 的语义是"在屏幕上占几格"，
         // 一旦转成 `«red»` 那种标记，列数就算不出来了（制表位、退格全都会错位）。
         // 按标准语义处理：`\r` 回行首覆写（进度条）、`\t` 跳制表位（表格）、`\b` 退格（叠打粗体）。

@@ -34,7 +34,15 @@ internal static class MauiVml
     /// 只在**宿主主动发起的运行**期间由宿主装上（见 `ShellPage`），AI 调 `vml` 工具那条路
     /// 保持 null —— 否则用户在命令行页好好地看着，聊天那边跑个 VML 会凭空冒出一行解压提示。
     /// 回调**在后台线程上触发**，接的人自己负责切回 UI 线程。
-    /// </summary>
+    ///
+    /// <para>
+    /// ⚠ **消息以 `\r` 开头 = 「原地刷新当前那一行」**（消费者**不要**再补换行；末尾自带 `\n`
+    /// 才算收尾）。这是给"每秒一次的编译计时"用的：此前每秒一条新行，编一分钟就刷满一屏，
+    /// 真正有用的错误行全被顶上去（用户点名要"同一行计时"）。
+    /// 两个消费者（`ShellPage` 的命令行页、`EditorPage` 的运行面板）都按这条契约实现；
+    /// 见 <see cref="WayCoder.UI.Shared.Terminal.ShellControls.DropPartialLine"/> ——
+    /// 「摘掉当前半行」这条规则**两边共用一份实现**，别各写一遍。
+    /// </para>
     public static Action<string>? OnProgress;
 
     /// <summary>
@@ -720,9 +728,12 @@ HALT
         //   ② 它**把真实耗时量出来** —— 报错/报告里带秒数，才谈得上"这台设备该给多少上限"。
         var compileName = Path.GetFileName(filePath);
         var compileWatch = System.Diagnostics.Stopwatch.StartNew();
-        OnProgress?.Invoke($"⏳ 正在编译 {compileName}（前端编译 + 链接标准库，手机上要一两分钟）…");
+        // ⚠ 计时**原地刷新同一行**（以 `\r` 开头，见 `OnProgress` 的契约说明）：
+        //   此前每秒一条新行，编一分钟刷满一屏、把真正的错误行顶上去（用户点名要"同一行计时"）。
+        OnProgress?.Invoke($"\r⏳ 正在编译 {compileName}… 已 0 秒（上限 {CompileTimeoutSeconds} 秒，"
+            + "手机上要一两分钟，随时可按「停止」）");
         using var compileTicker = new System.Threading.Timer(_ =>
-            OnProgress?.Invoke($"⏳ 正在编译 {compileName}… 已 {compileWatch.Elapsed.TotalSeconds:0} 秒"
+            OnProgress?.Invoke($"\r⏳ 正在编译 {compileName}… 已 {compileWatch.Elapsed.TotalSeconds:0} 秒"
                 + $"（上限 {CompileTimeoutSeconds} 秒，随时可按「停止」）"), null, 1000, 1000);
 
         // **看门狗**：前端编译是同步的、且**没有取消入口**（`IFrontendCompiler` 上没有任何 token），
@@ -945,7 +956,8 @@ HALT
             + $"（前端 {compiler.Name} + 汇编 + 链接，共 {prog.Instructions.Count} 条指令）");
         // **界面上也报一句**：这一版之前，只有"超时"才看得见秒数 —— 于是"这台设备编这个程序多久"
         // 除了掐表没别的办法，平台之间更是没法比（正是用户问「为什么 iOS 比安卓慢那么多」时的处境）。
-        OnProgress?.Invoke($"✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒");
+        // 末尾那个 `\n` = **收尾**：覆盖掉计时那一行，并让后面的输出从新的一行开始（见契约）。
+        OnProgress?.Invoke($"\r✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒\n");
         return (prog, lang, null, compileWarnings);
     }
 

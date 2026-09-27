@@ -710,6 +710,12 @@ static int cloudW[N_CLOUD];      // 第 i 朵的宽度
 /* 一扇窗的图块尺寸（含边框）—— **固定值**，与楼体宽高无关。
    这正是"一窗一块"相对"整栋一张大块"的好处：位置由每扇窗自己算，
    不会因为块尺寸与楼体有一点点对不上而**整栋一起偏**。 */
+// ⚠ 这两个是**最小值**，实际窗户尺寸随楼体缩放（见 `StepX/StepY`）。
+//   固定像素尺寸的老写法有个致命后果：**楼一大，窗户就按面积炸开** ——
+//   实测 1757×1904 的画布上，四栋楼合起来 **2158 个图元/帧**（≈1080 扇窗 × 每扇 2 个
+//   `ui_rect`：外框 + 玻璃），macOS 上直接掉到 **1.4 fps**，玩家看到的就是"只有一帧"。
+//   而"录制图块"省不掉这个数 —— 宿主贴块时会把指令**重放**出来，
+//   图元数照旧（那条注释在 `MakeWinBlocks` 上面，别误会成"录了块就便宜了"）。
 #define WIN_W 11
 #define WIN_H 14
 
@@ -1192,6 +1198,15 @@ public:
     ///   一旦写成绝对坐标，录进块的那一份就带着**录制时**的位置，贴到别处整片窗户会错位。
     /// </summary>
     /// 窗框色 —— **与门框同源**（门也用它），所以只在这里算一份。
+    /// 窗格步进（像素）—— **按楼体缩放**，窗户数量封顶（每行 ≤10、每列 ≤14）。
+    /// 楼体小的时候退回原来的 18×24（与老画面一致），楼体大时才拉开。
+    int StepX() { int s; s = w / 10; return s < 18 ? 18 : s; }
+    int StepY() { int s; s = h / 14; return s < 24 ? 24 : s; }
+
+    /// 一扇窗的尺寸 —— 与步进同比例（原来是 18→11、24→14，这里保持同样的留白）。
+    int WinW() { int s; s = StepX() - 7; return s < 4 ? 4 : s; }
+    int WinH() { int s; s = StepY() - 10; return s < 4 ? 4 : s; }
+
     int FrameColor() { return mixcol(baseR, baseG, baseB, 0, 0, 0, 45); }
 
     /// 夜里透出来的灯光色（窗里、门缝里都是它）—— 同样只算一份。
@@ -1219,9 +1234,9 @@ public:
         // 门框顶**相对楼顶**的位置（门在 `gy-20 .. gy`）—— 与坐标系无关
         limit = (gy - 20) - y;
 
-        cols = w / 18;
+        cols = w / StepX();
         if (cols < 1) { cols = 1; }
-        rows = h / 24;
+        rows = h / StepY();
         if (rows < 1) { rows = 1; }
         c = 0;
         while (c < cols)
@@ -1229,12 +1244,12 @@ public:
             r = 0;
             while (r < rows)
             {
-                wx = ox + 6 + c * 18;
-                wy = oy + 10 + r * 24;
+                wx = ox + 6 + c * StepX();
+                wy = oy + 10 + r * StepY();
                 // ⚠ **一楼只开门、不开窗** —— 原来窗是整列均匀铺到底的，最后一行正好
                 //   压在门上（门在 `gy-20 .. gy`），玩家看到的就是"窗户和门重合"。
                 //   压在门那一段的窗**一格都不画**。
-                if (wy + 14 - oy <= limit)
+                if (wy + WinH() - oy <= limit)
                 {
                     // ⚠ 图案种子用**成员 `x`**（楼的绝对位置）而不是 `ox` ——
                     //   这样录块与直接画得到的是同一片"哪几扇亮着"。
@@ -1328,8 +1343,12 @@ public:
     ///   录出来的块与直接画的必然长得不一样（那种差异只有肉眼能发现）。
     void DrawOneWindowAt(int bx, int by, int lit)
     {
-        ui_rect(bx, by, WIN_W, WIN_H, FrameColor(), 1, 0, 0);
-        ui_rect(bx + 1, by + 1, WIN_W - 2, WIN_H - 2,
+        int ww;
+        int wh;
+        ww = WinW();
+        wh = WinH();
+        ui_rect(bx, by, ww, wh, FrameColor(), 1, 0, 0);
+        ui_rect(bx + 1, by + 1, ww - 2, wh - 2,
                 lit != 0 ? LitColor() : mixcol(14, 14, 24, 52, 74, 96, gDayL), 1, 0, 0);
     }
 
