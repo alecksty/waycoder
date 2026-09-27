@@ -14,6 +14,8 @@
 ;   0.666... ← 1.5 ÷ 2.25
 ;   6.28   ← 双精度 3.14 × 2
 ;   7      ← 3.7 截断成整数
+;   -16    ← `.float -0x10`（负数+十六进制）
+;   255    ← `.word 0xFF`
 ;
 ; 编译运行（桌面秒级，手机上走 vml run）：
 ;   vmlcli Examples/vml/float_ops.vml
@@ -30,6 +32,8 @@ b:        .float  2.25
 pi:       .double 3.14
 two:      .double 2.0
 i3_7:     .float  3.7
+neg:      .float  -0x10      ; **负数 + 十六进制**：-16.0（此前这种写法全线失效，见文件头）
+hx:       .word   0xFF
 
 .text
 start:
@@ -68,6 +72,12 @@ start:
     ; ── ③ 浮点→整数（截断）──────────────────────
     MOVEF F0, [i3_7]
     F2I   R0, F0            ; 3.7 → 3
+    SYSCALL 6
+
+    ; ── ④ 负数十六进制常量（此前 `-0x10` 会被当成字符串 ⇒ 读出来是垃圾）──
+    MOVEF F0, [neg]         ; -16.0
+    SYSCALL 8
+    MOVE  R0, [hx]          ; 0xFF
     SYSCALL 6
 
     SYSCALL 3               ; Exit

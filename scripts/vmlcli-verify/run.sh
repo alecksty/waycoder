@@ -159,7 +159,7 @@ echo "── 【E】汇编浮点数据与运算（Examples/vml/float_ops.vml）"
 VML_HOME="$VML_HOME" dotnet "$CLI" "$ROOT/third_party/vml/Examples/vml/float_ops.vml" \
     --timeout 20 >"$TMP/fo_out.txt" 2>"$TMP/fo_err.txt"
 fo_got="$(grep -vE '^(✔|\[dbg\]|已注册|成功链接|链接)' "$TMP/fo_out.txt" | tr -d '\n')"
-fo_want="3.75-0.753.3750.66666676.283"
+fo_want="3.75-0.753.3750.66666676.283-16255"
 if [ "$fo_got" = "$fo_want" ]; then
     echo "  ✔ 浮点数据指令与四则/双精度/转换全部正确（$fo_got）"
 else

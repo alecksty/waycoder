@@ -492,51 +492,18 @@ namespace VMLAssembler
                 return str;
             }
 
-            if (valueStr.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            // 数字（十进制/十六进制/二进制/八进制，**都支持负号**）—— 与数据指令、浮点数据
+            // 走**同一份**解析器：三处各写一套的后果就是"负数十六进制只在其中一处坏"，
+            // 而坏的那处（`.word -0x10`）会把文本当字符串收下、读出来是垃圾（实测）。
+            if (TryParseNumber(valueStr, out var num, out var isInt))
             {
-                return Convert.ToInt32(valueStr, 16);
+                if (!isInt) return num;                                  // 浮点：直接给 double
+                if (num >= int.MinValue && num <= int.MaxValue) return (int)num;
+                return (long)num;                                        // 超出 int：给 long（.dword 的位模式）
             }
-            else if (valueStr.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
-            {
-                if (valueStr.Length > 2)
-                {
-                    return Convert.ToInt32(valueStr.Substring(2), 2);
-                }
 
-                throw new FormatException("无效的二进制数");
-            }
-            else if (valueStr.StartsWith("0o", StringComparison.OrdinalIgnoreCase))
-            {
-                if (valueStr.Length > 2)
-                {
-                    return Convert.ToInt32(valueStr.Substring(2), 8);
-                }
-
-                throw new FormatException("无效的八进制数");
-            }
-            else
-            {
-                // 先尝试解析为整数
-                if (int.TryParse(valueStr, out int intValue))
-                {
-                    return intValue;
-                }
-
-                // 尝试解析为长整数（用于 .dword 的 IEEE 754 位模式等 64 位整数值）
-                if (long.TryParse(valueStr, out long longValue))
-                {
-                    return longValue;
-                }
-
-                // 再尝试解析为浮点数
-                if (double.TryParse(valueStr, out double doubleValue))
-                {
-                    return doubleValue;
-                }
-
-                // 如果不是数字，返回原始字符串
-                return valueStr;
-            }
+            // 如果不是数字，返回原始字符串
+            return valueStr;
         }
 
         /// <summary>
@@ -1294,20 +1261,63 @@ namespace VMLAssembler
         }
 
         /// <summary>`ParseValue` 的静态版（批量数据在静态辅助里解析，拿不到实例）。</summary>
+        /// <summary>
+        /// **数字字面量解析的唯一实现**（数据指令 / 立即数 / 浮点数据三处共用）。
+        ///
+        /// 支持：十进制（整数与浮点）、`0x` 十六进制、`0b` 二进制、`0o` 八进制，
+        /// **且都支持前置负号**（`-5` / `-0x10` / `-0b101` / `-3.14`）。
+        ///
+        /// ⚠⚠ **负数十六进制此前全线失效**（2026-09-27）：三处解析都写成
+        ///   `s.StartsWith("0x")` —— 对 `-0x10` 不成立 ⇒ 落进"整数→长整数→浮点"三连失败，
+        ///   最后**当成字符串收下**。实测：`.word -0x10` 把文本写进内存（读出来 `3178302D`）、
+        ///   `.float -0x10` 与 `MOVE R0, -0x10` 得到 **0**。而 `-5` / `0xFF` / `-3.14` 都是好的
+        ///   —— 所以只测这几样永远发现不了。
+        /// </summary>
+        internal static bool TryParseNumber(string s, out double value, out bool isInteger)
+        {
+            value = 0; isInteger = false;
+            s = (s ?? "").Trim();
+            if (s.Length == 0) return false;
+
+            var neg = false;
+            if (s[0] == '+' || s[0] == '-') { neg = s[0] == '-'; s = s[1..].Trim(); if (s.Length == 0) return false; }
+
+            // 进制前缀：0x / 0b / 0o（前缀本身大小写不敏感）
+            if (s.Length > 2 && s[0] == '0' && "xXbBoO".Contains(s[1]))
+            {
+                var radix = s[1] switch { 'x' or 'X' => 16, 'b' or 'B' => 2, _ => 8 };
+                try
+                {
+                    // ⚠ 走 `Convert.ToInt64(s[2..], radix)` 而不是 `long.TryParse(HexNumber)`
+                    //   —— 后者只认十六进制、且对 `0b`/`0o` 无能为力。
+                    var mag = Convert.ToInt64(s[2..], radix);
+                    value = neg ? -mag : mag;
+                    isInteger = true;
+                    return true;
+                }
+                catch { return false; }
+            }
+
+            // 十进制：先整数、再长整数、最后浮点（顺序与原来一致，保证 int 优先）
+            if (long.TryParse(s, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out var lv))
+            {
+                value = neg ? -lv : lv; isInteger = true; return true;
+            }
+            if (double.TryParse(s, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var dv))
+            {
+                value = neg ? -dv : dv; return true;
+            }
+            return false;
+        }
+
         private static object? ParseValueStatic(string s)
         {
             s = (s ?? "").Trim();
             if (s.Length == 0) return 0;
-            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
-                long.TryParse(s[2..], System.Globalization.NumberStyles.HexNumber,
-                    System.Globalization.CultureInfo.InvariantCulture, out var hex))
-                return (int)hex;
-            if (int.TryParse(s, System.Globalization.NumberStyles.Integer,
-                    System.Globalization.CultureInfo.InvariantCulture, out var dec))
-                return dec;
-            if (double.TryParse(s, System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var dbl))
-                return (int)dbl;
+            if (TryParseNumber(s, out var num, out var isInt))
+                return isInt ? (num >= int.MinValue && num <= int.MaxValue ? (object)(int)num : (object)(long)num) : (object)num;
             return 0;
         }
 
@@ -1346,8 +1356,9 @@ namespace VMLAssembler
             float fv => fv,
             int iv => iv,
             long lv => lv,
-            string sv when double.TryParse(sv, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var pv) => pv,
+            // ⚠ 字符串走**共用解析器**：`-0x10` 这类负数十六进制此前在这里也会变成 0
+            //   （`double.TryParse` 不认 `0x`）—— 现在两个入口同一条规则。
+            string sv => TryParseNumber(sv, out var pv, out _) ? pv : 0d,
             _ => 0d,
         };
 
