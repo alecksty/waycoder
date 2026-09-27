@@ -93,8 +93,8 @@ thread_sleep:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 24:     asm("SYSCALL #304");
-        syscall #304
+; 28:     asm("SYSCALL #52");
+        syscall #52
         move [@R12-4] @R0
         move @R13 @R12
         pop @R12
@@ -111,7 +111,7 @@ mutex_create:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 32:     return asm("SYSCALL #310");
+; 36:     return asm("SYSCALL #310");
         syscall #310
         move [@R12-4] @R0
         jmp L_35560002
@@ -132,7 +132,7 @@ mutex_lock:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 37:     return asm("SYSCALL #311");
+; 41:     return asm("SYSCALL #311");
         syscall #311
         move [@R12-4] @R0
         jmp L_35560003
@@ -153,7 +153,7 @@ mutex_unlock:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 42:     return asm("SYSCALL #312");
+; 46:     return asm("SYSCALL #312");
         syscall #312
         move [@R12-4] @R0
         jmp L_35560004
@@ -173,7 +173,7 @@ cond_create:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 50:     return asm("SYSCALL #313");
+; 54:     return asm("SYSCALL #313");
         syscall #313
         move [@R12-4] @R0
         jmp L_35560005
@@ -195,7 +195,7 @@ cond_wait:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 55:     return asm("SYSCALL #314");
+; 59:     return asm("SYSCALL #314");
         syscall #314
         move [@R12-4] @R0
         jmp L_35560006
@@ -216,7 +216,7 @@ cond_signal:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 60:     return asm("SYSCALL #315");
+; 64:     return asm("SYSCALL #315");
         syscall #315
         move [@R12-4] @R0
         jmp L_35560007
@@ -237,7 +237,7 @@ cond_broadcast:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 65:     return asm("SYSCALL #316");
+; 69:     return asm("SYSCALL #316");
         syscall #316
         move [@R12-4] @R0
         jmp L_35560008
@@ -258,7 +258,7 @@ exec:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 73:     return asm("SYSCALL #320");
+; 77:     return asm("SYSCALL #320");
         syscall #320
         move [@R12-4] @R0
         jmp L_35560009
@@ -279,9 +279,8 @@ process_exit:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 76:     asm("SYSCALL #321");
-        syscall #321
-        move [@R12-4] @R0
+; 84:     asm("SYSCALL 3");
+        asm "SYSCALL 3"
         move @R13 @R12
         pop @R12
         pop @R15
@@ -297,7 +296,7 @@ get_pid:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 81:     return asm("SYSCALL #322");
+; 89:     return asm("SYSCALL #322");
         syscall #322
         move [@R12-4] @R0
         jmp L_35560010
@@ -319,7 +318,7 @@ socket_create:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 89:     return asm("SYSCALL #330");
+; 97:     return asm("SYSCALL #330");
         syscall #330
         move [@R12-4] @R0
         jmp L_35560011
@@ -341,7 +340,7 @@ socket_bind:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 94:     return asm("SYSCALL #331");
+; 102:     return asm("SYSCALL #331");
         syscall #331
         move [@R12-4] @R0
         jmp L_35560012
@@ -363,7 +362,7 @@ socket_listen:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 99:     return asm("SYSCALL #332");
+; 107:     return asm("SYSCALL #332");
         syscall #332
         move [@R12-4] @R0
         jmp L_35560013
@@ -384,7 +383,7 @@ socket_accept:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 104:     return asm("SYSCALL #333");
+; 112:     return asm("SYSCALL #333");
         syscall #333
         move [@R12-4] @R0
         jmp L_35560014
@@ -407,7 +406,7 @@ socket_connect:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 109:     return asm("SYSCALL #334");
+; 117:     return asm("SYSCALL #334");
         syscall #334
         move [@R12-4] @R0
         jmp L_35560015
@@ -430,7 +429,7 @@ socket_send:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 114:     return asm("SYSCALL #335");
+; 122:     return asm("SYSCALL #335");
         syscall #335
         move [@R12-4] @R0
         jmp L_35560016
@@ -453,7 +452,7 @@ socket_recv:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 119:     return asm("SYSCALL #336");
+; 127:     return asm("SYSCALL #336");
         syscall #336
         move [@R12-4] @R0
         jmp L_35560017
@@ -474,7 +473,7 @@ socket_close:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 124:     return asm("SYSCALL #337");
+; 132:     return asm("SYSCALL #337");
         syscall #337
         move [@R12-4] @R0
         jmp L_35560018
@@ -495,7 +494,7 @@ mkdir:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 132:     return asm("SYSCALL #340");
+; 140:     return asm("SYSCALL #340");
         syscall #340
         move [@R12-4] @R0
         jmp L_35560019
@@ -516,7 +515,7 @@ remove_file:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 137:     return asm("SYSCALL #341");
+; 145:     return asm("SYSCALL #341");
         syscall #341
         move [@R12-4] @R0
         jmp L_35560020
@@ -538,7 +537,7 @@ rename_file:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 142:     return asm("SYSCALL #342");
+; 150:     return asm("SYSCALL #342");
         syscall #342
         move [@R12-4] @R0
         jmp L_35560021
@@ -560,7 +559,7 @@ read_dir:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 147:     return asm("SYSCALL #343");
+; 155:     return asm("SYSCALL #343");
         syscall #343
         move [@R12-4] @R0
         jmp L_35560022
@@ -582,7 +581,7 @@ file_stat:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 152:     return asm("SYSCALL #344");
+; 160:     return asm("SYSCALL #344");
         syscall #344
         move [@R12-4] @R0
         jmp L_35560023
@@ -603,7 +602,7 @@ get_env:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 160:     return asm("SYSCALL #360");
+; 168:     return asm("SYSCALL #360");
         syscall #360
         move [@R12-4] @R0
         jmp L_35560024
@@ -625,7 +624,7 @@ set_env:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 163:     asm("SYSCALL #361");
+; 171:     asm("SYSCALL #361");
         syscall #361
         move [@R12-4] @R0
         move @R13 @R12
@@ -644,7 +643,7 @@ get_args:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 168:     return asm("SYSCALL #362");
+; 176:     return asm("SYSCALL #362");
         syscall #362
         move [@R12-4] @R0
         jmp L_35560025
@@ -665,7 +664,7 @@ type_of:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 190:     return asm("SYSCALL #380");
+; 198:     return asm("SYSCALL #380");
         syscall #380
         move [@R12-4] @R0
         jmp L_35560026
@@ -688,7 +687,7 @@ type_name:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 195:     return asm("SYSCALL #381");
+; 203:     return asm("SYSCALL #381");
         syscall #381
         move [@R12-4] @R0
         jmp L_35560027

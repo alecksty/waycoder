@@ -1,3 +1,64 @@
+## v0.96.520 — 全库 syscall 审计：找出过时/错误的号，修掉两个真坏的
+
+用户要「检查一遍库所有 syscall 是否合法有效，有没有过时错误的」。做法是**三方交叉核对**：
+
+1. **谁在用**：`grep -rn 'SYSCALL' Lib/**`（207 个号）—— ⚠ **必须排掉注释**，否则一堆假阳性
+   （`conio.c` 里那份 v0.96.500 的现场复盘、`README-ui.md` 的说明都写着老号）；
+2. **宿主认领**：`VmlHostRuntime` 的 `case VmlUi.*` + `VmlUi.Handles()` = **500–599**；
+3. **VM 内置**：`VMLRuntime.Syscall.cs` 的 dispatch `case` + `SyscallNumber` 枚举（98 个）。
+
+⚠ 中途我自己踩了两次**提取器**的坑（都当场发现并纠正，记下来免得重复）：
+① 拿号去查**按名字键**的字典 ⇒ 把 62 个正常号误报成"未定义"；② `public const int Text = …` 在
+几个嵌套类里重名 ⇒ 字典被后写覆盖，`533` 又被误报一次。**"检查工具自己出错"比不检查更糟** ——
+所以每条判据都回头用第二来源（`VmlUi.Handles` 的实现、C 包装的函数名）复核过。
+
+### 结论
+
+**① UI 面（500–599）是干净的** ✓：用到的 61 个号**全部**有常量定义、宿主全部认领
+（`#533` 是假阳性：`VmlUi.Text = 533` 真实存在）。唯一"落在号段里但无定义"的命中是个**注释**。
+
+**② 真坏的、已修**（`Lib/shared/src/os.c` → 重生成 `Lib/shared/os.vml`）：
+
+| 函数 | 原来 | 改成 | 后果 | 反证 |
+|---|---|---|---|---|
+| `process_exit(code)` | `SYSCALL #321` | `SYSCALL 3` | **调了不退出** | ✅ 旧号下 `NOT_REACHED` 会打出来、新号下不打 |
+| `thread_sleep(ms)` | `SYSCALL #304` | `SYSCALL #52` | 见下 | ⚠ 行为**没变** |
+
+- `#321` 的依据是两条**独立的**证据：`Lib/fortran/process.f90` 的注释「ProcessExit（旧 SYSCALL 321）
+  已与 Exit（SYSCALL 3）合并」；以及 `Lib/shared/src/vmlsys.c` 那句
+  「进程 / OS 线程 (SYSCALL #3, #300-303, #310-316, #322)」——**列了活着的号、独缺 321**。
+- `#304` 的依据是 **VM 源码里的注释**：`// 304: ThreadSleep — 已删除，统一使用 Sleep(52)`。
+  ⚠ **但反证显示行为没变**：把 `#304` 塞回去照样睡 602ms、而且**没有** `Unknown syscall` 输出 ——
+  日志里那句 `最终修复: 147 个 CALL 目标已重定向` 就是答案：**链接器把 `thread_sleep` 的调用
+  重定向到别的实现去了**（本仓记过的 `LibraryLinker` 行为），我改的那个函数体不是活路径。
+  ⇒ 这处保留（与 VM 注释口径一致、去掉一个过时号），但**如实记下"行为无变化"**，
+  不留一个"说不清效果"的改动。
+
+**③ 死代码（不会执行，但会误导抄它的人）**：Go/Scheme/Ruby/Pascal/Lua 里有一批调用
+**从未实现的号**（Scheme `stdlib.scm` 的数学 20–49 与 `cons/car/cdr` 80–82、
+`device.scm` 的键鼠 83–88；Ruby `eeprom/env/fs` 的 120–143；Pascal `system.pas` 的 32/44；
+`lua_meta.vml` 的 74）—— 共 52 个号。**它们不在链接路径上**（`Lib/scheme/stdlib.vml` 里
+`SYSCALL` 计数为 **0**；全仓也没有任何地方 `load`/`include` 这两个 `.scm`；Scheme 链的是
+`scheme_rt.vml`）⇒ 症状是"抄过去也没反应"，不是"程序坏了"。**未动**（它们属于"能力未实现"，
+不是"号写错"，改法要另行设计）。⚠ 其中 `stdlib.scm` 的 `(define (cons x y) (asm "SYSCALL 80")
+(cons x y))` 是**自我递归**，谁要是把它真接上就是死循环。
+
+### 顺带发现（未修）
+
+`Lib/c/shared_bindings.h` **过不了自己的 C 前端**：29 个语法错误
+（`return vml_alloc((int);`、`__stdcall int atexit(void (*fn);` …）⇒ `#include <shared_bindings.h>`
+的程序编不过。本轮验证时踩到，改用 `waycoder_ui.h` + 手写声明绕过。
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| Lib 重生成 | ✅ 只有 `os.vml` 变（**108 个模块全部跳过** = 其余生成物与源码本就同步） |
+| `process_exit` 反证 | ✅ 旧号"不退出"、新号"退出" |
+| `thread_sleep` 反证 | ⚠ 行为未变（链接器重定向，见上） |
+| 桌面全量自测 | ✅ 6803 通过 / 0 失败 |
+
+---
 ## v0.96.519 — iPad 破音：iOS 混音**队列没有余量**（改按队列剩余量控速）+ `audio` 每步兜异常 + APK 脚本换 dotnet
 
 ### ① iOS「有的声音是破音的」：混音线程原来**刚好实时**，队列里只有一块

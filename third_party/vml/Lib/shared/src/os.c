@@ -27,7 +27,11 @@ __stdcall void thread_yield(void) {
 }
 
 __stdcall void thread_sleep(int ms) {
-    asm("SYSCALL #304");
+    /* ⚠⚠ **号整合后漏改的调用点**（2026-09-27 审计）：#304(ThreadSleep) 在 VM 里
+       **已删除**，源码注释写着「统一使用 Sleep(52)」（见 VMLRuntime.Syscall.cs 的 304 那条）。
+       照旧写 #304 ⇒ 宿主 switch 落到兜底、返回 -1 ⇒ **这个函数什么都不做**（睡眠失效）。
+       参数由前端按约定放 R0，与 `Lib/shared/src/builtins.c` 的 `sleep()` 同形。*/
+    asm("SYSCALL #52");
 }
 
 // ============================================================
@@ -91,7 +95,11 @@ int exec(const char* path) {
 }
 
 void process_exit(int code) {
-    asm("SYSCALL #321");
+    /* ⚠⚠ **号整合后漏改的调用点**（2026-09-27 审计）：#321(ProcessExit) 已与 **Exit(3) 合并**
+       —— 依据有两条：`Lib/fortran/process.f90` 的注释明写这件事；`Lib/shared/src/vmlsys.c`
+       那句「进程 / OS 线程 (SYSCALL #3, #300-303, #310-316, #322)」**列了活着的号、独缺 321**。
+       照旧写 #321 ⇒ 宿主兜底、返回 -1 ⇒ **调了不退出**（老程序走到这行会继续往下跑）。*/
+    asm("SYSCALL 3");
 }
 
 __stdcall int get_pid(void) {
