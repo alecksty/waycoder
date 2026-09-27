@@ -93,7 +93,23 @@ public class Lexer : LexerBase
         int sl = _line, sc = _col;
         bool isFloat = false;
         var sb = new StringBuilder();
-        while (char.IsDigit(Peek()) || (Peek() == '.' && !isFloat))
+
+        // ── 基数字面量：`0x1f` / `0b1010` / `0o17`（Ruby 三种都有，还允许 `1_000` 分隔符）──
+        //
+        // ⚠ **原先一条都不认**：`0x10` 被切成 `0`（整数）+ `x10`（标识符）⇒ 解析器在
+        //   "0 后面还跟着个标识符"处报 **「expected )（得到 Identifier）」** ——
+        //   错误信息指向"少了个右括号"，与十六进制毫无关系（实测 `f.rb` 整份编不过）。
+        //   进制字面量一并把下划线吃掉（`0xFF_FF` 是合法的 Ruby）。
+        if (Peek() == '0' && (Peek(1) is 'x' or 'X' or 'b' or 'B' or 'o' or 'O'))
+        {
+            sb.Append(Advance());   // 0
+            sb.Append(Advance());   // x / b / o
+            while (char.IsLetterOrDigit(Peek()) || Peek() == '_')
+                sb.Append(Advance());
+            return new Token(TokenType.Integer, sb.ToString(), sl, sc);
+        }
+
+        while (char.IsDigit(Peek()) || Peek() == '_' || (Peek() == '.' && !isFloat))
         {
             if (Peek() == '.')
             {

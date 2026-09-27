@@ -526,6 +526,39 @@ namespace LuaCompiler
                         else if (arg is ConstantNode cnf && cnf.Type == "number"
                                  && cnf.Value is double dv && dv != Math.Floor(dv))
                             EmitPrintFloat();
+                        // ── **数字**：按 Lua 的 `%.14g` 口径打（整数值不带小数点） ──────
+                        //
+                        // ⚠ 判据不能只看"参数是不是字面量"：`print(3.14 * 2.0 * 100)`
+                        //   的参数是**二元表达式**，落进下面那条 int 分支 ⇒ 值在 `D0`、
+                        //   却按 `R0`（= 最后一个整数中间量）打（实测打出 100）。
+                        //   Lua 的 number 是**运行期**双精度、整数/浮点只差"值整不整"，
+                        //   编译期判不了 ⇒ 就地发一段运行期判断：
+                        //     `d2i R0, D0` / `i2d D1, R0` / `dcmp` ⇒ 相等就是整数值。
+                        else if (InferExpressionType(arg) == LuaType.Float)
+                        {
+                            string floatLbl = NewLabel("luaflt");
+                            string endLbl = NewLabel("luaend");
+                            // ⚠ 编号是**绝对值**，不是"第几个"：`D0`=16、`D1`=**17**。
+                            //   写成 16 会把结果写回 D0 ⇒ **把待打印的 x 本身覆盖掉**
+                            //   （实测打印恒为 0）—— 与"寄存器类由助记符定"同一张表，
+                            //   别在这里手算 D 的下标（要用 `BankOfOperand` 就统一用）。
+                            instructions.Add(new(OpCode.D2I, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 16)]));
+                            instructions.Add(new(OpCode.I2D, [new Operand(OperandType.REGISTER, 17), new Operand(OperandType.REGISTER, 0)]));
+                            instructions.Add(new(OpCode.DCMP, [new Operand(OperandType.REGISTER, 16), new Operand(OperandType.REGISTER, 17)]));
+                            instructions.Add(new(OpCode.JNE, [new Operand(OperandType.LABEL, floatLbl)]));
+                            instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                            instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "lua_print1")]));
+                            instructions.Add(new(OpCode.JMP, [new Operand(OperandType.LABEL, endLbl)]));
+                            AddLabel(floatLbl);
+                            // ⚠ 值在 `D0`，而 `print_float` 收的是**单精度形参**（被调方从
+                            //   `[R12+12]` 读，4 字节）⇒ 先 `D2F` 再按 float 压栈。
+                            //   直接把 D0 交给它 = 读上一帧的残留（实测负数一律打 0）。
+                            EmitD2F();
+                            EmitPushArg(4, isFloat: true, isDouble: false, isLong: false);
+                            EmitPrintFloat();
+                            AddInstruction(OpCode.ADD, Reg(13), Imm(4));
+                            AddLabel(endLbl);
+                        }
                         else
                         {
                             instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
@@ -535,6 +568,35 @@ namespace LuaCompiler
                     // newline
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 10)]));
                     instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 4)])); // putchar '\n'
+                    return;
+                }
+                // ── `math.floor` / `math.ceil`：**就地内联**，走库函数那条路是断的 ──────
+                //
+                // ⚠ 映射表把它们映到 `math_floor`/`math_ceil`，而 `Lib/` 里**根本没有这两个
+                //   函数**（只有 Python 的 stdlib 有个同名 def）⇒ 调用解析不到、等于空操作：
+                //   实测 `print(math.floor(3.5))` 打出 3.5 的**位型** 1080033280。
+                //   两个语义是**一条指令**的事（截断 / 向上取整），没必要为它加一个库函数
+                //   （加库函数还要重跑 GenLib 重生成 `Lib/lua/**`，代价远大于收益）。
+                if ((functionName == "math.floor" || functionName == "math.ceil")
+                    && node.Arguments.Count >= 1)
+                {
+                    // 整数档本来就是整数 ⇒ 原样返回（`EmitD2I` 会去读 D0 的残留）
+                    if (InferExpressionType(node.Arguments[0]) != LuaType.Float) return;
+                    GenerateExpression(node.Arguments[0]);            // D0 = 双精度值
+                    EmitD2I();                                        // R0 = 截断（向零取整）
+                    if (functionName == "math.ceil")
+                    {
+                        // ceil(x) = trunc(x) + (x > trunc(x) ? 1 : 0)
+                        //   —— `x <= trunc(x)` 有两种情形：恰好整数（相等），或**负数**
+                        //   （`-4.29` 的截断是 `-4`，比原值大）⇒ 两种都不该 +1 ✓
+                        var ceilDone = NewLabel("ceil_dn");
+                        EmitI2D();                                    // D1 = (double)trunc(x)
+                        instructions.Add(new(OpCode.DCMP,
+                            [new Operand(OperandType.REGISTER, 16), new Operand(OperandType.REGISTER, 17)]));
+                        instructions.Add(new(OpCode.JLE, [new Operand(OperandType.LABEL, ceilDone)]));
+                        instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+                        AddLabel(ceilDone);
+                    }
                     return;
                 }
                 if (functionName == "string.len" && node.Arguments.Count >= 1)

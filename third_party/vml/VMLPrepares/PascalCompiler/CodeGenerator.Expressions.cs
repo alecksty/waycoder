@@ -242,9 +242,11 @@ namespace PascalCompiler
                     {
                         PascalType varType = GetVariablePascalType(variable.Name);
                         OpCode loadOp = GetLoadInstruction(varType);
+                        // ⚠ 目的寄存器**按类取**：`MOVED`/`MOVEL` 的 0 号是 `D0`/`L0`，
+                        //   写 `REGISTER 0`（通用 R0）会被寄存器类闸判死。
                         instructions.Add(new Instruction(loadOp, new List<Operand>
                         {
-                            new Operand(OperandType.REGISTER, 0),
+                            TRegOf(loadOp, 0),
                             Mem("R0")
                         }));
                     }
@@ -278,7 +280,7 @@ namespace PascalCompiler
                     OpCode loadOp = GetLoadInstruction(varType);
                     instructions.Add(new Instruction(loadOp, new List<Operand>
                     {
-                        new Operand(OperandType.REGISTER, 0),
+                        TRegOf(loadOp, 0),
                         Mem("R0")
                     }));
                 }
@@ -407,7 +409,7 @@ namespace PascalCompiler
                         }));
                         instructions.Add(new Instruction(loadOp, new List<Operand>
                         {
-                            new Operand(OperandType.REGISTER, 0),
+                            TRegOf(loadOp, 0),
                             Mem("R0")
                         }));
                     }
@@ -500,7 +502,22 @@ namespace PascalCompiler
                         break;
                     case TokenType.SLASH:
                         // Pascal / 总是产生 Real, 但操作数保持原类型以触发 I2F 转换 (v1.66.38 fix)
-                        _expr!.EmitBinOp(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right), "/");
+                        //
+                        // ⚠ **64 位操作数必须先把两侧转成双精度**：共用的 `EmitBinOp` 对
+                        //   `(Int64, Int32)` 的 `/` 发的是 `DIVL`（**整数除**，结果留在 `L0`），
+                        //   而 `/` 的推断类型是实数 ⇒ 外面那一层按 `D0` 取 ⇒ **静默得 0**。
+                        //   实测 `Trunc((5000000000 / 5) / den)` 得 0（应 2），
+                        //   产物里 `divl @L0 …` 之后紧跟 `dpush @D0`（值根本不在 D0）。
+                        //   32 位那条保持原样（老程序的 `/` 一直是整除口径，不动它免得回归）。
+                        if (GuessIntType(binaryOp.Left) == PascalType.Int64
+                            || GuessIntType(binaryOp.Right) == PascalType.Int64)
+                        {
+                            _expr!.EmitBinOp(WrapExprAsDouble(binaryOp.Left), WrapExprAsDouble(binaryOp.Right), "/");
+                        }
+                        else
+                        {
+                            _expr!.EmitBinOp(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right), "/");
+                        }
                         break;
                     case TokenType.DIV:
                         _expr!.EmitBinOp(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right), "/");
@@ -651,11 +668,15 @@ namespace PascalCompiler
             else if (name == "trunc")
             {
                 GenerateExpression(funcCall.Arguments[0]);
-                instructions.Add(new Instruction(OpCode.F2I, new List<Operand>
-                {
-                    new Operand(OperandType.REGISTER, 0),
-                    new Operand(OperandType.REGISTER, 0)
-                }));
+                // ⚠ **按值当前的类**转换，别写死 `F2I`：实参可能是 `Real`（值在 F0）
+                //   也可能是 `Double`（值在 **D0**）或 `Int64`（**L0**）。写死 F2I 时后两者
+                //   读的是 F0 里的残留 ⇒ 实测 `Trunc(d1 * d2 * 100.0)` 得 **100**（应 628）、
+                //   `Trunc((big + add) / 1e9)` 得 2147483647。
+                //   判据 + 发射都走共享的那一份（`Guess*Type` / `TypeInfo` / `EmitConversion`）。
+                var truncSrc = IsFloatExpression(funcCall.Arguments[0])
+                    ? GuessFloatType(funcCall.Arguments[0]) : GuessIntType(funcCall.Arguments[0]);
+                var (cs1, cf1, cd1, cl1) = TypeInfo(truncSrc);
+                _expr!.EmitConversion(cs1, cf1, cd1, 4, false, false, cl1, false);
                 return;
             }
             else if (name == "round")

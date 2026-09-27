@@ -112,6 +112,9 @@ public partial class CodeGenerator
         // 形参的「是不是字符串」由**预扫描**给出（见 CollectStringArgPositions）——
         // 函数体生成的那一刻调用点可能还在后面，不看预扫描就只能一律当成整数。
         var savedStringVars = new HashSet<string>(_stringVars);
+        // 变量**类**表同样按函数作用域隔离（与 symbolTable / _stringVars 同一处）
+        var savedVarTypes = new Dictionary<string, ExpType>(_varTypes);
+        _varTypes.Clear();
         for (int i = 0; i < numParams; i++)
         {
             symbolTable[node.Parameters[i]] = -(12 + i * 4);
@@ -148,6 +151,9 @@ public partial class CodeGenerator
         // 形参的字符串标记同理要还原（函数体里的局部变量可能改了集合）
         _stringVars.Clear();
         _stringVars.UnionWith(savedStringVars);
+        _varTypes.Clear();
+        foreach (var kv in savedVarTypes)
+            _varTypes[kv.Key] = kv.Value;
         nextStackOffset = savedOffset;
         _currentClassName = prevClassName;
     }
@@ -256,7 +262,11 @@ public partial class CodeGenerator
 
     private void GenerateAssign(AssignNode node)
     {
+        // ⚠ **先记类型再生成**：`EmitStoreVar` 要按类选 `MOVE`/`MOVED` 并算槽宽
+        //   （`GetNewVarSize`）—— 顺序反了第一次赋值会按 4 字节分配，8 字节的写入啃掉邻居。
+        NoteVarType(node.Name, node.Value);
         GenerateExpression(node.Value);
+        // 浮点初值的转换交给表达式层（`InferType(值)` 已知），这里只补必要的提升
         EmitStoreVar(node.Name);
         NoteVarStringness(node.Name, node.Value);
     }

@@ -359,6 +359,10 @@ public partial class ShellPage : ContentPage
         UpdateSizeButtons();                     // 侧栏可能改过尺寸，按钮高亮要跟上
         Dispatcher.Dispatch(UpdateScrollBar);   // 回到本页时量一次（期间可能转过屏）
         ApplyVmStatusVisibility();               // VM 状态开关是全局的：别的页面可能刚改过它
+        // 「运行/停止」按钮**每次回到本页都重算**：`_runCts` 是 **static**（跨页共享），
+        // 编译跑在别的页面/别的实例上时那次刷新打在**当初那个实例**上，本页这条按钮
+        // 的配色就停在旧状态（表现同样是"编译完按钮一直是红的"）。
+        RefreshRunButton();
 
         // 文件页递过来的活：等本页真的显示出来再干（切 Tab 会走这里）。
         if (Interlocked.Exchange(ref PendingVml, null) is { } job)
@@ -1610,9 +1614,17 @@ public partial class ShellPage : ContentPage
     /// 把一个按钮切成「强调态」/ 还原成主题默认态 —— **唯一实现**
     /// （尺寸档高亮与「运行 / 停止」按钮共用这一处）。
     ///
-    /// ⚠ **还原必须走 `ClearValue`**（把本地值摘掉、让主题/样式里的值回来）。
-    /// 写成 `b.BackgroundColor = 某个默认色` 等于把**当时那一档**的颜色记死 ——
-    /// 换个主题、或者样式表调了色，按钮就跟其它按钮不是一套了，而且不报错。
+    /// ⚠ **还原要显式写回"常态色"，且那常态色必须与样式表同源**（见下）。
+    ///
+    /// <para>
+    /// 早先这里走的是 `ClearValue(BackgroundColorProperty)`（把本地值摘掉、让样式里的
+    /// `AppThemeBinding` 回落）。**语义上是对的，在这条链上不可靠**：清掉本地值之后
+    /// 安卓侧不一定重画 ⇒ 用户看到的是「**编译完运行按钮一直是红的**」。
+    /// 所以改成显式写回 `Styles.xaml` 里 `TargetType="Button"` 用的那对资源
+    /// （`ButtonBgLight/Dark` + `ButtonTextLight/Dark`，按当前主题取）——
+    /// 既**不依赖"清值会重画"这个平台行为**，也不会把颜色写死成某一档
+    /// （主题变了照样跟着变，因为取的就是主题资源）。
+    /// </para>
     /// </summary>
     /// <param name="bg">强调底色；传 null = 还原（此时 <paramref name="fg"/> 一并忽略）。</param>
     // ⚠ `Color` 在这里**必须全限定**：本文件同时 using 了 `WayCoder.UI.Shared.Terminal`
@@ -1622,8 +1634,14 @@ public partial class ShellPage : ContentPage
     {
         if (bg is null || fg is null)
         {
-            b.ClearValue(Button.BackgroundColorProperty);
-            b.ClearValue(Button.TextColorProperty);
+            // ⚠ **还原要显式写回常态色，不能用 `ClearValue`** —— `ClearValue` 的语义是
+            //   "回落到样式里那对 `AppThemeBinding`"，而这条链在安卓上不可靠：本地值清掉之后
+            //   视觉不一定重画（本仓另一处也踩过"本地值 vs 样式触发"的坑，见 GUI `ChatInputBox`）。
+            //   实测症状就是用户报的「**编译完运行按钮一直是红的**」。
+            //   常态色取自**样式用的同一批资源**（`Styles.xaml` 的 `TargetType="Button"`），
+            //   所以写回去与"从没强调过"逐像素一致。
+            b.BackgroundColor = MauiUi.Res(MauiUi.IsDark ? "ButtonBgDark" : "ButtonBgLight");
+            b.TextColor = MauiUi.Res(MauiUi.IsDark ? "ButtonTextDark" : "ButtonTextLight");
             return;
         }
         b.BackgroundColor = bg;

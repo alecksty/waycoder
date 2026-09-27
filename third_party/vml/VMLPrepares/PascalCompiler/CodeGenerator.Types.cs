@@ -113,7 +113,20 @@ namespace PascalCompiler
                 // 文件句柄(4字节) + 文件模式(4字节) + 缓冲区指针(4字节) + 错误状态(4字节)
                 return 4; // 4个slot用于文件操作
             }
-            return 1; // 基本类型占1个slot
+            // ── 基本类型：**按类型表算格数** ──────────────────────────────────────
+            //
+            // ⚠ 此前这里恒返回 **1**（= 4 字节），于是 `d1, d2: Double` 两个全局量各只分到
+            //   一个字（产物里是 `d1: .word 0` / `d2: .word 0`），而写入用的是 `moved`
+            //   （**8 字节**）⇒ `d1` 的写入盖住 `d1+d2`、`d2` 再盖住 `d2+隔壁`
+            //   ⇒ 读 `d1` 得到 0（实测 `Trunc(d1 * 100.0)` 打 0，而同一个程序里
+            //   **最后一个** Double 变量是对的 —— 典型的"只有相邻的那个坏"）。
+            //   判据与装载/存储/转换**同一张表**（`GetPascalType` + `TypeInfo`）。
+            if (typeNode is SimpleTypeNode simpleLeaf)
+            {
+                var (leafSize, _, _, _) = TypeInfo(GetPascalType(simpleLeaf.TypeName));
+                return Math.Max(1, (leafSize + 3) / 4);
+            }
+            return 1; // 其余基本类型占1个slot
         }
 
         /// <summary>

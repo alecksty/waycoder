@@ -46,6 +46,19 @@ public partial class CodeGenerator
 
     private void GenerateLiteral(LiteralNode node)
     {
+        // ⚠ 超出 int32 的整数**按双精度发**（与 `InferType` 同一口径）：基类的
+        //   `EmitLoadConstant` 对 `long` 走的是 **L 类**（`movel @L0`），而本前端把
+        //   "大整数"归为 `F64` ⇒ 运算是双精度指令、去读 D0 ⇒ 读到垃圾
+        //   （实测 `(3000000000 + 1000000000) / 1000000000` 得 1，应 4）。
+        //   同族的 C#/Go/Python 也都是"大整数走双精度"这条路。
+        if (node.Value is long l && (l < int.MinValue || l > int.MaxValue))
+        {
+            string dlabel = $"dbl_{instructions.Count}";
+            dataSection[dlabel] = (double)l;
+            instructions.Add(new Instruction(OpCode.MOVED,
+                [TRegOf(OpCode.MOVED, 0), new Operand(OperandType.MEMORY, dlabel)], instructions.Count));
+            return;
+        }
         EmitLoadConstant(node.Value); // 统一字面量加载 (修复 float→MOVEF 而非 MOVE #float)
     }
 
@@ -182,6 +195,24 @@ public partial class CodeGenerator
             }
             if (node.Method == "puts")
                 EmitPrintNewline();
+            return;
+        }
+
+        // ── 内建**数值转换**方法：`Integer#to_i` / `Float#to_f` ──────────────────
+        //
+        // 它们既不是用户函数、也不在库里 ⇒ 落到下面就是 `func_to_i` **未定义**
+        // （实测 `(3.14 * 2.0 * 100).to_i` 报「未定义的函数 'func_to_i'」）。
+        // 判据用 `InferType`（唯一一份类型推断）：源是浮点就 `D2I`，目标是浮点就 `I2D` ——
+        // 两个助手都已按**类**取寄存器（见 `CodeGeneratorBase.EmitConv`）。
+        if (node.Receiver != null && node.Method is "to_i" or "to_f")
+        {
+            ExpType src = InferType(node.Receiver);
+            GenerateExpression(node.Receiver);
+            if (node.Method == "to_i")
+            {
+                if (src == ExpType.F64) EmitD2I();
+            }
+            else if (src != ExpType.F64) EmitI2D();
             return;
         }
 

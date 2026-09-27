@@ -376,6 +376,41 @@ public class Parser : ParserBase<Token, TokenType>
     /// 主表达式 + **后缀下标链**。此前只有主表达式，`a[i]` 里的 `[i]` 根本没人吃
     /// （表现为 `plus1(a[i])` 报「expected ) (got LBracket)」）。
     /// </summary>
+    /// <summary>
+    /// Ruby 整数字面量 → 数值（装得下 int 就给 int，否则给 long）。
+    ///
+    /// <para>
+    /// 支持 `0x`/`0b`/`0o` 前缀与 `_` 分隔符（Ruby 三种进制 + 下划线都是合法写法）。
+    /// **判据只有这一份** —— 词法器只负责切出整段文本，怎么读懂在这一处。
+    /// </para>
+    /// </summary>
+    private static object ParseRubyInt(string s)
+    {
+        string t = s.Replace("_", "");
+        int radix = 10; int start = 0;
+        if (t.Length > 2 && t[0] == '0')
+        {
+            switch (char.ToLower(t[1]))
+            {
+                case 'x': radix = 16; start = 2; break;
+                case 'b': radix = 2;  start = 2; break;
+                case 'o': radix = 8;  start = 2; break;
+                default:  radix = 8;  start = 1; break;   // Ruby 的 `017` 是老式八进制
+            }
+        }
+        long acc = 0;
+        for (int i = start; i < t.Length; i++)
+        {
+            char ch = t[i];
+            int d = ch >= '0' && ch <= '9' ? ch - '0'
+                  : ch >= 'a' && ch <= 'f' ? ch - 'a' + 10
+                  : ch >= 'A' && ch <= 'F' ? ch - 'A' + 10 : -1;
+            if (d < 0 || d >= radix) break;
+            acc = acc * radix + d;
+        }
+        return acc is >= int.MinValue and <= int.MaxValue ? (object)(int)acc : acc;
+    }
+
     private ASTNode ParsePrimary()
     {
         var expr = ParsePrimaryCore();
@@ -394,8 +429,17 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
 
-        if (Check(TokenType.Integer)) { var t = Advance(); return new LiteralNode(int.Parse(t.Value), l, c); }
-        if (Check(TokenType.Float)) { var t = Advance(); return new LiteralNode(float.Parse(t.Value, System.Globalization.CultureInfo.InvariantCulture), l, c); }
+        // ⚠ 整数**按进制 + 允许溢出到 long** 解析（原先 `int.Parse` 直呼）：
+        //   ① `0x10` 那种基数字面量 `int.Parse` 抛 FormatException（报"内部错误"）；
+        //   ② `3000000000` 抛 OverflowException（报「Value was either too large…」）
+        //   —— 两条都是**编译期直接崩**，而 Ruby 的 Integer 本来就无宽度限制。
+        //   浮点也要吃下划线（`1_000.5`）。
+        if (Check(TokenType.Integer)) { var t = Advance(); return new LiteralNode(ParseRubyInt(t.Value), l, c); }
+        // ⚠ 装成 **double**（Ruby 的 `Float` 就是 IEEE 双精度）：装成 `float` 的话
+        //   字面量走 `MOVEF F0`（单精度），而 `InferType` 判它是 `F64` ⇒ 运算是**双精度**
+        //   指令、去读 D0 ⇒ 读到垃圾（实测 `(3.14 * 2.0 * 100).to_i` 得 0）。
+        //   宽度口径只有一处 = `InferType`，装载必须跟着它走。
+        if (Check(TokenType.Float)) { var t = Advance(); return new LiteralNode(double.Parse(t.Value.Replace("_", ""), System.Globalization.CultureInfo.InvariantCulture), l, c); }
         if (Check(TokenType.String)) { var t = Advance(); return new LiteralNode(t.Value, l, c); }
         if (Match(TokenType.Nil)) return new LiteralNode(null, l, c);
         if (Match(TokenType.True)) return new LiteralNode(1, l, c);

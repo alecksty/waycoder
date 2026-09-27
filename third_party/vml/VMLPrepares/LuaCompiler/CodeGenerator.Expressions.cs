@@ -58,19 +58,18 @@ namespace LuaCompiler
             else if (node.Type == "number")
             {
                 double value = (double)node.Value;
-                // 整数(无小数部分且在 int32 范围内) → MOVE 立即数; 浮点数 → MOVEF 从数据段加载到 F0 (v1.66.64 修复)
+                // 整数档 → `MOVE R0, #imm`（**保持 4 字节槽 / 通用寄存器**，与 Lib 的
+                // 调用约定一致）；浮点档 → `MOVED @D0, dbl_N`（双精度）。
+                // 判据与 `GetLuaTypeFromValue` **同一条**（那是唯一一份）。
                 if (value == Math.Truncate(value) && value >= int.MinValue && value <= int.MaxValue)
                 {
-                    instructions.Add(new Instruction(moveOp,
-                        new List<Operand> {
-                            new Operand(OperandType.REGISTER, 0),
-                            new Operand(OperandType.IMMEDIATE, (int)value)
-                        },
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, (int)value) },
                         instructions.Count));
                 }
                 else
                 {
-                    EmitLoadConstant((float)value);
+                    EmitLoadConstant(value);
                 }
             }
             else if (node.Type == "string")
@@ -112,9 +111,10 @@ namespace LuaCompiler
             if (symbolTable.ContainsKey(node.Name))
             {
                 int offset = symbolTable[node.Name];
+                // 目的寄存器**按类取**（`MOVED` 的 0 号是 D0，写 `REGISTER 0` 会被类闸判死）
                 instructions.Add(new Instruction(loadOp, 
                     new List<Operand> { 
-                        new Operand(OperandType.REGISTER, 0),
+                        TRegOf(loadOp, 0),
                         new Operand(OperandType.MEMORY, $"R12-{offset}")
                     }, 
                     instructions.Count));
@@ -141,6 +141,8 @@ namespace LuaCompiler
         {
             LuaType.Boolean => ExpType.I8,
             LuaType.String or LuaType.Table or LuaType.Function => ExpType.Ptr32,
+            // `Number`（整数档）留在 32 位、`Float` 走双精度 —— 见 `LuaType.Float` 的注释
+            LuaType.Float => ExpType.F64,
             _ => ExpType.I32,
         };
 

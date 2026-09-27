@@ -455,6 +455,11 @@ namespace PascalCompiler
 
         private bool IsFloatExpression(ExpressionNode expr)
         {
+            // 一元表达式**穿过到操作数**：`-0.5 * 100.0` 的 AST 是 `Unary(-, 0.5 * 100.0)`
+            // （一元号比 `*` 松），不穿透就把它判成整数 ⇒ 拿 `NEG R0` 去取负一个双精度值
+            // ⇒ 实测 `Trunc(-0.5 * 100.0)` 打 **-2147483648**（应 -50）。
+            if (expr is UnaryOpNode un)
+                return un.Operator != TokenType.NOT && IsFloatExpression(un.Operand);
             if (expr is TypeCastNode cast)
                 return IsFloatTypeName(cast.TypeName);
             if (expr is LiteralNode literal)
@@ -487,11 +492,14 @@ namespace PascalCompiler
 
         private bool IsFloatVariable(string name)
         {
-            if (localVarTypes.ContainsKey(name))
-                return localVarTypes[name] == "REAL";
-            if (globalVarTypes.ContainsKey(name))
-                return globalVarTypes[name] == "REAL";
-            return false;
+            // 判据走**同一张类型表**（`GetPascalType`）而不是 `== "REAL"` 的字面比较 ——
+            // 后者对 `Double`/`Single`/`Extended` 一律为假，于是 `d: Double` 的 d
+            // 被当整数参与运算（实测 `Trunc(d1*d2*100.0)` 得 600）。
+            string? tn = localVarTypes.TryGetValue(name, out var lv) ? lv
+                       : globalVarTypes.TryGetValue(name, out var gv) ? gv : null;
+            if (tn == null) return false;
+            var pt = GetPascalType(tn);
+            return pt is PascalType.Real or PascalType.Double;
         }
 
         private string GetVariableType(string name)
@@ -526,6 +534,17 @@ namespace PascalCompiler
                 case "FLOAT":
                 case "SINGLE":
                     return PascalType.Real;
+                // 8 字节双精度（Turbo Pascal 的 Double / Extended / Comp / Currency）——
+                // ⚠ 归 `Real` 是**错的**：那把它当 32 位读/存（`MOVEF`），而变量表按 8 字节算
+                case "DOUBLE":
+                case "EXTENDED":
+                case "COMP":
+                case "CURRENCY":
+                    return PascalType.Double;
+                // 8 字节整数。⚠ `LONGINT`/`LONGWORD` 在 Turbo Pascal 里是 **32 位**，不能收进来
+                case "INT64":
+                case "QWORD":
+                    return PascalType.Int64;
                 case "CHAR":
                     return PascalType.Char;
                 case "BOOLEAN":
@@ -590,6 +609,10 @@ namespace PascalCompiler
             {
                 case PascalType.Real:
                     return (4, true, false, false);
+                case PascalType.Double:
+                    return (8, false, true, false);
+                case PascalType.Int64:
+                    return (8, false, false, true);
                 case PascalType.Char:
                     return (1, false, false, false);
                 case PascalType.Boolean:

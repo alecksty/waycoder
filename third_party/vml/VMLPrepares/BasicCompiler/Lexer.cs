@@ -488,6 +488,21 @@ namespace BasicCompiler
                 }
             }
 
+            // ── 数字字面量的**类型后缀**：`#`=双精度 / `!`=单精度 / `%`=整型 / `&`=长整型 ──
+            //
+            // ⚠ 此前**一个都不吃** ⇒ `3.14#` 被切成 `3.14` + `#`，而 `#` 在 BASIC 里
+            //   是**文件号前缀**（`PRINT #1, …`）⇒ 解析器按文件号那条路处理，
+            //   整个表达式退化成 `3`（实测 `INT(3.14# * 100.0#)` 打出 **3**，
+            //   而同一句去掉 `#` 就是 314）。
+            //   `#`/`!` 是浮点 ⇒ 没有小数点时补一个 `.0`，好让**判浮点的唯一判据**
+            //   （`token.Value.Contains('.')`，见 `Parser.Expressions` 那条注释）认出来。
+            if (_pos < _source.Length && (Peek() == '#' || Peek() == '!' || Peek() == '%' || Peek() == '&'))
+            {
+                char suffix = Advance();
+                if ((suffix == '#' || suffix == '!') && !sb.ToString().Contains('.'))
+                    sb.Append(".0");
+            }
+
             return new Token(TokenType.NUMBER, sb.ToString(), _line, startColumn);
         }
 

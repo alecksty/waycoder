@@ -26,6 +26,59 @@ public partial class CodeGenerator : OopCodeGenerator
     /// </summary>
     internal HashSet<string> _stringVars = new();
 
+    /// <summary>
+    /// 变量名 → 寄存器**类**（`I32` / `F64`）。
+    ///
+    /// <para>
+    /// ⚠ Ruby 前端此前**一点类型推断都没有** —— `WrapExpr` 恒返回 `ExpType.I32`，
+    /// 于是 `3.14 * 2.0 * 100` 是拿 **32 位整数乘**去算的（值却在 `D0`/`F0` 里）
+    /// ⇒ 实测打出 **956301400**（浮点位型）一类垃圾；`puts(...)` 也只按整数打。
+    /// </para>
+    /// <para>
+    /// Ruby 只有两种数值：`Integer`（任意精度）与 `Float`（= IEEE 双精度）。
+    /// 本平台的做法与 C#/Go/Python 一致：**超出 int32 的整数走双精度路径**
+    /// （2^53 以内精确），于是"数值"只剩两档：`I32` 与 `F64`。
+    /// </para>
+    /// <para>
+    /// 变量表**按函数作用域**保存/还原（与 `symbolTable`、`_stringVars` 同一处），
+    /// 否则函数体内给 `i` 记的类型会漏到顶层同名的 `i` 上。
+    /// </para>
+    /// </summary>
+    internal Dictionary<string, ExpType> _varTypes = new();
+
+    /// <summary>
+    /// 推断表达式的寄存器类。**唯一一份** —— `WrapExpr`（运算）与
+    /// `NoteVarType`（变量表）都走它。
+    /// </summary>
+    internal ExpType InferType(ASTNode node) => node switch
+    {
+        null => ExpType.I32,
+        // 字面量：Ruby 的 Float 就是双精度；整数**超出 int32 也按双精度**（见 `_varTypes` 注释）
+        LiteralNode lit when lit.Value is double or float => ExpType.F64,
+        LiteralNode lit when lit.Value is long l && (l < int.MinValue || l > int.MaxValue) => ExpType.F64,
+        // 变量：查表（查不到按整数 —— 与原来的口径一致，不会比改之前更差）
+        VarNode v when _varTypes.TryGetValue(v.Name, out var vt) => vt,
+        // 一元：`!x` 是布尔、取负/取反跟随操作数
+        UnaryNode u when u.Op == "!" => ExpType.I32,
+        UnaryNode u => InferType(u.Operand),
+        // 二元：比较类恒为布尔；算术**浮点优先**
+        BinaryNode b when b.Op is "==" or "!=" or "<" or ">" or "<=" or ">=" or "<=>" or "&&" or "||" => ExpType.I32,
+        BinaryNode b => (InferType(b.Left) == ExpType.F64 || InferType(b.Right) == ExpType.F64)
+                        ? ExpType.F64 : ExpType.I32,
+        // 下标读出来的元素类型不知道（Ruby 数组是异质的）⇒ 按整数（保守）
+        IndexNode => ExpType.I32,
+        // 调用结果：`to_f` 明确是浮点；其余按整数（与改之前一致）
+        CallNode c when c.Method is "to_f" or "fdiv" or "Float" => ExpType.F64,
+        _ => ExpType.I32,
+    };
+
+    /// <summary>把「这个名字现在装什么类」记进 <see cref="_varTypes"/>（赋值/形参处调）。</summary>
+    internal void NoteVarType(string name, ASTNode value)
+    {
+        if (InferType(value) == ExpType.F64) _varTypes[name] = ExpType.F64;
+        else _varTypes.Remove(name);
+    }
+
     public string SourceDirectory { get; set; } = ".";
 
     public CodeGenerator() : base()
@@ -41,6 +94,17 @@ public partial class CodeGenerator : OopCodeGenerator
         symbolTable[name] = nextStackOffset;
         return nextStackOffset;
     }
+
+    // ── 变量读写按**类**选指令（基类的三个钩子）─────────────────────────────
+    //
+    // ⚠ 基类的 `EmitLoadVar`/`EmitStoreVar` 已经会按这三个钩子取指令、并按类取寄存器号，
+    //   这里只要回答"这个名字是浮点吗"。**不要另写一套读写** ——
+    //   那正是本仓头号坑（同一规则两处实现）。
+    protected override OpCode GetVarLoadOp(string name)
+        => _varTypes.TryGetValue(name, out var t) && t == ExpType.F64 ? OpCode.MOVED : OpCode.MOVE;
+    protected override OpCode GetVarStoreOp(string name) => GetVarLoadOp(name);
+    protected override int GetNewVarSize(string name)
+        => _varTypes.TryGetValue(name, out var t) && t == ExpType.F64 ? 8 : 4;
 
 #pragma warning disable CS0809
     [System.Obsolete("应改用 GenerateCode(ProgramNode)", true)]
@@ -90,7 +154,9 @@ public partial class CodeGenerator : OopCodeGenerator
 
     private ExpVar WrapExpr(ASTNode node)
     {
-        return ExpVar.Eval(ExpType.I32, () => GenerateExpression(node));
+        // ⚠ 类由 `InferType` 给（原先**恒 `ExpType.I32`**）—— 见 `_varTypes` 的注释：
+        //   浮点表达式按整数算，值却在 D0/F0 里，打出来是位型。
+        return ExpVar.Eval(InferType(node), () => GenerateExpression(node));
     }
 
     /// <summary>函数名 → 已知传过**字符串**的实参下标集合（见 <see cref="CollectStringArgPositions"/>）。</summary>

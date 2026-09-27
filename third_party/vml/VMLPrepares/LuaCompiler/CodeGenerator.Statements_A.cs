@@ -101,12 +101,27 @@ namespace LuaCompiler
         private void GenerateVariableDeclaration(VariableDeclarationNode node)
         {
             // 为变量分配栈空间
-            foreach (var name in node.Names)
+            for (int ni = 0; ni < node.Names.Count; ni++)
             {
+                string name = node.Names[ni];
                 if (!symbolTable.ContainsKey(name))
                 {
-                    symbolTable[name] = nextStackOffset;
-                    nextStackOffset += 4; // 每个变量4字节
+                    // ⚠ 槽宽按**初始值的类型**：浮点是双精度（8 字节），
+                    //   写死 4 会让 `local x = 3.14 * 2` 的 `MOVED` 写 8 字节啃掉后一个变量
+                    //   （本仓在 C++ 上踩过同一个坑：槽宽与写入宽度必须同源）。
+                    //   没给初值的按 4 字节（整数档），与 Lib 的调用约定一致。
+                    int slot = ni < node.Values.Count && InferExpressionType(node.Values[ni]) == LuaType.Float ? 8 : 4;
+                    // ⚠ 偏移口径：本前端的寻址是 `R12-{offset}`，**值从该地址向上（朝 R12）放** ——
+                    //   所以第一个 4 字节量在 `R12-4`（占 R12-4..R12-1）。
+                    //   一个 S 字节的量要占 S 字节 ⇒ 段基址比"游标"再低 `S-4`：
+                    //     `offset = nextStackOffset + (slot - 4)`，然后 `nextStackOffset += slot`。
+                    //   `slot == 4` 时它与原来的 `= nextStackOffset; += 4` **逐字等价** ✓
+                    //   （`for` 变量那条路也按 4 字节算，两边同一个口径）。
+                    //   ⚠ 写成 `= nextStackOffset + slot`（少减那个 4）会各跳一格：实测
+                    //   `local s` 与循环变量 `i` 落在同一个槽，`drift.lua` 的累加从 126 变 7。
+                    int baseOff = nextStackOffset + (slot - 4);
+                    nextStackOffset += slot;
+                    symbolTable[name] = baseOff;
                 }
             }
             
@@ -162,10 +177,11 @@ namespace LuaCompiler
                     {
                         int offset = symbolTable[identifier.Name];
                         // 统一 store: dest=mem first (MOVE 系列 dest-first 顺序)
+                        // 源寄存器**按类取**（`MOVED`/`MOVEF` 的 1 号是 D0/F0）
                         instructions.Add(new Instruction(storeOp,
                             new List<Operand> {
                                 new Operand(OperandType.MEMORY, $"R12-{offset}"),
-                                new Operand(OperandType.REGISTER, 0)
+                                TRegOf(storeOp, 1)
                             },
                             instructions.Count));
                     }

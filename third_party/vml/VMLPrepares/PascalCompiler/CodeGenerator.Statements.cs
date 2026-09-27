@@ -435,6 +435,12 @@ namespace PascalCompiler
                 targetIsFloat = IsFloatVariable(assignment.Variable.Name);
                 targetIsSet = IsSetVariable(assignment.Variable.Name);
             }
+            // 目标的完整 Pascal 类（转换判据要用；`targetIsFloat` 那两个 bool 是给下面分支用的）
+            PascalType targetPt = assignment.Variable.Field != null
+                ? GetPascalType(ResolveTypeName(ResolveFieldChain(assignment.Variable.Name, assignment.Variable.Field, assignment.Variable.Fields).finalType))
+                : (assignment.Variable.DereferenceCount > 0
+                    ? GetPointedPascalType(assignment.Variable.Name)
+                    : GetVariablePascalType(assignment.Variable.Name));
             bool exprIsFloat = IsFloatExpression(assignment.Expression);
             bool needsConversion = (targetIsFloat && !exprIsFloat) || (!targetIsFloat && exprIsFloat);
             
@@ -539,25 +545,18 @@ namespace PascalCompiler
                 // 非集合类型的赋值
                 GenerateExpression(assignment.Expression);
 
-                // 如果需要类型转换
-                if (targetIsFloat && !exprIsFloat)
-                {
-                    // 整数转浮点
-                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand>
-                    {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.REGISTER, 0)
-                    }));
-                }
-                else if (!targetIsFloat && exprIsFloat)
-                {
-                    // 浮点转整数（截断）
-                    instructions.Add(new Instruction(OpCode.F2I, new List<Operand>
-                    {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.REGISTER, 0)
-                    }));
-                }
+                // 类型转换——**一律走共享的 `EmitConversion`**（按 (size,float,double,long)
+                // 选 `I2F`/`I2D`/`F2D`/`D2I`/`L2D`… 那一整套，且寄存器按操作数位取类）。
+                //
+                // ⚠ 原先这里手写「整↔浮」两档（`I2F`/`F2I`，两个操作数都写死 `REGISTER 0`）：
+                //   ① `Double`/`Int64` 一进来就漏（`d1 := 3.14` 只发 `MOVE`/`MOVED`，
+                //      存的是 D0 的残留值 —— 实测 `d1 * d2 * 100` 得 100 而不是 628）；
+                //   ② `I2F R0, R0` 对 `Real` 侥幸正确（F 与 R 同号），
+                //      换成 `I2D`/`L2I` 这类跨类的就全错（本仓头一回就是这么踩的）。
+                var srcPt = exprIsFloat ? GuessFloatType(assignment.Expression) : GuessIntType(assignment.Expression);
+                var (ss, sf, sd, sl) = TypeInfo(srcPt);
+                var (ts, tf, td, tl) = TypeInfo(targetPt);
+                _expr!.EmitConversion(ss, sf, sd, ts, tf, td, sl, tl);
 
                 // 保存表达式的值到R1 (仅非浮点类型; 浮点值已在F0中)
                 //
@@ -608,24 +607,22 @@ namespace PascalCompiler
                 else
                     varType = GetVariablePascalType(assignment.Variable.Name);
                 OpCode storeOp = GetStoreInstruction(varType);
-                if (targetIsFloat)
+                // 源寄存器按**值此刻在哪儿**取 —— 两条路不同，不能一律用类寄存器 0 号：
+                //   · **浮点 / 64 位**：值就在类寄存器里（`F0` / `D0` / `L0`），
+                //     上面那两句 `if (!targetIsFloat)` 的暂存**没走过** ⇒ 取类 0 号 ✓
+                //     （写死 `REGISTER 0` 会让 `MOVED` 去读通用 R0 —— 寄存器类闸判死）。
+                //   · **32 位**：值被 `MOVE R1, R0` + `PUSH R1` **特意挪到 `R1`** 了
+                //     （求地址会踩 R1，见上面那段长注释）⇒ 源必须是 **R1**。
+                //     一律取类 0 号（= R0）就会**把地址当值存进去**：实测 `N := 7` 之后
+                //     `WriteLn(N)` 打出 1024（= N 的地址）。
+                int srcReg = targetIsFloat || varType == PascalType.Int64
+                    ? VMLAssembler.RegisterClassTable.BankOfOperand(storeOp, 1)
+                    : 1;
+                instructions.Add(new Instruction(storeOp, new List<Operand>
                 {
-                    // 统一 store: dest=mem first (MOVEF [R0], R0 — 存储 R0 的浮点值到 R0 指向的地址)
-                    instructions.Add(new Instruction(storeOp, new List<Operand>
-                    {
-                        Mem("R0"),
-                        new Operand(OperandType.REGISTER, 0)
-                    }));
-                }
-                else
-                {
-                    // 统一 store: dest=indirect first (MOVE (R0), R1 — 存储 R1 到 R0 指向的地址)
-                    instructions.Add(new Instruction(storeOp, new List<Operand>
-                    {
-                        Mem("R0"),
-                        new Operand(OperandType.REGISTER, 1)
-                    }));
-                }
+                    Mem("R0"),
+                    new Operand(OperandType.REGISTER, srcReg)
+                }));
             }
         }
         

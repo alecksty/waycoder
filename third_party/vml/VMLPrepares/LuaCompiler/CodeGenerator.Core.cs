@@ -119,7 +119,10 @@ namespace LuaCompiler
             
             return typeStr switch
             {
-                "number" => LuaType.Number,
+                // 整数（无小数部分且在 int32 内）→ `Number`（4 字节 / 通用寄存器）；
+                // 其余 → `Float`（双精度，`D0` / 8 字节槽）。判据与字面量发射**同一条**。
+                "number" => value is double d && (d != Math.Truncate(d) || d < int.MinValue || d > int.MaxValue)
+                            ? LuaType.Float : LuaType.Number,
                 "string" => LuaType.String,
                 "boolean" => LuaType.Boolean,
                 _ => LuaType.Object
@@ -143,6 +146,12 @@ namespace LuaCompiler
                 }
                 return LuaType.Number; // 默认数字类型
             }
+            else if (node is UnaryOperationNode unNode)
+            {
+                // 一元表达式**穿过到操作数**：`-0.5 * 100` 的左边是 `UnaryOp(-, 0.5)`。
+                // 不穿透 ⇒ 判成整数 ⇒ 拿 32 位 `NEG`（实测 `-0.5 * 100` 打 1677721600）。
+                return unNode.Operator == TokenType.NOT ? LuaType.Boolean : InferExpressionType(unNode.Operand);
+            }
             else if (node is BinaryOperationNode binOpNode)
             {
                 if (binOpNode.Operator == TokenType.CONCAT)
@@ -152,7 +161,14 @@ namespace LuaCompiler
                 // 对于二元运算，推断为操作数的类型
                 LuaType leftType = InferExpressionType(binOpNode.Left);
                 LuaType rightType = InferExpressionType(binOpNode.Right);
-                
+
+                // ⚠ **浮点优先**（与 C/Go/JS 各前端同一条规则）：任一侧是浮点就按双精度算。
+                //   漏了这条 ⇒ `3.14 * 2.0 * 100` 被当整数乘（值在 D0/F0 里却发 32 位
+                //   乘指令），打出来是浮点位型（实测 956301400）。
+                if (leftType == LuaType.Float || rightType == LuaType.Float)
+                {
+                    return LuaType.Float;
+                }
                 // 如果有一个操作数是数字，结果就是数字
                 if (leftType == LuaType.Number || rightType == LuaType.Number)
                 {

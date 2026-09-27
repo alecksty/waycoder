@@ -769,17 +769,26 @@ namespace CompilerBase
             bool fromF = fromFloat || fromDouble;
             bool toF = toFloat || toDouble;
             // Long conversions
+            //
+            // ⚠ **`double` 的分支必须排在 `float` 之前** —— 与下面那句"double 检查必须在
+            //   float 之前"是**同一条规矩**，只是 Long 那几条当初加的时候没跟上：
+            //   调用方传的 `toFloat`/`toDouble` 是**两个独立位**，而 `IsFloat()` 对 `F64`
+            //   也为真 ⇒ F64 目标会传 `(toFloat=true, toDouble=true)`。此时先命中
+            //   `fromLong && toFloat` 就发出 **`L2F`**（目标 F0），而寄存器是按 F64 取的
+            //   （`A(T(8,true,true,false))` ⇒ **D0**）⇒ 汇编期寄存器类闸判死：
+            //   「L2F 的第 1 个操作数要 F0–F15，给的是 D0」。实测 Pascal 的
+            //   `Trunc((big+add)/1e9)` 两处撞上。
             if (fromLong && !toLong && !toF) return OpCode.L2I;
+            if (fromLong && !toLong && toDouble) return OpCode.L2D;
+            if (fromLong && !toLong && toFloat) return OpCode.L2F;
             // ⚠ **无符号的 int → long 必须零扩展**（`I2L` 是**符号**扩展）：
             //   实测 `(long)4000000000u` 走 `I2L` 得 **-294967296**。
             //   这是无符号 64 位运算的前提 —— `DIVUL`/`CMPUL`/`SHRUL` 都要求操作数
             //   在 64 位里是**零**扩展过的正值（零扩展后非负 ⇒ 有符号 64 位运算
             //   与无符号 32 位运算同结果）。
             if (!fromLong && !fromF && toLong) return fromUnsigned ? OpCode.ZEXTL : OpCode.I2L;
-            if (fromLong && toFloat) return OpCode.L2F;
-            if (fromFloat && toLong) return OpCode.F2L;
-            if (fromLong && toDouble) return OpCode.L2D;
             if (fromDouble && toLong) return OpCode.D2L;
+            if (fromFloat && toLong) return OpCode.F2L;
             if (fromF == toF && fromDouble == toDouble && fromLong == toLong) return null;
             // double 检查必须在 float 之前：toDouble=true 隐含 toF=true, 更具体的匹配优先
             if (!fromF && toDouble) return OpCode.I2D;

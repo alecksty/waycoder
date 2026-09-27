@@ -565,10 +565,13 @@ namespace CompilerBase
         {
             string key = NormalizeVarName(name);
             OpCode loadOp = GetVarLoadOp(key);
+            // ⚠ 目的寄存器**按类取**（`TRegOf`）：`MOVED`/`MOVEL` 的 0 号是 `D0`/`L0`，
+            //   写 `Reg(0)`（= 通用 R0）会被汇编期的寄存器类闸判死 ——
+            //   D/Fortran/ObjC/Ruby 这四门都覆写了 `GetVarLoadOp`，全都踩这一条。
             if (_varOffsets != null && _varOffsets.TryGetValue(key, out int offset))
             {
                 instructions.Add(new Instruction(loadOp,
-                    [Reg(0), new Operand(OperandType.MEMORY, MemOff(offset))],
+                    [TRegOf(loadOp, 0), new Operand(OperandType.MEMORY, MemOff(offset))],
                     instructions.Count));
             }
             else
@@ -577,7 +580,7 @@ namespace CompilerBase
                 if (!dataSection.ContainsKey(dataLabel))
                     dataSection[dataLabel] = 0;
                 instructions.Add(new Instruction(loadOp,
-                    [Reg(0), new Operand(OperandType.MEMORY, dataLabel)],
+                    [TRegOf(loadOp, 0), new Operand(OperandType.MEMORY, dataLabel)],
                     instructions.Count));
             }
         }
@@ -589,10 +592,11 @@ namespace CompilerBase
         {
             string key = NormalizeVarName(name);
             OpCode storeOp = GetVarStoreOp(key);
+            // 源寄存器同样**按类取**（见 EmitLoadVar 那条注释）
             if (_varOffsets != null && _varOffsets.TryGetValue(key, out int offset))
             {
                 instructions.Add(new Instruction(storeOp,
-                    [new Operand(OperandType.MEMORY, MemOff(offset)), Reg(0)],
+                    [new Operand(OperandType.MEMORY, MemOff(offset)), TRegOf(storeOp, 1)],
                     instructions.Count));
             }
             else
@@ -602,7 +606,7 @@ namespace CompilerBase
                     int size = GetNewVarSize(key);
                     int newOff = AllocAndRegisterVar(key, size);
                     instructions.Add(new Instruction(storeOp,
-                        [new Operand(OperandType.MEMORY, MemOff(newOff)), Reg(0)],
+                        [new Operand(OperandType.MEMORY, MemOff(newOff)), TRegOf(storeOp, 1)],
                         instructions.Count));
                     return;
                 }
@@ -610,7 +614,7 @@ namespace CompilerBase
                 if (!dataSection.ContainsKey(dataLabel))
                     dataSection[dataLabel] = 0;
                 instructions.Add(new Instruction(storeOp,
-                    [new Operand(OperandType.MEMORY, dataLabel), Reg(0)],
+                    [new Operand(OperandType.MEMORY, dataLabel), TRegOf(storeOp, 1)],
                     instructions.Count));
             }
         }
