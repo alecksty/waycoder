@@ -22,9 +22,19 @@ VML_HOME="$ROOT/third_party/vml"
 [ -f "$CLI" ] || { echo "✘ 先构建 vmlcli（dotnet build scripts/vmlcli/vmlcli.csproj -c Release）"; exit 2; }
 
 want=$'F-MUL=\n628\nF-NEG=\n-50\nF-HEX=\n1600'
+# ── `f2.*`：float/double/**int64** 三组运算（2026-09-27 用户要求"每种语言都要写
+#    double/float 的运算代码、还要 int64 的运算"）。大数只作中间量、输出压回小整数，
+#    好让判据不依赖各语言的 long 打印。
+#    实测矩阵（`run-langs.sh f2` 会打印）：**11 门全部未通过** ——
+#      c      D-MUL=627（double 乘精度不对）/ 其余对
+#      cpp/js 浮点值当整数打（缺 float→int 转换）
+#      lua    同 JS；bas 常量被截成整数；cs/py/rb/pas 编译失败；go/java 撞寄存器类闸（真缺陷）
+want2=$'F-MUL=628\nD-MUL=628\nF-NEG=-50\nD-NEG=-50\nL-ADD=4\nL-MUL=123\nL-NEG=-4' 
 pass=0; fail=0; skip=0
-for f in "$HERE"/langs/f.*; do
+for f in "$HERE"/langs/f.* "$HERE"/langs/f2.*; do
+    [ -f "$f" ] || continue
     name="$(basename "$f")"
+    case "$name" in f2.*) want="$want2";; *) want="$want";; esac
     if [ $# -gt 0 ]; then
         ext="${name#f.}"; keep=0
         for a in "$@"; do [ "$a" = "$ext" ] && keep=1; done

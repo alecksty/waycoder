@@ -741,7 +741,24 @@ namespace PythonCompiler
             return ParseAtom();
         }
 
-        private ASTNode ParsePower()
+                /// <summary>
+        /// 整数字面量：**能装进 32 位就给 int，否则给 long**。
+        ///
+        /// <para>
+        /// ⚠ 原先一律 `int.Parse` / `Convert.ToInt32` —— Python 的 `int` 是**无界**的，
+        /// 字面量 `3000000000` 直接让前端抛
+        /// `内部错误: Value was either too large or too small for an Int32`（实测
+        /// `scripts/vml-float-probe/langs/f2.py`）。C / Pascal 前端对同一形状的处理是
+        /// "按 64 位常量发"，这里对齐；真正的无界整数不在本平台能力内，但**起码不能崩**。
+        /// </para>
+        /// </summary>
+        private static object FitIntLiteral(string s, int radix)
+        {
+            long v = Convert.ToInt64(s, radix);
+            return (v >= int.MinValue && v <= int.MaxValue) ? (object)(int)v : v;
+        }
+
+private ASTNode ParsePower()
         {
             var left = ParseAwait();
             if (GetTokenType(Cur) == TokenType.POWER)
@@ -762,22 +779,22 @@ namespace PythonCompiler
                 case TokenType.INTEGER:
                     Advance();
                     string intStr = token.Value.Replace("_", "");
-                    return new ConstantNode(int.Parse(intStr), "int", token.Line, token.Column);
+                    return new ConstantNode(FitIntLiteral(intStr, 10), "int", token.Line, token.Column);
                     
                 case TokenType.HEX_INTEGER:
                     Advance();
                     string hexStr = token.Value[2..].Replace("_", "");
-                    return new ConstantNode(Convert.ToInt32(hexStr, 16), "int", token.Line, token.Column);
+                    return new ConstantNode(FitIntLiteral(hexStr, 16), "int", token.Line, token.Column);
                     
                 case TokenType.OCT_INTEGER:
                     Advance();
                     string octStr = token.Value[2..].Replace("_", "");
-                    return new ConstantNode(Convert.ToInt32(octStr, 8), "int", token.Line, token.Column);
+                    return new ConstantNode(FitIntLiteral(octStr, 8), "int", token.Line, token.Column);
                     
                 case TokenType.BIN_INTEGER:
                     Advance();
                     string binStr = token.Value[2..].Replace("_", "");
-                    return new ConstantNode(Convert.ToInt32(binStr, 2), "int", token.Line, token.Column);
+                    return new ConstantNode(FitIntLiteral(binStr, 2), "int", token.Line, token.Column);
                     
                 case TokenType.FLOAT:
                     Advance();
