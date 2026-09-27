@@ -883,6 +883,34 @@ namespace PascalCompiler
                 Expect(TokenType.COLON, "期望 ':'");
                 return new LabeledStatementNode { Label = label, Statement = ParseStatement(), Line = token.Line, Column = token.Column };
             }
+            else if (token.Type == TokenType.IDENTIFIER
+                     && string.Equals(token.Value.ToString(), "asm", StringComparison.OrdinalIgnoreCase))
+            {
+                /* ⚠ Pascal 的**内嵌汇编块** `asm … end` —— 老程序用它做底层操作
+                   （读 CMOS、端口 I/O、直接写显存），语料 91 份里 **17 份**含它。
+
+                   前端原先完全不认这个块：`asm` 走「标识符 ⇒ 过程调用」那条路，
+                   后面的 `in al, 71h` / `mov temp1, al` 全被当成**实参**⇒ 一直错到
+                   函数结尾，报出来的却是「**期望 'begin'**」（而且指着很远的地方，
+                   **完全看不出跟 asm 有关** —— 实测 `avc_cmos.pas:128`、
+                   `avc_convert_hex.pas:50` 两处都是这么来的）。
+
+                   **本平台没有那个语义**（x86 寄存器 / 端口 / 实模式段），与
+                   `Intr($21)`/`Mem[]` 同类 ⇒ 按本仓「哪些不需要兼容」的口径，
+                   这里**跳过整块**（当空语句）。⚠ 与 `IsScreenModeNoOp` 那批
+                   "空操作桩"同一个立场：**能编过、那段不生效**，而不是让整份
+                   程序编不过 —— 也让"用了 asm 读 CMOS"的老程序照样能跑起来
+                   （读到的值是桩，但其余逻辑全在）。
+
+                   配对的判定：Pascal 的 asm 块**不嵌套** ⇒ 第一个 `end` 就是它的。 */
+                Advance();                              // 吃掉 `asm`
+                int guard = 0;
+                while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.EOF
+                       && ++guard < 200000)
+                    Advance();
+                Expect(TokenType.END, "期望 asm 块的 'end'");
+                return new CompoundStatementNode { Statements = new List<StatementNode>() };
+            }
             else if (token.Type == TokenType.IDENTIFIER)
             {
                 // 可能是赋值或过程调用
