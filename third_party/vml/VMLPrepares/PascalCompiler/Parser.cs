@@ -302,18 +302,27 @@ namespace PascalCompiler
                 Expect(TokenType.EQUALS, "期望 '='");
 
                 ExpressionNode value;
-                // 数组初始化: const arr: array[1..5] of integer = (1, 2, 3, 4, 5);
-                if (GetTokenType(Cur) == TokenType.LPAREN && constType is ArrayTypeNode)
+                // 常量初始化列表（**不只数组**，2026-09-27 修）：
+                //   const arr: array[1..5] of integer = (1, 2, 3, 4, 5);
+                //   const Double: Tcadre = ('╔','═','╗',…);            ← record 类型的字面量
+                //   const q = (Title: '421'; ProgramExec: '421.EXE');  ← record 常量（字段: 值）
+                //
+                // ⚠ 原先的判据是 `constType is ArrayTypeNode` ⇒ 后两类都进不来 ⇒ `(` 被当
+                //   普通表达式 ⇒ 解析器一路撞到「期望 ')'」。实测这一条卡住 **16 个**示例
+                //   （avc_* 的图标/菜单、g7iles_* 的地图/关卡数据……全是它），
+                //   是 Pascal 语料里**最大的一类**。
+                //
+                // 判据放宽成"有类型标注"**或**"括号里是 `字段: 值` 形态"，是为了**不误伤**
+                // `const x = (1+2)*3;` 这种"括号只是普通表达式"的写法 —— 那类没有类型标注、
+                // 括号里也不是 `名字 :`，仍走 ParseExpression。
+                bool looksLikeInitList =
+                    GetTokenType(Cur) == TokenType.LPAREN &&
+                    (constType != null ||
+                     (Peek(1).Type == TokenType.IDENTIFIER && Peek(2).Type == TokenType.COLON));
+
+                if (looksLikeInitList)
                 {
-                    Advance(); // skip '('
-                    arrayValues = new List<ExpressionNode>();
-                    while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
-                    {
-                        arrayValues.Add(ParseExpression());
-                        if (GetTokenType(Cur) != TokenType.RPAREN)
-                            Expect(TokenType.COMMA, "期望 ',' 在数组初始化器中");
-                    }
-                    Expect(TokenType.RPAREN, "expected ')'");
+                    arrayValues = ParseInitializerList();
                     value = new LiteralNode(); // placeholder
                 }
                 else
@@ -332,6 +341,61 @@ namespace PascalCompiler
                     Column = Cur.Column
                 });
             }
+        }
+
+        /// <summary>
+        /// 解析一个常量初始化列表：`( 项, 项, … )`。
+        ///
+        /// <list type="bullet">
+        /// <item>项可以是 `值`（数组元素）或 `字段名: 值`（record 常量）——**字段名跳过**：
+        ///   本平台的 record 常量按**位置顺序**用（偏移由 record 布局定、字面量按小端顺序排），
+        ///   名字只提供可读性，值的顺序才要紧。</item>
+        /// <item>**支持嵌套**（数组元素本身是 record）：
+        ///   `const P: array[1..2] of TRec = ((Title:'a'; Exec:'A.EXE'), (…));`
+        ///   —— 内层列表**拍平**进外层（同样是"按位置顺序"那个假设）。</item>
+        /// <item>分隔符 `,` 与 `;` **都吃**（数组用前者、record 用后者）。</item>
+        /// </list>
+        ///
+        /// <para>
+        /// ⚠ 调用方**必须**先确认当前 token 是 `(` 且这确实是个初始化列表（判据见
+        /// <c>ParseConstDeclarations</c> 里的 <c>looksLikeInitList</c>）—— 直接进这里会把
+        /// `const x = (1+2)*3;` 那种"括号只是普通表达式"的写法吃掉。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 加"嵌套"这一层之前，`g7iles_7iles.pas:33` 的
+        /// <c>(Title: '421 - Jeu de dés'; ProgramExec: '421.EXE')</c> 仍然报「期望 ')'」——
+        /// 因为它是**外层数组常量的一个元素**，内层 `(` 交给了 <c>ParseExpression</c>，
+        /// 而后者不认识 `字段: 值`。修外层没修内层，位置一点没动（实测：还是 33:11）。
+        /// </para>
+        /// </summary>
+        private List<ExpressionNode> ParseInitializerList()
+        {
+            Expect(TokenType.LPAREN, "期望 '('");
+            var items = new List<ExpressionNode>();
+            while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
+            {
+                if (GetTokenType(Cur) == TokenType.LPAREN &&
+                    Peek(1).Type == TokenType.IDENTIFIER && Peek(2).Type == TokenType.COLON)
+                {
+                    items.AddRange(ParseInitializerList());   // 嵌套 record：拍平
+                }
+                else
+                {
+                    if (GetTokenType(Cur) == TokenType.IDENTIFIER && Peek(1).Type == TokenType.COLON)
+                    {
+                        Advance();  // 字段名
+                        Advance();  // ':'
+                    }
+                    items.Add(ParseExpression());
+                }
+
+                if (GetTokenType(Cur) == TokenType.SEMICOLON) continue;
+                if (GetTokenType(Cur) != TokenType.RPAREN)
+                    Expect(TokenType.COMMA, "期望 ',' 在初始化器中");
+            }
+            Expect(TokenType.RPAREN, "期望 ')'");
+            return items;
         }
 
         private void ParseTypeDeclarations(List<DeclarationNode> declarations)

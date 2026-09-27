@@ -168,6 +168,30 @@
                 </Grid>
             </Border>
 
+            <!-- 编译：编译器行为参数（优化 / 警告 / 浮点）—— 影响"编出来的程序"，与上面
+                 「虚拟机」（影响"跑起来之后"）分开两张卡：改的时机不同（编译时 vs 运行时）。 -->
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🛠" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="编译" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="CompileSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                               LineBreakMode="TailTruncation" MaxLines="1" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnCompileTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
                     StrokeThickness="0" Padding="0">
                 <Border.StrokeShape>

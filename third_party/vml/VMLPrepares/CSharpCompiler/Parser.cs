@@ -269,9 +269,10 @@ namespace CSharpCompiler
                 return ParseStatement();
             }
 
-            // 跳过 public/private/protected/static/readonly/extern/native 等修饰符
+            // 跳过 public/private/protected/static/readonly/const/extern/native 等修饰符
             if (Check(TokenType.Public) || Check(TokenType.Private) || Check(TokenType.Protected) ||
-                Check(TokenType.Static) || Check(TokenType.Readonly) || Check(TokenType.Extern) ||
+                Check(TokenType.Static) || Check(TokenType.Readonly) || Check(TokenType.Const) ||
+                Check(TokenType.Extern) ||
                 Check(TokenType.Native) || Check(TokenType.Abstract) || Check(TokenType.Virtual) ||
                 Check(TokenType.Override) || Check(TokenType.Sealed) || Check(TokenType.Delegate))
             {

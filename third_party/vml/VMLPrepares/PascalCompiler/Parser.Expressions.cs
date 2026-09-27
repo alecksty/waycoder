@@ -464,9 +464,26 @@ namespace PascalCompiler
                     }
                     Expect(TokenType.SEMICOLON, "期望 ';'");
                 }
+                else if (GetTokenType(Cur) == TokenType.CONST)
+                {
+                    // **局部 `Const` 段要真解析，不能"跳过直到 `;`"**：
+                    //   Pascal 的 `Const` 段里通常**不止一条**（`NumXPixels=40; NumYPixels=50; …`），
+                    //   而"跳一条"只吃掉第一个 `;` ⇒ 回到 while 条件时当前 token 是下一个常量名
+                    //   （IDENTIFIER，不是 CONST/VAR/TYPE/LABEL）⇒ **循环直接退出** ⇒ 紧接着
+                    //   `Expect(BEGIN)` 撞在第二个常量名上 ⇒ 报「期望 'begin'」，而报的位置指着
+                    //   那一行常量（实测 `Examples/pascal/g7iles_mahjong.pas:74`：编译器说
+                    //   "期望 begin"、指着 `Const NumXPixels=40;`，完全看不出是"缺了局部常量支持"）。
+                    //
+                    // ⚠ 而且要**留下值**：函数体里会引用这些常量（`SetColor(White)` 那类），
+                    //   只跳过不登记 ⇒ 换一个错法（"未声明的变量 'NumXPixels'"）。
+                    var tmp = new List<DeclarationNode>();
+                    ParseConstDeclarations(tmp);
+                    foreach (var d in tmp)
+                        if (d is ConstDeclarationNode c) subprogram.LocalConstants.Add(c);
+                }
                 else
                 {
-                    // const / type: 跳过直到 ;
+                    // type: 跳过直到 ;
                     Advance();
                     while (GetTokenType(Cur) != TokenType.SEMICOLON && GetTokenType(Cur) != TokenType.EOF)
                         Advance();

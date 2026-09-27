@@ -70,6 +70,9 @@ public partial class SettingsPage : ContentPage
         //    在这里再拼一遍必然出现"摘要写 16M、进去看到的是 8M"）
         VmSummary.Text = Services.MauiVmStore.Summary();
 
+        // ── 编译：同虚拟机，摘要由 `MauiCompileStore.Summary()` 给（取值与文案同一处）
+        CompileSummary.Text = Services.MauiCompileStore.Summary();
+
         // ── 关于
         AboutSummary.Text = $"WayCoder {Global.Version}";
     }
@@ -98,6 +101,7 @@ public partial class SettingsPage : ContentPage
     private async void OnEditorTapped(object? sender, TappedEventArgs e) => await Go("editor");
     private async void OnVoiceTapped(object? sender, TappedEventArgs e) => await Go("voice");
     private async void OnVmTapped(object? sender, TappedEventArgs e) => await Go("vm");
+    private async void OnCompileTapped(object? sender, TappedEventArgs e) => await Go("compile");
 
     private async void OnAboutTapped(object? sender, TappedEventArgs e) =>
         await Shell.Current.GoToAsync("about");

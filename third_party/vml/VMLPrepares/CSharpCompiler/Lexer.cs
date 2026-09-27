@@ -405,7 +405,7 @@ namespace CSharpCompiler
             {"in",TokenType.In},
             {"typeof",TokenType.Typeof},{"new",TokenType.New},
             {"public",TokenType.Public},{"private",TokenType.Private},{"protected",TokenType.Protected},
-            {"static",TokenType.Static},{"readonly",TokenType.Readonly},{"extern",TokenType.Extern},{"native",TokenType.Native},{"alias",TokenType.Alias},
+            {"static",TokenType.Static},{"readonly",TokenType.Readonly},{"const",TokenType.Const},{"extern",TokenType.Extern},{"native",TokenType.Native},{"alias",TokenType.Alias},
             {"abstract",TokenType.Abstract},{"virtual",TokenType.Virtual},{"override",TokenType.Override},
             {"sealed",TokenType.Sealed},
             {"this",TokenType.This},

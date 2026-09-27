@@ -27,6 +27,7 @@ public partial class SettingsGroupPage : ContentPage
         yield return ("编辑器", GrpEditor);
         yield return ("语音", GrpVoice);
         yield return ("虚拟机", GrpVm);
+        yield return ("编译", GrpCompile);
     }
 
     private string _group = "model";
@@ -73,6 +74,7 @@ public partial class SettingsGroupPage : ContentPage
         "editor" => title == "编辑器",
         "voice" => title == "语音",
         "vm" => title == "虚拟机",
+        "compile" => title == "编译",
         _ => false,
     };
 
@@ -202,6 +204,7 @@ public partial class SettingsGroupPage : ContentPage
         LoadEditorSettings();
         LoadConfig();
         LoadVmSettings();
+        LoadCompileSettings();
     }
 
     /// <summary>
@@ -246,6 +249,69 @@ public partial class SettingsGroupPage : ContentPage
             MauiVmStore.EditorTimeoutSec = MauiVmStore.TimeoutOptions[VmEditorTimeoutPicker.SelectedIndex];
         if (VmShellTimeoutPicker.SelectedIndex >= 0)
             MauiVmStore.ShellTimeoutSec = MauiVmStore.TimeoutOptions[VmShellTimeoutPicker.SelectedIndex];
+    }
+
+    /// <summary>
+    /// 载入「编译」分组的六项（优化 / 警告 / 警告当错误 / 调试 / 浮点 / 64 位）。
+    ///
+    /// 这些值存在 **Preferences**（<see cref="MauiCompileStore"/>）而不是 `config.json` ——
+    /// 与虚拟机那几项同一个理由：它们只对**手机端**有意义（桌面 `vmlcli` 走命令行开关）。
+    ///
+    /// ⚠ 候选表一律取自 `MauiCompileStore`，这里**一个字面量都不写死** ——
+    ///   否则"候选表里删掉一档、界面上还留着"这种事没人会发现。
+    /// </summary>
+    private void LoadCompileSettings()
+    {
+        SelectOption(CompileOptPicker, MauiCompileStore.OptimizationOptions,
+            MauiCompileStore.OptimizationLevel, MauiCompileStore.OptimizationText);
+        SelectOption(CompileWarnPicker, MauiCompileStore.WarningOptions,
+            MauiCompileStore.WarningLevel, MauiCompileStore.WarningText);
+        SelectStringOption(CompileFloatPicker, MauiCompileStore.FloatMode);
+        SelectStringOption(CompileInt64Picker, MauiCompileStore.Int64Mode);
+
+        // 两个 Switch **不需要"载入中"闸门**：它们不挂 `Toggled`（只在点「保存配置」时读），
+        // 所以这里赋值不会触发回写 —— 与虚拟机那四个 Picker 同一模式。
+        CompileWarnErrSwitch.IsToggled = MauiCompileStore.WarningsAsErrors;
+        CompileDebugSwitch.IsToggled = MauiCompileStore.DebugOutput;
+
+        // 说明行：四件事必须说清，否则用户会按错误的预期去调 ——
+        //   ① 什么时候生效（下一次编译，不是下一次运行）；
+        //   ② 四档各干什么（尤其"中度才是真正变小的那一档"）；
+        //   ③ 优化**不会改变程序行为**（只删确定用不到的东西，实测 22 门语言输出逐字节相同）；
+        //   ④ "关闭"是**报错**而不是降级。
+        CompileHintLabel.Text =
+            "改完下一次编译生效。初步只清填充代码；中度会删掉没被调用的库函数（产物大幅变小，"
+            + "实测 hello world 69637→28 条、俄罗斯方块 74754→6282 条）；极致再加几项安全清理。"
+            + "优化只删确定用不到的东西，不改程序行为。"
+            + "「关闭（遇到就报错）」是指遇到浮点 / 64 位代码直接编译报错，不是悄悄降级。";
+    }
+
+    /// <summary>把「编译」分组的六项写回 <see cref="MauiCompileStore"/>（索引 → 候选表里的值）。</summary>
+    private void SaveCompileSettings()
+    {
+        if (CompileOptPicker.SelectedIndex >= 0)
+            MauiCompileStore.OptimizationLevel = MauiCompileStore.OptimizationOptions[CompileOptPicker.SelectedIndex];
+        if (CompileWarnPicker.SelectedIndex >= 0)
+            MauiCompileStore.WarningLevel = MauiCompileStore.WarningOptions[CompileWarnPicker.SelectedIndex];
+        if (CompileFloatPicker.SelectedIndex >= 0)
+            MauiCompileStore.FloatMode = MauiCompileStore.NumberModeOptions[CompileFloatPicker.SelectedIndex];
+        if (CompileInt64Picker.SelectedIndex >= 0)
+            MauiCompileStore.Int64Mode = MauiCompileStore.NumberModeOptions[CompileInt64Picker.SelectedIndex];
+
+        MauiCompileStore.WarningsAsErrors = CompileWarnErrSwitch.IsToggled;
+        MauiCompileStore.DebugOutput = CompileDebugSwitch.IsToggled;
+    }
+
+    /// <summary>
+    /// 字符串候选版的 <see cref="SelectOption"/> —— 给数值模式那两项用（档位是 `hard`/`none`
+    /// 这种字符串，不是数字）。语义完全一致：**找不到就选第一个**（= 出厂默认档）。
+    /// </summary>
+    private static void SelectStringOption(Picker picker, string current)
+    {
+        var options = MauiCompileStore.NumberModeOptions;
+        picker.ItemsSource = options.Select(MauiCompileStore.NumberModeText).ToList();
+        var idx = Array.IndexOf(options, current);
+        picker.SelectedIndex = idx >= 0 ? idx : 0;
     }
 
     private void LoadConfig()
@@ -638,6 +704,10 @@ public partial class SettingsGroupPage : ContentPage
         // 虚拟机参数（内存 / 栈 / 两个运行超时）—— 存 Preferences，不进 config.json
         // ——它们只对手机端有意义（桌面 vmlcli 走命令行参数）。
         SaveVmSettings();
+
+        // 编译参数（优化 / 警告 / 浮点）—— 同样是 Preferences，同样只对手机端有意义
+        // （桌面 vmlcli 走命令行开关）。**下一次编译才生效**。
+        SaveCompileSettings();
 
         // 3) 参数
         if (int.TryParse(MaxTokensEntry.Text, out var mt)) Config.Instance.MaxTokens = mt;

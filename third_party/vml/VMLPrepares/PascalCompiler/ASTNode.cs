@@ -45,6 +45,17 @@ namespace PascalCompiler
         public string Name { get; set; } = "";
         public List<ParameterNode> Parameters { get; set; } = new List<ParameterNode>();
         public List<VarDeclarationNode> LocalVariables { get; set; } = new List<VarDeclarationNode>();
+
+        /// <summary>
+        /// 局部**常量**声明（过程/函数体里 `begin` 之前的 `Const` 段）。
+        ///
+        /// <para>
+        /// 与 <see cref="LocalVariables"/> 分开是有意的：常量的值是**编译期**求出来的
+        /// （`NumXPixels=40` 直接当字面量使），不进栈帧、不占局部变量槽 —— 塞进
+        /// `LocalVariables` 会让代码生成给它分配内存并生成一次存值。
+        /// </para>
+        /// </summary>
+        public List<ConstDeclarationNode> LocalConstants { get; set; } = new List<ConstDeclarationNode>();
         public List<SubprogramDeclarationNode> NestedSubprograms { get; set; } = new List<SubprogramDeclarationNode>();
         public BlockNode Body { get; set; } = new BlockNode();
         public bool IsForward { get; set; }

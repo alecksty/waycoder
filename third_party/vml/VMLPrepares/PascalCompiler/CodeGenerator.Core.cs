@@ -250,6 +250,23 @@ namespace PascalCompiler
                 }
             }
 
+            // **Turbo Pascal 标准单元里的全局变量**（`Dos` / `Crt` 单元）：
+            //   老程序直接拿来用、**自己从不声明** —— `If LastMode <> 3 Then …`、
+            //   `TextAttr := $0F` —— 漏一个就报「未声明的变量 'LastMode'」，
+            //   而那种错看不出是"标准单元没预置"（用户会以为是自己写错了名字）。
+            //   实测 `g7iles_*` 那批游戏与 `swag_crt_*` 都被它卡住。
+            //
+            //   本平台没有对应硬件，但**当成普通全局 int 预置**就能让程序编过并跑起来：
+            //   读到的值是 0（对"记录上次显示模式"这类用途完全够用），写进去也不报错。
+            //   ⚠ **必须是变量，不能是常量** —— 老程序会写它们。
+            foreach (var stdVar in new[]
+                     { "LastMode", "TextAttr", "DirectVideo", "CheckBreak", "CheckEof", "ExitCode", "Test8087" })
+            {
+                if (dataSection.ContainsKey(stdVar) || globalVarTypes.ContainsKey(stdVar)) continue;
+                dataSection[stdVar] = 0;
+                globalVarTypes[stdVar] = "INTEGER";
+            }
+
             // 生成所有子程序(过程/函数)
             foreach (var subprogram in ast.Subprograms)
             {

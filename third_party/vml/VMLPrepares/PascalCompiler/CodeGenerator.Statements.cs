@@ -1068,10 +1068,62 @@ namespace PascalCompiler
             return false;
         }
 
+        /// <summary>
+        /// 变量是**数组**、且元素（剥掉全部维度后）是已登记的 record ⇒ 返回那个 record 的类型名。
+        ///
+        /// <para>
+        /// 为什么需要：g7iles 那批游戏（麻将 / 马里奥 / 推箱子 / 吃豆人…）的棋盘、地图全是
+        /// <c>Board: Array[1..W,1..H,1..D] of TTile;</c> 这种形态，用的时候写
+        /// <c>Board[i,j,z].Active := False</c> —— **变量本身不是 record，取完下标之后才是**。
+        /// 先前只认"变量本身是 record" ⇒ 直接报「变量 'Board' 不是record类型，无法访问字段」，
+        /// 一整片示例卡在这条上（实测 `g7iles_mahjong.pas`）。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 大小写不敏感是**必须的**（与 <see cref="GetVariableRecordType"/> 里那段长注释
+        /// 同一个理由：Pascal 标识符不区分大小写，而表的键是声明时原样的大小写）。
+        /// </para>
+        /// </summary>
+        private bool TryGetArrayElementRecordType(string varName, out string recordTypeName)
+        {
+            recordTypeName = "";
+            TypeNode? t = null;
+            if (TryGetNodeCI(localVarDeclarations, varName, out var lv)) t = lv;
+            else if (TryGetNodeCI(globalVarDeclarations, varName, out var gv)) t = gv;
+            if (t is null) return false;
+
+            // 剥掉**全部**维度：Pascal 的多维数组就是"数组的数组"
+            while (t is ArrayTypeNode arr) t = arr.ElementType;
+            if (t is not SimpleTypeNode st) return false;
+
+            foreach (var key in recordFieldLayouts.Keys)
+                if (string.Equals(key, st.TypeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    recordTypeName = key;
+                    return true;
+                }
+            return false;
+        }
+
+        /// <summary>类型表版的大小写不敏感查找（同 <c>TryGetTypeCI</c> 的理由）。</summary>
+        private static bool TryGetNodeCI(Dictionary<string, TypeNode> table, string name, out TypeNode value)
+        {
+            if (table.TryGetValue(name, out value!)) return true;
+            foreach (var kv in table)
+                if (string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    value = kv.Value;
+                    return true;
+                }
+            value = null!;
+            return false;
+        }
+
         private (int totalOffset, string finalType) ResolveFieldChain(string varName, string firstField, List<string> additionalFields)
         {
             string recordTypeName = GetVariableRecordType(varName);
-            if (recordTypeName == null || !recordFieldLayouts.ContainsKey(recordTypeName))
+            if ((recordTypeName == null || !recordFieldLayouts.ContainsKey(recordTypeName))
+                && !TryGetArrayElementRecordType(varName, out recordTypeName))
                 throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"变量 '{varName}' 不是record类型，无法访问字段");
 
             int totalOffset = 0;

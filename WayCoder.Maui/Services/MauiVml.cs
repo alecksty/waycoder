@@ -747,8 +747,31 @@ HALT
         // 直到它自己结束或 App 退出。所以这只是"把控制权还给用户"，不是"杀掉编译" ——
         // 在手机上没有 fork/exec 可用，这是唯一做得到的形态。
         // 工程文件给的宏 —— 判据与桌面 `vmlcli` 逐字相同（**不是**环境变量，理由见参数注释）
-        if (extraDefines is { Count: > 0 } && compiler is CompilerBase.CompilerBase cb)
-            cb.SetConfig("defines", extraDefines.ToList());
+        //
+        // 下面这一整块是**编译器旋钮的唯一应用点**（设置 → 编译 那几项也从这里喂进去）。
+        // 判据同 `vmlcli.ApplyKnobs`：`CompilerBase.SyncToContext()` 在每个编译入口的第一句
+        // 就 `CompilerOptionsContext.Current = Config.ToCompilerOptions()` **无条件覆盖**，
+        // 所以只有在调用前 `SetConfig` 才生效（在外面再包一层 `RunWith` 是空转）。
+        // 散到调用点各处则必然出现"某一条路碰巧对"—— 本仓反复吃亏的模式。
+        var compileOpts = MauiCompileStore.Current;
+        if (compiler is CompilerBase.CompilerBase cb)
+        {
+            if (extraDefines is { Count: > 0 })
+                cb.SetConfig("defines", extraDefines.ToList());
+
+            // ⚠ **默认档就是接入前的行为**（警告 0 / 调试关 / 浮点 hard）⇒ 用户不动设置时，
+            //   编译产物与从前逐字节相同。这是"新接一条参数通路"的硬约束。
+            //
+            // ⚠ `float32` 与 `float64` 由设置里**同一项**（「浮点」）驱动 —— 两者在用户眼里
+            //   就是一件事（这个平台支不支持浮点），分成两个开关只会让人犹豫先动哪个。
+            //   `int64` 单独一项：它跟浮点无关，是"64 位整数"。
+            cb.SetConfig("warninglevel", compileOpts.WarningLevel);
+            cb.SetConfig("warningsaserrors", compileOpts.WarningsAsErrors);
+            cb.SetConfig("debug", compileOpts.DebugOutput);
+            cb.SetConfig("float32", compileOpts.FloatMode);
+            cb.SetConfig("float64", compileOpts.FloatMode);
+            cb.SetConfig("int64", compileOpts.Int64Mode);
+        }
 
         var compile = Task.Run(() => ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
             autoLinkStdLib: !asObject, useSharedLibrary: true), ct);
@@ -763,16 +786,29 @@ HALT
         // 收进来的内容**并进结果**而不是丢掉（只多不少）。代价是这把锁要持有一两分钟
         // （编译本身就那么久），但 VML 工具是 Exclusive、ShellPage 另有 `_busy` 闸门，
         // 正常不会与运行期的捕获并发。
+        //
+        // ⚠ **警告走的是 stdout，不是 stderr** —— `WarningEmitter.Emit` 是 `Console.WriteLine`。
+        //   上面那段只接住了 stderr，于是"把警告级别打开"在手机上仍然是**一条看不见的流**
+        //   （功能明明做了、用户永远看不到 —— 与上一段同一个病）。所以这里照运行期那段
+        //   （两个流分开接）的形态把 stdout 一并接住，内容**并进 `compileDiag`**：
+        //   它随后会进 `LastDiags` 诊断表与失败消息，编辑器/命令行页就看得见了。
+        //
+        // ⚠ **只在设置真的开了警告/调试时才接**：默认档下前端一个字都不会往 stdout 写，
+        //   接了纯粹是白白多占一个**进程级**的 `Console.SetOut`（这把锁要持有一两分钟）。
+        var wantStdout = compileOpts.WarningLevel > 0 || compileOpts.DebugOutput;
         string compileDiag = "";
         try
         {
             lock (ConsoleRedirectGate)
             {
                 var prevErr = Console.Error;
+                var prevOut = Console.Out;
                 var errSink = new StringWriter();
+                var outSink = new StringWriter();
                 try
                 {
                     Console.SetError(errSink);
+                    if (wantStdout) Console.SetOut(outSink);
                     if (!compile.Wait(TimeSpan.FromSeconds(CompileTimeoutSeconds), ct))
                     {
                         // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
@@ -787,7 +823,15 @@ HALT
                 finally
                 {
                     Console.SetError(prevErr);
+                    if (wantStdout) Console.SetOut(prevOut);
                     compileDiag = errSink.ToString();
+
+                    // 接住的 stdout（编译警告 / 调试输出）并进诊断 —— 与 stderr 同一口径：
+                    // **只多不少**。合并放在 `finally` 里，是为了让"编译抛异常"那条路
+                    // 也带上（异常会直接跳到 `catch`，写在 lock 之后的合并语句会被跳过）。
+                    var outText = outSink.ToString();
+                    if (outText.Trim().Length > 0)
+                        compileDiag = compileDiag.Length == 0 ? outText : compileDiag + "\n" + outText;
                 }
             }
         }
@@ -915,6 +959,33 @@ HALT
         }
         if (linkDiag.Length > 0)
             compileDiag = compileDiag.Length == 0 ? linkDiag : compileDiag + "\n" + linkDiag;
+
+        // ── 优化（设置 → 编译 · 优化级别）────────────────────────────────────
+        //
+        // 位置与上游 / 桌面 `vmlcli` 一致：**链接之后**跑（这时才是完整的程序）。
+        // 开关表在 `OptimizationPolicy`（VMLAssembler 项目）—— 那是全仓唯一一份，
+        // 桌面 `vmlcli` 与这里共用（从前两边各写一份逐字相同的拷贝，改一处忘一处）。
+        //
+        // ⚠ **`asObject` 不优化**：那是 `.vmk` 多文件编译的**中间产物**，而 `MakeProject`
+        //   会对入口再走一遍 `BuildProgram` ⇒ 在这里优化等于同一个程序被优化两遍。
+        // ⚠ 优化**只作用在这条前端编译链上**：`RunAssembly`（直接跑 `.vml`）与
+        //   `AssembleVmlToVmb`（`.vml→.vmb`）不接 —— 那是手写汇编 / 中间产物的路，
+        //   改写用户手写的汇编是意外行为；而自己编出的 `.vml` 此时已经优化过了。
+        //
+        // **收益如实说**（设置页的说明行与文档都是这么写的，别把下面这行日志当成"省了多少"）：
+        // 开关表里目前只有 NOP 消除 —— 更激进的 pass 都带着上游已知缺陷，其中死代码消除
+        // 一开就会让链了库的程序崩在 `未找到标签: lib_io_puts`（2026-09-27 实测：一个
+        // 46 字节的 hello.c 从 69637 条指令降到 11 条，然后一跑就崩）。
+        // 所以**开了优化，产物体积也几乎不变** —— 体积大头是链进来的标准库。
+        if (!asObject && OptimizationPolicy.IsEnabled(compileOpts.OptimizationLevel))
+        {
+            var level = compileOpts.OptimizationLevel;
+            var beforeOpt = prog.Instructions.Count;
+            prog = OptimizationPipeline.CreateDefault().Run(prog, OptimizationPolicy.Create(level));
+            var afterOpt = prog.Instructions.Count;
+            ErrorLog.Info("MauiVml", $"优化 O{level}：{beforeOpt} → {afterOpt} 条指令");
+            OnProgress?.Invoke($"\r✔ 优化 O{level}：{beforeOpt} → {afterOpt} 条指令\n");
+        }
 
         // 目标文件：标成库 ⇒ 后面 `ToString()` 的**死代码消除不会删掉"没人调用"的函数**
         //（它本来就是给别人调的 —— 入口那边才是唯一知道谁被调了的地方）。

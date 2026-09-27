@@ -40,8 +40,50 @@ namespace PascalCompiler
                 {
                     varParameters.Add(param.Name);
                 }
+
+                // ⚠ **参数的类型也必须登记**（`Procedure Point(x,y:Integer; Var Point:TPoint)`）：
+                //   先前这里只记了偏移与 var 标记，**类型一个字都没记** ⇒ 参数里凡是
+                //   `P.x := …` / `Board.x := …` 这种"record 参数取字段"全报
+                //   「变量 'P' 不是record类型，无法访问字段」。
+                //   g7iles 那批游戏几乎每个过程都收 `Var P:TPoint` / `Var T:TTile` 这类参数，
+                //   实测 `g7iles_mahjong.pas` 就卡在这里（而且那个参数**与过程同名**，
+                //   更难看出是"类型没登记"而不是"名字写错了"）。
+                //
+                //   登记进 localVarDeclarations（拿 typeNode）+ variableRecordTypes（拿 record 类型名）
+                //   两张表 —— 与局部变量走**同一条路**，免得"局部变量认得出、参数认不出"。
+                if (param.Type is not null)
+                {
+                    localVarDeclarations[param.Name] = param.Type;
+                    if (param.Type is SimpleTypeNode pst && !string.IsNullOrEmpty(pst.TypeName))
+                        foreach (var key in recordFieldLayouts.Keys)
+                            if (string.Equals(key, pst.TypeName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                variableRecordTypes[param.Name] = key;
+                                break;
+                            }
+                }
             }
             
+            // 局部**常量**（`begin` 之前的 `Const` 段）：走与主程序级常量**同一条路**
+            // （`dataSection` + `constNames`），这样函数体里引用它时按"已知常量"取值。
+            //
+            // ⚠ 说清这个近似的边界：它们在 Pascal 里是**函数内可见**，而这里放进的是程序级表
+            //   —— 同名时后者覆盖前者。Pascal 的嵌套作用域本来就要求"内层遮蔽外层"，
+            //   而这个表**没有作用域层**，所以"内层常量同名于外层"时会退化成"后者赢"
+            //   （本平台语料里没有反例：g7iles 系列用的都是 `NumXPixels` 这类独有名字）。
+            //   真要做对得给常量表加上作用域栈 —— 那是另一件事，先记在这里。
+            foreach (var lc in subprogram.LocalConstants)
+            {
+                if (lc.Value is not LiteralNode lit) continue;   // 非字面量（含数组）暂不支持，跳过而不是崩
+                if (constNames.Contains(lc.Name)) continue;
+                try
+                {
+                    dataSection[lc.Name] = Convert.ToInt32(lit.Value);
+                    constNames.Add(lc.Name);
+                }
+                catch { /* 值不是整数（字符串常量等）—— 与本函数后面那段主程序级处理同一个态度 */ }
+            }
+
             // 计算局部变量大小
             foreach (var varDecl in subprogram.LocalVariables)
             {

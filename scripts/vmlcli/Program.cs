@@ -72,6 +72,10 @@ internal static class Program
         // （vmlcli 与 WayCoder.Maui 都要以项目引用它），而 `dotnet run` 要求可运行项目；
         // 用 `-p:OutputType=Exe` 覆盖又会**传播到所有被引用的子项目**，VMLPlugins 没有 Main
         // 直接 CS5001 构建失败。所以本仓自己留一个入口，走**同一个** `CompileFile` API。
+        // ── 模式：只打印优化开关表（不编译任何东西，也不需要源文件）───────────────
+        if (opt.DumpOptPolicy)
+            return DumpOptPolicy();
+
         if (opt.RebuildLibSource is not null)
             return RebuildLibModule(opt);
 
@@ -370,25 +374,14 @@ internal static class Program
 
             // 优化流水线（`-O1` 起）。位置与上游一致：**链接之后**跑。
             //
-            // ⚠ **开关列表逐字照抄上游** `Program.Compile.cs:230-240` —— 那里把好几个 pass
-            //   显式关掉了并注明原因（常量折叠/跳转链接/死代码/死存储/复写传播/窥孔
-            //   都标着"实验性"或"有标签损坏 bug"）。**不要"顺手打开"**：
-            //   那些注释是踩过的坑，不是保守。
-            if (opt.OptimizationLevel > 0)
+            // ⚠ **开关表不在这里** —— 它是 `OptimizationPolicy.Create(level)`（VMLAssembler 项目）。
+            //   那件事从前在本文件与手机端各写一份逐字相同的拷贝，改一处忘一处正是本仓的头号坑；
+            //   现在两个消费方共用一份，而"哪些 pass 因已知缺陷必须关着"的理由逐条记在那里。
+            if (OptimizationPolicy.IsEnabled(opt.OptimizationLevel))
             {
-                var optOptions = new OptimizationOptions
-                {
-                    OptimizationLevel = opt.OptimizationLevel,
-                    EnableNopElimination = opt.OptimizationLevel >= 1,
-                    EnableConstantFolding = false,        // 实验性
-                    EnableJumpChaining = false,           // 实验性, 有标签损坏 bug
-                    EnableDeadCodeElimination = false,    // 实验性, 链接库程序误删除代码
-                    EnableDeadStoreElimination = false,   // O2 有标签丢失 bug
-                    EnableCopyPropagation = false,        // O2 有标签丢失 bug
-                    EnablePeepholeOptimization = false,   // O2+ 实验性, 有输出损坏 bug
-                };
                 var before = prog.Instructions?.Count ?? 0;
-                prog = OptimizationPipeline.CreateDefault().Run(prog, optOptions);
+                prog = OptimizationPipeline.CreateDefault()
+                    .Run(prog, OptimizationPolicy.Create(opt.OptimizationLevel));
                 Console.Error.WriteLine($"✔ 优化 O{opt.OptimizationLevel}：{before} → "
                     + $"{prog.Instructions?.Count ?? 0} 条指令");
             }
@@ -658,6 +651,33 @@ internal static class Program
         }
 
         Console.Error.WriteLine($"✔ 已写出 {outp}（{proj.OutputKind}/{proj.OutputFormat}）");
+        return 0;
+    }
+
+    /// <summary>
+    /// 打印优化开关表（`--dump-opt-policy`）。一行一个 `名字=值`，供 probe 脚本 grep 断言。
+    ///
+    /// ⚠ **别把这里的字段清单当成"新的平行表"**：它只是把 <see cref="OptimizationPolicy.Create"/>
+    /// 的结果原样摊开打印，一个判断都不做。谁改了开关表，输出跟着变 —— 那正是判据要的。
+    /// </summary>
+    private static int DumpOptPolicy()
+    {
+        // **两档都打**（`L1.` / `L2.` 前缀）：O1 与 O2 的差别正是"死代码消除开不开"，
+        // 只打一档就看不出这条 —— 而它恰恰是最要紧的那个开关。
+        foreach (var level in new[] { 1, 2, 3 })
+        {
+            var o = OptimizationPolicy.Create(level);
+            Console.WriteLine($"L{level}.level={o.OptimizationLevel}");
+            Console.WriteLine($"L{level}.nop={o.EnableNopElimination}");
+            Console.WriteLine($"L{level}.constantfolding={o.EnableConstantFolding}");
+            Console.WriteLine($"L{level}.jumpchaining={o.EnableJumpChaining}");
+            Console.WriteLine($"L{level}.deadcode={o.EnableDeadCodeElimination}");
+            Console.WriteLine($"L{level}.deadstore={o.EnableDeadStoreElimination}");
+            Console.WriteLine($"L{level}.copyprop={o.EnableCopyPropagation}");
+            Console.WriteLine($"L{level}.peephole={o.EnablePeepholeOptimization}");
+            Console.WriteLine($"L{level}.loop={o.EnableLoopOptimization}");
+            Console.WriteLine($"L{level}.dataflow={o.EnableDataFlowAnalysis}");
+        }
         return 0;
     }
 
@@ -996,8 +1016,14 @@ internal static class Program
                        与 gcc 的 -I 语义一致（用户的头可以覆盖库里的同名头）。
   -U <名>              取消宏定义（可重复）。与 -D 成对，写法也一样是分离式。
 
-  -O<0|1|2|s>          优化级别（默认 0 = 不优化）
+  -O<0|1|2|3|s>        优化级别（默认 0 = 不优化）
+                       0 不优化（一条指令都不删） / 1 初步（只清填充代码）
+                       2 中度（删掉没被调用的库函数 —— 产物大幅变小）
+                       3 极致（再加：删冗余跳转、清数据段、去 .linked 声明）
+                       `s`（省尺寸）与 2 同义。**都不改变程序行为**。
   --lib <路径.vml>     额外要链进来的 VML 汇编文件（多文件程序用）
+  --dump-opt-policy    只打印优化开关表（一行一个 名字=值）后退出，不编译任何东西。
+                       给 `scripts/vml-opt-probe` 断言"有已知缺陷的 pass 恒关着"用。
 
 目标 / 内存 / 数值（照 `vmltool` 的命令行面补的；上游那套 `-c/-a/-T/-e/-i` 等**操作模式**
 没搬 —— vmlcli 的用法是"给一个源文件就编译+运行"，那些是另一个产品的入口）：
@@ -1056,6 +1082,15 @@ internal sealed partial class CliOptions
     /// </summary>
     public List<string> Args { get; } = new();
     public bool Help { get; private set; }
+
+    /// <summary>
+    /// `--dump-opt-policy`：把优化开关表打出来（一行一个 `名字=值`）后退出，不编译任何东西。
+    ///
+    /// 存在的理由：**"绝不打开有已知缺陷的 pass"是一条只能靠人记的规矩**，而"靠人记"在本仓
+    /// 已经漂过多次（见 CLAUDE.md 的"平行表"一节）。把表打出来，`scripts/vml-opt-probe`
+    /// 就能断言它 —— 将来谁"顺手打开"一个 pass，脚本当场红，而不是等某个用户的程序在真机上崩。
+    /// </summary>
+    public bool DumpOptPolicy { get; private set; }
 
     /// <summary>
     /// <c>-D &lt;名&gt;[=&lt;值&gt;]</c>：喂给前端预处理器的宏（**可重复**，按出现顺序累加）。
@@ -1183,7 +1218,8 @@ internal sealed partial class CliOptions
         "" or "1" => 1,
         "0" => 0,
         "2" or "s" => 2,
-        _ => throw new CliArgumentException($"-O 只认 0/1/2/s，收到 `{spec}`"),
+        "3" => 3,
+        _ => throw new CliArgumentException($"-O 只认 0/1/2/3/s，收到 `{spec}`"),
     };
 
     public static CliOptions Parse(string[] args)
@@ -1222,6 +1258,10 @@ internal sealed partial class CliOptions
 
                 case "--rebuild-lib":
                     o.RebuildLibSource = Require(args, ref i, "--rebuild-lib");
+                    break;
+
+                case "--dump-opt-policy":
+                    o.DumpOptPolicy = true;
                     break;
 
                 case "--out":
@@ -1274,6 +1314,7 @@ internal sealed partial class CliOptions
                 case "-O1": o.OptimizationLevel = 1; break;
                 case "-O2":
                 case "-Os": o.OptimizationLevel = 2; break;
+                case "-O3": o.OptimizationLevel = 3; break;
 
                 case "--arg":
                     o.Args.Add(Require(args, ref i, "--arg"));

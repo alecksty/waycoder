@@ -579,10 +579,18 @@ namespace PythonCompiler
             if (globalVars.ContainsKey(node.Target))
             {
                 OpCode storeOp = GetStoreInstruction(exprType);
-                Emit(storeOp, new Operand(OperandType.MEMORY, $"global_{node.Target}"), new Operand(OperandType.REGISTER, 0));
+                // ⚠ **源的寄存器类要跟着 storeOp 走，不能写死 `R0`（编号 0）**：
+                //   `GetStoreInstruction` 对 64 位类型返回 `MOVEL`，而 `MOVEL` 的源必须是
+                //   **`L0`（编号 24）** —— 写死 0 会让汇编期直接报「MOVEL 的第 2 个操作数
+                //   要 L0–L7，给的是 R0」，整份程序编不过（实测 `Examples/python/tetris.py`
+                //   的 5 个 `0xFF…` 颜色常量，编译期 5 处全中）。
+                //   `BankOfOperand` 与**校验用的是同一张表** —— 这正是报错提示里指的那条路，
+                //   自己按 op 写死一张换算表就又成了"发射一个类、校验另一个类"（本仓头号坑）。
+                Emit(storeOp, new Operand(OperandType.MEMORY, $"global_{node.Target}"),
+                     new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(storeOp, 1)));
                 return;
             }
-            
+
             if (!localVars.ContainsKey(node.Target))
             {
                 Vars.AllocLocal(node.Target, 4);
@@ -591,7 +599,8 @@ namespace PythonCompiler
             }
 
             OpCode storeOpLocal = GetStoreInstruction(exprType);
-            Emit(storeOpLocal, new Operand(OperandType.MEMORY, $"R12{localVars[node.Target]}"), new Operand(OperandType.REGISTER, 0));
+            Emit(storeOpLocal, new Operand(OperandType.MEMORY, $"R12{localVars[node.Target]}"),
+                 new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(storeOpLocal, 1)));
         }
 
         public void VisitAugAssign(AugAssignNode node)

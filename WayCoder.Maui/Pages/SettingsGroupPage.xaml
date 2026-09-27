@@ -324,6 +324,49 @@
             </Border>
             </VerticalStackLayout>
 
+            <!-- ═══ 编译 ═══
+                 编译器**行为**参数 —— 影响"编出来的程序"，与上面「虚拟机」（影响"跑起来之后"）
+                 分成两组：改的时机不同（这些值**下一次编译**才生效）。
+
+                 ⚠ 候选表在 `MauiCompileStore` 里（与读取兜底、摘要文案同一处），
+                   别在这里写死字面量 —— 那是本仓头号坑"平行表漂移"。
+
+                 ⚠ 提示行里那句"体积几乎不变"是**如实说明**，不是谦虚：
+                   现有优化开关表（`OptimizationPolicy`）只启用了 NOP 消除（其余 pass
+                   带着上游已知缺陷），而产物体积的大头是链进来的标准库
+                   （实测：46 字节的 hello.c 链出来 69637 条指令）。别让用户以为开了就能变小。 -->
+            <VerticalStackLayout x:Name="GrpCompile" IsVisible="False" Spacing="10">
+            <Label Text="编译（编译器行为参数）" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="14,8" Spacing="6">
+                    <Label Text="优化级别（中度起删掉没被调用的库函数，产物可小数倍）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="CompileOptPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="编译警告" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="CompileWarnPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="把警告当错误（-Werror）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Switch x:Name="CompileWarnErrSwitch" />
+
+                    <Label Text="调试输出（前端诊断分支 + 编译结束时的警告计数）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Switch x:Name="CompileDebugSwitch" />
+
+                    <Label Text="浮点（float / double）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="CompileFloatPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label Text="64 位整数（long / int64）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="CompileInt64Picker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+
+                    <Label x:Name="CompileHintLabel" FontSize="11"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                </VerticalStackLayout>
+            </Border>
+            </VerticalStackLayout>
+
             <Button x:Name="SaveBtn" Text="保存配置" Clicked="OnSaveClicked" Margin="0,14,0,0" />
 
         </VerticalStackLayout>
