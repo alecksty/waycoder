@@ -237,7 +237,9 @@ namespace JavaCompiler
             {
                 string dlabel = $"i64_{labelCounter++}";
                 dataSection[dlabel] = l;
-                instructions.Add(new Instruction(OpCode.MOVEL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dlabel)]));
+                // ⚠ 目的寄存器必须按**类**取（64 位 → `L0` = 编号 24）：写死 `REGISTER 0` 是 32 位通用
+                //   寄存器，撞寄存器类闸（该注释自己都写着"需 64 位表示以匹配 L 寄存器语义"）
+                instructions.Add(new Instruction(OpCode.MOVEL, [TR0(OpCode.MOVEL), new Operand(OperandType.MEMORY, dlabel)]));
                 return;
             }
             EmitLoadConstant(literal.Value);
