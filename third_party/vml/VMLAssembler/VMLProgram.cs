@@ -1528,7 +1528,16 @@ namespace VMLAssembler
                         int rn = (int)((enc >> 24) & 0x7F);
                         int off = (int)(enc & 0x00FFFFFF);
                         if ((off & 0x800000) != 0) off |= unchecked((int)0xFF000000);
-                        return new Operand(OperandType.MEMORY, $"R{rn}{(off >= 0 ? "+" : "-")}{Math.Abs(off)}");
+                        // ⚠ **偏移 0 要输出成 `[@Rn]`，不能写成 `[@Rn+0]`**（2026-09-27 修）。
+                        //   解码是从字节流来的，`off` 必然是"算出来的数"；写侧对 `[@R0]` 与
+                        //   `[@R0+0]` 编出的字节**完全一样**（偏移就是 0），但**文本表示**该收成
+                        //   最短那种 —— 否则"写出去再读回来"的操作数**逐条对不上**
+                        //   （`scripts/vml-vmb-check` 的穷举往返判据就是这么红的：12 处
+                        //   `[@R0]` → `[@R0+0]`，全部只在偏移 0 上）。
+                        //   语义上两者等价（汇编器解出同一个地址），但**往返不稳定**会让
+                        //   "编好的 `.vmb` 读回来再写出去"永远不收敛，也让判据没法用逐字节比对。
+                        return new Operand(OperandType.MEMORY,
+                            off == 0 ? $"R{rn}" : $"R{rn}{(off >= 0 ? "+" : "-")}{Math.Abs(off)}");
                     }
 
                 case 0x03:
