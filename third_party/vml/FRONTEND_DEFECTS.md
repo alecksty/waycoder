@@ -667,6 +667,59 @@ Pascal 这边**没有"拼一句带数字的话"的路** ⇒ `Examples/pascal/dem
 
 ## BASIC
 
+### 🟡 寄存器类用错：写了裸编号（**跨语言**：Basic 390+ / Python 3 / 共享基类 27）
+
+**症状**：整个程序**编不过**，报
+`error: 有 N 处**寄存器类用错**（Rn=32位 / Ln=64位 / Fn=32位 / Dn=64位，类由助记符决定）`。
+病灶长这样：`movel @R0 [@R12-88]`。
+
+**最小复现**（三门语言各一条，都是"最常见的那种写法"）：
+```basic
+DIM x AS DOUBLE
+x = 3.14159
+PRINT x
+```
+```python
+tid = ui_timer_set(60, 1)      # Examples/python/demo_ui.py 第 65 行
+```
+```fortran
+double precision :: d; d = 1.5d0
+```
+
+**真身**：VM 的寄存器编号空间是**统一**的（0–15 通用 / 16–23 = `D0`–`D7` /
+24–31 = `L0`–`L7`），而**类由助记符决定** —— 同一个 `0` 在 `MOVE` 里是 `R0`、
+在 `MOVED` 里是 `D0`、在 `MOVEL` 里是 `L0`。前端发射时写**裸编号** `REGISTER 0`
+就等于按 `R0` 发，而汇编期校验按助记符要 `D0` ⇒ 判死。
+**这是"同一规则多处实现"的最典型一例**：判据在 `RegisterClassTable`，
+而发射点各自写裸数字 —— 而且**已经修过的地方注释里都写着这条规则**
+（`EmitLoadVar`/`EmitStoreVar`/`EmitConv`/Python 的 `VisitConstant`），
+**同一批覆写点、同一文件里仍有没跟着改的**：
+
+| 位置 | 形态 | 覆盖 |
+|---|---|---|
+| `CodeGeneratorBase.EmitTypeAwarePush` | `Emit(pushOp, Reg(0))`，`pushOp` 可能是 `DPUSH`/`PUSHL` | **全部 22 门** |
+| `ExpressionManager.A(v.Type)` | 与 `op = Select*Op(ByteSize, IsFloat, IsDouble, IsLong)` 是**两条独立判据** | 全部用它的前端 |
+| `Basic.EmitLoadVar`/`EmitStoreVar` | 覆写了基类版本、却写裸 `REGISTER 0` | Basic |
+| `Python.VisitVariable` | 同样写死 0（紧挨着的 `VisitConstant` 早已改对） | Python |
+
+**已修**（v0.96.551）：
+1. `CodeGeneratorBase` 加通用版 **`RegOf(op, index, n)`**（本类第 n 号进编号空间），
+   `TRegOf(op, index)` 收成它的**一行特例** —— 有 `<n>` 参数才能表达
+   `MOVED D0, F0` 这种「源类第 n 号 → 目标类第 n 号」（`Fn`/`Rn` 同号不同组）。
+2. `ExpressionManager` 的 `A(v.Type)` → **`A(v)`**（由**与 op 同源的四个标志**推类）。
+   寄存器类最终由**助记符**裁决，所以判据必须与取 `op` 的判据同一个。
+3. Basic 390+ 处、Python 3 处统一走 `RegOf`/`BankOfOperand`。
+4. `LibraryLinker.ReportRegisterClass` 的报错多打一行 **`↳ 该指令：…`** ——
+   定位它时绕了好几轮：Python 是在**链接期**抛的，`--vml` 产物根本落不了盘，
+   拿不到索引对应的指令，只能靠"猜哪个语法触发"（猜了三轮全错）。
+
+**判据**：`examples-build` **196 通过 / 83 失败**（前 195 / 84）——
+修好 `python/demo_ui.py`、**零回归**（`Rn`/`Fn` 组基址为 0 ⇒ 那部分产物逐字节不变，
+所以"批量换"只有修好、没有改坏）。BASIC 双精度/长整型/单精度各一例编译并运行，
+`3.14159` 逐字正确。
+
+**改任何"按类取寄存器"的地方之前先问**：「我这个判据，与取 `op` 的判据是不是同一个？」
+
 ### 🟡 形参名不能叫 `on`（关键字）—— **已修掉"假崩溃"，但引用侧仍认不出**
 
 **症状分两层，原条目只写了后一层。** 拿 `on`（BASIC 保留字，`ON ERROR` / `ON…GOTO` 用）
