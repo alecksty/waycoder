@@ -267,6 +267,20 @@ namespace PascalCompiler
                 globalVarTypes[stdVar] = "INTEGER";
             }
 
+            // **Crt 单元的模式常量**（`BW40` / `CO80` …）：老程序拿它们当 `TextMode(...)` 的实参，
+            //   自己从不声明 ⇒ 不预置就报「未声明的变量 'BW40'」。
+            //   取值沿用 Turbo Pascal 的原值（0=BW40 / 1=CO40 / 2=BW80 / 3=CO80 / 7=Mono；
+            //   `C80` 是 `CO80` 的旧别名）；这些数在本平台**只有一个用途**：喂给被桩掉的
+            //   `TextMode`（见 `CodeGenerator.Misc.cs` 里那个空操作分支），所以取值对不对不影响
+            //   显示 —— 但**必须存在**，否则程序编不过。
+            foreach (var (name, val) in new[]
+                     { ("BW40", 0), ("CO40", 1), ("BW80", 2), ("CO80", 3), ("C80", 3), ("Mono", 7) })
+            {
+                if (dataSection.ContainsKey(name) || constNames.Contains(name)) continue;
+                dataSection[name] = val;
+                constNames.Add(name);
+            }
+
             // 生成所有子程序(过程/函数)
             foreach (var subprogram in ast.Subprograms)
             {

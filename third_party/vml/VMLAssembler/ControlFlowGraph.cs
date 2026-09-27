@@ -229,8 +229,18 @@ public class ControlFlowGraph
     /// <summary>找出从入口不可达的基本块（死代码）</summary>
     public List<BasicBlock> FindUnreachableBlocks()
     {
-        // 有间接跳转 ⇒ 图不完整 ⇒ **一条都不删**（见 HasIndirectJump 的说明）
-        if (HasIndirectJump) return new List<BasicBlock>();
+        // 有间接跳转 ⇒ 图**可能**不完整。
+        //   原本一律"一条都不删"（最保守），但那样对 **C++ 虚函数**太狠：虚调用的目标
+        //   其实写在**数据段的 vtable** 里、静态看得见，一律放弃等于优化对 C++ 完全失效
+        //   （实测 `gorilla.cpp` 92849 条只删 23 条）。所以现在分两档：
+        //     · 数据段里**引用了代码** ⇒ 间接调用的目标静态可见（vtable 那类）⇒ 照常分析；
+        //     · 数据段里**没有** ⇒ 目标真是运行期算出来的 ⇒ 仍然整体放弃（保守）。
+        if (HasIndirectJump)
+        {
+            bool hasDataTarget = false;
+            foreach (var _ in Program.CodeTargetsReferencedByData()) { hasDataTarget = true; break; }
+            if (!hasDataTarget) return new List<BasicBlock>();
+        }
         // 有中断向量表 ⇒ 向量指向的代码（MCU 场景）不在 CFG 里，而长度不明 —— 整份放弃（保守）
         if (Program.VectorTable != 0) return new List<BasicBlock>();
         if (Blocks.Count == 0) return new List<BasicBlock>();
@@ -298,6 +308,18 @@ public class ControlFlowGraph
             && Program.Labels.TryGetValue(Program.EntryPoint, out var ep)
             && ep >= 0 && ep < Program.Instructions.Count)
             yield return ep;
+
+        // **数据段里引用的代码地址**（C++ 虚函数的 vtable、跳转表那类）。
+        //
+        // 这一条专治"间接调用让优化器整体放弃"：虚调用的目标写在数据段的 vtable 里
+        // （`.word L_Draw`），静态**是看得见的** —— 把它们当可达性来源之后，就不必再
+        // "见到间接跳转就一条不删"了（实测 `Examples/cpp/gorilla.cpp` 因此从
+        // "92849 条只删 23 条"变成能真正瘦身）。
+        //
+        // ⚠ 它**不违背**用户定的「可以保留多，不能多删除」：这里收的地址是程序**真的会调**
+        //   的（vtable 就是调用目标表），不是"猜"出来的。
+        foreach (var addr in Program.CodeTargetsReferencedByData())
+            yield return addr;
     }
 
     /// <summary>诊断输出</summary>

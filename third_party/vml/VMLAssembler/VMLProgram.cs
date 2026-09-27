@@ -920,6 +920,30 @@ namespace VMLAssembler
         /// 纯 `string` 与 `DataString` 是**内容**（`.string "abc"` 的 `abc` 是正文，
         /// 不是标签）—— 把内容当标签扫，会把恰好同名的数据项"救活"，那是最难查的一类。
         /// </summary>
+        /// <summary>
+        /// **数据段里引用的「代码标签」**（落在指令区里的那些）—— 供优化器做可达性分析。
+        ///
+        /// <para>
+        /// 为什么需要它：C++ 的**虚调用**是间接的（`call [vtable+offset]`），静态看不到目标，
+        /// 而目标其实**明明白白写在数据段的 vtable 里**（`.word L_Draw` 这种）。
+        /// 把这些地址一并当可达性来源，就能既保住虚函数、又删得掉其余死代码 ——
+        /// 否则优化器只能"见到间接跳转就整体放弃"：实测 `Examples/cpp/gorilla.cpp`
+        /// 92849 条指令**只删掉 23 条**（那 23 条还是 Phase 1 清的填充代码）。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 只收**落在指令区**的地址：数据段里引用的**数据标签**（字符串、表）不在此列 ——
+        /// 那部分由 <c>RemoveUnusedData</c> 的传递闭包负责，各管各的。
+        /// </para>
+        /// </summary>
+        public IEnumerable<int> CodeTargetsReferencedByData()
+        {
+            foreach (var kv in DataSection)
+                foreach (var name in DataRefs(kv.Value))
+                    if (Labels.TryGetValue(name, out var addr) && addr >= 0 && addr < Instructions.Count)
+                        yield return addr;
+        }
+
         static IEnumerable<string> DataRefs(object value)
         {
             /* **单个 `LabelRef`**（`char *p = "…";` / `T *p = &x;` 落成的形态）也算引用。

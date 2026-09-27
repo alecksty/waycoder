@@ -46,6 +46,21 @@ namespace PascalCompiler
                     AddInstruction(OpCode.JMP, LabelOp(subprogramExitLabels.Peek()));
                 }
             }
+            else if (IsScreenModeNoOp(callName))
+            {
+                // **显示模式类的 Crt/Dos 过程 ⇒ 空操作**（2026-09-27）
+                //
+                // 这些在 DOS 上是"设文本模式 / 设前景背景色 / 开窗口"，而本平台的绘图窗口
+                // 由宿主统一管理（`ui_win_open` 已定好画布尺寸与配色），逐个模拟没有意义 ——
+                // 但**必须让程序编过**：老程序把它们当**初始化语句**调用
+                // （`TextMode(BW40)` / `TextColor(Yellow)` / `Window(1,1,80,25)`），
+                // 既不删也改不了。实测 `g7iles_*` 那批游戏开头全是这几句。
+                //
+                // ⚠ **只桩化"纯设置"的**：`Delay`（有真实节奏语义）、`ClrScr`/`GotoXY`
+                //   （本平台有 `conio`/`tty` 实现）都不在这里 —— 桩错了游戏会跑飞或白屏。
+                // ⚠ 实参**不求值**：老程序给的都是常量（`BW40`/`Yellow`）。若将来遇到
+                //   `TextColor(GetColor())` 这种带副作用的实参，再补求值。
+            }
             else if (callName == "inc" || callName == "dec")
             {
                 // Inc(var, n) / Dec(var, n) — 标准 Pascal 内置过程
@@ -523,6 +538,32 @@ namespace PascalCompiler
                 return GetVariablePascalType(fileVar.Name) == PascalType.File;
             return false;
         }
+
+        /// <summary>
+        /// 这些**屏幕/模式类**的 Crt &amp; Dos 过程在本平台当作**空操作**（判据见调用点那段注释）。
+        ///
+        /// <list type="bullet">
+        /// <item><c>TextMode</c> / <c>TextColor</c> / <c>TextBackground</c> / <c>Window</c> ——
+        ///   模式与配色：绘图窗口由宿主定，模拟没有意义；</item>
+        /// <item><c>HighVideo</c> / <c>LowVideo</c> / <c>NormVideo</c> —— 亮度属性，同上；</item>
+        /// <item><c>Sound</c> / <c>NoSound</c> —— DOS 蜂鸣器（本平台要出声得走 <c>ui_beep</c>，
+        ///   那是"给游戏用的合成音"，不是 PC 蜂鸣器语义）；</item>
+        /// <item><c>SetTextBuf</c> / <c>AssignCrt</c> —— I/O 缓冲重绑，本平台没有对应物。</item>
+        /// </list>
+        ///
+        /// <para>
+        /// ⚠ **有意不加进去的**：<c>Delay</c>（有真实节奏语义，桩掉游戏会跑飞）、
+        /// <c>ClrScr</c>/<c>GotoXY</c>（本平台有 `conio`/`tty` 实现）、
+        /// <c>WhereX</c>/<c>WhereY</c>（**有返回值**，桩掉会让调用方读到垃圾）。
+        /// </para>
+        /// </summary>
+        private static bool IsScreenModeNoOp(string callName) => callName switch
+        {
+            "textmode" or "textcolor" or "textbackground" or "window" or
+            "highvideo" or "lowvideo" or "normvideo" or
+            "sound" or "nosound" or "settextbuf" or "assigncrt" => true,
+            _ => false,
+        };
 
     }
 }

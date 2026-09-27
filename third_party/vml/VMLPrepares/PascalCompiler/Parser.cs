@@ -375,10 +375,25 @@ namespace PascalCompiler
             var items = new List<ExpressionNode>();
             while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
             {
-                if (GetTokenType(Cur) == TokenType.LPAREN &&
-                    Peek(1).Type == TokenType.IDENTIFIER && Peek(2).Type == TokenType.COLON)
+                // **嵌套的初始化列表**（元素本身是一行/一个 record）。
+                //
+                // ⚠ 判据一度只认 `(字段名 : 值)`（record 那种），于是**多维数组**的
+                //   `(4,1,4,1), (2,2,2,2), …`（坐标表）与
+                //   `Array[0..23] of Array[0..30] of Byte = ( (00,00,…), (00,00,…) )`（二维地图）
+                //   都进不来 ⇒ 内层 `(` 交给 ParseExpression ⇒「期望 ')'」。
+                //   实测卡住 `g7iles_blox`（方块坐标表）与 `g7iles_pacman`（地图）。
+                //
+                //   放宽成"括号里**像是一个值**"：值是标识符/字面量/负号/再一层括号都算，
+                //   **运算符不算** —— 这样 `(1+2)*3` 那种"括号只是表达式"的写法仍走 ParseExpression。
+                bool nestedList = GetTokenType(Cur) == TokenType.LPAREN &&
+                    (Peek(1).Type == TokenType.IDENTIFIER || Peek(1).Type == TokenType.INTEGER_LITERAL ||
+                     Peek(1).Type == TokenType.REAL_LITERAL || Peek(1).Type == TokenType.STRING_LITERAL ||
+                     Peek(1).Type == TokenType.CHAR_LITERAL || Peek(1).Type == TokenType.LPAREN ||
+                     Peek(1).Type == TokenType.MINUS);
+
+                if (nestedList)
                 {
-                    items.AddRange(ParseInitializerList());   // 嵌套 record：拍平
+                    items.AddRange(ParseInitializerList());   // 嵌套：拍平
                 }
                 else
                 {
