@@ -145,6 +145,27 @@ fn bsearch(a0: i32, a1: i32) -> i32 {
     r
 }
 
+fn lsum64(a0: i32) -> i32 {
+    asm!("CALL lsum64")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn lmin_arr64(a0: i32) -> i32 {
+    asm!("CALL lmin_arr64")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn lmax_arr64(a0: i32) -> i32 {
+    asm!("CALL lmax_arr64")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn llen64(a0: i32) -> i32 {
     asm!("CALL llen64")
     let r: i32;
@@ -946,6 +967,13 @@ fn bit_toggle(a0: i32, a1: i32) -> i32 {
 
 fn bit_test(a0: i32, a1: i32) -> i32 {
     asm!("CALL bit_test")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn lctz64(a0: i32) -> i32 {
+    asm!("CALL lctz64")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r
@@ -2430,6 +2458,13 @@ fn is_even(a0: i32) -> i32 {
 
 fn is_odd(a0: i32) -> i32 {
     asm!("CALL is_odd")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
+fn lmean64(a0: i32) -> i32 {
+    asm!("CALL lmean64")
     let r: i32;
     asm!("MOVE {{0}}, @R0", out(reg) r);
     r

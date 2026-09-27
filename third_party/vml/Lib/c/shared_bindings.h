@@ -28,6 +28,9 @@ __stdcall void sort_quick(int* arr);
 __stdcall int bsearch(int* arr, int value);
 
 // array64.c
+__stdcall long lsum64(long* arr);
+__stdcall long lmin_arr64(long* arr);
+__stdcall long lmax_arr64(long* arr);
 __stdcall long llen64(long* arr);
 __stdcall long lget64(long* arr, long index);
 __stdcall void lset64(long* arr, long index, long value);
@@ -174,6 +177,7 @@ __stdcall int bit_toggle(int val, int bit);
 __stdcall int bit_test(int val, int bit);
 
 // bitops64.c
+__stdcall long lctz64(long x);
 __stdcall long lbit_and64(long a, long b);
 __stdcall long lbit_or64(long a, long b);
 __stdcall long lbit_xor64(long a, long b);
@@ -447,6 +451,7 @@ __stdcall int is_even(int x);
 __stdcall int is_odd(int x);
 
 // crosslang64.c
+__stdcall long lmean64(long* arr);
 __stdcall long ladd64(long a, long b);
 __stdcall long lsub64(long a, long b);
 __stdcall long lmul64(long a, long b);

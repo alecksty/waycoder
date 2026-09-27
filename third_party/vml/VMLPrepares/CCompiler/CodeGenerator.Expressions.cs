@@ -722,7 +722,45 @@ namespace CCompiler
                 // 数组赋值：根据元素类型选择 STORE/STOREB/STOREH
                 var elemType = InferExpressionType(arrayAccess);
                 OpCode storeOp = GetStoreInstruction(elemType);
+                if (GetTypeSize(elemType) == 8)
+                {
+                    // ⚠ **8 字节元素不能借"整数寄存器"暂存**（long / long long / double）。
+                    //   下面那条 `valReg`（PUSH 保命）的老路对 4 字节够用，对 8 字节是错的：
+                    //   `valReg` 由 `AllocInt` 从 R1–R11 里发，而 VM 只把 **R0–R7**
+                    //   当 64 位寄存器 —— `SetLongValue` 对 R8–R15 **截断成 32 位**、
+                    //   `GetLongValue` 对 R8–R15 **零扩展**。何况原先那句值搬运用的是
+                    //   32 位 `MOVE`（写 `registers[]`），而存储用的是 `MOVEL`
+                    //   （读 `longRegisters[]`）—— **两组寄存器，读写根本不是一回事**。
+                    //
+                    //   实测指纹（`long a[4]` 写 11/22/33/44 再逐个读）：值落在 R3/R5 的元素
+                    //   整个读成 **0**（R<8 走 longRegisters，而 32 位 MOVE 写的是 registers[]），
+                    //   落在 R8/R11 的**"侥幸正确"**（零扩展恰好把 32 位的值读回来）。
+                    //   ⇒ 症状是「有的元素对、有的元素读成 0」，极易被误判成"越界"或
+                    //   "数组没初始化"；`lsum64` 一族（库函数读调用方的数组）也因此全错。
+                    //
+                    //   8 字节值直接**压主栈**（与 `EmitPushArg` 的 long 分支同一句惯用法）：
+                    //   主栈是 VM 里唯一"两端都能按字节读写"的地方，`MOVEL`/`MOVED` 的源与
+                    //   目标都认 INDIRECT/MEMORY（`GetLongValue`/`SetDoubleValue` 各自都有
+                    //   这两条分支）⇒ 值根本不进寄存器，"哪几个寄存器装得下 64 位"这个问题
+                    //   就不存在了。`GenerateArrayAddress` 只会往 R13 **下面**压栈，够不到
+                    //   我们这个槽（它在 [R13] 本身）。
+                    //   （本分支到此结束：`GenerateAssignment` 在这条 if 链之后没有别的语句。）
+                    //   ⚠ **值必须先转成元素类型**：`move @R0 #11` 只写 32 位的 `registers[0]`，
+                    //   而 `MOVEL` 读的是 `longRegisters[0]`（两个寄存器组！）⇒ 不转换就存进去 0。
+                    //   标量赋值路径一直有这一步（`EmitTypeConversion(valueType, targetType)`），
+                    //   数组/成员分支从前漏了 —— 这也是这批 64 位缺陷共同的另一半。
+                    EmitTypeConversion(valueType, elemType);
+                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { Reg(13), Imm(8) }));
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.INDIRECT, 13), new Operand(OperandType.REGISTER, 0) }));
+                    GenerateArrayAddress(arrayAccess);
+                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.INDIRECT, 13) }));
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { Reg(13), Imm(8) }));
+                    return;
+                }
                 int valReg = Regs!.AllocInt(instructions);
+                // 4 字节元素也要转：`float` 元素吃 `i2f`（否则 `MOVEF` 把整数**位型**当浮点存），
+                // `char`/`short` 由 STOREB/STOREH 自己截断、转不转都一样。
+                EmitTypeConversion(valueType, elemType);
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, valReg), new Operand(OperandType.REGISTER, 0) }));
                 // ⚠ **值的寄存器要先压栈保命**：`GenerateArrayAddress` 内部有**硬编码的 R1**
                 //   （见它里面那句"用栈保存基地址，避免与硬编码寄存器（R1）冲突"），而

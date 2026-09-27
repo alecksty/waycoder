@@ -15,7 +15,7 @@ lmean64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 3:     long len = arr[0];
+; 7:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -24,11 +24,11 @@ lmean64:
         add @R0 @R11
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 4:     long sum = 0;
+; 8:     long sum = 0;
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
-; 6:     for (i = 1; i <= len; i++) sum += arr[i];
+; 10:     for (i = 1; i <= len; i++) sum += arr[i];
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -68,7 +68,7 @@ sta_52150001:
         movel @R0 @R1
         jmp sta_52150000
 sta_52150002:
-; 7:     if (len <= 0) return 0;
+; 11:     if (len <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -89,7 +89,7 @@ _L52150008:
         jmp L_52150009
 sta_52150005:
 sta_52150006:
-; 8:     return sum / len;
+; 12:     return sum / len;
         movel @R0 [@R12-20]
         pushl @R0
         movel @R0 [@R12-12]
@@ -113,7 +113,7 @@ lsum64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 11:     long len = arr[0];
+; 15:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -122,11 +122,11 @@ lsum64:
         add @R0 @R9
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 12:     long sum = 0;
+; 16:     long sum = 0;
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
-; 14:     for (i = 1; i <= len; i++) sum += arr[i];
+; 18:     for (i = 1; i <= len; i++) sum += arr[i];
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -166,7 +166,7 @@ sta_52150011:
         movel @R0 @R1
         jmp sta_52150010
 sta_52150012:
-; 15:     return sum;
+; 19:     return sum;
         movel @R0 [@R12-20]
         jmp L_52150015
 L_52150015:
@@ -186,7 +186,7 @@ lmin_arr64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 18:     long len = arr[0];
+; 22:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -195,7 +195,7 @@ lmin_arr64:
         add @R0 @R7
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 19:     if (len <= 0) return 0;
+; 23:     if (len <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -216,7 +216,7 @@ _L52150019:
         jmp L_52150020
 sta_52150016:
 sta_52150017:
-; 20:     long min = arr[1];
+; 24:     long min = arr[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -225,7 +225,7 @@ sta_52150017:
         add @R0 @R6
         movel @R0 [@R0]
         movel [@R12-20] @R0
-; 22:     for (i = 2; i <= len; i++) if (arr[i] < min) min = arr[i];
+; 26:     for (i = 2; i <= len; i++) if (arr[i] < min) min = arr[i];
         move @R0 #2
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -284,7 +284,7 @@ sta_52150022:
         movel @R0 @R1
         jmp sta_52150021
 sta_52150023:
-; 23:     return min;
+; 27:     return min;
         movel @R0 [@R12-20]
         jmp L_52150020
 L_52150020:
@@ -304,7 +304,7 @@ lmax_arr64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 26:     long len = arr[0];
+; 30:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -313,7 +313,7 @@ lmax_arr64:
         add @R0 @R3
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 27:     if (len <= 0) return 0;
+; 31:     if (len <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -334,7 +334,7 @@ _L52150033:
         jmp L_52150034
 sta_52150030:
 sta_52150031:
-; 28:     long max = arr[1];
+; 32:     long max = arr[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -343,7 +343,7 @@ sta_52150031:
         add @R0 @R2
         movel @R0 [@R0]
         movel [@R12-20] @R0
-; 30:     for (i = 2; i <= len; i++) if (arr[i] > max) max = arr[i];
+; 34:     for (i = 2; i <= len; i++) if (arr[i] > max) max = arr[i];
         move @R0 #2
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -402,7 +402,7 @@ sta_52150036:
         movel @R0 @R1
         jmp sta_52150035
 sta_52150037:
-; 31:     return max;
+; 35:     return max;
         movel @R0 [@R12-20]
         jmp L_52150034
 L_52150034:
@@ -422,7 +422,7 @@ lmedian64:
         push @R12
         move @R12 @R13
         sub @R13 #568
-; 34:     long len = arr[0];
+; 38:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -431,7 +431,7 @@ lmedian64:
         add @R0 @R10
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 35:     if (len <= 0) return 0;
+; 39:     if (len <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -452,7 +452,7 @@ _L52150047:
         jmp L_52150048
 sta_52150044:
 sta_52150045:
-; 39:     if (len > 64) len = 64;
+; 43:     if (len > 64) len = 64;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #64
@@ -474,7 +474,7 @@ _L52150052:
         movel [@R12-12] @R0
 sta_52150049:
 sta_52150050:
-; 40:     for (i = 0; i <= len; i++) copy[i] = arr[i];
+; 44:     for (i = 0; i <= len; i++) copy[i] = arr[i];
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-540] @R0
@@ -525,7 +525,7 @@ sta_52150054:
         movel @R0 @R1
         jmp sta_52150053
 sta_52150055:
-; 41:     for (i = 1; i < len; i++)
+; 45:     for (i = 1; i < len; i++)
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-540] @R0
@@ -545,7 +545,7 @@ _L52150061:
 _L52150062:
         cmp @R0 #0
         jz sta_52150060
-; 42:         for (j = i + 1; j <= len; j++)
+; 46:         for (j = i + 1; j <= len; j++)
         movel @R0 [@R12-540]
         pushl @R0
         move @R0 #1
@@ -569,7 +569,7 @@ _L52150066:
 _L52150067:
         cmp @R0 #0
         jz sta_52150065
-; 43:             if (copy[i] > copy[j]) { long t = copy[i]; copy[i] = copy[j]; copy[j] = t; }
+; 47:             if (copy[i] > copy[j]) { long t = copy[i]; copy[i] = copy[j]; copy[j] = t; }
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -687,7 +687,7 @@ sta_52150059:
         movel @R0 @R1
         jmp sta_52150058
 sta_52150060:
-; 44:     if (len % 2 == 1) return copy[(len+1)/2];
+; 48:     if (len % 2 == 1) return copy[(len+1)/2];
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #2
@@ -735,7 +735,7 @@ _L52150075:
         jmp L_52150048
 sta_52150072:
 sta_52150073:
-; 45:     return (copy[len/2] + copy[len/2 + 1]) / 2;
+; 49:     return (copy[len/2] + copy[len/2 + 1]) / 2;
         move @R0 @R12
         sub @R0 #532
         push @R0
@@ -803,7 +803,7 @@ lrange64:
         push @R12
         move @R12 @R13
         sub @R13 #48
-; 48:     long len = arr[0];
+; 52:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -812,7 +812,7 @@ lrange64:
         add @R0 @R8
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 49:     if (len <= 0) return 0;
+; 53:     if (len <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -833,7 +833,7 @@ _L52150079:
         jmp L_52150080
 sta_52150076:
 sta_52150077:
-; 50:     long min = arr[1], max = arr[1];
+; 54:     long min = arr[1], max = arr[1];
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -850,7 +850,7 @@ sta_52150077:
         add @R0 @R4
         movel @R0 [@R0]
         movel [@R12-28] @R0
-; 52:     for (i = 2; i <= len; i++) {
+; 56:     for (i = 2; i <= len; i++) {
         move @R0 #2
         i2l @R0 @R0
         movel [@R12-36] @R0
@@ -870,7 +870,7 @@ _L52150084:
 _L52150085:
         cmp @R0 #0
         jz sta_52150083
-; 53:         if (arr[i] < min) min = arr[i];
+; 57:         if (arr[i] < min) min = arr[i];
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-36]
@@ -902,7 +902,7 @@ _L52150089:
         movel [@R12-20] @R0
 sta_52150086:
 sta_52150087:
-; 54:         if (arr[i] > max) max = arr[i];
+; 58:         if (arr[i] > max) max = arr[i];
         move @R0 [@R12+12]
         push @R0
         movel @R0 [@R12-36]
@@ -942,7 +942,7 @@ sta_52150082:
         movel @R0 @R1
         jmp sta_52150081
 sta_52150083:
-; 56:     return max - min;
+; 60:     return max - min;
         movel @R0 [@R12-28]
         pushl @R0
         movel @R0 [@R12-20]
@@ -967,7 +967,7 @@ lcount_gt64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 59:     long len = arr[0], count = 0, i;
+; 63:     long len = arr[0], count = 0, i;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -979,7 +979,7 @@ lcount_gt64:
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
-; 60:     for (i = 1; i <= len; i++) if (arr[i] > threshold) count++;
+; 64:     for (i = 1; i <= len; i++) if (arr[i] > threshold) count++;
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -1035,7 +1035,7 @@ sta_52150095:
         movel @R0 @R1
         jmp sta_52150094
 sta_52150096:
-; 61:     return count;
+; 65:     return count;
         movel @R0 [@R12-20]
         jmp L_52150103
 L_52150103:
@@ -1056,7 +1056,7 @@ lcount_lt64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 64:     long len = arr[0], count = 0, i;
+; 68:     long len = arr[0], count = 0, i;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1068,7 +1068,7 @@ lcount_lt64:
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
-; 65:     for (i = 1; i <= len; i++) if (arr[i] < threshold) count++;
+; 69:     for (i = 1; i <= len; i++) if (arr[i] < threshold) count++;
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -1124,7 +1124,7 @@ sta_52150105:
         movel @R0 @R1
         jmp sta_52150104
 sta_52150106:
-; 66:     return count;
+; 70:     return count;
         movel @R0 [@R12-20]
         jmp L_52150113
 L_52150113:
@@ -1145,7 +1145,7 @@ lcount_eq64:
         push @R12
         move @R12 @R13
         sub @R13 #40
-; 69:     long len = arr[0], count = 0, i;
+; 73:     long len = arr[0], count = 0, i;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1157,7 +1157,7 @@ lcount_eq64:
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
-; 70:     for (i = 1; i <= len; i++) if (arr[i] == value) count++;
+; 74:     for (i = 1; i <= len; i++) if (arr[i] == value) count++;
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-28] @R0
@@ -1213,7 +1213,7 @@ sta_52150115:
         movel @R0 @R1
         jmp sta_52150114
 sta_52150116:
-; 71:     return count;
+; 75:     return count;
         movel @R0 [@R12-20]
         jmp L_52150123
 L_52150123:
@@ -1233,7 +1233,7 @@ lvariance64:
         push @R12
         move @R12 @R13
         sub @R13 #56
-; 74:     long len = arr[0];
+; 78:     long len = arr[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1242,7 +1242,7 @@ lvariance64:
         add @R0 @R4
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 75:     if (len <= 1) return 0;
+; 79:     if (len <= 1) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #1
@@ -1263,18 +1263,18 @@ _L52150127:
         jmp L_52150128
 sta_52150124:
 sta_52150125:
-; 76:     long m = lmean64(arr);
+; 80:     long m = lmean64(arr);
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call lmean64
         add @R13 #4
         movel [@R12-20] @R0
-; 77:     long sum_sq = 0, i;
+; 81:     long sum_sq = 0, i;
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-28] @R0
-; 78:     for (i = 1; i <= len; i++) { long diff = arr[i] - m; sum_sq += diff * diff; }
+; 82:     for (i = 1; i <= len; i++) { long diff = arr[i] - m; sum_sq += diff * diff; }
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-36] @R0
@@ -1324,7 +1324,7 @@ sta_52150130:
         movel @R0 @R1
         jmp sta_52150129
 sta_52150131:
-; 79:     return sum_sq / (len - 1);
+; 83:     return sum_sq / (len - 1);
         movel @R0 [@R12-28]
         pushl @R0
         movel @R0 [@R12-12]
@@ -1353,16 +1353,17 @@ lstd_dev64:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 82:     return lisqrt64(lvariance64(arr));
+; 86:     return lisqrt64(lvariance64(arr));
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
         call lvariance64
         add @R13 #4
-        push @R0
+        sub @R13 #8
+        movel @13 @R0
         move @R0 [@R13+0]
         call lisqrt64
-        add @R13 #4
+        add @R13 #8
         jmp L_52150134
 L_52150134:
         move @R13 @R12
@@ -1382,7 +1383,7 @@ llinreg_slope64:
         push @R12
         move @R12 @R13
         sub @R13 #72
-; 85:     long n = x[0];
+; 89:     long n = x[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1391,7 +1392,7 @@ llinreg_slope64:
         add @R0 @R5
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 86:     if (y[0] < n) n = y[0];
+; 90:     if (y[0] < n) n = y[0];
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -1423,7 +1424,7 @@ _L52150138:
         movel [@R12-12] @R0
 sta_52150135:
 sta_52150136:
-; 87:     if (n <= 1) return 0;
+; 91:     if (n <= 1) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #1
@@ -1444,7 +1445,7 @@ _L52150142:
         jmp L_52150143
 sta_52150139:
 sta_52150140:
-; 88:     long sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0, i;
+; 92:     long sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0, i;
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
@@ -1457,7 +1458,7 @@ sta_52150140:
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-44] @R0
-; 89:     for (i = 1; i <= n; i++) {
+; 93:     for (i = 1; i <= n; i++) {
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-52] @R0
@@ -1477,7 +1478,7 @@ _L52150147:
 _L52150148:
         cmp @R0 #0
         jz sta_52150146
-; 90:         sum_x += x[i]; sum_y += y[i];
+; 94:         sum_x += x[i]; sum_y += y[i];
         movel @R0 [@R12-20]
         pushl @R0
         move @R0 [@R12+12]
@@ -1502,7 +1503,7 @@ _L52150148:
         popl @R1
         addl @R0 @R1 @R0
         movel [@R12-28] @R0
-; 91:         sum_xy += x[i] * y[i]; sum_x2 += x[i] * x[i];
+; 95:         sum_xy += x[i] * y[i]; sum_x2 += x[i] * x[i];
         movel @R0 [@R12-36]
         pushl @R0
         move @R0 [@R12+12]
@@ -1555,7 +1556,7 @@ sta_52150145:
         movel @R0 @R1
         jmp sta_52150144
 sta_52150146:
-; 93:     long denom = n * sum_x2 - sum_x * sum_x;
+; 97:     long denom = n * sum_x2 - sum_x * sum_x;
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [@R12-44]
@@ -1570,7 +1571,7 @@ sta_52150146:
         popl @R1
         subl @R0 @R1 @R0
         movel [@R12-60] @R0
-; 94:     if (denom == 0) return 0;
+; 98:     if (denom == 0) return 0;
         movel @R0 [@R12-60]
         pushl @R0
         move @R0 #0
@@ -1591,7 +1592,7 @@ _L52150152:
         jmp L_52150143
 sta_52150149:
 sta_52150150:
-; 95:     return (n * sum_xy - sum_x * sum_y) / denom;
+; 99:     return (n * sum_xy - sum_x * sum_y) / denom;
         movel @R0 [@R12-12]
         pushl @R0
         movel @R0 [@R12-36]
@@ -1629,7 +1630,7 @@ llinreg_intercept64:
         push @R12
         move @R12 @R13
         sub @R13 #56
-; 98:     long n = x[0];
+; 102:     long n = x[0];
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1638,7 +1639,7 @@ llinreg_intercept64:
         add @R0 @R4
         movel @R0 [@R0]
         movel [@R12-12] @R0
-; 99:     if (y[0] < n) n = y[0];
+; 103:     if (y[0] < n) n = y[0];
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -1670,7 +1671,7 @@ _L52150156:
         movel [@R12-12] @R0
 sta_52150153:
 sta_52150154:
-; 100:     if (n <= 0) return 0;
+; 104:     if (n <= 0) return 0;
         movel @R0 [@R12-12]
         pushl @R0
         move @R0 #0
@@ -1691,14 +1692,14 @@ _L52150160:
         jmp L_52150161
 sta_52150157:
 sta_52150158:
-; 101:     long sum_x = 0, sum_y = 0, i;
+; 105:     long sum_x = 0, sum_y = 0, i;
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-20] @R0
         move @R0 #0
         i2l @R0 @R0
         movel [@R12-28] @R0
-; 102:     for (i = 1; i <= n; i++) { sum_x += x[i]; sum_y += y[i]; }
+; 106:     for (i = 1; i <= n; i++) { sum_x += x[i]; sum_y += y[i]; }
         move @R0 #1
         i2l @R0 @R0
         movel [@R12-36] @R0
@@ -1750,7 +1751,7 @@ sta_52150163:
         movel @R0 @R1
         jmp sta_52150162
 sta_52150164:
-; 103:     long slope = llinreg_slope64(x, y);
+; 107:     long slope = llinreg_slope64(x, y);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -1760,7 +1761,7 @@ sta_52150164:
         call llinreg_slope64
         add @R13 #8
         movel [@R12-44] @R0
-; 104:     return (sum_y - slope * sum_x) / n;
+; 108:     return (sum_y - slope * sum_x) / n;
         movel @R0 [@R12-28]
         pushl @R0
         movel @R0 [@R12-44]

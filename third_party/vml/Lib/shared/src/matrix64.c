@@ -1,5 +1,12 @@
 #param lib("math64")
 
+// 前向声明 —— **类型必须写全**：被调函数在别的模块里，没有声明时前端按默认
+// `int` 猜形参 ⇒ `long`/`double` 被压成 4 字节，而被调方按 8 字节读，
+// 实参整体错位（实测 print_long 打出空、64 位值丢高半字）。
+__stdcall double sin_deg_d(double degrees);
+__stdcall double cos_deg_d(double degrees);
+
+
 // VML Shared Matrix64 Library — Double-Precision Matrix & Vector Math
 // All functions use double and double* arrays (64-bit float)
 

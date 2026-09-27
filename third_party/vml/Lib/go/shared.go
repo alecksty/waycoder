@@ -119,6 +119,21 @@ func bsearch(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
+func lsum64(a0 int32) int32 {
+    vml.Call("lsum64")
+    return vml.R0()
+}
+
+func lmin_arr64(a0 int32) int32 {
+    vml.Call("lmin_arr64")
+    return vml.R0()
+}
+
+func lmax_arr64(a0 int32) int32 {
+    vml.Call("lmax_arr64")
+    return vml.R0()
+}
+
 func llen64(a0 int32) int32 {
     vml.Call("llen64")
     return vml.R0()
@@ -742,6 +757,11 @@ func bit_toggle(a0 int32, a1 int32) int32 {
 
 func bit_test(a0 int32, a1 int32) int32 {
     vml.Call("bit_test")
+    return vml.R0()
+}
+
+func lctz64(a0 int32) int32 {
+    vml.Call("lctz64")
     return vml.R0()
 }
 
@@ -1874,6 +1894,11 @@ func is_even(a0 int32) int32 {
 
 func is_odd(a0 int32) int32 {
     vml.Call("is_odd")
+    return vml.R0()
+}
+
+func lmean64(a0 int32) int32 {
+    vml.Call("lmean64")
     return vml.R0()
 }
 

@@ -51,6 +51,12 @@
 // CALL sort_quick
 // extern fn bsearch(int* arr, int value) -> int
 // CALL bsearch
+// extern fn lsum64(long* arr) -> long
+// CALL lsum64
+// extern fn lmin_arr64(long* arr) -> long
+// CALL lmin_arr64
+// extern fn lmax_arr64(long* arr) -> long
+// CALL lmax_arr64
 // extern fn llen64(long* arr) -> long
 // CALL llen64
 // extern fn lget64(long* arr, long index) -> long
@@ -319,6 +325,8 @@
 // CALL bit_toggle
 // extern fn bit_test(int val, int bit) -> int
 // CALL bit_test
+// extern fn lctz64(long x) -> long
+// CALL lctz64
 // extern fn lbit_and64(long a, long b) -> long
 // CALL lbit_and64
 // extern fn lbit_or64(long a, long b) -> long
@@ -797,6 +805,8 @@
 // CALL is_even
 // extern fn is_odd(int x) -> int
 // CALL is_odd
+// extern fn lmean64(long* arr) -> long
+// CALL lmean64
 // extern fn ladd64(long a, long b) -> long
 // CALL ladd64
 // extern fn lsub64(long a, long b) -> long

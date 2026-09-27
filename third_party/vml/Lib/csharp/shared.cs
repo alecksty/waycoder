@@ -26,6 +26,9 @@ namespace VML {
     // extern int endswith(int* a, int* b);  // CALL endswith
     // extern void sort_quick(int* arr);  // CALL sort_quick
     // extern int bsearch(int* arr, int value);  // CALL bsearch
+    // extern long lsum64(long* arr);  // CALL lsum64
+    // extern long lmin_arr64(long* arr);  // CALL lmin_arr64
+    // extern long lmax_arr64(long* arr);  // CALL lmax_arr64
     // extern long llen64(long* arr);  // CALL llen64
     // extern long lget64(long* arr, long index);  // CALL lget64
     // extern void lset64(long* arr, long index, long value);  // CALL lset64
@@ -160,6 +163,7 @@ namespace VML {
     // extern int bit_clear(int val, int bit);  // CALL bit_clear
     // extern int bit_toggle(int val, int bit);  // CALL bit_toggle
     // extern int bit_test(int val, int bit);  // CALL bit_test
+    // extern long lctz64(long x);  // CALL lctz64
     // extern long lbit_and64(long a, long b);  // CALL lbit_and64
     // extern long lbit_or64(long a, long b);  // CALL lbit_or64
     // extern long lbit_xor64(long a, long b);  // CALL lbit_xor64
@@ -399,6 +403,7 @@ namespace VML {
     // extern int str_cmp(const char* a, const char* b);  // CALL str_cmp
     // extern int is_even(int x);  // CALL is_even
     // extern int is_odd(int x);  // CALL is_odd
+    // extern long lmean64(long* arr);  // CALL lmean64
     // extern long ladd64(long a, long b);  // CALL ladd64
     // extern long lsub64(long a, long b);  // CALL lsub64
     // extern long lmul64(long a, long b);  // CALL lmul64

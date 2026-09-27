@@ -154,6 +154,24 @@ def bsearch(a0, a1):
     asm("CALL bsearch")
     return r0
 
+def lsum64(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL lsum64")
+    return r0
+
+def lmin_arr64(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL lmin_arr64")
+    return r0
+
+def lmax_arr64(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL lmax_arr64")
+    return r0
+
 def llen64(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
@@ -983,6 +1001,12 @@ def bit_test(a0, a1):
     asm(f"PUSH @R0")  # push a1
     asm(f"PUSH @R0")  # push a0
     asm("CALL bit_test")
+    return r0
+
+def lctz64(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL lctz64")
     return r0
 
 def lbit_and64(a0, a1):
@@ -2375,6 +2399,12 @@ def is_odd(a0):
     r0 = asm("@R0")
     asm(f"PUSH @R0")  # push a0
     asm("CALL is_odd")
+    return r0
+
+def lmean64(a0):
+    r0 = asm("@R0")
+    asm(f"PUSH @R0")  # push a0
+    asm("CALL lmean64")
     return r0
 
 def ladd64(a0, a1):

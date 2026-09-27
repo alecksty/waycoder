@@ -300,10 +300,11 @@ LABEL fortran_lctz64
     push @R12
     move @R12 @R13
     move @R0 [@R12+12]
-    PUSH @R0
+    sub @R13 #8
+    movel @13 @R0
     move @R0 [@R13+0]
     CALL lctz64
-    ADD @R13 #4
+    ADD @R13 #8
     move @R13 @R12
     pop @R12
     pop @R15

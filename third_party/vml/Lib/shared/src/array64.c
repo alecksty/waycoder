@@ -1,6 +1,14 @@
 #param lib("bitops64")
 #param lib("statistics64")
 
+// 前向声明 —— **类型必须写全**：被调函数在别的模块里，没有声明时前端按默认
+// `int` 猜形参 ⇒ `long`/`double` 被压成 4 字节，而被调方按 8 字节读，
+// 实参整体错位（实测 print_long 打出空、64 位值丢高半字）。
+__stdcall long lsum64(long* arr);
+__stdcall long lmin_arr64(long* arr);
+__stdcall long lmax_arr64(long* arr);
+
+
 // VML Shared Array64 Library — 64-bit Integer Arrays (long* with long indices)
 
 __stdcall long llen64(long* arr) { return arr[0]; }
