@@ -2646,7 +2646,13 @@ namespace CppCompiler
                     && !_variables.ContainsKey(ie2.Name)          // 参数等已登记的优先
                     && !_classes.ContainsKey(CleanType(ae.DeclType!)))
                 {
-                    var localInfo = Vars.AllocLocal(ie2.Name, 4, ae.DeclType);
+                    // ⚠ **槽大小按类型**（这条才是 `float a = 3.14f;` 真正走的路径）：
+                    //   写死 4 会让 `double`（8 字节）的槽与后一个变量重叠 ——
+                    //   实测"两个 float 单独是对的，再加两个 double 声明"就把前面的 float
+                    //   算式啃成 672（应 628）。两处声明路径都要改（`GenerateLocalVar` 那处同理）。
+                    var (dsz2, _, dbl2) = GetTypeLoadInfo(ae.DeclType);
+                    int dvarSize = (dbl2 || dsz2 == 8) ? 8 : 4;
+                    var localInfo = Vars.AllocLocal(ie2.Name, dvarSize, ae.DeclType);
                     _variables[ie2.Name] = localInfo.Offset;
                     _varTypes[ie2.Name] = ae.DeclType!;
                     OpCode stOp = OpCode.MOVE;

@@ -923,7 +923,15 @@ namespace CppCompiler
 
             bool isClass = _classes.TryGetValue(vd.Type, out var clsInfo);
             bool hasVirt = isClass && clsInfo.Members.Any(m => m.IsVirtual);
+            // ⚠ **槽大小按类型**：原先一律 4 字节 ⇒ `double`/`long`（8 字节）的槽与**后一个
+            //   变量重叠**：实测"只声明两个 float"是对的，**再加两个 double 声明**就让前面的
+            //   float 算式算出 672（应 628）—— 就是被后面的 8 字节写入啃掉了。
             int varSize = 4;
+            if (!string.IsNullOrEmpty(vd.Type))
+            {
+                var (tsz, _, tbd) = GetTypeLoadInfo(vd.Type);
+                if (tbd || tsz == 8) varSize = 8;
+            }
             int firstWordOff;
             if (vd.IsArray && vd.ArraySize is IntLiteral arrSize)
             {
