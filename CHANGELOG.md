@@ -62,6 +62,41 @@ macOS **不需要**这段（没有静音开关、没有"类别"这回事，`Play
 `__MAUI_DEFAULT_SCENE_CONFIGURATION__`、委托类名与 `SceneDelegate.cs` 的 `[Register]` 一致，
 且**两份必须同款** —— 漏写一处即红（正是这次 macOS 的形态）。
 
+### ④ 「为什么 iOS 编译比安卓慢那么多」—— 量出来的数是这样的
+
+用户问「同一个程序 iOS 140 秒、安卓 20 秒」。摆在同一台机器上量（同一个 `chess.c`，75,669 条指令）：
+
+| 跑在哪 | 运行时 / 执行模式 | 编 chess.c |
+|---|---|---|
+| 桌面 `vmlcli` | **CoreCLR** JIT | **3.5 秒** |
+| macOS Catalyst **Debug** | **Mono** JIT | 49.6 秒 |
+| macOS Catalyst **Release** | **Mono** AOT（无 LLVM） | 36.9 秒 |
+
+两条结论，都不是"iOS 天生慢"这么简单：
+
+1. **主因是 Mono vs CoreCLR**：同样是 JIT，Mono 比 CoreCLR 慢约 **14 倍**（3.5 → 49.6 秒）。
+   Android 也是 Mono ⇒ 它与 iOS 比是"同一起跑线"上的差距，而 Windows 是 CoreCLR ⇒ 最快。
+   （iOS/Android/桌面 MAUI 用 Mono，Windows 用 CoreCLR —— SDK 的 `UseMonoRuntime` 默认值，
+   见 `Xamarin.Shared.Sdk.props:47-49`。）
+2. **Apple 平台间还有一档"能不能 JIT"**：`MacCatalyst` 是 macOS 应用 ⇒ **允许 JIT**（实测
+   运行时自报 `IsDynamicCodeSupported=true`）；**iOS 真机硬件禁 JIT**（W^X）⇒ 只能 AOT 或
+   **解释器**。Release 包走 AOT（SDK 在「Release + 移动 + Mono」时默认
+   `MtouchUseLlvm=true`，比 Catalyst 那条无 LLVM 的 AOT 更强），**Debug 包默认
+   `UseInterpreter=true` ⇒ 解释器，比 AOT 再慢一个数量级** —— 那个 140 秒就是这个档
+   （装到 iPad 上的一直是 Debug 包）。Release 包里有 `CCompiler.aotdata.arm64` /
+   `CompilerBase.aotdata.arm64` 等逐程序集的 AOT 数据 ⇒ **编译器本身确实是本机代码**。
+
+**顺带补三处诊断**（此前"慢"在界面上完全看不出来，只能掐表）：
+
+- `MauiVml`：编译成功也记 `编译完成：X 用时 N.N 秒（前端 + 汇编 + 链接，共 M 条指令）`
+  （此前秒数**只出现在超时那条路上**），并在界面上报一句 `✅ 编译完成 … 用时 N.N 秒`；
+- `MauiBootstrap`：开局记一行运行时/执行模式 —— 判据要两个一起看，
+  `IsDynamicCodeSupported` 单用分不出解释器与 AOT（都是 false）：
+  `(true,true)=JIT / (false,true)=AOT / (false,false)=解释器`。
+
+⚠ 想自己复核"这个包有多快"：在设备上跑一次 `vml run examples/c/chess.c`，
+界面与 `logs/error_YYYYMMDD.log` 里都会有秒数。
+
 ---
 ## v0.96.516 — 内置帮助改口径（音效）+ 修 iOS「设备上没有声音」
 

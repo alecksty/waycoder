@@ -191,6 +191,33 @@ public static class MauiBootstrap
         // 2) 错误日志 —— 落 App 目录（baseDir 显式传，避免用 iOS 上无意义的 CWD）
         ErrorLog.Initialize(baseDir: Global.Home, catchAllExceptions: true);
 
+        // 2b) **跑在什么运行时、什么执行模式** —— 一行，开局就记。
+        //
+        // 为什么值得永久留一行（2026-09-27 用户问「为什么 iOS/macOS 编译比 Android/Windows 慢那么多」）：
+        // 同一个程序，桌面 CoreCLR JIT 3.5 秒、本机 Catalyst 解释器 49.6 秒 —— **差 14 倍**，
+        // 而"慢"这件事**在界面上完全看不出来**（没有报错、没有提示，就是转圈）。
+        // 判据得能在设备上一眼查到，而不是回去读 SDK 的 props：
+        //   · Apple 平台**硬件禁 JIT**（W^X）⇒ `IsDynamicCodeSupported=false`，只能 AOT 或**解释器**；
+        //   · Debug 构建默认跑**解释器**（`UseInterpreter=true`）⇒ 这就是"iOS 慢"的主因；
+        //   · Android / Windows 允许 JIT ⇒ 连 Debug 都快。
+        // `FrameworkDescription` 顺带把 Mono / CoreCLR 分开（iOS/Android=Mono，Windows/macOS=CoreCLR）。
+        try
+        {
+            // ⚠ 两个都要记：`IsDynamicCodeSupported` 单独一个**分不出解释器与 AOT**（都是 false）——
+            //   配上 `IsDynamicCodeCompiled` 才有三态：
+            //     (true, true)  = JIT（Android / Windows）
+            //     (false, true) = AOT（iOS/macOS 的 Release 包）
+            //     (false, false) = **解释器**（Apple 上的 Debug 包 —— 就是"慢十倍"的那个）
+            var mode = System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
+                ? "JIT"
+                : System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeCompiled ? "AOT（编译好的本机代码）" : "解释器（最慢）";
+            ErrorLog.Info("MAUI", $"运行时：{System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}"
+                + $" / 执行模式={mode}"
+                + "（Apple 平台禁 JIT ⇒ Debug 包只能跑解释器，前端编译会比安卓/Windows 慢十倍上下；"
+                + "Release 包走 AOT 快得多）");
+        }
+        catch { /* 诊断不拦住启动 */ }
+
         // 3) 全局未处理异常：落盘 + 尽力保存会话（对齐 GuiBootstrap）
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
