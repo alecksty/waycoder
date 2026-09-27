@@ -74,53 +74,11 @@ function ReadChar: char;
 { ============================================================ }
 { 数学函数 }
 { ============================================================ }
-function Abs(x: integer): integer;
-  begin asm("SYSCALL 43") end;
-
-function Abs(x: real): real;
-  begin asm("SYSCALL 44") end;
-
 function Sqr(x: integer): integer;
   begin result := x * x end;
 
 function Sqr(x: real): real;
   begin result := x * x end;
-
-function Sqrt(x: real): real;
-  begin asm("SYSCALL 20") end;
-
-function Sin(x: real): real;
-  begin asm("SYSCALL 21") end;
-
-function Cos(x: real): real;
-  begin asm("SYSCALL 22") end;
-
-function Tan(x: real): real;
-  begin asm("SYSCALL 23") end;
-
-function Arctan(x: real): real;
-  begin asm("SYSCALL 32") end;
-
-function Arcsin(x: real): real;
-  begin asm("SYSCALL 24") end;
-
-function Arccos(x: real): real;
-  begin asm("SYSCALL 25") end;
-
-function Exp(x: real): real;
-  begin asm("SYSCALL 27") end;
-
-function Ln(x: real): real;
-  begin asm("SYSCALL 28") end;
-
-function Pow(x, y: real): real;
-  begin asm("SYSCALL 26") end;
-
-function Floor(x: real): integer;
-  begin asm("SYSCALL 29") end;
-
-function Ceil(x: real): integer;
-  begin asm("SYSCALL 30") end;
 
 function Max(a, b: integer): integer;
   begin if a > b then result := a else result := b end;
@@ -151,9 +109,6 @@ function Int(x: real): real;
 
 function Frac(x: real): real;
   begin result := x - Floor(x) end;
-
-function IntToStr(x: integer): string;
-  begin asm("SYSCALL 42") end;
 
 function StrToInt(s: string): integer;
   begin asm("SYSCALL 40") end;
@@ -341,15 +296,6 @@ function Eof(var f: TFileHandle): boolean;
 
 function Eoln(var f: TFileHandle): boolean;
   begin result := false end;
-
-function Seek(var f: TFileHandle; pos: integer): integer;
-  begin asm("SYSCALL 115") end;
-
-function FilePos(var f: TFileHandle): integer;
-  begin asm("SYSCALL 116") end;
-
-function FileSize(var f: TFileHandle): integer;
-  begin asm("SYSCALL 117") end;
 
 { ============================================================ }
 { 内存操作 }

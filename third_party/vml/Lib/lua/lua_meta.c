@@ -52,11 +52,6 @@ __stdcall void lua_sleep(int ms)
     asm("SYSCALL #52");
 }
 
-/// lua_clear() — MCU clear screen (SYSCALL 74)
-__stdcall void lua_clear(void)
-{
-    asm("SYSCALL #74");
-}
 
 /// lua_print_str(str) — MCU string output (SYSCALL 1)
 __stdcall void lua_print_str(const char* str)

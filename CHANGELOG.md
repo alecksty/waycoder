@@ -1,3 +1,47 @@
+## v0.96.522 — 把"没什么用的"删掉：49 条 Scheme 死桩 + 3 个死文件 + 18 个 Pascal 死函数 + `lua_clear`
+
+用户续上一版说「没什么用的就删掉」。删之前先**分两类**（别把有用的连着删）：
+
+**① 整份都是死桩的文件 → 直接删**
+
+| 文件 | 内容 |
+|---|---|
+| `Lib/ruby/env.rb` | 2 个函数（130/131），号从未实现 |
+| `Lib/ruby/fs.rb` | 4 个函数（140–143），同上 |
+| `Lib/scheme/device.scm` | 11 个定义（83–88 输入 + 100–104），全部"调完返回常量" |
+
+**② 文件里有真东西 → 只删里面那几条**
+
+- **`Lib/scheme/stdlib.scm`：删 49 条**（47 条"`(asm "SYSCALL N")` 后跟一个常量" +
+  `set-car!`/`set-cdr!` 用的 83/84 是死号）。
+  ⚠ **删它们不只是清理，是修 bug**：里面就有 **`cons`/`car`/`cdr`**、`abs`/`min`/`max`/
+  `sqrt`/`=?`/`<?`/`eq?` 这些**核心原语**，而它们的身体是
+  `(define (cons x y) (asm "SYSCALL 80") (cons x y))`（**自我递归**）之类 ——
+  这个文件的使用方式恰恰是 `scheme -l vml stdlib.scm` ⇒ **照文档加载反而会把前端本来能用的
+  原语一起遮坏**。删掉之后前端自己的实现才露出来。
+  ⚠ 判据刻意区分了两类：**"只调一句、不返回"的 9 条保留**（`memcpy!`/`memset!`/`delay`/
+  `write-char`/`random-seed`/`free`/`string-copy`/`string-append!`/`print-hex` —— 它们用的是
+  **真实现**（70/71/52/4/51/41/61/63/10），是**正确的原地操作**，删了就真坏了）。
+- **`Lib/pascal/system.pas`：删 18 个死函数**（Abs/Sqrt/Sin/Cos/Tan/Arctan/Arcsin/Arccos/
+  Exp/Ln/Pow/Floor/Ceil/…）。依据与前一条同源：**Pascal 前端本来就原生实现**它们
+  （`CodeGenerator.Expressions.cs` 里 `EmitCallBuiltin("sin")` 等），而 `system.pas` 里那些
+  定义用的是死号（43/44/22/23/32…）⇒ **遮蔽真实现**。
+- **`Lib/lua/lua_meta.c` + `.vml`：删 `lua_clear`**（#74，MCU 清屏，从未实现）。
+  ⚠ 这个文件的 `.vml` **没有生成器在跑**（`GenLib -b` 只认 `Lib/shared/src` 里那两个），
+  所以两边都手工删了。
+
+**保留但已标注的**（属于"能力未实现"，删了会砍掉用户可见的 API 面，留待决定）：
+`Lib/ruby/eeprom.rb`（号已修正 106/107 ✓）、以及上一版加过警示的几个。
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| 22 种语言冒烟 | ✅ **22 通过 / 0 失败** |
+| 三门语言真例子 | ✅ `demo_std.pas`(66092 条指令) / `demo_std.lua`(108896) / `demo_std.scm`(107089) 全部编译通过 |
+| 桌面全量自测 | ✅ 6803 通过 / 0 失败 |
+
+---
 ## v0.96.521 — 把审计出的问题修掉：`shared_bindings.h` 编得过（29 错→0）+ 死桩标注 + EEPROM 号修正
 
 上一版只"查出并报告"，这一版**动手修**。

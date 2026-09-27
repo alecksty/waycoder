@@ -401,16 +401,6 @@ lua_sleep:
         ADD R13 #8
         PUSH R1
         RET
-lua_clear:
-        PUSH R15
-        PUSH R12
-        MOVE R12 R13
-        SYSCALL #74
-        MOVE [R12-4] R0
-        MOVE R13 R12
-        POP R12
-        POP R15
-        RET
 lua_print_str:
         PUSH R15
         PUSH R12

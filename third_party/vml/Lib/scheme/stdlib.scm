@@ -19,17 +19,13 @@
 (define (write x) (display x))
 (define (write-char c) (asm "SYSCALL 4"))
 (define (read-line) (let ((buf "")) (asm "SYSCALL 2") buf))
-(define (read-int) (asm "SYSCALL 7") 0)
-(define (getchar) (asm "SYSCALL 5") 0)
 (define (read-char) (asm "SYSCALL 5") (integer->char 0))
 (define (peek-char) (read-char))
 
 ;; ============================================================
 ;; 字符串操作
 ;; ============================================================
-(define (string-length s) (asm "SYSCALL 60") 0)
 (define (string-copy dest src) (asm "SYSCALL 61"))
-(define (string-compare a b) (asm "SYSCALL 62") 0)
 (define (string-append! dest src) (asm "SYSCALL 63"))
 (define (string=? a b) (= (string-compare a b) 0))
 (define (string<? a b) (< (string-compare a b) 0))
@@ -228,8 +224,6 @@
 (define (char>=? a b) (>= (char->integer a) (char->integer b)))
 (define (char-ci=? a b) (char=? (char-downcase a) (char-downcase b)))
 
-(define (char-alphabetic? c) (asm "SYSCALL 100") 0)
-(define (char-numeric? c) (asm "SYSCALL 101") 0)
 (define (char-whitespace? c) (or (char=? c #\space) (char=? c #\tab)
                                  (char=? c #\newline) (char=? c #\return)))
 (define (char-upper-case? c) (and (char>=? c #\A) (char<=? c #\Z)))
@@ -244,8 +238,6 @@
       (integer->char (+ (char->integer c) 32))
       c))
 
-(define (char->integer c) (asm "SYSCALL 102") 0)
-(define (integer->char n) (asm "SYSCALL 103") #\nul)
 (define (digit->integer c)
   (if (char-numeric? c)
       (- (char->integer c) (char->integer #\0))
@@ -255,10 +247,6 @@
 ;; 列表操作
 ;; ============================================================
 (define (cons x y) (asm "SYSCALL 80") (cons x y))
-(define (car pair) (asm "SYSCALL 81") pair)
-(define (cdr pair) (asm "SYSCALL 82") pair)
-(define (set-car! pair val) (asm "SYSCALL 83"))
-(define (set-cdr! pair val) (asm "SYSCALL 84"))
 (define (null? x) (eq? x '()))
 (define (pair? x) (and (not (null? x)) (not (number? x)) (not (string? x)) (not (char? x))))
 
@@ -433,26 +421,9 @@
 ;; ============================================================
 ;; 数学函数
 ;; ============================================================
-(define (abs x) (asm "SYSCALL 43") 0)
-(define (min a b) (asm "SYSCALL 45") 0)
-(define (max a b) (asm "SYSCALL 46") 0)
-(define (sqrt x) (asm "SYSCALL 20") 0.0)
-(define (sin x) (asm "SYSCALL 21") 0.0)
-(define (cos x) (asm "SYSCALL 22") 0.0)
-(define (tan x) (asm "SYSCALL 23") 0.0)
-(define (asin x) (asm "SYSCALL 24") 0.0)
-(define (acos x) (asm "SYSCALL 25") 0.0)
 (define (atan x) (atan2 x 1.0))
-(define (atan2 y x) (asm "SYSCALL 33") 0.0)
-(define (expt x y) (asm "SYSCALL 26") 0.0)
-(define (exp x) (asm "SYSCALL 27") 0.0)
-(define (log x) (asm "SYSCALL 28") 0.0)
 (define (log10 x) (/ (log x) (log 10)))
-(define (floor x) (asm "SYSCALL 29") 0.0)
-(define (ceiling x) (asm "SYSCALL 30") 0.0)
-(define (round x) (asm "SYSCALL 31") 0.0)
 (define (truncate x) (inexact->exact (floor (abs x))))
-(define (random) (asm "SYSCALL 50") 0)
 (define (random-seed seed) (asm "SYSCALL 51"))
 (define pi 3.141592653589793)
 (define e 2.718281828459045)
@@ -469,7 +440,6 @@
   (truncate (/ a b)))
 
 (define (number->string n) (let ((buf "")) (asm "SYSCALL 42") buf))
-(define (string->number s) (asm "SYSCALL 40") 0)
 
 (define (even? n) (= (modulo n 2) 0))
 (define (odd? n) (= (modulo n 2) 1))
@@ -481,19 +451,16 @@
   (if (null? rest)
       (=? a b)
       (and (=? a b) (apply = (cons b rest))))))
-(define (=? a b) (asm "SYSCALL 47") 0)
 
 (define (< a b . rest)
   (if (null? rest)
       (<? a b)
       (and (<? a b) (apply < (cons b rest))))))
-(define (<? a b) (asm "SYSCALL 48") 0)
 
 (define (> a b . rest)
   (if (null? rest)
       (>? a b)
       (and (>? a b) (apply > (cons b rest))))))
-(define (>? a b) (asm "SYSCALL 49") 0)
 
 (define (<= a b . rest)
   (if (null? rest)
@@ -505,20 +472,16 @@
       (and (not (<? a b)) (apply >= (cons b rest))))))
 
 (define (+ . args) (fold-left add-two 0 args))
-(define (add-two a b) (asm "SYSCALL 34") 0)
 (define (- a . rest)
   (if (null? rest)
       (negate a)
       (fold-left sub-two a rest)))
-(define (sub-two a b) (asm "SYSCALL 35") 0)
 (define (negate x) (- 0 x))
 (define (* . args) (fold-left mul-two 1 args))
-(define (mul-two a b) (asm "SYSCALL 36") 0)
 (define (/ a . rest)
   (if (null? rest)
       (div-two 1 a)
       (fold-left div-two a rest)))
-(define (div-two a b) (asm "SYSCALL 37") 0)
 
 ;; ============================================================
 ;; 类型谓词
@@ -537,7 +500,6 @@
         (else 9)))
 
 (define (boolean? x) (or (eq? x #t) (eq? x #f)))
-(define (number? x) (asm "SYSCALL 104") 0)
 (define (integer? x) (and (number? x) (= (floor x) x)))
 (define (real? x) (number? x))
 (define (exact? x) (integer? x))
@@ -547,9 +509,6 @@
 (define (string? x) (and (not (null? x)) (not (number? x))
                         (not (char? x)) (not (pair? x)) (not (vector? x))
                         (not (symbol? x)) (not (procedure? x))))
-(define (symbol? x) (asm "SYSCALL 105") 0)
-(define (vector? x) (asm "SYSCALL 106") 0)
-(define (procedure? x) (asm "SYSCALL 107") 0)
 (define (list? x)
   (or (null? x)
       (and (pair? x) (list? (cdr x)))))
@@ -557,7 +516,6 @@
 ;; ============================================================
 ;; 等价性谓词
 ;; ============================================================
-(define (eq? a b) (asm "SYSCALL 108") 0)
 (define (eqv? a b)
   (or (eq? a b)
       (and (number? a) (number? b) (= a b))
@@ -617,8 +575,6 @@
 ;; ============================================================
 (define (memset! ptr value count) (asm "SYSCALL 70"))
 (define (memcpy! dest src count) (asm "SYSCALL 71"))
-(define (memcmp a b n) (asm "SYSCALL 13") 0)
-(define (malloc size) (asm "SYSCALL 40") 0)
 (define (free ptr) (asm "SYSCALL 41"))
 
 ;; ============================================================
@@ -629,11 +585,8 @@
   (asm "SYSCALL 3"))
 (define (delay ms) (asm "SYSCALL 52"))
 (define (sleep ms) (delay ms))
-(define (get-tick) (asm "SYSCALL 53") 0)
-(define (get-config key) (asm "SYSCALL 60") 0)
 (define (get-date) (let ((buf "")) (asm "SYSCALL 55") buf))
 (define (get-time) (let ((buf "")) (asm "SYSCALL 56") buf))
-(define (get-datetime) (asm "SYSCALL 54") 0)
 (define (current-second)
   (modulo (get-tick) 60))
 (define (current-jiffy)
