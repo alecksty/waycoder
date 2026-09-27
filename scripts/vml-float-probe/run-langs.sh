@@ -29,14 +29,14 @@ want=$'F-MUL=\n628\nF-NEG=\n-50\nF-HEX=\n1600'
 #      c      D-MUL=627（double 乘精度不对）/ 其余对
 #      cpp/js 浮点值当整数打（缺 float→int 转换）
 #      lua    同 JS；bas 常量被截成整数；cs/py/rb/pas 编译失败；go/java 撞寄存器类闸（真缺陷）
-want2=$'F-MUL=628\nD-MUL=628\nF-NEG=-50\nD-NEG=-50\nL-ADD=4\nL-MUL=123\nL-NEG=-4' 
+want2=$'F-MUL=\n628\nD-MUL=\n628\nF-NEG=\n-50\nD-NEG=\n-50\nL-ADD=\n4\nL-MUL=\n2\nL-NEG=\n-4'
 pass=0; fail=0; skip=0
 for f in "$HERE"/langs/f.* "$HERE"/langs/f2.*; do
     [ -f "$f" ] || continue
     name="$(basename "$f")"
     case "$name" in f2.*) want="$want2";; *) want="$want";; esac
     if [ $# -gt 0 ]; then
-        ext="${name#f.}"; keep=0
+        ext="${name#f.}"; ext="${ext#2.}"; keep=0
         for a in "$@"; do [ "$a" = "$ext" ] && keep=1; done
         [ "$keep" = 1 ] || continue
     fi

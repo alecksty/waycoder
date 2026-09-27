@@ -495,11 +495,11 @@ namespace VMLAssembler
             // 数字（十进制/十六进制/二进制/八进制，**都支持负号**）—— 与数据指令、浮点数据
             // 走**同一份**解析器：三处各写一套的后果就是"负数十六进制只在其中一处坏"，
             // 而坏的那处（`.word -0x10`）会把文本当字符串收下、读出来是垃圾（实测）。
-            if (TryParseNumber(valueStr, out var num, out var isInt))
+            if (TryParseNumber(valueStr, out var num, out var isInt, out var intVal))
             {
                 if (!isInt) return num;                                  // 浮点：直接给 double
-                if (num >= int.MinValue && num <= int.MaxValue) return (int)num;
-                return (long)num;                                        // 超出 int：给 long（.dword 的位模式）
+                if (intVal >= int.MinValue && intVal <= int.MaxValue) return (int)intVal;
+                return intVal;                                           // 超出 int：给 long（.dword 的位模式）
             }
 
             // 如果不是数字，返回原始字符串
@@ -1273,9 +1273,21 @@ namespace VMLAssembler
         ///   `.float -0x10` 与 `MOVE R0, -0x10` 得到 **0**。而 `-5` / `0xFF` / `-3.14` 都是好的
         ///   —— 所以只测这几样永远发现不了。
         /// </summary>
-        internal static bool TryParseNumber(string s, out double value, out bool isInteger)
+        /// <summary>
+        /// 数字字面量（十进制/十六进制/二进制/八进制，**都支持负号**）。
+        ///
+        /// <para>
+        /// ⚠ **整数值必须走 `intValue`（long）出口，不能只拿 `value`（double）再转回来**：
+        /// `.dword` 写的是**位型整数**（双精度常量落成的 `4614253070214989087`），
+        /// 超过 2^53 的整数过一遍 double **先被舍入**，`(long)value` 于是少几百 ——
+        /// 实测 `3.14` 的位型被解析成 `4614253070214988800`，运行时得到
+        /// `3.1399999999998727`，`(int)(3.14 * 100)` 得 **313** 而不是 314。
+        /// C 的浮点探针没露，是因为它用的 3.5/2.25 在二进制里精确。
+        /// </para>
+        /// </summary>
+        internal static bool TryParseNumber(string s, out double value, out bool isInteger, out long intValue)
         {
-            value = 0; isInteger = false;
+            value = 0; isInteger = false; intValue = 0;
             s = (s ?? "").Trim();
             if (s.Length == 0) return false;
 
@@ -1291,7 +1303,8 @@ namespace VMLAssembler
                     // ⚠ 走 `Convert.ToInt64(s[2..], radix)` 而不是 `long.TryParse(HexNumber)`
                     //   —— 后者只认十六进制、且对 `0b`/`0o` 无能为力。
                     var mag = Convert.ToInt64(s[2..], radix);
-                    value = neg ? -mag : mag;
+                    intValue = neg ? -mag : mag;
+                    value = intValue;          // 兼容旧调用方；整数值请用 intValue
                     isInteger = true;
                     return true;
                 }
@@ -1302,7 +1315,9 @@ namespace VMLAssembler
             if (long.TryParse(s, System.Globalization.NumberStyles.Integer,
                     System.Globalization.CultureInfo.InvariantCulture, out var lv))
             {
-                value = neg ? -lv : lv; isInteger = true; return true;
+                intValue = neg ? -lv : lv;
+                value = intValue;
+                isInteger = true; return true;
             }
             if (double.TryParse(s, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var dv))
@@ -1312,12 +1327,16 @@ namespace VMLAssembler
             return false;
         }
 
+        /// <summary>旧签名的薄包装（只要浮点值时用；**整数值请用 4 参重载**的 `intValue`）。</summary>
+        internal static bool TryParseNumber(string s, out double value, out bool isInteger)
+            => TryParseNumber(s, out value, out isInteger, out _);
+
         private static object? ParseValueStatic(string s)
         {
             s = (s ?? "").Trim();
             if (s.Length == 0) return 0;
-            if (TryParseNumber(s, out var num, out var isInt))
-                return isInt ? (num >= int.MinValue && num <= int.MaxValue ? (object)(int)num : (object)(long)num) : (object)num;
+            if (TryParseNumber(s, out var num, out var isInt, out var intVal))
+                return isInt ? (intVal >= int.MinValue && intVal <= int.MaxValue ? (object)(int)intVal : (object)intVal) : (object)num;
             return 0;
         }
 

@@ -6,12 +6,12 @@ public class P {
     long big = 3000000000L;
     long add = 1000000000L;
     long pos = 4294967296L;
-    System.out.print("F-MUL="); System.out.println((int)(a * b * 100));
-    System.out.print("D-MUL="); System.out.println((int)(a * b * 100));
-    System.out.print("F-NEG="); System.out.println((int)(-0.5 * 100));
-    System.out.print("D-NEG="); System.out.println((int)(-0.5 * 100));
-    System.out.print("L-ADD="); System.out.println((int)((big + add) / 1000000000L));
-    System.out.print("L-MUL="); System.out.println((int)(((5000000000L / 5L) * 2L) / 1000000000L));
-    System.out.print("L-NEG="); System.out.println((int)((0L - pos) / 1000000000L));
+    System.out.println("F-MUL="); System.out.println((int)(a * b * 100));
+    System.out.println("D-MUL="); System.out.println((int)(a * b * 100));
+    System.out.println("F-NEG="); System.out.println((int)(-0.5 * 100));
+    System.out.println("D-NEG="); System.out.println((int)(-0.5 * 100));
+    System.out.println("L-ADD="); System.out.println((int)((big + add) / 1000000000L));
+    System.out.println("L-MUL="); System.out.println((int)(((5000000000L / 5L) * 2L) / 1000000000L));
+    System.out.println("L-NEG="); System.out.println((int)((0L - pos) / 1000000000L));
   }
 }

@@ -201,6 +201,14 @@ namespace JavaCompiler
                 JavaTypeEnum right = InferExpressionType(binExpr.Right);
                 return WiderType(left, right);
             }
+            else if (expr is UnaryExpression unExpr)
+            {
+                // ⚠ **一元表达式要穿透到操作数**：`-0.5` 不穿透就落进默认的 `Int` ⇒
+                //   整个算式按 32 位发（实测 `(int)(-0.5 * 100)` 生成 `push R0` + 32 位 `MUL`
+                //   ⇒ 得 6100 而不是 -50）。逻辑非是布尔。
+                if (unExpr.Operator == TokenType.LogicalNot) return JavaTypeEnum.Boolean;
+                return InferExpressionType(unExpr.Operand);
+            }
             else if (expr is CastExpression castExpr)
             {
                 return GetJavaTypeEnum(castExpr.TargetType);
