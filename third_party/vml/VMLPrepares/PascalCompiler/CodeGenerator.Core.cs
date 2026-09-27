@@ -214,6 +214,28 @@ namespace PascalCompiler
                         int[] values = new int[constDecl.ArrayValues.Count];
                         for (int i = 0; i < constDecl.ArrayValues.Count; i++)
                         {
+                            // ⚠ **字符串元素**（`Const Hexa: array[0..15] of string =
+                            // ('0','1',…,'F');`）—— 老代码用**查表法**做十六进制转换、
+                            // 菜单、字符分类全靠它（实测 avc_convert_hex / avc_disk_serial /
+                            // gmsdos_dosshell / g7iles_loderunn 四份都卡在这）。
+                            // 原来这里一律走 ConstIntOrThrow ⇒ 抛 FormatException，
+                            // 用户看到的是「The input string 'Fichier' was not in a correct
+                            // format.」这种**内部异常文本**（看不出是哪个文件、
+                            // 也看不出是编译器处理不了）。
+                            // ⚠ 判据要**同时**认 `STRING_LITERAL` 与 `CHAR_LITERAL`：
+                            //   `'ab'` 是字符串、`'0'`（**单字符**）是 Char —— 而老代码里的
+                            //   十六进制查表恰恰全是单字符（`Hexa : Array[0..15] of Char =
+                            //   ('0','1',…,'F')`，实测 avc_disk_serial.pas）⇒
+                            //   只认 STRING_LITERAL 会**整组漏掉**，报的还是原来那句
+                            //   「字符串常量数组尚未支持」，看着像没修。
+                            if (constDecl.ArrayValues[i] is LiteralNode litStr
+                                && (litStr.Type == TokenType.STRING_LITERAL
+                                    || litStr.Type == TokenType.CHAR_LITERAL))
+                            {
+                                // 一旦发现有一个元素是字符串，**整组按字符串数组处理**
+                                // （Pascal 的数组元素同类型，混不了）—— 见下面那条分支。
+                                goto StringArray;
+                            }
                             if (constDecl.ArrayValues[i] is LiteralNode lit)
                                 values[i] = ConstIntOrThrow(lit);
                             else
@@ -221,6 +243,22 @@ namespace PascalCompiler
                         }
                         dataSection[constDecl.Name] = values;
                         constNames.Add(constDecl.Name);
+                        goto DoneArrayConst;
+
+                    StringArray:
+                        /* 字符串数组常量 —— 元素按**字符串**存（数据段的值模型本来就
+                           认 `object[]`，CLikeCodegen 的 `AllocArray` 用的就是它）。
+                           取元素走 `Hexa[Ch1]` 那条索引路径。 */
+                        {
+                            var strVals = new object[constDecl.ArrayValues.Count];
+                            for (int i = 0; i < constDecl.ArrayValues.Count; i++)
+                                strVals[i] = constDecl.ArrayValues[i] is LiteralNode sl
+                                    ? sl.Value.ToString()! : "";
+                            dataSection[constDecl.Name] = strVals;
+                            constNames.Add(constDecl.Name);
+                        }
+
+                    DoneArrayConst:;
 
                         /* ⚠ **常量数组的下界也必须登记** —— 否则取元素时退回 `lower = 0`，
                            于是**声明成 `array[1..N]` 的常量数组整体错位一格**：
