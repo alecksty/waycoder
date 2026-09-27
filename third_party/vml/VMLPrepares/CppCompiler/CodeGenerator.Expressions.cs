@@ -15,6 +15,33 @@ namespace CppCompiler
                 if (isFloat) return ExpType.F32;
                 return ExpType.I32;
             }
+            // ⚠ **二元表达式要按宽度加宽**（与 `GetExprTypeInfo` 同一规则，两处都要）：
+            //   只补了那边 ⇒ cast 算对了、而**操作数**仍被当 int ⇒ 链式表达式里
+            //   `EmitConvertRaw(left=I32 → F32)` 发 `i2f F0, R0` 把左值（6.28 在 F0）覆盖掉。
+            if (e is BinaryExpr bInfer)
+            {
+                var lt = InferExpType(bInfer.Left);
+                var rt = InferExpType(bInfer.Right);
+                if (lt == ExpType.F32 || rt == ExpType.F32) return ExpType.F32;
+                if (lt == ExpType.F64 || rt == ExpType.F64) return ExpType.F64;
+                return lt;
+            }
+            // 一元表达式（`-x`、`!x`、`~x`、`*p`、`&x`）**穿过到操作数** ——
+            //   不穿透的话 `-0.5 * 100.0` 里左边被当成 int ⇒ `i2d D0, R0` 把 -0.5 覆盖掉
+            //   （实测饱和成 int.MaxValue）。
+            if (e is UnaryExpr unInfer)
+            {
+                if (unInfer.Op == "!") return ExpType.I32;      // 逻辑非 → 布尔/整数
+                if (unInfer.Op == "&") return ExpType.Ptr32;    // 取地址 → 指针
+                return InferExpType(unInfer.Operand);
+            }
+            if (e is CastExpr castInfer)
+            {
+                var (_, cf, cd) = GetTypeLoadInfo(castInfer.TargetType);
+                if (cd) return ExpType.F64;
+                if (cf) return ExpType.F32;
+                return ExpType.I32;
+            }
             if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt))
             {
                 if (vt.Contains("*")) return ExpType.Ptr32;
@@ -22,6 +49,8 @@ namespace CppCompiler
                 //   多空格…）⇒ 判不出来就退回 I32 ⇒ 浮点局部量按 32 位读（实测
                 //   `float a = 3.14f; (int)(a * 2.0f * 100.0f)` 读到的是位型）。
                 var t = vt.Trim();
+                if (Environment.GetEnvironmentVariable("VML_DBG_TYPE") == "1")
+                    Console.Error.WriteLine($"[dbg-type] {ie.Name} vt='{vt}'");
                 if (t.Contains("float")) return ExpType.F32;
                 if (t.Contains("double")) return ExpType.F64;
             }
@@ -396,7 +425,20 @@ namespace CppCompiler
                     }
                     else if (_variables.TryGetValue(id.Name, out int offset))
                     {
-                        Add(OpCode.MOVE, "R0", Vars?.FormatOffset(offset) ?? $"R14-{offset}");
+                        // ⚠ **按类型选指令**：局部变量原先一律 `MOVE R0, [槽]` —— 浮点/双精度
+                        //   读到的只是 32 位那半（实测 `float a = 3.14f; (int)(2.0f * a)` 得 4：
+                        //   `a` 被当整数读，F0 里留的还是左操作数 2.0）。
+                        //   判据与全局变量那条同一套（`GetTypeLoadInfo`）。
+                        OpCode vop = OpCode.MOVE;
+                        if (_varTypes.TryGetValue(id.Name, out var vtLoad))
+                        {
+                            var (_, vfLoad, vdLoad) = GetTypeLoadInfo(vtLoad);
+                            if (vdLoad) vop = OpCode.MOVED;
+                            else if (vfLoad) vop = OpCode.MOVEF;
+                        }
+                        // 目的寄存器按**类**取：`MOVED` 要用 `D0`（= 文本 `R16`），
+                        // 写 "R0" 是 32 位通用寄存器、撞寄存器类闸
+                        Add(vop, TR(vop), Vars?.FormatOffset(offset) ?? $"R14-{offset}");
                         // For reference variables, dereference the pointer to get the actual value
                         if (_isReferenceVar.TryGetValue(id.Name, out bool isRef) && isRef)
                             Add(OpCode.MOVE, "R0", "(R0)");

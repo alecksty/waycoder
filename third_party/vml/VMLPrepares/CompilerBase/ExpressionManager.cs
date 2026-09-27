@@ -149,6 +149,8 @@ namespace CompilerBase
             v.EvalAction?.Invoke();
 
             var op = SelectLoadOp(v.ByteSize, v.IsFloat, v.IsDouble, v.IsLong);
+            if (Environment.GetEnvironmentVariable("VML_DBG_LOAD") == "1")
+                Console.Error.WriteLine($"[dbg-load] loc={v.Loc} type={v.Type} size={v.ByteSize} f={v.IsFloat} d={v.IsDouble} l={v.IsLong} op={op}");
             switch (v.Loc)
             {
                 case ExpLoc.Reg:

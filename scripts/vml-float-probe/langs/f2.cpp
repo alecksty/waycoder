@@ -2,9 +2,13 @@
 __stdcall void println_str(char* s);
 __stdcall void println_int(int v);
 int main() {
-    float  a = 3.14f, b = 2.0f;
-    double x = 3.14,  y = 2.0;
-    long   big = 3000000000L, add = 1000000000L, pos = 4294967296L;
+    float  a = 3.14f;
+    float  b = 2.0f;
+    double x = 3.14;
+    double y = 2.0;
+    long   big = 3000000000L;
+    long   add = 1000000000L;
+    long   pos = 4294967296L;
     println_str("F-MUL="); println_int((int)(a * b * 100.0f));
     println_str("D-MUL="); println_int((int)(x * y * 100.0));
     println_str("F-NEG="); println_int((int)(-0.5f * 100.0f));
