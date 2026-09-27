@@ -1,4 +1,4 @@
-## v0.96.517 — macOS（Mac Catalyst）版：**起不来**、字体错、UIKit 跨线程，三处一起修
+## v0.96.517 — macOS 版三处修复（起不来 / 字体错 / UIKit 跨线程）+ 量出「iOS 编译为什么慢」
 
 用户让"OSX 版本也测一下"。`dotnet build -f net10.0-maccatalyst27.0` **0 错误**，
 但**双击图标什么都不会发生** —— 一路查下来是三个互不相干的缺陷。
@@ -44,24 +44,6 @@ Application failed to launch: UIScene life cycle is required for apps built with
 macOS **不需要**这段（没有静音开关、没有"类别"这回事，`Playback`/`MixWithOthers` 在 macOS 上是空操作），
 于是改成 `#if IOS` 只对 iOS 配。**改完实测 0 条**（修前每次程序启动 2 条）。
 
-### 验证（Mac Catalyst，Debug，Apple Silicon）
-
-| 项 | 结果 |
-|---|---|
-| 启动 | ✅ 修前秒退（133）→ 修后窗口正常 |
-| 编辑器字体自检 | ✅ `a=7.00 / 中=14.00 / 名=Sarasa-Mono-SC-Regular`（修前 7.85 / NSimSun） |
-| 字体落地 | ✅ `<Home>/vml/fonts/SarasaMonoSC-Regular.ttf`（修前 `Operation not permitted`） |
-| **音频** | ✅ 命令行页跑 `vml run examples/c/audio_all.c`：**12 项全部走完**，日志 `音频引擎已启动：采样率=44100 声道=1` |
-| UIKit 跨线程异常 | ✅ 0 条（修前每次 VML 启动 2 条） |
-| VML 程序（象棋 / 五子棋） | ✅ 编译 + 窗口 + 弹框都正常（用户实测） |
-| iOS / MacCatalyst 编译 | ✅ `net10.0-ios27.0` 与 `net10.0-maccatalyst27.0` **各 0 错误** |
-| 桌面全量自测 | ✅ **6803 通过 / 0 失败**（含新增的"两份 plist 场景清单"护栏 7 条） |
-
-新增护栏：`SelfTest.Chunk19` 读**两份** Apple `Info.plist`（解析 XML，不是 `Contains` 文本 ——
-注释里也写着那些键名，文本匹配会把"真键被删"判成绿），要求都写了场景清单、配置名逐字是
-`__MAUI_DEFAULT_SCENE_CONFIGURATION__`、委托类名与 `SceneDelegate.cs` 的 `[Register]` 一致，
-且**两份必须同款** —— 漏写一处即红（正是这次 macOS 的形态）。
-
 ### ④ 「为什么 iOS 编译比安卓慢那么多」—— 量出来的数是这样的
 
 用户问「同一个程序 iOS 140 秒、安卓 20 秒」。摆在同一台机器上量（同一个 `chess.c`，75,669 条指令）：
@@ -77,14 +59,18 @@ macOS **不需要**这段（没有静音开关、没有"类别"这回事，`Play
 1. **主因是 Mono vs CoreCLR**：同样是 JIT，Mono 比 CoreCLR 慢约 **14 倍**（3.5 → 49.6 秒）。
    Android 也是 Mono ⇒ 它与 iOS 比是"同一起跑线"上的差距，而 Windows 是 CoreCLR ⇒ 最快。
    （iOS/Android/桌面 MAUI 用 Mono，Windows 用 CoreCLR —— SDK 的 `UseMonoRuntime` 默认值，
-   见 `Xamarin.Shared.Sdk.props:47-49`。）
+   见 `Xamarin.Shared.Sdk.props:47-49`；Android 也**没有**开 AOT，默认就是 Mono JIT。）
 2. **Apple 平台间还有一档"能不能 JIT"**：`MacCatalyst` 是 macOS 应用 ⇒ **允许 JIT**（实测
-   运行时自报 `IsDynamicCodeSupported=true`）；**iOS 真机硬件禁 JIT**（W^X）⇒ 只能 AOT 或
-   **解释器**。Release 包走 AOT（SDK 在「Release + 移动 + Mono」时默认
-   `MtouchUseLlvm=true`，比 Catalyst 那条无 LLVM 的 AOT 更强），**Debug 包默认
-   `UseInterpreter=true` ⇒ 解释器，比 AOT 再慢一个数量级** —— 那个 140 秒就是这个档
-   （装到 iPad 上的一直是 Debug 包）。Release 包里有 `CCompiler.aotdata.arm64` /
-   `CompilerBase.aotdata.arm64` 等逐程序集的 AOT 数据 ⇒ **编译器本身确实是本机代码**。
+   运行时自报 `IsDynamicCodeSupported=true` —— 我先前猜"Catalyst Debug 走解释器"，
+   被这行日志当场纠正）；**iOS 真机硬件禁 JIT**（W^X）⇒ 只能 AOT 或 **解释器**。
+   Release 包走 AOT（SDK 在「Release + 移动 + Mono」时默认 `MtouchUseLlvm=true`，
+   比 Catalyst 那条无 LLVM 的 AOT 更强），**Debug 包默认 `UseInterpreter=true` ⇒ 解释器，
+   比 AOT 再慢一个数量级** —— 那个 140 秒就是这个档（装到 iPad 上的一直是 Debug 包）。
+   Release 包里有 `CCompiler.aotdata.arm64` / `CompilerBase.aotdata.arm64` 等逐程序集的
+   AOT 数据 ⇒ **编译器本身确实是本机代码**。
+
+⚠ **上一版的处理是对症的权宜之计**：那时只是把编译超时 180 → 600 秒、每秒报一次进度，
+让"它还在跑"看得见，**并没有让它变快**；真因是装的 Debug 包。
 
 **顺带补三处诊断**（此前"慢"在界面上完全看不出来，只能掐表）：
 
@@ -94,8 +80,24 @@ macOS **不需要**这段（没有静音开关、没有"类别"这回事，`Play
   `IsDynamicCodeSupported` 单用分不出解释器与 AOT（都是 false）：
   `(true,true)=JIT / (false,true)=AOT / (false,false)=解释器`。
 
-⚠ 想自己复核"这个包有多快"：在设备上跑一次 `vml run examples/c/chess.c`，
-界面与 `logs/error_YYYYMMDD.log` 里都会有秒数。
+### 验证（Apple Silicon，Mac Catalyst 做真机不可及的那部分）
+
+| 项 | 结果 |
+|---|---|
+| 启动 | ✅ 修前秒退（133）→ 修后窗口正常 |
+| 编辑器字体自检 | ✅ `a=7.00 / 中=14.00 / 名=Sarasa-Mono-SC-Regular`（修前 7.85 / NSimSun） |
+| 字体落地 | ✅ `<Home>/vml/fonts/SarasaMonoSC-Regular.ttf`（修前 `Operation not permitted`） |
+| **音频** | ✅ 命令行页跑 `vml run examples/c/audio_all.c`：**12 项全部走完**，日志 `音频引擎已启动：采样率=44100 声道=1` |
+| UIKit 跨线程异常 | ✅ 0 条（修前每次 VML 启动 2 条） |
+| VML 程序（象棋 / 五子棋） | ✅ 编译 + 窗口 + 弹框都正常（用户实测） |
+| iOS / MacCatalyst 编译 | ✅ `net10.0-ios27.0` 与 `net10.0-maccatalyst27.0` **各 0 错误** |
+| 桌面全量自测 | ✅ **6803 通过 / 0 失败**（含新增的"两份 plist 场景清单"护栏 7 条） |
+| iPad 上的编译秒数 | ⏳ 已装 Release 包（带耗时提示），**待用户在真机上跑一次确认** |
+
+新增护栏：`SelfTest.Chunk19` 读**两份** Apple `Info.plist`（解析 XML，不是 `Contains` 文本 ——
+注释里也写着那些键名，文本匹配会把"真键被删"判成绿），要求都写了场景清单、配置名逐字是
+`__MAUI_DEFAULT_SCENE_CONFIGURATION__`、委托类名与 `SceneDelegate.cs` 的 `[Register]` 一致，
+且**两份必须同款** —— 漏写一处即红（正是这次 macOS 的形态）。
 
 ---
 ## v0.96.516 — 内置帮助改口径（音效）+ 修 iOS「设备上没有声音」
