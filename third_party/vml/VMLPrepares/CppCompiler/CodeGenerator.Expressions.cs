@@ -8,11 +8,24 @@ namespace CppCompiler
         private ExpType InferExpType(Expr e)
         {
             if (e is FloatLiteral fl) return fl.IsFloatSuffix ? ExpType.F32 : ExpType.F64;
+            // ⚠ 64 位整数字面量（`3000000000L`）必须是 **I64**：漏了它会落到末尾的
+            //   `return ExpType.I32` ⇒ 声明初值那条路认为"整数要转成长整数"⇒ 多出一条
+            //   `i2l @L0 @R0`，而 R0 里是残留值 ⇒ **把刚载入 L0 的常量冲掉**。
+            //   实测 `long p = 3000000000L;` 之后 p 是垃圾（`p + 1000000000L` 算出 1 而不是 4）。
+            if (e is LongLiteral) return ExpType.I64;
+            // **函数调用的结果类** = 它的返回类型。漏了这支的后果是"调用结果一律当 int"：
+            // 被调方把 `double` 留在 D0、`long` 留在 L0（与 C 前端的返回约定一致），
+            // 而表达式这边认为值在 R0 ⇒ 会多发一条 `i2d @D0 @R0` **把结果冲掉**
+            // （实测 `twice(3.14)*100` 打印出 2147483647 = int.MaxValue 的位型）。
+            if (e is CallExpr callE) return InferCallType(callE);
+            // ⚠ 这一支与下面第 38 行那支**逐字重复**（后者永远不可达）—— 保留原位不动，
+            //   新增类型判断时**两处都要改**（本仓头号坑：同一规则两处实现）。
             if (e is CastExpr ce)
             {
-                var (_, isFloat, isDouble) = GetTypeLoadInfo(ce.TargetType);
+                var (_, isFloat, isDouble, isLong) = GetTypeLoadInfo(ce.TargetType);
                 if (isDouble) return ExpType.F64;
                 if (isFloat) return ExpType.F32;
+                if (isLong) return ExpType.I64;
                 return ExpType.I32;
             }
             // ⚠ **二元表达式要按宽度加宽**（与 `GetExprTypeInfo` 同一规则，两处都要）：
@@ -37,9 +50,10 @@ namespace CppCompiler
             }
             if (e is CastExpr castInfer)
             {
-                var (_, cf, cd) = GetTypeLoadInfo(castInfer.TargetType);
+                var (_, cf, cd, cl) = GetTypeLoadInfo(castInfer.TargetType);
                 if (cd) return ExpType.F64;
                 if (cf) return ExpType.F32;
+                if (cl) return ExpType.I64;
                 return ExpType.I32;
             }
             if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt))
@@ -48,11 +62,38 @@ namespace CppCompiler
                 // ⚠ 别用 `vt == "float"` 这种**精确相等**：类型串可能带修饰（`const float`、
                 //   多空格…）⇒ 判不出来就退回 I32 ⇒ 浮点局部量按 32 位读（实测
                 //   `float a = 3.14f; (int)(a * 2.0f * 100.0f)` 读到的是位型）。
-                var t = vt.Trim();
+                //   判据走**类型表**（`GetTypeLoadInfo` 会剥掉 const 一类限定词），
+                //   不再自己 `Contains("float")` —— 「同一规则两处实现」的又一处。
                 if (Environment.GetEnvironmentVariable("VML_DBG_TYPE") == "1")
                     Console.Error.WriteLine($"[dbg-type] {ie.Name} vt='{vt}'");
-                if (t.Contains("float")) return ExpType.F32;
-                if (t.Contains("double")) return ExpType.F64;
+                var (_, tfl, tdb, tlg) = GetTypeLoadInfo(vt);
+                if (tdb) return ExpType.F64;
+                if (tfl) return ExpType.F32;
+                if (tlg) return ExpType.I64;
+            }
+            return ExpType.I32;
+        }
+
+        /// <summary>
+        /// **调用表达式的返回类** —— 用户函数按它的声明（`_functionDecls`），
+        /// 查不到就按 int（库函数的返回类型由各自的包装器决定，这里不猜）。
+        /// **类型推断与实参压栈两处共用这一份**（本仓头号坑：同一规则两处实现）。
+        /// </summary>
+        private ExpType InferCallType(CallExpr ce)
+        {
+            string name = ce.Callee switch
+            {
+                IdentExpr id => id.Name,
+                MemberExpr me => me.Member,
+                _ => "",
+            };
+            if (!string.IsNullOrEmpty(name) && _functionDecls.TryGetValue(name, out var decl)
+                && !string.IsNullOrEmpty(decl.ReturnType))
+            {
+                var (_, fl, db, lg) = GetTypeLoadInfo(decl.ReturnType);
+                if (db) return ExpType.F64;
+                if (fl) return ExpType.F32;
+                if (lg) return ExpType.I64;
             }
             return ExpType.I32;
         }
@@ -61,11 +102,24 @@ namespace CppCompiler
         private (int byteSize, bool isFloat, bool isDouble, bool isLong) GetExprTypeInfo(Expr e)
         {
             if (e is FloatLiteral fl) return fl.IsFloatSuffix ? (4, true, false, false) : (8, false, true, false);
+            // 64 位整数**字面量**（`3000000000L`）—— 与变量那条同一类，别漏
+            //（漏了就是"字面量在 L0、变量按 int 读"那种分家，实测 f2.cpp 全错）
+            if (e is LongLiteral) return (8, false, false, true);
+            // 调用：结果在**类寄存器**里（`double`→D0、`long`→L0）⇒ 类型要按返回类型算，
+            // 否则实参压栈会按 4 字节压 `@R0`（值不在那儿）
+            if (e is CallExpr callT)
+                return InferCallType(callT) switch
+                {
+                    ExpType.F32 => (4, true, false, false),
+                    ExpType.F64 => (8, false, true, false),
+                    ExpType.I64 or ExpType.U64 => (8, false, false, true),
+                    _ => (4, false, false, false),
+                };
             if (e is IdentExpr ie && _varTypes.TryGetValue(ie.Name, out var vt))
             {
-                var (byteSize, isFloat, isDouble) = GetTypeLoadInfo(vt);
-                // C++ long long 使用 8 字节但不用 VML Long 路径 (用 double 路径 MOVED)
-                return (byteSize, isFloat, isDouble, false);
+                // ⚠ 类型表**直传**（不再手工折成 double 路径）—— 见 `GetTypeLoadInfo` 的注释：
+                //   64 位整数走 L 类，与它自己的字面量发射一致。
+                return GetTypeLoadInfo(vt);
             }
             // ⚠ **要穿透表达式**：原先只认字面量与变量 ⇒ `(a * 2.0f * 100.0f)` 一律当 int，
             //   于是 `(int)(…)` 那个 cast 算出"int → int"⇒ **不发任何转换**（实测打印出浮点位型
@@ -128,7 +182,7 @@ namespace CppCompiler
             if (typeStr.Contains("*")) return 4;
             var cls = ClassOfType(typeStr);
             if (cls != null) return ClassSizeDeep(cls.Name);
-            var (sz, _, _) = GetTypeLoadInfo(typeStr);
+            var (sz, _, _, _) = GetTypeLoadInfo(typeStr);
             return sz > 0 ? sz : 4;
         }
         /// <summary>
@@ -256,29 +310,135 @@ namespace CppCompiler
             //   任何按"4 字节一格"或"字段个数 × 4"自算的地方都会在加字段那天悄悄错位。
             var cls = ClassOfType(varTypeStr);
             if (cls != null) return ClassSizeDeep(cls.Name);
-            var (byteSize, _, _) = GetTypeLoadInfo(varTypeStr);
+            var (byteSize, _, _, _) = GetTypeLoadInfo(varTypeStr);
             return byteSize > 0 ? byteSize : 4;
         }
 
         /// <summary>
-        /// Get (byteSize, isFloat, isDouble) for a pointed-to type string.
-        /// E.g., "char*" → (1,false,false), "short*" → (2,false,false), "float*" → (4,true,false), "double*" → (8,false,true).
-        /// Returns (4,false,false) for unknown types.
+        /// **一个实参/形参在栈上占多少字节** —— 调用点与函数序言**共用这一份**
+        /// （本仓头号坑就是"同一规则两处实现"）。
+        ///
+        /// <para>
+        /// 规则（与 C 前端 `ParamStackBytes`、以及 `EmitPushArg` 的 4/8 口径一致）：
+        /// **每个标量一个 4 字节槽，64 位（`double`/`long`/`long long`）占两格 = 8 字节**。
+        /// 指针/结构体按值传参时压的是**地址** ⇒ 4 字节。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 此前这里写的是"每个实参一个 4 字节槽"（`(count + hasThis) * 4`、镜像按 `i*4`、
+        /// 被调方 `cumOff += 4`）——**三方一致地错**，所以一直看不出来；一旦某个实参真是
+        /// 8 字节，它就只压了一格、**后一个实参的值被读成它的高半字**。
+        /// 实测：`printf("%d", (long)…)` 打印出的是**下一个**实参的值。
+        /// </para>
         /// </summary>
-        private static (int byteSize, bool isFloat, bool isDouble) GetTypeLoadInfo(string? typeName)
+        private static int ArgStackBytesForType(string? typeName)
         {
-            if (string.IsNullOrEmpty(typeName)) return (4, false, false);
+            if (string.IsNullOrEmpty(typeName)) return 4;
+            if (typeName.Contains("*")) return 4;                 // 指针/引用压的是地址
+            var (sz, _, db, lg) = GetTypeLoadInfo(typeName);
+            if (db || lg) return 8;
+            return sz >= 8 ? 8 : 4;
+        }
+
+        private int ArgStackBytes(int argIndex, FunctionDecl? calleeDecl, Expr arg)
+        {
+            // 有声明就按**形参类型**（这才权威）；没有（间接调用、库函数没声明）就按实参表达式的类型推
+            if (calleeDecl != null && argIndex < calleeDecl.Parameters.Count)
+            {
+                var p = calleeDecl.Parameters[argIndex];
+                if (p.IsReference) return 4;
+                return ArgStackBytesForType(p.Type);
+            }
+            var (sz, fl, db, lg) = GetExprTypeInfo(arg);
+            if (db || lg) return 8;
+            if (fl) return 4;
+            return sz >= 8 ? 8 : 4;
+        }
+
+        /// <summary>
+        /// 把**刚求值完的实参**按它占的字节数压进主栈 —— 8 字节的占两格，
+        /// 值在哪个寄存器由**类**决定（`double`→D0、`long`→L0、`float`→F0、其余→R0）。
+        ///
+        /// <para>
+        /// ⚠ 此前一律 `PUSH @R0`：`double`/`long` 的值根本不在 R0 里（在 D0/L0），
+        /// `float` 也不在 F0（在 F0，但 PUSH 压的是 32 位通用寄存器）⇒
+        /// **被调方拿到的是残留值**。实测 `double twice(double x)` 传 3.14 进去算出 1000。
+        /// </para>
+        ///
+        /// <para>
+        /// 为什么不用 `PUSHL`/`DPUSH`/`FPUSH`：那三条推到 VM 内部的**类型化栈**
+        /// （`longStack`/`doubleStack`）上，而被调方是从**主栈** `[R12+offset]` 读形参的
+        /// ⇒「用对了共享助手、还是读不到」。这里统一用 `sub R13` + 按类存 `@13`
+        /// （与 C 前端 `EmitPushArg` 逐位相同，跨语言调用才连得上）。
+        /// </para>
+        /// </summary>
+        private void EmitPushArgCpp(int size, Expr arg)
+        {
+            var (_, isFloat, isDouble, isLong) = GetExprTypeInfo(arg);
+            if (size == 8 && isDouble)
+            {
+                Add(OpCode.SUB, "R13", "#8");
+                Add(OpCode.MOVED, "(R13)", TR(OpCode.MOVED, 0));
+            }
+            else if (size == 8 && isLong)
+            {
+                Add(OpCode.SUB, "R13", "#8");
+                Add(OpCode.MOVEL, "(R13)", TR(OpCode.MOVEL, 0));
+            }
+            else if (isFloat && size == 4)
+            {
+                Add(OpCode.SUB, "R13", "#4");
+                Add(OpCode.MOVEF, "(R13)", TR(OpCode.MOVEF, 0));
+            }
+            else
+                Add(OpCode.PUSH, "R0");
+        }
+
+        /// <summary>
+        /// Get (byteSize, isFloat, isDouble, isLong) for a pointed-to type string.
+        /// E.g., "char*" → (1,false,false,false), "float*" → (4,true,false,false),
+        /// "double*" → (8,false,true,false), "long long" → (8,false,false,**true**).
+        /// Returns (4,false,false,false) for unknown types.
+        ///
+        /// <para>
+        /// ⚠ **64 位整数走的是 L 类，不是 double 路径**（本文件此前那版写成
+        /// `(8,false,true)` 并把 `long`/`long long` 归到 double —— 与**它自己的字面量
+        /// 发射**对不上：`LongLiteral` 早就发 `movel @L0 lng_N` 了，而变量侧按 4 字节
+        /// `MOVE` 读 ⇒ 实测 `f2.cpp` 的 int64 三项全错）。用户定的模型是
+        /// `Ln`=64 位整数、`Dn`=64 位浮点，**两回事**；用 D 装整数还会让
+        /// `<<`/`&`/`|` 一类位运算失去意义、且超过 2^53 就不精确。
+        /// </para>
+        ///
+        /// <para>
+        /// `long` 一并按 64 位算：C++ 的 `3000000000L` 是 `LongLiteral`（L 后缀），
+        /// 按 32 位看待会连字面量都放不下 —— 类型与字面量只能有一个说法。
+        /// </para>
+        /// </summary>
+        private static (int byteSize, bool isFloat, bool isDouble, bool isLong) GetTypeLoadInfo(string? typeName)
+        {
+            if (string.IsNullOrEmpty(typeName)) return (4, false, false, false);
             // Strip pointer suffix: "char*" → "char"
             string baseType = typeName.Replace("*", "").Trim().ToLower();
+            // 再去掉**不改变宽度**的限定词 —— `const int` 不做这一步就会掉进下面
+            // 「名字里带 int」那条兜底（8 字节）⇒ 宽度凭空翻倍。
+            foreach (var q in new[] { "constexpr ", "constinit ", "const ", "volatile ", "static ", "register ", "mutable ", "typename ", "struct ", "class " })
+                baseType = baseType.Replace(q, " ");
+            baseType = string.Join(' ', baseType.Split(' ', StringSplitOptions.RemoveEmptyEntries));
             return baseType switch
             {
-                "char" or "signed char" or "unsigned char" or "bool" or "_bool" => (1, false, false),
-                "short" or "signed short" or "unsigned short" or "short int" => (2, false, false),
-                "float" => (4, true, false),
-                "double" => (8, false, true),
-                "int" or "signed int" or "unsigned int" or "long" or "signed long" or "unsigned long" or "int8_t" or "uint8_t" or "int16_t" or "uint16_t" or "int32_t" or "uint32_t" or "size_t" => (4, false, false),
-                _ when baseType.Contains("int") || baseType == "long long" => (8, false, true), // 64-bit types use MOVED (double path)
-                _ => (4, false, false),
+                "char" or "signed char" or "unsigned char" or "bool" or "_bool" => (1, false, false, false),
+                "short" or "signed short" or "unsigned short" or "short int" => (2, false, false, false),
+                "float" => (4, true, false, false),
+                "double" => (8, false, true, false),
+                // ── 64 位整数（L 类）── 必须排在下面那条 32 位表**之前**（`long` 两边都有）
+                "long" or "long long" or "signed long" or "signed long long"
+                    or "unsigned long" or "unsigned long long" or "long int" or "long long int"
+                    or "int64_t" or "uint64_t" or "__int64" or "unsigned __int64" => (8, false, false, true),
+                "int" or "signed int" or "unsigned int" or "int8_t" or "uint8_t"
+                    or "int16_t" or "uint16_t" or "int32_t" or "uint32_t" or "size_t" => (4, false, false, false),
+                // 兜底：名字里带 int 但没列到的（如 `unsigned long int` 的变体）按 64 位整数
+                _ when baseType.Contains("int") => (8, false, false, true),
+                _ => (4, false, false, false),
             };
         }
 
@@ -432,9 +592,11 @@ namespace CppCompiler
                         OpCode vop = OpCode.MOVE;
                         if (_varTypes.TryGetValue(id.Name, out var vtLoad))
                         {
-                            var (_, vfLoad, vdLoad) = GetTypeLoadInfo(vtLoad);
-                            if (vdLoad) vop = OpCode.MOVED;
-                            else if (vfLoad) vop = OpCode.MOVEF;
+                            // ⚠ 走**共享选择器**而不是自己 if/else —— C 前端、ExpressionManager
+                            //   用的是同一份判据（`SelectLoadOp`），这里手写就会漏掉 64 位那档
+                            //   （实测：`long big` 按 32 位读、`MOVEL` 存进去的值读不出来）。
+                            var (vszLoad, vfLoad, vdLoad, vlLoad) = GetTypeLoadInfo(vtLoad);
+                            vop = ExpressionManager.SelectLoadOp(vszLoad, vfLoad, vdLoad, vlLoad);
                         }
                         // 目的寄存器按**类**取：`MOVED` 要用 `D0`（= 文本 `R16`），
                         // 写 "R0" 是 32 位通用寄存器、撞寄存器类闸
@@ -572,12 +734,11 @@ namespace CppCompiler
                 case CastExpr ce:
                     {
                         var srcType = GetExprTypeInfo(ce.Expression);
-                        var (dstSize, dstFloat, dstDouble) = GetTypeLoadInfo(ce.TargetType);
-                        // C++ long long 不使用 VML Long 路径
+                        var (dstSize, dstFloat, dstDouble, dstLong) = GetTypeLoadInfo(ce.TargetType);
                         GenerateExpr(ce.Expression);
                         _expr!.EmitConversion(srcType.byteSize, srcType.isFloat, srcType.isDouble,
                                                dstSize, dstFloat, dstDouble,
-                                               srcType.isLong, false);
+                                               srcType.isLong, dstLong);
                     }
                     break;
                 case LambdaExpr le:
@@ -926,9 +1087,9 @@ namespace CppCompiler
                     string? pointedType = null;
                     if (ue.Operand is IdentExpr derefId && _varTypes.TryGetValue(derefId.Name, out vt))
                         pointedType = vt;
-                    var (size, isFloat, isDouble) = GetTypeLoadInfo(pointedType);
+                    var (size, isFloat, isDouble, isLong) = GetTypeLoadInfo(pointedType);
                     instructions.Add(new Instruction(
-                        ExpressionManager.SelectLoadOp(size, isFloat, isDouble),
+                        ExpressionManager.SelectLoadOp(size, isFloat, isDouble, isLong),
                         new List<Operand> {
                             new(OperandType.REGISTER, 0),
                             new(OperandType.MEMORY, "R0")
@@ -1546,6 +1707,8 @@ namespace CppCompiler
             //
             // `__stdcall` / `__fastcall` 等修饰符**仍能被解析**，但不再影响代码生成 ——
             // 这才是「统一之后写不写声明都必须是对的」。
+            int[] argSizes = new int[ce.Arguments.Count];
+            int argsBytes = 0;
             for (int i = ce.Arguments.Count - 1; i >= 0; i--)
             {
                 bool isRefArg = calleeDecl != null
@@ -1577,22 +1740,29 @@ namespace CppCompiler
                         && ArrayIndexInfo(ce.Arguments[i], isNested: false).HasHeader)
                         Add(OpCode.ADD, "R0", "#4");
                 }
-                Add(OpCode.PUSH, "R0");
+                argSizes[i] = ArgStackBytes(i, calleeDecl, ce.Arguments[i]);
+                EmitPushArgCpp(argSizes[i], ce.Arguments[i]);
+                argsBytes += argSizes[i];
             }
 
             // 镜像 arg0..arg3 进 R0-R3 —— 读的是刚压好的栈，不再求值，结构上免疫被冲掉。
             // 这一份是给 `Lib` 里那 543 处内联汇编（`asm("SYSCALL #6")` 直接吃 R0）
             // 与各语言包装器（`PUSH R0 / CALL x`）用的。
+            //
+            // ⚠ 偏移必须按**每个实参占的字节数**累加（C 前端同一处就是这么写的）：
+            //   8 字节实参占两格，按 `i*4` 算会让它**之后**的所有镜像都指到错的位置。
+            int mirrorOff = 0;
             for (int i = 0; i < ce.Arguments.Count && i < 4; i++)
             {
                 instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.REGISTER, i), new Operand(OperandType.MEMORY, $"R13+{i * 4}")],
+                    [new Operand(OperandType.REGISTER, i), new Operand(OperandType.MEMORY, $"R13+{mirrorOff}")],
                     instructions.Count));
+                mirrorOff += argSizes[i];
             }
 
-            // 每个实参一个 4 字节槽（与被调方 `cumOff += 4` 同一口径），方法调用的 `this`
-            // 在此块之前就已压好，一并计入待清理量。
-            int argsSize = (ce.Arguments.Count + (hasThis ? 1 : 0)) * 4;
+            // 实参占的**总字节数**（与被调方按同一份 `ArgStackBytes` 排布同源），
+            // 方法调用的 `this` 在此块之前就已压好，一并计入待清理量。
+            int argsSize = argsBytes + (hasThis ? 4 : 0);
 
             // ── 虚调用：`CALL [ [this] + 4*(槽+1) ]` ───────────────────────────
             //
@@ -2596,9 +2766,9 @@ namespace CppCompiler
                 string? pointedType = null;
                 if (derefTarget.Operand is IdentExpr derefId && _varTypes.TryGetValue(derefId.Name, out string? vt))
                     pointedType = vt;
-                var (size, isFloat, isDouble) = GetTypeLoadInfo(pointedType);
+                var (size, isFloat, isDouble, isLong) = GetTypeLoadInfo(pointedType);
                 instructions.Add(new Instruction(
-                    ExpressionManager.SelectStoreUnifiedOp(size, isFloat, isDouble),
+                    ExpressionManager.SelectStoreUnifiedOp(size, isFloat, isDouble, isLong),
                     new List<Operand> {
                         new(OperandType.MEMORY, "R0"),
                         new(OperandType.REGISTER, 1)
@@ -2650,18 +2820,16 @@ namespace CppCompiler
                     //   写死 4 会让 `double`（8 字节）的槽与后一个变量重叠 ——
                     //   实测"两个 float 单独是对的，再加两个 double 声明"就把前面的 float
                     //   算式啃成 672（应 628）。两处声明路径都要改（`GenerateLocalVar` 那处同理）。
-                    var (dsz2, _, dbl2) = GetTypeLoadInfo(ae.DeclType);
-                    int dvarSize = (dbl2 || dsz2 == 8) ? 8 : 4;
+                    var (dsz2, _, dbl2, lng2) = GetTypeLoadInfo(ae.DeclType);
+                    int dvarSize = (dbl2 || lng2 || dsz2 == 8) ? 8 : 4;
                     var localInfo = Vars.AllocLocal(ie2.Name, dvarSize, ae.DeclType);
                     _variables[ie2.Name] = localInfo.Offset;
                     _varTypes[ie2.Name] = ae.DeclType!;
-                    OpCode stOp = OpCode.MOVE;
-                    var cppT = MapToCppType(ae.DeclType!);
-                    if (cppT == CppType.Float) stOp = OpCode.MOVEF;
-                    else if (cppT == CppType.Double) stOp = OpCode.MOVED;
                     // ⚠ `double d = -0.5;` 的存回：源写死 "R0" 是 32 位寄存器，而值在 D0
                     //   （`MOVED D0, [dbl_3]` + `DNEG D0` 之后）⇒ 用助记符取类的 0 号。
-                    Add(stOp, Vars.FormatOffset(localInfo.Offset), TR(stOp, 1));
+                    //   整数初值（`float h = 0x10;`）还要**先转成浮点**，否则存的是 F0 残留值
+                    //   —— 两件事都收在 EmitStoreToVar 一处（与 `GenerateLocalVar` 共用）。
+                    EmitStoreToVar(localInfo.Offset, ae.DeclType!, InferExpType(ae.Value));
                     return;
                 }
 

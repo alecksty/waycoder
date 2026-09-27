@@ -383,14 +383,14 @@ namespace CSharpCompiler
         private static readonly Dictionary<string, TokenType> s_keywords = new()
         {
             {"using",TokenType.Using},{"namespace",TokenType.Namespace},{"class",TokenType.Class},
-            {"struct",TokenType.Struct},{"interface",TokenType.Interface},{"enum",TokenType.Enum},
-            {"delegate",TokenType.Delegate},{"event",TokenType.Event},
+            {"enum",TokenType.Enum},
+            {"delegate",TokenType.Delegate},
             {"if",TokenType.If},{"else",TokenType.Else},{"switch",TokenType.Switch},{"case",TokenType.Case},
             {"for",TokenType.For},{"foreach",TokenType.Foreach},{"while",TokenType.While},{"do",TokenType.Do},
-            {"break",TokenType.Break},{"continue",TokenType.Continue},{"goto",TokenType.Goto},
+            {"break",TokenType.Break},{"continue",TokenType.Continue},
             {"return",TokenType.Return},{"throw",TokenType.Throw},{"try",TokenType.Try},
-            {"catch",TokenType.Catch},{"finally",TokenType.Finally},{"lock",TokenType.Lock},
-            {"yield",TokenType.Yield},{"var",TokenType.Var},{"dynamic",TokenType.Dynamic},
+            {"catch",TokenType.Catch},{"lock",TokenType.Lock},
+            {"yield",TokenType.Yield},{"var",TokenType.Var},
             {"object",TokenType.Object},{"string",TokenType.String},{"bool",TokenType.Bool},
             {"byte",TokenType.Byte},{"sbyte",TokenType.SByte},{"short",TokenType.Short},
             {"ushort",TokenType.UShort},{"int",TokenType.Int},{"uint",TokenType.UInt},
@@ -398,22 +398,22 @@ namespace CSharpCompiler
             {"double",TokenType.Double},{"decimal",TokenType.Decimal},{"char",TokenType.Char},
             {"void",TokenType.Void},{"true",TokenType.True},{"false",TokenType.False},
             {"null",TokenType.Null},{"default",TokenType.Default},
-            {"async",TokenType.Async},{"await",TokenType.Await},{"fixed",TokenType.Fixed},
-            {"unsafe",TokenType.Unsafe},{"stackalloc",TokenType.Stackalloc},
-            {"checked",TokenType.Checked},{"unchecked",TokenType.Unchecked},
-            {"partial",TokenType.Partial},{"get",TokenType.Get},{"set",TokenType.Set},
-            {"in",TokenType.In},{"is",TokenType.Is},{"as",TokenType.As},
-            {"typeof",TokenType.Typeof},{"sizeof",TokenType.Sizeof},{"new",TokenType.New},
+            {"async",TokenType.Async},{"fixed",TokenType.Fixed},
+            {"unsafe",TokenType.Unsafe},
+            
+            {"get",TokenType.Get},{"set",TokenType.Set},
+            {"in",TokenType.In},
+            {"typeof",TokenType.Typeof},{"new",TokenType.New},
             {"public",TokenType.Public},{"private",TokenType.Private},{"protected",TokenType.Protected},
             {"static",TokenType.Static},{"readonly",TokenType.Readonly},{"extern",TokenType.Extern},{"native",TokenType.Native},{"alias",TokenType.Alias},
             {"abstract",TokenType.Abstract},{"virtual",TokenType.Virtual},{"override",TokenType.Override},
-            {"sealed",TokenType.Sealed},{"volatile",TokenType.Volatile},{"const",TokenType.Const},
-            {"ref",TokenType.Ref},{"out",TokenType.Out},{"this",TokenType.This},{"base",TokenType.Base},
-            {"params",TokenType.Params},{"operator",TokenType.Operator},
-            {"implicit",TokenType.Implicit},{"explicit",TokenType.Explicit},
-            {"add",TokenType.Add},{"remove",TokenType.Remove},{"method",TokenType.Method},
-            {"property",TokenType.Property},{"field",TokenType.Field},
-            {"constructor",TokenType.Constructor},{"destructor",TokenType.Destructor},
+            {"sealed",TokenType.Sealed},
+            {"this",TokenType.This},
+            
+            
+            
+            
+            
         };
         
         private TokenType GetMultiCharOperatorType(string op)

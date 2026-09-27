@@ -1395,22 +1395,33 @@ namespace CompilerBase
                     instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new(OperandType.REGISTER, regs[i]) }));
         }
 
-        /// <summary>浮点转整数: F2I R0, R0</summary>
-        protected void EmitF2I() => AddRR(OpCode.F2I, 0, 0);
-        /// <summary>整数转浮点: I2F R0, R0</summary>
-        protected void EmitI2F() => AddRR(OpCode.I2F, 0, 0);
-        /// <summary>双精度转整数: D2I R0, R0</summary>
-        protected void EmitD2I() => Emit(OpCode.D2I,
-            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.D2I, 0)),
-            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.D2I, 1)));
-        /// <summary>整数转双精度: I2D R0, R0</summary>
-        protected void EmitI2D() => Emit(OpCode.I2D,
-            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.I2D, 0)),
-            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(OpCode.I2D, 1)));
-        /// <summary>浮点转双精度: F2D R0, R0</summary>
-        protected void EmitF2D() => AddRR(OpCode.F2D, 0, 0);
-        /// <summary>双精度转浮点: D2F R0, R0</summary>
-        protected void EmitD2F() => AddRR(OpCode.D2F, 0, 0);
+        /// <summary>
+        /// 转换指令发射：**两个操作数的类可能不同**（`F2D` 目标 D、源 F），
+        /// 所以寄存器号必须**按操作数位**从 `RegisterClassTable` 取。
+        ///
+        /// <para>
+        /// ⚠ `F2I`/`I2F`/`F2D`/`D2F` 原先一律写 `AddRR(op, 0, 0)`（两个都是 0 号）——
+        /// `F2I`/`I2F` 恰好两端**同类**（Int 与 Float 同为 0–15）所以蒙对了，
+        /// 而 `F2D`/`D2F` 横跨 Float↔Double：写 0 让**目标/源落在通用寄存器上**
+        /// （实测 `f2d R0, F0`），汇编期的寄存器类闸直接判死 ——
+        /// 症状是「`printf("%f", 一个 float 变量)` 整份编不过」。
+        /// </para>
+        /// </summary>
+        private void EmitConv(OpCode op) => Emit(op,
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(op, 0)),
+            new Operand(OperandType.REGISTER, RegisterClassTable.BankOfOperand(op, 1)));
+        /// <summary>浮点转整数: F2I F0, F0</summary>
+        protected void EmitF2I() => EmitConv(OpCode.F2I);
+        /// <summary>整数转浮点: I2F F0, R0</summary>
+        protected void EmitI2F() => EmitConv(OpCode.I2F);
+        /// <summary>双精度转整数: D2I R0, D0</summary>
+        protected void EmitD2I() => EmitConv(OpCode.D2I);
+        /// <summary>整数转双精度: I2D D0, R0</summary>
+        protected void EmitI2D() => EmitConv(OpCode.I2D);
+        /// <summary>浮点转双精度: F2D D0, F0</summary>
+        protected void EmitF2D() => EmitConv(OpCode.F2D);
+        /// <summary>双精度转浮点: D2F F0, D0</summary>
+        protected void EmitD2F() => EmitConv(OpCode.D2F);
 
         /// <summary>输出字符串: LEA R0, label; SYSCALL 1</summary>
         protected void EmitPrintStr(string label)

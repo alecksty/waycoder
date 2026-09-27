@@ -551,6 +551,21 @@ namespace CCompiler
                 FindUsedFunctionsInExpression(doWhileStmt.Condition, usedFunctions);
                 FindUsedFunctionsInBlock(doWhileStmt.Body, usedFunctions);
             }
+            // `try { … } catch (e) { … }` 与 `throw expr;` —— 块里的调用同样是可达的。
+            // 与上面"包一层的表达式节点"同一条教训：漏一支 = 整个函数被剔除。
+            else if (statement is TryStatement tryStmt)
+            {
+                FindUsedFunctionsInBlock(tryStmt.Body, usedFunctions);
+                foreach (var cc in tryStmt.Catches)
+                {
+                    FindUsedFunctionsInBlock(cc.Body, usedFunctions);
+                }
+            }
+            else if (statement is ThrowStatement throwStmt)
+            {
+                if (throwStmt.Expression != null)
+                    FindUsedFunctionsInExpression(throwStmt.Expression, usedFunctions);
+            }
             else if (statement is ForStatement forStmt)
             {
                 if (forStmt.Init != null)
@@ -645,6 +660,40 @@ namespace CCompiler
             else if (expression is UnaryOp unaryOp)
             {
                 FindUsedFunctionsInExpression(unaryOp.Operand, usedFunctions);
+            }
+            // ── **包一层的表达式节点必须穿透** ────────────────────────────────
+            //
+            // ⚠ 这一族漏掉任何一个，后果都**不是"少收集一个函数"、而是"整个函数被剔除"**：
+            //   可达性分析从 main 出发，看不见 `(int)(helper(x) * 2)` 里的 `helper`
+            //   ⇒ 它被判「定义了但从未使用」⇒ 从 AST 里删掉 ⇒ 调用点随后报
+            //   「未定义的函数 'helper'（引用 1 次）」——**报错指向调用、定义也明明在**，
+            //   从错误信息完全反推不到是这里漏了一支。
+            //
+            //   实测（`scripts/vml-c-probe/cases/44-call-in-cast.c`）：
+            //   `(int)(k() * 2)` 与 `(int)(f() * 100.0)` **一律**编不过，而
+            //   `double q = f();` 却好 —— 差别只在"调用外面套没套一层"。
+            //   这正是用户报的「带 double/long 返回值的函数调不到」的真身：
+            //   他那些调用恰好都写在 `(int)(…)` 里（`f2.c` 那种直筒程序照不出来）。
+            else if (expression is CastExpr castExpr)
+            {
+                FindUsedFunctionsInExpression(castExpr.Expression, usedFunctions);
+            }
+            else if (expression is CommaExpr commaExpr)
+            {
+                // 逗号表达式**左边也要真的求值**（副作用），两半都得走
+                FindUsedFunctionsInExpression(commaExpr.Left, usedFunctions);
+                FindUsedFunctionsInExpression(commaExpr.Right, usedFunctions);
+            }
+            else if (expression is MemberAccess memberAccess)
+            {
+                // `f().field` / `p->field` —— 被访问者自己可能是个调用
+                FindUsedFunctionsInExpression(memberAccess.Object, usedFunctions);
+            }
+            else if (expression is SizeOfNode sizeOfNode)
+            {
+                // `sizeof(f())`：虽然不真求值，但名字要留着 —— 少收集一个名字就是
+                // "整个函数被剔除"，而剔除的代价远大于多留一个函数
+                FindUsedFunctionsInExpression(sizeOfNode.Expression, usedFunctions);
             }
             else if (expression is Assignment assignment)
             {

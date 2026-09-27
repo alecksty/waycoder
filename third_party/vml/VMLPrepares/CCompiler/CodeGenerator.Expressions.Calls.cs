@@ -180,6 +180,23 @@ namespace CCompiler
                         else if (nl.Value is long l && (l < int.MinValue || l > int.MaxValue))
                             isLongArg[i] = true;
                     }
+                    // ── **其余表达式**一律交给 `InferExpressionType`（表达式类型的唯一一份推断）──
+                    //
+                    // ⚠ 只认 `NumberLiteral` 是不够的：`printf("%ld", a)` 里 `a` 是
+                    //   `long` 变量时推不出来 ⇒ 按 4 字节 `PUSH R0` 压，而值在 `L0`
+                    //   ⇒ **打印出来是残留值**。实测同一份程序里
+                    //   `printf("%ld", 4000000000L)`（字面量）打 **4000000000** ✓、
+                    //   `printf("%ld", a)`（变量）打 **10** ✗ —— 差别只在"是不是字面量"，
+                    //   最容易误判成 printf 的问题。`a / 1000000000L`（表达式）同理。
+                    else
+                    {
+                        switch (InferExpressionType(funcCall.Args[i]))
+                        {
+                            case ExprType.Long or ExprType.UnsignedLong: isLongArg[i] = true; break;
+                            case ExprType.Double: isDoubleArg[i] = true; break;
+                            case ExprType.Float:  isFloatArg[i] = true;  break;
+                        }
+                    }
                 }
             }
 

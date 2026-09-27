@@ -282,7 +282,7 @@ namespace GoCompiler
             }
             else
             {
-                if (long.TryParse(numLit.Value, out long l))
+                if (TryParseGoInt(numLit.Value, out long l))
                 {
                     // ⚠ **超出 32 位不能截断**：原先 `long.TryParse` 之后又 `(int)l` ⇒
                     //   `3000000000` 变成 `-1294967296`（实测 `var big int64 = 3000000000;

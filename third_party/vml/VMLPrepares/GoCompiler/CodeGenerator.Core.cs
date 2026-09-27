@@ -281,6 +281,51 @@ namespace GoCompiler
         }
 
         /// <summary>
+        /// Go 整数字面量 → 数值。**判据只有这一份**（`GenerateNumberLiteral` 与
+        /// `InferExpressionType` 共用；本仓头号坑就是"同一规则两处实现"）。
+        ///
+        /// <para>
+        /// ⚠ 这两处原先都写 `long.TryParse(value)`，而它**不认 `0x`/`0o`/`0b` 前缀**、
+        /// 也不认 Go 的数字分隔符 `1_000` ⇒ 返回 false ⇒ 走那条 `value = 0` 的兜底。
+        /// 实测 `var h float64 = 0x10;` 打 **0**（应 1600）、`0x10 * 1` 同样 0，
+        /// 而 `var i float64 = 16;` 是对的 —— 差别只在"是不是十六进制"。
+        /// </para>
+        /// </summary>
+        private static bool TryParseGoInt(string s, out long value)
+        {
+            value = 0;
+            if (string.IsNullOrEmpty(s)) return false;
+            s = s.Replace("_", "");                       // Go 允许 `1_000_000`
+            bool neg = s.StartsWith('-');
+            if (neg) s = s[1..];
+            int radix = 10, start = 0;
+            if (s.Length > 2 && s[0] == '0')
+            {
+                switch (char.ToLower(s[1]))
+                {
+                    case 'x': radix = 16; start = 2; break;
+                    case 'o': radix = 8;  start = 2; break;
+                    case 'b': radix = 2;  start = 2; break;
+                    default:  radix = 8;  start = 1; break;   // Go 1.x 的老式八进制 `0123`
+                }
+            }
+            if (start >= s.Length) return false;
+            ulong acc = 0;
+            for (int i = start; i < s.Length; i++)
+            {
+                char ch = s[i];
+                int d = ch >= '0' && ch <= '9' ? ch - '0'
+                      : ch >= 'a' && ch <= 'f' ? ch - 'a' + 10
+                      : ch >= 'A' && ch <= 'F' ? ch - 'A' + 10 : -1;
+                if (d < 0 || d >= radix) return false;
+                acc = acc * (ulong)radix + (ulong)d;
+            }
+            value = unchecked((long)acc);
+            if (neg) value = -value;
+            return true;
+        }
+
+        /// <summary>
         /// 根据运算符和类型返回正确的算术运算指令
         /// </summary>
         private OpCode GetArithmeticInstruction(string op, GoTypeEnum type)
@@ -309,7 +354,7 @@ namespace GoCompiler
                 // ⚠ **超出 32 位的整数字面量要推成 Int64** —— 与 `GenerateNumberLiteral`
                 //   的发射（按 `dbl_` + `MOVED D0` 发）保持一致；只改发射不改推断，
                 //   声明处的类型转换会拿"R0 是 int"去读（值其实在 D0）⇒ 得 0。
-                if (long.TryParse(numLit.Value, out long l0) && (l0 < int.MinValue || l0 > int.MaxValue))
+                if (TryParseGoInt(numLit.Value, out long l0) && (l0 < int.MinValue || l0 > int.MaxValue))
                     return GoTypeEnum.Int64;
                 return GoTypeEnum.Int;
             }

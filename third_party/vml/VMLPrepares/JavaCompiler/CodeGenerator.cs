@@ -402,6 +402,12 @@ namespace JavaCompiler
                 if (varDecl.Initializer != null)
                 {
                     GenerateExpression(varDecl.Initializer);
+                    // ⚠ **初值要先按声明类型转换**：`double h = 0x10;` 的值是 int（在 R0），
+                    //   而 store 用的是 `MOVED`（存 D0）⇒ 不转就是**把 D0 里的残留值存进去**。
+                    //   实测 `f.java` 的 `F-HEX` 打出 **200**（= 上一个变量的值 2.0×100）
+                    //   而不是 1600。判据走 `GenerateTypeConversion`（与 cast 那条**同一份**，
+                    //   不另写一套 4/8 字节的转换表）。
+                    GenerateTypeConversion(InferExpressionType(varDecl.Initializer), varType);
                     OpCode storeOp = GetStoreInstruction(varType);
                     instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), TR0(storeOp)]));
                 }

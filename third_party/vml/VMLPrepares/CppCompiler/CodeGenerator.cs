@@ -18,6 +18,55 @@ namespace CppCompiler
         private static string TR(OpCode op, int operandIndex = 0)
             => "R" + VMLAssembler.RegisterClassTable.BankOfOperand(op, operandIndex);
 
+        /// <summary>
+        /// 把「刚算出来的值」按**声明类型**转换后收进变量槽 ——
+        /// **声明初值（`GenerateLocalVar`）与 `DeclaratorExpr` 那条快路径共用这一处**
+        /// （本仓头号坑就是"同一规则两处实现"：只改一边 = 改了等于没改，走的正是另一边）。
+        ///
+        /// <para>
+        /// 两件事必须一起做，缺一个都是**静默错值**：
+        /// <list type="number">
+        /// <item>**先转换**：值此刻可能在 R0（整数）/ F0（单精度）/ D0（双精度），
+        ///   而槽是**按声明类型**读的（`float h;` 一律按 F0 读）。不转的话
+        ///   `float h = 0x10;` 存进去的是 **F0 里的残留值** —— 实测上一句的 `b`（2.0）
+        ///   留在 F0，`h * 100` 打出 **200** 而不是 1600（`f.cpp`）。</item>
+        /// <item>**助记符按声明类型选**：`MOVEF`/`MOVED`/`MOVE` 的宽度不同，
+        ///   拿 `MOVE` 存 double 只写 4 字节，另一半是残留。</item>
+        /// </list>
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ 类判据用 <see cref="GetTypeLoadInfo"/>（**读**变量那条路用的也是它）——
+        /// 换成 `MapToCppType` 就会出现"写按一个类、读按另一个类"的分家
+        /// （`long long` 两者对 8 字节的表述不同）。
+        /// </para>
+        /// </summary>
+        private void EmitStoreToVar(int storeOff, string declType, ExpType valueType)
+        {
+            var (_, declFloat, declDouble, declLong) = GetTypeLoadInfo(declType);
+
+            // ① 值 → 声明类型（R0/F0/D0/L0 → F0/D0/R0/L0）。
+            //    ⚠ 转换指令一律走共享的 `EmitConversion`（它按 (size,float,double,long)
+            //      选 `I2L`/`L2I`/`L2D`/`D2L`… 那一整套）—— 手写 if/else 会漏组合。
+            var (vsz, vfl, vdb, vlg) = valueType switch
+            {
+                ExpType.F32 => (4, true, false, false),
+                ExpType.F64 => (8, false, true, false),
+                ExpType.I64 or ExpType.U64 => (8, false, false, true),
+                _ => (4, false, false, false),
+            };
+            _expr!.EmitConversion(vsz, vfl, vdb, declDouble ? 8 : declFloat ? 4 : declLong ? 8 : 4,
+                                  declFloat, declDouble, vlg, declLong);
+
+            // ② 存（助记符 = 声明类型的宽度）
+            var stOp = ExpressionManager.SelectStoreOp(
+                declDouble ? 8 : declFloat ? 4 : declLong ? 8 : 4, declFloat, declDouble, declLong);
+            Add(stOp, Vars?.FormatOffset(storeOff) ?? $"R14-{storeOff}", TR(stOp, 1));
+        }
+
+        /// <summary>当前函数**形参区**占的总字节数（`this` 偏移要用它）—— 见 `ArgStackBytes`。</summary>
+        private int _paramBytes;
+
         private readonly Program _program;
         private int _nextString;
         private int _stackOffset;
@@ -370,14 +419,20 @@ namespace CppCompiler
             {
                 var param = func.Parameters[i];
                 bool isStructVal = GetStructSlotCount(param.Type) > 1;
-                var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference || isStructVal);
+                // ⚠ 槽宽按**类型**（`ArgStackBytes` 与调用点同源）：64 位形参占 8 字节、
+                //   后一个形参顺延两格。写死 4 会让 `f(double a, int b)` 的 `b` 读到
+                //   `a` 的高半字 —— 而且**不报错**，只是值莫名其妙。
+                int slot = (param.IsReference || isStructVal)
+                    ? 4 : ArgStackBytesForType(param.Type);
+                var paramInfo = Vars?.AllocParam(param.Name, slot, param.Type, param.IsReference || isStructVal);
                 int localOff = paramInfo?.Offset ?? cumOff;
                 paramAllocs.Add((param.Name, localOff, param.Type, param.IsReference, cumOff, false));
                 _variables[param.Name] = localOff;
                 _varTypes[param.Name] = param.Type;
                 if (param.IsReference || isStructVal)
                     _isReferenceVar[param.Name] = true;
-                cumOff += 4;
+                cumOff += slot;
+                _paramBytes = cumOff - 12;
             }
 
             // ── 成员函数的 `this`：先**分配槽位**（必须在下面算 frameSize 之前，
@@ -451,15 +506,23 @@ namespace CppCompiler
                 }
                 else if (pa.type == "float")
                 {
-                    Add(OpCode.MOVE, "R0", $"{pa.paramOff}(R14)");
-                    Add(OpCode.I2F, "R0", "R0");
-                    Add(OpCode.MOVEF, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", "R0");
+                    // 调用方按**浮点类**压 4 字节（`MOVEF @13, F0`）⇒ 这里也要按浮点读。
+                    // 老写法是 `MOVE R0, off(R14)` + `I2F` —— 它假设调用方压的是**整数**，
+                    // 而调用方压的是 `PUSH R0`（R0 里是残留值）⇒ 浮点形参恒为垃圾。
+                    Add(OpCode.MOVEF, TR(OpCode.MOVEF, 0), $"{pa.paramOff}(R14)");
+                    Add(OpCode.MOVEF, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", TR(OpCode.MOVEF, 0));
                 }
                 else if (pa.type == "double")
                 {
-                    Add(OpCode.MOVE, "R0", $"{pa.paramOff}(R14)");
-                    Add(OpCode.I2D, "R16", "R0");
-                    Add(OpCode.MOVED, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", "R16");
+                    // 8 字节：调用方 `sub R13 #8` + `MOVED @13, D0`
+                    Add(OpCode.MOVED, TR(OpCode.MOVED, 0), $"{pa.paramOff}(R14)");
+                    Add(OpCode.MOVED, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", TR(OpCode.MOVED, 0));
+                }
+                else if (ArgStackBytesForType(pa.type) == 8)
+                {
+                    // `long`/`long long`/`int64_t` —— 走 **L 类**（不是 double 路径）
+                    Add(OpCode.MOVEL, TR(OpCode.MOVEL, 0), $"{pa.paramOff}(R14)");
+                    Add(OpCode.MOVEL, Vars?.FormatOffset(pa.localOff) ?? $"R14-{pa.localOff}", TR(OpCode.MOVEL, 0));
                 }
                 else
                 {
@@ -471,7 +534,7 @@ namespace CppCompiler
             // `this` 从栈上取出来存进刚才那个槽（帧已经开好了，R14 是帧指针）
             if (_hasThis)
             {
-                Add(OpCode.MOVE, "R0", $"{12 + func.Parameters.Count * 4}(R14)");
+                Add(OpCode.MOVE, "R0", $"{12 + _paramBytes}(R14)");
                 Add(OpCode.MOVE, Vars?.FormatOffset(_thisSlot) ?? $"R14-{_thisSlot}", "R0");
             }
 
@@ -929,8 +992,8 @@ namespace CppCompiler
             int varSize = 4;
             if (!string.IsNullOrEmpty(vd.Type))
             {
-                var (tsz, _, tbd) = GetTypeLoadInfo(vd.Type);
-                if (tbd || tsz == 8) varSize = 8;
+                var (tsz, _, tbd, tlg) = GetTypeLoadInfo(vd.Type);
+                if (tbd || tlg || tsz == 8) varSize = 8;
             }
             int firstWordOff;
             if (vd.IsArray && vd.ArraySize is IntLiteral arrSize)
@@ -996,7 +1059,10 @@ namespace CppCompiler
                 // For arrays, initializer goes after the 4-byte header
                 if (vd.IsArray && vd.ArraySize is IntLiteral)
                     storeOff = firstWordOff + 4;
-                Add(OpCode.MOVE, Vars?.FormatOffset(storeOff) ?? $"R14-{storeOff}", "R0");
+                // ⚠ 此前恒发 `MOVE … R0` —— 声明类型不是 int 时**宽度与类都不对**：
+                //   `float h = 0x10;` 存的是 F0 残留值（实测 200 应 1600）、
+                //   `double d = …` 只写 4 字节。转换 + 助记符收在 EmitStoreToVar 一处。
+                EmitStoreToVar(storeOff, vd.Type, InferExpType(vd.Initializer));
             }
         }
 

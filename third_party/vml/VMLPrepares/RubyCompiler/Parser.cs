@@ -432,6 +432,19 @@ public class Parser : ParserBase<Token, TokenType>
         {
             var expr = ParseExpression();
             Expect(TokenType.RParen, "expected )");
+            // ⚠ **括号表达式同样要能接后缀**：`(a * b * 100).to_i` 是 Ruby 里最普通的写法，
+            //   而这里此前直接 `return expr` ⇒ 那个 `.` 留在流里、外层 `ParseCall` 的
+            //   `Expect(RParen)` 撞上它，报出来的却是 **「expected )（得到 Dot）」** ——
+            //   错误信息指着"少了个右括号"，而括号一个都不少（实测 `f.rb` 整份编不过）。
+            //   与上面标识符那条（`Check(TokenType.Dot)`）是**同一件事**，两处都要有。
+            while (Check(TokenType.Dot))
+            {
+                Advance();
+                string method = Expect(TokenType.Identifier, "期望方法名").Value;
+                expr = Match(TokenType.LParen)
+                    ? ParseCall(expr, method)
+                    : new CallNode(expr, method, new List<ASTNode>(), l, c);
+            }
             return expr;
         }
 

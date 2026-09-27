@@ -36,7 +36,11 @@ for f in "$HERE"/langs/f.* "$HERE"/langs/f2.*; do
     name="$(basename "$f")"
     case "$name" in f2.*) want="$want2";; *) want="$want";; esac
     if [ $# -gt 0 ]; then
-        ext="${name#f.}"; ext="${ext#2.}"; keep=0
+        # ⚠ 先剥 `f2.` 再剥 `f.` —— 顺序反了（或像旧写法那样先 `#f.` 再 `#2.`）
+        #   `f2.go` 两边都剥不掉、ext 停在 `f2.go` ⇒ **按语言名过滤时永远选不中 f2**：
+        #   `run-langs.sh go` 只跑 f.go，看着"通过 1"很对，其实漏了一半。
+        ext="${name#f2.}"; [ "$ext" = "$name" ] && ext="${name#f.}"
+        keep=0
         for a in "$@"; do [ "$a" = "$ext" ] && keep=1; done
         [ "$keep" = 1 ] || continue
     fi

@@ -57,8 +57,14 @@ int main()
     /* ③ true / false */
     printf("SY-BOOL=%d,%d\n", t ? 1 : 0, f ? 1 : 0);
 
-    /* ④ 双关键字类型：值对 + **宽度对**（long 与 long int 都是 4） */
-    printf("SY-TYPE=%d,%d,%d,%d,%d\n", a, b, c, (int)sizeof(long int), (int)sizeof(gl));
+    /* ④ 双关键字类型：值对 + **宽度对**。
+          ⚠ `a` 必须用 **`%ld`** 打：本平台 `long`/`long int` 是 **64 位存储**
+          （C 前端同款：`long a = 4000000000L; printf("%ld", a)` 出 4000000000），
+          变参**占 2 槽**；用 `%d` 会把它的高半字当成下一个转换的实参
+          ⇒ 后面所有值整体错位一格（实测 `100000,0,7,3,4`）。
+          `sizeof` 报的仍是 **4**（与 C 前端逐字相同：那张 sizeof 表按 Turbo C/Win32 口径），
+          **存储宽度与 sizeof 是两张表**，这里压的正是"存储要走 64 位、sizeof 不许跟着变"。 */
+    printf("SY-TYPE=%ld,%d,%d,%d,%d\n", a, b, c, (int)sizeof(long int), (int)sizeof(gl));
 
     /* ⑤ sizeof：变量给元素宽度、数组给**总字节数** */
     printf("SY-SIZEOF=%d,%d,%d,%d,%d\n",

@@ -67,6 +67,14 @@ namespace CSharpCompiler
                     _ => ExpType.I32
                 };
             }
+            // 一元表达式**穿过到操作数**：`-0.5` 是 `UnaryOp("-", 0.5)` 而**不是**字面量，
+            // 不穿透就退回 `I32` ⇒ 整个 `-0.5 * 100` 按整数算（实测 C# 打 **6100**，应 -50）。
+            // `!x` 按 C# 语义是 bool ⇒ I32；`&x`/`*p` 是指针 ⇒ I32。
+            if (expr is UnaryExpression unExpr)
+            {
+                if (unExpr.Operator is TokenType.LogicalNot) return ExpType.I32;
+                return InferCSharpType(unExpr.Operand);
+            }
             if (expr is BinaryExpression bin)
             {
                 // 比较运算符始终返回 I32
@@ -425,7 +433,33 @@ namespace CSharpCompiler
             }
         }
         
-        private void GenerateLiteral(LiteralExpression literal) => EmitLoadConstant(literal.Value);
+        /// <summary>
+        /// 字面量装载。
+        ///
+        /// <para>
+        /// ⚠ **C# 的 `long`/`int64` 走双精度路径**（`InferCSharpType`：`long → F64`；
+        /// `GenerateVariableDecl` 也用 `MOVED` 存），所以超出 int32 的整数字面量必须
+        /// **按 double 发**。此前直接落到基类 `EmitLoadConstant`，它按 **L 类**发
+        /// `movel @L0, lng_N` —— 与同一门语言里变量的存/取（`MOVED`）**分家**：
+        /// `long big = 3000000000;` 存的是 `D0` 的残留值，实测 `big / 1000000000` 得 **0**
+        /// （应 3）、`(big + add) / 1000000000` 得 1（应 4）。
+        /// </para>
+        /// <para>
+        /// 判据与变量那条**同源**（都按"这门语言的 64 位整数用什么类"），不是另立一套。
+        /// </para>
+        /// </summary>
+        private void GenerateLiteral(LiteralExpression literal)
+        {
+            if (literal.Value is long ll && (ll < int.MinValue || ll > int.MaxValue))
+            {
+                string dlabel = $"dbl_{instructions.Count}";
+                dataSection[dlabel] = (double)ll;
+                instructions.Add(new Instruction(OpCode.MOVED,
+                    [TR(OpCode.MOVED, 0), new Operand(OperandType.MEMORY, dlabel)], instructions.Count));
+                return;
+            }
+            EmitLoadConstant(literal.Value);
+        }
         
         private void GenerateVariable(VariableExpression variable)
         {

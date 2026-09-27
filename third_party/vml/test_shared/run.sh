@@ -16,6 +16,14 @@ REPO="$(cd "$HERE/../../.." && pwd)"
 DLL="${VMLCLI:-$REPO/scripts/vmlcli}/bin/Release/net10.0/vmlcli.dll"
 TIMEOUT="${TIMEOUT:-40}"
 
+# ⚠ 外层兜底超时要用对命令名：**macOS 没有 `timeout`**（那是 coreutils 的，装了也叫
+#   `gtimeout`）。旧写法直接调 `timeout` ⇒ 每一条都 `未找到命令`，而那条错误又在
+#   `2>/dev/null` 里 ⇒ **空输出 + 全判 FAIL**，看着像"用例全挂"，其实是脚本没跑起来。
+#   （`vmlcli` 自己那个 `--timeout` 是**程序运行**的时限，管不住"卡在编译"。）
+if command -v timeout >/dev/null 2>&1; then TIMEOUT_CMD=(timeout $((TIMEOUT + 60)))
+elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_CMD=(gtimeout $((TIMEOUT + 60)))
+else TIMEOUT_CMD=(); fi
+
 [ -f "$DLL" ] || { echo "✘ 找不到 vmlcli：$DLL（先 dotnet build scripts/vmlcli -c Release）" >&2; exit 2; }
 
 shopt -s nullglob
@@ -40,8 +48,11 @@ printf '%s\n' "-----------------------------------------------------------------
 
 for f in "${files[@]}"; do
     name="$(basename "$f" .c)"
-    # 编译/链接进度走 stderr，这里只留程序自己的输出
-    out="$(timeout $((TIMEOUT + 60)) dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>/dev/null | tr -d '\0')"
+    # ⚠ **必须把 stderr 一起收**：程序自己的 `print_*` 输出在桌面宿主上走的是
+    #   **stderr**（与 `[dbg]`、链接进度同一个流），只留 stdout 会把它整段丢掉 ——
+    #   表现是**每条用例都判 FAIL、输出栏空白**，而直接跑同一个文件却是 `PASS`。
+    #   （判据是下面那几处 **子串** 匹配，多出来的进度噪音不影响。）
+    out="$("${TIMEOUT_CMD[@]}" dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>&1 | tr -d '\0')"
     rc=$?
     # 用例的三种结论：
     #   SKIP  <理由> —— 明确不测（例：浮点路径当前不可用）

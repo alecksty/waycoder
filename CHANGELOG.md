@@ -1,3 +1,72 @@
+## v0.96.541 — 22 语言浮点/64 位第二梯队：C++ 的 8 字节实参 ABI、C 的 cast 内调用被剔除、C# 的死关键字
+
+按 `scripts/vml-float-probe`（每门语言一份 `f.*` / `f2.*`，判据逐行写死在脚本头部）逐门推进。
+**本次从 8 通过 → 16 通过**，另修掉四类与探针同源的**通用**缺陷。
+
+### 一、C++：8 字节（`double`/`long`）形参与返回值**根本没通过**
+
+原先**三方一致地错**所以看不出来 —— 调用方"每个实参一个 4 字节槽"、被调方 `cumOff += 4`、
+镜像按 `i*4`。一旦某个实参真是 8 字节，它就只压了一格，**后一个实参被读成它的高半字**。
+本次落地：
+
+- `ArgStackBytes` / `ArgStackBytesForType` / `EmitPushArgCpp`（调用点与函数序言**共用一份**）：
+  64 位占两格，值按**类**取（`double`→D0、`long`→L0、`float`→F0），走 `sub R13` + 按类存 `@13`
+  （与 C 前端 `EmitPushArg` 逐位相同，跨语言调用才连得上）；
+- 被调方：形参槽按类型宽、`this` 偏移 `12 + 形参总字节`、形参按类装载（`MOVEF`/`MOVED`/`MOVEL`）；
+- `GetTypeLoadInfo` 增加 **`isLong`** 一维：`long`/`long long`/`int64_t` 走 **L 类**（不是 double 路径）——
+  与**它自己的字面量发射**（`LongLiteral` → `movel @L0`）以及 **C 前端**（`long` 存储 64 位）对齐；
+- `InferExpType`/`GetExprTypeInfo` 补 `LongLiteral`、`CallExpr`（按返回类型）、`IdentExpr`（走类型表）。
+
+实测：`double twice(double)` / `long plong(long,long)` 传参与返回**都对**；
+`long p = 3000000000L` 曾因多出一条 `i2l` 把刚载入 L0 的常量冲掉而全错。
+
+### 二、C：**写在 `(int)(…)` 里的用户函数调用会被整份剔除**
+
+可达性分析（`FindUsedFunctions`）走的是手写节点遍历，**漏了 `CastExpr`**（还有 `CommaExpr`/
+`MemberAccess`/`SizeOfNode`）⇒ 看不见 `(int)(helper(x) * 2)` 里的 `helper` ⇒ 判「定义了但从未使用」
+⇒ 从 AST 删掉 ⇒ 调用点报 **「未定义的函数 'helper'（引用 1 次）」**。
+**报错指向调用、定义也明明在**，从错误信息完全反推不到这里。
+用户报的「带 double/long 返回值的函数调不到」正是这个（他那些调用恰好都在 `(int)(…)` 里）。
+同批补上 `try/catch/throw` 分支；并加了 c-probe 用例 `44-call-in-cast.c` 钉住。
+
+### 三、共享：`EmitF2D`/`EmitD2F` 把寄存器号写死成 0
+
+`AddRR(op, 0, 0)` —— `F2I`/`I2F` 两端**同类**（Int 与 Float 同为 0–15）所以蒙对了，
+而 `F2D`/`D2F` 横跨 Float↔Double：写 0 等于**把目标放在通用寄存器上**（`f2d R0, F0`），
+汇编期的寄存器类闸直接判死 ⇒ `printf("%f", 一个 float 变量)` **整份编不过**。
+整族收进 `EmitConv`，寄存器号一律从 `RegisterClassTable.BankOfOperand` 取。
+
+### 四、C 的 `%ld`：变参实参的类型推断只认字面量
+
+`printf("%ld", a)` 里 `a` 是 `long` **变量**时推不出 `isLongArg` ⇒ 按 4 字节 `PUSH R0` 压，
+而值在 `L0`。同一份程序里 `printf("%ld", 4000000000L)`（字面量）打对、`printf("%ld", a)` 打错 ——
+差别只在"是不是字面量"。回退推断改为**统一走 `InferExpressionType`**（表达式类型的唯一一份推断）。
+
+### 五、逐门语言
+
+| 语言 | 症状 | 根因 |
+|---|---|---|
+| **C++** | `float h = 0x10` 打出 200（应 1600） | 初值存回恒发 `MOVE … R0`：整数初值赋浮点变量**不发转换**，存的是 F0 的残留值 |
+| **Java** | 同上 | 同一条（声明初值缺 `GenerateTypeConversion`） |
+| **Go** | `var h float64 = 0x10` 打出 0 | `long.TryParse` **不认 `0x`/`0o`/`0b`** ⇒ 那条路一律取 0。新增 `TryParseGoInt`（两处共用） |
+| **C#** | `long add = 12345;` 报「期望变量名」 | 词法器把 `add`/`remove`/`method`/`field`/`property`… 当关键字，而**一个消费点都没有** ⇒ 清掉 30 个死关键字（它们当不了变量名，也没人读） |
+| **C#** | `-0.5 * 100` 打出 6100 | `InferCSharpType` 不穿透一元表达式 ⇒ `-0.5` 按 int 算 |
+| **C#** | `long big = 3000000000` 打出 0 | 字面量走基类的 **L 类**发射，而 C# 的 `long` 是 **double 路径**（同门语言内部分家） |
+| **Ruby** | `(a * b * 100).to_i` 报「expected )（得到 Dot）」 | 括号表达式分支直接 `return expr`，**不接后缀** ⇒ 那个 `.` 留给外层，报的是"少了个右括号" |
+
+### 六、判据/装置（**判据错会把前端的对盖成错**）
+
+- `f.java`/`f.cs` 的标签要**自己占一行**（判据是逐行比），改成 `println`/`WriteLine`；
+- `vml-float-probe/run-langs.sh`：`f2.go` 这类**按语言名过滤时永远选不中**（剥 `f.` 再剥 `2.` 的顺序反了）
+  ⇒ `run-langs.sh go` 只跑一半还说"通过 1"；
+- `test_shared/run.sh`：**macOS 没有 `timeout`**（命令找不到的报错又在 `2>/dev/null` 里）
+  + 程序输出走 **stderr** 而脚本只留 stdout ⇒ 三条用例恒判 FAIL、输出栏空白（脚本修好后 3/3）。
+- `nat.syntax.cpp`：`long` 是本平台的 64 位存储，要用 `%ld` 打（`%d` 会让后面的转换整体错位一格）；
+  顺带把"存储 64 位 / `sizeof` 报 4"这对事实钉进探针。
+
+⚠ 仍未过：`bas`（常量截断）、`lua`（缺类型推断）、`pas`（编译失败）、`rb`（缺类型推断）——
+这四门要补的是**前端自己的类型推断子系统**，不是顺手的事。
+
 ## v0.96.540 — C++ 的 8 字节局部量槽位与后一个变量**重叠**（两处声明路径都写死 4 字节）
 
 **症状**：`float a = 3.14f; float b = 2.0f; (int)(a * b * 100.0f)` → **628 ✓**；一旦**再加两个
