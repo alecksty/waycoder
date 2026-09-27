@@ -2595,7 +2595,9 @@ namespace CppCompiler
                     var cppT = MapToCppType(ae.DeclType!);
                     if (cppT == CppType.Float) stOp = OpCode.MOVEF;
                     else if (cppT == CppType.Double) stOp = OpCode.MOVED;
-                    Add(stOp, Vars.FormatOffset(localInfo.Offset), "R0");
+                    // ⚠ `double d = -0.5;` 的存回：源写死 "R0" 是 32 位寄存器，而值在 D0
+                    //   （`MOVED D0, [dbl_3]` + `DNEG D0` 之后）⇒ 用助记符取类的 0 号。
+                    Add(stOp, Vars.FormatOffset(localInfo.Offset), TR(stOp, 1));
                     return;
                 }
 

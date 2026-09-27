@@ -786,7 +786,16 @@ namespace VMLAssembler
             var userErrs = all.Where(v => v.Index < userEnd).ToList();
             int libCount = all.Count - userErrs.Count;
 
-            if (userErrs.Count > 0)
+            // 诊断逃生口：把用户代码的违规**降级为警告**，好让"产物到底长什么样"能看
+            // （排查前端缺陷时要对着 `--vml` 的清单找病灶）。⚠ CI / 生产**绝不能设**。
+            bool warnOnly = Environment.GetEnvironmentVariable("WAYCODER_VML_REGCLASS_WARN") == "1";
+
+            if (userErrs.Count > 0 && warnOnly)
+            {
+                Console.Error.WriteLine($"[诊断] 用户代码里有 {userErrs.Count} 处寄存器类用错（已降级为警告）：");
+                foreach (var v in userErrs.Take(20)) Console.Error.WriteLine($"  {v}");
+            }
+            else if (userErrs.Count > 0)
             {
                 var lines = new List<string>
                 {

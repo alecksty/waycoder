@@ -1510,7 +1510,18 @@ namespace VMLAssembler
                 Externs = externs
             };
             // 用户手写的汇编：**当场报错**（不响的闸比没有更糟）
-            if (checkRegisterClass)
+            // 诊断逃生口（与链接器那一处同一个开关）：降级为警告，好对着产物找病灶。
+            bool warnOnly = Environment.GetEnvironmentVariable("WAYCODER_VML_REGCLASS_WARN") == "1";
+            if (checkRegisterClass && warnOnly)
+            {
+                var warn = RegisterClassTable.ValidateDetailed(prog);
+                if (warn.Count > 0)
+                {
+                    Console.Error.WriteLine($"[诊断] 汇编里有 {warn.Count} 处寄存器类用错（已降级为警告）：");
+                    foreach (var v in warn.Take(20)) Console.Error.WriteLine($"  {v}");
+                }
+            }
+            else if (checkRegisterClass)
             {
                 var bad = RegisterClassTable.ValidateDetailed(prog);
                 if (bad.Count > 0)

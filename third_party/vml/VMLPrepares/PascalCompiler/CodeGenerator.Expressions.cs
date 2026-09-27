@@ -37,6 +37,14 @@ namespace PascalCompiler
                 // Pascal REAL 是 32-bit float, 但 Lexer 存储为 double → 转换
                 if (literal.Type == TokenType.REAL_LITERAL && literal.Value is double d)
                     EmitLoadConstant((float)d);
+                // ⚠ **整数字面量按 32 位发**：词法器把整数存成 `long`，直接交给
+                //   `EmitLoadConstant` 会走 64 位那条路（`MOVEL L0, [lng_N]`）——
+                //   而 Pascal 的 `Integer` 是 **32 位**，后续取用/赋值都按 32 位做，
+                //   于是值停在 `L0` 而 32 位那侧读到的是残留（实测 `N := 7; WriteLn(N)`
+                //   打印出 **1**）。旧版被 VM 的 `R0-R7 ↔ longRegisters` 垫层遮住，
+                //   垫层不再兜底后暴露。超出 32 位范围的常量（Int64 场景）照旧走 64 位。
+                else if (literal.Value is long l && l >= int.MinValue && l <= int.MaxValue)
+                    EmitLoadConstant((int)l);
                 else
                     EmitLoadConstant(literal.Value);
             }
