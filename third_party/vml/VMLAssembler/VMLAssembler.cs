@@ -1179,6 +1179,11 @@ namespace VMLAssembler
                     {
                         // 最后一个token是值 (如 buf: .data buf 128 → value=128)
                         object value = ParseValue(tokens[^1]);
+                        // ⚠ `.float` / `.double` 在这个分支里**只留下了值、丢了指令名** ——
+                        //   而"写 4 字节还是 8 字节"正是由指令决定的（`.float 3.14` 该是 float，
+                        //   不是 ParseValue 给的 double）⇒ 在这里按指令补一次类型（2026-09-27）。
+                        if (line.Contains(".float")) value = (float)CoerceDouble(value);
+                        else if (line.Contains(".double")) value = CoerceDouble(value);
                         dataSection[label] = value;
                     }
                     else
@@ -1207,6 +1212,20 @@ namespace VMLAssembler
             else if (line.Contains(".dword"))
             {
                 HandleDataDirective(line, ".dword");
+            }
+            // .float / .double —— **浮点数据初始化**（2026-09-27 加）
+            //
+            // 此前汇编层只能写整数宽度（`.byte`/`.halfword`/`.word`/`.dword`），浮点常量要么
+            // **被截断成整数**（`.word 3.14` 变成 3），要么只能像 C 前端那样自己
+            // `BitConverter.SingleToInt32Bits` 折算成整数位模式再写 `.word`（能用但没法读）。
+            // 装载侧**本来就认** float(4 字节)/double(8 字节)（`VMLRuntime.cs` 里
+            // `data.Value is float/double` 两支各自 GetBytes 4/8 字节），缺的只是汇编这一侧的入口。
+            // ⚠ 判据用 `Contains` 而不是 `StartsWith`：数据行**常带标签**
+            //   （`f1: .float 3.14`），`StartsWith(".float")` 匹配不到 ⇒ 会一路落到
+            //   "未知指令"（实测就踩了这一下）。`.dword` 那条用的也是 `Contains`。
+            else if (line.Contains(".float") || line.Contains(".double"))
+            {
+                HandleDataDirective(line, line.Contains(".float") ? ".float" : ".double");
             }
             // .byte/.halfword/.hword/.word (遗留: .word 有自己独立的处理器)
             else if (line.StartsWith(".byte") || line.StartsWith(".halfword") || line.StartsWith(".half") || line.StartsWith(".hword") || line.StartsWith(".word"))
@@ -1320,6 +1339,18 @@ namespace VMLAssembler
         /// 统一处理 .dword / .byte / .halfword / .hword / .word 数据指令
         /// 支持 labeled (label: .dword value) 和 unlabeled (.dword value) 两种格式
         /// </summary>
+        /// <summary>把数据值强制成 double（`.float`/`.double` 共用）—— 见 HandleDataDirective 里的说明。</summary>
+        private static double CoerceDouble(object? v) => v switch
+        {
+            double dv => dv,
+            float fv => fv,
+            int iv => iv,
+            long lv => lv,
+            string sv when double.TryParse(sv, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var pv) => pv,
+            _ => 0d,
+        };
+
         private void HandleDataDirective(string line, string? directive)
         {
             string? label = null;
@@ -1375,6 +1406,16 @@ namespace VMLAssembler
                 finalValue = directive == ".byte"
                     ? (object)values.Select(v => (byte)(int)v).ToArray()
                     : values.Select(v => (short)(int)v).ToArray();
+            }
+
+            // .float / .double：把值**强制成对应浮点类型**（类型决定装载时写 4 还是 8 字节）。
+            // ⚠ 必须在 `.dword` 那条**之前**做：`.float 3` 若先被 `.dword` 那条逻辑碰过就成 double 了。
+            if (directive is ".float" or ".double")
+            {
+                if (finalValue is List<object> flist)
+                    finalValue = flist.Select(v => directive == ".float" ? (object)(float)CoerceDouble(v) : CoerceDouble(v)).ToList();
+                else
+                    finalValue = directive == ".float" ? (object)(float)CoerceDouble(finalValue) : CoerceDouble(finalValue);
             }
 
             // .dword 必须是 64 位：int→long, float→double 保证运行时分配 8 字节
@@ -1704,7 +1745,8 @@ namespace VMLAssembler
             //   （别名等于死代码）。判据带上方括号（`.int[`）而不是 `.int`，免得把 `.interrupt`
             //   之类一并吞进来；也**不能用 `StartsWith`** —— 带标签的写法（`p: .int[3] 7`）
             //   开头是标签，实测就栽在这上面（报"未知指令：.INT[3]"）。
-            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data") || trimmedLine.Contains(".int[") || trimmedLine.Contains(".long["))
+            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data") || trimmedLine.Contains(".int[") || trimmedLine.Contains(".long[") ||
+                trimmedLine.Contains(".float") || trimmedLine.Contains(".double"))
             {
                 ParseData(originalLine);
                 return index;

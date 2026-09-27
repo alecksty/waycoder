@@ -147,6 +147,29 @@ else
     python3 "$HERE/tone_check.py" "$TMP/at.wav" || fail=1
 fi
 
+# ══════════════════════════════════════════════════════════════════════════
+# 【E】汇编层的浮点：`.float` / `.double` 数据指令 + 浮点运算
+# ══════════════════════════════════════════════════════════════════════════
+# 治的是「汇编不能初始化浮点数」：此前只有 `.byte/.halfword/.word/.dword`（整数宽度），
+# 浮点要么被**截断成整数**（`.word 3.14` → 3），要么得自己算位模式写成 `.word`。
+# 现在 `.float`（4 字节 IEEE754 单精度）/ `.double`（8 字节）直接可用。
+# 判据是**程序的输出**（浮点四则 + 双精度 + 浮点转整数，逐字符比对）。
+echo "── 【E】汇编浮点数据与运算（Examples/vml/float_ops.vml）"
+
+VML_HOME="$VML_HOME" dotnet "$CLI" "$ROOT/third_party/vml/Examples/vml/float_ops.vml" \
+    --timeout 20 >"$TMP/fo_out.txt" 2>"$TMP/fo_err.txt"
+fo_got="$(grep -vE '^(✔|\[dbg\]|已注册|成功链接|链接)' "$TMP/fo_out.txt" | tr -d '\n')"
+fo_want="3.75-0.753.3750.66666676.283"
+if [ "$fo_got" = "$fo_want" ]; then
+    echo "  ✔ 浮点数据指令与四则/双精度/转换全部正确（$fo_got）"
+else
+    echo "  ✘ 输出不符"
+    echo "     期望：$fo_want"
+    echo "     实得：$fo_got"
+    tail -3 "$TMP/fo_err.txt" | sed 's/^/     /'
+    fail=1
+fi
+
 echo
 if [ "$fail" = 0 ]; then echo "全部通过"; else echo "有失败项"; fi
 exit "$fail"
