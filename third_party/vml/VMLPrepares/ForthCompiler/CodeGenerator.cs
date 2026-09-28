@@ -29,9 +29,43 @@ namespace ForthCompiler
         private int stackPointer; // 模拟数据栈指针
         private readonly Stack<string> catchLabels = new();
         private readonly Dictionary<string, ASTNode> constantValues = new();
-        
+
         // 变量类型跟踪字典
         private readonly Dictionary<string, ForthTypeEnum> _varTypes = new();
+
+        /// <summary>本程序里用 `: … ;` 定义过的词名（懒建，不区分大小写）。</summary>
+        private HashSet<string>? _userWords;
+
+        /// <summary>
+        /// 这个名字是不是**本程序自己定义的词**。库调用与词调用的**结果约定不同**，判据就在这里：
+        ///   · 本程序定义的词 → 结果留在**数据栈**上（Forth 语义）；
+        ///   · 其余名字（`word_X` 由链接器指到 `lib_&lt;模块&gt;_X`）→ 是 **C 库函数**，
+        ///     结果在 **R0**（VML 的 C 调用约定，见 <c>CodeGeneratorBase</c> 的序言/尾声注释）。
+        ///
+        /// ⚠ 为什么必须区分：这条路上原本一律按「结果在数据栈」处理（推 R1），
+        /// 而 C 函数的返回值在 R0 ⇒ **每个库函数的返回值都被丢掉**，栈顶留下的还是实参本身
+        /// （`100 ui_rand .` 打出 100、`ui_scr_w .` 打出 1048576 而宿主报 480）。
+        /// 判据见 `scripts/vml-abi-probe/`（`drift.fth`）。
+        /// </summary>
+        private bool IsUserDefinedWord(string name)
+        {
+            if (_userWords is null)
+            {
+                // 真源就是**解析期**登记的那份（Parser.ParseProgram 抄进 Program.DefinedWords）；
+                // 另扫一遍顶层语句是给「手工搭 AST」的调用方兜底（定义节点也放在 Statements 里）。
+                _userWords = new HashSet<string>(ast.DefinedWords, StringComparer.OrdinalIgnoreCase);
+                foreach (var node in ast.Statements)
+                    if (node is WordDefinition wd && !string.IsNullOrEmpty(wd.Name))
+                        _userWords.Add(wd.Name);
+                foreach (var node in ast.Definitions)
+                    if (node is WordDefinition wd2 && !string.IsNullOrEmpty(wd2.Name))
+                        _userWords.Add(wd2.Name);
+                foreach (var node in ast.Words)
+                    if (node is WordDefinition wd3 && !string.IsNullOrEmpty(wd3.Name))
+                        _userWords.Add(wd3.Name);
+            }
+            return _userWords.Contains(name);
+        }
 
         public CodeGenerator(Program ast) : base()
         {

@@ -81,6 +81,10 @@
 
 \ ── ① 清屏 ──────────────────────────────────────────────────────
 \ ── ① clear the screen ──────────────────────────────────────────────────
+\ 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次存进 LANG）
+\ UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall: query it once at startup into LANG)
+VARIABLE LANG
+ui_get_language LANG !
 RESET CLS
 
 \ ── 标题：亮白字(97) + 蓝底(44)：ESC[97;44m ─────────────────────
@@ -95,7 +99,7 @@ CSI 57 EMIT 55 EMIT SEMI 52 EMIT 52 EMIT SGRM
 8 0 DO
   CSI 49 EMIT 48 I + EMIT SEMI 51 EMIT H          \ ESC[1<0+I>;3H
   CSI 51 EMIT 48 I + EMIT SEMI 52 EMIT 55 EMIT SGRM  \ ESC[3<0+I>;47m
-  ." 前景色 暗色（0-7），背景 = 7 浅灰" CR
+  LANG @ 0= IF ." 前景色 暗色（0-7），背景 = 7 浅灰" ELSE ." foreground dark (0-7), background = 7 light gray" THEN CR
 LOOP
 
 \ ── ③ 亮色 8-15（行 20-27，第 3 列；色 90-97，背景 40）──────────
@@ -105,7 +109,7 @@ LOOP
 8 0 DO
   CSI 50 EMIT 48 I + EMIT SEMI 51 EMIT H          \ ESC[2<0+I>;3H
   CSI 57 EMIT 48 I + EMIT SEMI 52 EMIT 48 EMIT SGRM  \ ESC[9<0+I>;40m
-  ." 前景色 亮色（8-15），背景 = 0 黑" CR
+  LANG @ 0= IF ." 前景色 亮色（8-15），背景 = 0 黑" ELSE ." foreground bright (8-15), background = 0 black" THEN CR
 LOOP
 
 \ ── ④ 光标定位：第 29 行第 34 列先写，再回第 29 行第 1 列写 ──────
@@ -113,15 +117,15 @@ LOOP
 CSI 50 EMIT 57 EMIT SEMI 51 EMIT 52 EMIT H        \ ESC[29;34H
 CSI 57 EMIT 51 EMIT SEMI 52 EMIT 49 EMIT SGRM     \ ESC[93;41m 亮黄 / 红底
 \ ESC[93;41m bright yellow on red background
-." <- 先写的（第 34 列）" CR
+LANG @ 0= IF ." <- 先写的（第 34 列）" ELSE ." <- written first (column 34)" THEN CR
 
 CSI 50 EMIT 57 EMIT SEMI 49 EMIT H                \ ESC[29;1H
 CSI 57 EMIT 54 EMIT SEMI 52 EMIT 48 EMIT SGRM     \ ESC[96;40m 亮青 / 黑底
 \ ESC[96;40m bright cyan on black background
-." 后写的（第 1 列）-> " CR
+LANG @ 0= IF ." 后写的（第 1 列）-> " ELSE ." written second (column 1) -> " THEN CR
 
 \ ── ⑤ 收尾：第 31 行第 1 列，复位成白字黑底（37 / 40）──────────
 \ ── ⑤ wrap-up: at row 31 column 1, reset to white on black （37 / 40） ──────────
 CSI 51 EMIT 49 EMIT SEMI 49 EMIT H                \ ESC[31;1H
 CSI 51 EMIT 55 EMIT SEMI 52 EMIT 48 EMIT SGRM     \ ESC[37;40m
-." === done（已复位为白字黑底）===" CR
+LANG @ 0= IF ." === done（已复位为白字黑底）===" ELSE ." === done (reset to white on black) ===" THEN CR

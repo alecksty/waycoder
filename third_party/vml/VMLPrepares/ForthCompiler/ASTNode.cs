@@ -17,6 +17,16 @@ namespace ForthCompiler
         public List<ASTNode> Definitions { get; } = new List<ASTNode>();
         public List<ASTNode> Words { get; } = new List<ASTNode>();
         public List<ASTNode> Statements { get; } = new List<ASTNode>();
+
+        /// <summary>
+        /// 本程序里用 `: … ;` 定义过的词名（由 <c>Parser.ParseProgram</c> 从它自己那份
+        /// <c>definedWords</c> 抄进来，**不另立第二份判据**）。大小写不敏感 ——
+        /// Forth 的词名不区分大小写，而词法层保留原样，两边写法不同时以这里为准。
+        ///
+        /// 用途：代码生成要区分「词调用」（结果在数据栈）与「库函数调用」（结果在 R0），
+        /// 见 <c>CodeGenerator.IsUserDefinedWord</c>。
+        /// </summary>
+        public HashSet<string> DefinedWords { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

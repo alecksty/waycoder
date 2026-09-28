@@ -308,23 +308,94 @@ namespace ForthCompiler
 
             string labelName = $"word_{MangleName(wordName)}";
 
-            // 所有词调用都会覆盖 R15。把当前 R15（返回地址）保存到栈上，
-            // 调用返回后恢复。操作：POP R1(arg) PUSH R15 PUSH R1(arg) CALL ... POP R1(res) POP R15 PUSH R1(res)
+            // ⚠ 两条路的**结果约定不同**，判据见 IsUserDefinedWord（CodeGenerator.cs）：
+            //   词（本程序 `: … ;` 定义）—— 结果在**数据栈**上，且词会用 R15 存自己的返回地址
+            //                                ⇒ 调用前后必须自己保存/恢复 R15；
+            //   库（C 函数）        —— 结果在 **R0**，实参在数据栈上（arg1 紧邻栈顶 → 落 R12+12）。
+            if (IsUserDefinedWord(wordName))
             {
-                instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));   // 暂存参数
-                instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 15)])); // 保存 R15 到栈
-                instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)]));  // 恢复参数
-                stackPointer--; // POP then two PUSHes = net +1 on stack
+                // 所有词调用都会覆盖 R15。把当前 R15（返回地址）保存到栈上，
+                // 调用返回后恢复。操作：POP R1(arg) PUSH R15 PUSH R1(arg) CALL ... POP R1(res) POP R15 PUSH R1(res)
+                {
+                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));   // 暂存参数
+                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 15)])); // 保存 R15 到栈
+                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)]));  // 恢复参数
+                    stackPointer--; // POP then two PUSHes = net +1 on stack
+                }
+
+                instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, labelName)]));
+
+                {
+                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));   // 结果
+                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 15)]));  // 恢复 R15
+                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)]));  // 结果放回栈顶
+                    // 净效果: 栈不变，R15 恢复
+                }
+                return;
+            }
+
+            // ── 库函数调用（C 约定）────────────────────────────────────────
+            //
+            // ① **实参区里不能插任何东西**：C 函数按 R12+12 / +16 / +20 … 读实参
+            //    （见 `CodeGeneratorBase.GenerateFunctionPrologue` 的帧布局注释），
+            //    所以实参必须**原样连着**躺在栈上。原来这里在调用前 `POP R1; PUSH R15; PUSH R1`
+            //    往实参区里塞了一个 R15 保存槽 ⇒ **从第 2 个实参起全体偏一格**
+            //    （`drift.fth` 的头注释记着这条，探针实测 DRIFT=8 而应 126）。
+            // ② **不必在这里保存 R15**：C 函数的序言是 `push R15`、尾声 `pop R15; ret`（自己保存/恢复），
+            //    而 `CALL` 本身不碰 R15（`VMLRuntime.ExecuteCall` 只压返回地址）⇒ 库里那条路
+            //    R15 天然是完好的（词那条路才需要，见上）。
+            // ③ **结果取 R0**：C 约定返回值在 R0。原来推的是 R1（调用前那个栈顶 = 实参本身）
+            //    ⇒ 返回值被丢掉、栈顶留下的还是实参（`100 ui_rand .` 打出 100 就是这段）。
+            //
+            // 栈形状与改动前**一致**（吃掉栈顶一格、放回一个值），所以只修「值对不对」，
+            // 不动任何现有程序的栈平衡。⚠ 实参的**清理**仍不在这一层：Forth 前端不知道被调方的
+            // 形参个数（库里没有声明），多参与旧行为一样留给调用点自行 `DROP`（见 `drift.fth` 的说明）。
+            //
+            // ④ **循环状态要自己兜住**：C 约定里 R0–R3 是**被调方随便用**的，而本前端把
+            //    DO/LOOP 的循环索引/上限就放在 **R2/R3**（见 `CodeGenerator.Operations.cs` 的 DO 生成）、
+            //    `J` 放 R4 —— 这些是**跨语句活着**的。库里一次调用就能踩掉它们
+            //    （实测：`ipow` 内部拿 R2 当计数器 ⇒ 外层循环的索引被清零 ⇒ 循环重跑到栈耗尽，
+            //     报 `内存错误 … PUSH @R0 — 地址=FFFFFFFC`）。
+            //    ⇒ 循环体内调库前后，把 R2/R3/R4 存进**数据段的专用槽**再取回。
+            //    ⚠ 用内存槽而不是压栈：压栈会插进实参区（正是上面刚修掉的那个坑）。
+            //    ⚠ 单份槽不会自嵌套 —— 库函数不会回调 Forth 代码（词调用那条路不在这里，
+            //      它的嵌套要靠别的机制，不在本次改动范围内）。
+            bool inLoop = Sta.HasLoopLabels;
+            if (inLoop)
+            {
+                SaveRegToCallSlot(2);
+                SaveRegToCallSlot(3);
+                SaveRegToCallSlot(4);
             }
 
             instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, labelName)]));
 
+            if (inLoop)
             {
-                instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));   // 结果
-                instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 15)]));  // 恢复 R15
-                instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)]));  // 结果放回栈顶
-                // 净效果: 栈不变，R15 恢复
+                RestoreRegFromCallSlot(2);
+                RestoreRegFromCallSlot(3);
+                RestoreRegFromCallSlot(4);
             }
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));    // 吃掉第 1 个实参那格
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));   // 结果（C 约定：R0）
+        }
+
+        /// <summary>把寄存器存进「库调用专用」的数据段槽（见 GenerateWordCall 的 ④）。</summary>
+        private void SaveRegToCallSlot(int reg)
+        {
+            string slot = $"__fth_call_r{reg}";
+            dataSection.TryAdd(slot, 0);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.MEMORY, slot), new Operand(OperandType.REGISTER, reg)]));
+        }
+
+        /// <summary>把「库调用专用」槽里的值取回寄存器。</summary>
+        private void RestoreRegFromCallSlot(int reg)
+        {
+            string slot = $"__fth_call_r{reg}";
+            dataSection.TryAdd(slot, 0);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, slot)]));
         }
 
         private bool GenerateFloatWord(string upperName)

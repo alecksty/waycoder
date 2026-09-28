@@ -82,6 +82,11 @@ namespace ForthCompiler
                 }
             }
 
+            // 把「本程序定义过哪些词」交给 AST —— 代码生成要靠它区分
+            // 「词调用」（结果在数据栈）与「库函数调用」（结果在 R0）。
+            // 用解析期那份 definedWords，**不另写一份判据**。
+            program.DefinedWords.UnionWith(definedWords);
+
             return program;
         }
 

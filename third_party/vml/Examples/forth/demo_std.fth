@@ -74,32 +74,37 @@
 \   本文件里所有词都是**零参或一参**，走的是能对的那条路。
 \   Every word in this file takes **zero or one parameter**, which is the path that works.
 
-." === Forth 标准输出 demo ===" CR
+\ 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次存进 LANG）
+\ UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall: query it once at startup into LANG)
+VARIABLE LANG
+ui_get_language LANG !
+
+LANG @ 0= IF ." === Forth 标准输出 demo ===" ELSE ." === Forth std output demo ===" THEN CR
 
 \ ① 字符串字面量（含中文 —— 源码按 UTF-8 存）
 \ ① string literals （including Chinese —— the source is stored as UTF-8）
-." 字符串: 你好，世界" CR
+LANG @ 0= IF ." 字符串: 你好，世界" ELSE ." String: hello, world" THEN CR
 
 \ ② 整数
 \ ② integer
-." 整数: " 42 . CR
+LANG @ 0= IF ." 整数: " ELSE ." Integer: " THEN 42 . CR
 
 \ ③ 整数运算
 \ ③ integer arithmetic
-." 计算: 7 * 6 = " 7 6 * . CR
+LANG @ 0= IF ." 计算: 7 * 6 = " ELSE ." Computed: 7 * 6 = " THEN 7 6 * . CR
 
 \ ④ 整除
 \ ④ integer division
-." 整除: 17 5 / = " 17 5 / . CR
+LANG @ 0= IF ." 整除: 17 5 / = " ELSE ." Integer division: 17 5 / = " THEN 17 5 / . CR
 
 \ ⑤ 循环求和 1..10（词定义里做，返回值落在栈上）
 \ ⑤ loop sum 1..10 （done inside a word definition; the return value lands on the stack）
 : SUM10 ( -- n )  0 11 1 DO I + LOOP ;
-." 循环求和: 1..10 = " SUM10 . CR
+LANG @ 0= IF ." 循环求和: 1..10 = " ELSE ." Loop sum: 1..10 = " THEN SUM10 . CR
 
 \ ⑥ 循环求阶乘 10!
 \ ⑥ loop factorial 10!
 : FAC10 ( -- n )  1 11 1 DO I * LOOP ;
-." 阶乘: 10! = " FAC10 . CR
+LANG @ 0= IF ." 阶乘: 10! = " ELSE ." Factorial: 10! = " THEN FAC10 . CR
 
 ." === done ===" CR
