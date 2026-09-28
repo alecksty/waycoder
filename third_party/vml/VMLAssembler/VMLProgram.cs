@@ -1412,7 +1412,8 @@ namespace VMLAssembler
             var minor = reader.ReadUInt16();
 
             if (major < 1 || major > 2)
-                throw new NotSupportedException($"Unsupported VMB version: {major}.{minor} (本运行时支持 1.x-2.x)");
+                throw new NotSupportedException(VmlLang.Pick($"Unsupported VMB version: {major}.{minor} (本运行时支持 1.x-2.x)",
+                                                      $"Unsupported VMB version: {major}.{minor} (this runtime supports 1.x-2.x)"));
 
             return new VmbHeader
             {
@@ -1440,11 +1441,11 @@ namespace VMLAssembler
         private static void ValidateHeader(VmbHeader header, int fileSize)
         {
             if (header.HeaderSize != 64 && header.HeaderSize != 68)
-                throw new InvalidDataException($"无效 VMB 头部大小: {header.HeaderSize}，预期 64 或 68");
+                throw new InvalidDataException(VmlLang.Pick($"无效 VMB 头部大小: {header.HeaderSize}，预期 64 或 68", $"invalid VMB header size: {header.HeaderSize}, expected 64 or 68"));
             if (fileSize < header.HeaderSize + 4)
-                throw new InvalidDataException($"VMB 文件过小: {fileSize} 字节");
+                throw new InvalidDataException(VmlLang.Pick($"VMB 文件过小: {fileSize} 字节", $"VMB file too small: {fileSize} bytes"));
             if (header.FileSize != 0 && header.FileSize != fileSize)
-                throw new InvalidDataException($"VMB 文件大小不匹配: 声明={header.FileSize}，实际={fileSize}");
+                throw new InvalidDataException(VmlLang.Pick($"VMB 文件大小不匹配: 声明={header.FileSize}，实际={fileSize}", $"VMB file size mismatch: declared={header.FileSize}, actual={fileSize}"));
 
             // 校验各段偏移不越界且不重叠
             var sections = new (uint offset, uint size, string name)[]
@@ -1458,9 +1459,9 @@ namespace VMLAssembler
             foreach (var (offset, size, name) in sections)
             {
                 if (size > 0 && offset < header.HeaderSize)
-                    throw new InvalidDataException($"VMB {name} 段偏移与头部重叠: offset={offset}");
+                    throw new InvalidDataException(VmlLang.Pick($"VMB {name} 段偏移与头部重叠: offset={offset}", $"VMB {name} section offset overlaps the header: offset={offset}"));
                 if (size > 0 && (long)offset + size > fileSize - 4)
-                    throw new InvalidDataException($"VMB {name} 段越界: offset={offset}, size={size}, fileSize={fileSize}");
+                    throw new InvalidDataException(VmlLang.Pick($"VMB {name} 段越界: offset={offset}, size={size}, fileSize={fileSize}", $"VMB {name} section out of bounds: offset={offset}, size={size}, fileSize={fileSize}"));
             }
 
             // 校验段间不重叠（简化：只检查相邻段排序）
@@ -1470,7 +1471,7 @@ namespace VMLAssembler
                 var prev = sorted[i - 1];
                 var curr = sorted[i];
                 if (prev.offset + prev.size > curr.offset)
-                    throw new InvalidDataException($"VMB 段重叠: {prev.name} 结束于 {prev.offset + prev.size}，{curr.name} 起始于 {curr.offset}");
+                    throw new InvalidDataException(VmlLang.Pick($"VMB 段重叠: {prev.name} 结束于 {prev.offset + prev.size}，{curr.name} 起始于 {curr.offset}", $"VMB sections overlap: {prev.name} ends at {prev.offset + prev.size}, {curr.name} starts at {curr.offset}"));
             }
         }
 
@@ -1747,7 +1748,7 @@ namespace VMLAssembler
         /// <param name="gcSections">启用死代码消除: 从入口点追踪可达代码, 丢弃未引用的函数</param>
         public static VmlProgram Link(List<VmlProgram> programs, bool gcSections = true)
         {
-            if (programs == null || programs.Count == 0) throw new System.ArgumentException("至少需要一个程序");
+            if (programs == null || programs.Count == 0) throw new System.ArgumentException(VmlLang.Pick("至少需要一个程序", "at least one program is required"));
             if (programs.Count == 1) return programs[0];
 
             if (gcSections)

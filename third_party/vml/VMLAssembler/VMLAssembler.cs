@@ -211,7 +211,7 @@ namespace VMLAssembler
             // 不能放它过去：下面那条 `@` 分支会把它当**间接寻址**（`INDIRECT("R99")`）静默收下。
             if (afterAt != null && RegisterSyntax.OutOfRangeReason(afterAt) is string atReason)
             {
-                throw new ArgumentException($"寄存器名越界：@{afterAt} —— {atReason}");
+                throw new ArgumentException(VmlLang.Pick($"寄存器名越界：@{afterAt} —— {atReason}", $"register name out of range: @{afterAt} - {atReason}"));
             }
 
             // ── 寄存器形的**裸** token：归属**推迟裁定** ─────────────────────────────
@@ -282,7 +282,7 @@ namespace VMLAssembler
             //   内存那条分支单独校验（带 `@` 就必须是合法寄存器引用）。
             if (operandStr[0] != '[' && operandStr.IndexOf('@') > 0)
             {
-                throw new ArgumentException($"`@` 只能用在寄存器名的**开头**：{operandStr}");
+                throw new ArgumentException(VmlLang.Pick($"`@` 只能用在寄存器名的**开头**：{operandStr}", $"`@` may only appear at the start of a register name: {operandStr}"));
             }
 
             // 内存寻址：[address]
@@ -351,7 +351,7 @@ namespace VMLAssembler
             }
             catch (FormatException)
             {
-                throw new ArgumentException($"无法解析操作数：{operandStr}");
+                throw new ArgumentException(VmlLang.Pick($"无法解析操作数：{operandStr}", $"cannot parse operand: {operandStr}"));
             }
         }
 
@@ -723,7 +723,7 @@ namespace VMLAssembler
             }
             else if (!Enum.TryParse(opcodeName, out opcode))
             {
-                throw new ArgumentException($"未知指令：{opcodeName}");
+                throw new ArgumentException(VmlLang.Pick($"未知指令：{opcodeName}", $"unknown instruction: {opcodeName}"));
             }
 
             // 解析操作数
@@ -2073,7 +2073,7 @@ namespace VMLAssembler
             }
 
             if (depth > 0)
-                throw new ArgumentException(".if 缺少对应的 .endif");
+                throw new ArgumentException(VmlLang.Pick(".if 缺少对应的 .endif", "`.if` is missing its matching `.endif`"));
             return lineIndex;
         }
 
@@ -2085,7 +2085,7 @@ namespace VMLAssembler
 
             if (parts.Length < 2)
             {
-                throw new ArgumentException($"无效的 .macro 指令: {macroLine}");
+                throw new ArgumentException(VmlLang.Pick($"无效的 .macro 指令: {macroLine}", $"invalid `.macro` directive: {macroLine}"));
             }
 
             string macroName = parts[1];
@@ -2120,7 +2120,7 @@ namespace VMLAssembler
 
             if (lineIndex >= lines.Length)
             {
-                throw new ArgumentException($"宏 '{macroName}' 缺少 .endm 指令");
+                throw new ArgumentException(VmlLang.Pick($"宏 '{macroName}' 缺少 .endm 指令", $"macro '{macroName}' is missing its `.endm` directive"));
             }
 
             // 保存宏定义
@@ -2136,7 +2136,7 @@ namespace VMLAssembler
 
             if (!macros.TryGetValue(macroName, out MacroDefinition macro))
             {
-                throw new ArgumentException($"未定义的宏: {macroName}");
+                throw new ArgumentException(VmlLang.Pick($"未定义的宏: {macroName}", $"undefined macro: {macroName}"));
             }
 
             // 收集参数
@@ -2149,7 +2149,7 @@ namespace VMLAssembler
             // 检查参数数量
             if (arguments.Count != macro.Parameters.Count)
             {
-                throw new ArgumentException($"宏 '{macroName}' 期望 {macro.Parameters.Count} 个参数，但提供了 {arguments.Count} 个");
+                throw new ArgumentException(VmlLang.Pick($"宏 '{macroName}' 期望 {macro.Parameters.Count} 个参数，但提供了 {arguments.Count} 个", $"macro '{macroName}' expects {macro.Parameters.Count} argument(s) but {arguments.Count} given"));
             }
 
             // 展开宏：替换参数并处理宏体

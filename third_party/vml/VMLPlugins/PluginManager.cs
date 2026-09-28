@@ -77,7 +77,7 @@ namespace VMLPlugins
                 {
                     return false; // 相同的插件类型，不重复注册
                 }
-                Console.WriteLine($"警告: 前端编译器 '{name}' 已存在，将被覆盖");
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"警告: 前端编译器 '{name}' 已存在，将被覆盖", $"warning: frontend compiler '{name}' already exists, overwriting"));
             }
 
             _frontendCompilers[name] = compiler;
@@ -93,7 +93,7 @@ namespace VMLPlugins
                 }
                 else
                 {
-                    Console.WriteLine($"警告: 扩展名 '{cleanExt}' 已注册给编译器 '{_extensionToCompiler[cleanExt]}'，跳过注册");
+                    Console.WriteLine(VMLAssembler.VmlLang.Pick($"警告: 扩展名 '{cleanExt}' 已注册给编译器 '{_extensionToCompiler[cleanExt]}'，跳过注册", $"warning: extension '{cleanExt}' is already registered to compiler '{_extensionToCompiler[cleanExt]}', skipping"));
                 }
             }
 
@@ -126,7 +126,7 @@ namespace VMLPlugins
                 {
                     return false; // 相同的插件类型，不重复注册
                 }
-                Console.WriteLine($"警告: 后端翻译器 '{arch}' 已存在，将被覆盖");
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"警告: 后端翻译器 '{arch}' 已存在，将被覆盖", $"warning: backend translator '{arch}' already exists, overwriting"));
             }
 
             _backendTranslators[arch] = translator;
@@ -211,8 +211,8 @@ namespace VMLPlugins
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"加载插件程序集失败: {assemblyPath}");
-                Console.WriteLine($"错误: {ex.Message}");
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"加载插件程序集失败: {assemblyPath}", $"failed to load plugin assembly: {assemblyPath}"));
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
             }
         }
 
@@ -243,18 +243,18 @@ namespace VMLPlugins
                         {
                             if (RegisterFrontendCompiler(compiler))
                             {
-                                Console.WriteLine($"已注册前端编译器: {compiler.Name}");
+                                Console.WriteLine(VMLAssembler.VmlLang.Pick($"已注册前端编译器: {compiler.Name}", $"registered frontend compiler: {compiler.Name}"));
                             }
                             else
                             {
-                                Console.WriteLine($"前端编译器 {compiler.Name} 已存在，跳过注册");
+                                Console.WriteLine(VMLAssembler.VmlLang.Pick($"前端编译器 {compiler.Name} 已存在，跳过注册", $"frontend compiler {compiler.Name} already exists, skipping"));
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"创建前端编译器实例失败: {type.FullName}");
-                        Console.WriteLine($"错误: {ex.Message}");
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"创建前端编译器实例失败: {type.FullName}", $"failed to create frontend compiler instance: {type.FullName}"));
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
                     }
                 }
 
@@ -273,25 +273,25 @@ namespace VMLPlugins
                         {
                             if (RegisterBackendTranslator(translator))
                             {
-                                Console.WriteLine($"已注册后端翻译器: {translator.TargetArchitecture}");
+                                Console.WriteLine(VMLAssembler.VmlLang.Pick($"已注册后端翻译器: {translator.TargetArchitecture}", $"registered backend translator: {translator.TargetArchitecture}"));
                             }
                             else
                             {
-                                Console.WriteLine($"后端翻译器 {translator.TargetArchitecture} 已存在，跳过注册");
+                                Console.WriteLine(VMLAssembler.VmlLang.Pick($"后端翻译器 {translator.TargetArchitecture} 已存在，跳过注册", $"backend translator {translator.TargetArchitecture} already exists, skipping"));
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"创建后端翻译器实例失败: {type.FullName}");
-                        Console.WriteLine($"错误: {ex.Message}");
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"创建后端翻译器实例失败: {type.FullName}", $"failed to create backend translator instance: {type.FullName}"));
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"从程序集加载插件失败: {assembly.FullName}");
-                Console.WriteLine($"错误: {ex.Message}");
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"从程序集加载插件失败: {assembly.FullName}", $"failed to load plugins from assembly: {assembly.FullName}"));
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
             }
         }
 
@@ -304,7 +304,7 @@ namespace VMLPlugins
         {
             if (!Directory.Exists(directoryPath))
             {
-                Console.WriteLine($"插件目录不存在: {directoryPath}");
+                Console.WriteLine(VMLAssembler.VmlLang.Pick($"插件目录不存在: {directoryPath}", $"plugin directory does not exist: {directoryPath}"));
                 return;
             }
 
@@ -326,13 +326,13 @@ namespace VMLPlugins
 
                     if (loadedAssembly != null)
                     {
-                        Console.WriteLine($"程序集 {assemblyName} 已加载，使用已加载的版本");
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"程序集 {assemblyName} 已加载，使用已加载的版本", $"assembly {assemblyName} is already loaded, reusing the loaded version"));
                         LoadPluginsFromAssembly(loadedAssembly);
                     }
                     else
                     {
-                        Console.WriteLine($"加载插件程序集失败: {dllFile}");
-                        Console.WriteLine($"错误: {ex.Message}");
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"加载插件程序集失败: {dllFile}", $"failed to load plugin assembly: {dllFile}"));
+                        Console.WriteLine(VMLAssembler.VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
                     }
                 }
             }

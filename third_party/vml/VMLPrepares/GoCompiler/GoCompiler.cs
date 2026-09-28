@@ -44,7 +44,9 @@ namespace GoCompiler
             }
             catch (Exception ex) when (ex is not CompilationException)
             {
-                Console.Error.WriteLine($"<input>: warning: 完整编译失败，改用简化编译: {ex.Message}");
+                Console.Error.WriteLine(VMLAssembler.VmlLang.Pick(
+                    $"<input>: warning: 完整编译失败，改用简化编译: {ex.Message}",
+                    $"<input>: warning: full compilation failed, falling back to simplified compilation: {ex.Message}"));
                 return CompileSimple(source);
             }
         }
