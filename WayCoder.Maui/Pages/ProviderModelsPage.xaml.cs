@@ -25,7 +25,7 @@ public partial class ProviderModelsPage : ContentPage
     {
         base.OnAppearing();
         var disp = ModelCatalog.ProviderDisplayName(_pid);
-        Title = $"{disp} · 模型";
+        Title = L.Pick($"{disp} · 模型", $"{disp} · Models");
         UpdateModeButton();
         RefreshSizeButtons();
         Reload();
@@ -34,11 +34,14 @@ public partial class ProviderModelsPage : ContentPage
     /// <summary>模式切换按钮：点击弹菜单（编辑模式 / 选择模式）。</summary>
     private async void OnModeClicked(object? sender, EventArgs e)
     {
-        var action = await DisplayActionSheetAsync("模式", "取消", null, "编辑模式", "选择模式");
-        switch (action)
+        // 菜单项与判据是同一批文案（平台只回传被点的**文字**、不回传序号）⇒ 用同一个标签数组按序号判定：
+        // 免得「翻了菜单项、漏了 case」在英文下静默失配（点了没反应，且没有任何报错）。
+        var labels = new[] { L.Pick("编辑模式", "Edit mode"), L.Pick("选择模式", "Select mode") };
+        var action = await DisplayActionSheetAsync(L.Pick("模式", "Mode"), L.Pick("取消", "Cancel"), null, labels);
+        switch (Array.IndexOf(labels, action!))
         {
-            case "编辑模式": _editMode = true; break;
-            case "选择模式": _editMode = false; break;
+            case 0: _editMode = true; break;
+            case 1: _editMode = false; break;
             default: return;
         }
         UpdateModeButton();
@@ -48,7 +51,7 @@ public partial class ProviderModelsPage : ContentPage
     /// <summary>更新模式按钮文字与高亮（中性反色：不再用紫/蓝两套字面色，见 MauiUi.ToggleColors）。</summary>
     private void UpdateModeButton()
     {
-        ModeBtn.Text = _editMode ? "编辑模式" : "选择模式";
+        ModeBtn.Text = _editMode ? L.Pick("编辑模式", "Edit mode") : L.Pick("选择模式", "Select mode");
         var c = MauiUi.ToggleColors(_editMode);
         ModeBtn.BackgroundColor = c.Bg;
         ModeBtn.TextColor = c.Text;
@@ -69,15 +72,16 @@ public partial class ProviderModelsPage : ContentPage
             .OrderBy(m => m.DisplayName)
             .Select(m => new ModelRow(
                 Marker(_pid, m.Id, current, small, bigProvider, smallProvider), m.DisplayName, m.Id,
-                $"{Global.FormatContext(m.ContextWindow)} 上下文 · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
+                $"{Global.FormatContext(m.ContextWindow)} {L.Pick("上下文", "context")} · {WayCoder.UI.Shared.ModelPrice.Format(m.InputPrice, m.OutputPrice, m.InputPriceOffpeak, m.OutputPriceOffpeak)} MTok",
                 m.InputPrice == 0 && m.OutputPrice == 0))
             .ToList();
         ModelList.ItemsSource = rows;
         HintLabel.Text = _editMode
-            ? "✏️ 编辑模式：点模型改名 / 删除 / 改地址 / 设大小模型"
+            ? L.Pick("✏️ 编辑模式：点模型改名 / 删除 / 改地址 / 设大小模型",
+                     "✏️ Edit mode: tap a model to rename / delete / change URL / set as main or small")
             : (_isBig
-                ? $"👆 点模型设大模型 · 当前大 {current}"
-                : $"👆 点模型设小模型 · 当前小 {small}");
+                ? L.Pick($"👆 点模型设大模型 · 当前大 {current}", $"👆 Tap a model to set it as the main model · current: {current}")
+                : L.Pick($"👆 点模型设小模型 · 当前小 {small}", $"👆 Tap a model to set it as the small model · current: {small}"));
     }
 
     /// <summary>右上角大/小切换。</summary>
@@ -107,9 +111,9 @@ public partial class ProviderModelsPage : ContentPage
         string bigProvider, string smallProvider)
     {
         var big = string.Equals(bigProvider, pid, StringComparison.OrdinalIgnoreCase)
-                  && string.Equals(id, current, StringComparison.OrdinalIgnoreCase) ? "大✓" : "";
+                  && string.Equals(id, current, StringComparison.OrdinalIgnoreCase) ? L.Pick("大✓", "Main✓") : "";
         var sm = string.Equals(smallProvider, pid, StringComparison.OrdinalIgnoreCase)
-                 && string.Equals(id, small, StringComparison.OrdinalIgnoreCase) ? "小✓" : "";
+                 && string.Equals(id, small, StringComparison.OrdinalIgnoreCase) ? L.Pick("小✓", "Small✓") : "";
         return (big, sm) switch
         {
             ("", "") => "",
@@ -135,15 +139,21 @@ public partial class ProviderModelsPage : ContentPage
     /// <summary>编辑模式菜单：设为大小模型 / 改名 / 删除 / 改地址。</summary>
     private async Task ShowEditMenu(ModelRow row)
     {
-        var action = await DisplayActionSheetAsync($"{row.DisplayName}（{row.Id}）", "取消", null,
-            "设为当前大模型", "设为当前小模型", "改名", "删除", "改地址");
-        switch (action)
+        // 同 OnModeClicked：菜单项与判据同源，用标签数组按序号判定
+        var labels = new[]
         {
-            case "设为当前大模型": await SetAsModel(row, true); break;
-            case "设为当前小模型": await SetAsModel(row, false); break;
-            case "改名": await RenameModel(row); break;
-            case "删除": await DeleteModel(row); break;
-            case "改地址": await EditBaseUrl(); break;
+            L.Pick("设为当前大模型", "Set as main model"), L.Pick("设为当前小模型", "Set as small model"),
+            L.Pick("改名", "Rename"), L.Pick("删除", "Delete"), L.Pick("改地址", "Change URL"),
+        };
+        var action = await DisplayActionSheetAsync(L.Pick($"{row.DisplayName}（{row.Id}）", $"{row.DisplayName} ({row.Id})"),
+            L.Pick("取消", "Cancel"), null, labels);
+        switch (Array.IndexOf(labels, action!))
+        {
+            case 0: await SetAsModel(row, true); break;
+            case 1: await SetAsModel(row, false); break;
+            case 2: await RenameModel(row); break;
+            case 3: await DeleteModel(row); break;
+            case 4: await EditBaseUrl(); break;
         }
     }
 
@@ -153,15 +163,17 @@ public partial class ProviderModelsPage : ContentPage
         ConnectionConfig.ApplyModelChoice(_pid, row.Id, isLarge: isLarge, out _);
         AgentService.Reset();
         Reload();
-        await DisplayAlertAsync($"已设为当前{(isLarge ? "大" : "小")}模型", $"{row.DisplayName}（{row.Id}）", "确定");
+        await DisplayAlertAsync(
+            L.Pick($"已设为当前{(isLarge ? "大" : "小")}模型", $"{(isLarge ? "Main" : "Small")} model updated"),
+            L.Pick($"{row.DisplayName}（{row.Id}）", $"{row.DisplayName} ({row.Id})"), L.Pick("确定", "OK"));
     }
 
     /// <summary>改名：保留原模型属性（价格/上下文/地址等），只改显示名（AddCustom 同 key 覆盖）。</summary>
     private async Task RenameModel(ModelRow row)
     {
         var m = ModelCatalog.ByProvider(_pid).FirstOrDefault(x => x.Id == row.Id);
-        if (m == null) { await DisplayAlertAsync("无法编辑", "未找到该模型定义", "确定"); return; }
-        var name = await DisplayPromptAsync("改名模型", "显示名称", initialValue: m.DisplayName);
+        if (m == null) { await DisplayAlertAsync(L.Pick("无法编辑", "Cannot edit"), L.Pick("未找到该模型定义", "Model definition not found"), L.Pick("确定", "OK")); return; }
+        var name = await DisplayPromptAsync(L.Pick("改名模型", "Rename model"), L.Pick("显示名称", "Display name"), initialValue: m.DisplayName);
         if (string.IsNullOrWhiteSpace(name)) return;
         ModelCatalog.AddCustom(m with { DisplayName = name.Trim() });
         Reload();
@@ -170,10 +182,12 @@ public partial class ProviderModelsPage : ContentPage
     /// <summary>删除模型（内置不可删，RemoveCustom 只作用于自定义库）。</summary>
     private async Task DeleteModel(ModelRow row)
     {
-        var ok = await DisplayAlertAsync("删除模型", $"{row.DisplayName}（{row.Id}）？内置模型不可删。", "删除", "取消");
+        var ok = await DisplayAlertAsync(L.Pick("删除模型", "Delete model"),
+            L.Pick($"{row.DisplayName}（{row.Id}）？内置模型不可删。", $"{row.DisplayName} ({row.Id})? Built-in models cannot be deleted."),
+            L.Pick("删除", "Delete"), L.Pick("取消", "Cancel"));
         if (!ok) return;
         var removed = ModelCatalog.RemoveCustom(row.Id);
-        if (removed.Length == 0) { await DisplayAlertAsync("无法删除", "内置模型不可删除", "确定"); return; }
+        if (removed.Length == 0) { await DisplayAlertAsync(L.Pick("无法删除", "Cannot delete"), L.Pick("内置模型不可删除", "Built-in models cannot be deleted"), L.Pick("确定", "OK")); return; }
         Reload();
     }
 
@@ -181,7 +195,7 @@ public partial class ProviderModelsPage : ContentPage
     private async Task EditBaseUrl()
     {
         var cur = ModelCatalog.BaseUrlOf(_pid);
-        var url = await DisplayPromptAsync("改地址", $"base_url（{_pid}）", initialValue: cur);
+        var url = await DisplayPromptAsync(L.Pick("改地址", "Change URL"), L.Pick($"base_url（{_pid}）", $"base_url ({_pid})"), initialValue: cur);
         if (string.IsNullOrWhiteSpace(url)) return;
         ModelCatalog.UpdateProviderUrl(_pid, url.Trim());
         Reload();

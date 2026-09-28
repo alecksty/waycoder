@@ -3,7 +3,8 @@
     x:Class="WayCoder.Maui.Pages.SettingsGroupPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="设置">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='设置', En='Settings'}">
 
     <!-- ⚠ 这里是「设置」的**二级页**：同一份 XAML 承载全部分组，靠 code-behind 按
          `Group` 参数把不对口的 `Grp*` 容器设成 IsVisible=False。
@@ -15,25 +16,25 @@
 
             <!-- ═══ 大模型（主任务推理）═══ -->
             <VerticalStackLayout x:Name="GrpModel" IsVisible="False" Spacing="10">
-            <Label Text="大模型（主任务推理）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='大模型（主任务推理）', En='Main model (main task reasoning)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="服务商" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="ProviderPicker" Title="选择服务商"
+                    <Label Text="{markup:Tr Zh='服务商', En='Provider'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ProviderPicker" Title="{markup:Tr Zh='选择服务商', En='Select provider'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                             ItemDisplayBinding="{Binding DisplayName}"
                             SelectedIndexChanged="OnProviderChanged" />
 
-                    <Label Text="模型" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="ModelPicker" Title="选择模型"
+                    <Label Text="{markup:Tr Zh='模型', En='Model'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ModelPicker" Title="{markup:Tr Zh='选择模型', En='Select model'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                             ItemDisplayBinding="{Binding DisplayName}" />
 
-                    <Label Text="接口地址 BaseUrl（留空用服务商默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='接口地址 BaseUrl（留空用服务商默认）', En='API base URL (blank = provider default)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -41,39 +42,39 @@
                         <Entry x:Name="BaseUrlEntry" Placeholder="https://api.example.com/v1" Margin="10,2" />
                     </Border>
 
-                    <Label Text="API Key（留空保留原 Key）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='API Key（留空保留原 Key）', En='API key (blank = keep the current one)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
                         </Border.StrokeShape>
                         <Entry x:Name="KeyEntry" IsPassword="True" Placeholder="sk-..." Margin="10,2" />
                     </Border>
-                    <Button x:Name="TestKeyBtn" Text="🔍 测试 API Key（填好立即测，有效自动保存）"
+                    <Button x:Name="TestKeyBtn" Text="{markup:Tr Zh='🔍 测试 API Key（填好立即测，有效自动保存）', En='🔍 Test API key (test right away, saved if valid)'}"
                             FontSize="13" Clicked="OnTestKeyClicked" />
                     <Label x:Name="KeyStatusLabel" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                 </VerticalStackLayout>
             </Border>
 
             <!-- ═══ 小模型（摘要/压缩/补全，便宜快速）═══ -->
-            <Label Text="小模型（摘要/压缩/补全，便宜快速）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='小模型（摘要/压缩/补全，便宜快速）', En='Small model (summaries, compaction, completion; cheap and fast)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="服务商" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="SmallProviderPicker" Title="选择服务商"
+                    <Label Text="{markup:Tr Zh='服务商', En='Provider'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="SmallProviderPicker" Title="{markup:Tr Zh='选择服务商', En='Select provider'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                             ItemDisplayBinding="{Binding DisplayName}"
                             SelectedIndexChanged="OnSmallProviderChanged" />
 
-                    <Label Text="模型" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="SmallModelPicker" Title="选择小模型"
+                    <Label Text="{markup:Tr Zh='模型', En='Model'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="SmallModelPicker" Title="{markup:Tr Zh='选择小模型', En='Select small model'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                             ItemDisplayBinding="{Binding DisplayName}" />
 
-                    <Label Text="接口地址 BaseUrl（留空用服务商默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='接口地址 BaseUrl（留空用服务商默认）', En='API base URL (blank = provider default)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -81,43 +82,43 @@
                         <Entry x:Name="SmallBaseUrlEntry" Placeholder="https://api.example.com/v1" Margin="10,2" />
                     </Border>
 
-                    <Label Text="API Key（留空保留原 Key）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='API Key（留空保留原 Key）', En='API key (blank = keep the current one)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
                         </Border.StrokeShape>
                         <Entry x:Name="SmallKeyEntry" IsPassword="True" Placeholder="sk-..." Margin="10,2" />
                     </Border>
-                    <Button x:Name="SmallTestKeyBtn" Text="🔍 测试 API Key（填好立即测，有效自动保存）"
+                    <Button x:Name="SmallTestKeyBtn" Text="{markup:Tr Zh='🔍 测试 API Key（填好立即测，有效自动保存）', En='🔍 Test API key (test right away, saved if valid)'}"
                             FontSize="13" Clicked="OnSmallTestKeyClicked" />
                     <Label x:Name="SmallKeyStatusLabel" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                 </VerticalStackLayout>
             </Border>
 
             <!-- ═══ 模型工具：导入 / 扫描 / 免费模型 ═══ -->
-            <Label Text="模型工具" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='模型工具', En='Model tools'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="12,8" Spacing="6">
-                    <Button Text="📥 导入模型" FontSize="13" Clicked="OnImportModelsClicked" />
-                    <Button Text="📡 扫描连接" FontSize="13" Clicked="OnScanConnectionsClicked" />
+                    <Button Text="{markup:Tr Zh='📥 导入模型', En='📥 Import models'}" FontSize="13" Clicked="OnImportModelsClicked" />
+                    <Button Text="{markup:Tr Zh='📡 扫描连接', En='📡 Scan connections'}" FontSize="13" Clicked="OnScanConnectionsClicked" />
                 </VerticalStackLayout>
             </Border>
             </VerticalStackLayout>
 
             <!-- ═══ 参数 ═══ -->
             <VerticalStackLayout x:Name="GrpParams" IsVisible="False" Spacing="10">
-            <Label Text="参数" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='参数', En='Parameters'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="MaxTokens（最大输出 token）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='MaxTokens（最大输出 token）', En='MaxTokens (max output tokens)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -125,7 +126,7 @@
                         <Entry x:Name="MaxTokensEntry" Keyboard="Numeric" Placeholder="32768" Margin="10,2" />
                     </Border>
 
-                    <Label Text="Temperature（温度）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='Temperature（温度）', En='Temperature'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -133,7 +134,7 @@
                         <Entry x:Name="TemperatureEntry" Keyboard="Numeric" Placeholder="0.1" Margin="10,2" />
                     </Border>
 
-                    <Label Text="上下文窗口（未知模型兜底，默认 128K）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='上下文窗口（未知模型兜底，默认 128K）', En='Context window (fallback for unknown models, default 128K)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -141,7 +142,7 @@
                         <Entry x:Name="MaxContextEntry" Keyboard="Numeric" Placeholder="131072" Margin="10,2" />
                     </Border>
 
-                    <Label Text="预算上限 USD（留空不限，防花费失控）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='预算上限 USD（留空不限，防花费失控）', En='Budget cap in USD (blank = unlimited; prevents runaway spend)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -149,12 +150,12 @@
                         <Entry x:Name="BudgetEntry" Keyboard="Numeric" Placeholder="5.0" Margin="10,2" />
                     </Border>
 
-                    <Label Text="推理深度（推理模型的思考深度，空=默认）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="ReasoningPicker" Title="推理深度"
+                    <Label Text="{markup:Tr Zh='推理深度（推理模型的思考深度，空=默认）', En='Reasoning effort (thinking depth for reasoning models; blank = default)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="ReasoningPicker" Title="{markup:Tr Zh='推理深度', En='Reasoning effort'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="经济模式" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="EconomyPicker" Title="经济模式"
+                    <Label Text="{markup:Tr Zh='经济模式', En='Economy mode'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="EconomyPicker" Title="{markup:Tr Zh='经济模式', En='Economy mode'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                 </VerticalStackLayout>
             </Border>
@@ -162,15 +163,15 @@
 
             <!-- ═══ 权限 ═══ -->
             <VerticalStackLayout x:Name="GrpPerm" IsVisible="False" Spacing="10">
-            <Label Text="权限（何时打断确认）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='权限（何时打断确认）', En='Permission (when to stop and ask)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="确认模式（Yolo = 不打断，适合信任沙箱内操作）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="PermModePicker" Title="确认模式"
+                    <Label Text="{markup:Tr Zh='确认模式（Yolo = 不打断，适合信任沙箱内操作）', En='Confirmation mode (Yolo = never interrupt; for operations inside a trusted sandbox)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="PermModePicker" Title="{markup:Tr Zh='确认模式', En='Confirmation mode'}"
                             TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                 </VerticalStackLayout>
             </Border>
@@ -178,7 +179,7 @@
 
             <!-- ═══ 存储：外部 workspace（卸载重装代码不丢） ═══ -->
             <VerticalStackLayout x:Name="GrpStorage" IsVisible="False" Spacing="10">
-            <Label Text="存储" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='存储', En='Storage'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
                 <Border.StrokeShape>
@@ -187,13 +188,13 @@
                 <VerticalStackLayout Padding="12,8" Spacing="6">
                     <Label x:Name="WorkspaceStatusLabel" FontSize="12"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Button x:Name="ExternalWorkspaceBtn" Text="🗂 启用外部存储 workspace（卸载重装代码不丢）"
+                    <Button x:Name="ExternalWorkspaceBtn" Text="{markup:Tr Zh='🗂 启用外部存储 workspace（卸载重装代码不丢）', En='🗂 Enable external workspace (code survives reinstall)'}"
                             FontSize="13" Clicked="OnExternalWorkspaceClicked" />
                 </VerticalStackLayout>
             </Border>
 
             <!-- ═══ VML 游戏画面导出 ═══ -->
-            <Label Text="VML 游戏画面" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='VML 游戏画面', En='VML game frames'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
                 <Border.StrokeShape>
@@ -202,19 +203,19 @@
                 <VerticalStackLayout Padding="12,8" Spacing="6">
                     <HorizontalStackLayout Spacing="10">
                         <Switch x:Name="VmlExportSwitch" />
-                        <Label Text="导出游戏画面给 AI 看" VerticalOptions="Center" FontSize="13" />
+                        <Label Text="{markup:Tr Zh='导出游戏画面给 AI 看', En='Export game frames for the AI to see'}" VerticalOptions="Center" FontSize="13" />
                     </HorizontalStackLayout>
                     <Label FontSize="11" LineBreakMode="WordWrap"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                           Text="vml 工具跑完图形程序后把画面导成 PNG，AI 用 view_image 查看。关掉可省一次渲染+编码（约 70~110ms）；开着才可能发现「没崩、但画错了」——位置、颜色、该出现却没出现的。" />
+                           Text="{markup:Tr Zh='vml 工具跑完图形程序后把画面导成 PNG，AI 用 view_image 查看。关掉可省一次渲染+编码（约 70~110ms）；开着才可能发现「没崩、但画错了」——位置、颜色、该出现却没出现的。', En='After the vml tool runs a graphics program, the frame is exported as a PNG and the AI views it with view_image. Turning this off saves one render + encode (about 70~110ms); leaving it on is the only way to catch a case where it did not crash but still drew the wrong thing: wrong positions, wrong colors, things that should be there but are missing.'}" />
                     <HorizontalStackLayout Spacing="10">
-                        <Label Text="最大边长" VerticalOptions="Center" FontSize="13" />
+                        <Label Text="{markup:Tr Zh='最大边长', En='Max side'}" VerticalOptions="Center" FontSize="13" />
                         <Entry x:Name="VmlFrameMaxSideEntry" Keyboard="Numeric" WidthRequest="90" FontSize="13" />
-                        <Label Text="像素" VerticalOptions="Center" FontSize="13" />
+                        <Label Text="{markup:Tr Zh='像素', En='pixels'}" VerticalOptions="Center" FontSize="13" />
                     </HorizontalStackLayout>
                     <Label FontSize="11" LineBreakMode="WordWrap"
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                           Text="超过则等比缩小（128~4096）。VML 窗口常规 320×480，正常不会触发这条路径。" />
+                           Text="{markup:Tr Zh='超过则等比缩小（128~4096）。VML 窗口常规 320×480，正常不会触发这条路径。', En='Anything larger is scaled down proportionally (128~4096). VML windows are usually 320×480, so this path rarely triggers.'}" />
                 </VerticalStackLayout>
             </Border>
 
@@ -225,47 +226,47 @@
                  原来「存储 / VML 游戏画面 / 编辑器」三块挤在 GrpStorage 里，
                  而首页那颗卡片的标题就叫「存储与编辑器」—— 编辑器设置一多，那页会长到没法看。 -->
             <VerticalStackLayout x:Name="GrpEditor" IsVisible="False" Spacing="10">
-            <Label Text="编辑器" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='编辑器', En='Editor'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="12" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="12,8" Spacing="6">
-                    <Label Text="可编辑上限：超过这个大小的文件以只读打开（照样能看能滚，但改不了）。编辑要把内容读进内存，调得越大越容易卡 —— 手机上不建议超过 8MB。"
+                    <Label Text="{markup:Tr Zh='可编辑上限：超过这个大小的文件以只读打开（照样能看能滚，但改不了）。编辑要把内容读进内存，调得越大越容易卡 —— 手机上不建议超过 8MB。', En='Editable limit: files larger than this open read-only (you can still view and scroll, just not edit). Editing loads the content into memory, so larger values are more likely to lag; on a phone, staying under 8MB is recommended.'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="EditorLimitPicker" Title="可编辑上限" SelectedIndexChanged="OnEditorLimitChanged" />
-                    <Label Text="调试 HUD（显示可见行区间 / 帧耗时 / 缓存命中 / 等宽自检）"
+                    <Picker x:Name="EditorLimitPicker" Title="{markup:Tr Zh='可编辑上限', En='Editable limit'}" SelectedIndexChanged="OnEditorLimitChanged" />
+                    <Label Text="{markup:Tr Zh='调试 HUD（显示可见行区间 / 帧耗时 / 缓存命中 / 等宽自检）', En='Debug HUD (visible line range / frame time / cache hits / monospace self-check)'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorDebugSwitch" Toggled="OnEditorDebugToggled" />
-                    <Label Text="诊断气泡每行最多几个字符（16–1024，默认 32）。一个气泡默认就一行，超过这个字数才换行；**按字数折行、不看屏幕宽度**（屏幕本来就能左右滑），所以折行位置是确定的。"
+                    <Label Text="{markup:Tr Zh='诊断气泡每行最多几个字符（16–1024，默认 32）。一个气泡默认就一行，超过这个字数才换行；**按字数折行、不看屏幕宽度**（屏幕本来就能左右滑），所以折行位置是确定的。', En='Max characters per line in a diagnostic bubble (16-1024, default 32). A bubble is one line by default and only wraps past that count; **wrapping follows the character count, not the screen width** (the screen scrolls sideways anyway), so the wrap positions are deterministic.'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Entry x:Name="EditorBubbleCharsEntry" Keyboard="Numeric" Placeholder="32"
                            Completed="OnEditorBubbleCharsCompleted" Unfocused="OnEditorBubbleCharsCompleted" />
-                    <Label Text="诊断气泡默认展开。关掉之后每条错误**收成一个小圆点**（画在波浪线起点：错误红、警告黄、提示绿），点圆点仍可单独展开那一条；右上角的 ✕ 则把某一条收起来。行下那条波浪线不受这个开关影响（关掉气泡后它照常显示，是仅存的错误指示）。"
+                    <Label Text="{markup:Tr Zh='诊断气泡默认展开。关掉之后每条错误**收成一个小圆点**（画在波浪线起点：错误红、警告黄、提示绿），点圆点仍可单独展开那一条；右上角的 ✕ 则把某一条收起来。行下那条波浪线不受这个开关影响（关掉气泡后它照常显示，是仅存的错误指示）。', En='Diagnostic bubbles are expanded by default. When this is off, each error **collapses into a small dot** (drawn at the start of the squiggle: red for errors, yellow for warnings, green for hints); tapping a dot still expands that one, and the ✕ in its corner collapses it again. The squiggle under the line is unaffected by this switch (it keeps showing after bubbles are off, as the only remaining error indicator).'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorBubblesSwitch" Toggled="OnEditorBubblesToggled" />
-                    <Label Text="源码编辑时自动把全角标点转成半角（，。；：（）等）。中文字符串与注释里的标点保持不变。"
+                    <Label Text="{markup:Tr Zh='源码编辑时自动把全角标点转成半角（，。；：（）等）。中文字符串与注释里的标点保持不变。', En='While editing source, full-width punctuation is converted to half-width (comma, period, semicolon, colon, parentheses and so on). Punctuation inside Chinese strings and comments is left alone.'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorFullWidthSwitch" Toggled="OnEditorFullWidthToggled" />
-                    <Label Text="保存源码时用的编码与换行。**只对源码生效** —— Markdown、纯文本、数据文件一律保持原样，不会被悄悄转码。默认「保持原样」= 沿用文件打开时的编码/换行。"
+                    <Label Text="{markup:Tr Zh='保存源码时用的编码与换行。**只对源码生效** —— Markdown、纯文本、数据文件一律保持原样，不会被悄悄转码。默认「保持原样」= 沿用文件打开时的编码/换行。', En='Encoding and line endings used when saving source. **Source files only**: Markdown, plain text and data files are always kept as-is, never silently transcoded. The default (Keep as-is) means whatever encoding and line endings the file was opened with.'}"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="EditorEncodingPicker" Title="保存编码" SelectedIndexChanged="OnEditorEncodingChanged" />
-                    <Picker x:Name="EditorNewlinePicker" Title="保存换行" SelectedIndexChanged="OnEditorNewlineChanged" />
+                    <Picker x:Name="EditorEncodingPicker" Title="{markup:Tr Zh='保存编码', En='Save encoding'}" SelectedIndexChanged="OnEditorEncodingChanged" />
+                    <Picker x:Name="EditorNewlinePicker" Title="{markup:Tr Zh='保存换行', En='Save line endings'}" SelectedIndexChanged="OnEditorNewlineChanged" />
                 </VerticalStackLayout>
             </Border>
             </VerticalStackLayout>
 
             <!-- ═══ 语音 ═══ -->
             <VerticalStackLayout x:Name="GrpVoice" IsVisible="False" Spacing="10">
-            <Label Text="语音（语音输入转录）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='语音（语音输入转录）', En='Voice (speech-to-text input)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="转录模型" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='转录模型', En='Transcription model'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -273,7 +274,7 @@
                         <Entry x:Name="WhisperModelEntry" Placeholder="whisper-1" Margin="10,2" />
                     </Border>
 
-                    <Label Text="转录 API 地址（空=默认 OpenAI）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='转录 API 地址（空=默认 OpenAI）', En='Transcription API URL (blank = default OpenAI)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -281,7 +282,7 @@
                         <Entry x:Name="WhisperBaseUrlEntry" Placeholder="https://api.openai.com" Margin="10,2" />
                     </Border>
 
-                    <Label Text="转录 API Key（空=回退主 Key）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='转录 API Key（空=回退主 Key）', En='Transcription API key (blank = fall back to the main key)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Border BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0">
                         <Border.StrokeShape>
                             <RoundRectangle CornerRadius="10" />
@@ -299,23 +300,23 @@
                  让用户自己填 1800 只会得到"选了不生效"。候选表在 `MauiVmStore` 里，
                  与钳位口径同一处。 -->
             <VerticalStackLayout x:Name="GrpVm" IsVisible="False" Spacing="10">
-            <Label Text="虚拟机（VML 程序运行参数）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='虚拟机（VML 程序运行参数）', En='VM (VML program run settings)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="内存（改完下一次运行生效）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='内存（改完下一次运行生效）', En='Memory (takes effect on the next run)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="VmMemoryPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="栈（不超过内存的一半）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='栈（不超过内存的一半）', En='Stack (at most half of the memory)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="VmStackPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="编辑器运行超时（秒）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='编辑器运行超时（秒）', En='Editor run timeout (seconds)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="VmEditorTimeoutPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="命令行运行超时（秒）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='命令行运行超时（秒）', En='Shell run timeout (seconds)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="VmShellTimeoutPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
                     <Label x:Name="VmHintLabel" FontSize="11"
@@ -336,29 +337,29 @@
                    带着上游已知缺陷），而产物体积的大头是链进来的标准库
                    （实测：46 字节的 hello.c 链出来 69637 条指令）。别让用户以为开了就能变小。 -->
             <VerticalStackLayout x:Name="GrpCompile" IsVisible="False" Spacing="10">
-            <Label Text="编译（编译器行为参数）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='编译（编译器行为参数）', En='Compile (compiler behavior options)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="优化级别（中度起删掉没被调用的库函数，产物可小数倍）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='优化级别（中度起删掉没被调用的库函数，产物可小数倍）', En='Optimization level (Medium and above drop unreferenced library functions; the output can shrink several-fold)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="CompileOptPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="编译警告" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='编译警告', En='Compiler warnings'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="CompileWarnPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="把警告当错误（-Werror）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='把警告当错误（-Werror）', En='Treat warnings as errors (-Werror)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="CompileWarnErrSwitch" />
 
-                    <Label Text="调试输出（前端诊断分支 + 编译结束时的警告计数）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='调试输出（前端诊断分支 + 编译结束时的警告计数）', En='Debug output (frontend diagnostic branches + the warning count at the end of a compile)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="CompileDebugSwitch" />
 
-                    <Label Text="浮点（float / double）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='浮点（float / double）', En='Floating point (float / double)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="CompileFloatPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
-                    <Label Text="64 位整数（long / int64）" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='64 位整数（long / int64）', En='64-bit integers (long / int64)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="CompileInt64Picker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
                     <Label x:Name="CompileHintLabel" FontSize="11"
@@ -367,7 +368,7 @@
             </Border>
             </VerticalStackLayout>
 
-            <Button x:Name="SaveBtn" Text="保存配置" Clicked="OnSaveClicked" Margin="0,14,0,0" />
+            <Button x:Name="SaveBtn" Text="{markup:Tr Zh='保存配置', En='Save'}" Clicked="OnSaveClicked" Margin="0,14,0,0" />
 
         </VerticalStackLayout>
     </ScrollView>

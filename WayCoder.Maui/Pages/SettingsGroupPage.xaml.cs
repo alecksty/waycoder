@@ -23,14 +23,14 @@ public partial class SettingsGroupPage : ContentPage
     ///   （点「模型」卡片什么都不会发生，且零报错）。</summary>
     private IEnumerable<(string Id, string Title, View Box)> Groups()
     {
-        yield return ("model", "模型", GrpModel);
-        yield return ("params", "参数", GrpParams);
-        yield return ("perm", "权限", GrpPerm);
-        yield return ("storage", "存储", GrpStorage);
-        yield return ("editor", "编辑器", GrpEditor);
-        yield return ("voice", "语音", GrpVoice);
-        yield return ("vm", "虚拟机", GrpVm);
-        yield return ("compile", "编译", GrpCompile);
+        yield return ("model", L.Pick("模型", "Model"), GrpModel);
+        yield return ("params", L.Pick("参数", "Parameters"), GrpParams);
+        yield return ("perm", L.Pick("权限", "Permission"), GrpPerm);
+        yield return ("storage", L.Pick("存储", "Storage"), GrpStorage);
+        yield return ("editor", L.Pick("编辑器", "Editor"), GrpEditor);
+        yield return ("voice", L.Pick("语音", "Voice"), GrpVoice);
+        yield return ("vm", L.Pick("虚拟机", "VM"), GrpVm);
+        yield return ("compile", L.Pick("编译", "Compile"), GrpCompile);
     }
 
     private string _group = "model";
@@ -63,7 +63,7 @@ public partial class SettingsGroupPage : ContentPage
         if (!matched)
         {
             GrpModel.IsVisible = true;
-            Title = "模型";
+            Title = L.Pick("模型", "Model");
         }
     }
 
@@ -87,10 +87,17 @@ public partial class SettingsGroupPage : ContentPage
 
     // 保存编码/换行的候选表**不在这里**：挪到 MauiEditorStore.SaveEncodingOptions /
     // SaveNewlineOptions —— 设置页的首页摘要也要用同一份标签，两处各写一遍迟早漂。
-    private static readonly (string Label, Services.MauiEditorStore.SaveEncoding Value)[] EncOptions =
+    //
+    // ⚠ **刻意是表达式体属性，不是 `static readonly` 字段**（2026-09-28 改）：那两份表现在
+    //   走 `L.Pick`（标签要跟界面语言），而 `static readonly` 会把值**快照在类型初始化那一刻**
+    //   —— 正是 `Lang.cs` 的公理 A3 禁止的形态。当前启动顺序下（`MauiLang.Initialize()` 早于
+    //   任何页面构造）看不出问题，但那正是「今天对、明天错」：谁把这两张表的首次访问提前
+    //   （比如在 App 构造期预热设置页），语言就被冻死，且**只在某些启动顺序下复现**。
+    //   代价是每次访问重建一次数组 —— 只发生在进入设置页/回填控件时，非热路径。
+    private static (string Label, Services.MauiEditorStore.SaveEncoding Value)[] EncOptions =>
         Services.MauiEditorStore.SaveEncodingOptions;
 
-    private static readonly (string Label, Services.MauiEditorStore.SaveNewline Value)[] NlOptions =
+    private static (string Label, Services.MauiEditorStore.SaveNewline Value)[] NlOptions =>
         Services.MauiEditorStore.SaveNewlineOptions;
 
     private bool _loadingEditorSettings;
@@ -211,8 +218,8 @@ public partial class SettingsGroupPage : ContentPage
 
         // 超时的语义在 v0.96.438 变了（墙钟 → **连续执行**），设置项旁边必须说清楚，
         // 否则用户会以为"调大了就能让程序跑更久"，而真正的原因是**等输入已经不计时了**。
-        VmHintLabel.Text = "超时只在程序连续运行、一次都没等待时计时；等消息/等弹框/**触摸与按键**都不算。选「不限」= 不设兜底。"
-                         + "内存与栈改完，下一次运行才生效。";
+        VmHintLabel.Text = L.Pick("超时只在程序连续运行、一次都没等待时计时；等消息/等弹框/**触摸与按键**都不算。选「不限」= 不设兜底。", "The timeout counts only continuous execution; waiting for messages, waiting on a dialog, and **touch or key input** all pause it. Choosing \"Unlimited\" means there is no fallback timeout.")
+                         + L.Pick("内存与栈改完，下一次运行才生效。", "Memory and stack changes take effect on the next run.");
     }
 
     /// <summary>
@@ -269,10 +276,10 @@ public partial class SettingsGroupPage : ContentPage
         //   ③ 优化**不会改变程序行为**（只删确定用不到的东西，实测 22 门语言输出逐字节相同）；
         //   ④ "关闭"是**报错**而不是降级。
         CompileHintLabel.Text =
-            "改完下一次编译生效。初步只清填充代码；中度会删掉没被调用的库函数（产物大幅变小，"
-            + "实测 hello world 69637→28 条、俄罗斯方块 74754→6282 条）；极致再加几项安全清理。"
-            + "优化只删确定用不到的东西，不改程序行为。"
-            + "「关闭（遇到就报错）」是指遇到浮点 / 64 位代码直接编译报错，不是悄悄降级。";
+            L.Pick("改完下一次编译生效。初步只清填充代码；中度会删掉没被调用的库函数（产物大幅变小，", "Takes effect on the next compile. Light only clears padding code; Medium also drops library functions that are never called (the output shrinks a lot, ")
+            + L.Pick("实测 hello world 69637→28 条、俄罗斯方块 74754→6282 条）；极致再加几项安全清理。", "measured: hello world 69637→28 instructions, Tetris 74754→6282); Max adds a few more safe cleanups. ")
+            + L.Pick("优化只删确定用不到的东西，不改程序行为。", "Optimization only removes what is provably unused, and never changes program behavior. ")
+            + L.Pick("「关闭（遇到就报错）」是指遇到浮点 / 64 位代码直接编译报错，不是悄悄降级。", "\"Off (errors out)\" means floating point / 64-bit code fails the compile outright instead of silently degrading.");
     }
 
     /// <summary>把「编译」分组的六项写回 <see cref="MauiCompileStore"/>（索引 → 候选表里的值）。</summary>
@@ -377,11 +384,11 @@ public partial class SettingsGroupPage : ContentPage
     {
         var ext = WayCoder.Maui.MauiBootstrap.WorkspaceExternal;
         WorkspaceStatusLabel.Text = ext
-            ? $"✅ workspace 在外部存储：{WayCoder.Maui.MauiBootstrap.WorkspaceDir}"
-            : $"⚠️ workspace 在 App 私有目录（卸载重装会丢失代码）：\n{WayCoder.Maui.MauiBootstrap.WorkspaceDir}";
+            ? L.Pick($"✅ workspace 在外部存储：{WayCoder.Maui.MauiBootstrap.WorkspaceDir}", $"✅ workspace is on external storage: {WayCoder.Maui.MauiBootstrap.WorkspaceDir}")
+            : L.Pick($"⚠️ workspace 在 App 私有目录（卸载重装会丢失代码）：\n{WayCoder.Maui.MauiBootstrap.WorkspaceDir}", $"⚠️ workspace is in app-private storage (code is lost on reinstall):\n{WayCoder.Maui.MauiBootstrap.WorkspaceDir}");
         ExternalWorkspaceBtn.Text = ext
-            ? "🗂 外部存储已启用"
-            : "🗂 启用外部存储 workspace（卸载重装代码不丢）";
+            ? L.Pick("🗂 外部存储已启用", "🗂 External storage enabled")
+            : L.Pick("🗂 启用外部存储 workspace（卸载重装代码不丢）", "🗂 Enable external workspace (code survives reinstall)");
     }
 
     /// <summary>启用外部存储 workspace：未授权先跳系统「所有文件访问」设置，授权后自动迁移。</summary>
@@ -407,18 +414,18 @@ public partial class SettingsGroupPage : ContentPage
                 intent.AddFlags(Android.Content.ActivityFlags.NewTask);
                 Android.App.Application.Context.StartActivity(intent);
             }
-            await DisplayAlertAsync("已跳转设置", "请开启「允许访问所有文件」，返回后点本按钮完成迁移。", "确定");
+            await DisplayAlertAsync(L.Pick("已跳转设置", "Settings opened"), L.Pick("请开启「允许访问所有文件」，返回后点本按钮完成迁移。", "Turn on \"Allow access to all files\", then come back and tap this button to finish the migration."), L.Pick("确定", "OK"));
             return;
         }
 
         var ok = WayCoder.Maui.MauiBootstrap.TryEnableExternalWorkspace();
         RefreshWorkspaceStatus();
-        await DisplayAlertAsync(ok ? "已启用" : "启用失败",
+        await DisplayAlertAsync(ok ? L.Pick("已启用", "Enabled") : L.Pick("启用失败", "Could not enable"),
             ok
-                ? "workspace 已迁移到 sdcard/waycoder/workspace、配置到 sdcard/waycoder/config，卸载重装不丢。重启应用后配置完全生效。"
-                : "无法启用外部存储，请检查权限。", "确定");
+                ? L.Pick("workspace 已迁移到 sdcard/waycoder/workspace、配置到 sdcard/waycoder/config，卸载重装不丢。重启应用后配置完全生效。", "The workspace moved to sdcard/waycoder/workspace and the config to sdcard/waycoder/config; both survive a reinstall. Restart the app for the config to fully take effect.")
+                : L.Pick("无法启用外部存储，请检查权限。", "Could not enable external storage. Please check the permission."), L.Pick("确定", "OK"));
 #else
-        await DisplayAlertAsync("外部存储", "仅 Android 支持。", "确定");
+        await DisplayAlertAsync(L.Pick("外部存储", "External storage"), L.Pick("仅 Android 支持。", "Android only."), L.Pick("确定", "OK"));
 #endif
     }
 
@@ -436,12 +443,16 @@ public partial class SettingsGroupPage : ContentPage
     /// <summary>导入模型：内置目录 / 从配置文件（Claude/OpenCode 等）启发式解析 Key+模型。</summary>
     private async void OnImportModelsClicked(object? sender, EventArgs e)
     {
-        var action = await DisplayActionSheetAsync("导入模型", "取消", null, "从配置文件导入", "导入内置模型目录");
-        if (action == "从配置文件导入")
+        // 动作表的**项文本就是判据**（`action` 拿到的是被点中那一项的文本）——
+        // 两者绑到同一个局部量上；否则翻成英文后 `== "从配置文件导入"` 永远不成立，且零报错。
+        var importFromConfig = L.Pick("从配置文件导入", "Import from config file");
+        var importBuiltin = L.Pick("导入内置模型目录", "Import built-in catalog");
+        var action = await DisplayActionSheetAsync(L.Pick("导入模型", "Import models"), L.Pick("取消", "Cancel"), null, importFromConfig, importBuiltin);
+        if (action == importFromConfig)
             await ImportFromConfigFileAsync();
-        else if (action == "导入内置模型目录")
-            await DisplayAlertAsync("内置模型",
-                $"内置模型目录已包含 {ModelCatalog.All.Length} 个模型（DeepSeek / Qwen / Zhipu / OpenAI / Anthropic / AIHubMix 等）。在「连接」区选服务商即可使用。", "确定");
+        else if (action == importBuiltin)
+            await DisplayAlertAsync(L.Pick("内置模型", "Built-in models"),
+                L.Pick($"内置模型目录已包含 {ModelCatalog.All.Length} 个模型（DeepSeek / Qwen / Zhipu / OpenAI / Anthropic / AIHubMix 等）。在「连接」区选服务商即可使用。", $"The built-in catalog already has {ModelCatalog.All.Length} models (DeepSeek / Qwen / Zhipu / OpenAI / Anthropic / AIHubMix and more). Just pick a provider in the Provider section."), L.Pick("确定", "OK"));
     }
 
     /// <summary>文件选择器选 Claude/OpenCode 等配置，启发式提取 API Key + 模型并应用。</summary>
@@ -449,7 +460,7 @@ public partial class SettingsGroupPage : ContentPage
     {
         try
         {
-            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = "选择 Claude/OpenCode 等配置文件" });
+            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = L.Pick("选择 Claude/OpenCode 等配置文件", "Choose a Claude/OpenCode config file") });
             if (result == null) return;
             var content = await File.ReadAllTextAsync(result.FullPath);
 
@@ -464,7 +475,7 @@ public partial class SettingsGroupPage : ContentPage
                 // 环境变量引用（$VAR / ${VAR}）不是真实 key，跳过导入（防把环境变量当 key 误存）
                 if (ApiKeyStore.IsEnvVarRef(key))
                 {
-                    await DisplayAlertAsync("已跳过", "检测到环境变量引用（$VAR），不是真实 Key，未导入。请填入真实 API Key。", "确定");
+                    await DisplayAlertAsync(L.Pick("已跳过", "Skipped"), L.Pick("检测到环境变量引用（$VAR），不是真实 Key，未导入。请填入真实 API Key。", "That looks like an environment variable reference ($VAR), not a real key, so nothing was imported. Paste a real API key instead."), L.Pick("确定", "OK"));
                     return;
                 }
                 ApiKeyStore.Set(pid, key);
@@ -476,10 +487,10 @@ public partial class SettingsGroupPage : ContentPage
                 ApplyModel(mi.ProviderId, mi.Id);
                 applied = true;
             }
-            await DisplayAlertAsync(applied ? "已导入" : "未识别",
-                applied ? "已从配置文件导入模型 / API Key（请到「保存」确认生效）。" : "未能从该文件识别模型或 API Key。", "确定");
+            await DisplayAlertAsync(applied ? L.Pick("已导入", "Imported") : L.Pick("未识别", "Not recognized"),
+                applied ? L.Pick("已从配置文件导入模型 / API Key（请到「保存」确认生效）。", "Model / API key imported from the config file (tap Save to apply).") : L.Pick("未能从该文件识别模型或 API Key。", "Could not find a model or an API key in that file."), L.Pick("确定", "OK"));
         }
-        catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+        catch (Exception ex) { await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), ex.Message, L.Pick("关闭", "Close")); }
     }
 
     /// <summary>扫描全部服务商连接可达性（探测 /models 接口，单点 4s 超时；委托核心 ModelCli）。</summary>
@@ -490,11 +501,11 @@ public partial class SettingsGroupPage : ContentPage
         var results = new List<string>();
         foreach (var p in providers)
         {
-            if (string.IsNullOrEmpty(p.Url)) { results.Add($"{p.Name}（{p.Id}）· 无默认地址"); continue; }
+            if (string.IsNullOrEmpty(p.Url)) { results.Add(L.Pick($"{p.Name}（{p.Id}）· 无默认地址", $"{p.Name} ({p.Id}) · no default URL")); continue; }
             var (ok, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
-            results.Add($"{p.Name}（{p.Id}）· {(ok ? "✅ 可达" : "❌ 不可达")}");
+            results.Add(L.Pick($"{p.Name}（{p.Id}）· {(ok ? "✅ 可达" : "❌ 不可达")}", $"{p.Name} ({p.Id}) · {(ok ? "✅ reachable" : "❌ unreachable")}"));
         }
-        await DisplayActionSheetAsync($"连接扫描（{providers.Count}）", "关闭", null, results.ToArray());
+        await DisplayActionSheetAsync(L.Pick($"连接扫描（{providers.Count}）", $"Connection scan ({providers.Count})"), L.Pick("关闭", "Close"), null, results.ToArray());
     }
 
     /// <summary>按服务商刷新模型下拉；可选指定选中模型（含当前模型不在该服务商时的兜底）。</summary>
@@ -519,7 +530,7 @@ public partial class SettingsGroupPage : ContentPage
     private void UpdateKeyStatus(string providerId)
     {
         var masked = ApiKeyStore.Masked(providerId);
-        KeyStatusLabel.Text = masked != null ? $"已保存：{masked}" : "未配置 Key";
+        KeyStatusLabel.Text = masked != null ? L.Pick($"已保存：{masked}", $"Saved: {masked}") : L.Pick("未配置 Key", "No key configured");
     }
 
     /// <summary>小模型组：按服务商刷新模型下拉（含选中兜底）。</summary>
@@ -544,7 +555,7 @@ public partial class SettingsGroupPage : ContentPage
     private void UpdateSmallKeyStatus(string providerId)
     {
         var masked = ApiKeyStore.Masked(providerId);
-        SmallKeyStatusLabel.Text = masked != null ? $"已保存：{masked}" : "未配置 Key";
+        SmallKeyStatusLabel.Text = masked != null ? L.Pick($"已保存：{masked}", $"Saved: {masked}") : L.Pick("未配置 Key", "No key configured");
     }
 
     /// <summary>大模型分组测试 Key。</summary>
@@ -568,19 +579,19 @@ public partial class SettingsGroupPage : ContentPage
 
         if (opt == null)
         {
-            await DisplayAlertAsync("未选择", "请先选择服务商", "确定");
+            await DisplayAlertAsync(L.Pick("未选择", "Nothing selected"), L.Pick("请先选择服务商", "Please pick a provider first"), L.Pick("确定", "OK"));
             return;
         }
         var key = keyEntry.Text?.Trim();
         if (string.IsNullOrEmpty(key)) key = ApiKeyStore.Get(opt.Id);
         if (string.IsNullOrEmpty(key))
         {
-            await DisplayAlertAsync("无 Key", "请在输入框填入要测试的 API Key", "确定");
+            await DisplayAlertAsync(L.Pick("无 Key", "No key"), L.Pick("请在输入框填入要测试的 API Key", "Enter the API key you want to test in the field above"), L.Pick("确定", "OK"));
             return;
         }
 
         var oldText = btn.Text;
-        btn.Text = "⏳ 测试中…";
+        btn.Text = L.Pick("⏳ 测试中…", "⏳ Testing…");
         btn.IsEnabled = false;
         try
         {
@@ -590,23 +601,23 @@ public partial class SettingsGroupPage : ContentPage
                 // 有效立即保存：环境变量引用（$VAR）测试会失败，这里双保险跳过
                 if (ApiKeyStore.IsEnvVarRef(key))
                 {
-                    await DisplayAlertAsync("已跳过", "检测到环境变量引用（$VAR），不是真实 Key，未保存。", "确定");
+                    await DisplayAlertAsync(L.Pick("已跳过", "Skipped"), L.Pick("检测到环境变量引用（$VAR），不是真实 Key，未保存。", "That looks like an environment variable reference ($VAR), not a real key, so nothing was saved."), L.Pick("确定", "OK"));
                     keyEntry.Text = "";
                     return;
                 }
                 ApiKeyStore.Set(opt.Id, key);
                 statusRefresher(opt.Id);        // 刷新状态标签
                 keyEntry.Text = "";
-                await DisplayAlertAsync("✅ Key 有效", $"服务商 {opt.DisplayName} 的 API Key 验证通过，已自动保存。", "确定");
+                await DisplayAlertAsync(L.Pick("✅ Key 有效", "✅ Key is valid"), L.Pick($"服务商 {opt.DisplayName} 的 API Key 验证通过，已自动保存。", $"The API key for {opt.DisplayName} was verified and saved automatically."), L.Pick("确定", "OK"));
             }
             else
             {
-                await DisplayAlertAsync("❌ Key 无效", message, "确定");
+                await DisplayAlertAsync(L.Pick("❌ Key 无效", "❌ Invalid key"), message, L.Pick("确定", "OK"));
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("❌ 测试失败", $"{ex.GetType().Name}: {ex.Message}", "确定");
+            await DisplayAlertAsync(L.Pick("❌ 测试失败", "❌ Test failed"), $"{ex.GetType().Name}: {ex.Message}", L.Pick("确定", "OK"));
         }
         finally
         {
@@ -640,7 +651,7 @@ public partial class SettingsGroupPage : ContentPage
         using var resp = await http.SendAsync(req);
         var respBody = await resp.Content.ReadAsStringAsync();
 
-        if (resp.IsSuccessStatusCode) return (true, "验证通过");
+        if (resp.IsSuccessStatusCode) return (true, L.Pick("验证通过", "Verified"));
         var msg = respBody.Length > 300 ? respBody[..300] + "…" : respBody;
         return (false, $"HTTP {(int)resp.StatusCode}\n{msg}");
     }
@@ -649,7 +660,7 @@ public partial class SettingsGroupPage : ContentPage
     {
         if (ProviderPicker.SelectedItem is not ProviderOption opt || ModelPicker.SelectedItem is not ModelCatalog.ModelInfo model)
         {
-            await DisplayAlertAsync("未选择", "请选择服务商与模型", "确定");
+            await DisplayAlertAsync(L.Pick("未选择", "Nothing selected"), L.Pick("请选择服务商与模型", "Please pick a provider and a model"), L.Pick("确定", "OK"));
             return;
         }
 
@@ -658,7 +669,7 @@ public partial class SettingsGroupPage : ContentPage
         if (!string.IsNullOrEmpty(key))
         {
             if (ApiKeyStore.IsEnvVarRef(key) || !ApiKeyStore.IsValidApiKey(key))
-                await DisplayAlertAsync("Key 不合法", $"只允许英文字母数字 + - _ . ,（{opt.DisplayName} 的 Key 未保存，不要填环境变量引用 $VAR / %VAR%）", "确定");
+                await DisplayAlertAsync(L.Pick("Key 不合法", "Invalid key"), L.Pick($"只允许英文字母数字 + - _ . ,（{opt.DisplayName} 的 Key 未保存，不要填环境变量引用 $VAR / %VAR%）", $"Only letters, digits and + - _ . , are allowed ({opt.DisplayName} key not saved; don't use $VAR / %VAR% env references)"), L.Pick("确定", "OK"));
             else
                 ApiKeyStore.Set(opt.Id, key);
         }
@@ -676,7 +687,7 @@ public partial class SettingsGroupPage : ContentPage
             if (!string.IsNullOrEmpty(skey))
             {
                 if (ApiKeyStore.IsEnvVarRef(skey) || !ApiKeyStore.IsValidApiKey(skey))
-                    await DisplayAlertAsync("Key 不合法", $"只允许英文字母数字 + - _ . ,（{sopt.DisplayName} 的小模型 Key 未保存）", "确定");
+                    await DisplayAlertAsync(L.Pick("Key 不合法", "Invalid key"), L.Pick($"只允许英文字母数字 + - _ . ,（{sopt.DisplayName} 的小模型 Key 未保存）", $"Only letters, digits and + - _ . , are allowed ({sopt.DisplayName} key for the small model not saved)"), L.Pick("确定", "OK"));
                 else
                     ApiKeyStore.Set(sopt.Id, skey);
             }
@@ -726,6 +737,6 @@ public partial class SettingsGroupPage : ContentPage
         AgentService.Reset();
 
         KeyEntry.Text = "";
-        await DisplayAlertAsync("已保存", $"服务商 {opt.DisplayName} · 模型 {model.DisplayName}", "确定");
+        await DisplayAlertAsync(L.Pick("已保存", "Saved"), L.Pick($"服务商 {opt.DisplayName} · 模型 {model.DisplayName}", $"Provider {opt.DisplayName} · Model {model.DisplayName}"), L.Pick("确定", "OK"));
     }
 }

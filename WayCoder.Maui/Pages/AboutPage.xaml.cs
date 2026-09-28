@@ -19,7 +19,7 @@ public partial class AboutPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
-        VersionLabel.Text = $"版本 {Global.Version}";
+        VersionLabel.Text = L.Pick($"版本 {Global.Version}", $"Version {Global.Version}");
     }
 
     /// <summary>

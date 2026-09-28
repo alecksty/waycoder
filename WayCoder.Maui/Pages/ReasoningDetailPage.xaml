@@ -3,12 +3,13 @@
     x:Class="WayCoder.Maui.Pages.ReasoningDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="思考过程">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='思考过程', En='Reasoning'}">
     <ScrollView>
         <VerticalStackLayout Padding="16,12" Spacing="8">
             <Label
                 x:Name="Intro"
-                Text="模型推理过程（未参与对话正文）"
+                Text="{markup:Tr Zh='模型推理过程（未参与对话正文）', En='Model reasoning (not part of the conversation)'}"
                 FontSize="11"
                 TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             <Label

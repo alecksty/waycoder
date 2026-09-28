@@ -55,7 +55,9 @@ public partial class FilesPage : ContentPage
     private void UpdatePathLabel()
     {
         var path = SandboxPath.Display(_currentDir);
-        PathLabel.Text = _editMode ? path + "（编辑模式：点目录/文件可删除/改名/打包）" : path;
+        PathLabel.Text = _editMode
+            ? path + L.Pick("（编辑模式：点目录/文件可删除/改名/打包）", " (Edit mode: tap an item to delete/rename/zip)")
+            : path;
     }
 
     /// <summary>
@@ -116,7 +118,10 @@ public partial class FilesPage : ContentPage
     {
         try
         {
-            if (await DisplayAlertAsync("退出应用", "已到工作区根目录，确定要退出吗？", "退出", "取消"))
+            if (await DisplayAlertAsync(
+                    L.Pick("退出应用", "Quit app"),
+                    L.Pick("已到工作区根目录，确定要退出吗？", "You are at the workspace root. Quit the app?"),
+                    L.Pick("退出", "Quit"), L.Pick("取消", "Cancel")))
                 Application.Current?.Quit();
         }
         catch (Exception ex)
@@ -133,7 +138,7 @@ public partial class FilesPage : ContentPage
     private void OnEditModeClicked(object? sender, EventArgs e)
     {
         _editMode = !_editMode;
-        EditBtn.Text = _editMode ? "✔ 完成" : "✏️ 编辑";
+        EditBtn.Text = _editMode ? L.Pick("✔ 完成", "✔ Done") : L.Pick("✏️ 编辑", "✏️ Edit");
         UpdatePathLabel();
     }
 
@@ -156,7 +161,7 @@ public partial class FilesPage : ContentPage
         catch (Exception ex)
         {
             ErrorLog.Error("FilesPage", "文件项点击处理失败", ex);
-            try { await DisplayAlertAsync("操作失败", ex.ToString(), "关闭"); } catch { /* 连弹框都失败就只剩日志 */ }
+            try { await DisplayAlertAsync(L.Pick("操作失败", "Action failed"), ex.ToString(), L.Pick("关闭", "Close")); } catch { /* 连弹框都失败就只剩日志 */ }
         }
     }
 
@@ -168,17 +173,24 @@ public partial class FilesPage : ContentPage
         // 编辑模式：点任意项 → 删除/改名/打包菜单
         if (_editMode)
         {
-            var kind = entry.IsDirectory ? "目录" : "文件";
-            var action = await DisplayActionSheetAsync($"{kind}：{entry.Name}", "取消", null, "重命名", "删除", "创建 ZIP 压缩包");
+            // 四项文案存局部变量、判定按它们分派（与下面那份菜单同一个口径，只是这边没有 Id 列表）；
+            // `case` 标签必须是编译期常量 ⇒ 用 `case var a when a == …`。
+            var kind = entry.IsDirectory ? L.Pick("目录", "Folder") : L.Pick("文件", "File");
+            var renameItem = L.Pick("重命名", "Rename");
+            var deleteItem = L.Pick("删除", "Delete");
+            var zipItem = L.Pick("创建 ZIP 压缩包", "Create ZIP");
+            var action = await DisplayActionSheetAsync(
+                $"{kind}{L.Pick("：", ": ")}{entry.Name}",
+                L.Pick("取消", "Cancel"), null, renameItem, deleteItem, zipItem);
             switch (action)
             {
-                case "重命名":
+                case var a when a == renameItem:
                     await RenameAsync(entry);
                     break;
-                case "删除":
+                case var a when a == deleteItem:
                     await DeleteAsync(entry);
                     break;
-                case "创建 ZIP 压缩包":
+                case var a when a == zipItem:
                     await CreateZipAsync(entry);
                     break;
             }
@@ -209,14 +221,14 @@ public partial class FilesPage : ContentPage
         //   `DisplayActionSheetAsync` 只回传**文案**、不回传索引，所以这里按 Label 反查 Id；
         //   反查用的就是我们刚传进去的那份列表 ⇒ 文案与反查同步变，翻译不会打断它。
         var actions = new List<(string Id, string Label)>();
-        if (entry.CanEdit) actions.Add(("open", "打开"));   // 是文本就该能改（含 `.vml` 与各种可编译源码）
-        if (canCompile) actions.Add(("compile", "VML 编译"));
-        if (canRun) actions.Add(("run", "VML 运行"));
-        actions.Add(("external", "用外部应用打开"));
-        actions.Add(("rename", "重命名"));
-        actions.Add(("delete", "删除"));
+        if (entry.CanEdit) actions.Add(("open", L.Pick("打开", "Open")));   // 是文本就该能改（含 `.vml` 与各种可编译源码）
+        if (canCompile) actions.Add(("compile", L.Pick("VML 编译", "Compile")));
+        if (canRun) actions.Add(("run", L.Pick("VML 运行", "Run")));
+        actions.Add(("external", L.Pick("用外部应用打开", "Open with external app")));
+        actions.Add(("rename", L.Pick("重命名", "Rename")));
+        actions.Add(("delete", L.Pick("删除", "Delete")));
 
-        var picked = await DisplayActionSheetAsync(entry.Name, "取消", null, [.. actions.Select(a => a.Label)]);
+        var picked = await DisplayActionSheetAsync(entry.Name, L.Pick("取消", "Cancel"), null, [.. actions.Select(a => a.Label)]);
 
         // 动作 + 返回值各落一行日志：这一条链路跨了「文件页 → Shell 导航 → 命令行页」三处，
         // 而 `async void` 里出的错以前只会留下一句"点了没反应"。一行 Info 换一个可查的现场，值。
@@ -271,17 +283,23 @@ public partial class FilesPage : ContentPage
         // **询问留在文件页**：得在能看见文件列表的地方问，命令行页那边只管执行。
         if (SandboxFsService.ResolveInSandbox(outRel) is { } existing && File.Exists(existing))
         {
+            // 两项文案同样存局部变量（判定用的就是它们，不能在别处再写一遍中文字面量）。
+            var overwriteItem = L.Pick("覆盖", "Overwrite");
+            var renameItem = L.Pick("重命名", "Rename");
             var choice = await DisplayActionSheetAsync(
-                $"已存在 {Path.GetFileName(outRel)}", "取消", null, "覆盖", "重命名");
-            if (choice == "重命名")
+                L.Pick($"已存在 {Path.GetFileName(outRel)}", $"{Path.GetFileName(outRel)} already exists"),
+                L.Pick("取消", "Cancel"), null, overwriteItem, renameItem);
+            if (choice == renameItem)
             {
-                var renamed = await DisplayPromptAsync("重命名产物", $"输入新的 {outExt} 文件名",
-                    accept: "确定", cancel: "取消",
+                var renamed = await DisplayPromptAsync(
+                    L.Pick("重命名产物", "Rename output"),
+                    L.Pick($"输入新的 {outExt} 文件名", $"Enter a new {outExt} file name"),
+                    accept: L.Pick("确定", "OK"), cancel: L.Pick("取消", "Cancel"),
                     initialValue: Path.GetFileName(outRel), maxLength: 100);
                 if (string.IsNullOrWhiteSpace(renamed)) return;
                 outRel = VmlOutputRename(outRel, renamed.Trim(), outExt);
             }
-            else if (choice != "覆盖") return;
+            else if (choice != overwriteItem) return;
         }
 
         await HandOffToShellAsync(new ShellPage.PendingVmlJob(Compile: true, entry.FullPath, outRel));
@@ -322,8 +340,10 @@ public partial class FilesPage : ContentPage
         // 错误日志任何一处改动都会漂移，而这条链正是「点了没反应」的高发区。
         if (ShellPage.HandOff(job)) return;
 
-        await DisplayAlertAsync("无法打开命令行页",
-            "没找到「命令行」页 —— AppShell.xaml 里的 Route=\"shell\" 可能被改过。", "关闭");
+        await DisplayAlertAsync(L.Pick("无法打开命令行页", "Cannot open the Shell page"),
+            L.Pick("没找到「命令行」页 —— AppShell.xaml 里的 Route=\"shell\" 可能被改过。",
+                "The \"shell\" page was not found — Route=\"shell\" in AppShell.xaml may have been changed."),
+            L.Pick("关闭", "Close"));
     }
 
     /// <summary>把文件/目录打包为 ZIP（同目录下 同名.zip）。</summary>
@@ -333,7 +353,7 @@ public partial class FilesPage : ContentPage
         // 补的是**重入**与**异常**这两条（与 DeleteAsync 保持一致的口径）。
         if (_busy) return;
         _busy = true;
-        ShowBusy($"正在打包「{entry.Name}」…");
+        ShowBusy(L.Pick($"正在打包「{entry.Name}」…", $"Zipping {entry.Name}…"));
         try
         {
             var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
@@ -341,17 +361,21 @@ public partial class FilesPage : ContentPage
             HideBusy();
             if (zipRel == null)
             {
-                await DisplayAlertAsync("打包失败", "同名 .zip 已存在，或目录不可写", "关闭");
+                await DisplayAlertAsync(L.Pick("打包失败", "Zip failed"),
+                    L.Pick("同名 .zip 已存在，或目录不可写", "A .zip with that name already exists, or the folder is not writable"),
+                    L.Pick("关闭", "Close"));
                 return;
             }
             Refresh();
-            await DisplayAlertAsync("已打包", $"已生成 {Path.GetFileName(zipRel)}", "确定");
+            await DisplayAlertAsync(L.Pick("已打包", "Zip created"),
+                L.Pick($"已生成 {Path.GetFileName(zipRel)}", $"Created {Path.GetFileName(zipRel)}"),
+                L.Pick("确定", "OK"));
         }
         catch (Exception ex)
         {
             ErrorLog.Warning("FilesPage", $"打包 {entry.Name} 失败", ex);
             HideBusy();
-            await DisplayAlertAsync("打包失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("打包失败", "Zip failed"), ex.Message, L.Pick("关闭", "Close"));
         }
         finally
         {
@@ -363,19 +387,24 @@ public partial class FilesPage : ContentPage
     private async Task RenameAsync(SandboxFsService.FsEntry entry)
     {
         var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
-        var newName = await DisplayPromptAsync("重命名", "输入新名称", accept: "确定", cancel: "取消",
+        var newName = await DisplayPromptAsync(L.Pick("重命名", "Rename"), L.Pick("输入新名称", "Enter a new name"),
+            accept: L.Pick("确定", "OK"), cancel: L.Pick("取消", "Cancel"),
             initialValue: entry.Name, maxLength: 100);
         if (string.IsNullOrWhiteSpace(newName) || newName == entry.Name) return;
         if (SandboxFsService.Rename(rel, newName))
             Refresh();
         else
-            await DisplayAlertAsync("重命名失败", "目标名称已存在或路径非法", "关闭");
+            await DisplayAlertAsync(L.Pick("重命名失败", "Rename failed"),
+                L.Pick("目标名称已存在或路径非法", "The target name already exists, or the path is invalid"),
+                L.Pick("关闭", "Close"));
     }
 
     private async Task DeleteAsync(SandboxFsService.FsEntry entry)
     {
         var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
-        var confirmed = await DisplayAlertAsync("删除确认", $"确定删除「{entry.Name}」？此操作不可撤销。", "删除", "取消");
+        var confirmed = await DisplayAlertAsync(L.Pick("删除确认", "Confirm delete"),
+            L.Pick($"确定删除「{entry.Name}」？此操作不可撤销。", $"Delete {entry.Name}? This cannot be undone."),
+            L.Pick("删除", "Delete"), L.Pick("取消", "Cancel"));
         if (!confirmed) return;
 
         // ⚠ **删除必须离开 UI 线程**。`SandboxFsService.Delete` 里是
@@ -385,20 +414,21 @@ public partial class FilesPage : ContentPage
         //    顺带挡重入：删除期间连点会叠出好几趟递归遍历，越叠越慢。
         if (_busy) return;
         _busy = true;
-        ShowBusy($"正在删除「{entry.Name}」…");
+        ShowBusy(L.Pick($"正在删除「{entry.Name}」…", $"Deleting {entry.Name}…"));
         try
         {
             var ok = await Task.Run(() => SandboxFsService.Delete(rel));
             HideBusy();                       // 先撤遮罩再弹结果，免得弹框压在遮罩下面
             if (ok) Refresh();
-            else await DisplayAlertAsync("删除失败", "无法删除该项", "关闭");
+            else await DisplayAlertAsync(L.Pick("删除失败", "Delete failed"),
+                L.Pick("无法删除该项", "Could not delete this item"), L.Pick("关闭", "Close"));
         }
         catch (Exception ex)
         {
             // 删到一半失败（被占用 / 无权限）不能把整个 App 带崩，如实报出来
             ErrorLog.Warning("FilesPage", $"删除 {rel} 失败", ex);
             HideBusy();
-            await DisplayAlertAsync("删除失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("删除失败", "Delete failed"), ex.Message, L.Pick("关闭", "Close"));
         }
         finally
         {
@@ -419,7 +449,10 @@ public partial class FilesPage : ContentPage
         var probe = SandboxFsService.ProbeText(rel);
         if (!probe.IsText)
         {
-            await DisplayAlertAsync("无法打开", $"无法在编辑器中打开 {entry.Name}（{probe.Reason}）", "关闭");
+            await DisplayAlertAsync(L.Pick("无法打开", "Cannot open"),
+                L.Pick($"无法在编辑器中打开 {entry.Name}（{probe.Reason}）",
+                    $"Cannot open {entry.Name} in the editor ({probe.Reason})"),
+                L.Pick("关闭", "Close"));
             return;
         }
 
@@ -431,7 +464,10 @@ public partial class FilesPage : ContentPage
     {
         var ok = await FileOpenService.OpenWithExternalAsync(entry.FullPath, entry.Name);
         if (!ok)
-            await DisplayAlertAsync("无法打开", $"没有可打开 {entry.Name} 的应用，或文件不在可共享位置", "关闭");
+            await DisplayAlertAsync(L.Pick("无法打开", "Cannot open"),
+                L.Pick($"没有可打开 {entry.Name} 的应用，或文件不在可共享位置",
+                    $"No app can open {entry.Name}, or the file is not in a shareable location"),
+                L.Pick("关闭", "Close"));
     }
 
     /// <summary>在当前目录新建空文件。</summary>
@@ -444,8 +480,9 @@ public partial class FilesPage : ContentPage
 
     private async Task CreateNewAsync(bool isDirectory)
     {
-        var prompt = isDirectory ? "新建文件夹" : "新建文件";
-        var name = await DisplayPromptAsync(prompt, "输入名称", accept: "确定", cancel: "取消", maxLength: 100);
+        var prompt = isDirectory ? L.Pick("新建文件夹", "New folder") : L.Pick("新建文件", "New file");
+        var name = await DisplayPromptAsync(prompt, L.Pick("输入名称", "Enter a name"),
+            accept: L.Pick("确定", "OK"), cancel: L.Pick("取消", "Cancel"), maxLength: 100);
         if (string.IsNullOrWhiteSpace(name)) return;
 
         var rel = string.IsNullOrEmpty(_currentDir)
@@ -454,7 +491,8 @@ public partial class FilesPage : ContentPage
 
         var ok = isDirectory ? SandboxFsService.CreateDir(rel) : SandboxFsService.CreateFile(rel);
         if (ok) Refresh();
-        else await DisplayAlertAsync("新建失败", "名称已存在或路径非法", "关闭");
+        else await DisplayAlertAsync(L.Pick("新建失败", "Create failed"),
+            L.Pick("名称已存在或路径非法", "The name already exists, or the path is invalid"), L.Pick("关闭", "Close"));
     }
 
     private async void OnImportClicked(object? sender, EventArgs e)
@@ -463,17 +501,17 @@ public partial class FilesPage : ContentPage
         {
             var result = await FilePicker.Default.PickAsync(new PickOptions
             {
-                PickerTitle = "选择要导入沙箱的文件",
+                PickerTitle = L.Pick("选择要导入沙箱的文件", "Choose a file to import into the workspace"),
             });
             if (result == null) return;
 
             var rel = await SandboxFsService.ImportAsync(result);
             Refresh();
-            await DisplayAlertAsync("已导入", rel, "确定");
+            await DisplayAlertAsync(L.Pick("已导入", "Imported"), rel, L.Pick("确定", "OK"));
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("导入失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 }

@@ -19,8 +19,8 @@ public static class MauiCommands
     {
         public override string Name => "/topage";
         public override string[] Aliases => ["/go"];
-        public override string Description => "打开界面：home/chat/files/settings/sessions/panel/modelpicker/providers/gitsync/about/editor";
-        public override string? Usage => "/topage <页面>";
+        public override string Description => L.Pick("打开界面：home/chat/files/settings/sessions/panel/modelpicker/providers/gitsync/about/editor", "Open a screen: home/chat/files/settings/sessions/panel/modelpicker/providers/gitsync/about/editor");
+        public override string? Usage => L.Pick("/topage <页面>", "/topage <page>");
         public override bool IsNavCommand => true;
 
         public override async Task ExecuteAsync(string args, ChatScreen screen)

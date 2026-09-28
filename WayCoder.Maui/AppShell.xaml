@@ -5,18 +5,19 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:WayCoder.Maui"
     xmlns:pages="clr-namespace:WayCoder.Maui.Pages"
-    Title="WayCoder 道码">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='WayCoder 道码', En='WayCoder'}">
 
     <TabBar>
         <!-- 首页 Tab：欢迎/引导 + 配置状态 -->
-        <Tab Title="首页">
+        <Tab Title="{markup:Tr Zh='首页', En='Home'}">
             <Tab.Icon>
                 <FontImageSource Glyph="🏠" />
             </Tab.Icon>
             <ShellContent ContentTemplate="{DataTemplate local:MainPage}" Route="home" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 对话 Tab：流式对话 -->
-        <Tab Title="对话">
+        <Tab Title="{markup:Tr Zh='对话', En='Chat'}">
             <Tab.Icon>
                 <FontImageSource Glyph="💬" />
             </Tab.Icon>
@@ -29,21 +30,21 @@
              符号，Android 的 Noto Color Emoji 没有它的彩色字形，回落成文本样式后
              就是一个空心方块 —— 用户实测「看不出是什么类型」。
              Tab 图标一律选 **U+1F300 以上 emoji 块**里的（那里 100% 有彩色字形）。 -->
-        <Tab Title="命令行">
+        <Tab Title="{markup:Tr Zh='命令行', En='Shell'}">
             <Tab.Icon>
                 <FontImageSource Glyph="💻" />
             </Tab.Icon>
             <ShellContent ContentTemplate="{DataTemplate pages:ShellPage}" Route="shell" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 文件 Tab：沙箱文件浏览 -->
-        <Tab Title="文件">
+        <Tab Title="{markup:Tr Zh='文件', En='Files'}">
             <Tab.Icon>
                 <FontImageSource Glyph="📁" />
             </Tab.Icon>
             <ShellContent ContentTemplate="{DataTemplate pages:FilesPage}" Route="files" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 设置 Tab：服务商 / 模型 / API Key -->
-        <Tab Title="设置">
+        <Tab Title="{markup:Tr Zh='设置', En='Settings'}">
             <Tab.Icon>
                 <FontImageSource Glyph="⚙️" />
             </Tab.Icon>

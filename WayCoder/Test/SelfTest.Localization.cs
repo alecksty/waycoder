@@ -163,6 +163,35 @@ public static partial class SelfTest
                 }
             }
 
+            // ── ⑤ 公理 A2：拿「文案」当「判据」的地方，中英两份都要认 ──
+            // 这是双语化里**唯一会静默损坏功能**的一类：文案翻了、判据没跟 ⇒ 判据恒假，
+            // 不报错、不留痕。2026-09-28 实测踩到两处 ——
+            //   ① `MauiVml` 的编译失败前缀被翻 ⇒ `WorkReporter` 的 `Contains("编译失败")` 恒假
+            //      ⇒ 工作汇报的错误数静默少算；
+            //   ② `VmlDiagnostics.Parse` 按字面量剥前缀 ⇒ 英文前缀剥不掉、气泡里多一截。
+            // 这条判据从**消费侧**断：英文标记必须与中文标记一样被认出来。
+            {
+                // ⚠ 消息必须是 `role=assistant` **且带 tool_calls** —— 统计表只在
+                //   `TotalActions > 0` 时才渲染（第一版喂了 role=tool 的消息，中英双红，
+                //   差点把"判据形状写错"看成"功能真的坏了"）。
+                static List<JNode> MsgWith(string content) =>
+                [
+                    JNode.Object()
+                        .Set("role", "assistant")
+                        .Set("content", content)
+                        .Set("tool_calls", JNode.Array().Add(JNode.Object()
+                            .Set("function", JNode.Object().Set("name", "bash").Set("arguments", "{}")))),
+                ];
+
+                Check("WorkReporter[en]: 认得英文的「Compile failed」错误标记"
+                      + "（只认中文 ⇒ 英文会话的错误数静默少算、报告数字凭空变小）",
+                    WorkReporter.Generate(MsgWith("⚠️ Compile failed: main.c:3:5: error: bad token"))
+                        .Contains("| ❌ 错误 | 1 |"));
+                Check("WorkReporter[zh]: 认得中文的「编译失败」错误标记",
+                    WorkReporter.Generate(MsgWith("⚠️ 编译失败：main.c:3:5: error: bad token"))
+                        .Contains("| ❌ 错误 | 1 |"));
+            }
+
             // 教学模式块是**按开关追加**的，单独取一次（默认不开，上面那条走不到它）
             var teach = SystemPrompt.TeachBlockForTest;
             Check("教学模式块[en]: 无中文", !HasCjk(teach));

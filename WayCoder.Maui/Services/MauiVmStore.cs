@@ -113,9 +113,11 @@ public static class MauiVmStore
 
     /// <summary>设置页摘要行用的一句话。</summary>
     /// <summary>超时档位的**显示文本**（唯一实现）—— **`0` 是"不限"，不是"0 秒"**。</summary>
-    public static string TimeoutText(int v) => v <= 0 ? "不限" : $"{v} 秒";
+    public static string TimeoutText(int v)
+        => v <= 0 ? L.Pick("不限", "Unlimited") : L.Pick($"{v} 秒", $"{v}s");
 
     /// <summary>设置页摘要行用的一句话。</summary>
     public static string Summary()
-        => $"内存 {MemoryMb}M · 栈 {StackKb}K · 超时 {TimeoutText(EditorTimeoutSec)}/{TimeoutText(ShellTimeoutSec)}";
+        => L.Pick($"内存 {MemoryMb}M · 栈 {StackKb}K · 超时 {TimeoutText(EditorTimeoutSec)}/{TimeoutText(ShellTimeoutSec)}",
+                  $"Memory {MemoryMb}MB · Stack {StackKb}KB · Timeout {TimeoutText(EditorTimeoutSec)}/{TimeoutText(ShellTimeoutSec)}");
 }

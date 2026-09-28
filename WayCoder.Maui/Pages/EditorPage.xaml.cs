@@ -131,7 +131,7 @@ public partial class EditorPage : ContentPage
             if (_editLine >= 0) SnapFontSizeForEditing(toast: false);
 
             MauiEditorStore.SetFontSize(EditorTypography.FontSize);   // 手势结束才落盘一次
-            ShowToast($"字号 {EditorTypography.FontSize:0.#}");
+            ShowToast(L.Pick($"字号 {EditorTypography.FontSize:0.#}", $"Font size {EditorTypography.FontSize:0.#}"));
         };
         // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
         // 而且滑动本身就意味着「我要浏览」——先把这一行提交掉再滚，最省心。
@@ -210,7 +210,7 @@ public partial class EditorPage : ContentPage
                 {
                     ErrorLog.Warning("EditorPage",
                         "行输入框不是 BackspaceAwareEditText —— 行首退格 / 选区删除会失效", null);
-                    ShowToast("⚠ 键盘退格增强未生效（输入框类型不符），请反馈", 5000);
+                    ShowToast(L.Pick("⚠ 键盘退格增强未生效（输入框类型不符），请反馈", "⚠ Backspace enhancement is inactive (unexpected input box type). Please report this."), 5000);
                 }
             }
 #elif IOS || MACCATALYST
@@ -474,16 +474,8 @@ public partial class EditorPage : ContentPage
         //   （MauiEditorStore），捏到 8 号或 96 号之后没有这条路就回不来了。
         var items = new List<string>
         {
-            "💾  保存",
-            "📄  另存为…",
-            "✨  新建文件…",
-            "✎  切换 编辑/只读",
-            "↶  撤销",
-            "↷  重做",
-            "🔍  查找…",
-            "🔁  替换…",
-            "🔢  跳到行…",
-            "📖  大纲…",
+            MenuSave, MenuSaveAs, MenuNewFile, MenuToggleEdit, MenuUndo,
+            MenuRedo, MenuFind, MenuReplace, MenuGoToLine, MenuOutline,
         };
 
         // 「预览 / 运行」这一项**跟着文件类型走**，而且与工具栏那一格**同源**
@@ -491,37 +483,42 @@ public partial class EditorPage : ContentPage
         var actionKind = ActionForCurrentFile();
         var actionLabel = actionKind switch
         {
-            EditorAction.Preview => "👁  Markdown 预览",
-            EditorAction.Run => "▶  运行",
+            EditorAction.Preview => MenuPreview,
+            EditorAction.Run => MenuRun,
             _ => null,
         };
         if (actionLabel != null) items.Add(actionLabel);
 
         items.Add(AssistMenuLabel);
-        items.Add("📋  全选并复制");
-        items.Add($"↩️  重置字号（当前 {EditorTypography.FontSize:0.#}）");
+        items.Add(MenuCopyAll);
+        items.Add(ResetFontSizeLabel);
 #if DEBUG
         // 调试构建专用：灌一批假诊断，让气泡的观感/堆叠/避让/关闭**不必等一分钟的编译**
         // 就能在真机上验收。与 ShowDebugHud 同类，是长期的验收工具。
         items.Add(InjectDiagnosticsLabel);
 #endif
 
-        var choice = await DisplayActionSheetAsync("编辑器", "取消", null, [.. items]);
+        var choice = await DisplayActionSheetAsync(L.Pick("编辑器", "Editor"), L.Pick("取消", "Cancel"), null, [.. items]);
 
+        // ⚠ 判定比的就是**上面那份文案**，不另写字面量：`DisplayActionSheetAsync` 只回传文案、
+        //   不回传索引，所以「显示的」与「比对的」必须是同一个值 —— 各写一遍的话，翻文案时
+        //   判定那半边不会跟着变，表现为「点了没反应」且零报错（见 OnReplaceClicked 同款注释）。
+        //   而文案是 `L.Pick(...)`（运行期取值、不是编译期常量）⇒ `case "字面量":` 那种写法编不过
+        //   （CS0150），只能走 `case var c when c == X:` 这种带守卫的模式匹配。
         switch (choice)
         {
-            case "💾  保存": await SaveAsync(); break;
-            case "📄  另存为…": await SaveAsAsync(); break;
-            case "✨  新建文件…": await NewFileAsync(); break;
-            case "✎  切换 编辑/只读": OnEditClicked(this, EventArgs.Empty); break;
-            case "↶  撤销": OnUndoClicked(this, EventArgs.Empty); break;
-            case "↷  重做": OnRedoClicked(this, EventArgs.Empty); break;
-            case "🔍  查找…": OnFindClicked(this, EventArgs.Empty); break;
-            case "🔁  替换…": OnReplaceClicked(this, EventArgs.Empty); break;
-            case "🔢  跳到行…": await GoToLineAsync(); break;
-            case "📖  大纲…": OnOutlineClicked(this, EventArgs.Empty); break;
-            case AssistMenuLabel: ToggleAssistBar(); break;
-            case "📋  全选并复制": await CopyAllAsync(); break;
+            case var c when c == MenuSave: await SaveAsync(); break;
+            case var c when c == MenuSaveAs: await SaveAsAsync(); break;
+            case var c when c == MenuNewFile: await NewFileAsync(); break;
+            case var c when c == MenuToggleEdit: OnEditClicked(this, EventArgs.Empty); break;
+            case var c when c == MenuUndo: OnUndoClicked(this, EventArgs.Empty); break;
+            case var c when c == MenuRedo: OnRedoClicked(this, EventArgs.Empty); break;
+            case var c when c == MenuFind: OnFindClicked(this, EventArgs.Empty); break;
+            case var c when c == MenuReplace: OnReplaceClicked(this, EventArgs.Empty); break;
+            case var c when c == MenuGoToLine: await GoToLineAsync(); break;
+            case var c when c == MenuOutline: OnOutlineClicked(this, EventArgs.Empty); break;
+            case var c when c == AssistMenuLabel: ToggleAssistBar(); break;
+            case var c when c == MenuCopyAll: await CopyAllAsync(); break;
             case var c when c == actionLabel && actionKind == EditorAction.Preview:
                 OnPreviewClicked(this, EventArgs.Empty); break;
             case var c when c == actionLabel && actionKind == EditorAction.Run:
@@ -532,6 +529,33 @@ public partial class EditorPage : ContentPage
             case var c when c != null && c.StartsWith("↩️"): ResetFontSize(); break;
         }
     }
+
+    /// <summary>
+    /// 菜单各项文案。**列表与判定引用同一份**（理由见 <see cref="OnMenuClicked"/> 里的说明）。
+    ///
+    /// <para>
+    /// ⚠ 一律写成表达式体属性 <c>=&gt;</c>（每次访问现算），**不能是 <c>static readonly</c> 字段** ——
+    /// 后者会把界面语言冻在首次访问那一刻（本仓 <c>UI/Shared/Lang.cs</c> 里那条硬规则）。
+    /// </para>
+    /// </summary>
+    private static string MenuSave => L.Pick("💾  保存", "💾  Save");
+    private static string MenuSaveAs => L.Pick("📄  另存为…", "📄  Save as…");
+    private static string MenuNewFile => L.Pick("✨  新建文件…", "✨  New file…");
+    private static string MenuToggleEdit => L.Pick("✎  切换 编辑/只读", "✎  Toggle edit/read-only");
+    private static string MenuUndo => L.Pick("↶  撤销", "↶  Undo");
+    private static string MenuRedo => L.Pick("↷  重做", "↷  Redo");
+    private static string MenuFind => L.Pick("🔍  查找…", "🔍  Find…");
+    private static string MenuReplace => L.Pick("🔁  替换…", "🔁  Replace…");
+    private static string MenuGoToLine => L.Pick("🔢  跳到行…", "🔢  Go to line…");
+    private static string MenuOutline => L.Pick("📖  大纲…", "📖  Outline…");
+    private static string MenuPreview => L.Pick("👁  Markdown 预览", "👁  Markdown preview");
+    private static string MenuRun => L.Pick("▶  运行", "▶  Run");
+    private static string MenuCopyAll => L.Pick("📋  全选并复制", "📋  Select all and copy");
+
+    /// <summary>「重置字号」那一项 —— 只有它带当前字号，所以单独一个属性而不是常量。</summary>
+    private static string ResetFontSizeLabel
+        => L.Pick($"↩️  重置字号（当前 {EditorTypography.FontSize:0.#}）",
+                  $"↩️  Reset font size (current {EditorTypography.FontSize:0.#})");
 
     /// <summary>调试构建才有的一项（菜单与 switch 两处引用同一个常量，别各写字面量）。</summary>
     private const string InjectDiagnosticsLabel = "🧪  注入测试诊断";
@@ -627,17 +651,17 @@ public partial class EditorPage : ContentPage
 
         // 菜单路径弹轻提示（它过 2 秒会自己把状态栏恢复成 UpdateStatus）；
         // 捏合路径没有提示，得自己刷一下状态栏 —— 否则要等下一次光标/滚动事件才看到新字号。
-        if (toast) ShowToast($"字号 {snapped:F0}");
+        if (toast) ShowToast(L.Pick($"字号 {snapped:F0}", $"Font size {snapped:F0}"));
         else UpdateStatus();
     }
 
     private async Task SaveAsAsync()
     {
-        if (_editable == null) { await DisplayAlertAsync("另存为", "只读文件不能另存", "关闭"); return; }
+        if (_editable == null) { await DisplayAlertAsync(L.Pick("另存为", "Save as"), L.Pick("只读文件不能另存", "Read-only files can't be saved as"), L.Pick("关闭", "Close")); return; }
 
         var current = Path.GetFileName(_relPath);
-        var name = await DisplayPromptAsync("另存为", "新文件名（可带子目录）",
-            accept: "保存", cancel: "取消", initialValue: current, maxLength: 200);
+        var name = await DisplayPromptAsync(L.Pick("另存为", "Save as"), L.Pick("新文件名（可带子目录）", "New file name (subdirectories allowed)"),
+            accept: L.Pick("保存", "Save"), cancel: L.Pick("取消", "Cancel"), initialValue: current, maxLength: 200);
         if (string.IsNullOrWhiteSpace(name)) return;
         name = name.Trim();
 
@@ -648,7 +672,7 @@ public partial class EditorPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("另存为失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("另存为失败", "Save as failed"), ex.Message, L.Pick("关闭", "Close"));
             return;
         }
 
@@ -659,7 +683,7 @@ public partial class EditorPage : ContentPage
         FileLabel.Text = name;
         Title = Path.GetFileName(name);
         UpdateStatus();
-        ShowToast($"已另存为 {name}");
+        ShowToast(L.Pick($"已另存为 {name}", $"Saved as {name}"));
     }
 
     private async Task NewFileAsync()
@@ -669,8 +693,8 @@ public partial class EditorPage : ContentPage
         // 等于白填一次。
         if (!await ConfirmUnsavedAsync()) return;
 
-        var name = await DisplayPromptAsync("新建文件", "文件名（可带子目录，如 src/a.cs）",
-            accept: "创建", cancel: "取消", maxLength: 200);
+        var name = await DisplayPromptAsync(L.Pick("新建文件", "New file"), L.Pick("文件名（可带子目录，如 src/a.cs）", "File name (subdirectories allowed, e.g. src/a.cs)"),
+            accept: L.Pick("创建", "Create"), cancel: L.Pick("取消", "Cancel"), maxLength: 200);
         if (string.IsNullOrWhiteSpace(name)) return;
         name = name.Trim();
 
@@ -680,7 +704,7 @@ public partial class EditorPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("新建失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("新建失败", "Create failed"), ex.Message, L.Pick("关闭", "Close"));
             return;
         }
         await LoadAsync(name);
@@ -689,8 +713,8 @@ public partial class EditorPage : ContentPage
     private async Task GoToLineAsync()
     {
         if (_doc == null) return;
-        var input = await DisplayPromptAsync("跳到行", $"行号（1 ~ {_doc.LineCount:N0}）",
-            accept: "跳转", cancel: "取消", keyboard: Keyboard.Numeric, maxLength: 12);
+        var input = await DisplayPromptAsync(L.Pick("跳到行", "Go to line"), L.Pick($"行号（1 ~ {_doc.LineCount:N0}）", $"Line number (1-{_doc.LineCount:N0})"),
+            accept: L.Pick("跳转", "Go"), cancel: L.Pick("取消", "Cancel"), keyboard: Keyboard.Numeric, maxLength: 12);
         if (!long.TryParse(input, out var line)) return;
 
         line = Math.Clamp(line, 1, Math.Max(1, _doc.LineCount));
@@ -710,7 +734,7 @@ public partial class EditorPage : ContentPage
         _fullPath = SandboxFsService.ResolveInSandbox(relPath) ?? "";
         if (_fullPath.Length == 0 || !File.Exists(_fullPath))
         {
-            await DisplayAlertAsync("无法打开", $"文件不存在或路径越界：{relPath}", "关闭");
+            await DisplayAlertAsync(L.Pick("无法打开", "Can't open"), L.Pick($"文件不存在或路径越界：{relPath}", $"File not found or path is out of bounds: {relPath}"), L.Pick("关闭", "Close"));
             return;
         }
 
@@ -723,7 +747,7 @@ public partial class EditorPage : ContentPage
 
         if (src == null)
         {
-            await DisplayAlertAsync("无法打开", reason, "关闭");
+            await DisplayAlertAsync(L.Pick("无法打开", "Can't open"), reason, L.Pick("关闭", "Close"));
             return;
         }
 
@@ -772,7 +796,7 @@ public partial class EditorPage : ContentPage
 #endif
 
         if (!_canEdit)
-            ShowToast($"大文件以只读方式打开（{FormatSize(_fileBytes)}），可流畅滚动查看");
+            ShowToast(L.Pick($"大文件以只读方式打开（{FormatSize(_fileBytes)}），可流畅滚动查看", $"Large file opened read-only ({FormatSize(_fileBytes)}); smooth scrolling still works"));
     }
 
     /// <summary>显示「文件打开中…」遮罩并在其间完成打开（含大文件的索引建立）。</summary>
@@ -780,8 +804,8 @@ public partial class EditorPage : ContentPage
     {
         bool big = _fileBytes > 4L * 1024 * 1024;
         LoadingText.Text = big
-            ? $"文件打开中…\n{FormatSize(_fileBytes)}，正在建立行索引"
-            : "文件打开中…";
+            ? L.Pick($"文件打开中…\n{FormatSize(_fileBytes)}，正在建立行索引", $"Opening file…\n{FormatSize(_fileBytes)}, building the line index")
+            : L.Pick("文件打开中…", "Opening file…");
         LoadingMask.IsVisible = true;
         Canvas.IsVisible = false;
 
@@ -993,9 +1017,12 @@ public partial class EditorPage : ContentPage
     {
         if (!_canEdit)
         {
-            _ = DisplayAlertAsync("只读",
-                $"文件 {FormatSize(_fileBytes)} 超过可编辑上限（{MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024)}MB）。\n" +
-                "编辑需要把内容装进内存，再大就无法保证不闪退 —— 可在「设置 › 编辑器」里调高上限。", "知道了");
+            _ = DisplayAlertAsync(L.Pick("只读", "Read-only"),
+                L.Pick($"文件 {FormatSize(_fileBytes)} 超过可编辑上限（{MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024)}MB）。\n" +
+                       "编辑需要把内容装进内存，再大就无法保证不闪退 —— 可在「设置 › 编辑器」里调高上限。",
+                       $"File {FormatSize(_fileBytes)} exceeds the editable limit ({MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024)}MB).\n" +
+                       "Editing loads the whole file into memory; beyond that size a crash cannot be ruled out — you can raise the limit in Settings › Editor."),
+                L.Pick("知道了", "Got it"));
             return;
         }
 
@@ -1004,8 +1031,8 @@ public partial class EditorPage : ContentPage
         // 只拦「进编辑」这一个方向：已经在编辑态时按它是想退出，退出不该被拦。
         if (!_readOnly && _fileReadOnly)
         {
-            _ = DisplayAlertAsync("只读文件",
-                $"{_relPath}\n\n该文件是只读文件（文件属性为只读），不可编辑。", "知道了");
+            _ = DisplayAlertAsync(L.Pick("只读文件", "Read-only file"),
+                L.Pick($"{_relPath}\n\n该文件是只读文件（文件属性为只读），不可编辑。", $"{_relPath}\n\nThis file has the read-only attribute and can't be edited."), L.Pick("知道了", "Got it"));
             return;
         }
 
@@ -1038,11 +1065,16 @@ public partial class EditorPage : ContentPage
         if (!_modified) return true;
         CommitEditingLine();   // 正在编辑的那一行还在输入框里，先落进缓冲区，否则「保存」会漏掉它
 
-        var choice = await DisplayActionSheetAsync("文件已修改", "取消", null, "保存", "不保存");
+        // ⚠ 选项文案存局部变量、判定也用它们比（同 OnReplaceClicked：弹层只回传文案、不回传索引）。
+        //   写成 `case "字面量":` 也编不过 —— `L.Pick(...)` 是运行期取值、不是编译期常量。
+        var saveLabel = L.Pick("保存", "Save");
+        var dontSaveLabel = L.Pick("不保存", "Do not save");
+        var choice = await DisplayActionSheetAsync(L.Pick("文件已修改", "File modified"),
+            L.Pick("取消", "Cancel"), null, saveLabel, dontSaveLabel);
         return choice switch
         {
-            "保存" => await WriteBackAsync(),   // 存失败要拦下（WriteBackAsync 已弹过原因）
-            "不保存" => true,
+            var c when c == saveLabel => await WriteBackAsync(),   // 存失败要拦下（WriteBackAsync 已弹过原因）
+            var c when c == dontSaveLabel => true,
             _ => false,                          // 「取消」或被点遮罩关掉
         };
     }
@@ -1052,7 +1084,7 @@ public partial class EditorPage : ContentPage
     private async Task SaveAsync()
     {
         if (await WriteBackAsync())
-            await DisplayAlertAsync("已保存", _relPath, "确定");
+            await DisplayAlertAsync(L.Pick("已保存", "Saved"), _relPath, L.Pick("确定", "OK"));
     }
 
     /// <summary>把缓冲区写回文件（<b>不弹成功提示</b>）。成功返回 true；失败弹一次原因并返回 false。</summary>
@@ -1072,7 +1104,7 @@ public partial class EditorPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("保存失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("保存失败", "Save failed"), ex.Message, L.Pick("关闭", "Close"));
             return false;
         }
     }
@@ -1238,10 +1270,10 @@ public partial class EditorPage : ContentPage
     private async void OnSelCopyClicked(object? sender, EventArgs e)
     {
         var text = Canvas.GetSelectedText();
-        if (text.Length == 0) { ShowToast("没有选中内容"); return; }
+        if (text.Length == 0) { ShowToast(L.Pick("没有选中内容", "Nothing selected")); return; }
         // 剪贴板仍走系统（那是**数据**通道，不是 UI）；复制完收起选区，与桌面编辑器一致
         // ⚠ 大文件里没读进内存的行拿不到 —— 如实说，别报一个「已复制 N 字符」让人以为复制全了
-        if (Canvas.SelectedTextTruncated) ShowToast("选区太大，只复制了能读到的部分", 2600);
+        if (Canvas.SelectedTextTruncated) ShowToast(L.Pick("选区太大，只复制了能读到的部分", "Selection too large; only the readable part was copied"), 2600);
         await CopyTextAsync(text);
         Canvas.ClearSelection();
         UpdateSelectionBar();
@@ -1306,8 +1338,8 @@ public partial class EditorPage : ContentPage
 
     private void OnSelDeleteClicked(object? sender, EventArgs e)
     {
-        if (!_canEdit || _readOnly) { ShowToast("只读文件不能删除"); return; }
-        if (!DeleteSelectionCore()) ShowToast("没有选中内容");
+        if (!_canEdit || _readOnly) { ShowToast(L.Pick("只读文件不能删除", "Read-only file can't be deleted")); return; }
+        if (!DeleteSelectionCore()) ShowToast(L.Pick("没有选中内容", "Nothing selected"));
     }
 
     /// <summary>
@@ -1390,8 +1422,8 @@ public partial class EditorPage : ContentPage
     {
         // 粘贴到**正在编辑的那一行**的光标处；没在编辑就先进入该行编辑
         var text = await Clipboard.GetTextAsync();
-        if (string.IsNullOrEmpty(text)) { ShowToast("剪贴板是空的"); return; }
-        if (!_canEdit || _readOnly) { ShowToast("只读文件不能粘贴"); return; }
+        if (string.IsNullOrEmpty(text)) { ShowToast(L.Pick("剪贴板是空的", "Clipboard is empty")); return; }
+        if (!_canEdit || _readOnly) { ShowToast(L.Pick("只读文件不能粘贴", "Read-only file: can't paste")); return; }
 
         // ⚠ 用上面算好的 `line`（已经夹到 ≥1），**别把 `Canvas.CaretLine` 直接传进去** ——
         // 它可能是 -1（比如刚 SetDocument 过、选区被静默清掉），那样 `BeginEditLine(-1)` 会把
@@ -1452,8 +1484,11 @@ public partial class EditorPage : ContentPage
     /// <summary>不碰它多久就缩小半透明（毫秒）。用户指定 10 秒。</summary>
     private const int AssistIdleMs = 10_000;
 
-    /// <summary>菜单里那一项的文案 —— 菜单列表与 switch 两处引用同一个常量，别各写字面量。</summary>
-    private const string AssistMenuLabel = "⌨  辅助输入条（开关）";
+    /// <summary>
+    /// 菜单里那一项的文案 —— 菜单列表与 switch 两处引用**同一个属性**，别各写字面量。
+    /// ⚠ 表达式体（每次访问现算），不是 <c>static readonly</c>（那会把语言冻在首次访问那一刻）。
+    /// </summary>
+    private static string AssistMenuLabel => L.Pick("⌨  辅助输入条（开关）", "⌨  Assist input bar (toggle)");
 
     private IDispatcherTimer? _assistIdle;
     private bool _assistPlaced;                  // 首次显示时给一个初始位置
@@ -2050,10 +2085,10 @@ public partial class EditorPage : ContentPage
     private async void AssistBackspaceAsync()
     {
         AssistTouch();
-        if (_editable == null) { ShowToast("大文件以只读方式打开，不能编辑"); return; }
+        if (_editable == null) { ShowToast(L.Pick("大文件以只读方式打开，不能编辑", "Large file opened read-only; can't edit")); return; }
         if (_readOnly)
         {
-            if (!_canEdit || _fileReadOnly) { ShowToast("这个文件不能编辑"); return; }
+            if (!_canEdit || _fileReadOnly) { ShowToast(L.Pick("这个文件不能编辑", "This file can't be edited")); return; }
             SetReadOnly(false);
         }
 
@@ -2065,7 +2100,7 @@ public partial class EditorPage : ContentPage
             BeginEditLine(line);
             await Task.Delay(60);
         }
-        if (_editLine < 0) { ShowToast("先点一下要编辑的那一行"); return; }
+        if (_editLine < 0) { ShowToast(L.Pick("先点一下要编辑的那一行", "Tap the line you want to edit first")); return; }
 
         int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
         if (at == 0)
@@ -2214,7 +2249,7 @@ public partial class EditorPage : ContentPage
         AssistTouch();
         if (text.Length == 0) return;
 
-        if (_editable == null) { ShowToast("大文件以只读方式打开，不能输入"); return; }
+        if (_editable == null) { ShowToast(L.Pick("大文件以只读方式打开，不能输入", "Large file opened read-only; can't type")); return; }
         if (_readOnly)
         {
             // ⚠ 编辑器**打开时默认是只读**，所以原来那条「只读就拒绝」的守卫会让辅助条
@@ -2222,7 +2257,7 @@ public partial class EditorPage : ContentPage
             // 辅助输入条本来就是**打字辅助**：点它就是要输入，不该先逼用户去按一下工具栏的 ✎。
             // 这里隐式切到编辑态，与「点某一行就开始编辑」是同一个语义。
             // 只有**真的改不了**的两种情形才拒绝（超可编辑上限 / 文件属性只读）。
-            if (!_canEdit || _fileReadOnly) { ShowToast("这个文件不能编辑"); return; }
+            if (!_canEdit || _fileReadOnly) { ShowToast(L.Pick("这个文件不能编辑", "This file can't be edited")); return; }
             SetReadOnly(false);
         }
 
@@ -2234,7 +2269,7 @@ public partial class EditorPage : ContentPage
         }
         // 到这一步还没进编辑态 ⇒ 说明上面哪一环没成。**别静默失败**：
         // 「点了没反应」是手机上最难查的一类症状，这里直接把原因说出来。
-        if (_editLine < 0) { ShowToast("没能进入编辑态，先点一下要插入的那一行"); return; }
+        if (_editLine < 0) { ShowToast(L.Pick("没能进入编辑态，先点一下要插入的那一行", "Not in edit mode; tap the line you want to insert into first")); return; }
 
         int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
         var cur = LineEditor.Text ?? "";
@@ -2248,7 +2283,7 @@ public partial class EditorPage : ContentPage
     {
         if (string.IsNullOrEmpty(text)) return;
         await Clipboard.SetTextAsync(text);
-        ShowToast($"已复制 {text.Length} 字符");
+        ShowToast(L.Pick($"已复制 {text.Length} 字符", $"Copied {text.Length} characters"));
     }
 
     private async Task CopyAllAsync()
@@ -2339,7 +2374,7 @@ public partial class EditorPage : ContentPage
         ApplyFontSize(snapped, persist: true, toast: false);
         // 明确告诉用户字号被对齐了 —— 否则「一点编辑文字就变大/变小」会像 bug。
         // 捏合路径传 false：那边紧接着会报「字号 N」，已经把结果说清楚了，别弹两条。
-        if (toast) ShowToast($"字号已对齐到 {snapped:F0}（编辑时用整数号，光标才对得准）");
+        if (toast) ShowToast(L.Pick($"字号已对齐到 {snapped:F0}（编辑时用整数号，光标才对得准）", $"Font size snapped to {snapped:F0} (integer sizes keep the caret aligned while editing)"));
     }
 
     private void BeginEditLine(long oneBased, float xInLine = -1f)
@@ -2538,7 +2573,7 @@ public partial class EditorPage : ContentPage
     /// 「按钮始终可点、只是说清原因」是同一条既有原则。
     /// </summary>
     private void ToastWhyNotEditable()
-        => ShowToast(_canEdit ? "只读模式：点这支笔切到编辑" : "大文件以只读方式打开，不能修改");
+        => ShowToast(_canEdit ? L.Pick("只读模式：点这支笔切到编辑", "Read-only mode: tap the pen to edit") : L.Pick("大文件以只读方式打开，不能修改", "Large file opened read-only; can't modify"));
 
     /// <summary>
     /// Shift 是否按下（判断 Shift+Tab）。
@@ -2996,17 +3031,17 @@ public partial class EditorPage : ContentPage
         CommitEditingLine();
         if (_doc == null) return;
 
-        var query = await DisplayPromptAsync("查找", "输入要查找的文本", accept: "查找", cancel: "取消", maxLength: 200);
+        var query = await DisplayPromptAsync(L.Pick("查找", "Find"), L.Pick("输入要查找的文本", "Text to find"), accept: L.Pick("查找", "Find"), cancel: L.Pick("取消", "Cancel"), maxLength: 200);
         if (string.IsNullOrWhiteSpace(query)) return;
 
         long start = Math.Max(0, Canvas.CaretLine < 0 ? 0 : Canvas.CaretLine);
-        ShowToast("查找中…", 1500);
+        ShowToast(L.Pick("查找中…", "Searching…"), 1500);
 
         // 后台流式扫描：大文件上对全文 IndexOf 会把 UI 线程锁死
         var hit = await Task.Run(() => FindLine(query, start));
         if (hit < 0)
         {
-            await DisplayAlertAsync("查找", $"未找到「{query}」", "关闭");
+            await DisplayAlertAsync(L.Pick("查找", "Find"), L.Pick($"未找到「{query}」", $"Not found: {query}"), L.Pick("关闭", "Close"));
             return;
         }
         Canvas.ScrollToLine(hit + 1, center: true);
@@ -3031,20 +3066,20 @@ public partial class EditorPage : ContentPage
         if (_doc == null) return;
         if (_editable == null)
         {
-            await DisplayAlertAsync("替换", "这个大文件是只读打开的，不能替换。", "关闭");
+            await DisplayAlertAsync(L.Pick("替换", "Replace"), L.Pick("这个大文件是只读打开的，不能替换。", "This large file is open read-only; can't replace."), L.Pick("关闭", "Close"));
             return;
         }
 
-        var query = await DisplayPromptAsync("替换", "查找内容", accept: "下一步", cancel: "取消", maxLength: 200);
+        var query = await DisplayPromptAsync(L.Pick("替换", "Replace"), L.Pick("查找内容", "Find"), accept: L.Pick("下一步", "Next"), cancel: L.Pick("取消", "Cancel"), maxLength: 200);
         if (string.IsNullOrWhiteSpace(query)) return;
-        var replacement = await DisplayPromptAsync("替换", $"把「{query}」替换为", accept: "下一步", cancel: "取消", maxLength: 200);
+        var replacement = await DisplayPromptAsync(L.Pick("替换", "Replace"), L.Pick($"把「{query}」替换为", $"Replace {query} with"), accept: L.Pick("下一步", "Next"), cancel: L.Pick("取消", "Cancel"), maxLength: 200);
         if (replacement == null) return;          // 取消（空串是合法输入 = 删除）
 
         // ⚠ 选项文案存局部变量、判定也用它们比（原先比较中文字面量，翻文案后两个分支全落空，
         //    表现为「点了替换没反应」，零报错）
-        var allLabel = "替换全部";
-        var oneLabel = "只替换下一个";
-        var choice = await DisplayActionSheet("替换", "取消", null, allLabel, oneLabel);
+        var allLabel = L.Pick("替换全部", "Replace all");
+        var oneLabel = L.Pick("只替换下一个", "Replace next only");
+        var choice = await DisplayActionSheet(L.Pick("替换", "Replace"), L.Pick("取消", "Cancel"), null, allLabel, oneLabel);
         if (choice == allLabel) ReplaceAll(query, replacement);
         else if (choice == oneLabel) ReplaceNext(query, replacement);
     }
@@ -3058,7 +3093,7 @@ public partial class EditorPage : ContentPage
         var hit = FindLine(query, start);
         if (hit < 0)
         {
-            ShowToast($"未找到「{query}」", 2000);
+            ShowToast(L.Pick($"未找到「{query}」", $"Not found: {query}"), 2000);
             return;
         }
 
@@ -3075,7 +3110,7 @@ public partial class EditorPage : ContentPage
         Canvas.ScrollToLine(hit + 1, center: true);
         Canvas.SetCaretLine(hit + 1);
         UpdateStatus();
-        ShowToast($"已替换 1 处", 1500);
+        ShowToast(L.Pick("已替换 1 处", "Replaced 1 occurrence"), 1500);
     }
 
     /// <summary>
@@ -3103,11 +3138,11 @@ public partial class EditorPage : ContentPage
             hits++;
             if (hits > MaxReplaceLines)
             {
-                ShowToast($"匹配太多（超过 {MaxReplaceLines} 行），请缩小范围", 3000);
+                ShowToast(L.Pick($"匹配太多（超过 {MaxReplaceLines} 行），请缩小范围", $"Too many matches (over {MaxReplaceLines} lines); narrow the search"), 3000);
                 return;
             }
         }
-        if (first < 0) { ShowToast($"未找到「{query}」", 2000); return; }
+        if (first < 0) { ShowToast(L.Pick($"未找到「{query}」", $"Not found: {query}"), 2000); return; }
 
         var span = (int)(last - first + 1);
         var oldLines = _editable.Snapshot(first, span);
@@ -3126,7 +3161,7 @@ public partial class EditorPage : ContentPage
         _modified = true;
         Canvas.InvalidateAll();
         UpdateStatus();
-        ShowToast($"已替换 {changed} 行", 2000);
+        ShowToast(L.Pick($"已替换 {changed} 行", $"Replaced {changed} lines"), 2000);
     }
 
     /// <summary>替换全部的行数上限 —— 超大范围一把改掉既慢又难回退，超过就请用户缩小范围。</summary>
@@ -3162,23 +3197,23 @@ public partial class EditorPage : ContentPage
         CommitEditingLine();
         if (_editable == null)
         {
-            await DisplayAlertAsync("大纲", "大文件（只读模式）暂不提供大纲分析", "关闭");
+            await DisplayAlertAsync(L.Pick("大纲", "Outline"), L.Pick("大文件（只读模式）暂不提供大纲分析", "Outline is not available for large (read-only) files"), L.Pick("关闭", "Close"));
             return;
         }
 
         List<EditorCore.OutlineItem> outline;
         try { outline = BuildCoreForOutline().ExtractOutline(); }
-        catch (Exception ex) { await DisplayAlertAsync("大纲", ex.Message, "关闭"); return; }
+        catch (Exception ex) { await DisplayAlertAsync(L.Pick("大纲", "Outline"), ex.Message, L.Pick("关闭", "Close")); return; }
 
         if (outline.Count == 0)
         {
-            await DisplayAlertAsync("大纲", "当前文件没有可识别的符号", "关闭");
+            await DisplayAlertAsync(L.Pick("大纲", "Outline"), L.Pick("当前文件没有可识别的符号", "No recognizable symbols in this file"), L.Pick("关闭", "Close"));
             return;
         }
 
         var names = outline.Select(o => $"{o.Icon} {o.Name}  (L{o.Line})").ToArray();
-        var choice = await DisplayActionSheetAsync("大纲", "取消", null, names);
-        if (string.IsNullOrEmpty(choice) || choice == "取消") return;
+        var choice = await DisplayActionSheetAsync(L.Pick("大纲", "Outline"), L.Pick("取消", "Cancel"), null, names);
+        if (string.IsNullOrEmpty(choice) || choice == L.Pick("取消", "Cancel")) return;
         int idx = Array.IndexOf(names, choice);
         if (idx < 0) return;
 
@@ -3237,8 +3272,8 @@ public partial class EditorPage : ContentPage
         var kind = ActionForCurrentFile();
         var (icon, hint) = kind switch
         {
-            EditorAction.Preview => ("icon_preview.png", "Markdown 预览"),
-            EditorAction.Run => ("icon_run.png", "运行"),
+            EditorAction.Preview => ("icon_preview.png", L.Pick("Markdown 预览", "Markdown preview")),
+            EditorAction.Run => ("icon_run.png", L.Pick("运行", "Run")),
             _ => ("", ""),
         };
         bool show = kind != EditorAction.None;
@@ -3291,7 +3326,7 @@ public partial class EditorPage : ContentPage
         // 投给一个已经换掉的缓冲（画面互相踩）。编译同样占着这个位置（`_compileCts` 非空）。
         if (_runActive || _compileCts != null)
         {
-            ShowToast("正在运行/编译中，先停止再试");
+            ShowToast(L.Pick("正在运行/编译中，先停止再试", "Already running or compiling; stop it first"));
             return;
         }
 
@@ -3300,7 +3335,7 @@ public partial class EditorPage : ContentPage
         if (_modified)
         {
             if (!await WriteBackAsync()) return;   // 存失败 WriteBackAsync 已经弹过原因
-            ShowToast("已保存，正在运行…");
+            ShowToast(L.Pick("已保存，正在运行…", "Saved, running…"));
         }
 
         ShowPanel(PanelTab.Output);
@@ -3324,7 +3359,7 @@ public partial class EditorPage : ContentPage
                 RefreshErrorList();
                 UpdateStatus();
                 SwitchPanelTab(PanelTab.Errors);
-                AppendOutput(error ?? "编译失败");
+                AppendOutput(error ?? L.Pick("编译失败", "Compile failed"));
                 return;
             }
 
@@ -3366,7 +3401,7 @@ public partial class EditorPage : ContentPage
         _runActive = true;
         PanelStopBtn.IsVisible = true;
         SwitchPanelTab(PanelTab.Output);
-        AppendOutput("（运行中…）");
+        AppendOutput(L.Pick("（运行中…）", "(running…)"));
         // ⚠ **必须在 `MauiVml.Run` 之前装钩子** —— `LastRunStreamed` 是"装没装"的判据，
         // 跑完再装等于没流式。装钩子这件事同时决定了 `MauiVml` 会不会把输出边跑边交出来。
         StartPanelStream();
@@ -3401,18 +3436,18 @@ public partial class EditorPage : ContentPage
                 // 兜底那条路（钩子没装上时）：整段呈现 —— 全屏程序连光标一起接。
                 SetPanelOutput(output.TrimEnd());
             }
-            AppendOutput("（已结束）");
+            AppendOutput(L.Pick("（已结束）", "(finished)"));
         }
         catch (OperationCanceledException)
         {
-            AppendOutput("⏹ 已停止。");
+            AppendOutput(L.Pick("⏹ 已停止。", "⏹ Stopped."));
         }
         catch (Exception ex)
         {
             // 与命令行页同一条理由：异常不接住就跑进 Task.Run，变成「未观察的任务异常」，
             // 屏幕上一个字都没有 —— 用户看到的就是「点了运行，然后什么都没发生」。
             ErrorLog.Error("EditorPage", "运行失败", ex);
-            AppendOutput($"⚠️ 运行失败：{ex.GetType().Name}: {ex.Message}");
+            AppendOutput(L.Pick($"⚠️ 运行失败：{ex.GetType().Name}: {ex.Message}", $"⚠️ Run failed: {ex.GetType().Name}: {ex.Message}"));
         }
         finally
         {
@@ -4116,17 +4151,17 @@ public partial class EditorPage : ContentPage
 
         if (diags.Count == 0)
         {
-            PanelTabErrors.Text = "错误列表";
+            PanelTabErrors.Text = L.Pick("错误列表", "Problems");
             PanelErrorsList.Add(new Label
             {
-                Text = "没有错误。",
+                Text = L.Pick("没有错误。", "No problems."),
                 FontSize = 12,
                 TextColor = PanelTabIdle,     // 与未选中的 Tab 同一个弱化色，跟随主题
             });
             return;
         }
 
-        PanelTabErrors.Text = $"错误列表 ({diags.Count})";
+        PanelTabErrors.Text = L.Pick($"错误列表 ({diags.Count})", $"Problems ({diags.Count})");
         foreach (var d in diags.OrderBy(x => x.Line).ThenBy(x => x.Column))
         {
             var (mark, color) = d.Severity switch
@@ -4135,12 +4170,12 @@ public partial class EditorPage : ContentPage
                 Severity.Warning => ("⚠", EditorTypography.WarnWave),
                 _ => ("ℹ", EditorTypography.InfoWave),
             };
-            var where = d.Line > 0 ? $"第 {d.Line} 行" : "（无位置）";
+            var where = d.Line > 0 ? L.Pick($"第 {d.Line} 行", $"Line {d.Line}") : L.Pick("（无位置）", "(no position)");
             var code = d.Code is { Length: > 0 } c ? $"  [{c}]" : "";
 
             var row = new Label
             {
-                Text = $"{mark} {where}：{d.Message}{code}",
+                Text = L.Pick($"{mark} {where}：{d.Message}{code}", $"{mark} {where}: {d.Message}{code}"),
                 FontSize = 12,
                 TextColor = color,
                 LineBreakMode = LineBreakMode.WordWrap,
@@ -4185,7 +4220,7 @@ public partial class EditorPage : ContentPage
         PanelStopBtn.IsVisible = true;        // 编译也给了停止入口（原来只有运行有，而编译更慢）
         // 先自己写一行：`OnProgress` 最早也要等解压标准库那一步才开口，而那之前可能已经过去几秒，
         // 屏幕上什么都不动会让人以为没点上。
-        AppendOutput("⏳ 正在编译…（手机上要一两分钟）");
+        AppendOutput(L.Pick("⏳ 正在编译…（手机上要一两分钟）", "⏳ Compiling… (takes a minute or two on a phone)"));
         // ⚠ `MauiVml.OnProgress` 是**单个静态槽**：命令行页也在用同一个。现实中两者互斥
         //   （一个在编辑器、一个在命令行），且 ShellPage 那边有 _busy 守卫。
         MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => AppendProgress(msg));
@@ -4196,12 +4231,14 @@ public partial class EditorPage : ContentPage
         }
         catch (OperationCanceledException)
         {
-            return (null, [], "⏹ 编译已停止。");
+            return (null, [], L.Pick("⏹ 编译已停止。", "⏹ Compile stopped."));
         }
         catch (Exception ex)
         {
+            // ⚠ 日志一律**不翻**（桌面侧 WayCoder/Tools、Agent 里 L.Pick 进 ErrorLog 的命中数为 0，
+            //   那就是既有约定）—— 这里是全仓唯一一处被误包的日志文案，已还原成中文字面量。
             ErrorLog.Error("EditorPage", "编译失败", ex);
-            return (null, [], $"⚠️ 编译失败：{ex.Message}");
+            return (null, [], L.Pick($"⚠️ 编译失败：{ex.Message}", $"⚠️ Compile failed: {ex.Message}"));
         }
         finally
         {
@@ -4217,12 +4254,12 @@ public partial class EditorPage : ContentPage
     {
         if (!IsMarkdown(_relPath))
         {
-            await DisplayAlertAsync("预览", "仅 Markdown 文件支持预览", "关闭");
+            await DisplayAlertAsync(L.Pick("预览", "Preview"), L.Pick("仅 Markdown 文件支持预览", "Preview is only available for Markdown files"), L.Pick("关闭", "Close"));
             return;
         }
         if (_editable == null)
         {
-            await DisplayAlertAsync("预览", "大文件暂不支持预览渲染", "关闭");
+            await DisplayAlertAsync(L.Pick("预览", "Preview"), L.Pick("大文件暂不支持预览渲染", "Preview rendering is not available for large files"), L.Pick("关闭", "Close"));
             return;
         }
 
@@ -4246,10 +4283,10 @@ public partial class EditorPage : ContentPage
         if (_doc == null) { StatusLabel.Text = ""; return; }
 
         var mark = _modified ? "● " : "";
-        var ro = _canEdit ? (_readOnly ? "只读" : "编辑") : "只读";
+        var ro = _canEdit ? (_readOnly ? L.Pick("只读", "Read-only") : L.Pick("编辑", "Edit")) : L.Pick("只读", "Read-only");
         // 加 "L" 前缀：`SelectionChangedRange` 给的是**行区间**（"398" 或 "398-405"），
         // 光写「已选 398」会被读成「选了 398 个字符」—— 紧挨着的「光标 L398」就是这个格式。
-        var sel = Canvas.HasSelection ? $" · 已选 L{Canvas.SelectionChangedRange}" : "";
+        var sel = Canvas.HasSelection ? L.Pick($" · 已选 L{Canvas.SelectionChangedRange}", $" · Sel L{Canvas.SelectionChangedRange}") : "";
 
         // 诊断计数。**放在前面**：状态栏这一行本来就长，排到末尾多半先被挤出屏幕，
         // 而「有几个错」正是用户扫一眼就想要的信息。
@@ -4257,14 +4294,14 @@ public partial class EditorPage : ContentPage
         var (errs, warns, infos) = _relPath.Length == 0 ? (0, 0, 0) : DiagnosticManager.Counts(_relPath);
         if (errs + warns + infos > 0)
         {
-            diag = $" · {(errs > 0 ? "❌" : "⚠")} 警告：{warns}个，错误：{errs}个";
-            if (infos > 0) diag += $"，提示：{infos}个";
+            diag = L.Pick($" · {(errs > 0 ? "❌" : "⚠")} 警告：{warns}个，错误：{errs}个", $" · {(errs > 0 ? "❌" : "⚠")} {warns} warnings, {errs} errors");
+            if (infos > 0) diag += L.Pick($"，提示：{infos}个", $", {infos} info");
         }
 
         // 字号紧跟在光标行右边：捏合缩放时要能**看着数字调**（「到底放大到几号了」此前只能靠手感）。
-        StatusLabel.Text = $"{mark}{_forcedEncodingName ?? _doc.EncodingName} · {ro}{diag} · {_doc.LineCount:N0} 行 · "
-                         + $"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}"
-                         + $" · 字号{EditorTypography.FontSize:F1}{sel}"
+        StatusLabel.Text = L.Pick($"{mark}{_forcedEncodingName ?? _doc.EncodingName} · {ro}{diag} · {_doc.LineCount:N0} 行 · ", $"{mark}{_forcedEncodingName ?? _doc.EncodingName} · {ro}{diag} · {_doc.LineCount:N0} lines · ")
+                         + L.Pick($"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}", $"{FormatSize(_fileBytes)} · Caret L{Math.Max(1, Canvas.CaretLine)}")
+                         + L.Pick($" · 字号{EditorTypography.FontSize:F1}{sel}", $" · Size {EditorTypography.FontSize:F1}{sel}")
 #if DEBUG
                          // 定位「点击位置与渲染不一致」用的读数：只在调试构建里出现
                          + $" · X{Canvas.ScrollX:F0}/{Canvas.MaxScrollX:F0}"

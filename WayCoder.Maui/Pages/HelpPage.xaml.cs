@@ -41,15 +41,19 @@ public partial class HelpPage : ContentPage
         // 不这么做标题就会退化成通用的「使用说明」（页面照常打开、内容也对，只有标题不对）。
         Title = HelpCatalog.FindTopic(id)?.Title
              ?? HelpCatalog.HeadingOf(md)
-             ?? "使用说明";
+             ?? L.Pick("使用说明", "Help");
         if (md is null)
         {
             // 找不到就说清楚是哪一篇找不到 —— 静默空白最难查（多半是目录里写了、文件没放进包）
             Body.Add(new Label
             {
-                Text = $"找不到这篇说明（{HelpCatalog.AssetPath(id)}）。\n"
-                     + "如果是刚加的说明，检查：① .md 放在 Resources/Raw/help/ 下；"
-                     + "② 文件名与目录表里的 id 一致。",
+                Text = L.Pick(
+                    $"找不到这篇说明（{HelpCatalog.AssetPath(id)}）。\n"
+                    + "如果是刚加的说明，检查：① .md 放在 Resources/Raw/help/ 下；"
+                    + "② 文件名与目录表里的 id 一致。",
+                    $"Help topic not found ({HelpCatalog.AssetPath(id)}).\n"
+                    + "If you just added it, check that (1) the .md lives under Resources/Raw/help/, "
+                    + "and (2) the file name matches the id in the catalog."),
                 FontSize = 13,
                 TextColor = MauiUi.Res("MutedTextLight"),
             });

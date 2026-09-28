@@ -54,27 +54,34 @@ public partial class ModelManagerPage : ContentPage
             var tap = new TapGestureRecognizer();
             tap.Tapped += async (_, _) =>
             {
-                var action = await DisplayActionSheetAsync($"{display}（{g.Key}）", "取消", null,
-                    "管理模型", "设Key", "清Key", "改名", "改地址", "删除");
-                switch (action)
+                // 菜单项与判据是同一批文案（平台只回传被点的**文字**、不回传序号）⇒ 用同一个标签数组按序号判定：
+                // 免得「翻了菜单项、漏了 case」在英文下静默失配（点了没反应，且没有任何报错）。
+                var labels = new[]
                 {
-                    case "管理模型":
+                    L.Pick("管理模型", "Manage models"), L.Pick("设Key", "Set key"), L.Pick("清Key", "Clear key"),
+                    L.Pick("改名", "Rename"), L.Pick("改地址", "Change URL"), L.Pick("删除", "Delete"),
+                };
+                var action = await DisplayActionSheetAsync(L.Pick($"{display}（{g.Key}）", $"{display} ({g.Key})"),
+                    L.Pick("取消", "Cancel"), null, labels);
+                switch (Array.IndexOf(labels, action!))
+                {
+                    case 0:
                         await Shell.Current.GoToAsync($"providermodels?provider={Uri.EscapeDataString(g.Key)}");
                         break;
-                    case "设Key":
+                    case 1:
                         await SetProviderKeyAsync(g.Key);
                         break;
-                    case "清Key":
+                    case 2:
                         ApiKeyStore.Remove(g.Key);
                         Populate();
                         break;
-                    case "改名":
+                    case 3:
                         await RenameProviderAsync(g.Key);
                         break;
-                    case "改地址":
+                    case 4:
                         await EditProviderUrlAsync(g.Key);
                         break;
-                    case "删除":
+                    case 5:
                         await DeleteProviderAsync(g.Key);
                         break;
                 }
@@ -82,10 +89,14 @@ public partial class ModelManagerPage : ContentPage
             card.GestureRecognizers.Add(tap);
 
             var models = g.OrderBy(m => m.DisplayName).Select(m => m.DisplayName).ToList();
+            var status = conn == true ? L.Pick("✅ 可达", "✅ Reachable")
+                       : conn == false ? L.Pick("❌ 不可达", "❌ Unreachable")
+                       : L.Pick("未扫描", "Not scanned");
             var stack = new VerticalStackLayout { Spacing = 2 };
             stack.Add(new Label
             {
-                Text = $"{icon} {display}（{g.Key}）· {g.Count()} 模型 · {(conn == true ? "✅ 可达" : conn == false ? "❌ 不可达" : "未扫描")}",
+                Text = L.Pick($"{icon} {display}（{g.Key}）· {g.Count()} 模型 · {status}",
+                              $"{icon} {display} ({g.Key}) · {g.Count()} models · {status}"),
                 FontSize = 13,
                 FontAttributes = FontAttributes.Bold,
                 TextColor = Application.Current?.RequestedTheme == AppTheme.Dark
@@ -93,14 +104,15 @@ public partial class ModelManagerPage : ContentPage
             });
             stack.Add(new Label
             {
-                Text = string.IsNullOrEmpty(baseUrl) ? "无默认地址" : baseUrl,
+                Text = string.IsNullOrEmpty(baseUrl) ? L.Pick("无默认地址", "No default URL") : baseUrl,
                 FontSize = 11,
                 TextColor = Color.FromArgb("#888888"),
                 LineBreakMode = LineBreakMode.TailTruncation,
             });
             stack.Add(new Label
             {
-                Text = string.Join("、", models.Take(6)) + (models.Count > 6 ? $" 等 {models.Count} 个" : ""),
+                Text = string.Join(L.Pick("、", ", "), models.Take(6))
+                       + (models.Count > 6 ? L.Pick($" 等 {models.Count} 个", $" … ({models.Count} total)") : ""),
                 FontSize = 11,
                 TextColor = Color.FromArgb("#777777"),
                 LineBreakMode = LineBreakMode.TailTruncation,
@@ -110,14 +122,14 @@ public partial class ModelManagerPage : ContentPage
         }
 
         if (byProvider.Count() == 0)
-            ProviderList.Add(new Label { Text = "暂无供应商", FontSize = 13, TextColor = Color.FromArgb("#888888") });
+            ProviderList.Add(new Label { Text = L.Pick("暂无供应商", "No providers yet"), FontSize = 13, TextColor = Color.FromArgb("#888888") });
     }
 
     /// <summary>扫描全部供应商连通性（探测 /models 接口，单点 4s 超时；委托核心 ModelCli）。</summary>
     private async void OnScanClicked(object? sender, EventArgs e)
     {
         ScanBtn.IsEnabled = false;
-        ScanBtn.Text = "扫描中…";
+        ScanBtn.Text = L.Pick("扫描中…", "Scanning…");
         foreach (var p in ModelCli.ResolveScanTargets())
         {
             // 探测 /models（比 GET 首页更准确：首页可达 ≠ 接口可用）；Url 为空 → 不可达
@@ -125,22 +137,23 @@ public partial class ModelManagerPage : ContentPage
             _connectivity[p.Id] = ok;
         }
         ScanBtn.IsEnabled = true;
-        ScanBtn.Text = "📡 扫描";
+        ScanBtn.Text = L.Pick("📡 扫描", "📡 Scan");
         Populate();
     }
 
     /// <summary>导入供应商：名称 + 接口地址 + Key（生成一个占位模型使供应商出现，再导入真实模型）。</summary>
     private async void OnAddProviderClicked(object? sender, EventArgs e)
     {
-        var name = await DisplayPromptAsync("导入供应商", "供应商名称（如：硅基流动）", accept: "下一步", maxLength: 30);
+        var title = L.Pick("导入供应商", "Import provider");
+        var name = await DisplayPromptAsync(title, L.Pick("供应商名称（如：硅基流动）", "Provider name (e.g. SiliconFlow)"), accept: L.Pick("下一步", "Next"), maxLength: 30);
         if (string.IsNullOrWhiteSpace(name)) return;
-        var id = await DisplayPromptAsync("导入供应商", "供应商 ID（小写英文，如 siliconflow）", accept: "下一步", maxLength: 30);
+        var id = await DisplayPromptAsync(title, L.Pick("供应商 ID（小写英文，如 siliconflow）", "Provider ID (lowercase, e.g. siliconflow)"), accept: L.Pick("下一步", "Next"), maxLength: 30);
         if (string.IsNullOrWhiteSpace(id)) return;
         // 规范化 ID：去掉 api- 前缀 / -ai 后缀（api-siliconflow-ai → siliconflow），保证名称/去重判断正确
         id = ModelCatalog.NormalizeProviderId(id);
-        var baseUrl = await DisplayPromptAsync("导入供应商", "接口地址 BaseUrl（OpenAI 兼容，如 https://api.siliconflow.cn/v1）", accept: "下一步", maxLength: 200);
+        var baseUrl = await DisplayPromptAsync(title, L.Pick("接口地址 BaseUrl（OpenAI 兼容，如 https://api.siliconflow.cn/v1）", "Base URL (OpenAI-compatible, e.g. https://api.siliconflow.cn/v1)"), accept: L.Pick("下一步", "Next"), maxLength: 200);
         if (string.IsNullOrWhiteSpace(baseUrl)) return;
-        var key = await DisplayPromptAsync("导入供应商", "API Key（可留空稍后在设置填写）", accept: "完成", maxLength: 200);
+        var key = await DisplayPromptAsync(title, L.Pick("API Key（可留空稍后在设置填写）", "API key (leave blank to fill in later in Settings)"), accept: L.Pick("完成", "Done"), maxLength: 200);
 
         try
         {
@@ -148,42 +161,53 @@ public partial class ModelManagerPage : ContentPage
             var err = ModelCatalog.RegisterProviderResult(id, name, baseUrl);
             if (err != null)
             {
-                await DisplayAlertAsync("导入失败", err, "关闭");
+                await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), err, L.Pick("关闭", "Close"));
                 return;
             }
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
-                $"{id}-placeholder", $"{name} 占位", name, id, "C", "Custom", 131_072, 0, 0, baseUrl,
-                $"自定义供应商 {name}（导入后请在「设置」填 Key）"));
+                $"{id}-placeholder", L.Pick($"{name} 占位", $"{name} placeholder"), name, id, "C", "Custom", 131_072, 0, 0, baseUrl,
+                L.Pick($"自定义供应商 {name}（导入后请在「设置」填 Key）",
+                       $"Custom provider {name} (enter the key in Settings after importing)")));
             if (!string.IsNullOrWhiteSpace(key)) ApiKeyStore.Set(id, key);
             _connectivity[id] = null;
-            await DisplayAlertAsync("已导入", $"供应商「{name}」已添加。再点「＋ 导入模型」添加真实模型，或在「设置」填 Key。", "确定");
+            await DisplayAlertAsync(L.Pick("已导入", "Imported"),
+                L.Pick($"供应商「{name}」已添加。再点「＋ 导入模型」添加真实模型，或在「设置」填 Key。",
+                       $"Provider \"{name}\" was added. Tap \"+ Import model\" to add real models, or enter the key in Settings."),
+                L.Pick("确定", "OK"));
             Populate();
         }
-        catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+        catch (Exception ex) { await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), ex.Message, L.Pick("关闭", "Close")); }
     }
 
     /// <summary>导入模型：多来源选择（对标 Web 版）——内置 / Claude Code / Codex / OpenCode / Crush / OpenClaw / 自定义。</summary>
     private async void OnAddModelClicked(object? sender, EventArgs e)
     {
-        var source = await DisplayActionSheetAsync("导入模型 · 选择来源", "取消", null,
-            "🌐 在线导入", "内置模型目录", "Claude Code", "Codex", "OpenCode", "Crush", "OpenClaw", "自定义添加");
-        switch (source)
+        // ⚠ 「Claude Code / Codex / OpenCode / Crush / OpenClaw」既是菜单项**又是数据**：
+        //    它们原样作为 sourceName 传下去（NormalizeProviderId → 供应商 ID，并写进模型描述）
+        //    ⇒ 这五个**不能翻**（翻了就落到另一个供应商 ID 上）。只翻我们自己那三条。
+        var labels = new[]
         {
-            case "🌐 在线导入":
+            L.Pick("🌐 在线导入", "🌐 Import online"), L.Pick("内置模型目录", "Built-in catalog"),
+            "Claude Code", "Codex", "OpenCode", "Crush", "OpenClaw",
+            L.Pick("自定义添加", "Custom…"),
+        };
+        var source = await DisplayActionSheetAsync(L.Pick("导入模型 · 选择来源", "Import model · Choose source"),
+            L.Pick("取消", "Cancel"), null, labels);
+        switch (Array.IndexOf(labels, source!))
+        {
+            case 0:
                 await ImportOnlineAsync();
                 break;
-            case "内置模型目录":
-                await DisplayAlertAsync("内置模型",
-                    $"内置目录已含 {ModelCatalog.All.Length} 个模型（DeepSeek/Qwen/Zhipu/OpenAI/Anthropic/AIHubMix 等），无需导入。", "确定");
+            case 1:
+                await DisplayAlertAsync(L.Pick("内置模型", "Built-in models"),
+                    L.Pick($"内置目录已含 {ModelCatalog.All.Length} 个模型（DeepSeek/Qwen/Zhipu/OpenAI/Anthropic/AIHubMix 等），无需导入。",
+                           $"The built-in catalog already has {ModelCatalog.All.Length} models (DeepSeek/Qwen/Zhipu/OpenAI/Anthropic/AIHubMix, etc.), so no import is needed."),
+                    L.Pick("确定", "OK"));
                 break;
-            case "Claude Code":
-            case "Codex":
-            case "OpenCode":
-            case "Crush":
-            case "OpenClaw":
-                await ImportFromConfigFileAsync(source);
+            case 2 or 3 or 4 or 5 or 6:
+                await ImportFromConfigFileAsync(source!);
                 break;
-            case "自定义添加":
+            case 7:
                 await AddCustomModelAsync();
                 break;
         }
@@ -192,13 +216,14 @@ public partial class ModelManagerPage : ContentPage
     /// <summary>自定义添加模型：供应商 ID + 模型 ID + 显示名 + 上下文。</summary>
     private async Task AddCustomModelAsync()
     {
-        var providerId = await DisplayPromptAsync("自定义添加模型", "所属供应商 ID（如 siliconflow / deepseek）", accept: "下一步", maxLength: 30, initialValue: Config.Instance.Provider);
+        var title = L.Pick("自定义添加模型", "Add custom model");
+        var providerId = await DisplayPromptAsync(title, L.Pick("所属供应商 ID（如 siliconflow / deepseek）", "Provider ID (e.g. siliconflow / deepseek)"), accept: L.Pick("下一步", "Next"), maxLength: 30, initialValue: Config.Instance.Provider);
         if (string.IsNullOrWhiteSpace(providerId)) return;
-        var modelId = await DisplayPromptAsync("自定义添加模型", "模型 ID（API 调用用，如 deepseek-chat）", accept: "下一步", maxLength: 60);
+        var modelId = await DisplayPromptAsync(title, L.Pick("模型 ID（API 调用用，如 deepseek-chat）", "Model ID (used for API calls, e.g. deepseek-chat)"), accept: L.Pick("下一步", "Next"), maxLength: 60);
         if (string.IsNullOrWhiteSpace(modelId)) return;
-        var display = await DisplayPromptAsync("自定义添加模型", "显示名（如 DeepSeek Chat）", accept: "下一步", maxLength: 40, initialValue: modelId);
+        var display = await DisplayPromptAsync(title, L.Pick("显示名（如 DeepSeek Chat）", "Display name (e.g. DeepSeek Chat)"), accept: L.Pick("下一步", "Next"), maxLength: 40, initialValue: modelId);
         if (string.IsNullOrWhiteSpace(display)) return;
-        var context = await DisplayPromptAsync("自定义添加模型", "上下文窗口（token，如 32768）", accept: "完成", initialValue: "131072", maxLength: 10);
+        var context = await DisplayPromptAsync(title, L.Pick("上下文窗口（token，如 32768）", "Context window (tokens, e.g. 32768)"), accept: L.Pick("完成", "Done"), initialValue: "131072", maxLength: 10);
 
         try
         {
@@ -207,32 +232,39 @@ public partial class ModelManagerPage : ContentPage
                 ?? ModelCatalog.All.FirstOrDefault(m => m.ProviderId == providerId)?.DefaultBaseUrl;
             var ctx = int.TryParse(context, out var c) ? c : 131_072;
             ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
-                modelId, display, providerName, providerId, "C", "Custom", ctx, 0, 0, baseUrl, $"自定义导入 {display}"));
-            await DisplayAlertAsync("已导入", $"模型「{display}」已加入供应商 {ModelCatalog.ProviderDisplayName(providerId)}。", "确定");
+                modelId, display, providerName, providerId, "C", "Custom", ctx, 0, 0, baseUrl, L.Pick($"自定义导入 {display}", $"Custom import: {display}")));
+            await DisplayAlertAsync(L.Pick("已导入", "Imported"),
+                L.Pick($"模型「{display}」已加入供应商 {ModelCatalog.ProviderDisplayName(providerId)}。",
+                       $"Model \"{display}\" was added to provider {ModelCatalog.ProviderDisplayName(providerId)}."),
+                L.Pick("确定", "OK"));
             Populate();
         }
-        catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+        catch (Exception ex) { await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), ex.Message, L.Pick("关闭", "Close")); }
     }
 
     /// <summary>在线导入：选服务商端点（OpenCode Go/Zen、OpenRouter、Groq、SiliconFlow 等）→ 拉取 /models → 导入（对齐 Web/TUI）。</summary>
     private async Task ImportOnlineAsync()
     {
         var sources = ModelCli.OnlineSources;
-        var options = sources.Select(s => $"{s.Name}（{s.KeyProvider}）").ToArray();
-        var chosen = await DisplayActionSheetAsync("🌐 在线导入 · 选择服务商", "取消", null, options);
-        if (string.IsNullOrEmpty(chosen) || chosen == "取消") return;
-        var src = sources.First(s => $"{s.Name}（{s.KeyProvider}）" == chosen);
+        // 选项文案（数据 + 括号）与判据同源：只在这里拼一次，反查复用同一份数组（两处各拼一遍必然漂）
+        var options = sources.Select(s => L.Pick($"{s.Name}（{s.KeyProvider}）", $"{s.Name} ({s.KeyProvider})")).ToArray();
+        var cancel = L.Pick("取消", "Cancel");
+        var chosen = await DisplayActionSheetAsync(L.Pick("🌐 在线导入 · 选择服务商", "🌐 Import online · Choose provider"), cancel, null, options);
+        if (string.IsNullOrEmpty(chosen) || chosen == cancel) return;
+        var idx = Array.IndexOf(options, chosen);
+        if (idx < 0) return;
+        var src = sources[idx];
 
         try
         {
             // 网络请求放后台线程，避免卡 UI
             var report = await Task.Run(() => ModelCli.ImportOnline(src));
-            await DisplayAlertAsync($"在线导入 · {src.Name}", report, "确定");
+            await DisplayAlertAsync(L.Pick($"在线导入 · {src.Name}", $"Online import · {src.Name}"), report, L.Pick("确定", "OK"));
             Populate();
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("在线导入失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("在线导入失败", "Online import failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 
@@ -241,7 +273,7 @@ public partial class ModelManagerPage : ContentPage
     {
         try
         {
-            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = $"选择 {sourceName} 配置文件" });
+            var result = await FilePicker.Default.PickAsync(new PickOptions { PickerTitle = L.Pick($"选择 {sourceName} 配置文件", $"Choose the {sourceName} config file") });
             if (result == null) return;
             var content = await File.ReadAllTextAsync(result.FullPath);
 
@@ -261,46 +293,54 @@ public partial class ModelManagerPage : ContentPage
             {
                 ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
                     mid, mid, providerName, providerId, "C", "Custom", 131_072, 0, 0,
-                    string.IsNullOrEmpty(baseUrl) ? null : baseUrl, $"从 {sourceName} 导入"));
+                    string.IsNullOrEmpty(baseUrl) ? null : baseUrl, L.Pick($"从 {sourceName} 导入", $"Imported from {sourceName}")));
                 imported++;
             }
             if (!string.IsNullOrEmpty(key)) ApiKeyStore.Set(providerId, key);
 
-            await DisplayAlertAsync(imported > 0 ? "已导入" : "未识别",
+            await DisplayAlertAsync(imported > 0 ? L.Pick("已导入", "Imported") : L.Pick("未识别", "Not recognized"),
                 imported > 0
-                    ? $"从 {sourceName} 导入 {imported} 个模型" + (string.IsNullOrEmpty(key) ? "" : " + API Key。")
-                    : $"未能从该文件识别模型。{sourceName} 配置文件可能不含 model 字段。", "确定");
+                    ? L.Pick($"从 {sourceName} 导入 {imported} 个模型", $"Imported {imported} model{(imported == 1 ? "" : "s")} from {sourceName}")
+                      + (string.IsNullOrEmpty(key) ? "" : L.Pick(" + API Key。", " + API key."))
+                    : L.Pick($"未能从该文件识别模型。{sourceName} 配置文件可能不含 model 字段。",
+                             $"No models were recognized in that file. The {sourceName} config file may not contain a model field."),
+                L.Pick("确定", "OK"));
             Populate();
         }
-        catch (Exception ex) { await DisplayAlertAsync("导入失败", ex.Message, "关闭"); }
+        catch (Exception ex) { await DisplayAlertAsync(L.Pick("导入失败", "Import failed"), ex.Message, L.Pick("关闭", "Close")); }
     }
 
     // ── 供应商 CRUD（设Key/改名/改地址/删除）──
 
     private async Task SetProviderKeyAsync(string providerId)
     {
-        var key = await DisplayPromptAsync("设Key", $"输入 {providerId} 的 API Key", accept: "保存", cancel: "取消", maxLength: 512);
+        var key = await DisplayPromptAsync(L.Pick("设Key", "Set key"), L.Pick($"输入 {providerId} 的 API Key", $"API key for {providerId}"), accept: L.Pick("保存", "Save"), cancel: L.Pick("取消", "Cancel"), maxLength: 512);
         if (string.IsNullOrWhiteSpace(key)) return;
         // 合法性校验：只允许英文字母数字 + `+-_.` 逗号；环境变量引用（$VAR）会判非法
         if (!ApiKeyStore.IsValidApiKey(key))
         {
-            await DisplayAlertAsync("Key 不合法",
-                "只允许英文字母数字 + - _ . ,（不要填环境变量引用 $VAR）", "确定");
+            await DisplayAlertAsync(L.Pick("Key 不合法", "Invalid key"),
+                L.Pick("只允许英文字母数字 + - _ . ,（不要填环境变量引用 $VAR）",
+                       "Only letters, digits and + - _ . , are allowed (do not use an environment variable reference like $VAR)"),
+                L.Pick("确定", "OK"));
             return;
         }
         if (!ApiKeyStore.Set(providerId, key.Trim()))
         {
-            await DisplayAlertAsync("保存失败", "Key 保存失败（请检查字符）", "确定");
+            await DisplayAlertAsync(L.Pick("保存失败", "Save failed"), L.Pick("Key 保存失败（请检查字符）", "Could not save the key (check the characters)"), L.Pick("确定", "OK"));
             return;
         }
         Populate();
-        await DisplayAlertAsync("已保存", $"已保存 {ModelCatalog.ProviderDisplayName(providerId)} 的 API Key", "确定");
+        await DisplayAlertAsync(L.Pick("已保存", "Saved"),
+            L.Pick($"已保存 {ModelCatalog.ProviderDisplayName(providerId)} 的 API Key",
+                   $"Saved the API key for {ModelCatalog.ProviderDisplayName(providerId)}"), L.Pick("确定", "OK"));
     }
 
     private async Task RenameProviderAsync(string providerId)
     {
         var name = ModelCatalog.ProviderDisplayName(providerId);
-        var newName = await DisplayPromptAsync("改名", $"输入 {providerId} 的新显示名", accept: "保存", cancel: "取消",
+        var newName = await DisplayPromptAsync(L.Pick("改名", "Rename"), L.Pick($"输入 {providerId} 的新显示名", $"New display name for {providerId}"),
+            accept: L.Pick("保存", "Save"), cancel: L.Pick("取消", "Cancel"),
             initialValue: name, maxLength: 40);
         if (string.IsNullOrWhiteSpace(newName)) return;
         ModelCatalog.RenameProvider(providerId, newName.Trim());
@@ -310,13 +350,14 @@ public partial class ModelManagerPage : ContentPage
     private async Task EditProviderUrlAsync(string providerId)
     {
         var url = ModelCatalog.BaseUrlOf(providerId);
-        var newUrl = await DisplayPromptAsync("改地址", $"输入 {providerId} 的 Base URL", accept: "保存", cancel: "取消",
+        var newUrl = await DisplayPromptAsync(L.Pick("改地址", "Change URL"), L.Pick($"输入 {providerId} 的 Base URL", $"Base URL for {providerId}"),
+            accept: L.Pick("保存", "Save"), cancel: L.Pick("取消", "Cancel"),
             initialValue: url, maxLength: 200);
         if (newUrl == null) return;
         var urlErr = ModelCatalog.UpdateProviderUrlResult(providerId, newUrl.Trim());
         if (urlErr != null)
         {
-            await DisplayAlertAsync("改地址失败", "新" + urlErr, "关闭");
+            await DisplayAlertAsync(L.Pick("改地址失败", "Could not change the URL"), L.Pick("新", "New: ") + urlErr, L.Pick("关闭", "Close"));
             return;
         }
         Populate();
@@ -325,7 +366,9 @@ public partial class ModelManagerPage : ContentPage
     private async Task DeleteProviderAsync(string providerId)
     {
         var name = ModelCatalog.ProviderDisplayName(providerId);
-        var confirmed = await DisplayAlertAsync("删除供应商", $"确定删除 {name}（{providerId}）？此操作不可恢复。", "删除", "取消");
+        var confirmed = await DisplayAlertAsync(L.Pick("删除供应商", "Delete provider"),
+            L.Pick($"确定删除 {name}（{providerId}）？此操作不可恢复。", $"Delete {name} ({providerId})? This cannot be undone."),
+            L.Pick("删除", "Delete"), L.Pick("取消", "Cancel"));
         if (!confirmed) return;
         ModelCatalog.RemoveProvider(providerId);
         Populate();

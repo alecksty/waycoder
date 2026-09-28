@@ -110,7 +110,7 @@ public sealed class VmStatusOverlay : ContentView
         //   （它是 `Layout` 的）—— 与其赌平台的级联语义，不如让结构本身没有歧义。
         var titleLabel = new Label
         {
-            Text = "VM 状态",
+            Text = L.Pick("VM 状态", "VM status"),
             FontFamily = EditorTypography.FontFamilyName,
             FontSize = 10,
             TextColor = Color.FromArgb("#FF9A9AA8"),
@@ -161,8 +161,10 @@ public sealed class VmStatusOverlay : ContentView
         // 是同一条（那边是靠按钮的底/框，这边是靠明暗）。
         _smallIcon = new Image { Source = "icon_vm_small.png", WidthRequest = 15, HeightRequest = 15 };
         _bigIcon = new Image { Source = "icon_vm_big.png", WidthRequest = 15, HeightRequest = 15 };
-        var smallBox = MakeIconBox(_smallIcon, () => SetDetailed(false), "小窗（只看基本状态）");
-        var bigBox = MakeIconBox(_bigIcon, () => SetDetailed(true), "大窗（含全部寄存器）");
+        var smallBox = MakeIconBox(_smallIcon, () => SetDetailed(false),
+            L.Pick("小窗（只看基本状态）", "Small panel (basic status only)"));
+        var bigBox = MakeIconBox(_bigIcon, () => SetDetailed(true),
+            L.Pick("大窗（含全部寄存器）", "Large panel (all registers)"));
 
         var bar = new Grid
         {

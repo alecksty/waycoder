@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:controls="clr-namespace:WayCoder.Maui.Controls"
-    Title="命令行">
+             xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='命令行', En='Shell'}">
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
 
@@ -29,12 +30,12 @@
                 x:Name="SizeModeBtn"
                 Grid.Column="0"
                 Clicked="OnSizeModeClicked"
-                SemanticProperties.Hint="切换尺寸模式（自适应 / 定宽 / 固定）" />
+                SemanticProperties.Hint="{markup:Tr Zh='切换尺寸模式（自适应 / 定宽 / 固定）', En='Switch size mode (Auto / Fixed cols / Fixed)'}" />
             <Button
                 x:Name="SizePresetBtn"
                 Grid.Column="1"
                 Clicked="OnSizePresetClicked"
-                SemanticProperties.Hint="选择常用尺寸" />
+                SemanticProperties.Hint="{markup:Tr Zh='选择常用尺寸', En='Choose a common size'}" />
             <!-- 菜单：**常用操作收进一个按钮**（原来是「清屏」单个按钮）。
                  为什么是菜单：这一页真正常用的操作不止"清屏"一个 ——
                  字号加减（捏合不好使时的可靠入口）、重置字号、复制整屏输出。
@@ -50,7 +51,7 @@
                 BackgroundColor="Transparent"
                 Padding="10,6"
                 Clicked="OnMenuClicked"
-                SemanticProperties.Hint="命令行菜单" />
+                SemanticProperties.Hint="{markup:Tr Zh='命令行菜单', En='Shell menu'}" />
         </Grid>
 
         <!-- 输出区：**等宽 + 纯文本**，刻意不做富文本着色 ——
@@ -101,7 +102,7 @@
             <Entry
                 x:Name="CmdEntry"
                 Grid.Column="1"
-                Placeholder="输入 shell 命令…"
+                Placeholder="{markup:Tr Zh='输入 shell 命令…', En='Enter a shell command…'}"
                 FontSize="13"
                 Keyboard="Plain"
                 IsSpellCheckEnabled="False"
@@ -120,7 +121,7 @@
             <Button
                 x:Name="RunBtn"
                 Grid.Column="3"
-                Text="运行"
+                Text="{markup:Tr Zh='运行', En='Run'}"
                 FontSize="13"
                 Padding="16,4"
                 HeightRequest="38"
@@ -141,14 +142,14 @@
             ColumnSpacing="6">
             <Label
                 Grid.Column="0"
-                Text="⌨ 等输入"
+                Text="{markup:Tr Zh='⌨ 等输入', En='⌨ Waiting for input'}"
                 FontSize="12"
                 VerticalOptions="Center"
                 TextColor="{AppThemeBinding Light=#B4690E, Dark=#E0A030}" />
             <Entry
                 x:Name="StdinEntry"
                 Grid.Column="1"
-                Placeholder="程序在等一行输入…"
+                Placeholder="{markup:Tr Zh='程序在等一行输入…', En='Waiting for a line of input…'}"
                 FontSize="13"
                 Keyboard="Plain"
                 IsSpellCheckEnabled="False"
@@ -158,7 +159,7 @@
                 Completed="OnStdinSubmitted" />
             <Button
                 Grid.Column="2"
-                Text="喂给它"
+                Text="{markup:Tr Zh='喂给它', En='Send'}"
                 FontSize="13"
                 Padding="14,4"
                 HeightRequest="38"

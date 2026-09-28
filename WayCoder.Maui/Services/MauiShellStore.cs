@@ -173,13 +173,15 @@ public static class MauiShellStore
     ///   · 40×25 —— 早期窄屏机器（部分 8 位机与 Apple II 文本模式）
     /// 老程序是按这些列数**排表格**的，选对了才不会错位；列数是精确的，行数近似（见 ShellPage）。
     /// </summary>
-    public static readonly (int Cols, int Rows, string Label)[] SizePresets =
+    // ⚠ 必须是表达式体属性而**不能是 `static readonly` 字段** —— 后者的初始化器只跑一次，
+    //   会把界面语言冻在"首次碰到这个类"那一刻（见 L 的硬规则）。数组里只有文案是语言相关的。
+    public static (int Cols, int Rows, string Label)[] SizePresets =>
     [
-        (80, 25, "80×25 · 经典 VGA 文本"),
-        (80, 24, "80×24 · VT100 终端"),
-        (40, 25, "40×25 · 窄屏老机器"),
+        (80, 25, L.Pick("80×25 · 经典 VGA 文本", "80×25 · Classic VGA text")),
+        (80, 24, L.Pick("80×24 · VT100 终端", "80×24 · VT100 terminal")),
+        (40, 25, L.Pick("40×25 · 窄屏老机器", "40×25 · Early narrow-screen machines")),
         (100, 30, "100×30"),
-        (132, 43, "132×43 · 宽终端"),
+        (132, 43, L.Pick("132×43 · 宽终端", "132×43 · Wide terminal")),
     ];
 
     /// <summary>字号循环取下一档 —— 比当前值大的那一档，到头绕回最小。</summary>
@@ -202,13 +204,17 @@ public static class MauiShellStore
     /// <summary>列数文案。⚠ 附「当前未生效」——<see cref="ShellSizeMode.Auto"/> 下列数是自适应的，
     /// 这里改的值要等切到另外两档才用得上；不写清楚就是"改了没反应"。</summary>
     public static string ColsText(int v)
-        => v <= 0 ? "自适应宽度"
-                  : Mode == ShellSizeMode.Auto ? $"{v} 列（切到固定档生效）" : $"{v} 列";
+        => v <= 0 ? L.Pick("自适应宽度", "Auto width")
+                  : Mode == ShellSizeMode.Auto
+                      ? L.Pick($"{v} 列（切到固定档生效）", $"{v} cols (takes effect in a fixed mode)")
+                      : L.Pick($"{v} 列", $"{v} cols");
 
     /// <summary>行数文案（同理：只有「固定窗口」那一档才用得上）。</summary>
     public static string RowsText(int v)
-        => v <= 0 ? "自适应高度"
-                  : Mode == ShellSizeMode.Fixed ? $"{v} 行" : $"{v} 行（切到固定窗口生效）";
+        => v <= 0 ? L.Pick("自适应高度", "Auto height")
+                  : Mode == ShellSizeMode.Fixed
+                      ? L.Pick($"{v} 行", $"{v} rows")
+                      : L.Pick($"{v} 行（切到固定窗口生效）", $"{v} rows (takes effect in fixed-window mode)");
 
-    public static string ScrollbackText(int v) => $"{v} 行";
+    public static string ScrollbackText(int v) => L.Pick($"{v} 行", $"{v} rows");
 }

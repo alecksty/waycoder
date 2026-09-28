@@ -357,7 +357,7 @@ public static class SandboxFsService
     public static (bool IsText, string Reason, string EncodingName, long SizeBytes) ProbeText(string relPath)
     {
         var full = ResolveInSandbox(relPath);
-        if (full == null || !File.Exists(full)) return (false, "文件不存在", "", 0);
+        if (full == null || !File.Exists(full)) return (false, L.Pick("文件不存在", "File not found"), "", 0);
 
         var info = new FileInfo(full);
         if (info.Length == 0) return (true, "", "UTF-8", 0);
@@ -377,7 +377,7 @@ public static class SandboxFsService
                 if (got < probe.Length) Array.Resize(ref probe, got);
             }
 
-            if (TextEncoding.IsBinaryContent(probe)) return (false, "二进制文件", "", info.Length);
+            if (TextEncoding.IsBinaryContent(probe)) return (false, L.Pick("二进制文件", "Binary file"), "", info.Length);
 
             var (_, bomName, bomEnc) = TextEncoding.MatchBom(probe);
             var name = bomEnc != null ? bomName
@@ -399,7 +399,7 @@ public static class SandboxFsService
     /// </summary>
     public static void WriteTextAtomic(string relPath, string content, Encoding encoding, bool crlf)
     {
-        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
+        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException(L.Pick($"路径越界：{relPath}", $"Path is outside the sandbox: {relPath}"));
         var parent = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
 
@@ -420,7 +420,7 @@ public static class SandboxFsService
     /// </summary>
     public static void WriteBytesAtomic(string relPath, byte[] content)
     {
-        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
+        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException(L.Pick($"路径越界：{relPath}", $"Path is outside the sandbox: {relPath}"));
         var parent = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
 
@@ -431,7 +431,7 @@ public static class SandboxFsService
 
     public static void WriteText(string relPath, string content, Encoding? encoding = null)
     {
-        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
+        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException(L.Pick($"路径越界：{relPath}", $"Path is outside the sandbox: {relPath}"));
         var parent = Path.GetDirectoryName(full);
         if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
         if (encoding == null) Global.WriteAllTextPreserveBom(full, content);

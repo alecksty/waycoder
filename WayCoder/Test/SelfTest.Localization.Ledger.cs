@@ -66,6 +66,9 @@ public static partial class SelfTest
         // ── 扫描：每个 .cs/.xaml 里「字符串字面量/属性值」含 CJK 的条数 ──
         // obj/bin 排除（生成代码里有大量中文注释与模板）；Platforms 排除（见类注释的边界说明）。
         var hits = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        // 留几个「命中长什么样」的样本：台账报红时**必须能看出命中的是哪一段**，
+        // 否则"这个文件怎么会在台账外"只能靠人再去复刻一遍扫描器（实测为这条卡过一轮）。
+        var samples = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var scanned = 0;
         foreach (var file in Directory.EnumerateFiles(mauiDir, "*.*", SearchOption.AllDirectories))
         {
@@ -85,8 +88,12 @@ public static partial class SelfTest
             try { src = File.ReadAllText(file); } catch { continue; }
 
             var pieces = isCs ? ExtractCSharpStringLiterals(src) : ExtractXamlTexts(src);
-            var n = pieces.Count(HasCjk);
-            if (n > 0) hits[rel] = n;
+            var bad = pieces.Where(HasCjk).ToList();
+            if (bad.Count > 0)
+            {
+                hits[rel] = bad.Count;
+                samples[rel] = bad.Take(3).Select(p => p.Trim()[..Math.Min(60, p.Trim().Length)]).ToList();
+            }
         }
 
         // ── 台账 ──
@@ -95,7 +102,12 @@ public static partial class SelfTest
             foreach (var line in File.ReadAllLines(ledgerPath))
             {
                 var t = line.Trim();
-                if (t.Length > 0 && !t.StartsWith('#')) ledger.Add(t.Replace('\\', '/'));
+                if (t.Length == 0 || t.StartsWith('#')) continue;
+                // 行内注释：`路径   # 保留理由` —— 台账要能**说清为什么**，否则下一个人
+                // 只会看到"这个文件怎么还没翻"，然后要么误删、要么把日志也翻了。
+                var hash = t.IndexOf("  #", StringComparison.Ordinal);
+                if (hash > 0) t = t[..hash].Trim();
+                if (t.Length > 0) ledger.Add(t.Replace('\\', '/'));
             }
         else
         {
@@ -110,7 +122,8 @@ public static partial class SelfTest
         if (notInLedger.Count > 0)
             Fail($"台账: {notInLedger.Count} 个文件含未迁移中文但**不在台账里**（新写的中文？新文件？）"
                  + "—— 翻掉它，或确认属于尚未排期的批次后加进台账：\n    "
-                 + string.Join("\n    ", notInLedger));
+                 + string.Join("\n    ", notInLedger.Select(f =>
+                       samples.TryGetValue(f, out var ss) ? $"{f}   ← 命中样本: {string.Join(" ｜ ", ss)}" : f)));
         else
         {
             // ⚠ 进度要**报得出来**，否则「还剩多少」只能靠人翻文件 —— 而那正是台账要消灭的东西。
@@ -120,8 +133,11 @@ public static partial class SelfTest
             var total = hits.Values.Sum();
             var top = hits.OrderByDescending(kv => kv.Value).Take(8)
                           .Select(kv => $"{kv.Key["WayCoder.Maui/".Length..]} {kv.Value}");
+            // ⚠ 措辞是「仍含中文/全角的片段」而不是「未迁移文案」：Batch 3 收尾后台账里剩下的
+            //   全是**有意保留**的（日志/判据/存储值/#if DEBUG/图标字形），每行都有理由。
+            //   把它们叫"未迁移"会误导下一个人去"补翻"——而那些正是翻了会静默改行为的。
             Check($"台账: 无「有中文但不在台账」的文件（扫了 {scanned} 个 .cs/.xaml；"
-                  + $"仍在台账 {hits.Count} 个文件 / 共 {total} 处未迁移文案）"
+                  + $"台账内 {hits.Count} 个文件 / 共 {total} 处仍含中文或全角，均已逐行标注理由）"
                   + $"｜前 8：{string.Join("、", top)}", true);
         }
 

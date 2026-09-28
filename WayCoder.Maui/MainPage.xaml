@@ -3,17 +3,18 @@
     x:Class="WayCoder.Maui.MainPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="首页">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='首页', En='Home'}">
 
     <ScrollView>
         <VerticalStackLayout Padding="28,48" Spacing="12">
 
             <Image Source="app.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
-            <Label Text="道码" FontSize="30" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='道码', En='WayCoder'}" FontSize="30" FontAttributes="Bold"
                    HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <Label x:Name="VersionLabel" FontSize="13"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" HorizontalTextAlignment="Center" />
-            <Label Text="手机编程智能体 —— 问点什么，或去「文件」页导入项目"
+            <Label Text="{markup:Tr Zh='手机编程智能体 —— 问点什么，或去「文件」页导入项目', En='Coding agent for your phone. Ask something, or import a project from Files.'}"
                    FontSize="14" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                    HorizontalTextAlignment="Center" Margin="0,6,0,0" />
 
@@ -23,17 +24,17 @@
                     <RoundRectangle CornerRadius="16" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="18" Spacing="8">
-                    <Label Text="当前配置" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Label Text="{markup:Tr Zh='当前配置', En='Current setup'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Label x:Name="ModelLabel" FontSize="16" FontAttributes="Bold"
                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                     <Label x:Name="KeyLabel" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                 </VerticalStackLayout>
             </Border>
 
-            <Button Text="💬  对话" Clicked="OnChatClicked" Margin="0,12,0,0" />
-            <Button Text="⚙️  配置" Clicked="OnSettingsClicked" />
-            <Button Text="🗂  模型" Clicked="OnModelsClicked" />
-            <Button Text="🔄  同步" Clicked="OnGitSyncClicked" />
+            <Button Text="{markup:Tr Zh='💬  对话', En='💬  Chat'}" Clicked="OnChatClicked" Margin="0,12,0,0" />
+            <Button Text="{markup:Tr Zh='⚙️  配置', En='⚙️  Settings'}" Clicked="OnSettingsClicked" />
+            <Button Text="{markup:Tr Zh='🗂  模型', En='🗂  Models'}" Clicked="OnModelsClicked" />
+            <Button Text="{markup:Tr Zh='🔄  同步', En='🔄  Sync'}" Clicked="OnGitSyncClicked" />
             <!-- 「关于」**不在这儿** —— 首页摆的是"要去哪儿干活"的入口，
                  而「关于」是"看看这个 App 是什么"，属于设置那一类。
                  它已经在「设置」页里（`SettingsPage.xaml` 的「关于」行），

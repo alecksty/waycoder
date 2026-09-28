@@ -119,8 +119,10 @@ internal static class VmlAudio
     public static async Task<string> SelfCheckAsync()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("🔊 音频自检（每一步都会真的响，听着对一下）");
-        sb.AppendLine($"· 合成器：主音量={_volume} 声部上限={Synth.MaxVoicesLimit}");
+        sb.AppendLine(L.Pick("🔊 音频自检（每一步都会真的响，听着对一下）",
+                             "🔊 Audio self-check (every step really plays a sound - listen along)"));
+        sb.AppendLine(L.Pick($"· 合成器：主音量={_volume} 声部上限={Synth.MaxVoicesLimit}",
+                             $"- Synth: volume={_volume} max voices={Synth.MaxVoicesLimit}"));
 
         // ⚠⚠ **每一步各自 try/catch，而且异常必须打在屏幕上**（2026-09-27 真机实测）：
         //   用户在 iPad 上跑到第 ③ 步**闪退**（SIGABRT、托管异常未捕获），而异常消息只在
@@ -135,7 +137,8 @@ internal static class VmlAudio
             try { await body(); }
             catch (Exception ex)
             {
-                sb.AppendLine($"   ❌ **这一步抛异常**：{ex.GetType().Name}：{ex.Message}");
+                sb.AppendLine(L.Pick($"   ❌ **这一步抛异常**：{ex.GetType().Name}：{ex.Message}",
+                                     $"   ❌ **this step threw**: {ex.GetType().Name}: {ex.Message}"));
                 var st = ex.StackTrace ?? "";
                 if (st.Length > 400) st = st[..400] + "…";
                 sb.AppendLine("   " + st.Replace("\n", "\n   "));
@@ -143,28 +146,32 @@ internal static class VmlAudio
         }
 
         // 设备状态整段也兜住（会话/节点属性在真机上更可能抛）
-        try { sb.AppendLine($"· 发声前：{DescribePlatform()}"); }
-        catch (Exception ex) { sb.AppendLine($"· 发声前状态读取失败：{ex.GetType().Name}：{ex.Message}"); }
+        try { sb.AppendLine(L.Pick($"· 发声前：{DescribePlatform()}", $"- Before playing: {DescribePlatform()}")); }
+        catch (Exception ex) { sb.AppendLine(L.Pick($"· 发声前状态读取失败：{ex.GetType().Name}：{ex.Message}",
+                                                    $"- Could not read state before playing: {ex.GetType().Name}: {ex.Message}")); }
 
-        await Step("① 单音 do（约 0.6 秒）", async () =>
+        await Step(L.Pick("① 单音 do（约 0.6 秒）", "(1) Single note do (~0.6 s)"), async () =>
         {
             NoteOn(0, 60, 100, 0);
             await Task.Delay(650);
-            sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 1 —— 是 0 说明调用没进合成器）");
+            sb.AppendLine(L.Pick($"   → 此刻声部={Synth.ActiveVoices}（应为 1 —— 是 0 说明调用没进合成器）",
+                                 $"   → Voices now={Synth.ActiveVoices} (should be 1 - 0 means the call never reached the synth)"));
             NoteOff(0, 60);
         });
 
-        await Step("② 和弦 do-mi-sol（约 0.9 秒，三个音同时）", async () =>
+        await Step(L.Pick("② 和弦 do-mi-sol（约 0.9 秒，三个音同时）", "(2) Chord do-mi-sol (~0.9 s, three notes at once)"), async () =>
         {
             NoteOn(0, 60, 100, 0);
             NoteOn(1, 64, 100, 0);
             NoteOn(2, 67, 100, 0);
             await Task.Delay(950);
-            sb.AppendLine($"   → 此刻声部={Synth.ActiveVoices}（应为 3）");
+            sb.AppendLine(L.Pick($"   → 此刻声部={Synth.ActiveVoices}（应为 3）",
+                                 $"   → Voices now={Synth.ActiveVoices} (should be 3)"));
             ToneControl(VmlUi.AudioCtl.AllNotesOff, 0, 0);
         });
 
-        await Step("③ 老式蜂鸣 880Hz（约 0.4 秒，**与游戏音效同一条路**）", async () =>
+        await Step(L.Pick("③ 老式蜂鸣 880Hz（约 0.4 秒，**与游戏音效同一条路**）",
+                          "(3) Legacy beep 880Hz (~0.4 s, **the same path game sound effects use**)"), async () =>
         {
             Tone(880, 400, 1);
             await Task.Delay(600);
@@ -172,15 +179,19 @@ internal static class VmlAudio
 
         try
         {
-            sb.AppendLine("· 发声后：" + DescribePlatform());
+            sb.AppendLine(L.Pick("· 发声后：", "- After playing: ") + DescribePlatform());
             sb.AppendLine(Synth.ActiveVoices == 0
-                ? "· 声部已清空 ✓"
-                : $"· ⚠️ 还有 {Synth.ActiveVoices} 个声部没关");
+                ? L.Pick("· 声部已清空 ✓", "- All voices released ✓")
+                : L.Pick($"· ⚠️ 还有 {Synth.ActiveVoices} 个声部没关",
+                         $"- ⚠️ {Synth.ActiveVoices} voice(s) were never released"));
         }
-        catch (Exception ex) { sb.AppendLine($"· 发声后状态读取失败：{ex.GetType().Name}：{ex.Message}"); }
+        catch (Exception ex) { sb.AppendLine(L.Pick($"· 发声后状态读取失败：{ex.GetType().Name}：{ex.Message}",
+                                                    $"- Could not read state after playing: {ex.GetType().Name}: {ex.Message}")); }
 
-        sb.AppendLine("· ①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。");
-        sb.AppendLine("· 哪一步写了 ❌ ⇒ 那一步抛了异常（类型与消息就在上面），把那几行发我。");
+        sb.AppendLine(L.Pick("· ①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。",
+                             "- 1 and 2 audible but 3 silent => the polyphony path is at fault; nothing audible => the engine/session path is."));
+        sb.AppendLine(L.Pick("· 哪一步写了 ❌ ⇒ 那一步抛了异常（类型与消息就在上面），把那几行发我。",
+                             "- Whichever step printed ❌ threw an exception (type and message are just above) - send me those lines."));
         return sb.ToString();
     }
 
@@ -275,8 +286,10 @@ internal static class VmlAudio
 
     /// <summary>自检用：这台 Android 设备上混音那一路的实际状态。</summary>
     private static string DescribePlatform()
-        => $"Android 混音轨={(_mixer == null ? "**未起（没声音就是这里）**" : "已起")}"
-         + $" / 喂块线程={(_mixThread?.IsAlive == true ? "在跑" : (_running ? "已起但不在跑" : "没起"))}";
+        => L.Pick($"Android 混音轨={(_mixer == null ? "**未起（没声音就是这里）**" : "已起")}"
+                + $" / 喂块线程={(_mixThread?.IsAlive == true ? "在跑" : (_running ? "已起但不在跑" : "没起"))}",
+                  $"Android mixer track={(_mixer == null ? "**not created (this is where silence comes from)**" : "created")}"
+                + $" / pump thread={(_mixThread?.IsAlive == true ? "running" : (_running ? "started but not running" : "not started"))}");
 
     /// <summary>同步 BGM 音量（`AUDIO_VOLUME` 要同时作用于 BGM 与合成器）。</summary>
     private static void SetBgmVolume(int volume)
@@ -641,8 +654,10 @@ internal static class VmlAudio
     /// </summary>
     private static string DescribePlatform()
     {
-        var s = $"Apple 引擎={(_engine == null ? "**未启动（声音出不去）**" : "已启动")}"
-              + $" / 播放节点={(_node == null ? "无" : _node.Playing ? "正在播" : "**建了但没在播（声音出不去）**")}";
+        var s = L.Pick($"Apple 引擎={(_engine == null ? "**未启动（声音出不去）**" : "已启动")}",
+                       $"Apple engine={(_engine == null ? "**not started (no sound gets out)**" : "started")}")
+              + L.Pick($" / 播放节点={(_node == null ? "无" : _node.Playing ? "正在播" : "**建了但没在播（声音出不去）**")}",
+                       $" / player node={(_node == null ? "none" : _node.Playing ? "playing" : "**created but not playing (no sound gets out)**")}");
 #if IOS
         // 会话类别：`Playback` 才是"忽略静音开关"；读**实际值**比"我们设过什么"可信。
         // ⚠ `OutputVolume` 是**这条链上唯一能揭穿"系统音量被拧到 0 / 静音"的读数** ——
@@ -650,12 +665,14 @@ internal static class VmlAudio
         try
         {
             var session = AVFoundation.AVAudioSession.SharedInstance();
-            s += $" / 会话类别={session.Category}"
-               + $" / 输出音量={session.OutputVolume:0.00}（0 = 静音，系统音量被拧到底）";
+            s += L.Pick($" / 会话类别={session.Category}", $" / session category={session.Category}")
+               + L.Pick($" / 输出音量={session.OutputVolume:0.00}（0 = 静音，系统音量被拧到底）",
+                        $" / output volume={session.OutputVolume:0.00} (0 = muted - the system volume is all the way down)");
         }
-        catch (Exception ex) { s += $" / 会话读取失败：{ex.Message}"; }
+        catch (Exception ex) { s += L.Pick($" / 会话读取失败：{ex.Message}", $" / could not read session: {ex.Message}"); }
 #else
-        s += " / 会话=不适用（Mac Catalyst 不配，见 EnsureNode 的说明）";
+        s += L.Pick(" / 会话=不适用（Mac Catalyst 不配，见 EnsureNode 的说明）",
+                    " / session=n/a (not configured on Mac Catalyst - see the note in EnsureNode)");
 #endif
         return s;
     }
@@ -673,7 +690,7 @@ internal static class VmlAudio
         {
             StopBgm();
             var player = AVAudioPlayer.FromUrl(NSUrl.FromFilename(path));
-            if (player == null) return "无法打开音频文件";
+            if (player == null) return L.Pick("无法打开音频文件", "Could not open the audio file");
             player.NumberOfLoops = loop ? -1 : 0;
             player.Volume = Math.Clamp(_volume, 0, 100) / 100f;
             player.PrepareToPlay();
@@ -757,8 +774,11 @@ internal static class VmlAudio
 
     public static void StopTone() { }
     /// <summary>自检用：这一支是空实现（桌面端走 TUI，没有绘窗那条路）。</summary>
-    private static string DescribePlatform() => "该平台没有音频输出实现（桌面端走 TUI 那条路）";
-    public static string? Play(string path, bool loop) => "当前平台不支持音频播放";
+    private static string DescribePlatform()
+        => L.Pick("该平台没有音频输出实现（桌面端走 TUI 那条路）",
+                  "This platform has no audio output implementation (the desktop uses the TUI path)");
+    public static string? Play(string path, bool loop)
+        => L.Pick("当前平台不支持音频播放", "Audio playback is not supported on this platform");
     public static void StopBgm() { }
 
     /// <summary>震动是 MAUI Essentials 的跨平台能力，非 Android 也有，照常实现。</summary>

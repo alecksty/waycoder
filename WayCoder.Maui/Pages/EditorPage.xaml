@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctl="clr-namespace:WayCoder.Maui.Controls"
-    Title="编辑器"
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='编辑器', En='Editor'}"
     Shell.TabBarIsVisible="False">
 
     <!-- x:Name：软键盘弹出时按 IME inset 往它加底部内边距（见 EditorPage.xaml.cs 的 HookImeInsets）。
@@ -56,13 +57,13 @@
         <!-- ⚠ 必须显式接 Clicked：加了按钮却忘了接线 = 点了没反应（用户实测「没看到菜单」） -->
         <ToolbarItem Text="☰" Order="Primary" Priority="0"
                      Clicked="OnMenuClicked"
-                     SemanticProperties.Hint="编辑器菜单" />
+                     SemanticProperties.Hint="{markup:Tr Zh='编辑器菜单', En='Editor menu'}" />
         <!-- 全屏：把导航栏 + 文件名行 + 工具条 + 状态栏全收掉，画布占满整屏。
              ⚠ 进全屏后**这个按钮自己也跟着导航栏一起没了**，所以恢复入口必须另放一个
              浮在画布上的按钮（RestoreBtn）—— 不能只靠这一个 ToolbarItem。 -->
         <ToolbarItem IconImageSource="icon_fullscreen.png" Order="Primary" Priority="1"
                      Clicked="OnFullscreenEnterClicked"
-                     SemanticProperties.Hint="全屏（隐藏所有栏）" />
+                     SemanticProperties.Hint="{markup:Tr Zh='全屏（隐藏所有栏）', En='Full screen (hide all bars)'}" />
     </ContentPage.ToolbarItems>
 
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto">
@@ -89,7 +90,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnUndoClicked"
-                SemanticProperties.Hint="撤销" />
+                SemanticProperties.Hint="{markup:Tr Zh='撤销', En='Undo'}" />
             <ImageButton
                 x:Name="RedoBtn"
                 Grid.Column="1"
@@ -97,7 +98,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnRedoClicked"
-                SemanticProperties.Hint="重做" />
+                SemanticProperties.Hint="{markup:Tr Zh='重做', En='Redo'}" />
             <ImageButton
                 x:Name="FindBtn"
                 Grid.Column="2"
@@ -105,7 +106,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnFindClicked"
-                SemanticProperties.Hint="查找" />
+                SemanticProperties.Hint="{markup:Tr Zh='查找', En='Find'}" />
             <ImageButton
                 x:Name="OutlineBtn"
                 Grid.Column="3"
@@ -113,7 +114,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnOutlineClicked"
-                SemanticProperties.Hint="大纲" />
+                SemanticProperties.Hint="{markup:Tr Zh='大纲', En='Outline'}" />
             <ImageButton
                 x:Name="PreviewBtn"
                 Grid.Column="4"
@@ -121,7 +122,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnActionButtonClicked"
-                SemanticProperties.Hint="预览/运行" />
+                SemanticProperties.Hint="{markup:Tr Zh='预览/运行', En='Preview/Run'}" />
             <ImageButton
                 x:Name="EditBtn"
                 Grid.Column="5"
@@ -129,7 +130,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnEditClicked"
-                SemanticProperties.Hint="切换只读/编辑" />
+                SemanticProperties.Hint="{markup:Tr Zh='切换只读/编辑', En='Toggle read-only/edit'}" />
             <ImageButton
                 x:Name="SaveBtn"
                 Grid.Column="6"
@@ -137,7 +138,7 @@
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnSaveClicked"
-                SemanticProperties.Hint="保存" />
+                SemanticProperties.Hint="{markup:Tr Zh='保存', En='Save'}" />
             <!-- 辅助输入条开关 —— 用户要求放工具栏（去 ☰ 菜单里找不方便）。
                  图标带**状态**：开着时高亮，一眼能看出它是开是关。 -->
             <ImageButton
@@ -148,7 +149,7 @@
                 Padding="8"
                 Opacity="0.45"
                 Clicked="OnAssistToggleClicked"
-                SemanticProperties.Hint="辅助输入条" />
+                SemanticProperties.Hint="{markup:Tr Zh='辅助输入条', En='Assist input bar'}" />
         </Grid>
 
         <!-- 内容区：自绘画布 + 浮动的单行输入 + Markdown 预览。
@@ -227,7 +228,7 @@
                             Padding="10"
                             BackgroundColor="Transparent"
                             Clicked="OnActionButtonClicked"
-                            SemanticProperties.Hint="运行" />
+                            SemanticProperties.Hint="{markup:Tr Zh='运行', En='Run'}" />
                     <BoxView x:Name="FullscreenDivider"
                             WidthRequest="1"
                             HeightRequest="22"
@@ -240,7 +241,7 @@
                             Padding="10"
                             BackgroundColor="Transparent"
                             Clicked="OnFullscreenExitClicked"
-                            SemanticProperties.Hint="退出全屏" />
+                            SemanticProperties.Hint="{markup:Tr Zh='退出全屏', En='Exit full screen'}" />
                 </HorizontalStackLayout>
             </Border>
 
@@ -264,13 +265,13 @@
                     <RoundRectangle CornerRadius="8" />
                 </Border.StrokeShape>
                 <HorizontalStackLayout Spacing="0">
-                    <Button x:Name="SelCopyBtn" Text="复制" Style="{StaticResource SelChip}"
+                    <Button x:Name="SelCopyBtn" Text="{markup:Tr Zh='复制', En='Copy'}" Style="{StaticResource SelChip}"
                             Clicked="OnSelCopyClicked" />
-                    <Button x:Name="SelDeleteBtn" Text="删除" Style="{StaticResource SelChip}"
+                    <Button x:Name="SelDeleteBtn" Text="{markup:Tr Zh='删除', En='Delete'}" Style="{StaticResource SelChip}"
                             Clicked="OnSelDeleteClicked" />
-                    <Button x:Name="SelAllBtn" Text="全选" Style="{StaticResource SelChip}"
+                    <Button x:Name="SelAllBtn" Text="{markup:Tr Zh='全选', En='Select all'}" Style="{StaticResource SelChip}"
                             Clicked="OnSelAllClicked" />
-                    <Button x:Name="SelPasteBtn" Text="粘贴" Style="{StaticResource SelChip}"
+                    <Button x:Name="SelPasteBtn" Text="{markup:Tr Zh='粘贴', En='Paste'}" Style="{StaticResource SelChip}"
                             Clicked="OnSelPasteClicked" />
                     <Button x:Name="SelCloseBtn" Text="✕" Style="{StaticResource SelChip}"
                             TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#FFFFFF}"
@@ -328,11 +329,11 @@
                          由代码 `SwitchPanelTab` 一处决定（原来 XAML 挂的 AppThemeBinding 被代码
                          写死的 Colors.White 盖掉，日间主题下选中那格就成了白底白字）。
                          两处都给 = 「谁生效」要看执行顺序，正是本仓库反复踩的坑。 -->
-                    <Button x:Name="PanelTabErrors" Grid.Column="0" Text="错误列表" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelTabErrors" Grid.Column="0" Text="{markup:Tr Zh='错误列表', En='Problems'}" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabErrorsClicked" />
-                    <Button x:Name="PanelTabOutput" Grid.Column="1" Text="输出" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelTabOutput" Grid.Column="1" Text="{markup:Tr Zh='输出', En='Output'}" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabOutputClicked" />
-                    <Button x:Name="PanelStopBtn" Grid.Column="2" Text="■ 停止" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelStopBtn" Grid.Column="2" Text="{markup:Tr Zh='■ 停止', En='■ Stop'}" Style="{StaticResource PanelChip}"
                             TextColor="{AppThemeBinding Light=#C4382F, Dark=#FF7B72}"
                             IsVisible="False" Clicked="OnPanelStopClicked" />
                     <!-- ⚠ `BorderWidth="0"` **必须显式写**：外框不是来自 `PanelChip`（那里底色本来就是
@@ -380,9 +381,9 @@
                         IsVisible="False"
                         ColumnDefinitions="*,Auto"
                         ColumnSpacing="6">
-                        <Entry x:Name="PanelStdinEntry" Placeholder="输入后回车…" FontSize="12"
+                        <Entry x:Name="PanelStdinEntry" Placeholder="{markup:Tr Zh='输入后回车…', En='Type, then Enter…'}" FontSize="12"
                                Completed="OnPanelStdinSubmitted" />
-                        <Button Grid.Column="1" Text="发送" FontSize="12" Padding="10,4"
+                        <Button Grid.Column="1" Text="{markup:Tr Zh='发送', En='Send'}" FontSize="12" Padding="10,4"
                                 Clicked="OnPanelStdinSendClicked" />
                     </Grid>
                 </Grid>
@@ -452,11 +453,11 @@
                              ⚠ 弹表里的按钮**不受影响**（那是另一棵树、另一组按钮）。 -->
                         <Button x:Name="AssistTabBtn" Text="TAB" Style="{StaticResource AssistChip}"
                                 Clicked="OnAssistTabClicked" />
-                        <Button x:Name="AssistSymBtn" Text="符号" Style="{StaticResource AssistChip}"
+                        <Button x:Name="AssistSymBtn" Text="{markup:Tr Zh='符号', En='Symbols'}" Style="{StaticResource AssistChip}"
                                 Clicked="OnAssistSymbolsClicked" />
-                        <Button x:Name="AssistOpBtn" Text="运算符" Style="{StaticResource AssistChip}"
+                        <Button x:Name="AssistOpBtn" Text="{markup:Tr Zh='运算符', En='Operators'}" Style="{StaticResource AssistChip}"
                                 Clicked="OnAssistOperatorsClicked" />
-                        <Button x:Name="AssistKwBtn" Text="关键字" Style="{StaticResource AssistChip}"
+                        <Button x:Name="AssistKwBtn" Text="{markup:Tr Zh='关键字', En='Keywords'}" Style="{StaticResource AssistChip}"
                                 Clicked="OnAssistKeywordsClicked" />
                         <!-- 退格 —— **不依赖输入法**的自己实现。
                              起因（用户实测发现）：**部分输入法的退格只作用于它自己的联想词库，
@@ -530,7 +531,7 @@
                     <ActivityIndicator IsRunning="True" Color="White" />
                     <Label
                         x:Name="LoadingText"
-                        Text="文件打开中…"
+                        Text="{markup:Tr Zh='文件打开中…', En='Opening file…'}"
                         TextColor="White"
                         FontSize="14"
                         HorizontalTextAlignment="Center" />

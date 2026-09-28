@@ -137,8 +137,16 @@ public static class WorkReporter
                 }
             }
 
-            // 检测内容中的错误标记
-            if (content.Contains("[ERROR]") || content.Contains("编译失败") || content.Contains("error CS"))
+            // 检测内容中的错误标记。
+            //
+            // ⚠ **中英都要认**（`Lang.cs` 的公理 A2：机器可读标记永远双语识别，与界面语言无关）。
+            //   `编译失败` 这一条来自 `MauiVml` 的编译失败前缀，而那句文案**会随界面语言变**
+            //   （英文界面下是 `⚠️ Compile failed: `）—— 只认中文的后果是：英文会话里
+            //   工作汇报（`.waycoder/reports/latest.md`）的错误数**静默少算**，
+            //   不报错、不留痕，只是数字变小。这条是 2026-09-28 双语化时差点漏掉的。
+            //   ⚠ 以后凡"拿文案当判据"的地方，都要按 A2 把两侧都列上。
+            if (content.Contains("[ERROR]") || content.Contains("error CS")
+                || content.Contains("编译失败") || content.Contains("Compile failed"))
                 stats.Errors++;
         }
         return stats;

@@ -30,7 +30,7 @@ public partial class HelpListPage : ContentPage
         var cat = HelpCatalog.Find(CategoryKey);
         if (cat is not { } c)
         {
-            Title = "使用说明";
+            Title = L.Pick("使用说明", "Help");
             List.ItemsSource = Array.Empty<object>();
             return;
         }

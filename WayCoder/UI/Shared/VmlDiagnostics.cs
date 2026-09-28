@@ -136,9 +136,16 @@ internal static class VmlDiagnostics
 
         var text = errorText.Replace("\r\n", "\n");
 
-        // 剥掉宿主自己加的前缀，否则会混进消息正文里显示给用户
+        // 剥掉宿主自己加的前缀，否则会混进消息正文里显示给用户。
+        //
+        // ⚠ **中英两份都要认**（`Lang.cs` 的公理 A2：机器可读标记永远双语识别，与当前界面语言无关）。
+        //   宿主那边的文案会随界面语言变（英文界面下是 `⚠️ Compile failed: `），而这里是**按字面量**
+        //   剥的 —— 只认中文的话，英文界面下前缀剥不掉、气泡里凭空多出一截，而且
+        //   **没有任何东西会报错**。这类"标记与文案同体"的地方必须两边都列。
         text = text.Replace("⚠️ 编译失败：", "")
-                   .Replace("⚠️ 前端编译没有产出 VML 汇编", "前端编译没有产出 VML 汇编");
+                   .Replace("⚠️ Compile failed: ", "")
+                   .Replace("⚠️ 前端编译没有产出 VML 汇编", "前端编译没有产出 VML 汇编")
+                   .Replace("⚠️ No VML assembly was produced", "No VML assembly was produced");
 
         // ① **带位置**的那一族：三条规则按序尝试、**命中即停**。
         //    必须互斥：同一条错误被两轮匹配会变成两条气泡。

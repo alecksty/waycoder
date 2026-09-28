@@ -2249,7 +2249,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             // 编号占掉的列数要从**可用列**里扣掉，否则第一行会顶出气泡宽度
             // （续行因此比气泡窄几个列宽，宁可短一点也不许顶出去）。
             string text = g.Items.Count == 1
-                ? (d.Line > 0 ? $"第 {d.Line} 行：{d.Message}" : d.Message)
+                ? (d.Line > 0
+                    ? L.Pick($"第 {d.Line} 行：{d.Message}", $"Line {d.Line}: {d.Message}")
+                    : d.Message)
                 : $"{i + 1}. {d.Message}";
             int prefix = g.Items.Count == 1 ? 0 : $"{i + 1}. ".Length;
 
@@ -3293,9 +3295,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 内部把边界写死成 512，超了会**折行** —— 而 HUD 底色带只有 18 高，第二行看不见、
         // 第一行被顶掉一半（加了分段耗时字段之后就踩到了：读不到 `w` 实测推进量）。
         // 所以这里只留调性能时真正要看的量，拖拽诊断那几个字段（H/d/w）挪走。
-        var text = $"{LastDrawMs:F1}ms 峰{_drawMsPeak:F1} X{_scrollX:F0}/{ComputeMaxScrollX():F0}"
+        // 标签随界面语言（设置页有开关，用户点得开 ⇒ 属"看得见的字"）。
+        // ⚠ 英文缩写**不能比中文长太多**：上面那条 512 边界是硬约束。
+        //   峰/pk、底/bg、文/txt、号/gut、行/lines —— 合计多约 10 字符，离 512 还很远。
+        var lbPeak = L.Pick("峰", "pk");
+        var lbBg = L.Pick("底", "bg");
+        var lbText = L.Pick("文", "txt");
+        var lbGutter = L.Pick("号", "gut");
+        var lbLines = L.Pick("行", "lines");
+        var text = $"{LastDrawMs:F1}ms {lbPeak}{_drawMsPeak:F1} X{_scrollX:F0}/{ComputeMaxScrollX():F0}"
                  + $" w{_charWidth:F2}/{_wideCharWidth:F2}"
-                 + $" 底{_tBg:F1}文{_tText:F1}号{_tGutter:F1} 行{last - first} {_dragBar}";
+                 + $" {lbBg}{_tBg:F1}{lbText}{_tText:F1}{lbGutter}{_tGutter:F1} {lbLines}{last - first} {_dragBar}";
         canvas.FontSize = 10;
         canvas.FontColor = Colors.White;
         // MAUI 的 Color.FromArgb 按 #AARRGGBB 解析 —— 写成 #000000AA 的话 alpha=0x00，

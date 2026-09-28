@@ -120,18 +120,28 @@ internal static class VmlFrontendCompilers
             return;
 
         var detail = string.Join("\n",
-            $"  期望 {VmlFrontendCompilerList.All.Count} 个 / 实际注册到 {manager.FrontendCompilerCount} 个",
-            missingTypes.Count > 0 ? $"  清单里有但没注册（RegisterAll 漏 new）：{string.Join(", ", missingTypes)}" : null,
-            extraTypes.Count > 0 ? $"  注册了但清单里没有（清单漏记）：{string.Join(", ", extraTypes)}" : null,
-            missingNames.Count > 0 ? $"  清单里的编译器名没被注册（上游改名了？）：{string.Join(", ", missingNames)}" : null,
-            extraNames.Count > 0 ? $"  注册到的编译器名不在清单里：{string.Join(", ", extraNames)}" : null);
+            L.Pick($"  期望 {VmlFrontendCompilerList.All.Count} 个 / 实际注册到 {manager.FrontendCompilerCount} 个",
+                   $"  Expected {VmlFrontendCompilerList.All.Count} / registered {manager.FrontendCompilerCount}"),
+            missingTypes.Count > 0 ? L.Pick($"  清单里有但没注册（RegisterAll 漏 new）：{string.Join(", ", missingTypes)}",
+                                            $"  In the list but not registered (RegisterAll is missing a new): {string.Join(", ", missingTypes)}") : null,
+            extraTypes.Count > 0 ? L.Pick($"  注册了但清单里没有（清单漏记）：{string.Join(", ", extraTypes)}",
+                                          $"  Registered but not in the list (the list is out of date): {string.Join(", ", extraTypes)}") : null,
+            missingNames.Count > 0 ? L.Pick($"  清单里的编译器名没被注册（上游改名了？）：{string.Join(", ", missingNames)}",
+                                            $"  Compiler name in the list was not registered (renamed upstream?): {string.Join(", ", missingNames)}") : null,
+            extraNames.Count > 0 ? L.Pick($"  注册到的编译器名不在清单里：{string.Join(", ", extraNames)}",
+                                          $"  Registered compiler name is not in the list: {string.Join(", ", extraNames)}") : null);
 
         throw new VmlCompilerListDriftException(
-            "VML 前端编译器清单漂移 —— VmlFrontendCompilers.RegisterAll 注册到的集合与 "
-            + "WayCoder/UI/Shared/VmlFrontendCompilerList.cs 的 All 对不上。\n"
+            L.Pick("VML 前端编译器清单漂移 —— VmlFrontendCompilers.RegisterAll 注册到的集合与 "
+                   + "WayCoder/UI/Shared/VmlFrontendCompilerList.cs 的 All 对不上。\n",
+                   "VML frontend compiler list drift - the set registered by VmlFrontendCompilers.RegisterAll "
+                   + "does not match All in WayCoder/UI/Shared/VmlFrontendCompilerList.cs.\n")
             + detail + "\n"
-            + "  同步三处：① VmlFrontendCompilerList.All；② 本文件 RegisterAll；"
-            + "③ WayCoder.Maui.csproj 的 ProjectReference。\n"
-            + $"  上游来源：{VmlFrontendCompilerList.UpstreamRelativePath} 的 RegisterFrontendCompilers。");
+            + L.Pick("  同步三处：① VmlFrontendCompilerList.All；② 本文件 RegisterAll；"
+                     + "③ WayCoder.Maui.csproj 的 ProjectReference。\n",
+                     "  Sync three places: (1) VmlFrontendCompilerList.All; (2) RegisterAll in this file; "
+                     + "(3) the ProjectReference in WayCoder.Maui.csproj.\n")
+            + L.Pick($"  上游来源：{VmlFrontendCompilerList.UpstreamRelativePath} 的 RegisterFrontendCompilers。",
+                     $"  Upstream source: RegisterFrontendCompilers in {VmlFrontendCompilerList.UpstreamRelativePath}."));
     }
 }

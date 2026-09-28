@@ -1,74 +1,51 @@
-# 双语化台账 —— 「已知仍含未迁移中文」的 MAUI 文件（一行一个相对路径）
+# 双语化台账 —— 「仍含中文/全角字符」的 MAUI 文件（一行一个相对路径，`  #` 后可写保留理由）
 #
-# 判据由 SelfTest.Localization.Ledger.cs 执行，两个方向都会红：
+# 判据由 SelfTest.Localization.Ledger.cs 执行，**两个方向都会红**：
 #   文件有中文但不在本表 => 红（新写的中文 / 新文件）
-#   文件在本表但已零命中 => 红（台账腐烂，「还剩多少」就永远算不准了）
+#   文件在本表但已零命中 => 红（台账腐烂会让「还剩多少」永远算不准）
 #
-# 「已迁移」的判据：中文已包在 L.Pick(中文, English) 或 {markup:Tr Zh=.., En=..} 里
+# 「已迁移」的判据：中文已包在 `L.Pick(中文, English)` 或 `{markup:Tr Zh=.., En=..}` 里
 # —— 那两种形态的中文支是「键」，不算未迁移。所以翻完一个文件就把它从本表删掉。
 #
 # 范围：只含 WayCoder.Maui/**/*.{cs,xaml}（排除 obj/bin/Platforms）。
 # 编译进手机的共享层（WayCoder/Tools、WayCoder/Agent、WayCoder/UI/Shared）不在这里，
 # 那是 Batch 2，届时另立一份。
 #
-# 2026-09-28 建表：60 个文件。
-WayCoder.Maui/AppShell.xaml
-WayCoder.Maui/Controls/CodeCanvasView.cs
-WayCoder.Maui/Controls/VmStatusOverlay.cs
-WayCoder.Maui/CoreStubs.cs
-WayCoder.Maui/DiagLog.cs
-WayCoder.Maui/MainPage.xaml
-WayCoder.Maui/MainPage.xaml.cs
-WayCoder.Maui/Markup/MarkdownPreview.cs
-WayCoder.Maui/Markup/ToolOutputFormatter.cs
-WayCoder.Maui/MauiBootstrap.cs
-WayCoder.Maui/Pages/AboutPage.xaml.cs
-WayCoder.Maui/Pages/ChatPage.xaml
-WayCoder.Maui/Pages/ChatPage.xaml.cs
-WayCoder.Maui/Pages/CommandPanelPage.cs
-WayCoder.Maui/Pages/DrawWindowPage.xaml
-WayCoder.Maui/Pages/DrawWindowPage.xaml.cs
-WayCoder.Maui/Pages/EditorPage.xaml
-WayCoder.Maui/Pages/EditorPage.xaml.cs
-WayCoder.Maui/Pages/FilesPage.xaml
-WayCoder.Maui/Pages/FilesPage.xaml.cs
-WayCoder.Maui/Pages/GitSyncPage.xaml
-WayCoder.Maui/Pages/GitSyncPage.xaml.cs
-WayCoder.Maui/Pages/HelpListPage.xaml
-WayCoder.Maui/Pages/HelpListPage.xaml.cs
-WayCoder.Maui/Pages/HelpPage.xaml
-WayCoder.Maui/Pages/HelpPage.xaml.cs
-WayCoder.Maui/Pages/ModelManagerPage.xaml
-WayCoder.Maui/Pages/ModelManagerPage.xaml.cs
-WayCoder.Maui/Pages/ModelPickerPage.xaml
-WayCoder.Maui/Pages/ModelPickerPage.xaml.cs
-WayCoder.Maui/Pages/ProviderModelsPage.xaml
-WayCoder.Maui/Pages/ProviderModelsPage.xaml.cs
-WayCoder.Maui/Pages/ReasoningDetailPage.xaml
-WayCoder.Maui/Pages/ReasoningDetailPage.xaml.cs
-WayCoder.Maui/Pages/SessionHistoryPage.cs
-WayCoder.Maui/Pages/SettingsGroupPage.xaml
-WayCoder.Maui/Pages/SettingsGroupPage.xaml.cs
-WayCoder.Maui/Pages/SettingsPage.xaml
-WayCoder.Maui/Pages/SettingsPage.xaml.cs
-WayCoder.Maui/Pages/ShellPage.xaml
-WayCoder.Maui/Pages/ShellPage.xaml.cs
-WayCoder.Maui/Pages/ToolCallsDetailPage.xaml
-WayCoder.Maui/Pages/ToolCallsDetailPage.xaml.cs
-WayCoder.Maui/Services/AgentService.cs
-WayCoder.Maui/Services/FileOpenService.cs
-WayCoder.Maui/Services/MauiCommands.cs
-WayCoder.Maui/Services/MauiCompileStore.cs
-WayCoder.Maui/Services/MauiEditorStore.cs
-WayCoder.Maui/Services/MauiLang.cs
-WayCoder.Maui/Services/MauiSessionStore.cs
-WayCoder.Maui/Services/MauiShellStore.cs
-WayCoder.Maui/Services/MauiVectorTarget.cs
-WayCoder.Maui/Services/MauiVmStore.cs
-WayCoder.Maui/Services/MauiVml.cs
-WayCoder.Maui/Services/MauiWebInteraction.cs
-WayCoder.Maui/Services/SandboxFsService.cs
-WayCoder.Maui/Services/VmlAudio.cs
-WayCoder.Maui/Services/VmlFrontendCompilers.cs
-WayCoder.Maui/Services/VmlUiCalls.cs
-WayCoder.Maui/Tools/VmlTool.cs
+# ── 一、待迁移的文案 ─────────────────────────────────────────────────────────
+# 2026-09-28 Batch 3 收尾后**本区为空**：手机界面自己的文案已全部双语化
+# （外壳主路径 + 模型/供应商页 + 设置页 + VML/编译链 + 服务与基础设施）。
+#
+# ── 二、有意保留：**不是「文案」**的中文/全角字符 ────────────────────────────
+# 这些是判据、存储值、日志、调试探针的被测对象、以及图标字形 ——
+# 翻了会**静默改变行为**或做无用功，所以**永不会归零，别删**。
+# 每行后的理由是该文件命中的主要来源；一个文件可能有多种，都列在理由里。
+#
+# ⚠ 判定规则（下一批照此办）：
+#   · 用户能看见的字 ⇒ 翻（含按钮/菜单/对话框/Toast/错误提示/工具输出）
+#   · 写进日志/诊断通道的 ⇒ 不翻（与桌面侧一致：WayCoder/Tools、Agent 里 L.Pick 进 ErrorLog 命中数为 0）
+#   · 用作判据/协议/存储键的 ⇒ 不翻（翻了判据恒假，不报错）
+#   · `#if DEBUG` 专用的 ⇒ 不翻（Release 包里那些字节不存在）
+#   · 被测量/被比较的对象本身（字体探针的 `中`、`Syntax.PlainName` 的 `纯文本`）⇒ 不翻
+
+WayCoder.Maui/Controls/CodeCanvasView.cs  # 字体度量探针的 中/中文，。！ —— **被测量的对象本身**，换字符就换了在量什么 + 8 条 #if DEBUG 日志
+WayCoder.Maui/CoreStubs.cs  # 6 处主题预设名 —— **写进 config.json 的存储值**（PresetNames 是 Config.Schema 的 select 选项、Presets.Keys 是 /theme 候选）
+WayCoder.Maui/DiagLog.cs  # 诊断通道（首抛异常记录、启动标记），只落盘/logcat
+WayCoder.Maui/Markup/MarkdownPreview.cs  # 2 条 ErrorLog
+WayCoder.Maui/Markup/ToolOutputFormatter.cs  # 3 处 纯文本 —— Syntax.PlainName 判据（这是不是代码的判定要认它）
+WayCoder.Maui/MauiBootstrap.cs  # ErrorLog / 开发者自检 Console.WriteLine（含音频自检 banner）
+WayCoder.Maui/Pages/ChatPage.xaml  # 仅圆形加号按钮的**图标字形** ＋（不是文案；换 ASCII 加号会改动视觉重量，需真机确认）
+WayCoder.Maui/Pages/ChatPage.xaml.cs  # 5 条 ErrorLog
+WayCoder.Maui/Pages/CommandPanelPage.cs  # 2 条 ErrorLog（侧栏导航）
+WayCoder.Maui/Pages/DrawWindowPage.xaml.cs  # 11 条 ErrorLog/DiagLog（矢量后端、方向锁定、首帧/贴图失败、logcat 耗时行）
+WayCoder.Maui/Pages/EditorPage.xaml.cs  # 2 条 ErrorLog + 4 条 owner 身份标签（只做 == 判定、从不显示）+ 12 条 #if DEBUG 注入测试
+WayCoder.Maui/Pages/FilesPage.xaml.cs  # 5 条 ErrorLog/DiagLog
+WayCoder.Maui/Pages/ShellPage.xaml.cs  # 5 条 ErrorLog/DiagLog
+WayCoder.Maui/Services/AgentService.cs  # 3 条 ErrorLog（token/tool 回调）
+WayCoder.Maui/Services/FileOpenService.cs  # 1 条 ErrorLog
+WayCoder.Maui/Services/MauiCommands.cs  # 1 条 ErrorLog（页面导航）
+WayCoder.Maui/Services/MauiLang.cs  # 4 条 ErrorLog（语言探测失败）
+WayCoder.Maui/Services/MauiVectorTarget.cs  # 1 条 ErrorLog（贴图解码失败）
+WayCoder.Maui/Services/MauiVml.cs  # ErrorLog/Android.Util.Log + 判据串 [耗时]（上游编译器分段标记）与 VML_MODE_MCU（汇编期宏名）
+WayCoder.Maui/Services/VmlAudio.cs  # 13 条 ErrorLog
+WayCoder.Maui/Services/VmlUiCalls.cs  # 20 条日志（ErrorLog + 本文件 Log() 助手 = ErrorLog.Warning）
+WayCoder.Maui/Tools/VmlTool.cs  # 1 条 ErrorLog（导出画面失败）

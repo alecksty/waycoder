@@ -3,7 +3,8 @@
     x:Class="WayCoder.Maui.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="设置">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='设置', En='Settings'}">
 
     <!-- 设置的**一级页**：只列分组 + 当前值摘要，点进去才是可改的控件（二级页
          SettingsGroupPage）。手机上「先看概要、要看细节再进去」比一页到底的长滚动好找。 -->
@@ -19,7 +20,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🤖" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="模型" FontSize="15"
+                        <Label Text="{markup:Tr Zh='模型', En='Model'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="ModelSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -41,7 +42,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="💰" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="参数" FontSize="15"
+                        <Label Text="{markup:Tr Zh='参数', En='Parameters'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="ParamsSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -63,7 +64,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🔐" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="权限" FontSize="15"
+                        <Label Text="{markup:Tr Zh='权限', En='Permission'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="PermSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -85,7 +86,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🗂" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="存储" FontSize="15"
+                        <Label Text="{markup:Tr Zh='存储', En='Storage'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="StorageSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -109,7 +110,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="📝" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="编辑器" FontSize="15"
+                        <Label Text="{markup:Tr Zh='编辑器', En='Editor'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="EditorSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -131,7 +132,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🎤" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="语音" FontSize="15"
+                        <Label Text="{markup:Tr Zh='语音', En='Voice'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="VoiceSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -154,7 +155,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🖥" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="虚拟机" FontSize="15"
+                        <Label Text="{markup:Tr Zh='虚拟机', En='VM'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="VmSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -178,7 +179,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="🛠" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="编译" FontSize="15"
+                        <Label Text="{markup:Tr Zh='编译', En='Compile'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="CompileSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
@@ -200,7 +201,7 @@
                 <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
                     <Label Grid.Column="0" Text="ℹ️" FontSize="20" VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" Spacing="2">
-                        <Label Text="关于" FontSize="15"
+                        <Label Text="{markup:Tr Zh='关于', En='About'}" FontSize="15"
                                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
                         <Label x:Name="AboutSummary" FontSize="12"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"

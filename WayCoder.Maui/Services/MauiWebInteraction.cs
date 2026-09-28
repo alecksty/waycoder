@@ -25,7 +25,7 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
         {
             var page = CurrentPage;
             if (page == null) return null;
-            return await page.DisplayPromptAsync("输入", prompt, "确定", "取消",
+            return await page.DisplayPromptAsync(L.Pick("输入", "Input"), prompt, UiText.BtnOk, UiText.BtnCancel,
                 initialValue: defaultValue, maxLength: 4000);
         });
 
@@ -77,7 +77,7 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
             }
 
             // 危险工具：仅允许 / 拒绝
-            var ok = await page.DisplayAlertAsync(title, message, "允许", "拒绝");
+            var ok = await page.DisplayAlertAsync(title, message, UiText.BtnAllow, UiText.BtnDeny);
             return ok ? 0 : 2;
         });
 
@@ -88,7 +88,8 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
             if (page == null) return null;
 
             var body = RenderHunks(hunks);
-            var ok = await page.DisplayAlertAsync($"Diff 预览 · {filePath}", body, "接受全部", "拒绝全部");
+            var ok = await page.DisplayAlertAsync(L.Pick($"Diff 预览 · {filePath}", $"Diff preview · {filePath}"), body,
+                L.Pick("接受全部", "Accept all"), L.Pick("拒绝全部", "Reject all"));
             return new DiffConfirmResult
             {
                 Decision = ok ? DiffPreview.Decision.AcceptAll : DiffPreview.Decision.RejectAll,
@@ -98,21 +99,21 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
     /// <summary>把 hunk 列表拼成可读文本（移动端简化：逐 hunk 逐行展示，不画 ANSI 颜色）。</summary>
     private static string RenderHunks(List<DiffPreview.Hunk> hunks)
     {
-        if (hunks.Count == 0) return "（无变更）";
+        if (hunks.Count == 0) return L.Pick("（无变更）", "(no changes)");
         var sb = new System.Text.StringBuilder();
         foreach (var h in hunks)
         {
             if (!string.IsNullOrEmpty(h.Header)) sb.AppendLine(h.Header);
             foreach (var line in h.Lines)
             {
-                var prefix = line.Kind switch { '+' => "＋", '-' => "－", _ => "  " };
+                var prefix = line.Kind switch { '+' => L.Pick("＋", "+"), '-' => L.Pick("－", "-"), _ => "  " };
                 sb.Append(prefix).Append(' ').AppendLine(line.Text);
             }
         }
         // 按 Rune 截断，避免超长 diff 撑爆对话框（UTF-16 代理对安全）
         var text = sb.ToString();
         return text.Length > 4000
-            ? string.Concat(text.EnumerateRunes().Take(4000).Select(r => r.ToString())) + "\n…（内容过长已截断）"
+            ? string.Concat(text.EnumerateRunes().Take(4000).Select(r => r.ToString())) + L.Pick("\n…（内容过长已截断）", "\n...(truncated, content too long)")
             : text;
     }
 }
@@ -161,9 +162,9 @@ internal sealed class MultiSelectPage : ContentPage
             stack.Add(row);
         }
 
-        var cancel = new Button { Text = "取消" };
+        var cancel = new Button { Text = UiText.BtnCancel };
         cancel.Clicked += (_, _) => _tcs.TrySetResult(null);
-        var ok = new Button { Text = "确定" };
+        var ok = new Button { Text = UiText.BtnOk };
         ok.Clicked += (_, _) => _tcs.TrySetResult(_items.Where(i => i.Selected).Select(i => i.Label).ToList());
 
         var buttons = new Grid

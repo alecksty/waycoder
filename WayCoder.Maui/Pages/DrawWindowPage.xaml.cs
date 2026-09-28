@@ -418,10 +418,10 @@ public partial class DrawWindowPage : ContentPage
     private async void OnMenuClicked(object? sender, EventArgs e)
     {
         var showing = MauiVmStatusStore.Visible;
-        var cancel = "取消";
+        var cancel = L.Pick("取消", "Cancel");
         // 文案存进局部变量供显示 —— 本处只判「是不是取消」，所以只需与 cancel 比
-        var label = showing ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态";
-        var choice = await DisplayActionSheetAsync("VML 窗口", cancel, null, label);
+        var label = showing ? L.Pick("📊 隐藏 VM 状态", "📊 Hide VM status") : L.Pick("📊 显示 VM 状态", "📊 Show VM status");
+        var choice = await DisplayActionSheetAsync(L.Pick("VML 窗口", "VML window"), cancel, null, label);
 
         if (choice is null || choice == cancel) return;
         MauiVmStatusStore.Toggle();
@@ -757,7 +757,7 @@ public partial class DrawWindowPage : ContentPage
         PadRightArea.IsVisible = show;
         PadCenterArea.IsVisible = show && _landscape != true;
         CollapseBar.IsVisible = _needGamepad;
-        PadToggleBtn.Text = _padCollapsed ? "▼ 展开手柄" : "▲ 收起手柄";
+        PadToggleBtn.Text = _padCollapsed ? L.Pick("▼ 展开手柄", "▼ Show gamepad") : L.Pick("▲ 收起手柄", "▲ Hide gamepad");
     }
 
     // ── 屏幕键盘（电脑屏窗口专用）────────────────────────────────────────
@@ -792,7 +792,10 @@ public partial class DrawWindowPage : ContentPage
     /// 这里只剩字母/修饰那四行 —— 原先排在最前的 `Esc+F1–F12` 与数字行、以及排在最后的
     /// 编辑/翻页行，已经合并成**一格三态**（见 <see cref="PcKeyPages"/>）。
     /// </summary>
-    private static readonly (string Label, int Key, int Span)[][] PcKeyboardRows =
+    /// ⚠ **刻意是表达式体属性而不是 `static readonly` 字段**：里面那个「空格」键的标签走
+    ///   `L.Pick`，而 `static readonly` 会在**首次访问时**把语言冻死（见 `L` 的类注释）。
+    ///   表只在 `BuildPcKeyboard`（`_pcKbBuilt` 保证只跑一次）里遍历，重算一次的代价可忽略。
+    private static (string Label, int Key, int Span)[][] PcKeyboardRows =>
     [
         // QWERTY 行
         [("Tab", VmlKeys.Tab, 1),
@@ -816,7 +819,7 @@ public partial class DrawWindowPage : ContentPage
          ("Shift", VmlKeys.Select, 2)],
 
         // 底行：修饰键 + 方向键（老程序的方向键用得极多）
-        [("Ctrl", VmlKeys.Ctrl, 2), ("Alt", VmlKeys.Alt, 2), ("空格", VmlKeys.Space, 5),
+        [("Ctrl", VmlKeys.Ctrl, 2), ("Alt", VmlKeys.Alt, 2), (L.Pick("空格", "Space"), VmlKeys.Space, 5),
          ("Alt", VmlKeys.Alt, 2), ("←", VmlKeys.Left, 1), ("↑", VmlKeys.Up, 1),
          ("↓", VmlKeys.Down, 1), ("→", VmlKeys.Right, 1)],
     ];
@@ -1055,7 +1058,7 @@ public partial class DrawWindowPage : ContentPage
         BuildPcKeyboard();
         PcKeyboard.IsVisible = true;
         PcKeyRows.IsVisible = !_keyboardCollapsed;
-        PcKeyToggle.Text = _keyboardCollapsed ? "⌨ 展开键盘" : "⌨ 收起键盘";
+        PcKeyToggle.Text = _keyboardCollapsed ? L.Pick("⌨ 展开键盘", "⌨ Show keyboard") : L.Pick("⌨ 收起键盘", "⌨ Hide keyboard");
         // 三态那一行也摆一次（新开一局时 `_pcKeyPage` 已被复位，这里把可见性与按钮文案落下去）。
         ApplyPcKeyPage();
     }

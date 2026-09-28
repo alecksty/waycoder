@@ -51,12 +51,12 @@ public partial class GitSyncPage : ContentPage
             }
             if (list.Count == 0)
             {
-                RecentRepoPicker.Title = "📚 历史仓库（拉取成功自动记录）";
+                RecentRepoPicker.Title = L.Pick("📚 历史仓库（拉取成功自动记录）", "📚 Recent repositories (recorded automatically)");
                 RecentRepoPicker.ItemsSource = null;
             }
             else
             {
-                RecentRepoPicker.Title = "📚 历史仓库（选一个填入）";
+                RecentRepoPicker.Title = L.Pick("📚 历史仓库（选一个填入）", "📚 Recent repositories (pick one)");
                 RecentRepoPicker.ItemsSource = list;
             }
         }
@@ -117,7 +117,7 @@ public partial class GitSyncPage : ContentPage
         try
         {
             var sb = new System.Text.StringBuilder();
-            sb.Append("工作区：").Append(MauiBootstrap.WorkspaceDir).Append('\n');
+            sb.Append(L.Pick("工作区：", "Workspace: ")).Append(MauiBootstrap.WorkspaceDir).Append('\n');
 
             // 列出已有项目（workspace 下含 .git 的子目录）
             var projects = new List<string>();
@@ -129,26 +129,27 @@ public partial class GitSyncPage : ContentPage
             }
             catch { }
             if (projects.Count > 0)
-                sb.Append("项目：").Append(string.Join("、", projects)).Append('\n');
+                sb.Append(L.Pick("项目：", "Projects: ")).Append(string.Join(L.Pick("、", ", "), projects)).Append('\n');
 
             var root = ResolveProjectRoot(RepoUrlEntry.Text);
             var gitDir = root != null ? Path.Combine(root, ".git") : null;
             if (gitDir == null || !Directory.Exists(gitDir))
             {
-                sb.Append("\n填仓库地址点「📥 克隆 / 拉取」→ 每个仓库独立存 workspace/项目名/，可同时管理多个。");
+                sb.Append(L.Pick("\n填仓库地址点「📥 克隆 / 拉取」→ 每个仓库独立存 workspace/项目名/，可同时管理多个。",
+                                 "\nEnter a repo URL and tap 📥 Clone / pull. Each repository is stored separately under workspace/<name>/, and you can manage several at once."));
                 StatusLabel.Text = sb.ToString();
                 return;
             }
             var branch = GitCore.Run(root!, "branch").Trim();
             var status = GitCore.Status(root!);
-            sb.Append("当前：").Append(root).Append('\n');
-            sb.Append("分支：").Append(branch).Append("\n\n").Append(status);
+            sb.Append(L.Pick("当前：", "Current: ")).Append(root).Append('\n');
+            sb.Append(L.Pick("分支：", "Branch: ")).Append(branch).Append("\n\n").Append(status);
             StatusLabel.Text = sb.ToString();
             RefreshBranches(root);
         }
         catch (Exception ex)
         {
-            StatusLabel.Text = $"状态读取失败：{ex.Message}";
+            StatusLabel.Text = L.Pick($"状态读取失败：{ex.Message}", $"Failed to read status: {ex.Message}");
         }
     }
 
@@ -233,15 +234,17 @@ public partial class GitSyncPage : ContentPage
         var url = RepoUrlEntry.Text?.Trim();
         if (string.IsNullOrEmpty(url))
         {
-            await DisplayAlertAsync("缺少仓库地址", "请填写仓库 URL（如 https://gitee.com/user/repo.git）", "确定");
+            await DisplayAlertAsync(L.Pick("缺少仓库地址", "Missing repository URL"),
+                                    L.Pick("请填写仓库 URL（如 https://gitee.com/user/repo.git）", "Enter a repository URL (e.g. https://gitee.com/user/repo.git)"),
+                                    L.Pick("确定", "OK"));
             return;
         }
         var branch = (BranchPicker.SelectedItem?.ToString() ?? "master").Replace("origin/", "");
         var projectRoot = ResolveProjectRoot(url)!;
 
         PullBtn.IsEnabled = false;
-        PullBtn.Text = "同步中…";
-        StatusLabel.Text = "⏳ 准备同步…";
+        PullBtn.Text = L.Pick("同步中…", "Syncing…");
+        StatusLabel.Text = L.Pick("⏳ 准备同步…", "⏳ Preparing…");
         try
         {
             await EnsureCredentialsAsync(projectRoot);
@@ -264,12 +267,12 @@ public partial class GitSyncPage : ContentPage
         }
         catch (Exception ex)
         {
-            StatusLabel.Text = $"同步失败：{ex.Message}";
+            StatusLabel.Text = L.Pick($"同步失败：{ex.Message}", $"Sync failed: {ex.Message}");
         }
         finally
         {
             PullBtn.IsEnabled = true;
-            PullBtn.Text = "📥 克隆 / 拉取所选分支";
+            PullBtn.Text = L.Pick("📥 克隆 / 拉取所选分支", "📥 Clone / pull branch");
         }
     }
 
@@ -279,23 +282,27 @@ public partial class GitSyncPage : ContentPage
         var url = RepoUrlEntry.Text?.Trim();
         if (string.IsNullOrEmpty(url))
         {
-            await DisplayAlertAsync("缺少仓库地址", "请填写仓库 URL", "确定");
+            await DisplayAlertAsync(L.Pick("缺少仓库地址", "Missing repository URL"),
+                                    L.Pick("请填写仓库 URL", "Enter a repository URL"),
+                                    L.Pick("确定", "OK"));
             return;
         }
         var projectRoot = ResolveProjectRoot(url)!;
         var gitDir = Path.Combine(projectRoot, ".git");
         if (!Directory.Exists(gitDir))
         {
-            await DisplayAlertAsync("未克隆该项目", "先点「📥 克隆 / 拉取」同步，再编辑推送。", "确定");
+            await DisplayAlertAsync(L.Pick("未克隆该项目", "Project not cloned"),
+                                    L.Pick("先点「📥 克隆 / 拉取」同步，再编辑推送。", "Tap 📥 Clone / pull first, then edit and push."),
+                                    L.Pick("确定", "OK"));
             return;
         }
 
         var msg = string.IsNullOrWhiteSpace(CommitMsgEntry.Text)
-            ? $"手机同步 {DateTime.Now:MM-dd HH:mm}" : CommitMsgEntry.Text.Trim();
+            ? L.Pick($"手机同步 {DateTime.Now:MM-dd HH:mm}", $"phone sync {DateTime.Now:MM-dd HH:mm}") : CommitMsgEntry.Text.Trim();
 
         PushBtn.IsEnabled = false;
-        PushBtn.Text = "推送中…";
-        StatusLabel.Text = "⏳ 提交推送中…";
+        PushBtn.Text = L.Pick("推送中…", "Pushing…");
+        StatusLabel.Text = L.Pick("⏳ 提交推送中…", "⏳ Committing and pushing…");
         try
         {
             await EnsureCredentialsAsync(projectRoot);
@@ -311,12 +318,12 @@ public partial class GitSyncPage : ContentPage
         }
         catch (Exception ex)
         {
-            StatusLabel.Text = $"推送失败：{ex.Message}";
+            StatusLabel.Text = L.Pick($"推送失败：{ex.Message}", $"Push failed: {ex.Message}");
         }
         finally
         {
             PushBtn.IsEnabled = true;
-            PushBtn.Text = "📤 提交并推送";
+            PushBtn.Text = L.Pick("📤 提交并推送", "📤 Commit and push");
         }
     }
 
@@ -336,22 +343,26 @@ public partial class GitSyncPage : ContentPage
 #elif IOS
             text = await Task.Run(() => DecodeIosQr(stream));
 #else
-            await DisplayAlertAsync("扫码", "当前平台暂不支持拍照扫码，请手动填写。", "关闭");
+            await DisplayAlertAsync(L.Pick("扫码", "Scan QR"), L.Pick("当前平台暂不支持拍照扫码，请手动填写。", "This platform cannot scan QR codes. Please fill the fields in manually."), L.Pick("关闭", "Close"));
             return;
 #endif
 
             if (text == null)
             {
-                await DisplayAlertAsync("未识别", "未能从图片识别二维码。请对准二维码、避免反光/模糊，或扫 sync-qr.png 图片文件。", "关闭");
+                await DisplayAlertAsync(L.Pick("未识别", "Not recognized"),
+                                        L.Pick("未能从图片识别二维码。请对准二维码、避免反光/模糊，或扫 sync-qr.png 图片文件。", "Could not read a QR code from the image. Aim at the code, avoid glare or blur, or scan the sync-qr.png file."),
+                                        L.Pick("关闭", "Close"));
                 return;
             }
             FillFromJson(text);
             ShowStatus();
-            await DisplayAlertAsync("已识别", "已从二维码填入仓库/凭证，点「📥 克隆 / 拉取」同步。", "确定");
+            await DisplayAlertAsync(L.Pick("已识别", "Scanned"),
+                                    L.Pick("已从二维码填入仓库/凭证，点「📥 克隆 / 拉取」同步。", "Repository and credentials filled from the QR code. Tap 📥 Clone / pull to sync."),
+                                    L.Pick("确定", "OK"));
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("扫码失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("扫码失败", "Scan failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 

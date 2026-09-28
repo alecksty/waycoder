@@ -181,7 +181,7 @@ public partial class ShellPage : ContentPage
     {
         if (_runCtsField is not null)
         {
-            RunBtn.Text = "⏹ 停止";
+            RunBtn.Text = L.Pick("⏹ 停止", "⏹ Stop");
             // **必须可点** —— 这个按钮就是那条唯一的可见出口
             //（出口本来就有：返回键 → 「强制停止」，但**它不可见**，卡在等输入的程序
             //  在用户眼里就是一个死界面 —— 用户原话：「不知道怎么结束这个程序」）。
@@ -190,7 +190,7 @@ public partial class ShellPage : ContentPage
         }
         else
         {
-            RunBtn.Text = _busy ? "…" : "运行";
+            RunBtn.Text = _busy ? "…" : L.Pick("运行", "Run");
             RunBtn.IsEnabled = !_busy;
             SetButtonEmphasis(RunBtn, null, null);
         }
@@ -268,8 +268,10 @@ public partial class ShellPage : ContentPage
         // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
         AddOutputGestures(OutputGrid);
 
-        Append("WayCoder 命令行\n" +
-               "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
+        Append(L.Pick("WayCoder 命令行\n" +
+                      "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n",
+                      "WayCoder Shell\n" +
+                      "Type a shell command, then tap Run (or press Enter). `cd` changes the working directory below.\n\n"));
         RefreshCwd();
     }
 
@@ -375,7 +377,8 @@ public partial class ShellPage : ContentPage
         // （见 VmlTool 的 ExecutionMode 注释）。这里只提示，不排队：用户再点一次即可。
         if (_busy)
         {
-            Append("⚠️ 上一条命令还在运行，等它结束再回文件页点一次。\n\n");
+            Append(L.Pick("⚠️ 上一条命令还在运行，等它结束再回文件页点一次。\n\n",
+                "⚠️ The previous command is still running. Wait for it to finish, then tap again in Files.\n\n"));
             return;
         }
 
@@ -510,8 +513,8 @@ public partial class ShellPage : ContentPage
                         var (bytes, err) = MauiVml.AssembleVmlToVmb(absPath);
                         if (bytes == null) return (null, err);
                         try { SandboxFsService.WriteBytesAtomic(outRel, bytes); }
-                        catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
-                        return ($"{bytes.Length:#,0} 字节", null);
+                        catch (Exception ex) { return (null, L.Pick($"⚠️ 写入失败：{ex.Message}", $"⚠️ Write failed: {ex.Message}")); }
+                        return (L.Pick($"{bytes.Length:#,0} 字节", $"{bytes.Length:#,0} bytes"), null);
                     }
 
                     var (text, err2) = MauiVml.CompileToVml(absPath, cts.Token);
@@ -522,15 +525,16 @@ public partial class ShellPage : ContentPage
                         // 带 BOM 则会让汇编器认不出首行的 `.entry`。
                         SandboxFsService.WriteTextAtomic(outRel, text, new System.Text.UTF8Encoding(false), crlf: false);
                     }
-                    catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
-                    return ($"{text.Length:#,0} 字符", null);
+                    catch (Exception ex) { return (null, L.Pick($"⚠️ 写入失败：{ex.Message}", $"⚠️ Write failed: {ex.Message}")); }
+                    return (L.Pick($"{text.Length:#,0} 字符", $"{text.Length:#,0} chars"), null);
                 });
 
                 // 编译报错**套红**（用户要的就是"一眼看出出事了"）：这段是给人看的，
                 // 所以整个 RunWithPromptAsync 走 markup 支（见下面的 markupResult: true）
                 return error != null
                     ? "«red»" + error.TrimEnd() + "«/»"
-                    : $"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。";
+                    : L.Pick($"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。",
+                        $"✔ Generated {outRel} ({note})\nGo back to Files, tap it and choose Run to execute.");
             }
             finally
             {
@@ -669,7 +673,8 @@ public partial class ShellPage : ContentPage
         catch (Exception ex)
         {
             ErrorLog.Error("ShellPage", "命令执行失败", ex);
-            Append($"⚠️ 执行失败：{ex.GetType().Name}: {ex.Message}\n\n");
+            Append(L.Pick($"⚠️ 执行失败：{ex.GetType().Name}: {ex.Message}\n\n",
+                $"⚠️ Execution failed: {ex.GetType().Name}: {ex.Message}\n\n"));
         }
         finally
         {
@@ -853,47 +858,68 @@ public partial class ShellPage : ContentPage
 
         // help：不认参数时回列表（而不是报错），并明确指出"没这条命令"
         reg.Register(new ShellCommand(
-            "help", "[命令]", "列出可用命令；给命令名则显示它的用法",
-            "不带参数列出全部命令；带命令名显示该命令的用法。任何命令都可以用 `命令 -h` 看用法。",
+            "help", L.Pick("[命令]", "[command]"),
+            L.Pick("列出可用命令；给命令名则显示它的用法", "List available commands, or show usage for one"),
+            L.Pick("不带参数列出全部命令；带命令名显示该命令的用法。任何命令都可以用 `命令 -h` 看用法。",
+                "With no arguments, lists every command; with a command name, shows that command's usage. "
+                + "Any command accepts `command -h`."),
             args =>
             {
                 if (args.Count == 0) return Task.FromResult(reg.HelpText());
                 var c = reg.Find(args[0]);
                 return Task.FromResult(c != null
                     ? reg.UsageOf(c)
-                    : $"⚠️ 没有这个命令：{args[0]}\n\n{reg.HelpText()}");
+                    : L.Pick($"⚠️ 没有这个命令：{args[0]}\n\n{reg.HelpText()}",
+                        $"⚠️ No such command: {args[0]}\n\n{reg.HelpText()}"));
             },
             MaxArgs: 1));
 
         // clear / cls：清空输出区（等同右上角「清屏」）
         foreach (var name in new[] { "clear", "cls" })
             reg.Register(new ShellCommand(
-                name, "", "清空上面的输出（等同右上角「清屏」）",
-                "把输出区的回滚缓冲整个丢掉，回到干净的一屏。",
+                name, "",
+                L.Pick("清空上面的输出（等同右上角「清屏」）", "Clear the output above (same as Clear in the menu)"),
+                L.Pick("把输出区的回滚缓冲整个丢掉，回到干净的一屏。",
+                    "Drops the whole scrollback buffer and returns to a clean screen."),
                 _ => { MainThread.BeginInvokeOnMainThread(ClearOutput); return Task.FromResult(""); },
                 MaxArgs: 0));
 
         // audio：音频自检 —— 把"这台设备上音频到底通没通"打到屏幕上，并挨个放几种声音
         reg.Register(new ShellCommand(
             "audio", "",
-            "音频自检：报出引擎/会话/播放节点的实际状态，并依次放单音、和弦、蜂鸣",
-            "为什么有这条命令：iOS 上「一声不响、什么都不报」的坑踩过两次，而**从 Mac 读不到"
+            L.Pick("音频自检：报出引擎/会话/播放节点的实际状态，并依次放单音、和弦、蜂鸣",
+                "Audio self-check: reports the actual engine/session/player-node state, then plays a tone, a chord and a beep"),
+            L.Pick("为什么有这条命令：iOS 上「一声不响、什么都不报」的坑踩过两次，而**从 Mac 读不到"
             + "设备上的日志**（devicectl 不支持读 App 容器）⇒ 只能让状态自己打在屏幕上。"
             + "跑一遍：① 单音 do ② 和弦 do-mi-sol ③ 老式蜂鸣 880Hz（与游戏音效同一条路），"
             + "每一步都会真响并报出当时的声部数与引擎状态。"
             + "\n判据：①②有声音、③ 没声音 ⇒ 复音那条路的问题；全都没声音 ⇒ 引擎/会话那条路的问题。",
+                "Why this command exists: the \"completely silent, reports nothing\" trap on iOS has been hit twice, "
+            + "and **logs cannot be read from a Mac** (devicectl cannot read the app container), so the state has to "
+            + "print itself on screen. It plays: (1) a single do, (2) a do-mi-sol chord, (3) the classic 880Hz beep "
+            + "(the same path game sounds use); each step really sounds and reports the voice count and engine state "
+            + "at that moment."
+            + "\nDiagnosis: (1)(2) sound but (3) is silent => the polyphony path; nothing sounds => the engine/session path."),
             _ => VmlAudio.SelfCheckAsync(),
             MaxArgs: 0));
 
         // vml：不走 shell，转交进程内的虚拟机（iOS 没有 shell；Android 也不该为编译起进程）
         reg.Register(new ShellCommand(
-            "vml", "test | run <文件> | make <工程.vmk> | help",
-            "跑 VML 程序：`test` 跑内置自检，`run` 按扩展名派发（.vml 汇编 / .vmb 装载 / 其余 22 种语言编译）",
-            "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动派发"
+            "vml", L.Pick("test | run <文件> | make <工程.vmk> | help",
+                "test | run <file> | make <project.vmk> | help"),
+            L.Pick("跑 VML 程序：`test` 跑内置自检，`run` 按扩展名派发（.vml 汇编 / .vmb 装载 / 其余 22 种语言编译）",
+                "Run VML programs: `test` runs the built-in self-test, `run` dispatches by extension (.vml assembled / .vmb loaded / the other 22 languages compiled)"),
+            L.Pick("编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动派发"
             + "（`.vml` 走汇编，`.vmb` 直接装载字节码，`.c`/`.py`/`.rs` 等 22 种语言走各自前端编译器）。"
             + "路径相对下面显示的工作目录解析。"
             + "`vml make <工程.vmk>` 按 VML 工程文件编译（入口、头文件搜索路径、宏都写在 .vmk 里），"
             + "**只出产物不运行**。",
+                "Compiles and runs VML. `vml test` runs the built-in self-test program; `vml run <file>` "
+            + "dispatches by extension (`.vml` is assembled, `.vmb` loads bytecode directly, and `.c`/`.py`/`.rs` "
+            + "plus 19 more use their own front-end compiler). "
+            + "The path is resolved against the working directory shown below. "
+            + "`vml make <project.vmk>` compiles from a VML project file (entry, include paths and macros all live "
+            + "in the .vmk), **producing output only without running it**."),
             args => RunVmlAsync(string.Join(' ', args.Prepend("vml"))),
             // 本命令的返回值**已经是 «» 标记**（`ExecVmlAsync` 走 `MauiVml.Run(markup: true)`，
             // 编译错误也套了红）⇒ 输出区不能再过一遍 AnsiMarkup，否则 `«` 被转义成 `««`、
@@ -926,14 +952,21 @@ public partial class ShellPage : ContentPage
         if (rest.StartsWith("make ", StringComparison.Ordinal))
             return await MakeVmlAsync(CwdContext.Resolve(rest[5..].Trim()));
 
-        return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
+        return L.Pick($"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）",
+            $"⚠️ Unknown vml subcommand: {rest} (type `vml` for usage)");
     }
 
-    private const string VmlUsage =
+    // ⚠ 只能是**属性**不能是 `const`/`static readonly`：前者装不下 `L.Pick`，
+    //   后者会把语言冻在首次访问那一刻（见 L 的类注释）。
+    private static string VmlUsage => L.Pick(
         "用法：\n  vml test            跑内置的自检程序\n"
       + "  vml run <文件>      .vml 走汇编、.vmb 直接装载，"
       + "其余按扩展名自动选编译器（22 种语言）\n"
-      + "  vml make <工程.vmk> 按工程文件编译，**只出产物不运行**";
+      + "  vml make <工程.vmk> 按工程文件编译，**只出产物不运行**",
+        "Usage:\n  vml test            run the built-in self-test program\n"
+      + "  vml run <file>      .vml is assembled, .vmb is loaded directly; "
+      + "anything else picks a compiler by extension (22 languages)\n"
+      + "  vml make <project.vmk> compile from a project file; **produces output only, does not run**");
 
     /// <summary>
     /// **按工程文件编译**（`vml make <工程.vmk>`）—— 产物是 `.vml` 汇编（或 `.vmb`），**不运行**。
@@ -967,7 +1000,8 @@ public partial class ShellPage : ContentPage
                 if (r.Error != null) return r.Error;
 
                 var sb = new System.Text.StringBuilder();
-                sb.Append($"✔ 已写出 «bold»{r.OutRel}«/»（{r.SizeNote}）");
+                sb.Append(L.Pick($"✔ 已写出 «bold»{r.OutRel}«/»（{r.SizeNote}）",
+                    $"✔ Wrote «bold»{r.OutRel}«/» ({r.SizeNote})"));
                 // ⚠ 这些不是错误但**必须显示** —— 最要紧的是"多个源文件只取了一个"，
                 //   静默丢掉几个 .c 的后果是"编过了、少了半个程序"。
                 foreach (var n in r.Notes) sb.Append("\n«yellow»⚠️  ").Append(n).Append("«/»");
@@ -1054,17 +1088,18 @@ public partial class ShellPage : ContentPage
 
     private async Task ConfirmLeaveWhileRunningAsync()
     {
-        var stop = await DisplayAlertAsync("程序还在运行",
-            "VML 程序尚未结束。强制停止并离开吗？", "强制停止", "继续运行");
+        var stop = await DisplayAlertAsync(L.Pick("程序还在运行", "Program still running"),
+            L.Pick("VML 程序尚未结束。强制停止并离开吗？", "The VML program has not finished. Force stop and leave?"),
+            L.Pick("强制停止", "Force stop"), L.Pick("继续运行", "Keep running"));
         if (!stop) return;   // 「继续运行」= 不停止 = 不返回
 
-        Append("\n⏹ 正在强制停止…\n");
+        Append(L.Pick("\n⏹ 正在强制停止…\n", "\n⏹ Force stopping…\n"));
         _runCts?.Cancel();
 
         // **等那次运行真的收干净再放行**。不等的话 `_runCts` 还在，
         // 重发的返回会撞上同一个拦截、又弹一次框（甚至无限套娃）。
         if (_runDone is { } done) await done.Task;
-        Append("⏹ 已停止。\n\n");
+        Append(L.Pick("⏹ 已停止。\n\n", "⏹ Stopped.\n\n"));
 
         // 现在才是"已经停止"状态，重发一次返回 —— 走的完全是系统原本那条路
         // （Shell 自己决定是回上一个 Tab 还是退出应用），我们不去猜。
@@ -1149,7 +1184,8 @@ public partial class ShellPage : ContentPage
             _clearingStdin = true;
             StdinEntry.Text = "";
             _clearingStdin = false;
-            StdinEntry.Placeholder = "程序在等按键（按一下就是一下，不用回车）";
+            StdinEntry.Placeholder = L.Pick("程序在等按键（按一下就是一下，不用回车）",
+                "Waiting for a key press (one press per key, no Enter needed)");
             StdinPanel.IsVisible = true;
             StdinEntry.Focus();
             HookHardwareKeyboard();
@@ -1166,7 +1202,7 @@ public partial class ShellPage : ContentPage
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 _keyWaiting = false;
-                StdinEntry.Placeholder = "程序在等一行输入…";
+                StdinEntry.Placeholder = L.Pick("程序在等一行输入…", "Waiting for a line of input…");
             });
         }
     }
@@ -1327,19 +1363,29 @@ public partial class ShellPage : ContentPage
         var size = MauiShellStore.Font;
         // VM 状态那一项的文案跟着**当前状态**走（显示 / 隐藏），所以它得先算出来 ——
         // 也因此不能写进下面 switch 的 `case`（那里的标签必须是编译期常量）。
-        var statusItem = MauiVmStatusStore.Visible ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态";
+        var statusItem = MauiVmStatusStore.Visible
+            ? L.Pick("📊 隐藏 VM 状态", "📊 Hide VM status")
+            : L.Pick("📊 显示 VM 状态", "📊 Show VM status");
+
+        // 五项文案同样存局部变量、判定按它们分派（`case` 标签只能是编译期常量 ⇒ `case var a when a == …`）。
+        var bigger = L.Pick("加大字号", "Larger font");
+        var smaller = L.Pick("减小字号", "Smaller font");
+        var resetFont = L.Pick("重置字号", "Reset font");
+        var copyAll = L.Pick("复制整屏输出", "Copy all output");
+        var clear = L.Pick("清空屏幕", "Clear screen");
 
         var choice = await DisplayActionSheetAsync(
-            $"命令行 · 字号 {size:0}", "取消", null,
-            "加大字号", "减小字号", "重置字号", "复制整屏输出", "清空屏幕", statusItem);
+            L.Pick($"命令行 · 字号 {size:0}", $"Shell · font size {size:0}"),
+            L.Pick("取消", "Cancel"), null,
+            bigger, smaller, resetFont, copyAll, clear, statusItem);
 
         switch (choice)
         {
-            case "加大字号": SetFontSize(MauiShellStore.NextFont(size)); break;
-            case "减小字号": SetFontSize(MauiShellStore.PrevFont(size)); break;
-            case "重置字号": SetFontSize(MauiShellStore.DefaultFont); break;
-            case "复制整屏输出": await CopyAllOutputAsync(); break;
-            case "清空屏幕": ClearOutput(); break;
+            case var a when a == bigger: SetFontSize(MauiShellStore.NextFont(size)); break;
+            case var a when a == smaller: SetFontSize(MauiShellStore.PrevFont(size)); break;
+            case var a when a == resetFont: SetFontSize(MauiShellStore.DefaultFont); break;
+            case var a when a == copyAll: await CopyAllOutputAsync(); break;
+            case var a when a == clear: ClearOutput(); break;
         }
 
         if (choice == statusItem)
@@ -1442,8 +1488,9 @@ public partial class ShellPage : ContentPage
         {
             case ShellSizeMode.WidthFixed:
             {
-                var labels = MauiShellStore.ColsChoices.Select(c => $"{c} 列").ToArray();
-                var pick = await DisplayActionSheetAsync("固定列数", "取消", null, labels);
+                var labels = MauiShellStore.ColsChoices.Select(c => L.Pick($"{c} 列", $"{c} cols")).ToArray();
+                var pick = await DisplayActionSheetAsync(L.Pick("固定列数", "Fixed columns"),
+                    L.Pick("取消", "Cancel"), null, labels);
                 var idx = Array.IndexOf(labels, pick);
                 if (idx < 0) return;                          // 取消 / 点了外面
                 MauiShellStore.SetColumns(MauiShellStore.ColsChoices[idx]);
@@ -1452,7 +1499,8 @@ public partial class ShellPage : ContentPage
             case ShellSizeMode.Fixed:
             {
                 var labels = MauiShellStore.SizePresets.Select(p => p.Label).ToArray();
-                var pick = await DisplayActionSheetAsync("固定终端大小", "取消", null, labels);
+                var pick = await DisplayActionSheetAsync(L.Pick("固定终端大小", "Fixed terminal size"),
+                    L.Pick("取消", "Cancel"), null, labels);
                 var idx = Array.IndexOf(labels, pick);
                 if (idx < 0) return;
                 MauiShellStore.SetColumns(MauiShellStore.SizePresets[idx].Cols);
@@ -1495,9 +1543,9 @@ public partial class ShellPage : ContentPage
         //（原来三个按钮互斥高亮，合并成一格之后那个高亮态整个失去意义）。
         SizeModeBtn.Text = mode switch
         {
-            ShellSizeMode.WidthFixed => "定宽",
-            ShellSizeMode.Fixed      => "固定",
-            _                        => "自适应",
+            ShellSizeMode.WidthFixed => L.Pick("定宽", "Fixed cols"),
+            ShellSizeMode.Fixed      => L.Pick("固定", "Fixed"),
+            _                        => L.Pick("自适应", "Auto"),
         };
 
         // **右格 = 尺寸**，随档位变脸。
@@ -1519,13 +1567,15 @@ public partial class ShellPage : ContentPage
             var rows = px > 0 ? (int)(px / (_fontSize * LineHeightFactor)) : 0;
             // 行数还量不出来时**退回只报列数**（旧的「自适应 N 列」就是这么说）——
             // 别写 `—`：那看着像出错，而这一刻其实什么错都没有，只是布局还没走完。
-            SizePresetBtn.Text = rows > 0 ? $"{cols}×{rows}" : (cols > 0 ? $"{cols} 列" : "—");
+            SizePresetBtn.Text = rows > 0
+                ? $"{cols}×{rows}"
+                : (cols > 0 ? L.Pick($"{cols} 列", $"{cols} cols") : "—");
             // **不可按**：自动档没有可挑的东西，这一格只是个读数（用户定的）。
             SizePresetBtn.IsEnabled = false;
         }
         else if (mode == ShellSizeMode.WidthFixed)
         {
-            SizePresetBtn.Text = $"{MauiShellStore.RawCols} 列";
+            SizePresetBtn.Text = L.Pick($"{MauiShellStore.RawCols} 列", $"{MauiShellStore.RawCols} cols");
             SizePresetBtn.IsEnabled = true;
         }
         else

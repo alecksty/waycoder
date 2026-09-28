@@ -30,28 +30,39 @@ public class VmlTool : ITool
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
 
     public string Description =>
-        "汇编并运行一段 VML 程序，返回它的输出。VML 是本机内置的虚拟机汇编语言" +
-        "（VMLToolchain 工具链：22 种高级语言 → VML 汇编 → 虚拟机执行）。" +
-        "用来**验证一段 VML 汇编能否跑通**、看它的实际输出。" +
-        "参数二选一：source 直接给源码，或 file_path 给一个文件路径" +
-        "（按扩展名派发：.vml 汇编、.vmb 装载字节码、其余 22 种语言编译）。";
+        L.Pick(
+            "汇编并运行一段 VML 程序，返回它的输出。VML 是本机内置的虚拟机汇编语言" +
+            "（VMLToolchain 工具链：22 种高级语言 → VML 汇编 → 虚拟机执行）。" +
+            "用来**验证一段 VML 汇编能否跑通**、看它的实际输出。" +
+            "参数二选一：source 直接给源码，或 file_path 给一个文件路径" +
+            "（按扩展名派发：.vml 汇编、.vmb 装载字节码、其余 22 种语言编译）。",
+            "Assemble and run a VML program and return its output. VML is the virtual-machine "
+            + "assembly language built into this app (VMLToolchain: 22 high-level languages -> "
+            + "VML assembly -> VM execution). Use it to **verify that a piece of VML assembly "
+            + "actually runs** and to see its real output. Pass either source (inline code) or "
+            + "file_path (a file). Dispatch is by extension: .vml is assembled, .vmb loads "
+            + "bytecode, and the other 22 languages are compiled.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("source", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "VML 汇编源码"))
+                .Set("description", L.Pick("VML 汇编源码", "VML assembly source")))
             .Set("file_path", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "要运行的 .vml / .vmb 文件路径，或 .c/.py/.rs 等源文件（与 source 二选一）"))
+                .Set("description", L.Pick("要运行的 .vml / .vmb 文件路径，或 .c/.py/.rs 等源文件（与 source 二选一）",
+                                           "Path to a .vml / .vmb file to run, or a source file such as .c/.py/.rs (mutually exclusive with source)")))
             .Set("timeout", JNode.Object()
                 .Set("type", "integer")
-                .Set("description", "超时秒数，默认 10，范围 1~60"))
+                .Set("description", L.Pick("超时秒数，默认 10，范围 1~60", "Timeout in seconds. Default 10, range 1-60")))
             .Set("stdin", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "预置给程序的标准输入（多行用 \\n 分隔）。程序读 stdin 时按行喂；"
-                                  + "读完之后再读会拿到空行。不填则程序读到空输入。")));
+                .Set("description", L.Pick("预置给程序的标准输入（多行用 \\n 分隔）。程序读 stdin 时按行喂；"
+                                  + "读完之后再读会拿到空行。不填则程序读到空输入。",
+                                  "Standard input to feed the program (separate lines with \\n). "
+                                  + "Lines are fed one at a time as the program reads stdin; reads past "
+                                  + "the last line return an empty line. Leave empty and the program reads no input."))));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -59,7 +70,8 @@ public class VmlTool : ITool
         var filePath = GetString(arguments, "file_path");
 
         if (string.IsNullOrWhiteSpace(source) && string.IsNullOrWhiteSpace(filePath))
-            return Task.FromResult("⚠️ 需要 `source`（VML 源码）或 `file_path`（.vml 文件路径）二者之一。");
+            return Task.FromResult(L.Pick("⚠️ 需要 `source`（VML 源码）或 `file_path`（.vml 文件路径）二者之一。",
+                                          "⚠️ Provide either `source` (VML source) or `file_path` (path to a .vml file)."));
 
         // 路径解析放在进后台线程之前，解析完把**绝对路径**交给 MauiVml.Run（那边不再碰 CwdContext）。
         // 这是「进后台前定型」的写法，而不是被迫的绕行：CwdContext 现在存盒子、能跨线程回传，
@@ -99,20 +111,29 @@ public class VmlTool : ITool
             try
             {
                 var output = MauiVml.Run(source, resolved, timeout, readLine);
-                var text = string.IsNullOrEmpty(output) ? "（程序正常结束，没有输出）" : output;
+                var text = string.IsNullOrEmpty(output)
+                    ? L.Pick("（程序正常结束，没有输出）", "(the program finished normally with no output)")
+                    : output;
 
                 if (text.Length > MaxOutputChars)
                     text = text[..MaxOutputChars]
-                         + $"\n\n⚠️ 输出过长已截断（共 {text.Length} 字符，只回传前 {MaxOutputChars}）";
+                         + L.Pick($"\n\n⚠️ 输出过长已截断（共 {text.Length} 字符，只回传前 {MaxOutputChars}）",
+                                  $"\n\n⚠️ Output too long, truncated ({text.Length} characters total; returning the first {MaxOutputChars})");
 
                 // 图形程序：把「程序自己声明这一帧画完了」的画面导成 PNG，附在结果后面。
                 // **「没崩」不等于「画对了」** —— 游戏是画出来的，只回控制台文本等于让 AI 盲写：
                 // 位置偏了、颜色错了、某个图元根本没画出来，文本输出里一个字都看不出来。
                 if (TryExportFrame())
-                    text += $"\n\n🖼 本帧画面已导出到 {FrameFile}（工作区根目录）。"
+                    text += L.Pick($"\n\n🖼 本帧画面已导出到 {FrameFile}（工作区根目录）。"
                           + "若当前模型支持看图，**用 view_image 打开它确认画得对不对**"
                           + "（东西画在哪、颜色对不对、有没有该出现却没出现的）。"
-                          + "没有这个提示 = 程序没开过绘图窗口、或没调过 ui_present（纯文本程序属正常）。";
+                          + "没有这个提示 = 程序没开过绘图窗口、或没调过 ui_present（纯文本程序属正常）。",
+                          $"\n\n🖼 This frame was exported to {FrameFile} (workspace root). "
+                          + "If the current model can see images, **open it with view_image to check "
+                          + "that it looks right** (where things are drawn, whether the colors are right, "
+                          + "whether anything expected is missing). "
+                          + "No such note means the program never opened a drawing window or never called "
+                          + "ui_present (normal for text-only programs).");
 
                 return text;
             }
@@ -125,9 +146,10 @@ public class VmlTool : ITool
                 // `ArgumentNull_Generic Arg_ParamName_Name, path`），光看那句话
                 // 连是哪个 API 抛的都判断不了，而真正的位置只在堆栈里。
                 // 截断到 1200 字符：够看到最上面几帧，又不至于把上下文撑爆。
-                var stack = ex.StackTrace ?? "(无堆栈)";
+                var stack = ex.StackTrace ?? L.Pick("(无堆栈)", "(no stack trace)");
                 if (stack.Length > 1200) stack = stack[..1200] + " …";
-                return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}\n{stack}";
+                return L.Pick($"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}\n{stack}",
+                              $"⚠️ VML execution failed: {ex.GetType().Name}: {ex.Message}\n{stack}");
             }
         });
     }

@@ -129,21 +129,22 @@ public static class MauiEditorStore
     /// **放在这里而不是设置页**：设置页的**下拉**与**首页摘要**要用同一份标签，
     /// 两处各写一遍就是「同一规则两处实现」—— 本仓库的头号坑，迟早一处改了另一处没改。
     /// </summary>
-    public static readonly (string Label, SaveEncoding Value)[] SaveEncodingOptions =
+    // ⚠ 表达式体属性（**不能是 `static readonly` 字段** —— 初始化器只跑一次，会把语言冻住）
+    public static (string Label, SaveEncoding Value)[] SaveEncodingOptions =>
     [
-        ("保持原样（推荐）", SaveEncoding.Keep),
-        ("UTF-8（无 BOM）", SaveEncoding.Utf8NoBom),
-        ("UTF-8 带 BOM", SaveEncoding.Utf8Bom),
+        (L.Pick("保持原样（推荐）", "Keep as is (recommended)"), SaveEncoding.Keep),
+        (L.Pick("UTF-8（无 BOM）", "UTF-8 (no BOM)"), SaveEncoding.Utf8NoBom),
+        (L.Pick("UTF-8 带 BOM", "UTF-8 with BOM"), SaveEncoding.Utf8Bom),
         ("UTF-16 LE", SaveEncoding.Utf16Le),
-        ("OEM（系统区域代码页）", SaveEncoding.Oem),
+        (L.Pick("OEM（系统区域代码页）", "OEM (system ANSI code page)"), SaveEncoding.Oem),
     ];
 
     /// <summary>保存换行的候选。理由同上。</summary>
-    public static readonly (string Label, SaveNewline Value)[] SaveNewlineOptions =
+    public static (string Label, SaveNewline Value)[] SaveNewlineOptions =>
     [
-        ("保持原样（推荐）", SaveNewline.Keep),
-        ("LF+CR（Windows）", SaveNewline.Crlf),
-        ("LF（Unix）", SaveNewline.Lf),
+        (L.Pick("保持原样（推荐）", "Keep as is (recommended)"), SaveNewline.Keep),
+        (L.Pick("LF+CR（Windows）", "LF+CR (Windows)"), SaveNewline.Crlf),
+        (L.Pick("LF（Unix）", "LF (Unix)"), SaveNewline.Lf),
     ];
 
     /// <summary>枚举 → 下拉里那个标签（找不到就退回枚举名，绝不返回空）。</summary>

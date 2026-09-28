@@ -14,7 +14,7 @@ public sealed class SessionHistoryPage : ContentPage
 
     public SessionHistoryPage()
     {
-        Title = "会话历史";
+        Title = L.Pick("会话历史", "Session history");
         BackgroundColor = Res(isDark ? "CardBgDark" : "CardBgLight");
 
         var header = new Grid
@@ -24,7 +24,7 @@ public sealed class SessionHistoryPage : ContentPage
         };
         header.Add(new Label
         {
-            Text = "🗂 会话历史",
+            Text = L.Pick("🗂 会话历史", "🗂 Session history"),
             FontSize = 16,
             FontAttributes = FontAttributes.Bold,
             VerticalOptions = LayoutOptions.Center,
@@ -32,7 +32,7 @@ public sealed class SessionHistoryPage : ContentPage
         });
         var btn = new Button
         {
-            Text = "＋ 新会话",
+            Text = L.Pick("＋ 新会话", "+ New session"),
             FontSize = 13,
             Padding = new Thickness(10, 6),
             BackgroundColor = Colors.Transparent,
@@ -76,7 +76,7 @@ public sealed class SessionHistoryPage : ContentPage
         {
             _list.Add(new Label
             {
-                Text = "暂无历史会话",
+                Text = L.Pick("暂无历史会话", "No sessions yet"),
                 FontSize = 12,
                 TextColor = muted,
                 Margin = new Thickness(12, 20),
@@ -102,7 +102,7 @@ public sealed class SessionHistoryPage : ContentPage
                 {
                     new Label
                     {
-                        Text = string.IsNullOrWhiteSpace(s.Preview) ? "（空会话）" : s.Preview,
+                        Text = string.IsNullOrWhiteSpace(s.Preview) ? L.Pick("（空会话）", "(Empty session)") : s.Preview,
                         FontSize = 14,
                         FontAttributes = isCur ? FontAttributes.Bold : FontAttributes.None,
                         TextColor = isCur ? primary : main,
@@ -111,7 +111,8 @@ public sealed class SessionHistoryPage : ContentPage
                     },
                     new Label
                     {
-                        Text = $"{MauiSessions.RelativeTime(s.SavedAt)} · {s.MessageCount} 条消息",
+                        Text = L.Pick($"{MauiSessions.RelativeTime(s.SavedAt)} · {s.MessageCount} 条消息",
+                                      $"{MauiSessions.RelativeTime(s.SavedAt)} · {s.MessageCount} {(s.MessageCount == 1 ? "message" : "messages")}"),
                         FontSize = 11,
                         TextColor = muted,
                     },

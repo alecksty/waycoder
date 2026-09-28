@@ -3,16 +3,17 @@
     x:Class="WayCoder.Maui.Pages.ModelPickerPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="选择模型">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='选择模型', En='Select model'}">
 
     <Grid RowDefinitions="Auto,Auto,*">
         <!-- 搜索框：实时过滤模型 -->
-        <Entry x:Name="SearchEntry" Placeholder="🔍 搜索模型…" TextChanged="OnSearchChanged" Margin="8,6" />
+        <Entry x:Name="SearchEntry" Placeholder="{markup:Tr Zh='🔍 搜索模型…', En='🔍 Search models…'}" TextChanged="OnSearchChanged" Margin="8,6" />
 
         <!-- 大/小模型切换（TUI ModelPicker 的 Tab 切大/小） -->
         <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="8,0,8,6" ColumnSpacing="8">
-            <Button x:Name="BigBtn" Text="🧠 大模型" FontSize="13" Clicked="OnToggleSizeClicked" />
-            <Button Grid.Column="1" x:Name="SmallBtn" Text="⚡ 小模型" FontSize="13" Clicked="OnToggleSizeClicked" />
+            <Button x:Name="BigBtn" Text="{markup:Tr Zh='🧠 大模型', En='🧠 Main model'}" FontSize="13" Clicked="OnToggleSizeClicked" />
+            <Button Grid.Column="1" x:Name="SmallBtn" Text="{markup:Tr Zh='⚡ 小模型', En='⚡ Small model'}" FontSize="13" Clicked="OnToggleSizeClicked" />
         </Grid>
 
         <!-- 模型列表：按供应商分组 -->

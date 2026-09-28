@@ -26,13 +26,14 @@ public partial class ReasoningDetailPage : ContentPage
         Target = null; // 一次性消费，防返回后再进残留旧内容
         if (msg == null || string.IsNullOrEmpty(msg.Reasoning))
         {
-            Body.Text = "（无思考内容）";
+            Body.Text = L.Pick("（无思考内容）", "(No reasoning recorded)");
             return;
         }
         // 思考泡泡带耗时 → 顶部副标「已思考 N 秒」
         Intro.Text = msg.ThinkingSeconds >= 1
-            ? $"模型推理过程 · 已思考 {(int)msg.ThinkingSeconds} 秒（未参与对话正文）"
-            : "模型推理过程（未参与对话正文）";
+            ? L.Pick($"模型推理过程 · 已思考 {(int)msg.ThinkingSeconds} 秒（未参与对话正文）",
+                     $"Model reasoning · thought for {(int)msg.ThinkingSeconds}s (not part of the conversation)")
+            : L.Pick("模型推理过程（未参与对话正文）", "Model reasoning (not part of the conversation)");
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
         // «» 中间格式 → 富文本（思考常为纯文本，Convert 兜底还原）
         Body.FormattedText = MarkupToFormattedString.Convert(msg.Reasoning, isDark);

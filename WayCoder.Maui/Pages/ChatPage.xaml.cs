@@ -94,10 +94,10 @@ public partial class ChatPage : ContentPage
     /// <summary>排队气泡的「排队中」标记。⚠ **追加处与替换处必须引用同一常量** ——
     /// 原先两处各写一遍中文字面量，将来把文案翻成英文时 `Replace` 找不到旧串就**静默不生效**，
     /// 表现是「被丢弃的消息永远停在『排队中…』」，误导用户以为还在排队。</summary>
-    private const string MarkQueued = "⏳ 排队中…";
+    private static string MarkQueued => L.Pick("⏳ 排队中…", "⏳ Queued…");
 
     /// <summary>队列满时替换成的「已丢弃」标记（同上，与 <see cref="MarkQueued"/> 成对）。</summary>
-    private const string MarkDropped = "❌ 已丢弃（排队已满）";
+    private static string MarkDropped => L.Pick("❌ 已丢弃（排队已满）", "❌ Dropped (queue full)");
 
     /// <summary>统一消息入口：Add 后裁剪，防消息列表无限增长（镜像 TUI PruneChatHistory）。</summary>
     private void AddMessage(ChatMessage m)
@@ -140,7 +140,8 @@ public partial class ChatPage : ContentPage
         var combined = sb.ToString() + delta;
         var tail = ContextManager.TruncateTailByRunes(combined, max);
         sb.Clear();
-        sb.Append("… 已截断（显示最近内容，旧内容滚动省略）…\n").Append(tail);
+        sb.Append(L.Pick("… 已截断（显示最近内容，旧内容滚动省略）…\n",
+            "… truncated (showing the most recent content; older content was dropped) …\n")).Append(tail);
     }
 
     // ── 输入框上方动态状态栏：多状态（空闲/思考/执行工具/等待确认/等待用户/等待子代理/完成/压缩）+ Braille 旋转动画 ──
@@ -418,7 +419,8 @@ public partial class ChatPage : ContentPage
     {
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            _compressStatusText = $"🔄 压缩中 [L{layer}/3] {label} {pct:P0}";
+            _compressStatusText = L.Pick($"🔄 压缩中 [L{layer}/3] {label} {pct:P0}",
+                $"🔄 Compressing [L{layer}/3] {label} {pct:P0}");
             _uiState = AgentStatus.Compressing;
         });
     }
@@ -455,7 +457,8 @@ public partial class ChatPage : ContentPage
             : $"⚙ {WorkModeManager.Format(WorkModeManager.CurrentMode)} · 🔐 {PermName(PermissionManager.CurrentMode)}";
         StatusBar.Text = s == null
             ? "📋 todo ×0"
-            : $"📋 todo ×{s.TodoCount} · 上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · "
+            : L.Pick($"📋 todo ×{s.TodoCount} · 上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · ",
+                    $"📋 todo ×{s.TodoCount} · Context {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · ")
               + $"🪙 {FormatK(s.PromptTokens)}+{FormatK(s.CompletionTokens)} · 💰 ${s.Cost?.ToString("F4") ?? "-"}";
     }
 
@@ -634,9 +637,10 @@ public partial class ChatPage : ContentPage
         if (!AgentService.HasUsableKey())
         {
             // ⚠ 文案存局部变量、判定用它比（原先比较中文字面量 —— 翻文案后「去设置」失效）
-            var later = "稍后";
-            var goSettings = "去设置";
-            var action = await DisplayActionSheetAsync("尚未配置 API Key", later, null, goSettings);
+            var later = L.Pick("稍后", "Later");
+            var goSettings = L.Pick("去设置", "Open Settings");
+            var action = await DisplayActionSheetAsync(L.Pick("尚未配置 API Key", "No API key configured"),
+                later, null, goSettings);
             if (action == goSettings) await Shell.Current.GoToAsync("//settings");
             return;
         }
@@ -717,7 +721,7 @@ public partial class ChatPage : ContentPage
             }
             else
             {
-                userMsg.RawText = text + "\n📤 发送中…";   // 排队消息 → 轮到它了
+                userMsg.RawText = text + L.Pick("\n📤 发送中…", "\n📤 Sending…");   // 排队消息 → 轮到它了
             }
 
             await RunOneMessageAsync(text);
@@ -748,6 +752,9 @@ public partial class ChatPage : ContentPage
         ChatMessage? seg = null;             // 当前流式正文段气泡（冻结后置 null，下段新开）
         StringBuilder? segSb = null;         // 当前段正文累积（段创建时同步 new）
         bool interruptSinceTool = false;     // 自上个工具以来是否出现过内容（新思考块 / 正文段）→ 下个工具新开组
+        // 工具输出截断标记：**追加处与 `EndsWith` 判据处必须引用同一份**（两处各写一遍
+        // 中文字面量时，翻文案后判据认不出旧标记 ⇒ 每次都再追加一遍）。
+        var toolTruncMark = L.Pick("… 已截断…", "… truncated…");
 
         void FinishThink()
         {
@@ -756,7 +763,8 @@ public partial class ChatPage : ContentPage
             thinkMsg.ThinkingSeconds = Math.Max(1, (int)Math.Round(elapsed));
             thinkMsg.Reasoning = thinkSb?.ToString() ?? "";
             thinkMsg.HasReasoning = thinkMsg.Reasoning.Length > 0; // 有内容才可点开详情页
-            thinkMsg.RawText = $"💭 已思考 {thinkMsg.ThinkingSeconds} 秒";
+            thinkMsg.RawText = L.Pick($"💭 已思考 {thinkMsg.ThinkingSeconds} 秒",
+                $"💭 Thought for {thinkMsg.ThinkingSeconds}s");
             thinkMsg = null;
             thinkSb = null;
         }
@@ -812,7 +820,11 @@ public partial class ChatPage : ContentPage
                             // 首个真实推理字符 → 惰性建思考泡泡（先一行占位，标题随思考实时计秒）
                             if (thinkMsg == null)
                             {
-                                thinkMsg = new ChatMessage { Role = ChatRole.Thinking, IsDark = isDark, RawText = "💭 思考中…" };
+                                thinkMsg = new ChatMessage
+                                {
+                                    Role = ChatRole.Thinking, IsDark = isDark,
+                                    RawText = L.Pick("💭 思考中…", "💭 Thinking…"),
+                                };
                                 thinkSb = new StringBuilder();
                                 thinkStart = DateTime.UtcNow;
                                 thinkLastCap = DateTime.MinValue;
@@ -825,7 +837,9 @@ public partial class ChatPage : ContentPage
                             if ((nowThink - thinkLastCap).TotalSeconds >= 1)
                             {
                                 thinkLastCap = nowThink;
-                                thinkMsg.RawText = $"💭 思考中 {Math.Max(1, (int)(nowThink - thinkStart).TotalSeconds)}s";
+                                thinkMsg.RawText = L.Pick(
+                                    $"💭 思考中 {Math.Max(1, (int)(nowThink - thinkStart).TotalSeconds)}s",
+                                    $"💭 Thinking {Math.Max(1, (int)(nowThink - thinkStart).TotalSeconds)}s");
                                 thinkMsg.Reasoning = thinkSb!.ToString();
                                 thinkMsg.HasReasoning = thinkSb.Length > 0;
                             }
@@ -894,7 +908,8 @@ public partial class ChatPage : ContentPage
                         FilePath = ExtractFilePath(summary),
                         IsDark = isDark,
                     });
-                    _toolGroup.RawText = $"🔧 工具调用:{_toolGroup.ToolCount} 次";
+                    _toolGroup.RawText = L.Pick($"🔧 工具调用:{_toolGroup.ToolCount} 次",
+                        $"🔧 Tool calls: {_toolGroup.ToolCount}");
                 },
                 output =>
                 {
@@ -904,8 +919,9 @@ public partial class ChatPage : ContentPage
                     var last = _toolGroup.ToolCalls[^1];
                     if (last.Detail.Length < Global.MaxSingleMessageChars)
                         last.Detail += output;
-                    else if (!last.Detail.EndsWith("… 已截断…", StringComparison.Ordinal))
-                        last.Detail += "\n… 已截断（工具输出过长，停止追加）…";
+                    else if (!last.Detail.EndsWith(toolTruncMark, StringComparison.Ordinal))
+                        last.Detail += L.Pick("\n… 已截断（工具输出过长，停止追加）…",
+                            "\n… truncated (tool output too long; stopped appending) …");
                     RefreshStatusBar(); // 工具输出阶段统计变化
                 },
                 _cts.Token);
@@ -1078,11 +1094,12 @@ public partial class ChatPage : ContentPage
 
         // ⚠ 四项文案存局部变量，switch 按它们分派（原先比较 emoji 中文字面量 ——
         //   翻文案后四个分支全落空，表现为「点了添加里的菜单没反应」）
-        var voice = "🎤 语音输入";
-        var audio = "📁 选择音频转录";
-        var camera = "📷 拍照看图";
-        var gallery = "🖼 从相册选图";
-        var action = await DisplayActionSheetAsync("添加", "取消", null, voice, audio, camera, gallery);
+        var voice = L.Pick("🎤 语音输入", "🎤 Voice input");
+        var audio = L.Pick("📁 选择音频转录", "📁 Transcribe an audio file");
+        var camera = L.Pick("📷 拍照看图", "📷 Take a photo");
+        var gallery = L.Pick("🖼 从相册选图", "🖼 Pick from gallery");
+        var action = await DisplayActionSheetAsync(L.Pick("添加", "Add"), L.Pick("取消", "Cancel"),
+            null, voice, audio, camera, gallery);
         switch (action)
         {
             case var a when a == voice:
@@ -1110,7 +1127,10 @@ public partial class ChatPage : ContentPage
                 status = await Permissions.RequestAsync<Permissions.Microphone>();
             if (status != PermissionStatus.Granted)
             {
-                await DisplayAlertAsync("需要麦克风权限", "请在系统设置中允许麦克风访问，才能语音输入。", "知道了");
+                await DisplayAlertAsync(L.Pick("需要麦克风权限", "Microphone permission needed"),
+                    L.Pick("请在系统设置中允许麦克风访问，才能语音输入。",
+                        "Allow microphone access in system settings to use voice input."),
+                    L.Pick("知道了", "Got it"));
                 return;
             }
 
@@ -1119,7 +1139,7 @@ public partial class ChatPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("录音失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("录音失败", "Recording failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 
@@ -1130,14 +1150,18 @@ public partial class ChatPage : ContentPage
         {
             var result = await FilePicker.Default.PickAsync(new PickOptions
             {
-                PickerTitle = "选择音频文件（mp3/wav/m4a/flac/ogg/webm）",
+                PickerTitle = L.Pick("选择音频文件（mp3/wav/m4a/flac/ogg/webm）",
+                    "Choose an audio file (mp3/wav/m4a/flac/ogg/webm)"),
             });
             if (result == null) return;
 
             var ext = Path.GetExtension(result.FileName).TrimStart('.').ToLowerInvariant();
             if (!TranscribeAudioTool.IsSupportedAudioExtension(ext))
             {
-                await DisplayAlertAsync("不支持的格式", $"不支持 .{ext} 音频，请选择 mp3/wav/m4a/flac/ogg/webm", "关闭");
+                await DisplayAlertAsync(L.Pick("不支持的格式", "Unsupported format"),
+                    L.Pick($"不支持 .{ext} 音频，请选择 mp3/wav/m4a/flac/ogg/webm",
+                        $".{ext} audio is not supported; choose mp3/wav/m4a/flac/ogg/webm"),
+                    L.Pick("关闭", "Close"));
                 return;
             }
 
@@ -1145,7 +1169,9 @@ public partial class ChatPage : ContentPage
             var full = SandboxFsService.ResolveInSandbox(rel) ?? "";
             if (string.IsNullOrEmpty(full))
             {
-                await DisplayAlertAsync("转录失败", "音频无法写入沙箱工作区", "关闭");
+                await DisplayAlertAsync(L.Pick("转录失败", "Transcription failed"),
+                    L.Pick("音频无法写入沙箱工作区", "The audio file could not be written to the workspace"),
+                    L.Pick("关闭", "Close"));
                 return;
             }
 
@@ -1153,7 +1179,7 @@ public partial class ChatPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("转录失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("转录失败", "Transcription failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 
@@ -1171,7 +1197,7 @@ public partial class ChatPage : ContentPage
 
             if (TranscribeAudioTool.IsTranscribeError(text))
             {
-                await DisplayAlertAsync("转录失败", text, "关闭");
+                await DisplayAlertAsync(L.Pick("转录失败", "Transcription failed"), text, L.Pick("关闭", "Close"));
                 return;
             }
 
@@ -1180,7 +1206,7 @@ public partial class ChatPage : ContentPage
         catch (Exception ex)
         {
             AddBtn.IsEnabled = true;
-            await DisplayAlertAsync("转录失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("转录失败", "Transcription failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 
@@ -1199,7 +1225,9 @@ public partial class ChatPage : ContentPage
             var full = SandboxFsService.ResolveInSandbox(rel) ?? "";
             if (string.IsNullOrEmpty(full))
             {
-                await DisplayAlertAsync("添加图片失败", "图片无法写入沙箱工作区", "关闭");
+                await DisplayAlertAsync(L.Pick("添加图片失败", "Adding the image failed"),
+                    L.Pick("图片无法写入沙箱工作区", "The image could not be written to the workspace"),
+                    L.Pick("关闭", "Close"));
                 return;
             }
 
@@ -1209,19 +1237,23 @@ public partial class ChatPage : ContentPage
             var baseUrl = Config.Instance.BaseUrl;
             if (!ModelCatalog.ResolveSupportsVision(model, baseUrl))
             {
-                await DisplayAlertAsync("不支持看图",
-                    $"当前模型 {modelLabel} 不支持图片输入（vision）。请切换到 gpt-4o / gpt-5 / claude / gemini 等 vision 模型。",
-                    "知道了");
+                await DisplayAlertAsync(L.Pick("不支持看图", "Vision not supported"),
+                    L.Pick($"当前模型 {modelLabel} 不支持图片输入（vision）。请切换到 gpt-4o / gpt-5 / claude / gemini 等 vision 模型。",
+                        $"The current model {modelLabel} does not accept image input (vision). Switch to a vision model such as gpt-4o / gpt-5 / claude / gemini."),
+                    L.Pick("知道了", "Got it"));
                 return;
             }
 
             // 入队（与 Agent 主循环 DrainImages(AgentId="maui-slot-0") 对齐）
             LLM.QueueImage("maui-slot-0", full);
-            await DisplayAlertAsync("图片已添加", $"已将图片加入下一轮请求，发送消息后 {modelLabel} 会看到它。", "知道了");
+            await DisplayAlertAsync(L.Pick("图片已添加", "Image added"),
+                L.Pick($"已将图片加入下一轮请求，发送消息后 {modelLabel} 会看到它。",
+                    $"The image was added to the next request — {modelLabel} will see it once you send a message."),
+                L.Pick("知道了", "Got it"));
         }
         catch (Exception ex)
         {
-            await DisplayAlertAsync("添加图片失败", ex.Message, "关闭");
+            await DisplayAlertAsync(L.Pick("添加图片失败", "Adding the image failed"), ex.Message, L.Pick("关闭", "Close"));
         }
     }
 }

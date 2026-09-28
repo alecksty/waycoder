@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:svc="clr-namespace:WayCoder.Maui.Services"
-    Title="文件">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='文件', En='Files'}">
 
     <Grid>
     <Grid RowDefinitions="Auto,Auto,*">
@@ -13,7 +14,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" Padding="8,4" ColumnSpacing="4">
             <Button
                 x:Name="UpBtn"
-                Text="↩ 上级"
+                Text="{markup:Tr Zh='↩ 上级', En='↩ Up'}"
                 FontSize="13"
                 Clicked="OnUpClicked" />
             <Label
@@ -27,13 +28,13 @@
             <Button
                 x:Name="EditBtn"
                 Grid.Column="2"
-                Text="✏️ 编辑"
+                Text="{markup:Tr Zh='✏️ 编辑', En='✏️ Edit'}"
                 FontSize="13"
                 Clicked="OnEditModeClicked" />
             <Button
                 x:Name="ImportBtn"
                 Grid.Column="3"
-                Text="导入"
+                Text="{markup:Tr Zh='导入', En='Import'}"
                 FontSize="13"
                 Clicked="OnImportClicked" />
         </Grid>
@@ -43,13 +44,13 @@
             <Button
                 x:Name="NewFileBtn"
                 Grid.Column="0"
-                Text="＋ 新建文件"
+                Text="{markup:Tr Zh='＋ 新建文件', En='+ New file'}"
                 FontSize="13"
                 Clicked="OnNewFileClicked" />
             <Button
                 x:Name="NewDirBtn"
                 Grid.Column="1"
-                Text="＋ 新建文件夹"
+                Text="{markup:Tr Zh='＋ 新建文件夹', En='+ New folder'}"
                 FontSize="13"
                 Clicked="OnNewDirClicked" />
         </Grid>
@@ -93,7 +94,7 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
             <CollectionView.EmptyView>
-                <Label Text="沙箱工作区为空，点「导入」加入文件" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                <Label Text="{markup:Tr Zh='沙箱工作区为空，点「导入」加入文件', En='Workspace is empty. Tap Import to add files.'}" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             </CollectionView.EmptyView>
         </CollectionView>
     </Grid>
@@ -120,7 +121,7 @@
                     HeightRequest="46" />
                 <Label
                     x:Name="BusyLabel"
-                    Text="正在处理…"
+                    Text="{markup:Tr Zh='正在处理…', En='Working…'}"
                     TextColor="White"
                     FontSize="15"
                     HorizontalTextAlignment="Center"

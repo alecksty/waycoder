@@ -2,8 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:controls="clr-namespace:WayCoder.Maui.Controls"
+             xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
              x:Class="WayCoder.Maui.Pages.DrawWindowPage"
-             Title="VML 窗口"
+             Title="{markup:Tr Zh='VML 窗口', En='VML window'}"
              Shell.TabBarIsVisible="False"
              BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
 
@@ -14,7 +15,7 @@
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="☰" Order="Primary" Priority="0"
                      Clicked="OnMenuClicked"
-                     SemanticProperties.Hint="窗口菜单" />
+                     SemanticProperties.Hint="{markup:Tr Zh='窗口菜单', En='Window menu'}" />
     </ContentPage.ToolbarItems>
 
     <!-- VML 程序开的窗口。布局三行：画布 / 折叠条 / 手柄。
@@ -68,7 +69,7 @@
             <Button
                 x:Name="PadToggleBtn"
                 Grid.Column="1"
-                Text="▲ 收起手柄"
+                Text="{markup:Tr Zh='▲ 收起手柄', En='▲ Hide gamepad'}"
                 Clicked="OnTogglePad"
                 FontSize="12"
                 Padding="0"
@@ -171,7 +172,7 @@
                 <Button x:Name="PcKeyModeBtn" Grid.Column="0" Text="Fn"
                         FontSize="11" HeightRequest="26" Padding="12,0" CornerRadius="8"
                         Clicked="OnCyclePcKeyPage" />
-                <Button x:Name="PcKeyToggle" Grid.Column="1" Text="⌨ 收起键盘"
+                <Button x:Name="PcKeyToggle" Grid.Column="1" Text="{markup:Tr Zh='⌨ 收起键盘', En='⌨ Hide keyboard'}"
                         FontSize="11" HeightRequest="26" Padding="0" CornerRadius="8"
                         Clicked="OnTogglePcKeyboard" />
             </Grid>

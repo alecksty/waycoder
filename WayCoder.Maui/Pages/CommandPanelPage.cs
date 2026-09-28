@@ -20,7 +20,7 @@ public sealed class CommandPanelPage : ContentPage
 
     public CommandPanelPage()
     {
-        Title = "侧栏";
+        Title = L.Pick("侧栏", "Panel");
         BackgroundColor = Res(isDark ? "CardBgDark" : "CardBgLight");
         _scroll.Content = _body;
         Content = _scroll;
@@ -66,31 +66,31 @@ public sealed class CommandPanelPage : ContentPage
                 Children =
                 {
                     new Label { Text = "🧠 " + modelText, FontSize = 15, FontAttributes = FontAttributes.Bold, TextColor = primary, LineBreakMode = LineBreakMode.TailTruncation, MaxLines = 1 },
-                    new Label { Text = "当前模型 · 点按选择", FontSize = 11, TextColor = muted },
+                    new Label { Text = L.Pick("当前模型 · 点按选择", "Current model · tap to change"), FontSize = 11, TextColor = muted },
                 },
             },
             new Color(primary.Red, primary.Green, primary.Blue, 0.10f),
             async () => await NavAsync("modelpicker")));
 
         // ── 命令区 ──
-        _body.Add(Section("命令", muted));
-        _body.Add(Row("🗂 供应商 / 模型", null, async () => await NavAsync("models"), main, muted, inputBg));
-        _body.Add(Row("🔄 代码同步", null, async () => await NavAsync("gitsync"), main, muted, inputBg));
-        _body.Add(Row("📌 任务管理", null, async () =>
+        _body.Add(Section(L.Pick("命令", "Commands"), muted));
+        _body.Add(Row(L.Pick("🗂 供应商 / 模型", "🗂 Providers / Models"), null, async () => await NavAsync("models"), main, muted, inputBg));
+        _body.Add(Row(L.Pick("🔄 代码同步", "🔄 Code sync"), null, async () => await NavAsync("gitsync"), main, muted, inputBg));
+        _body.Add(Row(L.Pick("📌 任务管理", "📌 Tasks"), null, async () =>
         {
             var items = new List<string>();
             try { items = WayCoder.Tools.TodoTool.Items.Select(t => $"{t.Status} · {t.Title}").ToList(); } catch { }
-            if (items.Count == 0) { await DisplayAlertAsync("任务管理", "暂无任务", "关闭"); return; }
-            await DisplayActionSheetAsync($"任务列表（{items.Count}）", "关闭", null, items.Take(20).ToArray());
+            if (items.Count == 0) { await DisplayAlertAsync(L.Pick("任务管理", "Tasks"), L.Pick("暂无任务", "No tasks"), L.Pick("关闭", "Close")); return; }
+            await DisplayActionSheetAsync(L.Pick($"任务列表（{items.Count}）", $"Tasks ({items.Count})"), L.Pick("关闭", "Close"), null, items.Take(20).ToArray());
         }, main, muted, inputBg));
 
         // ── 模式区：值行点按循环（本页重建刷新当前值） ──
-        _body.Add(Section("模式", muted));
-        _body.Add(Row("⚙ 工作模式", WorkModeManager.Format(WorkModeManager.CurrentMode),
+        _body.Add(Section(L.Pick("模式", "Mode"), muted));
+        _body.Add(Row(L.Pick("⚙ 工作模式", "⚙ Work mode"), WorkModeManager.Format(WorkModeManager.CurrentMode),
             () => { WorkModeManager.CycleNext(); PersistAndRefresh(); }, main, muted, inputBg));
-        _body.Add(Row("🔐 确认权限", PermName(PermissionManager.CurrentMode),
+        _body.Add(Row(L.Pick("🔐 确认权限", "🔐 Permission"), PermName(PermissionManager.CurrentMode),
             () => { PermissionManager.CycleMode(); PersistAndRefresh(); }, main, muted, inputBg));
-        _body.Add(Row("💸 经济模式", EconomyName(cfg.EconomyMode),
+        _body.Add(Row(L.Pick("💸 经济模式", "💸 Cost mode"), EconomyName(cfg.EconomyMode),
             () => { cfg.CycleEconomy(); PersistAndRefresh(); }, main, muted, inputBg));
 
         // ── 命令行显示 ──
@@ -98,11 +98,12 @@ public sealed class CommandPanelPage : ContentPage
         // 横向固定那一档专给**假设 80 列的老程序**用（表格/边框/进度条按 80 列排版，
         // 按手机宽度折会整片错位），而行数没必要跟着钉死。
         // 改完由命令行页的 OnAppearing 应用 —— 这里只负责落盘 + 本页刷新。
-        _body.Add(Section("命令行显示", muted));
-        _body.Add(Row("🔍 输出字号", $"{MauiShellStore.Font:0.#} 号（可双指无极缩放）",
+        _body.Add(Section(L.Pick("命令行显示", "Shell display"), muted));
+        _body.Add(Row(L.Pick("🔍 输出字号", "🔍 Font size"),
+            L.Pick($"{MauiShellStore.Font:0.#} 号（可双指无极缩放）", $"{MauiShellStore.Font:0.#} pt (pinch to zoom)"),
             () => { MauiShellStore.Font = MauiShellStore.NextFont(MauiShellStore.Font); PersistAndRefresh(); },
             main, muted, inputBg));
-        _body.Add(Row("🖥 尺寸模式", ShellSize.ModeText(MauiShellStore.Mode),
+        _body.Add(Row(L.Pick("🖥 尺寸模式", "🖥 Size mode"), ShellSize.ModeText(MauiShellStore.Mode),
             () =>
             {
                 MauiShellStore.SetMode(MauiShellStore.Mode switch
@@ -114,19 +115,19 @@ public sealed class CommandPanelPage : ContentPage
                 PersistAndRefresh();
             },
             main, muted, inputBg));
-        _body.Add(Row("📐 终端列数", MauiShellStore.ColsText(MauiShellStore.RawCols),
+        _body.Add(Row(L.Pick("📐 终端列数", "📐 Columns"), MauiShellStore.ColsText(MauiShellStore.RawCols),
             () => { MauiShellStore.SetColumns(MauiShellStore.Next(MauiShellStore.ColsChoices, MauiShellStore.RawCols)); PersistAndRefresh(); },
             main, muted, inputBg));
-        _body.Add(Row("📏 终端行数", MauiShellStore.RowsText(MauiShellStore.RawRows),
+        _body.Add(Row(L.Pick("📏 终端行数", "📏 Rows"), MauiShellStore.RowsText(MauiShellStore.RawRows),
             () => { MauiShellStore.SetRows(MauiShellStore.Next(MauiShellStore.RowsChoices, MauiShellStore.RawRows)); PersistAndRefresh(); },
             main, muted, inputBg));
-        _body.Add(Row("🗃 回滚缓存", MauiShellStore.ScrollbackText(MauiShellStore.Scrollback),
+        _body.Add(Row(L.Pick("🗃 回滚缓存", "🗃 Scrollback"), MauiShellStore.ScrollbackText(MauiShellStore.Scrollback),
             () => { MauiShellStore.Scrollback = MauiShellStore.Next(MauiShellStore.ScrollbackChoices, MauiShellStore.Scrollback); PersistAndRefresh(); },
             main, muted, inputBg));
 
         // ── 其它 ──
-        _body.Add(Section("其它", muted));
-        _body.Add(Row("ℹ️ 关于", null, async () => await NavAsync("about"), main, muted, inputBg));
+        _body.Add(Section(L.Pick("其它", "More"), muted));
+        _body.Add(Row(L.Pick("ℹ️ 关于", "ℹ️ About"), null, async () => await NavAsync("about"), main, muted, inputBg));
     }
 
     /// <summary>模式/权限/经济循环后：落盘 + 本页刷新（聊天页顶栏由 OnAppearing 刷新）。</summary>

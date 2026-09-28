@@ -184,17 +184,18 @@ HALT
             return RunAssembly(source!, timeoutSeconds, readLine, ct, markup);
 
         if (string.IsNullOrWhiteSpace(filePath))
-            return "⚠️ 需要 `source`（VML 源码）或 `file_path`（文件路径）二者之一。";
+            return L.Pick("⚠️ 需要 `source`（VML 源码）或 `file_path`（文件路径）二者之一。",
+                          "⚠️ Provide either `source` (VML source) or `file_path` (a file path).");
 
         if (!File.Exists(filePath))
-            return $"⚠️ 找不到文件：{filePath}";
+            return L.Pick($"⚠️ 找不到文件：{filePath}", $"⚠️ File not found: {filePath}");
 
         var ext = Path.GetExtension(filePath);
 
         if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase))
         {
             try { return RunAssembly(File.ReadAllText(filePath), timeoutSeconds, readLine, ct, markup); }
-            catch (Exception ex) { return $"⚠️ 读文件失败：{ex.Message}"; }
+            catch (Exception ex) { return L.Pick($"⚠️ 读文件失败：{ex.Message}", $"⚠️ Could not read the file: {ex.Message}"); }
         }
 
         // `.vmb` = VML 字节码。走装载而不是汇编/编译 —— 这正是「编译」与「运行」两个动作
@@ -202,7 +203,7 @@ HALT
         if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
         {
             try { return RunProgram(VmlProgram.LoadFromVmbFile(filePath), timeoutSeconds, readLine, ct, markup, readKey); }
-            catch (Exception ex) { return $"⚠️ VMB 装载失败：{ex.Message}"; }
+            catch (Exception ex) { return L.Pick($"⚠️ VMB 装载失败：{ex.Message}", $"⚠️ Could not load the VMB: {ex.Message}"); }
         }
 
         return CompileAndRun(filePath, timeoutSeconds, readLine, ct, markup);
@@ -324,8 +325,10 @@ HALT
         var entry = proj.EntryPath;
         if (!File.Exists(entry))
             return new(null, null, [],
-                $"⚠️ 找不到入口源文件：{SandboxFsService.Abbreviate(entry)}"
-                + $"（工程文件里写的是 <Entry>{proj.Entry}</Entry>）");
+                L.Pick($"⚠️ 找不到入口源文件：{SandboxFsService.Abbreviate(entry)}"
+                       + $"（工程文件里写的是 <Entry>{proj.Entry}</Entry>）",
+                       $"⚠️ Entry source file not found: {SandboxFsService.Abbreviate(entry)}"
+                       + $" (the project file says <Entry>{proj.Entry}</Entry>)"));
 
         // ⚠ 认得出名字但**还没实现**的格式 —— 拒绝，**绝不静默退回 .vml**（见方法注释）。
         //   判据与桌面 `vmlcli make` **共用一份**（`VmlProject.DescribeFormatProblem`）：
@@ -336,7 +339,8 @@ HALT
         var outAbs = proj.OutputPath;
         var rel = SandboxFsService.ToRelative(outAbs);
         if (rel is null)
-            return new(null, null, [], $"⚠️ 产物路径在工作区外，写不了：{outAbs}");
+            return new(null, null, [], L.Pick($"⚠️ 产物路径在工作区外，写不了：{outAbs}",
+                                              $"⚠️ Output path is outside the workspace, cannot write: {outAbs}"));
 
         // ── 多文件：附加编译单元各编成**目标文件**，再链进入口 ──
         //
@@ -348,24 +352,28 @@ HALT
         {
             var objDir = proj.ObjDirPath;
             try { Directory.CreateDirectory(objDir); }
-            catch (Exception ex) { return new(null, null, [], $"⚠️ 建不出中间产物目录：{ex.Message}"); }
+            catch (Exception ex) { return new(null, null, [], L.Pick($"⚠️ 建不出中间产物目录：{ex.Message}",
+                                                                     $"⚠️ Could not create the object directory: {ex.Message}")); }
 
             foreach (var src in proj.SourcePaths)
             {
                 if (!File.Exists(src))
-                    return new(null, null, [], $"⚠️ <Sources> 里的文件不存在：{SandboxFsService.Abbreviate(src)}");
+                    return new(null, null, [], L.Pick($"⚠️ <Sources> 里的文件不存在：{SandboxFsService.Abbreviate(src)}",
+                                                      $"⚠️ A file listed in <Sources> does not exist: {SandboxFsService.Abbreviate(src)}"));
 
                 var (objProg, _, objErr, _) = BuildProgram(src, ct,
                     proj.IncludePaths, proj.DefineArgs, asObject: true);
                 if (objProg is null)
-                    return new(null, null, [], $"⚠️ 编译 `{Path.GetFileName(src)}` 失败：{objErr}");
+                    return new(null, null, [], L.Pick($"⚠️ 编译 `{Path.GetFileName(src)}` 失败：{objErr}",
+                                                      $"⚠️ Failed to compile `{Path.GetFileName(src)}`: {objErr}"));
 
                 var objPath = Path.Combine(objDir, Path.GetFileNameWithoutExtension(src) + ".vml");
                 try
                 {
                     File.WriteAllText(objPath, objProg.ToString(), new System.Text.UTF8Encoding(false));
                 }
-                catch (Exception ex) { return new(null, null, [], $"⚠️ 写目标文件失败：{ex.Message}"); }
+                catch (Exception ex) { return new(null, null, [], L.Pick($"⚠️ 写目标文件失败：{ex.Message}",
+                                                                         $"⚠️ Could not write the object file: {ex.Message}")); }
 
                 extraLibs.Add(objPath);
             }
@@ -385,7 +393,7 @@ HALT
             {
                 var bytes = prog.ToVmbBytes();
                 SandboxFsService.WriteBytesAtomic(rel, bytes);
-                return new(rel, $"{bytes.Length:#,0} 字节", [], null);
+                return new(rel, L.Pick($"{bytes.Length:#,0} 字节", $"{bytes.Length:#,0} bytes"), [], null);
             }
 
             // ⚠ `ToString()` 会**就地**做死代码消除 —— `make` 只出产物、不跑，正好不冲突。
@@ -393,11 +401,11 @@ HALT
             //   带 BOM 则会让汇编器认不出首行的 `.entry`（与文件页「VML 编译」同一口径）。
             var text = prog.ToString();
             SandboxFsService.WriteTextAtomic(rel, text, new System.Text.UTF8Encoding(false), crlf: false);
-            return new(rel, $"{text.Length:#,0} 字符", [], null);
+            return new(rel, L.Pick($"{text.Length:#,0} 字符", $"{text.Length:#,0} chars"), [], null);
         }
         catch (Exception ex)
         {
-            return new(null, null, [], $"⚠️ 写入失败：{ex.Message}");
+            return new(null, null, [], L.Pick($"⚠️ 写入失败：{ex.Message}", $"⚠️ Could not write: {ex.Message}"));
         }
     }
 
@@ -454,7 +462,8 @@ HALT
     /// </summary>
     public static (byte[]? Bytes, string? Error) AssembleVmlToVmb(string filePath)
     {
-        if (!File.Exists(filePath)) return (null, $"⚠️ 找不到文件：{filePath}");
+        if (!File.Exists(filePath))
+            return (null, L.Pick($"⚠️ 找不到文件：{filePath}", $"⚠️ File not found: {filePath}"));
         try
         {
             // 与上游 `AssembleToVmb(source)` 是同一件事（Assemble → ToVmbBytes），
@@ -465,7 +474,7 @@ HALT
         }
         catch (Exception ex)
         {
-            return (null, $"⚠️ 汇编失败：{ex.Message}");
+            return (null, L.Pick($"⚠️ 汇编失败：{ex.Message}", $"⚠️ Assembly failed: {ex.Message}"));
         }
     }
 
@@ -634,11 +643,14 @@ HALT
         LastDiags = [];
         LastDiagsFile = "";
 
-        if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}", filePath);
+        if (!File.Exists(filePath))
+            return Fail("", L.Pick($"⚠️ 找不到文件：{filePath}", $"⚠️ File not found: {filePath}"), filePath);
 
         var libRoot = EnsureLibExtracted();
         if (libRoot == null)
-            return Fail("", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。", filePath);
+            return Fail("", L.Pick("⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。",
+                                   "⚠️ Failed to extract the VML standard library (Lib/) - without it no high-level "
+                                   + "language can be compiled (the link stage will not find the stdlib)."), filePath);
 
         // 静态注册 22 个前端编译器，**绕开 PluginManager 的 Assembly.LoadFrom 反射路径**
         // （那条路在 MAUI 的裁剪/AOT 下不可靠，上游自己也在 StaticLink 模式里绕开了它）。
@@ -654,7 +666,8 @@ HALT
         // 扩展名派发用上游现成的 —— 自己遍历 SupportedExtensions 就是第二份实现
         var compiler = pm.GetCompilerByFileName(Path.GetFileName(filePath));
         if (compiler is not IFrontendCompilerEx ex)
-            return Fail("", $"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。", filePath);
+            return Fail("", L.Pick($"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。",
+                                   $"⚠️ Unrecognized extension ({Path.GetExtension(filePath)}) - no frontend compiler for it."), filePath);
 
         var lang = compiler.Name.ToLowerInvariant();
 
@@ -716,8 +729,11 @@ HALT
         // "编译成功、一跑就找不到函数"的程序。
         // （目标文件本来就不该有库清单，见上面那条 —— 别把它判成错误。）
         if (libraryPaths.Count == 0 && !asObject)
-            return Fail(lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
-                 + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。", filePath);
+            return Fail(lang, L.Pick("⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
+                 + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。",
+                 "⚠️ The standard library list is empty - most likely `vmltool.config.xml` was not extracted "
+                 + "along with the rest (or the extraction directory is wrong). Without it, `LinkLibraries` "
+                 + "skips the entire link stage."), filePath);
 
         // 前端编译是个**静默段**（手机上一分钟起步，慢的设备更久）—— 与解压那条提示同一个道理：
         // 屏幕上一个字不变，和卡死没有区别。所以先报一条，紧接着用 ticker **每秒报一次已用秒数**。
@@ -730,11 +746,15 @@ HALT
         var compileWatch = System.Diagnostics.Stopwatch.StartNew();
         // ⚠ 计时**原地刷新同一行**（以 `\r` 开头，见 `OnProgress` 的契约说明）：
         //   此前每秒一条新行，编一分钟刷满一屏、把真正的错误行顶上去（用户点名要"同一行计时"）。
-        OnProgress?.Invoke($"\r⏳ 正在编译 {compileName}… 已 0 秒（上限 {CompileTimeoutSeconds} 秒，"
-            + "手机上要一两分钟，随时可按「停止」）");
+        OnProgress?.Invoke(L.Pick($"\r⏳ 正在编译 {compileName}… 已 0 秒（上限 {CompileTimeoutSeconds} 秒，"
+            + "手机上要一两分钟，随时可按「停止」）",
+            $"\r⏳ Compiling {compileName}… 0 s elapsed (limit {CompileTimeoutSeconds} s; "
+            + "takes a minute or two on a phone, press Stop any time)"));
         using var compileTicker = new System.Threading.Timer(_ =>
-            OnProgress?.Invoke($"\r⏳ 正在编译 {compileName}… 已 {compileWatch.Elapsed.TotalSeconds:0} 秒"
-                + $"（上限 {CompileTimeoutSeconds} 秒，随时可按「停止」）"), null, 1000, 1000);
+            OnProgress?.Invoke(L.Pick($"\r⏳ 正在编译 {compileName}… 已 {compileWatch.Elapsed.TotalSeconds:0} 秒"
+                + $"（上限 {CompileTimeoutSeconds} 秒，随时可按「停止」）",
+                $"\r⏳ Compiling {compileName}… {compileWatch.Elapsed.TotalSeconds:0} s elapsed "
+                + $"(limit {CompileTimeoutSeconds} s, press Stop any time)")), null, 1000, 1000);
 
         // **看门狗**：前端编译是同步的、且**没有取消入口**（`IFrontendCompiler` 上没有任何 token），
         // 所以只能把它丢到独立线程上跑，主线程**带超时地等**。
@@ -814,9 +834,14 @@ HALT
                         // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
                         // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
                         _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-                        return Fail(lang, $"⚠️ 编译超时（已等 {compileWatch.Elapsed.TotalSeconds:0} 秒，"
+                        return Fail(lang, L.Pick($"⚠️ 编译超时（已等 {compileWatch.Elapsed.TotalSeconds:0} 秒，"
                             + $"上限 {CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器卡住的写法。"
-                            + "编译线程还在后台跑（.NET 没法中止线程），建议改完源码再试；实在不行退出 App 重来。", filePath);
+                            + "编译线程还在后台跑（.NET 没法中止线程），建议改完源码再试；实在不行退出 App 重来。",
+                            $"⚠️ Compile timed out (waited {compileWatch.Elapsed.TotalSeconds:0} s, "
+                            + $"limit {CompileTimeoutSeconds} s) - most likely the source contains something "
+                            + "that makes the frontend compiler spin forever. The compile thread is still running "
+                            + "in the background (.NET cannot abort threads), so fix the source and try again; "
+                            + "if all else fails, restart the app."), filePath);
                     }
                     vmlText = compile.Result;
                 }
@@ -838,7 +863,7 @@ HALT
         catch (OperationCanceledException)
         {
             _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-            return Fail(lang, "⏹ 编译已被停止。", filePath);
+            return Fail(lang, L.Pick("⏹ 编译已被停止。", "⏹ Compilation was stopped."), filePath);
         }
         catch (Exception compileError)
         {
@@ -861,8 +886,13 @@ HALT
             // 两份在链接期错误上是**逐字相同**的，所以必须去重、不能简单相加。
             // ⚠ **必须走 `FailWith`，不能直接 `return (null, …)`** —— 这里是**最常见**的失败出口
             //   （前端编译报错），绕开它就等于"编辑器永远拿不到诊断"。见 `FailWith` 的说明。
-            return FailWith(lang, $"⚠️ 编译失败：{inner.Message}", filePath,
-                VmlDiagnostics.Merge(VmlDiagnostics.Parse($"⚠️ 编译失败：{inner.Message}", filePath),
+            // ⚠⚠ **这一条不翻**（连带下面那条「前端编译没有产出 VML 汇编」）：`VmlDiagnostics.Parse`
+            //   **按字面量**剥掉这个宿主前缀（`WayCoder/UI/Shared/VmlDiagnostics.cs`）。
+            //   所以那个剥前缀表现在**中英两份都认**（公理 A2：标记永远双语识别）；
+            //   改了这里的文案，必须同步核对那边的表 —— 漏了不报错，只是气泡里多一截前缀。
+            var compileFail = L.Pick("⚠️ 编译失败：", "⚠️ Compile failed: ");
+            return FailWith(lang, $"{compileFail}{inner.Message}", filePath,
+                VmlDiagnostics.Merge(VmlDiagnostics.Parse($"{compileFail}{inner.Message}", filePath),
                                      VmlDiagnostics.Parse(compileDiag, filePath)));
         }
 
@@ -871,7 +901,7 @@ HALT
         // 「未知指令」，手机上尤其难查。这里拦一道，把真正的原因亮出来。
         if (string.IsNullOrWhiteSpace(vmlText) || !LooksLikeVml(vmlText))
         {
-            var head = vmlText ?? "(空)";
+            var head = vmlText ?? L.Pick("(空)", "(empty)");
             return Fail(lang, $"⚠️ 前端编译没有产出 VML 汇编（{compiler.Name}）—— 多半是标准库/include 路径不对，"
                  + $"或源码本身有语法错误。产物前 200 字符：\n"
                  + head[..Math.Min(200, head.Length)], filePath);
@@ -899,9 +929,13 @@ HALT
         catch (Exception asmError)
         {
             var inner = asmError is AggregateException agg ? agg.GetBaseException() : asmError;
-            return Fail(lang, $"⚠️ 汇编失败：{inner.Message}"
+            return Fail(lang, L.Pick($"⚠️ 汇编失败：{inner.Message}"
                 + $"\n（前端已产出 VML 汇编，是汇编/链接阶段报错 —— 多半是 `asm()` 里写了越界寄存器名"
-                + $"或未知指令；产物前 200 字符：\n{Head(vmlText)}）", filePath);
+                + $"或未知指令；产物前 200 字符：\n{Head(vmlText)}）",
+                $"⚠️ Assembly failed: {inner.Message}"
+                + $"\n(The frontend did produce VML assembly, so this is an assemble/link stage error - most "
+                + $"likely `asm()` contains a register name that is out of range or an unknown instruction; "
+                + $"first 200 characters of the output:\n{Head(vmlText)})"), filePath);
         }
 
         // ③ 链接共享库 ④ 应用导出符号
@@ -944,10 +978,15 @@ HALT
                     //   捕获区的 stderr 此刻已经写完（`errSink` 里有那份清单），一并并进消息与诊断。
                     var innerLink = linkError is AggregateException ag ? ag.GetBaseException() : linkError;
                     var sink = errSink.ToString();
-                    return FailWith(lang, $"⚠️ 链接失败：{innerLink.Message}"
+                    // ⚠ 与上面那条「编译失败」不同：`VmlDiagnostics.Parse` **没有**剥这个前缀
+                    //   （它的 Replace 表里只有编译那两句），所以这里换语言**不影响解析结果**
+                    //   —— 只会让无锚兜底气泡显示成同一句话的英文。
+                    var linkFail = L.Pick($"⚠️ 链接失败：{innerLink.Message}",
+                                          $"⚠️ Link failed: {innerLink.Message}");
+                    return FailWith(lang, linkFail
                         + (sink.Trim().Length > 0 ? "\n" + sink.Trim() : ""), filePath,
                         VmlDiagnostics.Merge(
-                            VmlDiagnostics.Parse($"⚠️ 链接失败：{innerLink.Message}", filePath),
+                            VmlDiagnostics.Parse(linkFail, filePath),
                             VmlDiagnostics.Parse(sink, filePath)));
                 }
             }
@@ -988,7 +1027,8 @@ HALT
             prog = OptimizationPipeline.CreateDefault().Run(prog, OptimizationPolicy.Create(level));
             var afterOpt = prog.Instructions.Count;
             ErrorLog.Info("MauiVml", $"优化 O{level}：{beforeOpt} → {afterOpt} 条指令");
-            OnProgress?.Invoke($"\r✔ 优化 O{level}：{beforeOpt} → {afterOpt} 条指令\n");
+            OnProgress?.Invoke(L.Pick($"\r✔ 优化 O{level}：{beforeOpt} → {afterOpt} 条指令\n",
+                                      $"\r✔ Optimized O{level}: {beforeOpt} → {afterOpt} instructions\n"));
         }
 
         // 目标文件：标成库 ⇒ 后面 `ToString()` 的**死代码消除不会删掉"没人调用"的函数**
@@ -1042,8 +1082,10 @@ HALT
         // **界面上也报一句**：这一版之前，只有"超时"才看得见秒数 —— 于是"这台设备编这个程序多久"
         // 除了掐表没别的办法，平台之间更是没法比（正是用户问「为什么 iOS 比安卓慢那么多」时的处境）。
         // 末尾那个 `\n` = **收尾**：覆盖掉计时那一行，并让后面的输出从新的一行开始（见契约）。
-        OnProgress?.Invoke($"\r✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒"
-            + $"{phaseNote}\n");
+        OnProgress?.Invoke(L.Pick($"\r✅ 编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒"
+            + $"{phaseNote}\n",
+            $"\r✅ Compiled: {compileName} took {compileWatch.Elapsed.TotalSeconds:0.0} s"
+            + $"{phaseNote}\n"));
         return (prog, lang, null, compileWarnings);
     }
 
@@ -1462,7 +1504,9 @@ HALT
 
             // 解压是这条链上最长的静默段（39 MB / 5200+ 个文件，手机上好几秒）——
             // 不报一声的话，用户看到的就是"点了运行，屏幕一动不动"。
-            OnProgress?.Invoke("⏳ 正在解压 VML 标准库（39 MB / 5200+ 个文件，仅首次或库更新后需要）…");
+            OnProgress?.Invoke(L.Pick("⏳ 正在解压 VML 标准库（39 MB / 5200+ 个文件，仅首次或库更新后需要）…",
+                                      "⏳ Extracting the VML standard library (39 MB / 5200+ files; only needed "
+                                      + "the first time or after a library update)…"));
 
             // `OpenAppPackageFileAsync` 是异步的，而编译这条路整体是同步的（本来就跑在后台线程上）。
             // 同步等待在这里是安全的：调用方一定不在 UI 线程（见 VmlTool 的 Task.Run）。
@@ -1481,7 +1525,7 @@ HALT
 #if ANDROID
             Android.Util.Log.Info("WCKEY", $"EnsureLib: **刚解压**到 {root}，写入标记 {stamp}");
 #endif
-            OnProgress?.Invoke("✔ 标准库解压完成。");
+            OnProgress?.Invoke(L.Pick("✔ 标准库解压完成。", "✔ Standard library extracted."));
             return root;
         }
         catch

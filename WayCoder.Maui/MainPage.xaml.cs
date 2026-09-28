@@ -19,15 +19,16 @@ public partial class MainPage : ContentPage
 
     private void RefreshStatus()
     {
-        VersionLabel.Text = $"版本 {Global.Version}";
+        VersionLabel.Text = L.Pick($"版本 {Global.Version}", $"Version {Global.Version}");
 
         var cfg = Config.Instance;
         // 模型 + 服务商显示名（同 id 跨服务商可区分，与 TUI/ChatPage 模型栏格式一致；前缀提示通道）
         ModelLabel.Text = ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model);
         // Key 按服务商存于 ApiKeyStore，不能用 Config.ApiKey 判断（同 ChatPage 修复）
         KeyLabel.Text = AgentService.HasUsableKey()
-            ? $"已配置 Key · 服务商 {ModelCatalog.ProviderDisplayName(cfg.Provider)}"
-            : "尚未配置 API Key，先去「设置」填写";
+            ? L.Pick($"已配置 Key · 服务商 {ModelCatalog.ProviderDisplayName(cfg.Provider)}",
+                     $"Key configured · Provider {ModelCatalog.ProviderDisplayName(cfg.Provider)}")
+            : L.Pick("尚未配置 API Key，先去「设置」填写", "No API key yet. Add one in Settings.");
     }
 
     private async void OnChatClicked(object? sender, EventArgs e)

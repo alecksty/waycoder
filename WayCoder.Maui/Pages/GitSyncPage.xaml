@@ -3,43 +3,44 @@
     x:Class="WayCoder.Maui.Pages.GitSyncPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="代码同步">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='代码同步', En='Code sync'}">
 
     <ScrollView>
         <VerticalStackLayout Padding="12" Spacing="8">
 
-            <Label Text="跨设备代码轮转：电脑编辑 → 手机继续 → 家里电脑接着改（git 同步）"
+            <Label Text="{markup:Tr Zh='跨设备代码轮转：电脑编辑 → 手机继续 → 家里电脑接着改（git 同步）', En='Code rotation across devices: edit on your computer, continue on your phone, finish at home (git sync)'}"
                    FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
 
             <!-- 扫码：桌面 /sync-qr 生成的二维码自动填参数 -->
-            <Button Text="📷 扫桌面二维码自动填" FontSize="14" Clicked="OnScanClicked" />
+            <Button Text="{markup:Tr Zh='📷 扫桌面二维码自动填', En='📷 Scan desktop QR to autofill'}" FontSize="14" Clicked="OnScanClicked" />
 
             <!-- 仓库配置：可输入，也可从拉取过的历史仓库下拉选择 -->
-            <Label Text="仓库地址（可输入或选历史）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='仓库地址（可输入或选历史）', En='Repository URL (type it or pick from history)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             <Entry x:Name="RepoUrlEntry" Placeholder="https://gitee.com/user/repo.git" FontSize="13" />
-            <Picker x:Name="RecentRepoPicker" Title="📚 历史仓库（选一个填入）"
+            <Picker x:Name="RecentRepoPicker" Title="{markup:Tr Zh='📚 历史仓库（选一个填入）', En='📚 Recent repositories (pick one)'}"
                     FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                     SelectedIndexChanged="OnRecentRepoPicked" />
 
             <!-- 分支：选择后拉取该分支 / 推送当前分支 -->
-            <Label Text="分支（选择要拉取的分支）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='分支（选择要拉取的分支）', En='Branch (the one to pull)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-            <Picker x:Name="BranchPicker" Title="选择分支"
+            <Picker x:Name="BranchPicker" Title="{markup:Tr Zh='选择分支', En='Select branch'}"
                     TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
 
             <!-- 凭证（SecureStorage 保存） -->
-            <Label Text="凭证（Token/密码，加密保存）" FontSize="12" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='凭证（Token/密码，加密保存）', En='Credentials (token/password, stored encrypted)'}" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             <Grid ColumnDefinitions="*,*" ColumnSpacing="6">
-                <Entry x:Name="UserEntry" Placeholder="用户名" FontSize="13" />
-                <Entry Grid.Column="1" x:Name="TokenEntry" IsPassword="True" Placeholder="Token/密码" FontSize="13" />
+                <Entry x:Name="UserEntry" Placeholder="{markup:Tr Zh='用户名', En='Username'}" FontSize="13" />
+                <Entry Grid.Column="1" x:Name="TokenEntry" IsPassword="True" Placeholder="{markup:Tr Zh='Token/密码', En='Token/password'}" FontSize="13" />
             </Grid>
 
             <!-- 操作 -->
-            <Button x:Name="PullBtn" Text="📥 克隆 / 拉取所选分支" FontSize="14" Clicked="OnPullClicked" />
-            <Entry x:Name="CommitMsgEntry" Placeholder="提交说明（如：手机同步 12:30）" FontSize="13" />
-            <Button x:Name="PushBtn" Text="📤 提交并推送" FontSize="14" Clicked="OnPushClicked" />
+            <Button x:Name="PullBtn" Text="{markup:Tr Zh='📥 克隆 / 拉取所选分支', En='📥 Clone / pull branch'}" FontSize="14" Clicked="OnPullClicked" />
+            <Entry x:Name="CommitMsgEntry" Placeholder="{markup:Tr Zh='提交说明（如：手机同步 12:30）', En='Commit message (e.g. phone sync 12:30)'}" FontSize="13" />
+            <Button x:Name="PushBtn" Text="{markup:Tr Zh='📤 提交并推送', En='📤 Commit and push'}" FontSize="14" Clicked="OnPushClicked" />
 
             <!-- 状态区 -->
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Padding="12,8" Margin="0,4,0,0">

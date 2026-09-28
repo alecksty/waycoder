@@ -405,8 +405,8 @@ internal sealed class MauiVectorTarget : IVectorTarget
         double srcX, double srcY, double srcW, double srcH, double cornerRadius, bool transformed)
     {
         // 平台画布对"任意仿射"的支持不一（旋转/错切）⇒ 明说画不了，让宿主回退光栅后端
-        if (transformed) { MarkUnsupported("image", "带旋转/错切的贴图"); return; }
-        if (string.IsNullOrEmpty(path)) { MarkUnsupported("image", "只有内存位图、没有文件路径"); return; }
+        if (transformed) { MarkUnsupported("image", L.Pick("带旋转/错切的贴图", "image with rotation/skew")); return; }
+        if (string.IsNullOrEmpty(path)) { MarkUnsupported("image", L.Pick("只有内存位图、没有文件路径", "in-memory bitmap with no file path")); return; }
         var img = LoadImage(path);
         if (img == null) { MarkUnsupported("image", path); return; }
         var __t0 = VectorProbe.Begin();
@@ -610,9 +610,16 @@ internal static class VectorProbe
     /// 与"各指令加起来 70ms"曾经差了六倍 —— 差额必须有个去处，否则就只能靠猜。
     /// 建了这几格之后账才闭合：`画布状态 + 背景 + 遍历开销 + 各指令 ≈ LastDrawMs`。
     /// </summary>
-    public static readonly string[] Names =
-        ["矩形原生", "椭圆原生", "通用填充", "描边", "文字", "贴图", "裁剪蒙版", "建目标",
-         "背景填充", "画布状态", "遍历开销", "绘图调用", "推拉坐标系", "查表"];
+    // ⚠ 表达式体属性而**不是** `static readonly string[]` —— 后者会把语言冻在类型初始化那一刻
+    //   （见 `L` 的「硬规则」）。调用方 `Report` 先取一次局部变量再用，别在循环里逐次访问。
+    public static string[] Names =>
+        [L.Pick("矩形原生", "native rect"), L.Pick("椭圆原生", "native ellipse"),
+         L.Pick("通用填充", "generic fill"), L.Pick("描边", "stroke"),
+         L.Pick("文字", "text"), L.Pick("贴图", "image"),
+         L.Pick("裁剪蒙版", "clip mask"), L.Pick("建目标", "build target"),
+         L.Pick("背景填充", "background fill"), L.Pick("画布状态", "canvas state"),
+         L.Pick("遍历开销", "traversal"), L.Pick("绘图调用", "draw call"),
+         L.Pick("推拉坐标系", "push/pop transform"), L.Pick("查表", "table lookup")];
 
     public static long Begin() => Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0L;
 
@@ -632,13 +639,14 @@ internal static class VectorProbe
         if (total == 0) return null;
 
         var perMs = (double)System.Diagnostics.Stopwatch.Frequency / 1000.0;
-        var sb = new System.Text.StringBuilder("指令分布：");
+        var names = Names;   // 表达式体属性：取一次，别在循环里逐次重算
+        var sb = new System.Text.StringBuilder(L.Pick("指令分布：", "Instruction breakdown:"));
         for (var i = 0; i < Slots; i++)
         {
             if (Counts[i] == 0) continue;
-            sb.Append(' ').Append(Names[i]).Append(' ')
+            sb.Append(' ').Append(names[i]).Append(' ')
               .Append((Ticks[i] / perMs).ToString("F1")).Append("ms×").Append(Counts[i]);
-            if (Points[i] > 0) sb.Append('/').Append(Points[i]).Append("点");
+            if (Points[i] > 0) sb.Append('/').Append(Points[i]).Append(L.Pick("点", "pts"));
         }
         return sb.ToString();
     }

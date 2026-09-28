@@ -36,34 +36,39 @@ public partial class SettingsPage : ContentPage
         //   （小模型默认就是跟随大模型，看不全不致命；点进二级页有全部）。
         var bigKey = DescribeKey(cfg.Provider);
         var smallKey = DescribeKey(cfg.SmallProvider);
-        var small = string.IsNullOrEmpty(cfg.SmallModel) ? "未设（跟随大模型）" : cfg.SmallModel;
-        ModelSummary.Text = $"{cfg.Provider} · {cfg.Model}　{bigKey} · 小模型 {small}　{smallKey}";
+        var small = string.IsNullOrEmpty(cfg.SmallModel) ? L.Pick("未设（跟随大模型）", "Not set (follows main model)") : cfg.SmallModel;
+        ModelSummary.Text = L.Pick($"{cfg.Provider} · {cfg.Model}　{bigKey} · 小模型 {small}　{smallKey}", $"{cfg.Provider} · {cfg.Model}  {bigKey} · Small model {small}  {smallKey}");
 
         // ── 参数
-        var ctx = cfg.MaxContextTokens > 0 ? $"{cfg.MaxContextTokens / 1024}K" : "默认";
-        var budget = cfg.MaxBudgetUsd is double b ? $"${b:F2}" : "不限";
+        var ctx = cfg.MaxContextTokens > 0 ? $"{cfg.MaxContextTokens / 1024}K" : L.Pick("默认", "Default");
+        var budget = cfg.MaxBudgetUsd is double b ? $"${b:F2}" : L.Pick("不限", "Unlimited");
         var economy = UiText.EconomyName(cfg.EconomyMode);
-        ParamsSummary.Text = $"上下文 {ctx} · 温度 {cfg.Temperature} · 预算 {budget} · 经济 {economy}";
+        ParamsSummary.Text = L.Pick($"上下文 {ctx} · 温度 {cfg.Temperature} · 预算 {budget} · 经济 {economy}", $"Context {ctx} · Temp {cfg.Temperature} · Budget {budget} · Economy {economy}");
 
         // ── 权限（文案唯一真源在 UiText，别在这儿再写一份措辞）
         PermSummary.Text = UiText.PermFull(PermissionManager.CurrentMode);
 
         // ── 存储（只管落盘位置，编辑器那半边已经拆成单独一张卡片）
-        var where = WayCoder.Maui.MauiBootstrap.WorkspaceExternal ? "外部存储 ✅" : "App 私有目录 ⚠️";
-        StorageSummary.Text = $"workspace：{where}";
+        var where = WayCoder.Maui.MauiBootstrap.WorkspaceExternal
+            ? L.Pick("外部存储 ✅", "External storage ✅")
+            : L.Pick("App 私有目录 ⚠️", "App private storage ⚠️");
+        StorageSummary.Text = L.Pick($"workspace：{where}", $"Workspace: {where}");
 
         // ── 编辑器：挑几个最常被问的显示。
         // 编码/换行那两项的文案走 MauiEditorStore.NameOf（**与设置页下拉同一份标签**），
         // 不在这里另写一份「UTF-8 无 BOM」之类的短名。
         var mb = (int)(Services.MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024));
-        var full = Services.MauiEditorStore.FullWidthToHalf ? "开" : "关";
-        EditorSummary.Text =
+        var full = Services.MauiEditorStore.FullWidthToHalf ? L.Pick("开", "On") : L.Pick("关", "Off");
+        EditorSummary.Text = L.Pick(
             $"可编辑上限 {mb}MB · 全角转半角 {full} · " +
             $"保存 {Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsEncoding)}" +
-            $"/{Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsNewline)}";
+            $"/{Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsNewline)}",
+            $"Editable limit {mb}MB · Full-width to half-width {full} · " +
+            $"Save {Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsEncoding)}" +
+            $"/{Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsNewline)}");
 
         // ── 语音
-        var wm = string.IsNullOrEmpty(cfg.WhisperModel) ? "默认 whisper-1" : cfg.WhisperModel;
+        var wm = string.IsNullOrEmpty(cfg.WhisperModel) ? L.Pick("默认 whisper-1", "Default whisper-1") : cfg.WhisperModel;
         VoiceSummary.Text = wm;
 
         // ── 虚拟机：摘要那行由 `MauiVmStore.Summary()` 给（**取值与文案同一处** ——
@@ -83,7 +88,9 @@ public partial class SettingsPage : ContentPage
         try
         {
             var key = ApiKeyStore.Get(providerId);
-            return string.IsNullOrEmpty(key) ? "未配 Key ⚠️" : "已配 Key ✅";
+            return string.IsNullOrEmpty(key)
+                ? L.Pick("未配 Key ⚠️", "No key ⚠️")
+                : L.Pick("已配 Key ✅", "Key set ✅");
         }
         catch
         {

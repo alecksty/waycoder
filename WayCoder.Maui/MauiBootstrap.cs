@@ -327,7 +327,7 @@ public static class MauiBootstrap
                 MainThread.BeginInvokeOnMainThread(async () =>
                 {
                     var page = Shell.Current?.CurrentPage;
-                    if (page != null) await page.DisplayAlertAsync(title, message, "确定");
+                    if (page != null) await page.DisplayAlertAsync(title, message, L.Pick("确定", "OK"));
                 });
             }
             else

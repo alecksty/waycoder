@@ -3,7 +3,8 @@
     x:Class="WayCoder.Maui.Pages.ToolCallsDetailPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="工具调用">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='工具调用', En='Tool calls'}">
     <ScrollView>
         <VerticalStackLayout x:Name="Body" Padding="16,12" Spacing="10" />
     </ScrollView>

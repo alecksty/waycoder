@@ -63,7 +63,7 @@ public partial class ToolCallsDetailPage : ContentPage
         if (msg == null || msg.ToolCalls.Count == 0)
         {
             _msg = null;
-            Body.Add(new Label { Text = "（无工具调用记录）", FontSize = 13 });
+            Body.Add(new Label { Text = L.Pick("（无工具调用记录）", "(No tool calls recorded)"), FontSize = 13 });
             return;
         }
         _msg = msg;
@@ -179,7 +179,7 @@ public partial class ToolCallsDetailPage : ContentPage
             // 预算已耗尽：显示「已省略」占位（此前为空卡则补上，finding #G）
             if (view.DetailLabel == null)
             {
-                var lbl = new Label { Text = "（输出过长，已省略详情）", FontSize = 11, TextColor = _muted as Color ?? Colors.Gray };
+                var lbl = new Label { Text = L.Pick("（输出过长，已省略详情）", "(Output too long, details omitted)"), FontSize = 11, TextColor = _muted as Color ?? Colors.Gray };
                 view.Card.Children.Insert(view.Card.Children.Count - 1, lbl); // 插到尾部分隔线之前
                 view.DetailLabel = lbl;
                 view.LastRendered = null;

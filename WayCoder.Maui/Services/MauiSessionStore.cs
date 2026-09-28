@@ -49,7 +49,7 @@ public static class MauiSessionStore
 
             var sb = new StringBuilder();
             if (capped)
-                sb.Append("… 会话过长，已截断（仅保留最近内容）…\n");
+                sb.Append(L.Pick("… 会话过长，已截断（仅保留最近内容）…\n", "...session too long, truncated (only the most recent content is kept)...\n"));
             foreach (var m in keep)
             {
                 sb.Append('R').Append((int)m.Role).Append('\n');

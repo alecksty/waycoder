@@ -86,6 +86,26 @@ public static partial class SelfTest
         Check("带位置 warning → Warning 级",
             warnLocated.Count == 1 && warnLocated[0].Severity == Severity.Warning);
 
+        // ── ⑧ 宿主前缀**中英都要剥**（`Lang.cs` 公理 A2：机器可读标记永远双语识别）──
+        // 前缀是**按字面量**剥的，而宿主那句文案会随界面语言变（英文界面下是 `⚠️ Compile failed: `）。
+        // 只认中文的后果**不是报错，而是气泡里凭空多出一截前缀** —— 静默、且只有切到英文才看得见。
+        // 这条判据钉的是「表的双语完整性」：将来谁改了宿主文案、忘了补这边的表，这里会红。
+        foreach (var (lang, prefix) in new[] { ("中文", "⚠️ 编译失败："), ("英文", "⚠️ Compile failed: ") })
+        {
+            var p = VmlDiagnostics.Parse($"{prefix}main.c:3:5: error: bad token");
+            Check($"宿主前缀[{lang}]被剥掉，不混进正文",
+                p.Count > 0 && p.TrueForAll(d => !d.Message.Contains("编译失败")
+                                              && !d.Message.Contains("Compile failed")));
+        }
+
+        foreach (var (lang, prefix) in new[] { ("中文", "⚠️ 前端编译没有产出 VML 汇编"), ("英文", "⚠️ No VML assembly was produced") })
+        {
+            var p = VmlDiagnostics.Parse($"{prefix}（c）—— 多半是路径不对");
+            Check($"无产物前缀[{lang}]只剥 ⚠️、正文保留",
+                p.Count > 0 && p.Any(d => d.Message.Contains(
+                    lang == "中文" ? "前端编译没有产出 VML 汇编" : "No VML assembly was produced")));
+        }
+
         // ── ⑦ 库档那行**不该**被当成错误收进来 ────────────────────────────────
         // 链接器对库代码是 `[库内部] 库代码里有 N 个未解析标签…` + 若干 `  xxx (引用 N 次)` 缩进行。
         // 那些行不属于**用户代码**的错误，混进气泡只会让用户去改他改不了的东西。

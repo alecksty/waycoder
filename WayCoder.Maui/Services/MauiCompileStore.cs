@@ -138,26 +138,28 @@ public static class MauiCompileStore
     /// </summary>
     public static string OptimizationText(int v) => v switch
     {
-        <= 0 => "关闭",
-        1 => "初步",
-        2 => "中度",
-        _ => "极致",
+        <= 0 => L.Pick("关闭", "Off"),
+        1 => L.Pick("初步", "Light"),
+        2 => L.Pick("中度", "Medium"),
+        _ => L.Pick("极致", "Max"),
     };
 
     /// <summary>警告级别显示文本（括号里是等价的命令行开关，便于对照桌面 `vmlcli`）。</summary>
     public static string WarningText(int v) => v switch
     {
-        <= 0 => "不报",
-        1 => "基本（-Wall）",
-        _ => "更多（-Wextra）",
+        <= 0 => L.Pick("不报", "Off"),
+        1 => L.Pick("基本（-Wall）", "Basic (-Wall)"),
+        _ => L.Pick("更多（-Wextra）", "More (-Wextra)"),
     };
 
     /// <summary>数值模式显示文本。<c>none</c> 是"遇到浮点/64 位代码直接报错"，不是"优雅降级"。</summary>
-    public static string NumberModeText(string m) => m == "none" ? "关闭（遇到就报错）" : "硬件";
+    public static string NumberModeText(string m)
+        => m == "none" ? L.Pick("关闭（遇到就报错）", "Off (errors out)") : L.Pick("硬件", "Hardware");
 
     /// <summary>设置页摘要行用的一句话（首页那行由它给，**取值与文案同一处**）。</summary>
     public static string Summary()
-        => $"优化 {OptimizationText(OptimizationLevel)} · 警告 {WarningText(WarningLevel)} · 浮点 {NumberModeText(FloatMode)}";
+        => L.Pick($"优化 {OptimizationText(OptimizationLevel)} · 警告 {WarningText(WarningLevel)} · 浮点 {NumberModeText(FloatMode)}",
+                  $"Optimize {OptimizationText(OptimizationLevel)} · Warnings {WarningText(WarningLevel)} · Float {NumberModeText(FloatMode)}");
 
     // ── 读取兜底 ──
 

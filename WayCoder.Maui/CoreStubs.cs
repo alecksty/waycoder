@@ -38,11 +38,11 @@ namespace WayCoder.Tools
     {
         public string Name => "bash";
         public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-        public string Description => "移动端不支持执行 shell 命令（无本地 shell 进程）。";
+        public string Description => L.Pick("移动端不支持执行 shell 命令（无本地 shell 进程）。", "Running shell commands is not supported on mobile (no local shell process).");
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
-                .Set("command", JNode.Object().Set("type", "string").Set("description", "shell 命令")));
+                .Set("command", JNode.Object().Set("type", "string").Set("description", L.Pick("shell 命令", "Shell command"))));
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
             => Task.FromResult(Unsupported());
@@ -66,8 +66,10 @@ namespace WayCoder.Tools
             => Task.FromResult(Unsupported());
 
         private static string Unsupported()
-            => "⚠️ 移动端不支持 bash 工具：本 App 独立运行于手机沙箱，无本地 shell 进程（iOS 物理禁止 Process.Start）。" +
-               "请改用 read_file / write_file / edit_file / glob / grep 等文件工具完成操作。";
+            => L.Pick("⚠️ 移动端不支持 bash 工具：本 App 独立运行于手机沙箱，无本地 shell 进程（iOS 物理禁止 Process.Start）。" +
+               "请改用 read_file / write_file / edit_file / glob / grep 等文件工具完成操作。",
+               "⚠️ The bash tool is not supported on mobile: this app runs in a phone sandbox with no local shell process (iOS physically forbids Process.Start)." +
+               "Use the file tools instead - read_file / write_file / edit_file / glob / grep.");
     }
 #endif
 
@@ -79,14 +81,14 @@ namespace WayCoder.Tools
     public class LintTool : ITool
     {
         public string Name => "lint";
-        public string Description => "移动端不支持静态检查（无 linter 进程）。";
+        public string Description => L.Pick("移动端不支持静态检查（无 linter 进程）。", "Static analysis is not supported on mobile (no linter process).");
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
-                .Set("path", JNode.Object().Set("type", "string").Set("description", "文件路径")));
+                .Set("path", JNode.Object().Set("type", "string").Set("description", L.Pick("文件路径", "File path"))));
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
-            => Task.FromResult("⚠️ 移动端不支持 lint 工具：无本地 linter 进程。");
+            => Task.FromResult(L.Pick("⚠️ 移动端不支持 lint 工具：无本地 linter 进程。", "⚠️ The lint tool is not supported on mobile: no local linter process."));
 
         /// <summary>返回 null 表示无法识别语言 —— 调用方据此跳过 lint（移动端恒跳过）。</summary>
         public static string? DetectLanguage(string path) => null;
@@ -101,14 +103,18 @@ namespace WayCoder.Tools
     {
         public string Name => "git";
         public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-        public string Description => "执行 Git 操作（纯 C# 实现）：init、add、commit、status、diff、log、branch、checkout、merge、pull、push、fetch、remote、clone、credential。"
+        public string Description => L.Pick("执行 Git 操作（纯 C# 实现）：init、add、commit、status、diff、log、branch、checkout、merge、pull、push、fetch、remote、clone、credential。"
             + "注意：① 所有操作都作用于**当前工作目录**（先用 cd 进到目标子目录，不能在 workspace 根目录操作）；"
             + "② clone 要求目标目录**还不是 git 仓库**（否则会覆盖其 origin，工具会拒绝），先 mkdir 一个空目录再进去 clone；"
-            + "③ 不支持 ls-remote，测网络连通性请用 fetch 或 clone。";
+            + "③ 不支持 ls-remote，测网络连通性请用 fetch 或 clone。",
+            "Run Git operations (pure C# implementation): init, add, commit, status, diff, log, branch, checkout, merge, pull, push, fetch, remote, clone, credential. "
+            + "Notes: (1) every operation acts on the **current working directory** (cd into the target subdirectory first - do not run it at the workspace root); "
+            + "(2) clone requires that the target directory **is not already a git repository** (otherwise it would overwrite its origin and the tool refuses), so mkdir an empty directory and clone into it; "
+            + "(3) ls-remote is not supported; use fetch or clone to test connectivity.");
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
-                .Set("command", JNode.Object().Set("type", "string").Set("description", "Git 子命令，如 'status'、'add .'、'commit -m \"msg\"'、'log'、'diff'、'branch'、'checkout dev'、'merge dev'、'pull'、'push'、'remote add origin <url>'、'clone <url>'、'credential --token <user> <token>'")));
+                .Set("command", JNode.Object().Set("type", "string").Set("description", L.Pick("Git 子命令，如 'status'、'add .'、'commit -m \"msg\"'、'log'、'diff'、'branch'、'checkout dev'、'merge dev'、'pull'、'push'、'remote add origin <url>'、'clone <url>'、'credential --token <user> <token>'", "Git subcommand, such as 'status', 'add .', 'commit -m \"msg\"', 'log', 'diff', 'branch', 'checkout dev', 'merge dev', 'pull', 'push', 'remote add origin <url>', 'clone <url>', 'credential --token <user> <token>'"))));
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
             => ExecuteAsync(arguments, CancellationToken.None);
@@ -117,7 +123,7 @@ namespace WayCoder.Tools
         {
             var command = arguments.GetValueOrDefault("command")?.ToString() ?? "";
             if (string.IsNullOrWhiteSpace(command))
-                return Task.FromResult("用法：git <init|add|commit|status|diff|log|branch|checkout|merge|pull|push|fetch|remote|clone|credential>");
+                return Task.FromResult(L.Pick("用法：git <init|add|commit|status|diff|log|branch|checkout|merge|pull|push|fetch|remote|clone|credential>", "Usage: git <init|add|commit|status|diff|log|branch|checkout|merge|pull|push|fetch|remote|clone|credential>"));
             try
             {
                 var cwd = CwdContext.Current ?? Directory.GetCurrentDirectory();
@@ -130,17 +136,17 @@ namespace WayCoder.Tools
                 // ⚠️ 系统级守卫：禁止 git 操作 workspace 根目录（只能在项目子目录，
                 //    否则 pull/checkout 等可能误擦全部代码）
                 if (IsWorkspaceRootDir(target))
-                    return Task.FromResult("⛔ 禁止在 workspace 根目录执行 git 操作！请进入 workspace/<项目名>/ 子目录（每个项目独立 .git），或在「代码同步」页把仓库克隆到项目子目录。");
+                    return Task.FromResult(L.Pick("⛔ 禁止在 workspace 根目录执行 git 操作！请进入 workspace/<项目名>/ 子目录（每个项目独立 .git），或在「代码同步」页把仓库克隆到项目子目录。", "⛔ Running git at the workspace root is forbidden. Enter a workspace/<project name>/ subdirectory (each project has its own .git), or clone the repository into a project subdirectory from the Git Sync page."));
 
                 if (sub is "init" or "clone")
                     return Task.FromResult(WayCoder.Git.GitCore.Run(repoRoot ?? cwd, command));
                 if (repoRoot == null)
-                    return Task.FromResult("⚠ 当前目录不在 git 仓库内。请先 git init，或 /cd 到仓库目录。");
+                    return Task.FromResult(L.Pick("⚠ 当前目录不在 git 仓库内。请先 git init，或 /cd 到仓库目录。", "⚠ The current directory is not inside a git repository. Run git init first, or /cd into the repository directory."));
                 return Task.FromResult(WayCoder.Git.GitCore.Run(repoRoot, command));
             }
             catch (Exception ex)
             {
-                return Task.FromResult($"错误：git: {ex.GetType().Name}: {ex.Message}");
+                return Task.FromResult(L.Pick($"错误：git: {ex.GetType().Name}: {ex.Message}", $"Error: git: {ex.GetType().Name}: {ex.Message}"));
             }
         }
 
@@ -162,14 +168,14 @@ namespace WayCoder.Tools
     public class GitPRTool : ITool
     {
         public string Name => "git_pr";
-        public string Description => "移动端暂不支持创建 Pull Request（无 git/gh 进程）。";
+        public string Description => L.Pick("移动端暂不支持创建 Pull Request（无 git/gh 进程）。", "Creating Pull Requests is not supported on mobile (no git/gh process).");
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
-                .Set("title", JNode.Object().Set("type", "string").Set("description", "PR 标题")));
+                .Set("title", JNode.Object().Set("type", "string").Set("description", L.Pick("PR 标题", "PR title"))));
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
-            => Task.FromResult("⚠️ 移动端暂不支持创建 Pull Request：无本地 git/gh 进程。");
+            => Task.FromResult(L.Pick("⚠️ 移动端暂不支持创建 Pull Request：无本地 git/gh 进程。", "⚠️ Creating Pull Requests is not supported on mobile: no local git/gh process."));
     }
 
     /// <summary>
@@ -182,17 +188,17 @@ namespace WayCoder.Tools
     {
         public string Name => "sqlite";
         public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-        public string Description => "执行 SQL（内置 SQL 引擎，无需安装 sqlite3）：CREATE TABLE/INSERT/SELECT/UPDATE/DELETE/DROP，SELECT 支持 WHERE/ORDER BY/LIMIT/聚合(COUNT/SUM/AVG/MIN/MAX)。database 省略用内存库（当次调用有效），指定则持久化到文件。";
+        public string Description => L.Pick("执行 SQL（内置 SQL 引擎，无需安装 sqlite3）：CREATE TABLE/INSERT/SELECT/UPDATE/DELETE/DROP，SELECT 支持 WHERE/ORDER BY/LIMIT/聚合(COUNT/SUM/AVG/MIN/MAX)。database 省略用内存库（当次调用有效），指定则持久化到文件。", "Run SQL (built-in SQL engine, no sqlite3 install needed): CREATE TABLE/INSERT/SELECT/UPDATE/DELETE/DROP; SELECT supports WHERE/ORDER BY/LIMIT/aggregates (COUNT/SUM/AVG/MIN/MAX). Omit database to use an in-memory database (valid for this call only), or specify it to persist to a file.");
 
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
                 .Set("database", JNode.Object()
                     .Set("type", "string")
-                    .Set("description", "数据库文件路径（省略则作用于内存库，当次调用有效）"))
+                    .Set("description", L.Pick("数据库文件路径（省略则作用于内存库，当次调用有效）", "Database file path (when omitted, an in-memory database is used, valid for this call only)")))
                 .Set("query", JNode.Object()
                     .Set("type", "string")
-                    .Set("description", "要执行的 SQL 语句，支持多条语句以分号分隔")))
+                    .Set("description", L.Pick("要执行的 SQL 语句，支持多条语句以分号分隔", "SQL statements to run; supports multiple statements separated by semicolons"))))
             .Set("required", JNode.Array().Add("query"));
 
         public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -200,7 +206,7 @@ namespace WayCoder.Tools
             var database = arguments.GetValueOrDefault("database")?.ToString() ?? "";
             var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
             if (string.IsNullOrWhiteSpace(query))
-                return Task.FromResult("错误：请提供 SQL 查询 (query)");
+                return Task.FromResult(L.Pick("错误：请提供 SQL 查询 (query)", "Error: provide a SQL query (query)"));
             return Task.FromResult(Run(database, query));
         }
 
@@ -217,7 +223,7 @@ namespace WayCoder.Tools
             }
             catch (Exception ex)
             {
-                return $"错误：SQL 执行失败 — {ex.Message}";
+                return L.Pick($"错误：SQL 执行失败 — {ex.Message}", $"Error: SQL execution failed - {ex.Message}");
             }
         }
 
@@ -239,7 +245,8 @@ namespace WayCoder
     /// </summary>
     public static class GitRunner
     {
-        private const string Unsupported = "⚠️ 移动端不支持 git：无本地 git 进程。";
+        // ⚠ 只能是表达式体属性：`const` / `static readonly` 都会把语言冻在首次求值那一刻
+        private static string Unsupported => L.Pick("⚠️ 移动端不支持 git：无本地 git 进程。", "⚠️ Git is not supported on mobile: no local git process.");
 
         public static (int ExitCode, string Stdout, string Stderr) Run(string args, string? cwd = null)
             => (-1, "", Unsupported);
@@ -676,7 +683,7 @@ namespace WayCoder.UI.Cli.Commands
     public class SyncQrCommand : WayCoder.SlashCommand
     {
         public override string Name => "/sync-qr";
-        public override string Description => "生成代码同步二维码（TUI 全屏命令；MAUI 扫码走 GitSyncPage）";
+        public override string Description => L.Pick("生成代码同步二维码（TUI 全屏命令；MAUI 扫码走 GitSyncPage）", "Generate a code-sync QR code (TUI full-screen command; on MAUI, scanning goes through GitSyncPage)");
         public override Task ExecuteAsync(string args, WayCoder.UI.Tui.Screens.ChatScreen screen)
             => Task.CompletedTask;
     }

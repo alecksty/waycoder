@@ -3,17 +3,18 @@
     x:Class="WayCoder.Maui.Pages.ProviderModelsPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="模型列表">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='模型列表', En='Models'}">
 
     <Grid RowDefinitions="Auto,*">
         <!-- 顶部：模式切换按钮（编辑/选择）+ 当前模型指示说明 + 右上角大小模型切换（选大→点模型设大模型，选小→设小模型） -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Padding="12,4">
-            <Button x:Name="ModeBtn" Text="选择模式" FontSize="12" Padding="10,2" Clicked="OnModeClicked" />
+            <Button x:Name="ModeBtn" Text="{markup:Tr Zh='选择模式', En='Select mode'}" FontSize="12" Padding="10,2" Clicked="OnModeClicked" />
             <Label x:Name="HintLabel" Grid.Column="1" FontSize="11" VerticalOptions="Center" Margin="8,0,0,0"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             <HorizontalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
-                <Button x:Name="BigBtn" Text="大" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
-                <Button x:Name="SmallBtn" Text="小" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
+                <Button x:Name="BigBtn" Text="{markup:Tr Zh='大', En='Main'}" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
+                <Button x:Name="SmallBtn" Text="{markup:Tr Zh='小', En='Small'}" FontSize="12" Padding="12,2" Clicked="OnToggleSizeClicked" />
             </HorizontalStackLayout>
         </Grid>
 
@@ -22,7 +23,10 @@
             <CollectionView.ItemTemplate>
                 <DataTemplate>
                     <Grid ColumnDefinitions="Auto,*,Auto" Padding="16,5">
-                        <Label Text="{Binding Marker}" FontSize="13" WidthRequest="76" VerticalOptions="Center"
+                        <!-- WidthRequest 从 76 放到 108：英文标记 `Main✓`/`Small✓` 比中文的
+                             `大✓`/`小✓` 宽（FontSize 13 下两个都勾约 96dp）—— 76 会让它换行、
+                             把整行撑高。中文侧本来就富余，改宽无副作用。 -->
+                        <Label Text="{Binding Marker}" FontSize="13" WidthRequest="108" VerticalOptions="Center"
                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                         <VerticalStackLayout Grid.Column="1" Spacing="0">
                             <Label Text="{Binding DisplayName}" FontSize="14"
