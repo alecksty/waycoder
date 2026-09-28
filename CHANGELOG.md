@@ -1,3 +1,132 @@
+## v0.96.559 — Pascal 字符串/字符数组常量（**通过率 11 → 12**）
+
+老代码用**查表法**做十六进制转换、菜单、字符分类，全靠
+`Const Hexa: Array[0..15] of Char = ('0','1',…,'F');` 这种常量数组。
+前端原先把常量数组的元素**一律当整数**（`ConstIntOrThrow`）⇒ 抛 `FormatException`，
+而用户看到的是一句「The input string 'Fichier' was not in a correct format.」——
+**看不出是哪个文件、也看不出这是编译器处理不了**，像个内部崩溃。
+
+数据段的值模型本来就认 `object[]`（`CLikeCodegen.AllocArray` 用的就是它）
+⇒ 字符串/字符元素按字符串存，不再抛异常。
+
+⚠ 两条判据上的坑：
+① **`Char` 与 `String` 要一起认** —— `'ab'` 是 `STRING_LITERAL`，而 `'0'`（单字符）
+   是 `CHAR_LITERAL`，十六进制查表**恰恰全是单字符**；只认前者会整组漏掉，
+   报的还是原来那句「尚未支持」，**看着像没修**（实测 `avc_disk_serial.pas`）。
+② 一旦发现一个元素是字符串/字符 ⇒ **整组按字符串数组处理**（Pascal 数组元素同类型）。
+
+**判据**：兼容探针 通过 **11 → 12** / 失败 74。`avc_disk_serial.pas` 整份编过；
+`gmsdos_dosshell.pas` 前进一层（字符串数组 → `Date_Time` record）；
+`avc_convert_hex.pas` 前进一层（→「期望 'begin'」，回到解析类）。
+
+**另外**：本次发行重打 `vml_lib.zip`（`Lib/pascal/graph.pas` 在 v0.96.553 加了
+BGI 标准类型段，zip 最后一次重打停在 v0.96.552 ⇒ 不重打的话手机上拿不到它）。
+⚠ 包里的 `Lib/` 与 `Examples/` 是随 APK 分发的，`EnsureLibExtracted()` 按内容指纹判、
+`EnsureExamples()` 按**版本号**判，所以**改示例 = 改版本号**，两件事要一起做。
+
+## v0.96.558 — Pascal 支持内嵌汇编块 `asm…end`（**语料 17 份受益**）
+
+Pascal 的 `asm … end` 老程序拿它做底层操作（读 CMOS、端口 I/O、写显存），
+91 份语料里 **17 份**含它，而前端原先**完全不认**：`asm` 走「标识符 ⇒ 过程调用」
+那条路，后面的 `in al, 71h` / `mov temp1, al` 全被当**实参** ⇒ 一路错到函数结尾，
+报出来的是「期望 'begin'」而且**指着很远的地方，完全看不出跟 asm 有关**
+（实测 `avc_cmos.pas:128`、`avc_convert_hex.pas:50` 两处都是这么来的）。
+
+本平台没有那个语义（x86 寄存器 / 端口 / 实模式段），与 `Intr($21)`/`Mem[]` 同类
+⇒ 按本仓「哪些不需要兼容」的口径**跳过整块**（当空语句），与 `IsScreenModeNoOp`
+那批「空操作桩」同一个立场：**能编过、那段不生效**，而不是让整份程序编不过 ——
+也让「用 asm 读 CMOS」的老程序其余逻辑照样能跑。
+
+**判据**：`avc_cmos` 从「期望 'begin'」前进到「未声明的变量 'Lst'」；
+通过率仍 11/75（多层叠加，修完这一层还差别的层）。
+
+## v0.96.557 — Pascal `GetMem`/`FreeMem`（**通过率 10 → 11**）
+
+`GetMem(P, N)` 是 Turbo Pascal 的 System 单元导出的**标准**过程（不用 `uses` 就能调），
+老程序用它按**运行时算出来的长度**分配（读文件 / 动态数组 / 链表节点池），
+实测 `ktp_rose.pas`。它与 `New(P)` 的差别只是「大小从哪来」：`New` 按指针目标类型算、
+`GetMem` 显式给字节数 ⇒ 实现只是把大小换成**求值第二个实参**，
+后面的分配 / 对齐 / 存回与 `GenerateNewCall` **逐句相同**。
+`FreeMem(P)` 与 `Dispose(P)` 是同一件事（本平台释放只认指针，`SYSCAN 41`）⇒ 直接转发。
+
+**判据**：探针 通过 10 → **11** / 失败 75 / 缺配套 5。`ktp_rose.pas` 整份编过。
+
+## v0.96.556 — Pascal 符号表大小写不敏感 + 裸 `Random`（**通过率 9 → 10**）
+
+两处都是老代码的常见写法：
+
+1. **14 张符号表全部改成大小写不敏感**。Pascal 标识符**不区分大小写**，而前端
+   这些表都是默认字典（敏感的）⇒ 形参声明 `x1,y1,h1,w1` 之后函数体里写 `X1`/`W1`
+   一律报「未声明的变量」。实测 `g7iles_asteroid.pas` 的 `Collision` 函数整片卡在这。
+   ⚠ **一处改、全局生效**：`paramOffsets` / `localVarOffsets` / `localVarDeclarations` /
+   `variableRecordTypes` / `definedTypeAliases` / `recordFieldLayouts` / `functionNames` …
+   （本仓早有注释写着「大小写不敏感是必须的」，只是没落到这些表上。）
+2. **裸 `Random`（无参）**。Pascal 的 `Random` 有两种形态：`Random(n)`（0..n-1 整数）
+   与裸 `Random`（**[0,1) 实数**）。语法上完全是两回事（后者是个标识符），
+   而老代码大量用它（`AsteroidAngle[I] := Random * (PI*2)`）。此前只实现了前者
+   ⇒ 裸写报「未声明的变量 'Random'」。实现按真语义 `random() / 2^31`
+   （宿主 `#50` 是 `random.Next()`，.NET 语义 `[0,int.MaxValue)`）——
+   **没有糊成整数**（那会「编得过跑不对」）。
+
+**判据**：探针通过率 **9 → 10**（首次提升）；record 类缺口 11 → 8。
+两份语料因此前进一层（`ktp_rose` → GetMem，`g7iles_asteroid` → cx2）。
+
+## v0.96.555 — 探针：缺配套文件的语料不计入失败
+
+探针原来把「程序自带的 `{$I` 包含文件没跟着语料进来」和「前端真编不过」
+**混在一起计数** ⇒ 失败栏里长期挂着 5 份**不成立**的语料
+（`tpdem_*` 系列要 `cube.vec`/`tricube.vec`/`triglenz.vec`），
+只会训练人忽略红灯 —— 与 `examples-build` 里 `file_io.*` 那条同类
+（「**不是坏了的例子，是已经不成立的例子**」）。
+
+现在分档：**通过 9 / 失败 77 / 缺配套(不计) 5**。
+
+⚠ 判据**只认「找不到包含文件」**：`{$I}` 拉进来的必然是程序自带的文件；
+「找不到单元」**不能这么判** —— 那可能是真该补的库
+（`ktp_rose` 的 `uses Graph` 要的正是补 `graph.pas` 的类型段）。
+
+## v0.96.554 — Pascal `vaddr` 语义桩 + 语料完整性判据
+
+- `StdConsts` 加 **`vaddr`**（BGI 的显存基址）：老程序把它当透明参数往下传
+  （`cls(vaddr)` / `putpixel(x,y,c,vaddr)`），本平台没有那块显存 ⇒ 与 `Dseg`/`PrefixSeg`
+  同类**取 0**。真拿它做指针运算的不属兼容范围（有意接受的边界）。
+- 探针语料暴露的**第二类「不是前端缺陷」**：`tpdem_*` 系列缺的是**程序自带的配套文件**
+  —— `{$I cube.vec}`（包含文件）与 `uses vector`（单元），而语料只收了 `.pas`。
+
+⚠ `Random` 裸用（Pascal 的 `[0,1)` 实数形态）与 `Str`/`Val` 两个标准过程**本轮未做** ——
+它们要正确实现（`I2F`+`FDIV`、字符串往返），**不做成「能编过跑不对」的最小版**。
+
+## v0.96.553 — Pascal 老代码兼容四修 + 兼容性探针与语料基线
+
+新增兼容性探针 `scripts/vml-compat-probe/run.sh` + 语料 `compat-corpus/`
+（**91 份真实老 Pascal 程序**，放在 `Examples/` **之外** ⇒ 不进 APK）。
+基线：**通过 9 / 失败 82**。
+
+> **语料与示例是两件事**：示例要**精选**（老语言留几个 BGI 就够，见 v0.96.552），
+> 兼容能力要有**真实语料**兜着 —— 否则「改了一处却没生效」和「本来就编不过」
+> 在失败栏里长得一模一样。
+
+四处前端缺陷（都是老代码里最常见的写法）：
+
+1. **指针解引用取字段 `Q^.field`**（链表/树的唯一写法）—— `ResolveFieldChain` 加
+   `derefCount` 档 + `TryGetPointerTargetRecordType`（别名 `Ptr = ^T` **两层都要跟**），
+   7 处调用点传参。
+2. **过程内的 `type` 段**：解析器原写「跳过直到 `;`」⇒ `definedTypeAliases` 里没有它，
+   `TD[1].X` 报「不是 record 类型」。改为收进 `LocalTypes` 并登记
+   （与 `Const` 段**同一个错法、同一套作用域保存/恢复**）。
+3. **数组别名展开**：`PolyType = Array[1..3] of T; TD : PolyType;` ——
+   不展开别名就永远看不到那个 `ArrayTypeNode`。
+   展开要在**剥维度之前**（顺序反了就是本条的首个坑）。
+4. **单元类型灌入后可能拿到 `RecordTypeNode` 本体**（`PointType` 来自 `uses Graph`）
+   —— 原先只认 `SimpleTypeNode`，这一档整个漏掉。
+
+补 `Lib/pascal/graph.pas` 的 BGI 标准类型段（`PointType`/`PaletteType`/`ViewPortType`/
+`ArcCoordsType`/`FillSettingsType`/`LineSettingsType` + `MaxColors`）——
+老程序直接在 `type` 段里用它们，缺了会表现成「不是 record 类型」，**指不回单元**。
+
+**效能**：record 类缺口 11 → 8；通过率仍 9/82
+（**多层叠加，修一层只前进一层**，正解是按缺口修而不是按示例修）。
+
 ## v0.96.552 — 老语言例子精简：Pascal 98 → 7（**失败从 83 掉到 1**）
 
 用户的口径：**「老语言举几个 BGI 例子就够了」**。
