@@ -1253,6 +1253,7 @@ __stdcall void vga_text_newline(void);
  int ui_dlg_input(char* title, char* prompt, char* buf, int cap);
  int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);
  int ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard);
+ int ui_get_language(void);
  int ui_orientation(void);
  void ui_clear(int color);
  void ui_pixel(int x, int y, int color);

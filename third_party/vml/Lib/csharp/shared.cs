@@ -1103,6 +1103,7 @@ namespace VML {
     // extern int ui_dlg_input(char* title, char* prompt, char* buf, int cap);  // CALL ui_dlg_input
     // extern int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);  // CALL ui_win_open_ex
     // extern int ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard);  // CALL ui_win_open_pc
+    // extern int ui_get_language(void);  // CALL ui_get_language
     // extern int ui_orientation(void);  // CALL ui_orientation
     // extern void ui_clear(int color);  // CALL ui_clear
     // extern void ui_pixel(int x, int y, int color);  // CALL ui_pixel

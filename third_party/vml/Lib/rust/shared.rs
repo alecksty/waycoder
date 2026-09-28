@@ -6796,6 +6796,13 @@ fn ui_win_open_pc(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     r
 }
 
+fn ui_get_language() -> i32 {
+    asm!("CALL ui_get_language")
+    let r: i32;
+    asm!("MOVE {{0}}, @R0", out(reg) r);
+    r
+}
+
 fn ui_orientation() -> i32 {
     asm!("CALL ui_orientation")
     let r: i32;

@@ -7,6 +7,8 @@ using VMLRuntime;
 using VMLTool;
 using WayCoder.UI.Shared;
 
+using WayCoder;                // L（语言真源）—— 本工程在 namespace VmlCli 下，看不见外层 WayCoder.L
+
 namespace VmlCli;
 
 /// <summary>
@@ -29,6 +31,10 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        // 语言真源 = 系统语言（与 TUI / GUI / MAUI 各入口同一个动作）。
+        // ⚠ 必须在最前面：`HOST_LANG`(#568) 回的就是 `L.IsZh`，晚于第一次探测的话，
+        //   本次会话里第一个 VML 程序问到的会是默认值（中文）。
+        L.DetectFromSystem();
         CliOptions opt;
         try
         {

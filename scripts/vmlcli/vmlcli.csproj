@@ -81,6 +81,9 @@
          所以能原样编进这个只引 vendored VML 的 CLI（`WayCoder.Infra.ErrorLog`
          是 VmlUiProtocol 唯一的核心依赖，由 Program.cs 末尾那个空实现顶上）。 -->
     <Compile Include="../../WayCoder/UI/Shared/VmlUiProtocol.cs" Link="VmlUiProtocol.cs" />
+    <!-- 语言真源：`HOST_LANG`(#568) 要回它。⚠ 逐个文件列的工程最容易漂 ——
+         真 `L` 住在这里，vmlcli 自己**绝不另写一份**语言判定（那是"同一规则两处实现"）。 -->
+    <Compile Include="../../WayCoder/UI/Shared/Lang.cs" Link="Lang.cs" />
     <Compile Include="../../WayCoder/UI/Shared/VmlCallRegistry.cs" Link="VmlCallRegistry.cs" />
 
     <!-- VML 工程文件（.vmk）+ 导入器：与桌面自测、手机端**编同一份源码**。

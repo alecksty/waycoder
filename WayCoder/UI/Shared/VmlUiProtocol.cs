@@ -715,6 +715,63 @@ public static class VmlUi
     public const int ScrH = 567;
 
     /// <summary>
+    /// **界面语言**（0 = 中文，1 = 英文）→ 语言码。
+    ///
+    /// <para>
+    /// 让程序按**用户的语言**决定显示中文还是英文 —— 例程里最典型的用法是
+    /// <c>if (ui_get_language() == 0) ui_text("得分") else ui_text("Score")</c>。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么必须由宿主回答，程序自己判不出来</b>：语言是**设备/用户设置**的属性，
+    /// 程序既读不到系统区域设置，也不该去猜（猜错的症状是"英文手机上蹦出中文"）。
+    /// 与 <see cref="ScrOrient"/> 同一条分工 —— <b>「问宿主此刻是什么状态」</b>。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么单独占一个号，而不是并进 `SCR_W`/`SCR_H`/`SCR_ORIENT` 加操作码</b>：
+    /// 那三个号都是**无参**的（老程序写 <c>SYSCALL #566</c>，`R0` 里是它自己上一句留下的值）。
+    /// 给一个无参号补 <c>R0 = op</c> 会让**所有已编译的老程序**按残留值走进某个分支 ——
+    /// 这正是本仓写着「**给老 syscall 加参数 = 静默的未定义行为**」的那条（见 `MSG_CLEAR` #568 的先例）。
+    /// 所以走新号。
+    /// </para>
+    ///
+    /// <para>
+    /// <b>为什么是 568</b>：它原本是 `MSG_CLEAR`，在 v0.96.483 那次「消息族收成一个号 + 操作码」
+    /// 的整合里**释回号池**（文档 §2 / §5 有记录），正好落在 `SCR_W`/`SCR_H`/`SCR_ORIENT`
+    /// 这个「问宿主状态」家族的缺口里 —— 语义上归这一族，是这个号最合适的位置。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>0/1 是跨语言契约</b>：22 门前端的绑定与 `Lib/c/waycoder_ui.h` 的
+    /// <c>VML_LANG_*</c> 宏都按这两个数写死。要加第三种语言是**改 ABI**，不是加个分支。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 拿不到语言的平台回 <see cref="LangZh"/>（与 <see cref="L"/> 的默认值同口径：
+    /// "没人初始化"时行为与改造前一致），**不要用 0 冒充一个真实探测结果** —— 不过这条
+    /// 在语言上是无害的：0 本身就是中文这个**合法值**（与"没有电池"那种必须区分的场合不同）。
+    /// </para>
+    /// </summary>
+    public const int HostLang = 568;
+
+    /// <summary>`HOST_LANG` / <see cref="LangCode"/> 的返回值：中文。</summary>
+    public const int LangZh = 0;
+    /// <summary>`HOST_LANG` / <see cref="LangCode"/> 的返回值：英文。</summary>
+    public const int LangEn = 1;
+
+    /// <summary>
+    /// 语言判定的**纯逻辑**（中文 → 0，其余 → 1）——三端宿主与自测**共用这一处**。
+    ///
+    /// <para>
+    /// 存在的理由与 <see cref="OrientationOf"/> 完全相同：这个映射是**跨语言契约**
+    /// （C 头文件的宏、22 门前端的绑定都写死了 0/1），散在各宿主里各写一遍必然漂。
+    /// 而且这样它能被**主工程自测**覆盖 —— MAUI 工程不进桌面自测，宿主里那几行只能靠人眼看。
+    /// </para>
+    /// </summary>
+    public static int LangCode(bool isZh) => isZh ? LangZh : LangEn;
+
+    /// <summary>
     /// **屏幕方向**（0 = 竖屏，1 = 横屏）→ 方向。
     ///
     /// ## 为什么单独给一个号，而不是让程序拿 `SCR_W > SCR_H` 去推
@@ -1626,7 +1683,8 @@ public static class VmlUi
         // 见 `AudioOp` / `VibrateOp` / `StoreOp`；`ScreenKeepOn` 单个、无同类可并）
         Audio, Vibrate, Store, ScreenKeepOn,
         // 输入与屏幕 560–569（消息与定时器**各收成一个号 + 操作码**，见 `MsgOp` / `TimerOp`）
-        Msg, Timer, WinClosed, ScrW, ScrH, ScrOrient,
+        // ⚠ `HostLang`(568) 用的是 `MSG_CLEAR` 在 v0.96.483 整合时释回的号（见 `HostLang` 的注释）
+        Msg, Timer, WinClosed, ScrW, ScrH, HostLang, ScrOrient,
         // 手机特有的操作方式 556–559
         TouchQuery, KeyQuery, OrientationLock, Immersive,
         // 传感器 554（**一个号 + 操作码**，见 `SensorOp` / `SensorKind`；

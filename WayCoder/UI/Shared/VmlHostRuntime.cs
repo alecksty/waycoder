@@ -45,6 +45,19 @@ public interface IVmlHost
     /// 判定规则只有 <see cref="VmlUi.OrientationOf"/> 一处实现，两端都调它。</summary>
     int Orientation();
 
+    /// <summary>界面语言 —— 见 <see cref="VmlUi.LangZh"/> / <see cref="VmlUi.LangEn"/>，
+    /// 即 `HOST_LANG`(#568) 的返回值。
+    ///
+    /// <para>
+    /// ⚠ **故意不给默认实现**（C# 允许，这里不写）：漏一个宿主就**编不过**，
+    /// 而默认返回中文会让那个宿主静默地对英文用户说中文 —— 只有上真机才看得见。
+    /// 与本仓 `DrawCommand.Vector` / `EndpointStatus` 同一条处置：**编不过最省事**。
+    /// </para>
+    ///
+    /// <para>映射只能走 <see cref="VmlUi.LangCode"/>（跨语言契约，散着写必然漂）。</para>
+    /// </summary>
+    int Language();
+
     // ── 窗口与绘图 ──────────────────────────────────────────────────────────
 
     /// <summary>开绘图窗口。返回 false = 这一端没有绘图能力（老桌面 CLI 的行为）。</summary>
@@ -1148,6 +1161,7 @@ public sealed class VmlHostRuntime
                 case VmlUi.ScrW: registers[0] = _host.ScreenArea().Width; break;
                 case VmlUi.ScrH: registers[0] = _host.ScreenArea().Height; break;
                 case VmlUi.ScrOrient: registers[0] = _host.Orientation(); break;
+                case VmlUi.HostLang: registers[0] = _host.Language(); break;
 
                 default: return false; // 号段内但未实现 → 交回运行时（保持"不认领"语义）
             }

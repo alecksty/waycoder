@@ -81,12 +81,12 @@ _bgi_mode_size:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1025:     int w = 640, h = 480;                 /* 默认 = 9 640×480（老程序最熟的那一档） */
+; 1038:     int w = 640, h = 480;                 /* 默认 = 9 640×480（老程序最熟的那一档） */
         move @R0 #640
         move [@R12-8] @R0
         move @R0 #480
         move [@R12-12] @R0
-; 1026:     if (gd == 3) {
+; 1039:     if (gd == 3) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -100,7 +100,7 @@ _L74760002:
 _L74760003:
         cmp @R0 #0
         jz sta_74760000
-; 1027:         if (gm == 4) { w = 640; h = 200; }
+; 1040:         if (gm == 4) { w = 640; h = 200; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #4
@@ -120,7 +120,7 @@ _L74760007:
         move [@R12-12] @R0
         jmp sta_74760005
 sta_74760004:
-; 1028:         else             { w = 320; h = 200; }   /* 0..C3：320×200 */
+; 1041:         else             { w = 320; h = 200; }   /* 0..C3：320×200 */
         move @R0 #320
         move [@R12-8] @R0
         move @R0 #200
@@ -128,7 +128,7 @@ sta_74760004:
 sta_74760005:
         jmp sta_74760001
 sta_74760000:
-; 1029:     } else if (gd == 5) {
+; 1042:     } else if (gd == 5) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
@@ -142,7 +142,7 @@ _L74760010:
 _L74760011:
         cmp @R0 #0
         jz sta_74760008
-; 1030:         if (gm == 1) { w = 640; h = 350; }
+; 1043:         if (gm == 1) { w = 640; h = 350; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -162,7 +162,7 @@ _L74760015:
         move [@R12-12] @R0
         jmp sta_74760013
 sta_74760012:
-; 1031:         else             { w = 640; h = 200; }   /* 0 */
+; 1044:         else             { w = 640; h = 200; }   /* 0 */
         move @R0 #640
         move [@R12-8] @R0
         move @R0 #200
@@ -170,7 +170,7 @@ sta_74760012:
 sta_74760013:
         jmp sta_74760009
 sta_74760008:
-; 1032:     } else if (gd == 9) {
+; 1045:     } else if (gd == 9) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #9
@@ -184,7 +184,7 @@ _L74760018:
 _L74760019:
         cmp @R0 #0
         jz sta_74760016
-; 1033:         if (gm == 2)      { w = 640; h = 480; }
+; 1046:         if (gm == 2)      { w = 640; h = 480; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #2
@@ -204,7 +204,7 @@ _L74760023:
         move [@R12-12] @R0
         jmp sta_74760021
 sta_74760020:
-; 1034:         else if (gm == 1){ w = 640; h = 350; }
+; 1047:         else if (gm == 1){ w = 640; h = 350; }
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -224,7 +224,7 @@ _L74760027:
         move [@R12-12] @R0
         jmp sta_74760025
 sta_74760024:
-; 1035:         else                  { w = 640; h = 200; }   /* 0 */
+; 1048:         else                  { w = 640; h = 200; }   /* 0 */
         move @R0 #640
         move [@R12-8] @R0
         move @R0 #200
@@ -235,14 +235,14 @@ sta_74760016:
 sta_74760017:
 sta_74760009:
 sta_74760001:
-; 1038:     *pw = w;
+; 1051:     *pw = w;
         move @R0 [@R12+20]
         move @R11 @R0
         push @R11
         move @R0 [@R12-8]
         pop @R11
         move [@R11] @R0
-; 1039:     *ph = h;
+; 1052:     *ph = h;
         move @R0 [@R12+24]
         move @R10 @R0
         push @R10
@@ -265,7 +265,7 @@ _bgi_rgb:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1070:     if (idx < 0) idx = 0;
+; 1083:     if (idx < 0) idx = 0;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -283,7 +283,7 @@ _L74760031:
         move [@R12+12] @R0
 sta_74760028:
 sta_74760029:
-; 1071:     if (idx > 15) idx = 15;
+; 1084:     if (idx > 15) idx = 15;
         move @R0 [@R12+12]
         push @R0
         move @R0 #15
@@ -301,7 +301,7 @@ _L74760035:
         move [@R12+12] @R0
 sta_74760032:
 sta_74760033:
-; 1072:     return _bgi_pal[idx] | 0xFF000000;
+; 1085:     return _bgi_pal[idx] | 0xFF000000;
         move @R0 _bgi_pal
         push @R0
         move @R9 #0
@@ -337,13 +337,13 @@ _bgi_basename:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1079:     char *last = p;
+; 1092:     char *last = p;
         move @R0 [@R12+12]
         move [@R12-8] @R0
-; 1080:     char *q    = p;
+; 1093:     char *q    = p;
         move @R0 [@R12+12]
         move [@R12-12] @R0
-; 1081:     if (p == 0) return "";
+; 1094:     if (p == 0) return "";
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -363,13 +363,13 @@ sta_74760037:
 sta_74760038:
 sta_74760043:
         move @R2 #0
-; 1082:     while (*q) {
+; 1095:     while (*q) {
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
         cmp @R0 #0
         jz sta_74760044
-; 1083:         if (*q == '/' || *q == '\\') last = q + 1;
+; 1096:         if (*q == '/' || *q == '\\') last = q + 1;
         move @R0 [@R12-12]
         moveb @R0 [@R0]
         sextb @R0 @R0
@@ -417,7 +417,7 @@ _L74760049:
         move [@R12-8] @R0
 sta_74760045:
 sta_74760046:
-; 1084:         q++;
+; 1097:         q++;
         move @R0 [@R12-12]
         move @R1 @R0
         add @R0 @R0 #1
@@ -425,7 +425,7 @@ sta_74760046:
         move @R0 @R1
         jmp sta_74760043
 sta_74760044:
-; 1086:     return last;
+; 1099:     return last;
         move @R0 [@R12-8]
         jmp L_74760042
 L_74760042:
@@ -448,14 +448,14 @@ _bgi_initgraph:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1097:     int w = 640, h = 480;          /* 9 默认 */
+; 1110:     int w = 640, h = 480;          /* 9 默认 */
         move @R0 #640
         move [@R12-8] @R0
         move @R0 #480
         move [@R12-12] @R0
-; 1098:     (void)path;
+; 1111:     (void)path;
         move @R0 [@R12+20]
-; 1104:     if (gd != 0 && *gd == 0) {
+; 1117:     if (gd != 0 && *gd == 0) {
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -490,14 +490,14 @@ _L74760056:
 _L74760057:
         cmp @R0 #0
         jz sta_74760054
-; 1105:         *gd = 9;                       /* 驱动与模式都由库来挑（本平台只有 16 色调色板） */
+; 1118:         *gd = 9;                       /* 驱动与模式都由库来挑（本平台只有 16 色调色板） */
         move @R0 [@R12+12]
         move @R7 @R0
         push @R7
         move @R0 #9
         pop @R7
         move [@R7] @R0
-; 1106:         if (gm != 0) *gm = 2;
+; 1119:         if (gm != 0) *gm = 2;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -521,7 +521,7 @@ sta_74760062:
 sta_74760063:
 sta_74760054:
 sta_74760055:
-; 1108:     _bgi_driver = (gd != 0) ? *gd : 9;
+; 1121:     _bgi_driver = (gd != 0) ? *gd : 9;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -542,7 +542,7 @@ _L74760068:
         move @R0 #9
 _L74760069:
         move [_bgi_driver] @R0
-; 1109:     _bgi_mode   = (gm != 0) ? *gm : 2;
+; 1122:     _bgi_mode   = (gm != 0) ? *gm : 2;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -563,7 +563,7 @@ _L74760072:
         move @R0 #2
 _L74760073:
         move [_bgi_mode] @R0
-; 1111:     if (gm != 0) *gm = _bgi_mode;
+; 1124:     if (gm != 0) *gm = _bgi_mode;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -585,7 +585,7 @@ _L74760077:
         move [@R5] @R0
 sta_74760074:
 sta_74760075:
-; 1114:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+; 1127:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
         move @R0 [@R12-12]
         move @R0 @R12
         sub @R0 #12
@@ -604,14 +604,14 @@ sta_74760075:
         move @R3 [@R13+12]
         call _bgi_mode_size
         add @R13 #16
-; 1117:     _bgi_title = _bgi_basename(file);
+; 1130:     _bgi_title = _bgi_basename(file);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R13+0]
         call _bgi_basename
         add @R13 #4
         move [_bgi_title] @R0
-; 1118:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
+; 1131:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
         move @R0 #1
         push @R0
         move @R0 #1
@@ -628,7 +628,7 @@ sta_74760075:
         move @R3 [@R13+12]
         call ui_win_open_pc
         add @R13 #20
-; 1119:     _bgi_maxx   = w - 1;
+; 1132:     _bgi_maxx   = w - 1;
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -636,7 +636,7 @@ sta_74760075:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxx] @R0
-; 1120:     _bgi_maxy   = h - 1;
+; 1133:     _bgi_maxy   = h - 1;
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -644,10 +644,10 @@ sta_74760075:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxy] @R0
-; 1121:     _bgi_opened = 1;
+; 1134:     _bgi_opened = 1;
         move @R0 #1
         move [_bgi_opened] @R0
-; 1122:     cleardevice();
+; 1135:     cleardevice();
         call cleardevice
         move @R13 @R12
         pop @R12
@@ -668,7 +668,7 @@ _bgi_initwindow:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1137:     if (w <= 0) w = 640;
+; 1150:     if (w <= 0) w = 640;
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -686,7 +686,7 @@ _L74760081:
         move [@R12+12] @R0
 sta_74760078:
 sta_74760079:
-; 1138:     if (h <= 0) h = 480;
+; 1151:     if (h <= 0) h = 480;
         move @R0 [@R12+16]
         push @R0
         move @R0 #0
@@ -704,7 +704,7 @@ _L74760085:
         move [@R12+16] @R0
 sta_74760082:
 sta_74760083:
-; 1139:     _bgi_title = (title != 0 && title[0] != 0) ? title : _bgi_basename(file);
+; 1152:     _bgi_title = (title != 0 && title[0] != 0) ? title : _bgi_basename(file);
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -755,7 +755,7 @@ _L74760092:
         add @R13 #4
 _L74760093:
         move [_bgi_title] @R0
-; 1140:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
+; 1153:     ui_win_open_pc(_bgi_title, w, h, 1, 1);
         move @R0 #1
         push @R0
         move @R0 #1
@@ -772,7 +772,7 @@ _L74760093:
         move @R3 [@R13+12]
         call ui_win_open_pc
         add @R13 #20
-; 1141:     _bgi_maxx   = w - 1;
+; 1154:     _bgi_maxx   = w - 1;
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -780,7 +780,7 @@ _L74760093:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxx] @R0
-; 1142:     _bgi_maxy   = h - 1;
+; 1155:     _bgi_maxy   = h - 1;
         move @R0 [@R12+16]
         push @R0
         move @R0 #1
@@ -788,10 +788,10 @@ _L74760093:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxy] @R0
-; 1143:     _bgi_opened = 1;
+; 1156:     _bgi_opened = 1;
         move @R0 #1
         move [_bgi_opened] @R0
-; 1144:     cleardevice();
+; 1157:     cleardevice();
         call cleardevice
         move @R13 @R12
         pop @R12
@@ -809,10 +809,10 @@ setgraphmode:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1155:     _bgi_mode = mode;
+; 1168:     _bgi_mode = mode;
         move @R0 [@R12+12]
         move [_bgi_mode] @R0
-; 1156:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
+; 1169:     _bgi_mode_size(_bgi_driver, _bgi_mode, &w, &h);
         move @R0 [@R12-12]
         move @R0 @R12
         sub @R0 #12
@@ -831,14 +831,14 @@ setgraphmode:
         move @R3 [@R13+12]
         call _bgi_mode_size
         add @R13 #16
-; 1157:     if (_bgi_opened) ui_win_close();
+; 1170:     if (_bgi_opened) ui_win_close();
         move @R0 [_bgi_opened]
         cmp @R0 #0
         jz sta_74760094
         call ui_win_close
 sta_74760094:
 sta_74760095:
-; 1158:     ui_win_open_pc(_bgi_title != 0 ? _bgi_title : "", w, h, 1, 1);
+; 1171:     ui_win_open_pc(_bgi_title != 0 ? _bgi_title : "", w, h, 1, 1);
         move @R0 #1
         push @R0
         move @R0 #1
@@ -872,7 +872,7 @@ _L74760099:
         move @R3 [@R13+12]
         call ui_win_open_pc
         add @R13 #20
-; 1159:     _bgi_maxx   = w - 1;
+; 1172:     _bgi_maxx   = w - 1;
         move @R0 [@R12-8]
         push @R0
         move @R0 #1
@@ -880,7 +880,7 @@ _L74760099:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxx] @R0
-; 1160:     _bgi_maxy   = h - 1;
+; 1173:     _bgi_maxy   = h - 1;
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -888,10 +888,10 @@ _L74760099:
         sub @R1 @R0
         move @R0 @R1
         move [_bgi_maxy] @R0
-; 1161:     _bgi_opened = 1;
+; 1174:     _bgi_opened = 1;
         move @R0 #1
         move [_bgi_opened] @R0
-; 1162:     cleardevice();
+; 1175:     cleardevice();
         call cleardevice
         move @R13 @R12
         pop @R12
@@ -908,13 +908,13 @@ closegraph:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1166:     if (_bgi_opened) {
+; 1179:     if (_bgi_opened) {
         move @R0 [_bgi_opened]
         cmp @R0 #0
         jz sta_74760101
-; 1167:         ui_win_close();
+; 1180:         ui_win_close();
         call ui_win_close
-; 1168:         _bgi_opened = 0;
+; 1181:         _bgi_opened = 0;
         move @R0 #0
         move [_bgi_opened] @R0
 sta_74760101:
@@ -934,7 +934,7 @@ cleardevice:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1173:     ui_clear(_bgi_rgb(_bgi_bg));
+; 1186:     ui_clear(_bgi_rgb(_bgi_bg));
         move @R0 [_bgi_bg]
         push @R0
         move @R0 [@R13+0]
@@ -959,7 +959,7 @@ getmaxx:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1175: int getmaxx(void) { return _bgi_maxx; }
+; 1188: int getmaxx(void) { return _bgi_maxx; }
         move @R0 [_bgi_maxx]
         jmp L_74760103
 L_74760103:
@@ -978,7 +978,7 @@ getmaxy:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1176: int getmaxy(void) { return _bgi_maxy; }
+; 1189: int getmaxy(void) { return _bgi_maxy; }
         move @R0 [_bgi_maxy]
         jmp L_74760104
 L_74760104:
@@ -997,7 +997,7 @@ getmaxcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1185: int getmaxcolor(void) { return 15; }
+; 1198: int getmaxcolor(void) { return 15; }
         move @R0 #15
         jmp L_74760105
 L_74760105:
@@ -1016,7 +1016,7 @@ graphresult:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1201: int graphresult(void) { return 0; }
+; 1214: int graphresult(void) { return 0; }
         move @R0 #0
         jmp L_74760106
 L_74760106:
@@ -1036,7 +1036,7 @@ grapherrormsg:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1204:     if (code == 0)             return "No error";
+; 1217:     if (code == 0)             return "No error";
         move @R0 [@R12+12]
         push @R0
         move @R0 #0
@@ -1054,7 +1054,7 @@ _L74760110:
         jmp L_74760112
 sta_74760107:
 sta_74760108:
-; 1205:     if (code == (-1))    return "BGI graphics not installed (use InitGraph)";
+; 1218:     if (code == (-1))    return "BGI graphics not installed (use InitGraph)";
         move @R0 [@R12+12]
         push @R0
         move @R0 #1
@@ -1074,7 +1074,7 @@ _L74760116:
         jmp L_74760112
 sta_74760113:
 sta_74760114:
-; 1206:     if (code == (-2))    return "Graphics hardware not detected";
+; 1219:     if (code == (-2))    return "Graphics hardware not detected";
         move @R0 [@R12+12]
         push @R0
         move @R0 #2
@@ -1094,7 +1094,7 @@ _L74760121:
         jmp L_74760112
 sta_74760118:
 sta_74760119:
-; 1207:     if (code == (-3))   return "Device driver file not found";
+; 1220:     if (code == (-3))   return "Device driver file not found";
         move @R0 [@R12+12]
         push @R0
         move @R0 #3
@@ -1114,7 +1114,7 @@ _L74760126:
         jmp L_74760112
 sta_74760123:
 sta_74760124:
-; 1208:     if (code == (-4))  return "Invalid device driver file";
+; 1221:     if (code == (-4))  return "Invalid device driver file";
         move @R0 [@R12+12]
         push @R0
         move @R0 #4
@@ -1134,7 +1134,7 @@ _L74760131:
         jmp L_74760112
 sta_74760128:
 sta_74760129:
-; 1209:     if (code == (-5))      return "Not enough memory to load driver";
+; 1222:     if (code == (-5))      return "Not enough memory to load driver";
         move @R0 [@R12+12]
         push @R0
         move @R0 #5
@@ -1154,7 +1154,7 @@ _L74760136:
         jmp L_74760112
 sta_74760133:
 sta_74760134:
-; 1210:     if (code == (-6))      return "Out of memory in scan fill";
+; 1223:     if (code == (-6))      return "Out of memory in scan fill";
         move @R0 [@R12+12]
         push @R0
         move @R0 #6
@@ -1174,7 +1174,7 @@ _L74760141:
         jmp L_74760112
 sta_74760138:
 sta_74760139:
-; 1211:     if (code == (-7))     return "Out of memory in flood fill";
+; 1224:     if (code == (-7))     return "Out of memory in flood fill";
         move @R0 [@R12+12]
         push @R0
         move @R0 #7
@@ -1194,7 +1194,7 @@ _L74760146:
         jmp L_74760112
 sta_74760143:
 sta_74760144:
-; 1212:     if (code == (-8))   return "Font file not found";
+; 1225:     if (code == (-8))   return "Font file not found";
         move @R0 [@R12+12]
         push @R0
         move @R0 #8
@@ -1214,7 +1214,7 @@ _L74760151:
         jmp L_74760112
 sta_74760148:
 sta_74760149:
-; 1213:     if (code == (-9))      return "Not enough memory to load font";
+; 1226:     if (code == (-9))      return "Not enough memory to load font";
         move @R0 [@R12+12]
         push @R0
         move @R0 #9
@@ -1234,7 +1234,7 @@ _L74760156:
         jmp L_74760112
 sta_74760153:
 sta_74760154:
-; 1214:     if (code == (-10))    return "Invalid graphics mode for selected driver";
+; 1227:     if (code == (-10))    return "Invalid graphics mode for selected driver";
         move @R0 [@R12+12]
         push @R0
         move @R0 #10
@@ -1254,7 +1254,7 @@ _L74760161:
         jmp L_74760112
 sta_74760158:
 sta_74760159:
-; 1215:     if (code == (-11))          return "Graphics error";
+; 1228:     if (code == (-11))          return "Graphics error";
         move @R0 [@R12+12]
         push @R0
         move @R0 #11
@@ -1274,7 +1274,7 @@ _L74760166:
         jmp L_74760112
 sta_74760163:
 sta_74760164:
-; 1216:     if (code == (-12))        return "Graphics I/O error";
+; 1229:     if (code == (-12))        return "Graphics I/O error";
         move @R0 [@R12+12]
         push @R0
         move @R0 #12
@@ -1294,7 +1294,7 @@ _L74760171:
         jmp L_74760112
 sta_74760168:
 sta_74760169:
-; 1217:     if (code == (-13))    return "Invalid font file";
+; 1230:     if (code == (-13))    return "Invalid font file";
         move @R0 [@R12+12]
         push @R0
         move @R0 #13
@@ -1314,7 +1314,7 @@ _L74760176:
         jmp L_74760112
 sta_74760173:
 sta_74760174:
-; 1218:     if (code == (-14)) return "Invalid font number";
+; 1231:     if (code == (-14)) return "Invalid font number";
         move @R0 [@R12+12]
         push @R0
         move @R0 #14
@@ -1334,7 +1334,7 @@ _L74760181:
         jmp L_74760112
 sta_74760178:
 sta_74760179:
-; 1219:     if (code == (-18)) return "Invalid version of file";
+; 1232:     if (code == (-18)) return "Invalid version of file";
         move @R0 [@R12+12]
         push @R0
         move @R0 #18
@@ -1354,7 +1354,7 @@ _L74760186:
         jmp L_74760112
 sta_74760183:
 sta_74760184:
-; 1220:     return "Unknown graphics error";
+; 1233:     return "Unknown graphics error";
         move @R0 L_74760188
         jmp L_74760112
 L_74760112:
@@ -1374,7 +1374,7 @@ setcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1223: void setcolor(int c)       { _bgi_fg = c; }
+; 1236: void setcolor(int c)       { _bgi_fg = c; }
         move @R0 [@R12+12]
         move [_bgi_fg] @R0
         move @R13 @R12
@@ -1393,7 +1393,7 @@ setbkcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1224: void setbkcolor(int c)     { _bgi_bg = c; }
+; 1237: void setbkcolor(int c)     { _bgi_bg = c; }
         move @R0 [@R12+12]
         move [_bgi_bg] @R0
         move @R13 @R12
@@ -1411,7 +1411,7 @@ getcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1230: int  getcolor(void)        { return _bgi_fg; }
+; 1243: int  getcolor(void)        { return _bgi_fg; }
         move @R0 [_bgi_fg]
         jmp L_74760189
 L_74760189:
@@ -1430,7 +1430,7 @@ getbkcolor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1231: int  getbkcolor(void)      { return _bgi_bg; }
+; 1244: int  getbkcolor(void)      { return _bgi_bg; }
         move @R0 [_bgi_bg]
         jmp L_74760190
 L_74760190:
@@ -1451,12 +1451,12 @@ setfillstyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1234:     (void)pattern;
+; 1247:     (void)pattern;
         move @R0 [@R12+12]
-; 1235:     _bgi_fill_pat = pattern;
+; 1248:     _bgi_fill_pat = pattern;
         move @R0 [@R12+12]
         move [_bgi_fill_pat] @R0
-; 1236:     _bgi_fill_col = color;
+; 1249:     _bgi_fill_col = color;
         move @R0 [@R12+16]
         move [_bgi_fill_col] @R0
         move @R13 @R12
@@ -1477,10 +1477,10 @@ setlinestyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1240:     (void)style; (void)pattern;
+; 1253:     (void)style; (void)pattern;
         move @R0 [@R12+12]
         move @R0 [@R12+16]
-; 1241:     _bgi_line_w = (thickness == 3) ? 3 : 1;
+; 1254:     _bgi_line_w = (thickness == 3) ? 3 : 1;
         move @R0 [@R12+20]
         push @R0
         move @R0 #3
@@ -1518,10 +1518,10 @@ settextstyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1249:     (void)font; (void)dir;
+; 1262:     (void)font; (void)dir;
         move @R0 [@R12+12]
         move @R0 [@R12+16]
-; 1250:     if (size > 0) _bgi_txt_size = size * 16;
+; 1263:     if (size > 0) _bgi_txt_size = size * 16;
         move @R0 [@R12+20]
         push @R0
         move @R0 #0
@@ -1561,10 +1561,10 @@ settextjustify:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1260:     _bgi_txt_just  = horiz;
+; 1273:     _bgi_txt_just  = horiz;
         move @R0 [@R12+12]
         move [_bgi_txt_just] @R0
-; 1261:     _bgi_txt_vjust = vert;
+; 1274:     _bgi_txt_vjust = vert;
         move @R0 [@R12+16]
         move [_bgi_txt_vjust] @R0
         move @R13 @R12
@@ -1586,7 +1586,7 @@ line:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1266:     ui_line(x1, y1, x2, y2, _bgi_rgb(_bgi_fg), _bgi_line_w);
+; 1279:     ui_line(x1, y1, x2, y2, _bgi_rgb(_bgi_fg), _bgi_line_w);
         move @R0 [_bgi_line_w]
         push @R0
         move @R0 [_bgi_fg]
@@ -1626,7 +1626,7 @@ moveto:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1268: void moveto(int x, int y) { _bgi_pen_x = x; _bgi_pen_y = y; }
+; 1281: void moveto(int x, int y) { _bgi_pen_x = x; _bgi_pen_y = y; }
         move @R0 [@R12+12]
         move [_bgi_pen_x] @R0
         move @R0 [@R12+16]
@@ -1648,7 +1648,7 @@ lineto:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1271:     line(_bgi_pen_x, _bgi_pen_y, x, y);
+; 1284:     line(_bgi_pen_x, _bgi_pen_y, x, y);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -1663,10 +1663,10 @@ lineto:
         move @R3 [@R13+12]
         call line
         add @R13 #16
-; 1272:     _bgi_pen_x = x;
+; 1285:     _bgi_pen_x = x;
         move @R0 [@R12+12]
         move [_bgi_pen_x] @R0
-; 1273:     _bgi_pen_y = y;
+; 1286:     _bgi_pen_y = y;
         move @R0 [@R12+16]
         move [_bgi_pen_y] @R0
         move @R13 @R12
@@ -1686,7 +1686,7 @@ linerel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1277:     lineto(_bgi_pen_x + dx, _bgi_pen_y + dy);
+; 1290:     lineto(_bgi_pen_x + dx, _bgi_pen_y + dy);
         move @R0 [_bgi_pen_y]
         push @R0
         move @R0 [@R12+16]
@@ -1724,7 +1724,7 @@ rectangle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1283:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fg), 0, _bgi_line_w, 0);
+; 1296:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fg), 0, _bgi_line_w, 0);
         move @R0 #0
         push @R0
         move @R0 [_bgi_line_w]
@@ -1780,7 +1780,7 @@ bar:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1287:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fill_col), 1, 1, 0);
+; 1300:     ui_rect(l, t, r - l, b - t, _bgi_rgb(_bgi_fill_col), 1, 1, 0);
         move @R0 #0
         push @R0
         move @R0 #1
@@ -1838,7 +1838,7 @@ bar3d:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1291:     bar(l, t, r, b);
+; 1304:     bar(l, t, r, b);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -1853,7 +1853,7 @@ bar3d:
         move @R3 [@R13+12]
         call bar
         add @R13 #16
-; 1292:     rectangle(l, t, r, b);
+; 1305:     rectangle(l, t, r, b);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -1868,11 +1868,11 @@ bar3d:
         move @R3 [@R13+12]
         call rectangle
         add @R13 #16
-; 1293:     if (topflag) {
+; 1306:     if (topflag) {
         move @R0 [@R12+32]
         cmp @R0 #0
         jz sta_74760199
-; 1294:         line(l, t, l + depth, t - depth);
+; 1307:         line(l, t, l + depth, t - depth);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+28]
@@ -1897,7 +1897,7 @@ bar3d:
         move @R3 [@R13+12]
         call line
         add @R13 #16
-; 1295:         line(r, t, r + depth, t - depth);
+; 1308:         line(r, t, r + depth, t - depth);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+28]
@@ -1922,7 +1922,7 @@ bar3d:
         move @R3 [@R13+12]
         call line
         add @R13 #16
-; 1296:         line(l + depth, t - depth, r + depth, t - depth);
+; 1309:         line(l + depth, t - depth, r + depth, t - depth);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+28]
@@ -1957,7 +1957,7 @@ bar3d:
         move @R3 [@R13+12]
         call line
         add @R13 #16
-; 1297:         line(r, b, r + depth, b - depth);
+; 1310:         line(r, b, r + depth, b - depth);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+28]
@@ -1982,7 +1982,7 @@ bar3d:
         move @R3 [@R13+12]
         call line
         add @R13 #16
-; 1298:         line(r + depth, b - depth, r + depth, t - depth);
+; 1311:         line(r + depth, b - depth, r + depth, t - depth);
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+28]
@@ -2037,7 +2037,7 @@ circle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1303:     ui_circle(x, y, r, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
+; 1316:     ui_circle(x, y, r, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
         move @R0 [_bgi_line_w]
         push @R0
         move @R0 #0
@@ -2079,7 +2079,7 @@ fillellipse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1307:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fill_col), 1, 1);
+; 1320:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fill_col), 1, 1);
         move @R0 #1
         push @R0
         move @R0 #1
@@ -2125,10 +2125,10 @@ ellipse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1311:     (void)st; (void)en;      /* 本平台的椭圆是整圈；起始/终止角暂不支持 */
+; 1324:     (void)st; (void)en;      /* 本平台的椭圆是整圈；起始/终止角暂不支持 */
         move @R0 [@R12+20]
         move @R0 [@R12+24]
-; 1312:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
+; 1325:     ui_ellipse(x, y, xr, yr, _bgi_rgb(_bgi_fg), 0, _bgi_line_w);
         move @R0 [_bgi_line_w]
         push @R0
         move @R0 #0
@@ -2170,7 +2170,7 @@ drawpoly:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1318:     ui_polyline(polypoints, numpoints, _bgi_rgb(_bgi_fg), _bgi_line_w, 0);
+; 1331:     ui_polyline(polypoints, numpoints, _bgi_rgb(_bgi_fg), _bgi_line_w, 0);
         move @R0 #0
         push @R0
         move @R0 [_bgi_line_w]
@@ -2208,12 +2208,12 @@ fillpoly:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1323:                _bgi_line_w, 0);
+; 1336:                _bgi_line_w, 0);
         move @R0 #0
         push @R0
         move @R0 [_bgi_line_w]
         push @R0
-; 1322:     ui_polygon(polypoints, numpoints, _bgi_rgb(_bgi_fill_col), _bgi_rgb(_bgi_fg),
+; 1335:     ui_polygon(polypoints, numpoints, _bgi_rgb(_bgi_fill_col), _bgi_rgb(_bgi_fg),
         move @R0 [_bgi_fg]
         push @R0
         move @R0 [@R13+0]
@@ -2254,7 +2254,7 @@ putpixel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1327:     ui_pixel(x, y, _bgi_rgb(color));
+; 1340:     ui_pixel(x, y, _bgi_rgb(color));
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R13+0]
@@ -2291,7 +2291,7 @@ _bgi_pie:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1354:     ui_set_fill(filled ? _bgi_rgb(_bgi_fill_col) : 0);
+; 1367:     ui_set_fill(filled ? _bgi_rgb(_bgi_fill_col) : 0);
         move @R0 [@R12+32]
         test @R0 @R0
         jz _L74760201
@@ -2308,7 +2308,7 @@ _L74760202:
         move @R0 [@R13+0]
         call ui_set_fill
         add @R13 #4
-; 1355:     ui_set_pen(_bgi_rgb(_bgi_fg), _bgi_line_w, 0, 0, 0);
+; 1368:     ui_set_pen(_bgi_rgb(_bgi_fg), _bgi_line_w, 0, 0, 0);
         move @R0 #0
         push @R0
         move @R0 #0
@@ -2329,7 +2329,7 @@ _L74760202:
         move @R3 [@R13+12]
         call ui_set_pen
         add @R13 #20
-; 1356:     ui_draw_pie(x, y, r, st, en);
+; 1369:     ui_draw_pie(x, y, r, st, en);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -2346,13 +2346,13 @@ _L74760202:
         move @R3 [@R13+12]
         call ui_draw_pie
         add @R13 #20
-; 1358:     ui_set_fill(0);
+; 1371:     ui_set_fill(0);
         move @R0 #0
         push @R0
         move @R0 [@R13+0]
         call ui_set_fill
         add @R13 #4
-; 1359:     ui_set_pen(_bgi_rgb(_bgi_fg), 1, 0, 0, 0);
+; 1372:     ui_set_pen(_bgi_rgb(_bgi_fg), 1, 0, 0, 0);
         move @R0 #0
         push @R0
         move @R0 #0
@@ -2393,7 +2393,7 @@ arc:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1361: void arc(int x, int y, int st, int en, int r)              { _bgi_pie(x, y, st, en, r, 0); }
+; 1374: void arc(int x, int y, int st, int en, int r)              { _bgi_pie(x, y, st, en, r, 0); }
         move @R0 #0
         push @R0
         move @R0 [@R12+28]
@@ -2432,7 +2432,7 @@ pieslice:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1362: void pieslice(int x, int y, int st, int en, int r)         { _bgi_pie(x, y, st, en, r, 1); }
+; 1375: void pieslice(int x, int y, int st, int en, int r)         { _bgi_pie(x, y, st, en, r, 1); }
         move @R0 #1
         push @R0
         move @R0 [@R12+28]
@@ -2472,7 +2472,7 @@ sector:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1363: void sector(int x, int y, int st, int en, int xr, int yr)  { (void)yr; _bgi_pie(x, y, st, en, xr, 1); }
+; 1376: void sector(int x, int y, int st, int en, int xr, int yr)  { (void)yr; _bgi_pie(x, y, st, en, xr, 1); }
         move @R0 [@R12+32]
         move @R0 #1
         push @R0
@@ -2510,7 +2510,7 @@ floodfill:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1376:     ui_flood_fill(x, y, _bgi_rgb(_bgi_fill_col), _bgi_rgb(border));
+; 1389:     ui_flood_fill(x, y, _bgi_rgb(_bgi_fill_col), _bgi_rgb(border));
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R13+0]
@@ -2552,7 +2552,7 @@ imagesize:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1389:     int w = r - l + 1;
+; 1402:     int w = r - l + 1;
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+12]
@@ -2565,7 +2565,7 @@ imagesize:
         add @R1 @R0
         move @R0 @R1
         move [@R12-8] @R0
-; 1390:     int h = b - t + 1;
+; 1403:     int h = b - t + 1;
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+16]
@@ -2578,7 +2578,7 @@ imagesize:
         add @R1 @R0
         move @R0 @R1
         move [@R12-12] @R0
-; 1391:     if (w <= 0 || h <= 0) return 0;
+; 1404:     if (w <= 0 || h <= 0) return 0;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -2617,7 +2617,7 @@ _L74760207:
         jmp L_74760212
 sta_74760203:
 sta_74760204:
-; 1392:     return 4 + w * h * 2;
+; 1405:     return 4 + w * h * 2;
         move @R0 #4
         push @R0
         move @R0 [@R12-8]
@@ -2656,7 +2656,7 @@ getimage:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1407:     int h = ui_get_image(l, t, r - l + 1, b - t + 1);
+; 1420:     int h = ui_get_image(l, t, r - l + 1, b - t + 1);
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+16]
@@ -2692,7 +2692,7 @@ getimage:
         call ui_get_image
         add @R13 #16
         move [@R12-8] @R0
-; 1408:     if (h <= 0 || p == 0) return;
+; 1421:     if (h <= 0 || p == 0) return;
         move @R0 [@R12-8]
         push @R0
         move @R0 #0
@@ -2730,7 +2730,7 @@ _L74760217:
         jmp L_74760222
 sta_74760213:
 sta_74760214:
-; 1411:     for (i = 0; i < 16; i++) {
+; 1424:     for (i = 0; i < 16; i++) {
         move @R0 #0
         move [@R12-12] @R0
 sta_74760223:
@@ -2747,7 +2747,7 @@ _L74760226:
 _L74760227:
         cmp @R0 #0
         jz sta_74760225
-; 1412:         if (_bgi_img_ptr[i] == p) { _bgi_img_h[i] = h; return; }
+; 1425:         if (_bgi_img_ptr[i] == p) { _bgi_img_h[i] = h; return; }
         move @R0 _bgi_img_ptr
         push @R0
         move @R3 #0
@@ -2799,10 +2799,10 @@ sta_74760224:
         move @R0 @R1
         jmp sta_74760223
 sta_74760225:
-; 1414:     i = _bgi_img_next;
+; 1427:     i = _bgi_img_next;
         move @R0 [_bgi_img_next]
         move [@R12-12] @R0
-; 1415:     _bgi_img_next = (i + 1) % 16;
+; 1428:     _bgi_img_next = (i + 1) % 16;
         move @R0 [@R12-12]
         push @R0
         move @R0 #1
@@ -2815,7 +2815,7 @@ sta_74760225:
         mod @R1 @R0
         move @R0 @R1
         move [_bgi_img_next] @R0
-; 1416:     _bgi_img_ptr[i] = p;
+; 1429:     _bgi_img_ptr[i] = p;
         move @R0 [@R12+28]
         move @R9 @R0
         push @R9
@@ -2832,7 +2832,7 @@ sta_74760225:
         add @R0 @R7
         pop @R9
         move [@R0] @R9
-; 1417:     _bgi_img_h[i] = h;
+; 1430:     _bgi_img_h[i] = h;
         move @R0 [@R12-8]
         move @R6 @R0
         push @R6
@@ -2869,10 +2869,10 @@ putimage:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1423:     int handle = 0;
+; 1436:     int handle = 0;
         move @R0 #0
         move [@R12-12] @R0
-; 1424:     for (i = 0; i < 16; i++) {
+; 1437:     for (i = 0; i < 16; i++) {
         move @R0 #0
         move [@R12-8] @R0
 sta_74760232:
@@ -2889,7 +2889,7 @@ _L74760235:
 _L74760236:
         cmp @R0 #0
         jz sta_74760234
-; 1425:         if (_bgi_img_ptr[i] == p && _bgi_img_h[i] != 0) { handle = _bgi_img_h[i]; break; }
+; 1438:         if (_bgi_img_ptr[i] == p && _bgi_img_h[i] != 0) { handle = _bgi_img_h[i]; break; }
         move @R0 _bgi_img_ptr
         push @R0
         move @R3 #0
@@ -2969,7 +2969,7 @@ sta_74760233:
         move @R0 @R1
         jmp sta_74760232
 sta_74760234:
-; 1429:     if (handle == 0) return;
+; 1442:     if (handle == 0) return;
         move @R0 [@R12-12]
         push @R0
         move @R0 #0
@@ -2986,7 +2986,7 @@ _L74760248:
         jmp L_74760249
 sta_74760245:
 sta_74760246:
-; 1430:     ui_put_image(l, t, handle, op == 1 ? 1 : 0);
+; 1443:     ui_put_image(l, t, handle, op == 1 ? 1 : 0);
         move @R0 [@R12+24]
         push @R0
         move @R0 #1
@@ -3034,7 +3034,7 @@ _bgi_anchor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1435:     if (_bgi_txt_just == 1) return 1;
+; 1448:     if (_bgi_txt_just == 1) return 1;
         move @R0 [_bgi_txt_just]
         push @R0
         move @R0 #1
@@ -3052,7 +3052,7 @@ _L74760257:
         jmp L_74760258
 sta_74760254:
 sta_74760255:
-; 1436:     if (_bgi_txt_just == 2)  return 2;
+; 1449:     if (_bgi_txt_just == 2)  return 2;
         move @R0 [_bgi_txt_just]
         push @R0
         move @R0 #2
@@ -3070,7 +3070,7 @@ _L74760262:
         jmp L_74760258
 sta_74760259:
 sta_74760260:
-; 1437:     return 0;
+; 1450:     return 0;
         move @R0 #0
         jmp L_74760258
 L_74760258:
@@ -3089,7 +3089,7 @@ _bgi_vanchor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1443:     if (_bgi_txt_vjust == 0) return 2;  /* BGI 0 → 宿主 2 */
+; 1456:     if (_bgi_txt_vjust == 0) return 2;  /* BGI 0 → 宿主 2 */
         move @R0 [_bgi_txt_vjust]
         push @R0
         move @R0 #0
@@ -3107,7 +3107,7 @@ _L74760266:
         jmp L_74760267
 sta_74760263:
 sta_74760264:
-; 1444:     if (_bgi_txt_vjust == 1) return 1;  /* BGI 1 → 宿主 1 */
+; 1457:     if (_bgi_txt_vjust == 1) return 1;  /* BGI 1 → 宿主 1 */
         move @R0 [_bgi_txt_vjust]
         push @R0
         move @R0 #1
@@ -3125,7 +3125,7 @@ _L74760271:
         jmp L_74760267
 sta_74760268:
 sta_74760269:
-; 1445:     return 3;                                        /* BGI 2 → 宿主 3 */
+; 1458:     return 3;                                        /* BGI 2 → 宿主 3 */
         move @R0 #3
         jmp L_74760267
 L_74760267:
@@ -3147,7 +3147,7 @@ outtextxy:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1463:     ui_text_v(x, y, s, _bgi_rgb(_bgi_fg), _bgi_txt_size, _bgi_anchor(), _bgi_vanchor(), 0);
+; 1476:     ui_text_v(x, y, s, _bgi_rgb(_bgi_fg), _bgi_txt_size, _bgi_anchor(), _bgi_vanchor(), 0);
         move @R0 #0
         push @R0
         call _bgi_vanchor
@@ -3190,7 +3190,7 @@ outtext:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1467:     outtextxy(_bgi_pen_x, _bgi_pen_y, s);
+; 1480:     outtextxy(_bgi_pen_x, _bgi_pen_y, s);
         move @R0 [@R12+12]
         push @R0
         move @R0 [_bgi_pen_y]
@@ -3219,7 +3219,7 @@ _bgi_json_int:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 1489:     for (i = 0; json[i] != 0; i++) {
+; 1502:     for (i = 0; json[i] != 0; i++) {
         move @R0 #0
         move [@R12-8] @R0
 sta_74760272:
@@ -3243,7 +3243,7 @@ _L74760275:
 _L74760276:
         cmp @R0 #0
         jz sta_74760274
-; 1490:         if (json[i] != '"') continue;
+; 1503:         if (json[i] != '"') continue;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -3267,7 +3267,7 @@ _L74760280:
         jmp sta_74760273
 sta_74760277:
 sta_74760278:
-; 1491:         for (j = 0; key[j] != 0 && json[i + 1 + j] == key[j]; j++) { }
+; 1504:         for (j = 0; key[j] != 0 && json[i + 1 + j] == key[j]; j++) { }
         move @R0 #0
         move [@R12-12] @R0
 sta_74760281:
@@ -3343,7 +3343,7 @@ sta_74760282:
         move @R0 @R1
         jmp sta_74760281
 sta_74760283:
-; 1492:         if (key[j] != 0) continue;                 /* 键名没对上 */
+; 1505:         if (key[j] != 0) continue;                 /* 键名没对上 */
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12-12]
@@ -3367,7 +3367,7 @@ _L74760293:
         jmp sta_74760273
 sta_74760290:
 sta_74760291:
-; 1493:         if (json[i + 1 + j] != '"' || json[i + 2 + j] != ':') continue;
+; 1506:         if (json[i + 1 + j] != '"' || json[i + 2 + j] != ':') continue;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-8]
@@ -3439,7 +3439,7 @@ _L74760298:
         jmp sta_74760273
 sta_74760294:
 sta_74760295:
-; 1494:         j = i + 3 + j;
+; 1507:         j = i + 3 + j;
         move @R0 [@R12-8]
         push @R0
         move @R0 #3
@@ -3454,7 +3454,7 @@ sta_74760295:
         move [@R12-12] @R0
 sta_74760303:
         move @R2 #0
-; 1495:         while (json[j] == ' ') j++;
+; 1508:         while (json[j] == ' ') j++;
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -3482,14 +3482,14 @@ _L74760306:
         move @R0 @R1
         jmp sta_74760303
 sta_74760304:
-; 1497:             int sign = 1, v = 0, seen = 0;
+; 1510:             int sign = 1, v = 0, seen = 0;
         move @R0 #1
         move [@R12-16] @R0
         move @R0 #0
         move [@R12-20] @R0
         move @R0 #0
         move [@R12-24] @R0
-; 1498:             if (json[j] == '-') { sign = -1; j++; }
+; 1511:             if (json[j] == '-') { sign = -1; j++; }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -3523,7 +3523,7 @@ sta_74760307:
 sta_74760308:
 sta_74760311:
         move @R2 #0
-; 1499:             while (json[j] >= '0' && json[j] <= '9') {
+; 1512:             while (json[j] >= '0' && json[j] <= '9') {
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-12]
@@ -3571,7 +3571,7 @@ _L74760313:
 _L74760314:
         cmp @R0 #0
         jz sta_74760312
-; 1500:                 v = v * 10 + (json[j] - '0'); j++; seen = 1;
+; 1513:                 v = v * 10 + (json[j] - '0'); j++; seen = 1;
         move @R0 [@R12-20]
         push @R0
         move @R0 #10
@@ -3605,7 +3605,7 @@ _L74760314:
         move [@R12-24] @R0
         jmp sta_74760311
 sta_74760312:
-; 1502:             if (seen) return v * sign;
+; 1515:             if (seen) return v * sign;
         move @R0 [@R12-24]
         cmp @R0 #0
         jz sta_74760319
@@ -3626,7 +3626,7 @@ sta_74760273:
         move @R0 @R1
         jmp sta_74760272
 sta_74760274:
-; 1505:     return -1;
+; 1518:     return -1;
         move @R0 #1
         move @R0 #1
         neg @R0 @R0
@@ -3650,7 +3650,7 @@ _bgi_measure:
         push @R12
         move @R12 @R13
         sub @R13 #472
-; 1512:     char fn[] = "text";      /* 不用字面量直传：`ui_call_json` 收的是 `char*`，
+; 1525:     char fn[] = "text";      /* 不用字面量直传：`ui_call_json` 收的是 `char*`，
         move @R0 @R12
         sub @R0 #428
         push @R0
@@ -3685,24 +3685,24 @@ _bgi_measure:
         move @R0 #0
         pop @R1
         moveb [@R1] @R0
-; 1515:     int n = 0, i, len, v, k;
+; 1528:     int n = 0, i, len, v, k;
         move @R0 #0
         move [@R12-432] @R0
-; 1517:     *pw = 0;
+; 1530:     *pw = 0;
         move @R0 [@R12+16]
         move @R5 @R0
         push @R5
         move @R0 #0
         pop @R5
         move [@R5] @R0
-; 1518:     *ph = _bgi_txt_size;
+; 1531:     *ph = _bgi_txt_size;
         move @R0 [@R12+20]
         move @R4 @R0
         push @R4
         move @R0 [_bgi_txt_size]
         pop @R4
         move [@R4] @R0
-; 1521:     args[n++] = '{'; args[n++] = '"'; args[n++] = 's'; args[n++] = '"'; args[n++] = ':';
+; 1534:     args[n++] = '{'; args[n++] = '"'; args[n++] = 's'; args[n++] = '"'; args[n++] = ':';
         move @R0 #123
         move @R6 @R0
         push @R6
@@ -3808,7 +3808,7 @@ _bgi_measure:
         add @R0 @R10
         pop @R2
         moveb [@R0] @R2
-; 1522:     args[n++] = '"';
+; 1535:     args[n++] = '"';
         move @R0 #34
         move @R1 @R0
         push @R1
@@ -3830,7 +3830,7 @@ _bgi_measure:
         add @R0 @R7
         pop @R1
         moveb [@R0] @R1
-; 1523:     for (i = 0; s[i] != 0 && n < 200; i++) {
+; 1536:     for (i = 0; s[i] != 0 && n < 200; i++) {
         move @R0 #0
         move [@R12-436] @R0
 sta_74760322:
@@ -3874,7 +3874,7 @@ _L74760325:
 _L74760326:
         cmp @R0 #0
         jz sta_74760324
-; 1524:         if (s[i] == '"' || s[i] == '\\') args[n++] = '\\';
+; 1537:         if (s[i] == '"' || s[i] == '\\') args[n++] = '\\';
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-436]
@@ -3946,7 +3946,7 @@ _L74760335:
         moveb [@R0] @R3
 sta_74760331:
 sta_74760332:
-; 1525:         args[n++] = s[i];
+; 1538:         args[n++] = s[i];
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R12-436]
@@ -3983,7 +3983,7 @@ sta_74760323:
         move @R0 @R1
         jmp sta_74760322
 sta_74760324:
-; 1527:     args[n++] = '"'; args[n++] = ',';
+; 1540:     args[n++] = '"'; args[n++] = ',';
         move @R0 #34
         move @R1 @R0
         push @R1
@@ -4026,7 +4026,7 @@ sta_74760324:
         add @R0 @R6
         pop @R4
         moveb [@R0] @R4
-; 1528:     args[n++] = '"'; args[n++] = 's'; args[n++] = 'i'; args[n++] = 'z'; args[n++] = 'e';
+; 1541:     args[n++] = '"'; args[n++] = 's'; args[n++] = 'i'; args[n++] = 'z'; args[n++] = 'e';
         move @R0 #34
         move @R3 @R0
         push @R3
@@ -4132,7 +4132,7 @@ sta_74760324:
         add @R0 @R2
         pop @R11
         moveb [@R0] @R11
-; 1529:     args[n++] = '"'; args[n++] = ':';
+; 1542:     args[n++] = '"'; args[n++] = ':';
         move @R0 #34
         move @R9 @R0
         push @R9
@@ -4175,7 +4175,7 @@ sta_74760324:
         add @R0 @R4
         pop @R5
         moveb [@R0] @R5
-; 1532:     v = _bgi_txt_size > 0 ? _bgi_txt_size : 1;
+; 1545:     v = _bgi_txt_size > 0 ? _bgi_txt_size : 1;
         move @R0 [_bgi_txt_size]
         push @R0
         move @R0 #0
@@ -4195,12 +4195,12 @@ _L74760342:
         move @R0 #1
 _L74760343:
         move [@R12-444] @R0
-; 1533:     k = 0;
+; 1546:     k = 0;
         move @R0 #0
         move [@R12-448] @R0
 sta_74760344:
         move @R2 #0
-; 1534:     while (v > 0 && k < 11) { num[k++] = (char)('0' + v % 10); v /= 10; }
+; 1547:     while (v > 0 && k < 11) { num[k++] = (char)('0' + v % 10); v /= 10; }
         move @R0 [@R12-444]
         push @R0
         move @R0 #0
@@ -4276,7 +4276,7 @@ _L74760347:
 sta_74760345:
 sta_74760352:
         move @R2 #0
-; 1535:     while (k > 0) args[n++] = num[--k];
+; 1548:     while (k > 0) args[n++] = num[--k];
         move @R0 [@R12-448]
         push @R0
         move @R0 #0
@@ -4329,7 +4329,7 @@ _L74760355:
         moveb [@R0] @R7
         jmp sta_74760352
 sta_74760353:
-; 1536:     args[n++] = '}';
+; 1549:     args[n++] = '}';
         move @R0 #125
         move @R8 @R0
         push @R8
@@ -4351,7 +4351,7 @@ sta_74760353:
         add @R0 @R5
         pop @R8
         moveb [@R0] @R8
-; 1537:     args[n] = 0;
+; 1550:     args[n] = 0;
         move @R0 #0
         move @R6 @R0
         push @R6
@@ -4369,7 +4369,7 @@ sta_74760353:
         add @R0 @R10
         pop @R6
         moveb [@R0] @R6
-; 1538:     len = ui_call_json(fn, args, out, 160);
+; 1551:     len = ui_call_json(fn, args, out, 160);
         move @R0 #160
         push @R0
         move @R0 @R12
@@ -4388,7 +4388,7 @@ sta_74760353:
         call ui_call_json
         add @R13 #16
         move [@R12-440] @R0
-; 1539:     if (len <= 0) return 0;
+; 1552:     if (len <= 0) return 0;
         move @R0 [@R12-440]
         push @R0
         move @R0 #0
@@ -4406,7 +4406,7 @@ _L74760359:
         jmp L_74760360
 sta_74760356:
 sta_74760357:
-; 1540:     *pw = _bgi_json_int(out, "w");
+; 1553:     *pw = _bgi_json_int(out, "w");
         move @R0 [@R12+16]
         move @R2 @R0
         push @R2
@@ -4421,7 +4421,7 @@ sta_74760357:
         add @R13 #8
         pop @R2
         move [@R2] @R0
-; 1541:     v   = _bgi_json_int(out, "h");
+; 1554:     v   = _bgi_json_int(out, "h");
         move @R0 L_74760362
         push @R0
         move @R0 @R12
@@ -4432,7 +4432,7 @@ sta_74760357:
         call _bgi_json_int
         add @R13 #8
         move [@R12-444] @R0
-; 1542:     if (*pw < 0) { *pw = 0; return 0; }
+; 1555:     if (*pw < 0) { *pw = 0; return 0; }
         move @R0 [@R12+16]
         move @R0 [@R0]
         push @R0
@@ -4457,7 +4457,7 @@ _L74760366:
         jmp L_74760360
 sta_74760363:
 sta_74760364:
-; 1543:     *ph = v > 0 ? v : _bgi_txt_size;
+; 1556:     *ph = v > 0 ? v : _bgi_txt_size;
         move @R0 [@R12+20]
         move @R1 @R0
         push @R1
@@ -4481,7 +4481,7 @@ _L74760369:
 _L74760370:
         pop @R1
         move [@R1] @R0
-; 1544:     return 1;
+; 1557:     return 1;
         move @R0 #1
         jmp L_74760360
 L_74760360:
@@ -4501,7 +4501,7 @@ textwidth:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1549:     _bgi_measure(s, &w, &h);
+; 1562:     _bgi_measure(s, &w, &h);
         move @R0 [@R12-12]
         move @R0 @R12
         sub @R0 #12
@@ -4517,7 +4517,7 @@ textwidth:
         move @R2 [@R13+8]
         call _bgi_measure
         add @R13 #12
-; 1550:     return w;
+; 1563:     return w;
         move @R0 [@R12-8]
         jmp L_74760371
 L_74760371:
@@ -4537,7 +4537,7 @@ textheight:
         push @R12
         move @R12 @R13
         sub @R13 #24
-; 1555:     _bgi_measure(s, &w, &h);        /* BGI 的签名收字符串，但高度只与字号有关；
+; 1568:     _bgi_measure(s, &w, &h);        /* BGI 的签名收字符串，但高度只与字号有关；
         move @R0 [@R12-12]
         move @R0 @R12
         sub @R0 #12
@@ -4553,7 +4553,7 @@ textheight:
         move @R2 [@R13+8]
         call _bgi_measure
         add @R13 #12
-; 1557:     return h;
+; 1570:     return h;
         move @R0 [@R12-12]
         jmp L_74760372
 L_74760372:
@@ -4574,7 +4574,7 @@ getpixel:
         push @R12
         move @R12 @R13
         sub @R13 #224
-; 1575:     char fn[] = "pixel";
+; 1588:     char fn[] = "pixel";
         move @R0 @R12
         sub @R0 #172
         push @R0
@@ -4616,10 +4616,10 @@ getpixel:
         move @R0 #0
         pop @R1
         moveb [@R1] @R0
-; 1576:     int n = 0, i, len, v;
+; 1589:     int n = 0, i, len, v;
         move @R0 #0
         move [@R12-176] @R0
-; 1578:     args[n++] = '{'; args[n++] = '"'; args[n++] = 'x'; args[n++] = '"'; args[n++] = ':';
+; 1591:     args[n++] = '{'; args[n++] = '"'; args[n++] = 'x'; args[n++] = '"'; args[n++] = ':';
         move @R0 #123
         move @R9 @R0
         push @R9
@@ -4725,7 +4725,7 @@ getpixel:
         add @R0 @R8
         pop @R4
         moveb [@R0] @R4
-; 1579:     for (i = 0; i < 2; i++) {
+; 1592:     for (i = 0; i < 2; i++) {
         move @R0 #0
         move [@R12-180] @R0
 sta_74760373:
@@ -4742,7 +4742,7 @@ _L74760376:
 _L74760377:
         cmp @R0 #0
         jz sta_74760375
-; 1580:         int val = (i == 0) ? x : y;
+; 1593:         int val = (i == 0) ? x : y;
         move @R0 [@R12-180]
         push @R0
         move @R0 #0
@@ -4762,12 +4762,12 @@ _L74760380:
         move @R0 [@R12+16]
 _L74760381:
         move [@R12-192] @R0
-; 1582:         int k = 0, neg = 0;
+; 1595:         int k = 0, neg = 0;
         move @R0 #0
         move [@R12-208] @R0
         move @R0 #0
         move [@R12-212] @R0
-; 1583:         if (val < 0) { neg = 1; val = -val; }
+; 1596:         if (val < 0) { neg = 1; val = -val; }
         move @R0 [@R12-192]
         push @R0
         move @R0 #0
@@ -4789,7 +4789,7 @@ _L74760385:
         move [@R12-192] @R0
 sta_74760382:
 sta_74760383:
-; 1584:         if (val == 0) num[k++] = '0';
+; 1597:         if (val == 0) num[k++] = '0';
         move @R0 [@R12-192]
         push @R0
         move @R0 #0
@@ -4828,7 +4828,7 @@ sta_74760386:
 sta_74760387:
 sta_74760390:
         move @R2 #0
-; 1585:         while (val > 0 && k < 11) { num[k++] = (char)('0' + val % 10); val /= 10; }
+; 1598:         while (val > 0 && k < 11) { num[k++] = (char)('0' + val % 10); val /= 10; }
         move @R0 [@R12-192]
         push @R0
         move @R0 #0
@@ -4902,7 +4902,7 @@ _L74760393:
         move [@R12-192] @R0
         jmp sta_74760390
 sta_74760391:
-; 1586:         if (neg) args[n++] = '-';
+; 1599:         if (neg) args[n++] = '-';
         move @R0 [@R12-212]
         cmp @R0 #0
         jz sta_74760398
@@ -4931,7 +4931,7 @@ sta_74760398:
 sta_74760399:
 sta_74760400:
         move @R2 #0
-; 1587:         while (k > 0) args[n++] = num[--k];
+; 1600:         while (k > 0) args[n++] = num[--k];
         move @R0 [@R12-208]
         push @R0
         move @R0 #0
@@ -4984,7 +4984,7 @@ _L74760403:
         moveb [@R0] @R5
         jmp sta_74760400
 sta_74760401:
-; 1588:         if (i == 0) { args[n++] = ','; args[n++] = '"'; args[n++] = 'y'; args[n++] = '"'; args[n++] = ':'; }
+; 1601:         if (i == 0) { args[n++] = ','; args[n++] = '"'; args[n++] = 'y'; args[n++] = '"'; args[n++] = ':'; }
         move @R0 [@R12-180]
         push @R0
         move @R0 #0
@@ -5113,7 +5113,7 @@ sta_74760374:
         move @R0 @R1
         jmp sta_74760373
 sta_74760375:
-; 1590:     args[n++] = '}';
+; 1603:     args[n++] = '}';
         move @R0 #125
         move @R7 @R0
         push @R7
@@ -5135,7 +5135,7 @@ sta_74760375:
         add @R0 @R4
         pop @R7
         moveb [@R0] @R7
-; 1591:     args[n] = 0;
+; 1604:     args[n] = 0;
         move @R0 #0
         move @R6 @R0
         push @R6
@@ -5153,7 +5153,7 @@ sta_74760375:
         add @R0 @R5
         pop @R6
         moveb [@R0] @R6
-; 1592:     len = ui_call_json(fn, args, out, 96);
+; 1605:     len = ui_call_json(fn, args, out, 96);
         move @R0 #96
         push @R0
         move @R0 @R12
@@ -5172,7 +5172,7 @@ sta_74760375:
         call ui_call_json
         add @R13 #16
         move [@R12-184] @R0
-; 1593:     if (len <= 0) return 0;
+; 1606:     if (len <= 0) return 0;
         move @R0 [@R12-184]
         push @R0
         move @R0 #0
@@ -5190,7 +5190,7 @@ _L74760411:
         jmp L_74760412
 sta_74760408:
 sta_74760409:
-; 1594:     v = _bgi_json_int(out, "rgb");
+; 1607:     v = _bgi_json_int(out, "rgb");
         move @R0 L_74760413
         push @R0
         move @R0 @R12
@@ -5201,7 +5201,7 @@ sta_74760409:
         call _bgi_json_int
         add @R13 #8
         move [@R12-188] @R0
-; 1595:     if (v < 0) return 0;
+; 1608:     if (v < 0) return 0;
         move @R0 [@R12-188]
         push @R0
         move @R0 #0
@@ -5219,7 +5219,7 @@ _L74760417:
         jmp L_74760412
 sta_74760414:
 sta_74760415:
-; 1596:     v = v & 0xFFFFFF;
+; 1609:     v = v & 0xFFFFFF;
         move @R0 [@R12-188]
         push @R0
         move @R0 #16777215
@@ -5227,7 +5227,7 @@ sta_74760415:
         and @R1 @R0
         move @R0 @R1
         move [@R12-188] @R0
-; 1597:     for (i = 0; i < 16; i++) {
+; 1610:     for (i = 0; i < 16; i++) {
         move @R0 #0
         move [@R12-180] @R0
 sta_74760418:
@@ -5244,7 +5244,7 @@ _L74760421:
 _L74760422:
         cmp @R0 #0
         jz sta_74760420
-; 1598:         if (_bgi_pal[i] == v) return i;
+; 1611:         if (_bgi_pal[i] == v) return i;
         move @R0 _bgi_pal
         push @R0
         move @R1 #0
@@ -5281,7 +5281,7 @@ sta_74760419:
         move @R0 @R1
         jmp sta_74760418
 sta_74760420:
-; 1602:     return 0;
+; 1615:     return 0;
         move @R0 #0
         jmp L_74760412
 L_74760412:
@@ -5300,7 +5300,7 @@ _bgi_flush:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1608: void _bgi_flush(void) { ui_present(); }
+; 1621: void _bgi_flush(void) { ui_present(); }
         call ui_present
         move @R13 @R12
         pop @R12
@@ -5318,12 +5318,12 @@ delay:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1612:     int t0 = ui_tick();
+; 1625:     int t0 = ui_tick();
         call ui_tick
         move [@R12-8] @R0
 sta_74760427:
         move @R2 #0
-; 1613:     while (ui_tick() - t0 < ms) {
+; 1626:     while (ui_tick() - t0 < ms) {
         call ui_tick
         push @R0
         move @R0 [@R12-8]
@@ -5342,7 +5342,7 @@ _L74760429:
 _L74760430:
         cmp @R0 #0
         jz sta_74760428
-; 1618:         if (ui_win_closed() == 1) break;
+; 1631:         if (ui_win_closed() == 1) break;
         call ui_win_closed
         push @R0
         move @R0 #1
@@ -5376,7 +5376,7 @@ kbhit:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1624: int kbhit(void) { return ui_poll_msg() > 0; }
+; 1637: int kbhit(void) { return ui_poll_msg() > 0; }
         call ui_poll_msg
         push @R0
         move @R0 #0
@@ -5406,7 +5406,7 @@ _bgi_scan_code:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1659:     if (vk == 0x25) return 0x4B;              /* ← */
+; 1672:     if (vk == 0x25) return 0x4B;              /* ← */
         move @R0 [@R12+12]
         push @R0
         move @R0 #37
@@ -5424,7 +5424,7 @@ _L74760441:
         jmp L_74760442
 sta_74760438:
 sta_74760439:
-; 1660:     if (vk == 0x26) return 0x48;              /* ↑ */
+; 1673:     if (vk == 0x26) return 0x48;              /* ↑ */
         move @R0 [@R12+12]
         push @R0
         move @R0 #38
@@ -5442,7 +5442,7 @@ _L74760446:
         jmp L_74760442
 sta_74760443:
 sta_74760444:
-; 1661:     if (vk == 0x27) return 0x4D;              /* → */
+; 1674:     if (vk == 0x27) return 0x4D;              /* → */
         move @R0 [@R12+12]
         push @R0
         move @R0 #39
@@ -5460,7 +5460,7 @@ _L74760450:
         jmp L_74760442
 sta_74760447:
 sta_74760448:
-; 1662:     if (vk == 0x28) return 0x50;              /* ↓ */
+; 1675:     if (vk == 0x28) return 0x50;              /* ↓ */
         move @R0 [@R12+12]
         push @R0
         move @R0 #40
@@ -5478,7 +5478,7 @@ _L74760454:
         jmp L_74760442
 sta_74760451:
 sta_74760452:
-; 1663:     if (vk == 0x24) return 0x47;              /* Home */
+; 1676:     if (vk == 0x24) return 0x47;              /* Home */
         move @R0 [@R12+12]
         push @R0
         move @R0 #36
@@ -5496,7 +5496,7 @@ _L74760458:
         jmp L_74760442
 sta_74760455:
 sta_74760456:
-; 1664:     if (vk == 0x23) return 0x4F;              /* End  */
+; 1677:     if (vk == 0x23) return 0x4F;              /* End  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #35
@@ -5514,7 +5514,7 @@ _L74760462:
         jmp L_74760442
 sta_74760459:
 sta_74760460:
-; 1665:     if (vk == 0x21) return 0x49;              /* PgUp */
+; 1678:     if (vk == 0x21) return 0x49;              /* PgUp */
         move @R0 [@R12+12]
         push @R0
         move @R0 #33
@@ -5532,7 +5532,7 @@ _L74760466:
         jmp L_74760442
 sta_74760463:
 sta_74760464:
-; 1666:     if (vk == 0x22) return 0x51;              /* PgDn */
+; 1679:     if (vk == 0x22) return 0x51;              /* PgDn */
         move @R0 [@R12+12]
         push @R0
         move @R0 #34
@@ -5550,7 +5550,7 @@ _L74760470:
         jmp L_74760442
 sta_74760467:
 sta_74760468:
-; 1667:     if (vk == 0x2D) return 0x52;              /* Ins  */
+; 1680:     if (vk == 0x2D) return 0x52;              /* Ins  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #45
@@ -5568,7 +5568,7 @@ _L74760474:
         jmp L_74760442
 sta_74760471:
 sta_74760472:
-; 1668:     if (vk == 0x2E) return 0x53;              /* Del  */
+; 1681:     if (vk == 0x2E) return 0x53;              /* Del  */
         move @R0 [@R12+12]
         push @R0
         move @R0 #46
@@ -5586,7 +5586,7 @@ _L74760478:
         jmp L_74760442
 sta_74760475:
 sta_74760476:
-; 1669:     if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
+; 1682:     if (vk >= 0x70 && vk <= 0x79) return 0x3B + (vk - 0x70);   /* F1–F10 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #112
@@ -5634,7 +5634,7 @@ _L74760482:
         jmp L_74760442
 sta_74760479:
 sta_74760480:
-; 1670:     if (vk == 0x7A) return 0x57;              /* F11 */
+; 1683:     if (vk == 0x7A) return 0x57;              /* F11 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #122
@@ -5652,7 +5652,7 @@ _L74760490:
         jmp L_74760442
 sta_74760487:
 sta_74760488:
-; 1671:     if (vk == 0x7B) return 0x58;              /* F12 */
+; 1684:     if (vk == 0x7B) return 0x58;              /* F12 */
         move @R0 [@R12+12]
         push @R0
         move @R0 #123
@@ -5670,7 +5670,7 @@ _L74760494:
         jmp L_74760442
 sta_74760491:
 sta_74760492:
-; 1672:     return 0;
+; 1685:     return 0;
         move @R0 #0
         jmp L_74760442
 L_74760442:
@@ -5689,9 +5689,9 @@ getch:
         push @R12
         move @R12 @R13
         sub @R13 #32
-; 1682:     _bgi_flush();
+; 1695:     _bgi_flush();
         call _bgi_flush
-; 1683:     if (_bgi_pending_scan != 0)
+; 1696:     if (_bgi_pending_scan != 0)
         move @R0 [_bgi_pending_scan]
         push @R0
         move @R0 #0
@@ -5705,19 +5705,19 @@ _L74760497:
 _L74760498:
         cmp @R0 #0
         jz sta_74760495
-; 1685:         sc = _bgi_pending_scan;
+; 1698:         sc = _bgi_pending_scan;
         move @R0 [_bgi_pending_scan]
         move [@R12-24] @R0
-; 1686:         _bgi_pending_scan = 0;
+; 1699:         _bgi_pending_scan = 0;
         move @R0 #0
         move [_bgi_pending_scan] @R0
-; 1687:         return sc;
+; 1700:         return sc;
         move @R0 [@R12-24]
         jmp L_74760499
 sta_74760495:
 sta_74760496:
 sta_74760500:
-; 1691:         if (ui_wait(msg, 0) <= 0) return 0;
+; 1704:         if (ui_wait(msg, 0) <= 0) return 0;
         move @R0 #0
         push @R0
         move @R0 @R12
@@ -5743,7 +5743,7 @@ _L74760506:
         jmp L_74760499
 sta_74760503:
 sta_74760504:
-; 1692:         if (msg[0] == 1) break;
+; 1705:         if (msg[0] == 1) break;
         move @R0 @R12
         sub @R0 #16
         push @R0
@@ -5775,7 +5775,7 @@ sta_74760508:
 sta_74760501:
         jmp sta_74760500
 sta_74760502:
-; 1694:     vk = msg[1];
+; 1707:     vk = msg[1];
         move @R0 @R12
         sub @R0 #16
         push @R0
@@ -5790,14 +5790,14 @@ sta_74760502:
         add @R0 @R11
         move @R0 [@R0]
         move [@R12-20] @R0
-; 1695:     sc = _bgi_scan_code(vk);
+; 1708:     sc = _bgi_scan_code(vk);
         move @R0 [@R12-20]
         push @R0
         move @R0 [@R13+0]
         call _bgi_scan_code
         add @R13 #4
         move [@R12-24] @R0
-; 1696:     if (sc != 0)
+; 1709:     if (sc != 0)
         move @R0 [@R12-24]
         push @R0
         move @R0 #0
@@ -5811,15 +5811,15 @@ _L74760513:
 _L74760514:
         cmp @R0 #0
         jz sta_74760511
-; 1698:         _bgi_pending_scan = sc;
+; 1711:         _bgi_pending_scan = sc;
         move @R0 [@R12-24]
         move [_bgi_pending_scan] @R0
-; 1699:         return 0;
+; 1712:         return 0;
         move @R0 #0
         jmp L_74760499
 sta_74760511:
 sta_74760512:
-; 1701:     return vk;
+; 1714:     return vk;
         move @R0 [@R12-20]
         jmp L_74760499
 L_74760499:
@@ -5841,10 +5841,10 @@ getmouse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1705:     (void)x; (void)y;
+; 1718:     (void)x; (void)y;
         move @R0 [@R12+12]
         move @R0 [@R12+16]
-; 1706:     if (buttons) *buttons = 0;
+; 1719:     if (buttons) *buttons = 0;
         move @R0 [@R12+20]
         cmp @R0 #0
         jz sta_74760515
@@ -5874,7 +5874,7 @@ InitGraph:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1712: void InitGraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
+; 1725: void InitGraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
         move @R0 L_74760517
         push @R0
         move @R0 [@R12+20]
@@ -5907,7 +5907,7 @@ initgraph:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1713: void initgraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
+; 1726: void initgraph(int *driver, int *mode, char *path) { _bgi_initgraph(driver, mode, path, ""); }
         move @R0 L_74760518
         push @R0
         move @R0 [@R12+20]
@@ -5940,7 +5940,7 @@ InitWindow:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1715: void InitWindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
+; 1728: void InitWindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
         move @R0 L_74760519
         push @R0
         move @R0 [@R12+20]
@@ -5973,7 +5973,7 @@ initwindow:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1716: void initwindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
+; 1729: void initwindow(int w, int h, char *title) { _bgi_initwindow(w, h, title, ""); }
         move @R0 L_74760520
         push @R0
         move @R0 [@R12+20]
@@ -6004,7 +6004,7 @@ SetGraphMode:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1717: void SetGraphMode(int mode) { setgraphmode(mode); }
+; 1730: void SetGraphMode(int mode) { setgraphmode(mode); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -6025,7 +6025,7 @@ CloseGraph:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1718: void CloseGraph(void)       { closegraph(); }
+; 1731: void CloseGraph(void)       { closegraph(); }
         call closegraph
         move @R13 @R12
         pop @R12
@@ -6042,7 +6042,7 @@ ClearDevice:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1719: void ClearDevice(void)      { cleardevice(); }
+; 1732: void ClearDevice(void)      { cleardevice(); }
         call cleardevice
         move @R13 @R12
         pop @R12
@@ -6059,7 +6059,7 @@ GetMaxX:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1720: int  GetMaxX(void)          { return getmaxx(); }
+; 1733: int  GetMaxX(void)          { return getmaxx(); }
         call getmaxx
         jmp L_74760521
 L_74760521:
@@ -6078,7 +6078,7 @@ GetMaxY:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1721: int  GetMaxY(void)          { return getmaxy(); }
+; 1734: int  GetMaxY(void)          { return getmaxy(); }
         call getmaxy
         jmp L_74760522
 L_74760522:
@@ -6097,7 +6097,7 @@ GetMaxColor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1722: int  GetMaxColor(void)      { return getmaxcolor(); }
+; 1735: int  GetMaxColor(void)      { return getmaxcolor(); }
         call getmaxcolor
         jmp L_74760523
 L_74760523:
@@ -6116,7 +6116,7 @@ GraphResult:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1725: int  GraphResult(void)              { return graphresult(); }
+; 1738: int  GraphResult(void)              { return graphresult(); }
         call graphresult
         jmp L_74760524
 L_74760524:
@@ -6136,7 +6136,7 @@ GraphErrorMsg:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1726: char *GraphErrorMsg(int code)       { return grapherrormsg(code); }
+; 1739: char *GraphErrorMsg(int code)       { return grapherrormsg(code); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -6160,7 +6160,7 @@ SetColor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1728: void SetColor(int c)             { setcolor(c); }
+; 1741: void SetColor(int c)             { setcolor(c); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -6182,7 +6182,7 @@ SetBkColor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1729: void SetBkColor(int c)           { setbkcolor(c); }
+; 1742: void SetBkColor(int c)           { setbkcolor(c); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -6203,7 +6203,7 @@ GetColor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1730: int  GetColor(void)              { return getcolor(); }
+; 1743: int  GetColor(void)              { return getcolor(); }
         call getcolor
         jmp L_74760526
 L_74760526:
@@ -6222,7 +6222,7 @@ GetBkColor:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1731: int  GetBkColor(void)            { return getbkcolor(); }
+; 1744: int  GetBkColor(void)            { return getbkcolor(); }
         call getbkcolor
         jmp L_74760527
 L_74760527:
@@ -6243,7 +6243,7 @@ SetFillStyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1732: void SetFillStyle(int p, int c)  { setfillstyle(p, c); }
+; 1745: void SetFillStyle(int p, int c)  { setfillstyle(p, c); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6270,7 +6270,7 @@ SetLineStyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1733: void SetLineStyle(int s, int p, int t) { setlinestyle(s, p, t); }
+; 1746: void SetLineStyle(int s, int p, int t) { setlinestyle(s, p, t); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -6300,7 +6300,7 @@ SetTextStyle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1734: void SetTextStyle(int f, int d, int s) { settextstyle(f, d, s); }
+; 1747: void SetTextStyle(int f, int d, int s) { settextstyle(f, d, s); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -6329,7 +6329,7 @@ SetTextJustify:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1735: void SetTextJustify(int h, int v)      { settextjustify(h, v); }
+; 1748: void SetTextJustify(int h, int v)      { settextjustify(h, v); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6357,7 +6357,7 @@ Line:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1737: void Line(int x1, int y1, int x2, int y2) { line(x1, y1, x2, y2); }
+; 1750: void Line(int x1, int y1, int x2, int y2) { line(x1, y1, x2, y2); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -6389,7 +6389,7 @@ MoveTo:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1738: void MoveTo(int x, int y)                 { moveto(x, y); }
+; 1751: void MoveTo(int x, int y)                 { moveto(x, y); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6415,7 +6415,7 @@ LineTo:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1739: void LineTo(int x, int y)                 { lineto(x, y); }
+; 1752: void LineTo(int x, int y)                 { lineto(x, y); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6441,7 +6441,7 @@ LineRel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1740: void LineRel(int dx, int dy)              { linerel(dx, dy); }
+; 1753: void LineRel(int dx, int dy)              { linerel(dx, dy); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6469,7 +6469,7 @@ Rectangle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1741: void Rectangle(int l, int t, int r, int b) { rectangle(l, t, r, b); }
+; 1754: void Rectangle(int l, int t, int r, int b) { rectangle(l, t, r, b); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -6503,7 +6503,7 @@ Bar:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1742: void Bar(int l, int t, int r, int b)      { bar(l, t, r, b); }
+; 1755: void Bar(int l, int t, int r, int b)      { bar(l, t, r, b); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -6539,7 +6539,7 @@ Bar3D:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1743: void Bar3D(int l, int t, int r, int b, int depth, int topflag) { bar3d(l, t, r, b, depth, topflag); }
+; 1756: void Bar3D(int l, int t, int r, int b, int depth, int topflag) { bar3d(l, t, r, b, depth, topflag); }
         move @R0 [@R12+32]
         push @R0
         move @R0 [@R12+28]
@@ -6576,7 +6576,7 @@ Circle:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1744: void Circle(int x, int y, int r)          { circle(x, y, r); }
+; 1757: void Circle(int x, int y, int r)          { circle(x, y, r); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -6607,7 +6607,7 @@ FillEllipse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1745: void FillEllipse(int x, int y, int xr, int yr) { fillellipse(x, y, xr, yr); }
+; 1758: void FillEllipse(int x, int y, int xr, int yr) { fillellipse(x, y, xr, yr); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -6643,7 +6643,7 @@ Ellipse:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1746: void Ellipse(int x, int y, int st, int en, int xr, int yr) { ellipse(x, y, st, en, xr, yr); }
+; 1759: void Ellipse(int x, int y, int st, int en, int xr, int yr) { ellipse(x, y, st, en, xr, yr); }
         move @R0 [@R12+32]
         push @R0
         move @R0 [@R12+28]
@@ -6679,7 +6679,7 @@ DrawPoly:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1747: void DrawPoly(int numpoints, int *polypoints) { drawpoly(numpoints, polypoints); }
+; 1760: void DrawPoly(int numpoints, int *polypoints) { drawpoly(numpoints, polypoints); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6705,7 +6705,7 @@ FillPoly:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1748: void FillPoly(int numpoints, int *polypoints) { fillpoly(numpoints, polypoints); }
+; 1761: void FillPoly(int numpoints, int *polypoints) { fillpoly(numpoints, polypoints); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]
@@ -6732,7 +6732,7 @@ PutPixel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1749: void PutPixel(int x, int y, int color)    { putpixel(x, y, color); }
+; 1762: void PutPixel(int x, int y, int color)    { putpixel(x, y, color); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -6764,7 +6764,7 @@ Arc:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1750: void Arc(int x, int y, int st, int en, int r)   { arc(x, y, st, en, r); }
+; 1763: void Arc(int x, int y, int st, int en, int r)   { arc(x, y, st, en, r); }
         move @R0 [@R12+28]
         push @R0
         move @R0 [@R12+24]
@@ -6801,7 +6801,7 @@ PieSlice:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1751: void PieSlice(int x, int y, int st, int en, int r) { pieslice(x, y, st, en, r); }
+; 1764: void PieSlice(int x, int y, int st, int en, int r) { pieslice(x, y, st, en, r); }
         move @R0 [@R12+28]
         push @R0
         move @R0 [@R12+24]
@@ -6839,7 +6839,7 @@ Sector:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1752: void Sector(int x, int y, int st, int en, int xr, int yr) { sector(x, y, st, en, xr, yr); }
+; 1765: void Sector(int x, int y, int st, int en, int xr, int yr) { sector(x, y, st, en, xr, yr); }
         move @R0 [@R12+32]
         push @R0
         move @R0 [@R12+28]
@@ -6876,7 +6876,7 @@ FloodFill:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1753: void FloodFill(int x, int y, int border)  { floodfill(x, y, border); }
+; 1766: void FloodFill(int x, int y, int border)  { floodfill(x, y, border); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -6907,7 +6907,7 @@ ImageSize:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1754: int  ImageSize(int l, int t, int r, int b) { return imagesize(l, t, r, b); }
+; 1767: int  ImageSize(int l, int t, int r, int b) { return imagesize(l, t, r, b); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -6944,7 +6944,7 @@ GetImage:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1755: void GetImage(int l, int t, int r, int b, void *p) { getimage(l, t, r, b, p); }
+; 1768: void GetImage(int l, int t, int r, int b, void *p) { getimage(l, t, r, b, p); }
         move @R0 [@R12+28]
         push @R0
         move @R0 [@R12+24]
@@ -6980,7 +6980,7 @@ PutImage:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1756: void PutImage(int l, int t, void *p, int op)       { putimage(l, t, p, op); }
+; 1769: void PutImage(int l, int t, void *p, int op)       { putimage(l, t, p, op); }
         move @R0 [@R12+24]
         push @R0
         move @R0 [@R12+20]
@@ -7013,7 +7013,7 @@ OutTextXY:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1758: void OutTextXY(int x, int y, char *s) { outtextxy(x, y, s); }
+; 1771: void OutTextXY(int x, int y, char *s) { outtextxy(x, y, s); }
         move @R0 [@R12+20]
         push @R0
         move @R0 [@R12+16]
@@ -7041,7 +7041,7 @@ OutText:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1759: void OutText(char *s)                 { outtext(s); }
+; 1772: void OutText(char *s)                 { outtext(s); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -7063,7 +7063,7 @@ TextWidth:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1760: int  TextWidth(char *s)               { return textwidth(s); }
+; 1773: int  TextWidth(char *s)               { return textwidth(s); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -7087,7 +7087,7 @@ TextHeight:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1761: int  TextHeight(char *s)              { return textheight(s); }
+; 1774: int  TextHeight(char *s)              { return textheight(s); }
         move @R0 [@R12+12]
         push @R0
         move @R0 [@R13+0]
@@ -7113,7 +7113,7 @@ GetPixel:
         push @R12
         move @R12 @R13
         sub @R13 #16
-; 1763: int GetPixel(int x, int y) { return getpixel(x, y); }
+; 1776: int GetPixel(int x, int y) { return getpixel(x, y); }
         move @R0 [@R12+16]
         push @R0
         move @R0 [@R12+12]

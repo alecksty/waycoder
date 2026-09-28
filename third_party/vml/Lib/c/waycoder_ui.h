@@ -63,6 +63,14 @@
 #define VML_ORIENT_PORTRAIT   0
 #define VML_ORIENT_LANDSCAPE  1
 
+/* ── 界面语言（ui_get_language() 的返回值）──
+ *
+ * **只报系统语言**（中文 / 非中文两档）—— 没有 App 内切换，也不读环境变量。
+ * 0/1 是**跨语言契约**（22 门前端的绑定都写死它）：要加第三种语言是改 ABI，
+ * 不是加个分支。 */
+#define VML_LANG_ZH           0
+#define VML_LANG_EN           1
+
 /* ── 键码（Win32 虚拟键值；手柄那一排见 VmlKeys）── */
 #define VML_KEY_BACKSPACE  8
 #define VML_KEY_ENTER     13
@@ -156,6 +164,16 @@ int  ui_win_close(void);
 int  ui_win_closed(void);
 int  ui_scr_w(void);
 int  ui_scr_h(void);
+/* 界面语言：VML_LANG_ZH(0) / VML_LANG_EN(1)。**跟随系统语言**（不是 App 内开关）。
+   给例程用 —— 程序按它决定显示中文还是英文：
+
+       if (ui_get_language() == VML_LANG_ZH) ui_text("得分");
+       else                                  ui_text("Score");
+
+   **必须由宿主回答**：语言是设备/用户设置的属性，程序既读不到系统区域设置、
+   也不该去猜（猜错的症状是"英文手机上蹦出中文"）—— 与 ui_orientation()
+   同一条分工：「问宿主此刻是什么状态」。 */
+int  ui_get_language(void);
 /* 屏幕方向：VML_ORIENT_PORTRAIT(0) / VML_ORIENT_LANDSCAPE(1)。
    **开窗之前就能问** —— 程序据此决定"棋盘放左、面板放右"还是"上下排"。
    别拿 ui_scr_w() > ui_scr_h() 去推：那两个数是可用**绘图区**，

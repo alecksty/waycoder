@@ -513,6 +513,10 @@ public static partial class SelfTest
         public (int Width, int Height) ScreenArea() => (480, 640);
         public int Orientation() => VmlUi.Portrait;
 
+        /// <summary>可切换的语言，用来验 `HOST_LANG` 两条路径。</summary>
+        public bool IsZh = true;
+        public int Language() => VmlUi.LangCode(IsZh);
+
         public VmlScene? Opened;
         public int CloseCount;
         public int SceneChangedCount;
@@ -819,6 +823,25 @@ public static partial class SelfTest
         rt.HandleSyscall(VmlUi.ScrH, regs, mem);
         Check("SCR_W/SCR_H 报的是宿主那块区域（480×640）", sw == 480 && regs[0] == 640);
         Check("场景尺寸是程序自己要的（200×100）", host.Opened is { Width: 200, Height: 100 });
+
+        // ── 界面语言（HOST_LANG #568）────────────────────────────────────────────
+        // 契约值 0/1 是**跨语言**的（`Lib/c/waycoder_ui.h` 的宏、22 门前端的绑定都写死这两个数），
+        // 所以这里连**数值本身**一起钉 —— 改契约就是改 ABI，不能悄悄挪。
+        Check("LangCode 契约值 = 0/1", VmlUi.LangCode(true) == 0 && VmlUi.LangCode(false) == 1);
+        Check("LangZh/LangEn 常量与契约一致", VmlUi.LangZh == 0 && VmlUi.LangEn == 1);
+        host.IsZh = true;
+        regs[0] = -9;
+        rt.HandleSyscall(VmlUi.HostLang, regs, mem);
+        Check("HOST_LANG：中文 → 0", regs[0] == VmlUi.LangZh);
+        host.IsZh = false;
+        regs[0] = -9;
+        rt.HandleSyscall(VmlUi.HostLang, regs, mem);
+        Check("HOST_LANG：英文 → 1（英文是非 zh 语言的总兜底）", regs[0] == VmlUi.LangEn);
+        host.IsZh = true;   // 还原，别让后面的用例受本段影响
+        // ⚠ 号必须真的在 `AllNumbers` 里 —— 漏登记**不报错**，只是查重网漏掉它
+        //   （那张网查"重复/越界"，**查不出"少一个"**）⇒ 每个新号都该留一条"我登记了"的断言。
+        Check("HOST_LANG 已登记进 AllNumbers（漏登记不报错，只会让查重网漏掉它）",
+            VmlUi.AllNumbers.Contains(VmlUi.HostLang));
 
         // ── 绘制：图元真的进了场景，且宿主收到了"变了"的通知 ─────────────────────
         var before = host.SceneChangedCount;

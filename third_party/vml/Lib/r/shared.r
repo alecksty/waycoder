@@ -2205,6 +2205,8 @@
 // CALL ui_win_open_ex
 // extern fn ui_win_open_pc(char* title, int w, int h, int rotatable, int keyboard) -> int
 // CALL ui_win_open_pc
+// extern fn ui_get_language(void) -> int
+// CALL ui_get_language
 // extern fn ui_orientation(void) -> int
 // CALL ui_orientation
 // extern fn ui_clear(int color) -> void

@@ -4,6 +4,8 @@ using VMLRuntime;
 using WayCoder.Infra;          // DrawRunner / DrawDocument：与手机端同一条出图链
 using WayCoder.UI.Shared;
 
+using WayCoder;                // L（语言真源）—— 本工程在 namespace VmlCli 下，看不见外层 WayCoder.L
+
 namespace VmlCli;
 
 /// <summary>
@@ -163,6 +165,10 @@ internal sealed class CliVmlHost : IVmlHost
 
     /// <summary>方向判定只有 <see cref="VmlUi.OrientationOf"/> 一处实现（两端都调它）。</summary>
     public int Orientation() => VmlUi.OrientationOf(_cfg.ScreenWidth, _cfg.ScreenHeight);
+
+    /// <summary>界面语言（`HOST_LANG` #568）。`L.IsZh` 由 `Program.Main` 的
+    /// `L.DetectFromSystem()` 设定 —— 桌面端与 TUI 同一套探测，不另写一份。</summary>
+    public int Language() => VmlUi.LangCode(L.IsZh);
 
     // ══════════════════════════════════════════════════════════════════════
     // 窗口与绘图

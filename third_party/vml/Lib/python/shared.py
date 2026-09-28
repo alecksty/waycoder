@@ -6750,6 +6750,11 @@ def ui_win_open_pc(a0, a1, a2, a3, a4):
     asm("CALL ui_win_open_pc")
     return r0
 
+def ui_get_language():
+    r0 = asm("@R0")
+    asm("CALL ui_get_language")
+    return r0
+
 def ui_orientation():
     r0 = asm("@R0")
     asm("CALL ui_orientation")

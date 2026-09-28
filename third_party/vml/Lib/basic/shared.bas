@@ -5206,6 +5206,11 @@ DECLARE FUNCTION ui_win_open_pc(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 
     ui_win_open_pc = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_get_language() AS INTEGER
+    asm("CALL ui_get_language")
+    ui_get_language = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_orientation() AS INTEGER
     asm("CALL ui_orientation")
     ui_orientation = 0

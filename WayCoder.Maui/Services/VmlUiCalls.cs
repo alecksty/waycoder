@@ -479,6 +479,9 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
         public int Orientation() => ScreenOrientation();
 
+        /// <summary>界面语言（`HOST_LANG` #568）—— 映射走 `VmlUi.LangCode`，别在这儿自己判。</summary>
+        public int Language() => VmlUi.LangCode(L.IsZh);
+
         public bool OpenWindow(VmlScene scene)
         {
             // 开页面必须回主线程；VM 线程在这里等页面真正显示出来再继续，

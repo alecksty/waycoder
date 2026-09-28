@@ -1,3 +1,54 @@
+## v0.96.571 — 例程双语：`ui_get_language()`（`HOST_LANG` #568）
+
+用户要「给 ui 库加一个语言接口，根据语言决定显示中文还是英文」。宿主侧 + 库侧 + 22 门语言绑定全部落地。
+
+**号定在 568，理由链可查**：文档 §5 的收口规则是「相同/相似功能尽量合并一个号，用第一个参数区别」
++「默认走号+操作码」，**只有全新品类才新占号**。但**不能**并进 `SCR_W`(566)/`SCR_H`(567) ——
+那三个号是**无参**的，老程序写 `SYSCALL #566` 时 `R0` 里是它自己上一句留下的值，补一个 `R0 = op`
+会让**所有已编译的老程序**按残留值走进某个分支（本仓那条「**给老 syscall 加参数 = 静默的未定义行为**」）。
+568 原本是 `MSG_CLEAR`，在 v0.96.483「消息族收成一个号 + 操作码」的整合里**释回号池**，
+正好落在 `SCR_W`/`SCR_H`/`SCR_ORIENT` 这个「问宿主状态」家族的缺口里 —— 语义上归这一族。
+
+- **协议层**（`UI/Shared/VmlUiProtocol.cs`）：`HostLang = 568` + `LangZh/LangEn` 两个契约常量 +
+  `VmlUi.LangCode(bool)` 纯逻辑（宿主与自测共用一处，别各写一份）+ **登记进 `AllNumbers` 查重表**。
+  **`0`/`1` 是跨语言契约**（C 头文件的宏、22 门前端的绑定都写死它）⇒ 加第三种语言是**改 ABI**。
+- **宿主运行时**（`UI/Shared/VmlHostRuntime.cs`）：加 `case`；`IVmlHost` 加 **`int Language()`，
+  故意不给默认实现** —— 漏一个宿主就**编不过**，而默认返回中文会让那个宿主静默地对英文用户说中文，
+  只有上真机才看得见（与 `DrawCommand.Vector` / `EndpointStatus` 同一条处置）。
+- **三个实现**：手机 `MauiVmlHost`、桌面 `CliVmlHost`、自测 `FakeVmlHost`，映射一律走 `VmlUi.LangCode`。
+- **桌面入口**：`scripts/vmlcli` 的 csproj 是**逐个文件列**的，`Lang.cs` 本来不在里面 ⇒ 收进来；
+  `Main` 首行调 `L.DetectFromSystem()`（否则 `HOST_LANG` 在桌面恒回"中文"）；
+  两个文件在 `namespace VmlCli` 下，另加 `using WayCoder;` 才看得见 `L`。
+- **文档两处**：`docs/VML宿主接口.md`（§2 主表行 + `HOST_LANG（#568）` 一节）、
+  `third_party/vml/Lib/README-ui.md`（号表补 568）。⚠ 后者是**手维护**的，我第一遍漏了 ——
+  **自测里有一条「号段文档同步」护栏**把 `VmlUi.AllNumbers` 与它对表，当场报
+  `漏了 1 个号（568）—— 照它写程序会静默失效`。这条护栏此前我不知道存在，是它抓到的。
+- **库侧**：`Lib/shared/src/vmlui.c` 加 `ui_get_language()`（照 `ui_scr_h`/`ui_orientation` 的写法，
+  发 `SYSCALL #568`）；`Lib/c/waycoder_ui.h` 加 `VML_LANG_ZH/VML_LANG_EN` 宏与声明。
+  再用 GenLib 重生成：**`-A` = `-b` + `-m` + `-a` + `-g`**（我原先只写了 `-b`/`-m`/`-g`，漏了 `-a` 聚合文件），
+  产出 25 个文件（22 门语言绑定 + `Lib/shared/vmlui.vml` + `Lib/shared/bgi.vml`）。
+  ⚠ C 前端的「函数名 → 模块」映射是**前缀规则** `["ui_"] = "vmlui"` ⇒ 新函数天然被覆盖，
+  **不需要逐函数登记**（旧笔记里"要查映射表"是说对了，但比预期省事）。
+- **端到端判据**：`scripts/vml-ui-lang-probe/`（新目录，进库）—— 桌面实测
+  **中文 `LANG=0` / 强制非中文 `LANG=1`**，Python 绑定同样 `0`/`1`。
+  ⚠ 判据是**三行合起来**才算数：`W=480`（模块真链进来了）+
+  `UNKNOWN=-100`（**对照组**：同号段没实现的 #599 返回 -100 ⇒「没实现」永远不是 0
+  ⇒ `LANG=0` 是宿主认领了 #568 并回答，而非"没人写 R0、残留巧合是 0"）。
+  单看 `LANG=0` 会被假绿骗过去 —— 第一版只有那一行，是补了对照组才闭环的。
+
+**验证**：自测 **7016 通过 / 0 失败**（基线 7011，+5 条：契约值 0/1、中英两条路径、号已登记）；
+`scripts/check-vml-patches.sh` **真实退出码 0**（`✔ 生成物 1942 个，与重生成结果逐字节相同`）；
+`vmlcli` 0 错误、MAUI Android 0 错误；`third_party/vml` 下改动文件**逐个查过行尾全为 LF**（别把 CRLF 带进去）。
+
+**一条新踩的坑（改 `Lib/**.h` 的人必看）**：改 `waycoder_ui.h` 会让引了它的 `.vml` 里
+**行号注释全部失效**（`Lib/shared/bgi.vml` 的 293 条 `; <源码行号>:` 整体 +13），
+而 **`GenLib -b` 只比 `.vml` 与 `.c` 的 mtime、不看头文件** ⇒ 必须 `touch` 对应的 `.c` 才重编；
+**只有 `check-vml-patches.sh` 抓得到**（它在临时副本里强制重编全部 110 个模块再逐字节比）。
+规范化比对（抹掉 `; N:` 再 diff）确认代码逐字节相同 —— 只有注释里的行号变了。
+
+**未做 / 边界**：**没上真机**（手机宿主与桌面共用 `VmlHostRuntime` 那一支，但证据全来自桌面 `vmlcli`）；
+22 门语言里只**端到端跑了 C 与 Python**，其余 20 门按「与 `ui_orientation` 逐个语言计数对齐」验证。
+
 ## v0.96.570 — 包名改为 `com.tanso.dolaima`
 
 接 v0.96.569 的改名，把**包名**也换掉。原因：`com.tanso.waycoder` 两半都有商标问题

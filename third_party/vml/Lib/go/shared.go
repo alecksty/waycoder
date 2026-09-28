@@ -5208,6 +5208,11 @@ func ui_win_open_pc(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     return vml.R0()
 }
 
+func ui_get_language() int32 {
+    vml.Call("ui_get_language")
+    return vml.R0()
+}
+
 func ui_orientation() int32 {
     vml.Call("ui_orientation")
     return vml.R0()
