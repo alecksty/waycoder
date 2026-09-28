@@ -11,6 +11,7 @@
 ' so the mode is decided **at runtime** (almost every old QBasic game is written this way: `SCREEN Mode`).
 '
 ' 跑法（桌面）：
+' How to run (desktop):
 '   dotnet run --project scripts/vmlcli -- Examples/basic/gfx_modes.bas --screen 640x480 --frames out_dir
 '   （每个 ui_present 落一帧 —— 因为这份程序会换好几次模式，一次 --frame 只能看到最后一帧）
 '   (every ui_present drops one frame -- this program switches modes several times, and a single --frame only shows the last frame)

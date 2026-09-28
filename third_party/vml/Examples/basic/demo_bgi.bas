@@ -2,6 +2,7 @@
 ' demo_bgi.bas -- BASIC layer 3: the **classic graphics API** (the BGI family)
 '
 ' 这一层用的是 QBasic 原生那套「固定分辨率 + 索引色」的图形语句：
+' This layer uses QBasic's native "fixed resolution + indexed color" graphics statements:
 ' `SCREEN` / `COLOR` / `CLS` / `PSET` / `LINE` / `CIRCLE` / `PAINT`。
 '
 ' ◆ 这层为什么还能在手机上跑
@@ -26,6 +27,7 @@
 '   the same **16-color palette index** as the C-side BGI shim (`setcolor(4)` is "red", not 0x000004).
 '
 ' 跑法（桌面 vmlcli，默认 `--basicgfx ui`）：
+' How to run (desktop vmlcli, `--basicgfx ui` by default):
 '   dotnet scripts/vmlcli/bin/Release/net10.0/vmlcli.dll Examples/basic/demo_bgi.bas \
 '       --screen 640x480 --frame demo_bgi.png
 '

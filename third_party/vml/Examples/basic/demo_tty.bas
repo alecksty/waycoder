@@ -11,6 +11,7 @@
 ' colored rich text by `UI/Shared/AnsiMarkup.cs`.
 '
 ' 跑法（桌面 vmlcli）：
+' How to run (desktop vmlcli):
 '   dotnet scripts/vmlcli/bin/Release/net10.0/vmlcli.dll Examples/basic/demo_tty.bas
 '
 ' 画面（从上到下）：
