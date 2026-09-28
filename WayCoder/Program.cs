@@ -122,6 +122,11 @@ public partial class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
 
+        // 界面语言：**跟随操作系统**（用户 2026-09-28 定：四端一致）。
+        // ⚠ 必须在任何 UI 文案被取用之前 —— L 的默认是中文，这里才是"跟随系统"的开关。
+        //   自测走的是另一条入口（SelfTest 里显式钉中文），不受这里影响。
+        L.DetectFromSystem();
+
         // 错误日志系统（自动追踪所有错误，写入 logs/error_YYYYMMDD.log）
         ErrorLog.Initialize(catchAllExceptions: true);
 

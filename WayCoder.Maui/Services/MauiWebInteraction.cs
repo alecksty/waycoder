@@ -34,9 +34,9 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
         {
             var page = CurrentPage;
             if (page == null || choices.Count == 0) return null;
-            // ⚠ **取消按钮的文案存进局部变量，判定也用它比** —— 绝不写字面量比较。
+            // ⚠ **取消按钮的文案取自 UiText 共享符号，判定也用它比** —— 绝不写字面量比较。
             //   否则文案一翻成 "Cancel"，`choice == "取消"` 恒假 ⇒ 把「取消」当成用户选中的项返回。
-            var cancel = "取消";
+            var cancel = UiText.BtnCancel;
             var choice = await page.DisplayActionSheetAsync(title, cancel, null, choices.ToArray());
             return choice is null || choice == cancel ? null : choice;
         });
@@ -67,9 +67,9 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
                 //   两个 case 全部匹配不上、统统落进 `_ => 2` ⇒ **AI 的每个工具调用都被静默拒绝**，
                 //   零报错、零日志。（注意 switch 的常量模式要求编译期常量，
                 //   所以改用变量后必须写成 if —— 这正是"比自己传进去的变量"这个形态的代价。）
-                var allow = "允许";
-                var always = "总是允许";
-                var deny = "拒绝";
+                var allow = UiText.BtnAllow;
+                var always = UiText.BtnAlwaysAllow;
+                var deny = UiText.BtnDeny;
                 var choice = await page.DisplayActionSheetAsync($"{title}\n\n{message}", deny, null, allow, always);
                 if (choice == allow) return 0;
                 if (choice == always) return 1;

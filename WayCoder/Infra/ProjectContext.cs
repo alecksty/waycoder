@@ -170,8 +170,11 @@ public static class ProjectContext
             exts[ext] = exts.GetValueOrDefault(ext) + 1;
         }
 
+        // ⚠ 单位词（「文件」/「files」）也要随语言走 —— 它是**值**的一部分，
+        //   只把标签（"文件分布:"）译掉是不够的：护栏抓到的正是这种"标签英文、值中文"的半截活。
+        var fileUnit = L.Pick("文件", "files");
         var topExts = exts.OrderByDescending(kv => kv.Value).Take(5)
-            .Select(kv => $"{kv.Key}({kv.Value}文件)").ToList();
+            .Select(kv => $"{kv.Key}({kv.Value}{fileUnit})").ToList();
         info.Languages = topExts;
 
         if (exts.ContainsKey(".cs")) info.PrimaryLanguage = "C# (.NET)";
@@ -368,12 +371,21 @@ public class ProjectInfo
 
     public string ToMarkdown()
     {
+        // 这些标签随界面语言走（它们进系统提示词，与提示词本体同语言才不割裂）。
+        // 值本身（语言名/框架名/分支名）**不翻译** —— 那是标识符，译了模型反而认不出。
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"- 语言: {PrimaryLanguage}");
-        if (Languages.Count > 0) sb.AppendLine($"- 文件分布: {string.Join(", ", Languages)}");
-        if (Frameworks.Count > 0) sb.AppendLine($"- 框架: {string.Join(", ", Frameworks)}");
-        if (BuildTools.Count > 0) sb.AppendLine($"- 构建: {string.Join(", ", BuildTools)}");
-        if (GitBranch != null) sb.AppendLine($"- Git 分支: {GitBranch}");
+        sb.AppendLine(L.Pick($"- 语言: {PrimaryLanguage}", $"- Language: {PrimaryLanguage}"));
+        if (Languages.Count > 0)
+            sb.AppendLine(L.Pick($"- 文件分布: {string.Join(", ", Languages)}",
+                                 $"- File breakdown: {string.Join(", ", Languages)}"));
+        if (Frameworks.Count > 0)
+            sb.AppendLine(L.Pick($"- 框架: {string.Join(", ", Frameworks)}",
+                                 $"- Frameworks: {string.Join(", ", Frameworks)}"));
+        if (BuildTools.Count > 0)
+            sb.AppendLine(L.Pick($"- 构建: {string.Join(", ", BuildTools)}",
+                                 $"- Build: {string.Join(", ", BuildTools)}"));
+        if (GitBranch != null)
+            sb.AppendLine(L.Pick($"- Git 分支: {GitBranch}", $"- Git branch: {GitBranch}"));
         if (GitRemote != null) sb.AppendLine($"- Git Remote: {GitRemote}");
         return sb.ToString();
     }

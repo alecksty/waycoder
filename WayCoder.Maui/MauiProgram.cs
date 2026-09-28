@@ -7,6 +7,12 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		// 界面语言：**跟随系统**（用户 2026-09-28 定）。放在**第一行** —— 这是最早的可控托管代码，
+		// 早于 App 构造函数、早于任何 Config 静态构造，确保没有任何文案在语言定下来之前被取用。
+		// MauiBootstrap.Initialize() 里还会再调一次（幂等）：那处是既有的"必须最先"契约点，
+		// 冗余一次换防御。自测走另一条入口（显式钉中文），不受影响。
+		Services.MauiLang.Initialize();
+
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()

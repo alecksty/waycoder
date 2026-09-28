@@ -351,6 +351,7 @@ public static partial class SelfTest
         // 自测全程隔离全局配置目录，避免 SessionManager/CheckpointManager 等写真实用户目录。
         var savedHomeOverride = Global.HomeOverride;
         var savedOfflineMode = Global.OfflineMode;
+        var savedLang = L.Current;
         var testHome = Path.Combine(Path.GetTempPath(), "waycoder_selftest_home_" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(testHome);
         Global.HomeOverride = testHome;
@@ -359,6 +360,14 @@ public static partial class SelfTest
         // 不得外发真实密钥。三处生效：① .env 不再被发现导入；② LLM 拒绝非本机端点；
         // ③ 模型连通性探测跳过外部端点。
         Global.OfflineMode = true;
+
+        // 界面语言：**自测恒中文**（与上面的硬离线护栏同族 —— 都是"别让环境左右结果"）。
+        // 必要性：全仓 400+ 条断言钉的是中文文案，而 CI 跑在 en-US 机器上、`L` 又已改成
+        // 跟随系统 ⇒ 不钉住的话整片飘红，且红得与代码对错无关。
+        // ⚠ 新增的**双语护栏自己不依赖这一行** —— 它们内部主动 Set(En) 跑完再还原，
+        //   所以"护栏在什么语言环境下跑"无关紧要。
+        L.Set(UiLang.Zh);
+
         // 清掉可能已缓存的真实密钥（同进程 /test 场景：REPL 早已加载过 ~/.waycoder/api_keys.json）
         ApiKeyStore.ClearCache();
 
@@ -449,6 +458,9 @@ public static partial class SelfTest
 
     TestChunk29(Section, Check, Fail);
 
+    // 双语化护栏（语言判定 / 文案对 / 系统提示词成品无残留中文）
+    TestLocalization(Section, Check, Fail);
+
     TestChunk30(Section, Check, Fail);
 
     TestChunk31(Section, Check, Fail);
@@ -470,6 +482,7 @@ public static partial class SelfTest
         {
             Global.HomeOverride = savedHomeOverride;
             Global.OfflineMode = savedOfflineMode;
+            L.Set(savedLang);
             // 再清一次：测试期间缓存的是临时 home 的（空）密钥集，不清会把同进程 REPL（/test）
             // 已有的真实密钥一起抹掉——下次 Get 会按还原后的 home 重新 Load。
             ApiKeyStore.ClearCache();

@@ -178,6 +178,11 @@ public static class MauiBootstrap
         if (_done) return;
         _done = true;
 
+        // 0) 界面语言：跟随系统（幂等 —— CreateMauiApp 首行已调过一次）。
+        //    放在这里的理由与下面的 Global.HomeOverride 一样：这是"必须最先、且在任何
+        //    Config/Agent 访问前执行"的契约点，两处都调换来"框架时序怎么变都不会漏"。
+        Services.MauiLang.Initialize();
+
         // 1) 配置目录重定向：已授权外部存储 → sdcard/waycoder/config（卸载重装不丢），否则 App 私有目录
         //    （必须最先，ErrorLog/Config 都依赖 Global.Home）
         Global.HomeOverride = ResolveHomeDir();

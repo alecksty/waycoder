@@ -244,7 +244,7 @@ public partial class MainWindow : Window
         foreach (PermissionManager.Mode m in Enum.GetValues<PermissionManager.Mode>())
             PermCombo.Items.Add(new ComboBoxItem
             {
-                Content = UiText.PermNameZh(m),
+                Content = UiText.PermDisplayName(m),
                 Tag = UiText.PermName(m).ToLowerInvariant(),
             });
         PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
