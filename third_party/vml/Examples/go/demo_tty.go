@@ -1,25 +1,40 @@
 // demo_tty.go —— **彩色控制台**示范（Go）
+// demo_tty.go -- the **color console** demo (Go)
 //
 // 四层示范的第二层：清屏 + 设前景/背景色 + 定位光标 + 打印彩色文字，正常结束。
+// The second of the four demo layers: clear the screen + set foreground/background colors + position the cursor + print colored text, then exit normally.
 //
 // ◆ 为什么直接发 ANSI，而不是用 `Lib/go/conio.vml`
+// ◆ Why emit ANSI directly instead of using `Lib/go/conio.vml`
 //
 // 与 Rust 那份同因（三条路都实测过，详见 `Examples/rust/demo_tty.rs` 的长注释）：
+// The same reason as the Rust one (all three routes were measured; see the long comments in `Examples/rust/demo_tty.rs`):
 // `Lib/go/conio.vml` 不在 `SharedPrefixMap` 里 ⇒ 自动链接想不到它；显式
+// `Lib/go/conio.vml` is not in `SharedPrefixMap` => auto-linking never considers it; and an explicit
 // `#param lib("conio")` 也解不开符号 —— 包装器的标签形如 `go_clrscr`，
+// `#param lib("conio")` does not resolve the symbols either -- the wrapper's labels look like `go_clrscr`,
 // 与用户侧编出来的 `clrscr` / `go_clrscr` 都对不上。
+// which matches neither the `clrscr` nor the `go_clrscr` compiled on the user side.
 // ⇒ 直接产出真终端会产出的字节，与 `Examples/c/conio_screen.c` 在命令行页上走同一条
+// => It directly emits the bytes a real terminal would emit, and on the command-line page it goes through the same
 //    渲染链（`AnsiMarkup`）。
+//    rendering chain (`AnsiMarkup`) as `Examples/c/conio_screen.c`.
 //
 // ◆ 写法（Go 前端的实测约束）
+// ◆ Style (measured constraints of the Go frontend)
 //
 //   · **`\x1b` 不解析**（原样打出 `x1b`）⇒ ESC 这个字节交给 `putchar(27)` 发；
+//   · **`\x1b` is not parsed** (it prints `x1b` verbatim) => the ESC byte is emitted via `putchar(27)`;
 //   · **`print` / `println` 都会补换行**（没有"不换行的打印"）⇒ 每行一条 CSI。
+//   · **Both `print` and `println` append a newline** (there is no "print without newline") => one CSI per line.
 //     （`printx_string` 在 Go 上是可靠的，但这一份用不到它。）
+//     (`printx_string` is reliable on Go, but this file has no use for it.)
 //
 // ◆ 形状说明见 `Examples/rust/demo_tty.rs`：**每行恰好一条 CSI**，多条 SGR 合并进同一条。
+// ◆ For why this shape, see `Examples/rust/demo_tty.rs`: **exactly one CSI per line**, with several SGR merged into it.
 //
 // 跑法：命令行页输入  vml run examples/go/demo_tty.go
+// How to run: type this into the command-line page:  vml run examples/go/demo_tty.go
 
 package main
 

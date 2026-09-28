@@ -1,23 +1,37 @@
 // demo_tty.m —— **彩色控制台**示范（Objective-C）
+// demo_tty.m — a **colored console** demo (Objective-C)
 //
 // 四层示范的第二层：清屏 + 设前景/背景色 + 定位光标 + 打印彩色文字，正常结束。
+// Layer 2 of the four-layer demo: clear screen + set fg/bg colors + position the cursor + print colored text, terminating normally.
 //
 // ◆ 为什么直接发 ANSI，而不是用 `#include <conio.h>`
+// ◆ Why it emits ANSI directly instead of using `#include <conio.h>`
 //
 // `Lib/c/conio.h` 能被 ObjC 前端**解析**（它没有 hex 字面量，不像 `graphics.h`），
+// `Lib/c/conio.h` **can be parsed** by the ObjC frontend (it has no hex literals, unlike `graphics.h`),
 // 头文件里的 `#param lib("conio")` 也会被预处理器收下 —— 但**符号解不开**：
+// and the header's `#param lib("conio")` is accepted by the preprocessor — but **the symbols cannot be resolved**:
 //   · `clrscr` 这类名字不在 `SharedPrefixMap` 里 ⇒ `AutoDetectSharedLibs` 想不到 conio；
+//   · Names like `clrscr` are not in `SharedPrefixMap` ⇒ `AutoDetectSharedLibs` never thinks of conio;
 //   · 显式 `#param lib("conio")` + 直接调 `clrscr()`，实测报「未定义的函数 'clrscr'」，
+//   · With an explicit `#param lib("conio")` plus a direct `clrscr()` call, the measured result is "undefined function 'clrscr'",
 //     而链接日志里**根本没有 conio.vml**。
+//     and the link log shows **no conio.vml at all**.
 // ⇒ 直接产出真终端会产出的字节，与 `Examples/c/conio_screen.c` 在命令行页上走**同一条
+// ⇒ It emits the same bytes a real terminal would, going **through the same
 //    渲染链**（`AnsiMarkup`）。
+//    render chain** as `Examples/c/conio_screen.c` on the command-line page (`AnsiMarkup`).
 //
 // ◆ 写法（ObjC 前端的优势）
+// ◆ Style (advantages of the ObjC frontend)
 //
 //   · **`\x1b` 转义是解析的**（与 Rust/Go 相反）⇒ 整条转义序列可以直接写进字符串；
+//   · **The `\x1b` escape is parsed** (unlike Rust/Go) ⇒ a whole escape sequence can be written straight into the string;
 //   · `printf` 不补换行（`puts` 补）⇒ 一行一条 CSI，换行自己写在末尾。
+//   · `printf` adds no newline (`puts` does) ⇒ one CSI per line, with the newline written at the end yourself.
 //
 // 跑法：命令行页输入  vml run examples/objc/demo_tty.m
+// How to run: on the command-line page type  vml run examples/objc/demo_tty.m
 
 int main() {
     printf("\x1b[2J\n");

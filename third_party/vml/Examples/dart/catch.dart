@@ -1,27 +1,44 @@
 // 接方块 —— 用 **Dart** 写的手机游戏
+// Catch — a phone game written in **Dart**
 //
 // 玩法：左右方向键移动底部挡板，把落下来的球弹回去；没接住就结束。每接住一次 +10 分。
+// Gameplay: left/right arrows move the paddle at the bottom and bounce the falling ball back; miss it and the game ends. Each catch is +10 points.
 //
 // ◆ 手机那套 UI
+// ◆ The phone UI
 //
 // 开窗 / 绘图 / 输入 / 定时器是 C 写的（`Lib/shared/src/vmlui.c` → `vmlui.vml`），
+// Window / drawing / input / timers are written in C (`Lib/shared/src/vmlui.c` → `vmlui.vml`),
 // 由 `vmltool.config.xml` 的 `<Language Name="dart" Libs="vmlui.vml">` 挂上来。
+// Hooked up by `<Language Name="dart" Libs="vmlui.vml">` in `vmltool.config.xml`.
 //
 // ◆ 写法要求
+// ◆ Style requirements
 //
 //   · 调库函数**必须 `external` 声明** —— 这是本前端唯一能产出**裸标签** CALL 的形式
+//   · Library calls **must be declared `external`** — this is the only form in this frontend that produces a **bare-label** CALL
 //     （`CodeGenerator.Expressions.cs:141`；`asm()` 已移除）。不声明就解析不到 lib_vmlui_*。
+//     (`CodeGenerator.Expressions.cs:141`; `asm()` has been removed). Without a declaration lib_vmlui_* cannot be resolved.
 //   · 颜色写负数十进制（词法器是十进制专用）。
+//   · Write colors as negative decimals (the lexer is decimal-only).
 //   · `print` 不加分隔符、不补换行 ⇒ 显式补 "\n"。
+//   · `print` adds no separator and no newline ⇒ add "\n" explicitly.
 //   · **状态与逻辑全内联在 `main` 里**：文件级可变状态在 Kotlin / Swift / Go 那几门上都出过问题
+//   · **All state and logic is inlined in `main`**: file-level mutable state has gone wrong on Kotlin / Swift / Go
 //     （最典型是 Kotlin 的文件级 `arrayOf` 读回 0），这里不冒这个险。
+//     (most typically Kotlin's file-level `arrayOf` reading back 0), and this doesn't take that risk.
 //
 // ◆ 已修的前端缺陷（2026-09-17 前后）
+// ◆ Frontend defects already fixed (around 2026-09-17)
 //
 //   · 数组：早期「没有下标表达式、`a[i]` 退化成一个裸名、`a[i] = x` 左值被丢弃」；
+//   · Arrays: earlier "no index expression, `a[i]` degenerated into a bare name, the lvalue of `a[i] = x` was discarded";
 //     patch 0030 修过。本份实测 `a[0]=7; a[3]=5;` 求和得 12 ✓。
+//     fixed in patch 0030. Measured here: `a[0]=7; a[3]=5;` sums to 12 ✓.
 //   · **栈帧**：早期 `GenerateVarDecl` 只写 `[R12-N]` 却不 `SUB R13`，带嵌套 push 的表达式
+//   · **Stack frame**: earlier `GenerateVarDecl` only wrote `[R12-N]` without `SUB R13`, so expressions with nested pushes
 //     会踩坏局部变量（语料文件头记的就是这条）；patch 0030 一并修了。
+//     clobbered local variables (this is what the corpus file header records); fixed together in patch 0030.
 
 external int ui_scr_w();
 external int ui_scr_h();
@@ -43,6 +60,7 @@ external void ui_dlg_msg(String title, String body, int style);
 
 void main() {
   // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
+  // State: 0=paddle x, 1=ball x, 2=ball y, 3=ball dx, 4=ball dy, 5=score, 6=best, 7=alive, 8=screen width, 9=screen height
   List<int> A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   int w = ui_scr_w();
@@ -91,6 +109,7 @@ void main() {
         if (A[1] > A[8] - 10) { A[1] = A[8] - 10; A[3] = 0 - A[3]; }
         if (A[2] < 30) { A[2] = 30; A[4] = 0 - A[4]; }
         // 接住：球落到挡板带上、横向也在挡板范围内（多条件用嵌套 if）
+        // Catch: the ball falls on the paddle band and is horizontally within the paddle's range (nested if for multiple conditions)
         if (A[2] > A[9] - 52) {
           if (A[2] < A[9] - 30) {
             if (A[1] > A[0] - 9) {
@@ -100,7 +119,9 @@ void main() {
                 A[5] = A[5] + 10;
                 if (A[5] > A[6]) { A[6] = A[5]; }
                 // 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+                // Sound: single-tone ui_beep (switched back from the sequencer in v0.96.509 —
                 //   那一版多声部叠加 / 长音拖尾在真机上破音）
+                //   that version's multi-voice stacking / long-note tails broke up on real devices)
                 ui_beep(1047, 165);
               }
             }
@@ -109,6 +130,7 @@ void main() {
         if (A[2] > A[9]) {
           A[7] = 0;
           // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+          // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on a catch / 131 on a miss — far enough apart)
           ui_beep(131, 320);
           if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); break; }
           A[0] = A[8] / 2 - 40;

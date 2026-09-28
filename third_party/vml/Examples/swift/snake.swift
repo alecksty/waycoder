@@ -1,58 +1,96 @@
 // 贪吃蛇 —— 用 **Swift** 写的手机游戏
+// Snake — a phone game written in **Swift**
 //
 // ✅ **状态：跑通了**（v0.96.189）。逐像素量出来的判据：蛇头 316 像素（1 格）、
+// ✅ **Status: it runs** (v0.96.189). Criteria measured pixel by pixel: snake head 316 pixels (1 cell),
 //   蛇身 632（2 格）、食物 316（1 格）—— **三个数都是精确的整格**；
+//   snake body 632 (2 cells), food 316 (1 cell) — **all three numbers are exactly whole cells**;
 //   棋盘格图元数 180（= 20×18 的一半，说明交替也对了）。
+//   and the board-cell primitive count is 180 (= half of 20×18, showing the alternating pattern is right too).
 //
 // ## 卡了四轮的那个 bug：**括号表达式恒等于 0**（patch 0011）
+// ## The bug that blocked it for four rounds: **parenthesized expressions are identically 0** (patch 0011)
 //
 // 症状极具误导性：`A[16 + (k) * 2]` 六次写入**全落到同一个槽**，换成纯常量下标
+// The symptom is extremely misleading: six writes to `A[16 + (k) * 2]` **all landed in the same slot**, while plain constant indices
 // `A[16]…A[21]` 就全对 ⇒ 看起来像"算式下标不能复用"。
+// `A[16]…A[21]` were all correct ⇒ it looked like "computed indices cannot be reused".
 // 真因是代码生成的 `GenerateExpression` 里**没有 `ParenthesizedExpression` 分支**，
+// The real cause is that code generation's `GenerateExpression` **has no `ParenthesizedExpression` branch**,
 // 落进 `default:` 被静默编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**，
+// so it fell into `default:` and was silently compiled to `move R0 #0` — **`(any expression)` is identically 0**,
 // 于是下标恒为 `16 + 0 * 2 = 16`。同一个洞还让 `(c + r) % 2 == 0` 的棋盘格从来没对过。
+// leaving the index always `16 + 0 * 2 = 16`. The same hole also meant the `(c + r) % 2 == 0` checkerboard was never right.
 //
 // **判定这个结论的手段是读生成的汇编**（`vmlhost asm`），不是看现象猜 ——
+// **The way this conclusion was reached is reading the generated assembly** (`vmlhost asm`), not guessing from symptoms —
 // 那里一眼就能看到 `(k)` 被编成了 `move R0 #0`。同类洞 C# / JavaScript 也有（同一版修掉）。
+// there you can see at a glance that `(k)` was compiled to `move R0 #0`. C# / JavaScript had the same hole (fixed in the same release).
 // 修法之外还把 `default:` 从"静默发 0"改成**硬报错**：这类"编译全绿、跑起来错"的故障
+// Besides the fix, `default:` was changed from "silently emit 0" to a **hard error**: this class of "compiles clean, wrong at run time" fault
 // 正是最该编不过的那一种。
+// is exactly the kind that most deserves not to compile.
 //
 // 更早的两条阻塞点也已在 patch 0011 里：
+// Two earlier blockers were also in patch 0011:
 //     ① 全局数组初始化曾是死代码（定义了 func main 时顶层块不执行）；
+//     ① global array initialization used to be dead code (the top-level block does not execute when `func main` is defined);
 //     ② **函数的局部变量漏进全局数据段**、同名互相踩。
+//     ② **a function's locals leaked into the global data segment** and same-named ones clobbered each other.
 //   全 22 个前端的结论与根因：`docs/前端游戏能力评估.md`。
+//   Conclusions and root causes across all 22 frontends: the frontend game-capability assessment doc under `docs/`.
 //
 // ## 为什么是 Swift
+// ## Why Swift
 //
 // 手机那套 UI（开窗 / 绘图 / 输入 / 定时器）的实现是 C 写的
+// The phone UI (window / drawing / input / timers) is implemented in C
 // （`Lib/shared/src/vmlui.c` → `Lib/shared/vmlui.vml`），由 `vmltool.config.xml` 的
+// (`Lib/shared/src/vmlui.c` → `Lib/shared/vmlui.vml`) and hooked to each frontend by
 // `<Language ... Libs="vmlui.vml">` 挂给各前端。把 22 个前端逐个过筛（编译出图 / 循环 /
+// `<Language ... Libs="vmlui.vml">` in `vmltool.config.xml`. After screening all 22 frontends one by one (compiles and draws / loops /
 // 数组 / 函数 / 参数传递）之后，**Swift 是干净通过的那一门**：
+// arrays / functions / argument passing), **Swift is the one that passes cleanly**:
 //
 //   ✔ 直接 `call` 到包装标签，且实参**逆序压栈**（包装读 `[R12+12]` = 最后压的那个）
+//   ✔ `call`s the wrapper labels directly, with arguments **pushed in reverse order** (the wrapper reads `[R12+12]` = the last one pushed)
 //   ✔ 循环 / 分支 / 数组读写 / 带参函数与返回值
+//   ✔ loops / branches / array reads and writes / functions with arguments and return values
 //   ✔ 定时器 + `ui_wait_msg` 收消息（游戏心跳）
+//   ✔ timers + `ui_wait_msg` receiving messages (the game heartbeat)
 //
 // 其它语言的结论见 `docs/前端游戏能力评估.md`（Go/Pascal 条件跳转跳寄存器、JavaScript
+// For other languages' conclusions see the frontend game-capability assessment doc under `docs/` (Go/Pascal conditional jumps to registers, JavaScript
 // 把未知函数当变量 + 正序压栈、C# 参数槽串了…）。**没有一门是"差不多就行"的** ——
+// treating unknown functions as variables + pushing in forward order, C#'s argument slots crossing…). **No frontend is "good enough"** —
 // 这类毛病的表现都是"编译全绿、跑起来不对"。
+// this class of fault always shows as "compiles clean, wrong at run time".
 //
 // ## 两条写法上的约束（都是实测出来的，不是偏好）
+// ## Two style constraints (both measured, not preferences)
 //
 // ① **状态一律放数组**：这几门前端的**模块级标量**（`var n = 5`）读出来是垃圾
+// ① **All state goes in arrays**: the **module-level scalars** of these frontends (`var n = 5`) read back as garbage
 //    （在 C# 上是把标签**地址**当成了值）。数组是堆上的，读写都可靠。
+//    (in C# the label **address** was taken as the value). Arrays live on the heap, so reads and writes are reliable.
 // ② **常量写成 `main` 里的局部变量**：同理，模块级 `let` 也不可靠。
+// ② **Constants are written as locals in `main`**: by the same reasoning, a module-level `let` is not reliable either.
 //
 // 数值的唯一真源仍是 `Lib/c/waycoder_ui.h`。
+// The single source of truth for these numbers is still `Lib/c/waycoder_ui.h`.
 
 var A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 // ⚠ **只用一个数组**。实测：同一程序里开多个全局数组（S / SEGX / SEGY）会互相踩内存 ——
+// ⚠ **Use only one array**. Measured: opening several global arrays (S / SEGX / SEGY) in one program makes them clobber each other's memory —
 // 症状是蛇只画出一节、HUD 文字错位（写蛇身把状态槽冲了）。一个数组不自我别名，绕开它。
 //   0=head 1=len 2=dx 3=dy 4=fx 5=fy 6=score 7=best
 //   8=alive 9=paused 10=stepMs 11=cell 12=ox 13=oy 14=sw 15=sh
 //   16+2i=第 i 节 x，16+2i+1=第 i 节 y
+//   16+2i=x of segment i, 16+2i+1=y of segment i
 //   110=界面语言（0=中文 1=英文）—— 数组刻意留到 112 个，就是给这个槽用的
+//   110=UI language (0=Chinese 1=English) — the array is deliberately sized to 112 just for this slot
 //   （按上面 ① 的实测，语言码**不能**用模块级标量存：读出来是垃圾）
+//   (per the measurement in ① above, the language code **cannot** be stored in a module-level scalar: it reads back as garbage)
 func segx(i: Int) -> Int { return 16 + i * 2 }
 func segy(i: Int) -> Int { return 17 + i * 2 }
 
@@ -142,6 +180,7 @@ func draw() {
         i = i + 1
     }
     // 界面语言（0=中文 1=英文）：从状态表里取个局部量 —— 模块级标量读出来是垃圾（见文件头 ①）。
+    // UI language (0=Chinese 1=English): pull it from the state table into a local — a module-level scalar reads back as garbage (see header ①).
     var lang = A[110]
     ui_text(8, 8, lang == 0 ? "得分" : "Score", colorText(), 13, 0)
     ui_text(56, 8, numToStr(A[6]), -1, 15, 0)
@@ -153,7 +192,9 @@ func draw() {
 
 func reset() {
     A[1] = 3        // 长度
+    // length
     A[0] = 2        // 头下标
+    // head index
     A[16 + (0) * 2] = 8; A[17 + (0) * 2] = 8
     A[16 + (1) * 2] = 7; A[17 + (1) * 2] = 8
     A[16 + (2) * 2] = 6; A[17 + (2) * 2] = 8
@@ -168,7 +209,9 @@ func reset() {
 func gameOver() {
     A[8] = 0
     // 音效：单音 ui_beep；**结局音取最低音**（吃到 1047 / 撞到 131，差得开）
+    // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on eating / 131 on a crash — far enough apart)
     //   v0.96.509 从音序器换回来 —— 那一版多声部叠加 / 长音在真机上破音
+    //   switched back from the sequencer in v0.96.509 — that version's multi-voice stacking / long notes broke up on real devices
     ui_beep(131, 320)
     draw()
     var lang = A[110]
@@ -206,6 +249,7 @@ func step() -> Int {
         if A[6] > A[7] { A[7] = A[6] }
         if A[10] > 70 { A[10] = A[10] - 6 }
         // 音效：单音 ui_beep（吃到食物：一声高而短的「叮」）
+        // Sound: single-tone ui_beep (eating food: a short, high "ding")
         ui_beep(1047, 165)
         placeFood()
     }
@@ -220,6 +264,7 @@ func turn(nx: Int, ny: Int) {
 
 func main() {
     // 常量（源：Lib/c/waycoder_ui.h）—— 只能放局部变量，见文件头 ②
+    // Constants (source: Lib/c/waycoder_ui.h) — locals only, see header ②
     var KEY_ENTER = 13
     var KEY_SELECT = 16
     var KEY_ESCAPE = 27
@@ -232,9 +277,13 @@ func main() {
     var MSG_CLOSE = 10
 
     // 尺寸先落到局部再存进状态表 —— **实测**：把 `A[14] = ui_scr_w()` 直接喂给
+    // The size lands in a local first and is then stored into the state table — **measured**: feeding `A[14] = ui_scr_w()` straight into
     // `ui_win_open` 会开出一个 60×64 的小窗（编译全绿、只有出图才看得出来）；
+    // `ui_win_open` opens a tiny 60×64 window (compiles clean; only visible once it draws);
     // 经一道局部变量就正常。这类"某个位置读全局就是不行"的坑，各前端都不一样，
+    // passing through a local makes it normal. This kind of "reading a global in one particular spot just doesn't work" pitfall differs per frontend,
     // 唯一的办法是**出图看**，不能靠推断。
+    // and the only way is to **draw it and look**, not to reason it out.
     var w = ui_scr_w()
     var h = ui_scr_h()
     if w <= 0 { w = 360 }
@@ -242,12 +291,15 @@ func main() {
     A[14] = w
     A[15] = h
     // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），存进 A[110]（见 draw）。
+    // UI language: ask the host once at the start whether it wants Chinese or English (0=Chinese 1=English) and store it in A[110] (see draw).
     // ⚠ 别在每帧里调 —— 那是一次 syscall。
+    // ⚠ Don't call it in every frame — that's a syscall.
     A[110] = ui_get_language()
     var lang = A[110]
     ui_win_open(lang == 0 ? "贪吃蛇" : "Snake", w, h)
 
     // 版面算一次，画与判定共用
+    // The layout is computed once and shared by drawing and hit-testing
     var byw = A[14] - 8
     var byh = A[15] - 46
     A[11] = byw / cw()

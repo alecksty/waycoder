@@ -1,4 +1,5 @@
 // VML性能基准 — JavaScript (纯整数)
+// VML performance benchmark -- JavaScript (pure integers)
 function main() {
     var a=0,b=1;
     for(var i=0;i<10000;i++){a=a+i;a=a-1;}

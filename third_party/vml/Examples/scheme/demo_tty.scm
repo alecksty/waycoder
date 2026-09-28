@@ -1,45 +1,73 @@
 ; demo_tty.scm —— **第 2 层：彩色控制台**
+; demo_tty.scm -- **layer 2: color console**
 ;
 ; 这一层解决的问题是「**在一个字符界面上做版面**」：清屏、把光标挪到第几行第几列、
+; The problem this layer solves is "**laying out a character display**": clear the screen, move the cursor to a given row and column,
 ; 设前景/背景色。老 DOS 程序（菜单、表格、状态栏）全靠这几个原语拼出来。
+; set foreground/background colors. Old DOS programs (menus, tables, status bars) were built entirely from these primitives.
 ;
 ; Scheme 这一层**没有 conio/crt 绑定**，所以这里**直接输出 ANSI 转义序列**
+; Scheme has **no conio/crt binding** at this layer, so this file **emits ANSI escape sequences directly**
 ; —— 那正是"支持彩色的控制台程序"：
+; -- which is exactly a "console program with color support":
 ;
 ;     清屏        ESC [ 2 J          ESC [ H
+;     clear screen        ESC [ 2 J          ESC [ H
 ;     定位光标    ESC [ <行> ; <列> H
+;     position cursor     ESC [ <row> ; <col> H
 ;     前景/背景   ESC [ 3x m / 4x m / 9x m / 10x m，256 色 38;5;N，真彩 38;2;r;g;b
+;     foreground/background  ESC [ 3x m / 4x m / 9x m / 10x m, 256 color 38;5;N, true color 38;2;r;g;b
 ;     复位        ESC [ 0 m
+;     reset        ESC [ 0 m
 ;
 ; ## ⚠ 本前端的三条限制（写 demo 时避开）
+; ## ⚠ Three limitations of this frontend (avoid them when writing a demo)
 ;
 ;   · **字符串字面量里没有任何转义** —— `SchemeCompiler/Lexer.cs` 的 `ReadString`
+;   · **String literals contain no escapes at all** -- `ReadString` in `SchemeCompiler/Lexer.cs`
 ;     是「见到 `\` 就把反斜杠跳过、把下一个字符原样收下」⇒ `"\x1b[31m"` 得到的是
+;     is "on seeing a `\`, skip the backslash and take the next character verbatim" => `"\x1b[31m"` yields
 ;     字面量 `x1b[31m`。所以 ESC 那个字节只能**用 `(putchar 27)` 直接写**，
+;     the literal `x1b[31m`. So the ESC byte can only be **written directly with `(putchar 27)`**,
 ;     换行用 `(newline)`。
+;     and a line break uses `(newline)`.
 ;   · **用户函数里不能调库函数**（尾调用优化会跳过被调者的序言）⇒ `putchar` /
+;   · **A user function cannot call a library function** (tail-call optimization skips the callee's prologue) => the calls to `putchar` /
 ;     `print_str` 这些调用**一律写在顶层**，本份一个 `define` 函数都没有。
+;     `print_str` and the like are **all written at the top level**; this file has not a single `define` function.
 ;   · `display` / `print` **只取第一个实参、且不补换行** ⇒ 文本用 `print_str` 打，
+;   · `display` / `print` **take only the first argument and add no newline** => text is printed with `print_str`,
 ;     换行单独 `(newline)`。
+;     and the line break is a separate `(newline)`.
 ;
 ; ## 在哪儿能看到什么
+; ## What you can see where
 ;
 ; · **真终端**（`vmlcli … | cat -v`）：整套转义都生效。
+; · **A real terminal** (`vmlcli ... | cat -v`): the whole escape set takes effect.
 ; · **手机"命令行"页**：那一层把 stdout 里的 ANSI 转成仓库统一的 `«»` 中间格式
+; · **The phone's "command line" page**: that layer turns ANSI on stdout into the repo's unified `«»` intermediate format
 ;   （`UI/Shared/AnsiMarkup.cs`），**只认 SGR（颜色/样式）**；光标定位（`ESC[…H`）
+;   (`UI/Shared/AnsiMarkup.cs`) and **understands only SGR (color/style)**; cursor positioning (`ESC[...H`)
 ;   与清屏（`ESC[2J`）会被**吃掉** —— 这是刻意的有限子集（见
+;   and clearing the screen (`ESC[2J`) are **eaten** -- a deliberately limited subset (see
 ;   `Examples/c/ansi_colors.c` 的说明）。所以每行末尾都补了换行，
+;   the notes in `Examples/c/ansi_colors.c`). So every line ends with a newline,
 ;   定位被吃掉时输出仍然一行一句、读得通。
+;   and when positioning is eaten the output is still one sentence per line and readable.
 ;
 ; 跑法：命令行页输入  vml run examples/scheme/demo_tty.scm
+; How to run: type this into the command-line page:  vml run examples/scheme/demo_tty.scm
 
 ; ── 开场：清屏 + 回左上角 ───────────────────────────────────────
+; -- Opening: clear the screen + go back to the top left --
 (putchar 27)
 (print_str "[2J")
 (putchar 27)
 (print_str "[H")
 
 ; ── 标题条：蓝底白字（ESC[44;97m）──────────────────────────────
+; -- Title bar: white on blue (ESC[44;97m) --
 (putchar 27)
 (print_str "[1;1H")
 (putchar 27)
@@ -54,11 +82,13 @@
 (putchar 27)
 (print_str "[90m")
 (print_str "清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m")
+; (the string above is printed as-is: the ";" inside ESC[r;cH belongs to the text, not to a comment)
 (putchar 27)
 (print_str "[0m")
 (newline)
 
 ; ── 标准 8 色前景（30–37）──────────────────────────────────────
+; -- The standard 8 foreground colors (30-37) --
 (putchar 27)
 (print_str "[4;1H")
 (putchar 27)
@@ -113,6 +143,7 @@
 (newline)
 
 ; ── 亮色前景（90–97）────────────────────────────────────────────
+; -- Bright foreground colors (90-97) --
 (putchar 27)
 (print_str "[6;1H")
 (putchar 27)
@@ -158,6 +189,7 @@
 (newline)
 
 ; ── 背景色（40–47 / 100–107）───────────────────────────────────
+; -- Background colors (40-47 / 100-107) --
 (putchar 27)
 (print_str "[8;1H")
 (putchar 27)
@@ -202,6 +234,7 @@
 (newline)
 
 ; ── 样式（1 粗 / 2 暗 / 3 斜 / 4 下划线 / 9 删除线）─────────────
+; -- Styles (1 bold / 2 dim / 3 italic / 4 underline / 9 strikethrough) --
 (putchar 27)
 (print_str "[11;1H")
 (putchar 27)
@@ -237,6 +270,7 @@
 (newline)
 
 ; ── 256 色（38;5;N）与真彩（38;2;r;g;b）─────────────────────────
+; -- 256 colors (38;5;N) and true color (38;2;r;g;b) --
 (putchar 27)
 (print_str "[13;1H")
 (putchar 27)
@@ -267,8 +301,11 @@
 (newline)
 
 ; ── 循环画一条色带（12 格，颜色在 8 档里循环）──────────────────
+; -- Draw a color band in a loop (12 cells, colors cycling through 8 steps) --
 ; 「算出来的」那一格：取模 + 分支挑字面量色码。
+; The "computed" cell: modulo plus a branch picking a literal color code.
 ; `do` 的循环体在**顶层**执行 ⇒ 里面可以直接调库函数（用户函数里则不行）。
+; A `do` loop body runs at the **top level** => it can call library functions directly (a user function cannot).
 (putchar 27)
 (print_str "[16;1H")
 (putchar 27)
@@ -303,6 +340,7 @@
 (newline)
 
 ; ── 收尾：复位颜色 + 定位到第 20 行写结束语 ─────────────────────
+; -- Wrap-up: reset the colors + position to row 20 for the closing line --
 (putchar 27)
 (print_str "[0m")
 (putchar 27)

@@ -1,26 +1,42 @@
 // demo_tty.swift —— **彩色控制台**示范（Swift）
+// demo_tty.swift — a **colored console** demo (Swift)
 //
 // 四层示范的第二层：清屏 + 设前景/背景色 + 定位光标 + 打印彩色文字，正常结束。
+// Layer 2 of the four-layer demo: clear screen + set fg/bg colors + position the cursor + print colored text, terminating normally.
 //
 // ◆ 为什么直接发 ANSI，而不是用 `Lib/swift/conio.vml`
+// ◆ Why it emits ANSI directly instead of using `Lib/swift/conio.vml`
 //
 // 与 Rust / Go 那份同因（详见 `Examples/rust/demo_tty.rs` 的长注释）：
+// Same cause as the Rust / Go copies (see the long comment in `Examples/rust/demo_tty.rs`):
 // `Lib/swift/conio.vml` 是 GenLib 生成的包装器，`clrscr` 这类名字不在
+// `Lib/swift/conio.vml` is a GenLib-generated wrapper, and names like `clrscr` are not in
 // `SharedPrefixMap` 里 ⇒ 自动链接想不到 conio；显式 `#param lib("conio")` 也解不开 ——
+// `SharedPrefixMap` ⇒ automatic linking never thinks of conio; an explicit `#param lib("conio")` cannot resolve it either —
 // 包装器标签形如 `swift_clrscr`，与用户侧编出来的 `clrscr` / `swift_clrscr`
+// the wrapper labels look like `swift_clrscr`, which match neither the user-side `clrscr` nor
 // 都对不上（实测三条路全报「未定义的函数」）。
+// `swift_clrscr` (measured: all three routes report "undefined function").
 // ⇒ 直接产出真终端会产出的字节，与 `Examples/c/conio_screen.c` 在命令行页上走同一条
+// ⇒ It emits the same bytes a real terminal would, going through the same
 //    渲染链（`AnsiMarkup`）。
+//    render chain as `Examples/c/conio_screen.c` on the command-line page (`AnsiMarkup`).
 //
 // ◆ 写法（Swift 前端的实测约束）
+// ◆ Style (measured constraints of the Swift frontend)
 //
 //   · **`\x1b` 不解析**、`\u{1B}` 也不认 ⇒ ESC 这个字节交给 `putchar(27)`；
+//   · **`\x1b` is not parsed** and `\u{1B}` is not recognized either ⇒ the ESC byte goes through `putchar(27)`;
 //   · `print` 会补换行、而且**多个实参之间不加分隔符**（`print("a", b)` → `ab`）；
+//   · `print` adds a newline and **no separator** between multiple arguments (`print("a", b)` → `ab`);
 //     要"不换行的打印"用 `print_str_no_nl`（实测可靠，与 Rust 那边的同名函数不同）。
+//     for "print without a newline" use `print_str_no_nl` (measured reliable, unlike the same-named function on the Rust side).
 //
 // ◆ 形状说明见 `Examples/rust/demo_tty.rs`：**每行恰好一条 CSI**。
+// ◆ For the shape see `Examples/rust/demo_tty.rs`: **exactly one CSI per line**.
 //
 // 跑法：命令行页输入  vml run examples/swift/demo_tty.swift
+// How to run: on the command-line page type  vml run examples/swift/demo_tty.swift
 
 putchar(27)
 print("[2J")

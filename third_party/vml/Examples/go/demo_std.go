@@ -1,17 +1,27 @@
 // demo_std.go —— **标准输出**示范（Go）
+// demo_std.go -- the **standard output** demo (Go)
 //
 // 四层示范的第一层：只用这门语言自己的标准输出，**不读输入、不画图、不弹窗**，
+// The first of the four demo layers: use only this language's own standard output, **no reading input, no drawing, no dialogs**,
 // 输出**逐字节确定**，能正常结束。
+// the output is **byte-for-byte deterministic**, and it exits normally.
 //
 // ◆ 写法（Go 前端的两条实测约束）
+// ◆ Style (two measured constraints of the Go frontend)
 //
 //   · `println` 多个实参之间**自动补一个空格**（`println("a=", 7)` → `a= 7`），
+//   · `println` **inserts one space between multiple arguments automatically** (`println("a=", 7)` -> `a= 7`),
 //     所以拼"标签 + 值"时标签末尾不要多写空格。
+//     so when building "label + value" do not add a trailing space to the label.
 //   · **字符串拼接在本前端编出来是空串**（`"a" + "b"` 渲染出来一个字都没有，
+//   · **String concatenation compiles to an empty string on this frontend** (`"a" + "b"` renders nothing at all,
 //     见 `snake.go` 文件头）⇒ 这一份全程不拼字符串，要拼的地方直接并列成多个实参。
+//     see the `snake.go` file header) => this file never concatenates strings; where concatenation would be needed it just lists several arguments.
 //   · `\x1b` 转义**不解析**（原样打出 `x1b`）⇒ 控制字符走 `putchar(码)`，见 `demo_tty.go`。
+//   · The `\x1b` escape is **not parsed** (it prints `x1b` verbatim) => emit control characters via `putchar(code)`, see `demo_tty.go`.
 //
 // 跑法：命令行页输入  vml run examples/go/demo_std.go
+// How to run: type this into the command-line page:  vml run examples/go/demo_std.go
 
 package main
 
@@ -19,13 +29,16 @@ func main() {
 	println("=== WayCoder demo_std (Go) ===")
 
 	// ① 字符串
+	// ① String
 	println("[字符串] hello, world")
 
 	// ② 整数
+	// ② Integer
 	n := 42
 	println("[整数] n =", n)
 
 	// ③ 计算结果
+	// ③ Computed result
 	println("[计算] 6 * 7 =", 6*7)
 	a := 7
 	b := 5
@@ -33,6 +46,7 @@ func main() {
 	println("[计算] a * b - 3 =", a*b-3)
 
 	// ④ 循环里算斐波那契前 10 项
+	// ④ Compute the first 10 Fibonacci numbers in a loop
 	println("[循环] 斐波那契前 10 项：")
 	x := 0
 	y := 1
@@ -46,6 +60,7 @@ func main() {
 	}
 
 	// ⑤ 累加 1+2+…+100
+	// ⑤ Accumulate 1+2+...+100
 	sum := 0
 	k := 1
 	for k <= 100 {
@@ -55,6 +70,7 @@ func main() {
 	println("[累加] 1+2+...+100 =", sum)
 
 	// ⑥ 阶乘 5!
+	// ⑥ Factorial 5!
 	fact := 1
 	m := 1
 	for m <= 5 {

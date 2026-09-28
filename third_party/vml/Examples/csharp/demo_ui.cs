@@ -1,32 +1,50 @@
 // demo_ui.cs —— **第 4 层：最新 UI 接口**（`ui_*` / `Lib/c/waycoder_ui.h`）
+// demo_ui.cs — **Layer 4: the newest UI interface** (`ui_*` / `Lib/c/waycoder_ui.h`)
 //
 // 与第 3 层（BGI）正好相反：
+// Exactly the opposite of layer 3 (BGI):
 //
 //   · **没有固定分辨率**：画布多大由宿主给（`ui_scr_w()` / `ui_scr_h()`），程序现排版。
+//   · **No fixed resolution**: how big the canvas is comes from the host (`ui_scr_w()` / `ui_scr_h()`), and the program lays out on the fly.
 //   · **真彩 0xAARRGGBB**，不是 16 个索引色。
+//   · **True color 0xAARRGGBB**, not 16 indexed colors.
 //   · **有消息循环**：触摸 / 按键 / 定时器 / 窗口被关 / 被转屏都从消息里出来。
+//   · **There is a message loop**: touch / key / timer / window closed / rotated all arrive as messages.
 //
 // ## ⚠ 消息用**标量**版读，不把数组传给库函数
+// ## ⚠ Read messages with the **scalar** version; don't pass arrays to library functions
 //
 // C# 的 `int[]` 传给库里 `int*` 形参时**指针落在数据起点前 4 字节**（"长度头"）上。
+// When a C# `int[]` is passed to a library `int*` parameter the **pointer lands 4 bytes before the data start** (the "length header").
 // 实测（2026-09-24）：`callwithint8({1,11,22,…})` —— C 侧返回 `84197531`、
+// Measured (2026-09-24): `callwithint8({1,11,22,…})` — the C side returns `84197531`,
 // **C# 侧返回 -6**（宿主"没有这个调用号" ⇒ 它读到的调用号不是 1）。同理 `ui_wait(msg,…)`
+// **the C# side returns -6** (the host says "no such call number" ⇒ the call number it read wasn't 1). Likewise the
 // 里宿主写的 `msg=(类型,A,B,时间戳)` 会被错位读到。
+// `msg=(type,A,B,timestamp)` the host writes in `ui_wait(msg,…)` is read back shifted.
 //
 // 所以这一层在 C# 里只用**标量**版：`ui_wait_msg` / `ui_msg_a` / `ui_msg_b`
+// So on C# this layer only uses the **scalar** versions: `ui_wait_msg` / `ui_msg_a` / `ui_msg_b`
 // —— `waycoder_ui.h` 里那组"不碰指针的消息读取（非 C 语言用）"正是为这个准备的。
+// —— That set of "pointer-free message readers (for non-C languages)" in `waycoder_ui.h` exists precisely for this.
 // 同理 `ui_polygon(int* pts, …)` 这类收数组的图元在 C# 里不能用，本 demo 不碰。
+// Likewise array-taking primitives such as `ui_polygon(int* pts, …)` cannot be used from C#, and this demo does not touch them.
 //
 // ## 退出是有界的
+// ## Exit is bounded
 //
 // 主循环数**定时器拍数**，到 60 拍自己停；按任意键 / 点任意处也能提前退。
+// The main loop counts **timer ticks** and stops itself at 60; any keypress / any tap also exits early.
 //
 // 跑法：手机 `vml run examples/csharp/demo_ui.cs`；
+// How to run: on the phone `vml run examples/csharp/demo_ui.cs`;
 //       桌面 `vmlcli Examples/csharp/demo_ui.cs --frames /tmp/fr`
+//       on the desktop `vmlcli Examples/csharp/demo_ui.cs --frames /tmp/fr`
 
 class DemoUi
 {
     // ── 消息类型 / 锚点 / 方向 / 字体样式（源：Lib/c/waycoder_ui.h）──
+    // ── Message types / anchors / orientation / font styles (source: Lib/c/waycoder_ui.h) ──
     const int MSG_NONE = 0;
     const int MSG_KEYDOWN = 1;
     const int MSG_TOUCHDOWN = 6;
@@ -43,8 +61,10 @@ class DemoUi
     const int WIN_ROTATABLE = 1;
     const int WIN_NEED_GAMEPAD = 1;
     const int MAX_FRAMES = 60;             // 到点自己停：60 拍 × 60ms ≈ 3.6 秒
+    // stops by itself when the time is up: 60 ticks × 60ms ≈ 3.6 seconds
 
     // ── 颜色（`0xAARRGGBB` 的十进制负数形式，与仓库里其它语言例程一致）──
+    // ── Colors (the decimal-negative form of `0xAARRGGBB`, consistent with the other language examples in the repo) ──
     const int BG = -15724520;              // 0xFF101018
     const int PANEL = -15066588;           // 0xFF1A1A24
     const int BLUE = -11890471;            // 0xFF4A90D9
@@ -56,6 +76,7 @@ class DemoUi
     const int MUTED = -6643536;            // 0xFF9AA0B0
 
     // ── 状态 ──
+    // ── State ──
     static int sw;
     static int sh;
     static int gy;
@@ -97,6 +118,7 @@ class DemoUi
         ui_text(cx, gy + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", MUTED, 12, ANCHOR_CENTER);
 
         // 跟随尺寸的方框：旋转后跟着变宽变矮
+        // A size-following box: on rotation it follows and gets wider and shorter
         ui_rect(pad, gy + 70, sw - pad * 2, 90, PANEL, 1, 0, 10);
         ui_rect(pad + 6, gy + 76, sw - pad * 2 - 12, 30, BLUE, 1, 0, 6);
         ui_text(pad + 16, gy + 84, "rect / round-rect（随屏宽伸缩）", BG, 12, ANCHOR_LEFT);
@@ -106,6 +128,7 @@ class DemoUi
         ui_line(pad, gy + 172, sw - pad, gy + 172, GREEN, 3);
 
         // 8 格真彩色带
+        // 8-cell true-color bar
         while (i < 8)
         {
             w = (sw - pad * 2) / 8;
@@ -116,7 +139,9 @@ class DemoUi
         ui_text(cx, gy + 210, "真彩 0xAARRGGBB（不是索引色）", MUTED, 12, ANCHOR_CENTER);
 
         // 进度用**条形长度**表达（C# 前端没有 int→string，见 demo_std.cs）；
+        // Progress is expressed as a **bar length** (the C# frontend has no int→string, see demo_std.cs);
         // 具体数字走 stdout —— 那边 Console 打印是好的。
+        // the actual numbers go to stdout — printing there with Console works.
         ui_text(pad, gy + 236, "已跑帧数（条形）", MUTED, 12, ANCHOR_LEFT);
         ui_rect(pad, gy + 254, sw - pad * 2, 14, PANEL, 1, 0, 4);
         ui_rect(pad, gy + 254, (sw - pad * 2) * frames / MAX_FRAMES, 14, BLUE, 1, 0, 4);
@@ -126,6 +151,7 @@ class DemoUi
         if (touches > 0) ui_circle(pad + 60, gy + 306, 14, ACCENT, 1, 0);
 
         // 触摸标记：点哪儿就在哪儿留个圈（证明坐标真能用）
+        // Touch marker: a circle is left wherever you tap (proof the coordinates really work)
         if (tx >= 0)
         {
             ui_circle(tx, ty, 18, YELLOW, 0, 2);
@@ -150,9 +176,11 @@ class DemoUi
         int h;
 
         // ── ① 开窗**之前**就问屏幕方向 ──
+        // ── ① Ask the screen orientation **before** opening the window ──
         orient = ui_orientation();
 
         // 开窗：声明"支持旋转 + 要手柄"（转屏时宿主会把新坐标空间整个给过来）
+        // Open window: declare "rotation supported + gamepad wanted" (on rotation the host hands over the whole new coordinate space)
         w = ui_scr_w();
         h = ui_scr_h();
         if (w <= 0) w = 360;
@@ -162,6 +190,7 @@ class DemoUi
         draw();
 
         // ── 消息循环：定时器驱动重画，**有界退出** ──
+        // ── Message loop: the timer drives redraws, **exit is bounded** ──
         tid = ui_timer_set(60, 1);
         while (done == 0 && ui_win_closed() == 0)
         {
@@ -173,6 +202,7 @@ class DemoUi
                 frames = frames + 1;
                 draw();
                 if (frames >= MAX_FRAMES) done = 1;     // 有界：到点自己停
+                // bounded: stops by itself when the time is up
                 continue;
             }
 
@@ -181,6 +211,7 @@ class DemoUi
                 keys = keys + 1;
                 draw();
                 done = 1;                              // 有界：收到键就退
+                // bounded: exits as soon as a key arrives
                 continue;
             }
 
@@ -191,18 +222,21 @@ class DemoUi
                 ty = ui_msg_b();
                 draw();
                 done = 1;                              // 有界：点到就退
+                // bounded: exits as soon as a tap arrives
                 continue;
             }
 
             if (t == MSG_WINDOWORIENT)
             {
                 orient = ui_msg_a();                   // A = 新方向
+                // A = the new orientation
                 continue;
             }
 
             if (t == MSG_WINDOWRESIZE)
             {
                 relayout();                            // 换坐标系了 ⇒ 重排 + 重画
+                // the coordinate space changed ⇒ re-layout + redraw
                 draw();
                 continue;
             }
@@ -214,6 +248,7 @@ class DemoUi
         ui_win_close();
 
         // 给无头验证留确定性判据（图形只能肉眼看，这几个数能自动比）
+        // Deterministic checkpoints for headless verification (graphics can only be eyeballed, but these numbers can be compared automatically)
         if (orient == ORIENT_LANDSCAPE) println_str("demo_ui: orient=LANDSCAPE");
         else                            println_str("demo_ui: orient=PORTRAIT");
         print_str("demo_ui: canvas="); print_int(sw); print_str("x"); println_int(sh);

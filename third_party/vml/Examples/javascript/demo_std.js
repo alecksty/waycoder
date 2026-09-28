@@ -1,31 +1,50 @@
 // demo_std.js —— **第 1 层：标准输入输出**（JavaScript 的 console.log）
+// demo_std.js -- **layer 1: standard output** (JavaScript's console.log)
 //
 // 这一层就是语言自己的标准输出：往 stdout 写文本。
+// This layer is just the language's own standard output: writing text to stdout.
 // 也是最基础的一层，也是**唯一有逐字节确定性判据**的一层 —— 下面的输出
+// It is also the most basic layer, and the **only one with a byte-for-byte deterministic criterion** -- the output below
 // 跑两遍完全一样（不读输入、不用随机数、不看时间）。
+// is identical on two runs (it reads no input, uses no random numbers and looks at no clock).
 //
 // ## 判据
+// ## The criterion
 //
 //     vmlcli Examples/javascript/demo_std.js
 //
 // 期望 stdout 逐字节等于本文件末尾「期望输出」那段。
+// The expected stdout is byte-for-byte equal to the "expected output" block at the end of this file.
 //
 // ## ⚠ 本前端实测的三条限制（写 demo 时避开）
+// ## ⚠ Three measured limitations of this frontend (avoid them when writing a demo)
 //
 //   · **字符串 + 数字编出来的结果是错的** —— `console.log("a=" + a)` 打出
+//   · **String + number compiles to a wrong result** -- `console.log("a=" + a)` prints
 //     `2109`（地址量级的值），`console.log("line " + i)` 打出 `1059/1060/1061`。
+//     `2109` (an address-sized value), and `console.log("line " + i)` prints `1059/1060/1061`.
 //     所以本 demo **一个 `"..." + n` 都不用**，靠 `console.log` 的**多实参**
+//     So this demo uses **not a single `"..." + n`**, relying instead on the **multiple arguments** of `console.log`
 //     （`console.log("a=", a)` → `a=17`，数字实参本身是对的）。
+//     (`console.log("a=", a)` -> `a=17`; the numeric argument itself is correct).
 //   · `console.log` **不插分隔符**：`console.log("line", i)` 打出 `line0`。
+//   · `console.log` **inserts no separator**: `console.log("line", i)` prints `line0`.
 //   · **没有 `String(n)` / `n.toString()`**（两个都报「未定义的函数」），
+//   · **There is no `String(n)` / `n.toString()`** (both report "undefined function"),
 //     而 `int_to_str(n)` 恒返回 `0`（实测）⇒ 数字转字符串这条路是断的。
+//     and `int_to_str(n)` always returns `0` (measured) => the number-to-string path is broken.
 //     彩色控制台那一层因此改用**字面量光标坐标**，见 demo_tty.js。
+//     The color console layer therefore uses **literal cursor coordinates**, see demo_tty.js.
 //
 // ## 本前端必须显式声明外部函数（沿用 `Examples/javascript/catch.js`）
+// ## This frontend requires external functions to be declared explicitly (as in `Examples/javascript/catch.js`)
 //
 // 对不认识的函数名，本前端会先找 `func_<名>`、都没有就**把名字当变量**、
+// For an unknown function name this frontend first looks for `func_<name>`, and if that is missing it **treats the name as a variable**,
 // 编成「MOVE R1, var_<名>；CALL R0」⇒ 运行期跳野地址。
+// compiling "MOVE R1, var_<name>; CALL R0" => a wild jump at run time.
 // `console.log` 是前端内建的，不用声明。
+// `console.log` is built into the frontend, so it needs no declaration.
 
 const A = 17;
 const B = 25;
@@ -40,6 +59,7 @@ console.log("a/b=", A / B, " a%b=", A % B);
 console.log("负数： ", 0 - A, " ", 0 - (A * B));
 
 // 循环算一个结果，证明这一层和语言本身是通的
+// Compute one result in a loop, proving this layer and the language itself are wired up
 let i = 1;
 let total = 0;
 while (i <= 10) {
@@ -49,6 +69,7 @@ while (i <= 10) {
 console.log("1^2+...+10^2 = ", total);
 
 // 九九表的一小段（多行）
+// A short stretch of the multiplication table (several lines)
 i = 1;
 while (i <= 5) {
     console.log(i, " x 7 = ", i * 7);
@@ -58,13 +79,17 @@ while (i <= 5) {
 console.log("=== 完成 ===");
 
 // ── 期望输出（逐字节）────────────────────────────────────────────
+// -- Expected output (byte-for-byte; each line below is printed in Chinese, and the line under it is its translation) --
 // === demo_std (JavaScript) ===
 // 纯字符串一行
+// A plain string line
 // 转义：制表	反斜杠\引号"
+// Escapes: tab\tbackslash\\quote"
 // a=17 b=25
 // a+b=42 a-b=-8 a*b=425
 // a/b=0 a%b=17
 // 负数： -17 -425
+// Negative numbers: -17 -425
 // 1^2+...+10^2 = 385
 // 1 x 7 = 7
 // 2 x 7 = 14
@@ -72,4 +97,5 @@ console.log("=== 完成 ===");
 // 4 x 7 = 28
 // 5 x 7 = 35
 // === 完成 ===
+// === Done ===
 // ────────────────────────────────────────────────────────────────

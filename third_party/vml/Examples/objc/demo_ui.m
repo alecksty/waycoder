@@ -1,35 +1,55 @@
 // demo_ui.m —— **最新 UI 接口**示范（Objective-C）
+// demo_ui.m — a demo of the **newest UI interface** (Objective-C)
 //
 // 四层示范的第四层：开 `ui_*` 绘图窗口 + **查屏幕方向** + 画图元 + `ui_present` +
+// Layer 4 of the four-layer demo: open a `ui_*` drawing window + **query the screen orientation** + draw primitives + `ui_present` +
 // 处理触摸/按键，**有界**（收到任意键就退出，否则画满 60 帧自动退出），正常结束。
+// handle touch/keys, **bounded** (exit on any key, otherwise auto-exit after 60 frames), terminating normally.
 //
 // 四条关键差别（与第三层 BGI 相比）：① 开窗显式（宽高来自 `ui_scr_w/h`，不写死分辨率）；
+// Four key differences (compared with layer 3, BGI): ① opening the window is explicit (width/height come from `ui_scr_w/h`, no hardcoded resolution);
 // ② 方向要问 `ui_orientation()`（0=竖屏 / 1=横屏，**开窗前就能问**）；
+// ② Ask the orientation with `ui_orientation()` (0=portrait / 1=landscape, **askable before opening the window**);
 // ③ `ui_present()` 才是"这一帧画完了"的帧边界；④ 输入是**统一消息队列**
+// ③ `ui_present()` is what marks the frame boundary of "this frame is finished"; ④ input is a **single unified message queue**
 // （键盘/触摸/定时器/窗口事件同一个队列，`ui_wait_msg` / `ui_msg_a` / `ui_win_closed`）。
+// (keyboard/touch/timer/window events all in one queue: `ui_wait_msg` / `ui_msg_a` / `ui_win_closed`).
 //
 // ◆ 跑法与"画面怎么看"（桌面 vmlcli）
+// ◆ How to run it and "how to look at the picture" (desktop vmlcli)
 //
 //   dotnet scripts/vmlcli/bin/Release/net10.0/vmlcli.dll \
 //       third_party/vml/Examples/objc/demo_ui.m --screen 480x640 --frames /tmp/out_frames/
 //
 // ⚠ **要看画面请用 `--frames 目录`，不要用 `--frame 单个文件`**：`ui_win_close()`（#521）
+// ⚠ **To see the picture use `--frames <dir>`, not `--frame <single file>`**: `ui_win_close()` (#521)
 //   在宿主侧把**整个场景置空**，程序跑完之后 `--frame` 那一刀已经无场景可取，只会打一行
+//   blanks out **the whole scene** on the host side, so once the program has finished there is no scene left for `--frame` to take; it only prints a line
 //   「没有可导出的帧（场景是空的）」。`--frames` 是每帧 present 当场拍快照，照常出图。
+//   "no frame to export (the scene is empty)". `--frames` snapshots at each present and exports as usual.
 //   这是桌面脚手架的行为，不是本程序写错了。
+//   This is the behavior of the desktop scaffold, not a mistake in this program.
 //
 // ◆ 写法（ObjC 前端的实测约束）
+// ◆ Style (measured constraints of the ObjC frontend)
 //
 //   · **不 `#include <waycoder_ui.h>`** —— ObjC 前端解析不了那个头文件
+//   · **No `#include <waycoder_ui.h>`** — the ObjC frontend cannot parse that header
 //     （`expected ) (got IdType 'id'`，报在头文件里，与源码无关）。同目录的 `snake.m`
+//     (`expected ) (got IdType 'id'`, reported inside the header, unrelated to the source). The `snake.m`
 //     也走"直接裸调、由链接器解析到 `lib_vmlui_ui_*`"这条路。
+//     in the same directory also takes the "call bare, let the linker resolve to `lib_vmlui_ui_*`" route.
 //   · 循环更新写 `i = i + 1`，**不要写 `i++`**（`++` 只 `ADD R0` 不写回 ⇒ 死循环）。
+//   · Write the loop update as `i = i + 1`, **never `i++`** (`++` only does `ADD R0` without writing back ⇒ infinite loop).
 //   · 颜色写**负数十进制**（词法器十进制专用，不认 `0x`）。
+//   · Write colors as **negative decimals** (the lexer is decimal-only and does not recognize `0x`).
 //
 // 跑法：命令行页输入  vml run examples/objc/demo_ui.m
+// How to run: on the command-line page type  vml run examples/objc/demo_ui.m
 
 int main() {
     // ── 开窗之前就问方向（这一层与 BGI 最"新"的一条）────────────
+    // ── Ask the orientation before opening the window (the most "new-style" thing about this layer vs BGI) ────────────
     int ori = ui_orientation();
 
     int w = ui_scr_w();
@@ -53,23 +73,27 @@ int main() {
         if (frames >= 60) { break; }
 
         // ── ① 底色 + 标题（居中锚点 = 1）────────────────────────
+        // ── ① Background + title (center anchor = 1) ────────────────────────
         ui_clear(-15724520);
         ui_text(w / 2, 26, "WayCoder  ui_*  接口演示 (Objective-C)", -6643536, 16, 1);
         ui_text(w / 2, 50, "开窗 / 方向 / 图元 / present / 消息队列", -6643536, 12, 1);
 
         // ── ② 屏幕方向（0=竖屏 1=横屏）──────────────────────────
+        // ── ② Screen orientation (0=portrait 1=landscape) ──────────────────────────
         ui_text(14, 80, "屏幕方向 =", -11409298, 13, 0);
         ui_text(96, 80, int_to_str(ori), -11409298, 13, 0);
         if (ori == 1) { ui_text(126, 80, "(横屏)", -11409298, 13, 0); }
         else { ui_text(126, 80, "(竖屏)", -11409298, 13, 0); }
 
         // ── ③ 图元：矩形（实心 / 空心 / 圆角）──────────────────
+        // ── ③ Primitives: rectangles (filled / outlined / rounded) ──────────────────
         ui_text(14, 108, "图元：矩形", -6643536, 13, 0);
         ui_rect(14, 126, 84, 46, -11409298, 1, 0, 0);
         ui_rect(108, 126, 84, 46, -131246, 0, 2, 0);
         ui_rect(202, 126, 84, 46, -63488, 1, 0, 12);
 
         // ── ④ 图元：圆 / 椭圆 / 线 ──────────────────────────────
+        // ── ④ Primitives: circle / ellipse / line ─────────────────────────────
         ui_text(14, 196, "图元：圆 / 椭圆 / 线", -6643536, 13, 0);
         ui_circle(46, 250, 30, -131246, 1, 0);
         ui_circle(120, 250, 30, -11409298, 0, 3);
@@ -81,6 +105,7 @@ int main() {
         }
 
         // ── ⑤ 8 级灰度色带（0xAARRGGBB 真彩）───────────────────
+        // ── ⑤ 8-step grayscale bar (0xAARRGGBB true color) ───────────────────
         ui_text(14, 358, "真彩（0xAARRGGBB）：", -6643536, 13, 0);
         int s = 0;
         while (s < 8) {
@@ -96,6 +121,7 @@ int main() {
         }
 
         // ── ⑥ 动画 + 帧进度条（证明每帧确实在重画）─────────────
+        // ── ⑥ Animation + frame progress bar (proof that every frame really redraws) ─────────────
         int col = 14 + frames - (frames / 20) * 20;
         col = 14 + col * 10;
         if (col > w - 46) { col = 14; }
@@ -103,6 +129,7 @@ int main() {
         ui_rect(14, 480, (w - 28) * frames / 60, 10, -11409298, 1, 0, 4);
 
         // ── ⑦ 消息队列：帧数 / 最后一次按键 / 最后一次触摸 ──────
+        // ── ⑦ Message queue: frame count / last key / last touch ──────
         ui_text(14, 506, "已画帧数 =", -6643536, 13, 0);
         ui_text(112, 506, int_to_str(frames), -6643536, 13, 0);
         ui_text(14, 528, "最后一次按键 =", -6643536, 13, 0);
@@ -119,9 +146,11 @@ int main() {
         ui_text(w / 2, h - 24, "按任意键退出，或画满 60 帧自动退出", -6643536, 12, 1);
 
         // ── ⑧ 帧边界 ────────────────────────────────────────────
+        // ── ⑧ Frame boundary ────────────────────────────────────────────
         ui_present();
 
         // ── ⑨ 收一条消息（最多等 30ms，保证循环有界）────────────
+        // ── ⑨ Take one message (wait at most 30ms, keeping the loop bounded) ────────────
         int t = ui_wait_msg(30);
         if (t == 10) { running = 0; }
         else if (t == 1) { keys = ui_msg_a(); running = 0; }
@@ -132,6 +161,7 @@ int main() {
     }
 
     // ── 收尾：关定时器、放开屏幕常亮、关窗 ──────────────────────
+    // ── Wrap-up: kill the timer, release keep-screen-on, close the window ──────────────────────
     ui_timer_kill(tid);
     ui_keep_on(0);
     ui_win_close();

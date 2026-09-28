@@ -1,15 +1,22 @@
 // 接方块 —— 用 **Kotlin** 写的手机游戏
+// Catch — a phone game written in **Kotlin**
 //
 // 玩法：左右方向键移动底部挡板，把落下来的球弹回去；没接住就结束。每接住一次 +10 分。
+// Gameplay: left/right arrows move the paddle at the bottom and bounce the falling ball back; miss it and the game ends. Each catch is +10 points.
 //
 // ◆ 手机那套 UI
+// ◆ The phone UI
 //
 // 开窗 / 绘图 / 输入 / 定时器是 C 写的（`Lib/shared/src/vmlui.c` → `vmlui.vml`），
+// Window / drawing / input / timers are written in C (`Lib/shared/src/vmlui.c` → `vmlui.vml`),
 // 由 `vmltool.config.xml` 的 `<Language Name="kotlin" Libs="vmlui.vml">` 挂上来。
+// Hooked up by `<Language Name="kotlin" Libs="vmlui.vml">` in `vmltool.config.xml`.
 //
 // ◆ ⚠ 一条本份例程实测出来的前端缺陷：**文件级 `arrayOf` 读回 0**
+// ◆ ⚠ A frontend defect measured with this example: **a file-level `arrayOf` reads back 0**
 //
 // 两个最小对照（2026-09-17）：
+// Two minimal comparisons (2026-09-17):
 //     var A = arrayOf(0,1,2,3,4)          // 文件级
 //     fun main() { A[0] = 7; print(A[0]+A[3]) }   → 0   ✗
 //
@@ -17,18 +24,27 @@
 //                  B[0] = 7; print(B[0]+B[3]) }   → 10  ✓
 //
 // 所以**状态数组必须留在 `main` 内**、逻辑不能拆进别的函数（拆出去就访问不到它）。
+// So the **state array must stay inside `main`**, and the logic cannot be split into other functions (split out, it cannot reach the array).
 // 本份例程因此把 draw / tick 全部内联在 main 的循环里 —— 不是风格选择，是绕这个缺陷。
+// This example therefore inlines all of draw / tick in main's loop — not a style choice, but how the defect is worked around.
 // （`corpus/kotlin/skel.kt` 照不出来，正因为它的数组恰好是 `main` 内的局部 ——
+// (`corpus/kotlin/skel.kt` cannot expose it, precisely because its array happens to be a local inside `main` —
 //   「骨架绿证明不了」这是第五次。）
+//   this is the fifth time that "a green skeleton proves nothing".)
 //
 // ◆ 另一条：`step` 是 Kotlin 前端的**保留字**（`Expected function name ... got KEYWORD 'step'`），
+// ◆ Another one: `step` is a **reserved word** in the Kotlin frontend (`Expected function name ... got KEYWORD 'step'`),
 //   所以计时器那一拍叫 `tick` 不叫 `step`。
+//   so the timer tick is called `tick`, not `step`.
 //
 // ◆ 其余写法：调库函数不用声明（对不认识的函数名发裸标签 CALL、实参右到左）；
+// ◆ The rest of the style: library calls need no declaration (unknown function names become bare-label CALLs with arguments right-to-left);
 //   颜色写负数十进制；打印用 print_str（不换行）+ println_int（含换行）。
+//   colors are negative decimals; printing uses print_str (no newline) + println_int (with newline).
 
 fun main() {
     // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
+    // State: 0=paddle x, 1=ball x, 2=ball y, 3=ball dx, 4=ball dy, 5=score, 6=best, 7=alive, 8=screen width, 9=screen height
     var A = arrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
     var w = ui_scr_w()
@@ -82,12 +98,15 @@ fun main() {
                     A[5] = A[5] + 10
                     if (A[5] > A[6]) { A[6] = A[5] }
                     // 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+                    // Sound: single-tone ui_beep (switched back from the sequencer in v0.96.509 —
                     //   那一版多声部叠加 / 长音拖尾在真机上破音）
+                    //   that version's multi-voice stacking / long-note tails broke up on real devices)
                     ui_beep(1047, 165)
                 }
                 if (A[2] > A[9]) {
                     A[7] = 0
                     // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+                    // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on a catch / 131 on a miss — far enough apart)
                     ui_beep(131, 320)
                     if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); break }
                     A[0] = A[8] / 2 - 40
