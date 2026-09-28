@@ -738,7 +738,23 @@ internal static class VmlAudio
 #else
     // 其余平台（Windows 等）：空实现。桌面端跑 VML 走的是 TUI 那条路，
     // 根本没有 DrawWindowPage，也就没人调到这里 —— 不是"没做"，是那条路不存在。
-    public static bool ToneCore(int hz, int ms, int wave, int volume) => false;
+    //
+    // ⚠ **这一支曾经少写三个成员而编不过**（2026-09-28 修）：`EnsureMixer` / `SetBgmVolume` /
+    //   `IsPlaying` 被**公共代码无条件调用**（`Tone`/`NoteOn` 里各一次、`SetVolume` 里一次，
+    //   以及 `VmlUiCalls.AudioPlaying`），而它们原先只在 Android / iOS 两支里定义
+    //   ⇒ `net10.0-windows` 目标 CS0103/CS0117 共 4 个错。
+    //   这正是上面那段注释说的"少写一个分支会直接编不过"——**只不过这一支自己就少写了**。
+    //   （之所以长期没暴露：日常只编 Android 目标，Windows 那条只在跨端检查时才走。）
+
+    /// <summary>空实现：这一支没有混音线程可起（出声那条链只存在于 Android/iOS）。</summary>
+    private static void EnsureMixer() { }
+
+    /// <summary>空实现：这一支没有 BGM 播放器可调音量（`SetVolume` 会调它）。</summary>
+    private static void SetBgmVolume(int volume) { }
+
+    /// <summary>`AUDIO_IS_PLAYING`(#547)：这一支没有 BGM，恒为假。</summary>
+    public static bool IsPlaying() => false;
+
     public static void StopTone() { }
     /// <summary>自检用：这一支是空实现（桌面端走 TUI，没有绘窗那条路）。</summary>
     private static string DescribePlatform() => "该平台没有音频输出实现（桌面端走 TUI 那条路）";
