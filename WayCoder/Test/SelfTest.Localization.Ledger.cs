@@ -34,17 +34,53 @@ namespace WayCoder;
 /// </summary>
 public static partial class SelfTest
 {
-    /// <summary>台账文件相对仓库根的路径。</summary>
-    private const string MauiLedgerRelPath = "WayCoder/Test/i18n-maui-ledger.txt";
+    /// <summary>
+    /// 一份台账的范围定义。**每加一层就加一个 Scope，判定逻辑不复制** ——
+    /// 本会话已经为「同一规则两处实现」栽过太多次，台账这种"判据本身"的东西尤其不能有两份。
+    /// </summary>
+    /// <param name="Title">Section 标题（出现在测试输出里）。</param>
+    /// <param name="LedgerRelPath">台账文件（相对仓库根）。</param>
+    /// <param name="ScanRootRelPath">扫描起点（相对仓库根）。</param>
+    /// <param name="ExcludeSegments">路径里出现这些片段就跳过（大小写不敏感，带前后斜杠）。</param>
+    /// <param name="ScanXaml">是否也扫 `.xaml`（只有 MAUI 侧有界面标记）。</param>
+    private sealed record LedgerScope(
+        string Title, string LedgerRelPath, string ScanRootRelPath,
+        string[] ExcludeSegments, bool ScanXaml, string Note);
+
+    /// <summary>MAUI 侧：手机界面自己的文案（Batch 3 已收尾，剩下的是有意保留）。</summary>
+    private static readonly LedgerScope MauiScope = new(
+        "双语化台账：MAUI 侧仍含中文的文件（分批推进的可执行形态）",
+        "WayCoder/Test/i18n-maui-ledger.txt",
+        "WayCoder.Maui",
+        // obj/bin = 生成代码；Platforms = 平台清单（那里的中文是注释与 zh 资源，本就该是中文）
+        ["/obj/", "/bin/", "/Platforms/"],
+        ScanXaml: true,
+        Note: "台账内剩下的全是**有意保留**的（日志/判据/存储值/#if DEBUG/图标字形），每行都有理由。");
 
     /// <summary>
-    /// 从仓库里扫出「含未迁移中文的文件」并与台账对账。
+    /// 共享层：**编译进手机**的那部分 `WayCoder/**`（Batch 2）。
+    ///
+    /// <para>
+    /// ⚠ **边界要说清，免得当成"全都管了"**：这里排除了 `UI/TUI/**`（终端界面）、
+    /// `UI/WEB/**`（浏览器前端）、`Config/**`（设置项标签，已核实 MAUI 一行都不消费它们）——
+    /// 三者都是**桌面外壳**，属方案里更后面的批次。排除的代价是它们成了盲区，
+    /// 但把它们塞进这份台账会让"还剩多少"这个数失去意义（手机上看不见的东西和看得见的混在一起）。
+    /// </para>
     /// </summary>
-    private static void TestMauiChineseLedger(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
-    {
-        TestLedgerScannerItself(Section, Check);
+    private static readonly LedgerScope SharedScope = new(
+        "双语化台账：共享层（编译进手机的 WayCoder/**）仍含中文的文件",
+        "WayCoder/Test/i18n-shared-ledger.txt",
+        "WayCoder",
+        ["/obj/", "/bin/", "/Test/", "/UI/TUI/", "/UI/WEB/", "/Config/"],
+        ScanXaml: false,
+        Note: "共享层的文案手机与桌面共用 —— 手机上工具输出/报错直接显示给用户，桌面上同理。");
 
-        Section("双语化台账：MAUI 侧仍含中文的文件（分批推进的可执行形态）");
+    /// <summary>
+    /// 从仓库里扫出「含未迁移中文的文件」并与台账对账。两个方向都会红。
+    /// </summary>
+    private static void CheckLedger(LedgerScope scope, Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section(scope.Title);
 
         // 找仓库根 —— 打包/发布产物里没有源码，那时跳过（与 Chunk19 的 plist 护栏同一处置）
         string? root = null;
@@ -60,27 +96,25 @@ public static partial class SelfTest
             return;
         }
 
-        var mauiDir = Path.Combine(root, "WayCoder.Maui");
-        var ledgerPath = Path.Combine(root, MauiLedgerRelPath);
+        var scanRoot = Path.Combine(root, scope.ScanRootRelPath);
+        var ledgerPath = Path.Combine(root, scope.LedgerRelPath);
+        var displayPrefixLen = scope.ScanRootRelPath.Length + 1;
 
-        // ── 扫描：每个 .cs/.xaml 里「字符串字面量/属性值」含 CJK 的条数 ──
-        // obj/bin 排除（生成代码里有大量中文注释与模板）；Platforms 排除（见类注释的边界说明）。
+        // ── 扫描：每个 .cs（MAUI 侧还有 .xaml）里「字符串字面量/属性值」含 CJK 的条数 ──
         var hits = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         // 留几个「命中长什么样」的样本：台账报红时**必须能看出命中的是哪一段**，
         // 否则"这个文件怎么会在台账外"只能靠人再去复刻一遍扫描器（实测为这条卡过一轮）。
         var samples = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var scanned = 0;
-        foreach (var file in Directory.EnumerateFiles(mauiDir, "*.*", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(scanRoot, "*.*", SearchOption.AllDirectories))
         {
             var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
-            if (rel.Contains("/obj/", StringComparison.OrdinalIgnoreCase) ||
-                rel.Contains("/bin/", StringComparison.OrdinalIgnoreCase) ||
-                rel.Contains("/Platforms/", StringComparison.OrdinalIgnoreCase))
+            if (scope.ExcludeSegments.Any(seg => rel.Contains(seg, StringComparison.OrdinalIgnoreCase)))
                 continue;
 
             var ext = Path.GetExtension(file);
             bool isCs = ext.Equals(".cs", StringComparison.OrdinalIgnoreCase);
-            bool isXaml = ext.Equals(".xaml", StringComparison.OrdinalIgnoreCase);
+            bool isXaml = scope.ScanXaml && ext.Equals(".xaml", StringComparison.OrdinalIgnoreCase);
             if (!isCs && !isXaml) continue;
             scanned++;
 
@@ -111,7 +145,7 @@ public static partial class SelfTest
             }
         else
         {
-            Fail($"台账: 找不到 {MauiLedgerRelPath} —— 这份文件是「分批推进」的唯一账本，不能缺");
+            Fail($"台账: 找不到 {scope.LedgerRelPath} —— 这份文件是「分批推进」的唯一账本，不能缺");
             return;
         }
 
@@ -132,12 +166,9 @@ public static partial class SelfTest
             //   真正的文案只占零头）。用汉字总数当进度会把它夸大一个数量级。
             var total = hits.Values.Sum();
             var top = hits.OrderByDescending(kv => kv.Value).Take(8)
-                          .Select(kv => $"{kv.Key["WayCoder.Maui/".Length..]} {kv.Value}");
-            // ⚠ 措辞是「仍含中文/全角的片段」而不是「未迁移文案」：Batch 3 收尾后台账里剩下的
-            //   全是**有意保留**的（日志/判据/存储值/#if DEBUG/图标字形），每行都有理由。
-            //   把它们叫"未迁移"会误导下一个人去"补翻"——而那些正是翻了会静默改行为的。
-            Check($"台账: 无「有中文但不在台账」的文件（扫了 {scanned} 个 .cs/.xaml；"
-                  + $"台账内 {hits.Count} 个文件 / 共 {total} 处仍含中文或全角，均已逐行标注理由）"
+                          .Select(kv => $"{kv.Key[displayPrefixLen..]} {kv.Value}");
+            Check($"台账: 无「有中文但不在台账」的文件（扫了 {scanned} 个源文件；"
+                  + $"台账内 {hits.Count} 个文件 / 共 {total} 处仍含中文或全角）。{scope.Note}"
                   + $"｜前 8：{string.Join("、", top)}", true);
         }
 
@@ -151,6 +182,17 @@ public static partial class SelfTest
         // 反方向：台账本身不能是空的（全空 ⇒ 上面第一条判据失去意义，看着绿其实没在管）
         Check("台账: 非空且有实质内容", ledger.Count > 0);
     }
+
+    /// <summary>MAUI 侧台账（含扫描器自检，只在第一个 Scope 里跑一次）。</summary>
+    private static void TestMauiChineseLedger(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        TestLedgerScannerItself(Section, Check);
+        CheckLedger(MauiScope, Section, Check, Fail);
+    }
+
+    /// <summary>共享层台账（Batch 2）。</summary>
+    private static void TestSharedChineseLedger(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+        => CheckLedger(SharedScope, Section, Check, Fail);
 
     /// <summary>
     /// 扫描器**自己**的判据。没有这一段，一个坏掉的扫描器给出的就是**假绿** ——
