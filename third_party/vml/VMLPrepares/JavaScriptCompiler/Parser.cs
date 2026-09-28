@@ -145,10 +145,10 @@ namespace JavaScriptCompiler
                 {
                     do
                     {
-                        names.Add(Expect(TokenType.Identifier, "期望变量名").Value);
+                        names.Add(Expect(TokenType.Identifier).Value);
                     } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightBracket, "期望 ']'");
+                Expect(TokenType.RightBracket);
                 Expression initializer = null;
                 if (Match(TokenType.Assign))
                     initializer = ParseExpression();
@@ -164,10 +164,10 @@ namespace JavaScriptCompiler
                 {
                     do
                     {
-                        names.Add(Expect(TokenType.Identifier, "期望属性名").Value);
+                        names.Add(Expect(TokenType.Identifier).Value);
                     } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightBrace, "期望 '}'");
+                Expect(TokenType.RightBrace);
                 Expression initializer = null;
                 if (Match(TokenType.Assign))
                     initializer = ParseExpression();
@@ -175,7 +175,7 @@ namespace JavaScriptCompiler
                 return new ObjectDestructureStatement { Names = names, Initializer = initializer };
             }
 
-            var name = Expect(TokenType.Identifier, "期望变量名").Value;
+            var name = Expect(TokenType.Identifier).Value;
             Expression init = null;
 
             if (Match(TokenType.Assign))
@@ -188,7 +188,7 @@ namespace JavaScriptCompiler
             decls.Add(new VariableDeclStatement(keyword, name, init));
             while (Match(TokenType.Comma))
             {
-                var nextName = Expect(TokenType.Identifier, "期望变量名").Value;
+                var nextName = Expect(TokenType.Identifier).Value;
                 Expression nextInit = null;
                 if (Match(TokenType.Assign))
                 {
@@ -220,8 +220,8 @@ namespace JavaScriptCompiler
 
         private FunctionDeclStatement ParseFunctionDecl()
         {
-            var name = Expect(TokenType.Identifier, "期望函数名").Value;
-            Expect(TokenType.LeftParen, "期望 '('");
+            var name = Expect(TokenType.Identifier).Value;
+            Expect(TokenType.LeftParen);
 
             var function = new FunctionDeclStatement(name);
 
@@ -230,7 +230,7 @@ namespace JavaScriptCompiler
             {
                 do
                 {
-                    var paramName = Expect(TokenType.Identifier, "期望参数名").Value;
+                    var paramName = Expect(TokenType.Identifier).Value;
                     Expression defaultValue = null;
                     if (Match(TokenType.Assign))
                     {
@@ -240,8 +240,8 @@ namespace JavaScriptCompiler
                 } while (Match(TokenType.Comma));
             }
 
-            Expect(TokenType.RightParen, "期望 ')'");
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.RightParen);
+            Expect(TokenType.LeftBrace);
 
             // 解析函数体
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
@@ -249,22 +249,22 @@ namespace JavaScriptCompiler
                 function.Body.Statements.Add(ParseStatement());
             }
 
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             Match(TokenType.Semicolon); // 可选的分号
             return function;
         }
 
         private ClassDeclStatement ParseClassDecl()
         {
-            var name = Expect(TokenType.Identifier, "期望类名").Value;
+            var name = Expect(TokenType.Identifier).Value;
             var classDecl = new ClassDeclStatement { Name = name };
 
             if (Match(TokenType.Keyword) && Previous().Value == "extends")
             {
-                classDecl.ParentClass = Expect(TokenType.Identifier, "期望父类名").Value;
+                classDecl.ParentClass = Expect(TokenType.Identifier).Value;
             }
 
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
 
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
@@ -278,55 +278,55 @@ namespace JavaScriptCompiler
                     isNativeMethod = true;
                 }
 
-                string methodName = Expect(TokenType.Identifier, "期望方法名").Value;
+                string methodName = Expect(TokenType.Identifier).Value;
                 if (methodName == "constructor")
                 {
                     // Parse constructor: already consumed name, parse (params){body}
-                    Expect(TokenType.LeftParen, "期望 '('");
+                    Expect(TokenType.LeftParen);
                     var ctor = new FunctionDeclStatement("constructor");
                     if (!Check(TokenType.RightParen))
                     {
                         do
                         {
-                            var paramName = Expect(TokenType.Identifier, "期望参数名").Value;
+                            var paramName = Expect(TokenType.Identifier).Value;
                             Expression defaultValue = null;
                             if (Match(TokenType.Assign)) { defaultValue = ParseExpression(); }
                             ctor.Parameters.Add(new ParameterDef(paramName, defaultValue));
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
-                    Expect(TokenType.LeftBrace, "期望 '{'");
+                    Expect(TokenType.RightParen);
+                    Expect(TokenType.LeftBrace);
                     while (!Check(TokenType.RightBrace) && !IsAtEnd)
                         ctor.Body.Statements.Add(ParseStatement());
-                    Expect(TokenType.RightBrace, "期望 '}'");
+                    Expect(TokenType.RightBrace);
                     classDecl.Constructor = ctor;
                 }
                 else
                 {
                     // Parse method: already consumed name, parse (params){body}
-                    Expect(TokenType.LeftParen, "期望 '('");
+                    Expect(TokenType.LeftParen);
                     var method = new FunctionDeclStatement(methodName);
                     method.IsNative = isNativeMethod;
                     if (!Check(TokenType.RightParen))
                     {
                         do
                         {
-                            var paramName = Expect(TokenType.Identifier, "期望参数名").Value;
+                            var paramName = Expect(TokenType.Identifier).Value;
                             Expression defaultValue = null;
                             if (Match(TokenType.Assign)) { defaultValue = ParseExpression(); }
                             method.Parameters.Add(new ParameterDef(paramName, defaultValue));
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
-                    Expect(TokenType.LeftBrace, "期望 '{'");
+                    Expect(TokenType.RightParen);
+                    Expect(TokenType.LeftBrace);
                     while (!Check(TokenType.RightBrace) && !IsAtEnd)
                         method.Body.Statements.Add(ParseStatement());
-                    Expect(TokenType.RightBrace, "期望 '}'");
+                    Expect(TokenType.RightBrace);
                     classDecl.Methods.Add(method);
                 }
             }
 
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             Match(TokenType.Semicolon);
             return classDecl;
         }
@@ -346,9 +346,9 @@ namespace JavaScriptCompiler
 
         private IfStatement ParseIfStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
 
             var thenBranch = ParseStatement();
             Statement elseBranch = null;
@@ -364,9 +364,9 @@ namespace JavaScriptCompiler
 
         private WhileStatement ParseWhileStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
 
             var body = ParseStatement();
             return new WhileStatement(condition, body);
@@ -374,7 +374,7 @@ namespace JavaScriptCompiler
 
         private ForStatement ParseForStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
 
             Statement initializer = null;
             if (!Check(TokenType.Semicolon))
@@ -395,7 +395,7 @@ namespace JavaScriptCompiler
             {
                 increment = ParseExpression();
             }
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
 
             var body = ParseStatement();
             return new ForStatement(initializer, condition, increment, body);
@@ -417,7 +417,7 @@ namespace JavaScriptCompiler
 
         private VariableDeclStatement ParseForInitializerDecl(string keyword)
         {
-            var name = Expect(TokenType.Identifier, "期望变量名").Value;
+            var name = Expect(TokenType.Identifier).Value;
             Expression initializer = null;
 
             if (Match(TokenType.Assign))
@@ -431,23 +431,23 @@ namespace JavaScriptCompiler
         private Statement ParseDoWhileStatement()
         {
             var body = ParseStatement();
-            Expect(TokenType.Keyword, "期望 'while'");
+            Expect(TokenType.Keyword);
             // 位置走统一出口（`ErrorAt` 把位置拼成 `文件:行:列: error:` 并查 `#include` 映射）；
             // 两参 `new ParseException(msg, token)` **不带位置**（`Line = 0`）⇒ 报出去锚不到行。
             if (Previous().Value != "while") throw ErrorAt("期望 'while'", Previous());
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             Match(TokenType.Semicolon);
             return new DoWhileStatement(body, condition);
         }
 
         private Statement ParseSwitchStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var value = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.RightParen);
+            Expect(TokenType.LeftBrace);
             var sw = new SwitchStatement(value);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
@@ -458,7 +458,7 @@ namespace JavaScriptCompiler
                     {
                         Advance(); // consume 'case'
                         var caseVal = ParseExpression();
-                        Expect(TokenType.Colon, "期望 ':'");
+                        Expect(TokenType.Colon);
                         var sc = new SwitchCase { Value = caseVal };
                         while (!Check(TokenType.RightBrace) && !(Check(TokenType.Keyword) && (Cur.Value == "case" || Cur.Value == "default")) && !IsAtEnd)
                         {
@@ -471,7 +471,7 @@ namespace JavaScriptCompiler
                     else if (kw == "default")
                     {
                         Advance(); // consume 'default'
-                        Expect(TokenType.Colon, "期望 ':'");
+                        Expect(TokenType.Colon);
                         var sc = new SwitchCase { Value = null };
                         while (!Check(TokenType.RightBrace) && !(Check(TokenType.Keyword) && (Cur.Value == "case" || Cur.Value == "default")) && !IsAtEnd)
                         {
@@ -485,7 +485,7 @@ namespace JavaScriptCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return sw;
         }
 
@@ -505,8 +505,8 @@ namespace JavaScriptCompiler
                 var cc = new CatchClause();
                 if (Match(TokenType.LeftParen))
                 {
-                    cc.VariableName = Expect(TokenType.Identifier, "期望异常变量名").Value;
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    cc.VariableName = Expect(TokenType.Identifier).Value;
+                    Expect(TokenType.RightParen);
                 }
                 cc.Body = ParseStatement();
                 ts.Catches.Add(cc);
@@ -528,7 +528,7 @@ namespace JavaScriptCompiler
             {
                 block.Statements.Add(ParseStatement());
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return block;
         }
 
@@ -830,11 +830,11 @@ namespace JavaScriptCompiler
                 if (name == null && Check(TokenType.Identifier))
                     name = Advance().Value;
                 var fe = new FunctionExpression { Name = name };
-                Expect(TokenType.LeftParen, "期望 '('");
+                Expect(TokenType.LeftParen);
                 if (!Check(TokenType.RightParen))
                 {
                     do {
-                        var feParamName = Expect(TokenType.Identifier, "期望参数名").Value;
+                        var feParamName = Expect(TokenType.Identifier).Value;
                         Expression feDefaultValue = null;
                         if (Match(TokenType.Assign))
                         {
@@ -843,20 +843,20 @@ namespace JavaScriptCompiler
                         fe.Parameters.Add(new ParameterDef(feParamName, feDefaultValue));
                     } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightParen, "期望 ')'");
-                Expect(TokenType.LeftBrace, "期望 '{'");
+                Expect(TokenType.RightParen);
+                Expect(TokenType.LeftBrace);
                 while (!Check(TokenType.RightBrace) && !IsAtEnd)
                 {
                     fe.Body.Statements.Add(ParseStatement());
                 }
-                Expect(TokenType.RightBrace, "期望 '}'");
+                Expect(TokenType.RightBrace);
                 return fe;
             }
 
             if (Check(TokenType.Keyword) && Cur.Value == "new")
             {
                 Advance(); // consume 'new'
-                string typeName = Expect(TokenType.Identifier, "期望类型名").Value;
+                string typeName = Expect(TokenType.Identifier).Value;
                 var newExpr = new NewExpression(typeName);
                 if (Match(TokenType.LeftParen))
                 {
@@ -864,7 +864,7 @@ namespace JavaScriptCompiler
                     {
                         do { newExpr.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                 }
                 return newExpr;
             }
@@ -879,7 +879,7 @@ namespace JavaScriptCompiler
                     {
                         do { superExpr.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                     return superExpr;
                 }
                 // super.method(args) or super.property
@@ -895,7 +895,7 @@ namespace JavaScriptCompiler
                         {
                             do { callExpr.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "期望 ')'");
+                        Expect(TokenType.RightParen);
                         return callExpr;
                     }
                     // super.property
@@ -930,7 +930,7 @@ namespace JavaScriptCompiler
                     // 成员访问：console.log
                     if (Match(TokenType.Dot))
                     {
-                        var memberName = Expect(TokenType.Identifier, "期望成员名").Value;
+                        var memberName = Expect(TokenType.Identifier).Value;
 
                         // 检查是否是方法调用：console.log()
                         if (Match(TokenType.LeftParen))
@@ -943,7 +943,7 @@ namespace JavaScriptCompiler
                                     methodCall.Arguments.Add(ParseExpression());
                                 } while (Match(TokenType.Comma));
                             }
-                            Expect(TokenType.RightParen, "期望 ')'");
+                            Expect(TokenType.RightParen);
                             primaryExpr = methodCall;
                         }
                         else
@@ -963,14 +963,14 @@ namespace JavaScriptCompiler
                                 call.Arguments.Add(ParseExpression());
                             } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "期望 ')'");
+                        Expect(TokenType.RightParen);
                         primaryExpr = call;
                     }
                     // 计算属性访问：obj[expr]
                     else if (Match(TokenType.LeftBracket))
                     {
                         var indexExpr = ParseExpression();
-                        Expect(TokenType.RightBracket, "期望 ']'");
+                        Expect(TokenType.RightBracket);
                         primaryExpr = new IndexExpression(primaryExpr, indexExpr);
                     }
                     else
@@ -1030,7 +1030,7 @@ namespace JavaScriptCompiler
 
             parse_grouped:
                 var expr = ParseExpression();
-                Expect(TokenType.RightParen, "期望 ')'");
+                Expect(TokenType.RightParen);
                 return new ParenthesizedExpression(expr);
             }
 
@@ -1045,7 +1045,7 @@ namespace JavaScriptCompiler
                         array.Elements.Add(ParseExpression());
                     } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightBracket, "期望 ']'");
+                Expect(TokenType.RightBracket);
                 return array;
             }
 
@@ -1061,21 +1061,21 @@ namespace JavaScriptCompiler
                         if (Match(TokenType.LeftBracket))
                         {
                             var keyExpr = ParseExpression();
-                            Expect(TokenType.RightBracket, "期望 ']'");
-                            Expect(TokenType.Colon, "期望 ':'");
+                            Expect(TokenType.RightBracket);
+                            Expect(TokenType.Colon);
                             var value = ParseExpression();
                             obj.ComputedProperties.Add((keyExpr, value));
                         }
                         else
                         {
-                            var key = Expect(TokenType.Identifier, "期望属性名").Value;
-                            Expect(TokenType.Colon, "期望 ':'");
+                            var key = Expect(TokenType.Identifier).Value;
+                            Expect(TokenType.Colon);
                             var value = ParseExpression();
                             obj.Properties[key] = value;
                         }
                     } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightBrace, "期望 '}'");
+                Expect(TokenType.RightBrace);
                 return obj;
             }
 
@@ -1094,7 +1094,7 @@ namespace JavaScriptCompiler
                     {
                         Advance(); // consume ${
                         template.Parts.Add(ParseExpression());
-                        Expect(TokenType.RightBrace, "期望 '}'");
+                        Expect(TokenType.RightBrace);
                     }
                     else
                     {
@@ -1103,7 +1103,7 @@ namespace JavaScriptCompiler
                 throw ErrorAt($"模板字符串中意外的标记: {Cur.Type} '{Cur.Value}'", GapAnchor());
                     }
                 }
-                Expect(TokenType.Backtick, "期望 '`'");
+                Expect(TokenType.Backtick);
                 return template;
             }
 

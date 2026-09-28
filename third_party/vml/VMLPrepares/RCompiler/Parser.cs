@@ -75,7 +75,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             do
             {
-                parms.Add(Expect(TokenType.Identifier, "期望参数名").Value);
+                parms.Add(Expect(TokenType.Identifier).Value);
             }
             while (Match(TokenType.Comma));
         }
@@ -159,7 +159,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // for
         Expect(TokenType.LParen, "expected '('");
-        string variable = Expect(TokenType.Identifier, "期望变量名").Value;
+        string variable = Expect(TokenType.Identifier).Value;
         Expect(TokenType.In, "expected 'in'");
         var sequence = ParseExpression();
         Expect(TokenType.RParen, "expected ')'");
@@ -340,7 +340,7 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Check(TokenType.Dollar))
             {
                 Advance();
-                string field = Expect(TokenType.Identifier, "期望字段名").Value;
+                string field = Expect(TokenType.Identifier).Value;
                 expr = new BinaryNode(expr, "$", new VarNode(field, field.Length, 0), expr.Line, expr.Column);
             }
             else if (Check(TokenType.Colon))

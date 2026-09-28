@@ -2,6 +2,7 @@ using CompilerBase;
 using System;
 using System.Collections.Generic;
 using VMLPlugins;
+using VMLAssembler;
 
 namespace CSharpCompiler
 {
@@ -607,7 +608,7 @@ namespace CSharpCompiler
                 baseType = tokens[position++].Value;
             else
             {
-                Expect(TokenType.Identifier, "期望类型名");
+                Expect(TokenType.Identifier);
                 return "int";
             }
 
@@ -768,7 +769,7 @@ namespace CSharpCompiler
                         type += "[]";
                     }
                     
-                    Expect(TokenType.Identifier, "期望变量名");
+                    Expect(TokenType.Identifier);
                     var nameToken = Previous();
                     string name = nameToken.Value;
                     
@@ -853,14 +854,14 @@ namespace CSharpCompiler
                     Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                     varType += "[]";
                 }
-                Expect(TokenType.Identifier, "期望变量名");
+                Expect(TokenType.Identifier);
                 varName = Previous().Value;
             }
             else
             {
-                Expect(TokenType.Identifier, "期望变量类型");
+                Expect(TokenType.Identifier);
                 varType = Previous().Value;
-                Expect(TokenType.Identifier, "期望变量名");
+                Expect(TokenType.Identifier);
                 varName = Previous().Value;
             }
 
@@ -955,7 +956,7 @@ namespace CSharpCompiler
 
         private Statement ParseEnumDeclaration()
         {
-            Expect(TokenType.Identifier, "期望枚举名");
+            Expect(TokenType.Identifier);
             string name = Previous().Value;
             Expect(TokenType.LeftBrace, "期望 '{' 在枚举名后");
 
@@ -1051,7 +1052,7 @@ namespace CSharpCompiler
                 Console.WriteLine($"DEBUG ParseVariableDeclaration: type={type}, current={Current?.Type}:{Current?.Value}");
             }
             
-            Expect(TokenType.Identifier, "期望变量名");
+            Expect(TokenType.Identifier);
             var nameToken = Previous();
             string name = nameToken.Value;
             
@@ -1105,7 +1106,7 @@ namespace CSharpCompiler
                 stmts.Add(new VariableDeclStatement(type, name, initializer));
                 do
                 {
-                    Expect(TokenType.Identifier, "期望变量名在逗号后");
+                    Expect(TokenType.Identifier);
                     var nextName = Previous().Value;
                     Expression nextInit = null;
                     if (Match(TokenType.Assignment))
@@ -1200,6 +1201,36 @@ namespace CSharpCompiler
                 // 简化错误处理
                 throw Error(message);
             }
+        }
+
+        /// <summary>
+        /// 单参形态（自动生成消息）—— ⚠⚠ <b>必须**在本类内**声明，不能借用基类那个。</b>
+        ///
+        /// <para>
+        /// 本类把整套词法助手都 `private new` 遮蔽了（`Match`/`Check`/`Advance`/`IsAtEnd`/
+        /// `Peek`/`Previous`/`Expect`），基类的 `Expect(T)` 用的是**基类的** `Check`/`Advance`
+        /// ⇒ 调用点写成 `Expect(T)` 会**绕过本类这一套**，解析在别处悄悄跑偏。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>这是实测踩出来的</b>：把 8 处 `Expect(T, "期望变量名")` 机械改成 `Expect(T)` 之后
+        /// 构建全绿、自测全绿，而 `scripts/vml-diag-probe` 的 `undef-var.cs` 与
+        /// `scripts/vml-abi-probe` 的 `drift.cs` **当场红**（前者报错不点变量名、
+        /// 后者**一行输出都没有** —— 报的是 `expected Identifier, got Class`，
+        /// 位置在 `int a = 1;` 那一行，说明解析早在别处就分叉了）。
+        /// </para>
+        ///
+        /// <para>
+        /// <b>为什么不是"把 8 处改回两参"</b>：那样 C# 这门语言就永远拿不到自动消息里的
+        /// 「实际得到什么」。补一个本类的单参版本，两件事一起拿到 ——
+        /// 语义走本类那套、消息走 <c>VmlLang</c>。
+        /// </para>
+        /// </summary>
+        private new void Expect(TokenType type)
+        {
+            if (Check(type)) { Advance(); return; }
+            var got = IsAtEnd() ? "EOF" : Peek().Type.ToString();
+            throw Error(VmlLang.Pick($"期望 {type}，实际得到 {got}", $"expected {type}, got {got}"));
         }
 
         /// <summary>跳过表达式直到分隔符（用于MCU模式跳过OS特性）</summary>

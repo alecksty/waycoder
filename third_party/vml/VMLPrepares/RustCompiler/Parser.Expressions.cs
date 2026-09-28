@@ -226,7 +226,7 @@ namespace RustCompiler
                 if (Match(TokenType.LBRACKET))
                 {
                     var index = ParseExpression();
-                    Expect(TokenType.RBRACKET, "期望 ']'");
+                    Expect(TokenType.RBRACKET);
                     expr = new IndexAccessNode { Target = expr, Index = index };
                 }
                 else if (Match(TokenType.DOT))
@@ -238,7 +238,7 @@ namespace RustCompiler
                     }
                     else
                     {
-                        member = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
+                        member = Expect(TokenType.IDENTIFIER).Value;
                     }
                     var ma = new MemberAccessNode { Target = expr, Member = member };
                     if (Match(TokenType.LPAREN))
@@ -249,7 +249,7 @@ namespace RustCompiler
                             if (!Match(TokenType.COMMA))
                                 break;
                         }
-                        Expect(TokenType.RPAREN, "期望 ')'");
+                        Expect(TokenType.RPAREN);
                     }
                     expr = ma;
                 }
@@ -364,7 +364,7 @@ namespace RustCompiler
                             callExpr.Arguments.Add(ParseExpression());
                             if (!Match(TokenType.COMMA)) break;
                         }
-                        Expect(TokenType.RPAREN, "期望 ')'");
+                        Expect(TokenType.RPAREN);
                         return callExpr;
                     }
                     else if (Match(TokenType.LBRACKET))
@@ -375,7 +375,7 @@ namespace RustCompiler
                             arr.Elements.Add(ParseExpression());
                             if (!Match(TokenType.COMMA)) break;
                         }
-                        Expect(TokenType.RBRACKET, "期望 ']'");
+                        Expect(TokenType.RBRACKET);
                         // vec![] returns the array literal directly
                         return arr;
                     }
@@ -386,7 +386,7 @@ namespace RustCompiler
                         {
                             block.Statements.Add(ParseStatement());
                         }
-                        Expect(TokenType.RBRACE, "期望 '}'");
+                        Expect(TokenType.RBRACE);
                         return block;
                     }
                     return new IdentifierNode { Name = idName };
@@ -396,7 +396,7 @@ namespace RustCompiler
                 {
                     Advance(); // 跳过第一个 :
                     Advance(); // 跳过第二个 :
-                    string memberName = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
+                    string memberName = Expect(TokenType.IDENTIFIER).Value;
                     string qualifiedName = $"{idName}_{memberName}";
                     if (Check(TokenType.LPAREN))
                     {
@@ -428,7 +428,7 @@ namespace RustCompiler
                         Advance(); // consume {
                         while (!Check(TokenType.RBRACE) && !IsAtEnd)
                         {
-                            string fieldName = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
+                            string fieldName = Expect(TokenType.IDENTIFIER).Value;
                             if (Match(TokenType.COLON))
                             {
                                 var fieldValue = ParseExpression();
@@ -441,7 +441,7 @@ namespace RustCompiler
                             }
                             if (!Match(TokenType.COMMA)) break;
                         }
-                        Expect(TokenType.RBRACE, "期望 '}'");
+                        Expect(TokenType.RBRACE);
                         return structLit;
                     }
                 }
@@ -456,7 +456,7 @@ namespace RustCompiler
                 var closure = new ClosureExprNode();
                 while (!Check(TokenType.PIPE) && !IsAtEnd)
                 {
-                    string paramName = Expect(TokenType.IDENTIFIER, "期望参数名").Value;
+                    string paramName = Expect(TokenType.IDENTIFIER).Value;
                     closure.Parameters.Add(paramName);
                     if (Check(TokenType.COLON)) Advance(); while (!Check(TokenType.COMMA) && !Check(TokenType.PIPE) && !IsAtEnd) Advance();
                     Match(TokenType.COMMA);
@@ -481,10 +481,10 @@ namespace RustCompiler
                     var tuple = new TupleExprNode();
                     tuple.Elements.Add(first);
                     do { tuple.Elements.Add(ParseExpression()); } while (Match(TokenType.COMMA));
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
                     return tuple;
                 }
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 return first;
             }
             else if (Match(TokenType.LBRACKET))
@@ -497,7 +497,7 @@ namespace RustCompiler
                         arr.Elements.Add(ParseExpression());
                     } while (Match(TokenType.COMMA));
                 }
-                Expect(TokenType.RBRACKET, "期望 ']'");
+                Expect(TokenType.RBRACKET);
                 return arr;
             }
             
@@ -517,7 +517,7 @@ namespace RustCompiler
                 FunctionName = functionName
             };
             
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             
             while (!Check(TokenType.RPAREN) && !IsAtEnd)
             {
@@ -529,7 +529,7 @@ namespace RustCompiler
                 }
             }
             
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
             
             return callExpr;
         }

@@ -44,7 +44,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         if (Match(TokenType.Enum))
         {
-            string name = Expect(TokenType.Identifier, "期望枚举名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             Expect(TokenType.LBrace, "expected '{'");
             while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
             {
@@ -171,7 +171,7 @@ public class Parser : ParserBase<Token, TokenType>
             type = type + "_gen";
         }
 
-        string name = Expect(TokenType.Identifier, "期望变量名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         ASTNode? init = null;
         if (Match(TokenType.Assign))
             init = ParseExpression();
@@ -179,7 +179,7 @@ public class Parser : ParserBase<Token, TokenType>
         // 多变量声明: int a = 1, b = 2;
         while (Match(TokenType.Comma))
         {
-            string extraName = Expect(TokenType.Identifier, "期望变量名").Value;
+            string extraName = Expect(TokenType.Identifier).Value;
             ASTNode? extraInit = null;
             if (Match(TokenType.Assign))
                 extraInit = ParseExpression();
@@ -224,7 +224,7 @@ public class Parser : ParserBase<Token, TokenType>
         string extName = Expect(TokenType.Identifier, "期望 extension 名").Value;
         string onKw = Match(TokenType.OnKw) ? "on" : "";
         if (onKw == "") { Expect(TokenType.OnKw, "expected 'on'"); }
-        string targetType = IsType(Cur) ? Advance().Value : Expect(TokenType.Identifier, "期望类型名").Value;
+        string targetType = IsType(Cur) ? Advance().Value : Expect(TokenType.Identifier).Value;
         Expect(TokenType.LBrace, "expected '{'");
         var methods = new List<ASTNode>();
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
@@ -232,7 +232,7 @@ public class Parser : ParserBase<Token, TokenType>
             int ml = Cur.Line, mc = Cur.Column;
             string retType = Advance().Value; // return type
             Match(TokenType.Question);
-            string mName = Expect(TokenType.Identifier, "期望方法名").Value;
+            string mName = Expect(TokenType.Identifier).Value;
             Expect(TokenType.LParen, "expected '('");
             var parms = ParseParameters();
             while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
@@ -259,7 +259,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        string name = Expect(TokenType.Identifier, "期望类名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         // 泛型类型参数: class Box<T> { ... } — 跳过 <...>
         if (Check(TokenType.Lt))
         {
@@ -351,7 +351,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         string returnType = Advance().Value;
         Match(TokenType.Question); // 可空返回类型
-        string name = Expect(TokenType.Identifier, "期望方法名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         Expect(TokenType.LParen, "expected '('");
         var parms = ParseParameters();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
@@ -384,7 +384,7 @@ public class Parser : ParserBase<Token, TokenType>
                 if (ptype == "this" && Check(TokenType.Dot))
                 {
                     Advance(); // .
-                    string pname = Expect(TokenType.Identifier, "期望参数名").Value;
+                    string pname = Expect(TokenType.Identifier).Value;
                     parms.Add(new ParamNode("this", pname, pl, pc));
                 }
                 else
@@ -402,7 +402,7 @@ public class Parser : ParserBase<Token, TokenType>
                     }
                     // 跳过可空类型?
                     Match(TokenType.Question);
-                    string pname = Expect(TokenType.Identifier, "期望参数名").Value;
+                    string pname = Expect(TokenType.Identifier).Value;
                     parms.Add(new ParamNode(ptype, pname, pl, pc));
                 }
             } while (Match(TokenType.Comma));
@@ -534,7 +534,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         string type = Advance().Value;
-        string name = Expect(TokenType.Identifier, "期望变量名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         ASTNode? init = null;
         if (Match(TokenType.Assign))
             init = ParseExpression();
@@ -869,7 +869,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.Question) && Peek(1).Type == TokenType.Dot)
             {
                 Advance(); Advance(); // ?.
-                string field = Expect(TokenType.Identifier, "期望字段名").Value;
+                string field = Expect(TokenType.Identifier).Value;
                 expr = new VarNode($"_qdot_{field}", expr.Line, expr.Column);
                 continue;
             }

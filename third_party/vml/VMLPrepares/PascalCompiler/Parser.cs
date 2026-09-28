@@ -83,15 +83,15 @@ namespace PascalCompiler
             if (GetTokenType(Cur) == TokenType.PROGRAM)
             {
                 Advance();
-                program.Name = Expect(TokenType.IDENTIFIER, "期望程序名").Value.ToString();
+                program.Name = Expect(TokenType.IDENTIFIER).Value.ToString();
                 // 跳过可选的程序参数 (input, output) — ISO Pascal 标准语法
                 if (GetTokenType(Cur) == TokenType.LPAREN)
                 {
                     while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
                         Advance();
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
                 }
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
             }
             else
             {
@@ -106,10 +106,10 @@ namespace PascalCompiler
             ParseDeclarations(program.Declarations, program.Subprograms);
 
             // begin ... end .
-            Expect(TokenType.BEGIN, "期望 'begin'");
+            Expect(TokenType.BEGIN);
             program.Block = ParseBlock();
-            Expect(TokenType.END, "期望 'end'");
-            Expect(TokenType.DOT, "期望 '.'");
+            Expect(TokenType.END);
+            Expect(TokenType.DOT);
 
             return program;
         }
@@ -122,12 +122,12 @@ namespace PascalCompiler
                 Column = Cur.Column
             };
 
-            Expect(TokenType.UNIT, "期望 'unit'");
-            unit.Name = Expect(TokenType.IDENTIFIER, "期望单元名").Value.ToString();
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.UNIT);
+            unit.Name = Expect(TokenType.IDENTIFIER).Value.ToString();
+            Expect(TokenType.SEMICOLON);
 
             // interface 部分
-            Expect(TokenType.INTERFACE, "期望 'interface'");
+            Expect(TokenType.INTERFACE);
 
             // uses 子句
             ParseUsesClause();
@@ -136,7 +136,7 @@ namespace PascalCompiler
             ParseUnitInterfaceDeclarations(unit);
 
             // implementation 部分
-            Expect(TokenType.IMPLEMENTATION, "期望 'implementation'");
+            Expect(TokenType.IMPLEMENTATION);
 
             // uses 子句 (可选)
             ParseUsesClause();
@@ -151,8 +151,8 @@ namespace PascalCompiler
                 unit.InitializationBlock = ParseBlock();
             }
 
-            Expect(TokenType.END, "期望 'end'");
-            Expect(TokenType.DOT, "期望 '.'");
+            Expect(TokenType.END);
+            Expect(TokenType.DOT);
 
             return unit;
         }
@@ -164,14 +164,14 @@ namespace PascalCompiler
                 Advance(); // 跳过 uses
                 while (true)
                 {
-                    string unitName = Expect(TokenType.IDENTIFIER, "期望单元名").Value.ToString();
+                    string unitName = Expect(TokenType.IDENTIFIER).Value.ToString();
                     UsesNames.Add(unitName);
                     if (GetTokenType(Cur) == TokenType.COMMA)
                         Advance();
                     else
                         break;
                 }
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
             }
         }
 
@@ -240,14 +240,14 @@ namespace PascalCompiler
 
         private void ParseVarDeclarations(List<DeclarationNode> declarations)
         {
-            Expect(TokenType.VAR, "期望 'var'");
+            Expect(TokenType.VAR);
             
             while (GetTokenType(Cur) == TokenType.IDENTIFIER)
             {
                 var varDecls = ParseMultiVarDeclaration();
                 foreach (var decl in varDecls)
                     declarations.Add(decl);
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
             }
         }
 
@@ -259,10 +259,10 @@ namespace PascalCompiler
             List<string> varNames = new List<string>();
             do
             {
-                varNames.Add(Expect(TokenType.IDENTIFIER, "期望变量名").Value.ToString());
+                varNames.Add(Expect(TokenType.IDENTIFIER).Value.ToString());
             } while (Match(TokenType.COMMA));
 
-            Expect(TokenType.COLON, "期望 ':'");
+            Expect(TokenType.COLON);
 
             // 类型
             TypeNode type = ParseType();
@@ -284,11 +284,11 @@ namespace PascalCompiler
 
         private void ParseConstDeclarations(List<DeclarationNode> declarations)
         {
-            Expect(TokenType.CONST, "期望 'const'");
+            Expect(TokenType.CONST);
 
             while (GetTokenType(Cur) == TokenType.IDENTIFIER)
             {
-                string constName = Expect(TokenType.IDENTIFIER, "期望常量名").Value.ToString();
+                string constName = Expect(TokenType.IDENTIFIER).Value.ToString();
 
                 // 可选类型标注: const name : type = value
                 TypeNode? constType = null;
@@ -299,7 +299,7 @@ namespace PascalCompiler
                     constType = ParseType();
                 }
 
-                Expect(TokenType.EQUALS, "期望 '='");
+                Expect(TokenType.EQUALS);
 
                 ExpressionNode value;
                 // 常量初始化列表（**不只数组**，2026-09-27 修）：
@@ -329,7 +329,7 @@ namespace PascalCompiler
                 {
                     value = ParseExpression();
                 }
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
 
                 declarations.Add(new ConstDeclarationNode
                 {
@@ -371,7 +371,7 @@ namespace PascalCompiler
         /// </summary>
         private List<ExpressionNode> ParseInitializerList()
         {
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             var items = new List<ExpressionNode>();
             while (GetTokenType(Cur) != TokenType.RPAREN && GetTokenType(Cur) != TokenType.EOF)
             {
@@ -409,21 +409,21 @@ namespace PascalCompiler
                 if (GetTokenType(Cur) != TokenType.RPAREN)
                     Expect(TokenType.COMMA, "期望 ',' 在初始化器中");
             }
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
             return items;
         }
 
         private void ParseTypeDeclarations(List<DeclarationNode> declarations)
         {
-            Expect(TokenType.TYPE, "期望 'type'");
+            Expect(TokenType.TYPE);
             
             while (GetTokenType(Cur) == TokenType.IDENTIFIER)
             {
-                string typeName = Expect(TokenType.IDENTIFIER, "期望类型名").Value.ToString();
-                Expect(TokenType.EQUALS, "期望 '='");
+                string typeName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                Expect(TokenType.EQUALS);
                 
                 TypeNode type = ParseType();
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
 
                 declarations.Add(new TypeDeclarationNode
                 {
@@ -437,7 +437,7 @@ namespace PascalCompiler
 
         private void ParseLabelDeclarations()
         {
-            Expect(TokenType.LABEL, "期望 'label'");
+            Expect(TokenType.LABEL);
             do
             {
                 if (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.INTEGER_LITERAL)
@@ -445,7 +445,7 @@ namespace PascalCompiler
                 else
                     GccError("期望标签名", ErrorCode.Parser_ExpectedIdentifier);
             } while (Match(TokenType.COMMA));
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
         }
 
         private TypeNode ParseType()
@@ -466,9 +466,9 @@ namespace PascalCompiler
                     };
                 }
 
-                Expect(TokenType.LBRACKET, "期望 '['");
+                Expect(TokenType.LBRACKET);
                 ExpressionNode lowerBound = ParseExpression();
-                Expect(TokenType.RANGE, "期望 '..'");
+                Expect(TokenType.RANGE);
                 ExpressionNode upperBound = ParseExpression();
                 // 多维数组: `array[a..b, c..d] of T`
                 //
@@ -486,12 +486,12 @@ namespace PascalCompiler
                 while (Match(TokenType.COMMA))
                 {
                     ExpressionNode lb2 = ParseExpression();
-                    Expect(TokenType.RANGE, "期望 '..'");
+                    Expect(TokenType.RANGE);
                     ExpressionNode ub2 = ParseExpression();
                     dims.Add((lb2, ub2));
                 }
-                Expect(TokenType.RBRACKET, "期望 ']'");
-                Expect(TokenType.OF, "期望 'of'");
+                Expect(TokenType.RBRACKET);
+                Expect(TokenType.OF);
                 TypeNode elementType = ParseType();
 
                 // 由内向外包：`a..b, c..d of T` ⇒ `array[a..b] of array[c..d] of T`
@@ -541,14 +541,14 @@ namespace PascalCompiler
                 bool isCtor = Match(TokenType.CONSTRUCTOR);
                 bool isDtor = !isCtor && Match(TokenType.DESTRUCTOR);
                 bool isFunction = !isCtor && !isDtor && Match(TokenType.FUNCTION);
-                if (!isFunction && !isCtor && !isDtor) Expect(TokenType.PROCEDURE, "期望 'procedure'");
+                if (!isFunction && !isCtor && !isDtor) Expect(TokenType.PROCEDURE);
                 var procType = new ProcedureTypeNode { IsFunction = isFunction, Line = token.Line, Column = token.Column };
                 if (isCtor) procType.IsConstructor = true;
                 if (isDtor) procType.IsDestructor = true;
                 if (Match(TokenType.LPAREN))
                 {
                     ParseParameterList(procType.Parameters);
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
                 }
                 if (isFunction && Match(TokenType.COLON))
                     procType.ReturnType = ParseType();
@@ -556,14 +556,14 @@ namespace PascalCompiler
             }
             else if (Match(TokenType.SET))
             {
-                Expect(TokenType.OF, "期望 'of'");
+                Expect(TokenType.OF);
                 
                 // 检查是否是范围表达式（如 0..31）
                 if (GetTokenType(Cur) == TokenType.INTEGER_LITERAL || GetTokenType(Cur) == TokenType.CHAR_LITERAL)
                 {
                     // 解析范围表达式
                     ExpressionNode lowerBound = ParseExpression();
-                    Expect(TokenType.RANGE, "期望 '..'");
+                    Expect(TokenType.RANGE);
                     ExpressionNode upperBound = ParseExpression();
                     
                     return new SetTypeNode
@@ -603,14 +603,14 @@ namespace PascalCompiler
                     do
                     {
                         if (GetTokenType(Cur) == TokenType.IDENTIFIER)
-                            names.Add(Expect(TokenType.IDENTIFIER, "期望标识符").Value?.ToString() ?? "");
+                            names.Add(Expect(TokenType.IDENTIFIER).Value?.ToString() ?? "");
                         else break;
                     } while (Match(TokenType.COMMA));
                     if (names.Count > 0)
                     {
-                        Expect(TokenType.COLON, "期望 ':'");
+                        Expect(TokenType.COLON);
                         TypeNode fieldType = ParseType();
-                        Expect(TokenType.SEMICOLON, "期望 ';'");
+                        Expect(TokenType.SEMICOLON);
                         foreach (var n in names)
                             record.Fields.Add(new VarDeclarationNode { Name = n, Type = fieldType, Line = token.Line, Column = token.Column });
                     }
@@ -662,15 +662,15 @@ namespace PascalCompiler
                         List<string> fieldNames = new List<string>();
                         do
                         {
-                            fieldNames.Add(Expect(TokenType.IDENTIFIER, "期望字段名").Value.ToString());
+                            fieldNames.Add(Expect(TokenType.IDENTIFIER).Value.ToString());
                         } while (Match(TokenType.COMMA));
                         
-                        Expect(TokenType.COLON, "期望 ':'");
+                        Expect(TokenType.COLON);
 
                         TypeNode fieldType = ParseType();
                         // 分号在 end 前可选
                         if (GetTokenType(Cur) != TokenType.END)
-                            Expect(TokenType.SEMICOLON, "期望 ';'");
+                            Expect(TokenType.SEMICOLON);
                         
                         foreach (string fieldName in fieldNames)
                         {
@@ -690,7 +690,7 @@ namespace PascalCompiler
                     }
                 }
 
-                Expect(TokenType.END, "期望 'end'");
+                Expect(TokenType.END);
                 return record;
             }
             else if (Match(TokenType.LPAREN))
@@ -703,13 +703,13 @@ namespace PascalCompiler
                 };
                 while (true)
                 {
-                    enumType.Values.Add(Expect(TokenType.IDENTIFIER, "期望枚举值").Value.ToString());
+                    enumType.Values.Add(Expect(TokenType.IDENTIFIER).Value.ToString());
                     if (GetTokenType(Cur) == TokenType.COMMA)
                         Advance();
                     else
                         break;
                 }
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 return enumType;
             }
             /* ── `file` / `text` / `textfile`：**按名字认，不按 token 类型认** ──────────
@@ -773,7 +773,7 @@ namespace PascalCompiler
                         if (GetTokenType(Cur) == TokenType.INTEGER_LITERAL || GetTokenType(Cur) == TokenType.IDENTIFIER)
                             Advance();
                     }
-                    Expect(TokenType.RBRACKET, "期望 ']'");
+                    Expect(TokenType.RBRACKET);
                 }
                 return new SimpleTypeNode
                 {
@@ -792,14 +792,14 @@ namespace PascalCompiler
 
         private void ParseVariantRecordPart(RecordTypeNode record)
         {
-            Expect(TokenType.CASE, "期望 'case'");
+            Expect(TokenType.CASE);
             if (GetTokenType(Cur) == TokenType.IDENTIFIER)
             {
                 Advance();
                 if (Match(TokenType.COLON))
                     ParseType();
             }
-            Expect(TokenType.OF, "期望 'of'");
+            Expect(TokenType.OF);
 
             while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.EOF)
             {
@@ -810,17 +810,17 @@ namespace PascalCompiler
                         ParseExpression();
                 } while (Match(TokenType.COMMA));
 
-                Expect(TokenType.COLON, "期望 ':'");
-                Expect(TokenType.LPAREN, "期望 '('");
+                Expect(TokenType.COLON);
+                Expect(TokenType.LPAREN);
                 while (GetTokenType(Cur) != TokenType.RPAREN)
                 {
                     List<string> fieldNames = new List<string>();
                     do
                     {
-                        fieldNames.Add(Expect(TokenType.IDENTIFIER, "期望字段名").Value.ToString());
+                        fieldNames.Add(Expect(TokenType.IDENTIFIER).Value.ToString());
                     } while (Match(TokenType.COMMA));
 
-                    Expect(TokenType.COLON, "期望 ':'");
+                    Expect(TokenType.COLON);
                     TypeNode fieldType = ParseType();
                     foreach (string fieldName in fieldNames)
                     {
@@ -834,7 +834,7 @@ namespace PascalCompiler
                     }
                     Match(TokenType.SEMICOLON);
                 }
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 if (!Match(TokenType.SEMICOLON))
                     break;
             }
@@ -880,7 +880,7 @@ namespace PascalCompiler
             {
                 string label = token.Value.ToString();
                 Advance();
-                Expect(TokenType.COLON, "期望 ':'");
+                Expect(TokenType.COLON);
                 return new LabeledStatementNode { Label = label, Statement = ParseStatement(), Line = token.Line, Column = token.Column };
             }
             else if (token.Type == TokenType.IDENTIFIER
@@ -1004,13 +1004,13 @@ namespace PascalCompiler
         private WithNode ParseWithStatement()
         {
             Token token = Cur;
-            Expect(TokenType.WITH, "期望 'with'");
+            Expect(TokenType.WITH);
             WithNode withNode = new WithNode { Line = token.Line, Column = token.Column };
             do
             {
                 withNode.Variables.Add(ParseVariable());
             } while (Match(TokenType.COMMA));
-            Expect(TokenType.DO, "期望 'do'");
+            Expect(TokenType.DO);
             string contextName = withNode.Variables.Count > 0 ? withNode.Variables[withNode.Variables.Count - 1].Name : "";
             withContext.Push(contextName);
             withNode.Body = ParseStatement();
@@ -1021,7 +1021,7 @@ namespace PascalCompiler
         private AssignmentNode ParseAssignment()
         {
             VariableNode variable = ParseVariable();
-            Expect(TokenType.ASSIGN, "期望 ':='");
+            Expect(TokenType.ASSIGN);
             ExpressionNode expression = ParseExpression();
 
             return new AssignmentNode
@@ -1035,7 +1035,7 @@ namespace PascalCompiler
 
         private ProcedureCallNode ParseProcedureCall()
         {
-            string name = Expect(TokenType.IDENTIFIER, "期望过程名").Value.ToString();
+            string name = Expect(TokenType.IDENTIFIER).Value.ToString();
             ProcedureCallNode call = new ProcedureCallNode
             {
                 Name = name,
@@ -1070,7 +1070,7 @@ namespace PascalCompiler
                         }
                     } while (Match(TokenType.COMMA));
                 }
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
             }
 
             return call;
@@ -1078,7 +1078,7 @@ namespace PascalCompiler
 
         private CompoundStatementNode ParseCompoundStatement()
         {
-            Expect(TokenType.BEGIN, "期望 'begin'");
+            Expect(TokenType.BEGIN);
             CompoundStatementNode compound = new CompoundStatementNode
             {
                 Line = Cur.Line,
@@ -1094,15 +1094,15 @@ namespace PascalCompiler
                 }
             }
 
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             return compound;
         }
 
         private IfNode ParseIfStatement()
         {
-            Expect(TokenType.IF, "期望 'if'");
+            Expect(TokenType.IF);
             ExpressionNode condition = ParseExpression();
-            Expect(TokenType.THEN, "期望 'then'");
+            Expect(TokenType.THEN);
             StatementNode thenBranch = ParseStatement();
 
             IfNode ifNode = new IfNode
@@ -1123,9 +1123,9 @@ namespace PascalCompiler
 
         private WhileNode ParseWhileStatement()
         {
-            Expect(TokenType.WHILE, "期望 'while'");
+            Expect(TokenType.WHILE);
             ExpressionNode condition = ParseExpression();
-            Expect(TokenType.DO, "期望 'do'");
+            Expect(TokenType.DO);
             StatementNode body = ParseStatement();
 
             return new WhileNode
@@ -1139,8 +1139,8 @@ namespace PascalCompiler
 
         private ForNode ParseForStatement()
         {
-            Expect(TokenType.FOR, "期望 'for'");
-            string variable = Expect(TokenType.IDENTIFIER, "期望循环变量").Value.ToString();
+            Expect(TokenType.FOR);
+            string variable = Expect(TokenType.IDENTIFIER).Value.ToString();
 
             // for/in 语法 (Delphi/FreePascal v1.66.32+)
             if (Match(TokenType.IN))
@@ -1160,7 +1160,7 @@ namespace PascalCompiler
                         Advance();
                     }
                 }
-                Expect(TokenType.DO, "期望 'do'");
+                Expect(TokenType.DO);
                 var inBody = ParseStatement();
                 return new ForNode
                 {
@@ -1173,7 +1173,7 @@ namespace PascalCompiler
                 };
             }
 
-            Expect(TokenType.ASSIGN, "期望 ':='");
+            Expect(TokenType.ASSIGN);
             ExpressionNode startValue = ParseExpression();
 
             bool isDownTo = Match(TokenType.DOWNTO);
@@ -1183,7 +1183,7 @@ namespace PascalCompiler
             }
 
             ExpressionNode endValue = ParseExpression();
-            Expect(TokenType.DO, "期望 'do'");
+            Expect(TokenType.DO);
             StatementNode body = ParseStatement();
 
             return new ForNode
@@ -1200,7 +1200,7 @@ namespace PascalCompiler
 
         private RepeatNode ParseRepeatStatement()
         {
-            Expect(TokenType.REPEAT, "期望 'repeat'");
+            Expect(TokenType.REPEAT);
             RepeatNode repeat = new RepeatNode
             {
                 Line = Cur.Line,
@@ -1216,7 +1216,7 @@ namespace PascalCompiler
                 }
             }
 
-            Expect(TokenType.UNTIL, "期望 'until'");
+            Expect(TokenType.UNTIL);
             repeat.Condition = ParseExpression();
 
             return repeat;
@@ -1224,7 +1224,7 @@ namespace PascalCompiler
 
         private CaseNode ParseCaseStatement()
         {
-            Expect(TokenType.CASE, "期望 'case'");
+            Expect(TokenType.CASE);
             CaseNode caseNode = new CaseNode
             {
                 Line = Cur.Line,
@@ -1232,7 +1232,7 @@ namespace PascalCompiler
             };
 
             caseNode.Expression = ParseExpression();
-            Expect(TokenType.OF, "期望 'of'");
+            Expect(TokenType.OF);
 
             // 解析各个分支
             while (GetTokenType(Cur) != TokenType.OTHERWISE && GetTokenType(Cur) != TokenType.ELSE && GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.EOF)
@@ -1256,7 +1256,7 @@ namespace PascalCompiler
                 }
             }
 
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             return caseNode;
         }
 
@@ -1284,7 +1284,7 @@ namespace PascalCompiler
                 }
             } while (Match(TokenType.COMMA));
 
-            Expect(TokenType.COLON, "期望 ':'");
+            Expect(TokenType.COLON);
             branch.Statement = ParseStatement();
 
             return branch;
@@ -1297,7 +1297,7 @@ namespace PascalCompiler
             //   的位置 —— 实测 `WriteLn(nosuch)` 报列 17（那是 `(` 的列），而 `nosuch` 起于 11。
             //   行号碰巧还对（同一行），所以只有列错，最容易被漏掉。
             var nameTok = Cur;
-            string name = Expect(TokenType.IDENTIFIER, "期望变量名").Value.ToString();
+            string name = Expect(TokenType.IDENTIFIER).Value.ToString();
             VariableNode variable = new VariableNode
             {
                 Name = name,
@@ -1328,13 +1328,13 @@ namespace PascalCompiler
                     variable.Indices.Add(ParseExpression());
                 }
                 while (Match(TokenType.COMMA));
-                Expect(TokenType.RBRACKET, "期望 ']'");
+                Expect(TokenType.RBRACKET);
             }
 
             // 处理记录字段 (支持多级 b.a.v)
             while (Match(TokenType.DOT))
             {
-                string fname = Expect(TokenType.IDENTIFIER, "期望字段名").Value.ToString();
+                string fname = Expect(TokenType.IDENTIFIER).Value.ToString();
                 if (variable.Field == null)
                     variable.Field = fname;
                 else
@@ -1351,11 +1351,11 @@ namespace PascalCompiler
                         variable.Indices.Add(ParseExpression());
                     }
                     while (Match(TokenType.COMMA));
-                    Expect(TokenType.RBRACKET, "期望 ']'");
+                    Expect(TokenType.RBRACKET);
                 }
                 while (Match(TokenType.DOT))
                 {
-                    string fname = Expect(TokenType.IDENTIFIER, "期望字段名").Value.ToString();
+                    string fname = Expect(TokenType.IDENTIFIER).Value.ToString();
                     if (variable.Field == null)
                         variable.Field = fname;
                     else

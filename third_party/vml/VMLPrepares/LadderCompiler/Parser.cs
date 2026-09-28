@@ -212,7 +212,7 @@ namespace LadderCompiler
         {
             Advance();
             SkipWhitespaceAndComments();
-            string name = Expect(TokenType.Identifier, "期望函数名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             SkipWhitespaceAndComments();
             string returnType = "INT";
             if (Match(TokenType.Colon))
@@ -315,13 +315,13 @@ namespace LadderCompiler
                 };
                 
                 // 变量名
-                var varNameToken = Expect(TokenType.Identifier, "期望变量名称");
+                var varNameToken = Expect(TokenType.Identifier);
                 varNode.Name = varNameToken.Value;
                 
                 SkipWhitespaceAndComments();
                 
                 // 冒号
-                Expect(TokenType.Colon, "期望冒号");
+                Expect(TokenType.Colon);
                 SkipWhitespaceAndComments();
                 
                 // 变量类型
@@ -423,7 +423,7 @@ namespace LadderCompiler
                 SkipWhitespaceAndComments();
                 
                 // 分号
-                Expect(TokenType.Semicolon, "期望分号");
+                Expect(TokenType.Semicolon);
                 SkipWhitespaceAndComments();
             }
         }
@@ -435,9 +435,9 @@ namespace LadderCompiler
 
             while (GetTokenType(Cur) != TokenType.KeywordEndType && GetTokenType(Cur) != TokenType.EOF)
             {
-                string typeName = Expect(TokenType.Identifier, "期望类型名称").Value;
+                string typeName = Expect(TokenType.Identifier).Value;
                 SkipWhitespaceAndComments();
-                Expect(TokenType.Colon, "期望冒号");
+                Expect(TokenType.Colon);
                 SkipWhitespaceAndComments();
                 _typeAliases[typeName] = ParseType();
                 SkipWhitespaceAndComments();
@@ -498,9 +498,9 @@ namespace LadderCompiler
                 SkipWhitespaceAndComments();
                 while (GetTokenType(Cur) != TokenType.KeywordEndStruct && GetTokenType(Cur) != TokenType.EOF)
                 {
-                    string fieldName = Expect(TokenType.Identifier, "期望结构体成员名称").Value;
+                    string fieldName = Expect(TokenType.Identifier).Value;
                     SkipWhitespaceAndComments();
-                    Expect(TokenType.Colon, "期望冒号");
+                    Expect(TokenType.Colon);
                     SkipWhitespaceAndComments();
                     fields.Add($"{fieldName}:{ParseType()}");
                     SkipWhitespaceAndComments();
@@ -520,7 +520,7 @@ namespace LadderCompiler
                     SkipWhitespaceAndComments();
                     while (GetTokenType(Cur) != TokenType.RightParenthesis && GetTokenType(Cur) != TokenType.EOF)
                     {
-                        values.Add(Expect(TokenType.Identifier, "期望枚举值").Value);
+                        values.Add(Expect(TokenType.Identifier).Value);
                         SkipWhitespaceAndComments();
                         if (!Match(TokenType.Comma)) break;
                         SkipWhitespaceAndComments();
@@ -531,7 +531,7 @@ namespace LadderCompiler
                 {
                     while (GetTokenType(Cur) != TokenType.KeywordEndEnum && GetTokenType(Cur) != TokenType.EOF)
                     {
-                        values.Add(Expect(TokenType.Identifier, "期望枚举值").Value);
+                        values.Add(Expect(TokenType.Identifier).Value);
                         SkipWhitespaceAndComments();
                         Match(TokenType.Comma);
                         SkipWhitespaceAndComments();
@@ -572,7 +572,7 @@ namespace LadderCompiler
             }
             else
             {
-                var typeToken = Expect(TokenType.Identifier, "期望类型名称");
+                var typeToken = Expect(TokenType.Identifier);
                 typeName = typeToken.Value;
             }
             return _typeAliases.TryGetValue(typeName, out var aliasedType) ? aliasedType : typeName;
@@ -659,7 +659,7 @@ namespace LadderCompiler
                 SkipWhitespaceAndComments();
                 
                 // 触点变量
-                var contactVarToken = Expect(TokenType.Identifier, "期望触点变量名称");
+                var contactVarToken = Expect(TokenType.Identifier);
                 contactNode.Variable = contactVarToken.Value;
                 
                 return contactNode;
@@ -719,7 +719,7 @@ namespace LadderCompiler
                 SkipWhitespaceAndComments();
                 
                 // 线圈变量
-                var coilVarToken = Expect(TokenType.Identifier, "期望线圈变量名称");
+                var coilVarToken = Expect(TokenType.Identifier);
                 coilNode.Variable = coilVarToken.Value;
                 
                 // 可选的赋值表达式
@@ -794,7 +794,7 @@ namespace LadderCompiler
                     while (!Match(TokenType.RightParenthesis) && GetTokenType(Cur) != TokenType.EOF)
                     {
                         // 参数名
-                        var paramNameToken = Expect(TokenType.Identifier, "期望参数名称");
+                        var paramNameToken = Expect(TokenType.Identifier);
                         string paramName = paramNameToken.Value;
 
                         SkipWhitespaceAndComments();
@@ -839,7 +839,7 @@ namespace LadderCompiler
                            GetTokenType(Cur) != TokenType.KeywordEndProgram)
                     {
                         // 参数名
-                        var paramNameToken = Expect(TokenType.Identifier, "期望参数名称");
+                        var paramNameToken = Expect(TokenType.Identifier);
                         string paramName = paramNameToken.Value;
 
                         SkipWhitespaceAndComments();
@@ -949,7 +949,7 @@ namespace LadderCompiler
 
         private string ParseAssignableTarget()
         {
-            var parts = new List<string> { Expect(TokenType.Identifier, "期望变量名称").Value };
+            var parts = new List<string> { Expect(TokenType.Identifier).Value };
             while (true)
             {
                 SkipWhitespaceAndComments();
@@ -957,7 +957,7 @@ namespace LadderCompiler
                 {
                     SkipWhitespaceAndComments();
                     parts.Add(".");
-                    parts.Add(Expect(TokenType.Identifier, "期望成员名称").Value);
+                    parts.Add(Expect(TokenType.Identifier).Value);
                 }
                 else if (Match(TokenType.LeftBracket))
                 {
@@ -1256,7 +1256,7 @@ namespace LadderCompiler
                     }
                     else if (Match(TokenType.Dot))
                     {
-                        var member = Expect(TokenType.Identifier, "期望成员名称").Value;
+                        var member = Expect(TokenType.Identifier).Value;
                         expr = new MemberAccessNode { Target = expr, Member = member, Line = expr.Line, Column = expr.Column };
                     }
                     else
@@ -1351,7 +1351,7 @@ namespace LadderCompiler
             var node = new StForNode { Line = Cur.Line, Column = Cur.Column };
             Expect(TokenType.KeywordFor, "期望 FOR");
             SkipWhitespaceAndComments();
-            node.VarName = Expect(TokenType.Identifier, "期望循环变量名").Value;
+            node.VarName = Expect(TokenType.Identifier).Value;
             SkipWhitespaceAndComments();
             Expect(TokenType.Assignment, "期望 :=");
             SkipWhitespaceAndComments();

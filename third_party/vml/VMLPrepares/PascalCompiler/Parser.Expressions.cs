@@ -139,7 +139,7 @@ namespace PascalCompiler
                 string castType = Advance().Value.ToString();
                 Advance(); // '('
                 ExpressionNode operand = ParseExpression();
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 return new TypeCastNode
                 {
                     TypeName = castType,
@@ -172,7 +172,7 @@ namespace PascalCompiler
                     }
                     while (Match(TokenType.COMMA));
                 }
-                Expect(TokenType.RBRACKET, "期望 ']'");
+                Expect(TokenType.RBRACKET);
                 return setExpr;
             }
 
@@ -189,7 +189,7 @@ namespace PascalCompiler
                         Column = token.Column
                     };
 
-                    Expect(TokenType.LPAREN, "期望 '('");
+                    Expect(TokenType.LPAREN);
                     if (GetTokenType(Cur) != TokenType.RPAREN)
                     {
                         do
@@ -197,7 +197,7 @@ namespace PascalCompiler
                             call.Arguments.Add(ParseExpression());
                         } while (Match(TokenType.COMMA));
                     }
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
 
                     return call;
                 }
@@ -269,7 +269,7 @@ namespace PascalCompiler
             else if (Match(TokenType.LPAREN))
             {
                 ExpressionNode expr = ParseExpression();
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 return expr;
             }
             else if (Match(TokenType.NOT, TokenType.PLUS, TokenType.MINUS))
@@ -317,7 +317,7 @@ namespace PascalCompiler
                 Advance();
                 var proc = new ProcedureDeclarationNode();
                 proc.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望过程名称");
+                Expect(TokenType.IDENTIFIER);
                 subprogram = proc;
             }
             else if (GetTokenType(Cur) == TokenType.FUNCTION)
@@ -325,7 +325,7 @@ namespace PascalCompiler
                 Advance();
                 var func = new FunctionDeclarationNode();
                 func.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望函数名称");
+                Expect(TokenType.IDENTIFIER);
                 subprogram = func;
             }
             else if (GetTokenType(Cur) == TokenType.CONSTRUCTOR)
@@ -333,7 +333,7 @@ namespace PascalCompiler
                 Advance();
                 var ctor = new ProcedureDeclarationNode();
                 ctor.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望构造名");
+                Expect(TokenType.IDENTIFIER);
                 ctor.IsConstructor = true;
                 subprogram = ctor;
             }
@@ -342,7 +342,7 @@ namespace PascalCompiler
                 Advance();
                 var dtor = new ProcedureDeclarationNode();
                 dtor.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望析构名");
+                Expect(TokenType.IDENTIFIER);
                 dtor.IsDestructor = true;
                 subprogram = dtor;
             }
@@ -352,7 +352,7 @@ namespace PascalCompiler
             if (Match(TokenType.LPAREN))
             {
                 ParseParameterList(subprogram.Parameters);
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
             }
 
             if (subprogram is FunctionDeclarationNode funcNode && Match(TokenType.COLON))
@@ -360,7 +360,7 @@ namespace PascalCompiler
                 funcNode.ReturnType = ParseType();
             }
 
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
             subprogram.IsForward = true;
             return subprogram;
         }
@@ -374,7 +374,7 @@ namespace PascalCompiler
                 Advance();
                 var proc = new ProcedureDeclarationNode();
                 proc.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望过程名称");
+                Expect(TokenType.IDENTIFIER);
                 subprogram = proc;
             }
             else if (GetTokenType(Cur) == TokenType.FUNCTION)
@@ -382,7 +382,7 @@ namespace PascalCompiler
                 Advance(); // 跳过 function
                 var func = new FunctionDeclarationNode();
                 func.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望函数名称");
+                Expect(TokenType.IDENTIFIER);
                 subprogram = func;
             }
             else if (GetTokenType(Cur) == TokenType.CONSTRUCTOR)
@@ -390,7 +390,7 @@ namespace PascalCompiler
                 Advance();
                 var ctor = new ProcedureDeclarationNode();
                 ctor.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望构造名");
+                Expect(TokenType.IDENTIFIER);
                 ctor.IsConstructor = true;
                 subprogram = ctor;
             }
@@ -399,7 +399,7 @@ namespace PascalCompiler
                 Advance();
                 var dtor = new ProcedureDeclarationNode();
                 dtor.Name = Cur.Value.ToString();
-                Expect(TokenType.IDENTIFIER, "期望析构名");
+                Expect(TokenType.IDENTIFIER);
                 dtor.IsDestructor = true;
                 subprogram = dtor;
             }
@@ -410,7 +410,7 @@ namespace PascalCompiler
             if (Match(TokenType.LPAREN))
             {
                 ParseParameterList(subprogram.Parameters);
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
             }
             
             // 解析函数返回类型(在参数列表之后)
@@ -428,13 +428,13 @@ namespace PascalCompiler
                 // 简化处理：如果不是forward，就期望分号并继续
             }
             
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
             
             if (GetTokenType(Cur) == TokenType.FORWARD)
             {
                 Advance();
                 subprogram.IsForward = true;
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
                 return subprogram;
             }
             
@@ -450,7 +450,7 @@ namespace PascalCompiler
                         var varDecls = ParseMultiVarDeclaration();
                         foreach (var decl in varDecls)
                             subprogram.LocalVariables.Add(decl);
-                        Expect(TokenType.SEMICOLON, "期望 ';'");
+                        Expect(TokenType.SEMICOLON);
                     }
                 }
                 else if (GetTokenType(Cur) == TokenType.LABEL)
@@ -462,7 +462,7 @@ namespace PascalCompiler
                         if (Match(TokenType.COMMA)) continue;
                         break;
                     }
-                    Expect(TokenType.SEMICOLON, "期望 ';'");
+                    Expect(TokenType.SEMICOLON);
                 }
                 else if (GetTokenType(Cur) == TokenType.CONST)
                 {
@@ -507,10 +507,10 @@ namespace PascalCompiler
             }
 
             // 解析过程/函数体
-            Expect(TokenType.BEGIN, "期望 'begin'");
+            Expect(TokenType.BEGIN);
             subprogram.Body = ParseBlock();
-            Expect(TokenType.END, "期望 'end'");
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.END);
+            Expect(TokenType.SEMICOLON);
             
             return subprogram;
         }
@@ -541,12 +541,12 @@ namespace PascalCompiler
                 // 解析参数名列表
                 var names = new List<string>();
                 names.Add(Cur.Value.ToString());
-                Expect(TokenType.IDENTIFIER, "期望参数名");
+                Expect(TokenType.IDENTIFIER);
                 
                 while (Match(TokenType.COMMA))
                 {
                     names.Add(Cur.Value.ToString());
-                    Expect(TokenType.IDENTIFIER, "期望参数名");
+                    Expect(TokenType.IDENTIFIER);
                 }
                 
                 /* ── 无类型 `var` 形参（`procedure P(var x);`）────────────────────────
@@ -570,7 +570,7 @@ namespace PascalCompiler
                     type = new SimpleTypeNode { TypeName = "INTEGER", Line = Cur.Line, Column = Cur.Column };
                 else
                 {
-                    Expect(TokenType.COLON, "期望 ':'");
+                    Expect(TokenType.COLON);
                     type = ParseType();
                 }
 

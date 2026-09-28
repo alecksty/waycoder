@@ -81,7 +81,7 @@ namespace RustCompiler
                 string functionName = "main"; // 默认值
                 if (Check(TokenType.IDENTIFIER))
                 {
-                    functionName = Expect(TokenType.IDENTIFIER, "期望函数名").Value;
+                    functionName = Expect(TokenType.IDENTIFIER).Value;
                 }
                 return ParseFunction(functionName);
             }
@@ -225,7 +225,7 @@ namespace RustCompiler
                     // 跳过长度（编译期常量，这里简化处理）
                     while (!Check(TokenType.RBRACKET) && !IsAtEnd) Advance();
                 }
-                Expect(TokenType.RBRACKET, "期望 ']'");
+                Expect(TokenType.RBRACKET);
                 return "[" + elementType + "]";
             }
             // 基本类型关键字
@@ -241,7 +241,7 @@ namespace RustCompiler
             // 自定义类型（标识符），可能带泛型参数: Option<i32>, Result<T, E>
             else if (Check(TokenType.IDENTIFIER))
             {
-                string name = Expect(TokenType.IDENTIFIER, "期望类型名").Value;
+                string name = Expect(TokenType.IDENTIFIER).Value;
                 if (Match(TokenType.LT))
                 {
                     SkipGenericArgs();
@@ -272,7 +272,7 @@ namespace RustCompiler
             }
             else if (Check(TokenType.IDENTIFIER))
             {
-                function.Name = Expect(TokenType.IDENTIFIER, "期望函数名").Value;
+                function.Name = Expect(TokenType.IDENTIFIER).Value;
             }
             else
             {
@@ -284,7 +284,7 @@ namespace RustCompiler
             if (Match(TokenType.LT)) { SkipGenericArgs(); }
 
             // 参数列表
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             
             while (!Check(TokenType.RPAREN) && !IsAtEnd)
             {
@@ -292,7 +292,7 @@ namespace RustCompiler
                 
                 if (Check(TokenType.IDENTIFIER))
                 {
-                    param.Name = Expect(TokenType.IDENTIFIER, "期望参数名").Value;
+                    param.Name = Expect(TokenType.IDENTIFIER).Value;
                 }
                 
                 Expect(TokenType.COLON, "期望 ':' 在参数名后");
@@ -306,7 +306,7 @@ namespace RustCompiler
                 }
             }
             
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
 
             // 返回类型
             if (Match(TokenType.ARROW))
@@ -351,7 +351,7 @@ namespace RustCompiler
             // 变量名
             if (Check(TokenType.IDENTIFIER))
             {
-                declaration.Name = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+                declaration.Name = Expect(TokenType.IDENTIFIER).Value;
             }
             else
             {
@@ -376,7 +376,7 @@ namespace RustCompiler
                 declaration.Initializer = ParseExpression();
             }
             
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
             
             return declaration;
         }
@@ -394,7 +394,7 @@ namespace RustCompiler
             // 常量名
             if (Check(TokenType.IDENTIFIER))
             {
-                declaration.Name = Expect(TokenType.IDENTIFIER, "期望常量名").Value;
+                declaration.Name = Expect(TokenType.IDENTIFIER).Value;
             }
             else
             {
@@ -417,7 +417,7 @@ namespace RustCompiler
             Expect(TokenType.EQ, "期望 '=' 用于常量初始化");
             declaration.Initializer = ParseExpression();
 
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
 
             return declaration;
         }
@@ -427,15 +427,15 @@ namespace RustCompiler
         {
             // static mut NAME: TYPE = VALUE;
             bool isMut = Match(TokenType.MUT);
-            string name = Expect(TokenType.IDENTIFIER, "期望静态变量名").Value;
+            string name = Expect(TokenType.IDENTIFIER).Value;
 
-            Expect(TokenType.COLON, "期望 ':'");
+            Expect(TokenType.COLON);
             string type = ParseType();
 
             Expect(TokenType.EQ, "期望 '=' 用于静态初始化");
             var initializer = ParseExpression();
 
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
 
             // 映射为 VariableDeclarationNode（全局变量存储在数据段）
             return new VariableDeclarationNode
@@ -457,7 +457,7 @@ namespace RustCompiler
             // 变量名
             if (Check(TokenType.IDENTIFIER))
             {
-                assignment.VariableName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+                assignment.VariableName = Expect(TokenType.IDENTIFIER).Value;
             }
 
             // 左值后缀链: p.x = ... / p.x.y = ... / a[i] = ... / p.a[i] = ...
@@ -472,7 +472,7 @@ namespace RustCompiler
                     if (Check(TokenType.DOT))
                     {
                         Advance(); // .
-                        string member = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
+                        string member = Expect(TokenType.IDENTIFIER).Value;
                         target = new MemberAccessNode { Target = target, Member = member };
                         continue;
                     }
@@ -480,7 +480,7 @@ namespace RustCompiler
                     {
                         Advance(); // [
                         var index = ParseExpression();
-                        Expect(TokenType.RBRACKET, "期望 ']'");
+                        Expect(TokenType.RBRACKET);
                         target = new IndexAccessNode { Target = target, Index = index };
                         continue;
                     }
@@ -490,13 +490,13 @@ namespace RustCompiler
             }
 
             // 等号
-            Expect(TokenType.EQ, "期望 '='");
+            Expect(TokenType.EQ);
 
             // 值
             assignment.Value = ParseExpression();
 
             if (!Check(TokenType.RBRACE))
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
 
             return assignment;
         }
@@ -567,7 +567,7 @@ namespace RustCompiler
             // 变量名
             if (Check(TokenType.IDENTIFIER))
             {
-                compound.VariableName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+                compound.VariableName = Expect(TokenType.IDENTIFIER).Value;
             }
             
             // 复合赋值运算符
@@ -588,7 +588,7 @@ namespace RustCompiler
             compound.Value = ParseExpression();
 
             if (!Check(TokenType.RBRACE))
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
 
             return compound;
         }
@@ -602,7 +602,7 @@ namespace RustCompiler
             if (Match(TokenType.LET))
             {
                 var pattern = ParseMatchPattern();
-                Expect(TokenType.EQ, "期望 '='");
+                Expect(TokenType.EQ);
                 var value = ParseExpression();
                 var thenBlock = ParseBlock();
                 ASTNode? elseBlock = null;
@@ -667,9 +667,9 @@ namespace RustCompiler
             var forStatement = new ForStatementNode();
             if (Check(TokenType.IDENTIFIER))
             {
-                forStatement.VariableName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+                forStatement.VariableName = Expect(TokenType.IDENTIFIER).Value;
             }
-            Expect(TokenType.IDENTIFIER, "期望 'in'");
+            Expect(TokenType.IDENTIFIER);
 
             // 先解析表达式
             forStatement.RangeStart = ParseExpression();
@@ -711,7 +711,7 @@ namespace RustCompiler
                 returnStatement.Value = ParseExpression();
             }
             
-            Expect(TokenType.SEMICOLON, "期望 ';'");
+            Expect(TokenType.SEMICOLON);
             
             return returnStatement;
         }
@@ -728,7 +728,7 @@ namespace RustCompiler
             // 只有在不是块的最后一条语句时才需要分号
             if (!Check(TokenType.RBRACE))
             {
-                Expect(TokenType.SEMICOLON, "期望 ';'");
+                Expect(TokenType.SEMICOLON);
             }
             
             return exprStatement;
@@ -747,7 +747,7 @@ namespace RustCompiler
             // 检查宏调用符号（在词法分析器中是BANG）
             if (Match(TokenType.BANG))
             {
-                Expect(TokenType.LPAREN, "期望 '('");
+                Expect(TokenType.LPAREN);
                 
                 // 解析参数
                 while (!Check(TokenType.RPAREN) && !IsAtEnd)
@@ -760,7 +760,7 @@ namespace RustCompiler
                     }
                 }
                 
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 Match(TokenType.SEMICOLON);
             }
             
@@ -805,17 +805,17 @@ namespace RustCompiler
                 return new IdentifierNode { Name = "_" };
             if (Check(TokenType.IDENTIFIER))
             {
-                string name = Expect(TokenType.IDENTIFIER, "期望变体名").Value;
+                string name = Expect(TokenType.IDENTIFIER).Value;
                 // Qualified path: EnumName::VariantName(...)
                 if (Check(TokenType.COLON) && Peek(1)?.Type == TokenType.COLON)
                 {
                     Advance(); Advance(); // skip ::
-                    string variantName = Expect(TokenType.IDENTIFIER, "期望变体名").Value;
+                    string variantName = Expect(TokenType.IDENTIFIER).Value;
                     string fullName = $"{name}_{variantName}";
                     if (Match(TokenType.LPAREN))
                     {
-                        string bindName = Expect(TokenType.IDENTIFIER, "期望绑定变量名").Value;
-                        Expect(TokenType.RPAREN, "期望 ')'");
+                        string bindName = Expect(TokenType.IDENTIFIER).Value;
+                        Expect(TokenType.RPAREN);
                         return new EnumPatternNode { VariantName = fullName, BindName = bindName };
                     }
                     // Unit variant without parens
@@ -824,8 +824,8 @@ namespace RustCompiler
                 // Simple variant: VariantName(bind)
                 if (Match(TokenType.LPAREN))
                 {
-                    string bindName = Expect(TokenType.IDENTIFIER, "期望绑定变量名").Value;
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    string bindName = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.RPAREN);
                     return new EnumPatternNode { VariantName = name, BindName = bindName };
                 }
                 // Unit variant or literal identifier
@@ -840,7 +840,7 @@ namespace RustCompiler
                     tuple.Elements.Add(ParseMatchPattern());
                     if (!Match(TokenType.COMMA)) break;
                 }
-                Expect(TokenType.RPAREN, "期望 ')'");
+                Expect(TokenType.RPAREN);
                 return tuple;
             }
             return ParsePrimary();
@@ -848,14 +848,14 @@ namespace RustCompiler
 
         private StructDeclNode ParseStructDecl()
         {
-            string name = Expect(TokenType.IDENTIFIER, "期望结构体名").Value;
+            string name = Expect(TokenType.IDENTIFIER).Value;
             var sd = new StructDeclNode { Name = name };
             if (Match(TokenType.LBRACE))
             {
                 while (!Check(TokenType.RBRACE) && !IsAtEnd)
                 {
-                    string fieldName = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
-                    Expect(TokenType.COLON, "期望 ':'");
+                    string fieldName = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.COLON);
                     string fieldType = ParseType();
                     sd.Fields.Add(new StructField { Name = fieldName, Type = fieldType });
                     Match(TokenType.COMMA);
@@ -871,14 +871,14 @@ namespace RustCompiler
 
         private EnumDeclNode ParseEnumDecl()
         {
-            string name = Expect(TokenType.IDENTIFIER, "期望枚举名").Value;
+            string name = Expect(TokenType.IDENTIFIER).Value;
             var ed = new EnumDeclNode { Name = name };
             // Skip generic args: enum Option<T> { ... }
             if (Match(TokenType.LT)) { SkipGenericArgs(); }
             Expect(TokenType.LBRACE, "期望 '{' 在 enum 后");
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
-                string variant = Expect(TokenType.IDENTIFIER, "期望枚举变体名").Value;
+                string variant = Expect(TokenType.IDENTIFIER).Value;
                 string? payloadType = null;
                 if (Match(TokenType.LPAREN))
                 {
@@ -902,22 +902,22 @@ namespace RustCompiler
             {
                 if (Match(TokenType.FN))
                 {
-                    string methodName = Expect(TokenType.IDENTIFIER, "期望方法名").Value;
-                    Expect(TokenType.LPAREN, "期望 '('");
+                    string methodName = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.LPAREN);
                     var tm = new TraitMethod { Name = methodName };
                     if (!Check(TokenType.RPAREN))
                     {
                         do
                         {
-                            string pn = Expect(TokenType.IDENTIFIER, "期望参数名").Value;
-                            Expect(TokenType.COLON, "期望 ':'");
+                            string pn = Expect(TokenType.IDENTIFIER).Value;
+                            Expect(TokenType.COLON);
                             string pt = ParseType();
                             tm.Parameters.Add(new ParameterNode { Name = pn, Type = pt });
                         } while (Match(TokenType.COMMA));
                     }
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
                     if (Match(TokenType.ARROW)) tm.ReturnType = ParseType();
-                    Expect(TokenType.SEMICOLON, "期望 ';'");
+                    Expect(TokenType.SEMICOLON);
                     td.Methods.Add(tm);
                 }
                 else break;
@@ -928,13 +928,13 @@ namespace RustCompiler
 
         private ImplBlockNode ParseImplBlock()
         {
-            string first = Expect(TokenType.IDENTIFIER, "期望类型名").Value;
+            string first = Expect(TokenType.IDENTIFIER).Value;
             string? traitName = null;
             string structName = first;
             if (Match(TokenType.FOR))
             {
                 traitName = first;
-                structName = Expect(TokenType.IDENTIFIER, "期望结构体名").Value;
+                structName = Expect(TokenType.IDENTIFIER).Value;
             }
             var impl = new ImplBlockNode { StructName = structName, TraitName = traitName };
             Expect(TokenType.LBRACE, "期望 '{' 在 impl 后");
@@ -942,7 +942,7 @@ namespace RustCompiler
             {
                 if (Match(TokenType.FN))
                 {
-                    string fnName = Expect(TokenType.IDENTIFIER, "期望方法名").Value;
+                    string fnName = Expect(TokenType.IDENTIFIER).Value;
                     var func = ParseMethod(fnName);
                     impl.Methods.Add(func);
                 }
@@ -954,7 +954,7 @@ namespace RustCompiler
 
         private FunctionNode ParseMethod(string name)
         {
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             var func = new FunctionNode { Name = name };
             if (!Check(TokenType.RPAREN))
             {
@@ -969,13 +969,13 @@ namespace RustCompiler
                         paramName = "self";
                     }
                     else
-                        paramName = Expect(TokenType.IDENTIFIER, "期望参数名").Value;
-                    Expect(TokenType.COLON, "期望 ':'");
+                        paramName = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.COLON);
                     string paramType = ParseType();
                     func.Parameters.Add(new ParameterNode { Name = paramName, Type = paramType });
                 } while (Match(TokenType.COMMA));
             }
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
             if (Match(TokenType.ARROW))
             {
                 func.ReturnType = ParseType();
@@ -991,7 +991,7 @@ namespace RustCompiler
         {
             var block = new BlockNode();
             
-            Expect(TokenType.LBRACE, "期望 '{'");
+            Expect(TokenType.LBRACE);
             
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
@@ -1002,7 +1002,7 @@ namespace RustCompiler
                 }
             }
             
-            Expect(TokenType.RBRACE, "期望 '}'");
+            Expect(TokenType.RBRACE);
             
             return block;
         }
@@ -1043,7 +1043,7 @@ namespace RustCompiler
 
         private void SkipModule()
         {
-            Expect(TokenType.IDENTIFIER, "期望模块名");
+            Expect(TokenType.IDENTIFIER);
             if (Match(TokenType.LBRACE))
             {
                 int depth = 1;

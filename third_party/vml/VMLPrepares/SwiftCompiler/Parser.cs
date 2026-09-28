@@ -243,7 +243,7 @@ namespace SwiftCompiler
         private VariableDeclStatement ParseVariableDecl()
         {
             var keyword = Previous();
-            var name = Expect(TokenType.Identifier, "期望变量名").Value;
+            var name = Expect(TokenType.Identifier).Value;
 
             string typeAnnotation = null;
             if (Match(TokenType.Colon))
@@ -273,7 +273,7 @@ namespace SwiftCompiler
         private FunctionDeclStatement ParseFunctionDecl()
         {
             // Func token already consumed by Match() in ParseStatement()
-            var name = Expect(TokenType.Identifier, "期望函数名").Value;
+            var name = Expect(TokenType.Identifier).Value;
 
             // 跳过泛型参数 <T, U>
             if (Match(TokenType.LessThan))
@@ -287,7 +287,7 @@ namespace SwiftCompiler
                 }
             }
             
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             
             var parameters = new List<Parameter>();
             if (!Check(TokenType.RightParen))
@@ -295,28 +295,28 @@ namespace SwiftCompiler
                 do
                 {
                     var externalName = Cur.Value;
-                    Expect(TokenType.Identifier, "期望参数名");
+                    Expect(TokenType.Identifier);
                     
                     string internalName = externalName;
                     // _ internalName: Type 模式
                     if (externalName == "_")
                     {
-                        internalName = Expect(TokenType.Identifier, "期望内部参数名").Value;
-                        Expect(TokenType.Colon, "期望 ':'");
+                        internalName = Expect(TokenType.Identifier).Value;
+                        Expect(TokenType.Colon);
                     }
                     else if (Match(TokenType.Colon))
                     {
                         // 检查是否是 external internal: 模式（冒号后还有标识符+冒号）
                         if (_pos + 1 < _tokens.Count && _tokens[_pos].Type == TokenType.Identifier && _tokens[_pos + 1].Type == TokenType.Colon)
                         {
-                            internalName = Expect(TokenType.Identifier, "期望内部参数名").Value;
-                            Expect(TokenType.Colon, "期望 ':'");
+                            internalName = Expect(TokenType.Identifier).Value;
+                            Expect(TokenType.Colon);
                         }
                         // 否则是 name: Type 模式，internalName = externalName
                     }
                     else
                     {
-                        Expect(TokenType.Colon, "期望 ':'");
+                        Expect(TokenType.Colon);
                     }
                     
                     string type;
@@ -335,7 +335,7 @@ namespace SwiftCompiler
                 } while (Match(TokenType.Comma));
             }
             
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             
             string returnType = null;
             if (Match(TokenType.Arrow))
@@ -346,7 +346,7 @@ namespace SwiftCompiler
                     GetTokenType(Cur) == TokenType.String || GetTokenType(Cur) == TokenType.Character)
                     returnType = Advance().Value;
                 else
-                    returnType = Expect(TokenType.Identifier, "期望返回类型").Value;
+                    returnType = Expect(TokenType.Identifier).Value;
             }
             
             var body = ParseBlock();
@@ -359,8 +359,8 @@ namespace SwiftCompiler
             // if let x = optionalExpr { body }
             if (Match(TokenType.Let))
             {
-                string vn = Expect(TokenType.Identifier, "期望变量名").Value;
-                Expect(TokenType.Assignment, "期望 '='");
+                string vn = Expect(TokenType.Identifier).Value;
+                Expect(TokenType.Assignment);
                 var oe = ParseExpression();
                 Statement tb = Check(TokenType.LeftBrace) ? ParseBlock() : ParseStatement();
                 Statement eb = null;
@@ -395,8 +395,8 @@ namespace SwiftCompiler
             if (Check(TokenType.Identifier) && nextPos < _tokens.Count &&
                 _tokens[nextPos].Type == TokenType.In)
             {
-                string varName = Expect(TokenType.Identifier, "期望变量名").Value;
-                Expect(TokenType.In, "期望 'in'");
+                string varName = Expect(TokenType.Identifier).Value;
+                Expect(TokenType.In);
                 var collection = ParseExpression();
                 var body = Check(TokenType.LeftBrace) ? ParseBlock() : ParseStatement();
                 return new ForEachStatement(varName, collection, body);
@@ -409,10 +409,10 @@ namespace SwiftCompiler
                 if (!Check(TokenType.Semicolon))
                     initializer = new ExpressionStatement(ParseExpression());
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             Expression condition = null;
             if (!Check(TokenType.Semicolon)) condition = ParseExpression();
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             Expression increment = null;
             if (!Check(TokenType.RightParen)) increment = ParseExpression();
             var forBody = ParseStatement();
@@ -436,8 +436,8 @@ namespace SwiftCompiler
         
         private PrintStatement ParsePrintStatement()
         {
-            Expect(TokenType.Print, "期望 'print'");
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.Print);
+            Expect(TokenType.LeftParen);
             
             var arguments = new List<Expression>();
             if (!Check(TokenType.RightParen))
@@ -448,7 +448,7 @@ namespace SwiftCompiler
                 } while (Match(TokenType.Comma));
             }
             
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             Match(TokenType.Semicolon);
             
             return new PrintStatement(arguments);
@@ -456,17 +456,17 @@ namespace SwiftCompiler
         
         private SwitchStatement ParseSwitchStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var value = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.RightParen);
+            Expect(TokenType.LeftBrace);
             var sw = new SwitchStatement(value);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
                 if (Match(TokenType.Case))
                 {
                     var caseVal = ParseExpression();
-                    Expect(TokenType.Colon, "期望 ':'");
+                    Expect(TokenType.Colon);
                     var sc = new SwitchCase { Value = caseVal };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd)
                     {
@@ -479,7 +479,7 @@ namespace SwiftCompiler
                 }
                 else if (Match(TokenType.Default))
                 {
-                    Expect(TokenType.Colon, "期望 ':'");
+                    Expect(TokenType.Colon);
                     var sc = new SwitchCase { Value = null };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd)
                     {
@@ -492,14 +492,14 @@ namespace SwiftCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return sw;
         }
 
         private Statement ParseRepeatWhileStatement()
         {
             var body = ParseBlock();
-            Expect(TokenType.While, "期望 'while'");
+            Expect(TokenType.While);
             var condition = ParseExpression();
             return new DoWhileStatement(body, condition);
         }
@@ -534,33 +534,33 @@ namespace SwiftCompiler
 
         private Statement ParseStructDecl()
         {
-            string name = Expect(TokenType.Identifier, "期望结构体名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             var sd = new StructDeclStatement { Name = name };
             // Parse protocol conformance: struct Name: Protocol1, Protocol2 { ... }
             if (Match(TokenType.Colon))
             {
                 do {
-                    string protoName = Expect(TokenType.Identifier, "期望协议名").Value;
+                    string protoName = Expect(TokenType.Identifier).Value;
                     sd.Protocols.Add(protoName);
                 } while (Match(TokenType.Comma));
             }
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
-                string fieldName = Expect(TokenType.Identifier, "期望字段名").Value;
-                Expect(TokenType.Colon, "期望 ':'");
-                string fieldType = Expect(TokenType.Identifier, "期望类型").Value;
+                string fieldName = Expect(TokenType.Identifier).Value;
+                Expect(TokenType.Colon);
+                string fieldType = Expect(TokenType.Identifier).Value;
                 sd.Fields.Add(new StructField { Name = fieldName, Type = fieldType });
                 Match(TokenType.Comma);
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return sd;
         }
 
         private Statement ParseEnumDecl()
         {
-            string name = Expect(TokenType.Identifier, "期望枚举名").Value;
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            string name = Expect(TokenType.Identifier).Value;
+            Expect(TokenType.LeftBrace);
             var ed = new EnumDeclStatement { Name = name };
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
@@ -571,72 +571,72 @@ namespace SwiftCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return ed;
         }
 
         private Statement ParseProtocolDecl()
         {
-            string name = Expect(TokenType.Identifier, "期望协议名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             var pd = new ProtocolDeclStatement { Name = name };
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
                 if (Match(TokenType.Func))
                 {
-                    string methodName = Expect(TokenType.Identifier, "期望方法名").Value;
-                    Expect(TokenType.LeftParen, "期望 '('");
+                    string methodName = Expect(TokenType.Identifier).Value;
+                    Expect(TokenType.LeftParen);
                     var pm = new ProtocolMethod { Name = methodName };
                     if (!Check(TokenType.RightParen))
                     {
-                        do { pm.Parameters.Add(Expect(TokenType.Identifier, "期望参数名").Value); } while (Match(TokenType.Comma));
+                        do { pm.Parameters.Add(Expect(TokenType.Identifier).Value); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
-                    if (Match(TokenType.Arrow)) pm.ReturnType = Expect(TokenType.Identifier, "期望类型").Value;
+                    Expect(TokenType.RightParen);
+                    if (Match(TokenType.Arrow)) pm.ReturnType = Expect(TokenType.Identifier).Value;
                     pd.Methods.Add(pm);
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return pd;
         }
 
         private Statement ParseExtensionDecl()
         {
-            string typeName = Expect(TokenType.Identifier, "期望类型名").Value;
+            string typeName = Expect(TokenType.Identifier).Value;
             var ed = new ExtensionDeclStatement { TypeName = typeName };
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
                 if (Match(TokenType.Func))
                 {
-                    string methodName = Expect(TokenType.Identifier, "期望方法名").Value;
-                    Expect(TokenType.LeftParen, "期望 '('");
+                    string methodName = Expect(TokenType.Identifier).Value;
+                    Expect(TokenType.LeftParen);
                     var fd = new FunctionDeclStatement(methodName);
                     if (!Check(TokenType.RightParen))
                     {
                         do
                         {
-                            string pname = Expect(TokenType.Identifier, "期望参数名").Value;
+                            string pname = Expect(TokenType.Identifier).Value;
                             fd.Parameters.Add(new Parameter(pname, pname, "Any"));
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
-                    if (Match(TokenType.Arrow)) fd.ReturnType = Expect(TokenType.Identifier, "期望类型").Value;
+                    Expect(TokenType.RightParen);
+                    if (Match(TokenType.Arrow)) fd.ReturnType = Expect(TokenType.Identifier).Value;
                     Match(TokenType.LeftBrace);
                     while (!Check(TokenType.RightBrace) && !IsAtEnd) { var s = ParseStatement(); if (s != null) fd.Body.Statements.Add(s); }
-                    Expect(TokenType.RightBrace, "期望 '}'");
+                    Expect(TokenType.RightBrace);
                     ed.Methods.Add(fd);
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return ed;
         }
 
         private Block ParseBlock()
         {
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
             
             var block = new Block();
             
@@ -650,7 +650,7 @@ namespace SwiftCompiler
                 Match(TokenType.Semicolon);
             }
             
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             
             return block;
         }
@@ -666,7 +666,7 @@ namespace SwiftCompiler
             if (Match(TokenType.Question))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "期望 ':'");
+                Expect(TokenType.Colon);
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -861,12 +861,12 @@ namespace SwiftCompiler
                 if (Match(TokenType.LeftBracket))
                 {
                     var index = ParseExpression();
-                    Expect(TokenType.RightBracket, "期望 ']'");
+                    Expect(TokenType.RightBracket);
                     result = new IndexAccessExpression(result, index);
                 }
                 else if (Match(TokenType.Dot))
                 {
-                    string member = Expect(TokenType.Identifier, "期望成员名").Value;
+                    string member = Expect(TokenType.Identifier).Value;
                     if (Match(TokenType.LeftParen))
                     {
                         var call = new CallExpression(new MemberExpression(result, member));
@@ -874,7 +874,7 @@ namespace SwiftCompiler
                         {
                             do { call.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "期望 ')'");
+                        Expect(TokenType.RightParen);
                         result = call;
                     }
                     else
@@ -963,14 +963,14 @@ namespace SwiftCompiler
                     {
                         do
                         {
-                            string pname = Expect(TokenType.Identifier, "期望参数名").Value;
-                            if (Match(TokenType.Colon)) { var _ = Expect(TokenType.Identifier, "期望参数类型"); }
+                            string pname = Expect(TokenType.Identifier).Value;
+                            if (Match(TokenType.Colon)) { var _ = Expect(TokenType.Identifier); }
                             closure.Parameters.Add(pname);
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
-                    if (Match(TokenType.Arrow)) closure.ReturnType = Expect(TokenType.Identifier, "期望返回类型").Value;
-                    Expect(TokenType.In, "期望 'in'");
+                    Expect(TokenType.RightParen);
+                    if (Match(TokenType.Arrow)) closure.ReturnType = Expect(TokenType.Identifier).Value;
+                    Expect(TokenType.In);
                 }
                 else if (Check(TokenType.Identifier))
                 {
@@ -988,7 +988,7 @@ namespace SwiftCompiler
                     var stmt = ParseStatement();
                     if (stmt != null) body.Statements.Add(stmt);
                 }
-                Expect(TokenType.RightBrace, "期望 '}'");
+                Expect(TokenType.RightBrace);
                 closure.Body = body;
                 return closure;
             }
@@ -1010,7 +1010,7 @@ namespace SwiftCompiler
                             call.Arguments.Add(ParseExpression());
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                     return call;
                 }
                 
@@ -1021,7 +1021,7 @@ namespace SwiftCompiler
             if (Match(TokenType.LeftParen))
             {
                 var expr = ParseExpression();
-                Expect(TokenType.RightParen, "期望 ')'");
+                Expect(TokenType.RightParen);
                 return new ParenthesizedExpression(expr);
             }
             
@@ -1058,7 +1058,7 @@ namespace SwiftCompiler
             var parts = new List<Expression>();
             var expr = ParseExpression();
             parts.Add(expr);
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             return new StringInterpolationExpression(parts);
         }
         
@@ -1077,10 +1077,10 @@ namespace SwiftCompiler
                     while (Match(TokenType.Comma))
                     {
                         var k = ParseExpression();
-                        Expect(TokenType.Colon, "期望 ':'");
+                        Expect(TokenType.Colon);
                         dict.Entries.Add(new KeyValuePair<Expression, Expression>(k, ParseExpression()));
                     }
-                    Expect(TokenType.RightBracket, "期望 ']'");
+                    Expect(TokenType.RightBracket);
                     return dict;
                 }
                 _pos = savePos;
@@ -1092,7 +1092,7 @@ namespace SwiftCompiler
             {
                 do { elements.Add(ParseExpression()); } while (Match(TokenType.Comma));
             }
-            Expect(TokenType.RightBracket, "期望 ']'");
+            Expect(TokenType.RightBracket);
             return new ArrayLiteralExpression(elements);
         }
         

@@ -39,7 +39,7 @@ public class Parser : ParserBase<Token, TokenType>
         // ObjC @implementation
         if (Check(TokenType.Implementation)) return ParseImplementation();
         // ObjC @class forward declaration
-        if (Check(TokenType.Class)) { Advance(); Expect(TokenType.Identifier, "期望类名"); Match(TokenType.Semicolon); return ParseTopLevel(); }
+        if (Check(TokenType.Class)) { Advance(); Expect(TokenType.Identifier); Match(TokenType.Semicolon); return ParseTopLevel(); }
         // ObjC @protocol
         if (Check(TokenType.Protocol)) return ParseProtocol();
 
@@ -111,7 +111,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         // 指针类型: type *name
         while (Match(TokenType.Star)) returnType += "*";
-        string name = Expect(TokenType.Identifier, "期望函数名").Value;
+        string name = Expect(TokenType.Identifier).Value;
 
         // 全局变量声明: int x = 0; 或 int x, y = 0;
         if (Check(TokenType.Assign) || Check(TokenType.Semicolon) || Check(TokenType.Comma) || Check(TokenType.LBracket))
@@ -137,7 +137,7 @@ public class Parser : ParserBase<Token, TokenType>
             // 跳过逗号分隔的多变量声明: int a = 1, b = 2, c;
             while (Match(TokenType.Comma))
             {
-                Expect(TokenType.Identifier, "期望变量名");
+                Expect(TokenType.Identifier);
                 if (Match(TokenType.Assign))
                     ParseExpression();
             }
@@ -199,7 +199,7 @@ public class Parser : ParserBase<Token, TokenType>
                 }
                 return "struct _anon";
             }
-            string s = Expect(TokenType.Identifier, "期望结构体名").Value;
+            string s = Expect(TokenType.Identifier).Value;
             // struct Name { fields } — parse body and track field layout
             if (Match(TokenType.LBrace))
             {
@@ -212,7 +212,7 @@ public class Parser : ParserBase<Token, TokenType>
                     string fieldType = ParseTypeName();
                     // 指针字段: int*
                     while (Match(TokenType.Star)) fieldType += "*";
-                    string fieldName = Expect(TokenType.Identifier, "期望字段名").Value;
+                    string fieldName = Expect(TokenType.Identifier).Value;
                     // 数组字段: int arr[10]
                     int arraySize = 1;
                     if (Match(TokenType.LBracket))
@@ -243,7 +243,7 @@ public class Parser : ParserBase<Token, TokenType>
                 while (depth > 0 && !Check(TokenType.EOF)) { if (Check(TokenType.LBrace)) depth++; else if (Check(TokenType.RBrace)) depth--; Advance(); }
                 return "union _anon";
             }
-            string s = Expect(TokenType.Identifier, "期望联合体名").Value;
+            string s = Expect(TokenType.Identifier).Value;
             // Parse union body if present: all fields share offset 0
             if (Match(TokenType.LBrace))
             {
@@ -254,7 +254,7 @@ public class Parser : ParserBase<Token, TokenType>
                     if (Check(TokenType.RBrace)) break;
                     string fieldType = ParseTypeName();
                     while (Match(TokenType.Star)) fieldType += "*";
-                    string fieldName = Expect(TokenType.Identifier, "期望字段名").Value;
+                    string fieldName = Expect(TokenType.Identifier).Value;
                     Match(TokenType.Semicolon);
                     int fieldSize = (fieldType == "long" || fieldType == "double" || fieldType == "long long") ? 8 :
                                     (fieldType.Contains("*") ? 4 : 4);
@@ -267,14 +267,14 @@ public class Parser : ParserBase<Token, TokenType>
         }
         if (Check(TokenType.Enum)) {
             Advance();
-            string s = Expect(TokenType.Identifier, "期望枚举名").Value;
+            string s = Expect(TokenType.Identifier).Value;
             // Parse enum body if present: enum Name { A, B = 5 }
             if (Match(TokenType.LBrace))
             {
                 int autoVal = 0;
                 while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
                 {
-                    string memberName = Expect(TokenType.Identifier, "期望枚举成员").Value;
+                    string memberName = Expect(TokenType.Identifier).Value;
                     if (Match(TokenType.Assign))
                     {
                         var valNode = ParseExpression();
@@ -296,7 +296,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 var protos = new List<string>();
                 do {
-                    protos.Add(Expect(TokenType.Identifier, "期望协议名").Value);
+                    protos.Add(Expect(TokenType.Identifier).Value);
                 } while (Match(TokenType.Comma));
                 Expect(TokenType.Gt, "expected >");
                 return "id<" + string.Join(",", protos) + ">";
@@ -328,7 +328,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // @interface
-        string name = Expect(TokenType.Identifier, "期望接口名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         string superClass = "NSObject";
         string? categoryName = null;
 
@@ -336,11 +336,11 @@ public class Parser : ParserBase<Token, TokenType>
         if (Match(TokenType.LParen))
         {
             if (!Check(TokenType.RParen))
-                categoryName = Expect(TokenType.Identifier, "期望类别名").Value;
+                categoryName = Expect(TokenType.Identifier).Value;
             Expect(TokenType.RParen, "expected )");
         }
         else if (Match(TokenType.Colon))
-            superClass = Expect(TokenType.Identifier, "期望父类名").Value;
+            superClass = Expect(TokenType.Identifier).Value;
 
         var members = new List<ASTNode>();
         // Categories and class extensions may have an optional ivar block
@@ -360,7 +360,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.Identifier) || IsTypeName(Cur.Type) || Cur.Type == TokenType.IdType)
                 ivarName = Advance().Value;
             else
-                ivarName = Expect(TokenType.Identifier, "期望实例变量名").Value;
+                ivarName = Expect(TokenType.Identifier).Value;
             Match(TokenType.Semicolon);
             members.Add(new VarDeclNode(ivarType, ivarName, null, l, c));
         }
@@ -385,7 +385,7 @@ public class Parser : ParserBase<Token, TokenType>
                 Expect(TokenType.RParen, "expected )");
             }
             string propType = ParseTypeName();
-            string propName = Expect(TokenType.Identifier, "期望属性名").Value;
+            string propName = Expect(TokenType.Identifier).Value;
             Match(TokenType.Semicolon);
             var propNode = new ObjCPropertyNode(propType, propName, l, c);
             propNode.Attributes.AddRange(attrs);
@@ -412,7 +412,7 @@ public class Parser : ParserBase<Token, TokenType>
                     Expect(TokenType.RParen, "expected )");
                 }
                 string propType = ParseTypeName();
-                string propName = Expect(TokenType.Identifier, "期望属性名").Value;
+                string propName = Expect(TokenType.Identifier).Value;
                 Match(TokenType.Semicolon);
                 var propNode = new ObjCPropertyNode(propType, propName, l, c);
                 propNode.Attributes.AddRange(attrs);
@@ -441,14 +441,14 @@ public class Parser : ParserBase<Token, TokenType>
                 bool first = true;
                 while (!Check(TokenType.LBrace) && !Check(TokenType.Semicolon) && !Check(TokenType.EOF))
                 {
-                    if (first) { methodName += Expect(TokenType.Identifier, "期望方法名").Value; first = false; }
+                    if (first) { methodName += Expect(TokenType.Identifier).Value; first = false; }
                     if (Match(TokenType.Colon))
                     {
                         methodName += ":";
                         Expect(TokenType.LParen, "expected (");
                         string pType = ParseTypeName();
                         Expect(TokenType.RParen, "expected )");
-                        string pName = Expect(TokenType.Identifier, "期望参数名").Value;
+                        string pName = Expect(TokenType.Identifier).Value;
                         params2.Add((pType, pName));
                     }
                 }
@@ -474,7 +474,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // @protocol
-        string name = Expect(TokenType.Identifier, "期望协议名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         var members = new List<ASTNode>();
 
         // Optional parent protocols: @protocol MyProto <ParentProto>
@@ -482,7 +482,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             while (!Check(TokenType.Gt) && !Check(TokenType.EOF))
             {
-                Expect(TokenType.Identifier, "期望父协议名");
+                Expect(TokenType.Identifier);
                 if (!Match(TokenType.Comma)) break;
             }
             Expect(TokenType.Gt, "expected >");
@@ -514,14 +514,14 @@ public class Parser : ParserBase<Token, TokenType>
                 bool first = true;
                 while (!Check(TokenType.Semicolon) && !Check(TokenType.EOF))
                 {
-                    if (first) { methodName += Expect(TokenType.Identifier, "期望方法名").Value; first = false; }
+                    if (first) { methodName += Expect(TokenType.Identifier).Value; first = false; }
                     if (Match(TokenType.Colon))
                     {
                         methodName += ":";
                         Expect(TokenType.LParen, "expected (");
                         string pType = ParseTypeName();
                         Expect(TokenType.RParen, "expected )");
-                        string pName = Expect(TokenType.Identifier, "期望参数名").Value;
+                        string pName = Expect(TokenType.Identifier).Value;
                         params2.Add((pType, pName));
                     }
                     else break;
@@ -537,11 +537,11 @@ public class Parser : ParserBase<Token, TokenType>
                 if (Match(TokenType.LParen))
                 {
                     while (!Check(TokenType.RParen) && !Check(TokenType.EOF))
-                    { attrs.Add(Expect(TokenType.Identifier, "期望属性说明").Value); Match(TokenType.Comma); }
+                    { attrs.Add(Expect(TokenType.Identifier).Value); Match(TokenType.Comma); }
                     Expect(TokenType.RParen, "expected )");
                 }
                 string propType = ParseTypeName();
-                string propName = Expect(TokenType.Identifier, "期望属性名").Value;
+                string propName = Expect(TokenType.Identifier).Value;
                 Match(TokenType.Semicolon);
                 var pn = new ObjCPropertyNode(propType, propName, l, c);
                 foreach (var a in attrs) pn.Attributes.Add(a);
@@ -558,14 +558,14 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // @implementation
-        string name = Expect(TokenType.Identifier, "期望实现名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         string? categoryName = null;
 
         // Category syntax: @implementation ClassName (CategoryName)  or  @implementation ClassName () = anonymous extension
         if (Match(TokenType.LParen))
         {
             if (!Check(TokenType.RParen))
-                categoryName = Expect(TokenType.Identifier, "期望类别名").Value;
+                categoryName = Expect(TokenType.Identifier).Value;
             Expect(TokenType.RParen, "expected )");
         }
 
@@ -613,14 +613,14 @@ public class Parser : ParserBase<Token, TokenType>
                 bool first = true;
                 while (!Check(TokenType.LBrace) && !Check(TokenType.EOF))
                 {
-                    if (first) { methodName += Expect(TokenType.Identifier, "期望方法名").Value; first = false; }
+                    if (first) { methodName += Expect(TokenType.Identifier).Value; first = false; }
                     if (Match(TokenType.Colon))
                     {
                         methodName += ":";
                         Expect(TokenType.LParen, "expected (");
                         string pType = ParseTypeName();
                         Expect(TokenType.RParen, "expected )");
-                        string pName = Expect(TokenType.Identifier, "期望参数名").Value;
+                        string pName = Expect(TokenType.Identifier).Value;
                         params2.Add((pType, pName));
                     }
                     else break;
@@ -631,17 +631,17 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Match(TokenType.Synthesize))
             {
                 // @synthesize propName = ivarName;
-                string propName = Expect(TokenType.Identifier, "期望属性名").Value;
+                string propName = Expect(TokenType.Identifier).Value;
                 string ivarName = propName;
                 if (Match(TokenType.Assign))
-                    ivarName = Expect(TokenType.Identifier, "期望实例变量名").Value;
+                    ivarName = Expect(TokenType.Identifier).Value;
                 Match(TokenType.Semicolon);
                 methods.Add(new ObjCSynthesizeNode(propName, ivarName, l, c));
             }
             else if (Match(TokenType.Dynamic))
             {
                 // @dynamic propName;
-                string propName = Expect(TokenType.Identifier, "期望属性名").Value;
+                string propName = Expect(TokenType.Identifier).Value;
                 Match(TokenType.Semicolon);
                 methods.Add(new ObjCDynamicNode(propName, l, c));
             }
@@ -671,7 +671,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (Check(TokenType.If)) return ParseIf();
         if (Check(TokenType.While)) return ParseWhile();
         if (Check(TokenType.For)) return ParseFor();
-        if (Check(TokenType.Goto)) { Advance(); string labelName = Expect(TokenType.Identifier, "期望标签名").Value; Match(TokenType.Semicolon); return new GotoNode(labelName, Cur.Line, Cur.Column); }
+        if (Check(TokenType.Goto)) { Advance(); string labelName = Expect(TokenType.Identifier).Value; Match(TokenType.Semicolon); return new GotoNode(labelName, Cur.Line, Cur.Column); }
         if (Check(TokenType.Do)) return ParseDoWhile();
         if (Check(TokenType.Switch)) return ParseSwitch();
         if (Check(TokenType.Try)) return ParseTryCatch();
@@ -759,7 +759,7 @@ public class Parser : ParserBase<Token, TokenType>
             string varType = ParseTypeName();
             if (Check(TokenType.Identifier))
             {
-                string varName = Expect(TokenType.Identifier, "期望变量名").Value;
+                string varName = Expect(TokenType.Identifier).Value;
                 // 检查 "in" 关键字
                 if (Cur.Type == TokenType.Identifier && Cur.Value == "in")
                 {
@@ -868,7 +868,7 @@ public class Parser : ParserBase<Token, TokenType>
             Advance(); // skip ^
             type = $"{type}(^)"; // mark as block pointer type
         }
-        string name = Expect(TokenType.Identifier, "期望变量名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         if (isBlockPtr)
             Expect(TokenType.RParen, "期望 ) 在块指针名后");
         // 跳过 block 指针的参数类型: (Type1, Type2, ...)
@@ -908,7 +908,7 @@ public class Parser : ParserBase<Token, TokenType>
         decls.Add(new VarDeclNode(type, name, init, l, c, arraySize));
         while (Match(TokenType.Comma))
         {
-            string vname = Expect(TokenType.Identifier, "期望变量名").Value;
+            string vname = Expect(TokenType.Identifier).Value;
             ASTNode? vinit = null;
             if (Match(TokenType.Assign))
                 vinit = ParseExpression();
@@ -1090,7 +1090,7 @@ public class Parser : ParserBase<Token, TokenType>
                 {
                     do {
                         string pType = ParseTypeName();
-                        string pName = Expect(TokenType.Identifier, "期望参数名").Value;
+                        string pName = Expect(TokenType.Identifier).Value;
                         parameters.Add((pType, pName));
                     } while (Match(TokenType.Comma));
                 }
@@ -1245,7 +1245,7 @@ public class Parser : ParserBase<Token, TokenType>
             // C struct 成员访问: obj.field
             if (Match(TokenType.Dot))
             {
-                string field = Expect(TokenType.Identifier, "期望字段名").Value;
+                string field = Expect(TokenType.Identifier).Value;
                 ASTNode ma = new MemberAccessNode(new VarNode(name, l, c), field, false, l, c);
                 while (Match(TokenType.LBracket))
                 {
@@ -1258,7 +1258,7 @@ public class Parser : ParserBase<Token, TokenType>
             // C 指针成员访问: ptr->field
             if (Match(TokenType.Arrow))
             {
-                string field = Expect(TokenType.Identifier, "期望字段名").Value;
+                string field = Expect(TokenType.Identifier).Value;
                 ASTNode ma = new MemberAccessNode(new VarNode(name, l, c), field, true, l, c);
                 while (Match(TokenType.LBracket))
                 {
@@ -1340,7 +1340,7 @@ public class Parser : ParserBase<Token, TokenType>
                     excType = ParseTypeName();
                     while (Match(TokenType.Star)) excType += "*";
                     if (!Check(TokenType.RParen))
-                        excName = Expect(TokenType.Identifier, "期望异常变量名").Value;
+                        excName = Expect(TokenType.Identifier).Value;
                 }
                 else
                 {

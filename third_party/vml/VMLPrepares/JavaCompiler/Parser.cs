@@ -74,7 +74,7 @@ namespace JavaCompiler
         private PackageDecl ParsePackage()
         {
             var name = ParseQualifiedName();
-            Expect(TokenType.Semicolon, "期望分号");
+            Expect(TokenType.Semicolon);
             return new PackageDecl(name);
         }
 
@@ -83,14 +83,14 @@ namespace JavaCompiler
             bool isStatic = Match(TokenType.Static);
             var name = ParseQualifiedName();
             bool isWildcard = Match(TokenType.Dot) && Match(TokenType.Multiply);
-            Expect(TokenType.Semicolon, "期望分号");
+            Expect(TokenType.Semicolon);
             return new ImportDecl(name, isStatic, isWildcard);
         }
 
         private EnumDeclStatement ParseEnumDecl()
         {
-            string name = Expect(TokenType.Identifier, "期望枚举名").Value;
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            string name = Expect(TokenType.Identifier).Value;
+            Expect(TokenType.LeftBrace);
             var enumDecl = new EnumDeclStatement { Name = name };
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
@@ -108,14 +108,14 @@ namespace JavaCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return enumDecl;
         }
 
         private ClassDecl ParseClass()
         {
             var classToken = Previous();
-            var name = Expect(TokenType.Identifier, "期望类名").Value;
+            var name = Expect(TokenType.Identifier).Value;
 
             // 跳过泛型类型参数: class Box<T> 或 class Box<T extends Foo>
             if (Match(TokenType.LessThan))
@@ -146,7 +146,7 @@ namespace JavaCompiler
                 } while (Match(TokenType.Comma));
             }
 
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.LeftBrace);
 
             // 解析类成员
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
@@ -226,7 +226,7 @@ namespace JavaCompiler
                             }
                         }
                         var type = ParseType();
-                        var nameToken = Expect(TokenType.Identifier, "期望成员名");
+                        var nameToken = Expect(TokenType.Identifier);
 
                         if (Match(TokenType.LeftParen))
                         {
@@ -255,14 +255,14 @@ namespace JavaCompiler
                             // 跳过逗号分隔的后续字段名
                             while (Match(TokenType.Comma))
                             {
-                                string nextName = Expect(TokenType.Identifier, "期望字段名").Value;
+                                string nextName = Expect(TokenType.Identifier).Value;
                                 var nextField = new FieldDecl(type, nextName);
                                 nextField.Modifiers = modifiers;
                                 if (Match(TokenType.Assign))
                                     nextField.Initializer = ParseExpression();
                                 classDecl.Fields.Add(nextField);
                             }
-                            Expect(TokenType.Semicolon, "期望分号");
+                            Expect(TokenType.Semicolon);
                         }
                     }
                 }
@@ -272,7 +272,7 @@ namespace JavaCompiler
                 }
             }
 
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
 
             return classDecl;
         }
@@ -319,7 +319,7 @@ namespace JavaCompiler
             }
             else
             {
-                type = Expect(TokenType.Identifier, "期望类型").Value;
+                type = Expect(TokenType.Identifier).Value;
             }
 
             // 处理泛型
@@ -352,12 +352,12 @@ namespace JavaCompiler
                     var type = ParseType();
                     // 可变参数: Type... name
                     bool isVararg = Match(TokenType.Ellipsis);
-                    var name = Expect(TokenType.Identifier, "期望参数名").Value;
+                    var name = Expect(TokenType.Identifier).Value;
                     parameters.Add(new Parameter(type, name) { IsVararg = isVararg });
                 } while (Match(TokenType.Comma));
             }
 
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             return parameters;
         }
 
@@ -380,7 +380,7 @@ namespace JavaCompiler
                 }
             }
 
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return block;
         }
 
@@ -413,12 +413,12 @@ namespace JavaCompiler
             if (Match(TokenType.Throw)) return ParseThrowStatement();
             if (Match(TokenType.Break)) {
                 string? breakLabel = Check(TokenType.Identifier) ? Advance().Value : null;
-                Expect(TokenType.Semicolon, "期望 ';'");
+                Expect(TokenType.Semicolon);
                 return new BreakStatement(breakLabel);
             }
             if (Match(TokenType.Continue)) {
                 string? continueLabel = Check(TokenType.Identifier) ? Advance().Value : null;
-                Expect(TokenType.Semicolon, "期望 ';'");
+                Expect(TokenType.Semicolon);
                 return new ContinueStatement(continueLabel);
             }
             if (Match(TokenType.Assert)) return ParseAssertStatement();
@@ -487,44 +487,44 @@ namespace JavaCompiler
         private Statement ParseDoWhileStatement()
         {
             var body = ParseStatement();
-            Expect(TokenType.While, "期望 'while'");
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.While);
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             Match(TokenType.Semicolon);
             return new DoWhileStatement(body, condition);
         }
 
         private Statement ParseForEachStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             string varType = "";
             if (Match(TokenType.Int, TokenType.Long, TokenType.Short, TokenType.Byte,
                      TokenType.Char, TokenType.Float, TokenType.Double, TokenType.Boolean))
                 varType = Previous().Value;
             else
-                varType = Expect(TokenType.Identifier, "期望类型").Value;
-            string varName = Expect(TokenType.Identifier, "期望变量名").Value;
-            Expect(TokenType.Colon, "期望 ':'");
+                varType = Expect(TokenType.Identifier).Value;
+            string varName = Expect(TokenType.Identifier).Value;
+            Expect(TokenType.Colon);
             var collection = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             var body = ParseStatement();
             return new ForEachStatement(varType, varName, collection, body);
         }
 
         private Statement ParseSwitchStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var value = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
-            Expect(TokenType.LeftBrace, "期望 '{'");
+            Expect(TokenType.RightParen);
+            Expect(TokenType.LeftBrace);
             var sw = new SwitchStatement(value);
             while (!Check(TokenType.RightBrace) && !IsAtEnd)
             {
                 if (Match(TokenType.Case))
                 {
                     var caseVal = ParseExpression();
-                    Expect(TokenType.Colon, "期望 ':'");
+                    Expect(TokenType.Colon);
                     var sc = new SwitchCase { Value = caseVal };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd)
                     {
@@ -536,7 +536,7 @@ namespace JavaCompiler
                 }
                 else if (Match(TokenType.Default))
                 {
-                    Expect(TokenType.Colon, "期望 ':'");
+                    Expect(TokenType.Colon);
                     var sc = new SwitchCase { Value = null };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd)
                     {
@@ -548,7 +548,7 @@ namespace JavaCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "期望 '}'");
+            Expect(TokenType.RightBrace);
             return sw;
         }
 
@@ -563,7 +563,7 @@ namespace JavaCompiler
                 {
                     if (Match(TokenType.Identifier)) cc.ExceptionType = Previous().Value;
                     if (Match(TokenType.Identifier)) cc.VariableName = Previous().Value;
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                 }
                 cc.Body = ParseStatement();
                 ts.Catches.Add(cc);
@@ -582,15 +582,15 @@ namespace JavaCompiler
             {
                 value = ParseExpression();
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             return new ThrowStatement(value);
         }
 
         private IfStatement ParseIfStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             var thenBranch = ParseStatement();
             Statement elseBranch = null;
             if (Match(TokenType.Else))
@@ -602,9 +602,9 @@ namespace JavaCompiler
 
         private WhileStatement ParseWhileStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             var body = ParseStatement();
             return new WhileStatement(condition, body);
         }
@@ -617,13 +617,13 @@ namespace JavaCompiler
             {
                 message = ParseExpression();
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             return new AssertStatement(condition, message);
         }
 
         private Statement ParseForStatement()
         {
-            Expect(TokenType.LeftParen, "期望 '('");
+            Expect(TokenType.LeftParen);
 
             // 检查是否是增强 for (Type var : iterable)
             int savePos = _pos;
@@ -648,14 +648,14 @@ namespace JavaCompiler
             {
                 condition = ParseExpression();
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             
             Expression increment = null;
             if (!Check(TokenType.RightParen))
             {
                 increment = ParseExpression();
             }
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             
             var body = ParseStatement();
             return new ForStatement(initializer, condition, increment, body);
@@ -667,11 +667,11 @@ namespace JavaCompiler
             if (IsTypeToken())
                 varType = Advance().Value;
             else
-                varType = Expect(TokenType.Identifier, "期望类型").Value;
-            string varName = Expect(TokenType.Identifier, "期望变量名").Value;
-            Expect(TokenType.Colon, "期望 ':'");
+                varType = Expect(TokenType.Identifier).Value;
+            string varName = Expect(TokenType.Identifier).Value;
+            Expect(TokenType.Colon);
             var collection = ParseExpression();
-            Expect(TokenType.RightParen, "期望 ')'");
+            Expect(TokenType.RightParen);
             var body = ParseStatement();
             return new ForEachStatement(varType, varName, collection, body);
         }
@@ -712,7 +712,7 @@ namespace JavaCompiler
             {
                 value = ParseExpression();
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             return new ReturnStatement(value);
         }
 
@@ -742,7 +742,7 @@ namespace JavaCompiler
                 type += "[]";
             }
 
-            var name = Expect(TokenType.Identifier, "期望变量名").Value;
+            var name = Expect(TokenType.Identifier).Value;
             Expression initializer = null;
             if (Match(TokenType.Assign))
             {
@@ -755,18 +755,18 @@ namespace JavaCompiler
                 stmts.Add(new VariableDeclStatement(type, name, initializer));
                 do
                 {
-                    var nextName = Expect(TokenType.Identifier, "期望变量名").Value;
+                    var nextName = Expect(TokenType.Identifier).Value;
                     Expression nextInit = null;
                     if (Match(TokenType.Assign))
                         nextInit = ParseExpression();
                     stmts.Add(new VariableDeclStatement(type, nextName, nextInit));
                 } while (Match(TokenType.Comma));
-                Expect(TokenType.Semicolon, "期望 ';'");
+                Expect(TokenType.Semicolon);
                 if (stmts.Count > 1)
                     _extraDeclarations.AddRange(stmts.Skip(1));
                 return (VariableDeclStatement)stmts[0];
             }
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             return new VariableDeclStatement(type, name, initializer);
         }
 
@@ -796,7 +796,7 @@ namespace JavaCompiler
         private ExpressionStatement ParseExpressionStatement()
         {
             var expression = ParseExpression();
-            Expect(TokenType.Semicolon, "期望 ';'");
+            Expect(TokenType.Semicolon);
             return new ExpressionStatement(expression);
         }
 
@@ -812,7 +812,7 @@ namespace JavaCompiler
             if (Match(TokenType.QuestionMark))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "期望 ':'");
+                Expect(TokenType.Colon);
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -1139,7 +1139,7 @@ namespace JavaCompiler
                     {
                         do { call.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                     return call;
                 }
                 return new VariableExpression("this");
@@ -1154,7 +1154,7 @@ namespace JavaCompiler
                     {
                         do { superCall.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                     return superCall;
                 }
                 return new VariableExpression("super");
@@ -1171,7 +1171,7 @@ namespace JavaCompiler
                     // 成员访问：System.out
                     if (Match(TokenType.Dot))
                     {
-                        var memberName = Expect(TokenType.Identifier, "期望成员名").Value;
+                        var memberName = Expect(TokenType.Identifier).Value;
                         
                         // 检查是否是方法调用：System.out.println()
                         if (Match(TokenType.LeftParen))
@@ -1184,7 +1184,7 @@ namespace JavaCompiler
                                     methodCall.Arguments.Add(ParseExpression());
                                 } while (Match(TokenType.Comma));
                             }
-                            Expect(TokenType.RightParen, "期望 ')'");
+                            Expect(TokenType.RightParen);
                             expr = methodCall;
                         }
                         else
@@ -1204,14 +1204,14 @@ namespace JavaCompiler
                                 methodCall.Arguments.Add(ParseExpression());
                             } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "期望 ')'");
+                        Expect(TokenType.RightParen);
                         expr = methodCall;
                     }
                     // 数组索引：arr[i]
                     else if (Match(TokenType.LeftBracket))
                     {
                         var index = ParseExpression();
-                        Expect(TokenType.RightBracket, "期望 ']'");
+                        Expect(TokenType.RightBracket);
                         expr = new ArrayAccessExpression(expr, index);
                     }
                     // 后缀自增/自减：x++ 或 x--
@@ -1244,7 +1244,7 @@ namespace JavaCompiler
                 else if (Match(TokenType.Short)) typeName = "short";
                 else if (Match(TokenType.Byte)) typeName = "byte";
                 else if (Match(TokenType.Boolean)) typeName = "boolean";
-                else typeName = Expect(TokenType.Identifier, "期望类型名").Value;
+                else typeName = Expect(TokenType.Identifier).Value;
 
                 // 泛型实例化: new Box<>(42) / new Box<Integer>(42) — 跳过 <...> (含钻石 < >)
                 if (Check(TokenType.LessThan))
@@ -1263,13 +1263,13 @@ namespace JavaCompiler
                 {
                     // new Type[N] — 数组分配
                     var sizeExpr = ParseExpression();
-                    Expect(TokenType.RightBracket, "期望 ']'");
+                    Expect(TokenType.RightBracket);
                     typeName += "[]";
                     // 支持多维数组: new int[3][3]
                     while (Match(TokenType.LeftBracket))
                     {
                         ParseExpression();
-                        Expect(TokenType.RightBracket, "期望 ']'");
+                        Expect(TokenType.RightBracket);
                         typeName += "[]";
                     }
                     // 创建一个带 "[]" 标识的 NewExpression
@@ -1284,7 +1284,7 @@ namespace JavaCompiler
                     {
                         do { newExpr.Arguments.Add(ParseExpression()); } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')'");
+                    Expect(TokenType.RightParen);
                     return newExpr;
                 }
                 else
@@ -1296,7 +1296,7 @@ namespace JavaCompiler
             if (Match(TokenType.LeftParen))
             {
                 var expr = ParseExpression();
-                Expect(TokenType.RightParen, "期望 ')'");
+                Expect(TokenType.RightParen);
                 return expr;
             }
 
@@ -1307,7 +1307,7 @@ namespace JavaCompiler
                 {
                     do { arr.Elements.Add(ParseExpression()); } while (Match(TokenType.Comma));
                 }
-                Expect(TokenType.RightBrace, "期望 '}'");
+                Expect(TokenType.RightBrace);
                 return arr;
             }
 
@@ -1338,7 +1338,7 @@ namespace JavaCompiler
 
         private string ParseQualifiedName()
         {
-            var name = Expect(TokenType.Identifier, "期望标识符").Value;
+            var name = Expect(TokenType.Identifier).Value;
 
             while (Check(TokenType.Dot))
             {
@@ -1346,7 +1346,7 @@ namespace JavaCompiler
                 if (_tokens.Count > _pos + 1 && _tokens[_pos + 1].Type == TokenType.Multiply)
                     break;
                 Advance(); // 消费点号
-                name += "." + Expect(TokenType.Identifier, "期望标识符").Value;
+                name += "." + Expect(TokenType.Identifier).Value;
             }
 
             return name;

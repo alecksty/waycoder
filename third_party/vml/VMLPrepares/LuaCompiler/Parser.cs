@@ -92,7 +92,7 @@ namespace LuaCompiler
             if (GetTokenType(Cur) == TokenType.GOTO)
             {
                 var token = Advance();
-                var labelName = Expect(TokenType.IDENTIFIER, "期望标签名").Value;
+                var labelName = Expect(TokenType.IDENTIFIER).Value;
                 return new GotoStatementNode(labelName, token.Line, token.Column);
             }
             
@@ -100,8 +100,8 @@ namespace LuaCompiler
             if (GetTokenType(Cur) == TokenType.DOUBLE_COLON)
             {
                 Advance();
-                var labelName = Expect(TokenType.IDENTIFIER, "期望标签名").Value;
-                Expect(TokenType.DOUBLE_COLON, "期望 '::'");
+                var labelName = Expect(TokenType.IDENTIFIER).Value;
+                Expect(TokenType.DOUBLE_COLON);
                 return new LabelStatementNode(labelName, Cur.Line, Cur.Column);
             }
             
@@ -131,10 +131,10 @@ namespace LuaCompiler
             int column = Cur.Column;
              
             var names = new List<string>();
-            names.Add(Expect(TokenType.IDENTIFIER, "期望变量名").Value);
+            names.Add(Expect(TokenType.IDENTIFIER).Value);
             while (Match(TokenType.COMMA))
             {
-                names.Add(Expect(TokenType.IDENTIFIER, "期望变量名").Value);
+                names.Add(Expect(TokenType.IDENTIFIER).Value);
             }
              
             var values = new List<ASTNode>();
@@ -290,12 +290,12 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.FUNCTION, "期望 'function'");
+            Expect(TokenType.FUNCTION);
             
             string functionName = ParseFunctionName(out bool hasImplicitSelf);
             
             // 参数列表
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             var parameters = new List<string>();
             
             if (hasImplicitSelf)
@@ -305,15 +305,15 @@ namespace LuaCompiler
 
             if (GetTokenType(Cur) != TokenType.RPAREN)
             {
-                parameters.Add(Expect(TokenType.IDENTIFIER, "期望参数名").Value);
+                parameters.Add(Expect(TokenType.IDENTIFIER).Value);
                 
                 while (Match(TokenType.COMMA))
                 {
-                    parameters.Add(Expect(TokenType.IDENTIFIER, "期望参数名").Value);
+                    parameters.Add(Expect(TokenType.IDENTIFIER).Value);
                 }
             }
             
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
             
             // 函数体
             var body = new List<ASTNode>();
@@ -322,7 +322,7 @@ namespace LuaCompiler
                 body.Add(ParseStatement());
             }
             
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             
             return new FunctionDefinitionNode(functionName, parameters, body, isLocal, line, column);
         }
@@ -330,17 +330,17 @@ namespace LuaCompiler
         private string ParseFunctionName(out bool hasImplicitSelf)
         {
             hasImplicitSelf = false;
-            string functionName = Expect(TokenType.IDENTIFIER, "期望函数名").Value;
+            string functionName = Expect(TokenType.IDENTIFIER).Value;
 
             while (Match(TokenType.DOT))
             {
-                functionName += "." + Expect(TokenType.IDENTIFIER, "期望字段名").Value;
+                functionName += "." + Expect(TokenType.IDENTIFIER).Value;
             }
 
             if (Match(TokenType.COLON))
             {
                 hasImplicitSelf = true;
-                functionName += "." + Expect(TokenType.IDENTIFIER, "期望方法名").Value;
+                functionName += "." + Expect(TokenType.IDENTIFIER).Value;
             }
 
             return functionName;
@@ -351,9 +351,9 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.IF, "期望 'if'");
+            Expect(TokenType.IF);
             var condition = ParseExpression();
-            Expect(TokenType.THEN, "期望 'then'");
+            Expect(TokenType.THEN);
             
             var thenBody = new List<ASTNode>();
             while (GetTokenType(Cur) != TokenType.ELSEIF && GetTokenType(Cur) != TokenType.ELSE && GetTokenType(Cur) != TokenType.END)
@@ -365,7 +365,7 @@ namespace LuaCompiler
             while (Match(TokenType.ELSEIF))
             {
                 var elseifCondition = ParseExpression();
-                Expect(TokenType.THEN, "期望 'then'");
+                Expect(TokenType.THEN);
                 
                 var elseifBody = new List<ASTNode>();
                 while (GetTokenType(Cur) != TokenType.ELSEIF && GetTokenType(Cur) != TokenType.ELSE && GetTokenType(Cur) != TokenType.END)
@@ -385,7 +385,7 @@ namespace LuaCompiler
                 }
             }
             
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             
             // 构建条件列表：主条件 + elseif条件
             var conditions = new List<(ASTNode, List<ASTNode>)>();
@@ -400,9 +400,9 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.WHILE, "期望 'while'");
+            Expect(TokenType.WHILE);
             var condition = ParseExpression();
-            Expect(TokenType.DO, "期望 'do'");
+            Expect(TokenType.DO);
             
             var body = new List<ASTNode>();
             while (GetTokenType(Cur) != TokenType.END)
@@ -410,7 +410,7 @@ namespace LuaCompiler
                 body.Add(ParseStatement());
             }
             
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             
             return new WhileStatementNode(condition, body, line, column);
         }
@@ -420,7 +420,7 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.REPEAT, "期望 'repeat'");
+            Expect(TokenType.REPEAT);
             
             var body = new List<ASTNode>();
             while (GetTokenType(Cur) != TokenType.UNTIL)
@@ -428,7 +428,7 @@ namespace LuaCompiler
                 body.Add(ParseStatement());
             }
             
-            Expect(TokenType.UNTIL, "期望 'until'");
+            Expect(TokenType.UNTIL);
             var condition = ParseExpression();
             
             return new RepeatStatementNode(condition, body, line, column);
@@ -439,8 +439,8 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.FOR, "期望 'for'");
-            string firstVar = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+            Expect(TokenType.FOR);
+            string firstVar = Expect(TokenType.IDENTIFIER).Value;
 
             // 检测 for-in 还是 numeric for
             if (GetTokenType(Cur) == TokenType.IN || (GetTokenType(Cur) == TokenType.COMMA && _pos + 2 < _tokens.Count && _tokens[_pos + 1].Type == TokenType.IDENTIFIER && _tokens[_pos + 2].Type == TokenType.IN))
@@ -448,19 +448,19 @@ namespace LuaCompiler
                 var variables = new List<string> { firstVar };
                 while (Match(TokenType.COMMA))
                 {
-                    variables.Add(Expect(TokenType.IDENTIFIER, "期望变量名").Value);
+                    variables.Add(Expect(TokenType.IDENTIFIER).Value);
                 }
-                Expect(TokenType.IN, "期望 'in'");
+                Expect(TokenType.IN);
                 var iteratorExpr = ParseExpression();
-                Expect(TokenType.DO, "期望 'do'");
+                Expect(TokenType.DO);
                 var forInBody = new List<ASTNode>();
                 while (GetTokenType(Cur) != TokenType.END)
                     forInBody.Add(ParseStatement());
-                Expect(TokenType.END, "期望 'end'");
+                Expect(TokenType.END);
                 return new ForInStatementNode(variables, iteratorExpr, forInBody, line, column);
             }
 
-            Expect(TokenType.ASSIGN, "期望 '='");
+            Expect(TokenType.ASSIGN);
             var startExpr = ParseExpression();
             Expect(TokenType.COMMA, "期望 ','");
             var endExpr = ParseExpression();
@@ -471,7 +471,7 @@ namespace LuaCompiler
                 stepExpr = ParseExpression();
             }
             
-            Expect(TokenType.DO, "期望 'do'");
+            Expect(TokenType.DO);
             
             var body = new List<ASTNode>();
             while (GetTokenType(Cur) != TokenType.END)
@@ -479,7 +479,7 @@ namespace LuaCompiler
                 body.Add(ParseStatement());
             }
             
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
             
             return new ForStatementNode(firstVar, startExpr, endExpr, stepExpr, body, line, column);
         }
@@ -489,7 +489,7 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.RETURN, "期望 'return'");
+            Expect(TokenType.RETURN);
             
             var values = new List<ASTNode>();
             if (GetTokenType(Cur) != TokenType.SEMICOLON && GetTokenType(Cur) != TokenType.EOF)
@@ -512,7 +512,7 @@ namespace LuaCompiler
             int line = Cur.Line;
             int column = Cur.Column;
             
-            Expect(TokenType.LBRACE, "期望 '{'");
+            Expect(TokenType.LBRACE);
             
             var fields = new List<(ASTNode, ASTNode)>();
             int index = 1; // Lua 表索引从 1 开始
@@ -527,8 +527,8 @@ namespace LuaCompiler
                 {
                     Advance(); // 跳过 '['
                     key = ParseExpression();
-                    Expect(TokenType.RBRACKET, "期望 ']'");
-                    Expect(TokenType.ASSIGN, "期望 '='");
+                    Expect(TokenType.RBRACKET);
+                    Expect(TokenType.ASSIGN);
                     value = ParseExpression();
                 }
                 // 检查是否有 key = value 格式（标识符）
@@ -557,7 +557,7 @@ namespace LuaCompiler
                 }
             }
             
-            Expect(TokenType.RBRACE, "期望 '}'");
+            Expect(TokenType.RBRACE);
             
             return new TableConstructorNode(fields, line, column);
         }
@@ -574,14 +574,14 @@ namespace LuaCompiler
                     // 表访问 t[index]
                     Advance(); // 跳过 '['
                     var index = ParseExpression();
-                    Expect(TokenType.RBRACKET, "期望 ']'");
+                    Expect(TokenType.RBRACKET);
                     node = new TableAccessNode(node, index, node.Line, node.Column);
                 }
                 else if (GetTokenType(Cur) == TokenType.DOT)
                 {
                     // 表访问 t.key
                     Advance(); // 跳过 '.'
-                    var keyToken = Expect(TokenType.IDENTIFIER, "期望字段名");
+                    var keyToken = Expect(TokenType.IDENTIFIER);
                     // 转换为字符串键
                     var keyNode = new ConstantNode(keyToken.Value, "string", keyToken.Line, keyToken.Column);
                     node = new TableAccessNode(node, keyNode, node.Line, node.Column);
@@ -594,7 +594,7 @@ namespace LuaCompiler
                 {
                     var selfExpr = node;
                     Advance();
-                    var keyToken = Expect(TokenType.IDENTIFIER, "期望方法名");
+                    var keyToken = Expect(TokenType.IDENTIFIER);
                     var keyNode = new ConstantNode(keyToken.Value, "string", keyToken.Line, keyToken.Column);
                     var methodExpr = new TableAccessNode(selfExpr, keyNode, selfExpr.Line, selfExpr.Column);
                     var call = ParseFunctionCall(methodExpr, keyToken.Line, keyToken.Column);
@@ -614,7 +614,7 @@ namespace LuaCompiler
         /// </summary>
         private FunctionCallNode ParseFunctionCall(ASTNode function, int line, int column)
         {
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.LPAREN);
             
             List<ASTNode> arguments = new List<ASTNode>();
             
@@ -632,7 +632,7 @@ namespace LuaCompiler
                 }
             }
             
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
             
             return new FunctionCallNode(function, arguments, line, column);
         }
@@ -641,27 +641,27 @@ namespace LuaCompiler
         {
             int line = Cur.Line;
             int column = Cur.Column;
-            Expect(TokenType.FUNCTION, "期望 'function'");
-            Expect(TokenType.LPAREN, "期望 '('");
+            Expect(TokenType.FUNCTION);
+            Expect(TokenType.LPAREN);
 
             var parameters = new List<string>();
             if (GetTokenType(Cur) != TokenType.RPAREN)
             {
-                parameters.Add(Expect(TokenType.IDENTIFIER, "期望参数名").Value);
+                parameters.Add(Expect(TokenType.IDENTIFIER).Value);
                 while (Match(TokenType.COMMA))
                 {
-                    parameters.Add(Expect(TokenType.IDENTIFIER, "期望参数名").Value);
+                    parameters.Add(Expect(TokenType.IDENTIFIER).Value);
                 }
             }
 
-            Expect(TokenType.RPAREN, "期望 ')'");
+            Expect(TokenType.RPAREN);
 
             var body = new List<ASTNode>();
             while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.EOF)
             {
                 body.Add(ParseStatement());
             }
-            Expect(TokenType.END, "期望 'end'");
+            Expect(TokenType.END);
 
             string name = $"anon_{anonymousFunctionCounter++}";
             return new FunctionExpressionNode(name, parameters, body, line, column);
@@ -709,7 +709,7 @@ namespace LuaCompiler
                 case TokenType.LPAREN:
                     Advance();
                     var expr = ParseExpression();
-                    Expect(TokenType.RPAREN, "期望 ')'");
+                    Expect(TokenType.RPAREN);
                     return ParsePostfix(expr);
                     
                 case TokenType.LEN:

@@ -51,7 +51,7 @@ public class Parser : ParserBase<Token, TokenType>
         bool closed = false;
         if (hasProgramStmt)
         {
-            string name = Expect(TokenType.Identifier, "期望程序名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             _program = new ProgramNode(name);
             SkipNewlines();
         }
@@ -133,7 +133,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // module
-        string name = Expect(TokenType.Identifier, "期望模块名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         var body = new List<ASTNode>();
 
         while (!Check(TokenType.EOF))
@@ -153,7 +153,7 @@ public class Parser : ParserBase<Token, TokenType>
             }
             if (Match(TokenType.Use))
             {
-                string modName = Expect(TokenType.Identifier, "期望模块名").Value;
+                string modName = Expect(TokenType.Identifier).Value;
                 while (!Check(TokenType.Newline) && !Check(TokenType.Semicolon) && !IsAtEnd) Advance();
                 body.Add(new UseNode(modName, Cur.Line, Cur.Column));
                 continue;
@@ -173,7 +173,7 @@ public class Parser : ParserBase<Token, TokenType>
     private SubroutineNode ParseSubroutine()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "期望子程序名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         _declaredRoutines.Add(name.ToLowerInvariant());
         var parms = ParseParameterList();
         SkipNewlines();
@@ -201,7 +201,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Cur.Type == TokenType.Function)
                 Advance();
         }
-        string name = Expect(TokenType.Identifier, "期望函数名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         // 记的是**被调用的那个名字** —— `name` 全程不再被改写成 result 变量名
         _declaredRoutines.Add(name.ToLowerInvariant());
         var parms = ParseParameterList();
@@ -289,7 +289,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 do
                 {
-                    parms.Add(Expect(TokenType.Identifier, "期望参数名").Value);
+                    parms.Add(Expect(TokenType.Identifier).Value);
                 } while (Match(TokenType.Comma));
             }
             Expect(TokenType.RParen, "expected )");
@@ -353,7 +353,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int al = _tokens[_pos - 1].Line, ac = _tokens[_pos - 1].Column;
             Expect(TokenType.LParen, "期望 '(' 在 allocate 后");
-            string arrName = Expect(TokenType.Identifier, "期望数组名").Value;
+            string arrName = Expect(TokenType.Identifier).Value;
             Expect(TokenType.LParen, "期望 '(' 用于尺寸");
             var sizeExpr = ParseExpression();
             Expect(TokenType.RParen, "期望 ')' 在尺寸后");
@@ -364,7 +364,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int dl = _tokens[_pos - 1].Line, dc = _tokens[_pos - 1].Column;
             Expect(TokenType.LParen, "期望 '(' 在 deallocate 后");
-            string arrName = Expect(TokenType.Identifier, "期望数组名").Value;
+            string arrName = Expect(TokenType.Identifier).Value;
             Expect(TokenType.RParen, "期望 ')' 在 deallocate 后");
             return new DeallocateNode(arrName, dl, dc);
         }
@@ -434,7 +434,7 @@ public class Parser : ParserBase<Token, TokenType>
         // Parse comma-separated names (possibly with dimension specs like a(10))
         do
         {
-            string name = Expect(TokenType.Identifier, "期望变量名").Value;
+            string name = Expect(TokenType.Identifier).Value;
             // Parse dimension spec: a(10)
             if (Match(TokenType.LParen))
             {
@@ -558,7 +558,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
 
         // do var = start, end [, step]
-        string varName = Expect(TokenType.Identifier, "期望循环变量").Value;
+        string varName = Expect(TokenType.Identifier).Value;
         Expect(TokenType.Assign, "expected =");
         var start = ParseExpression();
         Expect(TokenType.Comma, "expected ,");
@@ -576,7 +576,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseCall()
     {
         int l = _tokens[_pos - 1].Line, c = _tokens[_pos - 1].Column;
-        string name = Expect(TokenType.Identifier, "期望子程序名").Value;
+        string name = Expect(TokenType.Identifier).Value;
         var args = new List<ASTNode>();
         if (Match(TokenType.LParen))
         {
@@ -635,7 +635,7 @@ public class Parser : ParserBase<Token, TokenType>
             Match(TokenType.Comma);
             if (Check(TokenType.Newline) || Check(TokenType.EOF) || Check(TokenType.End) || Check(TokenType.Semicolon)) break;
             // read target must be a variable
-            string varName = Expect(TokenType.Identifier, "期望变量名").Value;
+            string varName = Expect(TokenType.Identifier).Value;
             vars.Add(new VarNode(varName, l, c));
         }
         return new PrintNode(vars, l, c, isRead: true); // reuse PrintNode for read with IsRead flag
