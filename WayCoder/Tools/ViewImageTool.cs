@@ -10,21 +10,29 @@ public class ViewImageTool : ITool
 {
     public string Name => "view_image";
     public string Description =>
+        L.Pick(
         "查看一张本地图片（PNG/JPG 等），把它附加到下一轮请求，让支持 vision 的模型直接读取图片内容。" +
         "配合 screenshot 工具：先 screenshot 抓屏得到 PNG 路径，再 view_image 该路径即可「看到」画面。" +
-        "模型不支持 vision 时会返回提示并建议用 OCR/文本方式。";
+        "模型不支持 vision 时会返回提示并建议用 OCR/文本方式。",
+        "View a local image (PNG/JPG, etc.) by attaching it to the next request so a vision-capable model can read the image content directly. " +
+        "Works with the screenshot tool: take a screenshot to get a PNG path, then view_image that path to \"see\" the screen. " +
+        "If the model does not support vision, returns a notice and suggests OCR or a text-based approach.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "图片文件路径（如 screenshot 返回的 PNG 路径）"))
-            .Set("question", JNode.Param("string", "针对这张图想问的问题（默认「请描述这张图片的内容」）")))
+            .Set("path", JNode.Param("string", L.Pick("图片文件路径（如 screenshot 返回的 PNG 路径）", "Image file path (e.g. the PNG path returned by screenshot)")))
+            .Set("question", JNode.Param("string", L.Pick("针对这张图想问的问题（默认「请描述这张图片的内容」）", "Question to ask about this image (default: describe the image content)"))))
         .Set("required", JNode.Array("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
-        var question = arguments.GetValueOrDefault("question")?.ToString() ?? "请描述这张图片的内容";
+        // ⚠ 这个默认值**也是喂给模型的文案**（它随图片一起发出去），不是数据 ⇒ 跟界面语言走。
+        //   与上面 schema 里的英文说明「default: describe the image content」是同一件事的两处，
+        //   只改一处就会出现"英文说明写着英文默认值、实际发出去的是中文"。
+        var question = arguments.GetValueOrDefault("question")?.ToString()
+            ?? L.Pick("描述这张图片的内容", "Describe the content of this image");
         var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
         if (string.IsNullOrWhiteSpace(path))

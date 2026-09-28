@@ -14,29 +14,29 @@ public class AskUserQuestionTool : ITool
     public string Name => "ask_user_question";
 
     public string Description =>
-        "向用户提出一个问题或多道问题，支持单选、多选和文本输入。当需要用户做出选择、确认或提供输入时使用此工具。可一次提出1-4个问题，每个问题按顺序依次显示。";
+        L.Pick("向用户提出一个问题或多道问题，支持单选、多选和文本输入。当需要用户做出选择、确认或提供输入时使用此工具。可一次提出1-4个问题，每个问题按顺序依次显示。", "Ask the user one or more questions, supporting single choice, multiple choice, and text input. Use this tool when you need the user to choose, confirm, or provide input. You may ask 1-4 questions at once; each question is displayed in sequence.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("questions", JNode.Object()
                 .Set("type", "array")
-                .Set("description", "要问用户的问题列表（1-4个问题，依次显示）")
+                .Set("description", L.Pick("要问用户的问题列表（1-4个问题，依次显示）", "List of questions to ask the user (1-4 questions, shown in sequence)"))
                 .Set("items", JNode.Object()
                     .Set("type", "object")
                     .Set("properties", JNode.Object()
-                        .Set("question", JNode.Param("string", "完整的问题文本（向用户展示的问题内容）"))
-                        .Set("header", JNode.Param("string", "问题简短标签，用于在答案中标识此问题（最多12字符）。若不提供则用 question 前12字符。"))
+                        .Set("question", JNode.Param("string", L.Pick("完整的问题文本（向用户展示的问题内容）", "Full question text (the content shown to the user)")))
+                        .Set("header", JNode.Param("string", L.Pick("问题简短标签，用于在答案中标识此问题（最多12字符）。若不提供则用 question 前12字符。", "Short label for the question, used to identify it in the answers (at most 12 characters). When omitted, the first 12 characters of question are used.")))
                         .Set("options", JNode.Object()
                             .Set("type", "array")
-                            .Set("description", "可选选项列表。若不提供则为自由文本输入，若提供则为选择列表。")
+                            .Set("description", L.Pick("可选选项列表。若不提供则为自由文本输入，若提供则为选择列表。", "List of selectable options. When omitted, input is free text; when provided, it becomes a selection list."))
                             .Set("items", JNode.Object()
                                 .Set("type", "object")
                                 .Set("properties", JNode.Object()
-                                    .Set("label", JNode.Param("string", "选项显示文本（简短，1-5词）"))
-                                    .Set("description", JNode.Param("string", "选项说明（解释此选项的含义和影响，可选）")))
+                                    .Set("label", JNode.Param("string", L.Pick("选项显示文本（简短，1-5词）", "Option display text (short, 1-5 words)")))
+                                    .Set("description", JNode.Param("string", L.Pick("选项说明（解释此选项的含义和影响，可选）", "Option description (explains what this option means and implies; optional)"))))
                                 .Set("required", JNode.Array("label"))))
-                        .Set("multiSelect", JNode.Param("boolean", "是否允许多选。默认 false（单选）。")))
+                        .Set("multiSelect", JNode.Param("boolean", L.Pick("是否允许多选。默认 false（单选）。", "Whether to allow multiple selections. Default false (single choice)."))))
                     .Set("required", JNode.Array("question")))))
         .Set("required", JNode.Array("questions"));
 

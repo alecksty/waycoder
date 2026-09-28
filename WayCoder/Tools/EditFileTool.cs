@@ -16,15 +16,15 @@ public class EditFileTool : ITool
 {
     public string Name => "edit_file";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "精确字符串替换式编辑（先读后改）。old_string 必须与文件原文逐字符匹配（空格、Tab、换行），包含 3-5 行上下文确保唯一。仅首次匹配会被替换，设 replace_all=true 替换全部。不确定空白符时多含上下文。编辑前务必先 read_file 获取精确文本，不要凭记忆猜测。";
+    public string Description => L.Pick("精确字符串替换式编辑（先读后改）。old_string 必须与文件原文逐字符匹配（空格、Tab、换行），包含 3-5 行上下文确保唯一。仅首次匹配会被替换，设 replace_all=true 替换全部。不确定空白符时多含上下文。编辑前务必先 read_file 获取精确文本，不要凭记忆猜测。", "Exact string-replacement edit (read before you edit). old_string must match the file text character for character (spaces, tabs, line breaks) and include 3-5 lines of context to be unique. Only the first match is replaced unless replace_all=true, which replaces every occurrence. When unsure about whitespace, include more context. Always call read_file first to get the exact text; never guess from memory.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file_path", JNode.Param("string", "要编辑的文件路径（绝对路径）。编辑前必须先 read_file 此文件。"))
-            .Set("old_string", JNode.Param("string", "要查找并替换的精确文本。必须逐字符匹配原文，包括所有空白符、缩进、换行。含 3-5 行上下文行以确保唯一匹配（除非 replace_all=true）。从 read_file 输出中精确复制，不要凭记忆或近似猜测。"))
-            .Set("new_string", JNode.Param("string", "替换后的新文本。保持与周围代码一致的缩进和风格。"))
-            .Set("replace_all", JNode.Param("boolean", "设为 true 替换文件中该文本的所有匹配项。默认 false 仅替换首次匹配，且要求该文本在文件中唯一出现。")))
+            .Set("file_path", JNode.Param("string", L.Pick("要编辑的文件路径（绝对路径）。编辑前必须先 read_file 此文件。", "Path of the file to edit (absolute path). You must call read_file on this file before editing.")))
+            .Set("old_string", JNode.Param("string", L.Pick("要查找并替换的精确文本。必须逐字符匹配原文，包括所有空白符、缩进、换行。含 3-5 行上下文行以确保唯一匹配（除非 replace_all=true）。从 read_file 输出中精确复制，不要凭记忆或近似猜测。", "Exact text to find and replace. Must match the original character for character, including all whitespace, indentation, and line breaks. Include 3-5 lines of context to guarantee a unique match (unless replace_all=true). Copy it exactly from the read_file output; never guess from memory or approximate.")))
+            .Set("new_string", JNode.Param("string", L.Pick("替换后的新文本。保持与周围代码一致的缩进和风格。", "The replacement text. Keep indentation and style consistent with the surrounding code.")))
+            .Set("replace_all", JNode.Param("boolean", L.Pick("设为 true 替换文件中该文本的所有匹配项。默认 false 仅替换首次匹配，且要求该文本在文件中唯一出现。", "Set to true to replace every occurrence of this text in the file. Default false replaces only the first match and requires the text to occur exactly once."))))
         .Set("required", JNode.Array("file_path", "old_string", "new_string"));
 
     /// <summary>

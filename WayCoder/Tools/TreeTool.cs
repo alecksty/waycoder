@@ -9,14 +9,14 @@ namespace WayCoder.Tools;
 public class TreeTool : ITool
 {
     public string Name => "tree";
-    public string Description => "以树状图显示目录结构。可限制深度和最大条目数。纯 C# 实现。";
+    public string Description => L.Pick("以树状图显示目录结构。可限制深度和最大条目数。纯 C# 实现。", "Display the directory structure as a tree. Depth and maximum number of entries can be limited. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "起始目录路径（默认当前目录）"))
-            .Set("depth", JNode.Param("integer", "最大深度（默认 3）"))
-            .Set("max", JNode.Param("integer", "最大显示条目数（默认 100）")))
+            .Set("path", JNode.Param("string", L.Pick("起始目录路径（默认当前目录）", "Starting directory path (default current directory)")))
+            .Set("depth", JNode.Param("integer", L.Pick("最大深度（默认 3）", "Maximum depth. Default 3.")))
+            .Set("max", JNode.Param("integer", L.Pick("最大显示条目数（默认 100）", "Maximum number of entries to display. Default 100."))))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -23,9 +23,13 @@ public class TodoTool : ITool
 {
     public string Name => "todo";
     public string Description =>
+        L.Pick(
         "管理结构化任务列表（带依赖关系）。操作：create(创建), update(更新状态/标题), list(列出,可按状态过滤), delete(删除), clear(清空)。" +
         "状态: pending/in_progress/completed/cancelled/blocked。创建时可指定 deps(前置依赖ID列表)。" +
-        "blocked 任务在其依赖全部完成前无法开始(in_progress)。持久化到 .waycoder/todos.json。";
+        "blocked 任务在其依赖全部完成前无法开始(in_progress)。持久化到 .waycoder/todos.json。",
+        "Manage a structured task list (with dependencies). Operations: create, update (status/title), list (optionally filter by status), delete, clear (remove all). " +
+        "Statuses: pending/in_progress/completed/cancelled/blocked. On create you may specify deps (list of prerequisite task IDs). " +
+        "A blocked task cannot start (in_progress) until all of its dependencies are completed. Persisted to .waycoder/todos.json.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -33,19 +37,19 @@ public class TodoTool : ITool
             .Set("action", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("create", "update", "list", "delete", "clear"))
-                .Set("description", "操作类型"))
-            .Set("id", JNode.Param("string", "任务 ID（create/update/delete 需要）。使用有意义的 kebab-case 名称，如 'fix-auth-bug'。"))
-            .Set("title", JNode.Param("string", "任务标题（create/update 可选）"))
-            .Set("description", JNode.Param("string", "任务详细描述（create/update 可选）"))
+                .Set("description", L.Pick("操作类型", "Operation type")))
+            .Set("id", JNode.Param("string", L.Pick("任务 ID（create/update/delete 需要）。使用有意义的 kebab-case 名称，如 'fix-auth-bug'。", "Task ID (required for create/update/delete). Use a meaningful kebab-case name, e.g. 'fix-auth-bug'.")))
+            .Set("title", JNode.Param("string", L.Pick("任务标题（create/update 可选）", "Task title (optional, create/update)")))
+            .Set("description", JNode.Param("string", L.Pick("任务详细描述（create/update 可选）", "Detailed task description (optional, create/update)")))
             .Set("status", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("pending", "in_progress", "completed", "cancelled", "blocked"))
-                .Set("description", "任务状态（update 操作）"))
+                .Set("description", L.Pick("任务状态（update 操作）", "Task status (update operation)")))
             .Set("deps", JNode.Object()
                 .Set("type", "array")
                 .Set("items", JNode.Object().Set("type", "string"))
-                .Set("description", "前置依赖任务 ID 列表（create 操作可选）。被依赖的任务必须全部 completed 后此任务才能开始。"))
-            .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）。如 'pending,in_progress'。")))
+                .Set("description", L.Pick("前置依赖任务 ID 列表（create 操作可选）。被依赖的任务必须全部 completed 后此任务才能开始。", "List of prerequisite task IDs (optional, create operation). This task can only start after all of them are completed.")))
+            .Set("filter", JNode.Param("string", L.Pick("状态过滤器，逗号分隔（list 操作可选）。如 'pending,in_progress'。", "Status filter, comma-separated (optional, list operation), e.g. 'pending,in_progress'."))))
         .Set("required", JNode.Array("action"));
 
     // ── 公共访问（兼容旧代码：SelfTest、ChatScreen 侧栏、TodoCommand）──

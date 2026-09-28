@@ -137,6 +137,17 @@ public static partial class SelfTest
                 ("AgentStatus 计划模式", AgentStatusResolver.Resolve(
                     new AgentStatusInput(Busy: false, ToolName: null, Compressing: false, WaitingPermission: false,
                                          WaitingUser: false, WaitingSubagent: false, Mode: WorkMode.Plan)).Text),
+                // 四个 opt-in 生成器（默认 Build 路径已英文化，这四个只在 Tiny/经济/规划模式下走）。
+                // ⚠ **刻意传空工具表**：工具描述是**另一批的活**（还没英文化），传空表才能让判据
+                //   落在「我们写的文案」上；否则工具的 `Description` 会把这条护栏变成"永远红"。
+                ("Tiny 生成器", SystemPrompt.GenerateTiny([])),
+                ("Extreme 生成器", SystemPrompt.GenerateExtreme([])),
+                ("Economy 生成器", SystemPrompt.GenerateEconomy([])),
+                ("Plan 生成器", SystemPrompt.GeneratePlan([])),
+                // Architect **不在这里**：它的成品里注入仓库地图，而地图正文含数据（从项目 markdown
+                // 抽出的标题、路径、符号名）—— 整份断言会被自己仓库的文档标题判成漏译（实测踩到）。
+                // 它单独断言**模板本体**，见下面那两条。
+                ("Architect 英文模板", SystemPrompt.EnglishArchitectTemplateForTest),
             };
             foreach (var (name, text) in copySurfaces)
             {
@@ -161,6 +172,34 @@ public static partial class SelfTest
                 !HasCjk(new ProjectInfo { PrimaryLanguage = "C#", Languages = [".cs(1)"] }.ToMarkdown()));
 
             Check("Prompt[en]: 无残留占位符", !Regex.IsMatch(enPrompt, "__[A-Z_]+__"));
+
+            // ── ④ 工具描述：**模型读的就是这些**，中英混排会削弱指令跟随 ──
+            // 判据是「逐个参数都要有」，不是「抽几个看看」：漏一个的后果是英文会话里模型收到
+            // 一句中文参数说明 —— 不报错、不留痕，只是变笨。这也是这批改动唯一能自动化的防线
+            // （49 个工具散在 50 个文件里，靠人眼过一遍必漏）。
+            var notTranslated = new List<string>();
+            foreach (var t in tools)
+            {
+                if (HasCjk(t.Description ?? "")) notTranslated.Add($"{t.Name}.Description");
+                var props = t.Parameters["properties"];
+                if (props is null) continue;
+                foreach (var (pname, pdef) in props.Entries)
+                    if (HasCjk(pdef.GetString("description") ?? ""))
+                        notTranslated.Add($"{t.Name}.{pname}");
+            }
+            if (notTranslated.Count > 0)
+                Fail($"工具描述[en]: {notTranslated.Count} 处仍含中文 —— 例如 " +
+                     string.Join("、", notTranslated.Take(10)));
+            else
+                Check("工具描述[en]: 全部无中文", true);
+
+            // Architect 两份模板的占位符集合必须**逐一对应**。漏一个的后果是「某段动态内容
+            // 在英文下永不注入」—— 不报错、不留痕，只是英文用户看到的提示词少一块。
+            static HashSet<string> Placeholders(string t) =>
+                Regex.Matches(t, "__[A-Z_]+__").Select(m => m.Value).ToHashSet(StringComparer.Ordinal);
+            Check("Architect 模板: 中英占位符集合相等",
+                Placeholders(SystemPrompt.EnglishArchitectTemplateForTest).SetEquals(
+                    Placeholders(SystemPrompt.ChineseArchitectTemplateForTest)));
             Check("Prompt[en]: 含工具名（工具清单确实注入了）",
                 tools.Count == 0 || enPrompt.Contains(tools[0].Name, StringComparison.Ordinal));
             Check("Prompt[en]: 含关键区块标记", enPrompt.Contains("<critical_rules>") && enPrompt.Contains("<final_answers>"));

@@ -15,19 +15,24 @@ public class ConvertEncodingTool : ITool
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive; // 写文件，独占执行
 
     public string Description =>
-        "把文本文件从一种编码转换成另一种（默认转 UTF-8）。支持市面绝大多数编码：" +
+        L.Pick("把文本文件从一种编码转换成另一种（默认转 UTF-8）。支持市面绝大多数编码：" +
         "UTF-8/UTF-8 BOM/UTF-16/UTF-32、简体中文 GB2312/GBK/GB18030、繁体 Big5、" +
         "日文 Shift-JIS/EUC-JP、韩文 EUC-KR/UHC、ISO-8859-1~16、Windows-1250~1258、DOS 437/850 等。" +
         "from_encoding 默认 auto（自动识别 BOM/UTF-8/GB18030），to_encoding 默认 utf-8；" +
-        "output 省略时原地覆盖转码。示例：把 GBK 编码的 a.cs 转成 UTF-8 —— file_path=\"a.cs\" from_encoding=\"gbk\" to_encoding=\"utf-8\"。";
+        "output 省略时原地覆盖转码。示例：把 GBK 编码的 a.cs 转成 UTF-8 —— file_path=\"a.cs\" from_encoding=\"gbk\" to_encoding=\"utf-8\"。",
+        "Convert a text file from one encoding to another (UTF-8 by default). Covers most encodings in use: " +
+        "UTF-8/UTF-8 BOM/UTF-16/UTF-32, Simplified Chinese GB2312/GBK/GB18030, Traditional Chinese Big5, " +
+        "Japanese Shift-JIS/EUC-JP, Korean EUC-KR/UHC, ISO-8859-1~16, Windows-1250~1258, DOS 437/850, and more. " +
+        "from_encoding defaults to auto (detects BOM/UTF-8/GB18030) and to_encoding defaults to utf-8; " +
+        "when output is omitted the file is transcoded in place. Example: convert the GBK-encoded a.cs to UTF-8 - file_path=\"a.cs\" from_encoding=\"gbk\" to_encoding=\"utf-8\".");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file_path", JNode.Param("string", "要转换编码的文件路径（文本文件）。"))
-            .Set("from_encoding", JNode.Param("string", "源编码，默认 auto（自动识别 BOM/UTF-8/GB18030）。可显式指定：utf-8/gbk/gb2312/gb18030/big5/shift-jis/euc-jp/euc-kr/iso-8859-1/windows-1252 等，或代码页数字（如 936/950）。"))
-            .Set("to_encoding", JNode.Param("string", "目标编码，默认 utf-8。支持同上全部编码；utf-8-bom 输出带 BOM。"))
-            .Set("output", JNode.Param("string", "输出文件路径，默认覆盖原文件（原地转码）。指定后写到新路径，原文件不动。")))
+            .Set("file_path", JNode.Param("string", L.Pick("要转换编码的文件路径（文本文件）。", "Path of the file whose encoding to convert (text file).")))
+            .Set("from_encoding", JNode.Param("string", L.Pick("源编码，默认 auto（自动识别 BOM/UTF-8/GB18030）。可显式指定：utf-8/gbk/gb2312/gb18030/big5/shift-jis/euc-jp/euc-kr/iso-8859-1/windows-1252 等，或代码页数字（如 936/950）。", "Source encoding. Default auto (detects BOM/UTF-8/GB18030). Can be given explicitly: utf-8/gbk/gb2312/gb18030/big5/shift-jis/euc-jp/euc-kr/iso-8859-1/windows-1252, and so on, or a code page number (such as 936/950).")))
+            .Set("to_encoding", JNode.Param("string", L.Pick("目标编码，默认 utf-8。支持同上全部编码；utf-8-bom 输出带 BOM。", "Target encoding. Default utf-8. Supports all the encodings listed above; utf-8-bom writes a BOM.")))
+            .Set("output", JNode.Param("string", L.Pick("输出文件路径，默认覆盖原文件（原地转码）。指定后写到新路径，原文件不动。", "Output file path. Defaults to overwriting the original file (in-place transcode). When specified, writes to the new path and leaves the original untouched."))))
         .Set("required", JNode.Array("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

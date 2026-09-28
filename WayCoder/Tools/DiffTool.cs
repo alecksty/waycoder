@@ -9,14 +9,14 @@ namespace WayCoder.Tools;
 public class DiffTool : ITool
 {
     public string Name => "diff";
-    public string Description => "比较两个文本文件的逐行差异。输出添加(+)、删除(-)、上下文行。纯 C# 实现。";
+    public string Description => L.Pick("比较两个文本文件的逐行差异。输出添加(+)、删除(-)、上下文行。纯 C# 实现。", "Compare two text files line by line. Outputs added (+), removed (-), and context lines. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file1", JNode.Param("string", "第一个文件路径"))
-            .Set("file2", JNode.Param("string", "第二个文件路径"))
-            .Set("context", JNode.Param("integer", "差异周围显示的上下文行数（默认 3）")))
+            .Set("file1", JNode.Param("string", L.Pick("第一个文件路径", "First file path")))
+            .Set("file2", JNode.Param("string", L.Pick("第二个文件路径", "Second file path")))
+            .Set("context", JNode.Param("integer", L.Pick("差异周围显示的上下文行数（默认 3）", "Number of context lines shown around each difference. Default 3."))))
         .Set("required", JNode.Array("file1", "file2"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

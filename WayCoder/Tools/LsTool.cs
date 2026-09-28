@@ -10,16 +10,16 @@ namespace WayCoder.Tools;
 public class LsTool : ITool
 {
     public string Name => "ls";
-    public string Description => "列出目录中的文件和子目录。支持通配符过滤、递归深度限制、最大条目数。纯 C# 实现，无需 Shell。";
+    public string Description => L.Pick("列出目录中的文件和子目录。支持通配符过滤、递归深度限制、最大条目数。纯 C# 实现，无需 Shell。", "List the files and subdirectories of a directory. Supports wildcard filtering, a recursion depth limit, and a maximum entry count. Pure C# implementation, no shell required.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "目录路径（默认：当前工作目录）"))
-            .Set("pattern", JNode.Param("string", "文件名通配符过滤，如 '*.cs'、'*.{md,txt}'"))
-            .Set("max", JNode.Param("integer", "最大显示条目数（默认 100，防止输出爆炸）"))
-            .Set("depth", JNode.Param("integer", "递归深度（1=仅当前目录，默认 1）"))
-            .Set("long", JNode.Param("boolean", "是否显示详细信息（大小、时间，默认 false）")))
+            .Set("path", JNode.Param("string", L.Pick("目录路径（默认：当前工作目录）", "Directory path. Default: current working directory.")))
+            .Set("pattern", JNode.Param("string", L.Pick("文件名通配符过滤，如 '*.cs'、'*.{md,txt}'", "Filename wildcard filter, e.g. '*.cs', '*.{md,txt}'.")))
+            .Set("max", JNode.Param("integer", L.Pick("最大显示条目数（默认 100，防止输出爆炸）", "Maximum number of entries to display (default 100, prevents output explosion).")))
+            .Set("depth", JNode.Param("integer", L.Pick("递归深度（1=仅当前目录，默认 1）", "Recursion depth (1 = current directory only; default 1).")))
+            .Set("long", JNode.Param("boolean", L.Pick("是否显示详细信息（大小、时间，默认 false）", "Whether to show detailed information (size, time). Default false."))))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

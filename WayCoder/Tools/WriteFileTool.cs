@@ -12,15 +12,15 @@ public class WriteFileTool : ITool
 {
     public string Name => "write_file";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "创建新文件或完全覆写已有文件。仅用于新建文件或整体重写；对已有文件的小改动请用 edit_file（更安全，不会意外丢失内容）。覆写已有文件前必须先 read_file 了解当前内容。";
+    public string Description => L.Pick("创建新文件或完全覆写已有文件。仅用于新建文件或整体重写；对已有文件的小改动请用 edit_file（更安全，不会意外丢失内容）。覆写已有文件前必须先 read_file 了解当前内容。", "Create a new file or completely overwrite an existing file. Use it only for new files or full rewrites; for small changes to an existing file use edit_file (safer, will not accidentally lose content). Before overwriting an existing file you must first read_file to learn its current content.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file_path", JNode.Param("string", "文件路径（绝对路径）。新建文件或完全替换已有文件。仅用于新建或整体重写——局部编辑请用 edit_file。"))
-            .Set("content", JNode.Param("string", "要写入的完整文件内容。将完全替换目标文件的全部内容。"))
-            .Set("append", JNode.Param("boolean", "设为 true 追加到文件末尾（不覆写），默认 false 覆写"))
-            .Set("encoding", JNode.Param("string", "文件编码，默认 utf8。支持 utf8/utf8bom/ascii/utf16/utf16be/utf32")))
+            .Set("file_path", JNode.Param("string", L.Pick("文件路径（绝对路径）。新建文件或完全替换已有文件。仅用于新建或整体重写——局部编辑请用 edit_file。", "File path (absolute path). Creates a new file or completely replaces an existing one. Use it only for new files or full rewrites - for partial edits use edit_file.")))
+            .Set("content", JNode.Param("string", L.Pick("要写入的完整文件内容。将完全替换目标文件的全部内容。", "Complete file content to write. Completely replaces all content of the target file.")))
+            .Set("append", JNode.Param("boolean", L.Pick("设为 true 追加到文件末尾（不覆写），默认 false 覆写", "Set to true to append to the end of the file (no overwrite). Default false (overwrite).")))
+            .Set("encoding", JNode.Param("string", L.Pick("文件编码，默认 utf8。支持 utf8/utf8bom/ascii/utf16/utf16be/utf32", "File encoding. Default utf8. Supported: utf8/utf8bom/ascii/utf16/utf16be/utf32."))))
         .Set("required", JNode.Array("file_path", "content"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

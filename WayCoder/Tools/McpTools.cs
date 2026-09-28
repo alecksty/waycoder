@@ -129,7 +129,7 @@ internal class McpResourceTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("uri", JNode.Param("string", "要读取的资源 URI（省略则列出所有可用资源）")));
+            .Set("uri", JNode.Param("string", L.Pick("要读取的资源 URI（省略则列出所有可用资源）", "URI of the resource to read (omit to list all available resources)."))));
 
     public McpResourceTool(string serverName, JNode resources, McpConnection connection)
     {
@@ -148,7 +148,7 @@ internal class McpResourceTool : ITool
         Name = $"mcp__{serverName}__resources";
 
         var sb = new StringBuilder();
-        sb.Append($"读取 MCP 服务器 {serverName} 提供的资源。省略 uri 参数列出全部资源；传入 uri 读取指定资源内容。可用资源：");
+        sb.Append(L.Pick($"读取 MCP 服务器 {serverName} 提供的资源。省略 uri 参数列出全部资源；传入 uri 读取指定资源内容。可用资源：", $"Read resources provided by MCP server {serverName}. Omit the uri parameter to list all resources; pass uri to read a specific resource's content. Available resources:"));
         foreach (var (uri, rname, desc) in _resources)
         {
             sb.Append($"\n- {rname} ({uri})");
@@ -230,7 +230,7 @@ internal class McpPromptTool : ITool
 
         var promptName = promptDef["name"]?.AsString() ?? "unknown";
         Name = $"mcp__{serverName}__prompt__{promptName}";
-        Description = promptDef["description"]?.AsString() ?? $"(MCP) {serverName} 提示词 {promptName}";
+        Description = promptDef["description"]?.AsString() ?? L.Pick($"(MCP) {serverName} 提示词 {promptName}", $"(MCP) prompt {promptName} from server {serverName}");
         Parameters = BuildParameters(promptDef["arguments"]);
     }
 

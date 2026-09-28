@@ -15,15 +15,15 @@ namespace WayCoder.Tools;
 public class GrepTool : ITool
 {
     public string Name => "grep";
-    public string Description => "使用正则表达式搜索文件内容。返回匹配行，包含文件路径和行号。支持 literal_text 模式。";
+    public string Description => L.Pick("使用正则表达式搜索文件内容。返回匹配行，包含文件路径和行号。支持 literal_text 模式。", "Search file contents with a regular expression. Returns matching lines with file path and line number. Supports literal_text mode.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("pattern", JNode.Param("string", "要搜索的正则表达式模式（或 literal_text 模式下的纯文本）"))
-            .Set("path", JNode.Param("string", "要搜索的文件或目录（默认：当前工作目录）"))
-            .Set("include", JNode.Param("string", "仅搜索匹配此 glob 模式的文件（如 '*.py'）"))
-            .Set("literal_text", JNode.Param("boolean", "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false")))
+            .Set("pattern", JNode.Param("string", L.Pick("要搜索的正则表达式模式（或 literal_text 模式下的纯文本）", "Regular expression pattern to search for (or plain text when literal_text is true).")))
+            .Set("path", JNode.Param("string", L.Pick("要搜索的文件或目录（默认：当前工作目录）", "File or directory to search. Default: current working directory.")))
+            .Set("include", JNode.Param("string", L.Pick("仅搜索匹配此 glob 模式的文件（如 '*.py'）", "Only search files matching this glob pattern (e.g. '*.py').")))
+            .Set("literal_text", JNode.Param("boolean", L.Pick("如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false", "If true, pattern is treated as plain text (regex special characters are escaped automatically). Default false."))))
         .Set("required", JNode.Array("pattern"));
 
     // 在权威跳过表（FileIgnoreManager）之上额外跳过的噪音目录（.git/node_modules/__pycache__

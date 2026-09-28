@@ -10,17 +10,22 @@ public class ImageConvertTool : ITool
 {
     public string Name => "convert_image";
     public string Description =>
-        "把图片在 PNG/JPG/BMP 之间互相转换。读取 input 路径（按扩展名或魔数识别格式），" +
+        L.Pick("把图片在 PNG/JPG/BMP 之间互相转换。读取 input 路径（按扩展名或魔数识别格式），" +
         "按 output 路径扩展名决定目标格式写入。支持 png/jpg(jpeg)/bmp；jpg 可用 quality 控制质量(1-100，默认 85)。" +
         "示例：把 a.png 转成 a.jpg —— input=\"a.png\" output=\"a.jpg\"。" +
-        "也支持同格式重编码压缩（如 jpg 转 jpg 降质量）。";
+        "也支持同格式重编码压缩（如 jpg 转 jpg 降质量）。",
+        "Convert an image between PNG/JPG/BMP. Reads the input path (format detected from the extension or magic number) " +
+        "and writes the target format decided by the output path extension. Supports png/jpg(jpeg)/bmp; for jpg, quality controls " +
+        "the compression (1-100, default 85). " +
+        "Example: convert a.png to a.jpg with input=\"a.png\" output=\"a.jpg\". " +
+        "Re-encoding to the same format to shrink a file is also supported (e.g. jpg to jpg at lower quality).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("input", JNode.Param("string", "输入图片路径（png/jpg/jpeg/bmp）"))
-            .Set("output", JNode.Param("string", "输出图片路径，扩展名决定格式（png/jpg/jpeg/bmp）"))
-            .Set("quality", JNode.Param("integer", "JPEG 质量 1-100，默认 85（仅 jpg 输出生效）")))
+            .Set("input", JNode.Param("string", L.Pick("输入图片路径（png/jpg/jpeg/bmp）", "Input image path (png/jpg/jpeg/bmp).")))
+            .Set("output", JNode.Param("string", L.Pick("输出图片路径，扩展名决定格式（png/jpg/jpeg/bmp）", "Output image path; the extension decides the format (png/jpg/jpeg/bmp).")))
+            .Set("quality", JNode.Param("integer", L.Pick("JPEG 质量 1-100，默认 85（仅 jpg 输出生效）", "JPEG quality 1-100, default 85 (only applies to jpg output)."))))
         .Set("required", JNode.Array("input", "output"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

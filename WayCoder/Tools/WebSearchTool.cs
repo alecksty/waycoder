@@ -11,13 +11,13 @@ namespace WayCoder.Tools;
 public class WebSearchTool : ITool, ICancellableTool
 {
     public string Name => "web_search";
-    public string Description => "在互联网上搜索信息，返回结果标题、摘要和链接。主引擎 DuckDuckGo，失败自动回退 Bing（国内可达）。无需 API 密钥。";
+    public string Description => L.Pick("在互联网上搜索信息，返回结果标题、摘要和链接。主引擎 DuckDuckGo，失败自动回退 Bing（国内可达）。无需 API 密钥。", "Search the internet and return result titles, snippets, and links. Primary engine DuckDuckGo, automatically falling back to Bing (reachable in China). No API key required.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("query", JNode.Param("string", "搜索关键词"))
-            .Set("num", JNode.Param("integer", "返回结果数量（1-10，默认 5）")))
+            .Set("query", JNode.Param("string", L.Pick("搜索关键词", "Search keywords")))
+            .Set("num", JNode.Param("integer", L.Pick("返回结果数量（1-10，默认 5）", "Number of results to return (1-10, default 5)"))))
         .Set("required", JNode.Array("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

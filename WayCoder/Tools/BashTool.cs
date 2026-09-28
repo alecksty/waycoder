@@ -13,16 +13,16 @@ public class BashTool : ITool, ICancellableTool
 
     public string Name => "bash";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。";
+    public string Description => L.Pick("执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。", "Run a shell command. Returns stdout, stderr, and the exit code.\n⚠ Forbidden: network download tools (curl/wget/ssh), package manager installs (apt/pip/npm install, etc.), privilege escalation (sudo/su), and system modifications.\n✅ Safe, no confirmation needed: read-only operations such as ls/cat/grep/find/git log/dotnet --version are allowed automatically.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("command", JNode.Param("string", "要运行的 Shell 命令"))
-            .Set("timeout", JNode.Param("integer", "超时时间，单位秒（默认 120）。超时后命令自动转入后台继续执行，返回 shell_id，可用 job_output 轮询。"))
-            .Set("run_in_background", JNode.Param("boolean", "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。"))
-            .Set("auto_background_after", JNode.Param("integer", "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。"))
-            .Set("session_id", JNode.Param("string", "持久 shell 会话 ID。提供则复用同一 shell 进程，多命令共享 cwd/环境变量/shell 状态（如 export、alias）。省略则每次新建进程。")))
+            .Set("command", JNode.Param("string", L.Pick("要运行的 Shell 命令", "Shell command to run")))
+            .Set("timeout", JNode.Param("integer", L.Pick("超时时间，单位秒（默认 120）。超时后命令自动转入后台继续执行，返回 shell_id，可用 job_output 轮询。", "Timeout in seconds (default 120). On timeout the command automatically moves to the background and keeps running, returning a shell_id that can be polled with job_output.")))
+            .Set("run_in_background", JNode.Param("boolean", L.Pick("设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。", "Set to true to run in the background immediately and return a shell_id. Then read its output with job_output and terminate it with job_kill.")))
+            .Set("auto_background_after", JNode.Param("integer", L.Pick("前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。", "Automatically move to the background after waiting N seconds in the foreground (default 60). Only takes effect when run_in_background=true.")))
+            .Set("session_id", JNode.Param("string", L.Pick("持久 shell 会话 ID。提供则复用同一 shell 进程，多命令共享 cwd/环境变量/shell 状态（如 export、alias）。省略则每次新建进程。", "Persistent shell session ID. When provided, the same shell process is reused so multiple commands share cwd, environment variables, and shell state (such as export and alias). When omitted, a new process is created each time."))))
         .Set("required", JNode.Array("command"));
 
     // 可能破坏文件系统或泄露密钥的危险模式

@@ -30,9 +30,12 @@ public class ScreenshotTool : ITool
 
     public string Name => "screenshot";
     public string Description =>
-        "抓取屏幕画面供自己查看。target 可选：console（默认，导出当前终端 TUI 纯文本画面，直接可读）；" +
+        L.Pick("抓取屏幕画面供自己查看。target 可选：console（默认，导出当前终端 TUI 纯文本画面，直接可读）；" +
         "screen（抓取整个桌面保存 PNG 并尝试 OCR 文字）；region（抓取矩形区域，需 x/y/width/height 参数）。" +
-        "GUI 抓屏结果会保存为 PNG 文件并尽力 OCR 成文字返回，因为模型无法直接看图片。";
+        "GUI 抓屏结果会保存为 PNG 文件并尽力 OCR 成文字返回，因为模型无法直接看图片。",
+        "Capture the screen for your own viewing. target options: console (default, exports the current terminal TUI as plain text, directly readable); " +
+        "screen (captures the whole desktop, saves a PNG and attempts OCR); region (captures a rectangular area; requires x/y/width/height arguments). " +
+        "GUI captures are saved as PNG files and OCR'd to text as best as possible, because the model cannot view images directly.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -40,12 +43,12 @@ public class ScreenshotTool : ITool
             .Set("target", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("console", "screen", "region"))
-                .Set("description", "抓取目标：console=终端画面纯文本（默认）；screen=整个桌面；region=指定区域"))
-            .Set("x", JNode.Param("integer", "region 模式：区域左上角 X 坐标（像素）"))
-            .Set("y", JNode.Param("integer", "region 模式：区域左上角 Y 坐标（像素）"))
-            .Set("width", JNode.Param("integer", "region 模式：区域宽度（像素）"))
-            .Set("height", JNode.Param("integer", "region 模式：区域高度（像素）"))
-            .Set("save_path", JNode.Param("string", "GUI 抓屏 PNG 的保存路径（默认 ~/.waycoder/screenshots/ 自动命名）")))
+                .Set("description", L.Pick("抓取目标：console=终端画面纯文本（默认）；screen=整个桌面；region=指定区域", "Capture target: console = terminal screen as plain text (default); screen = whole desktop; region = specified area.")))
+            .Set("x", JNode.Param("integer", L.Pick("region 模式：区域左上角 X 坐标（像素）", "region mode: X coordinate of the area's top-left corner (pixels).")))
+            .Set("y", JNode.Param("integer", L.Pick("region 模式：区域左上角 Y 坐标（像素）", "region mode: Y coordinate of the area's top-left corner (pixels).")))
+            .Set("width", JNode.Param("integer", L.Pick("region 模式：区域宽度（像素）", "region mode: area width (pixels).")))
+            .Set("height", JNode.Param("integer", L.Pick("region 模式：区域高度（像素）", "region mode: area height (pixels).")))
+            .Set("save_path", JNode.Param("string", L.Pick("GUI 抓屏 PNG 的保存路径（默认 ~/.waycoder/screenshots/ 自动命名）", "Save path for the GUI capture PNG (defaults to auto-naming under ~/.waycoder/screenshots/)."))))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

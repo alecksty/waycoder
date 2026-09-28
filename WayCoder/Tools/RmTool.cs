@@ -8,13 +8,13 @@ public class RmTool : ITool
 {
     public string Name => "rm";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "删除文件或目录。支持递归删除。禁止删除系统关键路径（C:\\Windows、/etc 等）。纯 C# 实现。";
+    public string Description => L.Pick("删除文件或目录。支持递归删除。禁止删除系统关键路径（C:\\Windows、/etc 等）。纯 C# 实现。", "Delete a file or directory. Supports recursive deletion. Deleting critical system paths (C:\\Windows, /etc, etc.) is forbidden. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "要删除的文件或目录路径"))
-            .Set("recursive", JNode.Param("boolean", "是否递归删除目录（默认 false）")))
+            .Set("path", JNode.Param("string", L.Pick("要删除的文件或目录路径", "File or directory path to delete.")))
+            .Set("recursive", JNode.Param("boolean", L.Pick("是否递归删除目录（默认 false）", "Whether to delete directories recursively. Default false."))))
         .Set("required", JNode.Array("path"));
 
     // 系统关键路径（禁止删除）

@@ -14,12 +14,12 @@ public class LintTool : ITool
     public bool RawOutput => true;
 
     public string Name => "lint";
-    public string Description => "对指定文件或目录运行静态检查（lint/编译检查），返回错误和警告列表。支持 C#、Python、JS/TS、Go、Rust、Java、C/C++、Ruby、PHP、Swift、Kotlin、Lua、Shell、CSS、Vue 等。";
+    public string Description => L.Pick("对指定文件或目录运行静态检查（lint/编译检查），返回错误和警告列表。支持 C#、Python、JS/TS、Go、Rust、Java、C/C++、Ruby、PHP、Swift、Kotlin、Lua、Shell、CSS、Vue 等。", "Run static checks (lint / compile checks) on the given file or directory and return the list of errors and warnings. Supports C#, Python, JS/TS, Go, Rust, Java, C/C++, Ruby, PHP, Swift, Kotlin, Lua, Shell, CSS, Vue and more.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "要检查的文件或目录路径。留空则检查当前目录。")));
+            .Set("path", JNode.Param("string", L.Pick("要检查的文件或目录路径。留空则检查当前目录。", "File or directory path to check. Leave empty to check the current directory."))));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

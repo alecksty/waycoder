@@ -15,16 +15,16 @@ public class LspTool : ITool
 
     public string Name => "lsp";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。";
+    public string Description => L.Pick("代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。", "Code intelligence navigation: go to definition, find references, hover for type info, document symbols. Supports C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("action", JNode.Param("string", "操作: definition | references | hover | symbols"))
-            .Set("file_path", JNode.Param("string", "文件路径"))
-            .Set("line", JNode.Param("integer", "行号 (1-based)"))
-            .Set("character", JNode.Param("integer", "列号 (1-based)"))
-            .Set("query", JNode.Param("string", "符号搜索关键词 (symbols 操作时用)")))
+            .Set("action", JNode.Param("string", L.Pick("操作: definition | references | hover | symbols", "Operation: definition | references | hover | symbols.")))
+            .Set("file_path", JNode.Param("string", L.Pick("文件路径", "File path.")))
+            .Set("line", JNode.Param("integer", L.Pick("行号 (1-based)", "Line number (1-based).")))
+            .Set("character", JNode.Param("integer", L.Pick("列号 (1-based)", "Column number (1-based).")))
+            .Set("query", JNode.Param("string", L.Pick("符号搜索关键词 (symbols 操作时用)", "Symbol search keyword (used with the symbols operation)."))))
         .Set("required", JNode.Array("action", "file_path", "line", "character"));
 
     /// <summary>支持的语言服务器列表（供 UI 展示）</summary>

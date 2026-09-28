@@ -7,14 +7,14 @@ namespace WayCoder.Tools;
 public class DownloadTool : ITool, ICancellableTool
 {
     public string Name => "download";
-    public string Description => "将 URL 的内容下载到本地文件。用于获取远程资源、下载依赖文件或保存外部数据。";
+    public string Description => L.Pick("将 URL 的内容下载到本地文件。用于获取远程资源、下载依赖文件或保存外部数据。", "Download the content of a URL to a local file. Use it to fetch remote resources, download dependency files, or save external data.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("url", JNode.Param("string", "要下载的 URL（仅支持 http/https）"))
-            .Set("file_path", JNode.Param("string", "保存下载内容的本地文件路径（绝对路径或相对于当前目录）"))
-            .Set("timeout", JNode.Param("integer", "下载超时时间，单位秒（默认 60，最大 600）")))
+            .Set("url", JNode.Param("string", L.Pick("要下载的 URL（仅支持 http/https）", "URL to download (http/https only)")))
+            .Set("file_path", JNode.Param("string", L.Pick("保存下载内容的本地文件路径（绝对路径或相对于当前目录）", "Local file path to save the downloaded content (absolute, or relative to the current directory)")))
+            .Set("timeout", JNode.Param("integer", L.Pick("下载超时时间，单位秒（默认 60，最大 600）", "Download timeout in seconds. Default 60, maximum 600."))))
         .Set("required", JNode.Array("url", "file_path"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

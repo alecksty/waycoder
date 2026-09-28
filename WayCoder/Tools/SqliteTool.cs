@@ -15,13 +15,13 @@ public class SqliteTool : ITool
 
     public string Name => "sqlite";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "查询 SQLite 数据库：执行 SQL（SELECT/INSERT/UPDATE/DELETE 等）返回结果。需系统安装 sqlite3 命令行工具（macOS/Linux 通常预装）。";
+    public string Description => L.Pick("查询 SQLite 数据库：执行 SQL（SELECT/INSERT/UPDATE/DELETE 等）返回结果。需系统安装 sqlite3 命令行工具（macOS/Linux 通常预装）。", "Query a SQLite database: execute SQL (SELECT/INSERT/UPDATE/DELETE, etc.) and return the results. Requires the sqlite3 command-line tool installed on the system (usually preinstalled on macOS/Linux).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("database", JNode.Param("string", "SQLite 数据库文件路径（.db/.sqlite）。省略则作用于内存库"))
-            .Set("query", JNode.Param("string", "要执行的 SQL 语句")))
+            .Set("database", JNode.Param("string", L.Pick("SQLite 数据库文件路径（.db/.sqlite）。省略则作用于内存库", "SQLite database file path (.db/.sqlite). Omit to use an in-memory database.")))
+            .Set("query", JNode.Param("string", L.Pick("要执行的 SQL 语句", "SQL statement to execute."))))
         .Set("required", JNode.Array("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

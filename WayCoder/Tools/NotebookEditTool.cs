@@ -18,18 +18,21 @@ public class NotebookEditTool : ITool
     public string Name => "notebook_edit";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description =>
-        "编辑 Jupyter Notebook (.ipynb) 文件。支持三种操作: replace（替换指定 cell 的源代码）、" +
+        L.Pick("编辑 Jupyter Notebook (.ipynb) 文件。支持三种操作: replace（替换指定 cell 的源代码）、" +
         "insert（在指定位置后插入新 cell）、delete（删除指定 cell）。" +
-        "cell_index 从 0 开始计数。insert 时需要提供 cell_type（code 或 markdown）。";
+        "cell_index 从 0 开始计数。insert 时需要提供 cell_type（code 或 markdown）。",
+        "Edit Jupyter Notebook (.ipynb) files. Supports three operations: replace (replace the source code of a specified cell), " +
+        "insert (insert a new cell after a specified position), delete (delete a specified cell). " +
+        "cell_index is 0-based. insert requires cell_type (code or markdown).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("notebook_path", JNode.Param("string", "Notebook 文件路径（.ipynb）"))
-            .Set("cell_index", JNode.Param("integer", "Cell 索引（0-based）。replace/delete 时指定目标 cell；insert 时新 cell 插入到该索引之后（-1 表示插入到开头）"))
-            .Set("new_source", JNode.Param("string", "新内容。replace 时替换 cell 源代码；insert 时为整个新 cell 的源代码"))
-            .Set("cell_type", JNode.Param("string", "Cell 类型（insert 时需要）: code | markdown"))
-            .Set("edit_mode", JNode.Param("string", "编辑模式: replace（默认，替换 cell 源） | insert（插入新 cell） | delete（删除 cell）")))
+            .Set("notebook_path", JNode.Param("string", L.Pick("Notebook 文件路径（.ipynb）", "Notebook file path (.ipynb).")))
+            .Set("cell_index", JNode.Param("integer", L.Pick("Cell 索引（0-based）。replace/delete 时指定目标 cell；insert 时新 cell 插入到该索引之后（-1 表示插入到开头）", "Cell index (0-based). For replace/delete, the target cell; for insert, the new cell is inserted after this index (-1 means insert at the beginning).")))
+            .Set("new_source", JNode.Param("string", L.Pick("新内容。replace 时替换 cell 源代码；insert 时为整个新 cell 的源代码", "New content. For replace, the cell's replacement source code; for insert, the source code of the entire new cell.")))
+            .Set("cell_type", JNode.Param("string", L.Pick("Cell 类型（insert 时需要）: code | markdown", "Cell type (required for insert): code | markdown.")))
+            .Set("edit_mode", JNode.Param("string", L.Pick("编辑模式: replace（默认，替换 cell 源） | insert（插入新 cell） | delete（删除 cell）", "Edit mode: replace (default, replace cell source) | insert (insert a new cell) | delete (delete a cell)."))))
         .Set("required", JNode.Array("notebook_path", "new_source"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

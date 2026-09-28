@@ -12,13 +12,13 @@ public class PsTool : ITool
     public bool RawOutput => true;
 
     public string Name => "ps";
-    public string Description => "列出当前正在运行的进程。可传 name 过滤进程名。返回 PID、进程名、内存占用。";
+    public string Description => L.Pick("列出当前正在运行的进程。可传 name 过滤进程名。返回 PID、进程名、内存占用。", "List currently running processes. Pass name to filter by process name. Returns PID, process name, and memory usage.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("name", JNode.Param("string", "按进程名过滤（可选），如 'dotnet'、'node'、'python'"))
-            .Set("top", JNode.Param("integer", "只显示前 N 个结果（默认 30）")))
+            .Set("name", JNode.Param("string", L.Pick("按进程名过滤（可选），如 'dotnet'、'node'、'python'", "Filter by process name (optional), e.g. 'dotnet', 'node', 'python'.")))
+            .Set("top", JNode.Param("integer", L.Pick("只显示前 N 个结果（默认 30）", "Show only the top N results. Default 30."))))
         .Set("required", JNode.Array());
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -13,14 +13,14 @@ public class KillTool : ITool
     public bool RawOutput => true;
 
     public string Name => "kill";
-    public string Description => "终止指定进程。通过 PID 或进程名（如 'node'、'dotnet'）。禁止终止系统关键进程。";
+    public string Description => L.Pick("终止指定进程。通过 PID 或进程名（如 'node'、'dotnet'）。禁止终止系统关键进程。", "Terminate a process, by PID or by process name (e.g. 'node', 'dotnet'). Terminating critical system processes is prohibited.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("pid", JNode.Param("integer", "要终止的进程 PID"))
-            .Set("name", JNode.Param("string", "要终止的进程名（如 'node'、'python'）"))
-            .Set("force", JNode.Param("boolean", "强制终止（默认 false，先尝试优雅终止）")))
+            .Set("pid", JNode.Param("integer", L.Pick("要终止的进程 PID", "PID of the process to terminate.")))
+            .Set("name", JNode.Param("string", L.Pick("要终止的进程名（如 'node'、'python'）", "Name of the process to terminate (e.g. 'node', 'python').")))
+            .Set("force", JNode.Param("boolean", L.Pick("强制终止（默认 false，先尝试优雅终止）", "Force termination (default false; a graceful termination is attempted first)."))))
         .Set("required", JNode.Array());
 
     // 禁止终止的关键系统进程

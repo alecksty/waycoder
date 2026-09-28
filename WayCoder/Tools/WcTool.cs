@@ -9,14 +9,14 @@ namespace WayCoder.Tools;
 public class WcTool : ITool
 {
     public string Name => "wc";
-    public string Description => "统计文本文件的行数、词数、字符数。支持多文件汇总。纯 C# 实现。";
+    public string Description => L.Pick("统计文本文件的行数、词数、字符数。支持多文件汇总。纯 C# 实现。", "Count lines, words, and characters in text files. Supports aggregating multiple files. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file", JNode.Param("string", "要统计的文件路径"))
-            .Set("glob", JNode.Param("string", "Glob 模式批量统计，如 '*.cs'（与 file 二选一）"))
-            .Set("path", JNode.Param("string", "搜索目录（使用 glob 时，默认当前目录）")))
+            .Set("file", JNode.Param("string", L.Pick("要统计的文件路径", "Path of the file to count")))
+            .Set("glob", JNode.Param("string", L.Pick("Glob 模式批量统计，如 '*.cs'（与 file 二选一）", "Glob pattern for batch counting, e.g. '*.cs' (mutually exclusive with file)")))
+            .Set("path", JNode.Param("string", L.Pick("搜索目录（使用 glob 时，默认当前目录）", "Search directory (used with glob; default current directory)"))))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

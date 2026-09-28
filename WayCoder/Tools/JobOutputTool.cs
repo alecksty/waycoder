@@ -10,12 +10,12 @@ public class JobOutputTool : ITool
     public bool RawOutput => true;
 
     public string Name => "job_output";
-    public string Description => "读取后台运行任务的最新输出。使用 bash 的 run_in_background 参数启动的任务可通过此工具查询结果。";
+    public string Description => L.Pick("读取后台运行任务的最新输出。使用 bash 的 run_in_background 参数启动的任务可通过此工具查询结果。", "Read the latest output of a background task. Tasks started with the bash tool's run_in_background parameter can be polled through this tool.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("shell_id", JNode.Param("string", "后台任务的 shell ID（由 bash 工具的 run_in_background 模式返回）")))
+            .Set("shell_id", JNode.Param("string", L.Pick("后台任务的 shell ID（由 bash 工具的 run_in_background 模式返回）", "Shell ID of the background task (returned by the bash tool's run_in_background mode)."))))
         .Set("required", JNode.Array("shell_id"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

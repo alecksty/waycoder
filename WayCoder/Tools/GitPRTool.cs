@@ -18,15 +18,15 @@ public class GitPRTool : ITool
     public bool RawOutput => true;
 
     public string Name => "git_pr";
-    public string Description => "创建 Pull Request：自动创建分支、推送并生成 PR 链接。支持 GitHub / Gitee。";
+    public string Description => L.Pick("创建 Pull Request：自动创建分支、推送并生成 PR 链接。支持 GitHub / Gitee。", "Create a Pull Request: automatically create a branch, push, and generate a PR link. Supports GitHub / Gitee.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("action", JNode.Param("string", "操作：create（创建 PR）、push（仅推送）、url（仅生成链接）"))
-            .Set("title", JNode.Param("string", "PR 标题（create 操作需要）"))
-            .Set("description", JNode.Param("string", "PR 描述（可选，支持 Markdown）"))
-            .Set("base_branch", JNode.Param("string", "目标分支（默认 master 或 main）")))
+            .Set("action", JNode.Param("string", L.Pick("操作：create（创建 PR）、push（仅推送）、url（仅生成链接）", "Operation: create (create the PR), push (push only), url (generate the link only).")))
+            .Set("title", JNode.Param("string", L.Pick("PR 标题（create 操作需要）", "PR title (required for the create operation).")))
+            .Set("description", JNode.Param("string", L.Pick("PR 描述（可选，支持 Markdown）", "PR description (optional, Markdown supported).")))
+            .Set("base_branch", JNode.Param("string", L.Pick("目标分支（默认 master 或 main）", "Target branch. Default: master or main."))))
         .Set("required", JNode.Array("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

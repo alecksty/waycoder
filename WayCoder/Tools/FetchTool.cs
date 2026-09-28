@@ -17,22 +17,22 @@ namespace WayCoder.Tools;
 public class FetchTool : ITool, ICancellableTool
 {
     public string Name => "fetch";
-    public string Description => "抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS 方法、自定义 headers 与 body，可调用 REST API。用于查阅文档、阅读文章、获取最新信息、调用接口。";
+    public string Description => L.Pick("抓取网页 URL 的内容，自动提取纯文本或 Markdown（去除 HTML 噪音）。支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS 方法、自定义 headers 与 body，可调用 REST API。用于查阅文档、阅读文章、获取最新信息、调用接口。", "Fetch the content of a web URL and automatically extract plain text or Markdown (stripping HTML noise). Supports GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS, custom headers and body, so it can call REST APIs. Use it to look up documentation, read articles, get the latest information, or call an endpoint.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("url", JNode.Param("string", "要抓取的网页 URL (http/https)"))
-            .Set("max_chars", JNode.Param("integer", "最大返回字符数（默认 8000，最大 100000）"))
-            .Set("format", JNode.Param("string", "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'"))
+            .Set("url", JNode.Param("string", L.Pick("要抓取的网页 URL (http/https)", "Web URL to fetch (http/https)")))
+            .Set("max_chars", JNode.Param("integer", L.Pick("最大返回字符数（默认 8000，最大 100000）", "Maximum number of characters returned. Default 8000, maximum 100000.")))
+            .Set("format", JNode.Param("string", L.Pick("输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'", "Output format: 'text' (plain text) or 'markdown' (structured). Default 'text'.")))
             .Set("method", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
-                .Set("description", "HTTP 方法，默认 GET。POST/PUT/DELETE 等用于调用 API"))
+                .Set("description", L.Pick("HTTP 方法，默认 GET。POST/PUT/DELETE 等用于调用 API", "HTTP method. Default GET. Use POST/PUT/DELETE and similar to call APIs")))
             .Set("headers", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "请求头，JSON 对象字符串，如 {\"Authorization\":\"Bearer xxx\",\"Content-Type\":\"application/json\"}"))
-            .Set("body", JNode.Param("string", "请求体（POST/PUT/PATCH 时用），默认按 application/json 发送")))
+                .Set("description", L.Pick("请求头，JSON 对象字符串，如 {\"Authorization\":\"Bearer xxx\",\"Content-Type\":\"application/json\"}", "Request headers as a JSON object string, e.g. {\"Authorization\":\"Bearer xxx\",\"Content-Type\":\"application/json\"}")))
+            .Set("body", JNode.Param("string", L.Pick("请求体（POST/PUT/PATCH 时用），默认按 application/json 发送", "Request body (for POST/PUT/PATCH). Sent as application/json by default."))))
         .Set("required", JNode.Array("url"));
 
     private static HttpClient _client => _lazyClient.Value;

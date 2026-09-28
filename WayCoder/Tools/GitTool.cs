@@ -12,14 +12,14 @@ public class GitTool : ITool, ICancellableTool
     public bool RawOutput => true;
 
     public string Name => "git";
-    public string Description => "执行 Git 操作：status、log、diff、add、commit、branch、blame。自动检测仓库根目录。禁止 force push / hard reset。";
+    public string Description => L.Pick("执行 Git 操作：status、log、diff、add、commit、branch、blame。自动检测仓库根目录。禁止 force push / hard reset。", "Run Git operations: status, log, diff, add, commit, branch, blame. Auto-detects the repository root. Force push / hard reset are prohibited.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("command", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'")))
+                .Set("description", L.Pick("Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'", "Git subcommand and its arguments, e.g. 'status', 'log --oneline -10', 'diff HEAD~1', 'add src/', 'commit -m \"msg\"'"))))
         .Set("required", JNode.Array("command"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -17,14 +17,14 @@ public class TestTool : ITool
 
     public string Name => "test";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "运行测试命令并解析结果：统计通过/失败、定位失败用例。支持 dotnet test/pytest/npm test/cargo test/go test 等。";
+    public string Description => L.Pick("运行测试命令并解析结果：统计通过/失败、定位失败用例。支持 dotnet test/pytest/npm test/cargo test/go test 等。", "Run a test command and parse the result: count passed/failed and locate failing cases. Supports dotnet test/pytest/npm test/cargo test/go test, etc.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("command", JNode.Param("string", "测试命令，如 'dotnet test --no-build'、'pytest -x'、'npm test'、'cargo test'"))
-            .Set("cwd", JNode.Param("string", "工作目录，默认当前目录"))
-            .Set("timeout", JNode.Param("integer", "超时秒数，默认 300，最大 3600")))
+            .Set("command", JNode.Param("string", L.Pick("测试命令，如 'dotnet test --no-build'、'pytest -x'、'npm test'、'cargo test'", "Test command, e.g. 'dotnet test --no-build', 'pytest -x', 'npm test', 'cargo test'")))
+            .Set("cwd", JNode.Param("string", L.Pick("工作目录，默认当前目录", "Working directory. Default current directory.")))
+            .Set("timeout", JNode.Param("integer", L.Pick("超时秒数，默认 300，最大 3600", "Timeout in seconds. Default 300, maximum 3600."))))
         .Set("required", JNode.Array("command"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

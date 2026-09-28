@@ -8,12 +8,12 @@ namespace WayCoder.Tools;
 public class SkillTool : ITool
 {
     public string Name => "skill";
-    public string Description => "加载一个指定技能的全部内容到上下文。用于需要获取某个技能的详细操作指令时调用。";
+    public string Description => L.Pick("加载一个指定技能的全部内容到上下文。用于需要获取某个技能的详细操作指令时调用。", "Load an entire skill's contents into context. Use when you need the detailed operating instructions of a specific skill.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("name", JNode.Param("string", "要加载的技能名称")))
+            .Set("name", JNode.Param("string", L.Pick("要加载的技能名称", "Name of the skill to load."))))
         .Set("required", JNode.Array("name"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -11,16 +11,20 @@ public class TranscribeAudioTool : ITool
 {
     public string Name => "transcribe";
     public string Description =>
+        L.Pick(
         "转录音频文件为文字（Whisper 兼容 API），用于「听懂」语音/录音/会议记录。" +
         "支持 mp3/wav/m4a/flac/ogg/webm 等常见格式，返回转录文本。" +
-        "需要配置 WAYCODER_WHISPER_API_KEY（或主 WAYCODER_API_KEY）与可选的 WAYCODER_WHISPER_BASE_URL。";
+        "需要配置 WAYCODER_WHISPER_API_KEY（或主 WAYCODER_API_KEY）与可选的 WAYCODER_WHISPER_BASE_URL。",
+        "Transcribe an audio file to text (Whisper-compatible API); use it to \"understand\" speech, recordings, and meeting notes. " +
+        "Supports common formats such as mp3/wav/m4a/flac/ogg/webm and returns the transcript text. " +
+        "Requires WAYCODER_WHISPER_API_KEY (or the main WAYCODER_API_KEY) and an optional WAYCODER_WHISPER_BASE_URL.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "音频文件路径（如 /path/to/meeting.mp3）"))
-            .Set("language", JNode.Param("string", "语言代码（ISO 639-1，如 zh/en/ja），省略则自动检测"))
-            .Set("prompt", JNode.Param("string", "可选引导词，提供上下文/术语帮助提高转录准确率")))
+            .Set("path", JNode.Param("string", L.Pick("音频文件路径（如 /path/to/meeting.mp3）", "Audio file path (e.g. /path/to/meeting.mp3)")))
+            .Set("language", JNode.Param("string", L.Pick("语言代码（ISO 639-1，如 zh/en/ja），省略则自动检测", "Language code (ISO 639-1, e.g. zh/en/ja). Auto-detected if omitted.")))
+            .Set("prompt", JNode.Param("string", L.Pick("可选引导词，提供上下文/术语帮助提高转录准确率", "Optional prompt text; context or terminology that helps improve transcription accuracy"))))
         .Set("required", JNode.Array("path"));
 
     private const long MaxBytes = 25L * 1024 * 1024; // OpenAI Whisper 25MB 上限

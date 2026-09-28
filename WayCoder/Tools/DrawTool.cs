@@ -11,7 +11,7 @@ public class DrawTool : ITool
 {
     public string Name => "draw";
     public string Description =>
-        "用文本指令绘制图形，输出 SVG 或 PNG 图片。指令：canvas W H [bg] 设画布，" +
+        L.Pick("用文本指令绘制图形，输出 SVG 或 PNG 图片。指令：canvas W H [bg] 设画布，" +
         "rect/roundrect/circle/ellipse/line/arrow/polygon/polyline/path/text 绘图元，以及 " +
         "star/regular/ring/pie/heart 形状、image x y w h \"路径\" 贴图（PNG/JPG/BMP 图片拉伸贴入画布，" +
         "可加 crop sx sy sw sh 裁源图子矩形、round r 裁目标圆角、rect 直角矩形裁剪）、" +
@@ -25,24 +25,39 @@ public class DrawTool : ITool
         "颜色支持 #hex 与命名色（red/green/blue...）。示例：\"canvas 400 300 #fff\\ncircle 200 150 60 #4a90d9\\ntext 200 20 \\\"标题\\\" 24 #333 middle\"。" +
         "format 选 png 时需给 output 路径，否则返回 SVG 文本。" +
         "另可「看图」：给 image 参数（png/jpg/bmp 路径）则进入像素采样模式，返回颜色而非绘图——" +
-        "配合 points \"x,y;x,y\" 逐点取色，或 grid \"cols,rows\" 均匀网格取色（供非 vision 模型推断图像内容）。";
+        "配合 points \"x,y;x,y\" 逐点取色，或 grid \"cols,rows\" 均匀网格取色（供非 vision 模型推断图像内容）。",
+        "Draw shapes from text commands and output an SVG or PNG image. Commands: canvas W H [bg] sets the canvas, " +
+        "rect/roundrect/circle/ellipse/line/arrow/polygon/polyline/path/text draw primitives, plus " +
+        "star/regular/ring/pie/heart shapes, image x y w h \"path\" embeds an image (PNG/JPG/BMP stretched onto the canvas; " +
+        "add crop sx sy sw sh to crop a sub-rectangle of the source, round r for rounded target corners, rect for a rectangular crop), " +
+        "icon mac|ios|android|windows [color] [glyph] generates an app icon template in one command (preset sizes/rounded corners/safe area), " +
+        "translate/rotate/scale/push/pop transforms, gradient definitions, " +
+        "antialias removes jagged edges (PNG). " +
+        "flowchart \"A[Start]-->B{Check}-->C((End))\" draws a semantic flowchart (nodes [box] (rounded) {diamond} ((circle)), edges -->/-.->/==>/---, automatic layered layout). " +
+        "Append a number at the end of a line/arrow/polyline/path to set its width (e.g. \"line 0 0 100 0 #f00 5\"), " +
+        "append butt/round/square for the cap style and dash for a dashed line (e.g. \"line 0 0 100 0 #f00 2 dash\"). " +
+        "text supports multiple lines: use \\n inside the text to break lines. " +
+        "Colors accept #hex and named colors (red/green/blue...). Example: \"canvas 400 300 #fff\\ncircle 200 150 60 #4a90d9\\ntext 200 20 \\\"Title\\\" 24 #333 middle\". " +
+        "When format is png an output path is required; otherwise the SVG text is returned. " +
+        "It can also read images: passing the image parameter (a png/jpg/bmp path) enters pixel-sampling mode, returning colors instead of drawing - " +
+        "combine with points \"x,y;x,y\" to sample individual points, or grid \"cols,rows\" to sample an even grid (lets non-vision models infer image content).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("code", JNode.Param("string", "绘图指令文本，每行一条（canvas/rect/circle/line/text 等）"))
+            .Set("code", JNode.Param("string", L.Pick("绘图指令文本，每行一条（canvas/rect/circle/line/text 等）", "Drawing command text, one command per line (canvas/rect/circle/line/text, etc.)")))
             .Set("format", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("svg", "png"))
-                .Set("description", "输出格式，默认 svg"))
-            .Set("output", JNode.Param("string", "输出文件路径；png 时必填，svg 时缺省则返回内容文本"))
-            .Set("image", JNode.Param("string", "要采样的图片路径（png/jpg/bmp）。给了此项则进入像素采样模式，返回颜色而非绘图"))
+                .Set("description", L.Pick("输出格式，默认 svg", "Output format. Default svg")))
+            .Set("output", JNode.Param("string", L.Pick("输出文件路径；png 时必填，svg 时缺省则返回内容文本", "Output file path; required for png, and when omitted for svg the content text is returned")))
+            .Set("image", JNode.Param("string", L.Pick("要采样的图片路径（png/jpg/bmp）。给了此项则进入像素采样模式，返回颜色而非绘图", "Path of the image to sample (png/jpg/bmp). When given, enters pixel-sampling mode and returns colors instead of drawing")))
             .Set("points", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "点采样坐标列表，格式 \"x,y;x,y\"（如 \"10,20;30,40\"），需配合 image"))
+                .Set("description", L.Pick("点采样坐标列表，格式 \"x,y;x,y\"（如 \"10,20;30,40\"），需配合 image", "List of point-sampling coordinates, format \"x,y;x,y\" (e.g. \"10,20;30,40\"). Requires image")))
             .Set("grid", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "网格采样，格式 \"cols,rows\"（如 \"4,3\"），需配合 image")))
+                .Set("description", L.Pick("网格采样，格式 \"cols,rows\"（如 \"4,3\"），需配合 image", "Grid sampling, format \"cols,rows\" (e.g. \"4,3\"). Requires image"))))
         .Set("required", JNode.Array("code"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -12,13 +12,13 @@ namespace WayCoder.Tools;
 public class SymbolsTool : ITool
 {
     public string Name => "symbols";
-    public string Description => "按符号名查询定义位置（类/函数/方法等），返回文件路径与行号。用于快速定位符号定义，省去 grep 试错。";
+    public string Description => L.Pick("按符号名查询定义位置（类/函数/方法等），返回文件路径与行号。用于快速定位符号定义，省去 grep 试错。", "Look up a symbol definition by name (class/function/method, etc.) and return the file path and line number. Use it to locate definitions quickly instead of trial-and-error grep.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("name", JNode.Param("string", "要查找的符号名（类名/函数名/方法名，大小写不敏感，如 'GrepTool' 或 'ExecuteAsync'）"))
-            .Set("path", JNode.Param("string", "项目根目录（默认：当前仓库根目录）")))
+            .Set("name", JNode.Param("string", L.Pick("要查找的符号名（类名/函数名/方法名，大小写不敏感，如 'GrepTool' 或 'ExecuteAsync'）", "Symbol name to find (class/function/method name, case-insensitive, e.g. 'GrepTool' or 'ExecuteAsync')")))
+            .Set("path", JNode.Param("string", L.Pick("项目根目录（默认：当前仓库根目录）", "Project root directory (default: current repository root)"))))
         .Set("required", JNode.Array("name"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

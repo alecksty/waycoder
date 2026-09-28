@@ -11,15 +11,18 @@ public class KbTool : ITool
 {
     public string Name => "kb";
     public string Description =>
-        "检索全局编程知识库（~/.waycoder/kb/：历史踩坑、复杂 bug 修复、个人使用习惯、欠缺知识、代码片段）。" +
+        L.Pick("检索全局编程知识库（~/.waycoder/kb/：历史踩坑、复杂 bug 修复、个人使用习惯、欠缺知识、代码片段）。" +
         "遇到不熟悉的术语或疑似 bug 时用 search；遇到具体报错/失败时用 diagnose（召回知识库 + git 历史修复中同类错误的已知解法）。" +
-        "query 为搜索关键词或错误文本（支持中文）。";
+        "query 为搜索关键词或错误文本（支持中文）。",
+        "Search the global programming knowledge base (~/.waycoder/kb/: past pitfalls, complex bug fixes, personal habits, missing knowledge, code snippets). " +
+        "Use search for an unfamiliar term or a suspected bug; use diagnose for a concrete error or failure (recalls the knowledge base plus known fixes for the same error from git history). " +
+        "query is the search keyword or the error text (Chinese is supported).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("action", JNode.Param("string", "操作: search 检索条目 | diagnose 诊断报错"))
-            .Set("query", JNode.Param("string", "搜索关键词或错误文本（支持中文），如: 终端尺寸 0、AOT 反射、git force push")))
+            .Set("action", JNode.Param("string", L.Pick("操作: search 检索条目 | diagnose 诊断报错", "Operation: search (look up entries) | diagnose (diagnose an error).")))
+            .Set("query", JNode.Param("string", L.Pick("搜索关键词或错误文本（支持中文），如: 终端尺寸 0、AOT 反射、git force push", "Search keyword or error text (Chinese is supported), e.g. terminal size 0, AOT reflection, git force push."))))
         .Set("required", JNode.Array("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

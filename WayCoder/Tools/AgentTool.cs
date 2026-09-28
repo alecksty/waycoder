@@ -14,25 +14,25 @@ public class AgentTool : ITool, ICancellableTool
 {
     public string Name => "agent";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => $"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个）。tasks 元素可为纯字符串，或对象 {{id, description, depends_on}} 表达任务依赖——依赖任务先执行、其输出注入后续任务，实现流水线编排（DAG 分层调度）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。";
+    public string Description => L.Pick($"生成子智能体来独立处理复杂任务。支持单个任务（task）或并行批量任务（tasks 数组，每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个）。tasks 元素可为纯字符串，或对象 {{id, description, depends_on}} 表达任务依赖——依赖任务先执行、其输出注入后续任务，实现流水线编排（DAG 分层调度）。子智能体拥有自己的上下文和工具访问权限，支持多层递归委派。", $"Spawn a sub-agent to handle complex tasks independently. Supports a single task (task) or parallel batches (a tasks array, up to {MaxParallelTasks} concurrent per batch, excess is split into serial batches, hard limit {MaxTotalTasks}). A tasks element may be a plain string, or an object {{id, description, depends_on}} expressing task dependencies - dependency tasks run first and their output is injected into the following task, enabling pipeline orchestration (DAG layered scheduling). A sub-agent has its own context and tool access and supports multi-level recursive delegation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("task", JNode.Param("string", "子智能体应完成的任务（单任务模式）"))
+            .Set("task", JNode.Param("string", L.Pick("子智能体应完成的任务（单任务模式）", "Task the sub-agent should complete (single-task mode)")))
             .Set("tasks", JNode.Object()
                 .Set("type", "array")
                 .Set("items", JNode.Object()
                     .Set("type", "object")
                     .Set("properties", JNode.Object()
-                        .Set("description", JNode.Param("string", "子任务描述"))
-                        .Set("id", JNode.Param("string", "子任务唯一标识（供其他任务的 depends_on 引用；省略则按序号 t0/t1...）"))
+                        .Set("description", JNode.Param("string", L.Pick("子任务描述", "Sub-task description")))
+                        .Set("id", JNode.Param("string", L.Pick("子任务唯一标识（供其他任务的 depends_on 引用；省略则按序号 t0/t1...）", "Unique sub-task identifier (referenced by other tasks' depends_on; when omitted it defaults to the index t0/t1...)")))
                         .Set("depends_on", JNode.Object()
                             .Set("type", "array")
                             .Set("items", JNode.Object().Set("type", "string"))
-                            .Set("description", "依赖的子任务 id 列表：这些任务完成后才执行本任务，并注入其输出")))
-                    .Set("description", "单个子任务（纯字符串等价于仅 description）"))
-                .Set("description", $"子任务数组（每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个），支持 id/depends_on 依赖编排")));
+                            .Set("description", L.Pick("依赖的子任务 id 列表：这些任务完成后才执行本任务，并注入其输出", "List of sub-task ids this task depends on: only after they finish does this task run, with their output injected"))))
+                    .Set("description", L.Pick("单个子任务（纯字符串等价于仅 description）", "A single sub-task (a plain string is equivalent to description only)")))
+                .Set("description", L.Pick($"子任务数组（每批最多 {MaxParallelTasks} 个并发，超出自动分批串行，硬上限 {MaxTotalTasks} 个），支持 id/depends_on 依赖编排", $"Array of sub-tasks (up to {MaxParallelTasks} concurrent per batch, excess is split into serial batches, hard limit {MaxTotalTasks}), supporting id/depends_on dependency orchestration"))));
 
     /// <summary>
     /// 由 Agent 在构造后设置，用于访问父智能体。

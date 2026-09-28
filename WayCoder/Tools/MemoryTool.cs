@@ -10,21 +10,27 @@ public class MemoryTool : ITool
 {
     public string Name => "memory";
     public string Description =>
-        "读写持久化项目记忆（.waycoder/memory/ 结构化格式）。" +
+        L.Pick("读写持久化项目记忆（.waycoder/memory/ 结构化格式）。" +
         "支持 read（读取全部或指定 name）、write（写入新记忆或更新已存在 name）、" +
         "search（搜索）、delete（删除）、share（标记团队共享并推送）、" +
         "unshare（取消共享）、sync（拉取远程共享记忆）。" +
         "write 时 name 为 kebab-case 标识，description 为一行摘要，" +
-        "type 可选 user|feedback|project|reference，content 为正文。用于跨会话保留关键信息、项目约定、用户偏好等。";
+        "type 可选 user|feedback|project|reference，content 为正文。用于跨会话保留关键信息、项目约定、用户偏好等。",
+        "Read and write persistent project memory (.waycoder/memory/ structured format). " +
+        "Supports read (read all, or a specified name), write (write a new memory or update an existing name), " +
+        "search, delete, share (mark as team-shared and push), " +
+        "unshare, and sync (pull remote shared memories). " +
+        "For write, name is a kebab-case identifier, description is a one-line summary, " +
+        "type is optional (user|feedback|project|reference), and content is the body. Use it to preserve key information, project conventions, and user preferences across sessions.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("action", JNode.Param("string", "操作: read | write | search | delete | share | unshare | sync"))
-            .Set("name", JNode.Param("string", "记忆标识（kebab-case）。write 时创建/更新；read 时读取单条；delete 时删除"))
-            .Set("description", JNode.Param("string", "一行摘要（write 时需要）"))
-            .Set("type", JNode.Param("string", "记忆类型（write 时可选）: user | feedback | project | reference"))
-            .Set("content", JNode.Param("string", "正文内容（write 时需要），或搜索关键词（search 时需要）")))
+            .Set("action", JNode.Param("string", L.Pick("操作: read | write | search | delete | share | unshare | sync", "Action: read | write | search | delete | share | unshare | sync.")))
+            .Set("name", JNode.Param("string", L.Pick("记忆标识（kebab-case）。write 时创建/更新；read 时读取单条；delete 时删除", "Memory identifier (kebab-case). For write, creates/updates; for read, reads a single entry; for delete, deletes it.")))
+            .Set("description", JNode.Param("string", L.Pick("一行摘要（write 时需要）", "One-line summary (required for write).")))
+            .Set("type", JNode.Param("string", L.Pick("记忆类型（write 时可选）: user | feedback | project | reference", "Memory type (optional for write): user | feedback | project | reference.")))
+            .Set("content", JNode.Param("string", L.Pick("正文内容（write 时需要），或搜索关键词（search 时需要）", "Body content (required for write), or the search keywords (required for search)."))))
         .Set("required", JNode.Array("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

@@ -8,14 +8,14 @@ public class MvTool : ITool
 {
     public string Name => "mv";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "移动或重命名文件/目录。自动创建目标父目录，支持跨驱动器。纯 C# 实现。";
+    public string Description => L.Pick("移动或重命名文件/目录。自动创建目标父目录，支持跨驱动器。纯 C# 实现。", "Move or rename a file/directory. Automatically creates the destination parent directory; supports cross-drive moves. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("src", JNode.Param("string", "源文件或目录路径"))
-            .Set("dest", JNode.Param("string", "目标路径"))
-            .Set("overwrite", JNode.Param("boolean", "是否覆盖已存在的目标（默认 false）")))
+            .Set("src", JNode.Param("string", L.Pick("源文件或目录路径", "Source file or directory path.")))
+            .Set("dest", JNode.Param("string", L.Pick("目标路径", "Destination path.")))
+            .Set("overwrite", JNode.Param("boolean", L.Pick("是否覆盖已存在的目标（默认 false）", "Whether to overwrite an existing destination. Default false."))))
         .Set("required", JNode.Array("src", "dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

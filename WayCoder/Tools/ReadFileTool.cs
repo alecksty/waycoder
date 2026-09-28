@@ -22,7 +22,7 @@ namespace WayCoder.Tools;
 public class ReadFileTool : ITool
 {
     public string Name => "read_file";
-    public string Description => "读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx 及老式 doc/xls/ppt、WPS 的 wps/et/dps 文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）、JSON（美化）、INI（结构化）、tail 读取末尾 N 行。修改文件之前始终先读取它。";
+    public string Description => L.Pick("读取文件内容。支持代码文件（行号）、PDF（文本提取分页）、Office文档（docx/xlsx/pptx 及老式 doc/xls/ppt、WPS 的 wps/et/dps 文本提取）、Markdown（结构化渲染）、CSV（表格）、HTML（标签剥离）、JSON（美化）、INI（结构化）、tail 读取末尾 N 行。修改文件之前始终先读取它。", "Read file contents. Supports code files (with line numbers), PDF (paged text extraction), Office documents (docx/xlsx/pptx plus legacy doc/xls/ppt and WPS wps/et/dps text extraction), Markdown (structured rendering), CSV (tables), HTML (tag stripping), JSON (pretty-printing), INI (structured), and tail to read the last N lines. Always read a file before modifying it.");
 
     private const int MaxFileSize = 100 * 1024; // 100KB for text, PDF handles separately
     private const int DefaultLimit = 2000;
@@ -32,10 +32,10 @@ public class ReadFileTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file_path", JNode.Param("string", "文件路径。支持 .cs .py .js .ts .md .pdf .html .json .txt 等。"))
-            .Set("offset", JNode.Param("integer", "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。"))
-            .Set("limit", JNode.Param("integer", "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。"))
-            .Set("tail", JNode.Param("integer", "读取文件末尾 N 行（与 offset/limit 互斥，优先于 offset）。适合查看日志/大文件末尾。默认 0 禁用。")))
+            .Set("file_path", JNode.Param("string", L.Pick("文件路径。支持 .cs .py .js .ts .md .pdf .html .json .txt 等。", "File path. Supports .cs .py .js .ts .md .pdf .html .json .txt, etc.")))
+            .Set("offset", JNode.Param("integer", L.Pick("起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。", "Starting line (1-based). For PDF files this is the starting page number. Default 1.")))
+            .Set("limit", JNode.Param("integer", L.Pick("最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。", "Maximum number of lines to read. For PDF files this is the maximum number of pages (default 20). Default 2000.")))
+            .Set("tail", JNode.Param("integer", L.Pick("读取文件末尾 N 行（与 offset/limit 互斥，优先于 offset）。适合查看日志/大文件末尾。默认 0 禁用。", "Read the last N lines of the file (mutually exclusive with offset/limit; takes precedence over offset). Useful for viewing the end of logs or large files. Default 0 (disabled)."))))
         .Set("required", JNode.Array("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

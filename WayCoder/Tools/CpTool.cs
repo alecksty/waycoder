@@ -8,14 +8,14 @@ public class CpTool : ITool
 {
     public string Name => "cp";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "复制文件或目录。自动创建父目录。纯 C# 实现，无 Shell 依赖。";
+    public string Description => L.Pick("复制文件或目录。自动创建父目录。纯 C# 实现，无 Shell 依赖。", "Copy files or directories. Parent directories are created automatically. Pure C# implementation, no shell dependency.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("src", JNode.Param("string", "源文件路径"))
-            .Set("dest", JNode.Param("string", "目标路径（文件或目录）"))
-            .Set("overwrite", JNode.Param("boolean", "是否覆盖已存在的目标文件（默认 false）")))
+            .Set("src", JNode.Param("string", L.Pick("源文件路径", "Source file path")))
+            .Set("dest", JNode.Param("string", L.Pick("目标路径（文件或目录）", "Destination path (file or directory)")))
+            .Set("overwrite", JNode.Param("boolean", L.Pick("是否覆盖已存在的目标文件（默认 false）", "Whether to overwrite an existing destination file. Default false."))))
         .Set("required", JNode.Array("src", "dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

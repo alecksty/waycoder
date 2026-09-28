@@ -12,19 +12,19 @@ public class FindReplaceTool : ITool
 {
     public string Name => "find_replace";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "跨文件查找并替换。支持正则、glob 文件过滤、干跑预览。返回每个文件的匹配详情。纯 C# 实现。";
+    public string Description => L.Pick("跨文件查找并替换。支持正则、glob 文件过滤、干跑预览。返回每个文件的匹配详情。纯 C# 实现。", "Search and replace across files. Supports regex, glob file filtering, and dry-run preview. Returns match details for each file. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "搜索目录路径（默认当前目录）"))
-            .Set("pattern", JNode.Param("string", "搜索的正则表达式或纯文本"))
-            .Set("replacement", JNode.Param("string", "替换文本（为空则仅查找不替换）"))
-            .Set("glob", JNode.Param("string", "文件过滤 glob，如 '*.cs'、'*.{md,txt}'（默认所有文本文件）"))
-            .Set("max_files", JNode.Param("integer", "最多扫描文件数（默认 50）"))
-            .Set("max_per_file", JNode.Param("integer", "每文件最多显示匹配数（默认 10）"))
-            .Set("ignore_case", JNode.Param("boolean", "是否忽略大小写（默认 true）"))
-            .Set("dry_run", JNode.Param("boolean", "仅预览不实际替换（默认 true）")))
+            .Set("path", JNode.Param("string", L.Pick("搜索目录路径（默认当前目录）", "Directory to search. Default: current directory.")))
+            .Set("pattern", JNode.Param("string", L.Pick("搜索的正则表达式或纯文本", "Regular expression or plain text to search for.")))
+            .Set("replacement", JNode.Param("string", L.Pick("替换文本（为空则仅查找不替换）", "Replacement text (empty means search only, no replacement).")))
+            .Set("glob", JNode.Param("string", L.Pick("文件过滤 glob，如 '*.cs'、'*.{md,txt}'（默认所有文本文件）", "File filter glob, e.g. '*.cs' or '*.{md,txt}'. Default: all text files.")))
+            .Set("max_files", JNode.Param("integer", L.Pick("最多扫描文件数（默认 50）", "Maximum number of files to scan. Default 50.")))
+            .Set("max_per_file", JNode.Param("integer", L.Pick("每文件最多显示匹配数（默认 10）", "Maximum matches displayed per file. Default 10.")))
+            .Set("ignore_case", JNode.Param("boolean", L.Pick("是否忽略大小写（默认 true）", "Whether to ignore case. Default true.")))
+            .Set("dry_run", JNode.Param("boolean", L.Pick("仅预览不实际替换（默认 true）", "Preview only, do not actually replace. Default true."))))
         .Set("required", JNode.Array("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

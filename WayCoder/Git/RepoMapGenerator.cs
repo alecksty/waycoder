@@ -18,6 +18,12 @@ public static class RepoMapGenerator
     /// <summary>缓存的地图内容</summary>
     private static string? _cachedMap;
     private static DateTime _cacheTime;
+    /// <summary>
+    /// 缓存产出时用的界面语言。⚠ **这一项是必需的**：地图正文本就是文案（标题 + 引用摘要），
+    /// 而缓存是**进程级**的 —— 少了它，先切中文跑一次、再切英文就会拿到中文地图
+    /// （自测里 `L.Set(En)` 与 `L.Set(Zh)` 交替跑，最先撞上的就是这条）。
+    /// </summary>
+    private static UiLang _cacheLang;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(2);
 
     /// <summary>Gitignore 规则（glob 模式）</summary>
@@ -119,13 +125,14 @@ public static class RepoMapGenerator
     {
         root ??= GetRepoRoot();
 
-        if (!forceRefresh && _cachedMap != null && (DateTime.UtcNow - _cacheTime) < CacheTtl)
+        if (!forceRefresh && _cachedMap != null && _cacheLang == L.Current &&
+            (DateTime.UtcNow - _cacheTime) < CacheTtl)
             return _cachedMap;
 
         _ignorePatterns = ParseGitignore(root);
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("## 仓库地图");
+        sb.AppendLine(L.Pick("## 仓库地图", "## Repository map"));
         sb.AppendLine();
 
         // 1. 收集文件树 + 符号 + 引用
@@ -160,14 +167,16 @@ public static class RepoMapGenerator
 
         if (topRanked.Count > 0)
         {
-            sb.AppendLine("### 🔗 核心文件（按引用热度排序）");
+            sb.AppendLine(L.Pick("### 🔗 核心文件（按引用热度排序）", "### 🔗 Core files (by reference count)"));
             sb.AppendLine();
             foreach (var (file, count) in topRanked)
             {
                 var symbols = entries.FirstOrDefault(e =>
                     e.RelativePath.Equals(file, StringComparison.OrdinalIgnoreCase))?.SymbolInfo;
                 var symStr = symbols != null ? $" — {symbols}" : "";
-                sb.AppendLine($"- `{file}` ← 被 **{count}** 个文件引用{symStr}");
+                sb.AppendLine(L.Pick(
+                    $"- `{file}` ← 被 **{count}** 个文件引用{symStr}",
+                    $"- `{file}` ← referenced by **{count}** file{(count == 1 ? "" : "s")}{symStr}"));
             }
             sb.AppendLine();
         }
@@ -179,6 +188,7 @@ public static class RepoMapGenerator
 
         _cachedMap = sb.ToString();
         _cacheTime = DateTime.UtcNow;
+        _cacheLang = L.Current;
         return _cachedMap;
     }
 

@@ -7,12 +7,12 @@ namespace WayCoder.Tools;
 public class CdTool : ITool
 {
     public string Name => "cd";
-    public string Description => "切换当前工作目录。支持相对路径和绝对路径。返回切换后的完整路径。纯 C# 实现。";
+    public string Description => L.Pick("切换当前工作目录。支持相对路径和绝对路径。返回切换后的完整路径。纯 C# 实现。", "Switch the current working directory. Supports relative and absolute paths. Returns the full path after switching. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "目标目录路径（相对或绝对）")))
+            .Set("path", JNode.Param("string", L.Pick("目标目录路径（相对或绝对）", "Target directory path (relative or absolute)"))))
         .Set("required", JNode.Array("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

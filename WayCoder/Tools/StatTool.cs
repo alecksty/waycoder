@@ -9,12 +9,12 @@ namespace WayCoder.Tools;
 public class StatTool : ITool
 {
     public string Name => "stat";
-    public string Description => "显示文件或目录的详细信息：大小、修改时间、创建时间、属性。纯 C# 实现。";
+    public string Description => L.Pick("显示文件或目录的详细信息：大小、修改时间、创建时间、属性。纯 C# 实现。", "Show detailed information about a file or directory: size, modification time, creation time, and attributes. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Param("string", "文件或目录路径")))
+            .Set("path", JNode.Param("string", L.Pick("文件或目录路径", "File or directory path"))))
         .Set("required", JNode.Array("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

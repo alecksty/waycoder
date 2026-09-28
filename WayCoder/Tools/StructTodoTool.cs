@@ -9,7 +9,7 @@ namespace WayCoder.Tools;
 public class StructTodoTool : ITool
 {
     public string Name => "struct_todo";
-    public string Description => "管理带依赖关系的结构化任务列表。操作：create(创建任务,可指定前置依赖), update(更新状态: pending/in_progress/completed/cancelled/blocked), list(列出全部,可过滤状态), delete(删除)。支持依赖检测：blocked 状态的任务不会在其依赖完成前被标记为 in_progress。";
+    public string Description => L.Pick("管理带依赖关系的结构化任务列表。操作：create(创建任务,可指定前置依赖), update(更新状态: pending/in_progress/completed/cancelled/blocked), list(列出全部,可过滤状态), delete(删除)。支持依赖检测：blocked 状态的任务不会在其依赖完成前被标记为 in_progress。", "Manage a structured task list with dependencies. Operations: create (create a task, optionally with prerequisites), update (update status: pending/in_progress/completed/cancelled/blocked), list (list all, optionally filtered by status), delete (delete). Dependency checking: a task in blocked status cannot be marked in_progress before its dependencies are completed.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -17,18 +17,18 @@ public class StructTodoTool : ITool
             .Set("action", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("create", "update", "list", "delete"))
-                .Set("description", "操作类型"))
-            .Set("id", JNode.Param("string", "任务 ID（create/update/delete 必填）"))
-            .Set("title", JNode.Param("string", "任务标题（create 必填）"))
+                .Set("description", L.Pick("操作类型", "Operation type")))
+            .Set("id", JNode.Param("string", L.Pick("任务 ID（create/update/delete 必填）", "Task ID (required for create/update/delete)")))
+            .Set("title", JNode.Param("string", L.Pick("任务标题（create 必填）", "Task title (required for create)")))
             .Set("status", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("pending", "in_progress", "completed", "cancelled", "blocked"))
-                .Set("description", "任务状态（update 操作）"))
+                .Set("description", L.Pick("任务状态（update 操作）", "Task status (update operation)")))
             .Set("deps", JNode.Object()
                 .Set("type", "array")
                 .Set("items", JNode.Object().Set("type", "string"))
-                .Set("description", "前置依赖任务 ID 列表（create 操作可选）"))
-            .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）")))
+                .Set("description", L.Pick("前置依赖任务 ID 列表（create 操作可选）", "List of prerequisite task IDs (optional, create operation)")))
+            .Set("filter", JNode.Param("string", L.Pick("状态过滤器，逗号分隔（list 操作可选）", "Status filter, comma-separated (optional, list operation)"))))
         .Set("required", JNode.Array("action"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

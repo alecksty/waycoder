@@ -6,13 +6,13 @@ namespace WayCoder.Tools;
 public class GlobTool : ITool
 {
     public string Name => "glob";
-    public string Description => "查找匹配 glob 模式的文件。支持 ** 进行递归匹配（如 '**/*.py'）。";
+    public string Description => L.Pick("查找匹配 glob 模式的文件。支持 ** 进行递归匹配（如 '**/*.py'）。", "Find files matching a glob pattern. Supports ** for recursive matching (e.g. '**/*.py').");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("pattern", JNode.Param("string", "Glob 模式，如 '**/*.py' 或 'src/**/*.ts'"))
-            .Set("path", JNode.Param("string", "搜索目录（默认：当前工作目录）")))
+            .Set("pattern", JNode.Param("string", L.Pick("Glob 模式，如 '**/*.py' 或 'src/**/*.ts'", "Glob pattern, e.g. '**/*.py' or 'src/**/*.ts'.")))
+            .Set("path", JNode.Param("string", L.Pick("搜索目录（默认：当前工作目录）", "Directory to search. Default: current working directory."))))
         .Set("required", JNode.Array("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

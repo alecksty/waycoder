@@ -7,12 +7,12 @@ namespace WayCoder.Tools;
 public class JobKillTool : ITool
 {
     public string Name => "job_kill";
-    public string Description => "终止指定的后台任务。仅能终止仍在运行的任务（已完成的任务无法终止）。";
+    public string Description => L.Pick("终止指定的后台任务。仅能终止仍在运行的任务（已完成的任务无法终止）。", "Terminate a specified background task. Only tasks that are still running can be terminated (completed tasks cannot).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("shell_id", JNode.Param("string", "要终止的后台任务的 shell ID")))
+            .Set("shell_id", JNode.Param("string", L.Pick("要终止的后台任务的 shell ID", "Shell ID of the background task to terminate."))))
         .Set("required", JNode.Array("shell_id"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

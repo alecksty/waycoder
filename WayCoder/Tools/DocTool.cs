@@ -16,18 +16,20 @@ public class DocTool : ITool
 {
     public string Name => "doc";
     public string Description =>
-        "查最新库/框架文档。优先于训练数据使用，获取最新 API 和用法。\n" +
-        "用法: action='search' + query='库名 问题' 搜索文档；action='fetch' + url='...' 抓取指定页面。";
+        L.Pick("查最新库/框架文档。优先于训练数据使用，获取最新 API 和用法。\n" +
+        "用法: action='search' + query='库名 问题' 搜索文档；action='fetch' + url='...' 抓取指定页面。",
+        "Look up the latest library/framework documentation. Prefer this over training data to get the latest APIs and usage.\n" +
+        "Usage: action='search' + query='library question' to search docs; action='fetch' + url='...' to fetch a specific page.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("action", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "操作类型: 'search' 搜索文档, 'fetch' 抓取指定 URL")
+                .Set("description", L.Pick("操作类型: 'search' 搜索文档, 'fetch' 抓取指定 URL", "Operation type: 'search' to search docs, 'fetch' to fetch a specific URL"))
                 .Set("enum", JNode.Array("search", "fetch")))
-            .Set("query", JNode.Param("string", "搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'"))
-            .Set("url", JNode.Param("string", "要抓取的文档 URL（action=fetch 时必填）")))
+            .Set("query", JNode.Param("string", L.Pick("搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'", "Search keywords (required when action=search), e.g. 'React useEffect cleanup' or 'Next.js routing'")))
+            .Set("url", JNode.Param("string", L.Pick("要抓取的文档 URL（action=fetch 时必填）", "Documentation URL to fetch (required when action=fetch)"))))
         .Set("required", JNode.Array("action"));
 
     // 统一 SSRF 安全 handler：ConnectCallback 原子「解析+校验+连接」杜绝 DNS 重绑定；禁自动重定向，

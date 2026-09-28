@@ -8,7 +8,7 @@ public class ExportTool : ITool
 {
     public string Name => "export_chat";
 
-    public string Description => "将当前 Agent 对话历史导出为文件。支持 Markdown（按角色分段）、JSON（原始消息列表）、HTML（带样式的网页）。默认导出到当前目录。";
+    public string Description => L.Pick("将当前 Agent 对话历史导出为文件。支持 Markdown（按角色分段）、JSON（原始消息列表）、HTML（带样式的网页）。默认导出到当前目录。", "Export the current agent conversation history to a file. Supports Markdown (sections by role), JSON (raw message list), and HTML (styled web page). Exports to the current directory by default.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -16,8 +16,8 @@ public class ExportTool : ITool
             .Set("format", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array("md", "json", "html"))
-                .Set("description", "导出格式: md(Markdown), json(JSON数组), html(网页)"))
-            .Set("output_path", JNode.Param("string", "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）")))
+                .Set("description", L.Pick("导出格式: md(Markdown), json(JSON数组), html(网页)", "Export format: md (Markdown), json (JSON array), html (web page)")))
+            .Set("output_path", JNode.Param("string", L.Pick("输出文件路径（可选，默认 chat_export_{timestamp}.{format}）", "Output file path (optional; defaults to chat_export_{timestamp}.{format})"))))
         .Set("required", JNode.Array("format"));
 
     /// <summary>消息历史引用（由 Agent 在构造后注入）</summary>

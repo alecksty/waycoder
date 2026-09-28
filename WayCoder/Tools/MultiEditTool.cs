@@ -16,21 +16,21 @@ public class MultiEditTool : ITool
 {
     public string Name => "multiedit";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-    public string Description => "对同一文件执行多个顺序编辑操作。减小文件修改的 round-trip。首个编辑的 old_string 若为空则表示创建新文件。每个编辑的 old_string 必须在当前文件内容中唯一（或指定 replace_all）。";
+    public string Description => L.Pick("对同一文件执行多个顺序编辑操作。减小文件修改的 round-trip。首个编辑的 old_string 若为空则表示创建新文件。每个编辑的 old_string 必须在当前文件内容中唯一（或指定 replace_all）。", "Perform multiple sequential edits on the same file. Reduces round-trips when modifying files. An empty old_string in the first edit means creating a new file. Each edit's old_string must be unique in the current file contents (or specify replace_all).");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file_path", JNode.Param("string", "要编辑的文件绝对路径"))
+            .Set("file_path", JNode.Param("string", L.Pick("要编辑的文件绝对路径", "Absolute path of the file to edit.")))
             .Set("edits", JNode.Object()
                 .Set("type", "array")
-                .Set("description", "要顺序执行的编辑操作列表")
+                .Set("description", L.Pick("要顺序执行的编辑操作列表", "List of edit operations to apply in sequence."))
                 .Set("items", JNode.Object()
                     .Set("type", "object")
                     .Set("properties", JNode.Object()
-                        .Set("old_string", JNode.Param("string", "要查找的精确文本（首个编辑若为空则创建新文件）"))
-                        .Set("new_string", JNode.Param("string", "替换文本"))
-                        .Set("replace_all", JNode.Param("boolean", "替换所有匹配项（默认 false，仅替换单个唯一匹配项）")))
+                        .Set("old_string", JNode.Param("string", L.Pick("要查找的精确文本（首个编辑若为空则创建新文件）", "Exact text to find (if the first edit is empty, a new file is created).")))
+                        .Set("new_string", JNode.Param("string", L.Pick("替换文本", "Replacement text.")))
+                        .Set("replace_all", JNode.Param("boolean", L.Pick("替换所有匹配项（默认 false，仅替换单个唯一匹配项）", "Replace all matches (default false: only a single unique match is replaced)."))))
                     .Set("required", JNode.Array("old_string", "new_string")))))
         .Set("required", JNode.Array("file_path", "edits"));
 

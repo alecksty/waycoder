@@ -7,7 +7,7 @@ namespace WayCoder.Tools;
 public class PwdTool : ITool
 {
     public string Name => "pwd";
-    public string Description => "显示当前工作目录的完整路径。纯 C# 实现。";
+    public string Description => L.Pick("显示当前工作目录的完整路径。纯 C# 实现。", "Show the full path of the current working directory. Pure C# implementation.");
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
