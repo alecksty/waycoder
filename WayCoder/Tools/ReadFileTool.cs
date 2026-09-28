@@ -359,7 +359,9 @@ public class ReadFileTool : ITool
         var info = new FileInfo(path);
         FileTracker.RecordRead(path);
 
-        if (content.StartsWith("错误") || content.StartsWith(format))
+        // 判断**问分类器**，不看字面量 —— 这样"错误"翻成 "Error:" 之后这里照样成立
+        // （原先是 StartsWith("错误")，翻文案即静默失效）。
+        if (ToolResultClassifier.IsError(content) || content.StartsWith(format))
             return content;
 
         var sb = new StringBuilder();

@@ -34,8 +34,11 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
         {
             var page = CurrentPage;
             if (page == null || choices.Count == 0) return null;
-            var choice = await page.DisplayActionSheetAsync(title, "取消", null, choices.ToArray());
-            return choice == "取消" ? null : choice;
+            // ⚠ **取消按钮的文案存进局部变量，判定也用它比** —— 绝不写字面量比较。
+            //   否则文案一翻成 "Cancel"，`choice == "取消"` 恒假 ⇒ 把「取消」当成用户选中的项返回。
+            var cancel = "取消";
+            var choice = await page.DisplayActionSheetAsync(title, cancel, null, choices.ToArray());
+            return choice is null || choice == cancel ? null : choice;
         });
 
     public Task<List<string>?> MultiSelectAsync(string title, List<string> choices, int timeoutMs)
@@ -56,8 +59,21 @@ public sealed class MauiWebInteraction : UxHelper.IWebInteraction
             if (allowAll)
             {
                 // 非危险工具：允许 / 总是允许 / 拒绝
-                var choice = await page.DisplayActionSheetAsync($"{title}\n\n{message}", "拒绝", null, "允许", "总是允许");
-                return choice switch { "允许" => 0, "总是允许" => 1, _ => 2 };
+                //
+                // ⚠⚠ 三个按钮文案**存局部变量、判定也用它们比**，绝不写字面量比较。
+                //   这里是全仓最危险的一处：返回值 0=本次允许 / 1=本会话总是允许 / 2=拒绝，
+                //   而 `PermissionManager.ShowConfirmDialog` 只认 `code == 1` 才写 AutoAllowed。
+                //   原先写的是 `switch { "允许" => 0, "总是允许" => 1, _ => 2 }` —— 文案一翻，
+                //   两个 case 全部匹配不上、统统落进 `_ => 2` ⇒ **AI 的每个工具调用都被静默拒绝**，
+                //   零报错、零日志。（注意 switch 的常量模式要求编译期常量，
+                //   所以改用变量后必须写成 if —— 这正是"比自己传进去的变量"这个形态的代价。）
+                var allow = "允许";
+                var always = "总是允许";
+                var deny = "拒绝";
+                var choice = await page.DisplayActionSheetAsync($"{title}\n\n{message}", deny, null, allow, always);
+                if (choice == allow) return 0;
+                if (choice == always) return 1;
+                return 2;   // 拒绝 / 关闭对话框（null）/ 未知 —— 一律保守拒绝
             }
 
             // 危险工具：仅允许 / 拒绝

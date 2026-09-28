@@ -3040,9 +3040,13 @@ public partial class EditorPage : ContentPage
         var replacement = await DisplayPromptAsync("替换", $"把「{query}」替换为", accept: "下一步", cancel: "取消", maxLength: 200);
         if (replacement == null) return;          // 取消（空串是合法输入 = 删除）
 
-        var choice = await DisplayActionSheet("替换", "取消", null, "替换全部", "只替换下一个");
-        if (choice == "替换全部") ReplaceAll(query, replacement);
-        else if (choice == "只替换下一个") ReplaceNext(query, replacement);
+        // ⚠ 选项文案存局部变量、判定也用它们比（原先比较中文字面量，翻文案后两个分支全落空，
+        //    表现为「点了替换没反应」，零报错）
+        var allLabel = "替换全部";
+        var oneLabel = "只替换下一个";
+        var choice = await DisplayActionSheet("替换", "取消", null, allLabel, oneLabel);
+        if (choice == allLabel) ReplaceAll(query, replacement);
+        else if (choice == oneLabel) ReplaceNext(query, replacement);
     }
 
     /// <summary>替换从光标处开始遇到的第一处（与「查找」同一套定位：逐行扫、绕回开头）。</summary>

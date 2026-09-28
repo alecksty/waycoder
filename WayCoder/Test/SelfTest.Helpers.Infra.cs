@@ -530,6 +530,33 @@ public static partial class SelfTest
         Check("Cls: 空非错误", !ToolResultClassifier.IsError(null));
         Check("Cls: 空白非错误", !ToolResultClassifier.IsError("   "));
         Check("Cls: 无输出非错误", !ToolResultClassifier.IsError("（无输出）"));
+
+        // ══ 英文标记（界面语言化的前置：标记层**不跟界面语言走**）══════════════
+        // 被识别的文本可能来自存档会话 / MCP 服务器 / 模型自述，其语言与当前界面无关。
+        // 若标记跟着 L.IsZh 变，"英文界面下加载中文存档"就会判不出来 ⇒ Agent 不再注入
+        // 自恢复提示、压缩时也不再保留错误行 —— 表现为「AI 变笨了」，零报错零日志。
+        Check("Cls[en]: Error 前缀", ToolResultClassifier.IsError("Error: file not found"));
+        Check("Cls[en]: ERROR 全大写", ToolResultClassifier.IsError("ERROR: boom"));
+        Check("Cls[en]: failed to", ToolResultClassifier.IsError("failed to open the file"));
+        Check("Cls[en]: Failed 首字母大写", ToolResultClassifier.IsError("Failed: exit code 1"));
+        Check("Cls[en]: Timed out", ToolResultClassifier.IsError("Timed out after 30s"));
+
+        Check("Cls[en]: cancelled by user 是中止", ToolResultClassifier.IsAbort("Cancelled by user"));
+        Check("Cls[en]: 中止不算错误", !ToolResultClassifier.IsError("Cancelled by user"));
+        Check("Cls[en]: canceled 单 l 拼写变体", ToolResultClassifier.IsAbort("User canceled the request"));
+        Check("Cls[en]: blocked by hook", ToolResultClassifier.IsAbort("Blocked by hook: policy"));
+        Check("Cls[en]: sandbox blocked 小写变体", ToolResultClassifier.IsAbort("⛔ sandbox blocked"));
+
+        // ── 生产者 ↔ 分类器一致性 ──
+        // 这条专防「改了 ToolErrors 的前缀却忘了同步标记表」：那会让 Agent 的自恢复
+        // 注入静默失效，而**没有任何报错**。两侧引用同一份事实，这里把它钉住。
+        var probeEx = new InvalidOperationException("boom");
+        Check("Cls↔ToolErrors: 中文前缀常量可识别",
+            ToolResultClassifier.IsError(ToolErrors.ZhPrefix + "x"));
+        Check("Cls↔ToolErrors: ErrorOpPrefix 产出可识别",
+            ToolResultClassifier.IsError(ToolErrors.ErrorOpPrefix("cp ", probeEx)));
+        Check("Cls↔ToolErrors: 英文前缀常量可识别",
+            ToolResultClassifier.IsError(ToolErrors.EnPrefix + probeEx.GetType().Name + ": " + probeEx.Message));
     }
 
     /// <summary>LRU 缓存（LruCache）单元测试：容量淘汰、LRU 提升、TTL 过期、事件与统计。</summary>

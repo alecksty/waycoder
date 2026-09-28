@@ -418,10 +418,12 @@ public partial class DrawWindowPage : ContentPage
     private async void OnMenuClicked(object? sender, EventArgs e)
     {
         var showing = MauiVmStatusStore.Visible;
-        var choice = await DisplayActionSheetAsync("VML 窗口", "取消", null,
-            showing ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态");
+        var cancel = "取消";
+        // 文案存进局部变量供显示 —— 本处只判「是不是取消」，所以只需与 cancel 比
+        var label = showing ? "📊 隐藏 VM 状态" : "📊 显示 VM 状态";
+        var choice = await DisplayActionSheetAsync("VML 窗口", cancel, null, label);
 
-        if (choice is null || choice == "取消") return;
+        if (choice is null || choice == cancel) return;
         MauiVmStatusStore.Toggle();
         ApplyVmStatusVisibility();
     }

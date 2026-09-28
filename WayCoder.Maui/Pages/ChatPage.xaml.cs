@@ -91,6 +91,14 @@ public partial class ChatPage : ContentPage
     private readonly Queue<QueuedItem> _sendQueue = new();
     private sealed record QueuedItem(string Text, ChatMessage Msg);
 
+    /// <summary>排队气泡的「排队中」标记。⚠ **追加处与替换处必须引用同一常量** ——
+    /// 原先两处各写一遍中文字面量，将来把文案翻成英文时 `Replace` 找不到旧串就**静默不生效**，
+    /// 表现是「被丢弃的消息永远停在『排队中…』」，误导用户以为还在排队。</summary>
+    private const string MarkQueued = "⏳ 排队中…";
+
+    /// <summary>队列满时替换成的「已丢弃」标记（同上，与 <see cref="MarkQueued"/> 成对）。</summary>
+    private const string MarkDropped = "❌ 已丢弃（排队已满）";
+
     /// <summary>统一消息入口：Add 后裁剪，防消息列表无限增长（镜像 TUI PruneChatHistory）。</summary>
     private void AddMessage(ChatMessage m)
     {
@@ -625,8 +633,11 @@ public partial class ChatPage : ContentPage
         // 未配置 Key 时引导去设置页（Key 存于 ApiKeyStore 按服务商，见 AgentService.HasUsableKey）
         if (!AgentService.HasUsableKey())
         {
-            var action = await DisplayActionSheetAsync("尚未配置 API Key", "稍后", null, "去设置");
-            if (action == "去设置") await Shell.Current.GoToAsync("//settings");
+            // ⚠ 文案存局部变量、判定用它比（原先比较中文字面量 —— 翻文案后「去设置」失效）
+            var later = "稍后";
+            var goSettings = "去设置";
+            var action = await DisplayActionSheetAsync("尚未配置 API Key", later, null, goSettings);
+            if (action == goSettings) await Shell.Current.GoToAsync("//settings");
             return;
         }
 
@@ -640,9 +651,9 @@ public partial class ChatPage : ContentPage
             {
                 var dropped = _sendQueue.Dequeue();
                 if (dropped.Msg != null && !string.IsNullOrEmpty(dropped.Msg.RawText))
-                    dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", "❌ 已丢弃（排队已满）");
+                    dropped.Msg.RawText = dropped.Msg.RawText.Replace(MarkQueued, MarkDropped);
             }
-            var msg = new ChatMessage { Role = ChatRole.User, RawText = text + "\n⏳ 排队中…" };
+            var msg = new ChatMessage { Role = ChatRole.User, RawText = text + "\n" + MarkQueued };
             _sendQueue.Enqueue(new QueuedItem(text, msg));
             AddMessage(msg);
             ScrollToEnd();
@@ -658,12 +669,14 @@ public partial class ChatPage : ContentPage
     private void StopCurrent()
     {
         _cts?.Cancel();
-        DrainSendQueue("❌ 已停止（不再执行）");
+        DrainSendQueue();
     }
 
     /// <summary>丢弃发送队列并移除其排队占位气泡（停止/会话切换时调用）。防旧会话排队消息在切换后被
-    /// 取走执行并写入新会话，也防「User + ❌已停止」伪消息被持久化成真实用户轮、注入 LLM 上下文（finding #4）。</summary>
-    private void DrainSendQueue(string _)
+    /// 取走执行并写入新会话，也防「User + ❌已停止」伪消息被持久化成真实用户轮、注入 LLM 上下文（finding #4）。
+    /// ⚠ 原先有个 `string _` 形参从未被使用（两个调用点传的中文串被直接丢弃）—— 一并删掉，
+    /// 免得看着像"丢弃时会给消息打个标记"，实际只做了移除。</summary>
+    private void DrainSendQueue()
     {
         while (_sendQueue.Count > 0)
         {
@@ -948,7 +961,7 @@ public partial class ChatPage : ContentPage
     {
         // 必须同步清空排队消息（在 await 之前）：否则旧会话队列里的消息会在切换后被 ProcessQueueAsync
         // 的续体取走执行并写入新会话（StopCurrent→AwaitActiveRoundEndAsync 回归，finding #1）。
-        DrainSendQueue("❌ 已停止（会话已切换，不再执行）");
+        DrainSendQueue();
         try { _cts?.Cancel(); } catch { }
         var done = _activeRound;
         if (done == null) return; // 无在途轮（空闲/已彻底结束）
@@ -1063,20 +1076,25 @@ public partial class ChatPage : ContentPage
             return;
         }
 
-        var action = await DisplayActionSheetAsync("添加", "取消", null,
-            "🎤 语音输入", "📁 选择音频转录", "📷 拍照看图", "🖼 从相册选图");
+        // ⚠ 四项文案存局部变量，switch 按它们分派（原先比较 emoji 中文字面量 ——
+        //   翻文案后四个分支全落空，表现为「点了添加里的菜单没反应」）
+        var voice = "🎤 语音输入";
+        var audio = "📁 选择音频转录";
+        var camera = "📷 拍照看图";
+        var gallery = "🖼 从相册选图";
+        var action = await DisplayActionSheetAsync("添加", "取消", null, voice, audio, camera, gallery);
         switch (action)
         {
-            case "🎤 语音输入":
+            case var a when a == voice:
                 await StartRecordingAsync();
                 break;
-            case "📁 选择音频转录":
+            case var a when a == audio:
                 await PickAndTranscribeAsync();
                 break;
-            case "📷 拍照看图":
+            case var a when a == camera:
                 await AddPhotoAsync(capture: true);
                 break;
-            case "🖼 从相册选图":
+            case var a when a == gallery:
                 await AddPhotoAsync(capture: false);
                 break;
         }

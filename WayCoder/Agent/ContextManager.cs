@@ -15,6 +15,45 @@ namespace WayCoder;
 /// </summary>
 public class ContextManager
 {
+    // ── 错误行识别（跨语言）────────────────────────────────────────────────
+    //
+    // ⚠ 这些标记是**协议**，不是文案 —— **不随界面语言变**。理由见 ToolResultClassifier
+    //   的类注释：被识别的文本可能来自存档会话 / MCP 服务器 / 模型自述，其语言与当前
+    //   界面语言无关。若让标记跟着 L.IsZh 走，"英文界面下加载中文存档"就会判不出来。
+    //
+    // 分「强 / 弱」两层，是因为两处消费方**刻意不同**：
+    //   · SnipToolOutputs —— 保留错误行 + 前后各 2 行。宁可多留（多花点 token），
+    //     所以弱标记也无条件算数。
+    //   · ExtractKeyInfo —— 提取高精度错误摘要。弱标记（如「3 个错误」这种短噪声行）
+    //     另加长度门槛，宁可少提。
+    // 此前这两处各写一份逐字不同的条件，属本仓头号坑「同一规则两处实现」。
+
+    /// <summary>强标记：出现即判错误行（语言中性，或极不可能误伤）。</summary>
+    private static readonly string[] ErrorLineMarkers =
+    [
+        "error CS", ": error ", ": fatal error ", "error:", "Exception", "❌", "⛔",
+    ];
+
+    /// <summary>弱标记：单独出现可能是噪声（如「3 个错误」），高精度侧另加长度门槛。
+    /// <c>failed</c> 是 Batch 2 把工具错误翻成英文后的兜底。</summary>
+    private static readonly string[] ErrorLineWeakMarkers =
+    [
+        "错误", "严重", "failed",
+    ];
+
+    private static bool ContainsAny(string line, string[] markers)
+    {
+        foreach (var m in markers)
+            if (line.Contains(m, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    /// <summary>强标记命中。</summary>
+    private static bool HasErrorMarker(string line) => ContainsAny(line, ErrorLineMarkers);
+
+    /// <summary>弱标记命中（高精度侧请自行再套长度门槛）。</summary>
+    private static bool HasWeakErrorMarker(string line) => ContainsAny(line, ErrorLineWeakMarkers);
+
     public int MaxTokens { get; private set; }
 
     private int _snipAt;       // 50% -> 裁剪工具输出
@@ -399,11 +438,9 @@ public class ContextManager
             {
                 var line = lines[i];
                 if (string.IsNullOrWhiteSpace(line)) continue;
-                if (line.Contains("error CS") || line.Contains("Error CS") ||
-                    line.Contains(": error ") || line.Contains(": fatal error ") ||
-                    line.Contains("Unhandled exception") || line.Contains("Exception:") ||
-                    line.Contains("❌") || line.Contains("⛔") ||
-                    line.Contains("错误") || line.Contains("严重") ||
+                // 共用标记表（见类首）+ 本调用点**特有**的两条：`[stderr]` / `[退出码`
+                // 是工具输出末尾的结构化尾巴，只有「保留上下文」这一侧需要它们。
+                if (HasErrorMarker(line) || HasWeakErrorMarker(line) ||
                     line.Contains("[stderr]") || line.Contains("[退出码"))
                 {
                     // 保留错误行及其上下文（前后各 2 行）
@@ -740,10 +777,9 @@ public class ContextManager
             {
                 var trimmed = line.Trim();
                 if (trimmed.Length == 0) continue;
-                if (trimmed.Contains("error CS") || trimmed.Contains(": error ") ||
-                    trimmed.Contains(": fatal error ") || trimmed.Contains("Exception") ||
-                    trimmed.Contains("❌") || trimmed.Contains("⛔") ||
-                    trimmed.Contains("错误") && trimmed.Length > 10)
+                // ⚠ 与 SnipToolOutputs 那处**刻意不同**：这侧要的是高精度摘要，所以弱标记
+                //    另加长度门槛（短行多半是噪声）。标记表本身共用同一份。
+                if (HasErrorMarker(trimmed) || (trimmed.Length > 10 && HasWeakErrorMarker(trimmed)))
                 {
                     errors.Add(TruncateByRunes(trimmed, 200));
                 }

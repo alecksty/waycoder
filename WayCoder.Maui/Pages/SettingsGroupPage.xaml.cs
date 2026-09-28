@@ -17,17 +17,20 @@ namespace WayCoder.Maui.Pages;
 [QueryProperty(nameof(Group), "group")]
 public partial class SettingsGroupPage : ContentPage
 {
-    /// <summary>分组 id → (标题, 容器)。设 <see cref="Group"/> 时按它显示对应容器。</summary>
-    private IEnumerable<(string Title, View Box)> Groups()
+    /// <summary>分组 (Id, 标题, 容器)。设 <see cref="Group"/> 时按 <b>Id</b> 显示对应容器。
+    /// ⚠ 判定一律按 **Id**，标题只用于显示 —— 原先按中文标题反查
+    ///   （`MatchesGroupId` 里写着 `"model" =&gt; title == "模型"`），文案一翻分组路由立刻全断
+    ///   （点「模型」卡片什么都不会发生，且零报错）。</summary>
+    private IEnumerable<(string Id, string Title, View Box)> Groups()
     {
-        yield return ("模型", GrpModel);
-        yield return ("参数", GrpParams);
-        yield return ("权限", GrpPerm);
-        yield return ("存储", GrpStorage);
-        yield return ("编辑器", GrpEditor);
-        yield return ("语音", GrpVoice);
-        yield return ("虚拟机", GrpVm);
-        yield return ("编译", GrpCompile);
+        yield return ("model", "模型", GrpModel);
+        yield return ("params", "参数", GrpParams);
+        yield return ("perm", "权限", GrpPerm);
+        yield return ("storage", "存储", GrpStorage);
+        yield return ("editor", "编辑器", GrpEditor);
+        yield return ("voice", "语音", GrpVoice);
+        yield return ("vm", "虚拟机", GrpVm);
+        yield return ("compile", "编译", GrpCompile);
     }
 
     private string _group = "model";
@@ -51,9 +54,9 @@ public partial class SettingsGroupPage : ContentPage
     private void ApplyGroup()
     {
         bool matched = false;
-        foreach (var (title, box) in Groups())
+        foreach (var (id, title, box) in Groups())
         {
-            bool hit = title == _group || MatchesGroupId(_group, title);
+            bool hit = id == _group;
             box.IsVisible = hit;
             if (hit) { Title = title; matched = true; }
         }
@@ -63,20 +66,6 @@ public partial class SettingsGroupPage : ContentPage
             Title = "模型";
         }
     }
-
-    /// <summary>把分组 id（英文，路由里用）映射到中文标题。</summary>
-    private static bool MatchesGroupId(string id, string title) => id switch
-    {
-        "model" => title == "模型",
-        "params" => title == "参数",
-        "perm" => title == "权限",
-        "storage" => title == "存储",
-        "editor" => title == "编辑器",
-        "voice" => title == "语音",
-        "vm" => title == "虚拟机",
-        "compile" => title == "编译",
-        _ => false,
-    };
 
     /// <summary>服务商下拉项（展示名 + 内部 id）。</summary>
     private sealed record ProviderOption(string Id, string DisplayName);

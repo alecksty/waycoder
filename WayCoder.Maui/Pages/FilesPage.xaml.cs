@@ -204,38 +204,43 @@ public partial class FilesPage : ContentPage
         var canCompile = SandboxFsService.RoleCanCompile(entry.Vml);
         var canRun = SandboxFsService.RoleCanRun(entry.Vml);
 
-        var actions = new List<string>();
-        if (entry.CanEdit) actions.Add("打开");   // 是文本就该能改（含 `.vml` 与各种可编译源码）
-        if (canCompile) actions.Add("VML 编译");
-        if (canRun) actions.Add("VML 运行");
-        actions.Add("用外部应用打开");
-        actions.Add("重命名");
-        actions.Add("删除");
+        // 菜单项 = (**稳定 Id**, 显示文案)。判定按 Id，显示用 Label。
+        // ⚠ 原先按中文 `case "打开"` 判定 —— 文案一翻，整张菜单变成点了没反应（六条全落空）。
+        //   `DisplayActionSheetAsync` 只回传**文案**、不回传索引，所以这里按 Label 反查 Id；
+        //   反查用的就是我们刚传进去的那份列表 ⇒ 文案与反查同步变，翻译不会打断它。
+        var actions = new List<(string Id, string Label)>();
+        if (entry.CanEdit) actions.Add(("open", "打开"));   // 是文本就该能改（含 `.vml` 与各种可编译源码）
+        if (canCompile) actions.Add(("compile", "VML 编译"));
+        if (canRun) actions.Add(("run", "VML 运行"));
+        actions.Add(("external", "用外部应用打开"));
+        actions.Add(("rename", "重命名"));
+        actions.Add(("delete", "删除"));
 
-        var action2 = await DisplayActionSheetAsync(entry.Name, "取消", null, [.. actions]);
+        var picked = await DisplayActionSheetAsync(entry.Name, "取消", null, [.. actions.Select(a => a.Label)]);
 
         // 动作 + 返回值各落一行日志：这一条链路跨了「文件页 → Shell 导航 → 命令行页」三处，
         // 而 `async void` 里出的错以前只会留下一句"点了没反应"。一行 Info 换一个可查的现场，值。
-        ErrorLog.Info("FilesPage", $"菜单选择：{entry.Name}（Vml={entry.Vml}）→ {(action2 ?? "(取消)")}");
+        ErrorLog.Info("FilesPage", $"菜单选择：{entry.Name}（Vml={entry.Vml}）→ {(picked ?? "(取消)")}");
 
-        switch (action2)
+        var at = picked is null ? -1 : actions.FindIndex(a => a.Label == picked);
+        switch (at < 0 ? null : actions[at].Id)
         {
-            case "打开":
+            case "open":
                 await OpenInEditorAsync(entry);
                 break;
-            case "VML 编译":
+            case "compile":
                 await CompileVmlAsync(entry);
                 break;
-            case "VML 运行":
+            case "run":
                 await RunVmlFileAsync(entry);
                 break;
-            case "用外部应用打开":
+            case "external":
                 await OpenWithExternalAsync(entry);
                 break;
-            case "重命名":
+            case "rename":
                 await RenameAsync(entry);
                 break;
-            case "删除":
+            case "delete":
                 await DeleteAsync(entry);
                 break;
         }

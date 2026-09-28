@@ -72,6 +72,25 @@ public static class UiText
         _ => "必问ASK",
     };
 
+    /// <summary>「中文名 + 英文标识」**带空格**版（TUI 权限横幅用）：畅通 YOLO / 智能 SMART /
+    /// 自动 AUTO / 问答 ACK。
+    ///
+    /// <para>
+    /// ⚠ 与 <see cref="PermCompact"/> **刻意并存、且不可互换**：那个无空格，且第三档是
+    /// 「必问」而非「问答」（`必问ASK` vs `问答 ACK`）—— 词与空格都不同。
+    /// 本档这四串是 TUI 横幅的历史形态，**逐字不可改**（改了就改桌面输出）。
+    /// 原先 <c>PermissionManager.SetPermissionMode</c> 里手写了一份逐字相同的 switch，
+    /// 属"同一事实两处实现"。
+    /// </para>
+    /// </summary>
+    public static string PermLabelSpaced(PermissionManager.Mode m) => m switch
+    {
+        PermissionManager.Mode.Yolo => "畅通 YOLO",
+        PermissionManager.Mode.SmartAuto => "智能 SMART",
+        PermissionManager.Mode.Auto => "自动 AUTO",
+        _ => "问答 ACK",
+    };
+
     /// <summary>相对时间（刚刚 / N 秒前 / N 分钟前 / N 小时前 / N 天前 / N 周前 / MM-dd HH:mm）。
     ///
     /// 三处各写一遍（TUI 侧边栏会话区 / 移动端会话列表 / 检查点列表）且**已经漂移**：

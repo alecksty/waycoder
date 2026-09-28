@@ -94,7 +94,8 @@ public class DocTool : ITool
             var fetchResults = await Task.WhenAll(tasks);
             foreach (var (source, content) in fetchResults)
             {
-                if (!string.IsNullOrEmpty(content) && !content.StartsWith("错误"))
+                // 判断**问分类器**，不看字面量（原先 StartsWith("错误")，翻文案即静默失效）
+                if (!string.IsNullOrEmpty(content) && !ToolResultClassifier.IsError(content))
                 {
                     results.Add($"### {source}\n{content}");
                     sources.Add(source);

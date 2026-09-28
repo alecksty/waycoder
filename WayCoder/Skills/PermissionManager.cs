@@ -266,13 +266,8 @@ public static class PermissionManager
             Mode.Auto => AnsiColors.Green,
             _ => AnsiColors.Yellow,
         };
-        var label = CurrentMode switch
-        {
-            Mode.Yolo => "畅通 YOLO",
-            Mode.SmartAuto => "智能 SMART",
-            Mode.Auto => "自动 AUTO",
-            _ => "问答 ACK",
-        };
+        // 文案唯一真源在 UiText（原先这里手写了一份逐字相同的 switch —— 同一事实两处实现）
+        var label = UiText.PermLabelSpaced(CurrentMode);
 
         // -q/--quiet 静默模式：抑制权限横幅输出；
         // Web 模式经命令返回文本反馈、TUI 由状态栏反馈，直接写 Console 只会污染服务端 stdout / 干扰备用屏
