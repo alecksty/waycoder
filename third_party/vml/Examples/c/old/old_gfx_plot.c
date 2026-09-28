@@ -1,21 +1,31 @@
 /* old_gfx_plot.c —— 函数曲线（图形界面）
+ * old_gfx_plot.c -- function curves (graphical window)
  *
  * 类别：graphic
+ * Category: graphic
  * 兼容面：用 `ui_line` 逐段连成曲线 + `ui_pixel` 画散点 + 整数三角函数表。
+ * Compatibility: joining segment by segment with `ui_line` to form a curve + `ui_pixel` for scatter points + an integer trig table.
  *         对应 BGI 时代最常见的"画函数图像"练习。
+ *         This is the counterpart of the most common "plot a function" exercise of the BGI era.
  * 出处：自写。
+ * Origin: self-written.
  *
  * ⚠ 用**整数正弦表**而不是 `sin()`：一来当年 8 位机上算浮点三角函数很贵、
+ * ⚠ Use an **integer sine table** instead of `sin()`: for one thing, floating-point trig was expensive on 8-bit machines back then,
  *   老程序普遍预存表；二来本平台的浮点数组/64 位几条路尚有问题（见台账），
+ *   so old programs commonly pre-stored the table; for another, this platform's float-array / 64-bit paths still have problems (see the ledger),
  *   整数表能把"画曲线"这件事与那些缺陷解耦，让本示例的成败只反映绘图接口。
+ *   and an integer table decouples "drawing a curve" from those defects, so the success of this sample only reflects the drawing interface.
  */
 #include <waycoder_ui.h>
 
 #define W 320
 #define H 240
 #define PI2 256          /* 一个周期 256 个单位（老式定点写法）*/
+                         /* One period is 256 units (the old fixed-point convention) */
 
 /* 正弦表：值域 -100..100，一个周期 64 项 */
+/* Sine table: range -100..100, 64 entries per period */
 static int sintab[64] = {
       0,  10,  20,  29,  38,  47,  56,  63,
      71,  77,  83,  88,  92,  95,  98,  99,
@@ -37,10 +47,14 @@ int main(void)
     ui_clear(0x101820);
 
     /* 坐标轴 */
+    /* Axes */
     ui_line(0, H / 2, W, H / 2, 0x404A5A, 1);     /* x 轴 */
+                                                  /* x axis */
     ui_line(W / 2, 0, W / 2, H, 0x404A5A, 1);     /* y 轴 */
+                                                  /* y axis */
 
     /* 正弦曲线：逐段连（老办法） */
+    /* Sine curve: joined segment by segment (the old way) */
     y0 = H / 2;
     for (x = 0; x < W; x++) {
         y1 = H / 2 - isin(x) * (H / 2 - 20) / 100;
@@ -49,6 +63,7 @@ int main(void)
     }
 
     /* 抛物线：y = (x-160)^2 / 40，整数算 */
+    /* Parabola: y = (x-160)^2 / 40, computed in integer arithmetic */
     y0 = 0;
     for (x = 0; x < W; x++) {
         int d = x - W / 2;
@@ -59,6 +74,7 @@ int main(void)
     }
 
     /* 散点：用 ui_pixel 打点（对照上面两种连法）*/
+    /* Scatter points: plotted with ui_pixel (to compare with the two joining methods above) */
     for (x = 0; x < W; x += 8)
         ui_pixel(x, H - 1 - (isin(x * 4) + 100) / 8, 0x98C379);
 
@@ -66,6 +82,7 @@ int main(void)
     ui_present();
     while (!ui_win_closed())
         ui_wait(&msg, 0);          /* 画完等关窗，别立刻关（快照会没）*/
+                                   /* Wait for the window to close after drawing; do not close right away (the snapshot would be lost) */
     ui_win_close();
     return 0;
 }

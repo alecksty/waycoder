@@ -1,14 +1,23 @@
 /* old_gfx_anim.c —— 简单动画（图形界面）
+ * old_gfx_anim.c -- simple animation (graphical window)
  *
  * 类别：graphic
+ * Category: graphic
  * 兼容面：`ui_win_open` 的**事件循环** + `ui_tick`（计时）+ `ui_poll`（取输入）
+ * Compatibility: the `ui_win_open` **event loop** + `ui_tick` (timing) + `ui_poll` (input polling)
  *         + 每帧 `ui_clear`/重画/`ui_present` —— 老图形程序的主循环骨架
+ *         + per-frame `ui_clear` / redraw / `ui_present` -- the main-loop skeleton of old graphics programs
  * 出处：自写，仿当年"反弹球"的演示程序。
+ * Origin: self-written, imitating the "bouncing ball" demo programs of that era.
  *
  * ⚠ 用 `ui_poll` 而不是 `ui_wait(msg, 0)`：**`ui_wait` 的 timeout 0 是"无限等"**
+ * ⚠ Use `ui_poll` instead of `ui_wait(msg, 0)`: **`ui_wait` with timeout 0 means "wait forever"**
  *   而不是"不阻塞"（宿主侧 `Take(0)` → `Wait(Timeout.Infinite)`），
+ *   not "do not block" (host side `Take(0)` -> `Wait(Timeout.Infinite)`),
  *   拿它当轮询会让程序停在第一帧。要跑连续动画就用 `ui_poll` + 自己节流。
+ *   using it as polling leaves the program stuck on frame one; for continuous animation use `ui_poll` plus your own throttling.
  *   （见 docs/VML宿主接口.md 与 CHANGELOG 里那条实测。）
+ *   (See the VML host-interface document and that measured entry in the CHANGELOG.)
  */
 #include <waycoder_ui.h>
 
@@ -16,6 +25,7 @@
 #define H 240
 #define BALL 10
 #define FRAMES 240          /* 跑够这么多帧就收尾 —— 示例不该永远转下去 */
+                            /* Stop after this many frames -- a sample program should not spin forever. */
 
 int main(void)
 {
@@ -27,15 +37,18 @@ int main(void)
 
     for (f = 0; f < FRAMES; f++) {
         /* 取输入（只轮询、不阻塞 —— 有键就退出）*/
+        /* Take input (poll only, never block -- any key exits) */
         if (ui_poll(&msg) > 0) break;
 
         /* 物理：撞墙反弹 */
+        /* Physics: bounce off the walls */
         x += dx;
         y += dy;
         if (x < BALL || x > W - BALL) { dx = -dx; x += dx; }
         if (y < BALL || y > H - BALL) { dy = -dy; y += dy; }
 
         /* 画这一帧 */
+        /* Draw this frame */
         ui_clear(0x101820);
         ui_circle(x, y, BALL, 0xE06C75, 1, 1);
         ui_text(8, 8, "反弹球（有键则退出）", 0xABB2BF, 14, 0);

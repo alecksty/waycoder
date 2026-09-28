@@ -1,51 +1,78 @@
 /* pacman.c —— 《吃豆人》C 版，跑在手机端 VML 上
+ * pacman.c — "Pac-Man" in C, running on the mobile VML.
  *
  * 编译运行：vml run examples/c/pacman.c
+ * Build and run: vml run examples/c/pacman.c
  *
  * 操作：**屏幕手柄的方向键**（← ↓ → ↑）改变方向，走到岔口自动转向。吃到所有豆子过关。
+ * Controls: the **arrow keys of the on-screen gamepad** (← ↓ → ↑) set the direction; at a fork it turns by itself. Eat every pellet to clear the level.
  *
  * ## 为什么是吃豆人（而不是继续做射击游戏）
+ * ## Why Pac-Man (and not another shooter)
  *
  * 屏幕手柄在宿主侧**只有一个按键槽**（`DrawWindowPage._padDownKey`：按新键会先替旧键
+ * On the host side the on-screen gamepad has **only one key slot** (`DrawWindowPage._padDownKey`: pressing a new key first sends
  * 补一条 KeyUp）⇒ **两个键同时按做不到**。这砍掉了一整类玩法：
+ * a compensating KeyUp for the old one) ⇒ **holding two keys at once is impossible**. That kills a whole class of gameplay:
  * 平台跳跃要"跑动中起跳"（mario.c 栽在这上面）、射击要"边移动边开火"。
+ * a platformer needs "jump while running" (mario.c fell over on exactly this), a shooter needs "fire while moving".
  * 而**吃豆人天生只按一个方向键** —— 手柄的限制在这里正好不是限制。
+ * Whereas **Pac-Man only ever presses one direction at a time** — here the gamepad's limitation is precisely not a limitation.
  *
  * ## 为什么这个画面"稳"（对比 starfall.c 的教训）
+ * ## Why this screen is "stable" (compared with the lessons of starfall.c)
  *
  * 上一版《星陨》栽在两条上：① **漏了 `ui_clear`** ⇒ 每帧叠上一帧，糊成一团还闪退；
+ * The previous version, "Starfall", fell over on two things: ① **it forgot `ui_clear`** ⇒ each frame was stacked on the previous one, smearing into a blob and then crashing;
  * ② 渐变几何按**像素**传（那个接口要的是千分之一归一化）⇒ 焦点塌成一角，其余全黑。
+ * ② the gradient geometry was passed in **pixels** (that interface wants thousandths, normalized) ⇒ the focus collapsed into one corner and everything else went black.
  * 这一版**刻意不用渐变、不用旋转多边形**：全是平面高对比色块 + 圆 + 圆角矩形，
+ * This version **deliberately uses no gradients and no rotated polygons**: everything is flat high-contrast colour blocks + circles + rounded rectangles,
  * 几何只有"格 × 格边长"一种算法。**能出错的地方少了，能看清的地方就多了。**
+ * and the geometry has only one algorithm, "tile × tile side length". **Fewer places to go wrong means more places you can see clearly.**
  *
  * ## 关卡为什么是"梯子形"
+ * ## Why the levels are "ladder-shaped"
  *
  * 手绘复杂迷宫极容易画出**封死的口袋**（豆子永远吃不到，游戏无法通关），
+ * A hand-drawn complex maze very easily ends up with **sealed-off pockets** (pellets you can never reach, so the game can never be finished),
  * 而只看矩阵是看不出来的。这里用**构造式**布局，连通性由构造保证：
+ * and you cannot see that just by looking at the matrix. This uses a **constructive** layout, where connectivity is guaranteed by construction:
  *   · 第 1/4/7/10/13/16/19 行是**整条横廊**（列 1..17 全通）
+ *   · rows 1/4/7/10/13/16/19 are **full-width corridors** (columns 1..17 all open)
  *   · 相邻横廊之间在**固定的 6 个列**（1/4/7/11/14/17）有竖井
+ *   · adjacent corridors are joined by vertical shafts at **6 fixed columns** (1/4/7/11/14/17)
  * ⇒ 任意两条横廊都连通，任意豆子都吃得到。自测里有一条实际的**泛洪验证**钉着这件事。
+ * ⇒ any two corridors are connected and every pellet can be reached. A real **flood-fill verification** in the self-test pins this down.
  *
  * ## 三条 C 前端硬约束（同 tetris.c / mario.c / starfall.c）
+ * ## Three hard constraints of the C frontend (same as tetris.c / mario.c / starfall.c)
  *
  * 1. ⚠ `${}` 只认局部变量 ⇒ syscall 一律走 `waycoder_ui.h` 包装函数。
+ * 1. ⚠ `${}` only recognises local variables ⇒ syscalls always go through the `waycoder_ui.h` wrapper functions.
  * 2. 全局变量与全局 int 数组读写都正常。
+ * 2. Reading and writing global variables and global int arrays both work fine.
  * 3. ⚠ `#define` 不支持反斜杠续行；⚠ 顶点数组必须是**具名全局数组**（复合字面量不支持）。
+ * 3. ⚠ `#define` does not support backslash line continuation; ⚠ a vertex array must be a **named global array** (compound literals are not supported).
  */
 
 #include <waycoder_ui.h>
 #include <stdlib.h>
 
 /* ── 迷宫尺寸与图块 ─────────────────────────────────────── */
+/* ── Maze dimensions and tiles ─────────────────────────────────────── */
 
 #define MW      19          /* 列 */
+// columns
 #define MH      21          /* 行 */
+// rows
 #define T_EMPTY 0
 #define T_WALL  1
 #define T_DOT   2
 #define T_POW   3
 
 /* 7 条全通横廊所在的行 */
+/* The rows where the 7 full-width corridors are */
 /* 1 4 7 10 13 16 19 */
 
 int MAZE[MW * MH] = {
@@ -73,6 +100,7 @@ int MAZE[MW * MH] = {
 };
 
 /* ── 配色：平面高对比，不用渐变 ─────────────────────────── */
+/* ── Colors: flat and high-contrast, no gradients ─────────────────────────── */
 
 #define C_BG      0xFF0A0A14
 #define C_WALL    0xFF2B4BC8
@@ -94,41 +122,60 @@ int MAZE[MW * MH] = {
 #define C_WARN    0xFFFF6B6B
 
 #define NG 4                /* 鬼数 */
+// number of ghosts
 #define TICK 40             /* 一拍 40ms */
+// one tick is 40ms
 
 /* ── 状态 ───────────────────────────────────────────────── */
+/* ── State ───────────────────────────────────────────────── */
 
 int g_lang;                  /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+// UI language: queried once at startup (ui_get_language is a syscall, don't call it every frame)
 int W, H, TILE, OX, OY;
 int frame, state;           /* 0=玩 1=暂停 2=死 3=过关 */
+// 0=playing 1=paused 2=died 3=level clear
 int score, best, level, lives;
 int dotsLeft;
 
 int pxp, pyp;               /* 吃豆人像素坐标（中心）*/
+// Pac-Man's pixel coordinates (center)
 int pdir, pwant;            /* 当前朝向 / 期望朝向（0上 1右 2下 3左）*/
+// current direction / wanted direction (0 up, 1 right, 2 down, 3 left)
 int mouth;                  /* 嘴张合动画相位 */
+// mouth open/close animation phase
 int fright;                 /* 剩余惊吓拍数 */
+// remaining frightened ticks
 int pdead;                  /* 死亡动画计时 */
+// death animation timer
 
 int gx[NG], gy[NG], gdir[NG];              /* 鬼：像素坐标 / 朝向 */
+// ghosts: pixel coordinates / direction
 
 /* 各鬼的**出场拍数** —— 必须错开。
+ * Each ghost's **entry tick** — they must be staggered.
  * 四只鬼的出生点挨在一起（都在迷宫中部那一行），不错开就是"开局一起扑过来"：
+ * The four ghosts spawn right next to each other (all on the maze's middle row), so without staggering they "all pounce at once" the moment the game starts:
  * 实测玩家在第 133 拍（约 5 秒）就掉一条命，连熟悉操作的时间都没有。
- * 0 = 一开始就在场上。 */
+ * measured, the player loses a life by tick 133 (about 5 seconds), with no time even to get used to the controls.
+ * 0 = 一开始就在场上。
+ * 0 = on the board from the very start.
+ */
 int grel[NG] = { 0, 70, 160, 260 };
 
 /* 游走（scatter）阶段各自的角 —— 原作就是这个机制，追击与游走交替 */
+/* Each ghost's own corner during the scatter phase — the original game works this way, chase and scatter alternating */
 int gcorner_x[NG] = { 1, 17, 1, 17 };
 int gcorner_y[NG] = { 1, 1, 19, 19 };
 
 char nbuf[16];
 
 /* 方向增量：上 右 下 左 */
+/* Direction deltas: up, right, down, left */
 int DX[4] = { 0, 1, 0, -1 };
 int DY[4] = { -1, 0, 1, 0 };
 
 /* ── 小工具 ─────────────────────────────────────────────── */
+/* ── Small helpers ─────────────────────────────────────────────── */
 
 char* num_str(int v) {
     int i;
@@ -151,10 +198,12 @@ int tile_at(int c, int r) {
 int is_wall(int c, int r) { return tile_at(c, r) == T_WALL; }
 
 /* 格 → 像素中心 */
+/* Tile → pixel center */
 int cx_of(int c) { return OX + c * TILE + TILE / 2; }
 int cy_of(int r) { return OY + r * TILE + TILE / 2; }
 
 /* 像素点落在哪一格 */
+/* Which tile a pixel falls into */
 int col_of(int x) { int v = (x - OX) / TILE; if (v < 0) v = 0; if (v >= MW) v = MW - 1; return v; }
 int row_of(int y) { int v = (y - OY) / TILE; if (v < 0) v = 0; if (v >= MH) v = MH - 1; return v; }
 
@@ -162,28 +211,45 @@ int abs_i(int v) { if (v < 0) return -v; return v; }
 int rnd(int n) { if (n <= 0) return 0; return ui_rand(n); }
 
 /* ── 音效：**用 ui_beep 单音**（v0.96.509 统一换回来） ────────────
+ * ── Sound effects: **single tones via ui_beep** (switched back uniformly in v0.96.509) ────────────
  *
  * ⚠⚠ 这些音一度走共享库的音序器（`ui_sfx_add`），**真机上破音**，全部换回来了。
+ * ⚠⚠ These sounds once went through the shared library's sequencer (`ui_sfx_add`) and **distorted on real hardware**, so they were all switched back.
  *   破音的是**这里配的音**：死亡/过关都是**几个音先后响**，末音还拖了 14 拍
+ *   What distorted was **the sound configured here**: death / level-clear are **several tones sounding one after another**, and the last one dragged on for 14 ticks
  *   （一拍 33ms ≈ 460ms）—— 长音加外放就是"滋滋"。
+ *   (one tick 33ms ≈ 460ms) — a long tone through a loudspeaker is exactly that "buzz".
  *   `ui_beep` 是**单通道**的（后一个音掐掉前一个）⇒ 一个事件永远只有一个音在响，
+ *   `ui_beep` is **single-channel** (the next tone cuts off the previous one) ⇒ one event only ever has one tone sounding,
  *   **结构上不可能削波、也不会长音叠加**。代价是没有音色。
+ *   so **clipping and long tones stacking up are structurally impossible**. The price is: no timbre.
  *
  * ⚠ 频率取整块的**首音**（吃豆最高最轻），时长取整块时长、封顶 320ms。
+ * ⚠ The frequency is the block's **first tone** (eating a pellet is the highest and the lightest), the duration is the block's duration, capped at 320ms.
  *   **胜负是例外**：赢取整块**最高音**、输取**最低音** —— 「不看屏幕也分得出输赢」
+ *   **Win/lose is the exception**: winning takes the block's **highest tone**, losing the **lowest** — "you can tell win from loss without looking at the screen"
  *   就靠这一条（五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
- *   低音不低于 C3(131Hz) —— 手机外放在 200Hz 以下衰减很快，玩家听着像没响。 */
+ *   rests on exactly this (the gomoku/chess versions are configured the same way: win 1320 / lose 240).
+ *   低音不低于 C3(131Hz) —— 手机外放在 200Hz 以下衰减很快，玩家听着像没响。
+ *   The low tone never goes below C3(131Hz) — a phone loudspeaker rolls off fast below 200Hz, so the player hears it as if nothing played.
+ */
 
 void sfx_dot(void) { ui_beep(2093, 33); }        /* 吃豆：高频动作，必须又轻又短 */
+// pellet: a high-frequency action, so it must be light and short
 void sfx_pow(void) { ui_beep(262, 165); }       /* 大力丸：有分量的一声 */
+// power pellet: one weighty tone
 void sfx_eat(void) { ui_beep(1047, 231); }      /* 吃鬼：高而中长 = 爽 */
+// eating a ghost: high and medium-long = satisfying
 void sfx_die(void) {                            /* 死亡（输方）：**最低音**、最长 */
+// death (the losing side): the **lowest tone**, the longest
     ui_beep(131, 320);
     ui_vibrate(220, 0);
 }
 void sfx_win(void) { ui_beep(1047, 320); }      /* 过关（赢方）：**最高音**、最长 */
+// level clear (the winning side): the **highest tone**, the longest
 
 /* ── 开局 ───────────────────────────────────────────────── */
+/* ── Starting a round ───────────────────────────────────────────────── */
 
 
 void load_level(void) {
@@ -201,6 +267,7 @@ void respawn(void) {
     pxp = cx_of(9);
     pyp = cy_of(19);
     pdir = 3;                 /* 朝左，和原作一样 */
+    // facing left, same as the original
     pwant = 3;
     mouth = 0;
     pdead = 0;
@@ -226,26 +293,40 @@ void new_game(void) {
 }
 
 /* ── 移动 ───────────────────────────────────────────────── */
+/* ── Movement ───────────────────────────────────────────────── */
 
 /* 能不能从格 (c,r) 朝 d 走一格 */
+/* Whether one can step from tile (c,r) in direction d */
 int can_go(int c, int r, int d) {
     return is_wall(c + DX[d], r + DY[d]) == 0;
 }
 
 /* 是否**正落在格心**上（精确判定，不给容差）。
+ * Whether we are **exactly on a tile center** (an exact test, with no tolerance).
  *
  * ⚠⚠ 这条判据前后错了两次，两次都是**位置模型**的问题、不是笔误：
+ * ⚠⚠ This criterion was wrong twice, and both times it was a **position model** problem, not a typo:
  *
  * ① 第一版写的是"坐标是不是格边长（TILE）的整数倍" —— 那是**格线**，而吃豆人停的是
+ * ① The first version said "is the coordinate a multiple of the tile side (TILE)" — but that is a **tile boundary**, whereas Pac-Man stops on
  *    **格心**（`cx_of` = 原点 + c*TILE + TILE/2）⇒ 转向永远不触发、豆子永远吃不到。
+ *    a **tile center** (`cx_of` = origin + c*TILE + TILE/2) ⇒ turning never triggered and pellets could never be eaten.
  * ② 第二版改成"离格心 ≤3px"，可移动还是**一次走 spd 像素**：`col_of()` 一越过格线就
+ * ② The second version changed it to "within ≤3px of the tile center", but movement still **travelled spd pixels at a time**: the moment `col_of()` crossed a boundary it
  *    报下一列，"前面是墙"随即在**离格心 9px 的格线上**把人钉死。实测 400 拍
+ *    reported the next column, and "there is a wall ahead" then pinned the player **on a tile boundary 9px from the center**. Measured over 400 ticks,
  *    `pdir` 恒为 1、`pxp` 恒为 316 —— 而 col17 的格心是 **325**；不吸附、不转向、
+ *    `pdir` stayed at 1 and `pxp` stayed at 316 — while the tile center of col17 is **325**; no snapping, no turning,
  *    人再也不动（用户看到的正是"按键有反应、人不动"）。
+ *    and the player never moved again (exactly the "the keys respond but the player does not move" that the user saw).
  *
  * 现在两处一起改：**逐像素推进 + 精确格心判定**（见 `move_pac`）。
+ * Now both are changed together: **pixel-by-pixel advance + exact tile-center test** (see `move_pac`).
  * 「落在格心上」于是成了构造保证 —— 从格心出发、每次只走 1px，必然**精确经过**格心，
- * 与速度无关。旧写法在 `spd` 不整除 `TILE` 的关卡（4/5/7…）还会累积漂移。*/
+ * "Being on a tile center" thus becomes a guarantee by construction — starting from a center and moving 1px at a time necessarily **passes exactly through** the centers,
+ * 与速度无关。旧写法在 `spd` 不整除 `TILE` 的关卡（4/5/7…）还会累积漂移。
+ * independently of speed. The old approach also accumulated drift on levels where `spd` does not divide `TILE` evenly (4/5/7…).
+ */
 int at_center(int v, int origin) {
     int r = (v - origin) % TILE;
     if (r < 0) r = r + TILE;
@@ -253,6 +334,7 @@ int at_center(int v, int origin) {
 }
 
 /* 在格 (c,r) 吃豆。凑到格心才判 —— 与转向同一时刻，语义干净。*/
+/* Eat the pellet at tile (c,r). Only judged once we reach the tile center — the same moment as turning, so the semantics stay clean. */
 void eat_at(int c, int r) {
     if (tile_at(c, r) == T_DOT) {
         MAZE[r * MW + c] = T_EMPTY;
@@ -278,7 +360,10 @@ void move_pac(void) {
     if (spd > 9) spd = 9;
 
     /* 一拍走 spd 像素，但**一像素一判**：只有"此刻正落在格心"才允许转向、吃豆、停下。
-     * 到格心顺手吸附一次（把任何偏差归零），保证位置永远精确落在格心网格上。*/
+     * spd pixels are travelled per tick, but **each pixel is judged on its own**: turning, eating and stopping are only allowed "when we are right now on a tile center".
+     * 到格心顺手吸附一次（把任何偏差归零），保证位置永远精确落在格心网格上。
+     * Reaching a center also snaps once (zeroing any deviation), so the position always lands exactly on the tile-center grid.
+     */
     i = 0;
     while (i < spd) {
         c = col_of(pxp);
@@ -290,6 +375,7 @@ void move_pac(void) {
             eat_at(c, r);
             if (pwant != pdir && can_go(c, r, pwant)) pdir = pwant;
             if (!can_go(c, r, pdir)) return;      /* 前面是墙：停在格心 */
+            // a wall ahead: stop on the tile center
         }
 
         pxp = pxp + DX[pdir];
@@ -299,6 +385,7 @@ void move_pac(void) {
 }
 
 /* 鬼：朝吃豆人方向选一条能走的路（不原地掉头，除非无路可走）*/
+/* Ghosts: pick a walkable route towards Pac-Man (no turning back on the spot, unless there is no way through) */
 void move_ghost(int i) {
     int c;
     int r;
@@ -315,9 +402,13 @@ void move_ghost(int i) {
     if (spd > 4) spd = 4;
 
     if (frame < grel[i]) return;     /* 还没到出场时间 */
+    // not due to enter the board yet
 
     /* 与吃豆人**同一套走法**：逐像素推进，只在格心做抉择。
-     * （旧版"不在格心就一次挪 2px"同样会卡在格线上，而且 spd=4 不整除 18 时还会漂。）*/
+     * **The same walk as Pac-Man's**: advance pixel by pixel and only make choices at tile centers.
+     * （旧版"不在格心就一次挪 2px"同样会卡在格线上，而且 spd=4 不整除 18 时还会漂。）
+     * (The old "shift 2px at a time when not on a center" also got stuck on tile boundaries, and it drifted when spd=4 did not divide 18 evenly.)
+     */
     k = 0;
     while (k < spd) {
         if (at_center(gx[i], OX) && at_center(gy[i], OY)) {
@@ -327,9 +418,14 @@ void move_ghost(int i) {
             gy[i] = cy_of(r);
 
             /* 候选方向：能走的四个方向，排除掉头 */
+            /* Candidate directions: the four walkable directions, excluding turning back */
             /* 目标格：追击段盯着吃豆人，游走段各自回自己的角（原作就有这个交替）。
+             * Target tile: during the chase phase they fix on Pac-Man, during the scatter phase each returns to its own corner (the original alternates in exactly this way).
              * 没有游走段的话四只鬼会**无休止死追** —— 自测里那个贪心机器人
-             * 4000 拍死了 42 次（约合 4 秒一条命），人玩只会更难受。 */
+             * Without a scatter phase the four ghosts **chase relentlessly without end** — the greedy bot in the self-test
+             * 4000 拍死了 42 次（约合 4 秒一条命），人玩只会更难受。
+             * died 42 times in 4000 ticks (about one life every 4 seconds), and a human player would only have a worse time of it.
+             */
             tx = col_of(pxp);
             ty = row_of(pyp);
             if ((frame / 300) % 2 == 1) { tx = gcorner_x[i]; ty = gcorner_y[i]; }
@@ -341,15 +437,18 @@ void move_ghost(int i) {
                 if (can_go(c, r, d)) {
                     if (d != ((gdir[i] + 2) & 3) || best < 0) {
                         /* 惊吓时逃（远离），平时靠近目标 */
+                        /* When frightened, flee (move away); otherwise, approach the target */
                         v = abs_i(c + DX[d] - tx) + abs_i(r + DY[d] - ty);
                         if (fright > 0) v = -v;
                         v = v + rnd(2);              /* 一点随机，免得四只鬼叠在一起 */
+                        // a touch of randomness so the four ghosts don't stack up on top of each other
                         if (v < bestv) { bestv = v; best = d; }
                     }
                 }
                 d = d + 1;
             }
             if (best < 0) best = (gdir[i] + 2) & 3;   /* 死路：掉头 */
+            // dead end: turn back
             gdir[i] = best;
         }
 
@@ -365,10 +464,12 @@ void lose_life(void) {
     sfx_die();
     if (lives <= 0) {
         /* 保持 state=2，由 START 重开 */
+        /* Keep state=2; START restarts the game */
     }
 }
 
 /* ── 每拍 ───────────────────────────────────────────────── */
+/* ── Per tick ───────────────────────────────────────────────── */
 
 void tick(void) {
     int i;
@@ -389,11 +490,13 @@ void tick(void) {
     }
 
     /* 与鬼碰撞 */
+    /* Collision with the ghosts */
     i = 0;
     while (i < NG) {
         if (abs_i(gx[i] - pxp) < TILE * 3 / 4 && abs_i(gy[i] - pyp) < TILE * 3 / 4) {
             if (fright > 0) {
                 /* 吃掉鬼：送回中间 */
+                /* Eating a ghost: send it back to the middle */
                 gx[i] = cx_of(9);
                 gy[i] = cy_of(10);
                 gdir[i] = 0;
@@ -408,6 +511,7 @@ void tick(void) {
     }
 
     /* 过关 */
+    /* Level clear */
     if (dotsLeft <= 0) {
         level = level + 1;
         state = 3;
@@ -417,6 +521,7 @@ void tick(void) {
 }
 
 /* ── 绘制 ───────────────────────────────────────────────── */
+/* ── Drawing ───────────────────────────────────────────────── */
 
 void draw_maze(void) {
     int c;
@@ -435,6 +540,7 @@ void draw_maze(void) {
             if (t == T_WALL) {
                 ui_rect(x, y, TILE, TILE, C_WALL, 1, 0, 2);
                 /* 内层深色：让墙看着有厚度，而不是一片蓝 */
+                /* Inner darker layer: gives the wall some thickness instead of a flat slab of blue */
                 ui_rect(x + 2, y + 2, TILE - 4, TILE - 4, C_WALL_IN, 1, 0, 1);
             } else if (t == T_DOT) {
                 pw = TILE / 6;
@@ -442,6 +548,7 @@ void draw_maze(void) {
                 ui_circle(x + TILE / 2, y + TILE / 2, pw, C_DOT, 1, 0);
             } else if (t == T_POW) {
                 pw = TILE / 3 + (mouth < 4 ? 1 : 0);   /* 轻微脉动 */
+                // a slight pulse
                 ui_circle(x + TILE / 2, y + TILE / 2, pw, C_POW, 1, 0);
                 ui_circle(x + TILE / 2, y + TILE / 2, pw / 2, 0xFFFFFFFF, 1, 0);
             }
@@ -452,22 +559,27 @@ void draw_maze(void) {
 }
 
 /* 嘴楔子：具名全局数组装顶点（复合字面量不支持）*/
+/* Mouth wedge: a named global array holds the vertices (compound literals are not supported) */
 int wedge[8];
 
 void ui_polygon_wedge(int cx, int cy, int r, int dir) {
     if (dir == 0) {            /* 朝右的楔 */
+        // a wedge pointing right
         wedge[0] = cx;      wedge[1] = cy;
         wedge[2] = cx + r;  wedge[3] = cy - r;
         wedge[4] = cx + r;  wedge[5] = cy + r;
     } else if (dir == 1) {     /* 朝左 */
+        // pointing left
         wedge[0] = cx;      wedge[1] = cy;
         wedge[2] = cx - r;  wedge[3] = cy - r;
         wedge[4] = cx - r;  wedge[5] = cy + r;
     } else if (dir == 2) {     /* 朝上 */
+        // pointing up
         wedge[0] = cx;      wedge[1] = cy;
         wedge[2] = cx - r;  wedge[3] = cy - r;
         wedge[4] = cx + r;  wedge[5] = cy - r;
     } else {                   /* 朝下 */
+        // pointing down
         wedge[0] = cx;      wedge[1] = cy;
         wedge[2] = cx - r;  wedge[3] = cy + r;
         wedge[4] = cx + r;  wedge[5] = cy + r;
@@ -485,15 +597,22 @@ void draw_pac(void) {
     ui_circle(pxp, pyp, r, C_PAC, 1, 0);
 
     /* 嘴：用背景色的三角"咬"掉一口。方向按 pdir 分四种写死 ——
-     * 省掉三角函数，也省掉"旋转多边形"那类几何风险。*/
+     * Mouth: a triangle in the background colour "bites" a piece out. The direction is hard-coded as four cases on pdir —
+     * 省掉三角函数，也省掉"旋转多边形"那类几何风险。
+     * which saves both trigonometry and that class of geometric risk, "rotating polygons".
+     */
     if (open != 0) {
         if (pdir == 1) {                       /* 右 */
+            // right
             ui_polygon_wedge(pxp, pyp, r + 2, 0);
         } else if (pdir == 3) {                /* 左 */
+            // left
             ui_polygon_wedge(pxp, pyp, r + 2, 1);
         } else if (pdir == 0) {                /* 上 */
+            // upwards
             ui_polygon_wedge(pxp, pyp, r + 2, 2);
         } else {                               /* 下 */
+            // down
             ui_polygon_wedge(pxp, pyp, r + 2, 3);
         }
     }
@@ -518,13 +637,16 @@ void draw_ghosts(void) {
             else body = C_GHOST3;
         }
         /* 身体：上半圆 + 下方方块（不用路径，纯圆+矩形拼）*/
+        /* Body: a top semicircle + a block below (no paths, just a circle and a rectangle put together) */
         ui_circle(gx[i], gy[i] - r / 3, r, body, 1, 0);
         ui_rect(gx[i] - r, gy[i] - r / 3, r * 2, r + r / 3, body, 1, 0, 0);
         /* 裙摆：三个小方块 */
+        /* Skirt: three small blocks */
         ui_rect(gx[i] - r, gy[i] + r - 3, r * 2 / 3, 4, C_BG, 1, 0, 0);
         ui_rect(gx[i] + r / 3, gy[i] + r - 3, r * 2 / 3, 4, C_BG, 1, 0, 0);
 
         /* 眼 */
+        /* Eyes */
         ex = r / 2;
         ey = r / 3;
         ui_circle(gx[i] - ex, gy[i] - ey, r / 3, C_EYE_W, 1, 0);
@@ -545,6 +667,7 @@ void draw_hud(void) {
 
     ui_set_font(11, 0, C_DIM, VML_ANCHOR_CENTER);
     /* "Level"（≈28px）比"第"（11px）宽，但两边（关卡数字 / "剩·Left"）都还留着空隙 */
+    /* "Level" (≈28px) is much wider than the one-character label (11px), but both sides (the level number / the "Left" label) still keep a gap */
     ui_text_cur(W / 2 - 26, 12, g_lang == 0 ? "第" : "Level");
     ui_set_font(13, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_CENTER);
     ui_text_cur(W / 2, 12, num_str(level));
@@ -554,6 +677,7 @@ void draw_hud(void) {
     ui_text_cur(W / 2 + 62, 12, num_str(dotsLeft));
 
     /* 命：黄圆点 */
+    /* Lives: yellow dots */
     i = 0;
     while (i < lives && i < 5) {
         ui_circle(W - 18 - i * 18, 15, 6, C_PAC, 1, 0);
@@ -594,8 +718,12 @@ void draw_hud(void) {
 
 void draw_all(void) {
     /* ⚠ **必须先 clear**：所有绘制都是往图元表追加，只有它会清空。
+     * ⚠ **It must be cleared first**: every drawing call appends to the figure list, and only this one empties it.
      * 漏了就是"每帧叠上一帧"—— 画面糊掉，且图元表无限增长直到闪退
-     * （starfall.c 第一版就栽在这上面，见那边文件头的记录）。*/
+     * Miss it out and "each frame is stacked on the previous one" — the image smears, and the figure list grows without bound until the app crashes
+     * （starfall.c 第一版就栽在这上面，见那边文件头的记录）。
+     * (the first version of starfall.c fell over on exactly this, see the note at the top of that file).
+     */
     ui_clear(C_BG);
 
     draw_maze();
@@ -606,6 +734,7 @@ void draw_all(void) {
 }
 
 /* ── 输入 ───────────────────────────────────────────────── */
+/* ── Input ───────────────────────────────────────────────── */
 
 void on_key(int k) {
     if (k == VML_KEY_SELECT || k == VML_KEY_PAUSE) {
@@ -617,14 +746,17 @@ void on_key(int k) {
     if (k == VML_KEY_ENTER) {
         if (state == 3) {
             /* 下一关：重铺豆子，鬼回中，吃豆人回原位 */
+            /* Next level: lay the pellets out again, ghosts back to the middle, Pac-Man back to his start */
             state = 0;
             frame = 0;               /* 重置出场计时，否则新关卡一开始四只鬼就全在场 */
+            // reset the entry timer, otherwise all four ghosts are on the board the moment a new level starts
             respawn();
             load_level();
             draw_all();
             return;
         }
         /* 死亡或暂停中按 START：整局重开 */
+        /* Pressing START while dead or paused: restart the whole game */
         new_game();
         draw_all();
         return;
@@ -638,6 +770,7 @@ void on_key(int k) {
 }
 
 /* ── 主循环 ─────────────────────────────────────────────── */
+/* ── Main loop ─────────────────────────────────────────────── */
 
 int main(void) {
     int msg[4];
@@ -662,6 +795,7 @@ int main(void) {
     H = sh;
 
     /* 格边长：横竖都装得下 19×21，再居中 */
+    /* Tile side length: fit 19×21 both ways, then center */
     tw = (W - 8) / MW;
     th = (H - 40) / MH;
     TILE = tw;
@@ -678,7 +812,10 @@ int main(void) {
     ui_timer_set(TICK, 0);
 
     /* ⚠ 中文这条整句写在同一行里：跨行拼接时后续几段会落在没有 `g_lang == 0` 的行上
-       （语言审计脚本按行认），而相邻字面量拼接本来就只是 C 的语法糖。 */
+       ⚠ The Chinese sentence is kept whole on a single line: split across lines, the later fragments would land on lines without `g_lang == 0`
+       （语言审计脚本按行认），而相邻字面量拼接本来就只是 C 的语法糖。
+       (the language audit script decides by line), and concatenating adjacent literals is just C syntactic sugar anyway.
+       */
     if (g_lang == 0) ui_dlg_msg("吃豆人", "用屏幕下方的方向键控制：按哪个方向就走哪个方向，到岔口自动转。吃光所有豆子过关；吃到大豆子（金圈）后可以反过来吃鬼。START 重开、SELECT 暂停。", VML_DLG_INFO);
     else             ui_dlg_msg("Pac-Man", "Use the on-screen arrows: press a direction and it turns at the next opening. Clear all dots to advance; after a power pellet the ghosts are edible. START restart, SELECT pause.", VML_DLG_INFO);
 
@@ -693,6 +830,7 @@ int main(void) {
             continue;
         }
         /* 触摸也当方向键用：点屏幕上半/下半/左半/右半 —— 手柄之外的备用操作 */
+        /* Touch also acts as the direction keys: tap the top/bottom/left/right half of the screen — a fallback beyond the gamepad */
         if (t == VML_MSG_TOUCHDOWN || t == VML_MSG_MOUSEDOWN) {
             if (state == 0) {
                 mx = msg[1] - pxp;
