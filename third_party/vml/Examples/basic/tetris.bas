@@ -1,33 +1,56 @@
 ' tetris.bas —— 俄罗斯方块（VML 的 BASIC 前端）
+' tetris.bas -- Tetris (the BASIC frontend of VML)
 '
 ' 界面与几何都走**共享调用库** Lib/shared/src/vmlui.c（编成 vmlui.vml，由 vmltool.config.xml
+' Both the UI and the geometry go through the **shared call library** Lib/shared/src/vmlui.c (compiled into vmlui.vml
 ' 挂到 basic 的 Libs 上）。BASIC 声明外部库函数用 `NATIVE SUB/FUNCTION` —— 只有带 NATIVE
+' and attached to the basic Libs by vmltool.config.xml). BASIC declares external library functions with `NATIVE SUB/FUNCTION` -- only with NATIVE
 ' 才是**裸标签**（否则会被加上 sub_/func_ 前缀，链接期找不到）。
+' does the symbol become a **bare label** (otherwise it gets a sub_/func_ prefix and cannot be found at link time).
 '
 ' 几条实测出来的前端限制，本程序是绕开它们写的：
+' A few frontend limits measured in practice; this program is written to work around them:
 '   1. **数组不可靠**：`DIM a(10)` 之后 `a(5)` 读出来是野值 ⇒ 棋盘不用 BASIC 数组，
+'   1. **Arrays are unreliable**: after `DIM a(10)`, reading `a(5)` gives garbage => the board does not use BASIC arrays,
 '      改用共享库的整数网格 ui_gset/ui_gget（C 侧的真实数组）。
+'      it uses the shared library integer grid ui_gset/ui_gget instead (a real C-side array).
 '   2. **没有移位/取位**（只有 AND/OR）⇒ 方块旋转不在 BASIC 里算，
+'   2. **No shifts and no bit extraction** (only AND/OR) => piece rotation is not computed in BASIC,
 '      用 ui_piece_cell(pid, rot, which) 直接问 C 要格子的坐标。
+'      it asks C for the cell coordinates directly through ui_piece_cell(pid, rot, which).
 '   3. 外部函数必须 NATIVE 声明，且**要写空体**（NATIVE ... / END SUB）。
+'   3. External functions must be declared NATIVE and **need an empty body** (NATIVE ... / END SUB).
 '
 ' 操作（触摸）：点屏幕左 1/3 左移、右 1/3 右移、中间**旋转**；点最下面那条**直落到底**。
+' Controls (touch): tap the left 1/3 of the screen to move left, the right 1/3 to move right, the middle to **rotate**; tap the bottom strip to **drop all the way down**.
 ' 返回箭头退出。
+' The back arrow exits.
 '
 ' ⚠⚠ **本文件目前跑不起来** —— 剩下的拦路虎是 BASIC 前端的**第四个**缺陷（前三个已修）：
+' ⚠⚠ **This file does not run yet** -- the remaining blocker is the **fourth** bug in the BASIC frontend (the first three are fixed):
 '   **SUB 里读不到模块级变量**。实测：模块级 `DIM BW / BW = 10`，在 SUB 里 `PRINT BW` 得到 **0**
+'   **a SUB cannot see module-level variables**. Measured: with module-level `DIM BW / BW = 10`, `PRINT BW` inside a SUB gives **0**
 '   —— SUB 遇到不认识的标识符会**自动登记成局部变量**（未初始化即 0），于是
+'   -- a SUB **registers any unknown identifier as a local variable** (0 while uninitialized), so
 '   `cell = (sh - 70) \ BH` 的分母成了 0，运行时"整数除零"。
+'   the denominator of `cell = (sh - 70) \ BH` becomes 0 and the run dies with "integer divide by zero".
 '   （另三个已修：`\` 整除不生效、数组读写方向反了、光秃秃的 `#` 行打挂预处理。）
+'   (The other three are fixed: `\` integer division did not work, array reads/writes went the wrong direction, and a bare `#` line broke the preprocessor.)
 '
 '   临时绕法（本文件**没**采用，因为那是在给前端缺陷打补丁、会把示例写坏）：
+'   A temporary workaround (which this file does **not** adopt, since it patches a frontend bug and would ruin the example):
 '   把要用的量都当参数传进 SUB，或者干脆不写 SUB 全部内联。
+'   pass every value the SUB needs as a parameter, or drop SUBs entirely and inline everything.
 '
 ' 保留下来的价值：① 它记下了"BASIC 调 C 共享库"的**正确写法**
+' The value of keeping it around: ① it records the **correct way** for "BASIC calling a C shared library"
 ' （`NATIVE SUB/FUNCTION` + 空体 = 裸标签，其余写法会被加上 sub_/func_ 前缀而在链接期找不到）；
+' (`NATIVE SUB/FUNCTION` + empty body = a bare label; any other form gets a sub_/func_ prefix and is not found at link time);
 ' ② 它记下了踩到的三个前端缺陷与绕法。等 BASIC 前端补齐后，这份应当能直接跑。
+' ② it records the three frontend bugs hit along the way and the workarounds. Once the BASIC frontend is complete, this should run as-is.
 
 ' ── 外部库声明（全部 NATIVE：裸标签）────────────────────
+' ── External library declarations (all NATIVE: bare labels)────────────────────
 NATIVE FUNCTION ui_win_open(t AS STRING, w AS INTEGER, h AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_win_closed() AS INTEGER
@@ -70,8 +93,11 @@ NATIVE FUNCTION ui_get_language() AS INTEGER
 END FUNCTION
 
 ' ── 常量与全局变量 ─────────────────────────────────────
+' ── Constants and global variables ─────────────────────────────────────
 ' ⚠ **DIM 必须排在赋值之前**：BASIC 里 `BW = 10` 写在 `DIM BW AS INTEGER` 之前，
+' ⚠ **DIM must come before the assignment**: in BASIC, if `BW = 10` is written before `DIM BW AS INTEGER`,
 ' 那个赋值不会落到整型变量上（实测现象是后面 `\ BH` 直接整数除零）。
+' the value does not land on the integer variable (the measured symptom is an integer divide by zero at the later `\ BH`).
 DIM BW AS INTEGER
 DIM BH AS INTEGER
 DIM TICK AS INTEGER
@@ -109,11 +135,17 @@ DIM cy AS INTEGER
 DIM packed AS INTEGER
 
 ' ── 界面语言（0 = 中文 / 1 = 英文，跟随系统语言）──────────────────────
+' ── UI language (0 = Chinese / 1 = English, following the system language)──────────────────────
 ' `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+' `ui_get_language()` is a syscall => **query it once at startup and store it in LANG**; the strings are computed here once too,
 ' 之后每帧绘制只用变量（别在绘制路径上再调它）。
+' and every later frame only uses the variables (do not call it again on the draw path).
 ' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+' ⚠ This block **must stay inside a SUB, with a single call left at module level** -- measured (same shape as whack.bas): spreading the IF/ELSE
 '   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   across module level made the last two arguments of `ui_rect ... 0, 3, 8` in the module-level code stream read as garbage,
 '   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+'   scribbling the whole screen (diff_px 0 -> 130571 against the baseline frame); moved into a SUB it is **pixel-identical** to before the change.
 DIM LANG AS INTEGER
 DIM sTitle AS STRING
 DIM sHead AS STRING
@@ -136,11 +168,13 @@ C_BG = -16120744            ' 0xFF101018
 C_GRID = -14009032          ' 0xFF2A2A38
 C_WALL = -12961116          ' 0xFF3A3A4C
 C_TEXT = -1184270           ' 0xFFEDEDF2   （负数就是 0xAARRGGBB 的有符号读法）
+                            ' (a negative number is the signed reading of 0xAARRGGBB)
 C_SCORE = -11842944         ' 0xFF4ADE80
 C_BLOCK = -10975745         ' 0xFF58A6FF
 C_CUR = -996807             ' 0xFFF0B429
 
 ' ── 棋盘读写（棋盘在共享库网格里；越界当"墙"）────────────
+' ── Board access (the board lives in the shared library grid; out of range counts as a wall)────────────
 FUNCTION bget(x AS INTEGER, y AS INTEGER) AS INTEGER
     IF x < 0 OR x >= BW OR y < 0 OR y >= BH THEN
         bget = 1
@@ -165,6 +199,7 @@ SUB board_clear()
 END SUB
 
 ' 方块当前落点是否与墙/已有块冲突
+' Does the piece at its current position collide with a wall or an already locked block
 FUNCTION collide(p AS INTEGER, rr AS INTEGER, fx AS INTEGER, fy AS INTEGER) AS INTEGER
     DIM q AS INTEGER
     DIM pk AS INTEGER
@@ -199,6 +234,7 @@ SUB lock_piece(p AS INTEGER, rr AS INTEGER, fx AS INTEGER, fy AS INTEGER)
 END SUB
 
 ' 消行，返回消掉的行数
+' Clear full lines and return how many lines were cleared
 FUNCTION clear_lines() AS INTEGER
     DIM n AS INTEGER
     DIM yy AS INTEGER
@@ -240,6 +276,7 @@ FUNCTION clear_lines() AS INTEGER
 END FUNCTION
 
 ' ── 绘制 ──────────────────────────────────────────────
+' ── Drawing ──────────────────────────────────────────────
 SUB draw_board()
     sw = ui_scr_w()
     sh = ui_scr_h()
@@ -279,6 +316,7 @@ SUB draw_board()
     WEND
 
     ' 已固定的块
+    ' Locked blocks
     j = 0
     WHILE j < BH
         i = 0
@@ -292,6 +330,7 @@ SUB draw_board()
     WEND
 
     ' 当前方块
+    ' Current piece
     k = 0
     WHILE k < 4
         packed = ui_piece_cell(pid, rot, k)
@@ -319,6 +358,7 @@ SUB draw_board()
 END SUB
 
 ' ── 主程序 ────────────────────────────────────────────
+' ── Main program ────────────────────────────────────────────
 initLang
 ui_piece_init()
 board_clear()
@@ -382,6 +422,7 @@ WHILE ui_win_closed() = 0
         END IF
     ELSE
         ' 超时（或其它消息）＝ 一次自然下落
+        ' A timeout (or any other message) = one natural fall step
         IF over = 0 THEN
             IF collide(pid, rot, px, py + 1) = 0 THEN
                 py = py + 1

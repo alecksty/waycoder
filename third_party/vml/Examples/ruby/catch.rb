@@ -1,25 +1,40 @@
 # 接方块 —— 用 **Ruby** 写的手机游戏
+# Catch the ball — a mobile game written in **Ruby**
 #
 # 玩法：左右方向键移动底部挡板，把落下来的球弹回去；没接住就结束。每接住一次 +10 分。
+# Gameplay: left/right arrow keys move the paddle at the bottom, bouncing the falling ball back; miss it and the game ends. Each catch scores +10 points.
 #
 # ◆ 手机那套 UI
+# ◆ The phone UI stack
 #
 # 开窗 / 绘图 / 输入 / 定时器是 C 写的（`Lib/shared/src/vmlui.c` → `vmlui.vml`），
+# Window / drawing / input / timers are written in C (`Lib/shared/src/vmlui.c` → `vmlui.vml`),
 # 由 `vmltool.config.xml` 的 `<Language Name="ruby" Libs="vmlui.vml">` 挂上来。
+# pulled in by `vmltool.config.xml`'s `<Language Name="ruby" Libs="vmlui.vml">`.
 #
 # ◆ 为什么这份是**完全平铺**的（没有 def、逻辑内联在主循环里）
+# ◆ Why this file is **completely flat** (no def, the logic inlined into the main loop)
 #
 # 两条本前端实测出来的限制（2026-09-17）：
+# Two limits measured in practice on this frontend (2026-09-17):
 #   ① **词法器不认 `&&`** —— `Unexpected char: &`。多个条件只能写成嵌套 `if`。
+#   ① **The lexer does not accept `&&`** — `Unexpected char: &`. Multiple conditions can only be written as nested `if`.
 #   ② **`def` 的支持有问题** —— 一个最朴素的 `def resetGame … end` 会报
+#   ② **`def` support is broken** — the plainest `def resetGame … end` reports
 #      `Unexpected token: End(end)`（报在配对的 `end` 上，像是块没被正确打开）。
+#      `Unexpected token: End(end)` (reported on the matching `end`, as if the block was never opened properly).
 #      `corpus/ruby/skel.rb` 里**一个函数都没有**，所以这条从来没被骨架覆盖到。
+#      `corpus/ruby/skel.rb` has **not a single function**, so this item was never covered by the skeleton.
 #      ⇒ 本份例程不用任何方法，状态放顶层局部变量、draw/tick 内联进主循环。
+#      ⇒ This example uses no methods at all: state lives in top-level locals, draw/tick are inlined into the main loop.
 #   这两条要修的话在前端（`RubyCompiler`），不是例程的问题。
+#   Fixing these two belongs in the frontend (`RubyCompiler`), not in the example.
 #
 # 另一处写法：颜色写负数十进制；裸调库函数不写声明（同 skel.rb）。
+# Another convention: colors are written as negative decimals; library functions are called bare with no declaration (same as skel.rb).
 
 # 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
+# State: 0=paddle x 1=ball x 2=ball y 3=ball dx 4=ball dy 5=score 6=best 7=alive 8=screen width 9=screen height
 a0 = 0
 a1 = 0
 a2 = 0
@@ -88,6 +103,7 @@ while ui_win_closed() == 0
         a4 = 0 - a4
       end
       # ⚠ 不认 `&&` ⇒ 嵌套 if
+      # ⚠ no `&&` ⇒ nested if
       if a2 > h - 52
         if a2 < h - 30
           if a1 > a0 - 9
@@ -99,7 +115,9 @@ while ui_win_closed() == 0
                 a6 = a5
               end
               # 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+              # Sound: single-tone ui_beep (v0.96.509 switched back from the sequencer —
               #   那一版多声部叠加 / 长音拖尾在真机上破音）
+              #   that version's multi-voice layering / long note tails crackled on real devices)
               ui_beep(1047, 165)
             end
           end
@@ -108,6 +126,7 @@ while ui_win_closed() == 0
       if a2 > h
         a7 = 0
         # 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+        # Sound: single-tone ui_beep; **the ending tone takes the lowest pitch** (caught 1047 / missed 131, far apart)
         ui_beep(131, 320)
         r = ui_dlg_msg("接方块", "没接住，这一局结束。
 再来一局？（选「否」退出）", 0)

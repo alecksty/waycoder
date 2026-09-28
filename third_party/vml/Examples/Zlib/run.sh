@@ -1,5 +1,6 @@
 #!/bin/bash
 # Zlib 压缩/解压示例 — 编译并运行
+# Zlib compress/decompress example — compile and run
 cd "$(dirname "$0")/../.."
 echo "=== 编译 Zlib 示例 ==="
 dotnet run --project VMLTool -- Examples/Zlib/compress_c.c -L Lib/zlib -o Examples/Zlib/compress_c.vml

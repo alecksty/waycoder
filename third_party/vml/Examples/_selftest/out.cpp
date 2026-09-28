@@ -1,5 +1,7 @@
 // out.cpp —— VML 跨语言「输出」判据（期望恰好三行，见 run-langs.sh）
+// out.cpp -- VML cross-language "output" probe (exactly three lines, see run-langs.sh)
 // 写法照 corpus/cpp/skel.* —— 共享库同时提供 println_str / println_int。
+// Pattern follows corpus/cpp/skel.* -- the shared library provides both println_str / println_int.
 void println_str(char* s);
 void println_int(int v);
 int main() {

@@ -1,29 +1,46 @@
 // 接方块 —— 用 **D** 写的手机游戏
+// Catch the Ball —— a mobile game written in **D**
 //
 // 玩法：左右方向键移动底部挡板，把落下来的球弹回去；没接住就结束。每接住一次 +10 分。
+// Gameplay: the left/right arrow keys move the paddle along the bottom, bouncing the falling ball back up; miss it and the game ends. Every catch is +10 points.
 //
 // ◆ 手机那套 UI
+// ◆ The mobile UI set
 //
 // 开窗 / 绘图 / 输入 / 定时器是 C 写的（`Lib/shared/src/vmlui.c` → `vmlui.vml`），
+// Window opening / drawing / input / timers are written in C (`Lib/shared/src/vmlui.c` → `vmlui.vml`),
 // 由 `vmltool.config.xml` 的 `<Language Name="d" Libs="vmlui.vml">` 挂上来。
+// wired up by `<Language Name="d" Libs="vmlui.vml">` in `vmltool.config.xml`.
 //
 // ◆ 写法要求（沿用 corpus/d/skel.d 的核对结论）
+// ◆ Writing requirements (carrying over the verified conclusions from corpus/d/skel.d)
 //
 //   · D **没有 extern / asm** ⇒ 裸调 `ui_rect(...)` 会被编成 `CALL func_ui_rect`，
+//   · D **has no extern / asm** ⇒ a bare call to `ui_rect(...)` compiles into `CALL func_ui_rect`,
 //     靠链接器剥 `func_` 前缀解析到 `lib_vmlui_ui_rect`。不需要声明。
+//     the linker strips the `func_` prefix and resolves it to `lib_vmlui_ui_rect`. No declaration needed.
 //   · 颜色写负数十进制：`0xFFFF0000` 会在词法层 OverflowException。
+//   · Colors are written as negative decimals: `0xFFFF0000` raises an OverflowException in the lexer.
 //   · `writeln` 实参之间不加分隔符、末尾补换行（本份不用控制台）。
+//   · `writeln` puts no separator between arguments and appends a newline (this file does not use the console).
 //   · 状态与逻辑全内联在 `main`：D 的顶层语句本来就会执行（`main` 不是必须的），
+//   · All state and logic are inlined in `main`: D top-level statements do run anyway (`main` is not required),
 //     但没有可靠的文件级可变状态可用 —— 不冒这个险。
+//     but no reliable file-level mutable state is available —— not taking that risk.
 //
 // ◆ 已修的前端缺陷（patch 0030）
+// ◆ Frontend defects already fixed (patch 0030)
 //
 // 早期数组三处全坏：`[1,2,3,4]` 字面量抛 InvalidCastException、`int[4] a;` 的维度被丢掉、
+// Arrays used to be broken in three places: the `[1,2,3,4]` literal threw InvalidCastException, the dimension of `int[4] a;` was dropped,
 // `a[i] = v` 被压成 `a = v`（下标整个丢弃）。本份实测
+// and `a[i] = v` was collapsed into `a = v` (the whole index was dropped). Measured on this file:
 // `int[4] a; a[0]=7; a[3]=5;` 求和得 12 ✓ —— 那三条都已好。
+// `int[4] a; a[0]=7; a[3]=5;` sums to 12 ✓ —— all three are fixed now.
 
 void main() {
     // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
+    // State: 0=paddle x 1=ball x 2=ball y 3=ball dx 4=ball dy 5=score 6=best 7=alive 8=screen width 9=screen height
     int[10] A;
 
     int w = ui_scr_w();
@@ -72,6 +89,7 @@ void main() {
                 if (A[1] > A[8] - 10) { A[1] = A[8] - 10; A[3] = 0 - A[3]; }
                 if (A[2] < 30) { A[2] = 30; A[4] = 0 - A[4]; }
                 // 接住：球落到挡板带上、横向也在范围内（多条件用嵌套 if）
+                // Caught: the ball is on the paddle band and horizontally in range (multiple conditions use nested if)
                 if (A[2] > A[9] - 52) {
                     if (A[2] < A[9] - 30) {
                         if (A[1] > A[0] - 9) {
@@ -81,7 +99,9 @@ void main() {
                                 A[5] = A[5] + 10;
                                 if (A[5] > A[6]) { A[6] = A[5]; }
                                 // 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+                                // Sound: single-tone ui_beep (v0.96.509 switched back from the sequencer ——
                                 //   那一版多声部叠加 / 长音拖尾在真机上破音）
+                                //   that version's multi-voice layering / long-note tails crackled on real devices)
                                 ui_beep(1047, 165);
                             }
                         }
@@ -90,9 +110,12 @@ void main() {
                 if (A[2] > A[9]) {
                     A[7] = 0;
                     // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+                    // Sound: single-tone ui_beep; **the ending tone takes the lowest pitch** (caught 1047 / missed 131, far apart)
                     ui_beep(131, 320);
                     // 选「否/拒绝」→ 退出游戏（ui_dlg_msg 返回 0=是 / 1=否）。
+                    // Choosing "No / reject" → quit the game (ui_dlg_msg returns 0=yes / 1=no).
                     // 此前不接返回值 ⇒ 两个按钮一个样、游戏还退不出去（用户实测报的）
+                    // Previously the return value was not used ⇒ both buttons behaved the same and the game could not even be exited (reported from real-device testing)
                     if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { break; }
                     A[0] = A[8] / 2 - 40;
                     A[1] = A[8] / 2;

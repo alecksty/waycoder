@@ -41,7 +41,9 @@
  * 最小复现（2026-09-24 实测，`Examples/c/demo_tty.c` 交付报告里也记了）：
  *
  *     tty_goto(10, 2);  for (i=0;i<20;i++) tty_puts("┌");   // 字节跨度 10..70 → 干净 ✓
+ // byte span 10..70 → clean ✓
  *     tty_goto(70, 2);  for (i=0;i<10;i++) tty_puts("┌");   // 字节跨度 70..100 → 第 4 个起全乱 ✗
+ // byte span 70..100 → from the 4th one on everything is garbled ✗
  *
  * 不是 `tty_*` 的问题 —— 根在 `conio.c`（`tty_puts` 在主屏上就是转发给 `cputs`）。
  * 判据：把上面第二行的 `┌` 换成 `A`（1 字节 = 1 列）就完全正常。

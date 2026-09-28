@@ -1,30 +1,45 @@
 ; float_ops.vml —— 浮点数运算自测（汇编层）
+; float_ops.vml — floating-point arithmetic self-test (assembly level)
 ;
 ; 验的是两件事：
+; Two things are verified:
 ;   ① **汇编能不能初始化浮点数**：`.float`（4 字节 IEEE754 单精度）/ `.double`（8 字节双精度）
+;   ① **whether the assembler can initialize floating-point numbers**: `.float` (4-byte IEEE754 single precision) / `.double` (8-byte double precision)
 ;      —— 2026-09-27 加的指令。此前只能 `.word <BitConverter 算出的位模式>`。
+;      —— instructions added on 2026-09-27. Before that you could only write `.word <bit pattern computed by BitConverter>`.
 ;   ② **浮点运算指令是通的**：FADD/FSUB/FMUL/FDIV/FNEG（单精度）、DADD/DDIV（双精度）、
+;   ② **the floating-point arithmetic instructions work**: FADD/FSUB/FMUL/FDIV/FNEG (single precision), DADD/DDIV (double precision),
 ;      I2F/F2I（整数⇄浮点）。
+;      I2F/F2I (integer ⇄ float).
 ;
 ; 打印：`SYSCALL 8` 打 **F0**（浮动寄存器 0）；`SYSCALL 6` 打 R0（整数）。
+; Printing: `SYSCALL 8` prints **F0** (float register 0); `SYSCALL 6` prints R0 (integer).
 ; 期望输出（逐行）：
+; Expected output (line by line):
 ;   3.75   ← 1.5 + 2.25
 ;   -0.75  ← 1.5 - 2.25
 ;   3.375  ← 1.5 × 2.25
 ;   0.666... ← 1.5 ÷ 2.25
 ;   6.28   ← 双精度 3.14 × 2
+;   6.28   ← double precision 3.14 × 2
 ;   7      ← 3.7 截断成整数
+;   7      ← 3.7 truncated to an integer
 ;   -16    ← `.float -0x10`（负数+十六进制）
 ;   255    ← `.word 0xFF`
 ;
 ; 编译运行（桌面秒级，手机上走 vml run）：
 ;   vmlcli Examples/vml/float_ops.vml
 ;   App 命令行页：vml run examples/vml/float_ops.vml
+;   App command-line page: vml run examples/vml/float_ops.vml
 
 ; ⚠⚠ **单精度运算指令是三操作数**：`FADD dst, src1, src2`（`dst = src1 op src2`）。
+; ⚠⚠ **Single-precision arithmetic instructions take three operands**: `FADD dst, src1, src2` (`dst = src1 op src2`).
 ;   只写两个操作数**不报错**，但第三只寄存器读到的是**垃圾**（本仓实测过：
+;   Writing only two operands **raises no error**, but the third register reads **garbage** (measured in this repo:
 ;   `FDIV F0, F1` 表现为"TIMER 恒等于除数 1000"）。双精度那两个（DADD/DMUL…）走的是
+;   `FDIV F0, F1` shows up as "TIMER always equals the divisor 1000"). The two double-precision ones (DADD/DMUL…) use
 ;   另一套实现，两操作数也成立 —— 所以别拿 D 的写法去推 F。
+;   a different implementation where two operands also work — so do not infer the F form from the D form.
 
 .data
 a:        .float  1.5
@@ -33,15 +48,19 @@ pi:       .double 3.14
 two:      .double 2.0
 i3_7:     .float  3.7
 neg:      .float  -0x10      ; **负数 + 十六进制**：-16.0（此前这种写法全线失效，见文件头）
+; **negative + hexadecimal**: -16.0 (this form used to fail everywhere, see the file header)
 hx:       .word   0xFF
 
 .text
 start:
     ; ── ① 单精度四则 ─────────────────────────────
+    ; ── ① Single-precision four-function arithmetic ─────────────────────────────
     MOVEF F0, [a]
     MOVEF F1, [b]
     FADD  F2, F0, F1        ; ⚠ **三操作数**：F2 = F0 + F1（只写两个的话第三只读垃圾，见文件头）
+    ; **three operands**: F2 = F0 + F1 (with only two written, the third register reads garbage, see the file header)
     MOVEF F0, F2            ; 结果搬到 F0 才能打（SYSCALL 8 只打 F0）
+    ; move the result into F0 to print it (SYSCALL 8 only prints F0)
     SYSCALL 8
 
     MOVEF F0, [a]
@@ -63,18 +82,22 @@ start:
     SYSCALL 8
 
     ; ── ② 双精度：3.14 × 2 ───────────────────────
+    ; ── ② Double precision: 3.14 × 2 ───────────────────────
     MOVED D0, [pi]
     MOVED D1, [two]
     DMUL  D0, D1
     D2F   F0, D0            ; 转成单精度才能用 SYSCALL 8 打
+    ; convert to single precision so SYSCALL 8 can print it
     SYSCALL 8
 
     ; ── ③ 浮点→整数（截断）──────────────────────
+    ; ── ③ Float → integer (truncation)──────────────────────
     MOVEF F0, [i3_7]
     F2I   R0, F0            ; 3.7 → 3
     SYSCALL 6
 
     ; ── ④ 负数十六进制常量（此前 `-0x10` 会被当成字符串 ⇒ 读出来是垃圾）──
+    ; ── ④ Negative hexadecimal constants (previously `-0x10` was treated as a string ⇒ reading it gave garbage)──
     MOVEF F0, [neg]         ; -16.0
     SYSCALL 8
     MOVE  R0, [hx]          ; 0xFF

@@ -1,28 +1,47 @@
 // demo_tty.d —— **彩色控制台**示范（D）
+// demo_tty.d —— **color console** demo (D)
 //
 // 四层示范的第二层：清屏 + 设前景/背景色 + 定位光标 + 打印彩色文字，正常结束。
+// The second of the four demo layers: clear the screen + set foreground/background colors + position the cursor + print colored text, finishing normally.
 //
 // ◆ 为什么直接发 ANSI，而不是用 `Lib/d/conio.vml`
+// ◆ Why it emits ANSI directly instead of using `Lib/d/conio.vml`
 //
 // `Lib/d/conio.vml` 确实在 `Lib/d/` 下（GenLib 生成的包装器），但**它在这门前端上
+// `Lib/d/conio.vml` really does sit under `Lib/d/` (a GenLib-generated wrapper), but **it
 // 用不了**，三条路都实测过：
+// cannot be used** on this frontend; all three routes were measured:
 //   · 不写 `#param lib("conio")`：`clrscr` 这类名字不在 `SharedPrefixMap` 里 ⇒
+//   · Without `#param lib("conio")`: names like `clrscr` are not in `SharedPrefixMap` ⇒
 //     报「未定义的函数 'func_clrscr'」；
+//     it reports "undefined function 'func_clrscr'";
 //   · 写 `#param lib("conio")`：包**确实**被链了进来（链接日志有
+//   · With `#param lib("conio")`: the package **is** linked in (the link log has
 //     `成功链接: conio.vml`），但符号对不上 —— 包装器标签是 `d_clrscr`，
+//     `successfully linked: conio.vml`), but the symbols do not match —— the wrapper label is `d_clrscr`,
 //     而 `clrscr()` 编成 `func_clrscr`、`d_clrscr()` 编成 `func_d_clrscr`，两个都不解析；
+//     while `clrscr()` compiles into `func_clrscr` and `d_clrscr()` into `func_d_clrscr`; neither resolves;
 //   · `--lib <Lib/d/conio.vml>`：**完全没效果** —— `DCompiler.CompileFileWithIncludes`
+//   · `--lib <Lib/d/conio.vml>`: **no effect at all** —— `DCompiler.CompileFileWithIncludes`
 //     调 `CompileFile(filePath, includePaths, null, false)`，把 `libraryPaths` 写成了
+//     calls `CompileFile(filePath, includePaths, null, false)`, passing `libraryPaths` as
 //     `null`（见交付报告）。
+//     `null` (see the delivery report).
 // ⇒ 直接产出真终端会产出的字节，与 `Examples/c/conio_screen.c` 在命令行页上走**同一条
+// ⇒ emit exactly the bytes a real terminal would emit, walking **the same
 //    渲染链**（`AnsiMarkup`）。
+//    rendering chain** (`AnsiMarkup`) as `Examples/c/conio_screen.c` on the command-line page.
 //
 // ◆ 写法（D 前端的优势）
+// ◆ How to write it (the D frontend's advantage)
 //
 //   · **`\x1b` 转义是解析的**（与 Rust/Go 相反）⇒ 整条转义序列可以直接写进字符串，
+//   · **`\x1b` escapes are parsed** (unlike Rust/Go) ⇒ a whole escape sequence can go straight into a string,
 //     一行一条 CSI，不必像 Rust/Go 那样拆成两条语句。
+//     one CSI per line, with no need to split it into two statements as Rust/Go do.
 //
 // 跑法：命令行页输入  vml run examples/d/demo_tty.d
+// How to run: type this on the command-line page  vml run examples/d/demo_tty.d
 
 void main() {
     writeln("\x1b[2J");

@@ -89,7 +89,9 @@ begin
         A[6] := A[5];
       end;
       // 音效：单音 ui_beep（v0.96.509 从音序器换回来 ——
+      // Sound effect: single-tone ui_beep (switched back from the sequencer in v0.96.509 —
       //   那一版多声部叠加 / 长音拖尾在真机上破音）
+      //   that version's multi-voice layering / long sustained tones broke up on real devices)
       ui_beep(1047, 165);
     end;
   end;
@@ -97,6 +99,7 @@ begin
   begin
     A[7] := 0;
     // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
+    // Sound effect: single-tone ui_beep; **the ending tone takes the lowest note** (caught 1047 / missed 131, far enough apart to tell)
     ui_beep(131, 320);
     draw();
     if ui_dlg_msg('接方块', '没接住，这一局结束。再来一局？（选「否」退出）', 0) <> 0 then begin ui_win_close(); exit; end;

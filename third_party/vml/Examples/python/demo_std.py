@@ -1,25 +1,39 @@
 # demo_std.py —— **第 1 层：标准输入输出**（Python 的 print）
+# demo_std.py — **Layer 1: standard I/O** (Python's print)
 #
 # 这一层就是语言自己的标准输出：往 stdout 写文本。
+# This layer is simply the language's own standard output: writing text to stdout.
 # 也是最基础的一层，也是**唯一有逐字节确定性判据**的一层 —— 下面的输出
+# It is also the most basic layer, and the **only one with a byte-for-byte deterministic criterion** — the output below
 # 跑两遍完全一样（不读输入、不用随机数、不看时间）。
+# is identical across two runs (it reads no input, uses no random numbers and never looks at the clock).
 #
 # ## 判据
+# ## Criterion
 #
 #     vmlcli Examples/python/demo_std.py
 #
 # 期望 stdout 逐字节等于本文件末尾「期望输出」那段。
+# Expect stdout to be byte-for-byte equal to the "expected output" block at the end of this file.
 #
 # ## ⚠ 本前端实测的三条限制（写 demo 时避开）
+# ## ⚠ Three limits of this frontend measured in practice (avoid them when writing demos)
 #
 #   · **字符串里没有 `\xNN` / `\NNN` 转义** —— `PythonCompiler/Lexer.cs` 的
+#   · **No `\xNN` / `\NNN` escape inside strings** — the escape
 #     转义表只有 `\n \t \r \\ \' \"`，其余一律「丢掉反斜杠、留原字符」。
+#     table in `PythonCompiler/Lexer.cs` only has `\n \t \r \\ \' \"`, everything else is "drop the backslash, keep the character".
 #     所以 `"\x1b[31m"` 会打出字面量 `x1b[31m`。要 ESC 见 demo_tty.py。
+#     So `"\x1b[31m"` prints the literal `x1b[31m`. For ESC see demo_tty.py.
 #   · **列表写不生效**（`b[i] = v` 之后读回来还是 0），所以本 demo 不碰列表。
+#   · **List writes have no effect** (after `b[i] = v` reading it back is still 0), so this demo does not touch lists.
 #   · `chr(n)` 返回的是一个栈上临时缓冲的地址，**不是字符串** ⇒ `print(chr(65))`
+#   · `chr(n)` returns the address of a temporary stack buffer, **not a string** ⇒ `print(chr(65))`
 #     打出的是个地址数（实测 65516）。别用它拼字符串。
+#     prints an address number (65516 measured). Do not use it to build strings.
 #
 # 转义里能用的那几个（`\t` `\\` `\"`）正好压住了词法表那条路。
+# The few escapes that do work (`\t` `\\` `\"`) happen to stay clear of that lexer path.
 
 print("=== demo_std (Python) ===")
 print("纯字符串一行")
@@ -34,6 +48,7 @@ print("a/b=", a / b, "a%b=", a % b)
 print("负数：", 0 - a, 0 - (a * b))
 
 # 循环算一个结果，证明这一层和语言本身是通的
+# Loop to compute a result, proving this layer and the language itself are wired together
 i = 1
 total = 0
 while i <= 10:
@@ -42,6 +57,7 @@ while i <= 10:
 print("1^2+...+10^2 =", total)
 
 # 九九表的一小段（多行）
+# A small slice of the multiplication table (several lines)
 i = 1
 while i <= 5:
     print(i, "x 7 =", i * 7)
@@ -52,11 +68,14 @@ print("=== 完成 ===")
 # ── 期望输出（逐字节）────────────────────────────────────────────
 # === demo_std (Python) ===
 # 纯字符串一行
+# A plain string line
 # 转义：制表	反斜杠\引号"
+# escapes: tab	backslash\quote"
 # a= 17 b= 25
 # a+b= 42 a-b= -8 a*b= 425
 # a/b= 0 a%b= 17
 # 负数： -17 -425
+# negatives: -17 -425
 # 1^2+...+10^2 = 385
 # 1 x 7 = 7
 # 2 x 7 = 14
@@ -64,4 +83,5 @@ print("=== 完成 ===")
 # 4 x 7 = 28
 # 5 x 7 = 35
 # === 完成 ===
+# === done ===
 # ────────────────────────────────────────────────────────────────

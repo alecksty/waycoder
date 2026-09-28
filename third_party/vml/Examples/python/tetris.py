@@ -1,21 +1,33 @@
 # tetris.py —— 俄罗斯方块（VML 的 Python 前端）
+# tetris.py — Tetris (VML's Python frontend)
 #
 # 界面走**共享调用库** `Lib/shared/vmlui.c`（编成 `vmlui.vml`，由 vmltool.config.xml 挂到
+# The UI goes through the **shared call library** `Lib/shared/vmlui.c` (compiled into `vmlui.vml` and attached to
 # python 的 Libs 上）：Python 前端不支持内联 asm()，只能按标签调 C 函数 —— 这正是那座共享库
+# python's Libs by vmltool.config.xml): the Python frontend does not support inline asm(), so it can only call C functions
 # 存在的意义。
+# by label — which is exactly the point of that shared library existing.
 #
 # ⚠ 两条**实测出来的前端限制**，本程序是绕开它们写的：
+# ⚠ Two **measured frontend limits** that this program is written to work around:
 #   1. **列表不能写**：`b[i] = v` 之后读回来还是 0（字面量列表读是对的，写不生效），
+#   1. **Lists cannot be written**: after `b[i] = v` reading it back is still 0 (reading a literal list works, writing has no effect),
 #      嵌套列表也错。所以棋盘不放 Python 里，改用共享库的整数网格 `ui_gset/ui_gget`。
+#      and nested lists go wrong too. So the board does not live in Python; it uses the shared library's integer grid `ui_gset/ui_gget`.
 #   2. 没有 asm()（`PythonCompiler/CodeGenerator.Expressions.cs:154` 注明仅 C/ObjC/C++）。
+#   2. There is no asm() (`PythonCompiler/CodeGenerator.Expressions.cs:154` notes it is C/ObjC/C++ only).
 #
 # 操作（触摸）：点屏幕左 1/3 左移、右 1/3 右移、中间**旋转**；点最下面那条**直落到底**。
+# Controls (touch): tap the left 1/3 of the screen to move left, the right 1/3 to move right, the middle to **rotate**; tap the bottom strip to **drop all the way down**.
 # 返回箭头退出。
+# The back arrow exits.
 
 # ── 常量 ───────────────────────────────────────────────
+# ── constants ───────────────────────────────────────────
 W = 10
 H = 20
 TICK = 450          # 下落一格的间隔（毫秒）；ui_wait_msg 超时即视为一次下落
+# interval between drops, in milliseconds; a ui_wait_msg timeout counts as one drop
 
 C_BG = 0xFF101018
 C_GRID = 0xFF2A2A38
@@ -24,7 +36,9 @@ C_TEXT = 0xFFEDEDF2
 C_SCORE = 0xFF4ADE80
 
 # 7 种方块：4×4 位掩码（行优先，第 r 行第 c 位 = r*4+c）
+# 7 piece types: 4×4 bitmasks (row-major, bit for row r column c = r*4+c)
 # 旋转用位运算现场算，不存 28 张表（前端列表不可靠，少存一份少一个坑）
+# Rotation is computed on the fly with bit operations instead of storing 28 tables (frontend lists are unreliable; one less table is one less pitfall)
 P_O = 0x0066
 P_I = 0x0F00
 P_S = 0x006C
@@ -34,20 +48,29 @@ P_L = 0x0062
 P_J = 0x00E8
 
 # 棋盘/掩码在共享库网格里的布局
+# Layout of the board/masks inside the shared library grid
 BOARD_AT = 0
 MASK_AT = 200
 
 # 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+# UI language: ask the host once at startup whether Chinese or English is wanted (0=Chinese 1=English), then branch on it for the whole game.
 # ⚠ 别在每帧里调 —— 那是一次 syscall。
+# ⚠ Do not call it every frame — it is a syscall.
 # ⚠ **不能放模块级全局**（`LANG = ui_get_language()` 在函数里读出来恒 0 —— 本前端的
+# ⚠ **It cannot be a module-level global** (`LANG = ui_get_language()` always reads back 0 inside a function — in this frontend
 #   模块级标量在函数体内不可见，实测；本文件本来就为此把 score/over 一路当参数传）。
+#   a module-level scalar is invisible inside a function body, measured; this file already passes score/over around as parameters for that reason).
 #   所以走**参数**：main 里问一次，`draw(...)` 多收一个 `lang`。
+#   So it travels as a **parameter**: ask once in main, and `draw(...)` takes one extra `lang`.
 #   界面文字一律写成 `"中文" if lang == 0 else "English"`（本前端支持三元，见语言规范 §5.9）。
+#   UI text is always written as `"Chinese" if lang == 0 else "English"` (this frontend supports the ternary, see language spec §5.9).
 
 # ── 共享库网格上的棋盘读写 ──────────────────────────────
+# ── board reads/writes on the shared library grid ──────────────────
 def bget(x, y):
     if x < 0 or x >= W or y < 0 or y >= H:
         return 1              # 墙：越界一律当"有块"，碰撞判定就不用再判边界
+        # wall: anything out of bounds counts as "occupied", so collision checks need no boundary test
     return ui_gget(BOARD_AT + y * W + x)
 
 def bset(x, y, v):
@@ -61,7 +84,9 @@ def board_clear():
         i = i + 1
 
 # ── 方块：某块的某次旋转，取它的 4 个格子的坐标 ──────────
+# ── pieces: the coordinates of the 4 cells of a given piece in a given rotation ──────
 # 旋转 4×4 掩码 90°：位 (r,c) → (c, 3-r)
+# Rotate a 4×4 mask by 90°: bit (r,c) → (c, 3-r)
 def rot90(m):
     out = 0
     r = 0
@@ -83,6 +108,7 @@ def piece_mask(pid, rot):
     return m
 
 # 判断某块在 (px,py) 处是否与已有块/墙冲突
+# Whether the piece at (px,py) collides with an existing block / wall
 def collide(pid, rot, px, py):
     m = piece_mask(pid, rot)
     r = 0
@@ -97,6 +123,7 @@ def collide(pid, rot, px, py):
     return 0
 
 # 把方块固定进棋盘
+# Lock the piece into the board
 def lock_piece(pid, rot, px, py):
     m = piece_mask(pid, rot)
     r = 0
@@ -109,6 +136,7 @@ def lock_piece(pid, rot, px, py):
         r = r + 1
 
 # 消行：返回消掉的行数
+# Clear lines: returns the number of lines cleared
 def clear_lines():
     n = 0
     y = H - 1
@@ -122,6 +150,7 @@ def clear_lines():
         if full == 1:
             n = n + 1
             # 上面的整体下移一行
+            # Shift the whole thing above down by one row
             yy = y
             while yy > 0:
                 x = 0
@@ -134,11 +163,13 @@ def clear_lines():
                 bset(x, 0, 0)
                 x = x + 1
             # 就地重判同一行（新落下来的那行）
+            # Re-check the same row in place (the row that just fell into it)
         else:
             y = y - 1
     return n
 
 # ── 绘制 ──────────────────────────────────────────────
+# ── drawing ──────────────────────────────────────────
 def draw(px, py, rot, pid, score, over, lang):
     sw = ui_scr_w()
     sh = ui_scr_h()
@@ -148,6 +179,7 @@ def draw(px, py, rot, pid, score, over, lang):
         sh = 620
 
     # 棋盘按可用高度铺满，宽度按 1:2 比例
+    # Fill the board to the available height, with the width at a 1:2 ratio
     area = sh - 70
     cell = area / H
     if cell * W > sw - 20:
@@ -160,9 +192,11 @@ def draw(px, py, rot, pid, score, over, lang):
     ui_clear(C_BG)
 
     # 棋盘底
+    # Board background
     ui_rect(ox, oy, bw, bh, C_WALL, 1, 0, 4)
 
     # 网格
+    # Grid
     i = 1
     while i < W:
         ui_line(ox + i * cell, oy, ox + i * cell, oy + bh, C_GRID, 1)
@@ -173,6 +207,7 @@ def draw(px, py, rot, pid, score, over, lang):
         i = i + 1
 
     # 已固定的块
+    # Already locked blocks
     y = 0
     while y < H:
         x = 0
@@ -183,6 +218,7 @@ def draw(px, py, rot, pid, score, over, lang):
         y = y + 1
 
     # 当前方块
+    # Current piece
     m = piece_mask(pid, rot)
     r = 0
     while r < 4:
@@ -194,6 +230,7 @@ def draw(px, py, rot, pid, score, over, lang):
         r = r + 1
 
     # 状态行
+    # Status line
     ui_set_font(15, 1, C_TEXT, 0)
     ui_text_cur(ox, 12, "俄罗斯方块" if lang == 0 else "Tetris")
     ui_set_font(14, 0, C_SCORE, 2)
@@ -208,12 +245,16 @@ def draw(px, py, rot, pid, score, over, lang):
     ui_present()
 
 # ── 主程序 ────────────────────────────────────────────
+# ── main program ──────────────────────────────────────
 def main():
     # 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+    # UI language: ask the host once at startup whether Chinese or English is wanted (0=Chinese 1=English), then branch on it for the whole game.
     # ⚠ 别在每帧里调 —— 那是一次 syscall；这里问一次，`draw` 收参数。
+    # ⚠ Do not call it every frame — it is a syscall; ask once here, and `draw` takes it as a parameter.
     lang = ui_get_language()
 
     # 把 7 种方块的基准掩码放进共享库网格（前端列表不可靠，数据也放这边）
+    # Put the base masks of the 7 piece types into the shared library grid (frontend lists are unreliable, so the data lives there too)
     ui_gset(MASK_AT + 0, P_O)
     ui_gset(MASK_AT + 1, P_I)
     ui_gset(MASK_AT + 2, P_S)
@@ -251,6 +292,7 @@ def main():
 
             if over == 1:
                 # 重开
+                # Restart
                 board_clear()
                 score = 0
                 over = 0
@@ -260,6 +302,7 @@ def main():
                 py = 0
             elif ty > sh * 3 / 4:
                 # 直落：一直往下直到碰住
+                # Hard drop: keep going down until it hits something
                 while collide(pid, rot, px, py + 1) == 0:
                     py = py + 1
                 lock_piece(pid, rot, px, py)
@@ -283,6 +326,7 @@ def main():
 
         else:
             # 超时（或其它消息）＝ 一次自然下落
+            # Timeout (or any other message) = one natural fall
             if over == 0:
                 if collide(pid, rot, px, py + 1) == 0:
                     py = py + 1

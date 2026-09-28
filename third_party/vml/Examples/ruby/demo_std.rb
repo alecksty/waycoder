@@ -1,26 +1,41 @@
 # demo_std.rb —— **第 1 层：标准输入输出**（Ruby 的 print / puts）
+# demo_std.rb — **Layer 1: standard I/O** (Ruby's print / puts)
 #
 # 这一层就是语言自己的标准输出：往 stdout 写文本。
+# This layer is the language's own standard output: writing text to stdout.
 # 也是最基础的一层，也是**唯一有逐字节确定性判据**的一层 —— 下面的输出
+# It is also the most basic layer, and the **only one with a byte-for-byte deterministic check** — the output below
 # 跑两遍完全一样（不读输入、不用随机数、不看时间）。
+# is exactly the same on two runs (it reads no input, uses no random numbers, and does not look at the clock).
 #
 # ## 判据
+# ## The check
 #
 #     vmlcli Examples/ruby/demo_std.rb
 #
 # 期望 stdout 逐字节等于本文件末尾「期望输出」那段。
+# Expect stdout to be byte-for-byte equal to the "expected output" block at the end of this file.
 #
 # ## ⚠ 本前端实测的四条限制（写 demo 时避开）
+# ## ⚠ Four limits of this frontend measured in practice (avoid them when writing demos)
 #
 #   · **字符串插值 `#{...}` 不生效** —— 原样打出 `#{a}`（实测）。
+#   · **String interpolation `#{...}` does not work** — it prints `#{a}` verbatim (measured).
 #     要「文字 + 数字」只能用 `print("a=")` + `print(a)` 这样拆开写，
+#     To print "text + number" you can only split it up as `print("a=")` + `print(a)`,
 #     好在 `print` 打印数字是对的、且不补换行。
+#     fortunately `print` prints numbers correctly and does not append a newline.
 #   · `puts("a", "b")` 把多个实参**直接连起来**（`multiargs`），不插分隔符。
+#   · `puts("a", "b")` **concatenates** the multiple arguments directly (`multiargs`), inserting no separator.
 #   · **没有 `.to_s`**（`(a + b).to_s` 报 `expected )（得到 Dot）`）⇒ 数字没法转字符串。
+#   · **There is no `.to_s`** (`(a + b).to_s` reports `expected ) (got Dot)`) ⇒ numbers cannot be converted to strings.
 #   · `\x1b` 在**字符串字面量里是支持的**（Ruby 走的是 `LexerBase.ReadEscape`），
+#   · `\x1b` **is supported inside string literals** (Ruby goes through `LexerBase.ReadEscape`),
 #     所以彩色控制台那一层可以内联 ESC —— 见 demo_tty.rb。
+#     so the color-console layer can inline ESC — see demo_tty.rb.
 #
 # 本份用 `print` 单值输出 + `puts` 整行，避开上面全部四条。
+# This file uses `print` for single values + `puts` for whole lines, avoiding all four limits above.
 
 puts("=== demo_std (Ruby) ===")
 puts("纯字符串一行")
@@ -56,6 +71,7 @@ print(0 - (a * b))
 print("\n")
 
 # 循环算一个结果，证明这一层和语言本身是通的
+# A loop computes one result, proving this layer and the language itself are wired up
 i = 1
 total = 0
 while i <= 10
@@ -67,6 +83,7 @@ print(total)
 print("\n")
 
 # 九九表的一小段（多行）
+# A short stretch of the multiplication table (several lines)
 i = 1
 while i <= 5
   print(i)
@@ -81,11 +98,14 @@ puts("=== 完成 ===")
 # ── 期望输出（逐字节）────────────────────────────────────────────
 # === demo_std (Ruby) ===
 # 纯字符串一行
+# A single line of plain string
 # 转义：制表	反斜杠\引号"
+# Escape: tab	backslash\quote"
 # a=17 b=25
 # a+b=42 a-b=-8 a*b=425
 # a/b=0 a%b=17
 # 负数： -17 -425
+# Negative numbers: -17 -425
 # 1^2+...+10^2 = 385
 # 1 x 7 = 7
 # 2 x 7 = 14
@@ -93,4 +113,5 @@ puts("=== 完成 ===")
 # 4 x 7 = 28
 # 5 x 7 = 35
 # === 完成 ===
+# === Done ===
 # ────────────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 # out.r —— VML 跨语言「输出」判据（期望恰好三行，见 run-langs.sh）
+# out.r -- VML cross-language "output" probe (exactly three lines, see run-langs.sh)
 # 写法照 corpus/r/skel.* —— 共享库同时提供 println_str / println_int。
+# Pattern follows corpus/r/skel.* -- the shared library provides both println_str / println_int.
 cat("OUT-STR=abc")
 cat("
 ")

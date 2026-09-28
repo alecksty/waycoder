@@ -1,28 +1,47 @@
 ' 21 点（BLACKJACK）—— 用 **BASIC** 写的手机游戏
+' Blackjack -- a mobile game written in **BASIC**
 '
 ' 出处与版权：原型是 1970 年代流传最广的那份 21 点 BASIC 程序（收进 David Ahl 的
+' Origin and copyright: the prototype is the most widely circulated blackjack BASIC
 ' 《BASIC Computer Games》，原版叫 BLACKJACK 或 21）。**这份是照玩法规则重写的**：
+' program of the 1970s (collected in David Ahl's "BASIC Computer Games"; the original was called BLACKJACK or 21).
 ' 结构、变量名、注释、绘制方式都是自己的，没有抄原件的一行代码 ——
+' **This one is rewritten from the rules of play**: the structure, variable names, comments and drawing
 ' 与 `gorilla.bas` 同一条规矩（`Examples/` 会随 APK 分发）。
+' are all our own -- not one line copied from the original, the same rule as `gorilla.bas` (`Examples/` ships with the APK).
 '
 ' 玩法：标准赌场规则简化版 —— 庄家 17 点停（软 17 也停）、A 可当 1 或 11、
+' Play: a simplified version of standard casino rules -- the dealer stands on 17 (soft 17 too), an ace counts 1 or 11,
 ' 天生 21 点（两张就 21）赔 3:2、其余赢赔 1:1、和局退还赌注。筹码有限，输光就结束。
+' a natural 21 (two cards) pays 3:2, other wins pay 1:1 and a push returns the bet. Chips are finite; losing them all ends the game.
 '
 ' ◆ 手机上怎么玩
+' ◆ How to play it on a phone
 '
 ' 原版是打字问「要不要牌（H/S）」，这里改成**三个大按钮**：要牌 / 停牌 / 加倍。
+' The original asked you to type whether to take a card (H/S); here it is **three big buttons**: Hit / Stand / Double.
 ' 赌注用 −/+ 调（下注阶段），发牌后按钮换成要牌/停牌/加倍。
+' The bet is adjusted with -/+ during the betting phase, and after the deal the buttons become Hit/Stand/Double.
 ' —— 回合制游戏在手机上就该这么处理：**别让玩家调键盘**。
+' -- that is how a turn-based game should be handled on a phone: **never make the player work a keyboard**.
 '
 ' ◆ 写法提醒（这几条是本前端**当前**的硬约束，都不是"建议"）
+' ◆ Writing notes (these are **current** hard constraints of this frontend, not "suggestions")
 '
 '   · **数组维度必须写字面量**：`DIM a(N) AS INTEGER`（N 是 CONST）**不生效** ——
+'   · **Array dimensions must be written as literals**: `DIM a(N) AS INTEGER` (N being a CONST) **does not take effect** --
 '     实测 `a(4)` 恒为 0，而 `DIM a(5)` 正常（见 FRONTEND_DEFECTS.md 的 BASIC 一节）。
+'     measured: `a(4)` is always 0, while `DIM a(5)` works (see the BASIC section of FRONTEND_DEFECTS.md).
 '   · **有返回值的必须写 `FUNCTION`**（`SUB … AS INTEGER` 会去链一个 `func_integer`），
+'   · **Anything with a return value must be written as `FUNCTION`** (`SUB ... AS INTEGER` goes off and links a `func_integer`),
 '     且收尾必须是 `END FUNCTION`（写成 `END SUB` 会让整个解析错位）。
+'     and it must end with `END FUNCTION` (writing `END SUB` derails the whole parse).
 '   · **不要写无参 `FUNCTION`** —— 它恒返回 0（另有一条缺陷）。
+'   · **Do not write a parameterless `FUNCTION`** -- it always returns 0 (a separate defect).
 '   · 外部过程必须 `NATIVE SUB` / `NATIVE FUNCTION` + 空体。
+'   · External procedures must be `NATIVE SUB` / `NATIVE FUNCTION` plus an empty body.
 '   · 颜色写 `&HFFrrggbb`。
+'   · Colors are written as `&HFFrrggbb`.
 
 NATIVE SUB ui_clear(c AS INTEGER)
 END SUB
@@ -57,32 +76,45 @@ END FUNCTION
 NATIVE FUNCTION ui_rand(n AS INTEGER) AS INTEGER
 END FUNCTION
 ' 音效：**用 `ui_beep` 单音**（v0.96.509 统一换回来）。
+' Sound: **use the single-tone `ui_beep`** (switched back uniformly in v0.96.509).
 ' ⚠⚠ 一度走共享库的音序器（`ui_sfx_add`），**真机上破音**（多个音叠着响 + 长音拖尾）
+' ⚠⚠ It once went through the shared library's sequencer (`ui_sfx_add`), which **clips on real devices**
 '   ⇒ 全换回单音的 beep：它是**单通道**的（后一个音掐掉前一个），结构上不可能削波。
+'   (several tones ringing on top of each other plus a long tail) => everything switched back to single-tone beeps:
 ' ⚠ 频率取原音型的**首音**；**胜负取两端的极值**（赢取最高音、输取最低音 ——
+'   a beep is **single-channel** (the next tone cuts off the previous one), so clipping is structurally impossible.
 '   「不看屏幕也分得出」就靠这个，五子棋/象棋两版也是这么配的：赢 1320 / 输 240）。
+' ⚠ The frequency is the **first note** of the original pattern; **win/lose takes the extremes of both ends** (highest tone for a win,
 '   低音不低于 C3(131Hz)（手机外放 200Hz 以下衰减很快，听着像没响）。
+'   lowest for a loss -- "you can tell without looking at the screen" rests on exactly this; gomoku and chess are scored the same way: win 1320 / lose 240). Keep the low tone at or above C3 (131Hz), since a phone speaker rolls off fast below 200Hz and it sounds like nothing was played.
 NATIVE SUB ui_beep(freq AS INTEGER, ms AS INTEGER)
 END SUB
 ' ⚠ `ui_sfx_panic` 留着 —— 它是"全停"，退出前调一次把所有正在响的声音一起掐掉。
+' ⚠ `ui_sfx_panic` is kept -- it is the "stop everything" call; run it once before exiting to cut off every ringing sound at the same time.
 NATIVE SUB ui_sfx_panic()
 END SUB
 NATIVE SUB ui_vibrate(ms AS INTEGER, strength AS INTEGER)
 END SUB
 ' ⚠ 形参名不能叫 on —— BASIC 关键字，会把 NATIVE 声明弄坏（实测）
+' ⚠ A parameter must not be named on -- it is a BASIC keyword and will break the NATIVE declaration (measured)
 NATIVE SUB ui_keep_on(v AS INTEGER)
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  规则常量
+'  Rule constants
 ' ══════════════════════════════════════════════════════════════════════════
 CONST DECKN = 52             ' 一副牌
+' One deck of cards
 CONST MAXCARD = 12           ' 一手最多记这么多张（再多早就爆了）
+' Record at most this many cards in one hand (any more and it has long since busted)
 CONST DEALER_STOP = 17       ' 庄家 17 点停（软 17 也停，简化）
+' The dealer stands on 17 (soft 17 too, simplified)
 CONST WIN = 1
 CONST LOSE = 2
 CONST PUSH = 3
 CONST BJPAY_N = 3            ' 天生 21 点赔 3:2
+' A natural 21 pays 3:2
 CONST BJPAY_D = 2
 CONST HUDH = 64
 CONST CARDW = 54
@@ -103,6 +135,7 @@ CONST C_BTN_HOT = &HFF4A7A5A
 CONST C_FLAT = &HFF555A66
 
 ' 阶段
+' Phases
 CONST PH_BET = 0
 CONST PH_PLAY = 1
 CONST PH_DEALER = 2
@@ -110,16 +143,25 @@ CONST PH_OVER = 3
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  状态（数组维度一律字面量，见文件头）
+'  State (array dimensions are always literals, see the file header)
 ' ══════════════════════════════════════════════════════════════════════════
 DIM deck(52) AS INTEGER
 ' ⚠ 两手牌**合成一个数组**用偏移区分（玩家 0..11 / 庄家 12..23）——
+' ⚠ The two hands are **merged into one array** and told apart by an offset (player 0..11 / dealer 12..23) --
 '   本前端**不支持数组形参**：`FUNCTION f(a(12) AS INTEGER)` 会把 `a` 当成函数调用
+'   this frontend **does not support array parameters**: `FUNCTION f(a(12) AS INTEGER)` treats `a` as a function call
 '   去链接，报 `未定义的函数 'func_a'`。用偏移就同时避开了"数组形参"和"把算点数
+'   and goes off to link it, reporting undefined function func_a. Using an offset avoids both array parameters
 '   这条规则写两份"两件事。
+'   and writing the card-counting rule twice.
 DIM hand(24) AS INTEGER      ' 编码：点数*4 + 花色（点数 1..13）
+' Encoding: rank * 4 + suit (rank 1..13)
 DIM pn AS INTEGER            ' 玩家手牌数
+' Number of cards in the player's hand
 DIM dn AS INTEGER            ' 庄家手牌数
+' Number of cards in the dealer's hand
 DIM di AS INTEGER            ' 下一张牌在牌堆里的下标
+' Index of the next card in the deck
 DIM chips AS INTEGER
 DIM bet AS INTEGER
 DIM phase AS INTEGER
@@ -128,6 +170,7 @@ DIM result AS INTEGER
 DIM msg AS STRING
 DIM quit AS INTEGER
 DIM LANG AS INTEGER          ' 界面语言：0 中文 / 1 英文（开局查一次）
+' UI language: 0 Chinese / 1 English (queried once at startup)
 DIM doubled AS INTEGER
 
 DIM sw AS INTEGER
@@ -152,17 +195,21 @@ DIM ry AS INTEGER
 DIM tmp AS INTEGER
 DIM txt AS STRING
 DIM lb AS STRING             ' 按语言取值的临时串（画文字用；别在调用的实参里写 IF）
+' Temporary string chosen by language (for drawing text; do not put an IF inside a call's argument list)
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  规则（纯函数，自检直接打它们的返回值）
+'  Rules (pure functions; the self-check prints their return values directly)
 ' ══════════════════════════════════════════════════════════════════════════
 
 ' 牌编码 → 点数（1..13）
+' Card encoding -> rank (1..13)
 FUNCTION rankOf(c AS INTEGER) AS INTEGER
     rankOf = c / 4
 END FUNCTION
 
 ' 牌编码 → 花色（0..3）
+' Card encoding -> suit (0..3)
 FUNCTION suitOf(c AS INTEGER) AS INTEGER
     DIM r AS INTEGER
     r = c / 4
@@ -170,6 +217,7 @@ FUNCTION suitOf(c AS INTEGER) AS INTEGER
 END FUNCTION
 
 ' 一手牌的**点数**（A 先按 11 算，爆了再逐张降成 1）—— 这是全部玩法的核心
+' The **value** of a hand (an ace counts 11 first and is dropped to 1 card by card once busted) -- this is the heart of the whole game
 FUNCTION handValue(off AS INTEGER, n AS INTEGER) AS INTEGER
     DIM k AS INTEGER
     DIM r AS INTEGER
@@ -193,8 +241,11 @@ FUNCTION handValue(off AS INTEGER, n AS INTEGER) AS INTEGER
         k = k + 1
     WEND
     ' A 从 11 降成 1：每降一张少 10 点，降够就停
+'    Drop an ace from 11 to 1: each drop loses 10 points, and it stops once enough have been dropped
     ' ⚠ 用**标志位**收尾而不是 `EXIT WHILE` —— 后者在这个前端上实测**退不出来**
+' ⚠ The loop is closed by a **flag** instead of `EXIT WHILE` -- the latter **never exits** on this frontend when measured
     '   （自检卡死在第一个 `handValue` 调用上，整轮超时）。
+'   (the self-check hung on the first `handValue` call and the whole run timed out).
     WHILE sum > 21
         IF aces > 0 THEN
             aces = aces - 1
@@ -207,6 +258,7 @@ FUNCTION handValue(off AS INTEGER, n AS INTEGER) AS INTEGER
 END FUNCTION
 
 ' 天生 21 点（只有两张）
+' A natural 21 (two cards only)
 FUNCTION isBlackjack(off AS INTEGER, n AS INTEGER) AS INTEGER
     IF n = 2 THEN
         IF handValue(off, n) = 21 THEN
@@ -218,6 +270,7 @@ FUNCTION isBlackjack(off AS INTEGER, n AS INTEGER) AS INTEGER
 END FUNCTION
 
 ' 庄家该不该继续要牌
+' Whether the dealer should keep taking cards
 FUNCTION dealerHits(v AS INTEGER) AS INTEGER
     IF v < DEALER_STOP THEN
         dealerHits = 1
@@ -227,6 +280,7 @@ FUNCTION dealerHits(v AS INTEGER) AS INTEGER
 END FUNCTION
 
 ' 比大小
+' Compare hands
 FUNCTION compare(pv AS INTEGER, dv AS INTEGER) AS INTEGER
     IF pv > 21 THEN
         compare = LOSE
@@ -249,6 +303,7 @@ END FUNCTION
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  牌堆与发牌
+'  Deck and dealing
 ' ══════════════════════════════════════════════════════════════════════════
 
 SUB shuffle()
@@ -260,6 +315,7 @@ SUB shuffle()
         k = k + 1
     WEND
     ' Fisher-Yates：从后往前，与随机位置交换
+'    Fisher-Yates: from the back forwards, swapping with a random position
     k = DECKN - 1
     WHILE k > 0
         s = ui_rand(k + 1)
@@ -272,6 +328,7 @@ SUB shuffle()
 END SUB
 
 ' 发一张（牌不够就重洗 —— 手机上一局打不了那么多轮，但别让它越界）
+' Deal one card (reshuffle if the deck runs out -- a phone round never gets that long, but do not let it go out of bounds)
 FUNCTION deal() AS INTEGER
     IF di >= DECKN THEN
         shuffle()
@@ -306,6 +363,7 @@ SUB playerHit()
     hand(pn) = deal()
     pn = pn + 1
     ui_beep 784, 33   ' 发牌：极短轻音
+' Deal: a very short light tone
     IF handValue(0, pn) > 21 THEN
         settle()
     END IF
@@ -320,6 +378,7 @@ SUB playerDouble()
     IF chips < bet THEN
         IF LANG = 0 THEN msg = "筹码不够加倍" ELSE msg = "Not enough chips to double"
         ui_beep 131, 99   ' 筹码不够：低闷
+' Not enough chips: a low muffled tone
         EXIT SUB
     END IF
     chips = chips - bet
@@ -328,10 +387,12 @@ SUB playerDouble()
     hand(pn) = deal()
     pn = pn + 1
     ui_beep 1047, 33   ' 加倍发牌
+' The extra deal on a double
     playerStand()
 END SUB
 
 ' 庄家一路要到 17 点
+' The dealer keeps taking cards all the way to 17
 SUB dealerPlay()
     WHILE dealerHits(handValue(12, dn)) = 1
         IF dn >= MAXCARD THEN
@@ -344,6 +405,7 @@ SUB dealerPlay()
 END SUB
 
 ' 结算
+' Settlement
 SUB settle()
     DIM pv AS INTEGER
     DIM dv AS INTEGER
@@ -372,14 +434,17 @@ SUB settle()
         CASE WIN
             IF LANG = 0 THEN msg = "你赢了！+" + STR$(bet) ELSE msg = "You win! +" + STR$(bet)
             ui_beep 1047, 320   ' 赢：最高音（结局取两端）
+' Win: the highest tone (the outcome takes both extremes)
             ui_vibrate(60, 120)
         CASE LOSE
             IF LANG = 0 THEN msg = "庄家赢 " + STR$(pv) + " : " + STR$(dv) ELSE msg = "Dealer wins " + STR$(pv) + " : " + STR$(dv)
             ui_beep 131, 320   ' 输：最低音（结局取两端）
+' Lose: the lowest tone (the outcome takes both extremes)
             ui_vibrate(180, 200)
         CASE PUSH
             IF LANG = 0 THEN msg = "和局，退还赌注" ELSE msg = "Draw, bet returned"
             ui_beep 330, 320   ' 和局：中性（既不欢快也不沮丧）
+' Push: neutral (neither cheerful nor gloomy)
         CASE ELSE
             IF LANG = 0 THEN msg = "（未结算）" ELSE msg = "(unsettled)"
     END SELECT
@@ -392,9 +457,11 @@ END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  绘制
+'  Drawing
 ' ══════════════════════════════════════════════════════════════════════════
 
 ' 点数 → 显示文本
+' Rank -> display text
 FUNCTION rankText(r AS INTEGER) AS STRING
     SELECT CASE r
         CASE 1
@@ -436,6 +503,7 @@ FUNCTION suitColor(s AS INTEGER) AS INTEGER
 END FUNCTION
 
 ' 画一张牌。faceDown=1 时画牌背。
+' Draw one card. faceDown=1 draws the back of the card.
 SUB drawCard(x AS INTEGER, y AS INTEGER, c AS INTEGER, faceDown AS INTEGER)
     IF faceDown = 1 THEN
         ui_rect(x, y, CARDW, CARDH, C_CARDBK, 1, 0, 7)
@@ -455,6 +523,7 @@ SUB drawHand(off AS INTEGER, n AS INTEGER, y AS INTEGER, hideFirst AS INTEGER)
     DIM startX AS INTEGER
 
     ' 手牌多了就压着叠 —— 别让它画出屏幕
+'    Overlap them when the hand grows -- do not let it draw off screen
     overlap = CARDW + 6
     total = n * overlap
     IF total > sw - 24 THEN
@@ -574,6 +643,7 @@ END SUB
 SUB drawScene()
     ui_clear(C_FELT)
     ' 桌面感：中间一道深色带
+'    A tabletop feel: a dark band across the middle
     ui_rect(0, sh / 2 - 40, sw, 80, C_FELT_D, 1, 0, 0)
     drawHud()
     drawTable()
@@ -584,6 +654,7 @@ END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  输入
+'  Input
 ' ══════════════════════════════════════════════════════════════════════════
 FUNCTION inRect(x AS INTEGER, y AS INTEGER, w AS INTEGER, h AS INTEGER, px AS INTEGER, py AS INTEGER) AS INTEGER
     DIM ok AS INTEGER
@@ -628,6 +699,7 @@ SUB handlePoint(isDown AS INTEGER)
                 bet = chips
             END IF
             ui_beep 262, 33   ' 减注：低一点
+' Bet down: a lower tone
             EXIT SUB
         END IF
         IF inRect(b2x, b2y, bw, bwh, rx, ry) = 1 THEN
@@ -636,6 +708,7 @@ SUB handlePoint(isDown AS INTEGER)
                 bet = chips
             END IF
             ui_beep 392, 33   ' 加注：高一点（与减注一耳朵分得出）
+' Bet up: a higher tone (instantly tellable from bet-down by ear)
             EXIT SUB
         END IF
         IF inRect(b3x, b3y, sw - 48, bwh, rx, ry) = 1 THEN
@@ -644,6 +717,7 @@ SUB handlePoint(isDown AS INTEGER)
                 shuffle()
                 dealRound()
                 ui_beep 659, 66   ' 洗牌
+' Shuffle
             END IF
         END IF
         EXIT SUB
@@ -676,6 +750,7 @@ SUB handlePoint(isDown AS INTEGER)
             END IF
             newRound()
             ui_beep 523, 66   ' 新局
+' New round
         END IF
     END IF
 END SUB
@@ -720,6 +795,7 @@ END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主循环
+'  Main loop
 ' ══════════════════════════════════════════════════════════════════════════
 SUB runGame()
     ui_keep_on(1)
@@ -775,14 +851,17 @@ END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  开机自检
+'  Startup self-check
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
     IF LANG = 0 THEN PRINT "── 21 点 · 规则自检 ──" ELSE PRINT "-- Blackjack - rule self-check --"
 
     ' 编码往返
+'    Encoding round-trip
     IF LANG = 0 THEN PRINT "  牌 30 的点数/花色（应 7 / 2）:"; rankOf(30); suitOf(30) ELSE PRINT "  card 30 rank/suit (want 7 / 2):"; rankOf(30); suitOf(30)
 
     ' 手牌点数：A 的两面性
+'    Hand value: the two faces of an ace
     hand(0) = 1 * 4 + 0
     pn = 1
     IF LANG = 0 THEN PRINT "  单张 A（应 11）:"; handValue(0, pn) ELSE PRINT "  single A (want 11):"; handValue(0, pn)
@@ -801,6 +880,7 @@ SUB simCheck()
     IF LANG = 0 THEN PRINT "  A + K + 5（应 16 —— A 仍按 11）:"; handValue(0, pn) ELSE PRINT "  A + K + 5 (want 16 - A stays 11):"; handValue(0, pn)
 
     ' 爆牌
+'    Bust
     hand(0) = 10 * 4 + 0
     hand(1) = 10 * 4 + 0
     hand(2) = 5 * 4 + 0
@@ -808,11 +888,13 @@ SUB simCheck()
     IF LANG = 0 THEN PRINT "  10+10+5（应 25，已爆）:"; handValue(0, pn) ELSE PRINT "  10+10+5 (want 25, bust):"; handValue(0, pn)
 
     ' 庄家规则
+'    Dealer rule
     IF LANG = 0 THEN PRINT "  庄家 16 要不要牌（应 1）:"; dealerHits(16) ELSE PRINT "  dealer hits on 16 (want 1):"; dealerHits(16)
     IF LANG = 0 THEN PRINT "  庄家 17 要不要牌（应 0）:"; dealerHits(17) ELSE PRINT "  dealer hits on 17 (want 0):"; dealerHits(17)
     IF LANG = 0 THEN PRINT "  庄家 21 要不要牌（应 0）:"; dealerHits(21) ELSE PRINT "  dealer hits on 21 (want 0):"; dealerHits(21)
 
     ' 比大小
+'    Compare hands
     IF LANG = 0 THEN PRINT "  玩家 20 庄家 19（应 1=赢）:"; compare(20, 19) ELSE PRINT "  player 20 vs dealer 19 (want 1=win):"; compare(20, 19)
     IF LANG = 0 THEN PRINT "  玩家 18 庄家 19（应 2=输）:"; compare(18, 19) ELSE PRINT "  player 18 vs dealer 19 (want 2=lose):"; compare(18, 19)
     IF LANG = 0 THEN PRINT "  玩家 19 庄家 19（应 3=和）:"; compare(19, 19) ELSE PRINT "  player 19 vs dealer 19 (want 3=push):"; compare(19, 19)
@@ -820,6 +902,7 @@ SUB simCheck()
     IF LANG = 0 THEN PRINT "  庄家爆牌 22 玩家 5（应 1=赢）:"; compare(5, 22) ELSE PRINT "  dealer bust 22 vs player 5 (want 1=win):"; compare(5, 22)
 
     ' 发牌不重样：洗一副，前 10 张互不相同
+'    Dealing without repeats: shuffle a deck, the first 10 cards are all different
     shuffle()
     DIM dup AS INTEGER
     dup = 0
@@ -839,8 +922,10 @@ END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
+'  Main program
 ' ══════════════════════════════════════════════════════════════════════════
 ' 界面语言：**开局查一次**存进 LANG（ui_get_language 是 syscall，别每帧调）
+' UI language: **queried once at startup** and stored in LANG (ui_get_language is a syscall; do not call it every frame)
 LANG = ui_get_language()
 simCheck()
 
