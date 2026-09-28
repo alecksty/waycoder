@@ -103,6 +103,19 @@ codes/
 *.apk
 sync-qr.png
 
+# ── 苹果端构建产物（2026-09-28 补）────────────────────────────────────────────
+# 出自 WayCoder.Maui/build-ios-appstore.sh（与官方 `dotnet publish -p:ArchiveOnBuild=true`）：
+#   .ipa           上架包（内含签名与整个包体，绝不能进库）
+#   .xcarchive     归档中间物
+#   .pkg           Mac App Store 上传格式
+#   .mobileprovision / .p12   描述文件与**私钥** —— 泄漏等于把签名权交出去
+# 流程与取值见 docs/上架AppStore.md。
+*.ipa
+*.xcarchive
+*.pkg
+*.mobileprovision
+*.p12
+
 # VML 本地中间产物（Examples/ 下跑出来的汇编，按需重生，不进版本库）
 *.gen.vml
 
