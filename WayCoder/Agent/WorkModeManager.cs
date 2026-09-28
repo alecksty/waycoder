@@ -118,7 +118,7 @@ public static class WorkModeManager
     {
         return mode switch
         {
-            WorkMode.Plan => """
+            WorkMode.Plan => L.Pick("""
                 # 当前模式：🧠 计划模式
 
                 你当前处于**只读分析/规划模式** —— 只能读、查、规划，不能修改任何代码。
@@ -126,7 +126,15 @@ public static class WorkModeManager
                 你需要：1. 分析需求 2. 探索代码/文档 3. 制定详细执行计划（含涉及文件与验证方式）。
                 用户确认计划后会切换到建造模式执行。
 
-                """,
+                """, """
+                # Current mode: 🧠 Plan mode
+
+                You are in **read-only analysis/planning mode** — you may read, search, and plan, but you must not modify any code.
+                Do not use write_file, edit_file, or any other writing tool; bash is limited to read-only commands (git log/diff/status, ls, cat, …).
+                Your job: 1. analyze the requirement 2. explore code/docs 3. produce a detailed execution plan (including the files involved and how it will be verified).
+                Once the user approves the plan, the session switches to Build mode for execution.
+
+                """),
             _ => "" // Build / Chat：不附加模式提示
         };
     }

@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 
 namespace WayCoder;
 
@@ -123,6 +124,19 @@ public static partial class SelfTest
                 ("标准规则1", SystemPrompt.StandardRule1),
                 ("快速规则1", SystemPrompt.FastModeRule1),
                 ("子智能体纪律", SystemPrompt.SubAgentDiscipline),
+                ("计划模式前缀", WorkModeManager.GetModePrompt(WorkMode.Plan)),
+                ("AgentStatus 压缩中", AgentStatusResolver.Resolve(
+                    new AgentStatusInput(Busy: true, ToolName: null, Compressing: true, WaitingPermission: false,
+                                         WaitingUser: false, WaitingSubagent: false, Mode: WorkMode.Build)).Text),
+                ("AgentStatus 思考中", AgentStatusResolver.Resolve(
+                    new AgentStatusInput(Busy: true, ToolName: null, Compressing: false, WaitingPermission: false,
+                                         WaitingUser: false, WaitingSubagent: false, Mode: WorkMode.Build)).Text),
+                ("AgentStatus 空闲", AgentStatusResolver.Resolve(
+                    new AgentStatusInput(Busy: false, ToolName: null, Compressing: false, WaitingPermission: false,
+                                         WaitingUser: false, WaitingSubagent: false, Mode: WorkMode.Build)).Text),
+                ("AgentStatus 计划模式", AgentStatusResolver.Resolve(
+                    new AgentStatusInput(Busy: false, ToolName: null, Compressing: false, WaitingPermission: false,
+                                         WaitingUser: false, WaitingSubagent: false, Mode: WorkMode.Plan)).Text),
             };
             foreach (var (name, text) in copySurfaces)
             {

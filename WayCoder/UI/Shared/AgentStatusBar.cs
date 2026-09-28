@@ -55,26 +55,29 @@ public static class AgentStatusResolver
 
     public static AgentStatusView Resolve(in AgentStatusInput i)
     {
+        // 文案随界面语言走；**枚举 `Status` 与 `StatusKey` 不动** —— 那才是稳定身份
+        // （Web 序列化/前端按 key 查表），文案只是它的呈现。
         if (i.Compressing)
-            return new(AgentStatus.Compressing, "压缩上下文中...", i.ToolName);
+            return new(AgentStatus.Compressing, L.Pick("压缩上下文中...", "Compacting context..."), i.ToolName);
         if (i.WaitingPermission)
-            return new(AgentStatus.WaitingPermission, "等待确认中...", null);
+            return new(AgentStatus.WaitingPermission, L.Pick("等待确认中...", "Waiting for your confirmation..."), null);
         if (i.Busy)
         {
             // 等待用户/等待子代理：优先显式标志，其次按工具名自动推断（ask_user_question / agent）
             if (i.WaitingUser || i.ToolName == "ask_user_question")
-                return new(AgentStatus.WaitingUser, "等待用户回复中...", null);
+                return new(AgentStatus.WaitingUser, L.Pick("等待用户回复中...", "Waiting for your reply..."), null);
             if (i.WaitingSubagent || i.ToolName == "agent")
-                return new(AgentStatus.WaitingSubagent, "等待子代理完成中...", null);
+                return new(AgentStatus.WaitingSubagent, L.Pick("等待子代理完成中...", "Waiting for sub-agent..."), null);
             if (!string.IsNullOrEmpty(i.ToolName))
-                return new(AgentStatus.ToolRunning, $"使用工具中 {i.ToolName}...", i.ToolName);
-            return new(AgentStatus.Thinking, "思考中...", null);
+                return new(AgentStatus.ToolRunning,
+                    L.Pick($"使用工具中 {i.ToolName}...", $"Running {i.ToolName}..."), i.ToolName);
+            return new(AgentStatus.Thinking, L.Pick("思考中...", "Thinking..."), null);
         }
         if (i.RecentComplete)
-            return new(AgentStatus.Complete, "任务完成 ✓", null);
+            return new(AgentStatus.Complete, L.Pick("任务完成 ✓", "Done ✓"), null);
         if (i.Mode != WorkMode.Build)
-            return new(AgentStatus.Planning, "计划模式 🧠", null);
-        return new(AgentStatus.Idle, "空闲", null);
+            return new(AgentStatus.Planning, L.Pick("计划模式 🧠", "Plan mode 🧠"), null);
+        return new(AgentStatus.Idle, L.Pick("空闲", "Idle"), null);
     }
 
     /// <summary>AOT 安全定名（switch，不反射枚举）：Web 序列化用。</summary>

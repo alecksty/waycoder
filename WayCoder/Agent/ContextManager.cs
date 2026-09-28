@@ -557,7 +557,10 @@ public class ContextManager
                     [
                         JNode.Object()
                             .Set("role", "system")
-                            .Set("content", "你是一个对话压缩器。将以下对话压缩为结构化摘要。" +
+                            // ⚠ 压缩器提示词也要随语言走：它**另起一次模型调用**，若英文会话喂给它中文
+                            //   指令，产出的摘要多半是中文 ⇒ 注回英文上下文后中英混杂。
+                            .Set("content", L.Pick(
+                                          "你是一个对话压缩器。将以下对话压缩为结构化摘要。" +
                                           "必须保留：\n" +
                                           "1. 所有已创建/修改的文件路径及其用途\n" +
                                           "2. 关键 API 签名（方法名、参数、返回类型）\n" +
@@ -568,7 +571,19 @@ public class ContextManager
                                           "7. 项目的命名空间/包结构\n" +
                                           "丢弃：冗长的命令输出、完整代码清单、" +
                                           "重复的来回对话、中间探索过程。\n" +
-                                          "格式：使用 ## 标题分段，列表项用 - 前缀。"),
+                                          "格式：使用 ## 标题分段，列表项用 - 前缀。",
+                                          "You are a conversation compactor. Compress the following conversation into a structured summary. " +
+                                          "You must preserve:\n" +
+                                          "1. Every file path created/modified and what it is for\n" +
+                                          "2. Key API signatures (method names, parameters, return types)\n" +
+                                          "3. Data models / class structures (fields, relationships)\n" +
+                                          "4. Architectural decisions made and why\n" +
+                                          "5. Errors encountered and how they were fixed\n" +
+                                          "6. Unfinished tasks and the next steps\n" +
+                                          "7. The project's namespace/package structure\n" +
+                                          "Discard: verbose command output, full code listings, " +
+                                          "repetitive back-and-forth, intermediate exploration.\n" +
+                                          "Format: section headings with ##, list items prefixed with -.")),
                         JNode.Object().Set("role", "user").Set("content", TruncateByRunes(flat, 20000)),
                     ]
                 );

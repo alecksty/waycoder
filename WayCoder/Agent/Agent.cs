@@ -332,7 +332,10 @@ public partial class Agent
             // 项目知识库 RAG：注入与本目标最相关的项目文档/代码片段（与任务无关时忽略）
             if (!string.IsNullOrEmpty(_kbContext))
             {
-                systemContent += "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档/代码片段（与任务无关时忽略）：\n" + _kbContext + "\n</project_knowledge>";
+                systemContent += L.Pick(
+                    "\n\n<project_knowledge>\n以下是与当前目标最相关的项目文档/代码片段（与任务无关时忽略）：\n",
+                    "\n\n<project_knowledge>\nThe following project docs/code snippets are the most relevant to the current goal (ignore them if unrelated):\n")
+                    + _kbContext + "\n</project_knowledge>";
             }
 
             // 空 system 内容不注入（Chat 模式整块跳过、不生成任何提示词）
@@ -376,7 +379,9 @@ public partial class Agent
         if (string.IsNullOrEmpty(taskGoal))
             return "";
 
-        var guard = "\n\n<current_goal>\n你当前的任务目标（务必始终围绕它推进，不要偏离到无关工作）：\n"
+        var guard = L.Pick(
+            "\n\n<current_goal>\n你当前的任务目标（务必始终围绕它推进，不要偏离到无关工作）：\n",
+            "\n\n<current_goal>\nYour current task goal (stay focused on it; do not drift into unrelated work):\n")
             + taskGoal + "\n</current_goal>";
 
         if (currentRound < GoalReinforceRound)
@@ -385,17 +390,27 @@ public partial class Agent
         var manifest = BuildFileManifest(fileManifest);
         if (currentRound >= GoalReinforceStrongRound)
         {
-            guard += "\n\n<goal_check>\n⚠️ 你已连续执行超过 " + GoalReinforceStrongRound +
-                " 轮，远超常规任务轮次，很可能已跑偏。请立即对照 <current_goal> 逐条核对：" +
-                manifest +
-                "\n若当前工作与目标无直接关系，立即停下回到目标；若目标已达成，请停止并输出总结，不要再开启新工作。\n</goal_check>";
+            guard += L.Pick(
+                "\n\n<goal_check>\n⚠️ 你已连续执行超过 " + GoalReinforceStrongRound +
+                " 轮，远超常规任务轮次，很可能已跑偏。请立即对照 <current_goal> 逐条核对：",
+                "\n\n<goal_check>\n⚠️ You have been running for more than " + GoalReinforceStrongRound +
+                " rounds, far beyond a normal task. You have likely drifted. Check against <current_goal> now, item by item:")
+                + manifest
+                + L.Pick(
+                    "\n若当前工作与目标无直接关系，立即停下回到目标；若目标已达成，请停止并输出总结，不要再开启新工作。\n</goal_check>",
+                    "\nIf the current work is not directly related to the goal, stop and return to it; if the goal is already met, stop and summarize — do not start new work.\n</goal_check>");
         }
         else
         {
-            guard += "\n\n<goal_check>\n你已连续执行超过 " + GoalReinforceRound +
-                " 轮。请对照 <current_goal> 核对：当前工作是否仍与目标直接相关？" +
-                manifest +
-                "若已偏离，立即回到目标；若目标已达成，请停止并输出总结。\n</goal_check>";
+            guard += L.Pick(
+                "\n\n<goal_check>\n你已连续执行超过 " + GoalReinforceRound +
+                " 轮。请对照 <current_goal> 核对：当前工作是否仍与目标直接相关？",
+                "\n\n<goal_check>\nYou have been running for more than " + GoalReinforceRound +
+                " rounds. Check against <current_goal>: is the current work still directly relevant?")
+                + manifest
+                + L.Pick(
+                    "若已偏离，立即回到目标；若目标已达成，请停止并输出总结。\n</goal_check>",
+                    "If you have drifted, return to the goal; if the goal is met, stop and summarize.\n</goal_check>");
         }
 
         return guard;
