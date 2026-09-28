@@ -55,6 +55,10 @@ BLOCK_COMMENT = {  # (开, 闭)
     ".kt": [("/*", "*/")], ".dart": [("/*", "*/")], ".d": [("/*", "*/")],
     ".pas": [("{", "}"), ("(*", "*)")],
     ".fth": [("(", ")")],
+    # ⚠ `.ld`（Ladder）**两种注释都有**：行注释 `#` + 块注释 `(* … *)`。
+    #   只登记了前者 ⇒ 文件头那段 `(* … *)` 里的中文被当成"用户可见字符串"，
+    #   实测 `ladder/demo_std.ld` 误报 4 处（行 4、6、13、13）。
+    ".ld": [("(*", "*)")],
     ".scm": [("#|", "|#")],
 }
 
@@ -108,7 +112,8 @@ def audit(path, ext):
             lit = m.group(1) if m.group(1) is not None else m.group(2)
             if lit and CJK.search(lit):
                 # 已经是「按语言分支」的写法就不再算问题
-                if re.search(r"lang\s*[=!]=\s*0|LANG\s*=\s*0|\bif\s+lang\b", line, re.I):
+                if re.search(r"lang\s*[=!]=\s*0|LANG\s*=\s*0|\bif\s+lang\b"
+                             r"|LANG\s*@\s*0=", line, re.I):
                     continue
                 hits.append((i, lit))
     return hits
