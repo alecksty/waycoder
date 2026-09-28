@@ -51,6 +51,25 @@ public static class SystemPrompt
     static string AppendTeachBlock(string prompt)
         => Config.Instance.TeachModeEnabled ? prompt + TeachBlock : prompt;
 
+    // ── 「项目记忆」小节的文案 —— **单一真源，且必须跟语言走** ──
+    // ⚠ 这三句此前是硬编码中文，而 `memorySection` 会被注入**两份**模板里
+    //   （中文模板的 `__MEMORY__` 与**英文模板**的 `__MEMORY__`）⇒ 英文界面下
+    //   system 消息里躺着一个中文小标题。而现有那条「英文模板无 CJK」护栏**抓不到它** ——
+    //   小节是在模板**之外**拼好、再 `.Replace("__MEMORY__", …)` 注进去的
+    //   （与 `s_templateEn` 那份「模板本体」断言是两条不同的路）。
+    //   抽成属性而不是就地塞 `L.Pick`：这样护栏能直接断言它们，改一处即可全改。
+
+    /// <summary>「项目记忆」小节标题（带自动匹配条数）。</summary>
+    internal static string MemoryHeading(int topN)
+        => L.Pick($"# 项目记忆（自动匹配 {topN} 条）", $"# Project memory (top {topN} auto-matched)");
+
+    /// <summary>「项目记忆」小节标题（回退路径，无语义检索、直接列最近几条时用）。</summary>
+    internal static string MemoryHeadingPlain => L.Pick("# 项目记忆", "# Project memory");
+
+    /// <summary>记忆因过长被截断时，接在正文末尾的提示。</summary>
+    internal static string MemoryTruncatedHint
+        => L.Pick("\n...（记忆已截断）", "\n...(memory truncated)");
+
     public static string Generate(List<ITool> tools)
     {
         if (Config.Instance.TinyMode) return GenerateTiny(tools);
@@ -117,7 +136,7 @@ public static class SystemPrompt
             if (!string.IsNullOrWhiteSpace(relevantMemory))
                 memorySection = $"""
 
-                # 项目记忆（自动匹配 {config.MemoryRelevanceTopN} 条）
+                {MemoryHeading(config.MemoryRelevanceTopN)}
                 {relevantMemory}
                 """;
         }
@@ -131,10 +150,10 @@ public static class SystemPrompt
                     var memory = string.Join("\n", all.Take(5)
                         .Select(e => $"- {e.Description}: {e.Content}"));
                     if (memory.Length > 1500)
-                        memory = ContextManager.TruncateByRunes(memory, 1500) + "\n...（记忆已截断）";
+                        memory = ContextManager.TruncateByRunes(memory, 1500) + MemoryTruncatedHint;
                     memorySection = $"""
 
-                        # 项目记忆
+                        {MemoryHeadingPlain}
                         {memory}
                         """;
                 }

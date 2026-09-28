@@ -37,7 +37,19 @@ More information: https://aka.ms/maui-privacy-manifest
             </array>
         </dict>
         <!--
-            The entry below is only needed when you're using the Preferences API in your app.
+            本 App **确实**用 Preferences API，所以这一条**必须开** —— MAUI 模板默认把它注释掉、
+            注明「只有用 Preferences API 时才需要」，于是很容易被当成"模板里的可选样例"漏过去。
+            实测：WayCoder.Maui 下 `Preferences.Get/Set/ContainsKey` 共 35 处
+            （MauiCompileStore 编译开关、MauiSessions 当前会话 id、MauiShellStore 字号/行列/回滚、
+            MauiVmStatusStore 面板形态、MauiEditorStore 字号、VmlHostRuntime 的 `vml.` 前缀存档），
+            而 iOS 上 `Preferences` 就是 `NSUserDefaults`。
+            缺声明的后果：提交时被苹果的自动化检查拦下（ITMS-91053: Missing API declaration），
+            **构建全绿、只有上传才报**。
+
+            理由码 CA92.1 = 「读写只有本 App 自己能访问的 user defaults」——
+            本 App 的 Preferences 全部落在自己的容器里，不涉及 App Group / 第三方 SDK，故用这一条。
+            新增任何走 App Group 或第三方 SDK 的存储时，要另加对应条目（1C8F.1 / C56D.1）。
+        -->
         <dict>
             <key>NSPrivacyAccessedAPIType</key>
             <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
@@ -45,7 +57,14 @@ More information: https://aka.ms/maui-privacy-manifest
             <array>
                 <string>CA92.1</string>
             </array>
-        </dict> -->
+        </dict>
     </array>
+
+    <!-- 本 App 不做跨 App/跨站点的追踪，也不含追踪域。显式声明（苹果建议写出，
+         缺省虽等同于 false，但写出来审核时不必再问一轮）。 -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
 </dict>
 </plist>

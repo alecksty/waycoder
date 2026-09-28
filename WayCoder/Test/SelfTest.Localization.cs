@@ -153,6 +153,12 @@ public static partial class SelfTest
                 // 抽出的标题、路径、符号名）—— 整份断言会被自己仓库的文档标题判成漏译（实测踩到）。
                 // 它单独断言**模板本体**，见下面那两条。
                 ("Architect 英文模板", SystemPrompt.EnglishArchitectTemplateForTest),
+                // 「项目记忆」小节的三句 —— ⚠ 它们**不在**模板里，是拼好之后 `.Replace("__MEMORY__")`
+                //   注进去的，所以上面那条「模板本体无 CJK」的断言**结构上抓不到**英文界面下
+                //   被塞进来的中文小标题（实测漏了：`# 项目记忆（自动匹配 N 条）`）。
+                ("记忆小节标题", SystemPrompt.MemoryHeading(5)),
+                ("记忆小节标题·回退", SystemPrompt.MemoryHeadingPlain),
+                ("记忆截断提示", SystemPrompt.MemoryTruncatedHint),
                 // 有效期展示（ApiKeyStore.ExpiryText）—— 三态各自成形：永久 / 剩 N 天 / 已过期。
                 // 它原先硬编码中文，消费方是 --model key 的输出（手机命令行页也能看到）。
                 ("ApiKeyStore 有效期·永久", ApiKeyStore.ExpiryText(null)),
@@ -229,6 +235,30 @@ public static partial class SelfTest
                 }
                 finally { L.Set(UiLang.En); }
             }
+
+            // ── `/help` 的别名列：英文界面下不得列出中文别名 ──
+            // 别名是**输入键不是文案**（翻不得：翻了砸中文用户的肌肉记忆），但英文界面里列出
+            // `/接手` `/续跑` 这种也没用 —— 看不懂，还把能用的 `/handoff` 挤到看不见。
+            // 规则：中文界面全列；英文界面滤掉含中日韩的。**滤的只是显示，敲照旧有效**。
+            {
+                string[] mixed = ["/接手", "/续跑", "/handoff"];
+                var en = SlashCommandRegistry.FilterAliasesForDisplay(mixed);
+                Check("别名列[en]: 滤掉中文别名，保留英文别名",
+                    en.Length == 1 && en[0] == "/handoff");
+                // 反方向：纯英文别名一个都不能少（滤过头 = 用户看不见可用的别名）
+                var pureEn = SlashCommandRegistry.FilterAliasesForDisplay(["/perm", "/permissions"]);
+                Check("别名列[en]: 纯英文别名原样保留", pureEn.Length == 2);
+                // 只有中文别名的命令：英文界面下别名列**空着**（不是显示中文）
+                Check("别名列[en]: 只有中文别名时列为空",
+                    SlashCommandRegistry.FilterAliasesForDisplay(["/免费"]).Length == 0);
+            }
+            L.Set(UiLang.Zh);
+            try
+            {
+                var zh = SlashCommandRegistry.FilterAliasesForDisplay(["/接手", "/续跑", "/handoff"]);
+                Check("别名列[zh]: 中文界面**全列**（那些别名正是给中文用户看的）", zh.Length == 3);
+            }
+            finally { L.Set(UiLang.En); }
 
             // 教学模式块是**按开关追加**的，单独取一次（默认不开，上面那条走不到它）
             var teach = SystemPrompt.TeachBlockForTest;

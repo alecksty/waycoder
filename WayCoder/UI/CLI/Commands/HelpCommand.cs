@@ -16,7 +16,15 @@ public class HelpCommand : SlashCommand
         // 且左列用 cmd.Usage（部分超长）导致各行长度失控。改为：短名(Name+别名) 一列 + 描述一列，
         // 按 DisplayWidth 补空格（码点/代理对安全），仅 DisplayWidth 而非常规 String.Length。
         var all = SlashCommandRegistry.Commands
-            .Select(c => (Cmd: c, Name: c.Name, Alias: c.Aliases.Length > 0 ? $"({string.Join(", ", c.Aliases)})" : "", Desc: c.Description))
+            // ⚠ 别名列走 `DisplayAliases`（英文界面滤掉中文别名）—— 别名是输入键不能翻，
+            //   但也不该在英文界面里列出一串看不懂的字。见 SlashCommandRegistry.DisplayAliases。
+            .Select(c =>
+            {
+                var aliases = SlashCommandRegistry.DisplayAliases(c);
+                return (Cmd: c, Name: c.Name,
+                        Alias: aliases.Length > 0 ? $"({string.Join(", ", aliases)})" : "",
+                        Desc: c.Description);
+            })
             .ToList();
 
         // 界面导航命令（移动端 MauiCommands.PageNav/OpenAnyCommand，IsNavCommand=true）单独成组置顶；

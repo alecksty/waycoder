@@ -1,3 +1,67 @@
+## v0.96.567 — 双语化：把范围收紧到「iOS 用户能看见的」，并清掉三处漏网（自测 7008/0）
+
+用户定的新范围：**只做 MAUI 用到的、iOS 用户能看见的翻译；看不见的不管**；并且
+**斜杠命令面（含 `/`、`@`、`#`、`!` 前缀）一律英文、不翻译**。
+
+**先分类，再动手** —— 对台账里 85 个「裸行」（没人判过）按 5 个域并行做了**可达性判定**，
+把「还剩多少」从外推变成了一张封闭清单（每处都有 `文件:行号` + 它走哪条通道上屏）：
+
+| iOS 可见面 | 处数 |
+|---|---|
+| `Config/Config.Schema.cs`（`/config` 输出） | 333 |
+| `Config/ConnectionConfig.cs` 等 6 文件 | 39 |
+| `Tools/AgentTool.cs` 子智能体标记 | 6 |
+| `Agent/SystemPrompt.cs` 记忆小节标题 | 3 |
+| `Tools/EditFileTool.cs` | 2 |
+| `Tools/RmTool.cs` | 1 |
+| Infra 域 13 文件 / Agent 域 14 文件 / Tools 与 UI-Shared 24 文件 | **0**（全为日志、dump 文本、输入关键词表、内部判据、死代码） |
+
+判定推翻了我自己两个结论：① **`Config.Schema.cs` 不是「手机不显示」** —— 静态消费确实为零，
+但 `/config` 被编进 MAUI、经 `SlashCommand.RegisterAll()` 注册、输出走 `AddSystemMsg` 进聊天流；
+② **`AgentTool` 的子智能体标记在手机上是可见的**（工具返回值全文进聊天，`ToolOutputFormatter` 不剥标记），
+我原以为「只在桌面 TUI 成立」。
+
+**本版修掉的三处漏网**
+
+- **英文提示词里被塞中文小标题**（`SystemPrompt.cs`）：`# 项目记忆（自动匹配 N 条）` /
+  `# 项目记忆` / `...（记忆已截断）` 三句硬编码中文，而 `memorySection` 会被注入**两份**模板
+  （含 `s_templateEn`）⇒ 英文会话的 system 消息里躺着一个中文小标题。
+  ⚠ 现有那条「英文模板无 CJK」护栏**结构上抓不到它**（小节在模板**之外**拼好再 `.Replace("__MEMORY__")` 注入）。
+  抽成 `MemoryHeading(n)` / `MemoryHeadingPlain` / `MemoryTruncatedHint` 单一真源并入护栏。
+- **`/help` 在英文界面下列出中文别名**（`/接手` `/续跑` `/退出` `/架构师`… 16 个）：
+  别名是**输入键不是文案**，翻不得；但列出来也没用（看不懂，还把能用的 `/handoff` 挤到看不见）。
+  新增 `SlashCommandRegistry.FilterAliasesForDisplay`：**中文界面全列、英文界面滤掉含中日韩的**；
+  **只滤显示** —— `SlashMatcher` / 注册索引照旧吃全部别名，敲 `/退出` 仍然有效。
+
+**顺手补上的一处 App Store 合规缺口（与本轮范围同源：iOS 用户/审核员能看到的）**
+
+- **隐私清单漏声明 `NSPrivacyAccessedAPICategoryUserDefaults`**：MAUI 模板默认把这条注释掉、
+  注明「只有用 Preferences API 时才需要」——**而本 App 确实在用**（`WayCoder.Maui` 下
+  `Preferences.Get/Set/ContainsKey` 共 **35 处**：编译开关、当前会话 id、字号/行列/回滚、
+  VML 面板形态、`vml.` 前缀存档），而 iOS 上 `Preferences` 就是 `NSUserDefaults`。
+  缺声明的后果是**提交时被苹果的自动化检查拦下**（ITMS-91053: Missing API declaration）——
+  **构建全绿，只有上传才报**。补齐（理由码 `CA92.1`），并显式声明 `NSPrivacyTracking=false`
+  与空的 `NSPrivacyTrackingDomains`。
+- 同时复核了 iOS/MacCatalyst 的本地化打包（当年那个「lproj 建了但从没进过包」的坑）：
+  用 `dotnet msbuild -getItem:BundleResource` 直读条目表确认两份 `InfoPlist.strings`
+  的 `LogicalName` 正是 bundle 根的 `en.lproj\` / `zh-Hans.lproj\`，`PrivacyInfo.xcprivacy`
+  也在包里（`LogicalName=PrivacyInfo.xcprivacy`）。
+
+**护栏**：新增 7 条（记忆小节三句的中英双认、别名列的四条含「只有中文别名时列为空」与
+反方向「纯英文别名一个都不能少」）。
+
+**规模**：自测 **7008 通过 / 0 失败**。
+
+**下一步（已定，尚未做）**
+1. `Config/ConnectionConfig.cs` 等 39 处 + `AgentTool` 6 处 + `EditFileTool`/`RmTool` 3 处。
+2. `Config.Schema.cs` 333 处 —— ⚠ 结构前提：`_schema` 是 `static readonly`，
+   就地塞 `L.Pick` 会**把语言冻在首次访问那一刻**（公理 A3）⇒ 必须先改成按语言缓存的属性
+   （`RepoMapGenerator._cacheLang` 那个形态），再翻。
+3. 发布例程的注释双语化（**同文件内中英两段**，不做孪生文件）—— 只针对进包的
+   `Examples/**`（实测 264 个源码类示例、其中 209 个含中文）。
+4. `ui_get_language()` 新 syscall（用户提）—— 让例程能按系统语言决定显示中/英。
+
+---
 ## v0.96.566 — 双语化：修掉一批「拿文案当判据」的静默缺陷（自测 6997/0）
 
 这一版**翻的文案不多（ModelCli 家族 149 处 + 有效期展示），但修的都是会静默坏功能的缺陷**。

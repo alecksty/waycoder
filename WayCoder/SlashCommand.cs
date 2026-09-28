@@ -211,6 +211,31 @@ public static class SlashCommandRegistry
         ApplyEndCommands(PluginRegistry.CollectCommands());
     }
 
+    /// <summary>别名里是否含中日韩字符（基本区，与仓库其它 CJK 判据同一区间）。</summary>
+    static bool HasCjk(string s) => s.Any(c => c is >= '一' and <= '鿿');
+
+    /// <summary>
+    /// 用于**显示**的别名（`/help` 表格的左列）。
+    ///
+    /// <para>
+    /// 别名是**输入键，不是文案** —— 所以不能翻译（翻了砸中文用户的肌肉记忆，
+    /// 而且这些别名本来就是"给中文用户少打字"才存在的）。但**英文界面下列出来也没用**：
+    /// 那是一串看不懂的字，还把真正能用的英文别名挤到看不见。
+    /// 于是按语言分流：**中文界面全列；英文界面滤掉含中日韩的那几个**。
+    /// 滤掉的只是**显示**，敲 `/退出` 照旧有效。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 判据是 `L.IsZh`，**不是"有没有 CJK"** —— 中文界面下那些别名正是要给用户看的。
+    /// ⚠ 别把本方法的返回值喂给匹配/补全（`AllNames` / `SlashMatcher` 照旧吃全部别名）。
+    /// </para>
+    /// </summary>
+    public static string[] DisplayAliases(ISlashCommand cmd) => FilterAliasesForDisplay(cmd.Aliases);
+
+    /// <summary>别名显示规则的**纯函数形态**（自测直接钉住规则本身，不必造命令对象）。</summary>
+    internal static string[] FilterAliasesForDisplay(string[] aliases)
+        => L.IsZh ? aliases : aliases.Where(a => !HasCjk(a)).ToArray();
+
     /// <summary>所有命令名（主名 + 别名），用于拼写纠错和 Tab 补全</summary>
     public static string[] AllNames
     {
