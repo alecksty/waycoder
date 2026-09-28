@@ -25,7 +25,8 @@ public class SymbolsTool : ITool
     {
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(name))
-            return Task.FromResult("错误：请提供要查找的符号名。");
+            return Task.FromResult(L.Pick("错误：请提供要查找的符号名。",
+                                          "Error: please provide the symbol name to look up."));
 
         string? root = null;
         var path = arguments.GetValueOrDefault("path")?.ToString();
@@ -36,7 +37,8 @@ public class SymbolsTool : ITool
         {
             var locations = RepoMapGenerator.FindSymbol(name, root);
             if (locations.Count == 0)
-                return Task.FromResult($"未找到符号「{name}」。");
+                return Task.FromResult(L.Pick($"未找到符号「{name}」。",
+                                              $"Symbol \"{name}\" not found."));
 
             var sb = new StringBuilder();
             foreach (var loc in locations)
@@ -45,7 +47,8 @@ public class SymbolsTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"错误：符号查询失败 — {ex.Message}");
+            return Task.FromResult(L.Pick($"错误：符号查询失败 — {ex.Message}",
+                                          $"Error: symbol lookup failed - {ex.Message}"));
         }
     }
 }

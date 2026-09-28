@@ -47,12 +47,12 @@ public sealed record ShellCommand(
     /// <summary>参数个数要求的人话描述（错误提示里用）。</summary>
     public string ArgsRequirement => (MinArgs, MaxArgs) switch
     {
-        (0, -1) => "参数不限",
-        (0, 0) => "不带参数",
-        (0, var max) => $"最多 {max} 个参数",
-        (var min, -1) => $"至少 {min} 个参数",
-        (var min, var max) when min == max => $"恰好 {min} 个参数",
-        (var min, var max) => $"{min}~{max} 个参数",
+        (0, -1) => L.Pick("参数不限", "any number of arguments"),
+        (0, 0) => L.Pick("不带参数", "no arguments"),
+        (0, var max) => L.Pick($"最多 {max} 个参数", $"at most {max} argument(s)"),
+        (var min, -1) => L.Pick($"至少 {min} 个参数", $"at least {min} argument(s)"),
+        (var min, var max) when min == max => L.Pick($"恰好 {min} 个参数", $"exactly {min} argument(s)"),
+        (var min, var max) => L.Pick($"{min}~{max} 个参数", $"{min}~{max} arguments"),
     };
 }
 
@@ -125,10 +125,12 @@ public sealed class ShellCommandRegistry
     public string HelpText()
     {
         var sb = new StringBuilder();
-        sb.Append("本页命令（其余输入按 shell 命令执行，用法看它们自己的 --help）：\n");
+        sb.Append(L.Pick("本页命令（其余输入按 shell 命令执行，用法看它们自己的 --help）：\n",
+            "Commands on this page (anything else runs as a shell command; see their own --help for usage):\n"));
         foreach (var c in _commands)
             sb.Append($"  {c.Usage,-32} {c.Summary}\n");
-        sb.Append("\n提示：任何一条都可以 `命令 -h` 看详细用法；`help <命令>` 等价。");
+        sb.Append(L.Pick("\n提示：任何一条都可以 `命令 -h` 看详细用法；`help <命令>` 等价。",
+            "\nTip: append `-h` to any command for details; `help <command>` is equivalent."));
         return sb.ToString();
     }
 
@@ -136,7 +138,8 @@ public sealed class ShellCommandRegistry
     public string UsageOf(ShellCommand c)
     {
         var detail = string.IsNullOrEmpty(c.Detail) ? c.Summary : c.Detail;
-        return $"用法：{c.Usage}\n      {detail}\n      参数：{c.ArgsRequirement}";
+        return L.Pick($"用法：{c.Usage}\n      {detail}\n      参数：{c.ArgsRequirement}",
+            $"Usage: {c.Usage}\n      {detail}\n      Args: {c.ArgsRequirement}");
     }
 
     /// <summary>
@@ -150,14 +153,16 @@ public sealed class ShellCommandRegistry
     public string? Validate(ShellCommand c, IReadOnlyList<string> args)
     {
         if (args.Count < c.MinArgs)
-            return $"⚠️ `{c.Name}` 至少需要 {c.MinArgs} 个参数（给了 {args.Count} 个）。\n{UsageOf(c)}";
+            return L.Pick($"⚠️ `{c.Name}` 至少需要 {c.MinArgs} 个参数（给了 {args.Count} 个）。\n{UsageOf(c)}",
+                $"⚠️ `{c.Name}` needs at least {c.MinArgs} argument(s), got {args.Count}.\n{UsageOf(c)}");
 
         if (c.MaxArgs >= 0 && args.Count > c.MaxArgs)
         {
             var how = c.MaxArgs == 0
-                ? $"`{c.Name}` 不带参数"
-                : $"`{c.Name}` 最多 {c.MaxArgs} 个参数";
-            return $"⚠️ {how}（给了 {args.Count} 个）。\n{UsageOf(c)}";
+                ? L.Pick($"`{c.Name}` 不带参数", $"`{c.Name}` takes no arguments")
+                : L.Pick($"`{c.Name}` 最多 {c.MaxArgs} 个参数", $"`{c.Name}` takes at most {c.MaxArgs} argument(s)");
+            return L.Pick($"⚠️ {how}（给了 {args.Count} 个）。\n{UsageOf(c)}",
+                $"⚠️ {how} ({args.Count} given).\n{UsageOf(c)}");
         }
         return null;
     }

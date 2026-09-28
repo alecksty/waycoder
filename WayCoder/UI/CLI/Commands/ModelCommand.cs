@@ -22,7 +22,7 @@ public class ModelCommand : SlashCommand
 {
     public override string Name => "/model";
     public override string[] Aliases => ["/m"];
-    public override string Description => "模型管理：模型目录 + 大/小模型选择（切换 = 切换 connect）";
+    public override string Description => L.Pick("模型管理：模型目录 + 大/小模型选择（切换 = 切换 connect）", "Model management: model catalog + big/small model selection (switching = switching connect)");
     public override string? Usage => "/model [<id> | select <id> | small <id> | list [filter] | add <id> [pid] [baseUrl] | rm <id> | test | import [source] | slot <N> <large|small> <id> | uniform <id>]";
 
     /// <summary>把选中模型应用到当前 Agent 运行时（重配 LlmClient）。</summary>
@@ -55,17 +55,17 @@ public class ModelCommand : SlashCommand
             {
                 if (pick.NeedsApiKey && !string.IsNullOrEmpty(pick.ProviderId))
                 {
-                    var key = UxHelper.Secret($"🔑 输入 {pick.ProviderId} 的 API Key（输入不可见，Enter 确认）:");
+                    var key = UxHelper.Secret(L.Pick($"🔑 输入 {pick.ProviderId} 的 API Key（输入不可见，Enter 确认）:", $"🔑 Enter the API key for {pick.ProviderId} (input hidden, press Enter to confirm):"));
                     if (string.IsNullOrWhiteSpace(key))
                     {
-                        screen.AddSystemMsg("❌ 未输入 API Key，已取消");
+                        screen.AddSystemMsg(L.Pick("❌ 未输入 API Key，已取消", "❌ No API key entered; cancelled"));
                         return Task.CompletedTask;
                     }
                     ApiKeyStore.Set(pick.ProviderId, key);
                 }
                 ModelPicker.Apply(pick.ModelId, pick.IsLarge, pick.TargetSlot);
                 ApplyRuntime(pick.ModelId, pick.ProviderId);
-                screen.AddSystemMsg($"✅ 已切换{(pick.IsLarge ? "大" : "小")}模型: {pick.ModelId}");
+                screen.AddSystemMsg(L.Pick($"✅ 已切换{(pick.IsLarge ? "大" : "小")}模型: {pick.ModelId}", $"✅ Switched the {(pick.IsLarge ? "big" : "small")} model: {pick.ModelId}"));
             }
             return Task.CompletedTask;
         }
@@ -151,7 +151,7 @@ public class ModelCommand : SlashCommand
     {
         if (string.IsNullOrWhiteSpace(modelId))
         {
-            screen.AddSystemMsg("用法: /model select <modelId>");
+            screen.AddSystemMsg(L.Pick("用法: /model select <modelId>", "Usage: /model select <modelId>"));
             return;
         }
         var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
@@ -189,7 +189,7 @@ public class ModelCommand : SlashCommand
     {
         if (string.IsNullOrWhiteSpace(modelId))
         {
-            screen.AddSystemMsg("用法: /model small <modelId>");
+            screen.AddSystemMsg(L.Pick("用法: /model small <modelId>", "Usage: /model small <modelId>"));
             return;
         }
         var info = ModelCatalog.Find(modelId.Trim()) ?? ModelCatalog.Search(modelId.Trim()).FirstOrDefault();
@@ -277,7 +277,7 @@ public class ModelCommand : SlashCommand
     static void ResetSlots(ChatScreen screen)
     {
         AgentSlotConfig.ResetAll();
-        screen.AddSystemMsg("✅ 已清空全部槽位模型设置（uniform + F1-F10）——所有槽位回用全局默认连接（大/小模型取 state）");
+        screen.AddSystemMsg(L.Pick("✅ 已清空全部槽位模型设置（uniform + F1-F10）——所有槽位回用全局默认连接（大/小模型取 state）", "✅ Cleared the model settings for all slots (uniform + F1-F10) — every slot falls back to the global default connection (big/small models come from state)"));
     }
 
     static void SetUniform(ChatScreen screen, string modelId)
@@ -481,7 +481,7 @@ public class ModelCommand : SlashCommand
         var parts = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
         {
-            screen.AddSystemMsg("用法: /model add <id> [providerId] [baseUrl]\n例: `/model add my-model deepseek https://api.deepseek.com/v1`");
+            screen.AddSystemMsg(L.Pick("用法: /model add <id> [providerId] [baseUrl]\n例: `/model add my-model deepseek https://api.deepseek.com/v1`", "Usage: /model add <id> [providerId] [baseUrl]\nExample: `/model add my-model deepseek https://api.deepseek.com/v1`"));
             return;
         }
         screen.AddSystemMsg(ModelCli.AddModel(parts[0],
@@ -494,7 +494,7 @@ public class ModelCommand : SlashCommand
     {
         if (string.IsNullOrWhiteSpace(args))
         {
-            screen.AddSystemMsg("用法: /model rm <modelId>");
+            screen.AddSystemMsg(L.Pick("用法: /model rm <modelId>", "Usage: /model rm <modelId>"));
             return;
         }
         screen.AddSystemMsg(ModelCli.Remove(args.Trim()));

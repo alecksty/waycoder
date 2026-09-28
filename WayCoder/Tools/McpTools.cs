@@ -89,11 +89,12 @@ internal class McpTool : ITool
 
         var resp = await _connection.SendRequestAsync("tools/call", @params);
         if (resp == null)
-            return $"错误: MCP {_serverName}/{toolName} 调用超时";
+            return L.Pick($"错误: MCP {_serverName}/{toolName} 调用超时", $"Error: MCP {_serverName}/{toolName} call timed out");
 
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName}/{toolName} — {error["message"]?.AsString() ?? "未知错误"}";
+            return L.Pick($"错误: MCP {_serverName}/{toolName} — {error["message"]?.AsString() ?? "未知错误"}",
+                          $"Error: MCP {_serverName}/{toolName} — {error["message"]?.AsString() ?? "unknown error"}");
 
         var result = resp["result"];
         var content = result?["content"];
@@ -104,7 +105,7 @@ internal class McpTool : ITool
             return string.Join("\n", texts);
         }
 
-        return result?.ToJson() ?? "(空结果)";
+        return result?.ToJson() ?? L.Pick("(空结果)", "(empty result)");
     }
 }
 
@@ -168,7 +169,7 @@ internal class McpResourceTool : ITool
 
         var listResp = await _connection.SendRequestAsync("resources/list", JNode.Object());
         var resources = listResp?["result"]?["resources"];
-        if (resources == null || resources.Count == 0) return "(无资源)";
+        if (resources == null || resources.Count == 0) return L.Pick("(无资源)", "(no resources)");
 
         var sb = new StringBuilder();
         foreach (var r in resources.Items)
@@ -185,13 +186,14 @@ internal class McpResourceTool : ITool
 
     private string FormatReadResult(JNode? resp, string uri)
     {
-        if (resp == null) return $"错误: MCP {_serverName} 读取资源 {uri} 超时";
+        if (resp == null) return L.Pick($"错误: MCP {_serverName} 读取资源 {uri} 超时", $"Error: MCP {_serverName} timed out reading resource {uri}");
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.AsString() ?? "未知错误"}";
+            return L.Pick($"错误: MCP {_serverName} 读取资源 {uri} — {error["message"]?.AsString() ?? "未知错误"}",
+                          $"Error: MCP {_serverName} failed to read resource {uri} — {error["message"]?.AsString() ?? "unknown error"}");
 
         var contents = resp["result"]?["contents"];
-        if (contents == null) return "(空资源)";
+        if (contents == null) return L.Pick("(空资源)", "(empty resource)");
 
         var sb = new StringBuilder();
         foreach (var c in contents.Items)
@@ -199,11 +201,11 @@ internal class McpResourceTool : ITool
             var text = c["text"]?.AsString();
             if (text != null) { sb.Append(text); continue; }
             var blob = c["blob"]?.AsString();
-            if (blob != null) { sb.Append($"[二进制 blob, base64 {blob.Length} 字符]"); continue; }
+            if (blob != null) { sb.Append(L.Pick($"[二进制 blob, base64 {blob.Length} 字符]", $"[binary blob, base64 {blob.Length} chars]")); continue; }
             var nestedUri = c["uri"]?.AsString();
-            if (nestedUri != null) { sb.Append($"[嵌套资源: {nestedUri}]"); continue; }
+            if (nestedUri != null) { sb.Append(L.Pick($"[嵌套资源: {nestedUri}]", $"[nested resource: {nestedUri}]")); continue; }
         }
-        return sb.Length > 0 ? sb.ToString() : "(空资源)";
+        return sb.Length > 0 ? sb.ToString() : L.Pick("(空资源)", "(empty resource)");
     }
 }
 
@@ -261,14 +263,15 @@ internal class McpPromptTool : ITool
             .Set("arguments", Json.Parse(JsonHelper.SerializeArgs(arguments))!);
 
         var resp = await _connection.SendRequestAsync("prompts/get", @params);
-        if (resp == null) return $"错误: MCP {_serverName} 提示词 {promptName} 调用超时";
+        if (resp == null) return L.Pick($"错误: MCP {_serverName} 提示词 {promptName} 调用超时", $"Error: MCP {_serverName} prompt {promptName} call timed out");
 
         var error = resp["error"];
         if (error != null)
-            return $"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.AsString() ?? "未知错误"}";
+            return L.Pick($"错误: MCP {_serverName} 提示词 {promptName} — {error["message"]?.AsString() ?? "未知错误"}",
+                          $"Error: MCP {_serverName} prompt {promptName} — {error["message"]?.AsString() ?? "unknown error"}");
 
         var messages = resp["result"]?["messages"];
-        if (messages == null) return resp["result"]?.ToJson() ?? "(空提示词)";
+        if (messages == null) return resp["result"]?.ToJson() ?? L.Pick("(空提示词)", "(empty prompt)");
 
         var sb = new StringBuilder();
         foreach (var m in messages.Items)
@@ -292,7 +295,7 @@ internal class McpPromptTool : ITool
             var text = content["text"]?.AsString();
             if (text != null) return text;
             var uri = content["uri"]?.AsString();
-            if (uri != null) return $"[资源: {uri}]";
+            if (uri != null) return L.Pick($"[资源: {uri}]", $"[resource: {uri}]");
             return content.ToJson();
         }
         if (content.Kind == JKind.Array)

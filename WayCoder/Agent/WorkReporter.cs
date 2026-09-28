@@ -21,35 +21,37 @@ public static class WorkReporter
     public static string Generate(List<JNode>? messages, DateTime? startedAt = null)
     {
         if (messages == null || messages.Count == 0)
-            return "_本轮无对话历史。_";
+            return L.Pick("_本轮无对话历史。_", "_No conversation history for this round._");
 
         var sb = new System.Text.StringBuilder();
         var elapsed = startedAt.HasValue ? DateTime.UtcNow - startedAt.Value : (TimeSpan?)null;
 
         // ── 头部 ──
-        sb.AppendLine("# 📊 工作总结");
+        sb.AppendLine(L.Pick("# 📊 工作总结", "# 📊 Work summary"));
         sb.AppendLine();
         if (elapsed.HasValue)
-            sb.AppendLine($"**耗时**：{FormatDuration(elapsed.Value)}  |  **消息数**：{messages.Count}  |  **时间**：{DateTime.Now:HH:mm:ss}");
+            sb.AppendLine(L.Pick($"**耗时**：{FormatDuration(elapsed.Value)}  |  **消息数**：{messages.Count}  |  **时间**：{DateTime.Now:HH:mm:ss}",
+                $"**Elapsed**: {FormatDuration(elapsed.Value)}  |  **Messages**: {messages.Count}  |  **Time**: {DateTime.Now:HH:mm:ss}"));
         else
-            sb.AppendLine($"**消息数**：{messages.Count}  |  **时间**：{DateTime.Now:HH:mm:ss}");
+            sb.AppendLine(L.Pick($"**消息数**：{messages.Count}  |  **时间**：{DateTime.Now:HH:mm:ss}",
+                $"**Messages**: {messages.Count}  |  **Time**: {DateTime.Now:HH:mm:ss}"));
         sb.AppendLine();
 
         // ── 统计 ──
         var stats = CollectStats(messages);
         if (stats.TotalActions > 0)
         {
-            sb.AppendLine("## 📈 活动统计");
+            sb.AppendLine(L.Pick("## 📈 活动统计", "## 📈 Activity"));
             sb.AppendLine();
-            sb.AppendLine("| 类别 | 数量 |");
+            sb.AppendLine(L.Pick("| 类别 | 数量 |", "| Category | Count |"));
             sb.AppendLine("|------|------|");
-            if (stats.FilesCreated > 0) sb.AppendLine($"| 📝 创建文件 | {stats.FilesCreated} |");
-            if (stats.FilesModified > 0) sb.AppendLine($"| ✏ 修改文件 | {stats.FilesModified} |");
-            if (stats.FilesDeleted > 0) sb.AppendLine($"| 🗑️ 删除文件 | {stats.FilesDeleted} |");
-            if (stats.FilesRead > 0) sb.AppendLine($"| 📖 读取文件 | {stats.FilesRead} |");
-            if (stats.BashRuns > 0) sb.AppendLine($"| ⚙️ 执行命令 | {stats.BashRuns} |");
-            if (stats.Searches > 0) sb.AppendLine($"| 🔍 搜索操作 | {stats.Searches} |");
-            if (stats.Errors > 0) sb.AppendLine($"| ❌ 错误 | {stats.Errors} |");
+            if (stats.FilesCreated > 0) sb.AppendLine(L.Pick($"| 📝 创建文件 | {stats.FilesCreated} |", $"| 📝 Files created | {stats.FilesCreated} |"));
+            if (stats.FilesModified > 0) sb.AppendLine(L.Pick($"| ✏ 修改文件 | {stats.FilesModified} |", $"| ✏ Files modified | {stats.FilesModified} |"));
+            if (stats.FilesDeleted > 0) sb.AppendLine(L.Pick($"| 🗑️ 删除文件 | {stats.FilesDeleted} |", $"| 🗑️ Files deleted | {stats.FilesDeleted} |"));
+            if (stats.FilesRead > 0) sb.AppendLine(L.Pick($"| 📖 读取文件 | {stats.FilesRead} |", $"| 📖 Files read | {stats.FilesRead} |"));
+            if (stats.BashRuns > 0) sb.AppendLine(L.Pick($"| ⚙️ 执行命令 | {stats.BashRuns} |", $"| ⚙️ Commands run | {stats.BashRuns} |"));
+            if (stats.Searches > 0) sb.AppendLine(L.Pick($"| 🔍 搜索操作 | {stats.Searches} |", $"| 🔍 Searches | {stats.Searches} |"));
+            if (stats.Errors > 0) sb.AppendLine(L.Pick($"| ❌ 错误 | {stats.Errors} |", $"| ❌ Errors | {stats.Errors} |"));
             sb.AppendLine();
         }
 
@@ -57,14 +59,16 @@ public static class WorkReporter
         var toolCalls = ExtractToolCalls(messages);
         if (toolCalls.Count > 0)
         {
-            sb.AppendLine("## 🔧 工具调用");
+            sb.AppendLine(L.Pick("## 🔧 工具调用", "## 🔧 Tool calls"));
             sb.AppendLine();
+            var toolSep = L.Pick("：", ": ");
             foreach (var tc in toolCalls.Take(30)) // 最多 30 条
             {
-                sb.AppendLine($"- **{tc.Tool}**：{tc.Summary}");
+                sb.AppendLine($"- **{tc.Tool}**{toolSep}{tc.Summary}");
             }
             if (toolCalls.Count > 30)
-                sb.AppendLine($"- _... 还有 {toolCalls.Count - 30} 条调用_");
+                sb.AppendLine(L.Pick($"- _... 还有 {toolCalls.Count - 30} 条调用_",
+                    $"  - _... {toolCalls.Count - 30} more call(s)_"));
             sb.AppendLine();
         }
 
@@ -72,7 +76,7 @@ public static class WorkReporter
         var changedFiles = ExtractChangedFiles(messages);
         if (changedFiles.Count > 0)
         {
-            sb.AppendLine("## 📁 涉及文件");
+            sb.AppendLine(L.Pick("## 📁 涉及文件", "## 📁 Files touched"));
             sb.AppendLine();
             foreach (var (path, action) in changedFiles)
             {
@@ -93,14 +97,15 @@ public static class WorkReporter
         var progress = TaskProgress.GetSummary();
         if (!string.IsNullOrEmpty(progress) && progress != "⏳ 就绪")
         {
-            sb.AppendLine("## 📋 任务进度");
+            sb.AppendLine(L.Pick("## 📋 任务进度", "## 📋 Task progress"));
             sb.AppendLine();
             sb.AppendLine(progress);
             sb.AppendLine();
         }
 
         sb.AppendLine("---");
-        sb.AppendLine($"_由 WayCoder WorkReporter 自动生成 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_");
+        sb.AppendLine(L.Pick($"_由 WayCoder WorkReporter 自动生成 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_",
+            $"_Generated automatically by WayCoder WorkReporter · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_"));
 
         return sb.ToString();
     }
@@ -194,12 +199,14 @@ public static class WorkReporter
 
                 var (path, action) = toolName switch
                 {
-                    "write_file" => (ExtractArg(args, "file_path"), "创建"),
-                    "edit_file" => (ExtractArg(args, "file_path"), "修改"),
-                    "rm" => (ExtractArg(args, "file_path"), "删除"),
-                    "read_file" => (ExtractArg(args, "file_path"), "读取"),
-                    "mv" => (ExtractArg(args, "file_path"), "移动"),
-                    "cp" => (ExtractArg(args, "file_path"), "复制"),
+                    // ⚠ 这些标签既**显示**（`_{action}_`）又被上面的 emoji 表**匹配**
+                    //   （`"创建" or "create" => 📝` …，那张表本来就是中英双认 ⇒ 改这里不必改那里）。
+                    "write_file" => (ExtractArg(args, "file_path"), L.Pick("创建", "create")),
+                    "edit_file" => (ExtractArg(args, "file_path"), L.Pick("修改", "edit")),
+                    "rm" => (ExtractArg(args, "file_path"), L.Pick("删除", "delete")),
+                    "read_file" => (ExtractArg(args, "file_path"), L.Pick("读取", "read")),
+                    "mv" => (ExtractArg(args, "file_path"), L.Pick("移动", "move")),
+                    "cp" => (ExtractArg(args, "file_path"), L.Pick("复制", "copy")),
                     _ => (null, null),
                 };
 

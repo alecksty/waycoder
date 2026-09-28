@@ -12,11 +12,11 @@ public sealed class RasterImage
 
     public RasterImage(int width, int height, byte[] rgba)
     {
-        if (width <= 0 || height <= 0) throw new ArgumentException("宽高必须为正整数");
+        if (width <= 0 || height <= 0) throw new ArgumentException(L.Pick("宽高必须为正整数", "Width and height must be positive integers"));
         // 用 long 计算防整数溢出：width*height*4 若按 int 会溢出为负，绕过长度检查。
         long required = (long)width * height * 4;
-        if (rgba == null || rgba.Length < required) throw new ArgumentException("像素缓冲长度不足");
-        if (required > int.MaxValue) throw new ArgumentException("图像尺寸过大（像素缓冲超 2GB）");
+        if (rgba == null || rgba.Length < required) throw new ArgumentException(L.Pick("像素缓冲长度不足", "Pixel buffer is too short"));
+        if (required > int.MaxValue) throw new ArgumentException(L.Pick("图像尺寸过大（像素缓冲超 2GB）", "Image dimensions are too large (pixel buffer exceeds 2GB)"));
         Width = width; Height = height; Rgba = rgba;
     }
 
@@ -48,7 +48,7 @@ public sealed class RasterImage
     {
         if (cols <= 0 || rows <= 0) return Array.Empty<string>();
         // 防整数溢出：cols*rows 与 cx*Width 均按 int 相乘，超大网格溢出为负（new string[负] 抛异常或分配数十 GB）
-        if ((long)cols * rows > int.MaxValue) throw new ArgumentException("网格采样规模过大");
+        if ((long)cols * rows > int.MaxValue) throw new ArgumentException(L.Pick("网格采样规模过大", "Grid sampling size is too large"));
         var r = new string[cols * rows];
         int idx = 0;
         for (int ry = 0; ry < rows; ry++)

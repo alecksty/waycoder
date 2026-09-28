@@ -19,7 +19,7 @@ public class ConfigCommand : SlashCommand
 {
     public override string Name => "/config";
     public override string[] Aliases => ["/cfg", "/set"];
-    public override string Description => "配置 (命令行) — list/get/set 或 /config <key> <value>";
+    public override string Description => L.Pick("配置 (命令行) — list/get/set 或 /config <key> <value>", "Config (command line) — list/get/set, or /config <key> <value>");
     public override string? Usage => "/config [list|get <key>|set <key> <value>]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
@@ -66,7 +66,7 @@ public class ConfigCommand : SlashCommand
     {
         if (args.Length == 0)
         {
-            screen.AddSystemMsg("用法: /config get <key>");
+            screen.AddSystemMsg(L.Pick("用法: /config get <key>", "Usage: /config get <key>"));
             return;
         }
         screen.AddSystemMsg(ConfigCli.Get(args[0]));
@@ -76,7 +76,7 @@ public class ConfigCommand : SlashCommand
     {
         if (args.Length < 2)
         {
-            screen.AddSystemMsg("用法: /config set <key> <value>");
+            screen.AddSystemMsg(L.Pick("用法: /config set <key> <value>", "Usage: /config set <key> <value>"));
             return;
         }
 
@@ -104,6 +104,6 @@ public class ConfigCommand : SlashCommand
         var newVal = Config.GetPropValue(key) ?? "";
         if (p?.Type == "secret" && newVal.Length > 0) newVal = "••••••••";
 
-        screen.AddSystemMsg($"✅ 已设置 **{p?.Label ?? key}** = `{newVal}`（已写入 .env）");
+        screen.AddSystemMsg(L.Pick($"✅ 已设置 **{p?.Label ?? key}** = `{newVal}`（已写入 .env）", $"✅ Set **{p?.Label ?? key}** = `{newVal}` (saved to .env)"));
     }
 }

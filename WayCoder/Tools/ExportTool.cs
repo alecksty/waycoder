@@ -29,7 +29,7 @@ public class ExportTool : ITool
         var outputPath = arguments.GetValueOrDefault("output_path")?.ToString();
 
         if (Messages == null || Messages.Count == 0)
-            return Task.FromResult("错误：没有可导出的对话历史");
+            return Task.FromResult(L.Pick("错误：没有可导出的对话历史", "Error: no conversation history to export"));
 
         try
         {
@@ -52,20 +52,20 @@ public class ExportTool : ITool
             var fullPath = CwdContext.Resolve(outputPath);
             File.WriteAllText(fullPath, content);
             var size = new FileInfo(fullPath).Length;
-            return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatUtil.FormatSize(size)})");
+            return Task.FromResult(L.Pick($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatUtil.FormatSize(size)})", $"✅ Exported {Messages.Count} messages to {fullPath} ({FormatUtil.FormatSize(size)})"));
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"导出失败：{ex.Message}");
+            return Task.FromResult(L.Pick($"导出失败：{ex.Message}", $"Export failed: {ex.Message}"));
         }
     }
 
     private string ExportMarkdown()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("# WayCoder 对话导出");
-        sb.AppendLine($"- 导出时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($"- 消息数：{Messages!.Count}");
+        sb.AppendLine(L.Pick("# WayCoder 对话导出", "# WayCoder Conversation Export"));
+        sb.AppendLine(L.Pick($"- 导出时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}", $"- Exported at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"));
+        sb.AppendLine(L.Pick($"- 消息数：{Messages!.Count}", $"- Messages: {Messages!.Count}"));
         sb.AppendLine();
         sb.AppendLine("---");
         sb.AppendLine();
@@ -86,15 +86,15 @@ public class ExportTool : ITool
             if (role == "tool")
             {
                 var toolId = m["tool_call_id"]?.AsString() ?? "";
-                sb.AppendLine($"_工具调用 ID: {toolId}_");
+                sb.AppendLine(L.Pick($"_工具调用 ID: {toolId}_", $"_Tool call ID: {toolId}_"));
                 sb.AppendLine();
                 sb.AppendLine("```");
-                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 3000, "\n\n... (已截断)"));
+                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 3000, L.Pick("\n\n... (已截断)", "\n\n... (truncated)")));
                 sb.AppendLine("```");
             }
             else
             {
-                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 5000, "\n\n... (已截断)"));
+                sb.AppendLine(ContextManager.TruncateWithEllipsis(content, 5000, L.Pick("\n\n... (已截断)", "\n\n... (truncated)")));
             }
             sb.AppendLine();
             sb.AppendLine("---");
@@ -122,7 +122,7 @@ public class ExportTool : ITool
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
-        sb.AppendLine("<title>WayCoder 对话</title>");
+        sb.AppendLine(L.Pick("<title>WayCoder 对话</title>", "<title>WayCoder Conversation</title>"));
         sb.AppendLine("<style>");
         sb.AppendLine("body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:20px;background:#1a1a2e;color:#e0e0e0;}");
         sb.AppendLine(".user{border-left:3px solid #4ecdc4;padding:10px 20px;margin:10px 0;background:#16213e;}");
@@ -132,7 +132,8 @@ public class ExportTool : ITool
         sb.AppendLine("pre{background:#0f0f23;padding:10px;border-radius:4px;overflow-x:auto;}");
         sb.AppendLine("code{font-family:'Fira Code',monospace;}");
         sb.AppendLine("</style></head><body>");
-        sb.AppendLine($"<h1>🦀 WayCoder 对话</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} 条消息</p>");
+        sb.AppendLine(L.Pick($"<h1>🦀 WayCoder 对话</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} 条消息</p>",
+            $"<h1>🦀 WayCoder Conversation</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} messages</p>"));
 
         foreach (var m in Messages!)
         {
@@ -150,11 +151,11 @@ public class ExportTool : ITool
     /// <summary>角色英文标识 → 中文显示名（导出文件里角色标题中文化）。</summary>
     private static string RoleDisplayName(string role) => role switch
     {
-        "user" => "用户",
-        "assistant" => "智能体",
-        "agent" => "智能体",
-        "system" => "系统",
-        "tool" => "工具",
+        "user" => L.Pick("用户", "User"),
+        "assistant" => L.Pick("智能体", "Agent"),
+        "agent" => L.Pick("智能体", "Agent"),
+        "system" => L.Pick("系统", "System"),
+        "tool" => L.Pick("工具", "Tool"),
         _ => role,
     };
 

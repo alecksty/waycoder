@@ -68,7 +68,8 @@ public class AgentSlot
         if (activeScreen != null && activeScreen.ActiveSlotIndex == targetIdx)
         {
             // 目标槽位正在显示 → 直接投递
-            activeScreen.AddSystemMsg($"📨 **F{fromSlot + 1} → 你**：{message}");
+            activeScreen.AddSystemMsg(L.Pick($"📨 **F{fromSlot + 1} → 你**：{message}",
+                $"📨 **F{fromSlot + 1} → you**: {message}"));
         }
         else
         {
@@ -87,7 +88,8 @@ public class AgentSlot
         if (PendingMessages.Count == 0 || screen == null) return;
         foreach (var (fromSlot, msg) in PendingMessages)
         {
-            screen.AddSystemMsg($"📨 **F{fromSlot + 1} → 你**：{msg}");
+            screen.AddSystemMsg(L.Pick($"📨 **F{fromSlot + 1} → 你**：{msg}",
+                $"📨 **F{fromSlot + 1} → you**: {msg}"));
         }
         PendingMessages.Clear();
     }
@@ -136,7 +138,7 @@ public class AgentSlot
     {
         // resetParser: false —— 本回调由解析器在深度置 1 之后发出，Reset 会把「正在思考」抹平
         FoldThinkBuffered(resetParser: false);
-        var msg = new ChatMsg { Role = "think", Content = "💭 思考中 0s", Indent = 1 };
+        var msg = new ChatMsg { Role = "think", Content = L.Pick("💭 思考中 0s", "💭 Thinking 0s"), Indent = 1 };
         ChatMessages.Insert(Math.Max(0, ChatMessages.Count - 1), msg);
         _thinkMsg = msg;
         _thinkStartTicks = Environment.TickCount64;
@@ -159,7 +161,7 @@ public class AgentSlot
         }
 
         int secs = Math.Max(1, (int)Math.Round((Environment.TickCount64 - _thinkStartTicks) / 1000.0));
-        msg.Content = $"💭 已思考 {secs} 秒";
+        msg.Content = L.Pick($"💭 已思考 {secs} 秒", $"💭 Thought for {secs}s");
         msg.ThinkingSeconds = secs;
     }
 
@@ -196,7 +198,8 @@ public class AgentSlot
         if (max <= 0 || cur.Length + delta.Length <= max) return cur + delta;
         var combined = cur + delta;
         var tail = ContextManager.TruncateTailByRunes(combined, max);
-        return $"… 已截断（显示最近内容，旧内容滚动省略）…\n{tail}";
+        return L.Pick("… 已截断（显示最近内容，旧内容滚动省略）…\n",
+            "… truncated (showing the most recent content; older content was dropped) …\n") + tail;
     }
 
     /// <summary>非活跃槽位缓冲裁剪：超过 <see cref="Config.MaxChatMessages"/> 丢最旧消息，

@@ -9,7 +9,7 @@ public class FreeRestoreCommand : SlashCommand
 {
     public override string Name => "/free-restore";
     public override string[] Aliases => ["/恢复模型"];
-    public override string Description => "恢复 /free 切换前的模型";
+    public override string Description => L.Pick("恢复 /free 切换前的模型", "Restore the model that was active before /free");
     public override string? Usage => "/free-restore";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)

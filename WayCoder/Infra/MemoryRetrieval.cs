@@ -94,8 +94,9 @@ public static class MemoryRetrieval
         var lines = new List<string>
         {
             "",
-            "## 相关记忆（跨会话）",
-            "以下是过往会话中记录的与当前任务相关的上下文：",
+            L.Pick("## 相关记忆（跨会话）", "## Related memory (across sessions)"),
+            L.Pick("以下是过往会话中记录的与当前任务相关的上下文：",
+                   "Context recorded in past sessions that is relevant to the current task:"),
             "",
         };
         foreach (var item in list)

@@ -22,7 +22,7 @@ public static class ImportHelper
     /// 且都写成 `{X.Count} 个: …{names.Count > 5 …}` —— 其中 X.Count 恒等于 names.Count（names 就是从它来的），
     /// 两处一旦不一致就是隐患。</summary>
     private static string SummarizeNames(IReadOnlyList<string> names)
-        => $"{names.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}";
+        => L.Pick($"{names.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}", $"{names.Count} found: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "..." : "")}");
 
     /// <summary>Claude Code 全局配置目录</summary>
     public static readonly string ClaudeHome = Path.Combine(
@@ -77,14 +77,14 @@ public static class ImportHelper
                     var desc = new List<string>();
                     if (!string.IsNullOrEmpty(apiKey)) desc.Add($"API Key: {apiKey[..Math.Min(12, apiKey.Length)]}...");
                     if (!string.IsNullOrEmpty(baseUrl)) desc.Add($"Base URL: {baseUrl}");
-                    if (models.Count > 0) desc.Add($"{models.Count} 个模型映射");
+                    if (models.Count > 0) desc.Add(L.Pick($"{models.Count} 个模型映射", $"{models.Count} model mappings"));
 
                     if (desc.Count > 0)
-                        items.Add(new ImportItem("📡 模型/API", "[Claude] 模型配置",
+                        items.Add(new ImportItem(L.Pick("📡 模型/API", "📡 Models/API"), L.Pick("[Claude] 模型配置", "[Claude] Model config"),
                             string.Join(" · ", desc), true));
                     else
-                        items.Add(new ImportItem("📡 模型/API", "[Claude] 模型配置",
-                            "settings.json 存在但无有效配置", false));
+                        items.Add(new ImportItem(L.Pick("📡 模型/API", "📡 Models/API"), L.Pick("[Claude] 模型配置", "[Claude] Model config"),
+                            L.Pick("settings.json 存在但无有效配置", "settings.json exists but has no usable config"), false));
                 }
             }
             catch { }
@@ -101,7 +101,7 @@ public static class ImportHelper
                 if (plugins != null && plugins.Count > 0)
                 {
                     var names = plugins.Entries.Select(p => p.Key).ToList();
-                    items.Add(new ImportItem("🔌 MCP 服务器", "[Claude] 插件",
+                    items.Add(new ImportItem(L.Pick("🔌 MCP 服务器", "🔌 MCP servers"), L.Pick("[Claude] 插件", "[Claude] Plugins"),
                         SummarizeNames(names),
                         true));
                 }
@@ -114,7 +114,7 @@ public static class ImportHelper
         if (claudeMd != null)
         {
             var size = new FileInfo(claudeMd).Length;
-            items.Add(new ImportItem("📋 项目上下文", "[Claude] CLAUDE.md",
+            items.Add(new ImportItem(L.Pick("📋 项目上下文", "📋 Project context"), "[Claude] CLAUDE.md",
                 $"{claudeMd} ({FormatUtil.FormatSize(size)})", true));
         }
 
@@ -131,8 +131,8 @@ public static class ImportHelper
                     catch { }
                 }
                 if (sessionCount > 0)
-                    items.Add(new ImportItem("💬 会话数据", "[Claude] 会话",
-                        $"{sessionCount} 个会话文件", true));
+                    items.Add(new ImportItem(L.Pick("💬 会话数据", "💬 Session data"), L.Pick("[Claude] 会话", "[Claude] Sessions"),
+                        L.Pick($"{sessionCount} 个会话文件", $"{sessionCount} session files"), true));
             }
             catch { }
         }
@@ -149,8 +149,8 @@ public static class ImportHelper
                     var json = Json.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
                     var perms = json?["permissions"]?["allow"];
                     if (perms != null && perms.Count > 0)
-                        items.Add(new ImportItem("🔑 权限规则", "[Claude] 权限",
-                            $"{perms.Count} 条允许规则", true));
+                        items.Add(new ImportItem(L.Pick("🔑 权限规则", "🔑 Permission rules"), L.Pick("[Claude] 权限", "[Claude] Permissions"),
+                            L.Pick($"{perms.Count} 条允许规则", $"{perms.Count} allow rules"), true));
                 }
                 catch { }
             }
@@ -181,7 +181,7 @@ public static class ImportHelper
                 if (enabled.Count > 0)
                 {
                     var names = enabled.Select(kv => kv.Key).ToList();
-                    items.Add(new ImportItem("🔌 MCP 服务器", "[OpenCode] MCP",
+                    items.Add(new ImportItem(L.Pick("🔌 MCP 服务器", "🔌 MCP servers"), "[OpenCode] MCP",
                         SummarizeNames(names),
                         true));
                 }
@@ -193,7 +193,7 @@ public static class ImportHelper
             {
                 var names = plugins.Items.Select(p => p.AsString() ?? "").Where(n => n != "").ToList();
                 if (names.Count > 0)
-                    items.Add(new ImportItem("🧩 插件参考", "[OpenCode] 插件",
+                    items.Add(new ImportItem(L.Pick("🧩 插件参考", "🧩 Plugin reference"), L.Pick("[OpenCode] 插件", "[OpenCode] Plugins"),
                         SummarizeNames(names),
                         false)); // 仅供参考，不能直接导入
             }
@@ -217,7 +217,7 @@ public static class ImportHelper
                 if (servers != null && servers.Count > 0)
                 {
                     var names = servers.Entries.Select(s => s.Key).ToList();
-                    items.Add(new ImportItem("🔌 MCP 服务器", "[Cursor] MCP",
+                    items.Add(new ImportItem(L.Pick("🔌 MCP 服务器", "🔌 MCP servers"), "[Cursor] MCP",
                         SummarizeNames(names),
                         true));
                 }
@@ -236,8 +236,8 @@ public static class ImportHelper
 
         if (rulesFiles.Count > 0)
         {
-            items.Add(new ImportItem("📋 项目上下文", "[Cursor] Rules",
-                $"{rulesFiles.Count} 个规则文件", true));
+            items.Add(new ImportItem(L.Pick("📋 项目上下文", "📋 Project context"), "[Cursor] Rules",
+                L.Pick($"{rulesFiles.Count} 个规则文件", $"{rulesFiles.Count} rule files"), true));
         }
 
         // Cursor 全局设置 (模型配置)
@@ -255,8 +255,8 @@ public static class ImportHelper
                               ?? json?["anthropicApiKey"]?.AsString();
                     var model = json?["model"]?.AsString();
                     if (!string.IsNullOrEmpty(apiKey) || !string.IsNullOrEmpty(model))
-                        items.Add(new ImportItem("📡 模型/API", "[Cursor] 模型配置",
-                            "settings.json 中有 API/模型配置", true));
+                        items.Add(new ImportItem(L.Pick("📡 模型/API", "📡 Models/API"), L.Pick("[Cursor] 模型配置", "[Cursor] Model config"),
+                            L.Pick("settings.json 中有 API/模型配置", "settings.json contains API/model config"), true));
                 }
                 catch { }
             }
@@ -273,7 +273,7 @@ public static class ImportHelper
         if (clineRules != null)
         {
             var size = new FileInfo(clineRules).Length;
-            items.Add(new ImportItem("📋 项目上下文", "[Cline] Rules",
+            items.Add(new ImportItem(L.Pick("📋 项目上下文", "📋 Project context"), "[Cline] Rules",
                 $".clinerules ({FormatUtil.FormatSize(size)})", true));
         }
 
@@ -292,7 +292,7 @@ public static class ImportHelper
                     if (servers != null && servers.Count > 0)
                     {
                         var names = servers.Entries.Select(s => s.Key).ToList();
-                        items.Add(new ImportItem("🔌 MCP 服务器", "[Cline] MCP",
+                        items.Add(new ImportItem(L.Pick("🔌 MCP 服务器", "🔌 MCP servers"), "[Cline] MCP",
                             SummarizeNames(names),
                             true));
                     }
@@ -313,7 +313,7 @@ public static class ImportHelper
     {
         var all = categories == null || categories.Count == 0;
         var report = new StringBuilder();
-        report.AppendLine("## 导入报告");
+        report.AppendLine(L.Pick("## 导入报告", "## Import report"));
         report.AppendLine();
 
         // ── 1. 模型 / API 配置 ──
@@ -384,16 +384,16 @@ public static class ImportHelper
     {
         var settingsPath = Path.Combine(ClaudeHome, "settings.json");
         if (!File.Exists(settingsPath))
-            return "❌ 模型/API: 未找到 ~/.claude/settings.json";
+            return L.Pick("❌ 模型/API: 未找到 ~/.claude/settings.json", "❌ Models/API: ~/.claude/settings.json not found");
 
         try
         {
             var json = Json.Parse(File.ReadAllText(settingsPath, Encoding.UTF8));
             var env = json?["env"];
-            if (env == null) return "❌ 模型/API: settings.json 中无 env 配置";
+            if (env == null) return L.Pick("❌ 模型/API: settings.json 中无 env 配置", "❌ Models/API: no env config in settings.json");
 
             var sb = new StringBuilder();
-            sb.AppendLine("📡 模型/API 配置:");
+            sb.AppendLine(L.Pick("📡 模型/API 配置:", "📡 Model/API config:"));
 
             // API Key
             var apiKey = env.Entries.FirstOrDefault(kv =>
@@ -426,16 +426,16 @@ public static class ImportHelper
             if (!string.IsNullOrEmpty(apiKey))
             {
                 sb.AppendLine($"  ✅ API Key: {apiKey[..Math.Min(12, apiKey.Length)]}...");
-                sb.AppendLine($"     → 设置: export WAYCODER_API_KEY={apiKey[..Math.Min(12, apiKey.Length)]}...");
+                sb.AppendLine(L.Pick($"     → 设置: export WAYCODER_API_KEY={apiKey[..Math.Min(12, apiKey.Length)]}...", $"     → set: export WAYCODER_API_KEY={apiKey[..Math.Min(12, apiKey.Length)]}..."));
             }
             if (!string.IsNullOrEmpty(baseUrl))
             {
                 sb.AppendLine($"  ✅ Base URL: {baseUrl}");
-                sb.AppendLine($"     → 设置: export WAYCODER_BASE_URL={baseUrl}");
+                sb.AppendLine(L.Pick($"     → 设置: export WAYCODER_BASE_URL={baseUrl}", $"     → set: export WAYCODER_BASE_URL={baseUrl}"));
             }
-            sb.AppendLine($"  ✅ 大模型: {sonnetModel}  小模型: {haikuModel}");
-            sb.AppendLine($"     → 设置: export WAYCODER_MODEL={sonnetModel}");
-            sb.AppendLine($"     → 设置: export WAYCODER_SMALL_MODEL={haikuModel}");
+            sb.AppendLine(L.Pick($"  ✅ 大模型: {sonnetModel}  小模型: {haikuModel}", $"  ✅ Large model: {sonnetModel}  Small model: {haikuModel}"));
+            sb.AppendLine(L.Pick($"     → 设置: export WAYCODER_MODEL={sonnetModel}", $"     → set: export WAYCODER_MODEL={sonnetModel}"));
+            sb.AppendLine(L.Pick($"     → 设置: export WAYCODER_SMALL_MODEL={haikuModel}", $"     → set: export WAYCODER_SMALL_MODEL={haikuModel}"));
 
             // 写入配置：config.json 全量 + .env 精简为 5 项基本引导配置（服务商/地址/API_KEY/经济模式/鼠标）
             try
@@ -452,18 +452,18 @@ public static class ImportHelper
                 ConnectionConfig.ApplyModelChoice("openai", sonnetModel, isLarge: true, out _, baseUrl);
                 ConnectionConfig.ApplyModelChoice("openai", haikuModel, isLarge: false, out _);
                 cfg.SaveToEnvFile();
-                sb.AppendLine("  📝 已写入: ~/.waycoder/config.json（全量）+ .env（5 项基本配置）");
+                sb.AppendLine(L.Pick("  📝 已写入: ~/.waycoder/config.json（全量）+ .env（5 项基本配置）", "  📝 Written: ~/.waycoder/config.json (full) + .env (5 bootstrap settings)"));
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"  ⚠ 写入配置失败: {ex.Message}");
+                sb.AppendLine(L.Pick($"  ⚠ 写入配置失败: {ex.Message}", $"  ⚠ Failed to write config: {ex.Message}"));
             }
 
             return sb.ToString().Trim();
         }
         catch (Exception ex)
         {
-            return $"❌ 模型/API: 解析失败 — {ex.Message}";
+            return L.Pick($"❌ 模型/API: 解析失败 — {ex.Message}", $"❌ Models/API: parse failed — {ex.Message}");
         }
     }
 
@@ -478,7 +478,7 @@ public static class ImportHelper
             Source.OpenCode => await ImportOpenCodeMcpAsync(),
             Source.Cursor => await ImportCursorMcpAsync(),
             Source.Cline => await ImportClineMcpAsync(),
-            _ => $"❌ MCP: 未知来源 {source}"
+            _ => L.Pick($"❌ MCP: 未知来源 {source}", $"❌ MCP: unknown source {source}")
         };
     }
 
@@ -486,17 +486,17 @@ public static class ImportHelper
     {
         var pluginsPath = Path.Combine(ClaudeHome, "plugins", "installed_plugins.json");
         if (!File.Exists(pluginsPath))
-            return "❌ MCP: 未找到 installed_plugins.json";
+            return L.Pick("❌ MCP: 未找到 installed_plugins.json", "❌ MCP: installed_plugins.json not found");
 
         try
         {
             var json = Json.Parse(File.ReadAllText(pluginsPath, Encoding.UTF8));
             var plugins = json?["plugins"];
             if (plugins == null || plugins.Count == 0)
-                return "❌ MCP: 无已安装插件";
+                return L.Pick("❌ MCP: 无已安装插件", "❌ MCP: no installed plugins");
 
             var sb = new StringBuilder();
-            sb.AppendLine("🔌 MCP 服务器:");
+            sb.AppendLine(L.Pick("🔌 MCP 服务器:", "🔌 MCP servers:"));
 
             // Claude Code 插件 → WayCoder MCP 服务器映射
             var knownPlugins = new Dictionary<string, (string Command, string[] Args)>
@@ -520,11 +520,11 @@ public static class ImportHelper
                         .Set("command", mapping.Command)
                         .Set("args", argsArr)
                         .Set("env", JNode.Object())
-                        .Set("_comment", $"从 Claude Code 导入: {name}"));
+                        .Set("_comment", L.Pick($"从 Claude Code 导入: {name}", $"Imported from Claude Code: {name}")));
                 }
                 else
                 {
-                    sb.AppendLine($"  ⏭ {name} (未识别，跳过 — 可手动配置)");
+                    sb.AppendLine(L.Pick($"  ⏭ {name} (未识别，跳过 — 可手动配置)", $"  ⏭ {name} (unrecognized, skipped — can be configured manually)"));
                 }
             }
 
@@ -532,7 +532,7 @@ public static class ImportHelper
         }
         catch (Exception ex)
         {
-            return $"❌ MCP: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ MCP: 导入失败 — {ex.Message}", $"❌ MCP: import failed — {ex.Message}");
         }
     }
 
@@ -543,7 +543,7 @@ public static class ImportHelper
     {
         var configPath = Path.Combine(OpenCodeHome, "opencode.jsonc");
         if (!File.Exists(configPath))
-            return "⏭ OpenCode MCP: 未找到 opencode.jsonc";
+            return L.Pick("⏭ OpenCode MCP: 未找到 opencode.jsonc", "⏭ OpenCode MCP: opencode.jsonc not found");
 
         try
         {
@@ -551,10 +551,10 @@ public static class ImportHelper
             var json = Json.Parse(Json.StripComments(raw));
             var mcp = json?["mcp"];
             if (mcp == null || mcp.Count == 0)
-                return "⏭ OpenCode MCP: 无 mcp 配置";
+                return L.Pick("⏭ OpenCode MCP: 无 mcp 配置", "⏭ OpenCode MCP: no mcp config");
 
             var sb = new StringBuilder();
-            sb.AppendLine("🔌 OpenCode MCP 服务器:");
+            sb.AppendLine(L.Pick("🔌 OpenCode MCP 服务器:", "🔌 OpenCode MCP servers:"));
 
             var imported = new List<JNode>();
             foreach (var (name, config) in mcp.Entries)
@@ -562,7 +562,7 @@ public static class ImportHelper
                 var enabled = config?["enabled"]?.AsBool() ?? true;
                 if (!enabled)
                 {
-                    sb.AppendLine($"  ⏭ {name} (已禁用)");
+                    sb.AppendLine(L.Pick($"  ⏭ {name} (已禁用)", $"  ⏭ {name} (disabled)"));
                     continue;
                 }
 
@@ -572,7 +572,7 @@ public static class ImportHelper
 
                 if (command == null || command.Length == 0)
                 {
-                    sb.AppendLine($"  ⚠ {name} (无 command，跳过)");
+                    sb.AppendLine(L.Pick($"  ⚠ {name} (无 command，跳过)", $"  ⚠ {name} (no command, skipped)"));
                     continue;
                 }
 
@@ -587,14 +587,14 @@ public static class ImportHelper
                     .Set("command", mainCmd)
                     .Set("args", argsArr)
                     .Set("env", JNode.Object())
-                    .Set("_comment", $"从 OpenCode 导入: {name}"));
+                    .Set("_comment", L.Pick($"从 OpenCode 导入: {name}", $"Imported from OpenCode: {name}")));
             }
 
             return await WriteMcpServersAsync(imported, sb);
         }
         catch (Exception ex)
         {
-            return $"❌ OpenCode MCP: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ OpenCode MCP: 导入失败 — {ex.Message}", $"❌ OpenCode MCP: import failed — {ex.Message}");
         }
     }
 
@@ -608,7 +608,7 @@ public static class ImportHelper
     private static (List<JNode> Imported, StringBuilder Log) ParseMcpServers(JNode servers, string sourceLabel)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"🔌 {sourceLabel} MCP 服务器:");
+        sb.AppendLine(L.Pick($"🔌 {sourceLabel} MCP 服务器:", $"🔌 {sourceLabel} MCP servers:"));
 
         var imported = new List<JNode>();
         foreach (var (name, config) in servers.Entries)
@@ -619,7 +619,7 @@ public static class ImportHelper
 
             if (string.IsNullOrEmpty(command))
             {
-                sb.AppendLine($"  ⚠ {name} (无 command，跳过)");
+                sb.AppendLine(L.Pick($"  ⚠ {name} (无 command，跳过)", $"  ⚠ {name} (no command, skipped)"));
                 continue;
             }
 
@@ -634,7 +634,7 @@ public static class ImportHelper
                 .Set("command", command)
                 .Set("args", argsArr)
                 .Set("env", JNode.Object())
-                .Set("_comment", $"从 {sourceLabel} 导入: {name}"));
+                .Set("_comment", L.Pick($"从 {sourceLabel} 导入: {name}", $"Imported from {sourceLabel}: {name}")));
         }
 
         return (imported, sb);
@@ -643,40 +643,40 @@ public static class ImportHelper
     private static async Task<string> ImportCursorMcpAsync()
     {
         var mcpPath = FindInTree(Environment.CurrentDirectory, ".cursor", "mcp.json");
-        if (mcpPath == null) return "⏭ Cursor MCP: 未找到 .cursor/mcp.json";
+        if (mcpPath == null) return L.Pick("⏭ Cursor MCP: 未找到 .cursor/mcp.json", "⏭ Cursor MCP: .cursor/mcp.json not found");
 
         try
         {
             var servers = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8))?["mcpServers"];
             if (servers == null || servers.Count == 0)
-                return "⏭ Cursor MCP: 无 mcpServers 配置";
+                return L.Pick("⏭ Cursor MCP: 无 mcpServers 配置", "⏭ Cursor MCP: no mcpServers config");
 
             var (imported, sb) = ParseMcpServers(servers, "Cursor");
             return await WriteMcpServersAsync(imported, sb);
         }
         catch (Exception ex)
         {
-            return $"❌ Cursor MCP: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ Cursor MCP: 导入失败 — {ex.Message}", $"❌ Cursor MCP: import failed — {ex.Message}");
         }
     }
     /// <summary>从 Cline mcp_settings.json 导入 MCP 服务器</summary>
     private static async Task<string> ImportClineMcpAsync()
     {
         var mcpPath = Path.Combine(Global.Home, ".cline", "mcp_settings.json");
-        if (!File.Exists(mcpPath)) return "⏭ Cline MCP: 未找到 ~/.cline/mcp_settings.json";
+        if (!File.Exists(mcpPath)) return L.Pick("⏭ Cline MCP: 未找到 ~/.cline/mcp_settings.json", "⏭ Cline MCP: ~/.cline/mcp_settings.json not found");
 
         try
         {
             var servers = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8))?["mcpServers"];
             if (servers == null || servers.Count == 0)
-                return "⏭ Cline MCP: 无 mcpServers 配置";
+                return L.Pick("⏭ Cline MCP: 无 mcpServers 配置", "⏭ Cline MCP: no mcpServers config");
 
             var (imported, sb) = ParseMcpServers(servers, "Cline");
             return await WriteMcpServersAsync(imported, sb);
         }
         catch (Exception ex)
         {
-            return $"❌ Cline MCP: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ Cline MCP: 导入失败 — {ex.Message}", $"❌ Cline MCP: import failed — {ex.Message}");
         }
     }
     /// <summary>将 MCP 服务器列表去重写入 mcp_servers.json</summary>
@@ -693,8 +693,8 @@ public static class ImportHelper
         // 此前这里与 McpClient.AddServerToConfig 各写一套，且**去重口径相反**（此处区分大小写）。
         var added = McpConfigStore.TryAddRange(mcpPath, imported);
         sb.AppendLine(added == 0
-            ? "  ⏭ MCP 服务器均已存在，未新增"
-            : $"  📝 已写入 {added} 个服务器 → {mcpPath}");
+            ? L.Pick("  ⏭ MCP 服务器均已存在，未新增", "  ⏭ All MCP servers already exist, nothing added")
+            : L.Pick($"  📝 已写入 {added} 个服务器 → {mcpPath}", $"  📝 Wrote {added} servers → {mcpPath}"));
         return Task.FromResult(sb.ToString().Trim());
     }
 
@@ -705,7 +705,7 @@ public static class ImportHelper
     {
         var claudeMd = FindClaudeMdInTree(Environment.CurrentDirectory);
         if (claudeMd == null)
-            return "⏭ 项目上下文: 未在当前项目找到 CLAUDE.md";
+            return L.Pick("⏭ 项目上下文: 未在当前项目找到 CLAUDE.md", "⏭ Project context: no CLAUDE.md found in this project");
 
         try
         {
@@ -721,27 +721,32 @@ public static class ImportHelper
             {
                 var existingContent = File.ReadAllText(promptPath, Encoding.UTF8);
                 if (existingContent.Contains("CLAUDE.md 导入"))
-                    return "⏭ 项目上下文: 已存在导入标记，跳过（避免重复导入）";
+                    return L.Pick("⏭ 项目上下文: 已存在导入标记，跳过（避免重复导入）", "⏭ Project context: import marker already present, skipped (avoids duplicate import)");
 
                 // 追加到现有
-                File.WriteAllText(promptPath, existingContent.TrimEnd() + "\n\n---\n\n## 从 Claude Code 导入 (CLAUDE.md)\n\n" + content, Encoding.UTF8);
-                return $"✅ 项目上下文: 已追加 CLAUDE.md → {promptPath} ({content.Length} 字符)";
+                File.WriteAllText(promptPath, existingContent.TrimEnd() + L.Pick("\n\n---\n\n## 从 Claude Code 导入 (CLAUDE.md)\n\n", "\n\n---\n\n## Imported from Claude Code (CLAUDE.md)\n\n") + content, Encoding.UTF8);
+                return L.Pick($"✅ 项目上下文: 已追加 CLAUDE.md → {promptPath} ({content.Length} 字符)", $"✅ Project context: appended CLAUDE.md → {promptPath} ({content.Length} chars)");
             }
             else
             {
-                var header = $""""
+                var header = L.Pick($""""
                     # 项目提示词
 
                     > 📥 从 Claude Code 导入 (CLAUDE.md) — {DateTime.Now:yyyy-MM-dd HH:mm}
 
-                    """";
+                    """", $""""
+                    # Project instructions
+
+                    > 📥 Imported from Claude Code (CLAUDE.md) — {DateTime.Now:yyyy-MM-dd HH:mm}
+
+                    """");
                 File.WriteAllText(promptPath, header + content, Encoding.UTF8);
-                return $"✅ 项目上下文: 已创建 prompt.md ← CLAUDE.md ({content.Length} 字符)";
+                return L.Pick($"✅ 项目上下文: 已创建 prompt.md ← CLAUDE.md ({content.Length} 字符)", $"✅ Project context: created prompt.md ← CLAUDE.md ({content.Length} chars)");
             }
         }
         catch (Exception ex)
         {
-            return $"❌ 项目上下文: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ 项目上下文: 导入失败 — {ex.Message}", $"❌ Project context: import failed — {ex.Message}");
         }
     }
 
@@ -753,7 +758,7 @@ public static class ImportHelper
     {
         var projectsDir = Path.Combine(ClaudeHome, "projects");
         if (!Directory.Exists(projectsDir))
-            return "⏭ 会话: ~/.claude/projects/ 不存在";
+            return L.Pick("⏭ 会话: ~/.claude/projects/ 不存在", "⏭ Sessions: ~/.claude/projects/ does not exist");
 
         try
         {
@@ -801,11 +806,11 @@ public static class ImportHelper
                 if (scanned >= 20) break;
             }
 
-            return $"✅ 会话: 导入 {imported} 个，跳过 {skipped} 个 → {targetDir}";
+            return L.Pick($"✅ 会话: 导入 {imported} 个，跳过 {skipped} 个 → {targetDir}", $"✅ Sessions: imported {imported}, skipped {skipped} → {targetDir}");
         }
         catch (Exception ex)
         {
-            return $"❌ 会话: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ 会话: 导入失败 — {ex.Message}", $"❌ Sessions: import failed — {ex.Message}");
         }
     }
 
@@ -830,33 +835,33 @@ public static class ImportHelper
     {
         var projectClaudeDir = FindProjectClaudeDir(Environment.CurrentDirectory);
         if (projectClaudeDir == null)
-            return "⏭ 权限: 未找到项目 .claude/ 目录";
+            return L.Pick("⏭ 权限: 未找到项目 .claude/ 目录", "⏭ Permissions: project .claude/ directory not found");
 
         var localSettings = Path.Combine(projectClaudeDir, "settings.local.json");
         if (!File.Exists(localSettings))
-            return "⏭ 权限: 无 settings.local.json";
+            return L.Pick("⏭ 权限: 无 settings.local.json", "⏭ Permissions: no settings.local.json");
 
         try
         {
             var json = Json.Parse(File.ReadAllText(localSettings, Encoding.UTF8));
             var perms = json?["permissions"]?["allow"];
             if (perms == null || perms.Count == 0)
-                return "⏭ 权限: 无 allow 规则";
+                return L.Pick("⏭ 权限: 无 allow 规则", "⏭ Permissions: no allow rules");
 
             var sb = new StringBuilder();
-            sb.AppendLine($"🔑 权限规则: {perms.Count} 条");
-            sb.AppendLine("  ⚠ 权限规则格式不同，已列出供手动设置:");
+            sb.AppendLine(L.Pick($"🔑 权限规则: {perms.Count} 条", $"🔑 Permission rules: {perms.Count}"));
+            sb.AppendLine(L.Pick("  ⚠ 权限规则格式不同，已列出供手动设置:", "  ⚠ Permission rule format differs; listed below for manual setup:"));
             foreach (var perm in perms.Items)
             {
                 sb.AppendLine($"    /perm add {perm.AsString() ?? perm.ToJson()}");
             }
-            sb.AppendLine("  💡 在 WayCoder 中使用 /perm yolo 可跳过所有确认");
+            sb.AppendLine(L.Pick("  💡 在 WayCoder 中使用 /perm yolo 可跳过所有确认", "  💡 Use /perm yolo in WayCoder to skip all confirmations"));
 
             return sb.ToString().Trim();
         }
         catch (Exception ex)
         {
-            return $"❌ 权限: 导入失败 — {ex.Message}";
+            return L.Pick($"❌ 权限: 导入失败 — {ex.Message}", $"❌ Permissions: import failed — {ex.Message}");
         }
     }
 

@@ -292,7 +292,7 @@ public static class CheckpointManager
             target = _checkpoints.LastOrDefault();
 
         if (target == null)
-            return "没有可回退的检查点。使用 /checkpoint 先创建一个。";
+            return L.Pick("没有可回退的检查点。使用 /checkpoint 先创建一个。", "No checkpoint to roll back to. Create one first with /checkpoint.");
 
         try
         {
@@ -300,23 +300,23 @@ public static class CheckpointManager
             {
                 // Git stash 不支持按文件恢复，全量恢复
                 if (filePath != null)
-                    return $"Git Stash 检查点 #{target.Id} 不支持按文件恢复。请回退全部文件后重新修改。";
+                    return L.Pick($"Git Stash 检查点 #{target.Id} 不支持按文件恢复。请回退全部文件后重新修改。", $"Git Stash checkpoint #{target.Id} does not support per-file restore. Roll back all files, then make the change again.");
 
                 // 用记录的目标 stash 引用（旧检查点无引用时回退最新 stash，保持向后兼容）
                 var stashArgs = string.IsNullOrEmpty(target.StashRef) ? "pop" : $"pop {target.StashRef}";
                 var result = await RunBashAsync($"git stash {stashArgs} 2>&1");
                 _checkpoints.Remove(target);
-                return $"已回退到检查点 #{target.Id}: {target.Description}\n{result}";
+                return L.Pick($"已回退到检查点 #{target.Id}: {target.Description}\n{result}", $"Rolled back to checkpoint #{target.Id}: {target.Description}\n{result}");
             }
             else if (target.Type == CheckpointType.FileBackup)
             {
                 var backupDir = FindCheckpointDir(target.Id);
                 if (backupDir == null)
-                    return $"检查点 #{target.Id} 备份目录不存在";
+                    return L.Pick($"检查点 #{target.Id} 备份目录不存在", $"Checkpoint #{target.Id} backup directory does not exist");
 
                 var metaPath = Path.Combine(backupDir, "_checkpoint.json");
                 if (!File.Exists(metaPath))
-                    return $"检查点 #{target.Id} 元数据丢失";
+                    return L.Pick($"检查点 #{target.Id} 元数据丢失", $"Checkpoint #{target.Id} metadata is missing");
 
                 var meta = Json.Parse(File.ReadAllText(metaPath));
                 var files = meta!["files"]!.Items.Select(f => f.AsString() ?? "").ToList();
@@ -332,7 +332,7 @@ public static class CheckpointManager
                     ).ToList();
 
                     if (toRestore.Count == 0)
-                        return $"检查点 #{target.Id} 中未找到匹配 \"{filePath}\" 的文件。\n可用文件:\n  " +
+                        return L.Pick($"检查点 #{target.Id} 中未找到匹配 \"{filePath}\" 的文件。\n可用文件:\n  ", $"No file matching \"{filePath}\" in checkpoint #{target.Id}.\nAvailable files:\n  ") +
                                string.Join("\n  ", files);
                 }
 
@@ -341,7 +341,7 @@ public static class CheckpointManager
                 {
                     // 文件锁检查
                     if (FileLockManager.IsLockedByOther(file, "checkpoint"))
-                        return $"⚠ 文件 \"{file}\" 正被其他 Agent 锁定，无法恢复。";
+                        return L.Pick($"⚠ 文件 \"{file}\" 正被其他 Agent 锁定，无法恢复。", $"⚠ File \"{file}\" is locked by another agent and cannot be restored.");
 
                     // 与创建时一致：绝对路径相对化（防止 Combine 忽略 backupDir 得到原路径自拷）
                     var relPath = Path.GetRelativePath(Directory.GetCurrentDirectory(), file);
@@ -363,18 +363,18 @@ public static class CheckpointManager
                     _checkpoints.Remove(target);
 
                 return filePath != null
-                    ? $"已恢复 {restored} 个文件（检查点 #{target.Id} 保留）\n  " + string.Join("\n  ", toRestore)
-                    : $"已回退到检查点 #{target.Id}: {target.Description}\n恢复了 {restored} 个文件";
+                    ? L.Pick($"已恢复 {restored} 个文件（检查点 #{target.Id} 保留）\n  ", $"Restored {restored} files (checkpoint #{target.Id} kept)\n  ") + string.Join("\n  ", toRestore)
+                    : L.Pick($"已回退到检查点 #{target.Id}: {target.Description}\n恢复了 {restored} 个文件", $"Rolled back to checkpoint #{target.Id}: {target.Description}\nRestored {restored} files");
             }
             else
             {
                 _checkpoints.Remove(target);
-                return $"检查点 #{target.Id} (空快照) 已移除，无需回退。";
+                return L.Pick($"检查点 #{target.Id} (空快照) 已移除，无需回退。", $"Checkpoint #{target.Id} (empty snapshot) removed; nothing to roll back.");
             }
         }
         catch (Exception ex)
         {
-            return $"回退失败: {ex.Message}";
+            return L.Pick($"回退失败: {ex.Message}", $"Rollback failed: {ex.Message}");
         }
     }
 
@@ -414,7 +414,7 @@ public static class CheckpointManager
     public static string ListCheckpoints()
     {
         if (_checkpoints.Count == 0)
-            return "（暂无检查点）";
+            return L.Pick("（暂无检查点）", "(no checkpoints)");
 
         var lines = new List<string>();
         foreach (var cp in _checkpoints.OrderBy(c => c.Id))
@@ -438,7 +438,7 @@ public static class CheckpointManager
     public static string ListTimeline()
     {
         if (_checkpoints.Count == 0)
-            return "（暂无检查点。写文件时自动快照，或手动 /checkpoint 创建。）";
+            return L.Pick("（暂无检查点。写文件时自动快照，或手动 /checkpoint 创建。）", "(no checkpoints. A snapshot is taken automatically on file writes; you can also create one with /checkpoint.)");
 
         var now = DateTime.Now;
         var lines = new List<string>();
@@ -454,7 +454,7 @@ public static class CheckpointManager
                 _ => "❓"
             };
             var fileCount = cp.Type == CheckpointType.FileBackup ? GetCheckpointFiles(cp.Id).Count : -1;
-            var fileStr = fileCount >= 0 ? $" «dim»({fileCount} 文件)«/»" : "";
+            var fileStr = fileCount >= 0 ? L.Pick($" «dim»({fileCount} 文件)«/»", $" «dim»({fileCount} files)«/»") : "";
             var branch = ordered.Count == 1 ? "──" : (i == 0 ? "┌─" : (i == ordered.Count - 1 ? "└─" : "├─"));
             lines.Add($"  {branch} {icon} #{cp.Id}  «dim»{RelativeTime(now, cp.Timestamp)}«/»  {cp.Description}{fileStr}");
         }
@@ -503,7 +503,7 @@ public static class CheckpointManager
         catch (OperationCanceledException)
         {
             ProcUtil.KillTree(proc);
-            return "[checkpoint 命令超时（15s）]";
+            return L.Pick("[checkpoint 命令超时（15s）]", "[checkpoint command timed out (15s)]");
         }
         // 守护子进程继承管道会让读取永不 EOF：加超时兜底
         _ = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5));

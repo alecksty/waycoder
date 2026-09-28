@@ -301,7 +301,7 @@ public static class SemanticMemory
                 ? doc.Timestamp.ToString("MM-dd HH:mm")
                 : "";
 
-            sb.AppendLine($"### {timeStr} (相关度: {score:F2})");
+            sb.AppendLine($"### {timeStr} " + L.Pick($"(相关度: {score:F2})", $"(relevance: {score:F2})"));
             sb.AppendLine(snippet);
             sb.AppendLine();
 

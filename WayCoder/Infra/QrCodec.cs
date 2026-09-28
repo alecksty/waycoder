@@ -384,6 +384,6 @@ public static class QrCodec
     internal static void CheckVersion(int version)
     {
         if (version < MinVersion || version > MaxVersion)
-            throw new ArgumentOutOfRangeException(nameof(version), "QR 版本必须在 1-40");
+            throw new ArgumentOutOfRangeException(nameof(version), L.Pick("QR 版本必须在 1-40", "QR version must be between 1 and 40"));
     }
 }

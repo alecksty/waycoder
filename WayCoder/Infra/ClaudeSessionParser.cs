@@ -61,7 +61,7 @@ public static class ClaudeSessionParser
                                 }
                                 else if (bt == "tool_use")
                                 {
-                                    var name = block!.GetString("name") ?? "工具";
+                                    var name = block!.GetString("name") ?? L.Pick("工具", "Tool");
                                     list.Add(new Entry("tool", name, name, block["input"]));
                                 }
                             }

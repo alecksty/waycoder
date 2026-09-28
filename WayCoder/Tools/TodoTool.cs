@@ -95,7 +95,7 @@ public class TodoTool : ITool
             "list" => List(arguments),
             "delete" => Delete(arguments),
             "clear" => Clear(),
-            _ => "错误：不支持的操作，可用 create/update/list/delete/clear",
+            _ => L.Pick("错误：不支持的操作，可用 create/update/list/delete/clear", "Error: unsupported operation; available operations are create/update/list/delete/clear"),
         };
 
         // 修改后刷新侧边栏 Todo 面板
@@ -112,18 +112,18 @@ public class TodoTool : ITool
         var id = args.GetValueOrDefault("id")?.ToString();
         var title = args.GetValueOrDefault("title")?.ToString();
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(title))
-            return "错误：create 需要 id 和 title 参数。示例: {\"action\":\"create\",\"id\":\"fix-bug\",\"title\":\"修复登录 Bug\"}";
+            return L.Pick("错误：create 需要 id 和 title 参数。示例: {\"action\":\"create\",\"id\":\"fix-bug\",\"title\":\"修复登录 Bug\"}", "Error: create requires the id and title parameters. Example: {\"action\":\"create\",\"id\":\"fix-bug\",\"title\":\"Fix login bug\"}");
 
         if (id.Length > 64)
-            return "错误：id 最长 64 字符";
+            return L.Pick("错误：id 最长 64 字符", "Error: the id may be at most 64 characters");
 
         var todos = TodoStore.Load();
         if (todos.Any(t => t.Id == id))
-            return $"错误：任务 ID '{id}' 已存在。请使用 update 操作修改现有任务。";
+            return L.Pick($"错误：任务 ID '{id}' 已存在。请使用 update 操作修改现有任务。", $"Error: task ID '{id}' already exists. Use the update operation to modify the existing task.");
 
         // 条数上限：todo 无限加会让 todos.json 无限涨（对齐 Global.MaxTodos）
         if (todos.Count >= Global.MaxTodos)
-            return $"错误：任务已达上限（{Global.MaxTodos} 条），请先 clear 或 delete 一些任务。";
+            return L.Pick($"错误：任务已达上限（{Global.MaxTodos} 条），请先 clear 或 delete 一些任务。", $"Error: the task limit ({Global.MaxTodos}) has been reached; clear or delete some tasks first.");
 
         var desc = args.GetValueOrDefault("description")?.ToString() ?? "";
 
@@ -134,7 +134,7 @@ public class TodoTool : ITool
         var allIds = todos.Select(t => t.Id).ToHashSet();
         var missing = deps.Where(d => !allIds.Contains(d)).ToList();
         if (missing.Count > 0)
-            return $"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。";
+            return L.Pick($"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。", $"Error: dependency tasks do not exist: {string.Join(", ", missing)}. Create them first, or remove the invalid dependencies.");
 
         var todo = new TodoStore.Entry
         {
@@ -148,8 +148,8 @@ public class TodoTool : ITool
         todos.Add(todo);
         TodoStore.Save(todos);
 
-        var depNote = deps.Count > 0 ? $"，依赖 [{string.Join(", ", deps)}]" : "";
-        return $"✅ 创建任务 [{id}]: {title} | 状态={todo.Status}{depNote}";
+        var depNote = deps.Count > 0 ? L.Pick($"，依赖 [{string.Join(", ", deps)}]", $", dependencies [{string.Join(", ", deps)}]") : "";
+        return L.Pick($"✅ 创建任务 [{id}]: {title} | 状态={todo.Status}{depNote}", $"✅ Created task [{id}]: {title} | status={todo.Status}{depNote}");
     }
 
     // ── update ──
@@ -158,12 +158,12 @@ public class TodoTool : ITool
     {
         var id = args.GetValueOrDefault("id")?.ToString();
         if (string.IsNullOrWhiteSpace(id))
-            return "错误：update 需要 id 参数";
+            return L.Pick("错误：update 需要 id 参数", "Error: update requires the id parameter");
 
         var todos = TodoStore.Load();
         var todo = todos.FirstOrDefault(t => t.Id == id);
         if (todo == null)
-            return $"错误：任务 '{id}' 不存在。使用 list 查看所有任务。";
+            return L.Pick($"错误：任务 '{id}' 不存在。使用 list 查看所有任务。", $"Error: task '{id}' does not exist. Use list to see all tasks.");
 
         var changes = new List<string>();
 
@@ -171,28 +171,28 @@ public class TodoTool : ITool
         if (args.TryGetValue("title", out var titleObj) && titleObj is string newTitle && !string.IsNullOrWhiteSpace(newTitle))
         {
             todo.Title = newTitle;
-            changes.Add($"标题→'{newTitle}'");
+            changes.Add(L.Pick($"标题→'{newTitle}'", $"title -> '{newTitle}'"));
         }
 
         // 更新描述
         if (args.TryGetValue("description", out var descObj) && descObj is string newDesc)
         {
             todo.Description = newDesc;
-            changes.Add("描述已更新");
+            changes.Add(L.Pick("描述已更新", "description updated"));
         }
 
         // 更新状态
         if (args.TryGetValue("status", out var statusObj) && statusObj is string status && !string.IsNullOrWhiteSpace(status))
         {
             if (!TodoStore.ValidStatuses.Contains(status))
-                return $"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}";
+                return L.Pick($"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}", $"Error: invalid status '{status}'; available statuses are {string.Join(", ", TodoStore.ValidStatuses)}");
 
             // 依赖检查：blocked→in_progress 需所有依赖已完成
             if (status == "in_progress" && todo.DependsOn.Count > 0)
             {
                 var incomplete = TodoStore.IncompleteDeps(todos, todo);
                 if (incomplete.Count > 0)
-                    return $"⛔ 无法开始 [{id}]：依赖任务未完成 — {string.Join(", ", incomplete)}。请先完成依赖任务再重试。";
+                    return L.Pick($"⛔ 无法开始 [{id}]：依赖任务未完成 — {string.Join(", ", incomplete)}。请先完成依赖任务再重试。", $"⛔ Cannot start [{id}]: dependencies not completed - {string.Join(", ", incomplete)}. Complete the dependencies first, then retry.");
             }
 
             // 完成任务时：自动解除依赖此任务的其他 blocked 任务（共享实现，与 struct_todo 同源）
@@ -200,18 +200,18 @@ public class TodoTool : ITool
             {
                 var unblocked = TodoStore.UnblockDependents(todos, id);
                 if (unblocked.Count > 0)
-                    changes.Add($"解除阻塞: [{string.Join(", ", unblocked)}]");
+                    changes.Add(L.Pick($"解除阻塞: [{string.Join(", ", unblocked)}]", $"unblocked: [{string.Join(", ", unblocked)}]"));
             }
 
             todo.Status = status;
-            changes.Add($"状态→{status}");
+            changes.Add(L.Pick($"状态→{status}", $"status -> {status}"));
         }
 
         if (changes.Count == 0)
-            return $"ℹ️ 任务 [{id}] 无变更。请提供 title、description 或 status 参数。";
+            return L.Pick($"ℹ️ 任务 [{id}] 无变更。请提供 title、description 或 status 参数。", $"ℹ️ Task [{id}] has no changes. Provide a title, description, or status parameter.");
 
         TodoStore.Save(todos);
-        return $"✅ 更新 [{id}] {todo.Title}: {string.Join(", ", changes)}";
+        return L.Pick($"✅ 更新 [{id}] {todo.Title}: {string.Join(", ", changes)}", $"✅ Updated [{id}] {todo.Title}: {string.Join(", ", changes)}");
     }
 
     // ── list ──
@@ -222,10 +222,10 @@ public class TodoTool : ITool
         var todos = TodoStore.LoadFiltered(args.GetValueOrDefault("filter")?.ToString());
 
         if (todos.Count == 0)
-            return "📋 任务列表为空。使用 create 操作创建新任务。";
+            return L.Pick("📋 任务列表为空。使用 create 操作创建新任务。", "📋 The task list is empty. Use the create operation to add a new task.");
 
-        var lines = new List<string> { $"## 📋 任务列表 ({todos.Count} 项)" };
-        lines.Add("| ID | 状态 | 标题 | 依赖 |");
+        var lines = new List<string> { L.Pick($"## 📋 任务列表 ({todos.Count} 项)", $"## 📋 Task list ({todos.Count} items)") };
+        lines.Add(L.Pick("| ID | 状态 | 标题 | 依赖 |", "| ID | Status | Title | Dependencies |"));
         lines.Add("|----|------|------|------|");
 
         foreach (var t in todos)
@@ -243,12 +243,12 @@ public class TodoTool : ITool
     {
         var id = args.GetValueOrDefault("id")?.ToString();
         if (string.IsNullOrWhiteSpace(id))
-            return "错误：delete 需要 id 参数";
+            return L.Pick("错误：delete 需要 id 参数", "Error: delete requires the id parameter");
 
         var todos = TodoStore.Load();
         var removed = todos.RemoveAll(t => t.Id == id);
         if (removed == 0)
-            return $"错误：任务 '{id}' 不存在。使用 list 查看所有任务。";
+            return L.Pick($"错误：任务 '{id}' 不存在。使用 list 查看所有任务。", $"Error: task '{id}' does not exist. Use list to see all tasks.");
 
         // 清理以被删任务为依赖的其他任务的依赖列表
         int cleanedDeps = 0;
@@ -262,8 +262,8 @@ public class TodoTool : ITool
 
         TodoStore.Save(todos);
 
-        var extra = cleanedDeps > 0 ? $"（已从 {cleanedDeps} 个任务的依赖列表中移除）" : "";
-        return $"🗑️ 已删除任务 [{id}] {extra}";
+        var extra = cleanedDeps > 0 ? L.Pick($"（已从 {cleanedDeps} 个任务的依赖列表中移除）", $"(removed from the dependency lists of {cleanedDeps} tasks)") : "";
+        return L.Pick($"🗑️ 已删除任务 [{id}] {extra}", $"🗑️ Deleted task [{id}] {extra}");
     }
 
     // ── clear ──
@@ -274,7 +274,7 @@ public class TodoTool : ITool
         var count = todos.Count;
         todos.Clear();
         TodoStore.Save(todos);
-        return $"✅ 已清除 {count} 个任务";
+        return L.Pick($"✅ 已清除 {count} 个任务", $"✅ Cleared {count} tasks");
     }
 
     // ── 辅助 ──

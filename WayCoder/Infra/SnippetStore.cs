@@ -48,7 +48,9 @@ public static class SnippetStore
             var readme = Path.Combine(d, "README.md");
             if (!File.Exists(readme))
             {
-                File.WriteAllText(readme, """
+                // 模板正文按语言整体切换（模板里没有花括号，故可用插值原始字符串；
+                // 中文支逐字不变，只有整份文案的来源从字面量变成 L.Pick）。
+                File.WriteAllText(readme, L.Pick("""
                     ---
                     name: readme
                     description: 片段使用说明
@@ -71,7 +73,30 @@ public static class SnippetStore
                     ## 使用方式
 
                     在 Agent 对话中提及片段名即可自动检索。
-                    """);
+                    """, """
+                    ---
+                    name: readme
+                    description: Snippet usage guide
+                    ---
+                    # Code snippets
+
+                    Create one `.md` file per snippet in this directory.
+
+                    ## File format
+
+                    ```markdown
+                    ---
+                    name: my-snippet
+                    tags: [utility, string]
+                    language: csharp
+                    ---
+                    Code goes here...
+                    ```
+
+                    ## How to use
+
+                    Mention a snippet name in the agent conversation to retrieve it automatically.
+                    """));
             }
 
             _loaded = true;

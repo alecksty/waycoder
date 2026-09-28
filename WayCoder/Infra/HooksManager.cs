@@ -217,7 +217,7 @@ public static class HooksManager
         foreach (var result in results)
         {
             if (result.Decision == "block" || !result.Continue)
-                return result.Reason ?? $"操作被 PreToolUse hook 阻止: {toolName}";
+                return result.Reason ?? L.Pick($"操作被 PreToolUse hook 阻止: {toolName}", $"Blocked by PreToolUse hook: {toolName}");
         }
         return null;
     }
@@ -618,7 +618,7 @@ public static class HooksManager
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
                 ProcUtil.KillTree(proc);
-                return (-1, $"Hook 超时（{actualTimeout / 1000} 秒）");
+                return (-1, L.Pick($"Hook 超时（{actualTimeout / 1000} 秒）", $"Hook timed out ({actualTimeout / 1000}s)"));
             }
 
             // 守护子进程继承管道会让读取永不 EOF：加超时兜底

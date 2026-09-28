@@ -48,7 +48,7 @@ public static class CustomCommands
     public static (string Content, bool ReplaceInput) Execute(string commandName, string arguments, Agent agent)
     {
         if (!_commands.TryGetValue(commandName, out var cmd))
-            return ($"未知命令: /{commandName}", false);
+            return (L.Pick($"未知命令: /{commandName}", $"Unknown command: /{commandName}"), false);
 
         // 执行命令内容中的内联 bash（以 ! 开头的行）
         var content = cmd.Content;
@@ -63,7 +63,7 @@ public static class CustomCommands
             }
             catch (Exception ex)
             {
-                return $"(bash 错误: {ex.Message})";
+                return L.Pick($"(bash 错误: {ex.Message})", $"(bash error: {ex.Message})");
             }
         }, RegexOptions.Multiline);
 

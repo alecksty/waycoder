@@ -19,7 +19,7 @@ public class ImportCommand : SlashCommand
 {
     public override string Name => "/import";
     public override string[] Aliases => ["/导入"];
-    public override string Description => "从其他编程智能体导入配置（模型、MCP、上下文、会话）";
+    public override string Description => L.Pick("从其他编程智能体导入配置（模型、MCP、上下文、会话）", "Import configuration from other coding agents (models, MCP, context, sessions)");
     public override string? Usage => "/import [all|models|mcp|context|sessions]";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
@@ -32,18 +32,18 @@ public class ImportCommand : SlashCommand
             var items = ImportHelper.Detect();
             if (items.Count == 0)
             {
-                screen.AddMessage("未发现可导入的配置。\n\n" +
-                    "支持从以下来源导入：\n" +
+                screen.AddMessage(L.Pick("未发现可导入的配置。\n\n", "No importable configuration found.\n\n") +
+                    L.Pick("支持从以下来源导入：\n", "Import is supported from these sources:\n") +
                     "- Claude Code (~/.claude/)\n" +
                     "- OpenCode (~/.config/opencode/)\n" +
                     "- Cursor (.cursor/)\n" +
                     "- Cline (~/.cline/)\n\n" +
-                    "使用 **/import all** 导入全部，或指定分类：`models` / `mcp` / `context` / `sessions`", "system");
+                    L.Pick("使用 **/import all** 导入全部，或指定分类：`models` / `mcp` / `context` / `sessions`", "Use **/import all** to import everything, or name a category: `models` / `mcp` / `context` / `sessions`"), "system");
                 return;
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("## 发现可导入内容");
+            sb.AppendLine(L.Pick("## 发现可导入内容", "## Importable content found"));
             sb.AppendLine();
 
             var byCategory = items.GroupBy(i => i.Category).ToList();
@@ -60,7 +60,7 @@ public class ImportCommand : SlashCommand
 
             sb.AppendLine();
             sb.AppendLine("---");
-            sb.AppendLine("使用 **/import all** 导入全部，或指定分类：`models` / `mcp` / `context` / `sessions`");
+            sb.AppendLine(L.Pick("使用 **/import all** 导入全部，或指定分类：`models` / `mcp` / `context` / `sessions`", "Use **/import all** to import everything, or name a category: `models` / `mcp` / `context` / `sessions`"));
 
             screen.AddMessage(sb.ToString().Trim(), "system");
             return;
@@ -69,7 +69,7 @@ public class ImportCommand : SlashCommand
         // /import all → 全部导入
         if (arg == "all")
         {
-            screen.AddMessage("🔄 正在导入...", "system");
+            screen.AddMessage(L.Pick("🔄 正在导入...", "🔄 Importing..."), "system");
             var result = await ImportHelper.ImportAsync();
             screen.AddMessage(result, "system");
             return;
@@ -79,12 +79,12 @@ public class ImportCommand : SlashCommand
         var validCategories = new HashSet<string> { "models", "mcp", "context", "sessions", "permissions" };
         if (validCategories.Contains(arg))
         {
-            screen.AddMessage($"🔄 正在导入 {arg}...", "system");
+            screen.AddMessage(L.Pick($"🔄 正在导入 {arg}...", $"🔄 Importing {arg}..."), "system");
             var result = await ImportHelper.ImportAsync(new HashSet<string> { arg });
             screen.AddMessage(result, "system");
             return;
         }
 
-        screen.AddMessage($"未知导入分类: **{arg}**\n有效分类: {string.Join(", ", validCategories)}", "system");
+        screen.AddMessage(L.Pick($"未知导入分类: **{arg}**\n有效分类: {string.Join(", ", validCategories)}", $"Unknown import category: **{arg}**\nValid categories: {string.Join(", ", validCategories)}"), "system");
     }
 }

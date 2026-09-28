@@ -21,7 +21,7 @@ public static class ProjectContext
         if (files.Count == 0) return "";
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("\n# 项目指令");
+        sb.AppendLine(L.Pick("\n# 项目指令", "\n# Project instructions"));
         foreach (var file in files)
         {
             try
@@ -31,7 +31,7 @@ public static class ProjectContext
                 sb.AppendLine($"\n## {relative}\n");
                 // 截断过长文件
                 if (content.Length > 4000)
-                    sb.AppendLine(ContextManager.TruncateByRunes(content, 4000) + "\n\n... (已截断)");
+                    sb.AppendLine(ContextManager.TruncateByRunes(content, 4000) + L.Pick("\n\n... (已截断)", "\n\n... (truncated)"));
                 else
                     sb.AppendLine(content);
             }
@@ -184,7 +184,7 @@ public static class ProjectContext
         else if (exts.ContainsKey(".go")) info.PrimaryLanguage = "Go";
         else if (exts.ContainsKey(".rs")) info.PrimaryLanguage = "Rust";
         else if (exts.ContainsKey(".java")) info.PrimaryLanguage = "Java";
-        else info.PrimaryLanguage = "未知";
+        else info.PrimaryLanguage = L.Pick("未知", "Unknown");
     }
 
     private static void DetectFrameworks(string root, ProjectInfo info)
@@ -362,7 +362,7 @@ public static class ProjectContext
 public class ProjectInfo
 {
     public string ProjectRoot { get; set; } = Directory.GetCurrentDirectory();
-    public string PrimaryLanguage { get; set; } = "未知";
+    public string PrimaryLanguage { get; set; } = L.Pick("未知", "Unknown");
     public List<string> Languages { get; set; } = [];
     public List<string> Frameworks { get; set; } = [];
     public List<string> BuildTools { get; set; } = [];

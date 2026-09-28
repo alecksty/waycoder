@@ -49,7 +49,8 @@ public class PsTool : ITool
         top = Math.Clamp(top, 1, 1000);
         // 命令注入防护：进程名白名单（复用 KillTool 的校验逻辑），杜绝 shell 元字符注入
         if (!string.IsNullOrEmpty(name) && !KillTool.IsSafeProcessName(name))
-            return "错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。";
+            return L.Pick("错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。",
+                          "Error: the process name contains invalid characters (only letters, digits, dots, underscores, hyphens, and spaces are allowed).");
 
         try
         {
@@ -75,16 +76,18 @@ public class PsTool : ITool
             var psi = BuildPsi(fileName, args);
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, 10_000);
-            if (r == null) return "错误：ps 命令超时（10s）";
+            if (r == null) return L.Pick("错误：ps 命令超时（10s）", "Error: ps command timed out (10s)");
             var (exitCode, result, errResult) = r.Value;
             if (string.IsNullOrWhiteSpace(result))
                 result = errResult;
             if (string.IsNullOrWhiteSpace(result))
-                return "（无进程匹配）";
+                return L.Pick("（无进程匹配）", "(no matching processes)");
 
             // 截断长输出
             if (result.Length > 8000)
-                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000, $"\n... (已截断，共 {result.Length} 字符) ...\n");
+                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000,
+                    L.Pick($"\n... (已截断，共 {result.Length} 字符) ...\n",
+                           $"\n... (truncated, {result.Length} chars total) ...\n"));
 
             return result.Trim();
         }

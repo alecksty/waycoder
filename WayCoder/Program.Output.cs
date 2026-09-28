@@ -174,13 +174,13 @@ public partial class Program
                     var frame = spinnerFrames[i % spinnerFrames.Length];
                     string status;
                     if (elapsed > 60)
-                        status = $"{frame} 响应缓慢, 请耐心等待... ({elapsed:F0}s)";
+                        status = $"{frame} " + L.Pick("响应缓慢, 请耐心等待...", "Slow response, please wait...") + $" ({elapsed:F0}s)";
                     else if (elapsed > 30)
-                        status = $"{frame} 等待响应中... ({elapsed:F0}s)";
+                        status = $"{frame} " + L.Pick("等待响应中...", "Waiting for response...") + $" ({elapsed:F0}s)";
                     else if (elapsed > 15)
-                        status = $"{frame} 思考中... ({elapsed:F0}s)";
+                        status = $"{frame} " + L.Pick("思考中...", "Thinking...") + $" ({elapsed:F0}s)";
                     else
-                        status = $"{frame} 思考中...";
+                        status = $"{frame} " + L.Pick("思考中...", "Thinking...");
 
                     // 清行 + 回行首 + 动画帧（直接写 stdout）
                     Console.Write($"\r{AnsiTty.ClearToEnd}  {AnsiTty.SgrDim}{status}");

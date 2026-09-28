@@ -49,9 +49,10 @@ public partial class Agent
 
             // 截断过长输出
             if (lintResult.Length > 1500)
-                lintResult = ContextManager.TruncateByRunes(lintResult, 1500) + "\n... (已截断)";
+                lintResult = ContextManager.TruncateByRunes(lintResult, 1500) + L.Pick("\n... (已截断)", "\n... (truncated)");
 
-            return toolResult + $"\n\n--- Lint 自动检查 ({lang}) ---\n{lintResult}";
+            return toolResult + L.Pick($"\n\n--- Lint 自动检查 ({lang}) ---\n{lintResult}",
+                $"\n\n--- Automatic lint check ({lang}) ---\n{lintResult}");
         }
         catch
         {
@@ -140,9 +141,10 @@ public partial class Agent
             _turnTestFailed = true;
             // 截断
             if (fullOutput.Length > 2000)
-                fullOutput = ContextManager.TruncateByRunes(fullOutput, 2000) + $"\n... (共 {fullOutput.Length} 字符)";
+                fullOutput = ContextManager.TruncateByRunes(fullOutput, 2000) + L.Pick($"\n... (共 {fullOutput.Length} 字符)", $"\n... ({fullOutput.Length} chars total)");
 
-            var failure = $"\n\n--- 🔴 自动测试失败 (exit={exitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]";
+            var failure = L.Pick($"\n\n--- 🔴 自动测试失败 (exit={exitCode}) ---\n{fullOutput}\n[请修复代码使测试通过]",
+                $"\n\n--- 🔴 Automatic test failure (exit={exitCode}) ---\n{fullOutput}\n[Fix the code so the tests pass]");
             // 学习型智能体：召回知识库 + git 修复史中同类错误的已知解法
             try { failure += await KbIndex.DiagnoseError(fullOutput, 2); } catch { }
             return toolResult + failure;

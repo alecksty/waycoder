@@ -31,7 +31,7 @@ public class GlobTool : ITool
         {
             var basePath = CwdContext.Resolve(searchPath); // cd 后相对路径基于被跟踪工作目录
             if (!Directory.Exists(basePath))
-                return $"错误：{searchPath} 不是目录";
+                return L.Pick($"错误：{searchPath} 不是目录", $"Error: {searchPath} is not a directory");
 
             var files = MatchGlob(basePath, pattern);
 
@@ -52,9 +52,10 @@ public class GlobTool : ITool
             var result = string.Join("\n", shown);
 
             if (total > 100)
-                result += $"\n...（共 {total} 个匹配，仅显示前 100 个）";
+                result += L.Pick($"\n...（共 {total} 个匹配，仅显示前 100 个）",
+                                 $"\n... ({total} matches in total; showing the first 100)");
 
-            return string.IsNullOrEmpty(result) ? "没有匹配的文件。" : result;
+            return string.IsNullOrEmpty(result) ? L.Pick("没有匹配的文件。", "No matching files.") : result;
         }
         catch (Exception ex)
         {

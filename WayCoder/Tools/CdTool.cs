@@ -19,7 +19,8 @@ public class CdTool : ITool
     {
         var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(path))
-            return Task.FromResult("错误：path 参数不能为空");
+            return Task.FromResult(L.Pick("错误：path 参数不能为空",
+                                          "Error: the path parameter must not be empty"));
 
         try
         {
@@ -37,12 +38,14 @@ public class CdTool : ITool
             // 表现为「cd 成功 → 编辑全失败」的半死状态（实测把 Agent 卡死在项目外的克隆目录里）。
             // 拒绝要发生在**切换之前**，并给出可操作的提示。
             if (SandboxManager.OutsideAllowed(fullPath) is { } outside)
-                return Task.FromResult(
+                return Task.FromResult(L.Pick(
                     $"⛔ 沙箱（仅项目内）：不能切换到项目目录外 — {outside}\n"
-                    + "请在项目目录内操作（写/编辑/克隆都只允许在项目根以内）。");
+                    + "请在项目目录内操作（写/编辑/克隆都只允许在项目根以内）。",
+                    $"⛔ Sandbox (project-only): cannot switch outside the project directory - {outside}\n"
+                    + "Please work inside the project directory (writes/edits/clones are only allowed under the project root)."));
 
             CwdContext.Current = fullPath;
-            return Task.FromResult($"✔ 工作目录: {fullPath}");
+            return Task.FromResult(L.Pick($"✔ 工作目录: {fullPath}", $"✔ Working directory: {fullPath}"));
         }
         catch (Exception ex)
         {

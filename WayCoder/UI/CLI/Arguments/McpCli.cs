@@ -19,20 +19,26 @@ public static class McpCli
         var servers = McpManager.Servers;
         if (servers.Count == 0)
         {
-            Console.WriteLine("未配置 MCP 服务器（--mcp-config <路径> 可指定配置文件）。");
+            Console.WriteLine(L.Pick(
+                "未配置 MCP 服务器（--mcp-config <路径> 可指定配置文件）。",
+                "No MCP servers configured (use --mcp-config <path> to point at a config file)."));
             return 0;
         }
-        Console.WriteLine($"MCP 服务器 ({servers.Count})");
+        Console.WriteLine(L.Pick($"MCP 服务器 ({servers.Count})", $"MCP servers ({servers.Count})"));
         foreach (var s in servers)
         {
-            var mark = McpStatusIcon.Text(s.Status);var src = s.Source == "claude" ? "〔Claude〕" : "";
-            var line = $"{mark} {s.Name}{src} [{s.Transport}] {s.ToolCount} 工具";
-            if (s.ResourceCount > 0) line += $" · {s.ResourceCount} 资源";
-            if (s.PromptCount > 0) line += $" · {s.PromptCount} 提示词";
+            var mark = McpStatusIcon.Text(s.Status);
+            var src = s.Source == "claude" ? L.Pick("〔Claude〕", "[Claude]") : "";
+            var line = L.Pick($"{mark} {s.Name}{src} [{s.Transport}] {s.ToolCount} 工具",
+                              $"{mark} {s.Name}{src} [{s.Transport}] {s.ToolCount} tools");
+            if (s.ResourceCount > 0)
+                line += L.Pick($" · {s.ResourceCount} 资源", $" · {s.ResourceCount} resources");
+            if (s.PromptCount > 0)
+                line += L.Pick($" · {s.PromptCount} 提示词", $" · {s.PromptCount} prompts");
             if (s.Error != null) line += $" — {s.Error}";
             Console.WriteLine(line);
         }
-        Console.WriteLine("重连: --mcp reload [name]");
+        Console.WriteLine(L.Pick("重连: --mcp reload [name]", "Reconnect: --mcp reload [name]"));
         return 0;
     }
 }

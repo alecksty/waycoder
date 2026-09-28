@@ -75,7 +75,8 @@ public sealed class MakefileImporter : IProjectImporter
     {
         var full = Path.GetFullPath(makefilePath);
         if (!File.Exists(full))
-            throw new VmlProjectException($"找不到 Makefile：{full}");
+            throw new VmlProjectException(L.Pick($"找不到 Makefile：{full}",
+                $"Makefile not found: {full}"));
 
         var baseDir = Path.GetDirectoryName(full) ?? ".";
         var text = File.ReadAllText(full);
@@ -85,18 +86,24 @@ public sealed class MakefileImporter : IProjectImporter
         if (text.Contains("$(MAKE)", StringComparison.Ordinal)
             || text.Contains("${MAKE}", StringComparison.Ordinal))
             throw new VmlProjectException(
-                "这个 Makefile 是**转发式**的（里面用了 `$(MAKE)` 去调子目录）—— "
+                L.Pick("这个 Makefile 是**转发式**的（里面用了 `$(MAKE)` 去调子目录）—— "
                 + "真正的构建描述在子目录里，导入出来只会是空清单。\n"
-                + "   请在**子目录**那个 Makefile 上再跑一次 --import。");
+                + "   请在**子目录**那个 Makefile 上再跑一次 --import。",
+                    "This Makefile is a **forwarding** one (it uses `$(MAKE)` to run a subdirectory) - "
+                + "the real build description lives in the subdirectory, so importing it would only yield an empty list.\n"
+                + "   Please run --import on the Makefile in that **subdirectory** instead."));
 
         foreach (var line in Lines(text))
         {
             if (line.StartsWith("-include", StringComparison.Ordinal)
                 || line.StartsWith("sinclude", StringComparison.Ordinal))
                 throw new VmlProjectException(
-                    "这个 Makefile 用了 `-include` 递归拉依赖（IDE 自动生成的 `.mk` 常这样）—— "
+                    L.Pick("这个 Makefile 用了 `-include` 递归拉依赖（IDE 自动生成的 `.mk` 常这样）—— "
                     + "那是机器生成的结构，不是手写的构建描述，导入器不认。\n"
-                    + "   如果入口源文件明确，可以直接手写一个 .vmk（见 docs/VML工程文件.md）。");
+                    + "   如果入口源文件明确，可以直接手写一个 .vmk（见 docs/VML工程文件.md）。",
+                        "This Makefile uses `-include` to pull in dependencies recursively (common in IDE-generated `.mk` files) - "
+                    + "that is machine-generated structure, not a hand-written build description, and the importer doesn't accept it.\n"
+                    + "   If you know which file is the entry, you can write a .vmk by hand (see docs/VML工程文件.md)."));
         }
 
         // ── ② 变量 + 规则 ──
@@ -167,9 +174,12 @@ public sealed class MakefileImporter : IProjectImporter
 
         if (sources.Count == 0)
             throw new VmlProjectException(
-                "没能从这个 Makefile 里找出任何源文件。\n"
+                L.Pick("没能从这个 Makefile 里找出任何源文件。\n"
                 + "   认得的写法是 `SRCS = a.c b.c`、`OBJS = a.o b.o`（.o 反推 .c）、"
-                + "或在规则/命令行里直接写 `xxx.c`。");
+                + "或在规则/命令行里直接写 `xxx.c`。",
+                    "No source files could be found in this Makefile.\n"
+                + "   Recognized forms are `SRCS = a.c b.c`, `OBJS = a.o b.o` (an .o is mapped back to .c), "
+                + "or listing `xxx.c` directly in a rule or a recipe."));
 
         // ── ④ 挑入口 ──
         string entry;
@@ -178,8 +188,10 @@ public sealed class MakefileImporter : IProjectImporter
             var hint = Path.GetFullPath(Path.Combine(baseDir, entryHint));
             if (!sources.Contains(hint))
                 throw new VmlProjectException(
-                    $"指定的入口 `{entryHint}` 不在这个 Makefile 的源文件清单里：\n"
-                    + string.Join("\n", sources.Select(s => "     " + Rel(baseDir, s))));
+                    L.Pick($"指定的入口 `{entryHint}` 不在这个 Makefile 的源文件清单里：\n"
+                    + string.Join("\n", sources.Select(s => "     " + Rel(baseDir, s))),
+                        $"The specified entry `{entryHint}` isn't in this Makefile's source file list:\n"
+                    + string.Join("\n", sources.Select(s => "     " + Rel(baseDir, s)))));
             entry = hint;
         }
         else
@@ -187,10 +199,14 @@ public sealed class MakefileImporter : IProjectImporter
             var withMain = sources.Where(HasMain).ToList();
             if (withMain.Count > 1)
                 notes.Add(
-                    $"有 {withMain.Count} 个源文件都含 `main`，取了 `{Rel(baseDir, withMain[0])}` 当入口：\n"
+                    L.Pick($"有 {withMain.Count} 个源文件都含 `main`，取了 `{Rel(baseDir, withMain[0])}` 当入口：\n"
                     + string.Join("\n", withMain.Skip(1).Select(m => "        " + Rel(baseDir, m)))
                     + "\n      （多个 main 多半是 Makefile 里混了多个独立程序，"
-                    + "或者有文件用 `main` 当普通函数名 —— 请核对。）");
+                    + "或者有文件用 `main` 当普通函数名 —— 请核对。）",
+                        $"{withMain.Count} source files contain `main`; using `{Rel(baseDir, withMain[0])}` as the entry:\n"
+                    + string.Join("\n", withMain.Skip(1).Select(m => "        " + Rel(baseDir, m)))
+                    + "\n      (multiple mains usually mean the Makefile mixes several standalone programs, "
+                    + "or one file uses `main` as an ordinary function name - please check.)"));
             entry = withMain.Count > 0 ? withMain[0] : sources[0];
         }
 

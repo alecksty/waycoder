@@ -42,7 +42,8 @@ public class WriteFileTool : ITool
     private static async Task<string> ExecuteAsync(string filePath, string content, string agentId, bool append, Encoding encoding)
     {
         if (string.IsNullOrWhiteSpace(filePath))
-            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+            return L.Pick("错误：file_path 不能为空 — 请提供有效的文件路径。",
+                          "Error: file_path must not be empty - please provide a valid file path.");
 
         var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
@@ -91,7 +92,8 @@ public class WriteFileTool : ITool
                     {
                         var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
                         if (decision == DiffPreview.Decision.RejectAll)
-                            return $"已取消写入 {filePath}（用户拒绝变更）";
+                            return L.Pick($"已取消写入 {filePath}（用户拒绝变更）",
+                                          $"Write to {filePath} cancelled (declined by user)");
                         if (decision == DiffPreview.Decision.Partial && accepted != null)
                             content = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, content), accepted);
                     }
@@ -104,7 +106,8 @@ public class WriteFileTool : ITool
             FileTracker.RecordWrite(path);
 
             var lineCount = content.Count(c => c == '\n') + (string.IsNullOrEmpty(content) || content.EndsWith('\n') ? 0 : 1);
-            var writeResult = $"已{(append ? "追加" : "写入")} {lineCount} 行到 {filePath}";
+            var writeResult = L.Pick($"已{(append ? "追加" : "写入")} {lineCount} 行到 {filePath}",
+                                     $"{(append ? "Appended" : "Wrote")} {lineCount} line(s) to {filePath}");
             // YOLO 自动放行：diff 渲染进工具输出，聊天区显示源码对比
             if (!string.IsNullOrEmpty(diffMarkup))
                 writeResult = diffMarkup + "\n\n" + writeResult;
@@ -137,7 +140,8 @@ public class WriteFileTool : ITool
             "utf16" or "utf16le" or "utf-16" or "utf-16le" or "unicode" => Encoding.Unicode,
             "utf16be" or "utf-16be" or "bigendianunicode" => Encoding.BigEndianUnicode,
             "utf32" or "utf-32" => Encoding.UTF32,
-            _ => throw new ArgumentException($"不支持的编码 '{name}'（支持 utf8/utf8bom/ascii/utf16/utf16be/utf32）"),
+            _ => throw new ArgumentException(L.Pick($"不支持的编码 '{name}'（支持 utf8/utf8bom/ascii/utf16/utf16be/utf32）",
+                                                    $"Unsupported encoding '{name}' (supported: utf8/utf8bom/ascii/utf16/utf16be/utf32)")),
         };
     }
 }

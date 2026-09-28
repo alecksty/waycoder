@@ -6,14 +6,14 @@ namespace WayCoder.UI.Cli.Commands;
 public class PermitCommand : SlashCommand
 {
     public override string Name => "/permit";
-    public override string Description => "切换权限模式（问答ACK/自动AUTO/智能SMART/畅通YOLO）";
+    public override string Description => L.Pick("切换权限模式（问答ACK/自动AUTO/智能SMART/畅通YOLO）", "Switch permission mode (ack / auto / smart / yolo)");
     public override string? Usage => "/permit <ack|auto|smart|yolo>";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         if (string.IsNullOrWhiteSpace(args))
         {
-            screen.AddSystemMsg($"当前权限: {PermissionManager.FormatMode()}\n可选: ack(问答) auto(自动) smart(智能) yolo(畅通) · tiny/chat=纯聊天工作模式");
+            screen.AddSystemMsg(L.Pick($"当前权限: {PermissionManager.FormatMode()}\n可选: ack(问答) auto(自动) smart(智能) yolo(畅通) · tiny/chat=纯聊天工作模式", $"Current permission: {PermissionManager.FormatMode()}\nAvailable: ack auto smart yolo · tiny/chat = chat-only work mode"));
             return Task.CompletedTask;
         }
 
@@ -26,13 +26,13 @@ public class PermitCommand : SlashCommand
             if (slots != null && activeSlot >= 0 && activeSlot < slots.Length)
                 slots[activeSlot].WorkMode = WorkMode.Chat;
             Program.RefreshActiveSlotTools();
-            screen.AddSystemMsg($"✅ 工作模式已切换: {WorkModeManager.Format(WorkMode.Chat)}（纯聊天 · 0 工具 0 提示词）");
+            screen.AddSystemMsg(L.Pick($"✅ 工作模式已切换: {WorkModeManager.Format(WorkMode.Chat)}（纯聊天 · 0 工具 0 提示词）", $"✅ Work mode switched: {WorkModeManager.Format(WorkMode.Chat)} (chat only · 0 tools, 0 prompt)"));
             return Task.CompletedTask;
         }
 
         PermissionManager.SetMode(args);
         Program.RefreshActiveSlotTools(); // 权限模式可影响工具集（YOLO 换 YoloToolAllowList），切换后刷新
-        screen.AddSystemMsg($"✅ 权限模式: {PermissionManager.FormatMode()}");
+        screen.AddSystemMsg(L.Pick($"✅ 权限模式: {PermissionManager.FormatMode()}", $"✅ Permission mode: {PermissionManager.FormatMode()}"));
         return Task.CompletedTask;
     }
 }

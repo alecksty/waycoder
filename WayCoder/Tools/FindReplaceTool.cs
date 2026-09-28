@@ -46,7 +46,7 @@ public class FindReplaceTool : ITool
         string glob, int maxFiles, int maxPerFile, bool ignoreCase, bool dryRun, string agentId)
     {
         if (string.IsNullOrEmpty(pattern))
-            return "错误：pattern 参数不能为空";
+            return L.Pick("错误：pattern 参数不能为空", "Error: the pattern parameter cannot be empty");
 
         // 负值钳制：maxPerFile 为负时 Math.Min/lineCount>=maxPerFile 均立即成立，累计负匹配数 + 误导文案
         maxFiles = Math.Max(1, maxFiles);
@@ -73,13 +73,16 @@ public class FindReplaceTool : ITool
             }
 
             var hasReplacement = !string.IsNullOrEmpty(replacement);
-            var mode = dryRun ? "预览" : (hasReplacement ? "查找替换" : "查找");
+            var mode = dryRun
+                ? L.Pick("预览", "Preview")
+                : hasReplacement ? L.Pick("查找替换", "Find and replace") : L.Pick("查找", "Find");
 
             var sb = new StringBuilder();
             sb.AppendLine($"## {mode}: `{pattern}`");
             if (hasReplacement)
-                sb.AppendLine($"替换为: `{replacement}`");
-            sb.AppendLine($"目录: {path}  |  glob: {glob}  |  {(ignoreCase ? "忽略大小写" : "区分大小写")}");
+                sb.AppendLine(L.Pick($"替换为: `{replacement}`", $"Replacement: `{replacement}`"));
+            sb.AppendLine(L.Pick($"目录: {path}  |  glob: {glob}  |  {(ignoreCase ? "忽略大小写" : "区分大小写")}",
+                                 $"Directory: {path}  |  glob: {glob}  |  {(ignoreCase ? "case-insensitive" : "case-sensitive")}"));
             sb.AppendLine();
 
             // 收集文件
@@ -109,7 +112,8 @@ public class FindReplaceTool : ITool
 
                         if (!fileDisplayed)
                         {
-                            sb.AppendLine($"### {Path.GetRelativePath(path, file)}  ({matches.Count} 处匹配)");
+                            sb.AppendLine(L.Pick($"### {Path.GetRelativePath(path, file)}  ({matches.Count} 处匹配)",
+                                                 $"### {Path.GetRelativePath(path, file)}  ({matches.Count} matches)"));
                             fileDisplayed = true;
                             filesWithMatches++;
                         }
@@ -127,7 +131,8 @@ public class FindReplaceTool : ITool
                     }
 
                     if (matches.Count > maxPerFile)
-                        sb.AppendLine($"  ... 还有 {matches.Count - maxPerFile} 处匹配");
+                        sb.AppendLine(L.Pick($"  ... 还有 {matches.Count - maxPerFile} 处匹配",
+                                             $"  ... {matches.Count - maxPerFile} more matches"));
 
                     // 执行替换
                     if (hasReplacement && !dryRun)
@@ -150,7 +155,7 @@ public class FindReplaceTool : ITool
                             EditFileTool.RecordChange(file, content, newContent);
                             FileTracker.RecordWrite(file);
                             filesChanged++;
-                            sb.AppendLine($"  ✔ 已替换");
+                            sb.AppendLine(L.Pick("  ✔ 已替换", "  ✔ Replaced"));
                         }
                         finally
                         {
@@ -163,25 +168,30 @@ public class FindReplaceTool : ITool
                 catch (RegexMatchTimeoutException)
                 {
                     // 正则匹配超时：报告并跳过该文件（而非静默吞，防误以为扫描完整）
-                    sb.AppendLine($"### {Path.GetRelativePath(path, file)}  (正则匹配超时，已跳过)");
+                    sb.AppendLine(L.Pick($"### {Path.GetRelativePath(path, file)}  (正则匹配超时，已跳过)",
+                                         $"### {Path.GetRelativePath(path, file)}  (regex match timed out; skipped)"));
                     sb.AppendLine();
                 }
                 catch (Exception ex)
                 {
                     // 报告失败文件（而非静默吞，防 Agent 误以为全部替换成功）
-                    sb.AppendLine($"### {Path.GetRelativePath(path, file)}  (处理失败: {ex.GetType().Name}: {ex.Message})");
+                    sb.AppendLine(L.Pick($"### {Path.GetRelativePath(path, file)}  (处理失败: {ex.GetType().Name}: {ex.Message})",
+                                         $"### {Path.GetRelativePath(path, file)}  (processing failed: {ex.GetType().Name}: {ex.Message})"));
                     sb.AppendLine();
                 }
             }
 
             sb.AppendLine($"---");
-            sb.AppendLine($"扫描文件: {files.Count}  |  匹配文件: {filesWithMatches}  |  总匹配: {totalMatches}");
+            sb.AppendLine(L.Pick($"扫描文件: {files.Count}  |  匹配文件: {filesWithMatches}  |  总匹配: {totalMatches}",
+                                 $"Files scanned: {files.Count}  |  Files matched: {filesWithMatches}  |  Total matches: {totalMatches}"));
             if (!dryRun && hasReplacement)
-                sb.AppendLine($"已修改: {filesChanged} 个文件");
+                sb.AppendLine(L.Pick($"已修改: {filesChanged} 个文件", $"Modified: {filesChanged} file(s)"));
 
             var result = sb.ToString();
             if (result.Length > 15_000)
-                result = ContextManager.TruncateKeepHeadTail(result, 10_000, 3000, $"\n... (已截断，共 {result.Length} 字符) ...\n");
+                result = ContextManager.TruncateKeepHeadTail(result, 10_000, 3000,
+                    L.Pick($"\n... (已截断，共 {result.Length} 字符) ...\n",
+                           $"\n... (truncated, {result.Length} characters in total) ...\n"));
 
             return result.TrimEnd();
         }

@@ -83,17 +83,19 @@ public class ScreenshotTool : ITool
         {
             var frame = TuiManager.Instance.LastCleanFrame;
             if (string.IsNullOrWhiteSpace(frame))
-                return "（终端 TUI 尚未渲染或当前处于非交互模式，无可用画面。）";
+                return L.Pick("（终端 TUI 尚未渲染或当前处于非交互模式，无可用画面。）",
+                              "(The terminal TUI has not rendered yet, or you are in a non-interactive session; no screen available.)");
 
             var text = StripAnsi(frame);
             if (string.IsNullOrWhiteSpace(text))
-                return "（画面剥离 ANSI 后为空。）";
+                return L.Pick("（画面剥离 ANSI 后为空。）", "(The screen is empty after stripping ANSI.)");
 
-            return "📺 当前终端画面（纯文本）：\n" + text;
+            return L.Pick("📺 当前终端画面（纯文本）：\n", "📺 Current terminal screen (plain text):\n") + text;
         }
         catch (Exception ex)
         {
-            return $"抓取终端画面出错：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"抓取终端画面出错：{ex.GetType().Name}: {ex.Message}",
+                          $"Terminal capture failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -111,7 +113,8 @@ public class ScreenshotTool : ITool
                 w = ToolArgs.GetInt(arguments, "width");
                 h = ToolArgs.GetInt(arguments, "height");
                 if (w <= 0 || h <= 0)
-                    return "错误：region 模式需要 width/height 为正整数，且 x/y 需指定。";
+                    return L.Pick("错误：region 模式需要 width/height 为正整数，且 x/y 需指定。",
+                                  "Error: region mode requires width/height to be positive integers, and x/y must be specified.");
             }
 
             // 确定保存路径
@@ -141,29 +144,32 @@ public class ScreenshotTool : ITool
             var fi = new FileInfo(savePath);
             var (wpx, hpx) = ReadPngDimensions(savePath);
             var sb = new StringBuilder();
-            sb.AppendLine("📸 截图已保存");
-            sb.AppendLine($"  路径: {savePath}");
-            sb.AppendLine($"  大小: {fi.Length:N0} bytes");
-            if (wpx > 0 && hpx > 0) sb.AppendLine($"  尺寸: {wpx} × {hpx} px");
+            sb.AppendLine(L.Pick("📸 截图已保存", "📸 Screenshot saved"));
+            sb.AppendLine(L.Pick($"  路径: {savePath}", $"  Path: {savePath}"));
+            sb.AppendLine(L.Pick($"  大小: {fi.Length:N0} bytes", $"  Size: {fi.Length:N0} bytes"));
+            if (wpx > 0 && hpx > 0)
+                sb.AppendLine(L.Pick($"  尺寸: {wpx} × {hpx} px", $"  Dimensions: {wpx} x {hpx} px"));
 
             var ocr = TryOcr(savePath);
             if (!string.IsNullOrWhiteSpace(ocr))
             {
                 sb.AppendLine();
-                sb.AppendLine("🔍 OCR 识别到的文字：");
+                sb.AppendLine(L.Pick("🔍 OCR 识别到的文字：", "🔍 Text recognized by OCR:"));
                 sb.Append(ocr.Trim());
             }
             else
             {
                 sb.AppendLine();
-                sb.AppendLine("（未检测到 tesseract，无法 OCR。安装：macOS brew install tesseract / Debian apt install tesseract-ocr）");
+                sb.AppendLine(L.Pick("（未检测到 tesseract，无法 OCR。安装：macOS brew install tesseract / Debian apt install tesseract-ocr）",
+                                     "(tesseract not found, so OCR is unavailable. Install it: macOS 'brew install tesseract' / Debian 'apt install tesseract-ocr')"));
             }
 
             return sb.ToString().TrimEnd();
         }
         catch (Exception ex)
         {
-            return $"图形抓屏出错：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"图形抓屏出错：{ex.GetType().Name}: {ex.Message}",
+                          $"GUI capture failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -179,7 +185,8 @@ public class ScreenshotTool : ITool
             return RunCapture(BuildMacCapture(full, x, y, w, h, savePath), savePath);
         if (OperatingSystem.IsLinux())
             return CaptureLinux(full, x, y, w, h, savePath);
-        return (false, "错误：当前操作系统不支持图形抓屏（仅支持 Windows / macOS / Linux）。");
+        return (false, L.Pick("错误：当前操作系统不支持图形抓屏（仅支持 Windows / macOS / Linux）。",
+                              "Error: GUI capture is not supported on this operating system (only Windows / macOS / Linux)."));
     }
 
     /// <summary>执行一次抓屏命令并校验产物文件已生成。</summary>
@@ -190,12 +197,14 @@ public class ScreenshotTool : ITool
             // Windows 抓屏走 powershell（控制台工具，输出为 OEM 代码页）；Unix 的 import/screencapture 本就 UTF-8
             var (exitCode, output) = RunProcess(cmd.Tool, cmd.Args, oemDecode: OperatingSystem.IsWindows());
             if (exitCode != 0 || !File.Exists(savePath))
-                return (false, $"抓屏失败（{cmd.Tool} exit={exitCode}）：{(string.IsNullOrWhiteSpace(output) ? "无输出" : output.Trim())}");
+                return (false, L.Pick($"抓屏失败（{cmd.Tool} exit={exitCode}）：{(string.IsNullOrWhiteSpace(output) ? "无输出" : output.Trim())}",
+                                      $"Screen capture failed ({cmd.Tool} exit={exitCode}): {(string.IsNullOrWhiteSpace(output) ? "no output" : output.Trim())}"));
             return (true, "");
         }
         catch (Exception ex)
         {
-            return (false, $"{cmd.Tool} 不可用：{ex.GetType().Name}");
+            return (false, L.Pick($"{cmd.Tool} 不可用：{ex.GetType().Name}",
+                                  $"{cmd.Tool} is not available: {ex.GetType().Name}"));
         }
     }
 
@@ -209,8 +218,10 @@ public class ScreenshotTool : ITool
             if (ok) return (true, "");
             lastErr = err;
         }
-        return (false, "错误：Linux 抓屏失败，已尝试 " + string.Join(" / ", LinuxCaptureTools) +
-            "。请安装其一（如：sudo apt install scrot 或 sudo apt install imagemagick）。最后错误：" + lastErr);
+        return (false, L.Pick("错误：Linux 抓屏失败，已尝试 " + string.Join(" / ", LinuxCaptureTools) +
+            "。请安装其一（如：sudo apt install scrot 或 sudo apt install imagemagick）。最后错误：" + lastErr,
+            "Error: Linux screen capture failed; tried " + string.Join(" / ", LinuxCaptureTools) +
+            ". Please install one of them (e.g. 'sudo apt install scrot' or 'sudo apt install imagemagick'). Last error: " + lastErr));
     }
 
     /// <summary>Windows：powershell + System.Drawing.CopyFromScreen（Windows PowerShell 5.1 内置，纯逻辑供自测）。</summary>

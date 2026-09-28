@@ -48,7 +48,8 @@ public class ConvertEncodingTool : ITool
     private static string Execute(string filePath, string? from, string? to, string? output, string agentId)
     {
         if (string.IsNullOrWhiteSpace(filePath))
-            return "错误：file_path 不能为空 — 请提供要转换的文件路径。";
+            return L.Pick("错误：file_path 不能为空 — 请提供要转换的文件路径。",
+                          "Error: file_path cannot be empty — please provide the path of the file to convert.");
 
         var cwd = CwdContext.Root;
         var srcPath = Path.GetFullPath(filePath, cwd);
@@ -56,10 +57,11 @@ public class ConvertEncodingTool : ITool
         // 敏感路径防护（SSH 密钥/云凭据/系统凭据，防提示注入读泄露）
         var sensitive = PathSafety.CheckSensitive(srcPath);
         if (sensitive != null)
-            return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+            return L.Pick($"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）",
+                          $"❌ Blocked: {sensitive} (security policy: sensitive files are protected)");
 
         if (!File.Exists(srcPath))
-            return $"错误：文件不存在 {filePath}";
+            return L.Pick($"错误：文件不存在 {filePath}", $"Error: file not found: {filePath}");
 
         // 目标路径：output 省略则原地覆盖
         var dstPath = string.IsNullOrWhiteSpace(output)
@@ -80,10 +82,11 @@ public class ConvertEncodingTool : ITool
         {
             byte[] bytes;
             try { bytes = File.ReadAllBytes(srcPath); }
-            catch { return $"错误：无法读取 {filePath}"; }
+            catch { return L.Pick($"错误：无法读取 {filePath}", $"Error: cannot read {filePath}"); }
 
             if (TextEncoding.IsBinaryContent(bytes))
-                return $"错误：{filePath} 是二进制文件（检测到 NUL 字节），convert_encoding 只能转换文本文件";
+                return L.Pick($"错误：{filePath} 是二进制文件（检测到 NUL 字节），convert_encoding 只能转换文本文件",
+                              $"Error: {filePath} is a binary file (NUL byte detected); convert_encoding can only convert text files");
 
             FileTracker.RecordRead(srcPath);
 
@@ -115,8 +118,10 @@ public class ConvertEncodingTool : ITool
 
             var written = new FileInfo(dstPath).Length;
             var lines = text.Length == 0 ? 0 : text.Count(c => c == '\n') + 1;
-            return $"✅ 已转换 {filePath}：{fromName} → {toName}" +
-                   $"（{FormatUtil.FormatSize(bytes.Length)} → {FormatUtil.FormatSize(written)}，{lines} 行）";
+            return L.Pick($"✅ 已转换 {filePath}：{fromName} → {toName}" +
+                   $"（{FormatUtil.FormatSize(bytes.Length)} → {FormatUtil.FormatSize(written)}，{lines} 行）",
+                   $"✅ Converted {filePath}: {fromName} → {toName}" +
+                   $" ({FormatUtil.FormatSize(bytes.Length)} → {FormatUtil.FormatSize(written)}, {lines} lines)");
         }
         catch (Exception ex)
         {

@@ -28,7 +28,7 @@ public class WebSearchTool : ITool, ICancellableTool
     {
         var query = arguments.GetValueOrDefault("query")?.ToString();
         if (string.IsNullOrWhiteSpace(query))
-            return "错误: 请提供搜索关键词 (query)";
+            return L.Pick("错误: 请提供搜索关键词 (query)", "Error: please provide search keywords (query)");
 
         var num = Math.Clamp(ToolArgs.GetInt(arguments, "num", 5), 1, 10);
 
@@ -39,11 +39,12 @@ public class WebSearchTool : ITool, ICancellableTool
         var results = await SearchWithFallback(query, num, cancellationToken);
 
         if (results.Count == 0)
-            return $"未找到与 \"{query}\" 相关的结果（已尝试 DuckDuckGo + Bing）。";
+            return L.Pick($"未找到与 \"{query}\" 相关的结果（已尝试 DuckDuckGo + Bing）。",
+                          $"No results found for \"{query}\" (tried DuckDuckGo + Bing).");
 
         // 格式化输出
         var output = new System.Text.StringBuilder();
-        output.AppendLine($"🔍 搜索: {query}");
+        output.AppendLine(L.Pick($"🔍 搜索: {query}", $"🔍 Search: {query}"));
         output.AppendLine();
 
         for (int i = 0; i < results.Count; i++)

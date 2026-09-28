@@ -49,8 +49,11 @@ public sealed class DoctorReport
     public string Render()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("🧪 WayCoder 系统自检");
-        sb.AppendLine($"模式: {(FixRequested ? "自检 + 安全修复" : "只读自检")}");
+        sb.AppendLine(L.Pick("🧪 WayCoder 系统自检", "🧪 WayCoder system check"));
+        var modeText = FixRequested
+            ? L.Pick("自检 + 安全修复", "check + safe repair")
+            : L.Pick("只读自检", "read-only check");
+        sb.AppendLine(L.Pick($"模式: {modeText}", $"Mode: {modeText}"));
         sb.AppendLine();
 
         foreach (var issue in Issues)
@@ -67,26 +70,27 @@ public sealed class DoctorReport
         }
 
         sb.AppendLine();
-        sb.AppendLine($"结果: {ErrorCount} 个错误 · {WarningCount} 个警告 · {OkCount} 项正常");
+        sb.AppendLine(L.Pick($"结果: {ErrorCount} 个错误 · {WarningCount} 个警告 · {OkCount} 项正常",
+                             $"Result: {ErrorCount} errors · {WarningCount} warnings · {OkCount} OK"));
         if (ErrorCount > 0)
         {
             sb.AppendLine(FixRequested
-                ? "仍有无法自动修复的问题，请按上方提示处理。"
-                : "运行 /doctor fix 尝试安全修复。");
+                ? L.Pick("仍有无法自动修复的问题，请按上方提示处理。", "Some issues cannot be fixed automatically; follow the hints above.")
+                : L.Pick("运行 /doctor fix 尝试安全修复。", "Run /doctor fix to attempt a safe repair."));
         }
         else if (WarningCount > 0)
         {
             sb.AppendLine(FixRequested
-                ? "已执行安全修复，剩余为提示/需要人工处理的问题。"
-                : "存在提示项，运行 /doctor fix 可执行安全修复。");
+                ? L.Pick("已执行安全修复，剩余为提示/需要人工处理的问题。", "Safe repair has run; what remains are hints or issues needing manual work.")
+                : L.Pick("存在提示项，运行 /doctor fix 可执行安全修复。", "There are hints; run /doctor fix to perform a safe repair."));
         }
         else if (FixRequested)
         {
-            sb.AppendLine("自检通过，未发现需要修复的问题。");
+            sb.AppendLine(L.Pick("自检通过，未发现需要修复的问题。", "Check passed; nothing needs repair."));
         }
         else
         {
-            sb.AppendLine("自检通过。");
+            sb.AppendLine(L.Pick("自检通过。", "Check passed."));
         }
 
         return sb.ToString();
@@ -130,9 +134,9 @@ public static class DoctorEngine
     {
         var processPath = Environment.ProcessPath;
         if (!string.IsNullOrEmpty(processPath) && File.Exists(processPath))
-            AddOk(issues, "可执行文件", $"存在: {Path.GetFileName(processPath)}");
+            AddOk(issues, L.Pick("可执行文件", "Executable"), L.Pick($"存在: {Path.GetFileName(processPath)}", $"Exists: {Path.GetFileName(processPath)}"));
         else
-            AddWarning(issues, "可执行文件", "无法确认当前可执行文件位置");
+            AddWarning(issues, L.Pick("可执行文件", "Executable"), L.Pick("无法确认当前可执行文件位置", "Cannot determine the current executable location"));
     }
 
     private static void CheckHome(string home, bool fix, List<DoctorIssue> issues)
@@ -142,13 +146,13 @@ public static class DoctorEngine
 
         if (Directory.Exists(waycoder))
         {
-            AddOk(issues, "全局配置目录", "存在 (.waycoder)");
+            AddOk(issues, L.Pick("全局配置目录", "Global config directory"), L.Pick("存在 (.waycoder)", "Exists (.waycoder)"));
             return;
         }
 
         if (Directory.Exists(legacy))
         {
-            AddWarning(issues, "全局配置目录", "使用旧目录 .corecoder；新配置默认写入 .waycoder");
+            AddWarning(issues, L.Pick("全局配置目录", "Global config directory"), L.Pick("使用旧目录 .corecoder；新配置默认写入 .waycoder", "Using the legacy .corecoder directory; new config is written to .waycoder"));
             return;
         }
 
@@ -157,16 +161,16 @@ public static class DoctorEngine
             try
             {
                 Directory.CreateDirectory(waycoder);
-                AddOk(issues, "全局配置目录", "已创建 .waycoder");
+                AddOk(issues, L.Pick("全局配置目录", "Global config directory"), L.Pick("已创建 .waycoder", "Created .waycoder"));
             }
             catch (Exception ex)
             {
-                AddError(issues, "全局配置目录", $"创建失败: {ex.Message}");
+                AddError(issues, L.Pick("全局配置目录", "Global config directory"), L.Pick($"创建失败: {ex.Message}", $"Creation failed: {ex.Message}"));
             }
         }
         else
         {
-            AddError(issues, "全局配置目录", "缺少全局配置目录", AutoFixable: true, FixHint: "/doctor fix 会创建 .waycoder");
+            AddError(issues, L.Pick("全局配置目录", "Global config directory"), L.Pick("缺少全局配置目录", "Missing global config directory"), AutoFixable: true, FixHint: L.Pick("/doctor fix 会创建 .waycoder", "/doctor fix creates .waycoder"));
         }
     }
 
@@ -181,20 +185,20 @@ public static class DoctorEngine
             {
                 var ok = WriteAllTextSafe(writePath, "{}");
                 if (ok)
-                    AddOk(issues, "config.json", "已创建空配置（默认值）");
+                    AddOk(issues, "config.json", L.Pick("已创建空配置（默认值）", "Created an empty config (default values)"));
                 else
-                    AddError(issues, "config.json", "创建失败（权限/磁盘）", AutoFixable: true);
+                    AddError(issues, "config.json", L.Pick("创建失败（权限/磁盘）", "Creation failed (permissions/disk)"), AutoFixable: true);
             }
             else
             {
-                AddWarning(issues, "config.json", "不存在，当前使用默认配置", AutoFixable: true, FixHint: "/doctor fix 会创建空配置");
+                AddWarning(issues, "config.json", L.Pick("不存在，当前使用默认配置", "Does not exist; using the default config"), AutoFixable: true, FixHint: L.Pick("/doctor fix 会创建空配置", "/doctor fix creates an empty config"));
             }
             return;
         }
 
         if (TryParseJson(path, out var root, out var error) && root?.Kind == JKind.Object)
         {
-            AddOk(issues, "config.json", "JSON 可解析");
+            AddOk(issues, "config.json", L.Pick("JSON 可解析", "JSON parses"));
             return;
         }
 
@@ -203,19 +207,19 @@ public static class DoctorEngine
             var backup = Global.BackupFile(path);
             if (backup == null)
             {
-                AddError(issues, "config.json", $"损坏且备份失败: {error}", AutoFixable: true);
+                AddError(issues, "config.json", L.Pick($"损坏且备份失败: {error}", $"Corrupt, and the backup failed: {error}"), AutoFixable: true);
                 return;
             }
 
             var ok = WriteAllTextSafe(writePath, "{}");
             if (ok)
-                AddWarning(issues, "config.json", $"已备份损坏文件并重置为空配置（备份: {Path.GetFileName(backup)}）");
+                AddWarning(issues, "config.json", L.Pick($"已备份损坏文件并重置为空配置（备份: {Path.GetFileName(backup)}）", $"Backed up the corrupt file and reset to an empty config (backup: {Path.GetFileName(backup)})"));
             else
-                AddError(issues, "config.json", $"已备份，但重置失败: {error}");
+                AddError(issues, "config.json", L.Pick($"已备份，但重置失败: {error}", $"Backed up, but the reset failed: {error}"));
         }
         else
         {
-            AddError(issues, "config.json", $"损坏: {error}", AutoFixable: true, FixHint: "/doctor fix 会备份并重置");
+            AddError(issues, "config.json", L.Pick($"损坏: {error}", $"Corrupt: {error}"), AutoFixable: true, FixHint: L.Pick("/doctor fix 会备份并重置", "/doctor fix backs up and resets"));
         }
     }
 
@@ -224,7 +228,7 @@ public static class DoctorEngine
         var path = FindGlobalFile(home, "api_keys.json");
         if (path == null)
         {
-            AddOk(issues, "api_keys.json", "未配置（可选）");
+            AddOk(issues, "api_keys.json", L.Pick("未配置（可选）", "Not configured (optional)"));
             return;
         }
 
@@ -232,11 +236,11 @@ public static class DoctorEngine
         {
             if (fix && Global.BackupFile(path) != null)
             {
-                AddError(issues, "api_keys.json", $"已备份损坏文件，需手动恢复；未自动覆盖密钥数据（{error}）");
+                AddError(issues, "api_keys.json", L.Pick($"已备份损坏文件，需手动恢复；未自动覆盖密钥数据（{error}）", $"Backed up the corrupt file; manual recovery is needed. Key data was not overwritten automatically ({error})"));
             }
             else
             {
-                AddError(issues, "api_keys.json", $"损坏: {error}", AutoFixable: true, FixHint: "密钥文件只备份，不自动改写");
+                AddError(issues, "api_keys.json", L.Pick($"损坏: {error}", $"Corrupt: {error}"), AutoFixable: true, FixHint: L.Pick("密钥文件只备份，不自动改写", "Key files are only backed up, never rewritten automatically"));
             }
             return;
         }
@@ -246,9 +250,9 @@ public static class DoctorEngine
             string.IsNullOrWhiteSpace(i["provider"]?.AsString()) ||
             string.IsNullOrWhiteSpace(i["apikey"]?.AsString()));
         if (bad > 0)
-            AddWarning(issues, "api_keys.json", $"{bad} 条记录缺少 provider/apikey（不自动修改）");
+            AddWarning(issues, "api_keys.json", L.Pick($"{bad} 条记录缺少 provider/apikey（不自动修改）", $"{bad} records are missing provider/apikey (not modified automatically)"));
         else
-            AddOk(issues, "api_keys.json", $"{root.Count} 个服务商已配置（密钥不外显）");
+            AddOk(issues, "api_keys.json", L.Pick($"{root.Count} 个服务商已配置（密钥不外显）", $"{root.Count} providers configured (keys are never shown)"));
     }
 
     private static void CheckEnv(string home, List<DoctorIssue> issues)
@@ -256,7 +260,7 @@ public static class DoctorEngine
         var path = FindGlobalFile(home, ".env");
         if (path == null)
         {
-            AddOk(issues, ".env", "未配置（可选）");
+            AddOk(issues, ".env", L.Pick("未配置（可选）", "Not configured (optional)"));
             return;
         }
 
@@ -274,13 +278,13 @@ public static class DoctorEngine
             }
 
             if (bad.Count > 0)
-                AddError(issues, ".env", $"第 {string.Join(", ", bad.Take(3))} 行格式非法（不自动修改）");
+                AddError(issues, ".env", L.Pick($"第 {string.Join(", ", bad.Take(3))} 行格式非法（不自动修改）", $"Line {string.Join(", ", bad.Take(3))} has an invalid format (not modified automatically)"));
             else
-                AddOk(issues, ".env", $"{lines.Length} 行语法正常");
+                AddOk(issues, ".env", L.Pick($"{lines.Length} 行语法正常", $"{lines.Length} lines look valid"));
         }
         catch (Exception ex)
         {
-            AddError(issues, ".env", $"读取失败: {ex.Message}");
+            AddError(issues, ".env", L.Pick($"读取失败: {ex.Message}", $"Read failed: {ex.Message}"));
         }
     }
 
@@ -294,15 +298,15 @@ public static class DoctorEngine
 
         if (models.Count == 0)
         {
-            AddWarning(issues, "模型配置", "未读取到模型配置");
+            AddWarning(issues, L.Pick("模型配置", "Model config"), L.Pick("未读取到模型配置", "No model config found"));
             return;
         }
 
         var unknown = models.Where(m => ModelCatalog.Find(m) == null).ToList();
         if (unknown.Count > 0)
-            AddWarning(issues, "模型配置", $"未收录: {string.Join(", ", unknown)}（可检查 config.json 或自定义模型）");
+            AddWarning(issues, L.Pick("模型配置", "Model config"), L.Pick($"未收录: {string.Join(", ", unknown)}（可检查 config.json 或自定义模型）", $"Not in the catalog: {string.Join(", ", unknown)} (check config.json or the custom model list)"));
         else
-            AddOk(issues, "模型配置", $"大/小模型配置正常: {string.Join(", ", models)}");
+            AddOk(issues, L.Pick("模型配置", "Model config"), L.Pick($"大/小模型配置正常: {string.Join(", ", models)}", $"Large/small model config OK: {string.Join(", ", models)}"));
 
         if (!options.CheckApiKeyAvailability) return;
 
@@ -316,9 +320,9 @@ public static class DoctorEngine
         }
 
         if (missingKeys.Count > 0)
-            AddWarning(issues, "API Key", $"未检测到可用 API Key: {string.Join(", ", missingKeys)}");
+            AddWarning(issues, "API Key", L.Pick($"未检测到可用 API Key: {string.Join(", ", missingKeys)}", $"No usable API key detected: {string.Join(", ", missingKeys)}"));
         else
-            AddOk(issues, "API Key", "当前模型已有可用密钥或无需密钥");
+            AddOk(issues, "API Key", L.Pick("当前模型已有可用密钥或无需密钥", "The current model already has a usable key, or needs none"));
     }
 
     /// <summary>扫描 cwd/logs 下的 error_*.log，统计 ERROR/FATAL 条数并取一条作示例预览。
@@ -328,7 +332,7 @@ public static class DoctorEngine
         var logsDir = Path.Combine(cwd, "logs");
         if (!Directory.Exists(logsDir))
         {
-            AddOk(issues, "错误日志", "未发现 logs 目录");
+            AddOk(issues, L.Pick("错误日志", "Error logs"), L.Pick("未发现 logs 目录", "No logs directory found"));
             return;
         }
 
@@ -337,7 +341,7 @@ public static class DoctorEngine
             var files = Directory.GetFiles(logsDir, "error_*.log").OrderByDescending(f => f).Take(5).ToList();
             if (files.Count == 0)
             {
-                AddOk(issues, "错误日志", "未发现 error_*.log");
+                AddOk(issues, L.Pick("错误日志", "Error logs"), L.Pick("未发现 error_*.log", "No error_*.log found"));
                 return;
             }
 
@@ -360,16 +364,19 @@ public static class DoctorEngine
                 // UTF-16 切片，截断点落在代理对中间会产出孤立代理项 → 用户看到 U+FFFD。
                 // 统一走 ContextManager.TruncateWithEllipsis（本文件同目录的 ContextBridge 早就用它）。
                 var preview = sample == null ? null : ContextManager.TruncateWithEllipsis(sample.Trim(), 160);
-                AddWarning(issues, "错误日志", $"最近日志含 {count} 条 ERROR/FATAL{(preview == null ? "" : $"，示例: {preview}")}");
+                var previewSuffix = preview == null ? "" : L.Pick($"，示例: {preview}", $", e.g. {preview}");
+                AddWarning(issues, L.Pick("错误日志", "Error logs"),
+                    L.Pick($"最近日志含 {count} 条 ERROR/FATAL{previewSuffix}",
+                           $"Recent logs contain {count} ERROR/FATAL entries{previewSuffix}"));
             }
             else
             {
-                AddOk(issues, "错误日志", $"{files.Count} 个日志文件，最近记录无 ERROR/FATAL");
+                AddOk(issues, L.Pick("错误日志", "Error logs"), L.Pick($"{files.Count} 个日志文件，最近记录无 ERROR/FATAL", $"{files.Count} log files; no ERROR/FATAL in recent records"));
             }
         }
         catch (Exception ex)
         {
-            AddError(issues, "错误日志", $"读取失败: {ex.Message}");
+            AddError(issues, L.Pick("错误日志", "Error logs"), L.Pick($"读取失败: {ex.Message}", $"Read failed: {ex.Message}"));
         }
     }
 
@@ -378,12 +385,12 @@ public static class DoctorEngine
         var locks = FileLockManager.GetAllLocks();
         if (locks.Count == 0)
         {
-            AddOk(issues, "文件锁", "无活跃锁");
+            AddOk(issues, L.Pick("文件锁", "File locks"), L.Pick("无活跃锁", "No active locks"));
             return;
         }
 
         var preview = string.Join("; ", locks.Take(3).Select(l => $"{l.FilePath} ({l.AgentId})"));
-        AddWarning(issues, "文件锁", $"{locks.Count} 个活跃文件锁: {preview}");
+        AddWarning(issues, L.Pick("文件锁", "File locks"), L.Pick($"{locks.Count} 个活跃文件锁: {preview}", $"{locks.Count} active file locks: {preview}"));
     }
 
     private static void CheckCheckpoints(string home, List<DoctorIssue> issues)
@@ -412,17 +419,17 @@ public static class DoctorEngine
             }
             catch (Exception ex)
             {
-                AddError(issues, "检查点", $"扫描失败: {ex.Message}");
+                AddError(issues, L.Pick("检查点", "Checkpoints"), L.Pick($"扫描失败: {ex.Message}", $"Scan failed: {ex.Message}"));
                 return;
             }
         }
 
         if (bad.Count > 0)
-            AddError(issues, "检查点", $"{bad.Count}/{total} 个元数据损坏: {string.Join(", ", bad)}（不自动删除）");
+            AddError(issues, L.Pick("检查点", "Checkpoints"), L.Pick($"{bad.Count}/{total} 个元数据损坏: {string.Join(", ", bad)}（不自动删除）", $"{bad.Count}/{total} metadata files are corrupt: {string.Join(", ", bad)} (not deleted automatically)"));
         else if (total > 0)
-            AddOk(issues, "检查点", $"{total} 个元数据可解析");
+            AddOk(issues, L.Pick("检查点", "Checkpoints"), L.Pick($"{total} 个元数据可解析", $"{total} metadata files parse"));
         else
-            AddOk(issues, "检查点", "未发现检查点");
+            AddOk(issues, L.Pick("检查点", "Checkpoints"), L.Pick("未发现检查点", "No checkpoints found"));
     }
 
     private static async Task CheckMcpAsync(string cwd, string home, bool fix, List<DoctorIssue> issues)
@@ -430,13 +437,13 @@ public static class DoctorEngine
         var configPath = FindUpwardConfigFile(cwd, home, "mcp_servers.json");
         if (configPath == null)
         {
-            AddOk(issues, "MCP", "未配置 mcp_servers.json");
+            AddOk(issues, "MCP", L.Pick("未配置 mcp_servers.json", "mcp_servers.json is not configured"));
             return;
         }
 
         if (!TryParseJson(configPath, out var root, out var error) || root?.Kind != JKind.Array)
         {
-            AddError(issues, "MCP", $"配置损坏: {error}");
+            AddError(issues, "MCP", L.Pick($"配置损坏: {error}", $"Config corrupt: {error}"));
             return;
         }
 
@@ -448,7 +455,7 @@ public static class DoctorEngine
             .ToList();
         var malformed = root.Count - servers.Count;
         if (malformed > 0)
-            AddWarning(issues, "MCP", $"{malformed} 条服务器记录缺少 name");
+            AddWarning(issues, "MCP", L.Pick($"{malformed} 条服务器记录缺少 name", $"{malformed} server records are missing name"));
 
         var failed = McpManager.Servers
             .Where(s => s.Status == McpServerStatus.Failed)
@@ -457,15 +464,15 @@ public static class DoctorEngine
         if (failed.Count == 0)
         {
             AddOk(issues, "MCP", servers.Count == 0
-                ? "配置可解析（未发现服务器）"
-                : $"配置可解析（{servers.Count} 个服务器，当前无连接失败）");
+                ? L.Pick("配置可解析（未发现服务器）", "Config parses (no servers found)")
+                : L.Pick($"配置可解析（{servers.Count} 个服务器，当前无连接失败）", $"Config parses ({servers.Count} servers, no connection failures)"));
             return;
         }
 
         var failedNames = string.Join(", ", failed.Select(s => s.Name));
         if (!fix)
         {
-            AddWarning(issues, "MCP", $"连接失败: {failedNames}", AutoFixable: true, FixHint: "/doctor fix 会尝试重连失败服务器");
+            AddWarning(issues, "MCP", L.Pick($"连接失败: {failedNames}", $"Connection failed: {failedNames}"), AutoFixable: true, FixHint: L.Pick("/doctor fix 会尝试重连失败服务器", "/doctor fix tries to reconnect the failed servers"));
             return;
         }
 
@@ -497,9 +504,9 @@ public static class DoctorEngine
         }
 
         if (stillFailed == 0)
-            AddOk(issues, "MCP", $"已重连 {reloaded} 个失败服务器");
+            AddOk(issues, "MCP", L.Pick($"已重连 {reloaded} 个失败服务器", $"Reconnected {reloaded} failed servers"));
         else
-            AddError(issues, "MCP", $"重连后仍有 {stillFailed} 个失败（详见 /mcp）");
+            AddError(issues, "MCP", L.Pick($"重连后仍有 {stillFailed} 个失败（详见 /mcp）", $"{stillFailed} still failing after reconnect (see /mcp)"));
     }
 
     private static void CheckHooks(string home, string cwd, List<DoctorIssue> issues)
@@ -515,7 +522,7 @@ public static class DoctorEngine
 
         if (candidates.Count == 0)
         {
-            AddOk(issues, "Hooks", "未配置 hooks.json");
+            AddOk(issues, "Hooks", L.Pick("未配置 hooks.json", "hooks.json is not configured"));
             return;
         }
 
@@ -528,19 +535,19 @@ public static class DoctorEngine
         var hooksDir = Path.GetDirectoryName(path);
         if (hooksDir == null)
         {
-            AddError(issues, "Hooks", $"无法解析目录: {path}");
+            AddError(issues, "Hooks", L.Pick($"无法解析目录: {path}", $"Cannot resolve directory: {path}"));
             return;
         }
 
         if (!TryParseJson(path, out var root, out var error) || root?.Kind != JKind.Object)
         {
-            AddError(issues, "Hooks", $"hooks.json 损坏: {error}");
+            AddError(issues, "Hooks", L.Pick($"hooks.json 损坏: {error}", $"hooks.json corrupt: {error}"));
             return;
         }
 
         if (root["matchers"] is not { Kind: JKind.Array } matchers)
         {
-            AddError(issues, "Hooks", "hooks.json 缺少 matchers 数组");
+            AddError(issues, "Hooks", L.Pick("hooks.json 缺少 matchers 数组", "hooks.json is missing the matchers array"));
             return;
         }
 
@@ -555,7 +562,7 @@ public static class DoctorEngine
                 var command = hook["command"]?.AsString();
                 if (string.IsNullOrWhiteSpace(command))
                 {
-                    missing.Add("(空 command)");
+                    missing.Add(L.Pick("(空 command)", "(empty command)"));
                     continue;
                 }
 
@@ -567,9 +574,9 @@ public static class DoctorEngine
 
         var label = $"Hooks ({Path.GetFileName(Path.GetDirectoryName(path))})";
         if (missing.Count > 0)
-            AddWarning(issues, label, $"{missing.Count} 个引用脚本不存在: {string.Join(", ", missing.Take(3))}（不自动删除配置）");
+            AddWarning(issues, label, L.Pick($"{missing.Count} 个引用脚本不存在: {string.Join(", ", missing.Take(3))}（不自动删除配置）", $"{missing.Count} referenced scripts do not exist: {string.Join(", ", missing.Take(3))} (config is not deleted automatically)"));
         else
-            AddOk(issues, label, "配置可解析，引用脚本均存在");
+            AddOk(issues, label, L.Pick("配置可解析，引用脚本均存在", "Config parses; all referenced scripts exist"));
     }
 
     private static void CheckTools(List<DoctorIssue> issues)
@@ -582,9 +589,9 @@ public static class DoctorEngine
             .ToList();
 
         if (duplicates.Count > 0)
-            AddWarning(issues, "工具注册表", $"重复工具名: {string.Join(", ", duplicates)}");
+            AddWarning(issues, L.Pick("工具注册表", "Tool registry"), L.Pick($"重复工具名: {string.Join(", ", duplicates)}", $"Duplicate tool names: {string.Join(", ", duplicates)}"));
         else
-            AddOk(issues, "工具注册表", $"{tools.Count} 个工具，无重复");
+            AddOk(issues, L.Pick("工具注册表", "Tool registry"), L.Pick($"{tools.Count} 个工具，无重复", $"{tools.Count} tools, no duplicates"));
     }
 
     private static void CheckProjectFiles(string cwd, List<DoctorIssue> issues)
@@ -607,11 +614,11 @@ public static class DoctorEngine
         }
 
         if (bad.Count > 0)
-            AddError(issues, "项目文件", $"读取失败: {string.Join("; ", bad)}");
+            AddError(issues, L.Pick("项目文件", "Project files"), L.Pick($"读取失败: {string.Join("; ", bad)}", $"Read failed: {string.Join("; ", bad)}"));
         else if (found > 0)
-            AddOk(issues, "项目文件", $"{found} 个关键文件可读");
+            AddOk(issues, L.Pick("项目文件", "Project files"), L.Pick($"{found} 个关键文件可读", $"{found} key files are readable"));
         else
-            AddOk(issues, "项目文件", "未发现这些可选文件（跳过）");
+            AddOk(issues, L.Pick("项目文件", "Project files"), L.Pick("未发现这些可选文件（跳过）", "None of these optional files found (skipped)"));
     }
 
     private static void CheckTempFiles(string home, string cwd, bool fix, List<DoctorIssue> issues)
@@ -639,21 +646,21 @@ public static class DoctorEngine
             }
             catch (Exception ex)
             {
-                AddError(issues, "临时文件", $"扫描失败: {ex.Message}");
+                AddError(issues, L.Pick("临时文件", "Temp files"), L.Pick($"扫描失败: {ex.Message}", $"Scan failed: {ex.Message}"));
                 return;
             }
         }
 
         if (found.Count == 0)
         {
-            AddOk(issues, "临时文件", "无残留 .tmp");
+            AddOk(issues, L.Pick("临时文件", "Temp files"), L.Pick("无残留 .tmp", "No leftover .tmp files"));
             return;
         }
 
         if (!fix)
         {
-            AddWarning(issues, "临时文件", $"发现 {found.Count} 个残留 .tmp: {string.Join(", ", found.Take(3).Select(Path.GetFileName))}",
-                AutoFixable: true, FixHint: "/doctor fix 会清理 .tmp 文件");
+            AddWarning(issues, L.Pick("临时文件", "Temp files"), L.Pick($"发现 {found.Count} 个残留 .tmp: {string.Join(", ", found.Take(3).Select(Path.GetFileName))}", $"Found {found.Count} leftover .tmp files: {string.Join(", ", found.Take(3).Select(Path.GetFileName))}"),
+                AutoFixable: true, FixHint: L.Pick("/doctor fix 会清理 .tmp 文件", "/doctor fix cleans up .tmp files"));
             return;
         }
 
@@ -673,9 +680,9 @@ public static class DoctorEngine
         }
 
         if (failed == 0)
-            AddOk(issues, "临时文件", $"已清理 {deleted} 个残留 .tmp");
+            AddOk(issues, L.Pick("临时文件", "Temp files"), L.Pick($"已清理 {deleted} 个残留 .tmp", $"Cleaned up {deleted} leftover .tmp files"));
         else
-            AddError(issues, "临时文件", $"清理 {deleted} 个，失败 {failed} 个");
+            AddError(issues, L.Pick("临时文件", "Temp files"), L.Pick($"清理 {deleted} 个，失败 {failed} 个", $"Cleaned {deleted}, failed {failed}"));
     }
 
     private static string? FindGlobalFile(string home, string relativePath)
@@ -718,7 +725,7 @@ public static class DoctorEngine
             node = Json.Parse(text);
             if (node == null)
             {
-                error = "文件为空或全空白";
+                error = L.Pick("文件为空或全空白", "The file is empty or all whitespace");
                 return false;
             }
             return true;

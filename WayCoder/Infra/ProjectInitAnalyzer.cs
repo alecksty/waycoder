@@ -84,6 +84,59 @@ public static class ProjectInitAnalyzer
 {GIT_STATUS}
 """;
 
+    const string InitTemplateEn = """
+You are a senior software architect. Analyze the codebase context provided below and write a {FILE_NAME} guidance file for this repository.
+
+This file will be injected into the system prompt of an AI coding assistant (WayCoder / Claude Code) to guide it in working efficiently and safely in this repository. It is working notes for an AI, not a README for humans.
+
+## Content standards (strictly enforced)
+
+1. [Non-obvious knowledge only] Prefer recording the codebase's pitfalls, implicit conventions, surprising flags, test quirks, directory quirks, naming style and forbidden practices. Do not write generic advice (such as "write clear comments", "run tests before committing", "follow best practices").
+2. [Never fabricate] Write only from the context given below (project detection, common commands, repo map, existing rules, README, Git status). Do not invent information the context does not mention; prefer omitting over making things up.
+3. [Commands must be accurate] Take build/test/lint commands directly from the "Common commands" block; do not guess or rewrite them.
+4. [Architecture must be real] Derive the high-level architecture from the core files, file tree and symbol information in the "Repo map": core modules, key files, approximate data flow and layering. Do not invent modules or directories that do not exist.
+5. [Merge existing rules] Keep whatever is still valuable from "Existing rules / instruction files" (deduplicate, resolve conflicts). Keep the genuinely useful parts of "Existing target file content"; when it conflicts with your analysis, the new analysis wins.
+6. [Progressive disclosure] Write only knowledge that cannot be gained without reading the source. Mention the obvious (language name, framework name) in passing.
+7. [No placeholders] Do not leave placeholders such as "to be added" or "TODO". Omit uncertain sections entirely rather than leaving them blank.
+
+## Output format
+
+Output the complete content of {FILE_NAME} (Markdown) directly. Do not output any explanation, preamble, postscript or code fences.
+
+- The first line must be: # {FILE_NAME}
+- Suggested structure (add or remove as needed):
+  - Project overview (1-2 lines: language / framework / purpose)
+  - Common commands (build / test / lint, in a code block)
+  - Architecture (core modules and key files, based on the repo map)
+  - Conventions and standards (the real ones: naming, directories, commits, code style)
+  - Notes (pitfalls, implicit conventions, surprising flags, test quirks)
+- Write the body in English (keep commands and code identifiers as they are).
+- Length: keep it tight, typically 60-200 lines; do not pad it.
+
+# Codebase context
+
+## Project detection
+{PROJECT_INFO}
+
+## Common commands
+{COMMANDS}
+
+## Repo map
+{REPO_MAP}
+
+## Existing rules / instruction files
+{EXISTING_RULES}
+
+## README excerpt (head only)
+{README_HEAD}
+
+## Existing target file content (may be empty; use it to improve, not to override)
+{EXISTING_TARGET}
+
+## Git status
+{GIT_STATUS}
+""";
+
     /// <summary>LLM 可用性判定（null 则降级静态模板）。</summary>
     public static bool ShouldUseLlm(LLM? llm) => llm != null;
 
@@ -120,7 +173,7 @@ public static class ProjectInitAnalyzer
     /// <summary>组装提示词（指令在前、上下文在后；尾部兜底截断不裁指令）。</summary>
     public static string BuildPrompt(string fileName, InitContext ctx)
     {
-        var prompt = InitTemplate
+        var prompt = L.Pick(InitTemplate, InitTemplateEn)
             .Replace("{FILE_NAME}", fileName)
             .Replace("{PROJECT_INFO}", ctx.ProjectInfo)
             .Replace("{COMMANDS}", ctx.Commands)
@@ -176,7 +229,7 @@ public static class ProjectInitAnalyzer
                 var content = File.ReadAllText(full);
                 sb.AppendLine($"## {label}");
                 if (content.Length > PerFileMax)
-                    sb.AppendLine(ContextManager.TruncateByRunes(content, PerFileMax) + "\n... (已截断)");
+                    sb.AppendLine(ContextManager.TruncateByRunes(content, PerFileMax) + L.Pick("\n... (已截断)", "\n... (truncated)"));
                 else
                     sb.AppendLine(content);
                 sb.AppendLine();
@@ -190,7 +243,7 @@ public static class ProjectInitAnalyzer
         AddFile(Path.Combine(root, "AGENTS.md"), "AGENTS.md");
         // 非目标文件：生成 AGENT.md 时补读 CLAUDE.md，反之亦然（供合并）
         AddFile(Path.Combine(root, targetFileName.Equals("CLAUDE.md", StringComparison.OrdinalIgnoreCase)
-            ? "AGENT.md" : "CLAUDE.md"), "已有目标文件的另一形式");
+            ? "AGENT.md" : "CLAUDE.md"), L.Pick("已有目标文件的另一形式", "Other form of the target file"));
 
         // 目录规则
         foreach (var dir in new[] { ".claude", ".waycoder", ".corecoder" })
@@ -216,7 +269,7 @@ public static class ProjectInitAnalyzer
     static string CollectGitStatus(ProjectInfo info)
     {
         var sb = new StringBuilder();
-        if (info.GitBranch != null) sb.AppendLine($"- 分支: {info.GitBranch}");
+        if (info.GitBranch != null) sb.AppendLine(L.Pick($"- 分支: {info.GitBranch}", $"- Branch: {info.GitBranch}"));
         if (info.GitRemote != null) sb.AppendLine($"- Remote: {info.GitRemote}");
 
         // best-effort：git status --porcelain 统计变更数（失败静默）。
@@ -226,10 +279,10 @@ public static class ProjectInitAnalyzer
         if (statusExit == 0)
         {
             var changed = statusOut.Split('\n').Count(l => l.Trim().Length > 0);
-            if (changed > 0) sb.AppendLine($"- 未提交变更: {changed} 个文件");
+            if (changed > 0) sb.AppendLine(L.Pick($"- 未提交变更: {changed} 个文件", $"- Uncommitted changes: {changed} files"));
         }
 
-        return sb.Length > 0 ? sb.ToString() : "- 非 Git 仓库";
+        return sb.Length > 0 ? sb.ToString() : L.Pick("- 非 Git 仓库", "- Not a Git repository");
     }
 
     /// <summary>安全读取文件头部（不存在/读失败返回空串）。</summary>
@@ -240,7 +293,7 @@ public static class ProjectInitAnalyzer
             if (!File.Exists(path)) return "";
             var content = File.ReadAllText(path);
             return content.Length > maxRunes
-                ? ContextManager.TruncateByRunes(content, maxRunes) + "\n... (已截断)"
+                ? ContextManager.TruncateByRunes(content, maxRunes) + L.Pick("\n... (已截断)", "\n... (truncated)")
                 : content;
         }
         catch (Exception ex) { DebugLog.Log("init", $"读取失败 {path}: {ex.Message}"); return ""; }

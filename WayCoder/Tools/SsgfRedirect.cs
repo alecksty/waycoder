@@ -87,7 +87,7 @@ internal static class SsgfRedirect
             return response;
         }
 
-        throw new HttpRequestException("重定向次数过多");
+        throw new HttpRequestException(L.Pick("重定向次数过多", "Too many redirects"));
     }
 
     /// <summary>字符串方法的便捷重载（FetchTool 用）。</summary>

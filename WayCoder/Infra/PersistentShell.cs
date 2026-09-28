@@ -58,20 +58,22 @@ public sealed class PersistentShell : IDisposable
             if (timedOut)
             {
                 KillSession();
-                return $"{output}\n[错误：命令在 {timeoutSec} 秒后超时，会话已终止]";
+                return $"{output}\n" + L.Pick($"[错误：命令在 {timeoutSec} 秒后超时，会话已终止]",
+                                               $"[Error: command timed out after {timeoutSec}s, session terminated]");
             }
 
             var result = WayCoder.Infra.ProcEncoding.StripBom(output); // 去 chcp 65001 可能的 UTF-8 BOM
             if (exitCode != 0)
-                result += $"\n[退出码：{exitCode}]";
+                result += L.Pick($"\n[退出码：{exitCode}]", $"\n[exit code: {exitCode}]");
 
-            return string.IsNullOrWhiteSpace(result) ? "（无输出）" : result.Trim();
+            return string.IsNullOrWhiteSpace(result) ? L.Pick("（无输出）", "(no output)") : result.Trim();
         }
         catch (Exception ex)
         {
             // 进程异常（写失败/读失败），终止会话下次重建
             KillSession();
-            return $"运行命令时出错：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"运行命令时出错：{ex.GetType().Name}: {ex.Message}",
+                          $"Error running command: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {

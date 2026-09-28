@@ -23,36 +23,36 @@ public static class SsgfGuard
     public static (bool safe, string? reason) CheckUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url))
-            return (false, "URL 为空");
+            return (false, L.Pick("URL 为空", "URL is empty"));
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return (false, "URL 格式非法");
+            return (false, L.Pick("URL 格式非法", "Malformed URL"));
 
         var scheme = uri.Scheme.ToLowerInvariant();
         if (scheme is not ("http" or "https"))
-            return (false, $"不支持的协议 '{scheme}'（仅 http/https）");
+            return (false, L.Pick($"不支持的协议 '{scheme}'（仅 http/https）", $"Unsupported scheme '{scheme}' (only http/https)"));
 
         var host = uri.Host.ToLowerInvariant();
         if (string.IsNullOrEmpty(host))
-            return (false, "URL 缺少主机名");
+            return (false, L.Pick("URL 缺少主机名", "URL has no host name"));
 
         // 1. 字面量 IP 检查（不依赖 DNS，覆盖 127.0.0.1、10.x、169.254.169.254 等）
         if (IPAddress.TryParse(host, out var ip))
         {
             if (IsPrivateOrReserved(ip))
-                return (false, $"已阻止访问内网/保留地址 {host}（SSRF 防护）");
+                return (false, L.Pick($"已阻止访问内网/保留地址 {host}（SSRF 防护）", $"Blocked access to private/reserved address {host} (SSRF protection)"));
             return (true, null);
         }
 
         // 2. 特殊环回主机名检查
         if (host is "localhost" or "localhost.localdomain" or "ip6-localhost" or "ip6-loopback")
-            return (false, $"已阻止访问环回主机名 {host}（SSRF 防护）");
+            return (false, L.Pick($"已阻止访问环回主机名 {host}（SSRF 防护）", $"Blocked access to loopback host name {host} (SSRF protection)"));
 
         // 3. 内网域名后缀检查
         foreach (var suffix in PrivateHostnameSuffixes)
         {
             if (host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                return (false, $"已阻止访问内网主机名 {host}（SSRF 防护）");
+                return (false, L.Pick($"已阻止访问内网主机名 {host}（SSRF 防护）", $"Blocked access to internal host name {host} (SSRF protection)"));
         }
 
         return (true, null);
@@ -75,12 +75,12 @@ public static class SsgfGuard
     /// </summary>
     public static (bool safe, string? reason, IPAddress[] addrs) ResolveSafeAddresses(string host)
     {
-        if (string.IsNullOrEmpty(host)) return (false, "主机名为空", []);
+        if (string.IsNullOrEmpty(host)) return (false, L.Pick("主机名为空", "Host name is empty"), []);
         if (IPAddress.TryParse(host, out var literal))
         {
             // ConnectCallback 是独立防护层，字面量内网 IP 也需在此拒绝（不能依赖 CheckUrl 先行拦截）
             if (IsPrivateOrReserved(literal))
-                return (false, $"已阻止访问内网/保留地址 {host}（SSRF 防护）", []);
+                return (false, L.Pick($"已阻止访问内网/保留地址 {host}（SSRF 防护）", $"Blocked access to private/reserved address {host} (SSRF protection)"), []);
             return (true, null, [literal]);
         }
 
@@ -90,7 +90,7 @@ public static class SsgfGuard
             foreach (var addr in addrs)
             {
                 if (IsPrivateOrReserved(addr))
-                    return (false, $"已阻止访问解析到内网地址 {addr} 的主机 {host}（SSRF 防护）", []);
+                    return (false, L.Pick($"已阻止访问解析到内网地址 {addr} 的主机 {host}（SSRF 防护）", $"Blocked host {host}, which resolves to private address {addr} (SSRF protection)"), []);
             }
             return (true, null, addrs);
         }
@@ -111,7 +111,7 @@ public static class SsgfGuard
             var port = context.DnsEndPoint.Port;
             var (safe, reason, addrs) = ResolveSafeAddresses(host);
             if (!safe) throw new SsgfBlockedException(reason!);
-            if (addrs.Length == 0) throw new HttpRequestException($"无法解析主机 {host}");
+            if (addrs.Length == 0) throw new HttpRequestException(L.Pick($"无法解析主机 {host}", $"Could not resolve host {host}"));
 
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             try

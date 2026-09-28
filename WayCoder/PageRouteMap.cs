@@ -28,5 +28,9 @@ public static class PageRouteMap
     }
 
     /// <summary>可用页面名提示（无参时回显）。</summary>
-    public const string Usage = "可用：/topage home|chat|files|settings|sessions|panel|modelpicker|providers|gitsync|about|editor";
+    // ⚠ 页面名（home|chat|…）是路由判据，不进 L.Pick；只有「可用：」这句提示是给人看的。
+    //   为此由 const 改成表达式体属性 —— const 装不下 L.Pick（公理 A3）。
+    public static string Usage => L.Pick(
+        "可用：/topage home|chat|files|settings|sessions|panel|modelpicker|providers|gitsync|about|editor",
+        "Available: /topage home|chat|files|settings|sessions|panel|modelpicker|providers|gitsync|about|editor");
 }

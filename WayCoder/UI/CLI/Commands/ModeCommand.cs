@@ -14,7 +14,7 @@ public class ModeCommand : SlashCommand
 {
     public override string Name => "/mode";
     public override string[] Aliases => ["/模式", "/workmode"];
-    public override string Description => "切换工作模式：Build / Plan / Chat";
+    public override string Description => L.Pick("切换工作模式：Build / Plan / Chat", "Switch work mode: Build / Plan / Chat");
     public override string? Usage => "/mode [build|plan|chat]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
@@ -48,13 +48,13 @@ public class ModeCommand : SlashCommand
 
             var desc = target.Value switch
             {
-                WorkMode.Plan => "只读分析/规划，白名单只读工具 + 精简提示词。产出计划经审批后切回建造模式执行。",
-                WorkMode.Chat => "纯聊天：0 工具 + 0 提示词，不能操作文件。需要动代码请切回建造/规划模式。",
-                _ => "完整工具访问，正常编程模式（工具与提示词受经济模式管理）。",
+                WorkMode.Plan => L.Pick("只读分析/规划，白名单只读工具 + 精简提示词。产出计划经审批后切回建造模式执行。", "Read-only analysis/planning with a read-only tool whitelist and a trimmed prompt. Once the plan is approved, it switches back to Build mode to execute."),
+                WorkMode.Chat => L.Pick("纯聊天：0 工具 + 0 提示词，不能操作文件。需要动代码请切回建造/规划模式。", "Chat only: 0 tools, 0 prompt. Files cannot be touched. Switch back to Build/Plan mode to work on code."),
+                _ => L.Pick("完整工具访问，正常编程模式（工具与提示词受经济模式管理）。", "Full tool access, normal coding mode (tools and prompt are governed by the economy mode)."),
             };
 
             screen.AddMessage(
-                $"**工作模式已切换**: {WorkModeManager.Format(target.Value)}\n\n{desc}\n\n💡 快捷键: **Shift+Tab** 循环切换模式",
+                L.Pick($"**工作模式已切换**: {WorkModeManager.Format(target.Value)}\n\n{desc}\n\n💡 快捷键: **Shift+Tab** 循环切换模式", $"**Work mode switched**: {WorkModeManager.Format(target.Value)}\n\n{desc}\n\n💡 Shortcut: **Shift+Tab** cycles modes"),
                 "system");
         }
         else
@@ -64,9 +64,9 @@ public class ModeCommand : SlashCommand
             var modes = new[] { WorkMode.Build, WorkMode.Plan, WorkMode.Chat };
             var lines = new List<string>
             {
-                $"**当前模式**: {WorkModeManager.Format(current)}",
+                L.Pick($"**当前模式**: {WorkModeManager.Format(current)}", $"**Current mode**: {WorkModeManager.Format(current)}"),
                 "",
-                "| 快捷键 | 模式 | 说明 |",
+                L.Pick("| 快捷键 | 模式 | 说明 |", "| Shortcut | Mode | Description |"),
                 "|--------|------|------|",
             };
 
@@ -77,16 +77,16 @@ public class ModeCommand : SlashCommand
                 var label = WorkModeManager.Labels.GetValueOrDefault(m, m.ToString());
                 var desc = m switch
                 {
-                    WorkMode.Build => "完整工具 · 正常编程（经济模式管工具/提示词）",
-                    WorkMode.Plan => "只读分析 · 白名单只读工具 + 精简提示词",
-                    WorkMode.Chat => "纯聊天 · 0 工具 0 提示词",
+                    WorkMode.Build => L.Pick("完整工具 · 正常编程（经济模式管工具/提示词）", "Full tools · normal coding (economy mode governs tools/prompt)"),
+                    WorkMode.Plan => L.Pick("只读分析 · 白名单只读工具 + 精简提示词", "Read-only analysis · read-only tool whitelist + trimmed prompt"),
+                    WorkMode.Chat => L.Pick("纯聊天 · 0 工具 0 提示词", "Chat only · 0 tools, 0 prompt"),
                     _ => "",
                 };
                 lines.Add($"| {marker} | {emoji} {label} | {desc} |");
             }
 
             lines.Add("");
-            lines.Add("💡 **Shift+Tab** 循环切换 · `/mode <名称>` 直接切换");
+            lines.Add(L.Pick("💡 **Shift+Tab** 循环切换 · `/mode <名称>` 直接切换", "💡 **Shift+Tab** cycles modes · `/mode <name>` switches directly"));
 
             screen.AddMessage(string.Join("\n", lines), "system");
         }

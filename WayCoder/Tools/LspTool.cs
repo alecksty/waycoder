@@ -114,12 +114,14 @@ public class LspTool : ITool
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         var config = FindServer(ext);
         if (config == null)
-            return $"错误：未找到 {ext} 的 LSP 服务器。已安装? (支持: {string.Join(", ", ServerConfigs.Keys)})";
+            return L.Pick($"错误：未找到 {ext} 的 LSP 服务器。已安装? (支持: {string.Join(", ", ServerConfigs.Keys)})",
+                          $"Error: no LSP server found for {ext}. Is it installed? (supported: {string.Join(", ", ServerConfigs.Keys)})");
 
         // 串行化：LSP 会话是单连接，不能并发读写，全程持锁避免多槽位抢同一进程。
         // 3s 超时防死锁（另一槽位持锁卡死时本请求不永久挂起，回退错误提示）
         if (!await _sessionLock.WaitAsync(TimeSpan.FromSeconds(3)))
-            return $"错误：LSP 会话忙（3s 超时，可能被其他槽位占用）";
+            return L.Pick("错误：LSP 会话忙（3s 超时，可能被其他槽位占用）",
+                          "Error: the LSP session is busy (3s timeout; it may be held by another slot)");
         try
         {
             var root = FindProjectRoot(filePath);
@@ -130,7 +132,9 @@ public class LspTool : ITool
             {
                 if (session != null) KillAndDispose(session.Process);
                 var proc = StartServer(config.Value.Command, config.Value.Args, root);
-                if (proc == null) return $"错误：无法启动 LSP 服务器 ({config.Value.Command})";
+                if (proc == null)
+                    return L.Pick($"错误：无法启动 LSP 服务器 ({config.Value.Command})",
+                                  $"Error: could not start the LSP server ({config.Value.Command})");
                 session = new LspSession { Process = proc, Command = config.Value.Command, Root = root, Initialized = false };
                 _sessions[key] = session;
             }
@@ -154,7 +158,7 @@ public class LspTool : ITool
                 "references" => await FindReferences(session.Process, filePath, line, charPos),
                 "hover" => await Hover(session.Process, filePath, line, charPos),
                 "symbols" => await DocumentSymbols(session.Process, filePath, query),
-                _ => "错误：未知操作",
+                _ => L.Pick("错误：未知操作", "Error: unknown operation"),
             };
         }
         catch (Exception ex)
@@ -278,7 +282,7 @@ public class LspTool : ITool
             .Set("position", JNode.Object().Set("line", line - 1).Set("character", ch - 1)));
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
-        return FormatLocationResult(resp, "定义");
+        return FormatLocationResult(resp, L.Pick("定义", "definition"));
     }
 
     private static async Task<string> FindReferences(Process proc, string file, int line, int ch)
@@ -289,7 +293,7 @@ public class LspTool : ITool
             .Set("context", JNode.Object().Set("includeDeclaration", true)));
         SendMessage(proc, req);
         var resp = await ReadResponse(proc);
-        return FormatLocationResult(resp, "引用");
+        return FormatLocationResult(resp, L.Pick("引用", "references"));
     }
 
     private static async Task<string> Hover(Process proc, string file, int line, int ch)
@@ -303,7 +307,7 @@ public class LspTool : ITool
             return text;
         if (resp?["result"]?.AsString() is { } str)
             return str;
-        return "（无类型信息）";
+        return L.Pick("（无类型信息）", "(no type information)");
     }
 
     private static async Task<string> DocumentSymbols(Process proc, string file, string query)
@@ -314,11 +318,13 @@ public class LspTool : ITool
         var resp = await ReadResponse(proc);
 
         var symbols = resp?["result"];
-        if (symbols == null || symbols.Count == 0) return "（无符号）";
+        if (symbols == null || symbols.Count == 0) return L.Pick("（无符号）", "(no symbols)");
 
         var lines = new List<string>();
         FormatSymbols(symbols, lines, 0, query);
-        return lines.Count > 0 ? string.Join("\n", lines) : "（无匹配符号）";
+        return lines.Count > 0
+            ? string.Join("\n", lines)
+            : L.Pick("（无匹配符号）", "(no matching symbols)");
     }
 
     // ---- LSP 协议辅助 ----
@@ -464,11 +470,12 @@ public class LspTool : ITool
     private static string FormatLocationResult(JNode? resp, string label)
     {
         var result = resp?["result"];
-        if (result == null) return $"（无{label}）";
+        if (result == null)
+            return L.Pick($"（无{label}）", $"(no {label})");
 
         if (result.Kind == JKind.Array)
         {
-            var lines = new List<string> { $"{label} ({result.Count} 处):" };
+            var lines = new List<string> { L.Pick($"{label} ({result.Count} 处):", $"{label} ({result.Count} found):") };
             foreach (var loc in result.Items.Take(20))
             {
                 var uri = loc["uri"]?.AsString() ?? "?";
@@ -477,7 +484,8 @@ public class LspTool : ITool
                 var startCh = (int)(range?["start"]?["character"]?.AsNumber() ?? 0);
                 lines.Add($"  {UriToPath(uri)}:{startLine + 1}:{startCh + 1}");
             }
-            if (result.Count > 20) lines.Add($"  ... 还有 {result.Count - 20} 处");
+            if (result.Count > 20)
+                lines.Add(L.Pick($"  ... 还有 {result.Count - 20} 处", $"  ... {result.Count - 20} more"));
             return string.Join("\n", lines);
         }
 
@@ -490,7 +498,7 @@ public class LspTool : ITool
             return $"{label}: {UriToPath(uri)}:{sl + 1}:{sc + 1}";
         }
 
-        return $"（{label}结果格式未知）";
+        return L.Pick($"（{label}结果格式未知）", $"(unknown {label} result format)");
     }
 
     private static void FormatSymbols(JNode symbols, List<string> lines, int depth, string filter)

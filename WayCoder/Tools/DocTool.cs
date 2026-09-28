@@ -68,7 +68,7 @@ public class DocTool : ITool
     {
         var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(query))
-            return "错误：action=search 需要提供 query 参数。";
+            return L.Pick("错误：action=search 需要提供 query 参数。", "Error: action=search requires the query parameter.");
 
         var cacheKey = $"search:{query}";
         if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.Now - cached.Time < CacheTtl)
@@ -114,17 +114,21 @@ public class DocTool : ITool
 
             var output = results.Count > 0
                 ? string.Join("\n\n---\n\n", results)
-                : $"未找到 '{query}' 的文档。建议：\n" +
+                : L.Pick($"未找到 '{query}' 的文档。建议：\n" +
                   "1. 尝试更具体的关键词\n" +
                   "2. 使用 action='fetch' + url 直接抓取已知文档页面\n" +
-                  "3. 用 web_search 工具搜索更多结果";
+                  "3. 用 web_search 工具搜索更多结果",
+                  $"No documentation found for '{query}'. Suggestions:\n" +
+                  "1. Try more specific keywords\n" +
+                  "2. Use action='fetch' + url to fetch a known documentation page directly\n" +
+                  "3. Use the web_search tool to find more results");
 
             _cache[cacheKey] = (output, DateTime.Now);
             return output;
         }
         catch (Exception ex)
         {
-            return $"文档搜索失败：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"文档搜索失败：{ex.GetType().Name}: {ex.Message}", $"Documentation search failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -136,10 +140,10 @@ public class DocTool : ITool
     {
         var url = arguments.GetValueOrDefault("url")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(url))
-            return "错误：action=fetch 需要提供 url 参数。";
+            return L.Pick("错误：action=fetch 需要提供 url 参数。", "Error: action=fetch requires the url parameter.");
 
         if (!url.StartsWith("http://") && !url.StartsWith("https://"))
-            return "错误：URL 必须以 http:// 或 https:// 开头";
+            return L.Pick("错误：URL 必须以 http:// 或 https:// 开头", "Error: the URL must start with http:// or https://");
 
         var cacheKey = $"fetch:{url}";
         if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.Now - cached.Time < CacheTtl)
@@ -153,16 +157,16 @@ public class DocTool : ITool
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
             if (!contentType.Contains("text/html") && !contentType.Contains("text/plain"))
-                return $"错误：不支持的内容类型 '{contentType}'";
+                return L.Pick($"错误：不支持的内容类型 '{contentType}'", $"Error: unsupported content type '{contentType}'");
 
             var html = await response.Content.ReadAsStringAsync();
             var text = HtmlText.StripHtml(html);
 
             if (text.Length > 6000)
-                text = ContextManager.TruncateByRunes(text, 6000) + $"\n\n... (已截断，原始共 {text.Length} 字符)";
+                text = ContextManager.TruncateByRunes(text, 6000) + L.Pick($"\n\n... (已截断，原始共 {text.Length} 字符)", "(truncated, {text.Length} characters originally)");
 
             var result = string.IsNullOrWhiteSpace(text)
-                ? "（页面无文本内容）"
+                ? L.Pick("（页面无文本内容）", "(the page has no text content)")
                 : $"### {GetDomain(url)}\n{text}";
 
             _cache[cacheKey] = (result, DateTime.Now);
@@ -170,7 +174,7 @@ public class DocTool : ITool
         }
         catch (HttpRequestException ex)
         {
-            return $"请求失败：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"请求失败：{ex.GetType().Name}: {ex.Message}", $"Request failed: {ex.GetType().Name}: {ex.Message}");
         }
         catch (SsgfBlockedException ex)
         {
@@ -179,11 +183,11 @@ public class DocTool : ITool
         catch (TaskCanceledException)
         {
             ErrorLog.ToolError("doc", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
-            return $"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）";
+            return L.Pick($"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）", $"Error: request timed out ({Config.Instance.FetchTimeoutSec}s)");
         }
         catch (Exception ex)
         {
-            return ToolErrors.Error("抓取", ex);
+            return ToolErrors.Error(L.Pick("抓取", "fetch "), ex);
         }
     }
 
@@ -209,41 +213,41 @@ public class DocTool : ITool
         // 常见库 → 官方文档 URL 映射
         var knownDocs = new Dictionary<string, List<(string, string)>>
         {
-            ["react"] = [("React 官方", "https://react.dev/reference/react")],
-            ["next.js"] = [("Next.js 官方", "https://nextjs.org/docs")],
-            ["nextjs"] = [("Next.js 官方", "https://nextjs.org/docs")],
-            ["vue"] = [("Vue 官方", "https://vuejs.org/api/")],
-            ["svelte"] = [("Svelte 官方", "https://svelte.dev/docs")],
+            ["react"] = [(L.Pick("React 官方", "React docs"), "https://react.dev/reference/react")],
+            ["next.js"] = [(L.Pick("Next.js 官方", "Next.js docs"), "https://nextjs.org/docs")],
+            ["nextjs"] = [(L.Pick("Next.js 官方", "Next.js docs"), "https://nextjs.org/docs")],
+            ["vue"] = [(L.Pick("Vue 官方", "Vue docs"), "https://vuejs.org/api/")],
+            ["svelte"] = [(L.Pick("Svelte 官方", "Svelte docs"), "https://svelte.dev/docs")],
             ["tailwind"] = [("Tailwind CSS", "https://tailwindcss.com/docs")],
-            ["prisma"] = [("Prisma 官方", "https://www.prisma.io/docs")],
-            ["django"] = [("Django 官方", "https://docs.djangoproject.com/")],
-            ["flask"] = [("Flask 官方", "https://flask.palletsprojects.com/")],
-            ["fastapi"] = [("FastAPI 官方", "https://fastapi.tiangolo.com/")],
-            ["express"] = [("Express 官方", "https://expressjs.com/")],
-            ["nestjs"] = [("NestJS 官方", "https://docs.nestjs.com/")],
-            ["spring"] = [("Spring 官方", "https://docs.spring.io/spring-framework/reference/")],
-            ["dotnet"] = [(".NET 官方", "https://learn.microsoft.com/en-us/dotnet/")],
-            ["asp.net"] = [("ASP.NET 官方", "https://learn.microsoft.com/en-us/aspnet/core/")],
-            ["c#"] = [("C# 文档", "https://learn.microsoft.com/en-us/dotnet/csharp/")],
-            ["rust"] = [("Rust 标准库", "https://doc.rust-lang.org/std/")],
-            ["golang"] = [("Go 官方", "https://pkg.go.dev/")],
-            ["go"] = [("Go 官方", "https://pkg.go.dev/")],
-            ["python"] = [("Python 官方", "https://docs.python.org/3/")],
-            ["typescript"] = [("TypeScript 官方", "https://www.typescriptlang.org/docs/")],
+            ["prisma"] = [(L.Pick("Prisma 官方", "Prisma docs"), "https://www.prisma.io/docs")],
+            ["django"] = [(L.Pick("Django 官方", "Django docs"), "https://docs.djangoproject.com/")],
+            ["flask"] = [(L.Pick("Flask 官方", "Flask docs"), "https://flask.palletsprojects.com/")],
+            ["fastapi"] = [(L.Pick("FastAPI 官方", "FastAPI docs"), "https://fastapi.tiangolo.com/")],
+            ["express"] = [(L.Pick("Express 官方", "Express docs"), "https://expressjs.com/")],
+            ["nestjs"] = [(L.Pick("NestJS 官方", "NestJS docs"), "https://docs.nestjs.com/")],
+            ["spring"] = [(L.Pick("Spring 官方", "Spring docs"), "https://docs.spring.io/spring-framework/reference/")],
+            ["dotnet"] = [(L.Pick(".NET 官方", ".NET docs"), "https://learn.microsoft.com/en-us/dotnet/")],
+            ["asp.net"] = [(L.Pick("ASP.NET 官方", "ASP.NET docs"), "https://learn.microsoft.com/en-us/aspnet/core/")],
+            ["c#"] = [(L.Pick("C# 文档", "C# docs"), "https://learn.microsoft.com/en-us/dotnet/csharp/")],
+            ["rust"] = [(L.Pick("Rust 标准库", "Rust standard library"), "https://doc.rust-lang.org/std/")],
+            ["golang"] = [(L.Pick("Go 官方", "Go docs"), "https://pkg.go.dev/")],
+            ["go"] = [(L.Pick("Go 官方", "Go docs"), "https://pkg.go.dev/")],
+            ["python"] = [(L.Pick("Python 官方", "Python docs"), "https://docs.python.org/3/")],
+            ["typescript"] = [(L.Pick("TypeScript 官方", "TypeScript docs"), "https://www.typescriptlang.org/docs/")],
             ["javascript"] = [("MDN", "https://developer.mozilla.org/en-US/docs/Web/JavaScript")],
-            ["node"] = [("Node.js 官方", "https://nodejs.org/docs/latest/api/")],
-            ["postgresql"] = [("PostgreSQL 官方", "https://www.postgresql.org/docs/current/")],
-            ["mysql"] = [("MySQL 官方", "https://dev.mysql.com/doc/refman/8.0/en/")],
-            ["redis"] = [("Redis 官方", "https://redis.io/docs/latest/")],
-            ["docker"] = [("Docker 官方", "https://docs.docker.com/reference/")],
-            ["kubernetes"] = [("Kubernetes 官方", "https://kubernetes.io/docs/")],
-            ["k8s"] = [("Kubernetes 官方", "https://kubernetes.io/docs/")],
-            ["nginx"] = [("NGINX 官方", "https://nginx.org/en/docs/")],
-            ["git"] = [("Git 官方", "https://git-scm.com/docs")],
-            ["llm"] = [("LangChain 官方", "https://docs.langchain.com/")],
-            ["langchain"] = [("LangChain 官方", "https://docs.langchain.com/")],
-            ["pytorch"] = [("PyTorch 官方", "https://pytorch.org/docs/stable/")],
-            ["tensorflow"] = [("TensorFlow 官方", "https://www.tensorflow.org/api_docs")],
+            ["node"] = [(L.Pick("Node.js 官方", "Node.js docs"), "https://nodejs.org/docs/latest/api/")],
+            ["postgresql"] = [(L.Pick("PostgreSQL 官方", "PostgreSQL docs"), "https://www.postgresql.org/docs/current/")],
+            ["mysql"] = [(L.Pick("MySQL 官方", "MySQL docs"), "https://dev.mysql.com/doc/refman/8.0/en/")],
+            ["redis"] = [(L.Pick("Redis 官方", "Redis docs"), "https://redis.io/docs/latest/")],
+            ["docker"] = [(L.Pick("Docker 官方", "Docker docs"), "https://docs.docker.com/reference/")],
+            ["kubernetes"] = [(L.Pick("Kubernetes 官方", "Kubernetes docs"), "https://kubernetes.io/docs/")],
+            ["k8s"] = [(L.Pick("Kubernetes 官方", "Kubernetes docs"), "https://kubernetes.io/docs/")],
+            ["nginx"] = [(L.Pick("NGINX 官方", "NGINX docs"), "https://nginx.org/en/docs/")],
+            ["git"] = [(L.Pick("Git 官方", "Git docs"), "https://git-scm.com/docs")],
+            ["llm"] = [(L.Pick("LangChain 官方", "LangChain docs"), "https://docs.langchain.com/")],
+            ["langchain"] = [(L.Pick("LangChain 官方", "LangChain docs"), "https://docs.langchain.com/")],
+            ["pytorch"] = [(L.Pick("PyTorch 官方", "PyTorch docs"), "https://pytorch.org/docs/stable/")],
+            ["tensorflow"] = [(L.Pick("TensorFlow 官方", "TensorFlow docs"), "https://www.tensorflow.org/api_docs")],
         };
 
         foreach (var (keyword, sources) in knownDocs)
@@ -260,7 +264,7 @@ public class DocTool : ITool
         if (urls.Count == 0)
         {
             var encoded = Uri.EscapeDataString(query);
-            urls.Add(("文档搜索", $"https://www.google.com/search?q={encoded}+documentation"));
+            urls.Add((L.Pick("文档搜索", "Doc search"), $"https://www.google.com/search?q={encoded}+documentation"));
         }
 
         return urls;
@@ -285,7 +289,7 @@ public class DocTool : ITool
             var text = HtmlText.StripHtml(html);
 
             if (text.Length > 4000)
-                text = ContextManager.TruncateByRunes(text, 4000) + "\n\n... (已截断)";
+                text = ContextManager.TruncateByRunes(text, 4000) + L.Pick("\n\n... (已截断)", "\n\n... (truncated)");
 
             return (source, string.IsNullOrWhiteSpace(text) ? null : text);
         }
@@ -329,13 +333,15 @@ public class DocTool : ITool
             }
 
             return snippets.Count > 0
-                ? $"### 搜索结果: {query}\n" + string.Join("\n", snippets) +
-                  "\n\n提示：使用 action='fetch' + 上述 URL 获取完整文档。"
-                : $"未找到 '{query}' 的搜索结果。";
+                ? L.Pick($"### 搜索结果: {query}\n" + string.Join("\n", snippets) +
+                  "\n\n提示：使用 action='fetch' + 上述 URL 获取完整文档。",
+                  $"### Search results: {query}\n" + string.Join("\n", snippets) +
+                  "\n\nTip: use action='fetch' with the URLs above to get the full documentation.")
+                : L.Pick($"未找到 '{query}' 的搜索结果。", $"No search results found for '{query}'.");
         }
         catch
         {
-            return $"### 搜索: {query}\n支持直接指定 URL: action='fetch' url='https://docs.example.com/...'";
+            return L.Pick($"### 搜索: {query}\n支持直接指定 URL: action='fetch' url='https://docs.example.com/...'", $"### Search: {query}\nYou can also pass a URL directly: action='fetch' url='https://docs.example.com/...'");
         }
     }
 

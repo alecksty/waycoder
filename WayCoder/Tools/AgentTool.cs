@@ -70,7 +70,7 @@ public class AgentTool : ITool, ICancellableTool
         var task = arguments.GetValueOrDefault("task")?.ToString() ?? "";
 
         if (ParentAgent == null)
-            return "错误：agent 工具未初始化（没有父智能体）";
+            return L.Pick("错误：agent 工具未初始化（没有父智能体）", "Error: the agent tool is not initialized (no parent agent)");
 
         var depth = _currentDepth.Value;
         var maxDepth = MaxDepth;
@@ -82,7 +82,7 @@ public class AgentTool : ITool, ICancellableTool
         }
 
         if (string.IsNullOrWhiteSpace(task))
-            return "错误：请提供 task（单任务）或 tasks 数组（并行任务）参数";
+            return L.Pick("错误：请提供 task（单任务）或 tasks 数组（并行任务）参数", "Error: provide either the task parameter (single task) or the tasks array (parallel tasks)");
 
         return await RunSubAgentWithRetryAsync(task, depth, maxDepth, cancellationToken);
     }
@@ -94,11 +94,12 @@ public class AgentTool : ITool, ICancellableTool
         CollectSpecs(tasksObj, specs);
 
         if (specs.Count == 0)
-            return "错误：tasks 数组不能为空，请提供至少一个子任务";
+            return L.Pick("错误：tasks 数组不能为空，请提供至少一个子任务", "Error: the tasks array cannot be empty; provide at least one sub-task");
 
         // 硬上限：防止 LLM 生成海量任务失控（超出并行数的部分本可分批串行，但总数超上限直接拒绝）
         if (specs.Count > MaxTotalTasks)
-            return $"错误：子任务总数不能超过 {MaxTotalTasks} 个（当前 {specs.Count} 个）。请拆分任务或缩小范围。";
+            return L.Pick($"错误：子任务总数不能超过 {MaxTotalTasks} 个（当前 {specs.Count} 个）。请拆分任务或缩小范围。",
+                          $"Error: the total number of sub-tasks cannot exceed {MaxTotalTasks} (currently {specs.Count}). Split the work up or narrow the scope.");
 
         var maxDepth = MaxDepth;
 
@@ -131,7 +132,7 @@ public class AgentTool : ITool, ICancellableTool
                 : -1;
             for (var i = 0; i < results.Length; i++)
             {
-                sb.AppendLine($"--- 子任务 {i + 1} ---");
+                sb.AppendLine(L.Pick($"--- 子任务 {i + 1} ---", $"--- Sub-task {i + 1} ---"));
                 sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
             }
             var summary = $"[并行子智能体完成 · {results.Length} 个任务]\n{sb}";
@@ -195,7 +196,7 @@ public class AgentTool : ITool, ICancellableTool
             var perItemMax = totalMax > 0 ? Math.Max(200, totalMax / specs.Count) : -1;
             for (int i = 0; i < specs.Count; i++)
             {
-                sb.AppendLine($"--- 子任务 {specs[i].Id} ---");
+                sb.AppendLine(L.Pick($"--- 子任务 {specs[i].Id} ---", $"--- Sub-task {specs[i].Id} ---"));
                 sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
             }
             var summary = $"[子智能体流水线完成 · {specs.Count} 个任务 · 按依赖拓扑调度]\n{sb}";
@@ -231,9 +232,9 @@ public class AgentTool : ITool, ICancellableTool
             foreach (var dep in specs[i].DependsOn)
             {
                 if (!idMap.TryGetValue(dep, out var di))
-                    throw new InvalidOperationException($"子任务「{specs[i].Id}」依赖的 id「{dep}」不存在");
+                    throw new InvalidOperationException(L.Pick($"子任务「{specs[i].Id}」依赖的 id「{dep}」不存在", $"Sub-task \"{specs[i].Id}\" depends on id \"{dep}\", which does not exist"));
                 if (di == i)
-                    throw new InvalidOperationException($"子任务「{specs[i].Id}」不能依赖自身");
+                    throw new InvalidOperationException(L.Pick($"子任务「{specs[i].Id}」不能依赖自身", $"Sub-task \"{specs[i].Id}\" cannot depend on itself"));
                 indegree[i]++;
                 dependents[di].Add(i);
             }
@@ -249,7 +250,7 @@ public class AgentTool : ITool, ICancellableTool
                 if (!completed[i] && indegree[i] == 0)
                     level.Add(i);
             if (level.Count == 0)
-                throw new InvalidOperationException("子任务依赖存在环（depends_on 形成循环），无法调度");
+                throw new InvalidOperationException(L.Pick("子任务依赖存在环（depends_on 形成循环），无法调度", "Sub-task dependencies contain a cycle (depends_on forms a loop); cannot schedule"));
             foreach (var i in level)
             {
                 completed[i] = true;
@@ -270,7 +271,8 @@ public class AgentTool : ITool, ICancellableTool
         if (spec.DependsOn.Count > 0)
         {
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("前置子任务已完成，其输出如下（请基于这些结果继续完成本任务）：");
+            sb.AppendLine(L.Pick("前置子任务已完成，其输出如下（请基于这些结果继续完成本任务）：",
+                "The prerequisite sub-tasks have completed. Their output follows (use these results to continue with this task):"));
             var depMax = Config.Instance.SubAgentOutputMaxChars > 0
                 ? Config.Instance.SubAgentOutputMaxChars
                 : 2000;
@@ -280,9 +282,9 @@ public class AgentTool : ITool, ICancellableTool
                 var outText = results[di];
                 if (outText.Length > depMax)
                     outText = TruncateKeepTail(outText, depMax);
-                sb.AppendLine($"### 依赖任务「{depId}」输出\n{outText}");
+                sb.AppendLine(L.Pick($"### 依赖任务「{depId}」输出\n{outText}", $"### Output of dependency task \"{depId}\"\n{outText}"));
             }
-            task = $"{sb}\n\n---\n## 本任务\n{task}";
+            task = L.Pick($"{sb}\n\n---\n## 本任务\n{task}", $"{sb}\n\n---\n## This task\n{task}");
         }
 
         return await RunSubAgentWithRetryAsync(task, depth, maxDepth, cancellationToken);
@@ -316,12 +318,12 @@ public class AgentTool : ITool, ICancellableTool
 
         // 明文审计：预先构造任务全文与工具清单，供 finally 统一落盘（成功/失败/中断都留痕）
         var contextSummary = BuildParentContext(depth);
-        var depthNote = depth > 0 ? $"\n（当前为第 {depth + 1} 层子智能体，最大深度 {maxDepth}）" : "";
+        var depthNote = depth > 0 ? L.Pick($"\n（当前为第 {depth + 1} 层子智能体，最大深度 {maxDepth}）", $"\n(currently sub-agent level {depth + 1}, maximum depth {maxDepth})") : "";
         // 注入子智能体纪律（不建 scratch/csproj、自测到通过、精简回报），固化压力测试铁律
         var discipline = SystemPrompt.SubAgentDiscipline;
         var fullTask = string.IsNullOrEmpty(contextSummary)
             ? $"{discipline}\n\n{task}{depthNote}"
-            : $"{contextSummary}\n\n---\n{discipline}\n\n## 子任务{depthNote}\n{task}";
+            : L.Pick($"{contextSummary}\n\n---\n{discipline}\n\n## 子任务{depthNote}\n{task}", $"{contextSummary}\n\n---\n{discipline}\n\n## Sub-task{depthNote}\n{task}");
         var toolsSummary = string.Join(", ", subTools.Select(t => t.Name));
         var auditSw = System.Diagnostics.Stopwatch.StartNew();
         string? auditResult = null;
@@ -360,7 +362,7 @@ public class AgentTool : ITool, ICancellableTool
         finally
         {
             auditSw.Stop();
-            SubAgentAudit.Record(depth + 1, fullTask, toolsSummary, auditResult ?? "(已中断)", auditSw.ElapsedMilliseconds);
+            SubAgentAudit.Record(depth + 1, fullTask, toolsSummary, auditResult ?? L.Pick("(已中断)", "(interrupted)"), auditSw.ElapsedMilliseconds);
             _currentDepth.Value = depth;
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
             parent.LlmClient.MergeUsageFrom(subLLM);
@@ -402,7 +404,7 @@ public class AgentTool : ITool, ICancellableTool
             for (int attempt = 0; attempt < retryCount && IsSubAgentFailure(result); attempt++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var retryTask = $"{task}\n\n（上次尝试失败，请换一种方法重新尝试：避免重复同样的错误）";
+                var retryTask = L.Pick($"{task}\n\n（上次尝试失败，请换一种方法重新尝试：避免重复同样的错误）", $"{task}\n\nThe previous attempt failed. Try a different approach (avoid repeating the same mistake).");
                 result = await RunSubAgentAsync(retryTask, depth, maxDepth, cancellationToken);
             }
             return result;
@@ -432,8 +434,8 @@ public class AgentTool : ITool, ICancellableTool
                     return $"[{role}] {content}";
                 });
 
-            var depthInfo = depth > 0 ? $"（父智能体深度: {depth}）\n" : "";
-            return depthInfo + "## 父智能体背景（最近对话）\n" + string.Join("\n", recent);
+            var depthInfo = depth > 0 ? L.Pick($"（父智能体深度: {depth}）\n", $"(parent agent depth: {depth})\n") : "";
+            return depthInfo + L.Pick("## 父智能体背景（最近对话）\n", "## Parent agent context (recent conversation)\n") + string.Join("\n", recent);
         }
         catch
         {
@@ -453,7 +455,7 @@ public class AgentTool : ITool, ICancellableTool
         int tail = maxLen * 25 / 100;
         if (head + tail >= text.Length)
             return text;
-        return ContextManager.TruncateByRunes(text, head) + $"\n...（中间省略 {text.Length - head - tail} 字符）...\n" + ContextManager.TruncateTailByRunes(text, tail);
+        return ContextManager.TruncateByRunes(text, head) + L.Pick($"\n...（中间省略 {text.Length - head - tail} 字符）...\n", $"\n... ({text.Length - head - tail} characters omitted in the middle) ...\n") + ContextManager.TruncateTailByRunes(text, tail);
     }
 
     /// <summary>tasks 数组元素里优先提取任务文本的字段名（description 优先，与 schema items 对齐）。</summary>

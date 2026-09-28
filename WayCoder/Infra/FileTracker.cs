@@ -218,13 +218,13 @@ public static class FileTracker
         if (changes.Count == 0) return null;
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("⚠️ **文件变更警告：以下已读取的文件被外部修改：**");
+        sb.AppendLine(L.Pick("⚠️ **文件变更警告：以下已读取的文件被外部修改：**", "⚠️ **File change warning: the following files you read were modified externally:**"));
         foreach (var path in changes.Take(10))
         {
             sb.AppendLine($"  - `{path}`");
         }
         if (changes.Count > 10)
-            sb.AppendLine($"  ... 及其他 {changes.Count - 10} 个文件");
+            sb.AppendLine(L.Pick($"  ... 及其他 {changes.Count - 10} 个文件", $"  ... and {changes.Count - 10} other files"));
         return sb.ToString();
     }
 
@@ -250,12 +250,12 @@ public static class FileTracker
 
                 // 从未被 read_file 读取过
                 if (!LastReadTimes.TryGetValue(absPath, out var lastRead))
-                    return $"⚠️ 文件 \"{filePath}\" 尚未被 read_file 读取。请先读取文件内容后再编辑，以确保编辑准确。";
+                    return L.Pick($"⚠️ 文件 \"{filePath}\" 尚未被 read_file 读取。请先读取文件内容后再编辑，以确保编辑准确。", $"⚠️ File \"{filePath}\" has not been read with read_file yet. Read it before editing so the edit is accurate.");
 
                 // 文件自上次读取后被外部修改
                 var fileModTime = File.GetLastWriteTimeUtc(absPath);
                 if (fileModTime > lastRead.AddSeconds(1))
-                    return $"⚠️ 文件 \"{filePath}\" 自上次读取（{lastRead:HH:mm:ss}）后被外部修改（{fileModTime:HH:mm:ss}）。请重新 read_file 获取最新内容后再编辑。";
+                    return L.Pick($"⚠️ 文件 \"{filePath}\" 自上次读取（{lastRead:HH:mm:ss}）后被外部修改（{fileModTime:HH:mm:ss}）。请重新 read_file 获取最新内容后再编辑。", $"⚠️ File \"{filePath}\" was modified externally ({fileModTime:HH:mm:ss}) since you last read it ({lastRead:HH:mm:ss}). Read it again with read_file before editing.");
 
                 return null;
             }

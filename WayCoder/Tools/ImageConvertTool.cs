@@ -39,19 +39,23 @@ public class ImageConvertTool : ITool
         try
         {
             if (string.IsNullOrWhiteSpace(input) || !File.Exists(input))
-                return Task.FromResult("convert_image 错误：输入文件不存在");
+                return Task.FromResult(L.Pick("convert_image 错误：输入文件不存在",
+                                             "convert_image error: input file does not exist"));
             var outFmt = ImageLoader.FormatOfPath(output);
             if (outFmt is not ("png" or "jpg" or "bmp"))
-                return Task.FromResult("convert_image 错误：输出扩展名必须是 png/jpg/bmp");
+                return Task.FromResult(L.Pick("convert_image 错误：输出扩展名必须是 png/jpg/bmp",
+                                             "convert_image error: output extension must be png/jpg/bmp"));
 
             var img = ImageLoader.Load(input);
             if (img == null)
-                return Task.FromResult($"convert_image 错误：无法解码 {input}（格式不受支持或文件损坏）");
+                return Task.FromResult(L.Pick($"convert_image 错误：无法解码 {input}（格式不受支持或文件损坏）",
+                                             $"convert_image error: cannot decode {input} (unsupported format or corrupt file)"));
 
             var bytes = ImageLoader.Encode(img, outFmt, quality);
             File.WriteAllBytes(output!, bytes);
-            return Task.FromResult(
-                $"✅ 已转换：{input} → {output}（{img.Width}×{img.Height}，{outFmt}，{bytes.Length:N0} 字节）");
+            return Task.FromResult(L.Pick(
+                $"✅ 已转换：{input} → {output}（{img.Width}×{img.Height}，{outFmt}，{bytes.Length:N0} 字节）",
+                $"✅ Converted: {input} → {output} ({img.Width}×{img.Height}, {outFmt}, {bytes.Length:N0} bytes)"));
         }
         catch (Exception ex)
         {

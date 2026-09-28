@@ -60,28 +60,28 @@ public static class TaskProgress
 
         var doneCount = created.Count + modified.Count + deleted.Count;
         if (doneCount > 0)
-            parts.Add($"✅ 已完成: {doneCount} 文件");
+            parts.Add(L.Pick($"✅ 已完成: {doneCount} 文件", $"✅ Done: {doneCount} file(s)"));
         if (created.Count > 0)
-            parts.Add($"  创建: {string.Join(", ", created)}");
+            parts.Add(L.Pick($"  创建: {string.Join(", ", created)}", $"  Created: {string.Join(", ", created)}"));
         if (modified.Count > 0)
-            parts.Add($"  修改: {string.Join(", ", modified)}");
+            parts.Add(L.Pick($"  修改: {string.Join(", ", modified)}", $"  Modified: {string.Join(", ", modified)}"));
         if (deleted.Count > 0)
-            parts.Add($"  删除: {string.Join(", ", deleted)}");
+            parts.Add(L.Pick($"  删除: {string.Join(", ", deleted)}", $"  Deleted: {string.Join(", ", deleted)}"));
 
         if (_totalPlanned > 0 && doneCount < _totalPlanned)
-            parts.Add($"⏳ 待完成: 约 {_totalPlanned - doneCount} 文件");
+            parts.Add(L.Pick($"⏳ 待完成: 约 {_totalPlanned - doneCount} 文件", $"⏳ Remaining: about {_totalPlanned - doneCount} file(s)"));
 
         var errs = _errors.ToList();
         if (errs.Count > 0)
         {
-            parts.Add($"❌ 遇到 {errs.Count} 个错误");
+            parts.Add(L.Pick($"❌ 遇到 {errs.Count} 个错误", $"❌ {errs.Count} error(s) encountered"));
             foreach (var e in errs.Take(5))
                 parts.Add($"  {e}");
         }
 
         return parts.Count > 0
-            ? "## 📊 当前进度\n" + string.Join("\n", parts)
-            : "（尚无进度记录）";
+            ? L.Pick("## 📊 当前进度\n", "## 📊 Current progress\n") + string.Join("\n", parts)
+            : L.Pick("（尚无进度记录）", "(no progress recorded yet)");
     }
 
     /// <summary>列出所有被操作过的文件路径。</summary>

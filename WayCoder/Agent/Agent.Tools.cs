@@ -24,7 +24,7 @@ public partial class Agent
     private async Task<string> ExecuteToolAsync(ToolCall tc, Action<string>? onToolOutput = null, CancellationToken cancellationToken = default)
     {
         if (!ToolByName.TryGetValue(tc.Name, out var tool))
-            return $"错误：未知工具 '{tc.Name}'";
+            return L.Pick($"错误：未知工具 '{tc.Name}'", $"Error: unknown tool '{tc.Name}'");
 
         // 注入本 Agent 唯一标识，供文件锁等跨 Agent 资源冲突检测（WriteFile/EditFile 等经 _agent_id 读取）
         tc.Arguments["_agent_id"] = AgentId;
@@ -47,12 +47,15 @@ public partial class Agent
 
             // 权限检查：危险操作需要用户确认
             if (!await PermissionManager.CheckAsync(tc.Name, tc.Arguments))
-                return "用户取消了此操作。";
+                // ⚠ 英文支必须能被 ToolResultClassifier.AbortMarkers 前缀命中（"Cancelled by user"）——
+                //   否则英文界面下「用户取消」被误判成真实错误、诱导模型重试。
+                return L.Pick("用户取消了此操作。", "Cancelled by user.");
 
             // PreToolUse hook
             var hookBlock = await HooksManager.RunPreToolUseAsync(tc.Name, tc.Arguments);
             if (hookBlock != null)
-                return $"操作被 Hook 阻止: {hookBlock}";
+                // ⚠ 同上：AbortMarkers 里对应 "Blocked by hook"。
+                return L.Pick($"操作被 Hook 阻止: {hookBlock}", $"Blocked by hook: {hookBlock}");
 
             // Stale-read 检查：编辑/写入前确认文件未被外部修改（对标 Crush filetracker edit guard）
             string? staleWarning = null;
@@ -63,10 +66,13 @@ public partial class Agent
                     var (isTracked, isStale) = FileTracker.GetStatus(fp);
                     if (isTracked && isStale)
                     {
-                        staleWarning =
+                        staleWarning = L.Pick(
                             $"⚠️ **Stale-Read 警告**：文件 `{fp}` 自上次读取后被外部修改。\n" +
                             $"请先用 read_file 重新读取该文件的最新内容，确认变更后再编辑。\n" +
-                            $"如确认无需重新读取，可再次调用 edit_file（第二次调用会略过此检查）。";
+                            $"如确认无需重新读取，可再次调用 edit_file（第二次调用会略过此检查）。",
+                            $"⚠️ **Stale-Read warning**: the file `{fp}` was modified externally since you last read it.\n" +
+                            $"Call read_file again to get the file's latest content before editing.\n" +
+                            $"If you are sure a re-read is unnecessary, call edit_file again (the second call skips this check).");
                         DebugLog.Log("file-tracker", $"Stale-read 阻止: {fp}");
                     }
                     // 未追踪的文件：记录一次写入前的状态（即使没读过，也追踪写入后的哈希）
@@ -109,7 +115,8 @@ public partial class Agent
                 _pendingAutoSnapshot = false;
                 var cp = await CheckpointManager.CreateAutoSnapshotAsync(_autoSnapshotDesc);
                 if (cp != null && cp.Type != CheckpointType.Empty)
-                    onToolOutput?.Invoke($"«dim»📸 已自动快照 #{cp.Id}（{_autoSnapshotDesc}）· /timeline 可回滚«/»");
+                    onToolOutput?.Invoke(L.Pick($"«dim»📸 已自动快照 #{cp.Id}（{_autoSnapshotDesc}）· /timeline 可回滚«/»",
+                        $"«dim»📸 Auto-snapshot #{cp.Id} ({_autoSnapshotDesc}) · roll back with /timeline«/»"));
             }
 
             // ── 编辑级版本：每次写文件前记录旧内容（/undo <file> 逐编辑回退）──
@@ -175,17 +182,30 @@ public partial class Agent
                     bool isWrite = tc.Name == "write_file";
                     bool isEdit = tc.Name == "edit_file";
                     bool isMulti = tc.Name == "multiedit";
-                    bool writeOk = isWrite && (result.StartsWith("已写入") || result.StartsWith("已追加"));
-                    bool editOk = isEdit && result.StartsWith("已编辑");
-                    bool multiOk = isMulti && (result.StartsWith("✅ 已创建") || result.StartsWith("✅ 已编辑"));
+                    // ⚠⚠ 中英双认（公理 A2）：这些标记是 Tools/WriteFileTool、EditFileTool、
+                    //   MultiEditTool 的**执行期返回值**，那几处已（或将要）双语化 ⇒ 判据必须两侧都认，
+                    //   否则英文界面下这里恒假、写完文件后的源码对比静默不显示（零报错）。
+                    //   英文支与 Tools/WriteFileTool 的写出口逐字对齐："Wrote N line(s) to …" /
+                    //   "Appended N line(s) to …"；编辑/创建按同形推（那两处在 Tools 侧同步前请留意）。
+                    static bool IsWriteOk(string r) => r.StartsWith("已写入") || r.StartsWith("已追加")
+                        || r.StartsWith("Wrote ") || r.StartsWith("Appended ");
+                    static bool IsAppend(string r) => r.StartsWith("已追加") || r.StartsWith("Appended ");
+                    static bool IsEditOk(string r) => r.StartsWith("已编辑") || r.StartsWith("Edited ");
+                    static bool IsCreateOk(string r) => r.StartsWith("✅ 已创建") || r.StartsWith("✅ Created");
+                    // ⚠ multiedit 的两个形态都带「✅ 」前缀（与 edit_file 的「已编辑 」不同）⇒ 单独一条，
+                    //   中文支逐字保留原判据（`"✅ 已创建" || "✅ 已编辑"`），只加英文孪生。
+                    static bool IsMultiEditOk(string r) => r.StartsWith("✅ 已编辑") || r.StartsWith("✅ Edited");
+                    bool writeOk = isWrite && IsWriteOk(result);
+                    bool editOk = isEdit && IsEditOk(result);
+                    bool multiOk = isMulti && (IsCreateOk(result) || IsMultiEditOk(result));
                     if (writeOk || editOk || multiOk)
                     {
                         var wcPath = CwdContext.Resolve(wcFpStr);
                         if (File.Exists(wcPath))
                         {
                             var wcNewContent = File.ReadAllText(wcPath);
-                            bool addedView = (isWrite && !result.StartsWith("已追加")) ||
-                                             (isMulti && result.StartsWith("✅ 已创建"));
+                            bool addedView = (isWrite && !IsAppend(result)) ||
+                                             (isMulti && IsCreateOk(result));
                             string display = addedView
                                 ? ContentDiffFormatter.FormatAddedContent(wcNewContent, wcPath)
                                 : ContentDiffFormatter.FormatEditContent(oldContentForDisplay ?? "", wcNewContent, wcPath);
@@ -204,7 +224,8 @@ public partial class Agent
             // 错误自恢复：工具返回真实错误时追加修正提示（用户取消/权限拒绝/安全阻止不提示）
             if (ToolResultClassifier.IsError(result))
             {
-                result += "\n[请分析错误原因，修正参数后重试]";
+                result += L.Pick("\n[请分析错误原因，修正参数后重试]",
+                    "\n[Analyze the error, fix the arguments, and retry]");
                 // 学习型智能体：召回知识库 + git 修复史中「同类错误上次怎么修的」（永不抛异常，失败静默）
                 try { result += await KbIndex.DiagnoseError(result, 2); } catch { }
             }
@@ -222,7 +243,10 @@ public partial class Agent
             await HooksManager.RunPostToolUseFailureAsync(tc.Name, tc.Arguments, ex.Message);
 
             ErrorLog.ToolError(tc.Name, $"工具执行异常: {ex.Message}", ex, tc.Arguments);
-            return $"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]";
+            // ⚠ 英文支刻意不以 Error/Failed 开头：中文支「执行 … 时出错：」同样不被
+            //   ToolResultClassifier 的前缀表命中 ⇒ 两侧口径一致，不引入新的「判成错误」行为。
+            return L.Pick($"执行 {tc.Name} 时出错：{ex.Message}\n[请分析错误原因，尝试其他方式完成目标]",
+                $"Could not run {tc.Name}: {ex.Message}\n[Analyze the error and try another way to reach the goal]");
         }
     }
 
@@ -373,7 +397,7 @@ public partial class Agent
                 AddMessage(JNode.Object()
                     .Set("role", "tool")
                     .Set("tool_call_id", tc.Id)
-                    .Set("content", "[已中断]"));
+                    .Set("content", L.Pick("[已中断]", "[Interrupted]")));
             }
         }
     }

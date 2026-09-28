@@ -58,7 +58,13 @@ public static class GitRemote
     static string RunSync(Func<Task<string>> fn)
     {
         try { return fn().GetAwaiter().GetResult(); }
-        catch (Exception ex) { return $"错误：git 远程操作: {ex.GetType().Name}: {ex.Message}"; }
+        catch (Exception ex)
+        {
+            // ⚠ 前缀「错误：」是 Agent 识别「工具失败而非模型问题」的稳定标记
+            //   （ToolResultClassifier.ErrorMarkers 里「错误」与「Error」并存，两侧都认）。
+            return L.Pick($"错误：git 远程操作: {ex.GetType().Name}: {ex.Message}",
+                          $"Error: git remote operation: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -116,7 +122,8 @@ public static class GitRemote
         {
             var url = GitCore.ReadRemoteUrl(gitDir);
             return Task.FromResult(url == null
-                ? "尚未配置远程（/git remote add origin <url>）"
+                ? L.Pick("尚未配置远程（/git remote add origin <url>）",
+                         "no remote configured (/git remote add origin <url>)")
                 : $"origin\t{url} (fetch)");
         }
 
@@ -124,19 +131,21 @@ public static class GitRemote
         return op switch
         {
             "add" => rest.Length < 3
-                ? Task.FromResult("用法：/git remote add <name> <url>")
+                ? Task.FromResult(L.Pick("用法：/git remote add <name> <url>", "usage: /git remote add <name> <url>"))
                 : Task.FromResult(AddRemote(gitDir, rest[1], rest[2])),
             "set-url" => rest.Length < 3
-                ? Task.FromResult("用法：/git remote set-url <name> <url>")
+                ? Task.FromResult(L.Pick("用法：/git remote set-url <name> <url>", "usage: /git remote set-url <name> <url>"))
                 : Task.FromResult(AddRemote(gitDir, rest[1], rest[2])),
-            _ => Task.FromResult("用法：/git remote add <name> <url> | /git remote set-url <name> <url> | /git remote"),
+            _ => Task.FromResult(L.Pick("用法：/git remote add <name> <url> | /git remote set-url <name> <url> | /git remote",
+                                        "usage: /git remote add <name> <url> | /git remote set-url <name> <url> | /git remote")),
         };
     }
 
     static string AddRemote(string gitDir, string name, string url)
     {
         GitCore.WriteRemoteUrl(gitDir, name, url);
-        return $"已添加远程 {name} → {url}（凭证用 /git credential <username> <password|token> 单独设置）";
+        return L.Pick($"已添加远程 {name} → {url}（凭证用 /git credential <username> <password|token> 单独设置）",
+                      $"Remote {name} → {url} added (set credentials separately with /git credential <username> <password|token>)");
     }
 
     /// <summary>
@@ -152,31 +161,38 @@ public static class GitRemote
         {
             var cred = GitCore.ReadCredential(gitDir);
             return Task.FromResult(cred == null
-                ? "未配置凭证"
-                : $"凭证已配置：{cred.Value.User}（{ModeName(cred.Value.IsToken)}，密钥不显示）");
+                ? L.Pick("未配置凭证", "no credentials configured")
+                : L.Pick($"凭证已配置：{cred.Value.User}（{ModeName(cred.Value.IsToken)}，密钥不显示）",
+                         $"Credentials configured: {cred.Value.User} ({ModeName(cred.Value.IsToken)}, secret hidden)"));
         }
 
         bool isToken = rest[0] is "--token" or "-t";
         var args = isToken ? rest.Skip(1).ToArray() : rest;
         if (args.Length < 2)
-            return Task.FromResult("用法：/git credential <username> <password> | /git credential --token <username> <token>");
+            return Task.FromResult(L.Pick("用法：/git credential <username> <password> | /git credential --token <username> <token>",
+                                          "usage: /git credential <username> <password> | /git credential --token <username> <token>"));
 
         GitCore.WriteCredential(gitDir, args[0], args[1], isToken);
-        return Task.FromResult($"已保存凭证：{args[0]}（{ModeName(isToken)}，密钥不显示）");
+        return Task.FromResult(L.Pick($"已保存凭证：{args[0]}（{ModeName(isToken)}，密钥不显示）",
+                                      $"Credentials saved: {args[0]} ({ModeName(isToken)}, secret hidden)"));
     }
 
-    static string ModeName(bool isToken) => isToken ? "Token" : "密码";
+    static string ModeName(bool isToken) => isToken ? "Token" : L.Pick("密码", "Password");
 
     static async Task<string> FetchCoreAsync(string repoRoot, string[] rest, bool updateLocal, Action<string>? progress = null)
     {
         var (origin, branch) = ParseRefSpec(repoRoot, rest);
         var gitDir = Path.Combine(repoRoot, ".git");
         var url = GitCore.ReadRemoteUrl(gitDir, origin);
-        if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
+        if (url == null)
+            return L.Pick($"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>",
+                          $"⚠ Remote {origin} is not configured. Run /git remote add {origin} <url> first");
         var cred = GitCore.CredentialFor(gitDir, url); // 跨 host 不发凭证（见 CredentialFor 注释）
 
         var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch, progress);
-        if (newSha == null) return $"远端 {origin}/{branch} 不存在或已是最新。";
+        if (newSha == null)
+            return L.Pick($"远端 {origin}/{branch} 不存在或已是最新。",
+                          $"Remote {origin}/{branch} does not exist or is already up to date.");
 
         // 更新 remote-tracking ref
         var remoteRefDir = Path.Combine(gitDir, "refs", "remotes", origin);
@@ -194,14 +210,17 @@ public static class GitRemote
                 Directory.CreateDirectory(headsDir);
                 File.WriteAllText(localRef, newSha + "\n", new UTF8Encoding(false));
                 if (localBranch != branch) GitCore.SetHeadBranch(gitDir, branch);
-                progress?.Invoke("检出工作区…");
+                progress?.Invoke(L.Pick("检出工作区…", "Checking out the working tree..."));
                 var written = GitCore.CheckoutWorktree(gitDir, repoRoot, newSha,
-                    (done, total) => progress?.Invoke($"检出文件 {done}/{total}"));
-                return $"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，写入 {written} 个文件）";
+                    (done, total) => progress?.Invoke(L.Pick($"检出文件 {done}/{total}", $"Checking out files {done}/{total}")));
+                return L.Pick($"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，写入 {written} 个文件）",
+                              $"Pulled {branch} @ {newSha[..7]} ({objects} objects, {written} files written)");
             }
-            return $"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，未合并到当前分支 {localBranch}）";
+            return L.Pick($"已拉取 {branch} @ {newSha[..7]}（{objects} 个对象，未合并到当前分支 {localBranch}）",
+                          $"Pulled {branch} @ {newSha[..7]} ({objects} objects, not merged into the current branch {localBranch})");
         }
-        return $"已抓取 {branch} @ {newSha[..7]}（{objects} 个对象）";
+        return L.Pick($"已抓取 {branch} @ {newSha[..7]}（{objects} 个对象）",
+                      $"Fetched {branch} @ {newSha[..7]} ({objects} objects)");
     }
 
     static async Task<string> PushAsync(string repoRoot, string[] rest)
@@ -209,11 +228,13 @@ public static class GitRemote
         var (origin, branch) = ParseRefSpec(repoRoot, rest);
         var gitDir = Path.Combine(repoRoot, ".git");
         var url = GitCore.ReadRemoteUrl(gitDir, origin);
-        if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
+        if (url == null)
+            return L.Pick($"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>",
+                          $"⚠ Remote {origin} is not configured. Run /git remote add {origin} <url> first");
         var cred = GitCore.CredentialFor(gitDir, url); // 跨 host 不发凭证（见 CredentialFor 注释）
 
         var newSha = GitCore.ReadHeadCommit(gitDir);
-        if (newSha == null) return "⚠ 本地尚无提交，无法推送。";
+        if (newSha == null) return L.Pick("⚠ 本地尚无提交，无法推送。", "⚠ There are no local commits to push.");
 
         // 远端 refs（拿 old sha + 作打包边界）
         var remoteRefs = await LsRefsAsync(url, "git-receive-pack", cred);
@@ -227,12 +248,13 @@ public static class GitRemote
         var pack = PackFileWriter.Write(objects);
 
         var result = await ReceivePackAsync(url, cred, old, newSha, refName, pack);
-        return $"推送 {branch} @ {newSha[..7]}（{objects.Count} 个对象）：{result}";
+        return L.Pick($"推送 {branch} @ {newSha[..7]}（{objects.Count} 个对象）：{result}",
+                      $"Pushed {branch} @ {newSha[..7]} ({objects.Count} objects): {result}");
     }
 
     static async Task<string> CloneAsync(string repoRoot, string[] rest, Action<string>? progress = null)
     {
-        if (rest.Length == 0) return "用法：/git clone <url> [branch]";
+        if (rest.Length == 0) return L.Pick("用法：/git clone <url> [branch]", "usage: /git clone <url> [branch]");
         var url = rest[0];
         var branch = rest.Length > 1 ? rest[1] : null;
 
@@ -247,12 +269,15 @@ public static class GitRemote
         if (File.Exists(Path.Combine(repoRoot, ".git", "HEAD"))
             || Directory.Exists(Path.Combine(repoRoot, ".git", "objects")))
         {
-            return $"⛔ 目标目录已是 git 仓库，不能克隆覆盖：{repoRoot}\n"
-                 + "请改到空目录再克隆（新建一个子目录，或换一个工作目录），"
-                 + "否则会覆盖该仓库的 origin 配置。";
+            return L.Pick($"⛔ 目标目录已是 git 仓库，不能克隆覆盖：{repoRoot}\n"
+                        + "请改到空目录再克隆（新建一个子目录，或换一个工作目录），"
+                        + "否则会覆盖该仓库的 origin 配置。",
+                          $"⛔ The destination directory is already a git repository; refusing to clone over it: {repoRoot}\n"
+                        + "Clone into an empty directory instead (create a subdirectory, or switch to another working directory), "
+                        + "otherwise this repository's origin configuration would be overwritten.");
         }
 
-        progress?.Invoke("初始化仓库…");
+        progress?.Invoke(L.Pick("初始化仓库…", "Initializing the repository..."));
         GitCore.Init(repoRoot);
         var gitDir = Path.Combine(repoRoot, ".git");
         GitCore.WriteRemoteUrl(gitDir, "origin", url);
@@ -269,15 +294,18 @@ public static class GitRemote
         }
 
         var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch, progress);
-        if (newSha == null) return $"克隆失败：远端无 {branch} 分支（或需要凭证，请先 /git credential <user> <pass|token>）";
+        if (newSha == null)
+            return L.Pick($"克隆失败：远端无 {branch} 分支（或需要凭证，请先 /git credential <user> <pass|token>）",
+                          $"Clone failed: the remote has no {branch} branch (or credentials are needed — run /git credential <user> <pass|token> first)");
 
         var headsDir = Path.Combine(gitDir, "refs", "heads");
         Directory.CreateDirectory(headsDir);
         File.WriteAllText(Path.Combine(headsDir, branch), newSha + "\n", new UTF8Encoding(false));
-        progress?.Invoke("检出工作区…");
+        progress?.Invoke(L.Pick("检出工作区…", "Checking out the working tree..."));
         var written = GitCore.CheckoutWorktree(gitDir, repoRoot, newSha,
-            (done, total) => progress?.Invoke($"检出文件 {done}/{total}"));
-        return $"已克隆 {url} → {branch} @ {newSha[..7]}（{objects} 个对象，{written} 个文件）";
+            (done, total) => progress?.Invoke(L.Pick($"检出文件 {done}/{total}", $"Checking out files {done}/{total}")));
+        return L.Pick($"已克隆 {url} → {branch} @ {newSha[..7]}（{objects} 个对象，{written} 个文件）",
+                      $"Cloned {url} → {branch} @ {newSha[..7]} ({objects} objects, {written} files)");
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -288,7 +316,7 @@ public static class GitRemote
     static async Task<(string? NewSha, int ObjectCount)> FetchObjectsAsync(
         string gitDir, string url, GitCredential? cred, string branch, Action<string>? progress = null)
     {
-        progress?.Invoke("连接远端…");
+        progress?.Invoke(L.Pick("连接远端…", "Connecting to the remote..."));
         var refs = await LsRefsAsync(url, "git-upload-pack", cred);
         var want = refs.FirstOrDefault(r => r.Ref == $"refs/heads/{branch}");
         if (want.Sha == null) return (null, 0);
@@ -301,7 +329,7 @@ public static class GitRemote
         var packFile = await DownloadPackToFileAsync(url, cred, new[] { want.Sha }, haves, progress);
         try
         {
-            progress?.Invoke("pack 下载完成，解码对象…");
+            progress?.Invoke(L.Pick("pack 下载完成，解码对象…", "Pack downloaded, decoding objects..."));
             Func<string, (string, byte[])?> externalBase = sha =>
             {
                 var obj = GitCore.ReadObject(gitDir, sha);
@@ -316,9 +344,9 @@ public static class GitRemote
                     if (content != null) GitCore.WriteObject(gitDir, type, content);   // null = 大对象已原生写盘
                     written++;
                     if (written % 100 == 0 || written == total)
-                        progress?.Invoke($"写入对象 {written}/{total}");
+                        progress?.Invoke(L.Pick($"写入对象 {written}/{total}", $"Writing objects {written}/{total}"));
                 },
-                (done, cnt) => progress?.Invoke($"解码对象 {done}/{cnt}"),
+                (done, cnt) => progress?.Invoke(L.Pick($"解码对象 {done}/{cnt}", $"Decoding objects {done}/{cnt}")),
                 onLargeObject: (type, sha, ptr, len) =>
                 {
                     // 大对象（几百 MB）：原生内存内容直接流式写 loose 对象，不占托管堆
@@ -399,7 +427,7 @@ public static class GitRemote
                     fs.Write(pkt, 1, pkt.Length - 1);
                     written += pkt.Length - 1;
                     long mb = written / (1024 * 1024);
-                    if (mb != lastMb) { lastMb = mb; progress?.Invoke($"下载 pack {mb} MB"); }
+                    if (mb != lastMb) { lastMb = mb; progress?.Invoke(L.Pick($"下载 pack {mb} MB", $"Downloading pack {mb} MB")); }
                 }
             }
             fs.Flush();
@@ -446,7 +474,9 @@ public static class GitRemote
             var line = PktLine.ReadString(ms);
             if (line != null) lines.Add(line);
         }
-        return lines.Count == 0 ? "（服务端无状态返回）" : string.Join("；", lines);
+        return lines.Count == 0
+            ? L.Pick("（服务端无状态返回）", "(the server returned no status)")
+            : string.Join(L.Pick("；", "; "), lines);
     }
 
     // ═══════════════════════════════════════════════════════════

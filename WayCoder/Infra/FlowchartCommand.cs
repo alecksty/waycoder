@@ -46,12 +46,12 @@ internal static class FlowchartCommand
     /// <summary>解析 flowchart 指令，把生成的节点/连线/文字图元追加到 doc，并设置画布尺寸。</summary>
     public static void Build(DrawDocument doc, IReadOnlyList<DrawToken> args)
     {
-        if (args.Count < 1) { doc.Error = "参数错误: flowchart 需流程字符串（如 \"A[开始]-->B[结束]\"）"; return; }
+        if (args.Count < 1) { doc.Error = L.Pick("参数错误: flowchart 需流程字符串（如 \"A[开始]-->B[结束]\"）", "Invalid argument: flowchart needs a flow string (e.g. \"A[Start]-->B[End]\")"); return; }
 
         var sb = new StringBuilder();
         foreach (var a in args) sb.Append(a.Value);
         var s = sb.ToString();
-        if (string.IsNullOrWhiteSpace(s)) { doc.Error = "参数错误: flowchart 流程字符串为空"; return; }
+        if (string.IsNullOrWhiteSpace(s)) { doc.Error = L.Pick("参数错误: flowchart 流程字符串为空", "Invalid argument: flowchart flow string is empty"); return; }
 
         var nodes = new List<FlowNode>();
         var edges = new List<FlowEdge>();
@@ -67,12 +67,13 @@ internal static class FlowchartCommand
     {
         err = null;
         int i = 0, autoId = 0;
-        if (!ParseNode(s, ref i, nodes, ref autoId)) { err = "flowchart 语法错误：缺少起始节点"; return false; }
+        if (!ParseNode(s, ref i, nodes, ref autoId)) { err = L.Pick("flowchart 语法错误：缺少起始节点", "flowchart syntax error: missing start node"); return false; }
         while (i < s.Length)
         {
             if (!ParseEdge(s, ref i, nodes, edges, ref autoId))
             {
-                err = $"flowchart 语法错误：无法解析位置 {i} 附近的连线（支持 --> / -.-> / ==> / --- ）";
+                err = L.Pick($"flowchart 语法错误：无法解析位置 {i} 附近的连线（支持 --> / -.-> / ==> / --- ）",
+                             $"flowchart syntax error: cannot parse the edge near position {i} (supported: --> / -.-> / ==> / --- )");
                 return false;
             }
         }

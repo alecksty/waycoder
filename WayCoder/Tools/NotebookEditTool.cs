@@ -55,13 +55,15 @@ public class NotebookEditTool : ITool
         string cellType, string editMode, string agentId)
     {
         if (string.IsNullOrWhiteSpace(notebookPath))
-            return "错误：notebook_path 不能为空 — 请提供有效的文件路径。";
+            return L.Pick("错误：notebook_path 不能为空 — 请提供有效的文件路径。",
+                          "Error: notebook_path must not be empty - provide a valid file path.");
 
         var path = CwdContext.Resolve(notebookPath); // cd 后相对路径基于被跟踪工作目录
 
         // 验证扩展名
         if (!path.EndsWith(".ipynb", StringComparison.OrdinalIgnoreCase))
-            return $"错误：{notebookPath} 不是 .ipynb 文件。notebook_edit 只能编辑 Jupyter Notebook。";
+            return L.Pick($"错误：{notebookPath} 不是 .ipynb 文件。notebook_edit 只能编辑 Jupyter Notebook。",
+                          $"Error: {notebookPath} is not a .ipynb file. notebook_edit can only edit Jupyter Notebooks.");
 
         // 文件锁
         var lockErr = FileLockManager.TryAcquireOrError(path, agentId);
@@ -70,24 +72,34 @@ public class NotebookEditTool : ITool
         try
         {
             if (!File.Exists(path))
-                return $"错误：{notebookPath} 未找到";
+                return L.Pick($"错误：{notebookPath} 未找到", $"Error: {notebookPath} not found");
 
             // 读取并解析 JSON
             string jsonText;
             try { jsonText = File.ReadAllText(path, Encoding.UTF8); }
-            catch (Exception ex) { return $"错误：无法读取 {notebookPath} — {ex.Message}"; }
+            catch (Exception ex)
+            {
+                return L.Pick($"错误：无法读取 {notebookPath} — {ex.Message}",
+                              $"Error: cannot read {notebookPath} - {ex.Message}");
+            }
 
             JNode? root;
             try { root = Json.Parse(jsonText); }
-            catch (Exception ex) { return $"错误：{notebookPath} 不是有效的 JSON — {ex.Message}"; }
+            catch (Exception ex)
+            {
+                return L.Pick($"错误：{notebookPath} 不是有效的 JSON — {ex.Message}",
+                              $"Error: {notebookPath} is not valid JSON - {ex.Message}");
+            }
 
             if (root == null || root.Kind != JKind.Object)
-                return $"错误：{notebookPath} JSON 结构异常（根节点不是对象）";
+                return L.Pick($"错误：{notebookPath} JSON 结构异常（根节点不是对象）",
+                              $"Error: {notebookPath} has a malformed JSON structure (the root node is not an object)");
 
             // 验证 notebook 结构
             var cellsArray = root["cells"];
             if (cellsArray == null || cellsArray.Kind != JKind.Array)
-                return $"错误：{notebookPath} 缺少 cells 数组（不是有效的 Jupyter Notebook）";
+                return L.Pick($"错误：{notebookPath} 缺少 cells 数组（不是有效的 Jupyter Notebook）",
+                              $"Error: {notebookPath} is missing the cells array (not a valid Jupyter Notebook)");
 
             return editMode switch
             {
@@ -110,11 +122,12 @@ public class NotebookEditTool : ITool
     private static string ReplaceCell(JNode root, JNode cells, int index, string newSource, string path)
     {
         if (index < 0 || index >= cells.Count)
-            return $"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）";
+            return L.Pick($"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）",
+                          $"Error: cell_index {index} is out of range ({cells.Count} cells in total)");
 
         var cell = cells[index];
         if (cell is not { Kind: JKind.Object })
-            return $"错误：cell[{index}] 不是有效的对象";
+            return L.Pick($"错误：cell[{index}] 不是有效的对象", $"Error: cell[{index}] is not a valid object");
 
         var oldSource = GetSourceText(cell);
         SetSourceText(cell, newSource);
@@ -130,9 +143,12 @@ public class NotebookEditTool : ITool
 
         var preview = Truncate(newSource, 200);
         var oldPreview = Truncate(oldSource, 80);
-        return $"✅ 已替换 {path} 的 cell[{index}]\n" +
-               $"  旧内容: {oldPreview}\n" +
-               $"  新内容: {preview}";
+        return L.Pick($"✅ 已替换 {path} 的 cell[{index}]\n" +
+                      $"  旧内容: {oldPreview}\n" +
+                      $"  新内容: {preview}",
+                      $"✅ Replaced cell[{index}] in {path}\n" +
+                      $"  Old: {oldPreview}\n" +
+                      $"  New: {preview}");
     }
 
     /// <summary>在指定位置后插入新 cell</summary>
@@ -171,15 +187,18 @@ public class NotebookEditTool : ITool
         WriteNotebook(root, path);
 
         var preview = Truncate(newSource, 100);
-        return $"✅ 已插入 {normalizedType} cell 到 {path} cell[{afterIndex}] 之后（新索引 {insertAt}）\n" +
-               $"  内容: {preview}";
+        return L.Pick($"✅ 已插入 {normalizedType} cell 到 {path} cell[{afterIndex}] 之后（新索引 {insertAt}）\n" +
+                      $"  内容: {preview}",
+                      $"✅ Inserted {normalizedType} cell into {path} after cell[{afterIndex}] (new index {insertAt})\n" +
+                      $"  Content: {preview}");
     }
 
     /// <summary>删除指定 cell</summary>
     private static string DeleteCell(JNode root, JNode cells, int index, string path)
     {
         if (index < 0 || index >= cells.Count)
-            return $"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）";
+            return L.Pick($"错误：cell_index {index} 超出范围（共 {cells.Count} 个 cell）",
+                          $"Error: cell_index {index} is out of range ({cells.Count} cells in total)");
 
         var cell = cells[index];
         var cellType = cell?["cell_type"]?.AsString() ?? "code";
@@ -193,8 +212,10 @@ public class NotebookEditTool : ITool
 
         WriteNotebook(root, path);
 
-        return $"✅ 已删除 {path} 的 cell[{index}]（{cellType}）\n" +
-               $"  内容: {sourcePreview}";
+        return L.Pick($"✅ 已删除 {path} 的 cell[{index}]（{cellType}）\n" +
+                      $"  内容: {sourcePreview}",
+                      $"✅ Deleted cell[{index}] from {path} ({cellType})\n" +
+                      $"  Content: {sourcePreview}");
     }
 
     /// <summary>获取 cell 的 source 文本（支持字符串和数组格式）</summary>

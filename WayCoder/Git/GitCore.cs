@@ -57,7 +57,7 @@ public static class GitCore
     public static string Run(string repoRoot, string commandLine)
     {
         var tokens = commandLine.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        if (tokens.Length == 0) return "用法：git <status|log|diff|add|commit|init>";
+        if (tokens.Length == 0) return L.Pick("用法：git <status|log|diff|add|commit|init>", "usage: git <status|log|diff|add|commit|init>");
         var sub = tokens[0].ToLowerInvariant();
         var rest = tokens.Skip(1).ToArray();
         try
@@ -79,12 +79,16 @@ public static class GitCore
                 "fetch" => GitRemote.Fetch(repoRoot, rest),
                 "clone" => GitRemote.Clone(repoRoot, rest),
                 "credential" => GitRemote.Credential(repoRoot, rest),
-                _ => $"⚠ 不支持的 git 子命令：{sub}（支持 init/add/commit/status/diff/log/branch/checkout/merge/pull/push/fetch/remote/clone/credential）",
+                _ => L.Pick($"⚠ 不支持的 git 子命令：{sub}（支持 init/add/commit/status/diff/log/branch/checkout/merge/pull/push/fetch/remote/clone/credential）",
+                            $"⚠ Unsupported git subcommand: {sub} (supported: init/add/commit/status/diff/log/branch/checkout/merge/pull/push/fetch/remote/clone/credential)"),
             };
         }
         catch (Exception ex)
         {
-            return $"错误：git {sub}: {ex.GetType().Name}: {ex.Message}";
+            // ⚠ 前缀「错误：」是 Agent 识别「工具失败而非模型问题」的稳定标记
+            //   （ToolResultClassifier.ErrorMarkers 里「错误」与「Error」并存，两侧都认）。
+            return L.Pick($"错误：git {sub}: {ex.GetType().Name}: {ex.Message}",
+                          $"Error: git {sub}: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -137,9 +141,10 @@ public static class GitCore
             Directory.CreateDirectory(Path.Combine(gitDir, "refs", "tags"));
             File.WriteAllText(Path.Combine(gitDir, "HEAD"), "ref: refs/heads/master\n", new UTF8Encoding(false));
             File.WriteAllText(Path.Combine(gitDir, "config"), "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n[user]\n\tname = WayCoder\n\temail = waycoder@local\n", new UTF8Encoding(false));
-            return $"已初始化空 git 仓库：{repoRoot}（默认分支 master）";
+            return L.Pick($"已初始化空 git 仓库：{repoRoot}（默认分支 master）",
+                          $"Initialized an empty git repository: {repoRoot} (default branch master)");
         }
-        return $"git 仓库已存在：{repoRoot}";
+        return L.Pick($"git 仓库已存在：{repoRoot}", $"A git repository already exists: {repoRoot}");
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -165,8 +170,8 @@ public static class GitCore
 
         WriteIndex(gitDir, index);
         return added > 0
-            ? $"已暂存 {added} 个文件"
-            : "没有可暂存的文件（路径不存在或为空）";
+            ? L.Pick($"已暂存 {added} 个文件", $"Staged {added} files")
+            : L.Pick("没有可暂存的文件（路径不存在或为空）", "nothing to stage (the path does not exist or is empty)");
     }
 
     static List<string> ResolveAddPaths(string repoRoot, string pathSpec)
@@ -216,12 +221,12 @@ public static class GitCore
     public static string Commit(string repoRoot, string message)
     {
         if (string.IsNullOrWhiteSpace(message))
-            return "⚠ 请提供提交信息（commit -m \"...\"）";
+            return L.Pick("⚠ 请提供提交信息（commit -m \"...\"）", "⚠ A commit message is required (commit -m \"...\")");
 
         var gitDir = Path.Combine(repoRoot, ".git");
         var index = ReadIndex(gitDir);
         if (index.Count == 0)
-            return "⚠ 暂存区为空，先 git add 再 commit";
+            return L.Pick("⚠ 暂存区为空，先 git add 再 commit", "⚠ The staging area is empty — run git add before commit");
 
         // 1) 从 index 构建 tree
         var treeSha = BuildTree(gitDir, index);
@@ -245,7 +250,8 @@ public static class GitCore
         var branch = ReadHeadBranch(gitDir);
         File.WriteAllText(Path.Combine(gitDir, "refs", "heads", branch), commitSha + "\n", new UTF8Encoding(false));
 
-        return $"已提交 {commitSha[..7]}：{message.Split('\n')[0]}\n（{index.Count} 个文件，分支 {branch}）";
+        return L.Pick($"已提交 {commitSha[..7]}：{message.Split('\n')[0]}\n（{index.Count} 个文件，分支 {branch}）",
+                      $"Committed {commitSha[..7]}: {message.Split('\n')[0]}\n({index.Count} files, branch {branch})");
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -296,26 +302,27 @@ public static class GitCore
         string branch = ReadHeadBranch(gitDir);
         var headSha = ReadHeadCommit(gitDir);
         sb.Append(branch == "master" && headSha == null
-            ? "当前分支 master（无提交）\n"
-            : $"当前分支 {branch} @ {headSha?[..7] ?? "（无提交）"}\n");
+            ? L.Pick("当前分支 master（无提交）\n", "On branch master (no commits)\n")
+            : L.Pick($"当前分支 {branch} @ {headSha?[..7] ?? "（无提交）"}\n",
+                     $"On branch {branch} @ {headSha?[..7] ?? "(no commits)"}\n"));
 
         if (staged.Count > 0)
         {
-            sb.Append("\n「已暂存」\n");
+            sb.Append(L.Pick("\n「已暂存」\n", "\n[Staged]\n"));
             AppendStatusList(sb, staged);
         }
         if (unstaged.Count > 0)
         {
-            sb.Append("\n「未暂存」\n");
+            sb.Append(L.Pick("\n「未暂存」\n", "\n[Not staged]\n"));
             AppendStatusList(sb, unstaged);
         }
         if (untracked.Count > 0)
         {
-            sb.Append("\n「未跟踪」\n");
+            sb.Append(L.Pick("\n「未跟踪」\n", "\n[Untracked]\n"));
             AppendStatusList(sb, untracked, prefix: "  ");
         }
         if (staged.Count == 0 && unstaged.Count == 0 && untracked.Count == 0)
-            sb.Append("\n工作区干净，无变更。\n");
+            sb.Append(L.Pick("\n工作区干净，无变更。\n", "\nNothing to commit, working tree clean.\n"));
 
         return sb.ToString().TrimEnd('\n');
     }
@@ -337,7 +344,8 @@ public static class GitCore
         var n = Math.Min(items.Count, max);
         for (var i = 0; i < n; i++) sb.Append(prefix).Append(items[i]).Append('\n');
         if (items.Count > n)
-            sb.Append(prefix).Append($"…（共 {items.Count} 条，此处只列前 {n} 条）\n");
+            sb.Append(prefix).Append(L.Pick($"…（共 {items.Count} 条，此处只列前 {n} 条）\n",
+                                            $"...({items.Count} entries in total, showing only the first {n})\n"));
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -373,7 +381,7 @@ public static class GitCore
             sb.Append(GenerateUnifiedDiff(oldContent ?? "", newContent, path, oldSha, newSha)).Append('\n');
         }
 
-        if (shown == 0) return "没有变更。";
+        if (shown == 0) return L.Pick("没有变更。", "No changes.");
         return sb.ToString().TrimEnd('\n');
     }
 
@@ -386,7 +394,7 @@ public static class GitCore
     {
         var gitDir = Path.Combine(repoRoot, ".git");
         var sha = ReadHeadCommit(gitDir);
-        if (sha == null) return "尚无提交历史。";
+        if (sha == null) return L.Pick("尚无提交历史。", "There is no commit history yet.");
 
         var sb = new StringBuilder();
         int count = 0;
@@ -1179,7 +1187,7 @@ public static class GitCore
         var gitDir = Path.Combine(repoRoot, ".git");
         var infoA = ReadCommitInfo(gitDir, shaA);
         var infoB = ReadCommitInfo(gitDir, shaB);
-        if (infoA?.Tree == null || infoB?.Tree == null) return "无法读取提交树。";
+        if (infoA?.Tree == null || infoB?.Tree == null) return L.Pick("无法读取提交树。", "Could not read the commit tree.");
 
         var filesA = new Dictionary<string, (string Mode, string Sha)>();
         var filesB = new Dictionary<string, (string Mode, string Sha)>();
@@ -1199,7 +1207,7 @@ public static class GitCore
             sb.Append(GenerateUnifiedDiff(oldContent, newContent, path, ea.Sha ?? "", eb.Sha ?? "")).Append('\n');
             shown++;
         }
-        return shown == 0 ? "两个提交内容一致。" : sb.ToString().TrimEnd('\n');
+        return shown == 0 ? L.Pick("两个提交内容一致。", "The two commits have identical content.") : sb.ToString().TrimEnd('\n');
     }
 
     /// <summary>diff 命令分发：0/1 参数按路径过滤 worktree；参数为分支/提交时按提交树比较。</summary>
@@ -1211,7 +1219,7 @@ public static class GitCore
             var a = ResolveBranch(gitDir, rest[0]);
             var b = ResolveBranch(gitDir, rest[1]);
             if (a != null && b != null) return DiffCommits(repoRoot, a, b);
-            return "⚠ 无法解析为分支/提交：" + string.Join(' ', rest);
+            return L.Pick("⚠ 无法解析为分支/提交：", "⚠ Could not resolve as a branch/commit: ") + string.Join(' ', rest);
         }
         if (rest.Length == 1)
         {
@@ -1265,7 +1273,7 @@ sealed class PackStore
 
     (string Type, byte[] Content) ReadAt(int packIdx, long offset, int depth)
     {
-        if (depth > 64) throw new InvalidDataException("delta 链过深");
+        if (depth > 64) throw new InvalidDataException(L.Pick("delta 链过深", "delta chain is too deep"));
         return PackFileReader.ReadObjectAt(_packs[packIdx], offset, sha => ResolveBase(sha, depth + 1));
     }
 

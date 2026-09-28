@@ -55,12 +55,12 @@ public class GrepTool : ITool
         }
         catch (RegexParseException ex)
         {
-            return $"无效的正则表达式：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"无效的正则表达式：{ex.GetType().Name}: {ex.Message}", $"Invalid regular expression: {ex.GetType().Name}: {ex.Message}");
         }
 
         var basePath = CwdContext.Resolve(searchPath); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(basePath) && !Directory.Exists(basePath))
-            return $"错误：{searchPath} 未找到";
+            return L.Pick($"错误：{searchPath} 未找到", $"Error: {searchPath} not found");
 
         List<string> files;
         if (File.Exists(basePath))
@@ -95,7 +95,7 @@ public class GrepTool : ITool
                         matches.Add($"{fp}:{i + 1}: {lines[i].TrimEnd('\r')}");
                         if (matches.Count >= Global.MaxGrepResultLines)
                         {
-                            matches.Add($"...（已达到 {Global.MaxGrepResultLines} 条匹配上限）");
+                            matches.Add(L.Pick($"...（已达到 {Global.MaxGrepResultLines} 条匹配上限）", $"... (match limit of {Global.MaxGrepResultLines} reached)"));
                             return string.Join("\n", matches);
                         }
                     }
@@ -106,11 +106,13 @@ public class GrepTool : ITool
         {
             // 灾难性回溯正则超时：返回已匹配的部分结果，而非把整个错误抛给上层丢全部结果
             return matches.Count > 0
-                ? string.Join("\n", matches) + $"\n...（正则匹配超时（>{Config.Instance.RegexTimeoutSec}s），已返回部分结果）"
-                : $"错误：正则匹配超时（>{Config.Instance.RegexTimeoutSec}s）。请简化正则表达式。";
+                ? string.Join("\n", matches) + L.Pick($"\n...（正则匹配超时（>{Config.Instance.RegexTimeoutSec}s），已返回部分结果）",
+                    $"\n... (regex match timed out (>{Config.Instance.RegexTimeoutSec}s); partial results returned)")
+                : L.Pick($"错误：正则匹配超时（>{Config.Instance.RegexTimeoutSec}s）。请简化正则表达式。",
+                    $"Error: regex match timed out (>{Config.Instance.RegexTimeoutSec}s). Simplify the regular expression.");
         }
 
-        return matches.Count > 0 ? string.Join("\n", matches) : "未找到匹配项。";
+        return matches.Count > 0 ? string.Join("\n", matches) : L.Pick("未找到匹配项。", "No matches found.");
     }
 
     /// <summary>

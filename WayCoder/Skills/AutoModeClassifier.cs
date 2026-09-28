@@ -80,9 +80,11 @@ public static class AutoModeClassifier
     /// </summary>
     public static string GetStats()
     {
-        return $"安全: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Safe)}" +
-               $" | 谨慎: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Cautious)}" +
-               $" | 危险: {ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Dangerous)}" +
-               $" | 连续阻止: {ConsecutiveDangerousBlocks}/{BlockThreshold}";
+        var safe = ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Safe);
+        var cautious = ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Cautious);
+        var dangerous = ToolSafetyRegistry.CountRisk(ToolSafetyRegistry.ToolRisk.Dangerous);
+        return L.Pick(
+            $"安全: {safe} | 谨慎: {cautious} | 危险: {dangerous} | 连续阻止: {ConsecutiveDangerousBlocks}/{BlockThreshold}",
+            $"Safe: {safe} | Cautious: {cautious} | Dangerous: {dangerous} | Consecutive blocks: {ConsecutiveDangerousBlocks}/{BlockThreshold}");
     }
 }

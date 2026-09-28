@@ -54,8 +54,10 @@ public static class CliArgRegistry
             // 静默忽略会让用户以为提示词/选项生效了，实际程序以默认配置进了交互界面。
             if (!arg.StartsWith('-'))
                 return Fail(values,
-                    $"无法识别的参数: {QuoteForMessage(arg)}",
-                    "提示词要用 -p 显式指定：waycoder -p \"...\"");
+                    L.Pick($"无法识别的参数: {QuoteForMessage(arg)}",
+                           $"Unrecognized argument: {QuoteForMessage(arg)}"),
+                    L.Pick("提示词要用 -p 显式指定：waycoder -p \"...\"",
+                           "Pass the prompt explicitly with -p: waycoder -p \"...\""));
 
             // 支持 --key=value 格式
             CliArg? def = null;
@@ -63,7 +65,8 @@ public static class CliArgRegistry
             if (eqIdx > 1)
             {
                 if (!_byName.TryGetValue(arg[..eqIdx], out var eqDef))
-                    return Fail(values, $"未知选项: {arg[..eqIdx]}");
+                    return Fail(values, L.Pick($"未知选项: {arg[..eqIdx]}",
+                                               $"Unknown option: {arg[..eqIdx]}"));
 
                 def = eqDef;
                 var embedded = arg[(eqIdx + 1)..];
@@ -79,7 +82,7 @@ public static class CliArgRegistry
             // 未知选项：此前是 continue 直接跳过 —— `waycoder --modle plan` 这种拼写错误会被
             // 悄悄吞掉、程序照常以默认配置启动，用户完全看不出参数没生效。改为报错退出。
             if (!_byName.TryGetValue(arg, out def))
-                return Fail(values, $"未知选项: {arg}");
+                return Fail(values, L.Pick($"未知选项: {arg}", $"Unknown option: {arg}"));
 
             var consumed = new List<string>();
 
@@ -104,7 +107,9 @@ public static class CliArgRegistry
             // 必需值没给够：如 `waycoder --prompt` 后面什么都没有。此前会带着空值继续启动，
             // 各 OnMatch 再各自处理（有的报错有的不报）——统一在这里拦下。
             if (def.ValueCount > 0 && consumed.Count < def.ValueCount)
-                return Fail(values, $"选项 {arg} 缺少参数值（需要 {def.ValueCount} 个）");
+                return Fail(values, L.Pick(
+                    $"选项 {arg} 缺少参数值（需要 {def.ValueCount} 个）",
+                    $"Option {arg} is missing its value(s) ({def.ValueCount} required)"));
 
             // 允许累积：同一参数多次出现时追加而非覆盖（如 -p1 "A" -p1 "B" → [A, B]）
             // 此前先无条件 values[def.Key]=consumed 再判断 ContainsKey，导致 !ContainsKey 分支永远走不到、
@@ -137,7 +142,7 @@ public static class CliArgRegistry
     {
         Console.Error.WriteLine($"✘ {message}");
         if (hint != null) Console.Error.WriteLine($"  {hint}");
-        Console.Error.WriteLine("  查看全部选项：waycoder -h");
+        Console.Error.WriteLine(L.Pick("  查看全部选项：waycoder -h", "  See all options: waycoder -h"));
         return (values, 1);
     }
 
@@ -153,25 +158,34 @@ public static class CliArgRegistry
     public static bool Has(Dictionary<string, List<string>> parsed, string key)
         => parsed.ContainsKey(key);
 
-    /// <summary>分类显示顺序（参考 Crush help 分组风格，无图标）</summary>
-    private static readonly string[] _categoryOrder =
-        ["模型", "会话", "执行", "预算", "权限", "界面", "系统", "批量", "测试", "通用", "其他"];
+    /// <summary>
+    /// 分类显示顺序（参考 Crush help 分组风格，无图标）。
+    /// ⚠ **分类名既是分组键、又是帮助里的标题**，`CategoryOf(a) == category` 这条判据的两侧都是它 ——
+    /// 所以两侧**都经同一套 `L.Pick`**：语言一换两边一起换，等值判定照旧成立（公理 A2）。
+    /// 分成「内部中文键 + 单独一张显示名表」反而要多维护一张表、且漏一处就静默归错组。
+    /// 表达式体属性而非 `static readonly` —— 后者会把语言冻在类型初始化那一刻（必守则 A3）。
+    /// </summary>
+    private static string[] CategoryOrder =>
+        [L.Pick("模型", "Model"), L.Pick("会话", "Session"), L.Pick("执行", "Execution"),
+         L.Pick("预算", "Budget"), L.Pick("权限", "Permission"), L.Pick("界面", "Interface"),
+         L.Pick("系统", "System"), L.Pick("批量", "Batch"), L.Pick("测试", "Test"),
+         L.Pick("通用", "General"), L.Pick("其他", "Other")];
 
-    /// <summary>参数 → 分类（未匹配归「其他」）</summary>
+    /// <summary>参数 → 分类（未匹配归「其他」）。返回值与 <see cref="CategoryOrder"/> 同源（同一批 L.Pick）。</summary>
     private static string CategoryOf(CliArg arg) => arg.Key switch
     {
-        "model" or "base-url" or "api-key" or "tiny" or "economy" => "模型",
-        "resume" or "session" or "session-list" => "会话",
-        "prompt" or "json" or "output-format" or "prompt-all" => "执行",
-        "max-budget-usd" or "max-requeue" or "max-turns" => "预算",
-        "yolo" or "permission-mode" or "allowed-tools" or "disallowed-tools" or "permit" or "mode" => "权限",
-        "tui" or "cli" or "web" or "gui" or "keypad" or "theme" or "quiet" or "no-color" => "界面",
+        "model" or "base-url" or "api-key" or "tiny" or "economy" => L.Pick("模型", "Model"),
+        "resume" or "session" or "session-list" => L.Pick("会话", "Session"),
+        "prompt" or "json" or "output-format" or "prompt-all" => L.Pick("执行", "Execution"),
+        "max-budget-usd" or "max-requeue" or "max-turns" => L.Pick("预算", "Budget"),
+        "yolo" or "permission-mode" or "allowed-tools" or "disallowed-tools" or "permit" or "mode" => L.Pick("权限", "Permission"),
+        "tui" or "cli" or "web" or "gui" or "keypad" or "theme" or "quiet" or "no-color" => L.Pick("界面", "Interface"),
         "edit" or "watch" or "update" or "init" or "config" or "debug" or "system-prompt" or "screenshot"
-            or "auto-commit" or "mcp" or "mcp-config" or "reset" or "purge" or "provider" => "系统",
-        "batch" or "batch-repo" or "batch-task" or "batch-keep" => "批量",
-        "test" or "test-benchmark" or "test-limits" => "测试",
-        "version" or "help" => "通用",
-        _ => "其他",
+            or "auto-commit" or "mcp" or "mcp-config" or "reset" or "purge" or "provider" => L.Pick("系统", "System"),
+        "batch" or "batch-repo" or "batch-task" or "batch-keep" => L.Pick("批量", "Batch"),
+        "test" or "test-benchmark" or "test-limits" => L.Pick("测试", "Test"),
+        "version" or "help" => L.Pick("通用", "General"),
+        _ => L.Pick("其他", "Other"),
     };
 
     /// <summary>生成帮助文本（排除 Internal 参数，按分类分组显示）</summary>
@@ -195,7 +209,7 @@ public static class CliArgRegistry
         int longCol = indent + shortColW + 1;  // 所有长名起点（对齐）
         int descCol = longCol + maxNameW + 2;  // 所有说明起点（对齐）
 
-        foreach (var category in _categoryOrder)
+        foreach (var category in CategoryOrder)
         {
             var items = visible.Where(a => CategoryOf(a) == category).ToList();
             if (items.Count == 0) continue;
@@ -223,7 +237,7 @@ public static class CliArgRegistry
                 foreach (var g in groups)
                     if (!ReferenceEquals(g, primaryGroup))
                         RenderLine(sb, g, arg, indent, shortColW, descCol,
-                            dim: true, desc: "别名");
+                            dim: true, desc: L.Pick("别名", "alias"));
 
                 // 二级参数（子命令）：纵向列出 + 说明（暗灰），说明对齐
                 if (arg.SubCommands is { Length: > 0 } subs)

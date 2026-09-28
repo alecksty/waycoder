@@ -324,13 +324,13 @@ public static class UpdateChecker
     {
         var latest = await FetchLatestAsync();
         if (latest == null)
-            return "⚠ 无法获取最新版本信息（检查网络或 WAYCODER_GITHUB_REPO / WAYCODER_GITEE_REPO 配置）";
+            return L.Pick("⚠ 无法获取最新版本信息（检查网络或 WAYCODER_GITHUB_REPO / WAYCODER_GITEE_REPO 配置）", "⚠ Could not fetch the latest version info (check your network or the WAYCODER_GITHUB_REPO / WAYCODER_GITEE_REPO settings)");
 
         var cmp = CompareVersions(latest.TagName, Global.Version);
         if (cmp <= 0)
-            return $"✅ 已是最新版本 {Global.Version}（{latest.Source} 最新 {latest.TagName}）";
+            return L.Pick($"✅ 已是最新版本 {Global.Version}（{latest.Source} 最新 {latest.TagName}）", $"✅ Already up to date: {Global.Version} ({latest.Source} latest is {latest.TagName})");
 
-        return $"🆕 发现新版本 {latest.TagName}（当前 {Global.Version}，来源 {latest.Source}）。输入 /update 查看详情并升级。";
+        return L.Pick($"🆕 发现新版本 {latest.TagName}（当前 {Global.Version}，来源 {latest.Source}）。输入 /update 查看详情并升级。", $"🆕 New version {latest.TagName} available (current {Global.Version}, source {latest.Source}). Enter /update for details and to upgrade.");
     }
 
     /// <summary>
@@ -341,10 +341,10 @@ public static class UpdateChecker
     {
         var latest = await FetchLatestAsync();
         if (latest == null)
-            return "⚠ 无法获取最新版本信息（检查网络或仓库配置）";
+            return L.Pick("⚠ 无法获取最新版本信息（检查网络或仓库配置）", "⚠ Could not fetch the latest version info (check your network or repository settings)");
 
         if (CompareVersions(latest.TagName, Global.Version) <= 0)
-            return $"✅ 已是最新版本 {Global.Version}，无需升级。";
+            return L.Pick($"✅ 已是最新版本 {Global.Version}，无需升级。", $"✅ Already up to date ({Global.Version}); no upgrade needed.");
 
         var rid = DetectCurrentRid();
         var tmpDir = Path.Combine(Path.GetTempPath(), $"waycoder-update-{rid}-{latest.TagName}");
@@ -378,14 +378,14 @@ public static class UpdateChecker
 
             var newExe = Directory.GetFiles(tmpDir, exeName, SearchOption.AllDirectories).FirstOrDefault();
             if (newExe == null)
-                return "⚠ 压缩包中未找到可执行文件（产物结构异常）";
+                return L.Pick("⚠ 压缩包中未找到可执行文件（产物结构异常）", "⚠ No executable found in the archive (unexpected artifact layout)");
 
             // 4. 覆盖当前二进制（覆盖前备份旧版本，失败可回滚）
             return ApplyReplacement(newExe, latest.TagName);
         }
         catch (Exception ex)
         {
-            return $"❌ 升级失败：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"❌ 升级失败：{ex.GetType().Name}: {ex.Message}", $"❌ Upgrade failed: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {
@@ -413,10 +413,10 @@ public static class UpdateChecker
         if (string.IsNullOrEmpty(checksumContent)) return null; // 无校验文件，跳过（向后兼容）
         var map = ParseChecksums(checksumContent);
         if (!map.TryGetValue(assetName, out var expected))
-            return $"⚠ 校验文件中未找到 {assetName} 的哈希记录，已中止升级以策安全";
+            return L.Pick($"⚠ 校验文件中未找到 {assetName} 的哈希记录，已中止升级以策安全", $"⚠ No checksum entry for {assetName} in the checksum file; upgrade aborted to stay safe");
         var actual = ComputeSha256Hex(archivePath);
         if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
-            return $"⚠ SHA256 校验失败：{assetName} 哈希不匹配（下载内容可能被篡改），已中止升级";
+            return L.Pick($"⚠ SHA256 校验失败：{assetName} 哈希不匹配（下载内容可能被篡改），已中止升级", $"⚠ SHA256 verification failed: hash mismatch for {assetName} (the download may have been tampered with); upgrade aborted");
         return null;
     }
 
@@ -425,7 +425,7 @@ public static class UpdateChecker
     {
         var target = Environment.ProcessPath;
         if (string.IsNullOrEmpty(target))
-            return "❌ 无法确定当前可执行文件路径";
+            return L.Pick("❌ 无法确定当前可执行文件路径", "❌ Cannot determine the path of the current executable");
 
         var dir = Path.GetDirectoryName(target)!;
         var exeName = Path.GetFileName(target);
@@ -467,7 +467,7 @@ public static class UpdateChecker
             }
             catch { /* 脚本启动失败时用户可手动运行 */ }
 
-            return $"✅ 已下载新版本 {newVersion}。退出 WayCoder 后自动完成替换并重启（旧版本已备份为 .bak）。";
+            return L.Pick($"✅ 已下载新版本 {newVersion}。退出 WayCoder 后自动完成替换并重启（旧版本已备份为 .bak）。", $"✅ Downloaded version {newVersion}. Quit WayCoder and the replacement plus restart will complete automatically (the old version was backed up as .bak).");
         }
 
         // Unix：rename 原子覆盖运行中二进制（旧 inode 继续服务当前进程），随后提示重启
@@ -486,7 +486,7 @@ public static class UpdateChecker
         catch { /* 某些文件系统不支持 chmod，忽略 */ }
         File.Move(tmpNew, target, overwrite: true);
 
-        return $"✅ 已升级到 {newVersion}。请退出后重新运行 WayCoder（Ctrl+Q 退出），旧版本已备份为 .bak。";
+        return L.Pick($"✅ 已升级到 {newVersion}。请退出后重新运行 WayCoder（Ctrl+Q 退出），旧版本已备份为 .bak。", $"✅ Upgraded to {newVersion}. Quit and start WayCoder again (Ctrl+Q to quit); the old version was backed up as .bak.");
     }
 
     // ════════════════════════════════════════════════════════════════

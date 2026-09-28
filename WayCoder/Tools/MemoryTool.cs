@@ -59,22 +59,24 @@ public class MemoryTool : ITool
     private static string WriteMemory(string name, string description, string content, string type)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "错误：write 需要提供 name（kebab-case 标识）。";
+            return L.Pick("错误：write 需要提供 name（kebab-case 标识）。",
+                          "Error: write requires name (a kebab-case identifier).");
         if (string.IsNullOrWhiteSpace(content))
-            return "错误：write 需要提供 content 正文。";
+            return L.Pick("错误：write 需要提供 content 正文。",
+                          "Error: write requires content.");
 
         var existing = StructuredMemory.Get(name);
         if (existing != null)
         {
             StructuredMemory.Update(name, description.Length > 0 ? description : existing.Description,
                 type, content);
-            return $"✅ 已更新记忆 [{name}]";
+            return L.Pick($"✅ 已更新记忆 [{name}]", $"✅ Updated memory [{name}]");
         }
 
         StructuredMemory.Create(name,
             description.Length > 0 ? description : content.Length > 60 ? ContextManager.TruncateByRunes(content, 60) + "..." : content,
             type, content);
-        return $"✅ 已记录到项目记忆 [{name}]";
+        return L.Pick($"✅ 已记录到项目记忆 [{name}]", $"✅ Saved to project memory [{name}]");
     }
 
     private static string ReadMemory(string name)
@@ -82,15 +84,16 @@ public class MemoryTool : ITool
         if (!string.IsNullOrWhiteSpace(name))
         {
             var entry = StructuredMemory.Get(name);
-            if (entry == null) return $"（未找到记忆 [{name}]）";
+            if (entry == null) return L.Pick($"（未找到记忆 [{name}]）", $"(No memory found [{name}])");
             return $"# {entry.Description} (`{entry.Type}`)\n\n{entry.Content}";
         }
 
         var all = StructuredMemory.ListAll();
         if (all.Count == 0)
-            return "（暂无记忆。Agent 可通过 memory write 工具记录关键信息。）";
+            return L.Pick("（暂无记忆。Agent 可通过 memory write 工具记录关键信息。）",
+                          "(No memories yet. The agent can record key information with the memory write tool.)");
 
-        var lines = new List<string> { $"共 {all.Count} 条记忆:" };
+        var lines = new List<string> { L.Pick($"共 {all.Count} 条记忆:", $"{all.Count} memories:") };
         foreach (var e in all)
         {
             var preview = e.Content.Length > 80 ? ContextManager.TruncateByRunes(e.Content, 80) + "..." : e.Content;
@@ -102,13 +105,18 @@ public class MemoryTool : ITool
     private static string SearchMemory(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
-            return "错误：search 需要提供 content 作为搜索关键词。";
+            return L.Pick("错误：search 需要提供 content 作为搜索关键词。",
+                          "Error: search requires content as the search keywords.");
 
         var results = StructuredMemory.Search(query);
         if (results.Count == 0)
-            return $"未找到 \"{query}\"";
+            return L.Pick($"未找到 \"{query}\"", $"No memories found matching \"{query}\"");
 
-        var lines = new List<string> { $"搜索 \"{query}\" ({results.Count} 条相关记忆):" };
+        var lines = new List<string>
+        {
+            L.Pick($"搜索 \"{query}\" ({results.Count} 条相关记忆):",
+                   $"Search \"{query}\" ({results.Count} matching memories):"),
+        };
         foreach (var e in results)
         {
             var preview = e.Content.Length > 100 ? ContextManager.TruncateByRunes(e.Content, 100) + "..." : e.Content;
@@ -120,19 +128,20 @@ public class MemoryTool : ITool
     private static string DeleteMemory(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "错误：delete 需要提供 name。";
+            return L.Pick("错误：delete 需要提供 name。", "Error: delete requires name.");
         return StructuredMemory.Delete(name)
-            ? $"✅ 已删除记忆 [{name}]"
-            : $"（未找到记忆 [{name}]）";
+            ? L.Pick($"✅ 已删除记忆 [{name}]", $"✅ Deleted memory [{name}]")
+            : L.Pick($"（未找到记忆 [{name}]）", $"(No memory found [{name}])");
     }
 
     private static async Task<string> ShareMemory(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "错误：share 需要提供 name。";
+            return L.Pick("错误：share 需要提供 name。", "Error: share requires name.");
 
         if (!SharedMemoryManager.IsGitRepo())
-            return "❌ 当前目录不在 git 仓库中，无法共享记忆。团队知识库共享需要 git 仓库。";
+            return L.Pick("❌ 当前目录不在 git 仓库中，无法共享记忆。团队知识库共享需要 git 仓库。",
+                          "❌ The current directory is not inside a git repository, so memory cannot be shared. Team knowledge sharing requires a git repository.");
 
         return await SharedMemoryManager.ShareAsync(name);
     }
@@ -140,14 +149,14 @@ public class MemoryTool : ITool
     private static string UnshareMemory(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return "错误：unshare 需要提供 name。";
+            return L.Pick("错误：unshare 需要提供 name。", "Error: unshare requires name.");
         return SharedMemoryManager.Unshare(name);
     }
 
     private static async Task<string> SyncMemory(string direction)
     {
         if (!SharedMemoryManager.IsGitRepo())
-            return "❌ 当前目录不在 git 仓库中。";
+            return L.Pick("❌ 当前目录不在 git 仓库中。", "❌ The current directory is not inside a git repository.");
 
         if (direction == "push")
         {
@@ -162,9 +171,9 @@ public class MemoryTool : ITool
             {
                 var parts = new List<string> { $"✅ {result.Message}" };
                 foreach (var f in result.NewFiles)
-                    parts.Add($"  ➕ 新增: {f}");
+                    parts.Add(L.Pick($"  ➕ 新增: {f}", $"  ➕ Added: {f}"));
                 foreach (var f in result.UpdatedFiles)
-                    parts.Add($"  🔄 更新: {f}");
+                    parts.Add(L.Pick($"  🔄 更新: {f}", $"  🔄 Updated: {f}"));
                 return string.Join('\n', parts);
             }
             return $"❌ {result.Error}";

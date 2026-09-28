@@ -16,25 +16,25 @@ public static class ReviewMode
     {
         var changed = Tools.EditFileTool.ChangedFiles;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("请审查以下修改，从多个维度分析：");
+        sb.AppendLine(L.Pick("请审查以下修改，从多个维度分析：", "Please review the following changes across multiple dimensions:"));
         sb.AppendLine();
-        sb.AppendLine("## 审查维度");
-        sb.AppendLine("1. **正确性** — 逻辑错误、边界情况、空引用");
-        sb.AppendLine("2. **安全性** — 注入风险、敏感信息泄露、权限问题");
-        sb.AppendLine("3. **性能** — 不必要的分配、算法复杂度、IO 效率");
-        sb.AppendLine("4. **可维护性** — 命名、结构、注释、重复代码");
-        sb.AppendLine("5. **测试覆盖** — 缺少的测试场景");
+        sb.AppendLine(L.Pick("## 审查维度", "## Review dimensions"));
+        sb.AppendLine(L.Pick("1. **正确性** — 逻辑错误、边界情况、空引用", "1. **Correctness** — logic errors, edge cases, null references"));
+        sb.AppendLine(L.Pick("2. **安全性** — 注入风险、敏感信息泄露、权限问题", "2. **Security** — injection risks, leaked secrets, permission issues"));
+        sb.AppendLine(L.Pick("3. **性能** — 不必要的分配、算法复杂度、IO 效率", "3. **Performance** — needless allocations, algorithmic complexity, I/O efficiency"));
+        sb.AppendLine(L.Pick("4. **可维护性** — 命名、结构、注释、重复代码", "4. **Maintainability** — naming, structure, comments, duplicated code"));
+        sb.AppendLine(L.Pick("5. **测试覆盖** — 缺少的测试场景", "5. **Test coverage** — missing test scenarios"));
         sb.AppendLine();
 
         // 没有修改过的文件，无需审查
         if (changed.Count == 0)
         {
-            sb.AppendLine("（没有修改过的文件，无需审查）");
+            sb.AppendLine(L.Pick("（没有修改过的文件，无需审查）", "(No files were modified, nothing to review.)"));
         }
         else
         {
             // 始终列出修改的文件名
-            sb.AppendLine("## 修改的文件");
+            sb.AppendLine(L.Pick("## 修改的文件", "## Modified files"));
             foreach (var file in changed)
                 sb.AppendLine($"- `{Path.GetFileName(file)}` ({file})");
             sb.AppendLine();
@@ -48,7 +48,8 @@ public static class ReviewMode
                 sb.AppendLine();
                 sb.AppendLine("```diff");
                 if (diff.Length > maxDiff)
-                    sb.AppendLine(ContextManager.TruncateByRunes(diff, maxDiff) + $"\n... (diff 已截断，共 {diff.Length} 字符)");
+                    sb.AppendLine(ContextManager.TruncateByRunes(diff, maxDiff) +
+                        L.Pick($"\n... (diff 已截断，共 {diff.Length} 字符)", $"\n... (diff truncated, {diff.Length} chars total)"));
                 else
                     sb.AppendLine(diff);
                 sb.AppendLine("```");
@@ -56,8 +57,9 @@ public static class ReviewMode
         }
 
         sb.AppendLine();
-        sb.AppendLine("请逐一审查每个变更，对每个问题标注严重程度（🔴严重 🟡中等 🟢建议）和所在行号。");
-        sb.AppendLine("最后给出总体评价和改进建议。");
+        sb.AppendLine(L.Pick("请逐一审查每个变更，对每个问题标注严重程度（🔴严重 🟡中等 🟢建议）和所在行号。",
+            "Review each change one by one, and label every finding with its severity (🔴critical 🟡moderate 🟢suggestion) and line number."));
+        sb.AppendLine(L.Pick("最后给出总体评价和改进建议。", "Finish with an overall assessment and improvement suggestions."));
 
         return sb.ToString();
     }
@@ -83,18 +85,19 @@ public static class ReviewMode
                 {
                     var f = file.Trim();
                     if (string.IsNullOrWhiteSpace(f)) continue;
-                    sb.AppendLine($"\n--- 新文件: {f} ---");
+                    sb.AppendLine(L.Pick($"\n--- 新文件: {f} ---", $"\n--- New file: {f} ---"));
                     try
                     {
                         var content = File.ReadAllText(f);
                         if (content.Length > 1500)
                         {
                             var originalLen = content.Length;
-                            content = ContextManager.TruncateByRunes(content, 1500) + $"\n... (共 {originalLen} 字符)";
+                            content = ContextManager.TruncateByRunes(content, 1500) +
+                                L.Pick($"\n... (共 {originalLen} 字符)", $"\n... ({originalLen} chars total)");
                         }
                         sb.AppendLine(content);
                     }
-                    catch { sb.AppendLine($"(无法读取)"); }
+                    catch { sb.AppendLine(L.Pick("(无法读取)", "(unreadable)")); }
                 }
             }
 

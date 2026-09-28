@@ -34,7 +34,7 @@ public class TestTool : ITool
         var timeout = Math.Clamp(ToolArgs.GetInt(arguments, "timeout", 300), 1, 3600);
 
         if (string.IsNullOrWhiteSpace(command))
-            return "错误：请提供测试命令 (command)";
+            return L.Pick("错误：请提供测试命令 (command)", "Error: please provide a test command (command)");
 
         // 安全防护：test 命令经 shell 执行，必须先过 BashGuard 黑名单（防 curl/sudo/apt 等绕过）。
         // 权限确认由 Agent 层 DangerTools（含 "test"）统一处理。
@@ -64,7 +64,9 @@ public class TestTool : ITool
         try
         {
             var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, timeout * 1000);
-            if (r == null) return $"错误：测试命令在 {timeout} 秒后超时";
+            if (r == null)
+                return L.Pick($"错误：测试命令在 {timeout} 秒后超时",
+                              $"Error: the test command timed out after {timeout}s");
             var (exitCode, stdout, stderr) = r.Value;
             var combined = stdout + (string.IsNullOrWhiteSpace(stderr) ? "" : "\n" + stderr);
 
@@ -83,12 +85,13 @@ public class TestTool : ITool
         var (passed, failed) = ExtractCounts(output);
 
         if (exitCode == 0)
-            sb.AppendLine("✅ 测试通过（exit 0）");
+            sb.AppendLine(L.Pick("✅ 测试通过（exit 0）", "✅ Tests passed (exit 0)"));
         else
-            sb.AppendLine($"❌ 测试失败（exit {exitCode}）");
+            sb.AppendLine(L.Pick($"❌ 测试失败（exit {exitCode}）", $"❌ Tests failed (exit {exitCode})"));
 
         if (passed >= 0 || failed >= 0)
-            sb.AppendLine($"统计: 通过 {Math.Max(0, passed)}，失败 {Math.Max(0, failed)}");
+            sb.AppendLine(L.Pick($"统计: 通过 {Math.Max(0, passed)}，失败 {Math.Max(0, failed)}",
+                                 $"Stats: {Math.Max(0, passed)} passed, {Math.Max(0, failed)} failed"));
 
         // 失败用例定位
         if (exitCode != 0)
@@ -97,11 +100,12 @@ public class TestTool : ITool
             if (failures.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine($"失败用例（{failures.Count}）:");
+                sb.AppendLine(L.Pick($"失败用例（{failures.Count}）:", $"Failing cases ({failures.Count}):"));
                 foreach (var f in failures.Take(20))
                     sb.AppendLine($"  {f}");
                 if (failures.Count > 20)
-                    sb.AppendLine($"  ...（共 {failures.Count} 处失败）");
+                    sb.AppendLine(L.Pick($"  ...（共 {failures.Count} 处失败）",
+                                         $"  ... ({failures.Count} failures in total)"));
             }
         }
 
@@ -109,7 +113,7 @@ public class TestTool : ITool
         var lines = output.Split('\n');
         var tail = string.Join("\n", lines.Skip(Math.Max(0, lines.Length - 40)));
         if (!string.IsNullOrWhiteSpace(tail))
-            sb.AppendLine($"\n--- 输出末尾 ---\n{tail.TrimEnd()}");
+            sb.AppendLine(L.Pick($"\n--- 输出末尾 ---\n{tail.TrimEnd()}", $"\n--- End of output ---\n{tail.TrimEnd()}"));
 
         return sb.ToString();
     }

@@ -136,19 +136,23 @@ public sealed class VmlStatusSnapshot
 
         if (!HasVm)
         {
-            lines.Add(detailed ? "VM 状态 · 空闲（没有正在运行的程序）" : "VM 状态 · 空闲");
+            lines.Add(detailed
+                ? L.Pick("VM 状态 · 空闲（没有正在运行的程序）", "VM status · idle (no program running)")
+                : L.Pick("VM 状态 · 空闲", "VM status · idle"));
             return [.. lines];
         }
 
         if (!detailed) return CompactLines();
 
         // ① 总览：模式 / 特权级 / 跑没跑
-        lines.Add($"VM · {Mode} · 特权 {PrivilegeLevel} · {(Running ? "运行中" : "已结束")}");
+        lines.Add(L.Pick($"VM · {Mode} · 特权 {PrivilegeLevel} · {(Running ? "运行中" : "已结束")}",
+            $"VM · {Mode} · privilege {PrivilegeLevel} · {(Running ? "running" : "finished")}"));
 
         // ② 超时（这项是排查"卡死"的第一读数）
         lines.Add(TimeoutSeconds <= 0
-            ? "超时 不限"
-            : $"超时 {TimeoutSeconds}s · 剩 {TimeoutRemainingSeconds}s");
+            ? L.Pick("超时 不限", "Timeout unlimited")
+            : L.Pick($"超时 {TimeoutSeconds}s · 剩 {TimeoutRemainingSeconds}s",
+                $"Timeout {TimeoutSeconds}s · {TimeoutRemainingSeconds}s left"));
 
         // ③ 四个特殊寄存器（R12=FP / R13=SP / R14=LR / R15=RA，见 VmRuntime 的约定）
         lines.Add($"PC {Hex(Pc)}  SP {Hex(Reg(13))}  FP {Hex(Reg(12))}  LR {Hex(Reg(14))}");
@@ -177,23 +181,31 @@ public sealed class VmlStatusSnapshot
             lines.Add("L  " + Join(LongRegisters, 2, v => v.ToString(CultureInfo.InvariantCulture)));
 
         // ⑥ 标志位
-        lines.Add($"标志 {Flag("Z", Zf)} {Flag("C", Cf)} {Flag("S", Sf)}"
+        lines.Add(L.Pick($"标志 {Flag("Z", Zf)} {Flag("C", Cf)} {Flag("S", Sf)}"
                   + $" ｜ 浮点 {Flag("Z", Fzf)} {Flag("S", Fsf)} {Flag("C", Fcf)} "
-                  + $"{Flag("O", Fof)} {Flag("U", Fuf)} {Flag("D", Fdf)} {Flag("I", Fif)}");
+                  + $"{Flag("O", Fof)} {Flag("U", Fuf)} {Flag("D", Fdf)} {Flag("I", Fif)}",
+            $"Flags {Flag("Z", Zf)} {Flag("C", Cf)} {Flag("S", Sf)}"
+                  + $" | Float {Flag("Z", Fzf)} {Flag("S", Fsf)} {Flag("C", Fcf)} "
+                  + $"{Flag("O", Fof)} {Flag("U", Fuf)} {Flag("D", Fdf)} {Flag("I", Fif)}"));
 
         // ⑦ 执行量与内存
-        lines.Add($"指令 {InstructionsExecuted} · 调用 {SyscallsExecuted} · 退出码 {ExitCode}");
+        lines.Add(L.Pick($"指令 {InstructionsExecuted} · 调用 {SyscallsExecuted} · 退出码 {ExitCode}",
+            $"Instructions {InstructionsExecuted} · Syscalls {SyscallsExecuted} · Exit {ExitCode}"));
 
         // 占用**百分比在前**（用户要的就是这个数），绝对值跟在括号里当佐证。
         // ⚠ 分母为 0 时 `Percent` 给 `-` 而**不是 100%** —— 100% 会被读成"用满了"。
-        lines.Add($"内存 {Percent(MemoryUsedBytes, MemoryBytes)}（{Size1(MemoryUsedBytes)}/{Size(MemoryBytes)}）"
-                  + $" · 栈 {Percent(StackUsedBytes, StackBytes)}（{Size1(StackUsedBytes)}/{Size(StackBytes)}）");
+        lines.Add(L.Pick($"内存 {Percent(MemoryUsedBytes, MemoryBytes)}（{Size1(MemoryUsedBytes)}/{Size(MemoryBytes)}）"
+                  + $" · 栈 {Percent(StackUsedBytes, StackBytes)}（{Size1(StackUsedBytes)}/{Size(StackBytes)}）",
+            $"Memory {Percent(MemoryUsedBytes, MemoryBytes)} ({Size1(MemoryUsedBytes)}/{Size(MemoryBytes)})"
+                  + $" · Stack {Percent(StackUsedBytes, StackBytes)} ({Size1(StackUsedBytes)}/{Size(StackBytes)})"));
 
         // ⑧ 绘图窗口侧
         if (HasScene)
         {
-            lines.Add($"「{WindowTitle}」{SceneWidth}x{SceneHeight} · 图元 {FigureCount}"
-                      + $" · 帧 {FrameNumber} · {Fps:0.0}fps");
+            lines.Add(L.Pick($"「{WindowTitle}」{SceneWidth}x{SceneHeight} · 图元 {FigureCount}"
+                      + $" · 帧 {FrameNumber} · {Fps:0.0}fps",
+                $"\"{WindowTitle}\" {SceneWidth}x{SceneHeight} · Figures {FigureCount}"
+                      + $" · Frames {FrameNumber} · {Fps:0.0}fps"));
         }
 
         return [.. lines];
@@ -211,21 +223,27 @@ public sealed class VmlStatusSnapshot
         var lines = new List<string>();
 
         // ① 总览：跑没跑、什么模式、超时还剩多少。三项挤一行 —— 小窗里它们是一件事。
-        var head = $"VM · {Mode} · 特权 {PrivilegeLevel} · {(Running ? "运行中" : "已结束")}";
-        if (TimeoutSeconds > 0) head += $" · 超时剩 {TimeoutRemainingSeconds}s";
+        var head = L.Pick($"VM · {Mode} · 特权 {PrivilegeLevel} · {(Running ? "运行中" : "已结束")}",
+            $"VM · {Mode} · privilege {PrivilegeLevel} · {(Running ? "running" : "finished")}");
+        if (TimeoutSeconds > 0) head += L.Pick($" · 超时剩 {TimeoutRemainingSeconds}s",
+            $" · timeout {TimeoutRemainingSeconds}s left");
         lines.Add(head);
 
         // ② PC / SP / LR —— **"卡在哪"的那三个数**，小窗里唯一不能省的一组
         lines.Add($"PC {Hex(Pc)} · SP {Hex(Reg(13))} · LR {Hex(Reg(14))}");
 
         // ③ 执行量 / 占用：标志位只留整数那三个（浮点标志属于"翻寄存器"的活，归大窗）
-        lines.Add($"标志 {Flag("Z", Zf)}{Flag("C", Cf)}{Flag("S", Sf)}"
+        lines.Add(L.Pick($"标志 {Flag("Z", Zf)}{Flag("C", Cf)}{Flag("S", Sf)}"
                   + $" · 指令 {InstructionsExecuted} · 退出码 {ExitCode}"
-                  + $" · 内存 {Percent(MemoryUsedBytes, MemoryBytes)} · 栈 {Percent(StackUsedBytes, StackBytes)}");
+                  + $" · 内存 {Percent(MemoryUsedBytes, MemoryBytes)} · 栈 {Percent(StackUsedBytes, StackBytes)}",
+            $"Flags {Flag("Z", Zf)}{Flag("C", Cf)}{Flag("S", Sf)}"
+                  + $" · Instructions {InstructionsExecuted} · Exit {ExitCode}"
+                  + $" · Memory {Percent(MemoryUsedBytes, MemoryBytes)} · Stack {Percent(StackUsedBytes, StackBytes)}"));
 
         // ④ 绘图窗口侧：只留"还出不出帧"（标题在窗口上本来就有，不重复占地方）
         if (HasScene)
-            lines.Add($"{SceneWidth}x{SceneHeight} · 图元 {FigureCount} · 帧 {FrameNumber} · {Fps:0.0}fps");
+            lines.Add(L.Pick($"{SceneWidth}x{SceneHeight} · 图元 {FigureCount} · 帧 {FrameNumber} · {Fps:0.0}fps",
+                $"{SceneWidth}x{SceneHeight} · Figures {FigureCount} · Frames {FrameNumber} · {Fps:0.0}fps"));
 
         return [.. lines];
     }

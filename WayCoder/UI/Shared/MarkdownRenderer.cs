@@ -544,7 +544,7 @@ public static class MarkdownParser
             {
                 FlushCurrent();
                 result.Add(("\U0001F5BC ", 2, curBg));                       // 🖼 前缀（图形界面可换成真图片）
-                result.Add((imgText.Length > 0 ? imgText : "图片", 36, curBg));
+                result.Add((imgText.Length > 0 ? imgText : L.Pick("图片", "image"), 36, curBg));
                 if (imgUrl.Length > 0) result.Add(($" ({imgUrl})", 2, curBg));
                 i = imgEnd;
                 continue;

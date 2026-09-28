@@ -13,8 +13,8 @@ public class CdCommand : SlashCommand
 {
     public override string Name => "/cd";
     public override string[] Aliases => ["/目录", "/cwd", "/pwd"];
-    public override string Description => "查看或设置当前槽位的工作目录（每槽位独立）";
-    public override string? Usage => "/cd [路径]";
+    public override string Description => L.Pick("查看或设置当前槽位的工作目录（每槽位独立）", "Show or set the working directory of the current slot (per-slot)");
+    public override string? Usage => L.Pick("/cd [路径]", "/cd [path]");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -23,7 +23,7 @@ public class CdCommand : SlashCommand
 
         if (slots == null || idx < 0 || idx >= slots.Length)
         {
-            screen.AddMessage("当前无活跃槽位，无法操作工作目录。", "system");
+            screen.AddMessage(L.Pick("当前无活跃槽位，无法操作工作目录。", "No active slot; cannot change the working directory."), "system");
             return Task.CompletedTask;
         }
 
@@ -34,7 +34,7 @@ public class CdCommand : SlashCommand
         if (string.IsNullOrWhiteSpace(arg))
         {
             // 查看当前目录
-            screen.AddMessage($"📁 **F{idx + 1} 工作目录**: `{current}`\n\n💡 用 `/cd <路径>` 更改，仅影响本槽位。", "system");
+            screen.AddMessage(L.Pick($"📁 **F{idx + 1} 工作目录**: `{current}`\n\n💡 用 `/cd <路径>` 更改，仅影响本槽位。", $"📁 **F{idx + 1} working directory**: `{current}`\n\n💡 Use `/cd <path>` to change it; this slot only."), "system");
             return Task.CompletedTask;
         }
 
@@ -47,18 +47,18 @@ public class CdCommand : SlashCommand
         }
         catch (Exception ex)
         {
-            screen.AddMessage($"❌ 路径无效：{ex.Message}", "system");
+            screen.AddMessage(L.Pick($"❌ 路径无效：{ex.Message}", $"❌ Invalid path: {ex.Message}"), "system");
             return Task.CompletedTask;
         }
 
         if (!Directory.Exists(full))
         {
-            screen.AddMessage($"❌ 目录不存在：`{full}`", "system");
+            screen.AddMessage(L.Pick($"❌ 目录不存在：`{full}`", $"❌ Directory does not exist: `{full}`"), "system");
             return Task.CompletedTask;
         }
 
         slot.WorkingDirectory = full;
-        screen.AddMessage($"📁 **F{idx + 1} 工作目录已设置**: `{full}`\n\n下次任务（或 `/cd` 后）将从该目录起步，其他槽位不受影响。", "system");
+        screen.AddMessage(L.Pick($"📁 **F{idx + 1} 工作目录已设置**: `{full}`\n\n下次任务（或 `/cd` 后）将从该目录起步，其他槽位不受影响。", $"📁 **F{idx + 1} working directory set**: `{full}`\n\nThe next task (or `/cd`) starts from this directory; other slots are unaffected."), "system");
         return Task.CompletedTask;
     }
 

@@ -75,14 +75,14 @@ public static class McpConfigStore
     {
         error = null;
         var name = server["name"]?.AsString();
-        if (string.IsNullOrEmpty(name)) { error = "服务器配置缺少 name"; return false; }
+        if (string.IsNullOrEmpty(name)) { error = L.Pick("服务器配置缺少 name", "Server config is missing \"name\""); return false; }
 
         lock (Lock) // lock 可重入：Load/Save 内部同锁
         {
             var existing = Load(path);
             if (HasServer(existing, name))
             {
-                error = $"服务器 {name} 已存在配置中";
+                error = L.Pick($"服务器 {name} 已存在配置中", $"Server {name} already exists in the configuration");
                 return false;
             }
             existing.Add(server);

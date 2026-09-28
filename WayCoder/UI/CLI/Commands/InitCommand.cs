@@ -13,7 +13,7 @@ namespace WayCoder.UI.Cli.Commands;
 public class InitCommand : SlashCommand
 {
     public override string Name => "/init";
-    public override string Description => "分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）";
+    public override string Description => L.Pick("分析项目并生成 AGENT.md（/init claude 生成 CLAUDE.md）", "Analyze the project and generate AGENT.md (/init claude generates CLAUDE.md)");
     public override string? Usage => "/init [force|claude]";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
@@ -29,30 +29,34 @@ public class InitCommand : SlashCommand
         // 已有文件确认（放 LLM 调用前，避免白花 token 生成后又取消）
         if (File.Exists(target) && !force)
         {
-            var choice = UxHelper.Select($"已存在 {fileName}，如何操作？",
-                new List<string> { $"覆盖现有 {fileName}（LLM 重新分析）", "取消" });
-            if (choice == null || choice == "取消")
+            // ⚠ 「取消」这个选项串**同时是判据**（下面与 choice 比较）——必须与比较共用同一个值，
+            //   否则英文界面下选项显示 Cancel、比较却仍是中文，取消会被当成确认。
+            var overwrite = L.Pick($"覆盖现有 {fileName}（LLM 重新分析）", $"Overwrite the existing {fileName} (re-analyze with the LLM)");
+            var cancel = L.Pick("取消", "Cancel");
+            var choice = UxHelper.Select(L.Pick($"已存在 {fileName}，如何操作？", $"{fileName} already exists — what should I do?"),
+                new List<string> { overwrite, cancel });
+            if (choice == null || choice == cancel)
             {
-                screen.AddSystemMsg($"⏭ 已取消，保留现有 {fileName}");
+                screen.AddSystemMsg(L.Pick($"⏭ 已取消，保留现有 {fileName}", $"⏭ Cancelled; keeping the existing {fileName}"));
                 return;
             }
         }
 
 #if ANDROID || IOS || MACCATALYST || WINDOWS
         // MAUI 无 Program.RunWithUiLoop / ChatScreen.StartAgentMsg 等桌面 API：LLM 生成仅桌面端可用，移动端用静态模板
-        WriteFallback(info, fileName, target, screen, "MAUI 用静态模板");
+        WriteFallback(info, fileName, target, screen, L.Pick("MAUI 用静态模板", "using the static template on MAUI"));
         return;
 #else
         // LLM 可用性 → 降级（含自测模式 / 未配置模型）
         var llm = ProgramContext.LLM ?? ProgramContext.Agent?.LlmClient;
         if (!ProjectInitAnalyzer.ShouldUseLlm(llm))
         {
-            WriteFallback(info, fileName, target, screen, "未配置 LLM");
+            WriteFallback(info, fileName, target, screen, L.Pick("未配置 LLM", "no LLM configured"));
             return;
         }
 
         // LLM 路径：后台收集+调用，UI 保持渲染 + 流式推屏
-        screen.AddSystemMsg($"🔍 正在用 LLM 分析 {info.PrimaryLanguage} 项目并生成 {fileName} …");
+        screen.AddSystemMsg(L.Pick($"🔍 正在用 LLM 分析 {info.PrimaryLanguage} 项目并生成 {fileName} …", $"🔍 Analyzing the {info.PrimaryLanguage} project with the LLM and generating {fileName} …"));
         screen.StartAgentMsg();
         try
         {
@@ -66,7 +70,7 @@ public class InitCommand : SlashCommand
             var llmDriven = !string.IsNullOrWhiteSpace(content);
             if (!llmDriven)
             {
-                screen.AddSystemMsg("⚠ LLM 返回空内容，回退静态模板。");
+                screen.AddSystemMsg(L.Pick("⚠ LLM 返回空内容，回退静态模板。", "⚠ The LLM returned empty content; falling back to the static template."));
                 content = ProjectInitAnalyzer.FallbackContent(info, fileName);
             }
 
@@ -76,9 +80,9 @@ public class InitCommand : SlashCommand
         catch (Exception ex)
         {
             screen.FinishAgentMsg();
-            screen.AddSystemMsg($"⚠ LLM 生成失败：{ex.Message}，已回退静态模板。");
+            screen.AddSystemMsg(L.Pick($"⚠ LLM 生成失败：{ex.Message}，已回退静态模板。", $"⚠ LLM generation failed: {ex.Message}. Fell back to the static template."));
             ErrorLog.Error("init", $"LLM /init 失败: {ex.Message}", ex);
-            WriteFallback(info, fileName, target, screen, "LLM 调用失败");
+            WriteFallback(info, fileName, target, screen, L.Pick("LLM 调用失败", "the LLM call failed"));
         }
 #endif
     }
@@ -104,20 +108,28 @@ public class InitCommand : SlashCommand
     {
         var content = ProjectInitAnalyzer.FallbackContent(info, fileName);
         Global.WriteAllTextPreserveBom(target, content);
-        screen.AddSystemMsg($"⚠ {reason}，已用静态模板生成 {fileName}（可稍后 /init force 再用 LLM 生成）。");
+        screen.AddSystemMsg(L.Pick($"⚠ {reason}，已用静态模板生成 {fileName}（可稍后 /init force 再用 LLM 生成）。", $"⚠ {reason}; generated {fileName} from the static template (run /init force later to generate it with the LLM)."));
         screen.AddSystemMsg(BuildSummary(info, fileName, llmDriven: false));
     }
 
     static string BuildSummary(ProjectInfo info, string fileName, bool llmDriven)
     {
-        var frameworks = info.Frameworks.Count > 0 ? string.Join(", ", info.Frameworks) : "无";
-        var buildTools = info.BuildTools.Count > 0 ? string.Join(", ", info.BuildTools) : "无";
-        var mode = llmDriven ? "LLM 分析" : "静态模板";
-        return $"✅ 已生成 {fileName}（{mode}）\n" +
+        var none = L.Pick("无", "none");
+        var frameworks = info.Frameworks.Count > 0 ? string.Join(", ", info.Frameworks) : none;
+        var buildTools = info.BuildTools.Count > 0 ? string.Join(", ", info.BuildTools) : none;
+        var mode = llmDriven ? L.Pick("LLM 分析", "LLM analysis") : L.Pick("静态模板", "static template");
+        return L.Pick(
+            $"✅ 已生成 {fileName}（{mode}）\n" +
             $"- 项目: {Path.GetFileName(info.ProjectRoot.TrimEnd('/', '\\'))}\n" +
             $"- 语言: {info.PrimaryLanguage}\n" +
             $"- 框架: {frameworks}\n" +
             $"- 构建: {buildTools}\n" +
-            $"下次启动时自动注入此文件，也可现在打开查看补充架构与注意事项。";
+            $"下次启动时自动注入此文件，也可现在打开查看补充架构与注意事项。",
+            $"✅ Generated {fileName} ({mode})\n" +
+            $"- Project: {Path.GetFileName(info.ProjectRoot.TrimEnd('/', '\\'))}\n" +
+            $"- Language: {info.PrimaryLanguage}\n" +
+            $"- Frameworks: {frameworks}\n" +
+            $"- Build: {buildTools}\n" +
+            $"This file is injected automatically on the next launch; open it now to review the architecture and gotchas it adds.");
     }
 }

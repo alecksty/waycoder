@@ -24,8 +24,8 @@ public class CpTool : ITool
         var dest = arguments.GetValueOrDefault("dest")?.ToString() ?? "";
         var overwrite = arguments.TryGetValue("overwrite", out var o) && o is bool ob && ob;
 
-        if (string.IsNullOrWhiteSpace(src)) return Task.FromResult("错误：src 参数不能为空");
-        if (string.IsNullOrWhiteSpace(dest)) return Task.FromResult("错误：dest 参数不能为空");
+        if (string.IsNullOrWhiteSpace(src)) return Task.FromResult(L.Pick("错误：src 参数不能为空", "Error: the src parameter cannot be empty"));
+        if (string.IsNullOrWhiteSpace(dest)) return Task.FromResult(L.Pick("错误：dest 参数不能为空", "Error: the dest parameter cannot be empty"));
 
         return Task.FromResult(Execute(src, dest, overwrite));
     }
@@ -43,11 +43,12 @@ public class CpTool : ITool
             // cp 能把文件写到项目根之外。
             var srcSensitive = PathSafety.CheckSensitive(srcPath);
             if (srcSensitive != null)
-                return $"❌ 已阻止：{srcSensitive}（安全策略：敏感文件读写受保护）";
+                return L.Pick($"❌ 已阻止：{srcSensitive}（安全策略：敏感文件读写受保护）",
+                              $"❌ Blocked: {srcSensitive} (security policy: sensitive files are protected)");
             if (PathSafety.Guard(destPath) is { } destBlocked) return destBlocked;
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
-                return $"错误：源不存在 — {srcPath}";
+                return L.Pick($"错误：源不存在 — {srcPath}", $"Error: source does not exist — {srcPath}");
 
             // 如果 dest 是目录或以 / 结尾，则复制到目录内
             if (dest.EndsWith(Path.DirectorySeparatorChar) || dest.EndsWith('/')
@@ -65,9 +66,9 @@ public class CpTool : ITool
             if (File.Exists(srcPath))
             {
                 if (File.Exists(destPath) && !overwrite)
-                    return $"⚠ 目标已存在，使用 overwrite=true 覆盖: {destPath}";
+                    return L.Pick($"⚠ 目标已存在，使用 overwrite=true 覆盖: {destPath}", $"⚠ Destination already exists; pass overwrite=true to replace it: {destPath}");
                 File.Copy(srcPath, destPath, overwrite);
-                return $"✔ 已复制: {srcPath} → {destPath}";
+                return L.Pick($"✔ 已复制: {srcPath} → {destPath}", $"✔ Copied: {srcPath} → {destPath}");
             }
 
             if (Directory.Exists(srcPath))
@@ -77,14 +78,14 @@ public class CpTool : ITool
                 var srcPrefix = srcTrimmed + Path.DirectorySeparatorChar;
                 if (destPath.Equals(srcTrimmed, StringComparison.OrdinalIgnoreCase)
                     || destPath.StartsWith(srcPrefix, StringComparison.OrdinalIgnoreCase))
-                    return $"⚠ 无法复制：目标 '{destPath}' 位于源目录内部";
+                    return L.Pick($"⚠ 无法复制：目标 '{destPath}' 位于源目录内部", $"⚠ Cannot copy: destination '{destPath}' is inside the source directory");
 
                 // 递归复制目录
                 FileOps.CopyDirectory(srcPath, destPath, overwrite);
-                return $"✔ 已复制目录: {srcPath} → {destPath}";
+                return L.Pick($"✔ 已复制目录: {srcPath} → {destPath}", $"✔ Copied directory: {srcPath} → {destPath}");
             }
 
-            return $"错误：未知文件类型 — {srcPath}";
+            return L.Pick($"错误：未知文件类型 — {srcPath}", $"Error: unknown file type — {srcPath}");
         }
         catch (Exception ex)
         {

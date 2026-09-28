@@ -108,8 +108,10 @@ public class ContextManager
     public sealed record CompactionEntry(
         int Layer, DateTime At, int BeforeCount, int AfterCount, int BeforeTokens, int AfterTokens)
     {
+        // ⚠ 这是**显示**文案（压缩历史面板 / 状态栏），不是判据 —— 跟界面语言走。
         public override string ToString() =>
-            $"[L{Layer}] {BeforeCount}→{AfterCount} 条消息, {BeforeTokens}→{AfterTokens} tokens";
+            L.Pick($"[L{Layer}] {BeforeCount}→{AfterCount} 条消息, {BeforeTokens}→{AfterTokens} tokens",
+                $"[L{Layer}] {BeforeCount}→{AfterCount} messages, {BeforeTokens}→{AfterTokens} tokens");
     }
 
     /// <summary>记录一次压缩并广播事件（历史有界防内存无界增长）。</summary>
@@ -286,13 +288,13 @@ public class ContextManager
             if (current > _snipAt)
             {
                 var beforeSnip = current;
-                ReportProgress(1, "裁剪工具输出...", current, onProgress);
+                ReportProgress(1, L.Pick("裁剪工具输出...", "Trimming tool output..."), current, onProgress);
                 if (SnipToolOutputs(messages, EffectiveSnipChars()))
                 {
                     compressed = true;
                     var after = EstimateCalibratedTokens(messages);
                     // 上报本轮实际节省量（裁剪前 − 裁剪后），而非裁剪后的剩余容量
-                    ReportProgress(1, "裁剪完成", after, onProgress, $"(-{Math.Max(0, beforeSnip - after)})");
+                    ReportProgress(1, L.Pick("裁剪完成", "Trim complete"), after, onProgress, $"(-{Math.Max(0, beforeSnip - after)})");
                     RecordCompaction(1, messages.Count, messages.Count, beforeSnip, after);
                     current = after;
                 }
@@ -303,13 +305,14 @@ public class ContextManager
             {
                 var beforeCount = messages.Count;
                 var beforeTokens = current;
-                WarnCompaction($"上下文即将压缩：将把前 {beforeCount - 20} 条早期消息合并为摘要（保留最近 20 条）");
-                ReportProgress(2, "正在摘要旧对话...", current, onProgress);
+                WarnCompaction(L.Pick($"上下文即将压缩：将把前 {beforeCount - 20} 条早期消息合并为摘要（保留最近 20 条）",
+                    $"Context is about to be compacted: the earliest {beforeCount - 20} messages will be merged into a summary (the most recent 20 are kept)"));
+                ReportProgress(2, L.Pick("正在摘要旧对话...", "Summarizing older conversation..."), current, onProgress);
                 if (await SummarizeOldAsync(messages, llm))
                 {
                     compressed = true;
                     current = EstimateCalibratedTokens(messages);
-                    ReportProgress(2, "摘要完成", current, onProgress);
+                    ReportProgress(2, L.Pick("摘要完成", "Summary complete"), current, onProgress);
                     RecordCompaction(2, beforeCount, messages.Count, beforeTokens, current);
                 }
             }
@@ -319,12 +322,13 @@ public class ContextManager
             {
                 var beforeCount = messages.Count;
                 var beforeTokens = current;
-                WarnCompaction($"上下文即将硬折叠：仅保留最近 {(messages.Count > 12 ? 12 : 6)} 条消息，其余合并为摘要 + 项目快照");
-                ReportProgress(3, "紧急压缩...", current, onProgress);
+                WarnCompaction(L.Pick($"上下文即将硬折叠：仅保留最近 {(messages.Count > 12 ? 12 : 6)} 条消息，其余合并为摘要 + 项目快照",
+                    $"Context is about to be hard-collapsed: only the most recent {(messages.Count > 12 ? 12 : 6)} messages are kept; the rest are merged into a summary plus a project snapshot"));
+                ReportProgress(3, L.Pick("紧急压缩...", "Emergency compaction..."), current, onProgress);
                 await HardCollapseAsync(messages, llm);
                 compressed = true;
                 current = EstimateCalibratedTokens(messages);
-                ReportProgress(3, "压缩完成", current, onProgress);
+                ReportProgress(3, L.Pick("压缩完成", "Compaction complete"), current, onProgress);
                 RecordCompaction(3, beforeCount, messages.Count, beforeTokens, current);
             }
         }
@@ -440,8 +444,12 @@ public class ContextManager
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 // 共用标记表（见类首）+ 本调用点**特有**的两条：`[stderr]` / `[退出码`
                 // 是工具输出末尾的结构化尾巴，只有「保留上下文」这一侧需要它们。
+                // ⚠⚠ 中英双认（公理 A2）：尾巴由 BashTool / PersistentShell / GitTool / BackgroundTask
+                //   产出，那几处已双语化（英文为 `[exit code: N]` / `[Exit code: N]`）⇒ 只认中文会让
+                //   英文界面下退出码行不再被当作错误上下文保留（静默少留诊断信息）。
                 if (HasErrorMarker(line) || HasWeakErrorMarker(line) ||
-                    line.Contains("[stderr]") || line.Contains("[退出码"))
+                    line.Contains("[stderr]") || line.Contains("[退出码")
+                    || line.Contains("[exit code") || line.Contains("[Exit code"))
                 {
                     // 保留错误行及其上下文（前后各 2 行）
                     for (int j = Math.Max(0, i - 2); j <= Math.Min(lines.Length - 1, i + 2); j++)
@@ -463,16 +471,19 @@ public class ContextManager
             foreach (var idx in sorted)
             {
                 if (idx > lastWritten + 1)
-                    sb.AppendLine($"...（省略 {idx - lastWritten - 1} 行）...");
+                    sb.AppendLine(L.Pick($"...（省略 {idx - lastWritten - 1} 行）...",
+                        $"... ({idx - lastWritten - 1} lines omitted) ..."));
                 sb.AppendLine(lines[idx]);
                 lastWritten = idx;
             }
 
             var snipped = sb.ToString().TrimEnd();
             if (errorLines.Count > 0)
-                snipped += $"\n\n⚠ 已保留 {errorLines.Count} 处错误上下文。完整输出共 {lines.Length} 行 / {content.Length} 字符。";
+                snipped += L.Pick($"\n\n⚠ 已保留 {errorLines.Count} 处错误上下文。完整输出共 {lines.Length} 行 / {content.Length} 字符。",
+                    $"\n\n⚠ Kept the surrounding context of {errorLines.Count} error site(s). The full output is {lines.Length} lines / {content.Length} chars.");
             else
-                snipped += $"\n\n...（共 {lines.Length} 行 / {content.Length} 字符，已裁剪以节省上下文。使用详细模式查看完整输出）...";
+                snipped += L.Pick($"\n\n...（共 {lines.Length} 行 / {content.Length} 字符，已裁剪以节省上下文。使用详细模式查看完整输出）...",
+                    $"\n\n... ({lines.Length} lines / {content.Length} chars total; trimmed to save context. Use detailed mode to see the full output) ...");
 
             m.Set("content", snipped);
             changed = true;
@@ -509,10 +520,12 @@ public class ContextManager
         messages.Clear();
         messages.Add(JNode.Object()
             .Set("role", "user")
-            .Set("content", $"[上下文已压缩 - 对话摘要]\n{summary}"));
+            .Set("content", L.Pick($"[上下文已压缩 - 对话摘要]\n{summary}",
+                $"[Context compacted - conversation summary]\n{summary}")));
         messages.Add(JNode.Object()
             .Set("role", "assistant")
-            .Set("content", "收到，我已了解之前对话的上下文。"));
+            .Set("content", L.Pick("收到，我已了解之前对话的上下文。",
+                "Understood. I now have the context of the earlier conversation.")));
         messages.AddRange(tail);
         return true;
     }
@@ -534,10 +547,12 @@ public class ContextManager
         messages.Clear();
         messages.Add(JNode.Object()
             .Set("role", "user")
-            .Set("content", $"[硬重置上下文 — 项目恢复到关键状态]\n\n## 项目快照\n{snapshot}\n\n## 对话摘要\n{summary}"));
+            .Set("content", L.Pick($"[硬重置上下文 — 项目恢复到关键状态]\n\n## 项目快照\n{snapshot}\n\n## 对话摘要\n{summary}",
+                $"[Context hard-reset — project restored to a key state]\n\n## Project snapshot\n{snapshot}\n\n## Conversation summary\n{summary}")));
         messages.Add(JNode.Object()
             .Set("role", "assistant")
-            .Set("content", "上下文已恢复。我已了解当前项目结构和之前的关键进展。从之前中断的地方继续。"));
+            .Set("content", L.Pick("上下文已恢复。我已了解当前项目结构和之前的关键进展。从之前中断的地方继续。",
+                "Context restored. I know the project structure and the key progress so far. Continue from where it left off.")));
         messages.AddRange(tail);
     }
 
@@ -600,7 +615,7 @@ public class ContextManager
         if (!string.IsNullOrEmpty(progress) && progress != "⏳ 就绪")
         {
             var summary = ExtractKeyInfo(messages);
-            return summary + "\n\n## 当前进度\n" + progress;
+            return summary + L.Pick("\n\n## 当前进度\n", "\n\n## Current progress\n") + progress;
         }
 
         // 回退方案：提取文件路径和错误
@@ -644,7 +659,9 @@ public class ContextManager
     /// </summary>
     internal static string TruncateWithNotice(string text, int maxChars, string? suffix = null)
         => text.Length > maxChars
-            ? TruncateByRunes(text, maxChars) + $"\n...(截断于 {maxChars:N0} 字符{(string.IsNullOrEmpty(suffix) ? "" : $"，{suffix}")})"
+            ? TruncateByRunes(text, maxChars) + L.Pick(
+                $"\n...(截断于 {maxChars:N0} 字符{(string.IsNullOrEmpty(suffix) ? "" : $"，{suffix}")})",
+                $"\n...(truncated at {maxChars:N0} chars{(string.IsNullOrEmpty(suffix) ? "" : $", {suffix}")})")
             : text;
 
     /// <summary>
@@ -691,7 +708,7 @@ public class ContextManager
             var dirName = Path.GetFileName(cwd);
 
             // 1. 工作目录
-            parts.Add($"- 工作目录：{cwd}");
+            parts.Add(L.Pick($"- 工作目录：{cwd}", $"- Working directory: {cwd}"));
 
             // 2. 关键配置文件
             var keyFiles = new[] {
@@ -712,7 +729,8 @@ public class ContextManager
                 catch { /* ignore */ }
             }
             if (foundConfigs.Count > 0)
-                parts.Add($"- 配置文件：{string.Join(", ", foundConfigs.Distinct().Take(10))}");
+                parts.Add(L.Pick($"- 配置文件：{string.Join(", ", foundConfigs.Distinct().Take(10))}",
+                    $"- Config files: {string.Join(", ", foundConfigs.Distinct().Take(10))}"));
 
             // 3. 顶层目录结构
             try
@@ -723,7 +741,8 @@ public class ContextManager
                     .Take(15)
                     .ToList();
                 if (topDirs.Count > 0)
-                    parts.Add($"- 顶层目录：{string.Join(", ", topDirs)}");
+                    parts.Add(L.Pick($"- 顶层目录：{string.Join(", ", topDirs)}",
+                        $"- Top-level directories: {string.Join(", ", topDirs)}"));
             }
             catch { /* ignore */ }
 
@@ -733,17 +752,17 @@ public class ContextManager
                 var gitDir = Path.Combine(cwd, ".git");
                 if (System.IO.Directory.Exists(gitDir))
                 {
-                    parts.Add("- Git 仓库：是");
+                    parts.Add(L.Pick("- Git 仓库：是", "- Git repository: yes"));
                 }
             }
             catch { /* ignore */ }
 
             if (parts.Count == 1)
-                parts.Add("- （未检测到更多项目结构信息）");
+                parts.Add(L.Pick("- （未检测到更多项目结构信息）", "- (no further project structure information detected)"));
         }
         catch
         {
-            return "- 无法生成项目快照";
+            return L.Pick("- 无法生成项目快照", "- Could not generate a project snapshot");
         }
 
         return string.Join("\n", parts);
@@ -802,7 +821,8 @@ public class ContextManager
 
             // 提取需求/todo 条目（压缩保真度：保留"未完成任务清单"）
             foreach (Match match in reqRegex.Matches(text))
-                todos.Add($"需求 {match.Groups[1].Value}: {match.Groups[2].Value.Trim()}");
+                todos.Add(L.Pick($"需求 {match.Groups[1].Value}: {match.Groups[2].Value.Trim()}",
+                    $"Requirement {match.Groups[1].Value}: {match.Groups[2].Value.Trim()}"));
             foreach (Match match in todoRegex.Matches(text))
                 todos.Add(match.Groups[1].Value.Trim());
             foreach (Match match in todoKwRegex.Matches(text))
@@ -813,20 +833,25 @@ public class ContextManager
 
         // 项目结构
         if (namespaces.Count > 0)
-            parts.Add($"命名空间：{string.Join(", ", namespaces.OrderBy(n => n).Take(10))}");
+            parts.Add(L.Pick($"命名空间：{string.Join(", ", namespaces.OrderBy(n => n).Take(10))}",
+                $"Namespaces: {string.Join(", ", namespaces.OrderBy(n => n).Take(10))}"));
         if (filesSeen.Count > 0)
-            parts.Add($"涉及的文件：{string.Join(", ", filesSeen.OrderBy(f => f).Take(25))}");
+            parts.Add(L.Pick($"涉及的文件：{string.Join(", ", filesSeen.OrderBy(f => f).Take(25))}",
+                $"Files involved: {string.Join(", ", filesSeen.OrderBy(f => f).Take(25))}"));
 
         // 错误（去重 + 限制数量）
         var uniqueErrors = errors.Distinct().Take(8).ToList();
         if (uniqueErrors.Count > 0)
-            parts.Add($"遇到的错误：{string.Join("；", uniqueErrors)}");
+            parts.Add(L.Pick($"遇到的错误：{string.Join("；", uniqueErrors)}",
+                $"Errors encountered: {string.Join("; ", uniqueErrors)}"));
 
         // 需求/todo 清单（压缩保真度：保留未完成任务）
         var uniqueTodos = todos.Distinct().Take(10).ToList();
         if (uniqueTodos.Count > 0)
-            parts.Add($"待完成需求：{string.Join("；", uniqueTodos)}");
+            parts.Add(L.Pick($"待完成需求：{string.Join("；", uniqueTodos)}",
+                $"Pending requirements: {string.Join("; ", uniqueTodos)}"));
 
-        return parts.Count > 0 ? string.Join("\n", parts) : "（无可提取的上下文）";
+        return parts.Count > 0 ? string.Join("\n", parts)
+            : L.Pick("（无可提取的上下文）", "(no extractable context)");
     }
 }

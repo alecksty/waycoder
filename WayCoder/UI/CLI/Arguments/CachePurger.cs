@@ -14,7 +14,9 @@ public static class CachePurger
         TryPurgeFile(Path.Combine(cwd, ".waycoder", "file-tracker.json"), purged);
         TryPurgeFile(Path.Combine(cwd, ".waycoder", "todos.json"), purged);
         TryPurgeDir(Path.Combine(cwd, ".waycoder", "trajectory"), purged);
-        Console.WriteLine(purged.Count == 0 ? "没有可清理的缓存文件" : $"已清理 {purged.Count} 项缓存:");
+        Console.WriteLine(purged.Count == 0
+            ? L.Pick("没有可清理的缓存文件", "No cache files to purge")
+            : L.Pick($"已清理 {purged.Count} 项缓存:", $"Purged {purged.Count} cache item(s):"));
         foreach (var p in purged) Console.WriteLine($"  - {p}");
         return 0;
     }

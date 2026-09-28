@@ -19,12 +19,12 @@ public static class PngEncoder
     public static byte[] Encode(int width, int height, byte[] rgba)
     {
         if (width <= 0 || height <= 0)
-            throw new ArgumentException("宽高必须为正整数");
+            throw new ArgumentException(L.Pick("宽高必须为正整数", "Width and height must be positive integers"));
         // 防整数溢出：width*height*4 与 stride*height 可能溢出 int（如 10 万×10 万）
         if ((long)width * height > MaxPixels)
-            throw new ArgumentException("图像尺寸过大");
+            throw new ArgumentException(L.Pick("图像尺寸过大", "Image dimensions are too large"));
         if (rgba == null || rgba.Length < (long)width * height * 4)
-            throw new ArgumentException("像素缓冲长度不足");
+            throw new ArgumentException(L.Pick("像素缓冲长度不足", "Pixel buffer is too short"));
 
         // 每行前置 filter 字节 0（None）
         int stride = width * 4;

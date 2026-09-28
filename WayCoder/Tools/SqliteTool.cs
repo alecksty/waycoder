@@ -30,7 +30,7 @@ public class SqliteTool : ITool
         var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
 
         if (string.IsNullOrWhiteSpace(query))
-            return "错误：请提供 SQL 查询 (query)";
+            return L.Pick("错误：请提供 SQL 查询 (query)", "Error: please provide a SQL query (query)");
 
         return await RunAsync(database, query);
     }
@@ -54,20 +54,24 @@ public class SqliteTool : ITool
             psi.ArgumentList.Add(query);
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, 30_000);
-            if (r == null) return "错误：SQL 执行超时（30 秒）";
+            if (r == null) return L.Pick("错误：SQL 执行超时（30 秒）", "Error: SQL execution timed out (30s)");
             var (exitCode, stdout, stderr) = r.Value;
 
             if (exitCode != 0 && !string.IsNullOrWhiteSpace(stderr))
-                return $"错误：SQL 执行失败 — {stderr.Trim()}";
+                return L.Pick($"错误：SQL 执行失败 — {stderr.Trim()}", $"Error: SQL execution failed - {stderr.Trim()}");
 
-            return string.IsNullOrWhiteSpace(stdout) ? "（查询无结果）" : stdout.TrimEnd();
+            return string.IsNullOrWhiteSpace(stdout) ? L.Pick("（查询无结果）", "(no rows returned)") : stdout.TrimEnd();
         }
         catch (System.ComponentModel.Win32Exception)
         {
-            return "错误：未找到 sqlite3 命令行工具。\n" +
-                   "  macOS: brew install sqlite3\n" +
-                   "  Linux: apt-get install sqlite3（或 yum install sqlite）\n" +
-                   "  Windows: 从 https://sqlite.org/download.html 下载 sqlite-tools 并加入 PATH";
+            return L.Pick("错误：未找到 sqlite3 命令行工具。\n" +
+                          "  macOS: brew install sqlite3\n" +
+                          "  Linux: apt-get install sqlite3（或 yum install sqlite）\n" +
+                          "  Windows: 从 https://sqlite.org/download.html 下载 sqlite-tools 并加入 PATH",
+                          "Error: the sqlite3 command-line tool was not found.\n" +
+                          "  macOS: brew install sqlite3\n" +
+                          "  Linux: apt-get install sqlite3 (or yum install sqlite)\n" +
+                          "  Windows: download sqlite-tools from https://sqlite.org/download.html and add it to PATH");
         }
         catch (Exception ex)
         {

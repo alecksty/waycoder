@@ -7,11 +7,11 @@ namespace WayCoder.Tools;
 /// </summary>
 public static class PathGuard
 {
-    /// <summary>文件不存在返回「错误：{label}不存在 — {path}」，存在返回 null。</summary>
-    public static string? RequireFile(string path, string label = "文件")
-        => File.Exists(path) ? null : $"错误：{label}不存在 — {path}";
+    /// <summary>文件不存在返回「错误：文件不存在 — {path}」，存在返回 null。</summary>
+    public static string? RequireFile(string path)
+        => File.Exists(path) ? null : L.Pick($"错误：文件不存在 — {path}", $"Error: file not found - {path}");
 
     /// <summary>目录不存在返回「错误：目录不存在 — {path}」，存在返回 null。</summary>
     public static string? RequireDir(string path)
-        => Directory.Exists(path) ? null : $"错误：目录不存在 — {path}";
+        => Directory.Exists(path) ? null : L.Pick($"错误：目录不存在 — {path}", $"Error: directory not found - {path}");
 }

@@ -70,7 +70,7 @@ public static class SharedMemoryManager
 
         if (!IsGitRepo())
         {
-            status.Error = "当前目录不在 git 仓库中";
+            status.Error = L.Pick("当前目录不在 git 仓库中", "the current directory is not inside a git repository");
             return status;
         }
 
@@ -120,13 +120,13 @@ public static class SharedMemoryManager
 
         if (!IsGitRepo())
         {
-            result.Error = "当前目录不在 git 仓库中";
+            result.Error = L.Pick("当前目录不在 git 仓库中", "the current directory is not inside a git repository");
             return result;
         }
 
         if (string.IsNullOrEmpty(_memoryGitPath))
         {
-            result.Error = "无法确定 memory 目录路径";
+            result.Error = L.Pick("无法确定 memory 目录路径", "cannot determine the memory directory path");
             return result;
         }
 
@@ -151,7 +151,7 @@ public static class SharedMemoryManager
             var fetchResult = await RunGitAsync("fetch origin");
             if (fetchResult.exitCode != 0)
             {
-                result.Error = $"git fetch 失败: {fetchResult.stderr}";
+                result.Error = L.Pick("git fetch 失败", "git fetch failed") + $": {fetchResult.stderr}";
                 return result;
             }
 
@@ -164,10 +164,10 @@ public static class SharedMemoryManager
                 if (checkoutResult.stderr.Contains("pathspec") &&
                     checkoutResult.stderr.Contains("did not match"))
                 {
-                    result.Message = "远程暂无共享记忆";
+                    result.Message = L.Pick("远程暂无共享记忆", "no shared memories on the remote yet");
                     return result;
                 }
-                result.Error = $"检出失败: {checkoutResult.stderr}";
+                result.Error = L.Pick("检出失败", "checkout failed") + $": {checkoutResult.stderr}";
                 return result;
             }
 
@@ -200,15 +200,16 @@ public static class SharedMemoryManager
 
             result.Success = true;
             result.Message = result.NewFiles.Count == 0 && result.UpdatedFiles.Count == 0
-                ? "共享记忆已是最新"
-                : $"拉取完成: {result.NewFiles.Count} 条新增, {result.UpdatedFiles.Count} 条更新";
+                ? L.Pick("共享记忆已是最新", "shared memories are up to date")
+                : L.Pick($"拉取完成: {result.NewFiles.Count} 条新增, {result.UpdatedFiles.Count} 条更新",
+                         $"pull complete: {result.NewFiles.Count} added, {result.UpdatedFiles.Count} updated");
 
             return result;
         }
         catch (Exception ex)
         {
             DebugLog.Log("SharedMemory", $"PullSharedAsync 异常: {ex.Message}");
-            result.Error = $"拉取失败: {ex.GetType().Name}: {ex.Message}";
+            result.Error = L.Pick("拉取失败", "pull failed") + $": {ex.GetType().Name}: {ex.Message}";
             return result;
         }
     }
@@ -223,13 +224,13 @@ public static class SharedMemoryManager
 
         if (!IsGitRepo())
         {
-            result.Error = "当前目录不在 git 仓库中";
+            result.Error = L.Pick("当前目录不在 git 仓库中", "the current directory is not inside a git repository");
             return result;
         }
 
         if (string.IsNullOrEmpty(_memoryGitPath))
         {
-            result.Error = "无法确定 memory 目录路径";
+            result.Error = L.Pick("无法确定 memory 目录路径", "cannot determine the memory directory path");
             return result;
         }
 
@@ -243,12 +244,13 @@ public static class SharedMemoryManager
                 var entry = StructuredMemory.Get(memoryName);
                 if (entry == null)
                 {
-                    result.Error = $"记忆 [{memoryName}] 不存在";
+                    result.Error = L.Pick($"记忆 [{memoryName}] 不存在", $"memory [{memoryName}] does not exist");
                     return result;
                 }
                 if (!entry.IsShared)
                 {
-                    result.Error = $"记忆 [{memoryName}] 未标记为共享（shared: false）";
+                    result.Error = L.Pick($"记忆 [{memoryName}] 未标记为共享（shared: false）",
+                                          $"memory [{memoryName}] is not marked as shared (shared: false)");
                     return result;
                 }
                 if (!string.IsNullOrEmpty(entry.FilePath) && File.Exists(entry.FilePath))
@@ -267,7 +269,7 @@ public static class SharedMemoryManager
 
             if (filesToAdd.Count == 0)
             {
-                result.Message = "没有需要推送的共享记忆";
+                result.Message = L.Pick("没有需要推送的共享记忆", "no shared memories to push");
                 result.Success = true;
                 return result;
             }
@@ -278,15 +280,16 @@ public static class SharedMemoryManager
                 var addResult = await RunGitAsync($"add -- {EscapePath(file)}");
                 if (addResult.exitCode != 0)
                 {
-                    result.Error = $"git add 失败: {addResult.stderr}";
+                    result.Error = L.Pick("git add 失败", "git add failed") + $": {addResult.stderr}";
                     return result;
                 }
             }
 
             // 3. Git commit
             var commitMsg = memoryName != null
-                ? $"memory: 共享记忆 [{memoryName}]"
-                : $"memory: 共享记忆同步 ({filesToAdd.Count} 条)";
+                ? L.Pick($"memory: 共享记忆 [{memoryName}]", $"memory: shared memory [{memoryName}]")
+                : L.Pick($"memory: 共享记忆同步 ({filesToAdd.Count} 条)",
+                         $"memory: share memories ({filesToAdd.Count} files)");
             var commitResult = await RunGitAsync($"commit -m \"{commitMsg}\"");
             if (commitResult.exitCode != 0)
             {
@@ -294,11 +297,11 @@ public static class SharedMemoryManager
                 if (commitResult.stdout.Contains("nothing to commit") ||
                     commitResult.stderr.Contains("nothing to commit"))
                 {
-                    result.Message = "没有新的变更需要提交";
+                    result.Message = L.Pick("没有新的变更需要提交", "no new changes to commit");
                     result.Success = true;
                     return result;
                 }
-                result.Error = $"git commit 失败: {commitResult.stderr}";
+                result.Error = L.Pick("git commit 失败", "git commit failed") + $": {commitResult.stderr}";
                 return result;
             }
 
@@ -306,19 +309,20 @@ public static class SharedMemoryManager
             var pushResult = await RunGitAsync("push origin HEAD");
             if (pushResult.exitCode != 0)
             {
-                result.Error = $"git push 失败: {pushResult.stderr}";
+                result.Error = L.Pick("git push 失败", "git push failed") + $": {pushResult.stderr}";
                 return result;
             }
 
             result.Success = true;
             result.PushedCount = filesToAdd.Count;
-            result.Message = $"推送成功: {filesToAdd.Count} 条共享记忆已同步到远程仓库";
+            result.Message = L.Pick($"推送成功: {filesToAdd.Count} 条共享记忆已同步到远程仓库",
+                                    $"push complete: {filesToAdd.Count} shared memories synced to the remote");
             return result;
         }
         catch (Exception ex)
         {
             DebugLog.Log("SharedMemory", $"PushSharedAsync 异常: {ex.Message}");
-            result.Error = $"推送失败: {ex.GetType().Name}: {ex.Message}";
+            result.Error = L.Pick("推送失败", "push failed") + $": {ex.GetType().Name}: {ex.Message}";
             return result;
         }
     }
@@ -329,14 +333,15 @@ public static class SharedMemoryManager
     public static async Task<string> ShareAsync(string name)
     {
         if (!IsGitRepo())
-            return "❌ 当前目录不在 git 仓库中，无法共享记忆。";
+            return L.Pick("❌ 当前目录不在 git 仓库中，无法共享记忆。",
+                          "❌ The current directory is not inside a git repository, so memories cannot be shared.");
 
         var entry = StructuredMemory.Get(name);
         if (entry == null)
-            return $"❌ 记忆 [{name}] 不存在。";
+            return L.Pick($"❌ 记忆 [{name}] 不存在。", $"❌ Memory [{name}] does not exist.");
 
         if (entry.IsShared)
-            return $"记忆 [{name}] 已是共享状态。";
+            return L.Pick($"记忆 [{name}] 已是共享状态。", $"Memory [{name}] is already shared.");
 
         // 更新 frontmatter 中的 shared 字段
         StructuredMemory.SetShared(name, true);
@@ -344,9 +349,11 @@ public static class SharedMemoryManager
         // 推送到远程
         var pushResult = await PushSharedAsync(name);
         if (pushResult.Success)
-            return $"✅ 记忆 [{name}] 已共享并推送到远程仓库。";
+            return L.Pick($"✅ 记忆 [{name}] 已共享并推送到远程仓库。",
+                          $"✅ Memory [{name}] is now shared and pushed to the remote.");
         else
-            return $"⚠ 记忆 [{name}] 已标记为共享，但推送失败: {pushResult.Error}";
+            return L.Pick($"⚠ 记忆 [{name}] 已标记为共享，但推送失败: {pushResult.Error}",
+                          $"⚠ Memory [{name}] was marked as shared, but pushing failed: {pushResult.Error}");
     }
 
     /// <summary>
@@ -356,13 +363,13 @@ public static class SharedMemoryManager
     {
         var entry = StructuredMemory.Get(name);
         if (entry == null)
-            return $"❌ 记忆 [{name}] 不存在。";
+            return L.Pick($"❌ 记忆 [{name}] 不存在。", $"❌ Memory [{name}] does not exist.");
 
         if (!entry.IsShared)
-            return $"记忆 [{name}] 未共享。";
+            return L.Pick($"记忆 [{name}] 未共享。", $"Memory [{name}] is not shared.");
 
         StructuredMemory.SetShared(name, false);
-        return $"✅ 记忆 [{name}] 已取消共享。";
+        return L.Pick($"✅ 记忆 [{name}] 已取消共享。", $"✅ Memory [{name}] is no longer shared.");
     }
 
     // ---- 内部辅助 ----

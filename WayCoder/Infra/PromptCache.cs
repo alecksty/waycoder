@@ -105,13 +105,13 @@ public static class PromptCache
     /// <summary>用于 /stats 展示的摘要</summary>
     public static string Summary()
     {
-        if (!Enabled) return "Prompt 缓存：关闭";
+        if (!Enabled) return L.Pick("Prompt 缓存：关闭", "Prompt cache: off");
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Prompt 缓存命中率：{HitRate:F0}%（{CacheHits}/{TotalRequests}）");
-        sb.AppendLine($"节省 Token：{FormatTokens(SavedTokens)}");
+        sb.AppendLine(L.Pick($"Prompt 缓存命中率：{HitRate:F0}%（{CacheHits}/{TotalRequests}）", $"Prompt cache hit rate: {HitRate:F0}% ({CacheHits}/{TotalRequests})"));
+        sb.AppendLine(L.Pick($"节省 Token：{FormatTokens(SavedTokens)}", $"Tokens saved: {FormatTokens(SavedTokens)}"));
         if (SavedCostUsd > 0)
-            sb.AppendLine($"估算节省费用：${SavedCostUsd:F4}");
+            sb.AppendLine(L.Pick($"估算节省费用：${SavedCostUsd:F4}", $"Estimated cost saved: ${SavedCostUsd:F4}"));
         return sb.ToString();
     }
 

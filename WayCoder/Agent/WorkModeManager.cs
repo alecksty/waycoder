@@ -21,11 +21,13 @@ public enum WorkMode
 public static class WorkModeManager
 {
     /// <summary>每个模式的显示名称</summary>
-    public static readonly Dictionary<WorkMode, string> Labels = new()
+    // ⚠ 表达式体属性，**不是** static readonly 字段：后者会把界面语言冻在类型初始化那一刻
+    //   （公理 A3）。表只有 3 项、非热路径，每次重建的代价可忽略。
+    public static Dictionary<WorkMode, string> Labels => new()
     {
-        [WorkMode.Build] = "建造",
-        [WorkMode.Plan]  = "计划",
-        [WorkMode.Chat]  = "聊天",
+        [WorkMode.Build] = L.Pick("建造", "Build"),
+        [WorkMode.Plan]  = L.Pick("计划", "Plan"),
+        [WorkMode.Chat]  = L.Pick("聊天", "Chat"),
     };
 
     /// <summary>每个模式的 emoji 图标</summary>
@@ -93,7 +95,8 @@ public static class WorkModeManager
         switch (mode)
         {
             case WorkMode.Chat:
-                return $"聊天模式不提供任何工具（纯聊天）。请切换到建造/规划模式（Shift+Tab）后再操作。";
+                return L.Pick($"聊天模式不提供任何工具（纯聊天）。请切换到建造/规划模式（Shift+Tab）后再操作。",
+                    $"Chat mode provides no tools (pure conversation). Switch to Build or Plan mode (Shift+Tab) first.");
             case WorkMode.Plan:
                 // bash：仅放行只读命令（fail-closed：拿不到 command 参数一律阻止）
                 if (string.Equals(toolName, "bash", StringComparison.OrdinalIgnoreCase))
@@ -101,10 +104,12 @@ public static class WorkModeManager
                     if (args is not null && args.TryGetValue("command", out var cmdObj) && cmdObj is string cmdStr &&
                         BashGuard.IsSafeReadOnly(cmdStr))
                         return null;
-                    return $"规划模式仅允许只读 bash 命令（如 git log/diff/status、ls/cat/grep）。请切换到建造模式（Shift+Tab）后再操作。";
+                    return L.Pick($"规划模式仅允许只读 bash 命令（如 git log/diff/status、ls/cat/grep）。请切换到建造模式（Shift+Tab）后再操作。",
+                        $"Plan mode only allows read-only bash commands (e.g. git log/diff/status, ls/cat/grep). Switch to Build mode (Shift+Tab) first.");
                 }
                 if (!PlanReadOnlyTools.Contains(toolName))
-                    return $"规划模式仅允许只读工具（read_file/web_search/doc 等）。请切换到建造模式（Shift+Tab）后再操作。";
+                    return L.Pick($"规划模式仅允许只读工具（read_file/web_search/doc 等）。请切换到建造模式（Shift+Tab）后再操作。",
+                        $"Plan mode only allows read-only tools (read_file/web_search/doc, etc.). Switch to Build mode (Shift+Tab) first.");
                 break;
         }
         return null; // Build：所有工具允许

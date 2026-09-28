@@ -146,12 +146,12 @@ public static class SkillsManager
         if (_skills.Count == 0)
             return "";
 
-        var lines = new List<string> { "# 技能 (Skills)" };
+        var lines = new List<string> { L.Pick("# 技能 (Skills)", "# Skills") };
         foreach (var kv in _skills)
         {
-            var desc = string.IsNullOrEmpty(kv.Value.Description) ? "(无描述)" : kv.Value.Description;
-            var builtinTag = kv.Value.Builtin ? " [内置]" : "";
-            lines.Add($"- **{kv.Value.Name}**{builtinTag}：{desc}");
+            var desc = string.IsNullOrEmpty(kv.Value.Description) ? L.Pick("(无描述)", "(no description)") : kv.Value.Description;
+            var builtinTag = kv.Value.Builtin ? L.Pick(" [内置]", " [builtin]") : "";
+            lines.Add($"- **{kv.Value.Name}**{builtinTag}{L.Pick("：", ": ")}{desc}");
         }
         return string.Join("\n", lines);
     }

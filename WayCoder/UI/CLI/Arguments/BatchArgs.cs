@@ -10,7 +10,9 @@ namespace WayCoder.UI.Cli.Arguments;
 
 public class BatchArg : CliArg
 {
-    public override string Description => "批量任务引擎：多仓库并行处理（--batch <JSON文件|内联JSON>，每个任务在独立克隆副本中隔离执行）";
+    public override string Description => L.Pick(
+        "批量任务引擎：多仓库并行处理（--batch <JSON文件|内联JSON>，每个任务在独立克隆副本中隔离执行）",
+        "Batch engine: parallel multi-repo processing (--batch <JSON file|inline JSON>; each job runs isolated in its own clone)");
     public override int ValueCount => 1;
     public override string? ValueLabel => "JSON";
     public BatchArg() : base("batch", "--batch") { }
@@ -18,24 +20,30 @@ public class BatchArg : CliArg
 
 public class BatchRepoArg : CliArg
 {
-    public override string Description => "批量任务：添加一个仓库（可重复，配合 --batch-task 共享任务）";
+    public override string Description => L.Pick(
+        "批量任务：添加一个仓库（可重复，配合 --batch-task 共享任务）",
+        "Batch job: add a repository (repeatable; pair with --batch-task for a shared task)");
     public override int ValueCount => 1;
-    public override string? ValueLabel => "仓库";
+    public override string? ValueLabel => L.Pick("仓库", "repo");
     public override bool AllowMultiple => true;
     public BatchRepoArg() : base("batch-repo", "--batch-repo") { }
 }
 
 public class BatchTaskArg : CliArg
 {
-    public override string Description => "批量任务：所有 --batch-repo 仓库的共享任务";
+    public override string Description => L.Pick(
+        "批量任务：所有 --batch-repo 仓库的共享任务",
+        "Batch job: the task shared by every --batch-repo repository");
     public override int ValueCount => 1;
-    public override string? ValueLabel => "文本";
+    public override string? ValueLabel => L.Pick("文本", "text");
     public BatchTaskArg() : base("batch-task", "--batch-task") { }
 }
 
 public class BatchKeepArg : CliArg
 {
-    public override string Description => "批量任务：保留克隆的工作副本（默认执行后清理）";
+    public override string Description => L.Pick(
+        "批量任务：保留克隆的工作副本（默认执行后清理）",
+        "Batch job: keep the cloned working copies (cleaned up after the run by default)");
     public BatchKeepArg() : base("batch-keep", "--batch-keep") { }
 }
 
@@ -46,9 +54,11 @@ public class BatchKeepArg : CliArg
 /// <summary>所有槽位任务的共享前缀（-pa "前缀" → 自动拼到每个 -pN 任务前面）</summary>
 public class SlotPromptAllArg : CliArg
 {
-    public override string Description => "所有槽位任务的共享前缀（自动拼到每个 -pN 前面）";
+    public override string Description => L.Pick(
+        "所有槽位任务的共享前缀（自动拼到每个 -pN 前面）",
+        "Shared prefix for all slot tasks (prepended to every -pN)");
     public override int ValueCount => 1;
-    public override string? ValueLabel => "前缀";
+    public override string? ValueLabel => L.Pick("前缀", "prefix");
     public SlotPromptAllArg() : base("prompt-all", "-pa", "--prompt-all") { }
 }
 
@@ -56,9 +66,11 @@ public class SlotPromptArg : CliArg
 {
     /// <summary>目标槽位索引（0-based，-p1→0, -p2→1, ..., -p0→9）</summary>
     public int SlotIndex { get; }
-    public override string Description => $"投递任务到槽位 F{SlotIndex + 1}（-p1~-p9, -p0=F10）";
+    public override string Description => L.Pick(
+        $"投递任务到槽位 F{SlotIndex + 1}（-p1~-p9, -p0=F10）",
+        $"Queue a task into slot F{SlotIndex + 1} (-p1..-p9, -p0 = F10)");
     public override int ValueCount => 1;
-    public override string? ValueLabel => "文本";
+    public override string? ValueLabel => L.Pick("文本", "text");
     public override bool Internal => true; // 10 个参数不逐行显示
     public override bool AllowMultiple => true; // 同一槽位多次 -pN 可排队
 

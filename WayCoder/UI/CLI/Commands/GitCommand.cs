@@ -12,7 +12,7 @@ namespace WayCoder.UI.Cli.Commands;
 public class GitCommand : SlashCommand
 {
     public override string Name => "/git";
-    public override string Description => "Git 操作 (init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone)";
+    public override string Description => L.Pick("Git 操作 (init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone)", "Git operations (init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone)");
     public override string? Usage => "/git <init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone>";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
@@ -38,7 +38,7 @@ public class GitCommand : SlashCommand
 
         if (gitCmd == "")
         {
-            screen.AddSystemMsg("用法: /git <init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone>");
+            screen.AddSystemMsg(L.Pick("用法: /git <init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone>", "Usage: /git <init|add|commit|status|log|diff|branch|checkout|merge|pull|push|fetch|remote|clone>"));
             return;
         }
 

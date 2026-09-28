@@ -76,7 +76,7 @@ public static class ToolDisplay
                 {
                     var many = EnumerateStrings(kv.Value).Select(ShortPath).Where(s => s.Length > 0).ToList();
                     if (many.Count == 0) continue;
-                    return Cut(string.Join("、", many), maxLen);
+                    return Cut(string.Join(L.Pick("、", ", "), many), maxLen);
                 }
                 var raw = ValueText(kv.Value);
                 if (raw.Length == 0) continue;

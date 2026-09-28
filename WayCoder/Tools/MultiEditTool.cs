@@ -42,10 +42,12 @@ public class MultiEditTool : ITool
         // 解析 edits 数组
         var edits = ParseEdits(arguments.GetValueOrDefault("edits"));
         if (edits.Count == 0)
-            return "❌ 错误：至少需要一个编辑操作";
+            return L.Pick("❌ 错误：至少需要一个编辑操作",
+                          "❌ Error: at least one edit operation is required");
 
         if (string.IsNullOrWhiteSpace(filePath))
-            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+            return L.Pick("错误：file_path 不能为空 — 请提供有效的文件路径。",
+                          "Error: file_path must not be empty - please provide a valid file path.");
 
         var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
@@ -135,7 +137,8 @@ public class MultiEditTool : ITool
         {
             // 只有首个编辑的 old_string 可以为空（创建新文件）
             if (i > 0 && string.IsNullOrEmpty(edits[i].OldString))
-                return $"❌ 错误：编辑 #{i + 1} — 只有首个编辑的 old_string 可以为空（用于创建新文件）";
+                return L.Pick($"❌ 错误：编辑 #{i + 1} — 只有首个编辑的 old_string 可以为空（用于创建新文件）",
+                              $"❌ Error: edit #{i + 1} - only the first edit's old_string may be empty (that creates a new file)");
         }
         return null;
     }
@@ -147,7 +150,7 @@ public class MultiEditTool : ITool
     private static async Task<string> CreateNewFile(string path, List<EditOp> edits, string agentId)
     {
         if (File.Exists(path))
-            return $"❌ 错误：文件已存在: {path}";
+            return L.Pick($"❌ 错误：文件已存在: {path}", $"❌ Error: file already exists: {path}");
 
         // 首个编辑提供初始内容
         var content = edits[0].NewString;
@@ -172,7 +175,8 @@ public class MultiEditTool : ITool
             {
                 var (decision, accepted) = DiffPreview.Show("", content, path);
                 if (decision == DiffPreview.Decision.RejectAll)
-                    return $"已取消创建 {path}（用户拒绝变更）";
+                    return L.Pick($"已取消创建 {path}（用户拒绝变更）",
+                                  $"Create of {path} cancelled (declined by user)");
             }
         }
 
@@ -185,10 +189,12 @@ public class MultiEditTool : ITool
 
         var total = edits.Count;
         var failedMsg = failed.Count > 0
-            ? $"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}"
+            ? L.Pick($"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}",
+                     $"\n⚠ {failed.Count} edit(s) failed:\n{FormatFailedEdits(failed)}")
             : "";
 
-        var multiResult1 = $"✅ 已创建 {path}（{applied}/{total} 编辑成功，+{CountLines(content)} 行）{failedMsg}";
+        var multiResult1 = L.Pick($"✅ 已创建 {path}（{applied}/{total} 编辑成功，+{CountLines(content)} 行）{failedMsg}",
+                                  $"✅ Created {path} ({applied}/{total} edits applied, +{CountLines(content)} lines){failedMsg}");
         // YOLO 自动放行：diff 渲染进工具输出，聊天区显示源码对比
         if (!string.IsNullOrEmpty(diffMarkup))
             multiResult1 = diffMarkup + "\n\n" + multiResult1;
@@ -208,7 +214,7 @@ public class MultiEditTool : ITool
     private static async Task<string> EditExistingFile(string path, List<EditOp> edits, string agentId)
     {
         if (!File.Exists(path))
-            return $"❌ 错误：文件未找到: {path}";
+            return L.Pick($"❌ 错误：文件未找到: {path}", $"❌ Error: file not found: {path}");
 
         // 先读后改保护
         var preEditWarning = FileTracker.ValidatePreEdit(path);
@@ -223,16 +229,19 @@ public class MultiEditTool : ITool
         var (newContent, applied, failed) = ApplyEdits(oldContent, edits, 0);
 
         if (oldContent == newContent && failed.Count > 0)
-            return $"❌ 所有 {edits.Count} 个编辑均失败:\n{FormatFailedEdits(failed)}";
+            return L.Pick($"❌ 所有 {edits.Count} 个编辑均失败:\n{FormatFailedEdits(failed)}",
+                          $"❌ All {edits.Count} edits failed:\n{FormatFailedEdits(failed)}");
 
         if (oldContent == newContent)
-            return "未做出任何修改 — 所有编辑应用后内容不变";
+            return L.Pick("未做出任何修改 — 所有编辑应用后内容不变",
+                          "No changes were made - the content is unchanged after applying all edits");
 
         // Diff 预览：YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）。
         // 非 YOLO 时判据走 UxHelper.CanConfirmInline（TUI / 交互式终端），勿裸判重定向：stdin 被
         // 重定向也可能正跑着 TUI，那样逐 hunk 确认会被静默降级成自动应用。
         var (rejected, confirmed) = WritePipeline.ConfirmDiff(path, oldContent, newContent);
-        if (rejected) return $"已取消编辑 {path}（用户拒绝变更）";
+        if (rejected) return L.Pick($"已取消编辑 {path}（用户拒绝变更）",
+                                    $"Edit of {path} cancelled (declined by user)");
         newContent = confirmed;
 
         // 生成 diff 与记录变更须在恢复 CRLF 前（此时 oldContent/newContent 都是 LF，行尾一致）
@@ -249,14 +258,16 @@ public class MultiEditTool : ITool
 
         var total = edits.Count;
         var failedMsg = failed.Count > 0
-            ? $"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}"
+            ? L.Pick($"\n⚠ {failed.Count} 个编辑失败:\n{FormatFailedEdits(failed)}",
+                     $"\n⚠ {failed.Count} edit(s) failed:\n{FormatFailedEdits(failed)}")
             : "";
 
         // 二者一正一负，须钳制 ≥0，否则输出「+3/--3」双负号
         var additions = Math.Max(0, CountNewlines(newContent) - CountNewlines(oldContent));
         var removal = Math.Max(0, CountNewlines(oldContent) - CountNewlines(newContent));
 
-        var multiResult2 = $"✅ 已编辑 {path}（{applied}/{total} 编辑成功，+{additions}/-{removal} 行）{failedMsg}\n{diff}";
+        var multiResult2 = L.Pick($"✅ 已编辑 {path}（{applied}/{total} 编辑成功，+{additions}/-{removal} 行）{failedMsg}\n{diff}",
+                                  $"✅ Edited {path} ({applied}/{total} edits applied, +{additions}/-{removal} lines){failedMsg}\n{diff}");
 
         // LSP 诊断自动附加
         var multiDiag2 = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);
@@ -312,25 +323,29 @@ public class MultiEditTool : ITool
             return (content, null);
 
         if (string.IsNullOrEmpty(edit.OldString))
-            return (null, "old_string 不能为空（非首个编辑）");
+            return (null, L.Pick("old_string 不能为空（非首个编辑）",
+                                 "old_string must not be empty (this is not the first edit)"));
 
         if (edit.ReplaceAll)
         {
             var count = FileText.CountOccurrences(content, edit.OldString);
             if (count == 0)
-                return (null, $"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"");
+                return (null, L.Pick($"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"",
+                                     $"old_string not found: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\""));
             return (content.Replace(edit.OldString, edit.NewString), null);
         }
         else
         {
             var idx = content.IndexOf(edit.OldString, StringComparison.Ordinal);
             if (idx < 0)
-                return (null, $"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"");
+                return (null, L.Pick($"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"",
+                                     $"old_string not found: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\""));
 
             // 检查唯一性
             var lastIdx = content.LastIndexOf(edit.OldString, StringComparison.Ordinal);
             if (idx != lastIdx)
-                return (null, $"old_string 出现了 {FileText.CountOccurrences(content, edit.OldString)} 次，请包含更多上下文以确保唯一性，或设置 replace_all=true");
+                return (null, L.Pick($"old_string 出现了 {FileText.CountOccurrences(content, edit.OldString)} 次，请包含更多上下文以确保唯一性，或设置 replace_all=true",
+                                     $"old_string occurs {FileText.CountOccurrences(content, edit.OldString)} times; include more surrounding context to make it unique, or set replace_all=true"));
 
             var newContent = content[..idx] + edit.NewString + content[(idx + edit.OldString.Length)..];
             return (newContent, null);

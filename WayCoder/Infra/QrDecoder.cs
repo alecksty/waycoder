@@ -32,8 +32,8 @@ public static class QrDecoder
     public static QrDecodeResult? Decode(byte[] rgba, int width, int height)
     {
         if (rgba == null) throw new ArgumentNullException(nameof(rgba));
-        if (width <= 0 || height <= 0) throw new ArgumentException("宽高必须为正整数");
-        if (rgba.Length < (long)width * height * 4) throw new ArgumentException("像素缓冲长度不足");
+        if (width <= 0 || height <= 0) throw new ArgumentException(L.Pick("宽高必须为正整数", "Width and height must be positive integers"));
+        if (rgba.Length < (long)width * height * 4) throw new ArgumentException(L.Pick("像素缓冲长度不足", "Pixel buffer is too short"));
 
         bool[,] dark = Binarize(rgba, width, height);
         var finders = FindFinderCandidates(dark, width, height);
@@ -60,7 +60,7 @@ public static class QrDecoder
     /// <summary>便捷：解码 PNG 文件路径。文件读取异常向上抛，解码失败返回 null。</summary>
     public static QrDecodeResult? DecodePngFile(string path)
     {
-        if (string.IsNullOrEmpty(path)) throw new ArgumentException("路径为空");
+        if (string.IsNullOrEmpty(path)) throw new ArgumentException(L.Pick("路径为空", "Path is empty"));
         var img = PngDecoder.Decode(System.IO.File.ReadAllBytes(path));
         return Decode(img.Rgba, img.Width, img.Height);
     }

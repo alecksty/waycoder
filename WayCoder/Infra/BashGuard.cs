@@ -196,7 +196,7 @@ public static class BashGuard
 
             // 1. 完全禁止
             if (AllBanned.Contains(segCmd))
-                return (true, $"⚠ 已阻止：{segCmd} 在禁止命令列表中（安全策略）");
+                return (true, L.Pick($"⚠ 已阻止：{segCmd} 在禁止命令列表中（安全策略）", $"⚠ Blocked: {segCmd} is on the banned command list (safety policy)"));
 
             // 2. 参数级检查（用真实命令及其后续参数）
             var cmdParts = segParts[cmdIdx..];
@@ -205,7 +205,7 @@ public static class BashGuard
                 if (rule.Match(cmdParts))
                 {
                     var blockedArgs = string.Join(" ", rule.BlockArgs ?? rule.Flags ?? []);
-                    return (true, $"⚠ 已阻止：{segCmd} {blockedArgs}（安全策略：全局安装/系统修改被阻止）");
+                    return (true, L.Pick($"⚠ 已阻止：{segCmd} {blockedArgs}（安全策略：全局安装/系统修改被阻止）", $"⚠ Blocked: {segCmd} {blockedArgs} (safety policy: global installs and system modifications are blocked)"));
                 }
             }
         }
@@ -424,7 +424,7 @@ public static class BashGuard
     /// </summary>
     public static string GetSafeCommandsDescription()
     {
-        return string.Join(", ", SafeCommands.Take(20)) + " 等";
+        return string.Join(", ", SafeCommands.Take(20)) + L.Pick(" 等", " and more");
     }
 }
 

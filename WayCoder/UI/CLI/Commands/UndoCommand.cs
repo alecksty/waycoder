@@ -11,8 +11,8 @@ namespace WayCoder.UI.Cli.Commands;
 public class UndoCommand : SlashCommand
 {
     public override string Name => "/undo";
-    public override string Description => "回退（/undo <文件> 编辑级 · /undo [编号] [文件] 检查点级）";
-    public override string? Usage => "/undo <文件路径> [n] | /undo [检查点编号] [文件]";
+    public override string Description => L.Pick("回退（/undo <文件> 编辑级 · /undo [编号] [文件] 检查点级）", "Revert (/undo <file> edit level · /undo [id] [file] checkpoint level)");
+    public override string? Usage => L.Pick("/undo <文件路径> [n] | /undo [检查点编号] [文件]", "/undo <file path> [n] | /undo [checkpoint id] [file]");
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -21,8 +21,8 @@ public class UndoCommand : SlashCommand
         {
             var files = CheckpointManager.GetCheckpointFiles();
             screen.AddSystemMsg(files.Count == 0
-                ? "📌 没有检查点文件"
-                : "📌 **检查点文件**\n" + string.Join("\n", files.Select(f => $"  {f}")));
+                ? L.Pick("📌 没有检查点文件", "📌 No checkpoint files")
+                : L.Pick("📌 **检查点文件**\n", "📌 **Checkpoint files**\n") + string.Join("\n", files.Select(f => $"  {f}")));
             return;
         }
 
@@ -35,9 +35,9 @@ public class UndoCommand : SlashCommand
             int steps = 1;
             if (parts.Length > 1 && int.TryParse(parts[1], out var n) && n > 0) steps = n;
             if (FileVersionStore.Restore(file, steps))
-                screen.AddSystemMsg($"↩️ 已回退 {file} 的 {steps} 个编辑版本（/versions {file} 查看历史）");
+                screen.AddSystemMsg(L.Pick($"↩️ 已回退 {file} 的 {steps} 个编辑版本（/versions {file} 查看历史）", $"↩️ Reverted {steps} edit versions of {file} (/versions {file} shows the history)"));
             else
-                screen.AddSystemMsg($"🤷 无法回退 {file}：无可用编辑版本（需先编辑过该文件）。试试 /undo <检查点编号> [文件] 轮级回退。");
+                screen.AddSystemMsg(L.Pick($"🤷 无法回退 {file}：无可用编辑版本（需先编辑过该文件）。试试 /undo <检查点编号> [文件] 轮级回退。", $"🤷 Cannot revert {file}: no edit versions available (the file must be edited first). Try /undo <checkpoint id> [file] for a round-level revert."));
             return;
         }
 

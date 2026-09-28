@@ -38,7 +38,9 @@ public sealed class BatchSpec
     public const int MaxTimeoutSec = 36000;
 
     /// <summary>用法示例（写入 --batch 帮助）。</summary>
-    public const string JsonTemplate = """
+    // ⚠ 字段名（maxParallel/tasks/repo/task…）是清单协议，不翻；翻的只有示例里给人看的那几段取值。
+    //   由 const 改成表达式体属性：const 装不下 L.Pick（公理 A3）。
+    public static string JsonTemplate => L.Pick("""
 {
   "maxParallel": 4,
   "timeoutSec": 1800,
@@ -48,7 +50,17 @@ public sealed class BatchSpec
     { "repo": "/本地/路径/repo2", "task": "补充单元测试" }
   ]
 }
-""";
+""", """
+{
+  "maxParallel": 4,
+  "timeoutSec": 1800,
+  "keepResults": false,
+  "tasks": [
+    { "repo": "https://github.com/org/repo1", "task": "Fix the login bug", "name": "repo1", "branch": "main" },
+    { "repo": "/local/path/repo2", "task": "Add unit tests" }
+  ]
+}
+""");
 
     /// <summary>解析 JSON 字符串为清单。失败时 error 非空、返回 null。</summary>
     public static BatchSpec? Parse(string json, out string error)
@@ -56,9 +68,9 @@ public sealed class BatchSpec
         error = "";
         JNode? root;
         try { root = Json.Parse(json); }
-        catch (Exception ex) { error = $"JSON 解析失败: {ex.Message}"; return null; }
+        catch (Exception ex) { error = L.Pick("JSON 解析失败", "JSON parse failed") + $": {ex.Message}"; return null; }
 
-        if (root?.Kind != JKind.Object) { error = "JSON 顶层必须是对象"; return null; }
+        if (root?.Kind != JKind.Object) { error = L.Pick("JSON 顶层必须是对象", "the JSON top level must be an object"); return null; }
 
         var spec = new BatchSpec();
         if (root["maxParallel"] is { } mp && mp.Kind == JKind.Number)
@@ -69,7 +81,7 @@ public sealed class BatchSpec
             spec.KeepResults = kr.AsBool();
 
         var arr = root["tasks"];
-        if (arr?.Kind != JKind.Array) { error = "缺少 tasks 数组"; return null; }
+        if (arr?.Kind != JKind.Array) { error = L.Pick("缺少 tasks 数组", "missing the tasks array"); return null; }
         foreach (var item in arr!.Items)
         {
             if (item.Kind != JKind.Object) continue;
@@ -85,7 +97,7 @@ public sealed class BatchSpec
             });
         }
 
-        if (spec.Jobs.Count == 0) { error = "tasks 数组为空或缺少 repo/task 字段"; return null; }
+        if (spec.Jobs.Count == 0) { error = L.Pick("tasks 数组为空或缺少 repo/task 字段", "the tasks array is empty or the repo/task fields are missing"); return null; }
         return spec;
     }
 

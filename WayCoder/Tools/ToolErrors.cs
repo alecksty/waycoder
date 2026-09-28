@@ -21,18 +21,22 @@ public static class ToolErrors
     /// </summary>
     public const string EnPrefix = "Error: ";
 
-    /// <summary>「{op}错误：{异常类型}: {Message}」——op 通常含尾随空格（如 "cd " / "❌ "）。</summary>
+    /// <summary>「{op}错误：{异常类型}: {Message}」——op 通常含尾随空格（如 "cd " / "❌ "）。
+    /// 英文支与中文支**逐位同形**（前缀落在同一个偏移上），故 <see cref="WayCoder.ToolResultClassifier"/>
+    /// 的判定结果两侧一致。</summary>
     public static string Error(string op, Exception ex)
-        => $"{op}{ZhPrefix}{ex.GetType().Name}: {ex.Message}";
+        => L.Pick($"{op}{ZhPrefix}{ex.GetType().Name}: {ex.Message}",
+                  $"{op}{EnPrefix}{ex.GetType().Name}: {ex.Message}");
 
     /// <summary>「错误：{op}: {异常类型}: {Message}」—— 前缀顺序与 <see cref="Error(string, Exception)"/>
     /// **相反**（`错误：` 在前）。cp/ls/mv/rm/wc 五个工具一直手拼这一版，而 `错误：` 前缀是 Agent
     /// 识别「工具失败而非模型问题」的稳定标记 —— 手拼五份，将来任一处拼错就会破坏该标记。
     /// 文案保持逐字不变（不改既有输出）。</summary>
     public static string ErrorOpPrefix(string op, Exception ex)
-        => $"{ZhPrefix}{op}: {ex.GetType().Name}: {ex.Message}";
+        => L.Pick($"{ZhPrefix}{op}: {ex.GetType().Name}: {ex.Message}",
+                  $"{EnPrefix}{op}: {ex.GetType().Name}: {ex.Message}");
 
     /// <summary>「错误：{Message}」——不带操作名前缀的简化版。</summary>
     public static string Error(Exception ex)
-        => $"{ZhPrefix}{ex.Message}";
+        => L.Pick($"{ZhPrefix}{ex.Message}", $"{EnPrefix}{ex.Message}");
 }

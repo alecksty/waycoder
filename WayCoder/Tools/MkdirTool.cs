@@ -20,16 +20,17 @@ public class MkdirTool : ITool
     {
         var path = arguments.GetValueOrDefault("path")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(path))
-            return Task.FromResult("错误：path 参数不能为空");
+            return Task.FromResult(L.Pick("错误：path 参数不能为空",
+                                          "Error: the path parameter must not be empty"));
 
         try
         {
             var fullPath = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
             if (Directory.Exists(fullPath))
-                return Task.FromResult($"✔ 目录已存在: {fullPath}");
+                return Task.FromResult(L.Pick($"✔ 目录已存在: {fullPath}", $"✔ Directory already exists: {fullPath}"));
 
             Directory.CreateDirectory(fullPath);
-            return Task.FromResult($"✔ 已创建目录: {fullPath}");
+            return Task.FromResult(L.Pick($"✔ 已创建目录: {fullPath}", $"✔ Directory created: {fullPath}"));
         }
         catch (Exception ex)
         {

@@ -280,13 +280,13 @@ public sealed class MaskExpr
     public (List<List<double>> Subpaths, bool EvenOdd)? ToClipPath()
     {
         FoldFailure = "";
-        if (IsEmpty) { FoldFailure = "空蒙版"; return null; }
+        if (IsEmpty) { FoldFailure = L.Pick("空蒙版", "empty mask"); return null; }
 
         if (Segments.Count == 1)
         {
             var subs = new List<List<double>>();
             foreach (var s in Segments[0].Shapes) subs.Add(s.ToSubpath());
-            if (subs.Count == 0) { FoldFailure = "段里没有形状"; return null; }
+            if (subs.Count == 0) { FoldFailure = L.Pick("段里没有形状", "segment has no shapes"); return null; }
             return (subs, false);
         }
 
@@ -294,11 +294,11 @@ public sealed class MaskExpr
         for (int i = 1; i < Segments.Count; i++)
         {
             if (Segments[i].Op != MaskOp.Subtract)
-            { FoldFailure = "含 SUBTRACT 以外的运算符（只有单段或[底,减…]能折叠）"; return null; }
+            { FoldFailure = L.Pick("含 SUBTRACT 以外的运算符（只有单段或[底,减…]能折叠）", "operator other than SUBTRACT present (only a single segment, or [base, minus...], can be folded)"); return null; }
         }
 
         var baseShapes = Segments[0].Shapes;
-        if (baseShapes.Count == 0) { FoldFailure = "底那一段没有形状"; return null; }
+        if (baseShapes.Count == 0) { FoldFailure = L.Pick("底那一段没有形状", "the base segment has no shapes"); return null; }
 
         // ③a 底形状之间不能重叠（even-odd 下重叠区会被挖掉，那不是并集）
         for (int i = 0; i < baseShapes.Count; i++)
@@ -306,13 +306,13 @@ public sealed class MaskExpr
             for (int j = i + 1; j < baseShapes.Count; j++)
             {
                 if (ShapesOverlap(baseShapes[i], baseShapes[j]))
-                { FoldFailure = "底形状之间重叠"; return null; }
+                { FoldFailure = L.Pick("底形状之间重叠", "base shapes overlap each other"); return null; }
             }
         }
 
         var holes = new List<MaskShape>();
         for (int i = 1; i < Segments.Count; i++) holes.AddRange(Segments[i].Shapes);
-        if (holes.Count == 0) { FoldFailure = "没有洞（纯底不该走多段）"; return null; }
+        if (holes.Count == 0) { FoldFailure = L.Pick("没有洞（纯底不该走多段）", "no holes (a pure base should not use multiple segments)"); return null; }
 
         var baseBox = baseShapes[0].Box();
         for (int i = 1; i < baseShapes.Count; i++)
@@ -328,7 +328,7 @@ public sealed class MaskExpr
             var b = h.Box();
             if (b.MinX < baseBox.MinX || b.MinY < baseBox.MinY ||
                 b.MaxX > baseBox.MaxX || b.MaxY > baseBox.MaxY)
-            { FoldFailure = "有洞探出底之外"; return null; }
+            { FoldFailure = L.Pick("有洞探出底之外", "a hole extends beyond the base"); return null; }
         }
 
         // ③b 洞与洞之间不重叠
@@ -337,7 +337,7 @@ public sealed class MaskExpr
             for (int j = i + 1; j < holes.Count; j++)
             {
                 if (ShapesOverlap(holes[i], holes[j]))
-                { FoldFailure = "洞与洞重叠"; return null; }
+                { FoldFailure = L.Pick("洞与洞重叠", "holes overlap each other"); return null; }
             }
         }
 

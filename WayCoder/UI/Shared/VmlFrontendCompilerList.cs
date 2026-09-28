@@ -124,11 +124,13 @@ public static class VmlFrontendCompilerList
     {
         var start = source.IndexOf(UpstreamMethodAnchor, StringComparison.Ordinal);
         if (start < 0)
-            return ([], $"上游源码里找不到前端注册段（锚点 `{UpstreamMethodAnchor}`）—— 方法名被改了？");
+            return ([], L.Pick($"上游源码里找不到前端注册段（锚点 `{UpstreamMethodAnchor}`）—— 方法名被改了？",
+                $"Frontend registration section not found in the upstream source (anchor `{UpstreamMethodAnchor}`) - was the method renamed?"));
 
         var end = source.IndexOf(UpstreamMethodEndAnchor, start, StringComparison.Ordinal);
         if (end < 0)
-            return ([], $"上游源码里找不到后端注册段（锚点 `{UpstreamMethodEndAnchor}`）—— 定位不到前端段的结尾。");
+            return ([], L.Pick($"上游源码里找不到后端注册段（锚点 `{UpstreamMethodEndAnchor}`）—— 定位不到前端段的结尾。",
+                $"Backend registration section not found in the upstream source (anchor `{UpstreamMethodEndAnchor}`) - can't locate the end of the frontend section."));
 
         var body = source[start..end];
         var types = Regex.Matches(body, @"new\s+([A-Za-z_]\w*\.[A-Za-z_]\w*)\s*\(\s*\)")
@@ -137,7 +139,8 @@ public static class VmlFrontendCompilerList
             .ToList();
 
         return types.Count == 0
-            ? ([], "上游前端注册段里一行 `new Xxx.YyyPlugin()` 都没解析出来 —— 写法变了？")
+            ? ([], L.Pick("上游前端注册段里一行 `new Xxx.YyyPlugin()` 都没解析出来 —— 写法变了？",
+                "Not a single `new Xxx.YyyPlugin()` line could be parsed out of the upstream frontend registration section - did the style change?"))
             : (types, null);
     }
 
@@ -155,14 +158,20 @@ public static class VmlFrontendCompilerList
         if (upstreamOnly.Count == 0 && oursOnly.Count == 0) return null;
 
         var sb = new StringBuilder();
-        sb.Append($"VML 前端编译器清单与上游不一致（上游 {upstream.Count} 个 / 本仓 {ours.Count} 个）：");
+        sb.Append(L.Pick($"VML 前端编译器清单与上游不一致（上游 {upstream.Count} 个 / 本仓 {ours.Count} 个）：",
+            $"The VML frontend compiler list differs from upstream (upstream {upstream.Count} / local {ours.Count}):"));
         if (upstreamOnly.Count > 0)
-            sb.Append($"\n  · 上游有、本仓没有（多半是上游加了新语言）：{string.Join(", ", upstreamOnly)}");
+            sb.Append(L.Pick($"\n  · 上游有、本仓没有（多半是上游加了新语言）：{string.Join(", ", upstreamOnly)}",
+                $"\n  - Upstream only (upstream probably added a language): {string.Join(", ", upstreamOnly)}"));
         if (oursOnly.Count > 0)
-            sb.Append($"\n  · 本仓有、上游没有（多半是抄错了或上游删了）：{string.Join(", ", oursOnly)}");
-        sb.Append($"\n  · 同步三处：① 本文件的 All；② WayCoder.Maui/Services/VmlFrontendCompilers.cs 的 RegisterAll；")
-          .Append($"③ WayCoder.Maui/WayCoder.Maui.csproj 的 ProjectReference。")
-          .Append($"\n    上游来源：{UpstreamRelativePath} 的 RegisterFrontendCompilers。");
+            sb.Append(L.Pick($"\n  · 本仓有、上游没有（多半是抄错了或上游删了）：{string.Join(", ", oursOnly)}",
+                $"\n  - Local only (probably a copy error, or upstream removed it): {string.Join(", ", oursOnly)}"));
+        sb.Append(L.Pick($"\n  · 同步三处：① 本文件的 All；② WayCoder.Maui/Services/VmlFrontendCompilers.cs 的 RegisterAll；",
+            $"\n  - Keep three places in sync: (1) All in this file; (2) RegisterAll in WayCoder.Maui/Services/VmlFrontendCompilers.cs;"))
+          .Append(L.Pick($"③ WayCoder.Maui/WayCoder.Maui.csproj 的 ProjectReference。",
+              $" (3) the ProjectReference in WayCoder.Maui/WayCoder.Maui.csproj."))
+          .Append(L.Pick($"\n    上游来源：{UpstreamRelativePath} 的 RegisterFrontendCompilers。",
+              $"\n    Upstream source: RegisterFrontendCompilers in {UpstreamRelativePath}."));
         return sb.ToString();
     }
 }

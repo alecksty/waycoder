@@ -48,7 +48,7 @@ public class LsTool : ITool
             ListDir(sb, path, pattern, depth, 1, ref max, longFormat);
 
             if (max <= 0)
-                sb.AppendLine("... (已达显示上限)");
+                sb.AppendLine(L.Pick("... (已达显示上限)", "... (display limit reached)"));
 
             return sb.ToString().TrimEnd();
         }

@@ -380,7 +380,8 @@ public class LLM
         {
             var trimmed = ContextManager.TruncateTailByRunes(_reasoningBuffer.ToString(), MaxReasoningDisplayChars);
             _reasoningBuffer.Clear();
-            _reasoningBuffer.Append("… 思考过长，前段已省略 …\n").Append(trimmed);
+            _reasoningBuffer.Append(L.Pick("… 思考过长，前段已省略 …\n",
+                "… reasoning is too long; the earlier part was dropped …\n")).Append(trimmed);
         }
     }
 
@@ -693,7 +694,8 @@ public class LLM
             // 保存服务端错误原因，供 UI 在「请求失败」时同时输出错误消息
             HttpErrorMessage = ContextManager.TruncateByRunes(errBody, 300);
             ErrorLog.LlmError(Model, Endpoint, $"HTTP {(int)response.StatusCode}: {HttpErrorMessage}");
-            throw new HttpRequestException($"LLM 请求失败 HTTP {(int)response.StatusCode}: {HttpErrorMessage}");
+            throw new HttpRequestException(L.Pick($"LLM 请求失败 HTTP {(int)response.StatusCode}: {HttpErrorMessage}",
+                $"LLM request failed with HTTP {(int)response.StatusCode}: {HttpErrorMessage}"));
         }
 
         var contentParts = new List<string>();
@@ -754,7 +756,8 @@ public class LLM
                         else if (!_reasoningTruncated)
                         {
                             _reasoningTruncated = true;
-                            onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
+                            onToken?.Invoke(L.Pick("\n«orange3»… 思考内容过长，显示窗口受限«/»",
+                                "\n«orange3»… reasoning is very long; the display window is limited«/»"));
                         }
                         AppendReasoning(th);
                     }
@@ -881,7 +884,8 @@ public class LLM
                 else if (!_reasoningTruncated)
                 {
                     _reasoningTruncated = true;
-                    onToken?.Invoke($"\n«orange3»… 思考内容过长，显示窗口受限«/»");
+                    onToken?.Invoke(L.Pick("\n«orange3»… 思考内容过长，显示窗口受限«/»",
+                        "\n«orange3»… reasoning is very long; the display window is limited«/»"));
                 }
                 AppendReasoning(rtext);
             }
@@ -1088,8 +1092,9 @@ public class LLM
                 // 离线模式硬护栏（自测/CI）：非本机端点直接拒绝，保证跑测试绝不产生 token 费用。
                 // 只拦真正的发送，不拦 Endpoint 属性/配置读取等纯展示路径。
                 if (Global.OfflineMode && !Global.IsLoopbackUrl(req.RequestUri?.ToString()))
-                    throw new InvalidOperationException(
-                        $"离线模式禁止外部 LLM 请求：{req.RequestUri}（自测不得产生 token 费用）");
+                    throw new InvalidOperationException(L.Pick(
+                        $"离线模式禁止外部 LLM 请求：{req.RequestUri}（自测不得产生 token 费用）",
+                        $"Offline mode blocks external LLM requests: {req.RequestUri} (self-tests must not incur token costs)"));
                 var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
 
                 // 5xx 服务器错误重试
@@ -1117,7 +1122,8 @@ public class LLM
                 // 内部超时（非外部取消）——下一次自动加长时间
                 if (attempt == effectiveMaxRetries - 1)
                 {
-                    HttpErrorMessage = $"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）";
+                    HttpErrorMessage = L.Pick($"请求超时（{attempt + 1}/{effectiveMaxRetries} 次尝试，最终超时 {thisTimeoutSec:F0}s）",
+                        $"Request timed out (after {attempt + 1}/{effectiveMaxRetries} attempts, final timeout {thisTimeoutSec:F0}s)");
                     ErrorLog.LlmError(Model, Endpoint, HttpErrorMessage);
                     throw new HttpRequestException(HttpErrorMessage);
                 }
@@ -1141,7 +1147,7 @@ public class LLM
         }
 
         ErrorLog.LlmError(Model, Endpoint, $"重试耗尽（{effectiveMaxRetries} 次）");
-        throw new InvalidOperationException("重试耗尽");
+        throw new InvalidOperationException(L.Pick("重试耗尽", "Retries exhausted"));
     }
 
     /// <summary>超时逐次加长倍率（索引 = 尝试次数）。</summary>
@@ -1161,6 +1167,9 @@ public class LLM
     internal static string LocalizeError(string message)
     {
         if (string.IsNullOrEmpty(message)) return message;
+        // ⚠ 英文界面下**原样返回**：底层的 ex.Message 本来就是英文，照旧做「英→中」替换会把
+        //   英文界面的报错反而变成中文（本函数是**唯一的反向**本地化点）。中文界面行为一字不变。
+        if (!L.IsZh) return message;
         return message
             .Replace("Connection refused", "连接被拒绝")
             .Replace("connection refused", "连接被拒绝")

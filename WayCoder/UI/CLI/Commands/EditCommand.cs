@@ -8,8 +8,8 @@ namespace WayCoder.UI.Cli.Commands;
 public class EditCommand : SlashCommand
 {
     public override string Name => "/edit";
-    public override string Description => "终端源码编辑器";
-    public override string? Usage => "/edit [文件路径] [--readonly|-r]  (--readonly=只读查看，禁止修改)";
+    public override string Description => L.Pick("终端源码编辑器", "Terminal source editor");
+    public override string? Usage => L.Pick("/edit [文件路径] [--readonly|-r]  (--readonly=只读查看，禁止修改)", "/edit [file path] [--readonly|-r]  (--readonly = view only, no edits)");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {

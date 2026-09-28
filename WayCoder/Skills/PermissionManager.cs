@@ -74,7 +74,8 @@ public static class PermissionManager
         {
             CurrentMode = Mode.Ask;
             AutoAllowed.Clear();
-            var msg = $"⚠ 连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作，已自动退回「Ask（每次确认）」模式";
+            var msg = L.Pick($"⚠ 连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作，已自动退回「Ask（每次确认）」模式",
+                $"⚠ Denied dangerous operations {AutoModeClassifier.BlockThreshold} times in a row; reverted to Ask mode (confirm every time)");
             ModeFallbackTriggered?.Invoke(msg);
         };
     }
@@ -162,7 +163,8 @@ public static class PermissionManager
         try
         {
             var details = FormatArgs(toolName, args);
-            var content = $"工具: {AnsiHelper.Esc(toolName)}\n{AnsiHelper.Esc(details)}";
+            var content = L.Pick($"工具: {AnsiHelper.Esc(toolName)}\n{AnsiHelper.Esc(details)}",
+                $"Tool: {AnsiHelper.Esc(toolName)}\n{AnsiHelper.Esc(details)}");
 
             int result;
             PendingPermissionTool = toolName; // 可轮询状态（GUI/Web 动态状态栏同步读）
@@ -183,17 +185,18 @@ public static class PermissionManager
             }
             else
             {
-                UxHelper.Warn("确认操作", content);
+                UxHelper.Warn(L.Pick("确认操作", "Confirm action"), content);
+                // 选项文案与判据**同源**（同一批本地变量）—— 否则换语言后下面的比较恒假、"否" 会被读成 0=允许
+                var yesLabel = L.Pick("是 (y)", "Yes (y)");
+                var alwaysLabel = L.Pick("总是允许 (a)", "Always allow (a)");
+                var noLabel = L.Pick("否 (n)", "No (n)");
                 List<string> choices = isDangerous
-                    ? new List<string> { "是 (y)", "否 (n)" }
-                    : new List<string> { "是 (y)", "总是允许 (a)", "否 (n)" };
-                var choice = UxHelper.Select("是否执行？", choices);
-                result = choice switch
-                {
-                    "是 (y)" => 0,
-                    "总是允许 (a)" => 1,
-                    _ => 2
-                };
+                    ? new List<string> { yesLabel, noLabel }
+                    : new List<string> { yesLabel, alwaysLabel, noLabel };
+                var choice = UxHelper.Select(L.Pick("是否执行？", "Execute?"), choices);
+                result = choice == yesLabel ? 0
+                    : choice == alwaysLabel ? 1
+                    : 2;
             }
 
             switch (result)
@@ -204,9 +207,9 @@ public static class PermissionManager
                     break;
                 default: // "否"
                     if (activeScreen != null)
-                        activeScreen.AddSystemMsg("已拒绝");
+                        activeScreen.AddSystemMsg(L.Pick("已拒绝", "Denied"));
                     else if (UxHelper.WebInteraction == null)
-                        UxHelper.Warn("权限确认", "已拒绝"); // Web 模式由浏览器端自行反馈结果，不写服务端 Console
+                        UxHelper.Warn(L.Pick("权限确认", "Permission request"), L.Pick("已拒绝", "Denied")); // Web 模式由浏览器端自行反馈结果，不写服务端 Console
                     break;
             }
             PendingPermissionTool = null; // 解决后清空
@@ -272,7 +275,7 @@ public static class PermissionManager
         // -q/--quiet 静默模式：抑制权限横幅输出；
         // Web 模式经命令返回文本反馈、TUI 由状态栏反馈，直接写 Console 只会污染服务端 stdout / 干扰备用屏
         if (Config.Instance.QuietMode || UxHelper.WebInteraction != null || UxHelper.IsTuiMode) return;
-        Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
+        Console.WriteLine(L.Pick($"权限模式: {AnsiText.Fg(label, color)}", $"Permission mode: {AnsiText.Fg(label, color)}"));
     }
 
     /// <summary>权限模式显示名（必问ASK/自动AUTO/智能SMART/畅通YOLO）——文案唯一真源见 <see cref="UiText"/>。</summary>
@@ -293,19 +296,26 @@ public static class PermissionManager
         };
         var (label, desc) = (UiText.PermLabel(CurrentMode), UiText.PermDesc(CurrentMode));
 
+        var sandboxFullAuto = L.Pick("full-auto（bash 隔离 + 环境清理 + 内存监控）",
+            "full-auto (bash isolation + cleaned environment + memory monitoring)");
         var sandboxInfo = SandboxManager.IsSandboxed
-            ? $"\n{AnsiText.Accent("沙箱:")} full-auto（bash 隔离 + 环境清理 + 内存监控）"
+            ? $"\n{AnsiText.Accent(L.Pick("沙箱:", "Sandbox:"))} {sandboxFullAuto}"
             : "";
 
         var classifierInfo = CurrentMode == Mode.SmartAuto
-            ? $"\n{AnsiText.Dim("分级:")} {AutoModeClassifier.GetStats()}"
+            ? $"\n{AnsiText.Dim(L.Pick("分级:", "Risk levels:"))} {AutoModeClassifier.GetStats()}"
             : "";
 
-        var content = $"当前模式: {AnsiText.Fg(label, color)} — {AnsiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n" +
-            $"{AnsiText.Dim("需要确认:")} {string.Join(", ", ToolSafetyRegistry.ConfirmationToolNames)}\n" +
-            $"{AnsiText.Dim("直接放行:")} read_file, glob, grep, ls, stat 等只读工具";
+        var needsConfirm = L.Pick("需要确认:", "Needs confirmation:");
+        var autoAllowed = L.Pick("直接放行:", "Allowed without asking:");
+        var readOnlyTools = L.Pick("read_file, glob, grep, ls, stat 等只读工具", "read-only tools such as read_file, glob, grep, ls, stat");
 
-        UxHelper.Info("权限状态", content);
+        var content = L.Pick($"当前模式: {AnsiText.Fg(label, color)} — {AnsiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n",
+                $"Current mode: {AnsiText.Fg(label, color)} — {AnsiHelper.Esc(desc)}{sandboxInfo}{classifierInfo}\n") +
+            $"{AnsiText.Dim(needsConfirm)} {string.Join(", ", ToolSafetyRegistry.ConfirmationToolNames)}\n" +
+            $"{AnsiText.Dim(autoAllowed)} {readOnlyTools}";
+
+        UxHelper.Info(L.Pick("权限状态", "Permission status"), content);
     }
 
     // ---- 内部 ----
@@ -353,25 +363,29 @@ public static class PermissionManager
         {
             case "bash":
                 var cmd = args.GetValueOrDefault("command")?.ToString() ?? "";
-                return $"命令: {AnsiHelper.Esc(cmd.Length > 200 ? ContextManager.TruncateByRunes(cmd, 200) + "..." : cmd)}";
+                var cmdShown = cmd.Length > 200 ? ContextManager.TruncateByRunes(cmd, 200) + "..." : cmd;
+                return L.Pick($"命令: {AnsiHelper.Esc(cmdShown)}", $"Command: {AnsiHelper.Esc(cmdShown)}");
             case "write_file":
             case "edit_file":
                 var fp = args.GetValueOrDefault("file_path")?.ToString() ?? "";
-                var result = $"文件: {AnsiHelper.Esc(fp)}";
+                var result = L.Pick($"文件: {AnsiHelper.Esc(fp)}", $"File: {AnsiHelper.Esc(fp)}");
                 if (toolName == "write_file")
                 {
                     var content = args.GetValueOrDefault("content")?.ToString() ?? "";
                     var lineCount = content.Count(c => c == '\n') + 1;
                     var exists = File.Exists(fp);
-                    result += exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
-                    result += $"\n内容: {lineCount} 行";
+                    result += exists
+                        ? L.Pick($" (覆盖已有 {new FileInfo(fp).Length} 字节)", $" (overwriting {new FileInfo(fp).Length} bytes)")
+                        : L.Pick(" (新建)", " (new file)");
+                    result += L.Pick($"\n内容: {lineCount} 行", $"\nContent: {lineCount} lines");
                     // 覆盖已有文件 → 给**文件级 diff**（原来是前 100 字符预览，看不出改了哪些行）
                     var overwriteDiff = exists ? TryBuildFileDiff(fp, ReadAllTextSafe(fp), content) : null;
                     if (!string.IsNullOrEmpty(overwriteDiff)) result += "\n" + overwriteDiff;
                     else
                     {
                         var preview = content.Length > 100 ? ContextManager.TruncateByRunes(content, 100) + "..." : content;
-                        result += $"\n预览: {AnsiHelper.Esc(preview.Replace("\n", "\\n"))}";
+                        var previewShown = AnsiHelper.Esc(preview.Replace("\n", "\\n"));
+                        result += L.Pick($"\n预览: {previewShown}", $"\nPreview: {previewShown}");
                     }
                 }
                 if (toolName == "edit_file")
@@ -397,16 +411,18 @@ public static class PermissionManager
                 var encFile = args.GetValueOrDefault("file_path")?.ToString() ?? "";
                 var encFrom = args.GetValueOrDefault("from_encoding")?.ToString() ?? "auto";
                 var encTo = args.GetValueOrDefault("to_encoding")?.ToString() ?? "utf-8";
-                return $"文件: {AnsiHelper.Esc(encFile)}\n编码: {AnsiHelper.Esc(encFrom)} → {AnsiHelper.Esc(encTo)}";
+                return L.Pick($"文件: {AnsiHelper.Esc(encFile)}\n编码: {AnsiHelper.Esc(encFrom)} → {AnsiHelper.Esc(encTo)}",
+                    $"File: {AnsiHelper.Esc(encFile)}\nEncoding: {AnsiHelper.Esc(encFrom)} → {AnsiHelper.Esc(encTo)}");
             case "agent":
                 var task = args.GetValueOrDefault("task")?.ToString() ?? "";
-                return $"任务: {AnsiHelper.Esc(task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task)}";
+                var taskShown = task.Length > 120 ? ContextManager.TruncateByRunes(task, 120) + "..." : task;
+                return L.Pick($"任务: {AnsiHelper.Esc(taskShown)}", $"Task: {AnsiHelper.Esc(taskShown)}");
             case "kill":
                 var pid = args.GetValueOrDefault("pid")?.ToString() ?? "?";
-                return $"进程 ID: {AnsiHelper.Esc(pid)}";
+                return L.Pick($"进程 ID: {AnsiHelper.Esc(pid)}", $"PID: {AnsiHelper.Esc(pid)}");
             case "rm":
                 var path = args.GetValueOrDefault("path")?.ToString() ?? "?";
-                return $"路径: {AnsiHelper.Esc(path)}";
+                return L.Pick($"路径: {AnsiHelper.Esc(path)}", $"Path: {AnsiHelper.Esc(path)}");
             default:
                 return "";
         }

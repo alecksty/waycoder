@@ -14,7 +14,7 @@ public class FreeCommand : SlashCommand
 {
     public override string Name => "/free";
     public override string[] Aliases => ["/免费"];
-    public override string Description => "免费模型切换：无参弹框 / N 直接切换 / restore 还原收费";
+    public override string Description => L.Pick("免费模型切换：无参弹框 / N 直接切换 / restore 还原收费", "Free model switching: no argument opens a picker / N switches directly / restore goes back to a paid model");
     public override string? Usage => "/free [N|restore]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
@@ -23,7 +23,7 @@ public class FreeCommand : SlashCommand
         var available = ModelCli.LoadFreeJson();
         if (available.Count == 0)
         {
-            screen.AddSystemMsg("⚠️ 尚无免费可用列表。先跑 `--model free` 扫描一次生成 free.json，之后 /free 直接读缓存（不重复扫描）");
+            screen.AddSystemMsg(L.Pick("⚠️ 尚无免费可用列表。先跑 `--model free` 扫描一次生成 free.json，之后 /free 直接读缓存（不重复扫描）", "⚠️ No free-model list yet. Run `--model free` once to generate free.json; after that /free reads the cache directly (no rescan)."));
             return Task.CompletedTask;
         }
 
@@ -41,7 +41,7 @@ public class FreeCommand : SlashCommand
         {
             if (n < 1 || n > available.Count)
             {
-                screen.AddSystemMsg($"⚠️ 序号越界：可用 {available.Count} 个免费模型（/free 1~{available.Count} 或 /free restore）");
+                screen.AddSystemMsg(L.Pick($"⚠️ 序号越界：可用 {available.Count} 个免费模型（/free 1~{available.Count} 或 /free restore）", $"⚠️ Index out of range: {available.Count} free models available (/free 1~{available.Count} or /free restore)"));
                 return Task.CompletedTask;
             }
             var c = available[n - 1];
@@ -49,15 +49,15 @@ public class FreeCommand : SlashCommand
             // 免费切换只更新 state.free_connect + connect_mode=free，【不覆盖】default_connect 锚点。
             ModelCli.RememberCurrentModel();
             ConnectionConfig.SetActiveModel(c.ProviderId, c.ModelId, mode: "free", out var msg, c.BaseUrl);
-            screen.AddSystemMsg($"✅ 已切换免费模型 #{n}：{ModelCatalog.ShortDisplayName(c.ModelId)}（{ModelCatalog.ProviderDisplayName(c.ProviderId)}）\n  /free restore 还原收费模型");
+            screen.AddSystemMsg(L.Pick($"✅ 已切换免费模型 #{n}：{ModelCatalog.ShortDisplayName(c.ModelId)}（{ModelCatalog.ProviderDisplayName(c.ProviderId)}）\n  /free restore 还原收费模型", $"✅ Switched to free model #{n}: {ModelCatalog.ShortDisplayName(c.ModelId)} ({ModelCatalog.ProviderDisplayName(c.ProviderId)})\n  /free restore goes back to a paid model"));
             return Task.CompletedTask;
         }
 
         // 无参数（或非法参数）→ 弹框选择
         if (arg.Length > 0)
-            screen.AddSystemMsg($"⚠️ 未知参数「{args}」。用法：/free 弹框 · /free N 直接切换 · /free restore 还原收费");
-        screen.ShowWindow(TuiDialog.Select($"💰 免费模型（{available.Count} 个 · 缓存）", available
-            .Select(c => $"{ModelCatalog.ShortDisplayName(c.ModelId)}  （{ModelCatalog.ProviderDisplayName(c.ProviderId)}）")
+            screen.AddSystemMsg(L.Pick($"⚠️ 未知参数「{args}」。用法：/free 弹框 · /free N 直接切换 · /free restore 还原收费", $"⚠️ Unknown argument {args}. Usage: /free opens a picker · /free N switches directly · /free restore goes back to a paid model"));
+        screen.ShowWindow(TuiDialog.Select(L.Pick($"💰 免费模型（{available.Count} 个 · 缓存）", $"💰 Free models ({available.Count} · cached)"), available
+            .Select(c => L.Pick($"{ModelCatalog.ShortDisplayName(c.ModelId)}  （{ModelCatalog.ProviderDisplayName(c.ProviderId)}）", $"{ModelCatalog.ShortDisplayName(c.ModelId)}  ({ModelCatalog.ProviderDisplayName(c.ProviderId)})"))
             .ToList(), idx =>
         {
             if (idx >= 0 && idx < available.Count)
@@ -66,7 +66,7 @@ public class FreeCommand : SlashCommand
                 // 切换前记住当前主模型；免费切换不覆盖 default_connect 锚点
                 ModelCli.RememberCurrentModel();
                 ConnectionConfig.SetActiveModel(c.ProviderId, c.ModelId, mode: "free", out var msg, c.BaseUrl);
-                screen.AddSystemMsg($"✅ 已切换免费模型：{ModelCatalog.ShortDisplayName(c.ModelId)}（{c.ProviderId}）\n  /free restore 还原收费模型");
+                screen.AddSystemMsg(L.Pick($"✅ 已切换免费模型：{ModelCatalog.ShortDisplayName(c.ModelId)}（{c.ProviderId}）\n  /free restore 还原收费模型", $"✅ Switched to free model: {ModelCatalog.ShortDisplayName(c.ModelId)} ({c.ProviderId})\n  /free restore goes back to a paid model"));
             }
         }));
         return Task.CompletedTask;

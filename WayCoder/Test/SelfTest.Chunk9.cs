@@ -255,7 +255,9 @@ public static partial class SelfTest
         var resumeArg = new Arguments.ResumeArg();
         Check("ResumeArg: 名称含 resume", resumeArg.Key == "resume");
         Check("ResumeArg: ValueCount 为可选(-1)", resumeArg.ValueCount == -1);
-        Check("ResumeArg: 描述含 '恢复会话'", resumeArg.Description.Contains("恢复会话"));
+        // ⚠ 公理 A2：描述已双语化（L.Pick 两支），断言必须**中英都认** ——
+        // 只认中文的话，英文界面下这条判据恒假、静默变成"通过不了"。
+        Check("ResumeArg: 描述含 '恢复会话'", resumeArg.Description.Contains("恢复会话") || resumeArg.Description.Contains("Resume"));
         // NameDisplay 包含了所有别名
         Check("ResumeArg: 别名含 -c", resumeArg.NameDisplay.Contains("-c"));
         Check("ResumeArg: 别名含 --continue", resumeArg.NameDisplay.Contains("--continue"));
@@ -265,7 +267,7 @@ public static partial class SelfTest
         var sessionListArg = new Arguments.SessionListArg();
         Check("SessionListArg: 名称正确", sessionListArg.Key == "session-list");
         Check("SessionListArg: ValueCount 为 0(标志)", sessionListArg.ValueCount == 0);
-        Check("SessionListArg: 描述含 '列出'", sessionListArg.Description.Contains("列出"));
+        Check("SessionListArg: 描述含 '列出'", sessionListArg.Description.Contains("列出") || sessionListArg.Description.Contains("List"));
         Check("SessionListArg: 别名含 --sessions", sessionListArg.NameDisplay.Contains("--sessions"));
 
         // EconomyArg: 省 Token 模式短名（-e / --economy）
@@ -273,7 +275,7 @@ public static partial class SelfTest
         Check("EconomyArg: 名称含 economy", economyArg.Key == "economy");
         Check("EconomyArg: 短名含 -e", economyArg.Names.Contains("-e"));
         Check("EconomyArg: 长名含 --economy", economyArg.Names.Contains("--economy"));
-        Check("EconomyArg: 描述含 '任务复杂度'", economyArg.Description.Contains("任务复杂度"));
+        Check("EconomyArg: 描述含 '任务复杂度'", economyArg.Description.Contains("任务复杂度") || economyArg.Description.Contains("complexity"));
         Console.WriteLine();
 
         // ---- CLI 参数: 竞品别名对齐（Claude Code / OpenCode）----

@@ -280,7 +280,7 @@ public static class StructuredMemory
         var totalChars = 0;
         foreach (var (entry, score) in scored)
         {
-            var snippet = $"- **{entry.Description}** (相关度: {score:F2})";
+            var snippet = $"- **{entry.Description}** " + L.Pick($"(相关度: {score:F2})", $"(relevance: {score:F2})");
             if (totalChars + snippet.Length > maxChars) break;
             sb.AppendLine(snippet);
             totalChars += snippet.Length;
@@ -289,7 +289,7 @@ public static class StructuredMemory
             var links = entry.GetLinks();
             if (links.Count > 0)
             {
-                sb.Append("  链接: ");
+                sb.Append(L.Pick("  链接: ", "  Links: "));
                 foreach (var link in links.Take(5))
                 {
                     var linked = Get(link);
@@ -504,9 +504,11 @@ public static class StructuredMemory
     {
         var entries = ListAll();
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("# 项目记忆索引");
+        // ⚠ 索引标题按当前语言生成：MEMORY.md 每次都由本函数整份重写（客户端本地产物，
+        //   MEMORY.md 不进共享推送的 filesToAdd 清单），所以不存在「翻译后与旧文件对不上」的问题。
+        sb.AppendLine(L.Pick("# 项目记忆索引", "# Project Memory Index"));
         sb.AppendLine();
-        sb.AppendLine($"共 {entries.Count} 条记忆");
+        sb.AppendLine(L.Pick($"共 {entries.Count} 条记忆", $"{entries.Count} memories"));
         sb.AppendLine();
 
         var indexDir = Path.GetDirectoryName(IndexPath) ?? ".";

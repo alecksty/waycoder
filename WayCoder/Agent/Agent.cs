@@ -352,7 +352,7 @@ public partial class Agent
         {
             var images = LLM.DrainImages(AgentId);
             if (images.Count > 0)
-                result.Add(LLM.BuildImageMessage("请查看以上图片，回答我的问题。", images));
+                result.Add(LLM.BuildImageMessage(L.Pick("请查看以上图片，回答我的问题。", "Look at the image(s) above and answer my question."), images));
         }
         else
         {
@@ -426,9 +426,11 @@ public partial class Agent
         var shown = fileManifest.Take(MaxListed).ToArray();
         var list = string.Join("\n", shown.Select(f => "  - " + f));
         var tail = fileManifest.Count > MaxListed
-            ? "\n  ...（共 " + fileManifest.Count + " 个文件，仅列前 " + MaxListed + " 个）"
+            ? L.Pick("\n  ...（共 " + fileManifest.Count + " 个文件，仅列前 " + MaxListed + " 个）",
+                "\n  ... (" + fileManifest.Count + " files total; only the first " + MaxListed + " are listed)")
             : "";
-        return "\n本轮已触碰的文件清单（自审是否改到了与目标无关的文件）：\n" + list + tail;
+        return L.Pick("\n本轮已触碰的文件清单（自审是否改到了与目标无关的文件）：\n",
+            "\nFiles touched this round (check whether you changed anything unrelated to the goal):\n") + list + tail;
     }
 
     /// <summary>快照会话累计触碰的文件集合（线程安全，供目标护栏与继续提示复用）。</summary>
@@ -499,7 +501,7 @@ public partial class Agent
         if (streak < ToolNudgeThreshold)
         {
             // 未到 10 轮：轻提示续写即可，不催工具（避免打断长链思考）
-            AddMessage(JNode.Object().Set("role", "user").Set("content", "继续。"));
+            AddMessage(JNode.Object().Set("role", "user").Set("content", L.Pick("继续。", "Continue.")));
             return;
         }
         AddMessage(JNode.Object().Set("role", "user").Set("content", nudge(streak)));
@@ -597,15 +599,18 @@ public partial class Agent
                 //（不能只删 Messages.Count-1——那可能是 hook 注入的上下文，用户消息会残留污染后续轮）
                 while (Messages.Count > userMsgIndex)
                     RemoveMessageAt(Messages.Count - 1);
-                return "⚠ Architect 模式：大模型计划生成失败，已取消。";
+                return L.Pick("⚠ Architect 模式：大模型计划生成失败，已取消。",
+                    "⚠ Architect mode: the large model failed to produce a plan; cancelled.");
             }
             // 将计划作为 system 消息注入，小模型继续执行
             AddMessage(JNode.Object()
                 .Set("role", "system")
-                .Set("content", $"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}"));
+                .Set("content", L.Pick($"## 执行计划\n\n以下是 Architect 的分析和执行计划，请按步骤逐一执行：\n\n{plan}",
+                    $"## Execution plan\n\nBelow is the Architect's analysis and execution plan. Work through it step by step:\n\n{plan}")));
             // 切换回小模型执行
             LlmClient.ModelOverride = LlmClient.SmallModel;
-            onToken?.Invoke("\n📋 **计划已生成，切换到小模型执行...**\n\n");
+            onToken?.Invoke(L.Pick("\n📋 **计划已生成，切换到小模型执行...**\n\n",
+                "\n📋 **Plan generated; switching to the small model to execute...**\n\n"));
         }
 
         int requeueCount = 0;
@@ -628,15 +633,18 @@ public partial class Agent
             {
                 var spent = LlmClient.EstimatedCost ?? 0;
                 if (spent >= _maxBudgetUsd.Value)
-                    return $"🛑 已达到预算上限 ${_maxBudgetUsd:F2}（已花费 ${spent:F4}，{round} 轮）。增加预算请使用 --max-budget-usd。";
+                    return L.Pick($"🛑 已达到预算上限 ${_maxBudgetUsd:F2}（已花费 ${spent:F4}，{round} 轮）。增加预算请使用 --max-budget-usd。",
+                        $"🛑 Budget limit of ${_maxBudgetUsd:F2} reached (spent ${spent:F4} over {round} rounds). Raise it with --max-budget-usd.");
 
                 var warnPct = Config.Instance.BudgetWarnPercent;
                 if (!_budgetWarned && warnPct > 0 && spent >= _maxBudgetUsd.Value * warnPct / 100.0)
                 {
                     _budgetWarned = true;
-                    onToken?.Invoke(
+                    onToken?.Invoke(L.Pick(
                         $"\n⚠️ **预算预警**：已花费 ${spent:F4} / 上限 ${_maxBudgetUsd:F2}（{warnPct:F0}%）。" +
-                        $"继续执行可能超支，可 /stats 查看、--max-budget-usd 提额。\n\n");
+                        $"继续执行可能超支，可 /stats 查看、--max-budget-usd 提额。\n\n",
+                        $"\n⚠️ **Budget warning**: spent ${spent:F4} of ${_maxBudgetUsd:F2} ({warnPct:F0}%)." +
+                        $" Continuing may overspend; check /stats or raise the limit with --max-budget-usd.\n\n"));
                 }
             }
 
@@ -666,8 +674,10 @@ public partial class Agent
                     try { saved = SessionManager.SaveSession(SnapshotMessages(), LlmClient.EffectiveModel) != null; }
                     catch (Exception ex) { saved = false; ErrorLog.Error("Agent", $"致命错误时保存会话失败: {ex.Message}"); }
                     return resp.Content ?? (saved
-                        ? "[致命错误] 所有模型失败，会话已保存。"
-                        : "[致命错误] 所有模型失败，且会话保存失败（检查磁盘/权限）。");
+                        ? L.Pick("[致命错误] 所有模型失败，会话已保存。",
+                            "[Fatal error] All models failed; the session was saved.")
+                        : L.Pick("[致命错误] 所有模型失败，且会话保存失败（检查磁盘/权限）。",
+                            "[Fatal error] All models failed and the session could not be saved (check disk space and permissions)."));
                 }
 
                 // ── 硬绿判定（测试驱动修复）──
@@ -692,8 +702,10 @@ public partial class Agent
                             var gateSnippet = ContextManager.TruncateByRunes(gateOut, 1500);
                             AddMessage(JNode.Object()
                                 .Set("role", "user")
-                                .Set("content", "🔴 收尾前测试仍失败（exit=" + gateExit + "）：\n" + gateSnippet +
-                                    "\n\n请继续修复代码使测试通过，不要结束本轮任务。"));
+                                .Set("content", L.Pick("🔴 收尾前测试仍失败（exit=" + gateExit + "）：\n" + gateSnippet +
+                                        "\n\n请继续修复代码使测试通过，不要结束本轮任务。",
+                                    "🔴 Tests still fail before wrapping up (exit=" + gateExit + "):\n" + gateSnippet +
+                                        "\n\nKeep fixing the code until the tests pass; do not end this round.")));
                             _analysisOnlyStreak = 0;
                             _talksCodeStreak = 0;
                             continue;
@@ -724,8 +736,10 @@ public partial class Agent
                             var vSnippet = ContextManager.TruncateByRunes(vOut, 1500);
                             AddMessage(JNode.Object()
                                 .Set("role", "user")
-                                .Set("content", "🔴 收尾验证失败（exit=" + vExit + "）：\n" + vSnippet +
-                                    "\n\n请修复代码使构建/测试通过，不要结束本轮任务。"));
+                                .Set("content", L.Pick("🔴 收尾验证失败（exit=" + vExit + "）：\n" + vSnippet +
+                                        "\n\n请修复代码使构建/测试通过，不要结束本轮任务。",
+                                    "🔴 Final verification failed (exit=" + vExit + "):\n" + vSnippet +
+                                        "\n\nFix the code so the build/tests pass; do not end this round.")));
                             _analysisOnlyStreak = 0;
                             _talksCodeStreak = 0;
                             continue;
@@ -761,9 +775,19 @@ public partial class Agent
                      resp.Content.Contains("public ") || resp.Content.Contains("def ") ||
                      resp.Content.Contains("func ") || resp.Content.Contains("function "));
                 // 明确完成信号：模型主动宣告任务完成（否则"无工具调用"一律视为中途停滞）
+                //
+                // ⚠ **中英都要认**（公理 A2）。这个判据读的是**模型的输出**，而从 Batch 1 起
+                //   系统提示词随界面语言走 ⇒ 英文会话里模型说的是 "task complete"，
+                //   只认中文会让判据**恒假**：模型明明宣告完成了，Agent 却当成中途停滞、
+                //   继续催它 10 轮。这类"判据读的东西被别人改了语言"是 A2 的典型形态，
+                //   ⚠ 同理受影响的还有下面 `LooksLikeTask` 的一堆关键词，但那些读的是**用户输入**
+                //   （用户用自己的语言打字，与界面语言无关），且英文任务动词本来就在表里 —— 未动。
                 var hasCompletionSignal = resp.Content != null &&
                     (resp.Content.Contains("✅") || resp.Content.Contains("任务完成") ||
-                     resp.Content.Contains("已完成") || resp.Content.Contains("全部完成"));
+                     resp.Content.Contains("已完成") || resp.Content.Contains("全部完成") ||
+                     resp.Content.Contains("task complete", StringComparison.OrdinalIgnoreCase) ||
+                     resp.Content.Contains("all done", StringComparison.OrdinalIgnoreCase) ||
+                     resp.Content.Contains("completed", StringComparison.OrdinalIgnoreCase));
 
                 // ── 计划审批门（Plan 模式）──
                 // Plan 模式下模型产出计划（文本、无工具调用）后，不再自动催促执行，
@@ -781,8 +805,10 @@ public partial class Agent
                         AddMessage(JNode.Object()
                             .Set("role", "user")
                             .Set("content", approval == 0
-                                ? "✅ 计划已获批准（本会话内自动接受文件编辑；删除、命令执行等仍会询问）。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"
-                                : "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"));
+                                ? L.Pick("✅ 计划已获批准（本会话内自动接受文件编辑；删除、命令执行等仍会询问）。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。",
+                                    "✅ The plan is approved (file edits are auto-accepted for this session; deletions, command execution, etc. still ask). Switch to Build mode now and work through the plan step by step, then report the results.")
+                                : L.Pick("✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。",
+                                    "✅ The plan is approved. Switch to Build mode now and work through the plan step by step, then report the results.")));
                         _analysisOnlyStreak = 0;
                         _talksCodeStreak = 0;
                         continue;
@@ -807,9 +833,12 @@ public partial class Agent
                     {
                         NudgeToolUse(ref _analysisOnlyStreak, s => s switch
                         {
-                            ToolNudgeThreshold => $"你的推理思考已消耗 {reasoningLen} 字符，但没有产生任何工具调用。请立即调用 write_file 或 bash 工具执行任务，不要再进行冗长的内部推理。",
-                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮只输出推理而不调用工具。请立即调用工具——不要只思考不行动。",
-                            _ => $"⚠️ 严重警告：连续 {s} 轮纯推理无行动。立即停止思考，只输出工具调用。",
+                            ToolNudgeThreshold => L.Pick($"你的推理思考已消耗 {reasoningLen} 字符，但没有产生任何工具调用。请立即调用 write_file 或 bash 工具执行任务，不要再进行冗长的内部推理。",
+                                $"Your reasoning has consumed {reasoningLen} characters without producing a single tool call. Call write_file or bash now to do the task; stop the long internal reasoning."),
+                            ToolNudgeThreshold + 1 => L.Pick($"你已连续 {s} 轮只输出推理而不调用工具。请立即调用工具——不要只思考不行动。",
+                                $"You have spent {s} consecutive rounds producing only reasoning and no tool calls. Call a tool now — do not just think, act."),
+                            _ => L.Pick($"⚠️ 严重警告：连续 {s} 轮纯推理无行动。立即停止思考，只输出工具调用。",
+                                $"⚠️ Serious warning: {s} consecutive rounds of reasoning with no action. Stop thinking and emit tool calls only."),
                         });
                         continue;
                     }
@@ -819,9 +848,12 @@ public partial class Agent
                         // 首轮分析但未行动 — 渐进式催促（未到阈值只「继续」，不催）
                         NudgeToolUse(ref _analysisOnlyStreak, s => s switch
                         {
-                            ToolNudgeThreshold => "请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。",
-                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。",
-                            _ => $"⚠️ 严重警告：你已连续 {s} 轮不调用工具。立即调用工具执行任务，只输出工具调用。",
+                            ToolNudgeThreshold => L.Pick("请立即用工具执行上述计划。直接调用 write_file/edit_file/bash 等工具，不要再输出分析。",
+                                "Execute the plan above with tools now. Call write_file/edit_file/bash directly; stop producing analysis."),
+                            ToolNudgeThreshold + 1 => L.Pick($"你已连续 {s} 轮只输出分析不调用工具。请立即行动——调用 write_file 或 bash 执行具体操作。",
+                                $"You have spent {s} consecutive rounds producing only analysis and no tool calls. Act now — call write_file or bash to do the actual work."),
+                            _ => L.Pick($"⚠️ 严重警告：你已连续 {s} 轮不调用工具。立即调用工具执行任务，只输出工具调用。",
+                                $"⚠️ Serious warning: {s} consecutive rounds with no tool calls. Call a tool now to do the task; emit tool calls only."),
                         });
                         continue;
                     }
@@ -831,9 +863,12 @@ public partial class Agent
                         // 模型在"口述"代码而非写入文件 — 渐进式追问使其用工具
                         NudgeToolUse(ref _talksCodeStreak, s => s switch
                         {
-                            ToolNudgeThreshold => "不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。",
-                            ToolNudgeThreshold + 1 => $"你已连续 {s} 次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。",
-                            _ => $"⚠️ 严重警告：你已连续 {s} 次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——立即调用，不要输出任何文字。",
+                            ToolNudgeThreshold => L.Pick("不要用文字输出代码。立即调用 write_file 工具将上述代码写入文件。",
+                                "Do not print code as text. Call the write_file tool now to write that code to a file."),
+                            ToolNudgeThreshold + 1 => L.Pick($"你已连续 {s} 次只输出代码文字而不调用 write_file。请立即使用 write_file 工具将代码写入磁盘。",
+                                $"You have produced code as text {s} times in a row without calling write_file. Use the write_file tool now to write the code to disk."),
+                            _ => L.Pick($"⚠️ 严重警告：你已连续 {s} 次在文字中输出代码而不使用工具。代码必须通过 write_file 写入文件——立即调用，不要输出任何文字。",
+                                $"⚠️ Serious warning: {s} times in a row you have emitted code as text instead of using a tool. Code must be written to a file via write_file — call it now and output no prose."),
                         });
                         continue;
                     }
@@ -845,9 +880,12 @@ public partial class Agent
                     {
                         NudgeToolUse(ref _analysisOnlyStreak, s => s switch
                         {
-                            ToolNudgeThreshold => "本轮没有调用任何工具——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停在计划或分析阶段。",
-                            ToolNudgeThreshold + 1 => $"你已连续 {s} 轮没有调用工具。任务未完成，请立即调用工具继续执行。",
-                            _ => $"⚠️ 严重警告：连续 {s} 轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
+                            ToolNudgeThreshold => L.Pick("本轮没有调用任何工具——任务尚未完成。请立即调用 write_file/bash 等工具继续执行下一步，不要停在计划或分析阶段。",
+                                "No tool was called this round — the task is not finished. Call write_file/bash now to do the next step; do not stop at planning or analysis."),
+                            ToolNudgeThreshold + 1 => L.Pick($"你已连续 {s} 轮没有调用工具。任务未完成，请立即调用工具继续执行。",
+                                $"You have gone {s} consecutive rounds without calling a tool. The task is not finished; call a tool now to continue."),
+                            _ => L.Pick($"⚠️ 严重警告：连续 {s} 轮无工具调用，任务仍未完成。立即调用工具继续，直到真正完成并明确汇报结果。",
+                                $"⚠️ Serious warning: {s} consecutive rounds with no tool calls and the task is still unfinished. Keep calling tools until it is truly done, then report the result explicitly."),
                         });
                         continue;
                     }
@@ -915,7 +953,8 @@ public partial class Agent
                 // 如果 Agent 正在执行任务中（有工具调用历史），注入继续提示
                 if (!Context.ContinuePromptInjected && afterCount < beforeCount)
                 {
-                    InjectContinuePrompt("之前的会话因上下文过长而被压缩");
+                    InjectContinuePrompt(L.Pick("之前的会话因上下文过长而被压缩",
+                        "The previous session was compacted because the context grew too long"));
                 }
             }
 
@@ -941,8 +980,12 @@ public partial class Agent
             .ToList();
         // 匹配真实工具输出：write_file 返回「已写入 N 行到 …」，edit_file 返回「已编辑 …」，
         // multiedit 返回「✅ 已创建 … / ✅ 已编辑 …」。（旧标记「✅ 已写入/✅ 编辑完成」已无任何工具产出，导致自动续跑永远不触发。）
+        // ⚠⚠ 中英双认（公理 A2）：这些是 Tools/WriteFileTool、EditFileTool、MultiEditTool 的
+        //   执行期返回值，那几处双语化后中文支只在中文界面下出现 ⇒ 只认中文会让英文界面下
+        //   「自动续跑」永远不触发（任务被截断在轮数上限处）。英文支与 WriteFileTool 的写出口对齐。
         var wasWriting = recentTools.Any(c =>
-            c.Contains("已写入") || c.Contains("已编辑") || c.Contains("已创建"));
+            c.Contains("已写入") || c.Contains("已编辑") || c.Contains("已创建")
+            || c.Contains("Wrote ") || c.Contains("Appended ") || c.Contains("Edited ") || c.Contains("Created "));
         var lastMsg = SnapshotMessages().LastOrDefault(m => m["role"]?.AsString() == "assistant")
             ?["content"]?.AsString() ?? "";
 
@@ -950,21 +993,26 @@ public partial class Agent
         if (wasWriting && requeueCount < Config.Instance.MaxAutoRequeue)
         {
             requeueCount++;
-            onToken?.Invoke($"\n🔁 **已达到 {_effectiveMaxRounds} 轮上限，自动续跑（第 {requeueCount}/{Config.Instance.MaxAutoRequeue} 次）...**\n\n");
+            onToken?.Invoke(L.Pick($"\n🔁 **已达到 {_effectiveMaxRounds} 轮上限，自动续跑（第 {requeueCount}/{Config.Instance.MaxAutoRequeue} 次）...**\n\n",
+                $"\n🔁 **Round limit of {_effectiveMaxRounds} reached; auto-continuing ({requeueCount}/{Config.Instance.MaxAutoRequeue})...**\n\n"));
             await CompressWithSmallModel();
-            InjectContinuePrompt($"已达到 {_effectiveMaxRounds} 轮工具调用上限，自动续跑");
+            InjectContinuePrompt(L.Pick($"已达到 {_effectiveMaxRounds} 轮工具调用上限，自动续跑",
+                $"The {_effectiveMaxRounds}-round tool-call limit was reached; auto-continuing"));
             goto Requeue;
         }
 
         if (wasWriting)
         {
-            return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — ⚠ 任务可能未完成，最近仍在写文件。输入「继续」以恢复。）";
+            return L.Pick($"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — ⚠ 任务可能未完成，最近仍在写文件。输入「继续」以恢复。）",
+                $"(The {_effectiveMaxRounds}-round tool-call limit was reached — ⚠ the task may be unfinished; files were still being written. Type \"continue\" to resume.)");
         }
         if (lastMsg.Length > 200)
         {
-            return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — 输入「继续」以从中断处恢复。）";
+            return L.Pick($"（已达到 {_effectiveMaxRounds} 轮工具调用上限 — 输入「继续」以从中断处恢复。）",
+                $"(The {_effectiveMaxRounds}-round tool-call limit was reached — type \"continue\" to resume from where it stopped.)");
         }
-        return $"（已达到 {_effectiveMaxRounds} 轮工具调用上限）";
+        return L.Pick($"（已达到 {_effectiveMaxRounds} 轮工具调用上限）",
+            $"(The {_effectiveMaxRounds}-round tool-call limit was reached)");
     }
 
     /// <summary>
@@ -989,7 +1037,8 @@ public partial class Agent
     /// </summary>
     private async Task<string> GracefulPauseAsync(Action<string>? onToken)
     {
-        onToken?.Invoke("\n⏸ **优雅暂停：提交进度 + 保存状态…**\n");
+        onToken?.Invoke(L.Pick("\n⏸ **优雅暂停：提交进度 + 保存状态…**\n",
+            "\n⏸ **Graceful pause: committing progress + saving state…**\n"));
 
         // 1. 提交 Agent 本轮修改的文件。仅提交 Agent 自己改过的文件（不做 git-status 全量兜底），
         //    避免把用户与本任务无关的未提交改动一并卷进去。
@@ -1002,9 +1051,10 @@ public partial class Agent
         // 2. 写检查点（未提交的残留改动可回滚；工作区干净则为空标记）
         try
         {
-            var cp = await CheckpointManager.CreateAsync("pause 优雅暂停");
+            // 描述会显示在 /timeline 的检查点列表里 ⇒ 是文案，跟界面语言走
+            var cp = await CheckpointManager.CreateAsync(L.Pick("pause 优雅暂停", "graceful pause"));
             if (cp != null)
-                onToken?.Invoke($"  📦 检查点 #{cp.Id} 已创建\n");
+                onToken?.Invoke(L.Pick($"  📦 检查点 #{cp.Id} 已创建\n", $"  📦 Checkpoint #{cp.Id} created\n"));
         }
         catch (Exception ex) { DebugLog.Log("pause", $"暂停检查点失败: {ex.Message}"); }
 
@@ -1015,7 +1065,8 @@ public partial class Agent
         }
         catch (Exception ex) { DebugLog.Log("pause", $"暂停保存会话失败: {ex.Message}"); }
 
-        var summary = "\n⏸ **已暂停**：当前批次已完成并提交，检查点与会话均已保存。\n输入「继续」或重启后 /resume 从提交点恢复。";
+        var summary = L.Pick("\n⏸ **已暂停**：当前批次已完成并提交，检查点与会话均已保存。\n输入「继续」或重启后 /resume 从提交点恢复。",
+            "\n⏸ **Paused**: the current batch is finished and committed; the checkpoint and session were both saved.\nType \"continue\", or run /resume after restarting, to pick up from the commit point.");
         onToken?.Invoke(summary);
         return summary;
     }
@@ -1076,13 +1127,18 @@ public partial class Agent
         lock (_allSessionFiles)
             fileArray = _allSessionFiles.ToArray();
         var fileListStr = fileArray.Length > 0
-            ? "\n\n已确认创建/修改的文件（" + fileArray.Length + " 个）：\n" + string.Join("\n", fileArray.Take(20).Select(f => $"  - {f}"))
-                + (fileArray.Length > 20 ? $"\n  ...（共 {fileArray.Length} 个）" : "")
+            ? L.Pick("\n\n已确认创建/修改的文件（" + fileArray.Length + " 个）：\n",
+                "\n\nFiles confirmed as created/modified (" + fileArray.Length + "):\n")
+                + string.Join("\n", fileArray.Take(20).Select(f => $"  - {f}"))
+                + (fileArray.Length > 20
+                    ? L.Pick($"\n  ...（共 {fileArray.Length} 个）", $"\n  ... ({fileArray.Length} total)")
+                    : "")
             : "";
 
         AddMessage(JNode.Object()
             .Set("role", "user")
-            .Set("content", $"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}"));
+            .Set("content", L.Pick($"{reason}。原始用户请求是：`{originalUserMsg}`\n请从中断处继续，完成未完成的工作。不要重写或缩小已有文件——只创建新文件或向已有文件追加缺失内容。{fileListStr}",
+                $"{reason}. The original user request was: `{originalUserMsg}`\nContinue from where you stopped and finish the remaining work. Do not rewrite or shrink existing files — only create new files or append the missing content to existing ones.{fileListStr}")));
         Context.ResetUsage(); // 重置计数器，给新一轮足够的空间
     }
 

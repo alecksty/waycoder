@@ -21,24 +21,30 @@ public class SkillTool : ITool
         var name = arguments.GetValueOrDefault("name")?.ToString() ?? "";
 
         if (string.IsNullOrWhiteSpace(name))
-            return Task.FromResult("错误：请指定技能名称（name 参数）");
+            return Task.FromResult(L.Pick("错误：请指定技能名称（name 参数）",
+                                          "Error: please specify a skill name (the 'name' parameter)"));
 
         var skill = SkillsManager.GetSkill(name);
         if (skill == null)
-            return Task.FromResult($"未找到技能: {name}\n可用技能: {string.Join(", ", SkillsManager.Skills.Keys)}");
+        {
+            var available = string.Join(", ", SkillsManager.Skills.Keys);
+            return Task.FromResult(L.Pick($"未找到技能: {name}\n可用技能: {available}",
+                                          $"Skill not found: {name}\nAvailable skills: {available}"));
+        }
 
         // 构建返回内容：技能 body + 打包文件列表
-        var result = $"# 技能: {skill.Name}";
+        var result = L.Pick($"# 技能: {skill.Name}", $"# Skill: {skill.Name}");
         if (!string.IsNullOrEmpty(skill.Description))
             result += $"\n\n{skill.Description}";
         result += $"\n\n{skill.Body}";
 
         if (skill.BundledFiles.Count > 0)
         {
-            result += "\n\n---\n## 打包文件\n";
+            result += L.Pick("\n\n---\n## 打包文件\n", "\n\n---\n## Bundled files\n");
             foreach (var file in skill.BundledFiles)
             {
-                result += $"- {file}（路径: {skill.DirPath}/{file}）\n";
+                result += L.Pick($"- {file}（路径: {skill.DirPath}/{file}）\n",
+                                 $"- {file} (path: {skill.DirPath}/{file})\n");
             }
         }
 

@@ -68,12 +68,12 @@ internal static class PktLine
         {
             if (tolerant) return null;   // 宽容：任何非数据帧都当流结束
             if (len == 0) return null;   // 严格：flush-pkt 也是流结束
-            throw new InvalidDataException($"非法 pkt-line 长度 {len}");
+            throw new InvalidDataException(L.Pick($"非法 pkt-line 长度 {len}", $"invalid pkt-line length {len}"));
         }
 
         var payload = new byte[len - 4];
         if (!ReadExact(s, payload, payload.Length))
-            throw new EndOfStreamException("pkt-line 数据截断");
+            throw new EndOfStreamException(L.Pick("pkt-line 数据截断", "pkt-line data truncated"));
         return payload;
     }
 
@@ -112,9 +112,9 @@ public static class PackFileReader
         Action<string, string, IntPtr, long>? onLargeObject = null,
         Func<string, (string Type, IntPtr Ptr, long Len)?>? readBaseNative = null)
     {
-        if (pack.Length < 12) throw new InvalidDataException("packfile 过短");
+        if (pack.Length < 12) throw new InvalidDataException(L.Pick("packfile 过短", "packfile too short"));
         if (pack[0] != 'P' || pack[1] != 'A' || pack[2] != 'C' || pack[3] != 'K')
-            throw new InvalidDataException("非 packfile（缺 PACK 魔数）");
+            throw new InvalidDataException(L.Pick("非 packfile（缺 PACK 魔数）", "not a packfile (missing PACK magic)"));
 
         int count = GitBin.ReadInt32BE(pack, 8);
         if (count <= 0) return 0;
@@ -187,7 +187,7 @@ public static class PackFileReader
             }
 
             // 解压该对象的 zlib 数据（按头部声明 size 精确分配，单遍解压，不翻倍物化）
-            if (size > int.MaxValue) throw new InvalidDataException($"对象过大（{size} 字节）");
+            if (size > int.MaxValue) throw new InvalidDataException(L.Pick($"对象过大（{size} 字节）", $"object too large ({size} bytes)"));
             var inflated = new byte[(int)size];
             int consumed = Inflater.DecompressInto(inflated, pack, pos);
             pos += consumed;
@@ -224,7 +224,7 @@ public static class PackFileReader
         if (type == 6)
         {
             if (!shaByOffset.TryGetValue(baseOffset, out var bs))
-                throw new InvalidDataException($"delta 对象的 base 未找到（ofs@{baseOffset}）");
+                throw new InvalidDataException(L.Pick($"delta 对象的 base 未找到（ofs@{baseOffset}）", $"delta base object not found (ofs@{baseOffset})"));
             baseSha = bs;
         }
         else
@@ -235,7 +235,7 @@ public static class PackFileReader
         var bm = cache.Get(baseSha);
         if (bm == null && externalBase != null) bm = externalBase(baseSha);
         if (bm == null)
-            throw new InvalidDataException($"delta 对象的 base 未找到（{baseSha}）");
+            throw new InvalidDataException(L.Pick($"delta 对象的 base 未找到（{baseSha}）", $"delta base object not found ({baseSha})"));
 
         return (bm.Value.Type, ApplyDelta(bm.Value.Content, inflated));
     }
@@ -265,9 +265,9 @@ public static class PackFileReader
         const long MaxObjectBytes = 64L * 1024 * 1024;   // 单对象压缩数据读取上限（防病态超大对象）
         using var fs = File.OpenRead(packPath);
         var header = new byte[12];
-        if (fs.Read(header, 0, 12) != 12) throw new InvalidDataException("packfile 过短");
+        if (fs.Read(header, 0, 12) != 12) throw new InvalidDataException(L.Pick("packfile 过短", "packfile too short"));
         if (header[0] != 'P' || header[1] != 'A' || header[2] != 'C' || header[3] != 'K')
-            throw new InvalidDataException("非 packfile（缺 PACK 魔数）");
+            throw new InvalidDataException(L.Pick("非 packfile（缺 PACK 魔数）", "not a packfile (missing PACK magic)"));
         int count = (header[8] << 24) | (header[9] << 16) | (header[10] << 8) | header[11];
         if (count <= 0) return 0;
 
@@ -286,7 +286,7 @@ public static class PackFileReader
             // 读对象头：首字节 bit7=续位、bit6-4=类型、bit3-0=size 低 4 位
             fs.Seek(objOffset, SeekOrigin.Begin);
             int hn = fs.Read(headBuf, 0, headBuf.Length);
-            if (hn < 2) throw new InvalidDataException("packfile 数据截断");
+            if (hn < 2) throw new InvalidDataException(L.Pick("packfile 数据截断", "packfile data truncated"));
             int pos = 0;
             byte b = headBuf[pos++];
             int type = (b >> 4) & 0x07;
@@ -339,7 +339,7 @@ public static class PackFileReader
             int consumed;
             if (size > LargeThreshold)
             {
-                if (size > int.MaxValue) throw new InvalidDataException($"对象过大（{size} 字节）");
+                if (size > int.MaxValue) throw new InvalidDataException(L.Pick($"对象过大（{size} 字节）", $"object too large ({size} bytes)"));
                 inflated = new byte[(int)size];
                 consumed = InflateAtInto(inflated, fs, compressedFileOffset, MaxObjectBytes);
             }
@@ -382,7 +382,7 @@ public static class PackFileReader
             fs.Seek(fileOffset, SeekOrigin.Begin);
             var buf = new byte[cap];
             int n = fs.Read(buf, 0, cap);
-            if (n <= 0) throw new InvalidDataException("packfile 数据截断");
+            if (n <= 0) throw new InvalidDataException(L.Pick("packfile 数据截断", "packfile data truncated"));
             byte[] input = n == cap ? buf : buf[..n];
             try
             {
@@ -416,7 +416,7 @@ public static class PackFileReader
                     if (r <= 0) break;
                     n += r;
                 }
-                if (n <= 0) throw new InvalidDataException("packfile 数据截断");
+                if (n <= 0) throw new InvalidDataException(L.Pick("packfile 数据截断", "packfile data truncated"));
                 try
                 {
                     return Inflater.DecompressInto(output, new ReadOnlySpan<byte>(inputPtr, n), 0);
@@ -483,7 +483,7 @@ public static class PackFileReader
         {
             var ext = resolveBase(baseSha!);
             if (ext == null)
-                throw new InvalidDataException($"delta 对象的 base 未找到（{baseSha}）");
+                throw new InvalidDataException(L.Pick($"delta 对象的 base 未找到（{baseSha}）", $"delta base object not found ({baseSha})"));
             bm = ext.Value;
         }
         return (bm.Type, ApplyDelta(bm.Content, inflated));
@@ -724,9 +724,9 @@ internal static class Inflater
         int pos = offset;
         byte cmf = input[pos++];
         byte flg = input[pos++];
-        if ((cmf & 0x0F) != 8) throw new InvalidDataException("非 deflate 压缩方法");
-        if ((cmf >> 4) > 7) throw new InvalidDataException("zlib 窗口过大");
-        if ((((cmf << 8) | flg) % 31) != 0) throw new InvalidDataException("zlib header 校验失败");
+        if ((cmf & 0x0F) != 8) throw new InvalidDataException(L.Pick("非 deflate 压缩方法", "not a deflate compression method"));
+        if ((cmf >> 4) > 7) throw new InvalidDataException(L.Pick("zlib 窗口过大", "zlib window too large"));
+        if ((((cmf << 8) | flg) % 31) != 0) throw new InvalidDataException(L.Pick("zlib header 校验失败", "zlib header check failed"));
         if ((flg & 0x20) != 0) pos += 4; // FDICT：跳过 4 字节 dictid（git 不用 preset dictionary）
 
         var br = new BitReader(input, pos);
@@ -742,7 +742,7 @@ internal static class Inflater
                 case 0: DecodeStored(ref br, output, ref outLen); break;
                 case 1: DecodeHuffman(ref br, output, FixedLitLen, FixedDist, ref outLen); break;
                 case 2: DecodeDynamic(ref br, output, ref outLen); break;
-                default: throw new InvalidDataException($"非法 deflate 块类型 {btype}");
+                default: throw new InvalidDataException(L.Pick($"非法 deflate 块类型 {btype}", $"invalid deflate block type {btype}"));
             }
         } while (!final);
 
@@ -757,7 +757,7 @@ internal static class Inflater
         br.AlignToByte();
         int len = br.ReadByte() | (br.ReadByte() << 8);
         int nlen = br.ReadByte() | (br.ReadByte() << 8);
-        if ((len ^ 0xFFFF) != nlen) throw new InvalidDataException("stored 块长度校验失败");
+        if ((len ^ 0xFFFF) != nlen) throw new InvalidDataException(L.Pick("stored 块长度校验失败", "stored block length check failed"));
         if (output.IsEmpty) { outLen += len; br.SkipBytes(len); }
         else
         {
@@ -855,7 +855,7 @@ internal static class Inflater
         {
             if (_bits == 0)
             {
-                if (_pos >= _data.Length) throw new EndOfStreamException("deflate 数据截断");
+                if (_pos >= _data.Length) throw new EndOfStreamException(L.Pick("deflate 数据截断", "deflate data truncated"));
                 _buf = _data[_pos++];
                 _bits = 8;
             }
@@ -878,14 +878,14 @@ internal static class Inflater
 
         public int ReadByte()
         {
-            if (_pos >= _data.Length) throw new EndOfStreamException("数据截断");
+            if (_pos >= _data.Length) throw new EndOfStreamException(L.Pick("数据截断", "data truncated"));
             return _data[_pos++];
         }
 
         /// <summary>直接跳过 n 个字节（Skip 模式下 stored 块不读内容）。</summary>
         public void SkipBytes(int n)
         {
-            if (_pos + n > _data.Length) throw new EndOfStreamException("数据截断");
+            if (_pos + n > _data.Length) throw new EndOfStreamException(L.Pick("数据截断", "data truncated"));
             _pos += n;
         }
 
@@ -893,7 +893,7 @@ internal static class Inflater
         {
             // 必须与 SkipBytes 一致抛 EndOfStreamException：分块解码靠它识别「块不够大」自动加大重读；
             // Array.Copy 的 ArgumentException 会逃逸成诡异崩溃。仅小对象 stored 块用（大对象走 span 直接拷贝）
-            if (_pos + n > _data.Length) throw new EndOfStreamException("数据截断");
+            if (_pos + n > _data.Length) throw new EndOfStreamException(L.Pick("数据截断", "data truncated"));
             var b = new byte[n];
             _data.Slice(_pos, n).CopyTo(b);
             _pos += n;
@@ -944,7 +944,7 @@ internal static class Inflater
                 index += count;
                 first = (first + count) << 1;
             }
-            throw new InvalidDataException("Huffman 解码失败（码表不完整）");
+            throw new InvalidDataException(L.Pick("Huffman 解码失败（码表不完整）", "Huffman decoding failed (incomplete code table)"));
         }
     }
 

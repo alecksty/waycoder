@@ -24,7 +24,7 @@ public class ProviderCommand : SlashCommand
 {
     public override string Name => "/provider";
     public override string[] Aliases => ["/p", "/prov"];
-    public override string Description => "服务商管理：{名称, 地址, 密钥} — list/add/rm/select/test/import";
+    public override string Description => L.Pick("服务商管理：{名称, 地址, 密钥} — list/add/rm/select/test/import", "Provider management: {name, base URL, key} — list/add/rm/select/test/import");
     public override string? Usage => "/provider [list | add <id> <name> <url> | rm <id> | select <id> | <id> | show <id> | apikey [set <pid> <key> | rm <pid>] | test | import [source] | reconcile [--dry-run]]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
@@ -62,7 +62,7 @@ public class ProviderCommand : SlashCommand
             case "del":
                 if (string.IsNullOrEmpty(rest))
                 {
-                    screen.AddSystemMsg("用法: /provider rm <providerId>");
+                    screen.AddSystemMsg(L.Pick("用法: /provider rm <providerId>", "Usage: /provider rm <providerId>"));
                     break;
                 }
                 RemoveProvider(screen, rest);
@@ -110,11 +110,11 @@ public class ProviderCommand : SlashCommand
     {
         var cfg = Config.Instance;
         var sb = new StringBuilder();
-        sb.AppendLine("**服务商（Provider）**");
-        sb.AppendLine($"  大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}");
-        sb.AppendLine($"  小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}");
+        sb.AppendLine(L.Pick("**服务商（Provider）**", "**Providers**"));
+        sb.AppendLine(L.Pick($"  大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}", $"  Big model: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}"));
+        sb.AppendLine(L.Pick($"  小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}", $"  Small model: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}"));
         sb.AppendLine();
-        sb.AppendLine("`/provider list` 全部　`/provider select <id>` 切换　`/provider apikey` 管 key　`/provider test` 测连通");
+        sb.AppendLine(L.Pick("`/provider list` 全部　`/provider select <id>` 切换　`/provider apikey` 管 key　`/provider test` 测连通", "`/provider list` all · `/provider select <id>` switch · `/provider apikey` manage keys · `/provider test` check connectivity"));
         screen.AddSystemMsg(sb.ToString());
     }
 
@@ -122,7 +122,7 @@ public class ProviderCommand : SlashCommand
     {
         var groups = ModelCatalog.All.GroupBy(m => m.ProviderId).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase);
         var sb = new StringBuilder();
-        sb.AppendLine($"**服务商列表**（共 {groups.Count()} 个，provider = name / base_url / key）：");
+        sb.AppendLine(L.Pick($"**服务商列表**（共 {groups.Count()} 个，provider = name / base_url / key）：", $"**Providers** ({groups.Count()} total; provider = name / base_url / key):"));
 
         foreach (var g in groups)
         {
@@ -132,12 +132,12 @@ public class ProviderCommand : SlashCommand
             var baseUrl = firstModel.DefaultBaseUrl ?? prov?.DefaultBaseUrl;
             var hasKey = ApiKeyStore.Has(pid);
             var keyMark = hasKey ? "🔑" : "— ";   // 统一占 2 列显示宽度（🔑 2 列，— 补空格），避免有/无 key 行错位
-            var current = pid.Equals(Config.Instance.Provider, StringComparison.OrdinalIgnoreCase) ? " ← 当前" : "";
+            var current = pid.Equals(Config.Instance.Provider, StringComparison.OrdinalIgnoreCase) ? L.Pick(" ← 当前", " ← current") : "";
 
-            sb.AppendLine($"  {keyMark} `{pid,-14}` {ModelCatalog.ProviderDisplayName(pid),-12} {g.Count(),3} 模型  {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}");
+            sb.AppendLine(L.Pick($"  {keyMark} `{pid,-14}` {ModelCatalog.ProviderDisplayName(pid),-12} {g.Count(),3} 模型  {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}", $"  {keyMark} `{pid,-14}` {ModelCatalog.ProviderDisplayName(pid),-12} {g.Count(),3} models {(string.IsNullOrEmpty(baseUrl) ? "" : baseUrl)}{current}"));
         }
 
-        sb.AppendLine("\n`/provider select <id>` 切换　`/provider add <id> <名称> <url>` 新增　`/provider apikey set <pid> <key>` 存 key");
+        sb.AppendLine(L.Pick("\n`/provider select <id>` 切换　`/provider add <id> <名称> <url>` 新增　`/provider apikey set <pid> <key>` 存 key", "\n`/provider select <id>` switch · `/provider add <id> <name> <url>` add · `/provider apikey set <pid> <key>` store a key"));
         screen.AddSystemMsg(sb.ToString());
     }
 
@@ -150,20 +150,20 @@ public class ProviderCommand : SlashCommand
         var p = args.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
         if (p.Length < 3)
         {
-            screen.AddSystemMsg("用法: /provider add <id> <名称> <base-url>\n例: `/provider add deepseek DeepSeek https://api.deepseek.com/v1`");
+            screen.AddSystemMsg(L.Pick("用法: /provider add <id> <名称> <base-url>\n例: `/provider add deepseek DeepSeek https://api.deepseek.com/v1`", "Usage: /provider add <id> <name> <base-url>\nExample: `/provider add deepseek DeepSeek https://api.deepseek.com/v1`"));
             return;
         }
         ModelCatalog.RegisterProvider(p[0].Trim().ToLowerInvariant(), p[1], p[2]);
-        screen.AddSystemMsg($"✅ 已添加/更新服务商 `{p[0].Trim().ToLowerInvariant()}` → {p[2]}");
+        screen.AddSystemMsg(L.Pick($"✅ 已添加/更新服务商 `{p[0].Trim().ToLowerInvariant()}` → {p[2]}", $"✅ Added/updated provider `{p[0].Trim().ToLowerInvariant()}` → {p[2]}"));
     }
 
     static void RemoveProvider(ChatScreen screen, string pid)
     {
         var pid2 = pid.Trim().ToLowerInvariant();
         if (ModelCatalog.RemoveProvider(pid2))
-            screen.AddSystemMsg($"🗑 已移除服务商 `{pid2}`（含 API key）");
+            screen.AddSystemMsg(L.Pick($"🗑 已移除服务商 `{pid2}`（含 API key）", $"🗑 Removed provider `{pid2}` (including its API key)"));
         else
-            screen.AddSystemMsg($"未找到服务商 `{pid2}`。用 /provider list 查看全部。");
+            screen.AddSystemMsg(L.Pick($"未找到服务商 `{pid2}`。用 /provider list 查看全部。", $"Provider `{pid2}` not found. Use /provider list to see them all."));
     }
 
     static void SelectProvider(ChatScreen screen, string pid)
@@ -171,12 +171,12 @@ public class ProviderCommand : SlashCommand
         var pid2 = (pid ?? "").Trim().ToLowerInvariant();
         if (pid2.Length == 0)
         {
-            screen.AddSystemMsg("用法: /provider select <providerId>");
+            screen.AddSystemMsg(L.Pick("用法: /provider select <providerId>", "Usage: /provider select <providerId>"));
             return;
         }
         if (!ModelCatalog.Providers.ContainsKey(pid2) && ModelCatalog.ByProvider(pid2).Length == 0)
         {
-            screen.AddSystemMsg($"未找到服务商 `{pid2}`。用 /provider list 查看全部。");
+            screen.AddSystemMsg(L.Pick($"未找到服务商 `{pid2}`。用 /provider list 查看全部。", $"Provider `{pid2}` not found. Use /provider list to see them all."));
             return;
         }
         // 切换 provider = 把当前大模型切到该服务商下（find-or-create connect）
@@ -188,7 +188,7 @@ public class ProviderCommand : SlashCommand
             agent.ApplyRuntimeModel(Config.Instance.Model, smallModelId: null, key, Config.Instance.BaseUrl);
         }
         screen.AddSystemMsg($"✅ {msg}" +
-            (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key>）" : ""));
+            (string.IsNullOrEmpty(key) ? L.Pick("\n  ⚠ 该服务商尚未存 key，请求可能失败（/provider apikey set <pid> <key>）", "\n  ⚠ No key stored for this provider; requests may fail (/provider apikey set <pid> <key>)") : ""));
     }
 
     static void ShowProviderModels(ChatScreen screen, string pid)
@@ -196,27 +196,27 @@ public class ProviderCommand : SlashCommand
         var pid2 = (pid ?? "").Trim().ToLowerInvariant();
         if (pid2.Length == 0)
         {
-            screen.AddSystemMsg("用法: /provider show <providerId>");
+            screen.AddSystemMsg(L.Pick("用法: /provider show <providerId>", "Usage: /provider show <providerId>"));
             return;
         }
         var models = ModelCatalog.ByProvider(pid2);
         if (models.Length == 0)
         {
-            screen.AddSystemMsg($"未找到服务商 `{pid2}`。用 /provider list 查看全部。");
+            screen.AddSystemMsg(L.Pick($"未找到服务商 `{pid2}`。用 /provider list 查看全部。", $"Provider `{pid2}` not found. Use /provider list to see them all."));
             return;
         }
 
         ModelCatalog.Providers.TryGetValue(models[0].ProviderId, out var prov);
         var hasKey = ApiKeyStore.Has(pid2);
         var sb = new StringBuilder();
-        sb.AppendLine($"**{ModelCatalog.ProviderDisplayName(pid2)}**（`{pid2}`）— {models.Length} 个模型 {(hasKey ? "🔑 已存 key" : "⚠ 未存 key")}");
+        sb.AppendLine(L.Pick($"**{ModelCatalog.ProviderDisplayName(pid2)}**（`{pid2}`）— {models.Length} 个模型 {(hasKey ? "🔑 已存 key" : "⚠ 未存 key")}", $"**{ModelCatalog.ProviderDisplayName(pid2)}** (`{pid2}`) — {models.Length} models {(hasKey ? "🔑 key stored" : "⚠ no key")}"));
         foreach (var m in models)
         {
             var ctx = Global.FormatContext(m.ContextWindow);
             var price = m.InputPrice > 0 ? $"${m.InputPrice}/{m.OutputPrice}" : "?";
             sb.AppendLine($"  `{m.Id,-28}` {ctx,-5}ctx {price,-13} [{m.Category}]");
         }
-        sb.AppendLine($"\n选中: `/model select {models[0].Id}` 或 `/model small <id>`");
+        sb.AppendLine(L.Pick($"\n选中: `/model select {models[0].Id}` 或 `/model small <id>`", $"\nSelect: `/model select {models[0].Id}` or `/model small <id>`"));
         screen.AddSystemMsg(sb.ToString());
     }
 
@@ -241,15 +241,15 @@ public class ProviderCommand : SlashCommand
         var keys = ApiKeyStore.ListAll();
         if (keys.Count == 0)
         {
-            screen.AddSystemMsg("未保存任何 API key。\n用 `/provider apikey set <pid> <key>` 保存（一个服务商一个 key）。");
+            screen.AddSystemMsg(L.Pick("未保存任何 API key。\n用 `/provider apikey set <pid> <key>` 保存（一个服务商一个 key）。", "No API keys saved.\nUse `/provider apikey set <pid> <key>` to save one (one key per provider)."));
             return;
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine("**已保存 API keys**：");
+        sb.AppendLine(L.Pick("**已保存 API keys**：", "**Saved API keys**:"));
         foreach (var (pid, _) in keys)
             sb.AppendLine($"  `{pid,-14}` = {ApiKeyStore.Masked(pid)}");
-        sb.AppendLine("\n`/provider apikey set <pid> <key>` 新增/更新　`/provider apikey rm <pid>` 删除");
+        sb.AppendLine(L.Pick("\n`/provider apikey set <pid> <key>` 新增/更新　`/provider apikey rm <pid>` 删除", "\n`/provider apikey set <pid> <key>` add/update · `/provider apikey rm <pid>` remove"));
         screen.AddSystemMsg(sb.ToString());
     }
 
@@ -258,12 +258,12 @@ public class ProviderCommand : SlashCommand
         var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2)
         {
-            screen.AddSystemMsg("用法: /provider apikey set <pid> <key>");
+            screen.AddSystemMsg(L.Pick("用法: /provider apikey set <pid> <key>", "Usage: /provider apikey set <pid> <key>"));
             return;
         }
 
         ApiKeyStore.Set(parts[0], parts[1]);
-        screen.AddSystemMsg($"🔑 已保存 `{parts[0]}` 的 API key：{ApiKeyStore.Masked(parts[0])}");
+        screen.AddSystemMsg(L.Pick($"🔑 已保存 `{parts[0]}` 的 API key：{ApiKeyStore.Masked(parts[0])}", $"🔑 Saved the API key for `{parts[0]}`: {ApiKeyStore.Masked(parts[0])}"));
     }
 
     static void RemoveApiKey(ChatScreen screen, string pid)
@@ -271,11 +271,11 @@ public class ProviderCommand : SlashCommand
         var pid2 = (pid ?? "").Trim().ToLowerInvariant();
         if (!ApiKeyStore.Has(pid2))
         {
-            screen.AddSystemMsg($"未找到服务商 `{pid2}` 的 API key。");
+            screen.AddSystemMsg(L.Pick($"未找到服务商 `{pid2}` 的 API key。", $"No API key found for provider `{pid2}`."));
             return;
         }
         ApiKeyStore.Remove(pid2);
-        screen.AddSystemMsg($"🗑 已删除 `{pid2}` 的 API key");
+        screen.AddSystemMsg(L.Pick($"🗑 已删除 `{pid2}` 的 API key", $"🗑 Deleted the API key for `{pid2}`"));
     }
 
     static void ImportProviders(ChatScreen screen, string source)

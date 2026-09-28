@@ -62,22 +62,22 @@ public class KillTool : ITool
     {
         // 系统关键 PID 检查（优先于参数缺失检查）
         if (hasPid && pid <= 0)
-            return "错误：PID 必须为正整数（负值会使 Unix 分支误走 pkill '' 杀掉全部用户进程）。";
+            return L.Pick("错误：PID 必须为正整数（负值会使 Unix 分支误走 pkill '' 杀掉全部用户进程）。", "Error: PID must be a positive integer (a negative value would make the Unix branch fall through to pkill '' and kill every process of the current user).");
         if (hasPid && pid == 4)
             return "⚠ 已阻止：PID 4 是系统关键进程，不可终止。";
 
         if (!hasPid && !hasName)
-            return "错误：必须指定 pid 或 name 参数。";
+            return L.Pick("错误：必须指定 pid 或 name 参数。", "Error: either the pid or the name parameter must be specified.");
 
         if (hasName && string.IsNullOrWhiteSpace(name))
-            return "错误：进程名不能为空。";
+            return L.Pick("错误：进程名不能为空。", "Error: the process name cannot be empty.");
 
         if (!string.IsNullOrEmpty(name) && ProtectedNames.Contains(name))
             return $"⚠ 已阻止：'{name}' 是系统关键进程，不可终止。";
 
         // 命令注入防护：进程名白名单（仅字母数字/点/下划线/连字符/空格），杜绝 shell 元字符注入
         if (hasName && !IsSafeProcessName(name))
-            return "错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。";
+            return L.Pick("错误：进程名包含非法字符（仅允许字母、数字、点、下划线、连字符、空格）。", "Error: the process name contains illegal characters (only letters, digits, dots, underscores, hyphens and spaces are allowed).");
 
         try
         {
@@ -115,7 +115,7 @@ public class KillTool : ITool
             if (r == null)
             {
                 ErrorLog.ToolError("kill", $"进程终止超时（{Config.Instance.KillTimeoutSec}s）");
-                return $"错误：kill 命令超时（{Config.Instance.KillTimeoutSec}s）";
+                return L.Pick($"错误：kill 命令超时（{Config.Instance.KillTimeoutSec}s）", $"Error: the kill command timed out ({Config.Instance.KillTimeoutSec}s)");
             }
             var (exitCode, result, err) = r.Value;
 
@@ -124,10 +124,10 @@ public class KillTool : ITool
 
             var target = pid > 0 ? $"PID {pid}" : name;
             if (exitCode != 0)
-                result += $"\n[退出码：{exitCode}] 终止 {target} 可能失败";
+                result += L.Pick($"\n[退出码：{exitCode}] 终止 {target} 可能失败", $"\n[exit code: {exitCode}] Failed to terminate {target}");
 
             return string.IsNullOrWhiteSpace(result)
-                ? $"✔ 已终止 {target}"
+                ? L.Pick($"✔ 已终止 {target}", $"✔ Terminated {target}")
                 : result.Trim();
         }
         catch (Exception ex)

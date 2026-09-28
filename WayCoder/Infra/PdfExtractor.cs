@@ -22,7 +22,7 @@ public static class PdfExtractor
                 return new PdfExtractResult
                 {
                     FilePath = filePath,
-                    Error = "PDF 解析失败：文件损坏、加密或使用了不支持的结构（object stream 等）。",
+                    Error = L.Pick("PDF 解析失败：文件损坏、加密或使用了不支持的结构（object stream 等）。", "PDF parsing failed: the file is corrupt, encrypted, or uses an unsupported structure (object streams, etc.)."),
                 };
 
             var totalPages = pdf.NumberOfPages;
@@ -89,7 +89,7 @@ public static class PdfExtractor
             return new PdfExtractResult
             {
                 FilePath = filePath,
-                Error = $"PDF 读取失败: {ex.Message}",
+                Error = L.Pick($"PDF 读取失败: {ex.Message}", $"PDF read failed: {ex.Message}"),
             };
         }
     }
@@ -141,19 +141,19 @@ public class PdfExtractResult
         sb.AppendLine("<pdf>");
         if (Title != null)
             sb.AppendLine($"# {Title}");
-        sb.AppendLine($"总页数: {TotalPages} | 当前: 第 {StartPage}-{StartPage + PagesExtracted - 1} 页 | 共 {TotalChars:N0} 字符");
+        sb.AppendLine(L.Pick($"总页数: {TotalPages} | 当前: 第 {StartPage}-{StartPage + PagesExtracted - 1} 页 | 共 {TotalChars:N0} 字符", $"Total pages: {TotalPages} | showing pages {StartPage}-{StartPage + PagesExtracted - 1} | {TotalChars:N0} chars"));
         sb.AppendLine();
 
         foreach (var page in Pages)
         {
             if (Pages.Count > 1)
-                sb.AppendLine($"## 第 {page.PageNumber} 页 ({page.CharCount:N0} 字符)");
+                sb.AppendLine(L.Pick($"## 第 {page.PageNumber} 页 ({page.CharCount:N0} 字符)", $"## Page {page.PageNumber} ({page.CharCount:N0} chars)"));
             sb.AppendLine(page.Text);
             sb.AppendLine();
         }
 
         if (HasMore)
-            sb.AppendLine($"(还有 {TotalPages - (StartPage + PagesExtracted - 1)} 页。使用 page 参数读取后续内容。)");
+            sb.AppendLine(L.Pick($"(还有 {TotalPages - (StartPage + PagesExtracted - 1)} 页。使用 page 参数读取后续内容。)", $"({TotalPages - (StartPage + PagesExtracted - 1)} more pages. Use the page argument to read further content.)"));
 
         sb.Append("</pdf>");
         return sb.ToString();

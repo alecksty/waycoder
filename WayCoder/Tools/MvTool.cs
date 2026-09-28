@@ -24,8 +24,8 @@ public class MvTool : ITool
         var dest = arguments.GetValueOrDefault("dest")?.ToString() ?? "";
         var overwrite = arguments.TryGetValue("overwrite", out var o) && o is bool ob && ob;
 
-        if (string.IsNullOrWhiteSpace(src)) return Task.FromResult("错误：src 参数不能为空");
-        if (string.IsNullOrWhiteSpace(dest)) return Task.FromResult("错误：dest 参数不能为空");
+        if (string.IsNullOrWhiteSpace(src)) return Task.FromResult(L.Pick("错误：src 参数不能为空", "Error: the src parameter cannot be empty"));
+        if (string.IsNullOrWhiteSpace(dest)) return Task.FromResult(L.Pick("错误：dest 参数不能为空", "Error: the dest parameter cannot be empty"));
 
         return Task.FromResult(Execute(src, dest, overwrite));
     }
@@ -44,7 +44,7 @@ public class MvTool : ITool
             if (PathSafety.Guard(destPath) is { } destBlocked) return destBlocked;
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
-                return $"错误：源不存在 — {srcPath}";
+                return L.Pick($"错误：源不存在 — {srcPath}", $"Error: source does not exist — {srcPath}");
 
             // 如果 dest 是目录，则移动到目录内
             if (dest.EndsWith(Path.DirectorySeparatorChar) || dest.EndsWith('/')
@@ -58,7 +58,7 @@ public class MvTool : ITool
 
             // 源与目标相同（如 mv file.txt . 且 . 恰是 file.txt 所在目录）：overwrite=true 会删掉源文件，需提前拦截
             if (string.Equals(srcPath, destPath, StringComparison.OrdinalIgnoreCase))
-                return $"⚠ 源与目标相同: {srcPath}";
+                return L.Pick($"⚠ 源与目标相同: {srcPath}", $"⚠ Source and destination are the same: {srcPath}");
 
             // 确保目标目录存在
             Global.EnsureDir(destPath);
@@ -67,7 +67,7 @@ public class MvTool : ITool
             if (File.Exists(destPath) || Directory.Exists(destPath))
             {
                 if (!overwrite)
-                    return $"⚠ 目标已存在，使用 overwrite=true 覆盖: {destPath}";
+                    return L.Pick($"⚠ 目标已存在，使用 overwrite=true 覆盖: {destPath}", $"⚠ Destination already exists; pass overwrite=true to replace it: {destPath}");
                 if (Directory.Exists(destPath))
                     Directory.Delete(destPath, true);
                 else
@@ -77,7 +77,7 @@ public class MvTool : ITool
             if (File.Exists(srcPath))
             {
                 File.Move(srcPath, destPath);
-                return $"✔ 已移动: {srcPath} → {destPath}";
+                return L.Pick($"✔ 已移动: {srcPath} → {destPath}", $"✔ Moved: {srcPath} → {destPath}");
             }
 
             if (Directory.Exists(srcPath))
@@ -87,7 +87,7 @@ public class MvTool : ITool
                 var srcPrefix = srcTrimmed + Path.DirectorySeparatorChar;
                 if (destPath.Equals(srcTrimmed, StringComparison.OrdinalIgnoreCase)
                     || destPath.StartsWith(srcPrefix, StringComparison.OrdinalIgnoreCase))
-                    return $"⚠ 无法移动：目标 '{destPath}' 位于源目录内部";
+                    return L.Pick($"⚠ 无法移动：目标 '{destPath}' 位于源目录内部", $"⚠ Cannot move: destination '{destPath}' is inside the source directory");
 
                 // 尝试直接移动
                 try
@@ -100,10 +100,10 @@ public class MvTool : ITool
                     FileOps.CopyDirectory(srcPath, destPath, overwrite: false);
                     Directory.Delete(srcPath, true);
                 }
-                return $"✔ 已移动目录: {srcPath} → {destPath}";
+                return L.Pick($"✔ 已移动目录: {srcPath} → {destPath}", $"✔ Moved directory: {srcPath} → {destPath}");
             }
 
-            return $"错误：未知路径类型 — {srcPath}";
+            return L.Pick($"错误：未知路径类型 — {srcPath}", $"Error: unknown path type — {srcPath}");
         }
         catch (Exception ex)
         {

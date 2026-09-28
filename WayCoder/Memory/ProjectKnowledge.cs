@@ -91,7 +91,7 @@ public static class ProjectKnowledge
             var snippet = doc.Content;
             if (snippet.Length > 300)
                 snippet = ContextManager.TruncateByRunes(snippet, 300) + "…";
-            sb.Append("- ").Append(doc.Title).Append("：").AppendLine(snippet);
+            sb.Append("- ").Append(doc.Title).Append(L.Pick("：", ": ")).AppendLine(snippet);
         }
         var result = sb.ToString();
         return result.Length > maxChars ? ContextManager.TruncateByRunes(result, maxChars) : result;

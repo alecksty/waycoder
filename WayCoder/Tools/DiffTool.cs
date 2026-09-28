@@ -40,10 +40,10 @@ public class DiffTool : ITool
             var lines2 = File.ReadAllLines(f2);
 
             if (lines1.Length == 0 && lines2.Length == 0)
-                return "（两个文件均为空）";
+                return L.Pick("（两个文件均为空）", "(both files are empty)");
 
             if (lines1.SequenceEqual(lines2))
-                return "（文件内容相同）";
+                return L.Pick("（文件内容相同）", "(file contents are identical)");
 
             // 简单逐行比较（非精确 LCS，但速度快、可理解）
             var sb = new StringBuilder();
@@ -87,7 +87,8 @@ public class DiffTool : ITool
             }
 
             if (diffCount >= maxDiffs)
-                sb.AppendLine($"... (已达差异上限 {maxDiffs}，可能还有更多)");
+                sb.AppendLine(L.Pick($"... (已达差异上限 {maxDiffs}，可能还有更多)",
+                                     $"... (reached the difference limit of {maxDiffs}; there may be more)"));
 
             return sb.ToString().TrimEnd();
         }

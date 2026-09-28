@@ -53,7 +53,7 @@ public static class QrEncoder
             }
         }
         if (version == 0)
-            throw new ArgumentException($"QR 载荷过长：{data.Length} 字节超出版本 40-{ecl} 字节模式容量。");
+            throw new ArgumentException(L.Pick($"QR 载荷过长：{data.Length} 字节超出版本 40-{ecl} 字节模式容量。", $"QR payload too long: {data.Length} bytes exceed the byte-mode capacity of version 40-{ecl}."));
 
         int dataCodewords = QrCodec.NumDataCodewords(ecl, version);
         int size = QrCodec.SizeOfVersion(version);

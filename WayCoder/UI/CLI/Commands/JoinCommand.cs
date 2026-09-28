@@ -18,8 +18,8 @@ public class JoinCommand : SlashCommand
 {
     public override string Name => "/join";
     public override string[] Aliases => ["/接手", "/续跑", "/handoff"];
-    public override string Description => "从 Claude/Codex/OpenCode/Crush/Aider/Gemini 会话接着跑（聊天+todo+git）";
-    public override string? Usage => "/join [claude|codex|opencode|crush|aider|gemini|list|<序号>]";
+    public override string Description => L.Pick("从 Claude/Codex/OpenCode/Crush/Aider/Gemini 会话接着跑（聊天+todo+git）", "Continue from a Claude/Codex/OpenCode/Crush/Aider/Gemini session (chat + todos + git)");
+    public override string? Usage => L.Pick("/join [claude|codex|opencode|crush|aider|gemini|list|<序号>]", "/join [claude|codex|opencode|crush|aider|gemini|list|<index>]");
 
     static readonly string[] Tools = ["claude", "codex", "opencode", "crush", "aider", "gemini"];
 
@@ -34,7 +34,8 @@ public class JoinCommand : SlashCommand
             var all = ContextBridge.FindSessions(cwd);
             if (all.Count == 0)
             {
-                screen.AddMessage("未找到匹配当前项目的竞品会话。\n\n" +
+                screen.AddMessage(L.Pick(
+                    "未找到匹配当前项目的竞品会话。\n\n" +
                     "支持来源：\n" +
                     "- Claude Code（~/.claude/projects/）\n" +
                     "- Codex（~/.codex/sessions/）\n" +
@@ -42,7 +43,16 @@ public class JoinCommand : SlashCommand
                     "- Crush（&lt;项目&gt;/.crush/crush.db）\n" +
                     "- Aider（&lt;项目&gt;/.aider.chat.history.md）\n" +
                     "- Gemini CLI（~/.gemini/tmp/）\n\n" +
-                    "提示：需在竞品工具中曾在**当前目录（或其祖先目录）**有过会话记录。", "system");
+                    "提示：需在竞品工具中曾在**当前目录（或其祖先目录）**有过会话记录。",
+                    "No matching session from another coding agent for this project.\n\n" +
+                    "Supported sources:\n" +
+                    "- Claude Code (~/.claude/projects/)\n" +
+                    "- Codex (~/.codex/sessions/)\n" +
+                    "- OpenCode (~/.local/share/opencode/opencode.db)\n" +
+                    "- Crush (&lt;project&gt;/.crush/crush.db)\n" +
+                    "- Aider (&lt;project&gt;/.aider.chat.history.md)\n" +
+                    "- Gemini CLI (~/.gemini/tmp/)\n\n" +
+                    "Note: the other tool must have a session recorded in **the current directory (or one of its ancestors)**."), "system");
                 return;
             }
             screen.AddMessage(FormatList(all), "system");
@@ -55,7 +65,7 @@ public class JoinCommand : SlashCommand
             var sessions = ContextBridge.FindSessions(cwd, arg.ToLower());
             if (sessions.Count == 0)
             {
-                screen.AddMessage($"未找到匹配当前项目的 {arg} 会话。可用 `/join` 查看全部候选。", "system");
+                screen.AddMessage(L.Pick($"未找到匹配当前项目的 {arg} 会话。可用 `/join` 查看全部候选。", $"No {arg} session matching this project. Run `/join` to list all candidates."), "system");
                 return;
             }
             await HandoffAsync(sessions[0], screen, cwd);
@@ -71,11 +81,11 @@ public class JoinCommand : SlashCommand
                 await HandoffAsync(all[idx - 1], screen, cwd);
                 return;
             }
-            screen.AddMessage($"序号无效：{idx}（共 {all.Count} 个候选）。用 `/join` 查看列表。", "system");
+            screen.AddMessage(L.Pick($"序号无效：{idx}（共 {all.Count} 个候选）。用 `/join` 查看列表。", $"Invalid index: {idx} ({all.Count} candidate(s) available). Run `/join` to list them."), "system");
             return;
         }
 
-        screen.AddMessage($"未知参数：**{arg}**\n用法：`/join [claude|codex|opencode|crush|list|<序号>]`", "system");
+        screen.AddMessage(L.Pick($"未知参数：**{arg}**\n用法：`/join [claude|codex|opencode|crush|list|<序号>]`", $"Unknown argument: **{arg}**\nUsage: `/join [claude|codex|opencode|crush|list|<index>]`"), "system");
     }
 
     /// <summary>读取会话 → 生成交接文档 → 注入 Agent + 显示给用户。</summary>
@@ -88,18 +98,21 @@ public class JoinCommand : SlashCommand
             int userMsgCount = agent.SnapshotMessages().Count(m => m["role"]?.AsString() == "user");
             if (userMsgCount > 0)
             {
-                bool ok = screen.ConfirmDialog("⚠ 会话覆盖提示",
+                bool ok = screen.ConfirmDialog(L.Pick("⚠ 会话覆盖提示", "⚠ Session merge notice"),
+                    L.Pick(
                     $"当前会话已有 {userMsgCount} 条聊天记录，导入 {session.ToolLabel} 上下文会叠加在现有对话之后。\n\n" +
-                    "确定要导入吗？取消则不做任何改动。");
+                    "确定要导入吗？取消则不做任何改动。",
+                    $"This session already has {userMsgCount} chat message(s); importing the {session.ToolLabel} context appends to the existing conversation.\n\n" +
+                    "Import anyway? Cancelling leaves everything unchanged."));
                 if (!ok)
                 {
-                    screen.AddMessage("已取消导入，未做任何改动。", "system");
+                    screen.AddMessage(L.Pick("已取消导入，未做任何改动。", "Import cancelled; nothing was changed."), "system");
                     return;
                 }
             }
         }
 
-        screen.AddMessage($"🔄 正在读取 {session.ToolLabel} 会话：{session.Title}…", "system");
+        screen.AddMessage(L.Pick($"🔄 正在读取 {session.ToolLabel} 会话：{session.Title}…", $"🔄 Reading the {session.ToolLabel} session: {session.Title}…"), "system");
 
         // 读大文件 / SQLite / 执行 git 属重 IO，放后台线程避免阻塞 UI
         var doc = await Task.Run(() => ContextBridge.BuildHandoffDoc(session, cwd));
@@ -108,16 +121,16 @@ public class JoinCommand : SlashCommand
         ProgramContext.Agent?.AddMessage(JNode.Object().Set("role", "system").Set("content", doc));
 
         screen.AddMessage(doc, "system");
-        screen.AddMessage($"✅ 已注入 {session.ToolLabel} 交接上下文。现在可以继续了——例如输入「继续完成剩余工作」。", "system");
+        screen.AddMessage(L.Pick($"✅ 已注入 {session.ToolLabel} 交接上下文。现在可以继续了——例如输入「继续完成剩余工作」。", $"✅ {session.ToolLabel} handoff context injected. You can continue now — for example, type \"continue with the remaining work\"."), "system");
     }
 
     /// <summary>格式化候选会话列表（带序号）。</summary>
     static string FormatList(List<ContextBridge.ExternalSession> sessions)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"## 发现 {sessions.Count} 个可接手的竞品会话");
+        sb.AppendLine(L.Pick($"## 发现 {sessions.Count} 个可接手的竞品会话", $"## Found {sessions.Count} session(s) from other coding agents"));
         sb.AppendLine();
-        sb.AppendLine("| # | 来源 | 更新时间 | 标题 |");
+        sb.AppendLine(L.Pick("| # | 来源 | 更新时间 | 标题 |", "| # | Source | Updated | Title |"));
         sb.AppendLine("|---|---|---|---|");
         for (int i = 0; i < sessions.Count; i++)
         {
@@ -125,7 +138,7 @@ public class JoinCommand : SlashCommand
             sb.AppendLine($"| {i + 1} | {s.ToolLabel} | {s.UpdatedAt:MM-dd HH:mm} | {s.Title} |");
         }
         sb.AppendLine();
-        sb.AppendLine("接手方式：`/join <序号>`，或 `/join claude|codex|opencode|crush|aider|gemini` 直接接手最新会话。");
+        sb.AppendLine(L.Pick("接手方式：`/join <序号>`，或 `/join claude|codex|opencode|crush|aider|gemini` 直接接手最新会话。", "To take over: `/join <index>`, or `/join claude|codex|opencode|crush|aider|gemini` to take over that tool's latest session."));
         return sb.ToString().Trim();
     }
 }

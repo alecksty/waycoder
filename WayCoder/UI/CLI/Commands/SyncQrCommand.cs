@@ -14,7 +14,7 @@ namespace WayCoder.UI.Cli.Commands;
 public class SyncQrCommand : SlashCommand
 {
     public override string Name => "/sync-qr";
-    public override string Description => "生成代码同步二维码（仓库+凭证），手机扫码一键同步";
+    public override string Description => L.Pick("生成代码同步二维码（仓库+凭证），手机扫码一键同步", "Generate a code-sync QR code (repo + credentials) to sync from a phone in one scan");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -23,7 +23,7 @@ public class SyncQrCommand : SlashCommand
             var repoRoot = GitCore.FindRepoRoot(Environment.CurrentDirectory);
             if (repoRoot == null)
             {
-                screen.AddSystemMsg("❌ 当前目录不是 git 仓库（或未初始化）。先 git init / 在仓库目录运行。");
+                screen.AddSystemMsg(L.Pick("❌ 当前目录不是 git 仓库（或未初始化）。先 git init / 在仓库目录运行。", "❌ The current directory is not a git repository (or is uninitialized). Run git init, or run this from the repository directory."));
                 return Task.CompletedTask;
             }
 
@@ -44,7 +44,10 @@ public class SyncQrCommand : SlashCommand
 
             // 手写 QR 编码（字节模式 + M 纠错——比 L 抗照片反光/噪声，手机扫码更稳）
             var qr = QrEncoder.EncodeText(json, QrEcLevel.Medium);
-            screen.AddSystemMsg($"📱 手机「代码同步」页点「扫二维码」扫描（或扫 sync-qr.png）：\n仓库 {url}\n凭证 {(cred is { } ? "已含（用户名+Token）" : "未配置（/git credential 设置后重新生成）")}");
+            var credText = cred is { }
+                ? L.Pick("已含（用户名+Token）", "included (username + token)")
+                : L.Pick("未配置（/git credential 设置后重新生成）", "not configured (set it with /git credential, then regenerate)");
+            screen.AddSystemMsg(L.Pick($"📱 手机「代码同步」页点「扫二维码」扫描（或扫 sync-qr.png）：\n仓库 {url}\n凭证 {credText}", $"📱 On the phone, open the \"Code sync\" page and tap \"Scan QR code\" (or scan sync-qr.png):\nRepo {url}\nCredentials {credText}"));
             screen.AddSystemMsg(RenderAscii(qr.Matrix));
 
             // 存 PNG（项目手写 PngEncoder + QrEncoder，AOT 安全；scale 5 + 4 模块白边：文件小且手机易扫）
@@ -53,11 +56,11 @@ public class SyncQrCommand : SlashCommand
                 var png = RenderPng(qr.Matrix, scale: 5, quiet: 4);
                 var path = Path.Combine(Environment.CurrentDirectory, "sync-qr.png");
                 File.WriteAllBytes(path, png);
-                screen.AddSystemMsg($"💾 已存二维码图片：{path}（{qr.Size + 8}×{qr.Size + 8}px 含白边，v{qr.Version}）");
+                screen.AddSystemMsg(L.Pick($"💾 已存二维码图片：{path}（{qr.Size + 8}×{qr.Size + 8}px 含白边，v{qr.Version}）", $"💾 QR image saved: {path} ({qr.Size + 8}×{qr.Size + 8}px including the quiet zone, v{qr.Version})"));
             }
             catch (Exception ex)
             {
-                screen.AddSystemMsg($"⚠️ PNG 保存失败：{ex.Message}");
+                screen.AddSystemMsg(L.Pick($"⚠️ PNG 保存失败：{ex.Message}", $"⚠️ Failed to save the PNG: {ex.Message}"));
             }
 
             // 全屏大二维码：手机扫屏（白底黑块，ANSI 背景色填充，与 PNG 同对比——修复深色终端
@@ -71,12 +74,12 @@ public class SyncQrCommand : SlashCommand
             }
             else if (TuiManager.Instance.IsActive)
             {
-                screen.AddSystemMsg($"📱 全屏二维码：需 ≥{grid} 行 × ≥{grid * 2} 列（当前 {Tty.Cols}×{Tty.Rows}）以大方块显示。请拉高/拉宽终端窗口后重试 /sync-qr，或打开 sync-qr.png 扫码。");
+                screen.AddSystemMsg(L.Pick($"📱 全屏二维码：需 ≥{grid} 行 × ≥{grid * 2} 列（当前 {Tty.Cols}×{Tty.Rows}）以大方块显示。请拉高/拉宽终端窗口后重试 /sync-qr，或打开 sync-qr.png 扫码。", $"📱 Full-screen QR: needs ≥{grid} rows × ≥{grid * 2} columns (currently {Tty.Cols}×{Tty.Rows}) to render with large blocks. Make the terminal window taller/wider and retry /sync-qr, or open sync-qr.png and scan that."));
             }
         }
         catch (Exception ex)
         {
-            screen.AddSystemMsg($"❌ 生成二维码失败：{ex.Message}");
+            screen.AddSystemMsg(L.Pick($"❌ 生成二维码失败：{ex.Message}", $"❌ Failed to generate the QR code: {ex.Message}"));
         }
         return Task.CompletedTask;
     }

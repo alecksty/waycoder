@@ -24,10 +24,10 @@ public static class OfficeExtractor
         {
             using var zip = ZipFile.OpenRead(filePath);
             var docEntry = zip.GetEntry("word/document.xml");
-            if (docEntry == null) return "错误：无效的 DOCX 文件（缺少 word/document.xml）";
+            if (docEntry == null) return L.Pick("错误：无效的 DOCX 文件（缺少 word/document.xml）", "Error: invalid DOCX file (missing word/document.xml)");
 
             var root = Xml.Parse(ReadEntryText(docEntry));
-            if (root == null) return "(DOCX 文件无文本内容)";
+            if (root == null) return L.Pick("(DOCX 文件无文本内容)", "(DOCX file has no text content)");
 
             // w:document → w:body → (w:p | w:tbl)*，段落与表格是 body 的直接子元素
             var body = root.Children.FirstOrDefault(c => c.Kind == XKind.Element && Local(c) == "body") ?? root;
@@ -58,11 +58,11 @@ public static class OfficeExtractor
             if (result.Length > maxChars)
                 result = ContextManager.TruncateWithNotice(result, maxChars);
 
-            return result.Length > 0 ? result : "(DOCX 文件无文本内容)";
+            return result.Length > 0 ? result : L.Pick("(DOCX 文件无文本内容)", "(DOCX file has no text content)");
         }
         catch (Exception ex)
         {
-            return $"DOCX 读取错误: {ex.Message}";
+            return L.Pick($"DOCX 读取错误: {ex.Message}", $"DOCX read error: {ex.Message}");
         }
     }
 
@@ -121,10 +121,10 @@ public static class OfficeExtractor
 
             // 2. 读取第一个工作表
             var sheetEntry = zip.GetEntry("xl/worksheets/sheet1.xml");
-            if (sheetEntry == null) return "错误：无效的 XLSX 文件（缺少 xl/worksheets/sheet1.xml）";
+            if (sheetEntry == null) return L.Pick("错误：无效的 XLSX 文件（缺少 xl/worksheets/sheet1.xml）", "Error: invalid XLSX file (missing xl/worksheets/sheet1.xml)");
 
             var sheetRoot = Xml.Parse(ReadEntryText(sheetEntry));
-            if (sheetRoot == null) return "(XLSX 文件无数据)";
+            if (sheetRoot == null) return L.Pick("(XLSX 文件无数据)", "(XLSX file has no data)");
 
             var rows = new List<List<string>>();
             foreach (var row in Elements(sheetRoot, "row"))
@@ -144,7 +144,7 @@ public static class OfficeExtractor
                 if (rows.Count >= maxRows) break;
             }
 
-            if (rows.Count == 0) return "(XLSX 文件无数据)";
+            if (rows.Count == 0) return L.Pick("(XLSX 文件无数据)", "(XLSX file has no data)");
 
             var sb = new StringBuilder();
             int maxCols = rows.Max(r => r.Count);
@@ -165,7 +165,7 @@ public static class OfficeExtractor
             }
 
             if (rows.Count > maxRows)
-                sb.AppendLine($"...(省略 {rows.Count - maxRows} 行)");
+                sb.AppendLine(L.Pick($"...(省略 {rows.Count - maxRows} 行)", $"...({rows.Count - maxRows} more rows omitted)"));
 
             var result = sb.ToString();
             if (result.Length > maxChars)
@@ -174,7 +174,7 @@ public static class OfficeExtractor
         }
         catch (Exception ex)
         {
-            return $"XLSX 读取错误: {ex.Message}";
+            return L.Pick($"XLSX 读取错误: {ex.Message}", $"XLSX read error: {ex.Message}");
         }
     }
 
@@ -207,7 +207,7 @@ public static class OfficeExtractor
 
                 if (slideTexts.Count > 0)
                 {
-                    sb.AppendLine($"## 幻灯片 {i}");
+                    sb.AppendLine(L.Pick($"## 幻灯片 {i}", $"## Slide {i}"));
                     foreach (var t in slideTexts)
                     {
                         // 标题检测（首段通常是标题）
@@ -226,11 +226,11 @@ public static class OfficeExtractor
             if (result.Length > maxChars)
                 result = ContextManager.TruncateWithNotice(result, maxChars);
 
-            return result.Length > 0 ? result : $"(PPTX 文件，{slideNum} 张幻灯片，无文本内容)";
+            return result.Length > 0 ? result : L.Pick($"(PPTX 文件，{slideNum} 张幻灯片，无文本内容)", $"(PPTX file, {slideNum} slides, no text content)");
         }
         catch (Exception ex)
         {
-            return $"PPTX 读取错误: {ex.Message}";
+            return L.Pick($"PPTX 读取错误: {ex.Message}", $"PPTX read error: {ex.Message}");
         }
     }
 
@@ -242,7 +242,7 @@ public static class OfficeExtractor
         try
         {
             var lines = text.Split('\n');
-            if (lines.Length == 0) return "(空 CSV)";
+            if (lines.Length == 0) return L.Pick("(空 CSV)", "(empty CSV)");
 
             var rows = new List<string[]>();
             foreach (var line in lines.Take(maxRows))
@@ -252,7 +252,7 @@ public static class OfficeExtractor
                 rows.Add(ParseCsvLine(trimmed));
             }
 
-            if (rows.Count == 0) return "(空 CSV)";
+            if (rows.Count == 0) return L.Pick("(空 CSV)", "(empty CSV)");
 
             var sb = new StringBuilder();
             int maxCols = rows.Max(r => r.Length);
@@ -269,7 +269,7 @@ public static class OfficeExtractor
             }
 
             if (lines.Length > maxRows)
-                sb.AppendLine($"...(省略 {lines.Length - maxRows} 行)");
+                sb.AppendLine(L.Pick($"...(省略 {lines.Length - maxRows} 行)", $"...({lines.Length - maxRows} more rows omitted)"));
 
             return sb.ToString();
         }
@@ -318,7 +318,7 @@ public static class OfficeExtractor
     private static string ReadEntryText(ZipArchiveEntry entry)
     {
         if (entry.Length > MaxEntryBytes)
-            throw new InvalidDataException($"ZIP 条目过大（{entry.Length:N0} 字节），疑似 zip bomb");
+            throw new InvalidDataException(L.Pick($"ZIP 条目过大（{entry.Length:N0} 字节），疑似 zip bomb", $"ZIP entry is too large ({entry.Length:N0} bytes), possible zip bomb"));
         using var stream = entry.Open();
         using var sr = new StreamReader(stream, Encoding.UTF8);
         return sr.ReadToEnd();

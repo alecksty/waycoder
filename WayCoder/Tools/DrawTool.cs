@@ -77,7 +77,7 @@ public class DrawTool : ITool
 
             var doc = DrawRunner.Parse(code);
             if (doc.Figures.Count == 0 && doc.Error != null)
-                return Task.FromResult($"draw 错误：{doc.Error}");
+                return Task.FromResult(L.Pick($"draw 错误：{doc.Error}", $"draw error: {doc.Error}"));
 
             var isPng = format.Equals("png", StringComparison.OrdinalIgnoreCase);
 
@@ -88,16 +88,22 @@ public class DrawTool : ITool
                     ? Path.Combine(Environment.CurrentDirectory, "waycoder_draw.png")
                     : output;
                 File.WriteAllBytes(path, bytes);
-                var warn = doc.Error != null ? $"（部分指令有误：{doc.Error}）" : "";
-                return Task.FromResult($"✅ 已生成 PNG：{path}（{doc.Width}×{doc.Height}，{bytes.Length:N0} 字节）{warn}");
+                var warn = doc.Error != null
+                    ? L.Pick($"（部分指令有误：{doc.Error}）", $"(some commands had errors: {doc.Error})")
+                    : "";
+                return Task.FromResult(L.Pick($"✅ 已生成 PNG：{path}（{doc.Width}×{doc.Height}，{bytes.Length:N0} 字节）{warn}",
+                                              $"✅ PNG written: {path} ({doc.Width}×{doc.Height}, {bytes.Length:N0} bytes){warn}"));
             }
 
             var svg = DrawRunner.ToSvg(doc);
             if (!string.IsNullOrWhiteSpace(output))
             {
                 File.WriteAllText(output, svg, Encoding.UTF8);
-                var warn = doc.Error != null ? $"（部分指令有误：{doc.Error}）" : "";
-                return Task.FromResult($"✅ 已生成 SVG：{output}（{doc.Width}×{doc.Height}）{warn}");
+                var warn = doc.Error != null
+                    ? L.Pick($"（部分指令有误：{doc.Error}）", $"(some commands had errors: {doc.Error})")
+                    : "";
+                return Task.FromResult(L.Pick($"✅ 已生成 SVG：{output}（{doc.Width}×{doc.Height}）{warn}",
+                                              $"✅ SVG written: {output} ({doc.Width}×{doc.Height}){warn}"));
             }
             return Task.FromResult(svg);
         }
@@ -112,7 +118,8 @@ public class DrawTool : ITool
     {
         var img = ImageLoader.Load(image);
         if (img == null)
-            return $"draw 错误：无法读取图片 {image}（仅支持 png/jpg/bmp）";
+            return L.Pick($"draw 错误：无法读取图片 {image}（仅支持 png/jpg/bmp）",
+                          $"draw error: cannot read image {image} (only png/jpg/bmp are supported)");
 
         // 点采样：points "x,y;x,y"
         if (!string.IsNullOrWhiteSpace(points))
@@ -124,13 +131,15 @@ public class DrawTool : ITool
                 if (p.Length == 0) continue;
                 var xy = p.Split(',');
                 if (xy.Length != 2 || !int.TryParse(xy[0].Trim(), out var x) || !int.TryParse(xy[1].Trim(), out var y))
-                    return $"draw 错误：坐标点格式非法 '{p}'（应为 x,y）";
+                    return L.Pick($"draw 错误：坐标点格式非法 '{p}'（应为 x,y）",
+                                  $"draw error: invalid point '{p}' (expected x,y)");
                 list.Add((x, y));
             }
-            if (list.Count == 0) return "draw 错误：points 为空";
+            if (list.Count == 0) return L.Pick("draw 错误：points 为空", "draw error: points is empty");
             var colors = img.SamplePoints(list);
             var sb = new StringBuilder();
-            sb.Append($"✅ 采样 {list.Count} 个点（图像 {img.Width}×{img.Height}）：");
+            sb.Append(L.Pick($"✅ 采样 {list.Count} 个点（图像 {img.Width}×{img.Height}）：",
+                             $"✅ Sampled {list.Count} points (image {img.Width}×{img.Height}):"));
             for (int i = 0; i < list.Count; i++)
                 sb.Append($"\n({list[i].x},{list[i].y}) {colors[i]}");
             return sb.ToString();
@@ -141,13 +150,17 @@ public class DrawTool : ITool
         {
             var parts = grid.Split(',');
             if (parts.Length < 2 || !int.TryParse(parts[0].Trim(), out var cols) || !int.TryParse(parts[1].Trim(), out var rows))
-                return $"draw 错误：grid 格式非法 '{grid}'（应为 cols,rows）";
-            if (cols <= 0 || rows <= 0) return "draw 错误：grid 行列必须为正整数";
+                return L.Pick($"draw 错误：grid 格式非法 '{grid}'（应为 cols,rows）",
+                              $"draw error: invalid grid '{grid}' (expected cols,rows)");
+            if (cols <= 0 || rows <= 0)
+                return L.Pick("draw 错误：grid 行列必须为正整数", "draw error: grid columns and rows must be positive integers");
             // 防整数溢出/OOM：cols*rows 与 cx*Width 均按 int 相乘，超大网格溢出为负或分配数十 GB
-            if (cols > 256 || rows > 256) return "draw 错误：grid 行列过大（上限 256×256）";
+            if (cols > 256 || rows > 256)
+                return L.Pick("draw 错误：grid 行列过大（上限 256×256）", "draw error: grid too large (limit 256×256)");
             var colors = img.SampleGrid(cols, rows);
             var sb = new StringBuilder();
-            sb.Append($"✅ 网格采样 {cols}×{rows}（图像 {img.Width}×{img.Height}）：");
+            sb.Append(L.Pick($"✅ 网格采样 {cols}×{rows}（图像 {img.Width}×{img.Height}）：",
+                             $"✅ Grid sampled {cols}×{rows} (image {img.Width}×{img.Height}):"));
             for (int ry = 0; ry < rows; ry++)
             {
                 sb.Append('\n');
@@ -160,6 +173,7 @@ public class DrawTool : ITool
             return sb.ToString();
         }
 
-        return "draw 错误：给了 image 参数但缺少 points 或 grid（采样方式）";
+        return L.Pick("draw 错误：给了 image 参数但缺少 points 或 grid（采样方式）",
+                      "draw error: image was given but neither points nor grid (sampling mode) was provided");
     }
 }

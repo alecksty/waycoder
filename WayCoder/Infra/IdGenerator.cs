@@ -47,7 +47,7 @@ public static class IdGenerator
     /// <param name="length">ID 长度（默认 8）</param>
     public static string NewId(int length = 8)
     {
-        if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length), "长度必须大于 0");
+        if (length <= 0) throw new ArgumentOutOfRangeException(nameof(length), L.Pick("长度必须大于 0", "Length must be greater than 0"));
         var chars = new char[length];
         for (int i = 0; i < length; i++)
             chars[i] = SafeChars[RandomNumberGenerator.GetInt32(SafeChars.Length)]; // 静态 GetInt32 无取模偏差（bytes[i] % 30 会让前 16 个字符偏多）

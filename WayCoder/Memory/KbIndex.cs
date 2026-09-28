@@ -158,7 +158,9 @@ public static class KbIndex
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>提炼器 system 提示词：把 git 提交归纳成四类经验 JSON。</summary>
-    public const string SummarizerPrompt = """
+    // ⚠ JSON 键名（name/description/kind/…）与 kind 取值（mistake|bugfix|habit|gap）是**协议**，
+    //   两侧逐字相同；翻的只是解释性散文。由 const 改成表达式体属性（公理 A3）。
+    public static string SummarizerPrompt => L.Pick("""
         你是资深编程经验提炼器。把给定的 git 提交（主题 + 改动统计）归纳成一条结构化经验，输出严格 JSON：
         {
           "name": "kebab-case 短名（如 git-force-push-guard）",
@@ -173,7 +175,23 @@ public static class KbIndex
         }
         只输出 JSON，不要多余文字。kind 判定：fix 修复既有 bug → bugfix；防再犯/约束 → mistake；
         工作流程偏好 → habit；纯粹补知识盲区 → gap。gaps 用于自动沉淀「欠缺知识清单」。
-        """;
+        """, """
+        You are a senior programming-experience distiller. Turn the given git commit (subject + change stats) into one structured lesson and output strict JSON:
+        {
+          "name": "short kebab-case name (e.g. git-force-push-guard)",
+          "description": "one-line summary",
+          "kind": "mistake | bugfix | habit | gap",
+          "phenomenon": "symptom/problem",
+          "root_cause": "root cause",
+          "fix": "how it was fixed",
+          "lesson": "the takeaway / what to do next time",
+          "tags": ["tag1", "tag2"],
+          "gaps": ["knowledge gaps this fix exposed (array of strings, empty array if none)"]
+        }
+        Output JSON only, no extra text. Deciding kind: a fix for an existing bug → bugfix; preventing a repeat or adding a constraint → mistake;
+        a workflow preference → habit; purely filling a knowledge blind spot → gap. gaps feeds the automatic knowledge-gap list.
+        """);
+
 
     /// <summary>
     /// 挖掘最近 N 个提交生成经验条目。返回 (成功条数, 错误列表)。
@@ -184,7 +202,7 @@ public static class KbIndex
     {
         var (ec, logOut, logErr) = await GitRunner.RunAsync($"log --format=%H|%s -{count}", null, CancellationToken.None);
         if (ec != 0 || string.IsNullOrWhiteSpace(logOut))
-            return (0, [$"git log 失败: {logErr.Trim()}".Trim()]);
+            return (0, [L.Pick($"git log 失败: {logErr.Trim()}", $"git log failed: {logErr.Trim()}").Trim()]);
 
         int mined = 0;
         var errors = new List<string>();
@@ -196,11 +214,12 @@ public static class KbIndex
             var subject = line[(bar + 1)..].Trim();
 
             var (ec2, showOut, _) = await GitRunner.RunAsync($"show {hash} --stat --no-color --format=", null, CancellationToken.None);
-            var info = $"提交: {subject}\n\n{ContextManager.TruncateKeepHeadTail(showOut, 2000, 800, "\n…\n")}";
+            var info = L.Pick("提交: ", "Commit: ")
+                + $"{subject}\n\n{ContextManager.TruncateKeepHeadTail(showOut, 2000, 800, "\n…\n")}";
 
             string? json = summarize != null ? await summarize(info) : await SummarizeWithLLM(info);
             var draft = json != null ? BuildEntry(json) : BuildFallback(subject, showOut);
-            if (draft == null) { errors.Add($"跳过「{subject}」：JSON 解析失败"); continue; }
+            if (draft == null) { errors.Add(L.Pick($"跳过「{subject}」：JSON 解析失败", $"skipped \"{subject}\": JSON parse failed")); continue; }
 
             WriteEntry(draft);
             mined++;
@@ -240,11 +259,16 @@ public static class KbIndex
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>会话复盘提炼器 system 提示词。</summary>
-    public const string RetroPrompt = """
+    // ⚠ JSON 键名与 kind 取值是协议，两侧逐字相同；翻的只是解释性散文。
+    public static string RetroPrompt => L.Pick("""
         你是资深编程经验提炼器。给定一次编程会话的对话记录（含用户请求、AI 回复、工具执行/报错），
         提炼 1-5 条值得记住的经验（踩坑/bug 修复/决策/习惯/欠缺知识）。输出严格 JSON，不要多余文字：
         {"lessons":[{"kind":"mistake|bugfix|habit|gap|code","description":"一行摘要","content":"经验正文（含现象/根因/做法）","tags":["标签"]}]}
-        """;
+        """, """
+        You are a senior programming-experience distiller. Given the transcript of one coding session (user requests, AI replies, tool runs/errors),
+        extract 1-5 lessons worth remembering (pitfalls / bug fixes / decisions / habits / knowledge gaps). Output strict JSON, no extra text:
+        {"lessons":[{"kind":"mistake|bugfix|habit|gap|code","description":"one-line summary","content":"the lesson body (symptom/root cause/approach)","tags":["tag"]}]}
+        """);
 
     /// <summary>
     /// 复盘一次会话：小模型提炼经验 → 写入知识库。返回 (写入条数, LLM 原始输出)。
@@ -253,7 +277,7 @@ public static class KbIndex
     {
         if (string.IsNullOrWhiteSpace(transcript)) return (0, "");
         var json = await CallSmallModel(RetroPrompt,
-            ContextManager.TruncateByRunes($"【会话记录】\n{transcript}", 20000));
+            ContextManager.TruncateByRunes(L.Pick($"【会话记录】\n{transcript}", $"[Session transcript]\n{transcript}"), 20000));
         if (string.IsNullOrWhiteSpace(json)) return (0, "");
 
         var lessons = ParseLessons(json);
@@ -329,7 +353,8 @@ public static class KbIndex
             Name = SanitizeName(subject),
             Description = subject,
             Kind = "bugfix",
-            Content = $"**提交**：{subject}\n\n**改动**：\n{ContextManager.TruncateByRunes(stat, 800)}",
+            Content = $"**提交**" + L.Pick("：", ": ") + $"{subject}\n\n**改动**" + L.Pick("：", ": ")
+                + $"\n{ContextManager.TruncateByRunes(stat, 800)}",
             Source = "git-commit",
         };
     }
@@ -350,9 +375,13 @@ public static class KbIndex
             list.Add(new KbEntry
             {
                 Name = "gap-" + SanitizeName(text),
-                Description = $"欠缺知识：{text}",
+                // ⚠ A2：本前缀既显示（列表里的条目描述）又被 GenerateLearningPath 用 Replace 解析回主题名，
+                //   所以两侧都走同一个 L.Pick —— 换了语言两边一起换。
+                Description = L.Pick($"欠缺知识：{text}", $"Gap: {text}"),
                 Kind = "gap",
-                Content = $"**欠缺知识点**：{text}\n\n来源：由 git 提交经验自动提炼，复习未掌握时权重提升。",
+                Content = $"**欠缺知识点**" + L.Pick("：", ": ") + $"{text}\n\n"
+                    + L.Pick("来源：由 git 提交经验自动提炼，复习未掌握时权重提升。",
+                             "Source: extracted automatically from git commit experience; the weight rises when you fail to recall it."),
                 Source = "git-gap",
             });
         }
@@ -361,11 +390,15 @@ public static class KbIndex
 
     static string BuildContent(string phen, string cause, string fix, string lesson)
     {
+        // ⚠ `**现象**`/`**根因**`/`**修复**`/`**教训**` 四个标记是 QuizQuestion/QuizAnswer
+        //   的解析键（ExtractContentBlocks 按 StartsWith 匹配）—— **标记本身两侧原样保留**，
+        //   只把冒号按语言取（这样旧记录照样能被解析出来）。
         var sb = new StringBuilder();
-        if (phen.Length > 0) sb.AppendLine($"**现象**：{phen}");
-        if (cause.Length > 0) sb.AppendLine($"**根因**：{cause}");
-        if (fix.Length > 0) sb.AppendLine($"**修复**：{fix}");
-        if (lesson.Length > 0) sb.AppendLine($"**教训**：{lesson}");
+        var colon = L.Pick("：", ": ");
+        if (phen.Length > 0) sb.AppendLine($"**现象**{colon}{phen}");
+        if (cause.Length > 0) sb.AppendLine($"**根因**{colon}{cause}");
+        if (fix.Length > 0) sb.AppendLine($"**修复**{colon}{fix}");
+        if (lesson.Length > 0) sb.AppendLine($"**教训**{colon}{lesson}");
         return sb.ToString().Trim();
     }
 
@@ -386,8 +419,8 @@ public static class KbIndex
             Description = FirstLine(content),
             Kind = NormalizeKind(kind),
             Content = content.Trim().Contains('\n') && kind == "code"
-                ? $"**{now:yyyy-MM-dd}**（代码片段）：\n```\n{content.Trim()}\n```"
-                : $"**{now:yyyy-MM-dd}**：{content.Trim()}",
+                ? $"**{now:yyyy-MM-dd}**" + L.Pick("（代码片段）：\n", " (code snippet):\n") + $"```\n{content.Trim()}\n```"
+                : $"**{now:yyyy-MM-dd}**" + L.Pick("：", ": ") + $"{content.Trim()}",
             Source = "manual",
             Tags = [],
         };
@@ -457,9 +490,10 @@ public static class KbIndex
         var kbHits = Search(errorText, topN);
         if (kbHits.Count > 0)
         {
-            sb.AppendLine("\n📎 知识库经验：");
+            sb.AppendLine(L.Pick("\n📎 知识库经验：", "\n📎 Knowledge base entries:"));
             foreach (var (e, score) in kbHits)
-                sb.AppendLine($"  · [{KindLabel(e.Kind)}] {e.Description}（相关度 {score:F2}）：{ContextManager.TruncateByRunes(e.Content.ReplaceLineEndings(" "), 120)}");
+                sb.AppendLine(L.Pick($"  · [{KindLabel(e.Kind)}] {e.Description}（相关度 {score:F2}）：{ContextManager.TruncateByRunes(e.Content.ReplaceLineEndings(" "), 120)}",
+                                     $"  · [{KindLabel(e.Kind)}] {e.Description} (relevance {score:F2}): {ContextManager.TruncateByRunes(e.Content.ReplaceLineEndings(" "), 120)}"));
         }
 
         var gitHits = gitLogOverride != null
@@ -467,9 +501,10 @@ public static class KbIndex
             : await GitFixMatchesAsync(errorText, 3);
         if (gitHits.Count > 0)
         {
-            sb.AppendLine("🔧 历史修复提交：");
+            sb.AppendLine(L.Pick("🔧 历史修复提交：", "🔧 Past fix commits:"));
             foreach (var (subject, hash) in gitHits)
-                sb.AppendLine($"  · {subject}（{hash[..Math.Min(7, hash.Length)]}）");
+                sb.AppendLine(L.Pick($"  · {subject}（{hash[..Math.Min(7, hash.Length)]}）",
+                                     $"  · {subject} ({hash[..Math.Min(7, hash.Length)]})"));
         }
 
         return sb.Length > 0 ? sb.ToString() : "";
@@ -583,10 +618,11 @@ public static class KbIndex
     /// <summary>渲染技能画像为终端文本。</summary>
     public static string FormatProfile(SkillProfile p)
     {
-        var sb = new StringBuilder("🧭 技能画像\n");
+        var sb = new StringBuilder(L.Pick("🧭 技能画像\n", "🧭 Skill profile\n"));
 
-        sb.AppendLine($"\n── 知识库分布（共 {p.TotalEntries} 条）──");
-        if (p.KbKinds.Count == 0) sb.AppendLine("（暂无，/kb mine 提炼）");
+        sb.AppendLine(L.Pick($"\n── 知识库分布（共 {p.TotalEntries} 条）──",
+                             $"\n── Knowledge base distribution ({p.TotalEntries} entries) ──"));
+        if (p.KbKinds.Count == 0) sb.AppendLine(L.Pick("（暂无，/kb mine 提炼）", "(none yet — extract with /kb mine)"));
         else
         {
             int max = Math.Max(1, p.KbKinds.Max(k => k.Count));
@@ -600,17 +636,18 @@ public static class KbIndex
 
         if (p.TotalCommits > 0)
         {
-            sb.AppendLine($"\n── git 提交画像（最近 {p.TotalCommits}）──");
+            sb.AppendLine(L.Pick($"\n── git 提交画像（最近 {p.TotalCommits}）──",
+                                 $"\n── git commit profile (last {p.TotalCommits}) ──"));
             sb.AppendLine("  " + string.Join(" · ", p.GitCommitTypes.OrderByDescending(kv => kv.Value)
                 .Take(8).Select(kv => $"{kv.Key} {kv.Value}")));
         }
 
-        sb.AppendLine("\n── 薄弱标签 ──");
-        if (p.WeakTags.Count == 0) sb.AppendLine("（暂无）");
+        sb.AppendLine(L.Pick("\n── 薄弱标签 ──", "\n── Weak tags ──"));
+        if (p.WeakTags.Count == 0) sb.AppendLine(L.Pick("（暂无）", "(none)"));
         else sb.AppendLine("  " + string.Join(" · ", p.WeakTags.Take(10).Select(t => $"{t.Tag} ×{t.Count}")));
 
-        sb.AppendLine("\n── ErrorLog 错误信号 ──");
-        if (p.ErrorSignals.Count == 0) sb.AppendLine("（暂无）");
+        sb.AppendLine(L.Pick("\n── ErrorLog 错误信号 ──", "\n── ErrorLog error signals ──"));
+        if (p.ErrorSignals.Count == 0) sb.AppendLine(L.Pick("（暂无）", "(none)"));
         else sb.AppendLine("  " + string.Join(" · ", p.ErrorSignals.Take(8).Select(s => $"{s.Source} ×{s.Count}")));
 
         return sb.ToString();
@@ -631,12 +668,18 @@ public static class KbIndex
     }
 
     /// <summary>学习路径提炼器 system 提示词。</summary>
-    public const string PathPrompt = """
+    // ⚠ JSON 键名（path/topic/why/practice/check/gap_ref）是协议，两侧逐字相同。
+    public static string PathPrompt => L.Pick("""
         你是资深编程技能教练。根据用户编程经验的欠缺知识（gap）清单与薄弱标签，
         合成 3-7 步「接下来该学什么」的进阶学习路径（先补最关键的短板，再串联进阶主题）。
         输出严格 JSON，不要多余文字：
         {"path":[{"topic":"学习主题","why":"为什么重要/它解决什么短板","practice":"如何实践（结合用户已有项目）","check":"如何自测掌握（一个可执行检验）","gap_ref":"关联的欠缺知识点（原文，无则空）"}]}
-        """;
+        """, """
+        You are a senior programming-skills coach. From the user's list of knowledge gaps and weak tags,
+        compose a 3-7 step "what to learn next" path (fix the most critical weak spots first, then connect advanced topics).
+        Output strict JSON, no extra text:
+        {"path":[{"topic":"learning topic","why":"why it matters / which weak spot it fixes","practice":"how to practise (using the user's existing projects)","check":"how to verify mastery (one runnable check)","gap_ref":"the related knowledge gap (verbatim, empty if none)"}]}
+        """);
 
     /// <summary>
     /// 生成学习路径：从 gap 条目 + 薄弱标签 + ErrorLog 信号合成步骤，写入 KB（kind=gap, source=path）。
@@ -649,11 +692,14 @@ public static class KbIndex
         var gaps = ListEntries().Where(e => e.Kind == "gap").ToList();
         var weak = WeakStats();
         var sb = new StringBuilder();
-        sb.AppendLine("欠缺知识清单：");
+        sb.AppendLine(L.Pick("欠缺知识清单：", "Knowledge gap list:"));
         foreach (var g in gaps)
-            sb.AppendLine($"- {g.Description}：{ContextManager.TruncateByRunes(g.Content.ReplaceLineEndings(" "), 160)}");
-        sb.AppendLine("\n薄弱标签：" + (weak.WeakTags.Count == 0 ? "（无）" : string.Join(", ", weak.WeakTags.Take(10).Select(t => t.Tag))));
-        sb.AppendLine("ErrorLog 信号：" + (weak.ErrorSignals.Count == 0 ? "（无）" : string.Join(", ", weak.ErrorSignals.Take(8).Select(s => s.Source))));
+            sb.AppendLine($"- {g.Description}" + L.Pick("：", ": ")
+                + $"{ContextManager.TruncateByRunes(g.Content.ReplaceLineEndings(" "), 160)}");
+        sb.AppendLine("\n" + L.Pick("薄弱标签：", "Weak tags: ")
+            + (weak.WeakTags.Count == 0 ? L.Pick("（无）", "(none)") : string.Join(", ", weak.WeakTags.Take(10).Select(t => t.Tag))));
+        sb.AppendLine(L.Pick("ErrorLog 信号：", "ErrorLog signals: ")
+            + (weak.ErrorSignals.Count == 0 ? L.Pick("（无）", "(none)") : string.Join(", ", weak.ErrorSignals.Take(8).Select(s => s.Source))));
         var payload = ContextManager.TruncateByRunes(sb.ToString(), 20000);
 
         // 2. LLM 合成（可注入）
@@ -664,10 +710,15 @@ public static class KbIndex
         if (steps.Count == 0)
             steps = gaps.Select(g => new LearningStep
             {
-                Topic = g.Description.Replace("欠缺知识：", ""),
-                Why = "来自你的经验回顾：这是暴露过的欠缺知识点。",
-                Practice = "在自己的项目里刻意练习并记录一次成功应用。",
-                Check = "能不看笔记讲清原理并写一段演示代码。",
+                // ⚠ A2：与 ExtractGaps 写 Description 用的是**同一个** L.Pick（换语言一起换）。
+                //   旧版本落盘的条目前缀恒为中文 —— 英文界面下会残留那一段前缀，仅是观感，不影响功能。
+                Topic = g.Description.Replace(L.Pick("欠缺知识：", "Gap: "), ""),
+                Why = L.Pick("来自你的经验回顾：这是暴露过的欠缺知识点。",
+                             "From your experience review: this is a knowledge gap you have hit before."),
+                Practice = L.Pick("在自己的项目里刻意练习并记录一次成功应用。",
+                                  "Practice it deliberately in your own project and record one successful application."),
+                Check = L.Pick("能不看笔记讲清原理并写一段演示代码。",
+                               "Explain the principle without notes and write a short demo."),
                 GapRef = g.Name,
             }).Take(7).ToList();
 
@@ -679,12 +730,13 @@ public static class KbIndex
             WriteEntry(new KbEntry
             {
                 Name = "path-" + SanitizeName(step.Topic),
-                Description = $"学习路径：{step.Topic}",
+                Description = L.Pick($"学习路径：{step.Topic}", $"Learning path: {step.Topic}"),
                 Kind = "gap",
-                Content = $"**现象**：欠缺「{step.Topic}」\n" +
-                          $"**根因**：{step.Why}\n" +
-                          $"**修复**：{step.Practice}\n" +
-                          $"**教训**：{step.Check}",
+                // ⚠ 四个 `**X**` 标记是解析键，两侧原样保留（见 BuildContent 的注释）。
+                Content = $"**现象**" + L.Pick("：欠缺「", ": missing \"") + $"{step.Topic}」\n" +
+                          $"**根因**" + L.Pick("：", ": ") + $"{step.Why}\n" +
+                          $"**修复**" + L.Pick("：", ": ") + $"{step.Practice}\n" +
+                          $"**教训**" + L.Pick("：", ": ") + $"{step.Check}",
                 Source = "path",
                 Tags = ["path"],
             });
@@ -784,12 +836,18 @@ public static class KbIndex
     }
 
     /// <summary>教学问答评判 system 提示词：从教学会话问答提取掌握/未掌握主题。</summary>
-    public const string AssessPrompt = """
+    // ⚠ JSON 键名（mastered/weak）是协议，两侧逐字相同。
+    public static string AssessPrompt => L.Pick("""
         你是教学评估教练。给定一次教学会话的问答记录（AI 讲解 + 测验 + 用户回答），
         判断用户对每个涉及主题的掌握程度。输出严格 JSON，不要多余文字：
         {"mastered":["掌握的主题（能独立复述/做对）"],"weak":["未掌握的主题（答错/含糊/需要再练）"]}
         主题用简短名词，尽量与用户原有欠缺知识（gap）条目名或描述对应。
-        """;
+        """, """
+        You are a teaching-assessment coach. Given the Q&A transcript of one teaching session (AI explanation + quiz + user answers),
+        judge how well the user has mastered each topic covered. Output strict JSON, no extra text:
+        {"mastered":["topics mastered (can restate or solve unaided)"],"weak":["topics not mastered (wrong/ vague / need more practice)"]}
+        Use short noun phrases for topics, matching the user's existing knowledge-gap entry names or descriptions where possible.
+        """);
 
     /// <summary>
     /// 评估教学会话问答，返回 (掌握主题, 未掌握主题)。summarize 可注入供测试。
@@ -871,24 +929,27 @@ public static class KbIndex
     public static string FormatTeachStatus()
     {
         var report = WeakStats();
-        var sb = new System.Text.StringBuilder($"🧭 教学进度（{report.Gaps.Count} 项欠缺知识）\n");
+        var sb = new System.Text.StringBuilder(L.Pick($"🧭 教学进度（{report.Gaps.Count} 项欠缺知识）\n",
+                                                      $"🧭 Teaching progress ({report.Gaps.Count} knowledge gaps)\n"));
         var mastered = report.Gaps.Where(g => g.Weight <= 0.5).ToList();
         var weak = report.Gaps.Where(g => g.Weight > 1.0).ToList();
         var learning = report.Gaps.Where(g => g.Weight > 0.5 && g.Weight <= 1.0).ToList();
 
-        sb.AppendLine($"\n✅ 基本掌握（weight ≤ 0.5）：");
-        if (mastered.Count == 0) sb.AppendLine("  （暂无）");
+        sb.AppendLine(L.Pick("\n✅ 基本掌握（weight ≤ 0.5）：", "\n✅ Mastered (weight ≤ 0.5):"));
+        if (mastered.Count == 0) sb.AppendLine(L.Pick("  （暂无）", "  (none)"));
         else foreach (var g in mastered) sb.AppendLine($"  · {g.Description}");
 
-        sb.AppendLine($"\n🔴 待复习（weight > 1.0）：");
-        if (weak.Count == 0) sb.AppendLine("  （暂无）");
-        else foreach (var g in weak) sb.AppendLine($"  · {g.Description}（权重 {g.Weight:F1}）");
+        sb.AppendLine(L.Pick("\n🔴 待复习（weight > 1.0）：", "\n🔴 Due for review (weight > 1.0):"));
+        if (weak.Count == 0) sb.AppendLine(L.Pick("  （暂无）", "  (none)"));
+        else foreach (var g in weak) sb.AppendLine(L.Pick($"  · {g.Description}（权重 {g.Weight:F1}）",
+                                                          $"  · {g.Description} (weight {g.Weight:F1})"));
 
-        sb.AppendLine($"\n○ 学习中/未测：");
-        if (learning.Count == 0) sb.AppendLine("  （暂无）");
+        sb.AppendLine(L.Pick("\n○ 学习中/未测：", "\n○ Learning / not yet quizzed:"));
+        if (learning.Count == 0) sb.AppendLine(L.Pick("  （暂无）", "  (none)"));
         else foreach (var g in learning) sb.AppendLine($"  · {g.Description}");
 
-        sb.AppendLine("\n提示：`/teach on` 教学 → 完成测验后 `/teach assess` 记录，弱项自动进 `/kb review`。");
+        sb.AppendLine(L.Pick("\n提示：`/teach on` 教学 → 完成测验后 `/teach assess` 记录，弱项自动进 `/kb review`。",
+                             "\nTip: teach with `/teach on` → record the quiz with `/teach assess`; weak topics go to `/kb review` automatically."));
         return sb.ToString();
     }
 
@@ -909,14 +970,16 @@ public static class KbIndex
         return hit.Entry;
     }
 
-    /// <summary>分类中文标签。</summary>
+    /// <summary>分类标签（kind 值本身是存储协议，不翻；翻的只是显示用的标签）。</summary>
+    // ⚠ 调用方（KbTool / KbCli / KbCommand）已双语，它们的英文支原样调本函数 ——
+    //   所以这里必须按语言返回，否则英文界面里会露出中文方括号标签。
     public static string KindLabel(string kind) => kind switch
     {
-        "mistake" => "错误",
-        "bugfix" => "修复",
-        "habit" => "习惯",
-        "gap" => "欠缺",
-        "code" => "片段",
+        "mistake" => L.Pick("错误", "Mistake"),
+        "bugfix" => L.Pick("修复", "Fix"),
+        "habit" => L.Pick("习惯", "Habit"),
+        "gap" => L.Pick("欠缺", "Gap"),
+        "code" => L.Pick("片段", "Snippet"),
         _ => kind,
     };
 
@@ -1190,11 +1253,12 @@ public static class KbIndex
         if (hits.Count == 0) return "";
 
         var sb = new StringBuilder();
-        sb.AppendLine("# 经验知识（自动匹配）");
+        sb.AppendLine(L.Pick("# 经验知识（自动匹配）", "# Knowledge base entries (auto-matched)"));
         foreach (var (doc, score) in hits)
         {
             var preview = ContextManager.TruncateByRunes(doc.Content, maxPreview);
-            sb.AppendLine($"- **{doc.Title}** (相关度 {score:F2}): {preview.ReplaceLineEndings(" ")}");
+            sb.AppendLine(L.Pick($"- **{doc.Title}** (相关度 {score:F2}): {preview.ReplaceLineEndings(" ")}",
+                                 $"- **{doc.Title}** (relevance {score:F2}): {preview.ReplaceLineEndings(" ")}"));
         }
         return sb.ToString();
     }

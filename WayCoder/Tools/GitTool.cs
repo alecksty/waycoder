@@ -36,12 +36,18 @@ public class GitTool : ITool, ICancellableTool
     {
         // 安全检查 1：命令注入拦截 —— git -c/--config 可设 alias.*='!cmd'、core.pager、core.sshCommand
         // 等，使 git 内部经 shell 执行任意命令（完全绕过 BashGuard 与权限确认）。
+        // ⚠ 拦截文案的两条 `L.Pick` **不要**顺手往 ToolResultClassifier.AbortMarkers 里加
+        //   `⚠ Blocked`：中文支 `⚠ 已阻止` 命中 AbortMarker，而两条英文支 `⚠ Blocked:` 不命中 ——
+        //   但**两边的 IsError 都是 false**（`⚠` 不在 ErrorMarkers 里），所以 Agent 识别行为逐位不变。
+        //   补上 `⚠ Blocked` 反而会让英文界面下的中止判定与中文界面不一致。
         if (HasDangerousGitArgs(command))
-            return "⚠ 已阻止：git 配置注入（-c/--config/--upload-pack/--receive-pack/--exec 可执行任意命令），请勿使用这些参数。";
+            return L.Pick("⚠ 已阻止：git 配置注入（-c/--config/--upload-pack/--receive-pack/--exec 可执行任意命令），请勿使用这些参数。",
+                          "⚠ Blocked: git config injection (-c/--config/--upload-pack/--receive-pack/--exec can run arbitrary commands). Do not use these parameters.");
 
         // 安全检查 2：危险操作（按 token 精确匹配，flag 挪到分支名/远端名后也无法绕过）
         if (HasBlockedGitOperation(command))
-            return "⚠ 已阻止：检测到危险 git 操作（force push / hard reset / clean -f / checkout -- . / stash drop / branch -D），请手动执行或使用更安全的替代方式。";
+            return L.Pick("⚠ 已阻止：检测到危险 git 操作（force push / hard reset / clean -f / checkout -- . / stash drop / branch -D），请手动执行或使用更安全的替代方式。",
+                          "⚠ Blocked: dangerous git operation detected (force push / hard reset / clean -f / checkout -- . / stash drop / branch -D). Run it manually or use a safer alternative.");
 
         try
         {
@@ -51,17 +57,20 @@ public class GitTool : ITool, ICancellableTool
             if (!string.IsNullOrEmpty(errStr))
                 result += $"\n[stderr]\n{errStr}";
             if (exitCode != 0)
-                result += $"\n[退出码：{exitCode}]";
+                result += L.Pick($"\n[退出码：{exitCode}]", $"\n[Exit code: {exitCode}]");
 
             // 截断长输出
             if (result.Length > 8000)
-                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000, $"\n... (已截断，共 {result.Length} 字符) ...\n");
+                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000,
+                    L.Pick($"\n... (已截断，共 {result.Length} 字符) ...\n",
+                           $"\n... (truncated, {result.Length} characters in total) ...\n"));
 
-            return string.IsNullOrWhiteSpace(result) ? "（无输出）" : result.Trim();
+            return string.IsNullOrWhiteSpace(result) ? L.Pick("（无输出）", "(no output)") : result.Trim();
         }
         catch (Exception ex)
         {
-            return $"错误：Git: {ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"错误：Git: {ex.GetType().Name}: {ex.Message}",
+                          $"Error: Git: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

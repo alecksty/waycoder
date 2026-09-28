@@ -22,7 +22,7 @@ public sealed class XmlParseException : Exception
     public int Position { get; }
 
     public XmlParseException(string message, int position)
-        : base($"{message}（位置 {position}）")
+        : base(L.Pick($"{message}（位置 {position}）", $"{message} (at position {position})"))
     {
         Position = position;
     }
@@ -122,7 +122,7 @@ public static class Xml
         if (p.AtEnd) return null;
         var root = p.ParseElement();
         p.SkipMisc();
-        if (!p.AtEnd) throw new XmlParseException("存在多个根元素", p.Pos);
+        if (!p.AtEnd) throw new XmlParseException(L.Pick("存在多个根元素", "multiple root elements"), p.Pos);
         return root;
     }
 
@@ -280,13 +280,13 @@ public static class Xml
                 else if (c == '>' && depth <= 0) { _i++; return; }
                 _i++;
             }
-            throw new XmlParseException("声明未闭合", _i);
+            throw new XmlParseException(L.Pick("声明未闭合", "unclosed declaration"), _i);
         }
 
         private void SkipTo(string terminator)
         {
             int idx = _s.IndexOf(terminator, _i, StringComparison.Ordinal);
-            if (idx < 0) throw new XmlParseException($"期望 '{terminator}'", _i);
+            if (idx < 0) throw new XmlParseException(L.Pick($"期望 '{terminator}'", $"expected '{terminator}'"), _i);
             _i = idx + terminator.Length;
         }
 
@@ -297,10 +297,10 @@ public static class Xml
         {
             // 递归下降无深度限制 → 深层嵌套 XML（5 万层 <a><a>..）StackOverflowException 崩溃进程
             if (++_depth > MaxDepth)
-                throw new XmlParseException("XML 嵌套过深（>512 层）", _i);
+                throw new XmlParseException(L.Pick("XML 嵌套过深（>512 层）", "XML nesting too deep (>512 levels)"), _i);
             try
             {
-                if (AtEnd || _s[_i] != '<') throw new XmlParseException("期望 '<'", _i);
+                if (AtEnd || _s[_i] != '<') throw new XmlParseException(L.Pick("期望 '<'", "expected '<'"), _i);
                 _i++; // <
                 var name = ReadName();
                 var el = XNode.Element(name);
@@ -309,7 +309,7 @@ public static class Xml
             while (true)
             {
                 SkipWs();
-                if (AtEnd) throw new XmlParseException("元素未闭合", _i);
+                if (AtEnd) throw new XmlParseException(L.Pick("元素未闭合", "unclosed element"), _i);
                 char c = _s[_i];
                 if (c == '>') { _i++; break; }
                 if (c == '/')
@@ -329,7 +329,7 @@ public static class Xml
             // 内容
             while (true)
             {
-                if (AtEnd) throw new XmlParseException("元素未闭合", _i);
+                if (AtEnd) throw new XmlParseException(L.Pick("元素未闭合", "unclosed element"), _i);
                 if (_s[_i] == '<')
                 {
                     if (_i + 1 < _s.Length && _s[_i + 1] == '/')
@@ -337,7 +337,7 @@ public static class Xml
                         // 结束标签
                         _i += 2;
                         var closeName = ReadName();
-                        if (closeName != name) throw new XmlParseException($"结束标签不匹配（期望 </{name}>，得到 </{closeName}>）", _i);
+                        if (closeName != name) throw new XmlParseException(L.Pick($"结束标签不匹配（期望 </{name}>，得到 </{closeName}>）", $"mismatched end tag (expected </{name}>, got </{closeName}>)"), _i);
                         SkipWs();
                         Expect('>');
                         return el;
@@ -349,7 +349,7 @@ public static class Xml
                         {
                             _i += 9;
                             int end = _s.IndexOf("]]>", _i, StringComparison.Ordinal);
-                            if (end < 0) throw new XmlParseException("CDATA 未闭合", _i);
+                            if (end < 0) throw new XmlParseException(L.Pick("CDATA 未闭合", "unclosed CDATA"), _i);
                             el.AddText(_s[_i..end]);
                             _i = end + 3;
                         }
@@ -397,7 +397,7 @@ public static class Xml
         {
             int amp = _i;
             int semi = _s.IndexOf(';', _i);
-            if (semi < 0) throw new XmlParseException("实体未闭合", amp);
+            if (semi < 0) throw new XmlParseException(L.Pick("实体未闭合", "unclosed entity"), amp);
             var body = _s[(_i + 1)..semi];
             _i = semi + 1;
             return body switch
@@ -420,26 +420,26 @@ public static class Xml
                 {
                     if (!int.TryParse(body.AsSpan(2), System.Globalization.NumberStyles.HexNumber,
                             System.Globalization.CultureInfo.InvariantCulture, out code))
-                        throw new XmlParseException($"非法字符引用 '&{body};'", pos);
+                        throw new XmlParseException(L.Pick($"非法字符引用 '&{body};'", $"invalid character reference '&{body};'"), pos);
                 }
                 else
                 {
                     if (!int.TryParse(body.AsSpan(1), out code))
-                        throw new XmlParseException($"非法字符引用 '&{body};'", pos);
+                        throw new XmlParseException(L.Pick($"非法字符引用 '&{body};'", $"invalid character reference '&{body};'"), pos);
                 }
                 // 孤立低代理/越界码点：ConvertFromUtf32 抛 ArgumentOutOfRangeException（调用方只 catch XmlParseException）
                 if ((code >= 0xD800 && code <= 0xDFFF) || code > 0x10FFFF)
-                    throw new XmlParseException($"非法 Unicode 码点 '&{body};'（孤立低代理/越界）", pos);
+                    throw new XmlParseException(L.Pick($"非法 Unicode 码点 '&{body};'（孤立低代理/越界）", $"invalid Unicode code point '&{body};' (lone low surrogate / out of range)"), pos);
                 return char.ConvertFromUtf32(code);
             }
-            throw new XmlParseException($"未知实体 '&{body};'", pos);
+            throw new XmlParseException(L.Pick($"未知实体 '&{body};'", $"unknown entity '&{body};'"), pos);
         }
 
         private string ReadAttrValue()
         {
-            if (AtEnd) throw new XmlParseException("期望属性值", _i);
+            if (AtEnd) throw new XmlParseException(L.Pick("期望属性值", "expected an attribute value"), _i);
             char q = _s[_i];
-            if (q != '"' && q != '\'') throw new XmlParseException("属性值须用引号", _i);
+            if (q != '"' && q != '\'') throw new XmlParseException(L.Pick("属性值须用引号", "attribute value must be quoted"), _i);
             _i++;
             var sb = new StringBuilder();
             while (!AtEnd && _s[_i] != q)
@@ -447,17 +447,17 @@ public static class Xml
                 if (_s[_i] == '&') sb.Append(ReadEntity());
                 else { sb.Append(_s[_i]); _i++; }
             }
-            if (AtEnd) throw new XmlParseException("属性值未闭合", _i);
+            if (AtEnd) throw new XmlParseException(L.Pick("属性值未闭合", "unclosed attribute value"), _i);
             _i++; // 闭引号
             return sb.ToString();
         }
 
         private string ReadName()
         {
-            if (AtEnd) throw new XmlParseException("期望名字", _i);
+            if (AtEnd) throw new XmlParseException(L.Pick("期望名字", "expected a name"), _i);
             char c = _s[_i];
             if (!(char.IsLetter(c) || c == '_' || c == ':'))
-                throw new XmlParseException("非法的名字起始字符", _i);
+                throw new XmlParseException(L.Pick("非法的名字起始字符", "invalid name start character"), _i);
             int start = _i;
             _i++;
             while (!AtEnd)
@@ -471,7 +471,7 @@ public static class Xml
 
         private void Expect(char c)
         {
-            if (AtEnd || _s[_i] != c) throw new XmlParseException($"期望 '{c}'", _i);
+            if (AtEnd || _s[_i] != c) throw new XmlParseException(L.Pick($"期望 '{c}'", $"expected '{c}'"), _i);
             _i++;
         }
     }

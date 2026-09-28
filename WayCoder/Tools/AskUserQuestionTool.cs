@@ -58,7 +58,7 @@ public class AskUserQuestionTool : ITool
             // ── 1. 解析 questions 数组 ──
             var questions = ParseQuestions(arguments);
             if (questions.Count == 0)
-                return "错误：questions 数组为空，至少需要一个问题";
+                return L.Pick("错误：questions 数组为空，至少需要一个问题", "Error: the questions array is empty; at least one question is required");
 
             // ── 2. 依次展示每个问题 ──
             var answers = JNode.Object();
@@ -67,7 +67,7 @@ public class AskUserQuestionTool : ITool
             // 仅当完全没有用户可应答（标准输入被重定向：管道 echo|waycoder、--json IDE 桥、批量任务）
             // 才不让模型假装「问了人」，改为明确告知由模型自行决定。
             if (!CanAskUser())
-                return "无法询问用户：当前为非交互环境（无终端/Web 用户可应答），请自行决定。";
+                return L.Pick("无法询问用户：当前为非交互环境（无终端/Web 用户可应答），请自行决定。", "Cannot ask the user: this is a non-interactive environment (no terminal or web user can answer). Decide on your own.");
 
             // ── TUI 行内问卷：全部题目一次问完（多题 = 横向标签页或分步骤），不再逐题弹窗 ──
             // 仅当每题都有选项时才走（无选项 = 需要文本输入，那不是选择题，交回逐题路径）。
@@ -87,7 +87,7 @@ public class AskUserQuestionTool : ITool
                     // 已确认「有行内界面」还拿到 null ⇒ 用户按 Esc 取消（不是无界面）→ 整份标已取消，
                     // 不再走下面逐题路径重问一遍。
                     foreach (var q in questions)
-                        answers[q.Header] = JNode.From("已取消");
+                        answers[q.Header] = JNode.From(L.Pick("已取消", "Cancelled by user"));
                     return answers.ToJson();
                 }
 
@@ -127,7 +127,7 @@ public class AskUserQuestionTool : ITool
                 catch (OperationCanceledException)
                 {
                     // 用户取消 → 剩余问题跳过
-                    answers[q.Header] = JNode.From("已取消");
+                    answers[q.Header] = JNode.From(L.Pick("已取消", "Cancelled by user"));
                     break;
                 }
 
@@ -152,7 +152,7 @@ public class AskUserQuestionTool : ITool
         }
         catch (Exception ex)
         {
-            return $"ask_user_question 执行出错：{ex.Message}";
+            return L.Pick($"ask_user_question 执行出错：{ex.Message}", $"Error: ask_user_question failed: {ex.Message}");
         }
     }
 

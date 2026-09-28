@@ -92,40 +92,40 @@ public static class TerminalWidthProbe
     /// 代表字符集 —— 覆盖静态表所有特判区段 + 易错类别：
     /// ASCII 窄、CJK/全角宽、符号特判 1 列（✓→/几何/箭头/⌘）、emoji 2 列、韩文、零宽组合符。
     /// </summary>
-    public static readonly ProbeItem[] ProbeSet =
+    public static ProbeItem[] ProbeSet =>
     [
         // ── ASCII 窄（静态 1）──
-        new("A", "ASCII 大写"),      new("a", "ASCII 小写"),    new("1", "ASCII 数字"),
-        new("!", "ASCII 符号"),
+        new("A", L.Pick("ASCII 大写", "ASCII uppercase")),      new("a", L.Pick("ASCII 小写", "ASCII lowercase")),    new("1", L.Pick("ASCII 数字", "ASCII digit")),
+        new("!", L.Pick("ASCII 符号", "ASCII symbol")),
         // ── CJK / 全角宽（静态 2）──
-        new("中", "汉字"),            new("道", "汉字"),          new("汉", "汉字"),
-        new("Ａ", "全角 A"),          new("。", "句号"),          new("、", "顿号"),
-        new("「", "日引号开"),        new("」", "日引号闭"),
-        new("…", "省略号 U+2026"),    new("—", "破折号 U+2014"),  new("“", "左引号"), new("”", "右引号"),
+        new("中", L.Pick("汉字", "CJK ideograph")),            new("道", L.Pick("汉字", "CJK ideograph")),          new("汉", L.Pick("汉字", "CJK ideograph")),
+        new("Ａ", L.Pick("全角 A", "full-width A")),          new("。", L.Pick("句号", "ideographic full stop")),          new("、", L.Pick("顿号", "ideographic comma")),
+        new("「", L.Pick("日引号开", "CJK left corner bracket")),        new("」", L.Pick("日引号闭", "CJK right corner bracket")),
+        new("…", L.Pick("省略号 U+2026", "ellipsis U+2026")),    new("—", L.Pick("破折号 U+2014", "em dash U+2014")),  new("“", L.Pick("左引号", "left curly quote")), new("”", L.Pick("右引号", "right curly quote")),
         // ── 符号特判 1 列（静态 1）──
-        new("✓", "对勾 U+2713"),     new("✔", "重对勾 U+2714"),  new("✕", "乘 U+2715"),
-        new("✖", "重乘 U+2716"),     new("✗", "叉 U+2717"),      new("✘", "重叉 U+2718"),
-        new("←", "左箭头"),          new("→", "右箭头"),        new("↑", "上箭头"),
-        new("↔", "双向箭头"),        new("⇄", "交换箭头 U+21C4"),
-        new("■", "方块"),            new("□", "空方块"),        new("▲", "上三角"),
-        new("△", "空三角"),          new("●", "实心圆"),        new("○", "空圆"),
-        new("·", "中点 U+00B7"),     new("•", "项目符 U+2022"),  new("◦", "白项目符 U+25E6"),
-        new("⌘", "命令符 U+2318"),
+        new("✓", L.Pick("对勾 U+2713", "check mark U+2713")),     new("✔", L.Pick("重对勾 U+2714", "heavy check mark U+2714")),  new("✕", L.Pick("乘 U+2715", "multiplication X U+2715")),
+        new("✖", L.Pick("重乘 U+2716", "heavy multiplication X U+2716")),     new("✗", L.Pick("叉 U+2717", "ballot X U+2717")),      new("✘", L.Pick("重叉 U+2718", "heavy ballot X U+2718")),
+        new("←", L.Pick("左箭头", "left arrow")),          new("→", L.Pick("右箭头", "right arrow")),        new("↑", L.Pick("上箭头", "up arrow")),
+        new("↔", L.Pick("双向箭头", "left-right arrow")),        new("⇄", L.Pick("交换箭头 U+21C4", "rightwards arrow over leftwards arrow U+21C4")),
+        new("■", L.Pick("方块", "black square")),            new("□", L.Pick("空方块", "white square")),        new("▲", L.Pick("上三角", "black up-pointing triangle")),
+        new("△", L.Pick("空三角", "white up-pointing triangle")),          new("●", L.Pick("实心圆", "black circle")),        new("○", L.Pick("空圆", "white circle")),
+        new("·", L.Pick("中点 U+00B7", "middle dot U+00B7")),     new("•", L.Pick("项目符 U+2022", "bullet U+2022")),  new("◦", L.Pick("白项目符 U+25E6", "white bullet U+25E6")),
+        new("⌘", L.Pick("命令符 U+2318", "place of interest sign U+2318")),
         // ── 媒体控制 + 时钟 emoji（静态 2，23E9-23F3）──
-        new("⏱", "计时器 U+23F1"),     new("⏰", "闹钟 U+23F0"),
-        new("⏳", "沙漏 U+23F3"),       new("⏩", "快进 U+23E9"),
+        new("⏱", L.Pick("计时器 U+23F1", "stopwatch U+23F1")),     new("⏰", L.Pick("闹钟 U+23F0", "alarm clock U+23F0")),
+        new("⏳", L.Pick("沙漏 U+23F3", "hourglass U+23F3")),       new("⏩", L.Pick("快进 U+23E9", "fast-forward button U+23E9")),
         // ── 杂项符号与箭头（静态 2，2B00-2BFF）──
-        new("⭐", "星 U+2B50"),         new("⬛", "黑大方 U+2B1B"),
-        new("⬜", "白大方 U+2B1C"),     new("⭕", "大圆 U+2B55"),
-        new("⬆", "上箭头 U+2B06"),
+        new("⭐", L.Pick("星 U+2B50", "star U+2B50")),         new("⬛", L.Pick("黑大方 U+2B1B", "black large square U+2B1B")),
+        new("⬜", L.Pick("白大方 U+2B1C", "white large square U+2B1C")),     new("⭕", L.Pick("大圆 U+2B55", "heavy large circle U+2B55")),
+        new("⬆", L.Pick("上箭头 U+2B06", "up arrow U+2B06")),
         // ── emoji 宽（静态 2）──
-        new("★", "五角星 U+2605"),   new("❤", "红心 U+2764"),    new("☀", "太阳 U+2600"),
-        new("⚡", "闪电 U+26A1"),     new("📦", "包裹 U+1F4E6"),   new("🚀", "火箭 U+1F680"),
-        new("✅", "白勾 U+2705"),
+        new("★", L.Pick("五角星 U+2605", "black star U+2605")),   new("❤", L.Pick("红心 U+2764", "heavy black heart U+2764")),    new("☀", L.Pick("太阳 U+2600", "black sun with rays U+2600")),
+        new("⚡", L.Pick("闪电 U+26A1", "high voltage U+26A1")),     new("📦", L.Pick("包裹 U+1F4E6", "package U+1F4E6")),   new("🚀", L.Pick("火箭 U+1F680", "rocket U+1F680")),
+        new("✅", L.Pick("白勾 U+2705", "white heavy check mark U+2705")),
         // ── 韩文（静态 2）──
-        new("가", "韩文音节"),        new("한", "韩文音节"),
+        new("가", L.Pick("韩文音节", "Hangul syllable")),        new("한", L.Pick("韩文音节", "Hangul syllable")),
         // ── 零宽字符（静态 0，探针应测出 0 列）──
-        new("́", "组合重音 U+0301"), new("​", "零宽空格 U+200B"),
+        new("́", L.Pick("组合重音 U+0301", "combining acute accent U+0301")), new("​", L.Pick("零宽空格 U+200B", "zero width space U+200B")),
     ];
 
     /// <summary>
@@ -160,7 +160,8 @@ public static class TerminalWidthProbe
     {
         if (!CanProbe)
         {
-            Console.WriteLine("无法实测：需要真实终端（stdin/stdout 被重定向或处于 CI）。请直接在终端运行 --width-probe。");
+            Console.WriteLine(L.Pick("无法实测：需要真实终端（stdin/stdout 被重定向或处于 CI）。请直接在终端运行 --width-probe。",
+                "Cannot measure: a real terminal is required (stdin/stdout is redirected or CI is set). Run --width-probe directly in a terminal."));
             return 1;
         }
 
@@ -169,18 +170,21 @@ public static class TerminalWidthProbe
         {
             if (!Directory.Exists(dir))
             {
-                Console.WriteLine($"目录不存在：{dir}");
+                Console.WriteLine(L.Pick($"目录不存在：{dir}", $"Directory not found: {dir}"));
                 return 1;
             }
-            Console.WriteLine($"扫描源码字符：{dir}");
+            Console.WriteLine(L.Pick($"扫描源码字符：{dir}", $"Scanning source characters: {dir}"));
             var chars = ScanNonAsciiChars(dir);
-            Console.WriteLine($"发现 {chars.Count} 个非 ASCII 唯一字符，逐个实测（每个一次 CPR 往返）…");
+            Console.WriteLine(L.Pick($"发现 {chars.Count} 个非 ASCII 唯一字符，逐个实测（每个一次 CPR 往返）…",
+                $"Found {chars.Count} unique non-ASCII characters; measuring each one (one CPR round-trip each)..."));
             results = ProbeAllChars(chars, timeoutMs);
             return PrintScanResults(results);
         }
 
-        Console.WriteLine("终端字符宽度实测（+字符* + CPR 光标列） vs 静态宽度表 AnsiString.CharWidth");
-        Console.WriteLine("── 字符 ── 名称 ───────────── 静态 ─ 实测 ─ 判定 ─");
+        Console.WriteLine(L.Pick("终端字符宽度实测（+字符* + CPR 光标列） vs 静态宽度表 AnsiString.CharWidth",
+            "Terminal character width probe (+char* + CPR cursor column) vs the static table AnsiString.CharWidth"));
+        Console.WriteLine(L.Pick("── 字符 ── 名称 ───────────── 静态 ─ 实测 ─ 判定 ─",
+                     "── char ── name ───────────── static ─ actual ─ verdict ─"));
         results = ProbeAll(timeoutMs);
         return PrintTableResults(results);
     }
@@ -197,11 +201,14 @@ public static class TerminalWidthProbe
             if (!r.Consistent) mismatch++;
             Console.WriteLine($"  {Cell(Visible(r.Char), 4)} {Cell(r.Label, 22)} {r.StaticWidth,4} {a,5}   {mark}");
         }
-        Console.WriteLine($"\n共 {measured} 项可测：一致 {measured - mismatch}，不一致 {mismatch}");
+        Console.WriteLine(L.Pick($"\n共 {measured} 项可测：一致 {measured - mismatch}，不一致 {mismatch}",
+                $"\n{measured} measurable: {measured - mismatch} consistent, {mismatch} mismatched"));
         if (mismatch == 0)
-            Console.WriteLine("静态宽度表与当前终端完全吻合，无需校准。");
+            Console.WriteLine(L.Pick("静态宽度表与当前终端完全吻合，无需校准。",
+                "The static width table matches this terminal exactly; no calibration needed."));
         else
-            Console.WriteLine("不一致项即静态表 AnsiString.CharWidth 需按当前终端字体修正的字符。");
+            Console.WriteLine(L.Pick("不一致项即静态表 AnsiString.CharWidth 需按当前终端字体修正的字符。",
+                "Each mismatch is a character whose entry in AnsiString.CharWidth needs fixing for this terminal's font."));
         return mismatch;
     }
 
@@ -218,18 +225,22 @@ public static class TerminalWidthProbe
             if (!r.Consistent)
             {
                 mismatch++;
-                Console.WriteLine($"  ❌ {Cell(Visible(r.Char), 4)} {Cell(r.Label, 26)} 静态{r.StaticWidth} → 实测{a}");
+                Console.WriteLine(L.Pick($"  ❌ {Cell(Visible(r.Char), 4)} {Cell(r.Label, 26)} 静态{r.StaticWidth} → 实测{a}",
+                    $"  ❌ {Cell(Visible(r.Char), 4)} {Cell(r.Label, 26)} static {r.StaticWidth} -> actual {a}"));
             }
         }
 
-        Console.WriteLine($"\n源码字符实测分布：");
+        Console.WriteLine(L.Pick($"\n源码字符实测分布：", $"\nMeasured width distribution of source characters:"));
         foreach (var (w, n) in byWidth.OrderBy(kv => kv.Key))
-            Console.WriteLine($"  宽 {w} 列：{n} 个");
-        Console.WriteLine($"共 {measured} 项可测：一致 {measured - mismatch}，不一致 {mismatch}");
+            Console.WriteLine(L.Pick($"  宽 {w} 列：{n} 个", $"  width {w}: {n}"));
+        Console.WriteLine(L.Pick($"共 {measured} 项可测：一致 {measured - mismatch}，不一致 {mismatch}",
+                $"{measured} measurable: {measured - mismatch} consistent, {mismatch} mismatched"));
         if (mismatch == 0)
-            Console.WriteLine("静态宽度表与当前终端完全吻合，无需校准。");
+            Console.WriteLine(L.Pick("静态宽度表与当前终端完全吻合，无需校准。",
+                "The static width table matches this terminal exactly; no calibration needed."));
         else
-            Console.WriteLine("❌ 列出的不一致项即静态表 AnsiString.CharWidth 需修正的字符。");
+            Console.WriteLine(L.Pick("❌ 列出的不一致项即静态表 AnsiString.CharWidth 需修正的字符。",
+                "❌ The listed mismatches are the characters in AnsiString.CharWidth that need fixing."));
         return mismatch;
     }
 

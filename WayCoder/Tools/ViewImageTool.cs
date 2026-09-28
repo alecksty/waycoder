@@ -36,37 +36,47 @@ public class ViewImageTool : ITool
         var agentId = arguments.GetValueOrDefault("_agent_id")?.ToString() ?? "main";
 
         if (string.IsNullOrWhiteSpace(path))
-            return Task.FromResult("错误：path 参数不能为空");
+            return Task.FromResult(L.Pick("错误：path 参数不能为空",
+                                          "Error: the path parameter must not be empty"));
 
         var fullPath = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(fullPath))
-            return Task.FromResult($"错误：图片不存在 — {fullPath}");
+            return Task.FromResult(L.Pick($"错误：图片不存在 — {fullPath}", $"Error: image not found - {fullPath}"));
 
         // 门控：按当前 Agent 实际生效模型判断（注入的 _model/_base_url），
         // 而非全局 Config.Model —— 槽位独立模型 / 回退链下仍能正确识别 vision；未注入时回退 Config
         var model = arguments.GetValueOrDefault("_model")?.ToString() is { Length: > 0 } m ? m : Config.Instance.Model;
         var baseUrl = arguments.GetValueOrDefault("_base_url")?.ToString() is { Length: > 0 } b ? b : Config.Instance.BaseUrl;
         if (!ModelCatalog.ResolveSupportsVision(model, baseUrl))
-            return Task.FromResult(
+            return Task.FromResult(L.Pick(
                 $"⚠ 当前模型 {model} 不支持图片输入（vision）。\n" +
                 $"可用 bash 查看文件：ls -la \"{fullPath}\"\n" +
-                $"或用 /model 切换到支持 vision 的模型（gpt-4o / gpt-5 / claude / gemini）后再试。");
+                $"或用 /model 切换到支持 vision 的模型（gpt-4o / gpt-5 / claude / gemini）后再试。",
+                $"⚠ The current model {model} does not support image input (vision).\n" +
+                $"You can inspect the file with bash instead: ls -la \"{fullPath}\"\n" +
+                $"Or use /model to switch to a vision-capable model (gpt-4o / gpt-5 / claude / gemini) and try again."));
 
         try
         {
             var bytes = File.ReadAllBytes(fullPath);
             if (bytes.Length > 5 * 1024 * 1024)
-                return Task.FromResult($"错误：图片过大（{bytes.Length / 1024} KB），vision 通常限制 5MB 以内。");
+                return Task.FromResult(L.Pick($"错误：图片过大（{bytes.Length / 1024} KB），vision 通常限制 5MB 以内。",
+                                              $"Error: image is too large ({bytes.Length / 1024} KB); vision is usually limited to 5MB."));
 
             LLM.QueueImage(agentId, fullPath);
             var sizeKb = bytes.Length / 1024.0;
-            return Task.FromResult(
+            return Task.FromResult(L.Pick(
                 $"✅ 图片已附加（{sizeKb:F0} KB），将在下一轮请求中发送给 {model} 查看。\n" +
-                $"问题：{question}");
+                $"问题：{question}",
+                $"✅ Image attached ({sizeKb:F0} KB); it will be sent to {model} for viewing in the next request.\n" +
+                $"Question: {question}"));
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"读取图片出错：{ex.GetType().Name}: {ex.Message}");
+            // ⚠ 英文支刻意**不以** Failed/Error 开头：中文支本就不以错误标记开头，
+            //   若英文支改成 `Failed to …` 会让 IsError 从 false 变 true，静默改变自恢复行为。
+            return Task.FromResult(L.Pick($"读取图片出错：{ex.GetType().Name}: {ex.Message}",
+                                          $"Could not read the image: {ex.GetType().Name}: {ex.Message}"));
         }
     }
 }

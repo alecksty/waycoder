@@ -42,7 +42,14 @@ public static class McpManager
     }
 
     /// <summary>MCP 连接状态信息，供 UI 面板展示</summary>
-    public static string Info { get; private set; } = "未配置";
+    // ⚠ 不能用 `= "未配置"` 的自动属性初始化器：那会在**类型初始化**那一刻把语言冻死
+    //   （公理 A3）。改用「未赋值时按当前语言取」的后备字段，读写两侧都不冻语言。
+    private static string? _info;
+    public static string Info
+    {
+        get => _info ?? L.Pick("未配置", "Not configured");
+        private set => _info = value;
+    }
 
     /// <summary>结构化服务器状态快照，供 /mcp 命令与侧栏展示</summary>
     public static IReadOnlyList<McpServerInfo> Servers
@@ -175,7 +182,8 @@ public static class McpManager
                     if (OperatingSystem.IsIOS() || OperatingSystem.IsAndroid())
                     {
                         SetStatus(name, McpServerStatus.Failed,
-                            error: "移动端不支持 stdio 传输（无本地进程），请改用 http/sse 传输的远程 MCP 服务器");
+                            error: L.Pick("移动端不支持 stdio 传输（无本地进程），请改用 http/sse 传输的远程 MCP 服务器",
+                                          "stdio transport is not supported on mobile (no local processes); use a remote MCP server over http/sse instead"));
                         break;
                     }
 
@@ -199,7 +207,8 @@ public static class McpManager
                     if (!string.IsNullOrEmpty(command))
                         await ConnectAndDiscoverStdioAsync(name, command, args, env);
                     else
-                        SetStatus(name, McpServerStatus.Failed, error: "缺少 command 字段");
+                        SetStatus(name, McpServerStatus.Failed,
+                            error: L.Pick("缺少 command 字段", "missing the command field"));
                     break;
                 }
             }
@@ -327,7 +336,7 @@ public static class McpManager
         if (initResp == null)
         {
             DebugLog.Log("mcp", $"MCP {name}: 握手失败");
-            SetStatus(name, McpServerStatus.Failed, error: "握手超时");
+            SetStatus(name, McpServerStatus.Failed, error: L.Pick("握手超时", "handshake timed out"));
             return;
         }
 
@@ -414,13 +423,16 @@ public static class McpManager
             foreach (var st in _states.Values.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
             {
                 var mark = McpStatusIcon.Text(st.Status);
-                sb.Append($"  {st.Name} {mark} {st.ToolCount} 工具");
-                if (st.ResourceCount > 0) sb.Append($" · {st.ResourceCount} 资源");
-                if (st.PromptCount > 0) sb.Append($" · {st.PromptCount} 提示词");
+                sb.Append(L.Pick($"  {st.Name} {mark} {st.ToolCount} 工具",
+                                 $"  {st.Name} {mark} {st.ToolCount} tools"));
+                if (st.ResourceCount > 0)
+                    sb.Append(L.Pick($" · {st.ResourceCount} 资源", $" · {st.ResourceCount} resources"));
+                if (st.PromptCount > 0)
+                    sb.Append(L.Pick($" · {st.PromptCount} 提示词", $" · {st.PromptCount} prompts"));
                 if (st.Error != null) sb.Append($" ({st.Error})");
                 sb.Append('\n');
             }
-            Info = sb.Length > 0 ? sb.ToString().TrimEnd('\n') : "未配置";
+            Info = sb.Length > 0 ? sb.ToString().TrimEnd('\n') : L.Pick("未配置", "Not configured");
         }
     }
 
@@ -469,12 +481,14 @@ public static class McpManager
     public static async Task<string> ReloadAsync(string? name)
     {
         var configPath = ConfigPathOverride ?? Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_servers.json");
-        if (configPath == null) return "未找到 mcp_servers.json 配置";
+        if (configPath == null)
+            return L.Pick("未找到 mcp_servers.json 配置", "mcp_servers.json not found");
 
         try
         {
             var servers = Json.Parse(File.ReadAllText(configPath, Encoding.UTF8));
-            if (servers == null || servers.Count == 0) return "mcp_servers.json 为空或格式错误";
+            if (servers == null || servers.Count == 0)
+                return L.Pick("mcp_servers.json 为空或格式错误", "mcp_servers.json is empty or malformed");
 
             var targets = new List<JNode>();
             foreach (var server in servers.Items)
@@ -486,7 +500,9 @@ public static class McpManager
             }
 
             if (targets.Count == 0)
-                return name == null ? "无可用服务器" : $"未找到服务器 {name}";
+                return name == null
+                    ? L.Pick("无可用服务器", "No servers available")
+                    : L.Pick($"未找到服务器 {name}", $"Server {name} not found");
 
             foreach (var server in targets)
             {
@@ -496,11 +512,12 @@ public static class McpManager
                 await ConnectServerAsync(server);
             }
 
-            return $"已重连 {targets.Count} 个服务器";
+            return L.Pick($"已重连 {targets.Count} 个服务器", $"Reconnected {targets.Count} server(s)");
         }
         catch (Exception ex)
         {
-            return $"重连失败: {ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"重连失败: {ex.GetType().Name}: {ex.Message}",
+                          $"Reconnect failed: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -512,7 +529,7 @@ public static class McpManager
     {
         var name = server["name"]?.AsString();
         if (string.IsNullOrEmpty(name))
-            return (false, "服务器配置缺少 name");
+            return (false, L.Pick("服务器配置缺少 name", "the server config is missing name"));
 
         var cwd = Environment.CurrentDirectory;
         var waycoderDir = Global.FindExistingConfigDir(cwd);
@@ -526,11 +543,11 @@ public static class McpManager
             // 读 → 去重 → 写 全在 McpConfigStore（该文件的唯一读写实现，见其类注释）
             return McpConfigStore.TryAdd(mcpPath, server, out var err)
                 ? (true, mcpPath)
-                : (false, err ?? "写入失败");
+                : (false, err ?? L.Pick("写入失败", "Write failed"));
         }
         catch (Exception ex)
         {
-            return (false, $"写入失败: {ex.Message}");
+            return (false, L.Pick($"写入失败: {ex.Message}", $"Write failed: {ex.Message}"));
         }
     }
 

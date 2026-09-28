@@ -80,11 +80,16 @@ public class BashTool : ITool, ICancellableTool
         {
             var autoBgAfter = ToolArgs.GetInt(arguments, "auto_background_after", 60);
             var bgId = BackgroundTaskManager.Start(command, Math.Max(timeout, autoBgAfter + 30));
-            return $"✅ 后台任务已启动\n" +
+            return L.Pick($"✅ 后台任务已启动\n" +
                    $"Shell ID: {bgId}\n" +
                    $"命令: {command}\n" +
                    $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
-                   $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+                   $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）",
+                   $"✅ Background task started\n" +
+                   $"Shell ID: {bgId}\n" +
+                   $"Command: {command}\n" +
+                   $"Use the job_output tool to read its output (shell_id={bgId})\n" +
+                   $"Use the job_kill tool to terminate it (shell_id={bgId})");
         }
 
         var sessionId = arguments.GetValueOrDefault("session_id")?.ToString() ?? "";
@@ -127,7 +132,7 @@ public class BashTool : ITool, ICancellableTool
         // 沙箱网络关（独立于权限模式，yolo 下也生效；localhost 例外）
         var netBlock = SandboxManager.CheckNetworkCommand(command);
         if (netBlock != null)
-            return $"{netBlock}\n命令：{command}";
+            return L.Pick($"{netBlock}\n命令：{command}", $"{netBlock}\nCommand: {command}");
 
         // YOLO 模式（畅通/上帝模式）：跳过 BashGuard 黑名单与普通危险检查，全部放行；
         // 仅保留绝对红线（rm -rf /、fork 炸弹、dd 写磁盘、mkfs 等不可逆系统破坏）
@@ -139,7 +144,7 @@ public class BashTool : ITool, ICancellableTool
         {
             var (blocked, reason) = BashGuard.CheckBanned(command);
             if (blocked)
-                return $"{reason}\n命令：{command}";
+                return L.Pick($"{reason}\n命令：{command}", $"{reason}\nCommand: {command}");
         }
 
         // 已有危险模式检查（yolo 仅查绝对红线）
@@ -156,7 +161,7 @@ public class BashTool : ITool, ICancellableTool
         {
             var violation = SandboxManager.CheckSandboxViolation(command, cwd);
             if (violation != null)
-                return $"⛔ 沙箱阻止：{violation}\n命令：{command}";
+                return L.Pick($"⛔ 沙箱阻止：{violation}\n命令：{command}", $"⛔ Sandbox blocked: {violation}\nCommand: {command}");
         }
 
         // 持久 shell 会话（session_id 提供时复用同一 shell 进程，保持 cwd/env；沙箱模式不支持）
@@ -253,17 +258,22 @@ public class BashTool : ITool, ICancellableTool
                     if (SandboxManager.IsSandboxed)
                     {
                         ProcUtil.KillTree(proc);
-                        return $"错误：在 {timeout} 秒后超时";
+                        return L.Pick($"错误：在 {timeout} 秒后超时", $"Error: timed out after {timeout}s");
                     }
 
                     // 前台超时自动迁移到后台（对标 Crush），进程所有权转移，不再 dispose
                     var bgId = BackgroundTaskManager.Adopt(proc, command, stdoutTask, stderrTask);
                     migrated = true;
-                    return $"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
+                    return L.Pick($"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
                            $"Shell ID: {bgId}\n" +
                            $"命令: {command}\n" +
                            $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
-                           $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）";
+                           $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）",
+                           $"⏰ The command has been running for more than {timeout}s and was moved to the background\n" +
+                           $"Shell ID: {bgId}\n" +
+                           $"Command: {command}\n" +
+                           $"Use the job_output tool to read its output (shell_id={bgId})\n" +
+                           $"Use the job_kill tool to terminate it (shell_id={bgId})");
                 }
 
                 // 等待异步读取完成（带超时：守护子进程继承管道会让 ReadToEndAsync 永不 EOF）
@@ -279,7 +289,7 @@ public class BashTool : ITool, ICancellableTool
                 if (!string.IsNullOrEmpty(errStr))
                     outStr += $"\n[stderr]\n{errStr}";
                 if (proc.ExitCode != 0)
-                    outStr += $"\n[退出码：{proc.ExitCode}]";
+                    outStr += L.Pick($"\n[退出码：{proc.ExitCode}]", $"\n[exit code: {proc.ExitCode}]");
 
                 // 保留头尾以保留最有用的信息
                 var maxChars = Global.BashOutputMaxChars;
@@ -287,7 +297,7 @@ public class BashTool : ITool, ICancellableTool
                 {
                     var headLen = maxChars * 40 / 100;
                     var tailLen = maxChars * 40 / 100;
-                    outStr = ContextManager.TruncateKeepHeadTail(outStr, headLen, tailLen, $"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n");
+                    outStr = ContextManager.TruncateKeepHeadTail(outStr, headLen, tailLen, L.Pick($"\n\n... 已截断（共 {outStr.Length} 字符）...\n\n", $"\n\n... truncated ({outStr.Length} characters) ...\n\n"));
                 }
 
                 // 文件追踪：检查已读取文件是否被此外部命令修改
@@ -296,7 +306,7 @@ public class BashTool : ITool, ICancellableTool
                     outStr += "\n\n" + changeWarning;
 
                 outStr = WayCoder.Infra.ProcEncoding.StripBom(outStr); // 去 chcp 65001 可能的 UTF-8 BOM
-                return string.IsNullOrWhiteSpace(outStr) ? "（无输出）" : outStr.Trim();
+                return string.IsNullOrWhiteSpace(outStr) ? L.Pick("（无输出）", "(no output)") : outStr.Trim();
             }
             finally
             {
@@ -312,7 +322,8 @@ public class BashTool : ITool, ICancellableTool
         {
             ErrorLog.ToolError("bash", $"命令执行异常: {command}", ex,
                 new Dictionary<string, object?> { ["command"] = command, ["cwd"] = cwd });
-            return $"运行命令时出错：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"运行命令时出错：{ex.GetType().Name}: {ex.Message}",
+                          $"Error running command: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -355,7 +366,7 @@ public class BashTool : ITool, ICancellableTool
                         outBuilder.Clear();
                         outBuilder.Append(ContextManager.TruncateKeepHeadTail(
                             cur, headLen, tailLen,
-                            $"\n\n... 已截断（共 {cur.Length} 字符）...\n\n"));
+                            L.Pick($"\n\n... 已截断（共 {cur.Length} 字符）...\n\n", $"\n\n... truncated ({cur.Length} characters) ...\n\n")));
                         streamTruncated = true;
                     }
                 }
@@ -383,12 +394,18 @@ public class BashTool : ITool, ICancellableTool
                 // 前台超时自动迁移到后台（对标 Crush），进程所有权转移，不再 dispose
                 var bgId = BackgroundTaskManager.AdoptStreaming(proc, command, stdoutTask, stderrTask, () => outBuilder.ToString());
                 migrated = true;
-                return $"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
+                return L.Pick($"⏰ 命令已运行超过 {timeout} 秒，自动转入后台继续执行\n" +
                        $"Shell ID: {bgId}\n" +
                        $"命令: {command}\n" +
                        $"使用 job_output 工具读取输出（参数 shell_id={bgId}）\n" +
                        $"使用 job_kill 工具终止任务（参数 shell_id={bgId}）" +
-                       (streamTruncated ? "\n⚠ 输出过长，已截断保留头尾" : "");
+                       (streamTruncated ? "\n⚠ 输出过长，已截断保留头尾" : ""),
+                       $"⏰ The command has been running for more than {timeout}s and was moved to the background\n" +
+                       $"Shell ID: {bgId}\n" +
+                       $"Command: {command}\n" +
+                       $"Use the job_output tool to read its output (shell_id={bgId})\n" +
+                       $"Use the job_kill tool to terminate it (shell_id={bgId})" +
+                       (streamTruncated ? "\n⚠ Output is too long; kept head and tail" : ""));
             }
 
             // 给流读取一个收尾窗口（守护子进程继承管道会让读永不 EOF，加超时防挂起）
@@ -399,14 +416,14 @@ public class BashTool : ITool, ICancellableTool
             if (proc.ExitCode == 0) UpdateCwd(command, cwd);
 
             if (proc.ExitCode != 0)
-                outStream += $"\n[退出码：{proc.ExitCode}]";
+                outStream += L.Pick($"\n[退出码：{proc.ExitCode}]", $"\n[exit code: {proc.ExitCode}]");
 
             var maxStreamChars = Global.BashOutputMaxChars;
             if (maxStreamChars > 0 && outStream.Length > maxStreamChars)
             {
                 var headLen = maxStreamChars * 40 / 100;
                 var tailLen = maxStreamChars * 40 / 100;
-                outStream = ContextManager.TruncateKeepHeadTail(outStream, headLen, tailLen, $"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n");
+                outStream = ContextManager.TruncateKeepHeadTail(outStream, headLen, tailLen, L.Pick($"\n\n... 已截断（共 {outStream.Length} 字符）...\n\n", $"\n\n... truncated ({outStream.Length} characters) ...\n\n"));
             }
 
             // 文件追踪：检查已读取文件是否被此外部命令修改
@@ -414,7 +431,7 @@ public class BashTool : ITool, ICancellableTool
             if (streamChangeWarning != null)
                 outStream += "\n\n" + streamChangeWarning;
 
-            return string.IsNullOrWhiteSpace(outStream) ? "（无输出）" : outStream.Trim();
+            return string.IsNullOrWhiteSpace(outStream) ? L.Pick("（无输出）", "(no output)") : outStream.Trim();
         }
         finally
         {

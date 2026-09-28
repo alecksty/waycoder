@@ -30,19 +30,22 @@ public class KbTool : ITool
         var action = arguments.GetValueOrDefault("action")?.ToString() ?? "search";
         var query = arguments.GetValueOrDefault("query")?.ToString() ?? "";
         if (string.IsNullOrWhiteSpace(query))
-            return "错误：需要提供 query 搜索关键词或错误文本。";
+            return L.Pick("错误：需要提供 query 搜索关键词或错误文本。",
+                          "Error: query (a search keyword or error text) is required.");
 
         if (action.Equals("diagnose", StringComparison.OrdinalIgnoreCase))
             return await KbIndex.DiagnoseError(query, 3);
 
         var hits = KbIndex.Search(query, 5);
         if (hits.Count == 0)
-            return "知识库暂无相关条目（可用 /kb mine 提炼，或 /kb save 手动记录）。";
+            return L.Pick("知识库暂无相关条目（可用 /kb mine 提炼，或 /kb save 手动记录）。",
+                          "No matching entries in the knowledge base (use /kb mine to distil some, or /kb save to record one manually).");
 
-        var sb = new StringBuilder($"📚 知识库匹配 {hits.Count} 条：\n");
+        var sb = new StringBuilder(L.Pick($"📚 知识库匹配 {hits.Count} 条：\n", $"📚 {hits.Count} knowledge base match(es):\n"));
         foreach (var (e, score) in hits)
         {
-            sb.AppendLine($"■ {e.Description}〔{KbIndex.KindLabel(e.Kind)}·相关度 {score:F2}〕");
+            sb.AppendLine(L.Pick($"■ {e.Description}〔{KbIndex.KindLabel(e.Kind)}·相关度 {score:F2}〕",
+                                 $"■ {e.Description} [{KbIndex.KindLabel(e.Kind)} · relevance {score:F2}]"));
             var preview = e.Content.ReplaceLineEndings(" ");
             if (preview.Length > 400) preview = ContextManager.TruncateByRunes(preview, 400);
             sb.AppendLine($"  {preview}");

@@ -55,7 +55,8 @@ public static class GitRunner
             if (!proc.WaitForExit(DefaultTimeoutMs))
             {
                 ProcUtil.KillTree(proc);
-                return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
+                return (-1, "", L.Pick($"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}",
+                    $"git command timed out (>{DefaultTimeoutMs / 1000}s): {args}"));
             }
             // 与 RunCoreAsync 对齐：读取加超时，防止 git 守护子进程继承管道致 ReadToEndAsync 永不 EOF 而永久阻塞
             var stdout = WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult() ?? "";
@@ -108,7 +109,8 @@ public static class GitRunner
             {
                 // 配置超时（非外部取消）：杀掉进程并返回超时错误
                 ProcUtil.KillTree(proc);
-                return (-1, "", $"git 命令超时（>{timeoutMs / 1000}s）: {argsDesc}");
+                return (-1, "", L.Pick($"git 命令超时（>{timeoutMs / 1000}s）: {argsDesc}",
+                    $"git command timed out (>{timeoutMs / 1000}s): {argsDesc}"));
             }
             catch (OperationCanceledException)
             {
@@ -142,7 +144,8 @@ public static class GitRunner
     {
         var (exitCode, stdout, stderr) = Run(args, cwd);
         if (exitCode != 0)
-            throw new Exception($"git {args} 失败 (exit {exitCode}): {stderr.Trim()}");
+            throw new Exception(L.Pick($"git {args} 失败 (exit {exitCode}): {stderr.Trim()}",
+                $"git {args} failed (exit {exitCode}): {stderr.Trim()}"));
         return stdout;
     }
 }

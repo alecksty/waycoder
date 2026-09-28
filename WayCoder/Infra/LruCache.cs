@@ -109,7 +109,7 @@ public sealed class LruCache<K, V> where K : notnull
     public LruCache(int capacity, TimeSpan? defaultTtl = null)
     {
         if (capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity 必须为正数。");
+            throw new ArgumentOutOfRangeException(nameof(capacity), L.Pick("Capacity 必须为正数。", "Capacity must be a positive number."));
 
         _capacity = capacity;
         _defaultTtl = defaultTtl;

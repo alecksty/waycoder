@@ -261,9 +261,18 @@ public static class DiagnosticManager
         // 内建 linter（CheckJson 等）的失败提示也可能以 ⚠ 开头，须留给通用解析器）；
         // "✅ 检查通过"可能附带 warning（exit 0 时 stderr 里的 warning 会被拼进 combined），
         // 同样须继续解析而不是整体跳过。
+        // ⚠ **中英都要认**（`Lang.cs` 公理 A2：机器可读标记永远双语识别）。
+        //   这三个串是 `LintTool` 自己产出的，而它现在随界面语言变 ⇒ 只认中文的话
+        //   英文界面下守卫恒假，「跳过解析」的输出会掉进 `ParseGeneric`。
+        //   实测由子智能体在 Batch 2 抓到（改 `LintTool` 的人看不到这里）。
+        //   ⚠ `DiagnosticManager` 是**被编进 MAUI 的**（csproj 显式加回 `UI/TUI/Edit/**`），
+        //   所以这条不是"桌面才有的问题"。
         if (rawOutput.Contains("无法运行", StringComparison.Ordinal)
+            || rawOutput.Contains("cannot run", StringComparison.Ordinal)
             || rawOutput.Contains("（无可用 linter）", StringComparison.Ordinal)
-            || rawOutput.Contains("Lint 执行异常", StringComparison.Ordinal))
+            || rawOutput.Contains("(no linter available)", StringComparison.Ordinal)
+            || rawOutput.Contains("Lint 执行异常", StringComparison.Ordinal)
+            || rawOutput.Contains("Lint execution error", StringComparison.Ordinal))
             return diagnostics;
 
         var fileName = Path.GetFileName(filePath);

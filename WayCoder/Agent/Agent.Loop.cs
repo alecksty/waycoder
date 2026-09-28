@@ -86,8 +86,11 @@ public partial class Agent
 
             if (callMsgIdx < 0) continue;
 
-            var errorMsg = $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。" +
-                           $"可能原因：Agent 被中断、网络问题或进程异常退出。请重试或使用其他方法完成此操作。";
+            var errorMsg = L.Pick(
+                $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。" +
+                $"可能原因：Agent 被中断、网络问题或进程异常退出。请重试或使用其他方法完成此操作。",
+                $"[Tool call interrupted] The call to \"{toolName}\" did not finish executing." +
+                $" Likely causes: the agent was interrupted, a network problem, or the process exited abnormally. Retry, or use another approach to complete this operation.");
 
             var syntheticResult = JNode.Object()
                 .Set("role", "tool")
@@ -190,7 +193,8 @@ public partial class Agent
             messages.Insert(callMsgIdx + 1, JNode.Object()
                 .Set("role", "tool")
                 .Set("tool_call_id", orphanId)
-                .Set("content", $"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。"));
+                .Set("content", L.Pick($"[工具执行被中断] 工具 \"{toolName}\" 的调用未能完成执行。",
+                    $"[Tool call interrupted] The call to \"{toolName}\" did not finish executing.")));
             result.OrphanCallsFixed++;
         }
 
@@ -296,14 +300,18 @@ public partial class Agent
             // 批量循环：显示涉及的重复工具数
             var duplicateCount = hashCounts.Values.Count(v => v >= PerToolLoopThreshold);
             var dupNote = duplicateCount > 1
-                ? $"（共 {duplicateCount} 个工具调用模式在重复）"
+                ? L.Pick($"（共 {duplicateCount} 个工具调用模式在重复）",
+                    $" ({duplicateCount} repeated tool-call patterns)")
                 : "";
 
             var nudge = _loopNudgeCount switch
             {
-                1 => $"检测到重复的工具调用模式{dupNote}。请换一种不同的方法或工具来完成任务。如果之前的方案反复失败，请尝试完全不同的思路。",
-                2 => $"你仍在重复相同的操作模式{dupNote}。请停下来，重新评估问题，尝试一种完全不同的策略。检查之前的工具输出，找出失败的原因。",
-                _ => $"严重警告：你已经多次重复相同的无效操作{dupNote}。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
+                1 => L.Pick($"检测到重复的工具调用模式{dupNote}。请换一种不同的方法或工具来完成任务。如果之前的方案反复失败，请尝试完全不同的思路。",
+                    $"Repeated tool-call pattern detected{dupNote}. Try a different approach or tool to finish the task. If the previous approach keeps failing, try a completely different idea."),
+                2 => L.Pick($"你仍在重复相同的操作模式{dupNote}。请停下来，重新评估问题，尝试一种完全不同的策略。检查之前的工具输出，找出失败的原因。",
+                    $"You are still repeating the same operation pattern{dupNote}. Stop, re-assess the problem, and try a completely different strategy. Read the earlier tool output to find why it failed."),
+                _ => L.Pick($"严重警告：你已经多次重复相同的无效操作{dupNote}。立即停止当前方法。回顾整个任务目标，从第一步重新开始，使用完全不同的工具或顺序。如有必要，向用户报告卡住的原因。",
+                    $"Serious warning: you have repeated the same ineffective operation many times{dupNote}. Stop this approach now. Re-read the overall task goal, start over from step one, and use a completely different tool or order. If necessary, report to the user why you are stuck."),
             };
 
             // 用 AddMessage（持 MessagesLock）而非直接 messages.Add，否则与外部 SnapshotMessages 并发时

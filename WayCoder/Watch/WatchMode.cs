@@ -312,7 +312,7 @@ public class WatchMode : IDisposable
         else if (trimmed.StartsWith("AI?") || trimmed.StartsWith("ai?"))
         {
             var prompt = trimmed[3..].Trim();
-            if (prompt.Length > 0) results.Add($"请回答关于 {prompt} 的问题");
+            if (prompt.Length > 0) results.Add(L.Pick($"请回答关于 {prompt} 的问题", $"Please answer the question about {prompt}"));
         }
     }
 

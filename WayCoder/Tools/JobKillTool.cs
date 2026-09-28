@@ -20,10 +20,12 @@ public class JobKillTool : ITool
         var shellId = arguments.GetValueOrDefault("shell_id")?.ToString() ?? "";
 
         if (string.IsNullOrEmpty(shellId))
-            return Task.FromResult("错误：需要提供 shell_id 参数");
+            return Task.FromResult(L.Pick("错误：需要提供 shell_id 参数",
+                                          "Error: the shell_id parameter is required"));
 
         if (!int.TryParse(shellId, out var id))
-            return Task.FromResult($"错误：无效的 shell_id: {shellId}");
+            return Task.FromResult(L.Pick($"错误：无效的 shell_id: {shellId}",
+                                          $"Error: invalid shell_id: {shellId}"));
 
         return Task.FromResult(BackgroundTaskManager.Kill(id));
     }

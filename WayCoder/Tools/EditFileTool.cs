@@ -76,7 +76,7 @@ public class EditFileTool : ITool
     private static async Task<string> ExecuteAsync(string filePath, string oldString, string newString, bool replaceAll, string agentId)
     {
         if (string.IsNullOrWhiteSpace(filePath))
-            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+            return L.Pick("错误：file_path 不能为空 — 请提供有效的文件路径。", "Error: file_path cannot be empty - provide a valid file path.");
 
         var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
@@ -90,7 +90,7 @@ public class EditFileTool : ITool
         try
         {
             if (!File.Exists(path))
-                return $"错误：{filePath} 未找到";
+                return L.Pick($"错误：{filePath} 未找到", $"Error: {filePath} not found");
 
             // 先读后改保护：确保文件已被 read_file 读取且未被外部修改
             var preEditWarning = FileTracker.ValidatePreEdit(path);
@@ -106,7 +106,8 @@ public class EditFileTool : ITool
             if (occurrences == 0)
             {
                 var preview = content.Length > 500 ? ContextManager.TruncateByRunes(content, 500) + "..." : content;
-                return $"错误：在 {filePath} 中未找到 old_string。\n文件开头内容：\n{preview}";
+                return L.Pick($"错误：在 {filePath} 中未找到 old_string。\n文件开头内容：\n{preview}",
+                              $"Error: old_string was not found in {filePath}.\nStart of file:\n{preview}");
             }
 
             string newContent;
@@ -118,7 +119,8 @@ public class EditFileTool : ITool
             {
                 if (occurrences > 1)
                 {
-                    return $"错误：old_string 在 {filePath} 中出现了 {occurrences} 次。请包含更多上下文行以确保唯一性，或设置 replace_all=true。";
+                    return L.Pick($"错误：old_string 在 {filePath} 中出现了 {occurrences} 次。请包含更多上下文行以确保唯一性，或设置 replace_all=true。",
+                                  $"Error: old_string occurs {occurrences} times in {filePath}. Include more context lines to make it unique, or set replace_all=true.");
                 }
                 newContent = content.ReplaceFirst(oldString, newString);
             }
@@ -142,7 +144,7 @@ public class EditFileTool : ITool
             Global.WriteAllTextPreserveBom(path, newContent);
             FileTracker.RecordWrite(path);
             var replacedMsg = replaceAll && occurrences > 1
-                ? $"（{occurrences} 处替换）"
+                ? L.Pick($"（{occurrences} 处替换）", $" ({occurrences} replacements)")
                 : "";
             var result = $"已编辑 {filePath}{replacedMsg}\n{diff}";
 

@@ -61,9 +61,9 @@ public static class ShellSize
     /// <summary>模式显示名。</summary>
     public static string ModeText(ShellSizeMode mode) => mode switch
     {
-        ShellSizeMode.WidthFixed => "横向固定（列固定 · 行自适应）",
-        ShellSizeMode.Fixed      => "固定窗口（行列都固定）",
-        _                        => "大小自适应（都不固定）",
+        ShellSizeMode.WidthFixed => L.Pick("横向固定（列固定 · 行自适应）", "Fixed width (columns fixed, rows auto)"),
+        ShellSizeMode.Fixed      => L.Pick("固定窗口（行列都固定）", "Fixed window (both fixed)"),
+        _                        => L.Pick("大小自适应（都不固定）", "Auto size (neither fixed)"),
     };
 
     /// <summary>点一下换下一个模式（侧栏那一行的"点一下换一档"）。</summary>

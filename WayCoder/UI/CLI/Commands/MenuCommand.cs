@@ -11,7 +11,7 @@ public class MenuCommand : SlashCommand
 {
     public override string Name => "/menu";
     public override string[] Aliases => ["/palette"];
-    public override string Description => "打开功能菜单（模型/设置/会话/Diff 等界面直达 + 常用命令，等价 Ctrl+U）";
+    public override string Description => L.Pick("打开功能菜单（模型/设置/会话/Diff 等界面直达 + 常用命令，等价 Ctrl+U）", "Open the command palette (jump straight to models, settings, sessions, diff and more, plus common commands; same as Ctrl+U)");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {

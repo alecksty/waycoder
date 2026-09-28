@@ -26,7 +26,7 @@ public class StatTool : ITool
     private static string Execute(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
-            return "错误：path 参数不能为空";
+            return L.Pick("错误：path 参数不能为空", "Error: the path parameter cannot be empty");
 
         try
         {
@@ -36,13 +36,13 @@ public class StatTool : ITool
             {
                 var fi = new FileInfo(fullPath);
                 var sb = new StringBuilder();
-                sb.AppendLine($"📄 文件: {fi.FullName}");
-                sb.AppendLine($"  大小: {FormatUtil.FormatSize(fi.Length)} ({fi.Length:N0} bytes)");
-                sb.AppendLine($"  创建: {fi.CreationTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  修改: {fi.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  访问: {fi.LastAccessTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  属性: {(fi.Attributes == 0 ? "Normal" : fi.Attributes.ToString())}");
-                sb.AppendLine($"  只读: {(fi.IsReadOnly ? "是" : "否")}");
+                sb.AppendLine(L.Pick($"📄 文件: {fi.FullName}", $"📄 File: {fi.FullName}"));
+                sb.AppendLine(L.Pick($"  大小: {FormatUtil.FormatSize(fi.Length)} ({fi.Length:N0} bytes)", $"  Size: {FormatUtil.FormatSize(fi.Length)} ({fi.Length:N0} bytes)"));
+                sb.AppendLine(L.Pick($"  创建: {fi.CreationTime:yyyy-MM-dd HH:mm:ss}", $"  Created: {fi.CreationTime:yyyy-MM-dd HH:mm:ss}"));
+                sb.AppendLine(L.Pick($"  修改: {fi.LastWriteTime:yyyy-MM-dd HH:mm:ss}", $"  Modified: {fi.LastWriteTime:yyyy-MM-dd HH:mm:ss}"));
+                sb.AppendLine(L.Pick($"  访问: {fi.LastAccessTime:yyyy-MM-dd HH:mm:ss}", $"  Accessed: {fi.LastAccessTime:yyyy-MM-dd HH:mm:ss}"));
+                sb.AppendLine(L.Pick($"  属性: {(fi.Attributes == 0 ? "Normal" : fi.Attributes.ToString())}", $"  Attributes: {(fi.Attributes == 0 ? "Normal" : fi.Attributes.ToString())}"));
+                sb.AppendLine(L.Pick($"  只读: {(fi.IsReadOnly ? "是" : "否")}", $"  Read-only: {(fi.IsReadOnly ? "yes" : "no")}"));
                 return sb.ToString().TrimEnd();
             }
 
@@ -60,18 +60,18 @@ public class StatTool : ITool
                 catch (Exception ex) { enumError = ex.Message; } // 权限问题不能误报「0 个文件」
 
                 var sb = new StringBuilder();
-                sb.AppendLine($"📁 目录: {di.FullName}");
-                sb.AppendLine($"  创建: {di.CreationTime:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"  修改: {di.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine(L.Pick($"📁 目录: {di.FullName}", $"📁 Directory: {di.FullName}"));
+                sb.AppendLine(L.Pick($"  创建: {di.CreationTime:yyyy-MM-dd HH:mm:ss}", $"  Created: {di.CreationTime:yyyy-MM-dd HH:mm:ss}"));
+                sb.AppendLine(L.Pick($"  修改: {di.LastWriteTime:yyyy-MM-dd HH:mm:ss}", $"  Modified: {di.LastWriteTime:yyyy-MM-dd HH:mm:ss}"));
                 if (enumError != null)
-                    sb.AppendLine($"  ⚠ 枚举失败（无权限？）: {enumError}");
+                    sb.AppendLine(L.Pick($"  ⚠ 枚举失败（无权限？）: {enumError}", $"  ⚠ Enumeration failed (permission denied?): {enumError}"));
                 else
-                    sb.AppendLine($"  包含: {fileCount} 个文件, {dirCount} 个子目录");
-                sb.AppendLine($"  属性: {(di.Attributes == 0 ? "Normal" : di.Attributes.ToString())}");
+                    sb.AppendLine(L.Pick($"  包含: {fileCount} 个文件, {dirCount} 个子目录", $"  Contains: {fileCount} files, {dirCount} subdirectories"));
+                sb.AppendLine(L.Pick($"  属性: {(di.Attributes == 0 ? "Normal" : di.Attributes.ToString())}", $"  Attributes: {(di.Attributes == 0 ? "Normal" : di.Attributes.ToString())}"));
                 return sb.ToString().TrimEnd();
             }
 
-            return $"错误：路径不存在 — {fullPath}";
+            return L.Pick($"错误：路径不存在 — {fullPath}", $"Error: path does not exist - {fullPath}");
         }
         catch (Exception ex)
         {

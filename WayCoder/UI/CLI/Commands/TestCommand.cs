@@ -12,8 +12,8 @@ namespace WayCoder.UI.Cli.Commands;
 public class TestCommand : SlashCommand
 {
     public override string Name => "/test";
-    public override string Description => "运行自测或 TUI 演示";
-    public override string? Usage => "/test [all|tui|tools|…|dialog[ 名字]|perm|toast|menu]";
+    public override string Description => L.Pick("运行自测或 TUI 演示", "Run the self-test suite or TUI demos");
+    public override string? Usage => L.Pick("/test [all|tui|tools|…|dialog[ 名字]|perm|toast|menu]", "/test [all|tui|tools|…|dialog[ name]|perm|toast|menu]");
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -37,20 +37,20 @@ public class TestCommand : SlashCommand
                 return;
 
             case "toast" or "提示框":
-                screen.ShowToast("✅ 操作已完成 (2s 自动消失)", 2000);
+                screen.ShowToast(L.Pick("✅ 操作已完成 (2s 自动消失)", "✅ Operation completed (disappears in 2s)"), 2000);
                 return;
 
             case "menu" or "菜单":
-                screen.ShowMenu("测试菜单", ["选项 A", "选项 B", "选项 C"]);
+                screen.ShowMenu(L.Pick("测试菜单", "Test menu"), [L.Pick("选项 A", "Option A"), L.Pick("选项 B", "Option B"), L.Pick("选项 C", "Option C")]);
                 return;
 
             case "help" or "":
                 screen.AddMessage(
-                    "/test <模块>:\n" +
-                    "  自测模块: all, tools, ui, git, config, memory, agent, review, mcp, system\n" +
-                    "  对话框巡检: dialog（21 个挨个弹一遍）, dialog <名字>（只弹一个）\n" +
-                    "    名字: " + string.Join(", ", DialogWalk.Targets) + "\n" +
-                    "  TUI 演示: perm(权限框), toast(提示框), menu(菜单)",
+                    L.Pick("/test <模块>:\n", "/test <module>:\n") +
+                    L.Pick("  自测模块: all, tools, ui, git, config, memory, agent, review, mcp, system\n", "  Self-test modules: all, tools, ui, git, config, memory, agent, review, mcp, system\n") +
+                    L.Pick("  对话框巡检: dialog（21 个挨个弹一遍）, dialog <名字>（只弹一个）\n", "  Dialog walk: dialog (opens all 21 one by one), dialog <name> (opens just one)\n") +
+                    L.Pick("    名字: ", "    Names: ") + string.Join(", ", DialogWalk.Targets) + "\n" +
+                    L.Pick("  TUI 演示: perm(权限框), toast(提示框), menu(菜单)", "  TUI demos: perm (permission dialog), toast (toast), menu (menu)"),
                     "tool");
                 return;
         }

@@ -79,7 +79,8 @@ public partial class Program
             case "default":
                 return true;
             default:
-                Console.WriteLine($"⚠ 未知 --permission-mode: {mode}（支持 default / acceptEdits / plan / bypassPermissions）");
+                Console.WriteLine(L.Pick($"⚠ 未知 --permission-mode: {mode}（支持 default / acceptEdits / plan / bypassPermissions）",
+                    $"⚠ Unknown --permission-mode: {mode} (supported: default / acceptEdits / plan / bypassPermissions)"));
                 return false;
         }
     }
@@ -183,7 +184,8 @@ public partial class Program
             if (target != null)
                 WorkModeManager.SetMode(target.Value);
             else
-                Console.Error.WriteLine($"⚠ 未知工作模式 '{modeName}'（可用: build|plan|chat）。");
+                Console.Error.WriteLine(L.Pick($"⚠ 未知工作模式 '{modeName}'（可用: build|plan|chat）。",
+                    $"⚠ Unknown work mode '{modeName}' (available: build|plan|chat)."));
         }
 
         // 读取值参数
@@ -249,7 +251,8 @@ public partial class Program
         if (Arguments.CliArgRegistry.Has(parsed, "version"))
         {
             // -v/--version：单行固定格式，方便其他软件正则抓取版本号
-            Console.WriteLine($"{Global.AppName} ({Global.AppNameCN}) 版本:{Global.Version.TrimStart('v', 'V')}");
+            Console.WriteLine(L.Pick($"{Global.AppName} ({Global.AppNameCN}) 版本:{Global.Version.TrimStart('v', 'V')}",
+                $"{Global.AppName} ({Global.AppNameCN}) version {Global.Version.TrimStart('v', 'V')}"));
             return 0;
         }
 
@@ -270,7 +273,8 @@ public partial class Program
         {
             if (!Config.Instance.UpdateEnabled)
             {
-                Console.WriteLine("🔒 更新已禁用（内网/离线模式）。设置 WAYCODER_UPDATE_ENABLED=true 或 /config 打开「更新开关」后重试。");
+                Console.WriteLine(L.Pick("🔒 更新已禁用（内网/离线模式）。设置 WAYCODER_UPDATE_ENABLED=true 或 /config 打开「更新开关」后重试。",
+                    "🔒 Updates are disabled (intranet/offline mode). Set WAYCODER_UPDATE_ENABLED=true or turn on the update switch via /config, then retry."));
                 return 0;
             }
             var updateResult = await UpdateChecker.SelfUpdateAsync();
@@ -459,7 +463,8 @@ public partial class Program
             // 首次无 API key 也允许启动——不退出。进入软件后经 /model（ModelPicker 选模型提示输入 key）、
             // /provider（设Key/清Key）、或 /model keys set <供应商> <key> 在软件内设置，无需先退出配环境变量。
             // 仅打印一行温和提示（不阻塞、不进红框），引导到可设置处。
-            MarkupLine("«bold yellow»⚠ 当前未设置 API Key：已直接启动，可用 /model（选择模型时输入）、/provider（设Key）或 /model keys set <供应商> <key> 补设«/»");
+            MarkupLine(L.Pick("«bold yellow»⚠ 当前未设置 API Key：已直接启动，可用 /model（选择模型时输入）、/provider（设Key）或 /model keys set <供应商> <key> 补设«/»",
+                "«bold yellow»⚠ No API Key is set. Startup continues anyway - set one via /model (prompts when you pick a model), /provider, or /model keys set <provider> <key>.«/»"));
             Console.WriteLine();
         }
 
@@ -509,7 +514,7 @@ public partial class Program
                 var pullResult = await SharedMemoryManager.PullSharedAsync();
                 if (pullResult.Success && (pullResult.NewFiles.Count > 0 || pullResult.UpdatedFiles.Count > 0))
                 {
-                    Console.WriteLine($"📥 团队记忆同步: {pullResult.Message}");
+                    Console.WriteLine(L.Pick($"📥 团队记忆同步: {pullResult.Message}", $"📥 Team memory synced: {pullResult.Message}"));
                 }
             }
             catch (Exception ex)
@@ -554,7 +559,7 @@ public partial class Program
 
                 if (resumeId == null)
                 {
-                    MarkupLine("«yellow»⚠ 没有找到可恢复的会话«/»");
+                    MarkupLine(L.Pick("«yellow»⚠ 没有找到可恢复的会话«/»", "«yellow»⚠ No session found to resume«/»"));
                     return 1;
                 }
             }
@@ -574,12 +579,13 @@ public partial class Program
                     _config.SessionModelMirror = true;
                 }
 
-                MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({loaded.Value.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»");
+                MarkupLine(L.Pick($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({loaded.Value.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»",
+                    $"«green»✔ Session restored:«/» «cyan»{E(resumeId)}«/» «dim»({loaded.Value.Messages.Count} messages, model: {E(_llm.Model)})«/»"));
             }
             else
             {
-                MarkupLine($"«red»✘ 会话 '{E(resumeId)}' 未找到«/»");
-                MarkupLine("«dim»可用 /sessions 命令查看所有已保存会话«/»");
+                MarkupLine(L.Pick($"«red»✘ 会话 '{E(resumeId)}' 未找到«/»", $"«red»✘ Session '{E(resumeId)}' not found«/»"));
+                MarkupLine(L.Pick("«dim»可用 /sessions 命令查看所有已保存会话«/»", "«dim»Use /sessions to list all saved sessions«/»"));
                 return 1;
             }
         }
@@ -603,7 +609,8 @@ public partial class Program
                 {
                     // web 是浏览器界面，终端这边没有执行提示词的地方 —— 说清楚，别静默丢弃
                     if (!string.IsNullOrEmpty(prompt))
-                        Console.Error.WriteLine("⚠ --web 是浏览器界面，-p 的提示词不在终端执行；请启动后在浏览器里输入。");
+                        Console.Error.WriteLine(L.Pick("⚠ --web 是浏览器界面，-p 的提示词不在终端执行；请启动后在浏览器里输入。",
+                            "⚠ --web serves a browser UI, so -p prompts are not executed in the terminal; start it and type in the browser instead."));
 
                     int webPort = 9527;
                     var portFromEnv = Environment.GetEnvironmentVariable("WAYCODER_WEB_PORT");
@@ -687,9 +694,11 @@ public partial class Program
 
         if (signaled == WaitHandle.WaitTimeout)
         {
-            Console.Error.WriteLine(
-                $"⚠ 标准输入是管道，但 {StdinFirstByteTimeoutMs / 1000} 秒内既没有内容也没有结束，按「没有提示词」继续。");
-            Console.Error.WriteLine("  若确实要用管道喂提示词，请改用 -p \"任务\" 显式指定（或先让生产方写出内容）。");
+            Console.Error.WriteLine(L.Pick(
+                $"⚠ 标准输入是管道，但 {StdinFirstByteTimeoutMs / 1000} 秒内既没有内容也没有结束，按「没有提示词」继续。",
+                $"⚠ stdin is a pipe, but {StdinFirstByteTimeoutMs / 1000}s passed with neither content nor EOF; continuing as if there were no prompt."));
+            Console.Error.WriteLine(L.Pick("  若确实要用管道喂提示词，请改用 -p \"任务\" 显式指定（或先让生产方写出内容）。",
+                "  To actually pipe a prompt in, pass it explicitly with -p \"task\" (or make the producer write its output first)."));
             return "";
         }
 
@@ -766,7 +775,7 @@ public partial class Program
         var agent = _agent;
         if (agent == null)
         {
-            Console.Error.WriteLine("Agent 未初始化");
+            Console.Error.WriteLine(L.Pick("Agent 未初始化", "Agent not initialized"));
             return 1;
         }
 
@@ -779,7 +788,7 @@ public partial class Program
         {
             // ProcessTextInput 内部已兜底异常；这一层防的是它之外的取消/中断，别让退出码失真
             ErrorLog.Error("Program.RunOnceCli", $"CLI 一次性执行失败: {ex.Message}");
-            Console.WriteLine($"\n[✘ 错误] {ex.Message}");
+            Console.WriteLine(L.Pick($"\n[✘ 错误] {ex.Message}", $"\n[✘ Error] {ex.Message}"));
             ok = false;
         }
 
@@ -803,10 +812,11 @@ public partial class Program
         var web = new WebChatServer(_agent!, port);
         web.Start();
         var url = $"http://127.0.0.1:{web.Port}";
-        MarkupLine($"«green»🌐 浏览器聊天界面已启动:«/» «cyan»{E(url)}«/»");
+        MarkupLine(L.Pick($"«green»🌐 浏览器聊天界面已启动:«/» «cyan»{E(url)}«/»",
+            $"«green»🌐 Browser chat UI started:«/» «cyan»{E(url)}«/»"));
         if (Environment.GetEnvironmentVariable("WAYCODER_WEB_NO_OPEN") != "1")
             OpenBrowser(web.Port);
-        MarkupLine("«dim»按 Ctrl+C 退出（自动保存会话）«/»");
+        MarkupLine(L.Pick("«dim»按 Ctrl+C 退出（自动保存会话）«/»", "«dim»Press Ctrl+C to quit (the session is saved automatically)«/»"));
 
         // 阻塞等待 Ctrl+C
         var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -878,7 +888,9 @@ public partial class Program
         }
         catch (OperationCanceledException)
         {
-            error = cts.IsCancellationRequested ? "已中断" : $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）";
+            error = cts.IsCancellationRequested
+                ? L.Pick("已中断", "Interrupted")
+                : L.Pick($"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）", $"LLM request timed out ({Config.Instance.LlmHttpTimeoutSec}s)");
         }
         catch (Exception ex)
         {
@@ -936,13 +948,13 @@ public partial class Program
             }
             else
             {
-                MarkupLine($"«red»✘ 批量任务文件不存在: {E(trimmed)}«/»");
+                MarkupLine(L.Pick($"«red»✘ 批量任务文件不存在: {E(trimmed)}«/»", $"«red»✘ Batch job file not found: {E(trimmed)}«/»"));
                 return 1;
             }
             spec = BatchSpec.Parse(json, out error);
             if (spec == null)
             {
-                MarkupLine($"«red»✘ 批量任务解析失败: {E(error)}«/»");
+                MarkupLine(L.Pick($"«red»✘ 批量任务解析失败: {E(error)}«/»", $"«red»✘ Failed to parse the batch job file: {E(error)}«/»"));
                 return 1;
             }
         }
@@ -952,7 +964,8 @@ public partial class Program
             var task = Arguments.CliArgRegistry.Get(parsed, "batch-task") ?? "";
             if (repos.Count == 0 || string.IsNullOrWhiteSpace(task))
             {
-                MarkupLine("«red»✘ --batch-repo 至少需要一个仓库，且必须提供 --batch-task 共享任务«/»");
+                MarkupLine(L.Pick("«red»✘ --batch-repo 至少需要一个仓库，且必须提供 --batch-task 共享任务«/»",
+                    "«red»✘ --batch-repo needs at least one repository, and --batch-task is required«/»"));
                 return 1;
             }
             spec = BatchSpec.FromRepos(repos, task);
@@ -963,8 +976,11 @@ public partial class Program
             spec!.KeepResults = true;
 
         Console.WriteLine();
-        MarkupLine("«bold cyan»🚀 WayCoder 批量任务引擎«/»");
-        MarkupLine($"«dim»任务数: {spec!.Jobs.Count} · 并行度: {spec.MaxParallel} · 超时: {spec.TimeoutSec}s · 保留副本: {(spec.KeepResults ? "是" : "否")}«/»");
+        MarkupLine(L.Pick("«bold cyan»🚀 WayCoder 批量任务引擎«/»", "«bold cyan»🚀 WayCoder batch job engine«/»"));
+        var keepCopies = spec!.KeepResults ? L.Pick("是", "yes") : L.Pick("否", "no");
+        MarkupLine(L.Pick(
+            $"«dim»任务数: {spec!.Jobs.Count} · 并行度: {spec.MaxParallel} · 超时: {spec.TimeoutSec}s · 保留副本: {keepCopies}«/»",
+            $"«dim»Jobs: {spec!.Jobs.Count} · Parallelism: {spec.MaxParallel} · Timeout: {spec.TimeoutSec}s · Keep copies: {keepCopies}«/»"));
         Console.WriteLine();
 
         var report = await BatchRunner.RunAsync(spec, log: line => Console.WriteLine(line));
@@ -972,8 +988,10 @@ public partial class Program
         Console.WriteLine();
         Console.WriteLine(report.ToMarkdown());
         MarkupLine(report.Failed == 0
-            ? $"«bold green»✅ 批量任务全部成功 ({report.Succeeded}/{report.Total})«/»"
-            : $"«bold red»❌ 批量任务完成：成功 {report.Succeeded} / 失败 {report.Failed}«/»");
+            ? L.Pick($"«bold green»✅ 批量任务全部成功 ({report.Succeeded}/{report.Total})«/»",
+                $"«bold green»✅ All batch jobs succeeded ({report.Succeeded}/{report.Total})«/»")
+            : L.Pick($"«bold red»❌ 批量任务完成：成功 {report.Succeeded} / 失败 {report.Failed}«/»",
+                $"«bold red»❌ Batch jobs finished: {report.Succeeded} succeeded / {report.Failed} failed«/»"));
 
         return report.Failed == 0 ? 0 : 1;
     }

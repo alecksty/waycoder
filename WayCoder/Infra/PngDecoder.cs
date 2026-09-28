@@ -16,9 +16,9 @@ public static class PngDecoder
     public static RasterImage Decode(byte[] data)
     {
         if (data == null) throw new ArgumentNullException(nameof(data));
-        if (data.Length < 8) throw new FormatException("PNG 数据过短");
+        if (data.Length < 8) throw new FormatException(L.Pick("PNG 数据过短", "PNG data is too short"));
         var sig = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
-        for (int i = 0; i < 8; i++) if (data[i] != sig[i]) throw new FormatException("非法 PNG 签名");
+        for (int i = 0; i < 8; i++) if (data[i] != sig[i]) throw new FormatException(L.Pick("非法 PNG 签名", "Invalid PNG signature"));
 
         int width = 0, height = 0, bitDepth = 0, colorType = 0, interlace = 0;
         var palette = new byte[0];
@@ -30,17 +30,17 @@ public static class PngDecoder
         while (off + 8 <= data.Length)
         {
             int len = BE32(data, off);
-            if (len < 0) throw new FormatException("PNG chunk 长度非法"); // 负数长度会让 off 回退，造成死循环
+            if (len < 0) throw new FormatException(L.Pick("PNG chunk 长度非法", "Invalid PNG chunk length")); // 负数长度会让 off 回退，造成死循环
             string type = Encoding.ASCII.GetString(data, off + 4, 4);
             off += 8;
-            if ((long)off + len > data.Length) throw new FormatException("PNG chunk 越界"); // 用 long 防 len=int.MaxValue 时 off+len 溢出为负、绕过检查
+            if ((long)off + len > data.Length) throw new FormatException(L.Pick("PNG chunk 越界", "PNG chunk out of range")); // 用 long 防 len=int.MaxValue 时 off+len 溢出为负、绕过检查
             switch (type)
             {
                 case "IHDR":
-                    if (len < 13) throw new FormatException("IHDR 长度错误");
+                    if (len < 13) throw new FormatException(L.Pick("IHDR 长度错误", "Invalid IHDR length"));
                     width = BE32(data, off); height = BE32(data, off + 4);
-                    if (width <= 0 || height <= 0) throw new FormatException("非法 PNG 尺寸");
-                    if ((long)width * height > MaxPixels) throw new FormatException("PNG 尺寸过大");
+                    if (width <= 0 || height <= 0) throw new FormatException(L.Pick("非法 PNG 尺寸", "Invalid PNG dimensions"));
+                    if ((long)width * height > MaxPixels) throw new FormatException(L.Pick("PNG 尺寸过大", "PNG dimensions are too large"));
                     bitDepth = data[off + 8]; colorType = data[off + 9];
                     interlace = data[off + 12];
                     break;
@@ -52,9 +52,9 @@ public static class PngDecoder
             off += len + 4;
             if (ended) break;
         }
-        if (width <= 0 || height <= 0) throw new FormatException("缺少 IHDR");
-        if (interlace != 0) throw new FormatException("不支持 Adam7 交错 PNG");
-        if (bitDepth != 8) throw new FormatException("仅支持 8 位深");
+        if (width <= 0 || height <= 0) throw new FormatException(L.Pick("缺少 IHDR", "Missing IHDR"));
+        if (interlace != 0) throw new FormatException(L.Pick("不支持 Adam7 交错 PNG", "Adam7 interlaced PNG is not supported"));
+        if (bitDepth != 8) throw new FormatException(L.Pick("仅支持 8 位深", "Only 8-bit depth is supported"));
 
         int channels = colorType switch
         {
@@ -63,7 +63,7 @@ public static class PngDecoder
             3 => 1, // palette index
             4 => 2, // gray + alpha
             6 => 4, // RGBA
-            _ => throw new FormatException("不支持的颜色类型 " + colorType),
+            _ => throw new FormatException(L.Pick($"不支持的颜色类型 {colorType}", $"Unsupported color type {colorType}")),
         };
         int bpp = channels;
         int stride = width * bpp;
@@ -83,7 +83,7 @@ public static class PngDecoder
             while ((read = z.Read(buffer, 0, buffer.Length)) > 0)
             {
                 if (outMs.Length + read > maxRaw)
-                    throw new FormatException("PNG IDAT 解压数据超出预期大小（解压炸弹？）");
+                    throw new FormatException(L.Pick("PNG IDAT 解压数据超出预期大小（解压炸弹？）", "PNG IDAT decompressed data exceeds the expected size (decompression bomb?)"));
                 outMs.Write(buffer, 0, read);
             }
             raw = outMs.ToArray();
@@ -93,7 +93,7 @@ public static class PngDecoder
         for (int y = 0; y < height; y++)
         {
             int rowOff = y * (stride + 1);
-            if (rowOff + stride >= raw.Length) throw new FormatException("像素数据不足");
+            if (rowOff + stride >= raw.Length) throw new FormatException(L.Pick("像素数据不足", "Not enough pixel data"));
             int filter = raw[rowOff];
             var cur = new byte[stride];
             Array.Copy(raw, rowOff + 1, cur, 0, stride);
@@ -145,7 +145,7 @@ public static class PngDecoder
                 2 => raw + up,
                 3 => raw + ((left + up) >> 1),
                 4 => raw + Paeth(left, up, upLeft),
-                _ => throw new FormatException("非法 filter " + filter),
+                _ => throw new FormatException(L.Pick($"非法 filter {filter}", $"Invalid filter {filter}")),
             };
             outBuf[i] = (byte)(v & 0xFF);
         }

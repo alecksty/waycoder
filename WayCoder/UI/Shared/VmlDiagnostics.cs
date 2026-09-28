@@ -223,7 +223,8 @@ internal static class VmlDiagnostics
             if (currentFile is { Length: > 0 } && !IsSameFile(file, currentFile))
             {
                 var name = FileNameOf(file);
-                list.Add(new Diagnostic(0, 0, SeverityOf(sevText), $"「{name}」{msg}", code, name));
+                list.Add(new Diagnostic(0, 0, SeverityOf(sevText),
+                    L.Pick($"「{name}」{msg}", $"[{name}] {msg}"), code, name));
                 continue;
             }
 
@@ -326,7 +327,9 @@ internal static class VmlDiagnostics
             var s = raw.Trim();
             if (s.Length > 0) return s;
         }
-        return "编译失败";
+        // ⚠ 英文支必须逐字是 `Compile failed` —— `WorkReporter` 按这两个字面量判"这轮是不是编译失败"
+        //   （它已同时认中英两支），改措辞会让那条判据在英文界面下静默失效。
+        return L.Pick("编译失败", "Compile failed");
     }
 
     private static int ParseInt(string s) => int.TryParse(s, out var v) ? v : 0;

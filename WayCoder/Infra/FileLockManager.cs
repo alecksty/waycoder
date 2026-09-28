@@ -19,7 +19,7 @@ public static class FileLockManager
     {
         public bool IsExpired => DateTime.UtcNow - AcquiredAt > Timeout;
         public string Status =>
-            IsExpired ? "⏰ 已过期" :
+            IsExpired ? L.Pick("⏰ 已过期", "⏰ Expired") :
             $"🔒 {AgentId} ({AcquiredAt:HH:mm:ss})";
     }
 
@@ -63,16 +63,23 @@ public static class FileLockManager
     /// 此前 7 个工具分裂成两种写法，且其中 4 处**根本没传** suffix ⇒ 同样撞锁，
     /// 有的提示「请等待锁释放或使用其他文件名」、有的只有一句「文件被锁定」不说怎么办。
     /// </summary>
-    public const string BusyHint = "请等待锁释放或使用其他文件名";
+    /// ⚠ 由 `const` 改成表达式体属性：`const` 会在编译期把语言冻死（公理 A3）。
+    /// 它原先只被当作默认参数值用，故 `TryAcquireOrError` 的默认值改成 `null` + 在体内回落。
+    public static string BusyHint => L.Pick("请等待锁释放或使用其他文件名", "Wait for the lock to be released, or use a different file name");
 
     /// <summary>
     /// 尝试获取锁，失败返回统一错误文案（null=成功）。各写文件工具共用，消除逐字重复的锁检查块。
     /// 调用方**不必再传 suffix**（默认就是统一处置提示）。
     /// </summary>
-    public static string? TryAcquireOrError(string filePath, string agentId = "main", string suffix = BusyHint)
-        => TryAcquire(filePath, agentId)
-            ? null
-            : $"❌ 文件被锁定: {GetLockInfo(filePath)?.Status ?? "未知"}{(string.IsNullOrEmpty(suffix) ? "" : $" — {suffix}")}";
+    public static string? TryAcquireOrError(string filePath, string agentId = "main", string? suffix = null)
+    {
+        if (TryAcquire(filePath, agentId)) return null;
+
+        var hint = suffix ?? BusyHint;
+        var status = GetLockInfo(filePath)?.Status ?? L.Pick("未知", "unknown");
+        var tail = string.IsNullOrEmpty(hint) ? "" : $" — {hint}";
+        return L.Pick($"❌ 文件被锁定: {status}{tail}", $"❌ File is locked: {status}{tail}");
+    }
 
     /// <summary>释放文件锁</summary>
     public static void Release(string filePath, string agentId = "main")
@@ -133,7 +140,7 @@ public static class FileLockManager
     {
         var locks = GetAllLocks();
         if (locks.Count == 0) return "";
-        return $"🔒 {locks.Count} 文件锁定";
+        return L.Pick($"🔒 {locks.Count} 文件锁定", $"🔒 {locks.Count} files locked");
     }
 
     // ---- 内部 ----

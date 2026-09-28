@@ -10,7 +10,7 @@ public class DoctorCommand : SlashCommand
 {
     public override string Name => "/doctor";
     public override string[] Aliases => ["/diagnose"];
-    public override string Description => "系统自检 / 安全修复";
+    public override string Description => L.Pick("系统自检 / 安全修复", "System check / safe repair");
     public override string? Usage => "/doctor [status|fix]";
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
@@ -19,7 +19,7 @@ public class DoctorCommand : SlashCommand
         var fix = mode is "fix" or "修复" or "repair";
         if (!fix && mode.Length > 0 && mode is not ("status" or "check" or "自检"))
         {
-            screen.AddSystemMsg($"用法: {Usage}\n无参数运行只读自检；/doctor fix 执行安全修复。");
+            screen.AddSystemMsg(L.Pick($"用法: {Usage}\n无参数运行只读自检；/doctor fix 执行安全修复。", $"Usage: {Usage}\nRun with no arguments for a read-only check; /doctor fix applies safe repairs."));
             return;
         }
 
@@ -43,7 +43,7 @@ public class DoctorCommand : SlashCommand
             }
             catch (Exception ex)
             {
-                screen.AddSystemMsg($"配置重载失败，请检查 config.json 后重试: {ex.Message}");
+                screen.AddSystemMsg(L.Pick($"配置重载失败，请检查 config.json 后重试: {ex.Message}", $"Failed to reload the config; check config.json and try again: {ex.Message}"));
             }
         }
     }

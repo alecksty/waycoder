@@ -27,7 +27,8 @@ public static class ModelPrice
             && (inputPriceOffpeak != inputPrice || outputPriceOffpeak != outputPrice);
         var s = $"{inS}/{outS}";
         return hasOffpeak
-            ? $"{s} 闲{Price(inputPriceOffpeak)}/{Price(outputPriceOffpeak)}"
+            ? L.Pick($"{s} 闲{Price(inputPriceOffpeak)}/{Price(outputPriceOffpeak)}",
+                $"{s} off-peak {Price(inputPriceOffpeak)}/{Price(outputPriceOffpeak)}")
             : s;
     }
 

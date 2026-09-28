@@ -31,11 +31,12 @@ public class LintTool : ITool
             path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
 
         if (!File.Exists(path) && !Directory.Exists(path))
-            return $"错误: 路径不存在: {path}";
+            return L.Pick($"错误: 路径不存在: {path}", $"Error: path not found: {path}");
 
         var lang = DetectLanguage(path);
         if (lang == null)
-            return $"未能识别语言: {path}\n支持的文件类型: .cs .py .js .ts .go .rs .java .c .cpp .rb .php .swift .kt .lua .sh .html .css .vue .yaml .json .md .dart .r .toml .sql";
+            return L.Pick($"未能识别语言: {path}\n支持的文件类型: .cs .py .js .ts .go .rs .java .c .cpp .rb .php .swift .kt .lua .sh .html .css .vue .yaml .json .md .dart .r .toml .sql",
+                          $"Unrecognized language: {path}\nSupported file types: .cs .py .js .ts .go .rs .java .c .cpp .rb .php .swift .kt .lua .sh .html .css .vue .yaml .json .md .dart .r .toml .sql");
 
         try
         {
@@ -43,7 +44,7 @@ public class LintTool : ITool
         }
         catch (Exception ex)
         {
-            return $"Lint 执行异常: {ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"Lint 执行异常: {ex.GetType().Name}: {ex.Message}", $"Lint execution error: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -263,7 +264,7 @@ public class LintTool : ITool
             "elixir" => ("mix", $"format --check-formatted \"{target}\""),
             "haskell" => ("ghc", $"-fno-code \"{target}\""),
             "zig" => ("zig", $"ast-check \"{target}\""),
-            _ => ("echo", "\"（无可用 linter）\"")
+            _ => ("echo", L.Pick("\"（无可用 linter）\"", "\"(no linter available)\""))
         };
 
         return await RunProcess(cmd, args, lang);
@@ -320,7 +321,7 @@ public class LintTool : ITool
         // Use python for JSON validation if available
         // Windows 路径含反斜杠，在 Python 字符串字面量里 \f/\b/\U 等是转义序列 → 路径错乱，
         // 统一转正斜杠（Python 在 Windows 下接受）
-        return (CrossPlatform.PythonExecutable, $"-c \"import json, sys; json.load(open('{target.Replace('\\', '/').Replace("'", "\\'")}', encoding='utf-8')); print('✅ JSON 有效')\"");
+        return (CrossPlatform.PythonExecutable, $"-c \"import json, sys; json.load(open('{target.Replace('\\', '/').Replace("'", "\\'")}', encoding='utf-8')); print('{L.Pick("✅ JSON 有效", "✅ JSON valid")}')\"");
     }
 
     private static (string, string) CheckToml(string target)
@@ -357,7 +358,7 @@ public class LintTool : ITool
             using var proc = new Process { StartInfo = psi };
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(proc.StartInfo, Config.Instance.LintTimeoutSec * 1000);
-            if (r == null) return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
+            if (r == null) return L.Pick($"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}", $"Lint timed out ({Config.Instance.LintTimeoutSec}s): {cmd} {args}");
             var (exitCode, output, errors) = r.Value;
 
             // 去除 ANSI 转义序列
@@ -366,23 +367,24 @@ public class LintTool : ITool
 
             var combined = (output + "\n" + errors).Trim();
             if (combined.Length == 0)
-                return $"✅ {lang}: 无问题";
+                return L.Pick($"✅ {lang}: 无问题", $"✅ {lang}: no issues");
 
             // 截断（项目级构建输出量大，4000 会把目标文件的错误行截掉导致 lint 静默失效；
             // 提到 20000 保证 ParseLintOutput 按文件名能捞到目标诊断）
             if (combined.Length > 20000)
-                combined = ContextManager.TruncateByRunes(combined, 20000) + "\n... (输出已截断)";
+                combined = ContextManager.TruncateByRunes(combined, 20000) + L.Pick("\n... (输出已截断)", "\n... (output truncated)");
 
             // 注意：proc 是"未启动的占位 Process"（ProcUtil.RunAsync 内部另建并启动 Process），
             // 读 proc.ExitCode 会抛 "No process is associated" → 用 ProcUtil 返回的 exitCode。
             return exitCode == 0
-                ? $"✅ {lang}: 检查通过\n{combined}"
-                : $"❌ {lang}: 发现问题 ({exitCode})\n{combined}";
+                ? L.Pick($"✅ {lang}: 检查通过\n{combined}", $"✅ {lang}: check passed\n{combined}")
+                : L.Pick($"❌ {lang}: 发现问题 ({exitCode})\n{combined}", $"❌ {lang}: found issues ({exitCode})\n{combined}");
         }
         catch (Exception ex)
         {
             // 工具未安装时的友好提示
-            return $"⚠ {lang}: 无法运行 {cmd} — {ex.Message}\n提示: 请确认 {cmd} 已安装并在 PATH 中。";
+            return L.Pick($"⚠ {lang}: 无法运行 {cmd} — {ex.Message}\n提示: 请确认 {cmd} 已安装并在 PATH 中。",
+                          $"⚠ {lang}: cannot run {cmd} — {ex.Message}\nHint: make sure {cmd} is installed and on your PATH.");
         }
     }
 }

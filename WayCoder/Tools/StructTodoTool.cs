@@ -40,7 +40,7 @@ public class StructTodoTool : ITool
             "update" => Update(arguments),
             "list" => List(arguments),
             "delete" => Delete(arguments),
-            _ => "错误：不支持的操作，可用 create/update/list/delete",
+            _ => L.Pick("错误：不支持的操作，可用 create/update/list/delete", "Error: unsupported operation; available operations are create/update/list/delete"),
         });
     }
 
@@ -51,11 +51,11 @@ public class StructTodoTool : ITool
         var id = args.GetValueOrDefault("id")?.ToString();
         var title = args.GetValueOrDefault("title")?.ToString();
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(title))
-            return "错误：create 需要 id 和 title 参数";
+            return L.Pick("错误：create 需要 id 和 title 参数", "Error: create requires the id and title parameters");
 
         var todos = TodoStore.Load();
         if (todos.Any(t => t.Id == id))
-            return $"错误：任务 ID '{id}' 已存在";
+            return L.Pick($"错误：任务 ID '{id}' 已存在", $"Error: task ID '{id}' already exists");
 
         var deps = TodoStore.ParseStringList(args, "deps");
 
@@ -63,11 +63,11 @@ public class StructTodoTool : ITool
         // 而代码在 todos.Add 之前就 return 了，任务并没有被创建，文案在骗模型。
         var missing = TodoStore.MissingDeps(todos, deps);
         if (missing.Count > 0)
-            return $"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。";
+            return L.Pick($"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。", $"Error: dependency tasks do not exist: {string.Join(", ", missing)}. Create them first, or remove the invalid dependencies.");
 
         // 条数上限：两个工具写同一份文件，上限也该一致（否则 struct_todo 就是无上限的那个口子）
         if (todos.Count >= Global.MaxTodos)
-            return $"错误：任务已达上限（{Global.MaxTodos} 条），请先删除一些任务。";
+            return L.Pick($"错误：任务已达上限（{Global.MaxTodos} 条），请先删除一些任务。", $"Error: the task limit ({Global.MaxTodos}) has been reached; delete some tasks first.");
 
         var todo = new TodoStore.Entry
         {
@@ -80,7 +80,7 @@ public class StructTodoTool : ITool
         todos.Add(todo);
         TodoStore.Save(todos);
 
-        return $"✅ 创建任务: [{id}] {title} (状态={todo.Status}, 依赖={deps.Count})";
+        return L.Pick($"✅ 创建任务: [{id}] {title} (状态={todo.Status}, 依赖={deps.Count})", $"✅ Created task: [{id}] {title} (status={todo.Status}, dependencies={deps.Count})");
     }
 
     private static string Update(Dictionary<string, object?> args)
@@ -88,15 +88,15 @@ public class StructTodoTool : ITool
         var id = args.GetValueOrDefault("id")?.ToString();
         var status = args.GetValueOrDefault("status")?.ToString();
         if (string.IsNullOrWhiteSpace(id))
-            return "错误：update 需要 id 参数";
+            return L.Pick("错误：update 需要 id 参数", "Error: update requires the id parameter");
 
         if (status != null && !TodoStore.ValidStatuses.Contains(status))
-            return $"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}";
+            return L.Pick($"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}", $"Error: invalid status '{status}'; available statuses are {string.Join(", ", TodoStore.ValidStatuses)}");
 
         var todos = TodoStore.Load();
         var todo = todos.FirstOrDefault(t => t.Id == id);
         if (todo == null)
-            return $"错误：任务 '{id}' 不存在";
+            return L.Pick($"错误：任务 '{id}' 不存在", $"Error: task '{id}' does not exist");
 
         if (status != null)
         {
@@ -105,7 +105,7 @@ public class StructTodoTool : ITool
             {
                 var incomplete = TodoStore.IncompleteDeps(todos, todo);
                 if (incomplete.Count > 0)
-                    return $"⚠ 无法开始：依赖任务未完成: {string.Join(", ", incomplete)}。请先完成依赖任务。";
+                    return L.Pick($"⚠ 无法开始：依赖任务未完成: {string.Join(", ", incomplete)}。请先完成依赖任务。", $"⚠ Cannot start: dependencies not completed: {string.Join(", ", incomplete)}. Complete the dependencies first.");
             }
 
             // 完成时解除依赖它且依赖已齐的 blocked 任务（共享实现，与 todo 同源）
@@ -116,7 +116,7 @@ public class StructTodoTool : ITool
         }
 
         TodoStore.Save(todos);
-        return $"✅ 更新任务: [{id}] {todo.Title} → {todo.Status}";
+        return L.Pick($"✅ 更新任务: [{id}] {todo.Title} → {todo.Status}", $"✅ Updated task: [{id}] {todo.Title} -> {todo.Status}");
     }
 
     private static string List(Dictionary<string, object?> args)
@@ -124,13 +124,13 @@ public class StructTodoTool : ITool
         // 加载 + filter + 排序的共同前置已收敛到 TodoStore.LoadFiltered（与 todo 共用）
         var todos = TodoStore.LoadFiltered(args.GetValueOrDefault("filter")?.ToString());
 
-        if (todos.Count == 0) return "📋 任务列表为空";
+        if (todos.Count == 0) return L.Pick("📋 任务列表为空", "📋 The task list is empty");
 
-        var lines = new List<string> { $"📋 任务列表 ({todos.Count} 项)" };
+        var lines = new List<string> { L.Pick($"📋 任务列表 ({todos.Count} 项)", $"📋 Task list ({todos.Count} items)") };
         foreach (var t in todos)
         {
             var emoji = TodoStore.Emoji(t.Status);
-            var deps = t.DependsOn.Count > 0 ? $" (依赖: {string.Join(", ", t.DependsOn)})" : "";
+            var deps = t.DependsOn.Count > 0 ? L.Pick($" (依赖: {string.Join(", ", t.DependsOn)})", $" (dependencies: {string.Join(", ", t.DependsOn)})") : "";
             lines.Add($"  {emoji} [{t.Id}] {t.Title}{deps}");
         }
         return string.Join("\n", lines);
@@ -139,18 +139,18 @@ public class StructTodoTool : ITool
     private static string Delete(Dictionary<string, object?> args)
     {
         var id = args.GetValueOrDefault("id")?.ToString();
-        if (string.IsNullOrWhiteSpace(id)) return "错误：delete 需要 id 参数";
+        if (string.IsNullOrWhiteSpace(id)) return L.Pick("错误：delete 需要 id 参数", "Error: delete requires the id parameter");
 
         var todos = TodoStore.Load();
         var removed = todos.RemoveAll(t => t.Id == id);
-        if (removed == 0) return $"错误：任务 '{id}' 不存在";
+        if (removed == 0) return L.Pick($"错误：任务 '{id}' 不存在", $"Error: task '{id}' does not exist");
 
         // 清理以被删任务为依赖的其他任务的依赖列表
         foreach (var t in todos)
             t.DependsOn.RemoveAll(d => d == id);
 
         TodoStore.Save(todos);
-        return $"✅ 已删除任务: [{id}]";
+        return L.Pick($"✅ 已删除任务: [{id}]", $"✅ Deleted task: [{id}]");
     }
 
 }

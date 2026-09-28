@@ -1,33 +1,4 @@
-# 双语化台账 —— 「仍含中文/全角字符」的 MAUI 文件（一行一个相对路径，`  #` 后可写保留理由）
-#
-# 判据由 SelfTest.Localization.Ledger.cs 执行，**两个方向都会红**：
-#   文件有中文但不在本表 => 红（新写的中文 / 新文件）
-#   文件在本表但已零命中 => 红（台账腐烂会让「还剩多少」永远算不准）
-#
-# 「已迁移」的判据：中文已包在 `L.Pick(中文, English)` 或 `{markup:Tr Zh=.., En=..}` 里
-# —— 那两种形态的中文支是「键」，不算未迁移。所以翻完一个文件就把它从本表删掉。
-#
-# 范围：只含 WayCoder.Maui/**/*.{cs,xaml}（排除 obj/bin/Platforms）。
-# 编译进手机的共享层（WayCoder/Tools、WayCoder/Agent、WayCoder/UI/Shared）不在这里，
-# 那是 Batch 2，届时另立一份。
-#
-# ── 一、待迁移的文案 ─────────────────────────────────────────────────────────
-# 2026-09-28 Batch 3 收尾后**本区为空**：手机界面自己的文案已全部双语化
-# （外壳主路径 + 模型/供应商页 + 设置页 + VML/编译链 + 服务与基础设施）。
-#
-# ── 二、有意保留：**不是「文案」**的中文/全角字符 ────────────────────────────
-# 这些是判据、存储值、日志、调试探针的被测对象、以及图标字形 ——
-# 翻了会**静默改变行为**或做无用功，所以**永不会归零，别删**。
-# 每行后的理由是该文件命中的主要来源；一个文件可能有多种，都列在理由里。
-#
-# ⚠ 判定规则（下一批照此办）：
-#   · 用户能看见的字 ⇒ 翻（含按钮/菜单/对话框/Toast/错误提示/工具输出）
-#   · 写进日志/诊断通道的 ⇒ 不翻（与桌面侧一致：WayCoder/Tools、Agent 里 L.Pick 进 ErrorLog 命中数为 0）
-#   · 用作判据/协议/存储键的 ⇒ 不翻（翻了判据恒假，不报错）
-#   · `#if DEBUG` 专用的 ⇒ 不翻（Release 包里那些字节不存在）
-#   · 被测量/被比较的对象本身（字体探针的 `中`、`Syntax.PlainName` 的 `纯文本`）⇒ 不翻
-
-WayCoder.Maui/Controls/CodeCanvasView.cs  # 字体度量探针的 中/中文，。！ —— **被测量的对象本身**，换字符就换了在量什么 + 8 条 #if DEBUG 日志
+WayCoder.Maui/Controls/CodeCanvasView.cs  # 字体度量探针的 中/中文，。！ —— **被测量的对象本身**，换字符就换了在量什么 + 8 条 #if DEBUG 日志
 WayCoder.Maui/CoreStubs.cs  # 6 处主题预设名 —— **写进 config.json 的存储值**（PresetNames 是 Config.Schema 的 select 选项、Presets.Keys 是 /theme 候选）
 WayCoder.Maui/DiagLog.cs  # 诊断通道（首抛异常记录、启动标记），只落盘/logcat
 WayCoder.Maui/Markup/MarkdownPreview.cs  # 2 条 ErrorLog
@@ -39,6 +10,8 @@ WayCoder.Maui/Pages/CommandPanelPage.cs  # 2 条 ErrorLog（侧栏导航）
 WayCoder.Maui/Pages/DrawWindowPage.xaml.cs  # 11 条 ErrorLog/DiagLog（矢量后端、方向锁定、首帧/贴图失败、logcat 耗时行）
 WayCoder.Maui/Pages/EditorPage.xaml.cs  # 2 条 ErrorLog + 4 条 owner 身份标签（只做 == 判定、从不显示）+ 12 条 #if DEBUG 注入测试
 WayCoder.Maui/Pages/FilesPage.xaml.cs  # 5 条 ErrorLog/DiagLog
+WayCoder.Maui/Pages/ModelPickerPage.xaml.cs
+WayCoder.Maui/Pages/ProviderModelsPage.xaml.cs
 WayCoder.Maui/Pages/ShellPage.xaml.cs  # 5 条 ErrorLog/DiagLog
 WayCoder.Maui/Services/AgentService.cs  # 3 条 ErrorLog（token/tool 回调）
 WayCoder.Maui/Services/FileOpenService.cs  # 1 条 ErrorLog

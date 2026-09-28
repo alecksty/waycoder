@@ -49,7 +49,7 @@ public class RetryPolicy
 
         // 不可达：每次迭代要么成功返回，要么异常因 when 过滤器不满足
         // （不可重试或已耗尽 attempt == MaxRetries）而原样向外抛出最后一次异常。
-        throw new InvalidOperationException("重试循环不可达终点。");
+        throw new InvalidOperationException(L.Pick("重试循环不可达终点。", "Retry loop reached an unreachable end."));
     }
 
     /// <summary>

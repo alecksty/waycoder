@@ -75,9 +75,9 @@ public static class JpegCodec
         quality = Math.Clamp(quality, 1, 100);
         int w = img.Width, h = img.Height;
         // 防整数溢出 / OOM / SOF0 尺寸字段静默截断：宽高须为正、像素数与单边尺寸须在 JPEG 可表示范围内
-        if (w <= 0 || h <= 0) throw new ArgumentException("宽高必须为正整数");
-        if ((long)w * h > MaxPixels) throw new ArgumentException("图像尺寸过大");
-        if (w > 65535 || h > 65535) throw new ArgumentException("JPEG 尺寸须 ≤ 65535");
+        if (w <= 0 || h <= 0) throw new ArgumentException(L.Pick("宽高必须为正整数", "Width and height must be positive integers"));
+        if ((long)w * h > MaxPixels) throw new ArgumentException(L.Pick("图像尺寸过大", "Image dimensions are too large"));
+        if (w > 65535 || h > 65535) throw new ArgumentException(L.Pick("JPEG 尺寸须 ≤ 65535", "JPEG dimensions must be <= 65535"));
         int cw = (w + 1) / 2, ch = (h + 1) / 2;
 
         double qscale = quality < 50 ? 5000.0 / quality : 200.0 - 2.0 * quality;
@@ -207,8 +207,8 @@ public static class JpegCodec
     // ── 解码 ──
     public static RasterImage Decode(byte[] data)
     {
-        if (data == null || data.Length < 4) throw new FormatException("JPEG 数据过短");
-        if (data[0] != 0xFF || data[1] != 0xD8) throw new FormatException("非法 JPEG 签名");
+        if (data == null || data.Length < 4) throw new FormatException(L.Pick("JPEG 数据过短", "JPEG data is too short"));
+        if (data[0] != 0xFF || data[1] != 0xD8) throw new FormatException(L.Pick("非法 JPEG 签名", "Invalid JPEG signature"));
 
         int pos = 2;
         int width = 0, height = 0;
@@ -233,26 +233,26 @@ public static class JpegCodec
             if (pos + 2 > data.Length) break;
             int len = ReadU16(data, pos); pos += 2;
             int end = pos + len - 2;
-            if (end > data.Length) throw new FormatException("JPEG 段越界");
+            if (end > data.Length) throw new FormatException(L.Pick("JPEG 段越界", "JPEG segment out of range"));
 
             switch (marker)
             {
                 case 0xC0: // SOF0
                 case 0xC1: case 0xC2:
-                    if (marker != 0xC0) throw new FormatException("仅支持 baseline JPEG");
-                    if (pos + 6 > end) throw new FormatException("SOF 段越界");
+                    if (marker != 0xC0) throw new FormatException(L.Pick("仅支持 baseline JPEG", "Only baseline JPEG is supported"));
+                    if (pos + 6 > end) throw new FormatException(L.Pick("SOF 段越界", "SOF segment out of range"));
                     height = ReadU16(data, pos + 1);
                     width = ReadU16(data, pos + 3);
                     int nComp = data[pos + 5];
-                    if (nComp == 2 || nComp < 1 || nComp > 4) throw new FormatException("非法分量数（仅支持 1/3/4 分量）"); // 限制分量数，防恶意 nComp 放大采样数组；2 分量无法渲染（comps[2] 会越界）
-                    if (pos + 6 + nComp * 3 > end) throw new FormatException("SOF 段越界");
+                    if (nComp == 2 || nComp < 1 || nComp > 4) throw new FormatException(L.Pick("非法分量数（仅支持 1/3/4 分量）", "Invalid component count (only 1/3/4 components are supported)")); // 限制分量数，防恶意 nComp 放大采样数组；2 分量无法渲染（comps[2] 会越界）
+                    if (pos + 6 + nComp * 3 > end) throw new FormatException(L.Pick("SOF 段越界", "SOF segment out of range"));
                     for (int i = 0; i < nComp; i++)
                     {
                         int id = data[pos + 6 + i * 3];
                         int hv = data[pos + 7 + i * 3];
                         int qid = data[pos + 8 + i * 3];
                         int hh = hv >> 4, vv = hv & 0x0F;
-                        if (hh == 0 || vv == 0 || hh > 4 || vv > 4) throw new FormatException("非法采样因子");
+                        if (hh == 0 || vv == 0 || hh > 4 || vv > 4) throw new FormatException(L.Pick("非法采样因子", "Invalid sampling factor"));
                         comps.Add(new JpegComponent { Id = id, H = hh, V = vv, QtId = qid });
                         if (hh > maxH) maxH = hh;
                         if (vv > maxV) maxV = vv;
@@ -294,9 +294,9 @@ public static class JpegCodec
                 }
                 case 0xDA: // SOS
                 {
-                    if (pos + 1 > end) throw new FormatException("SOS 段越界");
+                    if (pos + 1 > end) throw new FormatException(L.Pick("SOS 段越界", "SOS segment out of range"));
                     int n = data[pos];
-                    if (pos + 1 + 2 * n + 3 > end) throw new FormatException("SOS 段越界");
+                    if (pos + 1 + 2 * n + 3 > end) throw new FormatException(L.Pick("SOS 段越界", "SOS segment out of range"));
                     var order = new List<(int compIdx, int dc, int ac)>();
                     int p = pos + 1;
                     for (int i = 0; i < n; i++)
@@ -334,8 +334,8 @@ public static class JpegCodec
         }
 
         if (width <= 0 || height <= 0 || comps.Count == 0 || entropy == null)
-            throw new FormatException("JPEG 缺少必要段");
-        if ((long)width * height > MaxPixels) throw new FormatException("JPEG 尺寸过大");
+            throw new FormatException(L.Pick("JPEG 缺少必要段", "JPEG is missing required segments"));
+        if ((long)width * height > MaxPixels) throw new FormatException(L.Pick("JPEG 尺寸过大", "JPEG dimensions are too large"));
 
         // 分量采样数组
         int mcuCols = (width + 8 * maxH - 1) / (8 * maxH);
@@ -352,7 +352,7 @@ public static class JpegCodec
         // 限制 ≤ 3*MaxPixels（容纳合法 4:4:4 的 3x 放大，拒绝更极端的 4 分量全采样 4x）。
         long totalSamples = 0;
         foreach (var c in comps) totalSamples += (long)c.SampleW * c.SampleH;
-        if (totalSamples > (long)MaxPixels * 3) throw new FormatException("JPEG 分量采样数组过大");
+        if (totalSamples > (long)MaxPixels * 3) throw new FormatException(L.Pick("JPEG 分量采样数组过大", "JPEG component sampling array is too large"));
         foreach (var c in comps)
             c.Samples = new double[c.SampleW * c.SampleH];
 
@@ -366,8 +366,8 @@ public static class JpegCodec
                         {
                             int bx = mx * c.H + hx, by = my * c.V + vy;
                             if (bx >= c.BlocksX || by >= c.BlocksY) continue;
-                            var dcT = dcTables[c.Dc] ?? throw new FormatException("缺少 DC 表");
-                            var acT = acTables[c.Ac] ?? throw new FormatException("缺少 AC 表");
+                            var dcT = dcTables[c.Dc] ?? throw new FormatException(L.Pick("缺少 DC 表", "Missing DC table"));
+                            var acT = acTables[c.Ac] ?? throw new FormatException(L.Pick("缺少 AC 表", "Missing AC table"));
                             var qtTable = c.QtId < qt.Count ? qt[c.QtId] : new byte[64];
                             DecodeBlock(br, c, bx, by, qtTable, dcT, acT, ref prevDc[comps.IndexOf(c)]);
                         }
@@ -413,7 +413,7 @@ public static class JpegCodec
     {
         var zz = new int[64];
         int s = dcT.Decode(br);
-        if (s < 0) throw new FormatException("Huffman DC 解码失败");
+        if (s < 0) throw new FormatException(L.Pick("Huffman DC 解码失败", "Huffman DC decode failed"));
         int diff = s > 0 ? ReadAmplitude(br.ReadBits(s), s) : 0;
         prevDc += diff;
         zz[0] = prevDc;
@@ -421,7 +421,7 @@ public static class JpegCodec
         while (i < 64)
         {
             int rs = acT.Decode(br);
-            if (rs < 0) throw new FormatException("Huffman AC 解码失败");
+            if (rs < 0) throw new FormatException(L.Pick("Huffman AC 解码失败", "Huffman AC decode failed"));
             if (rs == 0) break;
             int run = rs >> 4, sz = rs & 0x0F;
             i += run;

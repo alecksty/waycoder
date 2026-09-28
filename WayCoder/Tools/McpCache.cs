@@ -198,7 +198,9 @@ internal class CachedMcpTool : ITool
     {
         var toolName = _toolDef["name"]?.AsString() ?? "";
         return Task.FromResult(
-            $"MCP 工具 {_serverName}/{toolName} 正在后台连接中，请稍后重试。\n" +
-            $"缓存工具在服务器连接成功后会自动更新。");
+            L.Pick($"MCP 工具 {_serverName}/{toolName} 正在后台连接中，请稍后重试。\n" +
+                   "缓存工具在服务器连接成功后会自动更新。",
+                   $"The MCP tool {_serverName}/{toolName} is still connecting in the background; please retry in a moment.\n" +
+                   "Cached tools are updated automatically once the server connects."));
     }
 }

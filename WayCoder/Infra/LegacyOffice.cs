@@ -58,9 +58,9 @@ public static class LegacyOffice
         {
             byte[] data;
             try { data = File.ReadAllBytes(filePath); }
-            catch (Exception ex) { return $"错误：无法读取 {filePath}: {ex.Message}"; }
+            catch (Exception ex) { return L.Pick($"错误：无法读取 {filePath}: {ex.Message}", $"Error: cannot read {filePath}: {ex.Message}"); }
 
-            if (data.Length == 0) return "(空文件)";
+            if (data.Length == 0) return L.Pick("(空文件)", "(empty file)");
 
             switch (DetectContainer(data))
             {
@@ -69,12 +69,12 @@ public static class LegacyOffice
                 case Container.Rtf: return ExtractRtf(DecodeAscii(data), maxChars);
                 case Container.Html: return StripHtml(DecodeText(data), maxChars);
                 case Container.Text: return DecodeText(data);
-                default: return "(无法识别的二进制格式)";
+                default: return L.Pick("(无法识别的二进制格式)", "(unrecognized binary format)");
             }
         }
         catch (Exception ex)
         {
-            return $"错误：读取失败: {ex.Message}";
+            return L.Pick($"错误：读取失败: {ex.Message}", $"Error: read failed: {ex.Message}");
         }
     }
 
@@ -85,7 +85,7 @@ public static class LegacyOffice
     private static string ExtractCfb(byte[] data, int maxChars)
     {
         var doc = CfbParser.Open(data);
-        if (doc == null) return "(无效的复合文档)";
+        if (doc == null) return L.Pick("(无效的复合文档)", "(invalid compound document)");
 
         var wordDoc = doc.GetStream("WordDocument");
         if (wordDoc != null)
@@ -99,7 +99,7 @@ public static class LegacyOffice
             return ExtractPpt(pptDoc, maxChars, IsPptEncrypted(doc.GetStream("Current User")));
 
         var names = string.Join(", ", doc.StreamNames.Take(10));
-        return $"(复合文档，未识别的内部流: {names})";
+        return L.Pick($"(复合文档，未识别的内部流: {names})", $"(compound document, unrecognized internal stream: {names})");
     }
 
     private static string ExtractZipDisguised(string filePath, int maxChars)
@@ -110,11 +110,11 @@ public static class LegacyOffice
             if (zip.GetEntry("word/document.xml") != null) return OfficeExtractor.ExtractDocx(filePath);
             if (zip.GetEntry("xl/workbook.xml") != null) return OfficeExtractor.ExtractXlsx(filePath);
             if (zip.GetEntry("ppt/presentation.xml") != null) return OfficeExtractor.ExtractPptx(filePath);
-            return "(ZIP 归档，非 Office 文档)";
+            return L.Pick("(ZIP 归档，非 Office 文档)", "(ZIP archive, not an Office document)");
         }
         catch (Exception ex)
         {
-            return $"(损坏的 ZIP 归档: {ex.Message})";
+            return L.Pick($"(损坏的 ZIP 归档: {ex.Message})", $"(corrupt ZIP archive: {ex.Message})");
         }
     }
 
@@ -127,11 +127,11 @@ public static class LegacyOffice
     {
         try
         {
-            if (wordDoc.Length < 32) return "(空 DOC)";
-            if (Bin.U16(wordDoc, 0) != 0xA5EC) return "(无效 DOC：FIB 标识不符)";
+            if (wordDoc.Length < 32) return L.Pick("(空 DOC)", "(empty DOC)");
+            if (Bin.U16(wordDoc, 0) != 0xA5EC) return L.Pick("(无效 DOC：FIB 标识不符)", "(invalid DOC: FIB signature mismatch)");
 
             int flags = Bin.U16(wordDoc, 10);
-            if ((flags & 0x0100) != 0) return "(DOC 已加密，无法提取文本)"; // fEncrypted
+            if ((flags & 0x0100) != 0) return L.Pick("(DOC 已加密，无法提取文本)", "(DOC is encrypted; text cannot be extracted)"); // fEncrypted
 
             bool fWhichTblStm = (flags & 0x0200) != 0; // bit9 → 1Table 否则 0Table
             byte[] table = fWhichTblStm
@@ -143,7 +143,7 @@ public static class LegacyOffice
             ushort cslw = Bin.U16(wordDoc, 34 + csw * 2);
             int fibRgLwOff = 36 + csw * 2;
             int fibRgFcLcbOff = fibRgLwOff + cslw * 4 + 2; // +2 = cbRgFcLcb 字段
-            if (fibRgFcLcbOff + 33 * 8 + 8 > wordDoc.Length) return "(无效 DOC：FIB 截断)";
+            if (fibRgFcLcbOff + 33 * 8 + 8 > wordDoc.Length) return L.Pick("(无效 DOC：FIB 截断)", "(invalid DOC: FIB truncated)");
 
             uint ccpText = Bin.U32(wordDoc, fibRgLwOff + 3 * 4); // 字符总数
             uint fcClx = Bin.U32(wordDoc, fibRgFcLcbOff + 33 * 8);
@@ -199,11 +199,11 @@ public static class LegacyOffice
             }
 
             var result = sb.ToString().Trim();
-            return result.Length > 0 ? result : "(DOC 无文本内容)";
+            return result.Length > 0 ? result : L.Pick("(DOC 无文本内容)", "(DOC has no text content)");
         }
         catch
         {
-            return "(DOC 解析失败)";
+            return L.Pick("(DOC 解析失败)", "(DOC parsing failed)");
         }
     }
 
@@ -302,7 +302,7 @@ public static class LegacyOffice
             }
 
             // 密码保护文件：正文加密，任何「文本」都是乱码，直接报加密
-            if (encrypted) return "(XLS 已加密)";
+            if (encrypted) return L.Pick("(XLS 已加密)", "(XLS is encrypted)");
 
             var sb = new StringBuilder();
             foreach (var s in sst)
@@ -315,14 +315,14 @@ public static class LegacyOffice
 
             // BIFF5/8（有 SST/LABEL 结构）但无文本 → 空白表格，返回无内容标记，
             // 不做 UTF-16 退化扫描（否则会把字体名/数字格式/表名当正文 dump 出来）。
-            if (modern) return "(XLS 无文本内容)";
+            if (modern) return L.Pick("(XLS 无文本内容)", "(XLS has no text content)");
 
             // 退化：BIFF2-4（Book 流，无 SST，文本内联）→ UTF-16 文本串扫描
             return ExtractUtf16Runs(workbook, maxChars);
         }
         catch
         {
-            return "(XLS 解析失败)";
+            return L.Pick("(XLS 解析失败)", "(XLS parsing failed)");
         }
     }
 
@@ -385,18 +385,18 @@ public static class LegacyOffice
     {
         try
         {
-            if (encrypted) return "(PPT 已加密)";
+            if (encrypted) return L.Pick("(PPT 已加密)", "(PPT is encrypted)");
 
             var sb = new StringBuilder();
             // PPT 记录是分层嵌套结构（容器 recVer=0xF），文本 atom 嵌在容器内部，
             // 必须递归下降，否则平铺扫描会跳过容器内的所有子记录。
             ScanPptRecords(pptDoc, 0, pptDoc.Length, sb, maxChars, 0);
             var result = sb.ToString().Trim();
-            return result.Length > 0 ? result : "(PPT 无文本内容)";
+            return result.Length > 0 ? result : L.Pick("(PPT 无文本内容)", "(PPT has no text content)");
         }
         catch
         {
-            return "(PPT 解析失败)";
+            return L.Pick("(PPT 解析失败)", "(PPT parsing failed)");
         }
     }
 
@@ -449,7 +449,7 @@ public static class LegacyOffice
     /// <summary>从 RTF 文本剥离控制字/组，提取可读文本。</summary>
     public static string ExtractRtf(string rtf, int maxChars = DefaultMaxChars)
     {
-        if (string.IsNullOrEmpty(rtf)) return "(空 RTF)";
+        if (string.IsNullOrEmpty(rtf)) return L.Pick("(空 RTF)", "(empty RTF)");
         var sb = new StringBuilder();
         int i = 0, n = rtf.Length;
         int depth = 0;
@@ -535,13 +535,13 @@ public static class LegacyOffice
         }
 
         var result = sb.ToString().Trim();
-        return result.Length > 0 ? result : "(RTF 无文本内容)";
+        return result.Length > 0 ? result : L.Pick("(RTF 无文本内容)", "(RTF has no text content)");
     }
 
     /// <summary>剥离 HTML 标签，提取纯文本（委托 <see cref="HtmlText.StripHtml"/>，仅追加 Rune 安全截断）。</summary>
     public static string StripHtml(string html, int maxChars = DefaultMaxChars)
     {
-        if (string.IsNullOrEmpty(html)) return "(空 HTML)";
+        if (string.IsNullOrEmpty(html)) return L.Pick("(空 HTML)", "(empty HTML)");
         return Truncate(HtmlText.StripHtml(html, stripNoise: true), maxChars);
     }
 
@@ -574,7 +574,7 @@ public static class LegacyOffice
             else i += 2;
         }
         var result = sb.ToString().Trim();
-        return result.Length > 0 ? result : "(未找到文本)";
+        return result.Length > 0 ? result : L.Pick("(未找到文本)", "(no text found)");
     }
 
     /// <summary>UTF-16 文本 atom → 追加（规范控制符）。</summary>

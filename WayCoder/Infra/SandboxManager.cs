@@ -95,7 +95,7 @@ public static class SandboxManager
     public static string? CheckToolAllowed(string toolName, Dictionary<string, object?>? args)
     {
         if (IsNetworkOff && NetworkTools.Contains(toolName))
-            return "⛔ 沙箱（网络已关闭）：此工具需要网络访问，已被边界阻止。";
+            return L.Pick("⛔ 沙箱（网络已关闭）：此工具需要网络访问，已被边界阻止。", "⛔ Sandbox (network off): this tool needs network access and was blocked by the boundary.");
 
         if (IsProjectWrite && WriteTools.Contains(toolName) && args != null)
         {
@@ -127,7 +127,7 @@ public static class SandboxManager
 
         return ContainmentReason(resolved) == null
             ? null
-            : $"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}";
+            : L.Pick($"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}", $"⛔ Sandbox (project-write only): path is outside the project root — {path}");
     }
 
     /// <summary>
@@ -188,31 +188,31 @@ public static class SandboxManager
         if (!IsNetworkOff) return null;
         foreach (var (pattern, reason) in SandboxNetwork)
             if (pattern.IsMatch(command) && !NetworkAllowed.Any(na => na.IsMatch(command)))
-                return $"⛔ 沙箱（网络已关闭）：{reason}";
+                return L.Pick($"⛔ 沙箱（网络已关闭）：{reason}", $"⛔ Sandbox (network off): {reason}");
         return null;
     }
 
     // ---- 沙箱额外危险命令（任何沙箱模式生效；比 BashTool.DangerousPatterns 更严格） ----
-    private static readonly (Regex Pattern, string Reason)[] SandboxDanger =
+    private static (Regex Pattern, string Reason)[] SandboxDanger =>
     [
-        (new(@"\bsudo\b"), "sudo 提权"),
-        (new(@"\bsu\b(?=\s+-)"), "切换用户"),
-        (new(@"\bchown\b"), "修改文件所有者"),
-        (new(@"\bmount\b"), "挂载文件系统"),
-        (new(@"\bumount\b"), "卸载文件系统"),
-        (new(@"\biptables\b"), "修改防火墙"),
-        (new(@"\bsystemctl\b"), "系统服务管理"),
+        (new(@"\bsudo\b"), L.Pick("sudo 提权", "sudo privilege escalation")),
+        (new(@"\bsu\b(?=\s+-)"), L.Pick("切换用户", "switching user")),
+        (new(@"\bchown\b"), L.Pick("修改文件所有者", "changing file ownership")),
+        (new(@"\bmount\b"), L.Pick("挂载文件系统", "mounting a file system")),
+        (new(@"\bumount\b"), L.Pick("卸载文件系统", "unmounting a file system")),
+        (new(@"\biptables\b"), L.Pick("修改防火墙", "modifying the firewall")),
+        (new(@"\bsystemctl\b"), L.Pick("系统服务管理", "managing system services")),
     ];
 
     // ---- 网络命令（network-off 时拦截；localhost 例外） ----
-    private static readonly (Regex Pattern, string Reason)[] SandboxNetwork =
+    private static (Regex Pattern, string Reason)[] SandboxNetwork =>
     [
-        (new(@"\bnc\b"), "网络连接（沙箱禁止）"),
-        (new(@"\btelnet\b"), "网络连接（沙箱禁止）"),
-        (new(@"\bssh\b(?=\s+\w+@)"), "SSH 远程连接"),
-        (new(@"\bscp\b"), "SCP 远程传输"),
-        (new(@"\bwget\b"), "网络下载（沙箱禁止）"),
-        (new(@"\bcurl\b"), "网络请求（沙箱禁止）"),
+        (new(@"\bnc\b"), L.Pick("网络连接（沙箱禁止）", "network connection (blocked by sandbox)")),
+        (new(@"\btelnet\b"), L.Pick("网络连接（沙箱禁止）", "network connection (blocked by sandbox)")),
+        (new(@"\bssh\b(?=\s+\w+@)"), L.Pick("SSH 远程连接", "SSH remote connection")),
+        (new(@"\bscp\b"), L.Pick("SCP 远程传输", "SCP remote transfer")),
+        (new(@"\bwget\b"), L.Pick("网络下载（沙箱禁止）", "network download (blocked by sandbox)")),
+        (new(@"\bcurl\b"), L.Pick("网络请求（沙箱禁止）", "network request (blocked by sandbox)")),
     ];
 
     // 沙箱允许的网络相关命令（本地通信）
@@ -362,7 +362,7 @@ public static class SandboxManager
 
             // 越界判定走唯一实现（含 symlink 解析 + 路径段边界，见 ContainmentReason）
             if (ContainmentReason(resolved) is { } escaped)
-                return $"禁止 cd 到项目目录外：{target} → {escaped}";
+                return L.Pick($"禁止 cd 到项目目录外：{target} → {escaped}", $"cd outside the project directory is not allowed: {target} → {escaped}");
         }
 
         return null;
@@ -398,7 +398,7 @@ public static class SandboxManager
             {
                 if (path.StartsWith(sysDir, StringComparison.OrdinalIgnoreCase)
                     || path.Replace("/", "\\").StartsWith(sysDir.Replace("/", "\\"), StringComparison.OrdinalIgnoreCase))
-                    return $"禁止写入系统目录：{path}";
+                    return L.Pick($"禁止写入系统目录：{path}", $"writing to a system directory is not allowed: {path}");
             }
         }
 
@@ -426,7 +426,7 @@ public static class SandboxManager
                     if (cpuSeconds > MaxCpuTimeSeconds)
                     {
                         ProcUtil.KillTree(proc);
-                        return $"⛔ 沙箱终止：CPU 时间超限（{cpuSeconds:F1}秒 > {MaxCpuTimeSeconds}秒）";
+                        return L.Pick($"⛔ 沙箱终止：CPU 时间超限（{cpuSeconds:F1}秒 > {MaxCpuTimeSeconds}秒）", $"⛔ Sandbox terminated: CPU time limit exceeded ({cpuSeconds:F1}s > {MaxCpuTimeSeconds}s)");
                     }
                 }
                 catch
@@ -462,7 +462,7 @@ public static class SandboxManager
                     {
                         var usedMb = proc.WorkingSet64 / (1024 * 1024);
                         ProcUtil.KillTree(proc);
-                        return $"⛔ 沙箱终止：内存超限（{usedMb}MB > {MaxMemoryBytes / 1024 / 1024}MB）";
+                        return L.Pick($"⛔ 沙箱终止：内存超限（{usedMb}MB > {MaxMemoryBytes / 1024 / 1024}MB）", $"⛔ Sandbox terminated: memory limit exceeded ({usedMb}MB > {MaxMemoryBytes / 1024 / 1024}MB)");
                     }
                 }
                 catch

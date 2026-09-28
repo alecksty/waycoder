@@ -114,7 +114,8 @@ public static class L
         var list = tags?.ToList() ?? [];
         Set(FromLanguageTags(list));
         DetectTrace = trace ?? string.Join(",", list.Where(t => !string.IsNullOrWhiteSpace(t)));
-        if (string.IsNullOrWhiteSpace(DetectTrace)) DetectTrace = "(无语言信息 ⇒ 默认中文)";
+        if (string.IsNullOrWhiteSpace(DetectTrace))
+            DetectTrace = L.Pick("(无语言信息 ⇒ 默认中文)", "(no language info -> defaulting to Chinese)");
     }
 
     /// <summary>

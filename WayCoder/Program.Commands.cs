@@ -208,7 +208,7 @@ public partial class Program
         var keyword = input.Length > 9 ? input[9..].Trim() : "";
         if (string.IsNullOrWhiteSpace(keyword))
         {
-            screen.AddSystemMsg("用法: /history <关键词> 或 Ctrl+F 交互搜索");
+            screen.AddSystemMsg(L.Pick("用法: /history <关键词> 或 Ctrl+F 交互搜索", "Usage: /history <keyword>, or Ctrl+F to search interactively"));
             return;
         }
 
@@ -227,11 +227,11 @@ public partial class Program
 
         if (results.Count == 0)
         {
-            screen.AddSystemMsg($"未找到包含 \"{keyword}\" 的消息");
+            screen.AddSystemMsg(L.Pick($"未找到包含 \"{keyword}\" 的消息", $"No messages containing \"{keyword}\" were found"));
             return;
         }
 
-        screen.AddSystemMsg($"🔍 \"{keyword}\" — {results.Count} 条结果:");
+        screen.AddSystemMsg(L.Pick($"🔍 \"{keyword}\" — {results.Count} 条结果:", $"🔍 \"{keyword}\" — {results.Count} result(s):"));
         foreach (var (idx, role, preview) in results.Take(15))
         {
             var roleIcon = role switch { "user" => "👤", "assistant" => "🤖", "tool" => "🔧", _ => "  " };
@@ -239,7 +239,7 @@ public partial class Program
         }
 
         if (results.Count > 15)
-            screen.AddSystemMsg($"  ... 还有 {results.Count - 15} 条结果");
+            screen.AddSystemMsg(L.Pick($"  ... 还有 {results.Count - 15} 条结果", $"  ... and {results.Count - 15} more"));
     }
 
     /// <summary>提取历史消息关键词预览（前 40 + 120 码元窗口），代理对对齐不切半（否则渲染成 U+FFFD）。</summary>
@@ -278,16 +278,16 @@ public partial class Program
 
         if (string.IsNullOrWhiteSpace(prompt))
         {
-            screen.AddSystemMsg("用法: /loop [最大轮次] 提示词");
+            screen.AddSystemMsg(L.Pick("用法: /loop [最大轮次] 提示词", "Usage: /loop [max iterations] prompt"));
             return;
         }
 
-        screen.AddSystemMsg($"🔁 /loop 开始 (最多 {maxIter} 轮)");
+        screen.AddSystemMsg(L.Pick($"🔁 /loop 开始 (最多 {maxIter} 轮)", $"🔁 /loop started (up to {maxIter} iterations)"));
         var startTime = DateTime.UtcNow;
 
         for (int iter = 1; iter <= maxIter; iter++)
         {
-            screen.AddSystemMsg($"\n── 第 {iter}/{maxIter} 轮 ──");
+            screen.AddSystemMsg(L.Pick($"\n── 第 {iter}/{maxIter} 轮 ──", $"\n── Iteration {iter}/{maxIter} ──"));
             screen.StatusLeft = $"loop {iter}/{maxIter}";
 
             using var cts = new CancellationTokenSource();
@@ -311,13 +311,13 @@ public partial class Program
             {
                 screen.Running = false;
                 screen.FinishAgentMsg();
-                screen.AddSystemMsg("⚠ /loop 已中断");
+                screen.AddSystemMsg(L.Pick("⚠ /loop 已中断", "⚠ /loop interrupted"));
                 break;
             }
             catch (Exception ex)
             {
                 screen.FinishAgentMsg();
-                screen.AddSystemMsg($"  ⚠ 第 {iter} 轮出错: {ex.Message}");
+                screen.AddSystemMsg(L.Pick($"  ⚠ 第 {iter} 轮出错: {ex.Message}", $"  ⚠ Iteration {iter} failed: {ex.Message}"));
                 ErrorLog.Error("Program.Loop", $"/loop 第 {iter} 轮异常: {ex.Message}", ex);
                 if (iter == maxIter) break;
                 await Task.Delay(1000);
@@ -340,15 +340,16 @@ public partial class Program
             if (isSuccess)
             {
                 var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
-                screen.AddSystemMsg($"  💡 条件达成！{iter} 轮 / {elapsed:F1}s");
+                screen.AddSystemMsg(L.Pick($"  💡 条件达成！{iter} 轮 / {elapsed:F1}s", $"  💡 Condition met! {iter} iteration(s) / {elapsed:F1}s"));
                 return;
             }
 
             // 注入继续指令
-            prompt = $"上一轮结果未满足条件，请继续尝试。上次输出摘要：{ContextManager.TruncateByRunes(lastContent, 200)}";
+            prompt = L.Pick($"上一轮结果未满足条件，请继续尝试。上次输出摘要：{ContextManager.TruncateByRunes(lastContent, 200)}",
+                $"The previous round did not meet the condition; please keep trying. Summary of the last output: {ContextManager.TruncateByRunes(lastContent, 200)}");
         }
 
-        screen.AddSystemMsg($"⏰ 已达上限 {maxIter} 轮，/loop 结束");
+        screen.AddSystemMsg(L.Pick($"⏰ 已达上限 {maxIter} 轮，/loop 结束", $"⏰ Reached the {maxIter}-iteration limit, /loop finished"));
     }
 
     // ========================================================================
@@ -362,25 +363,25 @@ public partial class Program
         var cwd = Directory.GetCurrentDirectory();
         var waycoderDir = Path.Combine(cwd, ".waycoder");
 
-        Console.WriteLine("WayCoder 项目初始化");
-        Console.WriteLine($"目录: {cwd}");
+        Console.WriteLine(L.Pick("WayCoder 项目初始化", "WayCoder project init"));
+        Console.WriteLine(L.Pick($"目录: {cwd}", $"Directory: {cwd}"));
         Console.WriteLine();
 
         if (!Directory.Exists(waycoderDir))
         {
             Directory.CreateDirectory(waycoderDir);
-            Console.WriteLine($"✅ 创建 .waycoder/");
+            Console.WriteLine(L.Pick($"✅ 创建 .waycoder/", $"✅ Created .waycoder/"));
         }
         else
         {
-            Console.WriteLine("⏭ .waycoder/ 已存在");
+            Console.WriteLine(L.Pick("⏭ .waycoder/ 已存在", "⏭ .waycoder/ already exists"));
         }
 
         // mcp_servers.json 模板
         var mcpPath = Path.Combine(waycoderDir, "mcp_servers.json");
         if (!File.Exists(mcpPath))
         {
-            var mcpTemplate = @"[
+            var mcpTemplate = L.Pick(@"[
   {
     ""_comment"": ""MCP 服务器配置示例。name=工具名前缀, command=启动命令, args=参数, env=环境变量(可选)"",
     ""name"": ""filesystem"",
@@ -389,19 +390,28 @@ public partial class Program
     ""env"": {}
   }
 ]
-";
+", @"[
+  {
+    ""_comment"": ""Example MCP server config. name=tool-name prefix, command=launch command, args=arguments, env=environment variables (optional)"",
+    ""name"": ""filesystem"",
+    ""command"": ""npx"",
+    ""args"": [""-y"", ""@modelcontextprotocol/server-filesystem"", "".""],
+    ""env"": {}
+  }
+]
+");
             // 原子写 + 无 BOM：这份文件用户会手编、外部工具（jq / python json.load）也会解析，
             // 而 Encoding.UTF8 静态实例是**带 BOM** 的，凭空加 BOM 会让它们报错
             Global.WriteAllTextAtomic(mcpPath, mcpTemplate);
-            Console.WriteLine("✅ 创建 mcp_servers.json (MCP 服务器配置)");
+            Console.WriteLine(L.Pick("✅ 创建 mcp_servers.json (MCP 服务器配置)", $"✅ Created mcp_servers.json (MCP server config)"));
         }
-        else Console.WriteLine("⏭ mcp_servers.json 已存在");
+        else Console.WriteLine(L.Pick("⏭ mcp_servers.json 已存在", "⏭ mcp_servers.json already exists"));
 
         // prompt.md 模板
         var promptPath = Path.Combine(waycoderDir, "prompt.md");
         if (!File.Exists(promptPath))
         {
-            var promptTemplate = @"# 项目提示词
+            var promptTemplate = L.Pick(@"# 项目提示词
 
 <!-- 在此文件中编写项目专属的 AI 指令。WayCoder 会自动将其注入系统提示词。 -->
 
@@ -413,22 +423,34 @@ public partial class Program
 
 ## 注意事项
 <!-- AI 需要特别注意的事项 -->
-";
+", @"# Project prompt
+
+<!-- Put project-specific AI instructions in this file. WayCoder injects them into the system prompt automatically. -->
+
+## Project overview
+<!-- Briefly describe your project -->
+
+## Coding conventions
+<!-- Code style, naming conventions, and so on -->
+
+## Notes
+<!-- Anything the AI needs to be especially careful about -->
+");
             File.WriteAllText(promptPath, promptTemplate, Encoding.UTF8);
-            Console.WriteLine("✅ 创建 prompt.md (项目提示词模板)");
+            Console.WriteLine(L.Pick("✅ 创建 prompt.md (项目提示词模板)", $"✅ Created prompt.md (project prompt template)"));
         }
-        else Console.WriteLine("⏭ prompt.md 已存在");
+        else Console.WriteLine(L.Pick("⏭ prompt.md 已存在", "⏭ prompt.md already exists"));
 
         // memory.md (如果不存在则创建空文件)
         var memoryPath = Path.Combine(waycoderDir, "memory.md");
         if (!File.Exists(memoryPath))
         {
-            File.WriteAllText(memoryPath, "# 项目记忆\n\n", Encoding.UTF8);
-            Console.WriteLine("✅ 创建 memory.md (项目记忆)");
+            File.WriteAllText(memoryPath, L.Pick("# 项目记忆\n\n", "# Project memory\n\n"), Encoding.UTF8);
+            Console.WriteLine(L.Pick("✅ 创建 memory.md (项目记忆)", $"✅ Created memory.md (project memory)"));
         }
 
         Console.WriteLine();
-        Console.WriteLine("初始化完成！现在可以运行 waycoder 开始编码。");
+        Console.WriteLine(L.Pick("初始化完成！现在可以运行 waycoder 开始编码。", "Initialization complete! Run waycoder to start coding."));
     }
 
     /// <summary>对比各模式 SystemPrompt + 工具 schema 大小（极致省钱效果验证）。</summary>
@@ -438,14 +460,16 @@ public partial class Program
         var all = WayCoder.Tools.ToolRegistry.AllTools;
         var wl = new[] { "read_file", "write_file", "edit_file", "bash", "web_search" };
         var wlTools = all.Where(t => wl.Contains(t.Name, StringComparer.OrdinalIgnoreCase)).ToList();
-        Console.WriteLine($"工具数: 全 {all.Count} vs 白名单 {wlTools.Count}（read/write/edit/bash/web_search）");
+        Console.WriteLine(L.Pick($"工具数: 全 {all.Count} vs 白名单 {wlTools.Count}（read/write/edit/bash/web_search）",
+            $"Tool count: {all.Count} total vs {wlTools.Count} allowlisted (read/write/edit/bash/web_search)"));
 
         void M(string label, List<WayCoder.Tools.ITool> tools)
         {
             var sp = SystemPrompt.Generate(tools);
             int schemaChars = tools.Sum(t => t.Schema().ToJson().Length);
             int total = sp.Length + schemaChars;
-            Console.WriteLine($"{label,-26} SP={sp.Length,6}字符  schema={schemaChars,6}字符  合计={total,7}  ≈{total / 3,5} tok(估)");
+            Console.WriteLine(L.Pick($"{label,-26} SP={sp.Length,6}字符  schema={schemaChars,6}字符  合计={total,7}  ≈{total / 3,5} tok(估)",
+                $"{label,-26} SP={sp.Length,6} chars  schema={schemaChars,6} chars  total={total,7}  ≈{total / 3,5} tok(est)"));
         }
 
         var saved = Config.Instance.EconomyMode;
@@ -454,31 +478,33 @@ public partial class Program
             // 4 个提示词档位 × 对应工具精简档位：省钱关=全量，开=去重复，开的越大越精简
             var modes = new (string Label, EconomyMode Mode)[]
             {
-                ("Off 全量", EconomyMode.Off),
-                ("Auto 去bash冗余", EconomyMode.Auto),
-                ("On 去搜索编辑冗余", EconomyMode.On),
-                ("Extreme 核心集", EconomyMode.Extreme),
+                (L.Pick("Off 全量", "Off full"), EconomyMode.Off),
+                (L.Pick("Auto 去bash冗余", "Auto drop bash redundancy"), EconomyMode.Auto),
+                (L.Pick("On 去搜索编辑冗余", "On drop search/edit redundancy"), EconomyMode.On),
+                (L.Pick("Extreme 核心集", "Extreme core set"), EconomyMode.Extreme),
             };
-            Console.WriteLine("── 提示词档位 × 工具精简档位 ──");
+            Console.WriteLine(L.Pick("── 提示词档位 × 工具精简档位 ──", "── Prompt tier × tool trim tier ──"));
             foreach (var (label, mode) in modes)
             {
                 Config.Instance.EconomyMode = mode;
                 var trimmed = Agent.TrimToolsForEconomy(all, mode);
-                M($"{label} 工具{trimmed.Count}", trimmed);
+                M(L.Pick($"{label} 工具{trimmed.Count}", $"{label} tools {trimmed.Count}"), trimmed);
             }
-            Console.WriteLine("── 对照：白名单固定 5 工具，仅提示词档位变化 ──");
+            Console.WriteLine(L.Pick("── 对照：白名单固定 5 工具，仅提示词档位变化 ──", "── Control: 5-tool allowlist fixed, only the prompt tier varies ──"));
             foreach (var (label, mode) in modes)
             {
                 Config.Instance.EconomyMode = mode;
-                M($"{label} 白名单5", wlTools);
+                M(L.Pick($"{label} 白名单5", $"{label} allowlist-5"), wlTools);
             }
             // 工作模式对照：Chat=0 工具 0 提示词；Plan=只读白名单 + GeneratePlan（体系提示词少量）
             var planTools = all.Where(t => WorkModeManager.PlanReadOnlyTools.Contains(t.Name)).ToList();
             var planSp = SystemPrompt.GeneratePlan(planTools);
             int planSchema = planTools.Sum(t => t.Schema().ToJson().Length);
-            Console.WriteLine("── 对照：工作模式（Chat / Plan）──");
-            Console.WriteLine($"Chat 聊天    工具0                  SP=      0字符  schema=       0字符  合计=        0  ≈     0 tok(估)  (仅用户/助手消息)");
-            Console.WriteLine($"Plan 规划    工具{planTools.Count,2}                SP={planSp.Length,6}字符  schema={planSchema,6}字符  合计={planSp.Length + planSchema,7}  ≈{(planSp.Length + planSchema) / 3,5} tok(估)  (只读白名单 + GeneratePlan)");
+            Console.WriteLine(L.Pick("── 对照：工作模式（Chat / Plan）──", "── Control: work modes (Chat / Plan) ──"));
+            Console.WriteLine(L.Pick($"Chat 聊天    工具0                  SP=      0字符  schema=       0字符  合计=        0  ≈     0 tok(估)  (仅用户/助手消息)",
+                $"Chat         tools 0               SP=      0 chars  schema=       0 chars  total=        0  ≈     0 tok(est)  (user/assistant messages only)"));
+            Console.WriteLine(L.Pick($"Plan 规划    工具{planTools.Count,2}                SP={planSp.Length,6}字符  schema={planSchema,6}字符  合计={planSp.Length + planSchema,7}  ≈{(planSp.Length + planSchema) / 3,5} tok(估)  (只读白名单 + GeneratePlan)",
+                $"Plan        tools {planTools.Count,-2}               SP={planSp.Length,6} chars  schema={planSchema,6} chars  total={planSp.Length + planSchema,7}  ≈{(planSp.Length + planSchema) / 3,5} tok(est)  (read-only allowlist + GeneratePlan)"));
         }
         finally { Config.Instance.EconomyMode = saved; }
     }
@@ -497,10 +523,10 @@ public partial class Program
 
         // 添加测试消息
         screen.ChatMessages.Add(new ChatMsg { Role = "system", Content = Global.AppNameVersion });
-        screen.ChatMessages.Add(new ChatMsg { Role = "user", Content = "对比模型价格和功能" });
+        screen.ChatMessages.Add(new ChatMsg { Role = "user", Content = L.Pick("对比模型价格和功能", "Compare model pricing and features") });
         screen.ChatMessages.Add(new ChatMsg
         {
-            Role = "assistant", Content = @"### 价格对比
+            Role = "assistant", Content = L.Pick(@"### 价格对比
 
 | 模型 | 输入/1M | 输出/1M | 上下文 |
 |------|---------|---------|--------|
@@ -516,14 +542,30 @@ public partial class Program
 - 代码审查
   - Diff 级别审查
   - 安全漏洞扫描
-deepseek 性价比最高。"
+deepseek 性价比最高。", @"### Price comparison
+
+| Model | Input/1M | Output/1M | Context |
+|------|---------|---------|--------|
+| deepseek-v4-flash | $0.14 | $0.28 | 128K |
+| gpt-5.4-mini | $0.075 | $0.15 | 200K |
+
+### Feature list
+
+- Code generation
+  - C# / .NET projects
+  - Python scripts
+  - Front-end React/Vue
+- Code review
+  - Diff-level review
+  - Security vulnerability scanning
+deepseek offers the best value for money.")
         });
-        screen.StatusLeft = "大:deepseek-v4-flash";
+        screen.StatusLeft = L.Pick("大:deepseek-v4-flash", "large:deepseek-v4-flash");
         mgr.Render();
         Console.WriteLine("\n===END===");
 
         // 建议面板截图验证
-        screen.AddSystemMsg("建议列表：/reset /resume /restart-agent /restore-checkpoint");
+        screen.AddSystemMsg(L.Pick("建议列表：/reset /resume /restart-agent /restore-checkpoint", "Suggestions: /reset /resume /restart-agent /restore-checkpoint"));
         screen.SetInput("/res");
         screen.Suggestions = new List<string>
         {
@@ -556,14 +598,20 @@ deepseek 性价比最高。"
         var sessions = SessionManager.ListSessions(50);
         if (sessions.Count == 0)
         {
-            Console.WriteLine("（没有已保存的会话）");
-            Console.WriteLine("会话在正常退出或输入 /save 时自动保存。");
+            Console.WriteLine(L.Pick("（没有已保存的会话）", "(no saved sessions)"));
+            Console.WriteLine(L.Pick("会话在正常退出或输入 /save 时自动保存。", "Sessions are saved automatically on a clean exit, or when you run /save."));
             return;
         }
 
-        Console.WriteLine($"📋 已保存的会话 ({sessions.Count} 个)");
+        Console.WriteLine(L.Pick($"📋 已保存的会话 ({sessions.Count} 个)", $"📋 Saved sessions ({sessions.Count})"));
         Console.WriteLine(new string('─', 60));
-        Console.WriteLine($"{"会话名",-24} {"消息数",-8} {"模型",-16} {"保存时间"}");
+        // 表头提成局部量：`$"{"会话名",-24}"` 这种嵌套引号连台账扫描器都认不出来（它按「引号即字面量边界」走），
+        // 而那正是「已经翻过的文件里还留着中文」的隐蔽形态
+        var hName = L.Pick("会话名", "Session");
+        var hCount = L.Pick("消息数", "Messages");
+        var hModel = L.Pick("模型", "Model");
+        var hSaved = L.Pick("保存时间", "Saved at");
+        Console.WriteLine($"{hName,-24} {hCount,-8} {hModel,-16} {hSaved}");
         Console.WriteLine(new string('─', 60));
         foreach (var s in sessions)
         {
@@ -573,7 +621,7 @@ deepseek 性价比最高。"
             Console.WriteLine($"{name,-24} {msgCount,-8} {model,-16} {s.SavedAt}");
         }
         Console.WriteLine(new string('─', 60));
-        Console.WriteLine("恢复: waycoder -c <会话名>  或  waycoder -c (恢复最近)");
+        Console.WriteLine(L.Pick("恢复: waycoder -c <会话名>  或  waycoder -c (恢复最近)", "Resume: waycoder -c <session name>  or  waycoder -c (resume the most recent)"));
     }
 
     private static void ShowUsage()
@@ -590,15 +638,15 @@ deepseek 性价比最高。"
         Console.WriteLine("┌" + new string('─', bannerW - 2) + "┐");
         // 标题用 ASCII 连字符「-」替代「—」（U+2014）：后者 CharWidth 按 2 列算但部分终端显示 1 列，
         // 导致居中后右框线差 1 列不对齐
-        Console.WriteLine(Mid("WayCoder (道码) - 中文编程智能体"));
+        Console.WriteLine(Mid(L.Pick("WayCoder (道码) - 中文编程智能体", "WayCoder (道码) - coding agent")));
         Console.WriteLine(Mid(Global.Company));
         Console.WriteLine("└" + new string('─', bannerW - 2) + "┘");
-        var verLine = $"版本: {Global.Version}";
+        var verLine = L.Pick($"版本: {Global.Version}", $"Version: {Global.Version}");
         Console.WriteLine(new string(' ', Math.Max(0, bannerW - WayCoder.UI.Shared.Terminal.AnsiString.DisplayWidth(verLine))) + verLine);
         Console.WriteLine();
-        MarkupLine("«bold»使用方法:«/» «cyan»waycoder [选项]«/»");
+        MarkupLine(L.Pick("«bold»使用方法:«/» «cyan»waycoder [选项]«/»", "«bold»Usage:«/» «cyan»waycoder [options]«/»"));
         Console.WriteLine();
-        MarkupLine("  «bold»选项:«/»");
+        MarkupLine(L.Pick("  «bold»选项:«/»", "  «bold»Options:«/»"));
         // 从参数注册表自动生成（排除内部/开发参数，按分类分组显示；分类标题含标记需 MarkupLine 渲染）
         // 空行也输出：分类标题上方的分隔空行需保留
         foreach (var line in Arguments.CliArgRegistry.HelpText(2, 36).Split('\n'))
@@ -606,7 +654,7 @@ deepseek 性价比最高。"
             MarkupLine(line);
         }
         Console.WriteLine();
-        MarkupLine("  «bold»示例:«/»");
+        MarkupLine(L.Pick("  «bold»示例:«/»", "  «bold»Examples:«/»"));
         // 示例命令 + 注释纵向对齐（注释列固定，CJK 感知）
         const int exNoteCol = 36;
         void Ex(string plain, string markup, string note)
@@ -617,14 +665,14 @@ deepseek 性价比最高。"
             line += $"«dim»# {note}«/»";
             MarkupLine(line);
         }
-        Ex("waycoder", "waycoder", "交互式 REPL");
-        Ex("waycoder --web", "waycoder «cyan»--web«/»", "浏览器网页模式");
-        Ex("waycoder -p \"列出当前目录\"", "waycoder «cyan»-p«/» «green»\"列出当前目录\"«/»", "一次性模式");
-        Ex("waycoder -m deepseek-v4-pro", "waycoder «cyan»-m«/» deepseek-v4-pro", "指定模型");
-        Ex("waycoder -t", "waycoder «cyan»-t«/»", "运行自测");
-        Ex("echo \"列出目录\" | waycoder", "echo «green»\"列出目录\"«/» «dim»|«/» waycoder", "管道模式");
+        Ex("waycoder", "waycoder", L.Pick("交互式 REPL", "interactive REPL"));
+        Ex("waycoder --web", "waycoder «cyan»--web«/»", L.Pick("浏览器网页模式", "browser UI mode"));
+        Ex(L.Pick("waycoder -p \"列出当前目录\"", "waycoder -p \"list the current directory\""), L.Pick("waycoder «cyan»-p«/» «green»\"列出当前目录\"«/»", "waycoder «cyan»-p«/» «green»\"list the current directory\"«/»"), L.Pick("一次性模式", "one-shot mode"));
+        Ex("waycoder -m deepseek-v4-pro", "waycoder «cyan»-m«/» deepseek-v4-pro", L.Pick("指定模型", "specify the model"));
+        Ex("waycoder -t", "waycoder «cyan»-t«/»", L.Pick("运行自测", "run the self-test"));
+        Ex(L.Pick("echo \"列出目录\" | waycoder", "echo \"list the directory\" | waycoder"), L.Pick("echo «green»\"列出目录\"«/» «dim»|«/» waycoder", "echo «green»\"list the directory\"«/» «dim»|«/» waycoder"), L.Pick("管道模式", "pipe mode"));
         Console.WriteLine();
-        MarkupLine("  «bold green»💡 强烈推荐使用 Web 模式：waycoder --web«/»");
+        MarkupLine(L.Pick("  «bold green»💡 强烈推荐使用 Web 模式：waycoder --web«/»", "  «bold green»💡 The Web UI is recommended: waycoder --web«/»"));
     }
 
     /// <summary>Ctrl+M 打开模型选择对话框</summary>
@@ -637,15 +685,16 @@ deepseek 性价比最高。"
             if (result.NeedsApiKey && !string.IsNullOrEmpty(result.ProviderId))
             {
                 var key = UxHelper.Secret(
-                    $"🔑 输入 {result.ProviderId} 的 API Key（输入不可见，Enter 确认）:");
+                    L.Pick($"🔑 输入 {result.ProviderId} 的 API Key（输入不可见，Enter 确认）:",
+                    $"🔑 Enter the API Key for {result.ProviderId} (input hidden, Enter to confirm):"));
                 if (!string.IsNullOrWhiteSpace(key))
                 {
                     ApiKeyStore.Set(result.ProviderId, key);
-                    screen.AddSystemMsg($"🔑 API Key 已保存: {result.ProviderId}");
+                    screen.AddSystemMsg(L.Pick($"🔑 API Key 已保存: {result.ProviderId}", $"🔑 API Key saved: {result.ProviderId}"));
                 }
                 else
                 {
-                    screen.AddSystemMsg("❌ 未输入 API Key，已取消");
+                    screen.AddSystemMsg(L.Pick("❌ 未输入 API Key，已取消", "❌ No API Key entered, cancelled"));
                     return;
                 }
             }
@@ -663,6 +712,8 @@ deepseek 性价比最高。"
             if (result.IsLarge)
                 _agent?.UpdateContextWindow(ModelCatalog.ResolveContextWindow(_config.Model, _config.MaxContextTokens));
 
+            // 大小模型显示名提成局部量：文案与判据同源，也给台账扫描器一个无嵌套引号的实参
+            var whichModel = result.IsLarge ? L.Pick("大模型", "large model") : L.Pick("小模型", "small model");
             // 更新受影响的槽位 LLM
             if (result.TargetSlot == -2) // 全部槽位
             {
@@ -675,11 +726,11 @@ deepseek 性价比最高。"
                         s.LlmClient.SmallModel = _config.SmallModel;
                     }
                 }
-                screen.AddSystemMsg($"🔄 全部槽位 → {(result.IsLarge ? "大模型" : "小模型")} {modelName}");
+                screen.AddSystemMsg(L.Pick($"🔄 全部槽位 → {whichModel} {modelName}", $"🔄 All slots → {whichModel} {modelName}"));
             }
             else if (result.TargetSlot == -1) // 默认模型
             {
-                screen.AddSystemMsg($"🔄 默认 {(result.IsLarge ? "大模型" : "小模型")} → {modelName}");
+                screen.AddSystemMsg(L.Pick($"🔄 默认 {whichModel} → {modelName}", $"🔄 Default {whichModel} → {modelName}"));
             }
             else // 指定槽位
             {
@@ -689,7 +740,7 @@ deepseek 性价比最高。"
                     var slot = _slots[idx];
                     slot.LastLargeModel = null; // 强制下次使用重新创建 LLM
                     slot.LastSmallModel = null;
-                    screen.AddSystemMsg($"🔄 F{idx + 1} 槽位 → {(result.IsLarge ? "大模型" : "小模型")} {modelName}");
+                    screen.AddSystemMsg(L.Pick($"🔄 F{idx + 1} 槽位 → {whichModel} {modelName}", $"🔄 Slot F{idx + 1} → {whichModel} {modelName}"));
                 }
             }
 
@@ -733,12 +784,12 @@ deepseek 性价比最高。"
                             string.Equals(model, Config.Instance.Model, StringComparison.OrdinalIgnoreCase)
                                 ? ConnectionConfig.CurrentMainChannel() : "rollback",
                             Config.Instance.Provider, model);
-                        screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
+                        screen.AddSystemMsg(L.Pick($"📂 已切换到会话: {result.SessionId}", $"📂 Switched to session: {result.SessionId}"));
                     }
                 }
                 break;
             case "rename":
-                screen.AddSystemMsg($"✏ 会话已重命名: {result.SessionId} → {result.NewName}");
+                screen.AddSystemMsg(L.Pick($"✏ 会话已重命名: {result.SessionId} → {result.NewName}", $"✏ Session renamed: {result.SessionId} → {result.NewName}"));
                 break;
             case "delete":
                 SessionManager.DeleteSession(result.SessionId, slot);
@@ -747,11 +798,11 @@ deepseek 性价比最高。"
                     _currentSessionIds[slot] = SessionManager.CreateNewSessionId();
                     _agent!.ClearMessages();
                     screen.ClearChat();
-                    screen.AddSystemMsg("🗑 当前会话已删除，已创建新会话");
+                    screen.AddSystemMsg(L.Pick("🗑 当前会话已删除，已创建新会话", "🗑 The current session was deleted and a new one was created"));
                 }
                 else
                 {
-                    screen.AddSystemMsg($"🗑 会话已删除: {result.SessionId}");
+                    screen.AddSystemMsg(L.Pick($"🗑 会话已删除: {result.SessionId}", $"🗑 Session deleted: {result.SessionId}"));
                 }
                 break;
         }
@@ -766,9 +817,9 @@ deepseek 性价比最高。"
         if (result != null)
         {
             if (string.IsNullOrEmpty(result.Level))
-                screen.AddSystemMsg("🧠 推理深度 → 已清除（使用模型默认）");
+                screen.AddSystemMsg(L.Pick("🧠 推理深度 → 已清除（使用模型默认）", "🧠 Reasoning effort → cleared (using the model default)"));
             else
-                screen.AddSystemMsg($"🧠 推理深度 → {result.Level}");
+                screen.AddSystemMsg(L.Pick($"🧠 推理深度 → {result.Level}", $"🧠 Reasoning effort → {result.Level}"));
         }
     }
 
@@ -786,7 +837,7 @@ deepseek 性价比最高。"
         foreach (var (name, _) in CustomCommands.Commands)
             commands.Add($"/{name}");
 
-        var choice = UxHelper.Select("命令面板 ↑↓ 选择 Enter 执行 Esc 取消", commands);
+        var choice = UxHelper.Select(L.Pick("命令面板 ↑↓ 选择 Enter 执行 Esc 取消", "Command palette: ↑↓ to choose, Enter to run, Esc to cancel"), commands);
         if (choice == null) return "";
 
         // 对于带参数的命令，截取命令名
@@ -809,7 +860,7 @@ deepseek 性价比最高。"
             // 裸 !：控制台提示输入命令（Ask 需先退出 TUI）
             var needRestore = TuiManager.Instance.IsActive;
             if (needRestore) TuiManager.Instance.Exit();
-            try { cmd = UxHelper.Ask("! 命令"); }
+            try { cmd = UxHelper.Ask(L.Pick("! 命令", "! command")); }
             finally { if (needRestore) { TuiManager.Instance.Enter(); TuiManager.Instance.Render(); } }
             if (string.IsNullOrWhiteSpace(cmd)) return;
         }
@@ -821,7 +872,7 @@ deepseek 性价比最高。"
             try
             {
                 // 先投递「执行中」提示：慢命令也有即时反馈（输出完成后追加结果）
-                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg($"⏳ 执行: $ {capturedCmd}"));
+                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg(L.Pick($"⏳ 执行: $ {capturedCmd}", $"⏳ Running: $ {capturedCmd}")));
                 var result = await new Tools.BashTool().ExecuteUserShellAsync(capturedCmd);
                 capturedScreen.PostToUI(() =>
                     // 与 agent bash 工具路径一致：shell 输出走等宽竖线控制台块（带 ┃ gutter 与角色色）
@@ -830,7 +881,7 @@ deepseek 性价比最高。"
             catch (Exception ex)
             {
                 ErrorLog.Error("Program.ShellCmd", $"Shell 命令执行异常: {ex.Message}", ex);
-                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg($"⚠ Shell 错误: {ex.Message}"));
+                capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg(L.Pick($"⚠ Shell 错误: {ex.Message}", $"⚠ Shell error: {ex.Message}")));
             }
         });
     }
@@ -841,7 +892,7 @@ deepseek 性价比最高。"
         if (string.IsNullOrEmpty(s) || maxLines <= 0) return s ?? "";
         var lines = s.Replace("\r\n", "\n").Split('\n');
         if (lines.Length <= maxLines) return s;
-        return string.Join('\n', lines.TakeLast(maxLines)) + $"\n…（共 {lines.Length} 行，仅显示最后 {maxLines} 行）";
+        return string.Join('\n', lines.TakeLast(maxLines)) + L.Pick($"\n…（共 {lines.Length} 行，仅显示最后 {maxLines} 行）", $"\n... (of {lines.Length} lines, showing only the last {maxLines})");
     }
 
     private static async Task PlanModeAsync()
@@ -850,8 +901,8 @@ deepseek 性价比最高。"
         if (needRestore) TuiManager.Instance.Exit();
         try
         {
-        MarkupLine("«bold cyan»📋 计划模式«/» — 只读分析，Agent 先规划再执行");
-        MarkupLine("«dim»输入你的需求，Agent 会先分析并列出执行计划«/»");
+        MarkupLine(L.Pick("«bold cyan»📋 计划模式«/» — 只读分析，Agent 先规划再执行", "«bold cyan»📋 Plan mode«/» — read-only analysis; the agent plans before acting"));
+        MarkupLine(L.Pick("«dim»输入你的需求，Agent 会先分析并列出执行计划«/»", "«dim»Type your request; the agent will analyze it and lay out an execution plan«/»"));
         Console.WriteLine();
 
         var userInput = TuiChatInput.ReadInput();
@@ -859,7 +910,8 @@ deepseek 性价比最高。"
 
         // 使用 PlanMode 结构化系统提示词（含项目上下文、仓库地图）
         var planPrompt = PlanMode.GetPlanSystemPrompt() +
-            $"\n\n# 用户需求\n\n{userInput}\n\n请按上述格式输出你的分析和执行计划。";
+            L.Pick($"\n\n# 用户需求\n\n{userInput}\n\n请按上述格式输出你的分析和执行计划。",
+                $"\n\n# User request\n\n{userInput}\n\nOutput your analysis and execution plan in the format described above.");
 
         using var cts = new CancellationTokenSource();
         try
@@ -869,27 +921,28 @@ deepseek 性价比最高。"
 
             // 计划输出后询问是否执行
             Console.WriteLine();
-            MarkupLine("«bold yellow»是否执行此计划？«/»");
-            MarkupLine("«dim»  y = 执行  |  n = 放弃  |  输入修改意见«/»");
+            MarkupLine(L.Pick("«bold yellow»是否执行此计划？«/»", "«bold yellow»Execute this plan?«/»"));
+            MarkupLine(L.Pick("«dim»  y = 执行  |  n = 放弃  |  输入修改意见«/»", "«dim»  y = execute  |  n = discard  |  or type your revisions«/»"));
             var confirm = TuiChatInput.ReadInput();
             if (!string.IsNullOrWhiteSpace(confirm) && PlanMode.IsApproval(confirm))
             {
                 Console.WriteLine();
-                MarkupLine("«bold green»▶ 执行模式«/»");
-                var execPrompt = $"按照之前制定的计划，逐步执行以下需求：\n\n{userInput}";
+                MarkupLine(L.Pick("«bold green»▶ 执行模式«/»", "«bold green»▶ Execution mode«/»"));
+                var execPrompt = L.Pick($"按照之前制定的计划，逐步执行以下需求：\n\n{userInput}",
+                    $"Following the plan drawn up earlier, carry out the request below step by step:\n\n{userInput}");
                 await ChatWithStatusAsync(execPrompt, cts.Token);
                 Console.WriteLine();
             }
             else if (!string.IsNullOrWhiteSpace(confirm))
             {
                 if (TuiManager.Instance.ActiveScreen is ChatScreen cs)
-                    cs.AddSystemMsg($"📋 计划待修改：{confirm}");
+                    cs.AddSystemMsg(L.Pick($"📋 计划待修改：{confirm}", $"📋 Plan pending revision: {confirm}"));
             }
         }
         catch (Exception ex)
         {
             ErrorLog.Error("Program.PlanMode", $"计划模式异常: {ex.Message}", ex);
-            UxHelper.Error("错误", ex.Message);
+            UxHelper.Error(L.Pick("错误", "Error"), ex.Message);
         }
         }
         finally

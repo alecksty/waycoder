@@ -12,14 +12,14 @@ namespace WayCoder.UI.Cli.Commands;
 public class DiagCommand : SlashCommand
 {
     public override string Name => "/diag";
-    public override string Description => "手动采集当前状态/死机现场快照到 logs/";
+    public override string Description => L.Pick("手动采集当前状态/死机现场快照到 logs/", "Manually capture a state / freeze snapshot to logs/");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         var path = FreezeCapture.DumpNow("手动 /diag", TuiManager.UiLoopActivity, 0);
         screen.AddSystemMsg(string.IsNullOrEmpty(path)
-            ? "⚠ 状态采集失败（详见 logs/error_*.log）"
-            : $"📋 状态快照已写入: {path}");
+            ? L.Pick("⚠ 状态采集失败（详见 logs/error_*.log）", "⚠ State capture failed (see logs/error_*.log)")
+            : L.Pick($"📋 状态快照已写入: {path}", $"📋 State snapshot written to: {path}"));
         return Task.CompletedTask;
     }
 }

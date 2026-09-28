@@ -52,7 +52,7 @@ public class ReadFileTool : ITool
     {
         var result = ResolveExecute(filePath, offset, limit, tail);
         // 提示注入防护：读取内容含「忽略之前指令/你现在是…」等注入模式时附加警告
-        return result + (WayCoder.Infra.PromptInjection.WarningIfInjected(result, $"文件 {filePath}") ?? "");
+        return result + (WayCoder.Infra.PromptInjection.WarningIfInjected(result, L.Pick($"文件 {filePath}", $"file {filePath}")) ?? "");
     }
 
     private static string ResolveExecute(string filePath, int offset, int limit, int tail)
@@ -60,18 +60,21 @@ public class ReadFileTool : ITool
         try
         {
             if (string.IsNullOrWhiteSpace(filePath))
-                return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+                return L.Pick("错误：file_path 不能为空 — 请提供有效的文件路径。",
+                              "Error: file_path must not be empty - please provide a valid file path.");
 
             var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
             // 敏感路径防护（SSH 密钥/云凭据/系统凭据，防提示注入读泄露）
             var sensitive = PathSafety.CheckSensitive(path);
             if (sensitive != null)
-                return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+                return L.Pick($"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）",
+                              $"❌ Blocked: {sensitive} (security policy: reading and writing sensitive files is protected)");
 
             // 目录检查
             if (Directory.Exists(path))
-                return $"错误：{filePath} 是目录，不是文件";
+                return L.Pick($"错误：{filePath} 是目录，不是文件",
+                              $"Error: {filePath} is a directory, not a file");
 
             // 文件不存在 → "Did you mean?" 建议
             if (!File.Exists(path))
@@ -124,7 +127,8 @@ public class ReadFileTool : ITool
             if (ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".ico" or ".svg")
             {
                 var info = new FileInfo(path);
-                return $"📷 这是一个图片文件: {filePath}\n大小: {FormatUtil.FormatSize(info.Length)}\n格式: {ext.TrimStart('.')}\n\n💡 提示：使用 view 查看或 download 下载。";
+                return L.Pick($"📷 这是一个图片文件: {filePath}\n大小: {FormatUtil.FormatSize(info.Length)}\n格式: {ext.TrimStart('.')}\n\n💡 提示：使用 view 查看或 download 下载。",
+                              $"📷 This is an image file: {filePath}\nSize: {FormatUtil.FormatSize(info.Length)}\nFormat: {ext.TrimStart('.')}\n\n💡 Tip: use view to look at it, or download to save it.");
             }
 
             // ── 普通文本文件 ──
@@ -144,7 +148,8 @@ public class ReadFileTool : ITool
         var info = new FileInfo(path);
         // PDF 文件不再受 100KB 限制
         if (info.Length > 50 * 1024 * 1024)
-            return $"⚠ PDF 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 50 MB）";
+            return L.Pick($"⚠ PDF 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 50 MB）",
+                          $"⚠ PDF file is too large: {FormatUtil.FormatSize(info.Length)} (maximum 50 MB)");
 
         pageLimit = Math.Min(pageLimit, PdfMaxPages);
         var result = PdfExtractor.Extract(path, startPage, pageLimit);
@@ -162,10 +167,11 @@ public class ReadFileTool : ITool
     {
         var fileInfo = new FileInfo(path);
         if (fileInfo.Length > MaxFileSize * 5) // Markdown 给 500KB
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(fileInfo.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize * 5)})");
 
         try { _ = Encoding.UTF8.GetString(File.ReadAllBytes(path)); }
-        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+        catch { return L.Pick($"错误：{path} 不是 UTF-8 文本文件", $"Error: {path} is not a UTF-8 text file"); }
 
         // 文件追踪
         FileTracker.RecordRead(path);
@@ -202,7 +208,8 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine("<markdown>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 行 {start + 1}-{start + chunk.Length} / {allLines.Length}");
+        sb.AppendLine(L.Pick($"文件: {Path.GetFileName(path)} | 行 {start + 1}-{start + chunk.Length} / {allLines.Length}",
+                             $"File: {Path.GetFileName(path)} | lines {start + 1}-{start + chunk.Length} / {allLines.Length}"));
         sb.AppendLine();
 
         foreach (var node in nodes)
@@ -219,7 +226,8 @@ public class ReadFileTool : ITool
                     if (codeLines.Length > 80)
                     {
                         sb.AppendLine(string.Join("\n", codeLines.Take(80)));
-                        sb.AppendLine($"... (省略 {codeLines.Length - 80} 行)");
+                        sb.AppendLine(L.Pick($"... (省略 {codeLines.Length - 80} 行)",
+                                             $"... ({codeLines.Length - 80} lines omitted)"));
                     }
                     else
                         sb.AppendLine(cb.Code.TrimEnd());
@@ -236,7 +244,8 @@ public class ReadFileTool : ITool
                         sb.AppendLine();
                     }
                     if (t.Rows.Count > 30)
-                        sb.AppendLine($"... (省略 {t.Rows.Count - 30} 行)");
+                        sb.AppendLine(L.Pick($"... (省略 {t.Rows.Count - 30} 行)",
+                                             $"... ({t.Rows.Count - 30} lines omitted)"));
                     break;
                 case MdListItem li:
                     var prefix = li.Ordered ? $"{li.OrderNum}. " : "- ";
@@ -254,7 +263,8 @@ public class ReadFileTool : ITool
 
         var hasMore = allLines.Length > start + chunk.Length;
         if (hasMore)
-            sb.AppendLine($"\n(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
+            sb.AppendLine(L.Pick($"\n(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)",
+                                 $"\n(There are more lines. Use offset={start + chunk.Length + 1} to read the rest.)"));
 
         sb.Append("</markdown>");
 
@@ -278,19 +288,22 @@ public class ReadFileTool : ITool
         var fileInfo = new FileInfo(path);
         if (fileInfo.Length > MaxFileSize)
         {
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(fileInfo.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize)}）\n💡 提示：使用 offset/limit 分段读取。",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(fileInfo.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize)})\n💡 Tip: read it in chunks with offset/limit.");
         }
 
         // 读取 + 二进制/UTF-8 验证
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {filePath}"; }
+        catch { return L.Pick($"错误：无法读取 {filePath}", $"Error: could not read {filePath}"); }
 
         if (TextEncoding.IsBinaryContent(raw))
-            return $"错误：{filePath} 是二进制文件（检测到 NUL 字节），read_file 只能读取文本文件";
+            return L.Pick($"错误：{filePath} 是二进制文件（检测到 NUL 字节），read_file 只能读取文本文件",
+                          $"Error: {filePath} is a binary file (NUL bytes detected); read_file can only read text files");
 
         try { _ = new UTF8Encoding(false, true).GetString(raw); }
-        catch { return $"错误：{filePath} 不是 UTF-8 文本文件（read_file 只能读取文本文件）"; }
+        catch { return L.Pick($"错误：{filePath} 不是 UTF-8 文本文件（read_file 只能读取文本文件）",
+                              $"Error: {filePath} is not a UTF-8 text file (read_file can only read text files)"); }
 
         var text = File.ReadAllText(path, Encoding.UTF8);
         var lines = text.Split('\n');
@@ -344,7 +357,8 @@ public class ReadFileTool : ITool
         if (hasMore)
         {
             sb.AppendLine();
-            sb.AppendLine($"(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)");
+            sb.AppendLine(L.Pick($"(文件还有更多行。使用 offset={start + chunk.Length + 1} 读取后续内容)",
+                                 $"(There are more lines. Use offset={start + chunk.Length + 1} to read the rest.)"));
         }
 
         sb.Append("</file>");
@@ -366,7 +380,8 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine($"<{format.ToLower()}>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)} | 格式: {format}");
+        sb.AppendLine(L.Pick($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)} | 格式: {format}",
+                             $"File: {Path.GetFileName(path)} | Size: {FormatUtil.FormatSize(info.Length)} | Format: {format}"));
         sb.AppendLine();
         sb.Append(content);
         sb.AppendLine();
@@ -381,14 +396,15 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(info.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize * 5)})");
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {path}"; }
+        catch { return L.Pick($"错误：无法读取 {path}", $"Error: could not read {path}"); }
 
         try { _ = Encoding.UTF8.GetString(raw); }
-        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+        catch { return L.Pick($"错误：{path} 不是 UTF-8 文本文件", $"Error: {path} is not a UTF-8 text file"); }
 
         FileTracker.RecordRead(path);
         var text = File.ReadAllText(path, Encoding.UTF8);
@@ -396,7 +412,8 @@ public class ReadFileTool : ITool
 
         var sb = new StringBuilder();
         sb.AppendLine("<csv>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
+        sb.AppendLine(L.Pick($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}",
+                             $"File: {Path.GetFileName(path)} | Size: {FormatUtil.FormatSize(info.Length)}"));
         sb.AppendLine();
         sb.Append(table);
         sb.Append("</csv>");
@@ -410,14 +427,15 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(info.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize * 5)})");
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {path}"; }
+        catch { return L.Pick($"错误：无法读取 {path}", $"Error: could not read {path}"); }
 
         if (TextEncoding.IsBinaryContent(raw))
-            return $"错误：{path} 是二进制文件";
+            return L.Pick($"错误：{path} 是二进制文件", $"Error: {path} is a binary file");
 
         FileTracker.RecordRead(path);
         var text = File.ReadAllText(path, Encoding.UTF8);
@@ -428,7 +446,8 @@ public class ReadFileTool : ITool
             if (node != null)
             {
                 var pretty = Json.Serialize(node, indent: true);
-                return $"<json>\n文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}\n\n{pretty}\n</json>";
+                return L.Pick($"<json>\n文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}\n\n{pretty}\n</json>",
+                              $"<json>\nFile: {Path.GetFileName(path)} | Size: {FormatUtil.FormatSize(info.Length)}\n\n{pretty}\n</json>");
             }
         }
         catch { }
@@ -444,21 +463,23 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(info.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize * 5)})");
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {path}"; }
+        catch { return L.Pick($"错误：无法读取 {path}", $"Error: could not read {path}"); }
 
         if (TextEncoding.IsBinaryContent(raw))
-            return $"错误：{path} 是二进制文件";
+            return L.Pick($"错误：{path} 是二进制文件", $"Error: {path} is a binary file");
 
         FileTracker.RecordRead(path);
         var text = File.ReadAllText(path, Encoding.UTF8);
 
         var sb = new StringBuilder();
         sb.AppendLine("<ini>");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
+        sb.AppendLine(L.Pick($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}",
+                             $"File: {Path.GetFileName(path)} | Size: {FormatUtil.FormatSize(info.Length)}"));
         sb.AppendLine();
 
         foreach (var rawLine in text.Split('\n'))
@@ -494,14 +515,15 @@ public class ReadFileTool : ITool
     {
         var info = new FileInfo(path);
         if (info.Length > MaxFileSize * 5)
-            return $"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）";
+            return L.Pick($"⚠ 文件过大: {FormatUtil.FormatSize(info.Length)}（最大 {FormatUtil.FormatSize(MaxFileSize * 5)}）",
+                          $"⚠ File is too large: {FormatUtil.FormatSize(info.Length)} (maximum {FormatUtil.FormatSize(MaxFileSize * 5)})");
 
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {path}"; }
+        catch { return L.Pick($"错误：无法读取 {path}", $"Error: could not read {path}"); }
 
         try { _ = Encoding.UTF8.GetString(raw); }
-        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+        catch { return L.Pick($"错误：{path} 不是 UTF-8 文本文件", $"Error: {path} is not a UTF-8 text file"); }
 
         FileTracker.RecordRead(path);
         var html = File.ReadAllText(path, Encoding.UTF8);
@@ -530,13 +552,16 @@ public class ReadFileTool : ITool
         html = html.Trim();
 
         if (html.Length > 10_000)
-            html = ContextManager.TruncateByRunes(html, 10_000) + $"\n...(截断于 10,000 字符，原始 {info.Length:N0} 字节)";
+            html = ContextManager.TruncateByRunes(html, 10_000)
+                   + L.Pick($"\n...(截断于 10,000 字符，原始 {info.Length:N0} 字节)",
+                            $"\n...(truncated at 10,000 characters; the original is {info.Length:N0} bytes)");
 
         var sb = new StringBuilder();
         sb.AppendLine("<html>");
         if (title != null)
             sb.AppendLine($"# {title}");
-        sb.AppendLine($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}");
+        sb.AppendLine(L.Pick($"文件: {Path.GetFileName(path)} | 大小: {FormatUtil.FormatSize(info.Length)}",
+                             $"File: {Path.GetFileName(path)} | Size: {FormatUtil.FormatSize(info.Length)}"));
         sb.AppendLine();
         sb.Append(html);
         sb.AppendLine();
@@ -554,12 +579,13 @@ public class ReadFileTool : ITool
         var baseName = Path.GetFileName(fullPath);
 
         if (string.IsNullOrEmpty(dir) || string.IsNullOrEmpty(baseName))
-            return $"错误：{originalPath} 未找到";
+            return L.Pick($"错误：{originalPath} 未找到", $"Error: {originalPath} not found");
 
         try
         {
             if (!Directory.Exists(dir))
-                return $"错误：{originalPath} 未找到（目录不存在）";
+                return L.Pick($"错误：{originalPath} 未找到（目录不存在）",
+                              $"Error: {originalPath} not found (the directory does not exist)");
 
             var entries = Directory.GetFileSystemEntries(dir);
             var suggestions = new List<string>();
@@ -583,12 +609,13 @@ public class ReadFileTool : ITool
 
             if (suggestions.Count > 0)
             {
-                return $"错误：{originalPath} 未找到\n\n你想找的是不是？\n{string.Join("\n", suggestions.Select(s => $"  • {s}"))}";
+                return L.Pick($"错误：{originalPath} 未找到\n\n你想找的是不是？\n{string.Join("\n", suggestions.Select(s => $"  • {s}"))}",
+                              $"Error: {originalPath} not found\n\nDid you mean one of these?\n{string.Join("\n", suggestions.Select(s => $"  • {s}"))}");
             }
         }
         catch { }
 
-        return $"错误：{originalPath} 未找到";
+        return L.Pick($"错误：{originalPath} 未找到", $"Error: {originalPath} not found");
     }
 
     private static int ComputeEditDistance(string a, string b)

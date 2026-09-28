@@ -17,46 +17,46 @@ public static class ProjectInitializer
     public static string GenerateAgentMd(ProjectInfo info, string fileName = "AGENT.md")
     {
         var projectName = Path.GetFileName(info.ProjectRoot.TrimEnd('/', '\\'));
-        if (string.IsNullOrWhiteSpace(projectName)) projectName = "项目";
+        if (string.IsNullOrWhiteSpace(projectName)) projectName = L.Pick("项目", "Project");
 
         var sb = new StringBuilder();
         sb.AppendLine($"# {fileName}");
         sb.AppendLine();
-        sb.AppendLine("本文件为 WayCoder（道码）在此仓库中工作时提供指导。");
+        sb.AppendLine(L.Pick("本文件为 WayCoder（道码）在此仓库中工作时提供指导。", "This file gives guidance for working in this repository with WayCoder."));
         sb.AppendLine();
-        sb.AppendLine("## 项目概述");
+        sb.AppendLine(L.Pick("## 项目概述", "## Project overview"));
         sb.AppendLine();
-        sb.AppendLine($"- 项目名: {projectName}");
-        sb.AppendLine($"- 主语言: {info.PrimaryLanguage}");
+        sb.AppendLine(L.Pick($"- 项目名: {projectName}", $"- Project name: {projectName}"));
+        sb.AppendLine(L.Pick($"- 主语言: {info.PrimaryLanguage}", $"- Primary language: {info.PrimaryLanguage}"));
         if (info.Languages.Count > 0)
-            sb.AppendLine($"- 文件分布: {string.Join(", ", info.Languages)}");
+            sb.AppendLine(L.Pick($"- 文件分布: {string.Join(", ", info.Languages)}", $"- File breakdown: {string.Join(", ", info.Languages)}"));
         if (info.Frameworks.Count > 0)
-            sb.AppendLine($"- 框架: {string.Join(", ", info.Frameworks)}");
+            sb.AppendLine(L.Pick($"- 框架: {string.Join(", ", info.Frameworks)}", $"- Frameworks: {string.Join(", ", info.Frameworks)}"));
         if (info.BuildTools.Count > 0)
-            sb.AppendLine($"- 构建工具: {string.Join(", ", info.BuildTools)}");
+            sb.AppendLine(L.Pick($"- 构建工具: {string.Join(", ", info.BuildTools)}", $"- Build tools: {string.Join(", ", info.BuildTools)}"));
         if (info.GitBranch != null)
-            sb.AppendLine($"- Git 分支: {info.GitBranch}");
+            sb.AppendLine(L.Pick($"- Git 分支: {info.GitBranch}", $"- Git branch: {info.GitBranch}"));
         sb.AppendLine();
-        sb.AppendLine("## 常用命令");
+        sb.AppendLine(L.Pick("## 常用命令", "## Common commands"));
         sb.AppendLine();
         sb.AppendLine("```bash");
         foreach (var line in DetectCommands(info.ProjectRoot))
             sb.AppendLine(line);
         sb.AppendLine("```");
         sb.AppendLine();
-        sb.AppendLine("## 架构");
+        sb.AppendLine(L.Pick("## 架构", "## Architecture"));
         sb.AppendLine();
-        sb.AppendLine("<在此补充目录结构与关键模块说明，可运行 /repomap 查看仓库地图>");
+        sb.AppendLine(L.Pick("<在此补充目录结构与关键模块说明，可运行 /repomap 查看仓库地图>", "<Describe the directory layout and key modules here; run /repomap to see the repo map>"));
         sb.AppendLine();
-        sb.AppendLine("## 开发规范");
+        sb.AppendLine(L.Pick("## 开发规范", "## Development conventions"));
         sb.AppendLine();
-        sb.AppendLine("- 提交信息使用 conventional commits（feat/fix/docs/refactor/chore…）");
-        sb.AppendLine("- 每次修改后运行测试与 lint，确保无回归");
-        sb.AppendLine("- 保持注释风格与现有代码一致");
+        sb.AppendLine(L.Pick("- 提交信息使用 conventional commits（feat/fix/docs/refactor/chore…）", "- Use conventional commits for commit messages (feat/fix/docs/refactor/chore...)"));
+        sb.AppendLine(L.Pick("- 每次修改后运行测试与 lint，确保无回归", "- Run tests and lint after every change to avoid regressions"));
+        sb.AppendLine(L.Pick("- 保持注释风格与现有代码一致", "- Keep the comment style consistent with the existing code"));
         sb.AppendLine();
-        sb.AppendLine("## 注意事项");
+        sb.AppendLine(L.Pick("## 注意事项", "## Notes"));
         sb.AppendLine();
-        sb.AppendLine("<在此补充项目特有的坑、约定与边界条件>");
+        sb.AppendLine(L.Pick("<在此补充项目特有的坑、约定与边界条件>", "<Add project-specific pitfalls, conventions and boundary conditions here>"));
         return sb.ToString();
     }
 
@@ -73,25 +73,25 @@ public static class ProjectInitializer
 
         if (!string.IsNullOrEmpty(build))
         {
-            lines.Add("# 构建");
+            lines.Add(L.Pick("# 构建", "# Build"));
             lines.Add(build);
             lines.Add("");
         }
         if (!string.IsNullOrEmpty(test))
         {
-            lines.Add("# 测试");
+            lines.Add(L.Pick("# 测试", "# Test"));
             lines.Add(test);
             lines.Add("");
         }
         if (!string.IsNullOrEmpty(lint))
         {
-            lines.Add("# 静态检查 / 格式化");
+            lines.Add(L.Pick("# 静态检查 / 格式化", "# Lint / format"));
             lines.Add(lint);
         }
 
         // 没有任何可识别的命令时，给一个兜底占位
         if (lines.Count == 0)
-            lines.Add("# 未识别到构建系统，请手动补充常用命令");
+            lines.Add(L.Pick("# 未识别到构建系统，请手动补充常用命令", "# No build system detected; add the common commands manually"));
 
         return lines;
     }

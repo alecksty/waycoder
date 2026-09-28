@@ -123,13 +123,15 @@ public static class WorktreeIsolation
                 try
                 {
                     RunGit("add", "-A", worktreePath);
-                    RunGit("commit", "-m \"WayCoder: worktree 自动提交 (iso)\"", worktreePath);
+                    var isoCommitMsg = L.Pick("WayCoder: worktree 自动提交 (iso)", "WayCoder: worktree auto-commit (iso)");
+                    RunGit("commit", $"-m \"{isoCommitMsg}\"", worktreePath);
                 }
                 catch { /* 忽略 */ }
 
                 _currentWorktree.Value = null;
                 DebugLog.Log("worktree", $"📝 保留 worktree（有变更）: {worktreePath}");
-                return $"⚠ Worktree 有变更，已自动提交并保留在: {worktreePath}";
+                return L.Pick($"⚠ Worktree 有变更，已自动提交并保留在: {worktreePath}",
+                              $"⚠ The worktree had changes; they were committed and kept at: {worktreePath}");
             }
             else
             {
@@ -162,7 +164,7 @@ public static class WorktreeIsolation
         {
             _currentWorktree.Value = null;
             DebugLog.Log("worktree", $"⚠ Worktree 清理异常: {ex.Message}");
-            return $"⚠ Worktree 清理异常: {ex.Message}";
+            return L.Pick($"⚠ Worktree 清理异常: {ex.Message}", $"⚠ Worktree cleanup failed: {ex.Message}");
         }
     }
 

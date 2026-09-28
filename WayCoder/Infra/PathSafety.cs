@@ -51,7 +51,7 @@ public static class PathSafety
     public static string? Guard(string path)
     {
         var sensitive = CheckSensitive(path);
-        if (sensitive != null) return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+        if (sensitive != null) return L.Pick($"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）", $"❌ Blocked: {sensitive} (safety policy: sensitive files are protected against read/write)");
         return SandboxManager.CheckWritable(path);
     }
 
@@ -85,24 +85,24 @@ public static string? CheckSensitive(string fullPath)
         foreach (var sensitive in SensitiveAbsolutePaths)
         {
             if (withSlash.StartsWith(sensitive, StringComparison.OrdinalIgnoreCase))
-                return $"敏感系统路径 {sensitive.TrimEnd('/')}";
+                return L.Pick($"敏感系统路径 {sensitive.TrimEnd('/')}", $"sensitive system path {sensitive.TrimEnd('/')}");
         }
 
         // 2. 文件名精确匹配
         var fileName = Path.GetFileName(normalized);
         if (!string.IsNullOrEmpty(fileName) && SensitiveFileNames.Contains(fileName))
-            return $"敏感文件 {fileName}";
+            return L.Pick($"敏感文件 {fileName}", $"sensitive file {fileName}");
 
         // 3. 扩展名（私钥/证书）
         var ext = Path.GetExtension(normalized);
         if (!string.IsNullOrEmpty(ext) && SensitiveExtensions.Contains(ext))
-            return $"敏感文件类型 {ext}";
+            return L.Pick($"敏感文件类型 {ext}", $"sensitive file type {ext}");
 
         // 4. 目录段匹配（含 .ssh / .aws 等目录下任意文件）
         foreach (var segment in SensitiveDirSegments)
         {
             if (withSlash.Contains(segment, StringComparison.OrdinalIgnoreCase))
-                return $"敏感目录 {segment.Trim('/')}";
+                return L.Pick($"敏感目录 {segment.Trim('/')}", $"sensitive directory {segment.Trim('/')}");
         }
 
         return null;

@@ -183,13 +183,41 @@ public static partial class SelfTest
                             .Set("function", JNode.Object().Set("name", "bash").Set("arguments", "{}")))),
                 ];
 
-                Check("WorkReporter[en]: 认得英文的「Compile failed」错误标记"
-                      + "（只认中文 ⇒ 英文会话的错误数静默少算、报告数字凭空变小）",
-                    WorkReporter.Generate(MsgWith("⚠️ Compile failed: main.c:3:5: error: bad token"))
-                        .Contains("| ❌ 错误 | 1 |"));
-                Check("WorkReporter[zh]: 认得中文的「编译失败」错误标记",
-                    WorkReporter.Generate(MsgWith("⚠️ 编译失败：main.c:3:5: error: bad token"))
-                        .Contains("| ❌ 错误 | 1 |"));
+                // ⚠ 判据是「**错误计数 == 1**」，不是「那一行写着中文」——
+                //   报告表格行本身也随语言走（`| ❌ 错误 |` / `| ❌ Errors |`），
+                //   第一版拿 `Contains("| ❌ 错误 | 1 |")` 断言**英文**报告，
+                //   等于要求"英文报告里必须是中文行"，把 A2 这个缺陷焊死了（实测被 agent 抓到）。
+                //   正确做法：**各自按自己语言的行文案断言**。
+                //
+                // ⚠⚠ 而且这条**必须消费真实生产者**（`VmlDiagnostics.Parse`），不能硬编码那个英文串 ——
+                //   硬编码的话，将来谁把 `VmlDiagnostics` 的措辞改成 `Compilation failed`，
+                //   这条断言照样绿，而 `WorkReporter` 在真实路径上已经瞎了（**判据要盯住接缝，不是盯住字面量**）。
+                //   路径：输入**只有宿主前缀**时，剥掉前缀后正文为空 ⇒ 走 `FirstLine` 的兜底
+                //   `L.Pick("编译失败", "Compile failed")` —— 那正是 `WorkReporter` 要认的那个串。
+                // 生产者 → 消费者**真的串起来**：先让 `VmlDiagnostics` 产出那句话，再喂给 `WorkReporter`。
+                // 输入只有宿主前缀时剥掉前缀后正文为空 ⇒ 走 `FirstLine` 的兜底 `L.Pick("编译失败", "Compile failed")`。
+                // ⚠ 中英**两侧要各自在对应语言下跑** —— 本段整体跑在 `L.Set(En)` 里，
+                //   直接用「中文输入」是取不到中文产物的（`L.Pick` 只看当前语言）。
+                //   第一版就是这么写的，中文侧假红了一次。
+                var producedEn = VmlDiagnostics.Parse("⚠️ Compile failed: ");
+                Check("A2: VmlDiagnostics 在这条路径上确实产出了标记串（否则下面的断言是空转）",
+                    producedEn.Count > 0);
+                if (producedEn.Count > 0)
+                    Check("A2[en]: WorkReporter 认得 VmlDiagnostics **实际产出**的编译失败标记"
+                          + $"（产出「{producedEn[0].Message}」；只认中文 ⇒ 英文会话的错误数静默少算）",
+                        WorkReporter.Generate(MsgWith(producedEn[0].Message)).Contains("| ❌ Errors | 1 |"));
+
+                L.Set(UiLang.Zh);
+                try
+                {
+                    var producedZh = VmlDiagnostics.Parse("⚠️ 编译失败：");
+                    Check("A2[zh]: VmlDiagnostics 在这条路径上产出了中文标记串",
+                        producedZh.Count > 0 && producedZh[0].Message == "编译失败");
+                    if (producedZh.Count > 0)
+                        Check("A2[zh]: WorkReporter 认得 VmlDiagnostics 实际产出的编译失败标记",
+                            WorkReporter.Generate(MsgWith(producedZh[0].Message)).Contains("| ❌ 错误 | 1 |"));
+                }
+                finally { L.Set(UiLang.En); }
             }
 
             // 教学模式块是**按开关追加**的，单独取一次（默认不开，上面那条走不到它）

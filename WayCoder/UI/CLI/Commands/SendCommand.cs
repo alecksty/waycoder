@@ -13,8 +13,8 @@ public class SendCommand : SlashCommand
 {
     public override string Name => "/send";
     public override string[] Aliases => ["/发送", "/to"];
-    public override string Description => "向其他 Agent 槽位发送消息（多 Agent 协作）";
-    public override string? Usage => "/send <槽位号> <消息>";
+    public override string Description => L.Pick("向其他 Agent 槽位发送消息（多 Agent 协作）", "Send a message to another agent slot (multi-agent collaboration)");
+    public override string? Usage => L.Pick("/send <槽位号> <消息>", "/send <slot> <message>");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
@@ -37,13 +37,13 @@ public class SendCommand : SlashCommand
 
         if (string.IsNullOrWhiteSpace(message))
         {
-            screen.AddSystemMsg("⚠ 消息不能为空。用法: /send <槽位号> <消息>");
+            screen.AddSystemMsg(L.Pick("⚠ 消息不能为空。用法: /send <槽位号> <消息>", "⚠ Message cannot be empty. Usage: /send <slot> <message>"));
             return Task.CompletedTask;
         }
 
         if (!int.TryParse(slotStr, out var slotNum) || slotNum < 1 || slotNum > AgentSlot.Count)
         {
-            screen.AddSystemMsg($"⚠ 无效的槽位号: {slotStr}（有效范围: 1-{AgentSlot.Count}）");
+            screen.AddSystemMsg(L.Pick($"⚠ 无效的槽位号: {slotStr}（有效范围: 1-{AgentSlot.Count}）", $"⚠ Invalid slot number: {slotStr} (valid range: 1-{AgentSlot.Count})"));
             return Task.CompletedTask;
         }
 
@@ -52,7 +52,7 @@ public class SendCommand : SlashCommand
 
         if (targetIdx == currentIdx)
         {
-            screen.AddSystemMsg("⚠ 不能给自己发送消息。请指定其他槽位号。");
+            screen.AddSystemMsg(L.Pick("⚠ 不能给自己发送消息。请指定其他槽位号。", "⚠ You cannot send a message to yourself. Pick another slot."));
             return Task.CompletedTask;
         }
 
@@ -60,13 +60,13 @@ public class SendCommand : SlashCommand
         var slots = Program.GetSlots();
         if (targetIdx >= slots.Length || slots[targetIdx] == null)
         {
-            screen.AddSystemMsg($"⚠ 槽位 F{slotNum} 尚未初始化。请先切换到该槽位激活。");
+            screen.AddSystemMsg(L.Pick($"⚠ 槽位 F{slotNum} 尚未初始化。请先切换到该槽位激活。", $"⚠ Slot F{slotNum} is not initialized yet. Switch to that slot first to activate it."));
             return Task.CompletedTask;
         }
 
         slots[targetIdx].DeliverMessage(currentIdx, message, screen, targetIdx);
 
-        screen.AddSystemMsg($"📨 **已发送** → F{slotNum}: {message}");
+        screen.AddSystemMsg(L.Pick($"📨 **已发送** → F{slotNum}: {message}", $"📨 **Sent** → F{slotNum}: {message}"));
         return Task.CompletedTask;
     }
 
@@ -74,17 +74,17 @@ public class SendCommand : SlashCommand
     {
         var lines = new List<string>
         {
-            "**📨 /send — 跨槽位消息传递**",
+            L.Pick("**📨 /send — 跨槽位消息传递**", "**📨 /send — cross-slot messaging**"),
             "",
-            "用法: `/send <槽位号> <消息>`",
-            "示例: `/send 2 帮我审查这段代码的安全性`",
-            "示例: `/send 3 你那边编译通过了吗？`",
+            L.Pick("用法: `/send <槽位号> <消息>`", "Usage: `/send <slot> <message>`"),
+            L.Pick("示例: `/send 2 帮我审查这段代码的安全性`", "Example: `/send 2 review this code for security issues`"),
+            L.Pick("示例: `/send 3 你那边编译通过了吗？`", "Example: `/send 3 did the build pass on your side?`"),
             "",
-            "**相关命令**：",
-            "- `/broadcast <消息>` — 向所有其他槽位广播",
-            "- `F1-F10` 切换槽位查看接收的消息",
+            L.Pick("**相关命令**：", "**Related commands**:"),
+            L.Pick("- `/broadcast <消息>` — 向所有其他槽位广播", "- `/broadcast <message>` — broadcast to all other slots"),
+            L.Pick("- `F1-F10` 切换槽位查看接收的消息", "- `F1-F10` switch slots to read incoming messages"),
             "",
-            $"有效槽位: F1 - F{AgentSlot.Count}",
+            L.Pick($"有效槽位: F1 - F{AgentSlot.Count}", $"Valid slots: F1 - F{AgentSlot.Count}"),
         };
         screen.AddMessage(string.Join("\n", lines), "system");
     }
@@ -97,14 +97,14 @@ public class BroadcastCommand : SlashCommand
 {
     public override string Name => "/broadcast";
     public override string[] Aliases => ["/广播", "/bc"];
-    public override string Description => "向所有 Agent 槽位广播消息";
-    public override string? Usage => "/broadcast <消息>";
+    public override string Description => L.Pick("向所有 Agent 槽位广播消息", "Broadcast a message to all agent slots");
+    public override string? Usage => L.Pick("/broadcast <消息>", "/broadcast <message>");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         if (string.IsNullOrWhiteSpace(args))
         {
-            screen.AddSystemMsg("⚠ 消息不能为空。用法: /broadcast <消息>");
+            screen.AddSystemMsg(L.Pick("⚠ 消息不能为空。用法: /broadcast <消息>", "⚠ Message cannot be empty. Usage: /broadcast <message>"));
             return Task.CompletedTask;
         }
 
@@ -124,12 +124,12 @@ public class BroadcastCommand : SlashCommand
 
         if (delivered.Count == 0)
         {
-            screen.AddSystemMsg("⚠ 没有其他已初始化的槽位可接收消息。");
+            screen.AddSystemMsg(L.Pick("⚠ 没有其他已初始化的槽位可接收消息。", "⚠ No other initialized slots can receive the message."));
         }
         else
         {
             var slotList = string.Join(", ", delivered.Select(n => $"F{n}"));
-            screen.AddSystemMsg($"📣 **广播已发送** → {slotList}: {message}");
+            screen.AddSystemMsg(L.Pick($"📣 **广播已发送** → {slotList}: {message}", $"📣 **Broadcast sent** → {slotList}: {message}"));
         }
 
         return Task.CompletedTask;

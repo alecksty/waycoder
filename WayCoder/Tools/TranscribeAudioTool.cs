@@ -48,7 +48,8 @@ public class TranscribeAudioTool : ITool
         var apiKey = Config.Instance.WhisperApiKey;
         if (string.IsNullOrWhiteSpace(apiKey)) apiKey = Config.Instance.ApiKey;
         if (string.IsNullOrWhiteSpace(apiKey))
-            return "错误：未配置 API Key。请设置 WAYCODER_WHISPER_API_KEY 或 WAYCODER_API_KEY 后重试。";
+            return L.Pick("错误：未配置 API Key。请设置 WAYCODER_WHISPER_API_KEY 或 WAYCODER_API_KEY 后重试。",
+                          "Error: no API key configured. Set WAYCODER_WHISPER_API_KEY or WAYCODER_API_KEY and retry.");
 
         var baseUrl = ModelCatalog.NormalizeBaseUrl(Config.Instance.WhisperBaseUrl ?? "https://api.openai.com");
         var endpoint = $"{baseUrl}/v1/audio/transcriptions";
@@ -59,7 +60,8 @@ public class TranscribeAudioTool : ITool
         {
             var bytes = await File.ReadAllBytesAsync(fullPath);
             if (bytes.Length > MaxBytes)
-                return $"错误：音频过大（{bytes.Length / 1024 / 1024} MB），Whisper 上限 25MB。";
+                return L.Pick($"错误：音频过大（{bytes.Length / 1024 / 1024} MB），Whisper 上限 25MB。",
+                              $"Error: audio file is too large ({bytes.Length / 1024 / 1024} MB); the Whisper limit is 25MB.");
 
             var ext = Path.GetExtension(fullPath).TrimStart('.').ToLowerInvariant();
             var fileName = Path.GetFileName(fullPath);
@@ -82,22 +84,25 @@ public class TranscribeAudioTool : ITool
             var body = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                return $"转录失败（HTTP {(int)response.StatusCode}）：{ContextManager.TruncateWithEllipsis(body, 300)}";
+                return L.Pick($"转录失败（HTTP {(int)response.StatusCode}）：{ContextManager.TruncateWithEllipsis(body, 300)}",
+                              $"Transcription failed (HTTP {(int)response.StatusCode}): {ContextManager.TruncateWithEllipsis(body, 300)}");
 
             var json = Json.Parse(body);
             var text = json?["text"]?.AsString();
             if (string.IsNullOrWhiteSpace(text))
-                return $"转录返回空文本。原始响应：{ContextManager.TruncateWithEllipsis(body, 200)}";
+                return L.Pick($"转录返回空文本。原始响应：{ContextManager.TruncateWithEllipsis(body, 200)}",
+                              $"Transcription returned empty text. Raw response: {ContextManager.TruncateWithEllipsis(body, 200)}");
 
             return text.Trim();
         }
         catch (TaskCanceledException)
         {
-            return "错误：转录请求超时（180 秒）。";
+            return L.Pick("错误：转录请求超时（180 秒）。", "Error: the transcription request timed out (180s).");
         }
         catch (Exception ex)
         {
-            return $"转录出错：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"转录出错：{ex.GetType().Name}: {ex.Message}",
+                          $"Transcription error: {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -107,11 +112,17 @@ public class TranscribeAudioTool : ITool
 
     /// <summary>转录结果是否为错误文本（成功返回任意转录内容，不含这些前缀）。
     /// 覆盖 <see cref="ExecuteAsync"/> 的各错误出口前缀。纯逻辑便于自测，Web/移动端共用。</summary>
+    // ⚠ 判据必须**中英都认**：上面各错误出口已双语化，只认中文的话英文界面下判据恒假
+    //   ⇒ Web/移动端会把「转录失败」当成功文本贴进对话（公理 A2：拿文案当判据，两侧一起改）。
     public static bool IsTranscribeError(string text)
         => text.StartsWith("错误", StringComparison.Ordinal)
+        || text.StartsWith("Error: ", StringComparison.Ordinal)
         || text.StartsWith("转录失败", StringComparison.Ordinal)
+        || text.StartsWith("Transcription failed", StringComparison.Ordinal)
         || text.StartsWith("转录出错", StringComparison.Ordinal)
-        || text.StartsWith("转录返回空文本", StringComparison.Ordinal);
+        || text.StartsWith("Transcription error", StringComparison.Ordinal)
+        || text.StartsWith("转录返回空文本", StringComparison.Ordinal)
+        || text.StartsWith("Transcription returned empty text", StringComparison.Ordinal);
 
     /// <summary>校验音频路径，返回绝对路径；非法时返回 null 并在 error 中说明。</summary>
     internal static string? ValidateAudioFile(string path, out string error)
@@ -119,21 +130,23 @@ public class TranscribeAudioTool : ITool
         error = "";
         if (string.IsNullOrWhiteSpace(path))
         {
-            error = "错误：path 参数不能为空";
+            error = L.Pick("错误：path 参数不能为空", "Error: the path parameter cannot be empty");
             return null;
         }
 
         var fullPath = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
         if (!File.Exists(fullPath))
         {
-            error = $"错误：音频文件不存在 — {fullPath}";
+            error = L.Pick($"错误：音频文件不存在 — {fullPath}",
+                           $"Error: audio file not found - {fullPath}");
             return null;
         }
 
         var ext = Path.GetExtension(fullPath).TrimStart('.').ToLowerInvariant();
         if (!IsSupportedAudioExtension(ext))
         {
-            error = $"错误：不支持的音频格式 '.{ext}'（支持 mp3/wav/m4a/flac/ogg/webm 等）";
+            error = L.Pick($"错误：不支持的音频格式 '.{ext}'（支持 mp3/wav/m4a/flac/ogg/webm 等）",
+                           $"Error: unsupported audio format '.{ext}' (supported: mp3/wav/m4a/flac/ogg/webm, etc.)");
             return null;
         }
 

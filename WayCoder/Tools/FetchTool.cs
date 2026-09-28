@@ -71,11 +71,13 @@ public class FetchTool : ITool, ICancellableTool
     private static async Task<string> Execute(string url, int maxChars, string format, string method, Dictionary<string, string>? headers, string? body, CancellationToken cancellationToken)
     {
         if (!url.StartsWith("http://") && !url.StartsWith("https://"))
-            return "错误：URL 必须以 http:// 或 https:// 开头";
+            return L.Pick("错误：URL 必须以 http:// 或 https:// 开头",
+                          "Error: the URL must start with http:// or https://");
 
         var methodUpper = method.Trim().ToUpperInvariant();
         if (methodUpper is not ("GET" or "POST" or "PUT" or "DELETE" or "PATCH" or "HEAD" or "OPTIONS"))
-            return $"错误：不支持的 HTTP 方法 '{method}'（支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS）";
+            return L.Pick($"错误：不支持的 HTTP 方法 '{method}'（支持 GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS）",
+                          $"Error: unsupported HTTP method '{method}' (supported: GET/POST/PUT/DELETE/PATCH/HEAD/OPTIONS)");
 
         try
         {
@@ -107,7 +109,8 @@ public class FetchTool : ITool, ICancellableTool
             }
 
             if (!contentType.Contains("text/html") && !contentType.Contains("text/plain"))
-                return $"错误：不支持的内容类型 '{contentType}'（仅支持 HTML/纯文本/JSON）";
+                return L.Pick($"错误：不支持的内容类型 '{contentType}'（仅支持 HTML/纯文本/JSON）",
+                              $"Error: unsupported content type '{contentType}' (only HTML/plain text/JSON are supported)");
 
             var html = await response.Content.ReadAsStringAsync(cancellationToken);
             var text = format == "markdown" ? ConvertToMarkdown(html) : HtmlText.StripHtml(html);
@@ -124,10 +127,13 @@ public class FetchTool : ITool, ICancellableTool
                 var lastSpace = text.LastIndexOf(' ');
                 if (lastSpace > maxChars * 3 / 4)
                     text = text[..lastSpace];
-                text += $"\n\n... (已截断，原始约 {originalLen} 字符)";
+                text += L.Pick($"\n\n... (已截断，原始约 {originalLen} 字符)",
+                               $"\n\n... (truncated; originally about {originalLen} characters)");
             }
 
-            return string.IsNullOrWhiteSpace(text) ? "（页面无文本内容）" : text.Trim();
+            return string.IsNullOrWhiteSpace(text)
+                ? L.Pick("（页面无文本内容）", "(the page has no text content)")
+                : text.Trim();
         }
         catch (SsgfBlockedException ex)
         {
@@ -135,7 +141,8 @@ public class FetchTool : ITool, ICancellableTool
         }
         catch (HttpRequestException ex)
         {
-            return $"请求失败：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"请求失败：{ex.GetType().Name}: {ex.Message}",
+                          $"Request failed: {ex.GetType().Name}: {ex.Message}");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -144,11 +151,12 @@ public class FetchTool : ITool, ICancellableTool
         catch (TaskCanceledException)
         {
             ErrorLog.ToolError("fetch", $"请求超时（{Config.Instance.FetchTimeoutSec} 秒）");
-            return $"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）";
+            return L.Pick($"错误：请求超时（{Config.Instance.FetchTimeoutSec} 秒）",
+                          $"Error: the request timed out ({Config.Instance.FetchTimeoutSec}s)");
         }
         catch (Exception ex)
         {
-            return ToolErrors.Error("抓取", ex);
+            return ToolErrors.Error(L.Pick("抓取", "fetch "), ex);
         }
     }
 
@@ -240,12 +248,15 @@ public class FetchTool : ITool, ICancellableTool
             var node = Json.Parse(json);
             var pretty = node == null ? json : Json.Serialize(node, indent: true);
             if (pretty.Length > maxChars)
-                pretty = ContextManager.TruncateByRunes(pretty, maxChars) + "\n... (已截断)";
+                pretty = ContextManager.TruncateByRunes(pretty, maxChars)
+                         + L.Pick("\n... (已截断)", "\n... (truncated)");
             return pretty;
         }
         catch
         {
-            return json.Length > maxChars ? ContextManager.TruncateByRunes(json, maxChars) + "\n... (已截断)" : json;
+            return json.Length > maxChars
+                ? ContextManager.TruncateByRunes(json, maxChars) + L.Pick("\n... (已截断)", "\n... (truncated)")
+                : json;
         }
     }
 }

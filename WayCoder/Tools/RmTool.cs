@@ -33,7 +33,7 @@ public class RmTool : ITool
         var recursive = arguments.TryGetValue("recursive", out var r) && r is bool rb && rb;
 
         if (string.IsNullOrWhiteSpace(path))
-            return Task.FromResult("错误：path 参数不能为空");
+            return Task.FromResult(L.Pick("错误：path 参数不能为空", "Error: the path parameter cannot be empty"));
 
         return Task.FromResult(Execute(path, recursive));
     }
@@ -66,19 +66,19 @@ public class RmTool : ITool
                 {
                     var hasContent = Directory.GetFileSystemEntries(fullPath).Length > 0;
                     if (hasContent)
-                        return $"⚠ 目录非空，请使用 recursive=true 确认递归删除: {fullPath}";
+                        return L.Pick($"⚠ 目录非空，请使用 recursive=true 确认递归删除: {fullPath}", $"⚠ Directory is not empty; pass recursive=true to delete it recursively: {fullPath}");
                 }
                 Directory.Delete(fullPath, recursive);
-                return $"✔ 已删除目录: {fullPath}";
+                return L.Pick($"✔ 已删除目录: {fullPath}", $"✔ Deleted directory: {fullPath}");
             }
 
             if (File.Exists(fullPath))
             {
                 File.Delete(fullPath);
-                return $"✔ 已删除文件: {fullPath}";
+                return L.Pick($"✔ 已删除文件: {fullPath}", $"✔ Deleted file: {fullPath}");
             }
 
-            return $"错误：路径不存在 — {fullPath}";
+            return L.Pick($"错误：路径不存在 — {fullPath}", $"Error: path does not exist - {fullPath}");
         }
         catch (Exception ex)
         {

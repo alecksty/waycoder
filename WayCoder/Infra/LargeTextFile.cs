@@ -366,7 +366,8 @@ public sealed class IndexedTextSource : ITextSource
     }
 
     public string ReadAll() => throw new NotSupportedException(
-        "索引型大文件不提供全量读取 —— 正是这一点让它能打开 100MB 而不 OOM");
+        L.Pick("索引型大文件不提供全量读取 —— 正是这一点让它能打开 100MB 而不 OOM",
+               "Indexed large files do not offer a full read - that is exactly what lets this open 100MB without running out of memory"));
 
     public void Dispose()
     {
@@ -400,7 +401,7 @@ public static class TextSourceFactory
     public static async Task<(ITextSource? Source, string Reason)> OpenAsync(
         string path, long editableMaxBytes = 2L * 1024 * 1024, CancellationToken ct = default)
     {
-        if (!File.Exists(path)) return (null, "文件不存在");
+        if (!File.Exists(path)) return (null, L.Pick("文件不存在", "File does not exist"));
 
         long length = new FileInfo(path).Length;
         if (length == 0) return (new MemoryTextSource("", "UTF-8", false, 0), "");
@@ -413,7 +414,8 @@ public static class TextSourceFactory
         if (bomEnc != null && bomEnc.CodePage is 12000 or 12001 or 1201 or 1200)
         {
             if (length > MemoryModeMaxBytes)
-                return (null, $"{bomName} 编码的大文件暂不支持（{FormatSize(length)}）");
+                return (null, L.Pick($"{bomName} 编码的大文件暂不支持（{FormatSize(length)}）",
+                                     $"Large {bomName}-encoded files are not supported yet ({FormatSize(length)})"));
             var detected = TextEncoding.ReadFile(path);
             return (new MemoryTextSource(detected.Text, detected.EncodingName,
                 detected.Text.Contains("\r\n"), length, detected.Encoding), "");
@@ -421,7 +423,7 @@ public static class TextSourceFactory
 
         // ② 二进制：前 4KB 含 NUL 即判非文本（复用既有判据）
         if (TextEncoding.IsBinaryContent(probe))
-            return (null, "这是二进制文件");
+            return (null, L.Pick("这是二进制文件", "This is a binary file"));
 
         // ③ 定编码：BOM 优先；无 BOM 时用**采样试解**（见 IsValidUtf8Prefix 的说明）
         Encoding encoding;
@@ -456,7 +458,8 @@ public static class TextSourceFactory
         if (src.TooManyLines)
         {
             src.Dispose();
-            return (null, $"行数超过 {IndexedTextSource.MaxIndexedLines / 1_000_000 * 100} 万行，无法建立索引");
+            return (null, L.Pick($"行数超过 {IndexedTextSource.MaxIndexedLines / 1_000_000 * 100} 万行，无法建立索引",
+                                 $"More than {IndexedTextSource.MaxIndexedLines:N0} lines; cannot build an index"));
         }
         return (src, "");
     }

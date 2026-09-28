@@ -289,7 +289,7 @@ public static class SessionManager
 
         // 路径穿越防护
         if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("无效的会话 ID");
+            throw new ArgumentException(L.Pick("无效的会话 ID", "Invalid session ID"));
 
         return path;
     }

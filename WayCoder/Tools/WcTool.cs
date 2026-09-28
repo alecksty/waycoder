@@ -39,7 +39,8 @@ public class WcTool : ITool
             {
                 if (PathGuard.RequireFile(file) is { } e) return e;
                 var stats = CountFile(file);
-                return $"{stats.Lines,8} 行  {stats.Words,8} 词  {stats.Chars,8} 字符  {stats.Bytes,10} 字节  {file}";
+                return L.Pick($"{stats.Lines,8} 行  {stats.Words,8} 词  {stats.Chars,8} 字符  {stats.Bytes,10} 字节  {file}",
+                              $"{stats.Lines,8} lines  {stats.Words,8} words  {stats.Chars,8} chars  {stats.Bytes,10} bytes  {file}");
             }
 
             // Glob 批量模式
@@ -52,11 +53,12 @@ public class WcTool : ITool
                 CollectFiles(path, glob, files, 200);
 
                 if (files.Count == 0)
-                    return $"未找到匹配 '{glob}' 的文件";
+                    return L.Pick($"未找到匹配 '{glob}' 的文件", $"No files matching '{glob}' found");
 
                 var sb = new StringBuilder();
-                sb.AppendLine($"## wc: {glob}  ({files.Count} 个文件)");
-                sb.AppendLine($"{"行数",8}  {"词数",8}  {"字符数",8}  {"字节数",10}  文件");
+                sb.AppendLine(L.Pick($"## wc: {glob}  ({files.Count} 个文件)", $"## wc: {glob}  ({files.Count} files)"));
+                sb.AppendLine(L.Pick($"{"行数",8}  {"词数",8}  {"字符数",8}  {"字节数",10}  文件",
+                                     $"{"Lines",8}  {"Words",8}  {"Chars",8}  {"Bytes",10}  File"));
                 sb.AppendLine(new string('-', 60));
 
                 long totalLines = 0, totalWords = 0, totalChars = 0, totalBytes = 0;
@@ -73,12 +75,14 @@ public class WcTool : ITool
                 }
 
                 sb.AppendLine(new string('-', 60));
-                sb.AppendLine($"{totalLines,8}  {totalWords,8}  {totalChars,8}  {totalBytes,10}  总计");
+                sb.AppendLine(L.Pick($"{totalLines,8}  {totalWords,8}  {totalChars,8}  {totalBytes,10}  总计",
+                                     $"{totalLines,8}  {totalWords,8}  {totalChars,8}  {totalBytes,10}  Total"));
 
                 return sb.ToString().TrimEnd();
             }
 
-            return "错误：请指定 file 或 glob 参数";
+            return L.Pick("错误：请指定 file 或 glob 参数",
+                          "Error: please specify either the file or the glob parameter");
         }
         catch (Exception ex)
         {

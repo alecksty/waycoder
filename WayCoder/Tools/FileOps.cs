@@ -8,7 +8,8 @@ public static class FileOps
     /// </summary>
     public static void CopyDirectory(string srcDir, string destDir, bool overwrite, int depth = 0)
     {
-        if (depth > 64) throw new IOException("目录层级过深（>64 层），已中止");
+        if (depth > 64) throw new IOException(
+            L.Pick("目录层级过深（>64 层），已中止", "Directory nesting too deep (>64 levels); aborted"));
         Directory.CreateDirectory(destDir);
         foreach (var file in Directory.GetFiles(srcDir))
             File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite);

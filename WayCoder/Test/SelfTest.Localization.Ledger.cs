@@ -45,7 +45,8 @@ public static partial class SelfTest
     /// <param name="ScanXaml">是否也扫 `.xaml`（只有 MAUI 侧有界面标记）。</param>
     private sealed record LedgerScope(
         string Title, string LedgerRelPath, string ScanRootRelPath,
-        string[] ExcludeSegments, bool ScanXaml, string Note);
+        string[] ExcludeSegments, bool ScanXaml, string Note,
+        string[]? IncludeOverrides = null);
 
     /// <summary>MAUI 侧：手机界面自己的文案（Batch 3 已收尾，剩下的是有意保留）。</summary>
     private static readonly LedgerScope MauiScope = new(
@@ -58,22 +59,48 @@ public static partial class SelfTest
         Note: "台账内剩下的全是**有意保留**的（日志/判据/存储值/#if DEBUG/图标字形），每行都有理由。");
 
     /// <summary>
-    /// 共享层：**编译进手机**的那部分 `WayCoder/**`（Batch 2）。
+    /// 共享层：**MAUI 真正编译到**的那部分 `WayCoder/**`（Batch 2）。
     ///
     /// <para>
-    /// ⚠ **边界要说清，免得当成"全都管了"**：这里排除了 `UI/TUI/**`（终端界面）、
-    /// `UI/WEB/**`（浏览器前端）、`Config/**`（设置项标签，已核实 MAUI 一行都不消费它们）——
-    /// 三者都是**桌面外壳**，属方案里更后面的批次。排除的代价是它们成了盲区，
-    /// 但把它们塞进这份台账会让"还剩多少"这个数失去意义（手机上看不见的东西和看得见的混在一起）。
+    /// ⚠ 这个范围**必须与 `WayCoder.Maui.csproj` 的 `Compile Include/Exclude` 一致** ——
+    /// 第一版只按"看起来像桌面外壳"排除了 `UI/TUI/`、`UI/WEB/`、`Config/`，
+    /// 结果两头都错，而且**两个错都是子智能体读代码时发现的**（不是靠人眼）：
+    /// </para>
+    /// <list type="bullet">
+    /// <item><b>漏排除</b>：`Program*.cs`、`UI/CLI/Arguments/**`、`Batch/**`、`Watch/**` 等
+    ///   MAUI **明确不编**，它们混进台账会让"还剩多少"失去意义（手机上看不见的和看得见的混在一起数）。</item>
+    /// <item><b>误排除</b>：`UI/TUI/Edit/**` 被 csproj **显式加回**（编辑器数据核心），
+    ///   `Config/Global.cs` 的 `AppFullName` 会显示在 `/about` 里 ⇒ 前者成了"手机英文界面下真的坏掉、
+    ///   台账却不红"的**盲区**（实测 `DiagnosticManager` 的三条守卫就是这么漏的）。</item>
+    /// </list>
+    /// <para>
+    /// ⇒ 排除项照抄 csproj；`UI/TUI/Edit/**` 走 `IncludeOverrides` 收回来。
+    /// ⚠ **改 csproj 的编译集时要回来同步这里** —— 否则台账会静默地开始撒谎。
     /// </para>
     /// </summary>
     private static readonly LedgerScope SharedScope = new(
-        "双语化台账：共享层（编译进手机的 WayCoder/**）仍含中文的文件",
+        "双语化台账：共享层（MAUI 实际编译的 WayCoder/**）仍含中文的文件",
         "WayCoder/Test/i18n-shared-ledger.txt",
         "WayCoder",
-        ["/obj/", "/bin/", "/Test/", "/UI/TUI/", "/UI/WEB/", "/Config/"],
+        [
+            // 目录级：照抄 WayCoder.Maui.csproj 的 Exclude
+            "/obj/", "/bin/", "/Test/", "/UI/CLI/Arguments/", "/Plugins/", "/Properties/",
+            "/WayEngine/", "/game/", "/games/", "/lottery/", "/subs/", "/works/", "/SnakeGame/",
+            "/UI/WEB/", "/UI/TUI/", "/Batch/", "/Watch/", "/demo/",
+            // 单文件级（csproj 里逐个数出来的；用 `/` 前后包住避免误伤同名前缀）
+            "/Program.cs", "/Program.Repl.cs", "/Program.Output.cs", "/Program.Commands.cs",
+            "/git/GitRunner.cs", "/Config/ThemeConfig.cs", "/Agent/AgentSlot.cs",
+            "/Tools/ToolRegistry.cs", "/Tools/BashTool.cs", "/Tools/GitTool.cs", "/Tools/GitPRTool.cs",
+            "/Tools/LspTool.cs", "/Tools/LintTool.cs", "/Tools/PsTool.cs", "/Tools/KillTool.cs",
+            "/Tools/ScreenshotTool.cs", "/Tools/SqliteTool.cs", "/Tools/TestTool.cs",
+            "/Tools/JobOutputTool.cs", "/Tools/JobKillTool.cs",
+            "/UI/CLI/Commands/SyncQrCommand.cs",
+            // ⚠ `Config/` 其余部分**被 MAUI 消费**（`Global.cs` 的 AppFullName 显示在 /about）⇒ 不排除。
+        ],
         ScanXaml: false,
-        Note: "共享层的文案手机与桌面共用 —— 手机上工具输出/报错直接显示给用户，桌面上同理。");
+        Note: "共享层的文案手机与桌面共用 —— 手机上工具输出/报错直接显示给用户。",
+        // MAUI 显式加回的那一块（csproj：`<Compile Include="../WayCoder/UI/TUI/Edit/**/*.cs" />`）
+        IncludeOverrides: ["/UI/TUI/Edit/"]);
 
     /// <summary>
     /// 从仓库里扫出「含未迁移中文的文件」并与台账对账。两个方向都会红。
@@ -109,8 +136,10 @@ public static partial class SelfTest
         foreach (var file in Directory.EnumerateFiles(scanRoot, "*.*", SearchOption.AllDirectories))
         {
             var rel = Path.GetRelativePath(root, file).Replace('\\', '/');
-            if (scope.ExcludeSegments.Any(seg => rel.Contains(seg, StringComparison.OrdinalIgnoreCase)))
-                continue;
+            var excluded = scope.ExcludeSegments.Any(seg => rel.Contains(seg, StringComparison.OrdinalIgnoreCase));
+            // 显式加回：csproj 排除了整个目录、又单独 `<Compile Include>` 回一两块时用（如 UI/TUI/Edit）。
+            var reIncluded = scope.IncludeOverrides?.Any(seg => rel.Contains(seg, StringComparison.OrdinalIgnoreCase)) == true;
+            if (excluded && !reIncluded) continue;
 
             var ext = Path.GetExtension(file);
             bool isCs = ext.Equals(".cs", StringComparison.OrdinalIgnoreCase);
@@ -223,6 +252,18 @@ public static partial class SelfTest
             ("插值字符串 $\"\" → 命中",              "var a = $\"中文{x}\";",                true),
             ("原始字符串 \"\"\"\"\"\" → 命中",       "var a = \"\"\"中文\"\"\";",            true),
             ("字符字面量 '中' → 不命中",             "var c = '中';",                        false),
+            // ── 插值孔（`{…}` 里是**代码**）────────────────────────────────────────
+            // ⚠ 这一组是**补一个真实漏报**：按「引号即字面量边界」走的扫描器会在孔内那个引号处
+            //   提前收尾，剩下的中文被当成标识符（`char.IsAlpha` 对汉字为真）⇒ 整条串**零命中**。
+            //   实测由子智能体发现（它在 `Program.Commands.cs` 踩到），它同时指出：**别的 agent 报
+            //   「已翻到 0」的文件未必真是 0** —— 一个会说谎的闸门比没有闸门更糟。
+            ("孔里的字面量 → 命中",                  "var a = $\"{\"中文\",-8}\";",           true),
+            ("孔里带对齐的多个字面量 → 命中",         "var a = $\"{\"行数\",8}{\"词数\",8}\";", true),
+            ("孔里的中文格式串 → 命中",              "var a = $\"{d:yyyy年}\";",              true),
+            ("孔里三元里的中文字面量 → 命中",         "var a = $\"{(f ? \"中文\" : \"en\")}\";", true),
+            ("孔里只有标识符 → 不命中",              "var a = $\"{name}\";",                  false),
+            ("`{{` 是字面量大括号不是孔 → 不命中",    "var a = $\"{{x}}\";",                   false),
+            ("孔里嵌插值串的中文 → 命中",            "var a = $\"{$\"内{中文}\"}\";",           true),
             ("只有注释的文件 → 不命中",              "// 中文\n/// 中文\n/* 中文 */",        false),
             ("空文件 → 不命中",                      "",                                     false),
         };
@@ -319,13 +360,19 @@ public static partial class SelfTest
 
             // 字符串前缀
             bool verbatim = false;
+            bool interpolated = false;   // 有 `$` ⇒ 串里有 `{…}` 插值孔，孔里**是代码**（可含嵌套字面量）
+            int dollars = 0;             // 原始插值串的 `$` 个数决定孔的定界（`$$"""` 的孔是 `{{…}}`）
             int p = i;
             if (src[p] == '@' && p + 1 < n && src[p + 1] == '"') { verbatim = true; p++; }
-            else if (src[p] == '@' && p + 2 < n && src[p + 1] == '$' && src[p + 2] == '"') { verbatim = true; p += 2; }
+            else if (src[p] == '@' && p + 2 < n && src[p + 1] == '$' && src[p + 2] == '"')
+            { verbatim = true; interpolated = true; dollars = 1; p += 2; }
             else if (src[p] == '$')
             {
+                int d0 = p;
                 int k = p;
                 while (k < n && src[k] == '$') k++;                   // $$""" 原始插值：$ 可以有多个
+                dollars = k - d0;
+                interpolated = true;
                 if (k < n && src[k] == '@') { verbatim = true; k++; }
                 if (k < n && src[k] == '"') p = k;
                 else { i++; if (!char.IsWhiteSpace(c)) pendingPick = false; continue; }
@@ -363,12 +410,25 @@ public static partial class SelfTest
                         if (s + 1 < n && src[s + 1] == '"') { sb.Append('"'); s += 2; continue; }
                         break;
                     }
+                    // 逐字插值串 `$@"…"` 也能有孔
+                    if (interpolated && ch == '{')
+                    {
+                        if (s + 1 < n && src[s + 1] == '{') { sb.Append("{{"); s += 2; continue; }  // `{{` 是字面量
+                        s = TakeInterpolationHole(src, s, outp, pickDepth);
+                        continue;
+                    }
                     sb.Append(ch); s++;
                 }
                 else
                 {
                     if (ch == '\\') { if (s + 1 < n) sb.Append(src[s + 1]); s += 2; continue; }
                     if (ch == '"' || ch == '\n') break;                // \n 兜住未闭合（防御）
+                    if (interpolated && ch == '{')
+                    {
+                        if (s + 1 < n && src[s + 1] == '{') { sb.Append("{{"); s += 2; continue; }  // `{{` 是字面量
+                        s = TakeInterpolationHole(src, s, outp, pickDepth);
+                        continue;
+                    }
                     sb.Append(ch); s++;
                 }
             }
@@ -377,6 +437,55 @@ public static partial class SelfTest
             pendingPick = false;
         }
         return outp;
+    }
+
+    /// <summary>
+    /// 从插值孔的 <c>{</c> 处扫到配对的 <c>}</c>，**把孔内的原文当成一段"待判内容"收下**。
+    ///
+    /// <para>
+    /// ⚠ 这是**必须做**的一步，不是锦上添花。`$"{"行数",8}"` 这种**孔里直接放字面量**的写法，
+    /// 按「引号即字面量边界」走的扫描器会在孔内那个引号处**提前收尾**，剩下的中文被当成标识符
+    /// （`char.IsAlpha` 对汉字为真）⇒ **整条串零命中、护栏静默失效**。
+    /// 实测由子智能体发现（它在 <c>Program.Commands.cs</c> 正好踩到），它还指出一个更要紧的推论：
+    /// **别的 agent 报「已翻到 0」的文件未必真是 0** —— 一个会说谎的闸门比没有闸门更糟。
+    /// </para>
+    ///
+    /// <para>
+    /// 判据的**方向**是刻意选的：孔内只要有中文就**算命中**，宁可多报（台账加一行理由即可）
+    /// 也不漏报。所以像 <c>$"{DateTime.Now:yyyy年}"</c> 的格式串、<c>$"{Map["中文键"]}"</c> 的
+    /// 中文键都会命中 —— 前者确实是用户可见文案，后者由台账的「有意保留 + 理由」兜住。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 原始插值串（<c>$$"""…"""</c>）**不需要**这一步：那边的正文是整段收下的，
+    /// 孔里的中文本来就在正文里（见上面那个 `run >= 3` 分支）。
+    /// </para>
+    /// </summary>
+    /// <returns>配对 <c>}</c> 之后的下标（未找到则返回串尾）。</returns>
+    private static int TakeInterpolationHole(string src, int openBrace, List<string> outp, int pickDepth)
+    {
+        int n = src.Length;
+        int depth = 0;
+        int s = openBrace;
+        while (s < n)
+        {
+            char ch = src[s];
+            if (ch == '{') { depth++; s++; continue; }
+            if (ch == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    var hole = src[(openBrace + 1)..s];
+                    if (pickDepth == 0 && hole.Length > 0) outp.Add(hole);
+                    return s + 1;
+                }
+                s++;
+                continue;
+            }
+            s++;
+        }
+        return n;   // 未闭合（源码本身就坏了）：不吞掉后面的内容，交给外层继续
     }
 
     /// <summary>

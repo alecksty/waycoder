@@ -6,8 +6,8 @@ namespace WayCoder.UI.Cli.Commands;
 public class PrCommand : SlashCommand
 {
     public override string Name => "/pr";
-    public override string Description => "创建 Pull Request";
-    public override string? Usage => "/pr [标题]";
+    public override string Description => L.Pick("创建 Pull Request", "Create a Pull Request");
+    public override string? Usage => L.Pick("/pr [标题]", "/pr [title]");
 
     public override async Task ExecuteAsync(string args, ChatScreen screen)
     {

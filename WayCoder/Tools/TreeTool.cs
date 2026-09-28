@@ -42,11 +42,12 @@ public class TreeTool : ITool
             var truncated = false;
             BuildTree(sb, path, "", maxDepth, ref remaining, ref truncated);
             if (truncated)
-                sb.AppendLine("... (已达显示上限)");
+                sb.AppendLine(L.Pick("... (已达显示上限)", "... (display limit reached)"));
 
             var result = sb.ToString();
             if (result.Length > 8000)
-                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000, "\n... (已截断) ...\n");
+                result = ContextManager.TruncateKeepHeadTail(result, 6000, 1000,
+                    L.Pick("\n... (已截断) ...\n", "\n... (truncated) ...\n"));
             return result.TrimEnd();
         }
         catch (Exception ex)

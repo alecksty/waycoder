@@ -18,10 +18,10 @@ public static class FileText
         hasCrlf = false;
         byte[] raw;
         try { raw = File.ReadAllBytes(path); }
-        catch { return $"错误：无法读取 {path}"; }
+        catch { return L.Pick($"错误：无法读取 {path}", $"Error: cannot read {path}"); }
 
         try { _ = new UTF8Encoding(false, true).GetString(raw); }
-        catch { return $"错误：{path} 不是 UTF-8 文本文件"; }
+        catch { return L.Pick($"错误：{path} 不是 UTF-8 文本文件", $"Error: {path} is not a UTF-8 text file"); }
 
         hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
         content = File.ReadAllText(path, Encoding.UTF8);

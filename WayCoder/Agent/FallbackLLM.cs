@@ -76,7 +76,8 @@ public static class FallbackLLM
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            WriteFallback($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}");
+            WriteFallback(L.Pick($"[fallback] 模型 {originalLlm.Model} 失败: {ex.Message}",
+                $"[fallback] model {originalLlm.Model} failed: {ex.Message}"));
             ErrorLog.LlmError(originalLlm.Model, originalLlm.Endpoint,
                 $"主模型失败，启动回退链: {ex.Message}", ex);
         }
@@ -84,10 +85,12 @@ public static class FallbackLLM
         // 回退链开关（默认关）：关 = 只用当前模型，失败即停，明确告诉用户当前模型就是它
         if (!Config.Instance.FallbackEnabled)
         {
-            WriteFallback($"[fallback] 回退链已关闭，不再尝试备选模型（/config set FallbackEnabled true 开启）");
+            WriteFallback(L.Pick($"[fallback] 回退链已关闭，不再尝试备选模型（/config set FallbackEnabled true 开启）",
+                $"[fallback] the fallback chain is disabled; not trying alternative models (enable it with /config set FallbackEnabled true)"));
             return new LLMResponse
             {
-                Content = $"[错误] {originalLlm.Model} 请求失败，回退链已关闭。修复网络/API Key，或 /config set FallbackEnabled true 开启自动回退。",
+                Content = L.Pick($"[错误] {originalLlm.Model} 请求失败，回退链已关闭。修复网络/API Key，或 /config set FallbackEnabled true 开启自动回退。",
+                    $"[Error] The request to {originalLlm.Model} failed and the fallback chain is disabled. Fix the network/API key, or enable automatic fallback with /config set FallbackEnabled true."),
                 IsFatalError = true,
             };
         }
@@ -102,7 +105,8 @@ public static class FallbackLLM
             // 预算检查：超过预算时记录警告并跳过回退（优雅降级，不崩溃）
             if (BudgetExceeded())
             {
-                WriteFallback($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型");
+                WriteFallback(L.Pick($"[fallback] ⚠ 已达回退预算上限 ${MaxBudget:F2}，停止尝试备选模型",
+                    $"[fallback] ⚠ fallback budget of ${MaxBudget:F2} reached; not trying alternative models"));
                 break;
             }
 
@@ -111,7 +115,8 @@ public static class FallbackLLM
             // connect → provider 解析 key/baseUrl（逻辑一体）
             if (string.IsNullOrEmpty(fbKey))
             {
-                WriteFallback($"[fallback] ⏭ 跳过 {connectName}（无 API Key，/provider apikey set <pid> <key> 保存）");
+                WriteFallback(L.Pick($"[fallback] ⏭ 跳过 {connectName}（无 API Key，/provider apikey set <pid> <key> 保存）",
+                    $"[fallback] ⏭ skipping {connectName} (no API key; save one with /provider apikey set <pid> <key>)"));
                 skipped++;
                 continue;
             }
@@ -121,19 +126,22 @@ public static class FallbackLLM
 
             try
             {
-                WriteFallback($"[fallback] 尝试 {model}（{connectName}）...");
+                WriteFallback(L.Pick($"[fallback] 尝试 {model}（{connectName}）...",
+                    $"[fallback] trying {model} ({connectName})..."));
                 var resp = await fallbackLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
                 AddSpent(fallbackLlm.EstimatedCost ?? 0);
 
                 // 回退成功：应用整个 connect（模型 + key + baseUrl 一起换，走 Reconfigure）
                 originalLlm.Reconfigure(fbKey, fbUrl);
                 originalLlm.Model = model;
-                WriteFallback($"[fallback] ✓ 已切换到 {model}（{connectName}）");
+                WriteFallback(L.Pick($"[fallback] ✓ 已切换到 {model}（{connectName}）",
+                    $"[fallback] ✓ switched to {model} ({connectName})"));
                 return resp;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
-                WriteFallback($"[fallback] {model} 也失败: {ex.Message}");
+                WriteFallback(L.Pick($"[fallback] {model} 也失败: {ex.Message}",
+                    $"[fallback] {model} also failed: {ex.Message}"));
                 ErrorLog.LlmError(model, fallbackLlm.Endpoint,
                     $"回退模型也失败: {ex.Message}", ex);
                 continue;
@@ -141,26 +149,33 @@ public static class FallbackLLM
         }
 
         // 全部回退模型失败或跳过 → 给原始模型最后一次重试机会（临时错误可能已恢复）
-        string skipMsg = skipped > 0 ? $"（{skipped} 个因无 Key 跳过）" : "";
-        WriteFallback($"[fallback] 所有回退模型均失败{skipMsg}，最后一次重试原始模型 {originalLlm.Model}...");
+        string skipMsg = skipped > 0
+            ? L.Pick($"（{skipped} 个因无 Key 跳过）", $" ({skipped} skipped for missing keys)")
+            : "";
+        WriteFallback(L.Pick($"[fallback] 所有回退模型均失败{skipMsg}，最后一次重试原始模型 {originalLlm.Model}...",
+            $"[fallback] all fallback models failed{skipMsg}; retrying the original model {originalLlm.Model} one last time..."));
         try
         {
             var resp = await originalLlm.ChatAsync(messages, tools, onToken, cancellationToken: ct);
             AddSpent(originalLlm.EstimatedCost ?? 0);
             FallbackIndex = -1;
-            WriteFallback($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功");
+            WriteFallback(L.Pick($"[fallback] ✓ 原始模型 {originalLlm.Model} 重试成功",
+                $"[fallback] ✓ the original model {originalLlm.Model} succeeded on retry"));
             return resp;
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
-            WriteFallback($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}");
+            WriteFallback(L.Pick($"[fallback] 原始模型 {originalLlm.Model} 重试也失败: {ex.Message}",
+                $"[fallback] the original model {originalLlm.Model} also failed on retry: {ex.Message}"));
         }
 
-        WriteFallback("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。");
+        WriteFallback(L.Pick("[fallback] 所有回退模型均已失败，请检查网络或 API 密钥。",
+            "[fallback] All fallback models failed. Check the network or the API key."));
         ErrorLog.Error("FallbackLLM", "所有回退模型均已失败（包括主模型），请检查网络或 API 密钥");
         return new LLMResponse
         {
-            Content = "[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。会话已自动保存，修复网络/API Key 后可恢复。",
+            Content = L.Pick("[错误] 所有模型（含回退链）均已失败，请检查网络或 API 密钥。会话已自动保存，修复网络/API Key 后可恢复。",
+                "[Error] All models (including the fallback chain) failed. Check the network or the API key. The session was saved automatically and can be resumed once the network/API key is fixed."),
             IsFatalError = true,
         };
     }

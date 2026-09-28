@@ -31,15 +31,18 @@ public class DownloadTool : ITool, ICancellableTool
         // 安全检查：仅允许 http/https
         if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
             !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            return $"错误：仅支持 HTTP/HTTPS URL，不支持: {url}";
+            return L.Pick($"错误：仅支持 HTTP/HTTPS URL，不支持: {url}",
+                          $"Error: only HTTP/HTTPS URLs are supported, not: {url}");
 
         // 安全检查：拒绝本地文件
         if (url.StartsWith("file://", StringComparison.OrdinalIgnoreCase))
-            return "错误：出于安全原因，不允许下载本地文件";
+            return L.Pick("错误：出于安全原因，不允许下载本地文件",
+                          "Error: downloading local files is not allowed for security reasons");
 
         // 将相对路径转为绝对路径（无条件归一化，折叠 ../ 等）
         if (string.IsNullOrWhiteSpace(filePath))
-            return "错误：file_path 不能为空 — 请提供有效的文件路径。";
+            return L.Pick("错误：file_path 不能为空 — 请提供有效的文件路径。",
+                          "Error: file_path must not be empty - please provide a valid file path.");
         filePath = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入下载写后门）
@@ -96,7 +99,8 @@ public class DownloadTool : ITool, ICancellableTool
             // 检查响应大小（超过 500MB 拒绝下载）
             var contentLength = response.Content.Headers.ContentLength;
             if (contentLength > 500 * 1024 * 1024)
-                return $"错误：文件过大（{contentLength / 1024.0 / 1024.0:F1} MB），拒绝下载超过 500 MB 的文件";
+                return L.Pick($"错误：文件过大（{contentLength / 1024.0 / 1024.0:F1} MB），拒绝下载超过 500 MB 的文件",
+                              $"Error: the file is too large ({contentLength / 1024.0 / 1024.0:F1} MB); refusing to download files over 500 MB");
 
             // 读取并写入文件：流式累计字节数——无 Content-Length 的 chunked 响应也要受 500MB 上限约束，
             // 否则可无界写盘耗尽磁盘
@@ -112,7 +116,8 @@ public class DownloadTool : ITool, ICancellableTool
                 if (written > 500L * 1024 * 1024)
                 {
                     try { fileStream.Dispose(); File.Delete(filePath); } catch { }
-                    return $"错误：下载超过 500 MB 上限（{written / 1024.0 / 1024.0:F1} MB），已中止";
+                    return L.Pick($"错误：下载超过 500 MB 上限（{written / 1024.0 / 1024.0:F1} MB），已中止",
+                                  $"Error: the download exceeded the 500 MB limit ({written / 1024.0 / 1024.0:F1} MB); aborted");
                 }
                 await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             }
@@ -125,7 +130,8 @@ public class DownloadTool : ITool, ICancellableTool
                 _ => $"{fileInfo.Length / 1024.0 / 1024.0:F2} MB",
             };
 
-            return $"✅ 下载完成：{url}\n保存至：{filePath}\n大小：{sizeStr}";
+            return L.Pick($"✅ 下载完成：{url}\n保存至：{filePath}\n大小：{sizeStr}",
+                          $"✅ Download complete: {url}\nSaved to: {filePath}\nSize: {sizeStr}");
         }
         catch (SsgfBlockedException ex)
         {
@@ -141,17 +147,18 @@ public class DownloadTool : ITool, ICancellableTool
         {
             // 清理未完成的文件
             try { File.Delete(filePath); } catch { }
-            return $"错误：下载超时（{timeout} 秒）";
+            return L.Pick($"错误：下载超时（{timeout} 秒）", $"Error: the download timed out ({timeout}s)");
         }
         catch (HttpRequestException ex)
         {
             try { File.Delete(filePath); } catch { }
-            return $"错误：HTTP 请求失败 — {ex.Message}";
+            return L.Pick($"错误：HTTP 请求失败 — {ex.Message}", $"Error: HTTP request failed - {ex.Message}");
         }
         catch (Exception ex)
         {
             try { File.Delete(filePath); } catch { }
-            return $"错误：下载失败 — {ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"错误：下载失败 — {ex.GetType().Name}: {ex.Message}",
+                          $"Error: the download failed - {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {

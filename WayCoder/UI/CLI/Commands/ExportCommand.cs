@@ -5,12 +5,12 @@ namespace WayCoder.UI.Cli.Commands;
 public class ExportCommand : SlashCommand
 {
     public override string Name => "/export";
-    public override string Description => "导出对话为 Markdown";
+    public override string Description => L.Pick("导出对话为 Markdown", "Export the conversation as Markdown");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         var agent = ProgramContext.Agent;
-        if (agent == null) { screen.AddSystemMsg("Agent 未初始化"); return Task.CompletedTask; }
+        if (agent == null) { screen.AddSystemMsg(L.Pick("Agent 未初始化", "Agent not initialized")); return Task.CompletedTask; }
 
         var dir = Global.WriteConfigPath(Environment.CurrentDirectory);
         Directory.CreateDirectory(dir);
@@ -18,7 +18,7 @@ public class ExportCommand : SlashCommand
         var path = Path.Combine(dir, filename);
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"# WayCoder 对话导出");
+        sb.AppendLine(L.Pick($"# WayCoder 对话导出", $"# WayCoder conversation export"));
         sb.AppendLine($"> {DateTime.Now:yyyy-MM-dd HH:mm}");
         sb.AppendLine();
         foreach (var msg in agent.SnapshotMessages())
@@ -31,7 +31,7 @@ public class ExportCommand : SlashCommand
         }
 
         File.WriteAllText(path, sb.ToString(), System.Text.Encoding.UTF8);
-        screen.AddSystemMsg($"📄 已导出: {filename}");
+        screen.AddSystemMsg(L.Pick($"📄 已导出: {filename}", $"📄 Exported: {filename}"));
         return Task.CompletedTask;
     }
 }

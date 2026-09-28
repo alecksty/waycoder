@@ -11,9 +11,9 @@ namespace WayCoder.UI.Cli.Arguments;
 #if WAYCODER_TEST
 public class TestArg : CliArg
 {
-    public override string Description => "运行自测（可选指定模块名）";
+    public override string Description => L.Pick("运行自测（可选指定模块名）", "Run the self-test (optionally for a single module)");
     public override int ValueCount => -1;
-    public override string? ValueLabel => "模块名";
+    public override string? ValueLabel => L.Pick("模块名", "module name");
     public TestArg() : base("test", "-t", "--test") { }
     public override int? OnMatch(List<string> values)
     {
@@ -30,14 +30,16 @@ public class TestArg : CliArg
 
 public class BenchmarkArg : CliArg
 {
-    public override string Description => "运行性能测评";
+    public override string Description => L.Pick("运行性能测评", "Run the performance benchmark");
     public BenchmarkArg() : base("bench", "-tb", "--test-benchmark", "--bench", "--perf") { }
     public override int? OnMatch(List<string> values) { Benchmark.Run(); return 0; }
 }
 
 public class LimitsArg : CliArg
 {
-    public override string Description => "运行系统上限报告（扫描所有硬编码上限）";
+    public override string Description => L.Pick(
+        "运行系统上限报告（扫描所有硬编码上限）",
+        "Run the system-limits report (scans every hard-coded limit)");
     public LimitsArg() : base("limits", "-tl", "--test-limits", "--limits") { }
     public override int? OnMatch(List<string> values) { Benchmark.LimitsReport(); return 0; }
 }
@@ -45,7 +47,7 @@ public class LimitsArg : CliArg
 
 public class ScreenshotArg : CliArg
 {
-    public override string Description => "截图模式";
+    public override string Description => L.Pick("截图模式", "Screenshot mode");
     public override bool Internal => true;
     public ScreenshotArg() : base("screenshot", "-x", "--screenshot") { }
     public override int? OnMatch(List<string> values) { Program.RunScreenshot(); return 0; }
@@ -54,7 +56,9 @@ public class ScreenshotArg : CliArg
 /// <summary>--sysprompt-size：对比各模式 SystemPrompt + 工具 schema 大小（省钱模式效果验证）。</summary>
 public class SyspromptSizeArg : CliArg
 {
-    public override string Description => "对比 SystemPrompt 各模式大小（省钱验证）";
+    public override string Description => L.Pick(
+        "对比 SystemPrompt 各模式大小（省钱验证）",
+        "Compare SystemPrompt size across modes (economy verification)");
     public override bool Internal => true;
     public SyspromptSizeArg() : base("sysprompt-size", "--sysprompt-size") { }
     public override int? OnMatch(List<string> values)
@@ -71,10 +75,12 @@ public class SyspromptSizeArg : CliArg
 /// </summary>
 public class WidthProbeArg : CliArg
 {
-    public override string Description => "终端实测字符宽度，与静态宽度表比对校准（可带目录扫描源码字符）";
+    public override string Description => L.Pick(
+        "终端实测字符宽度，与静态宽度表比对校准（可带目录扫描源码字符）",
+        "Measure real terminal character widths and calibrate them against the static width table (optionally scanning a directory's source)");
     public override bool Internal => true;
     public override int ValueCount => -1;
-    public override string? ValueLabel => "目录";
+    public override string? ValueLabel => L.Pick("目录", "directory");
     public WidthProbeArg() : base("width-probe", "--width-probe", "-wp") { }
     public override int? OnMatch(List<string> values)
         => UI.Shared.Terminal.TerminalWidthProbe.PrintReport(values.Count > 0 ? values[0] : null);
@@ -83,7 +89,7 @@ public class WidthProbeArg : CliArg
 #if WAYCODER_TEST
 public class TuiDemoArg : CliArg
 {
-    public override string Description => "TUI 控件演示";
+    public override string Description => L.Pick("TUI 控件演示", "TUI widget demo");
     public override bool Internal => true;
     public TuiDemoArg() : base("tui-demo", "-u", "--tui-demo") { }
     public override int? OnMatch(List<string> values) { TuiDemo.Run(); return 0; }
@@ -91,7 +97,9 @@ public class TuiDemoArg : CliArg
 
 public class TuiAuditArg : CliArg
 {
-    public override string Description => "TUI 对话框/控件渲染审计（输出纯文本帧）";
+    public override string Description => L.Pick(
+        "TUI 对话框/控件渲染审计（输出纯文本帧）",
+        "TUI dialog/widget rendering audit (prints plain-text frames)");
     public override bool Internal => true;
     public TuiAuditArg() : base("tui-audit", "--tui-audit") { }
     public override int? OnMatch(List<string> values) { TuiAudit.Run(); return 0; }
@@ -99,7 +107,9 @@ public class TuiAuditArg : CliArg
 
 public class TuiMouseArg : CliArg
 {
-    public override string Description => "TUI 鼠标支持测试（离屏模拟点击/滚轮/悬停/拖拽，逐项报告）";
+    public override string Description => L.Pick(
+        "TUI 鼠标支持测试（离屏模拟点击/滚轮/悬停/拖拽，逐项报告）",
+        "TUI mouse support test (off-screen click/wheel/hover/drag simulation, item-by-item report)");
     public override bool Internal => true;
     public TuiMouseArg() : base("tui-mouse", "--tui-mouse") { }
     public override int? OnMatch(List<string> values) => TuiMouseTest.Run();
@@ -107,7 +117,9 @@ public class TuiMouseArg : CliArg
 
 public class MouseProbeArg : CliArg
 {
-    public override string Description => "Windows 鼠标 VT 字节流实机探针（验证 .NET stream 能否读到 SGR 鼠标序列）";
+    public override string Description => L.Pick(
+        "Windows 鼠标 VT 字节流实机探针（验证 .NET stream 能否读到 SGR 鼠标序列）",
+        "On-device probe for Windows mouse VT byte streams (checks whether a .NET stream can read SGR mouse sequences)");
     public override bool Internal => true;
     public MouseProbeArg() : base("mouse-probe", "--mouse-probe") { }
     public override int? OnMatch(List<string> values) => TuiMouseProbe.Run();
@@ -115,7 +127,9 @@ public class MouseProbeArg : CliArg
 
 public class DialogShowArg : CliArg
 {
-    public override string Description => "对话框仅绘制演示（1~6 行消息 + 指定位置，抓屏核对布局）";
+    public override string Description => L.Pick(
+        "对话框仅绘制演示（1~6 行消息 + 指定位置，抓屏核对布局）",
+        "Dialog drawing-only demo (1-6 line messages at a chosen position, for screenshot layout checks)");
     public override bool Internal => true;
     public DialogShowArg() : base("dialog-show", "--dialog-show") { }
     public override int? OnMatch(List<string> values) { DialogShow.Run(); return 0; }
@@ -123,10 +137,12 @@ public class DialogShowArg : CliArg
 
 public class TuiPreviewArg : CliArg
 {
-    public override string Description => "预览 .tui 标记文件（声明式 TUI 布局）";
+    public override string Description => L.Pick(
+        "预览 .tui 标记文件（声明式 TUI 布局）",
+        "Preview a .tui markup file (declarative TUI layout)");
     public override bool Internal => true;
     public override int ValueCount => 1;
-    public override string? ValueLabel => "标记文件";
+    public override string? ValueLabel => L.Pick("标记文件", "markup file");
     public TuiPreviewArg() : base("tui-preview", "--tui-preview") { }
     public override int? OnMatch(List<string> values)
     {
@@ -137,10 +153,12 @@ public class TuiPreviewArg : CliArg
 
 public class TuiWatchArg : CliArg
 {
-    public override string Description => "实时预览 .tui（保存即刷新，边写边预览）";
+    public override string Description => L.Pick(
+        "实时预览 .tui（保存即刷新，边写边预览）",
+        "Live-preview a .tui file (refreshes on save, preview while you write)");
     public override bool Internal => true;
     public override int ValueCount => 1;
-    public override string? ValueLabel => "标记文件";
+    public override string? ValueLabel => L.Pick("标记文件", "markup file");
     public TuiWatchArg() : base("tui-watch", "--tui-watch") { }
     public override int? OnMatch(List<string> values)
     {
@@ -151,7 +169,9 @@ public class TuiWatchArg : CliArg
 
 public class TuiMarkupDemoArg : CliArg
 {
-    public override string Description => "声明式 TUI 演示（tuidemo/*.tui 重构聊天界面与对话框）";
+    public override string Description => L.Pick(
+        "声明式 TUI 演示（tuidemo/*.tui 重构聊天界面与对话框）",
+        "Declarative TUI demo (rebuilds the chat UI and dialogs from tuidemo/*.tui)");
     public override bool Internal => true;
     public TuiMarkupDemoArg() : base("tui-markup-demo", "--tui-markup-demo") { }
     public override int? OnMatch(List<string> values) { TuiMarkupDemo.Run(); return 0; }
@@ -161,7 +181,9 @@ public class TuiMarkupDemoArg : CliArg
 /// <summary>用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1，供测试标记版界面）。</summary>
 public class TuiChatArg : CliArg
 {
-    public override string Description => "用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1）";
+    public override string Description => L.Pick(
+        "用 .tui 标记版聊天界面启动（等价 WAYCODER_MARKUP_UI=1）",
+        "Start with the .tui markup chat UI (same as WAYCODER_MARKUP_UI=1)");
     public override bool Internal => true;
     public TuiChatArg() : base("tui-chat", "--tui-chat") { }
     public override int? OnMatch(List<string> values) { Program.MarkupChatOverride = true; return null; }
@@ -169,9 +191,11 @@ public class TuiChatArg : CliArg
 
 public class GuiArg : CliArg
 {
-    public override string Description => "启动图形界面（独立 Avalonia 进程，可选 --gui [文件] 直接打开编辑器）";
+    public override string Description => L.Pick(
+        "启动图形界面（独立 Avalonia 进程，可选 --gui [文件] 直接打开编辑器）",
+        "Launch the GUI (a separate Avalonia process; --gui [file] opens the editor directly)");
     public override int ValueCount => -1; // 可选文件：--gui [文件]
-    public override string? ValueLabel => "文件";
+    public override string? ValueLabel => L.Pick("文件", "file");
     public GuiArg() : base("gui", "-g", "--gui") { }
     public override int? OnMatch(List<string> values)
     {
@@ -198,7 +222,9 @@ public class GuiArg : CliArg
 
         if (target == null)
         {
-            Console.Error.WriteLine("未找到 GUI 可执行文件。请先构建 GUI 项目：dotnet build WayCoder.Gui");
+            Console.Error.WriteLine(L.Pick(
+                "未找到 GUI 可执行文件。请先构建 GUI 项目：dotnet build WayCoder.Gui",
+                "GUI executable not found. Build the GUI project first: dotnet build WayCoder.Gui"));
             return 1;
         }
 
@@ -217,7 +243,7 @@ public class GuiArg : CliArg
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"启动 GUI 失败: {ex.Message}");
+            Console.Error.WriteLine(L.Pick($"启动 GUI 失败: {ex.Message}", $"Failed to launch the GUI: {ex.Message}"));
             return 1;
         }
     }
@@ -238,16 +264,18 @@ public class GuiArg : CliArg
 #if WAYCODER_TEST
 public class KeypadArg : CliArg
 {
-    public override string Description => "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图";
+    public override string Description => L.Pick(
+        "按键脚本驱动 TUI（KEY/TEXT/DELAY/SNAP/DIALOG）+ 帧截图",
+        "Drive the TUI from a key script (KEY/TEXT/DELAY/SNAP/DIALOG) + frame captures");
     public override int ValueCount => 1;
-    public override string? ValueLabel => "脚本文件";
+    public override string? ValueLabel => L.Pick("脚本文件", "script file");
     public KeypadArg() : base("keypad", "--keypad") { }
     public override int? OnMatch(List<string> values)
     {
         var path = values.Count > 0 ? values[0] : null;
         if (string.IsNullOrWhiteSpace(path))
         {
-            Console.Error.WriteLine("用法: waycoder --keypad <脚本文件>");
+            Console.Error.WriteLine(L.Pick("用法: waycoder --keypad <脚本文件>", "Usage: waycoder --keypad <script file>"));
             return 1;
         }
         return Keypad.Run(path);
@@ -257,7 +285,7 @@ public class KeypadArg : CliArg
 
 public class ThemeVerifyArg : CliArg
 {
-    public override string Description => "主题配色验证";
+    public override string Description => L.Pick("主题配色验证", "Theme color verification");
     public override bool Internal => true;
     public ThemeVerifyArg() : base("theme-verify", "-z", "--theme-verify") { }
     public override int? OnMatch(List<string> values) { ThemeVerify.Run(); return 0; }

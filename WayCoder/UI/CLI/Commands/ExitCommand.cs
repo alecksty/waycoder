@@ -9,12 +9,12 @@ public class ExitCommand : SlashCommand
 {
     public override string Name => "/exit";
     public override string[] Aliases => ["/quit", "/退出"];
-    public override string Description => "退出 WayCoder";
+    public override string Description => L.Pick("退出 WayCoder", "Exit WayCoder");
     public override string? Usage => "/exit";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
-        screen.AddSystemMsg("👋 再见，正在保存并退出…");
+        screen.AddSystemMsg(L.Pick("👋 再见，正在保存并退出…", "👋 Goodbye, saving and exiting…"));
         Program.RequestExit();
         return Task.CompletedTask;
     }

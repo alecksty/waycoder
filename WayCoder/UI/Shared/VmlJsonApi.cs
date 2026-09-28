@@ -59,15 +59,18 @@ public static class VmlJsonApi
     /// <summary>调用一个函数并返回**信封** JSON 字符串。任何失败都翻成 `ok:false`，不抛。</summary>
     public static string Invoke(string? fn, string? argsJson)
     {
-        if (string.IsNullOrWhiteSpace(fn)) return ErrorEnvelope("函数名为空");
-        if (!Handlers.TryGetValue(fn, out var handler)) return ErrorEnvelope($"未知函数: {fn}");
+        if (string.IsNullOrWhiteSpace(fn))
+            return ErrorEnvelope(L.Pick("函数名为空", "function name is empty"));
+        if (!Handlers.TryGetValue(fn, out var handler))
+            return ErrorEnvelope(L.Pick($"未知函数: {fn}", $"unknown function: {fn}"));
 
         JNode? args = null;
         if (!string.IsNullOrWhiteSpace(argsJson))
         {
             // 参数不是合法 JSON 就**当场报错**，别把半个对象交给实现去猜 ——
             // "参数看着像但解析成了别的"是这里最难查的一类。
-            if (!Json.TryParse(argsJson, out var parsed)) return ErrorEnvelope("参数不是合法 JSON");
+            if (!Json.TryParse(argsJson, out var parsed))
+                return ErrorEnvelope(L.Pick("参数不是合法 JSON", "arguments are not valid JSON"));
             args = parsed;
         }
 
@@ -86,7 +89,8 @@ public static class VmlJsonApi
     /// 宿主那边自己拼字符串就又是一张平行的格式表。
     /// </summary>
     public static string TooLongEnvelope(int neededBytes)
-        => ErrorEnvelope($"结果太长：需要 {neededBytes} 字节，缓冲区装不下");
+        => ErrorEnvelope(L.Pick($"结果太长：需要 {neededBytes} 字节，缓冲区装不下",
+            $"result too long: needs {neededBytes} bytes, doesn't fit the buffer"));
 
     private static string ErrorEnvelope(string message)
         => Json.Serialize(JNode.Object().Set("ok", false).Set("error", message));

@@ -116,9 +116,12 @@ public sealed class VmlProject
     public static string? DescribeFormatProblem(string format) =>
         ImplementedFormats.Contains(format)
             ? null
-            : $"产物格式 `{format}` 还没做（预留的名字之一）。"
+            : L.Pick($"产物格式 `{format}` 还没做（预留的名字之一）。"
               + $"现在能出的是：{string.Join("、", ImplementedFormats)}。"
-              + "改 <Output Format=\"…\"> 或去掉那个属性。";
+              + "改 <Output Format=\"…\"> 或去掉那个属性。",
+              $"Output format `{format}` isn't implemented yet (it's one of the reserved names). "
+              + $"Currently supported: {string.Join(", ", ImplementedFormats)}. "
+              + "Change <Output Format=\"...\"> or drop that attribute.");
 
     /// <summary>格式 → 默认后缀（`<Output>` 没写时用）。</summary>
     public static string ExtensionFor(string format) => format.ToLowerInvariant() switch
@@ -208,12 +211,15 @@ public sealed class VmlProject
         }
         catch (Exception ex)
         {
-            throw new VmlProjectException($"工程文件不是合法的 XML：{ex.Message}");
+            throw new VmlProjectException(
+                L.Pick($"工程文件不是合法的 XML：{ex.Message}",
+                    $"The project file isn't valid XML: {ex.Message}"));
         }
 
         if (!string.Equals(root.Name.LocalName, "VMLProject", StringComparison.Ordinal))
             throw new VmlProjectException(
-                $"根元素必须是 <VMLProject>，实际是 <{root.Name.LocalName}>。");
+                L.Pick($"根元素必须是 <VMLProject>，实际是 <{root.Name.LocalName}>。",
+                    $"The root element must be <VMLProject>, but it is <{root.Name.LocalName}>."));
 
         var p = new VmlProject { BaseDir = baseDir };
 
@@ -225,8 +231,10 @@ public sealed class VmlProject
             .ToList();
         if (unknown.Count > 0)
             throw new VmlProjectException(
-                $"工程文件里有不认识的元素：{string.Join("、", unknown.Select(n => "<" + n + ">"))}。"
-                + $"可用的只有：{string.Join("、", KnownRoots.Select(n => "<" + n + ">"))}。");
+                L.Pick($"工程文件里有不认识的元素：{string.Join("、", unknown.Select(n => "<" + n + ">"))}。"
+                + $"可用的只有：{string.Join("、", KnownRoots.Select(n => "<" + n + ">"))}。",
+                    $"Unrecognized elements in the project file: {string.Join(", ", unknown.Select(n => "<" + n + ">"))}. "
+                + $"The only valid ones are: {string.Join(", ", KnownRoots.Select(n => "<" + n + ">"))}."));
 
         p.Name = Val(root, "Name");
         p.Entry = Val(root, "Entry");
@@ -242,7 +250,8 @@ public sealed class VmlProject
         {
             if (kind != KindExe && kind != KindLib)
                 throw new VmlProjectException(
-                    $"<Output Kind=\"{kind}\"> 不认得 —— 只支持 `exe`（可执行程序）与 `lib`（库）。");
+                    L.Pick($"<Output Kind=\"{kind}\"> 不认得 —— 只支持 `exe`（可执行程序）与 `lib`（库）。",
+                        $"<Output Kind=\"{kind}\"> is not recognized - only `exe` (executable) and `lib` (library) are supported."));
             p.OutputKind = kind;
         }
 
@@ -252,9 +261,12 @@ public sealed class VmlProject
             //   前者是"排期问题"，后者多半是拼错了。混成一句会让用户去猜是哪种。
             if (!ImplementedFormats.Contains(fmt) && !ReservedFormats.Contains(fmt))
                 throw new VmlProjectException(
-                    $"<Output Format=\"{fmt}\"> 不认得。现在能做的是 "
+                    L.Pick($"<Output Format=\"{fmt}\"> 不认得。现在能做的是 "
                     + $"{string.Join("、", ImplementedFormats)}；预留了 "
-                    + $"{string.Join("、", ReservedFormats)}。");
+                    + $"{string.Join("、", ReservedFormats)}。",
+                        $"<Output Format=\"{fmt}\"> is not recognized. Supported now: "
+                    + $"{string.Join(", ", ImplementedFormats)}; reserved: "
+                    + $"{string.Join(", ", ReservedFormats)}."));
             p.OutputFormat = fmt;
         }
 
@@ -290,8 +302,10 @@ public sealed class VmlProject
 
             if (string.IsNullOrWhiteSpace(name))
                 throw new VmlProjectException(
-                    "`<Defines>` 里有一条 `<Define>` 没写名字。写成 "
-                    + "<Define Name=\"VERSION\" Value=\"1.2\"/>，或者 <Define Name=\"DEBUG\"/>。");
+                    L.Pick("`<Defines>` 里有一条 `<Define>` 没写名字。写成 "
+                    + "<Define Name=\"VERSION\" Value=\"1.2\"/>，或者 <Define Name=\"DEBUG\"/>。",
+                        "A `<Define>` inside `<Defines>` has no name. Write "
+                    + "<Define Name=\"VERSION\" Value=\"1.2\"/>, or <Define Name=\"DEBUG\"/>."));
 
             // 没有 Value ⇒ "1"，与 `-DFOO` 的语义一致
             p.Defines.Add((name.Trim(), string.IsNullOrEmpty(value) ? "1" : value));
@@ -304,7 +318,9 @@ public sealed class VmlProject
         }
 
         if (string.IsNullOrWhiteSpace(p.Entry))
-            throw new VmlProjectException("工程文件里没写 <Entry>（入口源文件，含 main 的那个）。");
+            throw new VmlProjectException(
+                L.Pick("工程文件里没写 <Entry>（入口源文件，含 main 的那个）。",
+                    "The project file has no <Entry> (the entry source file, the one with main)."));
 
         if (string.IsNullOrWhiteSpace(p.Name))
             p.Name = Path.GetFileNameWithoutExtension(p.Entry);
@@ -317,7 +333,8 @@ public sealed class VmlProject
     {
         var full = Path.GetFullPath(path);
         if (!File.Exists(full))
-            throw new VmlProjectException($"找不到工程文件：{full}");
+            throw new VmlProjectException(L.Pick($"找不到工程文件：{full}",
+                $"Project file not found: {full}"));
 
         var p = Parse(File.ReadAllText(full), Path.GetDirectoryName(full) ?? ".");
         p.SourcePath = full;
@@ -394,7 +411,8 @@ public sealed class VmlProject
             sb.Append("<!-- ").Append(header).Append(" -->\n");
         sb.Append("<VMLProject Version=\"1\">\n");
         sb.Append("  <Name>").Append(Esc(Name)).Append("</Name>\n");
-        sb.Append("  <!-- 唯一入口源文件（含 main 的那个）。相对本文件所在目录。 -->\n");
+        sb.Append(L.Pick("  <!-- 唯一入口源文件（含 main 的那个）。相对本文件所在目录。 -->\n",
+            "  <!-- The single entry source file (the one with main). Relative to this file's directory. -->\n"));
         sb.Append("  <Entry>").Append(Esc(Norm(Entry))).Append("</Entry>\n");
         // 属性只在**非默认**时写出来 —— 默认的 exe/vml 是老行为，写出来只是噪音
         var kindAttr = OutputKind != KindExe ? $" Kind=\"{Esc(OutputKind)}\"" : "";
@@ -405,7 +423,8 @@ public sealed class VmlProject
 
         if (Sources.Count > 0)
         {
-            sb.Append("  <!-- 其余编译单元：先各编成目标文件，再链进入口 -->\n");
+            sb.Append(L.Pick("  <!-- 其余编译单元：先各编成目标文件，再链进入口 -->\n",
+                "  <!-- Additional compilation units: each is compiled to an object file first, then linked into the entry. -->\n"));
             sb.Append("  <Sources>\n");
             foreach (var f in Sources) sb.Append("    <File>").Append(Esc(Norm(f))).Append("</File>\n");
             sb.Append("  </Sources>\n");
@@ -413,7 +432,8 @@ public sealed class VmlProject
 
         if (Includes.Count > 0)
         {
-            sb.Append("  <!-- 追加的头文件搜索路径（对应 -I） -->\n");
+            sb.Append(L.Pick("  <!-- 追加的头文件搜索路径（对应 -I） -->\n",
+                "  <!-- Extra header search paths (same as -I) -->\n"));
             sb.Append("  <Includes>\n");
             foreach (var d in Includes) sb.Append("    <Dir>").Append(Esc(Norm(d))).Append("</Dir>\n");
             sb.Append("  </Includes>\n");
@@ -421,7 +441,8 @@ public sealed class VmlProject
 
         if (Defines.Count > 0)
         {
-            sb.Append("  <!-- 宏定义（对应 -D）；没有 Value 的取 1，与 -DFOO 同义 -->\n");
+            sb.Append(L.Pick("  <!-- 宏定义（对应 -D）；没有 Value 的取 1，与 -DFOO 同义 -->\n",
+                "  <!-- Macro definitions (same as -D); a missing Value means 1, same as -DFOO -->\n"));
             sb.Append("  <Defines>\n");
             foreach (var (n, v) in Defines)
             {

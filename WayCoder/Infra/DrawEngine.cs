@@ -425,7 +425,7 @@ public static class DrawRunner
     public static DrawDocument Parse(string dsl)
     {
         var doc = new DrawDocument();
-        if (string.IsNullOrWhiteSpace(dsl)) { doc.Error = "空输入"; return doc; }
+        if (string.IsNullOrWhiteSpace(dsl)) { doc.Error = L.Pick("空输入", "Empty input"); return doc; }
 
         var current = Affine.Identity;
         var stack = new Stack<Affine>();
@@ -482,7 +482,7 @@ public static class DrawRunner
             if (name.Equals("gradient", StringComparison.OrdinalIgnoreCase))
             {
                 var g = ParseGradient(args);
-                if (g == null) doc.Error = $"参数错误: {line}";
+                if (g == null) doc.Error = L.Pick($"参数错误: {line}", $"Invalid argument: {line}");
                 else doc.Gradients.Add(g);
                 continue;
             }
@@ -567,9 +567,9 @@ public static class DrawRunner
             }
 
             var cmd = DrawCommandRegistry.Get(name);
-            if (cmd == null) { doc.Error = $"未知指令: {name}"; continue; }
+            if (cmd == null) { doc.Error = L.Pick($"未知指令: {name}", $"Unknown command: {name}"); continue; }
             var fig = cmd.Parse(args);
-            if (fig == null) { doc.Error = $"参数错误: {line}"; continue; }
+            if (fig == null) { doc.Error = L.Pick($"参数错误: {line}", $"Invalid argument: {line}"); continue; }
             fig.Transform = current;
             // ⚠ **两个收集器同时开着时，蒙版先拿**。顺序反了会踩这个坑：
             //   形状被图层缓冲截走 ⇒ `mask_end` 收到一个**空蒙版** ⇒ 层内的蒙版**静默失效**，
@@ -696,7 +696,7 @@ public static class DrawRunner
                 nh = (int)Math.Round(h);
             if (nw <= 0 || nh <= 0 || (long)nw * nh > MaxCanvasPixels)
             {
-                doc.Error = "画布尺寸非法或过大";
+                doc.Error = L.Pick("画布尺寸非法或过大", "Canvas size is invalid or too large");
                 return; // 保留默认尺寸，防 `new Canvas(W,H)` OOM
             }
             doc.Width = nw;
@@ -709,7 +709,7 @@ public static class DrawRunner
     /// <summary>解析 icon 平台名 → 应用图标模板（画布尺寸 + 背景形状 + 居中字形）。</summary>
     static void ParseIcon(DrawDocument doc, IReadOnlyList<DrawToken> args)
     {
-        if (args.Count < 1) { doc.Error = "参数错误: icon 需平台名（mac/ios/android/windows）"; return; }
+        if (args.Count < 1) { doc.Error = L.Pick("参数错误: icon 需平台名（mac/ios/android/windows）", "Invalid argument: icon needs a platform name (mac/ios/android/windows)"); return; }
         string platform = args[0].Value.ToLowerInvariant();
         int size; double radius; string shape; uint defaultColor; string defaultGlyph;
         switch (platform)
@@ -718,7 +718,7 @@ public static class DrawRunner
             case "ios": size = 1024; radius = 0; shape = "rect"; defaultColor = 0xFF1C1C1E; defaultGlyph = "i"; break;
             case "android": size = 512; radius = size / 2.0; shape = "circle"; defaultColor = 0xFF34C759; defaultGlyph = "A"; break;
             case "windows": size = 256; radius = 48; shape = "round"; defaultColor = 0xFF0078D4; defaultGlyph = "W"; break;
-            default: doc.Error = $"未知图标平台: {args[0].Value}（可选 mac/ios/android/windows）"; return;
+            default: doc.Error = L.Pick($"未知图标平台: {args[0].Value}（可选 mac/ios/android/windows）", $"Unknown icon platform: {args[0].Value} (expected mac/ios/android/windows)"); return;
         }
         uint color = args.Count >= 2 ? ColorUtil.Parse(args[1].Value, defaultColor) : defaultColor;
         string glyph = args.Count >= 3 ? args[2].Value : defaultGlyph;
@@ -889,7 +889,7 @@ public static class DrawRunner
     public static byte[] ToPng(DrawDocument doc)
     {
         if (doc.Width <= 0 || doc.Height <= 0 || (long)doc.Width * doc.Height > MaxCanvasPixels)
-            throw new InvalidOperationException("画布尺寸非法或过大");
+            throw new InvalidOperationException(L.Pick("画布尺寸非法或过大", "Canvas size is invalid or too large"));
         if (doc.Antialias)
         {
             var s = ChooseSupersample(doc.Width, doc.Height);
@@ -943,7 +943,7 @@ public static class DrawRunner
     public static Canvas Rasterize(DrawDocument doc)
     {
         if (doc.Width <= 0 || doc.Height <= 0 || (long)doc.Width * doc.Height > MaxCanvasPixels)
-            throw new InvalidOperationException("画布尺寸非法或过大");
+            throw new InvalidOperationException(L.Pick("画布尺寸非法或过大", "Canvas size is invalid or too large"));
         var canvas = new Canvas(doc.Width, doc.Height, doc.Background);
         foreach (var f in doc.Figures)
             DrawCommandRegistry.Get(f.Kind)?.Rasterize(canvas, f);

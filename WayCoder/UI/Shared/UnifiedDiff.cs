@@ -57,7 +57,8 @@ public static class UnifiedDiff
 
         var result = sb.ToString();
         if (result.Length > 3000)
-            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
+            result = ContextManager.TruncateByRunes(result, 2500)
+                     + L.Pick("\n...（diff 已截断）\n", "\n...(diff truncated)\n");
         return result;
     }
 

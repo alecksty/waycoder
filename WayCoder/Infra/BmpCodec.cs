@@ -14,8 +14,8 @@ public static class BmpCodec
         if (img == null) throw new ArgumentNullException(nameof(img));
         int width = img.Width, height = img.Height;
         // 防整数溢出：width*3、rowSize*height 均可能溢出 int（如 10 万×10 万）
-        if (width <= 0 || height <= 0) throw new ArgumentException("宽高必须为正整数");
-        if ((long)width * height > MaxPixels) throw new ArgumentException("图像尺寸过大");
+        if (width <= 0 || height <= 0) throw new ArgumentException(L.Pick("宽高必须为正整数", "Width and height must be positive integers"));
+        if ((long)width * height > MaxPixels) throw new ArgumentException(L.Pick("图像尺寸过大", "Image dimensions are too large"));
         int rowSize = ((width * 3 + 3) / 4) * 4; // 4 字节对齐
         int imageSize = rowSize * height;
         int dataOffset = 14 + 40;
@@ -50,25 +50,25 @@ public static class BmpCodec
 
     public static RasterImage Decode(byte[] data)
     {
-        if (data == null || data.Length < 54) throw new FormatException("BMP 数据过短");
-        if (data[0] != 'B' || data[1] != 'M') throw new FormatException("非法 BMP 签名");
+        if (data == null || data.Length < 54) throw new FormatException(L.Pick("BMP 数据过短", "BMP data is too short"));
+        if (data[0] != 'B' || data[1] != 'M') throw new FormatException(L.Pick("非法 BMP 签名", "invalid BMP signature"));
         int dataOffset = ReadI32(data, 10);
-        if (dataOffset < 0 || dataOffset >= data.Length) throw new FormatException("BMP 像素数据偏移越界");
+        if (dataOffset < 0 || dataOffset >= data.Length) throw new FormatException(L.Pick("BMP 像素数据偏移越界", "BMP pixel data offset out of range"));
         int dibSize = ReadI32(data, 14);
-        if (dibSize < 40) throw new FormatException("不支持的 DIB 头");
+        if (dibSize < 40) throw new FormatException(L.Pick("不支持的 DIB 头", "unsupported DIB header"));
         int width = ReadI32(data, 18);
         int height = ReadI32(data, 22);
         int bpp = ReadU16(data, 28);
         int compression = ReadI32(data, 30);
-        if (compression != 0) throw new FormatException("仅支持 BI_RGB 无压缩");
-        if (bpp != 24 && bpp != 32) throw new FormatException("仅支持 24/32 位 BMP");
-        if (width <= 0 || height == 0) throw new FormatException("非法宽高");
+        if (compression != 0) throw new FormatException(L.Pick("仅支持 BI_RGB 无压缩", "only uncompressed BI_RGB is supported"));
+        if (bpp != 24 && bpp != 32) throw new FormatException(L.Pick("仅支持 24/32 位 BMP", "only 24/32-bit BMP is supported"));
+        if (width <= 0 || height == 0) throw new FormatException(L.Pick("非法宽高", "invalid width/height"));
 
         bool topDown = height < 0;
         long absHeight = Math.Abs((long)height);
-        if (absHeight > int.MaxValue) throw new FormatException("非法宽高"); // height == int.MinValue 时 |height| 超出 int 范围
+        if (absHeight > int.MaxValue) throw new FormatException(L.Pick("非法宽高", "invalid width/height")); // height == int.MinValue 时 |height| 超出 int 范围
         int h = (int)absHeight;
-        if ((long)width * h > MaxPixels) throw new FormatException("BMP 尺寸过大");
+        if ((long)width * h > MaxPixels) throw new FormatException(L.Pick("BMP 尺寸过大", "BMP dimensions are too large"));
         int bytesPerPixel = bpp / 8;
         int rowSize = ((width * bytesPerPixel + 3) / 4) * 4;
         var rgba = new byte[width * h * 4];
@@ -76,7 +76,7 @@ public static class BmpCodec
         {
             int y = topDown ? ry : h - 1 - ry;
             int rowOff = dataOffset + ry * rowSize;
-            if (rowOff + rowSize > data.Length) throw new FormatException("像素数据越界");
+            if (rowOff + rowSize > data.Length) throw new FormatException(L.Pick("像素数据越界", "pixel data out of range"));
             for (int x = 0; x < width; x++)
             {
                 int si = rowOff + x * bytesPerPixel;

@@ -18,16 +18,16 @@ public sealed class SqlDatabase
     /// <summary>执行一段（可含多条的）SQL，返回结果文本（查询=对齐表格，写操作=影响行数）。</summary>
     public string Execute(string sql)
     {
-        if (string.IsNullOrWhiteSpace(sql)) return "（无 SQL 输入）";
+        if (string.IsNullOrWhiteSpace(sql)) return L.Pick("（无 SQL 输入）", "(no SQL input)");
         var sb = new StringBuilder();
         foreach (var stmt in SplitStatements(sql))
         {
             if (string.IsNullOrWhiteSpace(stmt)) continue;
             try { sb.Append(ExecuteOne(stmt)); }
-            catch (SqlException ex) { sb.Append("错误：").Append(ex.Message).AppendLine(); }
+            catch (SqlException ex) { sb.Append(L.Pick("错误：", "Error: ")).Append(ex.Message).AppendLine(); }
         }
         var result = sb.ToString().TrimEnd();
-        return string.IsNullOrEmpty(result) ? "（查询无结果）" : result;
+        return string.IsNullOrEmpty(result) ? L.Pick("（查询无结果）", "(no result)") : result;
     }
 
     // ─────────────────────────── 持久化（JSON + 类型标记）───────────────────────────
@@ -313,7 +313,7 @@ public sealed class SqlDatabase
         {
             if (Cur.Kind == TokKind.Word) { var t = Cur.Text; Advance(); return t; }
             if (Cur.Kind == TokKind.String) { var t = Cur.Text; Advance(); return t; } // 引号标识符
-            throw new SqlException($"语法错误：{what} 处期望标识符");
+            throw new SqlException(L.Pick($"语法错误：{what} 处期望标识符", $"Syntax error: expected an identifier after {what}"));
         }
 
         public string ParseAndExecute()
@@ -324,28 +324,30 @@ public sealed class SqlDatabase
             if (EatWord("UPDATE")) return ExecuteUpdate();
             if (EatWord("DELETE")) return ExecuteDelete();
             if (EatWord("DROP")) return ExecuteDrop();
-            throw new SqlException($"不支持的语句：{Cur.Text}（仅支持 CREATE/INSERT/SELECT/UPDATE/DELETE/DROP）");
+            throw new SqlException(L.Pick($"不支持的语句：{Cur.Text}（仅支持 CREATE/INSERT/SELECT/UPDATE/DELETE/DROP）",
+                $"Unsupported statement: {Cur.Text} (only CREATE/INSERT/SELECT/UPDATE/DELETE/DROP are supported)"));
         }
 
         // ── CREATE TABLE name (col [TYPE] [constraints], ...) ──
         private string ExecuteCreate()
         {
-            if (!EatWord("TABLE")) throw new SqlException("CREATE 后期望 TABLE");
-            var name = ExpectIdentifier("表名");
-            if (!EatSym("(")) throw new SqlException("CREATE TABLE 期望 '('");
+            if (!EatWord("TABLE")) throw new SqlException(L.Pick("CREATE 后期望 TABLE", "expected TABLE after CREATE"));
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (!EatSym("(")) throw new SqlException(L.Pick("CREATE TABLE 期望 '('", "CREATE TABLE: expected '('"));
             var table = new Table { Name = name };
             while (true)
             {
-                if (IsEnd) throw new SqlException("CREATE TABLE 缺少 ')'");
-                var col = ExpectIdentifier("列名");
+                if (IsEnd) throw new SqlException(L.Pick("CREATE TABLE 缺少 ')'", "CREATE TABLE: missing ')'"));
+                var col = ExpectIdentifier(L.Pick("列名", "column name"));
                 table.Columns.Add(col);
                 SkipColumnDefTail();
                 if (EatSym(",")) continue;
                 if (EatSym(")")) break;
-                throw new SqlException("CREATE TABLE 列定义后期望 ',' 或 ')'");
+                throw new SqlException(L.Pick("CREATE TABLE 列定义后期望 ',' 或 ')'", "CREATE TABLE: expected ',' or ')' after the column definition"));
             }
             _tables[name] = table;
-            return $"已创建表 {name}（{table.Columns.Count} 列：{string.Join(", ", table.Columns)}）\n";
+            return L.Pick($"已创建表 {name}（{table.Columns.Count} 列：{string.Join(", ", table.Columns)}）\n",
+                $"Created table {name} ({table.Columns.Count} columns: {string.Join(", ", table.Columns)})\n");
         }
 
         /// <summary>跳过列定义的类型与约束（括号配对计数，避免把类型内的括号当分隔）。</summary>
@@ -368,9 +370,9 @@ public sealed class SqlDatabase
         // ── INSERT INTO name [(cols)] VALUES (v,...), (v,...) ──
         private string ExecuteInsert()
         {
-            if (!EatWord("INTO")) throw new SqlException("INSERT 后期望 INTO");
-            var name = ExpectIdentifier("表名");
-            if (!_tables.TryGetValue(name, out var table)) throw new SqlException($"表不存在：{name}");
+            if (!EatWord("INTO")) throw new SqlException(L.Pick("INSERT 后期望 INTO", "INSERT: expected INTO"));
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (!_tables.TryGetValue(name, out var table)) throw new SqlException(L.Pick($"表不存在：{name}", $"Table not found: {name}"));
 
             List<string>? cols = null;
             if (EatSym("("))
@@ -378,19 +380,19 @@ public sealed class SqlDatabase
                 cols = new List<string>();
                 while (true)
                 {
-                    cols.Add(ExpectIdentifier("列名"));
+                    cols.Add(ExpectIdentifier(L.Pick("列名", "column name")));
                     if (EatSym(",")) continue;
                     if (EatSym(")")) break;
-                    throw new SqlException("INSERT 列清单期望 ',' 或 ')'");
+                    throw new SqlException(L.Pick("INSERT 列清单期望 ',' 或 ')'", "INSERT column list: expected ',' or ')'"));
                 }
             }
 
-            if (!EatWord("VALUES")) throw new SqlException("INSERT 期望 VALUES");
+            if (!EatWord("VALUES")) throw new SqlException(L.Pick("INSERT 期望 VALUES", "INSERT: expected VALUES"));
 
             int inserted = 0;
             do
             {
-                if (!EatSym("(")) throw new SqlException("VALUES 后期望 '('");
+                if (!EatSym("(")) throw new SqlException(L.Pick("VALUES 后期望 '('", "VALUES: expected '('"));
                 var values = new List<Expr>();
                 if (!EatSym(")"))
                 {
@@ -399,7 +401,7 @@ public sealed class SqlDatabase
                         values.Add(ParseExpr());
                         if (EatSym(",")) continue;
                         if (EatSym(")")) break;
-                        throw new SqlException("VALUES 值清单期望 ',' 或 ')'");
+                        throw new SqlException(L.Pick("VALUES 值清单期望 ',' 或 ')'", "VALUES list: expected ',' or ')'"));
                     }
                 }
 
@@ -410,19 +412,21 @@ public sealed class SqlDatabase
                     for (int i = 0; i < cols.Count; i++)
                     {
                         int idx = table.ColIndex(cols[i]);
-                        if (idx < 0) throw new SqlException($"列不存在：{cols[i]}");
+                        if (idx < 0) throw new SqlException(L.Pick($"列不存在：{cols[i]}", $"Column not found: {cols[i]}"));
                         targetIdx[i] = idx;
                     }
                 }
                 else
                 {
                     if (values.Count != table.Columns.Count)
-                        throw new SqlException($"INSERT 值数量({values.Count})与表列数({table.Columns.Count})不符");
+                        throw new SqlException(L.Pick($"INSERT 值数量({values.Count})与表列数({table.Columns.Count})不符",
+                            $"INSERT has {values.Count} values but the table has {table.Columns.Count} columns"));
                     targetIdx = new int[table.Columns.Count];
                     for (int i = 0; i < targetIdx.Length; i++) targetIdx[i] = i;
                 }
                 if (values.Count != targetIdx.Length)
-                    throw new SqlException($"INSERT 值数量({values.Count})与目标列数({targetIdx.Length})不符");
+                    throw new SqlException(L.Pick($"INSERT 值数量({values.Count})与目标列数({targetIdx.Length})不符",
+                            $"INSERT has {values.Count} values but {targetIdx.Length} target columns were given"));
 
                 var row = new object?[table.Columns.Count];
                 for (int i = 0; i < values.Count; i++)
@@ -432,23 +436,23 @@ public sealed class SqlDatabase
             }
             while (EatSym(","));
 
-            return $"(已插入 {inserted} 行)\n";
+            return L.Pick($"(已插入 {inserted} 行)\n", $"({inserted} rows inserted)\n");
         }
 
         // ── UPDATE name SET col=expr, ... [WHERE cond] ──
         private string ExecuteUpdate()
         {
-            var name = ExpectIdentifier("表名");
-            if (!_tables.TryGetValue(name, out var table)) throw new SqlException($"表不存在：{name}");
-            if (!EatWord("SET")) throw new SqlException("UPDATE 期望 SET");
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (!_tables.TryGetValue(name, out var table)) throw new SqlException(L.Pick($"表不存在：{name}", $"Table not found: {name}"));
+            if (!EatWord("SET")) throw new SqlException(L.Pick("UPDATE 期望 SET", "UPDATE: expected SET"));
 
             var sets = new List<(int Col, Expr E)>();
             while (true)
             {
-                var col = ExpectIdentifier("列名");
+                var col = ExpectIdentifier(L.Pick("列名", "column name"));
                 int idx = table.ColIndex(col);
-                if (idx < 0) throw new SqlException($"列不存在：{col}");
-                if (!EatSym("=")) throw new SqlException("SET 期望 '='");
+                if (idx < 0) throw new SqlException(L.Pick($"列不存在：{col}", $"Column not found: {col}"));
+                if (!EatSym("=")) throw new SqlException(L.Pick("SET 期望 '='", "SET: expected '='"));
                 sets.Add((idx, ParseExpr()));
                 if (EatSym(",")) continue;
                 break;
@@ -462,28 +466,28 @@ public sealed class SqlDatabase
                 foreach (var (col, e) in sets) row[col] = e.Eval(row, table.Columns);
                 affected++;
             }
-            return $"(已影响 {affected} 行)\n";
+            return L.Pick($"(已影响 {affected} 行)\n", $"({affected} rows affected)\n");
         }
 
         // ── DELETE FROM name [WHERE cond] ──
         private string ExecuteDelete()
         {
-            if (!EatWord("FROM")) throw new SqlException("DELETE 期望 FROM");
-            var name = ExpectIdentifier("表名");
-            if (!_tables.TryGetValue(name, out var table)) throw new SqlException($"表不存在：{name}");
+            if (!EatWord("FROM")) throw new SqlException(L.Pick("DELETE 期望 FROM", "DELETE: expected FROM"));
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (!_tables.TryGetValue(name, out var table)) throw new SqlException(L.Pick($"表不存在：{name}", $"Table not found: {name}"));
             Expr? where = ParseWhere();
             int before = table.Rows.Count;
             table.Rows.RemoveAll(row => where != null && SqlDatabase.IsTruthy(where.Eval(row, table.Columns)));
-            return $"(已删除 {before - table.Rows.Count} 行)\n";
+            return L.Pick($"(已删除 {before - table.Rows.Count} 行)\n", $"({before - table.Rows.Count} rows deleted)\n");
         }
 
         // ── DROP TABLE name ──
         private string ExecuteDrop()
         {
-            if (!EatWord("TABLE")) throw new SqlException("DROP 后期望 TABLE");
-            var name = ExpectIdentifier("表名");
-            if (_tables.Remove(name)) return $"已删除表 {name}\n";
-            throw new SqlException($"表不存在：{name}");
+            if (!EatWord("TABLE")) throw new SqlException(L.Pick("DROP 后期望 TABLE", "expected TABLE after DROP"));
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (_tables.Remove(name)) return L.Pick($"已删除表 {name}\n", $"Dropped table {name}\n");
+            throw new SqlException(L.Pick($"表不存在：{name}", $"Table not found: {name}"));
         }
 
         // ── SELECT [DISTINCT] cols FROM name [WHERE] [ORDER BY] [LIMIT] ──
@@ -499,9 +503,9 @@ public sealed class SqlDatabase
                 break;
             }
 
-            if (!EatWord("FROM")) throw new SqlException("SELECT 期望 FROM（本引擎不支持无表查询）");
-            var name = ExpectIdentifier("表名");
-            if (!_tables.TryGetValue(name, out var table)) throw new SqlException($"表不存在：{name}");
+            if (!EatWord("FROM")) throw new SqlException(L.Pick("SELECT 期望 FROM（本引擎不支持无表查询）", "SELECT: expected FROM (this engine does not support table-less queries)"));
+            var name = ExpectIdentifier(L.Pick("表名", "table name"));
+            if (!_tables.TryGetValue(name, out var table)) throw new SqlException(L.Pick($"表不存在：{name}", $"Table not found: {name}"));
 
             Expr? where = ParseWhere();
 
@@ -509,12 +513,12 @@ public sealed class SqlDatabase
             var orderBy = new List<(string Col, bool Desc)>();
             if (EatWord("ORDER"))
             {
-                if (!EatWord("BY")) throw new SqlException("ORDER 期望 BY");
+                if (!EatWord("BY")) throw new SqlException(L.Pick("ORDER 期望 BY", "ORDER: expected BY"));
                 while (true)
                 {
                     string col;
                     if (Cur.Kind == TokKind.Number) { col = "#" + Cur.Text; Advance(); }
-                    else col = ExpectIdentifier("排序列"); // ExpectIdentifier 内部已 Advance
+                    else col = ExpectIdentifier(L.Pick("排序列", "ORDER BY column")); // ExpectIdentifier 内部已 Advance
                     bool desc = EatWord("DESC");
                     if (!desc) EatWord("ASC");
                     orderBy.Add((col, desc));
@@ -526,10 +530,10 @@ public sealed class SqlDatabase
             long limit = long.MaxValue, offset = 0;
             if (EatWord("LIMIT"))
             {
-                if (Cur.Kind != TokKind.Number) throw new SqlException("LIMIT 期望数字");
+                if (Cur.Kind != TokKind.Number) throw new SqlException(L.Pick("LIMIT 期望数字", "LIMIT: expected a number"));
                 limit = long.Parse(Cur.Text); Advance();
-                if (EatSym(",")) { offset = limit; if (Cur.Kind != TokKind.Number) throw new SqlException("LIMIT m,n 期望第二个数字"); limit = long.Parse(Cur.Text); Advance(); }
-                else if (EatWord("OFFSET")) { if (Cur.Kind != TokKind.Number) throw new SqlException("OFFSET 期望数字"); offset = long.Parse(Cur.Text); Advance(); }
+                if (EatSym(",")) { offset = limit; if (Cur.Kind != TokKind.Number) throw new SqlException(L.Pick("LIMIT m,n 期望第二个数字", "LIMIT m,n: expected a second number")); limit = long.Parse(Cur.Text); Advance(); }
+                else if (EatWord("OFFSET")) { if (Cur.Kind != TokKind.Number) throw new SqlException(L.Pick("OFFSET 期望数字", "OFFSET: expected a number")); offset = long.Parse(Cur.Text); Advance(); }
             }
 
             // 展开星号：SELECT * → 全部列；SELECT *, x → 全部列 + x
@@ -620,7 +624,7 @@ public sealed class SqlDatabase
             if (EatSym("*")) return (null, new StarExpr());
             var e = ParseExpr();
             string? alias = null;
-            if (EatWord("AS")) alias = ExpectIdentifier("别名");
+            if (EatWord("AS")) alias = ExpectIdentifier(L.Pick("别名", "alias"));
             return (alias, e);
         }
 
@@ -666,7 +670,7 @@ public sealed class SqlDatabase
             if (EatWord("IS"))
             {
                 bool negate = EatWord("NOT");
-                if (!EatWord("NULL")) throw new SqlException("IS 后期望 NULL");
+                if (!EatWord("NULL")) throw new SqlException(L.Pick("IS 后期望 NULL", "expected NULL after IS"));
                 return new IsNullExpr(left, negate);
             }
             var ops = new[] { "=", "!=", "<>", "<", ">", "<=", ">=" };
@@ -681,7 +685,7 @@ public sealed class SqlDatabase
             if (EatWord("LIKE")) return new BinaryExpr("LIKE", left, ParseAdditive());
             if (EatWord("IN"))
             {
-                if (!EatSym("(")) throw new SqlException("IN 期望 '('");
+                if (!EatSym("(")) throw new SqlException(L.Pick("IN 期望 '('", "IN: expected '('"));
                 var list = new List<Expr>();
                 if (!EatSym(")"))
                 {
@@ -728,7 +732,7 @@ public sealed class SqlDatabase
 
         private Expr ParsePrimary()
         {
-            if (EatSym("(")) { var e = ParseExpr(); if (!EatSym(")")) throw new SqlException("期望 ')'"); return e; }
+            if (EatSym("(")) { var e = ParseExpr(); if (!EatSym(")")) throw new SqlException(L.Pick("期望 ')'", "expected ')'")); return e; }
             if (Cur.Kind == TokKind.Number)
             {
                 var t = Cur.Text; Advance();
@@ -746,15 +750,15 @@ public sealed class SqlDatabase
                 var upper = w.ToUpperInvariant();
                 if (upper is "COUNT" or "SUM" or "AVG" or "MIN" or "MAX")
                 {
-                    if (!EatSym("(")) throw new SqlException($"聚合函数 {w} 期望 '('");
+                    if (!EatSym("(")) throw new SqlException(L.Pick($"聚合函数 {w} 期望 '('", $"aggregate function {w}: expected '('"));
                     bool star = EatSym("*");
-                    string? argCol = star ? null : ExpectIdentifier("聚合列名");
-                    if (!EatSym(")")) throw new SqlException("聚合函数期望 ')'");
+                    string? argCol = star ? null : ExpectIdentifier(L.Pick("聚合列名", "aggregate column name"));
+                    if (!EatSym(")")) throw new SqlException(L.Pick("聚合函数期望 ')'", "aggregate function: expected ')'"));
                     return new AggExpr(upper, star, argCol);
                 }
                 return new ColExpr(w);
             }
-            throw new SqlException($"无法解析表达式：{Cur.Text}");
+            throw new SqlException(L.Pick($"无法解析表达式：{Cur.Text}", $"Cannot parse expression: {Cur.Text}"));
         }
 
         // ── 表格渲染 ──
@@ -782,7 +786,7 @@ public sealed class SqlDatabase
             sb.AppendLine(JoinRow(headers, widths));
             sb.AppendLine(JoinRow(headers.Select(h => new string('-', Math.Max(1, h.Length))).ToArray(), widths));
             foreach (var row in cellRows) sb.AppendLine(JoinRow(row, widths));
-            if (cellRows.Count == 0) sb.AppendLine("(0 行)");
+            if (cellRows.Count == 0) sb.AppendLine(L.Pick("(0 行)", "(0 rows)"));
             return sb.ToString();
         }
 

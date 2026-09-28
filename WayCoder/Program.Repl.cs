@@ -25,8 +25,8 @@ public partial class Program
     private static async Task RunCliReplAsync(string? editFile)
     {
         var agent = _agent;
-        if (agent == null) { Console.Error.WriteLine("Agent 未初始化"); return; }
-        Console.WriteLine("WayCoder 道码 · CLI 模式（--cli）— 输入消息，exit/quit 退出");
+        if (agent == null) { Console.Error.WriteLine(L.Pick("Agent 未初始化", "Agent not initialized")); return; }
+        Console.WriteLine(L.Pick("WayCoder 道码 · CLI 模式（--cli）— 输入消息，exit/quit 退出", "WayCoder · CLI mode (--cli) — type a message, exit/quit to quit"));
         while (true)
         {
             Console.Write("» ");
@@ -63,7 +63,7 @@ public partial class Program
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n[31m[✘ 错误][0m {ex.Message}");
+            Console.WriteLine($"\n[31m" + L.Pick("[✘ 错误]", "[✘ Error]") + $"[0m {ex.Message}");
             return false;
         }
     }
@@ -157,7 +157,7 @@ public partial class Program
             onSlot: (slotIdx, count) =>
             {
                 // JSON 模式：stdout 只许出现 JsonResult 对象，进度提示一律走 stderr
-                var msg = $"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（命令行队列 · 无界面模式）";
+                var msg = L.Pick($"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（命令行队列 · 无界面模式）", $"📨 Slot F{slotIdx + 1} received {count} jobs (command-line queue · headless mode)");
                 if (_jsonMode) Console.Error.WriteLine(msg); else Console.WriteLine(msg);
             });
 
@@ -187,11 +187,11 @@ public partial class Program
             // → 没有画布），用户以为在跑，实际什么都没发生。所以先无界面地把队列跑完。
             if (_pendingSlotQueues.Count > 0) return await RunSlotQueuesHeadlessAsync();
 
-            Console.Error.WriteLine("✘ 当前环境没有可用的全屏画布，无法启动界面。");
+            Console.Error.WriteLine(L.Pick("✘ 当前环境没有可用的全屏画布，无法启动界面。", "✘ No usable full-screen canvas here; cannot start the interface."));
             if (Console.IsOutputRedirected)
-                Console.Error.WriteLine("  （标准输出被重定向 —— 全屏界面需要直接写终端）");
-            Console.Error.WriteLine("  非交互用法：waycoder -p \"任务\"（一次性） · echo \"任务\" | waycoder（读管道执行）");
-            Console.Error.WriteLine("  查看全部选项：waycoder -h");
+                Console.Error.WriteLine(L.Pick("  （标准输出被重定向 —— 全屏界面需要直接写终端）", "  (stdout is redirected — the full-screen interface must write to the terminal directly)"));
+            Console.Error.WriteLine(L.Pick("  非交互用法：waycoder -p \"任务\"（一次性） · echo \"任务\" | waycoder（读管道执行）", "  Non-interactive usage: waycoder -p \"task\" (one-shot) · echo \"task\" | waycoder (read from a pipe)"));
+            Console.Error.WriteLine(L.Pick("  查看全部选项：waycoder -h", "  See all options: waycoder -h"));
             return 1; // 由 Main 透传：Main 末尾的 return 0 会盖掉 Environment.ExitCode，必须走返回值
         }
 
@@ -254,7 +254,7 @@ public partial class Program
         slot0.ChatMessages.Add(new ChatMsg { Role = "banner", Content = logo, Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{Global.AppFullName} · {Global.Version}", Centered = true });
         slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = "深圳市探索智能科技有限公司", Centered = true });
-        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), _config.Provider, _config.Model)}  ·  /help 帮助", Centered = true });
+        slot0.ChatMessages.Add(new ChatMsg { Role = "system", Content = $"{ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), _config.Provider, _config.Model)}  " + L.Pick("·  /help 帮助", "·  /help for help"), Centered = true });
         // 快捷键表不再注入首条对话（太占地方），需要时 /help 弹出面板
         // 状态栏左侧写模型名，不写品牌名 —— 品牌在顶栏标题和上面的欢迎横幅里已经有了，
         // 这里再来一遍就是第三遍；而且 /model 切换后本来就会把这里改成模型名，启动态跟着一致。
@@ -274,8 +274,8 @@ public partial class Program
         if (!hasGlobalKey && keyCount == 0 || !hasCurrentKey)
         {
             var hint = !hasGlobalKey && keyCount == 0
-                ? "⚠ 未检测到任何 API Key，请按 Ctrl+M 打开模型选择框，选择模型后回车输入 Key"
-                : $"⚠ 当前模型 {_config.Model} 未配置 API Key，按 Ctrl+M 选择模型并输入 Key";
+                ? L.Pick("⚠ 未检测到任何 API Key，请按 Ctrl+M 打开模型选择框，选择模型后回车输入 Key", "⚠ No API Key found. Press Ctrl+M to open the model picker, choose a model, then enter the Key")
+                : L.Pick($"⚠ 当前模型 {_config.Model} 未配置 API Key，按 Ctrl+M 选择模型并输入 Key", $"⚠ No API Key configured for the current model {_config.Model}; press Ctrl+M to pick a model and enter the Key");
             slot0.ChatMessages.Add(new ChatMsg { Role = "system",
                 Content = $"«bold yellow»🔑 {hint}«/»" });
         }
@@ -334,7 +334,7 @@ public partial class Program
         if (_config.WatchMode)
         {
             StartWatchMode(screen);
-            screen.AddSystemMsg("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent");
+            screen.AddSystemMsg(L.Pick("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent", "👁 Watch mode started — writing an AI! comment in a file triggers the Agent automatically"));
         }
 
         // 尝试恢复上次会话
@@ -395,7 +395,7 @@ public partial class Program
             },
             onSlot: (slotIdx, count) =>
             {
-                screen.AddSystemMsg($"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（来自命令行）");
+                screen.AddSystemMsg(L.Pick($"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（来自命令行）", $"📨 Slot F{slotIdx + 1} received {count} jobs (from the command line)"));
                 mgr.Render();
             });
 
@@ -540,7 +540,7 @@ public partial class Program
             if (onChatScreen && InputEvent.IsModeSwitchKey(ev))
             {
                 var newMode = WorkModeManager.CycleNext();
-                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab 切换，或 /mode）");
+                screen.AddSystemMsg(L.Pick($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab 切换，或 /mode）", $"Work mode: {WorkModeManager.Format(newMode)} (Shift+Tab to switch, or /mode)"));
                 mgr.Render();
                 continue;
             }
@@ -573,14 +573,14 @@ public partial class Program
                         try { cts.Cancel(); } catch { }
                         cts.Dispose();
                     }
-                    screen.AddSystemMsg("⚠ 已请求中断当前槽位的 Agent");
+                    screen.AddSystemMsg(L.Pick("⚠ 已请求中断当前槽位的 Agent", "⚠ Interrupt requested for the current slot's Agent"));
                     mgr.Render();
                     continue;
                 }
                 if (key.Key == ConsoleKey.Z && ctrl)
                 {
                     _slots[_activeSlot].Agent!.PauseRequested = true;
-                    screen.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
+                    screen.AddSystemMsg(L.Pick("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）", "⏸ Pause requested — it will commit and stop after the current batch (press Esc again to interrupt now)"));
                     mgr.Render();
                     continue;
                 }
@@ -590,7 +590,7 @@ public partial class Program
             if (onChatScreen && key.Key == ConsoleKey.P && ctrl)
             {
                 PermissionManager.CycleMode();
-                screen.AddSystemMsg($"权限模式: {PermissionManager.FormatMode()}（Ctrl+P 循环切换）");
+                screen.AddSystemMsg(L.Pick($"权限模式: {PermissionManager.FormatMode()}（Ctrl+P 循环切换）", $"Permission mode: {PermissionManager.FormatMode()} (Ctrl+P to cycle)"));
                 RefreshActiveSlotTools(); // 权限模式可影响工具集（YOLO 换 YoloToolAllowList），切换后刷新
                 mgr.Render();
                 continue;
@@ -603,7 +603,7 @@ public partial class Program
                 var name = UiText.EconomyShortName(eco);
                 RefreshActiveSlotTools(); // 经济档位可影响 Build 工具集，切换后立即刷新
                 _config.SaveToEnvFile();
-                screen.AddSystemMsg($"经济模式: {name}（Ctrl+E 循环切换，已持久化）");
+                screen.AddSystemMsg(L.Pick($"经济模式: {name}（Ctrl+E 循环切换，已持久化）", $"Economy mode: {name} (Ctrl+E to cycle; persisted)"));
                 mgr.Render();
                 continue;
             }
@@ -681,7 +681,7 @@ public partial class Program
                     slotSwap.LastSmallModel = sm;
                 }
 
-                screen.AddSystemMsg($"🔄 大小模型交换 → 大:{lg} · 小:{sm}");
+                screen.AddSystemMsg(L.Pick($"🔄 大小模型交换 → 大:{lg} · 小:{sm}", $"🔄 Swapped large/small models → large: {lg} · small: {sm}"));
                 mgr.Render();
                 continue;
             }
@@ -715,7 +715,7 @@ public partial class Program
         var connects = ConnectionConfig.ListConnects();
         if (connects.Count == 0)
         {
-            screen.AddSystemMsg("尚无 connect。用 `/connect add <name> <providerId> <modelId>` 创建，如 `/connect add deepseek-pro deepseek deepseek-v4-pro`。");
+            screen.AddSystemMsg(L.Pick("尚无 connect。用 `/connect add <name> <providerId> <modelId>` 创建，如 `/connect add deepseek-pro deepseek deepseek-v4-pro`。", "No connects yet. Create one with `/connect add <name> <providerId> <modelId>`, e.g. `/connect add deepseek-pro deepseek deepseek-v4-pro`."));
             return;
         }
 
@@ -741,8 +741,8 @@ public partial class Program
         var agent = ProgramContext.Agent;
         // 切换连接 = 大/小一起切 → 走统一收尾（此前在这里手写四步，是 5 处绕过之一）
         agent?.ApplyRuntimeModel(cfg.Model, cfg.SmallModel, key, cfg.BaseUrl);
-        screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+N 下一个）" +
-            (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）" : ""));
+        screen.AddSystemMsg(L.Pick($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+N 下一个）", $"✅ {msg} ({(idx + 1) % connects.Count + 1}/{connects.Count}, Ctrl+N for the next)") +
+            (string.IsNullOrEmpty(key) ? L.Pick("\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）", "\n  ⚠ No key stored for this provider (/provider apikey set <pid> <key>)") : ""));
         screen.RefreshModelStatus(); // 切换连接后刷新动态栏/模型栏显示（此前漏刷新 → 显示旧模型）
     }
 
@@ -756,7 +756,7 @@ public partial class Program
             if (File.Exists(crashFile))
             {
                 var crashInfo = File.ReadAllText(crashFile).Trim();
-                screen.AddSystemMsg($"⚠ 检测到上次异常退出 ({crashInfo.Split('\n')[0]})。输入 /resume 恢复工作。");
+                screen.AddSystemMsg(L.Pick($"⚠ 检测到上次异常退出 ({crashInfo.Split('\n')[0]})。输入 /resume 恢复工作。", $"⚠ A previous abnormal exit was detected ({crashInfo.Split('\n')[0]}). Type /resume to restore your work."));
                 try { File.Delete(crashFile); } catch { }
             }
 
@@ -765,7 +765,7 @@ public partial class Program
             if (auto == null) return;
 
             var count = auto.Value.Messages.Count;
-            screen.AddSystemMsg($"💾 发现上次会话 ({count} 条消息)。输入 /resume 恢复，或忽略此消息开始新会话。");
+            screen.AddSystemMsg(L.Pick($"💾 发现上次会话 ({count} 条消息)。输入 /resume 恢复，或忽略此消息开始新会话。", $"💾 Previous session found ({count} messages). Type /resume to restore it, or ignore this and start a new session."));
             _pendingRestore = auto;
         }
         catch
@@ -791,7 +791,7 @@ public partial class Program
         }
         catch (Exception ex)
         {
-            screen.AddSystemMsg($"  ⚠ Watch 模式启动失败: {ex.Message}");
+            screen.AddSystemMsg(L.Pick($"  ⚠ Watch 模式启动失败: {ex.Message}", $"  ⚠ Failed to start Watch mode: {ex.Message}"));
             DebugLog.Log("watch", $"启动失败: {ex.Message}");
             ErrorLog.Error("Program.WatchMode", $"Watch 模式启动失败: {ex.Message}", ex);
         }
@@ -805,14 +805,14 @@ public partial class Program
             _watchMode.Dispose();
             _watchMode = null;
             _config.WatchMode = false;
-            screen.AddSystemMsg("👁 Watch 模式已关闭");
+            screen.AddSystemMsg(L.Pick("👁 Watch 模式已关闭", "👁 Watch mode stopped"));
         }
         else
         {
             _config.WatchMode = true;
             StartWatchMode(screen);
             if (_watchMode != null)
-                screen.AddSystemMsg("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent");
+                screen.AddSystemMsg(L.Pick("👁 Watch 模式已启动 — 在文件中写 AI! 注释自动触发 Agent", "👁 Watch mode started — writing an AI! comment in a file triggers the Agent automatically"));
         }
     }
 
@@ -1019,7 +1019,7 @@ public partial class Program
             {
                 // Ctrl+Z 优雅暂停：置位标志，Agent 在当前批次完成后的下一轮边界停机
                 _agent!.PauseRequested = true;
-                screen_!.AddSystemMsg("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）");
+                screen_!.AddSystemMsg(L.Pick("⏸ 已请求暂停 — 当前批次完成后自动提交并停机（再按 Esc 立即中断）", "⏸ Pause requested — it will commit and stop after the current batch (press Esc again to interrupt now)"));
             }
             else if (key.Key == ConsoleKey.Q && key.Modifiers.HasFlag(ConsoleModifiers.Control))
             {
@@ -1212,7 +1212,7 @@ public partial class Program
                 slot.ChatMessages.Add(new ChatMsg
                 {
                     Role = "system",
-                    Content = $"🤖 Agent 槽位 F{idx + 1} — 独立会话（/help 查看快捷键）",
+                    Content = L.Pick($"🤖 Agent 槽位 F{idx + 1} — 独立会话（/help 查看快捷键）", $"🤖 Agent slot F{idx + 1} — independent session (/help for shortcuts)"),
                 });
             }
 
@@ -1254,7 +1254,7 @@ public partial class Program
             var corrected = SuggestCommand(userInput);
             if (corrected != null && corrected != userInput)
             {
-                screen.AddSystemMsg($"💡 命令 [{userInput}] 未识别，已纠正为 [{corrected}]");
+                screen.AddSystemMsg(L.Pick($"💡 命令 [{userInput}] 未识别，已纠正为 [{corrected}]", $"💡 Command [{userInput}] not recognized; corrected to [{corrected}]"));
                 userInput = corrected;
             }
         }
@@ -1300,7 +1300,7 @@ public partial class Program
         {
             if (_slots[_activeSlot].IsBusy)
             {
-                screen.AddSystemMsg("⚠ 当前槽位 Agent 正在运行中，/loop 无法启动（请先 Esc 中断或等待完成）");
+                screen.AddSystemMsg(L.Pick("⚠ 当前槽位 Agent 正在运行中，/loop 无法启动（请先 Esc 中断或等待完成）", "⚠ The current slot's Agent is running, so /loop cannot start (press Esc to interrupt, or wait for it to finish)"));
                 return;
             }
             await RunLoopAsync(userInput[6..].Trim(), screen);
@@ -1311,17 +1311,17 @@ public partial class Program
         {
             if (_slots[_activeSlot].IsBusy)
             {
-                screen.AddSystemMsg("⚠ 当前槽位 Agent 正在运行中，/plan 无法启动（请先 Esc 中断或等待完成）");
+                screen.AddSystemMsg(L.Pick("⚠ 当前槽位 Agent 正在运行中，/plan 无法启动（请先 Esc 中断或等待完成）", "⚠ The current slot's Agent is running, so /plan cannot start (press Esc to interrupt, or wait for it to finish)"));
                 return;
             }
-            screen.AddSystemMsg("📋 计划模式");
+            screen.AddSystemMsg(L.Pick("📋 计划模式", "📋 Plan mode"));
             await PlanModeAsync();
             return;
         }
 
         if (userInput == "/pause")
         {
-            screen.AddSystemMsg("⏸ 暂停请在 Agent 运行时按 Ctrl+Z（当前批次完成后优雅停机并提交）。Esc 为立即中断。");
+            screen.AddSystemMsg(L.Pick("⏸ 暂停请在 Agent 运行时按 Ctrl+Z（当前批次完成后优雅停机并提交）。Esc 为立即中断。", "⏸ To pause, press Ctrl+Z while the Agent is running (it stops gracefully and commits after the current batch). Esc interrupts immediately."));
             return;
         }
 
@@ -1359,7 +1359,7 @@ public partial class Program
             // 排队：不打断当前任务 —— 指令入队，等 Agent 当前批次完成后由主循环取指令自动执行
             // 带上限（超 50 丢最旧），防长任务期间用户持续输入无限累积
             screen.EnqueueSubmission(userInput);
-            screen.AddSystemMsg("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行");
+            screen.AddSystemMsg(L.Pick("⏳ Agent 忙碌中 — 指令已排队，当前批次完成后自动执行", "⏳ Agent is busy — the command is queued and will run after the current batch finishes"));
             return;
         }
 
@@ -1498,9 +1498,9 @@ public partial class Program
                 var fmt = ConnectionConfig.FormatModelChannel("rollback", connect?.ProviderId ?? Config.Instance.Provider, model);
                 var remaining = modelStack.Skip(attempt + 1)
                     .Select(n => ConnectionConfig.FindConnect(n)?.ModelId ?? n).ToList();
-                var chainHint = remaining.Count > 0 ? $"（剩余: {string.Join(" → ", remaining)}）" : "";
-                Route(cs => { cs.StatusLeft = fmt; cs.AddSystemMsg($"🔄 自动回退到: {fmt}{chainHint}"); cs.StartAgentMsg(); },
-                      s => { s.StatusLeft = fmt; s.BufferedAddMsg("system", $"🔄 自动回退到: {fmt}{chainHint}"); s.BufferedStartStream(); });
+                var chainHint = remaining.Count > 0 ? L.Pick($"（剩余: {string.Join(" → ", remaining)}）", $"(remaining: {string.Join(" → ", remaining)})") : "";
+                Route(cs => { cs.StatusLeft = fmt; cs.AddSystemMsg(L.Pick($"🔄 自动回退到: {fmt}{chainHint}", $"🔄 Automatically fell back to: {fmt}{chainHint}")); cs.StartAgentMsg(); },
+                      s => { s.StatusLeft = fmt; s.BufferedAddMsg("system", L.Pick($"🔄 自动回退到: {fmt}{chainHint}", $"🔄 Automatically fell back to: {fmt}{chainHint}")); s.BufferedStartStream(); });
             }
 
             try
@@ -1530,7 +1530,7 @@ public partial class Program
                 var cancelled = ct.IsCancellationRequested;
                 if (!cancelled)
                     ErrorLog.Error("Program.REPL", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
-                var cancelMsg = cancelled ? "⚠ 已中断" : $"⏰ 服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应";
+                var cancelMsg = cancelled ? L.Pick("⚠ 已中断", "⚠ Interrupted") : L.Pick($"⏰ 服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应", $"⏰ The server did not respond within {Config.Instance.LlmHttpTimeoutSec}s");
                 Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg(cancelMsg); },
                       s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", cancelMsg); });
                 if (!cancelled)
@@ -1539,15 +1539,15 @@ public partial class Program
             }
             catch (Exception ex) when (attempt < modelStack.Length - 1)
             {
-                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg($"  ⚠ {model} 失败: {ex.Message}"); },
-                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", $"  ⚠ {model} 失败: {ex.Message}"); });
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg(L.Pick($"  ⚠ {model} 失败: {ex.Message}", $"  ⚠ {model} failed: {ex.Message}")); },
+                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", L.Pick($"  ⚠ {model} 失败: {ex.Message}", $"  ⚠ {model} failed: {ex.Message}")); });
                 ErrorLog.Warning("Program.REPL", $"模型 {model} 失败，尝试回退: {ex.Message}", ex);
                 // 继续回退链
             }
             catch (Exception ex)
             {
-                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg($"  💔 所有模型均失败: {ex.Message}"); },
-                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", $"  💔 所有模型均失败: {ex.Message}"); });
+                Route(cs => { cs.Running = false; cs.FinishAgentMsg(); cs.AddSystemMsg(L.Pick($"  💔 所有模型均失败: {ex.Message}", $"  💔 All models failed: {ex.Message}")); },
+                      s => { s.BufferedFinishStream(); s.BufferedAddMsg("system", L.Pick($"  💔 所有模型均失败: {ex.Message}", $"  💔 All models failed: {ex.Message}")); });
                 screen.PostToUI(() => screen.SlotStates[slotIdx] = SlotState.Error);
                 ErrorLog.Error("Program.REPL", $"所有模型均失败: {ex.Message}", ex);
             }
@@ -1558,8 +1558,8 @@ public partial class Program
         {
             var elapsed = (DateTime.UtcNow - startTime).TotalSeconds;
             var costMsg = FormatTaskCost(llm);
-            Route(cs => cs.AddSystemMsg($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}"),
-                  s => s.BufferedAddMsg("system", $"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}"));
+            Route(cs => cs.AddSystemMsg(L.Pick($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}", $"  ✅ Done · took {elapsed:F1}s · {costMsg}")),
+                  s => s.BufferedAddMsg("system", L.Pick($"  ✅ 完成 · 耗时 {elapsed:F1}s · {costMsg}", $"  ✅ Done · took {elapsed:F1}s · {costMsg}")));
             DesktopNotifier.NotifyAgentFinished();
         }
 
@@ -1569,12 +1569,12 @@ public partial class Program
         {
             Route(cs =>
             {
-                cs.AddSystemMsg($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+                cs.AddSystemMsg(L.Pick($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)", $"📝 Modified {modified.Count} files (/diff to view, /undo to revert, /recent for recent)"));
                 foreach (var f in modified)
                     if (!cs.RecentFiles.Contains(f)) { cs.RecentFiles.Add(f); if (cs.RecentFiles.Count > 50) cs.RecentFiles.RemoveAt(0); }
             }, s =>
             {
-                s.BufferedAddMsg("system", $"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)");
+                s.BufferedAddMsg("system", L.Pick($"📝 已修改 {modified.Count} 个文件 (/diff 查看 /undo 撤销 /recent 最近)", $"📝 Modified {modified.Count} files (/diff to view, /undo to revert, /recent for recent)"));
                 foreach (var f in modified)
                     if (!s.RecentFiles.Contains(f)) { s.RecentFiles.Add(f); if (s.RecentFiles.Count > 50) s.RecentFiles.RemoveAt(0); }
             });
@@ -1606,7 +1606,7 @@ public partial class Program
         var cost = llm.TaskCost;
 
         var sb = new System.Text.StringBuilder();
-        sb.Append($"📊 {input}+{output}={input + output} 词元");
+        sb.Append(L.Pick($"📊 {input}+{output}={input + output} 词元", $"📊 {input}+{output}={input + output} tokens"));
 
         if (cost.HasValue)
         {
@@ -1620,7 +1620,7 @@ public partial class Program
         }
         else
         {
-            sb.Append(" · 💰 未知定价");
+            sb.Append(L.Pick(" · 💰 未知定价", " · 💰 pricing unknown"));
         }
 
         return sb.ToString();
@@ -1634,14 +1634,14 @@ public partial class Program
             var (cmd, _) = SlashCommandRegistry.Match("/sync-qr");
             if (cmd == null)
             {
-                screen.AddSystemMsg("❌ /sync-qr 命令未注册");
+                screen.AddSystemMsg(L.Pick("❌ /sync-qr 命令未注册", "❌ The /sync-qr command is not registered"));
                 return;
             }
             cmd.ExecuteAsync("", screen);
         }
         catch (Exception ex)
         {
-            screen.AddSystemMsg($"❌ 生成二维码失败：{ex.Message}");
+            screen.AddSystemMsg(L.Pick($"❌ 生成二维码失败：{ex.Message}", $"❌ Failed to generate the QR code: {ex.Message}"));
         }
     }
 }

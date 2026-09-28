@@ -48,7 +48,8 @@ public static class BackgroundTaskManager
                     var tailLen = Global.MaxBgOutputChars * 40 / 100;
                     var cur = _output;
                     _output = ContextManager.TruncateKeepHeadTail(cur, headLen, tailLen,
-                        $"\n\n... 已截断（共 {cur.Length} 字符）...\n\n");
+                        L.Pick($"\n\n... 已截断（共 {cur.Length} 字符）...\n\n",
+                            $"\n\n... truncated ({cur.Length} chars total) ...\n\n"));
                 }
             }
         }
@@ -138,7 +139,7 @@ public static class BackgroundTaskManager
         catch (Exception ex)
         {
             task.Status = "error";
-            task.Output = $"启动失败: {ex.Message}";
+            task.Output = L.Pick($"启动失败: {ex.Message}", $"Failed to start: {ex.Message}");
             DebugLog.Log("bgtask", $"后台任务 #{task.Id} 异常: {ex.Message}");
             ErrorLog.Error("BackgroundTask", $"后台任务 #{task.Id} 异常: {task.Command}", ex);
         }
@@ -160,7 +161,7 @@ public static class BackgroundTaskManager
         catch (Exception ex)
         {
             task.Status = "error";
-            task.Output = $"迁移后异常: {ex.Message}";
+            task.Output = L.Pick($"迁移后异常: {ex.Message}", $"Exception after adoption: {ex.Message}");
             DebugLog.Log("bgtask", $"后台任务 #{task.Id} 迁移后异常: {ex.Message}");
             ErrorLog.Error("BackgroundTask", $"后台任务 #{task.Id} 迁移后异常: {task.Command}", ex);
         }
@@ -192,7 +193,7 @@ public static class BackgroundTaskManager
             ProcUtil.KillTree(proc);
             task.Status = "timeout";
             await DrainOutput(ioCompletion);
-            task.Output = outputGetter().Trim() + "\n[超时]";
+            task.Output = outputGetter().Trim() + L.Pick("\n[超时]", "\n[timed out]");
             ErrorLog.Warning("BackgroundTask", $"后台任务超时 (id={task.Id}, timeout={timeoutSec}s): {task.Command}");
         }
         else
@@ -203,7 +204,10 @@ public static class BackgroundTaskManager
             task.ExitCode = proc.ExitCode;
             task.Output = outputGetter().Trim();
             if (task.ExitCode != 0)
-                task.AppendOutput($"\n[退出码: {task.ExitCode}]");
+                // ⚠ 英文支的写法必须与 ContextManager 的「保留错误上下文」标记表对齐（公理 A2）——
+                //   那边已中英双认 `[退出码` / `[exit code` / `[Exit code`。同批的 PersistentShell
+                //   用的是小写 `[exit code: N]`，这里与之取齐。
+                task.AppendOutput(L.Pick($"\n[退出码: {task.ExitCode}]", $"\n[exit code: {task.ExitCode}]"));
         }
     }
 
@@ -217,13 +221,14 @@ public static class BackgroundTaskManager
     public static string GetOutput(int id)
     {
         if (!_tasks.TryGetValue(id, out var task))
-            return $"未找到任务 #{id}";
+            return L.Pick($"未找到任务 #{id}", $"No task #{id} found");
 
         var output = task.Output;
         if (output.Length > 5000)
         {
             var originalLen = output.Length;
-            output = ContextManager.TruncateByRunes(output, 4000) + $"\n... (已截断，共 {originalLen} 字符)";
+            output = ContextManager.TruncateByRunes(output, 4000) + L.Pick($"\n... (已截断，共 {originalLen} 字符)",
+                $"\n... (truncated; {originalLen} chars total)");
         }
 
         return output.Trim();
@@ -234,7 +239,7 @@ public static class BackgroundTaskManager
     /// </summary>
     public static string ListTasks()
     {
-        if (_tasks.IsEmpty) return "（无后台任务）";
+        if (_tasks.IsEmpty) return L.Pick("（无后台任务）", "(no background tasks)");
 
         var lines = new List<string>();
         foreach (var (_, task) in _tasks.OrderByDescending(t => t.Key))
@@ -261,22 +266,24 @@ public static class BackgroundTaskManager
     public static string Kill(int id)
     {
         if (!_tasks.TryGetValue(id, out var task))
-            return $"未找到任务 #{id}";
+            return L.Pick($"未找到任务 #{id}", $"No task #{id} found");
 
         if (task.Status != "running")
-            return $"任务 #{id} 已结束（状态: {task.Status}）";
+            return L.Pick($"任务 #{id} 已结束（状态: {task.Status}）",
+                $"Task #{id} has already finished (status: {task.Status})");
 
         try
         {
             if (task.Process != null) ProcUtil.KillTree(task.Process);
             task.Status = "killed";
-            task.AppendOutput("\n[已被用户终止]");
+            task.AppendOutput(L.Pick("\n[已被用户终止]", "\n[terminated by the user]"));
             task.CompletedAt = DateTime.Now;
-            return $"已终止任务 #{id}: {task.Command}";
+            return L.Pick($"已终止任务 #{id}: {task.Command}", $"Terminated task #{id}: {task.Command}");
         }
         catch (Exception ex)
         {
-            return $"终止任务 #{id} 失败: {ex.Message}";
+            // ⚠ 英文支刻意不以 Failed/Error 开头（中文支同样不被 ToolResultClassifier 前缀命中）
+            return L.Pick($"终止任务 #{id} 失败: {ex.Message}", $"Could not terminate task #{id}: {ex.Message}");
         }
     }
 

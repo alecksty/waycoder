@@ -46,7 +46,7 @@ public class GitPRTool : ITool
             "create" => CreatePR(title, description, baseBranch),
             "push" => PushCurrentBranch(),
             "url" => GeneratePRUrl(baseBranch),
-            _ => "错误：未知操作。支持：create, push, url",
+            _ => L.Pick("错误：未知操作。支持：create, push, url", "Error: unknown action. Supported: create, push, url"),
         };
     }
 
@@ -55,31 +55,34 @@ public class GitPRTool : ITool
     private static string CreatePR(string title, string description, string? baseBranch)
     {
         if (string.IsNullOrWhiteSpace(title))
-            return "错误：create 操作需要 --title 参数";
+            return L.Pick("错误：create 操作需要 --title 参数", "Error: the create action requires a --title argument");
 
         var repoRoot = FindGitRoot();
         if (repoRoot == null)
-            return "错误：未找到 Git 仓库";
+            return L.Pick("错误：未找到 Git 仓库", "Error: no Git repository found");
 
         // 1. 检测远程和平台
         var (remoteUrl, platform, owner, repo) = DetectRemote(repoRoot);
         if (remoteUrl == null)
-            return "错误：未配置 Git 远程仓库";
+            return L.Pick("错误：未配置 Git 远程仓库", "Error: no Git remote is configured");
 
         // 2. 获取当前分支
         var currentBranch = RunGit(repoRoot, "rev-parse --abbrev-ref HEAD").Trim();
         if (string.IsNullOrEmpty(currentBranch) || currentBranch == "HEAD")
-            return "错误：无法获取当前分支名（可能是 detached HEAD）";
+            return L.Pick("错误：无法获取当前分支名（可能是 detached HEAD）",
+                          "Error: cannot determine the current branch name (possibly a detached HEAD)");
 
         baseBranch ??= DetectDefaultBranch(repoRoot);
 
         if (currentBranch == baseBranch)
-            return $"错误：当前在 {baseBranch} 分支，请先创建功能分支：`git checkout -b feature/xxx`";
+            return L.Pick($"错误：当前在 {baseBranch} 分支，请先创建功能分支：`git checkout -b feature/xxx`",
+                          $"Error: currently on branch {baseBranch}; create a feature branch first: `git checkout -b feature/xxx`");
 
         // 3. 检查是否有未推送的提交
         var unpushed = RunGit(repoRoot, $"log {baseBranch}..{currentBranch} --oneline").Trim();
         if (string.IsNullOrEmpty(unpushed))
-            return $"提示：{currentBranch} 分支没有相对于 {baseBranch} 的新提交。\n是否已推送？使用 `git push -u origin {currentBranch}`";
+            return L.Pick($"提示：{currentBranch} 分支没有相对于 {baseBranch} 的新提交。\n是否已推送？使用 `git push -u origin {currentBranch}`",
+                          $"Note: branch {currentBranch} has no new commits relative to {baseBranch}.\nAlready pushed? Use `git push -u origin {currentBranch}`");
 
         // 4. 推送
         var pushResult = RunGit(repoRoot, $"push -u origin {currentBranch}");
@@ -90,17 +93,19 @@ public class GitPRTool : ITool
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine(pushed
-            ? $"✅ 已推送到 origin/{currentBranch}"
-            : $"⚠ 推送可能失败：\n{pushResult}");
+            ? L.Pick($"✅ 已推送到 origin/{currentBranch}", $"✅ Pushed to origin/{currentBranch}")
+            : L.Pick($"⚠ 推送可能失败：\n{pushResult}", $"⚠ Push may have failed:\n{pushResult}"));
         sb.AppendLine();
-        sb.AppendLine("## 创建 Pull Request");
+        sb.AppendLine(L.Pick("## 创建 Pull Request", "## Create a Pull Request"));
         sb.AppendLine();
         sb.AppendLine($"🔗 {prUrl}");
         sb.AppendLine();
-        sb.AppendLine($"源分支: {currentBranch} → 目标分支: {baseBranch}");
-        sb.AppendLine($"标题: {title}");
+        sb.AppendLine(L.Pick($"源分支: {currentBranch} → 目标分支: {baseBranch}",
+                             $"Source branch: {currentBranch} → Target branch: {baseBranch}"));
+        sb.AppendLine(L.Pick($"标题: {title}", $"Title: {title}"));
         if (!string.IsNullOrEmpty(description))
-            sb.AppendLine($"描述: {ContextManager.TruncateByRunes(description, 200)}");
+            sb.AppendLine(L.Pick($"描述: {ContextManager.TruncateByRunes(description, 200)}",
+                                 $"Description: {ContextManager.TruncateByRunes(description, 200)}"));
 
         return sb.ToString();
     }
@@ -110,14 +115,14 @@ public class GitPRTool : ITool
     private static string PushCurrentBranch()
     {
         var repoRoot = FindGitRoot();
-        if (repoRoot == null) return "错误：未找到 Git 仓库";
+        if (repoRoot == null) return L.Pick("错误：未找到 Git 仓库", "Error: no Git repository found");
 
         var branch = RunGit(repoRoot, "rev-parse --abbrev-ref HEAD").Trim();
         var result = RunGit(repoRoot, $"push -u origin {branch}");
 
         return result.Contains("fatal") || result.Contains("error")
-            ? $"推送失败：\n{result}"
-            : $"✅ 已推送到 origin/{branch}";
+            ? L.Pick($"推送失败：\n{result}", $"Push failed:\n{result}")
+            : L.Pick($"✅ 已推送到 origin/{branch}", $"✅ Pushed to origin/{branch}");
     }
 
     // ---- 仅生成 URL ----
@@ -125,16 +130,16 @@ public class GitPRTool : ITool
     private static string GeneratePRUrl(string? baseBranch)
     {
         var repoRoot = FindGitRoot();
-        if (repoRoot == null) return "错误：未找到 Git 仓库";
+        if (repoRoot == null) return L.Pick("错误：未找到 Git 仓库", "Error: no Git repository found");
 
         var (remoteUrl, platform, owner, repo) = DetectRemote(repoRoot);
-        if (remoteUrl == null) return "错误：未配置 Git 远程仓库";
+        if (remoteUrl == null) return L.Pick("错误：未配置 Git 远程仓库", "Error: no Git remote is configured");
 
         var currentBranch = RunGit(repoRoot, "rev-parse --abbrev-ref HEAD").Trim();
         baseBranch ??= DetectDefaultBranch(repoRoot);
 
         var url = BuildPRUrl(platform, owner, repo, currentBranch, baseBranch, "", "");
-        return $"🔗 PR 创建链接:\n{url}";
+        return L.Pick($"🔗 PR 创建链接:\n{url}", $"🔗 PR creation link:\n{url}");
     }
 
     // ---- 内部辅助方法 ----

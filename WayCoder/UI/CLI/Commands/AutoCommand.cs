@@ -14,7 +14,7 @@ public class AutoCommand : SlashCommand
 {
     public override string Name => "/auto";
     public override string[] Aliases => ["/自动", "/auto-mode"];
-    public override string Description => "智能 Auto Mode：Safe 放行 / Cautious 记一次 / Dangerous 每次确认";
+    public override string Description => L.Pick("智能 Auto Mode：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", "Smart Auto Mode: Safe allowed / Cautious remembered once / Dangerous confirmed every time");
     public override string? Usage => "/auto [on|off|status]";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
@@ -26,27 +26,27 @@ public class AutoCommand : SlashCommand
             if (PermissionManager.CurrentMode == PermissionManager.Mode.SmartAuto)
             {
                 screen.AddMessage(
-                    "✅ **SmartAuto 已开启**\n\n" +
-                    "| 级别 | 工具 | 行为 |\n" +
+                    L.Pick("✅ **SmartAuto 已开启**\n\n", "✅ **SmartAuto is on**\n\n") +
+                    L.Pick("| 级别 | 工具 | 行为 |\n", "| Level | Tools | Behavior |\n") +
                     "|------|------|------|\n" +
-                    "| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | 自动放行 |\n" +
-                    "| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | 首次确认后记住 |\n" +
-                    "| 🔴 Dangerous | rm, bash, git, kill, agent | 每次确认 |\n\n" +
-                    $"连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作 → 自动退回 Ask 模式",
+                    L.Pick("| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | 自动放行 |\n", "| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | auto-allowed |\n") +
+                    L.Pick("| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | 首次确认后记住 |\n", "| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | remembered after the first confirmation |\n") +
+                    L.Pick("| 🔴 Dangerous | rm, bash, git, kill, agent | 每次确认 |\n\n", "| 🔴 Dangerous | rm, bash, git, kill, agent | confirmed every time |\n\n") +
+                    L.Pick($"连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作 → 自动退回 Ask 模式", $"{AutoModeClassifier.BlockThreshold} consecutive refusals of dangerous operations → falls back to Ask mode"),
                     "system");
                 return Task.CompletedTask;
             }
 
             PermissionManager.SetMode("smartauto");
             screen.AddMessage(
-                "🧠 **SmartAuto 模式已开启**\n\n" +
-                "| 级别 | 工具 | 行为 |\n" +
+                L.Pick("🧠 **SmartAuto 模式已开启**\n\n", "🧠 **SmartAuto mode is on**\n\n") +
+                L.Pick("| 级别 | 工具 | 行为 |\n", "| Level | Tools | Behavior |\n") +
                 "|------|------|------|\n" +
-                "| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | 自动放行 |\n" +
-                "| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | 首次确认后记住 |\n" +
-                "| 🔴 Dangerous | rm, bash, git, kill, agent | 每次确认 |\n\n" +
-                $"💡 连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作后将自动退回 Ask 模式\n" +
-                "使用 **/auto off** 关闭",
+                L.Pick("| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | 自动放行 |\n", "| 🟢 Safe | read_file, ls, grep, glob, stat, diff... | auto-allowed |\n") +
+                L.Pick("| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | 首次确认后记住 |\n", "| 🟡 Cautious | write_file, edit_file, mkdir, cp, mv... | remembered after the first confirmation |\n") +
+                L.Pick("| 🔴 Dangerous | rm, bash, git, kill, agent | 每次确认 |\n\n", "| 🔴 Dangerous | rm, bash, git, kill, agent | confirmed every time |\n\n") +
+                L.Pick($"💡 连续 {AutoModeClassifier.BlockThreshold} 次拒绝危险操作后将自动退回 Ask 模式\n", $"💡 After {AutoModeClassifier.BlockThreshold} consecutive refusals of dangerous operations it falls back to Ask mode\n") +
+                L.Pick("使用 **/auto off** 关闭", "Use **/auto off** to turn it off"),
                 "system");
 
             // 订阅退回事件以显示通知
@@ -59,17 +59,17 @@ public class AutoCommand : SlashCommand
         {
             if (PermissionManager.CurrentMode == PermissionManager.Mode.Ask)
             {
-                screen.AddMessage("ℹ 当前已是 **Ask（每次确认）** 模式。", "system");
+                screen.AddMessage(L.Pick("ℹ 当前已是 **Ask（每次确认）** 模式。", "ℹ Already in **Ask (confirm every time)** mode."), "system");
                 return Task.CompletedTask;
             }
 
             PermissionManager.SetMode("ask");
-            screen.AddMessage("✅ 已切换为 **Ask（每次确认）** 模式。", "system");
+            screen.AddMessage(L.Pick("✅ 已切换为 **Ask（每次确认）** 模式。", "✅ Switched to **Ask (confirm every time)** mode."), "system");
         }
         else if (arg == "yolo" || arg == "god")
         {
             PermissionManager.SetMode("yolo");
-            screen.AddMessage("⚠ **YOLO 模式**：所有操作直接执行，不确认。\n使用 **/auto off** 恢复安全模式。", "system");
+            screen.AddMessage(L.Pick("⚠ **YOLO 模式**：所有操作直接执行，不确认。\n使用 **/auto off** 恢复安全模式。", "⚠ **YOLO mode**: every operation runs immediately with no confirmation.\nUse **/auto off** to return to the safe mode."), "system");
         }
         else
         {
@@ -85,21 +85,21 @@ public class AutoCommand : SlashCommand
             var label = UiText.PermLabel(PermissionManager.CurrentMode);
 
             var statsInfo = PermissionManager.CurrentMode == PermissionManager.Mode.SmartAuto
-                ? $"\n\n**分级统计**：{AutoModeClassifier.GetStats()}"
+                ? L.Pick($"\n\n**分级统计**：{AutoModeClassifier.GetStats()}", $"\n\n**Classification stats**: {AutoModeClassifier.GetStats()}")
                 : "";
 
             screen.AddMessage(
-                $"**当前权限模式**：{emoji} {label}{statsInfo}\n\n" +
-                "**切换**：\n" +
-                "- `/auto on` — 开启 SmartAuto 智能分级\n" +
-                "- `/auto off` — 回到 Ask 每次确认\n" +
-                "- `/auto yolo` — 上帝模式（不推荐）\n\n" +
-                "**SmartAuto 分级逻辑**：\n" +
-                "| 级别 | 行为 |\n" +
+                L.Pick($"**当前权限模式**：{emoji} {label}{statsInfo}\n\n", $"**Current permission mode**: {emoji} {label}{statsInfo}\n\n") +
+                L.Pick("**切换**：\n", "**Switch**:\n") +
+                L.Pick("- `/auto on` — 开启 SmartAuto 智能分级\n", "- `/auto on` — enable SmartAuto classification\n") +
+                L.Pick("- `/auto off` — 回到 Ask 每次确认\n", "- `/auto off` — back to Ask, confirm every time\n") +
+                L.Pick("- `/auto yolo` — 上帝模式（不推荐）\n\n", "- `/auto yolo` — god mode (not recommended)\n\n") +
+                L.Pick("**SmartAuto 分级逻辑**：\n", "**SmartAuto classification logic**:\n") +
+                L.Pick("| 级别 | 行为 |\n", "| Level | Behavior |\n") +
                 "|------|------|\n" +
-                "| 🟢 Safe | read/ls/grep 等只读 → 自动放行 |\n" +
-                "| 🟡 Cautious | write/edit/mkdir 等修改 → 首次确认后记住 |\n" +
-                "| 🔴 Dangerous | rm/bash/git/kill/agent → 每次确认 |",
+                L.Pick("| 🟢 Safe | read/ls/grep 等只读 → 自动放行 |\n", "| 🟢 Safe | read-only ops like read/ls/grep → auto-allowed |\n") +
+                L.Pick("| 🟡 Cautious | write/edit/mkdir 等修改 → 首次确认后记住 |\n", "| 🟡 Cautious | modifications like write/edit/mkdir → remembered after the first confirmation |\n") +
+                L.Pick("| 🔴 Dangerous | rm/bash/git/kill/agent → 每次确认 |", "| 🔴 Dangerous | rm/bash/git/kill/agent → confirmed every time |"),
                 "system");
         }
 

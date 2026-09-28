@@ -15,14 +15,14 @@ public class DiffCommand : SlashCommand
 {
     public override string Name => "/diff";
     public override string[] Aliases => ["/d"];
-    public override string Description => "预览修改文件的差异（/diff 或 /diff <关键词>）";
+    public override string Description => L.Pick("预览修改文件的差异（/diff 或 /diff <关键词>）", "Preview the diff of modified files (/diff or /diff <keyword>)");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {
         var changed = EditFileTool.ChangedFiles.ToList();
         if (changed.Count == 0)
         {
-            screen.AddSystemMsg("📂 没有待预览的修改文件");
+            screen.AddSystemMsg(L.Pick("📂 没有待预览的修改文件", "📂 No modified files to preview"));
             return Task.CompletedTask;
         }
 
@@ -36,7 +36,7 @@ public class DiffCommand : SlashCommand
                 .ToList();
             if (!targets.Any())
             {
-                screen.AddSystemMsg($"📂 没有文件名匹配「{args}」的修改文件（共 {changed.Count} 个）");
+                screen.AddSystemMsg(L.Pick($"📂 没有文件名匹配「{args}」的修改文件（共 {changed.Count} 个）", $"📂 No modified file name matches {args} ({changed.Count} in total)"));
                 return Task.CompletedTask;
             }
         }
@@ -44,7 +44,7 @@ public class DiffCommand : SlashCommand
         var list = targets.ToList();
         if (list.Count > 10)
         {
-            screen.AddSystemMsg($"📂 共 {list.Count} 个修改文件，先预览前 10 个（用 /diff <关键词> 过滤）");
+            screen.AddSystemMsg(L.Pick($"📂 共 {list.Count} 个修改文件，先预览前 10 个（用 /diff <关键词> 过滤）", $"📂 {list.Count} modified files; previewing the first 10 (filter with /diff <keyword>)"));
             list = list.Take(10).ToList();
         }
 

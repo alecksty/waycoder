@@ -57,7 +57,7 @@ public static class DesktopNotifier
     {
         Notify(NotificationType.AgentFinished,
             title: sessionName,
-            message: "Agent 已完成当前任务，等待输入");
+            message: L.Pick("Agent 已完成当前任务，等待输入", "Agent finished the current task; waiting for input"));
     }
 
     /// <summary>
@@ -66,8 +66,9 @@ public static class DesktopNotifier
     public static void NotifyPermissionWaiting(string toolName)
     {
         Notify(NotificationType.PermissionWaiting,
-            title: $"权限确认: {toolName}",
-            message: $"WayCoder 正在等待对工具 '{toolName}' 的操作确认");
+            title: L.Pick($"权限确认: {toolName}", $"Permission: {toolName}"),
+            message: L.Pick($"WayCoder 正在等待对工具 '{toolName}' 的操作确认",
+                $"WayCoder is waiting for your confirmation to run '{toolName}'"));
     }
 
     /// <summary>
@@ -76,8 +77,8 @@ public static class DesktopNotifier
     public static void NotifyBackgroundTaskFinished(string? taskId = null)
     {
         Notify(NotificationType.BackgroundTaskFinished,
-            title: taskId ?? "后台任务",
-            message: "后台任务已完成");
+            title: taskId ?? L.Pick("后台任务", "Background task"),
+            message: L.Pick("后台任务已完成", "Background task finished"));
     }
 
     // ========================================================================
@@ -90,19 +91,19 @@ public static class DesktopNotifier
         {
             NotificationType.AgentFinished => (
                 title ?? "WayCoder",
-                message ?? "Agent 已完成当前任务"),
+                message ?? L.Pick("Agent 已完成当前任务", "Agent finished the current task")),
 
             NotificationType.PermissionWaiting => (
-                title ?? "WayCoder — 权限确认",
-                message ?? "等待操作确认"),
+                title ?? L.Pick("WayCoder — 权限确认", "WayCoder — Permission request"),
+                message ?? L.Pick("等待操作确认", "Waiting for confirmation")),
 
             NotificationType.ReAuthenticate => (
-                title ?? "WayCoder — 认证",
-                message ?? "需要重新认证"),
+                title ?? L.Pick("WayCoder — 认证", "WayCoder — Authentication"),
+                message ?? L.Pick("需要重新认证", "Re-authentication required")),
 
             NotificationType.BackgroundTaskFinished => (
-                title ?? "WayCoder — 后台任务",
-                message ?? "后台任务已完成"),
+                title ?? L.Pick("WayCoder — 后台任务", "WayCoder — Background task"),
+                message ?? L.Pick("后台任务已完成", "Background task finished")),
 
             _ => (title ?? "WayCoder", message ?? "")
         };

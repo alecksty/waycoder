@@ -27,7 +27,7 @@ public sealed class JsonParseException : Exception
     public int Position { get; }
 
     public JsonParseException(string message, int position)
-        : base($"{message}（位置 {position}）")
+        : base(L.Pick($"{message}（位置 {position}）", $"{message} (at position {position})"))
     {
         Position = position;
     }
@@ -190,7 +190,7 @@ public static class Json
         p.SkipWs();
         var node = p.ParseValue();
         p.SkipWs();
-        if (!p.AtEnd) throw new JsonParseException("根值后存在多余内容", p.Pos);
+        if (!p.AtEnd) throw new JsonParseException(L.Pick("根值后存在多余内容", "Trailing content after the root value"), p.Pos);
         return node;
     }
 
@@ -419,11 +419,11 @@ public static class Json
         {
             // 递归下降无深度限制 → 深层嵌套（如 5 万层 [[[..）StackOverflowException 崩溃进程
             if (++_depth > MaxDepth)
-                throw new JsonParseException("JSON 嵌套过深（>512 层）", _i);
+                throw new JsonParseException(L.Pick("JSON 嵌套过深（>512 层）", "JSON nesting too deep (>512 levels)"), _i);
             try
             {
                 SkipWs();
-                if (AtEnd) throw new JsonParseException("意外的文件结尾", _i);
+                if (AtEnd) throw new JsonParseException(L.Pick("意外的文件结尾", "Unexpected end of input"), _i);
                 char c = _s[_i];
                 return c switch
                 {
@@ -448,8 +448,8 @@ public static class Json
             while (true)
             {
                 SkipWs();
-                if (AtEnd) throw new JsonParseException("对象未闭合", _i);
-                if (_s[_i] != '"') throw new JsonParseException("期望属性名（字符串）", _i);
+                if (AtEnd) throw new JsonParseException(L.Pick("对象未闭合", "Unterminated object"), _i);
+                if (_s[_i] != '"') throw new JsonParseException(L.Pick("期望属性名（字符串）", "Expected a property name (string)"), _i);
                 var key = ParseString();
                 SkipWs();
                 Expect(':');
@@ -457,11 +457,11 @@ public static class Json
                 var val = ParseValue();
                 obj.Set(key, val);
                 SkipWs();
-                if (AtEnd) throw new JsonParseException("对象未闭合", _i);
+                if (AtEnd) throw new JsonParseException(L.Pick("对象未闭合", "Unterminated object"), _i);
                 char c = _s[_i];
                 if (c == ',') { _i++; continue; }
                 if (c == '}') { _i++; return obj; }
-                throw new JsonParseException("期望 ',' 或 '}'", _i);
+                throw new JsonParseException(L.Pick("期望 ',' 或 '}'", "Expected ',' or '}'"), _i);
             }
         }
 
@@ -476,11 +476,11 @@ public static class Json
                 SkipWs();
                 arr.Add(ParseValue());
                 SkipWs();
-                if (AtEnd) throw new JsonParseException("数组未闭合", _i);
+                if (AtEnd) throw new JsonParseException(L.Pick("数组未闭合", "Unterminated array"), _i);
                 char c = _s[_i];
                 if (c == ',') { _i++; continue; }
                 if (c == ']') { _i++; return arr; }
-                throw new JsonParseException("期望 ',' 或 ']'", _i);
+                throw new JsonParseException(L.Pick("期望 ',' 或 ']'", "Expected ',' or ']'"), _i);
             }
         }
 
@@ -490,13 +490,13 @@ public static class Json
             var sb = new StringBuilder();
             while (true)
             {
-                if (AtEnd) throw new JsonParseException("字符串未闭合", _i);
+                if (AtEnd) throw new JsonParseException(L.Pick("字符串未闭合", "Unterminated string"), _i);
                 char c = _s[_i];
                 if (c == '"') { _i++; return sb.ToString(); }
                 if (c == '\\')
                 {
                     _i++;
-                    if (AtEnd) throw new JsonParseException("非法的转义结尾", _i);
+                    if (AtEnd) throw new JsonParseException(L.Pick("非法的转义结尾", "Invalid escape at end of input"), _i);
                     char e = _s[_i];
                     switch (e)
                     {
@@ -509,7 +509,7 @@ public static class Json
                         case 'r': sb.Append('\r'); _i++; break;
                         case 't': sb.Append('\t'); _i++; break;
                         case 'u': _i++; sb.Append(ParseUnicode()); break;
-                        default: throw new JsonParseException($"非法的转义字符 '\\{e}'", _i);
+                        default: throw new JsonParseException(L.Pick($"非法的转义字符 '\\{e}'", $"Invalid escape character '\\{e}'"), _i);
                     }
                 }
                 else
@@ -526,7 +526,7 @@ public static class Json
             // 孤立低代理（0xDC00-0xDFFF）或越界码点：ConvertFromUtf32 会抛
             // ArgumentOutOfRangeException（调用方只 catch JsonParseException → 崩溃），这里抛解析异常
             if ((code >= 0xDC00 && code <= 0xDFFF) || code > 0x10FFFF)
-                throw new JsonParseException("非法 Unicode 码点（孤立低代理/越界）", _i);
+                throw new JsonParseException(L.Pick("非法 Unicode 码点（孤立低代理/越界）", "Invalid Unicode code point (lone low surrogate / out of range)"), _i);
             // 代理对：高代理后必须跟低代理
             if (code >= 0xD800 && code <= 0xDBFF)
             {
@@ -537,11 +537,11 @@ public static class Json
                     if (low >= 0xDC00 && low <= 0xDFFF)
                         code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
                     else
-                        throw new JsonParseException("非法代理对", _i);
+                        throw new JsonParseException(L.Pick("非法代理对", "Invalid surrogate pair"), _i);
                 }
                 else
                 {
-                    throw new JsonParseException("高代理后缺少低代理", _i);
+                    throw new JsonParseException(L.Pick("高代理后缺少低代理", "Missing low surrogate after high surrogate"), _i);
                 }
             }
             return char.ConvertFromUtf32(code);
@@ -549,13 +549,13 @@ public static class Json
 
         private int ReadHex4()
         {
-            if (_i + 4 > _s.Length) throw new JsonParseException("\\u 转义不完整", _i);
+            if (_i + 4 > _s.Length) throw new JsonParseException(L.Pick("\\u 转义不完整", "Incomplete \\u escape"), _i);
             int v = 0;
             for (int k = 0; k < 4; k++)
             {
                 char c = _s[_i++];
                 int d = HexVal(c);
-                if (d < 0) throw new JsonParseException("\\u 转义含非法十六进制字符", _i - 1);
+                if (d < 0) throw new JsonParseException(L.Pick("\\u 转义含非法十六进制字符", "\\u escape contains a non-hex character"), _i - 1);
                 v = (v << 4) | d;
             }
             return v;
@@ -572,7 +572,7 @@ public static class Json
         private JNode ParseLiteral(string lit, Func<JNode> make)
         {
             if (_i + lit.Length > _s.Length || !_s.AsSpan(_i, lit.Length).SequenceEqual(lit))
-                throw new JsonParseException($"非法字面量（期望 {lit}）", _i);
+                throw new JsonParseException(L.Pick($"非法字面量（期望 {lit}）", $"Invalid literal (expected {lit})"), _i);
             _i += lit.Length;
             return make();
         }
@@ -582,16 +582,16 @@ public static class Json
             int start = _i;
             if (!AtEnd && _s[_i] == '-') _i++;
 
-            if (AtEnd) throw new JsonParseException("非法的数字", start);
+            if (AtEnd) throw new JsonParseException(L.Pick("非法的数字", "Invalid number"), start);
             if (_s[_i] == '0') _i++;
             else if (_s[_i] >= '1' && _s[_i] <= '9')
                 while (!AtEnd && _s[_i] >= '0' && _s[_i] <= '9') _i++;
-            else throw new JsonParseException("非法的数字", _i);
+            else throw new JsonParseException(L.Pick("非法的数字", "Invalid number"), _i);
 
             if (!AtEnd && _s[_i] == '.')
             {
                 _i++;
-                if (AtEnd || _s[_i] < '0' || _s[_i] > '9') throw new JsonParseException("小数点后缺数字", _i);
+                if (AtEnd || _s[_i] < '0' || _s[_i] > '9') throw new JsonParseException(L.Pick("小数点后缺数字", "Missing digit after the decimal point"), _i);
                 while (!AtEnd && _s[_i] >= '0' && _s[_i] <= '9') _i++;
             }
 
@@ -599,7 +599,7 @@ public static class Json
             {
                 _i++;
                 if (!AtEnd && (_s[_i] == '+' || _s[_i] == '-')) _i++;
-                if (AtEnd || _s[_i] < '0' || _s[_i] > '9') throw new JsonParseException("指数后缺数字", _i);
+                if (AtEnd || _s[_i] < '0' || _s[_i] > '9') throw new JsonParseException(L.Pick("指数后缺数字", "Missing digit after the exponent"), _i);
                 while (!AtEnd && _s[_i] >= '0' && _s[_i] <= '9') _i++;
             }
 
@@ -611,7 +611,7 @@ public static class Json
 
         private void Expect(char c)
         {
-            if (AtEnd || _s[_i] != c) throw new JsonParseException($"期望 '{c}'", _i);
+            if (AtEnd || _s[_i] != c) throw new JsonParseException(L.Pick($"期望 '{c}'", $"Expected '{c}'"), _i);
             _i++;
         }
     }

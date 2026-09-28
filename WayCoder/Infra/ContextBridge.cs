@@ -260,7 +260,7 @@ public static class ContextBridge
                 }
                 if (line.StartsWith("#", StringComparison.Ordinal)) continue;
             }
-            return new ExternalSession("aider", file, File.GetLastWriteTime(file), title ?? "Aider 会话", cwd);
+            return new ExternalSession("aider", file, File.GetLastWriteTime(file), title ?? L.Pick("Aider 会话", "Aider session"), cwd);
         }
         catch { return null; }
     }
@@ -452,17 +452,17 @@ public static class ContextBridge
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"# 跨工具会话交接（来自 {session.ToolLabel}）");
+        sb.AppendLine(L.Pick($"# 跨工具会话交接（来自 {session.ToolLabel}）", $"# Cross-tool session handoff (from {session.ToolLabel})"));
         sb.AppendLine();
-        sb.AppendLine($"- **会话**：`{session.Title}`");
-        sb.AppendLine($"- **更新时间**：{session.UpdatedAt:yyyy-MM-dd HH:mm}");
-        sb.AppendLine($"- **工作目录**：`{session.Cwd}`");
+        sb.AppendLine(L.Pick($"- **会话**：`{session.Title}`", $"- **Session**: `{session.Title}`"));
+        sb.AppendLine(L.Pick($"- **更新时间**：{session.UpdatedAt:yyyy-MM-dd HH:mm}", $"- **Updated**: {session.UpdatedAt:yyyy-MM-dd HH:mm}"));
+        sb.AppendLine(L.Pick($"- **工作目录**：`{session.Cwd}`", $"- **Working directory**: `{session.Cwd}`"));
         sb.AppendLine();
 
         // 待办清单放在最前 —— 是「接着跑」的第一抓手
         if (todos.Count > 0)
         {
-            sb.AppendLine("## 待办清单（todo）");
+            sb.AppendLine(L.Pick("## 待办清单（todo）", "## Todo list"));
             sb.AppendLine();
             foreach (var t in todos)
             {
@@ -477,7 +477,7 @@ public static class ContextBridge
             sb.AppendLine();
         }
 
-        sb.AppendLine("## 对话记录（最近）");
+        sb.AppendLine(L.Pick("## 对话记录（最近）", "## Conversation (recent)"));
         sb.AppendLine();
         foreach (var (role, text) in chat)
         {
@@ -489,7 +489,7 @@ public static class ContextBridge
         var git = GitState(cwd);
         if (!string.IsNullOrEmpty(git))
         {
-            sb.AppendLine("## 当前 Git 状态");
+            sb.AppendLine(L.Pick("## 当前 Git 状态", "## Current Git state"));
             sb.AppendLine();
             sb.AppendLine("```");
             sb.AppendLine(git);
@@ -497,7 +497,7 @@ public static class ContextBridge
         }
 
         sb.AppendLine("---");
-        sb.AppendLine("> 以上是上一个智能体的工作交接。请先阅读，再继续未完成的任务。");
+        sb.AppendLine(L.Pick("> 以上是上一个智能体的工作交接。请先阅读，再继续未完成的任务。", "> The above is the handoff from a previous agent. Read it first, then continue the unfinished work."));
         return sb.ToString();
     }
 
@@ -514,19 +514,19 @@ public static class ContextBridge
             switch (e.Kind)
             {
                 case "user":
-                    AddChat(chat, "用户", e.Text);
+                    AddChat(chat, L.Pick("用户", "User"), e.Text);
                     break;
                 case "assistant":
-                    AddChat(chat, "助手", e.Text);
+                    AddChat(chat, L.Pick("助手", "Assistant"), e.Text);
                     break;
                 case "summary":
-                    AddChat(chat, "摘要", e.Text);
+                    AddChat(chat, L.Pick("摘要", "Summary"), e.Text);
                     break;
                 case "tool":
                     if ((e.ToolName ?? "").Contains("odo", StringComparison.OrdinalIgnoreCase))
                         CollectTodoArray(e.ToolInput?["todos"], todos);
                     else
-                        AddChat(chat, "工具", SummarizeTool(e.ToolName ?? "工具", e.ToolInput));
+                        AddChat(chat, L.Pick("工具", "Tool"), SummarizeTool(e.ToolName ?? L.Pick("工具", "Tool"), e.ToolInput));
                     break;
             }
         }
@@ -553,16 +553,16 @@ public static class ContextBridge
                     var text = ExtractTextCodex(payload["content"]);
                     if (string.IsNullOrWhiteSpace(text)) continue;
                     if (text.StartsWith("<environment_context>")) continue; // 跳过环境上下文注入
-                    AddChat(chat, role == "assistant" ? "助手" : "用户", text);
+                    AddChat(chat, role == "assistant" ? L.Pick("助手", "Assistant") : L.Pick("用户", "User"), text);
                 }
                 else if (pt == "function_call")
                 {
-                    var name = payload.GetString("name") ?? "工具";
+                    var name = payload.GetString("name") ?? L.Pick("工具", "Tool");
                     var args = payload.GetString("arguments") ?? "";
                     if (name.Contains("odo", StringComparison.OrdinalIgnoreCase))
                         CollectTodoArray(Json.Parse(args)?["todos"], todos);
                     else
-                        AddChat(chat, "工具", SummarizeToolArgs(name, args));
+                        AddChat(chat, L.Pick("工具", "Tool"), SummarizeToolArgs(name, args));
                 }
             }
         }
@@ -616,9 +616,9 @@ public static class ContextBridge
             foreach (var (_, kind, text) in pl)
             {
                 if (kind == "text" && !string.IsNullOrWhiteSpace(text))
-                    AddChat(chat, role == "user" ? "用户" : "助手", text);
+                    AddChat(chat, role == "user" ? L.Pick("用户", "User") : L.Pick("助手", "Assistant"), text);
                 else if (kind == "tool")
-                    AddChat(chat, "工具", text);
+                    AddChat(chat, L.Pick("工具", "Tool"), text);
             }
         }
     }
@@ -665,13 +665,13 @@ public static class ContextBridge
                 {
                     var text = data?["text"]?.AsString();
                     if (!string.IsNullOrWhiteSpace(text))
-                        AddChat(chat, role == "user" ? "用户" : "助手", text);
+                        AddChat(chat, role == "user" ? L.Pick("用户", "User") : L.Pick("助手", "Assistant"), text);
                 }
                 else if (type == "tool_result")
                 {
                     var name = data?["name"]?.AsString() ?? "tool";
                     var content = data?["content"]?.AsString() ?? "";
-                    AddChat(chat, "工具", $"[{name}] {ContextManager.TruncateWithEllipsis(content, 200)}");
+                    AddChat(chat, L.Pick("工具", "Tool"), $"[{name}] {ContextManager.TruncateWithEllipsis(content, 200)}");
                 }
             }
         }
@@ -700,19 +700,19 @@ public static class ContextBridge
                 if (t.StartsWith("USER:", StringComparison.Ordinal))
                 {
                     Flush();
-                    role = "用户";
+                    role = L.Pick("用户", "User");
                     sb.AppendLine(t[5..].Trim());
                 }
                 else if (t.StartsWith("ASSISTANT:", StringComparison.Ordinal))
                 {
                     Flush();
-                    role = "助手";
+                    role = L.Pick("助手", "Assistant");
                     sb.AppendLine(t[10..].Trim());
                 }
                 else if (t.StartsWith("TOOL:", StringComparison.Ordinal))
                 {
                     Flush();
-                    role = "工具";
+                    role = L.Pick("工具", "Tool");
                     sb.AppendLine(t[5..].Trim());
                 }
                 else if (t.StartsWith("# Aider", StringComparison.Ordinal))
@@ -746,13 +746,13 @@ public static class ContextBridge
                 {
                     var text = ExtractGeminiText(node["content"]);
                     if (!string.IsNullOrWhiteSpace(text))
-                        AddChat(chat, "用户", text);
+                        AddChat(chat, L.Pick("用户", "User"), text);
                 }
                 else if (type is "gemini" or "gemini_content")
                 {
                     var text = ExtractGeminiText(node["content"]);
                     if (!string.IsNullOrWhiteSpace(text))
-                        AddChat(chat, "助手", text);
+                        AddChat(chat, L.Pick("助手", "Assistant"), text);
                 }
             }
         }
@@ -779,13 +779,13 @@ public static class ContextBridge
             var call = part["functionCall"];
             if (call != null)
             {
-                sb.AppendLine($"[工具调用: {call.GetString("name") ?? "工具"}]");
+                sb.AppendLine(L.Pick($"[工具调用: {call.GetString("name") ?? "工具"}]", $"[Tool call: {call.GetString("name") ?? "Tool"}]"));
                 continue;
             }
             var resp = part["functionResponse"];
             if (resp != null)
             {
-                sb.AppendLine($"[工具结果: {resp.GetString("name") ?? "工具"}]");
+                sb.AppendLine(L.Pick($"[工具结果: {resp.GetString("name") ?? "工具"}]", $"[Tool result: {resp.GetString("name") ?? "Tool"}]"));
                 continue;
             }
             // thought / codeExecutionResult / inlineData 等非文本 part 忽略
@@ -930,7 +930,7 @@ public static class ContextBridge
     {
         var lines = s.Split('\n');
         if (lines.Length <= maxLines) return s;
-        return string.Join('\n', lines.Take(maxLines)) + $"\n…（共 {lines.Length} 行，截断）";
+        return string.Join('\n', lines.Take(maxLines)) + L.Pick($"\n…（共 {lines.Length} 行，截断）", $"\n... ({lines.Length} lines total, truncated)");
     }
 
     static IEnumerable<string> SafeGetDirs(string dir)

@@ -31,35 +31,36 @@ public sealed class BatchReport
     public string ToMarkdown()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("# WayCoder 批量任务报告");
+        sb.AppendLine(L.Pick("# WayCoder 批量任务报告", "# WayCoder Batch Job Report"));
         sb.AppendLine();
-        sb.AppendLine($"- 总计: {Total} 个任务");
-        sb.AppendLine($"- 成功: {Succeeded}");
-        sb.AppendLine($"- 失败: {Failed}");
-        sb.AppendLine($"- 总耗时: {TotalDurationMs / 1000.0:F1}s");
-        if (RootDir != null) sb.AppendLine($"- 工作目录: `{RootDir}`");
+        sb.AppendLine(L.Pick($"- 总计: {Total} 个任务", $"- Total: {Total} jobs"));
+        sb.AppendLine(L.Pick($"- 成功: {Succeeded}", $"- Succeeded: {Succeeded}"));
+        sb.AppendLine(L.Pick($"- 失败: {Failed}", $"- Failed: {Failed}"));
+        sb.AppendLine(L.Pick($"- 总耗时: {TotalDurationMs / 1000.0:F1}s", $"- Total duration: {TotalDurationMs / 1000.0:F1}s"));
+        if (RootDir != null) sb.AppendLine(L.Pick($"- 工作目录: `{RootDir}`", $"- Working directory: `{RootDir}`"));
         sb.AppendLine();
         foreach (var r in Results)
         {
             var icon = r.Success ? "✅" : "❌";
             sb.AppendLine($"## {icon} {r.Name}");
             sb.AppendLine();
-            sb.AppendLine($"- 仓库: `{r.Repo}`");
+            sb.AppendLine(L.Pick($"- 仓库: `{r.Repo}`", $"- Repository: `{r.Repo}`"));
             sb.AppendLine(r.Success
-                ? $"- 耗时: {r.DurationMs / 1000.0:F1}s"
-                : $"- 耗时: {r.DurationMs / 1000.0:F1}s · 退出码 {r.ExitCode}");
-            if (r.WorkDir != null) sb.AppendLine($"- 工作副本: `{r.WorkDir}`");
+                ? L.Pick($"- 耗时: {r.DurationMs / 1000.0:F1}s", $"- Duration: {r.DurationMs / 1000.0:F1}s")
+                : L.Pick($"- 耗时: {r.DurationMs / 1000.0:F1}s · 退出码 {r.ExitCode}",
+                         $"- Duration: {r.DurationMs / 1000.0:F1}s · exit code {r.ExitCode}"));
+            if (r.WorkDir != null) sb.AppendLine(L.Pick($"- 工作副本: `{r.WorkDir}`", $"- Working copy: `{r.WorkDir}`"));
             if (!string.IsNullOrEmpty(r.Summary))
             {
                 sb.AppendLine();
-                sb.AppendLine("### 摘要");
+                sb.AppendLine(L.Pick("### 摘要", "### Summary"));
                 sb.AppendLine();
                 sb.AppendLine(r.Summary.Trim());
             }
             if (!string.IsNullOrEmpty(r.Error))
             {
                 sb.AppendLine();
-                sb.AppendLine("### 错误");
+                sb.AppendLine(L.Pick("### 错误", "### Error"));
                 sb.AppendLine();
                 sb.AppendLine("```");
                 sb.AppendLine(r.Error.Trim());
@@ -88,7 +89,8 @@ public sealed class BatchRunner
     {
         var exe = exePath ?? Environment.ProcessPath;
         if (string.IsNullOrEmpty(exe))
-            return (-1, "", "无法定位当前可执行文件（Environment.ProcessPath 为空）");
+            return (-1, "", L.Pick("无法定位当前可执行文件（Environment.ProcessPath 为空）",
+                                   "cannot locate the current executable (Environment.ProcessPath is null)"));
 
         // 复用父进程已解析的模型/key/baseUrl/budget，避免子进程因 clone 目录无 .env 而丢失配置
         var args = new List<string> { "-p", task, "-y" };
@@ -115,7 +117,7 @@ public sealed class BatchRunner
 
         using var proc = new Process { StartInfo = psi };
         try { proc.Start(); }
-        catch (Exception ex) { return (-1, "", $"启动子进程失败: {ex.Message}"); }
+        catch (Exception ex) { return (-1, "", L.Pick("启动子进程失败", "failed to start the child process") + $": {ex.Message}"); }
         ProcUtil.CloseStdin(proc);
 
         // 超时/取消时终止整个进程树（含 bash 子进程）
@@ -131,7 +133,7 @@ public sealed class BatchRunner
         var stdout = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
         var stderr = await WayCoder.Infra.ProcUtil.AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
         if (ct.IsCancellationRequested)
-            return (-1, stdout, $"任务超时被终止");
+            return (-1, stdout, L.Pick("任务超时被终止", "the job was killed after timing out"));
         return (proc.ExitCode, stdout, stderr);
     }
 
@@ -181,7 +183,7 @@ public sealed class BatchRunner
             // 1. 克隆仓库到隔离工作副本（带超时，防止 git clone 因网络/认证挂起）
             var cloneErr = await CloneRepoAsync(job, workDir, spec.TimeoutSec);
             if (cloneErr != null) { result.Error = cloneErr; result.ExitCode = -1; return result; }
-            log?.Invoke($"📦 {result.Name}: 仓库已就绪 → {workDir}");
+            log?.Invoke($"📦 {result.Name}: " + L.Pick("仓库已就绪", "repository ready") + $" → {workDir}");
 
             // 2. 子进程执行任务（带超时）
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(spec.TimeoutSec));
@@ -192,11 +194,11 @@ public sealed class BatchRunner
             result.Summary = Tail(WayCoder.UI.Shared.Terminal.AnsiString.Strip(stdout), 4000);
             if (!string.IsNullOrEmpty(stderr)) result.Error = Tail(WayCoder.UI.Shared.Terminal.AnsiString.Strip(stderr), 2000);
             if (exitCode != 0 && string.IsNullOrEmpty(result.Error))
-                result.Error = $"子进程退出码 {exitCode}";
+                result.Error = L.Pick($"子进程退出码 {exitCode}", $"child process exited with code {exitCode}");
 
             log?.Invoke(result.Success
-                ? $"✅ {result.Name}: 完成 ({sw.Elapsed.TotalSeconds:F1}s)"
-                : $"❌ {result.Name}: 失败 ({sw.Elapsed.TotalSeconds:F1}s)");
+                ? $"✅ {result.Name}: " + L.Pick("完成", "done") + $" ({sw.Elapsed.TotalSeconds:F1}s)"
+                : $"❌ {result.Name}: " + L.Pick("失败", "failed") + $" ({sw.Elapsed.TotalSeconds:F1}s)");
         }
         catch (Exception ex)
         {
@@ -257,14 +259,16 @@ public sealed class BatchRunner
             // 否则 clone 会被内部 15s 误杀，spec.TimeoutSec(默认 1800s) 完全失效
             var (code, _, err) = await GitRunner.RunArgsAsync(args, null, cts.Token, timeoutOverrideMs: 0);
             if (code != 0)
-                return $"git clone 失败: {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
+                return L.Pick("git clone 失败", "git clone failed")
+                    + $": {(string.IsNullOrWhiteSpace(err) ? $"exit {code}" : err.Trim())}";
             if (!Directory.Exists(destDir))
-                return "git clone 未生成目标目录";
+                return L.Pick("git clone 未生成目标目录", "git clone did not create the destination directory");
             return null;
         }
         catch (System.OperationCanceledException)
         {
-            return $"git clone 超时（>{timeoutSec:F0}s），已放弃";
+            return L.Pick($"git clone 超时（>{timeoutSec:F0}s），已放弃",
+                          $"git clone timed out (>{timeoutSec:F0}s), giving up");
         }
     }
 
@@ -272,7 +276,7 @@ public sealed class BatchRunner
     {
         if (string.IsNullOrEmpty(text)) return "";
         if (text.Length <= max) return text;
-        return "...（截断）\n" + ContextManager.TruncateTailByRunes(text, max);
+        return L.Pick("...（截断）\n", "...(truncated)\n") + ContextManager.TruncateTailByRunes(text, max);
     }
 
     static void WriteReportFile(string root, BatchReport report)
