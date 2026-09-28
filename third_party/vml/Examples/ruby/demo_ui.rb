@@ -98,6 +98,8 @@ c_gold = -2509750       # 0xFFD9B44A
 c_green = -11483016     # 0xFF50C878
 c_mark = -8096          # 0xFFFFE060
 
+lang = ui_get_language()
+
 # ── ① 开窗**之前**就问方向：程序据此决定排版 ──
 # ── ① Ask the orientation **before** opening the window: the program lays out accordingly ──
 orient = ui_orientation()
@@ -175,20 +177,20 @@ while alive == 1
 
   ui_clear(c_bg)
 
-  ui_text(cx, 12, "UI 接口 / demo_ui (Ruby)", c_title, 16, 1)
+  if lang == 0 then ui_text(cx, 12, "UI 接口 / demo_ui (Ruby)", c_title, 16, 1) else ui_text(cx, 12, "UI interface / demo_ui (Ruby)", c_title, 16, 1) end
   if orient == 1
-    ui_text(cx, 36, "屏幕方向 = 横屏 (LANDSCAPE)", c_ok, 13, 1)
+    if lang == 0 then ui_text(cx, 36, "屏幕方向 = 横屏 (LANDSCAPE)", c_ok, 13, 1) else ui_text(cx, 36, "Orientation = LANDSCAPE", c_ok, 13, 1) end
   end
   if orient != 1
-    ui_text(cx, 36, "屏幕方向 = 竖屏 (PORTRAIT)", c_ok, 13, 1)
+    if lang == 0 then ui_text(cx, 36, "屏幕方向 = 竖屏 (PORTRAIT)", c_ok, 13, 1) else ui_text(cx, 36, "Orientation = PORTRAIT", c_ok, 13, 1) end
   end
-  ui_text(cx, 56, "画布按宿主给的尺寸现排", c_dim, 12, 1)
+  if lang == 0 then ui_text(cx, 56, "画布按宿主给的尺寸现排", c_dim, 12, 1) else ui_text(cx, 56, "Canvas laid out from the host size", c_dim, 12, 1) end
 
   # 一个跟随尺寸的方框（转屏后它会跟着变宽变矮 —— 这就是"不写死坐标"的证明）
   # A box that follows the size (after rotation it gets wider and shorter — that is the proof of "no hard-coded coordinates")
   ui_rect(pad, 76, w - pad * 2, 84, c_panel, 1, 0, 10)
   ui_rect(pad + 6, 82, w - pad * 2 - 12, 28, c_blue, 1, 0, 6)
-  ui_text(pad + 16, 88, "rect / 圆角矩形（随屏宽伸缩）", c_bg, 12, 0)
+  if lang == 0 then ui_text(pad + 16, 88, "rect / 圆角矩形（随屏宽伸缩）", c_bg, 12, 0) else ui_text(pad + 16, 88, "rect / rounded rect (follows width)", c_bg, 12, 0) end
 
   # 圆 / 椭圆 / 直线：三个基本形
   # Circle / ellipse / line: the three basic shapes
@@ -208,25 +210,25 @@ while alive == 1
     ui_rect(pad + i * bw, 266, bw - 2, 18, c, 1, 0, 2)
     i = i + 1
   end
-  ui_text(cx, 296, "真彩 0xAARRGGBB（不是索引色）", c_dim, 12, 1)
+  if lang == 0 then ui_text(cx, 296, "真彩 0xAARRGGBB（不是索引色）", c_dim, 12, 1) else ui_text(cx, 296, "true color 0xAARRGGBB (not indexed)", c_dim, 12, 1) end
 
   # 事件计数：不画数字，画**长度随计数增长的条**（数字转字符串这条路是断的）
   # Event counts: instead of numbers, draw **bars whose length grows with the count** (number-to-string is a dead end)
-  ui_text(pad, 336, "帧", c_dim, 12, 0)
+  if lang == 0 then ui_text(pad, 336, "帧", c_dim, 12, 0) else ui_text(pad, 336, "frames", c_dim, 12, 0) end
   bw2 = frames * 6
   if bw2 > w - pad * 2 - 40
     bw2 = w - pad * 2 - 40
   end
   ui_rect(pad + 40, 324, bw2, 14, c_blue, 1, 0, 3)
 
-  ui_text(pad, 366, "按键", c_dim, 12, 0)
+  if lang == 0 then ui_text(pad, 366, "按键", c_dim, 12, 0) else ui_text(pad, 366, "keys", c_dim, 12, 0) end
   bw3 = keys * 30
   if bw3 > w - pad * 2 - 60
     bw3 = w - pad * 2 - 60
   end
   ui_rect(pad + 60, 354, bw3, 14, c_orange, 1, 0, 3)
 
-  ui_text(pad, 396, "触摸", c_dim, 12, 0)
+  if lang == 0 then ui_text(pad, 396, "触摸", c_dim, 12, 0) else ui_text(pad, 396, "touches", c_dim, 12, 0) end
   bw4 = touches * 30
   if bw4 > w - pad * 2 - 60
     bw4 = w - pad * 2 - 60
@@ -238,13 +240,13 @@ while alive == 1
   if tx >= 0
     ui_circle(tx, ty, 18, c_mark, 0, 2)
     ui_circle(tx, ty, 4, c_mark, 1, 0)
-    ui_text(cx, h - 60, "触摸坐标已经用上了", c_mark, 12, 1)
+    if lang == 0 then ui_text(cx, h - 60, "触摸坐标已经用上了", c_mark, 12, 1) else ui_text(cx, h - 60, "touch coordinates in use", c_mark, 12, 1) end
   end
   if tx < 0
-    ui_text(cx, h - 60, "点一下屏幕 / 按任意键退出", c_dim, 12, 1)
+    if lang == 0 then ui_text(cx, h - 60, "点一下屏幕 / 按任意键退出", c_dim, 12, 1) else ui_text(cx, h - 60, "Tap anywhere / any key to exit", c_dim, 12, 1) end
   end
 
-  ui_text(cx, h - 36, "退出：按任意键或点任意处（或等 N 帧到点）", c_dim, 12, 1)
+  if lang == 0 then ui_text(cx, h - 36, "退出：按任意键或点任意处（或等 N 帧到点）", c_dim, 12, 1) else ui_text(cx, h - 36, "Exit: any key or any tap (or wait for N frames)", c_dim, 12, 1) end
 
   ui_present()
 end

@@ -44,6 +44,7 @@ a5 = 0
 a6 = 0
 a7 = 0
 
+lang = ui_get_language()
 w = ui_scr_w()
 h = ui_scr_h()
 if w <= 0
@@ -52,7 +53,7 @@ end
 if h <= 0
   h = 620
 end
-ui_win_open("接方块", w, h)
+if lang == 0 then ui_win_open("接方块", w, h) else ui_win_open("Catch", w, h) end
 ui_keep_on(1)
 
 a0 = w / 2 - 40
@@ -70,14 +71,14 @@ while ui_win_closed() == 0
 
   # ── draw ──
   ui_clear(-15724520)
-  ui_text(8, 8, "得分", -6643536, 13, 0)
+  if lang == 0 then ui_text(8, 8, "得分", -6643536, 13, 0) else ui_text(8, 8, "Score", -6643536, 13, 0) end
   ui_rect(58, 11, a5, 10, -11409298, 1, 0, 0)
-  ui_text(w / 2, 8, "最高", -6643536, 13, 1)
+  if lang == 0 then ui_text(w / 2, 8, "最高", -6643536, 13, 1) else ui_text(w / 2, 8, "Best", -6643536, 13, 1) end
   ui_rect(w / 2 + 46, 11, a6, 10, -63488, 1, 0, 0)
   ui_rect(a0, h - 40, 80, 12, -63488, 1, 0, 6)
   ui_circle(a1, a2, 9, -131246, 1, 0)
   if a7 == 0
-    ui_text(w / 2, h / 2, "按回车重开", -131246, 16, 1)
+    if lang == 0 then ui_text(w / 2, h / 2, "按回车重开", -131246, 16, 1) else ui_text(w / 2, h / 2, "Press Enter to restart", -131246, 16, 1) end
   end
   ui_present()
 
@@ -128,8 +129,7 @@ while ui_win_closed() == 0
         # 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
         # Sound: single-tone ui_beep; **the ending tone takes the lowest pitch** (caught 1047 / missed 131, far apart)
         ui_beep(131, 320)
-        r = ui_dlg_msg("接方块", "没接住，这一局结束。
-再来一局？（选「否」退出）", 0)
+        if lang == 0 then r = ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) else r = ui_dlg_msg("Catch", "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0) end
         if r != 0
             ui_win_close()
             break

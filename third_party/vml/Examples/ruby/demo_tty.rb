@@ -64,6 +64,8 @@
 
 # ── 开场：清屏 + 回左上角 ───────────────────────────────────────
 # ── Opening: clear the screen + return to the top-left corner ───────────────────────────────────────
+lang = ui_get_language()
+
 print("\x1b[2J")
 print("\x1b[H")
 
@@ -71,13 +73,13 @@ print("\x1b[H")
 # ── Title bar: white text on a blue background (ESC[44;97m) ──────────────────────────────
 print("\x1b[1;1H")
 print("\x1b[44;97m")
-print("  demo_tty (Ruby) —— 彩色控制台 / ANSI 转义序列            ")
+if lang == 0 then print("  demo_tty (Ruby) —— 彩色控制台 / ANSI 转义序列            ") else print("  demo_tty (Ruby) -- color console / ANSI escapes            ") end
 print("\x1b[0m")
 print("\n")
 
 print("\x1b[2;1H")
 print("\x1b[90m")
-print("清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m")
+if lang == 0 then print("清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m") else print("clear ESC[2J   cursor ESC[r;cH   color ESC[3xm / ESC[4xm   reset ESC[0m") end
 print("\x1b[0m")
 print("\n")
 
@@ -85,34 +87,34 @@ print("\n")
 # ── Standard 8-color foreground (30–37) ──────────────────────────────────────
 print("\x1b[4;1H")
 print("\x1b[1;37m")
-print("标准 8 色前景：")
+if lang == 0 then print("标准 8 色前景：") else print("Standard 8 foreground colors:") end
 print("\x1b[0m")
 print("\n")
 
 print("\x1b[5;1H")
 print("\x1b[30m")
-print(" 30 黑 ")
+if lang == 0 then print(" 30 黑 ") else print(" 30 black ") end
 print("\x1b[0m")
 print("\x1b[31m")
-print(" 31 红 ")
+if lang == 0 then print(" 31 红 ") else print(" 31 red ") end
 print("\x1b[0m")
 print("\x1b[32m")
-print(" 32 绿 ")
+if lang == 0 then print(" 32 绿 ") else print(" 32 green ") end
 print("\x1b[0m")
 print("\x1b[33m")
-print(" 33 黄 ")
+if lang == 0 then print(" 33 黄 ") else print(" 33 yellow ") end
 print("\x1b[0m")
 print("\x1b[34m")
-print(" 34 蓝 ")
+if lang == 0 then print(" 34 蓝 ") else print(" 34 blue ") end
 print("\x1b[0m")
 print("\x1b[35m")
-print(" 35 品红 ")
+if lang == 0 then print(" 35 品红 ") else print(" 35 magenta ") end
 print("\x1b[0m")
 print("\x1b[36m")
-print(" 36 青 ")
+if lang == 0 then print(" 36 青 ") else print(" 36 cyan ") end
 print("\x1b[0m")
 print("\x1b[37m")
-print(" 37 白 ")
+if lang == 0 then print(" 37 白 ") else print(" 37 white ") end
 print("\x1b[0m")
 print("\n")
 
@@ -120,28 +122,28 @@ print("\n")
 # ── Bright foreground (90–97) ────────────────────────────────────────────
 print("\x1b[6;1H")
 print("\x1b[90m")
-print(" 90 亮黑(灰) ")
+if lang == 0 then print(" 90 亮黑(灰) ") else print(" 90 gray ") end
 print("\x1b[0m")
 print("\x1b[91m")
-print(" 91 亮红 ")
+if lang == 0 then print(" 91 亮红 ") else print(" 91 bright red ") end
 print("\x1b[0m")
 print("\x1b[92m")
-print(" 92 亮绿 ")
+if lang == 0 then print(" 92 亮绿 ") else print(" 92 bright green ") end
 print("\x1b[0m")
 print("\x1b[93m")
-print(" 93 亮黄 ")
+if lang == 0 then print(" 93 亮黄 ") else print(" 93 bright yellow ") end
 print("\x1b[0m")
 print("\x1b[94m")
-print(" 94 亮蓝 ")
+if lang == 0 then print(" 94 亮蓝 ") else print(" 94 bright blue ") end
 print("\x1b[0m")
 print("\x1b[95m")
-print(" 95 亮品红 ")
+if lang == 0 then print(" 95 亮品红 ") else print(" 95 bright magenta ") end
 print("\x1b[0m")
 print("\x1b[96m")
-print(" 96 亮青 ")
+if lang == 0 then print(" 96 亮青 ") else print(" 96 bright cyan ") end
 print("\x1b[0m")
 print("\x1b[97m")
-print(" 97 亮白 ")
+if lang == 0 then print(" 97 亮白 ") else print(" 97 bright white ") end
 print("\x1b[0m")
 print("\n")
 
@@ -149,28 +151,28 @@ print("\n")
 # ── Background colors (40–47 / 100–107) ───────────────────────────────────
 print("\x1b[8;1H")
 print("\x1b[1;37m")
-print("背景色：")
+if lang == 0 then print("背景色：") else print("Background colors:") end
 print("\x1b[0m")
 print("\n")
 
 print("\x1b[9;1H")
 print("\x1b[41m")
-print(" 红底 ")
+if lang == 0 then print(" 红底 ") else print(" red bg ") end
 print("\x1b[0m")
 print("\x1b[42m")
-print(" 绿底 ")
+if lang == 0 then print(" 绿底 ") else print(" green bg ") end
 print("\x1b[0m")
 print("\x1b[44m")
-print(" 蓝底 ")
+if lang == 0 then print(" 蓝底 ") else print(" blue bg ") end
 print("\x1b[0m")
 print("\x1b[46m")
-print(" 青底 ")
+if lang == 0 then print(" 青底 ") else print(" cyan bg ") end
 print("\x1b[0m")
 print("\x1b[103m")
-print(" 亮黄底 ")
+if lang == 0 then print(" 亮黄底 ") else print(" bright yellow bg ") end
 print("\x1b[0m")
 print("\x1b[105m")
-print(" 亮品红底 ")
+if lang == 0 then print(" 亮品红底 ") else print(" bright magenta bg ") end
 print("\x1b[0m")
 print("\n")
 
@@ -178,22 +180,22 @@ print("\n")
 # ── Styles (1 bold / 2 dim / 3 italic / 4 underline / 9 strikethrough) ─────────────
 print("\x1b[11;1H")
 print("\x1b[1;37m")
-print("样式：")
+if lang == 0 then print("样式：") else print("Styles:") end
 print("\x1b[0m")
 print("\x1b[1m")
-print(" 粗体 ")
+if lang == 0 then print(" 粗体 ") else print(" bold ") end
 print("\x1b[0m")
 print("\x1b[2m")
-print(" 暗淡 ")
+if lang == 0 then print(" 暗淡 ") else print(" dim ") end
 print("\x1b[0m")
 print("\x1b[3m")
-print(" 斜体 ")
+if lang == 0 then print(" 斜体 ") else print(" italic ") end
 print("\x1b[0m")
 print("\x1b[4m")
-print(" 下划线 ")
+if lang == 0 then print(" 下划线 ") else print(" underline ") end
 print("\x1b[0m")
 print("\x1b[9m")
-print(" 删除线 ")
+if lang == 0 then print(" 删除线 ") else print(" strike ") end
 print("\x1b[0m")
 print("\n")
 
@@ -201,19 +203,19 @@ print("\n")
 # ── 256 colors (38;5;N) and true color (38;2;r;g;b) ─────────────────────────
 print("\x1b[13;1H")
 print("\x1b[1;37m")
-print("256 色 / 真彩：")
+if lang == 0 then print("256 色 / 真彩：") else print("256 colors / truecolor:") end
 print("\x1b[0m")
 print("\x1b[38;5;208m")
-print(" 256-208 橙 ")
+if lang == 0 then print(" 256-208 橙 ") else print(" 256-208 orange ") end
 print("\x1b[0m")
 print("\x1b[38;5;46m")
-print(" 256-46 亮绿 ")
+if lang == 0 then print(" 256-46 亮绿 ") else print(" 256-46 bright green ") end
 print("\x1b[0m")
 print("\x1b[38;2;255;128;0m")
-print(" 真彩橙 ")
+if lang == 0 then print(" 真彩橙 ") else print(" truecolor orange ") end
 print("\x1b[0m")
 print("\x1b[48;2;60;0;90m")
-print(" 真彩深紫底 ")
+if lang == 0 then print(" 真彩深紫底 ") else print(" truecolor deep purple bg ") end
 print("\x1b[0m")
 print("\n")
 
@@ -225,7 +227,7 @@ print("\n")
 # (Number-to-string does not exist on the Ruby side anyway — there is no `.to_s`.)
 print("\x1b[16;1H")
 print("\x1b[1;37m")
-print("循环画 12 格色带：")
+if lang == 0 then print("循环画 12 格色带：") else print("Draw a 12-cell color band in a loop:") end
 print("\x1b[0m")
 print("\n")
 
@@ -268,6 +270,6 @@ print("\n")
 print("\x1b[0m")
 print("\x1b[20;1H")
 print("\x1b[1;32m")
-print("demo_tty 结束 —— 没有按键等待，画完即退出。")
+if lang == 0 then print("demo_tty 结束 —— 没有按键等待，画完即退出。") else print("demo_tty done -- no key wait, draws and exits.") end
 print("\x1b[0m")
 print("\n")

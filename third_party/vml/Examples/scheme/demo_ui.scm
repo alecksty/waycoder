@@ -96,9 +96,11 @@
 (define bw 0)
 (define i 0)
 (define cc 0)
+(define lang 0)
 
 ; ── ① 开窗**之前**就问方向：程序据此决定排版 ──
 ; -- ① Ask the orientation **before** opening the window: the program lays out accordingly --
+(set! lang (ui_get_language))
 (set! orient (ui_orientation))
 
 ; 开窗：尺寸照宿主给的来，拿不到就退到竖屏默认值
@@ -162,17 +164,17 @@
 
   (ui_clear c_bg)
 
-  (ui_text cx 12 "UI 接口 / demo_ui (Scheme)" c_title 16 1)
+  (if lang (ui_text cx 12 "UI interface / demo_ui (Scheme)" c_title 16 1) (ui_text cx 12 "UI 接口 / demo_ui (Scheme)" c_title 16 1))
   (if (= orient 1)
-      (ui_text cx 36 "屏幕方向 = 横屏 (LANDSCAPE)" c_ok 13 1)
-      (ui_text cx 36 "屏幕方向 = 竖屏 (PORTRAIT)" c_ok 13 1))
-  (ui_text cx 56 "画布按宿主给的尺寸现排" c_dim 12 1)
+      (if lang (ui_text cx 36 "Orientation = LANDSCAPE" c_ok 13 1) (ui_text cx 36 "屏幕方向 = 横屏 (LANDSCAPE)" c_ok 13 1))
+      (if lang (ui_text cx 36 "Orientation = PORTRAIT" c_ok 13 1) (ui_text cx 36 "屏幕方向 = 竖屏 (PORTRAIT)" c_ok 13 1)))
+  (if lang (ui_text cx 56 "Canvas laid out from the host size" c_dim 12 1) (ui_text cx 56 "画布按宿主给的尺寸现排" c_dim 12 1))
 
   ; 一个跟随尺寸的方框（转屏后它会跟着变宽变矮 —— 这就是"不写死坐标"的证明）
   ; A box that follows the size (after rotating it becomes wider and shorter -- proof of "no hard-coded coordinates")
   (ui_rect pad 76 (- w (* pad 2)) 84 c_panel 1 0 10)
   (ui_rect (+ pad 6) 82 (- (- w (* pad 2)) 12) 28 c_blue 1 0 6)
-  (ui_text (+ pad 16) 88 "rect / 圆角矩形（随屏宽伸缩）" c_bg 12 0)
+  (if lang (ui_text (+ pad 16) 88 "rect / rounded rect (follows width)" c_bg 12 0) (ui_text (+ pad 16) 88 "rect / 圆角矩形（随屏宽伸缩）" c_bg 12 0))
 
   ; 圆 / 椭圆 / 直线：三个基本形
   ; Circle / ellipse / line: the three basic shapes
@@ -192,21 +194,21 @@
     (set! cc c_blue)
     (if (= (- i (* (/ i 2) 2)) 1) (set! cc c_orange) 0)
     (ui_rect (+ pad (* i bw)) 266 (- bw 2) 18 cc 1 0 2))
-  (ui_text cx 296 "真彩 0xAARRGGBB（不是索引色）" c_dim 12 1)
+  (if lang (ui_text cx 296 "true color 0xAARRGGBB (not indexed)" c_dim 12 1) (ui_text cx 296 "真彩 0xAARRGGBB（不是索引色）" c_dim 12 1))
 
   ; 事件计数：不画数字，画**长度随计数增长的条**（数字拼不进字符串，见文件头）
   ; Event counts: no digits are drawn, but a **bar whose length grows with the count** (digits cannot be joined into a string, see the file header)
-  (ui_text pad 336 "帧" c_dim 12 0)
+  (if lang (ui_text pad 336 "frames" c_dim 12 0) (ui_text pad 336 "帧" c_dim 12 0))
   (set! bw (* fr 6))
   (if (> bw (- (- w (* pad 2)) 40)) (set! bw (- (- w (* pad 2)) 40)) 0)
   (ui_rect (+ pad 40) 324 bw 14 c_blue 1 0 3)
 
-  (ui_text pad 366 "按键" c_dim 12 0)
+  (if lang (ui_text pad 366 "keys" c_dim 12 0) (ui_text pad 366 "按键" c_dim 12 0))
   (set! bw (* keys 30))
   (if (> bw (- (- w (* pad 2)) 60)) (set! bw (- (- w (* pad 2)) 60)) 0)
   (ui_rect (+ pad 60) 354 bw 14 c_orange 1 0 3)
 
-  (ui_text pad 396 "触摸" c_dim 12 0)
+  (if lang (ui_text pad 396 "touches" c_dim 12 0) (ui_text pad 396 "触摸" c_dim 12 0))
   (set! bw (* touches 30))
   (if (> bw (- (- w (* pad 2)) 60)) (set! bw (- (- w (* pad 2)) 60)) 0)
   (ui_rect (+ pad 60) 384 bw 14 c_gold 1 0 3)
@@ -217,10 +219,10 @@
       (begin
         (ui_circle tx ty 18 c_mark 0 2)
         (ui_circle tx ty 4 c_mark 1 0)
-        (ui_text cx (- h 60) "触摸坐标已经用上了" c_mark 12 1))
-      (ui_text cx (- h 60) "点一下屏幕 / 按任意键退出" c_dim 12 1))
+        (if lang (ui_text cx (- h 60) "touch coordinates in use" c_mark 12 1) (ui_text cx (- h 60) "触摸坐标已经用上了" c_mark 12 1)))
+      (if lang (ui_text cx (- h 60) "Tap anywhere / any key to exit" c_dim 12 1) (ui_text cx (- h 60) "点一下屏幕 / 按任意键退出" c_dim 12 1)))
 
-  (ui_text cx (- h 36) "退出：按任意键或点任意处（或等 N 帧到点）" c_dim 12 1)
+  (if lang (ui_text cx (- h 36) "Exit: any key or any tap (or wait for N frames)" c_dim 12 1) (ui_text cx (- h 36) "退出：按任意键或点任意处（或等 N 帧到点）" c_dim 12 1))
 
   (ui_present))
 

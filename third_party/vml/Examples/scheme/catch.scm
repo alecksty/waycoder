@@ -81,6 +81,8 @@
 (define t 0)
 (define k 0)
 (define quit 0)
+(define lang 0)
+(define ans 0)
 
 ;; 唯一允许抽出去的形态：**参数全传、不读全局**的纯函数。
 ;; The only shape allowed to be extracted: a pure function with **all parameters passed in and no globals read**.
@@ -91,12 +93,13 @@
       lo
       (if (> v cap) cap v)))
 
+(set! lang (ui_get_language))
 (set! w (ui_scr_w))
 (set! h (ui_scr_h))
 (if (< w 1) (set! w 360) 0)
 (if (< h 1) (set! h 620) 0)
 
-(ui_win_open "接方块" w h)
+(if lang (ui_win_open "Catch" w h) (ui_win_open "接方块" w h))
 (ui_keep_on 1)
 (set! tid (ui_timer_set 40 0))
 
@@ -117,14 +120,14 @@
 
   ;; ── draw ──
   (ui_clear -15724520)
-  (ui_text 8 8 "得分" -6643536 13 0)
+  (if lang (ui_text 8 8 "Score" -6643536 13 0) (ui_text 8 8 "得分" -6643536 13 0))
   (ui_rect 58 11 sc 10 -11409298 1 0 0)
-  (ui_text (/ w 2) 8 "最高" -6643536 13 1)
+  (if lang (ui_text (/ w 2) 8 "Best" -6643536 13 1) (ui_text (/ w 2) 8 "最高" -6643536 13 1))
   (ui_rect (+ (/ w 2) 46) 11 hi 10 -63488 1 0 0)
   (ui_rect bx (- h 40) 80 12 -63488 1 0 6)
   (ui_circle px py 9 -131246 1 0)
   (if (= alive 0)
-      (ui_text (/ w 2) (/ h 2) "按回车重开" -131246 16 1)
+      (if lang (ui_text (/ w 2) (/ h 2) "Press Enter to restart" -131246 16 1) (ui_text (/ w 2) (/ h 2) "按回车重开" -131246 16 1))
       0)
   (ui_present)
 
@@ -170,7 +173,8 @@
                   (begin
                     (set! alive 0)
                     (ui_beep 220 260)
-                    (if (= (ui_dlg_msg "接方块" "没接住，这一局结束。\n再来一局？（选「否」退出）" 0) 0)
+                    (if lang (set! ans (ui_dlg_msg "Catch" "Missed. Round over. Play again? (choose No to quit)" 0)) (set! ans (ui_dlg_msg "接方块" "没接住，这一局结束。\n再来一局？（选「否」退出）" 0)))
+                    (if (= ans 0)
                         (begin
                           (set! bx (- (/ w 2) 40))
                           (set! px (/ w 2))

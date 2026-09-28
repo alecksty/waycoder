@@ -47,9 +47,11 @@
 ; 顶层的 `define` 都放在前面、`set!` 在顶层执行 —— 这条也照 catch.scm 的形态来。
 ; All top-level `define`s come first and `set!` runs at the top level -- this follows the shape of catch.scm as well.
 
+(define lang (ui_get_language))
+
 (display "=== demo_std (Scheme) ===")
 (newline)
-(display "纯字符串一行")
+(if lang (display "A plain string line") (display "纯字符串一行"))
 (newline)
 
 (define a 17)
@@ -75,7 +77,7 @@
 (display (- a (* (/ a b) b)))
 (newline)
 
-(display "负数： ")
+(if lang (display "Negative numbers: ") (display "负数： "))
 (display (- 0 a))
 (display " ")
 (display (- 0 (* a b)))
@@ -98,7 +100,7 @@
     (display (* i 7))
     (newline))
 
-(display "=== 完成 ===")
+(if lang (display "=== Done ===") (display "=== 完成 ==="))
 (newline)
 
 ; ── 期望输出（逐字节）────────────────────────────────────────────

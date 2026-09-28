@@ -37,9 +37,11 @@
 # 本份用 `print` 单值输出 + `puts` 整行，避开上面全部四条。
 # This file uses `print` for single values + `puts` for whole lines, avoiding all four limits above.
 
+lang = ui_get_language()
+
 puts("=== demo_std (Ruby) ===")
-puts("纯字符串一行")
-puts("转义：制表\t反斜杠\\引号\"")
+if lang == 0 then puts("纯字符串一行") else puts("A single line of plain string") end
+if lang == 0 then puts("转义：制表\t反斜杠\\引号\"") else puts("Escape: tab\tbackslash\\quote\"") end
 
 a = 17
 b = 25
@@ -64,7 +66,7 @@ print(" a%b=")
 print(a % b)
 print("\n")
 
-print("负数： ")
+if lang == 0 then print("负数： ") else print("negatives: ") end
 print(0 - a)
 print(" ")
 print(0 - (a * b))
@@ -93,7 +95,7 @@ while i <= 5
   i = i + 1
 end
 
-puts("=== 完成 ===")
+if lang == 0 then puts("=== 完成 ===") else puts("=== Done ===") end
 
 # ── 期望输出（逐字节）────────────────────────────────────────────
 # === demo_std (Ruby) ===
