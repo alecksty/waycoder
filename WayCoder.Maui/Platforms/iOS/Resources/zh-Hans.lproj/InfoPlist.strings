@@ -3,3 +3,13 @@
    默认（英文）来自 csproj 的 <ApplicationTitle> → CFBundleDisplayName。 */
 "CFBundleDisplayName" = "道码";
 "CFBundleName" = "道码";
+
+/* 权限弹窗文案（2026-09-28 新增）。Info.plist 里写的是**英文兜底**，这里覆盖成中文
+   —— 与 CFBundleDisplayName 同一个机制（按系统语言自动挑 lproj）。
+   ⚠ 键名必须与 Info.plist **逐字相同**（`NS*UsageDescription` 少一个字母就静默不生效：
+   系统回落去读 plist 里的英文，屏幕上就是英文）。
+   ⚠ 三处要同步：本文件、`en.lproj/InfoPlist.strings`、两个平台的 `Info.plist`。
+   值请与 `Info.plist` 的英文版**语义一致**（审核会两边对着看）。 */
+"NSCameraUsageDescription" = "用于拍照，让道码「看图」修 bug";
+"NSPhotoLibraryUsageDescription" = "用于从相册选择图片，让道码「看图」修 bug";
+"NSMicrophoneUsageDescription" = "用于语音输入（说话代替打字）";

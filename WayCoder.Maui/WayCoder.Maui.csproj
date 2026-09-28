@@ -154,6 +154,34 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
+	<!--
+	  Apple 两个平台的本地化资源与隐私清单（2026-09-28 加）—— **必须显式收进来，它们不在任何默认 glob 里**。
+
+	  iOS SDK 的默认项只有一条（`Microsoft.iOS.Sdk.DefaultItems.props`）：
+	      <BundleResource Include="$(_ResourcePrefix)\**\*" … />
+	  而 `_ResourcePrefix` = `Resources`（**项目根**那个 Resources），所以
+	  `Platforms/iOS/Resources/**` 与 `Platforms/MacCatalyst/Resources/**` **既不进 BundleResource、
+	  也不进任何会被拷进 .app 的项**（实测：`dotnet msbuild -getItem:BundleResource` 84 条全在根
+	  `Resources\` 下、lproj 零命中；`Platforms/iOS/Resources/**` 只落在 `None` 里，而 `None` 不参与打包）。
+	  ⇒ 放在那儿只会"仓库里有、包里没有"——**构建全绿，只有装上真机看语言才知道**。
+	  本地化的 `.strings` 正是走这条路：SDK 的 `_CollectLocalizationFiles` 只从
+	  `@(_BundleResourceWithLogicalName)` 里挑 `.strings`（`tools/msbuild/Xamarin.Shared.targets:1798`）。
+
+	  ⚠ `LogicalName` 不是装饰：不带它，条目会带着 `Platforms/iOS/Resources/...` 整条路径写进 .app，
+	  而正确位置是 bundle 根的 `<lang>.lproj/InfoPlist.strings`。`%(RecursiveDir)` 正好是 glob 里
+	  `**` 命中的那一段（= `zh-Hans.lproj\`），与上面的 `<MauiAsset>` 同一套写法。
+
+	  ⚠⚠ 顺带把 `PrivacyInfo.xcprivacy`（隐私清单，App Store 的硬要求）一起收进来 ——
+	  它此前同样只落在 `None` 里、进不了包。两处是同一个修复。
+	  新增语言 = 加一个 `<lang>.lproj` 目录，这里不用动。
+	-->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+		<BundleResource Include="Platforms\iOS\Resources\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
+		<BundleResource Include="Platforms\MacCatalyst\Resources\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />

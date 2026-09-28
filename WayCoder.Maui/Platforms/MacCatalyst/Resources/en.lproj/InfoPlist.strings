@@ -1,0 +1,9 @@
+/* 英文系统的应用显示名与权限文案 —— WayCoder（Mac Catalyst 版）。
+   与 `Platforms/iOS/Resources/en.lproj/InfoPlist.strings` **逐字镜像**。
+   ⚠ 与 plist 里那三个 NS*UsageDescription 逐字一致（plist 是兜底、本文件是显式取值）。 */
+"CFBundleDisplayName" = "WayCoder";
+"CFBundleName" = "WayCoder";
+
+"NSCameraUsageDescription" = "Used to take photos so WayCoder can look at images while fixing bugs.";
+"NSPhotoLibraryUsageDescription" = "Used to pick images from your library so WayCoder can look at them while fixing bugs.";
+"NSMicrophoneUsageDescription" = "Used for voice input (speak instead of typing).";

@@ -1,3 +1,70 @@
+## v0.96.562 — 双语化：工具描述 + opt-in 生成器 + iOS/MacCatalyst 平台侧
+
+接着 v0.96.561 做 Batch 1 的收尾，并把方案里标为「**可上架的硬门槛**」的平台侧一起做掉。
+自测 **6877 → 6898 全绿、零回归**。
+
+**工具描述英文化（50 个文件、218 处）。** 这批看着像体力活，其实是**最该机器验收的一批**：
+`Description` 与每个参数的 `description` 是**喂给模型的指令**，漏翻一处不会报错、不会留痕，
+只是英文会话里模型收到一句中文说明而**变笨**。所以护栏先写、再干活：
+新增判据「`L.Set(En)` 下 `ToolRegistry.AllTools` 里**每一个**工具的 `Description` 与**每一个**
+参数的 `description` 都不得含 CJK」——**一开始 201 处红**，正是它驱动了后面的改造。
+（`ToolRegistry` 而不是手列名单：手列的名单会漂，而 `AllTools` 就是模型真正看到的那一份。）
+
+**五个 opt-in 生成器 + Architect 模板。** 默认 Build 路径上一批已英文化，这五个只在
+Tiny / 经济 / 极致 / 规划 / 架构师模式下走，但都是**模型直接读的提示词**：
+`GenerateTiny` / `GenerateExtreme` / `GenerateEconomy` / `GeneratePlan` / `GenerateArchitectPrompt`。
+Architect 那份另做了一层重构：把模板提成 `s_architectZh` / `s_architectEn` 两个
+`__XXX__` 占位符常量 + `.Replace()`，**与主模板同一套写法**，并加了「两份占位符集合相等」的断言
+（漏一个的后果是「某段动态内容在英文下**永不注入**」，静默）。
+
+**护栏自己抓出的两处漏译。**
+① `RepoMapGenerator` 的 `## 仓库地图` / `### 🔗 核心文件（按引用热度排序）` / `被 N 个文件引用`
+—— 它会拼进主提示词与 Architect 提示词。
+② 顺带发现一处**语言冻结隐患**：仓库地图是**进程级缓存**，而正文本就是文案 ⇒ 少了「这份缓存产于
+哪种语言」这一项，先中文跑一次再切英文就会拿到中文地图（自测里 `L.Set(En)`/`L.Set(Zh)` 交替跑，
+最先撞上的就是它）。已加 `_cacheLang` 参与缓存判据。
+
+**⚠ 一条判据教训（护栏第一版自己踩的）：判据要落在「我们写的文案」上，不能落在「成品的一切字节」上。**
+Architect 生成器的成品里注入**仓库地图**，而地图正文含**数据** —— 从项目 markdown 里抽出的标题
+（本仓 `docs/上架资料包.md` 的 `## 八、功能门…` 就是这么进来的）、文件路径、符号名。
+第一版整份断言，于是**被自己仓库的文档标题判成了漏译**。这与上一批 git 提交信息那次是同一个坑，
+已是第二次：**成品 = 文案 + 数据，数据不该也不能翻。**
+
+**iOS / Mac Catalyst 平台侧（可上架硬门槛）。**
+`Info.plist` 的三个 `NS*UsageDescription` 改成**英文兜底**（任何非中文系统都落到它），
+中文走 `zh-Hans.lproj/InfoPlist.strings` 覆盖，与 Android 侧「`values/` 英文默认 + `values-zh/` 中文」
+完全对齐；两份 plist 各加 `CFBundleLocalizations = [en, zh-Hans]`（决定 App Store 商品页的语言栏，
+也是审核项）；Mac Catalyst 补齐**此前一个都没有**的三个权限键（缺了它请求相机/麦克风时**系统直接
+拒绝并崩溃**，不是「少一行提示」）。
+
+**⚠⚠ 查出一个真 bug：那两个 lproj 从来没进过包。** 上一批写着「应用名已本地化 ✓」，实际是
+**「仓库里有、包里没有」**。证据链：iOS SDK 的默认项只有一条 `BundleResource Include="$(_ResourcePrefix)\**\*"`，
+而 `_ResourcePrefix` = **项目根**的 `Resources` ⇒ `Platforms/iOS/Resources/**` 既不进 `BundleResource`、
+也不进任何会被拷进 `.app` 的项（它只落在 `None` 里，而 `None` 不参与打包）；
+SDK 的 `_CollectLocalizationFiles` 只从 `@(_BundleResourceWithLogicalName)` 里挑 `.strings`。
+**构建全绿，只有装上真机看语言才知道。** 修法是 csproj 里按 TFM 各加一个 `BundleResource`
+显式收进来 —— `LogicalName` 不是装饰：不带它，条目会带着 `Platforms/iOS/Resources/...` 整条路径
+写进 `.app`，而正确位置是 bundle 根的 `<lang>.lproj/InfoPlist.strings`。实测条目数
+**84 → 87（iOS）/ 84 → 86（MacCatalyst）**，三条新条目的 `LogicalName` 正是
+`en.lproj\InfoPlist.strings` / `zh-Hans.lproj\InfoPlist.strings`。
+**顺带把 `PrivacyInfo.xcprivacy`（App Store 硬要求）一起收进来 —— 它此前同样只落在 `None` 里、进不了包。**
+
+**20 条解析式护栏**（`SelfTest.Chunk19.cs`）：plist 三键 ×2、两份权限文案**逐字相同**、英文无 CJK、
+`CFBundleLocalizations` 恰好 `{en, zh-Hans}` ×2、**四份 lproj ×（三键齐全 / 语言正确 /
+`CFBundleDisplayName` 按语言切换）= 12**、csproj 资源打包 ×2。
+**一律解析 XML / 逐行解析 strings，禁止 `Contains` 文本匹配** —— 那两份 plist 的注释里恰好也写着
+这些键名（解释为什么必须写），文本匹配会在真键被删掉时照样绿，**那种闸门比没有更糟**。
+这一组钉的失败模式全是「**不报错、只是显示另一种语言**」：目录名写成 `en-US`、`InfoPlist.strings`
+存成带 BOM、键名拼错、两份只改一份。
+
+**未能在本机证实的一条（如实记录）**：`.app` 里真的躺着 `<lang>.lproj/InfoPlist.strings`
+需要一台 Mac（iOS 包只能在 macOS 上生成）。本机证到的是**条目进了 `BundleResource` 且 `LogicalName` 正确**，
+`BundleResource + LogicalName → bundle 路径` 那一步是读 `Xamarin.Shared.targets` 的任务链路推出的。
+**上架前需要在 Mac 上 `unzip -l` 核对包内应有 4 份 `InfoPlist.strings`。**
+
+**顺带**：`ViewImageTool` 的运行期默认值 `"描述这张图片的内容"` 也改成 `L.Pick`
+—— 它**随图片一起喂给模型**，属文案不属数据；此前 schema 写着英文默认值、实际发出去的是中文。
+
 ## v0.96.561 — 双语化第一批：语言引擎 + 系统提示词英文化（**AI 开始用英文回答**）
 
 为 **iOS/Android 全球发行**做的中英双语改造。本轮完成前两批，自测 **6797 → 6867 全绿、零回归**。

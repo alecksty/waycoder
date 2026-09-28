@@ -1289,6 +1289,173 @@ public static partial class SelfTest
                 // 两份必须**同款**：只有一份改了（正是 9-27 那次）就红。
                 Check("两个平台用同一个场景配置名（改一份忘另一份 = 另一个平台黑屏）",
                     iosConfig.Length > 0 && iosConfig == macConfig);
+
+                // ── 权限文案中英双语（2026-09-28）────────────────────────────────────────
+                Section("[Apple 权限文案中英双语：plist 英文兜底 + lproj 覆盖（漏一处只是显示另一种语言）]");
+                // App Store 的硬门槛：三个 `NS*UsageDescription` 原来**只有中文**，英文设备
+                // （审核员用的就是英文设备）在相机/相册/麦克风弹窗上看到的是三行中文。
+                //
+                // 语言策略与 Android 侧对齐：`Info.plist` 里的值 = **英文兜底**（任何非中文系统
+                // 落到它），中文走 `Resources/zh-Hans.lproj/InfoPlist.strings` 覆盖。
+                // MacCatalyst 那份 plist 原来**一个 `NS*UsageDescription` 都没有**
+                // （两端 plist 各写一份、不会互相继承，而请求权限时缺说明文案 = 系统直接拒绝并崩溃）。
+                //
+                // 判据一律「解析 XML / 逐行解析 strings」，**禁止 `Contains` 文本匹配**：那两份
+                // plist 的注释里恰好也写着这些键名（解释为什么必须写），文本匹配在真键被删后照样绿。
+                // 这一段的真正价值是钉住三种**都不报错、只是显示另一种语言**的失败模式：
+                // lproj 目录名写成 `en-US`、键名拼错、两份只改一份。
+                // ⚠ 放在这个 `else` 里是为了与上面那段共用「打包环境跳过」的判定，不重复写一遍。
+                {
+                    static System.Xml.Linq.XElement? RootDict(string path)
+                    {
+                        try { return System.Xml.Linq.XDocument.Load(path).Root?.Element("dict"); }
+                        catch { return null; }
+                    }
+
+                    // `.strings` 是 plist 的 strings 格式：每行 `"键" = "值";`（注释是 `/* … */`）。
+                    // 只认「行首（允许缩进）就是 `"…" = "…";`」的行 —— 注释行天然不匹配。
+                    static Dictionary<string, string>? ParseStrings(string path)
+                    {
+                        try
+                        {
+                            var dict = new Dictionary<string, string>(StringComparer.Ordinal);
+                            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(
+                                         File.ReadAllText(path),
+                                         @"^[ \t]*""((?:[^""\\]|\\.)*)""[ \t]*=[ \t]*""((?:[^""\\]|\\.)*)""[ \t]*;",
+                                         System.Text.RegularExpressions.RegexOptions.Multiline))
+                                dict[m.Groups[1].Value] = m.Groups[2].Value;
+                            return dict;
+                        }
+                        catch { return null; }
+                    }
+
+                    // 含 CJK 就判成「中文」：汉字 + CJK 标点（「」、、）+ 全角括号冒号（（）、：）。
+                    static bool HasCjk(string s)
+                    {
+                        foreach (var r in s.EnumerateRunes())
+                        {
+                            var v = r.Value;
+                            if ((v >= 0x3000 && v <= 0x303F) || (v >= 0x3400 && v <= 0x4DBF)
+                                || (v >= 0x4E00 && v <= 0x9FFF) || (v >= 0xF900 && v <= 0xFAFF)
+                                || (v >= 0xFF00 && v <= 0xFFEF)) return true;
+                        }
+                        return false;
+                    }
+
+                    var nsKeys = new[]
+                    {
+                        "NSCameraUsageDescription",
+                        "NSPhotoLibraryUsageDescription",
+                        "NSMicrophoneUsageDescription",
+                    };
+
+                    // 解析一份 Info.plist 的三个权限文案（缺失的位置留 null）。
+                    string?[] NsValues(string path)
+                    {
+                        var d = RootDict(path);
+                        var res = new string?[nsKeys.Length];
+                        if (d != null)
+                            for (var i = 0; i < nsKeys.Length; i++) res[i] = PListValue(d, nsKeys[i])?.Value;
+                        return res;
+                    }
+
+                    var iosNs = NsValues(iosPlist);
+                    var macNs = NsValues(macPlist);
+
+                    Check("iOS Info.plist: 三个 NS*UsageDescription 键都在（解析 XML 取键，不是文本匹配）",
+                        iosNs.All(v => !string.IsNullOrEmpty(v)));
+                    Check("MacCatalyst Info.plist: 三个 NS*UsageDescription 键都在"
+                        + "（缺了它请求相机/麦克风时系统直接拒绝并崩溃，不是「少一行提示」）",
+                        macNs.All(v => !string.IsNullOrEmpty(v)));
+                    Check("两个平台的三个权限文案逐字相同（改一份忘另一份 = 那个平台仍是旧语言）",
+                        iosNs.SequenceEqual(macNs));
+                    // 这一条就是「英文兜底」本身：plist 的值会落到**任何**非中文系统上。
+                    Check("两份 Info.plist 的权限文案都是英文（不含 CJK）—— 它是所有非中文系统的兜底",
+                        iosNs.All(v => v != null && !HasCjk(v)) && macNs.All(v => v != null && !HasCjk(v)));
+
+                    // 语言列表进 App Store 商品页的「语言」栏（只列中文会被判「仅支持中文」）。
+                    foreach (var plat in new[] { "iOS", "MacCatalyst" })
+                    {
+                        var plistPath = plat == "iOS" ? iosPlist : macPlist;
+                        var d = RootDict(plistPath);
+                        var arr = d == null ? null : PListValue(d, "CFBundleLocalizations");
+                        var loc = arr == null
+                            ? Array.Empty<string>()
+                            : arr.Elements("string").Select(e => e.Value).ToArray();
+                        Check($"{plat} Info.plist: CFBundleLocalizations 恰好是 en + zh-Hans 两个"
+                            + "（多一个少一个都会让商品页语言栏与实际的 lproj 对不上）",
+                            loc.Length == 2 && Array.IndexOf(loc, "en") >= 0 && Array.IndexOf(loc, "zh-Hans") >= 0);
+                    }
+
+                    // 四份 lproj（两个平台 × 两种语言）都要在，且三键齐全、语言正确。
+                    foreach (var plat in new[] { "iOS", "MacCatalyst" })
+                    {
+                        var resRoot = Path.Combine("WayCoder.Maui", "Platforms", plat, "Resources");
+                        foreach (var lang in new[] { "en", "zh-Hans" })
+                        {
+                            var wantCjk = lang == "zh-Hans";
+                            var hit = FindRepoFile(Path.Combine(resRoot, lang + ".lproj", "InfoPlist.strings"));
+                            var dict = hit == null ? null : ParseStrings(hit);
+                            var vals = new string?[nsKeys.Length];
+                            if (dict != null)
+                                for (var i = 0; i < nsKeys.Length; i++) dict.TryGetValue(nsKeys[i], out vals[i]);
+                            Check($"{plat} {lang}.lproj/InfoPlist.strings: 文件在仓库里（含中文时是 UTF-8 无 BOM）"
+                                + "且三个权限键都在"
+                                + "（目录名写成 en-US、键名拼错、只改一份 —— 三种都不报错，只是显示另一种语言）",
+                                vals.All(v => !string.IsNullOrEmpty(v)));
+                            var withValue = 0;
+                            var cjk = 0;
+                            foreach (var s in vals)
+                            {
+                                if (string.IsNullOrEmpty(s)) continue;
+                                withValue++;
+                                if (HasCjk(s)) cjk++;
+                            }
+                            Check($"{plat} {lang}.lproj: 权限文案是{(wantCjk ? "中文（含 CJK）" : "英文（不含 CJK）")}"
+                                + "（两份写成同一种语言 = 另一种语言永远看不到）",
+                                wantCjk ? withValue == nsKeys.Length && cjk == nsKeys.Length : cjk == 0);
+                            Check($"{plat} {lang}.lproj: 有 CFBundleDisplayName 且取值按语言切换"
+                                + "（中文 = 道码，英文 = WayCoder）",
+                                dict != null && dict.TryGetValue("CFBundleDisplayName", out var dn)
+                                && dn == (wantCjk ? "道码" : "WayCoder"));
+                        }
+                    }
+
+                    // 文件真的会进 .app 吗？—— 「仓库里有、包里没有」那个失败模式。
+                    // 实测依据：iOS SDK 的默认项只有 `<BundleResource Include="$(_ResourcePrefix)\**\*" />`
+                    // 而 `_ResourcePrefix` = `Resources`（**项目根**那个），所以 `Platforms/<平台>/Resources/**`
+                    // 不在任何默认 glob 里（`-getItem:BundleResource` 84 条里 lproj 零命中，它只落在 `None` 里，
+                    // 而 `None` 不参与打包）⇒ 必须显式收进 BundleResource，且**必须带 `LogicalName`**
+                    // （否则写进 .app 的路径会带上 `Platforms/iOS/Resources/` 整条前缀）。
+                    var csproj = FindRepoFile(Path.Combine("WayCoder.Maui", "WayCoder.Maui.csproj"));
+                    if (csproj == null)
+                    {
+                        Check("Apple 权限文案: 无 csproj（打包环境），跳过资源打包校验", true);
+                    }
+                    else
+                    {
+                        var packed = new List<string>();
+                        foreach (var item in System.Xml.Linq.XDocument.Load(csproj).Descendants("BundleResource"))
+                        {
+                            var inc = (item.Attribute("Include")?.Value ?? "").Replace('\\', '/');
+                            var lg = (item.Attribute("LogicalName")?.Value ?? "").Replace('\\', '/');
+                            var cond = item.Attribute("Condition")?.Value
+                                       ?? item.Parent?.Attribute("Condition")?.Value ?? "";
+                            // `LogicalName` 必须经 `%(RecursiveDir)` 推出 `<lang>.lproj/…`
+                            // （写死某个语言名的话，加第三种语言时它会静默漏掉）。
+                            if (!lg.Contains("RecursiveDir", StringComparison.Ordinal)) continue;
+                            foreach (var plat in new[] { "iOS", "MacCatalyst" })
+                                if (inc.Contains($"Platforms/{plat}/Resources/", StringComparison.Ordinal)
+                                    && cond.Contains(plat, StringComparison.OrdinalIgnoreCase))
+                                    packed.Add(plat);
+                        }
+                        foreach (var plat in new[] { "iOS", "MacCatalyst" })
+                            Check($"csproj 把 Platforms/{plat}/Resources/** 显式收进 BundleResource"
+                                + " 且带 LogicalName（不收 = 文件在仓库里却进不了 .app：构建全绿，"
+                                + "只有装上真机看语言才知道）",
+                                packed.Contains(plat));
+                    }
+                }
             }
         }
     }

@@ -55,11 +55,32 @@
 	</dict>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<!-- 出口合规（export compliance）：缺这个键，App Store Connect **每次上传都会把构建标成
+	     「缺少出口合规信息」**，既不给 TestFlight 测试也不给提交，得人工去后台点一次。
+	     道码只用系统 TLS（HTTPS）连 LLM 接口，属"仅用豁免加密" ⇒ 填 false。
+	     ⚠ 将来若自己在代码里实现加密算法（不走系统库），这里必须改 true 并在后台上传申报文件。 -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- 权限文案的**语言策略**（2026-09-28 改）：这个 plist 里的值 = **英文兜底**
+	     （任何非中文系统都落到它），中文走 `Resources/zh-Hans.lproj/InfoPlist.strings` 覆盖
+	     —— 与 Android 侧「`values/strings.xml` 英文默认 + `values-zh/` 中文」完全对齐。
+	     ⚠ 原来这三个键**只有中文** ⇒ 英文设备（含 App Store 审核员）看到的就是三行中文，
+	     这是上架的硬门槛，不是"观感问题"。
+	     ⚠⚠ 改这里要同步四处：`MacCatalyst/Info.plist`（同三键 + 同 values）、两个平台下的
+	     `Resources/en.lproj/InfoPlist.strings` 与 `Resources/zh-Hans.lproj/InfoPlist.strings`。
+	     `SelfTest` 的 `[Apple 权限文案中英双语]` 段把这些**全部**钉住，漏一处即红。 -->
 	<key>NSCameraUsageDescription</key>
-	<string>用于拍照，让道码「看图」修 bug</string>
+	<string>Used to take photos so WayCoder can look at images while fixing bugs.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于从相册选择图片，让道码「看图」修 bug</string>
+	<string>Used to pick images from your library so WayCoder can look at them while fixing bugs.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>用于语音输入（说话代替打字）</string>
+	<string>Used for voice input (speak instead of typing).</string>
+	<!-- App Store 商品页的「语言」栏 = 这里列出的语言（也是审核项：只列 zh 会被判"仅支持中文"）。
+	     取值要与上面提到的两个 lproj 目录名**逐字对应**（`zh-Hans`，不是 `zh`/`zh-CN`/`zh-Hans-CN`）。 -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 </dict>
 </plist>

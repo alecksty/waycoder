@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- The Mac App Store requires you specify if the app uses encryption. -->
-    <!-- Please consult https://developer.apple.com/documentation/bundleresources/information_property_list/itsappusesnonexemptencryption -->
-    <!-- <key>ITSAppUsesNonExemptEncryption</key> -->
-    <!-- Please indicate <true/> or <false/> here. -->
+    <!-- 出口合规 —— Mac App Store 与 iOS 是同一套要求（缺了每次上传都会多一步人工问答）。
+         道码只用系统 TLS（HTTPS）连 LLM 接口 ⇒ 属"仅用豁免加密"，填 false。
+         参考 https://developer.apple.com/documentation/bundleresources/information_property_list/itsappusesnonexemptencryption
+         ⚠ iOS 那份（Platforms/iOS/Info.plist）也有同一个键，两处都要保留。 -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
 
     <!-- Specify the category for your app here. -->
     <!-- Please consult https://developer.apple.com/documentation/bundleresources/information_property_list/lsapplicationcategorytype -->
@@ -61,5 +63,25 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+
+	<!-- 权限文案（2026-09-28 新增）：键与值**逐字镜像** `Platforms/iOS/Info.plist`，
+	     语言策略也一样 —— 这里的值 = 英文兜底，中文走
+	     `Resources/zh-Hans.lproj/InfoPlist.strings` 覆盖。
+	     ⚠ 这里原来**一个 NS*UsageDescription 都没有**：Mac Catalyst 与 iOS 共用同一批
+	     API（相机/相册/麦克风），但 **Info.plist 是各写一份、不会互相继承** ——
+	     少了说明文案，请求权限时系统直接拒绝并**崩溃**（不是只少一行提示）。
+	     改这里记得同步 iOS 那份，反之亦然。 -->
+	<key>NSCameraUsageDescription</key>
+	<string>Used to take photos so WayCoder can look at images while fixing bugs.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Used to pick images from your library so WayCoder can look at them while fixing bugs.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Used for voice input (speak instead of typing).</string>
+	<!-- 与 iOS 那份**逐字相同**（Mac App Store 也会读它）。 -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>zh-Hans</string>
+	</array>
 </dict>
 </plist>
