@@ -47,7 +47,7 @@ public partial class Config
             var root = Json.Parse(File.ReadAllText(path));
             if (root is not { Kind: JKind.Object }) return;
 
-            foreach (var p in _schema)
+            foreach (var p in Schema)
             {
                 if (p.Type == "secret") continue;
                 if (NonPersistedModelKeys.Contains(p.Key)) continue; // 模型字段权威在 connections.json state
@@ -81,7 +81,7 @@ public partial class Config
                 Global.EnsureDir(path);
 
                 var obj = JNode.Object();
-                foreach (var p in _schema)
+                foreach (var p in Schema)
                 {
                     // API Key 不写入 config.json：密钥独立管理，走全局 api_keys.json（一个服务商一个 key）
                     if (p.Type == "secret") continue;
@@ -121,7 +121,7 @@ public partial class Config
         // 追加 5 个基本配置（非空）
         foreach (var envVar in BasicDotEnvKeys)
         {
-            var p = _schema.FirstOrDefault(s => string.Equals(s.EnvVar, envVar, StringComparison.OrdinalIgnoreCase));
+            var p = Schema.FirstOrDefault(s => string.Equals(s.EnvVar, envVar, StringComparison.OrdinalIgnoreCase));
             if (p == null) continue;
             var val = p.Getter(this);
             if (string.IsNullOrEmpty(val)) continue;

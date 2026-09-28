@@ -123,7 +123,7 @@ public partial class Config
             // 首次启动（无 config.json）：从 .env + 环境变量读取，并把结果导入固化。
             LoadDotEnv();
             var appliedModelKeys = new List<string>();
-            foreach (var p in _schema)
+            foreach (var p in Schema)
             {
                 var val = Env(p.EnvVar, p.OldEnvVar);
                 if (!string.IsNullOrEmpty(val))

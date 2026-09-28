@@ -982,6 +982,17 @@ public static partial class SelfTest
         Check("IsSubAgentFailure 正常结果非失败", !AgentTool.IsSubAgentFailure("[子智能体已完成 · 深度 1]\n完成结果"));
         Check("IsSubAgentFailure 空串非失败", !AgentTool.IsSubAgentFailure(""));
         Check("IsSubAgentFailure 依赖编排错误非子智能体错误", !AgentTool.IsSubAgentFailure("依赖编排子智能体错误（深度 1）：..."));
+        // ⚠ 中英双认（公理 A2）：生产者在 Tools/AgentTool.cs 按界面语言出文案，
+        //   而本判据决定**要不要重试** —— 只认中文的话英文会话下失败永不重试（不报错、只是不再重试）。
+        Check("IsSubAgentFailure[en] 识别英文失败文案",
+            AgentTool.IsSubAgentFailure("Sub-agent error (depth 2): TimeoutException: request timed out"));
+        Check("IsSubAgentFailure[en] 英文完成文案非失败",
+            !AgentTool.IsSubAgentFailure("[Sub-agent finished · depth 1]\ndone"));
+        // 反方向：两种**编排级**失败（并行 / 依赖编排）的英文支也不能被当成单任务失败
+        Check("IsSubAgentFailure[en] 并行编排错误非单任务失败",
+            !AgentTool.IsSubAgentFailure("Parallel sub-agent error (depth 1): ..."));
+        Check("IsSubAgentFailure[en] 依赖编排错误非单任务失败",
+            !AgentTool.IsSubAgentFailure("Dependency-orchestration sub-agent error (depth 1): ..."));
         Check("SubAgentRetryCount 默认 1", new Config().SubAgentRetryCount == 1);
         // 配置注册存在（ConfigCli 能列出该项）
         Check("SubAgentRetryCount 设置项存在", ConfigCli.Get("SubAgentRetryCount").Contains("SubAgentRetryCount"));

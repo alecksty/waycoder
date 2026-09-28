@@ -83,10 +83,10 @@ public static partial class ConnectionConfig
     /// <summary>connect_mode → 模型栏通道前缀中文标签。未知/空一律按 "big" 处理 → 大模型。</summary>
     public static string ChannelLabel(string? connectMode) => (connectMode ?? "").Trim().ToLowerInvariant() switch
     {
-        "free" => "自由模型",
-        "rollback" => "回滚模型",
-        "small" => "小模型",
-        _ => "大模型",
+        "free" => L.Pick("自由模型", "Free model"),
+        "rollback" => L.Pick("回滚模型", "Rollback model"),
+        "small" => L.Pick("小模型", "Small model"),
+        _ => L.Pick("大模型", "Main model"),
     };
 
     /// <summary>当前主通道标识：state.connect_mode=free → "free"，否则 "big"（回滚为运行态，由调用方按 LlmClient 实时模型判定）。</summary>

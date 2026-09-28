@@ -13,9 +13,8 @@ WayCoder/Agent/ToolResultClassifier.cs
 WayCoder/Agent/Trajectory.cs
 WayCoder/Agent/WorkReporter.cs
 WayCoder/Config/ApiKeyStore.cs
-WayCoder/Config/Config.Schema.cs
+WayCoder/Config/Config.Schema.cs  # 保留：只剩 1 处 —— ThemePreset 的默认值「黄金甲」，是**写进 config.json 并参与主题预设匹配的存储值**（同 MAUI 的 CoreStubs 主题预设名），不是文案；翻了主题就选不中。其余 333 处（label/desc/分类名/三条 /config set 报错）已全部 L.Pick
 WayCoder/Config/Config.cs
-WayCoder/Config/ConfigCli.cs
 WayCoder/Config/ConnectionConfig.State.cs
 WayCoder/Config/ConnectionConfig.cs
 WayCoder/Config/Global.cs
@@ -47,13 +46,11 @@ WayCoder/Skills/SkillsManager.cs  # 保留：6 条 DebugLog（日志不翻）
 WayCoder/Tools/AgentTool.cs
 WayCoder/Tools/ClaudeMcp.cs
 WayCoder/Tools/DocTool.cs
-WayCoder/Tools/EditFileTool.cs
 WayCoder/Tools/FetchTool.cs
 WayCoder/Tools/McpCache.cs
 WayCoder/Tools/McpClient.cs
 WayCoder/Tools/McpConfigStore.cs
 WayCoder/Tools/McpTransport.cs
-WayCoder/Tools/RmTool.cs
 WayCoder/Tools/SubAgentAudit.cs
 WayCoder/Tools/TodoStore.cs
 WayCoder/Tools/ToolErrors.cs

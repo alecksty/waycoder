@@ -127,7 +127,8 @@ public class EditFileTool : ITool
 
             // 逐 hunk 确认（YOLO 自动放行；下方统一生成的 unified diff 仍进工具输出，聊天区照样显示对比）
             var (rejected, confirmed) = WritePipeline.ConfirmDiff(filePath, content, newContent);
-            if (rejected) return $"已取消编辑 {filePath}（用户拒绝变更）";
+            if (rejected) return L.Pick($"已取消编辑 {filePath}（用户拒绝变更）",
+                                        $"Edit of {filePath} cancelled (declined by user)");
             newContent = confirmed;
 
             // 生成 diff 与记录变更须在恢复 CRLF 前（此时 content/newContent 都是 LF，行尾一致，
@@ -146,7 +147,9 @@ public class EditFileTool : ITool
             var replacedMsg = replaceAll && occurrences > 1
                 ? L.Pick($"（{occurrences} 处替换）", $" ({occurrences} replacements)")
                 : "";
-            var result = $"已编辑 {filePath}{replacedMsg}\n{diff}";
+            // 英文支的 `Edited ` 前缀是 Agent 侧「自动续跑」判据的认法之一（Agent.cs 的 wasWriting）
+            var result = L.Pick($"已编辑 {filePath}{replacedMsg}\n{diff}",
+                                $"Edited {filePath}{replacedMsg}\n{diff}");
 
             // LSP 诊断自动附加：运行 lint 检查新引入的错误
             var diagnostics = await DiagnosticManager.TryRunLintWithTimeout(path, 3000);

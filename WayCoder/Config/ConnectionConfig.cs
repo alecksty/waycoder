@@ -87,16 +87,16 @@ public static partial class ConnectionConfig
     /// <summary>新增 connect。name 必须唯一（忽略大小写），providerId/modelId 不能为空。成功返回 true。</summary>
     public static bool AddConnect(string name, string providerId, string modelId, out string error)
     {
-        if (string.IsNullOrWhiteSpace(name)) { error = "connect 名不能为空"; return false; }
-        if (string.IsNullOrWhiteSpace(providerId)) { error = "providerId 不能为空"; return false; }
-        if (string.IsNullOrWhiteSpace(modelId)) { error = "modelId 不能为空"; return false; }
+        if (string.IsNullOrWhiteSpace(name)) { error = L.Pick("connect 名不能为空", "connect name cannot be empty"); return false; }
+        if (string.IsNullOrWhiteSpace(providerId)) { error = L.Pick("providerId 不能为空", "providerId cannot be empty"); return false; }
+        if (string.IsNullOrWhiteSpace(modelId)) { error = L.Pick("modelId 不能为空", "modelId cannot be empty"); return false; }
         lock (_lock)
         {
             Load();
             var trimmed = name.Trim();
             if (_connects!.Any(c => string.Equals(c.Name, trimmed, StringComparison.OrdinalIgnoreCase)))
             {
-                error = $"connect「{trimmed}」已存在（名称需唯一）";
+                error = L.Pick($"connect「{trimmed}」已存在（名称需唯一）", $"connect \"{trimmed}\" already exists (names must be unique)");
                 return false;
             }
             _connects!.Add(new Connect(trimmed, providerId.Trim().ToLowerInvariant(), modelId.Trim()));
@@ -127,7 +127,8 @@ public static partial class ConnectionConfig
             var idx = _connects!.FindIndex(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
             if (idx < 0)
             {
-                error = $"未找到 connect「{name}」。用 /connect connect list 查看全部。";
+                error = L.Pick($"未找到 connect「{name}」。用 /connect connect list 查看全部。",
+                    $"connect \"{name}\" not found. Run /connect connect list to see them all.");
                 return false;
             }
             var removed = _connects[idx].Name;
@@ -135,7 +136,8 @@ public static partial class ConnectionConfig
                     c.BigConnect.Equals(removed, StringComparison.OrdinalIgnoreCase)
                     || c.SmallConnect.Equals(removed, StringComparison.OrdinalIgnoreCase)))
             {
-                error = $"connect「{removed}」正被命名连接引用，先移除引用再删";
+                error = L.Pick($"connect「{removed}」正被命名连接引用，先移除引用再删",
+                    $"connect \"{removed}\" is still referenced by a named connection; remove that reference first");
                 return false;
             }
             _connects.RemoveAt(idx);
@@ -170,10 +172,10 @@ public static partial class ConnectionConfig
     /// </summary>
     public static bool AddConnection(string name, string bigConnect, string smallConnect, out string error)
     {
-        if (string.IsNullOrWhiteSpace(name)) { error = "连接名不能为空"; return false; }
+        if (string.IsNullOrWhiteSpace(name)) { error = L.Pick("连接名不能为空", "connection name cannot be empty"); return false; }
         if (string.IsNullOrWhiteSpace(bigConnect) || string.IsNullOrWhiteSpace(smallConnect))
         {
-            error = "大/小 connect 均不能为空";
+            error = L.Pick("大/小 connect 均不能为空", "neither the big nor the small connect can be empty");
             return false;
         }
         lock (_lock)
@@ -182,12 +184,13 @@ public static partial class ConnectionConfig
             var trimmed = name.Trim();
             if (_connections!.Any(c => string.Equals(c.Name, trimmed, StringComparison.OrdinalIgnoreCase)))
             {
-                error = $"连接「{trimmed}」已存在（名称需唯一）";
+                error = L.Pick($"连接「{trimmed}」已存在（名称需唯一）", $"connection \"{trimmed}\" already exists (names must be unique)");
                 return false;
             }
             if (FindConnect(bigConnect) == null || FindConnect(smallConnect) == null)
             {
-                error = $"connect 不存在：{bigConnect} / {smallConnect}（先 /connect connect add）";
+                error = L.Pick($"connect 不存在：{bigConnect} / {smallConnect}（先 /connect connect add）",
+                    $"connect not found: {bigConnect} / {smallConnect} (run /connect connect add first)");
                 return false;
             }
             _connections!.Add(new Connection(trimmed, bigConnect.Trim(), smallConnect.Trim()));
@@ -206,7 +209,8 @@ public static partial class ConnectionConfig
             var idx = _connections!.FindIndex(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
             if (idx < 0)
             {
-                error = $"未找到连接「{name}」。用 /connect list 查看全部。";
+                error = L.Pick($"未找到连接「{name}」。用 /connect list 查看全部。",
+                    $"connection \"{name}\" not found. Run /connect list to see them all.");
                 return false;
             }
             var removedName = _connections[idx].Name;
@@ -230,14 +234,16 @@ public static partial class ConnectionConfig
         var c = FindConnection(name);
         if (c == null)
         {
-            message = $"未找到连接「{name}」。用 /connect list 查看全部。";
+            message = L.Pick($"未找到连接「{name}」。用 /connect list 查看全部。",
+                $"connection \"{name}\" not found. Run /connect list to see them all.");
             return null;
         }
         var big = FindConnect(c.BigConnect);
         var small = FindConnect(c.SmallConnect);
         if (big == null || small == null)
         {
-            message = $"连接「{name}」引用的 connect 缺失：{c.BigConnect} / {c.SmallConnect}（用 /connect connect add 补建）";
+            message = L.Pick($"连接「{name}」引用的 connect 缺失：{c.BigConnect} / {c.SmallConnect}（用 /connect connect add 补建）",
+                $"connection \"{name}\" references missing connects: {c.BigConnect} / {c.SmallConnect} (recreate them with /connect connect add)");
             return null;
         }
 
@@ -259,7 +265,8 @@ public static partial class ConnectionConfig
         cfg.SaveToConfigJson(); // config.json 不再保存模型字段；此处仅写非模型配置
         cfg.SaveToEnvFile();
 
-        message = $"已切换至 连接「{c.Name}」：大={FormatModel(ModelCatalog.ProviderDisplayName(big.ProviderId), big.ModelId)} · 小={FormatModel(ModelCatalog.ProviderDisplayName(small.ProviderId), small.ModelId)}" +
+        message = L.Pick($"已切换至 连接「{c.Name}」：大={FormatModel(ModelCatalog.ProviderDisplayName(big.ProviderId), big.ModelId)} · 小={FormatModel(ModelCatalog.ProviderDisplayName(small.ProviderId), small.ModelId)}",
+            $"Switched to connection \"{c.Name}\": big={FormatModel(ModelCatalog.ProviderDisplayName(big.ProviderId), big.ModelId)} · small={FormatModel(ModelCatalog.ProviderDisplayName(small.ProviderId), small.ModelId)}") +
             (string.IsNullOrEmpty(ConnectionConfig.ResolveBaseUrl(big.ProviderId)) ? "" : $" / {ResolveBaseUrl(big.ProviderId)}");
         return c;
     }
@@ -334,9 +341,11 @@ public static partial class ConnectionConfig
         if (IsPlausibleApiKey(envKey))
         {
             ApiKeyStore.Set(pid, envKey);
-            return $" ✅ 已自动从环境变量 {prov.ApiKeyEnvVar} 复制 API key";
+            return L.Pick($" ✅ 已自动从环境变量 {prov.ApiKeyEnvVar} 复制 API key",
+                $" ✅ Auto-copied the API key from environment variable {prov.ApiKeyEnvVar}");
         }
-        return $" ⚠️ 环境变量 {prov.ApiKeyEnvVar} 存在但值不像是 key（可能设错了变量名），未自动导入";
+        return L.Pick($" ⚠️ 环境变量 {prov.ApiKeyEnvVar} 存在但值不像是 key（可能设错了变量名），未自动导入",
+            $" ⚠️ Environment variable {prov.ApiKeyEnvVar} exists but its value does not look like a key (wrong variable name?), so it was not imported");
     }
 
     /// <summary>
@@ -366,7 +375,8 @@ public static partial class ConnectionConfig
         var s = (spec ?? "").Trim();
         if (s.Length == 0)
         {
-            message = "空指令。用法: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>";
+            message = L.Pick("空指令。用法: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>",
+                "Empty command. Usage: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>");
             return;
         }
 
@@ -382,7 +392,8 @@ public static partial class ConnectionConfig
 
         if (!TryParseSpec(s, out var pid, out var mid, out var baseUrl))
         {
-            message = $"无法识别指令「{s}」。用法: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>";
+            message = L.Pick($"无法识别指令「{s}」。用法: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>",
+                $"Unrecognized command \"{s}\". Usage: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>");
             return;
         }
         if (baseUrl != null) ApplyModelChoice(pid, mid, isLarge, out message, baseUrl);
@@ -468,7 +479,8 @@ public static partial class ConnectionConfig
         var conn = FindConnect(connectName);
         if (conn == null)
         {
-            message = $"未找到 connect「{connectName}」。用 /connect connect list 查看全部。";
+            message = L.Pick($"未找到 connect「{connectName}」。用 /connect connect list 查看全部。",
+                $"connect \"{connectName}\" not found. Run /connect connect list to see them all.");
             return false;
         }
         var cfg = Config.Instance;
@@ -519,7 +531,8 @@ public static partial class ConnectionConfig
         cfg.SaveToConfigJson(); // config.json 不再保存模型字段
         cfg.SaveToEnvFile();
 
-        message = $"已切换至 {FormatModel(ModelCatalog.ProviderDisplayName(conn.ProviderId), conn.ModelId)} 模型";
+        message = L.Pick($"已切换至 {FormatModel(ModelCatalog.ProviderDisplayName(conn.ProviderId), conn.ModelId)} 模型",
+            $"Switched to model {FormatModel(ModelCatalog.ProviderDisplayName(conn.ProviderId), conn.ModelId)}");
         return true;
     }
 

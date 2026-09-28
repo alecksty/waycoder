@@ -13,7 +13,7 @@ public static class ConfigCli
     {
         var schema = Config.SettingSchema();
         var sb = new StringBuilder();
-        sb.AppendLine($"配置设置（共 {schema.Count} 项）");
+        sb.AppendLine(L.Pick($"配置设置（共 {schema.Count} 项）", $"Settings ({schema.Count} items)"));
         sb.AppendLine();
 
         foreach (var g in schema.GroupBy(s => s.Category))
@@ -23,13 +23,14 @@ public static class ConfigCli
             {
                 var val = Config.GetPropValue(s.Key) ?? "";
                 if (s.Type == "secret" && val.Length > 0) val = "••••••••";
-                if (s.Type == "number" && val == "") val = "(空)";
+                if (s.Type == "number" && val == "") val = L.Pick("(空)", "(empty)");
                 sb.AppendLine($"  {s.Key,-20} = {val}");
             }
             sb.AppendLine();
         }
 
-        sb.AppendLine("修改: --config set <key> <value>　查值: --config get <key>　(或 --config <key> [value])");
+        sb.AppendLine(L.Pick("修改: --config set <key> <value>　查值: --config get <key>　(或 --config <key> [value])",
+                             "Set: --config set <key> <value>   Read: --config get <key>   (or --config <key> [value])"));
         return sb.ToString();
     }
 
@@ -38,14 +39,19 @@ public static class ConfigCli
     {
         var p = Config.FindProp(key);
         if (p == null)
-            return $"未知设置项「{key}」。用 --config list 查看全部。";
+            return L.Pick($"未知设置项「{key}」。用 --config list 查看全部。",
+                          $"Unknown setting \"{key}\". Use --config list to see them all.");
 
         var val = Config.GetPropValue(p.Key) ?? "";
         if (p.Type == "secret" && val.Length > 0) val = "••••••••";
 
         return $"{p.Label} ({p.Key}) = {val}\n  {p.Desc}\n  " +
-            (string.IsNullOrEmpty(p.EnvVar) ? "来源: 仅 config.json" : $"环境变量: {p.EnvVar}") +
-            (p.Options is { Length: > 0 } ? $"\n  可选: {string.Join(" / ", p.Options)}" : "");
+            (string.IsNullOrEmpty(p.EnvVar)
+                ? L.Pick("来源: 仅 config.json", "Source: config.json only")
+                : L.Pick($"环境变量: {p.EnvVar}", $"Env var: {p.EnvVar}")) +
+            (p.Options is { Length: > 0 }
+                ? L.Pick($"\n  可选: {string.Join(" / ", p.Options)}", $"\n  Options: {string.Join(" / ", p.Options)}")
+                : "");
     }
 
     /// <summary>设置单项并写入 .env，返回结果文本</summary>
@@ -59,8 +65,9 @@ public static class ConfigCli
             var newVal = Config.GetPropValue(key) ?? "";
             if (p?.Type == "secret" && newVal.Length > 0) newVal = "••••••••";
 
-            return $"已设置 {p?.Label ?? key} = {newVal}（已写入 ~/.waycoder/config.json）";
+            return L.Pick($"已设置 {p?.Label ?? key} = {newVal}（已写入 ~/.waycoder/config.json）",
+                          $"Set {p?.Label ?? key} = {newVal} (written to ~/.waycoder/config.json)");
         }
-        return $"错误: {err}";
+        return L.Pick($"错误: {err}", $"Error: {err}");
     }
 }

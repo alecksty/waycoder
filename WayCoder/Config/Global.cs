@@ -118,15 +118,23 @@ public static class Global
     public const string AppName = "WayCoder";
     /// <summary>应用中文名</summary>
     public const string AppNameCN = "道码";
-    /// <summary>应用全称</summary>
-    public const string AppFullName = "WayCoder 道码·通用编程智能体";
+    /// <summary>
+    /// 应用全称（品牌 + 一句话定位）—— 显示在 `/about` 第一行与 TUI 标题栏。
+    ///
+    /// <para>
+    /// ⚠ **不是 `const`**：定位语是**文案**（要跟语言走），`const` 会把语言冻在编译期。
+    /// 品牌名（<see cref="AppName"/> / <see cref="AppNameCN"/>）保持常量 —— 那是商标、不翻。
+    /// </para>
+    /// </summary>
+    public static string AppFullName
+        => L.Pick("WayCoder 道码·通用编程智能体", "WayCoder · General-purpose coding agent");
     /// <summary>
     /// 版本号 —— **全仓唯一真源**。
     /// `scripts/release.sh` 的 VERSION 从这里 sed 出来；`WayCoder.Maui.csproj` 的
     /// ApplicationDisplayVersion / ApplicationVersion 也由本字段推导（见那个 csproj 里的说明）。
     /// **发版只改这一处**，别再去 csproj 里手写一遍。
     /// </summary>
-    public const string Version = "v0.96.567";
+    public const string Version = "v0.96.568";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 

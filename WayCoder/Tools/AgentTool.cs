@@ -135,7 +135,8 @@ public class AgentTool : ITool, ICancellableTool
                 sb.AppendLine(L.Pick($"--- 子任务 {i + 1} ---", $"--- Sub-task {i + 1} ---"));
                 sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
             }
-            var summary = $"[并行子智能体完成 · {results.Length} 个任务]\n{sb}";
+            var summary = L.Pick($"[并行子智能体完成 · {results.Length} 个任务]\n{sb}",
+                                  $"[Parallel sub-agents finished · {results.Length} task(s)]\n{sb}");
             return totalMax > 0 && summary.Length > totalMax
                 ? TruncateKeepTail(summary, totalMax)
                 : summary;
@@ -146,7 +147,8 @@ public class AgentTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            return $"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"并行子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}",
+                           $"Parallel sub-agent error (depth {depth + 1}): {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -199,7 +201,8 @@ public class AgentTool : ITool, ICancellableTool
                 sb.AppendLine(L.Pick($"--- 子任务 {specs[i].Id} ---", $"--- Sub-task {specs[i].Id} ---"));
                 sb.AppendLine(perItemMax > 0 ? TruncateKeepTail(results[i], perItemMax) : results[i]);
             }
-            var summary = $"[子智能体流水线完成 · {specs.Count} 个任务 · 按依赖拓扑调度]\n{sb}";
+            var summary = L.Pick($"[子智能体流水线完成 · {specs.Count} 个任务 · 按依赖拓扑调度]\n{sb}",
+                                  $"[Sub-agent pipeline finished · {specs.Count} task(s) · dependency topology]\n{sb}");
             return totalMax > 0 && summary.Length > totalMax ? TruncateKeepTail(summary, totalMax) : summary;
         }
         catch (OperationCanceledException)
@@ -208,7 +211,8 @@ public class AgentTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            return $"依赖编排子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+            return L.Pick($"依赖编排子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}",
+                           $"Dependency-orchestration sub-agent error (depth {depth + 1}): {ex.GetType().Name}: {ex.Message}");
         }
     }
 
@@ -345,7 +349,8 @@ public class AgentTool : ITool, ICancellableTool
             var outputMax = Config.Instance.SubAgentOutputMaxChars;
             if (outputMax > 0 && result.Length > outputMax)
                 result = TruncateKeepTail(result, outputMax);
-            var final = $"[子智能体已完成 · 深度 {depth + 1}]\n{result}";
+            var final = L.Pick($"[子智能体已完成 · 深度 {depth + 1}]\n{result}",
+                               $"[Sub-agent finished · depth {depth + 1}]\n{result}");
             auditResult = final;
             return final;
         }
@@ -355,7 +360,8 @@ public class AgentTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            var err = $"子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}";
+            var err = L.Pick($"子智能体错误（深度 {depth + 1}）：{ex.GetType().Name}: {ex.Message}",
+                             $"Sub-agent error (depth {depth + 1}): {ex.GetType().Name}: {ex.Message}");
             auditResult = err;
             return err;
         }
@@ -370,9 +376,23 @@ public class AgentTool : ITool, ICancellableTool
         }
     }
 
-    /// <summary>判断子智能体结果是否为失败（内部异常被吞并返回的错误文案）。纯逻辑，供自测复用。</summary>
+    /// <summary>
+    /// 判断子智能体结果是否为失败（内部异常被吞并返回的错误文案）。纯逻辑，供自测复用。
+    ///
+    /// <para>
+    /// ⚠ **中英双认**（公理 A2）：生产者在上面按界面语言出文案，而本判据决定
+    /// <see cref="RunSubAgentWithRetryAsync"/> **要不要重试** —— 只认中文的话，
+    /// 英文会话下子任务失败永远不会触发「换一种方法重试」（不报错、只是不再重试）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 刻意**不认**「并行子智能体错误」与「依赖编排子智能体错误」：那两种是**父级**
+    /// 的编排失败（不是单个子任务的失败），拿它们触发单任务重试是错的 —— 有断言钉住。
+    /// </para>
+    /// </summary>
     internal static bool IsSubAgentFailure(string result)
-        => result.StartsWith("子智能体错误", StringComparison.Ordinal);
+        => result.StartsWith("子智能体错误", StringComparison.Ordinal)
+        || result.StartsWith("Sub-agent error", StringComparison.Ordinal);
 
     /// <summary>
     /// 把 [0, total) 切成若干批，每批最多 batchSize 个（末批可不足）。纯逻辑（无 I/O），

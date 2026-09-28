@@ -353,8 +353,10 @@ public static class KbIndex
             Name = SanitizeName(subject),
             Description = subject,
             Kind = "bugfix",
-            Content = $"**提交**" + L.Pick("：", ": ") + $"{subject}\n\n**改动**" + L.Pick("：", ": ")
-                + $"\n{ContextManager.TruncateByRunes(stat, 800)}",
+            // 两个小标题是**文案**（无匹配器，只显示 + 注入提示词）⇒ 整段一起 L.Pick。
+            // 中文支与改前逐字相同（`**提交**：{subject}\n\n**改动**：\n{stat}`）。
+            Content = L.Pick($"**提交**：{subject}\n\n**改动**：\n{ContextManager.TruncateByRunes(stat, 800)}",
+                             $"**Commit**: {subject}\n\n**Changes**:\n{ContextManager.TruncateByRunes(stat, 800)}"),
             Source = "git-commit",
         };
     }
@@ -379,9 +381,8 @@ public static class KbIndex
                 //   所以两侧都走同一个 L.Pick —— 换了语言两边一起换。
                 Description = L.Pick($"欠缺知识：{text}", $"Gap: {text}"),
                 Kind = "gap",
-                Content = $"**欠缺知识点**" + L.Pick("：", ": ") + $"{text}\n\n"
-                    + L.Pick("来源：由 git 提交经验自动提炼，复习未掌握时权重提升。",
-                             "Source: extracted automatically from git commit experience; the weight rises when you fail to recall it."),
+                Content = L.Pick($"**欠缺知识点**：{text}\n\n来源：由 git 提交经验自动提炼，复习未掌握时权重提升。",
+                                 $"**Knowledge gap**: {text}\n\nSource: extracted automatically from git commit experience; the weight rises when you fail to recall it."),
                 Source = "git-gap",
             });
         }

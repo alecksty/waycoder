@@ -57,7 +57,8 @@ public class RmTool : ITool
                 if (string.IsNullOrEmpty(p)) continue;
                 if (fullPath.Equals(p, StringComparison.OrdinalIgnoreCase)
                     || fullPath.StartsWith(p + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                    return $"⚠ 已阻止：'{fullPath}' 位于受保护的系统路径中";
+                    return L.Pick($"⚠ 已阻止：'{fullPath}' 位于受保护的系统路径中",
+                                  $"⚠ Blocked: '{fullPath}' is inside a protected system path");
             }
 
             if (Directory.Exists(fullPath))

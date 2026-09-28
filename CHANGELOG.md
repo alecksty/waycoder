@@ -1,3 +1,50 @@
+## v0.96.568 — 双语化：iOS 可见面清完（自测 7012/0，共享层台账 865 → 499）
+
+接 v0.96.567 的「只做 iOS 用户能看见的」范围，把可达性判定给出的清单**做完**。
+用户另确认一条：**斜杠命令的输出要翻**（不是只翻命令名/别名）。
+
+**最大一块：`Config/Config.Schema.cs`（333 处）** —— `/config` 的输出面。
+
+- **先拆结构前提**：`_schema` 原本是 `static readonly` 字段 + 静态构造 ⇒ 就地塞 `L.Pick`
+  会把语言**冻在类型初始化那一刻**（公理 A3；本仓在 `RepoMapGenerator` 上真踩过）。
+  改成**按语言缓存的属性** `Schema`（换语言重建一次，同语言复用）。
+- **分类名抽成 11 个表达式体常量**：`Label`/`Desc` 约 220 条各是一个 `L.Pick`，
+  而分类名 11 个值出现了 110 次 ⇒ 抽常量省掉 99 处重复。
+  ⚠ 我最初数成 10 个（漏了 `⏱️ 超时`），是执行方从文件里扫出 11 个纠正的。
+- **中文侧逐字节冻结**：执行方把新的三段式**折回原来的单行式**与基线整份比对 —— **逐字节相同**
+  ⇒ 同时证明了两件事：除 `label`/`category`/`desc` 外没有任何参数被动过、中文支一字未改
+  （含 `「没崩」≠「画对了」`、全角 `（）`、`×`、`~` 与 `EditIndent` 的 `\t` 转义）。
+- 补上执行方点出的 3 处漏网（`TrySetPropValue` 的 `/config set` 报错）。
+- 台账里这一行**保留**并写明理由：还剩 1 处是 `ThemePreset` 的默认值 `「黄金甲」`
+  —— **写进 config.json 并参与主题预设匹配的存储值**，翻了主题就选不中（同 MAUI 的 `CoreStubs` 主题预设名）。
+
+**其余可见面**
+
+- `Config/ConnectionConfig.cs`(20) + `ConnectionConfig.State.cs`(4)：`/connection` `/connect` 的
+  `out error` 提示。⚠ 刻意**保留 8 处中文**（`ApplyModelChoice`/`SetActiveModel`/`RestoreMainCore` 的校验串）——
+  MAUI 的调用点全部 `out _` 丢弃、`SetActiveModel` 的唯一调用方也不用返回值 ⇒ iOS 上取不到。
+  台账里这两行因此仍有命中（这正是那 8 处的实际作用：撑住台账那条反向判据）。
+  执行方另报了一条**极窄可达路径**（`/connect <无法识别的串>` 且 `Config.Instance.Provider` 为空时，
+  `providerId 不能为空` 会经 `✅ {msg}` 上屏）—— 已记录，未改（改了会让英文侧出现更莫名其妙的「✅ providerId cannot be empty」）。
+- `Config/ConfigCli.cs`(9)：`/config` 的标题、来源/可选项标注、`set` 结果。
+- `Config/Global.cs`：`AppFullName` 由 `const` 改为表达式体属性（`/about` 第一行与 TUI 标题栏）
+  —— **品牌名 `AppName`/`AppNameCN` 保持常量不翻**，只翻定位语。
+- `Config/ModelCatalog.Providers.cs`：`DuplicateUrlMessage`（地址被占用，手机上是 `DisplayAlert`）。
+- `Tools/AgentTool.cs`(6) + `EditFileTool.cs`(2) + `RmTool.cs`(1)：子智能体标记、编辑结果、受保护路径拦截。
+  ⚠ 子智能体标记同时也是**判据**：`IsSubAgentFailure` 决定**要不要重试** ⇒ 加英文孪生
+  （`Sub-agent error`），并保留「并行/依赖编排两种**编排级**失败不算单任务失败」的既有语义（两面都有断言）。
+- `Memory/KbIndex.cs`(3)：写入 KB 正文的 `**提交**` / `**改动**` / `**欠缺知识点**`（注入提示词 + 预览）。
+
+**护栏**：新增 4 条 `IsSubAgentFailure` 的中英双认断言（含两条反方向：编排级失败不得被当成单任务失败）。
+
+**规模**：共享层台账 **865 → 499 处**（文件 86）；自测 **7012 通过 / 0 失败**；
+MAUI Android 与 Windows 均 0 错误。
+
+**待办（已定，尚未做）**
+1. 发布例程的注释双语化（**同文件内中英两段**，不做孪生文件）：进包源码类示例 264 个 / 其中 209 个含中文。
+2. `ui_get_language()` 新 syscall，让例程按系统语言决定显示中/英。
+
+---
 ## v0.96.567 — 双语化：把范围收紧到「iOS 用户能看见的」，并清掉三处漏网（自测 7008/0）
 
 用户定的新范围：**只做 MAUI 用到的、iOS 用户能看见的翻译；看不见的不管**；并且
