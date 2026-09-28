@@ -955,36 +955,100 @@ DIM key AS INTEGER      ' ⇒ <input>:67: error: 未定义的函数 'func_intege
 
 ## Ladder
 
-### ⚪ 做不了界面程序
+### 🟡 库函数一个都调不到（`LADDER_` 前缀加错了对象）—— **已修**
 
-没有「带字符串参数的函数调用」这种语法 ⇒ UI 那整套接口一个都调不到。
-只能用「编译与运行」本身。
+**现象**：任何库调用都报「未定义的函数」，坏名字是 **`LADDER_<名>`**：
 
-**2026-09-24 补精确的机制**（写 `Examples/ladder/demo_ui.ld` 时实测）——
-**卡的其实不是"字符串"这一条**，而是**函数名会对不上**：
-
-前端把任何非内建的调用编成 **`CALL LADDER_<名字>`**（`CodeGenerator.Networks.cs`
-的 `EmitCallWithRegSave(name.StartsWith("LADDER_") ? name : $"LADDER_{name}")`），
-而 `Lib/ladder/gfx.ld` 里定义的是**裸标签** `[GFX_LINE]` / `[GFX_RECT]` …
-⇒ 两边差一个 `LADDER_` 前缀，**一个都链不上**。判据：
-
-```
-PROGRAM P
+```iec
+PROGRAM P1
 BEGIN
-  R := ui_win_open("x", 320, 240);
+  PRINT_INT ui_get_language();
 END_PROGRAM
 ```
 ```
-<input>:3: error: 未定义的函数 'LADDER_UI_WIN_OPEN'（引用 1 次）
+<input>:3: error: 未定义的函数 'LADDER_UI_GET_LANGUAGE'（引用 1 次）
 ```
 
-而且 `Lib/ladder/gfx.ld` 里绝大多数块**整个块体就是一个 `RET`**（`GFX_SCREEN` /
-`GFX_LINE` / `GFX_CIRCLE` / `GFX_FLOOD_FILL` … 全是空实现），有 `SYSCALL` 的那几个
-（`VGA_CLEAR`=80 / `VGA_PUTCHAR`=81 / `VGA_PUTS`=82）用的又是 **DOS 时代的老号**、
-不是宿主那套 `ui_*`（500–599）。**两层原因各自都足以让图形层不可达。**
+**真身**：`CodeGenerator.Networks.cs` 的调用点**无条件**加前缀 ——
+`EmitCallWithRegSave(name.StartsWith("LADDER_") ? name : $"LADDER_{name}")`。
+那个拼法**本身是对的**（本程序的 `FUNCTION` 发射时就是 `LADDER_{名.ToUpperInvariant()}`，
+见 `GenerateFunctionDefinition`）—— 错在**没区分"这个名字是不是本程序自己的函数"**。
+库标签由链接器按 `lib_<模块>_<裸名>` 建立，**一个都匹配不上** ⇒ 差一个前缀，整门语言
+调不到任何库函数（图形 / 宿主 UI / 语言查询**全不可达**）。
 
-⇒ Ladder 实际可用的只有：四条裸打印语句（`PRINT_STR/INT/FLOAT/CHAR`）+
-`PRINT_CHAR` 自己发 ANSI。所以它只到 `demo_std` / `demo_tty` 两层。
+**修法**：`CalleeSymbol(name)` —— 本程序 `_program.Functions` 里有（**忽略大小写**，
+Ladder 是大小写不敏感语言）⇒ `LADDER_<全大写>`；否则**按源码原样传**。
+
+⚠ **库函数按源码原样传、不转大小写**：`Lib/` 里有大小写混排的导出名
+（BGI 那一族 `Circle` / `Bar` / `CloseGraph` 就在其中）⇒ 盲目 `ToLower()` 是
+**拿一个可见的坏换一个看不见的整洁**。（BASIC 那条路 `FunctionName.ToLower()` 是它自己的
+历史选择，别照抄过来。）
+
+**修完实测**（`scripts/vml-ladder-probe/`）：
+
+| 调用 | 修前 | 修后 |
+|---|---|---|
+| `ui_scr_w()` | 编不过 | **480** ✓ |
+| `ui_get_language()` | 编不过 | **0 / 1**（随宿主语言）✓ |
+| `ui_win_open("t",320,240)` | 编不过 | **真开窗**（宿主日志 `[vml-host] 开窗`）✓ |
+| 本程序的 `FUNCTION PICK` | 7 | **7**（没回归）✓ |
+
+⇒ **宿主 `ui_*` 那一层现在通了**（本条目原先写的"做不了界面程序"已作废）。
+⚠ 但 `Lib/ladder/gfx.ld` 那批 `[GFX_LINE]` 一类**仍是不可用的** —— 它们**整个块体就是一个 `RET`**
+（空实现），有 `SYSCALL` 的几个（`VGA_CLEAR`=80 / `VGA_PUTCHAR`=81 / `VGA_PUTS`=82）
+用的又是 **DOS 时代的老号**、不是宿主那套 `ui_*`（500–599）。**这一层要单独收拾。**
+
+---
+
+### 🟡 **块体内**的裸打印语句被静默丢弃 —— **已修**
+
+**现象**：
+
+```iec
+PROGRAM P2
+BEGIN
+  IF 1 = 1 THEN
+    PRINT_STR "在块里";
+  END_IF;
+  PRINT_STR "块外面";
+END_PROGRAM
+```
+⇒ **只打印「块外面」**，块里那条**一声不响地消失**（不报错、不生成代码）。
+
+**真身**：`Parser.cs` 的 `ParseStStatement()` 不认 `IsPrintStatement()`
+（**只有顶层那条 if/else 链认**，而顶层认完是**直接调 `ParsePrintStatement()`**）⇒
+块体里 `PRINT_STR "…";` 走**标识符分支**、读完 `PRINT_STR` 撞不上 `:=`，
+一路落到末尾的「跳过无法识别的语句」—— 整条语句连行标都不发。
+
+⚠ **同一条账里原先记的两句话要更正**：
+① 老话写的是「`IF … END_IF` 的**块体不执行**」—— **是错的**，**赋值一直是跑的**
+（`IF 1 = 1 THEN S := 42; END_IF; PRINT_INT S;` 实测得 **42**），丢的**只有裸打印这一类**；
+② 老话说的"字符串参数调不了"也**不是语法问题** —— 卡的是上面那条前缀（见上一条）。
+
+**修法**：**ST 语句的分派收敛成一处** —— 新增 `IsStStatementStart()` 作**唯一判据**，
+顶层只问它、不再自己抄一遍五条分支；`ParseStStatement()` 里按同一判据分派并补上打印一支。
+⇒ 原先顶层与块体**各一份分派列表**（本仓头号坑），新增一种 ST 语句必然只改一处、另一处静默不同步。
+
+⚠ **修完后的一个行为变化（有意）**：顶层现在也经 `ParseStStatement` 分派
+⇒ 若将来有人把打印那一支从 `ParseStStatement` 里删掉，**顶层会跟着一起坏**
+（而不是"顶层好、块里静默丢"）。**这是往好的方向变**：同一处、且失败得响亮。
+
+**判据**：`scripts/vml-ladder-probe/cases/l2_block_print.ld`（裸打印 / 赋值 / 嵌套 IF 三类块体一次占满）。
+
+---
+
+### ⚪ `FUNCTION` 块必须写在 `PROGRAM` **之前**
+
+实测写在后面会被**整个忽略**（函数体从没被发射），调用点报「未定义的函数 'PICK'」。
+**报错是对的、可诊断的**，只是这条顺序约束**没写进 `LADDER_LANGUAGE_SPEC.md`** ——
+本轮顺手记在这儿。`FUNCTION` 在前时 `PICK(1)` 得 7。
+
+---
+
+### ⚪ 「裸打印」以外只有四条输出语句
+
+Ladder 可用的输出就是 `PRINT_STR/INT/FLOAT/CHAR` 四条 + `PRINT_CHAR 27` 自己发 ANSI
+（`demo_tty.ld` 通篇这么写）。
 
 ---
 
@@ -1070,19 +1134,22 @@ S := 7;  LBL_A:               PRINT_INT S;   (* ⇒ 什么都不打  ❌ *)
 **判据**：`Examples/ladder/demo_std.ld` 的注释里记着这条；
 `demo_tty.ld` 因此是**16 条手工展开**的彩色行（本该用循环）。
 
-### 🔴 `IF … THEN … END_IF` 的**块体不执行**（**未修**）
+### 🟡 「`IF … END_IF` 块体不执行」—— **误诊，已修**（真身是**块内裸打印被丢**）
 
-条件写 `S = 1`（且 `S := 1`）或写布尔量 `B`（且 `B := TRUE`）都试过：
-**块内语句一条都没跑**，块**之后**的语句照常跑。
+老记录写的现象是「块内语句一条都没跑、块**之后**的照常跑」，于是被判成"整块不执行"、
+"写不出循环也写不出分支"。**真身窄得多**：**只有裸打印这一类**被
+`ParseStStatement` 的"跳过无法识别的语句"静默吃掉，**赋值一直是跑的**：
+
 ```iec
-IF S = 1 THEN
-  PRINT_STR "if-taken";     (* ⇒ 从不执行 *)
-  PRINT_CHAR 10;
-END_IF;
-PRINT_STR "after-if";       (* ⇒ 执行 *)
+IF 1 = 1 THEN S := 42; END_IF; PRINT_INT S;   (* ⇒ 42 —— 块体执行得好好的 *)
 ```
-⇒ 与上一条合起来：**Ladder 里写不出循环、也写不出分支**，
-凡是要重复的只能手工展开。
+
+老记录之所以看起来像"整块不执行"，是因为**它举的例子全是 `PRINT_*`**
+（老文里那段 `IF S = 1 THEN PRINT_STR "if-taken"; …` 就是）。**判据选得不好，
+把"一条语句被丢"读成了"整个块不跑"。** 详见上面「块体内的裸打印语句被静默丢弃」。
+
+⚠ **这条更正的价值**：老结论会让下一个人去查"IF 的条件求值"整条链，
+而真凶在**语句分派表少了一支**。**"哪一类语句被丢"要用非打印的语句去对照才知道。**
 
 ---
 

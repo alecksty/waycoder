@@ -182,26 +182,15 @@ namespace LadderCompiler
                     ParseVariableDeclarations(programNode, varKeyword);
                     Expect(TokenType.KeywordEndVar, "期望 END_VAR");
                 }
-                else if (GetTokenType(Cur) == TokenType.KeywordIf)
+                // ⚠ ST 语句的**分派只有一份** —— 全在 `ParseStStatement` 里。
+                //   这里原先把 IF/WHILE/FOR/裸打印/标识符**五条分支又抄了一遍**，
+                //   而块体（IF 的 then/else、WHILE/FOR 的 body）走的是 `ParseStStatement`
+                //   ⇒ 两处一旦不同步，症状就是"顶层能写、块里静默丢弃"：
+                //   实测 `IF 1 = 1 THEN PRINT_STR "在块里"; END_IF;` 只打印块外那句，
+                //   块内那条**一声不响地消失**（不报错、不生成代码）。
+                //   现在顶层只问一句「这是不是 ST 语句的开头」，认的分派归同一处。
+                else if (IsStStatementStart())
                 {
-                    programNode.StStatements.Add(ParseStIf());
-                }
-                else if (GetTokenType(Cur) == TokenType.KeywordWhile)
-                {
-                    programNode.StStatements.Add(ParseStWhile());
-                }
-                else if (GetTokenType(Cur) == TokenType.KeywordFor)
-                {
-                    programNode.StStatements.Add(ParseStFor());
-                }
-                else if (IsPrintStatement())
-                {
-                    // 裸打印语句: PRINT_INT / PRINT_FLOAT / PRINT_STR / PRINT_CHAR <expr>;
-                    programNode.StStatements.Add(ParsePrintStatement());
-                }
-                else if (GetTokenType(Cur) == TokenType.Identifier)
-                {
-                    // 赋值语句 → 走ST路径 (ParseStStatement生成AssignmentNode)
                     programNode.StStatements.Add(ParseStStatement());
                 }
                 else
@@ -1445,7 +1434,23 @@ namespace LadderCompiler
         }
 
         /// <summary>
-        /// 解析单个 ST 语句 (赋值 or 嵌套 IF/WHILE/FOR)
+        /// 「这个位置是不是一条 ST 语句的开头」—— **ST 语句分派的唯一判据**。
+        ///
+        /// 顶层（`BEGIN … END_PROGRAM` 体）与块体（IF 的 then/else、WHILE/FOR 的 body）
+        /// **都问它**（顶层问它决定要不要走 `ParseStStatement`，块体直接进那个函数、
+        /// 由函数里同一个判据分派）—— 原先两处各抄一遍五条分支，
+        /// 于是块内少认一种（裸打印）就变成"写得出来、静默丢掉"。
+        /// </summary>
+        private bool IsStStatementStart()
+        {
+            var t = GetTokenType(Cur);
+            return t == TokenType.KeywordIf || t == TokenType.KeywordWhile || t == TokenType.KeywordFor
+                   || IsPrintStatement() || t == TokenType.Identifier;
+        }
+
+        /// <summary>
+        /// 解析单个 ST 语句（嵌套 IF/WHILE/FOR、裸打印、赋值）。
+        /// **顶层与块体共用这一处** —— 新增一种 ST 语句只改这里。
         /// </summary>
         private ASTNode ParseStStatement()
         {
@@ -1456,6 +1461,11 @@ namespace LadderCompiler
                 return ParseStWhile();
             if (GetTokenType(Cur) == TokenType.KeywordFor)
                 return ParseStFor();
+            // ⚠ 裸打印要排在**标识符分支之前**：`PRINT_STR "x";` 走标识符分支的话
+            //   会读完 `PRINT_STR` 撞不上 `:=`，一路落到末尾的「跳过无法识别的语句」——
+            //   整条语句静默消失。顶层原先认它、块体不认，正是缺陷 ② 的由来。
+            if (IsPrintStatement())
+                return ParsePrintStatement();
             if (GetTokenType(Cur) == TokenType.Identifier)
             {
                 int idLine = Cur.Line, idCol = Cur.Column;

@@ -60,22 +60,26 @@ VAR
   A : INT;
   B : INT;
   C : INT;
+  (* 界面语言：0 = 中文 / 1 = 英文（`ui_get_language` 是宿主 syscall，开局查一次存起来）。
+     Language: 0 = Chinese / 1 = English (query the host syscall once at startup). *)
+  LANG : INT;
 END_VAR
 BEGIN
-  PRINT_STR "=== Ladder 标准输出 demo ===";
+  LANG := ui_get_language();
+  IF LANG = 0 THEN PRINT_STR "=== Ladder 标准输出 demo ===" ELSE PRINT_STR "=== Ladder stdout demo ===" END_IF;
   PRINT_CHAR 10;
 
   (* ① 字符串字面量（含中文 —— 源码按 UTF-8 存，词法器直通） *)
-  PRINT_STR "字符串: 你好，世界";
+  IF LANG = 0 THEN PRINT_STR "字符串: 你好，世界" ELSE PRINT_STR "String: hello, world" END_IF;
   PRINT_CHAR 10;
 
   (* ② 整数 *)
-  PRINT_STR "整数: ";
+  IF LANG = 0 THEN PRINT_STR "整数: " ELSE PRINT_STR "Integer: " END_IF;
   PRINT_INT 42;
   PRINT_CHAR 10;
 
   (* ③ 常量算术（表达式直接进打印语句）*)
-  PRINT_STR "计算: 7 * 6 = ";
+  IF LANG = 0 THEN PRINT_STR "计算: 7 * 6 = " ELSE PRINT_STR "Computed: 7 * 6 = " END_IF;
   PRINT_INT 7 * 6;
   PRINT_CHAR 10;
 
@@ -89,12 +93,12 @@ BEGIN
   PRINT_CHAR 10;
 
   (* ⑤ 整除（`/` 在整数上是整除；`MOD` 是坏的，见文件头，这里不用）*)
-  PRINT_STR "整除: 17 / 5 = ";
+  IF LANG = 0 THEN PRINT_STR "整除: 17 / 5 = " ELSE PRINT_STR "Integer division: 17 / 5 = " END_IF;
   PRINT_INT 17 / 5;
   PRINT_CHAR 10;
 
   (* ⑥ 浮点：只打**字面量**（浮点的二元运算也是坏的，见文件头）*)
-  PRINT_STR "实数: ";
+  IF LANG = 0 THEN PRINT_STR "实数: " ELSE PRINT_STR "Real: " END_IF;
   PRINT_FLOAT 2.5;
   PRINT_CHAR 10;
 

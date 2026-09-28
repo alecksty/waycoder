@@ -42,7 +42,13 @@
 (* 本程序一个变量都不用，所以 VAR 段也省了（实测 `PROGRAM … BEGIN … END_PROGRAM`
    不带 VAR 完全合法）。 *)
 PROGRAM DemoTty
+VAR
+  (* 界面语言：0 = 中文 / 1 = 英文（宿主 syscall，开局查一次）。
+     UI language: 0 = Chinese / 1 = English (host syscall, queried once at startup). *)
+  LANG : INT;
+END_VAR
 BEGIN
+  LANG := ui_get_language();
   (* ① 清屏 + 复位属性 *)
   PRINT_CHAR 27;
   PRINT_STR "[0m";
@@ -62,56 +68,56 @@ BEGIN
   PRINT_STR "[3;3H";
   PRINT_CHAR 27;
   PRINT_STR "[30;47m";
-  PRINT_STR "前景色 0  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 0  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 0  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[4;3H";
   PRINT_CHAR 27;
   PRINT_STR "[31;47m";
-  PRINT_STR "前景色 1  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 1  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 1  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[5;3H";
   PRINT_CHAR 27;
   PRINT_STR "[32;47m";
-  PRINT_STR "前景色 2  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 2  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 2  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[6;3H";
   PRINT_CHAR 27;
   PRINT_STR "[33;47m";
-  PRINT_STR "前景色 3  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 3  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 3  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[7;3H";
   PRINT_CHAR 27;
   PRINT_STR "[34;47m";
-  PRINT_STR "前景色 4  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 4  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 4  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[8;3H";
   PRINT_CHAR 27;
   PRINT_STR "[35;47m";
-  PRINT_STR "前景色 5  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 5  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 5  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[9;3H";
   PRINT_CHAR 27;
   PRINT_STR "[36;47m";
-  PRINT_STR "前景色 6  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 6  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 6  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[10;3H";
   PRINT_CHAR 27;
   PRINT_STR "[37;47m";
-  PRINT_STR "前景色 7  暗色，背景 = 7 浅灰";
+  IF LANG = 0 THEN PRINT_STR "前景色 7  暗色，背景 = 7 浅灰" ELSE PRINT_STR "color 7  dim, background = 7 light gray" END_IF;
   PRINT_CHAR 10;
 
   (* ③ 亮色 8-15（前景 90-97 / 背景 40 黑），定位到第 12-19 行第 3 列 *)
@@ -119,56 +125,56 @@ BEGIN
   PRINT_STR "[12;3H";
   PRINT_CHAR 27;
   PRINT_STR "[90;40m";
-  PRINT_STR "前景色 8  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 8  亮色，背景 = 0 黑" ELSE PRINT_STR "color 8  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[13;3H";
   PRINT_CHAR 27;
   PRINT_STR "[91;40m";
-  PRINT_STR "前景色 9  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 9  亮色，背景 = 0 黑" ELSE PRINT_STR "color 9  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[14;3H";
   PRINT_CHAR 27;
   PRINT_STR "[92;40m";
-  PRINT_STR "前景色 10  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 10  亮色，背景 = 0 黑" ELSE PRINT_STR "color 10  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[15;3H";
   PRINT_CHAR 27;
   PRINT_STR "[93;40m";
-  PRINT_STR "前景色 11  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 11  亮色，背景 = 0 黑" ELSE PRINT_STR "color 11  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[16;3H";
   PRINT_CHAR 27;
   PRINT_STR "[94;40m";
-  PRINT_STR "前景色 12  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 12  亮色，背景 = 0 黑" ELSE PRINT_STR "color 12  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[17;3H";
   PRINT_CHAR 27;
   PRINT_STR "[95;40m";
-  PRINT_STR "前景色 13  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 13  亮色，背景 = 0 黑" ELSE PRINT_STR "color 13  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[18;3H";
   PRINT_CHAR 27;
   PRINT_STR "[96;40m";
-  PRINT_STR "前景色 14  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 14  亮色，背景 = 0 黑" ELSE PRINT_STR "color 14  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[19;3H";
   PRINT_CHAR 27;
   PRINT_STR "[97;40m";
-  PRINT_STR "前景色 15  亮色，背景 = 0 黑";
+  IF LANG = 0 THEN PRINT_STR "前景色 15  亮色，背景 = 0 黑" ELSE PRINT_STR "color 15  bright, background = 0 black" END_IF;
   PRINT_CHAR 10;
 
   (* ④ 光标定位：第 21 行第 34 列先写，再回第 21 行第 1 列写 *)
@@ -176,14 +182,14 @@ BEGIN
   PRINT_STR "[21;34H";
   PRINT_CHAR 27;
   PRINT_STR "[93;41m";
-  PRINT_STR "<- 先写的（第 34 列）";
+  IF LANG = 0 THEN PRINT_STR "<- 先写的（第 34 列）" ELSE PRINT_STR "<- written first (column 34)" END_IF;
   PRINT_CHAR 10;
 
   PRINT_CHAR 27;
   PRINT_STR "[21;1H";
   PRINT_CHAR 27;
   PRINT_STR "[96;40m";
-  PRINT_STR "后写的（第 1 列）-> ";
+  IF LANG = 0 THEN PRINT_STR "后写的（第 1 列）-> " ELSE PRINT_STR "written second (column 1) -> " END_IF;
   PRINT_CHAR 10;
 
   (* ⑤ 收尾：第 23 行第 1 列，复位成白字黑底（37 / 40） *)
@@ -191,6 +197,6 @@ BEGIN
   PRINT_STR "[23;1H";
   PRINT_CHAR 27;
   PRINT_STR "[37;40m";
-  PRINT_STR "=== done（已复位为白字黑底）===";
+  IF LANG = 0 THEN PRINT_STR "=== done（已复位为白字黑底）===" ELSE PRINT_STR "=== done (reset to white on black) ===" END_IF;
   PRINT_CHAR 10;
 END_PROGRAM

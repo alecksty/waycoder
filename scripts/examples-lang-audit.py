@@ -10,8 +10,11 @@
     python scripts/examples-lang-audit.py                 # 全部打包进包的例程
     python scripts/examples-lang-audit.py c/ gomoku       # 只看匹配的路径（子串过滤）
     python scripts/examples-lang-audit.py --list-stale    # 只列还有问题的文件
+    ⚠ 过滤参数是 **`Examples/` 下的相对路径子串**（`c/`、`ladder/demo_std`），
+      **不是仓库全路径** —— 传 `third_party/vml/Examples/…` 一个都匹配不上；
+      这种「零命中」以前**静默 exit 0**（看着全绿、其实什么都没扫），现在**报错退 2**。
 
-退出码：0 = 干净；1 = 还有未分支的用户可见中文。
+退出码：0 = 干净；1 = 还有未分支的用户可见中文；2 = 过滤条件零命中（参数写错了）。
 
 ⚠ **这条判据要求「中文字面量与语言条件在同一行」**（`lang == 0` / `lang != 0` / `if lang`，忽略大小写）。
 这是**刻意的保守**（宁可漏判"已分支"，也不放过"看起来分支了其实没有"），但它会**逼着**某些语言
@@ -124,6 +127,7 @@ def main():
     list_stale = "--list-stale" in sys.argv
     total = 0
     files = 0
+    scanned = 0          # 真扫过的例程数（**与 files 不同**：files 只数"有问题的"）
     for root, dirs, names in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d != "_selftest"]
         for name in sorted(names):
@@ -134,6 +138,7 @@ def main():
             rel = os.path.relpath(p, ROOT).replace("\\", "/")
             if args and not any(a in rel for a in args):
                 continue
+            scanned += 1
             hits = audit(p, ext)
             if not hits:
                 continue
@@ -145,7 +150,22 @@ def main():
                     print(f'         {i}: "{lit}"')
                 if len(hits) > 6:
                     print(f"         … 还有 {len(hits) - 6} 处")
-    print(f"\n合计 {total} 处未按语言分支的用户可见中文，分布在 {files} 个例程")
+    # ⚠⚠ **给过滤条件时的"一个都没扫到"必须报错，不能算通过**
+    #   —— 这是本仓最贵的一类缺陷：**假绿**。
+    #   实测踩到：判据是按 `Examples/` **下的相对路径**匹配的（`ladder/demo_std`、
+    #   `c/tetris.c`），而**传仓库全路径**（`third_party/vml/Examples/ladder/demo_std.ld`）
+    #   一个都匹配不上 ⇒ 扫 0 个文件、total 0、**exit 0** —— 屏幕上就是"全绿"。
+    #   于是"我验过了"其实是"我什么都没验"。**不响的判据比没有判据更糟**（它给的是假信心）。
+    if args and scanned == 0:
+        print(f"✘ 过滤条件没匹配到任何例程：{args}", file=sys.stderr)
+        print("  （匹配的是 **Examples/ 下的相对路径**，如 `ladder/demo_std`、`c/tetris.c`；",
+              file=sys.stderr)
+        print("   传仓库全路径会静默 0 命中 —— 所以这里直接报错退出，不当成通过。）",
+              file=sys.stderr)
+        return 2
+
+    print(f"\n合计 {total} 处未按语言分支的用户可见中文，分布在 {files} 个例程"
+          + (f"（扫过 {scanned} 个）" if args else ""))
     print("（注释里的中文**不计** —— 注释多语化是另一个工作面）")
     return 1 if total else 0
 

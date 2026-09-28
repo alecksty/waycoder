@@ -379,7 +379,49 @@ namespace LadderCompiler
                 AddInstruction(OpCode.POP, new Operand(OperandType.REGISTER, i));
 
             // 寄存器保护 CALL (PUSH R0-R3; CALL; POP R3-R1; ADD R13,#4)
-            EmitCallWithRegSave(name.StartsWith("LADDER_") ? name : $"LADDER_{name}");
+            EmitCallWithRegSave(CalleeSymbol(node.FunctionName));
+        }
+
+        /// <summary>
+        /// 调用点的目标符号名 —— 判据是「这个名字是不是**本程序自己定义的函数**」。
+        ///
+        /// <para>
+        /// 本程序的函数在发射时是 <c>LADDER_{名}（全大写）</c>
+        /// （见 <c>GenerateFunctionDefinition</c>），所以调用点必须用**同一套拼法**；
+        /// 而**库函数**（`ui_get_language` 这类，来自 `Lib/`）的标签由链接器按
+        /// <c>lib_&lt;模块&gt;_&lt;裸名&gt;</c> 建立，加 `LADDER_` 前缀**一个都匹配不到**。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>原先是无条件加前缀 + 大写</b>：实测 `PRINT_INT ui_get_language();` 报
+        /// <c>未定义的函数 'LADDER_UI_GET_LANGUAGE'</c> ⇒ **整门语言调不到任何库函数**
+        /// —— 图形（`GFX_*`）、宿主 UI、语言查询（`ui_get_language`）**全都不可达**，
+        /// 本地化也就无从谈起。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>库函数按源码原样传，不转大小写</b>：`Lib/` 里有大小写混排的导出名
+        /// （BGI 那一族 `Circle` / `Bar` / `CloseGraph` 就在其中，实测 `shared/` 下
+        /// 有大写的导出名 1500+ 条）⇒ 盲目 `ToLower()` 会把它们打坏，
+        /// 那是**拿一个可见的坏换一个看不见的整洁**。大小写由**源码**说了算。
+        /// </para>
+        ///
+        /// <para>
+        /// 名字比对**忽略大小写**（Ladder 是大小写不敏感的语言，`FUNCTION Foo` 与 `foo()`
+        /// 是同一个东西），而拼出来喂给发射端的那一份是**规范形态**（全大写 + 前缀）。
+        /// </para>
+        /// </summary>
+        private string CalleeSymbol(string rawName)
+        {
+            if (_program != null)
+            {
+                foreach (var f in _program.Functions)
+                {
+                    if (string.Equals(f.Name, rawName, StringComparison.OrdinalIgnoreCase))
+                        return $"LADDER_{rawName.ToUpperInvariant()}";
+                }
+            }
+            return rawName;
         }
 
         private void GenerateSel(CallNode node)
