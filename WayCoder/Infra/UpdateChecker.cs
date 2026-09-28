@@ -339,6 +339,36 @@ public static class UpdateChecker
     /// </summary>
     public static async Task<string> SelfUpdateAsync()
     {
+        // ⚠⚠ **移动端一律不许自更新** —— 这里是**唯一收口**，挡在这儿谁调都下不了东西。
+        //
+        // 两条理由，各自都足以拦下：
+        //
+        // ① **App Store 硬拦**（指南 2.5.2「应用须自包含，不得下载、安装或执行会引入或改变
+        //    功能的代码」+ 3.2.2）。而 `/update` 在手机端是**注册着的** ——
+        //    `MauiBootstrap.cs:340` 调 `SlashCommandRegistry.RegisterAll()`，
+        //    而 `SlashCommand.cs:195` 无一例外地 `Register(UpdateCommand)`。
+        //    iOS 上 App bundle 还是**只读**的，替换这一步物理上也做不到。
+        //    正规途径是 App Store 本身 ⇒ 文案直接指过去。
+        //
+        // ② **它会下错东西**（真 bug，与审核无关）：`DetectCurrentRid()` 只认
+        //    Windows / macOS，其余一律 `"linux"` ⇒ **Android 与 iOS 上算出来的是
+        //    `linux-arm64`**，于是「升级」会去下一个**桌面 Linux 二进制**、再拿它替换自己。
+        //    这条路以前没人走过，只是因为手机端从来没人敲过 `/update now`。
+        //
+        // ⚠ 判据用 `OperatingSystem.IsXxx()`（AOT/裁剪友好），**别用 `#if`** —— 本文件是
+        //   桌面与移动**共用**的源码（MAUI 直接 `Compile Include` 主工程），`#if` 会让
+        //    两个目标编出两份不同的实现，而这里要的恰恰是「同一份代码、运行时分支」。
+        if (OperatingSystem.IsIOS() || OperatingSystem.IsMacCatalyst() || OperatingSystem.IsAndroid())
+        {
+            return L.Pick(
+                "⚠️ **本平台不支持自更新**。\n\n" +
+                "iOS / iPadOS / macOS(Catalyst) 上的正规更新途径是 **App Store**；Android 上请安装新版本 APK。\n\n" +
+                "（`/update` 仍可用来**检查**有没有新版本。）",
+                "⚠️ **Self-update is not supported on this platform.**\n\n" +
+                "On iOS / iPadOS / macOS (Catalyst) the supported update path is the **App Store**; on Android, install the new APK.\n\n" +
+                "(`/update` still works for **checking** whether a newer version exists.)");
+        }
+
         var latest = await FetchLatestAsync();
         if (latest == null)
             return L.Pick("⚠ 无法获取最新版本信息（检查网络或仓库配置）", "⚠ Could not fetch the latest version info (check your network or repository settings)");
