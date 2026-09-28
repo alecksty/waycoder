@@ -95,6 +95,8 @@ NATIVE SUB ui_keep_on(v AS INTEGER)
 END SUB
 NATIVE FUNCTION ui_dlg_msg(title AS STRING, body AS STRING, style AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  常量
@@ -207,6 +209,55 @@ tickMs = TICK
 paceMs = PACE
 
 ' ══════════════════════════════════════════════════════════════════════════
+'  界面语言（0 = 中文 / 1 = 英文，跟随系统语言）
+'
+'  `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+'  之后每帧绘制只用变量（别在绘制路径上再调它）。
+' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+'   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+' ══════════════════════════════════════════════════════════════════════════
+DIM LANG AS INTEGER
+DIM sTitle AS STRING
+DIM sScore AS STRING
+DIM sSpeed AS STRING
+DIM sBest AS STRING
+DIM sLeft AS STRING
+DIM sRight AS STRING
+DIM sCrash AS STRING
+DIM sAgain AS STRING
+DIM sSimHdr AS STRING
+DIM sSim1 AS STRING
+DIM sSim2 AS STRING
+DIM sSim3 AS STRING
+DIM sSim4 AS STRING
+DIM sSim5 AS STRING
+DIM sSim6 AS STRING
+DIM sSim7 AS STRING
+DIM sNoWin AS STRING
+
+SUB initLang()
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sTitle = "跑车躲驴" ELSE sTitle = "Donkey"
+    IF LANG = 0 THEN sScore = "得分" ELSE sScore = "Score"
+    IF LANG = 0 THEN sSpeed = "最快" ELSE sSpeed = "Speed"
+    IF LANG = 0 THEN sBest = "最高" ELSE sBest = "Best"
+    IF LANG = 0 THEN sLeft = "← 或 A" ELSE sLeft = "<- or A"
+    IF LANG = 0 THEN sRight = "→ 或 D" ELSE sRight = "-> or D"
+    IF LANG = 0 THEN sCrash = "撞车了" ELSE sCrash = "Crashed"
+    IF LANG = 0 THEN sAgain = "，再来一局？" ELSE sAgain = ", play again?"
+    IF LANG = 0 THEN sSimHdr = "── 跑车躲驴 · 碰撞自检（固定尺寸，不看屏幕，只算逻辑）──" ELSE sSimHdr = "--- Donkey dodge - collision self-check (fixed size, logic only) ---"
+    IF LANG = 0 THEN sSim1 = "  画布 / 车道宽 / 车中心:" ELSE sSim1 = "  canvas / lane width / car center:"
+    IF LANG = 0 THEN sSim2 = "  ① 同道相撞 -> crashed(应 1):" ELSE sSim2 = "  1) same lane -> crashed (want 1):"
+    IF LANG = 0 THEN sSim3 = "  ② 异道不撞 -> crashed(应 0):" ELSE sSim3 = "  2) other lane -> crashed (want 0):"
+    IF LANG = 0 THEN sSim4 = "  ③ 躲过去 -> 得分(应 1) / 驴还在吗(应 0):" ELSE sSim4 = "  3) passed -> score (want 1) / donkey here (want 0):"
+    IF LANG = 0 THEN sSim5 = "  ④ 攒够就加速 -> speed(应 3):" ELSE sSim5 = "  4) enough dodges -> speed (want 3):"
+    IF LANG = 0 THEN sSim6 = "  ⑤ 向左夹住 -> carLane(应 0):" ELSE sSim6 = "  5) clamp left -> carLane (want 0):"
+    IF LANG = 0 THEN sSim7 = "  ⑤ 向右夹住 -> carLane(应 2):" ELSE sSim7 = "  5) clamp right -> carLane (want 2):"
+    IF LANG = 0 THEN sNoWin = "（桌面脚手架：没有真窗口，碰撞自检打完就退出）" ELSE sNoWin = "(desktop scaffold: no real window - self-check done, exiting)"
+END SUB
+
+' ══════════════════════════════════════════════════════════════════════════
 '  子过程
 ' ══════════════════════════════════════════════════════════════════════════
 
@@ -263,11 +314,11 @@ END SUB
 ' 顶部信息带
 SUB drawHud()
     ui_rect(0, 0, sw, hudh, C_HUD, 1, 0, 0)
-    ui_text(14, 13, "得分", C_DIM, 13, 0)
+    ui_text(14, 13, sScore, C_DIM, 13, 0)
     ui_text(52, 8, STR$(score), C_TEXT, 22, 0)
-    ui_text(sw / 2, 13, "最快", C_DIM, 13, 1)
+    ui_text(sw / 2, 13, sSpeed, C_DIM, 13, 1)
     ui_text(sw / 2, 8, STR$(speed), C_TEXT, 22, 1)
-    ui_text(sw - 14, 13, "最高", C_DIM, 13, 2)
+    ui_text(sw - 14, 13, sBest, C_DIM, 13, 2)
     ui_text(sw - 14, 8, STR$(best), C_TEXT, 22, 2)
 END SUB
 
@@ -284,8 +335,8 @@ SUB drawPads()
     rx = btnRx + btnW / 2
     ui_line(rx - 12, ry - 16, rx + 12, ry, C_TEXT, 6)
     ui_line(rx + 12, ry, rx - 12, ry + 16, C_TEXT, 6)
-    ui_text(btnLx + btnW / 2, btnY + btnH + 4, "← 或 A", C_DIM, 12, 1)
-    ui_text(btnRx + btnW / 2, btnY + btnH + 4, "→ 或 D", C_DIM, 12, 1)
+    ui_text(btnLx + btnW / 2, btnY + btnH + 4, sLeft, C_DIM, 12, 1)
+    ui_text(btnRx + btnW / 2, btnY + btnH + 4, sRight, C_DIM, 12, 1)
 END SUB
 
 SUB drawScene()
@@ -412,7 +463,7 @@ SUB handleCrashEnd()
             '   （whack.bas 头部记的就是这个坑；宿主侧 `WithTimersPaused` 已统一兜住，
             '     这里再显式停一次，是"两处都做对"而不是"指望某一处"。）
             ui_timer_kill(tid)
-            k = ui_dlg_msg("撞车了", "得分 " + STR$(score) + "，再来一局？", 1)
+            k = ui_dlg_msg(sCrash, sScore + " " + STR$(score) + sAgain, 1)
             IF k = 0 THEN
                 quit = 1
             ELSE
@@ -537,12 +588,12 @@ END SUB
 '  躲过去会加分并（攒够之后）加速。这三条正是这个玩法仅有的三件事。
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
-    PRINT "── 跑车躲驴 · 碰撞自检（固定尺寸，不看屏幕，只算逻辑）──"
+    PRINT sSimHdr
     sw = 390
     sh = 660
     layout()
     resetRound()
-    PRINT "  画布 / 车道宽 / 车中心:"; sw; laneW; carX
+    PRINT sSim1; sw; laneW; carX
 
     ' ① 同一条道 ⇒ 必撞
     carLane = 1
@@ -554,7 +605,7 @@ SUB simCheck()
     donX = donX - donw / 2
     donY = carY - donh + 4
     stepWorld()
-    PRINT "  ① 同道相撞 -> crashed(应 1):"; crashed
+    PRINT sSim2; crashed
 
     ' ② 换一条道 ⇒ 不该撞
     resetRound()
@@ -567,7 +618,7 @@ SUB simCheck()
     donX = donX - donw / 2
     donY = carY - donh + 4
     stepWorld()
-    PRINT "  ② 异道不撞 -> crashed(应 0):"; crashed
+    PRINT sSim3; crashed
 
     ' ③ 驴走到底 ⇒ 加分、驴消失
     resetRound()
@@ -576,7 +627,7 @@ SUB simCheck()
     donLane = 2
     donY = roadBot - 2
     stepWorld()
-    PRINT "  ③ 躲过去 -> 得分(应 1) / 驴还在吗(应 0):"; score; donOn
+    PRINT sSim4; score; donOn
 
     ' ④ 攒够 perSpeed 头 ⇒ 加速一格
     resetRound()
@@ -586,24 +637,25 @@ SUB simCheck()
     donLane = 2
     donY = roadBot - 2
     stepWorld()
-    PRINT "  ④ 攒够就加速 -> speed(应 3):"; speed
+    PRINT sSim5; speed
 
     ' ⑤ 换道要夹住边界，不能跑到道外
     resetRound()
     moveCar(0 - 1)
     moveCar(0 - 1)
-    PRINT "  ⑤ 向左夹住 -> carLane(应 0):"; carLane
+    PRINT sSim6; carLane
     k = 0
     WHILE k < 9
         moveCar(1)
         k = k + 1
     WEND
-    PRINT "  ⑤ 向右夹住 -> carLane(应 2):"; carLane
+    PRINT sSim7; carLane
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
 ' ══════════════════════════════════════════════════════════════════════════
+initLang
 simCheck()
 
 ' 尺寸：先问设备，再开窗。**顺序照抄 gorilla** —— 排版用的那两个数必须与交给
@@ -618,12 +670,12 @@ IF sh <= 0 THEN
 END IF
 
 ' 锁竖屏 + 不要手柄区（全程触摸，手柄区白吃一百多像素的画面高度）
-wh = ui_win_open_ex("跑车躲驴", sw, sh, 0, 0)
+wh = ui_win_open_ex(sTitle, sw, sh, 0, 0)
 
 ' 宿主把窗口开出来了才开跑；桌面脚手架这里返回 0 —— 上面自检已打完，直接收工。
 ' ⚠ 别把这条判断当"平台探测"去别处复用，它只说明"这一轮有没有真窗口"。
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：没有真窗口，碰撞自检打完就退出）"
+    PRINT sNoWin
 ELSE
     runGame()
 END IF

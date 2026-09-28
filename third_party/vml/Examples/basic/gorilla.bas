@@ -110,6 +110,8 @@ NATIVE FUNCTION ui_scr_h() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_win_open_ex(t AS STRING, w AS INTEGER, h AS INTEGER, rot AS INTEGER, pad AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 NATIVE FUNCTION ui_win_closed() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_win_close()
@@ -562,22 +564,22 @@ END SUB
 
 ' 开机自检：几条典型弹道的射程。射程与力度成正比 ⇒ 100/50/25 应约为 4 : 2 : 1。
 SUB physicsCheck()
-    PRINT "── 大猩猩扔香蕉 · 开机自检（与实弹同一套积分）──"
+    IF LANG = 0 THEN PRINT "── 大猩猩扔香蕉 · 开机自检（与实弹同一套积分）──" ELSE PRINT "-- Gorilla - boot self-check (same integrator as live shots) --"
     aimA = 45
     aimAngles()
-    PRINT "  查表 角度45 -> cos/sin（应 707/707）:"; cosv; sinv
+    IF LANG = 0 THEN PRINT "  查表 角度45 -> cos/sin（应 707/707）:"; cosv; sinv ELSE PRINT "  table 45deg -> cos/sin (want 707/707):"; cosv; sinv
     aimA = 30
     aimAngles()
-    PRINT "  查表 角度30 -> cos/sin（应 866/500）:"; cosv; sinv
+    IF LANG = 0 THEN PRINT "  查表 角度30 -> cos/sin（应 866/500）:"; cosv; sinv ELSE PRINT "  table 30deg -> cos/sin (want 866/500):"; cosv; sinv
     shotRange(45, 100)
-    PRINT "  45度 力度100 -> 射程(px)"; rng
+    IF LANG = 0 THEN PRINT "  45度 力度100 -> 射程(px)"; rng ELSE PRINT "  45deg power100 -> range(px)"; rng
     shotRange(45, 50)
-    PRINT "  45度 力度050 -> 射程(px)"; rng
+    IF LANG = 0 THEN PRINT "  45度 力度050 -> 射程(px)"; rng ELSE PRINT "  45deg power050 -> range(px)"; rng
     shotRange(45, 25)
-    PRINT "  45度 力度025 -> 射程(px)"; rng
+    IF LANG = 0 THEN PRINT "  45度 力度025 -> 射程(px)"; rng ELSE PRINT "  45deg power025 -> range(px)"; rng
     shotRange(90, 100)
-    PRINT "  90度 力度100 -> 射程(px)"; rng
-    PRINT "  （射程应近似与力度成正比：100/50/25 约 4:2:1；90 度应约 0）"
+    IF LANG = 0 THEN PRINT "  90度 力度100 -> 射程(px)"; rng ELSE PRINT "  90deg power100 -> range(px)"; rng
+    IF LANG = 0 THEN PRINT "  （射程应近似与力度成正比：100/50/25 约 4:2:1；90 度应约 0）" ELSE PRINT "  (range should scale with power: 100/50/25 ~ 4:2:1; 90deg should be ~0)"
 END SUB
 
 ' 打一发「实弹」但不画屏：把香蕉架好、一路 stepFlight 到结束，结果留在
@@ -603,7 +605,7 @@ END SUB
 ' 只用共享库的网格和纯算术，所以桌面脚手架（没有真窗口）也跑得起来 ——
 ' 「弹道自检」只证明了积分，「这一发算不算命中」得靠这一段。
 SUB simCheck()
-    PRINT "── 碰撞规则自检（固定城市：中间略高，两头 90 高）──"
+    IF LANG = 0 THEN PRINT "── 碰撞规则自检（固定城市：中间略高，两头 90 高）──" ELSE PRINT "-- collision rules self-check (fixed city: taller middle, 90 at both ends) --"
     sw = 390
     sh = 660
     bw = INT(sw / nbv)
@@ -625,62 +627,62 @@ SUB simCheck()
     turn = 0
     wind = 0
     simMode = 1
-    PRINT "  两猿 x/楼顶 y:"; g0x; g0y
-    PRINT "  两猿 x/楼顶 y:"; g1x; g1y
-    PRINT "  画布"; sw; sh
-    PRINT "  地面 y（发射点在此之上 44）:"; ground
+    IF LANG = 0 THEN PRINT "  两猿 x/楼顶 y:"; g0x; g0y ELSE PRINT "  apes x/roof y:"; g0x; g0y
+    IF LANG = 0 THEN PRINT "  两猿 x/楼顶 y:"; g1x; g1y ELSE PRINT "  apes x/roof y:"; g1x; g1y
+    IF LANG = 0 THEN PRINT "  画布"; sw; sh ELSE PRINT "  canvas"; sw; sh
+    IF LANG = 0 THEN PRINT "  地面 y（发射点在此之上 44）:"; ground ELSE PRINT "  ground y (launch point sits 44 above):"; ground
 
     ' ① 角度 0：平着扔出去，会撞上中间那栋高楼
     simShot(0, 100)
-    PRINT "  ① 0度 力度100 -> 命中猿?"; hitFlag
-    PRINT "     落点 x/y:"; ebx; eby
+    IF LANG = 0 THEN PRINT "  ① 0度 力度100 -> 命中猿?"; hitFlag ELSE PRINT "  (1) 0deg power100 -> hit ape?"; hitFlag
+    IF LANG = 0 THEN PRINT "     落点 x/y:"; ebx; eby ELSE PRINT "     impact x/y:"; ebx; eby
 
     ' ② 角度 90：垂直向上，原路落回自己站的那栋楼
     simShot(90, 100)
-    PRINT "  ② 90度 力度100 -> 命中猿?"; hitFlag
-    PRINT "     落点 x/y:"; ebx; eby
+    IF LANG = 0 THEN PRINT "  ② 90度 力度100 -> 命中猿?"; hitFlag ELSE PRINT "  (2) 90deg power100 -> hit ape?"; hitFlag
+    IF LANG = 0 THEN PRINT "     落点 x/y:"; ebx; eby ELSE PRINT "     impact x/y:"; ebx; eby
 
     ' ③ 角度 45、力度全开：飞过头，出界脱靶
     simShot(45, 100)
-    PRINT "  ③ 45度 力度100 -> 命中猿?"; hitFlag
-    PRINT "     落点 x/y:"; ebx; eby
+    IF LANG = 0 THEN PRINT "  ③ 45度 力度100 -> 命中猿?"; hitFlag ELSE PRINT "  (3) 45deg power100 -> hit ape?"; hitFlag
+    IF LANG = 0 THEN PRINT "     落点 x/y:"; ebx; eby ELSE PRINT "     impact x/y:"; ebx; eby
 
     ' ④ 角度 45、力度 68：射程约 306，弹道下坠时正好穿过对面那只
     '    （两猿相距 325、命中盒 y 在 378~420）—— 这一发必须命中
     simShot(45, 68)
-    PRINT "  ④ 45度 力度068 -> 命中猿?"; hitFlag
-    PRINT "     落点 x/y:"; ebx; eby
+    IF LANG = 0 THEN PRINT "  ④ 45度 力度068 -> 命中猿?"; hitFlag ELSE PRINT "  (4) 45deg power068 -> hit ape?"; hitFlag
+    IF LANG = 0 THEN PRINT "     落点 x/y:"; ebx; eby ELSE PRINT "     impact x/y:"; ebx; eby
     ' ⚠ `hitBld` 每发都会在 stepFlight 开头清零 ⇒ **必须当场打印**，
     '   攒到后面再打拿到的是最后一发的值（这里第一版就写错过一次）。
-    PRINT "     打猿不留坑 -> hitBld(应 0):"; hitBld
+    IF LANG = 0 THEN PRINT "     打猿不留坑 -> hitBld(应 0):"; hitBld ELSE PRINT "     ape hit leaves no hole -> hitBld (want 0):"; hitBld
 
     ' ⑤ 角度 45、力度三成：射程约 135，落在城里某栋楼上
     '    ⚠ 先清空弹坑：前面 ①② 也都打在楼上、各留了一个坑，
     '      不清的话下面 `ui_gget(ghole)` 读到的是**最早**那个坑，判据对不上落点。
     clearHoles()
     simShot(45, 30)
-    PRINT "  ⑤ 45度 力度030 -> 命中猿?"; hitFlag
-    PRINT "     落点 x/y:"; ebx; eby
+    IF LANG = 0 THEN PRINT "  ⑤ 45度 力度030 -> 命中猿?"; hitFlag ELSE PRINT "  (5) 45deg power030 -> hit ape?"; hitFlag
+    IF LANG = 0 THEN PRINT "     落点 x/y:"; ebx; eby ELSE PRINT "     impact x/y:"; ebx; eby
 
     ' ⑥ 弹坑判据：这一段钉的就是用户报的那件事「炸了建筑，炸完又还原了」——
     '    从前爆炸只是一层特效、楼体数据一个字节没动，所以缺口下一帧就被重画抹平。
-    PRINT "  ⑥ 打楼留坑 -> hitBld(应 1):"; hitBld
-    PRINT "     坑数 nHole(应 1):"; nHole
-    PRINT "     坑 x/y/r(应 = ⑤ 的落点, 22):"
+    IF LANG = 0 THEN PRINT "  ⑥ 打楼留坑 -> hitBld(应 1):"; hitBld ELSE PRINT "  (6) building hit leaves a hole -> hitBld (want 1):"; hitBld
+    IF LANG = 0 THEN PRINT "     坑数 nHole(应 1):"; nHole ELSE PRINT "     hole count nHole (want 1):"; nHole
+    IF LANG = 0 THEN PRINT "     坑 x/y/r(应 = ⑤ 的落点, 22):" ELSE PRINT "     hole x/y/r (want = impact of (5), 22):"
     PRINT "       "; ui_gget(ghole); ui_gget(ghole + 1); ui_gget(ghole + 2)
 
     ' ⑦ 同一发**再打一遍**：这一次要从刚才那个缺口里穿过去 ⇒ 落点必然更低。
     '    这是"楼被打穿"的判据 —— 穿不过去的话新落点会与 ⑤ 逐像素相同。
     pby = eby
     simShot(45, 30)
-    PRINT "  ⑦ 再打一发 -> 新落点 y(应 > ⑤ 的 y):"; eby
-    PRINT "     ⑤ 的 y:"; pby
-    PRINT "     坑数 nHole(应 2，穿过去之后又炸了一层):"; nHole
+    IF LANG = 0 THEN PRINT "  ⑦ 再打一发 -> 新落点 y(应 > ⑤ 的 y):"; eby ELSE PRINT "  (7) fire again -> new impact y (want > y of (5)):"; eby
+    IF LANG = 0 THEN PRINT "     ⑤ 的 y:"; pby ELSE PRINT "     y of (5):"; pby
+    IF LANG = 0 THEN PRINT "     坑数 nHole(应 2，穿过去之后又炸了一层):"; nHole ELSE PRINT "     hole count nHole (want 2 - punched through and blasted another layer):"; nHole
 
     ' ⑧ 换局要清空：城市都重排了，旧坑的位置毫无意义
     '    （不清的话上一局的洞会以天空色的圆出现在新楼上，像贴了几块补丁）
     clearHoles()
-    PRINT "  ⑧ 换局后 nHole(应 0):"; nHole
+    IF LANG = 0 THEN PRINT "  ⑧ 换局后 nHole(应 0):"; nHole ELSE PRINT "  (8) nHole after a new round (want 0):"; nHole
 
     simMode = 0
 END SUB
@@ -1132,7 +1134,8 @@ SUB drawScene()
         ui_rect(sw - 106, 5, 100, 30, C_HUD_ON, 1, 0, 8)
     END IF
 
-    ui_text_v(12, 11, "玩家一", C_TEXT, 14, 0, 3, 0)
+    IF LANG = 0 THEN s$ = "玩家一" ELSE s$ = "P1"
+    ui_text_v(12, 11, s$, C_TEXT, 14, 0, 3, 0)
     i = 0
     WHILE i < wscore
         colr = C_PIP_OFF
@@ -1143,7 +1146,8 @@ SUB drawScene()
         i = i + 1
     WEND
 
-    ui_text_v(sw - 12, 11, "玩家二", C_TEXT, 14, 2, 3, 0)
+    IF LANG = 0 THEN s$ = "玩家二" ELSE s$ = "P2"
+    ui_text_v(sw - 12, 11, s$, C_TEXT, 14, 2, 3, 0)
     i = 0
     WHILE i < wscore
         colr = C_PIP_OFF
@@ -1155,7 +1159,8 @@ SUB drawScene()
     WEND
 
     ' 风：一根轨道 + 一个会左右跑的小方块（+2 在最右、-2 在最左）
-    ui_text_v(cxc, 5, "风", C_DIM, 13, 1, 3, 0)
+    IF LANG = 0 THEN s$ = "风" ELSE s$ = "Wind"
+    ui_text_v(cxc, 5, s$, C_DIM, 13, 1, 3, 0)
     ui_rect(cxc - 46, 27, 92, 8, C_TRACK, 1, 0, 4)
     ui_rect(cxc - 1, 25, 3, 12, &HFF6A6A8C, 1, 0, 0)
     ui_rect(cxc + wind * 17 - 5, 23, 10, 16, C_MARKER, 1, 0, 3)
@@ -1164,21 +1169,25 @@ SUB drawScene()
     ui_rect(0, panY, sw, panh, C_PANEL, 1, 0, 0)
     ui_rect(0, panY, sw, 2, &HFF2E2B45, 1, 0, 0)
 
-    ui_text_v(14, barAy + 8, "角度", C_DIM, 14, 0, 3, 0)
+    IF LANG = 0 THEN s$ = "角度" ELSE s$ = "Angle"
+    ui_text_v(14, barAy + 8, s$, C_DIM, 14, 0, 3, 0)
     ui_rect(barX, barAy, barW, barH, C_TRACK, 1, 0, 6)
     ui_rect(barX, barAy, INT(barW * aimA / 90), barH, C_ANGLE, 1, 0, 6)
     drawNum(sw - 14, barAy + 6, aimA, C_TEXT, 16, 2)
 
-    ui_text_v(14, barPy + 8, "力度", C_DIM, 14, 0, 3, 0)
+    IF LANG = 0 THEN s$ = "力度" ELSE s$ = "Power"
+    ui_text_v(14, barPy + 8, s$, C_DIM, 14, 0, 3, 0)
     ui_rect(barX, barPy, barW, barH, C_TRACK, 1, 0, 6)
     ui_rect(barX, barPy, INT(barW * aimP / 100), barH, C_POWER, 1, 0, 6)
     drawNum(sw - 14, barPy + 6, aimP, C_TEXT, 16, 2)
 
     ui_rect(14, fireY, sw - 28, fireH, C_FIRE, 1, 0, 8)
     IF st = 0 THEN
-        ui_text_v(cxc, fireY + 7, "发 射", C_FIRE_T, 18, 1, 3, 0)
+        IF LANG = 0 THEN s$ = "发 射" ELSE s$ = "FIRE"
+        ui_text_v(cxc, fireY + 7, s$, C_FIRE_T, 18, 1, 3, 0)
     ELSE
-        ui_text_v(cxc, fireY + 7, "飞 行 中", C_FIRE_B, 18, 1, 3, 0)
+        IF LANG = 0 THEN s$ = "飞 行 中" ELSE s$ = "IN FLIGHT"
+        ui_text_v(cxc, fireY + 7, s$, C_FIRE_B, 18, 1, 3, 0)
     END IF
 
     ui_present()
@@ -1342,7 +1351,9 @@ SUB runGame()
 
     newCity()
 
-    dlg = ui_dlg_msg("大猩猩扔香蕉", "两只大猩猩站在城市两头，轮流把香蕉扔到对面。拖「角度」和「力度」两根条调好，按「发射」。香蕉会被重力和风带着走 —— 风每回合变一次，看顶上那根风的指示。先拿满 3 分的人赢。", 0)
+    IF LANG = 0 THEN tt$ = "大猩猩扔香蕉" ELSE tt$ = "Gorilla"
+    IF LANG = 0 THEN bd$ = "两只大猩猩站在城市两头，轮流把香蕉扔到对面。拖「角度」和「力度」两根条调好，按「发射」。香蕉会被重力和风带着走 —— 风每回合变一次，看顶上那根风的指示。先拿满 3 分的人赢。" ELSE bd$ = "Two gorillas on the rooftops trade bananas. Drag the Angle and Power bars, then tap FIRE. Gravity and wind carry the shot - wind changes every round, watch the wind gauge at the top. First to 3 points wins."
+    dlg = ui_dlg_msg(tt$, bd$, 0)
     ui_msg_clear()
 
     curMs = 0
@@ -1418,9 +1429,11 @@ SUB runGame()
                 '   现在胜利音是一声 `ui_beep`：它在**音频线程**上响完，与主循环无关，
                 '   所以直接弹框即可。
                 IF sc0 >= wscore THEN
-                    dlg = ui_dlg_msg("大猩猩扔香蕉", "玩家一 先拿满 3 分，赢了！再来一局？（选「否」退出）", 0)
+                    IF LANG = 0 THEN bd$ = "玩家一 先拿满 3 分，赢了！再来一局？（选「否」退出）" ELSE bd$ = "Player 1 reached 3 first - wins! Play again? (choose No to quit)"
+                    dlg = ui_dlg_msg(tt$, bd$, 0)
                 ELSE
-                    dlg = ui_dlg_msg("大猩猩扔香蕉", "玩家二 先拿满 3 分，赢了！再来一局？（选「否」退出）", 0)
+                    IF LANG = 0 THEN bd$ = "玩家二 先拿满 3 分，赢了！再来一局？（选「否」退出）" ELSE bd$ = "Player 2 reached 3 first - wins! Play again? (choose No to quit)"
+                    dlg = ui_dlg_msg(tt$, bd$, 0)
                 END IF
                 IF dlg <> 0 THEN
                     quit = 1
@@ -1462,6 +1475,8 @@ END SUB
 ' CONST 的替身变量（SUB 里只用这些普通变量，见上面缺陷 ② 的第四条）
 ' 顶层是好的，所以算术放在这里做。
 ' 网格清零（正弦表随后装）—— 必须在最前面，newCity 要用它存楼高
+' 界面语言：**开局查一次**存进 LANG（ui_get_language 是 syscall，别每帧调）
+LANG = ui_get_language()
 ui_gclear()
 loadTrig()
 
@@ -1488,12 +1503,13 @@ END IF
 '     留着那一整块等于白吃掉一百多像素的画面高度（与 gomoku.c 同一处置）。
 '   两个常量在这里写字面量：BASIC 侧没有 C 头文件那套宏，
 '   第 4 个 0 = VML_WIN_PORTRAIT、第 5 个 0 = VML_WIN_NO_GAMEPAD（见 waycoder_ui.h）。
-wh = ui_win_open_ex("大猩猩扔香蕉", sw, sh, 0, 0)
+IF LANG = 0 THEN tt$ = "大猩猩扔香蕉" ELSE tt$ = "Gorilla"
+wh = ui_win_open_ex(tt$, sw, sh, 0, 0)
 
 ' 宿主把窗口开出来了（返回 1）才开跑；桌面脚手架这里返回 0 —— 上面自检已打完，
 ' 直接收工。**别**把这条判断当"平台探测"去别处复用，它只说明"这一轮有没有真窗口"。
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：ui_* 号段是空操作、没有真窗口，弹道自检打完就退出）"
+    IF LANG = 0 THEN PRINT "（桌面脚手架：ui_* 号段是空操作、没有真窗口，弹道自检打完就退出）" ELSE PRINT "(desktop scaffold: ui_* opcodes are no-ops, no real window; ballistic self-check done, exiting)"
 ELSE
     runGame()
 END IF

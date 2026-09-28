@@ -66,6 +66,8 @@ NATIVE SUB ui_piece_init()
 END SUB
 NATIVE FUNCTION ui_piece_cell(pid AS INTEGER, rot AS INTEGER, which AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 
 ' ── 常量与全局变量 ─────────────────────────────────────
 ' ⚠ **DIM 必须排在赋值之前**：BASIC 里 `BW = 10` 写在 `DIM BW AS INTEGER` 之前，
@@ -105,6 +107,26 @@ DIM hit AS INTEGER
 DIM cx AS INTEGER
 DIM cy AS INTEGER
 DIM packed AS INTEGER
+
+' ── 界面语言（0 = 中文 / 1 = 英文，跟随系统语言）──────────────────────
+' `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+' 之后每帧绘制只用变量（别在绘制路径上再调它）。
+' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+'   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+DIM LANG AS INTEGER
+DIM sTitle AS STRING
+DIM sHead AS STRING
+DIM sOver AS STRING
+DIM sRestart AS STRING
+
+SUB initLang()
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sTitle = "俄罗斯方块" ELSE sTitle = "Tetris"
+    IF LANG = 0 THEN sHead = "俄罗斯方块(BASIC)" ELSE sHead = "Tetris (BASIC)"
+    IF LANG = 0 THEN sOver = "游戏结束" ELSE sOver = "Game Over"
+    IF LANG = 0 THEN sRestart = "点任意处重开" ELSE sRestart = "Tap to restart"
+END SUB
 
 BW = 10
 BH = 20
@@ -282,21 +304,22 @@ SUB draw_board()
     WEND
 
     ui_set_font(15, 1, C_TEXT, 0)
-    ui_text_cur(ox, 12, "俄罗斯方块(BASIC)")
+    ui_text_cur(ox, 12, sHead)
     ui_set_font(14, 0, C_SCORE, 2)
     ui_text_cur(ox + bwid, 12, STR$(score))
 
     IF over = 1 THEN
         ui_set_font(20, 3, -1146901, 0)
-        ui_text_cur(ox + bwid \ 2, oy + bhei \ 2, "游戏结束")
+        ui_text_cur(ox + bwid \ 2, oy + bhei \ 2, sOver)
         ui_set_font(14, 0, C_TEXT, 0)
-        ui_text_cur(ox + bwid \ 2, oy + bhei \ 2 + 28, "点任意处重开")
+        ui_text_cur(ox + bwid \ 2, oy + bhei \ 2 + 28, sRestart)
     END IF
 
     ui_present()
 END SUB
 
 ' ── 主程序 ────────────────────────────────────────────
+initLang
 ui_piece_init()
 board_clear()
 
@@ -307,7 +330,7 @@ rot = 0
 px = 3
 py = 0
 
-ui_win_open("俄罗斯方块", ui_scr_w(), ui_scr_h())
+ui_win_open(sTitle, ui_scr_w(), ui_scr_h())
 draw_board()
 
 WHILE ui_win_closed() = 0

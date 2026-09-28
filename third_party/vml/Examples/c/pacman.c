@@ -98,6 +98,7 @@ int MAZE[MW * MH] = {
 
 /* ── 状态 ───────────────────────────────────────────────── */
 
+int g_lang;                  /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 int W, H, TILE, OX, OY;
 int frame, state;           /* 0=玩 1=暂停 2=死 3=过关 */
 int score, best, level, lives;
@@ -540,14 +541,15 @@ void draw_hud(void) {
     ui_set_font(13, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_LEFT);
     ui_text_cur(8, 7, num_str(score));
     ui_set_font(10, 0, C_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(8, 20, "分数");
+    ui_text_cur(8, 20, g_lang == 0 ? "分数" : "Score");
 
     ui_set_font(11, 0, C_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(W / 2 - 26, 12, "第");
+    /* "Level"（≈28px）比"第"（11px）宽，但两边（关卡数字 / "剩·Left"）都还留着空隙 */
+    ui_text_cur(W / 2 - 26, 12, g_lang == 0 ? "第" : "Level");
     ui_set_font(13, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_CENTER);
     ui_text_cur(W / 2, 12, num_str(level));
     ui_set_font(11, 0, C_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(W / 2 + 34, 12, "剩");
+    ui_text_cur(W / 2 + 34, 12, g_lang == 0 ? "剩" : "Left");
     ui_set_font(13, VML_FONT_BOLD, C_POW, VML_ANCHOR_CENTER);
     ui_text_cur(W / 2 + 62, 12, num_str(dotsLeft));
 
@@ -560,33 +562,33 @@ void draw_hud(void) {
 
     if (fright > 0) {
         ui_set_font(12, VML_FONT_BOLD, C_GHOST1, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, 42, "鬼可吃！");
+        ui_text_cur(W / 2, 42, g_lang == 0 ? "鬼可吃！" : "Eat the ghosts!");
     }
 
     if (state == 1) {
         ui_rect(0, H / 2 - 36, W, 72, 0xCC000000, 1, 0, 0);
         ui_set_font(22, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 24, "暂停");
+        ui_text_cur(W / 2, H / 2 - 24, g_lang == 0 ? "暂停" : "Paused");
         ui_set_font(12, 0, C_DIM, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 + 6, "SELECT 继续");
+        ui_text_cur(W / 2, H / 2 + 6, g_lang == 0 ? "SELECT 继续" : "SELECT to resume");
     }
     if (state == 2) {
         ui_rect(0, H / 2 - 56, W, 112, 0xCC000000, 1, 0, 0);
         ui_set_font(22, VML_FONT_BOLD, C_WARN, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 38, "被抓住了");
+        ui_text_cur(W / 2, H / 2 - 38, g_lang == 0 ? "被抓住了" : "Caught!");
         ui_set_font(13, 0, C_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 4, "分数");
+        ui_text_cur(W / 2, H / 2 - 4, g_lang == 0 ? "分数" : "Score");
         ui_set_font(18, VML_FONT_BOLD, C_PAC, VML_ANCHOR_CENTER);
         ui_text_cur(W / 2, H / 2 + 20, num_str(score));
         ui_set_font(12, 0, C_DIM, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 + 46, "START 重新开始");
+        ui_text_cur(W / 2, H / 2 + 46, g_lang == 0 ? "START 重新开始" : "START to restart");
     }
     if (state == 3) {
         ui_rect(0, H / 2 - 44, W, 88, 0xE6000000, 1, 0, 0);
         ui_set_font(22, VML_FONT_BOLD, C_POW, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 26, "过关！");
+        ui_text_cur(W / 2, H / 2 - 26, g_lang == 0 ? "过关！" : "Level clear!");
         ui_set_font(13, 0, C_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 + 4, "START 进入下一关");
+        ui_text_cur(W / 2, H / 2 + 4, g_lang == 0 ? "START 进入下一关" : "START for next level");
     }
 }
 
@@ -652,7 +654,8 @@ int main(void) {
     if (sw <= 0) sw = 360;
     if (sh <= 0) sh = 620;
 
-    ui_win_open("吃豆人", sw, sh);
+    g_lang = ui_get_language();
+    ui_win_open(g_lang == 0 ? "吃豆人" : "Pac-Man", sw, sh);
     ui_keep_on(1);
 
     W = sw;
@@ -674,11 +677,10 @@ int main(void) {
 
     ui_timer_set(TICK, 0);
 
-    ui_dlg_msg("吃豆人",
-               "用屏幕下方的方向键控制：按哪个方向就走哪个方向，到岔口自动转。"
-               "吃光所有豆子过关；吃到大豆子（金圈）后可以反过来吃鬼。"
-               "START 重开、SELECT 暂停。",
-               VML_DLG_INFO);
+    /* ⚠ 中文这条整句写在同一行里：跨行拼接时后续几段会落在没有 `g_lang == 0` 的行上
+       （语言审计脚本按行认），而相邻字面量拼接本来就只是 C 的语法糖。 */
+    if (g_lang == 0) ui_dlg_msg("吃豆人", "用屏幕下方的方向键控制：按哪个方向就走哪个方向，到岔口自动转。吃光所有豆子过关；吃到大豆子（金圈）后可以反过来吃鬼。START 重开、SELECT 暂停。", VML_DLG_INFO);
+    else             ui_dlg_msg("Pac-Man", "Use the on-screen arrows: press a direction and it turns at the next opening. Clear all dots to advance; after a power pellet the ghosts are edible. START restart, SELECT pause.", VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
         t = ui_wait(msg, 0);

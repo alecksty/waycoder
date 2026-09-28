@@ -6,14 +6,18 @@
  * 出处：自写，仿 80/90 年代随书附赠的「计算器练习」风格。
  */
 #include <stdio.h>
+#include <waycoder_ui.h>
 
 int main(void)
 {
     double a, b;
     char   op;
+    int    lang = ui_get_language();   /* 开局查一次，之后按它分支 */
 
-    printf("简单计算器（老式）\n");
-    printf("输入形如  3 + 4 ，每行一个算式；Ctrl+D / Ctrl+Z 结束\n");
+    if (lang == 0) printf("简单计算器（老式）\n");
+    else           printf("Simple Calculator (classic)\n");
+    if (lang == 0) printf("输入形如  3 + 4 ，每行一个算式；Ctrl+D / Ctrl+Z 结束\n");
+    else           printf("Type like  3 + 4 , one per line; Ctrl+D / Ctrl+Z to quit\n");
 
     /* ⚠ 判据是 `scanf` 的**返回值**：老程序都这么写，而不用 feof()。
      *   这条在 VML 上是真兼容面 —— feof() 至今没有实现。 */
@@ -33,9 +37,11 @@ int main(void)
         }
 
         if (ok) printf("= %.6g\n", r);
-        else    printf("算不了：除数为 0 或运算符不认识（%c）\n", op);
+        else if (lang == 0) printf("算不了：除数为 0 或运算符不认识（%c）\n", op);
+        else                printf("Cannot compute: divide by 0 or bad operator (%c)\n", op);
     }
 
-    printf("再见。\n");
+    if (lang == 0) printf("再见。\n");
+    else           printf("Bye.\n");
     return 0;
 }

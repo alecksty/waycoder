@@ -73,6 +73,7 @@
 /* ── 全局状态（C 前端的全局变量与全局 int 数组都正常）──────── */
 
 int W, H, GFX;              /* 画布尺寸、底部地面高度 */
+int g_lang;                 /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 int shipX, shipY;           /* 飞机（浮点用千分之一定点存）*/
 int shipVX;                 /* 横移速度，决定倾斜 */
 int tgtX, tgtY;             /* 手指位置 */
@@ -289,7 +290,8 @@ void step(void)
                后者的选项串分隔约定没核实过，赌错就是"选项糊成一行"。
                点掉之后直接开新局：这游戏本来就没有"暂停"以外的状态。 */
             itoa_(g_sbuf1, score);
-            ui_dlg_msg("战果", g_sbuf1, 0);
+            if (g_lang == 0) ui_dlg_msg("战果", g_sbuf1, 0);
+            else             ui_dlg_msg("Result", g_sbuf1, 0);
             new_game();
         }
     }
@@ -431,6 +433,7 @@ void step(void)
 void draw(void)
 {
     int i, a, r, col;
+    int nx;      /* 「得分 / Score」后面那个数从哪开始画（英文更宽，得往后挪）*/
 
     /* ⚠ 先清场。所有绘制都往宿主**同一张图元表**里追加，只有 ui_clear 会清空它 ——
        渐变铺满全屏**看着**像清了底，其实是"盖上去"。漏了这一句，图元表每帧涨约 200 条、
@@ -500,10 +503,13 @@ void draw(void)
     /* ── HUD ── */
     ui_rect(0, 0, W, 44, HUD_BG, 1, 0, 0);
     ui_set_font(20, VML_FONT_BOLD, HUD_FG, VML_ANCHOR_LEFT);
-    ui_text_cur(14, 12, "得分");
+    /* ⚠ "Score" 比"得分"宽（5×半角 ≈ 50px，而"得分" = 2×全角 = 40px）——
+       数字的起点必须跟着挪，否则英文标签会压到分数上。 */
+    if (g_lang == 0) { ui_text_cur(14, 12, "得分"); nx = 58; }
+    else             { ui_text_cur(14, 12, "Score"); nx = 72; }
     itoa_(g_sbuf1, score);
     ui_set_font(24, VML_FONT_BOLD, EX_CORE, VML_ANCHOR_LEFT);
-    ui_text_cur(58, 10, g_sbuf1);
+    ui_text_cur(nx, 10, g_sbuf1);
 
     /* 命：三颗小心 */
     for (i = 0; i < 3; i++) {
@@ -515,14 +521,14 @@ void draw(void)
     /* 最高分 */
     itoa_(g_sbuf2, best);
     ui_set_font(13, 0, HUD_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(14, 46, "最高");
+    ui_text_cur(14, 46, g_lang == 0 ? "最高" : "Best");
     ui_text_cur(48, 46, g_sbuf2);
 
     /* 结束横幅 */
     if (overT > 0) {
         ui_rect(0, H / 2 - 40, W, 80, 0xAA0A1626, 1, 0, 0);
         ui_set_font(26, VML_FONT_BOLD, EX_FIRE, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 26, "坠落了");
+        ui_text_cur(W / 2, H / 2 - 26, g_lang == 0 ? "坠落了" : "Crashed");
     }
 }
 
@@ -555,7 +561,8 @@ int main(void)
     tick = 0;
 
     /* 触摸游戏：不要手柄区（多点地方飞），锁竖屏 */
-    ui_win_open_ex("长空", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    g_lang = ui_get_language();
+    ui_win_open_ex(g_lang == 0 ? "长空" : "Plane", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
     /* ui_store_get 是 (key, buf, cap)：**把字符串写进你给的缓冲区**、返回长度

@@ -96,6 +96,7 @@ int cos_i(int a) { return SIN[(a + 8) & 31]; }   /* cos = sin 移 1/4 圈（8/32
 /* ── 状态 ───────────────────────────────────────────────── */
 
 int W, H;                       /* 画布宽高 */
+int g_lang;                     /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 int frame;
 int state;                      /* 0=玩 1=暂停 2=结束 */
 int score, best, wave, lives, combo, comboTimer;
@@ -588,15 +589,17 @@ void draw_hud(void) {
     ui_set_font(13, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_LEFT);
     ui_text_cur(10, 9, num_str(score));
     ui_set_font(10, 0, C_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(10, 23, "分数");
+    ui_text_cur(10, 23, g_lang == 0 ? "分数" : "Score");
 
     ui_set_font(12, VML_FONT_BOLD, C_GOLD, VML_ANCHOR_CENTER);
-    ui_text_cur(W / 2, 9, "第");
+    /* ⚠ "第" 是 1 个全角（12px 宽，居中后占 ±6），而 "Level" 是 30px 宽（±15）。
+       数字的起点 W/2+22 对两者都还留着空隙，不必挪。 */
+    ui_text_cur(W / 2, 9, g_lang == 0 ? "第" : "Level");
     ui_set_font(12, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_CENTER);
     ui_text_cur(W / 2 + 22, 9, num_str(wave));
     if (combo > 1) {
         ui_set_font(10, VML_FONT_BOLD, C_GOLD, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, 24, "连击");
+        ui_text_cur(W / 2, 24, g_lang == 0 ? "连击" : "Combo");
     }
 
     /* 命：画成小飞船图标，比数字直观 */
@@ -609,20 +612,20 @@ void draw_hud(void) {
     if (state == 1) {
         ui_rect(0, H / 2 - 34, W, 68, 0xCC000000, 1, 0, 0);
         ui_set_font(22, VML_FONT_BOLD, C_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 22, "暂停");
+        ui_text_cur(W / 2, H / 2 - 22, g_lang == 0 ? "暂停" : "Paused");
         ui_set_font(12, 0, C_DIM, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 + 8, "按 START 继续");
+        ui_text_cur(W / 2, H / 2 + 8, g_lang == 0 ? "按 START 继续" : "Press START to resume");
     }
     if (state == 2) {
         ui_rect(0, H / 2 - 60, W, 120, 0xCC000000, 1, 0, 0);
         ui_set_font(24, VML_FONT_BOLD, C_WARN, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 40, "舰体损毁");
+        ui_text_cur(W / 2, H / 2 - 40, g_lang == 0 ? "舰体损毁" : "Hull destroyed");
         ui_set_font(14, 0, C_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 - 4, "最终分数");
+        ui_text_cur(W / 2, H / 2 - 4, g_lang == 0 ? "最终分数" : "Final score");
         ui_set_font(20, VML_FONT_BOLD, C_GOLD, VML_ANCHOR_CENTER);
         ui_text_cur(W / 2, H / 2 + 22, num_str(score));
         ui_set_font(12, 0, C_DIM, VML_ANCHOR_CENTER);
-        ui_text_cur(W / 2, H / 2 + 50, "按 START 重新出击");
+        ui_text_cur(W / 2, H / 2 + 50, g_lang == 0 ? "按 START 重新出击" : "Press START to fly again");
     }
 }
 
@@ -674,7 +677,8 @@ int main(void) {
     if (sw <= 0) sw = 360;
     if (sh <= 0) sh = 620;
 
-    ui_win_open("星陨", sw, sh);
+    g_lang = ui_get_language();
+    ui_win_open(g_lang == 0 ? "星陨" : "Starfall", sw, sh);
     ui_keep_on(1);
 
     W = sw;
@@ -693,10 +697,10 @@ int main(void) {
 
     ui_timer_set(TICK, 0);
 
-    ui_dlg_msg("星陨",
-               "单指按住屏幕任意处拖动，飞船会跟过来；自动开火。"
-               "打掉敌机攒连击，别被撞到。START 重开、SELECT 暂停。",
-               VML_DLG_INFO);
+    /* ⚠ 中文这条**整句写在同一行**里：跨行的话，第二段的字面量会落在没有 `g_lang == 0`
+       的那一行上（语言审计脚本按行认），而且相邻字面量拼接本来就只是 C 的语法糖。 */
+    if (g_lang == 0) ui_dlg_msg("星陨", "单指按住屏幕任意处拖动，飞船会跟过来；自动开火。打掉敌机攒连击，别被撞到。START 重开、SELECT 暂停。", VML_DLG_INFO);
+    else             ui_dlg_msg("Starfall", "Drag anywhere to move; the ship fires by itself. Kill foes to build combo, don't get hit. START = restart, SELECT = pause.", VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
         t = ui_wait(msg, 0);

@@ -37,6 +37,13 @@ P_J = 0x00E8
 BOARD_AT = 0
 MASK_AT = 200
 
+# 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+# ⚠ 别在每帧里调 —— 那是一次 syscall。
+# ⚠ **不能放模块级全局**（`LANG = ui_get_language()` 在函数里读出来恒 0 —— 本前端的
+#   模块级标量在函数体内不可见，实测；本文件本来就为此把 score/over 一路当参数传）。
+#   所以走**参数**：main 里问一次，`draw(...)` 多收一个 `lang`。
+#   界面文字一律写成 `"中文" if lang == 0 else "English"`（本前端支持三元，见语言规范 §5.9）。
+
 # ── 共享库网格上的棋盘读写 ──────────────────────────────
 def bget(x, y):
     if x < 0 or x >= W or y < 0 or y >= H:
@@ -132,7 +139,7 @@ def clear_lines():
     return n
 
 # ── 绘制 ──────────────────────────────────────────────
-def draw(px, py, rot, pid, score, over):
+def draw(px, py, rot, pid, score, over, lang):
     sw = ui_scr_w()
     sh = ui_scr_h()
     if sw <= 0:
@@ -188,20 +195,24 @@ def draw(px, py, rot, pid, score, over):
 
     # 状态行
     ui_set_font(15, 1, C_TEXT, 0)
-    ui_text_cur(ox, 12, "俄罗斯方块")
+    ui_text_cur(ox, 12, "俄罗斯方块" if lang == 0 else "Tetris")
     ui_set_font(14, 0, C_SCORE, 2)
     ui_text_cur(ox + bw, 12, str(score))
 
     if over == 1:
         ui_set_font(20, 3, 0xFFFF6B6B, 0)
-        ui_text_cur(ox + bw / 2, oy + bh / 2, "游戏结束")
+        ui_text_cur(ox + bw / 2, oy + bh / 2, "游戏结束" if lang == 0 else "Game Over")
         ui_set_font(14, 0, C_TEXT, 0)
-        ui_text_cur(ox + bw / 2, oy + bh / 2 + 28, "点任意处重开")
+        ui_text_cur(ox + bw / 2, oy + bh / 2 + 28, "点任意处重开" if lang == 0 else "Tap anywhere to restart")
 
     ui_present()
 
 # ── 主程序 ────────────────────────────────────────────
 def main():
+    # 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+    # ⚠ 别在每帧里调 —— 那是一次 syscall；这里问一次，`draw` 收参数。
+    lang = ui_get_language()
+
     # 把 7 种方块的基准掩码放进共享库网格（前端列表不可靠，数据也放这边）
     ui_gset(MASK_AT + 0, P_O)
     ui_gset(MASK_AT + 1, P_I)
@@ -211,7 +222,7 @@ def main():
     ui_gset(MASK_AT + 5, P_L)
     ui_gset(MASK_AT + 6, P_J)
 
-    ui_win_open("俄罗斯方块", ui_scr_w(), ui_scr_h())
+    ui_win_open("俄罗斯方块" if lang == 0 else "Tetris", ui_scr_w(), ui_scr_h())
 
     board_clear()
 
@@ -222,9 +233,9 @@ def main():
     px = 3
     py = 0
 
-    ui_dlg_msg("俄罗斯方块", "点左边左移、右边右移、中间旋转；点最下面直落。", 0)
+    ui_dlg_msg("俄罗斯方块" if lang == 0 else "Tetris", "点左边左移、右边右移、中间旋转；点最下面直落。" if lang == 0 else "Tap left/right to move, center to rotate, bottom to drop.", 0)
 
-    draw(px, py, rot, pid, score, over)
+    draw(px, py, rot, pid, score, over, lang)
 
     while ui_win_closed() == 0:
         t = ui_wait_msg(TICK)
@@ -285,7 +296,7 @@ def main():
                     if collide(pid, rot, px, py) != 0:
                         over = 1
 
-        draw(px, py, rot, pid, score, over)
+        draw(px, py, rot, pid, score, over, lang)
 
     ui_win_close()
 

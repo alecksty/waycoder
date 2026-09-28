@@ -89,6 +89,7 @@ class Snake
     static int alive;                // 1=在玩 0=结束
     static int paused;
     static int stepMs;               // 每步毫秒（越吃越快）
+    static int lang;                 // 界面语言：0=中文 1=英文（开局问一次宿主，见 Main）
 
     // ── 版面（开窗时算一次，画与命中判定共用）──
     static int sw;
@@ -186,11 +187,11 @@ class Snake
             i = i + 1;
         }
 
-        ui_text(8, hudY, "得分", TEXT_C, 13, ANCHOR_LEFT);
+        ui_text(8, hudY, lang == 0 ? "得分" : "Score", TEXT_C, 13, ANCHOR_LEFT);
         ui_text(56, hudY, numToStr(score), WHITE, 15, ANCHOR_LEFT);
-        ui_text(sw / 2, hudY, "最高", TEXT_C, 13, ANCHOR_CENTER);
+        ui_text(sw / 2, hudY, lang == 0 ? "最高" : "Best", TEXT_C, 13, ANCHOR_CENTER);
         ui_text(sw / 2 + 44, hudY, numToStr(best), WHITE, 15, ANCHOR_LEFT);
-        if (paused != 0) ui_text(sw / 2, sh / 2, "暂停（SELECT 继续）", FOOD_C, 16, ANCHOR_CENTER);
+        if (paused != 0) ui_text(sw / 2, sh / 2, lang == 0 ? "暂停（SELECT 继续）" : "Paused (SELECT)", FOOD_C, 16, ANCHOR_CENTER);
 
         ui_present();
     }
@@ -275,7 +276,7 @@ class Snake
         // 音效：单音 ui_beep；**结局音取最低音**（吃到 1047 / 撞到 131，差得开）
         ui_beep(131, 320);
         draw();                                    // 先把终局画面画出来
-        if (ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return; }
+        if (ui_dlg_msg(lang == 0 ? "贪吃蛇" : "Snake", lang == 0 ? "撞到了，这一局结束。\n再来一局？（选「否」退出）" : "You crashed. Round over.\nPlay again? (choose \"No\" to quit)", DLG_INFO) != 0) { ui_win_close(); return; }
         reset();
     }
 
@@ -293,7 +294,10 @@ class Snake
         sh = ui_scr_h();
         if (sw <= 0) sw = 360;
         if (sh <= 0) sh = 620;
-        ui_win_open("贪吃蛇", sw, sh);
+        // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+        // ⚠ 别在每帧里调 —— 那是一次 syscall。
+        lang = ui_get_language();
+        ui_win_open(lang == 0 ? "贪吃蛇" : "Snake", sw, sh);
         layout();
         ui_keep_on(1);
         reset();

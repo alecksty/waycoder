@@ -1,0 +1,135 @@
+ 522 clear   color=0xFF14100C
+ 525 rect    (43,76) 395x438 0xFFE9C88F fill=1 lw=0 r=6
+ 524 line    (68,101)-(412,101) 0xFF6B4A22 w=1
+ 524 line    (68,144)-(412,144) 0xFF6B4A22 w=1
+ 524 line    (68,187)-(412,187) 0xFF6B4A22 w=1
+ 524 line    (68,230)-(412,230) 0xFF6B4A22 w=1
+ 524 line    (68,273)-(412,273) 0xFF6B4A22 w=1
+ 524 line    (68,316)-(412,316) 0xFF6B4A22 w=1
+ 524 line    (68,359)-(412,359) 0xFF6B4A22 w=1
+ 524 line    (68,402)-(412,402) 0xFF6B4A22 w=1
+ 524 line    (68,445)-(412,445) 0xFF6B4A22 w=1
+ 524 line    (68,488)-(412,488) 0xFF6B4A22 w=1
+ 524 line    (68,101)-(68,488) 0xFF6B4A22 w=1
+ 524 line    (111,101)-(111,273) 0xFF6B4A22 w=1
+ 524 line    (111,316)-(111,488) 0xFF6B4A22 w=1
+ 524 line    (154,101)-(154,273) 0xFF6B4A22 w=1
+ 524 line    (154,316)-(154,488) 0xFF6B4A22 w=1
+ 524 line    (197,101)-(197,273) 0xFF6B4A22 w=1
+ 524 line    (197,316)-(197,488) 0xFF6B4A22 w=1
+ 524 line    (240,101)-(240,273) 0xFF6B4A22 w=1
+ 524 line    (240,316)-(240,488) 0xFF6B4A22 w=1
+ 524 line    (283,101)-(283,273) 0xFF6B4A22 w=1
+ 524 line    (283,316)-(283,488) 0xFF6B4A22 w=1
+ 524 line    (326,101)-(326,273) 0xFF6B4A22 w=1
+ 524 line    (326,316)-(326,488) 0xFF6B4A22 w=1
+ 524 line    (369,101)-(369,273) 0xFF6B4A22 w=1
+ 524 line    (369,316)-(369,488) 0xFF6B4A22 w=1
+ 524 line    (412,101)-(412,488) 0xFF6B4A22 w=1
+ 524 line    (197,101)-(283,187) 0xFF6B4A22 w=1
+ 524 line    (283,101)-(197,187) 0xFF6B4A22 w=1
+ 524 line    (197,402)-(283,488) 0xFF6B4A22 w=1
+ 524 line    (283,402)-(197,488) 0xFF6B4A22 w=1
+ 581 textex  (154,294) str="楚河" 0xFF6B4A22 size=17 anchor=1 valign=1 wrap=0
+ 581 textex  (326,294) str="汉界" 0xFF6B4A22 size=17 anchor=1 valign=1 wrap=0
+ 526 circle  (68,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (68,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (68,101) str="车" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (111,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (111,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (111,101) str="马" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (154,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (154,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (154,101) str="象" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (197,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (197,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (197,101) str="士" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (240,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (240,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (240,101) str="将" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (283,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (283,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (283,101) str="士" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (326,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (326,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (326,101) str="象" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (369,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (369,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (369,101) str="马" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (412,101) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (412,101) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (412,101) str="车" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (111,187) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (111,187) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (111,187) str="炮" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (369,187) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (369,187) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (369,187) str="炮" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (68,230) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (68,230) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (68,230) str="卒" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (154,230) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (154,230) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (154,230) str="卒" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (240,230) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (240,230) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (240,230) str="卒" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (326,230) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (326,230) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (326,230) str="卒" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (412,230) r=17 0xFF14100C fill=0 lw=2
+ 526 circle  (412,230) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (412,230) str="卒" 0xFF14100C size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (68,359) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (68,359) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (68,359) str="兵" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (154,359) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (154,359) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (154,359) str="兵" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (240,359) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (240,359) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (240,359) str="兵" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (326,359) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (326,359) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (326,359) str="兵" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (412,359) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (412,359) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (412,359) str="兵" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (111,402) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (111,402) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (111,402) str="炮" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (369,402) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (369,402) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (369,402) str="炮" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (68,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (68,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (68,488) str="车" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (111,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (111,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (111,488) str="马" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (154,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (154,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (154,488) str="相" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (197,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (197,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (197,488) str="仕" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (240,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (240,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (240,488) str="帅" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (283,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (283,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (283,488) str="仕" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (326,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (326,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (326,488) str="相" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (369,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (369,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (369,488) str="马" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 526 circle  (412,488) r=17 0xFFB3261E fill=0 lw=2
+ 526 circle  (412,488) r=15 0xFFF8EEDC fill=1 lw=0
+ 581 textex  (412,488) str="车" 0xFFB3261E size=25 anchor=1 valign=1 wrap=1
+ 581 textex  (68,6) str="你执红先行，点自己的子再点落点" 0xFFEDEDF2 size=15 anchor=0 valign=3 wrap=1
+ 525 rect    (74,590) 160x40 0xFF2A2A33 fill=1 lw=0 r=8
+ 581 textex  (154,610) str="重开" 0xFFEDEDF2 size=16 anchor=1 valign=1 wrap=0
+ 525 rect    (246,590) 160x40 0xFF2A2A33 fill=1 lw=0 r=8
+ 581 textex  (326,610) str="悔棋" 0xFFEDEDF2 size=16 anchor=1 valign=1 wrap=0

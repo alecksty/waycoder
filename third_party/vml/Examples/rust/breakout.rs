@@ -38,7 +38,19 @@ fn main() {
     let mut h = ui_scr_h();
     if w <= 0 { w = 360; }
     if h <= 0 { h = 620; }
-    ui_win_open("打砖块", w, h);
+
+    // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+    // ⚠ 别在每帧里调 —— 那是一次 syscall。`if` 表达式（本前端支持，见语言规范 §条件语句）
+    //   在这里比 `let mut` + `if` 语句短，且分支文本与条件写在同一行。
+    let lang = ui_get_language();
+    let t_title = if lang == 0 { "打砖块" } else { "Breakout" };
+    let t_score = if lang == 0 { "得分" } else { "Score" };
+    let t_left = if lang == 0 { "余砖" } else { "Bricks left" };
+    let t_restart = if lang == 0 { "按回车重开" } else { "Press Enter to restart" };
+    let t_cleared = if lang == 0 { "全清了！这一局结束。\n再来一局？（选「否」退出）" } else { "Cleared! Round over.\nPlay again? (choose \"No\" to quit)" };
+    let t_fell = if lang == 0 { "球落底了，这一局结束。\n再来一局？（选「否」退出）" } else { "Ball fell. Round over.\nPlay again? (choose \"No\" to quit)" };
+
+    ui_win_open(t_title, w, h);
     ui_keep_on(1);
 
     let bw = (w - 16) / 6;
@@ -58,9 +70,9 @@ fn main() {
 
         // ── draw ──
         ui_clear(-15724520);
-        ui_text(8, 8, "得分", -6643536, 13, 0);
+        ui_text(8, 8, t_score, -6643536, 13, 0);
         ui_rect(58, 11, score, 10, -11409298, 1, 0, 0);
-        ui_text(w / 2, 8, "余砖", -6643536, 13, 1);
+        ui_text(w / 2, 8, t_left, -6643536, 13, 1);
         ui_rect(w / 2 + 46, 11, left * 4, 10, -63488, 1, 0, 0);
 
         let mut i = 0;
@@ -80,7 +92,7 @@ fn main() {
         ui_rect(pad, h - 40, 90, 12, -63488, 1, 0, 6);
         ui_circle(bx, by, 8, -131246, 1, 0);
         if alive == 0 {
-            ui_text(w / 2, h / 2, "按回车重开", -131246, 16, 1);
+            ui_text(w / 2, h / 2, t_restart, -131246, 16, 1);
         }
         ui_present();
 
@@ -140,7 +152,7 @@ fn main() {
                     // 过关（赢方）：**最高音**、最长
                     ui_beep(1047, 320);
                     ui_present();
-                    if (ui_dlg_msg("打砖块", "全清了！这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
+                    if (ui_dlg_msg(t_title, t_cleared, 0)) != 0 { ui_win_close(); break; }
                     i = 0;
                     while i < 24 { bricks[i] = 1; i = i + 1; }
                     left = 24;
@@ -158,7 +170,7 @@ fn main() {
                     // 死（输方）：「最低音」、最长 —— 与过关那条 1047 正好是两端
                     ui_beep(131, 320);
                     ui_present();
-                    if (ui_dlg_msg("打砖块", "球落底了，这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
+                    if (ui_dlg_msg(t_title, t_fell, 0)) != 0 { ui_win_close(); break; }
                     i = 0;
                     while i < 24 { bricks[i] = 1; i = i + 1; }
                     left = 24;

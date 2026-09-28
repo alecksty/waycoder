@@ -42,6 +42,13 @@ program sokoban
   integer :: ni
   integer :: over
   integer :: goals
+  integer :: lang
+
+  ! 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+  ! ⚠ 别在每帧里调 —— 那是一次 syscall。
+  ! ⚠ 本前端**没有三元/merge**，界面文字只能靠单行 `if` 二选一
+  !   （sokoban 本来就在用这个写法，见下面的 `if (key == 37) nc = pc - 1`）。
+  lang = ui_get_language()
 
   w = ui_scr_w()
   h = ui_scr_h()
@@ -51,7 +58,8 @@ program sokoban
   if (h <= 0) then
     h = 620
   end if
-  k = ui_win_open('推箱子', w, h)
+  if (lang == 0) k = ui_win_open('推箱子', w, h)
+  if (lang /= 0) k = ui_win_open('Sokoban', w, h)
 
   cell = (w - 40) / 8
   ! ⚠ 本前端在 `if` 条件里解析不了「紧跟括号的除法」（`Unexpected token: Div(/)`）⇒ 先算进变量
@@ -142,9 +150,11 @@ program sokoban
     end do
 
     if (done == 0) then
-      k = ui_text(8, 8, '推箱子：把两个箱子推到空心格', -6643536, 13, 0)
+      if (lang == 0) k = ui_text(8, 8, '推箱子：把两个箱子推到空心格', -6643536, 13, 0)
+      if (lang /= 0) k = ui_text(8, 8, 'Push boxes onto the hollow targets', -6643536, 13, 0)
     else
-      k = ui_text(8, 8, '过关！回车再来一次', -131246, 16, 0)
+      if (lang == 0) k = ui_text(8, 8, '过关！回车再来一次', -131246, 16, 0)
+      if (lang /= 0) k = ui_text(8, 8, 'Cleared! Press Enter to restart', -131246, 16, 0)
     end if
     k = ui_present()
 

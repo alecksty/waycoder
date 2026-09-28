@@ -47,6 +47,8 @@ NATIVE FUNCTION ui_scr_h() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_win_open_ex(t AS STRING, w AS INTEGER, h AS INTEGER, rot AS INTEGER, pad AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 NATIVE FUNCTION ui_win_closed() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_win_close()
@@ -136,12 +138,14 @@ DIM amount AS INTEGER
 DIM stepSize AS INTEGER
 DIM over AS INTEGER
 DIM quit AS INTEGER
+DIM LANG AS INTEGER           ' 界面语言：0 中文 / 1 英文（开局查一次）
 DIM msg1 AS STRING
 DIM msg2 AS STRING
 DIM msg3 AS STRING
 DIM msg4 AS STRING
 DIM prompt AS STRING
 DIM verdict AS STRING
+DIM lb AS STRING              ' 按语言取值的临时串（画文字用；别在调用的实参里写 IF）
 
 ' 几何
 DIM ctlY AS INTEGER
@@ -228,9 +232,9 @@ SUB newGame()
     over = 0
     quit = 0
     verdict = ""
-    msg1 = "你统治苏美尔 10 年。"
-    msg2 = "买地、喂饱百姓、播种。"
-    msg3 = "饿死超过 45% 就会被推翻。"
+    IF LANG = 0 THEN msg1 = "你统治苏美尔 10 年。" ELSE msg1 = "You rule Sumeria for 10 years."
+    IF LANG = 0 THEN msg2 = "买地、喂饱百姓、播种。" ELSE msg2 = "Buy land, feed the people, sow seed."
+    IF LANG = 0 THEN msg3 = "饿死超过 45% 就会被推翻。" ELSE msg3 = "Starve over 45% and you are overthrown."
     msg4 = ""
     beginYear()
 END SUB
@@ -240,7 +244,7 @@ SUB beginYear()
     price = PRICE_MIN + ui_rand(PRICE_SPAN)
     phase = PH_BUY
     amount = 0
-    msg4 = "地价 " + STR$(price) + " 蒲式耳/英亩"
+    IF LANG = 0 THEN msg4 = "地价 " + STR$(price) + " 蒲式耳/英亩" ELSE msg4 = "Land " + STR$(price) + " bushels/acre"
 END SUB
 
 ' 非负且不超过上限 —— 加减条要夹住
@@ -346,9 +350,9 @@ SUB endYear()
     ratio = starvePct(starved, people + starved)
     IF ratio > REVOLT_PCT THEN
         over = 2
-        verdict = "饿死 " + STR$(ratio) + "%，你被推翻了。"
-        msg1 = "第 " + STR$(year) + " 年，饿死 " + STR$(starved) + " 人。"
-        msg2 = "超过 " + STR$(REVOLT_PCT) + "%，暴民推翻了王座。"
+        IF LANG = 0 THEN verdict = "饿死 " + STR$(ratio) + "%，你被推翻了。" ELSE verdict = "Starved " + STR$(ratio) + "% - you were overthrown."
+        IF LANG = 0 THEN msg1 = "第 " + STR$(year) + " 年，饿死 " + STR$(starved) + " 人。" ELSE msg1 = "Year " + STR$(year) + ", starved " + STR$(starved) + "."
+        IF LANG = 0 THEN msg2 = "超过 " + STR$(REVOLT_PCT) + "%，暴民推翻了王座。" ELSE msg2 = "Over " + STR$(REVOLT_PCT) + "% - the mob toppled the throne."
         msg3 = ""
         msg4 = ""
         phase = PH_DONE
@@ -359,7 +363,7 @@ SUB endYear()
 
     IF people <= 0 THEN
         over = 2
-        verdict = "一个人都不剩了。"
+        IF LANG = 0 THEN verdict = "一个人都不剩了。" ELSE verdict = "Not a single person is left."
         phase = PH_DONE
         EXIT SUB
     END IF
@@ -367,9 +371,9 @@ SUB endYear()
     arrived = ui_rand(people / 4 + 1)
     people = people + arrived
 
-    msg1 = "第 " + STR$(year) + " 年：收成 " + STR$(harvest) + " 蒲式耳"
-    msg2 = "老鼠吃掉 " + STR$(rats) + "，饿死 " + STR$(starved) + " 人"
-    msg3 = "新迁入 " + STR$(arrived) + " 人"
+    IF LANG = 0 THEN msg1 = "第 " + STR$(year) + " 年：收成 " + STR$(harvest) + " 蒲式耳" ELSE msg1 = "Year " + STR$(year) + ": harvest " + STR$(harvest) + " bushels"
+    IF LANG = 0 THEN msg2 = "老鼠吃掉 " + STR$(rats) + "，饿死 " + STR$(starved) + " 人" ELSE msg2 = "Rats ate " + STR$(rats) + ", starved " + STR$(starved)
+    IF LANG = 0 THEN msg3 = "新迁入 " + STR$(arrived) + " 人" ELSE msg3 = "New arrivals " + STR$(arrived)
     msg4 = ""
 
     year = year + 1
@@ -378,12 +382,12 @@ SUB endYear()
         DIM per AS INTEGER
         per = rate(acres, people)
         IF per >= 10 THEN
-            verdict = "人均 " + STR$(per) + " 英亩 —— 盛世。"
+            IF LANG = 0 THEN verdict = "人均 " + STR$(per) + " 英亩 —— 盛世。" ELSE verdict = "Per capita " + STR$(per) + " acres - a golden age."
         ELSE
             IF per >= 7 THEN
-                verdict = "人均 " + STR$(per) + " 英亩 —— 尚可。"
+                IF LANG = 0 THEN verdict = "人均 " + STR$(per) + " 英亩 —— 尚可。" ELSE verdict = "Per capita " + STR$(per) + " acres - fair."
             ELSE
-                verdict = "人均 " + STR$(per) + " 英亩 —— 民不聊生。"
+                IF LANG = 0 THEN verdict = "人均 " + STR$(per) + " 英亩 —— 民不聊生。" ELSE verdict = "Per capita " + STR$(per) + " acres - the people suffer."
             END IF
         END IF
         phase = PH_DONE
@@ -396,15 +400,15 @@ END SUB
 SUB setPrompt()
     SELECT CASE phase
         CASE PH_BUY
-            prompt = "买地：还能买 " + STR$(grain / price) + " 英亩"
+            IF LANG = 0 THEN prompt = "买地：还能买 " + STR$(grain / price) + " 英亩" ELSE prompt = "Buy: up to " + STR$(grain / price) + " acres"
         CASE PH_SELL
-            prompt = "卖地：最多卖 " + STR$(acres) + " 英亩"
+            IF LANG = 0 THEN prompt = "卖地：最多卖 " + STR$(acres) + " 英亩" ELSE prompt = "Sell: up to " + STR$(acres) + " acres"
         CASE PH_FEED
-            prompt = "喂粮：需要 " + STR$(feedNeed(people)) + " 蒲式耳"
+            IF LANG = 0 THEN prompt = "喂粮：需要 " + STR$(feedNeed(people)) + " 蒲式耳" ELSE prompt = "Feed: need " + STR$(feedNeed(people)) + " bushels"
         CASE PH_PLANT
-            prompt = "播种：最多种 " + STR$(plantLimit(people, grain)) + " 英亩"
+            IF LANG = 0 THEN prompt = "播种：最多种 " + STR$(plantLimit(people, grain)) + " 英亩" ELSE prompt = "Sow: up to " + STR$(plantLimit(people, grain)) + " acres"
         CASE PH_DONE
-            prompt = "本局结束"
+            IF LANG = 0 THEN prompt = "本局结束" ELSE prompt = "Game Over"
         CASE ELSE
             prompt = ""
     END SELECT
@@ -431,10 +435,14 @@ SUB drawHud()
     ui_rect(0, 0, sw, HUDH, C_HUD, 1, 0, 0)
     DIM half AS INTEGER
     half = sw / 2
-    drawStat(16, 12, "第几年", year, C_ACCENT)
-    drawStat(half + 12, 12, "人口", people, C_TEXT)
-    drawStat(16, 60, "土地(英亩)", acres, C_GOLD)
-    drawStat(half + 12, 60, "粮食(蒲式耳)", grain, C_GOLD)
+    IF LANG = 0 THEN lb = "第几年" ELSE lb = "Year"
+    drawStat(16, 12, lb, year, C_ACCENT)
+    IF LANG = 0 THEN lb = "人口" ELSE lb = "People"
+    drawStat(half + 12, 12, lb, people, C_TEXT)
+    IF LANG = 0 THEN lb = "土地(英亩)" ELSE lb = "Land (acres)"
+    drawStat(16, 60, lb, acres, C_GOLD)
+    IF LANG = 0 THEN lb = "粮食(蒲式耳)" ELSE lb = "Grain (bu)"
+    drawStat(half + 12, 60, lb, grain, C_GOLD)
     ui_rect(0, HUDH - 2, sw, 2, C_LINE, 1, 0, 0)
 END SUB
 
@@ -466,7 +474,8 @@ SUB drawControls()
     IF phase = PH_DONE THEN
         ui_text(sw / 2, ctlY + 60, verdict, C_GOLD, 16, 1)
         ui_rect(24, okY, sw - 48, 52, C_FIRE, 1, 0, 12)
-        ui_text(sw / 2, okY + 14, "再来一局", &HFFFFF0EC, 18, 1)
+        IF LANG = 0 THEN lb = "再来一局" ELSE lb = "Play again"
+        ui_text(sw / 2, okY + 14, lb, &HFFFFF0EC, 18, 1)
         RETURN
     END IF
 
@@ -483,10 +492,12 @@ SUB drawControls()
     drawRoundButton(plusX, valY, 34, 1, 1)
 
     ui_text(stepX, valY - 22, STR$(amount), C_GOLD, 34, 1)
-    ui_text(stepX, valY + 22, "(每按一次 " + STR$(stepSize) + ")", C_DIM, 12, 1)
+    IF LANG = 0 THEN lb = "(每按一次 " + STR$(stepSize) + ")" ELSE lb = "(step " + STR$(stepSize) + " per tap)"
+    ui_text(stepX, valY + 22, lb, C_DIM, 12, 1)
 
     ui_rect(24, okY, sw - 48, 52, C_FIRE, 1, 0, 12)
-    ui_text(sw / 2, okY + 14, "确 定", &HFFFFF0EC, 18, 1)
+    IF LANG = 0 THEN lb = "确 定" ELSE lb = "OK"
+    ui_text(sw / 2, okY + 14, lb, &HFFFFF0EC, 18, 1)
 END SUB
 
 SUB drawScene()
@@ -633,14 +644,14 @@ END SUB
 '  这几条就是这个游戏全部的可玩性所在。
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
-    PRINT "── 汉谟拉比 · 规则自检 ──"
-    PRINT "  100 人一年要吃（应 2000）:"; feedNeed(100)
-    PRINT "  100 人 / 3000 粮 播种上限（应 1000，受人数限）:"; plantLimit(100, 3000)
-    PRINT "  100 人 / 500 粮 播种上限（应 500，受粮食限）:"; plantLimit(100, 500)
-    PRINT "  饿死 30 / 总 100 的比例（应 30）:"; starvePct(30, 100)
-    PRINT "  饿死 46 / 总 100 的比例（应 46，超过 45 那道线）:"; starvePct(46, 100)
-    PRINT "  人均 12 英亩（应 12）:"; rate(1200, 100)
-    PRINT "  人均 5 英亩（应 5）:"; rate(500, 100)
+    IF LANG = 0 THEN PRINT "── 汉谟拉比 · 规则自检 ──" ELSE PRINT "-- Hammurabi - rule self-check --"
+    IF LANG = 0 THEN PRINT "  100 人一年要吃（应 2000）:"; feedNeed(100) ELSE PRINT "  100 people eat per year (want 2000):"; feedNeed(100)
+    IF LANG = 0 THEN PRINT "  100 人 / 3000 粮 播种上限（应 1000，受人数限）:"; plantLimit(100, 3000) ELSE PRINT "  100 people / 3000 grain sow limit (want 1000, people-bound):"; plantLimit(100, 3000)
+    IF LANG = 0 THEN PRINT "  100 人 / 500 粮 播种上限（应 500，受粮食限）:"; plantLimit(100, 500) ELSE PRINT "  100 people / 500 grain sow limit (want 500, grain-bound):"; plantLimit(100, 500)
+    IF LANG = 0 THEN PRINT "  饿死 30 / 总 100 的比例（应 30）:"; starvePct(30, 100) ELSE PRINT "  starved 30 of 100 pct (want 30):"; starvePct(30, 100)
+    IF LANG = 0 THEN PRINT "  饿死 46 / 总 100 的比例（应 46，超过 45 那道线）:"; starvePct(46, 100) ELSE PRINT "  starved 46 of 100 pct (want 46, over the 45 line):"; starvePct(46, 100)
+    IF LANG = 0 THEN PRINT "  人均 12 英亩（应 12）:"; rate(1200, 100) ELSE PRINT "  per capita 12 acres (want 12):"; rate(1200, 100)
+    IF LANG = 0 THEN PRINT "  人均 5 英亩（应 5）:"; rate(500, 100) ELSE PRINT "  per capita 5 acres (want 5):"; rate(500, 100)
 
     ' 阶段推进：买地 → 卖地 → 喂粮 → 播种，四步走完必须落到"结算"
     people = 100
@@ -651,18 +662,20 @@ SUB simCheck()
     amount = 0
     price = 20
     confirmPhase()
-    PRINT "  买地后阶段（应 1=卖地）:"; phase
+    IF LANG = 0 THEN PRINT "  买地后阶段（应 1=卖地）:"; phase ELSE PRINT "  phase after buy (want 1=sell):"; phase
     amount = 0
     confirmPhase()
-    PRINT "  卖地后阶段（应 2=喂粮）且粮已备好（应 2000）:"; phase; amount
+    IF LANG = 0 THEN PRINT "  卖地后阶段（应 2=喂粮）且粮已备好（应 2000）:"; phase; amount ELSE PRINT "  phase after sell (want 2=feed) and feed reserved (want 2000):"; phase; amount
     amount = feedNeed(people)
     confirmPhase()
-    PRINT "  喂粮后阶段（应 3=播种）:"; phase
+    IF LANG = 0 THEN PRINT "  喂粮后阶段（应 3=播种）:"; phase ELSE PRINT "  phase after feed (want 3=sow):"; phase
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
 ' ══════════════════════════════════════════════════════════════════════════
+' 界面语言：**开局查一次**存进 LANG（ui_get_language 是 syscall，别每帧调）
+LANG = ui_get_language()
 simCheck()
 
 sw = ui_scr_w()
@@ -675,10 +688,11 @@ IF sh <= 0 THEN
 END IF
 
 ' 锁竖屏 + 不要手柄区（全程触摸）
-wh = ui_win_open_ex("汉谟拉比", sw, sh, 0, 0)
+IF LANG = 0 THEN lb = "汉谟拉比" ELSE lb = "Hammurabi"
+wh = ui_win_open_ex(lb, sw, sh, 0, 0)
 
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：没有真窗口，规则自检打完就退出）"
+    IF LANG = 0 THEN PRINT "（桌面脚手架：没有真窗口，规则自检打完就退出）" ELSE PRINT "(desktop scaffold: no real window; rule self-check done, exiting)"
 ELSE
     runGame()
 END IF

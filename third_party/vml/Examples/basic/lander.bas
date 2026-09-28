@@ -157,6 +157,87 @@ CONST ST_FLY = 0
 CONST ST_DOWN = 1
 CONST ST_OVER = 2
 
+' ══════════════════════════════════════════════════════════════════════════
+'  界面语言（0 = 中文 / 1 = 英文，跟随系统语言）
+'
+'  `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+'  之后每帧绘制只用变量（别在绘制路径上再调它）。
+' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+'   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+' ══════════════════════════════════════════════════════════════════════════
+DIM LANG AS INTEGER
+DIM sTitle AS STRING
+DIM sHint AS STRING
+DIM sEdgeL AS STRING
+DIM sEdgeR AS STRING
+DIM sHard AS STRING
+DIM sLanded AS STRING
+DIM sPts AS STRING
+DIM sAlt AS STRING
+DIM sVy AS STRING
+DIM sVx AS STRING
+DIM sFuel AS STRING
+DIM sAngle AS STRING
+DIM sDegBest AS STRING
+DIM sTurnL AS STRING
+DIM sTurnR AS STRING
+DIM sFiring AS STRING
+DIM sNoFuel AS STRING
+DIM sFire AS STRING
+DIM sChkHdr AS STRING
+DIM sChk1 AS STRING
+DIM sChk2 AS STRING
+DIM sChk3 AS STRING
+DIM sChk4 AS STRING
+DIM sChk5 AS STRING
+DIM sChk6 AS STRING
+DIM sChk7 AS STRING
+DIM sChk8 AS STRING
+DIM sChk9 AS STRING
+DIM sChk10 AS STRING
+DIM sChk11 AS STRING
+DIM sChk12 AS STRING
+DIM sChk13 AS STRING
+DIM sNoWin AS STRING
+
+SUB initLang()
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sTitle = "登月" ELSE sTitle = "Lander"
+    IF LANG = 0 THEN sHint = "按住【点火】减速，左右键调姿态" ELSE sHint = "Hold FIRE to slow, arrows to tilt"
+    IF LANG = 0 THEN sEdgeL = "撞上了屏幕左缘" ELSE sEdgeL = "Hit the left edge"
+    IF LANG = 0 THEN sEdgeR = "撞上了屏幕右缘" ELSE sEdgeR = "Hit the right edge"
+    IF LANG = 0 THEN sHard = "落得太重" ELSE sHard = "Came down too hard"
+    IF LANG = 0 THEN sLanded = "着陆成功！剩余燃料 " ELSE sLanded = "Landed! Fuel left "
+    IF LANG = 0 THEN sPts = " 分" ELSE sPts = " pts"
+    IF LANG = 0 THEN sAlt = "高度" ELSE sAlt = "Alt"
+    IF LANG = 0 THEN sVy = "垂速" ELSE sVy = "V/S"
+    IF LANG = 0 THEN sVx = "横速" ELSE sVx = "H/S"
+    IF LANG = 0 THEN sFuel = "燃料" ELSE sFuel = "Fuel"
+    IF LANG = 0 THEN sAngle = "角度 " ELSE sAngle = "Angle "
+    IF LANG = 0 THEN sDegBest = "°   分数 " ELSE sDegBest = " deg   Best "
+    IF LANG = 0 THEN sTurnL = "◀ 左转" ELSE sTurnL = "◀ LEFT"
+    IF LANG = 0 THEN sTurnR = "右转 ▶" ELSE sTurnR = "RIGHT ▶"
+    IF LANG = 0 THEN sFiring = "点 火 中" ELSE sFiring = "FIRING"
+    IF LANG = 0 THEN sNoFuel = "燃料耗尽" ELSE sNoFuel = "NO FUEL"
+    IF LANG = 0 THEN sFire = "点 火" ELSE sFire = "FIRE"
+    IF LANG = 0 THEN sChkHdr = "── 登月 · 物理与着陆判据自检 ──" ELSE sChkHdr = "--- Lander: physics & landing self-check ---"
+    IF LANG = 0 THEN sChk1 = "  三角函数表 0/30/45/90 度正弦（应 0/500/707/1000）:" ELSE sChk1 = "  sin 0/30/45/90 deg (want 0/500/707/1000):"
+    IF LANG = 0 THEN sChk2 = "  余弦 0/90 度（应 1000/0）:" ELSE sChk2 = "  cos 0/90 deg (want 1000/0):"
+    IF LANG = 0 THEN sChk3 = "  自由落体 10 拍后 vy（应 10）:" ELSE sChk3 = "  free fall: vy after 10 ticks (want 10):"
+    IF LANG = 0 THEN sChk4 = "  点火 10 拍后 vy（应 -20，负=向上）:" ELSE sChk4 = "  thrust: vy after 10 ticks (want -20, neg = up):"
+    IF LANG = 0 THEN sChk5 = "  燃料（应 90）:" ELSE sChk5 = "  fuel (want 90):"
+    IF LANG = 0 THEN sChk6 = "  空油箱点火 5 拍后 vy（应 5，只剩重力）:" ELSE sChk6 = "  empty tank: vy after 5 ticks (want 5, gravity only):"
+    IF LANG = 0 THEN sChk7 = "  轻放直立（应 1）:" ELSE sChk7 = "  gentle upright (want 1):"
+    IF LANG = 0 THEN sChk8 = "  落太快（应 0）:" ELSE sChk8 = "  too fast (want 0):"
+    IF LANG = 0 THEN sChk9 = "  横速太大（应 0）:" ELSE sChk9 = "  side speed too high (want 0):"
+    IF LANG = 0 THEN sChk10 = "  倾角太大（应 0）:" ELSE sChk10 = "  tilt too steep (want 0):"
+    IF LANG = 0 THEN sChk11 = "  边界：正好 SAFE_VY（应 1）:" ELSE sChk11 = "  edge: exactly SAFE_VY (want 1):"
+    IF LANG = 0 THEN sChk12 = "  边界：超一点（应 0）:" ELSE sChk12 = "  edge: a little over (want 0):"
+    IF LANG = 0 THEN sChk13 = "  桌面脚手架无窗口" ELSE sChk13 = "  desktop scaffold: no window"
+    IF LANG = 0 THEN sNoWin = "（桌面脚手架：没有真窗口，物理自检打完就退出）" ELSE sNoWin = "(desktop scaffold: no real window - self-check done, exiting)"
+END SUB
+
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  纯规则（自检直接打它们的返回值）
@@ -292,7 +373,7 @@ SUB newRound()
     rightHeld = 0
     state = ST_FLY
     boomT = 0
-    lastMsg = "按住【点火】减速，左右键调姿态"
+    lastMsg = sHint
 END SUB
 
 ' 这一拍上的物理
@@ -315,11 +396,11 @@ SUB stepLander()
 
     ' 左右出界：撞到屏幕边就算坠毁（原版是"飞出画面"，这里更明确）
     IF hx < 6 THEN
-        crash("撞上了屏幕左缘")
+        crash(sEdgeL)
         EXIT SUB
     END IF
     IF hx > sw - 6 THEN
-        crash("撞上了屏幕右缘")
+        crash(sEdgeR)
         EXIT SUB
     END IF
 
@@ -339,7 +420,7 @@ SUB stepLander()
         IF landed(vy, vx, ang) = 1 THEN
             touchDown()
         ELSE
-            crash("落得太重")
+            crash(sHard)
         END IF
     END IF
 END SUB
@@ -351,7 +432,7 @@ SUB touchDown()
     IF score > bestScore THEN
         bestScore = score
     END IF
-    lastMsg = "着陆成功！剩余燃料 " + STR$(fuel) + " → " + STR$(score) + " 分"
+    lastMsg = sLanded + STR$(fuel) + " → " + STR$(score) + sPts
     ui_beep 1175, 320   ' 着陆成功（赢方）：最高音、最长
     ui_vibrate(60, 120)
 END SUB
@@ -419,11 +500,11 @@ END SUB
 
 SUB drawHud()
     ui_rect(0, 0, sw, 74, C_HUD, 1, 0, 0)
-    ui_text(10, 8, "高度", C_DIM, 12, 0)
+    ui_text(10, 8, sAlt, C_DIM, 12, 0)
     txt = STR$(terr(hx / colw) - hy)
     ui_text(10, 22, txt, C_TEXT, 18, 0)
 
-    ui_text(sw / 2 - 40, 8, "垂速", C_DIM, 12, 0)
+    ui_text(sw / 2 - 40, 8, sVy, C_DIM, 12, 0)
     txt = STR$(vy)
     IF absi(vy) > SAFE_VY THEN
         ui_text(sw / 2 - 40, 22, txt, C_WARN, 18, 0)
@@ -431,7 +512,7 @@ SUB drawHud()
         ui_text(sw / 2 - 40, 22, txt, C_OK, 18, 0)
     END IF
 
-    ui_text(sw / 2 + 30, 8, "横速", C_DIM, 12, 0)
+    ui_text(sw / 2 + 30, 8, sVx, C_DIM, 12, 0)
     txt = STR$(vx)
     IF absi(vx) > SAFE_VX THEN
         ui_text(sw / 2 + 30, 22, txt, C_WARN, 18, 0)
@@ -439,7 +520,7 @@ SUB drawHud()
         ui_text(sw / 2 + 30, 22, txt, C_OK, 18, 0)
     END IF
 
-    ui_text(sw - 10, 8, "燃料", C_DIM, 12, 2)
+    ui_text(sw - 10, 8, sFuel, C_DIM, 12, 2)
     txt = STR$(fuel)
     IF fuel > 20 THEN
         ui_text(sw - 10, 22, txt, C_OK, 18, 2)
@@ -447,7 +528,7 @@ SUB drawHud()
         ui_text(sw - 10, 22, txt, C_BAD, 18, 2)
     END IF
 
-    ui_text(10, 50, "角度 " + STR$(ang) + "°   分数 " + STR$(bestScore), C_DIM, 13, 0)
+    ui_text(10, 50, sAngle + STR$(ang) + sDegBest + STR$(bestScore), C_DIM, 13, 0)
     ui_rect(0, 72, sw, 2, C_ROCKTOP, 1, 0, 0)
 END SUB
 
@@ -467,20 +548,20 @@ SUB drawControls()
     ELSE
         ui_rect(half + 10, rotY, half - 30, rotH, C_BTN, 1, 0, 12)
     END IF
-    ui_text(20 + (half - 30) / 2, rotY + 18, "◀ 左转", C_TEXT, 16, 1)
-    ui_text(half + 10 + (half - 30) / 2, rotY + 18, "右转 ▶", C_TEXT, 16, 1)
+    ui_text(20 + (half - 30) / 2, rotY + 18, sTurnL, C_TEXT, 16, 1)
+    ui_text(half + 10 + (half - 30) / 2, rotY + 18, sTurnR, C_TEXT, 16, 1)
 
     IF thrusting = 1 THEN
         IF fuel > 0 THEN
             ui_rect(20, fireY, sw - 40, fireH, C_FLAME, 1, 0, 14)
-            ui_text(sw / 2, fireY + 12, "点 火 中", &HFF2A1A00, 20, 1)
+            ui_text(sw / 2, fireY + 12, sFiring, &HFF2A1A00, 20, 1)
         ELSE
             ui_rect(20, fireY, sw - 40, fireH, C_BTN, 1, 0, 14)
-            ui_text(sw / 2, fireY + 12, "燃料耗尽", C_BAD, 20, 1)
+            ui_text(sw / 2, fireY + 12, sNoFuel, C_BAD, 20, 1)
         END IF
     ELSE
         ui_rect(20, fireY, sw - 40, fireH, C_BAD, 1, 0, 14)
-        ui_text(sw / 2, fireY + 12, "点 火", &HFFFFF0EC, 20, 1)
+        ui_text(sw / 2, fireY + 12, sFire, &HFFFFF0EC, 20, 1)
     END IF
 END SUB
 
@@ -658,9 +739,9 @@ END SUB
 '  开机自检
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
-    PRINT "── 登月 · 物理与着陆判据自检 ──"
-    PRINT "  三角函数表 0/30/45/90 度正弦（应 0/500/707/1000）:"; sind(0); sind(30); sind(45); sind(90)
-    PRINT "  余弦 0/90 度（应 1000/0）:"; cosd(0); cosd(90)
+    PRINT sChkHdr
+    PRINT sChk1; sind(0); sind(30); sind(45); sind(90)
+    PRINT sChk2; cosd(0); cosd(90)
 
     ' 自由落体：起手 vy=0，走 10 拍必须**变快**（vy 从 0 涨到 10）
     vy = 0
@@ -672,7 +753,7 @@ SUB simCheck()
         vy = vy + GRAV
         i = i + 1
     WEND
-    PRINT "  自由落体 10 拍后 vy（应 10）:"; vy
+    PRINT sChk3; vy
     vy = 0
 
     ' 点火反推：垂直姿态下净加速度应为 GRAV - THRUST = -2 ⇒ 10 拍后 vy = -20
@@ -687,8 +768,8 @@ SUB simCheck()
         fuel = fuel - 1
         i = i + 1
     WEND
-    PRINT "  点火 10 拍后 vy（应 -20，负=向上）:"; vy
-    PRINT "  燃料（应 90）:"; fuel
+    PRINT sChk4; vy
+    PRINT sChk5; fuel
 
     ' 燃料耗尽后点火无效
     fuel = 0
@@ -703,20 +784,21 @@ SUB simCheck()
         vy = vy + GRAV
         i = i + 1
     WEND
-    PRINT "  空油箱点火 5 拍后 vy（应 5，只剩重力）:"; vy
+    PRINT sChk6; vy
 
     ' 着陆判据：三条都满足才算成功
-    PRINT "  轻放直立（应 1）:"; landed(10, 8, 0)
-    PRINT "  落太快（应 0）:"; landed(40, 0, 0)
-    PRINT "  横速太大（应 0）:"; landed(5, 30, 0)
-    PRINT "  倾角太大（应 0）:"; landed(5, 2, 30)
-    PRINT "  边界：正好 SAFE_VY（应 1）:"; landed(SAFE_VY, SAFE_VX, SAFE_ANG)
-    PRINT "  边界：超一点（应 0）:"; landed(SAFE_VY + 1, 0, 0)
+    PRINT sChk7; landed(10, 8, 0)
+    PRINT sChk8; landed(40, 0, 0)
+    PRINT sChk9; landed(5, 30, 0)
+    PRINT sChk10; landed(5, 2, 30)
+    PRINT sChk11; landed(SAFE_VY, SAFE_VX, SAFE_ANG)
+    PRINT sChk12; landed(SAFE_VY + 1, 0, 0)
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
 ' ══════════════════════════════════════════════════════════════════════════
+initLang
 simCheck()
 
 sw = ui_scr_w()
@@ -728,10 +810,10 @@ IF sh <= 0 THEN
     sh = 660
 END IF
 
-wh = ui_win_open_ex("登月", sw, sh, 0, 0)
+wh = ui_win_open_ex(sTitle, sw, sh, 0, 0)
 
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：没有真窗口，物理自检打完就退出）"
+    PRINT sNoWin
 ELSE
     runGame()
 END IF

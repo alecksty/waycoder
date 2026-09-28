@@ -45,12 +45,14 @@
 //
 // 数值的唯一真源仍是 `Lib/c/waycoder_ui.h`。
 
-var A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+var A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 // ⚠ **只用一个数组**。实测：同一程序里开多个全局数组（S / SEGX / SEGY）会互相踩内存 ——
 // 症状是蛇只画出一节、HUD 文字错位（写蛇身把状态槽冲了）。一个数组不自我别名，绕开它。
 //   0=head 1=len 2=dx 3=dy 4=fx 5=fy 6=score 7=best
 //   8=alive 9=paused 10=stepMs 11=cell 12=ox 13=oy 14=sw 15=sh
 //   16+2i=第 i 节 x，16+2i+1=第 i 节 y
+//   110=界面语言（0=中文 1=英文）—— 数组刻意留到 112 个，就是给这个槽用的
+//   （按上面 ① 的实测，语言码**不能**用模块级标量存：读出来是垃圾）
 func segx(i: Int) -> Int { return 16 + i * 2 }
 func segy(i: Int) -> Int { return 17 + i * 2 }
 
@@ -139,11 +141,13 @@ func draw() {
         else { drawCell(A[16 + (k) * 2], A[17 + (k) * 2], cellColorBody()) }
         i = i + 1
     }
-    ui_text(8, 8, "得分", colorText(), 13, 0)
+    // 界面语言（0=中文 1=英文）：从状态表里取个局部量 —— 模块级标量读出来是垃圾（见文件头 ①）。
+    var lang = A[110]
+    ui_text(8, 8, lang == 0 ? "得分" : "Score", colorText(), 13, 0)
     ui_text(56, 8, numToStr(A[6]), -1, 15, 0)
-    ui_text(A[14] / 2, 8, "最高", colorText(), 13, 1)
+    ui_text(A[14] / 2, 8, lang == 0 ? "最高" : "Best", colorText(), 13, 1)
     ui_text(A[14] / 2 + 44, 8, numToStr(A[7]), -1, 15, 0)
-    if A[9] != 0 { ui_text(A[14] / 2, A[15] / 2, "暂停（SELECT 继续）", cellColorFood(), 16, 1) }
+    if A[9] != 0 { ui_text(A[14] / 2, A[15] / 2, lang == 0 ? "暂停（SELECT 继续）" : "Paused (SELECT)", cellColorFood(), 16, 1) }
     ui_present()
 }
 
@@ -167,7 +171,8 @@ func gameOver() {
     //   v0.96.509 从音序器换回来 —— 那一版多声部叠加 / 长音在真机上破音
     ui_beep(131, 320)
     draw()
-    if ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 { ui_win_close(); return }
+    var lang = A[110]
+    if ui_dlg_msg(lang == 0 ? "贪吃蛇" : "Snake", lang == 0 ? "撞到了，这一局结束。\n再来一局？（选「否」退出）" : "You crashed. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0 { ui_win_close(); return }
     reset()
 }
 
@@ -236,7 +241,11 @@ func main() {
     if h <= 0 { h = 620 }
     A[14] = w
     A[15] = h
-    ui_win_open("贪吃蛇", w, h)
+    // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），存进 A[110]（见 draw）。
+    // ⚠ 别在每帧里调 —— 那是一次 syscall。
+    A[110] = ui_get_language()
+    var lang = A[110]
+    ui_win_open(lang == 0 ? "贪吃蛇" : "Snake", w, h)
 
     // 版面算一次，画与判定共用
     var byw = A[14] - 8

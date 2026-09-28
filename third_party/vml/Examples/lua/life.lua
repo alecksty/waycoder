@@ -43,7 +43,24 @@ function main()
     if h <= 0 then
         h = 620
     end
-    ui_win_open("生命游戏", w, h)
+    -- 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+    -- ⚠ 别在每帧里调 —— 那是一次 syscall。
+    -- ⚠ **不能用 `(lang == 0) and "中文" or "English"`** —— 本前端的 `and`/`or` 求的是
+    --   **布尔 0/1**（`ExpressionManager.EmitAnd/EmitOr` 收尾就是 `MOVE R0, 0/1`），
+    --   不是操作数的值 ⇒ 当字符串用会拿到 0/1，画出来是乱码（实测窗口标题变成 "VML"）。
+    --   只有 `if/else` 赋值这条路能用。
+    local lang = ui_get_language()
+    local t_title = "Game of Life"
+    local t_gen = "Generation"
+    local t_paused = "Paused (SELECT)"
+    if lang == 0 then t_title = "生命游戏"
+    else t_title = "Game of Life" end
+    if lang == 0 then t_gen = "世代"
+    else t_gen = "Generation" end
+    if lang == 0 then t_paused = "已暂停（SELECT 继续）"
+    else t_paused = "Paused (SELECT)" end
+
+    ui_win_open(t_title, w, h)
 
     local cell = (w - 8) / W
     if (h - 90) / H < cell then
@@ -74,10 +91,10 @@ function main()
       ui_sfx_tick()
         -- ── draw ──
         ui_clear(-15724520)
-        ui_text(8, 8, "世代", -6643536, 13, 0)
+        ui_text(8, 8, t_gen, -6643536, 13, 0)
         ui_rect(58, 11, gen, 10, -11409298, 1, 0, 0)
         if paused ~= 0 then
-            ui_text(w / 2, 8, "已暂停（SELECT 继续）", -6643536, 13, 1)
+            ui_text(w / 2, 8, t_paused, -6643536, 13, 1)
         end
 
         local row = 0

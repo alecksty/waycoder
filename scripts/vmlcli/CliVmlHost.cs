@@ -1284,7 +1284,7 @@ internal sealed class CliUiCalls : ISystemCallHandler
             };
 
             var tw = new StreamWriter(tracePath, append: false) { AutoFlush = true };
-            _rt.OnSyscall = (n, r, _) =>
+            _rt.OnSyscall = (n, r, mem) =>
             {
                 string? line = n switch
                 {
@@ -1302,7 +1302,12 @@ internal sealed class CliUiCalls : ISystemCallHandler
                     VmlUi.DrawPolygon  => $"polygon ptsAddr={r[0]} count={r[1]} fill=0x{r[2]:X8} stroke=0x{r[3]:X8} w={r[4]}",
                     VmlUi.DrawPolyline => $"polyline ptsAddr={r[0]} count={r[1]} stroke=0x{r[2]:X8} w={r[3]}",
                     VmlUi.DrawPath     => $"path    str={r[0]} stroke=0x{r[1]:X8} w={r[2]} fill=0x{r[3]:X8}",
-                    VmlUi.DrawText     => $"text    ({r[0]},{r[1]}) str={r[2]} 0x{r[3]:X8} size={r[4]}",
+                    VmlUi.DrawText     => $"text    ({r[0]},{r[1]}) str=\"{VmlHostRuntime.Str(mem, r[2])}\" 0x{r[3]:X8} size={r[4]}",
+                    VmlUi.DrawTextEx   => $"textex  ({r[0]},{r[1]}) str=\"{VmlHostRuntime.Str(mem, r[2])}\" 0x{r[3]:X8} size={r[4]} anchor={r[5]} valign={r[6]} wrap={r[7]}",
+                    // [临时·验收用] 状态式文字（ui_text_cur = 533）与 ui_set_font —— 原 trace 没记这两个号，
+                    // 于是"画布上画的字"在 trace 里一条都看不到。仅用于本轮语言化验收，验完还原。
+                    VmlUi.Text         => $"textcur ({r[0]},{r[1]}) \"{VmlHostRuntime.Str(mem, r[2])}\"",
+                    VmlUi.SetFont      => $"font    size={r[0]} bold={r[1]} color=0x{r[2]:X8} anchor={r[3]}",
                     VmlUi.DrawShape    => $"shape   id={r[0]}",
                     // 矢量图块（589）：**一个号 + 操作码**（v0.96.481 合并，原先 589–593 五个号）。
                     // ⚠ `OnSyscall` 在宿主 switch **之前**触发，拿不到返回值 ⇒ `blkend` 记不到句柄

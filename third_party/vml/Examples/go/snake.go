@@ -46,6 +46,7 @@ package main
 //   8=alive 9=paused 10=stepMs 11=cell 12=ox 13=oy 14=sw 15=sh
 //   16+2i=第 i 节 x，17+2i=第 i 节 y（i=0 是头；40 节上限 ⇒ 16..95）
 //   100=候选x 101=候选y 102=格x 103=格y 104=格色 105/106=新方向 107=命中 108=临时
+//   109=退出标志 110=界面语言（0=中文 1=英文）—— 语言码**不能**存包级标量，见 draw
 var A [112]int
 
 // 扫一遍身上的每一节，看 (A[100],A[101]) 这格有没有被占；结果写 A[107]
@@ -81,6 +82,18 @@ func placeFood() {
 }
 
 func draw() {
+	// 界面语言：**只能从状态表里读**，不能读包级变量。
+	// ⚠ 实测（本前端的缺陷）：`var lang int` 这种**包级标量**在函数里赋值后读回来恒 0
+	//   （`var A [112]int` 这种数组才是好的）⇒ 语言码统一寄在 A[110]（该槽没人用），
+	//   开局在 main 里问一次宿主，函数里取个局部量再分支。
+	lang := A[110]
+	tScore := "Score"
+	tBest := "Best"
+	tPaused := "Paused (SELECT)"
+	if lang == 0 { tScore = "得分" }
+	if lang == 0 { tBest = "最高" }
+	if lang == 0 { tPaused = "暂停（SELECT 继续）" }
+
 	ui_clear(-15724520)
 
 	// 棋盘格：扁平序号 0..359，行列内联算出来；每格按 (r+c) 的奇偶决定铺不铺
@@ -107,12 +120,12 @@ func draw() {
 		i = i + 1
 	}
 
-	ui_text(8, 8, "得分", -6643536, 13, 0)
+	ui_text(8, 8, tScore, -6643536, 13, 0)
 	ui_rect(58, 11, A[6], 10, -11409298, 1, 0, 0)
-	ui_text(A[14]/2, 8, "最高", -6643536, 13, 1)
+	ui_text(A[14]/2, 8, tBest, -6643536, 13, 1)
 	ui_rect(A[14]/2+46, 11, A[7], 10, -63488, 1, 0, 0)
 	if A[9] != 0 {
-		ui_text(A[14]/2, A[15]/2, "暂停（SELECT 继续）", -131246, 16, 1)
+		ui_text(A[14]/2, A[15]/2, tPaused, -131246, 16, 1)
 	}
 	ui_present()
 }
@@ -136,6 +149,11 @@ func reset() {
 }
 
 func gameOver() {
+	lang := A[110]
+	tTitle := "Snake"
+	tOver := "You crashed. Round over.\nPlay again? (choose \"No\" to quit)"
+	if lang == 0 { tTitle = "贪吃蛇" }
+	if lang == 0 { tOver = "撞到了，这一局结束。\n再来一局？（选「否」退出）" }
 	A[8] = 0
 	// 音效：单音 ui_beep；**结局音取最低音**（吃到 1047 / 撞到 131，差得开）
 	//   v0.96.509 从音序器换回来 —— 那一版多声部叠加 / 长音在真机上破音
@@ -144,7 +162,7 @@ func gameOver() {
 	// 选「否/拒绝」→ 退出游戏（ui_dlg_msg 返回 0=是 / 1=否）。
 	// 此前不接返回值 ⇒ 两个按钮一个样、游戏还退不出去（用户实测报的）。
 	// 用 A[109] 这个没人用的槽当退出标志 —— gameOver 有四五处调用点，逐个改返回值不划算。
-	if ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 {
+	if ui_dlg_msg(tTitle, tOver, 0) != 0 {
 		A[109] = 1
 		return
 	}
@@ -223,7 +241,13 @@ func main() {
 	}
 	A[14] = w
 	A[15] = h
-	ui_win_open("贪吃蛇", w, h)
+	// 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），存进 A[110]（见 draw 的说明）。
+	// ⚠ 别在每帧里调 —— 那是一次 syscall。
+	A[110] = ui_get_language()
+	lang := A[110]
+	tTitle := "Snake"
+	if lang == 0 { tTitle = "贪吃蛇" }
+	ui_win_open(tTitle, w, h)
 
 	// 版面算一次，画与判定共用
 	byw := w - 8

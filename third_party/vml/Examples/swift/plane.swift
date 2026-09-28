@@ -45,7 +45,9 @@
 //   20..23=子弹 x，24..27=子弹 y，28..31=子弹在飞
 //   40..43=敌机 x，44..47=敌机 y，48..51=敌机在飞
 //   60..67=星星 x，68..75=星星 y
-var A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+//   110=界面语言（0=中文 1=英文）—— 数组刻意留到 112 个，就是给这个槽用的
+//   （按文件头 ① 的实测，语言码**不能**用模块级标量存：读出来是垃圾）
+var A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 func colorSky() -> Int { return -15986144 }      // 0xFF0C1220
 func colorStar() -> Int { return -14011056 }     // 0xFF2A3550
@@ -240,11 +242,13 @@ func draw() {
     drawShip()
 
     // HUD：分数条 / 最高分条 + 右上角写数字（Swift 拼字符串是好的）
-    ui_text(8, 8, "得分", colorHud(), 13, anchorLeft())
+    // 界面语言（0=中文 1=英文）：从状态表里取个局部量 —— 模块级标量读出来是垃圾（见文件头 ①）。
+    var lang = A[110]
+    ui_text(8, 8, lang == 0 ? "得分" : "Score", colorHud(), 13, anchorLeft())
     var bar = A[2]
     if bar > 160 { bar = 160 }
     ui_rect(58, 11, bar, 10, colorBar(), 1, 0, 0)
-    ui_text(A[9] / 2, 8, "最高", colorHud(), 13, anchorCenter())
+    ui_text(A[9] / 2, 8, lang == 0 ? "最高" : "Best", colorHud(), 13, anchorCenter())
     var bar2 = A[3]
     if bar2 > 160 { bar2 = 160 }
     ui_rect(A[9] / 2 + 46, 11, bar2, 10, colorBar2(), 1, 0, 0)
@@ -256,7 +260,7 @@ func draw() {
         lf = lf + 1
     }
 
-    if A[5] != 0 { ui_text(A[9] / 2, A[10] / 2, "暂停（SELECT 继续）", colorEnemy(), 16, anchorCenter()) }
+    if A[5] != 0 { ui_text(A[9] / 2, A[10] / 2, lang == 0 ? "暂停（SELECT 继续）" : "Paused (SELECT)", colorEnemy(), 16, anchorCenter()) }
     ui_present()
 }
 
@@ -272,7 +276,8 @@ func gameOver() {
     A[4] = 0
     ui_beep(131, 320)   // 死（结局）：**最低音**、最长
     draw()
-    if ui_dlg_msg("飞机空战", "被撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 { ui_win_close(); return }
+    var lang = A[110]
+    if ui_dlg_msg(lang == 0 ? "飞机空战" : "Air Combat", lang == 0 ? "被撞到了，这一局结束。\n再来一局？（选「否」退出）" : "You crashed. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0 { ui_win_close(); return }
     reset()
 }
 
@@ -367,7 +372,11 @@ func main() {
     A[10] = ui_scr_h()
     if A[9] <= 0 { A[9] = 360 }
     if A[10] <= 0 { A[10] = 620 }
-    ui_win_open("飞机空战", A[9], A[10])
+    // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），存进 A[110]（见 draw）。
+    // ⚠ 别在每帧里调 —— 那是一次 syscall。
+    A[110] = ui_get_language()
+    var lang = A[110]
+    ui_win_open(lang == 0 ? "飞机空战" : "Air Combat", A[9], A[10])
     ui_keep_on(1)
     reset()
     draw()

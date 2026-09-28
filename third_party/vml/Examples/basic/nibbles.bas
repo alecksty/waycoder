@@ -46,6 +46,8 @@ NATIVE FUNCTION ui_win_closed() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_win_close()
 END SUB
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 NATIVE FUNCTION ui_wait_msg(timeout AS INTEGER) AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_poll_msg() AS INTEGER
@@ -164,6 +166,75 @@ DIM ny AS INTEGER
 DIM freeN AS INTEGER
 DIM pick AS INTEGER
 DIM txt AS STRING
+
+' ══════════════════════════════════════════════════════════════════════════
+'  界面语言（0 = 中文 / 1 = 英文，跟随系统语言）
+'
+'  `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+'  之后每帧绘制只用变量（别在绘制路径上再调它）。
+' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+'   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+' ══════════════════════════════════════════════════════════════════════════
+DIM LANG AS INTEGER
+DIM sTitle AS STRING
+DIM sHintStart AS STRING
+DIM sWall AS STRING
+DIM sSelf AS STRING
+DIM sLevelPre AS STRING
+DIM sLevelSuf AS STRING
+DIM sDashScore AS STRING
+DIM sScore AS STRING
+DIM sLevel AS STRING
+DIM sProg AS STRING
+DIM sPad AS STRING
+DIM sChkHdr AS STRING
+DIM sChk1 AS STRING
+DIM sChk2 AS STRING
+DIM sChk3 AS STRING
+DIM sChk4 AS STRING
+DIM sChk5 AS STRING
+DIM sChk6 AS STRING
+DIM sChk7 AS STRING
+DIM sChk8 AS STRING
+DIM sChk9 AS STRING
+DIM sChk10 AS STRING
+DIM sChk11 AS STRING
+DIM sChk12 AS STRING
+DIM sChk13 AS STRING
+DIM sChk14 AS STRING
+DIM sNoWin AS STRING
+
+SUB initLang()
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sTitle = "贪吃蛇" ELSE sTitle = "Nibbles"
+    IF LANG = 0 THEN sHintStart = "吃光本关数字就进下一关" ELSE sHintStart = "Eat every number to clear the level"
+    IF LANG = 0 THEN sWall = "撞墙了" ELSE sWall = "Hit a wall"
+    IF LANG = 0 THEN sSelf = "咬到自己了" ELSE sSelf = "Bit yourself"
+    IF LANG = 0 THEN sLevelPre = "第 " ELSE sLevelPre = "Level "
+    IF LANG = 0 THEN sLevelSuf = " 关！" ELSE sLevelSuf = "!"
+    IF LANG = 0 THEN sDashScore = " —— 得分 " ELSE sDashScore = " - score "
+    IF LANG = 0 THEN sScore = "分数" ELSE sScore = "Score"
+    IF LANG = 0 THEN sLevel = "第几关" ELSE sLevel = "Level"
+    IF LANG = 0 THEN sProg = "进度" ELSE sProg = "Progress"
+    IF LANG = 0 THEN sPad = "手柄方向键 / 在画布上滑一下" ELSE sPad = "D-pad / swipe to steer"
+    IF LANG = 0 THEN sChkHdr = "── 贪吃蛇 · 规则自检 ──" ELSE sChkHdr = "--- Nibbles: rules self-check ---"
+    IF LANG = 0 THEN sChk1 = "  行列→下标→列 往返（应 5 5）:" ELSE sChk1 = "  row/col -> idx -> col roundtrip (want 5 5):"
+    IF LANG = 0 THEN sChk2 = "  方向增量：上/右/下/左的行（应 -1 0 1 0）:" ELSE sChk2 = "  dRow up/right/down/left (want -1 0 1 0):"
+    IF LANG = 0 THEN sChk3 = "  方向增量：上/右/下/左的列（应 0 1 0 -1）:" ELSE sChk3 = "  dCol up/right/down/left (want 0 1 0 -1):"
+    IF LANG = 0 THEN sChk4 = "  不许反向：右→左（应 0）/ 右→上（应 1）:" ELSE sChk4 = "  no reverse: right->left (want 0) / right->up (want 1):"
+    IF LANG = 0 THEN sChk5 = "  同向不算转向（应 0）:" ELSE sChk5 = "  same dir is not a turn (want 0):"
+    IF LANG = 0 THEN sChk6 = "  关卡需求 1/2/3（应 5 7 9）:" ELSE sChk6 = "  level need 1/2/3 (want 5 7 9):"
+    IF LANG = 0 THEN sChk7 = "  速度 1 关 0 吃（应 220）/ 1 关吃 10（应 160）:" ELSE sChk7 = "  speed L1 eat 0 (want 220) / L1 eat 10 (want 160):"
+    IF LANG = 0 THEN sChk8 = "  左上角是墙吗（应 1）:" ELSE sChk8 = "  top-left is wall (want 1):"
+    IF LANG = 0 THEN sChk9 = "  (1,1) 是空的吗（应 0）:" ELSE sChk9 = "  (1,1) is free (want 0):"
+    IF LANG = 0 THEN sChk10 = "  右下角是墙吗（应 1）:" ELSE sChk10 = "  bottom-right is wall (want 1):"
+    IF LANG = 0 THEN sChk11 = "  第 1 关空格数（应 360 = 20*22 - 边框 80，此时还没放蛇）:" ELSE sChk11 = "  free cells at level 1 (want 360 = 20*22 - 80 border, before the snake):"
+    IF LANG = 0 THEN sChk12 = "  普通数字 3（应 3 分 / 吃 1 个）:" ELSE sChk12 = "  plain number 3 (want 3 pts / 1 eaten):"
+    IF LANG = 0 THEN sChk13 = "  奖励数字 1（应 2 分 / 吃 2 个）:" ELSE sChk13 = "  bonus number 1 (want 2 pts / 2 eaten):"
+    IF LANG = 0 THEN sChk14 = "  一路向上撞墙（应 1=结束）:" ELSE sChk14 = "  straight up into the wall (want 1 = over):"
+    IF LANG = 0 THEN sNoWin = "（桌面脚手架：没有真窗口，规则自检打完就退出）" ELSE sNoWin = "(desktop scaffold: no real window - self-check done, exiting)"
+END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  纯规则（自检直接打它们的返回值）
@@ -395,7 +466,7 @@ SUB startLevel()
     IF tid > 0 THEN
         rearmTimer()
     END IF
-    hint = "吃光本关数字就进下一关"
+    hint = sHintStart
 END SUB
 
 ' 这一拍走一步
@@ -419,25 +490,25 @@ SUB stepSnake()
 
     ' 出界（其实四周围墙会先挡住，这里兜底）
     IF nr < 0 THEN
-        die("撞墙了")
+        die(sWall)
         EXIT SUB
     END IF
     IF nr >= GH THEN
-        die("撞墙了")
+        die(sWall)
         EXIT SUB
     END IF
     IF nc < 0 THEN
-        die("撞墙了")
+        die(sWall)
         EXIT SUB
     END IF
     IF nc >= GW THEN
-        die("撞墙了")
+        die(sWall)
         EXIT SUB
     END IF
 
     ni = nr * GW + nc
     IF bd(ni) = CELL_WALL THEN
-        die("撞墙了")
+        die(sWall)
         EXIT SUB
     END IF
 
@@ -451,11 +522,11 @@ SUB stepSnake()
         IF grow = 0 THEN
             tail = body(snakeLen - 1)
             IF ni <> tail THEN
-                die("咬到自己了")
+                die(sSelf)
                 EXIT SUB
             END IF
         ELSE
-            die("咬到自己了")
+            die(sSelf)
             EXIT SUB
         END IF
     END IF
@@ -520,7 +591,7 @@ SUB eatFood()
         ui_beep 1319, 320   ' 升级：长音（与"吃食"同音高但长 10 倍，一听就分得出）
         ui_vibrate(80, 160)
         startLevel()
-        hint = "第 " + STR$(level) + " 关！"
+        hint = sLevelPre + STR$(level) + sLevelSuf
         EXIT SUB
     END IF
 
@@ -529,7 +600,7 @@ END SUB
 
 SUB die(why AS STRING)
     over = 1
-    hint = why + " —— 得分 " + STR$(score)
+    hint = why + sDashScore + STR$(score)
     ui_beep 131, 320   ' 死：最低音、最长
     ui_vibrate(220, 240)
 END SUB
@@ -540,11 +611,11 @@ END SUB
 
 SUB drawHud()
     ui_rect(0, 0, sw, hudh, C_HUD, 1, 0, 0)
-    ui_text(12, 8, "分数", C_DIM, 12, 0)
+    ui_text(12, 8, sScore, C_DIM, 12, 0)
     ui_text(12, 24, STR$(score), C_TEXT, 20, 0)
-    ui_text(sw / 2, 8, "第几关", C_DIM, 12, 1)
+    ui_text(sw / 2, 8, sLevel, C_DIM, 12, 1)
     ui_text(sw / 2, 24, STR$(level), C_OK, 20, 1)
-    ui_text(sw - 12, 8, "进度", C_DIM, 12, 2)
+    ui_text(sw - 12, 8, sProg, C_DIM, 12, 2)
     ' ⚠ 这里**不能**写 `STR$(eaten) + "/" + STR$(need)`：同一条表达式里两次 `STR$`
     '   会互相覆盖（字符串函数都返回同一个 `_buf1`，谁后写谁赢），实测显示成 `0/0`。
     '   拆成两次 `ui_text` 摆一摆就绕开了 —— 顺带还免了拼接。
@@ -624,7 +695,7 @@ SUB drawScene()
     drawHud()
     drawBoard()
     ui_text(sw / 2, sh - 26, hint, C_DIM, 13, 1)
-    ui_text(sw / 2, hudh + GH * cell + 6, "手柄方向键 / 在画布上滑一下", C_DIM, 12, 1)
+    ui_text(sw / 2, hudh + GH * cell + 6, sPad, C_DIM, 12, 1)
     ui_present()
 END SUB
 
@@ -791,21 +862,21 @@ END SUB
 '  开机自检
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
-    PRINT "── 贪吃蛇 · 规则自检 ──"
-    PRINT "  行列→下标→列 往返（应 5 5）:"; cellOf(5, 5); colOf(cellOf(5, 5))
-    PRINT "  方向增量：上/右/下/左的行（应 -1 0 1 0）:"; dRow(D_UP); dRow(D_RIGHT); dRow(D_DOWN); dRow(D_LEFT)
-    PRINT "  方向增量：上/右/下/左的列（应 0 1 0 -1）:"; dCol(D_UP); dCol(D_RIGHT); dCol(D_DOWN); dCol(D_LEFT)
-    PRINT "  不许反向：右→左（应 0）/ 右→上（应 1）:"; canTurn(D_RIGHT, D_LEFT); canTurn(D_RIGHT, D_UP)
-    PRINT "  同向不算转向（应 0）:"; canTurn(D_UP, D_UP)
-    PRINT "  关卡需求 1/2/3（应 5 7 9）:"; needOf(1); needOf(2); needOf(3)
-    PRINT "  速度 1 关 0 吃（应 220）/ 1 关吃 10（应 160）:"; speedOf(1, 0); speedOf(1, 10)
+    PRINT sChkHdr
+    PRINT sChk1; cellOf(5, 5); colOf(cellOf(5, 5))
+    PRINT sChk2; dRow(D_UP); dRow(D_RIGHT); dRow(D_DOWN); dRow(D_LEFT)
+    PRINT sChk3; dCol(D_UP); dCol(D_RIGHT); dCol(D_DOWN); dCol(D_LEFT)
+    PRINT sChk4; canTurn(D_RIGHT, D_LEFT); canTurn(D_RIGHT, D_UP)
+    PRINT sChk5; canTurn(D_UP, D_UP)
+    PRINT sChk6; needOf(1); needOf(2); needOf(3)
+    PRINT sChk7; speedOf(1, 0); speedOf(1, 10)
 
     ' 棋盘：边框必须是墙、中间必须是空的
     level = 1
     buildBoard()
-    PRINT "  左上角是墙吗（应 1）:"; bd(cellOf(0, 0))
-    PRINT "  (1,1) 是空的吗（应 0）:"; bd(cellOf(1, 1))
-    PRINT "  右下角是墙吗（应 1）:"; bd(cellOf(GH - 1, GW - 1))
+    PRINT sChk8; bd(cellOf(0, 0))
+    PRINT sChk9; bd(cellOf(1, 1))
+    PRINT sChk10; bd(cellOf(GH - 1, GW - 1))
 
     ' 空格子够不够放蛇 + 食物
     freeN = 0
@@ -816,7 +887,7 @@ SUB simCheck()
         END IF
         i = i + 1
     WEND
-    PRINT "  第 1 关空格数（应 360 = 20*22 - 边框 80，此时还没放蛇）:"; freeN
+    PRINT sChk11; freeN
 
     ' 吃食物的计分：普通 vs 奖励（foodVal == 关卡号时双倍）
     score = 0
@@ -825,7 +896,7 @@ SUB simCheck()
     need = needOf(1)
     foodVal = 3
     eatFood()
-    PRINT "  普通数字 3（应 3 分 / 吃 1 个）:"; score; eaten
+    PRINT sChk12; score; eaten
     score = 0
     eaten = 0
     startLevel()
@@ -833,7 +904,7 @@ SUB simCheck()
     need = needOf(1)
     foodVal = 1
     eatFood()
-    PRINT "  奖励数字 1（应 2 分 / 吃 2 个）:"; score; eaten
+    PRINT sChk13; score; eaten
 
     ' 撞墙必死
     startLevel()
@@ -846,12 +917,13 @@ SUB simCheck()
         END IF
         i = i + 1
     WEND
-    PRINT "  一路向上撞墙（应 1=结束）:"; over
+    PRINT sChk14; over
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
 ' ══════════════════════════════════════════════════════════════════════════
+initLang
 simCheck()
 
 sw = ui_scr_w()
@@ -864,10 +936,10 @@ IF sh <= 0 THEN
 END IF
 
 ' 锁竖屏 + **要系统手柄区**（第 5 个参数 1）—— 方向键交给它，程序不自己画一套
-wh = ui_win_open_ex("贪吃蛇", sw, sh, 0, 1)
+wh = ui_win_open_ex(sTitle, sw, sh, 0, 1)
 
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：没有真窗口，规则自检打完就退出）"
+    PRINT sNoWin
 ELSE
     runGame()
 END IF

@@ -191,7 +191,7 @@ int ai_pick(int* b, int firstEmpty) {
 
 /* ─────────── 绘制 ─────────── */
 
-void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
+void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over, int lang) {
     int i;
     int x0;
     int y0;
@@ -244,10 +244,10 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
     /* 状态行：用**状态式**文字接口 —— 属性设一次，之后只管给坐标和字符串。
      * 结束时不再写"点任意处再来一局" —— 那件事现在由 `finish()` 的弹框交代，
      * 一行小字既没人看、又与弹框重复。这行只管"当前该谁下"。 */
-    if (over == 1) s = "你赢了！";
-    else if (over == 2) s = "电脑赢了";
-    else if (over == 3) s = "平局";
-    else s = "你执黑，点棋盘落子";
+    if (over == 1) s = lang == 0 ? "你赢了！" : "You win!";
+    else if (over == 2) s = lang == 0 ? "电脑赢了" : "Computer wins";
+    else if (over == 3) s = lang == 0 ? "平局" : "Draw";
+    else s = lang == 0 ? "你执黑，点棋盘落子" : "You are black — tap to place";
 
     ui_set_font(15, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_LEFT);
     ui_text_cur(pad, padY + half + cell, s);
@@ -313,17 +313,20 @@ void sfx_draw(void) {
     ui_beep(500, 300);
     ui_vibrate(40, 0);
 }
-int finish(int over) {
+int finish(int over, int lang) {
     int r;
     if (over == 1) {
         sfx_win();
-        r = ui_dlg_msg("五子棋", "你赢了！再来一局？", VML_DLG_QUESTION);
+        r = ui_dlg_msg(lang == 0 ? "五子棋" : "Gomoku",
+                       lang == 0 ? "你赢了！再来一局？" : "You win! Play again?", VML_DLG_QUESTION);
     } else if (over == 2) {
         sfx_lose();
-        r = ui_dlg_msg("五子棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
+        r = ui_dlg_msg(lang == 0 ? "五子棋" : "Gomoku",
+                       lang == 0 ? "电脑赢了。再来一局？" : "Computer wins. Play again?", VML_DLG_QUESTION);
     } else {
         sfx_draw();
-        r = ui_dlg_msg("五子棋", "平局。再来一局？", VML_DLG_QUESTION);
+        r = ui_dlg_msg(lang == 0 ? "五子棋" : "Gomoku",
+                       lang == 0 ? "平局。再来一局？" : "Draw. Play again?", VML_DLG_QUESTION);
     }
     /* 弹框失败（返回 -1）也当"再来" —— 总不能因为宿主弹不出框就把整局卡死在这儿 */
     if (r == 1) return 0;
@@ -357,11 +360,13 @@ int main(void) {
     int t1;
     int r;
     char* title;
+    int lang;      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 
     /* 开局：棋盘清空 */
     for (i = 0; i < N * N; i = i + 1) b[i] = EMPTY;
 
-    title = "五子棋";
+    lang = ui_get_language();
+    title = lang == 0 ? "五子棋" : "Gomoku";
 
     /* **先问可用绘图区，再开窗** —— 顺序不能反。
      *
@@ -397,12 +402,14 @@ int main(void) {
     padY = (availH - (N - 1) * cell) / 2 + cell / 2;
     if (padY < cell / 2) padY = cell / 2;
 
-    t0 = ui_dlg_msg("五子棋", "你执黑先行。点棋盘落子，返回箭头退出。", VML_DLG_INFO);
+    t0 = ui_dlg_msg(lang == 0 ? "五子棋" : "Gomoku",
+                    lang == 0 ? "你执黑先行。点棋盘落子，返回箭头退出。"
+                              : "You are black. Tap to place, Back to quit.", VML_DLG_INFO);
 
     over = 0;
     moves = 0;
     lastIdx = -1;
-    draw_board(b, pad, padY, cell, lastIdx, over);
+    draw_board(b, pad, padY, cell, lastIdx, over, lang);
 
     /* 主循环：一个统一的消息队列，取到触摸就换算格子 */
     while (ui_win_closed() == 0) {
@@ -433,7 +440,7 @@ int main(void) {
             over = 3;
         } else {
             /* 先画一手人的，让手感立刻有反馈，再算电脑的 */
-            draw_board(b, pad, padY, cell, lastIdx, over);
+            draw_board(b, pad, padY, cell, lastIdx, over, lang);
 
             /* 电脑落子 */
             aiIdx = ai_pick(b, 0);
@@ -451,12 +458,12 @@ int main(void) {
             }
         }
 
-        draw_board(b, pad, padY, cell, lastIdx, over);
+        draw_board(b, pad, padY, cell, lastIdx, over, lang);
 
         /* 一局结束：**收在这一处**（四种结束方式都汇到这里）——
          * 出声、弹框问要不要再来；不想再来就退出窗口，而不是默默重开。 */
         if (over != 0) {
-            if (finish(over) == 0) break;
+            if (finish(over, lang) == 0) break;
             /* 清掉上一局没读完的输入。一次点击会产生**多条**消息（按下/抬起/移动），
              * 而主循环通常只读它要的那条，剩下的就留在队列里 —— 不清的话新一局
              * 一上来就会把上一局最后那点读出来，黑子立刻落到那个位置上。 */
@@ -466,7 +473,7 @@ int main(void) {
             moves = 0;
             lastIdx = -1;
             sfx_newgame();
-            draw_board(b, pad, padY, cell, lastIdx, over);
+            draw_board(b, pad, padY, cell, lastIdx, over, lang);
         }
     }
 

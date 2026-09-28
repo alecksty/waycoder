@@ -79,6 +79,8 @@ int  exprLen;
 int pressIdx;                    /* 当前按住的键（-1 无） */
 int flashT;                      /* 按下高亮还能亮几拍 */
 
+int g_lang;                      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+
 /* 键盘：4 列 × 5 行。
  *
  * ⚠ **键面用整数码 + 一个 label_of()，不要 `char* keys[20] = {"C", …}`** ——
@@ -400,7 +402,12 @@ void draw_display(void)
         int col = DISP_NUM;
         char* txt = g_fmt;
 
-        if (err) { col = DISP_ERR; txt = "错误"; show = 0; }
+        if (err) {
+            col = DISP_ERR;
+            if (g_lang == 0) txt = "错误";
+            else             txt = "Error";
+            show = 0;
+        }
         else if (!entering && pendingOp != 0) show = acc;
 
         fmt(show);
@@ -447,7 +454,18 @@ int main(void)
     W = ui_scr_w();
     H = ui_scr_h();
 
-    ui_win_open_ex("算盘", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    g_lang = ui_get_language();
+
+    /* 标题先落进变量再传：沿用本文件 draw_display() 里记下的那条写法约定
+       （那里注释着"参数位置的三元表达式这条前端会生成坏掉的地址"）。
+       别处（plane.c / pacman.c 一类）直接写在实参位置是好的，但这个文件既然记过这个坑，
+       就照着它自己的约定写，别在这里做风格实验。 */
+    {
+        char* title;
+        if (g_lang == 0) title = "算盘";
+        else             title = "Calculator";
+        ui_win_open_ex(title, W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    }
     ui_keep_on(1);
 
     /* 布局：上面 26% 给显示屏，下面按键区 */

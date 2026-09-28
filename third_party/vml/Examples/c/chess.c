@@ -75,6 +75,10 @@
 #define COL_BTN_TX  0xFFEDEDF2
 #define COL_ACCENT  0xFFE8B23A
 
+/* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调）。
+ * chess.c 的规则层刻意没有全局状态（可在桌面单测），这里是唯一的例外 —— 它只影响界面文字。 */
+int g_lang;
+
 /* ═══════════════════════ 规则（不碰 ui_*，可在桌面单测）═══════════════════════ */
 
 /* 象/相 不过河：红方只能待在 y>=5，黑方只能 y<=4 */
@@ -618,26 +622,29 @@ void init_board(int* b) {
 
 /* ═══════════════════════ 界面 ═══════════════════════ */
 
+/* ⚠ 英文用**单字母**（K/A/B/N/R/C/P，国际象棋习惯），红黑同一字母 —— 两边靠**墨色**
+   区分（红子 COL_RED、黑子 COL_BLACK），这正是通行做法，而且棋子格只有 cell*3/5 那么宽，
+   写全称（"General"/"Advisor"…）会撑破格子。 */
 char* name_of(int v) {
     int tp;
 
     tp = v % 10;
     if (v / 10 == S_RED) {
-        if (tp == T_K) return "帅";
-        if (tp == T_A) return "仕";
-        if (tp == T_B) return "相";
-        if (tp == T_N) return "马";
-        if (tp == T_R) return "车";
-        if (tp == T_C) return "炮";
-        return "兵";
+        if (tp == T_K) return g_lang == 0 ? "帅" : "K";
+        if (tp == T_A) return g_lang == 0 ? "仕" : "A";
+        if (tp == T_B) return g_lang == 0 ? "相" : "B";
+        if (tp == T_N) return g_lang == 0 ? "马" : "N";
+        if (tp == T_R) return g_lang == 0 ? "车" : "R";
+        if (tp == T_C) return g_lang == 0 ? "炮" : "C";
+        return g_lang == 0 ? "兵" : "P";
     }
-    if (tp == T_K) return "将";
-    if (tp == T_A) return "士";
-    if (tp == T_B) return "象";
-    if (tp == T_N) return "马";
-    if (tp == T_R) return "车";
-    if (tp == T_C) return "炮";
-    return "卒";
+    if (tp == T_K) return g_lang == 0 ? "将" : "K";
+    if (tp == T_A) return g_lang == 0 ? "士" : "A";
+    if (tp == T_B) return g_lang == 0 ? "象" : "B";
+    if (tp == T_N) return g_lang == 0 ? "马" : "N";
+    if (tp == T_R) return g_lang == 0 ? "车" : "R";
+    if (tp == T_C) return g_lang == 0 ? "炮" : "C";
+    return g_lang == 0 ? "卒" : "P";
 }
 
 /* 像素 → 行列号；越界返回 -1（与 gomoku 的 hit_col 同一套取整）。 */
@@ -693,9 +700,11 @@ void draw_board(int* b, int bx, int by, int cell, int sel, char* status) {
     ui_line(bx + 5 * cell, by + 7 * cell, bx + 3 * cell, by + 9 * cell, COL_LINE, 1);
 
     /* 楚河汉界（写在两段竖线的空档里，竖排读着别扭，横排即可） */
-    ui_text_v(bx + 2 * cell, by + 4 * cell + cell / 2, "楚河", COL_LINE,
+    /* ⚠ 英文只能给 "Chu"/"Han"（楚河/汉界的专名）—— 河界那一格只有 1 cell 宽（约 35px），
+       而 "RIVER"/"BORDER" 在 cell*2/5 的字号下正好占满乃至溢出。 */
+    ui_text_v(bx + 2 * cell, by + 4 * cell + cell / 2, g_lang == 0 ? "楚河" : "Chu", COL_LINE,
               cell * 2 / 5, VML_ANCHOR_CENTER, VML_VANCHOR_MIDDLE, 0);
-    ui_text_v(bx + 6 * cell, by + 4 * cell + cell / 2, "汉界", COL_LINE,
+    ui_text_v(bx + 6 * cell, by + 4 * cell + cell / 2, g_lang == 0 ? "汉界" : "Han", COL_LINE,
               cell * 2 / 5, VML_ANCHOR_CENTER, VML_VANCHOR_MIDDLE, 0);
 
     /* 棋子 */
@@ -746,10 +755,12 @@ void draw_buttons(int* btns) {
         x = i * 4;
         ui_rect(btns[x], btns[x + 1], btns[x + 2], btns[x + 3], COL_BTN, 1, 0, 8);
         if (i == 0) {
-            ui_text_v(btns[x] + btns[x + 2] / 2, btns[x + 1] + btns[x + 3] / 2, "重开",
+            ui_text_v(btns[x] + btns[x + 2] / 2, btns[x + 1] + btns[x + 3] / 2,
+                      g_lang == 0 ? "重开" : "Restart",
                       COL_BTN_TX, 16, VML_ANCHOR_CENTER, VML_VANCHOR_MIDDLE, 0);
         } else {
-            ui_text_v(btns[x] + btns[x + 2] / 2, btns[x + 1] + btns[x + 3] / 2, "悔棋",
+            ui_text_v(btns[x] + btns[x + 2] / 2, btns[x + 1] + btns[x + 3] / 2,
+                      g_lang == 0 ? "悔棋" : "Undo",
                       COL_BTN_TX, 16, VML_ANCHOR_CENTER, VML_VANCHOR_MIDDLE, 0);
         }
         i = i + 1;
@@ -847,7 +858,8 @@ int main(void) {
     if (sh <= 0) sh = 700;
 
     /* 竖屏 + 不要手柄区：棋盘是竖着看的，全程触摸，手柄一个都用不上 */
-    ui_win_open_ex("象棋", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    g_lang = ui_get_language();
+    ui_win_open_ex(g_lang == 0 ? "象棋" : "Chess", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
     /* 布局：顶部一行状态、底部一行按钮，中间给棋盘。宽高**分开算**再取小者 */
@@ -872,9 +884,14 @@ int main(void) {
     over = 0;
     turn = S_RED;
     hn = 0;
-    status = "你执红先行，点自己的子再点落点";
+    /* ⚠ 顶部状态行是**左对齐、不折行**的一条（`ui_text_v(bx, 6, …)`，字号 15）——
+       可用宽度约 sw − bx ≈ 338px，英文最长的 "Computer has no move. Red wins"（30 字符
+       ≈ 225px）也在里面。再加词就会溢出，别再往这些串上添字。 */
+    status = g_lang == 0 ? "你执红先行，点自己的子再点落点" : "You are red — tap a piece";
 
-    t0 = ui_dlg_msg("象棋", "你执红先行。点亮自己的棋子，再点亮要去的点；底部可悔棋。",
+    t0 = ui_dlg_msg(g_lang == 0 ? "象棋" : "Chess",
+                    g_lang == 0 ? "你执红先行。点亮自己的棋子，再点亮要去的点；底部可悔棋。"
+                                : "You are red and move first. Tap your piece, then tap where it goes. Undo is at the bottom.",
                     VML_DLG_INFO);
 
     draw_board(b, bx, by, cell, sel, status);
@@ -921,7 +938,7 @@ int main(void) {
                 }
                 sel = -1;
                 turn = S_RED;
-                status = "已悔一步，该你走";
+                status = g_lang == 0 ? "已悔一步，该你走" : "Undone. Your move";
                 sfx_undo_ok();
             } else {
                 sfx_undo_no();
@@ -937,7 +954,7 @@ int main(void) {
             over = 0;
             turn = S_RED;
             hn = 0;
-            status = "新的一局，你执红先行";
+            status = g_lang == 0 ? "新的一局，你执红先行" : "New game. You are red";
             sfx_newgame();
             ui_msg_clear();
             draw_board(b, bx, by, cell, sel, status);
@@ -995,9 +1012,9 @@ int main(void) {
                 if (in_check(b, S_BLK) == 1) sfx_check();
                 if (has_legal(b, S_BLK) == 0) {
                     over = 1;
-                    status = "将死！红方胜";
+                    status = g_lang == 0 ? "将死！红方胜" : "Checkmate! Red wins";
                 } else {
-                    status = "电脑思考中…";
+                    status = g_lang == 0 ? "电脑思考中…" : "Computer thinking...";
                     draw_board(b, bx, by, cell, sel, status);
                     draw_buttons(btns);
                     ui_present();
@@ -1006,7 +1023,7 @@ int main(void) {
                     r = ai_pick(b, S_BLK);
                     if (r < 0) {
                         over = 1;
-                        status = "电脑无棋可走，红方胜";
+                        status = g_lang == 0 ? "电脑无棋可走，红方胜" : "Computer has no move. Red wins";
                     } else {
                         aiFrom = r / 100;
                         aiTo = r % 100;
@@ -1032,13 +1049,13 @@ int main(void) {
                         if (in_check(b, S_RED) == 1) {
                             sfx_check();
                             ui_vibrate(30, 0);
-                            status = "将军！该你走";
+                            status = g_lang == 0 ? "将军！该你走" : "Check! Your move";
                         } else {
-                            status = "该你走";
+                            status = g_lang == 0 ? "该你走" : "Your move";
                         }
                         if (has_legal(b, S_RED) == 0) {
                             over = 2;
-                            status = "你被将死了，电脑胜";
+                            status = g_lang == 0 ? "你被将死了，电脑胜" : "Checkmate. Computer wins";
                         }
                     }
                 }
@@ -1056,10 +1073,14 @@ int main(void) {
         if (over != 0) {
             if (over == 1) {
                 sfx_win();
-                r = ui_dlg_msg("象棋", "恭喜，你赢了！再来一局？", VML_DLG_QUESTION);
+                r = ui_dlg_msg(g_lang == 0 ? "象棋" : "Chess",
+                               g_lang == 0 ? "恭喜，你赢了！再来一局？" : "You win! Play again?",
+                               VML_DLG_QUESTION);
             } else {
                 sfx_lose();
-                r = ui_dlg_msg("象棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
+                r = ui_dlg_msg(g_lang == 0 ? "象棋" : "Chess",
+                               g_lang == 0 ? "电脑赢了。再来一局？" : "Computer wins. Play again?",
+                               VML_DLG_QUESTION);
             }
             if (r == 1) break;                 /* 弹框失败(-1)也当"再来"，别把局面卡死 */
             init_board(b);
@@ -1067,7 +1088,7 @@ int main(void) {
             over = 0;
             turn = S_RED;
             hn = 0;
-            status = "新的一局，你执红先行";
+            status = g_lang == 0 ? "新的一局，你执红先行" : "New game. You are red";
             ui_msg_clear();
             sfx_newgame();
             draw_board(b, bx, by, cell, sel, status);

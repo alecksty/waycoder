@@ -121,6 +121,7 @@ int FOEN = 9;
 
 /* ── 运行时状态 ─────────────────────────────────────────── */
 
+int g_lang;                 /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 int TILE;                   /* 一格边长（像素），开窗后按画布算 */
 int VIEWW;                  /* 画布宽（= 窗口宽）*/
 int VIEWH;
@@ -347,8 +348,10 @@ void hit_goal(void) {
     sfx_win();
     score = score + 1000;
     /* 只弹**一个**对话框 —— 先 msg 再 select 会连弹两次，用户要连点两下才回得来。*/
-    if (ui_dlg_select("超级玛丽", "通关！你走到了终点旗杆。再来一局吗？",
-                      "再来一局\n退出", 2, 0) == 0) {
+    if (ui_dlg_select(g_lang == 0 ? "超级玛丽" : "Mario",
+                      g_lang == 0 ? "通关！你走到了终点旗杆。再来一局吗？"
+                                  : "You win! You reached the goal flag. Play again?",
+                      g_lang == 0 ? "再来一局\n退出" : "Play again\nQuit", 2, 0) == 0) {
         reset_round();
     } else {
         ui_win_close();
@@ -661,24 +664,26 @@ void draw_hud(void) {
      * `帧` 在涨 = 定时器活着；`键`/`持` 有值 = 按键收得到。
      * 两行一起看，一次就能分清「定时器没跑」还是「按键没收」。查完删掉。 */
     ui_set_font(11, 0, COL_GOLD, VML_ANCHOR_LEFT);
-    ui_text_cur(6, HUDH - 16, "帧");
+    ui_text_cur(6, HUDH - 16, g_lang == 0 ? "帧" : "FPS");
     ui_text_cur(26, HUDH - 16, num_str(frame));
-    ui_text_cur(96, HUDH - 16, "键");
+    ui_text_cur(96, HUDH - 16, g_lang == 0 ? "键" : "Key");
     ui_text_cur(116, HUDH - 16, num_str(lastkey));
-    ui_text_cur(166, HUDH - 16, "持");
-    ui_text_cur(186, HUDH - 16, num_str(held));
+    ui_text_cur(166, HUDH - 16, g_lang == 0 ? "持" : "Hold");
+    /* "Hold"（4 个半角 ≈ 22px）比"持"（13px）宽，数值起点得让开，否则压在一起 */
+    ui_text_cur(g_lang == 0 ? 186 : 192, HUDH - 16, num_str(held));
     ui_text_cur(236, HUDH - 16, "px");
     ui_text_cur(262, HUDH - 16, num_str(px));
 
     ui_set_font(13, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_LEFT);
-    ui_text_cur(10, 6, "分数");
+    ui_text_cur(10, 6, g_lang == 0 ? "分数" : "Score");
     ui_text_cur(46, 6, num_str(score));
     ui_set_font(13, VML_FONT_BOLD, COL_GOLD, VML_ANCHOR_LEFT);
-    ui_text_cur(VIEWW / 2 - 26, 6, "金币");
+    ui_text_cur(VIEWW / 2 - 26, 6, g_lang == 0 ? "金币" : "Coins");
     ui_text_cur(VIEWW / 2 + 10, 6, num_str(coins));
     ui_set_font(13, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_LEFT);
-    ui_text_cur(VIEWW - 96, 6, "命");
-    ui_text_cur(VIEWW - 78, 6, num_str(lives));
+    /* "Lives"（≈33px）比"命"（13px）宽得多 ⇒ 整组往左挪，别压到数字上（数字右边界不动）。*/
+    ui_text_cur(VIEWW - (g_lang == 0 ? 96 : 132), 6, g_lang == 0 ? "命" : "Lives");
+    ui_text_cur(VIEWW - (g_lang == 0 ? 78 : 114), 6, num_str(lives));
     ui_set_font(11, 0, COL_TEXT, VML_ANCHOR_LEFT);
     ui_text_cur(VIEWW - 52, 8, num_str(timer_));
 }
@@ -695,16 +700,16 @@ void draw_all(void) {
     if (state == 1) {
         ui_rect(0, VIEWH / 2 - 30, VIEWW, 60, 0xCC000000, 1, 0, 0);
         ui_set_font(20, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(VIEWW / 2, VIEWH / 2 - 10, "已暂停");
+        ui_text_cur(VIEWW / 2, VIEWH / 2 - 10, g_lang == 0 ? "已暂停" : "Paused");
         ui_set_font(12, 0, COL_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(VIEWW / 2, VIEWH / 2 + 14, "按 SELECT 继续");
+        ui_text_cur(VIEWW / 2, VIEWH / 2 + 14, g_lang == 0 ? "按 SELECT 继续" : "Press SELECT to resume");
     }
     if (state == 2) {
         ui_rect(0, VIEWH / 2 - 40, VIEWW, 80, 0xCC000000, 1, 0, 0);
         ui_set_font(20, VML_FONT_BOLD, COL_WARN, VML_ANCHOR_CENTER);
-        ui_text_cur(VIEWW / 2, VIEWH / 2 - 18, "游戏结束");
+        ui_text_cur(VIEWW / 2, VIEWH / 2 - 18, g_lang == 0 ? "游戏结束" : "Game Over");
         ui_set_font(13, 0, COL_TEXT, VML_ANCHOR_CENTER);
-        ui_text_cur(VIEWW / 2, VIEWH / 2 + 10, "按 START 重新开始");
+        ui_text_cur(VIEWW / 2, VIEWH / 2 + 10, g_lang == 0 ? "按 START 重新开始" : "Press START to restart");
     }
     ui_present();
 }
@@ -781,7 +786,8 @@ int main(void) {
     if (sw <= 0) sw = 360;
     if (sh <= 0) sh = 620;
 
-    ui_win_open("超级玛丽", sw, sh);
+    g_lang = ui_get_language();
+    ui_win_open(g_lang == 0 ? "超级玛丽" : "Mario", sw, sh);
     ui_keep_on(1);              /* 玩的时候别熄屏；退出时关掉 */
 
     VIEWW = sw;
@@ -808,10 +814,10 @@ int main(void) {
      * 这是本文件最容易漏的一行，tetris.c 用同一个节拍（40ms ⇒ 25fps）。*/
     ui_timer_set(TICK_MS, 0);
 
-    ui_dlg_msg("超级玛丽",
-               "用屏幕下方的游戏按键操作：← → 跑、↑/A/X 跳。"
-               "踩敌人得分，收金币，走到右边的旗杆通关。START 重开、SELECT 暂停。",
-               VML_DLG_INFO);
+    /* ⚠ 中文这条整句写在同一行里：跨行拼接时第二段会落在没有 `g_lang == 0` 的行上
+       （语言审计脚本按行认），而相邻字面量拼接本来就只是 C 的语法糖。 */
+    if (g_lang == 0) ui_dlg_msg("超级玛丽", "用屏幕下方的游戏按键操作：← → 跑、↑/A/X 跳。踩敌人得分，收金币，走到右边的旗杆通关。START 重开、SELECT 暂停。", VML_DLG_INFO);
+    else             ui_dlg_msg("Mario", "Use the on-screen gamepad: left/right to run, up/A/X to jump. Stomp foes for score, grab coins, reach the flag to win. START restart, SELECT pause.", VML_DLG_INFO);
 
     while (ui_win_closed() == 0) {
         t = ui_wait(msg, 0);

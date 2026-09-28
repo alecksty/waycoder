@@ -72,6 +72,8 @@ NATIVE SUB ui_keep_on(v AS INTEGER)
 END SUB
 NATIVE FUNCTION ui_dlg_msg(title AS STRING, body AS STRING, style AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 
 DIM cx AS INTEGER
 DIM cy AS INTEGER
@@ -97,11 +99,41 @@ DIM hx AS INTEGER
 DIM hy AS INTEGER
 DIM mi AS INTEGER
 
+' ── 界面语言（0 = 中文 / 1 = 英文，跟随系统语言）──────────────────────
+' `ui_get_language()` 是一次 syscall ⇒ **开局查一次存进 LANG**，文案也在这里一次算好，
+' 之后每帧绘制只用变量（别在绘制路径上再调它）。
+DIM LANG AS INTEGER
+DIM sTitle AS STRING
+DIM sScore AS STRING
+DIM sTime AS STRING
+DIM sLives AS STRING
+DIM sHint AS STRING
+DIM sRestart AS STRING
+DIM sTimeUp AS STRING
+DIM sMiss5 AS STRING
+
+' ⚠ 这段**必须待在 SUB 里、模块级只留一句调用** —— 实测（whack.bas 同款写法）把 IF/ELSE
+'   摊到模块级之后，模块级代码流里那条 `ui_rect … 0, 3, 8` 的后两个实参被读成垃圾、
+'   整屏画花（与基线帧比 diff_px 0 → 130571）；搬进 SUB 后与改动前**逐像素相同**。
+SUB initLang()
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sTitle = "打地鼠" ELSE sTitle = "Whack-a-Mole"
+    IF LANG = 0 THEN sScore = "得分" ELSE sScore = "Score"
+    IF LANG = 0 THEN sTime = "剩余秒" ELSE sTime = "Time"
+    IF LANG = 0 THEN sLives = "机会" ELSE sLives = "Lives"
+    IF LANG = 0 THEN sHint = "方向键移动，A 或 START 敲" ELSE sHint = "Arrows move, A whacks"
+    IF LANG = 0 THEN sRestart = "按 A 或 START 重开" ELSE sRestart = "Press A to restart"
+    IF LANG = 0 THEN sTimeUp = "时间到！得分见左上角。再来一局？（选「否」退出）" ELSE sTimeUp = "Time up! Score is top-left. Play again? (choose 'No' to quit)"
+    IF LANG = 0 THEN sMiss5 = "5 次没打着，这一局结束。再来一局？（选「否」退出）" ELSE sMiss5 = "5 misses, round over. Play again? (choose 'No' to quit)"
+END SUB
+
+initLang
+
 w = ui_scr_w()
 h = ui_scr_h()
 IF w <= 0 THEN w = 360
 IF h <= 0 THEN h = 620
-ui_win_open "打地鼠", w, h
+ui_win_open sTitle, w, h
 ui_keep_on 1
 
 cell = (w - 40) / 3
@@ -123,13 +155,13 @@ tid = ui_timer_set(1000, 0)
 WHILE ui_win_closed() = 0
     ' ── draw ──
     ui_clear &HFF10E818
-    ui_text 8, 8, "得分", &HFF9AA0B0, 13, 0
+    ui_text 8, 8, sScore, &HFF9AA0B0, 13, 0
     ui_rect 58, 11, score, 10, &HFF5238A8, 1, 0, 0
-    ui_text w / 2 + 20, 8, "剩余秒", &HFF9AA0B0, 13, 1
+    ui_text w / 2 + 20, 8, sTime, &HFF9AA0B0, 13, 1
     ui_rect w / 2 + 80, 11, left * 2, 10, &HFF00F800, 1, 0, 0
 
     ' 剩余机会：5 个点，打空一次暗一个
-    ui_text 8, 34, "机会", &HFF9AA0B0, 13, 0
+    ui_text 8, 34, sLives, &HFF9AA0B0, 13, 0
     mi = 0
     WHILE mi < 5
         IF mi < 5 - miss THEN
@@ -168,9 +200,9 @@ WHILE ui_win_closed() = 0
     WEND
 
     IF over = 0 THEN
-        ui_text w / 2, h - 40, "方向键移动，A 或 START 敲", &HFF9AA0B0, 14, 1
+        ui_text w / 2, h - 40, sHint, &HFF9AA0B0, 14, 1
     ELSE
-        ui_text w / 2, h - 40, "按 A 或 START 重开", &HFFFFE000, 16, 1
+        ui_text w / 2, h - 40, sRestart, &HFFFFE000, 16, 1
     END IF
     ui_present
 
@@ -190,7 +222,7 @@ WHILE ui_win_closed() = 0
                 ' 弹框期间**宿主会把定时器停掉**（VmlUiCalls.WithTimersPaused）——
                 ' 这里不必自己 kill/restart，那会变成同一件事的第二套机制（见文件头 ①）
                 ' 选「否/拒绝」→ 关窗退出（ui_dlg_msg 返回 0=是 / 1=否）
-                dlg = ui_dlg_msg("打地鼠", "时间到！得分见左上角。再来一局？（选「否」退出）", 0)
+                dlg = ui_dlg_msg(sTitle, sTimeUp, 0)
                 IF dlg <> 0 THEN
                     ui_win_close
                     EXIT WHILE
@@ -241,7 +273,7 @@ WHILE ui_win_closed() = 0
                     ui_beep 220, 300
                     ui_present
                     ' 选「否/拒绝」→ 关窗退出（同上）
-                    dlg = ui_dlg_msg("打地鼠", "5 次没打着，这一局结束。再来一局？（选「否」退出）", 0)
+                    dlg = ui_dlg_msg(sTitle, sMiss5, 0)
                     IF dlg <> 0 THEN
                         ui_win_close
                         EXIT WHILE

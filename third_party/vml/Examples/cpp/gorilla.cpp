@@ -364,6 +364,7 @@ static int gMinute = 30;
 /// ⚠ 初值在 `main` 里由 `gHour/gMinute` 算出来（**不在这里写死** —— 写死就是
 ///   同一个"开局 7:30"写两遍，改一处忘一处）。
 static int gMsOfDay;
+static int gLang;            // 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调）
 static int gDayL;            // 天光 0..100（0 = 全黑、100 = 正午满亮）
 static int gWarm;            // 日出/日落的暖色系数 0..100（地平线偏橙）
 static int gSunUp;
@@ -2638,7 +2639,7 @@ public:
         int n;
 
         cx = sw / 2;
-        ui_text(cx, y, "风", C_TEXT_DIM, 12, VML_ANCHOR_CENTER);
+        ui_text(cx, y, gLang == 0 ? "风" : "Wind", C_TEXT_DIM, 12, VML_ANCHOR_CENTER);
         ui_rect(cx - 34, y + 18, 68, 4, 0x40FFFFFF, 1, 0, 0);
         if (v != 0)
         {
@@ -2671,21 +2672,30 @@ public:
 
     void Draw(Ape* a0, Ape* a1, int turn, int sw)
     {
+        int sx;      // 分数数字的起点/右界（英文名字宽，得往中间让）
+        int dy;      // 昼夜标记的横坐标（英文那行"Turn: X"更宽，标记也得让）
+
         ui_rect(0, 0, sw, 30, C_HUD_BG, 1, 0, 0);
 
-        ui_text(8, 20, "橙", C_APE0, 13, VML_ANCHOR_LEFT);
-        ui_text(30, 20, numstr(a0->score), C_TEXT, 14, VML_ANCHOR_LEFT);
+        /* ⚠ "Orange"/"Purple"（≈39px）比"橙"/"紫"（13px）宽得多 ⇒ 分数数字必须让开，
+           否则两边压在一起（中文那版 30 / sw-30 就是照 13px 量出来的）。 */
+        sx = gLang == 0 ? 30 : 53;
+        ui_text(8, 20, gLang == 0 ? "橙" : "Orange", C_APE0, 13, VML_ANCHOR_LEFT);
+        ui_text(sx, 20, numstr(a0->score), C_TEXT, 14, VML_ANCHOR_LEFT);
 
-        ui_text(sw - 8, 20, "紫", C_APE1, 13, VML_ANCHOR_RIGHT);
-        ui_text(sw - 30, 20, numstr(a1->score), C_TEXT, 14, VML_ANCHOR_RIGHT);
+        ui_text(sw - 8, 20, gLang == 0 ? "紫" : "Purple", C_APE1, 13, VML_ANCHOR_RIGHT);
+        ui_text(sw - sx, 20, numstr(a1->score), C_TEXT, 14, VML_ANCHOR_RIGHT);
 
-        if (turn == 0) { ui_text(sw / 2, 20, "轮到 橙", C_APE0, 14, VML_ANCHOR_CENTER); }
-        else { ui_text(sw / 2, 20, "轮到 紫", C_APE1, 14, VML_ANCHOR_CENTER); }
+        if (turn == 0) { ui_text(sw / 2, 20, gLang == 0 ? "轮到 橙" : "Turn: Orange", C_APE0, 14, VML_ANCHOR_CENTER); }
+        else { ui_text(sw / 2, 20, gLang == 0 ? "轮到 紫" : "Turn: Purple", C_APE1, 14, VML_ANCHOR_CENTER); }
 
-        // 昼夜标记：白天不写、天黑了才写"夜" —— 比写"昼"省一格，也更像在报状态
+        // 昼夜标记：白天不写、天黑了才写"夜/Night" —— 比写"昼"省一格，也更像在报状态
+        // ⚠ 英文那行（"Turn: Orange" ≈84px）比中文（"轮到 橙" ≈35px）宽出一倍，
+        //   标记再多让 8px 才不会顶上（中文那版 +58 是照中文宽度定的）。
         if (gDayL < 40)
         {
-            ui_text(sw / 2 + 58, 20, "夜", C_TEXT_DIM, 12, VML_ANCHOR_CENTER);
+            dy = gLang == 0 ? 58 : 66;
+            ui_text(sw / 2 + dy, 20, gLang == 0 ? "夜" : "Night", C_TEXT_DIM, 12, VML_ANCHOR_CENTER);
         }
 
         // 游戏时间 hh:mm。
@@ -3340,7 +3350,15 @@ public:
         barPy = panY + 82;
     }
 
-    void DrawBar(int y, int val, int vmax, int col, char* name)
+    /* ⚠ 第 5 个形参是 `int which`（0 = 角度 / 1 = 力度），**不是** `char* name`。
+     *
+     * 原先它是 `char* name`，而这条链上 `char*` **形参**是坏的：实参传进去、
+     * 函数里读出来是**空串**（最小复现：`void f(int y, char* s) { ui_text(10,y,s,…); }`
+     * 调 `f(100,"ABC")` ⇒ 宿主收到 `""`）。症状极隐蔽 —— 两根条照画、只是**标签不见了**，
+     * 而且它在改动之前就是这样（拿 HEAD 版本跑 trace 一样是 `str=""`）。
+     * 把字符串**写在 ui_text 调用点上**（字面量直传）是好的，所以这里改成传一个选择子、
+     * 在函数内部点出字面量。判据见 `--trace-draw` 里那两行的 str。 */
+    void DrawBar(int y, int val, int vmax, int col, int which)
     {
         int w;
         w = barW * val / vmax;
@@ -3350,7 +3368,8 @@ public:
         {
             ui_rect(barX, y, w, barH, col, 1, 0, 6);
         }
-        ui_text(14, y + barH - 9, name, C_TEXT_DIM, 12, VML_ANCHOR_LEFT);
+        if (which == 0) { ui_text(14, y + barH - 9, gLang == 0 ? "角度" : "Angle", C_TEXT_DIM, 12, VML_ANCHOR_LEFT); }
+        else { ui_text(14, y + barH - 9, gLang == 0 ? "力度" : "Power", C_TEXT_DIM, 12, VML_ANCHOR_LEFT); }
         ui_text(barX + barW - 6, y + barH - 9, numstr(val), C_TEXT, 15, VML_ANCHOR_RIGHT);
     }
 
@@ -3367,13 +3386,13 @@ public:
         bc = C_BANANA;
         if (state != ST_AIM) { bc = 0x66FFE070; }
         ui_rect(fireX, fireY, fireW, fireH, bc, 1, 0, 8);
-        if (state == ST_AIM) { ui_text(fireX + fireW / 2, fireY + 23, "发 射", 0xFF201810, 15, VML_ANCHOR_CENTER); }
-        else { ui_text(fireX + fireW / 2, fireY + 23, "飞行中", 0xFF201810, 12, VML_ANCHOR_CENTER); }
+        if (state == ST_AIM) { ui_text(fireX + fireW / 2, fireY + 23, gLang == 0 ? "发 射" : "FIRE", 0xFF201810, 15, VML_ANCHOR_CENTER); }
+        else { ui_text(fireX + fireW / 2, fireY + 23, gLang == 0 ? "飞行中" : "In flight", 0xFF201810, 12, VML_ANCHOR_CENTER); }
 
-        DrawBar(barAy, cur->angle, 90, C_WIND, "角度");
-        DrawBar(barPy, cur->power, 100, C_BANANA, "力度");
+        DrawBar(barAy, cur->angle, 90, C_WIND, 0);      /* 0 = 角度 / Angle */
+        DrawBar(barPy, cur->power, 100, C_BANANA, 1);   /* 1 = 力度 / Power */
 
-        ui_text(sw - 12, panY + 22, "拖动调值 · 点发射", C_TEXT_DIM, 11, VML_ANCHOR_RIGHT);
+        ui_text(sw - 12, panY + 22, gLang == 0 ? "拖动调值 · 点发射" : "Drag to set, tap to fire", C_TEXT_DIM, 11, VML_ANCHOR_RIGHT);
     }
 
     // ── 触摸 / 鼠标：按下的那一点落在哪根条上就改哪个值 ────────────────────
@@ -3682,8 +3701,8 @@ public:
         // 命中横幅（谁打中了谁）
         if (state == ST_BOOM && hitBy >= 0 && boomT <= BOOM_TICKS)
         {
-            if (hitBy == 0) { ui_text(sw / 2, gy / 2, "橙猴命中！", C_APE0, 26, VML_ANCHOR_CENTER); }
-            else { ui_text(sw / 2, gy / 2, "紫猴命中！", C_APE1, 26, VML_ANCHOR_CENTER); }
+            if (hitBy == 0) { ui_text(sw / 2, gy / 2, gLang == 0 ? "橙猴命中！" : "Orange hit!", C_APE0, 26, VML_ANCHOR_CENTER); }
+            else { ui_text(sw / 2, gy / 2, gLang == 0 ? "紫猴命中！" : "Purple hit!", C_APE1, 26, VML_ANCHOR_CENTER); }
         }
 
         hud.Draw(&(*AP[0]), &(*AP[1]), turn, sw);
@@ -3698,22 +3717,22 @@ public:
             {
                 // ⚠ 这一局的胜负**与分数无关**，所以绝不能落到下面"比分数"那几支去 ——
                 //   否则一只猴子被激光打死，屏幕上却在报"紫猴获胜！"，玩家一头雾水。
-                ui_text(sw / 2, sh / 2 - 18, "飞碟清场！", 0xFFFF6060, 26, VML_ANCHOR_CENTER);
-                ui_text(sw / 2, sh / 2 + 10, "别打飞碟 —— 它会记住你", C_TEXT_DIM, 14, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 - 18, gLang == 0 ? "飞碟清场！" : "UFO wipeout!", 0xFFFF6060, 26, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 + 10, gLang == 0 ? "别打飞碟 —— 它会记住你" : "Don't hit the UFO - it remembers", C_TEXT_DIM, 14, VML_ANCHOR_CENTER);
             }
             else if ((*AP[0]).score > (*AP[1]).score)
             {
-                ui_text(sw / 2, sh / 2 - 2, "橙猴获胜！", C_APE0, 24, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 - 2, gLang == 0 ? "橙猴获胜！" : "Orange wins!", C_APE0, 24, VML_ANCHOR_CENTER);
             }
             else if ((*AP[1]).score > (*AP[0]).score)
             {
-                ui_text(sw / 2, sh / 2 - 2, "紫猴获胜！", C_APE1, 24, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 - 2, gLang == 0 ? "紫猴获胜！" : "Purple wins!", C_APE1, 24, VML_ANCHOR_CENTER);
             }
             else
             {
-                ui_text(sw / 2, sh / 2 - 2, "平局", C_TEXT, 24, VML_ANCHOR_CENTER);
+                ui_text(sw / 2, sh / 2 - 2, gLang == 0 ? "平局" : "Draw", C_TEXT, 24, VML_ANCHOR_CENTER);
             }
-            ui_text(sw / 2, sh / 2 + 36, "点一下屏幕退出", C_TEXT_DIM, 13, VML_ANCHOR_CENTER);
+            ui_text(sw / 2, sh / 2 + 36, gLang == 0 ? "点一下屏幕退出" : "Tap to quit", C_TEXT_DIM, 13, VML_ANCHOR_CENTER);
         }
 
         ui_present();
@@ -3748,7 +3767,8 @@ int main()
     g.Layout();
     // **全触摸**：不要屏幕手柄区（`VML_WIN_NO_GAMEPAD`）—— 手柄区连折叠条一起吃画布
     // 高度，这个游戏只用手指，没必要为它留一条；顺带锁竖屏（版面按竖屏排）。
-    ui_win_open_ex("大猩猩扔香蕉 (C++)", g.sw, g.sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    gLang = ui_get_language();
+    ui_win_open_ex(gLang == 0 ? "大猩猩扔香蕉 (C++)" : "Gorilla", g.sw, g.sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
     // ⚠ **必须在开窗之后**：图块是宿主那边的资源，没有场景就建不起来
     //   （`ui_create_block` 会返回 0，之后整局都只能用"退化的简版形状"兜底）。

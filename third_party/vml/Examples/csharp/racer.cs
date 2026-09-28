@@ -81,6 +81,7 @@ class Racer
     static int dash;                 // 虚线滚动偏移
     static int spawnIn;              // 还有几拍刷一辆
     static int passed;               // 已躲过几辆（提速用）
+    static int lang;                 // 界面语言：0=中文 1=英文（开局问一次宿主，见 Main）
 
     static int[] ex = new int[SLOTS]; // 敌车 x（像素，左边界）
     static int[] ey = new int[SLOTS]; // 敌车 y（像素，上边界）
@@ -206,14 +207,14 @@ class Racer
         drawCar(laneX(lane), roadBot - carH - 6, PLAYER);
 
         // HUD：分数条 + 最高分条（不拼字符串 —— 见文件头对前端能力的说明）
-        ui_text(8, 8, "得分", HUD, 13, ANCHOR_LEFT);
+        ui_text(8, 8, lang == 0 ? "得分" : "Score", HUD, 13, ANCHOR_LEFT);
         ui_rect(58, 11, score, 10, BAR, 1, 0, 0);
-        ui_text(sw / 2, 8, "最高", HUD, 13, ANCHOR_CENTER);
+        ui_text(sw / 2, 8, lang == 0 ? "最高" : "Best", HUD, 13, ANCHOR_CENTER);
         ui_rect(sw / 2 + 46, 11, best, 10, BAR2, 1, 0, 0);
 
         if (paused != 0)
         {
-            ui_text(sw / 2, sh / 2, "暂停（SELECT 继续）", ENEMY, 16, ANCHOR_CENTER);
+            ui_text(sw / 2, sh / 2, lang == 0 ? "暂停（SELECT 继续）" : "Paused (SELECT)", ENEMY, 16, ANCHOR_CENTER);
         }
         ui_present();
     }
@@ -281,7 +282,7 @@ class Racer
                     // 撞车（结局）：**最低音**、最长
                     ui_beep(131, 320);
                     draw();
-                    if (ui_dlg_msg("赛车", "撞车了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return 1; }
+                    if (ui_dlg_msg(lang == 0 ? "赛车" : "Racer", lang == 0 ? "撞车了，这一局结束。\n再来一局？（选「否」退出）" : "You crashed. Round over.\nPlay again? (choose \"No\" to quit)", DLG_INFO) != 0) { ui_win_close(); return 1; }
                     reset();
                     return 1;
                 }
@@ -297,7 +298,10 @@ class Racer
         sh = ui_scr_h();
         if (sw <= 0) sw = 360;
         if (sh <= 0) sh = 620;
-        ui_win_open("赛车", sw, sh);
+        // 界面语言：开局问一次宿主要中文还是英文（0=中文 1=英文），之后整局按它分支。
+        // ⚠ 别在每帧里调 —— 那是一次 syscall。
+        lang = ui_get_language();
+        ui_win_open(lang == 0 ? "赛车" : "Racer", sw, sh);
         layout();
         ui_keep_on(1);
         reset();

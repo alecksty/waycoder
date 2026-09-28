@@ -36,6 +36,10 @@
 //   100=候选x 101=候选y 105/106=新方向 107=命中
 int A[112];
 
+// 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调）。
+// 状态表 A[] 刻意只放游戏状态，语言是"界面"的事，单独一个文件级量。
+int Lang;
+
 void occupied() {
     int i;
     A[107] = 0;
@@ -99,12 +103,13 @@ void draw() {
         i = i + 1;
     }
 
-    ui_text(8, 8, "得分", -6643536, 13, 0);
+    ui_text(8, 8, Lang == 0 ? "得分" : "Score", -6643536, 13, 0);
     ui_rect(58, 11, A[6], 10, -11409298, 1, 0, 0);
-    ui_text(A[14]/2, 8, "最高", -6643536, 13, 1);
+    ui_text(A[14]/2, 8, Lang == 0 ? "最高" : "Best", -6643536, 13, 1);
     ui_rect(A[14]/2+46, 11, A[7], 10, -63488, 1, 0, 0);
     if (A[9] != 0) {
-        ui_text(A[14]/2, A[15]/2, "暂停（SELECT 继续）", -131246, 16, 1);
+        ui_text(A[14]/2, A[15]/2, Lang == 0 ? "暂停（SELECT 继续）" : "Paused (SELECT)",
+                -131246, 16, 1);
     }
     ui_present();
 }
@@ -135,7 +140,9 @@ void gameOver() {
     // 选「否/拒绝」→ 退出游戏（ui_dlg_msg 返回 0=是 / 1=否）。
     // 此前不接返回值 ⇒ 两个按钮一个样、游戏还退不出去（用户实测报的）。
     // 用 A[109] 这个没人用的槽当退出标志 —— gameOver 有四五处调用点，逐个改返回值不划算。
-    if (ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) {
+    if (ui_dlg_msg(Lang == 0 ? "贪吃蛇" : "Snake",
+                   Lang == 0 ? "撞到了，这一局结束。\n再来一局？（选「否」退出）"
+                             : "Crashed - game over.\nPlay again? (choose \"No\" to quit)", 0) != 0) {
         A[109] = 1;
         return;
     }
@@ -220,7 +227,8 @@ int main() {
     if (h <= 0) { h = 620; }
     A[14] = w;
     A[15] = h;
-    ui_win_open("贪吃蛇", w, h);
+    Lang = ui_get_language();
+    ui_win_open(Lang == 0 ? "贪吃蛇" : "Snake", w, h);
 
     // 版面算一次，画与判定共用
     byw = w - 8;

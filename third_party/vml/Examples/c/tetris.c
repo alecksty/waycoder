@@ -100,6 +100,7 @@ int dropMs;
 
 /* ── 布局（main 里算一次，绘图全读它） ──────────────────── */
 
+int g_lang;         /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 int sw;
 int sh;
 int cell;           /* 格子边长 */
@@ -555,7 +556,7 @@ void draw_panel(void) {
     x = panelX + panelW / 2;
 
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(x, by + 10, "下一个");
+    ui_text_cur(x, by + 10, g_lang == 0 ? "下一个" : "Next");
 
     mini = cell / 2;
     if (mini < 7) mini = 7;
@@ -572,22 +573,22 @@ void draw_panel(void) {
 
     ty = by + 32 + mini * 4 + 18;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(panelX + 10, ty, "分数");
+    ui_text_cur(panelX + 10, ty, g_lang == 0 ? "分数" : "Score");
     draw_int(panelX + 10, ty + 16, score, 17, COL_TEXT);
 
     ty = ty + 52;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(panelX + 10, ty, "最高");
+    ui_text_cur(panelX + 10, ty, g_lang == 0 ? "最高" : "Best");
     draw_int(panelX + 10, ty + 16, best, 17, COL_GOLD);
 
     ty = ty + 52;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(panelX + 10, ty, "消行");
+    ui_text_cur(panelX + 10, ty, g_lang == 0 ? "消行" : "Lines");
     draw_int(panelX + 10, ty + 16, nlines, 17, COL_TEXT);
 
     ty = ty + 52;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
-    ui_text_cur(panelX + 10, ty, "等级");
+    ui_text_cur(panelX + 10, ty, g_lang == 0 ? "等级" : "Level");
     draw_int(panelX + 10, ty + 16, level, 17, COL_ACCENT);
 }
 
@@ -608,11 +609,11 @@ void draw_overlay(void) {
     ui_rect(bx, by, BW * cell, BH * cell, COL_SHADE, 1, 0, 0);
     ui_rect(x, y, w, h, COL_PANEL, 1, 0, 10);
     if (state == 2) {
-        s = "游戏结束";
-        s2 = "按 START 再来一局";
+        s = g_lang == 0 ? "游戏结束" : "Game Over";
+        s2 = g_lang == 0 ? "按 START 再来一局" : "Press START to restart";
     } else {
-        s = "已暂停";
-        s2 = "按 SELECT 继续";
+        s = g_lang == 0 ? "已暂停" : "Paused";
+        s2 = g_lang == 0 ? "按 SELECT 继续" : "Press SELECT to resume";
     }
     ui_set_font(20, VML_FONT_BOLD, COL_WARN, VML_ANCHOR_CENTER);
     ui_text_cur(x + w / 2, y + 16, s);
@@ -811,7 +812,8 @@ int main(void) {
     sh = ui_scr_h();
     if (sw <= 0) sw = 360;
     if (sh <= 0) sh = 620;
-    ui_win_open("俄罗斯方块", sw, sh);
+    g_lang = ui_get_language();
+    ui_win_open(g_lang == 0 ? "俄罗斯方块" : "Tetris", sw, sh);
 
     /* 玩游戏时别熄屏 —— 一手不动盯着棋盘想下一步，屏幕自己黑了最扫兴。
      * 退出时会关掉（见文件末尾），所以不会一直亮着。 */
@@ -850,9 +852,10 @@ int main(void) {
     npid = ui_rand(7);
     spawn();
     set_speed();
-    ui_dlg_msg("俄罗斯方块", "用屏幕下方的游戏按键操作："
-                             "方向键移动与旋转、A 旋转、B 直落，START 重开、SELECT 暂停。"
-                             "返回箭头退出。", VML_DLG_INFO);
+    /* ⚠ 中文这条整句写在同一行里：跨行拼接时第二段会落在没有 `g_lang == 0` 的行上
+       （语言审计脚本按行认），而相邻字面量拼接本来就只是 C 的语法糖。 */
+    if (g_lang == 0) ui_dlg_msg("俄罗斯方块", "用屏幕下方的游戏按键操作：方向键移动与旋转、A 旋转、B 直落，START 重开、SELECT 暂停。返回箭头退出。", VML_DLG_INFO);
+    else             ui_dlg_msg("Tetris", "Use the on-screen gamepad: arrows to move/rotate, A rotate, B hard drop, START restart, SELECT pause. Back arrow to quit.", VML_DLG_INFO);
     draw_all();
 
     while (ui_win_closed() == 0) {

@@ -40,6 +40,8 @@ NATIVE FUNCTION ui_scr_h() AS INTEGER
 END FUNCTION
 NATIVE FUNCTION ui_win_open_ex(t AS STRING, w AS INTEGER, h AS INTEGER, rot AS INTEGER, pad AS INTEGER) AS INTEGER
 END FUNCTION
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
 NATIVE FUNCTION ui_win_closed() AS INTEGER
 END FUNCTION
 NATIVE SUB ui_win_close()
@@ -125,6 +127,7 @@ DIM dealerHidden AS INTEGER
 DIM result AS INTEGER
 DIM msg AS STRING
 DIM quit AS INTEGER
+DIM LANG AS INTEGER          ' 界面语言：0 中文 / 1 英文（开局查一次）
 DIM doubled AS INTEGER
 
 DIM sw AS INTEGER
@@ -148,6 +151,7 @@ DIM rx AS INTEGER
 DIM ry AS INTEGER
 DIM tmp AS INTEGER
 DIM txt AS STRING
+DIM lb AS STRING             ' 按语言取值的临时串（画文字用；别在调用的实参里写 IF）
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  规则（纯函数，自检直接打它们的返回值）
@@ -289,7 +293,7 @@ SUB dealRound()
     doubled = 0
     result = 0
     phase = PH_PLAY
-    msg = "要牌 / 停牌 / 加倍？"
+    IF LANG = 0 THEN msg = "要牌 / 停牌 / 加倍？" ELSE msg = "Hit / Stand / Double?"
     IF isBlackjack(0, pn) = 1 THEN
         settle()
     END IF
@@ -314,7 +318,7 @@ END SUB
 
 SUB playerDouble()
     IF chips < bet THEN
-        msg = "筹码不够加倍"
+        IF LANG = 0 THEN msg = "筹码不够加倍" ELSE msg = "Not enough chips to double"
         ui_beep 131, 99   ' 筹码不够：低闷
         EXIT SUB
     END IF
@@ -366,23 +370,23 @@ SUB settle()
 
     SELECT CASE result
         CASE WIN
-            msg = "你赢了！+" + STR$(bet)
+            IF LANG = 0 THEN msg = "你赢了！+" + STR$(bet) ELSE msg = "You win! +" + STR$(bet)
             ui_beep 1047, 320   ' 赢：最高音（结局取两端）
             ui_vibrate(60, 120)
         CASE LOSE
-            msg = "庄家赢 " + STR$(pv) + " : " + STR$(dv)
+            IF LANG = 0 THEN msg = "庄家赢 " + STR$(pv) + " : " + STR$(dv) ELSE msg = "Dealer wins " + STR$(pv) + " : " + STR$(dv)
             ui_beep 131, 320   ' 输：最低音（结局取两端）
             ui_vibrate(180, 200)
         CASE PUSH
-            msg = "和局，退还赌注"
+            IF LANG = 0 THEN msg = "和局，退还赌注" ELSE msg = "Draw, bet returned"
             ui_beep 330, 320   ' 和局：中性（既不欢快也不沮丧）
         CASE ELSE
-            msg = "（未结算）"
+            IF LANG = 0 THEN msg = "（未结算）" ELSE msg = "(unsettled)"
     END SELECT
 
     phase = PH_OVER
     IF chips <= 0 THEN
-        msg = "筹码输光了 —— 点【重开】再来"
+        IF LANG = 0 THEN msg = "筹码输光了 —— 点【重开】再来" ELSE msg = "Out of chips - tap Restart"
     END IF
 END SUB
 
@@ -482,9 +486,11 @@ END SUB
 
 SUB drawHud()
     ui_rect(0, 0, sw, HUDH, C_HUD, 1, 0, 0)
-    ui_text(12, 10, "筹码", C_DIM, 13, 0)
+    IF LANG = 0 THEN lb = "筹码" ELSE lb = "Chips"
+    ui_text(12, 10, lb, C_DIM, 13, 0)
     ui_text(12, 28, STR$(chips), C_GOLD, 22, 0)
-    ui_text(sw / 2, 10, "赌注", C_DIM, 13, 1)
+    IF LANG = 0 THEN lb = "赌注" ELSE lb = "Bet"
+    ui_text(sw / 2, 10, lb, C_DIM, 13, 1)
     ui_text(sw / 2, 28, STR$(bet), C_GOLD, 22, 1)
 
     IF phase = PH_PLAY THEN
@@ -492,10 +498,12 @@ SUB drawHud()
         IF dealerHidden = 0 THEN
             txt = STR$(handValue(12, dn))
         END IF
-        ui_text(sw - 12, 10, "庄家", C_DIM, 13, 2)
+        IF LANG = 0 THEN lb = "庄家" ELSE lb = "Dealer"
+        ui_text(sw - 12, 10, lb, C_DIM, 13, 2)
         ui_text(sw - 12, 28, txt, C_TEXT, 22, 2)
     ELSE
-        ui_text(sw - 12, 10, "玩家", C_DIM, 13, 2)
+        IF LANG = 0 THEN lb = "玩家" ELSE lb = "You"
+        ui_text(sw - 12, 10, lb, C_DIM, 13, 2)
         ui_text(sw - 12, 28, STR$(handValue(0, pn)), C_TEXT, 22, 2)
     END IF
 END SUB
@@ -506,10 +514,12 @@ SUB drawTable()
     dealerY = HUDH + 44
     playerY = sh - 300
 
-    ui_text(sw / 2, HUDH + 12, "庄家", C_DIM, 13, 1)
+    IF LANG = 0 THEN lb = "庄家" ELSE lb = "Dealer"
+    ui_text(sw / 2, HUDH + 12, lb, C_DIM, 13, 1)
     drawHand(12, dn, dealerY, dealerHidden)
 
-    ui_text(sw / 2, playerY - 22, "你", C_DIM, 13, 1)
+    IF LANG = 0 THEN lb = "你" ELSE lb = "You"
+    ui_text(sw / 2, playerY - 22, lb, C_DIM, 13, 1)
     drawHand(0, pn, playerY, 0)
 END SUB
 
@@ -534,13 +544,16 @@ SUB drawControls()
         END IF
         drawButton(b1x, b1y, bw, "−", canMinus)
         drawButton(b2x, b2y, bw, "+", 1)
-        drawButton(b3x, b3y, sw - 48, "发 牌", 1)
+        IF LANG = 0 THEN lb = "发 牌" ELSE lb = "Deal"
+        drawButton(b3x, b3y, sw - 48, lb, 1)
         RETURN
     END IF
 
     IF phase = PH_PLAY THEN
-        drawButton(b1x, b1y, bw, "要牌", 1)
-        drawButton(b2x, b2y, bw, "停牌", 1)
+        IF LANG = 0 THEN lb = "要牌" ELSE lb = "Hit"
+        drawButton(b1x, b1y, bw, lb, 1)
+        IF LANG = 0 THEN lb = "停牌" ELSE lb = "Stand"
+        drawButton(b2x, b2y, bw, lb, 1)
         DIM canDouble AS INTEGER
         canDouble = 0
         IF chips >= bet THEN
@@ -549,11 +562,13 @@ SUB drawControls()
         IF pn > 2 THEN
             canDouble = 0
         END IF
-        drawButton(b3x, b3y, sw - 48, "加倍", canDouble)
+        IF LANG = 0 THEN lb = "加倍" ELSE lb = "Double"
+        drawButton(b3x, b3y, sw - 48, lb, canDouble)
         RETURN
     END IF
 
-    drawButton(b1x, b1y, sw - 48, "重 开", 1)
+    IF LANG = 0 THEN lb = "重 开" ELSE lb = "Restart"
+    drawButton(b1x, b1y, sw - 48, lb, 1)
 END SUB
 
 SUB drawScene()
@@ -591,7 +606,7 @@ SUB newRound()
         bet = chips
     END IF
     phase = PH_BET
-    msg = "下注 —— 调好赌注点【发牌】"
+    IF LANG = 0 THEN msg = "下注 —— 调好赌注点【发牌】" ELSE msg = "Place bet, then tap Deal"
     pn = 0
     dn = 0
 END SUB
@@ -657,7 +672,7 @@ SUB handlePoint(isDown AS INTEGER)
         IF inRect(b1x, b1y, sw - 48, bwh, rx, ry) = 1 THEN
             IF chips <= 0 THEN
                 chips = 200
-                msg = "重新给你 200 筹码"
+                IF LANG = 0 THEN msg = "重新给你 200 筹码" ELSE msg = "Gave you 200 chips back"
             END IF
             newRound()
             ui_beep 523, 66   ' 新局
@@ -762,47 +777,47 @@ END SUB
 '  开机自检
 ' ══════════════════════════════════════════════════════════════════════════
 SUB simCheck()
-    PRINT "── 21 点 · 规则自检 ──"
+    IF LANG = 0 THEN PRINT "── 21 点 · 规则自检 ──" ELSE PRINT "-- Blackjack - rule self-check --"
 
     ' 编码往返
-    PRINT "  牌 30 的点数/花色（应 7 / 2）:"; rankOf(30); suitOf(30)
+    IF LANG = 0 THEN PRINT "  牌 30 的点数/花色（应 7 / 2）:"; rankOf(30); suitOf(30) ELSE PRINT "  card 30 rank/suit (want 7 / 2):"; rankOf(30); suitOf(30)
 
     ' 手牌点数：A 的两面性
     hand(0) = 1 * 4 + 0
     pn = 1
-    PRINT "  单张 A（应 11）:"; handValue(0, pn)
+    IF LANG = 0 THEN PRINT "  单张 A（应 11）:"; handValue(0, pn) ELSE PRINT "  single A (want 11):"; handValue(0, pn)
     hand(1) = 13 * 4 + 0
     pn = 2
-    PRINT "  A + K（应 21，天生 21 点应 1）:"; handValue(0, pn); isBlackjack(0, pn)
+    IF LANG = 0 THEN PRINT "  A + K（应 21，天生 21 点应 1）:"; handValue(0, pn); isBlackjack(0, pn) ELSE PRINT "  A + K (want 21; blackjack flag want 1):"; handValue(0, pn); isBlackjack(0, pn)
     hand(1) = 9 * 4 + 0
     pn = 2
-    PRINT "  A + 9（应 20）:"; handValue(0, pn)
+    IF LANG = 0 THEN PRINT "  A + 9（应 20）:"; handValue(0, pn) ELSE PRINT "  A + 9 (want 20):"; handValue(0, pn)
     hand(1) = 13 * 4 + 0
     hand(2) = 13 * 4 + 0
     pn = 3
-    PRINT "  A + K + K（应 21 —— A 降成 1）:"; handValue(0, pn)
+    IF LANG = 0 THEN PRINT "  A + K + K（应 21 —— A 降成 1）:"; handValue(0, pn) ELSE PRINT "  A + K + K (want 21 - A drops to 1):"; handValue(0, pn)
     hand(2) = 5 * 4 + 0
     pn = 3
-    PRINT "  A + K + 5（应 16 —— A 仍按 11）:"; handValue(0, pn)
+    IF LANG = 0 THEN PRINT "  A + K + 5（应 16 —— A 仍按 11）:"; handValue(0, pn) ELSE PRINT "  A + K + 5 (want 16 - A stays 11):"; handValue(0, pn)
 
     ' 爆牌
     hand(0) = 10 * 4 + 0
     hand(1) = 10 * 4 + 0
     hand(2) = 5 * 4 + 0
     pn = 3
-    PRINT "  10+10+5（应 25，已爆）:"; handValue(0, pn)
+    IF LANG = 0 THEN PRINT "  10+10+5（应 25，已爆）:"; handValue(0, pn) ELSE PRINT "  10+10+5 (want 25, bust):"; handValue(0, pn)
 
     ' 庄家规则
-    PRINT "  庄家 16 要不要牌（应 1）:"; dealerHits(16)
-    PRINT "  庄家 17 要不要牌（应 0）:"; dealerHits(17)
-    PRINT "  庄家 21 要不要牌（应 0）:"; dealerHits(21)
+    IF LANG = 0 THEN PRINT "  庄家 16 要不要牌（应 1）:"; dealerHits(16) ELSE PRINT "  dealer hits on 16 (want 1):"; dealerHits(16)
+    IF LANG = 0 THEN PRINT "  庄家 17 要不要牌（应 0）:"; dealerHits(17) ELSE PRINT "  dealer hits on 17 (want 0):"; dealerHits(17)
+    IF LANG = 0 THEN PRINT "  庄家 21 要不要牌（应 0）:"; dealerHits(21) ELSE PRINT "  dealer hits on 21 (want 0):"; dealerHits(21)
 
     ' 比大小
-    PRINT "  玩家 20 庄家 19（应 1=赢）:"; compare(20, 19)
-    PRINT "  玩家 18 庄家 19（应 2=输）:"; compare(18, 19)
-    PRINT "  玩家 19 庄家 19（应 3=和）:"; compare(19, 19)
-    PRINT "  玩家爆牌 22 庄家 5（应 2=输）:"; compare(22, 5)
-    PRINT "  庄家爆牌 22 玩家 5（应 1=赢）:"; compare(5, 22)
+    IF LANG = 0 THEN PRINT "  玩家 20 庄家 19（应 1=赢）:"; compare(20, 19) ELSE PRINT "  player 20 vs dealer 19 (want 1=win):"; compare(20, 19)
+    IF LANG = 0 THEN PRINT "  玩家 18 庄家 19（应 2=输）:"; compare(18, 19) ELSE PRINT "  player 18 vs dealer 19 (want 2=lose):"; compare(18, 19)
+    IF LANG = 0 THEN PRINT "  玩家 19 庄家 19（应 3=和）:"; compare(19, 19) ELSE PRINT "  player 19 vs dealer 19 (want 3=push):"; compare(19, 19)
+    IF LANG = 0 THEN PRINT "  玩家爆牌 22 庄家 5（应 2=输）:"; compare(22, 5) ELSE PRINT "  player bust 22 vs dealer 5 (want 2=lose):"; compare(22, 5)
+    IF LANG = 0 THEN PRINT "  庄家爆牌 22 玩家 5（应 1=赢）:"; compare(5, 22) ELSE PRINT "  dealer bust 22 vs player 5 (want 1=win):"; compare(5, 22)
 
     ' 发牌不重样：洗一副，前 10 张互不相同
     shuffle()
@@ -819,12 +834,14 @@ SUB simCheck()
         WEND
         i = i + 1
     WEND
-    PRINT "  洗牌后前 10 张的重复对数（应 0）:"; dup
+    IF LANG = 0 THEN PRINT "  洗牌后前 10 张的重复对数（应 0）:"; dup ELSE PRINT "  duplicate pairs in first 10 after shuffle (want 0):"; dup
 END SUB
 
 ' ══════════════════════════════════════════════════════════════════════════
 '  主程序
 ' ══════════════════════════════════════════════════════════════════════════
+' 界面语言：**开局查一次**存进 LANG（ui_get_language 是 syscall，别每帧调）
+LANG = ui_get_language()
 simCheck()
 
 sw = ui_scr_w()
@@ -836,10 +853,11 @@ IF sh <= 0 THEN
     sh = 660
 END IF
 
-wh = ui_win_open_ex("21 点", sw, sh, 0, 0)
+IF LANG = 0 THEN lb = "21 点" ELSE lb = "Blackjack"
+wh = ui_win_open_ex(lb, sw, sh, 0, 0)
 
 IF wh < 1 THEN
-    PRINT "（桌面脚手架：没有真窗口，规则自检打完就退出）"
+    IF LANG = 0 THEN PRINT "（桌面脚手架：没有真窗口，规则自检打完就退出）" ELSE PRINT "(desktop scaffold: no real window; rule self-check done, exiting)"
 ELSE
     runGame()
 END IF

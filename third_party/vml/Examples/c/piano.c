@@ -95,6 +95,7 @@ static int RecNote[384];   /* 音符号；-1 表示"关音" */
 /* ── 状态栏按钮（布局时算好，**画与命中同源**）── */
 /* 0=移调- 1=移调+ 2=示范曲 3=录音 4=**强制清除** */
 static int BtnX[5];
+static int Lang;      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
 static int BtnY;
 static int BtnW;
 static int BtnH;
@@ -206,7 +207,7 @@ static void draw(void)
     /* ── 状态栏 ── */
     ui_set_font(18, VML_FONT_BOLD, 0xFF7FD4FF, VML_ANCHOR_LEFT);
     ui_set_valign(VML_VANCHOR_MIDDLE);
-    ui_text_cur(10, BtnY + BtnH / 2, "钢琴");
+    ui_text_cur(10, BtnY + BtnH / 2, Lang == 0 ? "钢琴" : "Piano");
 
     /* ⚠ 这里原先还有一行"音域提示"（`C4-5` 之类），居中画的 ——
      *   而 5 个按钮从 x≈80 起把右边占满了，那行字**大半被盖住、只露出一个 C**，
@@ -220,9 +221,14 @@ static void draw(void)
         ui_set_valign(VML_VANCHOR_MIDDLE);
         if (i == 0) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "-");
         if (i == 1) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "+");
-        if (i == 2) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, SongOn ? "停" : "示范");
-        if (i == 3) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, RecOn ? "停录" : "录音");
-        if (i == 4) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, "清音");
+        /* 英文按"这个按钮此刻的动作"给词（Demo/Stop、Rec/Stop）—— 中文那对 停/停录
+           在窄按钮里放不下（StopRec 会溢出 40~52px 的键宽），而按钮各自的位置已经把
+           "停的是哪一个"说清楚了。 */
+        if (i == 2) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2,
+                                SongOn ? (Lang == 0 ? "停" : "Stop") : (Lang == 0 ? "示范" : "Demo"));
+        if (i == 3) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2,
+                                RecOn ? (Lang == 0 ? "停录" : "Stop") : (Lang == 0 ? "录音" : "Rec"));
+        if (i == 4) ui_text_cur(BtnX[i] + BtnW / 2, BtnY + BtnH / 2, Lang == 0 ? "清音" : "Clear");
     }
 
     /* ── 两行白键 ── */
@@ -498,7 +504,8 @@ int main(void)
     BtnX[3] = BtnX[2] + BtnW + 4;
     BtnX[4] = BtnX[3] + BtnW + 6;
 
-    ui_win_open_ex("钢琴", SW, SH, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    Lang = ui_get_language();
+    ui_win_open_ex(Lang == 0 ? "钢琴" : "Piano", SW, SH, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
     draw();
 
