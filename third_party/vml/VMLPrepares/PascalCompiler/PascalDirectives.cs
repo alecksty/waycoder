@@ -1,3 +1,4 @@
+using VMLAssembler;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -480,7 +481,14 @@ namespace PascalCompiler
             {
                 // 找不着就跳过 —— **不报错**。语料里 `{$I cube.vec}` 那几份 .vec
                 // 本来就不在仓库里；从前它是注释（静默丢弃），现在也只是多一条告警。
-                Warnings.Add((f.File, f.Line, $"找不到包含文件 '{{$I {arg}}}' —— 已跳过"));
+                //
+                // ⚠ `[include-missing]` 是**语言无关的稳定标记**：`scripts/vml-compat-probe/run.sh`
+                //   靠它把「缺配套文件」从「前端编不过」里摘出来（那不是缺陷，是这份语料不成立）。
+                //   此前它 grep 中文 `找不到包含文件`，语言一切到英文就**静默失配**
+                //   ---- 后果是那几份会被记成前端缺陷（判据红、且红得指错方向）。改标记要同步改那个探针。
+                Warnings.Add((f.File, f.Line, VmlLang.Pick(
+                    $"[include-missing] 找不到包含文件 '{{$I {arg}}}' —— 已跳过",
+                    $"[include-missing] include file not found '{{$I {arg}}}' - skipped")));
                 return;
             }
             if (_frames.Count >= MaxIncludeDepth)

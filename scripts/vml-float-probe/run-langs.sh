@@ -44,7 +44,10 @@ for f in "$HERE"/langs/f.* "$HERE"/langs/f2.*; do
         for a in "$@"; do [ "$a" = "$ext" ] && keep=1; done
         [ "$keep" = 1 ] || continue
     fi
-    got=$(VML_HOME="$VML_HOME" dotnet "$CLI" "$f" --timeout 25 2>&1 | grep -vE '^\[dbg\]|^✔|已注册|成功链接|链接|最终修复|别名')
+    # ⚠ 过滤的是**语言无关的标记**（链接器 `[link]` / `[link-done]` / `[phase]`、宿主 `[vmlcli]` 横幅、
+    #   宿主进度行 `✔`、`[dbg]`），不是中文散文 —— 散文会跟着系统语言变，按中文 grep 的话
+    #   英文 locale 上这些日志**过滤不掉**、混进逐字节比对里，判据会红得看不出原因。
+    got=$(VML_HOME="$VML_HOME" dotnet "$CLI" "$f" --timeout 25 2>&1 | grep -vE '^\[dbg\]|^✔|^\[vmlcli\]|^\[link|^\[phase\]')
     if [ "$got" = "$want" ]; then
         printf "  ✅ %-8s 正确\n" "${name#f.}"; pass=$((pass+1))
     else

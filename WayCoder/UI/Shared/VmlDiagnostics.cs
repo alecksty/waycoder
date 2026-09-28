@@ -64,7 +64,9 @@ internal static class VmlDiagnostics
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
-    /// ⑤ **没有位置**的裸错误行：<c>error: 未定义的函数 'nosuch'（引用 1 次）</c>。
+    /// ⑤ **没有位置**的裸错误行：<c>error: 未定义的函数 'nosuch'（引用 1 次）</c>
+    /// （英文界面下是 <c>error: undefined function 'nosuch' (1 reference(s))</c> —— 散文随语言走，
+    /// 而**行首那个 <c>error:</c> 是机器前缀、不翻译**，本条正则只认它）。
     ///
     /// 出处：<c>LibraryLinker.ReportUnresolved</c> —— 它一次把所有未解析的名字都列出来，
     /// **有源码行号的**写成 GCC 形状、**取不到行号的**就只有 <c>error: …</c> 这一种形状
@@ -124,7 +126,7 @@ internal static class VmlDiagnostics
     /// ⚠ **成功出口必须传 `false`**：那儿手上是**编译期的日志**（前端 stderr + 链接器 stderr），
     /// 编过了却一条都没解析出来 = **这段日志里本来就没有诊断**，此时补一条等于
     /// **凭空造一个错误**——而且造出来的还是 `Severity.Error`（比原来的警告更吓人）。
-    /// 实测踩到：把链接器那条「库内部」提示改成 `[库内部]` 前缀（不再匹配 `BareErrRx`）之后，
+    /// 实测踩到：把链接器那条「库内部」提示改成 `[lib-internal]` 前缀（不再匹配 `BareErrRx`）之后，
     /// 一个 7 行、编得过跑得动的 Pascal 程序，编辑器错误列表里冒出一条**红色错误**。
     /// </para>
     /// </param>

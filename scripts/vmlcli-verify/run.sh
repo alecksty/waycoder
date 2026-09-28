@@ -158,7 +158,10 @@ echo "── 【E】汇编浮点数据与运算（Examples/vml/float_ops.vml）"
 
 VML_HOME="$VML_HOME" dotnet "$CLI" "$ROOT/third_party/vml/Examples/vml/float_ops.vml" \
     --timeout 20 >"$TMP/fo_out.txt" 2>"$TMP/fo_err.txt"
-fo_got="$(grep -vE '^(✔|\[dbg\]|已注册|成功链接|链接)' "$TMP/fo_out.txt" | tr -d '\n')"
+# ⚠ 过滤的是**语言无关的标记**，不是中文散文：`[link]` / `[link-done]` / `[phase]` 是链接器
+#   的日志标记、`[vmlcli]` 是宿主的启动横幅、`✔` 是宿主自己的进度行 —— 它们都会跟着系统语言变
+#   散文，按中文 grep 的话英文 locale 上**过滤不掉**，日志会混进逐字节比对的程序输出里。
+fo_got="$(grep -vE '^(✔|\[dbg\]|\[vmlcli\]|\[link|\[phase\])' "$TMP/fo_out.txt" | tr -d '\n')"
 fo_want="3.75-0.753.3750.66666676.283-16255"
 if [ "$fo_got" = "$fo_want" ]; then
     echo "  ✔ 浮点数据指令与四则/双精度/转换全部正确（$fo_got）"

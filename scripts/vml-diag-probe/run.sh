@@ -43,7 +43,8 @@ failed=(); crashed=()
 # 全列出来（它本来就写好了、只是当警告打）。要让「未定义函数」变成编译期硬错误，
 # 前提就是**正常程序的这个清单必须为空** —— 否则一升档，正常程序全编不过。
 #
-# ⚠ 判的是**用户档**（"错误: 用户代码里有 N 处调用指向不存在的函数"），不是总数。
+# ⚠ 判的是**用户档**（链接器打的 `error:` 行里的"用户代码里有 N 处…"，
+#   本组用例只读 `[regclass]` 那行的数；未解析调用在 `undef-fn` / `undef-var` 两组里判），不是总数。
 #
 # 链接器现在按**指令来源**分两档报（`LibraryLinker.ReportUnresolved` 的 `userEnd` 索引边界）：
 #   · **用户档** = 前端为你这份源码产出的指令里的未解析调用 ⇒ 就是**你写错了一个函数名**，
@@ -68,8 +69,14 @@ group_link_clean() {
         local errf; errf="$(mktemp)"
         ( cd "$(dirname "$f")" && run_probe dotnet "$DLL" "$f" --vml /tmp/_diagprobe.vml ) >/dev/null 2>"$errf"
         local u l
-        u="$(grep -ao '用户代码里有 [0-9]* 处' "$errf" | head -1 | grep -o '[0-9]*')"
-        l="$(grep -ao '库代码里有 [0-9]* 个' "$errf" | head -1 | grep -o '[0-9]*')"
+        # ⚠ 取数认的是**语言无关的方括号标记**，不是中文散文 —— 散文会跟着系统语言变
+        #   （英文 locale 上 grep 中文 = **静默取不到值**，看着像链接器没报）。
+        #   `[regclass]` = 用户档寄存器类用错（降级为警告时的诊断格式）；
+        #   `[lib-internal]` = 库档未解析标签表头。**两个标记互不为前缀**（`[lib-regclass]`
+        #   是库档寄存器类那条的标记，带 `]` 的 `[lib-internal]` 匹配不到它），所以
+        #   "取第一个"不是靠调用顺序分对错 —— 是标记本身就分得开。
+        u="$(grep -ao '\[regclass\][^0-9]*[0-9]*' "$errf" | head -1 | grep -o '[0-9]*$')"
+        l="$(grep -ao '\[lib-internal\][^0-9]*[0-9]*' "$errf" | head -1 | grep -o '[0-9]*$')"
         if [ -z "$u" ] || [ "$u" = "0" ]; then
             printf '%-12s PASS   库档 %s\n' "$(basename "$f")" "${l:-0}"; pass=$((pass + 1))
         else

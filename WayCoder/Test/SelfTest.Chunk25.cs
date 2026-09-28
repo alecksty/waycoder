@@ -107,14 +107,14 @@ public static partial class SelfTest
         }
 
         // ── ⑦ 库档那行**不该**被当成错误收进来 ────────────────────────────────
-        // 链接器对库代码是 `[库内部] 库代码里有 N 个未解析标签…` + 若干 `  xxx (引用 N 次)` 缩进行。
+        // 链接器对库代码是 `[lib-internal] 库代码里有 N 个未解析标签…` + 若干 `  xxx (引用 N 次)` 缩进行。
         // 那些行不属于**用户代码**的错误，混进气泡只会让用户去改他改不了的东西。
         //
         // ⚠ 表头那行**曾经**写作 `警告: 库代码里有 N 个…`，而 `BareErrRx` 要求行首就是
         //   error/warning/错误/警告 —— 「警告:」在中文里同样是行首 ⇒ **表头被收进诊断**，
         //   在编辑器里表现为一块盖住代码的浮层（用户真机报的：
         //   「有很多程序能编译，也能运行，但是编辑器上报一个无位置的警告」）。
-        //   现在链接器改用它自己的 `[库内部]` 前缀（见 `LibraryLinker` 那段注释）。
+        //   现在链接器改用它自己的 `[lib-internal]` 前缀（见 `LibraryLinker` 那段注释）。
         //   下面两条一起钉住这件事 —— **改回 `警告:` 会让它们立刻红**。
         var lib = VmlDiagnostics.Parse(
             "<input>:3: error: 未定义的函数 'mine'（引用 1 次）\n" +
@@ -124,18 +124,38 @@ public static partial class SelfTest
         // 表头（成功出口那条路：`atLeastOne: false`）⇒ **一条都没有**。
         // 用 `atLeastOne: false` 是因为真实调用点就是这么传的（`MauiVml.BuildProgram` 的成功出口），
         // 只测默认值测不出这条 —— 默认会把「一条都没解析出来」补成一条红色 Error。
-        var libHead = VmlDiagnostics.Parse(
-            "[库内部] 库代码里有 21 个未解析标签 (该路径一旦被执行就会崩):\n" +
-            "  print_long (引用 1 次)\n", null, atLeastOne: false);
-        Check($"库内部表头不进诊断（实得 {libHead.Count}）", libHead.Count == 0);
+        //
+        // ⚠ 中英**两种形态都要钉**：标记（`[lib-internal]`）是语言无关的，而**散文会跟着语言走**
+        //   —— 只钉中文那一份的话，英文界面上"表头又被收进诊断"这条回归**测不出来**
+        //   （本仓公理 A2：拿文案当判据的地方，中英两份都要认）。两份共用同一条判据。
+        foreach (var (lang, header, detail) in new[]
+        {
+            ("zh", "[lib-internal] 库代码里有 21 个未解析标签 (该路径一旦被执行就会崩):",
+                   "  print_long (引用 1 次)"),
+            ("en", "[lib-internal] library code has 21 unresolved label(s) (crash if that path ever runs):",
+                   "  print_long (1 reference(s))"),
+        })
+        {
+            var libHead = VmlDiagnostics.Parse($"{header}\n{detail}\n", null, atLeastOne: false);
+            Check($"库内部表头[{lang}]不进诊断（实得 {libHead.Count}）", libHead.Count == 0);
+        }
 
         // ── ⑦b 成功出口**不许补造诊断** ──────────────────────────────────────
         // 那份文本是**编译期日志**：编过了却一条都没解析出来 = 日志里本来就没有诊断。
         // 按默认值补一条的话会凭空造出一个 `Severity.Error`，比原来的警告更吓人
         // （实测：链接器表头换了前缀之后，一个 7 行、编得过跑得动的 Pascal 程序
         //   在错误列表里冒出一条红错「库代码里有 21 个未解析标签…」）。
-        var logOnly = VmlDiagnostics.Parse("链接完成，总指令数: 65847\n一切正常。\n", null, atLeastOne: false);
-        Check($"成功出口：无诊断形状的日志 → 零条（实得 {logOnly.Count}）", logOnly.Count == 0);
+        // ⚠ 用的是链接器**实际打出的形态**（`[link-done]` 标记 + 散文），中英各一份 ——
+        //   标记是语言无关的（探针按它 grep），散文随语言变，两份都不该被当成诊断。
+        foreach (var (lang, log) in new[]
+        {
+            ("zh", "[link-done] 链接完成，总指令数: 65847"),
+            ("en", "[link-done] linking complete, total instruction count: 65847"),
+        })
+        {
+            var logOnly = VmlDiagnostics.Parse($"{log}\n一切正常。\n", null, atLeastOne: false);
+            Check($"成功出口[{lang}]：无诊断形状的日志 → 零条（实得 {logOnly.Count}）", logOnly.Count == 0);
+        }
 
         // 反方向：**失败出口照旧兜底** —— 一条都解析不出来也得给用户一条（上面 ① 已经钉住
         // `Line == 0` 与原文，这里再钉一次默认值就是 `true`，免得有人把默认值顺手改成 false

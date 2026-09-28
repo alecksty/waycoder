@@ -155,7 +155,10 @@ namespace CompilerBase
 
             Console.WriteLine(VmlLang.Pick($"{char.ToUpper(LanguageName[0])}{LanguageName.Substring(1)}Compiler: 开始链接库，库路径数量: {allLibraryPaths.Count}", $"{char.ToUpper(LanguageName[0])}{LanguageName.Substring(1)}Compiler: linking libraries, library path count: {allLibraryPaths.Count}"));
             program = VMLAssembler.LibraryLinker.LinkLibraries(program, allLibraryPaths);
-            Console.WriteLine(VmlLang.Pick($"链接完成，总指令数: {program.Instructions.Count}", $"linking complete, total instruction count: {program.Instructions.Count}"));
+            // ⚠ `[link-done]` 与 `LibraryLinker` 那条**同一个标记**（两份产出必须同一形态）：
+            //   `scripts/vml-opt-probe/run.sh` 靠它取"优化前指令数"，按散文 grep 会在英文 locale 上静默失配。
+            Console.WriteLine(VmlLang.Pick($"[link-done] 链接完成，总指令数: {program.Instructions.Count}",
+                                           $"[link-done] linking complete, total instruction count: {program.Instructions.Count}"));
             return program;
         }
 

@@ -395,8 +395,12 @@ internal static class Program
                 var before = prog.Instructions?.Count ?? 0;
                 prog = OptimizationPipeline.CreateDefault()
                     .Run(prog, OptimizationPolicy.Create(opt.OptimizationLevel));
-                Console.Error.WriteLine($"✔ 优化 O{opt.OptimizationLevel}：{before} → "
-                    + $"{prog.Instructions?.Count ?? 0} 条指令");
+                // ⚠ `[opt]` 是**语言无关的稳定标记**，`scripts/vml-opt-probe/run.sh` 靠它取
+                //   "优化后指令数"（此前它 grep 的是中文 `优化 O2：N → M`，语言一切到英文
+                //   就静默取不到值 ⇒ 判据红、且红得看不出原因）。改标记必须同步改那个探针。
+                Console.Error.WriteLine("✔ " + VmlLang.Pick(
+                    $"[opt] 优化 O{opt.OptimizationLevel}：{before} → {prog.Instructions?.Count ?? 0} 条指令",
+                    $"[opt] optimize O{opt.OptimizationLevel}: {before} -> {prog.Instructions?.Count ?? 0} instruction(s)"));
             }
         }
         catch (Exception asmOrLinkError)

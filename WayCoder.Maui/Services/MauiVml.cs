@@ -1047,7 +1047,7 @@ HALT
         //    ⚠ `atLeastOne: false` —— **成功出口不许补造诊断**。手上这份是**编译期日志**
         //      （前端 stderr + 链接器 stderr），编过了却一条都没解析出来 = 日志里本来就没有诊断；
         //      按默认值补一条的话会凭空造出一个 `Severity.Error`（链接器那条「库内部」提示
-        //      改成 `[库内部]` 前缀之后就会走到这里，实测表现是「编得过跑得动，错误列表里却有一条红错」）。
+        //      改成 `[lib-internal]` 前缀之后就会走到这里，实测表现是「编得过跑得动，错误列表里却有一条红错」）。
         var compileDiags = VmlDiagnostics.Parse(compileDiag, filePath, atLeastOne: false);
         var compileWarnings = compileDiags
             .Where(d => d.Severity == Severity.Warning)
@@ -1071,11 +1071,15 @@ HALT
         //   iPad 133.6s / 安卓手机 14.9s / 桌面 2.7s，比值 ≈ 9:1:0.18。
         //   ⚠ **不是"解释执行"**：AOT 探针（2e7 次整数累加）在 iPad 上 59 ms ——
         //   是真机器码（解释器要 2000 ms 以上）。别把它当解释器去"优化解释器开销"。
-        // 分阶段耗时（`[耗时] 链接 X s（N 个库模块，总指令 M）`，由 `LibraryLinker` 打在 stderr）
+        // 分阶段耗时（`[phase] 链接 X s（N 个库模块，总指令 M）`，由 `LibraryLinker` 打在 stderr）
         // **回显到界面**：真机上一份大程序要一两分钟，只报总数判断不出该优化哪一段。
+        //
+        // ⚠ 认的是**语言无关的 `[phase]` 标记**，不是维度更高的中文 `[耗时]`：那一行的散文
+        //   （"链接…（N 个库模块…）"）会跟着系统语言变，标记不会 —— 按中文标记找的话，
+        //   英文界面上这一行**静默消失**（不是报错，只是平台上再也比不出"哪一段慢"）。
         var phaseNote = "";
         foreach (var line in compileDiag.Split('\n'))
-            if (line.Contains("[耗时]")) { phaseNote = "\n" + line.Trim(); break; }
+            if (line.Contains("[phase]")) { phaseNote = "\n" + line.Trim(); break; }
 
         ErrorLog.Info("MauiVml", $"编译完成：{compileName} 用时 {compileWatch.Elapsed.TotalSeconds:0.0} 秒"
             + $"（前端 {compiler.Name} + 汇编 + 链接，共 {prog.Instructions.Count} 条指令）");

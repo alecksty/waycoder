@@ -97,7 +97,13 @@ namespace VMLPlugins
                 }
             }
 
-            if (!Quiet) Console.WriteLine($"已注册前端编译器: {compiler.Name} ({compiler.Description})");
+            // ⚠ `[vmlcli]` 是**语言无关的稳定标记**：这条横幅是启动时逐行打的噪声，
+            //   `scripts/vmlcli-verify/run.sh` 与 `scripts/vml-float-probe/run-langs.sh`
+            //   靠它（连同 `[link]` / `[link-done]` / `[phase]` / `[dbg]` / `✔`）把日志从
+            //   **逐字节比对程序输出**的那份文本里滤掉 —— 此前它们 grep 的是中文 `已注册`，
+            //   一个 ASCII 标记让两侧都不再依赖语言。
+            if (!Quiet) Console.WriteLine(VMLAssembler.VmlLang.Pick($"[vmlcli] 已注册前端编译器: {compiler.Name} ({compiler.Description})",
+                                                                    $"[vmlcli] registered frontend compiler: {compiler.Name} ({compiler.Description})"));
             return true;
         }
 
@@ -124,7 +130,8 @@ namespace VMLPlugins
             }
 
             _backendTranslators[arch] = translator;
-            if (!Quiet) Console.WriteLine($"已注册后端翻译器: {translator.TargetArchitecture} ({translator.Description})");
+            if (!Quiet) Console.WriteLine(VMLAssembler.VmlLang.Pick($"[vmlcli] 已注册后端翻译器: {translator.TargetArchitecture} ({translator.Description})",
+                                                                    $"[vmlcli] registered backend translator: {translator.TargetArchitecture} ({translator.Description})"));
             return true;
         }
 

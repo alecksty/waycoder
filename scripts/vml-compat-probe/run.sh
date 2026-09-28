@@ -84,7 +84,7 @@ for f in "${targets[@]}"; do
     else
         # ⚠ 「缺配套文件」**不计入 fail** —— 那不是前端编不过，是这份语料不成立
         #   （见下面那条判据）。单独计数、单独列名，否则它会一直占着失败栏。
-        if grep -q "找不到包含文件" <<< "$out"; then
+        if grep -q "\[include-missing\]" <<< "$out"; then
             skipped=$((skipped + 1))
             missing+=("$rel")
             errs+=("(缺配套文件：程序自带的 \${I} 包含文件没进来)")
@@ -103,10 +103,14 @@ for f in "${targets[@]}"; do
             #   程序自带的数据/包含文件没跟着进来（`{$I cube.vec}`，实测 tpdem_* 系列），
             #   与 `examples-build` 里 `file_io.*` 那条同源（「不是坏了的例子，
             #   是已经不成立的例子」）。混在失败栏里只会训练人忽略红灯。
-            #   ⚠ **只认「找不到包含文件」**：`{$I}` 拉进来的必然是**程序自带的**文件；
-            #   而「找不到单元」**不能**这么判 —— 那可能是真该补的库
+            #   ⚠ **只认 `[include-missing]` 这个标记**（Pascal 前端打的那条
+            #   `warning: [include-missing] 找不到包含文件 '{$I …}'`）：`{$I}` 拉进来的
+            #   必然是**程序自带的**文件；而「找不到单元」**不能**这么判 —— 那可能是真该补的库
             #   （`ktp_rose` 的 `uses Graph` 要的正是补 `graph.pas` 的类型段）。
-            if printf '%s' "$out" | grep -q "找不到包含文件"; then
+            #   ⚠ 标记是 ASCII 的**语言无关**形态：散文（"找不到包含文件"）会跟着系统语言变，
+            #     按它 grep 的话英文 locale 上会静默失配 ⇒ 那几份会被记成**前端缺陷**。
+            #     同理不能用 `warning: [include-missing]` 之外的中文串当判据。
+            if printf '%s' "$out" | grep -q "\[include-missing\]"; then
                 missing+=("$rel")
                 errs+=("(缺配套文件：程序自带的 \${I} 包含文件没进来)")
             else

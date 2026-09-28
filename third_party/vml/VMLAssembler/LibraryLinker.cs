@@ -45,7 +45,9 @@ namespace VMLAssembler
 
             if (libraryPaths == null || libraryPaths.Count == 0)
             {
-                Console.Error.WriteLine($"[耗时] 链接 {swLink.Elapsed.TotalSeconds:0.0}s（无库）");
+                Console.Error.WriteLine(VmlLang.Pick(
+                    $"[phase] 链接 {swLink.Elapsed.TotalSeconds:0.0}s（无库）",
+                    $"[phase] link {swLink.Elapsed.TotalSeconds:0.0}s (no libraries)"));
                 return mainProgram;
             }
 
@@ -54,12 +56,14 @@ namespace VMLAssembler
             if (!debug) debug = DebugOutput;
             if (debug)
             {
-                Console.Error.WriteLine($"[--dump-link] 库搜索路径 ({libraryPaths.Count}):");
+                Console.Error.WriteLine(VmlLang.Pick($"[--dump-link] 库搜索路径 ({libraryPaths.Count}):",
+                                                     $"[--dump-link] library search paths ({libraryPaths.Count}):"));
                 foreach (var p in libraryPaths)
                     Console.Error.WriteLine($"  {p}");
                 if (mainProgram.LinkedFiles.Count > 0)
                 {
-                    Console.Error.WriteLine($"[--dump-link] 主程序 .linked 声明 ({mainProgram.LinkedFiles.Count}):");
+                    Console.Error.WriteLine(VmlLang.Pick($"[--dump-link] 主程序 .linked 声明 ({mainProgram.LinkedFiles.Count}):",
+                                                         $"[--dump-link] main program .linked declarations ({mainProgram.LinkedFiles.Count}):"));
                     foreach (var lf in mainProgram.LinkedFiles)
                         Console.Error.WriteLine($"  {lf}");
                 }
@@ -98,7 +102,9 @@ namespace VMLAssembler
                 }
                 else
                 {
-                    Console.Error.WriteLine($"警告: .linked \"{dep}\" 文件不存在");
+                    Console.Error.WriteLine(VmlLang.Pick(
+                        $"警告: .linked \"{dep}\" 文件不存在",
+                        $"warning: .linked \"{dep}\" file not found"));
                 }
             }
 
@@ -107,13 +113,15 @@ namespace VMLAssembler
                 var libPath = queue.Dequeue();
                 if (Directory.Exists(libPath))
                 {
-                    if (debug) Console.WriteLine($"扫描库目录: {libPath}");
+                    if (debug) Console.WriteLine(VmlLang.Pick($"[link] 扫描库目录: {libPath}",
+                                                              $"[link] scanning library dir: {libPath}"));
                     foreach (var vmlFile in Directory.GetFiles(libPath, "*.vml"))
                     {
                         string normalized = NormalizePath(vmlFile);
                         if (!linkedFiles.Add(normalized)) continue;
                         moduleNames.Add(Path.GetFileNameWithoutExtension(vmlFile));
-                        if (debug) Console.WriteLine($"  链接库文件: {Path.GetFileName(vmlFile)}");
+                        if (debug) Console.WriteLine(VmlLang.Pick($"[link] 链接库文件: {Path.GetFileName(vmlFile)}",
+                                                                  $"[link] library file: {Path.GetFileName(vmlFile)}"));
                         linkedProgram = LinkSingleLibrary(linkedProgram, vmlFile, assembler, globalLabelMapping, debug);
                         // 递归: 库的 .linked 依赖
                         var libDir = Path.GetDirectoryName(Path.GetFullPath(vmlFile));
@@ -128,7 +136,9 @@ namespace VMLAssembler
                             }
                             else
                             {
-                                Console.Error.WriteLine($"警告: .linked \"{dep}\" 文件不存在 (被 {Path.GetFileName(vmlFile)} 引用)");
+                                Console.Error.WriteLine(VmlLang.Pick(
+                                    $"警告: .linked \"{dep}\" 文件不存在 (被 {Path.GetFileName(vmlFile)} 引用)",
+                                    $"warning: .linked \"{dep}\" file not found (referenced by {Path.GetFileName(vmlFile)})"));
                             }
                         }
                     }
@@ -138,7 +148,8 @@ namespace VMLAssembler
                     string normalized = NormalizePath(libPath);
                     if (!linkedFiles.Add(normalized)) continue;
                     moduleNames.Add(Path.GetFileNameWithoutExtension(libPath));
-                    if (debug) Console.WriteLine($"链接库文件: {libPath}");
+                    if (debug) Console.WriteLine(VmlLang.Pick($"[link] 链接库文件: {libPath}",
+                                                              $"[link] library file: {libPath}"));
                     linkedProgram = LinkSingleLibrary(linkedProgram, libPath, assembler, globalLabelMapping, debug);
                     // 递归: 库的 .linked 依赖
                     // 优先级: 纯文件名自动搜索 → 相对路径(相对库目录/VML_HOME) → 绝对路径
@@ -154,13 +165,17 @@ namespace VMLAssembler
                         }
                         else
                         {
-                            Console.Error.WriteLine($"警告: .linked \"{dep}\" 文件不存在 (被 {Path.GetFileName(libPath)} 引用)");
+                            Console.Error.WriteLine(VmlLang.Pick(
+                                $"警告: .linked \"{dep}\" 文件不存在 (被 {Path.GetFileName(libPath)} 引用)",
+                                $"warning: .linked \"{dep}\" file not found (referenced by {Path.GetFileName(libPath)})"));
                         }
                     }
                 }
                 else
                 {
-                    Console.Error.WriteLine($"警告: 库路径不存在: {libPath}");
+                    Console.Error.WriteLine(VmlLang.Pick(
+                        $"警告: 库路径不存在: {libPath}",
+                        $"warning: library path not found: {libPath}"));
                 }
             }
 
@@ -269,7 +284,8 @@ namespace VMLAssembler
             }
 
             if (finalFixupCount > 0)
-                Console.WriteLine($"  最终修复: {finalFixupCount} 个 CALL 目标已重定向");
+                Console.WriteLine(VmlLang.Pick($"[link] 最终修复: {finalFixupCount} 个 CALL 目标已重定向",
+                                               $"[link] final fixup: {finalFixupCount} CALL target(s) redirected"));
 
             // v1.66.63: 创建裸名别名 — lib_xxx_name → name (globalLabelMapping)
             int aliasCount = 0;
@@ -315,14 +331,20 @@ namespace VMLAssembler
                 }
             }
             if (legacyAliasCount > 0)
-                Console.WriteLine($"  别名: {legacyAliasCount} 个 CALL 标签已解析");
+                Console.WriteLine(VmlLang.Pick($"[link] 别名: {legacyAliasCount} 个 CALL 标签已解析",
+                                               $"[link] alias: {legacyAliasCount} CALL label(s) resolved"));
 
             ReportUnresolved(linkedProgram, userEnd);
             ReportRegisterClass(linkedProgram, userEnd);
 
-            Console.WriteLine($"链接完成，总指令数: {linkedProgram.Instructions.Count}");
-            Console.Error.WriteLine($"[耗时] 链接 {swLink.Elapsed.TotalSeconds:0.0}s"
-                + $"（{linkedFiles.Count} 个库模块，总指令 {linkedProgram.Instructions.Count:#,0}）");
+            Console.WriteLine(VmlLang.Pick(
+                $"[link-done] 链接完成，总指令数: {linkedProgram.Instructions.Count}",
+                $"[link-done] linking complete, total instruction count: {linkedProgram.Instructions.Count}"));
+            Console.Error.WriteLine(VmlLang.Pick(
+                $"[phase] 链接 {swLink.Elapsed.TotalSeconds:0.0}s"
+                + $"（{linkedFiles.Count} 个库模块，总指令 {linkedProgram.Instructions.Count:#,0}）",
+                $"[phase] link {swLink.Elapsed.TotalSeconds:0.0}s"
+                + $" ({linkedFiles.Count} library module(s), {linkedProgram.Instructions.Count:#,0} instructions total)"));
             return linkedProgram;
         }
 
@@ -425,9 +447,13 @@ namespace VMLAssembler
                     //   而那种错**不会**报错、只会让下一个程序编出来不对。
                     //   查不出来就说明 clone 那道防线漏了，**别把这条静默掉**。
                     if (hit.Prog.Instructions.Count != hit.Count)
-                        Console.Error.WriteLine($"⚠ 库解析缓存被改写！{Path.GetFileName(key.Path)}："
+                        Console.Error.WriteLine(VmlLang.Pick(
+                            $"⚠ 库解析缓存被改写！{Path.GetFileName(key.Path)}："
                             + $"缓存时 {hit.Count} 条，现在 {hit.Prog.Instructions.Count} 条"
-                            + "（缓存模板必须只读，见 ParsedLibCache 的注释）");
+                            + "（缓存模板必须只读，见 ParsedLibCache 的注释）",
+                            $"⚠ parsed-library cache was mutated! {Path.GetFileName(key.Path)}: "
+                            + $"{hit.Count} instruction(s) when cached, {hit.Prog.Instructions.Count} now "
+                            + "(the cache template must stay read-only - see the ParsedLibCache comment)"));
                     return hit.Prog;
                 }
 
@@ -587,7 +613,8 @@ namespace VMLAssembler
                     mainProgram.Instructions.Add(instr);
                 }
                 if (deduped > 0 && debug)
-                    Console.WriteLine($"    去重: 跳过 {deduped} 条重复指令");
+                    Console.WriteLine(VmlLang.Pick($"[link] 去重: 跳过 {deduped} 条重复指令",
+                                                   $"[link] dedup: skipped {deduped} duplicate instruction(s)"));
 
                 // 指令合并完成后再写入标签（地址偏移 = 合并前主程序指令数）
                 //
@@ -620,12 +647,16 @@ namespace VMLAssembler
                         mainProgram.Exports[exp.Key] = exp.Value;
                 }
 
-                Console.WriteLine($"    成功链接: {Path.GetFileName(libraryPath)} ({libInstructions.Count} 条指令)");
+                Console.WriteLine(VmlLang.Pick(
+                    $"[link] 成功链接: {Path.GetFileName(libraryPath)} ({libInstructions.Count} 条指令)",
+                    $"[link] linked: {Path.GetFileName(libraryPath)} ({libInstructions.Count} instruction(s))"));
                 return mainProgram;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"    链接失败 {Path.GetFileName(libraryPath)}: {ex.Message}");
+                Console.WriteLine(VmlLang.Pick(
+                    $"[link] 链接失败 {Path.GetFileName(libraryPath)}: {ex.Message}",
+                    $"[link] link failed {Path.GetFileName(libraryPath)}: {ex.Message}"));
                 return mainProgram;
             }
         }
@@ -658,7 +689,8 @@ namespace VMLAssembler
                         if (newLabel != null)
                         {
                             operand.Value = newLabel;
-                            if (debug) Console.WriteLine($"    更新CALL指令: {currentLabel} -> {newLabel}");
+                            if (debug) Console.WriteLine(VmlLang.Pick($"[link] 更新CALL指令: {currentLabel} -> {newLabel}",
+                                                                      $"[link] updating CALL: {currentLabel} -> {newLabel}"));
                         }
                     }
                 }
@@ -778,23 +810,27 @@ namespace VMLAssembler
             // 首先添加库文件
             if (libraryPaths != null && libraryPaths.Count > 0)
             {
-                Console.WriteLine($"链接库路径: {string.Join(", ", libraryPaths)}");
+                Console.WriteLine(VmlLang.Pick($"[link] 链接库路径: {string.Join(", ", libraryPaths)}",
+                                               $"[link] library paths: {string.Join(", ", libraryPaths)}"));
                 foreach (var libPath in libraryPaths)
                 {
                     if (Directory.Exists(libPath))
                     {
-                        Console.WriteLine($"扫描库目录: {libPath}");
+                        Console.WriteLine(VmlLang.Pick($"[link] 扫描库目录: {libPath}",
+                                                       $"[link] scanning library dir: {libPath}"));
                         var vmlLibFiles = Directory.GetFiles(libPath, "*.vml");
                         allFiles.AddRange(vmlLibFiles);
                     }
                     else if (File.Exists(libPath))
                     {
-                        Console.WriteLine($"链接库文件: {libPath}");
+                        Console.WriteLine(VmlLang.Pick($"[link] 链接库文件: {libPath}",
+                                                       $"[link] library file: {libPath}"));
                         allFiles.Add(libPath);
                     }
                     else
                     {
-                        Console.WriteLine($"警告: 库路径不存在: {libPath}");
+                        Console.WriteLine(VmlLang.Pick($"警告: 库路径不存在: {libPath}",
+                                                       $"warning: library path not found: {libPath}"));
                     }
                 }
             }
@@ -877,19 +913,28 @@ namespace VMLAssembler
 
             if (userErrs.Count > 0 && warnOnly)
             {
-                Console.Error.WriteLine($"[诊断] 用户代码里有 {userErrs.Count} 处寄存器类用错（已降级为警告）：");
+                Console.Error.WriteLine(VmlLang.Pick(
+                    $"[regclass] 用户代码里有 {userErrs.Count} 处寄存器类用错（已降级为警告）：",
+                    $"[regclass] user code has {userErrs.Count} register-class misuse(s) (downgraded to warnings):"));
                 foreach (var v in userErrs.Take(20)) Console.Error.WriteLine($"  {v}");
             }
             else if (userErrs.Count > 0)
             {
                 var lines = new List<string>
                 {
-                    $"error: 有 {userErrs.Count} 处**寄存器类用错**（`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，类由助记符决定）："
+                    VmlLang.Pick(
+                        $"error: 有 {userErrs.Count} 处**寄存器类用错**（`Rn`=32位 / `Ln`=64位 / `Fn`=32位 / `Dn`=64位，类由助记符决定）：",
+                        $"error: {userErrs.Count} **register-class misuse(s)** (`Rn`=32-bit / `Ln`=64-bit / `Fn`=32-bit / `Dn`=64-bit; the class is decided by the mnemonic):")
                 };
                 int shown = 0;
                 foreach (var v in userErrs)
                 {
-                    if (++shown > 20) { lines.Add($"  …（还有 {userErrs.Count - 20} 处）"); break; }
+                    if (++shown > 20)
+                    {
+                        lines.Add(VmlLang.Pick($"  …（还有 {userErrs.Count - 20} 处）",
+                                               $"  ... and {userErrs.Count - 20} more"));
+                        break;
+                    }
                     var where = "";
                     if (v.SourceLine > 0)
                     {
@@ -901,10 +946,14 @@ namespace VMLAssembler
                     // （实测定位一个前端缺陷要绕好几轮：先拿 `--vml` 产物、再对齐索引，
                     //  而 Python 那条路**链接期就抛了**、产物根本落不了盘 ⇒ 拿不到索引对应的指令）。
                     if (v.Index >= 0 && v.Index < program.Instructions.Count)
-                        lines.Add($"    ↳ 该指令：{program.Instructions[v.Index]}");
+                        lines.Add(VmlLang.Pick($"    ↳ 该指令：{program.Instructions[v.Index]}",
+                                               $"    -> instruction: {program.Instructions[v.Index]}"));
                 }
-                lines.Add("提示: 64 位/双精度的值要用 `LS`/`D` 寄存器（`MOVEL L0, …` / `MOVED D0, …`）；"
-                        + "前端发射时走 `RegisterClassTable.BankOfOperand` 换算。");
+                lines.Add(VmlLang.Pick(
+                    "提示: 64 位/双精度的值要用 `LS`/`D` 寄存器（`MOVEL L0, …` / `MOVED D0, …`）；"
+                    + "前端发射时走 `RegisterClassTable.BankOfOperand` 换算。",
+                    "hint: 64-bit/double values need `L`/`D` registers (`MOVEL L0, ...` / `MOVED D0, ...`); "
+                    + "the frontend emits them via `RegisterClassTable.BankOfOperand`."));
                 var text = string.Join(Environment.NewLine, lines);
                 Console.Error.WriteLine(text);
                 throw new RegisterClassException(text, userErrs);
@@ -912,7 +961,12 @@ namespace VMLAssembler
 
             // 表头**不能**以 `警告:`/`错误:` 开头（宿主 VmlDiagnostics 会把那四个词当诊断，
             // 库内部的问题用户改不了 —— 与 ReportUnresolved 里那条注释同一个理由）。
-            Console.Error.WriteLine($"[库内部] 库代码里有 {libCount} 处寄存器类用错（该路径一旦执行就会算错）：");
+            // ⚠ 标记与 `ReportUnresolved` 那条**必须可区分**（`[lib-regclass]` vs `[lib-internal]`）——
+            //   两条都带一个数字，共用一个标记的话，靠"谁先打"来分是在赌调用顺序：
+            //   顺序一变，探针会**读到另一个数**而且不报错（判据静默指错方向）。
+            Console.Error.WriteLine(VmlLang.Pick(
+                $"[lib-regclass] 库代码里有 {libCount} 处寄存器类用错（该路径一旦执行就会算错）：",
+                $"[lib-regclass] library code has {libCount} register-class misuse(s) (any execution on that path computes wrong):"));
             foreach (var v in all.Where(v => v.Index >= userEnd).Take(10))
                 Console.Error.WriteLine($"  {v}");
         }
@@ -987,9 +1041,17 @@ namespace VMLAssembler
                         var (file, line) = SourceLineMapUtil.Map(program.SourceLineMap, ln);
                         where = $"{file ?? "<input>"}:{line}: ";
                     }
-                    lines.Add($"{where}error: 未定义的函数 '{kv.Key}'（引用 {kv.Value} 次）");
+                    // ⚠ 机器前缀 `error: ` **不翻译** —— `scripts/vml-diag-probe/*` 与
+                    //   `WayCoder/UI/Shared/VmlDiagnostics.cs` 都靠它认「这是一条编译错误」。
+                    //   只翻前缀之后的散文（与 `VmlLang` 那条铁律同一口径）。
+                    lines.Add(where + VmlLang.Pick(
+                        $"error: 未定义的函数 '{kv.Key}'（引用 {kv.Value} 次）",
+                        $"error: undefined function '{kv.Key}' ({kv.Value} reference(s))"));
                 }
-                lines.Add("提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。");
+                lines.Add(VmlLang.Pick(
+                    "提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。",
+                    "hint: check the spelling of the function name; for library functions, #include the matching "
+                    + "header in your source, or confirm that module exists in the language library."));
                 var text = string.Join(Environment.NewLine, lines);
                 Console.Error.WriteLine(text);
                 throw new UnresolvedSymbolException(text, userMiss);
@@ -1008,17 +1070,22 @@ namespace VMLAssembler
                 // 错误列表里也挂着一条 `（无位置）：库代码里有 21 个未解析标签…`。
                 //
                 // 下面那些缩进的明细行（`  print_long (引用 1 次)`）本来就匹配不上那个正则
-                // （它要求**行首**就是那四个词），唯独这行表头会 —— 换成 `[库内部]` 即整段退出诊断。
+                // （它要求**行首**就是那四个词），唯独这行表头会 —— 换成 `[lib-internal]` 即整段退出诊断。
+                // ⚠ 标记**必须留在行首**：一旦让它跟在 `警告:` 后面，`BareErrRx` 又会把这行收成诊断。
                 // 桌面 CLI 照旧打在 stderr 上：能对这条动手的人，正是跑 CLI 的人。
-                Console.Error.WriteLine($"[库内部] 库代码里有 {libMiss.Count} 个未解析标签 (该路径一旦被执行就会崩):");
+                Console.Error.WriteLine(VmlLang.Pick(
+                    $"[lib-internal] 库代码里有 {libMiss.Count} 个未解析标签 (该路径一旦被执行就会崩):",
+                    $"[lib-internal] library code has {libMiss.Count} unresolved label(s) (crash if that path ever runs):"));
                 int shown = 0;
                 foreach (var kv in libMiss)
                 {
                     if (shown++ >= 20) break;
-                    Console.Error.WriteLine($"  {kv.Key} (引用 {kv.Value} 次)");
+                    Console.Error.WriteLine(VmlLang.Pick($"  {kv.Key} (引用 {kv.Value} 次)",
+                                                         $"  {kv.Key} ({kv.Value} reference(s))"));
                 }
                 if (libMiss.Count > 20)
-                    Console.Error.WriteLine($"  ... 及其他 {libMiss.Count - 20} 个");
+                    Console.Error.WriteLine(VmlLang.Pick($"  ... 及其他 {libMiss.Count - 20} 个",
+                                                         $"  ... and {libMiss.Count - 20} more"));
             }
         }
 
@@ -1064,10 +1131,14 @@ namespace VMLAssembler
                 if (File.Exists(dep))
                 {
                     if (debug)
-                        Console.Error.WriteLine($"  注意: .linked 使用了绝对路径 \"{dep}\"，建议改用相对路径或纯文件名");
+                        Console.Error.WriteLine(VmlLang.Pick(
+                            $"  注意: .linked 使用了绝对路径 \"{dep}\"，建议改用相对路径或纯文件名",
+                            $"  note: .linked uses an absolute path \"{dep}\"; prefer a relative path or a bare file name"));
                     return dep;
                 }
-                Console.Error.WriteLine($"警告: .linked 绝对路径 \"{dep}\" 文件不存在");
+                Console.Error.WriteLine(VmlLang.Pick(
+                    $"警告: .linked 绝对路径 \"{dep}\" 文件不存在",
+                    $"warning: .linked absolute path \"{dep}\" file not found"));
                 return null;
             }
 
