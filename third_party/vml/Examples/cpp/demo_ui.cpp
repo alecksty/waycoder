@@ -65,6 +65,10 @@ static int g_orient;
 static int g_tx = -1;
 static int g_ty = -1;
 
+// 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）
+// UI language: queried once at startup (`ui_get_language` is a syscall, do not call it every frame)
+static int gLang;
+
 // 数字 → 字符串。不用 std::string（C++ 前端整体不可用），也不用 sprintf（各前端形态不一），
 // Number → string. No std::string (unusable across the C++ frontend), and no sprintf (its form differs per frontend),
 // 自己按位拆最省事 —— 与仓库里其它语言的例程同一做法。
@@ -104,20 +108,20 @@ static void draw()
 
     // ── 标题 + 方向 + 画布尺寸 ──
     // ── Title + orientation + canvas size ──
-    ui_text_styled(cx, GY, "UI 接口 / demo_ui.cpp", 0xFFE8E8F0, 16,
+    ui_text_styled(cx, GY, gLang == 0 ? "UI 接口 / demo_ui.cpp" : "UI interface / demo_ui.cpp", 0xFFE8E8F0, 16,
                    VML_ANCHOR_CENTER, VML_FONT_BOLD);
     if (g_orient == VML_ORIENT_LANDSCAPE) {
-        ui_text(cx, GY + 26, "屏幕方向 = 横屏 (LANDSCAPE)", 0xFF51E86E, 13, VML_ANCHOR_CENTER);
+        ui_text(cx, GY + 26, gLang == 0 ? "屏幕方向 = 横屏 (LANDSCAPE)" : "Orientation = LANDSCAPE", 0xFF51E86E, 13, VML_ANCHOR_CENTER);
     } else {
-        ui_text(cx, GY + 26, "屏幕方向 = 竖屏 (PORTRAIT)", 0xFF51E86E, 13, VML_ANCHOR_CENTER);
+        ui_text(cx, GY + 26, gLang == 0 ? "屏幕方向 = 竖屏 (PORTRAIT)" : "Orientation = PORTRAIT", 0xFF51E86E, 13, VML_ANCHOR_CENTER);
     }
-    ui_text(cx, GY + 46, "画布按宿主给的尺寸现排", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(cx, GY + 46, gLang == 0 ? "画布按宿主给的尺寸现排" : "Canvas laid out from the host's size", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     // ── 跟随尺寸的方框：旋转后跟着变宽变矮，这就是"不写死坐标"的证明 ──
     // ── A box that follows the size: after rotation it gets wider and shorter, and that is the proof of "no hardcoded coordinates" ──
     ui_rect(pad, GY + 70, SW - pad * 2, 90, 0xFF1A1A24, 1, 0, 10);
     ui_rect(pad + 6, GY + 76, SW - pad * 2 - 12, 30, 0xFF4A90D9, 1, 0, 6);
-    ui_text(pad + 16, GY + 84, "rect / round-rect（随屏宽伸缩）", 0xFF101018, 12,
+    ui_text(pad + 16, GY + 84, gLang == 0 ? "rect / round-rect（随屏宽伸缩）" : "rect / round-rect (stretches with the width)", 0xFF101018, 12,
             VML_ANCHOR_LEFT);
 
     // ── 圆 / 椭圆 / 直线 ──
@@ -136,15 +140,15 @@ static void draw()
             ui_rect(pad + i * w, GY + 186, w - 2, 16, 0xFFE06C50, 1, 0, 2);
         }
     }
-    ui_text(cx, GY + 210, "真彩 0xAARRGGBB（不是索引色）", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(cx, GY + 210, gLang == 0 ? "真彩 0xAARRGGBB（不是索引色）" : "True color 0xAARRGGBB (not indexed)", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     // ── 事件计数 ──
     // ── Event counters ──
-    ui_text(pad, GY + 236, "帧", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 236, gLang == 0 ? "帧" : "Frames", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 22, GY + 236, numstr(g_frames), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
-    ui_text(pad, GY + 256, "按键", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 256, gLang == 0 ? "按键" : "Keys", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 44, GY + 256, numstr(g_keys), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
-    ui_text(pad, GY + 276, "触摸", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 276, gLang == 0 ? "触摸" : "Touches", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 44, GY + 276, numstr(g_touches), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
 
     // ── 触摸标记：点哪儿就在哪儿留个圈 ──
@@ -152,12 +156,12 @@ static void draw()
     if (g_tx >= 0) {
         ui_circle(g_tx, g_ty, 18, 0xFFFFE060, 0, 2);
         ui_circle(g_tx, g_ty, 4, 0xFFFFE060, 1, 0);
-        ui_text(cx, SH - 44, "触摸坐标已经用上了", 0xFFFFE060, 12, VML_ANCHOR_CENTER);
+        ui_text(cx, SH - 44, gLang == 0 ? "触摸坐标已经用上了" : "Touch coordinates are in use", 0xFFFFE060, 12, VML_ANCHOR_CENTER);
     } else {
-        ui_text(cx, SH - 44, "点一下屏幕 / 按任意键退出", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+        ui_text(cx, SH - 44, gLang == 0 ? "点一下屏幕 / 按任意键退出" : "Tap the screen / press any key to exit", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
     }
 
-    ui_text(cx, SH - 24, "退出：按任意键或点任意处（或等 N 帧到点）",
+    ui_text(cx, SH - 24, gLang == 0 ? "退出：按任意键或点任意处（或等 N 帧到点）" : "Exit: any key or any tap (or wait out the frame count)",
             0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     ui_present();
@@ -173,6 +177,7 @@ int main()
     // ── ① 开窗**之前**就问方向 ──
     // ── ① Ask for the orientation **before** opening the window ──
     g_orient = ui_orientation();
+    gLang = ui_get_language();
 
     // 开窗：声明"支持旋转 + 要手柄"（转屏时宿主会把新坐标空间整个给过来）
     // Open the window: declare "supports rotation + wants the gamepad" (on rotation the host hands over the whole new coordinate space)

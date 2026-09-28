@@ -11,6 +11,8 @@
  * Origin: self-written, imitating the single-line box menus of the Turbo C / QBasic era.
  */
 #include <stdio.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 #define ESC "\033"
 
@@ -41,6 +43,11 @@ static void box(int y, int x, int w, int h, int color)
 
 int main(void)
 {
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
+
+    lang = ui_get_language();
+
     printf(ESC "[2J");
 
     box(2, 4, 34, 9, 36);          /* 青边框 */
@@ -49,19 +56,19 @@ int main(void)
                                    /* Yellow inner frame */
 
     printf(ESC "[1;33m");
-    at(4, 12); printf("主 菜 单");
+    at(4, 12); printf(lang == 0 ? "主 菜 单" : "MAIN MENU");
     printf(ESC "[0m");
 
     printf(ESC "[37m");
-    at(6, 9);  printf("1. 新建文件");
-    at(7, 9);  printf("2. 打开文件");
+    at(6, 9);  printf(lang == 0 ? "1. 新建文件" : "1. New file");
+    at(7, 9);  printf(lang == 0 ? "2. 打开文件" : "2. Open file");
     printf(ESC "[7m");             /* 反白 = 当前选中项 */
                                    /* Reverse video = the currently selected item */
-    at(8, 9);  printf("3. 退出      ");
+    at(8, 9);  printf(lang == 0 ? "3. 退出      " : "3. Quit      ");
     printf(ESC "[0m");
 
     printf(ESC "[36m");
-    at(13, 4); printf("F1=帮助  ESC=返回  ↑↓=选择");
+    at(13, 4); printf(lang == 0 ? "F1=帮助  ESC=返回  ↑↓=选择" : "F1=Help  ESC=Back  ↑↓=Select");
     printf(ESC "[0m");
 
     at(15, 1);

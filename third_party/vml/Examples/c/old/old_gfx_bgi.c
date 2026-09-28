@@ -35,11 +35,14 @@ int main(void)
     int gd = DETECT;
     int gm;
     int i;
+    int lang;       /* 界面语言：开局查一次 */
+                    /* UI language: queried once at start */
     int tri[8];     /* 顶点数组必须是**具名数组**：复合字面量本前端不支持且不报错 */
                     /* The vertex array must be a **named array**: this front end does not support compound literals and reports no error either */
 
     /* ── 老程序的标准开场 ── */
     /* -- The standard opening of an old program -- */
+    lang = ui_get_language();
     initgraph(&gd, &gm, "");
     cleardevice();
 
@@ -90,11 +93,13 @@ int main(void)
     /* ── 文字（BGI 的 outtextxy 收的是左上角坐标）── */
     /* -- Text (BGI's outtextxy takes the top-left corner coordinates) -- */
     setcolor(WHITE);
-    outtextxy(10, 270, "BGI 兼容层：initgraph / line / bar / circle / fillpoly");
+    outtextxy(10, 270, lang == 0 ? "BGI 兼容层：initgraph / line / bar / circle / fillpoly"
+                                : "BGI shim: initgraph / line / bar / circle / fillpoly");
 
     /* ── 老程序收尾：等一个键再退 ── */
     /* -- Old-program ending: wait for one key before exiting -- */
-    outtextxy(10, 300, "按任意键退出（手机上点一下画面）");
+    outtextxy(10, 300, lang == 0 ? "按任意键退出（手机上点一下画面）"
+                                : "Press any key to exit (tap the screen on a phone)");
     getch();
     closegraph();
     return 0;

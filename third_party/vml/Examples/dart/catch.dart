@@ -57,6 +57,7 @@ external int ui_msg_a();
 external void ui_beep(int freq, int ms);
 external void ui_keep_on(int v);
 external void ui_dlg_msg(String title, String body, int style);
+external int ui_get_language();
 
 void main() {
   // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
@@ -69,7 +70,10 @@ void main() {
   if (h <= 0) { h = 620; }
   A[8] = w;
   A[9] = h;
-  ui_win_open("接方块", w, h);
+  // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）
+  // UI language: queried once at start (`ui_get_language` is a syscall, not once per frame)
+  int lang = ui_get_language();
+  ui_win_open(lang == 0 ? "接方块" : "Catch", w, h);
   ui_keep_on(1);
 
   A[0] = w / 2 - 40;
@@ -87,14 +91,14 @@ void main() {
 
     // ── draw ──
     ui_clear(-15724520);
-    ui_text(8, 8, "得分", -6643536, 13, 0);
+    ui_text(8, 8, lang == 0 ? "得分" : "Score", -6643536, 13, 0);
     ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0);
-    ui_text(A[8] / 2, 8, "最高", -6643536, 13, 1);
+    ui_text(A[8] / 2, 8, lang == 0 ? "最高" : "Best", -6643536, 13, 1);
     ui_rect(A[8] / 2 + 46, 11, A[6], 10, -63488, 1, 0, 0);
     ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6);
     ui_circle(A[1], A[2], 9, -131246, 1, 0);
     if (A[7] == 0) {
-      ui_text(A[8] / 2, A[9] / 2, "按回车重开", -131246, 16, 1);
+      ui_text(A[8] / 2, A[9] / 2, lang == 0 ? "按回车重开" : "Press Enter to restart", -131246, 16, 1);
     }
     ui_present();
 
@@ -132,7 +136,7 @@ void main() {
           // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
           // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on a catch / 131 on a miss — far enough apart)
           ui_beep(131, 320);
-          if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); break; }
+          if (ui_dlg_msg(lang == 0 ? "接方块" : "Catch", lang == 0 ? "没接住，这一局结束。\n再来一局？（选「否」退出）" : "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0) { ui_win_close(); break; }
           A[0] = A[8] / 2 - 40;
           A[1] = A[8] / 2;
           A[2] = 70;

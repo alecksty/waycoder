@@ -32,28 +32,30 @@
 // How to run: type this into the command-line page:  vml run examples/rust/demo_std.rs
 
 fn main() {
+    let lang = ui_get_language();
+
     println!("=== WayCoder demo_std (Rust) ===");
 
     // ① 字符串
     // ① String
-    println!("[字符串] hello, world");
+    if lang == 0 { println!("[字符串] hello, world"); } else { println!("[string] hello, world"); }
 
     // ② 整数
     // ② Integer
     let n = 42;
-    println!("[整数] n = {}", n);
+    if lang == 0 { println!("[整数] n = {}", n); } else { println!("[int] n = {}", n); }
 
     // ③ 计算结果（字面量与变量都要能算）
     // ③ Computed results (both literals and variables must work)
-    println!("[计算] 6 * 7 = {}", 6 * 7);
+    if lang == 0 { println!("[计算] 6 * 7 = {}", 6 * 7); } else { println!("[calc] 6 * 7 = {}", 6 * 7); }
     let a = 7;
     let b = 5;
-    println!("[计算] a + b = {}", a + b);
-    println!("[计算] a * b - 3 = {}", a * b - 3);
+    if lang == 0 { println!("[计算] a + b = {}", a + b); } else { println!("[calc] a + b = {}", a + b); }
+    if lang == 0 { println!("[计算] a * b - 3 = {}", a * b - 3); } else { println!("[calc] a * b - 3 = {}", a * b - 3); }
 
     // ④ 循环里算斐波那契前 10 项（确定性）
     // ④ Compute the first 10 Fibonacci numbers in a loop (deterministic)
-    println!("[循环] 斐波那契前 10 项：");
+    if lang == 0 { println!("[循环] 斐波那契前 10 项："); } else { println!("[loop] first 10 Fibonacci numbers:"); }
     let mut x = 0;
     let mut y = 1;
     let mut i = 0;
@@ -73,7 +75,7 @@ fn main() {
         sum = sum + k;
         k = k + 1;
     }
-    println!("[累加] 1+2+...+100 = {}", sum);
+    if lang == 0 { println!("[累加] 1+2+...+100 = {}", sum); } else { println!("[sum] 1+2+...+100 = {}", sum); }
 
     // ⑥ 阶乘
     // ⑥ Factorial
@@ -83,7 +85,7 @@ fn main() {
         fact = fact * m;
         m = m + 1;
     }
-    println!("[阶乘] 5! = {}", fact);
+    if lang == 0 { println!("[阶乘] 5! = {}", fact); } else { println!("[factorial] 5! = {}", fact); }
 
-    println!("=== 结束 ===");
+    if lang == 0 { println!("=== 结束 ==="); } else { println!("=== done ==="); }
 }

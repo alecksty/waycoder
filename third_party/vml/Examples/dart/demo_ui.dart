@@ -86,6 +86,7 @@ external void print_str(String s);
 external void print_int(int n);
 external void println_int(int n);
 external void println_str(String s);
+external int  ui_get_language();
 
 // 消息类型 / 锚点 / 方向 / 字体样式（源：Lib/c/waycoder_ui.h）
 //   MSG_NONE=0 KEYDOWN=1 TIMER=9 TOUCHDOWN=6 MOUSEDOWN=4
@@ -124,6 +125,10 @@ void main() {
   // ── ① Ask the screen orientation **before** opening the window ──
   orient = ui_orientation();
 
+  // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）
+  // UI language: queried once at start (`ui_get_language` is a syscall, not once per frame)
+  int lang = ui_get_language();
+
   w = ui_scr_w();
   h = ui_scr_h();
   if (w <= 0) { w = 360; }
@@ -146,19 +151,19 @@ void main() {
 
     ui_clear(-15724520);
 
-    ui_text_styled(cx, gy, "UI 接口 / demo_ui.dart", -1513232, 16, 1, 1);
+    ui_text_styled(cx, gy, lang == 0 ? "UI 接口 / demo_ui.dart" : "UI interface / demo_ui.dart", -1513232, 16, 1, 1);
     if (orient == 1) {
-      ui_text(cx, gy + 26, "屏幕方向 = 横屏 (LANDSCAPE)", -11409298, 13, 1);
+      ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 横屏 (LANDSCAPE)" : "Orientation = LANDSCAPE", -11409298, 13, 1);
     } else {
-      ui_text(cx, gy + 26, "屏幕方向 = 竖屏 (PORTRAIT)", -11409298, 13, 1);
+      ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 竖屏 (PORTRAIT)" : "Orientation = PORTRAIT", -11409298, 13, 1);
     }
-    ui_text(cx, gy + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", -6643536, 12, 1);
+    ui_text(cx, gy + 46, lang == 0 ? "画布按宿主给的尺寸现排（旋转后跟着变）" : "Canvas laid out from the host size (follows rotation)", -6643536, 12, 1);
 
     // 跟随尺寸的方框：旋转后跟着变宽变矮
     // A size-following box: on rotation it follows and gets wider and shorter
     ui_rect(pad, gy + 70, sw - pad * 2, 90, -15066588, 1, 0, 10);
     ui_rect(pad + 6, gy + 76, sw - pad * 2 - 12, 30, -11890471, 1, 0, 6);
-    ui_text(pad + 16, gy + 84, "rect / round-rect（随屏宽伸缩）", -15724520, 12, 0);
+    ui_text(pad + 16, gy + 84, lang == 0 ? "rect / round-rect（随屏宽伸缩）" : "rect / round-rect (follows width)", -15724520, 12, 0);
 
     ui_circle(cx - sw ~/ 6, gy + 140, sw ~/ 12, -2069424, 1, 0);
     ui_ellipse(cx + sw ~/ 6, gy + 140, sw ~/ 9, sw ~/ 18, -2509750, 1, 0);
@@ -176,15 +181,15 @@ void main() {
       }
       i = i + 1;
     }
-    ui_text(cx, gy + 210, "真彩 0xAARRGGBB（不是索引色）", -6643536, 12, 1);
+    ui_text(cx, gy + 210, lang == 0 ? "真彩 0xAARRGGBB（不是索引色）" : "true color 0xAARRGGBB (not indexed)", -6643536, 12, 1);
 
     // 进度用**条形长度**表达（Dart 前端没有 int→string，见 demo_std.dart）
     // Progress is expressed as a **bar length** (the Dart frontend has no int→string, see demo_std.dart)
-    ui_text(pad, gy + 236, "已跑帧数（条形）", -6643536, 12, 0);
+    ui_text(pad, gy + 236, lang == 0 ? "已跑帧数（条形）" : "frames drawn (as a bar)", -6643536, 12, 0);
     ui_rect(pad, gy + 254, sw - pad * 2, 14, -15066588, 1, 0, 4);
     ui_rect(pad, gy + 254, (sw - pad * 2) * frames ~/ 60, 14, -11890471, 1, 0, 4);
 
-    ui_text(pad, gy + 278, "按键 / 触摸来了就画一个标记", -6643536, 12, 0);
+    ui_text(pad, gy + 278, lang == 0 ? "按键 / 触摸来了就画一个标记" : "a marker is drawn per key / touch", -6643536, 12, 0);
     if (keys > 0) { ui_circle(pad + 20, gy + 306, 14, -2509750, 1, 0); }
     if (touches > 0) { ui_circle(pad + 60, gy + 306, 14, -11409298, 1, 0); }
 
@@ -193,12 +198,12 @@ void main() {
     if (tx >= 0) {
       ui_circle(tx, ty, 18, -2509750, 0, 2);
       ui_circle(tx, ty, 4, -2509750, 1, 0);
-      ui_text(cx, sh - 44, "触摸坐标已经用上了", -2509750, 12, 1);
+      ui_text(cx, sh - 44, lang == 0 ? "触摸坐标已经用上了" : "touch coordinates in use", -2509750, 12, 1);
     } else {
-      ui_text(cx, sh - 44, "点一下屏幕 / 按任意键退出", -6643536, 12, 1);
+      ui_text(cx, sh - 44, lang == 0 ? "点一下屏幕 / 按任意键退出" : "Tap anywhere / any key to exit", -6643536, 12, 1);
     }
 
-    ui_text(cx, sh - 24, "退出：按任意键或点任意处（或等 N 帧到点）", -6643536, 12, 1);
+    ui_text(cx, sh - 24, lang == 0 ? "退出：按任意键或点任意处（或等 N 帧到点）" : "Exit: any key or any tap (or wait for N frames)", -6643536, 12, 1);
 
     ui_present();
 

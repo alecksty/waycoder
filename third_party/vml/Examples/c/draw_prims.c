@@ -76,8 +76,11 @@ int main(void)
     int tri[6];                                    /* 顶点一律用具名数组，别用 (int[]){…} */
     /* vertices are always named arrays, never (int[]){…} */
     int zig[8];
+    int lang;                                      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+/* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
-    ui_win_open("图元体检", 320, 460);
+    lang = ui_get_language();
+    ui_win_open(lang == 0 ? "图元体检" : "Primitive health check", 320, 460);
     ui_clear(0xFF101018);
 
     tri[0] = 92;  tri[1] = 215;  tri[2] = 148;      /* 实心三角 */
@@ -122,25 +125,25 @@ int main(void)
     /* outer box filled plus inner box filled => the even-odd rule should punch out the middle */
     ui_path("M245 170 L312 170 L312 216 L245 216 Z M264 184 L293 184 L293 202 L264 202 Z",
             0xFF4A90D9, 2, 0xFF4A90D9, "", 1, 0);
-    ui_text(280, 230, "path 挖洞", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(280, 230, lang == 0 ? "path 挖洞" : "path hole", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     /* ── 第 2 行：曲线 / 文字 / 两种渐变 ── */
     /* ── Row 2: curve / text / two kinds of gradient ── */
     ui_path("M12 420 C 40 320, 60 320, 76 420", 0xFFE06C50, 3, 0, "", 1, 0);
     ui_text(40, 440, "curve", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
-    ui_text(120, 330, "中ABC", 0xFFE8E8F0, 16, VML_ANCHOR_CENTER);
-    ui_text(120, 360, "左对齐", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
-    ui_text(120, 380, "右对齐", 0xFF9AA0B0, 12, VML_ANCHOR_RIGHT);
+    ui_text(120, 330, lang == 0 ? "中ABC" : "ABC", 0xFFE8E8F0, 16, VML_ANCHOR_CENTER);
+    ui_text(120, 360, lang == 0 ? "左对齐" : "left", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(120, 380, lang == 0 ? "右对齐" : "right", 0xFF9AA0B0, 12, VML_ANCHOR_RIGHT);
     ui_text(120, 440, "text", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     ui_gradient("lin", 0, 0xFFFF3020, 0xFF2050FF, 0, 0, 1000, 0);
     ui_rect_grad(165, 330, 70, 60, "lin", 0);
-    ui_text(200, 440, "grad 线性", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(200, 440, lang == 0 ? "grad 线性" : "grad linear", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     ui_gradient("rad", 1, 0xFFFFE060, 0xFF204020, 500, 420, 500);
     ui_circle_grad(280, 360, 36, "rad");
-    ui_text(280, 440, "grad 径向", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(280, 440, lang == 0 ? "grad 径向" : "grad radial", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     ui_present();
 

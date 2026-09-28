@@ -52,10 +52,11 @@ native function ui_msg_a() {}
 native function ui_beep(freq, ms) {}
 native function ui_keep_on(on) {}
 native function ui_dlg_msg(title, body, style) {}
+native function ui_get_language() {}
 
-// 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
-// State: 0=paddle x 1=ball x 2=ball y 3=ball dx 4=ball dy 5=score 6=best 7=alive 8=screen w 9=screen h
-let A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+// 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高 10=界面语言
+// State: 0=paddle x 1=ball x 2=ball y 3=ball dx 4=ball dy 5=score 6=best 7=alive 8=screen w 9=screen h 10=UI language
+let A = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 function resetGame() {
     A[0] = A[8] / 2 - 40;
@@ -68,20 +69,22 @@ function resetGame() {
 }
 
 function draw() {
+    let lang = A[10];
     ui_clear(-15724520);
-    ui_text(8, 8, "得分", -6643536, 13, 0);
+    ui_text(8, 8, lang == 0 ? "得分" : "Score", -6643536, 13, 0);
     ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0);
-    ui_text(A[8] / 2, 8, "最高", -6643536, 13, 1);
+    ui_text(A[8] / 2, 8, lang == 0 ? "最高" : "Best", -6643536, 13, 1);
     ui_rect(A[8] / 2 + 46, 11, A[6], 10, -63488, 1, 0, 0);
     ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6);
     ui_circle(A[1], A[2], 9, -131246, 1, 0);
     if (A[7] == 0) {
-        ui_text(A[8] / 2, A[9] / 2, "按回车重开", -131246, 16, 1);
+        ui_text(A[8] / 2, A[9] / 2, lang == 0 ? "按回车重开" : "Press Enter to restart", -131246, 16, 1);
     }
     ui_present();
 }
 
 function step() {
+    let lang = A[10];
     if (A[7] == 0) {
         return;
     }
@@ -107,7 +110,7 @@ function step() {
         // Sound: single-tone ui_beep; **the ending tone takes the lowest pitch** (catch 1047 / miss 131, far enough apart)
         ui_beep(131, 320);
         draw();
-        if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); return; }
+        if (ui_dlg_msg(lang == 0 ? "接方块" : "Catch", lang == 0 ? "没接住，这一局结束。\n再来一局？（选「否」退出）" : "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0) { ui_win_close(); return; }
         resetGame();
     }
 }
@@ -119,7 +122,9 @@ function main() {
     if (h <= 0) { h = 620; }
     A[8] = w;
     A[9] = h;
-    ui_win_open("接方块", w, h);
+    A[10] = ui_get_language();
+    let lang = A[10];
+    ui_win_open(lang == 0 ? "接方块" : "Catch", w, h);
     ui_keep_on(1);
     resetGame();
     let tid = ui_timer_set(40, 0);

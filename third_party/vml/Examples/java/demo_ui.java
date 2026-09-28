@@ -84,6 +84,7 @@ public class DemoUi {
     static native int  ui_scr_w();
     static native int  ui_scr_h();
     static native int  ui_orientation();
+    static native int  ui_get_language();
 
     // ── 绘图 ──
     // ── Drawing ──
@@ -106,7 +107,7 @@ public class DemoUi {
 
     // ── 全部状态放这一个数组（见文件头 ①）──
     //   0=sw 1=sh 2=gy 3=frames 4=keys 5=touches 6=orient 7=tx 8=ty 9=tid
-    static int[] A = new int[10];
+    static int[] A = new int[11];
 
     // 消息类型 / 锚点 / 方向 / 字体样式（源：Lib/c/waycoder_ui.h；这里只能写字面量）
     //   MSG_NONE=0 KEYDOWN=1 TIMER=9 TOUCHDOWN=6 MOUSEDOWN=4
@@ -132,6 +133,7 @@ public class DemoUi {
     }
 
     static void draw() {
+        int lang = A[10];
         int sw = A[0];
         int sh = A[1];
         int gy = A[2];
@@ -142,19 +144,19 @@ public class DemoUi {
 
         ui_clear(-15724520);                                    // 0xFF101018
 
-        ui_text_styled(cx, gy, "UI 接口 / demo_ui.java", -1513232, 16, 1, 1);
+        ui_text_styled(cx, gy, lang == 0 ? "UI 接口 / demo_ui.java" : "UI interface / demo_ui.java", -1513232, 16, 1, 1);
         if (A[6] == 1) {                                        // ORIENT_LANDSCAPE
-            ui_text(cx, gy + 26, "屏幕方向 = 横屏 (LANDSCAPE)", -11409298, 13, 1);
+            ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 横屏 (LANDSCAPE)" : "Orientation = LANDSCAPE", -11409298, 13, 1);
         } else {
-            ui_text(cx, gy + 26, "屏幕方向 = 竖屏 (PORTRAIT)", -11409298, 13, 1);
+            ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 竖屏 (PORTRAIT)" : "Orientation = PORTRAIT", -11409298, 13, 1);
         }
-        ui_text(cx, gy + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", -6643536, 12, 1);
+        ui_text(cx, gy + 46, lang == 0 ? "画布按宿主给的尺寸现排（旋转后跟着变）" : "Canvas laid out from the host size (follows rotation)", -6643536, 12, 1);
 
         // 跟随尺寸的方框：旋转后跟着变宽变矮（这就是"不写死坐标"的证明）
         // A size-following box: on rotation it follows and gets wider and shorter (this is the proof of "no hardcoded coordinates")
         ui_rect(pad, gy + 70, sw - pad * 2, 90, -15066588, 1, 0, 10);
         ui_rect(pad + 6, gy + 76, sw - pad * 2 - 12, 30, -11890471, 1, 0, 6);
-        ui_text(pad + 16, gy + 84, "rect / round-rect（随屏宽伸缩）", -15724520, 12, 0);
+        ui_text(pad + 16, gy + 84, lang == 0 ? "rect / round-rect（随屏宽伸缩）" : "rect / round-rect (stretches with the width)", -15724520, 12, 0);
 
         ui_circle(cx - sw / 6, gy + 140, sw / 12, -2069424, 1, 0);
         ui_ellipse(cx + sw / 6, gy + 140, sw / 9, sw / 18, -2509750, 1, 0);
@@ -172,7 +174,7 @@ public class DemoUi {
             }
             i = i + 1;
         }
-        ui_text(cx, gy + 210, "真彩 0xAARRGGBB（不是索引色）", -6643536, 12, 1);
+        ui_text(cx, gy + 210, lang == 0 ? "真彩 0xAARRGGBB（不是索引色）" : "True color 0xAARRGGBB (not indexed)", -6643536, 12, 1);
 
         // ⚠ 屏上不写数字：Java 侧 `int` → `String` 要靠 `+` 拼接，而那个是坏的
         // ⚠ No numbers on screen: on the Java side `int` → `String` needs `+` concatenation, and that is broken
@@ -180,11 +182,11 @@ public class DemoUi {
         //   (see the header of demo_std.java). Progress is expressed here as a **bar length**,
         //   具体数字走 stdout —— 那边 `println(int)` 是好的。
         //   and the actual numbers go to stdout — `println(int)` works there.
-        ui_text(pad, gy + 236, "已跑帧数（条形）", -6643536, 12, 0);
+        ui_text(pad, gy + 236, lang == 0 ? "已跑帧数（条形）" : "Frames run (bar)", -6643536, 12, 0);
         ui_rect(pad, gy + 254, sw - pad * 2, 14, -15066588, 1, 0, 4);
         ui_rect(pad, gy + 254, (sw - pad * 2) * A[3] / 60, 14, -11483016, 1, 0, 4);
 
-        ui_text(pad, gy + 278, "按键 / 触摸来了就画一个标记", -6643536, 12, 0);
+        ui_text(pad, gy + 278, lang == 0 ? "按键 / 触摸来了就画一个标记" : "A marker is drawn on key / touch", -6643536, 12, 0);
         if (A[4] > 0) { ui_circle(pad + 20, gy + 306, 14, -2509750, 1, 0); }
         if (A[5] > 0) { ui_circle(pad + 60, gy + 306, 14, -11409298, 1, 0); }
 
@@ -193,12 +195,12 @@ public class DemoUi {
         if (A[7] >= 0) {
             ui_circle(A[7], A[8], 18, -2509750, 0, 2);
             ui_circle(A[7], A[8], 4, -2509750, 1, 0);
-            ui_text(cx, sh - 44, "触摸坐标已经用上了", -2509750, 12, 1);
+            ui_text(cx, sh - 44, lang == 0 ? "触摸坐标已经用上了" : "Touch coordinates are in use", -2509750, 12, 1);
         } else {
-            ui_text(cx, sh - 44, "点一下屏幕 / 按任意键退出", -6643536, 12, 1);
+            ui_text(cx, sh - 44, lang == 0 ? "点一下屏幕 / 按任意键退出" : "Tap the screen / press any key to exit", -6643536, 12, 1);
         }
 
-        ui_text(cx, sh - 24, "退出：按任意键或点任意处（或等 N 帧到点）", -6643536, 12, 1);
+        ui_text(cx, sh - 24, lang == 0 ? "退出：按任意键或点任意处（或等 N 帧到点）" : "Exit: any key or any tap (or wait out the frame count)", -6643536, 12, 1);
 
         ui_present();
     }
@@ -214,6 +216,7 @@ public class DemoUi {
         A[3] = 0;
         A[4] = 0;
         A[5] = 0;
+        A[10] = ui_get_language();
 
         // ── ① 开窗**之前**就问屏幕方向 ──
         // ── ① Ask the screen orientation **before** opening the window ──

@@ -55,14 +55,17 @@ int main(void)
     int w;
     int h;
     int n;
+    int lang;                   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     w = ui_scr_w();
     h = ui_scr_h();
+    lang = ui_get_language();
 
     /* 不要手柄区：把画布让给自己（手柄会占掉一百多 dp） */
     /* No gamepad area: give the canvas to ourselves (the gamepad would eat 100+ dp) */
     if (ui_win_open_ex("shot", w, h, VML_WIN_ROTATABLE, VML_WIN_NO_GAMEPAD) < 0) {
-        ui_dlg_msg("失败", "开窗失败", VML_DLG_ERROR);
+        ui_dlg_msg(lang == 0 ? "失败" : "Failed", lang == 0 ? "开窗失败" : "Could not open the window", VML_DLG_ERROR);
         return 1;
     }
 
@@ -94,9 +97,15 @@ int main(void)
      * 用 ui_dlg_msg 直接把返回值写出来看。
      * Use ui_dlg_msg to print the return value directly and look at it. */
     if (n > 0) {
-        ui_dlg_msg("截屏成功", "已自动命名存进 shot/ 目录（手机：工作区根；桌面：源文件旁边）", VML_DLG_INFO);
+        ui_dlg_msg(lang == 0 ? "截屏成功" : "Screenshot saved",
+                   lang == 0 ? "已自动命名存进 shot/ 目录（手机：工作区根；桌面：源文件旁边）"
+                             : "Auto-named into shot/ (mobile: workspace root; desktop: next to the source file)",
+                   VML_DLG_INFO);
     } else {
-        ui_dlg_msg("截屏失败", "ui_screenshot 返回 -1：路径非法 / 还没有画布 / 写不进去", VML_DLG_ERROR);
+        ui_dlg_msg(lang == 0 ? "截屏失败" : "Screenshot failed",
+                   lang == 0 ? "ui_screenshot 返回 -1：路径非法 / 还没有画布 / 写不进去"
+                             : "ui_screenshot returned -1: illegal path / no canvas yet / cannot write",
+                   VML_DLG_ERROR);
     }
 
     ui_win_close();

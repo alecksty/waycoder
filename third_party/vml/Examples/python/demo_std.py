@@ -35,9 +35,12 @@
 # 转义里能用的那几个（`\t` `\\` `\"`）正好压住了词法表那条路。
 # The few escapes that do work (`\t` `\\` `\"`) happen to stay clear of that lexer path.
 
+lang = ui_get_language()
 print("=== demo_std (Python) ===")
-print("纯字符串一行")
-print("转义：制表\t反斜杠\\引号\"")
+if lang == 0: print("纯字符串一行")
+if lang != 0: print("A plain string line")
+if lang == 0: print("转义：制表\t反斜杠\\引号\"")
+if lang != 0: print("escapes: tab\tbackslash\\quote\"")
 
 a = 17
 b = 25
@@ -45,7 +48,8 @@ b = 25
 print("a=", a, "b=", b)
 print("a+b=", a + b, "a-b=", a - b, "a*b=", a * b)
 print("a/b=", a / b, "a%b=", a % b)
-print("负数：", 0 - a, 0 - (a * b))
+if lang == 0: print("负数：", 0 - a, 0 - (a * b))
+if lang != 0: print("negatives:", 0 - a, 0 - (a * b))
 
 # 循环算一个结果，证明这一层和语言本身是通的
 # Loop to compute a result, proving this layer and the language itself are wired together
@@ -63,7 +67,8 @@ while i <= 5:
     print(i, "x 7 =", i * 7)
     i = i + 1
 
-print("=== 完成 ===")
+if lang == 0: print("=== 完成 ===")
+if lang != 0: print("=== done ===")
 
 # ── 期望输出（逐字节）────────────────────────────────────────────
 # === demo_std (Python) ===

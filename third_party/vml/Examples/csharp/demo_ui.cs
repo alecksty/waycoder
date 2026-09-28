@@ -87,6 +87,8 @@ class DemoUi
     static int tx = -1;
     static int ty = -1;
     static int tid;
+    static int lang;                 // 界面语言：0=中文 1=英文（开局问一次宿主，见 Main）
+    // UI language: 0=Chinese 1=English (asked of the host once at the start, see Main)
 
     static void relayout()
     {
@@ -106,22 +108,22 @@ class DemoUi
 
         ui_clear(BG);
 
-        ui_text_styled(cx, gy, "UI 接口 / demo_ui.cs", TITLE, 16, ANCHOR_CENTER, FONT_BOLD);
+        ui_text_styled(cx, gy, lang == 0 ? "UI 接口 / demo_ui.cs" : "UI interface / demo_ui.cs", TITLE, 16, ANCHOR_CENTER, FONT_BOLD);
         if (orient == ORIENT_LANDSCAPE)
         {
-            ui_text(cx, gy + 26, "屏幕方向 = 横屏 (LANDSCAPE)", ACCENT, 13, ANCHOR_CENTER);
+            ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 横屏 (LANDSCAPE)" : "Orientation = LANDSCAPE", ACCENT, 13, ANCHOR_CENTER);
         }
         else
         {
-            ui_text(cx, gy + 26, "屏幕方向 = 竖屏 (PORTRAIT)", ACCENT, 13, ANCHOR_CENTER);
+            ui_text(cx, gy + 26, lang == 0 ? "屏幕方向 = 竖屏 (PORTRAIT)" : "Orientation = PORTRAIT", ACCENT, 13, ANCHOR_CENTER);
         }
-        ui_text(cx, gy + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", MUTED, 12, ANCHOR_CENTER);
+        ui_text(cx, gy + 46, lang == 0 ? "画布按宿主给的尺寸现排（旋转后跟着变）" : "Canvas laid out from the host size (follows rotation)", MUTED, 12, ANCHOR_CENTER);
 
         // 跟随尺寸的方框：旋转后跟着变宽变矮
         // A size-following box: on rotation it follows and gets wider and shorter
         ui_rect(pad, gy + 70, sw - pad * 2, 90, PANEL, 1, 0, 10);
         ui_rect(pad + 6, gy + 76, sw - pad * 2 - 12, 30, BLUE, 1, 0, 6);
-        ui_text(pad + 16, gy + 84, "rect / round-rect（随屏宽伸缩）", BG, 12, ANCHOR_LEFT);
+        ui_text(pad + 16, gy + 84, lang == 0 ? "rect / round-rect（随屏宽伸缩）" : "rect / round-rect (stretches with the width)", BG, 12, ANCHOR_LEFT);
 
         ui_circle(cx - sw / 6, gy + 140, sw / 12, ORANGE, 1, 0);
         ui_ellipse(cx + sw / 6, gy + 140, sw / 9, sw / 18, YELLOW, 1, 0);
@@ -136,17 +138,17 @@ class DemoUi
             else            ui_rect(pad + i * w, gy + 186, w - 2, 16, BLUE, 1, 0, 2);
             i = i + 1;
         }
-        ui_text(cx, gy + 210, "真彩 0xAARRGGBB（不是索引色）", MUTED, 12, ANCHOR_CENTER);
+        ui_text(cx, gy + 210, lang == 0 ? "真彩 0xAARRGGBB（不是索引色）" : "True color 0xAARRGGBB (not indexed)", MUTED, 12, ANCHOR_CENTER);
 
         // 进度用**条形长度**表达（C# 前端没有 int→string，见 demo_std.cs）；
         // Progress is expressed as a **bar length** (the C# frontend has no int→string, see demo_std.cs);
         // 具体数字走 stdout —— 那边 Console 打印是好的。
         // the actual numbers go to stdout — printing there with Console works.
-        ui_text(pad, gy + 236, "已跑帧数（条形）", MUTED, 12, ANCHOR_LEFT);
+        ui_text(pad, gy + 236, lang == 0 ? "已跑帧数（条形）" : "Frames run (bar)", MUTED, 12, ANCHOR_LEFT);
         ui_rect(pad, gy + 254, sw - pad * 2, 14, PANEL, 1, 0, 4);
         ui_rect(pad, gy + 254, (sw - pad * 2) * frames / MAX_FRAMES, 14, BLUE, 1, 0, 4);
 
-        ui_text(pad, gy + 278, "按键 / 触摸来了就画一个标记", MUTED, 12, ANCHOR_LEFT);
+        ui_text(pad, gy + 278, lang == 0 ? "按键 / 触摸来了就画一个标记" : "A marker is drawn on key / touch", MUTED, 12, ANCHOR_LEFT);
         if (keys > 0) ui_circle(pad + 20, gy + 306, 14, YELLOW, 1, 0);
         if (touches > 0) ui_circle(pad + 60, gy + 306, 14, ACCENT, 1, 0);
 
@@ -156,14 +158,14 @@ class DemoUi
         {
             ui_circle(tx, ty, 18, YELLOW, 0, 2);
             ui_circle(tx, ty, 4, YELLOW, 1, 0);
-            ui_text(cx, sh - 44, "触摸坐标已经用上了", YELLOW, 12, ANCHOR_CENTER);
+            ui_text(cx, sh - 44, lang == 0 ? "触摸坐标已经用上了" : "Touch coordinates are in use", YELLOW, 12, ANCHOR_CENTER);
         }
         else
         {
-            ui_text(cx, sh - 44, "点一下屏幕 / 按任意键退出", MUTED, 12, ANCHOR_CENTER);
+            ui_text(cx, sh - 44, lang == 0 ? "点一下屏幕 / 按任意键退出" : "Tap the screen / press any key to exit", MUTED, 12, ANCHOR_CENTER);
         }
 
-        ui_text(cx, sh - 24, "退出：按任意键或点任意处（或等 N 帧到点）", MUTED, 12, ANCHOR_CENTER);
+        ui_text(cx, sh - 24, lang == 0 ? "退出：按任意键或点任意处（或等 N 帧到点）" : "Exit: any key or any tap (or wait out the frame count)", MUTED, 12, ANCHOR_CENTER);
 
         ui_present();
     }
@@ -174,6 +176,10 @@ class DemoUi
         int t;
         int w;
         int h;
+
+        // 界面语言：开局查一次（`ui_get_language` 是 syscall）—— 文案按它取
+        // UI language: queried once at startup (`ui_get_language` is a syscall) — the strings are picked by it
+        lang = ui_get_language();
 
         // ── ① 开窗**之前**就问屏幕方向 ──
         // ── ① Ask the screen orientation **before** opening the window ──

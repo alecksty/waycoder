@@ -32,8 +32,11 @@ int main(void)
     int x = 40, y = 30;
     int dx = 3, dy = 2;
     int f, msg;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    ui_win_open("老式绘图：反弹球", W, H);
+    lang = ui_get_language();
+    ui_win_open(lang == 0 ? "老式绘图：反弹球" : "Old-style gfx: bouncing ball", W, H);
 
     for (f = 0; f < FRAMES; f++) {
         /* 取输入（只轮询、不阻塞 —— 有键就退出）*/
@@ -51,7 +54,8 @@ int main(void)
         /* Draw this frame */
         ui_clear(0x101820);
         ui_circle(x, y, BALL, 0xE06C75, 1, 1);
-        ui_text(8, 8, "反弹球（有键则退出）", 0xABB2BF, 14, 0);
+        ui_text(8, 8, lang == 0 ? "反弹球（有键则退出）" : "Bouncing ball (any key exits)",
+                0xABB2BF, 14, 0);
         ui_present();
     }
 

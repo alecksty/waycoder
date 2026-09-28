@@ -57,6 +57,10 @@ int v[8];
 
 int main(void) {
     int r;
+    int lang;                   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
+
+    lang = ui_get_language();
 
     /* ── ① int8：最自然的一种，直接按 int 填 ── */
     /* ── (1) int8: the most natural one, fill it in directly as int ── */
@@ -100,21 +104,21 @@ int main(void) {
     /* ── ⑤ 宿主信息：1 = 桌面脚手架、2 = 手机 App ── */
     /* ── (5) host info: 1 = desktop scaffolding, 2 = the phone App ── */
     v[0] = VML_CALL_HOST_INFO;
-    printf("宿主      = %d\n", callwithint8(v));
+    printf(lang == 0 ? "宿主      = %d\n" : "host      = %d\n", callwithint8(v));
 
     /* ── ⑥ 失败路径：**一个都不许崩**，写回负数失败码（正数才是正常返回）── */
     /* ── (6) failure paths: **not one of them may crash**; a negative failure code is written back (only positive is a normal return) ── */
     v[0] = 9999;                             /* 没注册过这个号 */
     /* this id was never registered */
-    printf("未注册    = %d\n", callwithint8(v));   /* -6 */
+    printf(lang == 0 ? "未注册    = %d\n" : "unknown   = %d\n", callwithint8(v));   /* -6 */
     /* expected: -6, an id that was never registered */
     v[0] = VML_CALL_ECHO_FLOAT;              /* 这个号注册给 float8 了，却用 int8 口调 */
     /* this id is registered for float8, yet it is called through the int8 port */
-    printf("类型不符  = %d\n", callwithint8(v));   /* -2 */
+    printf(lang == 0 ? "类型不符  = %d\n" : "type err  = %d\n", callwithint8(v));   /* -2 */
     /* expected: -2, the id belongs to another port */
     v[0] = -5;                               /* 负数调用号 */
     /* a negative call id */
-    printf("负数号    = %d\n", callwithint8(v));   /* -2 */
+    printf(lang == 0 ? "负数号    = %d\n" : "negative  = %d\n", callwithint8(v));   /* -2 */
     /* expected: -2, a negative call id */
     return 0;
 }

@@ -21,6 +21,8 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 #define LIMIT 10000
 
@@ -34,6 +36,10 @@ static char flags[LIMIT + 1];
 int main(void)
 {
     int i, j, count = 0;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
+
+    lang = ui_get_language();
 
     memset(flags, 1, sizeof(flags));
     flags[0] = flags[1] = 0;
@@ -44,7 +50,7 @@ int main(void)
             flags[j] = 0;
     }
 
-    printf("%d 以内的素数：\n", LIMIT);
+    printf(lang == 0 ? "%d 以内的素数：\n" : "Primes up to %d:\n", LIMIT);
     for (i = 2; i <= LIMIT; i++) {
         if (!flags[i]) continue;
         count++;
@@ -54,6 +60,6 @@ int main(void)
     }
     if (count % 10 != 0) printf("\n");
 
-    printf("共 %d 个\n", count);
+    printf(lang == 0 ? "共 %d 个\n" : "%d in total\n", count);
     return 0;
 }

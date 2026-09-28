@@ -91,10 +91,14 @@ class DemoStd
         int i = 0;
         int sum = 0;
 
+        // 界面语言：开局查一次（`ui_get_language` 是 syscall）—— 文案按它取
+        // UI language: queried once at startup (`ui_get_language` is a syscall) — the strings are picked by it
+        int lang = ui_get_language();
+
         // ── 1. 字符串 ──
         // ── 1. Strings ──
         println_str("=== demo_std (C#) ===");
-        println_str("纯字面量一行");
+        println_str(lang == 0 ? "纯字面量一行" : "A plain literal, one line");
 
         // ── 2. 标签 + 值 分开写（⚠ 不用 `+`，见文件头）──
         // ── 2. Label + value written separately (⚠ don't use `+`, see the file header) ──
@@ -105,12 +109,12 @@ class DemoStd
         print_str("a*b=");     println_int(a * b);
         print_str("a/b=");     println_int(a / b);
         print_str("a%b=");     println_int(a % b);
-        print_str("负数：");    println_int(0 - a);
+        print_str(lang == 0 ? "负数：" : "Negative: "); println_int(0 - a);
 
         // ── 3. 进制 ──
         // ── 3. Number bases ──
-        print_str("十进制=");   println_int(255);
-        print_str("十六进制="); println_int(255);
+        print_str(lang == 0 ? "十进制=" : "Decimal="); println_int(255);
+        print_str(lang == 0 ? "十六进制=" : "Hex="); println_int(255);
 
         // ── 4. 函数调用（含递归）──
         // ── 4. Function calls (including recursion) ──
@@ -144,7 +148,7 @@ class DemoStd
             i = i + 1;
         }
 
-        println_str("=== 完成 ===");
+        println_str(lang == 0 ? "=== 完成 ===" : "=== done ===");
     }
 }
 

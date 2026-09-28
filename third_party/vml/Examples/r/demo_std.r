@@ -41,9 +41,11 @@
 # 而链接期报未定义）—— 本 demo 一律用 `while`。
 # and link time reports it as undefined) -- this demo always uses `while`.
 
+lang <- ui_get_language()
+
 cat("=== demo_std (R) ===\n")
-cat("纯字符串一行\n")
-cat("转义：制表\t反斜杠\\引号\"\n")
+if (lang == 0) cat("纯字符串一行\n") else cat("A plain string line\n")
+if (lang == 0) cat("转义：制表\t反斜杠\\引号\"\n") else cat("escapes: tab\tbackslash\\quote\"\n")
 
 a <- 17
 b <- 25
@@ -68,7 +70,7 @@ cat(" a%b=")
 cat(a %% b)
 cat("\n")
 
-cat("负数： ")
+if (lang == 0) cat("负数： ") else cat("negatives: ")
 cat(0 - a)
 cat(" ")
 cat(0 - (a * b))
@@ -97,7 +99,7 @@ while (i <= 5) {
   i <- i + 1
 }
 
-cat("=== 完成 ===\n")
+if (lang == 0) cat("=== 完成 ===\n") else cat("=== done ===\n")
 
 # ── 期望输出（逐字节）────────────────────────────────────────────
 # -- Expected output (byte-for-byte; each line below is printed in Chinese, and the line under it is its translation) --

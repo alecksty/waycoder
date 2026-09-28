@@ -26,28 +26,30 @@
 package main
 
 func main() {
+	lang := ui_get_language()
+
 	println("=== WayCoder demo_std (Go) ===")
 
 	// ① 字符串
 	// ① String
-	println("[字符串] hello, world")
+	if lang == 0 { println("[字符串] hello, world") } else { println("[string] hello, world") }
 
 	// ② 整数
 	// ② Integer
 	n := 42
-	println("[整数] n =", n)
+	if lang == 0 { println("[整数] n =", n) } else { println("[int] n =", n) }
 
 	// ③ 计算结果
 	// ③ Computed result
-	println("[计算] 6 * 7 =", 6*7)
+	if lang == 0 { println("[计算] 6 * 7 =", 6*7) } else { println("[calc] 6 * 7 =", 6*7) }
 	a := 7
 	b := 5
-	println("[计算] a + b =", a+b)
-	println("[计算] a * b - 3 =", a*b-3)
+	if lang == 0 { println("[计算] a + b =", a+b) } else { println("[calc] a + b =", a+b) }
+	if lang == 0 { println("[计算] a * b - 3 =", a*b-3) } else { println("[calc] a * b - 3 =", a*b-3) }
 
 	// ④ 循环里算斐波那契前 10 项
 	// ④ Compute the first 10 Fibonacci numbers in a loop
-	println("[循环] 斐波那契前 10 项：")
+	if lang == 0 { println("[循环] 斐波那契前 10 项：") } else { println("[loop] first 10 Fibonacci numbers:") }
 	x := 0
 	y := 1
 	i := 0
@@ -67,7 +69,7 @@ func main() {
 		sum = sum + k
 		k = k + 1
 	}
-	println("[累加] 1+2+...+100 =", sum)
+	if lang == 0 { println("[累加] 1+2+...+100 =", sum) } else { println("[sum] 1+2+...+100 =", sum) }
 
 	// ⑥ 阶乘 5!
 	// ⑥ Factorial 5!
@@ -77,7 +79,7 @@ func main() {
 		fact = fact * m
 		m = m + 1
 	}
-	println("[阶乘] 5! =", fact)
+	if lang == 0 { println("[阶乘] 5! =", fact) } else { println("[factorial] 5! =", fact) }
 
-	println("=== 结束 ===")
+	if lang == 0 { println("=== 结束 ===") } else { println("=== done ===") }
 }

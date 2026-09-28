@@ -11,6 +11,8 @@
  * Origin: self-written, imitating the full-screen color menus of 1990s BBS systems and DOS ANSI.SYS.
  */
 #include <stdio.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 #define ESC "\033"          /* ⚠ 八进制转义 —— 这条本身就是兼容面 */
                             /* ⚠ Octal escape -- this line is itself a compatibility surface */
@@ -20,6 +22,10 @@ static void gotoxy(int y, int x) { printf(ESC "[%d;%dH", y, x); }
 int main(void)
 {
     int i;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
+
+    lang = ui_get_language();
 
     printf(ESC "[2J");                 /* 清屏 */
                                        /* Clear the screen */
@@ -29,7 +35,8 @@ int main(void)
     /* 标题：粗体 + 黄底蓝字 */
     /* Title: bold + blue text on a yellow background */
     gotoxy(2, 6);
-    printf(ESC "[1;33;44m  WayCoder 老程序演示 · ANSI 彩色  " ESC "[0m");
+    printf(lang == 0 ? ESC "[1;33;44m  WayCoder 老程序演示 · ANSI 彩色  " ESC "[0m"
+                     : ESC "[1;33;44m  WayCoder old-program demo - ANSI color  " ESC "[0m");
 
     /* 调色板：16 色前景 */
     /* Palette: the 16 foreground colors */
@@ -42,14 +49,18 @@ int main(void)
     /* 反白条 + 下划线 + 闪烁（老终端那套属性） */
     /* A reverse-video bar + underline + blink (the old terminal attribute set) */
     gotoxy(9, 6);
-    printf(ESC "[7m  反白 (reverse)  " ESC "[0m");
+    printf(lang == 0 ? ESC "[7m  反白 (reverse)  " ESC "[0m"
+                     : ESC "[7m  reverse video  " ESC "[0m");
     gotoxy(10, 6);
-    printf(ESC "[4m  下划线 (underline)  " ESC "[0m");
+    printf(lang == 0 ? ESC "[4m  下划线 (underline)  " ESC "[0m"
+                     : ESC "[4m  underline  " ESC "[0m");
     gotoxy(11, 6);
-    printf(ESC "[5m  闪烁 (blink)  " ESC "[0m");
+    printf(lang == 0 ? ESC "[5m  闪烁 (blink)  " ESC "[0m"
+                     : ESC "[5m  blink  " ESC "[0m");
 
     gotoxy(14, 6);
-    printf("按任意键继续……（本示例不读键，直接结束）");
+    printf(lang == 0 ? "按任意键继续……（本示例不读键，直接结束）"
+                     : "Press any key to continue... (this sample reads no key, it just ends)");
     gotoxy(16, 1);
     printf(ESC "[?25h");              /* 还光标 */
                                       /* Restore the cursor */

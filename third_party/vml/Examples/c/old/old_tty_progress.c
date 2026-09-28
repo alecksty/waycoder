@@ -11,22 +11,29 @@
  * Origin: self-written, imitating the progress displays of 1990s installers and compression tools.
  */
 #include <stdio.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 #define ESC "\033"
 
 int main(void)
 {
     int i;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
     char spin[4] = { '|', '/', '-', '\\' };
+
+    lang = ui_get_language();
 
     printf(ESC "[2J");
 
     /* ① 百分比进度条：`\r` 回到行首，整行重画 */
     /* 1) Percentage progress bar: `\r` returns to the start of the line and the whole line is redrawn */
-    printf("安装中：");
+    printf(lang == 0 ? "安装中：" : "Installing: ");
     for (i = 0; i <= 100; i += 5) {
         int j;
-        printf("\r" ESC "[36m安装中：[" ESC "[33m");
+        printf(lang == 0 ? "\r" ESC "[36m安装中：[" ESC "[33m"
+                         : "\r" ESC "[36mInstalling: [" ESC "[33m");
         for (j = 0; j < 20; j++) printf(j < i / 5 ? "█" : "░");
         printf(ESC "[36m] %3d%%" ESC "[0m", i);
         fflush(stdout);
@@ -35,15 +42,16 @@ int main(void)
 
     /* ② 旋转光标（用 `\b` 退回一格重画）—— 老程序在"不知道进度"时就用它 */
     /* 2) Spinner (using `\b` to step back one column and redraw) -- old programs used it when "the progress is unknown" */
-    printf("处理中：");
+    printf(lang == 0 ? "处理中：" : "Working: ");
     for (i = 0; i < 12; i++) {
         printf("%c\b", spin[i % 4]);
         fflush(stdout);
     }
-    printf("完成\n");
+    printf(lang == 0 ? "完成\n" : "Done\n");
 
     /* ③ 反白高亮当前项 */
     /* 3) Highlight the current item with reverse video */
-    printf(ESC "[7m当前选中" ESC "[0m / 未选中\n");
+    printf(lang == 0 ? ESC "[7m当前选中" ESC "[0m / 未选中\n"
+                     : ESC "[7mselected" ESC "[0m / not selected\n");
     return 0;
 }

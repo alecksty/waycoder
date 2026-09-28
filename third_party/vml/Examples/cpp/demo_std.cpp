@@ -60,6 +60,8 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <waycoder_ui.h>     /* 只为 `ui_get_language()` 的声明（本头文件只给声明与常量，不会让程序变大） */
+                            /* only for the `ui_get_language()` declaration (this header carries declarations and constants only; it does not make the program bigger) */
 using namespace std;
 
 // 自由函数：C++ 前端对"类的方法"不生成函数体，所以工具函数一律这么写
@@ -80,19 +82,26 @@ int main()
     int b = 25;
     int i;
     int sum = 0;
+    // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）—— 文案按它取
+    // UI language: queried once at startup (`ui_get_language` is a syscall, do not call it every frame) — the text is picked by it
+    int Lang = ui_get_language();
 
     // ── 1. cout：字面量与整数都正常（⚠ 别放 char* 变量，见文件头 ①）──
     // ── 1. cout: literals and integers are both fine (⚠ do not pass a char* variable; see ① in the file header) ──
     cout << "=== demo_std (C++) ===" << endl;
-    cout << "cout: 字面量 + 整数 " << a << " " << b << endl;
+    // ⚠ 语言文案走**单行 if/else**：`cout << <三元>` 打的是地址（见文件头 ①），
+    // ⚠ The language-dependent text goes through a **single-line if/else**: `cout << <ternary>` prints the address (see ① in the file header),
+    //   而 `cout << <char* 变量>` 同样不行 —— 只有**字面量**喂 `cout` 才是好的。
+    //   and `cout << <char* variable>` does not work either — only a **literal** fed to `cout` is sound.
+    if (Lang == 0) { cout << "cout: 字面量 + 整数 " << a << " " << b << endl; } else { cout << "cout: literal + integers " << a << " " << b << endl; }
     int total = a + b;              // ⚠ `cout << (a+b)` 打不出东西（第五个洞：
     // ⚠ `cout << (a+b)` prints nothing (the fifth hole:
-    cout << "cout: 表达式 " << total << endl;   //   括号里的表达式在 << 链里被丢掉）
+    if (Lang == 0) { cout << "cout: 表达式 " << total << endl; } else { cout << "cout: expression " << total << endl; }   /*   括号里的表达式在 << 链里被丢掉） */
     // the parenthesized expression gets dropped inside the << chain）
 
     // ── 2. printf：字符串变量走这条（`cout` 那条会打地址）──
     // ── 2. printf: string variables take this route (the `cout` route would print an address) ──
-    char *tag = "printf: char* 变量";
+    char *tag = Lang == 0 ? "printf: char* 变量" : "printf: char* variable";
     printf("%s ok\n", tag);
 
     // ── 3. 函数调用（证明语言本身是通的）──
@@ -106,11 +115,11 @@ int main()
     printf("a=%d b=%d\n", a, b);
     printf("a+b=%d a-b=%d a*b=%d\n", a + b, a - b, a * b);
     printf("a/b=%d a%%b=%d\n", a / b, a % b);
-    printf("十进制=%d 十六进制=%x 八进制=%o\n", 255, 255, 255);
+    printf(Lang == 0 ? "十进制=%d 十六进制=%x 八进制=%o\n" : "decimal=%d hex=%x octal=%o\n", 255, 255, 255);
 
     // ── 5. 宽度对齐（老程序靠它排表格）──
     // ── 5. Width alignment (old programs lay out tables with it) ──
-    printf("宽度：[%5d][%-5d][%05d]\n", 42, 42, 42);
+    printf(Lang == 0 ? "宽度：[%5d][%-5d][%05d]\n" : "width: [%5d][%-5d][%05d]\n", 42, 42, 42);
 
     // ── 6. 数组 + 循环 ──
     // ── 6. Arrays + loops ──
@@ -132,7 +141,7 @@ int main()
         printf("%d x 7 = %2d\n", i, i * 7);
     }
 
-    cout << "=== 完成 ===" << endl;
+    if (Lang == 0) { cout << "=== 完成 ===" << endl; } else { cout << "=== done ===" << endl; }
     return 0;
 }
 

@@ -72,45 +72,48 @@
 program DemoStd;
 
 var
-  i, sum, fact: integer;
+  i, sum, fact, lang: integer;
 
 begin
-  writeln('=== Pascal 标准输出 demo ===');
+  { 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次） }
+  { UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall, queried once at startup) }
+  lang := ui_get_language();
+  if lang = 0 then writeln('=== Pascal 标准输出 demo ===') else writeln('=== Pascal standard output demo ===');
 
   { ① 字符串字面量（含中文 —— 源码按 UTF-8 存，词法器直通） }
   { 1) string literals (including Chinese -- the source is stored as UTF-8 and the lexer passes it through) }
-  writeln('字符串: 你好，世界');
+  if lang = 0 then writeln('字符串: 你好，世界') else writeln('string: hello, world');
 
   { ② 整数 }
   { 2) integer }
-  writeln('整数: ', 42);
+  if lang = 0 then writeln('整数: ', 42) else writeln('integer: ', 42);
 
   { ③ 整数运算 }
   { 3) integer arithmetic }
-  writeln('计算: 7 * 6 = ', 7 * 6);
+  if lang = 0 then writeln('计算: 7 * 6 = ', 7 * 6) else writeln('arithmetic: 7 * 6 = ', 7 * 6);
 
   { ④ 整除与取余：Pascal 用 `div` / `mod`（不是 `\` / `%`） }
   { 4) integer division and remainder: Pascal uses div / mod (not backslash / percent) }
-  writeln('整除: 17 div 5 = ', 17 div 5);
-  writeln('取余: 17 mod 5 = ', 17 mod 5);
+  if lang = 0 then writeln('整除: 17 div 5 = ', 17 div 5) else writeln('integer division: 17 div 5 = ', 17 div 5);
+  if lang = 0 then writeln('取余: 17 mod 5 = ', 17 mod 5) else writeln('remainder: 17 mod 5 = ', 17 mod 5);
 
   { ⑤ 循环求和 1..10 }
   { 5) loop sum 1..10 }
   sum := 0;
   for i := 1 to 10 do
     sum := sum + i;
-  writeln('循环求和: 1..10 = ', sum);
+  if lang = 0 then writeln('循环求和: 1..10 = ', sum) else writeln('loop sum: 1..10 = ', sum);
 
   { ⑥ 循环求阶乘 10! }
   { 6) loop factorial 10! }
   fact := 1;
   for i := 1 to 10 do
     fact := fact * i;
-  writeln('阶乘: 10! = ', fact);
+  if lang = 0 then writeln('阶乘: 10! = ', fact) else writeln('factorial: 10! = ', fact);
 
   { ⑦ 字符串长度（`length` 是语言内建的，走的是 VML 字符串体系） }
   { 7) string length (length is built into the language and goes through the VML string system) }
-  writeln('字符宽度: length(''abcd'') = ', length('abcd'));
+  if lang = 0 then writeln('字符宽度: length(''abcd'') = ', length('abcd')) else writeln('string length: length(''abcd'') = ', length('abcd'));
 
   writeln('=== done ===');
 end.

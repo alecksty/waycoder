@@ -65,6 +65,11 @@
 '   确实是 475（值正确），只是不能存进变量、也不能直接 PRINT。
 '   does evaluate to 475 (the value is correct); it just cannot be stored in a variable, and cannot be PRINTed directly either.
 
+' ── 外部库声明（NATIVE FUNCTION = 裸标签，链接期才找得到；这里只为 ui_get_language）────
+' ── External library declaration (NATIVE FUNCTION = the bare label, which is what the linker can find; only ui_get_language here)────
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
+
 ' ── 变量声明（必须在赋值之前）────────────────────────────────
 ' ── Variable declarations (must come before any assignment) ────────────────────────────────
 DIM i AS INTEGER
@@ -72,32 +77,37 @@ DIM sum AS INTEGER
 DIM fact AS INTEGER
 DIM a AS INTEGER
 DIM b AS INTEGER
+DIM LANG AS INTEGER
 
-PRINT "=== BASIC 标准输出 demo ==="
+' 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次）
+' UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall, queried once at startup)
+LANG = ui_get_language()
+
+IF LANG = 0 THEN PRINT "=== BASIC 标准输出 demo ===" ELSE PRINT "=== BASIC standard-output demo ==="
 
 ' ① 字符串字面量（含中文 —— 源码按 UTF-8 存，词法器直通）
 ' ① String literal (contains Chinese -- the source is stored as UTF-8 and the lexer passes it straight through)
-PRINT "字符串: 你好，世界"
+IF LANG = 0 THEN PRINT "字符串: 你好，世界" ELSE PRINT "string: hello, world"
 
 ' ② 整数
 ' ② Integer
 i = 42
-PRINT "整数: "; i
+IF LANG = 0 THEN PRINT "整数: "; i ELSE PRINT "integer: "; i
 
 ' ③ 整数运算
 ' ③ Integer arithmetic
 a = 7
 b = 6
-PRINT "计算: 7 * 6 = "; a * b
+IF LANG = 0 THEN PRINT "计算: 7 * 6 = "; a * b ELSE PRINT "arithmetic: 7 * 6 = "; a * b
 
 ' ④ 整除与取余（QBasic 方言：`\` = 整除，`MOD` = 取余）
 ' ④ Integer division and remainder (QBasic dialect: `\` = integer division, `MOD` = remainder)
-PRINT "整数除法: 17 \ 5 = "; 17 \ 5
-PRINT "取余: 17 MOD 5 = "; 17 MOD 5
+IF LANG = 0 THEN PRINT "整数除法: 17 \ 5 = "; 17 \ 5 ELSE PRINT "integer division: 17 \ 5 = "; 17 \ 5
+IF LANG = 0 THEN PRINT "取余: 17 MOD 5 = "; 17 MOD 5 ELSE PRINT "remainder: 17 MOD 5 = "; 17 MOD 5
 
 ' ⑤ 浮点：只走"字面量直接运算"这条能走通的路径（理由见文件头的三处已知缺陷）
 ' ⑤ Float: only the "literal used directly in an expression" path that works (for the reason see the three known defects at the top of the file)
-PRINT "浮点(×100): 4.75 * 100 = "; 4.75 * 100
+IF LANG = 0 THEN PRINT "浮点(×100): 4.75 * 100 = "; 4.75 * 100 ELSE PRINT "float (x100): 4.75 * 100 = "; 4.75 * 100
 
 ' ⑥ 循环求和 1..10
 ' ⑥ Loop sum 1..10
@@ -105,7 +115,7 @@ sum = 0
 FOR i = 1 TO 10
   sum = sum + i
 NEXT i
-PRINT "循环求和: 1..10 = "; sum
+IF LANG = 0 THEN PRINT "循环求和: 1..10 = "; sum ELSE PRINT "loop sum: 1..10 = "; sum
 
 ' ⑦ 循环求阶乘 10!（3628800 —— 用整数足够，不必上浮点）
 ' ⑦ Loop factorial 10! (3628800 -- integers are enough, no need to go to floats)
@@ -113,6 +123,6 @@ fact = 1
 FOR i = 1 TO 10
   fact = fact * i
 NEXT i
-PRINT "阶乘: 10! = "; fact
+IF LANG = 0 THEN PRINT "阶乘: 10! = "; fact ELSE PRINT "factorial: 10! = "; fact
 
 PRINT "=== done ==="

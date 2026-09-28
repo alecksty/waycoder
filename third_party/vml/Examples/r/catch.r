@@ -44,6 +44,7 @@
 
 # 状态：1=挡板x 2=球x 3=球y 4=球dx 5=球dy 6=分数 7=最高 8=存活 9=屏宽 10=屏高
 # State: 1=paddle x 2=ball x 3=ball y 4=ball dx 5=ball dy 6=score 7=best 8=alive 9=screen w 10=screen h
+lang <- ui_get_language()
 A <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 resetGame <- function() {
@@ -58,14 +59,14 @@ resetGame <- function() {
 
 draw <- function() {
   ui_clear(-15724520)
-  ui_text(8, 8, "得分", -6643536, 13, 0)
+  if (lang == 0) ui_text(8, 8, "得分", -6643536, 13, 0) else ui_text(8, 8, "Score", -6643536, 13, 0)
   ui_rect(58, 11, A[6], 10, -11409298, 1, 0, 0)
-  ui_text(A[9] / 2, 8, "最高", -6643536, 13, 1)
+  if (lang == 0) ui_text(A[9] / 2, 8, "最高", -6643536, 13, 1) else ui_text(A[9] / 2, 8, "Best", -6643536, 13, 1)
   ui_rect(A[9] / 2 + 46, 11, A[7], 10, -63488, 1, 0, 0)
   ui_rect(A[1], A[10] - 40, 80, 12, -63488, 1, 0, 6)
   ui_circle(A[2], A[3], 9, -131246, 1, 0)
   if (A[8] == 0) {
-    ui_text(A[9] / 2, A[10] / 2, "按回车重开", -131246, 16, 1)
+    if (lang == 0) ui_text(A[9] / 2, A[10] / 2, "按回车重开", -131246, 16, 1) else ui_text(A[9] / 2, A[10] / 2, "Press Enter to restart", -131246, 16, 1)
   }
   ui_present()
 }
@@ -115,7 +116,8 @@ tick <- function() {
     # Sound: single-tone ui_beep; **the ending tone takes the lowest pitch** (catch 1047 / miss 131, far enough apart)
     ui_beep(131, 320)
     draw()
-    if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); return(0) }
+    if (lang == 0) ans <- ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) else ans <- ui_dlg_msg("Catch", "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0)
+    if (ans != 0) { ui_win_close(); return(0) }
     resetGame()
   }
   return(0)
@@ -131,7 +133,7 @@ if (A[9] <= 0) {
 if (A[10] <= 0) {
   A[10] <- 620
 }
-ui_win_open("接方块", A[9], A[10])
+if (lang == 0) ui_win_open("接方块", A[9], A[10]) else ui_win_open("Catch", A[9], A[10])
 ui_keep_on(1)
 resetGame()
 tid <- ui_timer_set(40, 0)

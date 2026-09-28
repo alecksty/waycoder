@@ -12,10 +12,16 @@
  */
 #include <conio.h>
 #include <stdio.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 int main(void)
 {
     int i;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
+
+    lang = ui_get_language();
 
     clrscr();
 
@@ -23,12 +29,12 @@ int main(void)
     textcolor(11);          /* LIGHTCYAN */
     textbackground(0);      /* BLACK */
     gotoxy(10, 2);
-    cprintf("Turbo C 风格演示");
+    cprintf(lang == 0 ? "Turbo C 风格演示" : "Turbo C style demo");
 
     /* 调色板：15 色一行一个 */
     /* Palette: the 15 colors, printed one after another */
     gotoxy(6, 4);
-    cputs("16 色前景：");
+    cputs(lang == 0 ? "16 色前景：" : "16 foreground colors:");
     for (i = 0; i < 16; i++) {
         textcolor(i);
         cprintf("%2d ", i);
@@ -39,7 +45,7 @@ int main(void)
     gotoxy(6, 7);
     textattr((4 << 4) | 15);   /* 红底白字 */
                                /* White text on a red background */
-    cprintf("  当前选中项（红底白字）  ");
+    cprintf(lang == 0 ? "  当前选中项（红底白字）  " : "  current item (white on red)  ");
     textattr(7);               /* 恢复默认 */
                                /* Restore the default */
 
@@ -51,12 +57,12 @@ int main(void)
     /* wherex/wherey 读回光标位置 —— 老程序用它算对齐 */
     /* wherex/wherey read the cursor position back -- old programs used it to work out alignment */
     gotoxy(6, 11);
-    cprintf("光标在 (%d,%d)", wherex(), wherey());
+    cprintf(lang == 0 ? "光标在 (%d,%d)" : "Cursor at (%d,%d)", wherex(), wherey());
 
     /* 单字符输出 + 换行 */
     /* Single-character output + newline */
     gotoxy(6, 13);
-    cputs("单字符：");
+    cputs(lang == 0 ? "单字符：" : "Single chars: ");
     putch('O');
     putch('K');
 

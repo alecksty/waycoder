@@ -41,6 +41,8 @@
 
 static int W;
 static int H;
+static int Lang;                /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
 /* 四格的档位与名字（顺序 = 画出来的顺序）*/
 /* The four cells' modes and names (order = the order they are drawn in) */
@@ -80,7 +82,7 @@ static void cell(int x, int y, int w, int h, int valign, char *name)
     /* The character under test: same font size, same coordinates, only the vertical align mode differs */
     ui_set_font(h * 30 / 100, VML_FONT_BOLD, TXT, VML_ANCHOR_CENTER);
     ui_set_valign(valign);
-    ui_text_cur(cx, cy, "中");
+    ui_text_cur(cx, cy, Lang == 0 ? "中" : "M");
 }
 
 int main(void)
@@ -97,14 +99,15 @@ int main(void)
 
     W = ui_scr_w();
     H = ui_scr_h();
+    Lang = ui_get_language();
 
-    ui_win_open_ex("文字竖对齐测试", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(Lang == 0 ? "文字竖对齐测试" : "Vertical align test", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
-    modes[0] = VML_VANCHOR_BASE;    names[0] = "BASE   (基线落准心)";
-    modes[1] = VML_VANCHOR_MIDDLE;  names[1] = "MIDDLE (盒中心)";
-    modes[2] = VML_VANCHOR_TOP;     names[2] = "TOP    (盒顶)";
-    modes[3] = VML_VANCHOR_BOTTOM;  names[3] = "BOTTOM (盒底)";
+    modes[0] = VML_VANCHOR_BASE;    names[0] = Lang == 0 ? "BASE   (基线落准心)" : "BASE   (baseline on mark)";
+    modes[1] = VML_VANCHOR_MIDDLE;  names[1] = Lang == 0 ? "MIDDLE (盒中心)" : "MIDDLE (box center)";
+    modes[2] = VML_VANCHOR_TOP;     names[2] = Lang == 0 ? "TOP    (盒顶)" : "TOP    (box top)";
+    modes[3] = VML_VANCHOR_BOTTOM;  names[3] = Lang == 0 ? "BOTTOM (盒底)" : "BOTTOM (box bottom)";
 
     gap = 12;
     head = 76;
@@ -123,9 +126,9 @@ int main(void)
     /* Top caption (drawn with BASE — the caption itself does not need to be centered) */
     ui_set_valign(VML_VANCHOR_BASE);
     ui_set_font(22, VML_FONT_BOLD, TXT, VML_ANCHOR_CENTER);
-    ui_text_cur(W / 2, 34, "竖对齐四档：同一个字、同一个格心");
+    ui_text_cur(W / 2, 34, Lang == 0 ? "竖对齐四档：同一个字、同一个格心" : "Four vertical-align modes: same glyph, same cell center");
     ui_set_font(18, 0, LBL, VML_ANCHOR_CENTER);
-    ui_text_cur(W / 2, 62, "黄十字 = 准心（就是传给 ui_text 的那个 y）");
+    ui_text_cur(W / 2, 62, Lang == 0 ? "黄十字 = 准心（就是传给 ui_text 的那个 y）" : "Yellow cross = the mark (the y you pass to ui_text)");
 
     ui_present();
 

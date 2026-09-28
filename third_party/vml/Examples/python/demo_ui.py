@@ -82,6 +82,8 @@ MSG_TOUCHDOWN = 6
 MSG_TIMER = 9
 MSG_WINDOWCLOSE = 10
 
+lang = ui_get_language()
+
 # ── ① 开窗**之前**就问方向：程序据此决定排版 ──
 # ── ① ask the orientation **before** opening the window: the program decides its layout from it ──
 orient = ui_orientation()
@@ -146,18 +148,18 @@ while ui_win_closed() == 0:
 
     ui_clear(0xFF101018)
 
-    ui_text(cx, 12, "UI 接口 / demo_ui (Python)", 0xFFE8E8F0, 16, 1)
+    ui_text(cx, 12, "UI 接口 / demo_ui (Python)" if lang == 0 else "UI interface / demo_ui (Python)", 0xFFE8E8F0, 16, 1)
     if orient == 1:
-        ui_text(cx, 36, "屏幕方向 = 横屏 (LANDSCAPE)", 0xFF51E86E, 13, 1)
+        ui_text(cx, 36, "屏幕方向 = 横屏 (LANDSCAPE)" if lang == 0 else "Orientation = LANDSCAPE", 0xFF51E86E, 13, 1)
     if orient != 1:
-        ui_text(cx, 36, "屏幕方向 = 竖屏 (PORTRAIT)", 0xFF51E86E, 13, 1)
-    ui_text(cx, 56, "画布按宿主给的尺寸现排", 0xFF9AA0B0, 12, 1)
+        ui_text(cx, 36, "屏幕方向 = 竖屏 (PORTRAIT)" if lang == 0 else "Orientation = PORTRAIT", 0xFF51E86E, 13, 1)
+    ui_text(cx, 56, "画布按宿主给的尺寸现排" if lang == 0 else "Canvas laid out from the host size", 0xFF9AA0B0, 12, 1)
 
     # 一个跟随尺寸的方框（转屏后它会跟着变宽变矮 —— 这就是"不写死坐标"的证明）
     # A box that follows the size (after rotation it gets wider and shorter — that is the proof of "no hard-coded coordinates")
     ui_rect(pad, 76, w - pad * 2, 84, 0xFF1A1A24, 1, 0, 10)
     ui_rect(pad + 6, 82, w - pad * 2 - 12, 28, 0xFF4A90D9, 1, 0, 6)
-    ui_text(pad + 16, 88, "rect / 圆角矩形（随屏宽伸缩）", 0xFF101018, 12, 0)
+    ui_text(pad + 16, 88, "rect / 圆角矩形（随屏宽伸缩）" if lang == 0 else "rect / rounded rect (follows width)", 0xFF101018, 12, 0)
 
     # 圆 / 椭圆 / 直线：三个基本形
     # Circle / ellipse / line: three basic shapes
@@ -175,23 +177,23 @@ while ui_win_closed() == 0:
             c = 0xFFE06C50
         ui_rect(pad + i * bw, 266, bw - 2, 18, c, 1, 0, 2)
         i = i + 1
-    ui_text(cx, 296, "真彩 0xAARRGGBB（不是索引色）", 0xFF9AA0B0, 12, 1)
+    ui_text(cx, 296, "真彩 0xAARRGGBB（不是索引色）" if lang == 0 else "true color 0xAARRGGBB (not indexed)", 0xFF9AA0B0, 12, 1)
 
     # 事件计数：不画数字，画**长度随计数增长的条**（数字转字符串这条路是断的）
     # Event counters: not drawn as numbers, but as **bars whose length grows with the count** (the number-to-string path is broken)
-    ui_text(pad, 336, "帧", 0xFF9AA0B0, 12, 0)
+    ui_text(pad, 336, "帧" if lang == 0 else "frames", 0xFF9AA0B0, 12, 0)
     bw2 = frames * 6
     if bw2 > w - pad * 2 - 40:
         bw2 = w - pad * 2 - 40
     ui_rect(pad + 40, 324, bw2, 14, 0xFF4A90D9, 1, 0, 3)
 
-    ui_text(pad, 366, "按键", 0xFF9AA0B0, 12, 0)
+    ui_text(pad, 366, "按键" if lang == 0 else "keys", 0xFF9AA0B0, 12, 0)
     bw3 = keys * 30
     if bw3 > w - pad * 2 - 60:
         bw3 = w - pad * 2 - 60
     ui_rect(pad + 60, 354, bw3, 14, 0xFFE06C50, 1, 0, 3)
 
-    ui_text(pad, 396, "触摸", 0xFF9AA0B0, 12, 0)
+    ui_text(pad, 396, "触摸" if lang == 0 else "touches", 0xFF9AA0B0, 12, 0)
     bw4 = touches * 30
     if bw4 > w - pad * 2 - 60:
         bw4 = w - pad * 2 - 60
@@ -202,11 +204,11 @@ while ui_win_closed() == 0:
     if tx >= 0:
         ui_circle(tx, ty, 18, 0xFFFFE060, 0, 2)
         ui_circle(tx, ty, 4, 0xFFFFE060, 1, 0)
-        ui_text(cx, h - 60, "触摸坐标已经用上了", 0xFFFFE060, 12, 1)
+        ui_text(cx, h - 60, "触摸坐标已经用上了" if lang == 0 else "touch coordinates in use", 0xFFFFE060, 12, 1)
     if tx < 0:
-        ui_text(cx, h - 60, "点一下屏幕 / 按任意键退出", 0xFF9AA0B0, 12, 1)
+        ui_text(cx, h - 60, "点一下屏幕 / 按任意键退出" if lang == 0 else "Tap anywhere / any key to exit", 0xFF9AA0B0, 12, 1)
 
-    ui_text(cx, h - 36, "退出：按任意键或点任意处（或等 N 帧到点）", 0xFF9AA0B0, 12, 1)
+    ui_text(cx, h - 36, "退出：按任意键或点任意处（或等 N 帧到点）" if lang == 0 else "Exit: any key or any tap (or wait for N frames)", 0xFF9AA0B0, 12, 1)
 
     ui_present()
 

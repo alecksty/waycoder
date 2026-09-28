@@ -35,6 +35,8 @@
  */
 
 #include <stdio.h>
+#include <waycoder_ui.h>        /* 只为 ui_get_language（界面语言）：头文件只有声明与常量，不会让程序变大 */
+                                /* Only for ui_get_language (UI language): the header holds declarations and constants only, it does not grow the program */
 
 int main(void)
 {
@@ -42,25 +44,29 @@ int main(void)
     int b = 25;
     int i;
     int sum = 0;
+    int lang;                   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
+
+    lang = ui_get_language();
 
     /* ── 1. 字符串与换行 ──
      * -- 1. Strings and newlines -- */
     puts("=== demo_std (C) ===");
-    printf("纯字符串一行\n");
-    printf("转义：制表\t反斜杠\\引号\"\n");
+    printf(lang == 0 ? "纯字符串一行\n" : "A plain string line\n");
+    printf(lang == 0 ? "转义：制表\t反斜杠\\引号\"\n" : "escapes: tab\tbackslash\\quote\"\n");
 
     /* ── 2. 整数与算术 ──
      * -- 2. Integers and arithmetic -- */
     printf("a=%d b=%d\n", a, b);
     printf("a+b=%d a-b=%d a*b=%d\n", a + b, a - b, a * b);
     printf("a/b=%d a%%b=%d\n", a / b, a % b);
-    printf("负数：%d %d\n", 0 - a, 0 - (a * b));
+    printf(lang == 0 ? "负数：%d %d\n" : "negatives: %d %d\n", 0 - a, 0 - (a * b));
 
     /* ── 3. 进制与宽度（老程序靠它排对齐的表格）──
      * -- 3. Radix and width (how old programs align tables) -- */
-    printf("十进制=%d 十六进制=%x 八进制=%o\n", 255, 255, 255);
-    printf("宽度：[%5d][%-5d][%05d]\n", 42, 42, 42);
-    printf("字符=%c 百分号=%%\n", 'A');
+    printf(lang == 0 ? "十进制=%d 十六进制=%x 八进制=%o\n" : "decimal=%d hex=%x octal=%o\n", 255, 255, 255);
+    printf(lang == 0 ? "宽度：[%5d][%-5d][%05d]\n" : "width: [%5d][%-5d][%05d]\n", 42, 42, 42);
+    printf(lang == 0 ? "字符=%c 百分号=%%\n" : "char=%c percent=%%\n", 'A');
 
     /* ── 4. 循环算一个结果（证明这层和语言本身是通的）──
      * -- 4. Compute a result in a loop (proof that this layer and the language itself are connected) -- */
@@ -75,7 +81,7 @@ int main(void)
         printf("%d x 7 = %2d\n", i, i * 7);
     }
 
-    puts("=== 完成 ===");
+    puts(lang == 0 ? "=== 完成 ===" : "=== done ===");
     return 0;
 }
 

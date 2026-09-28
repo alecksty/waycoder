@@ -29,28 +29,37 @@
 // 跑法：命令行页输入  vml run examples/swift/demo_std.swift
 // How to run: on the command-line page type  vml run examples/swift/demo_std.swift
 
+// 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+// UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+var lang = ui_get_language()
+
+// ⚠ 这里用**单行 `if/else`** 而不是三元 —— 本前端 `print(非字面量)` 打的是**指针**（实测），
+// ⚠ A **one-line `if/else`** is used here instead of a ternary -- this frontend's `print(non-literal)` prints a **pointer** (measured),
+//   只有**字面量**实参才真的打字符串；三元的写法留给 `print_str` / `ui_*`。
+//   and only a **literal** argument really prints the string; the ternary form is left to `print_str` / `ui_*`.
+
 print("=== WayCoder demo_std (Swift) ===")
 
 // ① 字符串
 // ① Strings
-print("[字符串] hello, world")
+if lang == 0 { print("[字符串] hello, world") } else { print("[string] hello, world") }
 
 // ② 整数
 // ② Integers
 let n = 42
-print("[整数] n = ", n)
+if lang == 0 { print("[整数] n = ", n) } else { print("[int] n = ", n) }
 
 // ③ 计算结果
 // ③ Computed results
-print("[计算] 6 * 7 = ", 6 * 7)
+if lang == 0 { print("[计算] 6 * 7 = ", 6 * 7) } else { print("[calc] 6 * 7 = ", 6 * 7) }
 let a = 7
 let b = 5
-print("[计算] a + b = ", a + b)
-print("[计算] a * b - 3 = ", a * b - 3)
+if lang == 0 { print("[计算] a + b = ", a + b) } else { print("[calc] a + b = ", a + b) }
+if lang == 0 { print("[计算] a * b - 3 = ", a * b - 3) } else { print("[calc] a * b - 3 = ", a * b - 3) }
 
 // ④ 循环里算斐波那契前 10 项
 // ④ Compute the first 10 Fibonacci numbers in a loop
-print("[循环] 斐波那契前 10 项：")
+if lang == 0 { print("[循环] 斐波那契前 10 项：") } else { print("[loop] first 10 Fibonacci numbers:") }
 var x = 0
 var y = 1
 var i = 0
@@ -70,7 +79,7 @@ while k <= 100 {
     sum = sum + k
     k = k + 1
 }
-print("[累加] 1+2+...+100 = ", sum)
+if lang == 0 { print("[累加] 1+2+...+100 = ", sum) } else { print("[sum] 1+2+...+100 = ", sum) }
 
 // ⑥ 阶乘 5!
 // ⑥ Factorial 5!
@@ -80,6 +89,6 @@ while m <= 5 {
     fact = fact * m
     m = m + 1
 }
-print("[阶乘] 5! = ", fact)
+if lang == 0 { print("[阶乘] 5! = ", fact) } else { print("[factorial] 5! = ", fact) }
 
-print("=== 结束 ===")
+if lang == 0 { print("=== 结束 ===") } else { print("=== end ===") }

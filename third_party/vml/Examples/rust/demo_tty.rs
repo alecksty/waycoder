@@ -74,6 +74,8 @@
 // How to run: type this into the command-line page:  vml run examples/rust/demo_tty.rs
 
 fn main() {
+    let lang = ui_get_language();
+
     putchar(27);
     println!("[2J");
     putchar(27);
@@ -81,103 +83,103 @@ fn main() {
     putchar(27);
     println!("[0;1;44;97m");
     putchar(27);
-    println!("[3;1H  === WayCoder 彩色控制台演示 (Rust)  ===");
+    if lang == 0 { println!("[3;1H  === WayCoder 彩色控制台演示 (Rust)  ==="); } else { println!("[3;1H  === WayCoder color console demo (Rust)  ==="); }
     putchar(27);
     println!("[0;37m");
     putchar(27);
-    println!("[5;1H标准 8 色前景（30-37）：");
+    if lang == 0 { println!("[5;1H标准 8 色前景（30-37）："); } else { println!("[5;1HStandard 8 foreground colors (30-37):"); }
     putchar(27);
     println!("[0;30m");
     putchar(27);
-    println!("[6;1H  30 黑");
+    if lang == 0 { println!("[6;1H  30 黑"); } else { println!("[6;1H  30 black"); }
     putchar(27);
     println!("[0;31m");
     putchar(27);
-    println!("[7;1H  31 红");
+    if lang == 0 { println!("[7;1H  31 红"); } else { println!("[7;1H  31 red"); }
     putchar(27);
     println!("[0;32m");
     putchar(27);
-    println!("[8;1H  32 绿");
+    if lang == 0 { println!("[8;1H  32 绿"); } else { println!("[8;1H  32 green"); }
     putchar(27);
     println!("[0;33m");
     putchar(27);
-    println!("[9;1H  33 黄");
+    if lang == 0 { println!("[9;1H  33 黄"); } else { println!("[9;1H  33 yellow"); }
     putchar(27);
     println!("[0;34m");
     putchar(27);
-    println!("[10;1H  34 蓝");
+    if lang == 0 { println!("[10;1H  34 蓝"); } else { println!("[10;1H  34 blue"); }
     putchar(27);
     println!("[0;35m");
     putchar(27);
-    println!("[11;1H  35 品红");
+    if lang == 0 { println!("[11;1H  35 品红"); } else { println!("[11;1H  35 magenta"); }
     putchar(27);
     println!("[0;36m");
     putchar(27);
-    println!("[12;1H  36 青");
+    if lang == 0 { println!("[12;1H  36 青"); } else { println!("[12;1H  36 cyan"); }
     putchar(27);
     println!("[0;37m");
     putchar(27);
-    println!("[13;1H  37 白");
+    if lang == 0 { println!("[13;1H  37 白"); } else { println!("[13;1H  37 white"); }
     putchar(27);
     println!("[0;37m");
     putchar(27);
-    println!("[15;1H亮色前景（90-97）与背景色：");
+    if lang == 0 { println!("[15;1H亮色前景（90-97）与背景色："); } else { println!("[15;1HBright foreground (90-97) and background colors:"); }
     putchar(27);
     println!("[0;91m");
     putchar(27);
-    println!("[16;1H  91 亮红");
+    if lang == 0 { println!("[16;1H  91 亮红"); } else { println!("[16;1H  91 bright red"); }
     putchar(27);
     println!("[0;92m");
     putchar(27);
-    println!("[17;1H  92 亮绿");
+    if lang == 0 { println!("[17;1H  92 亮绿"); } else { println!("[17;1H  92 bright green"); }
     putchar(27);
     println!("[0;41m");
     putchar(27);
-    println!("[18;1H  41 红底");
+    if lang == 0 { println!("[18;1H  41 红底"); } else { println!("[18;1H  41 red bg"); }
     putchar(27);
     println!("[0;104m");
     putchar(27);
-    println!("[19;1H 104 亮蓝底");
+    if lang == 0 { println!("[19;1H 104 亮蓝底"); } else { println!("[19;1H 104 bright blue bg"); }
     putchar(27);
     println!("[0;103m");
     putchar(27);
-    println!("[20;1H 103 亮黄底");
+    if lang == 0 { println!("[20;1H 103 亮黄底"); } else { println!("[20;1H 103 bright yellow bg"); }
     putchar(27);
     println!("[0;37m");
     putchar(27);
-    println!("[22;1H256 色（38;5;N）与真彩（38;2;r;g;b）：");
+    if lang == 0 { println!("[22;1H256 色（38;5;N）与真彩（38;2;r;g;b）："); } else { println!("[22;1H256-color (38;5;N) and truecolor (38;2;r;g;b):"); }
     putchar(27);
     println!("[0;38;5;208m");
     putchar(27);
-    println!("[23;1H  256-208 橙");
+    if lang == 0 { println!("[23;1H  256-208 橙"); } else { println!("[23;1H  256-208 orange"); }
     putchar(27);
     println!("[0;38;5;46m");
     putchar(27);
-    println!("[24;1H  256-46 亮绿");
+    if lang == 0 { println!("[24;1H  256-46 亮绿"); } else { println!("[24;1H  256-46 bright green"); }
     putchar(27);
     println!("[0;38;2;255;128;0m");
     putchar(27);
-    println!("[25;1H  真彩 橙");
+    if lang == 0 { println!("[25;1H  真彩 橙"); } else { println!("[25;1H  truecolor orange"); }
     putchar(27);
     println!("[0;38;2;0;200;255m");
     putchar(27);
-    println!("[26;1H  真彩 青");
+    if lang == 0 { println!("[26;1H  真彩 青"); } else { println!("[26;1H  truecolor cyan"); }
     putchar(27);
     println!("[0;36m");
     putchar(27);
-    println!("[28;1H光标定位（把光标移到第 30 行第 5 列）+ 画框：");
+    if lang == 0 { println!("[28;1H光标定位（把光标移到第 30 行第 5 列）+ 画框："); } else { println!("[28;1HCursor positioning (move the cursor to row 30, column 5) + draw a box:"); }
     putchar(27);
     println!("[30;5H+----------------+");
     putchar(27);
-    println!("[31;5H|  定位画框      |");
+    if lang == 0 { println!("[31;5H|  定位画框      |"); } else { println!("[31;5H|  located box   |"); }
     putchar(27);
     println!("[32;5H+----------------+");
     putchar(27);
     println!("[0;2m");
     putchar(27);
-    println!("[34;1H（以上全部是 ANSI SGR 序列，由终端 / 命令行页的 AnsiMarkup 渲染）");
+    if lang == 0 { println!("[34;1H（以上全部是 ANSI SGR 序列，由终端 / 命令行页的 AnsiMarkup 渲染）"); } else { println!("[34;1H(all of the above are ANSI SGR sequences, rendered by the terminal / AnsiMarkup on the command-line page)"); }
     putchar(27);
     println!("[0;32m");
     putchar(27);
-    println!("[36;1H结束 —— 正常退出");
+    if lang == 0 { println!("[36;1H结束 —— 正常退出"); } else { println!("[36;1Hdone -- exiting normally"); }
 }

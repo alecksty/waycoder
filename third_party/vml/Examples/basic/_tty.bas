@@ -96,6 +96,13 @@ NATIVE SUB ui_sfx_panic()
 END SUB
 NATIVE SUB ui_keep_on(on AS INTEGER)
 END SUB
+NATIVE FUNCTION ui_get_language() AS INTEGER
+END FUNCTION
+
+' 界面语言：0 = 中文 / 1 = 英文（跟随系统语言，见 waycoder_ui.bi 的 ui_get_language）
+' UI language: 0 = Chinese / 1 = English (follows the system language, see ui_get_language in waycoder_ui.bi)
+DIM LANG AS INTEGER
+DIM sOk AS STRING
 
 ' ── 状态（全部是模块级标量：不用数组，见头部说明）─────────────────────
 ' ── State (all module-level scalars: no arrays, see the header note)─────────────────────
@@ -130,6 +137,10 @@ DIM ttyPrompt AS STRING
 
 SUB ttyOpen(title AS STRING, rot AS INTEGER, pad AS INTEGER, font AS INTEGER)
     DIM r AS INTEGER
+    ' 开局查一次系统语言，之后按它取文案（`ui_get_language` 是 syscall，别每次绘制都调）
+    ' Query the system language once at startup, then pick the strings by it (`ui_get_language` is a syscall, do not call it on every paint)
+    LANG = ui_get_language()
+    IF LANG = 0 THEN sOk = "确定" ELSE sOk = "OK"
     ttyFont = font
     ttyBg = &HFF101018
     ttyFg = &HFFD8D8E0
@@ -296,7 +307,7 @@ FUNCTION ttyAsk(prompt AS STRING, lo AS INTEGER, hi AS INTEGER) AS INTEGER
         ui_rect(bx1, by, bw, bh, &HFF303048, 1, 0, 10)
         ui_text(bx1 + bw / 2, by + 22, "-", &HFFFFFFFF, ttyFont + 10, 1)
         ui_rect(bx2, by, 140, bh, &HFF2A6E3A, 1, 0, 10)
-        ui_text(bx2 + 70, by + 22, "确定", &HFFFFFFFF, ttyFont, 1)
+        ui_text(bx2 + 70, by + 22, sOk, &HFFFFFFFF, ttyFont, 1)
         ui_rect(bx3, by, bw, bh, &HFF303048, 1, 0, 10)
         ui_text(bx3 + bw / 2, by + 22, "+", &HFFFFFFFF, ttyFont + 10, 1)
         ttyBarOn = 1

@@ -64,6 +64,8 @@ int main(void)
     int m[4];
     int i;
     int g;
+    int lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     W = ui_scr_w();
     H = ui_scr_h();
@@ -71,7 +73,7 @@ int main(void)
     ch = H / 6;   /* 6 行：第 5 行渐变画笔（v0.96.306），第 6 行渐变文字（v0.96.311） */
     /* 6 rows: row 5 gradient pen (v0.96.306), row 6 gradient text (v0.96.311) */
 
-    ui_win_open_ex("刷子体检", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(lang == 0 ? "刷子体检" : "Brush self-check", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_clear(0xFF000000);
 
     /* 统一：填充 = 纯色刷子、不描边。**直接传颜色**也是合法的

@@ -95,9 +95,15 @@
  */
 
 #include <tty.h>
+#include <waycoder_ui.h>       /* 只为 ui_get_language()（界面语言，见下面 g_lang）*/
+/* only for ui_get_language() (the UI language, see g_lang below) */
 
 #define COLS 80
 #define ROWS 25
+
+/* 界面语言：开局查一次（ui_get_language 是 syscall，别每行都调）*/
+/* UI language: queried once at start (ui_get_language is a syscall, do not call it on every line) */
+static int g_lang;
 
 /* 在第 (x,y) 处用指定前景/背景打一串（打完颜色恢复成 7/0） */
 /* Print a string at (x,y) with the given fg/bg (the color is restored to 7/0 afterwards) */
@@ -118,6 +124,7 @@ int main(void)
      * Here we want a clean screen, so `tty_cls()` is called separately right after. */
     tty_init(0, 0, 0);
     tty_cls();
+    g_lang = ui_get_language();
 
     /* ── 2. 标题栏：亮黄字 + 蓝底，铺满第 1 行 ── */
     /* ── 2. Title bar: bright yellow on blue, filling the whole first row ── */
@@ -138,12 +145,12 @@ int main(void)
 
     /* 面板里的内容：每行一种前景色 —— 这就是"能设前景色"最直观的样子 */
     /* The panel contents: one foreground color per line -- the most direct look at "fg color works" */
-    say(4, 4,  7,  0, "color  7  lightgray    普通正文");
-    say(4, 5,  11, 0, "color 11  lightcyan    次要信息");
-    say(4, 6,  10, 0, "color 10  lightgreen   ok / 成功");
-    say(4, 7,  14, 0, "color 14  yellow       状态栏高亮");
-    say(4, 8,  12, 0, "color 12  lightred     错误 / 警告");
-    say(4, 9,  13, 0, "color 13  lightmagenta 强调");
+    say(4, 4,  7,  0, g_lang == 0 ? "color  7  lightgray    普通正文" : "color  7  lightgray    body text");
+    say(4, 5,  11, 0, g_lang == 0 ? "color 11  lightcyan    次要信息" : "color 11  lightcyan    secondary");
+    say(4, 6,  10, 0, g_lang == 0 ? "color 10  lightgreen   ok / 成功" : "color 10  lightgreen   ok / success");
+    say(4, 7,  14, 0, g_lang == 0 ? "color 14  yellow       状态栏高亮" : "color 14  yellow       status bar");
+    say(4, 8,  12, 0, g_lang == 0 ? "color 12  lightred     错误 / 警告" : "color 12  lightred     error / warn");
+    say(4, 9,  13, 0, g_lang == 0 ? "color 13  lightmagenta 强调" : "color 13  lightmagenta emphasis");
 
     /* 反白一行（"选中项"的长相）：黑字白底 */
     /* One reversed line (how a "selected item" looks): black text on white */
@@ -157,8 +164,8 @@ int main(void)
 
     /* 框里的中文：每行重新定位，列计数从 0 起 */
     /* CJK text inside the box: each line re-positions, so the column counter restarts at 0 */
-    say(6, 16, 14, 0, "中文也");
-    say(6, 17, 10, 0, "没问题");
+    say(6, 16, 14, 0, g_lang == 0 ? "中文也" : "CJK too");
+    say(6, 17, 10, 0, g_lang == 0 ? "没问题" : "works");
 
     /* ── 5. 右侧说明（ASCII，列 26 起）── */
     /* ── 5. Notes on the right (ASCII, starting at column 26) ── */
@@ -208,7 +215,7 @@ int main(void)
     tty_puts(" tty_* demo done -- no key wait, exits by itself                              ");
     tty_color(8, 0);
     tty_goto(3, ROWS);
-    tty_puts("demo_tty (C) 结束 —— 画完即退出");
+    tty_puts(g_lang == 0 ? "demo_tty (C) 结束 —— 画完即退出" : "demo_tty (C) done -- draws and exits");
 
     /* 复位颜色，别把终端留在某种底色上 */
     /* Reset the colors; do not leave the terminal on some background color */

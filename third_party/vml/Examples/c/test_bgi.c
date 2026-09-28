@@ -129,37 +129,40 @@ int main(void)
     int area;
     int t1, t2, t3;
     int px, py;
+    int lang;      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                   /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     initgraph(&gd, &gm, "");
 
-    puts("=== BGI 自检开始 ===");
+    lang = ui_get_language();
+    puts(lang == 0 ? "=== BGI 自检开始 ===" : "=== BGI selftest begin ===");
 
     /* ── 1. 模式与坐标系（DETECT ⇒ 驱动/模式由库选，本平台是 VGA 640×480）── */
     /* -- 1. Mode and coordinate system (DETECT => driver/mode picked by the library; VGA 640x480 here) -- */
     say("gd(driver)=", gd);
     say("gm(mode)=", gm);
-    check("initgraph(DETECT) 选出 VGA 驱动", gd == VGA);
-    check("initgraph(DETECT) 选出 VGAHI 模式", gm == VGAHI);
+    check(lang == 0 ? "initgraph(DETECT) 选出 VGA 驱动" : "initgraph(DETECT) picked the VGA driver", gd == VGA);
+    check(lang == 0 ? "initgraph(DETECT) 选出 VGAHI 模式" : "initgraph(DETECT) picked the VGAHI mode", gm == VGAHI);
     say("getmaxx()=", getmaxx());
     say("getmaxy()=", getmaxy());
-    check("VGAHI 是 640×480（maxx=639）", getmaxx() == 639);
-    check("VGAHI 是 640×480（maxy=479）", getmaxy() == 479);
+    check(lang == 0 ? "VGAHI 是 640×480（maxx=639）" : "VGAHI is 640x480 (maxx=639)", getmaxx() == 639);
+    check(lang == 0 ? "VGAHI 是 640×480（maxy=479）" : "VGAHI is 640x480 (maxy=479)", getmaxy() == 479);
 
     /* ── 2. setgraphmode：换模式 = 换分辨率（只能关窗重开，见文件头）── */
     /* -- 2. setgraphmode: changing the mode means changing the resolution (it can only close and reopen; see the file header) -- */
     setgraphmode(VGALO);                       /* 640×200 */
     say("VGALO maxy=", getmaxy());
-    check("setgraphmode(VGALO) 后 maxy=199", getmaxy() == 199);
+    check(lang == 0 ? "setgraphmode(VGALO) 后 maxy=199" : "setgraphmode(VGALO) leaves maxy=199", getmaxy() == 199);
     setgraphmode(VGAHI);                       /* 回到 640×480 */
                                                /* Back to 640x480. */
     say("VGAHI maxy=", getmaxy());
-    check("setgraphmode(VGAHI) 切回来 maxy=479", getmaxy() == 479);
+    check(lang == 0 ? "setgraphmode(VGAHI) 切回来 maxy=479" : "setgraphmode(VGAHI) back to maxy=479", getmaxy() == 479);
 
     /* ── 3. cleardevice：整屏刷成背景色 ── */
     /* -- 3. cleardevice: paint the whole screen with the background color -- */
     setbkcolor(BLACK);
     cleardevice();
-    check("cleardevice 后左上角是背景色 BLACK", getpixel(0, 0) == BLACK);
+    check(lang == 0 ? "cleardevice 后左上角是背景色 BLACK" : "after cleardevice the top-left is the BLACK background", getpixel(0, 0) == BLACK);
 
     /* ── 4. 文字量测（`textwidth`/`textheight`）：老程序靠它居中排版 ──
      * -- 4. Text measurement (`textwidth`/`textheight`): old programs center their layout with it --
@@ -180,7 +183,7 @@ int main(void)
     say("textwidth(ABC,size3)=", t3);
     check("textwidth > 0", t1 > 0);
     check("textheight > 0", t2 > 0);
-    check("字号变大 ⇒ textwidth 变大", t3 > t1);
+    check(lang == 0 ? "字号变大 ⇒ textwidth 变大" : "a larger font size gives a larger textwidth", t3 > t1);
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 1);
 
     /* ── 5. 按格画图 ──────────────────────────────────────────── */
@@ -299,9 +302,11 @@ int main(void)
         for (px = 0; px < 16; px = px + 1)
             putpixel(cx + 6 + px * 6, cy + 8 + py * 10,
                      (px + py) % 2 == 0 ? WHITE : BLUE);
-    check("putpixel 后 getpixel 读回同一索引",
+    check(lang == 0 ? "putpixel 后 getpixel 读回同一索引"
+                    : "getpixel reads back the same index after putpixel",
           getpixel(cx + 6, cy + 8) == WHITE);
-    check("没画过的地方是背景色",
+    check(lang == 0 ? "没画过的地方是背景色"
+                    : "an untouched spot is the background color",
           getpixel(cx + IN_W - 2, cy + 2) == BLACK);
     cell_label(13, "putpixel");
 
@@ -313,7 +318,8 @@ int main(void)
     rectangle(cx + 10, cy + 6, cx + IN_W - 12, cy + IN_H - 6);
     setfillstyle(SOLID_FILL, GREEN);
     floodfill(cx + IN_W / 2, cy + IN_H / 2, WHITE);
-    check("floodfill 填进了 setfillstyle 的颜色",
+    check(lang == 0 ? "floodfill 填进了 setfillstyle 的颜色"
+                    : "floodfill filled with the setfillstyle color",
           getpixel(cx + IN_W / 2, cy + IN_H / 2) == GREEN);
     cell_label(14, "floodfill");
 
@@ -325,13 +331,14 @@ int main(void)
     rectangle(cx + 8, cy + 12, cx + 40, cy + 44);
     area = imagesize(cx + 8, cy + 12, cx + 40, cy + 44);
     say("imagesize(33x33)=", area);
-    check("imagesize > 0（老程序拿它去 malloc）", area > 0);
+    check(lang == 0 ? "imagesize > 0（老程序拿它去 malloc）" : "imagesize > 0 (old programs malloc with it)", area > 0);
     img = malloc(area);
     getimage(cx + 8, cy + 12, cx + 40, cy + 44, img);
     putimage(cx + 56, cy + 12, img, COPY_PUT);
     putimage(cx + 30, cy + 52, img, XOR_PUT);      /* 贴回自己 ⇒ XOR 抹掉 */
                                                    /* Blitting onto itself => XOR erases it. */
-    check("getimage+putimage(COPY) 贴出了颜色",
+    check(lang == 0 ? "getimage+putimage(COPY) 贴出了颜色"
+                    : "getimage+putimage(COPY) blitted the color",
           getpixel(cx + 70, cy + 28) == MAGENTA);
     cell_label(15, "getimage/putimage");
 
@@ -342,7 +349,9 @@ int main(void)
         setcolor(i);
         line(cx + i * 7, cy + 4, cx + i * 7, cy + IN_H - 4);
     }
-    check("setcolor(14) 后 getpixel 读到 14", (setcolor(14), getpixel(cx + 14 * 7, cy + 20)) == 14);
+    check(lang == 0 ? "setcolor(14) 后 getpixel 读到 14"
+                    : "getpixel reads 14 after setcolor(14)",
+          (setcolor(14), getpixel(cx + 14 * 7, cy + 20)) == 14);
     cell_label(16, "setcolor(0..15)");
 
     /* ⑱ setfillstyle */
@@ -355,7 +364,8 @@ int main(void)
     bar(cx + 56, cy + 6, cx + 80, cy + IN_H - 6);
     setfillstyle(SOLID_FILL, MAGENTA);
     bar(cx + 84, cy + 6, cx + IN_W - 2, cy + IN_H - 6);
-    check("setfillstyle 换色 ⇒ bar 跟着换",
+    check(lang == 0 ? "setfillstyle 换色 ⇒ bar 跟着换"
+                    : "changing setfillstyle changes the bar",
           getpixel(cx + 12, cy + 20) == BLUE && getpixel(cx + 96, cy + 20) == MAGENTA);
     cell_label(17, "setfillstyle");
 
@@ -387,15 +397,15 @@ int main(void)
 
     /* ── 收尾 ────────────────────────────────────────────────── */
     /* -- Wrap-up -- */
-    puts("--- 颜色索引抽查 ---");
+    puts(lang == 0 ? "--- 颜色索引抽查 ---" : "--- color index spot checks ---");
     say("getpixel(0,0)=", getpixel(0, 0));
-    puts("--- 小结 ---");
+    puts(lang == 0 ? "--- 小结 ---" : "--- summary ---");
     puts("OK=");
     put_int(g_ok);
     puts(" FAIL=");
     put_int(g_bad);
     putchar('\n');
-    puts("=== BGI 自检结束 ===");
+    puts(lang == 0 ? "=== BGI 自检结束 ===" : "=== BGI selftest end ===");
 
     ui_present();
     getch();

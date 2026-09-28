@@ -45,14 +45,21 @@
  */
 #include <stdio.h>
 #include <ctype.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 int main(void)
 {
     int c;
     int chars = 0, words = 0, lines = 0;
     int in_word = 0;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    printf("输入文本，Ctrl+D / Ctrl+Z 结束（脚本化运行时 = 输入用完）\n");
+    lang = ui_get_language();
+
+    printf(lang == 0 ? "输入文本，Ctrl+D / Ctrl+Z 结束（脚本化运行时 = 输入用完）\n"
+                     : "Type some text, end with Ctrl+D / Ctrl+Z (in a scripted run = input exhausted)\n");
 
     while ((c = getchar()) != EOF) {
         chars++;
@@ -66,6 +73,7 @@ int main(void)
         }
     }
 
-    printf("字符 %d，词 %d，行 %d\n", chars, words, lines);
+    printf(lang == 0 ? "字符 %d，词 %d，行 %d\n" : "%d chars, %d words, %d lines\n",
+           chars, words, lines);
     return 0;
 }

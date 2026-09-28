@@ -14,9 +14,13 @@
 // 跑法：命令行页输入  vml run examples/c/tty_legacy.c
 // How to run: type this on the command-line page  vml run examples/c/tty_legacy.c
 
+#include <waycoder_ui.h>
+
 int main()
 {
     int i;
+    int lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     // ── ① 回车覆写（`\r`）：**进度条就靠它** ──
     // ── ① Carriage-return overwrite (`\r`): **progress bars rely on it** ──
@@ -48,7 +52,9 @@ int main()
     // 但至少**不该把 `\b` 显示成可见字符**。
     // but at the very least **it must not display `\b` as a visible character**.
     puts("[3] backspace overstrike ->");
-    puts("A\bB\bC    <- 期望看到 ABC，且没有可见的退格符");
+    puts(lang == 0 ? "A\bB\bC    <- 期望看到 ABC，且没有可见的退格符"
+                   : "A\bB\bC    <- expect to see ABC, with no visible backspace");
+
 
     // ── ④ 光标定位与清屏（CSI 序列）：**全屏程序**靠它 ──
     // ── ④ Cursor positioning and screen clearing (CSI sequences): **full-screen programs** rely on it ──
@@ -78,6 +84,6 @@ int main()
     // ── ⑥ 宽字符（CJK）—— 列宽必须按 2 格算 ──
     // ── ⑥ Wide characters (CJK) — column width must count as 2 cells ──
     puts("[6] wide chars (CJK = 2 cells) ->");
-    puts("    中文宽字符|ascii|中文");
+    puts(lang == 0 ? "    中文宽字符|ascii|中文" : "    wide: 中文宽字符|ascii|中文");
     return 0;
 }

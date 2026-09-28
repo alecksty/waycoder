@@ -58,6 +58,8 @@ int main(void)
     int i;
     int x, y;
     int tri[8];
+    int lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     /* ── 1. 开场：老程序的标准三行 ──
      * -- 1. Intro: the standard three lines of an old graphics program --
@@ -82,7 +84,7 @@ int main(void)
      *   pushes the whole title off the screen with only the bottom ten-odd rows visible (`outtextxy`'s y is the
      *   **top** of the box; that is BGI's default alignment). */
     settextjustify(CENTER_TEXT, TOP_TEXT);
-    outtextxy(getmaxx() / 2, 12, "BGI 传统图形接口 / demo_bgi.c");
+    outtextxy(getmaxx() / 2, 12, lang == 0 ? "BGI 传统图形接口 / demo_bgi.c" : "BGI classic graphics / demo_bgi.c");
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 1);
     /* `0` = `BOTTOM_TEXT`：正文行按"盒底贴着 y"排。
      * `0` = `BOTTOM_TEXT`: body lines are laid out with the box bottom against y.
@@ -127,7 +129,8 @@ int main(void)
     linerel(40, -20);
     linerel(40, 20);
     setcolor(LIGHTGRAY);
-    outtextxy(40, 262, "line / moveto / lineto / linerel (折线开口)");
+    outtextxy(40, 262, lang == 0 ? "line / moveto / lineto / linerel (折线开口)"
+                                 : "line / moveto / lineto / linerel (open polyline)");
 
     /* ── 6. 矩形与两种"条"（`bar` 实心 / `bar3d` 立体）──
      * -- 6. Rectangles and two kinds of bar (`bar` solid / `bar3d` with depth) -- */
@@ -160,7 +163,8 @@ int main(void)
     setfillstyle(SOLID_FILL, YELLOW);
     pieslice(420, 330, 200, 340, 40);
     setcolor(LIGHTGRAY);
-    outtextxy(290, 388, "arc (描边) / pieslice (填充)");
+    outtextxy(290, 388, lang == 0 ? "arc (描边) / pieslice (填充)"
+                                  : "arc (stroke) / pieslice (fill)");
 
     /* ── 9. 多边形（⚠ BGI 的顶点表**首点要重复一次**才闭合，这是老规矩）──
      * -- 9. Polygons (WARNING: a BGI vertex list must **repeat the first point** to close; that is the old rule) -- */

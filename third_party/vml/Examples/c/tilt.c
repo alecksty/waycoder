@@ -55,6 +55,8 @@ static int hasBat;
 static int hasAcc;
 static int hasGyr;
 static int hasRot;
+static int lang;        /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                        /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
 static int sw;
 static int sh;
@@ -168,7 +170,7 @@ static void drawReadout(int y, char* label, int* v, int present)
     ui_text(24, y, label, present ? 0xFFB8C4D8 : 0xFF606878, 14, VML_ANCHOR_LEFT);
     if (present == 0)
     {
-        ui_text(sw - 24, y, "这台设备没有", 0xFF606878, 13, VML_ANCHOR_RIGHT);
+        ui_text(sw - 24, y, lang == 0 ? "这台设备没有" : "not present", 0xFF606878, 13, VML_ANCHOR_RIGHT);
         return;
     }
     ui_text(sw / 2 - 60, y, numStr(v[0]), 0xFFFFFFFF, 14, VML_ANCHOR_LEFT);
@@ -181,9 +183,9 @@ static void draw(void)
     ui_clear(0xFF0E1218);
     drawGauge();
 
-    drawReadout(lineY, "加速度 mg", sAcc, hasAcc);
-    drawReadout(lineY + 32, "角速度 mdps", sGyr, hasGyr);
-    drawReadout(lineY + 64, "姿态 mdeg", sRot, hasRot);
+    drawReadout(lineY, lang == 0 ? "加速度 mg" : "Accel mg", sAcc, hasAcc);
+    drawReadout(lineY + 32, lang == 0 ? "角速度 mdps" : "Gyro mdps", sGyr, hasGyr);
+    drawReadout(lineY + 64, lang == 0 ? "姿态 mdeg" : "Attitude mdeg", sRot, hasRot);
 
     /* 电量那一行（`ui_battery`，见 waycoder_ui.h 的 POWER 段）。
      * The battery line (`ui_battery`, see the POWER section of waycoder_ui.h).
@@ -207,33 +209,33 @@ static void draw(void)
     if (hasBat == 1)
     {
         char* p;
-        ui_text(16, lineY + 100, "电量", 0xFFB8C4D8, 14, VML_ANCHOR_LEFT);
+        ui_text(16, lineY + 100, lang == 0 ? "电量" : "Batt", 0xFFB8C4D8, 14, VML_ANCHOR_LEFT);
         p = numStr(sBat[0]);
         ui_text(64, lineY + 100, p, 0xFFFFFFFF, 14, VML_ANCHOR_LEFT);
         ui_text(120, lineY + 100, "%", 0xFFB8C4D8, 14, VML_ANCHOR_LEFT);
-        if (sBat[1] != 0) ui_text(150, lineY + 100, "充电中", 0xFF4ADE80, 13, VML_ANCHOR_LEFT);
+        if (sBat[1] != 0) ui_text(150, lineY + 100, lang == 0 ? "充电中" : "charging", 0xFF4ADE80, 13, VML_ANCHOR_LEFT);
         /* 省电模式与"电量低"**不是一回事** —— 分开显示，别混成一句。 */
         /* Power-save mode and "battery low" are **not the same thing** — show them separately, do not merge them into one line. */
-        if (sBat[2] != 0) ui_text(210, lineY + 100, "省电模式", 0xFFFFD166, 13, VML_ANCHOR_LEFT);
+        if (sBat[2] != 0) ui_text(210, lineY + 100, lang == 0 ? "省电模式" : "power save", 0xFFFFD166, 13, VML_ANCHOR_LEFT);
         /* ⚠ 电量低**且没在充电**才提醒（插着电的时候电量低是正常的）。 */
         /* ⚠ Warn only when the battery is low **and not charging** (a low level while plugged in is normal). */
         if (sBat[0] < 20 && sBat[1] == 0)
         {
-            ui_text(sw / 2, lineY + 128, "电量偏低 —— 记得存档", 0xFFFF8A80, 13, VML_ANCHOR_CENTER);
+            ui_text(sw / 2, lineY + 128, lang == 0 ? "电量偏低 —— 记得存档" : "Battery low - save your game", 0xFFFF8A80, 13, VML_ANCHOR_CENTER);
         }
     }
     else
     {
-        ui_text(16, lineY + 100, "这台设备没有电池", 0xFF606878, 13, VML_ANCHOR_LEFT);
+        ui_text(16, lineY + 100, lang == 0 ? "这台设备没有电池" : "No battery on this device", 0xFF606878, 13, VML_ANCHOR_LEFT);
     }
 
     if (hasAcc == 1)
     {
-        ui_text(sw / 2, sh - 34, "点屏幕任意处 = 校准水平", 0xFF8A94A8, 13, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 34, lang == 0 ? "点屏幕任意处 = 校准水平" : "Tap anywhere = calibrate level", 0xFF8A94A8, 13, VML_ANCHOR_CENTER);
     }
     else
     {
-        ui_text(sw / 2, sh - 34, "没有加速度计 —— 手机端才有", 0xFFFF8A80, 13, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 34, lang == 0 ? "没有加速度计 —— 手机端才有" : "No accelerometer - phone only", 0xFFFF8A80, 13, VML_ANCHOR_CENTER);
     }
     ui_present();
 }
@@ -298,6 +300,8 @@ int main(void)
     int msg[4];
     int t;
 
+    lang = ui_get_language();
+
     /* 先问可用绘图区，再开窗 —— 窗口宽高就是画布的坐标空间 */
     /* Ask for the usable drawing area first, then open the window — the window size becomes the canvas coordinate space. */
     sw = ui_scr_w();
@@ -307,7 +311,7 @@ int main(void)
 
     /* 竖屏（盘面是圆的，转屏重排没意义）+ 不要手柄区（这个程序只用触摸）。 */
     /* Portrait (the dial is round, so re-laying out on rotation is pointless) plus no gamepad area (this program uses touch only). */
-    ui_win_open_ex("水平仪", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(lang == 0 ? "水平仪" : "Level", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
     cx = sw / 2;

@@ -65,9 +65,13 @@ uses
   Crt;
 
 var
-  c, row: integer;
+  c, row, lang: integer;
 
 begin
+  { 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次） }
+  { UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall, queried once at startup) }
+  lang := ui_get_language();
+
   { ① 先清屏 }
   { 1) clear the screen first }
   ClrScr;
@@ -77,7 +81,7 @@ begin
   TextColor(White);
   TextBackground(Blue);
   GotoXY(1, 1);
-  writeln('=== Pascal 彩色控制台 demo ===  (TextColor(White) + TextBackground(Blue))');
+  if lang = 0 then writeln('=== Pascal 彩色控制台 demo ===  (TextColor(White) + TextBackground(Blue))') else writeln('=== Pascal colour console demo ===  (TextColor(White) + TextBackground(Blue))');
 
   { ② 暗色 0-7（背景 7 浅灰） }
   { 2) dark colours 0-7 (background 7 light grey) }
@@ -87,7 +91,7 @@ begin
     GotoXY(3, row + c);
     TextColor(c);
     TextBackground(LightGray);
-    write('前景色 ', c, '  暗色，背景 = 7 浅灰');
+    if lang = 0 then write('前景色 ', c, '  暗色，背景 = 7 浅灰') else write('foreground ', c, '  dark, background = 7 light grey');
   end;
 
   { ③ 亮色 8-15（背景 0 黑） }
@@ -98,7 +102,7 @@ begin
     GotoXY(3, row + (c - 8));
     TextColor(c);
     TextBackground(Black);
-    write('前景色 ', c, '  亮色，背景 = 0 黑');
+    if lang = 0 then write('前景色 ', c, '  亮色，背景 = 0 黑') else write('foreground ', c, '  bright, background = 0 black');
   end;
 
   { ④ GotoXY 定位：先写右半段，再回到左端写左半段 }
@@ -106,17 +110,17 @@ begin
   GotoXY(34, 21);
   TextColor(Yellow);
   TextBackground(Red);
-  write('<- 先写的（第 34 列）');
+  if lang = 0 then write('<- 先写的（第 34 列）') else write('<- written first (column 34)');
 
   GotoXY(1, 21);
   TextColor(LightCyan);
   TextBackground(Black);
-  write('后写的（第 1 列）-> ');
+  if lang = 0 then write('后写的（第 1 列）-> ') else write('written second (column 1) -> ');
 
   { ⑤ 收尾：复位成白字黑底 }
   { 5) wrap-up: reset to white on black }
   GotoXY(1, 23);
   TextColor(LightGray);
   TextBackground(Black);
-  writeln('=== done（已复位为白字黑底）===');
+  if lang = 0 then writeln('=== done（已复位为白字黑底）===') else writeln('=== done (reset to white on black) ===');
 end.

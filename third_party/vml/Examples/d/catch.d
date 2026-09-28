@@ -49,7 +49,8 @@ void main() {
     if (h <= 0) { h = 620; }
     A[8] = w;
     A[9] = h;
-    ui_win_open("接方块", w, h);
+    int lang = ui_get_language();
+    ui_win_open(lang == 0 ? "接方块" : "Catch", w, h);
     ui_keep_on(1);
 
     A[0] = w / 2 - 40;
@@ -67,14 +68,14 @@ void main() {
 
         // ── draw ──
         ui_clear(-15724520);
-        ui_text(8, 8, "得分", -6643536, 13, 0);
+        ui_text(8, 8, lang == 0 ? "得分" : "Score", -6643536, 13, 0);
         ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0);
-        ui_text(A[8] / 2, 8, "最高", -6643536, 13, 1);
+        ui_text(A[8] / 2, 8, lang == 0 ? "最高" : "Best", -6643536, 13, 1);
         ui_rect(A[8] / 2 + 46, 11, A[6], 10, -63488, 1, 0, 0);
         ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6);
         ui_circle(A[1], A[2], 9, -131246, 1, 0);
         if (A[7] == 0) {
-            ui_text(A[8] / 2, A[9] / 2, "按回车重开", -131246, 16, 1);
+            ui_text(A[8] / 2, A[9] / 2, lang == 0 ? "按回车重开" : "Press Enter to restart", -131246, 16, 1);
         }
         ui_present();
 
@@ -116,7 +117,7 @@ void main() {
                     // Choosing "No / reject" → quit the game (ui_dlg_msg returns 0=yes / 1=no).
                     // 此前不接返回值 ⇒ 两个按钮一个样、游戏还退不出去（用户实测报的）
                     // Previously the return value was not used ⇒ both buttons behaved the same and the game could not even be exited (reported from real-device testing)
-                    if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { break; }
+                    if (ui_dlg_msg(lang == 0 ? "接方块" : "Catch", lang == 0 ? "没接住，这一局结束。\n再来一局？（选「否」退出）" : "Missed it. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0) { break; }
                     A[0] = A[8] / 2 - 40;
                     A[1] = A[8] / 2;
                     A[2] = 70;

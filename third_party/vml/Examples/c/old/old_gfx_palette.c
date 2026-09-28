@@ -21,8 +21,11 @@ int main(void)
 {
     int i;
     int msg;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    ui_win_open("老式绘图：调色板/渐变", W, H);
+    lang = ui_get_language();
+    ui_win_open(lang == 0 ? "老式绘图：调色板/渐变" : "Old-style gfx: palette / gradients", W, H);
     ui_clear(0x101820);
 
     /* ① 16 级灰阶 + RGB 三段渐变块（每块 20×30） */
@@ -53,9 +56,9 @@ int main(void)
 
     /* ⑤ 文字三种锚点：左/中/右 —— 三行左端应**不在同一列** */
     /* 5) Three text anchor modes: left / center / right -- the left ends of the three lines should **not be in the same column** */
-    ui_text(160, 200, "居中", 0xFFFFFF, 20, 1);
-    ui_text(20,  200, "左对齐", 0xFFFFFF, 20, 0);
-    ui_text(300, 200, "右对齐", 0xFFFFFF, 20, 2);
+    ui_text(160, 200, lang == 0 ? "居中" : "center", 0xFFFFFF, 20, 1);
+    ui_text(20,  200, lang == 0 ? "左对齐" : "left", 0xFFFFFF, 20, 0);
+    ui_text(300, 200, lang == 0 ? "右对齐" : "right", 0xFFFFFF, 20, 2);
 
     ui_present();
     while (!ui_win_closed())

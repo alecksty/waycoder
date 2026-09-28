@@ -53,6 +53,9 @@ static int clicked;      /* 鼠标按下的次数 —— 用来区分"只移动"
 static int touchSeen;    /* **收到过几次触摸消息** —— 电脑屏窗口里这个数**必须恒为 0** */
                          /* **How many touch messages arrived** — in a PC screen window this must **always be 0** */
 
+static int lang;         /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                         /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
+
 /* 一个 32 位色：0xAARRGGBB */
 /* A 32-bit color: 0xAARRGGBB */
 #define RGB_BG    0xFF101820
@@ -99,7 +102,8 @@ static void draw_all(void)
 
     /* ③ 标题 */
     /* 3) Title */
-    ui_text(20, 10, "电脑屏窗口 640x480", RGB_EDGE, 24, VML_ANCHOR_LEFT);
+    ui_text(20, 10, lang == 0 ? "电脑屏窗口 640x480" : "PC screen window 640x480",
+            RGB_EDGE, 24, VML_ANCHOR_LEFT);
 
     /* ④ 底部两行：最后按键 + 鼠标位置 */
     /* 4) Two bottom lines: last key + mouse position */
@@ -186,7 +190,9 @@ int main()
        ⚠ The 5th parameter is the **keyboard** (VML_WIN_NEED_KEYBOARD), not the gamepad —
        位置与 ui_win_open_ex 的第 5 个参数对称，但语义不同。
        it sits in the same position as the 5th parameter of ui_win_open_ex, but means something different. */
-    h = ui_win_open_pc("电脑屏体检", PC_W, PC_H,
+    lang = ui_get_language();
+
+    h = ui_win_open_pc(lang == 0 ? "电脑屏体检" : "PC screen self-check", PC_W, PC_H,
                        VML_WIN_ROTATABLE, VML_WIN_NEED_KEYBOARD);
     if (h < 0) return 1;
 

@@ -133,13 +133,15 @@ int cyy(int row) { return row * ch + ch / 2; }
 int main(void)
 {
     int m[4];
+    int lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     W = ui_scr_w();
     H = ui_scr_h();
     cw = W / 3;
     ch = H / 5;
 
-    ui_win_open_ex("颜色体检", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(lang == 0 ? "颜色体检" : "Color self-check", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_clear(0xFF000000);
 
     /* 0 实心矩形 */

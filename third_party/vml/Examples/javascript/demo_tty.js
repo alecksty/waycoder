@@ -57,6 +57,10 @@
 // 跑法：命令行页输入  vml run examples/javascript/demo_tty.js
 // How to run: type this into the command-line page:  vml run examples/javascript/demo_tty.js
 
+// 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+// UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+var lang = ui_get_language();
+
 // ── 开场：清屏 + 回左上角 ───────────────────────────────────────
 // -- Opening: clear the screen + go back to the top left --
 print_str("\x1b[2J");
@@ -66,13 +70,13 @@ print_str("\x1b[H");
 // -- Title bar: white on blue (ESC[44;97m) --
 print_str("\x1b[1;1H");
 print_str("\x1b[44;97m");
-print_str("  demo_tty (JavaScript) —— 彩色控制台 / ANSI 转义序列      ");
+print_str(lang == 0 ? "  demo_tty (JavaScript) —— 彩色控制台 / ANSI 转义序列      " : "  demo_tty (JavaScript) -- color console / ANSI escapes     ");
 print_str("\x1b[0m");
 print_str("\n");
 
 print_str("\x1b[2;1H");
 print_str("\x1b[90m");
-print_str("清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m");
+print_str(lang == 0 ? "清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m" : "clear ESC[2J   cursor ESC[r;cH   color ESC[3xm / ESC[4xm   reset ESC[0m");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -80,34 +84,34 @@ print_str("\n");
 // -- The standard 8 foreground colors (30-37) --
 print_str("\x1b[4;1H");
 print_str("\x1b[1;37m");
-print_str("标准 8 色前景：");
+print_str(lang == 0 ? "标准 8 色前景：" : "standard 8 foreground colors:");
 print_str("\x1b[0m");
 print_str("\n");
 
 print_str("\x1b[5;1H");
 print_str("\x1b[30m");
-print_str(" 30 黑 ");
+print_str(lang == 0 ? " 30 黑 " : " 30 black ");
 print_str("\x1b[0m");
 print_str("\x1b[31m");
-print_str(" 31 红 ");
+print_str(lang == 0 ? " 31 红 " : " 31 red ");
 print_str("\x1b[0m");
 print_str("\x1b[32m");
-print_str(" 32 绿 ");
+print_str(lang == 0 ? " 32 绿 " : " 32 green ");
 print_str("\x1b[0m");
 print_str("\x1b[33m");
-print_str(" 33 黄 ");
+print_str(lang == 0 ? " 33 黄 " : " 33 yellow ");
 print_str("\x1b[0m");
 print_str("\x1b[34m");
-print_str(" 34 蓝 ");
+print_str(lang == 0 ? " 34 蓝 " : " 34 blue ");
 print_str("\x1b[0m");
 print_str("\x1b[35m");
-print_str(" 35 品红 ");
+print_str(lang == 0 ? " 35 品红 " : " 35 magenta ");
 print_str("\x1b[0m");
 print_str("\x1b[36m");
-print_str(" 36 青 ");
+print_str(lang == 0 ? " 36 青 " : " 36 cyan ");
 print_str("\x1b[0m");
 print_str("\x1b[37m");
-print_str(" 37 白 ");
+print_str(lang == 0 ? " 37 白 " : " 37 white ");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -115,28 +119,28 @@ print_str("\n");
 // -- Bright foreground colors (90-97) --
 print_str("\x1b[6;1H");
 print_str("\x1b[90m");
-print_str(" 90 亮黑(灰) ");
+print_str(lang == 0 ? " 90 亮黑(灰) " : " 90 gray ");
 print_str("\x1b[0m");
 print_str("\x1b[91m");
-print_str(" 91 亮红 ");
+print_str(lang == 0 ? " 91 亮红 " : " 91 red ");
 print_str("\x1b[0m");
 print_str("\x1b[92m");
-print_str(" 92 亮绿 ");
+print_str(lang == 0 ? " 92 亮绿 " : " 92 green ");
 print_str("\x1b[0m");
 print_str("\x1b[93m");
-print_str(" 93 亮黄 ");
+print_str(lang == 0 ? " 93 亮黄 " : " 93 yellow ");
 print_str("\x1b[0m");
 print_str("\x1b[94m");
-print_str(" 94 亮蓝 ");
+print_str(lang == 0 ? " 94 亮蓝 " : " 94 blue ");
 print_str("\x1b[0m");
 print_str("\x1b[95m");
-print_str(" 95 亮品红 ");
+print_str(lang == 0 ? " 95 亮品红 " : " 95 magenta ");
 print_str("\x1b[0m");
 print_str("\x1b[96m");
-print_str(" 96 亮青 ");
+print_str(lang == 0 ? " 96 亮青 " : " 96 cyan ");
 print_str("\x1b[0m");
 print_str("\x1b[97m");
-print_str(" 97 亮白 ");
+print_str(lang == 0 ? " 97 亮白 " : " 97 white ");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -144,28 +148,28 @@ print_str("\n");
 // -- Background colors (40-47 / 100-107) --
 print_str("\x1b[8;1H");
 print_str("\x1b[1;37m");
-print_str("背景色：");
+print_str(lang == 0 ? "背景色：" : "background colors:");
 print_str("\x1b[0m");
 print_str("\n");
 
 print_str("\x1b[9;1H");
 print_str("\x1b[41m");
-print_str(" 红底 ");
+print_str(lang == 0 ? " 红底 " : " red bg ");
 print_str("\x1b[0m");
 print_str("\x1b[42m");
-print_str(" 绿底 ");
+print_str(lang == 0 ? " 绿底 " : " green bg ");
 print_str("\x1b[0m");
 print_str("\x1b[44m");
-print_str(" 蓝底 ");
+print_str(lang == 0 ? " 蓝底 " : " blue bg ");
 print_str("\x1b[0m");
 print_str("\x1b[46m");
-print_str(" 青底 ");
+print_str(lang == 0 ? " 青底 " : " cyan bg ");
 print_str("\x1b[0m");
 print_str("\x1b[103m");
-print_str(" 亮黄底 ");
+print_str(lang == 0 ? " 亮黄底 " : " bright yellow bg ");
 print_str("\x1b[0m");
 print_str("\x1b[105m");
-print_str(" 亮品红底 ");
+print_str(lang == 0 ? " 亮品红底 " : " bright magenta bg ");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -173,22 +177,22 @@ print_str("\n");
 // -- Styles (1 bold / 2 dim / 3 italic / 4 underline / 9 strikethrough) --
 print_str("\x1b[11;1H");
 print_str("\x1b[1;37m");
-print_str("样式：");
+print_str(lang == 0 ? "样式：" : "styles:");
 print_str("\x1b[0m");
 print_str("\x1b[1m");
-print_str(" 粗体 ");
+print_str(lang == 0 ? " 粗体 " : " bold ");
 print_str("\x1b[0m");
 print_str("\x1b[2m");
-print_str(" 暗淡 ");
+print_str(lang == 0 ? " 暗淡 " : " dim ");
 print_str("\x1b[0m");
 print_str("\x1b[3m");
-print_str(" 斜体 ");
+print_str(lang == 0 ? " 斜体 " : " italic ");
 print_str("\x1b[0m");
 print_str("\x1b[4m");
-print_str(" 下划线 ");
+print_str(lang == 0 ? " 下划线 " : " underline ");
 print_str("\x1b[0m");
 print_str("\x1b[9m");
-print_str(" 删除线 ");
+print_str(lang == 0 ? " 删除线 " : " strikethrough ");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -196,19 +200,19 @@ print_str("\n");
 // -- 256 colors (38;5;N) and true color (38;2;r;g;b) --
 print_str("\x1b[13;1H");
 print_str("\x1b[1;37m");
-print_str("256 色 / 真彩：");
+print_str(lang == 0 ? "256 色 / 真彩：" : "256 colors / true color:");
 print_str("\x1b[0m");
 print_str("\x1b[38;5;208m");
-print_str(" 256-208 橙 ");
+print_str(lang == 0 ? " 256-208 橙 " : " 256-208 orange ");
 print_str("\x1b[0m");
 print_str("\x1b[38;5;46m");
-print_str(" 256-46 亮绿 ");
+print_str(lang == 0 ? " 256-46 亮绿 " : " 256-46 bright green ");
 print_str("\x1b[0m");
 print_str("\x1b[38;2;255;128;0m");
-print_str(" 真彩橙 ");
+print_str(lang == 0 ? " 真彩橙 " : " true-color orange ");
 print_str("\x1b[0m");
 print_str("\x1b[48;2;60;0;90m");
-print_str(" 真彩深紫底 ");
+print_str(lang == 0 ? " 真彩深紫底 " : " true-color purple bg ");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -218,7 +222,7 @@ print_str("\n");
 // The "computed" cell: modulo plus a branch picking a literal color code (string concatenation is unusable, see the file header).
 print_str("\x1b[16;1H");
 print_str("\x1b[1;37m");
-print_str("循环画 12 格色带：");
+print_str(lang == 0 ? "循环画 12 格色带：" : "12-cell color band (loop):");
 print_str("\x1b[0m");
 print_str("\n");
 
@@ -245,6 +249,6 @@ print_str("\n");
 print_str("\x1b[0m");
 print_str("\x1b[20;1H");
 print_str("\x1b[1;32m");
-print_str("demo_tty 结束 —— 没有按键等待，画完即退出。");
+print_str(lang == 0 ? "demo_tty 结束 —— 没有按键等待，画完即退出。" : "demo_tty done -- no key wait, it draws and exits.");
 print_str("\x1b[0m");
 print_str("\n");

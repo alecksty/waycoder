@@ -41,6 +41,23 @@ var
   // state: 0=paddle x 1=ball x 2=ball y 3=ball dx 4=ball dy 5=score 6=best 7=alive 8=screen w 9=screen h
   A: array[0..9] of integer;
 
+  { 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次存进 lang，
+    文案也在这里一次算好；之后每帧绘制只用变量）
+    UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall: query it once at startup into lang
+    and compute the strings here too; every later frame only uses the variables) }
+  lang: integer;
+  sScore, sBest, sRestart, sTitle, sOver: string;
+
+procedure initLang();
+begin
+  lang := ui_get_language();
+  if lang = 0 then sScore := '得分' else sScore := 'Score';
+  if lang = 0 then sBest := '最高' else sBest := 'Best';
+  if lang = 0 then sRestart := '按回车重开' else sRestart := 'Press Enter to restart';
+  if lang = 0 then sTitle := '接方块' else sTitle := 'Catch';
+  if lang = 0 then sOver := '没接住，这一局结束。再来一局？（选「否」退出）' else sOver := 'Missed - this round is over. Play again? (choose No to quit)';
+end;
+
 procedure resetGame();
 begin
   A[0] := A[8] div 2 - 40;
@@ -55,15 +72,15 @@ end;
 procedure draw();
 begin
   ui_clear(-15724520);
-  ui_text(8, 8, '得分', -6643536, 13, 0);
+  ui_text(8, 8, sScore, -6643536, 13, 0);
   ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0);
-  ui_text(A[8] div 2, 8, '最高', -6643536, 13, 1);
+  ui_text(A[8] div 2, 8, sBest, -6643536, 13, 1);
   ui_rect(A[8] div 2 + 46, 11, A[6], 10, -63488, 1, 0, 0);
   ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6);
   ui_circle(A[1], A[2], 9, -131246, 1, 0);
   if A[7] = 0 then
   begin
-    ui_text(A[8] div 2, A[9] div 2, '按回车重开', -131246, 16, 1);
+    ui_text(A[8] div 2, A[9] div 2, sRestart, -131246, 16, 1);
   end;
   ui_present();
 end;
@@ -118,7 +135,7 @@ begin
     // Sound effect: single-tone ui_beep; **the ending tone takes the lowest note** (caught 1047 / missed 131, far enough apart to tell)
     ui_beep(131, 320);
     draw();
-    if ui_dlg_msg('接方块', '没接住，这一局结束。再来一局？（选「否」退出）', 0) <> 0 then begin ui_win_close(); exit; end;
+    if ui_dlg_msg(sTitle, sOver, 0) <> 0 then begin ui_win_close(); exit; end;
     resetGame();
   end;
 end;
@@ -139,7 +156,8 @@ begin
   end;
   A[8] := w;
   A[9] := h;
-  ui_win_open('接方块', w, h);
+  initLang();
+  ui_win_open(sTitle, w, h);
   ui_keep_on(1);
   resetGame();
   tid := ui_timer_set(40, 0);

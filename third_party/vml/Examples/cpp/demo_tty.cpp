@@ -66,6 +66,8 @@
 
 #param lib("tty")
 #include <tty.h>
+#include <waycoder_ui.h>     /* 只为 `ui_get_language()` 的声明（本头文件只给声明与常量，不会让程序变大） */
+                            /* only for the `ui_get_language()` declaration (this header carries declarations and constants only; it does not make the program bigger) */
 
 #define ROWS 25
 
@@ -79,6 +81,9 @@ static void say(int x, int y, int fg, int bg, char *s)
 int main()
 {
     int i;
+    // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）—— 文案按它取
+    // UI language: queried once at startup (`ui_get_language` is a syscall, do not call it every frame) — the text is picked by it
+    int Lang = ui_get_language();
 
     // ── 1. 初始化 + 清屏 ──
     // ── 1. Initialize + clear the screen ──
@@ -104,12 +109,12 @@ int main()
 
     // 面板里的内容：每行一种前景色
     // Content inside the panel: one foreground color per line
-    say(4, 4,  7,  0, "color  7  lightgray    普通正文");
-    say(4, 5,  11, 0, "color 11  lightcyan    次要信息");
-    say(4, 6,  10, 0, "color 10  lightgreen   ok / 成功");
-    say(4, 7,  14, 0, "color 14  yellow       状态栏高亮");
-    say(4, 8,  12, 0, "color 12  lightred     错误 / 警告");
-    say(4, 9,  13, 0, "color 13  lightmagenta 强调");
+    say(4, 4,  7,  0, Lang == 0 ? "color  7  lightgray    普通正文" : "color  7  lightgray    body text");
+    say(4, 5,  11, 0, Lang == 0 ? "color 11  lightcyan    次要信息" : "color 11  lightcyan    secondary info");
+    say(4, 6,  10, 0, Lang == 0 ? "color 10  lightgreen   ok / 成功" : "color 10  lightgreen   ok / success");
+    say(4, 7,  14, 0, Lang == 0 ? "color 14  yellow       状态栏高亮" : "color 14  yellow       status bar highlight");
+    say(4, 8,  12, 0, Lang == 0 ? "color 12  lightred     错误 / 警告" : "color 12  lightred     error / warning");
+    say(4, 9,  13, 0, Lang == 0 ? "color 13  lightmagenta 强调" : "color 13  lightmagenta emphasis");
 
     // 反白一行（"选中项"的长相）：黑字白底
     // One reversed line (what a "selected item" looks like): black text on a white background
@@ -121,8 +126,8 @@ int main()
     tty_box(4, 14, 22, 19, 1);             // style 1 = ┌ ─ │ ┐ └ ┘ 单线框
     // style 1 = ┌ ─ │ ┐ └ ┘ single-line box
 
-    say(6, 16, 14, 0, "中文也");
-    say(6, 17, 10, 0, "没问题");
+    say(6, 16, 14, 0, Lang == 0 ? "中文也" : "Chinese too");
+    say(6, 17, 10, 0, Lang == 0 ? "没问题" : "works fine");
 
     // ── 5. 右侧说明（ASCII，列 26 起）──
     // ── 5. Notes on the right (ASCII, starting at column 26) ──
@@ -170,7 +175,7 @@ int main()
     tty_puts(" tty_* demo done -- no key wait, exits by itself                              ");
     tty_color(8, 0);
     tty_goto(3, ROWS);
-    tty_puts("demo_tty (C++) 结束 —— 画完即退出");
+    tty_puts(Lang == 0 ? "demo_tty (C++) 结束 —— 画完即退出" : "demo_tty (C++) done -- exits by itself");
 
     tty_color(7, 0);
     return 0;

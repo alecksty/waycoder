@@ -66,6 +66,13 @@ program demo_tty
   implicit none
   integer :: c
   integer :: row, fg, col
+  integer :: lang
+
+  ! 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次）
+  ! UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall, queried once at startup)
+  ! ⚠ 本前端没有三元/merge，界面文字只能靠单行 `if` 二选一（同 sokoban.f90）。
+  ! ⚠ This frontend has no ternary/merge, so UI text can only pick between two options with a single-line `if` (same as sokoban.f90).
+  lang = ui_get_language()
 
   ! ── ① 清屏 + 复位属性 ────────────────────────────────────────────
   ! -- ① Clear the screen + reset attributes --
@@ -129,7 +136,8 @@ program demo_tty
     call putchar(55)        ! 7      ⇒ 「47」浅灰背景
     ! 7      => "47" light gray background
     call putchar(109)       ! m
-    print *, '前景色', c, ' 暗色，背景 = 7 浅灰'
+    if (lang == 0) print *, '前景色', c, ' 暗色，背景 = 7 浅灰'
+    if (lang /= 0) print *, 'foreground', c, ' dark, background = 7 light gray'
   end do
 
   ! ── ③ 亮色 8-15，背景 0 黑（SGR 90-97 前景 / 40 背景）──────────
@@ -157,7 +165,8 @@ program demo_tty
     call putchar(48)        ! 0      ⇒ 「40」黑背景
     ! 0      => "40" black background
     call putchar(109)       ! m
-    print *, '前景色', c, ' 亮色，背景 = 0 黑'
+    if (lang == 0) print *, '前景色', c, ' 亮色，背景 = 0 黑'
+    if (lang /= 0) print *, 'foreground', c, ' bright, background = 0 black'
   end do
 
   ! ── ④ 光标定位：先写右半段（第 21 行第 34 列）───────────────────
@@ -182,7 +191,8 @@ program demo_tty
   call putchar(49)          ! 1      ⇒ 「41」红背景
   ! 1      => "41" red background
   call putchar(109)         ! m
-  print *, '<- 先写的（第 34 列）'
+  if (lang == 0) print *, '<- 先写的（第 34 列）'
+  if (lang /= 0) print *, '<- written first (column 34)'
 
   ! 再回到第 21 行第 1 列写左半段
   ! Then go back to row 21, column 1 and write the left half
@@ -203,7 +213,8 @@ program demo_tty
   call putchar(48)          ! 0      ⇒ 「40」黑背景
   ! 0      => "40" black background
   call putchar(109)         ! m
-  print *, '后写的（第 1 列）-> '
+  if (lang == 0) print *, '后写的（第 1 列）-> '
+  if (lang /= 0) print *, 'written second (column 1) -> '
 
   ! ── ⑤ 收尾：第 23 行第 1 列，复位成白字黑底（37 / 40）──────────
   ! -- ⑤ Wrap-up: row 23, column 1, reset to white on black (37 / 40) --
@@ -224,5 +235,6 @@ program demo_tty
   call putchar(48)          ! 0      ⇒ 「40」黑背景
   ! 0      => "40" black background
   call putchar(109)         ! m
-  print *, '=== done（已复位为白字黑底）==='
+  if (lang == 0) print *, '=== done（已复位为白字黑底）==='
+  if (lang /= 0) print *, '=== done (reset to white on black) ==='
 end program demo_tty

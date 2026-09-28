@@ -63,6 +63,8 @@
 
 -- ── 开场：清屏 + 回左上角 ───────────────────────────────────────
 -- ── Opening: clear the screen + go back to the top-left corner ───────────────────────────────────────
+local lang = ui_get_language()
+
 print_str("\x1b[2J")
 print_str("\x1b[H")
 
@@ -70,13 +72,15 @@ print_str("\x1b[H")
 -- ── Title bar: white on blue (ESC[44;97m) ──────────────────────────────
 print_str("\x1b[1;1H")
 print_str("\x1b[44;97m")
-print_str("  demo_tty (Lua) —— 彩色控制台 / ANSI 转义序列             ")
+if lang == 0 then print_str("  demo_tty (Lua) —— 彩色控制台 / ANSI 转义序列             ")
+else print_str("  demo_tty (Lua) -- color console / ANSI escape sequences  ") end
 print_str("\x1b[0m")
 print_str("\n")
 
 print_str("\x1b[2;1H")
 print_str("\x1b[90m")
-print_str("清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m")
+if lang == 0 then print_str("清屏 ESC[2J   定位 ESC[r;cH   颜色 ESC[3xm / ESC[4xm   复位 ESC[0m")
+else print_str("clear ESC[2J   cursor ESC[r;cH   color ESC[3xm / ESC[4xm   reset ESC[0m") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -84,34 +88,43 @@ print_str("\n")
 -- ── Standard 8 foreground colors (30–37) ──────────────────────────────────────
 print_str("\x1b[4;1H")
 print_str("\x1b[1;37m")
-print_str("标准 8 色前景：")
+if lang == 0 then print_str("标准 8 色前景：")
+else print_str("Standard 8 foreground colors:") end
 print_str("\x1b[0m")
 print_str("\n")
 
 print_str("\x1b[5;1H")
 print_str("\x1b[30m")
-print_str(" 30 黑 ")
+if lang == 0 then print_str(" 30 黑 ")
+else print_str(" 30 black ") end
 print_str("\x1b[0m")
 print_str("\x1b[31m")
-print_str(" 31 红 ")
+if lang == 0 then print_str(" 31 红 ")
+else print_str(" 31 red ") end
 print_str("\x1b[0m")
 print_str("\x1b[32m")
-print_str(" 32 绿 ")
+if lang == 0 then print_str(" 32 绿 ")
+else print_str(" 32 green ") end
 print_str("\x1b[0m")
 print_str("\x1b[33m")
-print_str(" 33 黄 ")
+if lang == 0 then print_str(" 33 黄 ")
+else print_str(" 33 yellow ") end
 print_str("\x1b[0m")
 print_str("\x1b[34m")
-print_str(" 34 蓝 ")
+if lang == 0 then print_str(" 34 蓝 ")
+else print_str(" 34 blue ") end
 print_str("\x1b[0m")
 print_str("\x1b[35m")
-print_str(" 35 品红 ")
+if lang == 0 then print_str(" 35 品红 ")
+else print_str(" 35 magenta ") end
 print_str("\x1b[0m")
 print_str("\x1b[36m")
-print_str(" 36 青 ")
+if lang == 0 then print_str(" 36 青 ")
+else print_str(" 36 cyan ") end
 print_str("\x1b[0m")
 print_str("\x1b[37m")
-print_str(" 37 白 ")
+if lang == 0 then print_str(" 37 白 ")
+else print_str(" 37 white ") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -119,28 +132,36 @@ print_str("\n")
 -- ── Bright foreground colors (90–97) ────────────────────────────────────────────
 print_str("\x1b[6;1H")
 print_str("\x1b[90m")
-print_str(" 90 亮黑(灰) ")
+if lang == 0 then print_str(" 90 亮黑(灰) ")
+else print_str(" 90 bright black ") end
 print_str("\x1b[0m")
 print_str("\x1b[91m")
-print_str(" 91 亮红 ")
+if lang == 0 then print_str(" 91 亮红 ")
+else print_str(" 91 bright red ") end
 print_str("\x1b[0m")
 print_str("\x1b[92m")
-print_str(" 92 亮绿 ")
+if lang == 0 then print_str(" 92 亮绿 ")
+else print_str(" 92 bright green ") end
 print_str("\x1b[0m")
 print_str("\x1b[93m")
-print_str(" 93 亮黄 ")
+if lang == 0 then print_str(" 93 亮黄 ")
+else print_str(" 93 bright yellow ") end
 print_str("\x1b[0m")
 print_str("\x1b[94m")
-print_str(" 94 亮蓝 ")
+if lang == 0 then print_str(" 94 亮蓝 ")
+else print_str(" 94 bright blue ") end
 print_str("\x1b[0m")
 print_str("\x1b[95m")
-print_str(" 95 亮品红 ")
+if lang == 0 then print_str(" 95 亮品红 ")
+else print_str(" 95 bright magenta ") end
 print_str("\x1b[0m")
 print_str("\x1b[96m")
-print_str(" 96 亮青 ")
+if lang == 0 then print_str(" 96 亮青 ")
+else print_str(" 96 bright cyan ") end
 print_str("\x1b[0m")
 print_str("\x1b[97m")
-print_str(" 97 亮白 ")
+if lang == 0 then print_str(" 97 亮白 ")
+else print_str(" 97 bright white ") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -148,28 +169,35 @@ print_str("\n")
 -- ── Background colors (40–47 / 100–107) ───────────────────────────────────
 print_str("\x1b[8;1H")
 print_str("\x1b[1;37m")
-print_str("背景色：")
+if lang == 0 then print_str("背景色：")
+else print_str("Background colors:") end
 print_str("\x1b[0m")
 print_str("\n")
 
 print_str("\x1b[9;1H")
 print_str("\x1b[41m")
-print_str(" 红底 ")
+if lang == 0 then print_str(" 红底 ")
+else print_str(" red bg ") end
 print_str("\x1b[0m")
 print_str("\x1b[42m")
-print_str(" 绿底 ")
+if lang == 0 then print_str(" 绿底 ")
+else print_str(" green bg ") end
 print_str("\x1b[0m")
 print_str("\x1b[44m")
-print_str(" 蓝底 ")
+if lang == 0 then print_str(" 蓝底 ")
+else print_str(" blue bg ") end
 print_str("\x1b[0m")
 print_str("\x1b[46m")
-print_str(" 青底 ")
+if lang == 0 then print_str(" 青底 ")
+else print_str(" cyan bg ") end
 print_str("\x1b[0m")
 print_str("\x1b[103m")
-print_str(" 亮黄底 ")
+if lang == 0 then print_str(" 亮黄底 ")
+else print_str(" bright yellow bg ") end
 print_str("\x1b[0m")
 print_str("\x1b[105m")
-print_str(" 亮品红底 ")
+if lang == 0 then print_str(" 亮品红底 ")
+else print_str(" bright magenta bg ") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -177,22 +205,28 @@ print_str("\n")
 -- ── Styles (1 bold / 2 dim / 3 italic / 4 underline / 9 strikethrough) ─────────────
 print_str("\x1b[11;1H")
 print_str("\x1b[1;37m")
-print_str("样式：")
+if lang == 0 then print_str("样式：")
+else print_str("Styles:") end
 print_str("\x1b[0m")
 print_str("\x1b[1m")
-print_str(" 粗体 ")
+if lang == 0 then print_str(" 粗体 ")
+else print_str(" bold ") end
 print_str("\x1b[0m")
 print_str("\x1b[2m")
-print_str(" 暗淡 ")
+if lang == 0 then print_str(" 暗淡 ")
+else print_str(" dim ") end
 print_str("\x1b[0m")
 print_str("\x1b[3m")
-print_str(" 斜体 ")
+if lang == 0 then print_str(" 斜体 ")
+else print_str(" italic ") end
 print_str("\x1b[0m")
 print_str("\x1b[4m")
-print_str(" 下划线 ")
+if lang == 0 then print_str(" 下划线 ")
+else print_str(" underline ") end
 print_str("\x1b[0m")
 print_str("\x1b[9m")
-print_str(" 删除线 ")
+if lang == 0 then print_str(" 删除线 ")
+else print_str(" strikethrough ") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -200,19 +234,24 @@ print_str("\n")
 -- ── 256 colors (38;5;N) and truecolor (38;2;r;g;b) ─────────────────────────
 print_str("\x1b[13;1H")
 print_str("\x1b[1;37m")
-print_str("256 色 / 真彩：")
+if lang == 0 then print_str("256 色 / 真彩：")
+else print_str("256-color / truecolor:") end
 print_str("\x1b[0m")
 print_str("\x1b[38;5;208m")
-print_str(" 256-208 橙 ")
+if lang == 0 then print_str(" 256-208 橙 ")
+else print_str(" 256-208 orange ") end
 print_str("\x1b[0m")
 print_str("\x1b[38;5;46m")
-print_str(" 256-46 亮绿 ")
+if lang == 0 then print_str(" 256-46 亮绿 ")
+else print_str(" 256-46 bright green ") end
 print_str("\x1b[0m")
 print_str("\x1b[38;2;255;128;0m")
-print_str(" 真彩橙 ")
+if lang == 0 then print_str(" 真彩橙 ")
+else print_str(" truecolor orange ") end
 print_str("\x1b[0m")
 print_str("\x1b[48;2;60;0;90m")
-print_str(" 真彩深紫底 ")
+if lang == 0 then print_str(" 真彩深紫底 ")
+else print_str(" truecolor dark purple bg ") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -222,7 +261,8 @@ print_str("\n")
 -- The "computed" cell: modulo + a branch picking a literal color code (`..` cannot be used, see the file header).
 print_str("\x1b[16;1H")
 print_str("\x1b[1;37m")
-print_str("循环画 12 格色带：")
+if lang == 0 then print_str("循环画 12 格色带：")
+else print_str("Draw a 12-cell color band in a loop:") end
 print_str("\x1b[0m")
 print_str("\n")
 
@@ -265,6 +305,7 @@ print_str("\n")
 print_str("\x1b[0m")
 print_str("\x1b[20;1H")
 print_str("\x1b[1;32m")
-print_str("demo_tty 结束 —— 没有按键等待，画完即退出。")
+if lang == 0 then print_str("demo_tty 结束 —— 没有按键等待，画完即退出。")
+else print_str("demo_tty done -- no key wait, draws and exits.") end
 print_str("\x1b[0m")
 print_str("\n")

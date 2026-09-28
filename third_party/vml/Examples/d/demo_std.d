@@ -26,28 +26,29 @@
 // How to run: type this on the command-line page  vml run examples/d/demo_std.d
 
 void main() {
+    int lang = ui_get_language();
     writeln("=== WayCoder demo_std (D) ===");
 
     // ① 字符串
     // ① string
-    writeln("[字符串] hello, world");
+    if (lang == 0) { writeln("[字符串] hello, world"); } else { writeln("[string] hello, world"); }
 
     // ② 整数
     // ② integer
     int n = 42;
-    writeln("[整数] n = ", n);
+    if (lang == 0) { writeln("[整数] n = ", n); } else { writeln("[int] n = ", n); }
 
     // ③ 计算结果
     // ③ computed result
-    writeln("[计算] 6 * 7 = ", 6 * 7);
+    if (lang == 0) { writeln("[计算] 6 * 7 = ", 6 * 7); } else { writeln("[calc] 6 * 7 = ", 6 * 7); }
     int a = 7;
     int b = 5;
-    writeln("[计算] a + b = ", a + b);
-    writeln("[计算] a * b - 3 = ", a * b - 3);
+    if (lang == 0) { writeln("[计算] a + b = ", a + b); } else { writeln("[calc] a + b = ", a + b); }
+    if (lang == 0) { writeln("[计算] a * b - 3 = ", a * b - 3); } else { writeln("[calc] a * b - 3 = ", a * b - 3); }
 
     // ④ 循环里算斐波那契前 10 项
     // ④ compute the first 10 Fibonacci numbers in a loop
-    writeln("[循环] 斐波那契前 10 项：");
+    if (lang == 0) { writeln("[循环] 斐波那契前 10 项："); } else { writeln("[loop] first 10 Fibonacci numbers:"); }
     int x = 0;
     int y = 1;
     int i = 0;
@@ -67,7 +68,7 @@ void main() {
         sum = sum + k;
         k = k + 1;
     }
-    writeln("[累加] 1+2+...+100 = ", sum);
+    if (lang == 0) { writeln("[累加] 1+2+...+100 = ", sum); } else { writeln("[sum] 1+2+...+100 = ", sum); }
 
     // ⑥ 阶乘 5!
     // ⑥ factorial 5!
@@ -77,7 +78,7 @@ void main() {
         fact = fact * m;
         m = m + 1;
     }
-    writeln("[阶乘] 5! = ", fact);
+    if (lang == 0) { writeln("[阶乘] 5! = ", fact); } else { writeln("[factorial] 5! = ", fact); }
 
-    writeln("=== 结束 ===");
+    if (lang == 0) { writeln("=== 结束 ==="); } else { writeln("=== done ==="); }
 }

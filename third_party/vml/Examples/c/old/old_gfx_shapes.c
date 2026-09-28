@@ -33,8 +33,11 @@ int main(void)
                    180, 200, 220, 170, 260, 200 };
     int quad[8] = { 230, 40,  300, 60,  280, 120,  220, 100 };
     int msg;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    ui_win_open("老式绘图：圆/多边形", W, H);
+    lang = ui_get_language();
+    ui_win_open(lang == 0 ? "老式绘图：圆/多边形" : "Old-style gfx: circles / polygons", W, H);
     ui_clear(0x101820);
 
     /* 圆：空心 / 实心 / 粗描边 */

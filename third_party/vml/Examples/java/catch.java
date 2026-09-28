@@ -40,6 +40,7 @@ class Catch {
 
     static native int ui_scr_w();
     static native int ui_scr_h();
+    static native int ui_get_language();
     static native int ui_win_open(String t, int w, int h);
     static native int ui_win_closed();
     static native int ui_win_close();
@@ -56,9 +57,16 @@ class Catch {
     static native void ui_keep_on(int on);
     static native void ui_dlg_msg(String title, String body, int style);
 
-    // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高
-    // State: 0=paddle x, 1=ball x, 2=ball y, 3=ball dx, 4=ball dy, 5=score, 6=best, 7=alive, 8=screen width, 9=screen height
-    static int[] A = new int[10];
+    // 状态：0=挡板x 1=球x 2=球y 3=球dx 4=球dy 5=分数 6=最高 7=存活 8=屏宽 9=屏高 10=界面语言
+    // State: 0=paddle x, 1=ball x, 2=ball y, 3=ball dx, 4=ball dy, 5=score, 6=best, 7=alive, 8=screen width, 9=screen height, 10=UI language
+    //
+    // ⚠ 语言码寄在数组里、各方法再读进局部变量 `lang` —— **不能用 `static int lang`**：
+    // ⚠ The language code lives in the array and each method reads it into a local `lang` —— **do not use `static int lang`**:
+    //   本前端的字段初始化器**从不生成**（`CodeGenerator.cs` 只把字段名登记进 dataSection），
+    //   this frontend **never emits** field initializers (`CodeGenerator.cs` only registers the field name in dataSection),
+    //   且跨方法读写静态标量读回来是错的（实测 `b = 3` 之后别的方法读到 0）。数组元素与局部变量都是好的。
+    //   and reading/writing a static scalar across methods is wrong (measured: after `b = 3` another method reads 0). Array elements and locals are fine.
+    static int[] A = new int[11];
 
     static void resetGame() {
         A[0] = A[8] / 2 - 40;
@@ -71,20 +79,22 @@ class Catch {
     }
 
     static void draw() {
+        int lang = A[10];
         ui_clear(-15724520);
-        ui_text(8, 8, "得分", -6643536, 13, 0);
+        ui_text(8, 8, lang == 0 ? "得分" : "Score", -6643536, 13, 0);
         ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0);
-        ui_text(A[8] / 2, 8, "最高", -6643536, 13, 1);
+        ui_text(A[8] / 2, 8, lang == 0 ? "最高" : "Best", -6643536, 13, 1);
         ui_rect(A[8] / 2 + 46, 11, A[6], 10, -63488, 1, 0, 0);
         ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6);
         ui_circle(A[1], A[2], 9, -131246, 1, 0);
         if (A[7] == 0) {
-            ui_text(A[8] / 2, A[9] / 2, "按回车重开", -131246, 16, 1);
+            ui_text(A[8] / 2, A[9] / 2, lang == 0 ? "按回车重开" : "Press Enter to restart", -131246, 16, 1);
         }
         ui_present();
     }
 
     static void step() {
+        int lang = A[10];
         if (A[7] == 0) {
             return;
         }
@@ -112,7 +122,7 @@ class Catch {
             // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on a catch / 131 on a miss — far enough apart)
             ui_beep(131, 320);
             draw();
-            if (ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) != 0) { ui_win_close(); return; }
+            if (ui_dlg_msg(lang == 0 ? "接方块" : "Catch", lang == 0 ? "没接住，这一局结束。\n再来一局？（选「否」退出）" : "Missed it. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0) { ui_win_close(); return; }
             resetGame();
         }
     }
@@ -124,7 +134,11 @@ class Catch {
         if (h <= 0) { h = 620; }
         A[8] = w;
         A[9] = h;
-        ui_win_open("接方块", w, h);
+        // 界面语言：开局查一次存进 A[10]（`ui_get_language` 是 syscall，别每帧调）
+        // UI language: query once at startup into A[10] (`ui_get_language` is a syscall, do not call it every frame)
+        int lang = ui_get_language();
+        A[10] = lang;
+        ui_win_open(lang == 0 ? "接方块" : "Catch", w, h);
         ui_keep_on(1);
         resetGame();
         int tid = ui_timer_set(40, 0);

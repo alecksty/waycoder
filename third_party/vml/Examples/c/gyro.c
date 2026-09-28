@@ -146,6 +146,8 @@ static int lastTick;
 static int win;
 static int finalAngle;    /* 结束那一刻的角度 —— 分享要用，而 angle 会被 reset 清掉 */
                           /* Angle at the moment the round ended -- needed for sharing, while angle is cleared by reset(). */
+static int lang;          /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                          /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
 /* 「分享成绩」按钮的几何：**在 main 里算一次，画与命中共用**（本仓的规矩 ——
  * The geometry of the "share score" button: computed once in main and shared by drawing and hit testing (repo rule --
@@ -296,9 +298,9 @@ static void buildShare(void)
     char laps[16];
     lapsStr(finalAngle, laps);
     p = shareBuf;
-    p = appStr(p, "我在「拧螺丝」里拧了 ");
+    p = appStr(p, lang == 0 ? "我在「拧螺丝」里拧了 " : "I turned ");
     p = appStr(p, laps);
-    p = appStr(p, " 圈！");
+    p = appStr(p, lang == 0 ? " 圈！" : " laps in Screwdriver!");
 }
 
 /* ── 绘制 ───────────────────────────────────────────────────────────── */
@@ -355,7 +357,7 @@ static void draw(void)
     if (playing == 1)
     {
         ui_text(sw / 2, 26, numStr(leftMs / 1000), 0xFFFFFFFF, 26, VML_ANCHOR_CENTER);
-        ui_text(sw / 2 + 44, 34, "秒", 0xFF8A94A8, 15, VML_ANCHOR_CENTER);
+        ui_text(sw / 2 + 44, 34, lang == 0 ? "秒" : "s", 0xFF8A94A8, 15, VML_ANCHOR_CENTER);
     }
 
     drawBolt();
@@ -364,29 +366,29 @@ static void draw(void)
     /* Progress: how many laps have been turned. */
     lapsStr(angle, buf);
     ui_text(cx, cy + cr + 30, buf, 0xFF4ADE80, 36, VML_ANCHOR_CENTER);
-    ui_text(cx, cy + cr + 62, "圈 / 目标 5.0", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
+    ui_text(cx, cy + cr + 62, lang == 0 ? "圈 / 目标 5.0" : "laps / target 5.0", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
 
     /* 底部提示 */
     /* Bottom hints. */
     if (hasGyro == 0)
     {
-        ui_text(sw / 2, sh - 74, "这台设备没有陀螺仪", 0xFFFF8A80, 16, VML_ANCHOR_CENTER);
-        ui_text(sw / 2, sh - 48, "手机端才有（桌面可以用 gyro 注入模拟）", 0xFF8A94A8, 13, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 74, lang == 0 ? "这台设备没有陀螺仪" : "No gyroscope on this device", 0xFFFF8A80, 16, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 48, lang == 0 ? "手机端才有（桌面可以用 gyro 注入模拟）" : "Mobile only (on the desktop inject with `gyro`)", 0xFF8A94A8, 13, VML_ANCHOR_CENTER);
     }
     else if (playing == 1)
     {
-        ui_text(sw / 2, sh - 74, "像拧方向盘那样转手机", 0xFFFFD166, 16, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 74, lang == 0 ? "像拧方向盘那样转手机" : "Turn the phone like a steering wheel", 0xFFFFD166, 16, VML_ANCHOR_CENTER);
         /* 当前转速 —— 给玩家一个"我转得够不够快"的反馈。
          * Current spin rate -- gives the player feedback on whether they are turning fast enough.
          * ⚠ 报**绝对值**：进度不区分方向，转速却显示成负数会让玩家以为拧反了。
          * Warning: report the absolute value; progress ignores direction, so a negative rate would look like a wrong-way turn. */
         ui_text(sw / 2, sh - 48, numStr(iabs(omega) / 1000), 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
-        ui_text(sw / 2 + 56, sh - 48, "度/秒", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
+        ui_text(sw / 2 + 56, sh - 48, lang == 0 ? "度/秒" : "deg/s", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
     }
     else
     {
-        if (win == 1) ui_text(sw / 2, sh - 150, "拧到底了！", 0xFF4ADE80, 18, VML_ANCHOR_CENTER);
-        else ui_text(sw / 2, sh - 150, "时间到 —— 还差一点", 0xFFFF8A80, 18, VML_ANCHOR_CENTER);
+        if (win == 1) ui_text(sw / 2, sh - 150, lang == 0 ? "拧到底了！" : "Screwed all the way in!", 0xFF4ADE80, 18, VML_ANCHOR_CENTER);
+        else ui_text(sw / 2, sh - 150, lang == 0 ? "时间到 —— 还差一点" : "Time is up -- almost there", 0xFFFF8A80, 18, VML_ANCHOR_CENTER);
         /* 「分享成绩」按钮（**几何在 main 里算好，画与命中共用**）。
          * The "share score" button (geometry worked out in main, shared by drawing and hit testing).
          * ⚠ 桌面没有分享面板 —— `ui_share_text` 会返回 0，游戏**照常继续**
@@ -395,8 +397,8 @@ static void draw(void)
          *   (0 means "this end has no such capability", not an error). */
         ui_rect(shX, shY, shW, shH, 0xFF2A6E3A, 1, 0, 10);
         ui_rect(shX, shY, shW, shH, 0xFF4ADE80, 0, 2, 10);
-        ui_text(shX + shW / 2, shY + 14, "分享成绩", 0xFFFFFFFF, 16, VML_ANCHOR_CENTER);
-        ui_text(sw / 2, sh - 46, "点别处再来一次", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
+        ui_text(shX + shW / 2, shY + 14, lang == 0 ? "分享成绩" : "Share score", 0xFFFFFFFF, 16, VML_ANCHOR_CENTER);
+        ui_text(sw / 2, sh - 46, lang == 0 ? "点别处再来一次" : "Tap elsewhere to play again", 0xFF8A94A8, 14, VML_ANCHOR_CENTER);
     }
 
     ui_present();
@@ -469,9 +471,11 @@ int main(void)
     if (sw <= 0) sw = 380;
     if (sh <= 0) sh = 660;
 
+    lang = ui_get_language();
+
     /* 竖屏 + 不要手柄区：全程靠转手机，一个键都不用。 */
     /* Portrait plus no gamepad area: everything is done by turning the phone, no keys at all. */
-    ui_win_open_ex("拧螺丝", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(lang == 0 ? "拧螺丝" : "Screwdriver", sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
     cx = sw / 2;
@@ -556,7 +560,7 @@ int main(void)
                  * Warning: the return value is ignored -- 0 only means "this end has no share panel" (the desktop does not),
                  *   不是错误 —— 游戏照常继续。
                  *   it is not an error, and the game carries on as usual. */
-                ui_share_text(shareBuf, "拧螺丝");
+                ui_share_text(shareBuf, lang == 0 ? "拧螺丝" : "Screwdriver");
                 continue;
             }
             reset();

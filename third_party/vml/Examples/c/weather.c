@@ -212,10 +212,14 @@ int main(void) {
     int  mode;
     int  wrote;
     int  failed;
+    int  lang;     /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                   /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
+    lang = ui_get_language();
     failed = 0;
-    print_str("=== VML 天气预报 ===\n");
-    print_str("主机 "); print_str(HOST); print_str("  文件 "); print_str(OUTFILE); print_str("\n");
+    print_str(lang == 0 ? "=== VML 天气预报 ===\n" : "=== VML Weather Report ===\n");
+    print_str(lang == 0 ? "主机 " : "Host "); print_str(HOST);
+    print_str(lang == 0 ? "  文件 " : "  file "); print_str(OUTFILE); print_str("\n");
 
     /* ① 域名 → IP（宿主不解析域名，见文件头 ①）
      * ① Hostname to IP (the host does not resolve names, see pitfall ① in the file header)
@@ -226,7 +230,7 @@ int main(void) {
      */
     sys_dns(HOST);
     if (_sysret <= 0) {
-        print_str("[失败] DNS 解析失败："); print_str(HOST); print_str("\n");
+        print_str(lang == 0 ? "[失败] DNS 解析失败：" : "[FAIL] DNS lookup failed: "); print_str(HOST); print_str("\n");
         return 1;
     }
     ip = (char*)_sysret;
@@ -237,17 +241,17 @@ int main(void) {
     sys_socket();
     fd = _sysret;
     if (fd < 0) {
-        print_str("[失败] 创建套接字失败\n");
+        print_str(lang == 0 ? "[失败] 创建套接字失败\n" : "[FAIL] socket() failed\n");
         return 2;
     }
     port = PORT;
     sys_connect(fd, ip, port);
     if (_sysret != 0) {
-        print_str("[失败] 连接 "); print_str(HOST); print_str(" 失败\n");
+        print_str(lang == 0 ? "[失败] 连接 " : "[FAIL] connect to "); print_str(HOST); print_str(lang == 0 ? " 失败\n" : " failed\n");
         sys_sockclose(fd);
         return 3;
     }
-    print_str("[2/4] 已连接 "); print_str(HOST); print_str(":80\n");
+    print_str(lang == 0 ? "[2/4] 已连接 " : "[2/4] connected to "); print_str(HOST); print_str(":80\n");
 
     /* ③ 发请求 + 读完整响应 */
     /* ③ Send the request and read the whole response. */
@@ -256,7 +260,7 @@ int main(void) {
     addr = (int)req;
     sys_send(fd, addr, n);
     if (_sysret < 0) {
-        print_str("[失败] 发送请求失败\n");
+        print_str(lang == 0 ? "[失败] 发送请求失败\n" : "[FAIL] sending the request failed\n");
         sys_sockclose(fd);
         return 4;
     }
@@ -270,18 +274,22 @@ int main(void) {
         addr = (int)rbuf + total;
         sys_recv(fd, addr, want);
         n = _sysret;
-        if (n < 0) { print_str("[警告] 读取出错，已读 "); print_int(total); print_str(" 字节\n"); break; }
+        if (n < 0) { print_str(lang == 0 ? "[警告] 读取出错，已读 " : "[WARN] read error, got "); print_int(total); print_str(lang == 0 ? " 字节\n" : " bytes\n"); break; }
         if (n == 0) break;          /* 对端关闭 = 读完了 */
                                     /* The peer closed the connection, which means we are done reading. */
         total = total + n;
     }
     rbuf[total] = 0;
     sys_sockclose(fd);
-    print_str("[3/4] 响应 "); print_int(total); print_str(" 字节（"); print_int(rounds); print_str(" 轮 recv）\n");
+    print_str(lang == 0 ? "[3/4] 响应 " : "[3/4] response ");
+    print_int(total);
+    print_str(lang == 0 ? " 字节（" : " bytes (");
+    print_int(rounds);
+    print_str(lang == 0 ? " 轮 recv）\n" : " recv rounds)\n");
 
     code = http_code(rbuf, total);
     if (code != 200) {
-        print_str("[失败] HTTP 状态码 = "); print_int(code); print_str("\n");
+        print_str(lang == 0 ? "[失败] HTTP 状态码 = " : "[FAIL] HTTP status = "); print_int(code); print_str("\n");
         failed = 1;
     }
 
@@ -289,7 +297,7 @@ int main(void) {
     /* ④ Strip the headers and write the file. */
     head = find_body(rbuf, total);
     if (head < 0) {
-        print_str("[失败] 响应里找不到头/正文分界\n");
+        print_str(lang == 0 ? "[失败] 响应里找不到头/正文分界\n" : "[FAIL] no header/body boundary found in the response\n");
         return 5;
     }
     blen = total - head;
@@ -299,7 +307,8 @@ int main(void) {
     sys_fileopen(OUTFILE, mode);
     fh = _sysret;
     if (fh < 0) {
-        print_str("[失败] 打开文件失败："); print_str(OUTFILE); print_str("（手机上路径必须是相对的）\n");
+        print_str(lang == 0 ? "[失败] 打开文件失败：" : "[FAIL] cannot open file: "); print_str(OUTFILE);
+        print_str(lang == 0 ? "（手机上路径必须是相对的）\n" : " (paths must be relative on the phone)\n");
         return 6;
     }
     addr = (int)rbuf + head;
@@ -310,14 +319,15 @@ int main(void) {
     /* ⑤ 状态 */
     /* ⑤ Status. */
     print_str("[4/4] HTTP "); print_int(code);
-    print_str("  正文 "); print_int(blen); print_str(" 字节");
-    print_str("  写入 "); print_int(wrote); print_str(" 字节 -> "); print_str(OUTFILE);
+    print_str(lang == 0 ? "  正文 " : "  body "); print_int(blen); print_str(lang == 0 ? " 字节" : " bytes");
+    print_str(lang == 0 ? "  写入 " : "  wrote "); print_int(wrote); print_str(lang == 0 ? " 字节 -> " : " bytes -> "); print_str(OUTFILE);
     print_str("\n");
 
     if (failed || wrote != blen) {
-        print_str("[失败] 结果不完整\n");
+        print_str(lang == 0 ? "[失败] 结果不完整\n" : "[FAIL] incomplete result\n");
         return 7;
     }
-    print_str("[成功] 一周预报已写入 "); print_str(OUTFILE); print_str("（7 天）\n");
+    print_str(lang == 0 ? "[成功] 一周预报已写入 " : "[OK] one-week forecast written to "); print_str(OUTFILE);
+    print_str(lang == 0 ? "（7 天）\n" : " (7 days)\n");
     return 0;
 }

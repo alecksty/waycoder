@@ -10,10 +10,16 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 int main(void)
 {
     int secret, guess, tries;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
+
+    lang = ui_get_language();
 
     /* ⚠ 固定种子：老程序常这么写（当年没法取时间），也让本用例可复现 ——
      * ⚠ A fixed seed: old programs often did this (there was no way to read the time back then), and it makes this case reproducible --
@@ -24,23 +30,24 @@ int main(void)
     secret = rand() % 100 + 1;
     tries  = 0;
 
-    printf("我想了一个 1..100 的数，你来猜（输入 0 放弃）\n");
+    printf(lang == 0 ? "我想了一个 1..100 的数，你来猜（输入 0 放弃）\n"
+                     : "I picked a number from 1 to 100 -- guess it (enter 0 to give up)\n");
 
     for (;;) {
-        printf("你猜：");
+        printf(lang == 0 ? "你猜：" : "Your guess: ");
         if (scanf("%d", &guess) != 1) break;   /* 读不到就结束 */
                                                /* Finish when nothing can be read */
 
         if (guess == 0) {
-            printf("放弃啦？答案是 %d\n", secret);
+            printf(lang == 0 ? "放弃啦？答案是 %d\n" : "Giving up? The answer is %d\n", secret);
             break;
         }
 
         tries++;
-        if (guess < secret)      printf("小了\n");
-        else if (guess > secret) printf("大了\n");
+        if (guess < secret)      printf(lang == 0 ? "小了\n" : "Too small\n");
+        else if (guess > secret) printf(lang == 0 ? "大了\n" : "Too large\n");
         else {
-            printf("对了！用了 %d 次\n", tries);
+            printf(lang == 0 ? "对了！用了 %d 次\n" : "Correct! %d tries\n", tries);
             break;
         }
     }

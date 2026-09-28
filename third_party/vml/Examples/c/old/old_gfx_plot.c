@@ -42,8 +42,11 @@ static int isin(int t) { return sintab[t & 63]; }
 int main(void)
 {
     int x, y0, y1, msg;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    ui_win_open("老式绘图：函数曲线", W, H);
+    lang = ui_get_language();
+    ui_win_open(lang == 0 ? "老式绘图：函数曲线" : "Old-style gfx: function curves", W, H);
     ui_clear(0x101820);
 
     /* 坐标轴 */
@@ -78,7 +81,7 @@ int main(void)
     for (x = 0; x < W; x += 8)
         ui_pixel(x, H - 1 - (isin(x * 4) + 100) / 8, 0x98C379);
 
-    ui_text(8, 8, "sin / 抛物线 / 散点", 0xABB2BF, 16, 0);
+    ui_text(8, 8, lang == 0 ? "sin / 抛物线 / 散点" : "sin / parabola / scatter", 0xABB2BF, 16, 0);
     ui_present();
     while (!ui_win_closed())
         ui_wait(&msg, 0);          /* 画完等关窗，别立刻关（快照会没）*/

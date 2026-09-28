@@ -107,25 +107,36 @@ program demo_std
   integer :: i
   integer :: sum
   integer :: fact
+  integer :: lang
 
-  print *, '=== Fortran 标准输出 demo ==='
+  ! 界面语言：0 = 中文 / 1 = 英文（ui_get_language 是 syscall，开局查一次）
+  ! UI language: 0 = Chinese / 1 = English (ui_get_language is a syscall, queried once at startup)
+  lang = ui_get_language()
+
+  if (lang == 0) print *, '=== Fortran 标准输出 demo ==='
+  if (lang /= 0) print *, '=== Fortran std output demo ==='
 
   ! ① 字符串字面量（含中文 —— 源码按 UTF-8 存，词法器直通）
   ! ① String literal (contains Chinese -- the source is stored as UTF-8 and the lexer passes it through)
-  print *, '字符串: 你好，世界'
+  if (lang == 0) print *, '字符串: 你好，世界'
+  if (lang /= 0) print *, 'String: hello, world'
 
   ! ② 整数
   ! ② Integer
-  print *, '整数: 42'
+  if (lang == 0) print *, '整数: 42'
+  if (lang /= 0) print *, 'Integer: 42'
 
   ! ③ 整数运算
   ! ③ Integer arithmetic
-  print *, '计算: 7 * 6 = 42'
+  if (lang == 0) print *, '计算: 7 * 6 = 42'
+  if (lang /= 0) print *, 'Computed: 7 * 6 = 42'
 
   ! ④ 整数除法与取余（`/` 整除；取余用内建 `mod`）
   ! ④ Integer division and remainder (`/` is integer division; the remainder uses the built-in `mod`)
-  print *, '整除: 17 / 5 = 3'
-  print *, '取余: mod(17,5) = 2'
+  if (lang == 0) print *, '整除: 17 / 5 = 3'
+  if (lang /= 0) print *, 'Integer division: 17 / 5 = 3'
+  if (lang == 0) print *, '取余: mod(17,5) = 2'
+  if (lang /= 0) print *, 'Remainder: mod(17,5) = 2'
 
   ! ⑤ 用变量真算一遍 —— 上面几行是字面量，这几行让编译器真的去算
   ! ⑤ Actually compute it with variables -- the lines above are literals, these make the compiler really compute
@@ -133,17 +144,20 @@ program demo_std
   do i = 1, 10
     sum = sum + i
   end do
-  print *, '循环求和: 1..10 =', sum
+  if (lang == 0) print *, '循环求和: 1..10 =', sum
+  if (lang /= 0) print *, 'Loop sum: 1..10 =', sum
 
   fact = 1
   do i = 1, 10
     fact = fact * i
   end do
-  print *, '阶乘: 10! =', fact
+  if (lang == 0) print *, '阶乘: 10! =', fact
+  if (lang /= 0) print *, 'Factorial: 10! =', fact
 
   ! ⑥ 实数：`print` 现在能正确打浮点了（见文件头那条"已修"）
   ! ⑥ Reals: `print` can now print floats correctly (see the "already fixed" item in the file header)
-  print *, '实数: 2.5 * 4.0 =', 2.5 * 4.0
+  if (lang == 0) print *, '实数: 2.5 * 4.0 =', 2.5 * 4.0
+  if (lang /= 0) print *, 'Real: 2.5 * 4.0 =', 2.5 * 4.0
 
   print *, '=== done ==='
 end program demo_std

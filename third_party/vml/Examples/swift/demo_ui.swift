@@ -50,12 +50,16 @@
 // ── Ask the orientation before opening the window (the most "new-style" thing about this layer vs BGI) ────────────
 var ori = ui_orientation()
 
+// 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）
+// UI language: queried once at start (`ui_get_language` is a syscall, not once per frame)
+var lang = ui_get_language()
+
 var w = ui_scr_w()
 var h = ui_scr_h()
 if w <= 0 { w = 360 }
 if h <= 0 { h = 620 }
 
-ui_win_open("UI 接口演示", w, h)
+ui_win_open(lang == 0 ? "UI 接口演示" : "UI interface demo", w, h)
 ui_keep_on(1)
 var tid = ui_timer_set(30, 1)
 
@@ -74,26 +78,26 @@ while running != 0 {
         // ── ① 底色 + 标题（居中锚点 = 1）────────────────────────
         // ── ① Background + title (center anchor = 1) ────────────────────────
         ui_clear(-15724520)
-        ui_text(w / 2, 26, "WayCoder  ui_*  接口演示 (Swift)", -6643536, 16, 1)
-        ui_text(w / 2, 50, "开窗 / 方向 / 图元 / present / 消息队列", -6643536, 12, 1)
+        ui_text(w / 2, 26, lang == 0 ? "WayCoder  ui_*  接口演示 (Swift)" : "WayCoder  ui_*  interface demo (Swift)", -6643536, 16, 1)
+        ui_text(w / 2, 50, lang == 0 ? "开窗 / 方向 / 图元 / present / 消息队列" : "window / orientation / primitives / present / message queue", -6643536, 12, 1)
 
         // ── ② 屏幕方向（0=竖屏 1=横屏）──────────────────────────
         // ── ② Screen orientation (0=portrait 1=landscape) ──────────────────────────
-        ui_text(14, 80, "屏幕方向 =", -11409298, 13, 0)
+        ui_text(14, 80, lang == 0 ? "屏幕方向 =" : "orientation =", -11409298, 13, 0)
         ui_text(96, 80, int_to_str(ori), -11409298, 13, 0)
-        if ori == 1 { ui_text(126, 80, "(横屏)", -11409298, 13, 0) }
-        else { ui_text(126, 80, "(竖屏)", -11409298, 13, 0) }
+        if ori == 1 { ui_text(126, 80, lang == 0 ? "(横屏)" : "(landscape)", -11409298, 13, 0) }
+        else { ui_text(126, 80, lang == 0 ? "(竖屏)" : "(portrait)", -11409298, 13, 0) }
 
         // ── ③ 图元：矩形（实心 / 空心 / 圆角）──────────────────
         // ── ③ Primitives: rectangles (filled / outlined / rounded) ──────────────────
-        ui_text(14, 108, "图元：矩形", -6643536, 13, 0)
+        ui_text(14, 108, lang == 0 ? "图元：矩形" : "primitives: rectangles", -6643536, 13, 0)
         ui_rect(14, 126, 84, 46, -11409298, 1, 0, 0)
         ui_rect(108, 126, 84, 46, -131246, 0, 2, 0)
         ui_rect(202, 126, 84, 46, -63488, 1, 0, 12)
 
         // ── ④ 图元：圆 / 椭圆 / 线 ──────────────────────────────
         // ── ④ Primitives: circle / ellipse / line ─────────────────────────────
-        ui_text(14, 196, "图元：圆 / 椭圆 / 线", -6643536, 13, 0)
+        ui_text(14, 196, lang == 0 ? "图元：圆 / 椭圆 / 线" : "primitives: circle / ellipse / line", -6643536, 13, 0)
         ui_circle(46, 250, 30, -131246, 1, 0)
         ui_circle(120, 250, 30, -11409298, 0, 3)
         ui_ellipse(210, 250, 44, 26, -63488, 1, 0)
@@ -105,7 +109,7 @@ while running != 0 {
 
         // ── ⑤ 8 级灰度色带（0xAARRGGBB 真彩）───────────────────
         // ── ⑤ 8-step grayscale bar (0xAARRGGBB true color) ───────────────────
-        ui_text(14, 358, "真彩（0xAARRGGBB）：", -6643536, 13, 0)
+        ui_text(14, 358, lang == 0 ? "真彩（0xAARRGGBB）：" : "true color (0xAARRGGBB):", -6643536, 13, 0)
         var s = 0
         while s < 8 {
             if s == 0 { ui_rect(14 + s * 40, 376, 36, 26, -16777216, 1, 0, 0) }
@@ -129,20 +133,20 @@ while running != 0 {
 
         // ── ⑦ 消息队列：帧数 / 最后一次按键 / 最后一次触摸 ──────
         // ── ⑦ Message queue: frame count / last key / last touch ──────
-        ui_text(14, 506, "已画帧数 =", -6643536, 13, 0)
+        ui_text(14, 506, lang == 0 ? "已画帧数 =" : "frames drawn =", -6643536, 13, 0)
         ui_text(112, 506, int_to_str(frames), -6643536, 13, 0)
-        ui_text(14, 528, "最后一次按键 =", -6643536, 13, 0)
+        ui_text(14, 528, lang == 0 ? "最后一次按键 =" : "last key =", -6643536, 13, 0)
         ui_text(140, 528, int_to_str(keys), -6643536, 13, 0)
         if touched == 1 {
-            ui_text(14, 550, "最后一次触摸 =", -6643536, 13, 0)
+            ui_text(14, 550, lang == 0 ? "最后一次触摸 =" : "last touch =", -6643536, 13, 0)
             ui_text(140, 550, int_to_str(tx), -6643536, 13, 0)
             ui_text(190, 550, int_to_str(ty), -6643536, 13, 0)
             ui_circle(tx, ty, 26, -131246, 0, 3)
         } else {
-            ui_text(14, 550, "最后一次触摸 = 无（点一下试试）", -6643536, 13, 0)
+            ui_text(14, 550, lang == 0 ? "最后一次触摸 = 无（点一下试试）" : "last touch = none (tap to try)", -6643536, 13, 0)
         }
 
-        ui_text(w / 2, h - 24, "按任意键退出，或画满 60 帧自动退出", -6643536, 12, 1)
+        ui_text(w / 2, h - 24, lang == 0 ? "按任意键退出，或画满 60 帧自动退出" : "press any key to exit, or 60 frames ends it", -6643536, 12, 1)
 
         // ── ⑧ 帧边界 ────────────────────────────────────────────
         // ── ⑧ Frame boundary ────────────────────────────────────────────

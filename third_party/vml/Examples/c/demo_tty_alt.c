@@ -50,23 +50,29 @@
  */
 
 #include <tty.h>
+#include <waycoder_ui.h>       /* 只为 ui_get_language()（界面语言，见下面的 lang）*/
+/* only for ui_get_language() (the UI language, see lang below) */
 
 int main(void) {
     int rc;
     int n;
     int key;
+    int lang;      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                   /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
+
+    lang = ui_get_language();
 
     /* ① 开副屏：`0,0` = 自适应尺寸（按宿主可画区算行列，上限 80×25）
      * 1) Open the alternate screen: `0,0` = auto size (rows/cols derived from the host's drawable area, capped at 80x25) */
-    rc = tty_alt_open(0, 0, "TTY 副屏自检", 1);
+    rc = tty_alt_open(0, 0, lang == 0 ? "TTY 副屏自检" : "TTY alternate screen self-check", 1);
     if (rc < 0) {
         /* 宿主不支持开窗（例如纯控制台环境）—— **说清楚**，别让人以为是程序卡住了
          * The host cannot open a window (a plain console, for example) -- **say so clearly**, do not let people think the program hung */
         tty_init(0, 0, 0);
         tty_color(12, 0);
-        tty_puts("这台宿主打不开副屏窗口（tty_alt_open 返回 -1）。\n");
+        tty_puts(lang == 0 ? "这台宿主打不开副屏窗口（tty_alt_open 返回 -1）。\n" : "This host cannot open an alternate screen (tty_alt_open returned -1).\n");
         tty_color(7, 0);
-        tty_puts("主屏部分是好的；副屏需要能开窗的宿主（手机 App / 带绘图窗口的环境）。\n");
+        tty_puts(lang == 0 ? "主屏部分是好的；副屏需要能开窗的宿主（手机 App / 带绘图窗口的环境）。\n" : "Main screen OK; alternate screen needs a window-capable host (mobile App).\n");
         return 1;
     }
 
@@ -75,29 +81,29 @@ int main(void) {
     tty_color(14, 1);                       /* 前景 14 黄 / 背景 1 蓝
                                              * foreground 14 yellow / background 1 blue */
     tty_goto(2, 1);
-    tty_puts("tty 副屏（弹窗）自检");
+    tty_puts(lang == 0 ? "tty 副屏（弹窗）自检" : "tty alternate screen (popup) self-check");
     tty_box(1, 1, 46, 11, 1);               /* 单线框（UTF-8 框线）
                                              * single-line box (UTF-8 box drawing) */
 
     tty_color(11, 0);
     tty_goto(3, 3);
-    tty_puts("这一屏是在**副屏窗口**里，不是命令行页。");
+    tty_puts(lang == 0 ? "这一屏是在**副屏窗口**里，不是命令行页。" : "This screen is the **alternate-screen window**, not the command line.");
 
     tty_color(7, 0);
     tty_goto(3, 5);
-    tty_puts("按任意键 → 计数器加一（收得到输入）。");
+    tty_puts(lang == 0 ? "按任意键 → 计数器加一（收得到输入）。" : "Press any key -> counter adds one (input arrives).");
     tty_goto(3, 6);
-    tty_puts("按手机返回键 / 关掉这扇窗 → 程序结束。");
+    tty_puts(lang == 0 ? "按手机返回键 / 关掉这扇窗 → 程序结束。" : "Phone Back key / close this window -> program ends.");
 
     tty_goto(3, 8);
-    tty_puts("已按键: ");
+    tty_puts(lang == 0 ? "已按键: " : "keys: ");
     tty_color(10, 0);
     tty_put_int(0);
     tty_color(7, 0);
 
     tty_goto(3, 10);
     tty_color(8, 0);
-    tty_puts("(窗口尺寸：");
+    tty_puts(lang == 0 ? "(窗口尺寸：" : "(window size: ");
     tty_put_int(tty_width());
     tty_puts(" x ");
     tty_put_int(tty_height());

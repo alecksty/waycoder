@@ -53,6 +53,17 @@ public static class L
     public static string ResourceLangDir => _isZh ? "zh" : "en";
 
     /// <summary>设定语言（各端入口初始化 / 自测钉住用）。</summary>
+    /// <remarks>
+    /// ⚠ **这里不通知 VML 编译器** —— 看似该在这儿一处注入，但**本工程根本不引用 VMLPrepares**
+    /// （`WayCoder.csproj` 一个 `ProjectReference` 都没有；它跟 VML 只是**数据级**关系 ——
+    /// 列前端名字，见 `VmlFrontendCompilerList.cs`）。写了就是 CS0103。
+    ///
+    /// <para>
+    /// 语言要传到编译器，得由**真正调编译器的那两个宿主**各自注入
+    /// （手机端 `WayCoder.Maui/Services/MauiVml.cs`、桌面 `scripts/vmlcli`）——
+    /// 它们才引用 `VMLPrepares`。见 <c>CompilerBase.VmlLang</c> 的注释。
+    /// </para>
+    /// </remarks>
     public static void Set(UiLang lang) => _isZh = lang == UiLang.Zh;
 
     /// <summary>

@@ -52,6 +52,9 @@ int main()
     int i;
     int x, y;
     int tri[8];
+    // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）—— 文案按它取
+    // UI language: queried once at startup (`ui_get_language` is a syscall, do not call it every frame) — the text is picked by it
+    int Lang = ui_get_language();
 
     // ── 1. 开场三行（DETECT ⇒ 库自己挑，本平台挑出 VGA + VGAHI 640×480）──
     // ── 1. Three opening lines (DETECT ⇒ the library picks for itself; here it picks VGA + VGAHI 640×480) ──
@@ -73,7 +76,7 @@ int main()
     //   只剩底部十来行可见（`outtextxy` 的 y 是**盒顶**，这是 BGI 的缺省对齐）。
     //   leaving only the bottom dozen or so lines visible (`outtextxy`'s y is the **box top**, which is BGI's default alignment).
     settextjustify(CENTER_TEXT, TOP_TEXT);
-    outtextxy(getmaxx() / 2, 12, "BGI 传统图形接口 / demo_bgi.cpp");
+    outtextxy(getmaxx() / 2, 12, Lang == 0 ? "BGI 传统图形接口 / demo_bgi.cpp" : "BGI legacy graphics API / demo_bgi.cpp");
     settextstyle(DEFAULT_FONT, HORIZ_DIR, 1);
     // `0` = `BOTTOM_TEXT`：正文行按"盒底贴着 y"排。
     // `0` = `BOTTOM_TEXT`: body lines are laid out with the box bottom against y.

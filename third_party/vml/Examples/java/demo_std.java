@@ -60,6 +60,7 @@ public class DemoStd {
     static native void println_str(String s);
     static native void print_str(String s);
     static native void println_int(int n);
+    static native int ui_get_language();
 
     // 自由函数：证明语言本身是通的（算术、控制流、数组、递归）
     // Free functions: proving the language itself works (arithmetic, control flow, arrays, recursion)
@@ -82,6 +83,17 @@ public class DemoStd {
     }
 
     public static void main(String[] args) {
+        // 界面语言：开局查一次（`ui_get_language` 是 syscall）—— 文案按它取
+        // UI language: queried once at startup (`ui_get_language` is a syscall) — the strings are picked by it
+        int lang = ui_get_language();
+        // ⚠ 文案必须先取进 `String` 局部变量再打印 —— `System.out.print/println` 是**前端特判**的
+        // ⚠ Text must go into a `String` local first —— `System.out.print/println` is a **frontend-special-cased**
+        //   一条路，直接喂三元会把字符串当成整数打出来（实测打印出数字地址，如 1024、1）。
+        //   path: feeding it a ternary prints the string as an integer (measured output is a numeric address such as 1024 or 1).
+        //   ⚠ 而且**必须写在声明处的初始化器里**（`String m = 三元;`）—— 先声明、再赋值
+        //   ⚠ It must also sit in the **declaration's initializer** (`String m = ternary;`) —— declaring first and assigning
+        //   会丢掉类型，打印时照样退化成整数（两种写法都实测过）。
+        //   later loses the type and degrades to an integer at print time just the same (both shapes were measured).
         int a = 17;
         int b = 25;
         int i;
@@ -90,7 +102,8 @@ public class DemoStd {
         // ── 1. 字符串 ──
         // ── 1. Strings ──
         System.out.println("=== demo_std (Java) ===");
-        System.out.println("纯字面量一行");
+        String msg1 = lang == 0 ? "纯字面量一行" : "A plain literal, one line";
+        System.out.println(msg1);
         // ⚠ 这一行**刻意不写制表 / 反斜杠 / 引号转义**：Java 前端的转义序列里只有换行
         // ⚠ This line **deliberately avoids tab / backslash / quote escapes**: among the Java frontend's escape sequences only the newline
         //   （反斜杠 + n）是好的；制表（反斜杠 + t）会打出「一个反斜杠 + 一个制表符」、
@@ -99,7 +112,8 @@ public class DemoStd {
         //   a doubled backslash prints two backslashes as-is, and a quote escape prints a backslash plus a quote as-is.
         //   三条都是探针实测出来的，不是推测。
         //   All three were measured with a probe, not guessed.
-        System.out.println("转义：只有换行符是好的（见本行上面的注释）");
+        String msg2 = lang == 0 ? "转义：只有换行符是好的（见本行上面的注释）" : "Escapes: only the newline is sound (see the comment above this line)";
+        System.out.println(msg2);
 
         // ── 2. 标签 + 值 分开写（⚠ 不用 `+`，见文件头）──
         // ── 2. Label + value written separately (⚠ don't use `+`, see the file header) ──
@@ -110,12 +124,15 @@ public class DemoStd {
         System.out.print("a*b=");    System.out.println(a * b);
         System.out.print("a/b=");    System.out.println(a / b);
         System.out.print("a%b=");    System.out.println(a % b);
-        System.out.print("负数：");  System.out.println(0 - a);
+        String msg3 = lang == 0 ? "负数：" : "Negative: ";
+        System.out.print(msg3);  System.out.println(0 - a);
 
         // ── 3. 进制与宽度 ──
         // ── 3. Number bases and widths ──
-        System.out.print("十进制=");  System.out.println(255);
-        System.out.print("十六进制="); System.out.println(255);
+        String msg4 = lang == 0 ? "十进制=" : "Decimal=";
+        System.out.print(msg4);  System.out.println(255);
+        String msg5 = lang == 0 ? "十六进制=" : "Hex=";
+        System.out.print(msg5); System.out.println(255);
 
         // ── 4. 函数调用（含递归）──
         // ── 4. Function calls (including recursion) ──
@@ -144,7 +161,8 @@ public class DemoStd {
             System.out.println(i * 7);
         }
 
-        System.out.println("=== 完成 ===");
+        String msg6 = lang == 0 ? "=== 完成 ===" : "=== done ===";
+        System.out.println(msg6);
     }
 }
 

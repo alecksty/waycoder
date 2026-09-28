@@ -30,28 +30,37 @@
 // How to run: on the command-line page type  vml run examples/objc/demo_std.m
 
 int main() {
+    int lang;
+    lang = ui_get_language();
+
     printf("=== WayCoder demo_std (Objective-C) ===\n");
 
     // ① 字符串
     // ① Strings
-    puts("[字符串] hello, world");
+    if (lang == 0) puts("[字符串] hello, world");
+    else puts("[string] hello, world");
 
     // ② 整数
     // ② Integers
     int n = 42;
-    printf("[整数] n = %d\n", n);
+    if (lang == 0) printf("[整数] n = %d\n", n);
+    else printf("[int] n = %d\n", n);
 
     // ③ 计算结果
     // ③ Computed results
-    printf("[计算] 6 * 7 = %d\n", 6 * 7);
+    if (lang == 0) printf("[计算] 6 * 7 = %d\n", 6 * 7);
+    else printf("[calc] 6 * 7 = %d\n", 6 * 7);
     int a = 7;
     int b = 5;
-    printf("[计算] a + b = %d\n", a + b);
-    printf("[计算] a * b - 3 = %d\n", a * b - 3);
+    if (lang == 0) printf("[计算] a + b = %d\n", a + b);
+    else printf("[calc] a + b = %d\n", a + b);
+    if (lang == 0) printf("[计算] a * b - 3 = %d\n", a * b - 3);
+    else printf("[calc] a * b - 3 = %d\n", a * b - 3);
 
     // ④ 循环里算斐波那契前 10 项
     // ④ Compute the first 10 Fibonacci numbers in a loop
-    puts("[循环] 斐波那契前 10 项：");
+    if (lang == 0) puts("[循环] 斐波那契前 10 项：");
+    else puts("[loop] first 10 Fibonacci numbers:");
     int x = 0;
     int y = 1;
     int i = 0;
@@ -71,7 +80,8 @@ int main() {
         sum = sum + k;
         k = k + 1;
     }
-    printf("[累加] 1+2+...+100 = %d\n", sum);
+    if (lang == 0) printf("[累加] 1+2+...+100 = %d\n", sum);
+    else printf("[sum] 1+2+...+100 = %d\n", sum);
 
     // ⑥ 阶乘 5!
     // ⑥ Factorial 5!
@@ -81,8 +91,10 @@ int main() {
         fact = fact * m;
         m = m + 1;
     }
-    printf("[阶乘] 5! = %d\n", fact);
+    if (lang == 0) printf("[阶乘] 5! = %d\n", fact);
+    else printf("[factorial] 5! = %d\n", fact);
 
-    puts("=== 结束 ===");
+    if (lang == 0) puts("=== 结束 ===");
+    else puts("=== done ===");
     return 0;
 }

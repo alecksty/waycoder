@@ -9,6 +9,8 @@
  * Origin: self-written, imitating the classic example from 1980s algorithm textbooks (the tower graphic is in that era's ASCII style too).
  */
 #include <stdio.h>
+#include <waycoder_ui.h>     /* 只为 ui_get_language() —— 老程序不该猜系统语言 */
+                            /* only for ui_get_language() -- an old program must not guess the system language */
 
 static int moves = 0;
 
@@ -29,14 +31,19 @@ static void hanoi(int n, char from, char via, char to)
 int main(void)
 {
     int n = 4;
+    int lang;   /* 界面语言：开局查一次 */
+                /* UI language: queried once at start */
 
-    printf("汉诺塔（%d 个盘）\n", n);
+    lang = ui_get_language();
+
+    printf(lang == 0 ? "汉诺塔（%d 个盘）\n" : "Towers of Hanoi (%d disks)\n", n);
     hanoi(n, 'A', 'B', 'C');
-    printf("共 %d 步（2^%d - 1 = %d）\n", moves, n, (1 << n) - 1);
+    printf(lang == 0 ? "共 %d 步（2^%d - 1 = %d）\n" : "%d moves in total (2^%d - 1 = %d)\n",
+           moves, n, (1 << n) - 1);
 
     /* 顺带钉一条老程序常用的格式化：动态宽度右对齐 */
     /* Also pin down one formatting trick old programs used a lot: dynamic-width right alignment */
-    printf("右对齐演示：\n");
+    printf(lang == 0 ? "右对齐演示：\n" : "Right-aligned demo:\n");
     for (int i = 1; i <= 5; i++)
         printf("  %*d|\n", 5, i * i);
 

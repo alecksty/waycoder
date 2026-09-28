@@ -69,11 +69,11 @@ static int SH;
  * ⚠ 每帧都要 `ui_clear` —— 图元是**追加**的，不清会越画越糊。
  * ⚠ `ui_clear` is needed every frame -- primitives are **appended**, so without a
  * clear the picture gets smeared. */
-static void show(const char* line)
+static void show(const char* line, int lang)
 {
     ui_clear(0xFF101820);
     ui_set_font(18, 0, 0xFFFFFFFF, VML_ANCHOR_LEFT);
-    ui_text_cur(16, 40, "音频测试");
+    ui_text_cur(16, 40, lang == 0 ? "音频测试" : "Audio test");
     ui_set_font(22, VML_FONT_BOLD, 0xFF7FD4FF, VML_ANCHOR_LEFT);
     ui_text_cur(16, 84, (char*)line);
     ui_present();
@@ -98,17 +98,21 @@ int main(void)
     int i;
     int base;
     int scale[8];
+    int lang;
 
+    lang = ui_get_language();      /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                   /* UI language: queried once at start (do not call it every frame) */
     SW = ui_scr_w();
     SH = ui_scr_h();
     if (SW <= 0) SW = 360;
     if (SH <= 0) SH = 620;
-    ui_win_open_ex("音频测试", SW, SH, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
+    ui_win_open_ex(lang == 0 ? "音频测试" : "Audio test", SW, SH, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_keep_on(1);
 
     /* ── ① 音阶：C 大调上下行 ─────────────────────────────────────────── */
     /* -- 1. Scale: a C major scale up and down --------------------------------------- */
-    show("(1/5) 音阶 —— 应听到 哆来咪发唆拉西哆，再下行");
+    show(lang == 0 ? "(1/5) 音阶 —— 应听到 哆来咪发唆拉西哆，再下行"
+                   : "(1/5) Scale -- you should hear do-re-mi-fa-sol-la-ti-do, then back down", lang);
     for (i = 0; i < 8; i++) scale[i] = 60 + i;
     for (i = 0; i < 8; i++) play(0, scale[i], 240);
     for (i = 7; i >= 0; i--) play(0, scale[i], 240);
@@ -116,7 +120,8 @@ int main(void)
 
     /* ── ② 复音：C 大三和弦**同时**响 ─────────────────────────────────── */
     /* -- 2. Polyphony: a C major chord **sounding at once** --------------------------- */
-    show("(2/5) 和弦 —— do mi sol 三个音【同时】响（老接口做不到这个）");
+    show(lang == 0 ? "(2/5) 和弦 —— do mi sol 三个音【同时】响（老接口做不到这个）"
+                   : "(2/5) Chord -- do mi sol sound [at the same time] (the old API cannot do this)", lang);
     ui_tone_on(0, 60, 100);       /* do  */
     ui_wait(m, 120);
     ui_tone_on(1, 64, 100);       /* mi  —— 此时 do 仍在响 */
@@ -136,7 +141,7 @@ int main(void)
 
     /* ── ③ 旋律：小星星（音符要接得上，不能互相掐）─────────────────────── */
     /* -- 3. Melody: Twinkle Twinkle (notes must join up, not cut each other off) ------ */
-    show("(3/5) 旋律 —— 小星星");
+    show(lang == 0 ? "(3/5) 旋律 —— 小星星" : "(3/5) Melody -- Twinkle Twinkle", lang);
     {
         /* ⚠ 局部数组单独一行（见文件头的坑 1）。 */
         /* ⚠ local array on its own line (see pitfall 1 at the top of the file). */
@@ -154,7 +159,8 @@ int main(void)
 
     /* ── ④ 共存：和弦按着不放，同时连打老式蜂鸣 ───────────────────────── */
     /* -- 4. Coexistence: hold the chord, fire the old style beep at the same time ----- */
-    show("(4/5) 共存 —— 和弦持续响，同时连打旧式音效（和弦不该断）");
+    show(lang == 0 ? "(4/5) 共存 —— 和弦持续响，同时连打旧式音效（和弦不该断）"
+                   : "(4/5) Coexistence -- the chord keeps sounding while old-style beeps fire", lang);
     ui_tone_on(0, 60, 100);
     ui_tone_on(1, 64, 100);
     ui_tone_on(2, 67, 100);
@@ -211,7 +217,8 @@ int main(void)
             ui_clear(0xFF101820);
             ui_set_font(19, VML_FONT_BOLD, 0xFF7FD4FF, VML_ANCHOR_LEFT);
             ui_set_valign(VML_VANCHOR_MIDDLE);
-            ui_text_cur(14, 36, "(5/5) 按住色条发声 · 多指同按 = 和弦");
+            ui_text_cur(14, 36, lang == 0 ? "(5/5) 按住色条发声 · 多指同按 = 和弦"
+                                         : "(5/5) Hold a bar to sound a note · several fingers = a chord");
             for (i = 0; i < 7; i++) {
                 x = i * w;
                 cur = 60 + semi[i];
@@ -260,7 +267,7 @@ int main(void)
         }
     }
 
-    show("完成 —— 五段都过了");
+    show(lang == 0 ? "完成 —— 五段都过了" : "Done -- all five blocks passed", lang);
     ui_wait(m, 900);
 
     ui_keep_on(0);

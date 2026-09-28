@@ -53,6 +53,7 @@
 external void println_str(String s);
 external void print_str(String s);
 external void println_int(int n);
+external int ui_get_language();
 
 // 纯函数（不碰任何可变全局状态）—— 这几个是好的
 // pure functions (touching no mutable global state) — these few are fine
@@ -80,10 +81,16 @@ void main() {
   int i = 0;
   int sum = 0;
 
+  // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+  // UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+  int lang = ui_get_language();
+
   // ── 1. 字符串 ──
   // ── 1. Strings ──
   print("=== demo_std (Dart) ===\n");
-  print("纯字面量一行\n");
+  // ⚠ 分支过的字符串**不是字面量** ⇒ 必须走 `print_str`（本前端 `print(非字面量)` 打的是指针，见文件头）
+  // ⚠ A branched string is **not a literal** => it must go through `print_str` (this frontend's `print(non-literal)` prints a pointer, see the file header)
+  print_str(lang == 0 ? "纯字面量一行\n" : "a plain literal, one line\n");
 
   // ── 2. 标签 + 值 分开写（⚠ 不用 `+`，见文件头）──
   // ── 2. Label + value written separately (⚠ don't use `+`, see the file header) ──
@@ -95,12 +102,12 @@ void main() {
   print("a/b=");     println_int(a ~/ b);      // 整除写 ~/
   // integer division is written ~/
   print("a%b=");     println_int(a % b);
-  print("负数：");    println_int(0 - a);
+  print_str(lang == 0 ? "负数：" : "Negative: "); println_int(0 - a);
 
   // ── 3. 进制与宽度 ──
   // ── 3. Number bases and widths ──
-  print("十进制=");   println_int(255);
-  print("十六进制="); println_int(255);
+  print_str(lang == 0 ? "十进制=" : "Decimal=");   println_int(255);
+  print_str(lang == 0 ? "十六进制=" : "Hex="); println_int(255);
 
   // ── 4. 函数调用（含递归）──
   // ── 4. Function calls (including recursion) ──
@@ -143,7 +150,7 @@ void main() {
     i = i + 1;
   }
 
-  print("=== 完成 ===\n");
+  print_str(lang == 0 ? "=== 完成 ===\n" : "=== done ===\n");
 }
 
 // ── 期望输出（逐字节）────────────────────────────────────────────

@@ -129,9 +129,9 @@ void say(char* s) {
 /* 打印一行"本步在验什么" —— 每步都带序号，方便对着上面的清单看。 */
 /* Print one line saying "what this step verifies" -- numbered, so you can line it up
  * with the list above. */
-void step_title(int n, char* what, char* expect) {
-    printf("\n【%d】%s\n", n, what);
-    printf("     期望：%s\n", expect);
+void step_title(int n, char* what, char* expect, int lang) {
+    printf(lang == 0 ? "\n【%d】%s\n" : "\n[%d] %s\n", n, what);
+    printf(lang == 0 ? "     期望：%s\n" : "     expect: %s\n", expect);
 }
 
 /* ── 正题 ───────────────────────────────────────────────────────────── */
@@ -140,15 +140,24 @@ void step_title(int n, char* what, char* expect) {
 int main(void) {
     int i;
     int v;
+    int lang;
+
+    lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                /* UI language: queried once at start (do not call it every frame) */
 
     printf("=============================================\n");
-    printf(" 音频接口体检开始（共 12 项，约 25 秒）\n");
-    printf(" 听不清就把音量调大；每项之前会写明期望\n");
+    printf(lang == 0 ? " 音频接口体检开始（共 12 项，约 25 秒）\n"
+                     : " Audio API check: 12 items, about 25 seconds\n");
+    printf(lang == 0 ? " 听不清就把音量调大；每项之前会写明期望\n"
+                     : " Turn the volume up if it is unclear; each item says what to expect\n");
     printf("=============================================\n");
 
     /* ① ui_beep：三个音高 —— 验证「音符号/频率 → 真的响」且高低有序 */
     /* 1. ui_beep: three pitches -- verify "note number / frequency really sounds" and in order */
-    step_title(1, "ui_beep(频率, 毫秒)：220 / 880 / 1760Hz", "三声，一个比一个高");
+    step_title(1, lang == 0 ? "ui_beep(频率, 毫秒)：220 / 880 / 1760Hz"
+                            : "ui_beep(freq, ms): 220 / 880 / 1760Hz",
+               lang == 0 ? "三声，一个比一个高"
+                         : "three beeps, each higher than the last", lang);
     ui_beep(220, 260);
     pause_ms(420);
     ui_beep(880, 260);
@@ -158,14 +167,20 @@ int main(void) {
 
     /* ② ui_beep 连发：单通道语义 —— 只听见最后一个（这不是 bug，是它的老语义） */
     /* 2. ui_beep back to back: single channel -- only the last one is heard (not a bug) */
-    step_title(2, "ui_beep 连发两声（880 与 1760）", "只听见后一声（单通道：后音掐前音）");
+    step_title(2, lang == 0 ? "ui_beep 连发两声（880 与 1760）"
+                            : "ui_beep fired twice in a row (880 then 1760)",
+               lang == 0 ? "只听见后一声（单通道：后音掐前音）"
+                         : "only the second one is heard (single channel: the later note cuts the earlier)", lang);
     ui_beep(880, 300);
     ui_beep(1760, 300);
     pause_ms(700);
 
     /* ③ ui_tone_on/off：单音（中央 C = 60） */
     /* 3. ui_tone_on/off: a single note (middle C = 60) */
-    step_title(3, "ui_tone_on(0, 60, 100) 起一个音，0.5 秒后关", "一声中央 C（do）");
+    step_title(3, lang == 0 ? "ui_tone_on(0, 60, 100) 起一个音，0.5 秒后关"
+                            : "ui_tone_on(0, 60, 100) starts a note, off 0.5 s later",
+               lang == 0 ? "一声中央 C（do）"
+                         : "one middle C (do)", lang);
     ui_tone_on(0, 60, 100);
     pause_ms(500);
     ui_tone_off(0, 60);
@@ -173,14 +188,17 @@ int main(void) {
 
     /* ④ 复音：三个通道同时按 —— 这是 v0.96.485 改造的核心 */
     /* 4. Polyphony: three channels pressed at once -- the heart of the v0.96.485 rework */
-    step_title(4, "三个通道同时起音：do(60) / mi(64) / sol(67)",
-               "三个音**同时**响（和弦），屏幕上的声部数应为 3");
+    step_title(4, lang == 0 ? "三个通道同时起音：do(60) / mi(64) / sol(67)"
+                            : "three channels start together: do(60) / mi(64) / sol(67)",
+               lang == 0 ? "三个音**同时**响（和弦），屏幕上的声部数应为 3"
+                         : "all three notes sound **at once** (a chord); voices on screen should be 3", lang);
     ui_tone_on(0, 60, 100);
     ui_tone_on(1, 64, 100);
     ui_tone_on(2, 67, 100);
     pause_ms(200);
     v = ui_tone_voices();
-    printf("     ▶ 此刻声部数 = %d（期望 3）\n", v);
+    printf(lang == 0 ? "     ▶ 此刻声部数 = %d（期望 3）\n"
+                     : "     ▶ voices right now = %d (expect 3)\n", v);
     pause_ms(900);
     ui_tone_off(0, 60);
     ui_tone_off(1, 64);
@@ -189,7 +207,10 @@ int main(void) {
 
     /* ⑤ 波形：同一个音高、四种音色 */
     /* 5. Waveform: one pitch, four timbres */
-    step_title(5, "ui_tone_wave：正弦 / 方波 / 锯齿 / 三角", "四声**音高相同、音色不同**");
+    step_title(5, lang == 0 ? "ui_tone_wave：正弦 / 方波 / 锯齿 / 三角"
+                            : "ui_tone_wave: sine / square / saw / triangle",
+               lang == 0 ? "四声**音高相同、音色不同**"
+                         : "four notes, **same pitch, different timbre**", lang);
     for (i = 0; i < 4; i = i + 1) {
         ui_tone_wave(3, i);
         ui_tone_on(3, 69, 100);   /* A4 = 440Hz */
@@ -200,7 +221,10 @@ int main(void) {
 
     /* ⑥ ui_tone_max_voices：把上限压到 2，再起 4 个音 */
     /* 6. ui_tone_max_voices: push the limit down to 2, then start 4 notes */
-    step_title(6, "ui_tone_max_voices(2) 后起 4 个音", "声部数**不超过 2**（上限生效，多出的被抢占）");
+    step_title(6, lang == 0 ? "ui_tone_max_voices(2) 后起 4 个音"
+                            : "start 4 notes after ui_tone_max_voices(2)",
+               lang == 0 ? "声部数**不超过 2**（上限生效，多出的被抢占）"
+                         : "voices **at most 2** (the limit works; extras are stolen)", lang);
     ui_tone_max_voices(2);
     ui_tone_on(4, 60, 90);
     ui_tone_on(5, 64, 90);
@@ -208,7 +232,8 @@ int main(void) {
     ui_tone_on(7, 72, 90);
     pause_ms(200);
     v = ui_tone_voices();
-    printf("     ▶ 此刻声部数 = %d（期望 ≤ 2）\n", v);
+    printf(lang == 0 ? "     ▶ 此刻声部数 = %d（期望 ≤ 2）\n"
+                     : "     ▶ voices right now = %d (expect <= 2)\n", v);
     pause_ms(800);
     ui_tone_all_off();
     ui_tone_max_voices(32);        /* 复原，别把后面的测试压着 */
@@ -217,7 +242,10 @@ int main(void) {
 
     /* ⑦ ui_tone_all_off：淡出（听感上"渐渐没了"而不是"啪一下断"） */
     /* 7. ui_tone_all_off: fade out (it fades away instead of cutting off with a snap) */
-    step_title(7, "ui_tone_all_off()：和弦淡出", "声音**渐弱**消失（不是硬切）");
+    step_title(7, lang == 0 ? "ui_tone_all_off()：和弦淡出"
+                            : "ui_tone_all_off(): fade the chord out",
+               lang == 0 ? "声音**渐弱**消失（不是硬切）"
+                         : "the sound **fades away** (not a hard cut)", lang);
     ui_tone_on(0, 60, 100);
     ui_tone_on(1, 64, 100);
     ui_tone_on(2, 67, 100);
@@ -227,7 +255,10 @@ int main(void) {
 
     /* ⑧ ui_tone_panic：立刻全停（急停 / 强制停止那种场合） */
     /* 8. ui_tone_panic: stop everything at once (for emergency / forced stop) */
-    step_title(8, "ui_tone_panic()：立刻全停", "起一片音后**当场断掉**（急停语义）");
+    step_title(8, lang == 0 ? "ui_tone_panic()：立刻全停"
+                            : "ui_tone_panic(): stop everything at once",
+               lang == 0 ? "起一片音后**当场断掉**（急停语义）"
+                         : "a pile of notes **cut off on the spot** (emergency stop)", lang);
     ui_tone_on(0, 60, 100);
     ui_tone_on(1, 64, 100);
     ui_tone_on(2, 67, 100);
@@ -246,7 +277,10 @@ int main(void) {
      * the crackle heard on real devices -- so a "zzz" noise is a known phenomenon (see
      * the built-in help, the audio and haptics section), **not a failure of this item**.
      * For game sound effects do not use the sequencer, use ui_beep. */
-    step_title(9, "音序器 ui_sfx_add ×3 + ui_sfx_tick", "三个音**先后**响（重叠属常态，真机上可能破音）");
+    step_title(9, lang == 0 ? "音序器 ui_sfx_add ×3 + ui_sfx_tick"
+                            : "sequencer ui_sfx_add ×3 + ui_sfx_tick",
+               lang == 0 ? "三个音**先后**响（重叠属常态，真机上可能破音）"
+                         : "three notes sound **one after another** (overlap is normal; may crackle on a real device)", lang);
     ui_sfx_reset();
     ui_sfx_add(0, 84, 0, 2, 80, VML_WAVE_SQUARE);   /* do，立刻响 2 拍 */
     /* do -- sounds at once, for 2 ticks */
@@ -254,23 +288,28 @@ int main(void) {
     /* sol -- 2 ticks later */
     ui_sfx_add(2, 84, 4, 3, 80, VML_WAVE_SQUARE);   /* do，再晚 2 拍 */
     /* do -- 2 ticks after that */
-    printf("     ▶ 表里占用的槽 = %d（期望 3）\n", ui_sfx_active());
+    printf(lang == 0 ? "     ▶ 表里占用的槽 = %d（期望 3）\n"
+                     : "     ▶ slots used in the table = %d (expect 3)\n", ui_sfx_active());
     for (i = 0; i < 10; i = i + 1) {
         ui_sfx_tick();
         pause_ms(120);
     }
-    printf("     ▶ 放完后槽 = %d（期望 0）\n", ui_sfx_active());
+    printf(lang == 0 ? "     ▶ 放完后槽 = %d（期望 0）\n"
+                     : "     ▶ slots after playing = %d (expect 0)\n", ui_sfx_active());
     ui_sfx_panic();
     pause_ms(300);
 
     /* ⑩ ui_audio_volume：主音量对合成音也生效 */
     /* 10. ui_audio_volume: the master volume also applies to synthesised tones */
-    step_title(10, "ui_audio_volume(30) 再 ui_beep", "这一声**明显比前两声小**");
+    step_title(10, lang == 0 ? "ui_audio_volume(30) 再 ui_beep"
+                             : "ui_audio_volume(30) then ui_beep",
+               lang == 0 ? "这一声**明显比前两声小**"
+                         : "this one is **clearly quieter than the previous two**", lang);
     ui_audio_volume(30);
     ui_beep(880, 400);
     pause_ms(700);
     ui_audio_volume(100);
-    printf("     ▶ 音量已恢复到 100\n");
+    printf(lang == 0 ? "     ▶ 音量已恢复到 100\n" : "     ▶ volume restored to 100\n");
     ui_beep(880, 400);
     pause_ms(700);
 
@@ -282,26 +321,34 @@ int main(void) {
      * does not exist, so what we check is "the interface is there, the return codes are
      * sane, nothing crashes". To really hear BGM, drop an mp3/wav into the workspace
      * and swap the path. */
-    step_title(11, "ui_audio_play(\"no_such_file.wav\", 0) 等的返回码",
-               "打印出返回码；**不响也不崩**（本项验接口存在与容错）");
+    step_title(11, lang == 0 ? "ui_audio_play(\"no_such_file.wav\", 0) 等的返回码"
+                             : "ui_audio_play(\"no_such_file.wav\", 0) and friends: return codes",
+               lang == 0 ? "打印出返回码；**不响也不崩**（本项验接口存在与容错）"
+                         : "it prints the return codes; **no sound and no crash** (checks the API exists and tolerates errors)", lang);
     v = ui_audio_play("no_such_file.wav", 0);
-    printf("     ▶ ui_audio_play 返回 %d\n", v);
+    printf(lang == 0 ? "     ▶ ui_audio_play 返回 %d\n"
+                     : "     ▶ ui_audio_play returned %d\n", v);
     v = ui_audio_playing();
-    printf("     ▶ ui_audio_playing 返回 %d\n", v);
+    printf(lang == 0 ? "     ▶ ui_audio_playing 返回 %d\n"
+                     : "     ▶ ui_audio_playing returned %d\n", v);
     ui_audio_volume(80);
     ui_audio_stop();
-    printf("     ▶ ui_audio_stop 已调用\n");
+    printf(lang == 0 ? "     ▶ ui_audio_stop 已调用\n" : "     ▶ ui_audio_stop called\n");
     pause_ms(400);
 
     /* ⑫ ui_vibrate：不是声音，但同属"音效与触感"那一组 */
     /* 12. ui_vibrate: not sound, but it belongs to the same audio-and-haptics group */
-    step_title(12, "ui_vibrate(200, 0)", "手机震一下（模拟器/桌面无感属正常）");
+    step_title(12, "ui_vibrate(200, 0)",
+               lang == 0 ? "手机震一下（模拟器/桌面无感属正常）"
+                         : "the phone buzzes once (no buzz on a simulator/desktop is normal)", lang);
     ui_vibrate(200, 0);
     pause_ms(600);
 
     printf("\n=============================================\n");
-    printf(" 体检结束。逐项对不上时：先看静音开关，\n");
-    printf(" 再看是不是被 ⑥ 压过声部上限（本程序已复原）。\n");
+    printf(lang == 0 ? " 体检结束。逐项对不上时：先看静音开关，\n"
+                     : " Check finished. If an item does not match: first check the silent switch,\n");
+    printf(lang == 0 ? " 再看是不是被 ⑥ 压过声部上限（本程序已复原）。\n"
+                     : " then check whether step 6 capped the voice limit (this program restored it).\n");
     printf("=============================================\n");
     return 0;
 }

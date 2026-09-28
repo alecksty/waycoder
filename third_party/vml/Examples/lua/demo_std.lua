@@ -47,9 +47,15 @@
 -- 再进循环，否则循环体一次都不执行（v0.96.202 修的就是这条）。
 -- before entering the loop, otherwise the loop body never runs even once (this is exactly what v0.96.202 fixed).
 
+local lang = ui_get_language()
+
 print("=== demo_std (Lua) ===")
-print("纯字符串一行")
-print("转义：制表\t反斜杠\\引号\"")
+
+if lang == 0 then print("纯字符串一行")
+else print("A pure string on one line") end
+
+if lang == 0 then print("转义：制表\t反斜杠\\引号\"")
+else print("escapes: tab\tbackslash\\quote\"") end
 
 local a = 17
 local b = 25
@@ -57,7 +63,8 @@ local b = 25
 print("a=", a, " b=", b)
 print("a+b=", a + b, " a-b=", a - b, " a*b=", a * b)
 print("a/b=", a / b, " a%b=", a % b)
-print("负数： ", 0 - a, " ", 0 - (a * b))
+if lang == 0 then print("负数： ", 0 - a, " ", 0 - (a * b))
+else print("negatives: ", 0 - a, " ", 0 - (a * b)) end
 
 -- 循环算一个结果，证明这一层和语言本身是通的
 -- A loop computes a result, proving this layer and the language itself are wired up
@@ -78,7 +85,8 @@ while i <= 5 do
   i = i + 1
 end
 
-print("=== 完成 ===")
+if lang == 0 then print("=== 完成 ===")
+else print("=== done ===") end
 
 -- ── 期望输出（逐字节）────────────────────────────────────────────
 -- === demo_std (Lua) ===

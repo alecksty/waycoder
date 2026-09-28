@@ -46,17 +46,29 @@
 // `console.log` 是前端内建的，不用声明。
 // `console.log` is built into the frontend, so it needs no declaration.
 
+native function ui_get_language() {}
+
+// 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+// UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+let lang = ui_get_language();
+
 const A = 17;
 const B = 25;
 
 console.log("=== demo_std (JavaScript) ===");
-console.log("纯字符串一行");
-console.log("转义：制表\t反斜杠\\引号\"");
+// ⚠ 这里用**单行 `if/else`** 而不是三元 —— `console.log` 对**非字面量**实参一律编成
+// ⚠ A **one-line `if/else`** is used here instead of a ternary -- `console.log` compiles a **non-literal** argument
+//   `print_int`（实测：`console.log(cond ? "a" : "b")` 打出的是字符串地址，不是文字），
+//   to `print_int` (measured: `console.log(cond ? "a" : "b")` prints the string address, not the text),
+//   只有**字面量**实参才走字符串输出。三元的写法留给 `print_str` / `println` / `ui_*`。
+//   and only a **literal** argument goes down the string path. The ternary is left to `print_str` / `println` / `ui_*`.
+if (lang == 0) { console.log("纯字符串一行"); } else { console.log("A plain string line"); }
+if (lang == 0) { console.log("转义：制表\t反斜杠\\引号\""); } else { console.log("escapes: tab\tbackslash\\quote\""); }
 
 console.log("a=", A, " b=", B);
 console.log("a+b=", A + B, " a-b=", A - B, " a*b=", A * B);
 console.log("a/b=", A / B, " a%b=", A % B);
-console.log("负数： ", 0 - A, " ", 0 - (A * B));
+if (lang == 0) { console.log("负数： ", 0 - A, " ", 0 - (A * B)); } else { console.log("negatives: ", 0 - A, " ", 0 - (A * B)); }
 
 // 循环算一个结果，证明这一层和语言本身是通的
 // Compute one result in a loop, proving this layer and the language itself are wired up
@@ -76,7 +88,7 @@ while (i <= 5) {
     i = i + 1;
 }
 
-console.log("=== 完成 ===");
+if (lang == 0) { console.log("=== 完成 ==="); } else { console.log("=== done ==="); }
 
 // ── 期望输出（逐字节）────────────────────────────────────────────
 // -- Expected output (byte-for-byte; each line below is printed in Chinese, and the line under it is its translation) --

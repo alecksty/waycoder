@@ -28,6 +28,9 @@
  * On mobile: type `vml run examples/c/regname.c` in the command line page
  */
 
+#include <waycoder_ui.h>            /* 只为 ui_get_language（界面语言）：头文件只有声明与常量，不会让程序变大 */
+/* Only for ui_get_language (UI language): the header holds declarations and constants only, it does not grow the program */
+
 int r1 = 11;                        /* 小写 R bank */
                                     /* lowercase R bank */
 int f1 = 22;                        /* 小写 F bank */
@@ -52,6 +55,10 @@ int main(void) {
     int l3 = 99;                    /* 局部量（走栈偏移，本来就与寄存器无关） */
                                     /* A local (addressed by stack offset, unrelated to registers anyway) */
     int sum;
+    int lang;                       /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
+
+    lang = ui_get_language();
 
     arr_f3[0] = 111;
     arr_f3[1] = 222;
@@ -59,14 +66,15 @@ int main(void) {
     sum = r1 + f1 + d1 + l1 + R2 + F2 + fn_l2() + add_d2_f4(1, 2)
         + arr_f3[0] + arr_f3[1] + r99 + l3;
 
-    print_str("期望合计 = 11+22+33+44+55+66+77+3+111+222+88+99 = 831\n");
-    print_str("实测合计 = ");
+    print_str(lang == 0 ? "期望合计 = 11+22+33+44+55+66+77+3+111+222+88+99 = 831\n"
+                        : "expected total = 11+22+33+44+55+66+77+3+111+222+88+99 = 831\n");
+    print_str(lang == 0 ? "实测合计 = " : "actual total = ");
     println_int(sum);
 
     if (sum == 831)
-        print_str("✅ 通过：寄存器形变量名全部正常\n");
+        print_str(lang == 0 ? "✅ 通过：寄存器形变量名全部正常\n" : "PASS: register-shaped variable names all work\n");
     else
-        print_str("❌ 失败：有变量被当成了寄存器（合计对不上）\n");
+        print_str(lang == 0 ? "❌ 失败：有变量被当成了寄存器（合计对不上）\n" : "FAIL: a variable was taken for a register (total mismatch)\n");
 
     return 0;
 }

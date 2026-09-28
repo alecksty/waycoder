@@ -193,13 +193,15 @@ int main() {
     int grow;
     char buf[24];
     char line[128];
+    int lang = ui_get_language();   /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调） */
+                                    /* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
     /* ⚠ 尺寸必须传 `ui_scr_w()/ui_scr_h()`（可用绘图区），**不能传 0** ——
      * ⚠ The size must be `ui_scr_w()/ui_scr_h()` (the usable drawing area), **not 0** --
        传 0 时窗口拿到的尺寸与程序以为的不是一回事，飞机全画到画布外面去了。
      * passing 0 gives the window a size different from what the program assumes, and
      * every plane gets drawn outside the canvas. */
-    ui_win_open("图块压力测试", ui_scr_w(), ui_scr_h());
+    ui_win_open(lang == 0 ? "图块压力测试" : "Block stress test", ui_scr_w(), ui_scr_h());
 
     sw = ui_scr_w();
     sh = ui_scr_h();

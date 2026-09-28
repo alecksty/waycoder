@@ -40,23 +40,35 @@
 
 int main()
 {
+    int lang;
+
+    // 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调）
+    // UI language: queried once at start (ui_get_language is a syscall, do not call it every frame)
+    lang = ui_get_language();
+
     // ── 标准 8 色前景（30–37）────────────────────────────────
     // ── Standard 8 foreground colors (30–37)────────────────────────────────
-    puts("\x1b[30m30 黑\x1b[0m  \x1b[31m31 红\x1b[0m  \x1b[32m32 绿\x1b[0m  \x1b[33m33 黄\x1b[0m");
-    puts("\x1b[34m34 蓝\x1b[0m  \x1b[35m35 品红\x1b[0m  \x1b[36m36 青\x1b[0m  \x1b[37m37 白\x1b[0m");
+    puts(lang == 0 ? "\x1b[30m30 黑\x1b[0m  \x1b[31m31 红\x1b[0m  \x1b[32m32 绿\x1b[0m  \x1b[33m33 黄\x1b[0m"
+                   : "\x1b[30m30 black\x1b[0m  \x1b[31m31 red\x1b[0m  \x1b[32m32 green\x1b[0m  \x1b[33m33 yellow\x1b[0m");
+    puts(lang == 0 ? "\x1b[34m34 蓝\x1b[0m  \x1b[35m35 品红\x1b[0m  \x1b[36m36 青\x1b[0m  \x1b[37m37 白\x1b[0m"
+                   : "\x1b[34m34 blue\x1b[0m  \x1b[35m35 magenta\x1b[0m  \x1b[36m36 cyan\x1b[0m  \x1b[37m37 white\x1b[0m");
 
     // ── 亮色前景（90–97）────────────────────────────────────
     // ── Bright foreground colors (90–97)────────────────────────────────────
-    puts("\x1b[90m90 亮黑(灰)\x1b[0m  \x1b[91m91 亮红\x1b[0m  \x1b[92m92 亮绿\x1b[0m  \x1b[93m93 亮黄\x1b[0m");
-    puts("\x1b[94m94 亮蓝\x1b[0m  \x1b[95m95 亮品红\x1b[0m  \x1b[96m96 亮青\x1b[0m  \x1b[97m97 亮白\x1b[0m");
+    puts(lang == 0 ? "\x1b[90m90 亮黑(灰)\x1b[0m  \x1b[91m91 亮红\x1b[0m  \x1b[92m92 亮绿\x1b[0m  \x1b[93m93 亮黄\x1b[0m"
+                   : "\x1b[90m90 gray\x1b[0m  \x1b[91m91 bright red\x1b[0m  \x1b[92m92 bright green\x1b[0m  \x1b[93m93 bright yellow\x1b[0m");
+    puts(lang == 0 ? "\x1b[94m94 亮蓝\x1b[0m  \x1b[95m95 亮品红\x1b[0m  \x1b[96m96 亮青\x1b[0m  \x1b[97m97 亮白\x1b[0m"
+                   : "\x1b[94m94 bright blue\x1b[0m  \x1b[95m95 bright magenta\x1b[0m  \x1b[96m96 bright cyan\x1b[0m  \x1b[97m97 bright white\x1b[0m");
 
     // ── 背景色（40–47 / 100–107）────────────────────────────
     // ── Background colors (40–47 / 100–107)────────────────────────────
-    puts("\x1b[41m 红底 \x1b[0m \x1b[42m 绿底 \x1b[0m \x1b[44m 蓝底 \x1b[0m \x1b[103m 亮黄底 \x1b[0m \x1b[105m 亮品红底 \x1b[0m");
+    puts(lang == 0 ? "\x1b[41m 红底 \x1b[0m \x1b[42m 绿底 \x1b[0m \x1b[44m 蓝底 \x1b[0m \x1b[103m 亮黄底 \x1b[0m \x1b[105m 亮品红底 \x1b[0m"
+                   : "\x1b[41m red bg \x1b[0m \x1b[42m green bg \x1b[0m \x1b[44m blue bg \x1b[0m \x1b[103m bright yellow bg \x1b[0m \x1b[105m bright magenta bg \x1b[0m");
 
     // ── 样式（1 粗 / 2 暗 / 3 斜 / 4 下划线 / 9 删除线）─────
     // ── Styles (1 bold / 2 dim / 3 italic / 4 underline / 9 strikethrough)─────
-    puts("\x1b[1m粗体 bold\x1b[0m  \x1b[2m暗淡 dim\x1b[0m  \x1b[3m斜体 italic\x1b[0m  \x1b[4m下划线 underline\x1b[0m  \x1b[9m删除线 strike\x1b[0m");
+    puts(lang == 0 ? "\x1b[1m粗体 bold\x1b[0m  \x1b[2m暗淡 dim\x1b[0m  \x1b[3m斜体 italic\x1b[0m  \x1b[4m下划线 underline\x1b[0m  \x1b[9m删除线 strike\x1b[0m"
+                   : "\x1b[1mbold\x1b[0m  \x1b[2mdim\x1b[0m  \x1b[3mitalic\x1b[0m  \x1b[4munderline\x1b[0m  \x1b[9mstrike\x1b[0m");
 
     // ── 组合：粗体 + 颜色 ───────────────────────────────────
     // ── Combination: bold + color ───────────────────────────────────
@@ -64,11 +76,13 @@ int main()
     // "Bold + color" is encoded into the color's high bits in this repo (AnsiTty.BoldFlag),
     // 所以这一行同时压住了那条路径。
     // so this line covers that path too.
-    puts("\x1b[1;31m粗红\x1b[0m  \x1b[1;92m粗亮绿\x1b[0m  \x1b[4;34m下划线蓝\x1b[0m");
+    puts(lang == 0 ? "\x1b[1;31m粗红\x1b[0m  \x1b[1;92m粗亮绿\x1b[0m  \x1b[4;34m下划线蓝\x1b[0m"
+                   : "\x1b[1;31mbold red\x1b[0m  \x1b[1;92mbold bright green\x1b[0m  \x1b[4;34munderline blue\x1b[0m");
 
     // ── 256 色（38;5;N）─────────────────────────────────────
     // ── 256 colors (38;5;N)─────────────────────────────────────
-    puts("\x1b[38;5;208m256-208 橙\x1b[0m  \x1b[38;5;46m256-46 亮绿\x1b[0m  \x1b[38;5;196m256-196 正红\x1b[0m  \x1b[38;5;240m256-240 灰\x1b[0m");
+    puts(lang == 0 ? "\x1b[38;5;208m256-208 橙\x1b[0m  \x1b[38;5;46m256-46 亮绿\x1b[0m  \x1b[38;5;196m256-196 正红\x1b[0m  \x1b[38;5;240m256-240 灰\x1b[0m"
+                   : "\x1b[38;5;208m256-208 orange\x1b[0m  \x1b[38;5;46m256-46 bright green\x1b[0m  \x1b[38;5;196m256-196 pure red\x1b[0m  \x1b[38;5;240m256-240 gray\x1b[0m");
 
     // ── 真彩（38;2;r;g;b）───────────────────────────────────
     // ── Truecolor (38;2;r;g;b)───────────────────────────────────
@@ -76,14 +90,17 @@ int main()
     // ⚠ The truecolor code's value **exceeds 255**, so it must be tested before the 256-color case,
     //   否则会掉进 256 色分支、全部渲染成同一个颜色。
     //   otherwise it falls into the 256-color branch and everything renders as one and the same color.
-    puts("\x1b[38;2;255;128;0m真彩 橙\x1b[0m  \x1b[38;2;0;200;255m真彩 青\x1b[0m  \x1b[38;2;200;0;255m真彩 紫\x1b[0m");
+    puts(lang == 0 ? "\x1b[38;2;255;128;0m真彩 橙\x1b[0m  \x1b[38;2;0;200;255m真彩 青\x1b[0m  \x1b[38;2;200;0;255m真彩 紫\x1b[0m"
+                   : "\x1b[38;2;255;128;0mtruecolor orange\x1b[0m  \x1b[38;2;0;200;255mtruecolor cyan\x1b[0m  \x1b[38;2;200;0;255mtruecolor purple\x1b[0m");
 
     // ── 真彩背景 ────────────────────────────────────────────
     // ── Truecolor backgrounds ────────────────────────────────────────────
-    puts("\x1b[48;2;60;0;90m 真彩深紫底 \x1b[0m  \x1b[48;2;0;90;60m 真彩墨绿底 \x1b[0m");
+    puts(lang == 0 ? "\x1b[48;2;60;0;90m 真彩深紫底 \x1b[0m  \x1b[48;2;0;90;60m 真彩墨绿底 \x1b[0m"
+                   : "\x1b[48;2;60;0;90m truecolor deep purple bg \x1b[0m  \x1b[48;2;0;90;60m truecolor dark green bg \x1b[0m");
 
     // ── 兜底：纯文本（不该被染色）───────────────────────────
     // ── Fallback: plain text (should not get colored)───────────────────────────
-    puts("以上全部结束 —— 这一行是纯文本，应当没有颜色。");
+    puts(lang == 0 ? "以上全部结束 —— 这一行是纯文本，应当没有颜色。"
+                   : "That is everything -- this line is plain text and should have no color.");
     return 0;
 }

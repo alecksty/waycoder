@@ -74,6 +74,8 @@ static int g_frames;
 static int g_keys;
 static int g_touches;
 static int g_orient;
+static int g_lang;             /* 界面语言：开局查一次（ui_get_language 是 syscall，别每帧调）*/
+/* UI language: queried once at start (ui_get_language is a syscall, do not call it every frame) */
 
 /* 最近一次触摸/点击的位置（没点过就是 -1）*/
 /* Position of the most recent touch/click (-1 if never touched) */
@@ -120,19 +122,19 @@ static void draw(void)
 
     /* ── 标题 + 屏宽高 + 方向 ── */
     /* ── Title + screen width/height + orientation ── */
-    ui_text_styled(cx, GY, "UI 接口 / demo_ui.c", 0xFFE8E8F0, 16,
+    ui_text_styled(cx, GY, g_lang == 0 ? "UI 接口 / demo_ui.c" : "UI interface / demo_ui.c", 0xFFE8E8F0, 16,
                    VML_ANCHOR_CENTER, VML_FONT_BOLD);
     ui_text(cx, GY + 26, g_orient == VML_ORIENT_LANDSCAPE
-                          ? "屏幕方向 = 横屏 (LANDSCAPE)"
-                          : "屏幕方向 = 竖屏 (PORTRAIT)",
+                          ? (g_lang == 0 ? "屏幕方向 = 横屏 (LANDSCAPE)" : "Orientation = LANDSCAPE")
+                          : (g_lang == 0 ? "屏幕方向 = 竖屏 (PORTRAIT)" : "Orientation = PORTRAIT"),
             0xFF51E86E, 13, VML_ANCHOR_CENTER);
-    ui_text(cx, GY + 46, "画布按宿主给的尺寸现排", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(cx, GY + 46, g_lang == 0 ? "画布按宿主给的尺寸现排" : "Canvas laid out from the host size", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     /* ── 一个跟随尺寸的方框（旋转后它会跟着变宽变矮 —— 这就是"不写死坐标"的证明）── */
     /* ── A box that follows the size (after rotation it gets wider and shorter -- proof that no coordinate is hard-coded) ── */
     ui_rect(pad, GY + 70, SW - pad * 2, 90, 0xFF1A1A24, 1, 0, 10);
     ui_rect(pad + 6, GY + 76, SW - pad * 2 - 12, 30, 0xFF4A90D9, 1, 0, 6);
-    ui_text(pad + 16, GY + 84, "rect / 圆角矩形（随屏宽伸缩）", 0xFF101018, 12,
+    ui_text(pad + 16, GY + 84, g_lang == 0 ? "rect / 圆角矩形（随屏宽伸缩）" : "rect / rounded rect (follows width)", 0xFF101018, 12,
             VML_ANCHOR_LEFT);
 
     /* ── 圆 / 椭圆 / 直线：三个基本形 ── */
@@ -148,15 +150,15 @@ static void draw(void)
         ui_rect(pad + i * w, GY + 186, w - 2, 16,
                 (i & 1) ? 0xFF4A90D9 : 0xFFE06C50, 1, 0, 2);
     }
-    ui_text(cx, GY + 210, "真彩 0xAARRGGBB（不是索引色）", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+    ui_text(cx, GY + 210, g_lang == 0 ? "真彩 0xAARRGGBB（不是索引色）" : "true color 0xAARRGGBB (not indexed)", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     /* ── 事件计数：按模拟器和真机都看得出"消息到了没有" ── */
     /* ── Event counters: on both emulator and device you can see whether messages arrived ── */
-    ui_text(pad, GY + 236, "帧", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 236, g_lang == 0 ? "帧" : "frames", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 22, GY + 236, numstr(g_frames), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
-    ui_text(pad, GY + 256, "按键", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 256, g_lang == 0 ? "按键" : "keys", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 44, GY + 256, numstr(g_keys), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
-    ui_text(pad, GY + 276, "触摸", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
+    ui_text(pad, GY + 276, g_lang == 0 ? "触摸" : "touches", 0xFF9AA0B0, 12, VML_ANCHOR_LEFT);
     ui_text(pad + 44, GY + 276, numstr(g_touches), 0xFFFFFFFF, 13, VML_ANCHOR_LEFT);
 
     /* ── 触摸标记：点哪儿就在哪儿留一个圈（证明坐标真的能用）── */
@@ -164,12 +166,12 @@ static void draw(void)
     if (g_tx >= 0) {
         ui_circle(g_tx, g_ty, 18, 0xFFFFE060, 0, 2);
         ui_circle(g_tx, g_ty, 4, 0xFFFFE060, 1, 0);
-        ui_text(cx, SH - 44, "触摸坐标已经用上了", 0xFFFFE060, 12, VML_ANCHOR_CENTER);
+        ui_text(cx, SH - 44, g_lang == 0 ? "触摸坐标已经用上了" : "touch coordinates in use", 0xFFFFE060, 12, VML_ANCHOR_CENTER);
     } else {
-        ui_text(cx, SH - 44, "点一下屏幕 / 按任意键退出", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
+        ui_text(cx, SH - 44, g_lang == 0 ? "点一下屏幕 / 按任意键退出" : "Tap anywhere / any key to exit", 0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
     }
 
-    ui_text(cx, SH - 24, "退出：按任意键或点任意处（或等 N 帧到点）",
+    ui_text(cx, SH - 24, g_lang == 0 ? "退出：按任意键或点任意处（或等 N 帧到点）" : "Exit: any key or any tap (or wait for N frames)",
             0xFF9AA0B0, 12, VML_ANCHOR_CENTER);
 
     ui_present();
@@ -184,6 +186,7 @@ int main(void)
     /* ── ① 开窗**之前**就问方向：程序据此决定排版 ── */
     /* ── 1. Ask the orientation **before** opening the window: the program lays out from it ── */
     g_orient = ui_orientation();
+    g_lang = ui_get_language();
 
     /* 开窗：声明"支持旋转 + 要手柄"。
      * Open the window: declare "rotatable + want gamepad".

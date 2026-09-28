@@ -69,6 +69,7 @@ class DemoTty
     static void Main()
     {
         int i;
+        int lang = ui_get_language();
 
         // ── 1. 初始化 + 清屏 ──
         // ── 1. Init + clear screen ──
@@ -94,12 +95,12 @@ class DemoTty
 
         // 面板里的内容：每行一种前景色
         // Panel contents: one foreground color per line
-        say(4, 4,  7,  0, "color  7  lightgray    普通正文");
-        say(4, 5,  11, 0, "color 11  lightcyan    次要信息");
-        say(4, 6,  10, 0, "color 10  lightgreen   ok / 成功");
-        say(4, 7,  14, 0, "color 14  yellow       状态栏高亮");
-        say(4, 8,  12, 0, "color 12  lightred     错误 / 警告");
-        say(4, 9,  13, 0, "color 13  lightmagenta 强调");
+        say(4, 4,  7,  0, lang == 0 ? "color  7  lightgray    普通正文" : "color  7  lightgray    body text");
+        say(4, 5,  11, 0, lang == 0 ? "color 11  lightcyan    次要信息" : "color 11  lightcyan    secondary info");
+        say(4, 6,  10, 0, lang == 0 ? "color 10  lightgreen   ok / 成功" : "color 10  lightgreen   ok / success");
+        say(4, 7,  14, 0, lang == 0 ? "color 14  yellow       状态栏高亮" : "color 14  yellow       status bar");
+        say(4, 8,  12, 0, lang == 0 ? "color 12  lightred     错误 / 警告" : "color 12  lightred     error / warning");
+        say(4, 9,  13, 0, lang == 0 ? "color 13  lightmagenta 强调" : "color 13  lightmagenta emphasis");
 
         // 反白一行（"选中项"的长相）：黑字白底
         // Reverse-video one line (what a "selected item" looks like): black on white
@@ -111,8 +112,8 @@ class DemoTty
         tty_box(4, 14, 22, 19, 1);             // style 1 = ┌ ─ │ ┐ └ ┘ 单线框
         // style 1 = single-line box ┌ ─ │ ┐ └ ┘
 
-        say(6, 16, 14, 0, "中文也");
-        say(6, 17, 10, 0, "没问题");
+        say(6, 16, 14, 0, lang == 0 ? "中文也" : "CJK also");
+        say(6, 17, 10, 0, lang == 0 ? "没问题" : "works fine");
 
         // ── 5. 右侧说明（ASCII，列 26 起）──
         // ── 5. Right-hand notes (ASCII, starting at column 26) ──
@@ -160,7 +161,7 @@ class DemoTty
         tty_puts(" tty_* demo done -- no key wait, exits by itself                              ");
         tty_color(8, 0);
         tty_goto(3, 25);
-        tty_puts("demo_tty (C#) 结束 —— 画完即退出");
+        tty_puts(lang == 0 ? "demo_tty (C#) 结束 —— 画完即退出" : "demo_tty (C#) done -- draws then exits");
 
         tty_color(7, 0);
     }
