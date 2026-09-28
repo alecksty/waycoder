@@ -40,7 +40,7 @@ public class TestTool : ITool
         // 权限确认由 Agent 层 DangerTools（含 "test"）统一处理。
         var (blocked, reason) = BashGuard.CheckBanned(command);
         if (blocked)
-            return reason ?? "⚠ 已阻止：命令违反安全策略";
+            return reason ?? L.Pick("⚠ 已阻止：命令违反安全策略", "⚠ Blocked: the command violates the security policy");
 
         return await RunAsync(command, cwd, timeout);
     }

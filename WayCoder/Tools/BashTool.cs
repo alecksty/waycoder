@@ -26,41 +26,41 @@ public class BashTool : ITool, ICancellableTool
         .Set("required", JNode.Array("command"));
 
     // 可能破坏文件系统或泄露密钥的危险模式
-    private static readonly (Regex Pattern, string Reason)[] DangerousPatterns =
+    private static readonly (Regex Pattern, string ReasonZh, string ReasonEn)[] DangerousPatterns =
     [
-        (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除"),
-        (new(@"\brm\b(?=(?:.*\s)?-\w*[rR])(?=(?:.*\s)?-\w*f)"), "强制递归删除"),
-        (new(@"\brm\b.*--recursive\b.*--force\b|\brm\b.*--force\b.*--recursive\b"), "强制递归删除"),
-        (new(@"\bmkfs\b"), "格式化文件系统"),
-        (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入"),
-        (new(@">\s*/dev/sd[a-z]"), "覆盖块设备"),
-        (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777"),
-        (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
-        (new(@"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "curl 管道到 shell"),
-        (new(@"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "wget 管道到 shell"),
+        (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除", "recursive deletion of the home/root directory"),
+        (new(@"\brm\b(?=(?:.*\s)?-\w*[rR])(?=(?:.*\s)?-\w*f)"), "强制递归删除", "forced recursive deletion"),
+        (new(@"\brm\b.*--recursive\b.*--force\b|\brm\b.*--force\b.*--recursive\b"), "强制递归删除", "forced recursive deletion"),
+        (new(@"\bmkfs\b"), "格式化文件系统", "formatting a filesystem"),
+        (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入", "raw disk write"),
+        (new(@">\s*/dev/sd[a-z]"), "覆盖块设备", "overwriting a block device"),
+        (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777", "chmod 777 on the root directory"),
+        (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹", "fork bomb"),
+        (new(@"\bcurl\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "curl 管道到 shell", "curl piped to a shell"),
+        (new(@"\bwget\b.*\|\s*(sudo\s+)?(ba)?sh\b"), "wget 管道到 shell", "wget piped to a shell"),
         // Windows cmd 语法（cmd.exe 与 bash 命令列表不同，按平台分别拦）
-        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）"),
-        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）"),
-        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘"),
-        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除"),
+        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）", "Windows recursive delete (del /s)"),
+        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）", "Windows recursive directory delete (rd /s)"),
+        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘", "Windows disk format"),
+        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除", "Windows registry delete"),
     ];
 
     // 绝对红线：即使 YOLO 模式/用户 ! 直通也拦截（不可逆系统级破坏，防止误操作毁机）。
     // 同时含 bash（Linux/macOS）与 cmd.exe（Windows）两种语法——两平台命令列表不同。
-    private static readonly (Regex Pattern, string Reason)[] RedLinePatterns =
+    private static readonly (Regex Pattern, string ReasonZh, string ReasonEn)[] RedLinePatterns =
     [
         // bash（Linux / macOS）
-        (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除"),
-        (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹"),
-        (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入"),
-        (new(@">\s*/dev/sd[a-z]"), "覆盖块设备"),
-        (new(@"\bmkfs\b"), "格式化文件系统"),
-        (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777"),
+        (new(@"\brm\s+(-\w*)?-r\w*\s+(/|~|\$HOME)"), "对家目录/根目录的递归删除", "recursive deletion of the home/root directory"),
+        (new(@":\(\)\s*\{.*:\|:.*\}"), "fork 炸弹", "fork bomb"),
+        (new(@"\bdd\s+.*of=/dev/"), "原始磁盘写入", "raw disk write"),
+        (new(@">\s*/dev/sd[a-z]"), "覆盖块设备", "overwriting a block device"),
+        (new(@"\bmkfs\b"), "格式化文件系统", "formatting a filesystem"),
+        (new(@"\bchmod\s+(-R\s+)?777\s+/"), "对根目录 chmod 777", "chmod 777 on the root directory"),
         // cmd.exe（Windows）
-        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）"),
-        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）"),
-        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘"),
-        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除"),
+        (new(@"\b(?:del|erase)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除（del /s）", "Windows recursive delete (del /s)"),
+        (new(@"\b(?:rd|rmdir)\b.*?/s\b", RegexOptions.IgnoreCase), "Windows 递归删除目录（rd /s）", "Windows recursive directory delete (rd /s)"),
+        (new(@"\bformat\s+[a-zA-Z]:", RegexOptions.IgnoreCase), "Windows 格式化磁盘", "Windows disk format"),
+        (new(@"\breg\s+delete\b", RegexOptions.IgnoreCase), "Windows 注册表删除", "Windows registry delete"),
     ];
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
@@ -150,7 +150,7 @@ public class BashTool : ITool, ICancellableTool
         // 已有危险模式检查（yolo 仅查绝对红线）
         var warning = CheckDangerous(command, yolo);
         if (warning != null)
-            return $"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。";
+            return L.Pick($"⚠ 已阻止：{warning}\n命令：{command}\n如有意执行，请修改命令使其更具体。", $"⚠ Blocked: {warning}\nCommand: {command}\nIf you meant to run it, make the command more specific.");
 
         // Worktree 隔离：检测 worktree 路径，自动切换 cwd
         var worktreePath = WorktreeIsolation.CurrentWorktree;
@@ -465,9 +465,9 @@ public class BashTool : ITool, ICancellableTool
     internal static string? CheckDangerous(string cmd, bool yoloOnly = false)
     {
         var patterns = yoloOnly ? RedLinePatterns : DangerousPatterns;
-        foreach (var (pattern, reason) in patterns)
+        foreach (var (pattern, reasonZh, reasonEn) in patterns)
         {
-            if (pattern.IsMatch(cmd)) return reason;
+            if (pattern.IsMatch(cmd)) return L.Pick(reasonZh, reasonEn);
         }
         return null;
     }

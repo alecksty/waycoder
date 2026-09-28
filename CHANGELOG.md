@@ -1,3 +1,39 @@
+## v0.96.573 — 工具层双语化收尾（`⚠ Blocked` + 24 条危险命令理由）+ 上架文档首次入库
+
+两个提交：`A` = 工具层收尾（有版本号，因为改的是会显示给用户/模型的串）；`B` = 上架相关文件入库（纯文档与一份未被引用的策略文件）。
+
+### A. 工具层双语化收尾（3 个文件）
+
+那是并行会话在 Batch 2 之后做的一轮**接缝收尾**（它自己没跑构建/自测，止步于"护栏模拟"）——
+本版由我**审 diff + 构建 + 全量自测**后才提交：
+
+- `KillTool.cs`（2 处）、`TestTool.cs`（1 处）：`⚠ 已阻止：…` 改成 `L.Pick("⚠ 已阻止：…", "⚠ Blocked: …")`
+  —— 与 `RmTool` 既有形态对齐（`ToolResultClassifier.AbortMarkers` 里那条 `"⚠ Blocked"` 由此才真正有产出方）。
+- `BashTool.cs`：两张危险模式表 `(Regex, string Reason)` → **`(Regex, string ReasonZh, string ReasonEn)`**（24 条），
+  `RedLinePatterns` 同样。⚠ **仍是 `static readonly`**（不是每次调用重建）⇒ 24 条正则不会按命令重编。
+- ⚠ **审的方式值得记**：字段改名成 `ReasonZh`/`ReasonEn` **编译得过**、但"选错字段"也编译得过
+  ⇒ 我去看了消费点：`ChatScreen` 那条链是 `foreach (var (pattern, reasonZh, reasonEn) in patterns)`
+  ＋ `return L.Pick(reasonZh, reasonEn);` —— **按位置解构、选对了**。
+  （顺带一条教训：grep 查 `.Reason` 一个都没命中，因为它是位置解构 —— **"字段名"不能当判据**。）
+
+### B. 上架相关文件首次入库
+
+这几份此前**只在工作区、不在 git 里**（整份上架计划只活在一台机器上）：
+
+- `WayCoder/UI/Shared/FreeTierPolicy.cs`（63 行）—— 免费版/全能版的**唯一分界**。
+  ⚠ **目前无人引用**（会话还没把它接到语言门与设置页上），本次只是**先把文件收进库**，不改它的行为。
+- `docs/上架AppStore.md`（175 行）、`docs/上架资料包.md`（238 行）—— 送审流程与逐屏清单/元数据/隐私问卷。
+- `docs/README.md` 的索引随之更新（21 → 22 份，补上「上架资料包」）。
+- `.gitignore` +13 行：忽略 `*.ipa` / `*.xcarchive` / `*.pkg` / `*.mobileprovision` / **`*.p12`**
+  —— 后两个是**描述文件与私钥**，进库等于把签名权交出去（同 `waycoder.keystore` 那条规矩）。
+
+⚠ **顺带修掉一处已过期的身份**：这两份文档里的 **bundle ID 还是 `com.tanso.waycoder`**
+（v0.96.570 改包名后没跟着更新 —— 照它去开发者后台建 App 会建错 ID），
+连同**内购产品 ID** 一起改成 `com.tanso.dolaima` / **`com.tanso.dolaima.full`**（共 7 处，回读零残留）。
+⚠ **产品 ID 必须在 App Store Connect 创建之前定**（建完不能改）—— 这条现在已经在文档里落成正确的值。
+
+**验证**：桌面构建 0 错误；自测 **7016 通过 / 0 失败**（接缝收尾这版与基线逐条相同）。
+
 ## v0.96.572 — 32 个游戏例程跟随系统语言自动切中英文（`ui_get_language()` 落地）
 
 接 v0.96.571 的 `HOST_LANG`(#568)：把**游戏例程**的界面文字全部改成按语言分支。

@@ -64,7 +64,7 @@ public class KillTool : ITool
         if (hasPid && pid <= 0)
             return L.Pick("错误：PID 必须为正整数（负值会使 Unix 分支误走 pkill '' 杀掉全部用户进程）。", "Error: PID must be a positive integer (a negative value would make the Unix branch fall through to pkill '' and kill every process of the current user).");
         if (hasPid && pid == 4)
-            return "⚠ 已阻止：PID 4 是系统关键进程，不可终止。";
+            return L.Pick("⚠ 已阻止：PID 4 是系统关键进程，不可终止。", "⚠ Blocked: PID 4 is a critical system process and cannot be terminated.");
 
         if (!hasPid && !hasName)
             return L.Pick("错误：必须指定 pid 或 name 参数。", "Error: either the pid or the name parameter must be specified.");
@@ -73,7 +73,7 @@ public class KillTool : ITool
             return L.Pick("错误：进程名不能为空。", "Error: the process name cannot be empty.");
 
         if (!string.IsNullOrEmpty(name) && ProtectedNames.Contains(name))
-            return $"⚠ 已阻止：'{name}' 是系统关键进程，不可终止。";
+            return L.Pick($"⚠ 已阻止：'{name}' 是系统关键进程，不可终止。", $"⚠ Blocked: '{name}' is a critical system process and cannot be terminated.");
 
         // 命令注入防护：进程名白名单（仅字母数字/点/下划线/连字符/空格），杜绝 shell 元字符注入
         if (hasName && !IsSafeProcessName(name))
