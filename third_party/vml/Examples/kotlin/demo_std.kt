@@ -56,10 +56,19 @@ fun main() {
     var i = 0
     var sum = 0
 
+    // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+    // UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+    var lang = ui_get_language()
+
+    // ⚠ 语言分支写成**单行 `if/else`** —— 本前端没有三元运算符（`?`/`?:` 都不支持，见语言规范），
+    // ⚠ Language branches are written as a **one-line `if/else`** -- this frontend has no ternary (`?`/`?:` are unsupported, see the language spec),
+    //   写成 `cond ? a : b` 会**静默错编**（两个字符串都不进数据段，传下去的是条件值 ⇒ 打出空串）。
+    //   and writing `cond ? a : b` **silently miscompiles** (neither string reaches the data section; the condition value is passed => an empty string is printed).
+
     // ── 1. 字符串 ──
     // ── 1. Strings ──
     print("=== demo_std (Kotlin) ===\n")
-    print("纯字面量一行\n")
+    if (lang == 0) { print("纯字面量一行\n") } else { print("a plain literal, one line\n") }
 
     // ── 2. 标签 + 值 分开写（⚠ 不用 `+`，见文件头）──
     // ── 2. Label + value written separately (⚠ don't use `+`, see the file header) ──
@@ -70,12 +79,12 @@ fun main() {
     print("a*b=");     println(a * b)
     print("a/b=");     println(a / b)
     print("a%b=");     println(a % b)
-    print("负数：");    println(0 - a)
+    if (lang == 0) { print("负数：") } else { print("Negative: ") };    println(0 - a)
 
     // ── 3. 进制与宽度（这里只演示值；格式化宽度在 Kotlin 侧没有等价物）──
     // ── 3. Number bases and widths (only values are demonstrated here; Kotlin has no equivalent of formatted width) ──
-    print("十进制=");   println(255)
-    print("十六进制="); println(255)
+    if (lang == 0) { print("十进制=") } else { print("Decimal=") };   println(255)
+    if (lang == 0) { print("十六进制=") } else { print("Hex=") }; println(255)
 
     // ── 4. 局部函数 + 递归 ──
     // ── 4. Local functions + recursion ──
@@ -105,7 +114,7 @@ fun main() {
         i = i + 1
     }
 
-    print("=== 完成 ===\n")
+    if (lang == 0) { print("=== 完成 ===\n") } else { print("=== done ===\n") }
 }
 
 // 纯函数可以抽出去（不碰任何数组/全局状态）

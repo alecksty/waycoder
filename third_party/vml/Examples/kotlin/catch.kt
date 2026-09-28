@@ -56,7 +56,13 @@ fun main() {
     // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每帧调）
     // UI language: queried once at start (`ui_get_language` is a syscall, not once per frame)
     var lang = ui_get_language()
-    ui_win_open(lang == 0 ? "接方块" : "Catch", w, h)
+    // ⚠ 本前端**没有三元运算符**（`?` / `?:` 都不支持，见语言规范）—— 写成 `cond ? a : b` 会**静默错编**
+    // ⚠ This frontend has **no ternary operator** (`?` / `?:` are both unsupported, see the language spec) -- writing `cond ? a : b` **silently miscompiles**
+    //   （实测：实参位置不报错，但两个字符串字面量都不进数据段、传下去的是条件本身 0/1 ⇒ 画出来是空串）
+    //   (measured: no error in argument position, but neither string literal reaches the data section and the condition value 0/1 is passed instead => an empty string is drawn)
+    //   ⇒ 语言分支一律写成 `if (lang == 0) { … } else { … }`。
+    //   => every language branch is written as `if (lang == 0) { ... } else { ... }`.
+    if (lang == 0) { ui_win_open("接方块", w, h) } else { ui_win_open("Catch", w, h) }
     ui_keep_on(1)
 
     A[0] = w / 2 - 40
@@ -74,14 +80,14 @@ fun main() {
 
         // ── draw ──
         ui_clear(-15724520)
-        ui_text(8, 8, lang == 0 ? "得分" : "Score", -6643536, 13, 0)
+        if (lang == 0) { ui_text(8, 8, "得分", -6643536, 13, 0) } else { ui_text(8, 8, "Score", -6643536, 13, 0) }
         ui_rect(58, 11, A[5], 10, -11409298, 1, 0, 0)
-        ui_text(A[8] / 2, 8, lang == 0 ? "最高" : "Best", -6643536, 13, 1)
+        if (lang == 0) { ui_text(A[8] / 2, 8, "最高", -6643536, 13, 1) } else { ui_text(A[8] / 2, 8, "Best", -6643536, 13, 1) }
         ui_rect(A[8] / 2 + 46, 11, A[6], 10, -63488, 1, 0, 0)
         ui_rect(A[0], A[9] - 40, 80, 12, -63488, 1, 0, 6)
         ui_circle(A[1], A[2], 9, -131246, 1, 0)
         if (A[7] == 0) {
-            ui_text(A[8] / 2, A[9] / 2, lang == 0 ? "按回车重开" : "Press Enter to restart", -131246, 16, 1)
+            if (lang == 0) { ui_text(A[8] / 2, A[9] / 2, "按回车重开", -131246, 16, 1) } else { ui_text(A[8] / 2, A[9] / 2, "Press Enter to restart", -131246, 16, 1) }
         }
         ui_present()
 
@@ -111,7 +117,9 @@ fun main() {
                     // 音效：单音 ui_beep；**结局音取最低音**（接住 1047 / 没接住 131，差得开）
                     // Sound: single-tone ui_beep; **the ending tone takes the lowest note** (1047 on a catch / 131 on a miss — far enough apart)
                     ui_beep(131, 320)
-                    if (ui_dlg_msg(lang == 0 ? "接方块" : "Catch", lang == 0 ? "没接住，这一局结束。\n再来一局？（选「否」退出）" : "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0) != 0) { ui_win_close(); break }
+                    var ans = 0
+                    if (lang == 0) { ans = ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0) } else { ans = ui_dlg_msg("Catch", "Missed. Round over.\nPlay again? (choose 'No' to quit)", 0) }
+                    if (ans != 0) { ui_win_close(); break }
                     A[0] = A[8] / 2 - 40
                     A[1] = A[8] / 2
                     A[2] = 70

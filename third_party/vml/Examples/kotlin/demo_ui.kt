@@ -56,6 +56,9 @@
 //   WINDOWCLOSE=10 WINDOWRESIZE=11 WINDOWORIENT=12
 //   ANCHOR_LEFT=0 CENTER=1 FONT_BOLD=1 ORIENT_PORTRAIT=0 LANDSCAPE=1
 //   WIN_ROTATABLE=1 WIN_NEED_GAMEPAD=1
+// 界面语言（0=中文 1=英文）：开局查一次（`ui_get_language` 是 syscall，别每帧调）
+// UI language (0=Chinese 1=English): queried once at start (`ui_get_language` is a syscall, not once per frame)
+var LANG = 0
 var SW = 0
 var SH = 0
 var GY = 14
@@ -89,19 +92,19 @@ fun draw() {
 
     ui_clear(-15724520)
 
-    ui_text_styled(cx, GY, "UI 接口 / demo_ui.kt", -1513232, 16, 1, 1)
+    if (LANG == 0) { ui_text_styled(cx, GY, "UI 接口 / demo_ui.kt", -1513232, 16, 1, 1) } else { ui_text_styled(cx, GY, "UI interface / demo_ui.kt", -1513232, 16, 1, 1) }
     if (gOrient == 1) {
-        ui_text(cx, GY + 26, "屏幕方向 = 横屏 (LANDSCAPE)", -11409298, 13, 1)
+        if (LANG == 0) { ui_text(cx, GY + 26, "屏幕方向 = 横屏 (LANDSCAPE)", -11409298, 13, 1) } else { ui_text(cx, GY + 26, "Orientation = LANDSCAPE", -11409298, 13, 1) }
     } else {
-        ui_text(cx, GY + 26, "屏幕方向 = 竖屏 (PORTRAIT)", -11409298, 13, 1)
+        if (LANG == 0) { ui_text(cx, GY + 26, "屏幕方向 = 竖屏 (PORTRAIT)", -11409298, 13, 1) } else { ui_text(cx, GY + 26, "Orientation = PORTRAIT", -11409298, 13, 1) }
     }
-    ui_text(cx, GY + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", -6643536, 12, 1)
+    if (LANG == 0) { ui_text(cx, GY + 46, "画布按宿主给的尺寸现排（旋转后跟着变）", -6643536, 12, 1) } else { ui_text(cx, GY + 46, "Canvas laid out from the host size (follows rotation)", -6643536, 12, 1) }
 
     // 跟随尺寸的方框：旋转后跟着变宽变矮（这就是"不写死坐标"的证明）
     // A size-following box: on rotation it follows and gets wider and shorter (this is the proof of "no hardcoded coordinates")
     ui_rect(pad, GY + 70, SW - pad * 2, 90, -15066588, 1, 0, 10)
     ui_rect(pad + 6, GY + 76, SW - pad * 2 - 12, 30, -11890471, 1, 0, 6)
-    ui_text(pad + 16, GY + 84, "rect / round-rect（随屏宽伸缩）", -15724520, 12, 0)
+    if (LANG == 0) { ui_text(pad + 16, GY + 84, "rect / round-rect（随屏宽伸缩）", -15724520, 12, 0) } else { ui_text(pad + 16, GY + 84, "rect / round-rect (follows width)", -15724520, 12, 0) }
 
     ui_circle(cx - SW / 6, GY + 140, SW / 12, -2069424, 1, 0)
     ui_ellipse(cx + SW / 6, GY + 140, SW / 9, SW / 18, -2509750, 1, 0)
@@ -119,7 +122,7 @@ fun draw() {
         }
         i = i + 1
     }
-    ui_text(cx, GY + 210, "真彩 0xAARRGGBB（不是索引色）", -6643536, 12, 1)
+    if (LANG == 0) { ui_text(cx, GY + 210, "真彩 0xAARRGGBB（不是索引色）", -6643536, 12, 1) } else { ui_text(cx, GY + 210, "true color 0xAARRGGBB (not indexed)", -6643536, 12, 1) }
 
     // ⚠ 屏上不写数字：Kotlin 侧的 `Int` → `String` 要靠 `+` 拼接，而那个是坏的
     // ⚠ No numbers on screen: on the Kotlin side `Int` → `String` needs `+` concatenation, and that is broken
@@ -127,11 +130,11 @@ fun draw() {
     //   (see the header of demo_std.kt). Progress is expressed here as a **bar length**,
     //   具体数字走 stdout —— 那边 `println(Int)` 是好的。
     //   and the actual numbers go to stdout — `println(Int)` works there.
-    ui_text(pad, GY + 236, "已跑帧数（条形）", -6643536, 12, 0)
+    if (LANG == 0) { ui_text(pad, GY + 236, "已跑帧数（条形）", -6643536, 12, 0) } else { ui_text(pad, GY + 236, "frames drawn (as a bar)", -6643536, 12, 0) }
     ui_rect(pad, GY + 254, SW - pad * 2, 14, -15066588, 1, 0, 4)
     ui_rect(pad, GY + 254, (SW - pad * 2) * gFrames / 60, 14, -11483016, 1, 0, 4)
 
-    ui_text(pad, GY + 278, "按键 / 触摸来了就画一个标记", -6643536, 12, 0)
+    if (LANG == 0) { ui_text(pad, GY + 278, "按键 / 触摸来了就画一个标记", -6643536, 12, 0) } else { ui_text(pad, GY + 278, "a marker is drawn per key / touch", -6643536, 12, 0) }
     if (gKeys > 0) { ui_circle(pad + 20, GY + 306, 14, -2509750, 1, 0) }
     if (gTouches > 0) { ui_circle(pad + 60, GY + 306, 14, -11409298, 1, 0) }
 
@@ -140,12 +143,12 @@ fun draw() {
     if (gTx >= 0) {
         ui_circle(gTx, gTy, 18, -2509750, 0, 2)
         ui_circle(gTx, gTy, 4, -2509750, 1, 0)
-        ui_text(cx, SH - 44, "触摸坐标已经用上了", -2509750, 12, 1)
+        if (LANG == 0) { ui_text(cx, SH - 44, "触摸坐标已经用上了", -2509750, 12, 1) } else { ui_text(cx, SH - 44, "touch coordinates in use", -2509750, 12, 1) }
     } else {
-        ui_text(cx, SH - 44, "点一下屏幕 / 按任意键退出", -6643536, 12, 1)
+        if (LANG == 0) { ui_text(cx, SH - 44, "点一下屏幕 / 按任意键退出", -6643536, 12, 1) } else { ui_text(cx, SH - 44, "Tap anywhere / any key to exit", -6643536, 12, 1) }
     }
 
-    ui_text(cx, SH - 24, "退出：按任意键或点任意处（或等 N 帧到点）", -6643536, 12, 1)
+    if (LANG == 0) { ui_text(cx, SH - 24, "退出：按任意键或点任意处（或等 N 帧到点）", -6643536, 12, 1) } else { ui_text(cx, SH - 24, "Exit: any key or any tap (or wait for N frames)", -6643536, 12, 1) }
 
     ui_present()
 }
@@ -160,6 +163,7 @@ fun main() {
     // ── ① 开窗**之前**就问屏幕方向 ──
     // ── ① Ask the screen orientation **before** opening the window ──
     gOrient = ui_orientation()
+    LANG = ui_get_language()
 
     // 开窗：声明"支持旋转 + 要手柄"（转屏时宿主会把新坐标空间整个给过来）
     // Open window: declare "rotation supported + gamepad wanted" (on rotation the host hands over the whole new coordinate space)

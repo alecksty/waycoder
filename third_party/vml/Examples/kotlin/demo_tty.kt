@@ -117,6 +117,11 @@ fun say(x: Int, y: Int, fg: Int, bg: Int, s: String) {
 
 fun main() {
     var i = 0
+    // 界面语言：开局查一次（`ui_get_language` 是 syscall，别每处都调）
+    // UI language: queried once at start (`ui_get_language` is a syscall, do not call it everywhere)
+    var lang = ui_get_language()
+    // ⚠ 分支写成**单行 `if/else`** —— 本前端没有三元运算符（`cond ? a : b` 会静默错编，见语言规范）
+    // ⚠ Branches are written as a **one-line `if/else`** -- this frontend has no ternary (`cond ? a : b` silently miscompiles, see the language spec)
 
     // ── 1. 初始化 + 清屏 ──
     // ── 1. Init + clear screen ──
@@ -142,12 +147,12 @@ fun main() {
 
     // 面板里的内容：每行一种前景色
     // Panel contents: one foreground color per line
-    say(4, 4,  7,  0, "color  7  lightgray    普通正文")
-    say(4, 5,  11, 0, "color 11  lightcyan    次要信息")
-    say(4, 6,  10, 0, "color 10  lightgreen   ok / 成功")
-    say(4, 7,  14, 0, "color 14  yellow       状态栏高亮")
-    say(4, 8,  12, 0, "color 12  lightred     错误 / 警告")
-    say(4, 9,  13, 0, "color 13  lightmagenta 强调")
+    if (lang == 0) { say(4, 4,  7,  0, "color  7  lightgray    普通正文") } else { say(4, 4,  7,  0, "color  7  lightgray    body text") }
+    if (lang == 0) { say(4, 5,  11, 0, "color 11  lightcyan    次要信息") } else { say(4, 5,  11, 0, "color 11  lightcyan    secondary") }
+    if (lang == 0) { say(4, 6,  10, 0, "color 10  lightgreen   ok / 成功") } else { say(4, 6,  10, 0, "color 10  lightgreen   ok / success") }
+    if (lang == 0) { say(4, 7,  14, 0, "color 14  yellow       状态栏高亮") } else { say(4, 7,  14, 0, "color 14  yellow       status bar") }
+    if (lang == 0) { say(4, 8,  12, 0, "color 12  lightred     错误 / 警告") } else { say(4, 8,  12, 0, "color 12  lightred     error / warn") }
+    if (lang == 0) { say(4, 9,  13, 0, "color 13  lightmagenta 强调") } else { say(4, 9,  13, 0, "color 13  lightmagenta emphasis") }
 
     // 反白一行（"选中项"的长相）：黑字白底
     // Reverse-video one line (what a "selected item" looks like): black on white
@@ -159,8 +164,8 @@ fun main() {
     tty_box(4, 14, 22, 19, 1)              // style 1 = ┌ ─ │ ┐ └ ┘ 单线框
     // style 1 = single-line box ┌ ─ │ ┐ └ ┘
 
-    say(6, 16, 14, 0, "中文也")
-    say(6, 17, 10, 0, "没问题")
+    if (lang == 0) { say(6, 16, 14, 0, "中文也") } else { say(6, 16, 14, 0, "CJK too") }
+    if (lang == 0) { say(6, 17, 10, 0, "没问题") } else { say(6, 17, 10, 0, "works") }
 
     // ── 5. 右侧说明（ASCII，列 26 起）──
     // ── 5. Right-hand notes (ASCII, starting at column 26) ──
@@ -210,7 +215,7 @@ fun main() {
     tty_puts(" tty_* demo done -- no key wait, exits by itself                              ")
     tty_color(8, 0)
     tty_goto(3, 25)
-    tty_puts("demo_tty (Kotlin) 结束 —— 画完即退出")
+    if (lang == 0) { tty_puts("demo_tty (Kotlin) 结束 —— 画完即退出") } else { tty_puts("demo_tty (Kotlin) done -- draws and exits") }
 
     tty_color(7, 0)
 }
