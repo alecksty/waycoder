@@ -40,6 +40,18 @@ public static class L
 
     public static UiLang Current => _isZh ? UiLang.Zh : UiLang.En;
 
+    /// <summary>
+    /// 随包**按语言分开的资源目录名**（目前只有帮助文档用它）：<c>zh</c> / <c>en</c>。
+    ///
+    /// <para>
+    /// 帮助文档是**整篇的长文**，不是一句话 —— 用 <see cref="Pick"/> 把中英塞进同一个字符串
+    /// 既不现实也不可读，所以那一层按语言分目录（<c>Resources/Raw/help/zh/**</c> 与 <c>.../en/**</c>）。
+    /// ⚠ **缺英文时必须显式告警、绝不回退中文** —— 回退会让"漏翻"永远看不见，
+    /// 而用户看到的是"这个 App 一半英文一半中文"。这是 `.resx` 那次栽跟头的同一个教训。
+    /// </para>
+    /// </summary>
+    public static string ResourceLangDir => _isZh ? "zh" : "en";
+
     /// <summary>设定语言（各端入口初始化 / 自测钉住用）。</summary>
     public static void Set(UiLang lang) => _isZh = lang == UiLang.Zh;
 

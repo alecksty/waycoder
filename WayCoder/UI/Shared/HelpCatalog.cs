@@ -45,46 +45,52 @@ public static class HelpCatalog
     /// <param name="Topics">分类下的主题；<b>只有一个主题时点分类直接进正文</b>（少一级点击）。</param>
     public readonly record struct Category(string Key, string Title, string Icon, Topic[] Topics);
 
-    /// <summary>全部目录。**加一篇说明只改这里 + 放一个 .md 文件。**</summary>
-    public static readonly Category[] Categories =
+    /// <summary>全部目录。**加一篇说明只改这里 + 放两个 .md 文件（zh 与 en 各一份）。**</summary>
+    /// <remarks>
+    /// ⚠ **刻意是表达式体属性，不是 `static readonly` 字段**：标题与摘要现在走 <see cref="L.Pick"/>，
+    /// 而 `static readonly` 会把界面语言**冻在类型初始化那一刻**（`Lang.cs` 公理 A3）——
+    /// 那是「今天对、明天错」的形态：谁把首次访问提前，语言就冻死，且只在某些启动顺序下复现。
+    /// 代价是每次访问重建数组 —— 只在列表页与查找时发生，非热路径。
+    /// </remarks>
+    public static Category[] Categories =>
     [
-        new("quickstart", "快速上手", "🚀",
+        new("quickstart", L.Pick("快速上手", "Quick start"), "🚀",
         [
-            new("quickstart", "五步跑起第一个程序", "装完先干什么：钥匙、模型、点「运行」"),
+            new("quickstart", L.Pick("五步跑起第一个程序", "Get your first program running in five steps"), L.Pick("装完先干什么：钥匙、模型、点「运行」", "What to do first: API key, model, then tap Run")),
         ]),
 
-        new("vml", "VML 编译器", "🧩",
+        new("vml", L.Pick("VML 编译器", "VML compiler"), "🧩",
         [
-            new("vml/index", "VML 是什么", "一台跑在手机里的虚拟机，22 种语言都能编"),
-            new("vml/build", "编译与运行", "源码 → .vml → .vmb 三级产物，各管什么"),
-            new("vml/languages", "22 种语言", "每种语言怎么写、怎么跑、有哪些坑"),
-            new("vml/ui", "UI 开发", "开窗、绘图、收输入、出声音 —— 宿主接口全表"),
-            new("vml/errors", "常见错误", "看得懂报错、找得到原因"),
+            new("vml/index", L.Pick("VML 是什么", "What is VML"), L.Pick("一台跑在手机里的虚拟机，22 种语言都能编", "A virtual machine on your phone that compiles 22 languages")),
+            new("vml/build", L.Pick("编译与运行", "Compile and run"), L.Pick("源码 → .vml → .vmb 三级产物，各管什么", "Source → .vml → .vmb: what each artifact is for")),
+            new("vml/languages", L.Pick("22 种语言", "22 languages"), L.Pick("每种语言怎么写、怎么跑、有哪些坑", "How to write, run, and what to watch for in each language")),
+            new("vml/ui", L.Pick("UI 开发", "UI development"), L.Pick("开窗、绘图、收输入、出声音 —— 宿主接口全表", "Windows, drawing, input, sound — the full host API")),
+            new("vml/errors", L.Pick("常见错误", "Common errors"), L.Pick("看得懂报错、找得到原因", "Read an error message and find its cause")),
         ]),
 
-        new("editor", "编辑器", "✏️",
+        new("editor", L.Pick("编辑器", "Editor"), "✏️",
         [
-            new("editor/basic", "基本操作", "只读与编辑、保存、字号、全屏"),
-            new("editor/edit", "编辑与查找替换", "多行输入、撤销、查找、替换、辅助输入条"),
-            new("editor/run", "编译运行与诊断", "边写边跑，错误画在出错那一格上"),
+            new("editor/basic", L.Pick("基本操作", "Basics"), L.Pick("只读与编辑、保存、字号、全屏", "Read-only vs. edit, saving, font size, fullscreen")),
+            new("editor/edit", L.Pick("编辑与查找替换", "Editing, find and replace"), L.Pick("多行输入、撤销、查找、替换、辅助输入条", "Multi-line input, undo, find, replace, the assist bar")),
+            new("editor/run", L.Pick("编译运行与诊断", "Compile, run, and diagnostics"), L.Pick("边写边跑，错误画在出错那一格上", "Run as you type; errors are drawn on the offending cell")),
         ]),
 
-        new("cli", "命令行", "💻",
+        new("cli", L.Pick("命令行", "Shell"), "💻",
         [
-            new("cli/shell", "命令行页", "真 shell，`cd` 会改工作目录"),
-            new("cli/vml", "vml 命令", "vml run / vml make / vml test，扩展名自动识别"),
+            new("cli/shell", L.Pick("命令行页", "The Shell page"), L.Pick("真 shell，`cd` 会改工作目录", "A real shell; `cd` changes the working directory")),
+            new("cli/vml", L.Pick("vml 命令", "The vml command"), L.Pick("vml run / vml make / vml test，扩展名自动识别", "vml run / vml make / vml test, with automatic extension detection")),
         ]),
 
-        new("files", "文件与会话", "📁",
+        new("files", L.Pick("文件与会话", "Files and sessions"), "📁",
         [
-            new("files/browse", "文件管理", "导入、打开、改名、编译运行"),
-            new("files/sessions", "会话与记忆", "继续上次的对话、多会话、槽位"),
+            new("files/browse", L.Pick("文件管理", "File management"), L.Pick("导入、打开、改名、编译运行", "Import, open, rename, compile, run")),
+            new("files/sessions", L.Pick("会话与记忆", "Sessions and memory"), L.Pick("继续上次的对话、多会话、槽位", "Resume the last conversation, multiple sessions, slots")),
         ]),
 
-        new("settings", "设置与模型", "⚙️",
+        new("settings", L.Pick("设置与模型", "Settings and models"), "⚙️",
         [
-            new("settings/model", "服务商与模型", "填 Key、选模型、大模型与小模型分工"),
-            new("settings/permission", "权限与工作模式", "Ask/Auto/Yolo、建造/计划/聊天"),
+            new("settings/model", L.Pick("服务商与模型", "Providers and models"), L.Pick("填 Key、选模型、大模型与小模型分工", "Enter a key, pick models, split work between the main and small model")),
+            new("settings/permission", L.Pick("权限与工作模式", "Permissions and work modes"), L.Pick("Ask/Auto/Yolo、建造/计划/聊天", "Ask/Auto/Yolo, Build/Plan/Chat")),
         ]),
     ];
 
@@ -128,7 +134,15 @@ public static class HelpCatalog
         return null;
     }
 
-    /// <summary>这篇说明的随包路径。</summary>
-    public static string AssetPath(string id) => $"help/{id}.md";
+    /// <summary>
+    /// 这篇说明的随包路径 —— **按界面语言分目录**（`help/zh/…` / `help/en/…`）。
+    ///
+    /// <para>
+    /// 帮助文档是**整篇长文**，不像一句话那样能中英塞进同一个字符串，所以这一层按语言分目录。
+    /// ⚠ 调用方（<c>HelpPage</c>）**必须在英文版缺失时显式报警、绝不回退中文** ——
+    /// 回退会让"漏翻"永远看不见，用户看到的是"这个 App 一半英文一半中文"。
+    /// </para>
+    /// </summary>
+    public static string AssetPath(string id) => $"help/{L.ResourceLangDir}/{id}.md";
 
 }

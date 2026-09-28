@@ -846,7 +846,11 @@ public static partial class SelfTest
             helpRoot != null);
         if (helpRoot != null)
         {
-            var root = helpRoot;   // 收成非空局部量：局部函数里捕获可空变量会丢掉可空分析
+            // 帮助文档**按语言分目录**（`help/zh/**` 与 `help/en/**`）—— 整篇长文塞不进一个
+            // 字符串字面量，所以这一层不像别处那样用 `L.Pick`。中文那份是既有内容的契约，
+            // 下面那批结构判据（id 不重、无孤儿、无坏链）跑在它上面；英文那份另有一组「齐备」判据。
+            var root = Path.Combine(helpRoot, "zh");
+            var enRoot = Path.Combine(helpRoot, "en");   // 收成非空局部量：局部函数里捕获可空变量会丢掉可空分析
             var missing = new List<string>();
             var ids = new List<string>();
             var dupCat = new List<string>();
@@ -883,8 +887,12 @@ public static partial class SelfTest
             }
 
             // 反方向：包里有、目录里没有 = 写了没人看得到
-            var onDisk = Directory.GetFiles(helpRoot, "*.md", SearchOption.AllDirectories)
-                .Select(f => Path.GetRelativePath(helpRoot, f).Replace('\\', '/'))
+            // ⚠ 必须按 `root`（= help/zh）取，**不是 `helpRoot`** —— 按 helpRoot 取出来的 id 是
+            //   `zh/vml/ui/draw` 这种带语言前缀的，而下面的目录 id、`help:` 链接目标、`enOnDisk`
+            //   全是**裸 id**（`vml/ui/draw`）⇒ 两个集合**永不相交**，108 篇全被误判成孤儿/坏链。
+            //   这是加"按语言分目录"时漏改的一处（改 `root` 时把它漏了），实测由子智能体抓到。
+            var onDisk = Directory.GetFiles(root, "*.md", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/'))
                 .Select(f => f[..^3])
                 .ToHashSet();
             // 「能不能被看到」有**两条**路：在目录表里（关于页点得到），
@@ -906,6 +914,69 @@ public static partial class SelfTest
             var deadLinks = linked.Where(id => !onDisk.Contains(id)).ToList();
             Check($"使用说明: 正文里 help: 链接的目标都存在（坏链 {deadLinks.Count}：{string.Join("/", deadLinks)}）",
                 deadLinks.Count == 0);
+
+            // ── 英文版必须**齐备**（缺一篇 = 英文界面下那一页空白 或 混进中文）──────────────
+            // ⚠ 判据是「**一一对应**」而不是「有几篇英文」：少一篇的后果在英文界面上是
+            //   "点进去一片空白"，或者更糟 —— 有人图省事让它回退中文，于是用户看到的是
+            //   "这个 App 一半英文一半中文"，而**漏翻永远没人发现**（`.resx` 那次的同一个教训）。
+            var enMissing = new List<string>();
+            var enHasCjk = new List<string>();
+            if (!Directory.Exists(enRoot))
+            {
+                enMissing.Add("(整个 help/en 目录都不存在)");
+            }
+            else
+            {
+                var enOnDisk = Directory.GetFiles(enRoot, "*.md", SearchOption.AllDirectories)
+                    .Select(f => Path.GetRelativePath(enRoot, f).Replace('\\', '/'))
+                    .Select(f => f[..^3])
+                    .ToHashSet(StringComparer.Ordinal);
+                foreach (var id in onDisk)
+                    if (!enOnDisk.Contains(id)) enMissing.Add(id);
+
+                // 英文正文里不该出现中日韩字符。**三类例外**，每一类都是被真实内容逼出来的：
+                //   ① **围栏代码块内** —— 示例代码可能带中文注释，属可接受；
+                //   ② **行内代码 `` `…` ``** —— 真实文件名与标识符可能是非 ASCII
+                //      （实测：正文引用了仓库里的 `docs/VML工程文件.md`，那是它**真的叫这个名字**，
+                //       删掉或改写都会让读者找不到那个文件）；
+                //   ③ 缩进代码块。
+                // ⚠ 判据太粗的代价不是误报一条，而是**下一个人开始无视它** —— 所以例外要写全。
+                foreach (var id in enOnDisk)
+                {
+                    var text = File.ReadAllText(Path.Combine(enRoot, id + ".md"));
+                    var inFence = false;
+                    foreach (var line in text.Split('\n'))
+                    {
+                        var t = line.TrimEnd('\r');
+                        if (t.TrimStart().StartsWith("```", StringComparison.Ordinal)) { inFence = !inFence; continue; }
+                        if (inFence || t.StartsWith("    ", StringComparison.Ordinal)) continue;
+                        // 去掉行内代码后再判
+                        var prose = System.Text.RegularExpressions.Regex.Replace(t, "`[^`]*`", "");
+                        if (HasCjk(prose))
+                        {
+                            enHasCjk.Add($"{id}: {prose.Trim()[..Math.Min(50, prose.Trim().Length)]}");
+                            break;
+                        }
+                    }
+                }
+            }
+            Check($"使用说明: 每一篇中文都有对应的英文（缺 {enMissing.Count} 篇）："
+                + $"英文界面下缺的那页要么空白、要么混中文，两种都不能接受 —— {string.Join(" / ", enMissing.Take(8))}",
+                enMissing.Count == 0);
+            Check($"使用说明: 英文正文里没有中日韩字符（代码块除外）（{enHasCjk.Count} 篇命中）"
+                + (enHasCjk.Count > 0 ? "：" + string.Join(" / ", enHasCjk.Take(5)) : ""),
+                enHasCjk.Count == 0);
+
+            // AssetPath 要真的按当前语言取目录 —— 这条钉的是"改了 Lang 却没改路径"这类断裂
+            var savedLangDir = L.Current;
+            try
+            {
+                L.Set(UiLang.Zh);
+                Check("使用说明[zh]: AssetPath 落在 help/zh/", HelpCatalog.AssetPath("quickstart") == "help/zh/quickstart.md");
+                L.Set(UiLang.En);
+                Check("使用说明[en]: AssetPath 落在 help/en/", HelpCatalog.AssetPath("quickstart") == "help/en/quickstart.md");
+            }
+            finally { L.Set(savedLangDir); }
 
             // ── 全局护栏：CollectionView 想收点击就必须显式写 SelectionMode ──
             // MAUI 的默认值是 `None`，而 `None` 下 `SelectionChanged` **一次都不会触发** ——
