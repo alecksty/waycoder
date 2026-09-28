@@ -36,10 +36,12 @@ public class GitTool : ITool, ICancellableTool
     {
         // 安全检查 1：命令注入拦截 —— git -c/--config 可设 alias.*='!cmd'、core.pager、core.sshCommand
         // 等，使 git 内部经 shell 执行任意命令（完全绕过 BashGuard 与权限确认）。
-        // ⚠ 拦截文案的两条 `L.Pick` **不要**顺手往 ToolResultClassifier.AbortMarkers 里加
-        //   `⚠ Blocked`：中文支 `⚠ 已阻止` 命中 AbortMarker，而两条英文支 `⚠ Blocked:` 不命中 ——
-        //   但**两边的 IsError 都是 false**（`⚠` 不在 ErrorMarkers 里），所以 Agent 识别行为逐位不变。
-        //   补上 `⚠ Blocked` 反而会让英文界面下的中止判定与中文界面不一致。
+        // ⚠ 拦截文案的英文支是 `⚠ Blocked:`，它**已**在 ToolResultClassifier.AbortMarkers 里
+        //   （v0.96.566 补上）。此处原先写着「不要加 `⚠ Blocked`」，理由是"两边的 IsError 都是 false
+        //   （`⚠` 不在 ErrorMarkers 里），补上反而让英文的中止判定与中文不一致" —— **那个推理是反的**：
+        //   中文支 `⚠ 已阻止` 命中 AbortMarker、英文支 `⚠ Blocked:` 不命中，这本身就是中英不一致
+        //   （`IsAbort` 是 public 判据）。补上它不动任何 Agent 行为（两条路径的 IsError 都是 false），
+        //   只是让两种语言的答案一致。改这两句文案时，记得同步那张表。
         if (HasDangerousGitArgs(command))
             return L.Pick("⚠ 已阻止：git 配置注入（-c/--config/--upload-pack/--receive-pack/--exec 可执行任意命令），请勿使用这些参数。",
                           "⚠ Blocked: git config injection (-c/--config/--upload-pack/--receive-pack/--exec can run arbitrary commands). Do not use these parameters.");

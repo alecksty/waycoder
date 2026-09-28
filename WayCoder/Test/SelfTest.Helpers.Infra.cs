@@ -547,6 +547,17 @@ public static partial class SelfTest
         Check("Cls[en]: blocked by hook", ToolResultClassifier.IsAbort("Blocked by hook: policy"));
         Check("Cls[en]: sandbox blocked 小写变体", ToolResultClassifier.IsAbort("⛔ sandbox blocked"));
 
+        // ⚠ `⚠ Blocked` 是 `⚠ 已阻止` 的英文孪生（生产者 Infra/BashGuard.cs、Tools/GitTool.cs）。
+        //   本仓曾在 GitTool 的注释里写下「**不要**把它加进 AbortMarkers」，理由是"两边的 IsError
+        //   都是 false、补上会让英文的中止判定与中文不一致" —— 那个推理是反的：不加的时候
+        //   中文 `IsAbort` 为真、英文为假，**那才是不一致**（`IsAbort` 是 public 判据）。
+        //   这一对断言把两种语言的答案钉成同一个（两侧都判中止、都判非错误）。
+        Check("Cls: ⚠ 已阻止是中止", ToolResultClassifier.IsAbort("⚠ 已阻止：强制递归删除"));
+        Check("Cls[en]: ⚠ Blocked 也是中止（与中文同答案）",
+            ToolResultClassifier.IsAbort("⚠ Blocked: dangerous git operation detected"));
+        Check("Cls[en]: ⚠ Blocked 非错误", !ToolResultClassifier.IsError("⚠ Blocked: dangerous git operation detected"));
+        Check("Cls[en]: ⚠ blocked 大小写变体也认", ToolResultClassifier.IsAbort("⚠ blocked by policy"));
+
         // ── 生产者 ↔ 分类器一致性 ──
         // 这条专防「改了 ToolErrors 的前缀却忘了同步标记表」：那会让 Agent 的自恢复
         // 注入静默失效，而**没有任何报错**。两侧引用同一份事实，这里把它钉住。

@@ -41,6 +41,15 @@ public class Syntax
     /// <summary>Markdown 语言的名字（<see cref="Markdown"/>）—— 散文，不做代码类改写。</summary>
     public const string MarkdownName = "Markdown";
 
+    /// <summary>JSON 语言的名字（<see cref="Json"/>）—— 字符串里不做转义高亮。</summary>
+    public const string JsonName = "JSON";
+
+    /// <summary>XML/HTML 语言的名字（<see cref="Xml"/>）—— 标签高亮要认它。</summary>
+    public const string XmlHtmlName = "XML/HTML";
+
+    /// <summary>CSS 语言的名字（<see cref="Css"/>）—— 属性名含连字符（font-size）要认它。</summary>
+    public const string CssName = "CSS";
+
     // ── 代码配色（256 色，对标 One Dark / Crush(glamour) 的暗色主题）──
     // 语义名优先：调色只动这一处，调用点按「这是什么」引用，不再出现「Cyan 其实是紫色」这种名不符实。
     // 之前用标准 16 色（青/绿/黄/品红），在暗色终端里刺眼且层次差；256 色能取到柔和的中间调。
@@ -253,7 +262,7 @@ public class Syntax
             }
 
             // XML/HTML 标签 <tag ...>
-            if (Name == "XML/HTML" && line[i] == '<')
+            if (Name == XmlHtmlName && line[i] == '<')
             {
                 var end = line.IndexOf('>', i);
                 if (end < 0) { tokens.Add((line[i..], Type)); i = line.Length; }
@@ -262,7 +271,7 @@ public class Syntax
             }
 
             // JSON 键名（字符串后紧跟冒号）→ 紫色，区别于值
-            if (Name == "JSON" && line[i] == '"')
+            if (Name == JsonName && line[i] == '"')
             {
                 var end = FindStringEnd(line, i, '"');
                 if (end < 0) end = line.Length - 1;
@@ -358,7 +367,7 @@ public class Syntax
             if (char.IsLetter(line[i]) || line[i] == '_')
             {
                 var start = i;
-                bool allowDash = Name == "CSS"; // CSS 属性名含连字符（font-size）
+                bool allowDash = Name == CssName; // CSS 属性名含连字符（font-size）
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || (allowDash && line[i] == '-')))
                     i++;
                 var word = line[start..i];
@@ -525,13 +534,13 @@ public class Syntax
 
     private static Syntax Json() => new()
     {
-        Name = "JSON",
+        Name = JsonName,
         Keywords = ["true", "false", "null"],
     };
 
     private static Syntax Xml() => new()
     {
-        Name = "XML/HTML",
+        Name = XmlHtmlName,
         Keywords = [],
     };
 
@@ -605,7 +614,7 @@ public class Syntax
 
     private static Syntax Css() => new()
     {
-        Name = "CSS",
+        Name = CssName,
         Keywords = [
             // 属性
             "color","background","border","margin","padding","width","height","display",

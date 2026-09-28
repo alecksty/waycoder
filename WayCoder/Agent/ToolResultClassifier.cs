@@ -41,6 +41,13 @@ public static class ToolResultClassifier
         // 英文
         "Cancelled by user", "Canceled by user", "User cancelled", "User canceled",
         "Blocked by hook", "Blocked by sandbox", "⛔ Sandbox blocked",
+        // ⚠ `⚠ Blocked` 是 `⚠ 已阻止` 的英文孪生（生产者 Infra/BashGuard.cs 与 Tools/GitTool.cs）。
+        //   此前这张表**只有中文那一条** ⇒ 中文的 `⚠ 已阻止：…` 判成中止、英文的 `⚠ Blocked: …` 判不成，
+        //   两种语言下 `IsAbort` 结果不同 —— 那才是不一致。
+        //   （`IsAbort` 的当前唯一生产消费者是 `IsError`，而两者的 `IsError` 都是 false，
+        //    所以补这一条**不改变任何 Agent 行为**；但 `IsAbort` 是 public API，
+        //    留着一个"英文下答错"的公开判据迟早会被别处用上。）
+        "⚠ Blocked",
     ];
 
     /// <summary>结果是否为「用户取消/权限拒绝/安全阻止」类中止（非错误）。</summary>

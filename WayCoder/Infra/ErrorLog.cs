@@ -403,8 +403,12 @@ public static class ErrorLog
             || ex.StackTrace?.Contains("System.Console") == true
             || ex.StackTrace?.Contains("System.IO.FileSystemWatcher") == true
             || ex.StackTrace?.Contains("FileSystemEnumerator") == true
+            // ⚠ 框架自己抛的异常消息**跟的是操作系统语言**，不跟 `L.IsZh` —— 所以这里两条都要在，
+            //   而且**英文那条必须大小写不敏感**：.NET 在英文 Windows 上给的是 `Broken pipe`
+            //   （首字母大写），照 `"broken pipe"` 精确匹配会一直漏判、把正常退出记成异常
+            //   （此前就只写了小写形态 ⇒ 英文系统上这条判据形同虚设）。
             || ex.Message?.Contains("断开的管道") == true
-            || ex.Message?.Contains("broken pipe") == true
+            || ex.Message?.Contains("broken pipe", StringComparison.OrdinalIgnoreCase) == true
             || ex.Message?.Contains("Access to the path") == true
             || ex.Message?.Contains("Access is denied") == true;
     }
