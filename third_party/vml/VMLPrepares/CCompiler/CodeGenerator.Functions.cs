@@ -150,8 +150,9 @@ namespace CCompiler
                 if (!func.IsStatic) continue;                                        // 外部可访问 ⇒ 不报
                 // 行号用函数自己的（`Parser` 在函数名 token 上盖的）—— 这个清理段跑在生成之后、
                 // `CurrentSourceLine` 停在最后一条语句，用它会把警告指到**毫不相干的一行**上。
-                WarnUnused(func.Name, ErrorCode.CodeGen_UnusedFunction, "函数", line: func.Line, col: func.Column,
-                    hint: "它是 static 的（外部访问不到）却没在本文件里用过，不会被编进产物；删掉即可。");
+                WarnUnused(func.Name, ErrorCode.CodeGen_UnusedFunction, VmlLang.DiagKind.Function, line: func.Line, col: func.Column,
+                    hint: VmlLang.Pick("它是 static 的（外部访问不到）却没在本文件里用过，不会被编进产物；删掉即可。",
+                                       "it is static (not reachable from outside) and unused in this file, so it will not be compiled in; just delete it."));
             }
 
             // 处理全局变量
@@ -801,8 +802,9 @@ namespace CCompiler
                 if (_localRefs.Contains(kv.Key)) continue;
                 // 行号是声明处自己带下来的（`CountLocalVariablesEx` 记的）——
                 // 不能借用 `CurrentSourceLine`：这里已经跑在函数末尾，游标早就不在声明处了。
-                WarnUnused(kv.Key, ErrorCode.CodeGen_UnusedVariable, "局部变量", line: kv.Value,
-                    hint: "它在整个函数体里一次都没被用到，删掉即可。");
+                WarnUnused(kv.Key, ErrorCode.CodeGen_UnusedVariable, VmlLang.DiagKind.LocalVariable, line: kv.Value,
+                    hint: VmlLang.Pick("它在整个函数体里一次都没被用到，删掉即可。",
+                                       "it is never used anywhere in the function body; just delete it."));
             }
         }
 

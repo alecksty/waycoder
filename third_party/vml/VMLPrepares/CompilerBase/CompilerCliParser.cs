@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using VMLPlugins;
+using VMLAssembler;
 
 namespace CompilerBase
 {
@@ -68,7 +69,7 @@ namespace CompilerBase
                         if (!args[i].StartsWith("-"))
                             result.SourceFiles.Add(args[i]);
                         else
-                            Console.WriteLine($"警告: 未知参数: {args[i]}");
+                            Console.WriteLine(VmlLang.Pick($"警告: 未知参数: {args[i]}", $"warning: unknown argument: {args[i]}"));
                         break;
                 }
             }
@@ -87,13 +88,13 @@ namespace CompilerBase
         /// <summary>打印所有编译器共享的帮助选项</summary>
         public static void PrintCommonUsage()
         {
-            Console.WriteLine("  -I <path>      添加源码搜索路径");
-            Console.WriteLine("  -L <path>      添加VML库文件搜索路径");
-            Console.WriteLine("  -o <file>      指定输出文件名");
-            Console.WriteLine("  --timeout <s>  设置编译超时秒数");
-            Console.WriteLine("  --target mcu|os       编译目标模式（mcu=跳过OS特性，默认; os=全部特性）");
-            Console.WriteLine("  --ram k|m|g           内存级别（k=KB, m=MB默认, g=GB）");
-            Console.WriteLine("  --stack-size <bytes>  手动指定栈大小（默认自动根据--ram分配）");
+            Console.WriteLine(VmlLang.Pick("  -I <path>      添加源码搜索路径", "  -I <path>      add source search path"));
+            Console.WriteLine(VmlLang.Pick("  -L <path>      添加VML库文件搜索路径", "  -L <path>      add VML library search path"));
+            Console.WriteLine(VmlLang.Pick("  -o <file>      指定输出文件名", "  -o <file>      specify output file name"));
+            Console.WriteLine(VmlLang.Pick("  --timeout <s>  设置编译超时秒数", "  --timeout <s>  set compile timeout in seconds"));
+            Console.WriteLine(VmlLang.Pick("  --target mcu|os       编译目标模式（mcu=跳过OS特性，默认; os=全部特性）", "  --target mcu|os       compile target mode (mcu=skip OS features, default; os=all features)"));
+            Console.WriteLine(VmlLang.Pick("  --ram k|m|g           内存级别（k=KB, m=MB默认, g=GB）", "  --ram k|m|g           memory level (k=KB, m=MB default, g=GB)"));
+            Console.WriteLine(VmlLang.Pick("  --stack-size <bytes>  手动指定栈大小（默认自动根据--ram分配）", "  --stack-size <bytes>  manually specify stack size (default: auto-allocated from --ram)"));
         }
 
         /// <summary>带超时的异步编译（泛型版本）</summary>
@@ -112,7 +113,7 @@ namespace CompilerBase
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine($"错误: 编译超时 ({timeoutSeconds}秒)");
+                    Console.WriteLine(VmlLang.Pick($"错误: 编译超时 ({timeoutSeconds}秒)", $"error: compile timed out after {timeoutSeconds}s"));
                     return default;
                 }
             }

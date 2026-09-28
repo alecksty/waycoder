@@ -1,4 +1,5 @@
 using VMLAssembler;
+using CompilerBase;
 
 namespace VMLPlugins;
 
@@ -97,7 +98,7 @@ public class RegisterManager
             return reg;
         }
         // 浮点寄存器池空时抛出（未来可加溢出）
-        throw new InvalidOperationException("浮点寄存器池已空 (F0-F15 全部在用)");
+        throw new InvalidOperationException(VmlLang.Pick("浮点寄存器池已空 (F0-F15 全部在用)", "floating-point register pool exhausted (all of F0-F15 are in use)"));
     }
 
     public void FreeFloat(int reg, List<Instruction> instructions)
@@ -121,7 +122,7 @@ public class RegisterManager
             _freeDouble.RemoveAt(0);
             return reg;
         }
-        throw new InvalidOperationException("双精度寄存器池已空 (D0-D7 全部在用)");
+        throw new InvalidOperationException(VmlLang.Pick("双精度寄存器池已空 (D0-D7 全部在用)", "double register pool exhausted (all of D0-D7 are in use)"));
     }
 
     public void FreeDouble(int reg, List<Instruction> instructions)
@@ -200,7 +201,7 @@ public class RegisterManager
     private int SpillOldestInt(List<Instruction> instructions)
     {
         if (_spillStack.Count == 0)
-            throw new InvalidOperationException("整数寄存器池已空且无活跃寄存器可溢出");
+            throw new InvalidOperationException(VmlLang.Pick("整数寄存器池已空且无活跃寄存器可溢出", "integer register pool exhausted and no live register can be spilled"));
 
         var all = _spillStack.ToArray();
         int oldest = all[^1];

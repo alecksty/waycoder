@@ -151,11 +151,13 @@ public partial class CodeGenerator
             if (!dataSection.ContainsKey(dataLabel))
             {
                 if (StrictDeclarations)
-                    ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                 else
-                    WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量",
-                        "Fortran 默认按首字母隐式定型（i-n 为 integer、其余 real）；"
-                        + "要让这类引用直接报错，请在程序开头写 `implicit none`。");
+                    WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable,
+                        VmlLang.Pick("Fortran 默认按首字母隐式定型（i-n 为 integer、其余 real）；"
+                                     + "要让这类引用直接报错，请在程序开头写 `implicit none`。",
+                                     "Fortran implicitly types names by first letter (i-n are integer, the rest real); "
+                                     + "to make such references a hard error, write `implicit none` at the top of the program."));
                 dataSection[dataLabel] = 0;
             }
 

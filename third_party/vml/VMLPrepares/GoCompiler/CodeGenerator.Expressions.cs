@@ -42,7 +42,7 @@ namespace GoCompiler
                 // 既不建槽也不报错，引用的是一个可能根本不存在的标签：
                 // `x := 1; y := x + nosuch` 编得过，运行期读到的值取决于汇编器/内存残值
                 //（连"确定的 0"都不是），用户要等到运行才发现。
-                ReportUndefined(ident.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                ReportUndefined(ident.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                 EmitUndefinedFallback();
             }
         }

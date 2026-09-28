@@ -468,7 +468,7 @@ namespace SwiftCompiler
                     // 此前这里「假设变量在数据段中」顺手建个初值 0 的槽 —— 于是
                     // `let a = 1; let b = a + nosuch` 编得过、运行期静静按 0 算出个错答案
                     //（用户原话：「明明有无效标识，非要等到运行才报错」）。
-                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                     EmitUndefinedFallback();
                     return;
                 }

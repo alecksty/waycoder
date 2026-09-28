@@ -61,7 +61,7 @@ public static class L
     /// <para>
     /// 语言要传到编译器，得由**真正调编译器的那两个宿主**各自注入
     /// （手机端 `WayCoder.Maui/Services/MauiVml.cs`、桌面 `scripts/vmlcli`）——
-    /// 它们才引用 `VMLPrepares`。见 <c>CompilerBase.VmlLang</c> 的注释。
+    /// 它们才引用 `VMLAssembler`。见 <c>VMLAssembler.VmlLang</c> 的注释。
     /// </para>
     /// </remarks>
     public static void Set(UiLang lang) => _isZh = lang == UiLang.Zh;

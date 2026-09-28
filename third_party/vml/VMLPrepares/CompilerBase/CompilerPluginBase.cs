@@ -18,17 +18,17 @@ namespace CompilerBase
 
         /// <summary>智能格式化: 如果消息已是 GCC 风格 (file:line:col: level: msg), 不添加前缀</summary>
         private static string FormatMessage(string name, string msg) =>
-            IsGccFormat(msg) ? msg : $"{name}错误: {msg}";
+            IsGccFormat(msg) ? msg : VmlLang.Pick($"{name}错误: {msg}", $"{name} error: {msg}");
 
         /// <summary>检测消息是否已使用 GCC 格式 (file:line:col: level: msg)</summary>
         public static bool IsGccFormat(string msg) =>
-            msg.Contains(": error:") || msg.Contains(": warning:") || msg.Contains(": note:") || msg.Contains(" 个错误。") || msg.Contains(" 个警告。");
+            msg.Contains(": error:") || msg.Contains(": warning:") || msg.Contains(": note:") || msg.Contains(VmlLang.Pick(" 个错误。", " error(s).")) || msg.Contains(VmlLang.Pick(" 个警告。", " warning(s)."));
     }
 
     public class CompileFailedException : CompilerException
     {
         public CompileFailedException(string compilerName)
-            : base(compilerName, ErrorCode.Compilation_InternalError, "编译失败") { }
+            : base(compilerName, ErrorCode.Compilation_InternalError, VmlLang.Pick("编译失败", "compilation failed")) { }
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ namespace CompilerBase
                 WarningEmitter.Clear();
                 var opts = Config.ToCompilerOptions();
                 if (opts.DebugMode)
-                    System.Diagnostics.Debug.WriteLine($"[{Name}] 调试模式已启用");
+                    System.Diagnostics.Debug.WriteLine(VmlLang.Pick($"[{Name}] 调试模式已启用", $"[{Name}] debug mode enabled"));
 
                 // 注入 -D/-U 宏定义（语言适配的常量声明）
                 string processed = CompilerHelper.InjectDefines(source, LibDirectory.ToLower(), opts);
@@ -76,13 +76,13 @@ namespace CompilerBase
 
                 if (opts.WarningLevel > 0 && WarningEmitter.Count > 0)
                     if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
-                        Console.WriteLine($"[{Name}] {WarningEmitter.Count} 个警告");
+                        Console.WriteLine(VmlLang.Pick($"[{Name}] {WarningEmitter.Count} 个警告", $"[{Name}] {WarningEmitter.Count} warnings"));
 
                 return program;
             }
             catch (CompileFailedException) { throw; }
-            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : $"语法错误: {ex.Message}"); }
-            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : $"代码生成错误: {ex.Message}"); }
+            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : VmlLang.Pick($"语法错误: {ex.Message}", $"syntax error: {ex.Message}")); }
+            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : VmlLang.Pick($"代码生成错误: {ex.Message}", $"code generation error: {ex.Message}")); }
             catch (CompilationException ex) { throw new CompilerException(Name, ex.Code, ex.Message); }
             // 链接期「用户代码调用了不存在的函数」——**用户源码的错**，不是内部故障。
             // 必须排在下面的 `catch (Exception)` 之前，否则会被标成 `Compilation_InternalError`
@@ -112,7 +112,7 @@ namespace CompilerBase
             {
                 SyncToContext();
                 if (!File.Exists(filePath))
-                    throw new FileNotFoundException($"文件不存在: {filePath}");
+                    throw new FileNotFoundException(VmlLang.Pick($"文件不存在: {filePath}", $"file not found: {filePath}"));
 
                 string sourceCode = File.ReadAllText(filePath, System.Text.Encoding.UTF8);
                 // InjectDefines already done by CCompiler.CompileFile internally
@@ -170,8 +170,8 @@ namespace CompilerBase
                 return program;
             }
             catch (CompilerException) { throw; }
-            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, $"语法错误: {ex.Message}"); }
-            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, $"代码生成错误: {ex.Message}"); }
+            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, VmlLang.Pick($"语法错误: {ex.Message}", $"syntax error: {ex.Message}")); }
+            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, VmlLang.Pick($"代码生成错误: {ex.Message}", $"code generation error: {ex.Message}")); }
             catch (CompilationException ex) { throw new CompilerException(Name, ex.Code, ex.Message); }
             catch (Exception ex)
             {
@@ -185,7 +185,7 @@ namespace CompilerBase
             {
                 SyncToContext();
                 if (!File.Exists(filePath))
-                    throw new FileNotFoundException($"文件不存在: {filePath}");
+                    throw new FileNotFoundException(VmlLang.Pick($"文件不存在: {filePath}", $"file not found: {filePath}"));
 
                 string sourceCode = File.ReadAllText(filePath, System.Text.Encoding.UTF8);
                 string sourceDir = Path.GetDirectoryName(Path.GetFullPath(filePath));
@@ -215,8 +215,8 @@ namespace CompilerBase
                     mainProgram, filePath, allLibraryPaths, autoLinkStdLib, useSharedLibrary, LibDirectory);
             }
             catch (CompilerException) { throw; }
-            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, $"语法错误: {ex.Message}"); }
-            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, $"代码生成错误: {ex.Message}"); }
+            catch (ParseException ex) { throw new CompilerException(Name, ex.Code, VmlLang.Pick($"语法错误: {ex.Message}", $"syntax error: {ex.Message}")); }
+            catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, VmlLang.Pick($"代码生成错误: {ex.Message}", $"code generation error: {ex.Message}")); }
             catch (CompilationException ex) { throw new CompilerException(Name, ex.Code, ex.Message); }
             catch (Exception ex)
             {

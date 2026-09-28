@@ -629,11 +629,13 @@ namespace BasicCompiler
                 if (!declaration && (currentLocalVars == null || !currentLocalVars.ContainsKey(name)))
                 {
                     if (StrictDeclarations)
-                        ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                        ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                     else
-                        WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量",
-                            "QBasic 默认「未声明即隐式全局」(值为 0)；"
-                            + "要让这类引用直接报错，请在程序开头写 `OPTION EXPLICIT`。");
+                        WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable,
+                            VmlLang.Pick("QBasic 默认「未声明即隐式全局」(值为 0)；"
+                                         + "要让这类引用直接报错，请在程序开头写 `OPTION EXPLICIT`。",
+                                         "QBasic treats an undeclared name as an implicit global (initial value 0); "
+                                         + "to make such references a hard error, write `OPTION EXPLICIT` at the top of the program."));
                 }
 
                 variables[name] = variableCount;

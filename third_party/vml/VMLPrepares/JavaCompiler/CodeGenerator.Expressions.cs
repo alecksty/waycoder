@@ -279,7 +279,7 @@ namespace JavaCompiler
                     //   Java 这条至今没改。它只影响**真正声明过的全局变量**的读取，
                     //   而 `Examples/java/` 三个例子都只有 `static native` 方法、没有静态字段，
                     //   所以没有用例能验证这次改动 —— 按「没验证就不改」留作待办。
-                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                     EmitUndefinedFallback();
                     return;
                 }

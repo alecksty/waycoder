@@ -35,6 +35,13 @@ internal static class Program
         // ⚠ 必须在最前面：`HOST_LANG`(#568) 回的就是 `L.IsZh`，晚于第一次探测的话，
         //   本次会话里第一个 VML 程序问到的会是默认值（中文）。
         L.DetectFromSystem();
+        // ⚠ 同时推给 VML 编译器 —— 它的**诊断文案**（`未声明的变量 'x'` + 解释行）也是
+        //   用户可见的（手机上编译失败时那些字就打在气泡里），得跟着系统语言一起切。
+        //   `VmlLang` 的注入点（在 `third_party/vml/VMLAssembler` 里 —— 放最底层是因为**链接器**
+        //   也要用它，而依赖方向是 `VMLPrepares → VMLAssembler`，放上面那层链接器引不到；
+        //   那份注释解释了为什么不能反过来让它读 `L`：依赖是单向的）。
+        //   与 `MauiLang.Initialize` 里那一行是**同一个动作**，各有各的宿主。
+        VMLAssembler.VmlLang.Set(L.IsZh);
         CliOptions opt;
         try
         {

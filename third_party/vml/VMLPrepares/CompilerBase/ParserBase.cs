@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CompilerBase
 {
@@ -48,7 +49,8 @@ namespace CompilerBase
                         // 面向用户的一条就够（定位靠位置与"请报告这段输入"）。
                         // 要拿**调用栈**诊断时，在下面临时加 `+ Environment.NewLine + Environment.StackTrace`
                         // —— 注意**不能**在这里读 `Cur`：会再触发守卫自己的消息 → 无限递归（实测栈溢出）。
-                        "解析未收敛（在同一处反复读取、从不推进）—— 这是编译器内部缺陷，请把这段输入报告给开发者。",
+                        VmlLang.Pick("解析未收敛（在同一处反复读取、从不推进）—— 这是编译器内部缺陷，请把这段输入报告给开发者。",
+                                     "parse did not converge (kept reading the same position without advancing) - this is an internal compiler defect, please report this input to the developers"),
                         null, FileName ?? "<input>", GetTokenLine(_tokens[^1]), 0);
                 return _pos < _tokens.Count ? _tokens[_pos] : _tokens[^1];
             }
@@ -211,7 +213,7 @@ namespace CompilerBase
         {
             if (Check(type)) return Advance();
             var got = IsAtEnd ? "EOF" : GetTokenType(Cur).ToString();
-            throw Error($"期望 {type}，实际得到 {got}");
+            throw Error(VmlLang.Pick($"期望 {type}，实际得到 {got}", $"expected {type}, got {got}"));
         }
 
         /// <summary>

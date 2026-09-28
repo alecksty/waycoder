@@ -63,7 +63,7 @@ namespace CompilerBase
 
             if (sourceFiles.Count == 0)
             {
-                Console.WriteLine("错误: 必须指定至少一个源文件");
+                Console.WriteLine(VmlLang.Pick("错误: 必须指定至少一个源文件", "error: at least one source file must be specified"));
                 return;
             }
 
@@ -71,7 +71,7 @@ namespace CompilerBase
             string envLibPath = Environment.GetEnvironmentVariable(EnvVarName);
             if (!string.IsNullOrEmpty(envLibPath))
             {
-                Console.WriteLine($"从环境变量 {EnvVarName} 添加库路径: {envLibPath}");
+                Console.WriteLine(VmlLang.Pick($"从环境变量 {EnvVarName} 添加库路径: {envLibPath}", $"adding library path from environment variable {EnvVarName}: {envLibPath}"));
                 libraryPaths.Add(envLibPath);
             }
 
@@ -93,11 +93,11 @@ namespace CompilerBase
 
                     if (!File.Exists(sourceFile))
                     {
-                        Console.WriteLine($"错误: 文件不存在: {sourceFile}");
+                        Console.WriteLine(VmlLang.Pick($"错误: 文件不存在: {sourceFile}", $"error: file not found: {sourceFile}"));
                         return;
                     }
 
-                    Console.WriteLine($"编译文件: {sourceFile}");
+                    Console.WriteLine(VmlLang.Pick($"编译文件: {sourceFile}", $"compiling file: {sourceFile}"));
 
                     try
                     {
@@ -110,25 +110,25 @@ namespace CompilerBase
                             outputFile = Path.ChangeExtension(sourceFile, ".vml");
 
                         File.WriteAllText(outputFile, vmlText);
-                        Console.WriteLine($"编译成功! 输出保存到: {outputFile}");
+                        Console.WriteLine(VmlLang.Pick($"编译成功! 输出保存到: {outputFile}", $"compilation succeeded! output saved to: {outputFile}"));
 
                         if (libraryPaths.Count > 0)
-                            Console.WriteLine($"库搜索路径: {string.Join(", ", libraryPaths)}");
+                            Console.WriteLine(VmlLang.Pick($"库搜索路径: {string.Join(", ", libraryPaths)}", $"library search paths: {string.Join(", ", libraryPaths)}"));
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"编译错误: {ex.Message}");
+                        Console.WriteLine(VmlLang.Pick($"编译错误: {ex.Message}", $"compile error: {ex.Message}"));
                         if (ex.InnerException != null)
                         {
-                            Console.WriteLine($"内部异常: {ex.InnerException.Message}");
-                            Console.WriteLine($"堆栈跟踪: {ex.InnerException.StackTrace}");
+                            Console.WriteLine(VmlLang.Pick($"内部异常: {ex.InnerException.Message}", $"inner exception: {ex.InnerException.Message}"));
+                            Console.WriteLine(VmlLang.Pick($"堆栈跟踪: {ex.InnerException.StackTrace}", $"stack trace: {ex.InnerException.StackTrace}"));
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"错误: {ex.Message}");
+                Console.WriteLine(VmlLang.Pick($"错误: {ex.Message}", $"error: {ex.Message}"));
                 Console.WriteLine(ex.StackTrace);
             }
         }
@@ -142,19 +142,19 @@ namespace CompilerBase
         {
             if (!string.IsNullOrEmpty(outputFile))
             {
-                Console.WriteLine("错误: 多文件模式不支持 -o 选项");
+                Console.WriteLine(VmlLang.Pick("错误: 多文件模式不支持 -o 选项", "error: multi-file mode does not support the -o option"));
                 return;
             }
 
-            Console.WriteLine($"多文件模式: 编译 {sourceFiles.Count} 个文件");
+            Console.WriteLine(VmlLang.Pick($"多文件模式: 编译 {sourceFiles.Count} 个文件", $"multi-file mode: compiling {sourceFiles.Count} files"));
 
             foreach (var sourceFile in sourceFiles)
             {
-                Console.WriteLine($"\n编译文件: {sourceFile}");
+                Console.WriteLine(VmlLang.Pick($"\n编译文件: {sourceFile}", $"\ncompiling file: {sourceFile}"));
 
                 if (!File.Exists(sourceFile))
                 {
-                    Console.WriteLine($"错误: 文件不存在: {sourceFile}");
+                    Console.WriteLine(VmlLang.Pick($"错误: 文件不存在: {sourceFile}", $"error: file not found: {sourceFile}"));
                     continue;
                 }
 
@@ -168,26 +168,26 @@ namespace CompilerBase
 
                     string vmlFile = Path.ChangeExtension(sourceFile, ".vml");
                     File.WriteAllText(vmlFile, vmlText);
-                    Console.WriteLine($"生成: {vmlFile}");
+                    Console.WriteLine(VmlLang.Pick($"生成: {vmlFile}", $"generated: {vmlFile}"));
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"编译错误: {ex.Message}");
+                    Console.WriteLine(VmlLang.Pick($"编译错误: {ex.Message}", $"compile error: {ex.Message}"));
                 }
             }
 
-            Console.WriteLine($"\n多文件编译完成! 共处理 {sourceFiles.Count} 个源文件");
+            Console.WriteLine(VmlLang.Pick($"\n多文件编译完成! 共处理 {sourceFiles.Count} 个源文件", $"\nmulti-file compilation complete! processed {sourceFiles.Count} source files"));
         }
 
         /// <summary>打印帮助信息</summary>
         protected virtual void PrintUsage()
         {
             string lang = LanguageName;
-            Console.WriteLine($"用法: {char.ToUpper(lang[0])}{lang.Substring(1)}Compiler [选项] <source_file1> [source_file2] ...");
-            Console.WriteLine("选项:");
+            Console.WriteLine(VmlLang.Pick($"用法: {char.ToUpper(lang[0])}{lang.Substring(1)}Compiler [选项] <source_file1> [source_file2] ...", $"usage: {char.ToUpper(lang[0])}{lang.Substring(1)}Compiler [options] <source_file1> [source_file2] ..."));
+            Console.WriteLine(VmlLang.Pick("选项:", "options:"));
             CompilerCliParser.PrintCommonUsage();
-            Console.WriteLine("多文件模式: 指定多个源文件，每个文件生成对应的.vml文件");
-            Console.WriteLine("单文件模式: 指定一个源文件和-o选项，生成指定文件");
+            Console.WriteLine(VmlLang.Pick("多文件模式: 指定多个源文件，每个文件生成对应的.vml文件", "multi-file mode: specify multiple source files; each one generates its own .vml file"));
+            Console.WriteLine(VmlLang.Pick("单文件模式: 指定一个源文件和-o选项，生成指定文件", "single-file mode: specify one source file plus the -o option to generate the specified file"));
         }
 
     }

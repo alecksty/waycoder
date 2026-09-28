@@ -442,6 +442,42 @@ namespace CppCompiler
             };
         }
 
+        /// <summary>
+        /// 「读这个**变量本身**」该用多宽的指令 —— 与 <see cref="GetTypeLoadInfo"/> 的差别
+        /// **只有指针这一条**。
+        ///
+        /// <para>
+        /// 两个函数答的是**两个不同的问题**，别混：
+        /// <list type="bullet">
+        /// <item><see cref="GetTypeLoadInfo"/> = 「**被指类型**多大」（它开头就把 `*` 剥掉）——
+        ///       解引用 `*p` 要用它（见 <c>GenerateUnaryExpr</c> 的两处 `pointedType`），
+        ///       数组元素步长也要用它。</item>
+        /// <item><b>本函数</b> = 「**变量自己**的宽度」—— 一个 `char *s` 变量读出来的是
+        ///       **4 字节的地址**，不是 1 字节的字符。</item>
+        /// </list>
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠ <b>这条守卫已经是第三处了</b>：<c>SizeOfType</c>（`sizeof(T)`）与
+        /// <c>ArgStackBytesForType</c>（实参在栈上占几字节）**各自都先显式判了
+        /// `Contains("*")`** 再调 <see cref="GetTypeLoadInfo"/>。局部变量读取这一处漏了它，
+        /// 于是 `static void say(char *s) { puts(s); }` 把指针**按字节**读 ⇒ 低位那一个字节
+        /// 当地址 ⇒ <c>puts</c> 什么也不打（实测：直呼 `puts("字面量")` 正常、经用户函数转发
+        /// 就空，且 **C 前端正常、只有 C++ 中招**——因为 C 的读变量那条路本来就恒用 `MOVE`）。
+        /// </para>
+        ///
+        /// <para>
+        /// 本 VM 的指针恒为 **32 位**（与上面两处同一条判据）。四个标志一律 false：
+        /// 指针不是浮点/双精度/64 位整数，`SelectLoadOp` 收到 `(4,false,false,false)`
+        /// 只会选 `MOVE`。
+        /// </para>
+        /// </summary>
+        private static (int byteSize, bool isFloat, bool isDouble, bool isLong) GetVarLoadInfo(string? typeName)
+        {
+            if (typeName != null && typeName.Contains('*')) return (4, false, false, false);
+            return GetTypeLoadInfo(typeName);
+        }
+
         private ExpVar WrapExpr(Expr node)
         {
             var ev = ExpVar.Eval(InferExpType(node), () => GenerateExpr(node));
@@ -595,7 +631,10 @@ namespace CppCompiler
                             // ⚠ 走**共享选择器**而不是自己 if/else —— C 前端、ExpressionManager
                             //   用的是同一份判据（`SelectLoadOp`），这里手写就会漏掉 64 位那档
                             //   （实测：`long big` 按 32 位读、`MOVEL` 存进去的值读不出来）。
-                            var (vszLoad, vfLoad, vdLoad, vlLoad) = GetTypeLoadInfo(vtLoad);
+                            // ⚠ 判据取 `GetVarLoadInfo` 而**不是** `GetTypeLoadInfo`：后者答的是
+                            //   「被指类型多大」，`char *s` 会被算成 1 字节 ⇒ `MOVEB` 读指针
+                            //   ⇒ 只剩低位那一个字节当地址。见 `GetVarLoadInfo` 的注释。
+                            var (vszLoad, vfLoad, vdLoad, vlLoad) = GetVarLoadInfo(vtLoad);
                             vop = ExpressionManager.SelectLoadOp(vszLoad, vfLoad, vdLoad, vlLoad);
                         }
                         // 目的寄存器按**类**取：`MOVED` 要用 `D0`（= 文本 `R16`），
@@ -654,7 +693,7 @@ namespace CppCompiler
                             // 此前这里直接发 `MOVE R0, var_x` —— 引用的是一个**可能根本不存在**的
                             // 标签（连"确定的 0"都不是，值取决于汇编器对该符号的处理）。
                             // `int a = 1; return a + nosuch;` 就是这么编过去的。
-                            ReportUndefined(id.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                            ReportUndefined(id.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                             EmitUndefinedFallback();
                             break;
                         }
@@ -1089,6 +1128,18 @@ namespace CppCompiler
                     if (ue.Operand is IdentExpr derefId && _varTypes.TryGetValue(derefId.Name, out vt))
                         pointedType = vt;
                     var (size, isFloat, isDouble, isLong) = GetTypeLoadInfo(pointedType);
+                    // ⚠⚠ **这里的目标寄存器写死 `R0` 是「有意留着的编不过」，别顺手改成类正确的寄存器。**
+                    //   `float*`/`double*`/`long*` 解引用会选出 `MOVEF`/`MOVED`/`MOVEL`，它们要
+                    //   F/D/L 类寄存器 ⇒ 寄存器类闸当场拦下（实测报
+                    //   `MOVED 的第 1 个操作数要 D0–D7（双精度，编号 16–23），给的是 R0`）。
+                    //   **试过了，改对寄存器只解决一半**：改成 `BankOfOperand(op, 0)` 之后它能编过，
+                    //   但**读出来的值仍然是错的** —— 同一个测试用例：
+                    //     `double dv = 2.5; double *p = &dv; (int)(*p * 2.0)` 应 `5` 得 **2**；
+                    //     `long lv = 5; long *lp = &lv; *lp` 应 `5` 得 **1048532**。
+                    //   ⇒ 真正的缺口在**取址/解引用的宽度**那一段（`&dv` 给的地址与解引用读回的
+                    //   宽度都对不上），不是换个寄存器就能补的。**宁可编不过，也不要静默算错**
+                    //   （本仓规矩）。等那条路一起修好再放开这里 —— 顺带把上面那个用例加进
+                    //   `scripts/vml-cpp-probe/`（`f45` 现在**刻意只覆盖** `char*`/`char[]`/`int*`）。
                     instructions.Add(new Instruction(
                         ExpressionManager.SelectLoadOp(size, isFloat, isDouble, isLong),
                         new List<Operand> {

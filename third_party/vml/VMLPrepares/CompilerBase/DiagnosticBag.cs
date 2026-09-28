@@ -1,4 +1,5 @@
 using System.Text;
+using VMLAssembler;
 
 namespace CompilerBase;
 
@@ -53,7 +54,7 @@ public class DiagnosticBag
             TooManyErrors = true;
             if (_errors.Count == _maxErrors)
                 _errors.Add(new CompilerError(file, line, col, DiagnosticLevel.Error,
-                    ErrorCode.Unknown, "错误太多，停止编译"));
+                    ErrorCode.Unknown, VmlLang.Pick("错误太多，停止编译", "too many errors, stopping compilation")));
             return;
         }
         _errors.Add(new CompilerError(file, line, col, DiagnosticLevel.Error, code, message, hint, sourceLine));
@@ -77,7 +78,7 @@ public class DiagnosticBag
     {
         foreach (var e in other._errors)
         {
-            if (e.Code == ErrorCode.Unknown && e.Message.StartsWith("错误太多")) continue;
+            if (e.Code == ErrorCode.Unknown && e.Message.StartsWith(VmlLang.Pick("错误太多", "too many errors"))) continue;
             AddError(e.File, e.Line, e.Column, e.Code, e.Message, e.Hint);
         }
         foreach (var w in other._warnings)
@@ -95,11 +96,11 @@ public class DiagnosticBag
             sb.AppendLine(w.ToString());
 
         if (TooManyErrors)
-            sb.AppendLine($"（错误太多，只报了前 {_maxErrors} 条；修完这些再编一次）");
+            sb.AppendLine(VmlLang.Pick($"（错误太多，只报了前 {_maxErrors} 条；修完这些再编一次）", $"(too many errors; only the first {_maxErrors} were reported - fix these and compile again)"));
         if (_errors.Count > 0)
-            sb.AppendLine($"生成了 {_errors.Count} 个错误。");
+            sb.AppendLine(VmlLang.Pick($"生成了 {_errors.Count} 个错误。", $"generated {_errors.Count} error(s)."));
         if (_warnings.Count > 0)
-            sb.AppendLine($"生成了 {_warnings.Count} 个警告。");
+            sb.AppendLine(VmlLang.Pick($"生成了 {_warnings.Count} 个警告。", $"generated {_warnings.Count} warning(s)."));
 
         return sb.ToString();
     }

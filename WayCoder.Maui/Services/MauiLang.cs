@@ -49,12 +49,12 @@ public static class MauiLang
 
         // ⚠ **把语言推给 VML 编译器** —— 它的诊断文案（`未声明的变量 'x'` / 未使用变量警告…）
         //   也是**用户可见的**（手机上编译失败时那些字就打在气泡里），得跟着一起切。
-        //   而那套文案在另一个工程（`third_party/vml/VMLPrepares`，命名空间 `CompilerBase`）——
+        //   而那套文案在另一个工程（`third_party/vml/VMLAssembler`，命名空间 `VMLAssembler`）——
         //   `WayCoder` 主工程**不引用**它（一个 ProjectReference 都没有），所以**没法**在主工程
         //   的 `L.Set` 里推；**本文件才是那个引用它的宿主**，注入放这儿。
         //   放在 try **之后**（不是里面）：探测失败也要把默认值推过去，否则编译器那边可能
         //   停在别的状态。`_done` 保证只跑一次。
-        CompilerBase.VmlLang.Set(L.IsZh);
+        VMLAssembler.VmlLang.Set(L.IsZh);
     }
 
     /// <summary>按"越靠前越可信"收集语言标签（有序 —— <see cref="L.FromLanguageTags"/> 依赖顺序语义）。</summary>

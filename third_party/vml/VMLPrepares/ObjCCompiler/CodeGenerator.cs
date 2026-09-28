@@ -84,7 +84,7 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
                 //
                 // 报错 + 发确定性占位值（`MOVE R0,#0`）让生成继续跑：一次能把文件里
                 // 所有拼错的名字都报出来，而不是抛在第一个上。
-                ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                 EmitUndefinedFallback();
                 return;
             }

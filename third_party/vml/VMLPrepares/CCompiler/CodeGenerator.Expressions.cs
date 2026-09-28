@@ -1588,7 +1588,7 @@ namespace CCompiler
             if (ImplicitDeclarationAllowed) return;
             ReportUndefined(name,
                 isArray ? ErrorCode.CodeGen_UndefinedArray : ErrorCode.CodeGen_UndefinedVariable,
-                isArray ? "数组" : "变量");
+                isArray ? VmlLang.DiagKind.Array : VmlLang.DiagKind.Variable);
             // 发 `MOVE R0, #0`：地址/值都当 0 处理，让生成继续往下走
             EmitUndefinedFallback();
         }

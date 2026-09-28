@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CompilerBase
 {
@@ -293,7 +294,7 @@ namespace CompilerBase
             if (_currentParamBytes > _peakParamBytes) _peakParamBytes = _currentParamBytes;
 
             if (EnableStatsLog)
-                Console.Error.WriteLine($"[VarMem] 变量统计: 全局={_globalCount}({_globalBytes}B)  局部峰值={_peakLocalCount}({_peakLocalBytes}B)  参数峰值={_peakParamCount}({_peakParamBytes}B)  总计={TotalTrackedVars}变量/{TotalTrackedBytes}B");
+                Console.Error.WriteLine(VmlLang.Pick($"[VarMem] 变量统计: 全局={_globalCount}({_globalBytes}B)  局部峰值={_peakLocalCount}({_peakLocalBytes}B)  参数峰值={_peakParamCount}({_peakParamBytes}B)  总计={TotalTrackedVars}变量/{TotalTrackedBytes}B", $"[VarMem] variable stats: global={_globalCount}({_globalBytes}B)  local peak={_peakLocalCount}({_peakLocalBytes}B)  param peak={_peakParamCount}({_peakParamBytes}B)  total={TotalTrackedVars} vars/{TotalTrackedBytes}B"));
         }
 
         // ====== 静态工具 ======

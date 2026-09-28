@@ -492,7 +492,7 @@ namespace CSharpCompiler
                 // 局部表与 `dataSection` 都没有 ⇒ 这个名字**从未声明过**。
                 // 此前这里顺手建个初值 0 的槽就当成全局/静态 ——
                 // `int a = 1; int b = a + nosuch;` 编得过、运行期静静按 0 算出个错答案。
-                ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                 EmitUndefinedFallback();
                 return;
             }

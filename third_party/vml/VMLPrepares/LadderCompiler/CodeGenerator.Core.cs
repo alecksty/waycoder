@@ -612,7 +612,7 @@ namespace LadderCompiler
                 //   分支，本次**没动**：它的入参是"变量名**或字面量**"（先 `int.TryParse`、
                 //   再查 `dataSection`），落到 else 的还可能是它认不出的其它字面量形态，
                 //   直接报错有误伤风险，而没有任何用例能区分这两种情况。
-                ReportUndefined(varName, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                ReportUndefined(varName, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                 EmitUndefinedFallback();
             }
         }

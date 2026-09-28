@@ -255,7 +255,7 @@ namespace CompilerBase
             var task = Task.Run(compileFn);
             if (task.Wait(TimeSpan.FromSeconds(timeoutSeconds)))
                 return task.Result;
-            Console.Error.WriteLine($"[{compilerName}] 错误: 编译超时 ({timeoutSeconds}秒)");
+            Console.Error.WriteLine(VmlLang.Pick($"[{compilerName}] 错误: 编译超时 ({timeoutSeconds}秒)", $"[{compilerName}] error: compilation timed out ({timeoutSeconds}s)"));
             return null;
         }
 
@@ -936,7 +936,7 @@ namespace CompilerBase
             {
                 if (bytes[i] == 0)
                     throw new ParseException(ErrorCode.Compilation_BinaryFile,
-                        $"{filePath}: error: 文件似乎是二进制格式（包含 null 字节），无法编译");
+                        VmlLang.Pick($"{filePath}: error: 文件似乎是二进制格式（包含 null 字节），无法编译", $"{filePath}: error: file appears to be binary (contains null bytes), cannot compile"));
             }
 
             // UTF-16LE BOM: FF FE
@@ -1079,7 +1079,7 @@ namespace CompilerBase
             }
             catch (Exception ex)
             {
-                throw new CompilationException(ErrorCode.Compilation_InternalError, $"{file}: 内部错误: {ex.Message}", ex);
+                throw new CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick($"{file}: 内部错误: {ex.Message}", $"{file}: internal error: {ex.Message}"), ex);
             }
         }
     }

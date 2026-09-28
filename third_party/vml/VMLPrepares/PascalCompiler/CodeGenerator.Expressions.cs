@@ -435,7 +435,7 @@ namespace PascalCompiler
                             // 而"建个 0 槽照旧往下走"与旧行为**逐字相同**、没有任何结构风险。
                             // 编译反正会因为上面这条诊断失败（`BuildProgram` 见 `Diags.HasErrors` 就抛），
                             // 生成出来的代码给谁看都无所谓。
-                            ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                            ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                             dataSection[variable.Name] = 0;
                         }
 

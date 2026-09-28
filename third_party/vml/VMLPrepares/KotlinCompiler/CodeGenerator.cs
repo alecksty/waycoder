@@ -316,7 +316,7 @@ public partial class CodeGenerator : OopCodeGenerator {
                 else
                 {
                     if (!ImplicitDeclarationAllowed)
-                        ReportUndefined(vr.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                        ReportUndefined(vr.Name, ErrorCode.CodeGen_UndefinedVariable, VmlLang.DiagKind.Variable);
                     EmitUndefinedFallback();
                 }
                 break;

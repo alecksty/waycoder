@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using VMLAssembler;
 
 namespace CompilerBase
 {
@@ -42,10 +43,15 @@ namespace CompilerBase
         public static void ReportMissingInclude(string file, int line, string includedFile)
         {
             Console.Error.WriteLine(
-                $"{file}:{line}: warning: 找不到头文件 \"{includedFile}\" —— "
-                + "它不在 include 搜索路径里（VML 标准库只有 Lib 下那些）；"
-                + "该头文件里声明的东西后面会以「未声明的变量/函数」的形式报出来。"
-                + " [Preprocessor_IncludeNotFound]");
+                VmlLang.Pick(
+                    $"{file}:{line}: warning: 找不到头文件 \"{includedFile}\" —— "
+                    + "它不在 include 搜索路径里（VML 标准库只有 Lib 下那些）；"
+                    + "该头文件里声明的东西后面会以「未声明的变量/函数」的形式报出来。"
+                    + " [Preprocessor_IncludeNotFound]",
+                    $"{file}:{line}: warning: header not found \"{includedFile}\" — "
+                    + "it is not on the include search path (the VML standard library only has those under Lib); "
+                    + "anything declared in that header will be reported later as an undeclared variable/function."
+                    + " [Preprocessor_IncludeNotFound]"));
         }
 
         /// <summary>
@@ -63,11 +69,11 @@ namespace CompilerBase
             if (!string.IsNullOrEmpty(includedFile))
             {
                 if (includedFiles.Count > 500) // safety: max 500 includes
-                    throw new CompilationException(ErrorCode.Preprocessor_MaxIncludeDepth, $"{currentFile}: error: #include 嵌套深度超过 500 [Preprocessor_MaxIncludeDepth]");
+                    throw new CompilationException(ErrorCode.Preprocessor_MaxIncludeDepth, VmlLang.Pick($"{currentFile}: error: #include 嵌套深度超过 500 [Preprocessor_MaxIncludeDepth]", $"{currentFile}: error: #include nesting depth exceeds 500 [Preprocessor_MaxIncludeDepth]"));
                 string fullPath = ResolveIncludePath(includedFile, currentFile);
                 if (!includedFiles.Contains(fullPath))
                 {
-                    if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #include \"{includedFile}\" → {fullPath}");
+                    if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #include \"{includedFile}\" → {fullPath}", $"[preprocess] #include \"{includedFile}\" → {fullPath}"));
                     includedFiles.Add(fullPath);
                     if (File.Exists(fullPath))
                     {
@@ -141,7 +147,7 @@ namespace CompilerBase
                         //   ③ 句尾的 `[Code]` 会被宿主摘进 `Diagnostic.Code`。
                         //   ⚠ 报文里**不要出现 ASCII 的 `error:`**（`vml-diag-probe` 的 dyn-global 组
                         //     就是按这个子串判"编不过"的）。
-                        if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #include 跳过(未找到): {includedFile}");
+                        if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #include 跳过(未找到): {includedFile}", $"[preprocess] #include skipped (not found): {includedFile}"));
                         // 措辞与级别收到 `ReportMissingInclude` 一处 —— C 那份预处理器
                         // 要报同一件事时**也调它**，不许各写一份（见那里的说明）。
                         ReportMissingInclude(currentFile, currentLine, includedFile);
@@ -220,7 +226,7 @@ namespace CompilerBase
                 }
             }
 
-            throw new CompilationException(ErrorCode.Preprocessor_InvalidInclude, $"{currentFile}:{currentLine}: error: #include 指令格式无效 [Preprocessor_InvalidInclude]");
+            throw new CompilationException(ErrorCode.Preprocessor_InvalidInclude, VmlLang.Pick($"{currentFile}:{currentLine}: error: #include 指令格式无效 [Preprocessor_InvalidInclude]", $"{currentFile}:{currentLine}: error: malformed #include directive [Preprocessor_InvalidInclude]"));
         }
 
         /// <summary>
@@ -313,7 +319,7 @@ namespace CompilerBase
                 // 形参表里的括号要按「代码区」判（`#define F(x) ")"` 这类体里带括号的不会影响形参表）
                 int closeParen = FindMatchingParen(trimmed, parenIdx, BuildCodeMask(trimmed));
                 if (closeParen < 0)
-                    throw new CompilationException(ErrorCode.Preprocessor_MacroMissingParen, $"{currentFile}:{currentLine}: error: 函数式宏缺少右括号: {macroName} [Preprocessor_MacroMissingParen]");
+                    throw new CompilationException(ErrorCode.Preprocessor_MacroMissingParen, VmlLang.Pick($"{currentFile}:{currentLine}: error: 函数式宏缺少右括号: {macroName} [Preprocessor_MacroMissingParen]", $"{currentFile}:{currentLine}: error: function-like macro is missing its closing parenthesis: {macroName} [Preprocessor_MacroMissingParen]"));
 
                 string paramsStr = trimmed.Substring(parenIdx + 1, closeParen - parenIdx - 1).Trim();
                 string body = trimmed.Substring(closeParen + 1).Trim();
@@ -364,7 +370,7 @@ namespace CompilerBase
                     definitions[macroName] = macroValue;
                     _macroNameSet.Add(macroName);
                     if (!macroName.Contains('_')) _hasNonUnderscoreMacro = true;
-                    if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #define {trimmed}");
+                    if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #define {trimmed}", $"[preprocess] #define {trimmed}"));
                 }
             }
         }
@@ -457,7 +463,7 @@ namespace CompilerBase
         {
             bool condition = EvaluateCondition(rest);
             int  depth     = ifStack.Count > 0 ? ifStack[^1].Item2 + 1 : 1;
-            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #if {rest.Trim()} → {condition}");
+            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #if {rest.Trim()} → {condition}", $"[preprocess] #if {rest.Trim()} → {condition}"));
         }
 
         /// <summary>
@@ -469,7 +475,7 @@ namespace CompilerBase
             string macroName = rest.Trim();
             bool   condition = definitions.ContainsKey(macroName);
             int    depth     = ifStack.Count > 0 ? ifStack[^1].Item2 + 1 : 1;
-            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #if {rest.Trim()} → {condition}");
+            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #if {rest.Trim()} → {condition}", $"[preprocess] #if {rest.Trim()} → {condition}"));
         }
 
         /// <summary>
@@ -481,7 +487,7 @@ namespace CompilerBase
             string macroName = rest.Trim();
             bool   condition = !definitions.ContainsKey(macroName);
             int    depth     = ifStack.Count > 0 ? ifStack[^1].Item2 + 1 : 1;
-            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine($"[预处理] #if {rest.Trim()} → {condition}");
+            ifStack.Add((condition ? 1 : 0, depth)); if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] #if {rest.Trim()} → {condition}", $"[preprocess] #if {rest.Trim()} → {condition}"));
         }
 
         /// <summary>
@@ -491,7 +497,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, $"{currentFile}:{currentLine}: error: #else 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElseWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, VmlLang.Pick($"{currentFile}:{currentLine}: error: #else 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElseWithoutIf]", $"{currentFile}:{currentLine}: error: #else without a matching #if, #ifdef or #ifndef [Preprocessor_ElseWithoutIf]"));
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -509,7 +515,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, $"{currentFile}:{currentLine}: error: #elif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElifWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, VmlLang.Pick($"{currentFile}:{currentLine}: error: #elif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElifWithoutIf]", $"{currentFile}:{currentLine}: error: #elif without a matching #if, #ifdef or #ifndef [Preprocessor_ElifWithoutIf]"));
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -534,7 +540,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, $"{currentFile}:{currentLine}: error: #endif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_EndifWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, VmlLang.Pick($"{currentFile}:{currentLine}: error: #endif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_EndifWithoutIf]", $"{currentFile}:{currentLine}: error: #endif without a matching #if, #ifdef or #ifndef [Preprocessor_EndifWithoutIf]"));
             }
 
             ifStack.RemoveAt(ifStack.Count - 1);
@@ -576,7 +582,7 @@ namespace CompilerBase
         /// <param name="rest">指令的剩余部分</param>
         private void ProcessWarning(string rest)
         {
-            System.Console.WriteLine($"警告: 在文件 {currentFile} 第 {currentLine} 行: {rest}");
+            System.Console.WriteLine(VmlLang.Pick($"警告: 在文件 {currentFile} 第 {currentLine} 行: {rest}", $"warning: at {currentFile} line {currentLine}: {rest}"));
         }
 
         /// <summary>
@@ -592,7 +598,7 @@ namespace CompilerBase
             int parenOpen = rest.IndexOf('(');
             int parenClose = rest.LastIndexOf(')');
             if (parenOpen < 0 || parenClose < 0 || parenClose <= parenOpen)
-                throw new CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, $"{currentFile}:{currentLine}: error: #param 语法错误: {rest} [Preprocessor_ParamSyntaxError]");
+                throw new CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, VmlLang.Pick($"{currentFile}:{currentLine}: error: #param 语法错误: {rest} [Preprocessor_ParamSyntaxError]", $"{currentFile}:{currentLine}: error: #param syntax error: {rest} [Preprocessor_ParamSyntaxError]"));
 
             string func = rest.Substring(0, parenOpen).Trim().ToLowerInvariant();
             string arg = rest.Substring(parenOpen + 1, parenClose - parenOpen - 1).Trim();
@@ -654,7 +660,7 @@ namespace CompilerBase
                     break;
 
                 default:
-                    throw new CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, $"{currentFile}:{currentLine}: error: 未知的 #param 函数: {func} [Preprocessor_UnknownParamFunction]");
+                    throw new CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, VmlLang.Pick($"{currentFile}:{currentLine}: error: 未知的 #param 函数: {func} [Preprocessor_UnknownParamFunction]", $"{currentFile}:{currentLine}: error: unknown #param function: {func} [Preprocessor_UnknownParamFunction]"));
             }
         }
 

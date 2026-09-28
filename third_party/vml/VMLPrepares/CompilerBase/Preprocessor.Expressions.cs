@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using VMLAssembler;
 
 namespace CompilerBase
 {
@@ -440,7 +441,7 @@ namespace CompilerBase
                 }
                 if (++safety > MAX_MACRO_PASSES)
                 {
-                    if (PrepareLogMode) Console.Error.WriteLine($"[预处理] 宏展开超过 {MAX_MACRO_PASSES} 次迭代，可能有递归宏定义，停止展开");
+                    if (PrepareLogMode) Console.Error.WriteLine(VmlLang.Pick($"[预处理] 宏展开超过 {MAX_MACRO_PASSES} 次迭代，可能有递归宏定义，停止展开", $"[preprocess] macro expansion exceeded {MAX_MACRO_PASSES} iterations, possibly a recursive macro definition; stopping"));
                     break;
                 }
             } while (line != prev);

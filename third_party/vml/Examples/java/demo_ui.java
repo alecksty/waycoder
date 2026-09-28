@@ -106,7 +106,7 @@ public class DemoUi {
     static native int  ui_timer_kill(int id);
 
     // ── 全部状态放这一个数组（见文件头 ①）──
-    //   0=sw 1=sh 2=gy 3=frames 4=keys 5=touches 6=orient 7=tx 8=ty 9=tid
+    //   0=sw 1=sh 2=gy 3=frames 4=keys 5=touches 6=orient 7=tx 8=ty 9=tid 10=lang
     static int[] A = new int[11];
 
     // 消息类型 / 锚点 / 方向 / 字体样式（源：Lib/c/waycoder_ui.h；这里只能写字面量）

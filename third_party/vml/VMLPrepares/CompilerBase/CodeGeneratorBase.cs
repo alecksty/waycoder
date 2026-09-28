@@ -73,14 +73,20 @@ namespace CompilerBase
         /// 同一个名字**写 100 遍只报 1 条** —— 去重交给 <see cref="Diags"/> 自己
         /// （它按「码+文件+行+列+消息」去重，同一行写两次仍是一条）。
         /// </summary>
-        protected void ReportUndefined(string name, ErrorCode code, string kind, string? hint = null)
+        protected void ReportUndefined(string name, ErrorCode code, VmlLang.DiagKind kind, string? hint = null)
         {
             if (ImplicitDeclarationAllowed) return;
+            // ⚠ `noun` 是**当前语言**的那个词，所以 zh/en 两个分支里嵌的是同一个串 ——
+            //   只有一支会被 `Pick` 返回，另一支连同它嵌的词一起丢掉。别"顺手"把两个分支
+            //   写成两种语言的名词：`Noun` 按当前语言取词，两处各写一遍就是同一规则两处实现。
+            var noun = VmlLang.Noun(kind);
             // `CompilerHelper.CurrentSourceFile` 是 `[ThreadStatic]` 的，由
             // `CompileFileStandard` 在进编译器前设好 —— 与 `CompileWithDiagnostics`
             // 取文件名的地方同源。
             Diags.AddError(DiagFile, DiagLine, CurrentSourceColumn, code,
-                $"未声明的{kind} '{name}'", hint ?? $"先声明它（{kind}要先声明再引用）；名字拼错了也会报这一条。");
+                VmlLang.Pick($"未声明的{noun} '{name}'", $"undefined {noun} '{name}'"),
+                hint ?? VmlLang.Pick($"先声明它（{noun}要先声明再引用）；名字拼错了也会报这一条。",
+                                     $"declare it first ({noun} must be declared before use); a misspelled name reports this too"));
         }
 
         /// <summary>
@@ -93,11 +99,13 @@ namespace CompilerBase
         ///
         /// 与 <see cref="ReportUndefined"/> 只差级别 —— 别把这两处判据各写一遍。
         /// </summary>
-        protected void WarnUndefined(string name, ErrorCode code, string kind, string? hint = null)
+        protected void WarnUndefined(string name, ErrorCode code, VmlLang.DiagKind kind, string? hint = null)
         {
+            var noun = VmlLang.Noun(kind);
             Diags.AddWarning(DiagFile, DiagLine, CurrentSourceColumn, code,
-                $"隐式声明的{kind} '{name}'",
-                hint ?? $"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。");
+                VmlLang.Pick($"隐式声明的{noun} '{name}'", $"implicitly declared {noun} '{name}'"),
+                hint ?? VmlLang.Pick($"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。",
+                                     $"it was never declared; this language creates it implicitly by default - declaring it explicitly is recommended"));
         }
 
         /// <summary>
@@ -113,8 +121,10 @@ namespace CompilerBase
         protected void ReportArgCount(string funcName, int expected, int actual)
         {
             Diags.AddError(DiagFile, DiagLine, CurrentSourceColumn, ErrorCode.CodeGen_ArgCountMismatch,
-                $"'{funcName}' 需要 {expected} 个参数，这里只给了 {actual} 个",
-                "它是由编译器直接生成指令的内置函数，参数个数必须在编译期就定下来 —— 少一个就没法生成。");
+                VmlLang.Pick($"'{funcName}' 需要 {expected} 个参数，这里只给了 {actual} 个",
+                             $"'{funcName}' takes {expected} argument(s), but {actual} given"),
+                VmlLang.Pick("它是由编译器直接生成指令的内置函数，参数个数必须在编译期就定下来 —— 少一个就没法生成。",
+                             "it is a built-in function whose instructions are generated directly by the compiler, so the argument count must be known at compile time - one missing and nothing can be generated"));
         }
 
         /// <summary>
@@ -127,16 +137,18 @@ namespace CompilerBase
         /// 显式传行号是为了那些"在末尾统一清理"的场合 —— 那时游标早已不在声明处，
         /// 用 <see cref="CurrentSourceLine"/> 会指到**毫不相干的一行**上（比没有行号更糟）。
         /// </summary>
-        protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, int col = 0, string? hint = null)
+        protected void WarnUnused(string name, ErrorCode code, VmlLang.DiagKind kind, int line = -1, int col = 0, string? hint = null)
         {
+            var noun = VmlLang.Noun(kind);
             Diags.AddWarning(DiagFile,
                 line >= 0 ? line : DiagLine,
                 // 显式给了行号时列也一并给（不给就写 0）——**别顺手用 `CurrentSourceColumn`**：
                 // 这个调用通常发生在生成之后的清理段，游标早就不在声明处了，
                 // 那一列会指到毫不相干的位置上，比没有列更糟。
                 line >= 0 ? col : CurrentSourceColumn, code,
-                $"定义了但从未使用的{kind} '{name}'",
-                hint ?? $"它不会出现在编译产物里；如果确实用不到，删掉它能少一份维护负担。");
+                VmlLang.Pick($"定义了但从未使用的{noun} '{name}'", $"{noun} '{name}' is defined but never used"),
+                hint ?? VmlLang.Pick($"它不会出现在编译产物里；如果确实用不到，删掉它能少一份维护负担。",
+                                     $"it will not appear in the compiled output; if it is truly unused, deleting it saves maintenance"));
         }
 
         /// <summary>
