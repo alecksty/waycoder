@@ -79,7 +79,7 @@ def input_text_payload(text):
 
 
 class Driver:
-    def __init__(self, serial="emulator-5554", pkg="com.tanso.waycoder", verbose=True):
+    def __init__(self, serial="emulator-5554", pkg="com.tanso.dolaima", verbose=True):
         self.serial = serial
         self.pkg = pkg
         self.verbose = verbose

@@ -202,8 +202,9 @@ public sealed class VmStatusOverlay : ContentView
         //   ⇒ `null.HandlerChanged += …` 直接抛 `NullReferenceException`，
         //   于是**一进命令行页 App 就退回桌面**（`ShellPage` 里就住着这个浮层）。
         //   编译期一个字都不报 —— 这类"顺序"错误只有跑起来才知道。
-        //   真机日志特征：`ExceptionManager match exception type failed for com.tanso.waycoder`
+        //   真机日志特征：`ExceptionManager match exception type failed for com.tanso.dolaima`
         //   ＋ `willFinishToHome=true`，**没有** AndroidRuntime FATAL。
+        //   （⚠ v0.96.570 前包名是 `com.tanso.waycoder` —— 查更早的日志时按旧名 grep。）
 #if ANDROID
         titleBox.HandlerChanged += (_, _) => AttachNativeDrag(titleBox);
 #else

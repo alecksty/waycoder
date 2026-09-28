@@ -53,7 +53,7 @@ from driver import Driver  # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 DEFAULT_APK = os.path.join(REPO, "WayCoder.Maui", "bin", "Release", "net10.0-android",
-                           "publish", "com.tanso.waycoder-Signed.apk")
+                           "publish", "com.tanso.dolaima-Signed.apk")
 DEVICE_WS = "/sdcard/waycoder/workspace"
 
 # ── 判定用的模式（顺序即优先级）─────────────────────────────────────────
@@ -162,7 +162,7 @@ def load_corpus(path):
 def main():
     ap = argparse.ArgumentParser(description="设备端 VML 验收装置")
     ap.add_argument("--serial", default=os.environ.get("ANDROID_SERIAL", "emulator-5554"))
-    ap.add_argument("--pkg", default="com.tanso.waycoder")
+    ap.add_argument("--pkg", default="com.tanso.dolaima")
     ap.add_argument("--apk", nargs="?", const=DEFAULT_APK, default=None,
                     help="装这个 APK（不给 = 用设备上已有的包；只用 --apk 不带值 = 用默认 Release 产物）")
     ap.add_argument("--corpus", default=os.path.join(HERE, "corpus.tsv"))

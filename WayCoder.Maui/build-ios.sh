@@ -83,7 +83,7 @@ if [[ -d "$APP" ]]; then
   echo "装进模拟器并启动："
   echo "  xcrun simctl boot <UDID>            # xcrun simctl list devices available"
   echo "  xcrun simctl install <UDID> \"$APP\""
-  echo "  xcrun simctl launch <UDID> com.tanso.waycoder"
+  echo "  xcrun simctl launch <UDID> com.tanso.dolaima"
   echo
   echo "⚠ Xcode 27 起 Simulator.app 没了（改用 DeviceHub.app），但 xcrun simctl 一侧照旧。"
 else

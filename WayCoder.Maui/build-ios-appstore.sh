@@ -83,7 +83,7 @@ if [[ -z "$KEY" || -z "$PROFILE" ]]; then
     形如 "Apple Distribution: Your Name (ABCDE12345)"；
   · Provisioning profile —— Apple 开发者后台 Profiles 里那个 App Store 类型的名字
     （不是 Development、也不是 Ad Hoc）。
-两者必须同属一个 Team，且描述文件绑的 App ID 要匹配 com.tanso.waycoder。
+两者必须同属一个 Team，且描述文件绑的 App ID 要匹配 com.tanso.dolaima。
 MSG
   exit 2
 fi
@@ -135,7 +135,7 @@ echo
 IPA="$(find "$OUT" -maxdepth 1 -name '*.ipa' -print -quit 2>/dev/null || true)"
 if [[ -z "$IPA" ]]; then
   echo "没在 $OUT 找到 .ipa —— 归档没成功。" >&2
-  echo "  多数是签名环节：确认描述文件是 App Store 类型、证书是 Distribution、App ID 与 com.tanso.waycoder 一致。" >&2
+  echo "  多数是签名环节：确认描述文件是 App Store 类型、证书是 Distribution、App ID 与 com.tanso.dolaima 一致。" >&2
   exit 1
 fi
 

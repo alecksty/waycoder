@@ -1,3 +1,29 @@
+## v0.96.570 — 包名改为 `com.tanso.dolaima`
+
+接 v0.96.569 的改名，把**包名**也换掉。原因：`com.tanso.waycoder` 两半都有商标问题
+（`tanso` 撞 Tanso Technologies GmbH 的 WIPO 文字商标 1880235，第 9/36/42 类 LIVE；
+`waycoder` 撞韩国 Waycoder co., ltd.）。**趁没上架改是零成本**。
+
+- **真源只有一处**：`WayCoder.Maui.csproj` 的 `<ApplicationId>` —— Android 的 `package` 与
+  iOS 的 `CFBundleIdentifier` **都由它推导**（实测确认：`AndroidManifest.xml` 与两个
+  `Info.plist` 里都没有写死，脚本也没有在命令行上传 `-p:ApplicationId=`）。
+  一并同步 10 个文件：7 个开发脚本里的包名默认值（`maui-vml-verify/*`、
+  `vml-bgi-samples/push-to-device.sh`、`_maui_editor_bench.sh`、`build-*.sh`，其中
+  `verify.py` 里那个 `-Signed.apk` 产物名也跟着变）+ `CLAUDE.md` 的那条记录
+  （`keystore.sha256` 里的取 APK 命令也一并改，否则按指纹核对时取不到包）。
+- ⚠ **改包名 = 换一个 App**：新包**不覆盖**旧包（两个图标并存），旧包的**私有目录**
+  （Preferences 里的设置、解压出来的 vml 库）**不跟过来**；工作区与 config 在外部存储、
+  不受影响；keystore 没变 ⇒ 旧包随时可卸。
+- ⚠ **待同步（不在本版内）**：内购产品 ID 若要跟着改（`com.tanso.waycoder.full` →
+  `com.tanso.dolaima.full`），必须在 App Store Connect **创建之前**定 —— **产品 ID 建完不能改**。
+  该串现写在并行会话的未跟踪文件 `WayCoder/UI/Shared/FreeTierPolicy.cs` 与 `docs/上架*.md` 里，
+  本版**没有碰**（避免与那份在途工作冲突）。
+- **没动**：桌面 CLI 的二进制名与 apt / winget / brew 的包名仍是 `waycoder`
+  （`packaging/apt/build-deb.sh` 的 `Package: waycoder`、`/usr/local/bin/waycoder`）。
+  改它 = 换 Debian 包名 + 用户敲的命令，老用户不迁移 ⇒ **单独决定**，不在本版。
+- **验证**：自测 7011 通过 / 0 失败；MAUI Android **0 错误**（新包名是合法 Java 标识符，
+  构建期就会校验）。
+
 ## v0.96.569 — 改名：中文「道码」→「都来码」、英文「WayCoder」→「Dolaima」（全球发售前回避商标）
 
 用户决定换名（`WayCoder` 撞韩国 Waycoder co., ltd. —— 对方已在 App Store 有开发者页；`道码` 显著性弱）。

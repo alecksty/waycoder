@@ -77,7 +77,7 @@
 		     （两个图标并存），而且**私有目录里的东西（Preferences 存的最分/设置、解压出来的 vml 库）
 		     不会跟过来**。工作区与 config 在外部存储（sdcard/waycoder）不受影响。
 		     签名的 keystore 不变，所以旧包可以随时卸。 -->
-		<ApplicationId>com.tanso.waycoder</ApplicationId>
+		<ApplicationId>com.tanso.dolaima</ApplicationId>
 
 		<!-- Versions —— **从 Global.cs 推导，不在这里手写**。
 		     起因：这两个字段和 `WayCoder/Config/Global.cs` 的 `Global.Version` 是**同一份事实的两处拷贝**，

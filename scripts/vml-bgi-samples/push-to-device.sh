@@ -8,7 +8,7 @@
 # ⚠ **只推程序文件，不动 App**。手机上能不能跑取决于 App 版本：
 #    BGI 垫层（`Lib/c/graphics.h`）是 **v0.96.359** 进的仓库，更老的版本
 #    `#include <graphics.h>` 直接编不过。
-#    查手机上装的版本：`adb shell dumpsys package com.tanso.waycoder | grep versionName`
+#    查手机上装的版本：`adb shell dumpsys package com.tanso.dolaima | grep versionName`
 #
 # ⚠ 别顺手 `adb install -r` 装本机打的包：本机 keystore 与手机上生效的那把
 #    多半不是同一个（仓库钉在 WayCoder.Maui/keystore.sha256），装不上，
@@ -27,7 +27,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 echo "设备："
 "${ADB[@]}" devices -l | sed -n '2,$p'
 echo "手机上的 App 版本："
-"${ADB[@]}" shell dumpsys package com.tanso.waycoder 2>/dev/null | grep -m1 versionName || echo "  （没装 / 读不到）"
+"${ADB[@]}" shell dumpsys package com.tanso.dolaima 2>/dev/null | grep -m1 versionName || echo "  （没装 / 读不到）"
 
 "${ADB[@]}" shell mkdir -p "$WS/examples/bgi" >/dev/null
 
