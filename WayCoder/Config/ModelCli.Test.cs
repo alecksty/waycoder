@@ -13,16 +13,16 @@ public static partial class ModelCli
             // timeoutSeconds 固定单次超时（不渐进加长重试）：连通性探测要快速可控，别被全局重试链拖住
             var llm = new LLM(modelId, key, baseUrl, maxTokens: 16, timeoutSeconds: timeoutSec);
             var resp = llm.ChatAsync(
-                new List<JNode> { JNode.Object().Set("role", "user").Set("content", "只回复两个字：ok") },
+                new List<JNode> { JNode.Object().Set("role", "user").Set("content", L.Pick("只回复两个字：ok", "Reply with just: ok")) },
                 cancellationToken: new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSec)).Token
             ).GetAwaiter().GetResult();
             var content = (resp.Content ?? "").Trim();
-            if (resp.IsFatalError) return (false, "致命错误");
-            if (content.Length > 0) return (true, "回复: " + content[..Math.Min(content.Length, 20)]);
-            if (resp.ToolCalls.Count > 0) return (true, "工具调用");
+            if (resp.IsFatalError) return (false, L.Pick("致命错误", "Fatal error"));
+            if (content.Length > 0) return (true, L.Pick("回复: ", "Reply: ") + content[..Math.Min(content.Length, 20)]);
+            if (resp.ToolCalls.Count > 0) return (true, L.Pick("工具调用", "Tool call"));
             // think 模型：内容在 reasoning_content（不并入 Content），有思考即算连通，别误判为不可用
-            if (resp.ReasoningTokens > 0) return (true, $"思考 {resp.ReasoningTokens} tok");
-            return (false, "空回复（模型可能只思考不输出）");
+            if (resp.ReasoningTokens > 0) return (true, L.Pick($"思考 {resp.ReasoningTokens} tok", $"Reasoning {resp.ReasoningTokens} tok"));
+            return (false, L.Pick("空回复（模型可能只思考不输出）", "Empty reply (the model may reason without emitting anything)"));
         }
         catch (Exception ex)
         {
@@ -37,9 +37,13 @@ public static partial class ModelCli
     public static string Report(string? timeoutArg = null)
     {
         var connects = ConnectionConfig.ListConnects();
-        if (connects.Count == 0) return "暂无 connect（--connect add <name> <providerId> <modelId> 添加）";
+        if (connects.Count == 0)
+            return L.Pick("暂无 connect（--connect add <name> <providerId> <modelId> 添加）",
+                          "No connects yet (add one with --connect add <name> <providerId> <modelId>)");
         var timeout = ParseTimeout(timeoutArg);
-        var sb = new StringBuilder($"模型连通性报告（{connects.Count} 个 connect，单模型超时 {timeout}s）：\n");
+        var sb = new StringBuilder(L.Pick(
+            $"模型连通性报告（{connects.Count} 个 connect，单模型超时 {timeout}s）：\n",
+            $"Model connectivity report ({connects.Count} connects, {timeout}s timeout per model):\n"));
         var seen = new HashSet<(string, string)>();
         int ok = 0, fail = 0, skip = 0, total = 0;
         foreach (var c in connects)
@@ -54,16 +58,21 @@ public static partial class ModelCli
             if (!isLocal && !hasKey)
             {
                 skip++;
-                sb.AppendLine($"  ⏭ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）无 key");
+                sb.AppendLine(L.Pick($"  ⏭ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）无 key",
+                                     $"  ⏭ {c.Name} ({ModelCatalog.ShortDisplayName(c.ModelId)}) no key"));
                 continue;
             }
             // 实时进度（stderr，不污染报告）：让用户知道正在扫哪个
-            Console.Error.WriteLine($"正在测试 [{c.ProviderId}] 第 {total}/{connects.Count} 个（{ModelCatalog.ShortDisplayName(c.ModelId)}）...");
+            Console.Error.WriteLine(L.Pick(
+                $"正在测试 [{c.ProviderId}] 第 {total}/{connects.Count} 个（{ModelCatalog.ShortDisplayName(c.ModelId)}）...",
+                $"Testing [{c.ProviderId}] {total}/{connects.Count} ({ModelCatalog.ShortDisplayName(c.ModelId)})..."));
             var (ok2, detail) = ProbeChat(c.ProviderId, c.ModelId, baseUrl, timeout);
-            if (ok2) { ok++; sb.AppendLine($"  ✅ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
-            else { fail++; sb.AppendLine($"  ❌ {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}"); }
+            if (ok2) ok++; else fail++;
+            sb.AppendLine(L.Pick($"  {(ok2 ? "✅" : "❌")} {c.Name}（{ModelCatalog.ShortDisplayName(c.ModelId)}）{detail}",
+                                 $"  {(ok2 ? "✅" : "❌")} {c.Name} ({ModelCatalog.ShortDisplayName(c.ModelId)}) {detail}"));
         }
-        sb.AppendLine($"\n汇总：✅ {ok} 可用　❌ {fail} 失败　⏭ {skip} 跳过(无key)");
+        sb.AppendLine(L.Pick($"\n汇总：✅ {ok} 可用　❌ {fail} 失败　⏭ {skip} 跳过(无key)",
+                             $"\nSummary: ✅ {ok} usable   ❌ {fail} failed   ⏭ {skip} skipped (no key)"));
         return sb.ToString();
     }
 
@@ -72,17 +81,17 @@ public static partial class ModelCli
     /// 持久化到 config.json（freePrevProvider/Model/BaseUrl）：跨会话可恢复（CLI 一次性进程也能还原）。
     /// </summary>
 
-    private static (ProbeTarget Target, bool Ok, string Detail)[] RunProbes(List<ProbeTarget> targets)
+    private static (ProbeTarget Target, bool Ok, string Detail, EndpointStatus Status)[] RunProbes(List<ProbeTarget> targets)
     {
-        var results = new (ProbeTarget, bool, string)[targets.Count];
+        var results = new (ProbeTarget, bool, string, EndpointStatus)[targets.Count];
         var indexed = targets.Select((t, i) => (t, i)).ToArray();
         System.Threading.Tasks.Parallel.ForEach(indexed,
             new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = 4 },
             item =>
             {
                 var (t, i) = item;
-                var (o, d) = ProbeEndpoint(t.BaseUrl, t.Key);
-                results[i] = (t, o, d); // 各索引只写一次，无竞态；顺序由数组下标保证
+                var (o, d, st) = ProbeEndpoint(t.BaseUrl, t.Key);
+                results[i] = (t, o, d, st); // 各索引只写一次，无竞态；顺序由数组下标保证
             });
         return results;
     }
@@ -94,7 +103,7 @@ public static partial class ModelCli
     public static string Test()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("**模型连通性测试**");
+        sb.AppendLine(L.Pick("**模型连通性测试**", "**Model connectivity test**"));
         int ok = 0, total = 0;
 
         var targets = new List<ProbeTarget>();
@@ -124,38 +133,51 @@ public static partial class ModelCli
                 g.Select(m => m.Id).Distinct().ToArray(), IsLocal: true));
 
         if (targets.Count == 0)
-            return "没有可测试的端点：既无已存 key，也无本地模型。\n" +
-                   "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>";
+            return L.Pick("没有可测试的端点：既无已存 key，也无本地模型。\n"
+                        + "  存 key: --model key <供应商> <key>　本地模型: --model connect <localhost:port>",
+                          "No endpoints to test: no stored keys and no local models.\n"
+                        + "  Store a key: --model key <provider> <key>   Local model: --model connect <localhost:port>");
 
         if (targets.Any(t => !t.IsLocal))
         {
             sb.AppendLine();
-            sb.AppendLine($"### API Key（{targets.Count(t => !t.IsLocal)} 个供应商）");
+            sb.AppendLine(L.Pick($"### API Key（{targets.Count(t => !t.IsLocal)} 个供应商）",
+                                 $"### API Keys ({targets.Count(t => !t.IsLocal)} providers)"));
         }
 
         // 并发探测（每项独立 HttpClient+4s 超时），保持原顺序输出
         bool localHeaderShown = false;
-        foreach (var (t, o, d) in RunProbes(targets))
+        foreach (var (t, o, d, _) in RunProbes(targets))
         {
             if (t.IsLocal && !localHeaderShown)
             {
                 sb.AppendLine();
-                sb.AppendLine("### 本地端点（无需 key）");
+                sb.AppendLine(L.Pick("### 本地端点（无需 key）", "### Local endpoints (no key needed)"));
                 localHeaderShown = true;
             }
             total++;
             if (o) ok++;
-            sb.AppendLine($"【{t.Display}】{(string.IsNullOrEmpty(t.BaseUrl) ? "" : " " + t.BaseUrl)}");
+            sb.AppendLine(L.Pick($"【{t.Display}】", $"[{t.Display}]")
+                          + (string.IsNullOrEmpty(t.BaseUrl) ? "" : " " + t.BaseUrl));
             sb.AppendLine($"  {(o ? "✅" : "❌")} {d}" + (t.Models.Length > 0 ? $"  —  {string.Join(", ", t.Models)}" : ""));
         }
 
         sb.AppendLine();
-        sb.AppendLine($"**结论：{ok} / {total} 个端点可连接**");
+        sb.AppendLine(L.Pick($"**结论：{ok} / {total} 个端点可连接**",
+                             $"**Result: {ok} / {total} endpoints reachable**"));
         return sb.ToString().Trim();
     }
 
-    /// <summary>连通性探测结果（结构化，供 Web 序列化为 JSON）。</summary>
-    public record EndpointProbe(string ProviderId, string Display, string? BaseUrl, bool Ok, string Detail, string[] Models);
+    /// <summary>连通性探测结果（结构化，供 Web 序列化为 JSON）。
+    /// ⚠ <paramref name="Status"/> 是**判据**，<paramref name="Detail"/> 只是文案 ——
+    /// 消费方一律按 Status 分支，别对 Detail 做 Contains/StartsWith（理由见 <see cref="EndpointStatus"/>）。
+    /// <para>
+    /// ⚠ <c>Status</c> **刻意不给默认值**：留个 `= Unreachable` 的默认值就等于允许调用方
+    /// 「忘了给状态」，而后果是静默降级（扫描列显示「不通」、剪除逻辑删错东西）。
+    /// 不给默认值 ⇒ 每个构造点都得写出来，漏了**编不过**（同 `DrawCommand.Vector` 那条）。
+    /// </para></summary>
+    public record EndpointProbe(string ProviderId, string Display, string? BaseUrl, bool Ok, string Detail,
+        string[] Models, EndpointStatus Status);
 
     /// <summary>
     /// 结构化连通性测试：返回所有「已存 API key 的供应商」+「本地端点」的探测结果列表。
@@ -193,7 +215,7 @@ public static partial class ModelCli
         // 并发探测，保持原顺序
         return RunProbes(targets)
             .Select(r => new EndpointProbe(r.Target.ProviderId, r.Target.Display, r.Target.BaseUrl,
-                r.Ok, r.Detail, r.Target.Models))
+                r.Ok, r.Detail, r.Target.Models, r.Status))
             .ToList();
     }
 
@@ -206,10 +228,11 @@ public static partial class ModelCli
     {
         var keys = ApiKeyStore.ListAll().OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase).ToArray();
         if (keys.Length == 0)
-            return "没有已存 API key 可清理。存 key: --model key <供应商> <key>";
+            return L.Pick("没有已存 API key 可清理。存 key: --model key <供应商> <key>",
+                          "No stored API keys to prune. Store one: --model key <provider> <key>");
 
         var sb = new StringBuilder();
-        sb.AppendLine("**清理失效供应商**");
+        sb.AppendLine(L.Pick("**清理失效供应商**", "**Prune dead providers**"));
         sb.AppendLine();
         int removedKeys = 0, removedModels = 0, kept = 0;
 
@@ -223,41 +246,55 @@ public static partial class ModelCli
             {
                 var n = ModelCatalog.RemoveCustomByProvider(pid);
                 removedModels += n;
-                sb.AppendLine($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删模型" + (n > 0 ? $" {n} 个" : "") + "（key 保留）");
+                sb.AppendLine(L.Pick($"🗑️  【{display}】无端点（供应商不存在或未配置 base_url）— 已删模型",
+                                     $"🗑️  [{display}] no endpoint (provider missing or base_url unset) — models removed")
+                              + (n > 0 ? L.Pick($" {n} 个", $" ({n})") : "")
+                              + L.Pick("（key 保留）", " (key kept)"));
                 continue;
             }
 
-            var (ok, detail) = ProbeEndpoint(baseUrl, key);
+            var (ok, detail, status) = ProbeEndpoint(baseUrl, key);
             if (ok)
             {
                 kept++;
-                sb.AppendLine($"✅ 【{display}】{detail} — 保留");
+                sb.AppendLine(L.Pick($"✅ 【{display}】{detail} — 保留", $"✅ [{display}] {detail} — kept"));
                 continue;
             }
 
             // 无效 key：询问用户是否删除（交互确认）；非交互（管道/一次性）默认保留
-            if (detail.StartsWith("密钥无效", StringComparison.Ordinal))
+            // ⚠ 判据是 Status（机器可读），**不是** detail 里有没有「密钥无效」四个字 ——
+            //   按文案判定的话，英文界面下这一支恒假 ⇒ 「key 失效」被判成「地址写错」，
+            //   于是走进下面的删模型分支（`RemoveCustomByProvider`），把好模型一起删掉。
+            if (status == EndpointStatus.BadKey)
             {
-                if (ConfirmDelete($"【{display}】检测到无效 API key（{pid}），是否删除？"))
+                if (ConfirmDelete(L.Pick($"【{display}】检测到无效 API key（{pid}），是否删除？",
+                                         $"[{display}] invalid API key detected ({pid}). Delete it?")))
                 {
                     ApiKeyStore.Remove(pid);
                     removedKeys++;
-                    sb.AppendLine($"🗑️  【{display}】{detail} — 已删除无效 key");
+                    sb.AppendLine(L.Pick($"🗑️  【{display}】{detail} — 已删除无效 key",
+                                         $"🗑️  [{display}] {detail} — invalid key removed"));
                 }
                 else
                 {
-                    sb.AppendLine($"⚠️  【{display}】{detail} — key 保留（--model key rm {pid} 显式删除）");
+                    sb.AppendLine(L.Pick($"⚠️  【{display}】{detail} — key 保留（--model key rm {pid} 显式删除）",
+                                         $"⚠️  [{display}] {detail} — key kept (delete explicitly with --model key rm {pid})"));
                 }
                 continue;
             }
 
             var m = ModelCatalog.RemoveCustomByProvider(pid);
             removedModels += m;
-            sb.AppendLine($"🗑️  【{display}】{detail} — 已删模型" + (m > 0 ? $" {m} 个" : "") + "（key 保留）");
+            sb.AppendLine(L.Pick($"🗑️  【{display}】{detail} — 已删模型",
+                                 $"🗑️  [{display}] {detail} — models removed")
+                          + (m > 0 ? L.Pick($" {m} 个", $" ({m})") : "")
+                          + L.Pick("（key 保留）", " (key kept)"));
         }
 
         sb.AppendLine();
-        sb.AppendLine($"**结论：删除 {removedKeys} 个失效供应商的 key，移除 {removedModels} 个自定义模型；保留 {kept} 个**");
+        sb.AppendLine(L.Pick(
+            $"**结论：删除 {removedKeys} 个失效供应商的 key，移除 {removedModels} 个自定义模型；保留 {kept} 个**",
+            $"**Result: {removedKeys} dead-provider keys deleted, {removedModels} custom models removed; {kept} kept**"));
         return sb.ToString().Trim();
     }
 

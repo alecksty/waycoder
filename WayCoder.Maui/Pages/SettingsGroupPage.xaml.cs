@@ -502,7 +502,7 @@ public partial class SettingsGroupPage : ContentPage
         foreach (var p in providers)
         {
             if (string.IsNullOrEmpty(p.Url)) { results.Add(L.Pick($"{p.Name}（{p.Id}）· 无默认地址", $"{p.Name} ({p.Id}) · no default URL")); continue; }
-            var (ok, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
+            var (ok, _, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
             results.Add(L.Pick($"{p.Name}（{p.Id}）· {(ok ? "✅ 可达" : "❌ 不可达")}", $"{p.Name} ({p.Id}) · {(ok ? "✅ reachable" : "❌ unreachable")}"));
         }
         await DisplayActionSheetAsync(L.Pick($"连接扫描（{providers.Count}）", $"Connection scan ({providers.Count})"), L.Pick("关闭", "Close"), null, results.ToArray());

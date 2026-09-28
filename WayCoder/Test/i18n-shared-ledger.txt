@@ -24,11 +24,6 @@ WayCoder/Config/ModelCatalog.Files.cs
 WayCoder/Config/ModelCatalog.Import.cs
 WayCoder/Config/ModelCatalog.Providers.cs
 WayCoder/Config/ModelCatalog.cs
-WayCoder/Config/ModelCli.Free.cs
-WayCoder/Config/ModelCli.Import.cs
-WayCoder/Config/ModelCli.Keys.cs
-WayCoder/Config/ModelCli.Test.cs
-WayCoder/Config/ModelCli.cs
 WayCoder/Git/RepoMapGenerator.cs  # 保留：5 条 DebugLog（日志不翻）
 WayCoder/Git/WorktreeIsolation.cs
 WayCoder/Infra/CheckpointManager.cs

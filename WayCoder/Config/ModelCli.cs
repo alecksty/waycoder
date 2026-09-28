@@ -15,14 +15,18 @@ public static partial class ModelCli
     {
         var cfg = Config.Instance;
         var sb = new StringBuilder();
-        sb.AppendLine($"当前大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}");
-        sb.AppendLine($"当前小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}");
+        sb.AppendLine(L.Pick($"当前大模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}",
+                             $"Main model: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.Provider), cfg.Model)}"));
+        sb.AppendLine(L.Pick($"当前小模型：{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}",
+                             $"Small model: {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(cfg.SmallProvider), cfg.SmallModel)}"));
         var bigProv = ConnectionConfig.ResolveProvider(cfg.Provider);
-        sb.AppendLine($"BaseUrl：{cfg.BaseUrl ?? bigProv?.BaseUrl ?? "?"}");
+        sb.AppendLine(L.Pick($"BaseUrl：{cfg.BaseUrl ?? bigProv?.BaseUrl ?? "?"}", $"BaseUrl: {cfg.BaseUrl ?? bigProv?.BaseUrl ?? "?"}"));
         var active = ConnectionConfig.CurrentByConfig();
         if (active != null)
-            sb.AppendLine($"激活连接：{active.Name}（大={active.BigConnect} 小={active.SmallConnect}）");
-        sb.AppendLine("\n列出目录: --model list　选大模型: --model name <id>　选小模型: --model small <id>　存 key: --model key <供应商> <key>");
+            sb.AppendLine(L.Pick($"激活连接：{active.Name}（大={active.BigConnect} 小={active.SmallConnect}）",
+                                 $"Active connection: {active.Name} (main={active.BigConnect} small={active.SmallConnect})"));
+        sb.AppendLine(L.Pick("\n列出目录: --model list　选大模型: --model name <id>　选小模型: --model small <id>　存 key: --model key <供应商> <key>",
+                             "\nList: --model list   Main model: --model name <id>   Small model: --model small <id>   Set key: --model key <provider> <key>"));
         return sb.ToString();
     }
 
@@ -31,12 +35,13 @@ public static partial class ModelCli
     public static string Connect(string baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
-            return "用法: --model connect <base-url>";
+            return L.Pick("用法: --model connect <base-url>", "Usage: --model connect <base-url>");
         var b = baseUrl.Trim();
         ConnectionConfig.SetDefaultBaseUrl(b);
         var isFree = ConnectionConfig.State.ConnectMode.Equals("free", StringComparison.OrdinalIgnoreCase);
-        return $"BaseUrl 已设为 {b}（默认模型网关，已持久化）" +
-            (isFree ? "\n  ⚠ 当前在 free 模型，此修改作用于 default 锚点（/free restore 后生效）" : "");
+        return L.Pick($"BaseUrl 已设为 {b}（默认模型网关，已持久化）", $"BaseUrl set to {b} (default model gateway, persisted)") +
+            (isFree ? L.Pick("\n  ⚠ 当前在 free 模型，此修改作用于 default 锚点（/free restore 后生效）",
+                             "\n  ⚠ Currently on a free model; this change applies to the default anchor (effective after /free restore)") : "");
     }
 
     /// <summary>列出模型目录（按供应商分组，当前模型标注），可传关键词过滤</summary>
@@ -47,11 +52,12 @@ public static partial class ModelCli
             : ModelCatalog.Search(filter);
 
         if (models.Length == 0)
-            return "未找到匹配的模型。用 --model list 查看全部。";
+            return L.Pick("未找到匹配的模型。用 --model list 查看全部。",
+                          "No matching model. Use --model list to see everything.");
 
         var current = Config.Instance.Model;
         var sb = new StringBuilder();
-        sb.AppendLine($"模型目录（共 {models.Length} 个）：");
+        sb.AppendLine(L.Pick($"模型目录（共 {models.Length} 个）：", $"Model catalog ({models.Length} total):"));
 
         // 第一列宽度：取所有模型短名的最大长度（+2 余量），避免名称溢出到第二列
         var nameWidth = 0;
@@ -62,25 +68,27 @@ public static partial class ModelCli
         foreach (var g in models.GroupBy(m => ModelCatalog.ProviderDisplayName(m.ProviderId)))
         {
             sb.AppendLine();
-            sb.AppendLine($"【{g.Key}】");
+            sb.AppendLine(L.Pick($"【{g.Key}】", $"[{g.Key}]"));
             foreach (var m in g.OrderBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
             {
                 // 忙闲两种价格（有闲时价则显示「忙$in/out 闲$in/out」）
                 var price = m.InputPrice > 0
                     ? (m.InputPriceOffpeak > 0
-                        ? $"忙${m.InputPrice}/{m.OutputPrice} 闲${m.InputPriceOffpeak}/{m.OutputPriceOffpeak}"
+                        ? L.Pick($"忙${m.InputPrice}/{m.OutputPrice} 闲${m.InputPriceOffpeak}/{m.OutputPriceOffpeak}",
+                                 $"peak ${m.InputPrice}/{m.OutputPrice} off-peak ${m.InputPriceOffpeak}/{m.OutputPriceOffpeak}")
                         : $"${m.InputPrice}/{m.OutputPrice}")
                     : "?";
                 var ctx = FormatCtx(m.ContextWindow);
-                var mark = m.Id == current ? "  ← 当前" : "";
+                var mark = m.Id == current ? L.Pick("  ← 当前", "  ← current") : "";
                 // 显示用短名（去 openrouter 类路由前缀），切换/调用仍用完整 id
                 sb.AppendLine($"  {ModelCatalog.ShortDisplayName(m.Id).PadRight(nameWidth)} {ctx,-5}ctx  {price,-30}  [{m.Category}]{mark}");
             }
         }
 
         sb.AppendLine();
-        sb.AppendLine("选中: --model name <id> 或 --model <id>");
-        sb.AppendLine("存 key: --model key <供应商> <key>　查 key: --model key");
+        sb.AppendLine(L.Pick("选中: --model name <id> 或 --model <id>", "Select: --model name <id> or --model <id>"));
+        sb.AppendLine(L.Pick("存 key: --model key <供应商> <key>　查 key: --model key",
+                             "Set key: --model key <provider> <key>   Check key: --model key"));
         return sb.ToString();
     }
 
@@ -91,7 +99,8 @@ public static partial class ModelCli
         if (!string.IsNullOrWhiteSpace(connectId))
         {
             var c = ConnectionConfig.FindConnect(connectId.Trim());
-            if (c == null) return $"❌ 未找到 connect「{connectId}」（--connect list 查看）";
+            if (c == null) return L.Pick($"❌ 未找到 connect「{connectId}」（--connect list 查看）",
+                                         $"❌ No connect named \"{connectId}\" (see --connect list)");
             pid = c.ProviderId; mid = c.ModelId;
         }
         else
@@ -102,15 +111,22 @@ public static partial class ModelCli
         var fmt = ModelCatalog.ResolveApiFormat(mid, Config.Instance.BaseUrl);
         var hasKey = ApiKeyStore.Has(pid);
         var sb = new StringBuilder();
-        sb.AppendLine($"模型: {ModelCatalog.ShortDisplayName(mid)}（{pid}）");
-        sb.AppendLine($"  API 格式: {fmt}");
-        sb.AppendLine($"  思考 think: {(caps.SupportsThinking ? "✅ 支持" : "❌ 不支持")}" +
-            (caps.ReasoningEffortAllowed is { Length: > 0 } and not "none" ? $"（允许 {caps.ReasoningEffortAllowed}）" : ""));
-        sb.AppendLine($"  工具 tools: {(caps.SupportsTools ? "✅ 支持" : "❌ 不支持")}");
-        sb.AppendLine($"  视觉 vision: {(caps.SupportsVision ? "✅ 支持" : "❌ 不支持")}");
-        sb.AppendLine($"  温度精度: {caps.TemperaturePrecision} 位小数");
-        sb.AppendLine($"  上下文: {ModelCatalog.ResolveContextWindow(mid)} tokens");
-        sb.AppendLine($"  API key: {(hasKey ? "🔑 已配置" : "⚠ 未配置（--model key 或设官方环境变量自动导入）")}");
+        sb.AppendLine(L.Pick($"模型: {ModelCatalog.ShortDisplayName(mid)}（{pid}）",
+                             $"Model: {ModelCatalog.ShortDisplayName(mid)} ({pid})"));
+        sb.AppendLine(L.Pick($"  API 格式: {fmt}", $"  API format: {fmt}"));
+        sb.AppendLine(L.Pick($"  思考 think: {(caps.SupportsThinking ? "✅ 支持" : "❌ 不支持")}",
+                             $"  Thinking: {(caps.SupportsThinking ? "✅ yes" : "❌ no")}") +
+            (caps.ReasoningEffortAllowed is { Length: > 0 } and not "none" ? L.Pick($"（允许 {caps.ReasoningEffortAllowed}）", $" (allowed: {caps.ReasoningEffortAllowed})") : ""));
+        sb.AppendLine(L.Pick($"  工具 tools: {(caps.SupportsTools ? "✅ 支持" : "❌ 不支持")}",
+                             $"  Tools: {(caps.SupportsTools ? "✅ yes" : "❌ no")}"));
+        sb.AppendLine(L.Pick($"  视觉 vision: {(caps.SupportsVision ? "✅ 支持" : "❌ 不支持")}",
+                             $"  Vision: {(caps.SupportsVision ? "✅ yes" : "❌ no")}"));
+        sb.AppendLine(L.Pick($"  温度精度: {caps.TemperaturePrecision} 位小数",
+                             $"  Temperature precision: {caps.TemperaturePrecision} decimal places"));
+        sb.AppendLine(L.Pick($"  上下文: {ModelCatalog.ResolveContextWindow(mid)} tokens",
+                             $"  Context: {ModelCatalog.ResolveContextWindow(mid)} tokens"));
+        sb.AppendLine(L.Pick($"  API key: {(hasKey ? "🔑 已配置" : "⚠ 未配置（--model key 或设官方环境变量自动导入）")}",
+                             $"  API key: {(hasKey ? "🔑 configured" : "⚠ not configured (use --model key, or set the official env var to auto-import)")}"));
         return sb.ToString().TrimEnd();
     }
 
@@ -182,10 +198,12 @@ public static partial class ModelCli
         // 供应商地址去重（同地址 = 同供应商）：归并重复地址的供应商并移除
         var mergedProv = ModelCatalog.DeduplicateProviders();
 
-        sb.AppendLine($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个" +
-            (mergedProv > 0 ? $"，归并重复地址供应商 {mergedProv} 个" : ""));
+        sb.AppendLine(L.Pick($"✅ 清理完成：合并重复 {merged} 个，删除无效服务商模型 {removedProv} 个，删除无效 connect {removedConn} 个",
+                             $"✅ Cleanup done: {merged} duplicates merged, {removedProv} orphaned provider models removed, {removedConn} invalid connects removed") +
+            (mergedProv > 0 ? L.Pick($"，归并重复地址供应商 {mergedProv} 个", $", {mergedProv} providers with duplicate base URLs merged") : ""));
         if (merged + removedProv + removedConn == 0)
-            sb.AppendLine("（模型目录与 connect 已干净，无需清理）");
+            sb.AppendLine(L.Pick("（模型目录与 connect 已干净，无需清理）",
+                                 "(The model catalog and connects are already clean; nothing to do)"));
         return sb.ToString().TrimEnd();
     }
 
@@ -197,7 +215,8 @@ public static partial class ModelCli
         if (info == null)
         {
             ConnectionConfig.ApplyModelChoice(Config.Instance.Provider, modelId.Trim(), isLarge: true, out _);
-            return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), modelId.Trim())}** 模型（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>";
+            return L.Pick($"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), modelId.Trim())}** 模型（目录外模型，已写入 .env）。若非 OpenAI 兼容端点请另行 --config set BaseUrl <url>",
+                          $"Switched to **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), modelId.Trim())}** (model outside the catalog; written to .env). If it is not an OpenAI-compatible endpoint, also run --config set BaseUrl <url>");
         }
 
         ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: true, out _, info.DefaultBaseUrl);
@@ -205,11 +224,13 @@ public static partial class ModelCli
         var keyHint = info.DefaultBaseUrl != null
             && !ApiKeyStore.Has(info.ProviderId)
             && info.ProviderId is not ("openai" or "local" or "custom")
-            ? $"\n  该供应商需 API key：--model key {info.ProviderId} <key>"
+            ? L.Pick($"\n  该供应商需 API key：--model key {info.ProviderId} <key>",
+                     $"\n  This provider needs an API key: --model key {info.ProviderId} <key>")
             : "";
 
-        return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 模型并写入 .env" +
-            (info.DefaultBaseUrl != null ? $"\n  BaseUrl 已自动设为 {info.DefaultBaseUrl}" : "") + keyHint;
+        return L.Pick($"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 模型并写入 .env",
+                      $"Switched to **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** and written to .env") +
+            (info.DefaultBaseUrl != null ? L.Pick($"\n  BaseUrl 已自动设为 {info.DefaultBaseUrl}", $"\n  BaseUrl auto-set to {info.DefaultBaseUrl}") : "") + keyHint;
     }
 
     /// <summary>选中小模型：按目录解析，经 connect 统一入口持久化（同步小模型服务商）</summary>
@@ -220,12 +241,14 @@ public static partial class ModelCli
         if (info == null)
         {
             ConnectionConfig.ApplyModelChoice(Config.Instance.SmallProvider, modelId.Trim(), isLarge: false, out _);
-            return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.SmallProvider), modelId.Trim())}** 小模型（目录外模型，已写入 .env）";
+            return L.Pick($"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.SmallProvider), modelId.Trim())}** 小模型（目录外模型，已写入 .env）",
+                          $"Switched the small model to **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.SmallProvider), modelId.Trim())}** (model outside the catalog; written to .env)");
         }
 
         ConnectionConfig.ApplyModelChoice(info.ProviderId, info.Id, isLarge: false, out _);
 
-        return $"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 小模型并写入 .env";
+        return L.Pick($"已切换至 **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** 小模型并写入 .env",
+                      $"Switched the small model to **{ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(info.ProviderId), info.Id)}** and written to .env");
     }
 
     /// <summary>列出已保存的 API keys（打码 + 有效期）</summary>
@@ -234,37 +257,44 @@ public static partial class ModelCli
     {
         var removed = ModelCatalog.RemoveCustom(modelId.Trim());
         return removed.Length > 0
-            ? $"已删除自定义模型 `{modelId}`（从 {string.Join("、", removed)} 移除）"
-            : $"未找到自定义模型 `{modelId}`（内置模型不可删除，可被自定义覆盖）。";
+            ? L.Pick($"已删除自定义模型 `{modelId}`（从 {string.Join("、", removed)} 移除）",
+                     $"Removed custom model `{modelId}` (from {string.Join(", ", removed)})")
+            : L.Pick($"未找到自定义模型 `{modelId}`（内置模型不可删除，可被自定义覆盖）。",
+                     $"No custom model `{modelId}` (built-in models cannot be removed, but can be overridden by a custom one).");
     }
 
     /// <summary>删除某服务商下的所有自定义模型（内置供应商不可删）</summary>
     public static string RemoveProvider(string providerId)
     {
         if (string.IsNullOrWhiteSpace(providerId))
-            return "用法: --model remove provider <供应商ID>";
+            return L.Pick("用法: --model remove provider <供应商ID>", "Usage: --model remove provider <provider-id>");
         var n = ModelCatalog.RemoveCustomByProvider(providerId.Trim());
         return n > 0
-            ? $"已删除服务商 `{providerId.Trim()}` 的 {n} 个自定义模型（内置模型不可删）。"
-            : $"未找到服务商 `{providerId.Trim()}` 的自定义模型（内置供应商不可删，可被自定义覆盖）。";
+            ? L.Pick($"已删除服务商 `{providerId.Trim()}` 的 {n} 个自定义模型（内置模型不可删）。",
+                     $"Removed {n} custom models from provider `{providerId.Trim()}` (built-in models cannot be removed).")
+            : L.Pick($"未找到服务商 `{providerId.Trim()}` 的自定义模型（内置供应商不可删，可被自定义覆盖）。",
+                     $"No custom models for provider `{providerId.Trim()}` (built-in providers cannot be removed, but can be overridden by a custom one).");
     }
 
     /// <summary>删除某服务商的 API key（从全局 api_keys.json 移除）</summary>
     public static string RemoveKey(string providerId)
     {
         if (string.IsNullOrWhiteSpace(providerId))
-            return "用法: --model remove key <供应商ID>";
+            return L.Pick("用法: --model remove key <供应商ID>", "Usage: --model remove key <provider-id>");
         if (!ApiKeyStore.Has(providerId.Trim()))
-            return $"未找到服务商 `{providerId.Trim()}` 的 API key。";
+            return L.Pick($"未找到服务商 `{providerId.Trim()}` 的 API key。",
+                          $"No API key found for provider `{providerId.Trim()}`.");
         ApiKeyStore.Remove(providerId.Trim());
-        return $"已删除服务商 `{providerId.Trim()}` 的 API key。";
+        return L.Pick($"已删除服务商 `{providerId.Trim()}` 的 API key。",
+                      $"Removed the API key for provider `{providerId.Trim()}`.");
     }
 
     /// <summary>手动添加一个自定义模型（id + 供应商ID + 可选 baseUrl），写入全局模型库</summary>
     public static string AddModel(string id, string? providerId = null, string? baseUrl = null)
     {
         if (string.IsNullOrWhiteSpace(id))
-            return "用法: --model add model <id> [<供应商ID> [baseUrl]]";
+            return L.Pick("用法: --model add model <id> [<供应商ID> [baseUrl]]",
+                          "Usage: --model add model <id> [<provider-id> [baseUrl]]");
         // 不指定服务商 → 当前 provider（Config.Provider）；否则规范化指定 id
         var pid = ModelCatalog.NormalizeId(string.IsNullOrWhiteSpace(providerId) ? Config.Instance.Provider : providerId);
         if (pid.Length == 0) pid = "custom";
@@ -276,22 +306,25 @@ public static partial class ModelCli
             ? (regUrl.Length > 0 ? regUrl : null)
             : baseUrl.Trim();
         var info = new ModelCatalog.ModelInfo(id.Trim(), id.Trim(), display, pid, "*", "Custom",
-            0, 0, 0, effBaseUrl, $"手动添加（{pid}）", 0);
+            0, 0, 0, effBaseUrl, L.Pick($"手动添加（{pid}）", $"Manually added ({pid})"), 0);
         var path = ModelCatalog.AddCustom(info);
-        return $"已添加模型 `{id.Trim()}`（服务商 `{pid}`）到 {path}";
+        return L.Pick($"已添加模型 `{id.Trim()}`（服务商 `{pid}`）到 {path}",
+                      $"Added model `{id.Trim()}` (provider `{pid}`) to {path}");
     }
 
     /// <summary>手动添加一个服务商（注册为同名模型条目，携带可选 baseUrl），写入全局模型库</summary>
     public static string AddProvider(string providerId, string? baseUrl = null)
     {
         if (string.IsNullOrWhiteSpace(providerId))
-            return "用法: --model add provider <供应商ID> [baseUrl]";
+            return L.Pick("用法: --model add provider <供应商ID> [baseUrl]",
+                          "Usage: --model add provider <provider-id> [baseUrl]");
         var pid = providerId.Trim();
         var info = new ModelCatalog.ModelInfo(pid, pid, pid, pid.ToLowerInvariant(), "*", "Custom",
-            0, 0, 0, string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim(), $"手动添加服务商（{pid}）", 0);
+            0, 0, 0, string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.Trim(),
+            L.Pick($"手动添加服务商（{pid}）", $"Manually added provider ({pid})"), 0);
         var path = ModelCatalog.AddCustom(info);
-        return $"已添加服务商 `{pid}`" +
-            (string.IsNullOrWhiteSpace(baseUrl) ? "" : $"（base_url {baseUrl.Trim()}）") +
+        return L.Pick($"已添加服务商 `{pid}`", $"Added provider `{pid}`") +
+            (string.IsNullOrWhiteSpace(baseUrl) ? "" : L.Pick($"（base_url {baseUrl.Trim()}）", $" (base_url {baseUrl.Trim()})")) +
             $" → {path}";
     }
 
@@ -335,23 +368,61 @@ public static partial class ModelCli
         return m != null ? EffectiveBaseUrl(m) : null;
     }
 
+    /// <summary>
+    /// 连通性探测的**机器可读结论**。分支判定一律用它，**绝不匹配 <c>Detail</c> 文案**。
+    ///
+    /// <para>
+    /// 加这个枚举是因为一场实测事故：<c>ModelPicker.ProbeStatus</c> 与 <c>ModelCli.Prune</c>
+    /// 此前都是按 <c>Detail</c> 的**中文字面量**分支（<c>StartsWith("密钥无效")</c> /
+    /// <c>d.Contains("402")</c>）。这类「拿文案当协议」的写法在单语下看不出问题，
+    /// 双语化时却会**静默损坏功能**：<c>Detail</c> 一翻成英文，判据恒假、不报错、不留痕 ——
+    /// 扫描状态列全变「不通」（连通与 key 失效再也分不开）、剪除逻辑把「key 失效」误判成
+    /// 「地址写错」而**连模型一起删**。</para>
+    ///
+    /// <para>
+    /// 所以判据下沉到这里，文案（<c>Detail</c>）随便翻。新增失败形态时**加枚举成员**，
+    /// 不要新增「靠文案里有没有某个词」的分支。</para>
+    /// </summary>
+    public enum EndpointStatus
+    {
+        /// <summary>2xx —— 地址与密钥都对。</summary>
+        Connected,
+        /// <summary>401/403 —— 地址对、密钥无效（供应商确实存在）。</summary>
+        BadKey,
+        /// <summary>402 —— 欠费。</summary>
+        Overdue,
+        /// <summary>没配 base_url（供应商不存在 / 拼错地址），**根本没发包**。</summary>
+        NoEndpoint,
+        /// <summary>可达但没有 <c>/models</c> 接口（可能非 OpenAI 兼容端点）。</summary>
+        NoModelsApi,
+        /// <summary>超时 / 拒绝连接 / 其余 HTTP 状态码。</summary>
+        Unreachable,
+        /// <summary>离线模式（自测/CI）跳过，**未发包**。</summary>
+        Offline,
+    }
+
     /// <summary>探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）。
     /// 同步薄壳，委托 <see cref="ProbeEndpointAsync"/>（单一实现，双向收敛）。</summary>
-    internal static (bool Ok, string Detail) ProbeEndpoint(string? baseUrl, string? apiKey)
+    internal static (bool Ok, string Detail, EndpointStatus Status) ProbeEndpoint(string? baseUrl, string? apiKey)
         => ProbeEndpointAsync(baseUrl, apiKey).GetAwaiter().GetResult();
 
     /// <summary>
     /// 异步探测一个 OpenAI 兼容端点：GET {base}/models（401/403=密钥无效，404/405 时回退 /v1/models）。
     /// 单 URL 4s 超时（与同步版一致），支持外部取消；内部 await 全部 ConfigureAwait(false)，
     /// 供 MAUI/Web 等 UI 层直接调用，不阻塞/死锁调用线程。
+    ///
+    /// <para>
+    /// ⚠ 第三项 <see cref="EndpointStatus"/> 才是判据；第二项 <c>Detail</c> 只是给人看的文案
+    /// （随界面语言变）。调用方**不许**对 <c>Detail</c> 做 Contains/StartsWith —— 见该枚举的注释。
+    /// </para>
     /// </summary>
-    public static async Task<(bool Ok, string Detail)> ProbeEndpointAsync(string? baseUrl, string? apiKey, CancellationToken ct = default)
+    public static async Task<(bool Ok, string Detail, EndpointStatus Status)> ProbeEndpointAsync(string? baseUrl, string? apiKey, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
-            return (false, "无端点（未配置 base_url）");
+            return (false, L.Pick("无端点（未配置 base_url）", "No endpoint (base_url not configured)"), EndpointStatus.NoEndpoint);
         // 离线模式（自测/CI）：外部端点一律跳过，绝不外发真实密钥
         if (Global.OfflineMode && !Global.IsLoopbackUrl(baseUrl))
-            return (false, "离线模式：已跳过外部探测");
+            return (false, L.Pick("离线模式：已跳过外部探测", "Offline mode: external probe skipped"), EndpointStatus.Offline);
         try
         {
             var b = ModelCatalog.NormalizeBaseUrl(baseUrl);
@@ -373,21 +444,27 @@ public static partial class ModelCli
                     using var resp = await client.SendAsync(req, cts.Token).ConfigureAwait(false);
                     gotHttpResponse = true;
                     var code = (int)resp.StatusCode;
-                    if (code >= 200 && code < 300) return (true, $"已连接（{code}）");
-                    if (code is 401 or 403) return (false, $"密钥无效（{code}）");
+                    if (code >= 200 && code < 300)
+                        return (true, L.Pick($"已连接（{code}）", $"Connected ({code})"), EndpointStatus.Connected);
+                    if (code is 401 or 403)
+                        return (false, L.Pick($"密钥无效（{code}）", $"Invalid API key ({code})"), EndpointStatus.BadKey);
+                    if (code == 402)
+                        return (false, L.Pick($"欠费（{code}）", $"Payment required ({code})"), EndpointStatus.Overdue);
                     if (code is 404 or 405) continue;  // 该路径不存在，试 /v1/models
-                    return (false, $"HTTP {code}");
+                    return (false, $"HTTP {code}", EndpointStatus.Unreachable);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // 调用方取消：上抛
                 catch { break; } // 超时/网络层失败：同一主机第二个 URL 结果相同，直接放弃，
                                  // 避免不可达端点每个 URL 各耗满 4s（两 URL 共 8s）拖慢 --model test / /models/scan
             }
             return gotHttpResponse
-                ? (false, "端点可达但无 /models 接口（可能非 OpenAI 兼容端点）")
-                : (false, "无法连接（超时/拒绝）");
+                ? (false, L.Pick("端点可达但无 /models 接口（可能非 OpenAI 兼容端点）",
+                                 "Endpoint reachable but has no /models API (likely not OpenAI-compatible)"),
+                   EndpointStatus.NoModelsApi)
+                : (false, L.Pick("无法连接（超时/拒绝）", "Cannot connect (timeout/refused)"), EndpointStatus.Unreachable);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; } // 调用方取消：外层不吞，上抛
-        catch { return (false, "无法连接"); }
+        catch { return (false, L.Pick("无法连接", "Cannot connect"), EndpointStatus.Unreachable); }
     }
 
     /// <summary>

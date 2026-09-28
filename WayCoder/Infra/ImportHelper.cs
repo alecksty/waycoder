@@ -699,6 +699,41 @@ public static class ImportHelper
     }
 
     /// <summary>
+    /// prompt.md 里「已导入过 CLAUDE.md」的标记 —— **语言无关**，写入与判读共用这一份。
+    ///
+    /// <para>
+    /// ⚠ 此前判据写的是 <c>existingContent.Contains("CLAUDE.md 导入")</c>，而写入的标题是
+    /// 「从 Claude Code 导入 (CLAUDE.md)」（英文支 <c>Imported from Claude Code (CLAUDE.md)</c>）
+    /// —— **词序反了，两种语言下判据都恒假** ⇒ 去重闸形同虚设，每跑一次 <c>/import</c>
+    /// 就往 prompt.md 追加一份 CLAUDE.md 全文。这不是双语化引入的问题，是"拿文案当判据"
+    /// 留下的旧尸（同族还有 <c>WorkReporter</c>/<c>ContextManager</c> 里 <c>!= "⏳ 就绪"</c> 那一对）。
+    /// </para>
+    ///
+    /// <para>
+    /// 为什么标记本身**不带语言**：prompt.md 是**跨语言的历史数据** —— 中文界面写下的文件，
+    /// 用户切到英文后仍要认得出来（否则一换语言就重复导入一份）。所以这里用一个 HTML 注释，
+    /// 它对 markdown 渲染与模型阅读都是惰性的；旧文件里那两个标题也一并认（back-compat）。
+    /// </para>
+    /// </summary>
+    private const string ClaudeMdImportMarker = "<!-- waycoder:claude-md-import -->";
+
+    /// <summary>历史版本（双语化之前）写下的标题，判读时要认 —— 否则老用户的 prompt.md 会被重复导入一次。</summary>
+    private static readonly string[] ClaudeMdLegacyMarkers =
+    [
+        "## 从 Claude Code 导入 (CLAUDE.md)",
+        "## Imported from Claude Code (CLAUDE.md)",
+    ];
+
+    /// <summary>
+    /// prompt.md 正文是否表示「CLAUDE.md 已经导入过了」——**判据的唯一实现**，抽出来是为了能自测。
+    /// 抽成方法而不是内联在 <see cref="ImportContext"/> 里，是因为后者要读写真实工作目录、测不动；
+    /// 而这个判据恰恰就是那个**曾经恒假**的地方（见 <see cref="ClaudeMdImportMarker"/>）。
+    /// </summary>
+    internal static bool IsClaudeMdAlreadyImported(string promptMdContent)
+        => promptMdContent.Contains(ClaudeMdImportMarker, StringComparison.Ordinal)
+        || ClaudeMdLegacyMarkers.Any(m => promptMdContent.Contains(m, StringComparison.Ordinal));
+
+    /// <summary>
     /// 导入项目上下文。CLAUDE.md → prompt.md / 项目记忆。
     /// </summary>
     private static string ImportContext()
@@ -720,11 +755,11 @@ public static class ImportHelper
             if (File.Exists(promptPath))
             {
                 var existingContent = File.ReadAllText(promptPath, Encoding.UTF8);
-                if (existingContent.Contains("CLAUDE.md 导入"))
+                if (IsClaudeMdAlreadyImported(existingContent))
                     return L.Pick("⏭ 项目上下文: 已存在导入标记，跳过（避免重复导入）", "⏭ Project context: import marker already present, skipped (avoids duplicate import)");
 
                 // 追加到现有
-                File.WriteAllText(promptPath, existingContent.TrimEnd() + L.Pick("\n\n---\n\n## 从 Claude Code 导入 (CLAUDE.md)\n\n", "\n\n---\n\n## Imported from Claude Code (CLAUDE.md)\n\n") + content, Encoding.UTF8);
+                File.WriteAllText(promptPath, existingContent.TrimEnd() + L.Pick($"\n\n---\n\n{ClaudeMdImportMarker}\n\n## 从 Claude Code 导入 (CLAUDE.md)\n\n", $"\n\n---\n\n{ClaudeMdImportMarker}\n\n## Imported from Claude Code (CLAUDE.md)\n\n") + content, Encoding.UTF8);
                 return L.Pick($"✅ 项目上下文: 已追加 CLAUDE.md → {promptPath} ({content.Length} 字符)", $"✅ Project context: appended CLAUDE.md → {promptPath} ({content.Length} chars)");
             }
             else
@@ -732,11 +767,13 @@ public static class ImportHelper
                 var header = L.Pick($""""
                     # 项目提示词
 
+                    {ClaudeMdImportMarker}
                     > 📥 从 Claude Code 导入 (CLAUDE.md) — {DateTime.Now:yyyy-MM-dd HH:mm}
 
                     """", $""""
                     # Project instructions
 
+                    {ClaudeMdImportMarker}
                     > 📥 Imported from Claude Code (CLAUDE.md) — {DateTime.Now:yyyy-MM-dd HH:mm}
 
                     """");

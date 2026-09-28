@@ -340,7 +340,7 @@ public class ConnectArg : CliArg
                 {
                     var p = ConnectionConfig.ResolveProvider(pid);
                     if (string.IsNullOrWhiteSpace(p?.BaseUrl)) { sb.AppendLine(L.Pick($"  ❌ `{pid}` — 无端点", $"  ❌ `{pid}` — no endpoint")); continue; }
-                    var (o, d) = ModelCli.ProbeEndpoint(p!.BaseUrl, p.ApiKey);
+                    var (o, d, _) = ModelCli.ProbeEndpoint(p!.BaseUrl, p.ApiKey);
                     sb.AppendLine($"  {(o ? "✅" : "❌")} `{pid}` {p.BaseUrl} — {d}");
                 }
                 Console.WriteLine(sb.ToString().TrimEnd());

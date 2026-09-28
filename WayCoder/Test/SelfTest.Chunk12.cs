@@ -501,6 +501,114 @@ public static partial class SelfTest
             Check("工具标题：无参数时不带空括号",
                 ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");
 
+            // ── 公理 A2：渲染器的判据必须**中英双认** ──
+            // 渲染器是靠「工具输出的文案」决定上什么色的（错误=红块 / 拒绝变更=黄 / 成功=绿 /
+            // 退出码非 0=红底），而生产侧（ToolErrors、各工具、PersistentShell/GitTool）已经
+            // 按界面语言出文案 ⇒ 判据只认中文的话，英文界面下这些着色**全部静默失效**：
+            // 不报错、不留痕，只是「看不出哪条出错了」。这一节把每一对都钉住。
+            Section("[工具输出着色 · 中英双认]");
+            {
+                static string Out(string tool, string raw) => ToolRendererFactory.Get(tool).FormatOutput(raw);
+
+                // ① 错误前缀：四条工具通道都要认 ToolErrors 的中英两形态
+                var zhErr = "错误：file_path 不能为空 — 请提供有效的文件路径。";
+                var enErr = "Error: file_path must not be empty — provide a valid path.";
+                foreach (var tool in new[] { "write_file", "edit_file", "read_file", "glob", "grep", "bash" })
+                {
+                    Check($"着色[{tool}]: 中文错误 → 红块", Out(tool, zhErr) == AnsiTty.ErrorBlock(zhErr));
+                    Check($"着色[{tool}]: 英文错误 → 红块（A2）", Out(tool, enErr) == AnsiTty.ErrorBlock(enErr));
+                }
+                // 反方向：普通输出不得被误判成错误（否则满屏红块，比不上色更糟）
+                Check("着色: 普通输出不上红块", Out("read_file", "     1\tpublic class A {") == "     1\tpublic class A {");
+
+                // ② 用户拒绝变更 → 黄（生产者英文支 "（declined by user）"）
+                foreach (var tool in new[] { "write_file", "edit_file" })
+                {
+                    var zh = "已取消写入 a.cs（用户拒绝变更）";
+                    var en = "Cancelled writing a.cs (declined by user)";
+                    Check($"着色[{tool}]: 中文拒绝 → 黄", Out(tool, zh) == AnsiTty.Warn(zh));
+                    Check($"着色[{tool}]: 英文拒绝 → 黄（A2）", Out(tool, en) == AnsiTty.Warn(en));
+                }
+
+                // ③ 写入成功 → 绿（生产者 WriteFileTool 的英文支 "Wrote N line(s) to …"）
+                Check("着色[write_file]: 中文写入成功 → 绿",
+                    Out("write_file", "已写入 3 行到 a.cs") == AnsiTty.Fg(32) + "已写入 3 行到 a.cs" + AnsiTty.SgrReset);
+                Check("着色[write_file]: 英文写入成功 → 绿（A2）",
+                    Out("write_file", "Wrote 3 line(s) to a.cs") == AnsiTty.Fg(32) + "Wrote 3 line(s) to a.cs" + AnsiTty.SgrReset);
+
+                // ④ 退出码着色：**切片偏移必须取自命中的那一支**。
+                //    早先写死 `[退出码：` 的 5 字符，而英文前缀 `[exit code: ` 是 12 字符 ——
+                //    偏移写死 +5 会把 `de: 0]` 当码值、判成非 0 ⇒ **成功的命令被标成红底**。
+                //    所以「退出码 0 判成功」这条断言同时也是那个偏移 bug 的回归判据。
+                var green = AnsiTty.Fg(32);
+                var red = AnsiTty.FgBg(37, 41);
+                Check("着色[bash]: 中文退出码 0 → 绿", Out("bash", "out\n[退出码：0]").Contains($"{green}[退出码：0]"));
+                Check("着色[bash]: 中文退出码 1 → 红底", Out("bash", "out\n[退出码：1]").Contains($"{red}[退出码：1]"));
+                Check("着色[bash]: 英文退出码 0 → 绿（A2）", Out("bash", "out\n[exit code: 0]").Contains($"{green}[exit code: 0]"));
+                Check("着色[bash]: 英文退出码 1 → 红底（A2）", Out("bash", "out\n[exit code: 1]").Contains($"{red}[exit code: 1]"));
+                // ⚠ 生产者有两处、英文大小写**不一致**：PersistentShell 出 `[exit code: `、
+                //   GitTool 出 `[Exit code: ` ⇒ 匹配必须大小写不敏感，否则 git 工具那条永远不上色。
+                Check("着色[bash]: `[Exit code: 0]`（GitTool 的大小写）也认（A2）",
+                    Out("bash", "out\n[Exit code: 0]").Contains($"{green}[Exit code: 0]"));
+                Check("着色[bash]: 有退出码标记时切片不越界",
+                    Out("bash", "out\n[exit code: 0]").Contains("out\n"));
+
+                // ⑤ 无输出提示置灰（生产者 PersistentShell / GitTool）
+                Check("着色[bash]: 中文「（无输出）」置灰", Out("bash", "（无输出）").Contains($"{AnsiTty.SgrDim}（无输出）"));
+                Check("着色[bash]: 英文「(no output)」置灰（A2）", Out("bash", "(no output)").Contains($"{AnsiTty.SgrDim}(no output)"));
+            }
+
+            // ── TaskProgress 的判据：别拿 GetSummary 的文案当"有没有进度" ──
+            // 消费方（WorkReporter 工作汇报 / ContextManager 压缩摘要）此前写的是
+            // `progress != "⏳ 就绪"`，而 GetSummary 从不返回那个串 ⇒ 恒真 ⇒ 每轮都塞一段空进度。
+            // 判据改成数据（HasProgress），这里把「两者等价」钉住。
+            Section("[TaskProgress 判据]");
+            {
+                TaskProgress.Reset();
+                var empty = TaskProgress.GetSummary();
+                Check("TaskProgress: 无记录时 HasProgress=false", !TaskProgress.HasProgress);
+                Check("TaskProgress: 无记录时 GetSummary 是空态（不是 ## 开头的块）",
+                    !empty.StartsWith("## ", StringComparison.Ordinal));
+                Check("TaskProgress: 空态文案不是旧的「⏳ 就绪」判据串",
+                    empty != "⏳ 就绪");
+
+                TaskProgress.RecordModified("a.cs");
+                Check("TaskProgress: 有改动 → HasProgress=true", TaskProgress.HasProgress);
+                Check("TaskProgress: 有改动 → GetSummary 是进度块",
+                    TaskProgress.GetSummary().StartsWith("## ", StringComparison.Ordinal));
+
+                TaskProgress.Reset();
+                // 只读不算进度（与 GetSummary 只统计 Created/Modified/Deleted 的分支对齐）
+                TaskProgress.RecordFile("b.cs", TaskProgress.FileAction.Read);
+                Check("TaskProgress: 只读过文件不算进度（无「待完成」计划时）", !TaskProgress.HasProgress);
+                TaskProgress.Reset();
+
+                // 有计划但一个都没做 ⇒ GetSummary 会输出「⏳ 待完成」⇒ HasProgress 必须也为真
+                TaskProgress.SetPlanned(3);
+                Check("TaskProgress: 有计划未完成 → HasProgress=true（与 GetSummary 的分支对齐）",
+                    TaskProgress.HasProgress && TaskProgress.GetSummary().Contains("待完成", StringComparison.Ordinal));
+                TaskProgress.Reset();
+                Check("TaskProgress: Reset 后回到无进度", !TaskProgress.HasProgress);
+            }
+
+            // ── /import 的「CLAUDE.md 已导入」判据 ──
+            // 这条判据曾经**中英双坏**：查的是 `Contains("CLAUDE.md 导入")`，而写入的标题是
+            // 「从 Claude Code 导入 (CLAUDE.md)」—— 词序反了 ⇒ 去重闸恒假、每跑一次 /import
+            // 就往 prompt.md 追加一份 CLAUDE.md 全文。修法是换成语言无关的标记 + 兼容旧标题。
+            Section("[/import 去重判据]");
+            {
+                Check("/import: 新标记被认出",
+                    ImportHelper.IsClaudeMdAlreadyImported("x\n<!-- waycoder:claude-md-import -->\ny"));
+                Check("/import: 旧中文标题被认出（老用户的 prompt.md 不重复导入）",
+                    ImportHelper.IsClaudeMdAlreadyImported("x\n## 从 Claude Code 导入 (CLAUDE.md)\n\ny"));
+                Check("/import: 旧英文标题被认出（切过语言的 prompt.md）",
+                    ImportHelper.IsClaudeMdAlreadyImported("x\n## Imported from Claude Code (CLAUDE.md)\n\ny"));
+                Check("/import: 全新的 prompt.md 不算已导入", !ImportHelper.IsClaudeMdAlreadyImported("# 项目提示词\n\n随便写点什么"));
+                // 反证：旧的错误判据串**不能**被认（认了就说明还在按那个词序匹配）
+                Check("/import: 旧的错误判据串「CLAUDE.md 导入」不再被当真",
+                    !ImportHelper.IsClaudeMdAlreadyImported("（这是一句普通的正文，提到了 CLAUDE.md 导入 这件事）"));
+            }
+
             // 输出另起一条消息（不与标题同行）—— 接在后面时首行会紧贴标题
             Section("[工具行 · 输出另起]");
             var savedSzT = Tty.SizeOverride;

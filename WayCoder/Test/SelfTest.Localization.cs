@@ -98,6 +98,11 @@ public static partial class SelfTest
             Check("i18n[en]: 1 minute 单数", UiText.RelativeTime(t0, t0.AddMinutes(-1)).Contains("1 minute ago"));
             Check("i18n[en]: 5 minutes 复数", UiText.RelativeTime(t0, t0.AddMinutes(-5)).Contains("5 minutes ago"));
             Check("i18n[en]: 1 week 单数", UiText.RelativeTime(t0, t0.AddDays(-8)).Contains("1 week ago"));
+            // 有效期英文侧的单复数（中文无此概念 ⇒ 英文必须自己成形）
+            Check("i18n[en]: 有效期剩 1 天用单数 day",
+                ApiKeyStore.ExpiryText(DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")).Contains("1 day left"));
+            Check("i18n[en]: 有效期剩 3 天用复数 days",
+                ApiKeyStore.ExpiryText(DateTime.Today.AddDays(3).ToString("yyyy-MM-dd")).Contains("3 days left"));
 
             // ── ③ 系统提示词成品：英文界面下不得残留任何中文，也不得残留未替换的占位符 ──
             // 这是**最强的一条**：模板、注进去的工作流/规则、教学模式块、Git 状态标签、
@@ -148,6 +153,11 @@ public static partial class SelfTest
                 // 抽出的标题、路径、符号名）—— 整份断言会被自己仓库的文档标题判成漏译（实测踩到）。
                 // 它单独断言**模板本体**，见下面那两条。
                 ("Architect 英文模板", SystemPrompt.EnglishArchitectTemplateForTest),
+                // 有效期展示（ApiKeyStore.ExpiryText）—— 三态各自成形：永久 / 剩 N 天 / 已过期。
+                // 它原先硬编码中文，消费方是 --model key 的输出（手机命令行页也能看到）。
+                ("ApiKeyStore 有效期·永久", ApiKeyStore.ExpiryText(null)),
+                ("ApiKeyStore 有效期·剩 N 天", ApiKeyStore.ExpiryText(DateTime.Today.AddDays(30).ToString("yyyy-MM-dd"))),
+                ("ApiKeyStore 有效期·已过期", ApiKeyStore.ExpiryText("2020-01-01")),
             };
             foreach (var (name, text) in copySurfaces)
             {

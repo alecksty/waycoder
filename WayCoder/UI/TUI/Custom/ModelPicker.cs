@@ -890,15 +890,28 @@ public static class ModelPicker
     // 状态推导（纯逻辑，供自测）
     // ═══════════════════════════════════════════════════
 
-    /// <summary>连通性探测结果 → 状态枚举：已连接=连通；HTTP 402=欠费；401/403=key 无效；其余失败=不通。</summary>
+    /// <summary>
+    /// 连通性探测结果 → 状态枚举：已连接=连通；欠费=402；key 无效=401/403；无端点=没配 base_url；其余=不通。
+    ///
+    /// <para>
+    /// ⚠ 判据一律取自 <see cref="ModelCli.EndpointStatus"/>（机器可读），**绝不碰 <c>p.Detail</c>**。
+    /// 此前这里写的是 <c>d.Contains("402")</c> / <c>d.StartsWith("密钥无效")</c> / <c>d.StartsWith("无端点")</c> ——
+    /// 拿中文文案当协议。双语化一开，<c>Detail</c> 变英文，这三行**全部恒假**：
+    /// 扫描状态列里「连通」「key 无效」「无端点」一起塌成「不通」，而扫描按钮照常转、
+    /// 一个错都不报（连通和密钥打错再也分不开，用户只能瞎试）。
+    /// </para>
+    /// </summary>
     public static ScanStatus ProbeStatus(ModelCli.EndpointProbe p)
     {
         if (p.Ok) return ScanStatus.Connected;
-        var d = p.Detail ?? "";
-        if (d.Contains("402")) return ScanStatus.Overdue;
-        if (d.StartsWith("密钥无效", StringComparison.Ordinal)) return ScanStatus.BadKey;
-        if (d.StartsWith("无端点", StringComparison.Ordinal)) return ScanStatus.NoEndpoint;
-        return ScanStatus.Unreachable; // 无法连接 / HTTP 4xx/5xx 等
+        return p.Status switch
+        {
+            ModelCli.EndpointStatus.Overdue => ScanStatus.Overdue,
+            ModelCli.EndpointStatus.BadKey => ScanStatus.BadKey,
+            ModelCli.EndpointStatus.NoEndpoint => ScanStatus.NoEndpoint,
+            // 无法连接 / HTTP 4xx/5xx / 可达但无 /models / 离线跳过 —— 扫描列一律显示「不通」
+            _ => ScanStatus.Unreachable,
+        };
     }
 
     // ═══════════════════════════════════════════════════

@@ -94,8 +94,11 @@ public static class WorkReporter
         }
 
         // ── 任务进度 ──
+        // ⚠ 判据用 `HasProgress`（数据），**不是**拿 `GetSummary()` 的文案去比 ——
+        //   此前写的是 `progress != "⏳ 就绪"`，而 GetSummary 从不返回那个串 ⇒ 恒真
+        //   ⇒ 每轮都塞一段「## 📋 任务进度 / （尚无进度记录）」。见 TaskProgress.HasProgress。
         var progress = TaskProgress.GetSummary();
-        if (!string.IsNullOrEmpty(progress) && progress != "⏳ 就绪")
+        if (TaskProgress.HasProgress)
         {
             sb.AppendLine(L.Pick("## 📋 任务进度", "## 📋 Task progress"));
             sb.AppendLine();

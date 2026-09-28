@@ -253,15 +253,33 @@ public static partial class SelfTest
 
         // ── 状态列：连通性探测 → 状态枚举（纯逻辑）+ 标记里声明状态列 ──
         {
-            static WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus PS(string pid, bool ok, string d)
+            // ⚠ 判据走 `Status`（机器可读），**不解析 Detail**；所以下面每一档都刻意配一条
+            //   **英文**文案再断言一次 —— 那才是这条判据存在的意义。
+            //   此前 `ProbeStatus` 是按 `d.Contains("402")` / `d.StartsWith("密钥无效")` /
+            //   `d.StartsWith("无端点")` 判的（拿中文文案当协议）⇒ 文案一翻成英文，三支**全恒假**、
+            //   状态列里「连通 / key 无效 / 无端点」一起塌成「不通」，扫描按钮照转、一个错都不报。
+            static WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus PS(bool ok, ModelCli.EndpointStatus st, string d)
                 => WayCoder.UI.TUI.Custom.ModelPicker.ProbeStatus(
-                    new ModelCli.EndpointProbe(pid, pid, null, ok, d, []));
+                    new ModelCli.EndpointProbe("d", "d", null, ok, d, [], st));
 
-            Check("状态列: 已连接 → Connected", PS("d", true, "已连接（200）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Connected);
-            Check("状态列: HTTP 402 → 欠费", PS("d", false, "HTTP 402") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Overdue);
-            Check("状态列: 密钥无效 → BadKey", PS("d", false, "密钥无效（401）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.BadKey);
-            Check("状态列: 无端点 → NoEndpoint", PS("d", false, "无端点（未配置 base_url）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.NoEndpoint);
-            Check("状态列: 无法连接 → Unreachable", PS("d", false, "无法连接（超时/拒绝）") == WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Unreachable);
+            var Connected = WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Connected;
+            var Overdue = WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Overdue;
+            var BadKey = WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.BadKey;
+            var NoEndpoint = WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.NoEndpoint;
+            var Unreachable = WayCoder.UI.TUI.Custom.ModelPicker.ScanStatus.Unreachable;
+
+            Check("状态列: 已连接 → Connected", PS(true, ModelCli.EndpointStatus.Connected, "已连接（200）") == Connected);
+            Check("状态列[en]: 英文文案 + Connected 仍 → Connected", PS(true, ModelCli.EndpointStatus.Connected, "Connected (200)") == Connected);
+            Check("状态列: 欠费 → Overdue", PS(false, ModelCli.EndpointStatus.Overdue, "欠费（402）") == Overdue);
+            Check("状态列[en]: 英文文案 + Overdue 仍 → Overdue", PS(false, ModelCli.EndpointStatus.Overdue, "Payment required (402)") == Overdue);
+            Check("状态列: 密钥无效 → BadKey", PS(false, ModelCli.EndpointStatus.BadKey, "密钥无效（401）") == BadKey);
+            Check("状态列[en]: 英文文案 + BadKey 仍 → BadKey", PS(false, ModelCli.EndpointStatus.BadKey, "Invalid API key (401)") == BadKey);
+            Check("状态列: 无端点 → NoEndpoint", PS(false, ModelCli.EndpointStatus.NoEndpoint, "无端点（未配置 base_url）") == NoEndpoint);
+            Check("状态列[en]: 英文文案 + NoEndpoint 仍 → NoEndpoint", PS(false, ModelCli.EndpointStatus.NoEndpoint, "No endpoint (base_url not configured)") == NoEndpoint);
+            Check("状态列: 无法连接 → Unreachable", PS(false, ModelCli.EndpointStatus.Unreachable, "无法连接（超时/拒绝）") == Unreachable);
+            // 可达但无 /models、离线跳过：都不是「不通」以外的形态，一律归 Unreachable（与改前一致）
+            Check("状态列: 可达但无 /models → Unreachable", PS(false, ModelCli.EndpointStatus.NoModelsApi, "Endpoint reachable but has no /models API") == Unreachable);
+            Check("状态列: 离线跳过 → Unreachable", PS(false, ModelCli.EndpointStatus.Offline, "Offline mode: external probe skipped") == Unreachable);
 
             var mpRes3 = WayCoder.UI.TUI.TuiMarkup.LoadResource("dialogs/modelpicker.tui");
             var mpTbl3 = mpRes3.Find<WayCoder.UI.Tui.Controls.TuiTableList>("table")!;

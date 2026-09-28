@@ -46,6 +46,33 @@ public static class TaskProgress
     public static void SetPlanned(int count) => _totalPlanned = count;
 
     /// <summary>
+    /// 本会话**是否记录过真正的进度** —— 判断"要不要注入进度块"请用这个，**别比对
+    /// <see cref="GetSummary"/> 的返回文案**。
+    ///
+    /// <para>
+    /// ⚠ 两个消费方（<c>WorkReporter</c> 的工作汇报、<c>ContextManager</c> 的压缩摘要）此前都写着
+    /// <c>progress != "⏳ 就绪"</c>，而 <see cref="GetSummary"/> **从不返回那个串**
+    /// （空态是「（尚无进度记录）」/ <c>(no progress recorded yet)</c>）⇒ 判据**恒真**，
+    /// 于是每轮都往汇报和压缩摘要里塞一段空进度 —— 一个错都不报。
+    /// 这跟语言无关，两种语言下都是坏的；它是"拿文案当判据"留下的旧尸
+    /// （同族教训见 <see cref="ToolResultClassifier"/> 的注释）。
+    /// </para>
+    ///
+    /// <para>
+    /// 判据与 <see cref="GetSummary"/> 的分支**逐条对齐**（有已完成的文件 / 有计划未做完 / 有错误），
+    /// 保证「HasProgress 为真」⇔「GetSummary 返回的不是空态文案」。
+    /// </para>
+    /// </summary>
+    public static bool HasProgress
+    {
+        get
+        {
+            var done = _files.Values.Count(a => a != FileAction.Read);
+            return done > 0 || (_totalPlanned > 0 && done < _totalPlanned) || !_errors.IsEmpty;
+        }
+    }
+
+    /// <summary>
     /// 生成结构化进度摘要。格式：
     /// 已完成: N 文件 | 待处理: M 文件 | 错误: E
     /// 文件列表: ...

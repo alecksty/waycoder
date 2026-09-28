@@ -270,38 +270,16 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
         return tcs.Task;
     }
 
-    /// <summary>权限确认标题：工具名 + emoji（对齐 TUI InlinePermission 的工具图标）。</summary>
-    private static string PermissionTitle(string toolName) => toolName switch
-    {
-        "bash" => "🔧 Bash 确认",
-        "write_file" => "📝 写文件确认",
-        "edit_file" => "✏️ 编辑文件确认",
-        "read_file" => "📄 读文件确认",
-        _ => $"⚠️ {toolName} 确认",
-    };
-
-    /// <summary>权限正文：bash 命令绿色 / 文件路径青色（对齐 TUI 参数着色），等宽可选中。</summary>
-    private static Control BuildPermissionBody(string toolName, string message)
-    {
-        var tb = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
-        var mono = GuiFonts.Mono;
-
-        if (toolName == "bash" && message.StartsWith("命令: "))
-        {
-            tb.Inlines!.Add(new Run("命令: ") { Foreground = GuiColors.SyntaxGreen });
-            tb.Inlines!.Add(new Run(message[4..]) { Foreground = GuiColors.Text, FontFamily = mono });
-            return tb;
-        }
-        if ((toolName == "write_file" || toolName == "edit_file" || toolName == "read_file") && message.StartsWith("文件: "))
-        {
-            tb.Inlines!.Add(new Run("文件: ") { Foreground = GuiColors.SyntaxBlue });
-            tb.Inlines!.Add(new Run(message[4..]) { Foreground = GuiColors.Text, FontFamily = mono });
-            return tb;
-        }
-        tb.Text = message;
-        tb.Foreground = GuiColors.Text;
-        return tb;
-    }
+    // ⚠ 这里原先有一对私有方法 `PermissionTitle` / `BuildPermissionBody`（381ea5ef 引入，
+    //   本意是「权限框里 bash 命令绿色、文件路径青色」），已于双语化批次删除，理由三条：
+    //   ① **零调用点** —— 权限正文的真实路径是上面 `ConfirmAsync` 里那个朴素
+    //      `new TextBlock { Text = message }`；两者都没有任何地方引用（改前改后各 grep 一遍确认）；
+    //   ② 它们**接不上**：`ConfirmAsync(title, message, …)` 根本拿不到 `toolName`，
+    //      想用就得改数据流，不是"接一行"的事 —— 这正是它当初没被接上的原因；
+    //   ③ 里面**写死了 `message[4..]`**（`命令: `/`文件: ` 恰好 4 字符）—— 而生产者
+    //      `PermissionManager.FormatArgs` 的英文支是 `Command: `（9 字符）⇒ 一旦有人真把它接上，
+    //      英文界面下命令首字被吃掉、剩下的字符串上色。留着等于埋一个必炸的陷阱。
+    //   要做「命令着色」请照 `PermissionManager.FormatArgs` 现取标签常量，别切字面量偏移。
 
     /// <summary>带超时的等待：超时返回 fallback（防 Agent 因对话框无人点击而无限挂起）。</summary>
     private static async Task<T> WaitWithTimeout<T>(Task<T> task, int timeoutMs, T fallback)

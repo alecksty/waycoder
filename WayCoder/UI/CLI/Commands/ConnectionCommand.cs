@@ -409,7 +409,7 @@ public class ConnectionCommand : SlashCommand
                 sb.AppendLine(L.Pick($"  ❌ `{pid}` — 无端点", $"  ❌ `{pid}` — no endpoint"));
                 continue;
             }
-            var (o, d) = ModelCli.ProbeEndpoint(baseUrl, prov?.ApiKey);
+            var (o, d, _) = ModelCli.ProbeEndpoint(baseUrl, prov?.ApiKey);
             if (o) ok++;
             sb.AppendLine($"  {(o ? "✅" : "❌")} `{pid}` {baseUrl} — {d}" + (string.IsNullOrEmpty(prov?.ApiKey) ? L.Pick("（未存 key）", " (no key stored)") : ""));
         }

@@ -1,3 +1,52 @@
+## v0.96.566 — 双语化：修掉一批「拿文案当判据」的静默缺陷（自测 6997/0）
+
+这一版**翻的文案不多（ModelCli 家族 149 处 + 有效期展示），但修的都是会静默坏功能的缺陷**。
+独立审计（覆盖台账里 15 个「判据/协议」类文件）的结论值得记下来：**那 15 个文件里一条活的 A2 都没有**
+（剩下的中文里约 52% 是日志与有意保留的协议标记，33% 是「未翻但不会坏功能」的纯输出），
+**真正的活缺陷全在台账之外** —— 出现在「生产侧已双语化、消费侧还只认中文」的接缝上。
+
+**修掉的静默缺陷（英文界面下真的坏、且不报错不留痕）**
+- **四条 TUI 渲染器的错误前缀只认中文**（`write_file` / `edit_file` / `read_file` / `glob` / `grep` / `bash`）——
+  而生产者 `ToolErrors` 早已按语言出 `错误：` / `Error: ` ⇒ 英文界面下**所有工具的错误输出都不再标红**。
+  这是这批里影响面最大的一条。现在前缀统一引用 `ToolErrors.ZhPrefix/EnPrefix`（与生产者同源，不再手写字面量）。
+- **`bash` 退出码着色的切片偏移写死 `+5`** —— `[退出码：` 恰好 5 字符，而英文 `[exit code: ` 是 12 字符 ⇒
+  英文下把 `de: 0]` 当码值、判成非 0 ⇒ **成功的命令被标成红底**。偏移改取自命中的那一支；
+  顺带发现两个生产者的英文大小写不一致（`PersistentShell` 出 `[exit code: `、`GitTool` 出 `[Exit code: `），
+  匹配改为大小写不敏感。
+- **`ModelPicker` 的扫描状态列靠解析探测结果的中文文案分类**（`d.Contains("402")` / `d.StartsWith("密钥无效")` /
+  `d.StartsWith("无端点")`），`ModelCli.Prune` 同款。**正解不是「中英都认」补丁，而是加机器可读状态码**：
+  新增 `ModelCli.EndpointStatus`（Connected/BadKey/Overdue/NoEndpoint/NoModelsApi/Unreachable/Offline），
+  判据与文案彻底脱钩，编译器强制每个调用点跟上。**该字段刻意不给默认值** —— 留个默认值等于允许调用方
+  「忘了给状态」，后果是静默降级（扫描列全显示「不通」、剪除逻辑把「key 失效」误判成「地址写错」而**连模型一起删**）。
+- **`ChatScreen` 的错误判定漏了 `[exit code: …]`**（只认 `[退出码：`）⇒ 英文下用退出码判错的工具输出不进错误态。
+
+**修掉的两条「中英双坏」的旧尸（跟语言无关，一直就是坏的）**
+- **`/import` 的 CLAUDE.md 去重闸恒假**：判据查 `Contains("CLAUDE.md 导入")`，而写入的标题是
+  「从 Claude Code 导入 (CLAUDE.md)」—— **词序反了** ⇒ 每跑一次 `/import` 就往 `prompt.md` 追加一份全文。
+  换成**语言无关的标记**（HTML 注释）并兼容旧标题 —— 标记不带语言是因为 prompt.md 是**跨语言的历史数据**，
+  用户切语言后旧文件仍要认得出来。
+- **`TaskProgress` 的 `!= "⏳ 就绪"` 判据恒真**：`GetSummary()` 从不返回那个串（空态是「（尚无进度记录）」）——
+  全仓无生产者产出它 ⇒ `WorkReporter` 的工作汇报与 `ContextManager` 的压缩摘要**每轮都塞一段空进度**。
+  改为数据判据 `TaskProgress.HasProgress`（与 `GetSummary` 的分支逐条对齐）。
+
+**删除的死代码**：`GuiInteraction.PermissionTitle` / `BuildPermissionBody`（`381ea5ef` 引入、
+零调用点、且 `ConfirmAsync` 根本拿不到 `toolName` 所以当初就没能接上）。留着是个陷阱：
+里面写死 `message[4..]`（`命令: ` 恰好 4 字符），而生产者的英文支是 `Command: `（9 字符）——
+一旦真接上，英文下命令首字被吃掉。
+
+**翻掉的文案（149 处）**：`Config/ModelCli{,.Import,.Test,.Keys,.Free}.cs` 全部归零
+（`/model`、`/model key`、`/free`、`--provider` 的输出四端共用、手机命令行页可达），
+`ApiKeyStore.ExpiryText` 的三态（永久 / 剩 N 天 / 已过期——英文侧单复数自己成形，`1 day` / `3 days`）。
+
+**护栏**：新增 4 组断言并做过**反向验证**（把退出码偏移改回写死的 5 ⇒ 立刻 2 条红，正是「成功被判成失败」）：
+渲染器着色 6 条工具通道 × 中英双认、`ProbeStatus` 11 条（含 5 条**用英文文案**构造）、
+`HasProgress` ↔ `GetSummary` 等价、`ExpiryText` 中英 + 单复数。
+
+**规模**：共享层台账 93 文件 / 1044 处 → **88 文件 / 865 处**；自测 **6997 通过 / 0 失败**；
+MAUI Android 与 Windows 两端均 0 错误。
+
+---
+
 ## v0.96.565 — 双语化 Batch 2：共享层（237 文件 → 93，已迁移约 2450 处）
 
 把**编译进手机的共享层** `WayCoder/**` 的用户可见文案双语化 —— 手机上工具输出与报错是直接显示给用户的。

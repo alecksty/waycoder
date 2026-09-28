@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.Tools;
 using WayCoder.UI.Shared.Terminal;
 
 namespace WayCoder.UI.TUI.Renderers;
@@ -20,12 +21,16 @@ public class EditToolRenderer : IToolRenderer
     {
         if (string.IsNullOrEmpty(rawOutput)) return rawOutput;
 
-        // 错误情况直接返回
-        if (rawOutput.StartsWith("错误：", StringComparison.Ordinal) || rawOutput.StartsWith("❌", StringComparison.Ordinal))
+        // 错误情况直接返回。前缀用 ToolErrors 的常量（与生产者同源），中英双认 ——
+        // 只认中文的话，英文界面下 edit_file 的错误输出**不再是红块**（不报错、只是看不出错）。
+        if (rawOutput.StartsWith(ToolErrors.ZhPrefix, StringComparison.Ordinal)
+            || rawOutput.StartsWith(ToolErrors.EnPrefix, StringComparison.Ordinal)
+            || rawOutput.StartsWith("❌", StringComparison.Ordinal))
             return AnsiTty.ErrorBlock(rawOutput);
 
-        // 取消编辑
-        if (rawOutput.Contains("用户拒绝变更"))
+        // 取消编辑（生产者 EditFileTool/MultiEditTool 的英文支是 "（declined by user）"）
+        if (rawOutput.Contains("用户拒绝变更", StringComparison.Ordinal)
+            || rawOutput.Contains("(declined by user)", StringComparison.Ordinal))
             return AnsiTty.Warn(rawOutput); // 黄色
 
         // 解析并着色 diff

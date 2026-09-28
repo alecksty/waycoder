@@ -236,8 +236,10 @@ public static partial class SelfTest
 
         var probes = new List<WayCoder.ModelCli.EndpointProbe>
         {
-            new("openai", "OpenAI", "https://api.openai.com", true, "已连接（200）", new[] { "gpt-5.5", "gpt-5.5-mini" }),
-            new("bad", "Bad", "https://bad.example.com", false, "无法连接", Array.Empty<string>()),
+            new("openai", "OpenAI", "https://api.openai.com", true, "已连接（200）", new[] { "gpt-5.5", "gpt-5.5-mini" },
+                WayCoder.ModelCli.EndpointStatus.Connected),
+            new("bad", "Bad", "https://bad.example.com", false, "无法连接", Array.Empty<string>(),
+                WayCoder.ModelCli.EndpointStatus.Unreachable),
         };
         var scanJson = WayCoder.UI.Web.WebChatServer.SerializeScan(probes);
         var scanArr = Json.Parse(scanJson);

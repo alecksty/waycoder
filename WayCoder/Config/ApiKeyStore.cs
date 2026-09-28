@@ -143,13 +143,15 @@ public static class ApiKeyStore
     public static string ExpiryText(string? expiry)
     {
         var norm = NormalizeExpiry(expiry);
-        if (norm == null) return "永久";
+        if (norm == null) return L.Pick("永久", "permanent");
         if (DateTime.TryParse(norm, out var dt))
         {
             var days = (dt.Date - DateTime.Today).Days;
-            if (days < 0) return $"⚠ {norm} 已过期";
-            if (days <= 7) return $"⚠ {norm}（剩 {days} 天）";
-            return $"{norm}（剩 {days} 天）";
+            if (days < 0) return L.Pick($"⚠ {norm} 已过期", $"⚠ {norm} expired");
+            // 英文单复数**两支都要成形** —— 中文无此概念，英文侧不写就会漏出 `day(s)` 这种占位式表达
+            // （第一版只给了 >7 天那一支做复数，被 SelfTest.Localization 的单复数断言当场抓到）
+            var left = L.Pick($"（剩 {days} 天）", $" ({days} day{(days == 1 ? "" : "s")} left)");
+            return days <= 7 ? $"⚠ {norm}{left}" : $"{norm}{left}";
         }
         return norm;
     }
@@ -335,7 +337,9 @@ public static class ApiKeyStore
 
         // 1. 环境变量（最可靠、跨平台）
         foreach (var pid in ImportFromEnvironment())
-            Add(pid, "环境变量");
+            // source 标签会随导入结果序列化到 Web 的 JSON 并显示（UI/WEB/WebChat.cs），
+            // 全仓无任何判定依赖它 ⇒ 可跟随语言。其余几处是产品名（Claude Code / Codex / …），本就不翻。
+            Add(pid, L.Pick("环境变量", "environment variable"));
 
         var home = Global.Home;
 

@@ -22,7 +22,7 @@ public static partial class ModelCli
         foreach (var raw in sources)
         {
             var src = raw.ToLowerInvariant();
-            onProgress?.Invoke($"🔍 正在导入 {raw} ...");
+            onProgress?.Invoke(L.Pick($"🔍 正在导入 {raw} ...", $"🔍 Importing {raw} ..."));
             if (src == "builtin")
             {
                 ModelCatalog.RestoreBuiltIn();
@@ -42,13 +42,13 @@ public static partial class ModelCli
             }
             // 文件路径（支持 JSONC/JSON5 注释与裸 key；.toml 按 Codex 解析）
             if (!File.Exists(raw))
-                return $"❌ 未找到文件: {raw}";
+                return L.Pick($"❌ 未找到文件: {raw}", $"❌ File not found: {raw}");
             var text = File.ReadAllText(raw);
             var list = raw.EndsWith(".toml", StringComparison.OrdinalIgnoreCase)
                 ? ModelCatalog.ImportCodex(text)
                 : ModelCatalog.ImportFromJson(ModelCatalog.NormalizeJson5(text));
             imported.AddRange(list);
-            reports.Add($"文件 {raw}");
+            reports.Add(L.Pick($"文件 {raw}", $"file {raw}"));
         }
 
         // 第三方数据库（Crush/OpenCode 等）里的本地模型条目（ollama/lmstudio/local）是静态假数据——
@@ -59,14 +59,15 @@ public static partial class ModelCli
 
         var sb = new StringBuilder();
         if (restoredBuiltIn)
-            sb.AppendLine("✅ 已恢复内置模型目录（清空标记清除）");
+            sb.AppendLine(L.Pick("✅ 已恢复内置模型目录（清空标记清除）", "✅ Built-in model catalog restored (reset marker cleared)"));
         if (localServiceReport != null)
             sb.AppendLine(localServiceReport);
 
         if (imported.Count == 0)
             return sb.Length > 0
                 ? sb.ToString().Trim()
-                : "❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|ollama|lmstudio|cc-switch|<配置文件路径>]";
+                : L.Pick("❌ 未导入任何模型（未找到可识别的模型配置）。\n   支持: --model import [builtin|opencode|openclaw|crush|claude|codex|ollama|lmstudio|cc-switch|<配置文件路径>]",
+                         "❌ Nothing imported (no recognizable model config found).\n   Supported: --model import [builtin|opencode|openclaw|crush|claude|codex|ollama|lmstudio|cc-switch|<config-file-path>]");
 
         // 去重：同一 (Id, baseUrl) 只保留第一个（地址不同=不同服务商，同 id 不同地址都保留）
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -88,11 +89,13 @@ public static partial class ModelCli
         ModelCatalog.AddCustomRange(added);
         RegisterImportProviders(added); // 批量一次写（防 N 次磁盘写）
 
-        sb.AppendLine($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）" +
-            (skipped.Count > 0 ? $"，跳过 {skipped.Count} 个内置已有" : "") + "：");
+        sb.AppendLine(L.Pick($"✅ 导入 {added.Count} 个模型到全局模型库（{string.Join("、", reports)}）",
+                             $"✅ Imported {added.Count} models into the global model library ({string.Join(", ", reports)})") +
+            (skipped.Count > 0 ? L.Pick($"，跳过 {skipped.Count} 个内置已有", $", skipped {skipped.Count} already built-in") : "") +
+            L.Pick("：", ":"));
         foreach (var m in added)
             sb.AppendLine($"  {m.Id,-32} {m.Provider,-10} ctx={FormatCtx(m.ContextWindow),-6} ${m.InputPrice}/{m.OutputPrice}");
-        sb.AppendLine("已写入: " + ModelCatalog.GlobalProviderDir + "/（按供应商分类）");
+        sb.AppendLine(L.Pick("已写入: ", "Written to: ") + ModelCatalog.GlobalProviderDir + L.Pick("/（按供应商分类）", "/ (grouped by provider)"));
         return sb.ToString().Trim();
     }
 
@@ -109,7 +112,7 @@ public static partial class ModelCli
         {
             try
             {
-                onProgress?.Invoke($"🔍 探测 {pname}（{endpoint}）...");
+                onProgress?.Invoke(L.Pick($"🔍 探测 {pname}（{endpoint}）...", $"🔍 Probing {pname} ({endpoint})..."));
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
                 var json = client.GetStringAsync(endpoint).GetAwaiter().GetResult();
                 var root = Json.Parse(json);
@@ -120,7 +123,7 @@ public static partial class ModelCli
                     // 显式 SupportsThinking=false；SupportsTools 留 null 走推断（gemma2:2b→false，qwen3→true）
                     added.Add(new ModelCatalog.ModelInfo(
                         id, id, pname, pid, "L", "Local", 0, 0, 0, baseUrl,
-                        $"从 {pname} 接口导入", 0, SupportsThinking: false));
+                        L.Pick($"从 {pname} 接口导入", $"Imported from the {pname} API"), 0, SupportsThinking: false));
                 }
                 reports.Add(pname);
             }
@@ -138,15 +141,17 @@ public static partial class ModelCli
             j => j?["data"]?.Items.Select(m => m?["id"]?.AsString() ?? "").Where(n => n.Length > 0) ?? []);
 
         if (added.Count == 0)
-            return "未发现本地模型服务（Ollama 11434 / LM Studio 1234 未运行或无已安装模型）。";
+            return L.Pick("未发现本地模型服务（Ollama 11434 / LM Studio 1234 未运行或无已安装模型）。",
+                          "No local model service found (Ollama on 11434 / LM Studio on 1234 not running, or no models installed).");
 
         ModelCatalog.AddCustomRange(added);
         RegisterImportProviders(added);
         var sb = new StringBuilder();
-        sb.AppendLine($"✅ 从本地服务接口导入 {added.Count} 个模型：");
+        sb.AppendLine(L.Pick($"✅ 从本地服务接口导入 {added.Count} 个模型：", $"✅ Imported {added.Count} models from the local service API:"));
         foreach (var m in added.OrderBy(m => m.Id))
             sb.AppendLine($"  {m.Id,-32} {m.Provider}");
-        sb.AppendLine("已写入 locals.json（本地模型，无需 API Key）");
+        sb.AppendLine(L.Pick("已写入 locals.json（本地模型，无需 API Key）",
+                             "Written to locals.json (local models need no API key)"));
         return sb.ToString().Trim();
     }
 
@@ -185,7 +190,8 @@ public static partial class ModelCli
 
         // models.dev 是 api.json 专用格式（非 OpenAI /models 端点），URL 即文件本身
         var isModelsDev = src.KeyProvider == "models.dev";
-        onProgress?.Invoke($"🔍 拉取 {src.Name} 模型列表（{(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models")}）...");
+        onProgress?.Invoke(L.Pick($"🔍 拉取 {src.Name} 模型列表（{(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models")}）...",
+                                  $"🔍 Fetching the {src.Name} model list ({(isModelsDev ? src.BaseUrl : src.BaseUrl + "/models")})..."));
         string json;
         try
         {
@@ -194,18 +200,24 @@ public static partial class ModelCli
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
             var hint = string.IsNullOrEmpty(key)
-                ? $"需要 {src.KeyProvider} 的 API Key（--model key {src.KeyProvider} &lt;key&gt; 设置后重试）"
-                : $"「{src.KeyProvider}」的 API Key 无效或已失效";
-            return $"在线导入（{src.Name}）失败：{hint}（{ex.Message}）";
+                ? L.Pick($"需要 {src.KeyProvider} 的 API Key（--model key {src.KeyProvider} &lt;key&gt; 设置后重试）",
+                         $"An API key for {src.KeyProvider} is required (set it with --model key {src.KeyProvider} <key> and retry)")
+                : L.Pick($"「{src.KeyProvider}」的 API Key 无效或已失效",
+                         $"The API key for \"{src.KeyProvider}\" is invalid or has expired");
+            return L.Pick($"在线导入（{src.Name}）失败：{hint}（{ex.Message}）",
+                          $"Online import ({src.Name}) failed: {hint} ({ex.Message})");
         }
 
-        onProgress?.Invoke($"🔄 解析 {src.Name} 模型列表（{json.Length / 1024} KB）…");
+        onProgress?.Invoke(L.Pick($"🔄 解析 {src.Name} 模型列表（{json.Length / 1024} KB）…",
+                                  $"🔄 Parsing the {src.Name} model list ({json.Length / 1024} KB)…"));
         var list = isModelsDev
             ? ModelCatalog.ImportModelsDev(json)
             : ModelCatalog.ImportOpenCodeApi(json, src.BaseUrl);
         if (list.Count == 0)
-            return $"在线导入（{src.Name}）未返回可识别的模型";
-        onProgress?.Invoke($"🔄 解析完成 {list.Count} 个模型，写入模型库…");
+            return L.Pick($"在线导入（{src.Name}）未返回可识别的模型",
+                          $"Online import ({src.Name}) returned no recognizable models");
+        onProgress?.Invoke(L.Pick($"🔄 解析完成 {list.Count} 个模型，写入模型库…",
+                                  $"🔄 Parsed {list.Count} models; writing to the model library…"));
         // 不再按内置 id 跳过：models.dev 等数据刷新内置（同 id+同 baseUrl 由 AddCustomRange/All 覆盖，
         // 网关托管同名模型 baseUrl 不同 = 不同服务商，正常追加）；仅跳过无端点模型（baseUrl 空 = 无法使用，
         // RegisterImportProviders 也不会注册其供应商）
@@ -213,11 +225,13 @@ public static partial class ModelCli
         ModelCatalog.AddCustomRange(toAdd);
         RegisterImportProviders(toAdd);
         var providerCount = toAdd.Select(m => m.ProviderId).Distinct().Count();
-        onProgress?.Invoke($"✅ 完成：{providerCount} 个供应商 / {toAdd.Count} 个模型");
-        return $"✅ 在线导入（{src.Name}）{providerCount} 个供应商 / {toAdd.Count} 个模型" +
-            (list.Count - toAdd.Count > 0 ? $"，跳过 {list.Count - toAdd.Count} 个无端点模型" : "") +
-            (string.IsNullOrEmpty(key) ? "（未配置 API Key，导入的模型需设 key 后使用）" : "") +
-            "：\n  " + string.Join("\n  ", toAdd.Select(m => m.Id));
+        onProgress?.Invoke(L.Pick($"✅ 完成：{providerCount} 个供应商 / {toAdd.Count} 个模型",
+                                  $"✅ Done: {providerCount} providers / {toAdd.Count} models"));
+        return L.Pick($"✅ 在线导入（{src.Name}）{providerCount} 个供应商 / {toAdd.Count} 个模型",
+                      $"✅ Online import ({src.Name}): {providerCount} providers / {toAdd.Count} models") +
+            (list.Count - toAdd.Count > 0 ? L.Pick($"，跳过 {list.Count - toAdd.Count} 个无端点模型", $", skipped {list.Count - toAdd.Count} models with no endpoint") : "") +
+            (string.IsNullOrEmpty(key) ? L.Pick("（未配置 API Key，导入的模型需设 key 后使用）", " (no API key configured; set one before using the imported models)") : "") +
+            L.Pick("：\n  ", ":\n  ") + string.Join("\n  ", toAdd.Select(m => m.Id));
     }
 
     /// <summary>
@@ -232,7 +246,8 @@ public static partial class ModelCli
                             || s.KeyProvider.Contains(n.Trim(), StringComparison.OrdinalIgnoreCase))).ToList()
             : OnlineSources.ToList();
         if (sources.Count == 0)
-            return "未找到匹配的在线源（可用: " + string.Join(", ", OnlineSources.Select(s => s.Name)) + "）";
+            return L.Pick("未找到匹配的在线源（可用: ", "No matching online source (available: ")
+                 + string.Join(", ", OnlineSources.Select(s => s.Name)) + L.Pick("）", ")");
         var reports = sources.Select(s => ImportOnline(s, onProgress)).ToList();
         return string.Join("\n", reports);
     }
@@ -255,9 +270,12 @@ public static partial class ModelCli
                 string.Equals(ModelCatalog.NormalizeBaseUrl(p.DefaultBaseUrl), baseUrl, StringComparison.OrdinalIgnoreCase));
             if (addrExists) continue;
             var key = ApiKeyStore.Get(g.Key);
-            var (ok, detail) = ProbeEndpoint(first.DefaultBaseUrl, key);
+            var (ok, _, status) = ProbeEndpoint(first.DefaultBaseUrl, key);
             // 可用：连通(2xx) 或端点存在但需认证(401/403) —— 都说明地址正确
-            if (ok || detail.Contains("401") || detail.Contains("403"))
+            // ⚠ 判据用 Status，不是 detail 里搜 "401"：文案一翻成英文，`Contains("401")` 那种
+            //   写法虽然还侥幸能中（HTTP 码是数字），但把「地址对不对」这件事挂在散文上迟早要坏；
+            //   同一族的两处（Prune / ModelPicker）已经因为按中文判定而在英文下失效过。
+            if (ok || status == EndpointStatus.BadKey)
                 ModelCatalog.RegisterProvider(g.Key, first.Provider, first.DefaultBaseUrl!);
         }
         // 导入自愈：AddCustomRange 落盘早于注册，同批同地址多来源名可能产生未注册别名（addrExists 跳过注册）
@@ -285,16 +303,17 @@ public static partial class ModelCli
                         var keyMark = hasKey ? "🔑" : "— ";
                         sb.AppendLine($"  {keyMark} {id,-20} {p.DisplayName,-22} {p.DefaultBaseUrl}");
                     }
-                    Console.WriteLine($"服务商数据库（{ModelCatalog.Providers.Count}）：\n{sb.ToString().TrimEnd()}");
+                    Console.WriteLine(L.Pick($"服务商数据库（{ModelCatalog.Providers.Count}）：\n",
+                                              $"Provider database ({ModelCatalog.Providers.Count}):\n") + sb.ToString().TrimEnd());
                     return 0;
                 }
                 case "add":
                 case "new":
                 {
-                    if (values.Count < 4) { Console.WriteLine("用法: --provider add <id> <名称> <base-url>"); return 1; }
+                    if (values.Count < 4) { Console.WriteLine(L.Pick("用法: --provider add <id> <名称> <base-url>", "Usage: --provider add <id> <name> <base-url>")); return 1; }
                     var addErr = ModelCatalog.RegisterProviderResult(values[1], values[2], values[3]);
-                    if (addErr == null) { Console.WriteLine($"✅ 已添加服务商 {values[1]} → {values[3]}"); return 0; }
-                    Console.WriteLine("❌ 添加失败：该" + addErr);
+                    if (addErr == null) { Console.WriteLine(L.Pick($"✅ 已添加服务商 {values[1]} → {values[3]}", $"✅ Added provider {values[1]} → {values[3]}")); return 0; }
+                    Console.WriteLine(L.Pick("❌ 添加失败：该" + addErr, "❌ Add failed: " + addErr));
                     return 1;
                 }
                 case "rm":
@@ -302,16 +321,16 @@ public static partial class ModelCli
                 case "delete":
                 case "del":
                 {
-                    if (values.Count < 2) { Console.WriteLine("用法: --provider rm <id>"); return 1; }
+                    if (values.Count < 2) { Console.WriteLine(L.Pick("用法: --provider rm <id>", "Usage: --provider rm <id>")); return 1; }
                     ModelCatalog.RemoveProvider(values[1]);
-                    Console.WriteLine($"🗑 已移除服务商 {values[1]}");
+                    Console.WriteLine(L.Pick($"🗑 已移除服务商 {values[1]}", $"🗑 Removed provider {values[1]}"));
                     return 0;
                 }
                 case "select":
                 case "switch":
                 case "use":
                 {
-                    if (values.Count < 2) { Console.WriteLine("用法: --provider select <id>"); return 1; }
+                    if (values.Count < 2) { Console.WriteLine(L.Pick("用法: --provider select <id>", "Usage: --provider select <id>")); return 1; }
                     var pid = values[1].Trim().ToLowerInvariant();
                     ConnectionConfig.ApplyModelChoice(pid, Config.Instance.Model, isLarge: true, out var msg);
                     Console.WriteLine($"✅ {msg}");
@@ -332,7 +351,8 @@ public static partial class ModelCli
                 case "expiry":
                 {
                     if (values.Count >= 3) { Console.WriteLine(SetKeyExpiry(values[1], values[2])); return 0; }
-                    Console.WriteLine("用法: --provider key expiry <供应商> <有效期>");
+                    Console.WriteLine(L.Pick("用法: --provider key expiry <供应商> <有效期>",
+                                              "Usage: --provider key expiry <provider> <validity>"));
                     return 1;
                 }
                 case "test":
@@ -357,7 +377,8 @@ public static partial class ModelCli
                     return 0;
                 }
                 default:
-                    Console.WriteLine($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean|reconcile [apply]");
+                    Console.WriteLine(L.Pick($"未知子命令「{cmd}」。用法: --provider list|add <id> <名称> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean|reconcile [apply]",
+                                              $"Unknown subcommand \"{cmd}\". Usage: --provider list|add <id> <name> <base-url>|rm <id>|select <id>|key <id> <key>|test|import [source]|clean|reconcile [apply]"));
                     return 1;
             }
         }
@@ -386,7 +407,10 @@ public static partial class ModelCli
                     ModelCatalog.RemoveProvider(id);
                 if (ModelCatalog.RemoveCustomByProvider(id) > 0) removed++;
             }
-            return removed > 0 ? $"🗑 已清理 {removed} 个无效服务商（保留 API key，模型已删）" : "没有无效服务商";
+            return removed > 0
+                ? L.Pick($"🗑 已清理 {removed} 个无效服务商（保留 API key，模型已删）",
+                         $"🗑 Pruned {removed} invalid providers (API keys kept, models removed)")
+                : L.Pick("没有无效服务商", "No invalid providers");
         }
 
         /// <summary>模型归并报告文本：别名 providerId → 同 base_url 的注册供应商。dryRun 只预览不落盘。</summary>
@@ -394,25 +418,35 @@ public static partial class ModelCli
         {
             var rep = ModelCatalog.ReconcileModels(dryRun);
             var sb = new StringBuilder();
+            // ⚠ 统计数字串**内联进两支 L.Pick**，不抽成局部变量 —— 抽出来的话那个中文串
+            //   就落在 L.Pick 之外，台账扫描器会把这个已迁移的文件继续算作「仍含未迁移中文」，
+            //   台账就不再是「还剩多少」的准绳了（这正是台账要消灭的东西）。
             sb.AppendLine(dryRun
-                ? $"🔍 模型归并预览（未写盘，实际归并请去掉 --dry-run）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属"
-                : $"✅ 模型归并完成（已备份）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属");
+                ? L.Pick($"🔍 模型归并预览（未写盘，实际归并请去掉 --dry-run）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属",
+                         $"🔍 Model reconciliation preview (nothing written; drop --dry-run to apply): {rep.Moved} moved / {rep.DuplicateSkip} duplicate-skipped / {rep.AlreadyCanonical} already canonical / {rep.NoUrl} no URL / {rep.Unresolved} unresolved")
+                : L.Pick($"✅ 模型归并完成（已备份）：{rep.Moved} 移动 / {rep.DuplicateSkip} 重复跳过 / {rep.AlreadyCanonical} 已正确 / {rep.NoUrl} 无URL / {rep.Unresolved} 无归属",
+                         $"✅ Model reconciliation done (backed up): {rep.Moved} moved / {rep.DuplicateSkip} duplicate-skipped / {rep.AlreadyCanonical} already canonical / {rep.NoUrl} no URL / {rep.Unresolved} unresolved"));
             if (rep.Backups.Count > 0)
-                sb.AppendLine($"  💾 备份 {rep.Backups.Count} 个文件（{Path.GetFileName(rep.Backups[0])} …）");
+                sb.AppendLine(L.Pick($"  💾 备份 {rep.Backups.Count} 个文件（{Path.GetFileName(rep.Backups[0])} …）",
+                                     $"  💾 Backed up {rep.Backups.Count} file(s) ({Path.GetFileName(rep.Backups[0])} …)"));
             if (rep.DeletedFiles.Count > 0)
-                sb.AppendLine($"  🗑 删除 {rep.DeletedFiles.Count} 个空别名文件");
+                sb.AppendLine(L.Pick($"  🗑 删除 {rep.DeletedFiles.Count} 个空别名文件",
+                                     $"  🗑 Removed {rep.DeletedFiles.Count} empty alias file(s)"));
             if (rep.FailedFiles.Count > 0)
-                sb.AppendLine($"  ❌ 写入失败 {rep.FailedFiles.Count} 个文件：{string.Join("、", rep.FailedFiles.Select(Path.GetFileName))}");
+                sb.AppendLine(L.Pick($"  ❌ 写入失败 {rep.FailedFiles.Count} 个文件：{string.Join("、", rep.FailedFiles.Select(Path.GetFileName))}",
+                                     $"  ❌ Failed to write {rep.FailedFiles.Count} file(s): {string.Join(", ", rep.FailedFiles.Select(Path.GetFileName))}"));
             if (dryRun && rep.Changes != null)
             {
                 var shown = rep.Changes.Where(c => c.Action is "moved" or "duplicate-skip").Take(20).ToList();
                 foreach (var c in shown)
-                    sb.AppendLine($"  · {c.SourceProviderId}/{c.ModelId} → {c.TargetProviderId}（{c.Action}）");
+                    sb.AppendLine(L.Pick($"  · {c.SourceProviderId}/{c.ModelId} → {c.TargetProviderId}（{c.Action}）",
+                                         $"  · {c.SourceProviderId}/{c.ModelId} → {c.TargetProviderId} ({c.Action})"));
                 if (shown.Count < rep.Changes.Count(c => c.Action is "moved" or "duplicate-skip"))
-                    sb.AppendLine($"  · … 其余省略");
+                    sb.AppendLine(L.Pick("  · … 其余省略", "  · … rest omitted"));
             }
             if (rep.Unresolved > 0)
-                sb.AppendLine($"  ℹ️ {rep.Unresolved} 个模型地址无注册归属（未动）：可 --provider add 注册该地址，或改模型 baseUrl 后重跑");
+                sb.AppendLine(L.Pick($"  ℹ️ {rep.Unresolved} 个模型地址无注册归属（未动）：可 --provider add 注册该地址，或改模型 baseUrl 后重跑",
+                                     $"  ℹ️ {rep.Unresolved} model(s) have an unregistered base URL (left untouched): register it with --provider add, or change the model baseUrl and re-run"));
             return sb.ToString().TrimEnd();
         }
     }
@@ -470,13 +504,14 @@ public static partial class ModelCli
         var result = new List<ModelCatalog.ModelInfo>();
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
+        // ⚠ 标签只进 reports（纯展示），无任何判定 ⇒ 可安全跟随语言
         var candidates = new[]
         {
-            (Path.Combine(localAppData, "crush", "crush.json"),      "Crush 配置"),
-            (Path.Combine(localAppData, "crush", "providers.json"),  "Crush 模型目录"),
-            (Path.Combine(home, ".config", "crush", "crush.json"),   "Crush 配置"),
-            (Path.Combine(home, ".config", "crush", "providers.json"), "Crush 模型目录"),
-            (Path.Combine(home, ".config", "crush", "config.json"),  "Crush 配置"), // 旧文档兼容
+            (Path.Combine(localAppData, "crush", "crush.json"),      L.Pick("Crush 配置", "Crush config")),
+            (Path.Combine(localAppData, "crush", "providers.json"),  L.Pick("Crush 模型目录", "Crush model catalog")),
+            (Path.Combine(home, ".config", "crush", "crush.json"),   L.Pick("Crush 配置", "Crush config")),
+            (Path.Combine(home, ".config", "crush", "providers.json"), L.Pick("Crush 模型目录", "Crush model catalog")),
+            (Path.Combine(home, ".config", "crush", "config.json"),  L.Pick("Crush 配置", "Crush config")), // 旧文档兼容
         };
 
         foreach (var (path, name) in candidates)

@@ -133,7 +133,7 @@ public partial class ModelManagerPage : ContentPage
         foreach (var p in ModelCli.ResolveScanTargets())
         {
             // 探测 /models（比 GET 首页更准确：首页可达 ≠ 接口可用）；Url 为空 → 不可达
-            var (ok, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
+            var (ok, _, _) = await ModelCli.ProbeEndpointAsync(p.Url, ApiKeyStore.Get(p.Id));
             _connectivity[p.Id] = ok;
         }
         ScanBtn.IsEnabled = true;

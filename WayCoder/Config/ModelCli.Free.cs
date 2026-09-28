@@ -34,9 +34,12 @@ public static partial class ModelCli
     /// 切回 rollback_connect（free 从未覆盖 default，通常等价回默认锚点）。</summary>
     public static string RestorePrevious()
     {
-        if (PreviousModel is not { } prev) return "⚠️ 无之前模型可恢复（先切换免费模型）";
+        if (PreviousModel is not { } prev)
+            return L.Pick("⚠️ 无之前模型可恢复（先切换免费模型）",
+                          "⚠️ No previous model to restore (switch to a free model first)");
         ConnectionConfig.RestoreMain();
-        return $"✅ 已恢复之前模型：{ModelCatalog.ShortDisplayName(prev.Model)}（{prev.Provider}）";
+        return L.Pick($"✅ 已恢复之前模型：{ModelCatalog.ShortDisplayName(prev.Model)}（{prev.Provider}）",
+                      $"✅ Restored the previous model: {ModelCatalog.ShortDisplayName(prev.Model)} ({prev.Provider})");
     }
 
     /// <summary>枚举模型库中所有 free 模型（id 含 free，同 provider+id 去重）。</summary>
@@ -104,10 +107,12 @@ public static partial class ModelCli
     {
         var freeModels = EnumerateFreeModels();
         if (freeModels.Count == 0)
-            return "模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）";
+            return L.Pick("模型库中没有 free 模型（--model import online opencode-zen / openrouter 导入后测试）",
+                          "No free models in the library (import with --model import online opencode-zen / openrouter, then test)");
         // 默认每模型 5s：没回复就跳过（连通性探测，不拖沓）。可传参覆盖（--model free <秒>）
         var timeout = ParseTimeout(timeoutArg, fallback: 5);
-        var sb = new StringBuilder($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s，没回复即跳过）：\n");
+        var sb = new StringBuilder(L.Pick($"Free 模型连通性测试（{freeModels.Count} 个，单模型超时 {timeout}s，没回复即跳过）：\n",
+                                          $"Free model connectivity test ({freeModels.Count} models, {timeout}s timeout each, skipped if no reply):\n"));
         int ok = 0, fail = 0, skip = 0, total = 0;
         var okList = new List<FreeConnect>();
         foreach (var m in freeModels)
@@ -117,11 +122,13 @@ public static partial class ModelCli
             if (string.IsNullOrEmpty(key))
             {
                 skip++;
-                sb.AppendLine($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）无 key");
+                sb.AppendLine(L.Pick($"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）无 key",
+                                     $"  ⏭ {ModelCatalog.ShortDisplayName(m.Id)} ({ModelCatalog.ProviderDisplayName(m.ProviderId)}) no key"));
                 continue;
             }
             // 实时进度（stderr）：让用户知道正在扫哪个 provider 第几个
-            Console.Error.WriteLine($"正在扫描 [{m.ProviderId}] 第 {total}/{freeModels.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...");
+            Console.Error.WriteLine(L.Pick($"正在扫描 [{m.ProviderId}] 第 {total}/{freeModels.Count} 个（{ModelCatalog.ShortDisplayName(m.Id)}）...",
+                                            $"Scanning [{m.ProviderId}] {total}/{freeModels.Count} ({ModelCatalog.ShortDisplayName(m.Id)})..."));
             var baseUrl = m.DefaultBaseUrl ?? ConnectionConfig.ResolveProvider(m.ProviderId)?.BaseUrl ?? "";
             var (ok2, detail) = ProbeChat(m.ProviderId, m.Id, baseUrl, timeout);
             if (ok2)
@@ -131,14 +138,18 @@ public static partial class ModelCli
                 // 增量持久化：每扫到可用立即写 free.json——28 个模型逐个探测可能较久，
                 // 中途 Ctrl+C / 超时也能用已扫到的可用项（下次 /free 直接读缓存）
                 SaveFreeJson(okList);
-                sb.AppendLine($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}");
+                sb.AppendLine(L.Pick($"  ✅ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}",
+                                     $"  ✅ {ModelCatalog.ShortDisplayName(m.Id)} ({ModelCatalog.ProviderDisplayName(m.ProviderId)}) {detail}"));
             }
-            else { fail++; sb.AppendLine($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}"); }
+            else { fail++; sb.AppendLine(L.Pick($"  ❌ {ModelCatalog.ShortDisplayName(m.Id)}（{ModelCatalog.ProviderDisplayName(m.ProviderId)}）{detail}",
+                                                $"  ❌ {ModelCatalog.ShortDisplayName(m.Id)} ({ModelCatalog.ProviderDisplayName(m.ProviderId)}) {detail}")); }
         }
         if (okList.Count > 0) SaveFreeJson(okList); // 最终全量（幂等）
-        sb.AppendLine($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}");
+        sb.AppendLine(L.Pick($"\n汇总：可用 {ok}　失败 {fail}　跳过(无key) {skip}",
+                             $"\nSummary: {ok} usable   {fail} failed   {skip} skipped (no key)"));
         if (okList.Count > 0)
-            sb.AppendLine($"已把 {okList.Count} 个可用免费模型写入 free.json（/free 直接读缓存，不再重复扫描；重新扫描跑 --model free）");
+            sb.AppendLine(L.Pick($"已把 {okList.Count} 个可用免费模型写入 free.json（/free 直接读缓存，不再重复扫描；重新扫描跑 --model free）",
+                                 $"Wrote {okList.Count} usable free models to free.json (/free reads the cache and won't rescan; run --model free to rescan)"));
         return sb.ToString();
     }
 

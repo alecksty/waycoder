@@ -611,8 +611,12 @@ public class ContextManager
         }
 
         // 注入任务进度追踪（压缩时不丢失进度信息）
+        // ⚠ 判据用 `HasProgress`（数据），不是比对 `GetSummary()` 的文案 ——
+        //   此前写的是 `progress != "⏳ 就绪"`，而 GetSummary 从不返回那个串 ⇒ 恒真
+        //   ⇒ 每次压缩都凭空多出「## 当前进度 / （尚无进度记录）」两行噪声。
+        //   见 TaskProgress.HasProgress 的注释（同族："拿文案当判据"）。
         var progress = TaskProgress.GetSummary();
-        if (!string.IsNullOrEmpty(progress) && progress != "⏳ 就绪")
+        if (TaskProgress.HasProgress)
         {
             var summary = ExtractKeyInfo(messages);
             return summary + L.Pick("\n\n## 当前进度\n", "\n\n## Current progress\n") + progress;

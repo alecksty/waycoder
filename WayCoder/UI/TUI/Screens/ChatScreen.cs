@@ -1100,11 +1100,17 @@ public partial class ChatScreen : TuiScreen
             ChatList.ClampScroll();
     }
 
-    /// <summary>检测工具输出内容是否包含错误标记</summary>
+    /// <summary>检测工具输出内容是否包含错误标记。
+    /// ⚠ 退出码标记必须**中英双认**（公理 A2）：生产者在 <c>Infra/PersistentShell.cs</c> 与
+    /// <c>Tools/GitTool.cs</c>，英文支是 <c>[exit code: N]</c> / <c>[Exit code: N]</c>
+    /// （两处大小写不一致 ⇒ 大小写不敏感匹配）。只认中文的话，英文界面下「用退出码判错的工具输出」
+    /// **不再被判成错误**——结果是聊天区不给错误态，而且这条判据喂给上层做错误计数。</summary>
     private static bool IsErrorOutput(string text)
-        => text.Contains("[退出码：") || text.Contains("[stderr]") ||
-           text.Contains("错误：") || text.Contains("Error") ||
-           text.Contains("❌") || text.Contains("⛔");
+        => text.Contains("[退出码：", StringComparison.Ordinal)
+        || text.Contains("[exit code: ", StringComparison.OrdinalIgnoreCase)
+        || text.Contains("[stderr]")
+        || text.Contains("错误：") || text.Contains("Error")
+        || text.Contains("❌") || text.Contains("⛔");
 
     /// <summary>追加文本到最后一条消息（流式输出）。线程安全：可从后台线程调用。</summary>
     public void AppendToLast(string delta)
