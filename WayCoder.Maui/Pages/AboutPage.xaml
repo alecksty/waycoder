@@ -3,25 +3,26 @@
     x:Class="WayCoder.Maui.Pages.AboutPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    Title="关于">
+    xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
+    Title="{markup:Tr Zh='关于', En='About'}">
 
     <ScrollView>
         <VerticalStackLayout Padding="24,32" Spacing="8">
             <Image Source="app.png" WidthRequest="96" HeightRequest="96" HorizontalOptions="Center" />
-            <Label Text="道码 WayCoder" FontSize="24" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='道码 WayCoder', En='WayCoder'}" FontSize="24" FontAttributes="Bold"
                    HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <Label x:Name="VersionLabel" FontSize="14" HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-            <Label Text="手机编程智能体" FontSize="13" HorizontalTextAlignment="Center"
+            <Label Text="{markup:Tr Zh='手机编程智能体', En='Coding agent for your phone'}" FontSize="13" HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-            <Label Text="作者：施探宇" FontSize="13" HorizontalTextAlignment="Center"
+            <Label Text="{markup:Tr Zh='作者：施探宇', En='By Shimu Tanyu'}" FontSize="13" HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
 
             <!-- 使用说明：**一级是分类按钮**，点开进二级（主题列表）或三级（正文）。
                  目录与正文都在别处（HelpCatalog + Resources/Raw/help/*.md），
                  这里只负责列出分类 —— 加一篇说明不用动这个页面。 -->
-            <Label Text="使用说明" FontSize="16" FontAttributes="Bold" Margin="0,24,0,4"
+            <Label Text="{markup:Tr Zh='使用说明', En='Help'}" FontSize="16" FontAttributes="Bold" Margin="0,24,0,4"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <VerticalStackLayout x:Name="Categories" Spacing="8" />
         </VerticalStackLayout>
