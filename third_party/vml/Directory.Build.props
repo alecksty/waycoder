@@ -5,7 +5,18 @@
     <Version>1.66.51</Version>
     <AvaloniaVersion>11.3.12</AvaloniaVersion>
     <!-- UTF-8 全局 -->
-    <NeutralLanguage>zh-CN</NeutralLanguage>
+    <!-- ⚠⚠ **`NeutralLanguage` 不是"默认语言"那个旋钮** —— 它声明的是
+         「**不带语言后缀的那份 `.resx` 是用哪种语言写的**」（本项目里是
+         `VMLPlugins/Resources/Locale.resx`，实测**全英文、零中文**）。
+         原先写成 `zh-CN` 是个**谎言**，后果是整套多语言机制**静默失效**：
+         .NET 在 `NeutralResourcesLanguageAttribute` 与实际一致时会把该文化的请求
+         **短路到中性资源**，于是请求 `zh-CN` 拿到的是英文、`zh-CN/VMLPlugins.resources.dll`
+         那份 102 条中文翻译**永远不会被读到**。
+         实测症状：Forth 的一条解析错误在 `zh`/`en`/`VML_LANG=en` 三种设置下**输出逐字节相同**，
+         都是 `Expected identifier in 词名(word name)`（英文模板 + 前端传进来的中文实参）。
+         ⇒ 改成 `en`（= 中性文件的真实语言），`zh-CN` 才会走卫星程序集。
+         ⚠ 别把它当"设默认语言"用；要设默认语言请用 `VmlLang`（界面语言的唯一真源）。 -->
+    <NeutralLanguage>en</NeutralLanguage>
     <SatelliteResourceLanguages>zh-CN;zh-TW;en;fr;es;ru;ar</SatelliteResourceLanguages>
   </PropertyGroup>
 </Project>

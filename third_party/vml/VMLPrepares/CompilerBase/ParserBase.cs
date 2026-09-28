@@ -208,12 +208,29 @@ namespace CompilerBase
         }
 
         /// <summary>期望当前 Token 为指定类型（自动生成错误消息），否则抛出 ParseException。
-        /// 用于 Go/Forth/Python 等不需要自定义消息的编译器。</summary>
+        ///
+        /// <para>
+        /// 消息由 token 类型**自动生成**，而且带着「**实际得到什么**」—— 比一句
+        /// `期望 ')'` 有用得多。**这是"公式化期望"的推荐写法**：
+        /// 全仓 22 门前端里 776 处两参调用中，575 处传的就是 `期望 '<字面量>'`
+        /// 这种**信息量不增反减**的消息，都已迁到这里。
+        /// </para>
+        ///
+        /// <para>
+        /// ⚠⚠ <b>抛错必须走 <see cref="Expect(TTokenType, string)"/> 那条路，不能自己 `throw`</b>：
+        /// 它是 <c>virtual</c>，而 <b>10 门语言覆写了它</b>给自己的消息加语言前缀与上下文
+        /// （Ruby/Dart/R/Kotlin/D/ObjC/Fortran/Forth/Ladder/Pascal 的
+        /// `"Ruby 解析错误: {msg}（得到 {Cur.Type}）"` 这类，ObjC 还带 `'{Cur.Value}'` 与位置）。
+        /// 自己抛 = **把那些覆写静默绕过**，消息里的语言上下文全没了 ——
+        /// 而"构建通过、自测全绿、只有人读消息才看得出来"。**本仓头号坑的又一形态。**
+        /// </para>
+        /// </summary>
         protected TToken Expect(TTokenType type)
         {
             if (Check(type)) return Advance();
             var got = IsAtEnd ? "EOF" : GetTokenType(Cur).ToString();
-            throw Error(VmlLang.Pick($"期望 {type}，实际得到 {got}", $"expected {type}, got {got}"));
+            // 上面 `Check(type)` 已为假 ⇒ 进两参版必然走抛错分支，不会多一次 `Advance`。
+            return Expect(type, VmlLang.Pick($"期望 {type}，实际得到 {got}", $"expected {type}, got {got}"));
         }
 
         /// <summary>

@@ -42,7 +42,21 @@ namespace VMLAssembler
         public static bool IsZh => _isZh;
 
         /// <summary>注入语言（各入口启动时调用一次；自测可随时钉住）。</summary>
-        public static void Set(bool isZh) => _isZh = isZh;
+        public static void Set(bool isZh) { _isZh = isZh; WasInjected = true; }
+
+        /// <summary>
+        /// 宿主**有没有**注入过 —— 供那些"原本有自己的语言源"的老模块判断要不要交权。
+        ///
+        /// <para>
+        /// ⚠ 加它的原因：本仓一度有**两套语言源** —— 本类（宿主从 App 的 `L.IsZh` 注入）
+        /// 与 <c>VMLPlugins.Localization</c>（读 `VML_LANG` 环境变量 / `CultureInfo.CurrentCulture`）。
+        /// 两者可以**同时成立却不同答案**，实测症状是同一条错误消息**中英混排**：
+        /// <c>Expected identifier in 词名(word name)</c>（英文模板 + 中文实参）。
+        /// 现在语言源统一到本类；`Localization` 先问 <see cref="WasInjected"/>，
+        /// 注入过就照 <see cref="IsZh"/> 走，没注入过（第三方嵌入本库）才回退它自己那两条老路。
+        /// </para>
+        /// </summary>
+        public static bool WasInjected { get; private set; }
 
         /// <summary>
         /// <b>取诊断文案的唯一入口</b>。两个实参就是"键" —— 没有键表、没有查找，

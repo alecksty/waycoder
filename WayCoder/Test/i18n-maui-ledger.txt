@@ -18,7 +18,7 @@ WayCoder.Maui/Services/FileOpenService.cs  # 1 条 ErrorLog
 WayCoder.Maui/Services/MauiCommands.cs  # 1 条 ErrorLog（页面导航）
 WayCoder.Maui/Services/MauiLang.cs  # 4 条 ErrorLog（语言探测失败）
 WayCoder.Maui/Services/MauiVectorTarget.cs  # 1 条 ErrorLog（贴图解码失败）
-WayCoder.Maui/Services/MauiVml.cs  # ErrorLog/Android.Util.Log + 判据串 [耗时]（上游编译器分段标记）与 VML_MODE_MCU（汇编期宏名）
+WayCoder.Maui/Services/MauiVml.cs  # ErrorLog/Android.Util.Log + 判据串 [phase]（上游编译器选段标记）与 VML_MODE_MCU（汇编期宏名）
 WayCoder.Maui/Services/VmlAudio.cs  # 13 条 ErrorLog
 WayCoder.Maui/Services/VmlUiCalls.cs  # 20 条日志（ErrorLog + 本文件 Log() 助手 = ErrorLog.Warning）
 WayCoder.Maui/Tools/VmlTool.cs  # 1 条 ErrorLog（导出画面失败）
