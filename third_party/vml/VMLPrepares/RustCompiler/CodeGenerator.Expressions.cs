@@ -26,7 +26,7 @@ namespace RustCompiler
                 else node.Left.Accept(this);
                 return;
             }
-            throw new CodeGenerationException("不支持的二元运算符" + $": {node.Operator}");
+            throw new CodeGenerationException(VmlLang.Pick("不支持的二元运算符", "unsupported binary operator") + $": {node.Operator}");
         }
         
         public void Visit(UnaryOperationNode node)
@@ -85,7 +85,7 @@ namespace RustCompiler
                     }
                     break;
                 default:
-                    throw new CodeGenerationException("不支持的一元运算符" + $": {node.Operator}");
+                    throw new CodeGenerationException(VmlLang.Pick("不支持的一元运算符", "unsupported unary operator") + $": {node.Operator}");
             }
         }
         
@@ -120,7 +120,7 @@ namespace RustCompiler
                     string stringLabel = NewLabel("str_lit");
                     if (stringLabel == null)
                     {
-                        throw new CodeGenerationException("生成的字符串标签为null");
+                        throw new CodeGenerationException(VmlLang.Pick("生成的字符串标签为null", "generated string label is null"));
                     }
                     // 确保标签唯一性：添加基于内容的哈希
                     string content = node.Value?.ToString() ?? "";
@@ -155,7 +155,8 @@ namespace RustCompiler
             if (_movedVariables.Contains(node.Name))
             {
                 throw new CodeGenerationException(
-                    $"使用了已被移动的值: `{node.Name}`（值已被移动到另一个绑定）");
+                    VmlLang.Pick($"使用了已被移动的值: `{node.Name}`（值已被移动到另一个绑定）",
+                                 $"use of moved value: `{node.Name}` (value was moved to another binding)"));
             }
 
             // 获取变量类型

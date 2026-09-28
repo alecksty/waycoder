@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System;
 using System.Collections.Generic;
 using VMLPlugins;
@@ -28,7 +29,7 @@ namespace CSharpCompiler
             if (Match(TokenType.Conditional))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "期望 ':' 用于条件表达式");
+                Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 用于条件表达式", "expected ':' in conditional expression"));
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -251,7 +252,7 @@ namespace CSharpCompiler
                                     call.Arguments.Add(arg);
                             } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "期望 ')' 在方法实参后");
+                        Expect(TokenType.RightParen, VmlLang.Pick("期望 ')' 在方法实参后", "expected ')' after method argument"));
                         expr = call;
                     }
                     else
@@ -272,14 +273,14 @@ namespace CSharpCompiler
                                 call.Arguments.Add(arg);
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "期望 ')' 在函数实参后");
+                    Expect(TokenType.RightParen, VmlLang.Pick("期望 ')' 在函数实参后", "expected ')' after function argument"));
                     expr = call;
                 }
                 // 数组索引：arr[index]
                 else if (Match(TokenType.LeftBracket))
                 {
                     var index = ParseExpression();
-                    Expect(TokenType.RightBracket, "期望 ']' 在数组下标后");
+                    Expect(TokenType.RightBracket, VmlLang.Pick("期望 ']' 在数组下标后", "expected ']' after array index"));
                     expr = new IndexExpression(expr, index);
                 }
                 // 后置自增：expr++
@@ -356,7 +357,7 @@ namespace CSharpCompiler
             // ⚠ `GccError` 是**收集**、`Error` 是**抛出**。这里必须用收集的那条：
             //   `ParserBase.Collect` 的注释里写了这个两分法。没有收集器时
             //   `GccError` 自己会抛，不会凭空吞掉。
-            GccError($"这里缺少一个表达式，却遇到 {Peek().Type} '{Peek().Value}'",
+            GccError(VmlLang.Pick($"这里缺少一个表达式，却遇到 {Peek().Type} '{Peek().Value}'", $"an expression is missing here, got {Peek().Type} '{Peek().Value}'"),
                      ErrorCode.Parser_ExpectedExpression);
             return new LiteralExpression(0);
         }
@@ -371,10 +372,10 @@ namespace CSharpCompiler
             // typeof(int) → MCU不支持反射, 返回0
             if (Match(TokenType.Typeof))
             {
-                Expect(TokenType.LeftParen, "期望 '(' 在 typeof 后");
+                Expect(TokenType.LeftParen, VmlLang.Pick("期望 '(' 在 typeof 后", "expected '(' after typeof"));
                 // 跳过类型名(可能包含泛型)
                 SkipExpression();
-                Expect(TokenType.RightParen, "期望 ')' 在 typeof 后");
+                Expect(TokenType.RightParen, VmlLang.Pick("期望 ')' 在 typeof 后", "expected ')' after typeof"));
                 return new LiteralExpression(0);
             }
             
@@ -437,7 +438,7 @@ namespace CSharpCompiler
                 {
                     string typeName = GetTypeKeywordName(Current);
                     Advance(); // 消费类型关键字
-                    Expect(TokenType.RightParen, "期望 ')' 在强制转换的类型后");
+                    Expect(TokenType.RightParen, VmlLang.Pick("期望 ')' 在强制转换的类型后", "expected ')' after cast type"));
                     var operand = ParseUnary();
                     return new CastExpression(typeName, operand);
                 }
@@ -447,7 +448,7 @@ namespace CSharpCompiler
                 {
                     Console.WriteLine($"DEBUG ParsePrimary: after ParseExpression, current={Current?.Type}:{Current?.Value}");
                 }
-                Expect(TokenType.RightParen, "期望 ')' 在表达式后");
+                Expect(TokenType.RightParen, VmlLang.Pick("期望 ')' 在表达式后", "expected ')' after expression"));
                 return new ParenthesizedExpression(expr);
             }
             
@@ -504,7 +505,7 @@ namespace CSharpCompiler
                     Expression sizeExpr = null;
                     if (!Check(TokenType.RightBracket))
                         sizeExpr = ParseExpression();
-                    Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
+                    Expect(TokenType.RightBracket, VmlLang.Pick("期望 ']' 在数组类型后", "expected ']' after array type"));
                     if (Match(TokenType.LeftBrace))
                     {
                         var arr = ParseArrayLiteral();
@@ -571,7 +572,7 @@ namespace CSharpCompiler
             
             if (Check(TokenType.RightBrace))
             {
-                Expect(TokenType.RightBrace, "期望 '}' 在数组字面量后");
+                Expect(TokenType.RightBrace, VmlLang.Pick("期望 '}' 在数组字面量后", "expected '}' after array literal"));
                 return new ArrayLiteralExpression(elements);
             }
             else

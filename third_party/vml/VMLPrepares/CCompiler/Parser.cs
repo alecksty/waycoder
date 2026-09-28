@@ -1,6 +1,7 @@
 using CompilerBase;
 using System.Collections.Generic;
 using System.Linq;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -156,7 +157,7 @@ namespace CCompiler
             if (!TryConstInt(node, out dim)) return false;
             if (dim < 0)
                 throw Error(ErrorCode.Parser_UnexpectedToken,
-                    $"数组维度不能为负数：{DescribeConstExpr(node)} = {dim}");
+                    VmlLang.Pick($"数组维度不能为负数：{DescribeConstExpr(node)} = {dim}", $"array dimension cannot be negative: {DescribeConstExpr(node)} = {dim}"));
             return true;
         }
 
@@ -170,7 +171,7 @@ namespace CCompiler
             catch (System.OverflowException)
             {
                 throw Error(ErrorCode.Parser_UnexpectedToken,
-                    $"数组总元素个数在编译期溢出 int 范围：{a} * {b}");
+                    VmlLang.Pick($"数组总元素个数在编译期溢出 int 范围：{a} * {b}", $"total array element count overflows int at compile time: {a} * {b}"));
             }
         }
 
@@ -185,8 +186,8 @@ namespace CCompiler
         /// </summary>
         private CompilerBase.ParseException ConstOverflow(ASTNode expr)
             => Error(ErrorCode.Parser_UnexpectedToken,
-                $"常量表达式在编译期溢出 int 范围：{DescribeConstExpr(expr)}"
-                + "（回绕会静默算出一个错的值 —— 例如 int a[N*N] 会变成 0 个元素）");
+                VmlLang.Pick($"常量表达式在编译期溢出 int 范围：{DescribeConstExpr(expr)}", $"constant expression overflows int at compile time: {DescribeConstExpr(expr)}")
+                + VmlLang.Pick("（回绕会静默算出一个错的值 —— 例如 int a[N*N] 会变成 0 个元素）", " (wrapping silently yields a wrong value; e.g. int a[N*N] becomes an array of 0 elements)"));
 
         /// <summary>
         /// 求**枚举成员**的值（4 处 enum 解析共用一个实现 —— 匿名 / 命名 / typedef 两种形态）。
@@ -205,8 +206,8 @@ namespace CCompiler
                 return v;
 
             throw Error(ErrorCode.Parser_UnexpectedToken,
-                $"枚举值不是编译期整型常量表达式：{DescribeConstExpr(expr)}"
-                + "（只支持字面量与常量算术；引用变量、函数调用等无法在编译期求值）");
+                VmlLang.Pick($"枚举值不是编译期整型常量表达式：{DescribeConstExpr(expr)}", $"enumerator value is not a compile-time integer constant expression: {DescribeConstExpr(expr)}")
+                + VmlLang.Pick("（只支持字面量与常量算术；引用变量、函数调用等无法在编译期求值）", " (only literals and constant arithmetic are supported; variable references and function calls cannot be evaluated at compile time)"));
         }
 
         /// <summary>在**已解析完**的枚举里找成员（与 CodeGenerator.Core 同一口径：后定义的覆盖先定义的）。</summary>
@@ -229,7 +230,7 @@ namespace CCompiler
                 case Identifier id: return id.Name;
                 case UnaryOp u: return u.Op + DescribeConstExpr(u.Operand);
                 case BinaryOp b: return $"({DescribeConstExpr(b.Left)} {b.Op} {DescribeConstExpr(b.Right)})";
-                default: return "常量表达式";
+                default: return VmlLang.Pick("常量表达式", "constant expression");
             }
         }
     }

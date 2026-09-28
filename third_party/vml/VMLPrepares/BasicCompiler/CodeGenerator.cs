@@ -179,8 +179,11 @@ namespace BasicCompiler
         /// <summary>输出未实现特性警告 — 编译通过但无实际功能 (v1.66.32+)</summary>
         private void WarnUnimplemented(string feature)
         {
+            // 注释正文按语言出；行首那个 `; ` 是汇编注释标记、不是诊断前缀，两种语言都保持原样。
+            string note = VmlLang.Pick($"; 警告: {feature} — 本前端尚未实现，运行时没有任何效果",
+                                       $"; warning: {feature} - not implemented by this frontend, has no effect at run time");
             instructions.Add(new Instruction(OpCode.LABEL,
-                [new Operand(OperandType.IMMEDIATE, 0)]) { Label = $"; 警告: {feature} — 本前端尚未实现，运行时没有任何效果" });
+                [new Operand(OperandType.IMMEDIATE, 0)]) { Label = note });
         }
 
         private BasicProgram program;

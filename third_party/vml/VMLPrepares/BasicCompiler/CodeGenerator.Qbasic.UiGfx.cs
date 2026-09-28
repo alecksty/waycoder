@@ -836,15 +836,24 @@ public partial class CodeGenerator
     /// </summary>
     void UiWarnArcUnsupported()
     {
-        WarnUnimplemented("CIRCLE 的起始/结束角（弧）—— 尚未接线到 ui_path 的 SVG 弧，已落回整圆");
+        WarnUnimplemented(VmlLang.Pick(
+            "CIRCLE 的起始/结束角（弧）—— 尚未接线到 ui_path 的 SVG 弧，已落回整圆",
+            "CIRCLE start/end angle (arc) - not yet wired to the ui_path SVG arc, fallen back to a full circle"));
         if (_uiArcWarned) return;
         _uiArcWarned = true;
         Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
-            "CIRCLE 的 start/end（画弧）尚未实现，本后端**落回整圆**"
-            + "（画出来会比原程序多出弧以外的部分 —— 是可见的差异，不是静默忽略）。"
-            + "宿主侧其实有现成能力（ui_path 的 SVG `A` 命令 + DrawPath.cs 的 F.6.5 换算），"
-            + "缺的是运行期把角度算成端点并拼出路径串；而 QBasic 的角度是弧度浮点，"
-            + "需等数值那一批修好。纵横比 aspect 是支持的（走 ui_ellipse）。");
+            VmlLang.Pick(
+                "CIRCLE 的 start/end（画弧）尚未实现，本后端**落回整圆**"
+                + "（画出来会比原程序多出弧以外的部分 —— 是可见的差异，不是静默忽略）。"
+                + "宿主侧其实有现成能力（ui_path 的 SVG `A` 命令 + DrawPath.cs 的 F.6.5 换算），"
+                + "缺的是运行期把角度算成端点并拼出路径串；而 QBasic 的角度是弧度浮点，"
+                + "需等数值那一批修好。纵横比 aspect 是支持的（走 ui_ellipse）。",
+                "CIRCLE start/end (arc drawing) is not implemented; this backend falls back to a full circle"
+                + " (the result shows the parts beyond the arc as well - a visible difference, not a silent ignore)."
+                + " The host actually has the capability (the SVG `A` command of ui_path plus the F.6.5 conversion in DrawPath.cs);"
+                + " what is missing is computing the endpoints from the angles at run time and building the path string,"
+                + " and QBasic angles are floating-point radians, so this waits for the numeric batch."
+                + " The aspect ratio is supported (it goes through ui_ellipse)"));
     }
 
     bool _uiArcWarned;
@@ -1022,15 +1031,22 @@ public partial class CodeGenerator
     /// </summary>
     void UiWarnGetPutUnsupported(string stmtName)
     {
-        WarnUnimplemented($"{stmtName} —— UI 图形后端没有映射到宿主的 ui_get_image/ui_put_image（本语句无任何效果）");
+        WarnUnimplemented(VmlLang.Pick(
+            $"{stmtName} —— UI 图形后端没有映射到宿主的 ui_get_image/ui_put_image（本语句无任何效果）",
+            $"{stmtName} - the UI graphics backend does not map to the host's ui_get_image/ui_put_image (this statement has no effect)"));
         if (!_uiGetPutWarned)
         {
             _uiGetPutWarned = true;
             Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
-                "GET/PUT 尚未映射到宿主图元：QBasic 用**数组**装像素、宿主那套用**句柄**，"
-                + "这一层转换没做；而且 PUT 的 XOR/AND/OR 方式宿主没有对应语义。"
-                + "本后端下 GET/PUT **不产生任何效果**（既不写显存也不画窗口）。"
-                + "要旧行为（写 0xA0000，本平台没有宿主渲染）用 --basicgfx pcgfx。");
+                VmlLang.Pick(
+                    "GET/PUT 尚未映射到宿主图元：QBasic 用**数组**装像素、宿主那套用**句柄**，"
+                    + "这一层转换没做；而且 PUT 的 XOR/AND/OR 方式宿主没有对应语义。"
+                    + "本后端下 GET/PUT **不产生任何效果**（既不写显存也不画窗口）。"
+                    + "要旧行为（写 0xA0000，本平台没有宿主渲染）用 --basicgfx pcgfx。",
+                    "GET/PUT is not yet mapped to host primitives: QBasic stores pixels in an array while the host uses handles,"
+                    + " and that conversion layer is not done; on top of that, the host has no matching semantics for the XOR/AND/OR"
+                    + " modes of PUT. Under this backend GET/PUT has no effect at all (it neither writes video memory nor draws to the window)."
+                    + " For the old behaviour (writing 0xA0000, which no host here renders), use --basicgfx pcgfx"));
         }
     }
 
@@ -1059,7 +1075,8 @@ public partial class CodeGenerator
         {
             // 数组本身不认识 ⇒ 没有地方放句柄。响亮说一句，别静默丢掉。
             Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UndefinedArray,
-                $"GET 的目标 '{stmt.ArrayName}' 不是已知数组 —— 这一条 GET 没有任何效果。");
+                VmlLang.Pick($"GET 的目标 '{stmt.ArrayName}' 不是已知数组 —— 这一条 GET 没有任何效果。",
+                             $"the GET target '{stmt.ArrayName}' is not a known array - this GET has no effect"));
             return;
         }
 
@@ -1114,7 +1131,8 @@ public partial class CodeGenerator
         if (!IsKnownArray(stmt.ArrayName) && !variables.ContainsKey(stmt.ArrayName))
         {
             Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UndefinedArray,
-                $"PUT 的来源 '{stmt.ArrayName}' 不是已知数组 —— 这一条 PUT 没有任何效果。");
+                VmlLang.Pick($"PUT 的来源 '{stmt.ArrayName}' 不是已知数组 —— 这一条 PUT 没有任何效果。",
+                             $"the PUT source '{stmt.ArrayName}' is not a known array - this PUT has no effect"));
             return;
         }
 
@@ -1320,13 +1338,19 @@ public partial class CodeGenerator
     /// <summary>PUT 的 AND/OR/PRESET 方式：宿主只认 COPY/XOR ⇒ 告警 + 不画（不猜一个近似的）。</summary>
     void UiWarnPutActionUnsupported(string action)
     {
-        WarnUnimplemented($"PUT 的 {action} 方式 —— 宿主 ui_put_image 只有 COPY/XOR，本语句无任何效果");
+        WarnUnimplemented(VmlLang.Pick(
+            $"PUT 的 {action} 方式 —— 宿主 ui_put_image 只有 COPY/XOR，本语句无任何效果",
+            $"PUT mode {action} - the host's ui_put_image only has COPY/XOR, this statement has no effect"));
         if (_uiPutActionWarned) return;
         _uiPutActionWarned = true;
         Diags.AddWarning("<basic>", CurrentSourceLine, 0, ErrorCode.CodeGen_UnsupportedExpression,
-            $"PUT 的 {action} 方式本平台不支持：宿主 ui_put_image 只实现了 COPY（PSET）与 XOR 两种。"
-            + "AND/OR/PRESET 需要逐位合成语义，乱挑一个会画出**错的画面**（比不画更难查），"
-            + "所以这一条 PUT 被跳过并在此明确告警。");
+            VmlLang.Pick(
+                $"PUT 的 {action} 方式本平台不支持：宿主 ui_put_image 只实现了 COPY（PSET）与 XOR 两种。"
+                + "AND/OR/PRESET 需要逐位合成语义，乱挑一个会画出**错的画面**（比不画更难查），"
+                + "所以这一条 PUT 被跳过并在此明确告警。",
+                $"PUT mode {action} is not supported on this platform: the host's ui_put_image implements only COPY (PSET)"
+                + " and XOR. AND/OR/PRESET need bitwise compositing semantics, and picking one arbitrarily would draw the wrong"
+                + " picture (harder to diagnose than drawing nothing), so this PUT is skipped and explicitly warned about here"));
     }
 
     // ══════════════════════════════════════════════════════════════════════

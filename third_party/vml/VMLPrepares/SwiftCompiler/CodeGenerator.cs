@@ -440,7 +440,7 @@ namespace SwiftCompiler
                     //    只有上手机才看得出）。
                     throw new CodeGenerationException(
                         ErrorCode.CodeGen_UnsupportedExpression,
-                        $"Swift 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+                        VmlLang.Pick($"Swift 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}", $"unsupported expression in the Swift frontend (missing codegen branch): {expression.GetType().Name}"));
             }
         }
         

@@ -1,5 +1,6 @@
 using CompilerBase;
 using VMLPlugins;
+using VMLAssembler;
 
 namespace CppCompiler
 {
@@ -885,7 +886,7 @@ namespace CppCompiler
                     }
                     if (!Match(TokenType.COMMA)) break;
                 }
-                Expect(TokenType.GT, "TemplateDeclaration: 期望 '>' 在模板参数后");
+                Expect(TokenType.GT, VmlLang.Pick("TemplateDeclaration: 期望 '>' 在模板参数后", "TemplateDeclaration: expected '>' after template parameters"));
             }
             else if (Match(TokenType.TYPENAME, TokenType.CLASS))
             {
@@ -1167,8 +1168,8 @@ namespace CppCompiler
             if (Match(TokenType.CONTINUE)) { Expect(TokenType.SEMICOLON); return new ContinueStmt(); }
             if (Match(TokenType.TRY))
             {
-                if (_isMCU) WarningEmitter.Emit("cpp", "MCU模式: try/catch异常处理被忽略（不支持异常）");
-                Expect(TokenType.LBRACE, "期望 '{' 在 try 后");
+                if (_isMCU) WarningEmitter.Emit("cpp", VmlLang.Pick("MCU模式: try/catch异常处理被忽略（不支持异常）", "MCU mode: try/catch ignored (exceptions not supported)"));
+                Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 try 后", "expected '{' after 'try'"));
                 var body = ParseBlock();
                 var ts = new TryStmt { Body = body };
                 while (Match(TokenType.CATCH))
@@ -1185,7 +1186,7 @@ namespace CppCompiler
                         }
                         Expect(TokenType.RPAREN);
                     }
-                    Expect(TokenType.LBRACE, "期望 '{' 在 catch 后");
+                    Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 catch 后", "expected '{' after 'catch'"));
                     cc.Body = ParseBlock();
                     ts.Catches.Add(cc);
                 }
@@ -1193,7 +1194,7 @@ namespace CppCompiler
             }
             if (Match(TokenType.THROW))
             {
-                if (_isMCU) WarningEmitter.Emit("cpp", "MCU模式: throw被忽略（不支持异常）");
+                if (_isMCU) WarningEmitter.Emit("cpp", VmlLang.Pick("MCU模式: throw被忽略（不支持异常）", "MCU mode: throw ignored (exceptions not supported)"));
                 Expr? val = null;
                 if (!Check(TokenType.SEMICOLON)) val = ParseExpression();
                 Expect(TokenType.SEMICOLON);
@@ -1201,7 +1202,7 @@ namespace CppCompiler
             }
             if (Match(TokenType.ASM))
             {
-                Expect(TokenType.LPAREN, "期望 '(' 在 asm 后");
+                Expect(TokenType.LPAREN, VmlLang.Pick("期望 '(' 在 asm 后", "expected '(' after 'asm'"));
                 string code = Expect(TokenType.STRING).Value;
                 Expect(TokenType.RPAREN, "expected ')'");
                 Expect(TokenType.SEMICOLON, "expected ';'");
@@ -1334,7 +1335,7 @@ namespace CppCompiler
             if (GetTokenType(Cur) != type)
             {
                 var detail = string.IsNullOrWhiteSpace(msg) ? "" : $" ({msg})";
-                throw Error($"{Where(Cur)}error: 期望 {type}，实际得到 {GetTokenType(Cur)} ('{Cur.Value}'){detail}");
+                throw Error(VmlLang.Pick($"{Where(Cur)}error: 期望 {type}，实际得到 {GetTokenType(Cur)} ('{Cur.Value}'){detail}", $"{Where(Cur)}error: expected {type}, got {GetTokenType(Cur)} ('{Cur.Value}'){detail}"));
             }
             return Advance();
         }

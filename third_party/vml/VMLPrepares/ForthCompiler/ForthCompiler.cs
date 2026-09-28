@@ -154,7 +154,7 @@ namespace ForthCompiler
             CompilationException => null,
             OperationCanceledException => null,
             UnresolvedSymbolException => new CompilationException(ErrorCode.CodeGen_UndefinedFunction, ex.Message, ex),
-            _ => new CompilationException(ErrorCode.Compilation_InternalError, $"<input>: 内部错误: {ex.Message}", ex),
+            _ => new CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick($"<input>: 内部错误: {ex.Message}", $"<input>: internal error: {ex.Message}"), ex),
         };
 
         /// <summary>

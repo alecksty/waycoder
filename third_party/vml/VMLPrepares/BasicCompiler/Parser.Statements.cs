@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System.Collections.Generic;
 
 namespace BasicCompiler
@@ -341,7 +342,8 @@ namespace BasicCompiler
             //   就结束文件 ⇒ 编译成功、退出码 0 —— 一份写了一半的 BASIC 程序被编成残程序。
             //   位置锚在 `IF` 那个词上（缺口就是它没被关上）。
             else if (blockForm)
-                GccErrorAt("IF 块未闭合（缺少 'END IF'）", token, ErrorCode.Parser_SyntaxError);
+                GccErrorAt(VmlLang.Pick("IF 块未闭合（缺少 'END IF'）", "unterminated IF block (missing 'END IF')"),
+                           token, ErrorCode.Parser_SyntaxError);
 
             return stmt;
         }
@@ -874,7 +876,8 @@ namespace BasicCompiler
             
             if (AtEnd())
             {
-                throw Error($"语法错误: EXIT 后缺少 FOR/WHILE/SUB/FUNCTION，第{exitToken.Line}行");
+                throw Error(VmlLang.Pick($"语法错误: EXIT 后缺少 FOR/WHILE/SUB/FUNCTION，第{exitToken.Line}行",
+                                         $"syntax error: missing FOR/WHILE/SUB/FUNCTION after EXIT, line {exitToken.Line}"));
             }
             
             Token next = Peek();
@@ -900,7 +903,8 @@ namespace BasicCompiler
             }
             else
             {
-                throw Error($"语法错误: EXIT 后期望 FOR/WHILE/SUB/FUNCTION，但得到 '{next.Value}'，第{next.Line}行");
+                throw Error(VmlLang.Pick($"语法错误: EXIT 后期望 FOR/WHILE/SUB/FUNCTION，但得到 '{next.Value}'，第{next.Line}行",
+                                         $"syntax error: expected FOR/WHILE/SUB/FUNCTION after EXIT, but got '{next.Value}', line {next.Line}"));
             }
         }
 

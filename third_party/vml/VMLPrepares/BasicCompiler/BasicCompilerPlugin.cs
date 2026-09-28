@@ -78,8 +78,9 @@ namespace BasicCompiler
         {
             stack ??= new List<string>();
             if (depth > MaxIncludeDepth)
-                throw new CompilationException(
-                    $"'$INCLUDE 嵌套超过 {MaxIncludeDepth} 层（链：{string.Join(" -> ", stack)}）");
+                throw new CompilationException(VmlLang.Pick(
+                    $"'$INCLUDE 嵌套超过 {MaxIncludeDepth} 层（链：{string.Join(" -> ", stack)}）",
+                    $"'$INCLUDE nested more than {MaxIncludeDepth} levels deep (chain: {string.Join(" -> ", stack)})"));
 
             var sb = new System.Text.StringBuilder(source.Length);
             var dir = baseDir ?? Directory.GetCurrentDirectory();
@@ -95,18 +96,23 @@ namespace BasicCompiler
 
                 var name = m.Groups[1].Value.Trim();
                 if (name.Length == 0)
-                    throw new CompilationException($"'$INCLUDE 后面没写文件名：{line.Trim()}");
+                    throw new CompilationException(VmlLang.Pick(
+                        $"'$INCLUDE 后面没写文件名：{line.Trim()}",
+                        $"'$INCLUDE without a file name: {line.Trim()}"));
 
                 var full = Path.GetFullPath(Path.IsPathRooted(name) ? name : Path.Combine(dir, name));
                 if (!File.Exists(full))
-                    throw new CompilationException(
+                    throw new CompilationException(VmlLang.Pick(
                         $"'$INCLUDE 找不到文件 '{name}'（在 {dir} 下找过；写成相对路径时" +
-                        $"以**包含它的那个文件**所在目录为基准）");
+                        $"以**包含它的那个文件**所在目录为基准）",
+                        $"'$INCLUDE cannot find file '{name}' (searched under {dir}; a relative path is" +
+                        $" resolved against the directory of the file that contains the directive)"));
 
                 // 循环包含：报出来并给出整条链，别让它静静地展开到自己撑爆栈
                 if (stack.Any(s => string.Equals(s, full, StringComparison.OrdinalIgnoreCase)))
-                    throw new CompilationException(
-                        $"'$INCLUDE 循环包含：{string.Join(" -> ", stack)} -> {full}");
+                    throw new CompilationException(VmlLang.Pick(
+                        $"'$INCLUDE 循环包含：{string.Join(" -> ", stack)} -> {full}",
+                        $"'$INCLUDE circular include: {string.Join(" -> ", stack)} -> {full}"));
 
                 stack.Add(full);
                 sb.Append(ExpandIncludes(File.ReadAllText(full), Path.GetDirectoryName(full), stack, depth + 1));

@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 
 namespace LuaCompiler
 {
@@ -462,7 +463,7 @@ namespace LuaCompiler
 
             Expect(TokenType.ASSIGN);
             var startExpr = ParseExpression();
-            Expect(TokenType.COMMA, "期望 ','");
+            Expect(TokenType.COMMA, VmlLang.Pick("期望 ','", "expected ','"));
             var endExpr = ParseExpression();
             
             ASTNode stepExpr = null;
@@ -725,7 +726,7 @@ namespace LuaCompiler
                     // 位置用 `GapAnchor()`，不是裸 `Cur`：`x = 1 +` 结尾撞上的是 **`EOF`**
                     // （Lua 没有换行 token，EOF 被标在下一行）⇒ 按当前位置报就落到第 5 行，
                     // 而错在第 4 行。锚定规则见基类 `GapAnchor`。
-                    throw ErrorAt($"意外的token: {token.Type}（此处不该出现它）", GapAnchor());
+                    throw ErrorAt(VmlLang.Pick($"意外的token: {token.Type}（此处不该出现它）", $"unexpected token: {token.Type} (not allowed here)"), GapAnchor());
             }
         }
     }

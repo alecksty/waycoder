@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace DCompiler;
 
@@ -11,7 +12,7 @@ public class Parser : ParserBase<Token, TokenType>
     protected override TokenType GetTokenType(Token token) => token.Type;
 
     protected override Token Expect(TokenType t, string msg) =>
-        base.Expect(t, $"D 解析错误: {msg}（得到 {Cur.Type}）");
+        base.Expect(t, VmlLang.Pick($"D 解析错误: {msg}（得到 {Cur.Type}）", $"D parse error: {msg} (got {Cur.Type})"));
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -343,18 +344,18 @@ public class Parser : ParserBase<Token, TokenType>
         // D with语句: with (expr) { ... } — evaluate expr, parse body (simplified)
         if (Match(TokenType.With))
         {
-            Expect(TokenType.LParen, "期望 '(' 在 with 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 with 后", "expected '(' after 'with'"));
             ParseExpression(); // evaluate with expression (discard for now)
-            Expect(TokenType.RParen, "期望 ')' 在 with 后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 with 后", "expected ')' after 'with'"));
             ParseBlockOrSingle(); // parse body
             return new LiteralNode(null, Cur.Line, Cur.Column);
         }
         // D scope语句: scope(exit/success/failure) { ... } — parse body (deferred exec not yet)
         if (Match(TokenType.Scope))
         {
-            Expect(TokenType.LParen, "期望 '(' 在 scope 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 scope 后", "expected '(' after 'scope'"));
             if (Match(TokenType.Identifier)) { /* exit/success/failure */ }
-            Expect(TokenType.RParen, "期望 ')' 在 scope 后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 scope 后", "expected ')' after 'scope'"));
             ParseBlockOrSingle(); // parse body
             return new LiteralNode(null, Cur.Line, Cur.Column);
         }
@@ -586,7 +587,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int l = left.Line, cl = left.Column;
             var thenExpr = ParseExpression();
-            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
+            Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 在三元表达式中", "expected ':' in ternary expression"));
             var elseExpr = ParseTernary();
             // Encode as nested BinaryNode: (cond ? then) : else
             return new BinaryNode(
@@ -709,9 +710,9 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int l = Cur.Line, c = Cur.Column;
             Advance(); // consume 'cast'
-            Expect(TokenType.LParen, "期望 '(' 在 cast 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 cast 后", "expected '(' after 'cast'"));
             string targetType = ParseType();
-            Expect(TokenType.RParen, "期望 ')' 在 cast 类型后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 cast 类型后", "expected ')' after cast type"));
             var expr = ParseUnary();
             return new CastExpr(targetType, expr, l, c);
         }
@@ -912,7 +913,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
 
         throw Error(
-            $"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+            VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token: {Cur.Type}({Cur.Value}) (at {Cur.Line}:{Cur.Column})"));
     }
 
     private void SkipComments()
@@ -924,7 +925,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseSwitch()
     {
         int l = Cur.Line, c = Cur.Column;
-        Expect(TokenType.LParen, "期望 '(' 在 switch 后");
+        Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 switch 后", "expected '(' after 'switch'"));
         var expr = ParseExpression();
         Expect(TokenType.RParen, "expected ')'");
         Expect(TokenType.LBrace, "expected '{'");
@@ -935,7 +936,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 int cl = Cur.Line, cc = Cur.Column;
                 var caseVal = ParseExpression();
-                Expect(TokenType.Colon, "期望 ':' 在 case 后");
+                Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 在 case 后", "expected ':' after 'case'"));
                 var body = new List<ASTNode>();
                 while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RBrace) && !Check(TokenType.EOF))
                     body.Add(ParseStatement());
@@ -944,7 +945,7 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Match(TokenType.Default))
             {
                 int dl = Cur.Line, dc = Cur.Column;
-                Expect(TokenType.Colon, "期望 ':' 在 default 后");
+                Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 在 default 后", "expected ':' after 'default'"));
                 var body = new List<ASTNode>();
                 while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RBrace) && !Check(TokenType.EOF))
                     body.Add(ParseStatement());

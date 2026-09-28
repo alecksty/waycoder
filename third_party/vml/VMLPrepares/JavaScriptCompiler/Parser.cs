@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace JavaScriptCompiler
 {
@@ -80,7 +81,7 @@ namespace JavaScriptCompiler
                             nativeFunc.IsNative = true;
                             return nativeFunc;
                         }
-                        throw Error($"'native' 后出现意外的 token: {Previous().Value}");
+                        throw Error(VmlLang.Pick($"'native' 后出现意外的 token: {Previous().Value}", $"unexpected token after 'native': {Previous().Value}"));
 
                     case "function":
                         Advance();
@@ -205,7 +206,7 @@ namespace JavaScriptCompiler
             return block;
         }
 
-        private void ExpectSemicolon(string message = "期望 ';'")
+        private void ExpectSemicolon(string message = null)
         {
             if (Match(TokenType.Semicolon)) return;
             if (_pos > 0 && _tokens.Count > _pos)
@@ -215,7 +216,7 @@ namespace JavaScriptCompiler
                 if (currLine > prevLine) return;
             }
             if (Check(TokenType.RightBrace) || IsAtEnd) return;
-            Expect(TokenType.Semicolon, message);
+            Expect(TokenType.Semicolon, message ?? VmlLang.Pick("期望 ';'", "expected ';'"));
         }
 
         private FunctionDeclStatement ParseFunctionDecl()
@@ -434,7 +435,7 @@ namespace JavaScriptCompiler
             Expect(TokenType.Keyword);
             // 位置走统一出口（`ErrorAt` 把位置拼成 `文件:行:列: error:` 并查 `#include` 映射）；
             // 两参 `new ParseException(msg, token)` **不带位置**（`Line = 0`）⇒ 报出去锚不到行。
-            if (Previous().Value != "while") throw ErrorAt("期望 'while'", Previous());
+            if (Previous().Value != "while") throw ErrorAt(VmlLang.Pick("期望 'while'", "expected 'while'"), Previous());
             Expect(TokenType.LeftParen);
             var condition = ParseExpression();
             Expect(TokenType.RightParen);
@@ -552,7 +553,7 @@ namespace JavaScriptCompiler
             if (Match(TokenType.Question))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "期望 ':' 用于条件表达式");
+                Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 用于条件表达式", "expected ':' in conditional expression"));
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -676,7 +677,7 @@ namespace JavaScriptCompiler
             if (Check(TokenType.Keyword) && Cur.Value == "instanceof")
             {
                 Advance(); // consume 'instanceof'
-                string typeName = Expect(TokenType.Identifier, "期望类型名在 'instanceof' 后").Value;
+                string typeName = Expect(TokenType.Identifier, VmlLang.Pick("期望类型名在 'instanceof' 后", "expected type name after 'instanceof'")).Value;
                 expr = new InstanceofExpression(expr, typeName);
             }
 
@@ -885,7 +886,7 @@ namespace JavaScriptCompiler
                 // super.method(args) or super.property
                 if (Match(TokenType.Dot))
                 {
-                    string member = Expect(TokenType.Identifier, "期望成员名在 super. 后").Value;
+                    string member = Expect(TokenType.Identifier, VmlLang.Pick("期望成员名在 super. 后", "expected member name after 'super.'")).Value;
                     if (Match(TokenType.LeftParen))
                     {
                         // super.method(args) → CallExpression on super member
@@ -901,7 +902,7 @@ namespace JavaScriptCompiler
                     // super.property
                     return new MemberExpression(new VariableExpression("super"), member);
                 }
-                throw Error("super 仅支持 super()/super.method()/super.property");
+                throw Error(VmlLang.Pick("super 仅支持 super()/super.method()/super.property", "only super()/super.method()/super.property are supported for 'super'"));
             }
 
             Expression primaryExpr = null;
@@ -1100,14 +1101,14 @@ namespace JavaScriptCompiler
                     {
                         // `{Cur}` 会用 `Token.ToString()`，而它自带 `at 行:列` ⇒ 位置混进正文、且不是宿主认的形状。
                 // 换成 `{Cur.Type} '{Cur.Value}'`，位置交给统一前缀一处给。
-                throw ErrorAt($"模板字符串中意外的标记: {Cur.Type} '{Cur.Value}'", GapAnchor());
+                throw ErrorAt(VmlLang.Pick($"模板字符串中意外的标记: {Cur.Type} '{Cur.Value}'", $"unexpected token in template string: {Cur.Type} '{Cur.Value}'"), GapAnchor());
                     }
                 }
                 Expect(TokenType.Backtick);
                 return template;
             }
 
-            throw ErrorAt($"意外的标记: {Cur.Type} '{Cur.Value}'", GapAnchor());
+            throw ErrorAt(VmlLang.Pick($"意外的标记: {Cur.Type} '{Cur.Value}'", $"unexpected token: {Cur.Type} '{Cur.Value}'"), GapAnchor());
         }
 
         // 辅助方法

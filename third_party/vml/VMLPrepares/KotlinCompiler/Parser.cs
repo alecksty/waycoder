@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 
 namespace KotlinCompiler;
 
@@ -26,7 +27,7 @@ public class Parser : ParserBase<Token, TokenType>
     public Parser(List<Token> tokens) : base(tokens) { }
 
     protected override Token Expect(TokenType t, string msg) =>
-        Check(t) ? Advance() : throw Error($"{msg}（位置 {Cur.Line}:{Cur.Column}），实际得到 {GetTokenType(Cur)} '{Cur.Value}'");
+        Check(t) ? Advance() : throw Error(VmlLang.Pick($"{msg}（位置 {Cur.Line}:{Cur.Column}），实际得到 {GetTokenType(Cur)} '{Cur.Value}'", $"{msg} (at {Cur.Line}:{Cur.Column}), got {GetTokenType(Cur)} '{Cur.Value}'"));
 
     /// <summary>
     /// 消费一个 `external`。**两种形态都在这一个出口收口**：
@@ -87,10 +88,12 @@ public class Parser : ParserBase<Token, TokenType>
         // ⚠ 走不到 `(` 就**报错**，绝不"跳过这一行继续"：那正是原来那条静默损坏的路
         //   （被跳过的若是 `main`，程序会编译通过、运行"成功"、什么都不做）。
         if (GetTokenType(Cur) != TokenType.LPAREN)
-            throw Error($"`external` 声明无法解析：期望 `external <返回类型> 函数名(形参);` 或 `external fun 函数名()`，"
-                + $"实际得到 {GetTokenType(Cur)} '{Cur.Value}'（位置 {Cur.Line}:{Cur.Column}）");
+            throw Error(VmlLang.Pick($"`external` 声明无法解析：期望 `external <返回类型> 函数名(形参);` 或 `external fun 函数名()`，"
+                + $"实际得到 {GetTokenType(Cur)} '{Cur.Value}'（位置 {Cur.Line}:{Cur.Column}）",
+                $"cannot parse `external` declaration: expected `external <returnType> name(params);` or `external fun name()`, "
+                + $"got {GetTokenType(Cur)} '{Cur.Value}' (at {Cur.Line}:{Cur.Column})"));
         if (name == null)
-            throw Error($"`external` 声明缺少函数名（位置 {Cur.Line}:{Cur.Column}）");
+            throw Error(VmlLang.Pick($"`external` 声明缺少函数名（位置 {Cur.Line}:{Cur.Column}）", $"`external` declaration is missing the function name (at {Cur.Line}:{Cur.Column})"));
         Expect(TokenType.LPAREN, "Expected '('");
         var pars = new List<string>();
         int depth = 0;
@@ -184,7 +187,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (GetTokenType(Cur) == TokenType.DOT) {
             Advance(); // .
             receiverType = name; // First identifier is the receiver type
-            name = Expect(TokenType.IDENTIFIER, "期望函数名在 . 后").Value;
+            name = Expect(TokenType.IDENTIFIER, VmlLang.Pick("期望函数名在 . 后", "expected function name after '.'")).Value;
         }
         Expect(TokenType.LPAREN, "Expected '('");
         var pars = new List<string>();
@@ -367,7 +370,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (GetTokenType(Cur) == TokenType.DOTDOT) { Advance(); }
         else if (Cur.Value == "until") { Advance(); kind = "until"; }
         else if (Cur.Value == "downTo") { Advance(); kind = "downTo"; }
-        else Expect(TokenType.DOTDOT, "期望 '..'、'until' 或 'downTo'");
+        else Expect(TokenType.DOTDOT, VmlLang.Pick("期望 '..'、'until' 或 'downTo'", "expected '..', 'until' or 'downTo'"));
         var end = ParseExpr();
         ASTNode? step = null;
         if (Cur.Value == "step") { Advance(); step = ParseExpr(); }
@@ -395,7 +398,7 @@ public class Parser : ParserBase<Token, TokenType>
                 else { Expect(TokenType.ARROW, "Expected '->'"); var body = ParseStatement(); branches.Add(new WhenBranch(new BinaryOp("in", new VarRef("__when_val__"), rangeStart), body)); }
             } else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "is") {
                 Advance(); // is
-                string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "期望类型名在 'is' 后").Value;
+                string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, VmlLang.Pick("期望类型名在 'is' 后", "expected type name after 'is'")).Value;
                 Expect(TokenType.ARROW, "Expected '->'");
                 branches.Add(new WhenBranch(new BinaryOp("is", new VarRef("__when_val__"), new VarRef(typeName)), ParseStatement()));
             } else {
@@ -434,7 +437,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (GetTokenType(Cur) == TokenType.COLON) {
             Advance(); // :
             while (true) {
-                string ifaceName = Expect(TokenType.IDENTIFIER, "期望接口名在 ':' 后").Value;
+                string ifaceName = Expect(TokenType.IDENTIFIER, VmlLang.Pick("期望接口名在 ':' 后", "expected interface name after ':'")).Value;
                 interfaces.Add(ifaceName);
                 if (GetTokenType(Cur) == TokenType.COMMA) { Advance(); }
                 else break;
@@ -469,7 +472,7 @@ public class Parser : ParserBase<Token, TokenType>
 
     ASTNode ParseDataClass() {
         Advance(); // data
-        Expect(TokenType.KEYWORD, "期望 'class' 在 'data' 后"); // class
+        Expect(TokenType.KEYWORD, VmlLang.Pick("期望 'class' 在 'data' 后", "expected 'class' after 'data'")); // class
         string name = Expect(TokenType.IDENTIFIER).Value;
         Expect(TokenType.LPAREN, "Expected '('");
         var props = new List<(string, string)>();
@@ -549,7 +552,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "is") {
             Advance(); // is
-            string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "期望类型名在 'is' 后").Value;
+            string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, VmlLang.Pick("期望类型名在 'is' 后", "expected type name after 'is'")).Value;
             return new BinaryOp("is", left, new VarRef(typeName));
         }
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "in") {
@@ -794,12 +797,12 @@ public class Parser : ParserBase<Token, TokenType>
                 }
                 if (GetTokenType(Cur) == TokenType.ARROW) Advance(); // ->
                 var body = ParseExpr();
-                Expect(TokenType.RBRACE, "期望 '}' 在 lambda 中");
+                Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 lambda 中", "expected '}' in lambda"));
                 return new LambdaExpr(pars, body);
             } else {
                 // Implicit 'it' parameter lambda: { expr }
                 var body = ParseExpr();
-                Expect(TokenType.RBRACE, "期望 '}' 在 lambda 中");
+                Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 lambda 中", "expected '}' in lambda"));
                 return new LambdaExpr(["it"], body);
             }
         }
@@ -810,6 +813,6 @@ public class Parser : ParserBase<Token, TokenType>
         // 位置用 `GapAnchor()`：`x = 1 +` 的下一个 token 是**下一行**的 `RBRACE`/`NEWLINE`
         // ⇒ 按当前位置报就落到下一行，而错在第 4 行。锚定规则见基类 `GapAnchor`。
         // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀重复。
-        throw ErrorAt($"意外的 token: {GetTokenType(Cur)} '{Cur.Value}'", GapAnchor());
+        throw ErrorAt(VmlLang.Pick($"意外的 token: {GetTokenType(Cur)} '{Cur.Value}'", $"unexpected token: {GetTokenType(Cur)} '{Cur.Value}'"), GapAnchor());
     }
 }

@@ -117,7 +117,7 @@ namespace CCompiler
             }
             catch (System.Exception ex)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Compilation_InternalError, $"{filePath}: 内部错误: {ex.Message}", ex);
+                throw new CompilerBase.CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick($"{filePath}: 内部错误: {ex.Message}", $"{filePath}: internal error: {ex.Message}"), ex);
             }
         }
 
@@ -242,7 +242,7 @@ namespace CCompiler
                     }
                     else if (autoLinkStdLib)
                     {
-                        Console.WriteLine($"CCompiler: #param lib({lib}) 未找到独立文件，将由标准库提供");
+                        Console.WriteLine(VmlLang.Pick($"CCompiler: #param lib({lib}) 未找到独立文件，将由标准库提供", $"CCompiler: no standalone file for #param lib({lib}); it will be provided by the standard library"));
                     }
                 }
             }
@@ -266,7 +266,7 @@ namespace CCompiler
             if (allLibraryPaths.Count > 0)
             {
                 if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
-                    Console.WriteLine($"CCompiler: 链接库: {string.Join(", ", allLibraryPaths)}");
+                    Console.WriteLine(VmlLang.Pick($"CCompiler: 链接库: {string.Join(", ", allLibraryPaths)}", $"CCompiler: linking libraries: {string.Join(", ", allLibraryPaths)}"));
                 VMLAssembler.LibraryLinker.LinkLibraries(mainProgram, allLibraryPaths,
                     multiPrefixes: prefixes?.Count > 0 ? prefixes : null,
                     debug: VMLPlugins.CompilerOptionsContext.Current.DebugMode);
@@ -305,13 +305,13 @@ namespace CCompiler
                 if (File.Exists(path))
                 {
                     if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
-                        Console.WriteLine($"CCompiler: 找到标准库文件: {path}");
+                        Console.WriteLine(VmlLang.Pick($"CCompiler: 找到标准库文件: {path}", $"CCompiler: found standard library file: {path}"));
                     return Path.GetDirectoryName(path);
                 }
             }
             
             if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
-                Console.WriteLine("CCompiler: 警告: 未找到标准库文件");
+                Console.WriteLine(VmlLang.Pick("CCompiler: 警告: 未找到标准库文件", "CCompiler: warning: standard library file not found"));
             return null;
         }
 

@@ -1,5 +1,6 @@
 using CompilerBase;
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace GoCompiler
 {
@@ -69,7 +70,7 @@ namespace GoCompiler
                     TokenType.LE => "<=",
                     TokenType.GT => ">",
                     TokenType.GE => ">=",
-                    _ => throw Error("未知的运算符")
+                    _ => throw Error(VmlLang.Pick("未知的运算符", "unknown operator"))
                 };
                 var right = RequiredOperand(ParseShift());
                 left = new BinaryOp(op, left, right);
@@ -127,7 +128,7 @@ namespace GoCompiler
                         TokenType.AMPERSAND => "&",
                         TokenType.PIPE => "|",
                         TokenType.CARET => "^",
-                        _ => throw Error("未知的运算符")
+                        _ => throw Error(VmlLang.Pick("未知的运算符", "unknown operator"))
                     };
                 }
                 var right = RequiredOperand(ParseUnary());
@@ -219,7 +220,8 @@ namespace GoCompiler
             //
             // ⚠ `GccError` 是**收集**、`Error` 是**抛出**（见 `ParserBase.Collect` 的注释）；
             //   没有收集器时 `GccError` 自己会抛，不会凭空吞掉。
-            GccError($"这里缺少一个表达式，却遇到 {Cur.Type} '{Cur.Value}'",
+            GccError(VmlLang.Pick($"这里缺少一个表达式，却遇到 {Cur.Type} '{Cur.Value}'",
+                                  $"expected an expression, got {Cur.Type} '{Cur.Value}'"),
                      ErrorCode.Parser_ExpectedExpression);
             return new NumberLiteral("0");
         }
@@ -311,7 +313,7 @@ namespace GoCompiler
                     break;
 
                 default:
-                    Error($"意外的 token: {GetTokenType(Cur)}");
+                    Error(VmlLang.Pick($"意外的 token: {GetTokenType(Cur)}", $"unexpected token: {GetTokenType(Cur)}"));
                     return null;
             }
 

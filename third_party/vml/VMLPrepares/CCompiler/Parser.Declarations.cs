@@ -1,6 +1,7 @@
 using CompilerBase;
 #nullable disable // auto-generated code, null safety not applicable
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -32,7 +33,7 @@ namespace CCompiler
             while (Current().Type != TokenType.EOF)
             {
                 if (++safetyCounter > maxIterations)
-                    throw Error($"Parser: 超过最大迭代次数 ({maxIterations}), 可能死循环");
+                    throw Error(VmlLang.Pick($"Parser: 超过最大迭代次数 ({maxIterations}), 可能死循环", $"Parser: iteration limit exceeded ({maxIterations}), possible infinite loop"));
                 try {
                 // 处理预处理器指令
                 if (Current().Type == TokenType.INCLUDE  ||
@@ -172,7 +173,7 @@ namespace CCompiler
                         }
                         else
                         {
-                            Error("期望类型说明符");
+                            Error(VmlLang.Pick("期望类型说明符", "expected type specifier"));
                         }
                     }
 
@@ -769,7 +770,7 @@ namespace CCompiler
                                 if (existingDef != null)
                                 {
                                     // 已有定义: 新定义覆盖旧定义
-                                    Console.Error.WriteLine($"[WARN] 函数 {func.Name} 重复定义, 使用新定义替换");
+                                    Console.Error.WriteLine(VmlLang.Pick($"[WARN] 函数 {func.Name} 重复定义, 使用新定义替换", $"[WARN] function {func.Name} redefined, using the new definition"));
                                     program.Functions.Remove(existingDef);
                                 }
                                 else if (existingDecl != null)
@@ -833,7 +834,7 @@ namespace CCompiler
                     else
                     {
                         // 容错: 跳过无法识别的声明（如残留的 typedef 名称+分号）
-                        Console.Error.WriteLine($"[SKIP] 跳过无法识别的声明: typeName={typeName?.ToString() ?? "null"}, token={Current().Type}");
+                        Console.Error.WriteLine(VmlLang.Pick($"[SKIP] 跳过无法识别的声明: typeName={typeName?.ToString() ?? "null"}, token={Current().Type}", $"[SKIP] skipping unrecognized declaration: typeName={typeName?.ToString() ?? "null"}, token={Current().Type}"));
                         // 如果是 typedef 场景，注册为哑类型以打断级联失败
                         if (storageClass == "typedef" && !string.IsNullOrEmpty(typeName) && Current().Type == TokenType.SEMICOLON)
                         {
@@ -882,10 +883,10 @@ namespace CCompiler
                     //   最后在 `BuildProgram` 一次性抛出去。
                     //   实测：`Examples/c|cpp|objc` 全部**零触发** ⇒ 升级成错误不会误伤正常代码。
                     if (Diagnostics != null)
-                        GccError($"无法识别的顶层标记 '{Current().Value ?? Current().Type.ToString()}'",
+                        GccError(VmlLang.Pick($"无法识别的顶层标记 '{Current().Value ?? Current().Type.ToString()}'", $"unrecognized top-level token '{Current().Value ?? Current().Type.ToString()}'"),
                             ErrorCode.Parser_SyntaxError);
                     else
-                        Console.Error.WriteLine($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}");
+                        Console.Error.WriteLine(VmlLang.Pick($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}", $"[SKIP] skipping unrecognized top-level token: {Current().Type} at line {Current().OriginalLine}"));
                     Advance();
                 }
                 } catch (ParseException ex) when (ex.Code == ErrorCode.Parser_UnexpectedToken) {
@@ -901,9 +902,9 @@ namespace CCompiler
                     // 于是**一个文件里的多处语法错能一次全报出来**（P5 的"多报"）。
                     // 实测：`Examples/c|cpp|objc` 全部**零触发**。
                     if (Diagnostics != null)
-                        GccError($"语法错误：{ex.Message}", ErrorCode.Parser_SyntaxError);
+                        GccError(VmlLang.Pick($"语法错误：{ex.Message}", $"syntax error: {ex.Message}"), ErrorCode.Parser_SyntaxError);
                     else
-                        Console.Error.WriteLine($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}");
+                        Console.Error.WriteLine(VmlLang.Pick($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}", $"[RECOVER] top-level parse error recovered: {ex.Message}, line {Current().OriginalLine}, brace depth={_braceDepth}"));
                     // 恢复策略: 跳过至当前失败构造结束, 然后跳到下一个有效声明
                     int recoverBraceDepth = _braceDepth;
                     int targetDepth = _braceDepth > 1 ? 1 : 0;

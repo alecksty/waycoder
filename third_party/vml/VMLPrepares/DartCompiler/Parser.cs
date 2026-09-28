@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace DartCompiler;
 
@@ -25,7 +26,7 @@ public class Parser : ParserBase<Token, TokenType>
     protected override bool IsStatementSeparator(Token token) => token.Type
         is TokenType.Semicolon;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Dart 解析错误: {msg}（得到 {Cur.Type}）");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, VmlLang.Pick($"Dart 解析错误: {msg}（得到 {Cur.Type}）", $"Dart parse error: {msg} (got {Cur.Type})"));
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -81,13 +82,13 @@ public class Parser : ParserBase<Token, TokenType>
         if (Match(TokenType.Break))
         {
             int l = Cur.Line, c = Cur.Column;
-            Expect(TokenType.Semicolon, "期望 ';' 在 break 后");
+            Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 break 后", "expected ';' after break"));
             return new BreakNode(l, c);
         }
         if (Match(TokenType.Continue))
         {
             int l = Cur.Line, c = Cur.Column;
-            Expect(TokenType.Semicolon, "期望 ';' 在 continue 后");
+            Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 continue 后", "expected ';' after continue"));
             return new ContinueNode(l, c);
         }
         if (Check(TokenType.Semicolon)) { Advance(); return new ExprStmtNode(new LiteralNode(null, Cur.Line, Cur.Column), Cur.Line, Cur.Column); }
@@ -188,7 +189,7 @@ public class Parser : ParserBase<Token, TokenType>
         // 容错: 跳过无法识别的token到;
         while (!Check(TokenType.Semicolon) && !Check(TokenType.EOF) && !Check(TokenType.RBrace))
             Advance();
-        Expect(TokenType.Semicolon, "期望 ';' 在变量声明后");
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在变量声明后", "expected ';' after variable declaration"));
         return result;
     }
 
@@ -196,7 +197,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // mixin
-        string name = Expect(TokenType.Identifier, "期望 mixin 名").Value;
+        string name = Expect(TokenType.Identifier, VmlLang.Pick("期望 mixin 名", "expected mixin name")).Value;
         Expect(TokenType.LBrace, "expected '{'");
         var members = new List<ASTNode>();
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
@@ -221,7 +222,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // 'extension'
-        string extName = Expect(TokenType.Identifier, "期望 extension 名").Value;
+        string extName = Expect(TokenType.Identifier, VmlLang.Pick("期望 extension 名", "expected extension name")).Value;
         string onKw = Match(TokenType.OnKw) ? "on" : "";
         if (onKw == "") { Expect(TokenType.OnKw, "expected 'on'"); }
         string targetType = IsType(Cur) ? Advance().Value : Expect(TokenType.Identifier).Value;
@@ -280,7 +281,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 // Parse comma-separated mixin names: with A, B, C
                 do {
-                    string mixinName = Expect(TokenType.Identifier, "期望 mixin 名在 'with' 后").Value;
+                    string mixinName = Expect(TokenType.Identifier, VmlLang.Pick("期望 mixin 名在 'with' 后", "expected mixin name after 'with'")).Value;
                     mixinNames.Add(mixinName);
                 } while (Match(TokenType.Comma));
             }
@@ -320,7 +321,7 @@ public class Parser : ParserBase<Token, TokenType>
                 else if (Peek(1).Type == TokenType.Identifier)
                     members.Add(ParseVarDecl());
                 else
-                    throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
+                    throw Error(VmlLang.Pick($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token in class body: {Cur.Type} (at {Cur.Line}:{Cur.Column})"));
             }
             else if (Cur.Type == TokenType.Identifier && (Cur.Value == "static" || Cur.Value == "native" || Cur.Value == "external"))
             {
@@ -335,10 +336,10 @@ public class Parser : ParserBase<Token, TokenType>
                     || (Peek(1).Type == TokenType.Lt && IsGenericVarDecl()))
                     members.Add(ParseVarDecl());
                 else
-                    throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
+                    throw Error(VmlLang.Pick($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token in class body: {Cur.Type} (at {Cur.Line}:{Cur.Column})"));
             }
             else
-                throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
+                throw Error(VmlLang.Pick($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token in class body: {Cur.Type} (at {Cur.Line}:{Cur.Column})"));
         }
         Expect(TokenType.RBrace, "expected '}'");
         return new ClassDeclNode(name, members, l, c, mixinNames);
@@ -414,10 +415,10 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "期望 '(' 在 if 后");
+        Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 if 后", "expected '(' after if"));
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "期望 ')' 在条件后");
+        Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在条件后", "expected ')' after condition"));
         var thenBody = ParseStatementAsBlock();
         List<ASTNode>? elseBody = null;
         if (Match(TokenType.Else))
@@ -429,10 +430,10 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "期望 '(' 在 while 后");
+        Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 while 后", "expected '(' after while"));
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "期望 ')' 在条件后");
+        Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在条件后", "expected ')' after condition"));
         var body = ParseStatementAsBlock();
         return new WhileNode(cond, body, l, c);
     }
@@ -441,7 +442,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "期望 '(' 在 for 后");
+        Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 for 后", "expected '(' after for"));
 
         ASTNode? init = null;
         if (!Check(TokenType.Semicolon))
@@ -462,17 +463,17 @@ public class Parser : ParserBase<Token, TokenType>
             return new ForNode(init, null, null, forInBody, l, c);
         }
         while (!Check(TokenType.Semicolon) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.Semicolon, "期望 ';' 在 for 中");
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 for 中", "expected ';' in for"));
 
         ASTNode? condition = null;
         if (!Check(TokenType.Semicolon))
             condition = ParseExpression();
-        Expect(TokenType.Semicolon, "期望 ';' 在 for 中");
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 for 中", "expected ';' in for"));
 
         ASTNode? increment = null;
         if (!Check(TokenType.RParen))
             increment = ParseExpression();
-        Expect(TokenType.RParen, "期望 ')' 在 for 子句后");
+        Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 for 子句后", "expected ')' after for clause"));
 
         var body = ParseStatementAsBlock();
         return new ForNode(init, condition, increment, body, l, c);
@@ -483,12 +484,12 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // do
         var body = ParseStatementAsBlock();
-        Expect(TokenType.While, "期望 'while' 在 do 语句体后");
-        Expect(TokenType.LParen, "期望 '(' 在 while 后");
+        Expect(TokenType.While, VmlLang.Pick("期望 'while' 在 do 语句体后", "expected 'while' after do statement body"));
+        Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 while 后", "expected '(' after while"));
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "期望 ')' 在条件后");
-        Expect(TokenType.Semicolon, "期望 ';' 在 do-while 后");
+        Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在条件后", "expected ')' after condition"));
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 do-while 后", "expected ';' after do-while"));
         return new DoWhileNode(cond, body, l, c);
     }
 
@@ -526,7 +527,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         ASTNode? expr = null;
         if (Cur.Type != TokenType.Semicolon) expr = ParseExpression();
-        Expect(TokenType.Semicolon, "期望 ';' 在 throw 后");
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 throw 后", "expected ';' after throw"));
         return new ThrowStmt(expr, l, c);
     }
 
@@ -548,7 +549,7 @@ public class Parser : ParserBase<Token, TokenType>
         ASTNode? val = null;
         if (!Check(TokenType.Semicolon))
             val = ParseExpression();
-        Expect(TokenType.Semicolon, "期望 ';' 在 return 后");
+        Expect(TokenType.Semicolon, VmlLang.Pick("期望 ';' 在 return 后", "expected ';' after return"));
         return new ReturnNode(val, l, c);
     }
 
@@ -659,7 +660,7 @@ public class Parser : ParserBase<Token, TokenType>
                     Advance();
                 if (!Check(TokenType.Colon)) return left;
             }
-            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
+            Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 在三元表达式中", "expected ':' in ternary expression"));
             var elseExpr = ParseTernary();
             return new BinaryNode(
                 new BinaryNode(left, "?", thenExpr, l, cl),
@@ -950,14 +951,14 @@ public class Parser : ParserBase<Token, TokenType>
         //   一句合法的 `[` 被报成「表达式缺失或多余（遇到 '['）」（本轮改出来的回归，语料当场抓住）。
         if (IsExpressionCloser(Cur))
         {
-            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+            GccErrorAt(VmlLang.Pick($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）", $"missing or extra expression (got '{Cur.Value ?? GetTokenType(Cur).ToString()}')"),
                        GapAnchor(), ErrorCode.Parser_SyntaxError);
             return new LiteralNode(0, l, c);   // 不吃：留给外层构造去收尾
         }
         if (IsType(Cur) || Cur.Type == TokenType.Void || Cur.Type == TokenType.Identifier ||
             Cur.Type == TokenType.Lt || Cur.Type == TokenType.Gt)
         {
-            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+            GccErrorAt(VmlLang.Pick($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）", $"missing or extra expression (got '{Cur.Value ?? GetTokenType(Cur).ToString()}')"),
                        GapAnchor(), ErrorCode.Parser_SyntaxError);
             Advance(); return new LiteralNode(0, l, c);
         }
@@ -989,7 +990,7 @@ public class Parser : ParserBase<Token, TokenType>
             return new LiteralNode(0, l, c);
         }
         // 位置用 `GapAnchor()`；顺带去掉消息里手写的「（位置 L:C）」——与统一前缀重复。
-        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
+        throw ErrorAt(VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})", $"unexpected token: {Cur.Type}({Cur.Value})"), GapAnchor());
     }
 
     /// <summary>检测当前 &lt; 是否为泛型参数列表 (而非比较运算符)。

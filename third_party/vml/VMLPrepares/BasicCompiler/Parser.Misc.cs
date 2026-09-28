@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System.Collections.Generic;
 
 namespace BasicCompiler
@@ -172,7 +173,7 @@ namespace BasicCompiler
         private Statement ParseSelectCaseStatement()
         {
             Token selectToken = Advance(); // 跳过 SELECT
-            Expect(TokenType.CASE, "期望 CASE 关键字"); // 跳过 CASE
+            Expect(TokenType.CASE, VmlLang.Pick("期望 CASE 关键字", "expected the CASE keyword")); // 跳过 CASE
 
             // 解析测试表达式
             Expression testExpr = ParseExpression();
@@ -369,7 +370,7 @@ namespace BasicCompiler
         {
             Advance(); // consume POKE
             var addrExpr = ParseExpression();
-            Expect(TokenType.COMMA, "POKE 语法: POKE address, value");
+            Expect(TokenType.COMMA, VmlLang.Pick("POKE 语法: POKE address, value", "POKE syntax: POKE address, value"));
             var valueExpr = ParseExpression();
             var t = Peek();
             return new PokeStatement(addrExpr, valueExpr, t.Line, t.Column);
@@ -378,15 +379,15 @@ namespace BasicCompiler
         private Statement ParseChipAsmStatement()
         {
             Advance(); // consume CHIPASM
-            if (Peek().Type != TokenType.LPAREN) throw Error("期望 '(' 在 CHIPASM 后");
+            if (Peek().Type != TokenType.LPAREN) throw Error(VmlLang.Pick("期望 '(' 在 CHIPASM 后", "expected '(' after CHIPASM"));
             Advance(); // consume (
-            if (Peek().Type != TokenType.STRING) throw Error("期望字符串形式的 arch");
+            if (Peek().Type != TokenType.STRING) throw Error(VmlLang.Pick("期望字符串形式的 arch", "expected the arch as a string"));
             string arch = Advance().Value;
-            if (Peek().Type != TokenType.COMMA) throw Error("期望 ','");
+            if (Peek().Type != TokenType.COMMA) throw Error(VmlLang.Pick("期望 ','", "expected ','"));
             Advance(); // consume ,
-            if (Peek().Type != TokenType.STRING) throw Error("期望字符串形式的 code");
+            if (Peek().Type != TokenType.STRING) throw Error(VmlLang.Pick("期望字符串形式的 code", "expected the code as a string"));
             string code = Advance().Value;
-            if (Peek().Type != TokenType.RPAREN) throw Error("期望 ')'");
+            if (Peek().Type != TokenType.RPAREN) throw Error(VmlLang.Pick("期望 ')'", "expected ')'"));
             Advance(); // consume )
             var t2 = Peek();
             return new ChipAsmStatement(arch, code, t2.Line, t2.Column);
@@ -425,7 +426,8 @@ namespace BasicCompiler
         {
             if (Peek().Type != expected)
             {
-                throw Error($"{errorMessage} (第{Peek().Line}行, 第{Peek().Column}列)");
+                throw Error(VmlLang.Pick($"{errorMessage} (第{Peek().Line}行, 第{Peek().Column}列)",
+                                         $"{errorMessage} (line {Peek().Line}, column {Peek().Column})"));
             }
             Advance();
         }

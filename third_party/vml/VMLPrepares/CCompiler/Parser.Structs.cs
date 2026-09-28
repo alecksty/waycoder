@@ -2,6 +2,7 @@ using CompilerBase;
 #nullable disable // auto-generated
 
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -486,7 +487,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望变量名");
+                    Error(VmlLang.Pick("期望变量名", "expected variable name"));
                 }
                 return true;
             }
@@ -1046,7 +1047,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望变量名");
+                    Error(VmlLang.Pick("期望变量名", "expected variable name"));
                 }
                 return true;
             }
@@ -1062,7 +1063,7 @@ namespace CCompiler
                 }
             }
             string expectedTypes = string.Join(", ", tokenTypes);
-            throw Error($"期望 {expectedTypes}，但得到 {Current().Type.ToString()}");
+            throw Error(VmlLang.Pick($"期望 {expectedTypes}，但得到 {Current().Type.ToString()}", $"expected {expectedTypes} but got {Current().Type.ToString()}"));
         }
 
         private Function ParseFunction(string returnType, string name, bool isInterrupt = false, TokenType conventionToken = TokenType.EOF, bool isStatic = false)
@@ -1300,7 +1301,7 @@ namespace CCompiler
             //   「写了一半就先存一下」在 C 上表现为「静默编出一份残程序」。
             //   （cs/java/go/rust 都会报 `Expected '}'`，只有 C 漏了。）
             if (Current().Type == TokenType.RBRACE) Advance();
-            else GccErrorAt("块未闭合（缺少 '}'）", open, ErrorCode.Parser_SyntaxError);
+            else GccErrorAt(VmlLang.Pick("块未闭合（缺少 '}'）", "block not closed (missing '}')"), open, ErrorCode.Parser_SyntaxError);
             return block;
         }
 

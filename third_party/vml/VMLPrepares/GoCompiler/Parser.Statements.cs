@@ -1,5 +1,6 @@
 using CompilerBase;
 using System.Collections.Generic;
+using VMLAssembler;
 using VMLPlugins;
 
 namespace GoCompiler
@@ -462,7 +463,7 @@ namespace GoCompiler
                     return GoType.Map(keyType, valueType);
 
                 case TokenType.CHAN:
-                    if (_isMCU) { WarningEmitter.Emit("go", "MCU模式: chan类型被忽略，替换为int"); Advance(); ParseType(); return GoType.Int; }
+                    if (_isMCU) { WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: chan类型被忽略，替换为int", "MCU mode: chan type ignored, replaced with int")); Advance(); ParseType(); return GoType.Int; }
                     Advance();
                     var chanElementType = ParseType();
                     return GoType.Chan(chanElementType);
@@ -875,7 +876,7 @@ namespace GoCompiler
                     return ParseSwitchStatement();
 
                 case TokenType.SELECT:
-                    if (_isMCU) { WarningEmitter.Emit("go", "MCU模式: select被忽略（不支持channel）"); }
+                    if (_isMCU) { WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: select被忽略（不支持channel）", "MCU mode: select ignored (channels are not supported)")); }
                     return ParseSelectStatement();
 
                 case TokenType.RETURN:
@@ -901,7 +902,7 @@ namespace GoCompiler
                     return ParseDeferStatement();
 
                 case TokenType.GO:
-                    if (_isMCU) { WarningEmitter.Emit("go", "MCU模式: go(goroutine)被忽略（不支持并发）"); Advance(); return null; }
+                    if (_isMCU) { WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: go(goroutine)被忽略（不支持并发）", "MCU mode: go (goroutine) ignored (concurrency is not supported)")); Advance(); return null; }
                     return ParseGoStatement();
 
                 case TokenType.LBRACE:
@@ -1347,7 +1348,7 @@ namespace GoCompiler
             }
             else
             {
-                Error("期望 case 或 default");
+                Error(VmlLang.Pick("期望 case 或 default", "expected case or default"));
             }
 
             Expect(TokenType.COLON);

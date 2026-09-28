@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using VMLAssembler;
 using CompilerBase;
 
 namespace RCompiler;
@@ -116,7 +117,7 @@ public class Lexer : LexerBase
                         {
                             string val = sb2.ToString();
                             if (val == "%")
-                                Error("意外的字符: %");
+                                Error(VmlLang.Pick("意外的字符: %", "unexpected character: %"));
                         }
                     }
                     break;
@@ -135,7 +136,7 @@ public class Lexer : LexerBase
                     {
                         Advance();
                         if (Peek() == '-') { Advance(); Tokens.Add(new Token(TokenType.SuperAssign, "<<-", _line, _col)); break; }
-                        Error($"'<<' 后出现意外的字符: {Peek()}");
+                        Error(VmlLang.Pick($"'<<' 后出现意外的字符: {Peek()}", $"unexpected character after '<<': {Peek()}"));
                     }
                     Tokens.Add(new Token(TokenType.Lt, "<", _line, _col));
                     break;
@@ -157,7 +158,7 @@ public class Lexer : LexerBase
                 case ':': Tokens.Add(new Token(TokenType.Colon, ":", _line, _col)); break;
                 case '$': Tokens.Add(new Token(TokenType.Dollar, "$", _line, _col)); break;
                 default:
-                    Error($"意外的字符: {c}"); break;
+                    Error(VmlLang.Pick($"意外的字符: {c}", $"unexpected character: {c}")); break;
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

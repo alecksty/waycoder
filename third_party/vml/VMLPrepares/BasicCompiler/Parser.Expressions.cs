@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System.Collections.Generic;
 
 namespace BasicCompiler
@@ -131,7 +132,8 @@ namespace BasicCompiler
             //   按当前位置收集就报到下一行去了（实测 5:1，而错在 4 行）。
             //   文案仍旧说"遇到了什么"——**位置取缺口在哪、文案取看到了什么**，
             //   与 `ParserBase.ErrorAt` 那条判据同一套。
-            GccErrorAt($"这里缺少一个表达式，却遇到 {t.Type} '{t.Value}'",
+            GccErrorAt(VmlLang.Pick($"这里缺少一个表达式，却遇到 {t.Type} '{t.Value}'",
+                                    $"an expression is missing here, but found {t.Type} '{t.Value}'"),
                        Previous(), ErrorCode.Parser_ExpectedExpression);
             return new NumberLiteral(t.Line, t.Column, 0);
         }

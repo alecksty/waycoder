@@ -26,7 +26,7 @@ namespace PascalCompiler
         private void ComputeRecordLayout(string recordTypeName, RecordTypeNode recordType)
         {
             if (recordsBeingComputed.Contains(recordTypeName))
-                throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"递归record类型不允许: {recordTypeName} (请使用 ^指针 间接引用)");
+                throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick($"递归record类型不允许: {recordTypeName} (请使用 ^指针 间接引用)", $"recursive record types are not allowed: {recordTypeName} (use a ^pointer for indirect reference)"));
             recordsBeingComputed.Add(recordTypeName);
 
             var fieldLayout = new Dictionary<string, (int offset, string type)>();

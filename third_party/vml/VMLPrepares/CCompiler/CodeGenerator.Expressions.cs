@@ -702,7 +702,7 @@ namespace CCompiler
                     if (valueType == ExprType.Void && !IsPointerType(targetType))
                     {
                         string varName = ident.Name;
-                        string errorMsg = $"类型不兼容的赋值: 无法将类型 '{GetTypeName(valueType)}' 赋值给类型 '{GetTypeName(targetType)}' 的变量 '{varName}'";
+                        string errorMsg = VmlLang.Pick($"类型不兼容的赋值: 无法将类型 '{GetTypeName(valueType)}' 赋值给类型 '{GetTypeName(targetType)}' 的变量 '{varName}'", $"incompatible assignment: cannot assign type '{GetTypeName(valueType)}' to variable '{varName}' of type '{GetTypeName(targetType)}'");
                         throw new CodeGenerationException(ErrorCode.CodeGen_TypeMismatch, errorMsg);
                     }
                     // 其他不兼容: 降级为隐式转换 (GCC 兼容)
@@ -1382,7 +1382,7 @@ namespace CCompiler
             }
             else
             {
-                throw new CodeGenerationException(ErrorCode.CodeGen_CannotTakeAddress, $"无法获取表达式地址");
+                throw new CodeGenerationException(ErrorCode.CodeGen_CannotTakeAddress, VmlLang.Pick($"无法获取表达式地址", $"cannot take the address of the expression"));
             }
         }
 
@@ -1652,7 +1652,7 @@ namespace CCompiler
             else
             {
                 if (node is UnaryOp uo2)
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, $"不支持的表达式: UnaryOp({uo2.Op})");
+                    throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick($"不支持的表达式: UnaryOp({uo2.Op})", $"unsupported expression: UnaryOp({uo2.Op})"));
                 throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, VMLPlugins.Strings.UnsupportedExpression(node.GetType().Name));
             }
         }

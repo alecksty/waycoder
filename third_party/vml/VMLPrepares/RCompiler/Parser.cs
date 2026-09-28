@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using VMLAssembler;
 using CompilerBase;
 
 namespace RCompiler;
@@ -23,7 +24,7 @@ public class Parser : ParserBase<Token, TokenType>
     protected override bool IsStatementSeparator(Token token) => token.Type
         is TokenType.Semicolon;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"R 解析错误: {msg}（得到 {Cur.Type}）");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, VmlLang.Pick($"R 解析错误: {msg}（得到 {Cur.Type}）", $"R parse error: {msg} (got {Cur.Type})"));
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -448,6 +449,6 @@ public class Parser : ParserBase<Token, TokenType>
         // ⇒ 按当前位置报就落到第 5 行，而错在第 4 行。锚定规则见基类 `GapAnchor`。
         // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀重复，且那份取的是
         // 预处理后的行列（不查 `#include` 映射），可能与前缀不一致。
-        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
+        throw ErrorAt(VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})", $"unexpected token: {Cur.Type}({Cur.Value})"), GapAnchor());
     }
 }

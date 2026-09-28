@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System;
 using CompilerBase;
+using VMLAssembler;
 
 namespace RubyCompiler;
 
@@ -23,7 +24,7 @@ public class Parser : ParserBase<Token, TokenType>
     protected override bool IsStatementSeparator(Token token) => token.Type
         is TokenType.Newline or TokenType.Semicolon;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Ruby 解析错误: {msg}（得到 {Cur.Type}）");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, VmlLang.Pick($"Ruby 解析错误: {msg}（得到 {Cur.Type}）", $"Ruby parse error: {msg} (got {Cur.Type})"));
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -204,7 +205,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 excClass = Cur.Value; Advance(); // 异常类名
                 Advance(); // =>
-                varName = Expect(TokenType.Identifier, "期望变量名在 => 后").Value;
+                varName = Expect(TokenType.Identifier, VmlLang.Pick("期望变量名在 => 后", "expected variable name after =>")).Value;
             }
             var rescueBody = new List<ASTNode>();
             while (Cur.Type != TokenType.Rescue && Cur.Type != TokenType.Ensure && Cur.Type != TokenType.Else && Cur.Type != TokenType.End)
@@ -279,7 +280,7 @@ public class Parser : ParserBase<Token, TokenType>
             int l = Cur.Line, c = Cur.Column;
             Advance(); // consume ?
             var trueVal = ParseExpression();
-            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
+            Expect(TokenType.Colon, VmlLang.Pick("期望 ':' 在三元表达式中", "expected ':' in ternary expression"));
             var falseVal = ParseExpression();
             return new TernaryNode(left, trueVal, falseVal, l, c);
         }
@@ -497,7 +498,7 @@ public class Parser : ParserBase<Token, TokenType>
         // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀 `文件:行:列: error:`
         // **重复**，且手写那份取的是预处理后的行列（不查 `#include` 映射），
         // 两份可能不一致。位置由前缀一处给。
-        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
+        throw ErrorAt(VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})", $"unexpected token: {Cur.Type}({Cur.Value})"), GapAnchor());
     }
 
     private ASTNode ParseCall(ASTNode? receiver, string method)

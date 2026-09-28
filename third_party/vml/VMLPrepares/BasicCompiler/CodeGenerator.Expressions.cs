@@ -837,8 +837,9 @@ namespace BasicCompiler
                 // 比报错难查得多，所以这里选择响亮地报错。
                 if (arrayAccess.Indices.Count > 1)
                 {
-                    throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression,
-                        $"数组形参 '{arrayName}' 不支持多余一维的下标（形参没有维数信息，无法算行优先下标）");
+                    throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick(
+                        $"数组形参 '{arrayName}' 不支持多余一维的下标（形参没有维数信息，无法算行优先下标）",
+                        $"array parameter '{arrayName}' does not support more than one index (a parameter carries no dimension information, so a row-major index cannot be computed)"));
                 }
                 var idxExpr = arrayAccess.Indices.Count == 1 ? arrayAccess.Indices[0] : arrayAccess.Index;
                 if (currentSubName != null)

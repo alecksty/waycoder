@@ -139,7 +139,7 @@ public partial class CodeGenerator
                 _expr!.EmitBinOp(left, right, "+");
                 break;
             default:
-                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的二元运算符: {node.Op}");
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick($"未知的二元运算符: {node.Op}", $"unknown binary operator: {node.Op}"));
         }
     }
 

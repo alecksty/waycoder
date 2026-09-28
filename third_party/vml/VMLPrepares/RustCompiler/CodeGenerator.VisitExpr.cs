@@ -57,12 +57,14 @@ namespace RustCompiler
                     if (_movedVariables.Contains(idInit.Name))
                     {
                         throw new CodeGenerationException(
-                            $"使用了已被移动的值: `{idInit.Name}`（值在此前的赋值中被移动）");
+                            VmlLang.Pick($"使用了已被移动的值: `{idInit.Name}`（值在此前的赋值中被移动）",
+                                         $"use of moved value: `{idInit.Name}` (value was moved by an earlier assignment)"));
                     }
                     if (!IsCopyVariable(idInit.Name) && IsBorrowed(idInit.Name))
                     {
                         throw new CodeGenerationException(
-                            $"无法从 `{idInit.Name}` 中移出，因为它已被借用");
+                            VmlLang.Pick($"无法从 `{idInit.Name}` 中移出，因为它已被借用",
+                                         $"cannot move out of `{idInit.Name}` because it is borrowed"));
                     }
                 }
 
@@ -113,7 +115,7 @@ namespace RustCompiler
             }
             else
             {
-                throw new CodeGenerationException($"常量 '{node.Name}' 必须有初始值");
+                throw new CodeGenerationException(VmlLang.Pick($"常量 '{node.Name}' 必须有初始值", $"constant '{node.Name}' must have an initial value"));
             }
         }
         
@@ -135,7 +137,7 @@ namespace RustCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException("未定义的常量" + $": {identifier.Name}");
+                    throw new CodeGenerationException(VmlLang.Pick("未定义的常量", "undefined constant") + $": {identifier.Name}");
                 }
             }
             else if (expression is BinaryOperationNode binaryOp)
@@ -223,7 +225,8 @@ namespace RustCompiler
             {
                 string kind = _mutBorrowed.Contains(node.VariableName) ? "mutably " : "";
                 throw new CodeGenerationException(
-                    $"无法赋值给 `{node.VariableName}`，因为它已被{kind}借用");
+                    VmlLang.Pick($"无法赋值给 `{node.VariableName}`，因为它已被{kind}借用",
+                                 $"cannot assign to `{node.VariableName}` because it is already {kind}borrowed"));
             }
 
             // 所有权检查：如果赋值源是一个变量
@@ -233,12 +236,14 @@ namespace RustCompiler
                 if (_movedVariables.Contains(idVal.Name))
                 {
                     throw new CodeGenerationException(
-                        $"使用了已被移动的值: `{idVal.Name}`（值在此前的赋值中被移动）");
+                        VmlLang.Pick($"使用了已被移动的值: `{idVal.Name}`（值在此前的赋值中被移动）",
+                                     $"use of moved value: `{idVal.Name}` (value was moved by an earlier assignment)"));
                 }
                 if (!IsCopyVariable(idVal.Name) && IsBorrowed(idVal.Name))
                 {
                     throw new CodeGenerationException(
-                        $"无法从 `{idVal.Name}` 中移出，因为它已被借用");
+                        VmlLang.Pick($"无法从 `{idVal.Name}` 中移出，因为它已被借用",
+                                     $"cannot move out of `{idVal.Name}` because it is borrowed"));
                 }
             }
 

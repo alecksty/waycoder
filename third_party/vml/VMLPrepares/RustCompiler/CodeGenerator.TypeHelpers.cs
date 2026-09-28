@@ -30,7 +30,7 @@ namespace RustCompiler
             {
                 if (key == null)
                 {
-                    throw new CodeGenerationException("数据段里含 null 键");
+                    throw new CodeGenerationException(VmlLang.Pick("数据段里含 null 键", "data section contains a null key"));
                 }
             }
 

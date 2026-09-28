@@ -1,3 +1,4 @@
+using VMLAssembler;
 using CompilerBase;
 
 namespace SchemeCompiler;
@@ -51,14 +52,14 @@ public class Parser : ParserBase<Token, TokenType>
             //   `(define (f x) (+ x 1)` 这种"写了一半就先存一下"的文件**编译成功**、
             //   退出码 0，而生成器对着一棵缺胳膊少腿的树照样出指令。
             //   位置锚在**开括号**上（缺口就是它没被关上），不是锚在 EOF 上。
-            else GccErrorAt("括号未闭合（缺少 ')'）", open, ErrorCode.Parser_SyntaxError);
+            else GccErrorAt(VmlLang.Pick("括号未闭合（缺少 ')'）", "unclosed parenthesis (missing ')')"), open, ErrorCode.Parser_SyntaxError);
             return new SList(items);
         }
         if (Check(TokenType.QUOTE)) {
             var q = Advance();
             // `'` 后面必须跟一个表达式；文件正好在此结束（或跟了 `)`）就是缺口。
             if (IsAtEnd || Check(TokenType.RPAREN))
-                GccErrorAt("' 后面缺少表达式", q, ErrorCode.Parser_SyntaxError);
+                GccErrorAt(VmlLang.Pick("' 后面缺少表达式", "missing expression after '"), q, ErrorCode.Parser_SyntaxError);
             var quoted = ParseExpr();
             return new SList([new SSym("quote"), quoted]);
         }
@@ -73,9 +74,9 @@ public class Parser : ParserBase<Token, TokenType>
         //   符号名恰好等于 `)` / `<eof>` 是绝无可能合法的，所以按类型拦。
         if (Check(TokenType.SYMBOL)) return new SSym(Advance().Value);
         if (Check(TokenType.RPAREN))
-            GccErrorAt("多余的 ')'", CurrentToken, ErrorCode.Parser_SyntaxError);
+            GccErrorAt(VmlLang.Pick("多余的 ')'", "extra ')'"), CurrentToken, ErrorCode.Parser_SyntaxError);
         else
-            GccErrorAt("表达式缺失（输入在此结束）", CurrentToken, ErrorCode.Parser_SyntaxError);
+            GccErrorAt(VmlLang.Pick("表达式缺失（输入在此结束）", "missing expression (input ends here)"), CurrentToken, ErrorCode.Parser_SyntaxError);
         // 收下现状、让 `Parse()` 的循环去判断能不能继续 —— 报错与"还编不编得下去"
         // 是两件事（本仓的"错误两分"）：这里只是把缺口报出来。
         Advance();

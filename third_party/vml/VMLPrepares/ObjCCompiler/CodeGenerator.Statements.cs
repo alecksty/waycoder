@@ -330,7 +330,7 @@ public partial class CodeGenerator
         {
             string catchInfo = excName != null ? $"@catch({excName})" : "@catch(...)";
             VMLPlugins.WarningEmitter.Emit("objc",
-                $"MCU 模式: {catchInfo} 块被跳过（MCU 无异常处理机制）");
+                VmlLang.Pick($"MCU 模式: {catchInfo} 块被跳过（MCU 无异常处理机制）", $"MCU mode: {catchInfo} block skipped (no exception support on MCU)"));
         }
         if (node.FinallyBody != null)
         {
@@ -343,7 +343,7 @@ public partial class CodeGenerator
     private void GenerateThrow(ObjCThrowNode node)
     {
         VMLPlugins.WarningEmitter.Emit("objc",
-            "MCU 模式: @throw 转换为 SYSCALL exit（MCU 无异常处理机制）");
+            VmlLang.Pick("MCU 模式: @throw 转换为 SYSCALL exit（MCU 无异常处理机制）", "MCU mode: @throw converted to SYSCALL exit (no exception support on MCU)"));
         if (node.Expr != null)
             GenerateExpression(node.Expr);
         EmitExit();

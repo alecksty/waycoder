@@ -19,8 +19,9 @@ namespace RustCompiler
                 }
                 else
                 {
-                    string errorLabel = NewLabel("error") ?? throw new CodeGenerationException("error标签为null");
-                    dataSection[errorLabel] = "[错误: println! 的第一个实参必须是字符串字面量]";
+                    string errorLabel = NewLabel("error") ?? throw new CodeGenerationException(VmlLang.Pick("error标签为null", "error label is null"));
+                    dataSection[errorLabel] = VmlLang.Pick("[错误: println! 的第一个实参必须是字符串字面量]",
+                                                           "[error: the first argument of println! must be a string literal]");
                     AddInstruction(OpCode.MOVE, "R0", errorLabel);
                     EmitPrintString();
                 }
@@ -208,10 +209,12 @@ namespace RustCompiler
                 // &mut x: 必须没有任何借用
                 if (_immutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"无法把 `{varName}` 借用为可变，因为它同时被借用为不可变");
+                        VmlLang.Pick($"无法把 `{varName}` 借用为可变，因为它同时被借用为不可变",
+                                     $"cannot borrow `{varName}` as mutable because it is also borrowed as immutable"));
                 if (_mutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"无法把 `{varName}` 同时借用为可变两次");
+                        VmlLang.Pick($"无法把 `{varName}` 同时借用为可变两次",
+                                     $"cannot borrow `{varName}` as mutable more than once at a time"));
                 _mutBorrowed.Add(varName);
             }
             else
@@ -219,7 +222,8 @@ namespace RustCompiler
                 // &x: 不能同时有可变借用
                 if (_mutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"无法把 `{varName}` 借用为不可变，因为它同时被借用为可变");
+                        VmlLang.Pick($"无法把 `{varName}` 借用为不可变，因为它同时被借用为可变",
+                                     $"cannot borrow `{varName}` as immutable because it is also borrowed as mutable"));
                 _immutBorrowed.Add(varName);
             }
         }

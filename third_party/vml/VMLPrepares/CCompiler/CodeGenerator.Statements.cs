@@ -667,14 +667,14 @@ namespace CCompiler
         private void GenerateBreakStatement()
         {
             if (!Sta!.HasLoopLabels)
-                throw new CodeGenerationException(ErrorCode.CodeGen_BreakOutsideLoop, "break 语句不在循环或switch内");
+                throw new CodeGenerationException(ErrorCode.CodeGen_BreakOutsideLoop, VmlLang.Pick("break 语句不在循环或switch内", "'break' statement not inside a loop or switch"));
             Sta.EmitBreak();
         }
 
         private void GenerateContinueStatement()
         {
             if (!Sta!.HasLoopLabels)
-                throw new CodeGenerationException(ErrorCode.CodeGen_ContinueOutsideLoop, "continue 语句不在循环内");
+                throw new CodeGenerationException(ErrorCode.CodeGen_ContinueOutsideLoop, VmlLang.Pick("continue 语句不在循环内", "'continue' statement not inside a loop"));
             Sta.EmitContinue();
         }
 
@@ -728,7 +728,7 @@ namespace CCompiler
                 if (!_typeResolutionStack.Add(type))
                 {
                     // 检测到循环 typedef，回退为 Unknown
-                    Console.Error.WriteLine($"[WARN] 循环 typedef 引用: {type} → {resolved}");
+                    Console.Error.WriteLine(VmlLang.Pick($"[WARN] 循环 typedef 引用: {type} → {resolved}", $"[WARN] circular typedef reference: {type} → {resolved}"));
                     return ExprType.Unknown;
                 }
                 try { return StringToExprType(resolved); }

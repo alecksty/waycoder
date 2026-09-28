@@ -567,7 +567,9 @@ namespace BasicCompiler
                         }
                         else
                         {
-                            throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                            throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                                $"变量 '{variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                                $"variable '{variable.Name}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                         }
                     }
                 }

@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System.Collections.Generic;
 
 namespace BasicCompiler
@@ -24,7 +25,7 @@ namespace BasicCompiler
             // 用 `return null` 表达错误的代价是整条声明被静默丢掉（见上面那段长注释）。
             if (Peek().Type == TokenType.EOF || string.IsNullOrEmpty(Peek().Value))
             {
-                throw Error($"SUB 名缺失（第 {Peek().Line} 行）");
+                throw Error(VmlLang.Pick($"SUB 名缺失（第 {Peek().Line} 行）", $"missing SUB name (line {Peek().Line})"));
             }
             string name = Peek().Value;
             Advance();
@@ -70,7 +71,7 @@ namespace BasicCompiler
                     if (Peek().Type == TokenType.EOF || Peek().Type == TokenType.RPAREN ||
                         Peek().Type == TokenType.COMMA || string.IsNullOrEmpty(Peek().Value))
                     {
-                        throw Error($"形参名缺失（第 {Peek().Line} 行）");
+                        throw Error(VmlLang.Pick($"形参名缺失（第 {Peek().Line} 行）", $"missing parameter name (line {Peek().Line})"));
                     }
                     string paramName = Peek().Value;
                     Advance();
@@ -286,7 +287,7 @@ namespace BasicCompiler
                     if (Peek().Type == TokenType.EOF || Peek().Type == TokenType.RPAREN ||
                         Peek().Type == TokenType.COMMA || string.IsNullOrEmpty(Peek().Value))
                     {
-                        throw Error($"形参名缺失（第 {Peek().Line} 行）");
+                        throw Error(VmlLang.Pick($"形参名缺失（第 {Peek().Line} 行）", $"missing parameter name (line {Peek().Line})"));
                     }
                     string paramName = Peek().Value;
                     Advance();
@@ -470,7 +471,7 @@ namespace BasicCompiler
             //   判据同形参那条：「这个 token 的文本能不能当名字」。
             if (Peek().Type == TokenType.EOF || string.IsNullOrEmpty(Peek().Value))
             {
-                throw Error($"CALL 后面缺少子程序名（第 {Peek().Line} 行）");
+                throw Error(VmlLang.Pick($"CALL 后面缺少子程序名（第 {Peek().Line} 行）", $"missing subprogram name after CALL (line {Peek().Line})"));
             }
             string name = Peek().Value;
             Advance();

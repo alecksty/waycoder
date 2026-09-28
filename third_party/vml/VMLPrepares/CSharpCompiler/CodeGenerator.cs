@@ -116,7 +116,7 @@ namespace CSharpCompiler
 
         public override VmlProgram GenerateCode()
         {
-            if (_program == null) throw new System.InvalidOperationException("尚未设置 AST 程序");
+            if (_program == null) throw new System.InvalidOperationException(VmlLang.Pick("尚未设置 AST 程序", "AST program not set"));
             return Generate(_program);
         }
 
@@ -429,7 +429,7 @@ namespace CSharpCompiler
                     //    恒 0 常量的那个洞。**编不过最省事**。
                     throw new CodeGenerationException(
                         ErrorCode.CodeGen_UnsupportedExpression,
-                        $"C# 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+                        VmlLang.Pick($"C# 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}", $"this expression is not supported by the C# frontend (missing codegen branch): {expression.GetType().Name}"));
             }
         }
         
@@ -726,7 +726,7 @@ namespace CSharpCompiler
                     TokenType.MultiplyEqual => "*",
                     TokenType.DivideEqual => "/",
                     TokenType.ModuloEqual => "%",
-                    _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的复合运算符: {assign.Operator}")
+                    _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick($"未知的复合运算符: {assign.Operator}", $"unknown compound operator: {assign.Operator}"))
                 };
                 _expr!.EmitCompoundAssign(target, WrapExpr(assign.Value), op);
                 return;
@@ -1343,7 +1343,7 @@ namespace CSharpCompiler
                 if (dataSection.TryGetValue(label, out var v) && v is int iv) return iv;
             }
             throw new CodeGenerationException(ErrorCode.CodeGen_TypeMismatch,
-                "数组长度必须是编译期常量（`new T[N]` 的 N 只能是字面量或 const）");
+                VmlLang.Pick("数组长度必须是编译期常量（`new T[N]` 的 N 只能是字面量或 const）", "array length must be a compile-time constant (N in `new T[N]` may only be a literal or const)"));
         }
 
         private void GenerateArrayLiteral(ArrayLiteralExpression arrayLiteral)
@@ -1366,7 +1366,7 @@ namespace CSharpCompiler
                 count = FoldArraySize(arrayLiteral.SizeExpr);
             if (count < 0 || count > 65536)
                 throw new CodeGenerationException(ErrorCode.CodeGen_TypeMismatch,
-                    $"数组长度不合法: {count}（本编译器只支持编译期常量长度）");
+                    VmlLang.Pick($"数组长度不合法: {count}（本编译器只支持编译期常量长度）", $"invalid array length: {count} (this compiler only supports compile-time constant lengths)"));
             var arrayData = new object[1 + count];
             arrayData[0] = count;
             // 常量元素静态折进数据段；`new T[N]` 没有元素表达式（长度在 SizeExpr 里）⇒ 全 0

@@ -377,13 +377,13 @@ namespace PascalCompiler
                         }
                         else
                         {
-                            throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, "ReadLn参数必须是变量");
+                            throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick("ReadLn参数必须是变量", "the parameter of ReadLn must be a variable"));
                         }
                     }
                 }
                 else
                 {
-                    throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, "ReadLn参数错误");
+                    throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick("ReadLn参数错误", "invalid ReadLn parameter"));
                 }
             }
             else if (call.Name.ToLower() == "halt")

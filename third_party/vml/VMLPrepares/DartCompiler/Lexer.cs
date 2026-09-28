@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using CompilerBase;
+using VMLAssembler;
 
 namespace DartCompiler;
 
@@ -110,7 +111,7 @@ public class Lexer : LexerBase
                 case '^': Tokens.Add(MakeToken(TokenType.BitNot, "^")); break; // bitwise XOR
                 case '?': Tokens.Add(MakeToken(TokenType.Question, "?")); break;
                 case ':': Tokens.Add(MakeToken(TokenType.Colon, ":")); break;
-                default: Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'"); break;   // 位置交给 LexerBase 的唯一出口
+                default: Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"意外的字符: '{c}'", $"unexpected character: '{c}'")); break;   // 位置交给 LexerBase 的唯一出口
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));
@@ -148,7 +149,7 @@ public class Lexer : LexerBase
     private void Expect(char expected)
     {
         if (Advance() != expected)
-            Error(ErrorCode.Lexer_UnknownCharacter, $"期望 '{expected}'");   // 位置交给统一出口（原文案还夹着英文与手写位置）
+            Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"期望 '{expected}'", $"expected '{expected}'"));   // 位置交给统一出口（原文案还夹着英文与手写位置）
     }
 
     private Token MakeToken(TokenType type, string value)

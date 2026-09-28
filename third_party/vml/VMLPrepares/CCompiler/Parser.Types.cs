@@ -1,6 +1,7 @@
 using CompilerBase;
 #nullable disable // auto-generated code, null safety not applicable
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -103,7 +104,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望变量名");
+                    Error(VmlLang.Pick("期望变量名", "expected variable name"));
                 }
                 return true;
             }
@@ -186,7 +187,7 @@ namespace CCompiler
                 return;
             }
 
-            Error("typedef enum 语法错误");
+            Error(VmlLang.Pick("typedef enum 语法错误", "typedef enum syntax error"));
         }
 
         // 处理顶层 typedef union { ... } Alias; 或 typedef union Name { ... } Alias;
@@ -355,7 +356,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望别名");
+                    Error(VmlLang.Pick("期望别名", "expected alias"));
                 }
                 return;
             }
@@ -613,7 +614,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望别名");
+                    Error(VmlLang.Pick("期望别名", "expected alias"));
                 }
                 return;
             }
@@ -861,10 +862,10 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw Error("期望变量名");
+                    throw Error(VmlLang.Pick("期望变量名", "expected variable name"));
                 }
             }
-            throw Error("结构体声明异常");
+            throw Error(VmlLang.Pick("结构体声明异常", "struct declaration error"));
         }
 
         private VariableDecl ParseUnionWithDecl()
@@ -1002,10 +1003,10 @@ namespace CCompiler
                 }
                 else
                 {
-                    Error("期望变量名");
+                    Error(VmlLang.Pick("期望变量名", "expected variable name"));
                 }
             }
-            throw Error("联合体声明异常");
+            throw Error(VmlLang.Pick("联合体声明异常", "union declaration error"));
         }
     }
 }  // namespace

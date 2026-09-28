@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using VMLAssembler;
 using CompilerBase;
 
 namespace FortranCompiler;
@@ -11,7 +12,7 @@ public class Parser : ParserBase<Token, TokenType>
     private bool CheckAhead(int n, TokenType t) => _pos + n < _tokens.Count && EqualityComparer<TokenType>.Default.Equals(GetTokenType(_tokens[_pos + n]), t);
 
     protected override Token Expect(TokenType t, string msg) =>
-        base.Expect(t, $"Fortran 解析错误: {msg}（得到 {Cur.Type}）");
+        base.Expect(t, VmlLang.Pick($"Fortran 解析错误: {msg}（得到 {Cur.Type}）", $"Fortran parse error: {msg} (got {Cur.Type})"));
 
     private ProgramNode _program = null!;
 
@@ -77,7 +78,7 @@ public class Parser : ParserBase<Token, TokenType>
                     break;
                 }
                 // end subroutine/function inside contains
-                throw Error($"意外的 'end'（位置 {Cur.Line}:{Cur.Column}，没有与之匹配的块）");
+                throw Error(VmlLang.Pick($"意外的 'end'（位置 {Cur.Line}:{Cur.Column}，没有与之匹配的块）", $"unexpected 'end' (at {Cur.Line}:{Cur.Column}, no matching block)"));
             }
             if (Match(TokenType.Contains))
             {
@@ -92,7 +93,7 @@ public class Parser : ParserBase<Token, TokenType>
             }
             if (Match(TokenType.Use))
             {
-                string modName = Expect(TokenType.Identifier, "期望模块名在 use 后").Value.ToString();
+                string modName = Expect(TokenType.Identifier, VmlLang.Pick("期望模块名在 use 后", "expected module name after use")).Value.ToString();
                 // 跳过 use 的可选项: , only: name1, name2, ...
                 // 终止条件: 换行/分号(语句分隔符)/EOF。
                 // 注意: Check(EOF) 在 EOF 哨兵处因 IsAtEnd 恒为 false, 须用 !IsAtEnd 终止 (否则分号分隔源码会死循环)
@@ -123,7 +124,7 @@ public class Parser : ParserBase<Token, TokenType>
         //   `program p` + 几行语句、不写 `end program p` ⇒ 编译成功、退出码 0。
         //   位置锚在 `program` 那个词上（缺口就是它没被关上）。
         if (hasProgramStmt && !closed)
-            GccErrorAt("程序块未闭合（缺少 'end program'）", programTok, ErrorCode.Parser_SyntaxError);
+            GccErrorAt(VmlLang.Pick("程序块未闭合（缺少 'end program'）", "program block not closed (missing 'end program')"), programTok, ErrorCode.Parser_SyntaxError);
         return prog;
     }
 
@@ -184,7 +185,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.End) || Check(TokenType.EOF) || Check(TokenType.Contains)) break;
             body.Add(ParseStatement());
         }
-        Expect(TokenType.End, "期望 'end' 用于结束 subroutine");
+        Expect(TokenType.End, VmlLang.Pick("期望 'end' 用于结束 subroutine", "expected 'end' to close subroutine"));
         if (Match(TokenType.Subroutine)) Match(TokenType.Identifier); // optional name
         return new SubroutineNode(name, parms, body, l, c);
     }
@@ -211,8 +212,8 @@ public class Parser : ParserBase<Token, TokenType>
         if (Check(TokenType.Identifier) && Cur.Value.Equals("result", System.StringComparison.OrdinalIgnoreCase))
         {
             Advance(); // consume "result"
-            Expect(TokenType.LParen, "期望 ( 在 result 后");
-            resultVar = Expect(TokenType.Identifier, "期望 result 名").Value;
+            Expect(TokenType.LParen, VmlLang.Pick("期望 ( 在 result 后", "expected '(' after result"));
+            resultVar = Expect(TokenType.Identifier, VmlLang.Pick("期望 result 名", "expected result name")).Value;
             Expect(TokenType.RParen, "expected )");
         }
 
@@ -229,7 +230,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.End) || Check(TokenType.EOF) || Check(TokenType.Contains)) break;
             body.Add(ParseStatement());
         }
-        Expect(TokenType.End, "期望 'end' 用于结束 function");
+        Expect(TokenType.End, VmlLang.Pick("期望 'end' 用于结束 function", "expected 'end' to close function"));
         if (Match(TokenType.Function)) Match(TokenType.Identifier); // optional name
         return new FunctionNode(name, returnType, parms, body, l, c) { ResultVar = resultVar };
     }
@@ -318,7 +319,7 @@ public class Parser : ParserBase<Token, TokenType>
             //   所以没有 `implicit none` 时未声明是**合法**的，不能一刀切报错
             //   （用户原话：「根据语言特性来定」）。
             int l = Cur.Line, c = Cur.Column;
-            Expect(TokenType.None, "期望 'none' 在 implicit 后");
+            Expect(TokenType.None, VmlLang.Pick("期望 'none' 在 implicit 后", "expected 'none' after implicit"));
             ImplicitNone = true;
             return new NopNode(l, c);
         }
@@ -352,20 +353,20 @@ public class Parser : ParserBase<Token, TokenType>
         if (Match(TokenType.Allocate))
         {
             int al = _tokens[_pos - 1].Line, ac = _tokens[_pos - 1].Column;
-            Expect(TokenType.LParen, "期望 '(' 在 allocate 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 allocate 后", "expected '(' after allocate"));
             string arrName = Expect(TokenType.Identifier).Value;
-            Expect(TokenType.LParen, "期望 '(' 用于尺寸");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 用于尺寸", "expected '(' for size"));
             var sizeExpr = ParseExpression();
-            Expect(TokenType.RParen, "期望 ')' 在尺寸后");
-            Expect(TokenType.RParen, "期望 ')' 在 allocate 后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在尺寸后", "expected ')' after size"));
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 allocate 后", "expected ')' after allocate"));
             return new AllocateNode(arrName, sizeExpr, al, ac);
         }
         if (Match(TokenType.Deallocate))
         {
             int dl = _tokens[_pos - 1].Line, dc = _tokens[_pos - 1].Column;
-            Expect(TokenType.LParen, "期望 '(' 在 deallocate 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 '(' 在 deallocate 后", "expected '(' after deallocate"));
             string arrName = Expect(TokenType.Identifier).Value;
-            Expect(TokenType.RParen, "期望 ')' 在 deallocate 后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ')' 在 deallocate 后", "expected ')' after deallocate"));
             return new DeallocateNode(arrName, dl, dc);
         }
 
@@ -394,7 +395,7 @@ public class Parser : ParserBase<Token, TokenType>
         // Fortran kind-selector: integer*4, integer*8, real*4, real*8
         if (Match(TokenType.Asterisk))
         {
-            string kindStr = Expect(TokenType.IntLiteral, "期望 kind 数字在 * 后").Value;
+            string kindStr = Expect(TokenType.IntLiteral, VmlLang.Pick("期望 kind 数字在 * 后", "expected kind number after *")).Value;
             if (int.TryParse(kindStr, out int kind) && kind == 8)
             {
                 typeName = typeName switch
@@ -468,7 +469,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseIf()
     {
         int l = _tokens[_pos - 1].Line, c = _tokens[_pos - 1].Column;
-        Expect(TokenType.LParen, "期望 ( 在 if 后");
+        Expect(TokenType.LParen, VmlLang.Pick("期望 ( 在 if 后", "expected '(' after if"));
         var cond = ParseExpression();
         Expect(TokenType.RParen, "expected )");
 
@@ -496,7 +497,7 @@ public class Parser : ParserBase<Token, TokenType>
         var remaining = ParseElseIfChain(l, c);
         List<ASTNode>? elseBody = remaining;
 
-        Expect(TokenType.End, "期望 'end' 用于结束 if");
+        Expect(TokenType.End, VmlLang.Pick("期望 'end' 用于结束 if", "expected 'end' to close if"));
         Expect(TokenType.If, "expected 'if' after 'end'");
         return new IfNode(cond, thenBody, elseBody, l, c);
     }
@@ -599,14 +600,14 @@ public class Parser : ParserBase<Token, TokenType>
         if (Match(TokenType.LParen))
         {
             // write(*,*) - consume format specifier
-            Expect(TokenType.Asterisk, "期望 * 在格式说明符中");
+            Expect(TokenType.Asterisk, VmlLang.Pick("期望 * 在格式说明符中", "expected '*' in format specifier"));
             Match(TokenType.Comma);
-            Expect(TokenType.Asterisk, "期望 * 在格式说明符中");
+            Expect(TokenType.Asterisk, VmlLang.Pick("期望 * 在格式说明符中", "expected '*' in format specifier"));
             Expect(TokenType.RParen, "expected )");
         }
         else
         {
-            Expect(TokenType.Asterisk, "期望 * 在 print 后");
+            Expect(TokenType.Asterisk, VmlLang.Pick("期望 * 在 print 后", "expected '*' after print"));
         }
         var exprs = new List<ASTNode>();
         while (!Check(TokenType.Newline) && !Check(TokenType.EOF) && !Check(TokenType.End) && !Check(TokenType.Semicolon))
@@ -624,9 +625,9 @@ public class Parser : ParserBase<Token, TokenType>
         // Handle read(*,*) format specifier
         if (Match(TokenType.LParen))
         {
-            Expect(TokenType.Asterisk, "期望 * 在格式说明符中");
+            Expect(TokenType.Asterisk, VmlLang.Pick("期望 * 在格式说明符中", "expected '*' in format specifier"));
             Match(TokenType.Comma);
-            Expect(TokenType.Asterisk, "期望 * 在格式说明符中");
+            Expect(TokenType.Asterisk, VmlLang.Pick("期望 * 在格式说明符中", "expected '*' in format specifier"));
             Expect(TokenType.RParen, "expected )");
         }
         var vars = new List<ASTNode>();
@@ -651,7 +652,7 @@ public class Parser : ParserBase<Token, TokenType>
             var expr = ParseExpression();
             return expr;
         }
-        throw Error($"语句中意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        throw Error(VmlLang.Pick($"语句中意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token in statement: {Cur.Type}({Cur.Value}) (at {Cur.Line}:{Cur.Column})"));
     }
 
     private List<ASTNode> ParseBlockUntil(string endMarker)
@@ -810,7 +811,7 @@ public class Parser : ParserBase<Token, TokenType>
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture,
                     out double fv))
-                throw Error($"看不懂的实数字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）");
+                throw Error(VmlLang.Pick($"看不懂的实数字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）", $"malformed real literal '{t.Value}' (at {t.Line}:{t.Column})"));
             return new LiteralNode((float)fv, "real", l, c);
         }
         if (Check(TokenType.DoubleLiteral))
@@ -820,7 +821,7 @@ public class Parser : ParserBase<Token, TokenType>
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture,
                     out double dv))
-                throw Error($"看不懂的双精度字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）");
+                throw Error(VmlLang.Pick($"看不懂的双精度字面量 '{t.Value}'（位置 {t.Line}:{t.Column}）", $"malformed double-precision literal '{t.Value}' (at {t.Line}:{t.Column})"));
             return new LiteralNode(dv, "double", l, c);
         }
         if (Check(TokenType.StringLiteral))
@@ -918,7 +919,7 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        throw Error(VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token: {Cur.Type}({Cur.Value}) (at {Cur.Line}:{Cur.Column})"));
     }
 
     // ---- Helpers ----

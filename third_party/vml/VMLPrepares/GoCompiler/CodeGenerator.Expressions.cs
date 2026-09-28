@@ -248,7 +248,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    VMLPlugins.WarningEmitter.Emit("go", "MCU模式: <-chan 被忽略（MCU 无 channel 支持）");
+                    VMLPlugins.WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: <-chan 被忽略（MCU 无 channel 支持）", "MCU mode: <-chan ignored (no channel support in MCU)"));
                     EmitLoadConstant(0);
                 }
             }

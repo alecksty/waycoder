@@ -464,7 +464,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    VMLPlugins.WarningEmitter.Emit("go", "MCU模式: chan<- 被忽略（MCU 无 channel 支持）");
+                    VMLPlugins.WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: chan<- 被忽略（MCU 无 channel 支持）", "MCU mode: chan<- ignored (no channel support in MCU)"));
                 }
             }
             else if (stmt is SelectStatement selectStmt)
@@ -475,7 +475,7 @@ namespace GoCompiler
                 }
                 else if (VMLPlugins.CompilerOptionsContext.Current.IsMCU)
                 {
-                    VMLPlugins.WarningEmitter.Emit("go", "MCU模式: select 被忽略（MCU 无 channel 支持）");
+                    VMLPlugins.WarningEmitter.Emit("go", VmlLang.Pick("MCU模式: select 被忽略（MCU 无 channel 支持）", "MCU mode: select ignored (no channel support in MCU)"));
                 }
             }
             else if (stmt is IncDecStatement incDec)

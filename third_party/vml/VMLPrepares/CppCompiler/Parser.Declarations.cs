@@ -1,5 +1,6 @@
 using CompilerBase;
 using VMLPlugins;
+using VMLAssembler;
 
 namespace CppCompiler
 {
@@ -723,7 +724,7 @@ namespace CppCompiler
             //
             // 与 C 前端同一处置：**报出来**（`GccError` 收集、不抛）再返回占位 0。
             // 收集而非抛出是刻意的：解析器还能往下走，同一份文件里后面几处错也能一起报出来。
-            GccError($"表达式缺失或多余（遇到 '{Cur.Value ?? Cur.Type.ToString()}'）",
+            GccError(VmlLang.Pick($"表达式缺失或多余（遇到 '{Cur.Value ?? Cur.Type.ToString()}'）", $"missing or extra expression (found '{Cur.Value ?? Cur.Type.ToString()}')"),
                 ErrorCode.Parser_SyntaxError);
             return new IntLiteral { Value = 0 };
         }
@@ -975,7 +976,7 @@ namespace CppCompiler
                     else if (!Match(TokenType.SEMICOLON))
                         Advance();
                 }
-                Expect(TokenType.RBRACE, "期望 '}' 在 extern 块后");
+                Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 extern 块后", "expected '}' after extern block"));
             }
             else
             {

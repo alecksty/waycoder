@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace ObjCCompiler;
 
@@ -7,7 +8,7 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"ObjC 解析错误: {msg}（得到 {Cur.Type} '{Cur.Value}'，位置 {Cur.Line}）");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, VmlLang.Pick($"ObjC 解析错误: {msg}（得到 {Cur.Type} '{Cur.Value}'，位置 {Cur.Line}）", $"ObjC parse error: {msg} (got {Cur.Type} '{Cur.Value}' at {Cur.Line})"));
 
     /// <summary>typedef 类型别名映射 (aliasName → actualType)</summary>
     private Dictionary<string, string> _typedefs = new();
@@ -101,7 +102,7 @@ public class Parser : ParserBase<Token, TokenType>
             Advance(); // skip typedef
             string actualType = ParseTypeName();
             while (Match(TokenType.Star)) actualType += "*";
-            string aliasName = Expect(TokenType.Identifier, "期望 typedef 别名").Value;
+            string aliasName = Expect(TokenType.Identifier, VmlLang.Pick("期望 typedef 别名", "expected typedef alias")).Value;
             _typedefs[aliasName] = actualType;
             Match(TokenType.Semicolon);
             return new VarDeclNode("typedef", aliasName, null, Cur.Line, Cur.Column);
@@ -698,9 +699,9 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int l = Cur.Line, c = Cur.Column;
             Advance(); // asm
-            Expect(TokenType.LParen, "期望 ( 在 asm 后");
-            string asmCode = Expect(TokenType.String, "期望 asm 中的字符串字面量").Value;
-            Expect(TokenType.RParen, "期望 ) 在 asm 后");
+            Expect(TokenType.LParen, VmlLang.Pick("期望 ( 在 asm 后", "expected ( after 'asm'"));
+            string asmCode = Expect(TokenType.String, VmlLang.Pick("期望 asm 中的字符串字面量", "expected string literal in 'asm'")).Value;
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ) 在 asm 后", "expected ) after 'asm'"));
             Match(TokenType.Semicolon);
             return new AsmStatement(asmCode, l, c);
         }
@@ -802,7 +803,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // do
         var body = ParseStatementAsList();
-        Expect(TokenType.While, "期望 'while' 在 do 语句体后");
+        Expect(TokenType.While, VmlLang.Pick("期望 'while' 在 do 语句体后", "expected 'while' after 'do' statement body"));
         Expect(TokenType.LParen, "expected (");
         var cond = ParseExpression();
         Expect(TokenType.RParen, "expected )");
@@ -845,7 +846,7 @@ public class Parser : ParserBase<Token, TokenType>
             }
             else
             {
-                throw Error($"期望 case 或 default（位置 {Cur.Line}:{Cur.Column}）");
+                throw Error(VmlLang.Pick($"期望 case 或 default（位置 {Cur.Line}:{Cur.Column}）", $"expected 'case' or 'default' (at {Cur.Line}:{Cur.Column})"));
             }
         }
         Expect(TokenType.RBrace, "expected }");
@@ -870,7 +871,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
         string name = Expect(TokenType.Identifier).Value;
         if (isBlockPtr)
-            Expect(TokenType.RParen, "期望 ) 在块指针名后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ) 在块指针名后", "expected ) after block pointer name"));
         // 跳过 block 指针的参数类型: (Type1, Type2, ...)
         if (isBlockPtr && Check(TokenType.LParen))
         {
@@ -882,7 +883,7 @@ public class Parser : ParserBase<Token, TokenType>
                 else if (Check(TokenType.RParen)) parenDepth--;
                 if (parenDepth > 0) Advance();
             }
-            Expect(TokenType.RParen, "期望 ) 在块参数类型后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ) 在块参数类型后", "expected ) after block parameter types"));
         }
         ASTNode? init = null;
         int arraySize = 0;
@@ -1295,7 +1296,7 @@ public class Parser : ParserBase<Token, TokenType>
             Advance(); // @
             Advance(); // (
             var boxedExpr = ParseExpression();
-            Expect(TokenType.RParen, "期望 ) 在装箱表达式后");
+            Expect(TokenType.RParen, VmlLang.Pick("期望 ) 在装箱表达式后", "expected ) after boxed expression"));
             return new ObjCBoxedNode(boxedExpr, atLine, atCol);
         }
 
@@ -1317,7 +1318,7 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        throw Error(VmlLang.Pick($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）", $"unexpected token: {Cur.Type}({Cur.Value}) (at {Cur.Line}:{Cur.Column})"));
     }
 
     // @try { body } @catch (NSException *e) { catchBody } @finally { finallyBody }

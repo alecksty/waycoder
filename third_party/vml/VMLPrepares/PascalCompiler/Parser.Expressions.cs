@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System;
 using System.Collections.Generic;
 
@@ -296,7 +297,7 @@ namespace PascalCompiler
                 //   「内部错误: Object reference not set…」。实测 `WriteLn(1 + )` 就是这样
                 //   （DiagProbe【语法错误】档 pas 一栏）。
                 //   改走 `GccError`（**收集**）之后，位置与文案都进诊断，编译整体照样失败。
-                GccError("期望表达式", ErrorCode.Parser_ExpectedExpression);
+                GccError(VmlLang.Pick("期望表达式", "expected expression"), ErrorCode.Parser_ExpectedExpression);
                 // 占位 0 顶上去，AST 保持完好 —— 这是"能继续"的那一类错误该有的恢复。
                 return new LiteralNode
                 {

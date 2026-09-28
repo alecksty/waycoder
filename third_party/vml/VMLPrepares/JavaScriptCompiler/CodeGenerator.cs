@@ -181,7 +181,7 @@ namespace JavaScriptCompiler
                 case TryStatement tryStmt:
                     if (VMLPlugins.CompilerOptionsContext.Current.IsMCU)
                     {
-                        VMLPlugins.WarningEmitter.Emit("javascript", "MCU模式: try/catch异常处理被忽略（不支持异常）");
+                        VMLPlugins.WarningEmitter.Emit("javascript", VmlLang.Pick("MCU模式: try/catch异常处理被忽略（不支持异常）", "MCU mode: try/catch ignored (exceptions not supported)"));
                         GenerateStatement(tryStmt.Body);
                         break;
                     }
@@ -365,7 +365,7 @@ namespace JavaScriptCompiler
                     //    恒 0 常量的那个洞。**编不过最省事**。
                     throw new CodeGenerationException(
                         ErrorCode.CodeGen_UnsupportedExpression,
-                        $"JavaScript 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+                        VmlLang.Pick($"JavaScript 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}", $"unsupported expression in the JavaScript frontend (missing codegen branch): {expression.GetType().Name}"));
             }
         }
         

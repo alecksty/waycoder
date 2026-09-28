@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using CompilerBase;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -137,7 +138,7 @@ namespace CCompiler
             // 检查是否有未闭合的条件编译指令
             if (ifStack.Count > 0)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_UnclosedIf, $"在文件 {currentFile} 中，存在未闭合的条件编译指令");
+                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_UnclosedIf, VmlLang.Pick($"在文件 {currentFile} 中，存在未闭合的条件编译指令", $"unterminated conditional compilation directive in file {currentFile}"));
             }
 
             return processedSource.ToString();
@@ -325,7 +326,7 @@ namespace CCompiler
                 }
             }
 
-            throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_InvalidInclude, $"在文件 {currentFile} 第 {currentLine} 行，无效的 #include 指令格式");
+            throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_InvalidInclude, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，无效的 #include 指令格式", $"invalid #include directive format in file {currentFile}, line {currentLine}"));
         }
 
         /// <summary>
@@ -417,7 +418,7 @@ namespace CCompiler
                 string macroName = trimmed.Substring(0, parenIdx).Trim();
                 int closeParen = FindMatchingParen(trimmed, parenIdx);
                 if (closeParen < 0)
-                    throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_MacroMissingParen, $"在文件 {currentFile} 第 {currentLine} 行，函数式宏缺少右括号: {macroName}");
+                    throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_MacroMissingParen, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，函数式宏缺少右括号: {macroName}", $"function-like macro is missing a closing parenthesis in file {currentFile}, line {currentLine}: {macroName}"));
 
                 string paramsStr = trimmed.Substring(parenIdx + 1, closeParen - parenIdx - 1).Trim();
                 string body = trimmed.Substring(closeParen + 1).Trim();
@@ -506,7 +507,7 @@ namespace CCompiler
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, $"在文件 {currentFile} 第 {currentLine} 行，#else 指令没有对应的 #if、#ifdef 或 #ifndef 指令");
+                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，#else 指令没有对应的 #if、#ifdef 或 #ifndef 指令", $"#else without a matching #if, #ifdef or #ifndef in file {currentFile}, line {currentLine}"));
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -521,7 +522,7 @@ namespace CCompiler
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, $"在文件 {currentFile} 第 {currentLine} 行，#elif 指令没有对应的 #if、#ifdef 或 #ifndef 指令");
+                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，#elif 指令没有对应的 #if、#ifdef 或 #ifndef 指令", $"#elif without a matching #if, #ifdef or #ifndef in file {currentFile}, line {currentLine}"));
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -539,7 +540,7 @@ namespace CCompiler
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, $"在文件 {currentFile} 第 {currentLine} 行，#endif 指令没有对应的 #if、#ifdef 或 #ifndef 指令");
+                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，#endif 指令没有对应的 #if、#ifdef 或 #ifndef 指令", $"#endif without a matching #if, #ifdef or #ifndef in file {currentFile}, line {currentLine}"));
             }
 
             ifStack.RemoveAt(ifStack.Count - 1);
@@ -572,7 +573,7 @@ namespace CCompiler
         /// <param name="rest">指令的剩余部分</param>
         private void ProcessError(string rest)
         {
-            throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ErrorDirective, $"在文件 {currentFile} 第 {currentLine} 行，预处理错误: {rest}");
+            throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ErrorDirective, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，预处理错误: {rest}", $"preprocessor error in file {currentFile}, line {currentLine}: {rest}"));
         }
 
         /// <summary>
@@ -581,7 +582,7 @@ namespace CCompiler
         /// <param name="rest">指令的剩余部分</param>
         private void ProcessWarning(string rest)
         {
-            System.Console.WriteLine($"警告: 在文件 {currentFile} 第 {currentLine} 行: {rest}");
+            System.Console.WriteLine(VmlLang.Pick($"警告: 在文件 {currentFile} 第 {currentLine} 行: {rest}", $"warning: in file {currentFile}, line {currentLine}: {rest}"));
         }
 
         /// <summary>
@@ -597,7 +598,7 @@ namespace CCompiler
             int parenOpen = rest.IndexOf('(');
             int parenClose = rest.LastIndexOf(')');
             if (parenOpen < 0 || parenClose < 0 || parenClose <= parenOpen)
-                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, $"在文件 {currentFile} 第 {currentLine} 行，#param 语法错误: {rest}");
+                throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，#param 语法错误: {rest}", $"#param syntax error in file {currentFile}, line {currentLine}: {rest}"));
 
             string func = rest.Substring(0, parenOpen).Trim().ToLowerInvariant();
             string arg = rest.Substring(parenOpen + 1, parenClose - parenOpen - 1).Trim();
@@ -646,7 +647,7 @@ namespace CCompiler
                     break;
 
                 default:
-                    throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, $"在文件 {currentFile} 第 {currentLine} 行，未知的 #param 函数: {func}");
+                    throw new CompilerBase.CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, VmlLang.Pick($"在文件 {currentFile} 第 {currentLine} 行，未知的 #param 函数: {func}", $"unknown #param function in file {currentFile}, line {currentLine}: {func}"));
             }
         }
 

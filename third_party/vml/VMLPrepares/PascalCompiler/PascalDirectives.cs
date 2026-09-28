@@ -212,7 +212,8 @@ namespace PascalCompiler
             // 还没闭合的条件块：不报错、不崩，记一条告警（余下的输入按"块已结束"处理）。
             if (_conds.Count > 0)
                 Warnings.Add((mainFile, 0,
-                    $"条件编译块没有闭合：文件结束时还差 {_conds.Count} 个 {{$ENDIF}}（已按未闭合处理）"));
+                    VmlLang.Pick($"条件编译块没有闭合：文件结束时还差 {_conds.Count} 个 {{$ENDIF}}（已按未闭合处理）",
+                                 $"conditional compilation block not closed: {_conds.Count} {{$ENDIF}} still missing at end of file (treated as unclosed)")));
 
             // 补齐到 `_outLine`：输出以换行结尾时这是**多出来的最后一行**（EOF 记号可能落在它上面）。
             while (LineMap.Count < _outLine)
@@ -414,13 +415,13 @@ namespace PascalCompiler
                 {
                     if (_conds.Count == 0)
                     {
-                        Warnings.Add((f.File, f.Line, "多余的 {$ELSE}（没有对应的 {$IFDEF}/{$IFNDEF}）—— 已忽略"));
+                        Warnings.Add((f.File, f.Line, VmlLang.Pick("多余的 {$ELSE}（没有对应的 {$IFDEF}/{$IFNDEF}）—— 已忽略", "spurious {$ELSE} (no matching {$IFDEF}/{$IFNDEF}) - ignored")));
                         break;
                     }
                     var top = _conds.Peek();
                     if (top.InElse)
                     {
-                        Warnings.Add((f.File, f.Line, "重复的 {$ELSE} —— 已忽略"));
+                        Warnings.Add((f.File, f.Line, VmlLang.Pick("重复的 {$ELSE} —— 已忽略", "duplicate {$ELSE} - ignored")));
                         break;
                     }
                     top.InElse = true;
@@ -432,7 +433,7 @@ namespace PascalCompiler
                 case "ENDIF":
                 case "IFEND":
                     if (_conds.Count == 0)
-                        Warnings.Add((f.File, f.Line, "多余的 {$ENDIF}（没有对应的 {$IFDEF}/{$IFNDEF}）—— 已忽略"));
+                        Warnings.Add((f.File, f.Line, VmlLang.Pick("多余的 {$ENDIF}（没有对应的 {$IFDEF}/{$IFNDEF}）—— 已忽略", "spurious {$ENDIF} (no matching {$IFDEF}/{$IFNDEF}) - ignored")));
                     else
                         _conds.Pop();
                     break;
@@ -493,7 +494,7 @@ namespace PascalCompiler
             }
             if (_frames.Count >= MaxIncludeDepth)
             {
-                Warnings.Add((f.File, f.Line, $"包含层数超过 {MaxIncludeDepth} 层（'{{$I {arg}}}'）—— 已跳过"));
+                Warnings.Add((f.File, f.Line, VmlLang.Pick($"包含层数超过 {MaxIncludeDepth} 层（'{{$I {arg}}}'）—— 已跳过", $"include nesting deeper than {MaxIncludeDepth} levels ('{{$I {arg}}}') - skipped")));
                 return;
             }
             // **循环判据 = "已经在包含链上"**（不是"曾经包含过"）：同一个文件在**不同位置**
@@ -502,7 +503,7 @@ namespace PascalCompiler
             {
                 if (string.Equals(fr.File, resolved, StringComparison.OrdinalIgnoreCase))
                 {
-                    Warnings.Add((f.File, f.Line, $"包含循环：'{{$I {arg}}}' 已经在包含链上 —— 已跳过"));
+                    Warnings.Add((f.File, f.Line, VmlLang.Pick($"包含循环：'{{$I {arg}}}' 已经在包含链上 —— 已跳过", $"include cycle: '{{$I {arg}}}' is already on the include chain - skipped")));
                     return;
                 }
             }
@@ -511,7 +512,7 @@ namespace PascalCompiler
             try { text = File.ReadAllText(resolved); }
             catch (Exception ex)
             {
-                Warnings.Add((f.File, f.Line, $"读不了包含文件 '{arg}'：{ex.Message} —— 已跳过"));
+                Warnings.Add((f.File, f.Line, VmlLang.Pick($"读不了包含文件 '{arg}'：{ex.Message} —— 已跳过", $"cannot read include file '{arg}': {ex.Message} - skipped")));
                 return;
             }
             if (text.Length > 0 && text[0] == '﻿') text = text.Substring(1);

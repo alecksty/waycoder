@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace GoCompiler
 {
@@ -108,7 +109,7 @@ namespace GoCompiler
             {
                 if (Peek() == '\0')
                 {
-                    Error("未结束的块注释");
+                    Error(VmlLang.Pick("未结束的块注释", "unterminated block comment"));
                 }
                 value += Advance();
             }
@@ -134,7 +135,7 @@ namespace GoCompiler
 
             if (Peek() == '\0')
             {
-                Error("未结束的原始字符串");
+                Error(VmlLang.Pick("未结束的原始字符串", "unterminated raw string"));
             }
 
             Advance(); // `
@@ -190,7 +191,7 @@ namespace GoCompiler
 
             if (Peek() == '\0')
             {
-                Error("未结束的字符串");
+                Error(VmlLang.Pick("未结束的字符串", "unterminated string"));
             }
 
             Advance(); // "
@@ -229,7 +230,7 @@ namespace GoCompiler
 
             if (Peek() == '\0')
             {
-                Error("未结束的字符字面量");
+                Error(VmlLang.Pick("未结束的字符字面量", "unterminated character literal"));
             }
 
             Advance(); // '
@@ -267,7 +268,8 @@ namespace GoCompiler
                 if (char.IsDigit(Peek()))
                 {
                     while (char.IsDigit(Peek())) Advance();
-                    Error($"无效的八进制数: {_source.Substring(numStart, _pos - numStart)}");
+                    Error(VmlLang.Pick($"无效的八进制数: {_source.Substring(numStart, _pos - numStart)}",
+                                       $"invalid octal number: {_source.Substring(numStart, _pos - numStart)}"));
                 }
                 return new Token(TokenType.NUMBER, _source.Substring(numStart, _pos - numStart), startLine, startCol);
             }
@@ -569,7 +571,7 @@ namespace GoCompiler
                     }
             }
 
-            Error($"未知字符: {ch}");
+            Error(VmlLang.Pick($"未知字符: {ch}", $"unknown character: {ch}"));
             return null;
         }
 

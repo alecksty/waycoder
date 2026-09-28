@@ -649,7 +649,7 @@ namespace JavaCompiler
             TokenType.LeftShiftAssign => "<<",
             TokenType.RightShiftAssign => ">>",
             TokenType.UnsignedRightShiftAssign => ">>",
-            _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的复合运算符: {op}")
+            _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick($"未知的复合运算符: {op}", $"unknown compound assignment operator: {op}"))
         };
 
         /// <summary>

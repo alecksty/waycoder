@@ -920,9 +920,12 @@ namespace CppCompiler
                         // 「静默当 0」正是本仓反复记的最坏形态：编译成功、程序照跑、结果是错的。
                         Diags.AddError(DiagFile, CurrentSourceLine, CurrentSourceColumn,
                             ErrorCode.Parser_SyntaxError,
-                            $"全局数组的初始化里暂不支持这种写法（{elem?.GetType().Name ?? "空元素"}）",
-                            "目前只支持字面量（整数/字符/布尔/字符串）与嵌套的 {…}；"
-                            + "需要算出来的值请在 main 里赋值。");
+                            VmlLang.Pick($"全局数组的初始化里暂不支持这种写法（{elem?.GetType().Name ?? "空元素"}）",
+                                $"unsupported form in global array initializer ({elem?.GetType().Name ?? "empty element"})"),
+                            VmlLang.Pick("目前只支持字面量（整数/字符/布尔/字符串）与嵌套的 {…}；"
+                            + "需要算出来的值请在 main 里赋值。",
+                                "only literals (integer/char/bool/string) and nested {…} are supported; "
+                            + "assign computed values inside main."));
                         result.Add(0);
                         break;
                 }

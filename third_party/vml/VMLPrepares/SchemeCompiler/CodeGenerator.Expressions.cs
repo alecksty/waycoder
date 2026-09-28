@@ -211,7 +211,8 @@ public partial class CodeGenerator {
             //   不属本次修复范围。
             if (MinArity(sFirst.Name) is int need && l.Items.Count - 1 < need) {
                 Diags.AddError(DiagFile, l.Line, l.Column, ErrorCode.CodeGen_InvalidOperand,
-                    $"'{sFirst.Name}' 需要至少 {need} 个参数，这里只给了 {l.Items.Count - 1} 个");
+                    VmlLang.Pick($"'{sFirst.Name}' 需要至少 {need} 个参数，这里只给了 {l.Items.Count - 1} 个",
+                                 $"'{sFirst.Name}' takes at least {need} argument(s), but {l.Items.Count - 1} given"));
                 // 发个 0 兜底：诊断是**收集**的（`BuildProgram` 才一次性抛），
                 // 不兜住的话后续生成会级联崩在别处、把真正的错盖掉。
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]);

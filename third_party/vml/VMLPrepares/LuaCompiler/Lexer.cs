@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using CompilerBase;
+using VMLAssembler;
 
 namespace LuaCompiler
 {
@@ -195,7 +196,7 @@ namespace LuaCompiler
                         }
                         else
                         {
-                            Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'");   // 位置交给 LexerBase 的唯一出口
+                            Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"意外的字符: '{c}'", $"unexpected character: '{c}'"));   // 位置交给 LexerBase 的唯一出口
                         }
                         break;
                     case '<':
@@ -258,7 +259,7 @@ namespace LuaCompiler
                         }
                         else
                         {
-                            Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'");   // 位置交给 LexerBase 的唯一出口
+                            Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"意外的字符: '{c}'", $"unexpected character: '{c}'"));   // 位置交给 LexerBase 的唯一出口
                         }
                         break;
                 }

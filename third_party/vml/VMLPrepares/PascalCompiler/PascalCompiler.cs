@@ -132,7 +132,7 @@ namespace PascalCompiler
                     codeGen.UseCrtOutput = UsesUnit(parser, "crt");
                     return codeGen.GenerateCode();
                 }
-                throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的AST节点类型");
+                throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick("不支持的AST节点类型", "unsupported AST node type"));
             });
         }
 
@@ -250,10 +250,14 @@ namespace PascalCompiler
                 if (!string.Equals(unitName, "system", StringComparison.OrdinalIgnoreCase)
                     && !LibModuleExists(unitName, sourceDir))
                     diagnostics.AddWarning(filePath, 1, 1, ErrorCode.Unknown,
-                        $"找不到单元 '{unitName}'：搜索路径里既没有它的 `.pas` 声明、" +
-                        "也没有同名的库模块，它声明的常量/子程序**一个都不会生效**" +
-                        "（下游会表现成「未声明的变量」）。若是程序自带的单元，" +
-                        "把那份源码一起放进项目目录即可。");
+                        VmlLang.Pick($"找不到单元 '{unitName}'：搜索路径里既没有它的 `.pas` 声明、" +
+                                     "也没有同名的库模块，它声明的常量/子程序**一个都不会生效**" +
+                                     "（下游会表现成「未声明的变量」）。若是程序自带的单元，" +
+                                     "把那份源码一起放进项目目录即可。",
+                                     $"unit '{unitName}' not found: the search path has neither its `.pas` declaration "
+                                     + "nor a library module of the same name, so none of the constants/subprograms it declares will take effect "
+                                     + "(downstream this shows up as undeclared variables); if the program carries its own unit, "
+                                     + "put that source file in the project directory."));
             }
 
             /* ── 这个 bag 里的**警告**要有出口 ──────────────────────────────────────
@@ -297,7 +301,7 @@ namespace PascalCompiler
                 prog.IsLibrary = true; // 单元编译为库模式
             }
             else
-                throw new CompilationException(ErrorCode.Compilation_InternalError, "不支持的AST节点类型");
+                throw new CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick("不支持的AST节点类型", "unsupported AST node type"));
 
             List<string> allLibraryPaths = new List<string>();
             if (libraryPaths != null)
@@ -557,8 +561,10 @@ namespace PascalCompiler
                        这里是**警告不是错误**：老程序里"自己写个 `dos.pas` 覆盖库单元"
                        是合法写法，只是我们没能从它那儿拿到声明 ⇒ 把话说清楚，别拦。 */
                     diags.AddWarning(unitPath, 1, 1, ErrorCode.Unknown,
-                        $"`uses` 引到一个单元，但它不是单元文件（`{Path.GetFileName(unitPath)}` 里不是 `unit …;`）" +
-                        "—— 它声明的常量/子程序**一个都不会生效**。若是工作区里的同名文件遮蔽了库单元，改名即可。");
+                        VmlLang.Pick($"`uses` 引到一个单元，但它不是单元文件（`{Path.GetFileName(unitPath)}` 里不是 `unit …;`）" +
+                                     "—— 它声明的常量/子程序**一个都不会生效**。若是工作区里的同名文件遮蔽了库单元，改名即可。",
+                                     $"`uses` refers to a unit, but it is not a unit file (no `unit …;` in `{Path.GetFileName(unitPath)}`) "
+                                     + "- none of the constants/subprograms it declares will take effect; if a same-named file in the workspace shadows the library unit, just rename it."));
                 }
             }
             catch (System.Exception ex)
@@ -566,7 +572,8 @@ namespace PascalCompiler
                 /* 解析失败**也要出声**：静默的后果与上面那条一模一样（符号悄悄全没了），
                    而"少一个常量"在下游只会表现成"未声明的变量"，指不回这里。 */
                 diags.AddWarning(unitPath, 1, 1, ErrorCode.Unknown,
-                    $"`uses` 引到的单元文件解析失败，其中的声明不会生效：{ex.Message}");
+                    VmlLang.Pick($"`uses` 引到的单元文件解析失败，其中的声明不会生效：{ex.Message}",
+                                 $"the unit file referred to by `uses` failed to parse; its declarations will not take effect: {ex.Message}"));
             }
             finally { CompilerHelper.SetActiveLineMap(savedMap); }
         }

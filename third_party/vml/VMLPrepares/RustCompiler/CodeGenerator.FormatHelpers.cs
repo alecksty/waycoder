@@ -106,7 +106,7 @@ namespace RustCompiler
         private void OutputStringPart(string text)
         {
             if (string.IsNullOrEmpty(text)) return;
-            string label = NewLabel("str_part") ?? throw new CodeGenerationException("生成的字符串标签为null");
+            string label = NewLabel("str_part") ?? throw new CodeGenerationException(VmlLang.Pick("生成的字符串标签为null", "generated string label is null"));
             dataSection[label] = text;
             AddInstruction(OpCode.MOVE, "R0", label);
             EmitPrintString();
@@ -138,11 +138,11 @@ namespace RustCompiler
         {
             string trueL = NewLabel("bool_true"), falseL = NewLabel("bool_false"), endL = NewLabel("bool_end");
             AddInstruction(OpCode.CMP, "R0", "#0"); AddInstruction(OpCode.JE, falseL);
-            string tsl = NewLabel("bool_true_str") ?? throw new CodeGenerationException("bool标签为null");
+            string tsl = NewLabel("bool_true_str") ?? throw new CodeGenerationException(VmlLang.Pick("bool标签为null", "bool label is null"));
             dataSection[tsl] = "true"; AddInstruction(OpCode.MOVE, "R0", tsl); EmitPrintString();
             AddInstruction(OpCode.JMP, endL);
             AddLabel(falseL);
-            string fsl = NewLabel("bool_false_str") ?? throw new CodeGenerationException("bool标签为null");
+            string fsl = NewLabel("bool_false_str") ?? throw new CodeGenerationException(VmlLang.Pick("bool标签为null", "bool label is null"));
             dataSection[fsl] = "false"; AddInstruction(OpCode.MOVE, "R0", fsl); EmitPrintString();
             AddLabel(endL);
         }
@@ -161,7 +161,7 @@ namespace RustCompiler
                     string label = NewLabel("str_arg");
                     if (label == null)
                     {
-                        throw new CodeGenerationException("生成的字符串标签为null");
+                        throw new CodeGenerationException(VmlLang.Pick("生成的字符串标签为null", "generated string label is null"));
                     }
                     dataSection[label] = literal.Value?.ToString() ?? "";
                     AddInstruction(OpCode.MOVE, "R0", label);
@@ -186,7 +186,8 @@ namespace RustCompiler
                     {
                         // 宁可报错也不静默丢 —— 静默丢正是这个 bug 藏了这么久的原因
                         throw new CodeGenerationException(
-                            $"println! 格式实参的整数值无法解析: {literal.Value}");
+                            VmlLang.Pick($"println! 格式实参的整数值无法解析: {literal.Value}",
+                                         $"println! format argument integer value cannot be parsed: {literal.Value}"));
                     }
                 }
                 else if (literal.Type == "float")
@@ -195,7 +196,7 @@ namespace RustCompiler
                     {
                         int sv = (int)(fv * 1000);
                         string fs = $"{sv/1000}.{Math.Abs(sv%1000):D3}";
-                        string label = NewLabel("float_arg") ?? throw new CodeGenerationException("float标签为null");
+                        string label = NewLabel("float_arg") ?? throw new CodeGenerationException(VmlLang.Pick("float标签为null", "float label is null"));
                         dataSection[label] = fs;
                         AddInstruction(OpCode.MOVE, "R0", label);
                         EmitPrintString();
@@ -209,7 +210,7 @@ namespace RustCompiler
                 }
                 else if (literal.Type == "bool")
                 {
-                    string label = NewLabel("bool_arg") ?? throw new CodeGenerationException("bool标签为null");
+                    string label = NewLabel("bool_arg") ?? throw new CodeGenerationException(VmlLang.Pick("bool标签为null", "bool label is null"));
                     dataSection[label] = literal.Value?.ToString()?.ToLower() == "true" ? "true" : "false";
                     AddInstruction(OpCode.MOVE, "R0", label);
                     EmitPrintString();
@@ -246,9 +247,10 @@ namespace RustCompiler
                     string label = NewLabel("var_error");
                     if (label == null)
                     {
-                        throw new CodeGenerationException("生成的错误标签为null");
+                        throw new CodeGenerationException(VmlLang.Pick("生成的错误标签为null", "generated error label is null"));
                     }
-                    dataSection[label] = $"[错误: 找不到变量 '{identifier.Name}']";
+                    dataSection[label] = VmlLang.Pick($"[错误: 找不到变量 '{identifier.Name}']",
+                                                      $"[error: variable '{identifier.Name}' not found]");
                     AddInstruction(OpCode.MOVE, "R0", label);
                     EmitPrintString();
                 }
@@ -293,7 +295,8 @@ namespace RustCompiler
                 // 早就写着「宁可报错也不静默丢 —— 静默丢正是这个 bug 藏了这么久的原因」，
                 // 这条兜底属于同一族，一并改掉。
                 throw new CodeGenerationException(
-                    $"println!/print! 的格式实参暂不支持这种表达式：{argNode.GetType().Name}");
+                    VmlLang.Pick($"println!/print! 的格式实参暂不支持这种表达式：{argNode.GetType().Name}",
+                                 $"println!/print! format argument does not support this expression yet: {argNode.GetType().Name}"));
             }
         }
         

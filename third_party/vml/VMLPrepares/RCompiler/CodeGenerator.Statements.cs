@@ -339,7 +339,7 @@ public partial class CodeGenerator
     private void GenerateBreak()
     {
         if (currentBreakLabel == null)
-            throw new CompilationException(ErrorCode.CodeGen_BreakOutsideLoop, "break 语句不在循环内");
+            throw new CompilationException(ErrorCode.CodeGen_BreakOutsideLoop, VmlLang.Pick("break 语句不在循环内", "break statement outside loop"));
         instructions.Add(new Instruction(OpCode.JMP,
             new List<Operand> { new Operand(OperandType.LABEL, currentBreakLabel) }, instructions.Count));
     }
@@ -347,7 +347,7 @@ public partial class CodeGenerator
     private void GenerateNext()
     {
         if (currentNextLabel == null)
-            throw new CompilationException(ErrorCode.CodeGen_ContinueOutsideLoop, "next 语句不在循环内");
+            throw new CompilationException(ErrorCode.CodeGen_ContinueOutsideLoop, VmlLang.Pick("next 语句不在循环内", "next statement outside loop"));
         instructions.Add(new Instruction(OpCode.JMP,
             new List<Operand> { new Operand(OperandType.LABEL, currentNextLabel) }, instructions.Count));
     }

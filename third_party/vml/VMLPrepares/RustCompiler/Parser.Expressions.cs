@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace RustCompiler
 {
@@ -461,7 +462,7 @@ namespace RustCompiler
                     if (Check(TokenType.COLON)) Advance(); while (!Check(TokenType.COMMA) && !Check(TokenType.PIPE) && !IsAtEnd) Advance();
                     Match(TokenType.COMMA);
                 }
-                Expect(TokenType.PIPE, "期望 '|' 在闭包参数后");
+                Expect(TokenType.PIPE, VmlLang.Pick("期望 '|' 在闭包参数后", "expected '|' after closure parameters"));
                 // 跳过可选的返回类型标注: -> Type
                 if (Match(TokenType.ARROW))
                 {
@@ -504,7 +505,8 @@ namespace RustCompiler
             // 两处一起改：① 两参 `new ParseException(msg)` **不带位置**（`Line = 0`）⇒ 锚不到行；
             // ② `{Peek()}` 走 `Token.ToString()`，而它自带 `line:N, col:C` ⇒ 位置混进正文、
             //    且不是宿主认的形状。位置交给统一前缀一处给，正文只留 token 的种类与值。
-            throw ErrorAt($"意外的token: {Peek().Type} '{Peek().Value}'", GapAnchor());
+            throw ErrorAt(VmlLang.Pick($"意外的token: {Peek().Type} '{Peek().Value}'",
+                                       $"unexpected token: {Peek().Type} '{Peek().Value}'"), GapAnchor());
         }
         
         /// <summary>

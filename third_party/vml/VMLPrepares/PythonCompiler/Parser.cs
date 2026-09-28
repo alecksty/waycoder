@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using VMLPlugins;
 using CompilerBase;
+using VMLAssembler;
 
 namespace PythonCompiler
 {
@@ -111,7 +112,7 @@ namespace PythonCompiler
             else if (GetTokenType(Cur) == TokenType.CLASS)
                 result = ParseClassDef(decorators);
             else
-                throw Error($"期望 'def' 或 'class' 在装饰器后，实际得到 {GetTokenType(Cur)}");
+                throw Error(VmlLang.Pick($"期望 'def' 或 'class' 在装饰器后，实际得到 {GetTokenType(Cur)}", $"expected 'def' or 'class' after decorator, got {GetTokenType(Cur)}"));
 
             return result;
         }
@@ -875,7 +876,7 @@ private ASTNode ParsePower()
                     
                 // yield 是前缀表达式（MCU模式跳过）
                 case TokenType.YIELD:
-                    if (_isMCU) { WarningEmitter.Emit("python", "MCU模式: yield被忽略（不支持生成器）"); Advance(); return null; }
+                    if (_isMCU) { WarningEmitter.Emit("python", VmlLang.Pick("MCU模式: yield被忽略（不支持生成器）", "MCU mode: yield ignored (generators not supported)")); Advance(); return null; }
                     Advance();
                     ASTNode yval = null;
                     if (GetTokenType(Cur) != TokenType.NEWLINE && GetTokenType(Cur) != TokenType.COLON)
@@ -884,7 +885,7 @@ private ASTNode ParsePower()
                     
                 // await 是前缀表达式（MCU模式跳过）
                 case TokenType.AWAIT:
-                    if (_isMCU) { WarningEmitter.Emit("python", "MCU模式: await被忽略（不支持异步）"); Advance(); return null; }
+                    if (_isMCU) { WarningEmitter.Emit("python", VmlLang.Pick("MCU模式: await被忽略（不支持异步）", "MCU mode: await ignored (async not supported)")); Advance(); return null; }
                     Advance();
                     var aval = ParseAtom();
                     return new AwaitNode(aval, token.Line, token.Column);
@@ -893,7 +894,7 @@ private ASTNode ParsePower()
                     // 位置用 `GapAnchor()`，不是裸 `Cur`：`x = 1 +` 的下一个 token 是
                     // **下一行**的 `NEWLINE` —— 按当前位置报就落到第 5 行（修复前实测），
                     // 而错在第 4 行。锚定规则（含"什么时候**不该**锚"）见基类 `GapAnchor`。
-                    throw ErrorAt($"意外的 token: {token.Type}（此处不该出现它）", GapAnchor());
+                    throw ErrorAt(VmlLang.Pick($"意外的 token: {token.Type}（此处不该出现它）", $"unexpected token: {token.Type} (it should not appear here)"), GapAnchor());
             }
         }
 
@@ -922,7 +923,7 @@ private ASTNode ParsePower()
                 }
                 else
                 {
-                    if (isDict) throw Error("字典字面量中不能混入非键值对元素");
+                    if (isDict) throw Error(VmlLang.Pick("字典字面量中不能混入非键值对元素", "a dictionary literal cannot contain a non key-value element"));
                     elements.Add(key);
                 }
                 
@@ -1039,7 +1040,7 @@ private ASTNode ParsePower()
                     }
                     
                     if (depth > 0)
-                        throw Error($"未终止的 f-string 表达式");
+                        throw Error(VmlLang.Pick($"未终止的 f-string 表达式", $"unterminated f-string expression"));
                     
                     // 提取表达式（不包括最后的}）
                     string exprStr = fstringValue.Substring(start, i - start - 1);

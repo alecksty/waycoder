@@ -21,7 +21,7 @@ namespace PascalCompiler
         {
             string name = call.Name.ToLower();
             if (call.Arguments.Count == 0 || call.Arguments[0] is not VariableNode fileVar)
-                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"{call.Name} 的第一个参数必须是文件变量");
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick($"{call.Name} 的第一个参数必须是文件变量", $"the first parameter of {call.Name} must be a file variable"));
 
             if (name == "assign")
             {
@@ -131,7 +131,7 @@ namespace PascalCompiler
         private void GenerateNewCall(ProcedureCallNode call)
         {
             if (call.Arguments.Count == 0 || call.Arguments[0] is not VariableNode ptr)
-                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, "New参数必须是指针变量");
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick("New参数必须是指针变量", "the parameter of New must be a pointer variable"));
             int bytes = GetPointerTargetSize(ptr.Name) * 4;
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, bytes) }));
             EmitAlloc();
@@ -157,7 +157,7 @@ namespace PascalCompiler
         {
             if (call.Arguments.Count < 2 || call.Arguments[0] is not VariableNode ptr)
                 throw new CompilationException(ErrorCode.CodeGen_InvalidOperand,
-                    "GetMem 的参数必须是「指针变量, 字节数」");
+                    VmlLang.Pick("GetMem 的参数必须是「指针变量, 字节数」", "the parameters of GetMem must be (pointer variable, byte count)"));
             GenerateExpression(call.Arguments[1]);   // ⇒ R0 = 字节数
             EmitAlloc();
             AlignAllocatedPointer();
@@ -177,7 +177,7 @@ namespace PascalCompiler
         private void GenerateSetLengthCall(ProcedureCallNode call)
         {
             if (call.Arguments.Count < 2 || call.Arguments[0] is not VariableNode arrayVar)
-                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, "SetLength参数必须是动态数组变量和长度");
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick("SetLength参数必须是动态数组变量和长度", "the parameters of SetLength must be a dynamic array variable and a length"));
             GenerateExpression(call.Arguments[1]);
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4) }));
             EmitAlloc();
@@ -1125,7 +1125,7 @@ namespace PascalCompiler
                 if (element is SetRangeNode range)
                 {
                     if (!IsConstantExpr(range.Low) || !IsConstantExpr(range.High))
-                        Error("集合区间 `a..b` 的两端必须是编译期常量");
+                        Error(VmlLang.Pick("集合区间 `a..b` 的两端必须是编译期常量", "both ends of the set range `a..b` must be compile-time constants"));
                     int lo = EvaluateConstantExpr(range.Low);
                     int hi = EvaluateConstantExpr(range.High);
                     for (int v = lo; v <= hi; v++) members.Add(v);
@@ -1136,7 +1136,7 @@ namespace PascalCompiler
                     // ⚠ 非恒量元素**必须报错**，不能"算不出就当 0" ——
                     //   那会静默地把 `[x]` 编成"只含 0 的集合"，用户查半天也查不到。
                     if (!IsConstantExpr(element))
-                        Error("集合字面量的成员必须是编译期常量（暂不支持变量成员）");
+                        Error(VmlLang.Pick("集合字面量的成员必须是编译期常量（暂不支持变量成员）", "members of a set literal must be compile-time constants (variable members are not yet supported)"));
                     int v = EvaluateConstantExpr(element);
                     members.Add(v);
                     maxBit = Math.Max(maxBit, v);
@@ -1167,7 +1167,7 @@ namespace PascalCompiler
 
         private void Error(string message)
         {
-            throw new CompilationException(ErrorCode.Compilation_InternalError, $"代码生成错误: {message}");
+            throw new CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick($"代码生成错误: {message}", $"code generation error: {message}"));
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace LadderCompiler
 {
@@ -147,7 +148,7 @@ namespace LadderCompiler
                 
                 ParseVariableDeclarations(programNode, varKeyword);
                 
-                Expect(TokenType.KeywordEndVar, "期望 END_VAR");
+                Expect(TokenType.KeywordEndVar, VmlLang.Pick("期望 END_VAR", "expected END_VAR"));
                 SkipWhitespaceAndComments();
             }
             
@@ -159,7 +160,7 @@ namespace LadderCompiler
             else if (!IsPrintStatement() && GetTokenType(Cur) != TokenType.EOF &&
                      GetTokenType(Cur) != TokenType.KeywordEndProgram)
             {
-                Expect(TokenType.KeywordBegin, "期望 BEGIN 关键字");
+                Expect(TokenType.KeywordBegin, VmlLang.Pick("期望 BEGIN 关键字", "expected the BEGIN keyword"));
             }
             SkipWhitespaceAndComments();
             
@@ -180,7 +181,7 @@ namespace LadderCompiler
                     var varKeyword = GetTokenType(Cur);
                     Advance();
                     ParseVariableDeclarations(programNode, varKeyword);
-                    Expect(TokenType.KeywordEndVar, "期望 END_VAR");
+                    Expect(TokenType.KeywordEndVar, VmlLang.Pick("期望 END_VAR", "expected END_VAR"));
                 }
                 // ⚠ ST 语句的**分派只有一份** —— 全在 `ParseStStatement` 里。
                 //   这里原先把 IF/WHILE/FOR/裸打印/标识符**五条分支又抄了一遍**，
@@ -258,7 +259,7 @@ namespace LadderCompiler
                     Match(TokenType.Semicolon);
                     SkipWhitespaceAndComments();
                 }
-                Expect(TokenType.KeywordEndVar, "期望 END_VAR");
+                Expect(TokenType.KeywordEndVar, VmlLang.Pick("期望 END_VAR", "expected END_VAR"));
                 SkipWhitespaceAndComments();
             }
             // Parse body: name := expr; or IF/WHILE/FOR ST statements
@@ -295,7 +296,7 @@ namespace LadderCompiler
                 Match(TokenType.Semicolon);
                 SkipWhitespaceAndComments();
             }
-            Expect(TokenType.KeywordEndFunction, "期望 END_FUNCTION");
+            Expect(TokenType.KeywordEndFunction, VmlLang.Pick("期望 END_FUNCTION", "expected END_FUNCTION"));
             return funcNode;
         }
 
@@ -430,7 +431,7 @@ namespace LadderCompiler
 
         private void ParseTypeDeclarations()
         {
-            Expect(TokenType.KeywordType, "期望 TYPE");
+            Expect(TokenType.KeywordType, VmlLang.Pick("期望 TYPE", "expected TYPE"));
             SkipWhitespaceAndComments();
 
             while (GetTokenType(Cur) != TokenType.KeywordEndType && GetTokenType(Cur) != TokenType.EOF)
@@ -445,7 +446,7 @@ namespace LadderCompiler
                 SkipWhitespaceAndComments();
             }
 
-            Expect(TokenType.KeywordEndType, "期望 END_TYPE");
+            Expect(TokenType.KeywordEndType, VmlLang.Pick("期望 END_TYPE", "expected END_TYPE"));
         }
         
         /// <summary>
@@ -467,7 +468,7 @@ namespace LadderCompiler
             if (Match(TokenType.KeywordArray))
             {
                 SkipWhitespaceAndComments();
-                Expect(TokenType.LeftBracket, "期望 [");
+                Expect(TokenType.LeftBracket, VmlLang.Pick("期望 [", "expected '['"));
                 SkipWhitespaceAndComments();
                 
                 // 数组范围
@@ -480,11 +481,11 @@ namespace LadderCompiler
                 string arrayRange = string.Join("", rangeParts);
                 
                 SkipWhitespaceAndComments();
-                Expect(TokenType.RightBracket, "期望 ]");
+                Expect(TokenType.RightBracket, VmlLang.Pick("期望 ]", "expected ']'"));
                 SkipWhitespaceAndComments();
                 
                 if (!Match(TokenType.KeywordOfType) && !Match(TokenType.KeywordOf))
-                    Expect(TokenType.KeywordOfType, "期望 OF");
+                    Expect(TokenType.KeywordOfType, VmlLang.Pick("期望 OF", "expected OF"));
                 SkipWhitespaceAndComments();
                 
                 string elementType = ParseType();
@@ -507,7 +508,7 @@ namespace LadderCompiler
                     Match(TokenType.Semicolon);
                     SkipWhitespaceAndComments();
                 }
-                Expect(TokenType.KeywordEndStruct, "期望 END_STRUCT");
+                Expect(TokenType.KeywordEndStruct, VmlLang.Pick("期望 END_STRUCT", "expected END_STRUCT"));
                 return $"STRUCT{{{string.Join(";", fields)}}}";
             }
 
@@ -525,7 +526,7 @@ namespace LadderCompiler
                         if (!Match(TokenType.Comma)) break;
                         SkipWhitespaceAndComments();
                     }
-                    Expect(TokenType.RightParenthesis, "期望 )");
+                    Expect(TokenType.RightParenthesis, VmlLang.Pick("期望 )", "expected ')'"));
                 }
                 else
                 {
@@ -536,7 +537,7 @@ namespace LadderCompiler
                         Match(TokenType.Comma);
                         SkipWhitespaceAndComments();
                     }
-                    Expect(TokenType.KeywordEndEnum, "期望 END_ENUM");
+                    Expect(TokenType.KeywordEndEnum, VmlLang.Pick("期望 END_ENUM", "expected END_ENUM"));
                 }
                 return $"ENUM{{{string.Join(",", values)}}}";
             }
@@ -544,14 +545,14 @@ namespace LadderCompiler
             if (Match(TokenType.KeywordSubrange))
             {
                 SkipWhitespaceAndComments();
-                Expect(TokenType.LeftBracket, "期望 [");
+                Expect(TokenType.LeftBracket, VmlLang.Pick("期望 [", "expected '['"));
                 var rangeParts = new List<string>();
                 while (GetTokenType(Cur) != TokenType.RightBracket && GetTokenType(Cur) != TokenType.EOF)
                 {
                     rangeParts.Add(Cur.Value);
                     Advance();
                 }
-                Expect(TokenType.RightBracket, "期望 ]");
+                Expect(TokenType.RightBracket, VmlLang.Pick("期望 ]", "expected ']'"));
                 SkipWhitespaceAndComments();
                 string baseType = "INT";
                 if (Match(TokenType.KeywordOfType) || Match(TokenType.KeywordOf))
@@ -813,7 +814,7 @@ namespace LadderCompiler
                         }
                         firstParam = false;
 
-                        Expect(TokenType.Assignment, "期望 :=");
+                        Expect(TokenType.Assignment, VmlLang.Pick("期望 :=", "expected ':='"));
                         SkipWhitespaceAndComments();
 
                         // 参数值
@@ -843,7 +844,7 @@ namespace LadderCompiler
                         string paramName = paramNameToken.Value;
 
                         SkipWhitespaceAndComments();
-                        Expect(TokenType.Assignment, "期望 :=");
+                        Expect(TokenType.Assignment, VmlLang.Pick("期望 :=", "expected ':='"));
                         SkipWhitespaceAndComments();
 
                         // 参数值
@@ -872,7 +873,7 @@ namespace LadderCompiler
                     Column = Cur.Column,
                     Variable = ParseAssignableTarget()
                 };
-                Expect(TokenType.Assignment, "期望 :=");
+                Expect(TokenType.Assignment, VmlLang.Pick("期望 :=", "expected ':='"));
                 
                 SkipWhitespaceAndComments();
                 assignNode.Value = ParseExpression();
@@ -963,7 +964,7 @@ namespace LadderCompiler
                 {
                     parts.Add("[");
                     parts.Add(ExpressionToInitialString(ParseExpression()));
-                    Expect(TokenType.RightBracket, "期望 ]");
+                    Expect(TokenType.RightBracket, VmlLang.Pick("期望 ]", "expected ']'"));
                     parts.Add("]");
                 }
                 else
@@ -1251,7 +1252,7 @@ namespace LadderCompiler
                     if (Match(TokenType.LeftBracket))
                     {
                         var index = ParseExpression();
-                        Expect(TokenType.RightBracket, "期望 ]");
+                        Expect(TokenType.RightBracket, VmlLang.Pick("期望 ]", "expected ']'"));
                         expr = new ArrayAccessNode { Target = expr, Index = index, Line = expr.Line, Column = expr.Column };
                     }
                     else if (Match(TokenType.Dot))
@@ -1272,14 +1273,14 @@ namespace LadderCompiler
             if (Match(TokenType.LeftParenthesis))
             {
                 var expr = ParseExpression();
-                Expect(TokenType.RightParenthesis, "期望 )");
+                Expect(TokenType.RightParenthesis, VmlLang.Pick("期望 )", "expected ')'"));
                 return expr;
             }
             
             // 位置用 `GapAnchor()`：`PRINT_INT 1 +` 的下一个 token 是**下一行**的
             // `END_PROGRAM` ⇒ 按当前位置报就落到第 4 行，而错在第 3 行。
             // 顺带去掉了 `Strings.SyntaxErrorAt` 那层自拼的位置（与统一前缀重复）。
-            throw ErrorAt(VMLPlugins.Strings.ExpectedToken("表达式", GetTokenType(Cur).ToString()), GapAnchor());
+            throw ErrorAt(VMLPlugins.Strings.ExpectedToken(VmlLang.Pick("表达式", "expression"), GetTokenType(Cur).ToString()), GapAnchor());
         }
 
         private string ExpressionToInitialString(ExpressionNode expr)
@@ -1313,11 +1314,11 @@ namespace LadderCompiler
         private StIfNode ParseStIf()
         {
             var node = new StIfNode { Line = Cur.Line, Column = Cur.Column };
-            Expect(TokenType.KeywordIf, "期望 IF");
+            Expect(TokenType.KeywordIf, VmlLang.Pick("期望 IF", "expected IF"));
             SkipWhitespaceAndComments();
             node.Condition = ParseExpression();
             SkipWhitespaceAndComments();
-            Expect(TokenType.KeywordThen, "期望 THEN");
+            Expect(TokenType.KeywordThen, VmlLang.Pick("期望 THEN", "expected THEN"));
             SkipWhitespaceAndComments();
             // 解析 THEN 体直到 ELSE/ELSIF/END_IF
             while (GetTokenType(Cur) != TokenType.KeywordElse &&
@@ -1338,7 +1339,7 @@ namespace LadderCompiler
                     SkipWhitespaceAndComments();
                 }
             }
-            Expect(TokenType.KeywordEndIf, "期望 END_IF");
+            Expect(TokenType.KeywordEndIf, VmlLang.Pick("期望 END_IF", "expected END_IF"));
             Match(TokenType.Semicolon);
             return node;
         }
@@ -1349,15 +1350,15 @@ namespace LadderCompiler
         private StForNode ParseStFor()
         {
             var node = new StForNode { Line = Cur.Line, Column = Cur.Column };
-            Expect(TokenType.KeywordFor, "期望 FOR");
+            Expect(TokenType.KeywordFor, VmlLang.Pick("期望 FOR", "expected FOR"));
             SkipWhitespaceAndComments();
             node.VarName = Expect(TokenType.Identifier).Value;
             SkipWhitespaceAndComments();
-            Expect(TokenType.Assignment, "期望 :=");
+            Expect(TokenType.Assignment, VmlLang.Pick("期望 :=", "expected ':='"));
             SkipWhitespaceAndComments();
             node.Start = ParseExpression();
             SkipWhitespaceAndComments();
-            Expect(TokenType.KeywordTo, "期望 TO");
+            Expect(TokenType.KeywordTo, VmlLang.Pick("期望 TO", "expected TO"));
             SkipWhitespaceAndComments();
             node.End = ParseExpression();
             SkipWhitespaceAndComments();
@@ -1368,14 +1369,14 @@ namespace LadderCompiler
                 ParseExpression(); // 暂存—MCU模式下固定步长1
             }
             SkipWhitespaceAndComments();
-            Expect(TokenType.KeywordDo, "期望 DO");
+            Expect(TokenType.KeywordDo, VmlLang.Pick("期望 DO", "expected DO"));
             SkipWhitespaceAndComments();
             while (GetTokenType(Cur) != TokenType.KeywordEndFor && GetTokenType(Cur) != TokenType.EOF)
             {
                 node.Body.Add(ParseStStatement());
                 SkipWhitespaceAndComments();
             }
-            Expect(TokenType.KeywordEndFor, "期望 END_FOR");
+            Expect(TokenType.KeywordEndFor, VmlLang.Pick("期望 END_FOR", "expected END_FOR"));
             Match(TokenType.Semicolon);
             return node;
         }
@@ -1386,18 +1387,18 @@ namespace LadderCompiler
         private StWhileNode ParseStWhile()
         {
             var node = new StWhileNode { Line = Cur.Line, Column = Cur.Column };
-            Expect(TokenType.KeywordWhile, "期望 WHILE");
+            Expect(TokenType.KeywordWhile, VmlLang.Pick("期望 WHILE", "expected WHILE"));
             SkipWhitespaceAndComments();
             node.Condition = ParseExpression();
             SkipWhitespaceAndComments();
-            Expect(TokenType.KeywordDo, "期望 DO");
+            Expect(TokenType.KeywordDo, VmlLang.Pick("期望 DO", "expected DO"));
             SkipWhitespaceAndComments();
             while (GetTokenType(Cur) != TokenType.KeywordEndWhile && GetTokenType(Cur) != TokenType.EOF)
             {
                 node.Body.Add(ParseStStatement());
                 SkipWhitespaceAndComments();
             }
-            Expect(TokenType.KeywordEndWhile, "期望 END_WHILE");
+            Expect(TokenType.KeywordEndWhile, VmlLang.Pick("期望 END_WHILE", "expected END_WHILE"));
             Match(TokenType.Semicolon);
             return node;
         }
@@ -1483,7 +1484,7 @@ namespace LadderCompiler
                         SkipWhitespaceAndComments();
                         var index = ParseExpression();
                         SkipWhitespaceAndComments();
-                        Expect(TokenType.RightBracket, "期望 ]");
+                        Expect(TokenType.RightBracket, VmlLang.Pick("期望 ]", "expected ']'"));
                         SkipWhitespaceAndComments();
                         target = new ArrayAccessNode { Target = target, Index = index, Line = idLine, Column = idCol };
                     }

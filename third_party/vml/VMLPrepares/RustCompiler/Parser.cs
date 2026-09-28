@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace RustCompiler
 {
@@ -123,12 +124,12 @@ namespace RustCompiler
             }
             else if (Match(TokenType.BREAK))
             {
-                Expect(TokenType.SEMICOLON, "期望 ';' 在 break 后");
+                Expect(TokenType.SEMICOLON, VmlLang.Pick("期望 ';' 在 break 后", "expected ';' after break"));
                 return new BreakStatementNode();
             }
             else if (Match(TokenType.CONTINUE))
             {
-                Expect(TokenType.SEMICOLON, "期望 ';' 在 continue 后");
+                Expect(TokenType.SEMICOLON, VmlLang.Pick("期望 ';' 在 continue 后", "expected ';' after continue"));
                 return new ContinueStatementNode();
             }
             else if (Match(TokenType.MATCH))
@@ -175,11 +176,11 @@ namespace RustCompiler
             else if (Check(TokenType.IDENTIFIER) && Cur.Value == "unsafe")
             {
                 Advance();
-                Expect(TokenType.LBRACE, "期望 '{' 在 unsafe 块后");
+                Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 unsafe 块后", "expected '{' after unsafe block"));
                 var block = new BlockNode();
                 while (!Check(TokenType.RBRACE) && !IsAtEnd)
                     block.Statements.Add(ParseStatement());
-                Expect(TokenType.RBRACE, "期望 '}' 在 unsafe 块后");
+                Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 unsafe 块后", "expected '}' after unsafe block"));
                 return block;
             }
             else if (Check(TokenType.IDENTIFIER) && IsCompoundAssignment(Peek(1)?.Type))
@@ -295,7 +296,7 @@ namespace RustCompiler
                     param.Name = Expect(TokenType.IDENTIFIER).Value;
                 }
                 
-                Expect(TokenType.COLON, "期望 ':' 在参数名后");
+                Expect(TokenType.COLON, VmlLang.Pick("期望 ':' 在参数名后", "expected ':' after parameter name"));
                 param.Type = ParseType();
                 
                 function.Parameters.Add(param);
@@ -319,7 +320,7 @@ namespace RustCompiler
             {
                 do {
                     ParseType(); // Type name
-                    Expect(TokenType.COLON, "期望 ':' 在 where 子句中");
+                    Expect(TokenType.COLON, VmlLang.Pick("期望 ':' 在 where 子句中", "expected ':' in where clause"));
                     do {
                         ParseType(); // Trait bound
                     } while (Match(TokenType.PLUS));
@@ -414,7 +415,7 @@ namespace RustCompiler
             }
 
             // 初始化表达式（常量必须有初始值）
-            Expect(TokenType.EQ, "期望 '=' 用于常量初始化");
+            Expect(TokenType.EQ, VmlLang.Pick("期望 '=' 用于常量初始化", "expected '=' in constant initializer"));
             declaration.Initializer = ParseExpression();
 
             Expect(TokenType.SEMICOLON);
@@ -432,7 +433,7 @@ namespace RustCompiler
             Expect(TokenType.COLON);
             string type = ParseType();
 
-            Expect(TokenType.EQ, "期望 '=' 用于静态初始化");
+            Expect(TokenType.EQ, VmlLang.Pick("期望 '=' 用于静态初始化", "expected '=' in static initializer"));
             var initializer = ParseExpression();
 
             Expect(TokenType.SEMICOLON);
@@ -582,7 +583,7 @@ namespace RustCompiler
             else if (Match(TokenType.PERCENTEQ))
                 compound.Operator = "%=";
             else
-                throw Error("期望复合赋值运算符");   // 统一出口：拼位置前缀 + 查 #include 映射
+                throw Error(VmlLang.Pick("期望复合赋值运算符", "expected compound assignment operator"));   // 统一出口：拼位置前缀 + 查 #include 映射
             
             // 值
             compound.Value = ParseExpression();
@@ -776,7 +777,7 @@ namespace RustCompiler
         private MatchStatementNode ParseMatchStatement()
         {
             var value = ParseExpression();
-            Expect(TokenType.LBRACE, "期望 '{' 在 match 后");
+            Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 match 后", "expected '{' after match"));
             var match = new MatchStatementNode { Value = value };
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
@@ -785,7 +786,7 @@ namespace RustCompiler
                 List<ASTNode> altPatterns = new() { pattern };
                 while (Match(TokenType.PIPE))
                     altPatterns.Add(ParseMatchPattern());
-                Expect(TokenType.FAT_ARROW, "期望 '=>' 在 match arm 后");
+                Expect(TokenType.FAT_ARROW, VmlLang.Pick("期望 '=>' 在 match arm 后", "expected '=>' after match arm"));
                 ASTNode body;
                 if (Check(TokenType.LBRACE))
                     body = ParseBlock();
@@ -795,7 +796,7 @@ namespace RustCompiler
                     match.Arms.Add(new MatchArm { Pattern = pat, Body = body });
                 Match(TokenType.COMMA);
             }
-            Expect(TokenType.RBRACE, "期望 '}' 在 match 后");
+            Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 match 后", "expected '}' after match"));
             return match;
         }
 
@@ -860,7 +861,7 @@ namespace RustCompiler
                     sd.Fields.Add(new StructField { Name = fieldName, Type = fieldType });
                     Match(TokenType.COMMA);
                 }
-                Expect(TokenType.RBRACE, "期望 '}' 在 struct 后");
+                Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 struct 后", "expected '}' after struct"));
             }
             else
             {
@@ -875,7 +876,7 @@ namespace RustCompiler
             var ed = new EnumDeclNode { Name = name };
             // Skip generic args: enum Option<T> { ... }
             if (Match(TokenType.LT)) { SkipGenericArgs(); }
-            Expect(TokenType.LBRACE, "期望 '{' 在 enum 后");
+            Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 enum 后", "expected '{' after enum"));
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
                 string variant = Expect(TokenType.IDENTIFIER).Value;
@@ -883,21 +884,21 @@ namespace RustCompiler
                 if (Match(TokenType.LPAREN))
                 {
                     payloadType = ParseType();
-                    Expect(TokenType.RPAREN, "期望 ')' 在枚举变体后");
+                    Expect(TokenType.RPAREN, VmlLang.Pick("期望 ')' 在枚举变体后", "expected ')' after enum variant"));
                 }
                 ed.Variants.Add(new EnumVariant { Name = variant, PayloadType = payloadType });
                 Match(TokenType.COMMA);
             }
-            Expect(TokenType.RBRACE, "期望 '}' 在 enum 后");
+            Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 enum 后", "expected '}' after enum"));
             Match(TokenType.SEMICOLON);
             return ed;
         }
 
         private TraitDeclNode ParseTraitDecl()
         {
-            string name = Expect(TokenType.IDENTIFIER, "期望 trait 名").Value;
+            string name = Expect(TokenType.IDENTIFIER, VmlLang.Pick("期望 trait 名", "expected trait name")).Value;
             var td = new TraitDeclNode { Name = name };
-            Expect(TokenType.LBRACE, "期望 '{' 在 trait 后");
+            Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 trait 后", "expected '{' after trait"));
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
                 if (Match(TokenType.FN))
@@ -922,7 +923,7 @@ namespace RustCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RBRACE, "期望 '}' 在 trait 后");
+            Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 trait 后", "expected '}' after trait"));
             return td;
         }
 
@@ -937,7 +938,7 @@ namespace RustCompiler
                 structName = Expect(TokenType.IDENTIFIER).Value;
             }
             var impl = new ImplBlockNode { StructName = structName, TraitName = traitName };
-            Expect(TokenType.LBRACE, "期望 '{' 在 impl 后");
+            Expect(TokenType.LBRACE, VmlLang.Pick("期望 '{' 在 impl 后", "expected '{' after impl"));
             while (!Check(TokenType.RBRACE) && !IsAtEnd)
             {
                 if (Match(TokenType.FN))
@@ -948,7 +949,7 @@ namespace RustCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RBRACE, "期望 '}' 在 impl 后");
+            Expect(TokenType.RBRACE, VmlLang.Pick("期望 '}' 在 impl 后", "expected '}' after impl"));
             return impl;
         }
 

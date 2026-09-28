@@ -1,4 +1,5 @@
 using CompilerBase;
+using VMLAssembler;
 using System;
 using System.Collections.Generic;
 
@@ -407,7 +408,7 @@ namespace PascalCompiler
 
                 if (GetTokenType(Cur) == TokenType.SEMICOLON) continue;
                 if (GetTokenType(Cur) != TokenType.RPAREN)
-                    Expect(TokenType.COMMA, "期望 ',' 在初始化器中");
+                    Expect(TokenType.COMMA, VmlLang.Pick("期望 ',' 在初始化器中", "expected ',' in initializer"));
             }
             Expect(TokenType.RPAREN);
             return items;
@@ -443,7 +444,7 @@ namespace PascalCompiler
                 if (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.INTEGER_LITERAL)
                     Advance();
                 else
-                    GccError("期望标签名", ErrorCode.Parser_ExpectedIdentifier);
+                    GccError(VmlLang.Pick("期望标签名", "expected label name"), ErrorCode.Parser_ExpectedIdentifier);
             } while (Match(TokenType.COMMA));
             Expect(TokenType.SEMICOLON);
         }
@@ -532,7 +533,7 @@ namespace PascalCompiler
                 }
                 // 报出来 + 用 INTEGER 占位继续（**不返回 null**：null 会流到代码生成再崩，
                 // 把真正的错盖成一句没有位置的「内部错误」）。见 `ParserBase.Collect` 的两分法。
-                GccError("期望子界类型上界", ErrorCode.Parser_ExpectedExpression);
+                GccError(VmlLang.Pick("期望子界类型上界", "expected subrange upper bound"), ErrorCode.Parser_ExpectedExpression);
                 return new SimpleTypeNode { TypeName = "INTEGER", Line = token.Line, Column = token.Column };
             }
             else if (GetTokenType(Cur) == TokenType.PROCEDURE || GetTokenType(Cur) == TokenType.FUNCTION
@@ -686,7 +687,7 @@ namespace PascalCompiler
                     else
                     {
                         // 报出来 + 继续（循环末尾会吃分号/推进，不会原地打转）
-                        GccError("期望字段声明或 'end'", ErrorCode.Parser_InvalidDeclaration);
+                        GccError(VmlLang.Pick("期望字段声明或 'end'", "expected field declaration or 'end'"), ErrorCode.Parser_InvalidDeclaration);
                     }
                 }
 
@@ -785,7 +786,7 @@ namespace PascalCompiler
             else
             {
                 // 同「期望子界类型上界」：报出来 + 占位继续，不返回 null。
-                GccError("期望类型声明", ErrorCode.Parser_InvalidDeclaration);
+                GccError(VmlLang.Pick("期望类型声明", "expected type declaration"), ErrorCode.Parser_InvalidDeclaration);
                 return new SimpleTypeNode { TypeName = "INTEGER", Line = token.Line, Column = token.Column };
             }
         }
@@ -867,7 +868,7 @@ namespace PascalCompiler
                 }
             }
             if (GetTokenType(Cur) == TokenType.EOF)
-                GccErrorAt("块未闭合（缺少 'end'）", open, ErrorCode.Parser_SyntaxError);
+                GccErrorAt(VmlLang.Pick("块未闭合（缺少 'end'）", "block not closed (missing 'end')"), open, ErrorCode.Parser_SyntaxError);
 
             return block;
         }
@@ -908,7 +909,7 @@ namespace PascalCompiler
                 while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.EOF
                        && ++guard < 200000)
                     Advance();
-                Expect(TokenType.END, "期望 asm 块的 'end'");
+                Expect(TokenType.END, VmlLang.Pick("期望 asm 块的 'end'", "expected 'end' of asm block"));
                 return new CompoundStatementNode { Statements = new List<StatementNode>() };
             }
             else if (token.Type == TokenType.IDENTIFIER)
@@ -962,7 +963,7 @@ namespace PascalCompiler
                 {
                     // 报出来 + **吃掉这个 token 保证推进**：本函数返回后由语句循环接手，
                     // 一个 token 都不动的话下一轮还是同一个 token、同一处错（原地打转）。
-                    GccError("期望标签名", ErrorCode.Parser_ExpectedIdentifier);
+                    GccError(VmlLang.Pick("期望标签名", "expected label name"), ErrorCode.Parser_ExpectedIdentifier);
                     Advance();
                 }
                 return new GotoNode { Label = label, Line = token.Line, Column = token.Column };
@@ -994,7 +995,7 @@ namespace PascalCompiler
                 //   而真正的原因（这里有个不认识的记号）**一个字都没报出来**。
                 //   实测语料里 10 份程序是这么挂的，其中 `g7iles_life.pas` 的
                 //   调用栈在 `ParseRepeatStatement` 的 `while` 上原地打转。
-                GccError("期望语句", ErrorCode.Parser_SyntaxError);
+                GccError(VmlLang.Pick("期望语句", "expected statement"), ErrorCode.Parser_SyntaxError);
                 if (GetTokenType(Cur) != TokenType.EOF)
                     Advance();
                 return new CompoundStatementNode { Line = token.Line, Column = token.Column };
@@ -1179,7 +1180,7 @@ namespace PascalCompiler
             bool isDownTo = Match(TokenType.DOWNTO);
             if (!isDownTo)
             {
-                Expect(TokenType.TO, "期望 'to' 或 'downto'");
+                Expect(TokenType.TO, VmlLang.Pick("期望 'to' 或 'downto'", "expected 'to' or 'downto'"));
             }
 
             ExpressionNode endValue = ParseExpression();

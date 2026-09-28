@@ -30,7 +30,6 @@ third_party/vml/VMLPrepares/ForthCompiler/ForthCompiler.cs
 third_party/vml/VMLPrepares/ForthCompiler/ForthCompilerPlugin.cs
 third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs
 third_party/vml/VMLPrepares/FortranCompiler/FortranCompilerPlugin.cs
-third_party/vml/VMLPrepares/GoCompiler/GoCompiler.cs
 third_party/vml/VMLPrepares/GoCompiler/GoCompilerPlugin.cs
 third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs
 third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs

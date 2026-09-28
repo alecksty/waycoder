@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using CompilerBase;
+using VMLAssembler;
 
 namespace RubyCompiler;
 
@@ -68,14 +69,14 @@ public class Lexer : LexerBase
                     if (Match('&')) { Tokens.Add(new Token(TokenType.And, "&&", _line, _col)); break; }
                     // 位置交给统一出口；顺带去掉夹在正文里的英文与手写位置。
                     Error(ErrorCode.Lexer_UnknownCharacter,
-                        "位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）");
+                        VmlLang.Pick("位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）", "bitwise operators `& | ^` are not implemented (this frontend only supports logical `&&`/`||`)"));
                     break;
                 case '|':
                     if (Match('|')) { Tokens.Add(new Token(TokenType.Or, "||", _line, _col)); break; }
                     Error(ErrorCode.Lexer_UnknownCharacter,
-                        "位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）");
+                        VmlLang.Pick("位运算 `& | ^` 尚未实现（本前端只支持逻辑 `&&`/`||`）", "bitwise operators `& | ^` are not implemented (this frontend only supports logical `&&`/`||`)"));
                     break;
-                default: Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'"); break;   // 位置交给统一出口
+                default: Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"意外的字符: '{c}'", $"unexpected character: '{c}'")); break;   // 位置交给统一出口
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

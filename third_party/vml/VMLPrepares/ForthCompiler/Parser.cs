@@ -1,3 +1,4 @@
+using VMLAssembler;
 using CompilerBase;
 
 namespace ForthCompiler
@@ -158,7 +159,7 @@ namespace ForthCompiler
                 case TokenType.RECURSE:
                     Advance();
                     if (_currentWordName == null)
-                        throw Error("RECURSE 只能在字定义内部使用。");
+                        throw Error(VmlLang.Pick("RECURSE 只能在字定义内部使用。", "RECURSE may only be used inside a word definition"));
                     return new WordCall
                     {
                         Name = _currentWordName,
@@ -201,7 +202,7 @@ namespace ForthCompiler
             var nameToken = Cur;
             if (nameToken.Type != TokenType.IDENTIFIER)
             {
-                throw Error(VMLPlugins.Strings.ExpectedIdentifier("词名(word name)"));
+                throw Error(VMLPlugins.Strings.ExpectedIdentifier(VmlLang.Pick("词名", "word name")));
             }
             wordDef.Name = nameToken.Value;
             definedWords.Add(nameToken.Value);
@@ -246,7 +247,7 @@ namespace ForthCompiler
             var nameToken = Cur;
             if (nameToken.Type != TokenType.IDENTIFIER)
             {
-                throw Error(VMLPlugins.Strings.ExpectedIdentifier("变量名"));
+                throw Error(VMLPlugins.Strings.ExpectedIdentifier(VmlLang.Pick("变量名", "variable name")));
             }
             varDef.Name = nameToken.Value;
             definedVariables.Add(nameToken.Value);
@@ -269,7 +270,7 @@ namespace ForthCompiler
             var nameToken = Cur;
             if (nameToken.Type != TokenType.IDENTIFIER)
             {
-                throw Error(VMLPlugins.Strings.ExpectedIdentifier("CREATE名称"));
+                throw Error(VMLPlugins.Strings.ExpectedIdentifier(VmlLang.Pick("CREATE名称", "CREATE name")));
             }
 
             createDef.Name = nameToken.Value;
@@ -302,7 +303,7 @@ namespace ForthCompiler
             var nameToken = Cur;
             if (nameToken.Type != TokenType.IDENTIFIER)
             {
-                throw Error(VMLPlugins.Strings.ExpectedIdentifier("常量名"));
+                throw Error(VMLPlugins.Strings.ExpectedIdentifier(VmlLang.Pick("常量名", "constant name")));
             }
             constDef.Name = nameToken.Value;
             Advance();
@@ -318,7 +319,7 @@ namespace ForthCompiler
             }
             else
             {
-                throw Error(VMLPlugins.Strings.ExpectedToken("数字或字符", GetTokenType(Cur).ToString()));
+                throw Error(VMLPlugins.Strings.ExpectedToken(VmlLang.Pick("数字或字符", "number or character"), GetTokenType(Cur).ToString()));
             }
             
             definedConstants.Add(constDef.Name);
@@ -352,7 +353,7 @@ namespace ForthCompiler
             }
             else
             {
-                throw Error(VMLPlugins.Strings.ExpectedToken("数字、字符或字符串", GetTokenType(Cur).ToString()));
+                throw Error(VMLPlugins.Strings.ExpectedToken(VmlLang.Pick("数字、字符或字符串", "number, character or string"), GetTokenType(Cur).ToString()));
             }
             
             // 期望 CONSTANT 关键字
@@ -362,7 +363,7 @@ namespace ForthCompiler
             var nameToken = Cur;
             if (nameToken.Type != TokenType.IDENTIFIER)
             {
-                throw Error(VMLPlugins.Strings.ExpectedIdentifier("常量名"));
+                throw Error(VMLPlugins.Strings.ExpectedIdentifier(VmlLang.Pick("常量名", "constant name")));
             }
             constDef.Name = nameToken.Value;
             definedConstants.Add(constDef.Name);

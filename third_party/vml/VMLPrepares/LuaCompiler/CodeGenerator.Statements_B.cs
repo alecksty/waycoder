@@ -1043,7 +1043,7 @@ namespace LuaCompiler
             else
             {
                 // 其他函数表达式暂不支持
-                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的函数调用表达式");
+                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick("不支持的函数调用表达式", "unsupported function call expression"));
             }
         }
         

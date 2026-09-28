@@ -569,7 +569,7 @@ namespace PascalCompiler
                         if (IsSetTypeExpression(binaryOp.Right))
                             GenerateInOperation(binaryOp);
                         else
-                            Error("IN 运算符的右操作数必须是集合类型");
+                            Error(VmlLang.Pick("IN 运算符的右操作数必须是集合类型", "the right operand of the IN operator must be a set type"));
                         break;
                     case TokenType.EQUALS: _expr!.EmitCmp(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right), "=="); break;
                     case TokenType.NOT_EQUALS: _expr!.EmitCmp(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right), "!="); break;
@@ -583,7 +583,7 @@ namespace PascalCompiler
                     case TokenType.SHL: _expr!.EmitShl(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right)); break;
                     case TokenType.SHR: _expr!.EmitShr(WrapExpr(binaryOp.Left), WrapExpr(binaryOp.Right)); break;
                     default:
-                        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"不支持的二元运算符: {binaryOp.Operator}");
+                        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, VmlLang.Pick($"不支持的二元运算符: {binaryOp.Operator}", $"unsupported binary operator: {binaryOp.Operator}"));
                 }
             }
             else if (expr is FunctionCallNode funcCall)
@@ -617,7 +617,7 @@ namespace PascalCompiler
             }
             else
             {
-                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, $"不支持的表达式类型: {expr.GetType().Name}");
+                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick($"不支持的表达式类型: {expr.GetType().Name}", $"unsupported expression type: {expr.GetType().Name}"));
             }
         }
 

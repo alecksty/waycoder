@@ -169,7 +169,7 @@ namespace PascalCompiler
                 return GenerateProgramCode(programNode);
             else if (astNode is UnitNode unitNode)
                 return GenerateUnitCode(unitNode);
-            throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的AST节点类型");
+            throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick("不支持的AST节点类型", "unsupported AST node type"));
         }
 
         /// <summary>
@@ -195,7 +195,8 @@ namespace PascalCompiler
             var text = lit.Value.ToString() ?? "";
             if (int.TryParse(text, out int parsed)) return parsed;
             throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression,
-                $"常量数组里出现了非整数元素 `{text}`：字符串常量数组（`array[…] of string = (…)`）本前端尚未支持");
+                VmlLang.Pick($"常量数组里出现了非整数元素 `{text}`：字符串常量数组（`array[…] of string = (…)`）本前端尚未支持",
+                             $"non-integer element in constant array `{text}`: string constant arrays (`array[…] of string = (…)`) are not yet supported by this frontend"));
         }
 
         private VmlProgram GenerateProgramCode(ProgramNode ast)

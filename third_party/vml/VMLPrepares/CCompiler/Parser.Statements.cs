@@ -2,6 +2,7 @@ using CompilerBase;
 #nullable disable // auto-generated
 
 using System.Collections.Generic;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -477,7 +478,7 @@ namespace CCompiler
                                 catch (System.OverflowException)
                                 {
                                     throw Error(ErrorCode.Parser_UnexpectedToken,
-                                        $"数组维度字面量超出 int 范围：{Current().Value}");
+                                        VmlLang.Pick($"数组维度字面量超出 int 范围：{Current().Value}", $"array dimension literal out of int range: {Current().Value}"));
                                 }
                                 Advance();
                             }
@@ -806,7 +807,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    Console.Error.WriteLine($"[SKIP] switch内跳过无法识别的token: {Current().Type} at line {Current().OriginalLine}");
+                    Console.Error.WriteLine(VmlLang.Pick($"[SKIP] switch内跳过无法识别的token: {Current().Type} at line {Current().OriginalLine}", $"[SKIP] skipping unrecognized token inside switch: {Current().Type} at line {Current().OriginalLine}"));
                     // 容错: 跳过直到同级 CASE/DEFAULT/RBRACE (跟踪大括号深度)
                     int switchDepth = 0;
                     while (Current().Type != TokenType.EOF)
@@ -824,7 +825,7 @@ namespace CCompiler
                 }
             }
 
-            Expect(TokenType.RBRACE, $"switch体未关闭, 行{Current().OriginalLine}");
+            Expect(TokenType.RBRACE, VmlLang.Pick($"switch体未关闭, 行{Current().OriginalLine}", $"switch body not closed, line {Current().OriginalLine}"));
             return new SwitchStatement(expression, cases, defaultStmt);
         }
 

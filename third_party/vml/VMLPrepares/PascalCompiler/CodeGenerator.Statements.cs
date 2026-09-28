@@ -75,7 +75,7 @@ namespace PascalCompiler
             }
             else
             {
-                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, $"不支持的语句类型: {statement.GetType().Name}");
+                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VmlLang.Pick($"不支持的语句类型: {statement.GetType().Name}", $"unsupported statement type: {statement.GetType().Name}"));
             }
         }
         
@@ -1214,7 +1214,7 @@ namespace PascalCompiler
                     string? ptrRec = derefCount > 0 ? TryGetPointerTargetRecordType(varName) : null;
                     if (ptrRec is null)
                         throw new CompilationException(ErrorCode.CodeGen_TypeMismatch,
-                            $"变量 '{varName}' 不是record类型，无法访问字段");
+                            VmlLang.Pick($"变量 '{varName}' 不是record类型，无法访问字段", $"variable '{varName}' is not a record type; cannot access fields"));
                     recordTypeName = ptrRec;
                 }
             }
@@ -1231,7 +1231,7 @@ namespace PascalCompiler
                 var layout = recordFieldLayouts[currentRecordType];
                 string upperField = fieldName.ToUpper();
                 if (!layout.ContainsKey(upperField))
-                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"record类型 '{currentRecordType}' 中不存在字段 '{fieldName}'");
+                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick($"record类型 '{currentRecordType}' 中不存在字段 '{fieldName}'", $"field '{fieldName}' does not exist in record type '{currentRecordType}'"));
 
                 var (offset, type) = layout[upperField];
                 totalOffset += offset;

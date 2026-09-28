@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using VMLAssembler;
 using CompilerBase;
 
 namespace FortranCompiler;
@@ -194,7 +195,7 @@ public class Lexer : LexerBase
                     Tokens.Add(new Token(TokenType.Dot, ".", l, col));
                     break;
                 default:
-                    Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}' (0x{(int)c:X2})");   // 位置交给统一出口
+                    Error(ErrorCode.Lexer_UnknownCharacter, VmlLang.Pick($"意外的字符: '{c}' (0x{(int)c:X2})", $"unexpected character: '{c}' (0x{(int)c:X2})"));   // 位置交给统一出口
                     break;
             }
         }

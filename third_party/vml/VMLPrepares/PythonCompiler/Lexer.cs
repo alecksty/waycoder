@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace PythonCompiler
 {
@@ -111,7 +112,7 @@ namespace PythonCompiler
             
             if (Peek() != quote)
             {
-                Error("未终止的字符串");
+                Error(VmlLang.Pick("未终止的字符串", "unterminated string"));
             }
             Advance(); // 跳过结束引号
             
@@ -153,7 +154,7 @@ namespace PythonCompiler
                     }
                     if (Peek() != '}')
                     {
-                        Error("未终止的f-string表达式");
+                        Error(VmlLang.Pick("未终止的f-string表达式", "unterminated f-string expression"));
                     }
                     Advance(); // 跳过}
                     
@@ -168,7 +169,7 @@ namespace PythonCompiler
             
             if (Peek() != quote)
             {
-                Error("未终止的f-string");
+                Error(VmlLang.Pick("未终止的f-string", "unterminated f-string"));
             }
             Advance(); // 跳过结束引号
             
@@ -433,7 +434,7 @@ namespace PythonCompiler
                         break;
                     case '!':
                         if (Peek() == '=') { Advance(); Tokens.Add(new Token(TokenType.NE, "!=", _line, _col)); }
-                        else Error($"意外的字符: {c}");
+                        else Error(VmlLang.Pick($"意外的字符: {c}", $"unexpected character: {c}"));
                         break;
                     case '<':
                         if (Peek() == '=') { Advance(); Tokens.Add(new Token(TokenType.LE, "<=", _line, _col)); }
@@ -451,7 +452,7 @@ namespace PythonCompiler
                     case '~': Tokens.Add(new Token(TokenType.BITNOT, "~", _line, _col)); break;
                     case '@': Tokens.Add(new Token(TokenType.AT, "@", _line, _col)); break;
                     default:
-                        Error($"意外的字符: {c}");
+                        Error(VmlLang.Pick($"意外的字符: {c}", $"unexpected character: {c}"));
                         break;
                 }
             }

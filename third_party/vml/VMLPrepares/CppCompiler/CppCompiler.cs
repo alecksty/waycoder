@@ -88,7 +88,7 @@ namespace CppCompiler
                         allLibraryPaths.Add(resolved);
                 }
                 else
-                    throw new CompilationException(ErrorCode.Compilation_InternalError, $"CppCompiler: 找不到 #param 指定的库: {lib}");
+                    throw new CompilationException(ErrorCode.Compilation_InternalError, VmlLang.Pick($"CppCompiler: 找不到 #param 指定的库: {lib}", $"CppCompiler: library specified by #param not found: {lib}"));
             }
 
             if (autoLinkStdLib)

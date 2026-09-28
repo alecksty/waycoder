@@ -1048,7 +1048,9 @@ namespace BasicCompiler
                         }
                     }
                     if (!fnd)
-                        throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'");
+                        throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick(
+                            $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'",
+                            $"type '{tDef.Name}' has no field '{fieldName}'"));
 
                     // ⚠ 这里从前是**一条读指令**（`MOVE R1, [R3]`）：SUB 体内的
                     //   `BCoor(i).XCoor = x` 除了算出个地址之外什么都没干，值根本没写进去
@@ -1094,7 +1096,9 @@ namespace BasicCompiler
                 }
 
                 if (!found)
-                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{typeDef.Name}' 中没有字段 '{fieldName}'");
+                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick(
+                        $"类型 '{typeDef.Name}' 中没有字段 '{fieldName}'",
+                        $"type '{typeDef.Name}' has no field '{fieldName}'"));
 
                 // In SUB context, check locals first
                 if (currentLocalVars.ContainsKey(recordName))
@@ -1171,7 +1175,9 @@ namespace BasicCompiler
                     EmitStaticAddr(3, STATIC_GLOBALS_OFFSET + GetVarByteOffset(varName));
                     return "R3";
                 }
-                throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"FOR 变量 '{stmt.Variable.Name}' 未定义");
+                throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                    $"FOR 变量 '{stmt.Variable.Name}' 未定义",
+                    $"FOR variable '{stmt.Variable.Name}' is not defined"));
             }
 
             // 「算地址 + 立刻访问」的**组合助手** —— 循环变量的读/写一律走它们。
@@ -1690,7 +1696,8 @@ namespace BasicCompiler
                     // 认不出的运算符 —— 此前是**默默什么都不发**，于是 `100 \ 2` / `100 MOD 7`
                     // 编出来的是一条"没有运算"的赋值（实测都得到 61：上一次运算残留的值）。
                     // 现在报出来，别再让它静默。
-                    WarnUnimplemented($"二元运算符 {binary.Operator}");
+                    WarnUnimplemented(VmlLang.Pick($"二元运算符 {binary.Operator}",
+                                                   $"binary operator {binary.Operator}"));
                 }
             }
             else if (expr is UnaryExpression unary)
@@ -2024,7 +2031,9 @@ namespace BasicCompiler
                 }
                 else
                 {
-                    throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{varName}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                    throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                        $"变量 '{varName}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                        $"variable '{varName}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                 }
             }
         }
@@ -2177,8 +2186,9 @@ namespace BasicCompiler
                 else if (Wide(i))
                     // 到不了：① 对"宽且非 BYREF"一律造了临时量。留一条显式防线，
                     // 免得将来改了 ① 的判据后这里**静默**压个值（那就是半个 double）。
-                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch,
-                        $"内部错误：8 字节形参 '{i}' 没有临时量（{currentSubName ?? "主程序"}）");
+                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick(
+                        $"内部错误：8 字节形参 '{i}' 没有临时量（{currentSubName ?? "主程序"}）",
+                        $"internal error: the 8-byte parameter '{i}' has no temporary ({currentSubName ?? "main program"})"));
                 else
                     EmitArgValue(args[i], 0, subScope);
                 AddInstruction(OpCode.PUSH, Reg(0));

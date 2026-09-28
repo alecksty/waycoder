@@ -582,7 +582,9 @@ namespace BasicCompiler
                         }
                         else
                         {
-                            throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{ident.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                            throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                                $"变量 '{ident.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                                $"variable '{ident.Name}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                         }
                     }
                 }
@@ -638,7 +640,9 @@ namespace BasicCompiler
 
                     if (!fnd)
                     {
-                        throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'");
+                        throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick(
+                            $"类型 '{tDef.Name}' 中没有字段 '{fieldName}'",
+                            $"type '{tDef.Name}' has no field '{fieldName}'"));
                     }
 
                     // 记录基址 + 字段偏移 → 写值（唯一实现，见 EmitFieldStore）
@@ -674,7 +678,9 @@ namespace BasicCompiler
 
                 if (!found)
                 {
-                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, $"类型 '{typeDef.Name}' 中没有字段 '{fieldName}'");
+                    throw new CompilationException(ErrorCode.CodeGen_TypeMismatch, VmlLang.Pick(
+                        $"类型 '{typeDef.Name}' 中没有字段 '{fieldName}'",
+                        $"type '{typeDef.Name}' has no field '{fieldName}'"));
                 }
 
                 // Compute address and store
@@ -838,7 +844,9 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                            $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                            $"variable '{stmt.Variable.Name}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                     }
                 }
             }
@@ -877,7 +885,9 @@ namespace BasicCompiler
                         EmitLoadVar(0, stmt.Variable.Name.ToLower());   // 全局段（见 EmitLoadVar）
                     }
                     else
-                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义");
+                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                            $"变量 '{stmt.Variable.Name}' 未定义",
+                            $"variable '{stmt.Variable.Name}' is not defined"));
                 }
             }
             else
@@ -959,7 +969,9 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                            $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                            $"variable '{stmt.Variable.Name}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                     }
                 }
             }
@@ -1009,7 +1021,9 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)");
+                        throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, VmlLang.Pick(
+                            $"变量 '{stmt.Variable.Name}' 未定义 (在 SUB/FUNCTION '{currentSubName}' 中)",
+                            $"variable '{stmt.Variable.Name}' is not defined (in SUB/FUNCTION '{currentSubName}')"));
                     }
                 }
             }

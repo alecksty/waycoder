@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CompilerBase;
+using VMLAssembler;
 
 namespace CCompiler
 {
@@ -136,10 +137,10 @@ namespace CCompiler
             var errorLine = GetLine(_line);
             var arrow = new string(' ', _col - 1) + "^";
             var (originalFile, originalLine) = GetOriginalFileAndLine(_line);
-            var fileName = originalFile != null ? $"文件 {originalFile} " : "";
+            var fileName = originalFile != null ? VmlLang.Pick($"文件 {originalFile} ", $"in file {originalFile} ") : "";
             var lineNumber = originalLine > 0 ? originalLine : _line;
             throw new CompilerBase.ParseException(code,
-                $"词法错误 {fileName}在第{lineNumber}行{_col}列：{message}\n{errorLine}\n{arrow}");
+                VmlLang.Pick($"词法错误 {fileName}在第{lineNumber}行{_col}列：{message}\n{errorLine}\n{arrow}", $"lexical error {fileName}at line {lineNumber}, column {_col}: {message}\n{errorLine}\n{arrow}"));
         }
 
         /// <summary>
@@ -235,7 +236,7 @@ namespace CCompiler
                 {
                     if (Peek() == '\0')
                     {
-                        Error(ErrorCode.Lexer_UnterminatedComment, "未结束的注释");
+                        Error(ErrorCode.Lexer_UnterminatedComment, VmlLang.Pick("未结束的注释", "unterminated comment"));
                     }
                     Advance();
                 }
@@ -256,7 +257,7 @@ namespace CCompiler
                 char ch = Peek();
                 if (ch == '\0')
                 {
-                    Error(ErrorCode.Lexer_UnterminatedString, "未结束的字符串");
+                    Error(ErrorCode.Lexer_UnterminatedString, VmlLang.Pick("未结束的字符串", "unterminated string"));
                 }
                 if (ch == quote)
                 {
@@ -293,7 +294,7 @@ namespace CCompiler
                                     Advance();
                                 int hexLen = _pos - hexStart;
                                 if (hexLen == 0)
-                                    Error(ErrorCode.Lexer_InvalidHexEscape, "无效的十六进制转义序列: \\x 后需要十六进制数字");
+                                    Error(ErrorCode.Lexer_InvalidHexEscape, VmlLang.Pick("无效的十六进制转义序列: \\x 后需要十六进制数字", "invalid hex escape sequence: \\x requires hexadecimal digits"));
                                 sb.Append((char)System.Convert.ToInt32(_source.Substring(hexStart, hexLen), 16));
                             }
                             break;
@@ -336,7 +337,7 @@ namespace CCompiler
         {
             Advance();  // opening quote
             if (_pos >= _source.Length)
-                Error(ErrorCode.Lexer_EmptyCharLiteral, "空字符字面量");
+                Error(ErrorCode.Lexer_EmptyCharLiteral, VmlLang.Pick("空字符字面量", "empty character literal"));
             char first = Advance();
             int codePoint;
             if (first == '\\')
@@ -348,7 +349,7 @@ namespace CCompiler
                 codePoint = (int)first;
             }
             if (_pos >= _source.Length || _source[_pos] != '\'')
-                Error(ErrorCode.Lexer_UnterminatedCharLiteral, "未终止的字符字面量");
+                Error(ErrorCode.Lexer_UnterminatedCharLiteral, VmlLang.Pick("未终止的字符字面量", "unterminated character literal"));
             Advance();  // closing quote
             return codePoint;
         }
@@ -376,7 +377,7 @@ namespace CCompiler
                     while (char.IsDigit(Peek()) || (char.ToUpper(Peek()) >= 'A' && char.ToUpper(Peek()) <= 'F'))
                         hexVal += Advance();
                     if (hexVal.Length == 0)
-                        Error(ErrorCode.Lexer_InvalidHexEscape, "无效的十六进制转义序列: \\x 后需要十六进制数字");
+                        Error(ErrorCode.Lexer_InvalidHexEscape, VmlLang.Pick("无效的十六进制转义序列: \\x 后需要十六进制数字", "invalid hex escape sequence: \\x requires hexadecimal digits"));
                     return System.Convert.ToInt32(hexVal, 16);
                 }
                 default:
@@ -431,7 +432,7 @@ namespace CCompiler
             // 检查是否为空字符
             if (Peek() == quote)
             {
-                Error(ErrorCode.Lexer_EmptyCharLiteral, "空字符字面量");
+                Error(ErrorCode.Lexer_EmptyCharLiteral, VmlLang.Pick("空字符字面量", "empty character literal"));
             }
 
             // 转义字符
@@ -458,7 +459,7 @@ namespace CCompiler
                             while (char.IsDigit(Peek()) || (char.ToUpper(Peek()) >= 'A' && char.ToUpper(Peek()) <= 'F'))
                                 hexVal += Advance();
                             if (hexVal.Length == 0)
-                                Error(ErrorCode.Lexer_InvalidHexEscape, "无效的十六进制转义序列: \\x 后需要十六进制数字");
+                                Error(ErrorCode.Lexer_InvalidHexEscape, VmlLang.Pick("无效的十六进制转义序列: \\x 后需要十六进制数字", "invalid hex escape sequence: \\x requires hexadecimal digits"));
                             value = (char)System.Convert.ToInt32(hexVal, 16);
                         }
                         break;
@@ -478,7 +479,7 @@ namespace CCompiler
             // 检查结束引号
             if (Peek() != quote)
             {
-                Error(ErrorCode.Lexer_CharLiteralTooLong, "字符字面量包含多个字符");
+                Error(ErrorCode.Lexer_CharLiteralTooLong, VmlLang.Pick("字符字面量包含多个字符", "character literal contains more than one character"));
             }
             Advance();
 
@@ -499,7 +500,7 @@ namespace CCompiler
                 char ch = Peek();
                 if (ch == '\0')
                 {
-                    Error("未结束的汇编指令");
+                    Error(VmlLang.Pick("未结束的汇编指令", "unterminated assembly directive"));
                 }
                 if (ch == quote)
                 {
@@ -541,7 +542,7 @@ namespace CCompiler
                     // 检查后缀是否有效
                     if (suffixChar != 'L' && suffixChar != 'U')
                     {
-                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, $"无效的十六进制常量后缀: '{suffixChar}'");
+                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, VmlLang.Pick($"无效的十六进制常量后缀: '{suffixChar}'", $"invalid hexadecimal constant suffix: '{suffixChar}'"));
                     }
                 }
                 
@@ -566,7 +567,7 @@ namespace CCompiler
                                     System.Globalization.CultureInfo.InvariantCulture, out ulong u64))
                 {
                     throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix,
-                        $"无效的十六进制常量: '{value}{hexSuffix}'");
+                        VmlLang.Pick($"无效的十六进制常量: '{value}{hexSuffix}'", $"invalid hexadecimal constant: '{value}{hexSuffix}'"));
                 }
                 // token 的 Value 只承载 32 位（前端对 64 位常量的既有约定是保留低 32 位位模式），
                 // 但**解析阶段不能因为超出 int64 就抛** —— 那是两个不同的问题。
@@ -585,7 +586,7 @@ namespace CCompiler
                 // 检查是否有无效的八进制数字(8,9)
                 if (char.IsDigit(Peek()))
                 {
-                    Error($"无效的八进制数字: '{Peek()}'");
+                    Error(VmlLang.Pick($"无效的八进制数字: '{Peek()}'", $"invalid octal digit: '{Peek()}'"));
                 }
                 // 处理后缀
                 string octSuffix = "";
@@ -594,7 +595,7 @@ namespace CCompiler
                     char suffixChar = char.ToUpper(Advance());
                     octSuffix += suffixChar;
                     if (suffixChar != 'L' && suffixChar != 'U')
-                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidOctalDigit, $"无效的八进制常量后缀: '{suffixChar}'");
+                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidOctalDigit, VmlLang.Pick($"无效的八进制常量后缀: '{suffixChar}'", $"invalid octal constant suffix: '{suffixChar}'"));
                 }
                 ValidateSuffixCombination(octSuffix);
                 var (octFile, octLine) = GetOriginalFileAndLine(startLine);
@@ -655,7 +656,7 @@ namespace CCompiler
                     // 检查后缀是否有效（浮点数只支持F后缀）
                     if (suffixChar != 'F' && suffixChar != 'L')
                     {
-                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidFloatSuffix, $"无效的浮点数常量后缀: '{suffixChar}'");
+                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidFloatSuffix, VmlLang.Pick($"无效的浮点数常量后缀: '{suffixChar}'", $"invalid floating-point constant suffix: '{suffixChar}'"));
                     }
                 }
                 
@@ -693,7 +694,7 @@ namespace CCompiler
                     // 检查后缀是否有效（科学计数法后只支持F后缀）
                     if (suffixChar != 'F')
                     {
-                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidSciSuffix, $"无效的科学计数法常量后缀: '{suffixChar}'");
+                        throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidSciSuffix, VmlLang.Pick($"无效的科学计数法常量后缀: '{suffixChar}'", $"invalid scientific notation constant suffix: '{suffixChar}'"));
                     }
                 }
                 
@@ -713,7 +714,7 @@ namespace CCompiler
                 // 检查后缀是否有效
                 if (suffixChar != 'L' && suffixChar != 'U' && suffixChar != 'F')
                 {
-                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, $"无效的常量后缀: '{suffixChar}'");
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, VmlLang.Pick($"无效的常量后缀: '{suffixChar}'", $"invalid constant suffix: '{suffixChar}'"));
                 }
             }
             
@@ -790,7 +791,7 @@ namespace CCompiler
             {
                 // LL (long long) 和 ULL 合法, LLL 不合法
                 if (kv.Value > 2 || (kv.Key != 'L' && kv.Value > 1))
-                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidSuffixCombination, $"无效的常量后缀组合: '{suffix}'（重复字符 '{kv.Key}'）");
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidSuffixCombination, VmlLang.Pick($"无效的常量后缀组合: '{suffix}'（重复字符 '{kv.Key}'）", $"invalid constant suffix combination: '{suffix}' (duplicate character '{kv.Key}')"));
             }
             
             // 检查后缀组合是否有效
@@ -801,7 +802,7 @@ namespace CCompiler
                 // 浮点数后缀只能单独使用F，或者与L组合（long double）
                 if (suffix.Length > 1 && !(suffix.Length == 2 && suffix.Contains('L')))
                 {
-                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidFloatSuffix, $"无效的浮点数常量后缀: '{suffix}'（F只能单独使用或与L组合）");
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidFloatSuffix, VmlLang.Pick($"无效的浮点数常量后缀: '{suffix}'（F只能单独使用或与L组合）", $"invalid floating-point constant suffix: '{suffix}' (F may only be used alone or with L)"));
                 }
             }
             
@@ -811,7 +812,7 @@ namespace CCompiler
                 // UL, LU, ULL, LLU 都有效 (long long)
                 if (suffix != "UL" && suffix != "LU" && suffix != "ULL" && suffix != "LLU")
                 {
-                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, $"无效的整数常量后缀: '{suffix}'");
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix, VmlLang.Pick($"无效的整数常量后缀: '{suffix}'", $"invalid integer constant suffix: '{suffix}'"));
                 }
             }
         }
@@ -1044,7 +1045,7 @@ namespace CCompiler
             {
                 return new Token(singleTokenType, ch, startLine, startCol, sourceLine, originalFile, originalLine);
             }
-            Error($"未知字符：{ch}");
+            Error(VmlLang.Pick($"未知字符：{ch}", $"unknown character: {ch}"));
             return null;
         }
 
@@ -1081,7 +1082,7 @@ namespace CCompiler
                 case "ifndef":
                     return new Token(TokenType.IFNDEF, directive, startLine, startCol);
                 default:
-                    Error($"未知的预处理器指令：{directive}");
+                    Error(VmlLang.Pick($"未知的预处理器指令：{directive}", $"unknown preprocessor directive: {directive}"));
                     return null;
             }
         }
@@ -1093,7 +1094,7 @@ namespace CCompiler
         {
             Tokens.Clear();
             if (DumpMode)
-                Console.Error.WriteLine($"[Lexer] 开始词法分析, 源长度={_source.Length} 字符, DumpMode={DumpMode}");
+                Console.Error.WriteLine(VmlLang.Pick($"[Lexer] 开始词法分析, 源长度={_source.Length} 字符, DumpMode={DumpMode}", $"[Lexer] lexing started, source length={_source.Length} chars, DumpMode={DumpMode}"));
             int srcLen = _source.Length;
             if (srcLen == 0)
             {
@@ -1109,7 +1110,7 @@ namespace CCompiler
             while (true)
             {
                 if (++safetyCounter > maxTokens)
-                    throw new CompilerBase.ParseException(ErrorCode.Lexer_TooManyTokens, $"Lexer: 超过最大 token 数 ({maxTokens}), 源文件可能包含无限循环结构");
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_TooManyTokens, VmlLang.Pick($"Lexer: 超过最大 token 数 ({maxTokens}), 源文件可能包含无限循环结构", $"Lexer: token count exceeds the limit ({maxTokens}), the source may contain an infinite loop"));
                 var token = ScanToken();
                 Tokens.Add(token);
                 if (safetyCounter >= nextReportAt)

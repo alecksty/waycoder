@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using CompilerBase;
+using VMLAssembler;
 
 namespace PascalCompiler
 {
@@ -138,7 +139,7 @@ namespace PascalCompiler
                 while (true)
                 {
                     char ch = Peek();
-                    if (ch == '\0') Error("未结束的注释");
+                    if (ch == '\0') Error(VmlLang.Pick("未结束的注释", "unterminated comment"));
                     if (ch == '}')
                     {
                         string content = _source.Substring(contentStart, _pos - contentStart).Trim();
@@ -158,7 +159,7 @@ namespace PascalCompiler
                 while (true)
                 {
                     char ch = Peek();
-                    if (ch == '\0') Error("未结束的注释");
+                    if (ch == '\0') Error(VmlLang.Pick("未结束的注释", "unterminated comment"));
                     if (ch == '*' && Peek(1) == ')')
                     {
                         string content = _source.Substring(contentStart, _pos - contentStart).Trim();
@@ -294,7 +295,7 @@ namespace PascalCompiler
                 char ch = Peek();
                 if (ch == '\0')
                 {
-                    Error("未结束的字符串");
+                    Error(VmlLang.Pick("未结束的字符串", "unterminated string"));
                 }
                 if (ch == '"')
                 {
@@ -385,13 +386,13 @@ namespace PascalCompiler
 
             if (value.Length == 0)
             {
-                Error("字符转义需要数字");
+                Error(VmlLang.Pick("字符转义需要数字", "character escape requires digits"));
             }
 
             int charCode = Convert.ToInt32(value.ToString(), hex ? 16 : 10);
             if (charCode < 0 || charCode > 255)
             {
-                Error($"无效的字符代码: {charCode}");
+                Error(VmlLang.Pick($"无效的字符代码: {charCode}", $"invalid character code: {charCode}"));
             }
 
             return (char)charCode;
@@ -408,7 +409,7 @@ namespace PascalCompiler
                 char ch = Peek();
                 if (ch == '\0')
                 {
-                    Error("未结束的字符串");
+                    Error(VmlLang.Pick("未结束的字符串", "unterminated string"));
                 }
                 if (ch == '\'')
                 {
@@ -588,7 +589,7 @@ namespace PascalCompiler
                             // 忽略不可打印的控制字符 (v1.66.33)
                             if (current < 32 && current != '\n' && current != '\r' && current != '\t')
                                 break;
-                            Error($"未知字符: {current}");
+                            Error(VmlLang.Pick($"未知字符: {current}", $"unknown character: {current}"));
                             break;
                     }
                 }

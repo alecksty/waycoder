@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using VMLPlugins;
 using CompilerBase;
+using VMLAssembler;
 
 namespace SwiftCompiler
 {
@@ -180,7 +181,7 @@ namespace SwiftCompiler
             {
                 if (IsMCU)
                 {
-                    WarningEmitter.Emit("swift", $"MCU模式: 异步/并发关键字被忽略（不支持异步/并发）");
+                    WarningEmitter.Emit("swift", VmlLang.Pick($"MCU模式: 异步/并发关键字被忽略（不支持异步/并发）", $"MCU mode: async/concurrency keywords ignored (async/concurrency not supported)"));
                 }
                 // OS mode: allow async/await through (emit runtime stubs later)
                 if (Check(TokenType.Async) || Check(TokenType.Await) || Check(TokenType.Actor))
@@ -255,7 +256,7 @@ namespace SwiftCompiler
                     GetTokenType(Cur) == TokenType.Character)
                     typeAnnotation = Advance().Value;
                 else
-                    throw Error("期望类型注解");   // 两参构造不带位置 ⇒ 改统一出口（拼 `文件:行:列:` + 查 #include 映射）
+                    throw Error(VmlLang.Pick("期望类型注解", "expected type annotation"));   // 两参构造不带位置 ⇒ 改统一出口（拼 `文件:行:列:` + 查 #include 映射）
             }
             
             Expression initializer = null;
@@ -328,7 +329,7 @@ namespace SwiftCompiler
                     }
                     else
                     {
-                        throw Error("期望参数类型");   // 同上
+                        throw Error(VmlLang.Pick("期望参数类型", "expected parameter type"));   // 同上
                     }
                     
                     parameters.Add(new Parameter(externalName, internalName, type));
@@ -1047,7 +1048,7 @@ namespace SwiftCompiler
             //      而 `Cur` 是解析器"撞上"的那个（`let c = a +` 要等换行后遇到 `}` 才发作）。
             //      钉在 `Cur` 上就报到**下一行**去了（实测 5:1 而不是 4:x）。
             //      用 `ErrorAt(…, Previous())`：位置取 `+`（出错那一行），文案仍旧说"找到了什么"。
-            var ex = ErrorAt($"期望表达式，但找到 {GetTokenType(Cur)}", Previous());
+            var ex = ErrorAt(VmlLang.Pick($"期望表达式，但找到 {GetTokenType(Cur)}", $"expected expression, found {GetTokenType(Cur)}"), Previous());
             Advance();
             throw ex;
         }

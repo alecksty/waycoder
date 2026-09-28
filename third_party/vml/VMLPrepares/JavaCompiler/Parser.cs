@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using VMLPlugins;
 using CompilerBase;
+using VMLAssembler;
 
 namespace JavaCompiler
 {
@@ -290,11 +291,11 @@ namespace JavaCompiler
                 else if (Match(TokenType.Final)) modifiers.IsFinal = true;
                 else if (Match(TokenType.Abstract)) modifiers.IsAbstract = true;
                 else if (Match(TokenType.Synchronized)) {
-                    if (IsMCU) WarningEmitter.Emit("java", "MCU模式: synchronized被忽略（不支持多线程）");
+                    if (IsMCU) WarningEmitter.Emit("java", VmlLang.Pick("MCU模式: synchronized被忽略（不支持多线程）", "MCU mode: synchronized ignored (no multithreading support)"));
                     modifiers.IsSynchronized = true;
                 }
                 else if (Match(TokenType.Volatile)) {
-                    if (IsMCU) WarningEmitter.Emit("java", "MCU模式: volatile被忽略（不支持多线程）");
+                    if (IsMCU) WarningEmitter.Emit("java", VmlLang.Pick("MCU模式: volatile被忽略（不支持多线程）", "MCU mode: volatile ignored (no multithreading support)"));
                     modifiers.IsVolatile = true;
                 }
                 else if (Match(TokenType.Transient)) modifiers.IsTransient = true;
@@ -1322,7 +1323,8 @@ namespace JavaCompiler
             // 现在：报在**缺口**（那个 `+`）上；收尾符**留给外层**去消费（那正是它要的），
             // 其余垃圾 token 才吃掉 —— 保证推进，否则调用方的循环会原地打转。
             var __anchor = GapAnchor();
-            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+            GccErrorAt(VmlLang.Pick($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+                       $"missing or extra expression (found '{Cur.Value ?? GetTokenType(Cur).ToString()}')"),
                        __anchor, ErrorCode.Parser_SyntaxError);
             if (!IsExpressionCloser(Cur)) Advance();
             return new LiteralExpression(0, "int");

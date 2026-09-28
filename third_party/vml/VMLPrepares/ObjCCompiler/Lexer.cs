@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 using CompilerBase;
+using VMLAssembler;
 
 namespace ObjCCompiler;
 
@@ -107,7 +108,7 @@ public class Lexer : LexerBase
                 case ':': Tokens.Add(new Token(TokenType.Colon, ":", _line, _col)); break;
                 case '?': Tokens.Add(new Token(TokenType.Question, "?", _line, _col)); break;
                 case '.': Tokens.Add(Match('.') ? (Match('.') ? new Token(TokenType.Ellipsis, "...", _line, _col) : new Token(TokenType.Dot, "..", _line, _col)) : new Token(TokenType.Dot, ".", _line, _col)); break;
-                default: Error($"意外的字符: {c}"); break;
+                default: Error(VmlLang.Pick($"意外的字符: {c}", $"unexpected character: {c}")); break;
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

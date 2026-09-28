@@ -352,7 +352,7 @@ namespace JavaScriptCompiler
         {
             // Look up parent class name
             if (_currentClassName == null || !_classParentMap.TryGetValue(_currentClassName, out string parentClass))
-                throw new CompilationException(ErrorCode.CodeGen_UndefinedFunction, "super() 只能在子类构造函数中调用");
+                throw new CompilationException(ErrorCode.CodeGen_UndefinedFunction, VmlLang.Pick("super() 只能在子类构造函数中调用", "super() can only be called in a subclass constructor"));
 
             // Push arguments in reverse order (same as GenerateNewExpression)
             for (int i = superExpr.Arguments.Count - 1; i >= 0; i--)
