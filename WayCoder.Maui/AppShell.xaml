@@ -6,7 +6,7 @@
     xmlns:local="clr-namespace:WayCoder.Maui"
     xmlns:pages="clr-namespace:WayCoder.Maui.Pages"
     xmlns:markup="clr-namespace:WayCoder.Maui.Markup"
-    Title="{markup:Tr Zh='WayCoder 道码', En='WayCoder'}">
+    Title="{markup:Tr Zh='Dolaima 都来码', En='Dolaima'}">
 
     <TabBar>
         <!-- 首页 Tab：欢迎/引导 + 配置状态 -->

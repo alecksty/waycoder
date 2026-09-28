@@ -57,7 +57,7 @@
 	<string>Assets.xcassets/appicon.appiconset</string>
 	<!-- 出口合规（export compliance）：缺这个键，App Store Connect **每次上传都会把构建标成
 	     「缺少出口合规信息」**，既不给 TestFlight 测试也不给提交，得人工去后台点一次。
-	     道码只用系统 TLS（HTTPS）连 LLM 接口，属"仅用豁免加密" ⇒ 填 false。
+	     都来码只用系统 TLS（HTTPS）连 LLM 接口，属"仅用豁免加密" ⇒ 填 false。
 	     ⚠ 将来若自己在代码里实现加密算法（不走系统库），这里必须改 true 并在后台上传申报文件。 -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
@@ -70,9 +70,9 @@
 	     `Resources/en.lproj/InfoPlist.strings` 与 `Resources/zh-Hans.lproj/InfoPlist.strings`。
 	     `SelfTest` 的 `[Apple 权限文案中英双语]` 段把这些**全部**钉住，漏一处即红。 -->
 	<key>NSCameraUsageDescription</key>
-	<string>Used to take photos so WayCoder can look at images while fixing bugs.</string>
+	<string>Used to take photos so Dolaima can look at images while fixing bugs.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Used to pick images from your library so WayCoder can look at them while fixing bugs.</string>
+	<string>Used to pick images from your library so Dolaima can look at them while fixing bugs.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Used for voice input (speak instead of typing).</string>
 	<!-- App Store 商品页的「语言」栏 = 这里列出的语言（也是审核项：只列 zh 会被判"仅支持中文"）。

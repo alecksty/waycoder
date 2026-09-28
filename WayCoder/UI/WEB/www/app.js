@@ -2284,7 +2284,7 @@ function edSync() {
   renderGutter();
   scheduleHighlight();
   updateStatus();
-  document.title = (ed.dirty ? '● ' : '') + '道码 编辑器';
+  document.title = (ed.dirty ? '● ' : '') + '都来码 编辑器';
 }
 function setEdPath(p) {
   ed.path = p;
@@ -2310,14 +2310,14 @@ async function openEditor(path) {
   editorEl.hidden = false;
   renderGutter(); renderHighlight(); updateStatus();
   document.getElementById('editor-diags').textContent = '';
-  document.title = '道码 编辑器';
+  document.title = '都来码 编辑器';
   edArea.focus();
   fetchDiags();
 }
 function closeEditor() {
   if (ed.dirty && !confirm('文件未保存，确定关闭编辑器？')) return;
   editorEl.hidden = true;
-  document.title = 'WayCoder（道码）';
+  document.title = 'Dolaima（都来码）';
 }
 async function doSave() {
   if (!ed.path) { showEditorNewModal(); return; }

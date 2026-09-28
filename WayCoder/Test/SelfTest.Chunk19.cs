@@ -1415,9 +1415,9 @@ public static partial class SelfTest
                                 + "（两份写成同一种语言 = 另一种语言永远看不到）",
                                 wantCjk ? withValue == nsKeys.Length && cjk == nsKeys.Length : cjk == 0);
                             Check($"{plat} {lang}.lproj: 有 CFBundleDisplayName 且取值按语言切换"
-                                + "（中文 = 道码，英文 = WayCoder）",
+                                + "（中文 = 都来码，英文 = Dolaima）",
                                 dict != null && dict.TryGetValue("CFBundleDisplayName", out var dn)
-                                && dn == (wantCjk ? "道码" : "WayCoder"));
+                                && dn == (wantCjk ? "都来码" : "Dolaima"));
                         }
                     }
 

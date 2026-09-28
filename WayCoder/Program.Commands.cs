@@ -363,7 +363,7 @@ public partial class Program
         var cwd = Directory.GetCurrentDirectory();
         var waycoderDir = Path.Combine(cwd, ".waycoder");
 
-        Console.WriteLine(L.Pick("WayCoder 项目初始化", "WayCoder project init"));
+        Console.WriteLine(L.Pick("都来码项目初始化", "Dolaima project init"));
         Console.WriteLine(L.Pick($"目录: {cwd}", $"Directory: {cwd}"));
         Console.WriteLine();
 
@@ -413,7 +413,7 @@ public partial class Program
         {
             var promptTemplate = L.Pick(@"# 项目提示词
 
-<!-- 在此文件中编写项目专属的 AI 指令。WayCoder 会自动将其注入系统提示词。 -->
+<!-- 在此文件中编写项目专属的 AI 指令。都来码会自动将其注入系统提示词。 -->
 
 ## 项目概述
 <!-- 简要描述你的项目 -->
@@ -425,7 +425,7 @@ public partial class Program
 <!-- AI 需要特别注意的事项 -->
 ", @"# Project prompt
 
-<!-- Put project-specific AI instructions in this file. WayCoder injects them into the system prompt automatically. -->
+<!-- Put project-specific AI instructions in this file. Dolaima injects them into the system prompt automatically. -->
 
 ## Project overview
 <!-- Briefly describe your project -->
@@ -638,7 +638,7 @@ deepseek offers the best value for money.")
         Console.WriteLine("┌" + new string('─', bannerW - 2) + "┐");
         // 标题用 ASCII 连字符「-」替代「—」（U+2014）：后者 CharWidth 按 2 列算但部分终端显示 1 列，
         // 导致居中后右框线差 1 列不对齐
-        Console.WriteLine(Mid(L.Pick("WayCoder (道码) - 中文编程智能体", "WayCoder (道码) - coding agent")));
+        Console.WriteLine(Mid(L.Pick("Dolaima (都来码) - 中文编程智能体", "Dolaima - coding agent")));
         Console.WriteLine(Mid(Global.Company));
         Console.WriteLine("└" + new string('─', bannerW - 2) + "┘");
         var verLine = L.Pick($"版本: {Global.Version}", $"Version: {Global.Version}");

@@ -41,7 +41,7 @@ public static class GuiCommands
         yield return new DiffCmd();
 
         // —— 补齐主工程 TUI 命令（能映射端界面/读真实状态的做实，其余给端化说明）——
-        yield return new InfoCmd("/about", "关于 WayCoder", _ => "WayCoder（道码）· C# (.NET) · 中文版易用编程智能体");
+        yield return new InfoCmd("/about", "关于都来码", _ => "Dolaima（都来码）· C# (.NET) · 易用编程智能体");
         yield return new InfoCmd("/menu", "功能菜单（模型/设置/会话/Diff 等界面直达 + 常用命令）", _ => "GUI 顶栏/☰ 为命令入口；斜杠命令直接输入（/help 看全量）");
         yield return new InfoCmd("/edit", "打开编辑器", _ => { GuiContext.MainWindow?.OpenEditor(); return "🧬 已打开编辑器"; });
         yield return new InfoCmd("/config", "打开设置", _ => { GuiContext.MainWindow?.OpenSettings(); return "⚙️ 已打开设置"; });

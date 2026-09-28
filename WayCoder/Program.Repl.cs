@@ -26,7 +26,7 @@ public partial class Program
     {
         var agent = _agent;
         if (agent == null) { Console.Error.WriteLine(L.Pick("Agent 未初始化", "Agent not initialized")); return; }
-        Console.WriteLine(L.Pick("WayCoder 道码 · CLI 模式（--cli）— 输入消息，exit/quit 退出", "WayCoder · CLI mode (--cli) — type a message, exit/quit to quit"));
+        Console.WriteLine(L.Pick("Dolaima 都来码 · CLI 模式（--cli）— 输入消息，exit/quit 退出", "Dolaima · CLI mode (--cli) — type a message, exit/quit to quit"));
         while (true)
         {
             Console.Write("» ");

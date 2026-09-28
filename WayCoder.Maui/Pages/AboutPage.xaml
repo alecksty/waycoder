@@ -9,7 +9,7 @@
     <ScrollView>
         <VerticalStackLayout Padding="24,32" Spacing="8">
             <Image Source="app.png" WidthRequest="96" HeightRequest="96" HorizontalOptions="Center" />
-            <Label Text="{markup:Tr Zh='道码 WayCoder', En='WayCoder'}" FontSize="24" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='都来码 Dolaima', En='Dolaima'}" FontSize="24" FontAttributes="Bold"
                    HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <Label x:Name="VersionLabel" FontSize="14" HorizontalTextAlignment="Center"

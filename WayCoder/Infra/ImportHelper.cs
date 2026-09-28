@@ -892,7 +892,7 @@ public static class ImportHelper
             {
                 sb.AppendLine($"    /perm add {perm.AsString() ?? perm.ToJson()}");
             }
-            sb.AppendLine(L.Pick("  💡 在 WayCoder 中使用 /perm yolo 可跳过所有确认", "  💡 Use /perm yolo in WayCoder to skip all confirmations"));
+            sb.AppendLine(L.Pick("  💡 在都来码中使用 /perm yolo 可跳过所有确认", "  💡 Use /perm yolo in Dolaima to skip all confirmations"));
 
             return sb.ToString().Trim();
         }

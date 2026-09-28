@@ -54,7 +54,7 @@ class DemoTty
         tty_goto(1, 1);
         tty_puts("                                                                                ");
         tty_goto(3, 1);
-        tty_puts("WayCoder  tty_* demo (C#)  --  color / cursor / box / int");
+        tty_puts("Dolaima  tty_* demo (C#)  --  color / cursor / box / int");
 
         tty_color(8, 0);
         tty_goto(3, 2);

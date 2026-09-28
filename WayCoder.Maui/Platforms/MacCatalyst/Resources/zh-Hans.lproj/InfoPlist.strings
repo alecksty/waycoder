@@ -1,12 +1,12 @@
-/* 中文系统的应用显示名与权限文案 —— 道码。
+/* 中文系统的应用显示名与权限文案 —— 都来码。
    与 `Platforms/iOS/Resources/zh-Hans.lproj/InfoPlist.strings` **逐字镜像**
    （Mac Catalyst 与 iOS 的 plist 是各写一份、不会互相继承，lproj 同理）。
    默认（英文）来自 csproj 的 <ApplicationTitle> 与 `en.lproj`。 */
-"CFBundleDisplayName" = "道码";
-"CFBundleName" = "道码";
+"CFBundleDisplayName" = "都来码";
+"CFBundleName" = "都来码";
 
 /* 权限弹窗文案。`MacCatalyst/Info.plist` 里写的是英文兜底，这里覆盖成中文。
    ⚠ 键名必须与 Info.plist 逐字相同，拼错不报错、只是显示另一种语言。 */
-"NSCameraUsageDescription" = "用于拍照，让道码「看图」修 bug";
-"NSPhotoLibraryUsageDescription" = "用于从相册选择图片，让道码「看图」修 bug";
+"NSCameraUsageDescription" = "用于拍照，让都来码「看图」修 bug";
+"NSPhotoLibraryUsageDescription" = "用于从相册选择图片，让都来码「看图」修 bug";
 "NSMicrophoneUsageDescription" = "用于语音输入（说话代替打字）";

@@ -300,7 +300,7 @@ public static partial class SelfTest
             Check("Prompt[en]: 含工具名（工具清单确实注入了）",
                 tools.Count == 0 || enPrompt.Contains(tools[0].Name, StringComparison.Ordinal));
             Check("Prompt[en]: 含关键区块标记", enPrompt.Contains("<critical_rules>") && enPrompt.Contains("<final_answers>"));
-            Check("Prompt[en]: 明确身份", enPrompt.Contains("You are WayCoder"));
+            Check("Prompt[en]: 明确身份", enPrompt.Contains("You are Dolaima"));
 
             // 反方向：中文成品必须仍含原来的关键串（防"顺手把中文分支也改了"）
             Check("Prompt[zh]: 仍含 <critical_rules>", zhPrompt.Contains("<critical_rules>"));

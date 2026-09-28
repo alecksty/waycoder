@@ -9,7 +9,7 @@ public class ExitCommand : SlashCommand
 {
     public override string Name => "/exit";
     public override string[] Aliases => ["/quit", "/退出"];
-    public override string Description => L.Pick("退出 WayCoder", "Exit WayCoder");
+    public override string Description => L.Pick("退出都来码", "Exit Dolaima");
     public override string? Usage => "/exit";
 
     public override Task ExecuteAsync(string args, ChatScreen screen)

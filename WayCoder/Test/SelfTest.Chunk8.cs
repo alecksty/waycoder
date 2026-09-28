@@ -403,8 +403,8 @@ public static partial class SelfTest
         Check("TuiBanner CanFocus=false", !banner!.CanFocus);
         Check("TuiBanner Height=3", banner.Height == 3);
 
-        banner.Title = "WayCoder 道码";
-        Check("TuiBanner Title", banner.Title == "WayCoder 道码");
+        banner.Title = "Dolaima 都来码";
+        Check("TuiBanner Title", banner.Title == "Dolaima 都来码");
 
         banner.Subtitle = "v2.0 — 中文编程助手";
         Check("TuiBanner Subtitle", banner.Subtitle == "v2.0 — 中文编程助手");

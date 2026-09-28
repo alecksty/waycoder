@@ -5,7 +5,7 @@ namespace WayCoder.UI.Cli.Commands;
 public class AboutCommand : SlashCommand
 {
     public override string Name => "/about";
-    public override string Description => L.Pick("关于 WayCoder", "About WayCoder");
+    public override string Description => L.Pick("关于都来码", "About Dolaima");
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
     {

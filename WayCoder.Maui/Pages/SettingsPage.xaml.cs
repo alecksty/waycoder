@@ -79,7 +79,7 @@ public partial class SettingsPage : ContentPage
         CompileSummary.Text = Services.MauiCompileStore.Summary();
 
         // ── 关于
-        AboutSummary.Text = $"WayCoder {Global.Version}";
+        AboutSummary.Text = $"Dolaima {Global.Version}";
     }
 
     /// <summary>Key 状态一句话。空 → 明确说「未配」，别只留空白让人猜。</summary>

@@ -261,7 +261,7 @@ public static class FreezeCapture
     {
         var st = BuildLiveState();
         var sb = new StringBuilder();
-        sb.AppendLine("==== WayCoder 状态快照 ============================");
+        sb.AppendLine("==== 都来码状态快照 ============================");
         var utcOffset = DateTimeOffset.Now.Offset;
         sb.AppendLine($"采集时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} (UTC{utcOffset.TotalHours:F1}h)");
         sb.AppendLine($"原因: {reason} | 进程: waycoder pid={Environment.ProcessId} uptime={(DateTime.UtcNow - System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()).TotalMinutes:F1}m");

@@ -49,7 +49,7 @@ public sealed class DoctorReport
     public string Render()
     {
         var sb = new StringBuilder();
-        sb.AppendLine(L.Pick("🧪 WayCoder 系统自检", "🧪 WayCoder system check"));
+        sb.AppendLine(L.Pick("🧪 都来码系统自检", "🧪 Dolaima system check"));
         var modeText = FixRequested
             ? L.Pick("自检 + 安全修复", "check + safe repair")
             : L.Pick("只读自检", "read-only check");

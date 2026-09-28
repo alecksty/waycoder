@@ -3,7 +3,7 @@
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
         xmlns:local="clr-namespace:WayCoder.UI.Gui"
         x:Class="WayCoder.UI.Gui.MainWindow"
-        Title="WayCoder（道码）"
+        Title="Dolaima（都来码）"
         Width="1180"
         Height="720"
         Background="{DynamicResource WindowBgBrush}">
@@ -24,15 +24,15 @@
             <Grid
                 ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto"
                 Margin="14,9">
-                <!-- 标志：🤖 道码 WayCoder（Coder 品牌蓝高亮） -->
+                <!-- 标志：🤖 都来码 Dolaima（英文名品牌蓝高亮） -->
                 <TextBlock
                     x:Name="HeaderLabel"
                     FontSize="15"
                     FontWeight="Bold"
                     Foreground="{DynamicResource TextBrush}"
                     VerticalAlignment="Center">
-                    <Run Text="🤖 道码 Way" />
-                    <Run Text="Coder"
+                    <Run Text="🤖 都来码 " />
+                    <Run Text="Dolaima"
                          Foreground="{DynamicResource AccentBrush}" />
                 </TextBlock>
                 <TextBlock

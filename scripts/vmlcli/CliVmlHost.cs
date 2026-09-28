@@ -794,8 +794,8 @@ internal sealed class CliVmlHost : IVmlHost
     public void RegisterJsonHandlers()
     {
         VmlJsonApi.Register("version", _ => JNode.Object()
-            .Set("app", "WayCoder")
-            .Set("cn", "道码")
+            .Set("app", "Dolaima")
+            .Set("cn", "都来码")
             .Set("version", "(desktop-cli)")
             .Set("platform", "desktop"));
 
@@ -803,7 +803,7 @@ internal sealed class CliVmlHost : IVmlHost
         {
             var area = ScreenArea();
             return JNode.Object()
-                .Set("app", "WayCoder")
+                .Set("app", "Dolaima")
                 .Set("version", "(desktop-cli)")
                 .Set("platform", "desktop")
                 .Set("os", Environment.OSVersion.Platform.ToString())

@@ -247,7 +247,7 @@ public static class UpdateChecker
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Dolaima");
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             var url = $"https://api.github.com/repos/{repo}/releases/latest";
             var node = Json.Parse(await client.GetStringAsync(url));
@@ -283,7 +283,7 @@ public static class UpdateChecker
         try
         {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Dolaima");
             var url = $"https://gitee.com/api/v5/repos/{repo}/releases/latest";
             var node = Json.Parse(await client.GetStringAsync(url));
             if (node == null) return null;
@@ -397,7 +397,7 @@ public static class UpdateChecker
     private static async Task DownloadToFileAsync(string url, string destPath)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("WayCoder");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("Dolaima");
         using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
         resp.EnsureSuccessStatusCode();
         using var fs = File.Create(destPath);
@@ -467,7 +467,7 @@ public static class UpdateChecker
             }
             catch { /* 脚本启动失败时用户可手动运行 */ }
 
-            return L.Pick($"✅ 已下载新版本 {newVersion}。退出 WayCoder 后自动完成替换并重启（旧版本已备份为 .bak）。", $"✅ Downloaded version {newVersion}. Quit WayCoder and the replacement plus restart will complete automatically (the old version was backed up as .bak).");
+            return L.Pick($"✅ 已下载新版本 {newVersion}。退出都来码后自动完成替换并重启（旧版本已备份为 .bak）。", $"✅ Downloaded version {newVersion}. Quit Dolaima and the replacement plus restart will complete automatically (the old version was backed up as .bak).");
         }
 
         // Unix：rename 原子覆盖运行中二进制（旧 inode 继续服务当前进程），随后提示重启
@@ -486,7 +486,7 @@ public static class UpdateChecker
         catch { /* 某些文件系统不支持 chmod，忽略 */ }
         File.Move(tmpNew, target, overwrite: true);
 
-        return L.Pick($"✅ 已升级到 {newVersion}。请退出后重新运行 WayCoder（Ctrl+Q 退出），旧版本已备份为 .bak。", $"✅ Upgraded to {newVersion}. Quit and start WayCoder again (Ctrl+Q to quit); the old version was backed up as .bak.");
+        return L.Pick($"✅ 已升级到 {newVersion}。请退出后重新运行都来码（Ctrl+Q 退出），旧版本已备份为 .bak。", $"✅ Upgraded to {newVersion}. Quit and start Dolaima again (Ctrl+Q to quit); the old version was backed up as .bak.");
     }
 
     // ════════════════════════════════════════════════════════════════

@@ -28,7 +28,7 @@ public static class PlanMode
         var repoMap = RepoMapGenerator.Generate();
 
         return $"""
-            你是 WayCoder（道码）的**规划模式**。你当前处于只读分析阶段，**严禁修改任何文件**。
+            你是 Dolaima（都来码）的**规划模式**。你当前处于只读分析阶段，**严禁修改任何文件**。
 
             # 环境
             - 工作目录：{cwd}

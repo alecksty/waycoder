@@ -18,7 +18,7 @@ public class ExportCommand : SlashCommand
         var path = Path.Combine(dir, filename);
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine(L.Pick($"# WayCoder 对话导出", $"# WayCoder conversation export"));
+        sb.AppendLine(L.Pick($"# 都来码对话导出", $"# Dolaima conversation export"));
         sb.AppendLine($"> {DateTime.Now:yyyy-MM-dd HH:mm}");
         sb.AppendLine();
         foreach (var msg in agent.SnapshotMessages())

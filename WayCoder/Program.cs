@@ -976,7 +976,7 @@ public partial class Program
             spec!.KeepResults = true;
 
         Console.WriteLine();
-        MarkupLine(L.Pick("«bold cyan»🚀 WayCoder 批量任务引擎«/»", "«bold cyan»🚀 WayCoder batch job engine«/»"));
+        MarkupLine(L.Pick("«bold cyan»🚀 都来码批量任务引擎«/»", "«bold cyan»🚀 Dolaima batch job engine«/»"));
         var keepCopies = spec!.KeepResults ? L.Pick("是", "yes") : L.Pick("否", "no");
         MarkupLine(L.Pick(
             $"«dim»任务数: {spec!.Jobs.Count} · 并行度: {spec.MaxParallel} · 超时: {spec.TimeoutSec}s · 保留副本: {keepCopies}«/»",

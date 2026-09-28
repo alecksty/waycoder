@@ -1,12 +1,12 @@
-/* 英文系统的应用显示名与权限文案 —— WayCoder。
+/* 英文系统的应用显示名与权限文案 —— Dolaima。
    与 zh-Hans.lproj 成对：iOS 按系统语言自动挑 lproj。
    ⚠ 这一份是**显式**的英文覆盖（不是"没有就回落"）：`Info.plist` 里那三个
    `NS*UsageDescription` 也是英文，两份**必须逐字一致** —— 看着重复，但语义不同：
    plist 是"任何语言的兜底"，本文件是"系统语言 = en 时的显式取值"。
    审核员用英文设备跑，读到的就是这里。 */
-"CFBundleDisplayName" = "WayCoder";
-"CFBundleName" = "WayCoder";
+"CFBundleDisplayName" = "Dolaima";
+"CFBundleName" = "Dolaima";
 
-"NSCameraUsageDescription" = "Used to take photos so WayCoder can look at images while fixing bugs.";
-"NSPhotoLibraryUsageDescription" = "Used to pick images from your library so WayCoder can look at them while fixing bugs.";
+"NSCameraUsageDescription" = "Used to take photos so Dolaima can look at images while fixing bugs.";
+"NSPhotoLibraryUsageDescription" = "Used to pick images from your library so Dolaima can look at them while fixing bugs.";
 "NSMicrophoneUsageDescription" = "Used for voice input (speak instead of typing).";

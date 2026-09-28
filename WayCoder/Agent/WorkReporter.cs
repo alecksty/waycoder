@@ -107,8 +107,8 @@ public static class WorkReporter
         }
 
         sb.AppendLine("---");
-        sb.AppendLine(L.Pick($"_由 WayCoder WorkReporter 自动生成 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_",
-            $"_Generated automatically by WayCoder WorkReporter · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_"));
+        sb.AppendLine(L.Pick($"_由都来码 WorkReporter 自动生成 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_",
+            $"_Generated automatically by Dolaima WorkReporter · {DateTime.Now:yyyy-MM-dd HH:mm:ss}_"));
 
         return sb.ToString();
     }

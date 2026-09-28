@@ -330,7 +330,7 @@ public static class McpManager
             .Set("protocolVersion", "2024-11-05")
             .Set("capabilities", JNode.Object())
             .Set("clientInfo", JNode.Object()
-                .Set("name", "WayCoder")
+                .Set("name", "Dolaima")
                 .Set("version", "0.17.3")));
 
         if (initResp == null)

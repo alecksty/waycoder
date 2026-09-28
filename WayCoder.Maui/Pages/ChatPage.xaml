@@ -188,7 +188,7 @@
             <CollectionView.EmptyView>
                 <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="8">
                     <Image Source="app.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
-                    <Label Text="{markup:Tr Zh='道码 · 手机编程智能体', En='WayCoder · Coding agent for your phone'}" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
+                    <Label Text="{markup:Tr Zh='都来码 · 手机编程智能体', En='Dolaima · Coding agent for your phone'}" FontSize="16" FontAttributes="Bold" HorizontalTextAlignment="Center" />
                     <Label Text="{markup:Tr Zh='问点什么，或去「文件」页导入项目', En='Ask something, or import a project from Files'}" FontSize="13" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" HorizontalTextAlignment="Center" />
                 </VerticalStackLayout>
             </CollectionView.EmptyView>

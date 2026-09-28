@@ -22,7 +22,7 @@ public static class ProjectInitializer
         var sb = new StringBuilder();
         sb.AppendLine($"# {fileName}");
         sb.AppendLine();
-        sb.AppendLine(L.Pick("本文件为 WayCoder（道码）在此仓库中工作时提供指导。", "This file gives guidance for working in this repository with WayCoder."));
+        sb.AppendLine(L.Pick("本文件为都来码在此仓库中工作时提供指导。", "This file gives guidance for working in this repository with Dolaima."));
         sb.AppendLine();
         sb.AppendLine(L.Pick("## 项目概述", "## Project overview"));
         sb.AppendLine();

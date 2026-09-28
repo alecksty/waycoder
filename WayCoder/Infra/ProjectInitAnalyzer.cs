@@ -34,7 +34,7 @@ public static class ProjectInitAnalyzer
     const string InitTemplate = """
 你是一名资深的软件架构师。请分析下面提供的代码库上下文，为这个仓库撰写一份 {FILE_NAME} 指导文件。
 
-本文件会被注入到 AI 编程助手（WayCoder 道码 / Claude Code）的系统提示词中，指导它在此仓库中高效、安全地工作。它是给 AI 看的「工作须知」，不是给人看的 README。
+本文件会被注入到 AI 编程助手（都来码 Dolaima / Claude Code）的系统提示词中，指导它在此仓库中高效、安全地工作。它是给 AI 看的「工作须知」，不是给人看的 README。
 
 ## 内容标准（严格遵守）
 
@@ -87,7 +87,7 @@ public static class ProjectInitAnalyzer
     const string InitTemplateEn = """
 You are a senior software architect. Analyze the codebase context provided below and write a {FILE_NAME} guidance file for this repository.
 
-This file will be injected into the system prompt of an AI coding assistant (WayCoder / Claude Code) to guide it in working efficiently and safely in this repository. It is working notes for an AI, not a README for humans.
+This file will be injected into the system prompt of an AI coding assistant (Dolaima / Claude Code) to guide it in working efficiently and safely in this repository. It is working notes for an AI, not a README for humans.
 
 ## Content standards (strictly enforced)
 

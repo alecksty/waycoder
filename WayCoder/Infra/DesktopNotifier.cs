@@ -67,8 +67,8 @@ public static class DesktopNotifier
     {
         Notify(NotificationType.PermissionWaiting,
             title: L.Pick($"权限确认: {toolName}", $"Permission: {toolName}"),
-            message: L.Pick($"WayCoder 正在等待对工具 '{toolName}' 的操作确认",
-                $"WayCoder is waiting for your confirmation to run '{toolName}'"));
+            message: L.Pick($"都来码正在等待对工具 '{toolName}' 的操作确认",
+                $"Dolaima is waiting for your confirmation to run '{toolName}'"));
     }
 
     /// <summary>
@@ -90,22 +90,22 @@ public static class DesktopNotifier
         return type switch
         {
             NotificationType.AgentFinished => (
-                title ?? "WayCoder",
+                title ?? "Dolaima",
                 message ?? L.Pick("Agent 已完成当前任务", "Agent finished the current task")),
 
             NotificationType.PermissionWaiting => (
-                title ?? L.Pick("WayCoder — 权限确认", "WayCoder — Permission request"),
+                title ?? L.Pick("都来码 — 权限确认", "Dolaima — Permission request"),
                 message ?? L.Pick("等待操作确认", "Waiting for confirmation")),
 
             NotificationType.ReAuthenticate => (
-                title ?? L.Pick("WayCoder — 认证", "WayCoder — Authentication"),
+                title ?? L.Pick("都来码 — 认证", "Dolaima — Authentication"),
                 message ?? L.Pick("需要重新认证", "Re-authentication required")),
 
             NotificationType.BackgroundTaskFinished => (
-                title ?? L.Pick("WayCoder — 后台任务", "WayCoder — Background task"),
+                title ?? L.Pick("都来码 — 后台任务", "Dolaima — Background task"),
                 message ?? L.Pick("后台任务已完成", "Background task finished")),
 
-            _ => (title ?? "WayCoder", message ?? "")
+            _ => (title ?? "Dolaima", message ?? "")
         };
     }
 
@@ -126,7 +126,7 @@ $textNodes = $template.GetElementsByTagName('text')
 $textNodes.Item(0).AppendChild($template.CreateTextNode('{escapedTitle}')) > $null
 $textNodes.Item(1).AppendChild($template.CreateTextNode('{escapedMessage}')) > $null
 $toast = [Windows.UI.Notifications.ToastNotification]::new($template)
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('WayCoder').Show($toast)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Dolaima').Show($toast)
 ";
 
             var psi = new System.Diagnostics.ProcessStartInfo

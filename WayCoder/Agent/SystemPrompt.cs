@@ -163,7 +163,7 @@ public static class SystemPrompt
 
         // 使用无 $ 前缀的原始字符串（避免 { 转义问题），再用 Replace 注入动态内容
         var template = """
-                你是 WayCoder（道码），一个运行在用户终端中的 AI 编程助手。
+                你是 Dolaima（都来码），一个运行在用户终端中的 AI 编程助手。
                 你帮助完成软件工程任务：编写代码、修复 bug、重构代码、解释代码、运行命令等。
 
                 # 环境
@@ -490,7 +490,7 @@ public static class SystemPrompt
         }));
 
         return L.Pick($"""
-            你是 WayCoder（道码），终端 AI 编程助手。
+            你是 Dolaima（都来码），终端 AI 编程助手。
             工作目录：{cwd}；OS：{os}。
 
             # 工具
@@ -506,7 +506,7 @@ public static class SystemPrompt
             7. 复杂任务（3+ 文件）先用 todo_write 列 3-7 项清单。
             8. 创建新文件用 write_file；改已有文件用 edit_file。
             """, $"""
-            You are WayCoder, a terminal AI coding assistant.
+            You are Dolaima, a terminal AI coding assistant.
             Working directory: {cwd}; OS: {os}.
 
             # Tools
@@ -533,7 +533,7 @@ public static class SystemPrompt
     {
         var toolNames = string.Join(", ", tools.Select(t => t.Name));
         return L.Pick($"""
-            你是 WayCoder（道码），终端 AI 编程助手。极简模式。
+            你是 Dolaima（都来码），终端 AI 编程助手。极简模式。
 
             # 工具
             {toolNames}
@@ -545,7 +545,7 @@ public static class SystemPrompt
             4. 默认回复 ≤2 行（工具调用不计）。
             5. 用绝对路径；只用上面工具；不主动 git commit。
             """, $"""
-            You are WayCoder, a terminal AI coding assistant. Minimal mode.
+            You are Dolaima, a terminal AI coding assistant. Minimal mode.
 
             # Tools
             {toolNames}
@@ -570,7 +570,7 @@ public static class SystemPrompt
         var projectCtx = ProjectContext.DetectProject().ToMarkdown();
 
         return L.Pick($"""
-            你是 WayCoder（道码），终端 AI 编程助手。
+            你是 Dolaima（都来码），终端 AI 编程助手。
 
             # 环境
             - 工作目录：{cwd}
@@ -593,7 +593,7 @@ public static class SystemPrompt
             8. 不用思考流生成代码，代码必须通过 write_file 写入文件。
             9. 无依赖的独立工具调用可并行发出。
             """, $"""
-            You are WayCoder, a terminal AI coding assistant.
+            You are Dolaima, a terminal AI coding assistant.
 
             # Environment
             - Working directory: {cwd}
@@ -626,7 +626,7 @@ public static class SystemPrompt
     {
         var toolNames = string.Join(", ", tools.Select(t => t.Name));
         return L.Pick($"""
-            你是 WayCoder（道码），终端 AI 编程助手。当前处于**只读分析模式**。
+            你是 Dolaima（都来码），终端 AI 编程助手。当前处于**只读分析模式**。
 
             # 工具（仅只读）
             {toolNames}
@@ -638,7 +638,7 @@ public static class SystemPrompt
             4. 用户批准后会自动切换到建造模式执行，届时再动手改代码。
             5. 默认回复 ≤3 行（工具调用不计）。
             """, $"""
-            You are WayCoder, a terminal AI coding assistant. You are currently in **read-only analysis mode**.
+            You are Dolaima, a terminal AI coding assistant. You are currently in **read-only analysis mode**.
 
             # Tools (read-only only)
             {toolNames}
@@ -689,7 +689,7 @@ public static class SystemPrompt
     /// </para>
     /// </summary>
     private const string s_templateEn = """
-            You are WayCoder, an AI coding assistant running in the user's terminal.
+            You are Dolaima, an AI coding assistant running in the user's terminal.
             You help with software engineering tasks: writing code, fixing bugs, refactoring, explaining code, running commands, and more.
 
             # Environment
@@ -1248,7 +1248,7 @@ public static class SystemPrompt
     /// 漏一个的后果是「某段动态内容在英文下永不注入」，而且静默。
     /// </summary>
     private const string s_architectZh = """
-        你是 WayCoder（道码）的 **Architect（架构师）**。你负责分析和规划，不写代码。
+        你是 Dolaima（都来码）的 **Architect（架构师）**。你负责分析和规划，不写代码。
 
         # 环境
         - 工作目录：__CWD__

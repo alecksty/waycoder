@@ -650,7 +650,7 @@ public static partial class SelfTest
             JNode.Object().Set("role", "tool").Set("content", "result").Set("tool_call_id", "c1"),
         };
         var exportSb = new StringBuilder();
-        exportSb.AppendLine("# WayCoder 对话导出");
+        exportSb.AppendLine("# 都来码对话导出");
         foreach (var msg in exportMsgs)
         {
             var role = msg["role"]?.AsString() ?? "";
@@ -660,7 +660,7 @@ public static partial class SelfTest
             else if (role == "tool") exportSb.AppendLine($"### 🔧 Tool\n\n```\n{content}\n```\n");
         }
         var exportText = exportSb.ToString();
-        Check("导出含标题", exportText.Contains("WayCoder 对话导出"));
+        Check("导出含标题", exportText.Contains("都来码对话导出"));
         Check("导出含 User", exportText.Contains("👤 User") && exportText.Contains("hello"));
         Check("导出含 Assistant", exportText.Contains("🤖 Assistant") && exportText.Contains("hi there"));
         Check("导出含 Tool", exportText.Contains("🔧 Tool") && exportText.Contains("result"));

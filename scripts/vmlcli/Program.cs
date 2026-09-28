@@ -48,9 +48,9 @@ internal static class Program
             // ⚠ vmlcli **不引用 WayCoder 主工程**（只引用 vendored 的 third_party/vml），
             //   所以拿不到 `Global.Version`。这里如实说明，**不编一个看起来像版本号的数字**。
             var vmlAsm = typeof(CompilerBase.CompilerBase).Assembly.GetName();
-            Console.WriteLine("vmlcli —— WayCoder 的桌面 VML 宿主（编译 → 汇编 → 链接 → 运行）");
+            Console.WriteLine("vmlcli —— Dolaima 的桌面 VML 宿主（编译 → 汇编 → 链接 → 运行）");
             Console.WriteLine($"  VML 前端程序集：{vmlAsm.Name} {vmlAsm.Version}");
-            Console.WriteLine("  WayCoder 整体版本：见 WayCoder/Config/Global.cs 的 Global.Version");
+            Console.WriteLine("  Dolaima 整体版本：见 WayCoder/Config/Global.cs 的 Global.Version");
             return 0;
         }
 

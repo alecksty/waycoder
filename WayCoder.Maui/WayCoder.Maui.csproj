@@ -62,13 +62,13 @@
 		<MauiXamlInflator>SourceGen</MauiXamlInflator>
 
 		<!-- Display name —— **只是兜底**：Android 那边清单里的 android:label 指向
-		     `@string/app_name`（按系统语言给「道码」/「WayCoder」，见 Resources/values*/strings.xml），
+		     `@string/app_name`（按系统语言给「都来码」/「Dolaima」，见 Resources/values*/strings.xml），
 		     iOS 用 Info.plist 的 CFBundleDisplayName。这里给英文名，作为没有专门配置的平台的默认值。 -->
-		<ApplicationTitle>WayCoder</ApplicationTitle>
+		<ApplicationTitle>Dolaima</ApplicationTitle>
 
 		<!-- 作者 / 版权（进 APK 的 manifest 与 IPA 的 Info.plist，商店与"应用信息"里显示的就是它） -->
 		<Authors>施探宇</Authors>
-		<Product>WayCoder 道码</Product>
+		<Product>Dolaima 都来码</Product>
 		<Copyright>© 施探宇</Copyright>
 
 		<!-- App Identifier -->

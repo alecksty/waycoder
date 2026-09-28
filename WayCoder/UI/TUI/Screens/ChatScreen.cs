@@ -1782,7 +1782,7 @@ public partial class ChatScreen : TuiScreen
         var ok = UxHelper.RunInlineChoiceOnScreen(this,
         [
             new PromptItem { Kind = EPromptKind.Choice, Label = "1. 退出", Detail = "结束本次会话", ResultCode = 0 },
-            new PromptItem { Kind = EPromptKind.Choice, Label = "2. 取消", Detail = "留在道码继续", ResultCode = 2 },
+            new PromptItem { Kind = EPromptKind.Choice, Label = "2. 取消", Detail = "留在都来码继续", ResultCode = 2 },
         ]) == 0;
         if (ok)
             EnqueueSubmission(AnsiTty.SgrReset); // 特殊标记：退出请求

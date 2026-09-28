@@ -209,6 +209,6 @@ public partial class EditorWindow : Window
         DirtyLabel.IsVisible = Core.Modified;
         Title = (Core.Modified ? "● " : "")
                 + (string.IsNullOrEmpty(Core.FilePath) ? "未命名" : System.IO.Path.GetFileName(Core.FilePath))
-                + " — WayCoder";
+                + " — Dolaima";
     }
 }

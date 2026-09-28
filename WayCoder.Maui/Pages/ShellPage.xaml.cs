@@ -268,9 +268,9 @@ public partial class ShellPage : ContentPage
         // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
         AddOutputGestures(OutputGrid);
 
-        Append(L.Pick("WayCoder 命令行\n" +
+        Append(L.Pick("都来码 命令行\n" +
                       "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n",
-                      "WayCoder Shell\n" +
+                      "Dolaima Shell\n" +
                       "Type a shell command, then tap Run (or press Enter). `cd` changes the working directory below.\n\n"));
         RefreshCwd();
     }

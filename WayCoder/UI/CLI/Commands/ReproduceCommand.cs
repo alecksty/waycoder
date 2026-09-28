@@ -47,7 +47,7 @@ public class ReproduceCommand : SlashCommand
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("#!/usr/bin/env bash");
-        sb.AppendLine(L.Pick("# WayCoder 可复现脚本 —— 由会话工具调用自动生成", "# WayCoder reproducible script — generated automatically from the session's tool calls"));
+        sb.AppendLine(L.Pick("# 都来码可复现脚本 —— 由会话工具调用自动生成", "# Dolaima reproducible script — generated automatically from the session's tool calls"));
         sb.AppendLine(L.Pick($"# 生成时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}", $"# Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"));
         sb.AppendLine(L.Pick("# 注意：写文件操作以注释列出（内容请从会话 /export 还原）；命令按执行顺序排列。", "# Note: file writes are listed as comments (restore their contents with /export from the session); commands are in execution order."));
         sb.AppendLine("set -euo pipefail");

@@ -10,7 +10,7 @@
         <VerticalStackLayout Padding="28,48" Spacing="12">
 
             <Image Source="app.png" WidthRequest="72" HeightRequest="72" HorizontalOptions="Center" />
-            <Label Text="{markup:Tr Zh='道码', En='WayCoder'}" FontSize="30" FontAttributes="Bold"
+            <Label Text="{markup:Tr Zh='都来码', En='Dolaima'}" FontSize="30" FontAttributes="Bold"
                    HorizontalTextAlignment="Center" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
             <Label x:Name="VersionLabel" FontSize="13"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" HorizontalTextAlignment="Center" />

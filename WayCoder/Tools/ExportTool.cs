@@ -63,7 +63,7 @@ public class ExportTool : ITool
     private string ExportMarkdown()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine(L.Pick("# WayCoder 对话导出", "# WayCoder Conversation Export"));
+        sb.AppendLine(L.Pick("# 都来码对话导出", "# Dolaima Conversation Export"));
         sb.AppendLine(L.Pick($"- 导出时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}", $"- Exported at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}"));
         sb.AppendLine(L.Pick($"- 消息数：{Messages!.Count}", $"- Messages: {Messages!.Count}"));
         sb.AppendLine();
@@ -122,7 +122,7 @@ public class ExportTool : ITool
     {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("<!DOCTYPE html><html><head><meta charset=\"UTF-8\">");
-        sb.AppendLine(L.Pick("<title>WayCoder 对话</title>", "<title>WayCoder Conversation</title>"));
+        sb.AppendLine(L.Pick("<title>都来码对话</title>", "<title>Dolaima Conversation</title>"));
         sb.AppendLine("<style>");
         sb.AppendLine("body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:20px;background:#1a1a2e;color:#e0e0e0;}");
         sb.AppendLine(".user{border-left:3px solid #4ecdc4;padding:10px 20px;margin:10px 0;background:#16213e;}");
@@ -132,8 +132,8 @@ public class ExportTool : ITool
         sb.AppendLine("pre{background:#0f0f23;padding:10px;border-radius:4px;overflow-x:auto;}");
         sb.AppendLine("code{font-family:'Fira Code',monospace;}");
         sb.AppendLine("</style></head><body>");
-        sb.AppendLine(L.Pick($"<h1>🦀 WayCoder 对话</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} 条消息</p>",
-            $"<h1>🦀 WayCoder Conversation</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} messages</p>"));
+        sb.AppendLine(L.Pick($"<h1>🦀 都来码对话</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} 条消息</p>",
+            $"<h1>🦀 Dolaima Conversation</h1><p>{DateTime.Now:yyyy-MM-dd HH:mm} | {Messages!.Count} messages</p>"));
 
         foreach (var m in Messages!)
         {

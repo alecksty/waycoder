@@ -223,7 +223,7 @@ public partial class MainWindow : Window
             var snap = FrameSnapshot.Capture(r.Frame, 0, 0, r.Cols, r.Rows);
             Grid.SetGrid(snap);
             SizeLabel.Text = $"{r.Cols}x{r.Rows}";
-            Title = $"WayCoder .tui 预览 — {_currentPath}";
+            Title = $"Dolaima .tui 预览 — {_currentPath}";
             Status.Content = $"{r.Cols}×{r.Rows}  ·  {DateTime.Now:HH:mm:ss}";
         }
         catch (Exception ex)

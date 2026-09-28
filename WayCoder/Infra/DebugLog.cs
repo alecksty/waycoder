@@ -38,7 +38,7 @@ public static class DebugLog
         // 写会话头
         Write("header", $"""
                           ╔══════════════════════════════════════╗
-                          ║  WayCoder Debug Log                 ║
+                          ║  Dolaima Debug Log                  ║
                           ║  {DateTime.Now:yyyy-MM-dd HH:mm:ss}                    ║
                           ╚══════════════════════════════════════╝
                           """);

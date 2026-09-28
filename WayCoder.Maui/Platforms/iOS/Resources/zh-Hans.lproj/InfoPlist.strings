@@ -1,8 +1,8 @@
-/* 中文系统的应用显示名 —— 道码。
+/* 中文系统的应用显示名 —— 都来码。
    与 Android 的 Resources/values-zh/strings.xml 成对：iOS 按系统语言自动挑 lproj。
    默认（英文）来自 csproj 的 <ApplicationTitle> → CFBundleDisplayName。 */
-"CFBundleDisplayName" = "道码";
-"CFBundleName" = "道码";
+"CFBundleDisplayName" = "都来码";
+"CFBundleName" = "都来码";
 
 /* 权限弹窗文案（2026-09-28 新增）。Info.plist 里写的是**英文兜底**，这里覆盖成中文
    —— 与 CFBundleDisplayName 同一个机制（按系统语言自动挑 lproj）。
@@ -10,6 +10,6 @@
    系统回落去读 plist 里的英文，屏幕上就是英文）。
    ⚠ 三处要同步：本文件、`en.lproj/InfoPlist.strings`、两个平台的 `Info.plist`。
    值请与 `Info.plist` 的英文版**语义一致**（审核会两边对着看）。 */
-"NSCameraUsageDescription" = "用于拍照，让道码「看图」修 bug";
-"NSPhotoLibraryUsageDescription" = "用于从相册选择图片，让道码「看图」修 bug";
+"NSCameraUsageDescription" = "用于拍照，让都来码「看图」修 bug";
+"NSPhotoLibraryUsageDescription" = "用于从相册选择图片，让都来码「看图」修 bug";
 "NSMicrophoneUsageDescription" = "用于语音输入（说话代替打字）";

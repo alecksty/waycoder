@@ -296,12 +296,12 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             | /test markup | «» 中间格式（颜色/粗体/斜体/下划线，跨平台渲染） |
             | /test ansi | Shell 裸 ANSI 配色（终端 tty 效果，前端本地渲染） |
 
-            > 提示：/test markup 验证 WayCoder 中间格式经各平台渲染器的呈现；/test ansi 验证 Shell 命令产生的裸 ANSI 转 HTML。
+            > 提示：/test markup 验证都来码中间格式经各平台渲染器的呈现；/test ansi 验证 Shell 命令产生的裸 ANSI 转 HTML。
             """;
     }
 
     /// <summary>
-    /// /test markup — «» 中间格式样例。WayCoder 所有格式消息统一用 «tag»…«/» 表达颜色/文字特征，
+    /// /test markup — «» 中间格式样例。都来码所有格式消息统一用 «tag»…«/» 表达颜色/文字特征，
     /// 由各平台渲染器决定呈现：CLI/TUI → ANSI（SpectreToAnsi）、Web → HTML（markupToHtml）、GUI → 富文本。
     /// 这里返回中间格式原文，前端 mdToHtml 的 inline 管线会调用 markupToHtml 渲染。
     /// </summary>
@@ -310,7 +310,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return """
             # 中间格式（«» 标记）渲染测试
 
-            WayCoder 所有格式消息（text/markdown/code/…）统一走 **中间格式**：
+            都来码所有格式消息（text/markdown/code/…）统一走 **中间格式**：
             内容用 `«tag»…«/»` 表达颜色与文字特征，由各平台渲染器决定呈现——CLI/TUI → ANSI、Web → HTML、GUI → 富文本。
 
             ## 颜色
@@ -393,7 +393,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             ```csharp
             public static void Main()
             {
-                Console.WriteLine("Hello, WayCoder!");
+                Console.WriteLine("Hello, Dolaima!");
             }
             ```
 

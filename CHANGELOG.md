@@ -1,3 +1,56 @@
+## v0.96.569 — 改名：中文「道码」→「都来码」、英文「WayCoder」→「Dolaima」（全球发售前回避商标）
+
+用户决定换名（`WayCoder` 撞韩国 Waycoder co., ltd. —— 对方已在 App Store 有开发者页；`道码` 显著性弱）。
+本版只做**改名**，不动任何行为。
+
+**范围铁律：只动「用户看得见的串」**。命名空间 `WayCoder.*`（约 2400 处）、程序集名、目录名
+一律不动 —— 它们零可见性，动它们等于全仓重写且收益为零。落地清单：
+
+- **App Store 硬锚点**：`Global.AppName/AppNameCN/AppFullName`、`WayCoder.Maui.csproj` 的
+  `<ApplicationTitle>` 与 `<Product>`、Android `values/strings.xml` + `values-zh/strings.xml`、
+  iOS 与 MacCatalyst 各自的 `Info.plist` + `en.lproj` + `zh-Hans.lproj`（权限文案里也带品牌名）、
+  `AppShell.xaml` 的 Shell 标题。
+- **AI 的自我介绍**（用户直接看到 AI 说的话）：`SystemPrompt.cs` 11 处身份句（中文 6 + 英文 5，
+  覆盖主模板/tiny/经济/Plan/Architect）、`PlanMode.cs` 1 处。
+- **手机端可见面**：`MainPage.xaml` / `AboutPage.xaml` / `ChatPage.xaml` / `SettingsPage.xaml.cs` /
+  `ShellPage.xaml.cs` 的品牌串。
+- **桌面/Web/GUI/CLI 可见串约 40 处**：通知（`DesktopNotifier`）、自动升级（`UpdateChecker`，
+  含 3 处 UserAgent）、导出（`ExportTool`/`ExportCommand`）、批量报告、`/about` `/update` `/exit`
+  等命令文案、MCP 客户端自报名、GUI 标题与 logo、Web 前端（改 `www/` 源后重跑
+  `scripts/merge_webassets.py` 重生成）、`vmlcli` 宿主信息。
+  其中 `Program.Commands.cs` 生成 CLAUDE.md 模板时写进用户仓库的两行注释也一并改（那是用户看得见的内容）。
+- **断言同步**：`SelfTest.Localization`（英文提示词身份句）、`Chunk19`（lproj 显示名按语言切换）、
+  `Chunk5`（导出标题）、`Chunk8`（标题栏）—— 都是「断言与产出自洽」，改的是值不是判据。
+
+**故意不动（有理由，不是漏）**：`~/.waycoder/` 与 `.waycoder/`（改了就丢用户的 API Key、
+会话记录、记忆 —— 改名不该让人重配）；`WAYCODER_*` 环境变量（同上）；`WayCoder.Preview` 的
+`Title` 只改字符串、不动它的编译集。
+
+**验证**：自测 **7011 通过 / 0 失败**；`WayCoder`（桌面）0 错误、`WayCoder.Gui` 0 错误、
+MAUI Windows **0 错误**、MAUI Android **0 错误**；改名 diff **+147 / −133（57 文件）** ——
+紧凑 diff 证明批量替换**保住了 CRLF**（脚本按二进制读改写，并把每条规则的命中数写死断言，
+对不上就整体不写；实跑中真的拦下两条计数不符：`WebChat.Commands.cs` 注释里多一份、
+`SelfTest.Chunk5` 的断言行少一个 `# ` 前缀）。
+
+**名字的检索结论（诚实标注边界）**：`Dolaima` 网页检索只命中一家**已注销**的立陶宛小型合伙
+（2023-08-23 注销、股本 €0、**无任何商标**）；无软件/App/商标命中。
+⚠ 这**不是**正式检索：WIPO/USPTO/EUIPO/CNIPA 的**第 9 + 42 类**注册记录、以及 `dolaima.com`
+的域名状态都还没查 ⇒ 「搜不到」≠「没注册」。用户对中文侧的口径是「**字形不同即不构成近似**」。
+
+**仍未定：包名**。`com.tanso.waycoder` 两半都有问题（`tanso` 撞 Tanso Technologies GmbH 的
+WIPO 文字商标 1880235，第 9/36/42 类 LIVE；`waycoder` 撞韩国那家）⇒ 待定新包名后单独一版。
+⚠ **改包名 = 换一个 App**：新包不覆盖旧包、旧包的私有目录（Preferences 里的设置、解压出的 vml 库）
+不跟过来；工作区与 config 在外部存储、不受影响。**趁没上架改是零成本**。
+
+**顺带发现（不在本次范围，未修）**：`WayCoder.Preview` 的编译集陈旧 —— csproj 只收
+`UI/TUI/Edit/Syntax.cs`，而 `TuiMarkupPaths.cs` 已在用 `Infra/LruCache.cs`、
+`UI/Shared/VmlDiagnostics.cs` 已在用 `UI/TUI/Edit/DiagnosticManager.cs` 里的
+`Diagnostic`/`Severity` ⇒ **改名之前就编不过**，与本版无关。
+
+**待办**：发布例程（`Examples/`）的中英双语注释（同一文件中文一段 + 英文一段；改动需重跑
+`make-vml-lib.sh` **并升版本号** —— `EnsureExamples()` 按版本号判重解压）；`ui_get_language()`
+syscall（按 `SCR_ORIENT` #569 / `CALLJSON` #573 的先例**开新号**）。
+
 ## v0.96.568 — 双语化：iOS 可见面清完（自测 7012/0，共享层台账 865 → 499）
 
 接 v0.96.567 的「只做 iOS 用户能看见的」范围，把可达性判定给出的清单**做完**。
