@@ -18,9 +18,16 @@ namespace WayCoder.Maui.Services;
 /// </para>
 ///
 /// <para>
-/// ⚠ <b>默认值全部等于接入前的行为</b>（优化 0 / 警告 0 / 警告当错误 关 / 调试 关 / 浮点 hard）
-/// ⇒ 用户不动设置时，编译产物与从前**逐字节相同**。这是这次改动的硬约束：
-/// 新接一条参数通路，不能在默认档上改变任何既有行为。
+/// ⚠ <b>默认值</b>（2026-09-28 起）：<b>优化 2 / 警告 0 / 警告当错误 关 / 调试 关 / 浮点 hard</b>。
+/// 除优化外其余各项仍等于接入前的行为；<b>优化默认由 0 改成 2</b> 是用户拍板的
+/// （「可以开启默认2级优化」）—— 依据是 <c>OptimizationPolicy</c> 里那三个死代码消除缺陷
+/// 2026-09-27 已修完，判据 <c>scripts/vml-opt-probe</c> 全绿（O2 把 hello.c 从 68339 条
+/// 压到 28 条，且 22 门语言 O0/O2 输出逐字节相同）。
+/// </para>
+///
+/// <para>
+/// ⚠ 老用户存过的值优先（<see cref="Pick"/> 读 Preferences 命中就用存值）——
+/// 改默认值只影响**从没动过这一项**的人；已经显式选过"关闭"的不会被悄悄改掉。
 /// </para>
 ///
 /// <para>
@@ -40,7 +47,7 @@ public static class MauiCompileStore
     /// 优化级别候选：**关闭 / 初步 / 中度 / 极致**（用户 2026-09-27 定的四档语义）。
     ///
     /// <list type="bullet">
-    /// <item><b>0 关闭</b>：一条指令都不删（出厂默认 —— 接入优化之前的行为）；</item>
+    /// <item><b>0 关闭</b>：一条指令都不删（接入优化之前的行为；已不是默认档）；</item>
     /// <item><b>1 初步</b>：NOP 消除 + 清掉跳转之后的填充代码。**不删任何函数**，产物大小基本不变；</item>
     /// <item><b>2 中度</b>：加上**死代码消除（可达性分析）** —— 删掉没被调用的库函数。
     ///   这是真正让产物变小的那一档（实测 hello world 69637 → 28 条；俄罗斯方块 74754 → 6282）；</item>
@@ -66,10 +73,16 @@ public static class MauiCompileStore
     /// </summary>
     public static readonly string[] NumberModeOptions = ["hard", "none"];
 
-    /// <summary>优化级别（0 关闭 / 1 初步 / 2 中度 / 3 极致）。**默认 0 = 接入前的行为**。</summary>
+    /// <summary>
+    /// 出厂默认优化级别 = <b>2 中度</b>（2026-09-28 用户拍板「可以开启默认2级优化」）。
+    /// 单独提成常量是为了让"默认值"只有一处 —— 文档、判据、实现都引它。
+    /// </summary>
+    public const int DefaultOptimizationLevel = 2;
+
+    /// <summary>优化级别（0 关闭 / 1 初步 / 2 中度 / 3 极致）。**默认 2 = 中度（死代码消除）**。</summary>
     public static int OptimizationLevel
     {
-        get => Pick(KeyOpt, 0, OptimizationOptions);
+        get => Pick(KeyOpt, DefaultOptimizationLevel, OptimizationOptions);
         set { try { Preferences.Set(KeyOpt, value); } catch { } }
     }
 

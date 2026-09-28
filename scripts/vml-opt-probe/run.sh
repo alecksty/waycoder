@@ -115,8 +115,22 @@ check "O2 输出" "$(cat "$TMP/o2.out")" "hello world"
 check "O3 输出" "$(cat "$TMP/o3.out")" "hello world"
 
 echo "═══ ③ O2 必须真的变小（正向判据）═══"
-n0="$(grep -oE '链接完成，总指令数: [0-9]+' "$TMP/o0.err" | grep -oE '[0-9]+$' | tail -1)"
-n2="$(grep -oE '优化 O2：[0-9]+ → [0-9]+' "$TMP/o2.err" | grep -oE '[0-9]+$' | tail -1)"
+# ⚠ **必须先转成 UTF-8 再 grep**：`vmlcli` 的日志经 Windows 控制台写出，是**系统 OEM 代码页**
+#   （中文系统 = GBK），而下面两条判据按 UTF-8 的字面量（`链接完成，总指令数: `）匹配 ——
+#   在 GBK 字节里永远找不到 ⇒ **判据恒红，且红得看不出原因**（报「没能从编译日志里读到指令数」，
+#   看着像优化没生效，实际是编码）。实测量到的数是**对的**（68339 → 28），只是 grep 读不出来。
+#   本仓对此有明确立场：「判据必须能跑，不响的闸比没有更糟」。
+#   ⚠ Linux/macOS 上日志本来就是 UTF-8，`iconv -f UTF-8 -t UTF-8` 会**成功** ⇒
+#     只有它失败时才回落 GBK，两边都对（不能无条件按 GBK 转，那会把好数据转坏）。
+errtext() {
+    if iconv -f UTF-8 -t UTF-8 "$1" >/dev/null 2>&1; then
+        cat "$1"
+    else
+        iconv -f GBK -t UTF-8 "$1" 2>/dev/null || cat "$1"
+    fi
+}
+n0="$(errtext "$TMP/o0.err" | grep -oE '链接完成，总指令数: [0-9]+' | grep -oE '[0-9]+$' | tail -1)"
+n2="$(errtext "$TMP/o2.err" | grep -oE '优化 O2：[0-9]+ → [0-9]+' | grep -oE '[0-9]+$' | tail -1)"
 echo "  ℹ 指令数：O0=${n0:-?} → O2=${n2:-?}"
 if [ -n "$n0" ] && [ -n "$n2" ]; then
     if [ "$n2" -lt "$n0" ]; then
@@ -126,9 +140,9 @@ if [ -n "$n0" ] && [ -n "$n2" ]; then
         echo "  ❌ O2 没有变小（$n0 → $n2）—— 死代码消除没起作用"; FAIL=$((FAIL + 1))
     fi
 else
-    echo "  ❌ 没能从编译日志里读到指令数"; FAIL=$((FAIL + 1))
+    echo "  ❌ 没能从编译日志里读到指令数（先确认 errtext 能把日志读成 UTF-8）"; FAIL=$((FAIL + 1))
 fi
-n3="$(grep -oE '优化 O3：[0-9]+ → [0-9]+' "$TMP/o3.err" | grep -oE '[0-9]+$' | tail -1)"
+n3="$(errtext "$TMP/o3.err" | grep -oE '优化 O3：[0-9]+ → [0-9]+' | grep -oE '[0-9]+$' | tail -1)"
 if [ -n "$n2" ] && [ -n "$n3" ]; then
     if [ "$n3" -le "$n2" ]; then
         echo "  ✅ O3 不比 O2 差（$n2 → $n3）"; PASS=$((PASS + 1))

@@ -32,10 +32,17 @@ namespace VMLAssembler
         public const int Off = 0;
 
         /// <summary>
-        /// 基本优化。**这是目前唯一有意义的档**：在现有开关表下，更高级别与它逐字节等效
-        /// （<see cref="OptimizationOptions.OptimizationLevel"/> 唯一被读的地方是
-        /// <c>DeadCodeEliminationPass</c> 里的 <c>&gt;= 2</c>，而那个 pass 被本表关掉了）
-        /// ⇒ 所以设置界面**只列"关闭/基本"两档**，列 O2 就是一个"选了没区别"的假档位。
+        /// 基本优化：只做 **NOP 消除**。<b>不删任何函数，产物体积基本不变</b>。
+        ///
+        /// <para>
+        /// ⚠ 本注释原先写的是「<i>这是目前唯一有意义的档，更高级别与它逐字节等效，O2 是个假档位</i>」
+        /// —— 那句在 <b>2026-09-27 死代码消除的三个缺陷修完之前是对的</b>（当时
+        /// <c>EnableDeadCodeElimination</c> 还是 <c>false</c>，而
+        /// <see cref="OptimizationOptions.OptimizationLevel"/> 唯一被读的地方就是
+        /// <c>DeadCodeEliminationPass</c> 里的 <c>&gt;= 2</c> ⇒ 高档确实没区别）。
+        /// 缺陷修完后 <b>O2 才是真正让产物变小的那一档</b>（hello.c 68339 → 28 条指令），
+        /// 并且已成为**出厂默认档**（<c>MauiCompileStore.DefaultOptimizationLevel</c>）。
+        /// </para>
         /// </summary>
         public const int Basic = 1;
 
