@@ -461,6 +461,9 @@ public static partial class SelfTest
     // 双语化护栏（语言判定 / 文案对 / 系统提示词成品无残留中文）
     TestLocalization(Section, Check, Fail);
 
+    // 双语化台账（MAUI 侧仍含中文的文件清单，两个方向都会红）
+    TestMauiChineseLedger(Section, Check, Fail);
+
     TestChunk30(Section, Check, Fail);
 
     TestChunk31(Section, Check, Fail);

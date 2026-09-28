@@ -1,0 +1,74 @@
+# 双语化台账 —— 「已知仍含未迁移中文」的 MAUI 文件（一行一个相对路径）
+#
+# 判据由 SelfTest.Localization.Ledger.cs 执行，两个方向都会红：
+#   文件有中文但不在本表 => 红（新写的中文 / 新文件）
+#   文件在本表但已零命中 => 红（台账腐烂，「还剩多少」就永远算不准了）
+#
+# 「已迁移」的判据：中文已包在 L.Pick(中文, English) 或 {markup:Tr Zh=.., En=..} 里
+# —— 那两种形态的中文支是「键」，不算未迁移。所以翻完一个文件就把它从本表删掉。
+#
+# 范围：只含 WayCoder.Maui/**/*.{cs,xaml}（排除 obj/bin/Platforms）。
+# 编译进手机的共享层（WayCoder/Tools、WayCoder/Agent、WayCoder/UI/Shared）不在这里，
+# 那是 Batch 2，届时另立一份。
+#
+# 2026-09-28 建表：60 个文件。
+WayCoder.Maui/AppShell.xaml
+WayCoder.Maui/Controls/CodeCanvasView.cs
+WayCoder.Maui/Controls/VmStatusOverlay.cs
+WayCoder.Maui/CoreStubs.cs
+WayCoder.Maui/DiagLog.cs
+WayCoder.Maui/MainPage.xaml
+WayCoder.Maui/MainPage.xaml.cs
+WayCoder.Maui/Markup/MarkdownPreview.cs
+WayCoder.Maui/Markup/ToolOutputFormatter.cs
+WayCoder.Maui/MauiBootstrap.cs
+WayCoder.Maui/Pages/AboutPage.xaml.cs
+WayCoder.Maui/Pages/ChatPage.xaml
+WayCoder.Maui/Pages/ChatPage.xaml.cs
+WayCoder.Maui/Pages/CommandPanelPage.cs
+WayCoder.Maui/Pages/DrawWindowPage.xaml
+WayCoder.Maui/Pages/DrawWindowPage.xaml.cs
+WayCoder.Maui/Pages/EditorPage.xaml
+WayCoder.Maui/Pages/EditorPage.xaml.cs
+WayCoder.Maui/Pages/FilesPage.xaml
+WayCoder.Maui/Pages/FilesPage.xaml.cs
+WayCoder.Maui/Pages/GitSyncPage.xaml
+WayCoder.Maui/Pages/GitSyncPage.xaml.cs
+WayCoder.Maui/Pages/HelpListPage.xaml
+WayCoder.Maui/Pages/HelpListPage.xaml.cs
+WayCoder.Maui/Pages/HelpPage.xaml
+WayCoder.Maui/Pages/HelpPage.xaml.cs
+WayCoder.Maui/Pages/ModelManagerPage.xaml
+WayCoder.Maui/Pages/ModelManagerPage.xaml.cs
+WayCoder.Maui/Pages/ModelPickerPage.xaml
+WayCoder.Maui/Pages/ModelPickerPage.xaml.cs
+WayCoder.Maui/Pages/ProviderModelsPage.xaml
+WayCoder.Maui/Pages/ProviderModelsPage.xaml.cs
+WayCoder.Maui/Pages/ReasoningDetailPage.xaml
+WayCoder.Maui/Pages/ReasoningDetailPage.xaml.cs
+WayCoder.Maui/Pages/SessionHistoryPage.cs
+WayCoder.Maui/Pages/SettingsGroupPage.xaml
+WayCoder.Maui/Pages/SettingsGroupPage.xaml.cs
+WayCoder.Maui/Pages/SettingsPage.xaml
+WayCoder.Maui/Pages/SettingsPage.xaml.cs
+WayCoder.Maui/Pages/ShellPage.xaml
+WayCoder.Maui/Pages/ShellPage.xaml.cs
+WayCoder.Maui/Pages/ToolCallsDetailPage.xaml
+WayCoder.Maui/Pages/ToolCallsDetailPage.xaml.cs
+WayCoder.Maui/Services/AgentService.cs
+WayCoder.Maui/Services/FileOpenService.cs
+WayCoder.Maui/Services/MauiCommands.cs
+WayCoder.Maui/Services/MauiCompileStore.cs
+WayCoder.Maui/Services/MauiEditorStore.cs
+WayCoder.Maui/Services/MauiLang.cs
+WayCoder.Maui/Services/MauiSessionStore.cs
+WayCoder.Maui/Services/MauiShellStore.cs
+WayCoder.Maui/Services/MauiVectorTarget.cs
+WayCoder.Maui/Services/MauiVmStore.cs
+WayCoder.Maui/Services/MauiVml.cs
+WayCoder.Maui/Services/MauiWebInteraction.cs
+WayCoder.Maui/Services/SandboxFsService.cs
+WayCoder.Maui/Services/VmlAudio.cs
+WayCoder.Maui/Services/VmlFrontendCompilers.cs
+WayCoder.Maui/Services/VmlUiCalls.cs
+WayCoder.Maui/Tools/VmlTool.cs
