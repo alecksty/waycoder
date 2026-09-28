@@ -112,8 +112,18 @@ public static partial class SelfTest
                  + "—— 翻掉它，或确认属于尚未排期的批次后加进台账：\n    "
                  + string.Join("\n    ", notInLedger));
         else
-            Check($"台账: 无「有中文但不在台账」的文件（扫了 {scanned} 个 .cs/.xaml，"
-                  + $"{hits.Count} 个仍在台账里）", true);
+        {
+            // ⚠ 进度要**报得出来**，否则「还剩多少」只能靠人翻文件 —— 而那正是台账要消灭的东西。
+            //   注意统计的是**未迁移的中文字符串字面量条数**，不是文件里的汉字总数：
+            //   本仓注释即文档，汉字总量的九成在注释里（EditorPage.xaml.cs 两万七千汉字，
+            //   真正的文案只占零头）。用汉字总数当进度会把它夸大一个数量级。
+            var total = hits.Values.Sum();
+            var top = hits.OrderByDescending(kv => kv.Value).Take(8)
+                          .Select(kv => $"{kv.Key["WayCoder.Maui/".Length..]} {kv.Value}");
+            Check($"台账: 无「有中文但不在台账」的文件（扫了 {scanned} 个 .cs/.xaml；"
+                  + $"仍在台账 {hits.Count} 个文件 / 共 {total} 处未迁移文案）"
+                  + $"｜前 8：{string.Join("、", top)}", true);
+        }
 
         if (stale.Count > 0)
             Fail($"台账: {stale.Count} 个文件**已零命中却还挂在台账上**（台账腐烂会让「还剩多少」永远算不准）"
