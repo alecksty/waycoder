@@ -1,3 +1,59 @@
+## v0.96.561 — 双语化第一批：语言引擎 + 系统提示词英文化（**AI 开始用英文回答**）
+
+为 **iOS/Android 全球发行**做的中英双语改造。本轮完成前两批，自测 **6797 → 6867 全绿、零回归**。
+
+**机制：C# 静态字典，不用 .resx。** 新增 `WayCoder/UI/Shared/Lang.cs`，取文案只有一个入口
+`L.Pick(zh, en)` —— **两个实参就是键**，没有键表、没有运行时查找 ⇒「键没跟上」这个失败模式
+**在语法上不存在**（少一个实参编不过）。这是对 .resx 的直接回答：本仓那次 resx 尝试栽在
+"表建好了、键没跟上 ⇒ 查找静默回退成 `[键名]`，用户界面直接显示 `[rust.unsupported_binary]: +`"，
+而当时的处置是**把调用点改回内联中文**。判据还有一条：`SelfTest` 的断言覆盖 C# 字符串、
+**覆盖不到 resx 里的键** —— 护栏照不到的地方就不该放文案。
+
+**跟随系统语言**（用户定：四端一致，不做 App 内开关）。桌面读
+`LC_ALL`/`LC_MESSAGES`/`LANG` + `CurrentUICulture`；MAUI 读平台 API ——
+iOS 用 `NSLocale.PreferredLanguages`（**不用** `Bundle.preferredLocalizations`：那是"系统从
+App 声明支持的语言里挑一个"，回答不了"用户系统语言是什么"），Android 用 `Configuration.Locales`
+（**带 API 24+ 守卫**，本工程 minSdk 21），Windows 用 `ApplicationLanguages.Languages`。
+判定是「**整份有序列表里有没有中文**」而非只看首位 —— `地区=中国 + 语言=English` 是常见组合，
+只看首位会让这批一直在用中文界面的老用户升级后突然变英文。
+**自测入口钉 zh**（与 `Global.OfflineMode = true` 同族）：400+ 条断言钉的是中文文案，
+而 CI 跑在 en-US 机器上 ⇒ 不钉住就整片飘红、且红得与代码对错无关。**那 418 条零改动。**
+
+**先做 Batch 0「协议解耦」**（必须先做，否则翻译会静默改变行为）。全仓有 10 类地方
+**把中文当协议/当键用**，最危险的一处直接决定 **AI 工具调用是否放行**
+（`MauiWebInteraction.ConfirmAsync` 的 `switch { "允许" => 0, "总是允许" => 1, _ => 2 }` ——
+文案一翻，两个 case 全部落空、统统落进 `_ => 2`，**每个工具调用都被静默拒绝**，零报错零日志）。
+另九类：`ToolResultClassifier` 的错误/中止标记表（机器可读协议，决定是否注入"修正参数后重试"）、
+`ContextManager` 两处手抄的 `Contains("错误")`、`ReadFileTool`/`DocTool` 的 `StartsWith("错误")`、
+`FilesPage`/`EditorPage`/`DrawWindowPage`/`ChatPage` 按中文 `case` 分派的菜单、
+`SettingsGroupPage` 按**中文标题反查**分组 id、`ChatPage` 用中文串做消息状态标记、
+`PermissionManager` 里权限模式名的第二份实现。全部改成按 **Id / 索引 / 分类器** 判定。
+
+**系统提示词整份英文化**（这是"AI 用英文回答"的开关 —— 提示词里**从来没有**"请用中文回答"
+这种指令，模型用中文回答是因为提示词本体是中文）。新增英文主模板与中文那份**逐块同构**
+（12 个 `__XXX__` 占位符一个不少），⚠ 中文模板**留在原处逐字未动**（它是既有桌面用户与
+400+ 条断言的契约），`Generate` 里只加一行作为唯一切换点。工作流/规则/教学模式块/子智能体纪律/
+Git 状态标签/工具清单分隔符一并加英文孪生。
+
+**新增 70 条双语护栏**（`SelfTest.Localization.cs`）：语言判定表驱动（含 `["fr","zh-Hant"]→Zh`、
+`[" de-DE "]→En`、空/null→Zh、形近标签 `zhx` 不误判）；中英文案**成对且互不串味**（中文侧必须有
+CJK、英文侧必须没有）；英文模板/工作流/规则/教学块逐一无 CJK；成品无残留 `__X__` 占位符。
+
+⚠ **护栏本轮抓出四处问题，其中两处是判据自己的问题**（如实记下）：
+① `ProjectContext.ToMarkdown()` 的标签漏译；② **值的单位词**也漏译（`.vml(746文件)`）——
+只译标签不做值是典型的"半截活"，护栏把**首次出现中文的那一行**打了出来而不是笼统说"有中文"；
+③ **护栏自己过严**：它整份断言"英文成品无 CJK"，而 `GenerateGitStatus` 会列出 **Git 提交信息**、
+项目指令正文、记忆正文 —— 那些是**数据不是文案**，于是把中文提交信息判成了漏译。
+判据已改为落在"我们写的文案"上（模板 + 注入常量 + 项目检测标签），不是落在成品的一切字节上；
+④ 一条**我自己写得不严谨的测试**：`RelativeTime(DateTime.Now, DateTime.Now.AddMinutes(-5))`
+两次取时钟、第二次略晚 ⇒ `d` 比 5 分钟少一点 ⇒ `(int)` 截成 4，断言随机器快慢偶发飘红 ——
+测试自己不能是不确定的，改用同一个 `t0` 派生。
+
+**本批未做完**：工具描述（~1052 行）、`AgentStatusResolver` 9 条状态文案、附属块
+（`<project_knowledge>`/`<current_goal>`/模式前缀/压缩器提示词）、五个 opt-in 生成器
+（Tiny/Extreme/Economy/Plan/Architect —— 默认 Build 路径已英文化）；以及平台侧
+（iOS `en.lproj` 权限文案、`CFBundleLocalizations`、MacCatalyst 补三键）与帮助文档两版。
+
 ## v0.96.560 — 手机端默认开启 O2 优化（**hello.c 68339 → 28 条指令**）
 
 用户：「可以开启默认2级优化」。手机端设置里那个「优化级别」出厂默认由
