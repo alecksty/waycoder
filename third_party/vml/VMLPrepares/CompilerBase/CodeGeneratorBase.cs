@@ -1227,11 +1227,32 @@ namespace CompilerBase
         protected void AddR(OpCode op, int reg) =>
             AddInstruction(op, Reg(reg));
 
+        /// <summary>
+        /// `op dst, src` —— 寄存器号按**逻辑槽位**给，**类由助记符折算**。
+        ///
+        /// <para>
+        /// ⚠⚠ <b>这一处原先发的是裸 <c>Reg(n)</c>，而它是 22 门前端共用的</b> ⇒
+        /// 凡是经它发射的<b>类相关指令</b>都踩同一个坑：调用方写 `AddRR(MOVED, 1, 2)`
+        /// 期望的是「槽 1 ← 槽 2」，而裸号发出去是 `moved @R1, @R2` ——
+        /// 汇编期的寄存器类闸直接判死（`MOVED` 的两端要 D0–D7）。
+        /// 实测症状：**BASIC / Fortran 里任何 8 字节（Double/Long）变量一用就编不过**
+        /// （`SUB` 体里的 `DCMP/DADD/DMUL` 与 `DPUSH/DPOP` 全在这一条上）。
+        /// </para>
+        ///
+        /// <para>
+        /// 折算是**安全的**：`BankOfOperand` 对 `Rn`/`Fn` 两组的基址都是 <b>0</b>
+        /// ⇒ 所有 32 位与单精度指令**逐字节不变**，只有 `D`/`L` 两组被修正。
+        /// 这是本仓「寄存器类由助记符裁决」那条铁律的**收口处**。
+        /// </para>
+        /// </summary>
         protected void AddRR(OpCode op, int dst, int src) =>
-            AddInstruction(op, Reg(dst), Reg(src));
+            AddInstruction(op, RegOf(op, 0, dst), RegOf(op, 1, src));
 
+        /// <summary>
+        /// `op reg, #imm` —— 同上，寄存器号按逻辑槽位、类由助记符折算。
+        /// </summary>
         protected void AddRI(OpCode op, int reg, int imm) =>
-            AddInstruction(op, Reg(reg), Imm(imm));
+            AddInstruction(op, RegOf(op, 0, reg), Imm(imm));
 
         protected void AddCall(string label) =>
             AddInstruction(OpCode.CALL, LabelOp(label));

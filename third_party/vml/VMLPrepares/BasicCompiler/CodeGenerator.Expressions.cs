@@ -238,12 +238,12 @@ namespace BasicCompiler
 
                 // 整数路的两个寄存器来自 `AllocInt`（互不重叠、且不在右操作数的可用池里），
                 // 本来就不会互相踩 ⇒ 只在浮点路补这一对，少发两条指令。
-                if (isFloat) instructions.Add(new Instruction(pushOp, new List<Operand> { new Operand(OperandType.REGISTER, leftReg) }));
+                if (isFloat) instructions.Add(new Instruction(pushOp, new List<Operand> { RegOf(pushOp, 0, leftReg) }));
 
                 // 生成右操作数
                 GenerateExpressionWithType(binary.Right, rightReg, basicResultType);
 
-                if (isFloat) instructions.Add(new Instruction(popOp, new List<Operand> { new Operand(OperandType.REGISTER, leftReg) }));
+                if (isFloat) instructions.Add(new Instruction(popOp, new List<Operand> { RegOf(popOp, 0, leftReg) }));
 
                 // 根据结果类型选择运算指令
                 switch (binary.Operator)
@@ -273,7 +273,7 @@ namespace BasicCompiler
                                 instructions.Add(new Instruction(arithmeticOp, new List<Operand> { RegOf(arithmeticOp, 0, reg), RegOf(arithmeticOp, 1, rightReg) }));
                             }
                         } else {
-                            instructions.Add(new Instruction(arithmeticOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, rightReg) }));
+                            instructions.Add(new Instruction(arithmeticOp, new List<Operand> { RegOf(arithmeticOp, 0, reg), RegOf(arithmeticOp, 1, reg), RegOf(arithmeticOp, 2, rightReg) }));
                         }
                         break;
                     case "^":

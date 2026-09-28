@@ -135,7 +135,7 @@ public partial class CodeGenerator
         if (symbolTable.TryGetValue(name, out int offset))
         {
             instructions.Add(new Instruction(loadOp,
-                new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, MemOff(offset)) },
+                new List<Operand> { TRegOf(loadOp, 0), new Operand(OperandType.MEMORY, MemOff(offset)) },
                 instructions.Count));
         }
         else
@@ -162,7 +162,7 @@ public partial class CodeGenerator
             }
 
             instructions.Add(new Instruction(loadOp,
-                new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dataLabel) },
+                new List<Operand> { TRegOf(loadOp, 0), new Operand(OperandType.MEMORY, dataLabel) },
                 instructions.Count));
         }
     }
@@ -250,9 +250,9 @@ public partial class CodeGenerator
             var argType = GetExprType(node.Arguments[0]);
             GenerateExpression(node.Arguments[0]);
             if (argType == ExpType.F64)
-                instructions.Add(new Instruction(OpCode.D2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.D2I, [TRegOf(OpCode.D2I, 0), TRegOf(OpCode.D2I, 1)], instructions.Count));
             else if (argType == ExpType.F32)
-                instructions.Add(new Instruction(OpCode.F2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.F2I, [TRegOf(OpCode.F2I, 0), TRegOf(OpCode.F2I, 1)], instructions.Count));
             // else already integer, no-op
             return;
         }
@@ -262,9 +262,9 @@ public partial class CodeGenerator
             var argType = GetExprType(node.Arguments[0]);
             GenerateExpression(node.Arguments[0]);
             if (argType == ExpType.I32)
-                instructions.Add(new Instruction(OpCode.I2F, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.I2F, [TRegOf(OpCode.I2F, 0), TRegOf(OpCode.I2F, 1)], instructions.Count));
             else if (argType == ExpType.F64)
-                instructions.Add(new Instruction(OpCode.D2F, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.D2F, [TRegOf(OpCode.D2F, 0), TRegOf(OpCode.D2F, 1)], instructions.Count));
             // else already float, no-op
             return;
         }
@@ -274,9 +274,9 @@ public partial class CodeGenerator
             var argType = GetExprType(node.Arguments[0]);
             GenerateExpression(node.Arguments[0]);
             if (argType == ExpType.I32)
-                instructions.Add(new Instruction(OpCode.I2D, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.I2D, [TRegOf(OpCode.I2D, 0), TRegOf(OpCode.I2D, 1)], instructions.Count));
             else if (argType == ExpType.F32)
-                instructions.Add(new Instruction(OpCode.F2D, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.F2D, [TRegOf(OpCode.F2D, 0), TRegOf(OpCode.F2D, 1)], instructions.Count));
             // else already double, no-op
             return;
         }
@@ -307,9 +307,9 @@ public partial class CodeGenerator
             var argType = GetExprType(node.Arguments[0]);
             GenerateExpression(node.Arguments[0]);
             if (argType == ExpType.F32)
-                instructions.Add(new Instruction(OpCode.F2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.F2I, [TRegOf(OpCode.F2I, 0), TRegOf(OpCode.F2I, 1)], instructions.Count));
             else if (argType == ExpType.F64)
-                instructions.Add(new Instruction(OpCode.D2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.D2I, [TRegOf(OpCode.D2I, 0), TRegOf(OpCode.D2I, 1)], instructions.Count));
             instructions.Add(new Instruction(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 4)], instructions.Count));
             return;
         }

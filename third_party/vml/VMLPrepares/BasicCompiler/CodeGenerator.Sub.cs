@@ -1586,9 +1586,9 @@ namespace BasicCompiler
 
                 // 操作数先统一到结果类型（整数 → I2F/I2D，单精度 → F2D）
                 EmitSubOperand(binary.Left, subLeftT, subDouble, subFloat);
-                instructions.Add(new Instruction(pushOp, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                instructions.Add(new Instruction(pushOp, new List<Operand> { RegOf(pushOp, 0, 1) }));
                 EmitSubOperand(binary.Right, subRightT, subDouble, subFloat);
-                instructions.Add(new Instruction(popOp, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
+                instructions.Add(new Instruction(popOp, new List<Operand> { RegOf(popOp, 0, 2) }));
 
                 // 算术与位运算：都满足 `reg = 左 OP 右`
                 OpCode? arithOp = op switch
@@ -1621,13 +1621,13 @@ namespace BasicCompiler
                         if (reg == 1)
                         {
                             // reg == 1 就是**右操作数**的寄存器，直接写它会自毁 ⇒ 先做进 R2 再搬
-                            instructions.Add(new Instruction(fop, new List<Operand> { Reg(2), Reg(2), Reg(1) }));
+                            instructions.Add(new Instruction(fop, new List<Operand> { RegOf(fop, 0, 2), RegOf(fop, 1, 2), RegOf(fop, 2, 1) }));
                             OpCode mvOp = subDouble ? OpCode.MOVED : OpCode.MOVEF;
                             instructions.Add(new Instruction(mvOp, new List<Operand> { RegOf(mvOp, 0, 1), RegOf(mvOp, 1, 2) }));
                         }
                         else
                         {
-                            instructions.Add(new Instruction(fop, new List<Operand> { Reg(reg), Reg(2), Reg(1) }));
+                            instructions.Add(new Instruction(fop, new List<Operand> { RegOf(fop, 0, reg), RegOf(fop, 1, 2), RegOf(fop, 2, 1) }));
                         }
                     }
                     else if (reg == 1)
@@ -1850,11 +1850,11 @@ namespace BasicCompiler
             {
                 // 槽里是地址：先取地址、再按宽度解引用
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
-                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
+                instructions.Add(new Instruction(loadOp, new List<Operand> { RegOf(loadOp, 0, reg), new Operand(OperandType.MEMORY, $"R{reg}") }));
             }
             else
             {
-                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
+                instructions.Add(new Instruction(loadOp, new List<Operand> { RegOf(loadOp, 0, reg), new Operand(OperandType.MEMORY, $"R12+{off}") }));
             }
         }
 

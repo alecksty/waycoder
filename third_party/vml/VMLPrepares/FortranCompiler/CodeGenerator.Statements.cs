@@ -270,9 +270,9 @@ public partial class CodeGenerator
             var argType = GetExprType(node.Arguments[0]);
             GenerateExpression(node.Arguments[0]);
             if (argType == ExpType.F32)
-                instructions.Add(new Instruction(OpCode.F2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.F2I, [TRegOf(OpCode.F2I, 0), TRegOf(OpCode.F2I, 1)], instructions.Count));
             else if (argType == ExpType.F64)
-                instructions.Add(new Instruction(OpCode.D2I, [Reg(0), Reg(0)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.D2I, [TRegOf(OpCode.D2I, 0), TRegOf(OpCode.D2I, 1)], instructions.Count));
             EmitPrintChar();
             return;
         }
