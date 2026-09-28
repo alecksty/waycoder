@@ -43,9 +43,19 @@ public static partial class SelfTest
     /// ⚠ 切段是必须的：同一个文件里 `VmlUiLimits` 也定义了一批 5xx 常量
     /// （`LandscapeSideChromeDp = 518`、`MaxPolyPoints = 512`），而它们**不是 syscall 号**、
     /// 本就不该出现在 `AllNumbers` 里。不切段的话这条自测会把它们报成"漏登记"，成了误报。
+    ///
+    /// ⚠⚠ **必须先把行尾归一化成 LF**（2026-09-28 修）：下面两个判据都是拿带 `\n` 的字面量
+    /// 去 `IndexOf` 的，而本仓 `core.autocrlf=true` + `.gitattributes: * text=auto`
+    /// ⇒ **Windows 检出的工作区文件是 CRLF**，`"public static class VmlUi\n"` 根本匹配不到
+    /// （CRLF 下 `VmlUi` 后面跟的是 `\r`），函数返回空串 ⇒ 紧接着「切得出正文」那条断言
+    /// 直接红，且 `declared` 为空 ⇒ **63 个号全被报成「源码里没有定义」**。
+    /// 这套自测的**真实失败信息完全指错了地方**（看着像号段登记漏了，其实是行尾）。
+    /// 之所以长期没暴露：CI 跑在 ubuntu 上（LF 检出），只有 Windows 本机才会红。
     /// </summary>
     private static string VmlUiClassBody(string text)
     {
+        // 归一化行尾 —— 判据只针对内容，不该被检出的行尾形态左右
+        text = text.Replace("\r\n", "\n").Replace('\r', '\n');
         const string head = "public static class VmlUi\n";
         var start = text.IndexOf(head, StringComparison.Ordinal);
         if (start < 0) return "";

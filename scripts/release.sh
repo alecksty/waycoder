@@ -170,24 +170,33 @@ c "  提交到各服务器 —— 请人工确认后逐条执行"
 c "═══════════════════════════════════════════════"
 
 echo ""
-c "【0. 上传发行资产】"
+c "【0. 上传发行资产 —— GitHub 是唯一发行渠道】"
 cat <<EOF
-  ① Gitee Release（国内主渠道，waycoder --update 优先走这里）:
-    https://gitee.com/aleckstygit/way-coder/releases
-    上传 dist/waycoder-$VERSION-*.zip / *.tar.gz 共 6 个资产
+  ⚠ 分工：**Gitee 存代码、GitHub 发行**。Gitee 仓库是私有的（匿名实测 403），
+    它永远不会把资产发给终端用户 ⇒ Release 资产与 winget/brew/apt 的 URL 一律指向 GitHub。
 
-  ② GitHub Release（海外 mirror；winget/brew 清单 URL 指向 Gitee 可预测 release URL releases/download/<tag>/<file>）:
+  ① 推 tag 触发 .github/workflows/release.yml（建 release + 上传 CI 产物）:
     走 Actions： git push github $VERSION
+    gh run watch          # 等 CI 跑完
     或手动： https://github.com/alecksty/waycoder/releases/new?tag=$VERSION
 
-  ③ 上传后必须回验远端 == dist（清单 sha 只对 dist 负责，上传错文件同样会导致安装失败）:
-    gh release upload $VERSION dist/waycoder-$VERSION-* dist/SHA256SUMS.txt --clobber
+  ② ⚠ 再用本地 dist 覆盖 CI 产物（见下方 ③ 的命令）—— 否则清单 sha 与托管资产不同源：
+    CI 在 runner 上重新 AOT 编译，产物与本地 dist 不是同一份二进制，哈希必然不同；
+    且它的 matrix 只出 4 个平台（缺 win-arm64 / linux-arm64），而 winget 正需要 win-arm64。
+
+  ③ 覆盖 CI 产物，并回验远端 == dist（清单 sha 只对 dist 负责，上传错文件同样会导致安装失败）:
+    gh release upload $VERSION dist/waycoder-$VERSION-* dist/SHA256SUMS.txt --clobber \\
+      --repo alecksty/waycoder
     # 比对远端资产 digest 与本地 SHA256SUMS（SHA256SUMS.txt 自身不在其内容里，故先滤掉）
-    gh release view $VERSION --json assets \\
+    gh release view $VERSION --repo alecksty/waycoder --json assets \\
       --jq '.assets[] | "\\(.digest|sub("sha256:";""))  \\(.name)"' | grep -v SHA256SUMS.txt | sort > /tmp/remote.txt
     diff /tmp/remote.txt <(sort "$DIST/SHA256SUMS.txt") && echo "✅ 远端与 dist 逐项一致"
     # 安装端端到端验收（校验和通过 = 前三步真的对齐了）
     brew fetch --force alecksty/waycoder/waycoder
+
+  ④ Gitee Release（可选，仅作存档；**不承担发行**，匿名取不到）:
+    https://gitee.com/aleckstygit/way-coder/releases
+    ⚠ 附件配额 1 GB 且已接近占满（实测 1008/1024 MB），传大资产前先看剩余。
 EOF
 
 echo ""
@@ -205,11 +214,13 @@ cat <<EOF
 EOF
 
 echo ""
-c "【2. brew → gitee tap aleckstygit/homebrew-waycoder】"
+c "【2. brew → GitHub tap alecksty/homebrew-waycoder】"
 cat <<EOF
   已更新（含 sha256）: $FORMULA
+  ⚠ 一律用 **GitHub** tap —— 原 gitee 镜像 tap 仓库是私有的（匿名 403），谁都装不了；
+    且 formula 的 homepage/url 都指向 GitHub，`brew audit` 会实际去抓 homepage。
   提交步骤:
-    git clone https://gitee.com/aleckstygit/homebrew-waycoder /tmp/homebrew-waycoder
+    git clone https://github.com/alecksty/homebrew-waycoder /tmp/homebrew-waycoder
     cp "$FORMULA" /tmp/homebrew-waycoder/Formula/waycoder.rb    # 若 tap 公式在根目录则去掉 Formula/
     cd /tmp/homebrew-waycoder && git add . && git commit -m "waycoder $VER" && git push
   macOS 校验:

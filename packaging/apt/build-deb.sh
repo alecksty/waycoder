@@ -37,7 +37,7 @@ Priority: optional
 Architecture: ${ARCH}
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: $(du -sk "$BIN" | cut -f1)
-Homepage: https://gitee.com/aleckstygit/my-coder
+Homepage: https://github.com/alecksty/waycoder
 Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
  WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
  41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。

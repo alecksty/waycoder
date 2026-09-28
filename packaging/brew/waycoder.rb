@@ -1,13 +1,16 @@
 # Homebrew formula for WayCoder（道码）
 #
 # 用法（自定义 tap，免提交 homebrew-core 审核）：
-#   brew tap aleckstygit/waycoder https://gitee.com/aleckstygit/homebrew-waycoder
+#   brew tap alecksty/waycoder
 #   brew install waycoder
+#
+# ⚠ homepage 与 url 一律指向 GitHub —— Gitee 只存源码（私有仓库，匿名取不到），
+#   `brew audit` 会实际去抓 homepage，指向 Gitee 会直接判不合格。
 #
 # 提交到 homebrew-core 前需：填 sha256（见下方注释）、补 test、过 brew audit
 class Waycoder < Formula
   desc "中文版易用编程智能体，C# (.NET) NativeAOT 单文件 CLI 编程 Agent"
-  homepage "https://gitee.com/aleckstygit/way-coder"
+  homepage "https://github.com/alecksty/waycoder"
   license "MIT"
   version "0.96.559"
 

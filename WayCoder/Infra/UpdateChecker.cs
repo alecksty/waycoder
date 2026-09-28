@@ -28,7 +28,7 @@ public sealed class ReleaseInfo
 /// 自动升级 —— 版本检查 + 自替换。
 ///
 /// 对标 Claude Code 的 `claude update` / `npm update -g`，让 WayCoder 能一条命令自升级：
-///   - 版本检查：优先 Gitee Releases（国内快），失败回退 GitHub Releases（仓库均可用环境变量覆盖）
+///   - 版本检查：**优先 GitHub Releases**（发行渠道），失败回退 Gitee Releases（仓库均可用环境变量覆盖）
 ///   - 自替换：下载匹配当前平台（RID）的压缩包 → 解压出单文件二进制 → 覆盖当前可执行文件
 ///   - Windows：exe 占用锁无法直接覆盖，落 `.new` + `upgrade.bat` 重试脚本，退出后自动替换并重启
 ///   - Unix：原子 rename 覆盖运行中二进制（旧 inode 继续服务当前进程），提示重启
@@ -226,12 +226,19 @@ public static class UpdateChecker
     // 网络 —— 拉取最新版本
     // ════════════════════════════════════════════════════════════════
 
-    /// <summary>拉取最新 release（Gitee 优先，失败回退 GitHub）。无更新/失败返回 null。</summary>
+    /// <summary>拉取最新 release（GitHub 优先，失败回退 Gitee）。无更新/失败返回 null。</summary>
+    /// <remarks>
+    /// ⚠ **顺序是 GitHub 优先**（2026-09-28 定）：本项目的分工是「**Gitee 存代码、GitHub 发行**」——
+    /// 源码仓库在 Gitee 且是**私有**的（匿名访问实测 403，`releases/latest` 返 `Not Found Project`），
+    /// 它**永远不会**把资产发给终端用户。原先写成 Gitee 优先，实际效果是每次检查都先发一个
+    /// 注定失败的请求、再回退 GitHub（能用，但白等一次往返，且「国内快」这个理由不成立）。
+    /// ⇒ 发行渠道以 GitHub 为准；Gitee 保留为回退（将来若公开，改回顺序即可）。
+    /// </remarks>
     public static async Task<ReleaseInfo?> FetchLatestAsync()
     {
-        var gitee = await FetchFromGiteeAsync(GiteeRepo);
-        if (gitee != null) return gitee;
-        return await FetchFromGithubAsync(GitHubRepo);
+        var github = await FetchFromGithubAsync(GitHubRepo);
+        if (github != null) return github;
+        return await FetchFromGiteeAsync(GiteeRepo);
     }
 
     /// <summary>从 GitHub Releases 拉取最新版本，匹配当前平台资产。</summary>

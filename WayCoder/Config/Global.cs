@@ -143,8 +143,8 @@ public static class Global
     public const string Address = "中国 · 深圳";
 
     // ── 仓库 ──
-    /// <summary>Git 仓库地址</summary>
-    public const string RepoUrl = "https://gitee.com/aleckstygit/my-coder";
+    /// <summary>发行页地址（`/about` 显示；Gitee 只存源码且是私有仓库，匿名打不开 ⇒ 指向 GitHub）</summary>
+    public const string RepoUrl = "https://github.com/alecksty/waycoder";
     /// <summary>开源协议</summary>
     public const string License = "MIT";
 
