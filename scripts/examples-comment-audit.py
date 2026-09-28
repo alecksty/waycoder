@@ -15,6 +15,7 @@
 用法：
     python scripts/examples-comment-audit.py                 # 全部进包源码
     python scripts/examples-comment-audit.py --code-only     # 只跑硬判据（改完必跑）
+    python scripts/examples-comment-audit.py --detail         # 硬判据红时给出**行级定位**
     python scripts/examples-comment-audit.py --list          # 只列还没配英文的文件与条数
     python scripts/examples-comment-audit.py c/ swift/       # 路径子串过滤
 
@@ -259,9 +260,21 @@ def unpaired(lines, ext, lookahead=1, in_block=None):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     code_only = "--code-only" in sys.argv
+    detail = "--detail" in sys.argv
     listing = "--list" in sys.argv
-    files = [f for f in packaged() if not args or any(a in f.replace("\\", "/") for a in args)]
-    code_bad, unpaired_rows, skipped = [], [], []
+    # ⚠ 参数匹配**不能纯子串**：`test_bgi.c` 是 `test_bgi.cpp` 的**前缀**，
+    #   于是跑 `test_bgi.c` 会连带扫到兄弟文件 `cpp/test_bgi.cpp`
+    #   （实测「检查了 2 个文件」，看着像那个文件没修好）。
+    #   判据：带 `/` 的按**路径**匹配（`c/` 整目录、`c/test_bgi.c` 精确到文件）；
+    #        不带 `/` 的按**文件名**匹配（前缀也行，但必须正好是那个扩展名）。
+    def _match(relf, a):
+        if "/" in a:
+            return relf.startswith(a) or ("/" + a) in relf
+        base = relf.rsplit("/", 1)[-1]
+        return base == a or (base.startswith(a + ".") )
+    files = [f for f in packaged()
+             if not args or any(_match(f.replace("\\", "/"), a) for a in args)]
+    code_bad, unpaired_rows, skipped, code_diff = [], [], [], []
     for f in files:
         rel = os.path.relpath(f, REPO).replace("\\", "/")
         ext = os.path.splitext(f)[1].lower()
@@ -279,6 +292,20 @@ def main():
         old = head_text(rel)
         if old is not None and code_hash(old, ext) != code_hash(cur, ext):
             code_bad.append(rel)
+            # 行级定位：剥掉注释后逐行比，报**第一处对不上**的代码行。
+            # ⚠ 加这一条是因为执行方们**都**自己另想办法定位过（判据只说"代码变了"，
+            #   不说是哪一行；而这个坑（块注释结束符被复制一份 ⇒ 后续行掉出注释）
+            #   8 个执行方合计中了约 39 次）。
+            if detail:
+                _a = [x.strip() for x in strip_comments(old, ext).split("\n")]
+                _b = [x.strip() for x in strip_comments(cur, ext).split("\n")]
+                _a = [x for x in _a if x]; _b = [x for x in _b if x]
+                for _i in range(max(len(_a), len(_b))):
+                    _x = _a[_i] if _i < len(_a) else "<HEAD 无此行>"
+                    _y = _b[_i] if _i < len(_b) else "<当前无此行>"
+                    if _x != _y:
+                        code_diff.append((rel, _i + 1, _x[:70], _y[:70]))
+                        break
         if not code_only:
             bad = unpaired(cur.split("\n"), ext, in_block=block_flags(cur, ext))
             if bad:
@@ -293,6 +320,12 @@ def main():
         print(f"❌ 【硬判据】代码被改动了 {len(code_bad)} 个文件（注释之外的东西变了）：")
         for r in code_bad[:20]:
             print("   ", r)
+        if detail and code_diff:
+            print("   第一处对不上的代码行（剥掉注释后逐行比）：")
+            for r, ln, x, y in code_diff[:5]:
+                print(f"     {r}: 第 {ln} 个非空代码行")
+                print(f"       HEAD: {x}")
+                print(f"       现在: {y}")
     else:
         print("✔ 【硬判据】代码一字未动（注释剥掉、去空白后逐文件哈希相同）")
     if not code_only:
