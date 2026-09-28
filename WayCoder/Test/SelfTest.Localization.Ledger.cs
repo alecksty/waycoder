@@ -103,6 +103,36 @@ public static partial class SelfTest
         IncludeOverrides: ["/UI/TUI/Edit/"]);
 
     /// <summary>
+    /// 编译器树：`third_party/vml/VMLPrepares`（22 个前端 + 公共层）。
+    ///
+    /// <para>
+    /// <b>为什么这层必须单独有一道闸门</b>：这些文案会**直接出现在手机上的编译气泡里**
+    /// （编译失败时那些字就打在聊天流里），是用户看得见的最直接的一类。
+    /// 而本轮之前，整个仓库**没有任何地方**在拦"新写一条中文诊断"——
+    /// 所以它一路长到了 **2645 处**（机械扫描：中文字面量没落在任何取词器括号里）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>这层用的是另一套取词器</b>：<c>VMLAssembler.VmlLang.Pick</c>，**不是** <c>L.Pick</c>
+    /// （编译器树不能 `using WayCoder`，依赖是单向的）。扫描器两套都认
+    /// （见 <see cref="IsLocalizingPickCall"/>）—— 漏认任何一个都会让台账永远清不干净。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 扫的是 <c>.cs</c>；<c>Examples/</c>、<c>Lib/</c>、<c>compat-corpus/</c>、
+    /// <c>test_shared/</c>、<c>tools/</c> 是**程序与语料**（那里的中文是源码内容，不是编译器文案）⇒ 排除。
+    /// </para>
+    /// </summary>
+    private static readonly LedgerScope VmlCompilerScope = new(
+        "双语化台账：VML 编译器树（VMLPrepares/**）仍含中文的文件",
+        "WayCoder/Test/i18n-vml-ledger.txt",
+        "third_party/vml/VMLPrepares",
+        // obj/bin = 生成代码；其余几个是**程序与语料**（中文是源码内容，不是编译器文案）
+        ["/obj/", "/bin/", "/patches/", "/Examples/", "/Lib/", "/test_shared/"],
+        ScanXaml: false,
+        Note: "编译器诊断 = 手机上编译失败时气泡里的那些字。已双语化的走 VmlLang.Pick，行内注释写明保留理由。");
+
+    /// <summary>
     /// 从仓库里扫出「含未迁移中文的文件」并与台账对账。两个方向都会红。
     /// </summary>
     private static void CheckLedger(LedgerScope scope, Action<string> Section, Action<string, bool> Check, Action<string> Fail)
@@ -223,6 +253,10 @@ public static partial class SelfTest
     private static void TestSharedChineseLedger(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
         => CheckLedger(SharedScope, Section, Check, Fail);
 
+    /// <summary>VML 编译器树台账（诊断文案 = 手机编译气泡里用户看得见的那一层）。</summary>
+    private static void TestVmlCompilerChineseLedger(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+        => CheckLedger(VmlCompilerScope, Section, Check, Fail);
+
     /// <summary>
     /// 扫描器**自己**的判据。没有这一段，一个坏掉的扫描器给出的就是**假绿** ——
     /// 而"绿"恰恰是这道闸门唯一的价值。表驱动：左边源码片段，右边该不该判成命中。
@@ -266,6 +300,12 @@ public static partial class SelfTest
             ("孔里嵌插值串的中文 → 命中",            "var a = $\"{$\"内{中文}\"}\";",           true),
             ("只有注释的文件 → 不命中",              "// 中文\n/// 中文\n/* 中文 */",        false),
             ("空文件 → 不命中",                      "",                                     false),
+            // ⚠ **编译器树那套取词器**（`VMLAssembler.VmlLang.Pick`）——
+            //   与 `L.Pick` 是两个类、不是同一个；漏认它 = 编译器那边的台账永远清不干净。
+            ("VmlLang.Pick 的中文支 → 不命中（已双语）",  "var a = VmlLang.Pick(\"中文\", \"EN\");",        false),
+            ("全限定 VMLAssembler.VmlLang.Pick → 不命中", "var a = VMLAssembler.VmlLang.Pick(\"中文\", \"EN\");", false),
+            ("嵌套 VmlLang.Pick 的内层 → 不命中",         "var a = VmlLang.Pick(\"x\", VmlLang.Pick(\"中文\", \"EN\"));", false),
+            ("VmlLang.Pick 之后的裸中文 → 命中",          "var a = VmlLang.Pick(\"x\", \"y\"); var b = \"中文\";", true),
         };
         foreach (var (name, src, should) in csCases)
         {
@@ -310,6 +350,32 @@ public static partial class SelfTest
     /// 表达式里的中文是另一条字符串字面量，会在它自己的扫描位置被取到。
     /// </para>
     /// </summary>
+    /// <summary>
+    /// 这个「点链名字」是不是**取两种语言的取词器**（`L.Pick` / `VmlLang.Pick`）。
+    ///
+    /// <para>
+    /// 认出来之后，它的实参里的中文字面量就**不算未迁移**（那是已经双语化的键）、
+    /// 嵌套调用也要正确（用栈计深度，见调用点）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ <b>本仓有两套取词器，不是一个</b>：界面层用 <c>WayCoder.L.Pick</c>，
+    /// 编译器树（<c>third_party/vml</c>）用 <c>VMLAssembler.VmlLang.Pick</c> ——
+    /// 后者不能 <c>using WayCoder</c>（依赖是单向的），所以各自有一份。
+    /// **两处都要认**，漏一个的症状是"翻完的文件永远留在台账上"，台账随即失去意义
+    /// （本文件顶上那条注释记的 `AboutPage` 就是这个坑，只是当时只有一套取词器）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 显式列出、**不做模糊匹配**：`name.EndsWith(".Pick")` 那种写法会把
+    /// 任何叫 `Foo.Pick` 的无关方法一并当成取词器，从而**把真正漏翻的中文放过去**
+    /// —— 那正是这道闸门最不能出错的方向。
+    /// </para>
+    /// </summary>
+    private static bool IsLocalizingPickCall(string dottedName) =>
+        dottedName == "L.Pick" || dottedName.EndsWith(".L.Pick", StringComparison.Ordinal)
+        || dottedName == "VmlLang.Pick" || dottedName.EndsWith(".VmlLang.Pick", StringComparison.Ordinal);
+
     internal static List<string> ExtractCSharpStringLiterals(string src)
     {
         var outp = new List<string>();
@@ -349,7 +415,7 @@ public static partial class SelfTest
                 int s0 = i;
                 while (i < n && (char.IsLetterOrDigit(src[i]) || src[i] == '_' || src[i] == '.')) i++;
                 var name = src[s0..i];
-                pendingPick = name == "L.Pick" || name.EndsWith(".L.Pick", StringComparison.Ordinal)
+                pendingPick = IsLocalizingPickCall(name)
                               // 也认写成 `Pick(` 的形态（`using static` 或本文件里的别名）
                               || (name == "Pick" && s0 >= 2 && src[s0 - 1] == '.' && src[s0 - 2] == 'L');
                 continue;

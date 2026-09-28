@@ -1,0 +1,61 @@
+# 双语化台账：VML 编译器树（third_party/vml/VMLPrepares/**）仍含未迁移中文的文件
+#
+# 机制与 `i18n-maui-ledger.txt` / `i18n-shared-ledger.txt` 同一套（见
+# `SelfTest.Localization.Ledger`）：**两个方向都会红** ——
+#   · 文件有中文但不在本表 ⇒ 红（新写的中文 / 新文件 —— 正要拦的那类）
+#   · 文件在本表但已经零命中 ⇒ 也红（台账腐烂比不全更坏）
+#
+# 这些文件里的中文**会直接出现在手机上的编译气泡里**（编译失败时那些字打在聊天流中），
+# 是用户看得见的最直接的一类。本轮之前**没有任何地方在拦新写的中文诊断** ⇒ 它长到了 2645 处。
+#
+# 写法：一行一个**仓库根相对路径**（正斜杠）。路径后可用 `  # 理由` 写保留原因。
+# 已双语化的文件**不该出现在这里**（扫描器认得 `VmlLang.Pick(zh, en)` 的实参，
+# 那是键、不算未迁移）。⚠ 编译器树用的是 `VmlLang.Pick`，**不是** `L.Pick` —— 两套取词器扫描器都认。
+#
+# ⚠ **本表刚建立，是"分批推进"的起点**：行数应当只减不增。
+#   下一批的目标层（按影响面排序）：诊断类 269 处 → 错误码表 88 → 警告 21 → 寄存器 dump 245 → 桌面 CLI 用法 550。
+third_party/vml/VMLPrepares/BasicCompiler/BasicCompilerPlugin.cs
+third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Qbasic.SysVars.cs
+third_party/vml/VMLPrepares/CCompiler/CCompilerPlugin.cs
+third_party/vml/VMLPrepares/CCompiler/Program.cs
+third_party/vml/VMLPrepares/CompilerBase/LexerBase.cs
+third_party/vml/VMLPrepares/CompilerBase/OopCodeGenerator.cs
+third_party/vml/VMLPrepares/CppCompiler/CppCompilerPlugin.cs
+third_party/vml/VMLPrepares/CSharpCompiler/CSharpCompilerPlugin.cs
+third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/DartCompiler/DartCompilerPlugin.cs
+third_party/vml/VMLPrepares/DCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/DCompiler/DCompilerPlugin.cs
+third_party/vml/VMLPrepares/ForthCompiler/ForthCompiler.cs
+third_party/vml/VMLPrepares/ForthCompiler/ForthCompilerPlugin.cs
+third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/FortranCompiler/FortranCompilerPlugin.cs
+third_party/vml/VMLPrepares/GoCompiler/GoCompiler.cs
+third_party/vml/VMLPrepares/GoCompiler/GoCompilerPlugin.cs
+third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs
+third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/JavaCompiler/JavaCompilerPlugin.cs
+third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/JavaScriptCompiler/JavaScriptCompilerPlugin.cs
+third_party/vml/VMLPrepares/KotlinCompiler/KotlinCompilerPlugin.cs
+third_party/vml/VMLPrepares/LadderCompiler/LadderCompilerPlugin.cs
+third_party/vml/VMLPrepares/LuaCompiler/CodeGenerator.Core.cs
+third_party/vml/VMLPrepares/LuaCompiler/LuaCompilerPlugin.cs
+third_party/vml/VMLPrepares/MixedLanguage/MixedLanguageRuntime.cs
+third_party/vml/VMLPrepares/MixedLanguage/Program.cs
+third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/ObjCCompiler/ObjCCompilerPlugin.cs
+third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
+third_party/vml/VMLPrepares/PascalCompiler/PascalCompiler.cs
+third_party/vml/VMLPrepares/PascalCompiler/PascalCompilerPlugin.cs
+third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Core.cs
+third_party/vml/VMLPrepares/PythonCompiler/PythonCompilerPlugin.cs
+third_party/vml/VMLPrepares/RCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/RCompiler/RCompilerPlugin.cs
+third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/RubyCompiler/RubyCompilerPlugin.cs
+third_party/vml/VMLPrepares/RustCompiler/RustCompiler.cs
+third_party/vml/VMLPrepares/RustCompiler/RustCompilerPlugin.cs
+third_party/vml/VMLPrepares/SchemeCompiler/SchemePlugin.cs
+third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
+third_party/vml/VMLPrepares/SwiftCompiler/SwiftCompilerPlugin.cs

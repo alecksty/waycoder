@@ -464,6 +464,7 @@ public static partial class SelfTest
     // 双语化台账（两个范围各一份：MAUI 侧 / 编译进手机的共享层；两个方向都会红）
     TestMauiChineseLedger(Section, Check, Fail);
     TestSharedChineseLedger(Section, Check, Fail);
+    TestVmlCompilerChineseLedger(Section, Check, Fail);
 
     TestChunk30(Section, Check, Fail);
 
