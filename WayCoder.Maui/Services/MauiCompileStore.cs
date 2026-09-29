@@ -1,3 +1,5 @@
+using VMLAssembler;
+
 namespace WayCoder.Maui.Services;
 
 /// <summary>
@@ -79,10 +81,32 @@ public static class MauiCompileStore
     /// </summary>
     public const int DefaultOptimizationLevel = 2;
 
-    /// <summary>优化级别（0 关闭 / 1 初步 / 2 中度 / 3 极致）。**默认 2 = 中度（死代码消除）**。</summary>
+    /// <summary>
+    /// 优化级别（0 关闭 / 1 初步 / 2 中度 / 3 极致）。**默认 2 = 中度（死代码消除）**。
+    ///
+    /// <para>
+    /// ⚠ <b>这一条是「免费版 / 全能版」的优化器门</b>（判据见 <c>FreeTierPolicy</c>）：
+    /// 没解锁就**恒定返回 <see cref="OptimizationPolicy.Off"/></b>，存的值原样留着
+    /// （将来解锁了立刻生效，不用重设）。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠⚠ <b>门必须收在 getter 这一处，不能在编译处再钳一遍</b> ——
+    /// <see cref="Summary"/> 与设置页显示的都是这个属性，只钳执行不钳显示，
+    /// 界面就会当着用户的面撒谎（显示"优化 中度"、实际按不优化跑）。
+    /// 收在一处 ⇒ 执行与显示**同源**，这类不一致从结构上不可能发生。
+    /// </para>
+    ///
+    /// <para>
+    /// 设置页那边还有一条配套：免费版**压根不渲染这一项**（不是置灰），
+    /// 理由是"显示了但暗地里钳住"最容易被用户当成 bug。
+    /// </para>
+    /// </summary>
     public static int OptimizationLevel
     {
-        get => Pick(KeyOpt, DefaultOptimizationLevel, OptimizationOptions);
+        get => EntitlementStore.IsFull
+            ? Pick(KeyOpt, DefaultOptimizationLevel, OptimizationOptions)
+            : OptimizationPolicy.Off;
         set { try { Preferences.Set(KeyOpt, value); } catch { } }
     }
 
@@ -158,8 +182,15 @@ public static class MauiCompileStore
 
     /// <summary>设置页摘要行用的一句话（首页那行由它给，**取值与文案同一处**）。</summary>
     public static string Summary()
-        => L.Pick($"优化 {OptimizationText(OptimizationLevel)} · 警告 {WarningText(WarningLevel)} · 浮点 {NumberModeText(FloatMode)}",
-                  $"Optimize {OptimizationText(OptimizationLevel)} · Warnings {WarningText(WarningLevel)} · Float {NumberModeText(FloatMode)}");
+    {
+        // 免费版不写"优化 关闭" —— 那不是用户选的，是没解锁，照实说。
+        var head = EntitlementStore.IsFull
+            ? L.Pick($"优化 {OptimizationText(OptimizationLevel)}", $"Optimize {OptimizationText(OptimizationLevel)}")
+            : L.Pick("优化需全能版", "Optimizer: Full Edition");
+        var tail = L.Pick($"警告 {WarningText(WarningLevel)} · 浮点 {NumberModeText(FloatMode)}",
+                          $"Warnings {WarningText(WarningLevel)} · Float {NumberModeText(FloatMode)}");
+        return $"{head} · {tail}";
+    }
 
     // ── 读取兜底 ──
 

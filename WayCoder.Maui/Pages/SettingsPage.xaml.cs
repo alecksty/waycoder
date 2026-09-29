@@ -78,6 +78,11 @@ public partial class SettingsPage : ContentPage
         // ── 编译：同虚拟机，摘要由 `MauiCompileStore.Summary()` 给（取值与文案同一处）
         CompileSummary.Text = Services.MauiCompileStore.Summary();
 
+        // ── 全能版（内购）：标题与摘要都由 `EntitlementStore` 给 ——
+        //    这里是**显示**，判据（买没买）在它那边，别在这儿自己判一次。
+        FullTitle.Text = Services.EntitlementStore.ProductName;
+        FullSummary.Text = Services.EntitlementStore.Summary();
+
         // ── 关于
         AboutSummary.Text = $"Dolaima {Global.Version}";
     }
@@ -109,6 +114,7 @@ public partial class SettingsPage : ContentPage
     private async void OnVoiceTapped(object? sender, TappedEventArgs e) => await Go("voice");
     private async void OnVmTapped(object? sender, TappedEventArgs e) => await Go("vm");
     private async void OnCompileTapped(object? sender, TappedEventArgs e) => await Go("compile");
+    private async void OnFullTapped(object? sender, TappedEventArgs e) => await Go("full");
 
     private async void OnAboutTapped(object? sender, TappedEventArgs e) =>
         await Shell.Current.GoToAsync("about");

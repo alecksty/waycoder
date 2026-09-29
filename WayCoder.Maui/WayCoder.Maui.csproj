@@ -114,7 +114,14 @@
 		<!-- MacCatalyst 最低 17.0：SDK 27.0 起把下限从 15.0 抬到了 17.0，
 		     写 15.0 会硬失败（`SupportedOSPlatformVersion value '15.0' is lower than the minimum value '17.0'`）。 -->
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">17.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<!-- Android 最低 23（= Android 6.0）—— **由内购库倒逼**，不是我们主动抬的：
+		     `Xamarin.Android.Google.BillingClient` 依赖的 `androidx.tracing` 在自己的清单里写着
+		     `minSdkVersion 23`，而清单合并的规则是"子库的 minSdk 不能高于宿主" ⇒ 停在 21 会
+		     在 AMM0000 这一步硬失败（报错原文就是 `uses-sdk:minSdkVersion 21 cannot be smaller
+		     than version 23 declared in library …/androidx.tracing`）。
+		     21→23 的代价：只丢掉 Android 5.x（2015 年及更早），而 Google Play 现在本就要求
+		     targetSdk 35+，5.x 机器占比可以忽略 —— 不值得为它把内购拿掉。 -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">23.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 
@@ -134,9 +141,23 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- App Icon / Splash：使用 appicon.png（app.png 的 1024x1024 副本；四角透明保留，
-		     不设 Color 避免背景把透明角染黑；与 Resources\Images\app.png 分开避免重名） -->
-		<MauiIcon Include="Resources\AppIcon\appicon.png" />
+		<!-- App Icon / Splash：使用 appicon.png（与 Resources\Images\app.png 分开避免重名）。
+		     **源图必须没有任何透明像素** —— 这是上架硬要求，而且实测下来它是**唯一真正管用**的一条：
+		     App Store 的报错原文是「can't be transparent **nor contain an Alpha Channel**」，
+		     但 v0.96.577 逐字节量下来，它管的是「**有没有透明像素**」而不是「有没有 alpha 通道」：
+		     Resizetizer 对 iOS 图标**恒定输出 colorType=6（RGBA）**，把 `Color` 设上、
+		     再换成官方文档那套 `ForegroundFile` + `Color` 形态，产出**仍然是 RGBA、且 alpha 全 255**
+		     （两种形态都量过，颜色通道以外的字节一致），而大量 MAUI 应用照样上架成功
+		     ⇒ **全不透明的 alpha 通道是被接受的，被拒的是真透明**。
+		     ⇒ 判据因此落在**源图**这一层：appicon.png 是 1024x1024、**8-bit/color RGB（colorType=2）、
+		     根本没有 alpha 通道、全幅不透明**。它由本目录的 `appicon.dsl` 用仓库自己的绘图 DSL
+		     画出（`WayCoder/Infra/DrawEngine.cs` 的 DrawRunner），出图时把 RGBA 剥成 RGB ——
+		     ⚠ **要改图标就改那份 `.dsl` 重画，别直接编辑 PNG**；画完跑
+		     `python3 scripts/check-appicon.py` 自查（它按「有没有透明像素」判，与 App Store 同口径）。 -->
+		<!-- ⚠ 这里的 Color 是**保险丝，不是装饰**：源图现在是 RGB 无 alpha，本行当前不起作用；
+		     留着它是因为它保证「将来谁换上一张带 alpha 的源图，MAUI 也会把前景合成到该背景色上」，
+		     产出仍然是不透明图标。与启动屏同色 `#0E0E12`（= 暗色页面背景 PageBgDark）。 -->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" Color="#0E0E12" />
 		<!-- Color 决定**启动画面背景**（生成到 @color/maui_splash_color）。不写就是 MAUI 模板默认的
 		     #512BD4 紫 —— 用户反馈「启动时背景是紫的」就是它。取 App 的暗色页面背景 PageBgDark，
 		     与启动后的界面无缝衔接。 -->
@@ -185,6 +206,44 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+	</ItemGroup>
+
+	<!--
+	  Google Play Billing + 它的 AndroidX 版本对齐 —— 整组**只给 Android 目标**
+	  （条件挂在 ItemGroup 上，免得每条 PackageReference 抄一遍 Condition）。
+	-->
+	<ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+		<!--
+		  选它而不是 `Plugin.InAppBilling` 那类跨端插件：这是一个**纯 AAR 绑定**
+		  （没有运行时反射），与 iOS 走 SDK 自带的 `StoreKit` 绑定同一个思路 ——
+		  两端各用各的原生 API，不引第三方抽象层。理由与取舍见 `Services/Iap.cs` 的类注释。
+		-->
+		<PackageReference Include="Xamarin.Android.Google.BillingClient" Version="9.1.0.2" />
+
+		<!--
+		  ⚠⚠ **这五个版本钉死不是洁癖，是 Android 构建能不能过的问题。**
+
+		  计费包是照着**更旧的一批 AndroidX** 编的，它传递进来的 `Xamarin.AndroidX.Fragment.Ktx`
+		  是 **1.8.8.1**，而 MAUI 用的是 `Xamarin.AndroidX.Fragment` **1.9.0** ——
+		  AndroidX 从 1.9.0 起把 `fragment-ktx` 的内容**并进了主包**（这正是 1.8.8.1 声明
+		  `Fragment >= 1.8.8.1 && < 1.8.9` 的原因）。两个 AAR 里于是各有一份
+		  `androidx.fragment.app.FragmentKt`，D8 直接硬失败：
+
+		      错误 JAVA0000: Type androidx.fragment.app.FragmentKt is defined multiple times
+
+		  ⚠ **这条在还原阶段是看不见的**：NuGet 对这种错位只发 NU1608 **警告**
+		  （"检测到的包版本在依赖项约束之外"），还原照样成功，真正炸在最后一步打包。
+		  所以看到那串 NU1608 别当噪音 —— 它就是这条的前兆。
+
+		  修法是把它们抬到与 MAUI 对齐的那一版（NuGet 自己给的提示也是"直接引用 1.9.0"）。
+		  下面四个是同一次错位的其它成员：现在只报了 `FragmentKt` 一个重复类，
+		  但它们几个的 NU1608 是同一批，一并钉齐，免得下次换个类名接着炸。
+		-->
+		<PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="1.9.0" />
+		<PackageReference Include="Xamarin.AndroidX.Collection.Ktx" Version="1.6.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" Version="2.11.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="2.11.0.1" />
+		<PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core.Ktx" Version="2.11.0.1" />
 	</ItemGroup>
 
 	<!--

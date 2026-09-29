@@ -39,8 +39,26 @@ namespace WayCoder.UI.Shared;
 public static class FreeTierPolicy
 {
     /// <summary>
+    /// <b>解锁全能版的非消耗型内购产品 ID</b>（买断、可跨设备恢复）。
+    ///
+    /// <para>
+    /// ⚠ <b>这个字面量在三处必须逐字相同，改错一处就是「买完不解锁」或「购买入口查不到商品」</b>：
+    /// ① App Store Connect 的产品 ID（**建完不能改**，要改只能新建一个产品）；
+    /// ② Google Play Console 的应用内商品 ID；
+    /// ③ 这里。桌面自测有一条断言钉住它 —— 它放在本文件（而不是 Maui 的
+    /// <c>EntitlementStore</c>）正是为了能被那条断言看见：**口径的一部分就该和口径放一起**。
+    /// </para>
+    /// </summary>
+    public const string FullEditionProductId = "com.tanso.dolaima.full";
+
+    /// <summary>
     /// 免费版唯一允许的前端编译器名 —— 上游各编译器自报的 <c>Name</c>（此处是小写形式，比对照样小写）。
     /// C 编译器在上游自报为 <c>"C"</c>，归一化后即 <c>"c"</c>（见 <see cref="VmlFrontendCompilerList"/>）。
+    ///
+    /// <para>
+    /// ⚠ <b>C++ 不受影响</b>：上游 <c>CppCompiler</c> 自报的是 <c>"cpp"</c>，不是 <c>"c"</c> ——
+    /// 这条已被自测钉住（"免费语言恰好一门、且是 C 编译器"），别再凭"c 是 cpp 的前缀"担心一次。
+    /// </para>
     /// </summary>
     public const string FreeLanguageName = "c";
 
@@ -60,4 +78,28 @@ public static class FreeTierPolicy
     /// <param name="compilerName">前端编译器自报的 Name。</param>
     public static bool IsLanguageLocked(bool isFull, string? compilerName) =>
         !isFull && !IsLanguageFree(compilerName);
+
+    /// <summary>
+    /// <b>文件页的菜单要不要给这个文件打锁</b>（用户 2026-09-29 定的口径：
+    /// 「标准版只有 <b>C 语言和 VML 语言</b>可以编译运行，全能版支持全部」）。
+    ///
+    /// <para>
+    /// ⚠ <b>它与 <see cref="IsLanguageLocked"/> 的唯一差别，是「没有语言」该算哪一种</b>：
+    /// <see cref="IsLanguageLocked"/> 拿不到编译器的名字时**拦住**（fail-closed）——
+    /// 那条路上拿不到名字说明"编译器没认出来"，拦住是安全侧。
+    /// 而文件页拿到的 <c>null</c> 有更常见的第二种含义：<b>这个文件压根不需要前端编译器</b>
+    /// —— <c>.vml</c>（汇编）与 <c>.vmb</c>（字节码）走的是 <c>RunAssembly</c> 那条路，
+    /// <b>免费版本来就该能用</b>。两者混为一谈的后果是「免费版的 VML 汇编被锁上」，
+    /// 正好把这档最核心的能力之一砍掉（实测差一点就这么发出去了）。
+    /// </para>
+    ///
+    /// <para>
+    /// 判据收在这里而不是在文件页写个 <c>&amp;&amp;</c>，是为了**能被自测钉住** ——
+    /// 这条既是"免费版能给什么"的口径的一部分，就该和口径放一起、一起被测。
+    /// </para>
+    /// </summary>
+    /// <param name="isFull">是否已解锁全能版。</param>
+    /// <param name="compilerName">这个文件对应的前端编译器名；<b>不需要编译器时传 null</b>。</param>
+    public static bool IsFileLocked(bool isFull, string? compilerName) =>
+        compilerName is not null && IsLanguageLocked(isFull, compilerName);
 }

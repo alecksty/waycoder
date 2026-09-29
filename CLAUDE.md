@@ -1141,6 +1141,42 @@ int B[3] = { -5,  7, -9 };       /* 程序实际读到  0  7  0    */
      `git stash pop` 永远弹 `stash@{0}`，**不要省略 `git stash list` 与成功性校验**；
      冲突时 `pop` 不会 drop ⇒ 数据没丢，`git checkout HEAD -- <file>` 清干净即可。
 
+- **免费版 / 全能版：口径与门分家，门各收一处（v0.96.577）**：用户定的口径是
+  「**标准版只有 C 语言和 VML 语言可以编译运行，全能版支持全部**（22 门语言 + 优化器）」。
+  落成四块，**每块只有一个真源**：
+  | 层 | 位置 | 说明 |
+  |---|---|---|
+  | **口径** | `WayCoder/UI/Shared/FreeTierPolicy.cs` | 免费语言集合、产品 ID（`FullEditionProductId`）、`IsLanguageLocked` / `IsFileLocked` |
+  | **状态** | `WayCoder.Maui/Services/EntitlementStore.cs` | 解锁状态**唯一事实源**；**唯一写入口是 `Iap`**（UI 不许直接写） |
+  | **传输** | `WayCoder.Maui/Services/Iap.cs` | 平台层 `#if` 三分支：iOS/MacCatalyst 用 SDK 自带的 **StoreKit**、Android 用 **Play Billing 的 AAR 绑定**、其余显式"不支持" |
+  | **门** | `MauiVml.Run`（语言）· `MauiCompileStore.OptimizationLevel` 的 **getter**（优化器） | 各收一处，别处只做「提前告知」 |
+  **四条踩出来的规矩**：
+  ① **优化器门必须在 getter**（而不是编译处）：摘要行显示的是同一个属性 ⇒ 执行与显示**同源**，
+     不会出现"摘要写着中度、实际按不优化跑"；配套设置页**整块不渲染**（不是置灰）——
+     「显示了但暗地里钳住」是用户最容易当成 bug 的形态。
+  ② **「没有语言」在文件页与在编译入口是两种含义**（这条**差点带着 bug 发出去，且构建全绿**）：
+     `.vml` / `.vmb` 走汇编器那条路、不需要前端编译器 ⇒ `LanguageOf` 返回 null，
+     而 `IsLanguageLocked(false, null)` 是 **fail-closed 的 true** ⇒ 免费版的「VML 编译」会被打锁。
+     正解是口径里分开写：`IsFileLocked(isFull, null) ≡ false`（这个门管不着），
+     `IsLanguageLocked(isFull, null)` 仍是 true（没认出来，拦住）。
+     **凡是"null 有第二种含义"的判据，都要问一句"这个 null 在该调用点是什么意思"。**
+  ③ **恢复购买的三种结局必须分开**：恢复成功但没买到过（⇒ 资格写 false）、
+     恢复本身失败（⇒ 状态一个字不动）、恢复到了（⇒ true）。写成"没到就 false"
+     会让断网用户一按恢复就丢掉已买的资格。
+     ⚠ **Android 的 `acknowledge` 不能漏** —— 不应答 Google 三天后自动退款
+     （症状是"买了、三天后钱退回去、功能也没了"）；这是与 App Store 最大的语义差别。
+  ④ **"改一个字就坏"的字面量必须放在能被自测看见的地方**：产品 ID 第一版写进了 Maui 的
+     `EntitlementStore`，而**桌面自测看不见 Maui 工程** ⇒ 没有任何判据；
+     下沉到 `FreeTierPolicy` 之后自测逐字钉住。
+  **Android 依赖三条**（都是"还原阶段看不出来"的坑）：计费包传递依赖的 AndroidX 版本比 MAUI 旧，
+  `Fragment.Ktx` **1.8.8.1 vs `Fragment` 1.9.0**（1.9.0 起 ktx 内容并入主包）⇒
+  两个 AAR 各有一份 `FragmentKt`，**D8 报重复类**；而 NuGet 对这种错位只发 **NU1608 警告**、
+  还原照样成功。修法是**显式钉齐五个包**。另外 `androidx.tracing` 要求 **minSdk ≥ 23**（原为 21），
+  不抬会在清单合并 AMM0000 硬失败。
+  **判据**：`WayCoder/Test/SelfTest.Chunk35.cs` —— 分界纯逻辑 + **三条「门到底接上了没有」的
+  源码护栏**（读调用点，不是读注释；针对的正是"策略存在但零调用点"这个形态），
+  且**已反证**（拆掉语言门 ⇒ 立刻红）。内购的真机验收清单见 `docs/上架资料包.md` §8.3。
+
 ## 模式体系（三分钟版，竞品对标）
 
 WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**四个正交轴**（完整版见 [docs/模式体系.md](docs/模式体系.md)）：

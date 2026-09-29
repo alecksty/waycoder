@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using WayCoder;
 using WayCoder.Infra;
 using WayCoder.Maui.Services;
+using WayCoder.UI.Shared;
 
 namespace WayCoder.Maui.Pages;
 
@@ -31,6 +32,9 @@ public partial class SettingsGroupPage : ContentPage
         yield return ("voice", L.Pick("语音", "Voice"), GrpVoice);
         yield return ("vm", L.Pick("虚拟机", "VM"), GrpVm);
         yield return ("compile", L.Pick("编译", "Compile"), GrpCompile);
+        // 「全能版」的位置是**有意靠后**的：它是内购，不该在设置页第一屏就推销；
+        // 但也不能藏 —— 用户编译不了想用的语言时会主动来找（拦截提示里写了路径）。
+        yield return ("full", L.Pick("全能版", "Full Edition"), GrpFull);
     }
 
     private string _group = "model";
@@ -201,6 +205,101 @@ public partial class SettingsGroupPage : ContentPage
         LoadConfig();
         LoadVmSettings();
         LoadCompileSettings();
+        LoadFullSettings();
+    }
+
+    /// <summary>
+    /// 载入「全能版」这一组。
+    ///
+    /// <para>
+    /// ⚠ <b>语言清单是从唯一真源推出来的，不是手打的</b>：全部 = <see cref="VmlFrontendCompilerList.All"/>
+    /// （它已经被桌面自测与手机端的注册断言双向钉住），免费那部分 = <see cref="FreeTierPolicy"/>。
+    /// 手打一份"22 门语言"的名单在这里，就又多了一张要人记得同步的表 ——
+    /// 商店页描述、这里的说明、编译被拦时的提示，三处必须说同一件事。
+    /// </para>
+    ///
+    /// <para>
+    /// ⚠ 免费版<b>不显示「优化级别」这一项</b>（由 <c>GrpCompile</c> 那边隐藏）——
+    /// 「显示了但暗地里按 0 跑」是用户最容易当成 bug 的形态。这里只说明它属于全能版。
+    /// </para>
+    /// </summary>
+    private void LoadFullSettings()
+    {
+        bool full = Services.EntitlementStore.IsFull;
+
+        FullStatusLabel.Text = full
+            ? L.Pick("✅ 已解锁全能版", "✅ Full Edition unlocked")
+            : L.Pick("🔒 未解锁（当前是免费版）", "🔒 Locked (free edition)");
+
+        var free = VmlFrontendCompilerList.All.Where(e => FreeTierPolicy.IsLanguageFree(e.Name))
+                                              .Select(e => e.Name).ToList();
+        var paid = VmlFrontendCompilerList.All.Where(e => !FreeTierPolicy.IsLanguageFree(e.Name))
+                                              .Select(e => e.Name).ToList();
+
+        FullFreeLabel.Text = L.Pick(
+            $"免费版包含：代码编辑器、{string.Join(" / ", free)} 语言编译运行、VML 汇编（.vml）编译运行。",
+            $"Free edition: the code editor, {string.Join(" / ", free)} compilation, and VML assembly (.vml).");
+
+        FullPaidLabel.Text = L.Pick(
+            $"全能版解锁：另外 {paid.Count} 门语言（{string.Join(" / ", paid)}）+ 优化器（O1 / O2 / O3）。",
+            $"Full Edition unlocks {paid.Count} more languages ({string.Join(" / ", paid)}) plus the optimizer (O1 / O2 / O3).");
+
+        bool supported = Services.Iap.Supported;
+        var price = Services.Iap.PriceText;
+        FullBuyBtn.Text = full
+            ? L.Pick("已解锁", "Unlocked")
+            : price is null
+                ? L.Pick($"购买 {Services.EntitlementStore.ProductName}", $"Buy {Services.EntitlementStore.ProductName}")
+                : L.Pick($"购买 {Services.EntitlementStore.ProductName} · {price}",
+                         $"Buy {Services.EntitlementStore.ProductName} · {price}");
+        FullBuyBtn.IsEnabled = supported && !full;
+        FullRestoreBtn.Text = L.Pick("恢复购买", "Restore Purchase");
+        FullRestoreBtn.IsEnabled = supported && !full;   // 已解锁就不必恢复；换设备时会先是未解锁态
+
+        FullHintLabel.Text = supported
+            ? L.Pick("一次性买断，可跨设备恢复（非消耗型内购）。换手机或重装后点「恢复购买」即可找回。",
+                     "One-time purchase, restorable across devices. After switching phones or reinstalling, tap Restore Purchase.")
+            : L.Pick("本平台没有内购。", "In-app purchase is not available on this platform.");
+    }
+
+    // ── 内购两个按钮 ──
+    //
+    // ⚠ 都是 `async void`（事件签名定死），**必须自己 try/catch 兜住** ——
+    //   抛出去就是进程级未处理异常，在 MAUI 的几条路径上还会被先吞掉，
+    //   现场只留一行看不懂的日志（本仓 v0.96.171 记过同一个形态）。
+
+    private async void OnBuyClicked(object? sender, EventArgs e) => await RunIapAsync(buy: true);
+
+    private async void OnRestoreClicked(object? sender, EventArgs e) => await RunIapAsync(buy: false);
+
+    private async Task RunIapAsync(bool buy)
+    {
+        FullBuyBtn.IsEnabled = false;
+        FullRestoreBtn.IsEnabled = false;
+        try
+        {
+            var r = buy
+                ? await Services.Iap.PurchaseAsync(Services.EntitlementStore.ProductId)
+                : await Services.Iap.RestoreAsync();
+
+            // ⚠ 一律**再读一次** IsFull 当结论，别拿 r.Ok 当解锁判据 ——
+            //   两者在"恢复购买但一件都没买过"时正好相反（操作成功、资格没有）。
+            await DisplayAlertAsync(
+                Services.EntitlementStore.IsFull
+                    ? L.Pick("全能版", "Full Edition")
+                    : L.Pick("购买未完成", "Purchase not completed"),
+                r.Message,
+                L.Pick("确定", "OK"));
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Warning("[IAP]", $"内购操作异常：{ex}");
+            await DisplayAlertAsync(L.Pick("出错了", "Error"), ex.Message, L.Pick("确定", "OK"));
+        }
+        finally
+        {
+            LoadFullSettings();
+        }
     }
 
     /// <summary>
@@ -258,6 +357,14 @@ public partial class SettingsGroupPage : ContentPage
     /// </summary>
     private void LoadCompileSettings()
     {
+        // ⚠ 优化器是**全能版**的功能：免费版把这一整块**藏掉**（不是置灰）。
+        //
+        // 置灰为什么不行：`MauiCompileStore.OptimizationLevel` 在没解锁时恒定返回
+        // `OptimizationPolicy.Off`（门收在 getter 一处），而摘要行显示的是**同一个属性** ——
+        // 所以界面上会出现"下拉框选着『中度』、摘要写着『优化 关闭』"这种自相矛盾。
+        // 与其解释，不如按实际情况不显示它（下方的 `CompileHintLabel` 里有一句话说明去处）。
+        CompileOptRow.IsVisible = EntitlementStore.IsFull;
+
         SelectOption(CompileOptPicker, MauiCompileStore.OptimizationOptions,
             MauiCompileStore.OptimizationLevel, MauiCompileStore.OptimizationText);
         SelectOption(CompileWarnPicker, MauiCompileStore.WarningOptions,
@@ -280,6 +387,12 @@ public partial class SettingsGroupPage : ContentPage
             + L.Pick("实测 hello world 69637→28 条、俄罗斯方块 74754→6282 条）；极致再加几项安全清理。", "measured: hello world 69637→28 instructions, Tetris 74754→6282); Max adds a few more safe cleanups. ")
             + L.Pick("优化只删确定用不到的东西，不改程序行为。", "Optimization only removes what is provably unused, and never changes program behavior. ")
             + L.Pick("「关闭（遇到就报错）」是指遇到浮点 / 64 位代码直接编译报错，不是悄悄降级。", "\"Off (errors out)\" means floating point / 64-bit code fails the compile outright instead of silently degrading.");
+
+        // 免费版没有上面那一项（`CompileOptRow` 已隐藏），得说清它去哪了 ——
+        // 否则用户找不着会以为功能被砍了。
+        if (!EntitlementStore.IsFull)
+            CompileHintLabel.Text += L.Pick("　优化器属于「全能版」，可在上一层的「全能版」里解锁。",
+                                            " The optimizer is part of the Full Edition - unlock it under Full Edition.");
     }
 
     /// <summary>把「编译」分组的六项写回 <see cref="MauiCompileStore"/>（索引 → 候选表里的值）。</summary>

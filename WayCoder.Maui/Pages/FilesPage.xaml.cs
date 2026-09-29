@@ -220,10 +220,27 @@ public partial class FilesPage : ContentPage
         // ⚠ 原先按中文 `case "打开"` 判定 —— 文案一翻，整张菜单变成点了没反应（六条全落空）。
         //   `DisplayActionSheetAsync` 只回传**文案**、不回传索引，所以这里按 Label 反查 Id；
         //   反查用的就是我们刚传进去的那份列表 ⇒ 文案与反查同步变，翻译不会打断它。
+        // 语言门（免费版 / 全能版）—— **在这里提前告知**，而不是让用户点下去才被拦。
+        //
+        // ⚠ 判据与编译入口**同源**：`MauiVml.LanguageOf` 拿语言名（它和编译派发问的是同一张
+        //   扩展名表）、`FreeTierPolicy.IsFileLocked` 判要不要锁。所以"菜单上没上锁"
+        //   与"点下去会不会被拦"**必定一致** —— 各推一份必然出现"没上锁却报错"或反过来。
+        // 拦仍在编译入口那一处（本处只标记 + 给一句说明），别在这里再拦一次。
+        //
+        // ⚠⚠ **`LanguageOf` 返回 null 表示"这个文件不需要前端编译器"，不是"被锁"** ——
+        //   `.vml` / `.vmb` 走汇编器那条路，**免费版就能编能跑**。用 `IsFileLocked`
+        //   （而不是 `IsLanguageLocked`）正是为了把这两种 null 分开，见它的注释。
+        var lang = MauiVml.LanguageOf(entry.Name);
+        var locked = canCompile && FreeTierPolicy.IsFileLocked(EntitlementStore.IsFull, lang);
+
         var actions = new List<(string Id, string Label)>();
         if (entry.CanEdit) actions.Add(("open", L.Pick("打开", "Open")));   // 是文本就该能改（含 `.vml` 与各种可编译源码）
-        if (canCompile) actions.Add(("compile", L.Pick("VML 编译", "Compile")));
-        if (canRun) actions.Add(("run", L.Pick("VML 运行", "Run")));
+        if (canCompile) actions.Add(("compile", locked
+            ? L.Pick("VML 编译（需全能版 🔒）", "Compile (Full Edition 🔒)")
+            : L.Pick("VML 编译", "Compile")));
+        if (canRun) actions.Add(("run", locked
+            ? L.Pick("VML 运行（需全能版 🔒）", "Run (Full Edition 🔒)")
+            : L.Pick("VML 运行", "Run")));
         actions.Add(("external", L.Pick("用外部应用打开", "Open with external app")));
         actions.Add(("rename", L.Pick("重命名", "Rename")));
         actions.Add(("delete", L.Pick("删除", "Delete")));
@@ -241,10 +258,19 @@ public partial class FilesPage : ContentPage
                 await OpenInEditorAsync(entry);
                 break;
             case "compile":
-                await CompileVmlAsync(entry);
-                break;
             case "run":
-                await RunVmlFileAsync(entry);
+                // 免费版点了上锁的语言：**在这里说清楚、并给出去处**，不往下走。
+                // 拦在入口（这里）而不是编译链深处 —— 用户点的是文件页，报错也该在文件页。
+                if (locked)
+                {
+                    await DisplayAlertAsync(
+                        EntitlementStore.ProductName,
+                        EntitlementStore.LockedMessage(MauiVml.LanguageOf(entry.Name) ?? entry.Name),
+                        L.Pick("知道了", "OK"));
+                    break;
+                }
+                if (actions[at].Id == "compile") await CompileVmlAsync(entry);
+                else await RunVmlFileAsync(entry);
                 break;
             case "external":
                 await OpenWithExternalAsync(entry);

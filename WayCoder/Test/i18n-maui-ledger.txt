@@ -12,9 +12,11 @@ WayCoder.Maui/Pages/EditorPage.xaml.cs  # 2 条 ErrorLog + 4 条 owner 身份标
 WayCoder.Maui/Pages/FilesPage.xaml.cs  # 5 条 ErrorLog/DiagLog
 WayCoder.Maui/Pages/ModelPickerPage.xaml.cs
 WayCoder.Maui/Pages/ProviderModelsPage.xaml.cs
+WayCoder.Maui/Pages/SettingsGroupPage.xaml.cs  # 1 条 ErrorLog（内购操作异常，只落盘）；界面文案全走 L.Pick / markup:Tr
 WayCoder.Maui/Pages/ShellPage.xaml.cs  # 5 条 ErrorLog/DiagLog
 WayCoder.Maui/Services/AgentService.cs  # 3 条 ErrorLog（token/tool 回调）
 WayCoder.Maui/Services/FileOpenService.cs  # 1 条 ErrorLog
+WayCoder.Maui/Services/Iap.cs  # ErrorLog 诊断（连接/查询/应答/价格失败，只落盘）；IapResult 的**用户可见文案**全走 L.Pick
 WayCoder.Maui/Services/MauiCommands.cs  # 1 条 ErrorLog（页面导航）
 WayCoder.Maui/Services/MauiLang.cs  # 4 条 ErrorLog（语言探测失败）
 WayCoder.Maui/Services/MauiVectorTarget.cs  # 1 条 ErrorLog（贴图解码失败）

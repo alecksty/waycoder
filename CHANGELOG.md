@@ -1,3 +1,98 @@
+## v0.96.577 — 免费版 / 全能版落地：两个门 + 内购（iOS StoreKit · Android Play Billing）
+
+用户定的口径：**标准版只有 C 语言和 VML 语言可以编译运行，全能版支持全部**（22 门语言 + 优化器）。
+
+这一版之前，那份口径**只写在文件里** —— `WayCoder/UI/Shared/FreeTierPolicy.cs` 是
+**零生产调用点的死代码**：注释齐全、两份上架文档也对，而两个门一个都没接，
+于是所有人都在白用全部 22 门语言和优化器。这一版把它接上，并把内购做完。
+
+### 一、端到端结果
+
+```
+桌面自测                    7059 项 / 0 失败
+Android 构建 net10.0-android    0 错误（NU1608 版本告警一并清零）
+iOS 构建 net10.0-ios27.0        0 错误
+门护栏反证                  拆掉语言门 → 立刻红（7052 通过 / 1 失败），文件还原即绿
+```
+
+### 二、分界（这是用户要的「标准版 / 全能版」）
+
+| | 免费版 | 全能版 |
+|---|---|---|
+| 代码编辑器 | ✓ | ✓ |
+| **C 语言**编译运行 | ✓ | ✓ |
+| **VML 汇编**（`.vml` / `.vmb`）编译运行 | ✓ | ✓ |
+| 其余 21 门语言 | 文件页打锁 + 编译入口拦 | ✓ |
+| 优化器（O1 / O2 / O3） | 设置页**不渲染**这一项 | ✓ |
+
+两个门各收在**一处**，别处只做告知：
+
+- **语言门**在 `MauiVml.Run`（编译入口，唯一拦截点）。文件页只给菜单项加 🔒，
+  点了给一句"去哪解锁"—— 拦仍发生在编译入口。
+- **优化器门**在 `MauiCompileStore.OptimizationLevel` 的 **getter**：
+  没解锁恒定返回 `OptimizationPolicy.Off`，而摘要行显示的是同一个属性 ⇒
+  **执行与显示同源**，不会出现"摘要写着中度、实际按不优化跑"。
+  设置页那边配套**整块不渲染**（不是置灰）。
+
+### 三、内购
+
+- **iOS / MacCatalyst**：SDK 自带的 **StoreKit 绑定**（`SKPaymentQueue`）—— 零依赖、天然 AOT 安全。
+- **Android**：**Google Play Billing** 的 AAR 绑定（`Xamarin.Android.Google.BillingClient`）——
+  纯绑定、无运行时反射。两端各写各的，不引第三方跨端抽象层（理由见 `Services/Iap.cs` 类注释）。
+- **解锁状态唯一事实源**是 `EntitlementStore`；**唯一写入口是 `Iap`**（拿到已完成的交易才写）——
+  UI 不许直接写，"点了购买按钮就把自己标成已解锁"是这类实现最经典的漏洞。
+- **「恢复购买」是上架硬要求**，两端语义不同但都做了：
+  iOS 走 `RestoreCompletedTransactions`；Android 没有独立动作，就是**重查一遍已购**
+  （Play 以服务端记录为准）。
+  ⚠ 三件事必须分清：**恢复成功但没买到过**（⇒ 资格写 false）、**恢复本身失败**（⇒ 状态一个字不动）、
+  **恢复到了**（⇒ true）。写成"没到就 false"会让断网用户一按恢复就丢掉已买的资格。
+- **Android 的 `acknowledge` 不能漏**：买完不应答，Google 三天后自动退款 ——
+  表现是"用户买了、三天后钱退回去、功能也没了"。这与 App Store 是最大的语义差别。
+
+### 四、四个坑，都不是"写错一行"，而是"看着对"
+
+1. **`.vml` 差点被锁上**（**构建全绿**的那种错）。文件页第一版直接用了
+   `FreeTierPolicy.IsLanguageLocked(isFull, lang)`，而 `.vml`/`.vmb` 的 `lang` 是 `null`
+   （它们走汇编器那条路、不需要前端编译器），而 `IsLanguageLocked(false, null)` 是
+   **fail-closed 的 `true`** ⇒ 免费版的「VML 编译 / VML 运行」会被打锁并弹"需要全能版"，
+   正好砍掉这一档最核心的能力之一。
+   修法是在口径里把**两种 null 分开**：`IsFileLocked(isFull, null)` ≡ false
+   （"这个门管不着"），而 `IsLanguageLocked(isFull, null)` 仍是 true（"没认出来，拦住"）。
+   两条断言在自测里**相邻摆放**，把差异钉住。
+
+2. **AndroidX 版本错位炸在打包最后一步**。计费包是照更旧的 AndroidX 编的，传递进来的
+   `Xamarin.AndroidX.Fragment.Ktx` 是 1.8.8.1，而 MAUI 用的是 `Fragment` 1.9.0 ——
+   AndroidX 从 1.9.0 起把 `fragment-ktx` **并进了主包**，两个 AAR 各有一份 `FragmentKt` ⇒
+   D8 报 `Type androidx.fragment.app.FragmentKt is defined multiple times`。
+   ⚠ **还原阶段完全看不出来**：NuGet 对这种错位只发 **NU1608 警告**，还原照样成功。
+   修法是把五个错位的包**显式钉到与 MAUI 对齐的那一版**（顺带 NU1608 清零）。
+
+3. **minSdk 21 → 23**。计费包依赖的 `androidx.tracing` 声明了 `minSdkVersion 23`，
+   而清单合并的规则是"子库的 minSdk 不能高于宿主" ⇒ 停在 21 会在 AMM0000 硬失败。
+   代价只丢掉 Android 5.x。
+
+4. **产品 ID 放在 Maui 里就没人测得到**。第一版把 `ProductId` 写进
+   `WayCoder.Maui/Services/EntitlementStore.cs`，而桌面自测**看不见 Maui 工程** ⇒
+   这个"改一个字就是买完不解锁"的字面量没有任何判据。已下沉到
+   `FreeTierPolicy.FullEditionProductId`（口径的一部分就该和口径放一起），自测逐字钉住。
+
+### 五、判据
+
+- `WayCoder/Test/SelfTest.Chunk35.cs`：分界纯逻辑（四格 + fail-closed + 文件页的两种 null）
+  + **三条「门到底接上了没有」的源码护栏**（读调用点，不是读注释）——
+  这一节针对的正是"策略存在但零调用点"这个形态，纯逻辑断言对它完全无感。
+- 护栏**已反证**：临时拆掉 `MauiVml` 里的语言门调用 ⇒ 立刻红、且指名道姓。
+- `WayCoder/Test/i18n-maui-ledger.txt` 增两行（新文件的中文只在 `ErrorLog` 诊断里）。
+
+### 六、还没验的部分（如实说）
+
+**内购的平台分支只做了「编译验证」**。StoreKit 与 Play Billing 的真实交易需要
+**真机 + 商店后台把产品建出来**，开发机上跑不了。正式上架前必须走一遍沙箱：
+App Store Connect 的 Sandbox 测试账号 / Google Play 的许可测试账号。
+逐条判据见 `docs/上架资料包.md` 第 8.3 节。
+
+---
+
 ## v0.96.576 — 编译诊断全量双语化（**22 门语言英文侧零中文**）+ 挖出「整套多语言机制从没生效过」
 
 起点是用户的一句反馈：**「编译错误或者警告，气泡里面会出现中文」**。追下去发现，

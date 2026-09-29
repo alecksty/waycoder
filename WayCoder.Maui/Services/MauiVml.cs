@@ -218,16 +218,43 @@ HALT
 
     private static HashSet<string>? _compilableExts;
 
+    private static Dictionary<string, string>? _extToLang;
+
+    /// <summary>
+    /// 这个文件对应的**前端编译器自报名**（已归一化成小写），认不出返回 null。
+    ///
+    /// <para>
+    /// 存在的理由：免费版 / 全能版的**语言门**要拿它判（<c>FreeTierPolicy.IsLanguageLocked</c>）。
+    /// 判据必须与<b>编译入口那一处同源</b> —— 文件页给菜单项加不加锁、点下去会不会被拦，
+    /// 问的是同一个函数；这里若自己按扩展名再推一份映射，就是"同一规则两处实现"
+    /// （本仓头号坑），迟早出现"菜单没上锁、点了却报错"。
+    /// </para>
+    /// </summary>
+    public static string? LanguageOf(string fileName)
+    {
+        _ = CompilableExtensions;   // 触发一次扫描（顺带填好 _extToLang），失败时它是 null
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        return _extToLang is not null && _extToLang.TryGetValue(ext, out var lang) ? lang : null;
+    }
+
     private static HashSet<string> CollectExtensions()
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             var pm = new PluginManager { Quiet = true };
             VmlFrontendCompilers.RegisterAll(pm);
             foreach (var compiler in pm.GetAllFrontendCompilers())
                 foreach (var ext in compiler.SupportedExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries))
-                    if (ext.Trim().Length > 0) set.Add(ext.Trim().ToLowerInvariant());
+                    if (ext.Trim().Length > 0)
+                    {
+                        var e = ext.Trim().ToLowerInvariant();
+                        set.Add(e);
+                        // 同一个扩展名被两门语言认领时保留**先注册的那个** —— 与
+                        // `pm.GetCompilerByFileName` 自己的取法一致（编译入口也是它说了算）。
+                        map.TryAdd(e, compiler.Name.ToLowerInvariant());
+                    }
         }
         catch (Exception ex) when (ex is not VmlCompilerListDriftException)
         {
@@ -238,6 +265,7 @@ HALT
             //    症状还会退化成「文件页上某个语言莫名不能用」，正是这份清单要防的那件事。
             //    注册失败是环境问题，可以退化；清单不一致是 bug，必须炸出来。
         }
+        _extToLang = map;
         return set;
     }
 
@@ -670,6 +698,18 @@ HALT
                                    $"⚠️ Unrecognized extension ({Path.GetExtension(filePath)}) - no frontend compiler for it."), filePath);
 
         var lang = compiler.Name.ToLowerInvariant();
+
+        // ① 语言门（免费版 / 全能版的分界）—— **拦在编译之前**，判据全在 `FreeTierPolicy` 里。
+        //
+        // ⚠ 这里是**唯一**的拦截点：别在文件页/编辑器再判一遍。那两处只做"提前告知"
+        //   （菜单项上显示锁），真拦在编译入口这一处 —— 判据一多，迟早出现
+        //   "文件页说能编、点下去报错"或者反过来的自相矛盾。
+        //
+        // ⚠ **VML 汇编（`.vml`/`.vmb`）不走这里**，它走 `RunAssembly` 那条路、
+        //   根本不经过前端编译器，所以「免费版能用 VML 汇编」不需要本门放行任何东西
+        //   （见 `FreeTierPolicy` 的类注释）。
+        if (FreeTierPolicy.IsLanguageLocked(EntitlementStore.IsFull, lang))
+            return Fail(lang, EntitlementStore.LockedMessage(compiler.Name), filePath);
 
         // **`VML_HOME` 必须指向解压出来的 VML 根**（手机上就是 `Global.Home/vml`，固定值）。
         //

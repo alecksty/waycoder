@@ -344,8 +344,13 @@
                     <RoundRectangle CornerRadius="14" />
                 </Border.StrokeShape>
                 <VerticalStackLayout Padding="14,8" Spacing="6">
-                    <Label Text="{markup:Tr Zh='优化级别（中度起删掉没被调用的库函数，产物可小数倍）', En='Optimization level (Medium and above drop unreferenced library functions; the output can shrink several-fold)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                    <Picker x:Name="CompileOptPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                    <!-- ⚠ 这一整块（标签+下拉）在**免费版里整条不渲染**（`LoadCompileSettings` 里设
+                         `IsVisible`）—— 置灰不行：「显示了但暗地里按 0 跑」用户会当成 bug，
+                         而且 `MauiCompileStore.Summary()` 显示的是真值、界面上一改就当面撒谎。 -->
+                    <VerticalStackLayout x:Name="CompileOptRow" Spacing="6">
+                        <Label Text="{markup:Tr Zh='优化级别（中度起删掉没被调用的库函数，产物可小数倍）', En='Optimization level (Medium and above drop unreferenced library functions; the output can shrink several-fold)'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                        <Picker x:Name="CompileOptPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                    </VerticalStackLayout>
 
                     <Label Text="{markup:Tr Zh='编译警告', En='Compiler warnings'}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Picker x:Name="CompileWarnPicker" TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
@@ -366,6 +371,38 @@
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                 </VerticalStackLayout>
             </Border>
+            </VerticalStackLayout>
+
+            <!-- ═══ 全能版（内购）═══
+                 这一组**没有「保存配置」** —— 它没有可"先改后存"的项，点按钮就是当场生效
+                 （购买 / 恢复购买都是即时动作）。所以它不参与 `SaveBtn` 那套。
+
+                 ⚠ 文案与状态一律取自 `EntitlementStore`，判据取自 `FreeTierPolicy` ——
+                   别在这里再写一遍"哪些语言免费"，那是本仓头号坑"平行表漂移"：
+                   商店页的描述、App 里的说明、编译被拦时的提示，三处必须说同一件事。 -->
+            <VerticalStackLayout x:Name="GrpFull" IsVisible="False" Spacing="10">
+                <Label Text="{markup:Tr Zh='全能版（一次性买断）', En='Full Edition (one-time purchase)'}" FontSize="12" FontAttributes="Bold"
+                       TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+
+                <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14" />
+                    </Border.StrokeShape>
+                    <VerticalStackLayout Padding="14,12" Spacing="8">
+                        <Label x:Name="FullStatusLabel" FontSize="15" FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="FullFreeLabel" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                        <Label x:Name="FullPaidLabel" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+
+                        <Button x:Name="FullBuyBtn" Clicked="OnBuyClicked" Margin="0,6,0,0" />
+                        <Button x:Name="FullRestoreBtn" Clicked="OnRestoreClicked" />
+
+                        <Label x:Name="FullHintLabel" FontSize="11"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                </Border>
             </VerticalStackLayout>
 
             <Button x:Name="SaveBtn" Text="{markup:Tr Zh='保存配置', En='Save'}" Clicked="OnSaveClicked" Margin="0,14,0,0" />

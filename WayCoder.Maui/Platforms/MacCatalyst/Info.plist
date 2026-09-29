@@ -83,5 +83,16 @@
 		<string>en</string>
 		<string>zh-Hans</string>
 	</array>
+	<!-- 传输安全（ATS）：**默认禁止明文 http**，而本 App 的一大用途是连"用户自己填的"
+	     端点 —— 本地 Ollama（`http://localhost:11434`）、内网网关基本都是 http。
+	     `NSAllowsLocalNetworking` 只放开**本机/局域网**，覆盖这些场景，
+	     而**不需要**向苹果提供理由说明（较 `NSAllowsArbitraryLoads` 审核风险低得多）。
+	     ⚠ 公网 http 端点仍连不上 —— 那是**有意**的：要走公网就应使用 https。
+	     ⚠ 与权限文案那条同规矩：**iOS 与 MacCatalyst 两份 plist 必须同步**。 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
