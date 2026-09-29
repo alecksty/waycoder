@@ -5,48 +5,54 @@
 > 上游文档：[上架AppStore](上架AppStore.md)（怎么打包上传）、
 > [上架资料包](上架资料包.md)（填什么）、[上架逐屏操作](上架逐屏操作.md)（怎么点）。
 
-## 一、进度：三道关过了两道
+## 一、进度：三道关过了两道半
 
 | 关卡 | 状态 | 说明 |
 |---|---|---|
 | ① 连上 Mac | ✅ **已通** | 修掉了脚本里 Git Bash 改写 Mac 路径的 bug（见下） |
-| ② Mac 的 Xcode 可用 | ✅ **已通** | 用 `--xcode` 指到 `/Applications/Xcode.app/Contents/Developer` 绕过；**Xcode 27 装在标准位置，只是 `xcode-select` 没指过去** |
-| ③ 签名证书 | ❌ **卡在这里** | `密钥链中找不到 iOS 代码签名密钥"Apple Distribution: tanyu shi (AF9MMXD4D3)"` |
-| ④ 描述文件 | ⏳ 未知 | `WAYCODER_IOS_PROFILE` 还是模板默认值，**必须换成后台那个真实名字** |
+| ② Mac 的 Xcode 可用 | ✅ **已通** | `xcode-select -p` 实测指向 `/Library/Developer/CommandLineTools`（**不是**完整 Xcode）；用 `--xcode` 指到 `/Applications/Xcode.app/Contents/Developer` 绕过 |
+| ③ 签名身份 | ✅ **已确认** | 实测钥匙串：**`Apple Distribution: Tanyu Shi (59QH5TEYX8)`** |
+| ④ 描述文件 | ❌ **卡在这里** | Mac 上**没有 `com.tanso.dolaima` 的 App Store 描述文件** |
+
+### ⚠ 关于两个 Team ID（实测澄清）
+
+| Team ID | 名下有什么 | 用途 |
+|---|---|---|
+| **`59QH5TEYX8`** | `com.tanso.mikebao` / `com.tanso.DspMan` / `com.alecksoft.*`，以及 **Apple Distribution 证书** | **发布用这个** |
+| `AF9MMXD4D3` | 只有 Apple Development 证书（个人团队） | 开发用 |
+
+`com.tanso.dolaima` 属于 **`59QH5TEYX8`**，发布证书也在这个团队 ⇒ **描述文件必须建在这个团队下**。
 
 ## 二、你回去要做的（按顺序）
 
-### 第 1 步：确认签名证书在不在钥匙串里
+### ✅ 第 1 步已完成（签名身份已确认并填好）
 
-在那台 Mac 上跑：
+`security find-identity -v -p codesigning` 实测结果里有：
 
-```bash
-security find-identity -v -p codesigning
+```
+"Apple Distribution: Tanyu Shi (59QH5TEYX8)"
 ```
 
-- **有 `Apple Distribution: …` 开头的行** ⇒ 记下**逐字**的整行（大小写要一致），进第 2 步
-- **没有** ⇒ 证书只在后台建了、没装到这台 Mac。装法二选一：
-  - Xcode → Settings → Accounts → 选中 Apple ID → **Manage Certificates** → `+` → **Apple Distribution**
-  - 或去开发者后台 Certificates 页把那 `.cer` 下下来双击安装
+⚠ 注意与最初填错的差异：名字是 **`Tanyu Shi`**（首字母大写）、Team 是 **`59QH5TEYX8`**
+（不是 `AF9MMXD4D3` —— 那是个人团队的开发证书）。已更正进本地配置。
 
-装完再跑一次上面那条命令确认。
+### ❌ 第 2 步（当前唯一卡点）：造一个 `com.tanso.dolaima` 的 App Store 描述文件
 
-### 第 2 步：把真实值填进本地配置
+实测 Mac 上 `~/Library/MobileDevice/Provisioning Profiles/` 里**没有**这个 App ID 的任何描述文件
+（只有 `com.tanso.mikebao` / `com.tanso.DspMan` / `com.alecksoft.*` 与几个通配符开发证书）。
 
-编辑 `WayCoder.Maui/ios-sign.local.sh`（**已在 gitignore 里，不会进仓库**）：
+在开发者后台（**团队选 `59QH5TEYX8`**）：
 
-```bash
-# 用第 1 步抄下来的整行，逐字不改
-export WAYCODER_IOS_SIGN_KEY="Apple Distribution: <证书上的名字> (AF9MMXD4D3)"
+1. **Identifiers** → 确认/新建 App ID：类型 **App**（explicit，不能用通配符），
+   Bundle ID 逐字 **`com.tanso.dolaima`**
+2. **Profiles** → `+` → **Distribution → App Store** → 选上面那个 App ID →
+   选证书 **`Apple Distribution: Tanyu Shi (59QH5TEYX8)`** → 起个名字（如 `Dolaima AppStore`）→ Generate
+3. **下载** `.mobileprovision` 并**双击安装到那台 Mac**
+   （⚠ 必须在 Mac 上安装 —— 构建时要能读到它）
+4. 把**描述文件的真实名字**告诉我（或在本地配置里填 `WAYCODER_IOS_PROFILE`）
 
-# 开发者后台 → Profiles 里那个 **App Store 类型**描述文件的名字
-# ⚠ 不是 Development / Ad Hoc；且它绑的 App ID 必须是 com.tanso.dolaima
-export WAYCODER_IOS_PROFILE="<描述文件的真实名字>"
-```
-
-> 该文件现在已有：`WAYCODER_MAC_HOST=192.168.16.74`、`WAYCODER_MAC_USER=alecksty`、
-> `WAYCODER_MAC_PASS`（已填）、`WAYCODER_IOS_XCODE=/Applications/Xcode.app/Contents/Developer`。
-> **前四项不用动**，只改签名身份与描述文件名。
+> 也可以走 Xcode：Settings → Accounts → 选中 `59QH5TEYX8` 团队 → **Download Manual Profiles**，
+> 但它只能下载**已存在**的；第 2 步的创建仍需在后台做。
 
 ### 第 3 步：跑预检
 
