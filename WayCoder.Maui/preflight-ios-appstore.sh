@@ -235,7 +235,7 @@ else
         bad "Mac 侧没有可执行的 dotnet：$ROOT —— VS 2026 用 maui/PairToMac，VS 2022 用 Xamarin/XMA，路径不同；可用 WAYCODER_MAC_DOTNET_ROOT 覆盖"
       fi
     else
-      warn "SSH 密钥登录不通（预检不提供密码；远程构建本身可以用密码）。请在那台 Mac 上手工核对两条 —— ① xcode-select -p 要指向完整 Xcode（实测最常见的失败是「找不到有效的 Xcode 开发人员路径」）；② dotnet 是否在 ~/Library/Caches/maui/PairToMac/SDKs/dotnet/"
+      warn "SSH 密钥登录不通（预检不提供密码；远程构建本身可以用密码）。请在那台 Mac 上手工核对两条 —— ① xcode-select -p 要指向完整 Xcode（实测最常见的失败是「找不到有效的 Xcode 开发人员路径」）；② dotnet 是否在 ~/Library/Caches/maui/PairToMac/SDKs/dotnet/（① 不想改 xcode-select 的话，build-ios-appstore.sh --xcode <开发者目录> 也能绕过）"
     fi
   fi
 fi

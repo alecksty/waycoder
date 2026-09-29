@@ -16,6 +16,10 @@
 #   ./build-ios-appstore.sh --key "…" --profile "…" \
 #     --mac 192.168.1.23 --mac-user aleck --mac-pass '…'
 #
+# 若 Mac 上装了完整 Xcode 却报「找不到有效的 Xcode 开发人员路径」（= xcode-select 没指过去），
+# 用 --xcode 指到它的**开发者目录**即可绕过，不必改 Mac 上的 xcode-select：
+#   --xcode /Applications/Xcode.app/Contents/Developer     # 或 WAYCODER_IOS_XCODE=…
+#
 # ## 产物
 #   bin/Release/net10.0-ios<pick>/ios-arm64/publish/<AppName>.ipa
 #   —— 直接拿去上传（见文末提示）。
@@ -60,8 +64,11 @@ PROFILE="${WAYCODER_IOS_PROFILE:-}"
 MAC_HOST=""
 MAC_USER=""
 MAC_PASS=""
+XCODE_LOC="${WAYCODER_IOS_XCODE:-}"
 
-usage() { sed -n '2,40p' "$0"; }
+# 打印从第 2 行到「第一条非注释行」之前的全部注释 —— 比写死行号稳：
+# 头部注释只增不减时，写死行号会让帮助信息**静默截断**（本脚本已踩过一次）。
+usage() { sed -n '2,/^[^#]/p' "$0" | sed '$d'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -71,6 +78,7 @@ while [[ $# -gt 0 ]]; do
     --mac-user) MAC_USER="${2:-}"; shift 2 ;;
     --mac-pass) MAC_PASS="${2:-}"; shift 2 ;;
     --sdk)      SDK_VER="${2:-}"; shift 2 ;;
+    --xcode)    XCODE_LOC="${2:-}"; shift 2 ;;
     --clean)    CLEAN=1; shift ;;
     -h|--help)  usage; exit 0 ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
@@ -128,6 +136,15 @@ if [[ -n "$MAC_HOST" ]]; then
                  -p:ServerPassword="$MAC_PASS" -p:ServerTcpPort=58181
                  -p:_DotNetRootRemoteDirectory="$ROOT")
   echo "▸ 远程构建：$MAC_USER@$MAC_HOST（Mac 侧 dotnet：$ROOT）"
+fi
+
+# Xcode 位置：macOS 上「装了完整 Xcode」与「xcode-select 指向它」是两件事 ——
+# 默认指向 CommandLineTools。实测（2026-09-29）：Mac 上装了 Xcode 27 却报
+# `找不到有效的 Xcode 开发人员路径`，传本参数即绕过（不必改 Mac 上的 xcode-select）。
+# ⚠ 要指到 **Contents/Developer**（SDK 要的是 SdkDevPath），不是 .app 本身。
+if [[ -n "$XCODE_LOC" ]]; then
+  PUBLISH_ARGS+=(-p:XcodeLocation="$XCODE_LOC")
+  echo "▸ Xcode：$XCODE_LOC"
 fi
 
 echo "▸ 用 dotnet：$DOTNET"
