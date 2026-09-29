@@ -278,8 +278,17 @@ if [[ -n "$PRIVACY_URL" ]]; then
   else bad "隐私政策 URL 返回 $CODE：$PRIVACY_URL —— 元数据里填它会被审核打回（记得把 docs/PRIVACY.md 推到 github 远程）"; fi
 fi
 
-if [[ -n "$(git -C "$REPO" status --porcelain 2>/dev/null)" ]]; then
-  warn "工作区有未提交改动 —— 上架包最好对应一个干净的提交，便于复现"
+# ⚠ 分清「改过的**被跟踪**文件」与「未跟踪文件」：
+#   前者会让产物与提交对不上（真问题，打出来的包不可复现）；
+#   后者多半是草稿区/临时目录，不影响构建。
+#   混在一句里报，就会出现"永远挂着一个警告"—— 而永久噪音的代价不是误报一条，
+#   是下一个人开始无视它（本仓已记过这个教训）。
+MODIFIED="$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)"
+UNTRACKED_N="$(git -C "$REPO" status --porcelain 2>/dev/null | grep -c '^??' || true)"
+if [[ -n "$MODIFIED" ]]; then
+  warn "有被跟踪文件未提交 —— 打出来的包会与提交对不上，建议先提交再打包"
+elif [[ "${UNTRACKED_N:-0}" != "0" ]]; then
+  ok "被跟踪文件干净（另有 $UNTRACKED_N 个未跟踪项，不进构建，可忽略）"
 else
   ok "工作区干净"
 fi
