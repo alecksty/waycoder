@@ -41,7 +41,10 @@ PRIVACY_URL="https://github.com/alecksty/waycoder/blob/master/docs/PRIVACY.md"
 STRICT=0
 MAC_DOTNET_ROOT="${WAYCODER_MAC_DOTNET_ROOT:-}"
 
-usage() { sed -n '2,30p' "$0"; }
+# 打印从第 2 行到「第一条非注释行」之前的全部注释，与 build-ios-appstore.sh 同款：
+# 写死行号会随头部注释增删而**静默偏移**（本脚本原来写 '2,30p'，头部只有 27 行 ⇒
+# --help 末尾多打了三行真代码：`set -uo pipefail` 与 `HERE=…`）。
+usage() { sed -n '2,/^[^#]/p' "$0" | sed '$d'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
