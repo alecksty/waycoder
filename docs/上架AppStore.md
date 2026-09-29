@@ -47,6 +47,17 @@ csproj 用正则把它推导成两个苹果要的字段：
 
 ## 三、打包 .ipa
 
+**先跑预检。** 它把那些"报错看不出真身"的失败提前问出来 —— 版本号能否被 csproj 解析、
+`CFBundleVersion` 与 msbuild 推导是否一致、maui/ios 工作负载、iOS SDK pack 要求的
+**Xcode 版本**、Mac 的 58181 可达性与 SSH、签名信息形状、隐私政策 URL 能不能打开：
+
+```bash
+bash WayCoder.Maui/preflight-ios-appstore.sh --mac <ip> --mac-user <名字>
+# 签名从环境变量读（见 WayCoder.Maui/ios-sign.local.sh.example）；预检故意不接受 Mac 密码
+```
+
+预检全绿再打包：
+
 ```bash
 cd WayCoder.Maui
 
@@ -152,14 +163,18 @@ dotnet publish -f net10.0-maccatalyst27.0 -c Release -p:ArchiveOnBuild=true \
 
 ## 八、检查清单
 
+- [ ] **预检脚本全绿**：`bash WayCoder.Maui/preflight-ios-appstore.sh --mac <ip> --mac-user <名字>`
 - [ ] `WayCoder/Config/Global.cs` 的版本号已升，且 `CFBundleVersion` 大于上次上传值
 - [ ] 开发者后台：App ID（`com.tanso.dolaima`）、Distribution 证书、App Store 描述文件三件套齐
 - [ ] App Store Connect 里 App 记录已建，Bundle ID 选的是上面那个
 - [ ] （在 Windows 上跑的话）已与一台装着 Xcode 的 Mac 配对成功（Pair to Mac）
 - [ ] `build-ios-appstore.sh` 出了 `.ipa`（不是模拟器 `.app`）
 - [ ] 上传成功，TestFlight 处理完成
-- [ ] 截图（含 iPad）、隐私问卷、隐私政策 URL、年龄分级、类别已填
+- [ ] 截图（含 iPad）、隐私问卷、**隐私政策 URL**、年龄分级、类别已填
+      —— 逐屏操作见 [上架逐屏操作](上架逐屏操作.md)
 - [ ] 审核备注写了"需自备 API Key"并给了可用测试 Key
+- [ ] **内购真机验收十条已过**（[上架逐屏操作](上架逐屏操作.md) §七）——
+      注意上架 `.ipa` 装不上真机，要另用开发签名包
 - [ ] 提交审核
 
 ## 九、常见失败对照
@@ -173,3 +188,6 @@ dotnet publish -f net10.0-maccatalyst27.0 -c Release -p:ArchiveOnBuild=true \
 | 上传被拒：版本号重复/回退 | `CFBundleVersion` 没递增（改 `Global.cs`） |
 | 提交被拦"缺少 iPad 截图" | `UIDeviceFamily` 含 iPad，只传了 iPhone 截图 |
 | 远程构建出来的包架构不对 | Windows 上远程构建没显式给 `RuntimeIdentifier`（脚本已固定 `ios-arm64`） |
+| 构建要求 Xcode 27.0 而 Mac 上是 26.x | 本机 SDK pack 目录名 `27.0.10417-xcode27.0` 的后缀就是硬要求。两端要么都 27.0，要么都降到 26.5（`-p:AppleSdkVersion=26.5`） |
+| 连不上 Mac / 找不到 dotnet | 58181 不通（没在 VS 里配对过）或 Mac 侧 dotnet 路径不对（VS 2026 是 `maui/PairToMac`，VS 2022 是 `Xamarin/XMA`）。预检 G3 组会把这两条分开报 |
+| 传上去后台说隐私政策 URL 打不开 | 那个 URL 指向 GitHub，而按本仓惯例代码只推 Gitee ⇒ 改了 `docs/PRIVACY.md` 要**单独推到 github 远程**。预检的 `--privacy-url` 会在打包前就报出来 |

@@ -1,0 +1,47 @@
+# iOS 上架签名与 Mac 连接信息 —— **模板**
+#
+# 复制成 `ios-sign.local.sh` 再填真值：
+#     cp WayCoder.Maui/ios-sign.local.sh.example WayCoder.Maui/ios-sign.local.sh
+#
+# 用法（先 source 再跑，两个脚本都认这些环境变量）：
+#     source WayCoder.Maui/ios-sign.local.sh
+#     bash WayCoder.Maui/preflight-ios-appstore.sh --mac "$WAYCODER_MAC_HOST" --mac-user "$WAYCODER_MAC_USER"
+#     bash WayCoder.Maui/build-ios-appstore.sh --clean --mac "$WAYCODER_MAC_HOST" --mac-user "$WAYCODER_MAC_USER"
+#
+# ⚠ `ios-sign.local.sh` 已在 .gitignore 里排除，**里面是私密信息，别提交**。
+#   这份 `.example` 只是模板，可以进仓库。
+#
+# 为什么走"外部输入"而不是写进 csproj：签名与具体机器、具体开发者账号绑定，
+# 写进 csproj 会让别人 clone 下来就编不过（也把团队信息散进版本库）。
+# 见 build-ios-appstore.sh 头部「签名是外部输入，不该写进仓库」。
+
+# ── 签名（必填）─────────────────────────────────────────────
+
+# 签名身份：在那台 Mac 上跑 `security find-identity -v -p codesigning` 抄出来，
+# 形如 "Apple Distribution: 你的名字 (ABCDE12345)"。必须是 Distribution，不是 Development。
+export WAYCODER_IOS_SIGN_KEY="Apple Distribution: 你的名字 (TEAMID)"
+
+# 描述文件名字：开发者后台 Profiles 里那个 **App Store 类型**的（不是 Development / Ad Hoc），
+# 且它绑的 App ID 必须是 com.tanso.dolaima。
+export WAYCODER_IOS_PROFILE="WayCoder AppStore"
+
+# ── 那台 Mac（远程构建用）───────────────────────────────────
+
+export WAYCODER_MAC_HOST="192.168.1.23"
+export WAYCODER_MAC_USER="你的 Mac 用户名"
+
+# Mac 密码：**只有 build-ios-appstore.sh 用它**。
+# ⚠ 预检脚本（preflight-ios-appstore.sh）**故意不接受密码** —— 它只走已铺好的 SSH 密钥，
+#   要么就在 Mac 上手工核对。若你已在 Visual Studio 里配对过，SSH 密钥已就绪，这里可留空。
+export WAYCODER_MAC_PASS=""
+
+# ── 可选 ────────────────────────────────────────────────────
+
+# Mac 侧 dotnet 根目录。VS 2026 是 maui/PairToMac，VS 2022 是 Xamarin/XMA；
+# 路径写错只会报"连不上/找不到 dotnet"。留空则用脚本默认：
+#   /Users/$WAYCODER_MAC_USER/Library/Caches/maui/PairToMac/SDKs/dotnet/
+# export WAYCODER_MAC_DOTNET_ROOT="/Users/你的用户名/Library/Caches/maui/PairToMac/SDKs/dotnet/"
+
+# Windows 上指定用哪套 dotnet —— 脚本内置的回退路径 /usr/local/share/dotnet/dotnet 是 macOS 的，
+# 本机若有两套（如 homebrew 的与官方的）用错那套会报 NETSDK1147。留空则用 PATH 上的 dotnet。
+# export WAYCODER_DOTNET="C:/Program Files/dotnet/dotnet.exe"

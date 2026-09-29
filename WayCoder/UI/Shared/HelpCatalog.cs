@@ -92,6 +92,11 @@ public static class HelpCatalog
             new("settings/model", L.Pick("服务商与模型", "Providers and models"), L.Pick("填 Key、选模型、大模型与小模型分工", "Enter a key, pick models, split work between the main and small model")),
             new("settings/permission", L.Pick("权限与工作模式", "Permissions and work modes"), L.Pick("Ask/Auto/Yolo、建造/计划/聊天", "Ask/Auto/Yolo, Build/Plan/Chat")),
         ]),
+        new("legal", L.Pick("法律", "Legal"), "📄",
+        [
+            new("legal/privacy", L.Pick("隐私政策", "Privacy policy"), L.Pick("数据发到哪、存在哪、怎么删", "Where your data goes, where it is stored, how to delete it")),
+            new("legal/terms", L.Pick("使用条款", "Terms of use"), L.Pick("用这个 App 的几条约定", "A few ground rules for using this app")),
+        ]),
     ];
 
     /// <summary>按 key 找分类（找不到返回 null）。</summary>

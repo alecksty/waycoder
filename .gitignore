@@ -116,6 +116,12 @@ sync-qr.png
 *.mobileprovision
 *.p12
 
+# 本地上架凭证：Mac 的 IP/账号/密码 + 签名身份与描述文件名（勿提交）
+# 模板是 WayCoder.Maui/ios-sign.local.sh.example（那份进仓库），复制成 .local.sh 再填真值。
+WayCoder.Maui/ios-sign.local.sh
+# 上架审核备注（内含审核专用 API Key）—— 同样是本地文件，勿提交
+WayCoder.Maui/ios-review.local.md
+
 # VML 本地中间产物（Examples/ 下跑出来的汇编，按需重生，不进版本库）
 *.gen.vml
 
