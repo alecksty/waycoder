@@ -190,20 +190,27 @@ else
       bad "Mac 地址/用户名还是模板占位值（192.168.1.23 / 你的 Mac 用户名）—— 填成你真实的 Mac 再跑"
     fi
 
-    # 58181：Pair to Mac 的构建代理端口。**要区分 refused 与 timeout** ——
-    # 前者=Mac 上没起 broker（多半是没配对过），后者=不同网段/防火墙，处理办法完全不同。
-    PORT_STATE="closed"
-    if command -v powershell.exe >/dev/null 2>&1; then
-      if powershell.exe -NoProfile -Command "Test-NetConnection -ComputerName '$MAC_HOST' -Port 58181 -InformationLevel Quiet" 2>/dev/null | tr -d '\r' | grep -qi true; then
-        PORT_STATE="open"
+    # ⚠ **关键是 SSH(22)，不是 58181** —— 实测（2026-09-29）：
+    #   SDK 自己在构建日志里打了 `warning: 当生成未在 Visual Studio 内运行时忽略服务器 TCP 端口。`
+    #   （`Xamarin.Messaging.targets:111`）⇒ **命令行远程构建纯走 SSH**（`ServerSshPort` 默认 22），
+    #   58181 那个 messaging 端口只在 VS 内构建时才用。
+    #   原来把 58181 当 FAIL 判据是错的 —— 它会让人跑去 Mac 上找根本不存在的"代理没起来"。
+    ssh_probe() {  # $1=port
+      if command -v powershell.exe >/dev/null 2>&1; then
+        powershell.exe -NoProfile -Command "Test-NetConnection -ComputerName '$MAC_HOST' -Port $1 -InformationLevel Quiet" 2>/dev/null | tr -d '\r' | grep -qi true
+      else
+        (exec 3<>"/dev/tcp/$MAC_HOST/$1") 2>/dev/null
       fi
-    elif (exec 3<>"/dev/tcp/$MAC_HOST/58181") 2>/dev/null; then
-      PORT_STATE="open"
-    fi
-    if [[ "$PORT_STATE" == "open" ]]; then
-      ok "TCP $MAC_HOST:58181 可达"
+    }
+    if ssh_probe 22; then
+      ok "TCP $MAC_HOST:22（SSH）可达 —— 远程构建走的就是这条"
     else
-      bad "TCP $MAC_HOST:58181 不可达 —— 要么 Mac 上没起 Pair to Mac 的构建代理（先在 VS 里配对一次），要么被防火墙/网段挡住"
+      bad "TCP $MAC_HOST:22 不可达 —— 远程构建必须能 SSH；可能是不同网段、防火墙，或 Mac 没开「远程登录」"
+    fi
+    if ssh_probe 58181; then
+      ok "TCP $MAC_HOST:58181 也在监听（VS 内构建会用到；命令行构建不用）"
+    else
+      ok "TCP $MAC_HOST:58181 未监听 —— 命令行构建不影响（SDK 自己会忽略它）"
     fi
 
     # 只用密钥登录，**绝不在脚本里问密码**
@@ -228,7 +235,7 @@ else
         bad "Mac 侧没有可执行的 dotnet：$ROOT —— VS 2026 用 maui/PairToMac，VS 2022 用 Xamarin/XMA，路径不同；可用 WAYCODER_MAC_DOTNET_ROOT 覆盖"
       fi
     else
-      warn "SSH 密钥登录不通（预检不提供密码）。请在那台 Mac 上手工核对：Xcode 版本、上面那条 dotnet 路径、58181 是否有进程监听"
+      warn "SSH 密钥登录不通（预检不提供密码；远程构建本身可以用密码）。请在那台 Mac 上手工核对两条 —— ① xcode-select -p 要指向完整 Xcode（实测最常见的失败是「找不到有效的 Xcode 开发人员路径」）；② dotnet 是否在 ~/Library/Caches/maui/PairToMac/SDKs/dotnet/"
     fi
   fi
 fi

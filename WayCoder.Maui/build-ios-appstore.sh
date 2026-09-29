@@ -23,7 +23,13 @@
 #     （官方文档明确写了这一点）⇒「编译在 Mac、上传在 Windows」成立，
 #     本机就能一条龙跑完，不是必须坐到 Mac 前面。
 #
-# ## 三条已经踩过的坑（与 build-ios.sh 同源，别重复踩）
+# ## 四条已经踩过的坑（与 build-ios.sh 同源，别重复踩）
+#
+# 0) ⚠ **Windows + Git Bash 会改写以 `/` 开头的参数值**（本条只在 `--mac` 远程构建时踩到，
+#    但踩了就是"连不上 Mac/远程错误"这种看不出真身的现象）：
+#    `-p:_DotNetRootRemoteDirectory=/Users/…` 被改写成 `C:/Program Files/Git/Users/…`。
+#    对策是在调 dotnet 时带 `MSYS_NO_PATHCONV=1`（脚本里已加，**别删**）；
+#    同族：属性名是 `ServerTcpPort`，写成 `TcpPort` 会被静默忽略。
 #
 # 1) **TFM 必须带 SDK 版本后缀**：csproj 里是 net10.0-ios$(AppleSdkVersion)，
 #    默认 AppleSdkVersion=27.0 ⇒ 真 TFM 是 net10.0-ios27.0。写裸 net10.0-ios
@@ -114,8 +120,12 @@ if [[ -n "$MAC_HOST" ]]; then
   # ⚠ _DotNetRootRemoteDirectory 在 Mac 侧要预置：VS 2026 用 maui/PairToMac，
   #   VS 2022 用 Xamarin/XMA —— 路径不同，写错只会报"连不上/找不到 dotnet"。
   ROOT="${WAYCODER_MAC_DOTNET_ROOT:-/Users/${MAC_USER}/Library/Caches/maui/PairToMac/SDKs/dotnet/}"
+  # ⚠ 属性名是 **ServerTcpPort**，不是 `TcpPort` —— 后者是 SDK 内部的日志回显名
+  #   （`Xamarin.Messaging.targets:103` 那句 `TcpPort=$(ServerTcpPort)` 是 Message 文本）。
+  #   传 `TcpPort` 会被当成无名属性静默忽略：实测构建日志里那行回显是空的 `TcpPort=`，
+  #   而真属性 (`:123 ServerTcpPort="$(ServerTcpPort)"`) 一直没被设上。
   PUBLISH_ARGS+=(-p:ServerAddress="$MAC_HOST" -p:ServerUser="$MAC_USER"
-                 -p:ServerPassword="$MAC_PASS" -p:TcpPort=58181
+                 -p:ServerPassword="$MAC_PASS" -p:ServerTcpPort=58181
                  -p:_DotNetRootRemoteDirectory="$ROOT")
   echo "▸ 远程构建：$MAC_USER@$MAC_HOST（Mac 侧 dotnet：$ROOT）"
 fi
@@ -128,7 +138,18 @@ echo "▸ 描述文件：$PROFILE"
 # 这里故意用 publish 而不是 build：ArchiveOnBuild 只在 publish 管线里归档并导出 .ipa。
 # （.NET 8 起 iOS 的 publish 已默认 Release + ios-arm64，这里仍显式写全，
 #   免得将来默认值变了之后行为悄悄漂移。）
-"$DOTNET" publish WayCoder.Maui.csproj "${PUBLISH_ARGS[@]}"
+#
+# ⚠⚠ **MSYS_NO_PATHCONV=1 不能删**（Windows + Git Bash 上的致命坑）：
+#   Git for Windows 会把「以 / 开头的参数值」当 POSIX 路径改写成 Windows 路径 ——
+#   `-p:_DotNetRootRemoteDirectory=/Users/…` 会被送成
+#   `C:/Program Files/Git/Users/…`，而 Mac 上根本没有这个位置 ⇒ SayHello 连不上，
+#   报错只有一句笼统的"远程错误"。实测：
+#     不加 → DotNetSdkPath=C:/Program Files/Git/Users/alecksty/Library/Caches/maui/PairToMac/SDKs/dotnet/
+#     加了 → DotNetSdkPath=/Users/alecksty/Library/Caches/maui/PairToMac/SDKs/dotnet/
+#   这正是本脚本"引入以来从未跑通过远程构建"的第一个真因。
+#   其余参数（TFM / RID / 签名 / 地址）都不需要这层转换，全局关掉是安全的；
+#   在 macOS/Linux 上该变量无副作用。
+MSYS_NO_PATHCONV=1 "$DOTNET" publish WayCoder.Maui.csproj "${PUBLISH_ARGS[@]}"
 
 OUT="bin/Release/${TFM}/${RID}/publish"
 echo
