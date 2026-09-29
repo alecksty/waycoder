@@ -186,6 +186,9 @@ else
     bad "--mac 给了但 --mac-user 没给"
   else
     ok "目标 Mac: $MAC_USER@$MAC_HOST"
+    if [[ "$MAC_HOST" == "192.168.1.23" || "$MAC_USER" == *"你的"* ]]; then
+      bad "Mac 地址/用户名还是模板占位值（192.168.1.23 / 你的 Mac 用户名）—— 填成你真实的 Mac 再跑"
+    fi
 
     # 58181：Pair to Mac 的构建代理端口。**要区分 refused 与 timeout** ——
     # 前者=Mac 上没起 broker（多半是没配对过），后者=不同网段/防火墙，处理办法完全不同。
@@ -236,6 +239,12 @@ grp "G4 签名信息"
 if [[ -z "$KEY" || -z "$PROFILE" ]]; then
   bad "缺签名信息：--key / --profile（或 WAYCODER_IOS_SIGN_KEY / WAYCODER_IOS_PROFILE）—— 上架包必须用 Distribution 证书 + App Store 描述文件"
 else
+  # ⚠ 先认占位值：模板里的 "Apple Distribution: 你的名字 (TEAMID)" **形状是对的**，
+  #   不加这一条就会全绿通过 —— 而真打包必然失败（这正是"假绿比红更危险"的形态）。
+  if [[ "$KEY" == *"你的名字"* || "$KEY" == *TEAMID* || "$KEY" == *your\ name* || \
+        "$PROFILE" == *"你的"* || "$PROFILE" == "WayCoder AppStore" ]]; then
+    bad "签名信息看着还是模板占位值（ios-sign.local.sh.example 里的原样）—— 形状检查会过，但真打包必然失败"
+  fi
   # 只回显前缀与长度，**绝不回显整串**
   KPFX="${KEY%%:*}"; [[ "$KPFX" == "$KEY" ]] && KPFX="${KEY:0:24}"
   ok "签名身份已给（前缀 '${KPFX}'，长度 ${#KEY}）"
