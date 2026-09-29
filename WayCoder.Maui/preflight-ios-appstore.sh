@@ -241,9 +241,12 @@ if [[ -z "$KEY" || -z "$PROFILE" ]]; then
 else
   # ⚠ 先认占位值：模板里的 "Apple Distribution: 你的名字 (TEAMID)" **形状是对的**，
   #   不加这一条就会全绿通过 —— 而真打包必然失败（这正是"假绿比红更危险"的形态）。
-  if [[ "$KEY" == *"你的名字"* || "$KEY" == *TEAMID* || "$KEY" == *your\ name* || \
-        "$PROFILE" == *"你的"* || "$PROFILE" == "WayCoder AppStore" ]]; then
-    bad "签名信息看着还是模板占位值（ios-sign.local.sh.example 里的原样）—— 形状检查会过，但真打包必然失败"
+  #   **两条分开报**：混在一句里就看不出到底是哪个还没填。
+  if [[ "$KEY" == *"你的名字"* || "$KEY" == *TEAMID* || "$KEY" == *your\ name* ]]; then
+    bad "签名身份还是模板占位值 —— 要填 <Mac 上 security find-identity -v -p codesigning> 的真实输出"
+  fi
+  if [[ "$PROFILE" == *"你的"* || "$PROFILE" == "WayCoder AppStore" ]]; then
+    bad "描述文件名还是模板默认值「$PROFILE」—— 要填后台那个 App Store 类型描述文件的真实名字（App 已改名 Dolaima，名字多半不长这样）"
   fi
   # 只回显前缀与长度，**绝不回显整串**
   KPFX="${KEY%%:*}"; [[ "$KPFX" == "$KEY" ]] && KPFX="${KEY:0:24}"
