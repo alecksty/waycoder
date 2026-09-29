@@ -51,7 +51,8 @@ export WAYCODER_IOS_PROFILE="<描述文件的真实名字>"
 ### 第 3 步：跑预检
 
 ```bash
-cd WayCoder
+# ⚠ 在**仓库根目录**执行（即含 WayCoder/ 与 WayCoder.Maui/ 的那一层）。
+#   注意仓库根本身就叫 WayCoder ⇒ 别写 `cd WayCoder`，那会进到主工程子目录里去。
 source WayCoder.Maui/ios-sign.local.sh
 bash WayCoder.Maui/preflight-ios-appstore.sh \
   --mac "$WAYCODER_MAC_HOST" --mac-user "$WAYCODER_MAC_USER"

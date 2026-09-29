@@ -52,14 +52,35 @@ ChatGPT / Gemini / Microsoft Copilot 都是 13+；Perplexity 的 18+ 差别出�
 - **工具链**：maui / ios 工作负载、iOS SDK pack、`Microsoft.iOS.Windows.Sdk`
 - **Xcode 版本**：从 SDK pack 目录名后缀推出来（本机 `27.0.10417-xcode27.0` ⇒ 硬要求 27.0），
   再经 SSH 与 Mac 实装版本比对 —— 版本不匹配远程构建必失败
-- **Mac 侧**：58181 可达性（**区分 refused 与 timeout**，两者处理办法不同）、SSH 密钥登录、
-  Mac 侧 dotnet 路径
+- **Mac 侧**：先判 **SSH(22) 可达**（远程构建实际走的就是它），再查 58181 与 SSH 密钥登录、
+  Mac 侧 dotnet 路径。⚠ **58181 只作参考、不当判据** —— SDK 自己会打
+  `warning: 当生成未在 Visual Studio 内运行时忽略服务器 TCP 端口`，命令行构建根本不看它；
+  早先把它当 FAIL 是错的（会让人跑去 Mac 上找一个**不必存在**的"代理"）
 - **签名**：只回显前缀与长度，**绝不回显整串**；`Apple Distribution/Production` 形状校验
 - **隐私政策 URL**：`curl` 取状态码 —— 唯一能在上传前发现"元数据里的 URL 是 404"的地方
 
 凭证走**本地 gitignored 文件**（`WayCoder.Maui/ios-sign.local.sh`，模板 `.example` 进仓库）：
 签名与具体机器、账号绑定，写进 csproj 会让别人 clone 下来就编不过。预检**故意不接受 Mac 密码**，
 要么走已铺好的 SSH 密钥、要么人工核对 —— 与 `build-ios-appstore.sh` "签名一个字都不落磁盘"一致。
+
+### 三之二、`--mac` 远程构建：两个真 bug（它自引入起**从未跑通过**）
+
+用户报"连不上 Mac / 已连接的 Mac 发生远程错误"。命令行打包拿到完整日志后两个都现形了：
+
+1. **Git Bash 改写以 `/` 开头的参数值**（致命）：`-p:_DotNetRootRemoteDirectory=/Users/…`
+   被送成 `C:/Program Files/Git/Users/…` ⇒ SayHello 连不上，而 VS 只给一句笼统的"远程错误"。
+   修法：调 dotnet 时带 `MSYS_NO_PATHCONV=1`。
+2. **属性名写成 `TcpPort`**：SDK 认的是 `ServerTcpPort`（`TcpPort` 只是它内部的日志回显名）
+   ⇒ 被静默忽略。修法：改回真名。
+
+修后实测连接打通（日志里读到 Mac 侧路径），失败点推进到 Mac 侧的真问题
+（`找不到有效的 Xcode 开发人员路径`）。为此新增 `--xcode <开发者目录>`：
+macOS 上"装了完整 Xcode"与"`xcode-select` 指向它"是两件事，传
+`-p:XcodeLocation=…/Contents/Developer` 即可绕过，**不必改 Mac 上的 `xcode-select`**。
+
+另：两个脚本共用的事实（SDK 版本 / 用哪套 dotnet / Mac 侧 dotnet 根）提炼到
+`WayCoder.Maui/ios-build-common.sh` —— 原先各写一套，实测已漂（预检按 PATH 解析 dotnet、
+打包脚本优先官方安装位）⇒ 会出现"预检绿灯、打包失败"。
 
 ### 四、逐屏操作文档 + 内购验收第 10 条判据修正
 

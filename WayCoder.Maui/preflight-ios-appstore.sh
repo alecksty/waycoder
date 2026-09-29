@@ -29,9 +29,18 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
+# ⚠ **在 cd 之前**把脚本自身绝对路径定死：usage() 在 cd 之后跑，`$0` 若是相对路径
+#   （文档教的 `bash WayCoder.Maui/preflight-ios-appstore.sh`）那时已失效。
+SELF="$HERE/$(basename "$0")"
 cd "$HERE"
 
-SDK_VER="${AppleSdkVersion:-27.0}"
+# 与 build-ios-appstore.sh 共用的事实（SDK 版本 / 用哪套 dotnet / Mac 侧 dotnet 根）
+if [[ ! -f "$HERE/ios-build-common.sh" ]]; then
+  echo "缺少 ios-build-common.sh（应与本脚本同目录）" >&2; exit 2
+fi
+source "$HERE/ios-build-common.sh"
+
+SDK_VER="$(ios_sdk_version)"
 KEY="${WAYCODER_IOS_SIGN_KEY:-}"
 PROFILE="${WAYCODER_IOS_PROFILE:-}"
 MAC_HOST=""
@@ -39,12 +48,11 @@ MAC_USER=""
 LAST_BUILD=""
 PRIVACY_URL="https://github.com/alecksty/waycoder/blob/master/docs/PRIVACY.md"
 STRICT=0
-MAC_DOTNET_ROOT="${WAYCODER_MAC_DOTNET_ROOT:-}"
 
 # 打印从第 2 行到「第一条非注释行」之前的全部注释，与 build-ios-appstore.sh 同款：
 # 写死行号会随头部注释增删而**静默偏移**（本脚本原来写 '2,30p'，头部只有 27 行 ⇒
 # --help 末尾多打了三行真代码：`set -uo pipefail` 与 `HERE=…`）。
-usage() { sed -n '2,/^[^#]/p' "$0" | sed '$d'; }
+usage() { sed -n '2,/^[^#]/p' "$SELF" | sed '$d'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -68,8 +76,11 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; FAILS=$((FAILS+1)); }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; WARNS=$((WARNS+1)); }
 grp()  { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
-# ── dotnet：优先 WAYCODER_DOTNET（Windows 上脚本内置的 /usr/local/share/dotnet 是 macOS 路径）──
-DOTNET="${WAYCODER_DOTNET:-dotnet}"
+# ── dotnet：判据收在 ios-build-common.sh，与 build-ios-appstore.sh **同一个答案** ──
+#    原先这里写 `${WAYCODER_DOTNET:-dotnet}`（只看 PATH），而打包脚本优先官方安装位 ⇒
+#    在 Mac 上（homebrew 与官方两套并存）两者会指向**不同的 dotnet**：预检拿 PATH 那套
+#    查工作负载，可能假报"缺少工作负载"，也可能绿灯通过而打包用另一套报 NETSDK1147。
+DOTNET="$(ios_resolve_dotnet)"
 if ! command -v "$DOTNET" >/dev/null 2>&1 && [[ ! -x "$DOTNET" ]]; then
   echo "✗ 找不到 dotnet（WAYCODER_DOTNET=$DOTNET）" >&2; exit 2
 fi
@@ -229,9 +240,12 @@ else
       elif [[ -n "$REMOTE_XCODE" ]]; then
         ok "Mac 的 $REMOTE_XCODE"
       else
-        warn "取不到 Mac 的 Xcode 版本"
+        # 这条 WARN 值钱：`xcodebuild -version` 无输出**正是** xcode-select 指向
+        # CommandLineTools（而非完整 Xcode）的指纹 —— 也就是本仓上一轮实际卡住的那一步。
+        # 只说"取不到版本"会让人以为无关紧要，然后带着这个坑去跑 20 分钟的远程构建。
+        warn "取不到 Mac 的 Xcode 版本（xcodebuild -version 无输出）—— 这正是 xcode-select 指向 CommandLineTools、而不是完整 Xcode 的指纹。两条修法：在 Mac 上 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer，或用 build-ios-appstore.sh --xcode /Applications/Xcode.app/Contents/Developer 绕过"
       fi
-      ROOT="${MAC_DOTNET_ROOT:-/Users/$MAC_USER/Library/Caches/maui/PairToMac/SDKs/dotnet/}"
+      ROOT="$(ios_mac_dotnet_root "$MAC_USER")"
       if ssh -o BatchMode=yes -o ConnectTimeout=5 "$MAC_USER@$MAC_HOST" "test -x '$ROOT/dotnet'" >/dev/null 2>&1; then
         ok "Mac 侧 dotnet 在：$ROOT"
       else
@@ -252,10 +266,16 @@ else
   # ⚠ 先认占位值：模板里的 "Apple Distribution: 你的名字 (TEAMID)" **形状是对的**，
   #   不加这一条就会全绿通过 —— 而真打包必然失败（这正是"假绿比红更危险"的形态）。
   #   **两条分开报**：混在一句里就看不出到底是哪个还没填。
-  if [[ "$KEY" == *"你的名字"* || "$KEY" == *TEAMID* || "$KEY" == *your\ name* ]]; then
-    bad "签名身份还是模板占位值 —— 要填 <Mac 上 security find-identity -v -p codesigning> 的真实输出"
+  # ⚠ **大小写不敏感**地认占位值：文档里的示例是 `Apple Distribution: Your Name (TEAMID)`，
+  #   而 bash 的 glob 匹配**区分大小写** —— 用户只把 TEAMID 换成真值、名字仍留 `Your Name`
+  #   时，`*your name*` 匹配不上 ⇒ 直接假绿通过（正是这条判据当初要堵的"假绿"）。
+  #   用 tr 而非 `${var,,}`：macOS 自带的 bash 是 3.2，不支持后者。
+  KEY_LC="$(printf '%s' "$KEY" | tr '[:upper:]' '[:lower:]')"
+  PROFILE_LC="$(printf '%s' "$PROFILE" | tr '[:upper:]' '[:lower:]')"
+  if [[ "$KEY" == *"你的名字"* || "$KEY_LC" == *teamid* || "$KEY_LC" == *"your name"* ]]; then
+    bad "签名身份还是模板占位值 —— 要填 Mac 上 security find-identity -v -p codesigning 的真实输出"
   fi
-  if [[ "$PROFILE" == *"你的"* || "$PROFILE" == "WayCoder AppStore" ]]; then
+  if [[ "$PROFILE" == *"你的"* || "$PROFILE_LC" == "waycoder appstore" ]]; then
     bad "描述文件名还是模板默认值「$PROFILE」—— 要填后台那个 App Store 类型描述文件的真实名字（App 已改名 Dolaima，名字多半不长这样）"
   fi
   # 只回显前缀与长度，**绝不回显整串**
@@ -275,17 +295,44 @@ fi
 # ════════════════════════════════════════════════════════════════════
 grp "G5 其余发布门"
 
-for f in Resources/Raw/help/zh/legal/privacy.md Resources/Raw/help/en/legal/privacy.md; do
-  [[ -f "$f" ]] && ok "随包隐私政策在：$f" || bad "缺少随包隐私政策：$f（App 内「关于 → 使用说明与隐私」会点不开）"
-done
+# 法律页：**从 HelpCatalog 的 legal 分类取**，不写死文件名 —— 写死就是又一份"手工同步的
+# 平行表"（原来只查 privacy.md，漏了同一入口下的 terms.md；以后再加第三篇也会漏）。
+LEGAL_IDS="$(sed -nE 's/.*new\("(legal\/[A-Za-z0-9_-]+)".*/\1/p' "$REPO/WayCoder/UI/Shared/HelpCatalog.cs")"
+if [[ -z "$LEGAL_IDS" ]]; then
+  warn "没能从 HelpCatalog.cs 解析出 legal 分类的主题（目录表写法变了？）—— 这条检查本次跳过"
+else
+  LEGAL_MISSING=""; LEGAL_N=0
+  for id in $LEGAL_IDS; do
+    for lang in zh en; do
+      f="Resources/Raw/help/$lang/$id.md"; LEGAL_N=$((LEGAL_N+1))
+      [[ -f "$f" ]] || LEGAL_MISSING="$LEGAL_MISSING $f"
+    done
+  done
+  if [[ -n "$LEGAL_MISSING" ]]; then
+    bad "缺少随包法律页：$LEGAL_MISSING（App 内「设置 → 关于 → 使用说明与隐私」会点不开）"
+  else
+    ok "随包法律页齐（$LEGAL_N 个文件，取自 HelpCatalog 的 legal 分类）"
+  fi
+fi
 
 if [[ -n "$PRIVACY_URL" ]]; then
   # 唯一能在上传前发现"元数据里的隐私政策 URL 是 404"的地方。
   # ⚠ 这个 URL 指向 GitHub；按本仓惯例代码只推 Gitee ⇒ 新写的 docs/PRIVACY.md
   #   在推到 github 远程**之前**是取不到的，这一项会红 —— 那是对的，不是误报。
-  CODE="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 "$PRIVACY_URL" 2>/dev/null || echo 000)"
-  if [[ "$CODE" == "200" ]]; then ok "隐私政策 URL 可访问（200）"
-  else bad "隐私政策 URL 返回 $CODE：$PRIVACY_URL —— 元数据里填它会被审核打回（记得把 docs/PRIVACY.md 推到 github 远程）"; fi
+  # ⚠ 赋值与回退要分开写：`CODE="$(curl … || echo 000)"` 是**错的** —— curl 失败时它
+  #   照样用 -w 打出 `000`，`|| echo 000` 再追加一次 ⇒ 变成 `000000`（实测踩到）。
+  CODE="$(curl -sS -L -o /dev/null -w '%{http_code}' --max-time 15 "$PRIVACY_URL" 2>/dev/null)" || CODE="000"
+  # ⚠ **三种情况要分开**，别把"本机连不上"当成"URL 是坏的"：
+  #   000 = 本机网络到不了 GitHub（本机有 VPN/DNS 劫持的老问题，实测 github.com 与
+  #         raw.githubusercontent.com 都会超时）⇒ 只是**没验成**，不该红。
+  #   非 200 = URL 真的有问题（404 / 仓库私有 / 文件被删）⇒ 这才要拦。
+  if [[ "$CODE" == "200" ]]; then
+    ok "隐私政策 URL 可访问（200）"
+  elif [[ "$CODE" == "000" ]]; then
+    warn "隐私政策 URL 本次**没验成**（本机网络到不了 GitHub，curl 超时）—— 不是 URL 有问题，请在别的网络下复核：$PRIVACY_URL"
+  else
+    bad "隐私政策 URL 返回 $CODE：$PRIVACY_URL —— 元数据里填它会被审核打回（记得把 docs/PRIVACY.md 推到 github 远程）"
+  fi
 fi
 
 # ⚠ 分清「改过的**被跟踪**文件」与「未跟踪文件」：

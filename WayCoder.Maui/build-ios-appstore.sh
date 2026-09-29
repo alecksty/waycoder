@@ -55,9 +55,20 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+# ⚠ **必须在 cd 之前**把脚本自身的绝对路径定死：usage() 在 cd 之后执行，那时 `$0` 若是
+#   相对路径（文档教的 `bash WayCoder.Maui/build-ios-appstore.sh`）已经失效 ⇒
+#   sed 报 can't read、帮助一个字都打不出来（`set -e` 下还真接退出）。
+SELF="$HERE/$(basename "$0")"
 cd "$HERE"
 
-SDK_VER="${AppleSdkVersion:-27.0}"
+# 与 preflight-ios-appstore.sh 共用的事实（SDK 版本 / 用哪套 dotnet / Mac 侧 dotnet 根）——
+# 这三个判据必须两边同源，否则"预检绿灯、打包失败"。
+if [[ ! -f "$HERE/ios-build-common.sh" ]]; then
+  echo "缺少 ios-build-common.sh（应与本脚本同目录）" >&2; exit 2
+fi
+source "$HERE/ios-build-common.sh"
+
+SDK_VER="$(ios_sdk_version)"
 CLEAN=0
 KEY="${WAYCODER_IOS_SIGN_KEY:-}"
 PROFILE="${WAYCODER_IOS_PROFILE:-}"
@@ -68,7 +79,7 @@ XCODE_LOC="${WAYCODER_IOS_XCODE:-}"
 
 # 打印从第 2 行到「第一条非注释行」之前的全部注释 —— 比写死行号稳：
 # 头部注释只增不减时，写死行号会让帮助信息**静默截断**（本脚本已踩过一次）。
-usage() { sed -n '2,/^[^#]/p' "$0" | sed '$d'; }
+usage() { sed -n '2,/^[^#]/p' "$SELF" | sed '$d'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -111,23 +122,28 @@ fi
 TFM="net10.0-ios${SDK_VER}"
 RID="ios-arm64"
 
-# 与 build-ios.sh / build-apk.sh 同一条：优先官方 dotnet（装了 maui 工作负载的那套）。
-DOTNET="${WAYCODER_DOTNET:-}"
-if [[ -z "$DOTNET" ]]; then
-  if [[ -x /usr/local/share/dotnet/dotnet ]]; then DOTNET=/usr/local/share/dotnet/dotnet; else DOTNET=dotnet; fi
-fi
+# 用哪套 dotnet —— 判据收在 ios-build-common.sh，与预检**同一个答案**。
+# 原先两边各写一套，实测会漂：预检按 PATH 解析，这里优先官方安装位。
+DOTNET="$(ios_resolve_dotnet)"
 
 PUBLISH_ARGS=(-f "$TFM" -c Release
               -p:ArchiveOnBuild=true
               -p:RuntimeIdentifier="$RID"
               -p:CodesignKey="$KEY"
-              -p:CodesignProvision="$PROFILE")
+              -p:CodesignProvision="$PROFILE"
+              # ⚠ **必须把 SDK 版本也覆盖回 csproj**：csproj 的 `<TargetFrameworks>` 写的是
+              #   `net10.0-ios$(AppleSdkVersion)`，只改 `-f` 而不改这个属性 ⇒
+              #   TargetFrameworks 里仍是 27.0、而我们要求编 26.5 ⇒ NETSDK1005
+              #   「资产文件没有 … 的目标」（正是坑①说的那种看不出真身的报错）。
+              #   头部写的"--sdk 26.5 等价于 -p:AppleSdkVersion=26.5"以前是**空头承诺** ——
+              #   那时脚本根本没传这个属性，`--sdk` 只在 `-f` 上生效、必然撞 NETSDK1005。
+              -p:AppleSdkVersion="$SDK_VER")
 
 if [[ -n "$MAC_HOST" ]]; then
   # Windows → Mac 远程构建（Visual Studio「Pair to Mac」那套协议，dotnet CLI 同样支持）。
   # ⚠ _DotNetRootRemoteDirectory 在 Mac 侧要预置：VS 2026 用 maui/PairToMac，
   #   VS 2022 用 Xamarin/XMA —— 路径不同，写错只会报"连不上/找不到 dotnet"。
-  ROOT="${WAYCODER_MAC_DOTNET_ROOT:-/Users/${MAC_USER}/Library/Caches/maui/PairToMac/SDKs/dotnet/}"
+  ROOT="$(ios_mac_dotnet_root "$MAC_USER")"
   # ⚠ 属性名是 **ServerTcpPort**，不是 `TcpPort` —— 后者是 SDK 内部的日志回显名
   #   （`Xamarin.Messaging.targets:103` 那句 `TcpPort=$(ServerTcpPort)` 是 Message 文本）。
   #   传 `TcpPort` 会被当成无名属性静默忽略：实测构建日志里那行回显是空的 `TcpPort=`，
