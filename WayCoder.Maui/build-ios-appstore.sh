@@ -129,6 +129,16 @@ DOTNET="$(ios_resolve_dotnet)"
 PUBLISH_ARGS=(-f "$TFM" -c Release
               -p:ArchiveOnBuild=true
               -p:RuntimeIdentifier="$RID"
+              # ⚠ **必须显式给 AnyCPU**，否则报 NETSDK1032
+              #   「RuntimeIdentifier 平台"ios-arm64"和 PlatformTarget"x64"必须兼容」。
+              #   机理：.NET SDK 在 `PlatformTarget` 为空时会**从 RID 反推**它
+              #   （`Microsoft.NET.RuntimeIdentifierInference.targets:165` 的 Choose），
+              #   而多目标项目的**外层**构建会把 RID/PlatformTarget 清掉 ⇒ 反推那步落空，
+              #   之后按 Windows 宿主机默认成了 **x64**（实测 `-getProperty:PlatformTarget`
+              #   = x64，而 `Platform` 已是 AnyCPU、`_UsingDefaultPlatformTarget`=true）。
+              #   于是 :346 那条 `_CheckForMismatchingPlatform` 判定不匹配。
+              #   iOS 应用本就该是 AnyCPU（MAUI 模板亦然），显式给上即消除该分支。
+              -p:PlatformTarget=AnyCPU
               -p:CodesignKey="$KEY"
               -p:CodesignProvision="$PROFILE"
               # ⚠ **必须把 SDK 版本也覆盖回 csproj**：csproj 的 `<TargetFrameworks>` 写的是
