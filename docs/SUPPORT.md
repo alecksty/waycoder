@@ -22,7 +22,7 @@
 
 2. **认一下工作区**
    文件都放在沙箱工作区里（「文件」页就是它）。开箱自带一批示例程序，
-   「命令行」页敲 `vml run examples/c/primes.c` 就能跑第一个程序。
+   「命令行」页敲 `vml run examples/c/demo_std.c` 就能跑第一个程序。
 
 ### 二、常见问题
 
@@ -80,7 +80,7 @@ in your project.
 
 2. **Meet the workspace**
    All files live in a sandboxed workspace (that is the *Files* tab). Sample programs ship with
-   the app — on the *Command* tab, run `vml run examples/c/primes.c` to try one.
+   the app — on the *Command* tab, run `vml run examples/c/demo_std.c` to try one.
 
 ### 2. FAQ
 
