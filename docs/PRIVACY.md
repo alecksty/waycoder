@@ -1,10 +1,13 @@
 # 隐私与安全 / Privacy & Security
 
-本文档说明 WayCoder（道码）会把哪些数据发送到外部、发送给谁、以及在本机保存了什么。
-它是 winget 清单里 `PrivacyUrl` 指向的页面。
+本文档说明 **都来码（Dolaima）** 会把哪些数据发送到外部、发送给谁、以及在本机保存了什么。
 
-This document describes what data WayCoder sends externally, to whom, and what it stores
-locally. It is the page referenced by the `PrivacyUrl` field of the winget manifest.
+⚠ **它是两个地方共同指向的页面**：Windows 侧 winget 清单的 `PrivacyUrl`，
+以及 **App Store 的「隐私政策 URL」**（`docs/上架资料包.md` §六）—— 改这一页两处都跟着变。
+
+This document describes what data **Dolaima** sends externally, to whom, and what it stores
+locally. It is the page referenced by the `PrivacyUrl` field of the winget manifest **and by the
+App Store listing's Privacy Policy URL**.
 
 ---
 
@@ -29,7 +32,7 @@ locally. It is the page referenced by the `PrivacyUrl` field of the winget manif
 
 ## 1. 发往 AI 服务商的数据
 
-WayCoder 是一个编程智能体，它的工作方式就是把上下文交给大模型。以下内容会通过 HTTP(S)
+都来码是一个编程智能体，它的工作方式就是把上下文交给大模型。以下内容会通过 HTTP(S)
 发往**你在配置里指定的** LLM 服务商（`baseUrl` + `apiKey` 都由你设定，可以是 OpenAI、
 Anthropic、DeepSeek、OpenRouter、本地 Ollama 等任意兼容服务）：
 
@@ -133,7 +136,10 @@ Anthropic、DeepSeek、OpenRouter、本地 Ollama 等任意兼容服务）：
 
 ## 9. 联系
 
-问题与漏洞报告请走仓库 Issue：<https://github.com/alecksty/waycoder/issues>
+- 问题与漏洞报告：<https://github.com/alecksty/waycoder/issues>
+- 邮箱（隐私疑问、下架/删除数据请求）：<alecksty@163.com>
+
+*Contact: <alecksty@163.com> — English is fine.*
 
 ---
 
