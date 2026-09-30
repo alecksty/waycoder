@@ -1,6 +1,6 @@
 # winget 发布指南
 
-WayCoder 的 Windows 便携版通过 `microsoft/winget-pkgs` 社区仓库分发。
+都来码（Dolaima）的 Windows 便携版通过 `microsoft/winget-pkgs` 社区仓库分发。
 
 > **分工铁律（2026-09-28 定）**：**Gitee 存代码、GitHub 发行**。
 > 源码仓库在 Gitee 且是**私有**的（匿名访问实测 403），它**永远不会**把资产发给终端用户。
@@ -10,10 +10,10 @@ WayCoder 的 Windows 便携版通过 `microsoft/winget-pkgs` 社区仓库分发�
 ## 一、manifest 结构
 
 ```
-packaging/winget/manifests/a/Aleckstygit/WayCoder/<版本>/
-├── Aleckstygit.WayCoder.yaml              # version
-├── Aleckstygit.WayCoder.locale.zh-CN.yaml # defaultLocale（含 PublisherUrl / PrivacyUrl / Author / Copyright）
-└── Aleckstygit.WayCoder.installer.yaml    # installer（GitHub URL + 真实 sha256）
+packaging/winget/manifests/a/Aleckstygit/Dolaima/<版本>/
+├── Aleckstygit.Dolaima.yaml              # version
+├── Aleckstygit.Dolaima.locale.zh-CN.yaml # defaultLocale（含 PublisherUrl / PrivacyUrl / Author / Copyright）
+└── Aleckstygit.Dolaima.installer.yaml    # installer（GitHub URL + 真实 sha256）
 ```
 
 由 `scripts/release.sh`（或 `release.ps1`）自动生成：它会从上一版目录复制、替换版本号与 sha256，
@@ -21,41 +21,33 @@ packaging/winget/manifests/a/Aleckstygit/WayCoder/<版本>/
 
 ## 二、⚠ 核心约束：清单 sha 必须等于 **GitHub 上实际托管**的那份资产
 
-这是唯一一个会让用户「装不上」的坑，且报错隐晦。有两条自洽的路，**选一条走到底，别混**：
+这是唯一一个会让用户「装不上」的坑，且报错隐晦。
 
-### 路 A（本仓现行）：以本地 `dist/` 为准
+**2026-09-30 起只有一条路**：**以本地 `dist/` 为准**。原先的「路 B：以 CI 产物为准」随
+`.github/workflows/`（2026-09-30 删除）一起没了 —— 那条路要求本机能出 AOT 产物，
+而本仓本来就是本机编译（`release.sh` 第 1 步就是编 6 平台），CI 那套的产物哈希与本地
+清单对不上、还缺 `win-arm64`，所以它从来没被真正用过（原先的流程里 CI 产物**必须**被
+本地 dist 覆盖，覆盖那一步才是真正生效的那一步）。
 
 ```bash
 bash scripts/release.sh                 # 编 6 平台 + 算 sha + 生成清单
-git push github v<版本>                 # 推 tag → 触发 .github/workflows/release.yml
-gh run watch                            # 等 CI 跑完（它会创建 release 并上传 CI 产物）
-# 用本地 dist 覆盖 CI 产物，使托管资产 == 清单所记的那份
+gh release create v<版本> --repo alecksty/waycoder --title "v<版本>" --notes-file CHANGELOG.md
 gh release upload v<版本> --repo alecksty/waycoder --clobber \
   dist/waycoder-v<版本>-* dist/SHA256SUMS.txt
 # 回验：远端 digest 必须与本地 SHA256SUMS.txt 逐项一致
+gh release view v<版本> --repo alecksty/waycoder --json assets \
+  --jq '.assets[] | "\(.digest|sub("sha256:";""))  \(.name)"'
 ```
 
-- **为什么必须覆盖**：CI 在 GitHub runner 上重新 AOT 编译，产物与本地 `dist/` **不是同一份二进制**
-  （NativeAOT 受工具链版本影响），哈希必然不同 ⇒ 不覆盖就是清单 sha 与托管资产不符。
-- **为什么不能只靠 CI**：`release.yml` 的 matrix 只覆盖 4 个平台（缺 `win-arm64` / `linux-arm64`），
-  winget 需要 `win-arm64`；且它的产物哈希与本地清单对不上。
-- 验收命令（`release.sh` 第 6 步会打印）：
-  `gh release view v<版本> --json assets --jq '.assets[] | "\(.digest|sub("sha256:";""))  \(.name)"'`
-  与 `dist/SHA256SUMS.txt` 逐项 diff（`SHA256SUMS.txt` 自身不在其内容里，先滤掉）。
-
-### 路 B：以 CI 产物为准
-
-推 tag 后**不覆盖**，改用 Actions 产物的 sha256 重算清单，再提交 PR。
-适用于本机无法完成 AOT 编译的场合。
-
-> **两条路混用 = 安装端校验失败**（v0.96.105 事故就是这么来的：上传的资产与清单所记 sha 不同源）。
-> 报错是 `Installer hash does not match`，看不出是"两份产物"。
+- **别再把清单 sha 写成别的东西的哈希**：清单 sha 只对 `dist/` 负责。历史上那次
+  「上传的资产与清单所记 sha 不同源」（v0.96.105）报的是
+  `Installer hash does not match`，看不出真身。
 
 ## 三、本地校验与安装测试（Windows PowerShell）
 
 ```powershell
-winget validate .\packaging\winget\manifests\a\Aleckstygit\WayCoder\<版本>\
-winget install --manifest .\packaging\winget\manifests\a\Aleckstygit\WayCoder\<版本>\
+winget validate .\packaging\winget\manifests\a\Aleckstygit\Dolaima\<版本>\
+winget install --manifest .\packaging\winget\manifests\a\Aleckstygit\Dolaima\<版本>\
 ```
 
 ## 四、提交 PR
@@ -63,13 +55,13 @@ winget install --manifest .\packaging\winget\manifests\a\Aleckstygit\WayCoder\<�
 ```bash
 gh repo fork microsoft/winget-pkgs --clone      # 已有 fork 则直接 clone
 cd winget-pkgs
-cp -r <waycoder-repo>/packaging/winget/manifests/a/Aleckstygit/WayCoder/<版本> \
-      manifests/a/Aleckstygit/WayCoder/
-git checkout -b Aleckstygit.WayCoder-<版本>
-git add manifests/a/Aleckstygit/WayCoder/<版本>
-git commit -m "New version: Aleckstygit.WayCoder version <版本>"
-git push --set-upstream origin Aleckstygit.WayCoder-<版本>
-gh pr create --title "New version: Aleckstygit.WayCoder version <版本>" --body "..."
+cp -r <waycoder-repo>/packaging/winget/manifests/a/Aleckstygit/Dolaima/<版本> \
+      manifests/a/Aleckstygit/Dolaima/
+git checkout -b Aleckstygit.Dolaima-<版本>
+git add manifests/a/Aleckstygit/Dolaima/<版本>
+git commit -m "New version: Aleckstygit.Dolaima version <版本>"
+git push --set-upstream origin Aleckstygit.Dolaima-<版本>
+gh pr create --title "New version: Aleckstygit.Dolaima version <版本>" --body "..."
 ```
 
 ## 五、⚠ 审核已明确要求的两件事（2026-09-26 版主 denelon 在 PR #426613 提出）

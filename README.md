@@ -2,9 +2,11 @@
 
 ![alt text](image/app.png)
 
-# WayCoder（道码）
+# 都来码（Dolaima）
 
-**中文编程智能体,Vibe Coding Agent CLI**
+**中文编程智能体, Vibe Coding Agent CLI**
+
+**简体中文** ｜ [English](README.en.md)
 
 *支持多模型 + 49个工具 + Watch 模式 + 单文件 + 多智能体*
 
@@ -17,20 +19,29 @@
 > 📖 **使用手册**：[docs/使用手册.md](docs/使用手册.md) — 快速上手、命令速查、快捷键、配置、Watch 模式、FAQ
 > ⬆️ **安装与升级**：[docs/安装与升级.md](docs/安装与升级.md) — 直接下载 / winget / brew / apt + 内置自动升级
 > 🔌 **插件系统**：[docs/插件系统.md](docs/插件系统.md) — 编译期 C# 插件，贡献工具与斜杠命令
-> 📚 **全部文档**：[docs/README.md](docs/README.md) — 19 份文档的分类索引（用户向 / VML 平台 / 架构 / 规划 / 交接）
+> 📚 **全部文档**：[docs/README.md](docs/README.md) — 全部分类索引（用户向 / VML 平台 / 架构 / 规划 / 发布与上架 / 交接）
 
 ## 改名说明
 
-本项目源自 **CoreCoder**，因与现有商标/产品名称冲突，为规避侵权风险，自v0.16.3 起更名为 **WayCoder（道码）**。
+本项目源自 **CoreCoder**，因与现有商标/产品名称冲突，**已更名两次**：
 
-- 代码命名空间已重命名为 `WayCoder`
-- 可执行文件：`corecoder.exe` → `waycoder.exe`
-- 环境变量前缀：`CORECODER_*` → `WAYCODER_*`
-- 目录名：仓库内部目录已同步重命名
+| 时间 | 原名 | 新名 |
+|---|---|---|
+| v0.16.3 | CoreCoder | **WayCoder（道码）** |
+| **v0.96.569** | WayCoder / 道码 | **都来码 / Dolaima**（全球发售前回避与韩国 Waycoder co., ltd. 的商标冲突） |
+
+⚠ **改的只是「用户看见的品牌名」** —— 代码里的技术名一概没动（动了会牵动全仓路径与配置）：
+
+- 代码命名空间、仓库目录、工程名仍是 `WayCoder` / `WayCoder.Maui`
+- **可执行文件仍是 `waycoder.exe`**（命令示例里写的还是 `waycoder`）
+- 环境变量前缀仍是 `WAYCODER_*`
+- App Store 包名是 `com.tanso.dolaima`
+
+也就是说：**文档里的 `waycoder` 命令、`WayCoder/` 路径照旧**，只有「这个产品叫什么」变成了**都来码（Dolaima）**。
 
 ## 这是什么
 
-WayCoder（道码）是一个中文版多智能体经济型编程智能体。把 Claude Code、OpenCode、Crush、Codex、Cursor 这类工具吸取各家特长有点，综合制作的本智能体软件。本代码完全使用 C# .NET10 Native AOT 构建，包含了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查、Watch 模式等多项功能。拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
+都来码（Dolaima）是一个中文版多智能体经济型编程智能体。把 Claude Code、OpenCode、Crush、Codex、Cursor 这类工具吸取各家特长有点，综合制作的本智能体软件。本代码完全使用 C# .NET10 Native AOT 构建，包含了权限确认、Git 集成、Web 抓取、LSP 代码导航、记忆系统、后台任务、代码审查、Watch 模式等多项功能。拷贝到任何 Windows 机器上直接运行，无需安装 .NET 运行时。
 
 ## 先跑一次
 
@@ -87,7 +98,7 @@ WayCoder --connect test                   # 连通性测试全部 connect（端�
 # LLM 请求按能力门控：不支持 tools 不发 schema、不支持 thinking 不发 reasoning；旧文件无字段自动推断
 # OpenRouter 等在线导入模型列表显示短名（openai/gpt-5.4 → gpt-5.4），调用仍用完整 id
 
-# 自动升级（检查并自替换，优先 Gitee、回退 GitHub）
+# 自动升级（检查并自替换，优先 GitHub Releases、失败回退 Gitee）
 WayCoder --update
 
 # 批量任务引擎（多仓库并行处理，worktree 隔离）
@@ -319,7 +330,7 @@ quit / exit      退出（正常 Ctrl+C 保存退出 / 紧急 Ctrl+Q）
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp
 - **MCP 资源/提示词**：`resources/list` + `resources/read` 注册为 `mcp__<server>__resources` 读取工具、`prompts/list` + `prompts/get` 每个模板注册为 `mcp__<server>__prompt__<name>` 工具，对标 Claude Code MCP resources/prompts
 - **内置自动升级**：`/update` 检查、`/update now`/`--update` 自替换；版本检查走 **GitHub Releases**（发行渠道），失败回退 Gitee（环境变量可覆盖）；Windows 落 `.new`+`upgrade.bat` 退出后自动替换重启、Unix 原子 rename 覆盖运行中二进制（对标 Claude Code `claude update`）
-- **分发渠道**：**Gitee 存代码、GitHub 发行**——源码仓库在 Gitee（私有），Release 资产 / winget 清单 / brew formula / apt 仓库一律指向 GitHub。`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本 + GitHub Actions 发布工作流，详见 [docs/安装与升级.md](docs/安装与升级.md)
+- **分发渠道**：**Gitee 存代码、GitHub 发行**——源码仓库在 Gitee（私有），Release 资产 / winget 清单 / brew formula / apt 仓库一律指向 GitHub；发行包由本机 `scripts/release.sh` 编译（**仓库不用 CI**）。`packaging/` 提供 winget manifest / Homebrew formula / apt `.deb` 打包脚本，详见 [docs/安装与升级.md](docs/安装与升级.md)
 - **多模态（图片 + 音频）**：`view_image` 附加本地图片让 vision 模型「看图」、`transcribe` 把音频转成文字（Whisper 兼容 API）——补齐图片与音频两种多模态输入，对标 Codex CLI / Gemini CLI
 - **批量任务引擎**：`--batch`/`--batch-repo` 多仓库并行处理，每个任务 `git clone` 到独立副本 + 子进程 `-p` 一次性模式执行（worktree 隔离），聚合报告 + 退出码，对标 Cursor 批量修复 / Aider 多仓库脚本
 - **编译期插件系统**：`IPlugin` SDK——`WayCoder/Plugins/` 目录放一个 `.cs` 文件 + `[ModuleInitializer]` 自动注册，即可贡献工具（`ITool`）与斜杠命令（`ISlashCommand`），AOT 无反射、随单文件 exe 分发，详见 [docs/插件系统.md](docs/插件系统.md)
